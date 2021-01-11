@@ -29,13 +29,13 @@ import nl.grons.metrics4.scala.DefaultInstrumented
 import nl.grons.metrics4.scala.Counter
 import nl.grons.metrics4.scala.MetricName
 
-import io.syspulse.skeleton.Routeable
+import io.syspulse.skel.Routeable
 import io.syspulse.auth.otp.OtpRegistry._
 
 @Path("/api/v1/otp")
 class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system: ActorSystem[_]) extends DefaultInstrumented with Routeable {
   val log = Logger(s"${this}")  
-  
+
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import OtpJson._
   

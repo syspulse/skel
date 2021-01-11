@@ -14,7 +14,7 @@ import scala.jdk.CollectionConverters._
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.Logger
 
-import io.syspulse.skeleton.{Store,StoreDB}
+import io.syspulse.skel.{Store,StoreDB}
 
 class OtpStoreDB extends StoreDB[Otp]("db") with OtpStore {
   import ctx._

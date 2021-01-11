@@ -1,5 +1,4 @@
-package io.syspulse.skeleton
-
+package io.syspulse.skel
 
 import spray.json.DefaultJsonProtocol
 

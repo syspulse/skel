@@ -1,4 +1,4 @@
-package io.syspulse.skeleton
+package io.syspulse.skel
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.StatusCodes
@@ -24,7 +24,7 @@ import javax.ws.rs.core.MediaType
 
 
 
-import io.syspulse.skeleton.TelemetryRegistry._
+import io.syspulse.skel.TelemetryRegistry._
 
 @Path("/api/v1/telemetry")
 class TelemetryRoutes(telemetryRegistry: ActorRef[TelemetryRegistry.Command])(implicit val system: ActorSystem[_]) {

@@ -1,6 +1,6 @@
 package io.syspulse.auth.user
 
-import io.syspulse.skeleton.JsonCommon
+import io.syspulse.skel.JsonCommon
 import io.syspulse.auth.user.UserRegistry._
 
 import spray.json.DefaultJsonProtocol

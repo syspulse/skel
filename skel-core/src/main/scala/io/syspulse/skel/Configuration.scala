@@ -1,4 +1,4 @@
-package io.syspulse.skeleton
+package io.syspulse.skel
 
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory

@@ -1,4 +1,4 @@
-package io.syspulse.skeleton
+package io.syspulse.skel
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.ActorRef

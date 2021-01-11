@@ -1,4 +1,4 @@
-package io.syspulse.skeleton
+package io.syspulse.skel
 
 import java.time._
 import java.time.format._

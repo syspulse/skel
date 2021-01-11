@@ -1,4 +1,4 @@
-package io.syspulse.skeleton
+package io.syspulse.skel
 
 import com.github.swagger.akka.SwaggerHttpService
 import com.github.swagger.akka.model.Info

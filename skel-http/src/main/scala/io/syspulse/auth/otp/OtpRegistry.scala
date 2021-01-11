@@ -20,7 +20,7 @@ final case class OtpCreate(secret: String,name:String, uri:String, period:Option
 
 object OtpRegistry extends DefaultInstrumented  {
   
-  sealed trait Command extends io.syspulse.skeleton.Command
+  sealed trait Command extends io.syspulse.skel.Command
 
   final case class GetOtps(replyTo: ActorRef[Otps]) extends Command
   final case class GetOtp(id:UUID,replyTo: ActorRef[GetOtpResponse]) extends Command
@@ -35,12 +35,12 @@ object OtpRegistry extends DefaultInstrumented  {
   // this var reference is unfortunately needed for Metrics access
   var store: OtpStore = new OtpStoreDB //new OtpStoreCache
 
-  def apply(): Behavior[io.syspulse.skeleton.Command] = registry(store)
+  def apply(): Behavior[io.syspulse.skel.Command] = registry(store)
 
   override lazy val metricBaseName = MetricName("")
   metrics.gauge("otp-count") { store.size }
 
-  private def registry(store: OtpStore): Behavior[io.syspulse.skeleton.Command] = {
+  private def registry(store: OtpStore): Behavior[io.syspulse.skel.Command] = {
     this.store = store
 
     Behaviors.receiveMessage {

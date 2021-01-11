@@ -1,4 +1,4 @@
-package io.syspulse.skeleton
+package io.syspulse.skel
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
@@ -13,7 +13,7 @@ final case class Telemetries(telemetries: immutable.Seq[Telemetry])
 
 object TelemetryRegistry extends DefaultInstrumented {
   
-  sealed trait Command extends io.syspulse.skeleton.Command
+  sealed trait Command extends io.syspulse.skel.Command
 
   final case class GetTelemetries(replyTo: ActorRef[Telemetries]) extends Command
   final case class GetTelemetry(key:String,replyTo: ActorRef[GetTelemetryResponse]) extends Command

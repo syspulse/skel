@@ -12,7 +12,7 @@ import akka.actor.typed.scaladsl.AskPattern._
 import akka.util.Timeout
 import com.typesafe.scalalogging.Logger
 
-import io.syspulse.skeleton.Routeable
+import io.syspulse.skel.Routeable
 
 class UserRoutes(userRegistry: ActorRef[UserRegistry.Command])(implicit val system: ActorSystem[_]) extends Routeable  {
   val log = Logger(s"${this}")  

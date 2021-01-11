@@ -6,7 +6,7 @@ import scala.collection.immutable
 
 import io.jvm.uuid._
 
-import io.syspulse.skeleton.Store
+import io.syspulse.skel.Store
 
 trait OtpStore extends Store[Otp] {
   

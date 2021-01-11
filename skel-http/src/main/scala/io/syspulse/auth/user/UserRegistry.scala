@@ -9,7 +9,7 @@ final case class Users(users: immutable.Seq[User])
 
 object UserRegistry {
   
-  sealed trait Command extends io.syspulse.skeleton.Command
+  sealed trait Command extends io.syspulse.skel.Command
 
   final case class GetUsers(replyTo: ActorRef[Users]) extends Command
   final case class CreateUser(user: User, replyTo: ActorRef[ActionPerformed]) extends Command
@@ -19,9 +19,9 @@ object UserRegistry {
   final case class GetUserResponse(maybeUser: Option[User])
   final case class ActionPerformed(description: String)
 
-  def apply(): Behavior[io.syspulse.skeleton.Command] = registry(Set.empty)
+  def apply(): Behavior[io.syspulse.skel.Command] = registry(Set.empty)
 
-  private def registry(users: Set[User]): Behavior[io.syspulse.skeleton.Command] =
+  private def registry(users: Set[User]): Behavior[io.syspulse.skel.Command] =
     Behaviors.receiveMessage {
       case GetUsers(replyTo) =>
         replyTo ! Users(users.toSeq)

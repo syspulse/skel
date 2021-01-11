@@ -1,6 +1,6 @@
 package io.syspulse.auth.otp
 
-import io.syspulse.skeleton.JsonCommon
+import io.syspulse.skel.JsonCommon
 import io.syspulse.auth.otp.OtpRegistry._
 
 import spray.json.DefaultJsonProtocol

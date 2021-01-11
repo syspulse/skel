@@ -1,6 +1,6 @@
-package io.syspulse.skeleton
+package io.syspulse.skel
 
-import io.syspulse.skeleton.TelemetryRegistry._
+import io.syspulse.skel.TelemetryRegistry._
 
 import spray.json.DefaultJsonProtocol
 

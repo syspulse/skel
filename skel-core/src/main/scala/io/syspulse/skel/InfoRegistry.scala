@@ -1,4 +1,4 @@
-package io.syspulse.skeleton
+package io.syspulse.skel
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
@@ -14,7 +14,7 @@ final case class Environment(variables:Set[Var])
 
 object InfoRegistry {
   
-  sealed trait Command extends io.syspulse.skeleton.Command
+  sealed trait Command extends io.syspulse.skel.Command
 
   final case class GetInfo(replyTo: ActorRef[Info]) extends Command
   final case class SetHealth(health:Health,replyTo: ActorRef[Info]) extends Command

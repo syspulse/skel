@@ -28,12 +28,12 @@ import io.confluent.kafka.serializers._
 
 import scala.jdk.CollectionConverters._
 
-import io.syspulse.skeleton
-import io.syspulse.skeleton.{Configuration,ConfigurationAkka,ConfigurationEnv}
+import io.syspulse.skel
+import io.syspulse.skel.{Configuration,ConfigurationAkka,ConfigurationEnv}
 
 trait KafkaClient {
   val log = Logger(s"${this}")
-    
+
   implicit val system = ActorSystem("ActorSystem-KafkaClient")
 
 }

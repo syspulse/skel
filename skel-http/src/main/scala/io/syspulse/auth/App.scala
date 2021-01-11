@@ -1,7 +1,7 @@
 package io.syspulse.auth
 
-import io.syspulse.skeleton
-import io.syspulse.skeleton.{Configuration,ConfigurationAkka,ConfigurationEnv}
+import io.syspulse.skel
+import io.syspulse.skel.{Configuration,ConfigurationAkka,ConfigurationEnv}
 import io.syspulse.auth.otp.{OtpRegistry,OtpRoutes}
 import io.syspulse.auth.user.{UserRegistry,UserRoutes}
 
@@ -12,7 +12,7 @@ case class Config(
   port:Int=0
 )
 
-object App extends skeleton.Server {
+object App extends skel.Server {
   
   def main(args:Array[String]) = {
     println(s"Args: '${args.mkString(",")}'")

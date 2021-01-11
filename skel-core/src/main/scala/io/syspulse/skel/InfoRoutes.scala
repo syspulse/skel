@@ -1,4 +1,4 @@
-package io.syspulse.skeleton
+package io.syspulse.skel
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.StatusCodes
@@ -27,7 +27,7 @@ import javax.ws.rs.core.MediaType
 
 
 
-import io.syspulse.skeleton.InfoRegistry._
+import io.syspulse.skel.InfoRegistry._
 
 @Path("/api/v1/info")
 class InfoRoutes(infoRegistry: ActorRef[InfoRegistry.Command])(implicit val system: ActorSystem[_]) {
