@@ -92,7 +92,7 @@ lazy val core = (project in file("skel-core"))
   .settings (
       shared,
       name := "skel-core",
-      libraryDependencies ++= libAkka ++ libHttp ++ libCommon ++ libSkel ++ libTest ++ Seq(),
+      libraryDependencies ++= libAkka ++ libHttp ++ libCommon ++ libSkel ++ libDB ++ libTest ++ Seq(),
     )
 
 lazy val http= (project in file("skel-http"))

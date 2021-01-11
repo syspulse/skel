@@ -6,7 +6,9 @@ import scala.collection.immutable
 
 import io.jvm.uuid._
 
-trait OtpStore  {
+import io.syspulse.skeleton.Store
+
+trait OtpStore extends Store[Otp] {
   
   def +(otp:Otp):Try[OtpStore]
   def -(otp:Otp):Try[OtpStore]
