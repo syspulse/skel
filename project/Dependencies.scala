@@ -1,0 +1,74 @@
+import sbt._
+
+object Dependencies {
+
+    // Versions
+    lazy val versionScalaLogging = "3.9.2"
+    lazy val akkaVersion    = "2.6.10"  
+    lazy val akkaHttpVersion = "10.2.1"
+    lazy val akkaKafkaVersion = "2.0.3"
+    lazy val kafkaAvroSerVersion = "5.4.1"
+    lazy val quillVersion = "3.6.0"
+    
+    lazy val appNameHttp = "skel-http"
+    lazy val appBootClassHttp = "io.syspulse.auth.App"
+    lazy val appNameKafka = "skel-kafka"
+    lazy val appBootClassKafka = "io.syspulse.skel.kafka.App"
+
+    lazy val appVersion = "0.0.1"
+    lazy val jarPrefix = "server-"
+    
+    lazy val appDockerRoot = "/app"
+
+    // Akka Libraries
+    val libAkkaActor =      "com.typesafe.akka"           %% "akka-actor"           % akkaVersion
+    val libAkkaActorTyped = "com.typesafe.akka"           %% "akka-actor-typed"     % akkaVersion
+    val libAkkaCluster =    "com.typesafe.akka"           %% "akka-cluster"         % akkaVersion
+    val libAkkaHttp =       "com.typesafe.akka"           %% "akka-http"            % akkaHttpVersion
+    val libAkkaHttpSpray =  "com.typesafe.akka"           %% "akka-http-spray-json" % akkaHttpVersion
+    val libAkkaStream =     "com.typesafe.akka"           %% "akka-stream"          % akkaVersion
+
+    val libAkkaProtobuf =   "com.typesafe.akka"           %% "akka-protobuf"        % akkaVersion
+    val libAkkaKafka=       "com.typesafe.akka"           %% "akka-stream-kafka"    % akkaKafkaVersion
+
+    val libScalaLogging =   "com.typesafe.scala-logging"  %% "scala-logging"        % "3.9.2"
+    val libLogback =        "ch.qos.logback"              %  "logback-classic"      % "1.2.3"
+
+    val libQuill =          "io.getquill"                 %% "quill-jdbc"           % "3.5.2"
+    val libMySQL =          "mysql"                       %  "mysql-connector-java" % "8.0.22"
+
+    val libScalaTest =      "org.scalatest"               %% "scalatest"            % "3.1.2" % Test
+    //val libSpecs2core =     "org.specs2"                  %% "specs2-core"          % "2.4.17"
+
+    val libTypesafeConfig = "com.typesafe"                %  "config"               % "1.4.1"
+      
+    val libWsRs =           "javax.ws.rs"                 % "javax.ws.rs-api"       % "2.0.1"
+    val libSwaggerAkkaHttp ="com.github.swagger-akka-http" %% "swagger-akka-http"   % "2.3.0"
+    val libMetrics =        "nl.grons"                    %% "metrics4-scala"       % "4.1.14"
+
+      // "org.backuity.clist" %% "clist-core"               % "3.5.1",
+      // "org.backuity.clist" %% "clist-macros"             % "3.5.1" % "provided",
+    val libScopt =          "com.github.scopt"            %% "scopt"                % "4.0.0"
+
+    val libUUID =           "io.jvm.uuid"                 %% "scala-uuid"           % "0.3.1"
+
+    val libKafkaAvroSer =   "io.confluent"                % "kafka-avro-serializer" % kafkaAvroSerVersion
+
+    val libAkkaTestkit =    "com.typesafe.akka"           %% "akka-http-testkit"    % akkaHttpVersion % Test
+    val libAkkaTestkitType ="com.typesafe.akka"           %% "akka-actor-testkit-typed" % akkaVersion % Test
+    
+    //val libJline =          "org.jline"                   %  "jline"                 % "3.14.1"
+    //val libJson4s =         "org.json4s"                  %%  "json4s-native"        % "3.6.7"
+    //val libOsLib = "com.lihaoyi" %% "os-lib" % "0.7.1"
+
+    // Projects
+    val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
+    val libHttp = Seq(libAkkaHttp,libAkkaHttpSpray)
+    val libCommon = Seq(libScalaLogging, libLogback, libTypesafeConfig )
+    val libTest = Seq(libScalaTest,libAkkaTestkit,libAkkaTestkitType)
+
+    val libSkel = Seq(libWsRs,libSwaggerAkkaHttp,libMetrics,libScopt,libUUID)
+
+    val libDB = Seq(libQuill,libMySQL)
+  }
+  
