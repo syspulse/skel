@@ -13,7 +13,6 @@ import nl.grons.metrics4.scala.MetricName
 
 
 final case class OtpCode(id:UUID,code: String)
-final case class Otp(id:UUID, secret: String,name:String, uri:String, period:Int)
 final case class Otps(otps: immutable.Seq[Otp])
 
 // create Otp Parameters

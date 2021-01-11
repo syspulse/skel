@@ -32,7 +32,7 @@ class UserRoutes(userRegistry: ActorRef[UserRegistry.Command])(implicit val syst
     userRegistry.ask(DeleteUser(name, _))
 
   override val routes: Route =
-    pathPrefix("users") {
+    pathPrefix("user") {
       concat(
         pathEndOrSingleSlash {
           concat(
