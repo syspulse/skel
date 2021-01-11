@@ -10,10 +10,12 @@ import akka.actor.typed.ActorRef
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.util.Timeout
+import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skeleton.Routeable
 
 class UserRoutes(userRegistry: ActorRef[UserRegistry.Command])(implicit val system: ActorSystem[_]) extends Routeable  {
+  val log = Logger(s"${this}")  
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import UserJson._

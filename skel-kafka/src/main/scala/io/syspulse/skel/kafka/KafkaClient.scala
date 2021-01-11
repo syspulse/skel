@@ -16,7 +16,9 @@ import akka.stream.ActorMaterializer
 import akka.stream._
 import akka.stream.scaladsl._
 
-import scala.concurrent.ExecutionContext.Implicits.global 
+import com.typesafe.scalalogging.Logger
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import io.confluent.kafka.serializers.{AbstractKafkaAvroSerDeConfig, KafkaAvroDeserializer, KafkaAvroSerializer}
 import org.apache.avro.specific.SpecificRecord
@@ -30,6 +32,8 @@ import io.syspulse.skeleton
 import io.syspulse.skeleton.{Configuration,ConfigurationAkka,ConfigurationEnv}
 
 trait KafkaClient {
+  val log = Logger(s"${this}")
+    
   implicit val system = ActorSystem("ActorSystem-KafkaClient")
 
 }

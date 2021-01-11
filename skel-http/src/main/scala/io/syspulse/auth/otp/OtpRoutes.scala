@@ -13,8 +13,8 @@ import akka.util.Timeout
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.RejectionHandler
 import akka.http.scaladsl.model.StatusCodes._
+import com.typesafe.scalalogging.Logger
 
-//import java.util.UUID
 import io.jvm.uuid._
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn
@@ -34,7 +34,8 @@ import io.syspulse.auth.otp.OtpRegistry._
 
 @Path("/api/v1/otp")
 class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system: ActorSystem[_]) extends DefaultInstrumented with Routeable {
-
+  val log = Logger(s"${this}")  
+  
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import OtpJson._
   

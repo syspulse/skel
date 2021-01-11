@@ -51,15 +51,16 @@ object OtpRegistry extends DefaultInstrumented  {
       case CreateOtp(otpCreate, replyTo) =>
         val id = UUID.randomUUID()
         val otp = Otp(id,otpCreate.secret,otpCreate.name,otpCreate.uri,otpCreate.period.getOrElse(30))
-        replyTo ! OtpActionPerformed(s"OTP: ${otp} created.")
-        registry(store.+(otp))
+        val store1 = store.+(otp)
+        replyTo ! OtpActionPerformed(s"${store1}")
+        registry(store1.getOrElse(store))
       case GetOtp(id, replyTo) =>
         replyTo ! GetOtpResponse(store.get(id))
         Behaviors.same
       case DeleteOtp(id, replyTo) =>
         val store1 = store.-(id)
-        replyTo ! OtpActionPerformed(s"OTP: ${id} deleted")
-        registry(store1)
+        replyTo ! OtpActionPerformed(s"${id}: ${store1}")
+        registry(store1.getOrElse(store))
     }
   }
 }
