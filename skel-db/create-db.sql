@@ -1,0 +1,3 @@
+CREATE DATABASE IF NOT EXISTS otp_db;
+CREATE USER IF NOT EXISTS 'otp_user'@'%' IDENTIFIED BY 'otp_user';
+

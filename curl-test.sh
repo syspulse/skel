@@ -1,7 +1,9 @@
 #!/bin/bash
 
-curl -H "Content-type: application/json" -X POST -d '{"secret": "123456", "name": "app3", "uri": "http://1"}' http://localhost:8080/api/v1/otp
+PORT=8083
 
-curl http://localhost:8080/api/v1/otp
+curl -H "Content-type: application/json" -X POST -d '{"secret": "123456", "name": "app3", "uri": "http://1"}' http://localhost:$PORT/api/v1/otp |jq
 
-#curl http://localhost:8080/api/v1/otp/a5cca1c1-2266-47f0-b211
+curl http://localhost:$PORT/api/v1/otp | jq
+
+#curl http://localhost:$PORT/api/v1/otp/a5cca1c1-2266-47f0-b211
