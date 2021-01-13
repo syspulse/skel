@@ -28,7 +28,9 @@ Configuration reading priority can be customized. Default:
 1. Command Line arguments
 2. Environment Variables (easiest to pass into Docker)
 3. JVM properties
-4. HOCON style Typesafe configuration file (application.conf).
+4. HOCON style Typesafe configuration file (application.conf). 
+   Configuration file can be customized with __$SITE__ to choose specific site/environment (e.g. __SITE=tidb__ would load __application-tidb.conf__)
+   Default File location is __conf/__
 
 __Example__:
 
