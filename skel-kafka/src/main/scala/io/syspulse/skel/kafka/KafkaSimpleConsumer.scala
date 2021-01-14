@@ -28,7 +28,7 @@ import io.confluent.kafka.serializers._
 import scala.jdk.CollectionConverters._
 
 import io.syspulse.skel
-import io.syspulse.skel.{Configuration,ConfigurationAkka,ConfigurationEnv,Util}
+import io.syspulse.skel.util.Util
 
 trait KafkaSimpleConsumer extends KafkaClient {
   

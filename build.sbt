@@ -79,8 +79,8 @@ val sharedAssembly = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(core, http, kafka)
-  .dependsOn(core, http, kafka)
+  .aggregate(core, http, user, kafka)
+  .dependsOn(core, http, user, kafka)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -95,20 +95,37 @@ lazy val core = (project in file("skel-core"))
       libraryDependencies ++= libAkka ++ libHttp ++ libCommon ++ libSkel ++ libDB ++ libTest ++ Seq(),
     )
 
-lazy val http= (project in file("skel-http"))
+lazy val http = (project in file("skel-http"))
   .dependsOn(core)
   .settings (
     shared,
     sharedAssembly,
 
     name := appNameHttp,
-    libraryDependencies ++= libHttp ++ libDB ++ Seq(
+    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
       
     ),
     
     mainClass in run := Some(appBootClassHttp),
     mainClass in assembly := Some(appBootClassHttp),
     assemblyJarName in assembly := jarPrefix + appNameHttp + "-" + "assembly" + "-"+  appVersion + ".jar",
+
+  )
+
+lazy val user = (project in file("skel-user"))
+  .dependsOn(core)
+  .settings (
+    shared,
+    sharedAssembly,
+
+    name := appNameUser,
+    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
+      
+    ),
+    
+    mainClass in run := Some(appBootClassHttp),
+    mainClass in assembly := Some(appBootClassHttp),
+    assemblyJarName in assembly := jarPrefix + appNameUser + "-" + "assembly" + "-"+  appVersion + ".jar",
 
   )
 

@@ -6,7 +6,7 @@ import scala.concurrent.duration.{Duration,FiniteDuration}
 import scopt.OParser
 
 import io.syspulse.skel
-import io.syspulse.skel.{Configuration,ConfigurationAkka,ConfigurationEnv}
+import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv}
 
 
 case class Config(

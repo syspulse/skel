@@ -12,6 +12,8 @@ object Dependencies {
     
     lazy val appNameHttp = "skel-http"
     lazy val appBootClassHttp = "io.syspulse.auth.App"
+    lazy val appNameUser = "skel-user"
+    lazy val appBootClassUser = "io.syspulse.user.App"
     lazy val appNameKafka = "skel-kafka"
     lazy val appBootClassKafka = "io.syspulse.skel.kafka.App"
 

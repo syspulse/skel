@@ -25,6 +25,11 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 
 
+import io.syspulse.skel.service.swagger.{Swagger}
+import io.syspulse.skel.service.telemetry.{TelemetryRegistry,TelemetryRoutes}
+import io.syspulse.skel.service.info.{InfoRegistry,InfoRoutes}
+import io.syspulse.skel.service.Routeable
+
 trait Server {
   
   private def startHttpServer(host:String,port:Int, routes: Route)(implicit system: ActorSystem[_]): Unit = {  
