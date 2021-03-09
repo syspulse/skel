@@ -1,8 +1,9 @@
-package io.syspulse.auth
+package io.syspulse.db.world
 
 import io.syspulse.skel
 import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv}
-import io.syspulse.skel.otp.{OtpRegistry,OtpRoutes,OtpStoreDB}
+
+import io.syspulse.skel.db.world.{CountryRegistry,CountryRoutes,CountryStoreDB}
 
 import scopt.OParser
 
@@ -20,7 +21,7 @@ object App extends skel.Server {
     val argsParser = {
       import builder._
       OParser.sequence(
-        programName("skel-http"), head("skel-http", "0.0.1"),
+        programName("skel-db-world"), head("skel-db-world", "0.0.1"),
         opt[String]('h', "host").action((x, c) => c.copy(host = x)).text("hostname"),
         opt[Int]('p', "port").action((x, c) => c.copy(port = x)).text("port"),
       )
@@ -39,7 +40,7 @@ object App extends skel.Server {
 
         run( config.host, config.port,
           Seq(
-            (OtpRegistry(new OtpStoreDB),"OtpRegistry",(actor,actorSystem ) => new OtpRoutes(actor)(actorSystem) ),
+            (CountryRegistry(new CountryStoreDB),"CountryRegistry",(actor,actorSystem ) => new CountryRoutes(actor)(actorSystem) ),
             
           )
         )

@@ -79,8 +79,8 @@ val sharedAssembly = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(core, http, auth, user, kafka)
-  .dependsOn(core, http, auth, user, kafka)
+  .aggregate(core, http, auth, user, kafka, db_world)
+  .dependsOn(core, http, auth, user, kafka, db_world)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -163,3 +163,20 @@ lazy val kafka= (project in file("skel-kafka"))
     assemblyJarName in assembly := jarPrefix + appNameKafka + "-" + "assembly" + "-"+ appVersion + ".jar",
 
   )  
+
+lazy val db_world = (project in file("skel-db-world"))
+  .dependsOn(core)
+  .settings (
+    shared,
+    sharedAssembly,
+
+    name := appNameDbWorld,
+    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
+      
+    ),
+    
+    mainClass in run := Some(appBootClassDbWorld),
+    mainClass in assembly := Some(appBootClassDbWorld),
+    assemblyJarName in assembly := jarPrefix + appNameDbWorld + "-" + "assembly" + "-"+  appVersion + ".jar",
+
+  )

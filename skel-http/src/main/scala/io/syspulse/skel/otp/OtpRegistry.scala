@@ -33,7 +33,7 @@ object OtpRegistry extends DefaultInstrumented  {
   final case class OtpActionPerformed(description: String,id:Option[UUID])
 
   // this var reference is unfortunately needed for Metrics access
-  var store: OtpStore = new OtpStoreDB //new OtpStoreCache
+  var store: OtpStore = null //new OtpStoreDB //new OtpStoreCache
 
   def apply(store: OtpStore = new OtpStoreCache): Behavior[io.syspulse.skel.Command] = {
     this.store = store

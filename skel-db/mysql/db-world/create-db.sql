@@ -1,0 +1,3 @@
+CREATE DATABASE IF NOT EXISTS world_db;
+CREATE USER IF NOT EXISTS 'world_user'@'%' IDENTIFIED BY 'world_pass';
+
