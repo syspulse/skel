@@ -7,6 +7,12 @@ Skeletons for RnD Prototypes
 
 ## Build & Run
 
+__Dev__
+```
+sbt
+~reStart
+```
+
 __Fat jar__
 ```
 sbt assembly

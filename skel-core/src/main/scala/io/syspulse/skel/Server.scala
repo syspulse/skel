@@ -85,8 +85,6 @@ trait Server {
           }
       }
 
-      // val userRoutes = new UserRoutes(userRegistryActor)(context.system)
-      // val otpRoutes = new OtpRoutes(otpRegistryActor)(context.system)
       val appServices:Seq[Routeable] = app.map{ case(behavior,name,routeFun) => {
           val actor:ActorRef[Command] = context.spawn(behavior, s"Actor-${name}")
           context.watch(actor)
