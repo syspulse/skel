@@ -5,7 +5,7 @@ cd $CWD
 test -e server-cred.sh && source server-cred.sh
 
 
-SITE=${:-SITE}
+SITE=${SITE:-}
 if [ "$SITE" != "" ]; then
    SITE="-"${SITE}
 fi
