@@ -36,7 +36,7 @@ class CountryStoreCache extends CountryStore {
   def get(id:UUID):Option[Country] = countrys.find(_.id == id)
 
   def getByName(name:String):Option[Country] = countrys.find( c => 
-    (if(name.size==2) c.short.compareToIgnoreCase(name)
+    (if(name.size==2) c.iso.compareToIgnoreCase(name)
     else c.name.compareToIgnoreCase(name)) == 0
   )
 

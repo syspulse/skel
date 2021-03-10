@@ -14,7 +14,7 @@ import nl.grons.metrics4.scala.MetricName
 
 final case class Countrys(countrys: immutable.Seq[Country])
 
-final case class CountryCreate(name:String, short:String)
+final case class CountryCreate(name:String, iso:String, localName:String="")
 
 object CountryRegistry extends DefaultInstrumented  {
   
@@ -54,7 +54,7 @@ object CountryRegistry extends DefaultInstrumented  {
         Behaviors.same
       case CreateCountry(countryCreate, replyTo) =>
         val id = UUID.randomUUID()
-        val country = Country(id,countryCreate.name,countryCreate.short)
+        val country = Country(id,countryCreate.name,countryCreate.iso,countryCreate.localName)
         val store1 = store.+(country)
         replyTo ! CountryActionPerformed(s"created",Some(id))
         registry(store1.getOrElse(store))

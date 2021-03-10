@@ -14,12 +14,13 @@ object CurrencyJson extends JsonCommon {
   
   import DefaultJsonProtocol._
 
-  implicit val dataCurrencyJsonFormat = jsonFormat2(Currency)
+  implicit val dataCurrencyJsonFormat = jsonFormat5(Currency)
 
   implicit val dataCurrencysJsonFormat = jsonFormat1(Currencys)
 
-  implicit val dataCurrencyCreateJsonFormat = jsonFormat2(CurrencyCreate)
+  implicit val dataCurrencyCreateJsonFormat = jsonFormat3(CurrencyCreate)
 
   implicit val dataCurrencyActionPerformedJsonFormat = jsonFormat2(CurrencyActionPerformed)
 
+  implicit val dataDeleteActionPerformedJsonFormat = jsonFormat2(DeleteActionPerformed)
 }

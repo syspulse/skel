@@ -4,6 +4,7 @@ import io.syspulse.skel
 import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv}
 
 import io.syspulse.skel.world.country.{CountryRegistry,CountryRoutes,CountryStoreDB}
+import io.syspulse.skel.world.currency.{CurrencyRegistry,CurrencyRoutes,CurrencyStoreDB}
 
 import scopt.OParser
 
@@ -41,7 +42,7 @@ object App extends skel.Server {
         run( config.host, config.port,
           Seq(
             (CountryRegistry(new CountryStoreDB),"CountryRegistry",(actor,actorSystem ) => new CountryRoutes(actor)(actorSystem) ),
-            
+            (CurrencyRegistry(new CurrencyStoreDB),"CurrencyRegistry",(actor,actorSystem ) => new CurrencyRoutes(actor)(actorSystem) ),
           )
         )
       }

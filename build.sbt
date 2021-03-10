@@ -172,7 +172,7 @@ lazy val world = (project in file("skel-world"))
 
     name := appNameWorld,
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
-      
+      libCsv
     ),
     
     mainClass in run := Some(appBootClassWorld),

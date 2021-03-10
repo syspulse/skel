@@ -68,6 +68,8 @@ object Dependencies {
     //val libJson4s =         "org.json4s"                  %%  "json4s-native"        % "3.6.7"
     //val libOsLib = "com.lihaoyi" %% "os-lib" % "0.7.1"
 
+    val libCsv =            "com.github.tototoshi"        %% "scala-csv"            % "1.3.7"
+    
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libHttp = Seq(libAkkaHttp,libAkkaHttpSpray)

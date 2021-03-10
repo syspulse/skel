@@ -1,4 +1,4 @@
-package io.syspulse.skel.world.currency
+package io.syspulse.skel.world.country
 
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import akka.http.scaladsl.marshalling.Marshal
@@ -9,7 +9,7 @@ import org.scalatest.{ Matchers, WordSpec }
 
 import io.jvm.uuid._
 
-import io.syspulse.skel.world.currency.CountryRegistry._
+import io.syspulse.skel.world.country.CountryRegistry._
 
 class CountryRoutesSpec extends WordSpec with Matchers with ScalaFutures with ScalatestRouteTest {
   
@@ -74,7 +74,7 @@ class CountryRoutesSpec extends WordSpec with Matchers with ScalaFutures with Sc
         val rsp = entityAs[Country]
         rsp.id should ===(testId)
         rsp.name should ===("Canada")
-        rsp.short should ===("CA")
+        rsp.iso should ===("CA")
       }
     }
 
@@ -128,7 +128,7 @@ class CountryRoutesSpec extends WordSpec with Matchers with ScalaFutures with Sc
 
         val rsp = entityAs[Country]
         rsp.name should ===("United States")
-        rsp.short should ===("US")
+        rsp.iso should ===("US")
       }
     }
 
@@ -142,7 +142,7 @@ class CountryRoutesSpec extends WordSpec with Matchers with ScalaFutures with Sc
 
         val rsp = entityAs[Country]
         rsp.name should ===("United States")
-        rsp.short should ===("US")
+        rsp.iso should ===("US")
       }
     }
 

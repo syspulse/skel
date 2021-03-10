@@ -2,15 +2,22 @@ package io.syspulse.skel.world.country
 
 import io.jvm.uuid._
 import io.syspulse.skel.world.country.Country
+import com.typesafe.scalalogging.Logger
 
 object CountryLoader {
+  val log = Logger(s"CountryLoader")
   
-  def fromResource(file:String="countries.txt"): Seq[Country] = {
+  def fromResource(file:String="countries.csv"): Seq[Country] = {
+    log.info(s"Loading from Resource: ${file}")
+
     val txt = scala.io.Source.fromResource(file).getLines()
-    txt.toSeq.map( s => {
-      val (name,short) = s.split("\\|").toList match { case s::n => (n.head,s)}
-      Country(UUID.randomUUID(), name,short)
+    val cc = txt.toSeq.map( s => {
+      val (name,iso) = s.split("\\|").toList match { case s::n => (n.head,s)}
+      Country(UUID.randomUUID(), name, iso, "")
     })
+
+    log.info(s"Loaded from Resource: ${file}: ${cc.size}")
+    cc
   }
 
 }
