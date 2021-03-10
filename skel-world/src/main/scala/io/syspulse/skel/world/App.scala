@@ -1,9 +1,9 @@
-package io.syspulse.db.world
+package io.syspulse.skel.world
 
 import io.syspulse.skel
 import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv}
 
-import io.syspulse.skel.db.world.{CountryRegistry,CountryRoutes,CountryStoreDB}
+import io.syspulse.skel.world.country.{CountryRegistry,CountryRoutes,CountryStoreDB}
 
 import scopt.OParser
 

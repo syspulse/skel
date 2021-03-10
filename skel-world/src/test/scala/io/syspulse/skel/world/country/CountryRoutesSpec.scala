@@ -1,4 +1,4 @@
-package io.syspulse.skel.db.world
+package io.syspulse.skel.world.currency
 
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import akka.http.scaladsl.marshalling.Marshal
@@ -9,7 +9,7 @@ import org.scalatest.{ Matchers, WordSpec }
 
 import io.jvm.uuid._
 
-import io.syspulse.skel.db.world.CountryRegistry._
+import io.syspulse.skel.world.currency.CountryRegistry._
 
 class CountryRoutesSpec extends WordSpec with Matchers with ScalaFutures with ScalatestRouteTest {
   

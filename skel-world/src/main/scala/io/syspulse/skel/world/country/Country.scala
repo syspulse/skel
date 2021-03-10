@@ -1,4 +1,4 @@
-package io.syspulse.skel.db.world
+package io.syspulse.skel.world.country
 
 import scala.collection.immutable
 

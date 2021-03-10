@@ -1,8 +1,8 @@
-package io.syspulse.skel.db.world
+package io.syspulse.skel.world.country
 
 import io.syspulse.skel.service.JsonCommon
 
-import io.syspulse.skel.db.world.CountryRegistry._
+import io.syspulse.skel.world.country.CountryRegistry._
 
 import spray.json.DefaultJsonProtocol
 

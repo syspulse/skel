@@ -1,8 +1,8 @@
-package io.syspulse.skel.db.world
+package io.syspulse.skel.world.currency
 
 import io.syspulse.skel.service.JsonCommon
 
-import io.syspulse.skel.db.world.CurrencyRegistry._
+import io.syspulse.skel.world.currency.CurrencyRegistry._
 
 import spray.json.DefaultJsonProtocol
 

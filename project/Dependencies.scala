@@ -19,8 +19,8 @@ object Dependencies {
     lazy val appNameKafka = "skel-kafka"
     lazy val appBootClassKafka = "io.syspulse.skel.kafka.App"
 
-    lazy val appNameDbWorld = "skel-db-world"
-    lazy val appBootClassDbWorld = "io.syspulse.db.world.App"
+    lazy val appNameWorld = "skel-world"
+    lazy val appBootClassWorld = "io.syspulse.skel.world.App"
 
     lazy val appVersion = "0.0.1"
     lazy val jarPrefix = "server-"

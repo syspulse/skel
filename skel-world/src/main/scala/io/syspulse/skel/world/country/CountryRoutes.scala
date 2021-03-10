@@ -1,4 +1,4 @@
-package io.syspulse.skel.db.world
+package io.syspulse.skel.world.country
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.StatusCodes
@@ -31,7 +31,7 @@ import nl.grons.metrics4.scala.MetricName
 
 import io.syspulse.skel.service.Routeable
 
-import io.syspulse.skel.db.world.CountryRegistry._
+import io.syspulse.skel.world.country.CountryRegistry._
 
 @Path("/api/v1/country")
 class CountryRoutes(countryRegistry: ActorRef[CountryRegistry.Command])(implicit val system: ActorSystem[_]) extends DefaultInstrumented with Routeable {

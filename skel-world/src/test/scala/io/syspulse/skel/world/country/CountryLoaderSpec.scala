@@ -1,11 +1,11 @@
-package io.syspulse.skel.db.world
+package io.syspulse.skel.world.currency
 
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{ Matchers, WordSpec }
 
 import io.jvm.uuid._
 
-import io.syspulse.skel.db.world.CountryLoader
+import io.syspulse.skel.world.currency.CountryLoader
 
 class CountryLoaderSpec extends WordSpec with Matchers with ScalaFutures {
   

@@ -1,4 +1,4 @@
-package io.syspulse.skel.db.world
+package io.syspulse.skel.world.currency
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior

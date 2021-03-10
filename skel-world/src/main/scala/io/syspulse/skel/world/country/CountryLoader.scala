@@ -1,7 +1,7 @@
-package io.syspulse.skel.db.world
+package io.syspulse.skel.world.country
 
 import io.jvm.uuid._
-import io.syspulse.skel.db.world.Country
+import io.syspulse.skel.world.country.Country
 
 object CountryLoader {
   
