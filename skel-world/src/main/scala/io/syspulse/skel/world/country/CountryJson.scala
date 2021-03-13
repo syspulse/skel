@@ -22,5 +22,5 @@ object CountryJson extends JsonCommon {
   
   implicit val dataCountryActionPerformedJsonFormat = jsonFormat2(CountryActionPerformed)
 
-  implicit val dataDeleteActionPerformedJsonFormat = jsonFormat2(DeleteActionPerformed)
+  implicit val dataClearActionPerformedJsonFormat = jsonFormat2(ClearActionPerformed)
 }

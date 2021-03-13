@@ -29,10 +29,10 @@ object CurrencyRegistry extends DefaultInstrumented  {
 
   final case class GetCurrencyResponse(currency: Option[Currency])
   final case class CurrencyActionPerformed(description: String,id:Option[UUID])
-  final case class DeleteActionPerformed(description: String,size:Long)
+  final case class ClearActionPerformed(description: String,size:Long)
 
-  final case class ReloadCurrencys(replyTo: ActorRef[Currencys]) extends Command
-  final case class DeleteCurrencys(replyTo: ActorRef[DeleteActionPerformed]) extends Command
+  final case class LoadCurrencys(replyTo: ActorRef[Currencys]) extends Command
+  final case class ClearCurrencys(replyTo: ActorRef[ClearActionPerformed]) extends Command
 
   // this var reference is unfortunately needed for Metrics access
   var store: CurrencyStore = null
@@ -72,14 +72,14 @@ object CurrencyRegistry extends DefaultInstrumented  {
         replyTo ! CurrencyActionPerformed(s"deleted",Some(id))
         registry(store1.getOrElse(store))
 
-      case ReloadCurrencys(replyTo) =>
-        replyTo ! Currencys(store.reloadAll)
+      case LoadCurrencys(replyTo) =>
+        replyTo ! Currencys(store.load)
         Behaviors.same
 
-      case DeleteCurrencys(replyTo) =>
+      case ClearCurrencys(replyTo) =>
         val size = store.size
-        val store1 = store.deleteAll
-        replyTo ! DeleteActionPerformed(s"ALL DELETED",size)
+        val store1 = store.clear
+        replyTo ! ClearActionPerformed(s"cleared",size)
         registry(store1.getOrElse(store))
     }
   }

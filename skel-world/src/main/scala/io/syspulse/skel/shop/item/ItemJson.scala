@@ -1,8 +1,8 @@
-package io.syspulse.skel.world.currency
+package io.syspulse.skel.shop.item
 
 import io.syspulse.skel.service.JsonCommon
 
-import io.syspulse.skel.world.currency.CurrencyRegistry._
+import io.syspulse.skel.shop.item.ItemRegistry._
 
 import spray.json.DefaultJsonProtocol
 
@@ -10,17 +10,17 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.Directives
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsString, JsValue, JsonFormat, deserializationError}
 
-object CurrencyJson extends JsonCommon {
+object ItemJson extends JsonCommon {
   
   import DefaultJsonProtocol._
 
-  implicit val dataCurrencyJsonFormat = jsonFormat5(Currency)
-
-  implicit val dataCurrencysJsonFormat = jsonFormat1(Currencys)
-
-  implicit val dataCurrencyCreateJsonFormat = jsonFormat3(CurrencyCreate)
-
-  implicit val dataCurrencyActionPerformedJsonFormat = jsonFormat2(CurrencyActionPerformed)
+  implicit val dataItemJsonFormat = jsonFormat4(Item)
+  
+  implicit val dataItemsJsonFormat = jsonFormat1(Items)
+  
+  implicit val dataItemCreateJsonFormat = jsonFormat3(ItemCreate)
+  
+  implicit val dataItemActionPerformedJsonFormat = jsonFormat2(ItemActionPerformed)
 
   implicit val dataClearActionPerformedJsonFormat = jsonFormat2(ClearActionPerformed)
 }

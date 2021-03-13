@@ -49,15 +49,15 @@ class CurrencyStoreDB extends StoreDB[Currency]("db","currency") with CurrencySt
     query[Currency].filter(o => o.id == id).delete
   } 
 
-  def reloadAll:Seq[Currency] = {
+  def load:Seq[Currency] = {
     val cc = CurrencyLoader.fromResource()
-    log.info(s"reload: ${cc.size}")
+    log.info(s"load: ${cc.size}")
     try {
       cc.foreach( c => ctx.run(query[Currency].insert(lift(c))))
       cc
     } catch {
       case e:Exception => {
-        log.warn(s"could not reload: ${e.getMessage()}")
+        log.warn(s"could not load: ${e.getMessage()}")
         Seq()
         //Failure(new Exception(s"could not reload: ${e}"))
       }
@@ -69,9 +69,9 @@ class CurrencyStoreDB extends StoreDB[Currency]("db","currency") with CurrencySt
     ctx.run(q)
   }
 
-  override def deleteAll:Try[CurrencyStore] = {
-    log.info(s"truncate: ")
-    clear()
+  override def clear:Try[CurrencyStore] = {
+    log.info(s"clear: ")
+    truncate()
     Success(this)
   }
 

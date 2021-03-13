@@ -48,8 +48,8 @@ class CountryRoutes(countryRegistry: ActorRef[CountryRegistry.Command])(implicit
   val metricGetCount: Counter = metrics.counter("country-get-count")
   val metricPostCount: Counter = metrics.counter("country-post-count")
   val metricDeleteCount: Counter = metrics.counter("country-delete-count")
-  val metricReloadCount: Counter = metrics.counter("country-reload-count")
-  val metricDeletesCount: Counter = metrics.counter("country-deletes-count")
+  val metricLoadCount: Counter = metrics.counter("country-load-count")
+  val metricClearCount: Counter = metrics.counter("country-clear-count")
 
 
   def getCountrys(): Future[Countrys] = countryRegistry.ask(GetCountrys)
@@ -57,13 +57,13 @@ class CountryRoutes(countryRegistry: ActorRef[CountryRegistry.Command])(implicit
   def getCountryByName(name: String): Future[GetCountryResponse] = countryRegistry.ask(GetCountryByName(name, _))
   def createCountry(countryCreate: CountryCreate): Future[CountryActionPerformed] = countryRegistry.ask(CreateCountry(countryCreate, _))
   def deleteCountry(id: UUID): Future[CountryActionPerformed] = countryRegistry.ask(DeleteCountry(id, _))
-  def reloadCountrys(): Future[Countrys] = countryRegistry.ask(ReloadCountrys)
-  def deleteCountrys(): Future[DeleteActionPerformed] = countryRegistry.ask(DeleteCountrys)
+  def loadCountrys(): Future[Countrys] = countryRegistry.ask(LoadCountrys)
+  def clearCountrys(): Future[ClearActionPerformed] = countryRegistry.ask(ClearCountrys)
 
 
   @GET @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("country"),summary = "Return Country by id",
-    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Country id (uuid)")),
+  @Operation(tags = Array("country"),summary = "Return Country by id/name",
+    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Country id (uuid) or name (short/long)")),
     responses = Array(new ApiResponse(responseCode="200",description = "Country returned",content=Array(new Content(schema=new Schema(implementation = classOf[Country])))))
   )
   def getCountryRoute(id: String) = get {
@@ -104,20 +104,20 @@ class CountryRoutes(countryRegistry: ActorRef[CountryRegistry.Command])(implicit
   }
 
   @DELETE @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("country"), summary = "Delete ALL Countrys",
+  @Operation(tags = Array("country"), summary = "Clear ALL Countrys",
     responses = Array(
       new ApiResponse(responseCode = "200", description = "All Countrys deleted",content = Array(new Content(schema = new Schema(implementation = classOf[CountryActionPerformed])))))
   )
-  def deleteCountrysRoute() = delete {
-    onSuccess(deleteCountrys()) { performed =>
-      metricDeletesCount += 1
+  def clearCountrysRoute() = delete {
+    onSuccess(clearCountrys()) { performed =>
+      metricClearCount += 1
       complete((StatusCodes.OK, performed))
     }
   }
 
   @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("country"),summary = "Create Country Secret",
+  @Operation(tags = Array("country"),summary = "Create Country",
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[CountryCreate])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "Country created",content = Array(new Content(schema = new Schema(implementation = classOf[CountryActionPerformed])))))
   )
@@ -130,27 +130,27 @@ class CountryRoutes(countryRegistry: ActorRef[CountryRegistry.Command])(implicit
     }
   }
 
-  @POST @Path("/reload") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("country"), summary = "Reload all Countrys",
+  @POST @Path("/load") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("country"), summary = "Load Countrys from file",
     responses = Array(
       new ApiResponse(responseCode = "200", description = "List of Countrys",content = Array(new Content(schema = new Schema(implementation = classOf[Countrys])))))
   )
-  def reloadCountrysRoute() = post {
-    metricReloadCount += 1
-    complete(reloadCountrys())
+  def loadCountrysRoute() = post {
+    metricLoadCount += 1
+    complete(loadCountrys())
   }
 
   override val routes: Route =
     pathPrefix("country") {
       concat(
-        path("reload") { 
-          reloadCountrysRoute()
+        path("load") { 
+          loadCountrysRoute()
         },
         pathEndOrSingleSlash {
           concat(
             getCountrysRoute(),
             createCountryRoute,
-            deleteCountrysRoute()
+            clearCountrysRoute()
           )
         },
         path(Segment) { id =>

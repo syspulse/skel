@@ -16,7 +16,7 @@ import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skel.store.{Store,StoreDB}
 
-class OtpStoreDB extends StoreDB[Otp]("db") with OtpStore {
+class OtpStoreDB extends StoreDB[Otp]("db","otp") with OtpStore {
 
   import ctx._
 

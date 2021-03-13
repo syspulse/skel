@@ -31,11 +31,9 @@ abstract class StoreDB[E](val dbConfigName:String,val tableName:String) extends 
   
   // Fucking MySQL does not support parameterized SELECT
   val total = () => quote { infix"""SELECT count(*) FROM ${lift(tableName)}""".as[Long] }
-  def truncate = ctx.executeAction(s"TRUNCATE TABLE ${tableName}")
+  def truncate() = ctx.executeAction(s"TRUNCATE TABLE ${tableName}")
 
   def size:Long = ctx.run(total())
-
-  def clear() = truncate
 
   // create Store
   create

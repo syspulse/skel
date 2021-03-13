@@ -69,6 +69,7 @@ object Dependencies {
     //val libOsLib = "com.lihaoyi" %% "os-lib" % "0.7.1"
 
     val libCsv =            "com.github.tototoshi"        %% "scala-csv"            % "1.3.7"
+    val libFaker =          "com.github.javafaker"        % "javafaker"             % "1.0.2"
     
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)

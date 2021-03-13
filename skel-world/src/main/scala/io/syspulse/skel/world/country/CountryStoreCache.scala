@@ -40,12 +40,12 @@ class CountryStoreCache extends CountryStore {
     else c.name.compareToIgnoreCase(name)) == 0
   )
 
-  def reloadAll:Seq[Country] = {
+  def load:Seq[Country] = {
     countrys = CountryLoader.fromResource().toSet
     getAll
   }
 
-  def deleteAll:Try[CountryStore] = {
+  def clear:Try[CountryStore] = {
     countrys = Set()
     Success(this)
   }

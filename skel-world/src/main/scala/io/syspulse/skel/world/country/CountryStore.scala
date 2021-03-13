@@ -18,7 +18,7 @@ trait CountryStore extends Store[Country] {
   def getAll:Seq[Country]
   def size:Long
 
-  def reloadAll:Seq[Country]
-  def deleteAll:Try[CountryStore]
+  def load:Seq[Country]
+  def clear:Try[CountryStore]
 }
 

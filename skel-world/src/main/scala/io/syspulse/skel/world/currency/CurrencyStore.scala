@@ -18,7 +18,7 @@ trait CurrencyStore extends Store[Currency] {
   def getAll:Seq[Currency]
   def size:Long
 
-  def reloadAll:Seq[Currency]
-  def deleteAll:Try[CurrencyStore]
+  def load:Seq[Currency]
+  def clear:Try[CurrencyStore]
 }
 

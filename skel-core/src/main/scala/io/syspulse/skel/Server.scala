@@ -4,6 +4,7 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.Behavior
+import akka.actor.typed.SupervisorStrategy
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.Directives._
@@ -29,13 +30,16 @@ import io.syspulse.skel.service.swagger.{Swagger}
 import io.syspulse.skel.service.telemetry.{TelemetryRegistry,TelemetryRoutes}
 import io.syspulse.skel.service.info.{InfoRegistry,InfoRoutes}
 import io.syspulse.skel.service.Routeable
+import scala.concurrent.duration._
+
 
 trait Server {
-  
+
   private def startHttpServer(host:String,port:Int, routes: Route)(implicit system: ActorSystem[_]): Unit = {  
     import system.executionContext
 
     val http = Http().newServerAt(host, port).bind(routes)
+
     http.onComplete {
       case Success(binding) =>
         val address = binding.localAddress
@@ -52,13 +56,12 @@ trait Server {
     
     def jsonEntity(json:String) = HttpEntity(ContentTypes.`application/json`, json)
 
-
-    val rootBehavior = Behaviors.setup[Nothing] { context =>
+    
+    val httpBehavior = Behaviors.setup[Nothing] { context =>
       val telemetryRegistryActor = context.spawn(TelemetryRegistry(), "Actor-TelemetryRegistry")
       val infoRegistryActor = context.spawn(InfoRegistry(), "Actor-InfoRegistry")
       context.watch(telemetryRegistryActor)
       context.watch(infoRegistryActor)
-
 
       val rejectionHandler = RejectionHandler.newBuilder()
         .handle { case MissingQueryParamRejection(param) =>
@@ -83,10 +86,15 @@ trait Server {
             context.system.log.error(s"Request '$uri' failed:",e)
             complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""["error": "${e}"]""")))
           }
+        // case e: Exception => complete(HttpResponse(InternalServerError))
       }
 
       val appServices:Seq[Routeable] = app.map{ case(behavior,name,routeFun) => {
-          val actor:ActorRef[Command] = context.spawn(behavior, s"Actor-${name}")
+          val survivingBehavior = Behaviors.supervise[Command] {
+            behavior  
+          }.onFailure[Exception](SupervisorStrategy.resume)
+
+          val actor:ActorRef[Command] = context.spawn(survivingBehavior, s"Actor-${name}")
           context.watch(actor)
           routeFun(actor,context.system) 
         }
@@ -117,11 +125,18 @@ trait Server {
       }
           
       Swagger.withClass(appClasses).withVersion("v1").withHost(host,port)
+    
+      // should not be here...
       startHttpServer(host, port, routes)(context.system)
+
       Behaviors.empty
     }
+    
+    val rootBehavior = { Behaviors.supervise[Nothing] { httpBehavior }}.onFailure[Exception](SupervisorStrategy.resume)
+    //.onFailure[Exception](SupervisorStrategy.restart.withLimit(maxNrOfRetries = 10, withinTimeRange = 10.seconds))
 
     val system = ActorSystem[Nothing](rootBehavior, "ActorSystem-HttpServer")
+    
   }
 }
 

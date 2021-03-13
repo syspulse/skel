@@ -106,8 +106,8 @@ class CountryRoutesSpec extends WordSpec with Matchers with ScalaFutures with Sc
       }
     }
 
-    "return all countrys for reload (POST /country/reload)" in {
-      val request = Post(uri = "/country/reload")
+    "return all countrys for load (POST /country/load)" in {
+      val request = Post(uri = "/country/load")
 
       request ~> routes ~> check {
         status should ===(StatusCodes.OK)
@@ -146,15 +146,15 @@ class CountryRoutesSpec extends WordSpec with Matchers with ScalaFutures with Sc
       }
     }
 
-    "deleteAll (DELETE /country)" in {
+    "clear (DELETE /country)" in {
       val request = Delete(uri = "/country")
 
       request ~> routes ~> check {
         status should ===(StatusCodes.OK)
 
         contentType should ===(ContentTypes.`application/json`)
-        val rsp = entityAs[DeleteActionPerformed]
-        rsp.description should startWith(s"""ALL DELETED""")
+        val rsp = entityAs[ClearActionPerformed]
+        rsp.description should startWith(s"""cleared""")
 
         //entityAs[String] should ===("""{"countrys":[]}""")
       }

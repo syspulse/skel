@@ -18,8 +18,8 @@ case "$CMD" in
    "list") 
       curl ${URL}/api/v1/country/
       ;;
-   "reload")
-      curl -X POST ${URL}/api/v1/country/reload
+   "load")
+      curl -X POST ${URL}/api/v1/country/load
       ;;
    "clean")
       curl -X DELETE ${URL}/api/v1/country

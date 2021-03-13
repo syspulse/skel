@@ -40,12 +40,12 @@ class CurrencyStoreCache extends CurrencyStore {
     else c.name.compareToIgnoreCase(name)) == 0
   )
 
-  def reloadAll:Seq[Currency] = {
+  def load:Seq[Currency] = {
     currencys = CurrencyLoader.fromResource().toSet
     getAll
   }
 
-  def deleteAll:Try[CurrencyStore] = {
+  def clear:Try[CurrencyStore] = {
     currencys = Set()
     Success(this)
   }

@@ -48,8 +48,8 @@ class CurrencyRoutes(currencyRegistry: ActorRef[CurrencyRegistry.Command])(impli
   val metricGetCount: Counter = metrics.counter("currency-get-count")
   val metricPostCount: Counter = metrics.counter("currency-post-count")
   val metricDeleteCount: Counter = metrics.counter("currency-delete-count")
-  val metricReloadCount: Counter = metrics.counter("currency-reload-count")
-  val metricDeletesCount: Counter = metrics.counter("currency-deletes-count")
+  val metricLoadCount: Counter = metrics.counter("currency-load-count")
+  val metricClearCount: Counter = metrics.counter("currency-clear-count")
 
 
   def getCurrencys(): Future[Currencys] = currencyRegistry.ask(GetCurrencys)
@@ -57,13 +57,13 @@ class CurrencyRoutes(currencyRegistry: ActorRef[CurrencyRegistry.Command])(impli
   def getCurrencyByName(name: String): Future[GetCurrencyResponse] = currencyRegistry.ask(GetCurrencyByName(name, _))
   def createCurrency(currencyCreate: CurrencyCreate): Future[CurrencyActionPerformed] = currencyRegistry.ask(CreateCurrency(currencyCreate, _))
   def deleteCurrency(id: UUID): Future[CurrencyActionPerformed] = currencyRegistry.ask(DeleteCurrency(id, _))
-  def reloadCurrencys(): Future[Currencys] = currencyRegistry.ask(ReloadCurrencys)
-  def deleteCurrencys(): Future[DeleteActionPerformed] = currencyRegistry.ask(DeleteCurrencys)
+  def loadCurrencys(): Future[Currencys] = currencyRegistry.ask(LoadCurrencys)
+  def clearCurrencys(): Future[ClearActionPerformed] = currencyRegistry.ask(ClearCurrencys)
 
 
   @GET @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("currency"),summary = "Return Currency by id",
-    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Currency id (uuid)")),
+  @Operation(tags = Array("currency"),summary = "Return Currency by id/name",
+    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Currency id (uuid) or name (short/long)")),
     responses = Array(new ApiResponse(responseCode="200",description = "Currency returned",content=Array(new Content(schema=new Schema(implementation = classOf[Currency])))))
   )
   def getCurrencyRoute(id: String) = get {
@@ -104,20 +104,20 @@ class CurrencyRoutes(currencyRegistry: ActorRef[CurrencyRegistry.Command])(impli
   }
 
   @DELETE @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("currency"), summary = "Delete ALL Currencys",
+  @Operation(tags = Array("currency"), summary = "Clear ALL Currencys",
     responses = Array(
       new ApiResponse(responseCode = "200", description = "All Currencys deleted",content = Array(new Content(schema = new Schema(implementation = classOf[CurrencyActionPerformed])))))
   )
-  def deleteCurrencysRoute() = delete {
-    onSuccess(deleteCurrencys()) { performed =>
-      metricDeletesCount += 1
+  def clearCurrencysRoute() = delete {
+    onSuccess(clearCurrencys()) { performed =>
+      metricClearCount += 1
       complete((StatusCodes.OK, performed))
     }
   }
 
   @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("currency"),summary = "Create Currency Secret",
+  @Operation(tags = Array("currency"),summary = "Create Currency",
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[CurrencyCreate])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "Currency created",content = Array(new Content(schema = new Schema(implementation = classOf[CurrencyActionPerformed])))))
   )
@@ -130,27 +130,27 @@ class CurrencyRoutes(currencyRegistry: ActorRef[CurrencyRegistry.Command])(impli
     }
   }
 
-  @POST @Path("/reload") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("currency"), summary = "Reload all Currencys",
+  @POST @Path("/load") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("currency"), summary = "Load Currencys from file",
     responses = Array(
       new ApiResponse(responseCode = "200", description = "List of Currencys",content = Array(new Content(schema = new Schema(implementation = classOf[Currencys])))))
   )
-  def reloadCurrencysRoute() = post {
-    metricReloadCount += 1
-    complete(reloadCurrencys())
+  def loadCurrencysRoute() = post {
+    metricLoadCount += 1
+    complete(loadCurrencys())
   }
 
   override val routes: Route =
     pathPrefix("currency") {
       concat(
-        path("reload") { 
-          reloadCurrencysRoute()
+        path("load") { 
+          loadCurrencysRoute()
         },
         pathEndOrSingleSlash {
           concat(
             getCurrencysRoute(),
             createCurrencyRoute,
-            deleteCurrencysRoute()
+            clearCurrencysRoute()
           )
         },
         path(Segment) { id =>

@@ -1,10 +1,9 @@
-package io.syspulse.skel.world
+package io.syspulse.skel.shop
 
 import io.syspulse.skel
 import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv}
 
-import io.syspulse.skel.world.country.{CountryRegistry,CountryRoutes,CountryStoreDB}
-import io.syspulse.skel.world.currency.{CurrencyRegistry,CurrencyRoutes,CurrencyStoreDB}
+import io.syspulse.skel.shop.item.{ItemRegistry,ItemRoutes,ItemStoreDB}
 
 import scopt.OParser
 
@@ -22,7 +21,7 @@ object App extends skel.Server {
     val argsParser = {
       import builder._
       OParser.sequence(
-        programName("skel-world"), head("skel-world", "0.0.1"),
+        programName("skel-shop"), head("skel-shop", "0.0.1"),
         opt[String]('h', "host").action((x, c) => c.copy(host = x)).text("hostname"),
         opt[Int]('p', "port").action((x, c) => c.copy(port = x)).text("port"),
       )
@@ -41,8 +40,8 @@ object App extends skel.Server {
 
         run( config.host, config.port,
           Seq(
-            (CountryRegistry(new CountryStoreDB),"CountryRegistry",(actor,actorSystem ) => new CountryRoutes(actor)(actorSystem) ),
-            (CurrencyRegistry(new CurrencyStoreDB),"CurrencyRegistry",(actor,actorSystem ) => new CurrencyRoutes(actor)(actorSystem) ),
+            (ItemRegistry(new ItemStoreDB),"ItemRegistry",(actor,actorSystem ) => new ItemRoutes(actor)(actorSystem) ),
+            //(Behaviors.supervise[io.syspulse.skel.Command] { ItemRegistry(new ItemStoreDB) }.onFailure[Exception](SupervisorStrategy.resume),"ItemRegistry",(actor,actorSystem ) => new ItemRoutes(actor)(actorSystem) ),
           )
         )
       }

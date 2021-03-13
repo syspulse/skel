@@ -29,10 +29,10 @@ object CountryRegistry extends DefaultInstrumented  {
 
   final case class GetCountryResponse(country: Option[Country])
   final case class CountryActionPerformed(description: String,id:Option[UUID])
-  final case class DeleteActionPerformed(description: String,size:Long)
+  final case class ClearActionPerformed(description: String,size:Long)
 
-  final case class ReloadCountrys(replyTo: ActorRef[Countrys]) extends Command
-  final case class DeleteCountrys(replyTo: ActorRef[DeleteActionPerformed]) extends Command
+  final case class LoadCountrys(replyTo: ActorRef[Countrys]) extends Command
+  final case class ClearCountrys(replyTo: ActorRef[ClearActionPerformed]) extends Command
 
   // this var reference is unfortunately needed for Metrics access
   var store: CountryStore = null
@@ -72,14 +72,14 @@ object CountryRegistry extends DefaultInstrumented  {
         replyTo ! CountryActionPerformed(s"deleted",Some(id))
         registry(store1.getOrElse(store))
 
-      case ReloadCountrys(replyTo) =>
-        replyTo ! Countrys(store.reloadAll)
+      case LoadCountrys(replyTo) =>
+        replyTo ! Countrys(store.load)
         Behaviors.same
 
-      case DeleteCountrys(replyTo) =>
+      case ClearCountrys(replyTo) =>
         val size = store.size
-        val store1 = store.deleteAll
-        replyTo ! DeleteActionPerformed(s"ALL DELETED",size)
+        val store1 = store.clear
+        replyTo ! ClearActionPerformed(s"cleared",size)
         registry(store1.getOrElse(store))
     }
   }

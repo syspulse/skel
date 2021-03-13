@@ -16,18 +16,27 @@ echo "SITE: ${SITE}"
 
 case "$CMD" in
    "list") 
-      curl ${URL}/api/v1/currency/
+      curl ${URL}/api/v1/item/
       ;;
    "load")
-      curl -X POST ${URL}/api/v1/currency/load
+      curl -X POST ${URL}/api/v1/item/load
+      ;;
+   "random")
+      count=${2:-10}
+      delay=${3:-100}
+      curl -X POST "${URL}/api/v1/item/load/random?count=${count}"
+      ;;
+   "random-get")
+      count=${2:-10}
+      curl ${URL}/api/v1/item/load/random?count=${count}
       ;;
    "clean")
-      curl -X DELETE ${URL}/api/v1/currency
+      curl -X DELETE ${URL}/api/v1/item
       ;;
    "get")
-      curl ${URL}/api/v1/currency/${2}
+      curl ${URL}/api/v1/item/${2}
       ;;
    *)
       echo "Country: ${1}"
-      curl ${URL}/api/v1/currency/${1}
+      curl ${URL}/api/v1/item/${1}
 esac
