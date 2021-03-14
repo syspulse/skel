@@ -2,6 +2,6 @@
 CWD=`echo $(dirname $(readlink -f $0))`
 cd $CWD
 
-SITE="world"
-exec ./run-app.sh skel-world io.syspulse.skel.world.App $@
+export SITE="shop"
+exec ./run-app.sh skel-world io.syspulse.skel.shop.App $@
 

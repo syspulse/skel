@@ -12,6 +12,8 @@ final case class Var(n:String,v:String)
 final case class Jvm(version:String,properties:Set[Var])
 final case class Environment(variables:Set[Var])
 
+import io.syspulse.skel.util.Util
+
 object InfoRegistry {
   
   sealed trait Command extends io.syspulse.skel.Command
@@ -26,9 +28,7 @@ object InfoRegistry {
     Behaviors.receiveMessage {
       
       case GetInfo(replyTo) =>
-        val p = getClass.getPackage
-        val name = p.getImplementationTitle
-        val version = p.getImplementationVersion
+        val (name,version) = Util.info
         val jvmVersion = {
           val v1 = Runtime.getRuntime.getClass.getPackage().getImplementationVersion()
           if(v1 != null)

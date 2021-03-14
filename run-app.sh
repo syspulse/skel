@@ -1,6 +1,6 @@
 #!/bin/bash                                                                                                                                                                                            
-CWD=`echo $(dirname $(readlink -f $0))`
-cd $CWD
+#CWD=`echo $(dirname $(readlink -f $0))`
+#cd $CWD
 
 test -e server-cred.sh && source server-cred.sh
 

@@ -12,6 +12,13 @@ object Util {
 
   def now:String = formatLong.format(LocalDateTime.now)
 
+  def info = {
+    val p = getClass.getPackage
+    val name = p.getImplementationTitle
+    val version = p.getImplementationVersion
+    (name,version)
+  }
+
 }
 
 

@@ -14,38 +14,42 @@ enablePlugins(JavaAppPackaging)
 enablePlugins(DockerPlugin)
 enablePlugins(AshScriptPlugin)
 //enablePlugins(JavaAppPackaging, AshScriptPlugin)
-maintainer := "Dev0 <dev0@syspulse.io>"
-dockerBaseImage := "openjdk:8-jre-alpine"
-dockerUpdateLatest := true
-dockerUsername := Some("syspulse")
-dockerExposedVolumes := Seq(s"${appDockerRoot}/logs",s"${appDockerRoot}/conf","/data")
-//dockerRepository := "docker.io"
-dockerExposedPorts := Seq(8080)
 
-defaultLinuxInstallLocation in Docker := appDockerRoot
 
-mappings in Universal += file("conf/application.conf") -> "conf/application.conf"
-mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml"
+// maintainer := "Dev0 <dev0@syspulse.io>"
+// dockerBaseImage := "openjdk:8-jre-alpine"
+// dockerUpdateLatest := true
+// dockerUsername := Some("syspulse")
+// dockerExposedVolumes := Seq(s"${appDockerRoot}/logs",s"${appDockerRoot}/conf","/data")
+// dockerExposedPorts := Seq(8080)
+// defaultLinuxInstallLocation in Docker := appDockerRoot
+// daemonUserUid in Docker := None
+// daemonUser in Docker := "daemon"
+
+//ThisBuild / mappings.in(ThisBuild,Universal) := Seq(file("conf/logback.xml") -> "conf/logback.xml")
+
+//mappings in Universal += file("conf/application.conf") -> "conf/application.conf"
+//mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml"
 bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf""""
 bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml""""
 
-// bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/application.conf""""
-// bashScriptExtraDefines += """addJava "-Dlogback.configurationFile=${app_home}/../conf/logback.xml""""
+val sharedConfigDocker = Seq(
+  maintainer := "Dev0 <dev0@syspulse.io>",
+  dockerBaseImage := "openjdk:8-jre-alpine",
+  dockerUpdateLatest := true,
+  dockerUsername := Some("syspulse"),
+  dockerExposedVolumes := Seq(s"${appDockerRoot}/logs",s"${appDockerRoot}/conf","/data"),
+  //dockerRepository := "docker.io",
+  dockerExposedPorts := Seq(8080),
 
-//s"${(defaultLinuxInstallLocation in Docker).value}/bin/${executableScriptName.value}")
-// dockerCommands ++= Seq(
-//   ExecCmd("RUN",
-//     "mv", 
-//      s"${(defaultLinuxInstallLocation in Docker).value}/conf",
-//      s"${(defaultLinuxInstallLocation in Docker).value}/${appName}/")
-// )
+  defaultLinuxInstallLocation in Docker := appDockerRoot,
 
-daemonUserUid in Docker := None
-daemonUser in Docker := "daemon"
+  daemonUserUid in Docker := None,
+  daemonUser in Docker := "daemon"
+)
 
-val shared = Seq(
-    //retrieveManaged := true,
-  
+val sharedConfig = Seq(
+    //retrieveManaged := true,  
     organization    := "io.syspulse",
     scalaVersion    := "2.13.3",
     name            := "skel",
@@ -77,7 +81,7 @@ val shared = Seq(
 // }
 
 
-val sharedAssembly = Seq(
+val sharedConfigAssembly = Seq(
   assemblyMergeStrategy in assembly := {
       case x if x.contains("module-info.class") => MergeStrategy.discard
       case x => {
@@ -103,13 +107,14 @@ lazy val root = (project in file("."))
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
-    shared,
+    sharedConfig,
+    sharedConfigDocker
   )
 
 lazy val core = (project in file("skel-core"))
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
-      shared,
+      sharedConfig,
       name := "skel-core",
       libraryDependencies ++= libAkka ++ libHttp ++ libCommon ++ libSkel ++ libDB ++ libTest ++ Seq(),
     )
@@ -117,8 +122,8 @@ lazy val core = (project in file("skel-core"))
 lazy val http = (project in file("skel-http"))
   .dependsOn(core)
   .settings (
-    shared,
-    sharedAssembly,
+    sharedConfig,
+    sharedConfigAssembly,
 
     name := appNameHttp,
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
@@ -134,8 +139,8 @@ lazy val http = (project in file("skel-http"))
 lazy val auth = (project in file("skel-auth"))
   .dependsOn(core)
   .settings (
-    shared,
-    sharedAssembly,
+    sharedConfig,
+    sharedConfigAssembly,
 
     name := appNameAuth,
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
@@ -151,8 +156,8 @@ lazy val auth = (project in file("skel-auth"))
 lazy val user = (project in file("skel-user"))
   .dependsOn(core)
   .settings (
-    shared,
-    sharedAssembly,
+    sharedConfig,
+    sharedConfigAssembly,
 
     name := appNameUser,
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
@@ -168,8 +173,8 @@ lazy val user = (project in file("skel-user"))
 lazy val kafka= (project in file("skel-kafka"))
   .dependsOn(core)
   .settings (
-    shared,
-    sharedAssembly,
+    sharedConfig,
+    sharedConfigAssembly,
 
     name := appNameKafka,
     libraryDependencies ++= Seq(
@@ -185,9 +190,19 @@ lazy val kafka= (project in file("skel-kafka"))
 
 lazy val world = (project in file("skel-world"))
   .dependsOn(core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
   .settings (
-    shared,
-    sharedAssembly,
+
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+
+    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
+    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
+    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
 
     name := appNameWorld,
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(

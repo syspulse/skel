@@ -24,6 +24,7 @@ __Docker__
 sbt docker:publishLocal
 ./run-docker.sh
 ```
+__ATTENTION__: Disable firewall for connection to docker0 (172.17.0.1) from Container -> Host connections (e.g. Container -> Host(MySql):3306)
 
 ## Configuration
 
