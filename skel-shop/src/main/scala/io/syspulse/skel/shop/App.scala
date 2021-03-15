@@ -1,6 +1,7 @@
 package io.syspulse.skel.shop
 
 import io.syspulse.skel
+import io.syspulse.skel.util.Util
 import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv}
 
 import io.syspulse.skel.shop.item.{ItemRegistry,ItemRoutes,ItemStoreDB}
@@ -15,13 +16,16 @@ case class Config(
 object App extends skel.Server {
   
   def main(args:Array[String]) = {
-    println(s"Args: '${args.mkString(",")}'")
+    val (appName,appVersion) = Util.info
+
+    println(s"${appName}:${appVersion}")
+    println(s"args: '${args.mkString(",")}'")
 
     val builder = OParser.builder[Config]
     val argsParser = {
       import builder._
       OParser.sequence(
-        programName("skel-shop"), head("skel-shop", "0.0.1"),
+        programName(appName), head(appName, appVersion),
         opt[String]('h', "host").action((x, c) => c.copy(host = x)).text("hostname"),
         opt[Int]('p', "port").action((x, c) => c.copy(port = x)).text("port"),
       )
@@ -32,16 +36,15 @@ object App extends skel.Server {
         val confuration = Configuration.withPriority(Seq(new ConfigurationEnv,new ConfigurationAkka))
 
         val config = Config(
-          host = { if(! configArgs.host.isEmpty) configArgs.host else confuration.getString("host").getOrElse("localhost") },
-          port = { if(configArgs.port!=0) configArgs.port else confuration.getInt("port").getOrElse(8080) },
+          host = { if(! configArgs.host.isEmpty) configArgs.host else confuration.getString("http.host").getOrElse("localhost") },
+          port = { if(configArgs.port!=0) configArgs.port else confuration.getInt("http.port").getOrElse(8080) },
         )
 
         println(s"Config: ${config}")
 
         run( config.host, config.port,
           Seq(
-            (ItemRegistry(new ItemStoreDB),"ItemRegistry",(actor,actorSystem ) => new ItemRoutes(actor)(actorSystem) ),
-            //(Behaviors.supervise[io.syspulse.skel.Command] { ItemRegistry(new ItemStoreDB) }.onFailure[Exception](SupervisorStrategy.resume),"ItemRegistry",(actor,actorSystem ) => new ItemRoutes(actor)(actorSystem) ),
+            (ItemRegistry(new ItemStoreDB),"ItemRegistry",(actor,actorSystem ) => new ItemRoutes(actor)(actorSystem) )
           )
         )
       }

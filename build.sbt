@@ -16,23 +16,6 @@ enablePlugins(AshScriptPlugin)
 //enablePlugins(JavaAppPackaging, AshScriptPlugin)
 
 
-// maintainer := "Dev0 <dev0@syspulse.io>"
-// dockerBaseImage := "openjdk:8-jre-alpine"
-// dockerUpdateLatest := true
-// dockerUsername := Some("syspulse")
-// dockerExposedVolumes := Seq(s"${appDockerRoot}/logs",s"${appDockerRoot}/conf","/data")
-// dockerExposedPorts := Seq(8080)
-// defaultLinuxInstallLocation in Docker := appDockerRoot
-// daemonUserUid in Docker := None
-// daemonUser in Docker := "daemon"
-
-//ThisBuild / mappings.in(ThisBuild,Universal) := Seq(file("conf/logback.xml") -> "conf/logback.xml")
-
-//mappings in Universal += file("conf/application.conf") -> "conf/application.conf"
-//mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml"
-bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf""""
-bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml""""
-
 val sharedConfigDocker = Seq(
   maintainer := "Dev0 <dev0@syspulse.io>",
   dockerBaseImage := "openjdk:8-jre-alpine",
@@ -102,8 +85,8 @@ val sharedConfigAssembly = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(core, http, auth, user, kafka, world)
-  .dependsOn(core, http, auth, user, kafka, world)
+  .aggregate(core, http, auth, user, kafka, world, shop)
+  .dependsOn(core, http, auth, user, kafka, world, shop)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -206,12 +189,39 @@ lazy val world = (project in file("skel-world"))
 
     name := appNameWorld,
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
-      libCsv,
-      libFaker
+      libCsv
     ),
     
     mainClass in run := Some(appBootClassWorld),
     mainClass in assembly := Some(appBootClassWorld),
     assemblyJarName in assembly := jarPrefix + appNameWorld + "-" + "assembly" + "-"+  appVersion + ".jar",
+
+  )
+
+lazy val shop = (project in file("skel-shop"))
+  .dependsOn(core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+
+    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
+    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
+    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
+
+    name := appNameShop,
+    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
+      libCsv,
+      libFaker
+    ),
+    
+    mainClass in run := Some(appBootClassShop),
+    mainClass in assembly := Some(appBootClassShop),
+    assemblyJarName in assembly := jarPrefix + appNameShop + "-" + "assembly" + "-"+  appVersion + ".jar",
 
   )

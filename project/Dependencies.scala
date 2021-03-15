@@ -22,6 +22,9 @@ object Dependencies {
     lazy val appNameWorld = "skel-world"
     lazy val appBootClassWorld = "io.syspulse.skel.world.App"
 
+    lazy val appNameShop = "skel-shop"
+    lazy val appBootClassShop = "io.syspulse.skel.shop.App"
+
     lazy val appVersion = "0.0.1"
     lazy val jarPrefix = "server-"
     
