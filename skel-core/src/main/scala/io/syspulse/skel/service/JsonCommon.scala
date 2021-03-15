@@ -5,7 +5,7 @@ import spray.json.DefaultJsonProtocol
 import java.text.{ParseException, SimpleDateFormat}
 import java.util.Date
 import io.jvm.uuid.UUID
-import java.time.LocalDateTime
+import java.time.{LocalDateTime,ZonedDateTime}
 import java.time.format.DateTimeFormatter
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
@@ -28,7 +28,7 @@ class JsonCommon  {
     }
   }
 
-  implicit object DateTimeFormat extends JsonFormat[LocalDateTime] {
+  implicit object LocalDateTimeFormat extends JsonFormat[LocalDateTime] {
     override def write(obj: LocalDateTime) : JsValue = JsString(fmt.format(obj))
 
     override def read(json: JsValue) : LocalDateTime = json match {
@@ -36,13 +36,33 @@ class JsonCommon  {
         try {
           LocalDateTime.parse(rawDate)
         } catch {
-          case iae: IllegalArgumentException => deserializationError("Invalid date format")
+          case iae: IllegalArgumentException => deserializationError(s"Invalid date format: '${rawDate}'")
           case _: Exception => None
         }
       }
       match {
         case d: LocalDateTime => d
-        case None => deserializationError(s"Couldn't parse DateTime, got $rawDate")
+        case None => deserializationError(s"Couldn't parse LocalDateTime: '$rawDate'")
+      }
+
+    }
+  }
+
+  implicit object ZonedDateTimeFormat extends JsonFormat[ZonedDateTime] {
+    override def write(obj: ZonedDateTime) : JsValue = JsString(fmt.format(obj))
+
+    override def read(json: JsValue) : ZonedDateTime = json match {
+      case JsString(rawDate) => {
+        try {
+          ZonedDateTime.parse(rawDate)
+        } catch {
+          case iae: IllegalArgumentException => deserializationError(s"Invalid date format: '${rawDate}'")
+          case _: Exception => None
+        }
+      }
+      match {
+        case d: ZonedDateTime => d
+        case None => deserializationError(s"Couldn't parse ZonedDateTime: '$rawDate'")
       }
 
     }

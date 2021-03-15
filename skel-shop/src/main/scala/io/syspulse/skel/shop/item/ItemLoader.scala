@@ -1,6 +1,7 @@
 package io.syspulse.skel.shop.item
 
 import io.jvm.uuid._
+import java.time._
 import com.github.tototoshi.csv._
 import com.typesafe.scalalogging.Logger
 
@@ -16,7 +17,7 @@ object ItemLoader {
     
     val cc = iterator.toSeq.map( s => {
       s match { 
-        case country::name::count::cost::_ => Item(UUID.randomUUID(), name, count.toDouble, cost.toDouble)
+        case country::name::count::cost::_ => Item(UUID.randomUUID(), ZonedDateTime.now, name, count.toDouble, cost.toDouble)
       }
     })
 

@@ -14,7 +14,7 @@ object ItemJson extends JsonCommon {
   
   import DefaultJsonProtocol._
 
-  implicit val dataItemJsonFormat = jsonFormat4(Item)
+  implicit val dataItemJsonFormat = jsonFormat5(Item)
   
   implicit val dataItemsJsonFormat = jsonFormat1(Items)
   

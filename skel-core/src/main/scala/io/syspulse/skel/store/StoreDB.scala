@@ -4,6 +4,7 @@ import scala.util.Try
 import scala.util.{Success,Failure}
 
 import io.jvm.uuid._
+import java.time._
 
 import scala.util.Try
 
@@ -24,6 +25,13 @@ abstract class StoreDB[E](val dbConfigName:String,val tableName:String) extends 
   config.entrySet().asScala.foreach(e => prop.setProperty(e.getKey(), config.getString(e.getKey())))
   val hikariConfig = new HikariConfig(prop)
   val ctx = new MysqlJdbcContext(LowerCase,new HikariDataSource(hikariConfig))
+
+  // Always store UTC timestamp
+  def utc(z:ZonedDateTime) = z.withZoneSameInstant( ZoneId.of("UTC"))
+  def local(d:LocalDateTime) = d.atZone(ZoneId.of("UTC")).withZoneSameInstant( ZoneId.systemDefault())
+
+  implicit val encodeZonedDateTime = MappedEncoding[ZonedDateTime, LocalDateTime](z => utc(z).toLocalDateTime)
+  implicit val decodeZonedDateTime = MappedEncoding[LocalDateTime, ZonedDateTime]( d => local(d))
   
   import ctx._
   

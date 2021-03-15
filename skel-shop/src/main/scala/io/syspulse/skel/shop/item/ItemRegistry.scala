@@ -6,10 +6,11 @@ import akka.actor.typed.scaladsl.Behaviors
 import scala.collection.immutable
 
 import io.jvm.uuid._
-//import java.util.UUID
+import java.time._
 
 import nl.grons.metrics4.scala.DefaultInstrumented
 import nl.grons.metrics4.scala.MetricName
+import java.time.ZonedDateTime
 
 
 final case class Items(items: immutable.Seq[Item])
@@ -57,7 +58,8 @@ object ItemRegistry extends DefaultInstrumented  {
         Behaviors.same
       case CreateItem(itemCreate, replyTo) =>
         val id = UUID.randomUUID()
-        val item = Item(id,itemCreate.name,itemCreate.count,itemCreate.price)
+        val ts = ZonedDateTime.now()
+        val item = Item(id,ts, itemCreate.name, itemCreate.count, itemCreate.price)
         val store1 = store.+(item)
         replyTo ! ItemActionPerformed(s"created",Some(id))
         registry(store1.getOrElse(store))
