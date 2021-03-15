@@ -11,8 +11,8 @@ fi
 CMD=${1:-list}
 URL=${URL:-http://localhost:8083}
 
-echo "URL: $URL"
-echo "SITE: ${SITE}"
+>&2 echo "URL: $URL"
+>&2 echo "SITE: ${SITE}"
 
 case "$CMD" in
    "list") 
@@ -24,7 +24,7 @@ case "$CMD" in
    "random")
       count=${2:-10}
       delay=${3:-100}
-      curl -X POST "${URL}/api/v1/item/load/random?count=${count}"
+      curl -X POST "${URL}/api/v1/item/load/random?count=${count}&delay=${delay}"
       ;;
    "random-get")
       count=${2:-10}
