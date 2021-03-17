@@ -33,6 +33,7 @@ val ctx = new PostgresJdbcContext(SnakeCase, typesafeConfig.getConfig("ctx"))
 import ctx._
 
 // Postgres
+// https://www.postgresql.org/docs/9.1/datatype-datetime.html
 ctx.executeAction(s"CREATE TABLE local_times( t TIMESTAMP );")
 
 // -------------- LocalDateTime 

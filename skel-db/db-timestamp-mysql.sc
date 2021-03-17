@@ -32,6 +32,8 @@ val ctx = new MysqlJdbcContext(SnakeCase, typesafeConfig.getConfig("ctx"))
 import ctx._
 
 // ============================================ Local
+// https://www.mysqltutorial.org/mysql-datetime/
+// https://stackoverflow.com/questions/26299149/timestamp-with-a-millisecond-precision-how-to-save-them-in-mysql/26299379
 ctx.executeAction(s"CREATE TABLE IF NOT EXISTS local_times( t TIMESTAMP(6) );")
 case class LocalTimes(t:LocalDateTime)
 

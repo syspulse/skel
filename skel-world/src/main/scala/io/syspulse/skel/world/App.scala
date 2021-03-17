@@ -37,7 +37,7 @@ object App extends skel.Server {
         val confuration = Configuration.withPriority(Seq(new ConfigurationEnv,new ConfigurationAkka))
 
         val config = Config(
-          host = { if(! configArgs.host.isEmpty) configArgs.host else confuration.getString("http.host").getOrElse("localhost") },
+          host = { if(! configArgs.host.isEmpty) configArgs.host else confuration.getString("http.host").getOrElse("0.0.0.0") },
           port = { if(configArgs.port!=0) configArgs.port else confuration.getInt("http.port").getOrElse(8080) },
         )
 

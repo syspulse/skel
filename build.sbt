@@ -27,7 +27,7 @@ val sharedConfigDocker = Seq(
 
   defaultLinuxInstallLocation in Docker := appDockerRoot,
 
-  daemonUserUid in Docker := None,
+  daemonUserUid in Docker := None, //Some("1000"),
   daemonUser in Docker := "daemon"
 )
 

@@ -11,8 +11,8 @@ fi
 CMD=${1:-list}
 URL=${URL:-http://localhost:8083}
 
-echo "URL: $URL"
-echo "SITE: ${SITE}"
+>&2 echo "URL: $URL"
+>&2 echo "SITE: ${SITE}"
 
 case "$CMD" in
    "list") 

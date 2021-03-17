@@ -21,7 +21,7 @@ class ItemStoreDB extends StoreDB[Item]("db","item") with ItemStore {
   import ctx._
 
   def create:Try[Long] = {
-    ctx.executeAction(s"CREATE TABLE IF NOT EXISTS ${tableName} (id VARCHAR(36) PRIMARY KEY, ts TIMESTAMP(6), name VARCHAR(128), count NUMERIC, price NUMERIC );")
+    ctx.executeAction(s"CREATE TABLE IF NOT EXISTS ${tableName} (id VARCHAR(36) PRIMARY KEY, ts TIMESTAMP(6) NOT NULL, name VARCHAR(128), count NUMERIC, price NUMERIC );")
     // why do we still use MySQL which does not even support INDEX IF NOT EXISTS ?...
     //val r = ctx.executeAction("CREATE INDEX IF NOT EXISTS item_name ON item (name);")
     try {
