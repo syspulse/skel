@@ -28,5 +28,15 @@ class CountryLoaderSpec extends WordSpec with Matchers with ScalaFutures {
       cc.last.name should === ("Zimbabwe")
       cc.last.iso should === ("ZW")
     }
+
+    "load all countries with deterministic id" in {
+      val cc1 = CountryLoader.fromResource()
+      val cc2 = CountryLoader.fromResource()
+      for(i <- 0 to cc1.size-1 ) {
+        cc1(i).name should === (cc2(i).name)
+        cc1(i).id should === (cc2(i).id)
+      }
+
+    }
   }
 }

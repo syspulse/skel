@@ -22,3 +22,8 @@ trait CountryStore extends Store[Country] {
   def clear:Try[CountryStore]
 }
 
+object CountryStore {
+  val default = CountryLoader.fromResource()
+  def getDefault:Seq[Country] = default
+}
+

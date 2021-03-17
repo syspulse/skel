@@ -21,7 +21,7 @@ class CurrencyStoreDB extends StoreDB[Currency]("db","currency") with CurrencySt
   import ctx._
 
   def create:Try[Long] = {
-    ctx.executeAction(s"CREATE TABLE IF NOT EXISTS ${tableName} (id VARCHAR(36) PRIMARY KEY, name VARCHAR(128), code VARCHAR(5), numcode INTEGER, country VARCHAR(128) );")
+    ctx.executeAction(s"CREATE TABLE IF NOT EXISTS ${tableName} (id VARCHAR(36) PRIMARY KEY, name VARCHAR(128), code VARCHAR(5), num_code INTEGER, country VARCHAR(128) );")
     // why do we still use MySQL which does not even support INDEX IF NOT EXISTS ?...
     //val r = ctx.executeAction("CREATE INDEX IF NOT EXISTS currency_name ON currency (name);")
     try {

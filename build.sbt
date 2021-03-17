@@ -199,7 +199,7 @@ lazy val world = (project in file("skel-world"))
   )
 
 lazy val shop = (project in file("skel-shop"))
-  .dependsOn(core)
+  .dependsOn(core,world)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)

@@ -5,6 +5,7 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv}
 
 import io.syspulse.skel.shop.item.{ItemRegistry,ItemRoutes,ItemStoreDB}
+import io.syspulse.skel.shop.warehouse.{WarehouseRegistry,WarehouseRoutes,WarehouseStoreDB}
 
 import scopt.OParser
 
@@ -44,7 +45,8 @@ object App extends skel.Server {
 
         run( config.host, config.port,
           Seq(
-            (ItemRegistry(new ItemStoreDB),"ItemRegistry",(actor,actorSystem ) => new ItemRoutes(actor)(actorSystem) )
+            (ItemRegistry(new ItemStoreDB),"ItemRegistry",(actor,actorSystem ) => new ItemRoutes(actor)(actorSystem) ),
+            (WarehouseRegistry(new WarehouseStoreDB),"WarehouseRgistry",(actor,actorSystem ) => new WarehouseRoutes(actor)(actorSystem) )
           )
         )
       }
