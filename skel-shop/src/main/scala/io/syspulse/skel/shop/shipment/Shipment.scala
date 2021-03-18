@@ -9,5 +9,6 @@ import scala.util._
 final case class Shipment(id:UUID, ts:ZonedDateTime, orderId:UUID, warehouseId:UUID, address:String, shipmentType:String)
 
 object ShipmentType {
-  def random = Vector("NOR","URG","VIP")(Random.nextInt(3))
+  val types = Vector("NOR","URG","VIP")
+  def random = types(Random.nextInt(types.size))
 }

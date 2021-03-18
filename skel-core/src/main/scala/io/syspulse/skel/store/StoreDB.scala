@@ -25,6 +25,8 @@ abstract class StoreDB[E](val dbConfigName:String,val tableName:String) extends 
   config.entrySet().asScala.foreach(e => prop.setProperty(e.getKey(), config.getString(e.getKey())))
   val hikariConfig = new HikariConfig(prop)
   val ctx = new MysqlJdbcContext(SnakeCase,new HikariDataSource(hikariConfig))
+  
+  import ctx._
 
   // Always store UTC timestamp
   def utc(z:ZonedDateTime) = z.withZoneSameInstant( ZoneId.of("UTC"))

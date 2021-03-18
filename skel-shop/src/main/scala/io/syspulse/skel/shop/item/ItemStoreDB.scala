@@ -27,8 +27,9 @@ class ItemStoreDB extends StoreDB[Item]("db","item") with ItemStore {
     // why do we still use MySQL which does not even support INDEX IF NOT EXISTS ?...
     //val r = ctx.executeAction("CREATE INDEX IF NOT EXISTS item_name ON item (name);")
     try {
-      val r = ctx.executeAction(s"CREATE INDEX item_name ON ${tableName} (name);")
-      Success(r)
+      ctx.executeAction(s"CREATE INDEX item_ts ON ${tableName} (ts);")
+      ctx.executeAction(s"CREATE INDEX item_name ON ${tableName} (name);")
+      Success(0)
     } catch {
       case e:Exception => { 
         // short name without full stack (change to check for duplicate index)

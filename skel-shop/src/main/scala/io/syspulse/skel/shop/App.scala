@@ -7,6 +7,7 @@ import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv
 import io.syspulse.skel.shop.item.{ItemRegistry,ItemRoutes,ItemStoreDB}
 import io.syspulse.skel.shop.warehouse.{WarehouseRegistry,WarehouseRoutes,WarehouseStoreDB}
 import io.syspulse.skel.shop.shipment.{ShipmentRegistry,ShipmentRoutes,ShipmentStoreDB}
+import io.syspulse.skel.shop.order.{OrderRegistry,OrderRoutes,OrderStoreDB}
 
 import scopt.OParser
 
@@ -48,7 +49,8 @@ object App extends skel.Server {
           Seq(
             (ItemRegistry(new ItemStoreDB),"ItemRegistry",(actor,actorSystem ) => new ItemRoutes(actor)(actorSystem) ),
             (WarehouseRegistry(new WarehouseStoreDB),"WarehouseRgistry",(actor,actorSystem ) => new WarehouseRoutes(actor)(actorSystem) ),
-            (ShipmentRegistry(new ShipmentStoreDB),"ShipmentRgistry",(actor,actorSystem ) => new ShipmentRoutes(actor)(actorSystem) )
+            (ShipmentRegistry(new ShipmentStoreDB),"ShipmentRgistry",(actor,actorSystem ) => new ShipmentRoutes(actor)(actorSystem) ),
+            (OrderRegistry(new OrderStoreDB),"OrderRgistry",(actor,actorSystem ) => new OrderRoutes(actor)(actorSystem) )
           )
         )
       }

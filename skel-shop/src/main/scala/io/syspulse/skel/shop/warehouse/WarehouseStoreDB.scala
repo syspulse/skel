@@ -27,6 +27,7 @@ class WarehouseStoreDB extends StoreDB[Warehouse]("db","warehouse") with Warehou
     // why do we still use MySQL which does not even support INDEX IF NOT EXISTS ?...
     //val r = ctx.executeAction("CREATE INDEX IF NOT EXISTS warehouse_name ON warehouse (name);")
     try {
+      ctx.executeAction(s"CREATE INDEX warehouse_ts ON ${tableName} (ts);")
       ctx.executeAction(s"CREATE INDEX warehouse_name ON ${tableName} (name);")
       ctx.executeAction(s"CREATE INDEX warehouse_country_id ON ${tableName} (country_id);")
       Success(0)

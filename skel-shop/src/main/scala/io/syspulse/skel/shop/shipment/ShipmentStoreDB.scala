@@ -27,6 +27,7 @@ class ShipmentStoreDB extends StoreDB[Shipment]("db","shipment") with ShipmentSt
     // why do we still use MySQL which does not even support INDEX IF NOT EXISTS ?...
     //val r = ctx.executeAction("CREATE INDEX IF NOT EXISTS shipment_name ON shipment (name);")
     try {
+      ctx.executeAction(s"CREATE INDEX shipment_ts ON ${tableName} (ts);")
       ctx.executeAction(s"CREATE INDEX shipment_order_id ON ${tableName} (order_id);")
       ctx.executeAction(s"CREATE INDEX shipment_warehouse_id ON ${tableName} (warehouse_id);")
       ctx.executeAction(s"CREATE INDEX shipment_shipment_type ON ${tableName} (shipment_type);")
