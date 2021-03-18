@@ -37,6 +37,6 @@ case "$CMD" in
       curl ${URL}/api/v1/item/${2}
       ;;
    *)
-      echo "Country: ${1}"
+      echo "id: ${1}"
       curl ${URL}/api/v1/item/${1}
 esac
