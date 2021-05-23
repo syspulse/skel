@@ -85,8 +85,8 @@ val sharedConfigAssembly = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(core, http, auth, user, kafka, world, shop)
-  .dependsOn(core, http, auth, user, kafka, world, shop)
+  .aggregate(core, http, auth, user, kafka, world, shop, telemetry)
+  .dependsOn(core, http, auth, user, kafka, world, shop, telemetry)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -198,6 +198,33 @@ lazy val world = (project in file("skel-world"))
 
   )
 
+lazy val telemetry = (project in file("skel-telemetry"))
+  .dependsOn(core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+
+    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
+    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
+    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
+
+    name := appNameTelemetry,
+    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ Seq(
+      libUjsonLib
+    ),
+    
+    mainClass in run := Some(appBootClassTelemetry),
+    mainClass in assembly := Some(appBootClassTelemetry),
+    assemblyJarName in assembly := jarPrefix + appNameTelemetry + "-" + "assembly" + "-"+  appVersion + ".jar",
+
+  )
+
 lazy val shop = (project in file("skel-shop"))
   .dependsOn(core,world)
   .enablePlugins(JavaAppPackaging)
@@ -225,3 +252,4 @@ lazy val shop = (project in file("skel-shop"))
     assemblyJarName in assembly := jarPrefix + appNameShop + "-" + "assembly" + "-"+  appVersion + ".jar",
 
   )
+

@@ -4,7 +4,8 @@ object Dependencies {
 
     // Versions
     lazy val versionScalaLogging = "3.9.2"
-    lazy val akkaVersion    = "2.6.10"  
+    lazy val akkaVersion    = "2.6.14"
+    lazy val alpakkaVersion = "3.0.0"  
     lazy val akkaHttpVersion = "10.2.1"
     lazy val akkaKafkaVersion = "2.0.3"
     lazy val kafkaAvroSerVersion = "5.4.1"
@@ -25,6 +26,9 @@ object Dependencies {
     lazy val appNameShop = "skel-shop"
     lazy val appBootClassShop = "io.syspulse.skel.shop.App"
 
+    lazy val appNameTelemetry = "skel-telemetry"
+    lazy val appBootClassTelemetry = "io.syspulse.skel.telemetry.App"
+
     lazy val appVersion = "0.0.1"
     lazy val jarPrefix = "server-"
     
@@ -37,6 +41,8 @@ object Dependencies {
     val libAkkaHttp =       "com.typesafe.akka"           %% "akka-http"            % akkaHttpVersion
     val libAkkaHttpSpray =  "com.typesafe.akka"           %% "akka-http-spray-json" % akkaHttpVersion
     val libAkkaStream =     "com.typesafe.akka"           %% "akka-stream"          % akkaVersion
+
+    val libAlpakkaInfluxDB ="com.lightbend.akka"           %% "akka-stream-alpakka-influxdb"    % alpakkaVersion
 
     val libAkkaProtobuf =   "com.typesafe.akka"           %% "akka-protobuf"        % akkaVersion
     val libAkkaKafka=       "com.typesafe.akka"           %% "akka-stream-kafka"    % akkaKafkaVersion
@@ -69,13 +75,16 @@ object Dependencies {
     
     //val libJline =          "org.jline"                   %  "jline"                 % "3.14.1"
     //val libJson4s =         "org.json4s"                  %%  "json4s-native"        % "3.6.7"
-    //val libOsLib = "com.lihaoyi" %% "os-lib" % "0.7.1"
+    val libOsLib =          "com.lihaoyi"                 %% "os-lib"               % "0.7.7"
+    val libUpickleLib =     "com.lihaoyi"                 %% "upickle"              % "1.3.15"
+    val libUjsonLib =       "com.lihaoyi"                 %% "ujson"                % "1.3.15"
 
     val libCsv =            "com.github.tototoshi"        %% "scala-csv"            % "1.3.7"
     val libFaker =          "com.github.javafaker"        % "javafaker"             % "1.0.2"
     
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
+    val libAlpakka = Seq(libAlpakkaInfluxDB)
     val libHttp = Seq(libAkkaHttp,libAkkaHttpSpray)
     val libCommon = Seq(libScalaLogging, libLogback, libTypesafeConfig )
     val libTest = Seq(libScalaTest,libAkkaTestkit,libAkkaTestkitType)
@@ -83,5 +92,7 @@ object Dependencies {
     val libSkel = Seq(libWsRs,libSwaggerAkkaHttp,libMetrics,libScopt,libUUID)
 
     val libDB = Seq(libQuill,libMySQL)
+
+    val libLihaoyi = Seq(libOsLib,libUpickleLib,libUjsonLib)
   }
   

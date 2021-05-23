@@ -6,10 +6,14 @@ import java.time.temporal._
 import java.util.Locale
 import io.jvm.uuid._
 
+import scala.util.Random
+
 import java.security.SecureRandom
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
+import java.time.{ZoneId,ZonedDateTime,Instant}
+import java.time.format._
 
 object Util {
 
@@ -40,6 +44,10 @@ object Util {
     UUID(bb)
   }
 
+  val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmssZ")
+  def tsToString(ts:Long) = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).format(fmt)
+
+  def rnd(limit:Double) = Random.between(0,limit)
 }
 
 
