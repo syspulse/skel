@@ -1,0 +1,60 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: system
+    static_configs:
+    - targets:
+        - localhost
+      labels:
+        job: varlogs
+        __path__: /var/log/tns-app.log
+
+  - job_name: ekm
+    pipeline_stages:
+      - regex:
+            expression: "^(?P<timestamp>\\S+?) (?P<device>\\S+?) (?P<kwt>\\S+?) (?P<v1>\\S+?) (?P<v2>\\S+?) (?P<v3>\\S+?) (?P<data>.*)$"
+      - labels:
+            device:
+      - metrics:
+            kwt_total:
+              type: Gauge
+              description: "Total KWh"
+              source: kwh
+              config:
+                action: set
+            v1_metric:
+              type: Gauge
+              description: "V1"
+              source: v1
+              config:
+                action: set
+            v2_metric:
+              type: Gauge
+              description: "V2"
+              source: v2
+              config:
+                action: set
+            v3_metric:
+              type: Gauge
+              description: "V3"
+              source: v3
+              config:
+                action: set
+      - timestamp:
+            format: RFC3339
+            source: timestamp
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: ekm
+          env: dev
+          __path__: /var/log/ekm-*.log

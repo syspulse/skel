@@ -1,0 +1,96 @@
+version: "3"
+
+networks:
+  grafana:
+
+#volumes:
+#  app_data: 
+#  graphite_data:
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.21.0
+    container_name: prometheus
+    volumes:
+      - ./prometheus/:/etc/prometheus/
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    ports:
+      - 9090:9090
+    networks:
+      - grafana
+
+  loki:
+    image: grafana/loki:1.6.1
+    container_name: loki
+    volumes:
+      - ./loki/:/etc/loki/
+    ports:
+      - 3100:3100
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - grafana
+
+  promtail:
+    image: grafana/promtail:1.6.1
+    container_name: promtail
+    volumes:
+      - ./promtail/:/etc/promtail/
+      #- app_data:/var/log
+      - ./app_data:/var/log
+    command: -config.file=/etc/promtail/config.yaml
+    networks:
+      - grafana
+
+  grafana:
+    image: grafana/grafana:7.3.6
+    container_name: grafana
+    ports:
+      - 3000:3000
+    networks:
+      - grafana
+
+  graphite:
+    image: graphiteapp/graphite-statsd
+    container_name: graphite
+    ports:
+      - "8088:80"
+      - "8089:8080"
+      - "2003-2004:2003-2004"
+      - "2023-2024:2023-2024"
+      - "8125:8125/udp"
+      - "8126:8126"
+    volumes:
+    # ATTENTION: graphite cannot start on fcrypt-ed volume!!!
+      - ./graphite/conf:/opt/graphite/conf
+      - ./graphite/data:/opt/graphite/storage
+      - ./graphite/statsd_config:/opt/statsd/config
+      #- graphite_data:/opt/graphite/storage
+      # - ./log/graphite:/var/log/graphite
+    networks:
+      - grafana
+
+  influxdb:
+    image: influxdb:2.0
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    volumes:
+    # ATTENTION: graphite cannot start on fcrypt-ed volume!!!
+      - ./influxdb/db:/var/lib/influxdb2
+      - ./influxdb/config:/etc/influxdb2
+      - ./influxdb_scripts:/docker-entrypoint-initdb.d
+      # - ./influxdb_run_once:/etc/run_once
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin_user
+      - DOCKER_INFLUXDB_INIT_PASSWORD=admin_pass
+      - DOCKER_INFLUXDB_INIT_ORG=org
+      - DOCKER_INFLUXDB_INIT_BUCKET=ekm-bucket
+      - V1_DB_NAME=ekm_db
+      - V1_RP_NAME=ekm_rp
+      - V1_AUTH_USERNAME=ekm_user
+      - V1_AUTH_PASSWORD=ekm_pass
+    networks:
+      - grafana
