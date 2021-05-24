@@ -24,14 +24,6 @@ import scala.jdk.CollectionConverters._
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 
-import akka.stream.alpakka.influxdb.scaladsl.InfluxDbSink
-import akka.stream.alpakka.influxdb.scaladsl.InfluxDbSource
-import akka.stream.alpakka.influxdb.scaladsl.InfluxDbFlow
-import akka.stream.alpakka.influxdb.InfluxDbWriteMessage
-import org.influxdb.InfluxDBFactory
-import org.influxdb.dto.Query
-import org.influxdb.annotation.Measurement
-import org.influxdb.dto.Point
 
 class EkmTelemetryGrafite extends EkmTelemetryClient {
 
@@ -42,9 +34,9 @@ class EkmTelemetryGrafite extends EkmTelemetryClient {
 
   def getGrafiteFlow(grafiteUri:String) = {
     
-    val (grafiteHost,grafitePort) = grafiteUri.split(":").toList match{ case h::p => (h,p(0))}
+    val (grafiteHost,grafitePort) = Util.getHostPort(grafiteUri)
 
-    val grafiteConnection = Tcp().outgoingConnection(grafiteHost, grafitePort.toInt)
+    val grafiteConnection = Tcp().outgoingConnection(grafiteHost, grafitePort)
     toGrafite.map(ByteString(_)).via(grafiteConnection)
   }
 

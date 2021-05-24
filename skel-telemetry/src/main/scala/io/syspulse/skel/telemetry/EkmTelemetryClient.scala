@@ -50,8 +50,7 @@ class EkmTelemetryClient extends TelemetryClient {
   def getEkmSource(ekmHost:String, ekmKey:String, ekmDevice:String, interval:Long = 1, limit:Long = 0, logFile:String = "") = {
         
     val ekmFreq = 60.seconds
-    //val logFile = Paths.get("app_data/ekm-0002.log")
-
+    
     val ekmHttpRequest = HttpRequest(uri = ekmUri(ekmHost,ekmKey,ekmDevice)).withHeaders(Accept(MediaTypes.`application/json`))
     val ekmSource = Source.tick(0.seconds, ekmFreq, ekmHttpRequest)
     

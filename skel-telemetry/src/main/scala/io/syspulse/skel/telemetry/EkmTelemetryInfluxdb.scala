@@ -37,6 +37,9 @@ import org.influxdb.dto.Query
 import org.influxdb.annotation.Measurement
 import org.influxdb.dto.Point
 
+import io.prometheus.client._
+import io.prometheus.client.exporter._
+
 class EkmTelemetryInfluxdb extends EkmTelemetryClient {
 
   def toInflux(tt:Seq[EkmTelemetry]) = tt.map( t=>(InfluxDbWriteMessage(Point.measurement(t.device).time(t.ts, TimeUnit.MILLISECONDS).
@@ -49,26 +52,34 @@ class EkmTelemetryInfluxdb extends EkmTelemetryClient {
     addField("w3", t.w3).
     build() )))
 
+  val counterEkm = Counter.build().name("ekm_req").help("Total EKM requests").register()
+  val counterEkmData = Counter.build().name("ekm_data").help("Total EKM Telenetry data received").register()
+  val counterInflux = Counter.build().name("influx_write").help("Total InfluxDB writes").register()
+
+  def collectMetricsEkm(b:ByteString):ByteString = { counterEkm.inc(); b }
+  def collectMetricsEkmData(t:EkmTelemetry):EkmTelemetry = { counterEkmData.inc(); t }
+  def collectMetricsInflux(t:EkmTelemetry):EkmTelemetry = { counterInflux.inc(); t }
+  
+
   def getInfluxFlow(influxUri: String, influxUser:String, influxPass:String, influxDb:String) = {
     implicit val influxDB = InfluxDBFactory.connect(influxUri, influxUser, influxPass) 
     influxDB.setDatabase(influxDb)
 
-    Flow[EkmTelemetry].map(t => toInflux(Seq(t))).via(InfluxDbFlow.create())
+    Flow[EkmTelemetry].map(collectMetricsInflux(_)).map(t => toInflux(Seq(t))).via(InfluxDbFlow.create())
   }
 
   def getInfluxSink(influxUri: String, influxUser:String, influxPass:String, influxDb:String) = {
     implicit val influxDB = InfluxDBFactory.connect(influxUri, influxUser, influxPass) 
     influxDB.setDatabase(influxDb)
-    Flow[EkmTelemetry].map(t => toInflux(Seq(t))).to(InfluxDbSink.create())
+    Flow[EkmTelemetry].map(collectMetricsInflux(_)).map(t => toInflux(Seq(t))).to(InfluxDbSink.create())
   }
 
-  
   def run(ekmHost:String,ekmKey:String, ekmDevice:String, interval:Long = 1, limit:Long = 0, logFile:String = "",
           influxUri: String = "http://localhost:8086", influxUser:String="ekm_user", influxPass:String="ekm_pass", influxDb:String="ekm_db" ) = {
         
     val ekmSource = getEkmSource(ekmHost:String,ekmKey,ekmDevice,interval,limit)
 
-    val ekmFlow = ekmSource.mapAsync(1)(getTelemetry(_)).map(toJson(_)).mapConcat(toData(_))
+    val ekmFlow = ekmSource.mapAsync(1)(getTelemetry(_)).map(collectMetricsEkm(_)).map(toJson(_)).mapConcat(toData(_)).map(collectMetricsEkmData(_))
 
     val influxFlow = getInfluxFlow(influxUri,influxUser,influxPass,influxDb)
     val influxSink = getInfluxSink(influxUri,influxUser,influxPass,influxDb)

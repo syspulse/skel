@@ -2,12 +2,20 @@ package io.syspulse.skel.telemetry
 
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration,FiniteDuration}
+import com.typesafe.scalalogging.Logger
 
 import scopt.OParser
 
 import io.syspulse.skel
+import io.syspulse.skel.util.Util
 import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv}
 
+import io.prometheus.client._
+import io.prometheus.client.exporter._
+import io.prometheus.client.hotspot.DefaultExports
+import io.prometheus.client.hotspot.GarbageCollectorExports
+import io.prometheus.client.hotspot.MemoryPoolsExports
+import io.prometheus.client.hotspot.ThreadExports
 
 // case class Config(
 //   dataSource:String = "",
@@ -44,7 +52,22 @@ case class Config(
   influxDb:(String,String,String) = ("","telemetry.influx-db","ekm_db"),
 )
 
-object App {
+trait SkelApp {
+  val log = Logger(s"${this}")
+  def initSkel(configuration:Configuration) = {
+
+    // init Prometheus
+    val (pHost,pPort) = Util.getHostPort(configuration.getString("telemetry.prometheus.listen").getOrElse("0.0.0.0:9091"))
+    val prometheusListener = new HTTPServer(pHost,pPort)
+    DefaultExports.initialize()
+    //new GarbageCollectorExports().register()
+    //new MemoryPoolsExports().register()
+    //new ThreadExports().register()
+    log.info(s"prometheus: ${pHost}:${pPort}: ${prometheusListener}")
+  }
+}
+
+object App extends SkelApp {
   
   def main(args:Array[String]): Unit = {
     println(s"Args: '${args.mkString(",")}'")
@@ -96,6 +119,8 @@ object App {
           influxPass = ({ if(! configArgs.influxPass._1.isEmpty) configArgs.influxPass._1 else confuration.getString(configArgs.influxPass._2).getOrElse(configArgs.influxPass._3) },configArgs.influxPass._2,configArgs.influxPass._3),
           influxDb = ({ if(! configArgs.influxDb._1.isEmpty) configArgs.influxDb._1 else confuration.getString(configArgs.influxDb._2).getOrElse(configArgs.influxDb._3) },configArgs.influxDb._2,configArgs.influxDb._3),
         )
+
+        initSkel(confuration)
 
         println(s"Config: ${config}")
 

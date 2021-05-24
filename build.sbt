@@ -215,7 +215,7 @@ lazy val telemetry = (project in file("skel-telemetry"))
     bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
 
     name := appNameTelemetry,
-    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ Seq(
+    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
       libUjsonLib
     ),
     

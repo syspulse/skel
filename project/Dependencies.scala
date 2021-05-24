@@ -81,6 +81,11 @@ object Dependencies {
 
     val libCsv =            "com.github.tototoshi"        %% "scala-csv"            % "1.3.7"
     val libFaker =          "com.github.javafaker"        % "javafaker"             % "1.0.2"
+
+    val libPrometheusClient =   "io.prometheus"               % "simpleclient"              % "0.10.0"
+    val libPrometheusHttp =     "io.prometheus"               % "simpleclient_httpserver"   % "0.10.0"
+    val libPrometheusHotspot =  "io.prometheus"            % "simpleclient_hotspot"   % "0.10.0"
+    //val libPrometheusPushGw = "io.prometheus"               % "simpleclient_pushgateway"   % "0.10.0"
     
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
@@ -93,6 +98,7 @@ object Dependencies {
 
     val libDB = Seq(libQuill,libMySQL)
 
+    val libPrometheus = Seq(libPrometheusClient,libPrometheusHttp,libPrometheusHotspot)
     val libLihaoyi = Seq(libOsLib,libUpickleLib,libUjsonLib)
   }
   
