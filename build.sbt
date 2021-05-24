@@ -21,13 +21,13 @@ val sharedConfigDocker = Seq(
   dockerBaseImage := "openjdk:8-jre-alpine",
   dockerUpdateLatest := true,
   dockerUsername := Some("syspulse"),
-  dockerExposedVolumes := Seq(s"${appDockerRoot}/logs",s"${appDockerRoot}/conf","/data"),
+  dockerExposedVolumes := Seq(s"${appDockerRoot}/logs",s"${appDockerRoot}/conf",s"${appDockerRoot}/data","/data"),
   //dockerRepository := "docker.io",
   dockerExposedPorts := Seq(8080),
 
   defaultLinuxInstallLocation in Docker := appDockerRoot,
 
-  daemonUserUid in Docker := None, //Some("1000"),
+  daemonUserUid in Docker := None, //Some("1000"), 
   daemonUser in Docker := "daemon"
 )
 

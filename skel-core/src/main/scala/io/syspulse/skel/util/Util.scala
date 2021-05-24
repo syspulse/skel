@@ -28,9 +28,22 @@ object Util {
   def sha256(data:Array[Byte]):String = toHexString(digest.digest(data))
   def sha256(data:String):String = toHexString(digest.digest(data.getBytes(StandardCharsets.UTF_8)))
   
-  val tsFormatLong = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss:SSS")
+  val tsFormatLongest = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss:SSS")
+  val tsFormatLong = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmssZ")
 
-  def now:String = tsFormatLong.format(LocalDateTime.now)
+  def now:String = tsFormatLongest.format(LocalDateTime.now)
+  def now(fmt:String):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(Instant.now.toEpochMilli), ZoneId.systemDefault).format(DateTimeFormatter.ofPattern(fmt))
+  def tsToString(ts:Long) = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).format(tsFormatLong)
+  
+  // time is delimited with {}
+  def toFileWithTime(fileName:String) = {
+    fileName.split("[{}]") match {
+      case Array(p,ts,ext) => p + now(ts) + ext
+      case Array(p,ts) => p+now(ts)
+      case Array(p) => p
+      case Array() => fileName
+    }
+  }
 
   def info = {
     val p = getClass.getPackage
@@ -44,8 +57,6 @@ object Util {
     UUID(bb)
   }
 
-  val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmssZ")
-  def tsToString(ts:Long) = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).format(fmt)
 
   def rnd(limit:Double) = Random.between(0,limit)
 }

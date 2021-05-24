@@ -1,6 +1,7 @@
 package io.syspulse.skel.telemetry
 
 import java.time.{Instant}
+import java.nio.file.StandardOpenOption._
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Keep
@@ -30,24 +31,27 @@ import scala.jdk.CollectionConverters._
 
 import io.syspulse.skel
 import io.syspulse.skel.telemetry.Telemetry
-import io.syspulse.skel.util.Util._
+import io.syspulse.skel.util.Util
 
 
 trait TelemetryClient {
   val log = Logger(s"${this}")
+  implicit val system = ActorSystem("ActorSystem-TelemetryClient")
 
-  val sinkLog = Sink.foreach[Telemetry](t => println(s"${t.toLog}"))
-  def sinkLogFile(logFile:Path) = FileIO.toPath(logFile)
+  val logSink = Sink.foreach[Telemetry](t => println(s"${t.toLog}"))
+  
+  def getDataFileSink(logFile:String) = {
+    if(logFile.trim.isEmpty) 
+      Sink.ignore 
+    else
+      toSimpleLog.map(ByteString(_)).to(FileIO.toPath(Paths.get(Util.toFileWithTime(logFile)),options =  Set(WRITE, CREATE)))
+  }
 
   def httpFlow(req: HttpRequest) = Http().singleRequest(req).flatMap(res => res.entity.dataBytes.runReduce(_ ++ _))
 
   def toJson(body:ByteString):String = body.utf8String.replaceAll("\\n","").replaceAll("\\s+","")
 
-  val processRandom = Flow[Telemetry].map( t => Telemetry(t.device,Instant.now.toEpochMilli,rnd(5000.0),rnd(240),rnd(240),rnd(240),rnd(500),rnd(500),rnd(500)))
-
   val toLog = Flow[Telemetry].map(t=>s"${t.toLog}\n")
   val toSimpleLog = Flow[Telemetry].map(t=>s"${t.toSimpleLog}\n")
-
-  implicit val system = ActorSystem("ActorSystem-TelemetryClient")
 
 }

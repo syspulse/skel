@@ -33,9 +33,9 @@ import org.influxdb.dto.Query
 import org.influxdb.annotation.Measurement
 import org.influxdb.dto.Point
 
-class EkmTelemetryGrafite extends EkmTelemetry {
+class EkmTelemetryGrafite extends EkmTelemetryClient {
 
-  def toGrafite = Flow[Telemetry].map(t => 
+  def toGrafite = Flow[EkmTelemetry].map(t => 
     { val ts = t.ts / 1000;
       s"ekm.telemetry.kwh ${t.kwhTotal} ${ts}\nekm.telemetry.v1 ${t.v1} ${ts}\nekm.telemetry.v2 ${t.v2} ${ts}\nekm.telemetry.v3 ${t.v3} ${ts}\n"
     })
@@ -55,11 +55,11 @@ class EkmTelemetryGrafite extends EkmTelemetry {
 
     val grafiteFlow = getGrafiteFlow(grafiteUri)
  
-    val streamGrafite = ekmSource.mapAsync(1)(getTelemetry(_)).map(toJson(_)).mapConcat(toData(_)).alsoTo(sinkLog).via(grafiteFlow).runWith(Sink.ignore)
+    val grafiteStream = ekmSource.mapAsync(1)(getTelemetry(_)).map(toJson(_)).mapConcat(toData(_)).alsoTo(logSink).via(grafiteFlow).runWith(Sink.ignore)
  
-    println(streamGrafite)
+    println(s"stream: ${grafiteStream}")
     //println(result.value.asInstanceOf[scala.util.Failure[_]].exception.getStackTrace.mkString("\n"))
-    val r = Await.result(streamGrafite, Duration.Inf)
+    val r = Await.result(grafiteStream, Duration.Inf)
   }
 
 }
