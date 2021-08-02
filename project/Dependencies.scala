@@ -29,7 +29,7 @@ object Dependencies {
     lazy val appNameTelemetry = "skel-telemetry"
     lazy val appBootClassTelemetry = "io.syspulse.skel.telemetry.App"
 
-    lazy val appVersion = "0.0.1"
+    lazy val appVersion = "0.0.2"
     lazy val jarPrefix = "server-"
     
     lazy val appDockerRoot = "/app"

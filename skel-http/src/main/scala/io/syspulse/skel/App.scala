@@ -1,14 +1,16 @@
-package io.syspulse.auth
+package io.syspulse.skel.service
 
 import io.syspulse.skel
 import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv}
-import io.syspulse.skel.otp.{OtpRegistry,OtpRoutes,OtpStoreDB}
 
 import scopt.OParser
 
 case class Config(
   host:String="",
-  port:Int=0
+  port:Int=0,
+  uri:String = "",
+  files: Seq[String] = Seq(),
+  action:String = ""
 )
 
 object App extends skel.Server {
@@ -23,6 +25,11 @@ object App extends skel.Server {
         programName("skel-http"), head("skel-http", "0.0.1"),
         opt[String]('h', "host").action((x, c) => c.copy(host = x)).text("hostname"),
         opt[Int]('p', "port").action((x, c) => c.copy(port = x)).text("port"),
+        opt[String]('u', "uri").action((x, c) => c.copy(uri = x)).text("uri"),
+
+        help("help").text("simple microservice"),
+        arg[String]("<file>...").unbounded().optional().action((x, c) => c.copy(files = c.files :+ x)).text("files"),
+        cmd("start").action( (_, c) => c.copy(action = "start")).text("Start Command")
       )
     } 
   
@@ -33,13 +40,16 @@ object App extends skel.Server {
         val config = Config(
           host = { if(! configArgs.host.isEmpty) configArgs.host else confuration.getString("host").getOrElse("0.0.0.0") },
           port = { if(configArgs.port!=0) configArgs.port else confuration.getInt("port").getOrElse(8080) },
+          uri = { if(! configArgs.uri.isEmpty) configArgs.uri else confuration.getString("uri").getOrElse("/api/v1/service") },
+          files = Seq(),
+          action = ""
         )
 
         println(s"Config: ${config}")
 
-        run( config.host, config.port,
+        run( config.host, config.port, config.uri,
           Seq(
-            (OtpRegistry(new OtpStoreDB),"OtpRegistry",(actor,actorSystem ) => new OtpRoutes(actor)(actorSystem) ),
+            (ServiceRegistry(new ServiceStoreCache),"ServiceRegistry",(actor,actorSystem ) => new ServiceRoutes(actor)(actorSystem) ),
             
           )
         )

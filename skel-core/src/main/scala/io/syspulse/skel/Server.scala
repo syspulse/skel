@@ -29,6 +29,7 @@ import akka.http.scaladsl.server.Route
 import io.syspulse.skel.service.swagger.{Swagger}
 import io.syspulse.skel.service.telemetry.{TelemetryRegistry,TelemetryRoutes}
 import io.syspulse.skel.service.info.{InfoRegistry,InfoRoutes}
+import io.syspulse.skel.service.health.{HealthRegistry,HealthRoutes}
 import io.syspulse.skel.service.Routeable
 import scala.concurrent.duration._
 
@@ -51,17 +52,27 @@ trait Server {
     }
   }
 
-  def run(host:String, port:Int,
-          app:Seq[(Behavior[Command],String,(ActorRef[Command],ActorSystem[_])=>Routeable)]): Unit = {
+  def run(host:String, port:Int, uri:String,
+          app:Seq[(Behavior[Command],String,(ActorRef[Command],ActorSystem[_])=>Routeable)]
+          ): Unit = {
     
-    def jsonEntity(json:String) = HttpEntity(ContentTypes.`application/json`, json)
+    val (apiUri,apiVersion,serviceUri) = uri.split("/").filter(!_.isEmpty()) match {
+      case Array(p,v,s) => (Slash ~ p,Slash ~ v,Slash ~ s)
+      case Array(p,s) => (Slash ~ p,PathMatcher(""),Slash ~ s)
+      case Array(s) => (PathMatcher(""),PathMatcher(""),Slash ~ s)
+      case Array() => (PathMatcher(""),PathMatcher(""),PathMatcher(""))
+      case Array(p,v,s,_*) => (Slash ~ p,Slash ~ v,Slash ~ s)
+    }
 
+    def jsonEntity(json:String) = HttpEntity(ContentTypes.`application/json`, json)
     
     val httpBehavior = Behaviors.setup[Nothing] { context =>
       val telemetryRegistryActor = context.spawn(TelemetryRegistry(), "Actor-TelemetryRegistry")
       val infoRegistryActor = context.spawn(InfoRegistry(), "Actor-InfoRegistry")
+      val healthRegistryActor = context.spawn(HealthRegistry(), "Actor-HealthRegistry")
       context.watch(telemetryRegistryActor)
       context.watch(infoRegistryActor)
+      context.watch(healthRegistryActor)
 
       val rejectionHandler = RejectionHandler.newBuilder()
         .handle { case MissingQueryParamRejection(param) =>
@@ -106,25 +117,29 @@ trait Server {
       val swaggerUI = path("swagger") { getFromResource("swagger/index.html") } ~ getFromResourceDirectory("swagger")
       val telemetryRoutes = new TelemetryRoutes(telemetryRegistryActor)(context.system)
       val infoRoutes = new InfoRoutes(infoRegistryActor)(context.system)
+      val healthRoutes = new HealthRoutes(healthRegistryActor)(context.system)
 
       val routes: Route =
       handleRejections(rejectionHandler) {
         handleExceptions(exceptionHandler) {
-          pathPrefix("api") {
-            pathPrefix("v1") {
-              concat(appRoutes:_*) ~
-              concat(
-                telemetryRoutes.routes,
-                infoRoutes.routes,
-                swaggerRoutes,
-                swaggerUI
-              )
+          rawPathPrefix(apiUri) {
+            rawPathPrefix(apiVersion) {
+              rawPathPrefix(serviceUri) {
+                concat(
+                  telemetryRoutes.routes,
+                  infoRoutes.routes,
+                  healthRoutes.routes,
+                  swaggerRoutes,
+                  swaggerUI
+                ) ~
+                concat(appRoutes:_*) 
+              } 
             }
           }
         }
       }
           
-      Swagger.withClass(appClasses).withVersion("v1").withHost(host,port)
+      Swagger.withClass(appClasses).withVersion(apiVersion.toString).withHost(host,port)
     
       // should not be here...
       startHttpServer(host, port, routes)(context.system)

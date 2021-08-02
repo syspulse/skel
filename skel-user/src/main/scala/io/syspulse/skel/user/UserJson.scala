@@ -1,21 +1,21 @@
-package io.syspulse.skel.otp
+package io.syspulse.skel.user
 
 import io.syspulse.skel.service.JsonCommon
-import io.syspulse.skel.otp.OtpRegistry._
+import io.syspulse.skel.user.UserRegistry._
 
 import spray.json.DefaultJsonProtocol
 
+import java.util.{UUID}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.Directives
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsString, JsValue, JsonFormat, deserializationError}
 
-object OtpJson extends JsonCommon {
+object UserJson extends JsonCommon  {
   
   import DefaultJsonProtocol._
 
-  implicit val otpJsonFormat = jsonFormat5(Otp)
-  implicit val otpsJsonFormat = jsonFormat1(Otps)
-  implicit val otpCreateJsonFormat = jsonFormat4(OtpCreate)
-  implicit val otpActionPerformedJsonFormat = jsonFormat2(OtpActionPerformed)
+  implicit val userJsonFormat = jsonFormat3(User)
+  implicit val usersJsonFormat = jsonFormat1(Users)
 
+  implicit val actionPerformedJsonFormat = jsonFormat1(ActionPerformed)
 }

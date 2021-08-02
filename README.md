@@ -2,8 +2,13 @@
 
 Skeletons for RnD Prototypes
 
-1. skel-http (with DB support)
-2. skel-kafka
+1. [skel-http](skel-http) - HTTP Service (+ Kubernetes)
+2. [skel-user](skel-user) - HTTP Service with DB backend
+3. [skel-world](skel-world) + [skel-shop](skel-shop) - Services for E-Shop like product
+4. [skel-kafka](skel-kafka) - Kafka Processors (Source/Sink)
+5. [skel-telemetry](skel-telemetry) - IoT Service to InflixDB/Grafana sink
+6. [skel-grafana](skel-grafana) - docker-compose for Prometheus/InfluxDB/Graphite/Loki/Grafana
+7. [skel-db](skel-db) - DB Related stuff
 
 ## Build & Run
 
@@ -16,85 +21,19 @@ sbt
 __Fat jar__
 ```
 sbt assembly
-./run.sh
 ```
 
 __Docker__
+
+Support for mulit-platform builds (__amd64__,__arm64__)
 ```
+sbt docker:publish
 sbt docker:publishLocal
-./run-docker.sh
 ```
-__ATTENTION__: Disable firewall for connection to docker0 (172.17.0.1) from Container -> Host connections (e.g. Container -> Host(MySql):3306)
 
 ## Configuration
 
-A lot of flexibility (may be too much) to pass configuration
-
-Configuration reading priority can be customized. Default:
-
-1. Command Line arguments
-2. Environment Variables (easiest to pass into Docker)
-3. JVM properties
-4. HOCON style Typesafe configuration file (application.conf). 
-   Configuration file can be customized with __$SITE__ to choose specific site/environment (e.g. __SITE=tidb__ would load __application-tidb.conf__)
-   Default File location is __conf/__
-
-__Example__:
-
-```
-run.sh --host 0.0.0.0 --port 8080
-```
-
-```
-HOST=0.0.0.0 PORT=8080 run.sh
-```
-
-```
-OPT="-Dhost=0.0.0.0 -Dport=8080" run.sh
-```
-
-application.conf
-```
-host=0.0.0.0
-port=8080
-```
-
-## Logging
-
-Logging is configured with logback.xml:
-
-1. logback.xml is searched on classpath
-1. __conf/logback.xml__ is first on Classpath in __run.sh__
-2. Default embedded logger config is set to "off"
-
-### Telemetry API
-
-Exposes Metrics Telemetry information
-
-- [http://{host}:{port}/api/v1/telemetry](http://{host}:{port}/api/v1/telemetry) - get all Telemetry
-- [http://{host}:{port}/api/v1/telemetry/{metric}](http://{host}:{port}/api/v1/telemetry/{metric}) - get specific Telemetry metric
-
-
-### Info API
-
-Exposes Service information and Health check
-
-- [http://{host}:{port}/api/v1/info](http://{host}:{port}/api/v1/info)
-
-
-### OpenAPI Spec
-
-Embedded API documentation
-
-__API spec__: [http://{host}:{port}/api/v1/doc/swagger.yaml](http://{host}:{port}/api/v1/doc/swagger.yaml) or [http://{host}:{port}/api/v1/doc/swagger.json](http://{host}:{port}/api/v1/doc/swagger.json)
-
-Quick: [http://localhost:8080/api/v1/doc/swagger.json](http://localhost:8080/api/v1/doc/swagger.json)
-
-__Swagger UI__: [http://host:port/api/v1/swagger](http://host:port/api/v1/swagger)
-
-Quick: [http://localhost:8080/api/v1/swagger](http://localhost:8080/api/v1/swagger)
-
-<img src="doc/scr-swagger.png" width="850">
+Refer to [skel-http](skel-http) for details
 
 ----
 

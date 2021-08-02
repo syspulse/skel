@@ -1,0 +1,152 @@
+# ================================================ Ingress ===
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: skel-http-ingress-1
+  labels:
+    app: skel
+spec:
+  rules:
+    - host: k1.home.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: skel-http-1
+                port:
+                  number: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: skel-http-ingress-2
+  labels:
+    app: skel
+spec:
+  rules:
+    - host: k1.home.net
+      http:
+        paths:
+          - path: /service
+            pathType: Prefix
+            backend:
+              service:
+                name: skel-http-2
+                port:
+                  number: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: skel-http-ingress-3
+  labels:
+    app: skel
+spec:
+  rules:
+    - host: k1.home.net
+      http:
+        paths:
+          - path: /api/v2/service
+            pathType: Prefix
+            backend:
+              service:
+                name: skel-http-3
+                port:
+                  number: 8080
+---
+# ================================================ Services ===
+apiVersion: v1
+kind: Service
+metadata:
+  name: skel-http-1
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: skel-1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skel-http-2
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: skel-2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skel-http-3
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: skel-3
+---
+# ================================================ Deployments ===
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skel-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skel-1
+  template:
+    metadata:
+      labels:
+        app: skel-1
+    spec:
+      containers:
+      - name: skel-http-1
+        image: syspulse/skel-http:0.0.2
+        imagePullPolicy: Always
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skel-2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skel-2
+  template:
+    metadata:
+      labels:
+        app: skel-2
+    spec:
+      containers:
+      - name: skel-http-2
+        image: syspulse/skel-http:0.0.2
+        args: ["start","--uri","/service"]
+        imagePullPolicy: Always
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skel-3
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skel-3
+  template:
+    metadata:
+      labels:
+        app: skel-3
+    spec:
+      containers:
+      - name: skel-http-3
+        image: syspulse/skel-http:0.0.2
+        args: ["start","--uri","/api/v2/service"]
+        imagePullPolicy: Always

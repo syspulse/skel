@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skel-3
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skel-3
+  template:
+    metadata:
+      labels:
+        app: skel-3
+    spec:
+      containers:
+      - name: skel-http-3
+        image: syspulse/skel-http:0.0.2
+        args: ["start","--uri","/api/v2/service"]
+        imagePullPolicy: Always
+

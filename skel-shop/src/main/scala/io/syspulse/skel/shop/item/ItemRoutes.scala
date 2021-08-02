@@ -34,7 +34,7 @@ import io.syspulse.skel.service.Routeable
 
 import io.syspulse.skel.shop.item.ItemRegistry._
 
-@Path("/api/v1/item")
+@Path("/api/v1/shop/item")
 class ItemRoutes(itemRegistry: ActorRef[ItemRegistry.Command])(implicit val system: ActorSystem[_]) extends DefaultInstrumented with Routeable {
   val log = Logger(s"${this}")  
 

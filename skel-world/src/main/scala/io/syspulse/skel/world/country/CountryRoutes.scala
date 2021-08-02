@@ -33,7 +33,7 @@ import io.syspulse.skel.service.Routeable
 
 import io.syspulse.skel.world.country.CountryRegistry._
 
-@Path("/api/v1/country")
+@Path("/api/v1/world/country")
 class CountryRoutes(countryRegistry: ActorRef[CountryRegistry.Command])(implicit val system: ActorSystem[_]) extends DefaultInstrumented with Routeable {
   val log = Logger(s"${this}")  
 

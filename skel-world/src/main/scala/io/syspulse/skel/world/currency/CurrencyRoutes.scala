@@ -33,7 +33,7 @@ import io.syspulse.skel.service.Routeable
 
 import io.syspulse.skel.world.currency.CurrencyRegistry._
 
-@Path("/api/v1/currency")
+@Path("/api/v1/world/currency")
 class CurrencyRoutes(currencyRegistry: ActorRef[CurrencyRegistry.Command])(implicit val system: ActorSystem[_]) extends DefaultInstrumented with Routeable {
   val log = Logger(s"${this}")  
 

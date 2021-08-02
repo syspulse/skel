@@ -11,7 +11,8 @@ import scopt.OParser
 
 case class Config(
   host:String="",
-  port:Int=0
+  port:Int=0,
+  uri:String = "",
 )
 
 object App extends skel.Server {
@@ -29,6 +30,7 @@ object App extends skel.Server {
         programName(appName), head(appName, appVersion),
         opt[String]('h', "host").action((x, c) => c.copy(host = x)).text("hostname"),
         opt[Int]('p', "port").action((x, c) => c.copy(port = x)).text("port"),
+        opt[String]('u', "uri").action((x, c) => c.copy(uri = x)).text("uri"),
       )
     } 
   
@@ -39,11 +41,12 @@ object App extends skel.Server {
         val config = Config(
           host = { if(! configArgs.host.isEmpty) configArgs.host else confuration.getString("http.host").getOrElse("0.0.0.0") },
           port = { if(configArgs.port!=0) configArgs.port else confuration.getInt("http.port").getOrElse(8080) },
+          uri = { if(! configArgs.uri.isEmpty) configArgs.uri else confuration.getString("uri").getOrElse("/api/v1/world") },
         )
 
         println(s"config: ${config}")
 
-        run( config.host, config.port,
+        run( config.host, config.port,config.uri,
           Seq(
             (CountryRegistry(new CountryStoreDB),"CountryRegistry",(actor,actorSystem ) => new CountryRoutes(actor)(actorSystem) ),
             (CurrencyRegistry(new CurrencyStoreDB),"CurrencyRegistry",(actor,actorSystem ) => new CurrencyRoutes(actor)(actorSystem) ),
