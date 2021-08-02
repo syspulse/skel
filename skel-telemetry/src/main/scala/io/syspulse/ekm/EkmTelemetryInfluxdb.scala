@@ -1,4 +1,4 @@
-package io.syspulse.skel.telemetry
+package io.syspulse.ekm
 
 import akka.Done
 import akka.NotUsed
@@ -79,7 +79,10 @@ class EkmTelemetryInfluxdb extends EkmTelemetryClient {
         
     val ekmSource = getEkmSource(ekmHost:String,ekmKey,ekmDevice,interval,limit)
 
-    val ekmFlow = ekmSource.mapAsync(1)(getTelemetry(_)).map(collectMetricsEkm(_)).map(toJson(_)).mapConcat(toData(_)).map(collectMetricsEkmData(_))
+    val ekmFlow = RestartSource.withBackoff(retrySettings) { () =>
+      log.info(s"Connecting -> EKM(${ekmHost})...")
+      ekmSource.mapAsync(1)(getTelemetry(_)).log("EKM").map(collectMetricsEkm(_)).map(toJson(_)).mapConcat(toData(_)).map(collectMetricsEkmData(_))
+    }
 
     val influxFlow = getInfluxFlow(influxUri,influxUser,influxPass,influxDb)
     val influxSink = getInfluxSink(influxUri,influxUser,influxPass,influxDb)

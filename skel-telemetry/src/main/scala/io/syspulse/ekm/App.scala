@@ -1,4 +1,4 @@
-package io.syspulse.skel.telemetry
+package io.syspulse.ekm
 
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration,FiniteDuration}
@@ -40,7 +40,7 @@ case class Config(
   ekmHost:(String,String,String) = ("","telemetry.ekm-host","http://io.ekmpush.com"),
   ekmKey:(String,String,String) = ("","telemetry.ekm-key",""),
   ekmDevice:(String,String,String) = ("","telemetry.ekm-device",""),
-  ekmInterval:(Long,String,Long) = (0L,"telemetry.ekm-interval",1L),
+  ekmFreq:(Long,String,Long) = (0L,"telemetry.ekm-freq",60L),
   
   ticks:(Long,String,Long) = (0L,"ticks",0L),
 
@@ -87,7 +87,7 @@ object App extends SkelApp {
         opt[String]('e', "ekm-host").action((x, c) => c.copy(ekmHost = (x,c.ekmHost._2,c.ekmHost._3))).text("EKM Host (http://io.ekmpush.com)"),
         opt[String]('k', "ekm-key").action((x, c) => c.copy(ekmKey = (x,c.ekmKey._2,c.ekmKey._3))).text("EKM Key ()"),
         opt[String]('m', "ekm-device").action((x, c) => c.copy(ekmDevice = (x,c.ekmDevice._2,c.ekmDevice._3))).text("EKM Device (00000)"),
-        opt[Long]('v', "ekm-interval").action((x, c) => c.copy(ekmInterval = (x.toLong,c.ekmInterval._2,c.ekmInterval._3))).text("EKM Count Inteval (def=1 second)"),
+        opt[Long]('v', "ekm-freq").action((x, c) => c.copy(ekmFreq = (x.toLong,c.ekmFreq._2,c.ekmFreq._3))).text("EKM Poll Frequence (def=60 second)"),
         
         opt[Long]('t', "ticks").action((x, c) => c.copy(ticks = (x.toLong,c.ticks._2,c.ticks._3))).text("Ticks Limit (def=0)"),
         
@@ -108,7 +108,7 @@ object App extends SkelApp {
           ekmHost = ({ if(! configArgs.ekmHost._1.isEmpty) configArgs.ekmHost._1 else confuration.getString(configArgs.ekmHost._2).getOrElse(configArgs.ekmHost._3) },configArgs.ekmHost._2,configArgs.ekmHost._3),
           ekmKey = ({ if(! configArgs.ekmKey._1.isEmpty) configArgs.ekmKey._1 else confuration.getString(configArgs.ekmKey._2).getOrElse(configArgs.ekmKey._3) },configArgs.ekmKey._2,configArgs.ekmKey._3),
           ekmDevice = ({ if(! configArgs.ekmDevice._1.isEmpty) configArgs.ekmDevice._1 else confuration.getString(configArgs.ekmDevice._2).getOrElse(configArgs.ekmDevice._3) },configArgs.ekmDevice._2,configArgs.ekmDevice._3),
-          ekmInterval = ({ if(configArgs.ekmInterval._1 != 0) configArgs.ekmInterval._1 else confuration.getLong(configArgs.ekmInterval._2).getOrElse(configArgs.ekmInterval._3) },configArgs.ekmInterval._2,configArgs.ekmInterval._3),
+          ekmFreq = ({ if(configArgs.ekmFreq._1 != 0) configArgs.ekmFreq._1 else confuration.getLong(configArgs.ekmFreq._2).getOrElse(configArgs.ekmFreq._3) },configArgs.ekmFreq._2,configArgs.ekmFreq._3),
           
           ticks = ({ if(configArgs.ticks._1 != 0) configArgs.ticks._1 else confuration.getLong(configArgs.ticks._2).getOrElse(configArgs.ticks._3) },configArgs.ticks._2,configArgs.ticks._3),
           
@@ -125,8 +125,8 @@ object App extends SkelApp {
         println(s"Config: ${config}")
 
         config.dataSource._1 match {
-          case "influx" => (new EkmTelemetryInfluxdb).run(config.ekmHost._1,config.ekmKey._1,config.ekmDevice._1,config.ekmInterval._1, config.ticks._1, config.logFile._1, config.influxUri._1, config.influxUser._1, config.influxPass._1, config.influxDb._1)
-          case "grafite" => (new EkmTelemetryGrafite).run(config.ekmHost._1,config.ekmKey._1,config.ekmDevice._1,config.ekmInterval._1, config.ticks._1, config.logFile._1, config.grafiteUri._1)
+          case "influx" => (new EkmTelemetryInfluxdb).run(config.ekmHost._1,config.ekmKey._1,config.ekmDevice._1,config.ekmFreq._1, config.ticks._1, config.logFile._1, config.influxUri._1, config.influxUser._1, config.influxPass._1, config.influxDb._1)
+          case "grafite" => (new EkmTelemetryGrafite).run(config.ekmHost._1,config.ekmKey._1,config.ekmDevice._1,config.ekmFreq._1, config.ticks._1, config.logFile._1, config.grafiteUri._1)
         }
       }
       case _ => 

@@ -1,4 +1,4 @@
-package io.syspulse.skel.telemetry
+package io.syspulse.ekm
 
 import java.time.{Instant}
 
@@ -11,7 +11,7 @@ import akka.http.scaladsl.model.headers.Accept
 import akka.http.scaladsl.model.{ HttpRequest, HttpResponse, MediaRanges,MediaTypes, HttpMethods }
 
 import akka.stream._
-import akka.stream.scaladsl.{ Sink, Source, Flow, FileIO, Tcp}
+import akka.stream.scaladsl.{ Sink, Source, Flow, FileIO, Tcp, RestartSource}
 import akka.util.ByteString
 
 import scala.concurrent.duration._
@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
 
 import scala.jdk.CollectionConverters._
 
-import io.syspulse.skel
+import io.syspulse.skel.telemetry.TelemetryClient
 import io.syspulse.skel.util.Util._
 
 class EkmTelemetryClient extends TelemetryClient {
@@ -33,6 +33,12 @@ class EkmTelemetryClient extends TelemetryClient {
   def ekmUri(host:String = "http://io.ekmpush.com", key:String, device:String, seconds:Long=1) = s"${host}/readMeter/v3/key/${key}/count/${seconds}/format/json/meters/${device}/"
   def putTelemetry(req: HttpRequest) = httpFlow(req)
   def getTelemetry(req: HttpRequest) = httpFlow(req)
+
+  val retrySettings = RestartSettings(
+    minBackoff = 3.seconds,
+    maxBackoff = 10.seconds,
+    randomFactor = 0.2 // adds 20% "noise" to vary the intervals slightly
+  ).withMaxRestarts(10, 5.minutes)
 
   def toData(json:String):List[EkmTelemetry] = {
     val dd = ujson.read(json).obj("readMeter").obj("ReadSet").arr
@@ -47,9 +53,9 @@ class EkmTelemetryClient extends TelemetryClient {
 		}).flatten.toList
   }
 
-  def getEkmSource(ekmHost:String, ekmKey:String, ekmDevice:String, interval:Long = 1, limit:Long = 0, logFile:String = "") = {
+  def getEkmSource(ekmHost:String, ekmKey:String, ekmDevice:String, freq:Long = 60, limit:Long = 0, logFile:String = "") = {
         
-    val ekmFreq = 60.seconds
+    val ekmFreq = FiniteDuration(freq,"seconds")
     
     val ekmHttpRequest = HttpRequest(uri = ekmUri(ekmHost,ekmKey,ekmDevice)).withHeaders(Accept(MediaTypes.`application/json`))
     val ekmSource = Source.tick(0.seconds, ekmFreq, ekmHttpRequest)

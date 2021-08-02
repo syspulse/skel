@@ -1,4 +1,4 @@
-package io.syspulse.skel.telemetry
+package io.syspulse.ekm
 
 import akka.Done
 import akka.actor._

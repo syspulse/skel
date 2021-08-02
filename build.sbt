@@ -16,6 +16,7 @@ enablePlugins(DockerPlugin)
 enablePlugins(AshScriptPlugin)
 //enablePlugins(JavaAppPackaging, AshScriptPlugin)
 
+// Huge Credits -> https://softwaremill.com/how-to-build-multi-platform-docker-image-with-sbt-and-docker-buildx
 lazy val ensureDockerBuildx = taskKey[Unit]("Ensure that docker buildx configuration exists")
 lazy val dockerBuildWithBuildx = taskKey[Unit]("Build docker images using buildx")
 lazy val dockerBuildxSettings = Seq(
@@ -173,9 +174,20 @@ lazy val auth = (project in file("skel-auth"))
 
 lazy val user = (project in file("skel-user"))
   .dependsOn(core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
   .settings (
+
     sharedConfig,
     sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
+    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
+    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
 
     name := appNameUser,
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
@@ -216,6 +228,7 @@ lazy val world = (project in file("skel-world"))
     sharedConfig,
     sharedConfigAssembly,
     sharedConfigDocker,
+    dockerBuildxSettings,
 
     mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
     mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
@@ -243,6 +256,7 @@ lazy val telemetry = (project in file("skel-telemetry"))
     sharedConfig,
     sharedConfigAssembly,
     sharedConfigDocker,
+    dockerBuildxSettings,
 
     mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
     mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
@@ -270,6 +284,7 @@ lazy val shop = (project in file("skel-shop"))
     sharedConfig,
     sharedConfigAssembly,
     sharedConfigDocker,
+    dockerBuildxSettings,
 
     mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
     mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",

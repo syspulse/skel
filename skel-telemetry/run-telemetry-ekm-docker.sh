@@ -4,8 +4,8 @@ cd $CWD
 
 DOCKER=syspulse/skel-telemetry:latest
 
-EKM_KEY="ODQwMzczOjE2NzMwMw"
-EKM_DEVICE="11996"
+EKM_KEY=${EKM_KEY}
+EKM_DEVICE=${EKM_DEVICE}
 
 #INFLUX_URI="http://172.17.0.1:8086"
 INFLUX_URI="http://192.168.1.245:8086"
