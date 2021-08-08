@@ -2,7 +2,7 @@
 CWD=`echo $(dirname $(readlink -f $0))`
 cd $CWD
 
-DOCKER=syspulse/skel-telemetry:latest
+DOCKER=syspulse/skel-ekm:latest
 
 EKM_KEY=${EKM_KEY}
 EKM_DEVICE=${EKM_DEVICE}

@@ -26,9 +26,13 @@ object Dependencies {
     lazy val appNameShop = "skel-shop"
     lazy val appBootClassShop = "io.syspulse.skel.shop.App"
 
-    lazy val appNameTelemetry = "skel-telemetry"
-    lazy val appBootClassTelemetry = "io.syspulse.ekm.App"
+    // lazy val appNameTelemetry = "skel-telemetry"
+    // lazy val appBootClassTelemetry = "io.syspulse.ekm.App"
 
+    lazy val appNameEkm = "skel-ekm"
+    lazy val appBootClassEkm = "io.syspulse.ekm.App"
+
+    
     lazy val appVersion = "0.0.2"
     lazy val jarPrefix = "server-"
     

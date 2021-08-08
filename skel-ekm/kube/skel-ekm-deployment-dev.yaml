@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ekm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ekm
+  template:
+    metadata:
+      labels:
+        app: ekm
+    spec:
+      containers:
+      - name: skel-ekm
+        image: syspulse/skel-ekm:latest
+        imagePullPolicy: Always
+        args: ["--ekm-key","XXXXXXXXXXXXXX","--ekm-device","000001","--influx-uri","http://influx-host:8086","--log-file","/cache/ekm-{yyyy-MM-dd-HH-mm}.log"]
+        volumeMounts:
+        - mountPath: /cache
+          name: cache-volume
+      volumes:
+      - name: cache-volume
+        emptyDir: {}
+

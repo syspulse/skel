@@ -246,34 +246,6 @@ lazy val world = (project in file("skel-world"))
 
   )
 
-lazy val telemetry = (project in file("skel-telemetry"))
-  .dependsOn(core)
-  .enablePlugins(JavaAppPackaging)
-  .enablePlugins(DockerPlugin)
-  .enablePlugins(AshScriptPlugin)
-  .settings (
-
-    sharedConfig,
-    sharedConfigAssembly,
-    sharedConfigDocker,
-    dockerBuildxSettings,
-
-    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
-    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
-    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
-    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
-
-    name := appNameTelemetry,
-    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
-      libUjsonLib
-    ),
-    
-    mainClass in run := Some(appBootClassTelemetry),
-    mainClass in assembly := Some(appBootClassTelemetry),
-    assemblyJarName in assembly := jarPrefix + appNameTelemetry + "-" + "assembly" + "-"+  appVersion + ".jar",
-
-  )
-
 lazy val shop = (project in file("skel-shop"))
   .dependsOn(core,world)
   .enablePlugins(JavaAppPackaging)
@@ -303,3 +275,42 @@ lazy val shop = (project in file("skel-shop"))
 
   )
 
+lazy val telemetry = (project in file("skel-telemetry"))
+  .dependsOn(core)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+    sharedConfig,
+    name := "skel-telemetry",
+    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
+      libUjsonLib
+    )
+    
+  )
+
+lazy val ekm = (project in file("skel-ekm"))
+  .dependsOn(core,telemetry)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
+    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
+    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
+
+    name := appNameEkm,
+    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
+      libUjsonLib
+    ),
+    
+    mainClass in run := Some(appBootClassEkm),
+    mainClass in assembly := Some(appBootClassEkm),
+    assemblyJarName in assembly := jarPrefix + appNameEkm + "-" + "assembly" + "-"+  appVersion + ".jar",
+
+  )
