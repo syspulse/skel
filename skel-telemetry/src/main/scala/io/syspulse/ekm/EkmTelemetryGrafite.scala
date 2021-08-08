@@ -9,6 +9,7 @@ import akka.http.scaladsl.model.headers.Accept
 import akka.http.scaladsl.model.{ HttpRequest, HttpResponse, MediaRanges,MediaTypes, HttpMethods }
 
 import akka.stream._
+import akka.stream.scaladsl._
 import akka.stream.scaladsl.{ Sink, Source, Flow, FileIO, Tcp}
 import akka.util.ByteString
 
@@ -37,17 +38,24 @@ class EkmTelemetryGrafite extends EkmTelemetryClient {
     val (grafiteHost,grafitePort) = Util.getHostPort(grafiteUri)
 
     val grafiteConnection = Tcp().outgoingConnection(grafiteHost, grafitePort)
-    toGrafite.map(ByteString(_)).via(grafiteConnection)
+    toGrafite.log("Graphite").map(ByteString(_)).via(grafiteConnection)
   }
 
   def run(ekmHost:String, ekmKey:String, ekmDevice:String, interval:Long = 1, limit:Long = 0, logFile:String = "",
           grafiteUri:String = "localhost:2003") = {
         
     val ekmSource = getEkmSource(ekmHost,ekmKey,ekmDevice,interval,limit)
+    val ekmSourceRestartable = RestartSource.withBackoff(retrySettings) { () =>
+      log.info(s"Connecting -> EKM(${ekmHost})...")
+      ekmSource.mapAsync(1)(getTelemetry(_)).log("EKM").map(toJson(_)).mapConcat(toData(_))
+    }
 
-    val grafiteFlow = getGrafiteFlow(grafiteUri)
+    val grafiteFlow = RestartFlow.withBackoff(retrySettings) { () =>
+      log.info(s"Connecting -> Graphite(${grafiteUri})...")
+      getGrafiteFlow(grafiteUri)
+    }
  
-    val grafiteStream = ekmSource.mapAsync(1)(getTelemetry(_)).map(toJson(_)).mapConcat(toData(_)).alsoTo(logSink).via(grafiteFlow).runWith(Sink.ignore)
+    val grafiteStream = ekmSourceRestartable.alsoTo(logSink).via(grafiteFlow).runWith(Sink.ignore)
  
     println(s"stream: ${grafiteStream}")
     //println(result.value.asInstanceOf[scala.util.Failure[_]].exception.getStackTrace.mkString("\n"))

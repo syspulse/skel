@@ -71,7 +71,10 @@ class EkmTelemetryInfluxdb extends EkmTelemetryClient {
   def getInfluxSink(influxUri: String, influxUser:String, influxPass:String, influxDb:String) = {
     implicit val influxDB = InfluxDBFactory.connect(influxUri, influxUser, influxPass) 
     influxDB.setDatabase(influxDb)
-    Flow[EkmTelemetry].map(collectMetricsInflux(_)).map(t => toInflux(Seq(t))).to(InfluxDbSink.create())
+    RestartSink.withBackoff(retrySettings) { () =>
+      log.info(s"Connecting -> InfluxDB(${influxUri}/${influxDb})...")
+      Flow[EkmTelemetry].log("InfluxDB").map(collectMetricsInflux(_)).map(t => toInflux(Seq(t))).to(InfluxDbSink.create())
+    }
   }
 
   def run(ekmHost:String,ekmKey:String, ekmDevice:String, interval:Long = 1, limit:Long = 0, logFile:String = "",
@@ -79,19 +82,19 @@ class EkmTelemetryInfluxdb extends EkmTelemetryClient {
         
     val ekmSource = getEkmSource(ekmHost:String,ekmKey,ekmDevice,interval,limit)
 
-    val ekmFlow = RestartSource.withBackoff(retrySettings) { () =>
+    val ekmSourceRestartable = RestartSource.withBackoff(retrySettings) { () =>
       log.info(s"Connecting -> EKM(${ekmHost})...")
       ekmSource.mapAsync(1)(getTelemetry(_)).log("EKM").map(collectMetricsEkm(_)).map(toJson(_)).mapConcat(toData(_)).map(collectMetricsEkmData(_))
     }
 
-    val influxFlow = getInfluxFlow(influxUri,influxUser,influxPass,influxDb)
+    //val influxFlow = getInfluxFlow(influxUri,influxUser,influxPass,influxDb)
     val influxSink = getInfluxSink(influxUri,influxUser,influxPass,influxDb)
     val dataFileSink = getDataFileSink(logFile)
 
     val graph = RunnableGraph.fromGraph(GraphDSL.create() { implicit b =>
       import GraphDSL.Implicits._
       val broadcast = b.add(Broadcast[EkmTelemetry](3))
-      ekmFlow ~> broadcast.in
+      ekmSourceRestartable ~> broadcast.in
       broadcast.out(0) ~> Flow[EkmTelemetry].async ~> dataFileSink
       broadcast.out(1) ~> Flow[EkmTelemetry].async ~> influxSink
       broadcast.out(2) ~> Flow[EkmTelemetry].async ~> logSink
