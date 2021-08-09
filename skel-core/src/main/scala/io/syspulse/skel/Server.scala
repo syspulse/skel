@@ -32,6 +32,8 @@ import io.syspulse.skel.service.info.{InfoRegistry,InfoRoutes}
 import io.syspulse.skel.service.health.{HealthRegistry,HealthRoutes}
 import io.syspulse.skel.service.Routeable
 import scala.concurrent.duration._
+import akka.actor.ActorContext
+import akka.actor.typed.scaladsl
 
 
 trait Server {
@@ -52,29 +54,11 @@ trait Server {
     }
   }
 
-  def run(host:String, port:Int, uri:String,
-          app:Seq[(Behavior[Command],String,(ActorRef[Command],ActorSystem[_])=>Routeable)]
-          ): Unit = {
-    
-    val (apiUri,apiVersion,serviceUri) = uri.split("/").filter(!_.isEmpty()) match {
-      case Array(p,v,s) => (Slash ~ p,Slash ~ v,Slash ~ s)
-      case Array(p,s) => (Slash ~ p,PathMatcher(""),Slash ~ s)
-      case Array(s) => (PathMatcher(""),PathMatcher(""),Slash ~ s)
-      case Array() => (PathMatcher(""),PathMatcher(""),PathMatcher(""))
-      case Array(p,v,s,_*) => (Slash ~ p,Slash ~ v,Slash ~ s)
-    }
+  def jsonEntity(json:String) = HttpEntity(ContentTypes.`application/json`, json)
 
-    def jsonEntity(json:String) = HttpEntity(ContentTypes.`application/json`, json)
-    
-    val httpBehavior = Behaviors.setup[Nothing] { context =>
-      val telemetryRegistryActor = context.spawn(TelemetryRegistry(), "Actor-TelemetryRegistry")
-      val infoRegistryActor = context.spawn(InfoRegistry(), "Actor-InfoRegistry")
-      val healthRegistryActor = context.spawn(HealthRegistry(), "Actor-HealthRegistry")
-      context.watch(telemetryRegistryActor)
-      context.watch(infoRegistryActor)
-      context.watch(healthRegistryActor)
-
-      val rejectionHandler = RejectionHandler.newBuilder()
+  //def getHandlers(context:akka.actor.typed.scaladsl.ActorContext[_]):(RejectionHandler,ExceptionHandler) = {
+  def getHandlers():(RejectionHandler,ExceptionHandler) = {
+    val rejectionHandler = RejectionHandler.newBuilder()
         .handle { case MissingQueryParamRejection(param) =>
             complete(HttpResponse(BadRequest,   entity = jsonEntity(s"""["error": "missing parameter"]"""")))
         }
@@ -90,15 +74,70 @@ trait Server {
         }}
         .result()
     
-      val exceptionHandler: ExceptionHandler =
+    val exceptionHandler: ExceptionHandler =
       ExceptionHandler {
         case e: java.lang.IllegalArgumentException =>
           extractUri { uri =>
-            context.system.log.error(s"Request '$uri' failed:",e)
+            //context.system.log.error(s"Request '$uri' failed:",e)
             complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""["error": "${e}"]""")))
           }
         // case e: Exception => complete(HttpResponse(InternalServerError))
       }
+    (rejectionHandler,exceptionHandler)
+  }
+
+  def parseUri(uri:String) = {
+    val (apiUri,apiVersion,serviceUri) = uri.split("/").filter(!_.isEmpty()) match {
+      case Array(p,v,s) => (Slash ~ p,Slash ~ v,Slash ~ s)
+      case Array(p,s) => (Slash ~ p,PathMatcher(""),Slash ~ s)
+      case Array(s) => (PathMatcher(""),PathMatcher(""),Slash ~ s)
+      case Array() => (PathMatcher(""),PathMatcher(""),PathMatcher(""))
+      case Array(p,v,s,_*) => (Slash ~ p,Slash ~ v,Slash ~ s)
+    }  
+    (apiUri,apiVersion,serviceUri)
+  }
+
+  def getRoutes(rejectionHandler:RejectionHandler,exceptionHandler:ExceptionHandler,
+                uri:String,
+                systemRoutes:Seq[Route],
+                appRoutes:Seq[Route]) = {
+    val (apiUri,apiVersion,serviceUri) = parseUri(uri)
+    val routes: Route =
+      handleRejections(rejectionHandler) {
+        handleExceptions(exceptionHandler) {
+          rawPathPrefix(apiUri) {
+            rawPathPrefix(apiVersion) {
+              rawPathPrefix(serviceUri) {
+                concat(
+                  // telemetryRoutes.routes,
+                  // infoRoutes.routes,
+                  // healthRoutes.routes,
+                  // swaggerRoutes,
+                  // swaggerUI
+                  systemRoutes:_*
+                ) ~
+                concat(appRoutes:_*) 
+              } 
+            }
+          }
+        }
+      }
+    routes
+  }
+
+  def run(host:String, port:Int, uri:String,
+          app:Seq[(Behavior[Command],String,(ActorRef[Command],ActorSystem[_])=>Routeable)]
+          ): Unit = {
+    
+    val httpBehavior = Behaviors.setup[Nothing] { context =>
+      val telemetryRegistryActor = context.spawn(TelemetryRegistry(), "Actor-TelemetryRegistry")
+      val infoRegistryActor = context.spawn(InfoRegistry(), "Actor-InfoRegistry")
+      val healthRegistryActor = context.spawn(HealthRegistry(), "Actor-HealthRegistry")
+      context.watch(telemetryRegistryActor)
+      context.watch(infoRegistryActor)
+      context.watch(healthRegistryActor)
+
+      val (rejectionHandler:RejectionHandler,exceptionHandler:ExceptionHandler) = getHandlers() //(context)
 
       val appServices:Seq[Routeable] = app.map{ case(behavior,name,routeFun) => {
           val survivingBehavior = Behaviors.supervise[Command] {
@@ -119,27 +158,34 @@ trait Server {
       val infoRoutes = new InfoRoutes(infoRegistryActor)(context.system)
       val healthRoutes = new HealthRoutes(healthRegistryActor)(context.system)
 
-      val routes: Route =
-      handleRejections(rejectionHandler) {
-        handleExceptions(exceptionHandler) {
-          rawPathPrefix(apiUri) {
-            rawPathPrefix(apiVersion) {
-              rawPathPrefix(serviceUri) {
-                concat(
-                  telemetryRoutes.routes,
-                  infoRoutes.routes,
-                  healthRoutes.routes,
-                  swaggerRoutes,
-                  swaggerUI
-                ) ~
-                concat(appRoutes:_*) 
-              } 
-            }
-          }
-        }
-      }
+      val routes: Route = 
+        getRoutes(
+          rejectionHandler,exceptionHandler,
+          uri,
+          Seq(telemetryRoutes.routes,infoRoutes.routes,healthRoutes.routes,swaggerRoutes,swaggerUI),
+          appRoutes
+        )
+
+      // handleRejections(rejectionHandler) {
+      //   handleExceptions(exceptionHandler) {
+      //     rawPathPrefix(apiUri) {
+      //       rawPathPrefix(apiVersion) {
+      //         rawPathPrefix(serviceUri) {
+      //           concat(
+      //             telemetryRoutes.routes,
+      //             infoRoutes.routes,
+      //             healthRoutes.routes,
+      //             swaggerRoutes,
+      //             swaggerUI
+      //           ) ~
+      //           concat(appRoutes:_*) 
+      //         } 
+      //       }
+      //     }
+      //   }
+      // }
           
-      Swagger.withClass(appClasses).withVersion(apiVersion.toString).withHost(host,port)
+      Swagger.withClass(appClasses).withVersion(parseUri(uri)._2.toString).withHost(host,port)
     
       // should not be here...
       startHttpServer(host, port, routes)(context.system)

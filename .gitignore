@@ -1,0 +1,9 @@
+*.class
+.idea
+.metals
+.vscode
+.bsp
+.bloop
+.scalafmt.conf
+*.log
+target/

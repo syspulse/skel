@@ -1,0 +1,7 @@
+package io.syspulse.skel.otp
+
+import scala.collection.immutable
+
+import io.jvm.uuid._
+
+final case class Otp(id:UUID, userId:UUID, secret: String,name:String, uri:String, period:Int)

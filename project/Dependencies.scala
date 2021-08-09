@@ -12,11 +12,15 @@ object Dependencies {
     lazy val quillVersion = "3.6.0"
     
     lazy val appNameHttp = "skel-http"
-    lazy val appBootClassHttp = "io.syspulse.otp.App"
+    lazy val appBootClassHttp = "io.syspulse.skel.service.App"
+    
+    lazy val appNameOtp = "skel-otp"
+    lazy val appBootClassOtp = "io.syspulse.skel.otp.App"
+
     lazy val appNameAuth = "skel-auth"
-    lazy val appBootClassAuth = "io.syspulse.auth.App"
+    lazy val appBootClassAuth = "io.syspulse.skel.auth.App"
     lazy val appNameUser = "skel-user"
-    lazy val appBootClassUser = "io.syspulse.user.App"
+    lazy val appBootClassUser = "io.syspulse.skel.user.App"
     lazy val appNameKafka = "skel-kafka"
     lazy val appBootClassKafka = "io.syspulse.skel.kafka.App"
 
@@ -57,9 +61,6 @@ object Dependencies {
     val libQuill =          "io.getquill"                 %% "quill-jdbc"           % "3.5.2"
     val libMySQL =          "mysql"                       %  "mysql-connector-java" % "8.0.22"
 
-    val libScalaTest =      "org.scalatest"               %% "scalatest"            % "3.1.2" % Test
-    //val libSpecs2core =     "org.specs2"                  %% "specs2-core"          % "2.4.17"
-
     val libTypesafeConfig = "com.typesafe"                %  "config"               % "1.4.1"
       
     val libWsRs =           "javax.ws.rs"                 % "javax.ws.rs-api"       % "2.0.1"
@@ -74,8 +75,10 @@ object Dependencies {
 
     val libKafkaAvroSer =   "io.confluent"                % "kafka-avro-serializer" % kafkaAvroSerVersion
 
-    val libAkkaTestkit =    "com.typesafe.akka"           %% "akka-http-testkit"    % akkaHttpVersion % Test
-    val libAkkaTestkitType ="com.typesafe.akka"           %% "akka-actor-testkit-typed" % akkaVersion % Test
+    val libScalaTest =      "org.scalatest"               %% "scalatest"            % "3.1.2"// % Test
+    //val libSpecs2core =     "org.specs2"                  %% "specs2-core"          % "2.4.17"
+    val libAkkaTestkit =    "com.typesafe.akka"           %% "akka-http-testkit"    % akkaHttpVersion// % Test
+    val libAkkaTestkitType ="com.typesafe.akka"           %% "akka-actor-testkit-typed" % akkaVersion// % Test
     
     //val libJline =          "org.jline"                   %  "jline"                 % "3.14.1"
     //val libJson4s =         "org.json4s"                  %%  "json4s-native"        % "3.6.7"
@@ -96,7 +99,9 @@ object Dependencies {
     val libAlpakka = Seq(libAlpakkaInfluxDB)
     val libHttp = Seq(libAkkaHttp,libAkkaHttpSpray)
     val libCommon = Seq(libScalaLogging, libLogback, libTypesafeConfig )
-    val libTest = Seq(libScalaTest,libAkkaTestkit,libAkkaTestkitType)
+    
+    val libTest = Seq(libScalaTest % Test,libAkkaTestkit % Test,libAkkaTestkitType % Test)
+    val libTestLib = Seq(libScalaTest,libAkkaTestkit,libAkkaTestkitType)
 
     val libSkel = Seq(libWsRs,libSwaggerAkkaHttp,libMetrics,libScopt,libUUID)
 

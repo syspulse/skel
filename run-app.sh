@@ -19,6 +19,8 @@ shift
 JAR=`ls ${APP}/target/scala-2.13/*assembly*.jar`
 CP="`pwd`/conf/:$JAR"
 
+CONFIG="application${SITE}.conf"
+
 echo "=== Class Path ======================================="
 echo "$CP"| sed "s/\:/\n/g"
 echo "======================================================"
@@ -27,9 +29,10 @@ echo "MAIN: $MAIN"
 echo "OPT: $OPT"
 echo "ARGS: $@"
 echo "Site: ${SITE}"
+echo "Config: ${CONFIG}"
 
 echo $CP
 
 # command:
-EXEC="$JAVA_HOME/bin/java -Xss512M -Dconfig.resource=application${SITE}.conf -cp $CP $AGENT $OPT $MAIN $@"
+EXEC="$JAVA_HOME/bin/java -Xss512M -Dconfig.resource=$CONFIG -cp $CP $AGENT $OPT $MAIN $@"
 exec $EXEC

@@ -109,8 +109,8 @@ val sharedConfigAssembly = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(core, http, auth, user, kafka, world, shop, telemetry)
-  .dependsOn(core, http, auth, user, kafka, world, shop, telemetry)
+  .aggregate(core, skel_test, http, auth, user, kafka, world, shop, telemetry,otp)
+  .dependsOn(core, skel_test, http, auth, user, kafka, world, shop, telemetry,otp)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -124,8 +124,31 @@ lazy val core = (project in file("skel-core"))
   .settings (
       sharedConfig,
       name := "skel-core",
-      libraryDependencies ++= libAkka ++ libHttp ++ libCommon ++ libSkel ++ libDB ++ libTest ++ Seq(),
+      libraryDependencies ++= 
+        libAkka ++ 
+        libHttp ++ 
+        libCommon ++ 
+        libSkel ++ 
+        libDB ++ 
+        libTest ++ 
+        Seq(),
     )
+
+lazy val skel_test = (project in file("skel-test"))
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      name := "skel-test",
+      libraryDependencies ++= 
+        libAkka ++ 
+        libHttp ++ 
+        libCommon ++ 
+        libSkel ++ 
+        libDB ++ 
+        libTestLib ++
+        Seq(),
+    )
+
 
 lazy val http = (project in file("skel-http"))
   .dependsOn(core)
@@ -171,6 +194,35 @@ lazy val auth = (project in file("skel-auth"))
     assemblyJarName in assembly := jarPrefix + appNameAuth + "-" + "assembly" + "-"+  appVersion + ".jar",
 
   )
+
+lazy val otp = (project in file("skel-otp"))
+  .dependsOn(core,skel_test % Test)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
+    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
+    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
+
+    name := appNameOtp,
+    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
+        
+    ),
+    
+    mainClass in run := Some(appBootClassOtp),
+    mainClass in assembly := Some(appBootClassOtp),
+    assemblyJarName in assembly := jarPrefix + appNameOtp + "-" + "assembly" + "-"+  appVersion + ".jar",
+
+  )
+
 
 lazy val user = (project in file("skel-user"))
   .dependsOn(core)
