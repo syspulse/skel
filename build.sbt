@@ -214,7 +214,7 @@ lazy val otp = (project in file("skel-otp"))
 
     name := appNameOtp,
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
-        
+        libKuroOtp
     ),
     
     mainClass in run := Some(appBootClassOtp),

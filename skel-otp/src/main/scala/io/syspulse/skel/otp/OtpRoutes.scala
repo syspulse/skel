@@ -47,12 +47,17 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
   val metricGetCount: Counter = metrics.counter("otp-get-count")
   val metricPostCount: Counter = metrics.counter("otp-post-count")
   val metricDeleteCount: Counter = metrics.counter("otp-delete-count")
-
+  val metricGetCodeCount: Counter = metrics.counter("otp-get-code-count")
+  val metricVerifyCodeCount: Counter = metrics.counter("otp-verify-code-count")
 
   def getOtps(): Future[Otps] = otpRegistry.ask(GetOtps)
   def getUserOtps(userId:UUID): Future[Otps] = otpRegistry.ask(GetUserOtps(userId,_))
   def getOtp(id: UUID): Future[GetOtpResponse] = otpRegistry.ask(GetOtp(id, _))
-  def createOtp(otpCreate: OtpCreate): Future[OtpActionPerformed] = otpRegistry.ask(CreateOtp(otpCreate, _))
+
+  def getOtpCode(id: UUID): Future[GetOtpCodeResponse] = otpRegistry.ask(GetOtpCode(id, _))
+  def getOtpCodeVerify(id: UUID, code:String): Future[GetOtpCodeVerifyResponse] = otpRegistry.ask(GetOtpCodeVerify(id,code, _))
+
+  def createOtp(otpCreate: OtpCreate): Future[OtpCreatePerformed] = otpRegistry.ask(CreateOtp(otpCreate, _))
   def deleteOtp(id: UUID): Future[OtpActionPerformed] = otpRegistry.ask(DeleteOtp(id, _))
 
 
@@ -66,6 +71,36 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
       onSuccess(getOtp(UUID.fromString(id))) { response =>
         metricGetCount += 1
         complete(response.otp)
+      }
+    }
+  }
+
+
+  @GET @Path("/{id}/code") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("otp"),summary = "Get OTP code by id",
+    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "OTP id (uuid)")),
+    responses = Array(new ApiResponse(responseCode="200",description = "OTP Code returned",content=Array(new Content(schema=new Schema(implementation = classOf[OtpCode])))))
+  )
+  def getOtpCodeRoute(id: String) = get {
+    rejectEmptyResponse {
+      onSuccess(getOtpCode(UUID.fromString(id))) { response =>
+        metricGetCodeCount += 1
+        complete(response)
+      }
+    }
+  }
+
+
+  @GET @Path("/{id}/code/{code}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("otp"),summary = "Verify OTP code by id",
+    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "OTP id (uuid)")),
+    responses = Array(new ApiResponse(responseCode="200",description = "OTP Code returned",content=Array(new Content(schema=new Schema(implementation = classOf[OtpCode])))))
+  )
+  def getOtpCodeVerifyRoute(id: String,code:String) = get {
+    rejectEmptyResponse {
+      onSuccess(getOtpCodeVerify(UUID.fromString(id),code)) { response =>
+        metricVerifyCodeCount += 1
+        complete(response)
       }
     }
   }
@@ -132,11 +167,21 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
             getUserOtpsRoute(userId)
           }
         },
-        path(Segment) { id =>
-          concat(
-            getOtpRoute(id),
-            deleteOtpRoute(id)
-          )
+        pathPrefix(Segment) { id => 
+          pathPrefix("code") {
+            pathEndOrSingleSlash {
+              getOtpCodeRoute(id)
+            } ~
+            path(Segment) { code =>
+              getOtpCodeVerifyRoute(id,code)
+            }
+          } ~
+          pathEndOrSingleSlash {
+            concat(
+              getOtpRoute(id),
+              deleteOtpRoute(id),
+            )
+          } 
         }
       )
     

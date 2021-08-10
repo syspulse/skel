@@ -13,9 +13,12 @@ object OtpJson extends JsonCommon {
   
   import DefaultJsonProtocol._
 
-  implicit val otpJsonFormat = jsonFormat6(Otp)
+  implicit val otpJsonFormat = jsonFormat8(Otp)
   implicit val otpsJsonFormat = jsonFormat1(Otps)
   implicit val otpCreateJsonFormat = jsonFormat5(OtpCreate)
   implicit val otpActionPerformedJsonFormat = jsonFormat2(OtpActionPerformed)
+  implicit val otpCreatePerformedJsonFormat = jsonFormat2(OtpCreatePerformed)
 
+  implicit val otpCodeResponseJsonFormat = jsonFormat1(GetOtpCodeResponse)
+  implicit val otpCodeVerifyResponseJsonFormat = jsonFormat2(GetOtpCodeVerifyResponse)
 }

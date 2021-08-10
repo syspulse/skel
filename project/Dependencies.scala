@@ -86,14 +86,17 @@ object Dependencies {
     val libUpickleLib =     "com.lihaoyi"                 %% "upickle"              % "1.3.15"
     val libUjsonLib =       "com.lihaoyi"                 %% "ujson"                % "1.3.15"
 
-    val libCsv =            "com.github.tototoshi"        %% "scala-csv"            % "1.3.7"
-    val libFaker =          "com.github.javafaker"        % "javafaker"             % "1.0.2"
+    val libCsv =            "com.github.tototoshi"          %% "scala-csv"            % "1.3.7"
+    val libFaker =          "com.github.javafaker"          % "javafaker"             % "1.0.2"
 
-    val libPrometheusClient =   "io.prometheus"               % "simpleclient"              % "0.10.0"
-    val libPrometheusHttp =     "io.prometheus"               % "simpleclient_httpserver"   % "0.10.0"
-    val libPrometheusHotspot =  "io.prometheus"            % "simpleclient_hotspot"   % "0.10.0"
+    val libPrometheusClient =   "io.prometheus"             % "simpleclient"              % "0.10.0"
+    val libPrometheusHttp =     "io.prometheus"             % "simpleclient_httpserver"   % "0.10.0"
+    val libPrometheusHotspot =  "io.prometheus"             % "simpleclient_hotspot"   % "0.10.0"
     //val libPrometheusPushGw = "io.prometheus"               % "simpleclient_pushgateway"   % "0.10.0"
     
+    // This is modified version for Scala2.13 (https://github.com/syspulse/kuro-otp)
+    val libKuroOtp =        "com.ejisan"                    %% "kuro-otp"   % "0.0.3-SNAPSHOT"
+
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)

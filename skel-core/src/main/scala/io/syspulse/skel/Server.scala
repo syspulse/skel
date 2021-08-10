@@ -56,7 +56,6 @@ trait Server {
 
   def jsonEntity(json:String) = HttpEntity(ContentTypes.`application/json`, json)
 
-  //def getHandlers(context:akka.actor.typed.scaladsl.ActorContext[_]):(RejectionHandler,ExceptionHandler) = {
   def getHandlers():(RejectionHandler,ExceptionHandler) = {
     val rejectionHandler = RejectionHandler.newBuilder()
         .handle { case MissingQueryParamRejection(param) =>
@@ -109,14 +108,11 @@ trait Server {
             rawPathPrefix(apiVersion) {
               rawPathPrefix(serviceUri) {
                 concat(
-                  // telemetryRoutes.routes,
-                  // infoRoutes.routes,
-                  // healthRoutes.routes,
-                  // swaggerRoutes,
-                  // swaggerUI
                   systemRoutes:_*
                 ) ~
-                concat(appRoutes:_*) 
+                concat(
+                  appRoutes:_*
+                ) 
               } 
             }
           }
@@ -165,25 +161,6 @@ trait Server {
           Seq(telemetryRoutes.routes,infoRoutes.routes,healthRoutes.routes,swaggerRoutes,swaggerUI),
           appRoutes
         )
-
-      // handleRejections(rejectionHandler) {
-      //   handleExceptions(exceptionHandler) {
-      //     rawPathPrefix(apiUri) {
-      //       rawPathPrefix(apiVersion) {
-      //         rawPathPrefix(serviceUri) {
-      //           concat(
-      //             telemetryRoutes.routes,
-      //             infoRoutes.routes,
-      //             healthRoutes.routes,
-      //             swaggerRoutes,
-      //             swaggerUI
-      //           ) ~
-      //           concat(appRoutes:_*) 
-      //         } 
-      //       }
-      //     }
-      //   }
-      // }
           
       Swagger.withClass(appClasses).withVersion(parseUri(uri)._2.toString).withHost(host,port)
     
