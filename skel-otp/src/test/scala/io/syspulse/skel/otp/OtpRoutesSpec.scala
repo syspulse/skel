@@ -82,10 +82,9 @@ class OtpRoutesSpec extends HttpServiceTest {
 
       request ~> routes ~> check {
         status should ===(StatusCodes.Created)
-
         contentType should ===(ContentTypes.`application/json`)
 
-        val rsp = entityAs[OtpCreatePerformed]
+        val rsp = entityAs[OtpCreateResult]
         // otp is created with random UUID !
         rsp.secret === (s"""secret""")
         
@@ -98,7 +97,6 @@ class OtpRoutesSpec extends HttpServiceTest {
 
       request ~> routes ~> check {
         status should ===(StatusCodes.OK)
-
         contentType should ===(ContentTypes.`application/json`)
 
         val rsp = entityAs[Otp]
@@ -107,6 +105,33 @@ class OtpRoutesSpec extends HttpServiceTest {
         rsp.name should ===("app1")
         rsp.uri should ===("http://service")
         rsp.period should ===(42)
+      }
+    }
+
+    s"return Random OTP (GET ${uri}/random)" in {
+      val request = Get(uri = s"${uri}/random")
+
+      request ~> routes ~> check {
+        status should ===(StatusCodes.OK)
+        contentType should ===(ContentTypes.`application/json`)
+        val rsp = entityAs[OtpRandomResult]
+        rsp.secret.size should ===(32)
+      }
+    }
+
+    s"return Random OTP with QR data(GET ${uri}/random)" in {
+      val otpRandom = OtpRandom(Some("app3"), Some("http://service3"))
+      val otpEntity = Marshal(otpRandom).to[MessageEntity].futureValue 
+      
+      val request = Get(uri = s"${uri}/random").withEntity(otpEntity)
+
+      request ~> routes ~> check {
+        status should ===(StatusCodes.OK)
+        contentType should ===(ContentTypes.`application/json`)
+        val rsp = entityAs[OtpRandomResult]
+        rsp.secret.size should ===(32)
+        rsp.qrImage.size should !==(0)
+        rsp.qrImage.startsWith("data:image/gif;base64") should ===(true)
       }
     }
 
@@ -140,7 +165,7 @@ class OtpRoutesSpec extends HttpServiceTest {
 
         contentType should ===(ContentTypes.`application/json`)
 
-        val rsp = entityAs[OtpCreatePerformed]
+        val rsp = entityAs[OtpCreateResult]
         // otp is created with random UUID !
         rsp.secret === "25gs67pxghrop232"
         userId2Otp1 = rsp.id.get
@@ -151,7 +176,7 @@ class OtpRoutesSpec extends HttpServiceTest {
 
         contentType should ===(ContentTypes.`application/json`)
 
-        val rsp = entityAs[OtpCreatePerformed]
+        val rsp = entityAs[OtpCreateResult]
         // otp is created with random UUID !
         rsp.secret === "VZUUQQXB2BJHMDFLD46AWJDNEJKJ2MPV"
         userId2Otp2 = rsp.id.get
@@ -255,7 +280,7 @@ class OtpRoutesSpec extends HttpServiceTest {
         contentType should ===(ContentTypes.`application/json`)
 
         //entityAs[String] should ===("""{"description":"Otp deleted."}""")
-        val rsp = entityAs[OtpActionPerformed]
+        val rsp = entityAs[OtpActionResult]
         rsp.description should startWith(s"""deleted""")
       }
     }

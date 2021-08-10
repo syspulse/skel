@@ -11,6 +11,8 @@ import akka.actor.typed.scaladsl.AskPattern._
 import akka.util.Timeout
 
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.ContentTypes._
+import akka.http.scaladsl.model.headers.`Content-Type`
 import akka.http.scaladsl.server.RejectionHandler
 import akka.http.scaladsl.model.StatusCodes._
 import com.typesafe.scalalogging.Logger
@@ -31,6 +33,8 @@ import nl.grons.metrics4.scala.MetricName
 
 import io.syspulse.skel.service.Routeable
 import io.syspulse.skel.otp.OtpRegistry._
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 @Path("/api/v1/otp")
 class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system: ActorSystem[_]) extends DefaultInstrumented with Routeable {
@@ -49,6 +53,7 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
   val metricDeleteCount: Counter = metrics.counter("otp-delete-count")
   val metricGetCodeCount: Counter = metrics.counter("otp-get-code-count")
   val metricVerifyCodeCount: Counter = metrics.counter("otp-verify-code-count")
+  val metricGetRandomCount: Counter = metrics.counter("otp-get-random-count")
 
   def getOtps(): Future[Otps] = otpRegistry.ask(GetOtps)
   def getUserOtps(userId:UUID): Future[Otps] = otpRegistry.ask(GetUserOtps(userId,_))
@@ -57,9 +62,10 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
   def getOtpCode(id: UUID): Future[GetOtpCodeResponse] = otpRegistry.ask(GetOtpCode(id, _))
   def getOtpCodeVerify(id: UUID, code:String): Future[GetOtpCodeVerifyResponse] = otpRegistry.ask(GetOtpCodeVerify(id,code, _))
 
-  def createOtp(otpCreate: OtpCreate): Future[OtpCreatePerformed] = otpRegistry.ask(CreateOtp(otpCreate, _))
-  def deleteOtp(id: UUID): Future[OtpActionPerformed] = otpRegistry.ask(DeleteOtp(id, _))
-
+  def createOtp(otpCreate: OtpCreate): Future[OtpCreateResult] = otpRegistry.ask(CreateOtp(otpCreate, _))
+  def deleteOtp(id: UUID): Future[OtpActionResult] = otpRegistry.ask(DeleteOtp(id, _))
+  def randomOtp(otpRandom: OtpRandom): Future[OtpRandomResult] = otpRegistry.ask(RandomOtp(otpRandom, _))
+  def randomHtml(otpRandom: OtpRandom): Future[String] = otpRegistry.ask(RandomHtml(otpRandom, _))
 
   @GET @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("otp"),summary = "Return OTP by id",
@@ -133,9 +139,9 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
       new ApiResponse(responseCode = "200", description = "OTP deleted",content = Array(new Content(schema = new Schema(implementation = classOf[Otp])))))
   )
   def deleteOtpRoute(id: String) = delete {
-    onSuccess(deleteOtp(UUID.fromString(id))) { performed =>
+    onSuccess(deleteOtp(UUID.fromString(id))) { result =>
       metricDeleteCount += 1
-      complete((StatusCodes.OK, performed))
+      complete((StatusCodes.OK, result))
     }
   }
 
@@ -143,13 +149,40 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("otp"),summary = "Create OTP Secret",
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[OtpCreate])))),
-    responses = Array(new ApiResponse(responseCode = "200", description = "OTP created",content = Array(new Content(schema = new Schema(implementation = classOf[OtpActionPerformed])))))
+    responses = Array(new ApiResponse(responseCode = "200", description = "OTP created",content = Array(new Content(schema = new Schema(implementation = classOf[OtpActionResult])))))
   )
   def createOtpRoute = post {
     entity(as[OtpCreate]) { otpCreate =>
-      onSuccess(createOtp(otpCreate)) { performed =>
+      onSuccess(createOtp(otpCreate)) { result =>
         metricPostCount += 1
-        complete((StatusCodes.Created, performed))
+        complete((StatusCodes.Created, result))
+      }
+    }
+  }
+
+  @GET @Path("/random") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("otp"), summary = "Generate Random OTP secret",
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "Randomg OTP secret",content = Array(new Content(schema = new Schema(implementation = classOf[OtpRandom])))))
+  )
+  def getOtpRandomRoute() = get { parameters("format".optional) { (format) => 
+      metricGetRandomCount += 1
+
+      entity(as[OtpRandom]) { otpRandom =>
+        val r = randomOtp(otpRandom)
+        complete(r)
+      } ~ { 
+        // this is needed for "empty" Body for default (Option[OtpRandom] does not work!)
+        format.getOrElse("").toLowerCase match {
+          case "html" => {
+            implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+            val htmlOut = randomHtml(OtpRandom())
+            val h = Await.result(htmlOut,Duration.Inf)
+            //complete(200,List(`Content-Type`(`text/html(UTF-8)`)),h)
+            complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, h))
+          }
+          case _ =>  complete(randomOtp(OtpRandom()))    
+        }
       }
     }
   }
@@ -166,6 +199,9 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
           path(Segment) { userId => 
             getUserOtpsRoute(userId)
           }
+        },
+        pathSuffix("random") {
+          getOtpRandomRoute()
         },
         pathPrefix(Segment) { id => 
           pathPrefix("code") {
