@@ -182,9 +182,11 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
           case "html" => {
             implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
             val htmlOut = randomHtml(OtpRandom(name,account,issuer))
+            // NOTE: complete(200,List(`Content-Type`(`text/html(UTF-8)`)),h) is not working because 
             val h = Await.result(htmlOut,Duration.Inf)
-            //complete(200,List(`Content-Type`(`text/html(UTF-8)`)),h)
             complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, h))
+
+            //
           }
           case _ =>  complete(randomOtp(OtpRandom(name,account,issuer)))    
         }
