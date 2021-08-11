@@ -1,16 +1,22 @@
-# skel-telemetry
+# skel-ekm
 
-Telemetry Collection Flow
+Telemetry Collection Flow Reference Implementation for EKM 
 
-## DataSources
+## Architecture
 
-1. InfluxDB
-2. Graphite
-3. LogFiles
+<img src="doc/skel-ekm.png" width="450">
+
+Why such simple architecutre diagram ? Need some practive with draw.io to speed up drawing skills
+
+----
+
+## Kuberntes Deployment
+
+- Kubernetes Secrets for sensitive configuration parameter (passed to Docker as args)
+
 
 ## Visualization
 
-Grafana is the primary visualization dashboard
+InfluxDB visualization dashboard:
 
-<img src="doc/scr-grafana-influx.png" width="850">
-
+<img src="doc/scr-ekm-influxdb.png" width="850">

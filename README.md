@@ -3,12 +3,15 @@
 Skeletons for RnD Prototypes
 
 1. [skel-http](skel-http) - HTTP Service (+ Kubernetes)
-2. [skel-user](skel-user) - HTTP Service with DB backend
+2. [skel-user](skel-user) - UserProfile Service reference
 3. [skel-world](skel-world) + [skel-shop](skel-shop) - Services for E-Shop like product
 4. [skel-kafka](skel-kafka) - Kafka Processors (Source/Sink)
-5. [skel-telemetry](skel-telemetry) - IoT Service to InflixDB/Grafana sink
-6. [skel-grafana](skel-grafana) - docker-compose for Prometheus/InfluxDB/Graphite/Loki/Grafana
-7. [skel-db](skel-db) - DB Related stuff
+5. [skel-telemetry](skel-telemetry) - Telemetry library
+6. [skel-ekm](skel-ekm) - IoT like Service to InflixDB/Grafana sink
+7. [skel-grafana](skel-grafana) - docker-compose for Prometheus/InfluxDB/Graphite/Loki/Grafana
+8. [skel-db](skel-db) - DB Related stuff
+9. [skel-otp](skel-otp) - OTP Service reference service 
+10. [skel-test](skel-test) - Test helpers
 
 ## Build & Run
 
@@ -37,7 +40,7 @@ Refer to [skel-http](skel-http) for details
 
 ----
 
-## Libraries
+## Libraries and Credits
 
 1. HTTP: Akka-HTTP [https://doc.akka.io/docs/akka-http/current/index.html](https://doc.akka.io/docs/akka-http/current/index.html)
 2. Metrics: [https://github.com/erikvanoosten/metrics-scala](https://github.com/erikvanoosten/metrics-scala)
@@ -49,3 +52,4 @@ Refer to [skel-http](skel-http) for details
 8. JDBC: Quill [https://getquill.io](https://getquill.io)
 9. Kafka: Alpaka (Akka-Streams)
 
+Other libraries are referenced in corresponding modules
