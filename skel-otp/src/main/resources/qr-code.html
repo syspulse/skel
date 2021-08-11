@@ -4,9 +4,19 @@
     </head>
     <body>
         <header>
-            <h1>OTP</h1>
+            <h1>$OTP_SECRET</h1>
         </header>
         <main>
+            <div><b>Name: </b>$OTP_NAME</div>
+            <div><b>Account: </b>$OTP_ACCOUNT</div>
+            <div><b>Issuer: </b>$OTP_ISSUER</div>
+            
+            <div><b>Type: </b>$OTP_TYPE</div>
+            <div><b>Period: </b>$OTP_PERIOD</div>
+            <div><b>Digits: </b>$OTP_DIGITS</div>
+            <div><b>Algo: </b>$OTP_ALGO</div>
+            
+            
             <img id="qr_code" src="$QR_IMAGE">
         </main>
     </body>

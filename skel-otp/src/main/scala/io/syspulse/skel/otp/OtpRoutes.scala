@@ -160,12 +160,17 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
     }
   }
 
-  @GET @Path("/random") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("otp"), summary = "Generate Random OTP secret",
+  @GET @Path("/random") @Produces(Array(MediaType.APPLICATION_JSON,MediaType.TEXT_HTML))
+  @Operation(tags = Array("otp"), summary = "Generate Random OTP secret, QR code (and HTML temlate for testing)",
+    parameters = Array(new Parameter(name = "name", in = ParameterIn.PATH, description = "OTP name"),
+                       new Parameter(name = "account", in = ParameterIn.PATH, description = "OTP account"),
+                       new Parameter(name = "issuer", in = ParameterIn.PATH, description = "OTP issuer"),
+                       new Parameter(name = "format", in = ParameterIn.PATH, description = "'html' - generates test HTML with QR code image")),
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[OtpRandom])))),
     responses = Array(
       new ApiResponse(responseCode = "200", description = "Randomg OTP secret",content = Array(new Content(schema = new Schema(implementation = classOf[OtpRandom])))))
   )
-  def getOtpRandomRoute() = get { parameters("format".optional) { (format) => 
+  def getOtpRandomRoute() = get { parameters("format".optional,"name".optional,"account".optional,"issuer".optional) { (format,name,account,issuer) => 
       metricGetRandomCount += 1
 
       entity(as[OtpRandom]) { otpRandom =>
@@ -176,12 +181,12 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
         format.getOrElse("").toLowerCase match {
           case "html" => {
             implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
-            val htmlOut = randomHtml(OtpRandom())
+            val htmlOut = randomHtml(OtpRandom(name,account,issuer))
             val h = Await.result(htmlOut,Duration.Inf)
             //complete(200,List(`Content-Type`(`text/html(UTF-8)`)),h)
             complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, h))
           }
-          case _ =>  complete(randomOtp(OtpRandom()))    
+          case _ =>  complete(randomOtp(OtpRandom(name,account,issuer)))    
         }
       }
     }

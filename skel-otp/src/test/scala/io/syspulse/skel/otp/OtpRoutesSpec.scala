@@ -75,7 +75,7 @@ class OtpRoutesSpec extends HttpServiceTest {
       }
     }
     s"be able to add Otp (POST ${uri})" in {
-      val otpCreate = OtpCreate(userId1, "secret", "app1", "http://service", Some(42))
+      val otpCreate = OtpCreate(userId1, "secret", "app1", "user1@email.com", Some("http://service"), Some(42))
       val otpEntity = Marshal(otpCreate).to[MessageEntity].futureValue 
 
       val request = Post(uri).withEntity(otpEntity)
@@ -103,7 +103,8 @@ class OtpRoutesSpec extends HttpServiceTest {
         rsp.id should ===(testId)
         rsp.secret should ===("secret")
         rsp.name should ===("app1")
-        rsp.uri should ===("http://service")
+        rsp.account should ===("user1@email.com")
+        rsp.issuer should ===("http://service")
         rsp.period should ===(42)
       }
     }
@@ -150,10 +151,10 @@ class OtpRoutesSpec extends HttpServiceTest {
     }
 
     s"be able to add 2 Otp to User ${userId2} (POST ${uri})" in {
-      val otpCreate1 = OtpCreate(userId2,"25gs67pxghrop232", "app1", "http://service1", Some(30))
+      val otpCreate1 = OtpCreate(userId2,"25gs67pxghrop232", "app1", "user2@email.com", Some("http://service1"), Some(30))
       val otpEntity1 = Marshal(otpCreate1).to[MessageEntity].futureValue 
 
-      val otpCreate2 = OtpCreate(userId2,"VZUUQQXB2BJHMDFLD46AWJDNEJKJ2MPV", "app2", "http://service2", Some(30))
+      val otpCreate2 = OtpCreate(userId2,"VZUUQQXB2BJHMDFLD46AWJDNEJKJ2MPV", "app2", "user2@email.com", Some("http://service2"), Some(30))
       val otpEntity2 = Marshal(otpCreate2).to[MessageEntity].futureValue 
 
 
@@ -201,13 +202,15 @@ class OtpRoutesSpec extends HttpServiceTest {
         otp1.id should === (userId2Otp1)
         otp1.secret should ===("25gs67pxghrop232")
         otp1.name should ===("app1")
-        otp1.uri should ===("http://service1")
+        otp1.account should ===("user2@email.com")
+        otp1.issuer should ===("http://service1")
         otp1.period should ===(30)
 
         otp2.id should === (userId2Otp2)
         otp2.secret should ===("VZUUQQXB2BJHMDFLD46AWJDNEJKJ2MPV")
         otp2.name should ===("app2")
-        otp2.uri should ===("http://service2")
+        otp2.account should ===("user2@email.com")
+        otp2.issuer should ===("http://service2")
         otp2.period should ===(30)
       }
     }

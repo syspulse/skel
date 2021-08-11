@@ -4,6 +4,7 @@ import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import scala.collection.immutable
+import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
@@ -17,10 +18,11 @@ final case class OtpCode(id:UUID,code: String)
 final case class Otps(otps: immutable.Seq[Otp])
 
 // create Otp Parameters
-final case class OtpCreate(userId:UUID, secret: String,name:String, uri:String, period:Option[Int])
-final case class OtpRandom(name:Option[String]=None, uri:Option[String]=None, period:Option[Int] = Some(30),digits:Option[Int] = Some(6),algo:Option[String] = None)
+final case class OtpCreate(userId:UUID, secret: String, name:String, account:String, issuer:Option[String], period:Option[Int])
+final case class OtpRandom(name: Option[String]=None, account:Option[String]=None, issuer:Option[String]=None, period:Option[Int] = Some(30),digits:Option[Int] = Some(6),algo:Option[String] = None)
 
 object OtpRegistry extends DefaultInstrumented  {
+  val log = Logger(s"${this}")
   
   sealed trait Command extends io.syspulse.skel.Command
 
@@ -64,7 +66,7 @@ object OtpRegistry extends DefaultInstrumented  {
     code
   }
 
-  def authRandom(name:String, uri:String = "",period:Int = 30,digits:Int = 6,algo:String = "SHA1"):String = {
+  def authRandom(algo:String = "SHA1"):String = {
     val shaKey = algo match {
       case "SHA1" => OTPKey.random(OTPAlgorithm.SHA1)
       case "SHA256" => OTPKey.random(OTPAlgorithm.SHA256)
@@ -73,31 +75,38 @@ object OtpRegistry extends DefaultInstrumented  {
     shaKey.toBase32.toLowerCase
   }
 
-  def authQR (secret:String,name:String, uri:String = "",period:Int = 30,digits:Int = 6,algo:String = "SHA1"):String = {
+  def authQR (secret:String,name:String,account:String="",issuer:String = "",period:Int = 30,digits:Int = 6,algo:String = "SHA1"):String = {
     import net.glxn.qrgen.QRCode
     import net.glxn.qrgen.image.ImageType
     import java.util.Base64
     import java.net.URLEncoder
     import java.nio.charset.StandardCharsets
 
+	  val image = ""
     val algorithm = algo
-	  val account = name
-	  val issuer = uri
-    val image = ""
     val lock = "false"
     val otpType = "totp"
     
     var otpURI = "otpauth://" + otpType + "/";
 
-	  if (issuer.length > 0)
-		  otpURI = otpURI + URLEncoder.encode(issuer, StandardCharsets.UTF_8.toString) + ":"
-
+	  if (name.size > 0)
+		  otpURI = otpURI + URLEncoder.encode(name, StandardCharsets.UTF_8.toString) + ":"
+    
     otpURI = otpURI + URLEncoder.encode(account, StandardCharsets.UTF_8.toString)
-    otpURI = otpURI + URLEncoder.encode("?secret=" + secret, StandardCharsets.UTF_8.toString)
-    otpURI = otpURI + URLEncoder.encode("&algorithm=" + algorithm, StandardCharsets.UTF_8.toString)
-    otpURI = otpURI + URLEncoder.encode("&digits=" + digits, StandardCharsets.UTF_8.toString)
-    otpURI = otpURI + URLEncoder.encode("&period=" + period, StandardCharsets.UTF_8.toString)
-    otpURI = otpURI + URLEncoder.encode("&lock=" + lock, StandardCharsets.UTF_8.toString)
+
+    otpURI = otpURI + "?secret=" + secret.toUpperCase()
+    if (issuer.size > 0)
+		  otpURI = otpURI + "&issuer=" + URLEncoder.encode(issuer, StandardCharsets.UTF_8.toString)
+
+    otpURI = otpURI + "&algorithm=" + algorithm
+    otpURI = otpURI + "&digits=" + digits
+    otpURI = otpURI + "&period=" + period
+    //otpURI = otpURI + "&lock=" + lock
+
+    if (otpType == "hotp")
+		  otpURI = otpURI + "&counter=0"
+
+    log.info(s"otpURI: '${otpURI}")
 
     val width = 512
     val height = 512
@@ -127,7 +136,7 @@ object OtpRegistry extends DefaultInstrumented  {
           shaKey.toBase32.toLowerCase
         } else otpCreate.secret
 
-        val otp = Otp(id,otpCreate.userId, secret, otpCreate.name, otpCreate.uri, otpCreate.period.getOrElse(30))
+        val otp = Otp(id,otpCreate.userId, secret, otpCreate.name, otpCreate.account, otpCreate.issuer.getOrElse(""), otpCreate.period.getOrElse(30))
         val store1 = store.+(otp)
 
         replyTo ! OtpCreateResult(secret,Some(id))
@@ -135,12 +144,10 @@ object OtpRegistry extends DefaultInstrumented  {
 
       case RandomOtp(otpRandom, replyTo) =>
         
-        val secret = authRandom(otpRandom.name.getOrElse(""), otpRandom.uri.getOrElse(""), 
-          otpRandom.period.getOrElse(30), otpRandom.digits.getOrElse(6), otpRandom.algo.getOrElse("SHA1")
-        )
+        val secret = authRandom(otpRandom.algo.getOrElse("SHA1"))
 
         val qrImage = authQR(secret,
-          otpRandom.name.getOrElse(""), otpRandom.uri.getOrElse(""), 
+          otpRandom.name.getOrElse(""), otpRandom.account.getOrElse(""), otpRandom.issuer.getOrElse(""), 
           otpRandom.period.getOrElse(30), otpRandom.digits.getOrElse(6), otpRandom.algo.getOrElse("SHA1")
         )
         replyTo ! OtpRandomResult(secret,qrImage)
@@ -148,17 +155,24 @@ object OtpRegistry extends DefaultInstrumented  {
 
       case RandomHtml(otpRandom, replyTo) =>
         
-        val secret = authRandom(otpRandom.name.getOrElse(""), otpRandom.uri.getOrElse(""), 
-          otpRandom.period.getOrElse(30), otpRandom.digits.getOrElse(6), otpRandom.algo.getOrElse("SHA1")
-        )
+        val secret = authRandom(otpRandom.algo.getOrElse("SHA1"))
 
         val qrImage = authQR(secret,
-          otpRandom.name.getOrElse(""), otpRandom.uri.getOrElse(""), 
+          otpRandom.name.getOrElse(""), otpRandom.account.getOrElse(""), otpRandom.issuer.getOrElse(""), 
           otpRandom.period.getOrElse(30), otpRandom.digits.getOrElse(6), otpRandom.algo.getOrElse("SHA1")
         )
 
         val html:String = scala.io.Source.fromResource("qr-code.html").getLines().mkString("\n")
-        val htmlOut = html.replaceAll("\\$QR_IMAGE",qrImage)
+        val htmlOut = html
+          .replaceAll("\\$OTP_SECRET",secret)
+          .replaceAll("\\$OTP_NAME",otpRandom.name.getOrElse(""))
+          .replaceAll("\\$OTP_ACCOUNT",otpRandom.account.getOrElse(""))
+          .replaceAll("\\$OTP_ISSUER",otpRandom.issuer.getOrElse(""))
+          .replaceAll("\\$OTP_TYPE","totp")
+          .replaceAll("\\$OTP_PERIOD",otpRandom.period.getOrElse(30).toString)
+          .replaceAll("\\$OTP_DIGITS",otpRandom.digits.getOrElse(6).toString)
+          .replaceAll("\\$OTP_ALGO",otpRandom.algo.getOrElse("SHA1"))
+          .replaceAll("\\$QR_IMAGE",qrImage)
 
         replyTo ! htmlOut
         Behaviors.same
