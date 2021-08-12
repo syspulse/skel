@@ -30,10 +30,20 @@ object Util {
   
   val tsFormatLongest = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss:SSS")
   val tsFormatLong = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmssZ")
+  val tsFormatYM = DateTimeFormatter.ofPattern("yyyy-MM")
 
   def now:String = tsFormatLongest.format(LocalDateTime.now)
   def now(fmt:String):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(Instant.now.toEpochMilli), ZoneId.systemDefault).format(DateTimeFormatter.ofPattern(fmt))
-  def tsToString(ts:Long) = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).format(tsFormatLong)
+  
+  def tsToString(ts:Long) = ZonedDateTime.ofInstant(
+      Instant.ofEpochMilli(ts), 
+      ZoneId.systemDefault
+    ).format(tsFormatLong)
+
+  def tsToStringYearMonth(ts:Long = 0L) = ZonedDateTime.ofInstant(
+      if(ts==0L) Instant.now else Instant.ofEpochMilli(ts), 
+      ZoneId.systemDefault
+    ).format(tsFormatYM)
   
   // time is delimited with {}
   def toFileWithTime(fileName:String) = {

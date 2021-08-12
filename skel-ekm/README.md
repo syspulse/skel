@@ -10,7 +10,7 @@ Why such simple architecutre diagram ? Need some practive with draw.io to speed 
 
 ----
 
-## Kuberntes Deployment
+## Kubernetes Deployment
 
 - Kubernetes Secrets for sensitive configuration parameter (passed to Docker as args)
 
