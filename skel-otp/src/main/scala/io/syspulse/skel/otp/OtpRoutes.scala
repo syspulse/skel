@@ -44,7 +44,7 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
   import OtpJson._
   
   private implicit val timeout = Timeout.create(
-    system.settings.config.getDuration("otp.routes.ask-timeout")
+    system.settings.config.getDuration("http.routes.ask-timeout")
   )
 
   override lazy val metricBaseName = MetricName("")

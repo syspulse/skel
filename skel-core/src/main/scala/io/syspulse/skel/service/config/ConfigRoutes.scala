@@ -38,7 +38,7 @@ class ConfigRoutes(configRegistry: ActorRef[ConfigRegistry.Command])(implicit va
     system.settings.config.getDuration("http.routes.ask-timeout")
   )
 
-  val metricGetAllCount = Counter.build().name("skel_config_requests_total").help("Total Configuration requests.").register();
+  val metricGetAllCount = Counter.build().name("skel_config_requests_total").help("Total Configuration requests.").register()
   
   def getConfigAll(): Future[Configs] = configRegistry.ask(GetConfigAll( _))
 
