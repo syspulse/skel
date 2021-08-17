@@ -1,6 +1,6 @@
-package io.syspulse.skel.service.telemetry
+package io.syspulse.skel.service.metrics
 
-import io.syspulse.skel.service.telemetry.TelemetryRegistry._
+import io.syspulse.skel.service.metrics.MetricsRegistry._
 
 import spray.json.DefaultJsonProtocol
 
@@ -11,11 +11,11 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.Directives
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsString, JsValue, JsonFormat, deserializationError}
 
-object TelemetryJson extends JsonCommon {
+object MetricsJson extends JsonCommon {
   
   import DefaultJsonProtocol._
 
-  implicit val telemetryJsonFormat = jsonFormat2(Telemetry)
+  implicit val metricsJsonFormat = jsonFormat2(Metrics)
   implicit val telemetriesJsonFormat = jsonFormat1(Telemetries)
   
 }

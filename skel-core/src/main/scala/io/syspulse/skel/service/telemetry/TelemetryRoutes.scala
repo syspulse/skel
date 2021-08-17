@@ -34,7 +34,6 @@ import io.syspulse.skel.service.telemetry.TelemetryRegistry._
 class TelemetryRoutes(telemetryRegistry: ActorRef[TelemetryRegistry.Command])(implicit val system: ActorSystem[_]) {
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-  import TelemetryJson._
   import TelemetryRegistry._
   
   private implicit val timeout = Timeout.create(

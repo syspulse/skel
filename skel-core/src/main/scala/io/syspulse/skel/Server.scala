@@ -31,6 +31,7 @@ import akka.http.scaladsl.server.Route
 import io.syspulse.skel.config.Configuration
 import io.syspulse.skel.service.swagger.{Swagger}
 import io.syspulse.skel.service.telemetry.{TelemetryRegistry,TelemetryRoutes}
+import io.syspulse.skel.service.metrics.{MetricsRegistry,MetricsRoutes}
 import io.syspulse.skel.service.info.{InfoRegistry,InfoRoutes}
 import io.syspulse.skel.service.health.{HealthRegistry,HealthRoutes}
 import io.syspulse.skel.service.config.{ConfigRegistry,ConfigRoutes}
@@ -133,10 +134,12 @@ trait Server {
       val infoRegistryActor = context.spawn(InfoRegistry(), "Actor-InfoRegistry")
       val healthRegistryActor = context.spawn(HealthRegistry(), "Actor-HealthRegistry")
       val configRegistryActor = context.spawn(ConfigRegistry(configuration), "Actor-ConfigRegistry")
+      val metricsRegistryActor = context.spawn(MetricsRegistry(), "Actor-MetricsRegistry")
       context.watch(telemetryRegistryActor)
       context.watch(infoRegistryActor)
       context.watch(healthRegistryActor)
       context.watch(configRegistryActor)
+      context.watch(metricsRegistryActor)
 
       val (rejectionHandler:RejectionHandler,exceptionHandler:ExceptionHandler) = getHandlers() //(context)
 
@@ -159,12 +162,13 @@ trait Server {
       val healthRoutes = new HealthRoutes(healthRegistryActor)(context.system)
       val configRoutes = new ConfigRoutes(configRegistryActor)(context.system)
       val telemetryRoutes = new TelemetryRoutes(telemetryRegistryActor)(context.system)
+      val metricsRoutes = new MetricsRoutes(metricsRegistryActor)(context.system)
 
       val routes: Route = 
         getRoutes(
           rejectionHandler,exceptionHandler,
           uri,
-          Seq(telemetryRoutes.routes, infoRoutes.routes, healthRoutes.routes, configRoutes.routes, swaggerRoutes,swaggerUI),
+          Seq(telemetryRoutes.routes, infoRoutes.routes, healthRoutes.routes, configRoutes.routes, metricsRoutes.routes, swaggerRoutes,swaggerUI),
           appRoutes
         )
       
