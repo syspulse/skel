@@ -8,7 +8,6 @@ import scopt.OParser
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.service._
 import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv}
 
 
@@ -34,10 +33,10 @@ case class Config(
   influxDb:(String,String,String) = ("","ingest.influx-db","ekm_db"),
 )
 
-// trait Telemetring {
+// object Prometheus {
 //   val log = Logger(s"${this}")
 
-//   def initPrometheus(configuration:Configuration) = {
+//   def apply(configuration:Configuration) = {
 
 //     // init Prometheus
 //     val (pHost,pPort) = Util.getHostPort(configuration.getString("prometheus.listen").getOrElse("0.0.0.0:9091"))
@@ -115,16 +114,15 @@ object IngestApp extends skel.Server {
 
         println(s"Config: ${config}")
 
+        // start Ingestion stream
         config.dataSink._1 match {
           //case "influx" => (new EkmTelemetryInfluxdb).run(config.sourceHost._1,config.sourceKey._1,config.sourceDevice._1,config.sourceFreq._1, config.ticks._1, config.logFile._1, config.influxUri._1, config.influxUser._1, config.influxPass._1, config.influxDb._1)
           //case "grafite" => (new EkmTelemetryGrafite).run(config.sourceHost._1,config.sourceKey._1,config.sourceDevice._1,config.sourceFreq._1, config.ticks._1, config.logFile._1, config.grafiteUri._1)
           case "stdout" | "" => (new IngestStdout).run(config.sourceHost._1,config.sourceKey._1,config.sourceDevice._1,config.sourceFreq._1, config.ticks._1, config.logFile._1)
         }
 
-        run( config.host._1, config.port._1, config.uri._1, confuration, 
-          Seq(
-            (ServiceRegistry(new ServiceStoreCache),"ServiceRegistry",(actor,actorSystem ) => new ServiceRoutes(actor)(actorSystem) ),
-          )
+        // start HTTP for system routes
+        run( config.host._1, config.port._1, config.uri._1, confuration, Seq()
         )
       }
       case _ => 

@@ -329,7 +329,7 @@ lazy val shop = (project in file("skel-shop"))
   )
 
 lazy val ingest = (project in file("skel-ingest"))
-  .dependsOn(core, http)
+  .dependsOn(core)
   .enablePlugins(JavaAppPackaging)
   .settings (
     sharedConfig,
