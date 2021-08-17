@@ -43,13 +43,15 @@ Refer to [skel-http](skel-http) for details
 ## Libraries and Credits
 
 1. HTTP: Akka-HTTP [https://doc.akka.io/docs/akka-http/current/index.html](https://doc.akka.io/docs/akka-http/current/index.html)
-2. Metrics: [https://github.com/erikvanoosten/metrics-scala](https://github.com/erikvanoosten/metrics-scala)
-3. OpenAPI (Swagger): [https://github.com/swagger-akka-http/swagger-akka-http](https://github.com/swagger-akka-http/swagger-akka-http)
-4. UUID: [https://github.com/melezov/scala-uuid](https://github.com/melezov/scala-uuid)
-5. Args: [https://github.com/scopt/scopt](https://github.com/scopt/scopt)
-6. Configuration: [https://github.com/lightbend/config](https://github.com/lightbend/config)
-7. Logging: [http://logback.qos.ch](http://logback.qos.ch)
-8. JDBC: Quill [https://getquill.io](https://getquill.io)
-9. Kafka: Alpaka (Akka-Streams)
+2. Metrics (Dropwizard): [https://github.com/erikvanoosten/metrics-scala](https://github.com/erikvanoosten/metrics-scala)
+3. Metrics (Prometheus): [https://github.com/RustedBones/akka-http-metrics](https://github.com/RustedBones/akka-http-metrics)
+4. OpenAPI (Swagger): [https://github.com/swagger-akka-http/swagger-akka-http](https://github.com/swagger-akka-http/swagger-akka-http)
+5. UUID: [https://github.com/melezov/scala-uuid](https://github.com/melezov/scala-uuid)
+6. Args: [https://github.com/scopt/scopt](https://github.com/scopt/scopt)
+7. Configuration: [https://github.com/lightbend/config](https://github.com/lightbend/config)
+8. Logging: [http://logback.qos.ch](http://logback.qos.ch)
+9. JDBC: Quill [https://getquill.io](https://getquill.io)
+10. Kafka: Alpakka [https://github.com/akka/alpakka](https://github.com/akka/alpakka)
+
 
 Other libraries are referenced in corresponding modules

@@ -57,6 +57,8 @@ trait IngestClient {
       toSimpleLog.map(ByteString(_)).to(FileIO.toPath(Paths.get(Util.toFileWithTime(logFile)),options =  Set(WRITE, CREATE)))
   }
 
+  def countFlow(d:ByteString) = {metricEventsCounter.inc(); d}
+
   def httpFlow(req: HttpRequest) = Http().singleRequest(req).flatMap(res => res.entity.dataBytes.runReduce(_ ++ _))
 
   def toJson(body:ByteString):String = body.utf8String.replaceAll("\\n","").replaceAll("\\s+","")

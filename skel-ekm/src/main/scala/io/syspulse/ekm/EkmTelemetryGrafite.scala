@@ -47,7 +47,7 @@ class EkmTelemetryGrafite extends EkmTelemetryClient {
     val ekmSource = getEkmSource(ekmHost,ekmKey,ekmDevice,interval,limit)
     val ekmSourceRestartable = RestartSource.withBackoff(retrySettings) { () =>
       log.info(s"Connecting -> EKM(${ekmHost})...")
-      ekmSource.mapAsync(1)(getTelemetry(_)).log("EKM").map(toJson(_)).mapConcat(toData(_))
+      ekmSource.mapAsync(1)(getTelemetry(_)).map(countFlow).log("EKM").map(toJson(_)).mapConcat(toData(_))
     }
 
     val grafiteFlow = RestartFlow.withBackoff(retrySettings) { () =>

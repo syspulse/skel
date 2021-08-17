@@ -84,7 +84,7 @@ class EkmTelemetryInfluxdb extends EkmTelemetryClient {
 
     val ekmSourceRestartable = RestartSource.withBackoff(retrySettings) { () =>
       log.info(s"Connecting -> EKM(${ekmHost})...")
-      ekmSource.mapAsync(1)(getTelemetry(_)).log("EKM").map(collectMetricsEkm(_)).map(toJson(_)).mapConcat(toData(_)).map(collectMetricsEkmData(_))
+      ekmSource.mapAsync(1)(getTelemetry(_)).log("EKM").map(countFlow).map(collectMetricsEkm(_)).map(toJson(_)).mapConcat(toData(_)).map(collectMetricsEkmData(_))
     }
 
     //val influxFlow = getInfluxFlow(influxUri,influxUser,influxPass,influxDb)

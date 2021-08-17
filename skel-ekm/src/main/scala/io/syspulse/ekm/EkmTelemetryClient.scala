@@ -27,7 +27,7 @@ import io.syspulse.skel.ingest.IngestClient
 import io.syspulse.skel.util.Util._
 
 class EkmTelemetryClient extends IngestClient {
-
+  
   val flowRandom = Flow[EkmTelemetry].map( t => EkmTelemetry(t.device,Instant.now.toEpochMilli,rnd(5000.0),rnd(240),rnd(240),rnd(240),rnd(500),rnd(500),rnd(500)))
 
   def ekmUri(host:String = "http://io.ekmpush.com", key:String, device:String, seconds:Long=1) = s"${host}/readMeter/v3/key/${key}/count/${seconds}/format/json/meters/${device}/"
