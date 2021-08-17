@@ -1,12 +1,17 @@
-# skel-telemetry
+# skel-ingest
 
-Telemetry Collection Flow
+Data Ingestion and Collection Flow
 
-## DataSources
+## Use Cases
+
+1. Telemetry Data Ingestion
+
+## Data Sinks
 
 1. InfluxDB
 2. Graphite
 3. LogFiles
+4. Stdout
 
 ## Visualization
 

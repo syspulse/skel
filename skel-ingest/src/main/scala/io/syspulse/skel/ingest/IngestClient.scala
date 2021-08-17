@@ -7,7 +7,7 @@ import akka.actor.ActorSystem
 import akka.stream.scaladsl.Keep
 import akka.{Done, NotUsed}
 
-import scala.concurrent.duration.{Duration,FiniteDuration}
+import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
 import akka.stream.ActorMaterializer
@@ -36,6 +36,12 @@ import io.syspulse.skel.util.Util
 trait IngestClient {
   val log = Logger(s"${this}")
   implicit val system = ActorSystem("ActorSystem-IngestClient")
+
+  val retrySettings = RestartSettings(
+    minBackoff = 3.seconds,
+    maxBackoff = 10.seconds,
+    randomFactor = 0.2 // adds 20% "noise" to vary the intervals slightly
+  ).withMaxRestarts(10, 5.minutes)
 
   val logSink = Sink.foreach[Ingestable](t => println(s"${t.toLog}"))
   

@@ -23,22 +23,16 @@ import java.util.concurrent.TimeUnit
 
 import scala.jdk.CollectionConverters._
 
-import io.syspulse.skel.telemetry.TelemetryClient
+import io.syspulse.skel.ingest.IngestClient
 import io.syspulse.skel.util.Util._
 
-class EkmTelemetryClient extends TelemetryClient {
+class EkmTelemetryClient extends IngestClient {
 
   val flowRandom = Flow[EkmTelemetry].map( t => EkmTelemetry(t.device,Instant.now.toEpochMilli,rnd(5000.0),rnd(240),rnd(240),rnd(240),rnd(500),rnd(500),rnd(500)))
 
   def ekmUri(host:String = "http://io.ekmpush.com", key:String, device:String, seconds:Long=1) = s"${host}/readMeter/v3/key/${key}/count/${seconds}/format/json/meters/${device}/"
   def putTelemetry(req: HttpRequest) = httpFlow(req)
   def getTelemetry(req: HttpRequest) = httpFlow(req)
-
-  val retrySettings = RestartSettings(
-    minBackoff = 3.seconds,
-    maxBackoff = 10.seconds,
-    randomFactor = 0.2 // adds 20% "noise" to vary the intervals slightly
-  ).withMaxRestarts(10, 5.minutes)
 
   def toData(json:String):List[EkmTelemetry] = {
     val dd = ujson.read(json).obj("readMeter").obj("ReadSet").arr

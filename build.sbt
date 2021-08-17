@@ -330,14 +330,17 @@ lazy val shop = (project in file("skel-shop"))
 
 lazy val ingest = (project in file("skel-ingest"))
   .dependsOn(core)
-  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .enablePlugins(JavaAppPackaging)
   .settings (
     sharedConfig,
+    sharedConfigAssembly,
+
     name := "skel-ingest",
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
       libUjsonLib
-    )
+    ),
     
+    assemblyJarName in assembly := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
   )
 
 lazy val ekm = (project in file("skel-ekm"))

@@ -1,4 +1,4 @@
-package io.syspulse.ekm
+package io.syspulse.skel.ingest
 
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration,FiniteDuration}
@@ -17,47 +17,32 @@ import io.prometheus.client.hotspot.GarbageCollectorExports
 import io.prometheus.client.hotspot.MemoryPoolsExports
 import io.prometheus.client.hotspot.ThreadExports
 
-// case class Config(
-//   dataSource:String = "",
-  
-//   ekmKey:String = "",
-//   ekmDevice:String = "",
-//   ekmInterval:Long = 1L,
-  
-//   ticks:Long = 0L,
-
-//   logFile:String = "",
-//   grafiteUri:String = "",
-//   influxUri:String = "",
-//   influxUser:String = "",
-//   influxPass:String = "",
-//   influxDb:String = "",
-// )
 
 case class Config(
-  dataSource:(String,String,String) = ("","ekm.data-source","influx"),
+  dataSink:(String,String,String) = ("","ingest.data-sink","stdout"),
   
-  ekmHost:(String,String,String) = ("","ekm.ekm-host","http://io.ekmpush.com"),
-  ekmKey:(String,String,String) = ("","ekm.ekm-key",""),
-  ekmDevice:(String,String,String) = ("","ekm.ekm-device",""),
-  ekmFreq:(Long,String,Long) = (0L,"ekm.ekm-freq",60L),
+  sourceHost:(String,String,String) = ("","ingest.source-host","http://localhost:3003"),
+  sourceKey:(String,String,String) = ("","ingest.source-key",""),
+  sourceDevice:(String,String,String) = ("","ingest.source-device","dev-0001"),
+  sourceFreq:(Long,String,Long) = (0L,"ingest.source-freq",1000L),
   
   ticks:(Long,String,Long) = (0L,"ticks",0L),
 
-  logFile:(String,String,String) = ("","ekm.log-file",""),
-  grafiteUri:(String,String,String) = ("","ekm.grafite-uri","localhost:2003"),
-  influxUri:(String,String,String) = ("","ekm.influx-uri","http://localhost:8086"),
-  influxUser:(String,String,String) = ("","ekm.influx-user","ekm_user"),
-  influxPass:(String,String,String) = ("","ekm.influx-pass","ekm_pass"),
-  influxDb:(String,String,String) = ("","ekm.influx-db","ekm_db"),
+  logFile:(String,String,String) = ("","ingest.log-file",""),
+  grafiteUri:(String,String,String) = ("","ingest.grafite-uri","localhost:2003"),
+  influxUri:(String,String,String) = ("","ingest.influx-uri","http://localhost:8086"),
+  influxUser:(String,String,String) = ("","ingest.influx-user","ekm_user"),
+  influxPass:(String,String,String) = ("","ingest.influx-pass","ekm_pass"),
+  influxDb:(String,String,String) = ("","ingest.influx-db","ekm_db"),
 )
 
 trait SkelApp {
   val log = Logger(s"${this}")
+
   def initSkel(configuration:Configuration) = {
 
     // init Prometheus
-    val (pHost,pPort) = Util.getHostPort(configuration.getString("ekm.prometheus.listen").getOrElse("0.0.0.0:9091"))
+    val (pHost,pPort) = Util.getHostPort(configuration.getString("ingest.prometheus.listen").getOrElse("0.0.0.0:9091"))
     val prometheusListener = new HTTPServer(pHost,pPort)
     DefaultExports.initialize()
     //new GarbageCollectorExports().register()
@@ -67,7 +52,7 @@ trait SkelApp {
   }
 }
 
-object App extends SkelApp {
+object IngestApp extends SkelApp {
   
   def main(args:Array[String]): Unit = {
     println(s"Args: '${args.mkString(",")}'")
@@ -76,7 +61,7 @@ object App extends SkelApp {
     val argsParser = {
       import builder._
       OParser.sequence(
-        programName("skel-ekm"), head("skel-ekm", "0.0.1"),
+        programName("skel-ingest"), head("skel-ingest", "0.0.1"),
         opt[String]('g', "grafite-uri").action((x, c) => c.copy(grafiteUri = (x,c.grafiteUri._2,c.grafiteUri._3))).text("Grafite Uri (localhost:2003)"),
         
         opt[String]('i', "influx-uri").action((x, c) => c.copy(influxUri = (x,c.influxUri._2,c.influxUri._3))).text("Influx Uri (http://localhost:8086)"),
@@ -84,17 +69,18 @@ object App extends SkelApp {
         opt[String]('p', "influx-pass").action((x, c) => c.copy(influxPass = (x,c.influxPass._2,c.influxPass._3))).text("Influx pass"),
         opt[String]('d', "influx-db").action((x, c) => c.copy(influxDb = (x,c.influxDb._2,c.influxDb._3))).text("Influx db"),
 
-        opt[String]('e', "ekm-host").action((x, c) => c.copy(ekmHost = (x,c.ekmHost._2,c.ekmHost._3))).text("EKM Host (http://io.ekmpush.com)"),
-        opt[String]('k', "ekm-key").action((x, c) => c.copy(ekmKey = (x,c.ekmKey._2,c.ekmKey._3))).text("EKM Key ()"),
-        opt[String]('m', "ekm-device").action((x, c) => c.copy(ekmDevice = (x,c.ekmDevice._2,c.ekmDevice._3))).text("EKM Device (00000)"),
-        opt[Long]('v', "ekm-freq").action((x, c) => c.copy(ekmFreq = (x.toLong,c.ekmFreq._2,c.ekmFreq._3))).text("EKM Poll Frequence (def=60 second)"),
+        opt[String]('e', "source-host").action((x, c) => c.copy(sourceHost = (x,c.sourceHost._2,c.sourceHost._3))).text("Source Host (http://localhost:3003)"),
+        opt[String]('k', "source-key").action((x, c) => c.copy(sourceKey = (x,c.sourceKey._2,c.sourceKey._3))).text("Source Key ()"),
+        opt[String]('m', "source-device").action((x, c) => c.copy(sourceDevice = (x,c.sourceDevice._2,c.sourceDevice._3))).text("Source Device (00000)"),
+        opt[Long]('v', "source-freq").action((x, c) => c.copy(sourceFreq = (x.toLong,c.sourceFreq._2,c.sourceFreq._3))).text("Source Poll Frequence (def=60 second)"),
         
         opt[Long]('t', "ticks").action((x, c) => c.copy(ticks = (x.toLong,c.ticks._2,c.ticks._3))).text("Ticks Limit (def=0)"),
         
         opt[String]('l', "log-file").action((x, c) => c.copy(logFile = (x,c.logFile._2,c.logFile._3))).text("Logfile (/tmp/file.log)"),
         
-        cmd("influx").action( (_, c) => c.copy(dataSource = ("influx",c.dataSource._2,c.dataSource._3)) ).text("Influx DataSource.").children(),
-        cmd("grafite").action( (_, c) => c.copy(dataSource = ("grafite",c.dataSource._2,c.dataSource._3)) ).text("Grafite DataSource.").children()
+        cmd("influx").action( (_, c) => c.copy(dataSink = ("influx",c.dataSink._2,c.dataSink._3)) ).text("Influx DataSink.").children(),
+        cmd("grafite").action( (_, c) => c.copy(dataSink = ("grafite",c.dataSink._2,c.dataSink._3)) ).text("Grafite DataSink.").children(),
+        cmd("stdout").action( (_, c) => c.copy(dataSink = ("stdout",c.dataSink._2,c.dataSink._3)) ).text("Stdout DataSink.").children(),
       )
     } 
   
@@ -103,12 +89,12 @@ object App extends SkelApp {
         val confuration = Configuration.withPriority(Seq(new ConfigurationEnv,new ConfigurationAkka))
 
         val config = Config(
-          dataSource = ({ if(! configArgs.dataSource._1.isEmpty) configArgs.dataSource._1 else confuration.getString(configArgs.dataSource._2).getOrElse(configArgs.dataSource._3) },configArgs.dataSource._2,configArgs.dataSource._3),
+          dataSink = ({ if(! configArgs.dataSink._1.isEmpty) configArgs.dataSink._1 else confuration.getString(configArgs.dataSink._2).getOrElse(configArgs.dataSink._3) },configArgs.dataSink._2,configArgs.dataSink._3),
           
-          ekmHost = ({ if(! configArgs.ekmHost._1.isEmpty) configArgs.ekmHost._1 else confuration.getString(configArgs.ekmHost._2).getOrElse(configArgs.ekmHost._3) },configArgs.ekmHost._2,configArgs.ekmHost._3),
-          ekmKey = ({ if(! configArgs.ekmKey._1.isEmpty) configArgs.ekmKey._1 else confuration.getString(configArgs.ekmKey._2).getOrElse(configArgs.ekmKey._3) },configArgs.ekmKey._2,configArgs.ekmKey._3),
-          ekmDevice = ({ if(! configArgs.ekmDevice._1.isEmpty) configArgs.ekmDevice._1 else confuration.getString(configArgs.ekmDevice._2).getOrElse(configArgs.ekmDevice._3) },configArgs.ekmDevice._2,configArgs.ekmDevice._3),
-          ekmFreq = ({ if(configArgs.ekmFreq._1 != 0) configArgs.ekmFreq._1 else confuration.getLong(configArgs.ekmFreq._2).getOrElse(configArgs.ekmFreq._3) },configArgs.ekmFreq._2,configArgs.ekmFreq._3),
+          sourceHost = ({ if(! configArgs.sourceHost._1.isEmpty) configArgs.sourceHost._1 else confuration.getString(configArgs.sourceHost._2).getOrElse(configArgs.sourceHost._3) },configArgs.sourceHost._2,configArgs.sourceHost._3),
+          sourceKey = ({ if(! configArgs.sourceKey._1.isEmpty) configArgs.sourceKey._1 else confuration.getString(configArgs.sourceKey._2).getOrElse(configArgs.sourceKey._3) },configArgs.sourceKey._2,configArgs.sourceKey._3),
+          sourceDevice = ({ if(! configArgs.sourceDevice._1.isEmpty) configArgs.sourceDevice._1 else confuration.getString(configArgs.sourceDevice._2).getOrElse(configArgs.sourceDevice._3) },configArgs.sourceDevice._2,configArgs.sourceDevice._3),
+          sourceFreq = ({ if(configArgs.sourceFreq._1 != 0) configArgs.sourceFreq._1 else confuration.getLong(configArgs.sourceFreq._2).getOrElse(configArgs.sourceFreq._3) },configArgs.sourceFreq._2,configArgs.sourceFreq._3),
           
           ticks = ({ if(configArgs.ticks._1 != 0) configArgs.ticks._1 else confuration.getLong(configArgs.ticks._2).getOrElse(configArgs.ticks._3) },configArgs.ticks._2,configArgs.ticks._3),
           
@@ -124,9 +110,10 @@ object App extends SkelApp {
 
         println(s"Config: ${config}")
 
-        config.dataSource._1 match {
-          case "influx" => (new EkmTelemetryInfluxdb).run(config.ekmHost._1,config.ekmKey._1,config.ekmDevice._1,config.ekmFreq._1, config.ticks._1, config.logFile._1, config.influxUri._1, config.influxUser._1, config.influxPass._1, config.influxDb._1)
-          case "grafite" => (new EkmTelemetryGrafite).run(config.ekmHost._1,config.ekmKey._1,config.ekmDevice._1,config.ekmFreq._1, config.ticks._1, config.logFile._1, config.grafiteUri._1)
+        config.dataSink._1 match {
+          //case "influx" => (new EkmTelemetryInfluxdb).run(config.sourceHost._1,config.sourceKey._1,config.sourceDevice._1,config.sourceFreq._1, config.ticks._1, config.logFile._1, config.influxUri._1, config.influxUser._1, config.influxPass._1, config.influxDb._1)
+          //case "grafite" => (new EkmTelemetryGrafite).run(config.sourceHost._1,config.sourceKey._1,config.sourceDevice._1,config.sourceFreq._1, config.ticks._1, config.logFile._1, config.grafiteUri._1)
+          case "stdout" | "" => (new IngestStdout).run(config.sourceHost._1,config.sourceKey._1,config.sourceDevice._1,config.sourceFreq._1, config.ticks._1, config.logFile._1)
         }
       }
       case _ => 
