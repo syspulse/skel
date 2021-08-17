@@ -51,7 +51,7 @@ object App extends skel.Server {
           case _ => new OtpStoreCache
         }
 
-        run( config.host, config.port,config.uri,
+        run( config.host, config.port,config.uri,confuration,
           Seq(
             (OtpRegistry(store),"OtpRegistry",(actor,actorSystem ) => new OtpRoutes(actor)(actorSystem) ),
             

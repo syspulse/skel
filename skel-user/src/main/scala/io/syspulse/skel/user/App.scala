@@ -30,17 +30,17 @@ object App extends skel.Server {
   
     OParser.parse(argsParser, args, Config()) match {
       case Some(configArgs) => {
-        val confuration = Configuration.withPriority(Seq(new ConfigurationEnv,new ConfigurationAkka))
+        val configuration = Configuration.withPriority(Seq(new ConfigurationEnv,new ConfigurationAkka))
 
         val config = Config(
-          host = { if(! configArgs.host.isEmpty) configArgs.host else confuration.getString("host").getOrElse("0.0.0.0") },
-          port = { if(configArgs.port!=0) configArgs.port else confuration.getInt("port").getOrElse(8080) },
-          uri = { if(! configArgs.uri.isEmpty) configArgs.uri else confuration.getString("uri").getOrElse("/api/v1/user") },
+          host = { if(! configArgs.host.isEmpty) configArgs.host else configuration.getString("host").getOrElse("0.0.0.0") },
+          port = { if(configArgs.port!=0) configArgs.port else configuration.getInt("port").getOrElse(8080) },
+          uri = { if(! configArgs.uri.isEmpty) configArgs.uri else configuration.getString("uri").getOrElse("/api/v1/user") },
         )
 
         println(s"Config: ${config}")
 
-        run( config.host, config.port, config.uri,
+        run( config.host, config.port, config.uri, configuration,
           Seq(
             (UserRegistry(),"UserRegistry",(actor, actorSystem) => new UserRoutes(actor)(actorSystem) )
           )

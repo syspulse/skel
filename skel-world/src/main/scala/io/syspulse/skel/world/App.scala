@@ -36,17 +36,17 @@ object App extends skel.Server {
   
     OParser.parse(argsParser, args, Config()) match {
       case Some(configArgs) => {
-        val confuration = Configuration.withPriority(Seq(new ConfigurationEnv,new ConfigurationAkka))
+        val configuration = Configuration.withPriority(Seq(new ConfigurationEnv,new ConfigurationAkka))
 
         val config = Config(
-          host = { if(! configArgs.host.isEmpty) configArgs.host else confuration.getString("http.host").getOrElse("0.0.0.0") },
-          port = { if(configArgs.port!=0) configArgs.port else confuration.getInt("http.port").getOrElse(8080) },
-          uri = { if(! configArgs.uri.isEmpty) configArgs.uri else confuration.getString("uri").getOrElse("/api/v1/world") },
+          host = { if(! configArgs.host.isEmpty) configArgs.host else configuration.getString("http.host").getOrElse("0.0.0.0") },
+          port = { if(configArgs.port!=0) configArgs.port else configuration.getInt("http.port").getOrElse(8080) },
+          uri = { if(! configArgs.uri.isEmpty) configArgs.uri else configuration.getString("uri").getOrElse("/api/v1/world") },
         )
 
         println(s"config: ${config}")
 
-        run( config.host, config.port,config.uri,
+        run( config.host, config.port,config.uri,configuration,
           Seq(
             (CountryRegistry(new CountryStoreDB),"CountryRegistry",(actor,actorSystem ) => new CountryRoutes(actor)(actorSystem) ),
             (CurrencyRegistry(new CurrencyStoreDB),"CurrencyRegistry",(actor,actorSystem ) => new CurrencyRoutes(actor)(actorSystem) ),

@@ -106,7 +106,7 @@ object IngestApp extends Telemetring {
           influxDb = ({ if(! configArgs.influxDb._1.isEmpty) configArgs.influxDb._1 else confuration.getString(configArgs.influxDb._2).getOrElse(configArgs.influxDb._3) },configArgs.influxDb._2,configArgs.influxDb._3),
         )
 
-        initSkel(confuration)
+        initPrometheus(confuration)
 
         println(s"Config: ${config}")
 

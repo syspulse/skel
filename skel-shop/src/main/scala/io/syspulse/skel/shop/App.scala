@@ -48,7 +48,7 @@ object App extends skel.Server {
 
         println(s"Config: ${config}")
 
-        run( config.host, config.port, config.uri,
+        run( config.host, config.port, config.uri, confuration,
           Seq(
             (ItemRegistry(new ItemStoreDB),"ItemRegistry",(actor,actorSystem ) => new ItemRoutes(actor)(actorSystem) ),
             (WarehouseRegistry(new WarehouseStoreDB),"WarehouseRgistry",(actor,actorSystem ) => new WarehouseRoutes(actor)(actorSystem) ),
