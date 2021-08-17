@@ -1,5 +1,7 @@
 package io.syspulse.skel.config
 
+import scala.jdk.CollectionConverters._
+
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 
@@ -8,6 +10,7 @@ trait ConfigurationLike {
   def getString(path:String):Option[String] 
   def getInt(path:String):Option[Int]
   def getLong(path:String):Option[Long]
+  def getAll():Seq[(String,Any)]
 }
 
 // Akka/Typesafe cofig suppors EnvVar, but the format is obtuse. 
@@ -17,6 +20,7 @@ class ConfigurationEnv extends ConfigurationLike {
   def getString(path:String):Option[String] = { val e = System.getenv(path.toUpperCase); if(e == null) None else Some(e) }
   def getInt(path:String):Option[Int] = { val e = System.getenv(path.toUpperCase); if(e == null) None else Some(e.toInt) }
   def getLong(path:String):Option[Long] = { val e = System.getenv(path.toUpperCase); if(e == null) None else Some(e.toLong) }
+  def getAll():Seq[(String,Any)] = {System.getenv().asScala.toSeq.map{ kv => (kv._1,kv._2)}}
 }
 
 // akka/typesafe config supoports System properties names
@@ -26,6 +30,8 @@ class ConfigurationProp extends ConfigurationLike {
   def getString(path:String):Option[String] = { val e = System.getProperty(path); if(e == null) None else Some(e) }
   def getInt(path:String):Option[Int] = { val e = System.getProperty(path); if(e == null) None else Some(e.toInt) }
   def getLong(path:String):Option[Long] = { val e = System.getProperty(path); if(e == null) None else Some(e.toLong) }
+
+  def getAll():Seq[(String,Any)] = {System.getProperties.asScala.toSeq.map{ kv => (kv._1,kv._2)}}
 }
 
 // Akka/Typesafe config supports EnvVar with -Dconfig.override_with_env_vars=true
@@ -46,6 +52,11 @@ class ConfigurationAkka extends ConfigurationLike {
     if(!akkaConfig.isDefined) None else
     if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getLong(path)) else None
 
+  def getAll():Seq[(String,Any)] = {
+    if(!akkaConfig.isDefined) return Seq()
+
+    akkaConfig.get.entrySet().asScala.toSeq.map(es => (es.getKey(),es.getValue.toString))
+  }
 }
 
 class Configuration(configurations: Seq[ConfigurationLike]) extends ConfigurationLike {
@@ -59,6 +70,10 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
 
   def getLong(path:String):Option[Long] = {
     configurations.foldLeft[Option[Long]](None)((r,c) => if(r.isDefined) r else c.getLong(path))
+  }
+
+  def getAll():Seq[(String,Any)] = {
+    configurations.foldLeft[Seq[(String,Any)]](Seq())((r,c) => r ++ c.getAll())
   }
 }
 

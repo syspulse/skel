@@ -36,7 +36,7 @@ class InfoRoutes(infoRegistry: ActorRef[InfoRegistry.Command])(implicit val syst
   import InfoJson._
   
   private implicit val timeout = Timeout.create(
-    system.settings.config.getDuration("info.routes.ask-timeout")
+    system.settings.config.getDuration("http.routes.ask-timeout")
   )
 
   

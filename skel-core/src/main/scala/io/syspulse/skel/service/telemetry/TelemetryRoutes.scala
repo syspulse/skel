@@ -22,7 +22,11 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody
 import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
 import javax.ws.rs.core.MediaType
 
-
+import fr.davit.akka.http.metrics.core._
+import fr.davit.akka.http.metrics.prometheus.marshalling.PrometheusMarshallers._
+import fr.davit.akka.http.metrics.core.scaladsl.server.HttpMetricsDirectives.metrics
+import fr.davit.akka.http.metrics.core.{HttpMetricsRegistry, HttpMetricsSettings}
+import fr.davit.akka.http.metrics.core.HttpMetrics._
 
 import io.syspulse.skel.service.telemetry.TelemetryRegistry._
 
@@ -31,9 +35,10 @@ class TelemetryRoutes(telemetryRegistry: ActorRef[TelemetryRegistry.Command])(im
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import TelemetryJson._
+  import TelemetryRegistry._
   
   private implicit val timeout = Timeout.create(
-    system.settings.config.getDuration("telemetry.routes.ask-timeout")
+    system.settings.config.getDuration("http.routes.ask-timeout")
   )
 
   
@@ -65,18 +70,21 @@ class TelemetryRoutes(telemetryRegistry: ActorRef[TelemetryRegistry.Command])(im
 
   val routes: Route =
     pathPrefix("telemetry") {
-      concat(
-        pathEndOrSingleSlash {
-          concat(
-            getTelemetriesRoute()
-          )
-        },
-        path(Segment) { key =>
-          concat(
-            getTelemetryRoute(key)
-          )
-        }
-      )
+      fr.davit.akka.http.metrics.core.scaladsl.server.HttpMetricsDirectives.metrics(prometheusRegistry)
+      // concat(
+      //   pathEndOrSingleSlash {
+      //     concat(
+      //       getTelemetriesRoute()
+      //     )
+      //   },
+      //   path(Segment) { key =>
+      //     concat(
+      //       getTelemetryRoute(key)
+      //     )
+      //   }
+      // )
     }
-
 }
+
+
+

@@ -36,23 +36,23 @@ case class Config(
   influxDb:(String,String,String) = ("","ingest.influx-db","ekm_db"),
 )
 
-trait SkelApp {
+trait Telemetring {
   val log = Logger(s"${this}")
 
-  def initSkel(configuration:Configuration) = {
+  def initPrometheus(configuration:Configuration) = {
 
     // init Prometheus
-    val (pHost,pPort) = Util.getHostPort(configuration.getString("ingest.prometheus.listen").getOrElse("0.0.0.0:9091"))
+    val (pHost,pPort) = Util.getHostPort(configuration.getString("prometheus.listen").getOrElse("0.0.0.0:9091"))
     val prometheusListener = new HTTPServer(pHost,pPort)
     DefaultExports.initialize()
     //new GarbageCollectorExports().register()
     //new MemoryPoolsExports().register()
     //new ThreadExports().register()
-    log.info(s"prometheus: ${pHost}:${pPort}: ${prometheusListener}")
+    log.info(s"Prometheus: listen(${pHost}:${pPort}): ${prometheusListener}")
   }
 }
 
-object IngestApp extends SkelApp {
+object IngestApp extends Telemetring {
   
   def main(args:Array[String]): Unit = {
     println(s"Args: '${args.mkString(",")}'")

@@ -1,5 +1,8 @@
 package io.syspulse.skel
 
+import scala.concurrent.duration._
+import akka.actor.ActorContext
+import akka.actor.typed.scaladsl
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.Behaviors
@@ -11,7 +14,6 @@ import akka.http.scaladsl.server.Directives._
 
 import scala.util.Failure
 import scala.util.Success
-
 
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.RejectionHandler
@@ -26,22 +28,23 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 
 
+import io.syspulse.skel.config.Configuration
 import io.syspulse.skel.service.swagger.{Swagger}
 import io.syspulse.skel.service.telemetry.{TelemetryRegistry,TelemetryRoutes}
 import io.syspulse.skel.service.info.{InfoRegistry,InfoRoutes}
 import io.syspulse.skel.service.health.{HealthRegistry,HealthRoutes}
+import io.syspulse.skel.service.config.{ConfigRegistry,ConfigRoutes}
 import io.syspulse.skel.service.Routeable
-import scala.concurrent.duration._
-import akka.actor.ActorContext
-import akka.actor.typed.scaladsl
 
+import fr.davit.akka.http.metrics.core.{HttpMetricsRegistry, HttpMetricsSettings}
+import fr.davit.akka.http.metrics.core.HttpMetrics._
 
 trait Server {
 
   private def startHttpServer(host:String,port:Int, routes: Route)(implicit system: ActorSystem[_]): Unit = {  
     import system.executionContext
 
-    val http = Http().newServerAt(host, port).bind(routes)
+    val http = Http().newMeteredServerAt(host, port,TelemetryRegistry.prometheusRegistry).bind(routes)
 
     http.onComplete {
       case Success(binding) =>
@@ -121,7 +124,7 @@ trait Server {
     routes
   }
 
-  def run(host:String, port:Int, uri:String,
+  def run(host:String, port:Int, uri:String, configuration:Configuration,
           app:Seq[(Behavior[Command],String,(ActorRef[Command],ActorSystem[_])=>Routeable)]
           ): Unit = {
     
@@ -129,9 +132,11 @@ trait Server {
       val telemetryRegistryActor = context.spawn(TelemetryRegistry(), "Actor-TelemetryRegistry")
       val infoRegistryActor = context.spawn(InfoRegistry(), "Actor-InfoRegistry")
       val healthRegistryActor = context.spawn(HealthRegistry(), "Actor-HealthRegistry")
+      val configRegistryActor = context.spawn(ConfigRegistry(configuration), "Actor-ConfigRegistry")
       context.watch(telemetryRegistryActor)
       context.watch(infoRegistryActor)
       context.watch(healthRegistryActor)
+      context.watch(configRegistryActor)
 
       val (rejectionHandler:RejectionHandler,exceptionHandler:ExceptionHandler) = getHandlers() //(context)
 
@@ -150,18 +155,20 @@ trait Server {
 
       val swaggerRoutes = Swagger.routes
       val swaggerUI = path("swagger") { getFromResource("swagger/index.html") } ~ getFromResourceDirectory("swagger")
-      val telemetryRoutes = new TelemetryRoutes(telemetryRegistryActor)(context.system)
       val infoRoutes = new InfoRoutes(infoRegistryActor)(context.system)
       val healthRoutes = new HealthRoutes(healthRegistryActor)(context.system)
+      val configRoutes = new ConfigRoutes(configRegistryActor)(context.system)
+      val telemetryRoutes = new TelemetryRoutes(telemetryRegistryActor)(context.system)
 
       val routes: Route = 
         getRoutes(
           rejectionHandler,exceptionHandler,
           uri,
-          Seq(telemetryRoutes.routes,infoRoutes.routes,healthRoutes.routes,swaggerRoutes,swaggerUI),
+          Seq(telemetryRoutes.routes, infoRoutes.routes, healthRoutes.routes, configRoutes.routes, swaggerRoutes,swaggerUI),
           appRoutes
         )
-          
+      
+      
       Swagger.withClass(appClasses).withVersion(parseUri(uri)._2.toString).withHost(host,port)
     
       // should not be here...

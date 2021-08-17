@@ -6,7 +6,13 @@ import akka.actor.typed.scaladsl.Behaviors
 import scala.collection.immutable
 
 import scala.jdk.CollectionConverters._
+
+// metrics4
 import nl.grons.metrics4.scala.DefaultInstrumented
+// prometheus
+import fr.davit.akka.http.metrics.prometheus.marshalling.PrometheusMarshallers._
+import fr.davit.akka.http.metrics.prometheus.{Buckets, PrometheusRegistry, PrometheusSettings, Quantiles}
+import io.prometheus.client.CollectorRegistry
 
 final case class Telemetry(metric:String, value:String)
 final case class Telemetries(telemetries: immutable.Seq[Telemetry])
@@ -37,4 +43,17 @@ object TelemetryRegistry extends DefaultInstrumented {
         Behaviors.same
       
     }
+
+  val prometheusSettings: PrometheusSettings = PrometheusSettings
+    .default
+    .withIncludePathDimension(true)
+    .withIncludeMethodDimension(true)
+    .withIncludeStatusDimension(true)
+    .withDurationConfig(Buckets(1, 2, 3, 5, 8, 13, 21, 34))
+    .withReceivedBytesConfig(Quantiles(0.5, 0.75, 0.9, 0.95, 0.99))
+    .withSentBytesConfig(PrometheusSettings.DefaultQuantiles)
+    .withDefineError(_.status.isFailure)
+
+  val prometheusCollector: CollectorRegistry = CollectorRegistry.defaultRegistry
+  val prometheusRegistry: PrometheusRegistry = PrometheusRegistry(prometheusCollector, prometheusSettings)
 }

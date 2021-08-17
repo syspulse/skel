@@ -47,7 +47,7 @@ object App extends skel.Server {
 
         println(s"Config: ${config}")
 
-        run( config.host, config.port, config.uri,
+        run( config.host, config.port, config.uri, confuration, 
           Seq(
             (ServiceRegistry(new ServiceStoreCache),"ServiceRegistry",(actor,actorSystem ) => new ServiceRoutes(actor)(actorSystem) ),
             
