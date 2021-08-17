@@ -109,8 +109,8 @@ val sharedConfigAssembly = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(core, skel_test, http, auth, user, kafka, world, shop, telemetry,otp)
-  .dependsOn(core, skel_test, http, auth, user, kafka, world, shop, telemetry,otp)
+  .aggregate(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp)
+  .dependsOn(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -328,12 +328,12 @@ lazy val shop = (project in file("skel-shop"))
 
   )
 
-lazy val telemetry = (project in file("skel-telemetry"))
+lazy val ingest = (project in file("skel-ingest"))
   .dependsOn(core)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
     sharedConfig,
-    name := "skel-telemetry",
+    name := "skel-ingest",
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
       libUjsonLib
     )
@@ -341,7 +341,7 @@ lazy val telemetry = (project in file("skel-telemetry"))
   )
 
 lazy val ekm = (project in file("skel-ekm"))
-  .dependsOn(core,telemetry)
+  .dependsOn(core,ingest)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
