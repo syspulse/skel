@@ -64,10 +64,12 @@ class IngestStdout extends IngestClient {
 
     val logSink = Sink.ignore
 
+    val count = Flow[(SourceDevice,SourceData)].map(d => {metricEventsCounter.inc() ;d})
     val transform = Flow[(SourceDevice,SourceData)].map( d => IngestData(d._1,System.currentTimeMillis,d._2.toString))
     val csv = Flow[IngestData].map(d => d.toCSV)
 
     val flow = sourceRestartable
+      .via(count)
       .via(transform)
       .via(csv)
       .alsoTo(logSink)

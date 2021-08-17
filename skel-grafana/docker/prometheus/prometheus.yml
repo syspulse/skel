@@ -18,10 +18,18 @@ scrape_configs:
     static_configs:
       - targets: ["172.17.0.1:9091"]
 
-  - job_name: "skel_http"
+  - job_name: "skel_service"
     # Override global settings
     scrape_interval: 5s
     metrics_path: /api/v1/service/telemetry
     static_configs:
       - targets: ["172.17.0.1:8080"]
+  
+  - job_name: "skel_ingest"
+    # Override global settings
+    scrape_interval: 5s
+    metrics_path: /api/v1/ingest/telemetry
+    static_configs:
+      - targets: ["172.17.0.1:8080"]
+
 

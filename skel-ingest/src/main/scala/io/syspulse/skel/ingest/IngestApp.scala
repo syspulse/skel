@@ -8,17 +8,15 @@ import scopt.OParser
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
+import io.syspulse.skel.service._
 import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv}
-
-import io.prometheus.client._
-import io.prometheus.client.exporter._
-import io.prometheus.client.hotspot.DefaultExports
-import io.prometheus.client.hotspot.GarbageCollectorExports
-import io.prometheus.client.hotspot.MemoryPoolsExports
-import io.prometheus.client.hotspot.ThreadExports
 
 
 case class Config(
+  host:(String,String,String) = ("","host","0.0.0.0"),
+  port:(Int,String,Int) = (0,"port",8080),
+  uri:(String,String,String) = ("","uri","/api/v1/ingest"),
+
   dataSink:(String,String,String) = ("","ingest.data-sink","stdout"),
   
   sourceHost:(String,String,String) = ("","ingest.source-host","http://localhost:3003"),
@@ -36,23 +34,23 @@ case class Config(
   influxDb:(String,String,String) = ("","ingest.influx-db","ekm_db"),
 )
 
-trait Telemetring {
-  val log = Logger(s"${this}")
+// trait Telemetring {
+//   val log = Logger(s"${this}")
 
-  def initPrometheus(configuration:Configuration) = {
+//   def initPrometheus(configuration:Configuration) = {
 
-    // init Prometheus
-    val (pHost,pPort) = Util.getHostPort(configuration.getString("prometheus.listen").getOrElse("0.0.0.0:9091"))
-    val prometheusListener = new HTTPServer(pHost,pPort)
-    DefaultExports.initialize()
-    //new GarbageCollectorExports().register()
-    //new MemoryPoolsExports().register()
-    //new ThreadExports().register()
-    log.info(s"Prometheus: listen(${pHost}:${pPort}): ${prometheusListener}")
-  }
-}
+//     // init Prometheus
+//     val (pHost,pPort) = Util.getHostPort(configuration.getString("prometheus.listen").getOrElse("0.0.0.0:9091"))
+//     val prometheusListener = new HTTPServer(pHost,pPort)
+//     DefaultExports.initialize()
+//     //new GarbageCollectorExports().register()
+//     //new MemoryPoolsExports().register()
+//     //new ThreadExports().register()
+//     log.info(s"Prometheus: listen(${pHost}:${pPort}): ${prometheusListener}")
+//   }
+// }
 
-object IngestApp extends Telemetring {
+object IngestApp extends skel.Server {
   
   def main(args:Array[String]): Unit = {
     println(s"Args: '${args.mkString(",")}'")
@@ -61,12 +59,17 @@ object IngestApp extends Telemetring {
     val argsParser = {
       import builder._
       OParser.sequence(
-        programName("skel-ingest"), head("skel-ingest", "0.0.1"),
+        programName("skel-ingest"), head(Util.info._1, Util.info._2),
+
+        opt[String]('h', "host").action((x, c) => c.copy(host = (x,c.host._2,c.host._3))).text("Host (0.0.0.0)"),
+        opt[Int]('p', "port").action((x, c) => c.copy(port = (x,c.port._2,c.port._3))).text("Port (8080)"),
+        opt[String]('u', "uri").action((x, c) => c.copy(uri = (x,c.uri._2,c.uri._3))).text("Uri (/api/v1/service)"),
+
         opt[String]('g', "grafite-uri").action((x, c) => c.copy(grafiteUri = (x,c.grafiteUri._2,c.grafiteUri._3))).text("Grafite Uri (localhost:2003)"),
         
         opt[String]('i', "influx-uri").action((x, c) => c.copy(influxUri = (x,c.influxUri._2,c.influxUri._3))).text("Influx Uri (http://localhost:8086)"),
-        opt[String]('u', "influx-user").action((x, c) => c.copy(influxUser = (x,c.influxUser._2,c.influxUser._3))).text("Influx user"),
-        opt[String]('p', "influx-pass").action((x, c) => c.copy(influxPass = (x,c.influxPass._2,c.influxPass._3))).text("Influx pass"),
+        opt[String]('z', "influx-user").action((x, c) => c.copy(influxUser = (x,c.influxUser._2,c.influxUser._3))).text("Influx user"),
+        opt[String]('s', "influx-pass").action((x, c) => c.copy(influxPass = (x,c.influxPass._2,c.influxPass._3))).text("Influx pass"),
         opt[String]('d', "influx-db").action((x, c) => c.copy(influxDb = (x,c.influxDb._2,c.influxDb._3))).text("Influx db"),
 
         opt[String]('e', "source-host").action((x, c) => c.copy(sourceHost = (x,c.sourceHost._2,c.sourceHost._3))).text("Source Host (http://localhost:3003)"),
@@ -89,6 +92,10 @@ object IngestApp extends Telemetring {
         val confuration = Configuration.withPriority(Seq(new ConfigurationEnv,new ConfigurationAkka))
 
         val config = Config(
+          host = ({ if(! configArgs.host._1.isEmpty) configArgs.host._1 else confuration.getString(configArgs.host._2).getOrElse(configArgs.host._3) },configArgs.host._2,configArgs.host._3),
+          port = ({ if(configArgs.port._1 != 0) configArgs.port._1 else confuration.getInt(configArgs.port._2).getOrElse(configArgs.port._3) },configArgs.port._2,configArgs.port._3),
+          uri = ({ if(! configArgs.uri._1.isEmpty) configArgs.uri._1 else confuration.getString(configArgs.uri._2).getOrElse(configArgs.uri._3) },configArgs.uri._2,configArgs.uri._3),
+
           dataSink = ({ if(! configArgs.dataSink._1.isEmpty) configArgs.dataSink._1 else confuration.getString(configArgs.dataSink._2).getOrElse(configArgs.dataSink._3) },configArgs.dataSink._2,configArgs.dataSink._3),
           
           sourceHost = ({ if(! configArgs.sourceHost._1.isEmpty) configArgs.sourceHost._1 else confuration.getString(configArgs.sourceHost._2).getOrElse(configArgs.sourceHost._3) },configArgs.sourceHost._2,configArgs.sourceHost._3),
@@ -106,8 +113,6 @@ object IngestApp extends Telemetring {
           influxDb = ({ if(! configArgs.influxDb._1.isEmpty) configArgs.influxDb._1 else confuration.getString(configArgs.influxDb._2).getOrElse(configArgs.influxDb._3) },configArgs.influxDb._2,configArgs.influxDb._3),
         )
 
-        initPrometheus(confuration)
-
         println(s"Config: ${config}")
 
         config.dataSink._1 match {
@@ -115,6 +120,12 @@ object IngestApp extends Telemetring {
           //case "grafite" => (new EkmTelemetryGrafite).run(config.sourceHost._1,config.sourceKey._1,config.sourceDevice._1,config.sourceFreq._1, config.ticks._1, config.logFile._1, config.grafiteUri._1)
           case "stdout" | "" => (new IngestStdout).run(config.sourceHost._1,config.sourceKey._1,config.sourceDevice._1,config.sourceFreq._1, config.ticks._1, config.logFile._1)
         }
+
+        run( config.host._1, config.port._1, config.uri._1, confuration, 
+          Seq(
+            (ServiceRegistry(new ServiceStoreCache),"ServiceRegistry",(actor,actorSystem ) => new ServiceRoutes(actor)(actorSystem) ),
+          )
+        )
       }
       case _ => 
     }

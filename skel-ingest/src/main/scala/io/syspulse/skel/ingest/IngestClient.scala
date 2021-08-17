@@ -28,6 +28,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 import scala.jdk.CollectionConverters._
 
+import io.prometheus.client.Counter
+
 import io.syspulse.skel
 import io.syspulse.skel.ingest.Ingestable
 import io.syspulse.skel.util.Util
@@ -35,6 +37,9 @@ import io.syspulse.skel.util.Util
 
 trait IngestClient {
   val log = Logger(s"${this}")
+
+  val metricEventsCounter: Counter = Counter.build().name("skel_ingest_events_total").help("Total Ingested Events").register()
+
   implicit val system = ActorSystem("ActorSystem-IngestClient")
 
   val retrySettings = RestartSettings(
