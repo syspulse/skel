@@ -41,48 +41,17 @@ class TelemetryRoutes(telemetryRegistry: ActorRef[TelemetryRegistry.Command])(im
     system.settings.config.getDuration("http.routes.ask-timeout")
   )
 
-  
-  def getTelemetries(): Future[Telemetries] = telemetryRegistry.ask(GetTelemetries)
-  def getTelemetry(key: String): Future[GetTelemetryResponse] = telemetryRegistry.ask(GetTelemetry(key, _))
-
-  @GET @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("telemetry"),summary = "Return Telemetry by id",
-    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "telemetry-id (uuid)")),
-    responses = Array(new ApiResponse(responseCode="200",description = "Telemetry returned",content=Array(new Content(schema=new Schema(implementation = classOf[Telemetry])))))
-  )
-  def getTelemetryRoute(key: String) = get {
-    rejectEmptyResponse {
-      onSuccess(getTelemetry(key)) { response =>
-        complete(response.telemetry)
-      }
-    }
-  }
-
+  // this is dead code needed only for Swagger
   @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("telemetry"), summary = "Return all Telemetry",
+  @Operation(tags = Array("telemetry"), summary = "Return all Prometheus Telemetry",
     responses = Array(
-      new ApiResponse(responseCode = "200", description = "List of Telemetry",content = Array(new Content(schema = new Schema(implementation = classOf[Telemetries])))))
+      new ApiResponse(responseCode = "200", description = "List of Telemetry",content = Array(new Content(schema = new Schema()))))
   )
-  def getTelemetriesRoute() = get {
-    complete(getTelemetries())
-  }
-
+  def getTelemetriesRoute() = {}
 
   val routes: Route =
     pathPrefix("telemetry") {
       fr.davit.akka.http.metrics.core.scaladsl.server.HttpMetricsDirectives.metrics(prometheusRegistry)
-      // concat(
-      //   pathEndOrSingleSlash {
-      //     concat(
-      //       getTelemetriesRoute()
-      //     )
-      //   },
-      //   path(Segment) { key =>
-      //     concat(
-      //       getTelemetryRoute(key)
-      //     )
-      //   }
-      // )
     }
 }
 

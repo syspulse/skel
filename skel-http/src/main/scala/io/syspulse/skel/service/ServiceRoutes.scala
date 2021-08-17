@@ -25,16 +25,13 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody
 import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
 import javax.ws.rs.core.MediaType
 
-import nl.grons.metrics4.scala.DefaultInstrumented
-import nl.grons.metrics4.scala.Counter
-import nl.grons.metrics4.scala.MetricName
-
+import io.prometheus.client.Counter
 
 import io.syspulse.skel.service.Routeable
 import io.syspulse.skel.service.ServiceRegistry._
 
 @Path("/api/v1/service")
-class ServiceRoutes(serviceRegistry: ActorRef[ServiceRegistry.Command])(implicit val system: ActorSystem[_]) extends DefaultInstrumented with Routeable {
+class ServiceRoutes(serviceRegistry: ActorRef[ServiceRegistry.Command])(implicit val system: ActorSystem[_]) extends Routeable {
   val log = Logger(s"${this}")  
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
@@ -44,11 +41,9 @@ class ServiceRoutes(serviceRegistry: ActorRef[ServiceRegistry.Command])(implicit
     system.settings.config.getDuration("service.routes.ask-timeout")
   )
 
-  override lazy val metricBaseName = MetricName("")
-  val metricGetCount: Counter = metrics.counter("service-get-count")
-  val metricPostCount: Counter = metrics.counter("service-post-count")
-  val metricDeleteCount: Counter = metrics.counter("service-delete-count")
-
+  val metricGetCount: Counter = Counter.build().name("skel_service_get_total").help("Total Service requests").register()
+  val metricPostCount: Counter = Counter.build().name("skel_service_post_total").help("Total Service creates").register()
+  val metricDeleteCount: Counter = Counter.build().name("skel_service_delete_total").help("Total Service deletes").register()
 
   def getServices(): Future[Services] = serviceRegistry.ask(GetServices)
   def getService(id: UUID): Future[GetServiceResponse] = serviceRegistry.ask(GetService(id, _))
@@ -64,7 +59,7 @@ class ServiceRoutes(serviceRegistry: ActorRef[ServiceRegistry.Command])(implicit
   def getServiceRoute(id: String) = get {
     rejectEmptyResponse {
       onSuccess(getService(UUID.fromString(id))) { response =>
-        metricGetCount += 1
+        metricGetCount.inc()
         complete(response.service)
       }
     }
@@ -76,7 +71,7 @@ class ServiceRoutes(serviceRegistry: ActorRef[ServiceRegistry.Command])(implicit
       new ApiResponse(responseCode = "200", description = "List of OTPs",content = Array(new Content(schema = new Schema(implementation = classOf[Services])))))
   )
   def getServicesRoute() = get {
-    metricGetCount += 1
+    metricGetCount.inc()
     complete(getServices())
   }
 
@@ -88,7 +83,7 @@ class ServiceRoutes(serviceRegistry: ActorRef[ServiceRegistry.Command])(implicit
   )
   def deleteServiceRoute(id: String) = delete {
     onSuccess(deleteService(UUID.fromString(id))) { performed =>
-      metricDeleteCount += 1
+      metricDeleteCount.inc()
       complete((StatusCodes.OK, performed))
     }
   }
@@ -102,7 +97,7 @@ class ServiceRoutes(serviceRegistry: ActorRef[ServiceRegistry.Command])(implicit
   def createServiceRoute = post {
     entity(as[ServiceCreate]) { serviceCreate =>
       onSuccess(createService(serviceCreate)) { performed =>
-        metricPostCount += 1
+        metricPostCount.inc
         complete((StatusCodes.Created, performed))
       }
     }
