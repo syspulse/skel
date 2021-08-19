@@ -18,12 +18,12 @@ Data Ingestion and Collection Flow
 Prometheus Telemetry
 
 
-<img src="doc/Skel-Architecture-skel-ingest.png" width="550">
+<img src="doc/Skel-Architecture-skel-ingest.png" width="500">
 
 ---
-## Visualization
+## Prometheus Visualization
 
 Grafana is the primary visualization dashboard
 
-<img src="doc/scr-grafana-influx.png" width="850">
+<img src="doc/scr-prometheus-grafana.png" width="850">
 
