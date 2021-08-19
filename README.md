@@ -6,8 +6,8 @@ Skeletons for RnD Prototypes
 2. [skel-user](skel-user) - UserProfile Service reference
 3. [skel-world](skel-world) + [skel-shop](skel-shop) - Services for E-Shop like product
 4. [skel-kafka](skel-kafka) - Kafka Processors (Source/Sink)
-5. [skel-telemetry](skel-telemetry) - Telemetry library
-6. [skel-ekm](skel-ekm) - IoT like Service to InflixDB/Grafana sink
+5. [skel-ingest](skel-ingest) - Data Ingestion with Prometheus telemerty reference
+6. [skel-ekm](skel-ekm) - IoT like Service ingestion to InflixDB/Grafana sink
 7. [skel-grafana](skel-grafana) - docker-compose for Prometheus/InfluxDB/Graphite/Loki/Grafana
 8. [skel-db](skel-db) - DB Related stuff
 9. [skel-otp](skel-otp) - OTP Service reference service 
