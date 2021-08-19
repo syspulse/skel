@@ -36,7 +36,11 @@ sbt docker:publishLocal
 
 ## Configuration
 
-Refer to [skel-http](skel-http) for details
+Refer to [skel-http](skel-http) for Configuration details
+
+## Telemetry (Metrics)
+
+Refer to [skel-ingest](skel-ingest) for Prometheus details
 
 ----
 
