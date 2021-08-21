@@ -34,7 +34,8 @@ object Util {
 
   def now:String = tsFormatLongest.format(LocalDateTime.now)
   def now(fmt:String):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(Instant.now.toEpochMilli), ZoneId.systemDefault).format(DateTimeFormatter.ofPattern(fmt))
-  
+  def timestamp(ts:Long,fmt:String):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).format(DateTimeFormatter.ofPattern(fmt))
+
   def tsToString(ts:Long) = ZonedDateTime.ofInstant(
       Instant.ofEpochMilli(ts), 
       ZoneId.systemDefault
@@ -46,10 +47,10 @@ object Util {
     ).format(tsFormatYM)
   
   // time is delimited with {}
-  def toFileWithTime(fileName:String) = {
+  def toFileWithTime(fileName:String,ts:Long=System.currentTimeMillis()) = {
     fileName.split("[{}]") match {
-      case Array(p,ts,ext) => p + now(ts) + ext
-      case Array(p,ts) => p+now(ts)
+      case Array(p,tf,ext) => p + timestamp(ts,tf) + ext
+      case Array(p,tf) => p + timestamp(ts,tf)
       case Array(p) => p
       case Array() => fileName
     }

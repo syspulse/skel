@@ -34,6 +34,22 @@ class UtilSpec extends WordSpec with Matchers {
       val lm = LocalDateTime.now
       ym should === (String.format("%d-%02d",lm.getYear,lm.getMonthValue))
     }
+
+    "convert 'file-{YYYY}' to 'file-2021'" in {
+      val s = Util.toFileWithTime("file-{YYYY}")
+      s should === (s"file-${LocalDateTime.now.getYear}")
+    }
+
+    "convert 'file-{YYYY}.log' to 'file-2021.log'" in {
+      val s = Util.toFileWithTime("file-{YYYY}.log")
+      s should === (s"file-${LocalDateTime.now.getYear}.log")
+    }
+
+    "convert 'file-{yyyy-MM-dd-HH:mm:ss}-suffix.log' to file with timestamp" in {
+      val s = Util.toFileWithTime("file-{yyyy-MM-dd_HH:mm:ss}-suffix.log")
+      val t = LocalDateTime.now
+      s should === ("file-%d-%02d-%02d_%02d:%02d:%02d-suffix.log".format(t.getYear,t.getMonthValue,t.getDayOfMonth,t.getHour,t.getMinute,t.getSecond))
+    }
     
   }
 }
