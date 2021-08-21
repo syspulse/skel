@@ -71,6 +71,10 @@ object Util {
   def getHostPort(address:String):(String,Int) = { val (host,port) = address.split(":").toList match{ case h::p => (h,p(0))}; (host,port.toInt)}
 
   def rnd(limit:Double) = Random.between(0,limit)
+
+  def toCSV(o:Product):String = o.productIterator.foldRight("")(_ + "," + _).stripSuffix(",")
+
+  def getDirWithSlash(dir:String):String = if(dir.isBlank()) dir else if(dir.trim.endsWith("/")) dir else dir + "/"
 }
 
 

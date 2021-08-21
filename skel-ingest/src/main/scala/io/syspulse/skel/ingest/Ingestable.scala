@@ -9,5 +9,5 @@ abstract class Ingestable extends Product {
     def toLog:String
     def toSimpleLog:String
 
-    def toCSV:String = this.productIterator.foldRight("")(_ + "," + _).stripSuffix(",")
+    def toCSV:String = Util.toCSV(this)
 }

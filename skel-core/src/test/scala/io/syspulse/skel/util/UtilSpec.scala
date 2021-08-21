@@ -50,6 +50,33 @@ class UtilSpec extends WordSpec with Matchers {
       val t = LocalDateTime.now
       s should === ("file-%d-%02d-%02d_%02d:%02d:%02d-suffix.log".format(t.getYear,t.getMonthValue,t.getDayOfMonth,t.getHour,t.getMinute,t.getSecond))
     }
+
+    "produce 5,100000000000,Text,7.13 for case class" in {
+      case class Data(i:Int,l:Long,s:String,d:Double)
+      val c = Data(5,100000000000L,"Text",7.13)
+      val csv = Util.toCSV(c)
+      csv should === ("5,100000000000,Text,7.13")
+    }
+
+    "getDirWithSlash('') return ''" in {
+      val s = Util.getDirWithSlash("")
+      s should === ("")
+    }
+
+    "getDirWithSlash('data/') return 'data/'" in {
+      val s = Util.getDirWithSlash("data/")
+      s should === ("data/")
+    }
+
+    "getDirWithSlash('data') return 'data/'" in {
+      val s = Util.getDirWithSlash("data")
+      s should === ("data/")
+    }
+
+    "getDirWithSlash('/data') return '/data/'" in {
+      val s = Util.getDirWithSlash("/data")
+      s should === ("/data/")
+    }
     
   }
 }
