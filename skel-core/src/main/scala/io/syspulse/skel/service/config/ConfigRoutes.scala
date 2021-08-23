@@ -26,18 +26,15 @@ import javax.ws.rs.core.MediaType
 
 import io.prometheus.client.Counter
 
+import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.service.config.ConfigRegistry._
 
 @Path("/api/v1/config")
-class ConfigRoutes(configRegistry: ActorRef[ConfigRegistry.Command])(implicit val system: ActorSystem[_]) {
+class ConfigRoutes(configRegistry: ActorRef[ConfigRegistry.Command])(implicit val system: ActorSystem[_]) extends CommonRoutes {
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import ConfigJson._
   
-  private implicit val timeout = Timeout.create(
-    system.settings.config.getDuration("http.routes.ask-timeout")
-  )
-
   val metricGetAllCount = Counter.build().name("skel_config_requests_total").help("Total Configuration requests.").register()
   
   def getConfigAll(): Future[Configs] = configRegistry.ask(GetConfigAll( _))

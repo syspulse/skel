@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skel-otp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skel-otp
+  template:
+    metadata:
+      labels:
+        app: skel-otp
+    spec:
+      containers:
+      - name: skel-otp
+        image: syspulse/skel-otp:0.0.2
+        imagePullPolicy: Always
+

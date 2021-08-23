@@ -26,22 +26,16 @@ import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
 import javax.ws.rs.core.MediaType
 
 
-
+import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.service.info.InfoRegistry._
 
 @Path("/api/v1/info")
-class InfoRoutes(infoRegistry: ActorRef[InfoRegistry.Command])(implicit val system: ActorSystem[_]) {
+class InfoRoutes(infoRegistry: ActorRef[InfoRegistry.Command])(implicit val system: ActorSystem[_]) extends CommonRoutes {
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import InfoJson._
   
-  private implicit val timeout = Timeout.create(
-    system.settings.config.getDuration("http.routes.ask-timeout")
-  )
-
-  
   def getInfo(): Future[Info] = infoRegistry.ask(GetInfo( _))
-
 
   @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("info"), summary = "Return Component Info",

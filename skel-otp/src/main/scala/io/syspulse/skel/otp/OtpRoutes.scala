@@ -27,33 +27,28 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody
 import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
 import javax.ws.rs.core.MediaType
 
-import nl.grons.metrics4.scala.DefaultInstrumented
-import nl.grons.metrics4.scala.Counter
-import nl.grons.metrics4.scala.MetricName
+import io.prometheus.client.Counter
 
 import io.syspulse.skel.service.Routeable
+import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.otp.OtpRegistry._
+
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 @Path("/api/v1/otp")
-class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system: ActorSystem[_]) extends DefaultInstrumented with Routeable {
+class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system: ActorSystem[_]) extends CommonRoutes with Routeable {
   val log = Logger(s"${this}")  
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import OtpJson._
   
-  private implicit val timeout = Timeout.create(
-    system.settings.config.getDuration("http.routes.ask-timeout")
-  )
-
-  override lazy val metricBaseName = MetricName("")
-  val metricGetCount: Counter = metrics.counter("otp-get-count")
-  val metricPostCount: Counter = metrics.counter("otp-post-count")
-  val metricDeleteCount: Counter = metrics.counter("otp-delete-count")
-  val metricGetCodeCount: Counter = metrics.counter("otp-get-code-count")
-  val metricVerifyCodeCount: Counter = metrics.counter("otp-verify-code-count")
-  val metricGetRandomCount: Counter = metrics.counter("otp-get-random-count")
+  val metricGetCount: Counter = Counter.build().name("skel_otp_get_total").help("OTP gets").register()
+  val metricDeleteCount: Counter = Counter.build().name("skel_otp_delete_total").help("OTP deletes").register()
+  val metricPostCount: Counter = Counter.build().name("skel_otp_post_total").help("OTP posts").register()
+  val metricGetCodeCount: Counter = Counter.build().name("skel_otp_code_total").help("OTP code").register()
+  val metricVerifyCodeCount: Counter = Counter.build().name("skel_otp_verify_total").help("OTP verify").register()
+  val metricGetRandomCount: Counter = Counter.build().name("skel_otp_random_total").help("OTP random").register()
 
   def getOtps(): Future[Otps] = otpRegistry.ask(GetOtps)
   def getUserOtps(userId:UUID): Future[Otps] = otpRegistry.ask(GetUserOtps(userId,_))
@@ -75,7 +70,7 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
   def getOtpRoute(id: String) = get {
     rejectEmptyResponse {
       onSuccess(getOtp(UUID.fromString(id))) { response =>
-        metricGetCount += 1
+        metricGetCount.inc()
         complete(response.otp)
       }
     }
@@ -90,7 +85,7 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
   def getOtpCodeRoute(id: String) = get {
     rejectEmptyResponse {
       onSuccess(getOtpCode(UUID.fromString(id))) { response =>
-        metricGetCodeCount += 1
+        metricGetCodeCount.inc()
         complete(response)
       }
     }
@@ -105,7 +100,7 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
   def getOtpCodeVerifyRoute(id: String,code:String) = get {
     rejectEmptyResponse {
       onSuccess(getOtpCodeVerify(UUID.fromString(id),code)) { response =>
-        metricVerifyCodeCount += 1
+        metricVerifyCodeCount.inc()
         complete(response)
       }
     }
@@ -117,7 +112,7 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
       new ApiResponse(responseCode = "200", description = "List of OTPs",content = Array(new Content(schema = new Schema(implementation = classOf[Otps])))))
   )
   def getOtpsRoute() = get {
-    metricGetCount += 1
+    metricGetCount.inc()
     complete(getOtps())
   }
 
@@ -128,7 +123,7 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
       new ApiResponse(responseCode = "200", description = "List of OTPs for User",content = Array(new Content(schema = new Schema(implementation = classOf[Otps])))))
   )
   def getUserOtpsRoute(userId:String) = get {
-    metricGetCount += 1
+    metricGetCount.inc()
     complete(getUserOtps(UUID.fromString(userId)))
   }
 
@@ -140,7 +135,7 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
   )
   def deleteOtpRoute(id: String) = delete {
     onSuccess(deleteOtp(UUID.fromString(id))) { result =>
-      metricDeleteCount += 1
+      metricDeleteCount.inc()
       complete((StatusCodes.OK, result))
     }
   }
@@ -154,7 +149,7 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
   def createOtpRoute = post {
     entity(as[OtpCreate]) { otpCreate =>
       onSuccess(createOtp(otpCreate)) { result =>
-        metricPostCount += 1
+        metricPostCount.inc()
         complete((StatusCodes.Created, result))
       }
     }
@@ -171,7 +166,7 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
       new ApiResponse(responseCode = "200", description = "Randomg OTP secret",content = Array(new Content(schema = new Schema(implementation = classOf[OtpRandom])))))
   )
   def getOtpRandomRoute() = get { parameters("format".optional,"name".optional,"account".optional,"issuer".optional) { (format,name,account,issuer) => 
-      metricGetRandomCount += 1
+      metricGetRandomCount.inc()
 
       entity(as[OtpRandom]) { otpRandom =>
         val r = randomOtp(otpRandom)

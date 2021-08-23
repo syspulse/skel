@@ -15,4 +15,4 @@ echo "site: $SITE"
 echo "main: $MAIN"
 echo "docker: $DOCKER"
 
-docker run --rm --name $APP -p 8080:8080 -v `pwd`/../conf:/app/conf -v /mnt/share/data/ekm/data:/data $DOCKER $@
+docker run --rm --name $APP -p 8080:8080 -v `pwd`/../conf:/app/conf -v /mnt/share/data:/data $DOCKER $@

@@ -1,5 +1,7 @@
 package io.syspulse.skel.config
 
+import java.time.Duration
+
 import scala.jdk.CollectionConverters._
 
 import com.typesafe.config.Config
@@ -10,6 +12,7 @@ trait ConfigurationLike {
   def getString(path:String):Option[String] 
   def getInt(path:String):Option[Int]
   def getLong(path:String):Option[Long]
+  def getDuration(path:String):Option[Duration]
   def getAll():Seq[(String,Any)]
 }
 
@@ -20,6 +23,7 @@ class ConfigurationEnv extends ConfigurationLike {
   def getString(path:String):Option[String] = { val e = System.getenv(path.toUpperCase); if(e == null) None else Some(e) }
   def getInt(path:String):Option[Int] = { val e = System.getenv(path.toUpperCase); if(e == null) None else Some(e.toInt) }
   def getLong(path:String):Option[Long] = { val e = System.getenv(path.toUpperCase); if(e == null) None else Some(e.toLong) }
+  def getDuration(path:String):Option[Duration] = { val e = System.getenv(path.toUpperCase); if(e == null) None else Some(Duration.ofMillis(e.toLong)) }
   def getAll():Seq[(String,Any)] = {System.getenv().asScala.toSeq.map{ kv => (kv._1,kv._2)}}
 }
 
@@ -30,6 +34,9 @@ class ConfigurationProp extends ConfigurationLike {
   def getString(path:String):Option[String] = { val e = System.getProperty(path); if(e == null) None else Some(e) }
   def getInt(path:String):Option[Int] = { val e = System.getProperty(path); if(e == null) None else Some(e.toInt) }
   def getLong(path:String):Option[Long] = { val e = System.getProperty(path); if(e == null) None else Some(e.toLong) }
+
+  // supports only millis
+  def getDuration(path:String):Option[Duration] = { val e = System.getProperty(path); if(e == null) None else Some(Duration.ofMillis(e.toLong)) }
 
   def getAll():Seq[(String,Any)] = {System.getProperties.asScala.toSeq.map{ kv => (kv._1,kv._2)}}
 }
@@ -57,6 +64,10 @@ class ConfigurationAkka extends ConfigurationLike {
 
     akkaConfig.get.entrySet().asScala.toSeq.map(es => (es.getKey(),es.getValue.toString))
   }
+
+  def getDuration(path:String):Option[Duration] = 
+    if(!akkaConfig.isDefined) None else
+    if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getDuration(path)) else None
 }
 
 class Configuration(configurations: Seq[ConfigurationLike]) extends ConfigurationLike {
@@ -75,6 +86,11 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
   def getAll():Seq[(String,Any)] = {
     configurations.foldLeft[Seq[(String,Any)]](Seq())((r,c) => r ++ c.getAll())
   }
+
+  def getDuration(path:String):Option[Duration] = {
+    configurations.foldLeft[Option[Duration]](None)((r,c) => if(r.isDefined) r else c.getDuration(path))
+  }
+  
 }
 
 object Configuration {
@@ -83,4 +99,7 @@ object Configuration {
   def apply():Configuration = new Configuration(Seq(new ConfigurationAkka))
 
   def withPriority(configurations: Seq[ConfigurationLike]):Configuration = new Configuration(configurations)
+
+  def default:Configuration = Configuration.apply()
+
 }

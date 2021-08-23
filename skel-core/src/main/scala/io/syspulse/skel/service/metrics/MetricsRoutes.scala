@@ -23,20 +23,15 @@ import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
 import javax.ws.rs.core.MediaType
 
 
-
+import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.service.metrics.MetricsRegistry._
 
 @Path("/api/v1/metrics")
-class MetricsRoutes(metricsRegistry: ActorRef[MetricsRegistry.Command])(implicit val system: ActorSystem[_]) {
+class MetricsRoutes(metricsRegistry: ActorRef[MetricsRegistry.Command])(implicit val system: ActorSystem[_]) extends CommonRoutes {
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import MetricsJson._
-  
-  private implicit val timeout = Timeout.create(
-    system.settings.config.getDuration("http.routes.ask-timeout")
-  )
-
-  
+    
   def getTelemetries(): Future[Telemetries] = metricsRegistry.ask(GetTelemetries)
   def getMetrics(key: String): Future[GetMetricsResponse] = metricsRegistry.ask(GetMetrics(key, _))
 

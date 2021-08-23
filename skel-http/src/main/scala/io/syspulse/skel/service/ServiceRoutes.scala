@@ -28,19 +28,16 @@ import javax.ws.rs.core.MediaType
 import io.prometheus.client.Counter
 
 import io.syspulse.skel.service.Routeable
+import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.service.ServiceRegistry._
 
 @Path("/api/v1/service")
-class ServiceRoutes(serviceRegistry: ActorRef[ServiceRegistry.Command])(implicit val system: ActorSystem[_]) extends Routeable {
+class ServiceRoutes(serviceRegistry: ActorRef[ServiceRegistry.Command])(implicit val system: ActorSystem[_]) extends CommonRoutes with Routeable {
   val log = Logger(s"${this}")  
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import ServiceJson._
   
-  private implicit val timeout = Timeout.create(
-    system.settings.config.getDuration("service.routes.ask-timeout")
-  )
-
   val metricGetCount: Counter = Counter.build().name("skel_service_get_total").help("Total Service requests").register()
   val metricPostCount: Counter = Counter.build().name("skel_service_post_total").help("Total Service creates").register()
   val metricDeleteCount: Counter = Counter.build().name("skel_service_delete_total").help("Total Service deletes").register()
