@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skel-ingest
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skel-ingest
+  template:
+    metadata:
+      labels:
+        app: skel-ingest
+    spec:
+      containers:
+      - name: skel-ingest
+        image: syspulse/skel-ingest:latest
+        imagePullPolicy: Always
+        args: ["-h","0.0.0.0"]
+        volumeMounts:
+        - mountPath: /cache
+          name: cache-volume
+        - mountPath: /data
+          name: data-volume
+      volumes:
+      - name: data-volume
+        hostPath:
+          path: /mnt/nfs/data
+          type: Directory
+      - name: cache-volume
+        hostPath:
+          path: /dev/shm
