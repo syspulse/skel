@@ -6,8 +6,11 @@ OpenSSL based utils for ECDSA keys
 2. Signing
 3. Signature verification
 
+__NOTE__: Beware that ECDSA signatures are not deterministic (different sig is generated for the same SK and file!).
 
-### Examples
+See [https://github.com/openssl/openssl/pull/9223](https://github.com/openssl/openssl/pull/9223)
+
+## Examples
 
 Generate Keys with Ethereum address
 ```
@@ -33,4 +36,5 @@ PK_FILE=pk.pem ./key-verify <file> <signature-file>
 
 ## Libraries and Credits
 
-1. Keystore Format: [https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition](https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition)
+1. OpenSSL ECDSA: [https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations](https://wiki.openssl.org/index.php/Command_Line_Elliptic_Curve_Operations)
+2. Deterministic Signatures: [https://datatracker.ietf.org/doc/html/rfc6979](https://datatracker.ietf.org/doc/html/rfc6979)
