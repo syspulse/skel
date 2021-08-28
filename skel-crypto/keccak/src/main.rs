@@ -2,22 +2,32 @@ extern crate clap;
 extern crate tiny_keccak;
 extern crate hex;
 
+use std::io;
 use std::io::Write;
 use tiny_keccak::Sha3;
 use tiny_keccak::Keccak;
 use tiny_keccak::Hasher;
 use clap::{App, Arg};
+use std::option::{Option};
 // use hex::{FromHex, ToHex};
+
+fn reading() -> Option<String> { 
+    let mut buffer:String = String::with_capacity(1024);
+    let _ = io::stdin().read_line(&mut buffer);
+    Some(buffer)
+}
 
 fn main() {
     let matches = App::new("keccak")
-        .arg(Arg::with_name("DATA").index(1).required(true))
+        .arg(Arg::with_name("DATA").index(1).required(false))
         .arg(Arg::with_name("b").short("b").help("binary output"))
         .get_matches();
     
     let data = matches
         .value_of("DATA")
-        .unwrap_or("");
+        .map(|s| {String::from(s)})
+        .or_else(reading)
+        .unwrap();
 
     let mut hash_keccak = Keccak::v256();
     let mut hash_sha3 = Sha3::v256();
