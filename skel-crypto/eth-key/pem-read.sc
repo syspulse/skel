@@ -47,3 +47,8 @@ val sig = new ECDSASignature(new BigInteger(Numeric.hexStringToByteArray(r)),new
 hex(ecKP1.getPublicKey.toByteArray)
 
 hex(Sign.recoverFromSignature(0,sig,keccak256("message\n")).toByteArray)
+
+def recover(m:String,r:String,s:String) = { 
+    val sig = new ECDSASignature(new BigInteger(Numeric.hexStringToByteArray("0x0"+r)),new BigInteger(Numeric.hexStringToByteArray("0x0"+s))) 
+    hex(Sign.recoverFromSignature(0,sig,keccak256(m)).toByteArray)
+}
