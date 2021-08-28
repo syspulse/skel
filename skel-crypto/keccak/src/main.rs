@@ -2,6 +2,7 @@ extern crate clap;
 extern crate tiny_keccak;
 extern crate hex;
 
+use std::io::Write;
 use tiny_keccak::Sha3;
 use tiny_keccak::Keccak;
 use tiny_keccak::Hasher;
@@ -11,6 +12,7 @@ use clap::{App, Arg};
 fn main() {
     let matches = App::new("keccak")
         .arg(Arg::with_name("DATA").index(1).required(true))
+        .arg(Arg::with_name("b").short("b").help("binary output"))
         .get_matches();
     
     let data = matches
@@ -29,7 +31,13 @@ fn main() {
     hash_sha3.update(data.as_bytes());
     hash_sha3.finalize(&mut output_sha3);
 
-    println!("{}", hex::encode(output_keccak));
+    if matches.is_present("b") {
+        let _ = std::io::stdout().write_all(&output_keccak);
+        let _ = std::io::stdout().flush();
+    }
+    else {
+        println!("{}", hex::encode(output_keccak));
+    }
     // println!("keccak({:?}) = {}", data, hex::encode(output_keccak));
     // println!("sha3({:?}) = {}", data, hex::encode(output_sha3));
 }
