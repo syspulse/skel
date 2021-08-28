@@ -1,0 +1,9 @@
+[package]
+name = "keccak"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+clap = "2.33.3"
+tiny-keccak = { version = "2.0", features = ["keccak","sha3"] }
+hex = "0.4.3"
