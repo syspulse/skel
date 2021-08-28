@@ -20,6 +20,7 @@ fn reading() -> Option<String> {
 fn main() {
     let matches = App::new("keccak")
         .arg(Arg::with_name("DATA").index(1).required(false))
+        .arg(Arg::with_name("h").short("h").help("hex input"))
         .arg(Arg::with_name("b").short("b").help("binary output"))
         .get_matches();
     
@@ -27,6 +28,20 @@ fn main() {
         .value_of("DATA")
         .map(|s| {String::from(s)})
         .or_else(reading)
+        .map(|s| {
+            if matches.is_present("h") {
+                let ss:String = {
+                    if s.contains("0x") {
+                        s.to_string().chars().skip(2).take(s.len()-2).collect()
+                    } else {
+                        s
+                    }
+                };
+                String::from_utf8(hex::decode(ss).expect("Decoding failed")).unwrap()
+            } else {
+                s
+            }
+        })
         .unwrap();
 
     let mut hash_keccak = Keccak::v256();
