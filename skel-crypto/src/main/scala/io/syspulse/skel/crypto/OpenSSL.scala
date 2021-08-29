@@ -33,12 +33,16 @@ object OpenSSL {
 
   def recover(m:String,r:String,s:String):(String,String) = {     
     if(m==null|| r==null || s==null || r.trim.isEmpty() || s.trim.isEmpty()) return ("","")
-    val sig = new ECDSASignature(new BigInteger(Numeric.hexStringToByteArray("0x00"+r.trim)),new BigInteger(Numeric.hexStringToByteArray("0x00"+s.trim))) 
-    val h = Hash.keccak256(m)
-    (
-      Util.hex(Sign.recoverFromSignature(0,sig,h).toByteArray),
-      Util.hex(Sign.recoverFromSignature(1,sig,h).toByteArray)
-    )
+    try {
+      val sig = new ECDSASignature(new BigInteger(Numeric.hexStringToByteArray("0x00"+r.trim)),new BigInteger(Numeric.hexStringToByteArray("0x00"+s.trim))) 
+      val h = Hash.keccak256(m)
+      (
+        Util.hex(Sign.recoverFromSignature(0,sig,h).toByteArray),
+        Util.hex(Sign.recoverFromSignature(1,sig,h).toByteArray)
+      )
+    } catch {
+      case e:Exception => return ("","")
+    }
   }
 
   def recover(m:String,rs:String):(String,String) = { 
@@ -51,6 +55,12 @@ object OpenSSL {
     if(r.isEmpty() || s.isEmpty()) return ("","")
 
     recover(m,r,s)
+  }
+
+  def verify(m:String,rs:String,pk:String):Boolean = { 
+    if(pk==null || pk.isBlank()) return false
+    val pk1 = recover(m,rs)
+    pk1._1 == pk || pk1._2 == pk
   }
 }
 
