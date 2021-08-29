@@ -101,6 +101,8 @@ object Dependencies {
     val libKuroOtp =        "com.ejisan"                    %% "kuro-otp"           % "0.0.3-SNAPSHOT"
     val libQR =             "net.glxn"                      % "qrgen"               % "1.4"
 
+    val libWeb3j =          "org.web3j"                     % "crypto"              % "5.0.0"
+
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)

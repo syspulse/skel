@@ -32,7 +32,7 @@ def recover(m:String,r:String,s:String):(String,String) = {
 }
 
 @main
-def main(pemFile:String = "/dev/shm/sk.pem", count:Int = 0) = {
+def main(pemFile:String = "sk.pem", count:Int = 0) = {
 
   Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider())
 

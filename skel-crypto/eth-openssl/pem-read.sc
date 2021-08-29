@@ -9,10 +9,11 @@ import org.bouncycastle.jcajce.provider.digest.SHA3;
 import org.bouncycastle.util.io.pem.PemReader
 
 import java.security.KeyFactory
-import java.security.security
+import java.security.Security
 import java.security.spec.PKCS8EncodedKeySpec
 import java.security.spec.ECGenParameterSpec
 
+import java.math.BigInteger
 import java.io.StringReader
 import java.io.FileReader
 import scala.io.Source
@@ -47,8 +48,4 @@ val sig = new ECDSASignature(new BigInteger(Numeric.hexStringToByteArray(r)),new
 hex(ecKP1.getPublicKey.toByteArray)
 
 hex(Sign.recoverFromSignature(0,sig,keccak256("message\n")).toByteArray)
-
-def recover(m:String,r:String,s:String) = { 
-    val sig = new ECDSASignature(new BigInteger(Numeric.hexStringToByteArray("0x0"+r)),new BigInteger(Numeric.hexStringToByteArray("0x0"+s))) 
-    hex(Sign.recoverFromSignature(0,sig,keccak256(m)).toByteArray)
-}
+hex(Sign.recoverFromSignature(1,sig,keccak256("message\n")).toByteArray)

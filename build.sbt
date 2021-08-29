@@ -370,3 +370,15 @@ lazy val ekm = (project in file("skel-ekm"))
     assemblyJarName in assembly := jarPrefix + appNameEkm + "-" + "assembly" + "-"+  appVersion + ".jar",
 
   )
+
+lazy val crypto = (project in file("skel-crypto"))
+  .dependsOn(core)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      name := "skel-crypto",
+      libraryDependencies ++= libTest ++ Seq(
+        libWeb3j
+      )
+    )
+

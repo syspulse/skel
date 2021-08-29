@@ -2,7 +2,7 @@
 
 Cryptography collection
 
-1. [eth-key](eth-key) - ECDSA Keys generators
+1. [eth-openssl](eth-openssl) - OpenSSL ECDSA Keys and Ethereum
 2. [eth-keystore](eth-keystore) - Ethereum Keystore
 
 ----
