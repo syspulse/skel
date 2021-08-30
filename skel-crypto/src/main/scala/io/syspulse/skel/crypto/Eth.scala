@@ -8,13 +8,15 @@ import java.math.BigInteger
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.bouncycastle.jcajce.provider.digest.SHA3;
 
-import org.web3j.crypto.{ECKeyPair,ECDSASignature,Sign,Credentials,WalletUtils}
+import org.web3j.crypto.{ECKeyPair,ECDSASignature,Sign,Credentials,WalletUtils,Bip32ECKeyPair,MnemonicUtils}
 import org.web3j.utils.{Numeric}
 
 import io.syspulse.skel.util.Util
 
 object Eth {
   def presig(m:String) = {val p = "\u0019Ethereum Signed Message:\n" + m.size; Hash.keccak256(p + m)}
+
+  def address(pk:String):String = Util.hex(Hash.keccak256(Numeric.hexStringToByteArray(pk)).takeRight(20))
 
   // compatible with OpenSSL signature encoding
   def fromSig(rs:String):(String,String) = { 
@@ -48,7 +50,8 @@ object Eth {
   def readKeystore(keystorePass:String,keystoreFile:String):Try[(String,String)] = {
     try {
       val c = WalletUtils.loadCredentials(keystorePass, keystoreFile)
-      Success((Util.hex(c.getEcKeyPair().getPrivateKey().toByteArray),Util.hex(c.getEcKeyPair().getPublicKey().toByteArray)))
+      // I have no idea why web3j adds extra 00 to make PK 65 bytes !?
+      Success((Util.hex(c.getEcKeyPair().getPrivateKey().toByteArray),Util.hex(c.getEcKeyPair().getPublicKey().toByteArray.takeRight(64))))
     }catch {
       case e:Exception => Failure(e)
     }
@@ -57,8 +60,43 @@ object Eth {
   def readMnemonic(mnemonic:String,mnemoPass:String = null):Try[(String,String)] = {
     try {
       val c = WalletUtils.loadBip39Credentials(mnemoPass, mnemonic)
-      Success((Util.hex(c.getEcKeyPair().getPrivateKey().toByteArray),Util.hex(c.getEcKeyPair().getPublicKey().toByteArray)))
+      // I have no idea why web3j adds extra 00 to make PK 65 bytes !?
+      Success((Util.hex(c.getEcKeyPair().getPrivateKey().toByteArray),Util.hex(c.getEcKeyPair().getPublicKey().toByteArray.takeRight(64))))
     }catch {
+      case e:Exception => Failure(e)
+    }
+  }
+
+  def readMnemonicDerivation(mnemonic:String,derivation:String, mnemoPass:String = null):Try[(String,String)] = {
+    // def   m/44'/60'/0'/1
+    //       m/44'/60'/0'/0
+    val ss = derivation.split("/")
+    
+    if(ss.size < 2) return Failure(new Exception(s"invalid derivation path: '${derivation}'"))
+    if(ss(0) != "m") return Failure(new Exception(s"invalid derivation path start: '${derivation}'"))
+
+    val derivationPath = ss.tail.foldLeft(Array[Int]())( (path,part) => {
+      val bits = 
+        if(part.endsWith("'")) 
+          part.stripSuffix("'").toInt | Bip32ECKeyPair.HARDENED_BIT 
+        else 
+          part.toInt
+      path :+ bits
+    }) :+ 0
+
+    //println(s"${derivationPath.toList}")
+    //val derivationPath = Seq(44 | Bip32ECKeyPair.HARDENED_BIT, 60 | Bip32ECKeyPair.HARDENED_BIT, 0 | Bip32ECKeyPair.HARDENED_BIT, 0, 0).toArray
+    //println(s"${Seq(44 | Bip32ECKeyPair.HARDENED_BIT, 60 | Bip32ECKeyPair.HARDENED_BIT, 0 | Bip32ECKeyPair.HARDENED_BIT, 0, 0).toList}")
+
+    try {
+      val master = Bip32ECKeyPair.generateKeyPair(MnemonicUtils.generateSeed(mnemonic, mnemoPass));
+      val  derived = Bip32ECKeyPair.deriveKeyPair(master, derivationPath);
+
+      val c = Credentials.create(derived)
+      // I have no idea why web3j adds extra 00 to make PK 65 bytes !?
+      Success((Util.hex(c.getEcKeyPair().getPrivateKey().toByteArray),Util.hex(c.getEcKeyPair().getPublicKey().toByteArray.takeRight(64))))
+    }
+    catch {
       case e:Exception => Failure(e)
     }
   }
