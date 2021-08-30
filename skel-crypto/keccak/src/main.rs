@@ -19,12 +19,14 @@ fn reading() -> Option<String> {
 
 fn main() {
     let matches = App::new("keccak")
+        .version("0.0.1")
         .arg(Arg::with_name("DATA").index(1).required(false))
         .arg(Arg::with_name("x").short("x").help("hex input"))
         .arg(Arg::with_name("b").short("b").help("binary output"))
+        .arg(Arg::with_name("e").short("e").help("Ethereum signature style"))
         .get_matches();
     
-    let data = matches
+    let data0 = matches
         .value_of("DATA")
         .map(|s| {String::from(s)})
         .or_else(reading)
@@ -43,6 +45,15 @@ fn main() {
             }
         })
         .unwrap();
+
+    let data = 
+        if matches.is_present("e") {
+            let size = data0.len();
+            let prehash = format!("\u{0019}Ethereum Signed Message:\n{}{}",size,data0);
+            prehash
+        } else {
+            data0
+        };
 
     let mut hash_keccak = Keccak::v256();
     let mut hash_sha3 = Sha3::v256();
