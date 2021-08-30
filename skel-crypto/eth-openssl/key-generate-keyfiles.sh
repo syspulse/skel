@@ -8,7 +8,6 @@ openssl ec -in ${SK_FILE}.tmp -pubout > ${PK_FILE}
 
 # convert to Java compatible file format
 openssl pkcs8 -topk8 -nocrypt -in ${SK_FILE}.tmp -out $SK_FILE
-#openssl pkcs8 -topk8 -nocrypt -in ${PK_FILE}.tmp -out $PK_FILE
 
 cat $SK_FILE
 echo 

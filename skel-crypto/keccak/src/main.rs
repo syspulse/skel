@@ -20,7 +20,7 @@ fn reading() -> Option<String> {
 fn main() {
     let matches = App::new("keccak")
         .arg(Arg::with_name("DATA").index(1).required(false))
-        .arg(Arg::with_name("h").short("h").help("hex input"))
+        .arg(Arg::with_name("x").short("x").help("hex input"))
         .arg(Arg::with_name("b").short("b").help("binary output"))
         .get_matches();
     
@@ -29,7 +29,7 @@ fn main() {
         .map(|s| {String::from(s)})
         .or_else(reading)
         .map(|s| {
-            if matches.is_present("h") {
+            if matches.is_present("x") {
                 let ss:String = {
                     if s.contains("0x") {
                         s.to_string().chars().skip(2).take(s.len()-2).collect()
@@ -37,7 +37,7 @@ fn main() {
                         s
                     }
                 };
-                String::from_utf8(hex::decode(ss).expect("Decoding failed")).unwrap()
+                unsafe { String::from_utf8_unchecked(hex::decode(ss).expect("Decoding failed")) }
             } else {
                 s
             }

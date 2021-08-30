@@ -17,7 +17,7 @@ SK=`cat $TMP_KEY | grep priv -A 3 | tail -n +2 | tr -d '\n[:space:]:' | sed 's/^
 
 # Generate the hash and take the address part
 # WARNING: openssl sha3-256 is NOT compatible with Keccak256 !!!
-A=`echo $PK | keccak -h | tr -d ' -' | tail -c 41` 
+A=`echo $PK | keccak -x | tr -d ' -' | tail -c 41` 
 
 echo 0x$SK 
 echo 0x$PK 
