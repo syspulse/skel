@@ -1,9 +1,10 @@
 package io.syspulse.skel.crypto
 
+import scala.util.{Try,Success,Failure}
+
 import org.scalatest.{ Matchers, WordSpec }
 
 import java.time._
-import io.jvm.uuid._
 import io.syspulse.skel.util.Util
 
 class EthSpec extends WordSpec with Matchers {
@@ -23,6 +24,21 @@ class EthSpec extends WordSpec with Matchers {
       val sig = Eth.sign("message",sk1)
       val v = Eth.verify("MESSAGE",sig,pk1)
       v should === (false)
+    }
+
+    "read keystore keystore-1.json" in {
+      val kk = Eth.readKeystore("test123",testDir+"/keystore-1.json")
+      kk should === (Success("0x02","0x00c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee51ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a"))
+    }
+
+    "FAIL to read keystore keystore-1.json with invalid password" in {
+      val kk = Eth.readKeystore("password",testDir+"/keystore-1.json")
+      kk.isFailure should === (true)
+    }
+
+    "read mnemonic correctly" in {
+      val kk = Eth.readMnemonic("candy maple cake sugar pudding cream honey rich smooth crumble sweet treat")
+      kk should === (Success("0x00d1a662526ba15b1147fcd2566ca55f7227451f9a88e83018e8a1948039856a7e","0x306e93a1bd660e6b49de5b6d8522ea2163cb7e8eb96c66f0b13d18d6cc889b3f99f28807536f0e08e392cca56354ef4965343eca2f87ea919339475235ee719e"))
     }
   }
 }

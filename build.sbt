@@ -377,8 +377,8 @@ lazy val crypto = (project in file("skel-crypto"))
   .settings (
       sharedConfig,
       name := "skel-crypto",
-      libraryDependencies ++= libTest ++ Seq(
-        libWeb3j
+      libraryDependencies ++= libTest ++ libWeb3j ++ Seq(
+        
       )
     )
 
