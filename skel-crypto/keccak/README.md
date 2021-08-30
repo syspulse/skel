@@ -22,6 +22,26 @@ Output binary data
 echo -n "message" | keccak -b | xxd -p -c 1000
 ```
 
+## Cross-compile for RP3 and RP4
+
+```
+# RP4
+rustup target add aarch64-unknown-linux-gnu
+sudo apt install gcc-aarch64-linux-gnu
+# RP3
+rustup target add armv7-unknown-linux-gnueabihf
+sudo apt install gcc-multilib-arm-linux-gnueabihf
+
+mkdir .cargo
+echo '[target.aarch64-unknown-linux-gnu]' >>.cargo/config
+echo 'linker = "aarch64-linux-gnu-gcc"' >>.cargo/config
+echo '[target.armv7-unknown-linux-gnueabihf]' >>.cargo/config
+echo 'linker = "arm-linux-gnueabihf-gcc"' >>.cargo/config
+
+cargo build --release --target=aarch64-unknown-linux-gnu
+cargo build --release --target=armv7-unknown-linux-gnueabihf
+```
+
 ## Libraries and Credits
 
 1. tiny-keccak: [https://github.com/debris/tiny-keccak](https://github.com/debris/tiny-keccak)
