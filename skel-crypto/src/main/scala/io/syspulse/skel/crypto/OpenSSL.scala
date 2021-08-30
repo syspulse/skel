@@ -25,7 +25,7 @@ object OpenSSL {
   Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider())
 
   def loadPem(pemFile:String):ECKeyPair = {
-    val p = new PemReader(new StringReader(Source.fromFile(pemFile).getLines.mkString("\n")))
+    val p = new PemReader(new StringReader(Source.fromFile(pemFile).getLines().mkString("\n")))
     val spec = new PKCS8EncodedKeySpec(p.readPemObject.getContent)
     val skHex = "0x"+Util.hex(spec.getEncoded).substring(68,68+64) 
     ECKeyPair.create(Numeric.hexStringToByteArray(skHex))
@@ -46,15 +46,8 @@ object OpenSSL {
   }
 
   def recover(m:String,rs:String):(String,String) = { 
-    if(rs==null || rs.trim.isBlank || !rs.contains(":")) return ("","")
-    val (r,s) = rs.split(":").toList match { 
-      case r::s::Nil => (r,s)
-      case r::s::_ => (r,s)
-      case _ => ("","")
-    }
-    if(r.isEmpty() || s.isEmpty()) return ("","")
-
-    recover(m,r,s)
+    val sig = Eth.fromSig(rs)
+    recover(m,sig._1,sig._2)
   }
 
   def verify(m:String,rs:String,pk:String):Boolean = { 
