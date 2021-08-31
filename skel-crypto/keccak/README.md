@@ -22,7 +22,7 @@ Output binary data
 echo -n "message" | keccak -b | xxd -p -c 1000
 ```
 
-## Cross-compile for RP3 and RP4
+## Cross-compile build for RP3 (arm-linux-gnueabihf) and RP4 (aarch64-linux-gnu)
 
 ```
 # RP4
