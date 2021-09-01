@@ -109,8 +109,8 @@ val sharedConfigAssembly = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp)
-  .dependsOn(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp)
+  .aggregate(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto)
+  .dependsOn(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -376,6 +376,7 @@ lazy val crypto = (project in file("skel-crypto"))
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
+      //fork in test := true,
       name := "skel-crypto",
       libraryDependencies ++= libTest ++ libWeb3j ++ Seq(
         

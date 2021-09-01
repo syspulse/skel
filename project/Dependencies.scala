@@ -101,8 +101,9 @@ object Dependencies {
     val libKuroOtp =        "com.ejisan"                    %% "kuro-otp"           % "0.0.3-SNAPSHOT"
     val libQR =             "net.glxn"                      % "qrgen"               % "1.4"
 
-    val libWeb3jCrypto =    "org.web3j"                     % "crypto"              % "5.0.0"
-    val libWeb3jCore =      "org.web3j"                     % "core"                % "5.0.0"
+    val libWeb3jCrypto =    "org.web3j"                     % "crypto"              % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
+    val libWeb3jCore =      "org.web3j"                     % "core"                % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
+    val libBouncyCastle =   "org.bouncycastle"              % "bcprov-jdk15on"      % "1.69" //web3j depends on "1.65"
 
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
@@ -120,6 +121,6 @@ object Dependencies {
 
     val libLihaoyi = Seq(libOsLib,libUpickleLib,libUjsonLib)
 
-    val libWeb3j = Seq(libWeb3jCore,libWeb3jCrypto)
+    val libWeb3j = Seq(libBouncyCastle,libWeb3jCore,libWeb3jCrypto)
   }
   

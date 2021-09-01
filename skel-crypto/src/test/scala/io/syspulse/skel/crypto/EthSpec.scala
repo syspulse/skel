@@ -14,6 +14,7 @@ class EthSpec extends WordSpec with Matchers {
   val pk1 = "0x6a9218674affe7ffcca2baccc261260e3f2f30166ac1f481d426898236c03d8993b526760c432c643d8be796ff5e3d096152582a4317f3370b8783d2c47274f8"
 
   "Eth" should {
+
     "derive address from PK" in {
       val a = Eth.address("0xc6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee51ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a")
       a should === ("0x2b5ad5c4795c026514f8317c7a215e218dccd6cf")

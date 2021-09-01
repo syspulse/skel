@@ -23,7 +23,7 @@ object Util {
   
   def toHexString(b:Array[Byte]) = b.foldLeft("")((s,b)=>s + f"$b%02x")
   
-  def hex(x: Seq[Byte]) = "0x"+x.toArray.map("%02x".format(_)).mkString
+  def hex(x: Seq[Byte],prefix:Boolean=true) = s"""${if(prefix) "0x" else ""}${x.toArray.map("%02x".format(_)).mkString}"""
 
   def SHA256(data:Array[Byte]):Array[Byte] = digest.digest(data)
   def SHA256(data:String):Array[Byte] = digest.digest(data.getBytes(StandardCharsets.UTF_8))

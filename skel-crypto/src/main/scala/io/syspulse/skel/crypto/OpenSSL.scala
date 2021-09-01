@@ -22,7 +22,9 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto.Hash
 
 object OpenSSL {
-  Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider())
+  if (Security.getProvider(org.bouncycastle.jce.provider.BouncyCastleProvider.PROVIDER_NAME) == null) {
+    Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider())
+  }
 
   def loadPem(pemFile:String):ECKeyPair = {
     val p = new PemReader(new StringReader(Source.fromFile(pemFile).getLines().mkString("\n")))

@@ -7,14 +7,33 @@ import java.math.BigInteger
 
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.bouncycastle.jcajce.provider.digest.SHA3;
+import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey
 
-import org.web3j.crypto.{ECKeyPair,ECDSASignature,Sign,Credentials,WalletUtils,Bip32ECKeyPair,MnemonicUtils}
+import java.security.Security
+import org.web3j.crypto.{ECKeyPair,ECDSASignature,Sign,Credentials,WalletUtils,Bip32ECKeyPair,MnemonicUtils,Keys}
 import org.web3j.utils.{Numeric}
 
 import io.syspulse.skel.util.Util
 
 object Eth {
+  
   def presig(m:String) = {val p = "\u0019Ethereum Signed Message:\n" + m.size; Hash.keccak256(p + m)}
+
+  // generate random
+  def generate:(String,String) = { 
+    val kk = Keys.createEcKeyPair(); 
+    val sk:Array[Byte] = kk.getPrivateKey().toByteArray.size match {
+      case 31 => kk.getPrivateKey().toByteArray.toArray.+:(0)
+      case 32 => kk.getPrivateKey().toByteArray
+      case 33 => kk.getPrivateKey().toByteArray.drop(1)
+    }
+    val pk:Array[Byte] = kk.getPublicKey().toByteArray.size match {
+      case 63 => kk.getPublicKey().toByteArray.toArray.+:(0)
+      case 64 => kk.getPublicKey().toByteArray
+      case 65 => kk.getPublicKey().toByteArray.drop(1)
+    }
+    (Util.hex(sk),Util.hex(pk)) 
+  }
 
   def address(pk:String):String = Util.hex(Hash.keccak256(Numeric.hexStringToByteArray(pk)).takeRight(20))
 
