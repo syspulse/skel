@@ -12,7 +12,7 @@ class EthGenerateSpec extends WordSpec with Matchers {
 
 // sbt and web3j bouncycastle provider don't work together in tests
 // When test is run second time it generate this exception:
-  
+//
 // java.lang.ClassCastException: class org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey cannot be cast to class org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey 
 // (org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey is in unnamed module of loader sbt.internal.LayeredClassLoader @7d9f790b; org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPriva
 // teKey is in unnamed module of loader sbt.internal.LayeredClassLoader @32bb6767)
