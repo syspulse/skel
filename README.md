@@ -13,6 +13,8 @@ Skeletons for RnD Prototypes
 9. [skel-otp](skel-otp) - OTP Service reference service 
 10. [skel-test](skel-test) - Test helpers
 11. [skel-crypto](skel-crypto) - Cryptography tools
+12. [skel-spark](skel-spark) - Spark tools
+13. [skel-datalake](skel-datalake) - Datalake concepts
 
 ## Build & Run
 
