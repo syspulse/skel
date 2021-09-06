@@ -1,6 +1,7 @@
 package io.syspulse.skel.user
 
 import io.syspulse.skel
+import io.syspulse.skel.util.Util
 import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv}
 import io.syspulse.skel.user.{UserRegistry,UserRoutes}
 
@@ -21,7 +22,7 @@ object App extends skel.Server {
     val argsParser = {
       import builder._
       OParser.sequence(
-        programName("skel-user"), head("skel-user", "0.0.1"),
+        programName(Util.info._1), head(Util.info._1, Util.info._2),
         opt[String]('h', "host").action((x, c) => c.copy(host = x)).text("hostname"),
         opt[Int]('p', "port").action((x, c) => c.copy(port = x)).text("port"),
         opt[String]('u', "uri").action((x, c) => c.copy(uri = x)).text("uri"),

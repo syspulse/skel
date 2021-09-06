@@ -76,6 +76,49 @@ object Util {
 
   def toCSV(o:Product):String = o.productIterator.foldRight("")(_ + "," + _).stripSuffix(",")
 
+  import scala.reflect.runtime.universe._ 
+
+  // this does not work and needs type tags information
+  def isCaseClass(v: Any): Boolean = {
+     val typeMirror = runtimeMirror(v.getClass.getClassLoader)
+     val instanceMirror = typeMirror.reflect(v)
+     val symbol = instanceMirror.symbol
+     symbol.isCaseClass
+  }
+
+  protected def traverseAny(a:Any):Array[(String,String)] = {
+    val ff = a.getClass.getDeclaredFields.map( v => (v.getName,v))
+    ff.map { case(n,f) => {
+      f.setAccessible(true)
+      val typeName = f.getGenericType.getTypeName.toString
+      if(typeName.startsWith("scala.collection")) {
+        val o = f.get(a)
+        val vv:Array[(String,String)] = o.asInstanceOf[Seq[_]].map(v => traverseAny(v)).toArray.flatten
+        vv
+      } else {
+        val v = f.get(a)
+        if(v!=null 
+          && !v.getClass.isPrimitive 
+          && !v.isInstanceOf[java.lang.Byte]
+          && !v.isInstanceOf[java.lang.Integer]
+          && !v.isInstanceOf[java.lang.Long]
+          && !v.isInstanceOf[java.lang.Short]
+          && !v.isInstanceOf[java.lang.Boolean]
+          && !v.isInstanceOf[java.lang.Double]
+          && !v.isInstanceOf[java.lang.String])
+          traverseAny(v)
+        else
+          Array[(String,String)]((n,if(v!=null) v.toString else "null"))
+      }
+    }}.flatten
+  }
+  
+  
+  def toFlatData(o:Product,sep:String=":"):String = {
+    val mm = traverseAny(o)
+    mm.foldRight("")(_._2 + sep + _).stripSuffix(sep)
+  }
+
   def getDirWithSlash(dir:String):String = if(dir.isBlank()) dir else if(dir.trim.endsWith("/")) dir else dir + "/"
 }
 

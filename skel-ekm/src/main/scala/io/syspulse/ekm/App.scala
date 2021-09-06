@@ -76,7 +76,7 @@ object App extends SkelApp {
     val argsParser = {
       import builder._
       OParser.sequence(
-        programName("skel-ekm"), head("skel-ekm", "0.0.1"),
+        programName(Util.info._1), head(Util.info._1, Util.info._2),
         opt[String]('g', "grafite-uri").action((x, c) => c.copy(grafiteUri = (x,c.grafiteUri._2,c.grafiteUri._3))).text("Grafite Uri (localhost:2003)"),
         
         opt[String]('i', "influx-uri").action((x, c) => c.copy(influxUri = (x,c.influxUri._2,c.influxUri._3))).text("Influx Uri (http://localhost:8086)"),

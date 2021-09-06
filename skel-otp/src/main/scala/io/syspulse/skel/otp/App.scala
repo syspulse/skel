@@ -23,7 +23,7 @@ object App extends skel.Server {
     val argsParser = {
       import builder._
       OParser.sequence(
-        programName("skel-otp"), head(Util.info._1, Util.info._2),
+        programName(Util.info._1), head(Util.info._1, Util.info._2),
         opt[String]('h', "host").action((x, c) => c.copy(host = x)).text("hostname"),
         opt[Int]('p', "port").action((x, c) => c.copy(port = x)).text("port"),
         opt[String]('u', "uri").action((x, c) => c.copy(uri = x)).text("uri"),

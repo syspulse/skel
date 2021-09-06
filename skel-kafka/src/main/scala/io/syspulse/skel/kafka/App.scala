@@ -6,6 +6,7 @@ import scala.concurrent.duration.{Duration,FiniteDuration}
 import scopt.OParser
 
 import io.syspulse.skel
+import io.syspulse.skel.util.Util
 import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv}
 
 
@@ -31,7 +32,7 @@ object App {
     val argsParser = {
       import builder._
       OParser.sequence(
-        programName("skel-kafka"), head("skel-kafka", "0.0.1"),
+        programName(Util.info._1), head(Util.info._1, Util.info._2),
         opt[String]('t', "topics").action((x, c) => c.copy(topicsInput = x)).text("List of Input topics (topic-1,topic-2,...)"),
         opt[String]('o', "output").action((x, c) => c.copy(topicsOutput = x)).text("List of Output topics (topic-3,topic-4,...)"),
         opt[String]('r', "schema").action((x, c) => c.copy(schemaRegUri = x)).text("SchemaRegistry URI (http://address:port)"),

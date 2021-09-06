@@ -6,6 +6,10 @@ import java.time._
 import io.jvm.uuid._
 import io.syspulse.skel.util.Util
 
+case class DataUnit(v:Double,unit:String)
+case class Data(ts:Long,v:DataUnit)
+case class DataList(name:String,data:List[Data])
+
 class UtilSpec extends WordSpec with Matchers {
   
   "Util" should {
@@ -76,6 +80,12 @@ class UtilSpec extends WordSpec with Matchers {
     "getDirWithSlash('/data') return '/data/'" in {
       val s = Util.getDirWithSlash("/data")
       s should === ("/data/")
+    }
+
+    "toFlatData for Complex Class produce 'measure-0:10:1.0:m/s:20:2.0:kg'" in {
+      val dd = DataList("measure-0",List(Data(10L,DataUnit(1.0,"m/s")),Data(20L,DataUnit(2.0,"kg"))))
+      val s = Util.toFlatData(dd)
+      s should === ("measure-0:10:1.0:m/s:20:2.0:kg")
     }
     
   }
