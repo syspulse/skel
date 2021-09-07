@@ -50,7 +50,7 @@ object App extends skel.Server {
 
         run( config.host, config.port, config.uri, confuration, 
           Seq(
-            (ServiceRegistry(new ServiceStoreCache),"ServiceRegistry",(actor,actorSystem ) => new ServiceRoutes(actor)(actorSystem) ),
+            (ServiceRegistry(new ServiceStoreMem),"ServiceRegistry",(actor,actorSystem ) => new ServiceRoutes(actor)(actorSystem) ),
             
           )
         )

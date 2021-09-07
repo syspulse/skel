@@ -11,7 +11,7 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
-class ShipmentStoreCache extends ShipmentStore {
+class ShipmentStoreMem extends ShipmentStore {
   val log = Logger(s"${this}")
   
   var shipments: Set[Shipment] = Set()

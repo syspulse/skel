@@ -47,8 +47,8 @@ object App extends skel.Server {
         val store = config.db match {          
           case "mysql" | "db" => new OtpStoreDB
           case "postgres" => new OtpStoreDB
-          case "cache" => new OtpStoreCache
-          case _ => new OtpStoreCache
+          case "mem" | "cache" => new OtpStoreMem
+          case _ => new OtpStoreMem
         }
 
         run( config.host, config.port,config.uri,confuration,

@@ -37,7 +37,7 @@ object CountryRegistry extends DefaultInstrumented  {
   // this var reference is unfortunately needed for Metrics access
   var store: CountryStore = null
 
-  def apply(store: CountryStore = new CountryStoreCache): Behavior[io.syspulse.skel.Command] = {
+  def apply(store: CountryStore = new CountryStoreMem): Behavior[io.syspulse.skel.Command] = {
     this.store = store
     registry(store)
   }

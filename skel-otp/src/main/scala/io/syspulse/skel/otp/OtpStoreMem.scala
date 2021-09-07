@@ -11,7 +11,7 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
-class OtpStoreCache extends OtpStore {
+class OtpStoreMem extends OtpStore {
   val log = Logger(s"${this}")
   
   var otps: Set[Otp] = Set()

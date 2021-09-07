@@ -30,9 +30,9 @@ object ServiceRegistry {
   final case class ServiceActionPerformed(description: String,id:Option[UUID])
 
   // this var reference is unfortunately needed for Metrics access
-  var store: ServiceStore = null //new ServiceStoreDB //new ServiceStoreCache
+  var store: ServiceStore = null //new ServiceStoreDB //new ServiceStoreMem
 
-  def apply(store: ServiceStore = new ServiceStoreCache): Behavior[io.syspulse.skel.Command] = {
+  def apply(store: ServiceStore = new ServiceStoreMem): Behavior[io.syspulse.skel.Command] = {
     this.store = store
     registry(store)
   }

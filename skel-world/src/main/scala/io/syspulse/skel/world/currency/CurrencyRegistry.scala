@@ -37,7 +37,7 @@ object CurrencyRegistry extends DefaultInstrumented  {
   // this var reference is unfortunately needed for Metrics access
   var store: CurrencyStore = null
 
-  def apply(store: CurrencyStore = new CurrencyStoreCache): Behavior[io.syspulse.skel.Command] = {
+  def apply(store: CurrencyStore = new CurrencyStoreMem): Behavior[io.syspulse.skel.Command] = {
     this.store = store
     registry(store)
   }

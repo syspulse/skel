@@ -50,7 +50,7 @@ object OtpRegistry extends DefaultInstrumented  {
   // this var reference is unfortunately needed for Metrics access
   var store: OtpStore = null //new OtpStoreDB //new OtpStoreCache
 
-  def apply(store: OtpStore = new OtpStoreCache): Behavior[io.syspulse.skel.Command] = {
+  def apply(store: OtpStore = new OtpStoreMem): Behavior[io.syspulse.skel.Command] = {
     this.store = store
     registry(store)
   }

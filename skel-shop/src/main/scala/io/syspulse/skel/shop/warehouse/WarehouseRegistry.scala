@@ -41,7 +41,7 @@ object WarehouseRegistry extends DefaultInstrumented  {
   // this var reference is unfortunately needed for Metrics access
   var store: WarehouseStore = null
 
-  def apply(store: WarehouseStore = new WarehouseStoreCache): Behavior[io.syspulse.skel.Command] = {
+  def apply(store: WarehouseStore = new WarehouseStoreMem): Behavior[io.syspulse.skel.Command] = {
     this.store = store
     registry(store)
   }

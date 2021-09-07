@@ -11,7 +11,7 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
-class ServiceStoreCache extends ServiceStore {
+class ServiceStoreMem extends ServiceStore {
   val log = Logger(s"${this}")
   
   var services: Set[Service] = Set()

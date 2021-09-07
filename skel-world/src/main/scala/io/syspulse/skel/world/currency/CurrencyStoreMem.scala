@@ -11,7 +11,7 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
-class CurrencyStoreCache extends CurrencyStore {
+class CurrencyStoreMem extends CurrencyStore {
   val log = Logger(s"${this}")
   
   var currencys: Set[Currency] = Set()

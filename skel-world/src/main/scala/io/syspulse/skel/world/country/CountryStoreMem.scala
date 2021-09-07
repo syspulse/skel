@@ -11,7 +11,7 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
-class CountryStoreCache extends CountryStore {
+class CountryStoreMem extends CountryStore {
   val log = Logger(s"${this}")
   
   var countrys: Set[Country] = Set()

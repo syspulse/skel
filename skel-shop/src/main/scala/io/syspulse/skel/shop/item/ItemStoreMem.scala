@@ -11,7 +11,7 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
-class ItemStoreCache extends ItemStore {
+class ItemStoreMem extends ItemStore {
   val log = Logger(s"${this}")
   
   var items: Set[Item] = Set()

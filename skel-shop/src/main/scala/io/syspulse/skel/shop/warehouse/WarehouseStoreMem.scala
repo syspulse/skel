@@ -11,7 +11,7 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
-class WarehouseStoreCache extends WarehouseStore {
+class WarehouseStoreMem extends WarehouseStore {
   val log = Logger(s"${this}")
   
   var warehouses: Set[Warehouse] = Set()

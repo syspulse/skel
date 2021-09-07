@@ -43,7 +43,7 @@ object OrderRegistry extends DefaultInstrumented  {
   // this var reference is unfortunately needed for Metrics access
   var store: OrderStore = null
 
-  def apply(store: OrderStore = new OrderStoreCache): Behavior[io.syspulse.skel.Command] = {
+  def apply(store: OrderStore = new OrderStoreMem): Behavior[io.syspulse.skel.Command] = {
     this.store = store
     registry(store)
   }
