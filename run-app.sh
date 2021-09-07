@@ -16,7 +16,7 @@ MAIN=${2}
 shift
 shift 
 
-JAR=`ls ${APP}/target/scala-2.13/*assembly*.jar`
+JAR=`ls target/scala-2.13/*assembly*.jar`
 CP="`pwd`/conf/:$JAR"
 
 CONFIG="application${SITE}.conf"

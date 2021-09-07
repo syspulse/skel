@@ -4,6 +4,7 @@ import java.time.Duration
 
 import scala.jdk.CollectionConverters._
 
+import com.typesafe.scalalogging.Logger
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 
@@ -43,9 +44,23 @@ class ConfigurationProp extends ConfigurationLike {
 
 // Akka/Typesafe config supports EnvVar with -Dconfig.override_with_env_vars=true
 // Var format: CONFIG_FORCE_{var}. CASE-SENSITIVE !
+// Ignore if application.conf cannot be loaded
 class ConfigurationAkka extends ConfigurationLike {
+  val log = Logger(s"${this}")
 
-  var akkaConfig:Option[Config] = Some(ConfigFactory.load())
+  //withFallback(ConfigFactory.defaultReference(classLoader)
+  var akkaConfig:Option[Config] = {
+    try {
+      Some(ConfigFactory.load())
+    } catch {
+      case e @ (_ : com.typesafe.config.ConfigException.IO | _ : Exception) => {
+        log.error(s"Configuration not loaded: ",e)
+        // try to load default ?!
+        System.setProperty("config.resource","application.conf")
+        Some(ConfigFactory.defaultReference(this.getClass.getClassLoader))
+      }
+    }
+  }
 
   def getString(path:String):Option[String] = 
     if(!akkaConfig.isDefined) None else

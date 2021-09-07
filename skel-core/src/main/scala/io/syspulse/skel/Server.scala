@@ -130,11 +130,11 @@ trait Server {
           ): Unit = {
     
     val httpBehavior = Behaviors.setup[Nothing] { context =>
-      val telemetryRegistryActor = context.spawn(TelemetryRegistry(), "Actor-TelemetryRegistry")
-      val infoRegistryActor = context.spawn(InfoRegistry(), "Actor-InfoRegistry")
-      val healthRegistryActor = context.spawn(HealthRegistry(), "Actor-HealthRegistry")
-      val configRegistryActor = context.spawn(ConfigRegistry(configuration), "Actor-ConfigRegistry")
-      val metricsRegistryActor = context.spawn(MetricsRegistry(), "Actor-MetricsRegistry")
+      val telemetryRegistryActor = context.spawn(TelemetryRegistry(), "Actor-Skel-TelemetryRegistry")
+      val infoRegistryActor = context.spawn(InfoRegistry(), "Actor-Skel-InfoRegistry")
+      val healthRegistryActor = context.spawn(HealthRegistry(), "Actor-Skel-HealthRegistry")
+      val configRegistryActor = context.spawn(ConfigRegistry(configuration), "Actor-Skel-ConfigRegistry")
+      val metricsRegistryActor = context.spawn(MetricsRegistry(), "Actor-Skel-MetricsRegistry")
       context.watch(telemetryRegistryActor)
       context.watch(infoRegistryActor)
       context.watch(healthRegistryActor)
@@ -184,7 +184,10 @@ trait Server {
     val rootBehavior = { Behaviors.supervise[Nothing] { httpBehavior }}.onFailure[Exception](SupervisorStrategy.resume)
     //.onFailure[Exception](SupervisorStrategy.restart.withLimit(maxNrOfRetries = 10, withinTimeRange = 10.seconds))
 
-    val system = ActorSystem[Nothing](rootBehavior, "ActorSystem-HttpServer")
+    val system = {
+      // ATTENTION: https://doc.akka.io/docs/akka/current/general/configuration.html#configuring-multiple-actorsystem
+      ActorSystem[Nothing](rootBehavior, "ActorSystem-HttpServer")
+    }
     
   }
 }
