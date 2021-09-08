@@ -46,7 +46,8 @@ trait IngestClient {
     minBackoff = 3.seconds,
     maxBackoff = 10.seconds,
     randomFactor = 0.2 // adds 20% "noise" to vary the intervals slightly
-  ).withMaxRestarts(10, 5.minutes)
+  )
+  //.withMaxRestarts(10, 5.minutes)
 
   val logSink = Sink.foreach[Ingestable](t => println(s"${t.toLog}"))
   
