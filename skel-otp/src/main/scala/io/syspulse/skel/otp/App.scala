@@ -11,7 +11,7 @@ case class Config(
   host:String="",
   port:Int=0,
   uri:String = "",
-  db:String = ""
+  datastore:String = ""
 )
 
 object App extends skel.Server {
@@ -27,7 +27,7 @@ object App extends skel.Server {
         opt[String]('h', "host").action((x, c) => c.copy(host = x)).text("hostname"),
         opt[Int]('p', "port").action((x, c) => c.copy(port = x)).text("port"),
         opt[String]('u', "uri").action((x, c) => c.copy(uri = x)).text("uri"),
-        opt[String]('d', "datastore").action((x, c) => c.copy(uri = x)).text("datastore"),
+        opt[String]('d', "datastore").action((x, c) => c.copy(datastore = x)).text("datastore"),
       )
     } 
   
@@ -39,12 +39,12 @@ object App extends skel.Server {
           host = { if(! configArgs.host.isEmpty) configArgs.host else confuration.getString("http.host").getOrElse("0.0.0.0") },
           port = { if(configArgs.port!=0) configArgs.port else confuration.getInt("http.port").getOrElse(8080) },
           uri = { if(! configArgs.uri.isEmpty) configArgs.uri else confuration.getString("uri").getOrElse("/api/v1/otp") },
-          db = { if(! configArgs.db.isEmpty) configArgs.db else confuration.getString("datastore").getOrElse("cache") }.toLowerCase,
+          datastore = { if(! configArgs.datastore.isEmpty) configArgs.datastore else confuration.getString("datastore").getOrElse("cache") }.toLowerCase,
         )
 
         println(s"Config: ${config}")
 
-        val store = config.db match {          
+        val store = config.datastore match {          
           case "mysql" | "db" => new OtpStoreDB
           case "postgres" => new OtpStoreDB
           case "mem" | "cache" => new OtpStoreMem

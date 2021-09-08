@@ -35,13 +35,22 @@ class EkmTelemetryClient extends IngestClient {
   def getTelemetry(req: HttpRequest) = httpFlow(req)
 
   def toData(json:String):List[EkmTelemetry] = {
+    log.info(s"message: ${json}")
     val dd = ujson.read(json).obj("readMeter").obj("ReadSet").arr
     dd.map(rs => { 
       val device = s"${rs("Meter").str}-${rs("MAC_Addr").str}"
-			rs("ReadData").arr.map(       
-      	o=> { EkmTelemetry(device,o("Time_Stamp_UTC_ms").num.toLong,o("kWh_Tot").str.toDouble,
-         	o("RMS_Volts_Ln_1").str.toDouble,o("RMS_Volts_Ln_2").str.toDouble,o("RMS_Volts_Ln_3").str.toDouble,
-         	o("RMS_Watts_Ln_1").str.toDouble,o("RMS_Watts_Ln_2").str.toDouble,o("RMS_Watts_Ln_3").str.toDouble)
+			rs("ReadData").arr.flatMap(       
+      	o=> { 
+          try {
+            Some(EkmTelemetry(device,o("Time_Stamp_UTC_ms").num.toLong,o("kWh_Tot").str.toDouble,
+            o("RMS_Volts_Ln_1").str.toDouble,o("RMS_Volts_Ln_2").str.toDouble,o("RMS_Volts_Ln_3").str.toDouble,
+            o("RMS_Watts_Ln_1").str.toDouble,o("RMS_Watts_Ln_2").str.toDouble,o("RMS_Watts_Ln_3").str.toDouble))
+          } catch {
+            case e:Exception => {
+              log.error(s"Could not parse: ${o}:",e)
+              None
+            }
+          }
 				}
       )
 		}).flatten.toList
