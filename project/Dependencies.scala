@@ -37,7 +37,7 @@ object Dependencies {
     lazy val appBootClassEkm = "io.syspulse.ekm.App"
 
     
-    lazy val appVersion = "0.0.2"
+    lazy val appVersion = "0.0.3"
     lazy val jarPrefix = "server-"
     
     lazy val appDockerRoot = "/app"
@@ -57,6 +57,10 @@ object Dependencies {
 
     val libScalaLogging =   "com.typesafe.scala-logging"  %% "scala-logging"        % "3.9.2"
     val libLogback =        "ch.qos.logback"              %  "logback-classic"      % "1.2.3"
+    // I need this rubbish slf4j to deal with old jboss dependecny which generates exception in loading logback.xml
+    //val libSlf4jApi =       "org.slf4j"                   %  "slf4j-api"            % "1.8.0-beta4"
+    // Supports only old XML Config file format
+    val libSlf4jApi =       "org.slf4j"                   %  "slf4j-api"            % "1.7.26"
 
     val libQuill =          "io.getquill"                 %% "quill-jdbc"           % "3.5.2"
     val libMySQL =          "mysql"                       %  "mysql-connector-java" % "8.0.22"
@@ -110,7 +114,7 @@ object Dependencies {
     val libAlpakka = Seq(libAlpakkaInfluxDB)
     val libPrometheus = Seq(libPrometheusClient,libPrometheusHttp,libPrometheusHotspot)
     val libHttp = Seq(libAkkaHttp,libAkkaHttpSpray,libAkkaHttpMetrics) ++ libPrometheus
-    val libCommon = Seq(libScalaLogging, libLogback, libTypesafeConfig )
+    val libCommon = Seq(libScalaLogging, libSlf4jApi, libLogback, libTypesafeConfig )
     
     val libTest = Seq(libScalaTest % Test,libAkkaTestkit % Test,libAkkaTestkitType % Test)
     val libTestLib = Seq(libScalaTest,libAkkaTestkit,libAkkaTestkitType)
