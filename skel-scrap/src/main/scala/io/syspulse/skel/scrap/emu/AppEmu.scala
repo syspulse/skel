@@ -10,6 +10,8 @@ import io.syspulse.skel.config._
 
 case class Data(id:EmuStore.ID,name:String)
 
+import scala.concurrent.ExecutionContext.global  
+
 object EmuStore {
   type ID = String
   
@@ -43,31 +45,9 @@ object EmuStore {
   }
 }
 
-abstract class Emu extends cask.MainRoutes{
-
+case class EmuRoutes() extends cask.Routes{
   import EmuStore._
 
-  val confuration = Configuration.withPriority(Seq(new ConfigurationEnv,new ConfigurationProp, new ConfigurationAkka))
-
-  override def port = confuration.getInt("PORT").getOrElse(30004)
-  override def host = confuration.getString("HOST").getOrElse("0.0.0.0")
-
-  override def main(args0: Array[String]) = {
-    if(args0.size>0)
-      println(s"${args0.mkString(",")}")
-
-    // Docker arguments fix
-    val args = 
-      if(args0.size>0)
-        if(args0(0).size==0)
-          args0.tail
-        else
-          args0
-      else
-        args0
-
-    super.main(args)
-  }    
 
   val CORS = Seq("Access-Control-Allow-Origin" -> "*")
 
@@ -133,14 +113,58 @@ abstract class Emu extends cask.MainRoutes{
     cask.Abort(401)
   }
 
-
   @cask.staticFiles("/web",headers = Seq("Cache-Control" -> "max-age=14400"))
   def staticFileRoutes() = "web"
-  
-  println(s"Listening on ${host}:${port}...")
-  initialize()
 
+  initialize()
 }
 
-object AppEmu extends Emu {  
+abstract class EmuMain(routes: Seq[cask.main.Routes]) extends cask.Main{ 
+  val allRoutes = routes ++ Seq(EmuRoutes())
+
+  val confuration = Configuration.withPriority(Seq(new ConfigurationEnv,new ConfigurationProp, new ConfigurationAkka))
+
+  override def port = confuration.getInt("PORT").getOrElse(30004)
+  override def host = confuration.getString("HOST").getOrElse("0.0.0.0")
+
+  override def main(args0: Array[String]) = {
+    if(args0.size>0)
+      println(s"${args0.mkString(",")}")
+
+    // Docker arguments fix
+    val args = 
+      if(args0.size>0)
+        if(args0(0).size==0)
+          args0.tail
+        else
+          args0
+      else
+        args0
+
+    super.main(args)
+  }
+}
+
+
+// === Custom =========================================================================================================
+case class NPP() extends cask.Routes{
+  
+  // Does not work if it is just extended !
+  val rootUrl = "/MEDO-PS"
+  @cask.get(rootUrl)
+  def npp() = {
+    cask.Redirect(s"${rootUrl}/index.php.html")
+  }
+
+  @cask.staticFiles(s"${rootUrl}/index.php.html",headers = Seq("Cache-Control" -> "max-age=14400"))
+  def nppIndex() = s"web${rootUrl}/index.php.html"
+
+  @cask.staticFiles(s"${rootUrl}/popup.php",headers = Seq("Cache-Control" -> "max-age=14400"))
+  def nppPopup() = s"web${rootUrl}/popup.php"
+
+  initialize()
+}
+
+object AppEmu extends EmuMain(Seq(NPP())) {  
+  
 }
