@@ -2,6 +2,8 @@ import scala.sys.process.Process
 import Dependencies._
 import com.typesafe.sbt.packager.docker._
 
+Global / onChangedBuildSource := ReloadOnSourceChanges
+
 parallelExecution in Test := true
 
 initialize ~= { _ =>
@@ -403,6 +405,7 @@ lazy val scrap = (project in file("skel-scrap"))
     name := appNameScrap,
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
       libCask,
+      libOsLib,
       libUpickleLib,
       libScalaScraper
     ),

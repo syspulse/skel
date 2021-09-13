@@ -11,11 +11,12 @@ import io.syspulse.skel.util.Util
 class NppAppSpec extends WordSpec with Matchers {
 
   "NppAppSpec" should {
-    "load real data from 'http://www.srp.ecocentre.kiev.ua/MEDO-PS'" in {
-      val npp = new NppScrap(rootUrl="http://www.srp.ecocentre.kiev.ua/MEDO-PS", delay=5000L,limit=1)
+    "load real data from 'http://www.srp.ecocentre.kiev.ua/MEDO-PS'" ignore {
+
+      val npp = new NppScrap(rootUrl="http://www.srp.ecocentre.kiev.ua/MEDO-PS", delay=5000L,delayVariance=10000L)
       
-      val rr = npp.scrap()
-      rr.foreach( r => info(s"${r}"))
+      // val rr = npp.scrap()
+      // rr.foreach( r => info(s"${r}"))
 
     }
   }
