@@ -19,7 +19,7 @@ import upickle.default._
 // Flow(id=1):         [FlowData] ->    FlowData[]
 // Flow(id=2):         [FlowData] ->    FlowData[]
 
-case class Flow[F](fid:FlowID,data:F,pipeline:Pipeline[F],location:String)
+case class Flow[F](id:FlowID,data:F,pipeline:Pipeline[F],var location:String)
 
 class Pipeline[F](name:String,stages:List[Stage[F]] = List(),pipelineDir:String = "/tmp/skel/pipelines") {
   val log = Logger(s"${this}")
@@ -27,27 +27,52 @@ class Pipeline[F](name:String,stages:List[Stage[F]] = List(),pipelineDir:String 
   // create directory
   os.makeDir.all(os.Path(pipelineDir))
 
-  def getFullFileLocation(fid:FlowID,fileName:String):String = s"${pipelineDir}/$fid}/${fileName}"
+  def resolveStageLocation(fid:FlowID,stage:Stage[F],fileName:String):String = s"${pipelineDir}/${fid.id}/${stage.getName}/${fileName}"
 
-  def start(data:F) = {
+  def run(data:F):Flow[F] = {
     val fid = FlowID()
-    val fidLocation = s"${pipelineDir}/${fid}"
-    os.makeDir.all(os.Path(fidLocation))
+    //val fidLocation = s"${pipelineDir}/${fid.id}"
+    //os.makeDir.all(os.Path(fidLocation))
 
-    var flow = new Flow(fid,data,this,fidLocation)
+    var flow = new Flow(fid,data,this,location = "")
     
     stages.foreach( st => {
-      log.info(s"${name}: starting Stage: ${st}: flow=${flow}: ")
+      log.info(s"${name}: starting Stage: ${st}")
+
+      val stageLocation = resolveStageLocation(flow.id,st,"")
+      flow.location = stageLocation
+
+      os.makeDir.all(os.Path(stageLocation))
+
       flow = st.start(flow)
     })
+
+    exec(flow)
+
+    stages.foreach( st => {
+      log.info(s"${name}: stopping Stage: ${st}")
+      
+      val stageLocation = resolveStageLocation(flow.id,st,"")
+      flow.location = stageLocation
+
+      flow = st.stop(flow)
+    })
+
+    flow
   }
 
-  def exec(flow0:Flow[F]) = {
+  protected def exec(flow0:Flow[F]):Flow[F] = {
     var flow = flow0
     stages.foreach( st => {
-      log.info(s"${name}: executing Stage: ${st}: flow=${flow}")
-      flow = st.start(flow)
+      log.info(s"${name}: executing Stage: ${st}")
+
+      val stageLocation = resolveStageLocation(flow.id,st,"")
+      flow.location = stageLocation
+
+      flow = st.exec(flow)
     })
+
+    flow
   }
 }
 
@@ -69,6 +94,8 @@ object FlowID {
 
 abstract class Stage[F](name:String) {
   val log = Logger(s"${this}")
+
+  def getName = name
 
   def exec(flow:Flow[F]):Flow[F]
   def start(flow:Flow[F]):Flow[F] = { flow }
