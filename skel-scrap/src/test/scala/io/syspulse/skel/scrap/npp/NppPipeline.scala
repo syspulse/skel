@@ -7,6 +7,7 @@ import org.scalactic.TolerantNumerics
 
 import java.time._
 import io.syspulse.skel.util.Util
+import io.syspulse.skel.flow._
 
 class NppPipeline extends WordSpec with Matchers with FlowTestable {
   

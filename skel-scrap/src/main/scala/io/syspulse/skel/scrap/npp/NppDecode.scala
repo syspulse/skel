@@ -13,6 +13,8 @@ import java.time.ZoneId
 import java.time.LocalDateTime
 import scala.util.Random
 
+import io.syspulse.skel.flow._
+
 class NppDecode extends Stage[NppData]("NPP-Decode") {
   
   def exec(flow:Flow[NppData]): Flow[NppData] = {
