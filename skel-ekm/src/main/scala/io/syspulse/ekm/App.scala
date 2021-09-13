@@ -100,7 +100,7 @@ object App extends SkelApp {
   
     OParser.parse(argsParser, args, Config()) match {
       case Some(configArgs) => {
-        val confuration = Configuration.withPriority(Seq(new ConfigurationEnv,new ConfigurationAkka))
+        val confuration = Configuration.withPriority(Seq(new ConfigurationEnv,new skel.config.ConfigurationProp, new ConfigurationAkka))
 
         val config = Config(
           dataSource = ({ if(! configArgs.dataSource._1.isEmpty) configArgs.dataSource._1 else confuration.getString(configArgs.dataSource._2).getOrElse(configArgs.dataSource._3) },configArgs.dataSource._2,configArgs.dataSource._3),

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<meta name="description" content="skel-emu" />
+	<meta name="keywords" content="skel-emu" />
+	<title>skel-emu</title>
+
+	<link rel="stylesheet" href="css/button.css">
+	<link rel="stylesheet" href="css/grid.css">
+	<link rel="stylesheet" href="css/main.css">
+	<link rel="stylesheet" href="css/output.css">
+</head>
+
+<body>
+	<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+	<script>
+		function $(id) { return document.getElementById(id) }
+		function executeAction() {
+			$("action").innerHTML = "Executed";
+			axios.post('http://localhost:30004/api/v1/data', document.getElementById("request-data").innerHTML)
+			.then(function (response) {
+				console.log(response);
+				$("action").innerHTML = response.status;
+				$("response-data").innerHTML = JSON.stringify(response.data)
+
+			})
+			.catch(function (error) {
+				console.log(error);
+			});
+			}
+	</script>
+
+	<div class="row">
+		<div class="logo">
+			<h1>skel-emu</h1>
+			<img src=""></img>
+		</div>
+
+		<div class="left">
+			<div class="panel">
+				<div class="title-bar">
+					<div class="title-text">Request</div>
+				</div>
+				<div id="request-data" class="render html-rendered" contenteditable="true">{ "id": "00000000-0000-0000-0000-000000000001", "name": "Name" }</div>
+
+			</div>
+		</div>
+		<div class="right">
+			<div class="panel">
+				<div class="title-bar">
+					<div class="title-text">Response</div>
+				</div>
+				<div class="panel-body output">
+					<div class="btn-group undefined">
+						<button type="button" class="btn" onclick="executeAction()">Execute</button>
+						<button type="button" class="btn">Reject</button>
+					</div>
+					<div id="action"></div>
+					<div class="render html-rendered">
+						<p id="response-data">
+						  Response
+						</p>
+					</div>
+				</div>
+			</div>
+		</div>
+
+	</div>
+</body>
+
+</html>

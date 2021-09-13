@@ -337,7 +337,7 @@ lazy val ingest = (project in file("skel-ingest"))
 
     name := "skel-ingest",
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
-      libUjsonLib
+      libUpickleLib
     ),
     
     assemblyJarName in assembly := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
@@ -362,7 +362,7 @@ lazy val ekm = (project in file("skel-ekm"))
 
     name := appNameEkm,
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
-      libUjsonLib
+      libUpickleLib
     ),
     
     mainClass in run := Some(appBootClassEkm),
@@ -383,3 +383,32 @@ lazy val crypto = (project in file("skel-crypto"))
       )
     )
 
+lazy val scrap = (project in file("skel-scrap"))
+  .dependsOn(core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    sharedConfigDocker,
+    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
+    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
+    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
+
+    name := appNameScrap,
+    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
+      libCask,
+      libUpickleLib,
+      libScalaScraper
+    ),
+    
+    mainClass in run := Some(appBootClassScrap),
+    mainClass in assembly := Some(appBootClassScrap),
+    assemblyJarName in assembly := jarPrefix + appNameScrap + "-" + "assembly" + "-"+  appVersion + ".jar",
+
+  )

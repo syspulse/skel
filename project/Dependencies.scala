@@ -36,6 +36,9 @@ object Dependencies {
     lazy val appNameEkm = "skel-ekm"
     lazy val appBootClassEkm = "io.syspulse.ekm.App"
 
+    lazy val appNameScrap = "skel-scrap"
+    lazy val appBootClassScrap = "io.syspulse.skel.scrap.App"
+
     
     lazy val appVersion = "0.0.3"
     lazy val jarPrefix = "server-"
@@ -90,8 +93,11 @@ object Dependencies {
     //val libJline =          "org.jline"                   %  "jline"                 % "3.14.1"
     //val libJson4s =         "org.json4s"                  %%  "json4s-native"        % "3.6.7"
     val libOsLib =          "com.lihaoyi"                 %% "os-lib"               % "0.7.7"
-    val libUpickleLib =     "com.lihaoyi"                 %% "upickle"              % "1.3.15"
-    val libUjsonLib =       "com.lihaoyi"                 %% "ujson"                % "1.3.15"
+    val libUpickleLib =     "com.lihaoyi"                 %% "upickle"              % "1.4.1"
+    //val libUjsonLib =       "com.lihaoyi"                 %% "ujson"                % "1.3.15"
+    val libScalaTags =      "com.lihaoyi"                 %% "scalatags"            % "0.9.4"
+    val libCask =           "com.lihaoyi"                 %% "cask"                 % "0.7.11"
+    val libRequests =       "com.lihaoyi"                 %% "requests"             % "0.6.9"
 
     val libCsv =            "com.github.tototoshi"          %% "scala-csv"            % "1.3.7"
     val libFaker =          "com.github.javafaker"          % "javafaker"             % "1.0.2"
@@ -109,6 +115,8 @@ object Dependencies {
     val libWeb3jCore =      "org.web3j"                     % "core"                % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
     val libBouncyCastle =   "org.bouncycastle"              % "bcprov-jdk15on"      % "1.69" //web3j depends on "1.65"
 
+    val libScalaScraper =   "net.ruippeixotog"              %% "scala-scraper"      % "2.2.1"
+
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)
@@ -123,7 +131,7 @@ object Dependencies {
 
     val libDB = Seq(libQuill,libMySQL)
 
-    val libLihaoyi = Seq(libOsLib,libUpickleLib,libUjsonLib)
+    val libLihaoyi = Seq(libOsLib,libUpickleLib)
 
     val libWeb3j = Seq(libBouncyCastle,libWeb3jCore,libWeb3jCrypto)
   }
