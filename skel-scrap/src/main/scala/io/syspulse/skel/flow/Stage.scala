@@ -18,4 +18,3 @@ abstract class Stage[F](name:String) {
   def start(flow:Flow[F]):Flow[F] = { flow }
   def stop(flow:Flow[F]):Flow[F] = { flow }
 }
-
