@@ -13,9 +13,6 @@ class NppSpec extends WordSpec with Matchers {
 
   implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(0.0001)
 
-  val sk1 = "0x00d0f37e94ba4d144291b745212bcb49fff3a6c06f280371faa6dc07640d631ecc"
-  val pk1 = "0x6a9218674affe7ffcca2baccc261260e3f2f30166ac1f481d426898236c03d8993b526760c432c643d8be796ff5e3d096152582a4317f3370b8783d2c47274f8"
-
   "NppSpec" should {
 
     "decode data/time to ZonedDateTime" in {
@@ -57,7 +54,7 @@ class NppSpec extends WordSpec with Matchers {
     }
 
     "load data for NPP" in {
-      val npp = new NppScrap()
+      val npp = new NppScrap(delay=0L)
       val r = npp.scrap()
       //info(r.toString)
       r.size should  === (66)
@@ -65,6 +62,18 @@ class NppSpec extends WordSpec with Matchers {
 
       // check unique areas
       r.groupBy(_.area).size should === (66)
+    }
+
+    "load data for NPP with delay==500msec and limit == 2" in {
+      val npp = new NppScrap(delay=500L,limit=2)
+      val ts0 = System.currentTimeMillis()
+
+      val r = npp.scrap()
+
+      val ts1 = System.currentTimeMillis()
+
+      r.size should  === (2)
+      (ts1 - ts0) > 500L should === (true)
     }
   }
 }

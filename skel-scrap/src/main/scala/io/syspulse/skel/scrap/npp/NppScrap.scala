@@ -14,7 +14,7 @@ import java.time.LocalDateTime
 
 case class Radiation(ts:Long,area:String,lat:Double,lon:Double,dose:Double)
 
-class NppScrap(rootUrl:String = "http://localhost:30004/MEDO-PS") {
+class NppScrap(rootUrl:String = "http://localhost:30004/MEDO-PS", limit:Int = Int.MaxValue, delay:Long = 1000L) {
   
   val tsFormat = DateTimeFormatter.ofPattern("dd.MM.yyyyHH:mm")
   val nppZoneId = ZoneId.of("Europe/Kiev")
@@ -78,9 +78,13 @@ class NppScrap(rootUrl:String = "http://localhost:30004/MEDO-PS") {
     def getUrl(s:String) = s.stripPrefix("javascript:popup('")
     val sensorData = (doc >> extractor("area")).map(e => (e.attr("alt"),getUrl(e.attr("href"))))
 
-    sensorData.map( data =>{
+    sensorData.take(limit).map( data =>{
       val docSensor = browser.get(sensorUrl(data._2))
       val dataMap = (docSensor >> extractor("tr")).map(_.extract("td").map(_.text)).map( v=> v.head.trim -> v.tail.head.trim).toMap
+
+      if(delay > 0L && limit > 1) {
+        Thread.sleep(delay)
+      }
 
       Radiation(
         ts = decodeTs(dataMap.getOrElse("Date:",""),dataMap.getOrElse("Time:","")),
@@ -88,7 +92,7 @@ class NppScrap(rootUrl:String = "http://localhost:30004/MEDO-PS") {
         lon = decodeLon(dataMap.getOrElse("Longitude","")),
         lat = decodeLat(dataMap.getOrElse("Latitude","")),
         dose = decodeDose(dataMap.getOrElse("Ambient (Dose rate)",""))
-      )
+      )      
     })
     
   }
