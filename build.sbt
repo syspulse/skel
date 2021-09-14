@@ -111,8 +111,8 @@ val sharedConfigAssembly = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto, scrap)
-  .dependsOn(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto, scrap)
+  .aggregate(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow)
+  .dependsOn(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -383,8 +383,21 @@ lazy val crypto = (project in file("skel-crypto"))
       )
     )
 
-lazy val scrap = (project in file("skel-scrap"))
+lazy val flow = (project in file("skel-flow"))
   .dependsOn(core)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      name := "skel-flow",
+      libraryDependencies ++= libTest ++ Seq(
+        libOsLib,
+        libUpickleLib,
+      )
+    )
+
+
+lazy val scrap = (project in file("skel-scrap"))
+  .dependsOn(core,flow)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
