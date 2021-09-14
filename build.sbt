@@ -428,3 +428,36 @@ lazy val scrap = (project in file("skel-scrap"))
     ),
      
   )
+
+lazy val npp = (project in file("demo/skel-npp"))
+  .dependsOn(core,flow,scrap)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  // .enablePlugins(AshScriptPlugin)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    name := appNameNpp,
+    mainClass in run := Some(appBootClassNpp),
+    mainClass in assembly := Some(appBootClassNpp),
+    mainClass in Compile := Some(appBootClassNpp), // <-- This is very important for DockerPlugin generated stage1 script!
+    assemblyJarName in assembly := jarPrefix + appNameNpp + "-" + "assembly" + "-"+  appVersion + ".jar",
+    
+    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
+    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
+    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
+    
+    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
+      libCask,
+      libOsLib,
+      libUpickleLib,
+      libScalaScraper,
+      libInfluxDB
+    ),
+     
+  )

@@ -38,7 +38,10 @@ object Dependencies {
     lazy val appBootClassEkm = "io.syspulse.ekm.App"
 
     lazy val appNameScrap = "skel-scrap"
-    lazy val appBootClassScrap = "io.syspulse.skel.scrap.npp.App"
+    lazy val appBootClassScrap = "io.syspulse.skel.scrap.demo.App"
+
+    lazy val appNameNpp = "skel-npp"
+    lazy val appBootClassNpp = "io.syspulse.skel.npp.App"
 
     
     lazy val appVersion = "0.0.3"
