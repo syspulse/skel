@@ -14,7 +14,7 @@ import com.influxdb.query.FluxRecord
 import com.influxdb.client.scala.InfluxDBClientScalaFactory
 import com.influxdb.client.domain.WritePrecision
 
-class NppInflux(influxUri:String,influxOrg:String,influxToken:String,influxBucket:String) 
+class NppInflux(influxUri:String,influxOrg:String,influxBucket:String,influxToken:String) 
   extends Stage[NppData]("NPP-Influx") {
 
   log.info(s"${influxUri}:${influxOrg}:${influxBucket}:${influxToken}")
