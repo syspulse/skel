@@ -3,12 +3,13 @@ ENV=${1:-prod}
 echo "Env: $ENV"
 
 CONFIGMAP="skel-npp-config-${ENV}"
-CONFIGMAP_FILE="skel-npp-configmap-${ENV}.properties"
-SECRETS_FILE="skel-npp-secrets-${ENV}.yaml"
+SECRETS="skel-npp-secrets-${ENV}"
 
-kubectl delete configmap "$CONFIGMAP"
-kubectl create configmap "$CONFIGMAP" --from-file=$CONFIGMAP_FILE
+CONFIGMAP_FILE="configmap-${ENV}.yaml"
+SECRETS_FILE="secrets-${ENV}.yaml"
 
-#kubectl config use-context dev
+kubectl delete -f "$CONFIGMAP_FILE"
+kubectl apply -f "$CONFIGMAP_FILE"
+
 kubectl delete -f "$SECRETS_FILE"
-kubectl create -f "$SECRETS_FILE"
+kubectl apply -f "$SECRETS_FILE"

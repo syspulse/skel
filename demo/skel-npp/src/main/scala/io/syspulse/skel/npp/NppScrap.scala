@@ -33,6 +33,8 @@ class NppScrap(rootUrl:String = "http://localhost:30004/MEDO-PS", limit:Int = In
 
     val browser = JsoupBrowser()
 
+    log.info(s"Scraping -> NPP(${rootUrl})")
+
     val doc = browser.get(s"${rootUrl}/index.php?online=1")
 
     val indexFile = s"${flow.location}/index.php"
@@ -48,6 +50,7 @@ class NppScrap(rootUrl:String = "http://localhost:30004/MEDO-PS", limit:Int = In
     val sensorData = (doc >> extractor("area")).map(e => (e.attr("alt"),getUrl(e.attr("href"))))
 
     sensorData.take(limit).map( data =>{
+      log.info(s"Scraping -> NPP(${data})")
       val docSensor = browser.get(sensorUrl(data._2))
 
       val sensorFile = s"${flow.location}/${data._1}-${Util.sha256(data._2)}"

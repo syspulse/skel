@@ -32,9 +32,10 @@ class NppDecode extends Stage[NppData]("NPP-Decode") {
       val docSensor = browser.parseFile(file)
       val dataMap = (docSensor >> extractor("tr")).map(_.extract("td").map(_.text)).map( v=> v.head.trim -> v.tail.head.trim).toMap
 
-      val lon = NppDecode.decodeLon(dataMap.getOrElse("Longitude",""))
       val lat = NppDecode.decodeLat(dataMap.getOrElse("Latitude",""))
-      val geohash = Geohash.encode(lon,lat)
+      val lon = NppDecode.decodeLon(dataMap.getOrElse("Longitude",""))
+      
+      val geohash = Geohash.encode(lat,lon)
       Radiation(
         ts = NppDecode.decodeTs(dataMap.getOrElse("Date:",""),dataMap.getOrElse("Time:","")),
         area = area, 

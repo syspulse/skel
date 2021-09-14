@@ -17,9 +17,14 @@ case class Config(
   host:String="",
   port:Int=0,
   uri:String = "",
+  
   nppUrl:String = "",
+  nppInterval:Long = -1L,
+  nppDelay:Long = -1L,
+  nppVariance:Long = -1L,
+  
   format:String = "",
-  interval:Long = -1L,
+
   influxUri:String = "",
   influxOrg:String = "",
   influxBucket:String = "",
@@ -43,7 +48,9 @@ object App extends skel.Server {
         opt[String]('u', "uri").action((x, c) => c.copy(uri = x)).text("uri"),
         opt[String]('n', "npp.url").action((x, c) => c.copy(nppUrl = x)).text("npp url"),
         opt[String]('f', "format").action((x, c) => c.copy(format = x)).text("format (csv/json or none)"),
-        opt[Long]('i', "npp.interval").action((x, c) => c.copy(interval = x)).text("repeat interval in msec (omit if none)"),
+        opt[Long]("npp.interval").action((x, c) => c.copy(nppInterval = x)).text("repeat interval in msec (omit if none)"),
+        opt[Long]("npp.delay").action((x, c) => c.copy(nppDelay = x)).text("delay between requests (msec)"),
+        opt[Long]("npp.variance").action((x, c) => c.copy(nppVariance = x)).text("varinace in delay (msec)"),
 
         opt[String]("influx.uri").action((x, c) => c.copy(influxUri = x)).text("Influx Uri (http://localhost:8086)"),
         opt[String]("influx.org").action((x, c) => c.copy(influxOrg = x)).text("Influx Org"),
@@ -60,9 +67,13 @@ object App extends skel.Server {
           host = { if(! configArgs.host.isEmpty) configArgs.host else confuration.getString("http.host").getOrElse("0.0.0.0") },
           port = { if(configArgs.port!=0) configArgs.port else confuration.getInt("http.port").getOrElse(8080) },
           uri = { if(! configArgs.uri.isEmpty) configArgs.uri else confuration.getString("http.uri").getOrElse("/api/v1/npp") },
+          
           nppUrl = { if(! configArgs.nppUrl.isEmpty) configArgs.nppUrl else confuration.getString("npp.url").getOrElse("http://localhost:30004/MEDO-PS") },
+          nppInterval = { if(configArgs.nppInterval != -1L) configArgs.nppInterval else confuration.getLong("npp.interval").getOrElse(10000L) },
+          nppDelay = { if(configArgs.nppDelay != -1L) configArgs.nppDelay else confuration.getLong("npp.delay").getOrElse(100L) },
+          nppVariance = { if(configArgs.nppInterval != -1L) configArgs.nppInterval else confuration.getLong("npp.variance").getOrElse(100L) },
+          
           format = { if(! configArgs.format.isEmpty) configArgs.format else confuration.getString("format").getOrElse("csv") },
-          interval = { if(configArgs.interval != -1L) configArgs.interval else confuration.getLong("npp.interval").getOrElse(10000L) },
 
           influxUri = { if(! configArgs.influxUri.isEmpty) configArgs.influxUri else confuration.getString("influx.uri").getOrElse("http://localhost:8086") },
           influxOrg = { if(! configArgs.influxOrg.isEmpty) configArgs.influxOrg else confuration.getString("influx.org").getOrElse("") },
@@ -74,14 +85,14 @@ object App extends skel.Server {
 
         val pipe = new Pipeline[NppData]("NPP-Pipeline",
           stages = List(
-            new NppScrap(rootUrl = config.nppUrl,delay=0L),
+            new NppScrap(rootUrl = config.nppUrl,delay = config.nppDelay, delayVariance = config.nppVariance),
             new NppDecode(),
             new NppPrint(format = config.format),
             new NppInflux(config.influxUri,config.influxOrg,config.influxBucket,config.influxToken)
           )
         )
 
-        new Cron(FiniteDuration(config.interval,TimeUnit.MILLISECONDS),() => {
+        new Cron(FiniteDuration(config.nppInterval,TimeUnit.MILLISECONDS),() => {
             val flow = pipe.run(NppData())
             metricCount.inc()
           },

@@ -20,5 +20,10 @@ class GeohashSpec extends WordSpec with Matchers {
       val g1 = Geohash.encode(50.685324,30.463904)
       g1 should === ("u9j8m4zpkmjn")
     }
+
+    "51.196719,29.485967 -> u9hgqbp48b4s" in {
+      val g1 = Geohash.encode(51.196719,29.485967)
+      g1 should === ("u9hgqbp48b4s")
+    }
   }
 }
