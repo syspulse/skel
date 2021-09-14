@@ -163,8 +163,8 @@ lazy val http = (project in file("skel-http"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
-    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
     bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
     bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
 
@@ -208,8 +208,8 @@ lazy val otp = (project in file("skel-otp"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
-    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
     bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
     bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
 
@@ -238,8 +238,8 @@ lazy val user = (project in file("skel-user"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
-    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
     bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
     bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
 
@@ -284,8 +284,8 @@ lazy val world = (project in file("skel-world"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
-    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
     bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
     bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
 
@@ -312,8 +312,8 @@ lazy val shop = (project in file("skel-shop"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
-    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
     bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
     bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
 
@@ -356,8 +356,8 @@ lazy val ekm = (project in file("skel-ekm"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
-    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
     bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
     bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
 
@@ -414,8 +414,8 @@ lazy val scrap = (project in file("skel-scrap"))
     mainClass in Compile := Some(appBootClassScrap), // <-- This is very important for DockerPlugin generated stage1 script!
     assemblyJarName in assembly := jarPrefix + appNameScrap + "-" + "assembly" + "-"+  appVersion + ".jar",
     
-    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
-    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
     bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
     bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
     
@@ -447,8 +447,8 @@ lazy val npp = (project in file("demo/skel-npp"))
     mainClass in Compile := Some(appBootClassNpp), // <-- This is very important for DockerPlugin generated stage1 script!
     assemblyJarName in assembly := jarPrefix + appNameNpp + "-" + "assembly" + "-"+  appVersion + ".jar",
     
-    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
-    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
     bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
     bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
     
