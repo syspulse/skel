@@ -133,7 +133,7 @@ lazy val core = (project in file("skel-core"))
         libSkel ++ 
         libDB ++ 
         libTest ++ 
-        Seq(),
+        Seq(libUUID),
     )
 
 lazy val skel_test = (project in file("skel-test"))

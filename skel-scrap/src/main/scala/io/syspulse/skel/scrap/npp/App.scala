@@ -4,18 +4,22 @@ import io.prometheus.client.Counter
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
+import io.syspulse.skel.util.Cron
 import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv,ConfigurationProp}
 
 import io.syspulse.skel.flow._
 
 import scopt.OParser
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
 
 case class Config(
   host:String="",
   port:Int=0,
   uri:String = "",
   nppUrl:String = "",
-  format:String = ""
+  format:String = "",
+  interval:Long = -1L
 )
 
 object App extends skel.Server {
@@ -35,6 +39,7 @@ object App extends skel.Server {
         opt[String]('u', "uri").action((x, c) => c.copy(uri = x)).text("uri"),
         opt[String]('d', "npp").action((x, c) => c.copy(nppUrl = x)).text("npp url"),
         opt[String]('f', "format").action((x, c) => c.copy(format = x)).text("format (csv/json or none)"),
+        opt[Long]('i', "interval").action((x, c) => c.copy(interval = x)).text("repeat interval in msec (omit if none)"),
       )
     } 
   
@@ -45,9 +50,10 @@ object App extends skel.Server {
         val config = Config(
           host = { if(! configArgs.host.isEmpty) configArgs.host else confuration.getString("http.host").getOrElse("0.0.0.0") },
           port = { if(configArgs.port!=0) configArgs.port else confuration.getInt("http.port").getOrElse(8080) },
-          uri = { if(! configArgs.uri.isEmpty) configArgs.uri else confuration.getString("uri").getOrElse("/api/v1/npp") },
-          nppUrl = { if(! configArgs.nppUrl.isEmpty) configArgs.nppUrl else confuration.getString("nppUrl").getOrElse("http://localhost:30004/MEDO-PS") },
+          uri = { if(! configArgs.uri.isEmpty) configArgs.uri else confuration.getString("http.uri").getOrElse("/api/v1/npp") },
+          nppUrl = { if(! configArgs.nppUrl.isEmpty) configArgs.nppUrl else confuration.getString("npp.url").getOrElse("http://localhost:30004/MEDO-PS") },
           format = { if(! configArgs.format.isEmpty) configArgs.format else confuration.getString("format").getOrElse("csv") },
+          interval = { if(configArgs.interval != -1L) configArgs.interval else confuration.getLong("npp.interval").getOrElse(10000L) },
         )
 
         Console.err.println(s"Config: ${config}")
@@ -63,8 +69,14 @@ object App extends skel.Server {
                           confuration.getString("influx.bucket").getOrElse("npp-bucket"))
           )
         )
-        val flow = pipe.run(NppData())
-        metricCount.inc()
+
+        new Cron(FiniteDuration(config.interval,TimeUnit.MILLISECONDS),() => {
+            val flow = pipe.run(NppData())
+            metricCount.inc()
+          },
+          delay = 0L
+        )
+        
         
         run( config.host, config.port,config.uri,confuration,
           Seq()

@@ -49,28 +49,5 @@ class NppDecodeSpec extends WordSpec with Matchers with FlowTestable {
       val d = NppDecode.decodeDose(dos1)
       d should  === (3540.0)
     }
-
-    // "load data for NPP" in {
-    //   val npp = new NppDecode()
-    //   val r = npp.scrap()
-    //   //info(r.toString)
-    //   r.size should  === (66)
-    //   r.head.getClass should !== (Radiation.getClass())
-
-    //   // check unique areas
-    //   r.groupBy(_.area).size should === (66)
-    // }
-
-    // "load data for NPP with delay==500msec and limit == 2" in {
-    //   val npp = new NppDecode(delay=500L,limit=2)
-    //   val ts0 = System.currentTimeMillis()
-
-    //   val r = npp.scrap()
-
-    //   val ts1 = System.currentTimeMillis()
-
-    //   r.size should  === (2)
-    //   (ts1 - ts0) > 500L should === (true)
-    // }
   }
 }
