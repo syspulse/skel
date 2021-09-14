@@ -10,6 +10,7 @@ object Dependencies {
     lazy val akkaKafkaVersion = "2.0.3"
     lazy val kafkaAvroSerVersion = "5.4.1"
     lazy val quillVersion = "3.6.0"
+    lazy val influxDBVersion = "3.2.0"
     
     lazy val appNameHttp = "skel-http"
     lazy val appBootClassHttp = "io.syspulse.skel.service.App"
@@ -67,6 +68,7 @@ object Dependencies {
 
     val libQuill =          "io.getquill"                 %% "quill-jdbc"           % "3.5.2"
     val libMySQL =          "mysql"                       %  "mysql-connector-java" % "8.0.22"
+    val libInfluxDB =       "com.influxdb"                %% "influxdb-client-scala" % influxDBVersion
 
     val libTypesafeConfig = "com.typesafe"                %  "config"               % "1.4.1"
       

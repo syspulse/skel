@@ -59,6 +59,9 @@ Refer to [skel-ingest](skel-ingest) for Prometheus details
 8. Logging: [http://logback.qos.ch](http://logback.qos.ch)
 9. JDBC: Quill [https://getquill.io](https://getquill.io)
 10. Kafka: Alpakka [https://github.com/akka/alpakka](https://github.com/akka/alpakka)
+11. InfluxDB Stream: Alpakka [https://github.com/akka/alpakka](https://github.com/akka/alpakka)
+12. InfluxDB-2: [https://github.com/influxdata/influxdb-client-java](https://github.com/influxdata/influxdb-client-java)
+13. Geohash: [https://github.com/davidallsopp/geohash-scala](https://github.com/davidallsopp/geohash-scala)
 
 
 Other libraries are referenced in corresponding modules

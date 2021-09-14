@@ -56,7 +56,11 @@ object App extends skel.Server {
           stages = List(
             new NppScrap(rootUrl = config.nppUrl,delay=0L),
             new NppDecode(),
-            new NppPrint(format = config.format)
+            new NppPrint(format = config.format),
+            new NppInflux(confuration.getString("influx.uri").getOrElse("http://localhost:8086"),
+                          confuration.getString("influx.org").getOrElse(""),
+                          confuration.getString("influx.token").getOrElse(""),
+                          confuration.getString("influx.bucket").getOrElse("npp-bucket"))
           )
         )
         val flow = pipe.run(NppData())

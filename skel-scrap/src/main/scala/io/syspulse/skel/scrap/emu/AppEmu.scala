@@ -1,5 +1,9 @@
 package io.syspulse.skel.scrap.emu
 
+import scala.util.Random
+import java.time.{ZoneId,ZonedDateTime,LocalDateTime,Instant}
+import java.time.format._
+
 import io.syspulse.skel.scrap.emu._
 
 // === Custom =========================================================================================================
@@ -24,11 +28,11 @@ case class NPP() extends cask.Routes{
   @cask.get(s"${rootUrl}/popup.php")
   def nppPopup(data: Option[String]=None,location:Option[String]=None) = {
     println(s"Sensor Request: data=${data},location=${location}")
-    val date = "14.08.2021"
-    val time = "14:00"
-    val measure = "3540 nSv"
-    val lat = "N051.391494"
-    val lon = "E030.101595"
+    val date = LocalDateTime.now.format(DateTimeFormatter.ofPattern("dd.MM.YYYY")) //"14.08.2021"
+    val time = LocalDateTime.now.format(DateTimeFormatter.ofPattern("HH:mm")) //"14:00"
+    val measure = s"${Random.nextInt(5000)} nSv"
+    val lat = s"N${50.0 + 3 * Random.nextDouble()}"//"N051.391494"
+    val lon = s"E${30.0 + 2 * Random.nextDouble()}"//"E030.101595"
 s"""
 <html>
 <head>

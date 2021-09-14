@@ -14,6 +14,7 @@ import java.time.LocalDateTime
 import scala.util.Random
 
 import io.syspulse.skel.flow._
+import io.syspulse.skel.geo.Geohash
 
 class NppDecode extends Stage[NppData]("NPP-Decode") {
   
@@ -31,11 +32,15 @@ class NppDecode extends Stage[NppData]("NPP-Decode") {
       val docSensor = browser.parseFile(file)
       val dataMap = (docSensor >> extractor("tr")).map(_.extract("td").map(_.text)).map( v=> v.head.trim -> v.tail.head.trim).toMap
 
+      val lon = NppDecode.decodeLon(dataMap.getOrElse("Longitude",""))
+      val lat = NppDecode.decodeLat(dataMap.getOrElse("Latitude",""))
+      val geohash = Geohash.encode(lon,lat)
       Radiation(
         ts = NppDecode.decodeTs(dataMap.getOrElse("Date:",""),dataMap.getOrElse("Time:","")),
         area = area, 
-        lon = NppDecode.decodeLon(dataMap.getOrElse("Longitude","")),
-        lat = NppDecode.decodeLat(dataMap.getOrElse("Latitude","")),
+        lon = lon,
+        lat = lat,
+        geohash = geohash.toString(),
         dose = NppDecode.decodeDose(dataMap.getOrElse("Ambient (Dose rate)",""))
       )      
     }}.toList

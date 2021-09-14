@@ -1,18 +1,5 @@
 package io.syspulse.skel.scrap.npp
 
-import net.ruippeixotog.scalascraper.browser.JsoupBrowser
-
-import net.ruippeixotog.scalascraper.dsl.DSL._
-import net.ruippeixotog.scalascraper.dsl.DSL.Extract._
-import net.ruippeixotog.scalascraper.dsl.DSL.Parse._
-import net.ruippeixotog.scalascraper.model._
-import java.time.format.DateTimeFormatter
-import java.time.ZonedDateTime
-import java.time.Instant
-import java.time.ZoneId
-import java.time.LocalDateTime
-import scala.util.Random
-
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.flow._
 

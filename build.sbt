@@ -407,7 +407,8 @@ lazy val scrap = (project in file("skel-scrap"))
       libCask,
       libOsLib,
       libUpickleLib,
-      libScalaScraper
+      libScalaScraper,
+      libInfluxDB
     ),
     
     mainClass in run := Some(appBootClassScrap),
