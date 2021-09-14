@@ -111,8 +111,8 @@ val sharedConfigAssembly = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto)
-  .dependsOn(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto)
+  .aggregate(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto, scrap)
+  .dependsOn(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto, scrap)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -163,7 +163,6 @@ lazy val http = (project in file("skel-http"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    sharedConfigDocker,
     mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
     mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
     bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
@@ -378,7 +377,6 @@ lazy val crypto = (project in file("skel-crypto"))
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
-      //fork in test := true,
       name := "skel-crypto",
       libraryDependencies ++= libTest ++ libWeb3j ++ Seq(
         
@@ -389,20 +387,25 @@ lazy val scrap = (project in file("skel-scrap"))
   .dependsOn(core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
-  .enablePlugins(AshScriptPlugin)
+  // .enablePlugins(AshScriptPlugin)
   .settings (
+    
     sharedConfig,
     sharedConfigAssembly,
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    sharedConfigDocker,
+    name := appNameScrap,
+    mainClass in run := Some(appBootClassScrap),
+    mainClass in assembly := Some(appBootClassScrap),
+    mainClass in Compile := Some(appBootClassScrap), // <-- This is very important for DockerPlugin generated stage1 script!
+    assemblyJarName in assembly := jarPrefix + appNameScrap + "-" + "assembly" + "-"+  appVersion + ".jar",
+    
     mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
     mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
     bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
     bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
-
-    name := appNameScrap,
+    
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
       libCask,
       libOsLib,
@@ -410,9 +413,5 @@ lazy val scrap = (project in file("skel-scrap"))
       libScalaScraper,
       libInfluxDB
     ),
-    
-    mainClass in run := Some(appBootClassScrap),
-    mainClass in assembly := Some(appBootClassScrap),
-    assemblyJarName in assembly := jarPrefix + appNameScrap + "-" + "assembly" + "-"+  appVersion + ".jar",
-
+     
   )
