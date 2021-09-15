@@ -175,6 +175,7 @@ lazy val http = (project in file("skel-http"))
     
     mainClass in run := Some(appBootClassHttp),
     mainClass in assembly := Some(appBootClassHttp),
+    mainClass in Compile := Some(appBootClassHttp), // <-- This is very important for DockerPlugin generated stage1 script!
     assemblyJarName in assembly := jarPrefix + appNameHttp + "-" + "assembly" + "-"+  appVersion + ".jar",
 
   )
@@ -221,6 +222,7 @@ lazy val otp = (project in file("skel-otp"))
     
     mainClass in run := Some(appBootClassOtp),
     mainClass in assembly := Some(appBootClassOtp),
+    mainClass in Compile := Some(appBootClassOtp), // <-- This is very important for DockerPlugin generated stage1 script!
     assemblyJarName in assembly := jarPrefix + appNameOtp + "-" + "assembly" + "-"+  appVersion + ".jar",
 
   )
@@ -250,6 +252,7 @@ lazy val user = (project in file("skel-user"))
     
     mainClass in run := Some(appBootClassHttp),
     mainClass in assembly := Some(appBootClassHttp),
+    mainClass in Compile := Some(appBootClassHttp), // <-- This is very important for DockerPlugin generated stage1 script!
     assemblyJarName in assembly := jarPrefix + appNameUser + "-" + "assembly" + "-"+  appVersion + ".jar",
 
   )
@@ -296,6 +299,7 @@ lazy val world = (project in file("skel-world"))
     
     mainClass in run := Some(appBootClassWorld),
     mainClass in assembly := Some(appBootClassWorld),
+    mainClass in Compile := Some(appBootClassWorld), // <-- This is very important for DockerPlugin generated stage1 script!
     assemblyJarName in assembly := jarPrefix + appNameWorld + "-" + "assembly" + "-"+  appVersion + ".jar",
 
   )
@@ -325,6 +329,7 @@ lazy val shop = (project in file("skel-shop"))
     
     mainClass in run := Some(appBootClassShop),
     mainClass in assembly := Some(appBootClassShop),
+    mainClass in Compile := Some(appBootClassShop), // <-- This is very important for DockerPlugin generated stage1 script!
     assemblyJarName in assembly := jarPrefix + appNameShop + "-" + "assembly" + "-"+  appVersion + ".jar",
 
   )
@@ -342,34 +347,6 @@ lazy val ingest = (project in file("skel-ingest"))
     ),
     
     assemblyJarName in assembly := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
-  )
-
-lazy val ekm = (project in file("skel-ekm"))
-  .dependsOn(core,ingest)
-  .enablePlugins(JavaAppPackaging)
-  .enablePlugins(DockerPlugin)
-  .enablePlugins(AshScriptPlugin)
-  .settings (
-
-    sharedConfig,
-    sharedConfigAssembly,
-    sharedConfigDocker,
-    dockerBuildxSettings,
-
-    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
-    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
-    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
-    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
-
-    name := appNameEkm,
-    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
-      libUpickleLib
-    ),
-    
-    mainClass in run := Some(appBootClassEkm),
-    mainClass in assembly := Some(appBootClassEkm),
-    assemblyJarName in assembly := jarPrefix + appNameEkm + "-" + "assembly" + "-"+  appVersion + ".jar",
-
   )
 
 lazy val crypto = (project in file("skel-crypto"))
@@ -429,6 +406,35 @@ lazy val scrap = (project in file("skel-scrap"))
      
   )
 
+lazy val ekm = (project in file("demo/skel-ekm"))
+  .dependsOn(core,ingest)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
+    mappings in Universal += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
+    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
+    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
+
+    name := appNameEkm,
+    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
+      libUpickleLib
+    ),
+    
+    mainClass in run := Some(appBootClassEkm),
+    mainClass in assembly := Some(appBootClassEkm),
+    mainClass in Compile := Some(appBootClassEkm), // <-- This is very important for DockerPlugin generated stage1 script!
+    assemblyJarName in assembly := jarPrefix + appNameEkm + "-" + "assembly" + "-"+  appVersion + ".jar",
+
+  )
+
 lazy val npp = (project in file("demo/skel-npp"))
   .dependsOn(core,flow,scrap)
   .enablePlugins(JavaAppPackaging)
@@ -458,6 +464,5 @@ lazy val npp = (project in file("demo/skel-npp"))
       libUpickleLib,
       libScalaScraper,
       libInfluxDB
-    ),
-     
+    ),  
   )
