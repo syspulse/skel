@@ -16,7 +16,12 @@ spec:
       - name: skel-ekm
         image: syspulse/skel-ekm:latest
         imagePullPolicy: Always
-        args: ["--ekm-key","XXXXXXXXXXXXXX","--ekm-device","000001","--influx-uri","http://influx-host:8086","--log-file","/cache/ekm-{yyyy-MM-dd-HH-mm}.log"]
+        envFrom:
+        - configMapRef:
+             name: skel-ekm-configmap-dev
+        - secretRef:
+             name: skel-ekm-secrets-dev
+        args: ["--ekm.key","$(EKM_KEY)","--ekm.device","$(EKM_DEVICE)","--influx.uri","$(INFLUX_URI)","--log.file","$(LOG_FILE)"]
         volumeMounts:
         - mountPath: /cache
           name: cache-volume

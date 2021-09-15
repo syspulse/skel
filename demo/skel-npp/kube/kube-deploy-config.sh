@@ -2,8 +2,8 @@ ENV=${1:-prod}
 
 echo "Env: $ENV"
 
-CONFIGMAP="skel-npp-config-${ENV}"
-SECRETS="skel-npp-secrets-${ENV}"
+CONFIGMAP="skel-ekm-configmap-${ENV}"
+SECRETS="skel-ekm-secrets-${ENV}"
 
 CONFIGMAP_FILE="configmap-${ENV}.yaml"
 SECRETS_FILE="secrets-${ENV}.yaml"

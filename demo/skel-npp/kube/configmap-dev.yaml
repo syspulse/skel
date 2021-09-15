@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skel-npp-configmap-dev
+  namespace: default
+data:
+  NPP_INTERVAL: "60000"
+  NPP_URL: "http://canopus.u132.net:30004/MEDO-PS"

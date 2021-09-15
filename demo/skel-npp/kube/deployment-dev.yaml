@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: npp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: npp
+  template:
+    metadata:
+      labels:
+        app: npp
+    spec:
+      containers:
+      - name: skel-npp
+        image: syspulse/skel-npp:latest
+        imagePullPolicy: Always
+        envFrom:
+        - configMapRef:
+             name: skel-npp-configmap-dev
+        - secretRef:
+             name: skel-npp-secrets-dev
+        args: ["--influx.uri","$(INFLUX_URI)","--influx.org","$(INFLUX_ORG)","--influx.bucket","$(INFLUX_BUCKET)","--influx.token","$(INFLUX_TOKEN)"]
+        volumeMounts:
+        - mountPath: /cache
+          name: cache-volume
+      volumes:
+      - name: cache-volume
+        emptyDir: {}
