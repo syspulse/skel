@@ -116,6 +116,7 @@ object Configuration {
   // last has the highest priority, so because of foldLeft, reverse
   def withPriority(configurations: Seq[ConfigurationLike]):Configuration = new Configuration(configurations.reverse)
 
-  def default:Configuration = Configuration.apply()
+  // default: try config in this sequence, later supercese earlier (Env > Prop > Akk)
+  def default:Configuration = Configuration.withPriority(Seq(new ConfigurationAkka,new ConfigurationProp,new ConfigurationEnv))
 
 }

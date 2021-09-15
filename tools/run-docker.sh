@@ -10,9 +10,9 @@ export SITE=${SITE:-$CONF}
 
 DOCKER="syspulse/${APP}:latest"
 
-echo "app: $APP"
-echo "site: $SITE"
-echo "main: $MAIN"
-echo "docker: $DOCKER"
+echo "APP: $APP"
+echo "SITE: $SITE"
+echo "DOCKER: $DOCKER"
+echo "ARGS: $@"
 
 docker run --rm --name $APP -p 8080:8080 -v `pwd`/conf:/app/conf -v /mnt/share/data:/data $DOCKER $@

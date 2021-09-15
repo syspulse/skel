@@ -61,7 +61,7 @@ object App extends skel.Server {
   
     OParser.parse(argsParser, args, Config()) match {
       case Some(configArgs) => {
-        val confuration = Configuration.withPriority(Seq(new ConfigurationAkka,new ConfigurationProp,new ConfigurationEnv))
+        val confuration = Configuration.default
 
         val config = Config(
           host = { if(! configArgs.host.isEmpty) configArgs.host else confuration.getString("http.host").getOrElse("0.0.0.0") },
