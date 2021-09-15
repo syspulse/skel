@@ -26,11 +26,11 @@ import scala.jdk.CollectionConverters._
 import io.syspulse.skel.ingest.IngestClient
 import io.syspulse.skel.util.Util._
 
-class EkmTelemetryClient extends IngestClient {
+abstract class EkmTelemetryClient(config:Config) extends IngestClient {
   
   val flowRandom = Flow[EkmTelemetry].map( t => EkmTelemetry(t.device,Instant.now.toEpochMilli,rnd(5000.0),rnd(240),rnd(240),rnd(240),rnd(500),rnd(500),rnd(500)))
 
-  def ekmUri(host:String = "http://io.ekmpush.com", key:String, device:String, seconds:Long=1) = s"${host}/readMeter/v3/key/${key}/count/${seconds}/format/json/meters/${device}/"
+  def ekmUrl(host:String = "http://io.ekmpush.com", key:String, device:String, seconds:Long=1) = s"${host}/readMeter/v3/key/${key}/count/${seconds}/format/json/meters/${device}/"
   def putTelemetry(req: HttpRequest) = httpFlow(req)
   def getTelemetry(req: HttpRequest) = httpFlow(req)
 
@@ -56,17 +56,24 @@ class EkmTelemetryClient extends IngestClient {
 		}).flatten.toList
   }
 
-  def getEkmSource(ekmHost:String, ekmKey:String, ekmDevice:String, freq:Long = 60, limit:Long = 0, logFile:String = "") = {
+  def getEkmSource() = {
         
-    val ekmFreq = FiniteDuration(freq,"seconds")
+    val ekmFreq = FiniteDuration(config.ekmFreq,"seconds")
     
-    val ekmHttpRequest = HttpRequest(uri = ekmUri(ekmHost,ekmKey,ekmDevice)).withHeaders(Accept(MediaTypes.`application/json`))
+    val ekmHttpRequest = HttpRequest(uri = ekmUrl(config.ekmUri,config.ekmKey,config.ekmDevice)).withHeaders(Accept(MediaTypes.`application/json`))
     val ekmSource = Source.tick(0.seconds, ekmFreq, ekmHttpRequest)
     
-    if(limit == 0)
+    if(config.limit == 0)
       ekmSource
     else  
-      ekmSource.take(limit)
+      ekmSource.take(config.limit)
   }
 
+  val ekmSource = getEkmSource()
+  val ekmSourceRestartable = RestartSource.withBackoff(retrySettings) { () =>
+      log.info(s"Connecting -> EKM(${config.ekmUri})...")
+      ekmSource.mapAsync(1)(getTelemetry(_)).map(countFlow).log("EKM").map(toJson(_)).mapConcat(toData(_))
+    }
+
+  def run():Future[_]
 }

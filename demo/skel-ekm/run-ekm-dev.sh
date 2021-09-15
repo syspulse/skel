@@ -2,11 +2,8 @@
 CWD=`echo $(dirname $(readlink -f $0))`
 cd $CWD
 
-MAIN=io.syspulse.ekm.App
+export EKM_URI="http://localhost:30001"
+export EKM_KEY="KEY-00000001"
+export EKM_DEVICE="99072"
 
-EKM_KEY=${EKM_KEY}
-EKM_DEVICE=${EKM_DEVICE}
-
-LOG_FILE="data-$EKM_DEVICE-{yyyy-MM-dd-HH-mm}.log"
-
-exec ../run-app.sh skel-ekm $MAIN --ekm-key $EKM_KEY --ekm-device $EKM_DEVICE --log-file ${LOG_FILE} $@
+./run.sh $@

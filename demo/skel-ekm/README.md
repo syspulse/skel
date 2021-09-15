@@ -4,7 +4,7 @@ Telemetry Collection Flow Reference Implementation for EKM
 
 ## Architecture
 
-<img src="doc/skel-ekm.png" width="450">
+<img src="doc/skel-ekm.jpg" width="450">
 
 Why such simple architecutre diagram ? Need some practive with draw.io to speed up drawing skills
 
