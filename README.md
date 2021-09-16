@@ -2,51 +2,35 @@
 
 Skeletons for RnD Prototypes
 
+0. [demo](demo) - Demoable Projlets based on skel components
 1. [skel-http](skel-http) - HTTP Service (+ Kubernetes)
 2. [skel-user](skel-user) - UserProfile Service reference
 3. [skel-world](skel-world) + [skel-shop](skel-shop) - Services for E-Shop like product
 4. [skel-kafka](skel-kafka) - Kafka Processors (Source/Sink)
 5. [skel-ingest](skel-ingest) - Data Ingestion with Prometheus telemerty reference
-6. [skel-ekm](skel-ekm) - IoT like Service ingestion to InflixDB/Grafana sink
-7. [skel-telemetry](skel-telemetry) - Telemetry (Prometheus/InfluxDB/Graphite/Loki/Grafana)
-8. [skel-db](skel-db) - DB Related stuff
-9. [skel-otp](skel-otp) - OTP Service reference service 
-10. [skel-test](skel-test) - Test helpers
-11. [skel-crypto](skel-crypto) - Cryptography tools
-12. [skel-spark](skel-spark) - Spark tools
-13. [skel-datalake](skel-datalake) - Datalake concepts
+6. [skel-telemetry](skel-telemetry) - Telemetry (Prometheus/InfluxDB/Graphite/Loki/Grafana)
+7. [skel-db](skel-db) - DB Related stuff
+8. [skel-otp](skel-otp) - OTP Service reference service 
+9. [skel-test](skel-test) - Test helpers
+10. [skel-crypto](skel-crypto) - Cryptography tools
+11. [skel-spark](skel-spark) - Spark tools
+12. [skel-datalake](skel-datalake) - Datalake concepts
+13. [skel-flow](skel-flow) - DataFlows and Workflows
 
+----
 ## Build & Run
 
-__Dev__
-```
-sbt
-~reStart
-```
+Go to [skel-http](skel-http) for Building and Running generic skel component.
 
-__Fat jar__
-```
-sbt assembly
-```
-
-__Docker__
-
-Support for mulit-platform builds (__amd64__,__arm64__)
-```
-sbt docker:publish
-sbt docker:publishLocal
-```
-
-## Configuration
-
-Refer to [skel-http](skel-http) for Configuration details
-
-## Telemetry (Metrics)
-
-Refer to [skel-ingest](skel-ingest) for Prometheus details
+Refer to specific demo for running Kubernetes Deployments or Docker-Compose topologies
 
 ----
 
+## Demo
+
+Go to [skel-demo](skel-demo) for demo projlets
+
+----
 ## Libraries and Credits
 
 1. HTTP: Akka-HTTP [https://doc.akka.io/docs/akka-http/current/index.html](https://doc.akka.io/docs/akka-http/current/index.html)
