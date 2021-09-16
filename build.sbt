@@ -60,7 +60,7 @@ val sharedConfigDocker = Seq(
 val sharedConfig = Seq(
     //retrieveManaged := true,  
     organization    := "io.syspulse",
-    scalaVersion    := "2.13.3",
+    scalaVersion    := "2.13.6",
     name            := "skel",
     version         := appVersion,
 
@@ -112,7 +112,7 @@ val sharedConfigAssembly = Seq(
 
 lazy val root = (project in file("."))
   .aggregate(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow)
-  .dependsOn(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow)
+  .dependsOn(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow, scrap, ekm, npp)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
