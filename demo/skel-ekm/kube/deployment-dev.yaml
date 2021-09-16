@@ -21,7 +21,7 @@ spec:
              name: skel-ekm-configmap-dev
         - secretRef:
              name: skel-ekm-secrets-dev
-        args: ["--ekm.key","$(EKM_KEY)","--ekm.device","$(EKM_DEVICE)","--influx.uri","$(INFLUX_URI)","--log.file","$(LOG_FILE)"]
+        args: ["--ekm.uri","$(EKM_URI)","--ekm.key","$(EKM_KEY)","--ekm.device","$(EKM_DEVICE)","--influx.uri","$(INFLUX_URI)","--log.file","$(LOG_FILE)","influx"]
         volumeMounts:
         - mountPath: /cache
           name: cache-volume
