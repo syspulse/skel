@@ -23,7 +23,8 @@ object Util {
   
   def toHexString(b:Array[Byte]) = b.foldLeft("")((s,b)=>s + f"$b%02x")
   
-  def hex(x: Seq[Byte],prefix:Boolean=true) = s"""${if(prefix) "0x" else ""}${x.toArray.map("%02x".format(_)).mkString}"""
+  //def hex(x: Seq[Byte],prefix:Boolean=true):String = hex(x.toArray,prefix)
+  def hex(x: Array[Byte],prefix:Boolean=true):String = s"""${if(prefix) "0x" else ""}${x.toArray.map("%02x".format(_)).mkString}"""
 
   def SHA256(data:Array[Byte]):Array[Byte] = digest.digest(data)
   def SHA256(data:String):Array[Byte] = digest.digest(data.getBytes(StandardCharsets.UTF_8))
@@ -70,11 +71,17 @@ object Util {
     UUID(bb)
   }
 
-  def getHostPort(address:String):(String,Int) = { val (host,port) = address.split(":").toList match{ case h::p => (h,p(0))}; (host,port.toInt)}
+  def getHostPort(address:String):(String,Int) = { 
+    val (host,port) = address.split(":").toList match{ 
+      case h::p => (h,p(0))
+      case _ => (address,"0")
+    }
+    (host,port.toInt)
+  }
 
   def rnd(limit:Double) = Random.between(0,limit)
 
-  def toCSV(o:Product):String = o.productIterator.foldRight("")(_ + "," + _).stripSuffix(",")
+  def toCSV(o:Product):String = o.productIterator.foldRight("")(_.toString + "," + _.toString).stripSuffix(",")
 
   import scala.reflect.runtime.universe._ 
 
