@@ -15,6 +15,9 @@ import java.security.MessageDigest
 import java.time.{ZoneId,ZonedDateTime,LocalDateTime,Instant}
 import java.time.format._
 
+import scala.util.Using, java.nio.file.{Files, Paths, Path}, java.nio.charset.Charset
+import java.nio.file.StandardOpenOption
+
 object Util {
 
   val random = new SecureRandom
@@ -127,6 +130,18 @@ object Util {
   }
 
   def getDirWithSlash(dir:String):String = if(dir.isBlank()) dir else if(dir.trim.endsWith("/")) dir else dir + "/"
+
+  def writeToFile(fileName:String,lines:Seq[String]) = 
+    Using(Files.newBufferedWriter(Paths.get(fileName), Charset.forName("UTF-8"), StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+      writer => lines.foreach(line => writer.write(s"${line}\n"))
+  }
+
+  def appendToFile(fileName:String,lines:Seq[String]) = 
+    Using(Files.newBufferedWriter(Paths.get(fileName), Charset.forName("UTF-8"), 
+          StandardOpenOption.APPEND, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+      writer => lines.foreach(line => writer.write(s"${line}\n"))
+  }
+
 }
 
 
