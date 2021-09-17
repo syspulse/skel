@@ -42,5 +42,5 @@ STACK=${STACK:-512M}
 >&2 pwd
 
 # command:
-EXEC="$JAVA_HOME/bin/java -Xss${STACK} -Xms${MEM} -Dconfig.resource=$CONFIG -cp $CP $AGENT $OPT $MAIN $@"
+EXEC="$JAVA_HOME/bin/java -Xss${STACK} -Xms${MEM} -Dcolor -Dconfig.resource=$CONFIG -cp $CP $AGENT $OPT $MAIN $@"
 exec $EXEC

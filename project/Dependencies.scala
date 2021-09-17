@@ -64,6 +64,7 @@ object Dependencies {
 
     val libScalaLogging =   "com.typesafe.scala-logging"  %% "scala-logging"        % "3.9.2"
     val libLogback =        "ch.qos.logback"              %  "logback-classic"      % "1.2.3"
+    val libJanino =         "org.codehaus.janino"         %  "janino"               % "3.1.6"
     // I need this rubbish slf4j to deal with old jboss dependecny which generates exception in loading logback.xml
     //val libSlf4jApi =       "org.slf4j"                   %  "slf4j-api"            % "1.8.0-beta4"
     // Supports only old XML Config file format
@@ -127,7 +128,7 @@ object Dependencies {
     val libAlpakka = Seq(libAlpakkaInfluxDB)
     val libPrometheus = Seq(libPrometheusClient,libPrometheusHttp,libPrometheusHotspot)
     val libHttp = Seq(libAkkaHttp,libAkkaHttpSpray,libAkkaHttpMetrics) ++ libPrometheus
-    val libCommon = Seq(libScalaLogging, libSlf4jApi, libLogback, libTypesafeConfig )
+    val libCommon = Seq(libScalaLogging, libSlf4jApi, libLogback, libJanino, libTypesafeConfig )
     
     val libTest = Seq(libScalaTest % Test,libAkkaTestkit % Test,libAkkaTestkitType % Test)
     val libTestLib = Seq(libScalaTest,libAkkaTestkit,libAkkaTestkitType)
