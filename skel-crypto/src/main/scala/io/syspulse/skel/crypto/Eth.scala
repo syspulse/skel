@@ -19,20 +19,34 @@ object Eth {
   
   def presig(m:String) = {val p = "\u0019Ethereum Signed Message:\n" + m.size; Hash.keccak256(p + m)}
 
+  def normalize(kk:ECKeyPair):(String,String) = {
+    val skb = kk.getPrivateKey().toByteArray
+    val sk:Array[Byte] = skb.size match {
+      case 31 => skb.toArray.+:(0)
+      case 32 => skb
+      case 33 => skb.drop(1)
+      case _ => Array.fill(32 - skb.size)(0.toByte) ++ skb
+    }
+    val pkb = kk.getPublicKey().toByteArray
+    val pk:Array[Byte] = pkb.size match {
+      case 63 => pkb.toArray.+:(0)
+      case 64 => pkb
+      case 65 => pkb.drop(1)
+      case _ => Array.fill(64 - pkb.size)(0.toByte) ++ pkb
+    }
+    (Util.hex(sk),Util.hex(pk)) 
+  }
+
+  def generate(sk:String):(String,String) = { 
+    val kk = ECKeyPair.create(Numeric.hexStringToByteArray(sk))
+    println(s"kk => ${kk.getPrivateKey()}")
+    normalize(kk)
+  }
+
   // generate random
   def generate:(String,String) = { 
     val kk = Keys.createEcKeyPair(); 
-    val sk:Array[Byte] = kk.getPrivateKey().toByteArray.size match {
-      case 31 => kk.getPrivateKey().toByteArray.toArray.+:(0)
-      case 32 => kk.getPrivateKey().toByteArray
-      case 33 => kk.getPrivateKey().toByteArray.drop(1)
-    }
-    val pk:Array[Byte] = kk.getPublicKey().toByteArray.size match {
-      case 63 => kk.getPublicKey().toByteArray.toArray.+:(0)
-      case 64 => kk.getPublicKey().toByteArray
-      case 65 => kk.getPublicKey().toByteArray.drop(1)
-    }
-    (Util.hex(sk),Util.hex(pk)) 
+    normalize(kk)
   }
 
   def address(pk:String):String = Util.hex(Hash.keccak256(Numeric.hexStringToByteArray(pk)).takeRight(20))
