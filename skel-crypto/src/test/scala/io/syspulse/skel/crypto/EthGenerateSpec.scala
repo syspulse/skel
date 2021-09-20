@@ -51,5 +51,14 @@ class EthGenerateSpec extends WordSpec with Matchers {
       kk._2.size should === (64*2+2)
       kk._2 should === ("0xf9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9388f7b0f632de8140fe337e62a37f3566500a99934c2231b6cb9fd7584b8e672")
     }
+
+    "generate test keys:" in {
+      for( i <- 0xff01 to 0xff05) {
+        val kk = Eth.generate(Util.hex(BigInt(i).toByteArray))
+        info(s"${kk}")
+        kk._1.size should === (32*2+2)
+        kk._2.size should === (64*2+2)
+      }
+    }
   }
 }
