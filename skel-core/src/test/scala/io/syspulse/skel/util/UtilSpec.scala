@@ -1,6 +1,9 @@
 package io.syspulse.skel.util
 
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.{Ignore}
+import org.scalatest.wordspec.{ AnyWordSpec}
+import org.scalatest.matchers.should.{ Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
 
 import java.time._
 import io.jvm.uuid._
@@ -10,7 +13,7 @@ case class DataUnit(v:Double,unit:String)
 case class Data(ts:Long,v:DataUnit)
 case class DataList(name:String,data:List[Data])
 
-class UtilSpec extends WordSpec with Matchers {
+class UtilSpec extends AnyWordSpec with Matchers {
   
   "Util" should {
 
