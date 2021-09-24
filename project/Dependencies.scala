@@ -100,7 +100,7 @@ object Dependencies {
     //val libJson4s =         "org.json4s"                  %%  "json4s-native"        % "3.6.7"
     val libOsLib =          "com.lihaoyi"                 %% "os-lib"               % "0.7.7"
     val libUpickleLib =     "com.lihaoyi"                 %% "upickle"              % "1.4.1"
-    //val libUjsonLib =       "com.lihaoyi"                 %% "ujson"                % "1.3.15"
+    //val libUjsonLib =       "com.lihaoyi"                 %% "ujson"                % "1.4.1"
     val libScalaTags =      "com.lihaoyi"                 %% "scalatags"            % "0.9.4"
     val libCask =           "com.lihaoyi"                 %% "cask"                 % "0.7.11"
     val libRequests =       "com.lihaoyi"                 %% "requests"             % "0.6.9"
