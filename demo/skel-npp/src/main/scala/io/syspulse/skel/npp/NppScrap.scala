@@ -19,7 +19,7 @@ import io.syspulse.skel.flow._
 import os._
 
 class NppScrap(rootUrl:String = "http://localhost:30004/MEDO-PS", limit:Int = Int.MaxValue, delay:Long = 1000L, delayVariance:Long = 1L) 
-    extends Stage[NppData]("NPP-Scrap") {
+    extends Stage[NppData]("NPP-Scrap")(new RepeatErrorPolicy(delay=60000L)) {
   
   def sensorUrl(href:String) = s"${rootUrl}/${href}"
 

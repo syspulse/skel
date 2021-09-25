@@ -9,10 +9,11 @@ object StageID {
   def apply(name:String=""):StageID = apply(name,System.currentTimeMillis)
 }
 
-abstract class Stage[F](name:String) {
+abstract class Stage[F](name:String)(implicit errorPolicy:ErrorPolicy = new RepeatErrorPolicy()) {
   val log = Logger(s"${this}")
 
   def getName = name
+  def getErrorPolicy = errorPolicy
 
   def exec(flow:Flow[F]):Flow[F]
   def start(flow:Flow[F]):Flow[F] = { flow }

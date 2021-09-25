@@ -2,7 +2,7 @@ package io.syspulse.skel.flow
 
 import com.typesafe.scalalogging.Logger
 
-case class Flow[F](id:FlowID,data:F,pipeline:Pipeline[F],var location:String)
+case class Flow[F](id:FlowID,var data:F,pipeline:Pipeline[F],var location:String)
 
 case class FlowID(id:String)
 object FlowID {

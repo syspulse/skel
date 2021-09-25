@@ -15,4 +15,5 @@ trait FlowTestable {
   os.makeDir.all(os.Path("/tmp/Flow1"))
 
   implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(0.0001)
+
 }

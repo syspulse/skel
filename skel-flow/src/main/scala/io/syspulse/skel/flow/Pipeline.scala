@@ -43,7 +43,7 @@ class Pipeline[F](name:String,stages:List[Stage[F]] = List(),pipelineDir:String 
       flow = st.start(flow)
     })
 
-    exec(flow)
+    flow = exec(flow)
 
     stages.foreach( st => {
       log.info(s"${name}: stopping Stage: ${st}")
@@ -65,7 +65,20 @@ class Pipeline[F](name:String,stages:List[Stage[F]] = List(),pipelineDir:String 
       val stageLocation = resolveStageLocation(flow.id,st,"")
       flow.location = stageLocation
 
-      flow = st.exec(flow)
+      var err:Boolean = false
+      do {
+        err = try {
+          flow = st.exec(flow)
+          false
+        }catch {
+          case e:Throwable => {
+            val errorPolicy = st.getErrorPolicy
+            log.error(s"${name}: Stage ${st}: failed: errorPolicy=${errorPolicy}: err=",e)
+            
+            errorPolicy.repeat
+          }
+        }
+      } while(err)
     })
 
     flow
