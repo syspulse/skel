@@ -1,3 +1,3 @@
 #!/bin/bash
 
-influx bucket update -i npp-bucket -r 180d
+influx bucket update -i $INFLUX_BUCKET -r 180d

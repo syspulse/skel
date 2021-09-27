@@ -1,2 +1,3 @@
 export INFLUX_ADMIN_TOKEN=V7pcAci-WbG2igLB_hzOKrSqgyxJcmJuz3AxRPbytReklQLF5S3FRyDNOhQ1qOCItDaYCtEfKLIjKrZfzLf9tA==
-export INFLUX_ORG_ID=df560bffb5acc1c6
+export INFLUX_ORG=df560bffb5acc1c6
+export INFLUX_BUCKET=npp-bucket

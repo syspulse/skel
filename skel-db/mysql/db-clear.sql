@@ -1,0 +1,2 @@
+USE service_db;
+TRUNCATE TABLE SERVICE_1;

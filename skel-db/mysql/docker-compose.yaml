@@ -1,16 +1,23 @@
 version: '3'
+
+networks:
+  mysql:
+
 services:
   mysql-1:
     image: mysql/mysql-server:8.0
+    container_name: mysql
     volumes:
-      - "./db:/var/lib/mysql-db"
+      - "${PWD}/db_data:/var/lib/mysql-db"
     restart: always
     ports:
       - 3306:3306
+    networks:
+      - mysql
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_ROOT_HOST: '%'
       MYSQL_HOST: 0.0.0.0
-      MYSQL_DATABASE: world_db
-      MYSQL_USER: world_user
-      MYSQL_PASSWORD: world_pass
+      MYSQL_DATABASE: service_db
+      MYSQL_USER: service_user
+      MYSQL_PASSWORD: service_pass

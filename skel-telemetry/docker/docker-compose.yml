@@ -1,7 +1,7 @@
 version: "3"
 
 networks:
-  grafana:
+  telemetry:
 
 #volumes:
 #  app_data: 
@@ -20,7 +20,7 @@ services:
     ports:
       - 9090:9090
     networks:
-      - grafana
+      - telemetry
 
   loki:
     image: grafana/loki:1.6.1
@@ -31,7 +31,7 @@ services:
       - 3100:3100
     command: -config.file=/etc/loki/local-config.yaml
     networks:
-      - grafana
+      - telemetry
 
   promtail:
     image: grafana/promtail:1.6.1
@@ -42,7 +42,7 @@ services:
       - ./app_data:/var/log
     command: -config.file=/etc/promtail/config.yaml
     networks:
-      - grafana
+      - telemetry
 
   grafana:
     image: grafana/grafana:7.3.6
@@ -51,9 +51,9 @@ services:
     ports:
       - 3000:3000
     networks:
-      - grafana
+      - telemetry
     environment:
-      - GF_INSTALL_PLUGINS="grafana-worldmap-panel"
+      - GF_INSTALL_PLUGINS=grafana-worldmap-panel
 
   graphite:
     image: graphiteapp/graphite-statsd
@@ -74,7 +74,7 @@ services:
       #- graphite_data:/opt/graphite/storage
       # - ./log/graphite:/var/log/graphite
     networks:
-      - grafana
+      - telemetry
 
   influxdb:
     image: influxdb:2.0
@@ -99,4 +99,4 @@ services:
       - V1_AUTH_USERNAME=ekm_user
       - V1_AUTH_PASSWORD=ekm_pass
     networks:
-      - grafana
+      - telemetry
