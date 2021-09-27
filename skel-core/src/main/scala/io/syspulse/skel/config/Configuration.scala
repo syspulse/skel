@@ -77,7 +77,8 @@ class ConfigurationAkka extends ConfigurationLike {
   def getAll():Seq[(String,Any)] = {
     if(!akkaConfig.isDefined) return Seq()
 
-    akkaConfig.get.entrySet().asScala.toSeq.map(es => (es.getKey(),es.getValue.toString))
+    // ATTENTION: unwraps values !
+    akkaConfig.get.entrySet().asScala.toSeq.map(es => (es.getKey(),es.getValue.unwrapped))
   }
 
   def getDuration(path:String):Option[Duration] = 

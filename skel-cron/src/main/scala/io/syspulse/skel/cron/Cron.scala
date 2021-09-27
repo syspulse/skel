@@ -19,6 +19,8 @@ import org.quartz.SimpleScheduleBuilder._
 import org.quartz.CronScheduleBuilder._
 import org.quartz.DateBuilder._
 
+import io.syspulse.skel.config.Configuration
+
 object Cron {
   val DATA_KEY = "cronjob-data"
 }
@@ -39,15 +41,37 @@ class CronJob extends Job {
 	}
 }
 
-class Cron(exec:(Long)=>Boolean, expr:String,cronName:String="Cron1",jobName:String="job1",groupName:String="group1") extends Closeable {
+class Cron(exec:(Long)=>Boolean, expr:String, conf:Option[(String,Configuration)] = None, cronName:String="Cron1",jobName:String="job1",groupName:String="group1") extends Closeable {
   val log = Logger(s"${this}")
+
+  log.info(s"expr='${expr}': ${cronName},${jobName},${groupName}")
 
   // set default 1 thread
   if(System.getProperty("org.quartz.threadPool.threadCount") == null) System.setProperty("org.quartz.threadPool.threadCount","1")
 
-  log.info(s"expr='${expr}': ${cronName},${jobName},${groupName}")
+  lazy val scheduler = 
+    if(conf.isDefined) {
+      // load config from config branch
+      val (configName,configuration) = conf.get
 
-  lazy val scheduler = StdSchedulerFactory.getDefaultScheduler()
+      val prefix = if(configName.isBlank()) "" else configName.trim + "."
+
+      val pp = new java.util.Properties()
+      configuration.getAll().foreach{ case(k,v) => {
+        if(k.startsWith(s"${prefix}org.quartz.")) {
+          val key = k.stripPrefix(prefix)
+          log.debug(s"setting: ${key}=${v}")
+          pp.put(key,v.toString)
+        }
+      }}
+
+      val sf = new StdSchedulerFactory()
+      log.info(s"initializing Quartz: Properties(${pp})")
+      sf.initialize(pp)
+      sf.getScheduler
+    } else {
+      StdSchedulerFactory.getDefaultScheduler()
+    }
 
   def start:Try[java.time.LocalDate] = {
     try {
