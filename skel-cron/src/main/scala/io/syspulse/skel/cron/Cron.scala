@@ -6,10 +6,12 @@ import scala.jdk.CollectionConverters._
 import java.util.concurrent._
 import java.io.Closeable
 
+import com.typesafe.scalalogging.Logger
+
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException
 import org.quartz.impl.StdSchedulerFactory
-import org.quartz.{ Job, JobDetail, JobExecutionContext, JobDataMap }
+import org.quartz.{ JobExecutionException, Job, JobDetail, JobExecutionContext, JobDataMap }
 import org.quartz.JobBuilder._
 import org.quartz.TriggerBuilder._
 import org.quartz.SimpleScheduleBuilder._
@@ -18,25 +20,32 @@ import org.quartz.CronScheduleBuilder._
 import org.quartz.DateBuilder._
 
 object Cron {
-  val EXEC_KEY = "exec"
+  val DATA_KEY = "cronjob-data"
 }
 
-case class CronJobData(exec:(Long)=>Boolean)
+case class CronJobData(exec:(Long)=>Boolean,var ts0:Long)
 class CronJob extends Job {
-  
+
 	def execute(context:JobExecutionContext) = {
+    val data: JobDataMap = context.getMergedJobDataMap();
+    
+    val cd = data.get(Cron.DATA_KEY).asInstanceOf[CronJobData]
+    val ts0: Long = cd.ts0
 
-    // throws JobExecutionException
-		val data: JobDataMap = context.getMergedJobDataMap();
-    val cd = data.get(Cron.EXEC_KEY).asInstanceOf[CronJobData]
-		//System.out.println("someProp = " + data.getString("someProp"));
-    cd.exec(0L)
+    val ts1 = System.currentTimeMillis
+		if(false == cd.exec(ts1 - ts0)) 
+      throw new JobExecutionException
+    cd.ts0 = ts1
 	}
-
 }
 
 class Cron(exec:(Long)=>Boolean, expr:String,cronName:String="Cron1",jobName:String="job1",groupName:String="group1") extends Closeable {
+  val log = Logger(s"${this}")
+
+  // set default 1 thread
   if(System.getProperty("org.quartz.threadPool.threadCount") == null) System.setProperty("org.quartz.threadPool.threadCount","1")
+
+  log.info(s"expr='${expr}': ${cronName},${jobName},${groupName}")
 
   lazy val scheduler = StdSchedulerFactory.getDefaultScheduler()
 
@@ -45,8 +54,8 @@ class Cron(exec:(Long)=>Boolean, expr:String,cronName:String="Cron1",jobName:Str
       scheduler.start();
 
       val job:JobDetail = newJob(classOf[CronJob])
-      .withIdentity("job1", "group1")
-      .usingJobData(new JobDataMap(Map(Cron.EXEC_KEY->CronJobData(exec)).asJava))
+      .withIdentity(jobName, groupName)
+      .usingJobData(new JobDataMap(Map(Cron.DATA_KEY->CronJobData(exec,System.currentTimeMillis)).asJava))
       .build();
 
       val trigger = newTrigger()

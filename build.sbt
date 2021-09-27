@@ -152,9 +152,11 @@ lazy val `skel-test` = (project in file("skel-test"))
     )
 
 lazy val cron = (project in file("skel-cron"))
-  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .dependsOn(core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
+      sharedConfigAssembly,
       name := "skel-cron",
       libraryDependencies ++= 
         libCommon ++ 
@@ -162,6 +164,10 @@ lazy val cron = (project in file("skel-cron"))
         Seq(
           libQuartz
         ),
+      run / mainClass := Some(appBootClassCron),
+      assembly / mainClass := Some(appBootClassCron),
+      Compile / mainClass := Some(appBootClassCron),
+      assembly / assemblyJarName := jarPrefix + appNameCron + "-" + "assembly" + "-"+  appVersion + ".jar",
     )
 
 
@@ -387,7 +393,7 @@ lazy val flow = (project in file("skel-flow"))
 
 
 lazy val scrap = (project in file("skel-scrap"))
-  .dependsOn(core,flow)
+  .dependsOn(core,cron,flow)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -449,7 +455,7 @@ lazy val ekm = (project in file("demo/skel-ekm"))
   )
 
 lazy val npp = (project in file("demo/skel-npp"))
-  .dependsOn(core,flow,scrap)
+  .dependsOn(core,cron,flow,scrap)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)

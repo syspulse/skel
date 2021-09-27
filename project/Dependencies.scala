@@ -43,8 +43,11 @@ object Dependencies {
     lazy val appNameNpp = "skel-npp"
     lazy val appBootClassNpp = "io.syspulse.skel.npp.App"
 
+    lazy val appNameCron = "skel-cron"
+    lazy val appBootClassCron = "io.syspulse.skel.cron.App"
+
     
-    lazy val appVersion = "0.0.4"
+    lazy val appVersion = "0.0.5"
     lazy val jarPrefix = "server-"
     
     lazy val appDockerRoot = "/app"
@@ -123,7 +126,7 @@ object Dependencies {
 
     val libScalaScraper =   "net.ruippeixotog"              %% "scala-scraper"      % "2.2.1"
 
-    val libQuartz =         "org.quartz-scheduler"          % "quartz"              % "2.3.2"
+    val libQuartz =         "org.quartz-scheduler"          % "quartz"              % "2.3.2" exclude("com.zaxxer", "HikariCP-java7")
 
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)

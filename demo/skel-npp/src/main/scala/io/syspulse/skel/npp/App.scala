@@ -4,7 +4,7 @@ import io.prometheus.client.Counter
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.util.Cron
+import io.syspulse.skel.cron.Cron
 import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv,ConfigurationProp}
 
 import io.syspulse.skel.flow._
@@ -19,6 +19,7 @@ case class Config(
   uri:String = "",
   
   nppUrl:String = "",
+  nppCron:String = "",
   nppInterval:Long = -1L,
   nppDelay:Long = -1L,
   nppVariance:Long = -1L,
@@ -46,8 +47,10 @@ object App extends skel.Server {
         opt[String]('h', "http.host").action((x, c) => c.copy(host = x)).text("hostname"),
         opt[Int]('p', "http.port").action((x, c) => c.copy(port = x)).text("port"),
         opt[String]('u', "http.uri").action((x, c) => c.copy(uri = x)).text("uri"),
+
         opt[String]('n', "npp.url").action((x, c) => c.copy(nppUrl = x)).text("npp url"),
         opt[String]('f', "npp.format").action((x, c) => c.copy(format = x)).text("format (csv/json or none)"),
+        opt[String]("npp.cron").action((x, c) => c.copy(nppCron = x)).text("cron expression (def: '0 30 14 * * *'"),
         opt[Long]("npp.interval").action((x, c) => c.copy(nppInterval = x)).text("repeat interval in msec (omit if none)"),
         opt[Long]("npp.delay").action((x, c) => c.copy(nppDelay = x)).text("delay between requests (msec)"),
         opt[Long]("npp.variance").action((x, c) => c.copy(nppVariance = x)).text("varinace in delay (msec)"),
@@ -69,6 +72,7 @@ object App extends skel.Server {
           uri = { if(! configArgs.uri.isEmpty) configArgs.uri else confuration.getString("http.uri").getOrElse("/api/v1/npp") },
           
           nppUrl = { if(! configArgs.nppUrl.isEmpty) configArgs.nppUrl else confuration.getString("npp.url").getOrElse("http://localhost:30004/MEDO-PS") },
+          nppCron = { if(! configArgs.nppCron.isEmpty) configArgs.nppCron else confuration.getString("npp.cron").getOrElse("0 30 14 * * *") },
           nppInterval = { if(configArgs.nppInterval != -1L) configArgs.nppInterval else confuration.getLong("npp.interval").getOrElse(10000L) },
           nppDelay = { if(configArgs.nppDelay != -1L) configArgs.nppDelay else confuration.getLong("npp.delay").getOrElse(100L) },
           nppVariance = { if(configArgs.nppInterval != -1L) configArgs.nppInterval else confuration.getLong("npp.variance").getOrElse(100L) },
@@ -92,13 +96,13 @@ object App extends skel.Server {
           )
         )
 
-        new Cron(FiniteDuration(config.nppInterval,TimeUnit.MILLISECONDS),() => {
+        new Cron((elapsed:Long) => {
             val flow = pipe.run(NppData())
             metricCount.inc()
+            true // always repeat
           },
-          delay = 0L
-        )
-        
+          config.nppCron
+        ).start
         
         run( config.host, config.port,config.uri,confuration,
           Seq()

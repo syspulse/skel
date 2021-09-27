@@ -13,7 +13,9 @@ APP=${1}
 MAIN=${2}
 
 shift
-shift 
+shift
+
+ARGS="$@"
 
 APP_HOME=${APP_HOME:-`pwd`}
 
@@ -32,7 +34,7 @@ STACK=${STACK:-512M}
 >&2 echo "APP_HOME: $APP_HOME"
 >&2 echo "MAIN: $MAIN"
 >&2 echo "OPT: $OPT"
->&2 echo "ARGS: $@"
+>&2 echo "ARGS: $ARGS"
 >&2 echo "SITE: ${SITE}"
 >&2 echo "CONFIG: ${CONFIG}"
 >&2 echo "MEM: ${MEM}"
@@ -42,5 +44,4 @@ STACK=${STACK:-512M}
 >&2 pwd
 
 # command:
-EXEC="$JAVA_HOME/bin/java -Xss${STACK} -Xms${MEM} -Dcolor -Dconfig.resource=$CONFIG -cp $CP $AGENT $OPT $MAIN $@"
-exec $EXEC
+exec $JAVA_HOME/bin/java -Xss${STACK} -Xms${MEM} -Dcolor -Dconfig.resource=$CONFIG -cp $CP $AGENT $OPT $MAIN "$ARGS"

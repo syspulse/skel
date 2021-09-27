@@ -4,7 +4,7 @@ import io.prometheus.client.Counter
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.util.Cron
+import io.syspulse.skel.cron.Cron
 import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv,ConfigurationProp}
 
 import io.syspulse.skel.flow._
@@ -17,9 +17,13 @@ case class Config(
   host:String="",
   port:Int=0,
   uri:String = "",
-  nppUrl:String = "",
+  
+  sourceUrl:String = "",
+  sourceInterval:Long = -1L,
+  sourceCron:String = "",
+
   format:String = "",
-  interval:Long = -1L,
+
   influxUri:String = "",
   influxOrg:String = "",
   influxBucket:String = "",
@@ -41,9 +45,12 @@ object App extends skel.Server {
         opt[String]('h', "host").action((x, c) => c.copy(host = x)).text("hostname"),
         opt[Int]('p', "port").action((x, c) => c.copy(port = x)).text("port"),
         opt[String]('u', "uri").action((x, c) => c.copy(uri = x)).text("uri"),
-        opt[String]('n', "npp.url").action((x, c) => c.copy(nppUrl = x)).text("npp url"),
+
+        opt[String]('n', "source.url").action((x, c) => c.copy(sourceUrl = x)).text("source url"),
+        opt[Long]('i', "source.interval").action((x, c) => c.copy(sourceInterval = x)).text("repeat interval in msec (omit if none)"),
+        opt[String]("source.cron").action((x, c) => c.copy(sourceCron = x)).text("cron expression (def: '*/1 * * * * *'"),
+
         opt[String]('f', "format").action((x, c) => c.copy(format = x)).text("format (csv/json or none)"),
-        opt[Long]('i', "npp.interval").action((x, c) => c.copy(interval = x)).text("repeat interval in msec (omit if none)"),
 
         opt[String]("influx.uri").action((x, c) => c.copy(influxUri = x)).text("Influx Uri (http://localhost:8086)"),
         opt[String]("influx.org").action((x, c) => c.copy(influxOrg = x)).text("Influx Org"),
@@ -60,9 +67,11 @@ object App extends skel.Server {
           host = { if(! configArgs.host.isEmpty) configArgs.host else confuration.getString("http.host").getOrElse("0.0.0.0") },
           port = { if(configArgs.port!=0) configArgs.port else confuration.getInt("http.port").getOrElse(8080) },
           uri = { if(! configArgs.uri.isEmpty) configArgs.uri else confuration.getString("http.uri").getOrElse("/api/v1/scrap") },
-          nppUrl = { if(! configArgs.nppUrl.isEmpty) configArgs.nppUrl else confuration.getString("npp.url").getOrElse("http://localhost:30004/MEDO-PS") },
+
+          sourceUrl = { if(! configArgs.sourceUrl.isEmpty) configArgs.sourceUrl else confuration.getString("source.url").getOrElse("http://localhost:30004/MEDO-PS") },
           format = { if(! configArgs.format.isEmpty) configArgs.format else confuration.getString("format").getOrElse("csv") },
-          interval = { if(configArgs.interval != -1L) configArgs.interval else confuration.getLong("npp.interval").getOrElse(10000L) },
+          sourceInterval = { if(configArgs.sourceInterval != -1L) configArgs.sourceInterval else confuration.getLong("source.interval").getOrElse(10000L) },
+          sourceCron = { if(! configArgs.sourceCron.isEmpty) configArgs.sourceCron else confuration.getString("source.cron").getOrElse("*/1 * * * * *") },
 
           influxUri = { if(! configArgs.influxUri.isEmpty) configArgs.influxUri else confuration.getString("influx.uri").getOrElse("http://localhost:8086") },
           influxOrg = { if(! configArgs.influxOrg.isEmpty) configArgs.influxOrg else confuration.getString("influx.org").getOrElse("") },
@@ -72,11 +81,14 @@ object App extends skel.Server {
 
         Console.err.println(s"Config: ${config}")
 
-        new Cron(FiniteDuration(config.interval,TimeUnit.MILLISECONDS),() => {
-            println(s"Ping")
+        new Cron((elapsed:Long) => {
+            //val flow = pipe.run(NppData())
+            println(s"${System.currentTimeMillis}: Ping: ${elapsed}")
+            metricCount.inc()
+            true
           },
-          delay = 0L
-        )
+          config.sourceCron
+        ).start
         
         run( config.host, config.port,config.uri,confuration,
           Seq()
