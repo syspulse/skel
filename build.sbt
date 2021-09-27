@@ -111,8 +111,8 @@ val sharedConfigAssembly = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow)
-  .dependsOn(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow, scrap, ekm, npp)
+  .aggregate(core, cron, `skel-test`, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow)
+  .dependsOn(core, cron, `skel-test`, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow, scrap, ekm, npp)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -136,7 +136,7 @@ lazy val core = (project in file("skel-core"))
         Seq(libUUID),
     )
 
-lazy val skel_test = (project in file("skel-test"))
+lazy val `skel-test` = (project in file("skel-test"))
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -149,6 +149,19 @@ lazy val skel_test = (project in file("skel-test"))
         libDB ++ 
         libTestLib ++
         Seq(),
+    )
+
+lazy val cron = (project in file("skel-cron"))
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      name := "skel-cron",
+      libraryDependencies ++= 
+        libCommon ++ 
+        libTest ++ 
+        Seq(
+          libQuartz
+        ),
     )
 
 
@@ -198,7 +211,7 @@ lazy val auth = (project in file("skel-auth"))
   )
 
 lazy val otp = (project in file("skel-otp"))
-  .dependsOn(core,skel_test % Test)
+  .dependsOn(core,`skel-test` % Test)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)

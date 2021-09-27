@@ -123,6 +123,8 @@ object Dependencies {
 
     val libScalaScraper =   "net.ruippeixotog"              %% "scala-scraper"      % "2.2.1"
 
+    val libQuartz =         "org.quartz-scheduler"          % "quartz"              % "2.3.2"
+
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)
