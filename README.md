@@ -16,6 +16,10 @@ Skeletons for RnD Prototypes
 11. [skel-spark](skel-spark) - Spark tools
 12. [skel-datalake](skel-datalake) - Datalake concepts
 13. [skel-flow](skel-flow) - DataFlows and Workflows
+14. [skel-scrap](skel-scrap) - Scraping pipelines
+15. [skel-cli](skel-cli) - Shell command line client
+16. [skel-cron](skel-cron) - Cron engine
+17. [skel-dashboard](skel-dashboard) - Dashboards (Polynote/Zepellin)
 
 ----
 ## Build & Run
@@ -26,9 +30,9 @@ Refer to specific demo for running Kubernetes Deployments or Docker-Compose topo
 
 ----
 
-## Demo
+## Demos
 
-Go to [skel-demo](skel-demo) for demo projlets
+Go to [demo](demo) for demo projlets
 
 ----
 ## Libraries and Credits
@@ -46,6 +50,6 @@ Go to [skel-demo](skel-demo) for demo projlets
 11. InfluxDB Stream: Alpakka [https://github.com/akka/alpakka](https://github.com/akka/alpakka)
 12. InfluxDB-2: [https://github.com/influxdata/influxdb-client-java](https://github.com/influxdata/influxdb-client-java)
 13. Geohash: [https://github.com/davidallsopp/geohash-scala](https://github.com/davidallsopp/geohash-scala)
-
+14. Quartz: [http://www.quartz-scheduler.org](http://www.quartz-scheduler.org)
 
 Other libraries are referenced in corresponding modules
