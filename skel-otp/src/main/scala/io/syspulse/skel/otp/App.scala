@@ -11,7 +11,9 @@ case class Config(
   host:String="",
   port:Int=0,
   uri:String = "",
-  datastore:String = ""
+  datastore:String = "",
+
+  files: Seq[String] = Seq(),
 )
 
 object App extends skel.Server {
@@ -29,30 +31,36 @@ object App extends skel.Server {
         opt[String]('u', "http.uri").action((x, c) => c.copy(uri = x)).text("rest uri (def: /api/v1/otp)"),
 
         opt[String]('d', "datastore").action((x, c) => c.copy(datastore = x)).text("datastore"),
+
+        help("help").text(s"${Util.info._1} microservice"),
+        arg[String]("...").unbounded().optional().action((x, c) => c.copy(files = c.files :+ x)).text("files"),
       )
     } 
   
     OParser.parse(argsParser, args, Config()) match {
       case Some(configArgs) => {
-        val confuration = Configuration.default
+        val configuration = Configuration.default
 
         val config = Config(
-          host = { if(! configArgs.host.isEmpty) configArgs.host else confuration.getString("http.host").getOrElse("0.0.0.0") },
-          port = { if(configArgs.port!=0) configArgs.port else confuration.getInt("http.port").getOrElse(8080) },
-          uri = { if(! configArgs.uri.isEmpty) configArgs.uri else confuration.getString("http.uri").getOrElse("/api/v1/otp") },
-          datastore = { if(! configArgs.datastore.isEmpty) configArgs.datastore else confuration.getString("datastore").getOrElse("cache") }.toLowerCase,
+          host = { if(! configArgs.host.isEmpty) configArgs.host else configuration.getString("http.host").getOrElse("0.0.0.0") },
+          port = { if(configArgs.port!=0) configArgs.port else configuration.getInt("http.port").getOrElse(8080) },
+          uri = { if(! configArgs.uri.isEmpty) configArgs.uri else configuration.getString("http.uri").getOrElse("/api/v1/otp") },
+          datastore = { if(! configArgs.datastore.isEmpty) configArgs.datastore else configuration.getString("datastore").getOrElse("cache") }.toLowerCase,
         )
 
         println(s"Config: ${config}")
 
-        val store = config.datastore match {          
-          case "mysql" | "db" => new OtpStoreDB
-          case "postgres" => new OtpStoreDB
+        val store = config.datastore match {
+          case "mysql" | "db" => new OtpStoreDB(configuration)
+          case "postgres" => new OtpStoreDB(configuration)
           case "mem" | "cache" => new OtpStoreMem
-          case _ => new OtpStoreMem
+          case _ => {
+            Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
+            new OtpStoreMem
+          }
         }
 
-        run( config.host, config.port,config.uri,confuration,
+        run( config.host, config.port,config.uri,configuration,
           Seq(
             (OtpRegistry(store),"OtpRegistry",(actor,actorSystem ) => new OtpRoutes(actor)(actorSystem) ),
             

@@ -33,6 +33,8 @@ __NOTE__: Change DB credentials !
 
 2. Generate CA and Certificate
 
+Ref:[https://goharbor.io/docs/2.3.0/install-config/configure-https/](https://goharbor.io/docs/2.3.0/install-config/configure-https/)
+
 Use [harbor-cert.sh](harbor-cert.sh)
 
 ```

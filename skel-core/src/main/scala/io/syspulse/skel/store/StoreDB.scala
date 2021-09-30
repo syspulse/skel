@@ -17,13 +17,32 @@ import scala.jdk.CollectionConverters._
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.Logger
 
-abstract class StoreDB[E](val dbConfigName:String,val tableName:String) extends Store[E] {
+import io.syspulse.skel.config.Configuration
+
+abstract class StoreDB[E](val dbConfigName:String,val tableName:String,configuration:Option[Configuration]=None) extends Store[E] {
   val log = Logger(s"${this}")
 
-  val prop = new java.util.Properties
-  val config = ConfigFactory.load().getConfig(dbConfigName)
-  config.entrySet().asScala.foreach(e => prop.setProperty(e.getKey(), config.getString(e.getKey())))
-  val hikariConfig = new HikariConfig(prop)
+  val props = new java.util.Properties
+  if( ! configuration.isDefined) {
+    val config = ConfigFactory.load().getConfig(dbConfigName)
+    config.entrySet().asScala.foreach(
+      e => props.setProperty(e.getKey(), config.getString(e.getKey()))
+    )
+  } else {
+    val prefix = if(dbConfigName.isBlank) "" else dbConfigName + "."
+
+    Set("dataSourceClassName","dataSource.url","dataSource.user","dataSource.password",
+        "connectionTimeout","idleTimeout","minimumIdle","maximumPoolSize","poolName","maxLifetime")
+    .map(p => 
+      // Null is needed to detect non-set field
+      (p -> configuration.get.getString(s"${prefix}${p}").getOrElse(null))
+    )
+    .foreach{
+      case(k,v) => if(v!=null) props.setProperty(k,v)
+    }
+  }
+  log.info(s"HikariProperties: ${props}")
+  val hikariConfig = new HikariConfig(props)
   val ctx = new MysqlJdbcContext(NamingStrategy(SnakeCase, UpperCase),new HikariDataSource(hikariConfig))
   
   import ctx._

@@ -35,7 +35,7 @@ class OtpRoutesSpec extends HttpServiceTest {
   // We use the real OtpRegistryActor to test it while we hit the Routes,
   // but we could "mock" it by implementing it in-place or by using a TestProbe
   // created with testKit.createTestProbe()
-  val otpRegistry = testKit.spawn(OtpRegistry(new OtpStoreCache))
+  val otpRegistry = testKit.spawn(OtpRegistry(new OtpStoreMem))
   var server = new Server {
     val (rejectionHandler,exceptionHandler) = getHandlers()
     val routes = getRoutes(

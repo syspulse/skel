@@ -44,23 +44,43 @@ A lot of flexibility to pass configuration
 
 Configuration reading priority can be customized. 
 
-Default prioriy (from highest to lowest). The highest priority will override any previous settings
+Configuration parameteres are read with prioriy (from highest to lowest)
+If configuration parameter is found for highest priority, the rest will not be read.
+Example: 
+```HTTP_PORT=8081 run.sh --http.port=8082``` - The environment var will not be even tried because arg was found and arg is the highest priority
+
+__Priority__:
 
 1. Command Line arguments
-2. Environment Variables (easiest to pass into Docker). The convention for env. variable name to replace '.' with '_' and upper-case: __http.port__ -> __HTTP_PORT__
-3. JVM properties (passed as OPT='-Dname=value' variable run script)
+2. Environment Variables (easiest to pass into Docker). The convention for env. variable name to replace __'.'__ (Dot) with __'_'__ (Underscore) and upper-case all characters: __http.port__ -> __HTTP_PORT__
+3. JVM properties (passed as __OPT='-Dname=value'__ variable to run script)
 4. HOCON style Typesafe configuration file (Default: application-*component suffix*>.conf). E.g. skel-http -> application-http.conf
    Configuration file can be customized with __$SITE__ to choose specific site/environment (e.g. __SITE=dev__ would load __application-dev.conf__)
    Default config file location is __conf/__
 
-__ATTENTION__: Docker Image is ALWAYS packaged with __application.conf__. Customize __application.conf__ for default Docker configuration
+__ATTENTION__: Docker Image is ALWAYS packaged with __application.conf__. 
+Customize __application.conf__ for default Docker configuration.
+Docker image will never package __application-*.conf__ and SITE/Component will be ignored when Docker is run. 
 
-__Examples__:
+### Examples:
 
-Read config from conf/application-http.conf
+Read config from conf/application-http.conf (by default it uses current directory name suffix)
 ```
 run.sh
 ```
+
+Read config from conf/application-http.conf and override DB Url
+```
+DB_DATASOURCE_URL='jdbc:mysql://rigel.u132.net:3306/otp_db' ./run.sh
+```
+__NOTE__: Notation DB_DATASOURCE_URL overrides configuration:
+```
+db {
+  dataSource.url="jdbc:mysql://localhost:3306/service_db"
+}
+```
+By default, all services read DB configuration from "db" branch
+
 
 Read config from conf/application-dev.conf
 ```
