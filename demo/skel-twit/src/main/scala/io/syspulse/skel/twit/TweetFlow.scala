@@ -61,7 +61,7 @@ class TweetFlow(users:Map[Long,String],cassandraHosts:String, keySpace:String="t
         statementBinder
       )
     )
-    .to(Sink.foreach(t=>log.info(s"saved: ${t}")))
+    .to(Sink.foreach(t=>log.info(s"saved: ${t.id}")))
     .run()
 
   // val test = Source
@@ -87,7 +87,7 @@ retweeted=${tweet.retweeted}
 text=${tweet.text}
 ${"-".repeat(180)}
 """)
-            println(s"${tweet.id},${tweet.created_at},${tweet.user.get.id},${users.get(tweet.user.get.id)},${tweet.text}")
+            println(s"${tweet.id},${tweet.created_at},${tweet.user.get.id},${users.get(tweet.user.get.id).getOrElse("")},${tweet.text}")
             val t = TweetData(tweet.id, tweet.created_at.toEpochMilli, tweet.user.map(_.id).getOrElse(0L).toString,tweet.text)
             
             queue.offer(t)
