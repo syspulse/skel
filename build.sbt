@@ -93,6 +93,7 @@ val sharedConfig = Seq(
 val sharedConfigAssembly = Seq(
   assembly / assemblyMergeStrategy := {
       case x if x.contains("module-info.class") => MergeStrategy.discard
+      case x if x.contains("io.netty.versions.properties") => MergeStrategy.first
       case x => {
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
@@ -483,5 +484,34 @@ lazy val npp = (project in file("demo/skel-npp"))
       libUpickleLib,
       libScalaScraper,
       libInfluxDB
+    ),  
+  )
+
+lazy val twit = (project in file("demo/skel-twit"))
+  .dependsOn(core,cron,flow,scrap,ingest)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  // .enablePlugins(AshScriptPlugin)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    name := appNameTwit,
+    run / mainClass := Some(appBootClassNpp),
+    assembly / mainClass := Some(appBootClassNpp),
+    Compile / mainClass := Some(appBootClassNpp), // <-- This is very important for DockerPlugin generated stage1 script!
+    assembly / assemblyJarName := jarPrefix + appNameTwit + "-" + "assembly" + "-"+  appVersion + ".jar",
+    
+    Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
+    Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
+    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
+    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
+    
+    libraryDependencies ++= libHttp ++ libTest ++ Seq(
+      libTwitter4s,
+      libAlpakkaCassandra
     ),  
   )

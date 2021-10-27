@@ -36,7 +36,7 @@ object App extends skel.Server {
 
   val metricCount: Counter = Counter.build().name("npp_total").help("NPP Telemetry total requests").register()
   
-  def main(args:Array[String]) = {
+  def main(args:Array[String]):Unit = {
     Console.err.println(s"Args: '${args.mkString(",")}'")
 
     val builder = OParser.builder[Config]

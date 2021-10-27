@@ -46,6 +46,8 @@ object Dependencies {
     lazy val appNameCron = "skel-cron"
     lazy val appBootClassCron = "io.syspulse.skel.cron.App"
 
+    lazy val appNameTwit = "skel-twit"
+    lazy val appBootClassTwit = "io.syspulse.skel.twit.App"
     
     lazy val appVersion = "0.0.5"
     lazy val jarPrefix = "server-"
@@ -60,7 +62,8 @@ object Dependencies {
     val libAkkaHttpSpray =  "com.typesafe.akka"           %% "akka-http-spray-json" % akkaHttpVersion
     val libAkkaStream =     "com.typesafe.akka"           %% "akka-stream"          % akkaVersion
 
-    val libAlpakkaInfluxDB ="com.lightbend.akka"           %% "akka-stream-alpakka-influxdb"    % alpakkaVersion
+    val libAlpakkaInfluxDB ="com.lightbend.akka"          %% "akka-stream-alpakka-influxdb"  % alpakkaVersion
+    val libAlpakkaCassandra="com.lightbend.akka"          %% "akka-stream-alpakka-cassandra" % alpakkaVersion //"2.0.2"
 
     val libAkkaProtobuf =   "com.typesafe.akka"           %% "akka-protobuf"        % akkaVersion
     val libAkkaKafka=       "com.typesafe.akka"           %% "akka-stream-kafka"    % akkaKafkaVersion
@@ -127,6 +130,8 @@ object Dependencies {
     val libScalaScraper =   "net.ruippeixotog"              %% "scala-scraper"      % "2.2.1"
 
     val libQuartz =         "org.quartz-scheduler"          % "quartz"              % "2.3.2" exclude("com.zaxxer", "HikariCP-java7")
+
+    val libTwitter4s =      "com.danielasfregola"           %% "twitter4s"          % "7.0"
 
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
