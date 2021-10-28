@@ -68,6 +68,7 @@ class ZImageScrap(imageDir:String = "/dev/shm") {
         log.info(s"stored: ${url}: ${imageFile} ")        
         driver.close
 
+        io.syspulse.skel.twit.App.metricImageCount.inc()
         Success(imageFile)
       } catch {
         case e:Exception => log.error(s"failed to scrap: ${url}",e); driver.close; Failure(e)

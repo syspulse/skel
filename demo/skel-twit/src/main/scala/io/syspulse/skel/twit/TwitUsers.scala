@@ -1,7 +1,5 @@
 package io.syspulse.skel.twit
 
-// inspired by: https://github.com/Anant/example-cassandra-alpakka-twitter
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Future,Await}
 import scala.util.{Success, Failure, Random}

@@ -39,7 +39,9 @@ case class Config(
 
 object App extends skel.Server {
 
-  val metricCount: Counter = Counter.build().name("twit_total").help("Twitter total events").register()
+  val metricTwitCount: Counter = Counter.build().name("twit_twitter_total").help("Twitter total events").register()
+  val metricScrapCount: Counter = Counter.build().name("twit_scrap_total").help("Scraping total events").register()
+  val metricImageCount: Counter = Counter.build().name("twit_image_total").help("Imaged harvested total events").register()
   
   def main(args:Array[String]):Unit = {
     Console.err.println(s"Args: '${args.mkString(",")}'")
@@ -143,9 +145,9 @@ object App extends skel.Server {
           case c => Console.err.println(s"unknown command: ${c}"); System.exit(1)
         }
 
-        // run( config.host, config.port,config.uri,configuration,
-        //   Seq()
-        // )
+        run( config.host, config.port,config.uri,configuration,
+          Seq()
+        )
       }
       case _ => 
     }

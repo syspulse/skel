@@ -91,6 +91,8 @@ ${"-".repeat(180)}
 """)
             println(s"${tweet.id},${tweet.created_at},${tweet.user.get.id},${users.get(tweet.user.get.id).getOrElse("")},${tweet.text}")
             val t = TwitData(tweet.id, tweet.created_at.toEpochMilli, tweet.user.map(_.id).getOrElse(0L).toString,tweet.text)
+
+            App.metricTwitCount.inc()
             
             cassandraStream.offer(t)
             if(scrapStream.isDefined) scrapStream.get.offer(t)

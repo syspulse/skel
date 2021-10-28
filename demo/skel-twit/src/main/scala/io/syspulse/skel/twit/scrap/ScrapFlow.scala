@@ -39,9 +39,10 @@ class ScrapFlow(scrapUsers:Seq[String],scrapDir:String,queueLimit:Long=10) {
     randomFactor = 0.2 // adds 20% "noise" to vary the intervals slightly
   )
 
-  def scrapFlow = Flow[TwitData].map(t => 
+  def scrapFlow = Flow[TwitData].map(t => {
+    io.syspulse.skel.twit.App.metricScrapCount.inc()
     zscrap.scrap(t.txt.trim,true)
-  )
+  })
 
   val source = Source.queue[TwitData](queueLimit.toInt, OverflowStrategy.backpressure)
 
