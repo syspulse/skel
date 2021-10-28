@@ -27,12 +27,14 @@ case class Config(
 
   users:String = "",
   
-  format:String = "",
-
   cassandraHosts:String = "",
   cassandraSpace:String = "",
   cassandraTable:String = "",
   
+  scrapUsers:String = "",
+  scrapDir:String = "",
+  
+  cmd: Seq[String] = Seq(),
 )
 
 object App extends skel.Server {
@@ -52,6 +54,8 @@ object App extends skel.Server {
         opt[String]('u', "http.uri").action((x, c) => c.copy(uri = x)).text("uri"),
 
         opt[String]('z', "users").action((x, c) => c.copy(users = x)).text("Tweeter Users comma seperated list)"),
+        opt[String]('s', "scrap.users").action((x, c) => c.copy(scrapUsers = x)).text("Tweeter Users to scrap)"),
+        opt[String]('d', "scrap.dir").action((x, c) => c.copy(scrapDir = x)).text("Scrap dir (/dev/shm/))"),
         
         opt[String]("twitter.consumer.key").action((x, c) => c.copy(twitterConsumerKey = x)).text("Twitter Consumer Key"),
         opt[String]("twitter.consumer.secret").action((x, c) => c.copy(twitterConsumerSecret = x)).text("Twitter Consumer Secret"),
@@ -64,8 +68,10 @@ object App extends skel.Server {
         opt[String]("cassandra.space").action((x, c) => c.copy(cassandraSpace = x)).text("Cassandra space (twit_space)"),
         opt[String]("cassandra.table").action((x, c) => c.copy(cassandraTable = x)).text("Cassandra table (twit)"),
 
-        opt[String]("format").action((x, c) => c.copy(format = x)).text("format (not supported)"),
+        //opt[String]("format").action((x, c) => c.copy(format = x)).text("format (not supported)"),
 
+        help("help").text(s"${Util.info._1}"),
+        arg[String]("...").unbounded().optional().action((x, c) => c.copy(cmd = c.cmd :+ x)).text("commands"),
       )
     } 
   
@@ -86,37 +92,57 @@ object App extends skel.Server {
           twitQueue = { if(configArgs.twitQueue != -1L) configArgs.twitQueue else configuration.getLong("twit.queue").getOrElse(100L) },
           
           users = { if(! configArgs.users.isEmpty) configArgs.users else configuration.getString("users").getOrElse("") },
+          scrapUsers = { if(! configArgs.scrapUsers.isEmpty) configArgs.scrapUsers else configuration.getString("scrap.users").getOrElse("") },
+          scrapDir = { if(! configArgs.scrapDir.isEmpty) configArgs.scrapDir else configuration.getString("scrap.dir").getOrElse("") },
 
-          format = { if(! configArgs.format.isEmpty) configArgs.format else configuration.getString("twit.format").getOrElse("csv") },
+          //format = { if(! configArgs.format.isEmpty) configArgs.format else configuration.getString("twit.format").getOrElse("csv") },
 
           //cassandraHosts = { if(! configArgs.cassandraHosts.isEmpty) configArgs.cassandraHosts else configuration.getString("cassandra.hosts").getOrElse(configuration.getString("datastax-java-driver.basic.contact-points").getOrElse("")) },
           cassandraHosts = { if(! configArgs.cassandraHosts.isEmpty) configArgs.cassandraHosts else configuration.getString("cassandra.hosts").getOrElse("") },
           cassandraSpace = { if(! configArgs.cassandraSpace.isEmpty) configArgs.cassandraSpace else configuration.getString("cassandra.space").getOrElse("twit_space") },
           cassandraTable = { if(! configArgs.cassandraTable.isEmpty) configArgs.cassandraTable else configuration.getString("cassandra.table").getOrElse("twit") },
+
+          cmd = { if(configArgs.cmd.size!=0) configArgs.cmd else Seq(configuration.getString("cmd").getOrElse("cassandra")) },
         )
 
         Console.err.println(s"Config: ${config}")
 
-        if(config.users.trim.isEmpty) {
-          Console.err.println("No users specified")
-          System.exit(1)
+        config.cmd.headOption.getOrElse("cassandra") match {
+          case "twitter" => {
+            if(config.users.trim.isEmpty) {
+              Console.err.println("No users specified")
+              System.exit(1)
+            }
+
+            val twitterUsers = new TweetUsers(config.users,config).resolve()
+            
+            Console.err.println(s"users: ${twitterUsers}")
+
+            if(twitterUsers.size ==0 ) {
+              Console.err.println(s"No users resolved: '${config.users}'")
+              System.exit(1)
+            }
+
+            new TwitFlow(twitterUsers, 
+                          config.cassandraHosts, 
+                          keySpace = config.cassandraSpace,
+                          table = config.cassandraTable,
+                          queueLimit = config.twitQueue,
+                          scrapUsers = config.scrapUsers.split(",").map(_.trim).toSeq,
+                          scrapDir = config.scrapDir)
+          }
+          case "cassandra" => 
+            new CassandraFlow(
+                          config.cassandraHosts, 
+                          keySpace = config.cassandraSpace,
+                          table = config.cassandraTable,
+                          queueLimit = config.twitQueue,
+                          scrapUsers = config.scrapUsers.split(",").map(_.trim).toSeq,
+                          scrapDir = config.scrapDir)
+
+          case c => Console.err.println(s"unknown command: ${c}"); System.exit(1)
         }
 
-        val twitterUsers = new TweetUsers(config.users,config).resolve()
-        
-        Console.err.println(s"users: ${twitterUsers}")
-
-        if(twitterUsers.size ==0 ) {
-          Console.err.println(s"No users resolved: '${config.users}'")
-          System.exit(1)
-        }
-
-        new TweetFlow(twitterUsers, 
-                      config.cassandraHosts, 
-                      keySpace = config.cassandraSpace,
-                      table = config.cassandraTable,
-                      queueLimit = config.twitQueue)
-        
         // run( config.host, config.port,config.uri,configuration,
         //   Seq()
         // )

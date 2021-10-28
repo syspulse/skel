@@ -102,9 +102,8 @@ val sharedConfigAssembly = Seq(
   assembly / assemblyExcludedJars := {
     val cp = (assembly / fullClasspath).value
     cp filter { f =>
-      f.data.getName.contains("snakeyaml-1.27-android.jar") 
-      //||
-      //f.data.getName == "spark-core_2.11-2.0.1.jar"
+      f.data.getName.contains("snakeyaml-1.27-android.jar") || f.data.getName.contains("jakarta.activation-api-1.2.1") 
+      //|| f.data.getName == "spark-core_2.11-2.0.1.jar"
     }
   },
   
@@ -512,6 +511,8 @@ lazy val twit = (project in file("demo/skel-twit"))
     
     libraryDependencies ++= libHttp ++ libTest ++ Seq(
       libTwitter4s,
-      libAlpakkaCassandra
+      libAlpakkaCassandra,
+      libSeleniumJava,
+      libSeleniumFirefox
     ),  
   )
