@@ -27,6 +27,7 @@ import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 
+import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skel.config.Configuration
 import io.syspulse.skel.service.swagger.{Swagger}
@@ -41,6 +42,7 @@ import fr.davit.akka.http.metrics.core.{HttpMetricsRegistry, HttpMetricsSettings
 import fr.davit.akka.http.metrics.core.HttpMetrics._
 
 trait Server {
+  val logger = Logger(s"${this}")
 
   private def startHttpServer(host:String,port:Int, routes: Route)(implicit system: ActorSystem[_]): Unit = {  
     import system.executionContext
@@ -81,7 +83,7 @@ trait Server {
       ExceptionHandler {
         case e: java.lang.IllegalArgumentException =>
           extractUri { uri =>
-            //context.system.log.error(s"Request '$uri' failed:",e)
+            logger.error(s"Request '$uri' failed:",e)
             complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""["error": "${e}"]""")))
           }
         // case e: Exception => complete(HttpResponse(InternalServerError))
