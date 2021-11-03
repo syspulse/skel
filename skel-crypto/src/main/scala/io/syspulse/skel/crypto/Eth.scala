@@ -39,7 +39,6 @@ object Eth {
 
   def generate(sk:String):(String,String) = { 
     val kk = ECKeyPair.create(Numeric.hexStringToByteArray(sk))
-    println(s"kk => ${kk.getPrivateKey()}")
     normalize(kk)
   }
 
@@ -65,18 +64,24 @@ object Eth {
   def toSig(sig: ECDSASignature):String = s"${Util.hex(sig.r.toByteArray)}:${Util.hex(sig.s.toByteArray)}"
 
   def sign(m:String,sk:String):String = {
+    if(m==null || sk==null || sk.isEmpty()) return ""
+    
     val kk = ECKeyPair.create(Numeric.hexStringToByteArray(sk))
     toSig(kk.sign(presig(m)))
   }
 
   def verify(m:String,sig:String,pk:String):Boolean = {
     val rs = Eth.fromSig(sig)
-    val signature = new ECDSASignature(new BigInteger(Numeric.hexStringToByteArray(rs._1)),new BigInteger(Numeric.hexStringToByteArray(rs._2)))
-    val h = presig(m)
-    val r1 = Sign.recoverFromSignature(0,signature,h)
-    val r2 = Sign.recoverFromSignature(1,signature,h)
-    
-    Util.hex(r1.toByteArray) == pk || Util.hex(r2.toByteArray) == pk
+    try {
+        val signature = new ECDSASignature(new BigInteger(Numeric.hexStringToByteArray(rs._1)),new BigInteger(Numeric.hexStringToByteArray(rs._2)))
+        val h = presig(m)
+        val r1 = Sign.recoverFromSignature(0,signature,h)
+        val r2 = Sign.recoverFromSignature(1,signature,h)
+      
+        Util.hex(r1.toByteArray) == pk || Util.hex(r2.toByteArray) == pk
+    } catch {
+      case e:Exception => false
+    }
   }
 
   // return (SK,PK)
