@@ -90,6 +90,13 @@ class UtilSpec extends AnyWordSpec with Matchers {
       val s = Util.toFlatData(dd)
       s should === ("measure-0:10:1.0:m/s:20:2.0:kg")
     }
+
+    "AccessToken should be 32 bytes" in {
+      val bb = Util.generateAccessToken()
+      info(bb)
+      bb.size should === (43)
+    }
+
     
   }
 }

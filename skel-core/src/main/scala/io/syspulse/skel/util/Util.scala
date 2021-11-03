@@ -17,12 +17,16 @@ import java.time.format._
 
 import scala.util.Using, java.nio.file.{Files, Paths, Path}, java.nio.charset.Charset
 import java.nio.file.StandardOpenOption
+import java.util.Base64
 
 object Util {
 
   val random = new SecureRandom
   val salt: Array[Byte] = Array.fill[Byte](16)(0x1f)
   val digest = MessageDigest.getInstance("SHA-256");  
+
+  val at = new Array[Byte](32); 
+  def generateAccessToken() = {  random.nextBytes(at); Base64.getUrlEncoder.withoutPadding.encodeToString(at) }
   
   def toHexString(b:Array[Byte]) = b.foldLeft("")((s,b)=>s + f"$b%02x")
   
