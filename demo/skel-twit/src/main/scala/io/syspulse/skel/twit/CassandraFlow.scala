@@ -49,11 +49,16 @@ class CassandraFlow(cassandraHosts:String, keySpace:String="twit_space",table:St
   //val scrapStream = if(scrapUsers.size == 0) Source.queue(1,OverflowStrategy.dropNew).to(Sink.ignore).run else new scrap.ScrapFlow(scrapUsers,scrapDir).stream
   val scrapStream = if(scrapUsers.size == 0) None else Some(new scrap.ScrapFlow(scrapUsers,scrapDir).stream)
 
+  def getUrlId(url:String) = {
+    url.split("/").toIndexedSeq.last
+  }
+
   val cassandraStream = //: Future[Seq[TwitData]] = 
     CassandraSource(s"SELECT id,ts,user,txt FROM $keySpace.$table")
       .map(row => TwitData(row.getLong("id"),row.getLong("ts"),row.getString("user"),row.getString("txt")))
       .filter(t => scrapUsers.contains(t.user))
-      .map( t => { println(s"${t}"); t} )
+      //.map( t => { println(s"${t}"); t} )
+      .filter( t => os.exists(os.Path(s"${scrapDir}/tmp-${getUrlId(t.txt)}.jpg")))
       //.runWith(Sink.seq)
       .runWith(Sink.foreach(t => if(scrapStream.isDefined) scrapStream.get.offer(t)))
   

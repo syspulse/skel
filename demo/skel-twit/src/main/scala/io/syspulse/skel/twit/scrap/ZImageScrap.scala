@@ -62,7 +62,10 @@ class ZImageScrap(imageDir:String = "/dev/shm") {
         val u = new URL(i)
         val image = ImageIO.read(u)
         val suffix = url.split("/").last
-        val imageFile = s"${imageDir}/tmp-${System.currentTimeMillis}-${suffix}.jpg"
+
+        //val imageFile = s"${imageDir}/tmp-${System.currentTimeMillis}-${suffix}.jpg"
+        val imageFile = s"${imageDir}/tmp-${suffix}.jpg"
+        
         ImageIO.write(image, "jpg", new File(imageFile));
 
         log.info(s"stored: ${url}: ${imageFile} ")        
