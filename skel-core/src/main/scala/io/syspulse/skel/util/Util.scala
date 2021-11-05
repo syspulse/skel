@@ -25,9 +25,9 @@ object Util {
   val salt: Array[Byte] = Array.fill[Byte](16)(0x1f)
   val digest = MessageDigest.getInstance("SHA-256");  
 
-  val at = new Array[Byte](32); 
-  def generateAccessToken() = {  random.nextBytes(at); Base64.getUrlEncoder.withoutPadding.encodeToString(at) }
-  
+  def generateAccessToken() = { val at = new Array[Byte](32); random.nextBytes(at); Base64.getUrlEncoder.withoutPadding.encodeToString(at) }
+  def generateRandom() = { val at = new Array[Byte](32); random.nextBytes(at); at }
+
   def toHexString(b:Array[Byte]) = b.foldLeft("")((s,b)=>s + f"$b%02x")
   
   //def hex(x: Seq[Byte],prefix:Boolean=true):String = hex(x.toArray,prefix)

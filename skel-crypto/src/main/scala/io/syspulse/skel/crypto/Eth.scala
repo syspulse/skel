@@ -19,6 +19,16 @@ object Eth {
   
   def presig(m:String) = {val p = "\u0019Ethereum Signed Message:\n" + m.size; Hash.keccak256(p + m)}
 
+  def normalize(b0:Array[Byte],sz:Int):String = {
+    val b1:Array[Byte] = b0.size match {
+      case _ if(b0.size == sz -1) => b0.toArray.+:(0)
+      case `sz` => b0
+      case _ if(b0.size == sz + 1)  => b0.drop(1)
+      case _ => Array.fill(sz - b0.size)(0.toByte) ++ b0
+    }
+    Util.hex(b1)
+  }
+
   def normalize(kk:ECKeyPair):(String,String) = {
     val skb = kk.getPrivateKey().toByteArray
     val sk:Array[Byte] = skb.size match {
@@ -78,7 +88,8 @@ object Eth {
         val r1 = Sign.recoverFromSignature(0,signature,h)
         val r2 = Sign.recoverFromSignature(1,signature,h)
       
-        Util.hex(r1.toByteArray) == pk || Util.hex(r2.toByteArray) == pk
+        //The right way is probably to migrate to signed BigInteger(1,r1.toByteArray)
+        normalize(r1.toByteArray,64) == pk || normalize(r2.toByteArray,64) == pk
     } catch {
       case e:Exception => false
     }
