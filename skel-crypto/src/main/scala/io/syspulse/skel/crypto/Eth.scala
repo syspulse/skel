@@ -17,8 +17,9 @@ import io.syspulse.skel.util.Util
 
 object Eth {
   
-  def presig(m:String) = {val p = "\u0019Ethereum Signed Message:\n" + m.size; Hash.keccak256(p + m)}
-
+  def presig(m:String):Array[Byte] = presig(m.getBytes())
+  def presig(m:Array[Byte]):Array[Byte] = {val p = "\u0019Ethereum Signed Message:\n" + m.size; Hash.keccak256((Numeric.hexStringToByteArray(p) ++ m).toArray)}
+  
   def normalize(b0:Array[Byte],sz:Int):String = {
     val b1:Array[Byte] = b0.size match {
       case _ if(b0.size == sz -1) => b0.toArray.+:(0)
@@ -74,13 +75,22 @@ object Eth {
   def toSig(sig: ECDSASignature):String = s"${Util.hex(sig.r.toByteArray)}:${Util.hex(sig.s.toByteArray)}"
 
   def sign(m:String,sk:String):String = {
+    if(m==null) return ""
+    sign(m.getBytes(),sk)
+  }
+
+  def sign(m:Array[Byte],sk:String):String = {
     if(m==null || sk==null || sk.isEmpty()) return ""
     
     val kk = ECKeyPair.create(Numeric.hexStringToByteArray(sk))
     toSig(kk.sign(presig(m)))
   }
 
-  def verify(m:String,sig:String,pk:String):Boolean = {
+  def verify(m:String,sig:String,pk:String):Boolean = verify(m.getBytes(),sig,pk)
+
+  def verify(m:Array[Byte],sig:String,pk:String):Boolean = {
+    if(m==null || sig==null || sig.isEmpty || pk==null || pk.isEmpty ) return false
+
     val rs = Eth.fromSig(sig)
     try {
         val signature = new ECDSASignature(new BigInteger(Numeric.hexStringToByteArray(rs._1)),new BigInteger(Numeric.hexStringToByteArray(rs._2)))
