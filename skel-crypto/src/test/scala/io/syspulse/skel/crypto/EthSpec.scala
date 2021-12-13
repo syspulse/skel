@@ -20,6 +20,32 @@ class EthSpec extends WordSpec with Matchers {
       a should === ("0x2b5ad5c4795c026514f8317c7a215e218dccd6cf")
     }
 
+    "generate random" ignore {
+      Range(1,3).map(i => 
+          Eth.generate()
+        )
+        .foreach{ case (sk,pk) => {
+          val a = Eth.address(pk)
+          info(s"sk = ${sk}, pk = ${pk}, a = ${a}")
+          sk should !== (null)
+          sk should !== ("")
+        }}
+    }
+
+    "derive new SecretKeys from SK" in {
+      val sk2 = Eth.deriveKey(sk1,"Account Key 1")
+      val sk3 = Eth.deriveKey(sk1,"Account Key 1")
+      val sk4 = Eth.deriveKey(sk1,"Account Key 2")
+      sk2 should !== (sk1)
+      sk3 should !== (sk1)
+      sk4 should !== (sk1)
+
+      sk2 should === (sk3)
+      sk4 should !== (sk2)
+      sk4 should !== (sk3)
+    }
+    
+
     "read keystore keystore-1.json" in {
       val kk = Eth.readKeystore("test123",testDir+"/keystore-1.json")
       kk should === (Success("0x02","0xc6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee51ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a"))

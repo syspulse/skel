@@ -54,9 +54,15 @@ object Eth {
   }
 
   // generate random
-  def generate:(String,String) = { 
+  def generate():(String,String) = { 
     val kk = Keys.createEcKeyPair(); 
     normalize(kk)
+  }
+
+  // derive new Secure Keys from PrivateKey
+  def deriveKey(sk:String, msg:String, nonce:Long = -1L):String = {
+    val sig = sign(msg,(if(nonce == -1L) msg else s"${msg}:${nonce}"))
+    Util.sha256(sig)
   }
 
   def address(pk:String):String = Util.hex(Hash.keccak256(Numeric.hexStringToByteArray(pk)).takeRight(20))
@@ -159,6 +165,7 @@ object Eth {
       case e:Exception => Failure(e)
     }
   }
+
 }
 
 
