@@ -1,6 +1,6 @@
 package io.syspulse.skel.crypto
 
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters
 
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.bouncycastle.jcajce.provider.digest.SHA3;

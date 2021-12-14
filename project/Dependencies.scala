@@ -104,7 +104,7 @@ object Dependencies {
     
     //val libJline =          "org.jline"                   %  "jline"                 % "3.14.1"
     //val libJson4s =         "org.json4s"                  %%  "json4s-native"        % "3.6.7"
-    val libOsLib =          "com.lihaoyi"                 %% "os-lib"               % "0.7.7"
+    val libOsLib =          "com.lihaoyi"                 %% "os-lib"               % "0.8.0" //"0.7.7"
     val libUpickleLib =     "com.lihaoyi"                 %% "upickle"              % "1.4.1"
     //val libUjsonLib =       "com.lihaoyi"                 %% "ujson"                % "1.4.1"
     val libScalaTags =      "com.lihaoyi"                 %% "scalatags"            % "0.9.4"
@@ -143,7 +143,7 @@ object Dependencies {
     val libHttp = Seq(libAkkaHttp,libAkkaHttpSpray,libAkkaHttpMetrics) ++ libPrometheus
     val libCommon = Seq(libScalaLogging, libSlf4jApi, libLogback, libJanino, libTypesafeConfig )
     
-    val libTest = Seq(libScalaTest % Test,libAkkaTestkit % Test,libAkkaTestkitType % Test)
+    val libTest = Seq(libOsLib, libScalaTest % Test,libAkkaTestkit % Test,libAkkaTestkitType % Test)
     val libTestLib = Seq(libScalaTest,libAkkaTestkit,libAkkaTestkitType)
 
     val libSkel = Seq(libWsRs,libSwaggerAkkaHttp,libMetrics,libScopt,libUUID)

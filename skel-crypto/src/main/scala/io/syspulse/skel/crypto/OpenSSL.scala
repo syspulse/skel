@@ -1,6 +1,6 @@
 package io.syspulse.skel.crypto
 
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters
 
 import org.web3j.crypto._
 import org.web3j.utils._

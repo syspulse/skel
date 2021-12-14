@@ -2,7 +2,7 @@ package io.syspulse.skel.crypto
 
 import scala.util.{Try,Success,Failure}
 
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters
 import java.math.BigInteger
 
 import org.bouncycastle.jcajce.provider.digest.Keccak;
