@@ -29,10 +29,23 @@ class WalletVaultSpec extends WordSpec with Matchers with TestData {
 
   "WalletVaultKeyfiles" should {
     
-    "read keystores: keystore-1.json" in {
+    "read keystores: only keystore-1.json" in {
       val w1 = new WalletVaultKeyfiles(testDir, (keystoreFile) => {"test123"})
       val ss = w1.load().get
       ss.size should === (1)
+      ss.toSeq(0)._1 === (UUID("431c4a19-9544-4a12-8cde-824849cb6746"))
+      ss.toSeq(0)._2.head.addr === ("0x2b5ad5c4795c026514f8317c7a215e218dccd6cf")
+    }
+
+    "read keystores: all jsons" in {
+      val w1 = new WalletVaultKeyfiles(testDir, (keystoreFile) => { keystoreFile match {
+        case "keystore-1.json" => "test123"
+        case "keystore-ff04.json" => "abcd1234"
+        case "keystore-ff05.json" => "12345678"
+        case _ => ""
+      }})
+      val ss = w1.load().get
+      ss.size should === (3)
       ss.toSeq(0)._1 === (UUID("431c4a19-9544-4a12-8cde-824849cb6746"))
       ss.toSeq(0)._2.head.addr === ("0x2b5ad5c4795c026514f8317c7a215e218dccd6cf")
     }

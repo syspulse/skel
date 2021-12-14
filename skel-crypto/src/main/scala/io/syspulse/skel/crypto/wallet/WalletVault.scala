@@ -92,7 +92,7 @@ class WalletVaultKeyfiles(keystoreDir:String = ".", passwordQuestion: (String) =
     val dir = os.Path(keystoreDir, os.pwd)
     val stores = os.list(dir).filter(_.ext == "json").flatMap{ fileName =>
 
-      val pass = passwordQuestion(fileName.toString)
+      val pass = passwordQuestion(fileName.last.toString)
       
       // keystore file must contain UUID next to address 
       // if not filename is expected to be UUID like
