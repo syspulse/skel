@@ -2,12 +2,14 @@ package io.syspulse.skel.crypto
 
 import scala.util.{Try,Success,Failure}
 
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.wordspec.{ AnyWordSpec}
+import org.scalatest.matchers.should.{ Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
 
 import java.time._
 import io.syspulse.skel.util.Util
 
-class EthSpec extends WordSpec with Matchers with TestData {
+class EthSpec extends AnyWordSpec with Matchers with TestData {
 
   "Eth" should {
     

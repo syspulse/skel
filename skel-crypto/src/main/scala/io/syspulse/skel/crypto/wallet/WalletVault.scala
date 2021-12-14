@@ -27,13 +27,13 @@ case class Signer(uid:UUID,sk:SK,pk:PK) {
   override def toString = s"Signer(${uid},${sk},${pk},${addr})"
 }
 
-trait WalletVault {
+trait WalletVaultable {
   import vault._
   val log = Logger(s"${this}")
 
   val UNKNOWN_USER = UUID("00000000-0000-0000-0000-000000000000")
 
-  val signers: Map[SignerID,List[Signer]] = Map()
+  var signers: Map[SignerID,List[Signer]] = Map()
 
   def msign(userSk:SK,data:Array[Byte],userId:Option[UserID]=None):List[Signature] = {
     //log.debug(s"signing: ${userId}: userSig=${userSig}: ${data}")
@@ -68,16 +68,16 @@ trait WalletVault {
     sig.zip(pks).filter( sp => Eth.verify(data,sp._1,sp._2)).size != 0
   }
 
-  def load():Try[Map[SignerID,List[Signer]]] = Success(signers)
+  def load():Try[Map[SignerID,List[Signer]]]
 }
 
-class WalletVaultTest extends WalletVault {
+class WalletVaultTest extends WalletVaultable {
   
   val signer1 = Signer(UUID("00000000-0000-0000-9999-00000000ff01"),"0x000000000000000000000000000000000000000000000000000000000000ff01","0x63d4523937d9f0960d3ad56140fc484cc4923f2ab6438b9320a96bc437a5fc1c62461c8143417fb81289c9a96cf3fd9b8f695eebbca80a7ab26c717441c05609")
   val signer2 = Signer(UUID("00000000-0000-0000-9999-00000000ff02"),"0x000000000000000000000000000000000000000000000000000000000000ff02","0xb7a36287c48ba57cbf33ed6bf630dc84d1196bf00f86b12266587fb55219a68fb85832290299275c26a78aab86a777fa61c589dadcc8b33e4e15d5357f2fc23f")
   val signer3 = Signer(UUID("00000000-0000-0000-9999-00000000ff03"),"0x000000000000000000000000000000000000000000000000000000000000ff03","0xd8fb72d474f217f38f86369228f3199c3f2ef7db099ff490a58fb79d26c09d2757c564a0def15f95e59206151545ee65bfd30cd679c4d5cbd602ec9226a25a95")
   
-  override val signers: Map[SignerID,List[Signer]] = Map(
+  signers = Map(
     signer1.uid -> List(signer1),
     signer2.uid -> List(signer2),
     signer3.uid -> List(signer3),
@@ -86,11 +86,11 @@ class WalletVaultTest extends WalletVault {
   override def load():Try[Map[SignerID,List[Signer]]] = Success(signers)
 }
 
-class WalletVaultKeyfiles(keystoreDir:String = ".", passwordQuestion: (String) => String) extends WalletVault {
+class WalletVaultKeyfiles(keystoreDir:String = ".", passwordQuestion: (String) => String) extends WalletVaultable {
   
   override def load():Try[Map[SignerID,List[Signer]]] = {
     val dir = os.Path(keystoreDir, os.pwd)
-    val stores = os.list(dir).filter(_.ext == "json").flatMap{ fileName =>
+    val ss = os.list(dir).filter(_.ext == "json").flatMap{ fileName =>
 
       val pass = passwordQuestion(fileName.last.toString)
       
@@ -109,15 +109,36 @@ class WalletVaultKeyfiles(keystoreDir:String = ".", passwordQuestion: (String) =
       }
       ss.toOption
     }.toMap
-    
-    Success(stores)
+
+    signers = ss  
+    Success(signers)
   }
 
 }
 
-object WalletVault {
+trait Buildable {
+  def withWallet(w:WalletVaultable):Buildable
+  def load():Long
+}
+
+object WalletVault extends Buildable {
+  val log = Logger(s"${this}")
   import vault._
-  lazy val default = new WalletVaultTest
+  var vaults = Seq[WalletVaultable]()
+  var signers = Seq[Signer]()
+
+  def withWallet(w:WalletVaultable):Buildable = {
+    vaults = vaults :+ w
+    this
+  }
+
+  def load():Long = {
+    log.info(s"Loading vaults: ${vaults}")
+    signers = vaults.flatMap( v => v.load().toOption).map(_.values).flatten.flatten
+    size()
+  }
+
+  def size() = signers.size
 
   var timeTolernace = 1000L * 15  // 15 seconds tolerance for signature replay attack
   def now() = System.currentTimeMillis() / timeTolernace

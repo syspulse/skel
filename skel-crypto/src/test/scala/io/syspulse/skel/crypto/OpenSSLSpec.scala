@@ -1,12 +1,14 @@
 package io.syspulse.skel.crypto
 
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.wordspec.{ AnyWordSpec}
+import org.scalatest.matchers.should.{ Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
 
 import java.time._
 import io.jvm.uuid._
 import io.syspulse.skel.util.Util
 
-class OpenSSLSpec extends WordSpec with Matchers {
+class OpenSSLSpec extends AnyWordSpec with Matchers  {
   val testDir = this.getClass.getClassLoader.getResource(".").getPath
   
   "OpenSSL" should {

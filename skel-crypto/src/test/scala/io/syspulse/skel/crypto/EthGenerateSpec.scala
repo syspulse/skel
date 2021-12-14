@@ -2,12 +2,14 @@ package io.syspulse.skel.crypto
 
 import scala.util.{Try,Success,Failure}
 
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.wordspec.{ AnyWordSpec}
+import org.scalatest.matchers.should.{ Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
 
 import java.time._
 import io.syspulse.skel.util.Util
 
-class EthGenerateSpec extends WordSpec with Matchers {
+class EthGenerateSpec extends AnyWordSpec with Matchers  {
   val testDir = this.getClass.getClassLoader.getResource(".").getPath
 
 // sbt and web3j bouncycastle provider don't work together in tests
