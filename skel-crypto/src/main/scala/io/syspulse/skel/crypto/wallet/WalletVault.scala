@@ -35,37 +35,33 @@ trait WalletVaultable {
 
   var signers: Map[SignerID,List[Signer]] = Map()
 
-  def msign(userSk:SK,data:Array[Byte],userId:Option[UserID]=None):List[Signature] = {
-    //log.debug(s"signing: ${userId}: userSig=${userSig}: ${data}")
-    val userSig = sign(userSk,data,userId)
-    if(!userSig.isDefined) return List()
-
-    val ss = signers.getOrElse(userId.getOrElse(UNKNOWN_USER),List()).map(signer => {
+  def msign(data:Array[Byte],userSk:Option[SK]=None,userId:Option[UserID]=None):List[Signature] = {
+    val signers = if(userSk.isDefined) 
+                    Signer(userId.getOrElse(UNKNOWN_USER),userSk.get,"") +: this.signers.values.flatten.toList
+                  else 
+                    this.signers.values.flatten.toList
+    
+    val sigs = signers.map(signer => {
       val s = Eth.sign(data,signer.sk)
-      //log.debug(s"signing: ${userId}: userSig=${userSig}: ${data}: ${s}")
+      //log.debug(s"signing: uid=${userId}: signer=${signer}: data=${data}: sig=${s}")
       s
     })
 
-    log.debug(s"signing: ${userId}: userSig=${userSig}: ${data}: ${ss}")
-    userSig.get +: ss 
+    log.debug(s"signed: uid=${userId}: ${data}: sigs=${sigs}")
+    sigs
   }
 
-  def sign(userSk:SK,data:Array[Byte],userId:Option[UserID]=None):Option[String] = {
-    //log.debug(s"signing: ${userId}: health=${h}: data=${data}")
-    val userSig = Eth.sign(data,userSk)
-    //log.debug(s"signing: ${userId}: data=${data}: userSig=${userSig}")
-    Some(userSig)
-  }
+  def mverify(sigs:List[Signature],data:Array[Byte],userPk:Option[PK]=None,userId:Option[UserID]=None):Boolean = {
+    val signers = if(userPk.isDefined) 
+                    Signer(userId.getOrElse(UNKNOWN_USER),"",userPk.get) +: this.signers.values.flatten.toList
+                  else 
+                    this.signers.values.flatten.toList
 
-  def verify(userSig:Signature,userPk:PK,data:Array[Byte],userId:Option[UserID]=None):Boolean = {
-    Eth.verify(data,userSig,userPk)
-  }
-
-  def mverify(sig:List[Signature],userPk:PK,data:Array[Byte],userId:Option[UserID]=None):Boolean = {
-
-    val ss:List[PK] = signers.getOrElse(userId.getOrElse(UNKNOWN_USER),List()).map(_.pk)
-    val pks = userPk +: ss
-    sig.zip(pks).filter( sp => Eth.verify(data,sp._1,sp._2)).size != 0
+    val pks = signers.map(_.pk)
+    sigs.zip(pks).filter( sp => {
+      //log.debug(s"signer=${sp}: data=${data}")
+      Eth.verify(data,sp._1,sp._2)
+    }).size == signers.size
   }
 
   def load():Try[Map[SignerID,List[Signer]]]
@@ -116,29 +112,33 @@ class WalletVaultKeyfiles(keystoreDir:String = ".", passwordQuestion: (String) =
 
 }
 
-trait Buildable {
-  def withWallet(w:WalletVaultable):Buildable
-  def load():Long
-}
-
-object WalletVault extends Buildable {
+class WalletVault {
   val log = Logger(s"${this}")
   import vault._
   var vaults = Seq[WalletVaultable]()
   var signers = Seq[Signer]()
 
-  def withWallet(w:WalletVaultable):Buildable = {
+  def withWallet(w:WalletVaultable):WalletVault = {
     vaults = vaults :+ w
     this
   }
 
-  def load():Long = {
+  def load():WalletVault = {
     log.info(s"Loading vaults: ${vaults}")
     signers = vaults.flatMap( v => v.load().toOption).map(_.values).flatten.flatten
-    size()
+    this
   }
 
   def size() = signers.size
+
+  def msign(data:Array[Byte],userSk:Option[SK]=None,userId:Option[UserID]=None):List[Signature] = {
+    vaults.map(_.msign(data,userSk,userId)).flatten.toList
+  }
+
+  def mverify(sigs:List[Signature],data:Array[Byte],userPk:Option[PK]=None,userId:Option[UserID]=None):Boolean = {
+    vaults.filter(_.mverify(sigs,data,userPk,userId)).size > 0
+  }
+
 
   var timeTolernace = 1000L * 15  // 15 seconds tolerance for signature replay attack
   def now() = System.currentTimeMillis() / timeTolernace
@@ -168,4 +168,8 @@ object WalletVault extends Buildable {
         ("",dd(1))
       )
   }
+}
+
+object WalletVault {
+  def build:WalletVault = new WalletVault()
 }

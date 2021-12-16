@@ -22,10 +22,11 @@ class WalletVaultSpec extends AnyWordSpec with Matchers with TestData {
       val ss = w1.load().get
 
       ss.size should === (3)
-      val sig = w1.msign(sk1,"message".getBytes())
-      val v = w1.mverify(sig,pk1,"message".getBytes())
+      val sig = w1.msign("message".getBytes(),Some(sk1))
       
-      v should === (true)
+      w1.mverify(sig,"message".getBytes(),Some(pk1)) should === (true)
+      w1.mverify(sig,"message1".getBytes(),Some(pk1)) should === (false)
+      w1.mverify(sig,"message".getBytes(),Some(pk2)) should === (false)
     }
   }
 
@@ -55,7 +56,8 @@ class WalletVaultSpec extends AnyWordSpec with Matchers with TestData {
 
   "WalletVault" should {    
     "load WalletVaultTest + WalletVaultKeyfiles" in {
-      WalletVault
+      val w = WalletVault
+        .build
         .withWallet(new WalletVaultTest)
         .withWallet(new WalletVaultKeyfiles(testDir, (keystoreFile) => { keystoreFile match {
           case "keystore-1.json" => "test123"
@@ -65,10 +67,35 @@ class WalletVaultSpec extends AnyWordSpec with Matchers with TestData {
         }}))
         .load()
       
-      WalletVault.size() should === (6)
+      w.size() should === (6)
     
     }
-  }
 
+    "sign and verfiy with WalletVaultTest + WalletVaultKeyfiles" in {
+      val w= WalletVault
+        .build
+        .withWallet(new WalletVaultTest)
+        .withWallet(new WalletVaultKeyfiles(testDir, (keystoreFile) => { keystoreFile match {
+          case "keystore-1.json" => "test123"
+          case "keystore-ff04.json" => "abcd1234"
+          case "keystore-ff05.json" => "12345678"
+          case _ => ""
+        }}))
+        .load()
+      
+      w.size() should === (6)
+
+      val sigs = w.msign("message".getBytes())
+
+      sigs should !== (List())
+      sigs.size should === (6)
+      info(s"sigs=${sigs}")
+
+      w.mverify(sigs,"message".getBytes()) should === (true)
+
+      w.mverify(sigs,"message1".getBytes()) should === (false)
+    }
+    
+  }
 
 }
