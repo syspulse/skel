@@ -6,11 +6,12 @@ import com.typesafe.scalalogging.Logger
 import io.jvm.uuid._
 import os._
 import upickle._
+import ujson.Str
+
+import org.web3j.utils.{Numeric}
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto.Eth
-import ujson.Str
-
 
 
 object vault {
@@ -24,7 +25,11 @@ import io.syspulse.skel.crypto.key._
 
 case class Signer(uid:UUID,sk:SK,pk:PK) {
   val addr:Address = Eth.address(pk)
-  override def toString = s"Signer(${uid},${sk},${pk},${addr})"
+  override def toString = s"Signer(${uid},${Util.hex(sk)},${Util.hex(pk)},${addr})"
+}
+
+object Signer {
+  def apply(uuid:UUID,sk:String,pk:String):Signer = Signer(uuid,Numeric.hexStringToByteArray(sk),Numeric.hexStringToByteArray(pk))
 }
 
 trait WalletVaultable {
@@ -37,7 +42,7 @@ trait WalletVaultable {
 
   def msign(data:Array[Byte],userSk:Option[SK]=None,userId:Option[UserID]=None):List[Signature] = {
     val signers = if(userSk.isDefined) 
-                    Signer(userId.getOrElse(UNKNOWN_USER),userSk.get,"") +: this.signers.values.flatten.toList
+                    Signer(userId.getOrElse(UNKNOWN_USER),userSk.get,Array[Byte]()) +: this.signers.values.flatten.toList
                   else 
                     this.signers.values.flatten.toList
     
@@ -53,7 +58,7 @@ trait WalletVaultable {
 
   def mverify(sigs:List[Signature],data:Array[Byte],userPk:Option[PK]=None,userId:Option[UserID]=None):Boolean = {
     val signers = if(userPk.isDefined) 
-                    Signer(userId.getOrElse(UNKNOWN_USER),"",userPk.get) +: this.signers.values.flatten.toList
+                    Signer(userId.getOrElse(UNKNOWN_USER),Array[Byte](),userPk.get) +: this.signers.values.flatten.toList
                   else 
                     this.signers.values.flatten.toList
 

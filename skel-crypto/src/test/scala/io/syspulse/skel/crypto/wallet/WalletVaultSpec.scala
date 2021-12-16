@@ -22,11 +22,11 @@ class WalletVaultSpec extends AnyWordSpec with Matchers with TestData {
       val ss = w1.load().get
 
       ss.size should === (3)
-      val sig = w1.msign("message".getBytes(),Some(sk1))
+      val sig = w1.msign("message".getBytes(),Some(SK(sk1)))
       
-      w1.mverify(sig,"message".getBytes(),Some(pk1)) should === (true)
-      w1.mverify(sig,"message1".getBytes(),Some(pk1)) should === (false)
-      w1.mverify(sig,"message".getBytes(),Some(pk2)) should === (false)
+      w1.mverify(sig,"message".getBytes(),Some(PK(pk1))) should === (true)
+      w1.mverify(sig,"message1".getBytes(),Some(PK(pk1))) should === (false)
+      w1.mverify(sig,"message".getBytes(),Some(PK(pk2))) should === (false)
     }
   }
 

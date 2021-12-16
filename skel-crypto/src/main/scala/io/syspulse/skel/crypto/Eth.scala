@@ -14,8 +14,11 @@ import org.web3j.crypto.{ECKeyPair,ECDSASignature,Sign,Credentials,WalletUtils,B
 import org.web3j.utils.{Numeric}
 
 import io.syspulse.skel.util.Util
+import io.syspulse.skel.crypto.key
 
 object Eth {
+
+  import key._
   
   def presig(m:String):Array[Byte] = presig(m.getBytes())
   def presig(m:Array[Byte]):Array[Byte] = {val p = "\u0019Ethereum Signed Message:\n" + m.size; Hash.keccak256((Numeric.hexStringToByteArray(p) ++ m).toArray)}
@@ -65,7 +68,8 @@ object Eth {
     Util.sha256(sig)
   }
 
-  def address(pk:String):String = Util.hex(Hash.keccak256(Numeric.hexStringToByteArray(pk)).takeRight(20))
+  def address(pk:String):String = address(Numeric.hexStringToByteArray(pk))
+  def address(pk:PK):String = Util.hex(Hash.keccak256(pk).takeRight(20))
 
   // compatible with OpenSSL signature encoding
   def fromSig(rs:String):(String,String) = { 
@@ -82,18 +86,25 @@ object Eth {
 
   def sign(m:String,sk:String):String = {
     if(m==null) return ""
+    sign(m.getBytes(),Numeric.hexStringToByteArray(sk))
+  }
+
+  def sign(m:String,sk:SK):String = {
+    if(m==null) return ""
     sign(m.getBytes(),sk)
   }
 
-  def sign(m:Array[Byte],sk:String):String = {
-    if(m==null || sk==null || sk.isEmpty()) return ""
+  def sign(m:Array[Byte],sk:SK):String = {
+    if(m==null || sk==null) return ""
     
-    val kk = ECKeyPair.create(Numeric.hexStringToByteArray(sk))
+    val kk = ECKeyPair.create(sk)
     toSig(kk.sign(presig(m)))
   }
 
   def verify(m:String,sig:String,pk:String):Boolean = verify(m.getBytes(),sig,pk)
-
+  def verify(m:String,sig:String,pk:PK):Boolean = verify(m.getBytes(),sig,Util.hex(pk))
+  def verify(m:Array[Byte],sig:String,pk:PK):Boolean = verify(m,sig,Util.hex(pk))
+  
   def verify(m:Array[Byte],sig:String,pk:String):Boolean = {
     if(m==null || sig==null || sig.isEmpty || pk==null || pk.isEmpty ) return false
 
