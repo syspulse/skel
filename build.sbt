@@ -133,7 +133,10 @@ lazy val core = (project in file("skel-core"))
         libSkel ++ 
         libDB ++ 
         libTest ++ 
-        Seq(libUUID),
+        Seq(
+          libUUID, 
+          libScodecBits
+        ),
     )
 
 lazy val `skel-test` = (project in file("skel-test"))
@@ -375,7 +378,8 @@ lazy val crypto = (project in file("skel-crypto"))
       sharedConfig,
       name := "skel-crypto",
       libraryDependencies ++= libTest ++ libWeb3j ++ Seq(
-        libOsLib,libUpickleLib
+        libOsLib,libUpickleLib,
+        libScodecBits,libHKDF
       )
     )
 

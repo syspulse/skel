@@ -14,13 +14,14 @@ object key {
 
 import key._
 
-abstract class KeyPair(sk:SK,pk:PK) {
-
+abstract class KeyPair {
+  def sk:SK
+  def pk:PK
   override def toString = s"${this.getClass.getSimpleName}(${Util.hex(sk)},${Util.hex(pk)})"
 }
 
-case class KeyECDSA(sk:SK,pk:PK) extends KeyPair(sk,pk)
-case class KeyBLS(sk:SK,pk:PK) extends KeyPair(sk,pk)
+case class KeyECDSA(sk:SK,pk:PK) extends KeyPair
+case class KeyBLS(sk:SK,pk:PK) extends KeyPair
 
 object SK {
   def apply(sk:String) = Numeric.hexStringToByteArray(sk)

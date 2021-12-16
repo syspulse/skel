@@ -19,7 +19,16 @@ import scala.util.Using, java.nio.file.{Files, Paths, Path}, java.nio.charset.Ch
 import java.nio.file.StandardOpenOption
 import java.util.Base64
 
+import scodec.bits.ByteVector
+
 object Util {
+  
+  implicit class HexStringInterpolator(val sc: StringContext) extends AnyVal {
+    def h(args: Any*): Array[Byte] = { 
+      val result = sc.s(args : _*)
+      ByteVector.fromHex(result).orElse(Some(ByteVector.fromByte(0))).get.toArray
+    }
+  }
 
   val random = new SecureRandom
   val salt: Array[Byte] = Array.fill[Byte](16)(0x1f)
@@ -29,9 +38,8 @@ object Util {
   def generateRandom() = { val at = new Array[Byte](32); random.nextBytes(at); at }
 
   def toHexString(b:Array[Byte]) = b.foldLeft("")((s,b)=>s + f"$b%02x")
-  
-  //def hex(x: Seq[Byte],prefix:Boolean=true):String = hex(x.toArray,prefix)
   def hex(x: Array[Byte],prefix:Boolean=true):String = s"""${if(prefix) "0x" else ""}${x.toArray.map("%02x".format(_)).mkString}"""
+  def hex2(x: Array[Byte],prefix:Boolean=true):String = ByteVector(x).toHex
 
   def SHA256(data:Array[Byte]):Array[Byte] = digest.digest(data)
   def SHA256(data:String):Array[Byte] = digest.digest(data.getBytes(StandardCharsets.UTF_8))
