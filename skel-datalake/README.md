@@ -2,11 +2,13 @@
 
 
 
-## Generic DataLake Flow
+## Generic Data Flow
 
-A loе of DataLake projects may look like this from data flow perspective
+A lot of BigDate projects may look like this from data flow perspective
 
 <img src="doc/Skel-BigData-Overview.drawio.png" width="700">
+
+The devil is in the details especially particularly when DL/ML pipelines are invovled
 
 ----
 
@@ -35,4 +37,12 @@ __Components__
 3. Spark (Lowlevel access to Iceberg tables)
 4. SparkStreaming/Flink (Ingest into Iceberg)
 5. [Nessie](https://projectnessie.org/tables) (Transactional Catalog)
+
+
+----
+## DataMesh
+
+DataMesh concept is about automated quick deployment of "small" lakes for specifi departments or even tasks under the same Governance
+
+<img src="doc/Skel-BigData-DataMesh.jpg" width="700">
 

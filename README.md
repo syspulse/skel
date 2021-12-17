@@ -3,6 +3,7 @@
 Skeletons for RnD Prototypes
 
 0. [demo](demo) - Demoable Projlets based on skel components
+0. [infra](infra) - Infrastructure (docker,kubernetes)
 1. [skel-http](skel-http) - HTTP Service (+ Kubernetes)
 2. [skel-user](skel-user) - UserProfile Service reference
 3. [skel-world](skel-world) + [skel-shop](skel-shop) - Services for E-Shop like product
@@ -12,9 +13,9 @@ Skeletons for RnD Prototypes
 7. [skel-db](skel-db) - DB Related stuff
 8. [skel-otp](skel-otp) - OTP Service reference service 
 9. [skel-test](skel-test) - Test helpers
-10. [skel-crypto](skel-crypto) - Cryptography tools
+10. [skel-crypto](skel-crypto) - Cryptography and Ethereum utilities
 11. [skel-spark](skel-spark) - Spark tools
-12. [skel-datalake](skel-datalake) - Datalake concepts
+12. [skel-datalake](skel-datalake) - Datalake and Warehouses
 13. [skel-flow](skel-flow) - DataFlows and Workflows
 14. [skel-scrap](skel-scrap) - Scraping pipelines
 15. [skel-cli](skel-cli) - Shell command line client
@@ -51,5 +52,7 @@ Go to [demo](demo) for demo projlets
 12. InfluxDB-2: [https://github.com/influxdata/influxdb-client-java](https://github.com/influxdata/influxdb-client-java)
 13. Geohash: [https://github.com/davidallsopp/geohash-scala](https://github.com/davidallsopp/geohash-scala)
 14. Quartz: [http://www.quartz-scheduler.org](http://www.quartz-scheduler.org)
+15. Web3: [https://github.com/web3j/web3j](https://github.com/web3j/web3j)
+16. BLS: [https://github.com/ConsenSys/teku](https://github.com/ConsenSys/teku)
 
 Other libraries are referenced in corresponding modules
