@@ -68,14 +68,17 @@ val sharedConfig = Seq(
     javacOptions ++= Seq("-target", "1.8", "-source", "1.8"),
 //    manifestSetting,
 //    publishSetting,
-    resolvers ++= Seq(Opts.resolver.sonatypeSnapshots, Opts.resolver.sonatypeReleases),
     crossVersion := CrossVersion.binary,
     resolvers ++= Seq(
+      Opts.resolver.sonatypeSnapshots, 
+      Opts.resolver.sonatypeReleases,
       "spray repo"         at "https://repo.spray.io/",
       "sonatype releases"  at "https://oss.sonatype.org/content/repositories/releases/",
       "sonatype snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
       "typesafe repo"      at "https://repo.typesafe.com/typesafe/releases/",
       "confluent repo"     at "https://packages.confluent.io/maven/",
+      "consensys repo"     at "https://artifacts.consensys.net/public/maven/maven/",
+      "consensys teku"     at "https://artifacts.consensys.net/public/teku/maven/"
     ),
   )
 
@@ -379,7 +382,8 @@ lazy val crypto = (project in file("skel-crypto"))
       name := "skel-crypto",
       libraryDependencies ++= libTest ++ libWeb3j ++ Seq(
         libOsLib,libUpickleLib,
-        libScodecBits,libHKDF
+        libScodecBits,libHKDF,
+        libBLS
       )
     )
 

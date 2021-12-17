@@ -24,9 +24,9 @@ class WalletVaultSpec extends AnyWordSpec with Matchers with TestData {
       ss.size should === (3)
       val sig = w1.msign("message".getBytes(),Some(SK(sk1)))
       
-      w1.mverify(sig,"message".getBytes(),Some(PK(pk1))) should === (true)
-      w1.mverify(sig,"message1".getBytes(),Some(PK(pk1))) should === (false)
-      w1.mverify(sig,"message".getBytes(),Some(PK(pk2))) should === (false)
+      w1.mverify(sig,"message".getBytes(),Some(PK(pk1))) should === (4)
+      w1.mverify(sig,"message1".getBytes(),Some(PK(pk1))) should === (0)
+      w1.mverify(sig,"message".getBytes(),Some(PK(pk2))) should === (3)
     }
   }
 
@@ -71,7 +71,7 @@ class WalletVaultSpec extends AnyWordSpec with Matchers with TestData {
     
     }
 
-    "sign and verfiy with WalletVaultTest + WalletVaultKeyfiles" in {
+    "msign and mverfiy with WalletVaultTest + WalletVaultKeyfiles" in {
       val w= WalletVault
         .build
         .withWallet(new WalletVaultTest)
@@ -89,13 +89,58 @@ class WalletVaultSpec extends AnyWordSpec with Matchers with TestData {
 
       sigs should !== (List())
       sigs.size should === (6)
-      info(s"sigs=${sigs}")
-
+      
       w.mverify(sigs,"message".getBytes()) should === (true)
 
       w.mverify(sigs,"message1".getBytes()) should === (false)
     }
     
+    "msign and mverfiy 3:6" in {
+      val w6= WalletVault
+        .build
+        .withWallet(new WalletVaultTest)
+        .withWallet(new WalletVaultKeyfiles(testDir, (keystoreFile) => { keystoreFile match {
+          case "keystore-1.json" => "test123"
+          case "keystore-ff04.json" => "abcd1234"
+          case "keystore-ff05.json" => "12345678"
+          case _ => ""
+        }}))
+        .load()
+
+      val w3= WalletVault
+        .build
+        .withWallet(new WalletVaultTest)
+        .load()
+      
+      w6.size() should === (6)
+      w3.size() should === (3)
+
+      val sigs3 = w3.msign("message".getBytes())
+
+      sigs3 should !== (List())
+      sigs3.size should === (3)
+      // info(s"sigs (3)=${sigs3}")
+
+      w6.mverify(sigs3,"message".getBytes(), m = 3) should === (true)
+      w6.mverify(sigs3,"message1".getBytes(), m = 3) should === (false)  
+
+      // shuffled
+      val w61= WalletVault
+        .build
+        .withWallet(new WalletVaultKeyfiles(testDir, (keystoreFile) => { keystoreFile match {
+          case "keystore-1.json" => "test123"
+          case "keystore-ff04.json" => "abcd1234"
+          case "keystore-ff05.json" => "12345678"
+          case _ => ""
+        }}))
+        .withWallet(new WalletVaultTest().shuffle())
+        .load()
+
+      w61.mverify(sigs3,"message".getBytes(), m = 3) should === (true)
+      w61.mverify(sigs3,"message1".getBytes(), m = 3) should === (false)  
+
+    }
+
   }
 
 }

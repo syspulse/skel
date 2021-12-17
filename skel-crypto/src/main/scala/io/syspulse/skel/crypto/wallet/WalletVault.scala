@@ -56,17 +56,19 @@ trait WalletVaultable {
     sigs
   }
 
-  def mverify(sigs:List[Signature],data:Array[Byte],userPk:Option[PK]=None,userId:Option[UserID]=None):Boolean = {
+  def mverify(sigs:List[Signature],data:Array[Byte],userPk:Option[PK]=None,userId:Option[UserID]=None):Int = {
     val signers = if(userPk.isDefined) 
                     Signer(userId.getOrElse(UNKNOWN_USER),Array[Byte](),userPk.get) +: this.signers.values.flatten.toList
                   else 
                     this.signers.values.flatten.toList
 
     val pks = signers.map(_.pk)
-    sigs.zip(pks).filter( sp => {
+    
+    val vv = sigs.map(sig => pks.map(pk => (sig,pk))).flatten.map{ case (sig,pk) => {
       //log.debug(s"signer=${sp}: data=${data}")
-      Eth.verify(data,sp._1,sp._2)
-    }).size == signers.size
+      Eth.verify(data, sig, pk)
+    }}
+    vv.filter(_ == true).size
   }
 
   def load():Try[Map[SignerID,List[Signer]]]
@@ -84,6 +86,13 @@ class WalletVaultTest extends WalletVaultable {
     signer3.uid -> List(signer3),
   )
 
+  def shuffle():WalletVaultable = {
+    signers = signers.map{ case(uid,ss) => {
+      val uid = UUID.random
+      uid -> List(ss.head.copy(uid = uid))
+    }}.toMap
+    this
+  }
   override def load():Try[Map[SignerID,List[Signer]]] = Success(signers)
 }
 
@@ -136,12 +145,12 @@ class WalletVault {
 
   def size() = signers.size
 
-  def msign(data:Array[Byte],userSk:Option[SK]=None,userId:Option[UserID]=None):List[Signature] = {
-    vaults.map(_.msign(data,userSk,userId)).flatten.toList
+  def msign(data:Array[Byte],userSk:Option[SK]=None,userId:Option[UserID]=None, m:Int = -1 ):List[Signature] = {
+    vaults.map(_.msign(data,userSk,userId)).flatten.take(if(m == -1) signers.size else m).toList
   }
 
-  def mverify(sigs:List[Signature],data:Array[Byte],userPk:Option[PK]=None,userId:Option[UserID]=None):Boolean = {
-    vaults.filter(_.mverify(sigs,data,userPk,userId)).size > 0
+  def mverify(sigs:List[Signature],data:Array[Byte],userPk:Option[PK]=None,userId:Option[UserID]=None, m:Int = -1):Boolean = {
+    vaults.map(_.mverify(sigs,data,userPk,userId)).sum >= (if(m == -1) signers.size else m)
   }
 
 
