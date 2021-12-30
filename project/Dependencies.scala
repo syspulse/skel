@@ -5,7 +5,7 @@ object Dependencies {
     // Versions
     lazy val versionScalaLogging = "3.9.2"
     lazy val akkaVersion    = "2.6.14"
-    lazy val alpakkaVersion = "3.0.3"  
+    lazy val alpakkaVersion = "3.0.4"  
     lazy val akkaHttpVersion = "10.2.4"
     lazy val akkaKafkaVersion = "2.0.3"
     lazy val kafkaAvroSerVersion = "5.4.1"
@@ -49,6 +49,10 @@ object Dependencies {
     lazy val appNameTwit = "skel-twit"
     lazy val appBootClassTwit = "io.syspulse.skel.twit.App"
     
+    lazy val appNameDynamo = "skel-dynamo"
+    lazy val appBootClassDynamo = "io.syspulse.skel.ingest.dynamo.App"
+    
+
     lazy val appVersion = "0.0.5"
     lazy val jarPrefix = "server-"
     
@@ -64,6 +68,7 @@ object Dependencies {
 
     val libAlpakkaInfluxDB ="com.lightbend.akka"          %% "akka-stream-alpakka-influxdb"  % alpakkaVersion
     val libAlpakkaCassandra="com.lightbend.akka"          %% "akka-stream-alpakka-cassandra" % alpakkaVersion //"2.0.2"
+    val libAlpakkaDynamo=   "com.lightbend.akka"          %% "akka-stream-alpakka-dynamodb" % alpakkaVersion
 
     val libAkkaProtobuf =   "com.typesafe.akka"           %% "akka-protobuf"        % akkaVersion
     val libAkkaKafka=       "com.typesafe.akka"           %% "akka-stream-kafka"    % akkaKafkaVersion

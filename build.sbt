@@ -507,9 +507,9 @@ lazy val twit = (project in file("demo/skel-twit"))
     dockerBuildxSettings,
 
     name := appNameTwit,
-    run / mainClass := Some(appBootClassNpp),
-    assembly / mainClass := Some(appBootClassNpp),
-    Compile / mainClass := Some(appBootClassNpp), // <-- This is very important for DockerPlugin generated stage1 script!
+    run / mainClass := Some(appNameTwit),
+    assembly / mainClass := Some(appNameTwit),
+    Compile / mainClass := Some(appNameTwit), // <-- This is very important for DockerPlugin generated stage1 script!
     assembly / assemblyJarName := jarPrefix + appNameTwit + "-" + "assembly" + "-"+  appVersion + ".jar",
     
     Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
@@ -522,5 +522,33 @@ lazy val twit = (project in file("demo/skel-twit"))
       libAlpakkaCassandra,
       libSeleniumJava,
       libSeleniumFirefox
+    ),  
+  )
+
+  lazy val ingest_dynamo = (project in file("skel-ingest/ingest-dynamo"))
+  .dependsOn(core,ingest)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  // .enablePlugins(AshScriptPlugin)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    name := appNameDynamo,
+    run / mainClass := Some(appBootClassDynamo),
+    assembly / mainClass := Some(appBootClassDynamo),
+    Compile / mainClass := Some(appBootClassDynamo), // <-- This is very important for DockerPlugin generated stage1 script!
+    assembly / assemblyJarName := jarPrefix + appNameTwit + "-" + "assembly" + "-"+  appVersion + ".jar",
+    
+    Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
+    Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
+    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
+    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
+    
+    libraryDependencies ++= libHttp ++ libTest ++ Seq(
+      libAlpakkaDynamo
     ),  
   )
