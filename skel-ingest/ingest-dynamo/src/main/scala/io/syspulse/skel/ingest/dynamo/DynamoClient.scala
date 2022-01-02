@@ -64,7 +64,7 @@ trait DynamoClient {
   def connect(dynamoUri:String,dynamoTable:String):DynamoClient = {
     dynamo = getDynamoClient(dynamoUri)
     tableName = dynamoTable
-    println(s"Dynamo: ${dynamoUri}: table=${dynamoTable}")
+    log.info(s"Dynamo: ${dynamoUri}: table=${dynamoTable}")
     this
   }
 

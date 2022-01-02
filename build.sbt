@@ -114,8 +114,8 @@ val sharedConfigAssembly = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(core, cron, `skel-test`, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow)
-  .dependsOn(core, cron, `skel-test`, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow, scrap, ekm, npp)
+  .aggregate(core, cron, video, `skel-test`, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow)
+  .dependsOn(core, cron, video, `skel-test`, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow, scrap, ekm, npp)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -141,7 +141,7 @@ lazy val core = (project in file("skel-core"))
           libScodecBits
         ),
     )
-
+    
 lazy val `skel-test` = (project in file("skel-test"))
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
@@ -526,7 +526,7 @@ lazy val twit = (project in file("demo/skel-twit"))
   )
 
   lazy val ingest_dynamo = (project in file("skel-ingest/ingest-dynamo"))
-  .dependsOn(core,ingest)
+  .dependsOn(core,video,ingest)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -541,7 +541,7 @@ lazy val twit = (project in file("demo/skel-twit"))
     run / mainClass := Some(appBootClassDynamo),
     assembly / mainClass := Some(appBootClassDynamo),
     Compile / mainClass := Some(appBootClassDynamo), // <-- This is very important for DockerPlugin generated stage1 script!
-    assembly / assemblyJarName := jarPrefix + appNameTwit + "-" + "assembly" + "-"+  appVersion + ".jar",
+    assembly / assemblyJarName := jarPrefix + appNameDynamo + "-" + "assembly" + "-"+  appVersion + ".jar",
     
     Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
     Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
@@ -550,5 +550,47 @@ lazy val twit = (project in file("demo/skel-twit"))
     
     libraryDependencies ++= libHttp ++ libTest ++ Seq(
       libAlpakkaDynamo
+    ),  
+  )
+  
+  lazy val video = (project in file("skel-video"))
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      name := "skel-video",
+      libraryDependencies ++= 
+        libCommon ++ 
+        libSkel ++ 
+        Seq(
+          libAkkaHttpSpray,
+          libUUID,
+        ),
+    )
+  
+  lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
+  .dependsOn(core,video,ingest)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  // .enablePlugins(AshScriptPlugin)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    name := appNameElastic,
+    run / mainClass := Some(appBootClassElastic),
+    assembly / mainClass := Some(appBootClassElastic),
+    Compile / mainClass := Some(appBootClassElastic), // <-- This is very important for DockerPlugin generated stage1 script!
+    assembly / assemblyJarName := jarPrefix + appNameElastic + "-" + "assembly" + "-"+  appVersion + ".jar",
+    
+    Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
+    Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
+    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
+    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
+    
+    libraryDependencies ++= libHttp ++ libTest ++ Seq(
+      libAlpakkaElastic
     ),  
   )

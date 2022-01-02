@@ -51,7 +51,10 @@ object Dependencies {
     
     lazy val appNameDynamo = "skel-dynamo"
     lazy val appBootClassDynamo = "io.syspulse.skel.ingest.dynamo.App"
-    
+
+    lazy val appNameElastic = "skel-elastic"
+    lazy val appBootClassElastic = "io.syspulse.skel.ingest.elastic.App"
+
 
     lazy val appVersion = "0.0.5"
     lazy val jarPrefix = "server-"
@@ -66,9 +69,10 @@ object Dependencies {
     val libAkkaHttpSpray =  "com.typesafe.akka"           %% "akka-http-spray-json" % akkaHttpVersion
     val libAkkaStream =     "com.typesafe.akka"           %% "akka-stream"          % akkaVersion
 
-    val libAlpakkaInfluxDB ="com.lightbend.akka"          %% "akka-stream-alpakka-influxdb"  % alpakkaVersion
-    val libAlpakkaCassandra="com.lightbend.akka"          %% "akka-stream-alpakka-cassandra" % alpakkaVersion //"2.0.2"
-    val libAlpakkaDynamo=   "com.lightbend.akka"          %% "akka-stream-alpakka-dynamodb" % alpakkaVersion
+    val libAlpakkaInfluxDB ="com.lightbend.akka"          %% "akka-stream-alpakka-influxdb"       % alpakkaVersion
+    val libAlpakkaCassandra="com.lightbend.akka"          %% "akka-stream-alpakka-cassandra"      % alpakkaVersion //"2.0.2"
+    val libAlpakkaDynamo=   "com.lightbend.akka"          %% "akka-stream-alpakka-dynamodb"       % alpakkaVersion
+    val libAlpakkaElastic=  "com.lightbend.akka"          %% "akka-stream-alpakka-elasticsearch"  % alpakkaVersion
 
     val libAkkaProtobuf =   "com.typesafe.akka"           %% "akka-protobuf"        % akkaVersion
     val libAkkaKafka=       "com.typesafe.akka"           %% "akka-stream-kafka"    % akkaKafkaVersion
