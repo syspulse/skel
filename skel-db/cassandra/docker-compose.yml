@@ -1,0 +1,22 @@
+version: "3"
+
+networks:
+  cassandra_net:
+
+#volumes:
+#  cassandra_data: 
+
+services:
+  cassandra:
+    image: cassandra:4.0.1
+    restart: always
+    container_name: cassandra
+    ports:
+      - "9042:9042"
+    volumes:
+    # ATTENTION: conainer cannot start on fcrypt-ed volume!!!
+      - ./data:/var/lib/cassandra
+    environment:
+      - NONE:1
+    networks:
+      - cassandra_net
