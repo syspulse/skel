@@ -10,3 +10,4 @@ Most of the modules contain Docker-Compose infra for quick Dev/Test deployments
 4. [tidb](tidb) - TitanDB
 5. [postgres](postgres)
 6. [mysql](mysql)
+7. [influxdb](influx) - InfluxDB (Influx with Granfana -> [../skel-telemetry](../skel-telemetry))

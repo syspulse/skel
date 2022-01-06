@@ -1,0 +1,34 @@
+version: "3"
+
+networks:
+  influx_net:
+
+#volumes:
+#  influx_data:
+
+services:
+  
+  influxdb:
+    image: influxdb:2.0
+    restart: always
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    volumes:
+    # ATTENTION: container cannot start on fcrypt-ed volume!!!
+      - ./influxdb/db:/var/lib/influxdb2
+      - ./influxdb/config:/etc/influxdb2
+      - ./influxdb_scripts:/docker-entrypoint-initdb.d
+      # - ./influxdb_run_once:/etc/run_once
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin_user
+      - DOCKER_INFLUXDB_INIT_PASSWORD=admin_pass
+      - DOCKER_INFLUXDB_INIT_ORG=org
+      - DOCKER_INFLUXDB_INIT_BUCKET=app-bucket
+      - V1_DB_NAME=app_db
+      - V1_RP_NAME=app_rp
+      - V1_AUTH_USERNAME=app_user
+      - V1_AUTH_PASSWORD=app_pass
+    networks:
+      - influx_net
