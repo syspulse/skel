@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<PGWSFullListing>
+    <fullListing>
+<contentDetails>
+            <addedDate>2010-11-08T14:10:12.397Z</addedDate>
+            <additionalTitle>House Hunters International</additionalTitle>
+            <category>TV</category>
+            <color>Color</color>
+            <credit>
+                <contribution>Host</contribution>
+                <firstName>Suzanne</firstName>
+                <lastName>Whang</lastName>
+                <creditType>Credit</creditType>
+                <personId>79359</personId>
+                <orderNumber>1</orderNumber>
+            </credit>
+            <dimensions>2D</dimensions>
+            <formats>SD</formats>
+            <formats>HD</formats>
+            <linear>true</linear>
+            <linearScheduleExpiryDate>2010-11-20T06:30:00.000Z</linearScheduleExpiryDate>
+            <nonLinear>false</nonLinear>
+            <originalAirDate>2010-09-13T00:00:00.000Z</originalAirDate>
+            <progType>Series</progType>
+            <rating>NR (Not Rated)</rating>
+            <subCategories>Travel</subCategories>
+            <title>House Hunters International</title>
+            <tmsProgramId>EP008048630236</tmsProgramId>
+            <upcomingMovie>false</upcomingMovie>
+            <seriesId>185817</seriesId>
+            <tmsConnectorId>SH008048630000</tmsConnectorId>
+            <channelAdult>true</channelAdult>
+        </contentDetails>
+    </fullListing>
+</PGWSFullListing>
