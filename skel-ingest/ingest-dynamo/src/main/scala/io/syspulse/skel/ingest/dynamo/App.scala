@@ -49,15 +49,15 @@ object App {
   
     OParser.parse(argsParser, args, Config()) match {
       case Some(configArgs) => {
-        val confuration = Configuration.withPriority(Seq(new ConfigurationEnv,new ConfigurationAkka))
+        val configuration = Configuration.default
 
         val config = Config(
-          command = { if(! configArgs.command.isEmpty) configArgs.command else confuration.getString("dynamo.command").getOrElse("ingest") },
-          dynamoUri = { if( ! configArgs.dynamoUri.isEmpty) configArgs.dynamoUri else confuration.getString("dynamo.uri").getOrElse("http://localhost:8100") },
-          dynamoTable = { if( ! configArgs.dynamoTable.isEmpty) configArgs.dynamoTable else confuration.getString("dynamo.table").getOrElse("MOVIE") },
+          command = { if(! configArgs.command.isEmpty) configArgs.command else configuration.getString("dynamo.command").getOrElse("ingest") },
+          dynamoUri = { if( ! configArgs.dynamoUri.isEmpty) configArgs.dynamoUri else configuration.getString("dynamo.uri").getOrElse("http://localhost:8100") },
+          dynamoTable = { if( ! configArgs.dynamoTable.isEmpty) configArgs.dynamoTable else configuration.getString("dynamo.table").getOrElse("MOVIE") },
           expr = configArgs.expr,
-          limit = { if( configArgs.limit != -1) configArgs.limit else confuration.getInt("dynamo.limit").getOrElse(-1) },
-          feed = { if( ! configArgs.feed.isEmpty) configArgs.feed else confuration.getString("feed").getOrElse("feed/tms-100.xml") },
+          limit = { if( configArgs.limit != -1) configArgs.limit else configuration.getInt("dynamo.limit").getOrElse(-1) },
+          feed = { if( ! configArgs.feed.isEmpty) configArgs.feed else configuration.getString("feed").getOrElse("feed/tms-100.xml") },
         )
 
         println(s"Config: ${config}")

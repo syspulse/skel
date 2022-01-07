@@ -89,28 +89,28 @@ object App extends SkelApp {
   
     OParser.parse(argsParser, args, Config()) match {
       case Some(configArgs) => {
-        val confuration = Configuration.default
+        val configuration = Configuration.default
 
         val config = configArgs.copy(
           
-          influxUri = { if(! configArgs.influxUri.isEmpty) configArgs.influxUri else confuration.getString("influx.uri").getOrElse("http://localhost:8086") },
-          influxUser = { if(! configArgs.influxUser.isEmpty) configArgs.influxUser else confuration.getString("influx.user").getOrElse("") },
-          influxPass = { if(! configArgs.influxPass.isEmpty) configArgs.influxPass else confuration.getString("influx.pass").getOrElse("") },
-          influxDb = { if(! configArgs.influxDb.isEmpty) configArgs.influxDb else confuration.getString("influx.db").getOrElse("") },
+          influxUri = { if(! configArgs.influxUri.isEmpty) configArgs.influxUri else configuration.getString("influx.uri").getOrElse("http://localhost:8086") },
+          influxUser = { if(! configArgs.influxUser.isEmpty) configArgs.influxUser else configuration.getString("influx.user").getOrElse("") },
+          influxPass = { if(! configArgs.influxPass.isEmpty) configArgs.influxPass else configuration.getString("influx.pass").getOrElse("") },
+          influxDb = { if(! configArgs.influxDb.isEmpty) configArgs.influxDb else configuration.getString("influx.db").getOrElse("") },
 
-          ekmUri = { if(! configArgs.ekmUri.isEmpty) configArgs.ekmUri else confuration.getString("ekm.uri").getOrElse("http://localhost:30001") },
-          ekmKey = { if(! configArgs.ekmKey.isEmpty) configArgs.ekmKey else confuration.getString("ekm.key").getOrElse("") },
-          ekmDevice = { if(! configArgs.ekmDevice.isEmpty) configArgs.ekmDevice else confuration.getString("ekm.device").getOrElse("") },
-          ekmFreq = { if(configArgs.ekmFreq != 0L) configArgs.ekmFreq else confuration.getLong("ekm.freq").getOrElse(60L) },
+          ekmUri = { if(! configArgs.ekmUri.isEmpty) configArgs.ekmUri else configuration.getString("ekm.uri").getOrElse("http://localhost:30001") },
+          ekmKey = { if(! configArgs.ekmKey.isEmpty) configArgs.ekmKey else configuration.getString("ekm.key").getOrElse("") },
+          ekmDevice = { if(! configArgs.ekmDevice.isEmpty) configArgs.ekmDevice else configuration.getString("ekm.device").getOrElse("") },
+          ekmFreq = { if(configArgs.ekmFreq != 0L) configArgs.ekmFreq else configuration.getLong("ekm.freq").getOrElse(60L) },
 
-          limit = { if(configArgs.limit != 0L) configArgs.limit else confuration.getLong("limit").getOrElse(0L) },
+          limit = { if(configArgs.limit != 0L) configArgs.limit else configuration.getLong("limit").getOrElse(0L) },
           
-          logFile = { if(! configArgs.logFile.isEmpty) configArgs.logFile else confuration.getString("log.file").getOrElse("") },
+          logFile = { if(! configArgs.logFile.isEmpty) configArgs.logFile else configuration.getString("log.file").getOrElse("") },
           
-          grafiteUri = { if(! configArgs.grafiteUri.isEmpty) configArgs.grafiteUri else confuration.getString("grafite.uri").getOrElse("localhost:2003") },
+          grafiteUri = { if(! configArgs.grafiteUri.isEmpty) configArgs.grafiteUri else configuration.getString("grafite.uri").getOrElse("localhost:2003") },
         )
 
-        initPrometheus(confuration)
+        initPrometheus(configuration)
 
         Console.err.println(s"Config: ${config}")
 

@@ -64,25 +64,25 @@ object App extends skel.Server {
   
     OParser.parse(argsParser, args, Config()) match {
       case Some(configArgs) => {
-        val confuration = Configuration.default
+        val configuration = Configuration.default
 
         val config = Config(
-          host = { if(! configArgs.host.isEmpty) configArgs.host else confuration.getString("http.host").getOrElse("0.0.0.0") },
-          port = { if(configArgs.port!=0) configArgs.port else confuration.getInt("http.port").getOrElse(8080) },
-          uri = { if(! configArgs.uri.isEmpty) configArgs.uri else confuration.getString("http.uri").getOrElse("/api/v1/npp") },
+          host = { if(! configArgs.host.isEmpty) configArgs.host else configuration.getString("http.host").getOrElse("0.0.0.0") },
+          port = { if(configArgs.port!=0) configArgs.port else configuration.getInt("http.port").getOrElse(8080) },
+          uri = { if(! configArgs.uri.isEmpty) configArgs.uri else configuration.getString("http.uri").getOrElse("/api/v1/npp") },
           
-          nppUrl = { if(! configArgs.nppUrl.isEmpty) configArgs.nppUrl else confuration.getString("npp.url").getOrElse("http://localhost:30004/MEDO-PS") },
-          nppCron = { if(! configArgs.nppCron.isEmpty) configArgs.nppCron else confuration.getString("npp.cron").getOrElse("0 30 14 * * *") },
-          nppInterval = { if(configArgs.nppInterval != -1L) configArgs.nppInterval else confuration.getLong("npp.interval").getOrElse(10000L) },
-          nppDelay = { if(configArgs.nppDelay != -1L) configArgs.nppDelay else confuration.getLong("npp.delay").getOrElse(100L) },
-          nppVariance = { if(configArgs.nppInterval != -1L) configArgs.nppInterval else confuration.getLong("npp.variance").getOrElse(100L) },
+          nppUrl = { if(! configArgs.nppUrl.isEmpty) configArgs.nppUrl else configuration.getString("npp.url").getOrElse("http://localhost:30004/MEDO-PS") },
+          nppCron = { if(! configArgs.nppCron.isEmpty) configArgs.nppCron else configuration.getString("npp.cron").getOrElse("0 30 14 * * *") },
+          nppInterval = { if(configArgs.nppInterval != -1L) configArgs.nppInterval else configuration.getLong("npp.interval").getOrElse(10000L) },
+          nppDelay = { if(configArgs.nppDelay != -1L) configArgs.nppDelay else configuration.getLong("npp.delay").getOrElse(100L) },
+          nppVariance = { if(configArgs.nppInterval != -1L) configArgs.nppInterval else configuration.getLong("npp.variance").getOrElse(100L) },
           
-          format = { if(! configArgs.format.isEmpty) configArgs.format else confuration.getString("npp.format").getOrElse("csv") },
+          format = { if(! configArgs.format.isEmpty) configArgs.format else configuration.getString("npp.format").getOrElse("csv") },
 
-          influxUri = { if(! configArgs.influxUri.isEmpty) configArgs.influxUri else confuration.getString("influx.uri").getOrElse("http://localhost:8086") },
-          influxOrg = { if(! configArgs.influxOrg.isEmpty) configArgs.influxOrg else confuration.getString("influx.org").getOrElse("") },
-          influxBucket = { if(! configArgs.influxBucket.isEmpty) configArgs.influxBucket else confuration.getString("influx.bucket").getOrElse("") },
-          influxToken = { if(! configArgs.influxToken.isEmpty) configArgs.influxToken else confuration.getString("influx.token").getOrElse("") },
+          influxUri = { if(! configArgs.influxUri.isEmpty) configArgs.influxUri else configuration.getString("influx.uri").getOrElse("http://localhost:8086") },
+          influxOrg = { if(! configArgs.influxOrg.isEmpty) configArgs.influxOrg else configuration.getString("influx.org").getOrElse("") },
+          influxBucket = { if(! configArgs.influxBucket.isEmpty) configArgs.influxBucket else configuration.getString("influx.bucket").getOrElse("") },
+          influxToken = { if(! configArgs.influxToken.isEmpty) configArgs.influxToken else configuration.getString("influx.token").getOrElse("") },
         )
 
         Console.err.println(s"Config: ${config}")
@@ -104,7 +104,7 @@ object App extends skel.Server {
           config.nppCron
         ).start
         
-        run( config.host, config.port,config.uri,confuration,
+        run( config.host, config.port,config.uri,configuration,
           Seq()
         )
       }

@@ -44,10 +44,10 @@ object App {
           arg[String]("<expr>").optional().action((x, c) => c.copy(expr = c.expr :+ x)).text("expression"),
         ),
         cmd("search").action( (_, c) => c.copy(command = "search")).text("Search field").children(
-          arg[String]("<expr>").unbounded().action((x, c) => c.copy(expr = c.expr :+ x)).text("search pattern (e.g. Avat*)"),
+          arg[String]("<expr>").unbounded().action((x, c) => c.copy(expr = c.expr :+ x)).text("search pattern (e.g. Avatar)"),
         ),
         cmd("searches").action( (_, c) => c.copy(command = "searches")).text("Search multiple fields").children(
-          arg[String]("<expr>").unbounded().action((x, c) => c.copy(expr = c.expr :+ x)).text("search pattern (e.g. Avat*)"),
+          arg[String]("<expr>").unbounded().action((x, c) => c.copy(expr = c.expr :+ x)).text("search pattern (e.g. Drama)"),
         ),
         cmd("wildcards").action( (_, c) => c.copy(command = "wildcards")).text("Wildcard search multiple fields").children(
           arg[String]("<expr>").unbounded().action((x, c) => c.copy(expr = c.expr :+ x)).text("search pattern (e.g. Avat*)"),
@@ -58,15 +58,15 @@ object App {
   
     OParser.parse(argsParser, args, Config()) match {
       case Some(configArgs) => {
-        val confuration = Configuration.withPriority(Seq(new ConfigurationEnv,new ConfigurationAkka))
+        val configuration = Configuration.default
 
         val config = Config(
-          command = { if(! configArgs.command.isEmpty) configArgs.command else confuration.getString("elastic.command").getOrElse("ingest") },
-          elasticUri = { if( ! configArgs.elasticUri.isEmpty) configArgs.elasticUri else confuration.getString("elastic.uri").getOrElse("http://localhost:9200") },
-          elasticIndex = { if( ! configArgs.elasticIndex.isEmpty) configArgs.elasticIndex else confuration.getString("elastic.index").getOrElse("index") },
+          command = { if(! configArgs.command.isEmpty) configArgs.command else configuration.getString("elastic.command").getOrElse("ingest") },
+          elasticUri = { if( ! configArgs.elasticUri.isEmpty) configArgs.elasticUri else configuration.getString("elastic.uri").getOrElse("http://localhost:9200") },
+          elasticIndex = { if( ! configArgs.elasticIndex.isEmpty) configArgs.elasticIndex else configuration.getString("elastic.index").getOrElse("index") },
           expr = configArgs.expr,
-          limit = { if( configArgs.limit != -1) configArgs.limit else confuration.getInt("elastic.limit").getOrElse(-1) },
-          feed = { if( ! configArgs.feed.isEmpty) configArgs.feed else confuration.getString("feed").getOrElse("feed/tms-100.xml") },
+          limit = { if( configArgs.limit != -1) configArgs.limit else configuration.getInt("elastic.limit").getOrElse(-1) },
+          feed = { if( ! configArgs.feed.isEmpty) configArgs.feed else configuration.getString("feed").getOrElse("feed/tms-100.xml") },
         )
 
         println(s"Config: ${config}")
