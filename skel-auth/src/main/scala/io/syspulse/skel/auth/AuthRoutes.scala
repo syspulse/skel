@@ -1,0 +1,210 @@
+package io.syspulse.skel.auth
+
+import io.jvm.uuid._
+
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.model.{ StatusCodes, HttpEntity, ContentTypes}
+import akka.http.scaladsl.server.Route
+
+import scala.concurrent.Future
+import akka.actor.typed.ActorRef
+import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.util.Timeout
+import com.typesafe.scalalogging.Logger
+
+import io.syspulse.skel.auth.AuthRegistry._
+import io.syspulse.skel.service.Routeable
+import scala.util.Success
+import scala.util.Try
+
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import spray.json.DefaultJsonProtocol._
+
+import akka.http.scaladsl.client.RequestBuilding.{Post,Get}
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.HttpRequest
+import akka.util.ByteString
+import akka.http.scaladsl.model.HttpMethods
+import java.nio.charset.StandardCharsets
+import java.net.URLEncoder
+import akka.http.scaladsl.model.HttpCharsets
+import akka.http.scaladsl.model.ContentType
+import akka.http.scaladsl.model.MediaTypes
+import akka.http.scaladsl.model.FormData
+
+
+class GoogleAuth(
+  redirectUri:String,
+  clientId:Option[String] = Option[String](System.getenv("AUTH_CLIENT_ID")), 
+  clientSecret:Option[String] = Option[String](System.getenv("AUTH_CLIENT_SECRET"))) {
+  
+  def getClientId = clientId.getOrElse("UNKNOWN")
+  def getClientSecret = clientSecret.getOrElse("UNKNOW")
+  def getTokenUrl = tokenUrl
+  def getRedirectUri = redirectUri
+
+  def loginUrl=
+    s"https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${getClientId}&scope=openid profile email&redirect_uri=${redirectUri}"
+  def tokenUrl = "https://oauth2.googleapis.com/token"
+
+  def profileUrl(accessToken:String) = s"https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${accessToken}"
+
+  override def toString = s"${this.getClass().getSimpleName()}(${loginUrl},${tokenUrl},${redirectUri})"
+}
+
+class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String)(implicit val system: ActorSystem[_]) extends Routeable  {
+  val log = Logger(s"${this}")
+  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+
+  val idp = new GoogleAuth(redirectUri)
+  log.info(s"idp: ${idp}")
+
+  import AuthJson._
+  
+  private implicit val timeout = Timeout.create(system.settings.config.getDuration("auth.routes.ask-timeout"))
+
+  def getAuths(): Future[Auths] =
+    authRegistry.ask(GetAuths)
+  def getAuth(name: String): Future[GetAuthResponse] =
+    authRegistry.ask(GetAuth(name, _))
+  def createAuth(auth: Auth): Future[ActionPerformed] =
+    authRegistry.ask(CreateAuth(auth, _))
+  def deleteAuth(name: String): Future[ActionPerformed] =
+    authRegistry.ask(DeleteAuth(name, _))
+
+  def getCallback(code: String, scope:String, state:Option[String]): Future[ActionPerformed] = {
+    log.info(s"code=${code}, scope=${scope}, state=${state}")
+    
+    case class Tokens(accessToken: String,expiresIn:Int, scope:String, tokenType:String, idToken:String)
+    implicit val tokenFormat = jsonFormat(Tokens,"access_token","expires_in","scope", "token_type", "id_token")
+
+    case class Profile(id:String,email:String,name:String)
+    implicit val profileFormat = jsonFormat(Profile,"id","email","name")
+    
+    val data = Map(
+      "code" -> code,
+      "client_id" -> idp.getClientId,
+      "client_secret" -> idp.getClientSecret,
+      "redirect_uri" -> idp.getRedirectUri,
+      "grant_type" -> "authorization_code"
+    )
+
+    // val data =  s""" {
+    //   "code": "${code}",
+    //   "client_id": "${idp.getClientId}",
+    //   "client_secret": "${idp.getClientSecret}",
+    //   "redirect_uri": "${idp.getRedirectUri}",
+    //   "grant_type": "authorization_code"
+    // }"""
+
+    for {
+      tokenReq <- {
+        log.info(s"code=${code}: requesting JWT:\n${data}")
+        val rsp = Http().singleRequest(
+          HttpRequest(
+            method = HttpMethods.POST,
+            uri = idp.getTokenUrl,
+            //entity = HttpEntity(ContentTypes.`application/json`,data)
+            entity = FormData(data).toEntity,
+        ))
+        rsp
+      }
+      tokenRsp <- {
+        tokenReq.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
+      }
+      tokens <- {
+        log.info(s"tokenRsp: ${tokenRsp.utf8String}")
+        Unmarshal(tokenRsp).to[Tokens]
+      }
+      jwt <- {
+        log.info(s"code=${code}: tokens: ${tokens}");
+        Future(tokens.accessToken)
+      }
+      profileReq <- {
+        log.info(s"code=${code}: requesting user...")
+        val rsp = Http().singleRequest(
+          HttpRequest(uri = idp.profileUrl(tokens.accessToken))
+            .withEntity(ContentTypes.`application/json`,"")
+        )
+        rsp
+      }
+      profileRes <- {
+        profileReq.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
+      }
+      profile <- {
+        val profile = profileRes.utf8String
+        log.info(s"code=${code}: profile: ${profile}")
+
+        Unmarshal(profileRes).to[Profile]
+      }
+      authRes <- {
+        val auth = Auth(profile.id,jwt = jwt, code = code,scope = scope)
+        log.info(s"code=${code}: profile: ${profile}: auth=${auth}")
+        createAuth(auth)
+      }
+    } yield authRes
+    
+  }
+
+  override val routes: Route =
+      concat(
+        // simple embedded Login FrontEnd
+        path("login") {
+          // getFromResourceDirectory("login") 
+          // getFromResource("login/index.html")
+          complete(HttpEntity(ContentTypes.`text/html(UTF-8)`,
+          s"""
+          <html>
+<head>
+</head>
+<body>
+    <h1>skel-auth</h1>
+    <a href="${idp.loginUrl}">Google</a>
+</body>
+</html>
+          """
+          ))
+        },
+        path("callback") {
+          pathEndOrSingleSlash {
+            get {
+              parameters("code", "scope", "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,scope,state,prompt,authuser,hd) =>
+                onSuccess(getCallback(code,scope,state)) { response =>
+                  //complete((StatusCodes.OK, response))
+                  complete((StatusCodes.Created, response))
+                }
+              }
+            }
+          }
+        },
+        pathEndOrSingleSlash {
+          concat(
+            get {
+              complete(getAuths())
+            },
+            post {
+              entity(as[Auth]) { auth =>
+                onSuccess(createAuth(auth)) { performed =>
+                  complete((StatusCodes.Created, performed))
+                }
+              }
+            })
+        },
+        path(Segment) { name =>
+          concat(
+            get {
+              rejectEmptyResponse {
+                onSuccess(getAuth(name)) { response =>
+                  complete(response.maybeAuth)
+                }
+              }
+            },
+            delete {
+              onSuccess(deleteAuth(name)) { performed =>
+                complete((StatusCodes.OK, performed))
+              }
+            })
+        })
+}
