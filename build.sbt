@@ -212,8 +212,9 @@ lazy val auth = (project in file("skel-auth"))
     sharedConfigAssembly,
 
     name := appNameAuth,
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
-      
+    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ libJwt ++ Seq(
+      libUpickleLib,
+      libRequests
     ),
     
     run / mainClass := Some(appBootClassAuth),

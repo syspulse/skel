@@ -149,6 +149,9 @@ object Dependencies {
     val libSeleniumJava =   "org.seleniumhq.selenium"       % "selenium-java"             % "4.0.0-rc-3"
     val libSeleniumFirefox ="org.seleniumhq.selenium"       % "selenium-firefox-driver"   % "4.0.0-rc-3"
 
+    val libJwtCore =   "com.pauldijou"                 %% "jwt-core"           % "4.2.0"
+    val libJoseJwt =   "com.nimbusds"                  % "nimbus-jose-jwt"     % "4.21"
+
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)
@@ -166,5 +169,7 @@ object Dependencies {
     val libLihaoyi = Seq(libOsLib,libUpickleLib)
 
     val libWeb3j = Seq(libBouncyCastle,libWeb3jCore,libWeb3jCrypto)
+
+    val libJwt = Seq(libJwtCore,libJoseJwt)
   }
   

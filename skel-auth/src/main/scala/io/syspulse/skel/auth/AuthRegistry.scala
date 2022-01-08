@@ -15,8 +15,8 @@ object AuthRegistry {
 
   final case class GetAuths(replyTo: ActorRef[Auths]) extends Command
   final case class CreateAuth(auth: Auth, replyTo: ActorRef[ActionPerformed]) extends Command
-  final case class GetAuth(name: String, replyTo: ActorRef[GetAuthResponse]) extends Command
-  final case class DeleteAuth(name: String, replyTo: ActorRef[ActionPerformed]) extends Command
+  final case class GetAuth(auid: String, replyTo: ActorRef[GetAuthResponse]) extends Command
+  final case class DeleteAuth(auid: String, replyTo: ActorRef[ActionPerformed]) extends Command
 
   final case class GetAuthResponse(maybeAuth: Option[Auth])
   final case class ActionPerformed(description: String,code:Option[String])
@@ -29,14 +29,14 @@ object AuthRegistry {
         replyTo ! Auths(auths.toSeq)
         Behaviors.same
       case CreateAuth(auth, replyTo) =>
-        replyTo ! ActionPerformed(s"created",Some(auth.code))
+        replyTo ! ActionPerformed(s"created",Some(auth.idToken))
         registry(auths + auth)
-      case GetAuth(code, replyTo) =>
-        replyTo ! GetAuthResponse(auths.find(_.code == code))
+      case GetAuth(auid, replyTo) =>
+        replyTo ! GetAuthResponse(auths.find(_.auid == auid))
         Behaviors.same
-      case DeleteAuth(code, replyTo) =>
-        replyTo ! ActionPerformed(s"deleted",Some(code))
-        registry(auths.filterNot(_.code == code))
+      case DeleteAuth(auid, replyTo) =>
+        replyTo ! ActionPerformed(s"deleted",Some(auid))
+        registry(auths.filterNot(_.auid == auid))
     }
 }
 

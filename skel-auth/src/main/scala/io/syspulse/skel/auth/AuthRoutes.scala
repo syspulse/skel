@@ -13,8 +13,6 @@ import akka.actor.typed.scaladsl.AskPattern._
 import akka.util.Timeout
 import com.typesafe.scalalogging.Logger
 
-import io.syspulse.skel.auth.AuthRegistry._
-import io.syspulse.skel.service.Routeable
 import scala.util.Success
 import scala.util.Try
 
@@ -35,44 +33,33 @@ import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.model.FormData
 
 
-class GoogleAuth(
-  redirectUri:String,
-  clientId:Option[String] = Option[String](System.getenv("AUTH_CLIENT_ID")), 
-  clientSecret:Option[String] = Option[String](System.getenv("AUTH_CLIENT_SECRET"))) {
-  
-  def getClientId = clientId.getOrElse("UNKNOWN")
-  def getClientSecret = clientSecret.getOrElse("UNKNOW")
-  def getTokenUrl = tokenUrl
-  def getRedirectUri = redirectUri
+import io.syspulse.skel.auth.jwt.AuthJwt
+import io.syspulse.skel.auth.AuthRegistry._
+import io.syspulse.skel.service.Routeable
+import io.syspulse.skel.auth.oauth2.GoogleOAuth2
 
-  def loginUrl=
-    s"https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${getClientId}&scope=openid profile email&redirect_uri=${redirectUri}"
-  def tokenUrl = "https://oauth2.googleapis.com/token"
-
-  def profileUrl(accessToken:String) = s"https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${accessToken}"
-
-  override def toString = s"${this.getClass().getSimpleName()}(${loginUrl},${tokenUrl},${redirectUri})"
-}
 
 class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String)(implicit val system: ActorSystem[_]) extends Routeable  {
   val log = Logger(s"${this}")
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
 
-  val idp = new GoogleAuth(redirectUri)
+  val idp = (new GoogleOAuth2(redirectUri)).withJWKS()
   log.info(s"idp: ${idp}")
 
   import AuthJson._
   
   private implicit val timeout = Timeout.create(system.settings.config.getDuration("auth.routes.ask-timeout"))
 
-  def getAuths(): Future[Auths] =
-    authRegistry.ask(GetAuths)
-  def getAuth(name: String): Future[GetAuthResponse] =
-    authRegistry.ask(GetAuth(name, _))
+  def getAuths(): Future[Auths] = authRegistry.ask(GetAuths)
+
+  def getAuth(auid: String): Future[GetAuthResponse] =
+    authRegistry.ask(GetAuth(auid, _))
+
   def createAuth(auth: Auth): Future[ActionPerformed] =
     authRegistry.ask(CreateAuth(auth, _))
-  def deleteAuth(name: String): Future[ActionPerformed] =
-    authRegistry.ask(DeleteAuth(name, _))
+
+  def deleteAuth(auid: String): Future[ActionPerformed] =
+    authRegistry.ask(DeleteAuth(auid, _))
 
   def getCallback(code: String, scope:String, state:Option[String]): Future[ActionPerformed] = {
     log.info(s"code=${code}, scope=${scope}, state=${state}")
@@ -90,14 +77,6 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
       "redirect_uri" -> idp.getRedirectUri,
       "grant_type" -> "authorization_code"
     )
-
-    // val data =  s""" {
-    //   "code": "${code}",
-    //   "client_id": "${idp.getClientId}",
-    //   "client_secret": "${idp.getClientSecret}",
-    //   "redirect_uri": "${idp.getRedirectUri}",
-    //   "grant_type": "authorization_code"
-    // }"""
 
     for {
       tokenReq <- {
@@ -118,10 +97,10 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
         log.info(s"tokenRsp: ${tokenRsp.utf8String}")
         Unmarshal(tokenRsp).to[Tokens]
       }
-      jwt <- {
-        log.info(s"code=${code}: tokens: ${tokens}");
-        Future(tokens.accessToken)
-      }
+      // jwt <- {
+      //   log.info(s"code=${code}: tokens: ${tokens}");
+      //   Future(tokens.accessToken)
+      // }
       profileReq <- {
         log.info(s"code=${code}: requesting user...")
         val rsp = Http().singleRequest(
@@ -140,8 +119,15 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
         Unmarshal(profileRes).to[Profile]
       }
       authRes <- {
-        val auth = Auth(profile.id,jwt = jwt, code = code,scope = scope)
-        log.info(s"code=${code}: profile: ${profile}: auth=${auth}")
+        val auth = Auth(auid = profile.id, tokens.accessToken, tokens.idToken, scope, tokens.expiresIn)
+        val jwt = AuthJwt.decode(auth)
+        val claims = AuthJwt.decodeClaim(auth)
+        // verify just for logging
+        val verified = idp.verify(tokens.idToken)
+
+        val _s=s"code=${code}: profile=${profile}: auth=${auth}: jwt=${jwt.get.content}: claims=${claims}: verified=${verified}"
+        if(verified) log.info(_s) else log.warn(_s)
+        
         createAuth(auth)
       }
     } yield authRes

@@ -13,7 +13,7 @@ object AuthJson extends JsonCommon  {
   
   import DefaultJsonProtocol._
 
-  implicit val authJsonFormat = jsonFormat6(Auth)
+  implicit val authJsonFormat = jsonFormat6(Auth.apply)
   implicit val authssJsonFormat = jsonFormat1(Auths)
 
   implicit val actionPerformedJsonFormat = jsonFormat2(ActionPerformed)
