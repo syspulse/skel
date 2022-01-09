@@ -85,7 +85,7 @@ object GoogleOAuth2 extends cask.MainRoutes{
                 prompt: Option[String]=None,
                 authuser: Option[String]=None,
                 hd: Option[String]=None) = {
-    println(s"\ncode=${code},\nscope=${scope}")
+    println(s"\ncode=${code}\nscope=${scope}")
 
     val r = requests.post(tokenUrl, 
       data = Map(

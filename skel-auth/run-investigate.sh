@@ -10,7 +10,7 @@ export SITE=${SITE:-$CONF}
 
 source auth-cred-${SITE}.sh
 
-MAIN=${MAIN:-io.syspulse.skel.auth.investigate.GoogleOAuth2}
+MAIN=${MAIN:-io.syspulse.skel.auth.investigate.TwitterOAuth2}
 
 echo "app: $APP"
 echo "site: $SITE"
