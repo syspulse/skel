@@ -17,4 +17,5 @@ object AuthJson extends JsonCommon  {
   implicit val authssJsonFormat = jsonFormat1(Auths)
 
   implicit val actionPerformedJsonFormat = jsonFormat2(ActionPerformed)
+  implicit val createAuthJsonFormat = jsonFormat1(CreateAuthResponse)
 }

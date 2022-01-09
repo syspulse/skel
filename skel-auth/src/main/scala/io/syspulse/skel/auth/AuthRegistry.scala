@@ -14,11 +14,12 @@ object AuthRegistry {
   sealed trait Command extends io.syspulse.skel.Command
 
   final case class GetAuths(replyTo: ActorRef[Auths]) extends Command
-  final case class CreateAuth(auth: Auth, replyTo: ActorRef[ActionPerformed]) extends Command
+  final case class CreateAuth(auth: Auth, replyTo: ActorRef[CreateAuthResponse]) extends Command
   final case class GetAuth(auid: String, replyTo: ActorRef[GetAuthResponse]) extends Command
   final case class DeleteAuth(auid: String, replyTo: ActorRef[ActionPerformed]) extends Command
 
-  final case class GetAuthResponse(maybeAuth: Option[Auth])
+  final case class GetAuthResponse(auth: Option[Auth])
+  final case class CreateAuthResponse(auth: Auth)
   final case class ActionPerformed(description: String,code:Option[String])
 
   def apply(): Behavior[io.syspulse.skel.Command] = registry(Set.empty)
@@ -29,7 +30,7 @@ object AuthRegistry {
         replyTo ! Auths(auths.toSeq)
         Behaviors.same
       case CreateAuth(auth, replyTo) =>
-        replyTo ! ActionPerformed(s"created",Some(auth.idToken))
+        replyTo ! CreateAuthResponse(auth)
         registry(auths + auth)
       case GetAuth(auid, replyTo) =>
         replyTo ! GetAuthResponse(auths.find(_.auid == auid))
