@@ -214,7 +214,9 @@ lazy val auth = (project in file("skel-auth"))
     name := appNameAuth,
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ libJwt ++ Seq(
       libUpickleLib,
-      libRequests
+      libRequests,
+      libScalaTags,
+      libCask
     ),
     
     run / mainClass := Some(appBootClassAuth),

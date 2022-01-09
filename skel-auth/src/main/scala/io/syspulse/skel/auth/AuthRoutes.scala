@@ -39,13 +39,13 @@ import io.syspulse.skel.service.Routeable
 import io.syspulse.skel.auth.oauth2.GoogleOAuth2
 
 
-final case class AuthWithProfileRsp(auid:String, idToken:String, scope:String, email:String, name:String, avatar:String)
+final case class AuthWithProfileRsp(auid:String, idToken:String, email:String, name:String, avatar:String, locale:String)
 final case class Tokens(accessToken: String,expiresIn:Int, scope:String, tokenType:String, idToken:String)
-final case class GoogleProfile(id:String,email:String,name:String,picture:String)
+final case class GoogleProfile(id:String,email:String,name:String,picture:String,locale:String)
 
 object AuthRoutesJsons {
   implicit val tokenFormat = jsonFormat(Tokens,"access_token","expires_in","scope", "token_type", "id_token")
-  implicit val googleProfileFormat = jsonFormat(GoogleProfile,"id","email","name","picture")
+  implicit val googleProfileFormat = jsonFormat(GoogleProfile,"id","email","name","picture","locale")
   implicit val authWithProfileFormat = jsonFormat6(AuthWithProfileRsp)
 }    
 
@@ -136,7 +136,7 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
         createAuth(auth)
       }
       authRes <- {
-        Future(AuthWithProfileRsp(db.auth.auid,db.auth.idToken,db.auth.scope,profile.email,profile.name,profile.picture))
+        Future(AuthWithProfileRsp(db.auth.auid,db.auth.idToken,profile.email,profile.name,profile.picture,profile.locale))
       }
     } yield authRes
     

@@ -117,7 +117,7 @@ object Dependencies {
     val libUpickleLib =     "com.lihaoyi"                 %% "upickle"              % "1.4.1"
     //val libUjsonLib =       "com.lihaoyi"                 %% "ujson"                % "1.4.1"
     val libScalaTags =      "com.lihaoyi"                 %% "scalatags"            % "0.9.4"
-    val libCask =           "com.lihaoyi"                 %% "cask"                 % "0.7.11"
+    val libCask =           "com.lihaoyi"                 %% "cask"                 % "0.7.11" // "0.7.8"
     val libRequests =       "com.lihaoyi"                 %% "requests"             % "0.6.9"
 
     val libCsv =            "com.github.tototoshi"          %% "scala-csv"            % "1.3.7"
