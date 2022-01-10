@@ -5,6 +5,11 @@ Authentication and Authorization
 1. OAuth2 __Google__
 2. OAuth2 __Twitter__
 
+Basic OAuth2 Flow
+
+<img src="doc/oauth2-flow.jpg" width="750">
+
+
 ----
 
 ### OAuth2 Google
