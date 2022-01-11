@@ -16,7 +16,7 @@ echo "app: $APP"
 echo "site: $SITE"
 echo "main: $MAIN"
 
-echo "AUTH_CLIENT_ID=$AUTH_CLIENT_ID"
-echo "AUTH_CLIENT_SECRET=$AUTH_CLIENT_SECRET"
+export AUTH_CLIENT_ID=$TWITTER_AUTH_CLIENT_ID
+export AUTH_CLIENT_SECRET=$TWITTER_AUTH_CLIENT_SECRET
 
 exec ../run-app.sh $APP $MAIN "$@"

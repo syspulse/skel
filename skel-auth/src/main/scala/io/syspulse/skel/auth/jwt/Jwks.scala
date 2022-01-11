@@ -1,4 +1,4 @@
-package io.syspulse.skel.auth.oauth2
+package io.syspulse.skel.auth.jwt
 
 import io.jvm.uuid._
 
@@ -62,7 +62,7 @@ object JWKSKeys {
   implicit val jsonJWKSKeys = jsonFormat1(JWKSKeys.apply)
 }
 
-class Jwks {
+trait Jwks {
   val log = Logger(s"${this}")
 
   //var jwks:Option[JWKSKeys] = None
@@ -75,6 +75,8 @@ class Jwks {
   }
 
   def verify(jwt:String,index:Int= -1):Boolean = {
+    if(!jwks.isDefined) return false
+    
     val selector = (new JWKSelector(matcher)).select(jwks.get)
     jwks.get.getKeys.asScala.zipWithIndex.collect{ case(key,i) if(index== -1 || i==index) => {
       log.info(s"Key[${i}]: ${key}: algo=${key.getAlgorithm()}")

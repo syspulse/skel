@@ -36,16 +36,15 @@ import akka.http.scaladsl.model.FormData
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.AuthRegistry._
 import io.syspulse.skel.service.Routeable
-import io.syspulse.skel.auth.oauth2.GoogleOAuth2
+import io.syspulse.skel.auth.oauth2.{ OAuthProfile, GoogleOAuth2, TwitterOAuth2 }
+import akka.http.scaladsl.model.HttpHeader
+import akka.http.scaladsl.model.headers.RawHeader
 
 
 final case class AuthWithProfileRsp(auid:String, idToken:String, email:String, name:String, avatar:String, locale:String)
-final case class Tokens(accessToken: String,expiresIn:Int, scope:String, tokenType:String, idToken:String)
-final case class GoogleProfile(id:String,email:String,name:String,picture:String,locale:String)
 
 object AuthRoutesJsons {
-  implicit val tokenFormat = jsonFormat(Tokens,"access_token","expires_in","scope", "token_type", "id_token")
-  implicit val googleProfileFormat = jsonFormat(GoogleProfile,"id","email","name","picture","locale")
+  
   implicit val authWithProfileFormat = jsonFormat6(AuthWithProfileRsp)
 }    
 
@@ -53,8 +52,11 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
   val log = Logger(s"${this}")
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
 
-  val idp = (new GoogleOAuth2(redirectUri)).withJWKS()
-  log.info(s"idp: ${idp}")
+  val idps = Map(
+    GoogleOAuth2.id -> (new GoogleOAuth2(redirectUri)).withJWKS(),
+    TwitterOAuth2.id -> (new TwitterOAuth2(redirectUri))
+  )
+  log.info(s"idps: ${idps}")
 
   import AuthJson._
   import AuthRoutesJsons._
@@ -72,44 +74,47 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
   def deleteAuth(auid: String): Future[ActionPerformed] =
     authRegistry.ask(DeleteAuth(auid, _))
 
-  def getCallback(code: String, scope:String, state:Option[String]): Future[AuthWithProfileRsp] = {
+  def getCallback(idp: Idp, code: String, scope: Option[String], state:Option[String]): Future[AuthWithProfileRsp] = {
     log.info(s"code=${code}, scope=${scope}, state=${state}")
     
     val data = Map(
       "code" -> code,
       "client_id" -> idp.getClientId,
       "client_secret" -> idp.getClientSecret,
-      "redirect_uri" -> idp.getRedirectUri,
+      "redirect_uri" -> idp.getRedirectUri(),
       "grant_type" -> "authorization_code"
-    )
+    ) ++ idp.getGrantHeaders()
+
+    val basicAuth = idp.getBasicAuth()
+    val headers = Seq[HttpHeader]() ++ {if(basicAuth.isDefined) Seq(RawHeader("Authorization",s"Basic ${basicAuth.get}")) else Seq()}
 
     for {
       tokenReq <- {
-        log.info(s"code=${code}: requesting JWT:\n${data}")
+        log.info(s"code=${code}: requesting access_code:\n${headers}\n${data}")
         val rsp = Http().singleRequest(
           HttpRequest(
             method = HttpMethods.POST,
-            uri = idp.getTokenUrl,
+            uri = idp.getTokenUrl(),
             //entity = HttpEntity(ContentTypes.`application/json`,data)
             entity = FormData(data).toEntity,
+            headers = headers
         ))
         rsp
       }
       tokenRsp <- {
         tokenReq.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
       }
-      tokens <- {
+      idpTokens <- {
         log.info(s"tokenRsp: ${tokenRsp.utf8String}")
-        Unmarshal(tokenRsp).to[Tokens]
+        //Unmarshal(tokenRsp).to[GoogleTokens]
+        idp.decodeTokens(tokenRsp)
       }
-      // jwt <- {
-      //   log.info(s"code=${code}: tokens: ${tokens}");
-      //   Future(tokens.accessToken)
-      // }
       profileReq <- {
-        log.info(s"code=${code}: requesting user...")
+        log.info(s"code=${code}: tokens=${idpTokens}: requesting user profile")
+        val (uri,headers) = idp.getProfileUrl(idpTokens.accessToken)
         val rsp = Http().singleRequest(
-          HttpRequest(uri = idp.profileUrl(tokens.accessToken))
+          HttpRequest(uri = uri)
+            .withHeaders(headers.map(h => RawHeader(h._1,h._2)))
             .withEntity(ContentTypes.`application/json`,"")
         )
         rsp
@@ -121,18 +126,21 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
         val profile = profileRes.utf8String
         log.info(s"code=${code}: profile: ${profile}")
 
-        Unmarshal(profileRes).to[GoogleProfile]
+        idp.decodeProfile(profileRes)
       }
       db <- {
-        val auth = Auth(auid = profile.id, tokens.accessToken, tokens.idToken, scope, tokens.expiresIn)
-        val jwt = AuthJwt.decode(auth)
-        val claims = AuthJwt.decodeClaim(auth)
-        // verify just for logging
-        val verified = idp.verify(tokens.idToken)
-
-        val _s=s"code=${code}: profile=${profile}: auth=${auth}: jwt=${jwt.get.content}: claims=${claims}: verified=${verified}"
-        if(verified) log.info(_s) else log.warn(_s)
+        val auth = Auth(auid = profile.id, idpTokens.accessToken, idpTokens.idToken, scope, idpTokens.expiresIn)
         
+        if(auth.idToken != "") {
+          val jwt = AuthJwt.decode(auth)
+          val claims = AuthJwt.decodeClaim(auth)
+          // verify just for logging
+          val verified = idp.verify(idpTokens.idToken)
+          log.info(s"code=${code}: profile=${profile}: auth=${auth}: jwt=${jwt.get.content}: claims=${claims}: verified=${verified}")
+        } else {
+          log.info(s"code=${code}: profile=${profile}: auth=${auth}")
+        }
+
         createAuth(auth)
       }
       authRes <- {
@@ -155,21 +163,37 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
 </head>
 <body>
     <h1>skel-auth</h1>
-    <a href="${idp.loginUrl}">Google</a>
+    <a href="${idps.get(GoogleOAuth2.id).get.getLoginUrl()}">Google</a>
+    <br>
+    <a href="${idps.get(TwitterOAuth2.id).get.getLoginUrl()}">Twitter</a>
 </body>
 </html>
           """
           ))
         },
-        path("callback") {
-          pathEndOrSingleSlash {
-            get {
-              parameters("code", "scope", "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,scope,state,prompt,authuser,hd) =>
-                onSuccess(getCallback(code,scope,state)) { rsp =>
-                  //complete((StatusCodes.OK, response))
-                  complete(StatusCodes.Created, rsp)                  
+        pathPrefix("callback") {
+          path("google") {
+            pathEndOrSingleSlash {
+              get {
+                parameters("code", "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,scope,state,prompt,authuser,hd) =>
+                  onSuccess(getCallback(idps.get(GoogleOAuth2.id).get,code,scope,state)) { rsp =>
+                    complete(StatusCodes.Created, rsp)                  
+                  }
                 }
               }
+            }
+          } ~
+          path("twitter") {
+            pathEndOrSingleSlash {
+              //authenticateBasicAsync {
+                get {
+                  parameters("code", "scope".optional,"state".optional) { (code,scope,state) =>
+                    onSuccess(getCallback(idps.get(TwitterOAuth2.id).get,code,scope,None)) { rsp =>
+                      complete(StatusCodes.Created, rsp)                  
+                    }
+                  }
+                }
+              //}
             }
           }
         },
