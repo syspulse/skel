@@ -14,7 +14,14 @@ Basic OAuth2 Flow
 
 ### OAuth2 Google
 
-Client credentials are created here: [https://console.cloud.google.com/apis/credentials/oauthclient](https://console.cloud.google.com/apis/credentials/oauthclient)
+Client credentials: [https://console.cloud.google.com/apis/credentials/oauthclient](https://console.cloud.google.com/apis/credentials/oauthclient)
+
+### OAuth2 Twitter
+
+Client credentials: [https://developer.twitter.com/en/portal/projects/$PROJECT/apps/$APP/auth-settings](https://developer.twitter.com/en/portal/projects/$PROJECT/apps/$APP/auth-settings)
+
+__NOTE__: Twitter does not support profile scope and does not return email in v2 userprofile request !
+
 
 ### Service
 
