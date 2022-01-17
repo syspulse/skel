@@ -152,6 +152,8 @@ object Dependencies {
     val libJwtCore =   "com.pauldijou"                 %% "jwt-core"           % "4.2.0"
     val libJoseJwt =   "com.nimbusds"                  % "nimbus-jose-jwt"     % "4.21"
 
+    val libAvro4s =         "com.sksamuel.avro4s"           %% "avro4s-core"        % "4.0.12"
+
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)

@@ -153,6 +153,7 @@ lazy val serde = (project in file("skel-serde"))
         libTest ++ 
         Seq(
           libUUID, 
+          libAvro4s,
           libScodecBits
         ),
     )
