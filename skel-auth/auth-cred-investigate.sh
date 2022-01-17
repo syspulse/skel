@@ -1,2 +1,2 @@
-export AUTH_CLIENT_ID="1084039747276-3na59kcrc8ab5k65louvg5jv8ulnmv54.apps.googleusercontent.com"
-export AUTH_CLIENT_SECRET="ms7tnMN2pWIk-bqaNxYJezD8"
+export AUTH_CLIENT_ID=
+export AUTH_CLIENT_SECRET=
