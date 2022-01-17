@@ -5,18 +5,17 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import com.sksamuel.avro4s._
 import com.sksamuel.avro4s.AvroOutputStream
 
-class AvroSerde[T] {
-  // def serialize(t: T, schema: AvroSchema[T]): Array[Byte] = {
-    
-  //   val os = AvroOutputStream.data[T]
-  //   os.write(Seq(pepperoni, hawaiian))
-  //   os.flush()
-  //   os.close()
-  //  }
+object AvroSerde {
+  def serialize[T: Encoder : SchemaFor](t: T): Array[Byte] = {
+    val os = new ByteArrayOutputStream
+    val avro = AvroOutputStream.data[T].to(os).build()
+    avro.write(t)
+    avro.close()
+    os.toByteArray()
+  }
 
-  //  def deserializeSingleBinary(a: Array[Byte]): T = {
-  //     val ais = AvroInputStream.binary(new ByteArrayInputStream(a))
-  //     try ais.iterator.next finally ais.close()
-  //  }
+  def deserialize[T: SchemaFor : Decoder](bytes: Array[Byte]): T = {
+    AvroInputStream.data.from(bytes).build(implicitly[SchemaFor[T]].schema).iterator.next()
+  }
 }
 

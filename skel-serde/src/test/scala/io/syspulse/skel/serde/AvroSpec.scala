@@ -11,7 +11,6 @@ import io.jvm.uuid._
 
 import scala.jdk.CollectionConverters
 
-import com.sksamuel
 import com.sksamuel.avro4s._
 import com.sksamuel.avro4s.AvroSchema
 
@@ -29,7 +28,7 @@ class AvroSpec extends AnyWordSpec with Matchers {
 
   "Avro" should {
 
-    "serialize and deserialize String" in {
+    "serialize and deserialize String with file" in {
       val schema = AvroSchema[String]
 
       val os = AvroOutputStream.data[String].to(new File(avroFile1)).build()
@@ -46,29 +45,27 @@ class AvroSpec extends AnyWordSpec with Matchers {
       o === ("DataStr")
     }
 
-    // "serialize and deserialize String" in {
+    "serialize and deserialize String with stream" in {
 
-    //   val schema = AvroSchema[String]
+      val schema = AvroSchema[String]
 
-    //   val byteOut = new ByteArrayOutputStream()
-    //   val objOut = new ObjectOutputStream(byteOut)
+      val byteOut = new ByteArrayOutputStream()
+      
+      val os = AvroOutputStream.binary[String].to(byteOut).build()
+      os.write("DataStr")
+      os.flush()
+      os.close()
 
-    //   val os = AvroOutputStream.data[String].to(byteOut).build() // to(new File("/tmp/str.avro")).build()
-    //   os.write("DataStr")
-    //   os.flush()
-    //   os.close()
+      val byteIn = new ByteArrayInputStream(byteOut.toByteArray())
 
-    //     info(s"${byteOut.toString()}")
-    //   val byteIn = new ByteArrayInputStream(byteOut.toByteArray())
+      val is = AvroInputStream.binary[String].from(byteIn).build(schema)
+      val o = is.iterator.take(1)
+      is.close()
 
-    //   val is = AvroInputStream.data[String].from(byteIn).build(schema)
-    //   val o = is.iterator.take(1)
-    //   is.close()
+      o === ("DataStr")
+    }
 
-    //   o === ("DataStr")
-    // }
-
-    "serialize and deserialize DataObj" in {
+    "serialize and deserialize DataObj with File" in {
       val ts = ZonedDateTime.now()
 
       val schema = AvroSchema[DataAvroObj]
@@ -78,6 +75,24 @@ class AvroSpec extends AnyWordSpec with Matchers {
       os.write(DataAvroObj(UUID("c3ce9adb-8008-426a-8828-6dfdf732df95"),ts.toString,"str",10,Long.MaxValue,"data".getBytes))
       os.flush()
       os.close()
+
+      val is = AvroInputStream.data[DataAvroObj].from(new File(avroFile2)).build(schema)
+      val o = is.iterator.take(1)
+      is.close()
+
+      o === (DataAvroObj(UUID("c3ce9adb-8008-426a-8828-6dfdf732df95"),ts.toString,"str",10,Long.MaxValue,"data".getBytes))
+    }
+
+    "serialize and deserialize DataObj with AvroServe" in {
+      val ts = ZonedDateTime.now()
+
+      val bb = AvroSerde.serialize(
+        DataAvroObj(UUID("c3ce9adb-8008-426a-8828-6dfdf732df95"),ts.toString,"str",10,Long.MaxValue,"data".getBytes)
+      )
+      
+      val o = AvroSerde.deserialize[DataAvroObj](bb)
+      
+      o === (DataAvroObj(UUID("c3ce9adb-8008-426a-8828-6dfdf732df95"),ts.toString,"str",10,Long.MaxValue,"data".getBytes))
     }
   }
 }
