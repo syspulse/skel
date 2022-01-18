@@ -10,7 +10,9 @@ initialize ~= { _ =>
   System.setProperty("config.file", "conf/application.conf")
 }
 
-fork := true
+//fork := true
+test / fork := true
+run / fork := true
 run / connectInput := true
 
 enablePlugins(JavaAppPackaging)
@@ -114,8 +116,8 @@ val sharedConfigAssembly = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(core, cron, video, `skel-test`, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow)
-  .dependsOn(core, cron, video, `skel-test`, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow, scrap, ekm, npp)
+  .aggregate(core, serde, cron, video, `skel-test`, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow)
+  .dependsOn(core, serde, cron, video, `skel-test`, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow, scrap, ekm, npp)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -138,6 +140,21 @@ lazy val core = (project in file("skel-core"))
         libTest ++ 
         Seq(
           libUUID, 
+          libScodecBits
+        ),
+    )
+
+lazy val serde = (project in file("skel-serde"))
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      name := "skel-serde",
+      libraryDependencies ++=         
+        libTest ++ 
+        Seq(
+          libUUID, 
+          libAvro4s,
+          libUpickleLib,
           libScodecBits
         ),
     )
