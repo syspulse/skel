@@ -1,7 +1,9 @@
-# Docker Infrastructure
+# Docker Infra
+
+Docker and Docker Compose
 
 1. [harbor](harbor) - Harbor Private Registry
-2. [compose](compose) - Docker-Compose Deployments
+2. [kafka](kafka) - Kafka Docker-Compose Deployments
 
 ## Credentials
 
