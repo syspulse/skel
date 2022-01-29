@@ -154,6 +154,8 @@ object Dependencies {
 
     val libAvro4s =         "com.sksamuel.avro4s"           %% "avro4s-core"        % "4.0.12"
 
+    val libSSSS =           "com.gladow"                    %% "scalassss"          % "0.2.0-SNAPSHOT"
+
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)
