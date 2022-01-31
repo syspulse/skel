@@ -1,5 +1,5 @@
 ---
-version: '2'
+version: '3'
 
 networks:
   kafka_net:
@@ -20,7 +20,6 @@ services:
 
   kafka:
     image: 'bitnami/kafka:2.8.1'
-    # image: confluentinc/cp-server:5.5.1
     hostname: broker
     container_name: broker
     depends_on:
@@ -34,8 +33,8 @@ services:
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
       KAFKA_BROKER_ID: 1
       
-      KAFKA_LISTENERS: DOCKER://broker:29092,INTERNAL://127.0.0.1:19092,EXTERNAL://:9092
-      KAFKA_ADVERTISED_LISTENERS: DOCKER://broker:29092,INTERNAL://127.0.0.1:19092,EXTERNAL://:9092
+      KAFKA_LISTENERS: DOCKER://broker:29092,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: DOCKER://broker:29092,EXTERNAL://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: DOCKER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
       
