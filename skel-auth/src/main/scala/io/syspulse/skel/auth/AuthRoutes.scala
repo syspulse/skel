@@ -5,6 +5,9 @@ import io.jvm.uuid._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.{ StatusCodes, HttpEntity, ContentTypes}
 import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.{ Directive, Directive1 }
+import akka.http.scaladsl.server.directives.Credentials
 
 import scala.concurrent.Future
 import akka.actor.typed.ActorRef
@@ -13,8 +16,7 @@ import akka.actor.typed.scaladsl.AskPattern._
 import akka.util.Timeout
 import com.typesafe.scalalogging.Logger
 
-import scala.util.Success
-import scala.util.Try
+import scala.util.{Success, Try, Failure}
 
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
@@ -36,25 +38,42 @@ import akka.http.scaladsl.model.FormData
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.AuthRegistry._
 import io.syspulse.skel.service.Routeable
-import io.syspulse.skel.auth.oauth2.{ OAuthProfile, GoogleOAuth2, TwitterOAuth2 }
+import io.syspulse.skel.auth.oauth2.{ OAuthProfile, GoogleOAuth2, TwitterOAuth2, ProxyM2MAuth}
 import akka.http.scaladsl.model.HttpHeader
 import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.headers.OAuth2BearerToken
+import akka.http.scaladsl.server.MissingQueryParamRejection
+import scala.concurrent.Await
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
+import scala.concurrent.ExecutionContext
+import akka.actor
+import akka.stream.Materializer
+import scala.util.Random
 
+sealed trait AuthResult {
+  //def token: Option[OAuth2BearerToken] = None
+}
+case class BasicAuthResult(token: String) extends AuthResult
+case class ProxyAuthResult(token: String) extends AuthResult
+case object AuthDisabled extends AuthResult
 
 final case class AuthWithProfileRsp(auid:String, idToken:String, email:String, name:String, avatar:String, locale:String)
 
 object AuthRoutesJsons {
   
   implicit val authWithProfileFormat = jsonFormat6(AuthWithProfileRsp)
+  implicit val j1 = jsonFormat1(ProxyAuthResult)
 }    
 
-class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String)(implicit val system: ActorSystem[_]) extends Routeable  {
+class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String)(implicit val system: ActorSystem[_],config:Config) extends Routeable  {
   val log = Logger(s"${this}")
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
 
   val idps = Map(
     GoogleOAuth2.id -> (new GoogleOAuth2(redirectUri)).withJWKS(),
-    TwitterOAuth2.id -> (new TwitterOAuth2(redirectUri))
+    TwitterOAuth2.id -> (new TwitterOAuth2(redirectUri)),
+    ProxyM2MAuth.id -> (new ProxyM2MAuth(redirectUri,config)),
   )
   log.info(s"idps: ${idps}")
 
@@ -150,6 +169,53 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
     
   }
 
+  protected def basicAuthCredentials(creds: Credentials)(implicit up: (String,String)):Option[AuthResult] = {
+    creds match {
+      case p @ Credentials.Provided(id) if up._1.equals(id) && p.verify(up._2) => {
+        log.info(s"Authenticated: ${up}")
+        Some(BasicAuthResult(id))
+      }
+      case _ =>
+        log.warn(s"Not authenticated: ${up}")
+        None
+    }
+  }
+
+  protected def proxyAuthCredentials(request:HttpRequest)(implicit config:Config):Directive1[AuthResult] = {
+    val idp = idps(ProxyM2MAuth.id).asInstanceOf[ProxyM2MAuth]
+    val rsp = for {
+      body <- request.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
+      rsp <- { 
+        val headers = request.headers.map(h => h.name() -> h.value()).toMap
+        idp.askAuth(headers,body.utf8String)
+      }
+    } yield rsp
+
+    Await.result(rsp, FiniteDuration(1000L, TimeUnit.MILLISECONDS)) match {
+      case Success(t) => provide(ProxyAuthResult(t.token))
+      case Failure(e) => {
+        log.warn(s"Not authenticated: ${request}")
+        complete(StatusCodes.Unauthorized)
+      }
+    }
+  }
+
+  protected def authenticateBasicAuth[T]()(implicit config:Config): Directive1[AuthResult] = {
+    log.info("Authenticating: Basic-Authentication...")
+    implicit val credConfig:(String,String) = (config.authBasicUser,config.authBasicPass)
+    authenticateBasic(config.authBasicRealm, basicAuthCredentials)
+  }
+
+  protected def authenticateProxyAuth[T](request:HttpRequest)(implicit config:Config): Directive1[AuthResult] = {
+    log.info(s"Authenticating: Proxy M2M... (request=${request}")
+    proxyAuthCredentials(request)
+  }
+
+  protected def authenticateAll[T]()(implicit config:Config): Directive1[AuthResult] = {
+    authenticateBasicAuth()
+    //provide(AuthDisabled)
+  }
+
   override val routes: Route =
       concat(
         // simple embedded Login FrontEnd
@@ -185,22 +251,40 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
           } ~
           path("twitter") {
             pathEndOrSingleSlash {
-              //authenticateBasicAsync {
-                get {
-                  parameters("code", "scope".optional,"state".optional) { (code,scope,state) =>
-                    onSuccess(getCallback(idps.get(TwitterOAuth2.id).get,code,scope,None)) { rsp =>
-                      complete(StatusCodes.Created, rsp)                  
-                    }
+              get {
+                parameters("code", "scope".optional,"state".optional) { (code,scope,state) =>
+                  onSuccess(getCallback(idps.get(TwitterOAuth2.id).get,code,scope,None)) { rsp =>
+                    complete(StatusCodes.Created, rsp)                  
                   }
                 }
-              //}
+              }
             }
           }
         },
+        pathPrefix("m2m") {
+          path("token") {
+            import io.syspulse.skel.auth.oauth2.ProxyM2MAuth._
+            import io.syspulse.skel.auth.oauth2.ProxyTokensRes
+
+            val rsp = ProxyTokensRes(id = 1,token="TOKEN-1",refreshToken="REFRESH-TOKEN-1")
+            complete(StatusCodes.OK,rsp)
+          } ~
+          pathEndOrSingleSlash { 
+            post {
+              extractRequest { request =>
+                authenticateProxyAuth(request)(config)(rsp =>
+                  complete(StatusCodes.OK,rsp.toString)
+                )
+              }
+            }
+          }
+        } ~
         pathEndOrSingleSlash {
           concat(
             get {
-              complete(getAuths())
+              authenticateAll()(config)(_ => 
+                complete(getAuths())  
+              )              
             },
             post {
               entity(as[Auth]) { auth =>

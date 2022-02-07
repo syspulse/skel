@@ -13,6 +13,14 @@ case class Config(
   uri:String = "",
   datastore:String = "",
 
+  authBasicUser:String = "",
+  authBasicPass:String = "",
+  authBasicRealm:String = "realm",
+
+  authUri:String = "",
+  authBodyMapping:String = "",
+  authHeadersMapping:String = "",
+
   files: Seq[String] = Seq(),
 )
 
@@ -32,6 +40,13 @@ object App extends skel.Server {
 
         opt[String]('d', "datastore").action((x, c) => c.copy(datastore = x)).text("datastore"),
 
+        opt[String]("auth.basic.user").action((x, c) => c.copy(uri = x)).text("Auth Basic Auth username (def: user1"),
+        opt[String]("auth.basic.pass").action((x, c) => c.copy(uri = x)).text("Auth Basic Auth password (def: pass1"),
+
+        opt[String]('a', "auth.uri").action((x, c) => c.copy(authUri = x)).text("Auth server endpoint (def: http://localhost:8080/api/v1/auth/m2m"),
+        opt[String]("auth.body.mapping").action((x, c) => c.copy(authBodyMapping = x)).text("Body mapping (def:) "),
+        opt[String]("auth.headers.mapping").action((x, c) => c.copy(authHeadersMapping = x)).text("Headers mapping (def:) "),
+
         help("help").text(s"${Util.info._1} microservice"),
         arg[String]("...").unbounded().optional().action((x, c) => c.copy(files = c.files :+ x)).text("files"),
       )
@@ -41,29 +56,28 @@ object App extends skel.Server {
       case Some(configArgs) => {
         val configuration = Configuration.default
 
-        val config = Config(
+        implicit val config = Config(
           host = { if(! configArgs.host.isEmpty) configArgs.host else configuration.getString("http.host").getOrElse("0.0.0.0") },
           port = { if(configArgs.port!=0) configArgs.port else configuration.getInt("http.port").getOrElse(8080) },
           uri = { if(! configArgs.uri.isEmpty) configArgs.uri else configuration.getString("http.uri").getOrElse("/api/v1/auth") },
           datastore = { if(! configArgs.datastore.isEmpty) configArgs.datastore else configuration.getString("datastore").getOrElse("cache") }.toLowerCase,
+
+          authBasicUser = { if(! configArgs.authBasicUser.isEmpty) configArgs.authBasicUser else configuration.getString("auth.basic.user").getOrElse("user1") },
+          authBasicPass = { if(! configArgs.authBasicPass.isEmpty) configArgs.authBasicPass else configuration.getString("auth.basic.pass").getOrElse("pass1") },
+
+          authUri = { if(! configArgs.authUri.isEmpty) configArgs.authUri else configuration.getString("auth.uri").getOrElse("http://localhost:8080/api/v1/auth/m2m") },
+          authBodyMapping = { if(! configArgs.authBodyMapping.isEmpty) configArgs.authBodyMapping else configuration.getString("auth.body.mapping")
+                        .getOrElse("EVAL:username:{username}, EVAL:password:{password}") },
+          authHeadersMapping = { if(! configArgs.authHeadersMapping.isEmpty) configArgs.authHeadersMapping else configuration.getString("auth.headers.mapping")
+                        .getOrElse("COPY:Content-type:application/json, EVAL:X-App-Id:{client_id}, EVAL:X-App-Secret:{client_secret}") },
         )
 
         println(s"Config: ${config}")
 
-        // val store = config.datastore match {
-        //   case "mysql" | "db" => new OtpStoreDB(configuration)
-        //   case "postgres" => new OtpStoreDB(configuration)
-        //   case "mem" | "cache" => new OtpStoreMem
-        //   case _ => {
-        //     Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
-        //     new OtpStoreMem
-        //   }
-        // }
-
         run( config.host, config.port,config.uri, configuration,
           Seq(
             (AuthRegistry(),"AuthRegistry",(actor, actorSystem) => 
-              new AuthRoutes(actor,s"http://localhost:${config.port}${config.uri}/callback")(actorSystem) )
+              new AuthRoutes(actor,s"http://localhost:${config.port}${config.uri}/callback")(actorSystem, config) )
             
           )
         )
