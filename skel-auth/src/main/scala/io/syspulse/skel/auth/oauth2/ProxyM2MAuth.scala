@@ -84,6 +84,7 @@ class ProxyM2MAuth(val redirectUri:String,config:Config) extends Idp {
   import ProxyM2MAuth._
 
   val challenge = Util.generateAccessToken() //"challenge"
+  val transformers:Seq[ProxyTransformer] = getTransfomers(config.authHeadersMapping)
 
   override def clientId:Option[String] = Some("10000") //Option[String](System.getenv("CUSTOM_AUTH_CLIENT_ID"))
   override def clientSecret:Option[String] = Some("$2a$10$9NERDMTtLDcgNPnixNqsv.Eol/4s81R5hPIPaP6LyKjhUPNVo821i") //Option[String](System.getenv("CUSTOM_AUTH_CLIENT_SECRET")) 
@@ -114,20 +115,40 @@ class ProxyM2MAuth(val redirectUri:String,config:Config) extends Idp {
   }  
 
   def getTransfomers(cfg:String):Seq[ProxyTransformer] = {
+    if(cfg.isEmpty) return Seq()
     cfg.split(",").map(_.trim).map( s => {
       s.split(":") match {
-        case Array(t,k,v) => ProxyTransformer(t.trim,k.trim,v.trim)
-        case Array(k,v) => ProxyTransformer("",k.trim,v.trim)
+        case Array(t,k,v) => ProxyTransformer(t.trim.toUpperCase,k.trim,v.trim)
+        case Array(k,v) => ProxyTransformer("BODY",k.trim,v.trim)
       }
     })
   }
 
+  def transformBody():String = transformBody(transformers)
+
+  def transformBody(tt:Seq[ProxyTransformer]):String = {
+    var body = config.authBody
+    for( t <- tt if t.t == "BODY") {
+      body = body.replaceAll("""\{\{""" + t.k + """\}\}""", s"${t.v}")
+    }
+    body
+  }
+
+  def transformHeaders():Seq[RawHeader] = transformHeaders(transformers)
+
   def transformHeaders(tt:Seq[ProxyTransformer]):Seq[RawHeader] = {
-    tt.flatMap( t => {
-      t.v.trim.toLowerCase match {
-        case "{client_id}" => Some(RawHeader(t.k,getClientId))
-        case "{client_secret}" => Some(RawHeader(t.k,getClientSecret))
-        case _ => None
+    tt.filter(_.t.toUpperCase == "HEADER").flatMap( t => {
+      t.v match {
+        case "{{client_id}}" => Some(RawHeader(t.k,getClientId))
+        case "{{client_secret}}" => Some(RawHeader(t.k,getClientSecret))
+        case qv => {
+          // try to get from property and then from envvar
+          val v = qv.replaceAll("\\{\\{","").replaceAll("\\}\\}","")
+          Seq(Option(System.getenv(v)),Option(System.getProperty(v))).flatten.headOption match {
+            case Some(v) => Some(RawHeader(t.k,v))
+            case _ => None
+          }
+        }
       }
     })
   }

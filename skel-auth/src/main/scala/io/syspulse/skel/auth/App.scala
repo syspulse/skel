@@ -18,7 +18,7 @@ case class Config(
   authBasicRealm:String = "realm",
 
   authUri:String = "",
-  authBodyMapping:String = "",
+  authBody:String = "",
   authHeadersMapping:String = "",
 
   files: Seq[String] = Seq(),
@@ -44,7 +44,7 @@ object App extends skel.Server {
         opt[String]("auth.basic.pass").action((x, c) => c.copy(uri = x)).text("Auth Basic Auth password (def: pass1"),
 
         opt[String]('a', "auth.uri").action((x, c) => c.copy(authUri = x)).text("Auth server endpoint (def: http://localhost:8080/api/v1/auth/m2m"),
-        opt[String]("auth.body.mapping").action((x, c) => c.copy(authBodyMapping = x)).text("Body mapping (def:) "),
+        opt[String]("auth.body").action((x, c) => c.copy(authBody = x)).text("Body mapping (def:) "),
         opt[String]("auth.headers.mapping").action((x, c) => c.copy(authHeadersMapping = x)).text("Headers mapping (def:) "),
 
         help("help").text(s"${Util.info._1} microservice"),
@@ -66,10 +66,10 @@ object App extends skel.Server {
           authBasicPass = { if(! configArgs.authBasicPass.isEmpty) configArgs.authBasicPass else configuration.getString("auth.basic.pass").getOrElse("pass1") },
 
           authUri = { if(! configArgs.authUri.isEmpty) configArgs.authUri else configuration.getString("auth.uri").getOrElse("http://localhost:8080/api/v1/auth/m2m") },
-          authBodyMapping = { if(! configArgs.authBodyMapping.isEmpty) configArgs.authBodyMapping else configuration.getString("auth.body.mapping")
-                        .getOrElse("EVAL:username:{username}, EVAL:password:{password}") },
+          authBody = { if(! configArgs.authBody.isEmpty) configArgs.authBody else configuration.getString("auth.body")
+                        .getOrElse("""{ "username":{{user}}, "password":{{pass}}""") },
           authHeadersMapping = { if(! configArgs.authHeadersMapping.isEmpty) configArgs.authHeadersMapping else configuration.getString("auth.headers.mapping")
-                        .getOrElse("COPY:Content-type:application/json, EVAL:X-App-Id:{client_id}, EVAL:X-App-Secret:{client_secret}") },
+                        .getOrElse("HEADER:Content-type:application/json, HEADER:X-App-Id:{{client_id}}, HEADER:X-App-Secret:{{client_secret}}, BODY:X-User:{{user}}, BODY:X-Pass:{{pass}}") },
         )
 
         println(s"Config: ${config}")

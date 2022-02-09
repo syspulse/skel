@@ -50,6 +50,7 @@ import scala.concurrent.ExecutionContext
 import akka.actor
 import akka.stream.Materializer
 import scala.util.Random
+import io.syspulse.skel.util.Util
 
 sealed trait AuthResult {
   //def token: Option[OAuth2BearerToken] = None
@@ -213,7 +214,6 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
 
   protected def authenticateAll[T]()(implicit config:Config): Directive1[AuthResult] = {
     authenticateBasicAuth()
-    //provide(AuthDisabled)
   }
 
   override val routes: Route =
@@ -261,12 +261,13 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
             }
           }
         },
+        // curl -POST -i -v http://localhost:8080/api/v1/auth/m2m -d '{ "username" : "user1", "password": "password"}'
         pathPrefix("m2m") {
           path("token") {
             import io.syspulse.skel.auth.oauth2.ProxyM2MAuth._
             import io.syspulse.skel.auth.oauth2.ProxyTokensRes
 
-            val rsp = ProxyTokensRes(id = 1,token="TOKEN-1",refreshToken="REFRESH-TOKEN-1")
+            val rsp = ProxyTokensRes(id = 1,token=Util.generateAccessToken(), refreshToken=Util.generateAccessToken())
             complete(StatusCodes.OK,rsp)
           } ~
           pathEndOrSingleSlash { 
