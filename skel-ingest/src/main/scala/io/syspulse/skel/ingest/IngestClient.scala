@@ -36,7 +36,7 @@ import io.syspulse.skel.util.Util
 
 
 trait IngestClient {
-  val log = Logger(s"${this}")
+  implicit val log = Logger(s"${this}")
 
   val metricEventsCounter: Counter = Counter.build().name("skel_ingest_events_total").help("Total Ingested Events").register()
 
