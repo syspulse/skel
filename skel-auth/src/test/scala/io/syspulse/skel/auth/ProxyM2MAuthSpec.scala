@@ -11,6 +11,7 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.auth.Config
 import io.syspulse.skel.auth.oauth2.ProxyM2MAuth
 import io.syspulse.skel.auth.oauth2.ProxyTransformer
+import akka.http.scaladsl.model.headers.RawHeader
 
 case class DataUnit(v:Double,unit:String)
 case class Data(ts:Long,v:DataUnit)
@@ -36,37 +37,50 @@ class ProxyM2MAuthSpec extends AnyWordSpec with Matchers {
       tt.size should === (5)
     }
 
-    """{ "user": {{user}}, "password": {{password}} } transform to {"user":"user0001","password":"pass0001"}""" in {
+    // """HEADER:X-App-Id:{{USER}}, HEADER:X-App-Secret:{{HOME}} transform to EnvVars """ in {
+    //   val p = new ProxyM2MAuth("",
+    //     Config(
+    //       authBody = "",
+    //       authHeadersMapping = """ HEADER:X-App-Id:{{USER}}, HEADER:X-App-Secret:{{HOME}} """
+    //     )
+    //   )  
+    //   val hh = p.transformHeaders(Seq(RawHeader("X-App-Id","app1"),RawHeader("X-App-Secret","s1")))
+    //   hh.size should === (2)
+    // }
+
+    // """HEADER:X-App-Id:{{os.name}}, HEADER:X-App-Secret:{{user.home}} transform to Properties """ in {
+    //   val p = new ProxyM2MAuth("",
+    //     Config(
+    //       authBody = "",
+    //       authHeadersMapping = """ HEADER:X-App-Id:{{os.name}}, HEADER:X-App-Secret:{{user.home}} """
+    //     )
+    //   )  
+    //   val hh = p.transformHeaders(Seq(RawHeader("X-App-Id","app1"),RawHeader("X-App-Secret","s1")))
+    //   hh.size should === (2)
+    // }
+    """HEADER:X-App-Id: app1, HEADER:X-App-Secret: secret1 transform to Pass through Headers """ in {
+      val p = new ProxyM2MAuth("",
+        Config(
+          authBody = "",
+          authHeadersMapping = """ HEADER:X-App-Id: "X-App-Id", HEADER:X-App-Secret: "X-App-Secret" """
+        )
+      )  
+      val hh = p.transformHeaders(Seq(RawHeader("X-App-Id","app1"),RawHeader("X-App-Secret","s1")))
+      hh.size should === (2)
+    }
+
+    """{ "user": {{user}}, "password": {{password}} } transform to {"user":"userXXXX","password":"passXXXX"}""" in {
       val p = new ProxyM2MAuth("",
         Config(
           authBody = """ { "username": "{{user}}", "password": "{{pass}}" }""",
-          authHeadersMapping = """ BODY:user:user0001,BODY:pass:pass0001 """
+          authHeadersMapping = """ BODY:X-User:user,BODY:X-Pass:pass """
         )
       )  
-      val b = p.transformBody()
-      b should === (""" { "username": "user0001", "password": "pass0001" }""")
-    }
+      val b1 = p.transformBody(Seq(RawHeader("X-User","user0001"),RawHeader("X-Pass","pass0001")))
+      val b2 = p.transformBody(Seq(RawHeader("X-User","user0002"),RawHeader("X-Pass","pass0002")))
+      b1 should === (""" { "username": "user0001", "password": "pass0001" }""")
+      b2 should === (""" { "username": "user0002", "password": "pass0002" }""")
 
-    """HEADER:X-App-Id:{{USER}}, HEADER:X-App-Secret:{{HOME}} transform to EnvVars """ in {
-      val p = new ProxyM2MAuth("",
-        Config(
-          authBody = "",
-          authHeadersMapping = """ HEADER:X-App-Id:{{USER}}, HEADER:X-App-Secret:{{HOME}} """
-        )
-      )  
-      val hh = p.transformHeaders()
-      hh.size should === (2)
-    }
-
-    """HEADER:X-App-Id:{{os.name}}, HEADER:X-App-Secret:{{user.home}} transform to Properties """ in {
-      val p = new ProxyM2MAuth("",
-        Config(
-          authBody = "",
-          authHeadersMapping = """ HEADER:X-App-Id:{{os.name}}, HEADER:X-App-Secret:{{user.home}} """
-        )
-      )  
-      val hh = p.transformHeaders()
-      hh.size should === (2)
     }
     
   }

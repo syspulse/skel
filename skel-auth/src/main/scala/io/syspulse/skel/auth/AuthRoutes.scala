@@ -187,8 +187,7 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
     val rsp = for {
       body <- request.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
       rsp <- { 
-        val headers = request.headers.map(h => h.name() -> h.value()).toMap
-        idp.askAuth(headers,body.utf8String)
+        idp.askAuth(request.headers,body.utf8String)
       }
     } yield rsp
 

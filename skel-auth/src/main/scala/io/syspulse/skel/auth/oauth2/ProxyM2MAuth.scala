@@ -124,9 +124,21 @@ class ProxyM2MAuth(val redirectUri:String,config:Config) extends Idp {
     })
   }
 
-  def transformBody():String = transformBody(transformers)
+  def mapTransfomers(reqHeaders:Seq[HttpHeader],tt:Seq[ProxyTransformer]):Seq[ProxyTransformer] = {
+    tt.flatMap(t => {
+      reqHeaders.flatMap( h => {
+        if(h.name == t.k) Some(t.copy(k = t.v ,v = h.value))
+        else None
+      })
+    })
+  }
 
-  def transformBody(tt:Seq[ProxyTransformer]):String = {
+  def transformBody(reqHeaders:Seq[HttpHeader]):String = transformBody(reqHeaders,transformers)
+
+  def transformBody(reqHeaders:Seq[HttpHeader],trs:Seq[ProxyTransformer]):String = {
+    val tt = mapTransfomers(reqHeaders,trs)
+    println(s"tt=${tt}")
+
     var body = config.authBody
     for( t <- tt if t.t == "BODY") {
       body = body.replaceAll("""\{\{""" + t.k + """\}\}""", s"${t.v}")
@@ -134,17 +146,21 @@ class ProxyM2MAuth(val redirectUri:String,config:Config) extends Idp {
     body
   }
 
-  def transformHeaders():Seq[RawHeader] = transformHeaders(transformers)
+  def transformHeaders(reqHeaders:Seq[HttpHeader]):Seq[HttpHeader] = transformHeaders(reqHeaders,transformers)
 
-  def transformHeaders(tt:Seq[ProxyTransformer]):Seq[RawHeader] = {
+  def transformHeaders(reqHeaders:Seq[HttpHeader],trs:Seq[ProxyTransformer]):Seq[HttpHeader] = {
+    
+    val tt = mapTransfomers(reqHeaders,trs)
+    println(s"tt=${tt}")
+
     tt.filter(_.t.toUpperCase == "HEADER").flatMap( t => {
       t.v match {
         case "{{client_id}}" => Some(RawHeader(t.k,getClientId))
         case "{{client_secret}}" => Some(RawHeader(t.k,getClientSecret))
         case qv => {
-          // try to get from property and then from envvar
+          // try to get from property and then from envvar and then from value
           val v = qv.replaceAll("\\{\\{","").replaceAll("\\}\\}","")
-          Seq(Option(System.getenv(v)),Option(System.getProperty(v))).flatten.headOption match {
+          Seq(Option(System.getenv(v)),Option(System.getProperty(v)),Option(v)).flatten.headOption match {
             case Some(v) => Some(RawHeader(t.k,v))
             case _ => None
           }
@@ -153,12 +169,12 @@ class ProxyM2MAuth(val redirectUri:String,config:Config) extends Idp {
     })
   }
 
-  def askAuth(reqHeaders:Map[String,String],reqBody:String)(implicit config:Config,as:ActorSystem[_],ec: ExecutionContext):Future[Try[ProxyTokensRes]] = {
-    val authBody = reqBody //authData.toJson.compactPrint
+  def askAuth(reqHeaders:Seq[HttpHeader],reqBody:String)(implicit config:Config,as:ActorSystem[_],ec: ExecutionContext):Future[Try[ProxyTokensRes]] = {
+    val authBody = transformBody(reqHeaders) //authData.toJson.compactPrint
 
     val basicAuth = getBasicAuth()
     val headers = Seq[HttpHeader]() ++
-      transformHeaders(getTransfomers(config.authHeadersMapping)) ++ 
+      transformHeaders(reqHeaders) ++ 
       {if(basicAuth.isDefined) Seq(RawHeader("Authorization",s"Basic ${basicAuth.get}")) else Seq()}
 
     val idpTokenFuture = for {
