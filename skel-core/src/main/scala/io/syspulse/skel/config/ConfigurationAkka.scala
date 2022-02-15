@@ -1,0 +1,53 @@
+package io.syspulse.skel.config
+
+import java.time.Duration
+
+import scala.jdk.CollectionConverters._
+
+import com.typesafe.scalalogging.Logger
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
+
+// Akka/Typesafe config supports EnvVar with -Dconfig.override_with_env_vars=true
+// Var format: CONFIG_FORCE_{var}. CASE-SENSITIVE !
+// Ignore if application.conf cannot be loaded
+class ConfigurationAkka extends ConfigurationLike {
+  val log = Logger(s"${this}")
+
+  //withFallback(ConfigFactory.defaultReference(classLoader)
+  var akkaConfig:Option[Config] = {
+    try {
+      Some(ConfigFactory.load())
+    } catch {
+      case e @ (_ : com.typesafe.config.ConfigException.IO | _ : Exception) => {
+        log.error(s"Configuration not loaded: ",e)
+        // try to load default ?!
+        System.setProperty("config.resource","application.conf")
+        Some(ConfigFactory.defaultReference(this.getClass.getClassLoader))
+      }
+    }
+  }
+
+  def getString(path:String):Option[String] = 
+    if(!akkaConfig.isDefined) None else
+    if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getString(path)) else None
+  
+  def getInt(path:String):Option[Int] = 
+    if(!akkaConfig.isDefined) None else
+    if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getInt(path)) else None
+
+  def getLong(path:String):Option[Long] = 
+    if(!akkaConfig.isDefined) None else
+    if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getLong(path)) else None
+
+  def getAll():Seq[(String,Any)] = {
+    if(!akkaConfig.isDefined) return Seq()
+
+    // ATTENTION: unwraps values !
+    akkaConfig.get.entrySet().asScala.toSeq.map(es => (es.getKey(),es.getValue.unwrapped))
+  }
+
+  def getDuration(path:String):Option[Duration] = 
+    if(!akkaConfig.isDefined) None else
+    if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getDuration(path)) else None
+}
