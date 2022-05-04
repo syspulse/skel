@@ -51,6 +51,8 @@ object AppKeystore extends {
         val bls = Eth2.generateRandom()
         val addr = Eth.address(bls.pk)
         Console.println(s"${Util.hex(bls.sk)},${Util.hex(bls.pk)},${addr}")
+        val f = Eth2.writeKeystore(bls.sk,bls.pk,config.keystorePass,config.keystoreFile)
+        Console.println(s"file: ${f}")
       }
     }
     

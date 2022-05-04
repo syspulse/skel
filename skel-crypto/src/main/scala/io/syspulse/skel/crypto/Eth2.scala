@@ -13,12 +13,23 @@ import java.security.MessageDigest
 
 // BLS
 import tech.pegasys.teku.bls._
+import tech.pegasys.signers.bls.keystore.{ KeyStore, KeyStoreLoader}
+import tech.pegasys.signers.bls.keystore.model.Cipher;
+import tech.pegasys.signers.bls.keystore.model.KdfParam;
+import tech.pegasys.signers.bls.keystore.model.KeyStoreData;
+import tech.pegasys.signers.bls.keystore.model.Pbkdf2Param;
+import tech.pegasys.signers.bls.keystore.model.Pbkdf2PseudoRandomFunction;
+import tech.pegasys.signers.bls.keystore.model.SCryptParam;
 import org.apache.tuweni.bytes._
+import org.apache.tuweni.bytes.Bytes;
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto.key._
+import java.nio.file.Path
+import java.nio.file.Files
 
 object Eth2 {
+  import key._
   
   def generate(mnemonic:String):Try[KeyBLS] = { 
     // mnemonic password is not used
@@ -101,4 +112,35 @@ object Eth2 {
     BLS.fastAggregateVerify(blsPk.asJava,Bytes.of(hash:_*),BLSSignature.fromBytesCompressed(Bytes.of(sig:_*)))
   }
 
+  def writeKeystore(sk:SK,pk:PK,keystorePass:String,keystoreFile:String):Try[String] = {
+    val DKLEN = 32;
+    val ITERATIVE_COUNT = 262144;
+    val BLOCKSIZE = 8;
+    val SALT = Bytes32.fromHexString("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3");
+    val AES_IV_PARAM = Bytes.fromHexString("264daa3f303d7259501c93d997d84fe6");
+    val CIPHER:Cipher = new Cipher(AES_IV_PARAM);
+    try {
+      val f = Path.of(keystoreFile)
+      val dir = Option(f.getParent()).getOrElse("./")
+      val file = f.getFileName()
+
+      val kdfParam:KdfParam = new Pbkdf2Param(DKLEN, ITERATIVE_COUNT, Pbkdf2PseudoRandomFunction.HMAC_SHA256, SALT)
+      val keyStoreData:KeyStoreData = KeyStore.encrypt(Bytes.wrap(sk), Bytes.wrap(pk), keystorePass, dir.toString, kdfParam, CIPHER);
+      val keyStoreFile:Path = f
+      KeyStoreLoader.saveToFile(keyStoreFile, keyStoreData)
+      
+      Success(keyStoreFile.toString())
+
+    }catch {
+      case e:Exception => Failure(e)
+    }
+  }
+
+
+    // reload it back
+    // final KeyStoreData loadedKeyStore = KeyStoreLoader.loadFromFile(tempKeyStoreFile);
+    // assertThat(loadedKeyStore.getUuid()).isEqualByComparingTo(keyStoreData.getUuid());
+    // assertThat(loadedKeyStore.getCrypto().getChecksum().getMessage())
+    //     .isEqualTo(keyStoreData.getCrypto().getChecksum().getMessage());
+  // }
 }

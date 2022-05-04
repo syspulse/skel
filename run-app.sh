@@ -20,7 +20,8 @@ ARGS="$@"
 APP_HOME=${APP_HOME:-`pwd`}
 
 JAR=`ls ${APP_HOME}/target/scala-2.13/*assembly*.jar`
-CP="${APP_HOME}/conf/:$JAR"
+JAR_UNFAT=`ls ${APP_HOME}/lib/*.jar`
+CP="${APP_HOME}/conf/:$JAR:$JAR_UNFAT"
 
 CONFIG="application${SITE}.conf"
 
