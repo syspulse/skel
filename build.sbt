@@ -68,6 +68,7 @@ val sharedConfig = Seq(
 
     scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:existentials", "-language:implicitConversions", "-language:higherKinds", "-language:reflectiveCalls", "-language:postfixOps"),
     javacOptions ++= Seq("-target", "1.8", "-source", "1.8"),
+    //javacOptions ++= Seq("-target", "1.11", "-source", "1.11"),
 //    manifestSetting,
 //    publishSetting,
     crossVersion := CrossVersion.binary,
@@ -95,10 +96,38 @@ val sharedConfig = Seq(
 // }
 
 
+// val sharedConfigAssemblyTeku = Seq(
+//   assembly / assemblyMergeStrategy := {
+//       case x if x.contains("module-info.class") => MergeStrategy.concat
+//       case x if x.contains("io.netty.versions.properties") => MergeStrategy.first
+//       case x if x.contains("StaticMarkerBinder.class") => MergeStrategy.first
+//       case x if x.contains("StaticMDCBinder.class") => MergeStrategy.first
+//       case x if x.contains("StaticLoggerBinder.class") => MergeStrategy.first
+//       case x => {
+//         val oldStrategy = (assembly / assemblyMergeStrategy).value
+//         oldStrategy(x)
+//       }
+//   },
+//   assembly / assemblyExcludedJars := {
+//     val cp = (assembly / fullClasspath).value
+//     cp filter { f => {
+//         //f.data.getName.contains("logback") || 
+//         f.data.getName.contains("snakeyaml-1.27-android.jar") || 
+//         f.data.getName.contains("jakarta.activation-api-1.2.1")         
+//       }
+//     }
+//   },
+  
+//   assembly / test := {}
+// )
+
 val sharedConfigAssembly = Seq(
   assembly / assemblyMergeStrategy := {
       case x if x.contains("module-info.class") => MergeStrategy.discard
       case x if x.contains("io.netty.versions.properties") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticMarkerBinder.class") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticMDCBinder.class") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticLoggerBinder.class") => MergeStrategy.first
       case x => {
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
@@ -396,17 +425,22 @@ lazy val ingest = (project in file("skel-ingest"))
 
 lazy val crypto = (project in file("skel-crypto"))
   .dependsOn(core)
-  .disablePlugins(sbtassembly.AssemblyPlugin)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
+      //sharedConfigAssemblyTeku,
+      sharedConfigAssembly,
       name := "skel-crypto",
-      libraryDependencies ++= libTest ++ libWeb3j ++ Seq(
+      libraryDependencies ++= Seq() ++ //Seq(libLog4j2Api, libLog4j2Core) ++ 
+        libTest ++ libWeb3j ++ Seq(
         libOsLib,libUpickleLib,
         libScodecBits,
         libHKDF,
         libBLS,
         libSSSS
-      )
+      ),
+      // this is important option to support latest log4j2 
+      assembly / packageOptions += sbt.Package.ManifestAttributes("Multi-Release" -> "true")
     )
 
 lazy val flow = (project in file("skel-flow"))

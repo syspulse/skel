@@ -85,6 +85,9 @@ object Dependencies {
     //val libSlf4jApi =       "org.slf4j"                   %  "slf4j-api"            % "1.8.0-beta4"
     // Supports only old XML Config file format
     val libSlf4jApi =       "org.slf4j"                   %  "slf4j-api"            % "1.7.26"
+    // Needed for teku
+    val libLog4j2Api =      "org.apache.logging.log4j" % "log4j-api" % "2.17.2"
+    val libLog4j2Core =     "org.apache.logging.log4j" % "log4j-core" % "2.17.2"
 
     val libQuill =          "io.getquill"                 %% "quill-jdbc"           % "3.5.2"
     val libMySQL =          "mysql"                       %  "mysql-connector-java" % "8.0.22"
@@ -138,8 +141,8 @@ object Dependencies {
     val libBouncyCastle =   "org.bouncycastle"              % "bcprov-jdk15on"      % "1.69" //web3j depends on "1.65"
     val libScodecBits =     "org.scodec"                    %% "scodec-bits"        % "1.1.30" //"1.1.12" 
     val libHKDF =           "at.favre.lib"                  % "hkdf"                % "1.1.0"
-    val libBLS =            "tech.pegasys.teku.internal"    % "bls"                 % "21.9.2"
-    val libBLSKeystore =    "tech.pegasys.signers.internal" % "bls-keystore"        % "1.0.21"
+    val libBLS =            "tech.pegasys.teku.internal"    % "bls"                 % "23.3.1" //"21.9.2"
+    val libBLSKeystore =    "tech.pegasys.signers.internal" % "bls-keystore"        % "2.2.1"  //"1.0.21"
 
     val libScalaScraper =   "net.ruippeixotog"              %% "scala-scraper"      % "2.2.1"
 

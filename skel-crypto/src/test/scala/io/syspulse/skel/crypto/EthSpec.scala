@@ -20,7 +20,7 @@ class EthSpec extends AnyWordSpec with Matchers with TestData {
 
     "generate random" ignore {
       Range(1,3).map(i => 
-          Eth.generate()
+          Eth.generateRandom()
         )
         .foreach{ case (sk,pk) => {
           val a = Eth.address(pk)

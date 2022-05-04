@@ -1,6 +1,7 @@
 package io.syspulse.skel.crypto
 
 import scala.util.{Try,Success,Failure}
+import os._
 
 import scala.jdk.CollectionConverters
 import java.math.BigInteger
@@ -15,6 +16,7 @@ import org.web3j.utils.{Numeric}
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto.key
+import java.io.File
 
 object Eth {
 
@@ -33,7 +35,13 @@ object Eth {
     Util.hex(b1)
   }
 
-  def normalize(kk:ECKeyPair):(String,String) = {
+  def denormalize(sk:SK,pk:PK): ECKeyPair = {
+    val sk1:SK = if(sk(0) < 0) Array[Byte](0) ++ sk else sk
+    val pk1:PK = if(pk(0) < 0) Array[Byte](0) ++ pk else pk
+    new ECKeyPair(new BigInteger(sk1),new BigInteger(pk1)) 
+  }
+
+  def normalize(kk:ECKeyPair):(SK,PK) = {
     val skb = kk.getPrivateKey().toByteArray
     val sk:Array[Byte] = skb.size match {
       case 31 => skb.toArray.+:(0)
@@ -48,16 +56,16 @@ object Eth {
       case 65 => pkb.drop(1)
       case _ => Array.fill(64 - pkb.size)(0.toByte) ++ pkb
     }
-    (Util.hex(sk),Util.hex(pk)) 
+    (sk,pk) 
   }
-
-  def generate(sk:String):(String,String) = { 
+  
+  def generate(sk:String):(SK,PK) = { 
     val kk = ECKeyPair.create(Numeric.hexStringToByteArray(sk))
     normalize(kk)
   }
 
   // generate random
-  def generate():(String,String) = { 
+  def generateRandom():(SK,PK) = { 
     val kk = Keys.createEcKeyPair(); 
     normalize(kk)
   }
@@ -128,6 +136,26 @@ object Eth {
       val c = WalletUtils.loadCredentials(keystorePass, keystoreFile)
       // I have no idea why web3j adds extra 00 to make PK 65 bytes !?
       Success((Util.hex(c.getEcKeyPair().getPrivateKey().toByteArray),Util.hex(c.getEcKeyPair().getPublicKey().toByteArray.takeRight(64))))
+    }catch {
+      case e:Exception => Failure(e)
+    }
+  }
+
+  // some "magic" to move generated file
+  def writeKeystore(sk:SK,pk:PK,keystorePass:String,keystoreFile:String):Try[String] = {
+    try {
+      val f = new File(keystoreFile)
+      val dir = Option(f.getParent()).getOrElse("./")
+      val file = f.getName()
+      val generatedFileName = 
+        WalletUtils.generateWalletFile(keystorePass,Eth.denormalize(sk,pk),new File(dir),! keystorePass.isBlank)
+      
+      f.delete()
+      val newFile = dir + "/" + generatedFileName
+      os.move(Path(newFile,os.pwd),Path(keystoreFile,os.pwd),true)
+
+      Success(Path(keystoreFile,os.pwd).toString())
+
     }catch {
       case e:Exception => Failure(e)
     }

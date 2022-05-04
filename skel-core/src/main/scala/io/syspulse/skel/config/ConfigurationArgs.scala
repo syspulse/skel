@@ -23,7 +23,8 @@ trait Arg[T]
 case class ArgString(argChar:Char,argStr:String,argText:String,default:String="") extends Arg[String]()
 case class ArgInt(argChar:Char,argStr:String,argText:String,default:Int=0) extends Arg[Int]()
 
-class ConfigurationArgs(args:Array[String],ops: Arg[_]*) extends ConfigurationLike {
+// Use "empty appName/appVersion for automatic inference"
+class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg[_]*) extends ConfigurationLike {
   val log = Logger(s"${this}")
 
   def parseArgs(args:Array[String],ops: Arg[_]*) = {
@@ -33,7 +34,7 @@ class ConfigurationArgs(args:Array[String],ops: Arg[_]*) extends ConfigurationLi
       import builder._
 
       val options = List(
-        head(Util.info._1, Util.info._2)
+        head(if(appName.isEmpty) Util.info._1 else appName, if(appVer.isEmpty) Util.info._2 else appVer)
       ) ++ ops.flatMap(a => a match {
         case ArgString(c,s,t,d) => Some(opt[String](c, s).action((x, c) => c.+(s,x)).text(t))
         case ArgInt(c,s,t,d) => Some(opt[Int](c, s).action((x, c) => c.+(s,x)).text(t))

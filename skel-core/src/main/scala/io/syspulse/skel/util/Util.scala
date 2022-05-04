@@ -39,8 +39,8 @@ object Util {
 
   def fromHexString(h:String) = ByteVector.fromHex(h).orElse(Some(ByteVector.fromByte(0))).get.toArray
   def toHexString(b:Array[Byte]) = b.foldLeft("")((s,b)=>s + f"$b%02x")
-  def hex(x: Array[Byte],prefix:Boolean=true):String = s"""${if(prefix) "0x" else ""}${x.toArray.map("%02x".format(_)).mkString}"""
-  def hex2(x: Array[Byte],prefix:Boolean=true):String = s"""${if(prefix) "0x" else ""}${ByteVector(x).toHex}"""
+  //def hex(x: Array[Byte],prefix:Boolean=true):String = s"""${if(prefix) "0x" else ""}${x.toArray.map("%02x".format(_)).mkString}"""
+  def hex(x: Array[Byte],prefix:Boolean=true):String = s"""${if(prefix) "0x" else ""}${ByteVector(x).toHex}"""
 
   def SHA256(data:Array[Byte]):Array[Byte] = digest.digest(data)
   def SHA256(data:String):Array[Byte] = digest.digest(data.getBytes(StandardCharsets.UTF_8))
