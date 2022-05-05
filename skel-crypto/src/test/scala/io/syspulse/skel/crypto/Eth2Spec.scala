@@ -25,7 +25,16 @@ class Eth2Spec extends AnyWordSpec with Matchers with TestData {
   
 
   "Eth2" should {
-    
+    "generate KeyPair from sk" in {
+      val k1 = Eth2.generate(bsk1)
+      k1.sk should === (h"0x4130aea3da34b3b5a03305690aaa3bd3a1490e39812f98f0e96b1827929be363")
+      k1.pk should === (h"0x8dfd66bcf262f69c5fd0ebeb266188c1526137091a33c5f0a02b388289ba6afaf92d814396d3260fc6eca05387e46bd7")
+
+      val k3 = Eth2.generate(bsk3)
+      k3.sk should === (h"0x58ac0936141cec69039407b4d5a542d9d2f2dfb3c8333a5e9a6fef13c8128d96")
+      k3.pk should === (h"0x8ef198daa0f0659d2127164aa52b883a1c50324367dd0e03fa9d591af3722097d030123247d3b135dceaffe9c62673d7")
+    }
+
     "generate SK from 12 words mnemonic" in {
       val k1 = Eth2.generate("candy maple cake sugar pudding cream honey rich smooth crumble sweet treat")
       k1.get.sk should === (h"0x69e0debb3512b0000cabddb5fdce0d10b2b08d03e1e90cbd33257ef443693ee0")
@@ -72,6 +81,36 @@ class Eth2Spec extends AnyWordSpec with Matchers with TestData {
       Eth2.mverify(List(),"message",s1) should === (false)
     }
     
+    "write and read keystore file with password" in {
+      os.remove(os.Path("/tmp/bls-keystore-1.json",os.pwd),false)
+
+      val k1 = Eth2.generate("candy maple cake sugar pudding cream honey rich smooth crumble sweet treat")
+      
+      val r = Eth2.writeKeystore(k1.get.sk,k1.get.pk,"test1234","/tmp/bls-keystore-1.json")
+      r should === (Success("/tmp/bls-keystore-1.json"))
+      os.exists(os.Path("/tmp/bls-keystore-1.json",os.pwd)) should === (true)
+
+      val k2 = Eth2.readKeystore("test1234","/tmp/bls-keystore-1.json")
+      k2 shouldBe a [Success[_]]
+      k2.get.sk should === (h"0x69e0debb3512b0000cabddb5fdce0d10b2b08d03e1e90cbd33257ef443693ee0")
+    }
+
+    "write and read keystore file without password" in {
+      os.remove(os.Path("/tmp/bls-keystore-2.json",os.pwd),false)
+
+      val k1 = Eth2.generate(bsk1)
+      k1.sk should === (h"0x4130aea3da34b3b5a03305690aaa3bd3a1490e39812f98f0e96b1827929be363")
+      
+      val r = Eth2.writeKeystore(k1.sk,k1.pk,"","/tmp/bls-keystore-2.json")
+      r should === (Success("/tmp/bls-keystore-2.json"))
+      os.exists(os.Path("/tmp/bls-keystore-2.json",os.pwd)) should === (true)
+
+      val k2 = Eth2.readKeystore("","/tmp/bls-keystore-2.json")
+      k2 shouldBe a [Success[_]]
+      info(s"${k2}");
+      k2.get.sk should === (h"0x4130aea3da34b3b5a03305690aaa3bd3a1490e39812f98f0e96b1827929be363")
+      k2.get.pk should === (h"0x8dfd66bcf262f69c5fd0ebeb266188c1526137091a33c5f0a02b388289ba6afaf92d814396d3260fc6eca05387e46bd7")
+    }
     
   }
 }

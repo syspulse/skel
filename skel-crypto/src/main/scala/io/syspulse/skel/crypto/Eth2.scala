@@ -64,12 +64,16 @@ object Eth2 {
     val bls_curve_order = BigInt("52435875175126190479447740508185965837690552500527637822603658699938581184513")
 
     val sk = d2b(b2d(okm) % bls_curve_order)
-    Success(KeyBLS(sk,Array[Byte]()))
+    Success(
+      KeyBLS(sk,
+        BLSSecretKey.fromBytes(Bytes32.wrap(sk)).toPublicKey().toBytesCompressed().toArray()
+      )
+    )
   }
 
   def generate(sk:SK):KeyPair = {
-    val k = BLSKeyPair.random(Util.random)
-    KeyBLS(k.getSecretKey.toBytes().toArray(),k.getPublicKey.toBytesCompressed().toArray())
+    val k = new BLSKeyPair(BLSSecretKey.fromBytes(Bytes32.wrap(sk)))
+    KeyBLS(k.getSecretKey().toBytes().toArray(),k.getPublicKey.toBytesCompressed().toArray())
   }
 
   def generateRandom():KeyPair = {
@@ -136,11 +140,15 @@ object Eth2 {
     }
   }
 
-
-    // reload it back
-    // final KeyStoreData loadedKeyStore = KeyStoreLoader.loadFromFile(tempKeyStoreFile);
-    // assertThat(loadedKeyStore.getUuid()).isEqualByComparingTo(keyStoreData.getUuid());
-    // assertThat(loadedKeyStore.getCrypto().getChecksum().getMessage())
-    //     .isEqualTo(keyStoreData.getCrypto().getChecksum().getMessage());
-  // }
+  def readKeystore(keystorePass:String,keystoreFile:String):Try[KeyBLS] = {
+    try {
+      val ksd:KeyStoreData = KeyStoreLoader.loadFromFile(Path.of(keystoreFile));
+      val sk = KeyStore.decrypt(keystorePass,ksd).toArray()
+      Success(KeyBLS(sk,
+        BLSSecretKey.fromBytes(Bytes32.wrap(sk)).toPublicKey().toSSZBytes().toArray()
+      ))
+    }catch {
+      case e:Exception => Failure(e)
+    }
+  }
 }
