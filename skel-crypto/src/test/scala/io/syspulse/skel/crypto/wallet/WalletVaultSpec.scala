@@ -54,11 +54,23 @@ class WalletVaultSpec extends AnyWordSpec with Matchers with TestData {
     }
   }
 
+  "WalletVaultKeyfile" should {
+    "load keystore: only keystore-1.json" in {
+      val w1 = new WalletVaultKeyfile(testDir + "/" + "keystore-1.json","test123")
+      val ss = w1.load().get
+      ss.size should === (1)
+      ss.toSeq(0)._1 === (UUID("431c4a19-9544-4a12-8cde-824849cb6746"))
+      ss.toSeq(0)._2.head.addr === ("0x2b5ad5c4795c026514f8317c7a215e218dccd6cf")
+    }
+  }
+
   "WalletVault" should {    
-    "load WalletVaultTest + WalletVaultKeyfiles" in {
+    
+    "load all: WalletVaultTest + WalletVaultKeyfiles(*) + WalletVaultKeyfile(keystore-1.json)" in {
       val w = WalletVault
         .build
         .withWallet(new WalletVaultTest)
+        .withWallet(new WalletVaultKeyfile(testDir + "/" + "keystore-1.json","test123"))
         .withWallet(new WalletVaultKeyfiles(testDir, (keystoreFile) => { keystoreFile match {
           case "keystore-1.json" => "test123"
           case "keystore-ff04.json" => "abcd1234"
@@ -67,8 +79,7 @@ class WalletVaultSpec extends AnyWordSpec with Matchers with TestData {
         }}))
         .load()
       
-      w.size() should === (6)
-    
+      w.size() should === (7)
     }
 
     "msign and mverfiy with WalletVaultTest + WalletVaultKeyfiles" in {

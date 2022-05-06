@@ -131,11 +131,11 @@ object Eth {
   }
 
   // return (SK,PK)
-  def readKeystore(keystorePass:String,keystoreFile:String):Try[(String,String)] = {
+  def readKeystore(keystorePass:String,keystoreFile:String):Try[(SK,PK)] = {
     try {
       val c = WalletUtils.loadCredentials(keystorePass, keystoreFile)
       // I have no idea why web3j adds extra 00 to make PK 65 bytes !?
-      Success((Util.hex(c.getEcKeyPair().getPrivateKey().toByteArray),Util.hex(c.getEcKeyPair().getPublicKey().toByteArray.takeRight(64))))
+      Success(c.getEcKeyPair().getPrivateKey().toByteArray,c.getEcKeyPair().getPublicKey().toByteArray.takeRight(64))
     }catch {
       case e:Exception => Failure(e)
     }
@@ -161,17 +161,17 @@ object Eth {
     }
   }
 
-  def readMnemonic(mnemonic:String,mnemoPass:String = null):Try[(String,String)] = {
+  def generateFromMnemo(mnemonic:String,mnemoPass:String = null):Try[(SK,PK)] = {
     try {
       val c = WalletUtils.loadBip39Credentials(mnemoPass, mnemonic)
       // I have no idea why web3j adds extra 00 to make PK 65 bytes !?
-      Success((Util.hex(c.getEcKeyPair().getPrivateKey().toByteArray),Util.hex(c.getEcKeyPair().getPublicKey().toByteArray.takeRight(64))))
+      Success((c.getEcKeyPair().getPrivateKey().toByteArray,c.getEcKeyPair().getPublicKey().toByteArray.takeRight(64)))
     }catch {
       case e:Exception => Failure(e)
     }
   }
 
-  def readMnemonicDerivation(mnemonic:String,derivation:String, mnemoPass:String = null):Try[(String,String)] = {
+  def generateFromMnemoPath(mnemonic:String,derivation:String, mnemoPass:String = null):Try[(SK,PK)] = {
     // def   m/44'/60'/0'/1
     //       m/44'/60'/0'/0
     val ss = derivation.split("/")
@@ -198,7 +198,7 @@ object Eth {
 
       val c = Credentials.create(derived)
       // I have no idea why web3j adds extra 00 to make PK 65 bytes !?
-      Success((Util.hex(c.getEcKeyPair().getPrivateKey().toByteArray),Util.hex(c.getEcKeyPair().getPublicKey().toByteArray.takeRight(64))))
+      Success((c.getEcKeyPair().getPrivateKey().toByteArray,c.getEcKeyPair().getPublicKey().toByteArray.takeRight(64)))
     }
     catch {
       case e:Exception => Failure(e)

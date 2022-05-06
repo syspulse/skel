@@ -97,7 +97,6 @@ class WalletVaultTest extends WalletVaultable {
 }
 
 class WalletVaultKeyfiles(keystoreDir:String = ".", passwordQuestion: (String) => String) extends WalletVaultable {
-  
   override def load():Try[Map[SignerID,List[Signer]]] = {
     val dir = os.Path(keystoreDir, os.pwd)
     val ss = os.list(dir).filter(_.ext == "json").flatMap{ fileName =>
@@ -123,8 +122,33 @@ class WalletVaultKeyfiles(keystoreDir:String = ".", passwordQuestion: (String) =
     signers = ss  
     Success(signers)
   }
+}
+
+class WalletVaultKeyfile(keystoreFile:String, keystorePass:String) extends WalletVaultable {
+  
+  override def load():Try[Map[SignerID,List[Signer]]] = {
+    
+    if(os.exists(Path(keystoreFile,os.pwd))) {
+      // keystore file must contain UUID next to address 
+      // if not filename is expected to be UUID like
+      val json = ujson.read(scala.io.Source.fromFile(keystoreFile).getLines().mkString)
+      val uid = json.obj.getOrElse("id","") match {
+        case ""   => UNKNOWN_USER
+        case Str(str)  => UUID(str)
+      }
+
+      val kk = Eth.readKeystore(keystorePass,keystoreFile)
+      kk match {
+        case Success(k) => log.info(s"${keystoreFile}: ${uid}: ${kk}"); Success(Map(uid -> List(Signer(uid,k._1,k._2)))) 
+        case Failure(e) => log.error(s"${keystoreFile}: ${uid}: ${kk}"); Failure(e)
+      }
+      
+    } else
+      Failure(new Exception(s"keystore file not found: ${keystoreFile}"))
+  }
 
 }
+
 
 class WalletVault {
   val log = Logger(s"${this}")
