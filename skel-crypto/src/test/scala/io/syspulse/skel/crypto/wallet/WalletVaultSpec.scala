@@ -33,7 +33,7 @@ class WalletVaultSpec extends AnyWordSpec with Matchers with TestData {
   "WalletVaultKeyfiles" should {
     
     "read keystores: only keystore-1.json" in {
-      val w1 = new WalletVaultKeyfiles(testDir, (keystoreFile) => {"test123"})
+      val w1 = new WalletVaultKeyfiles(testDir, (keystoreFile) => {Some("test123")})
       val ss = w1.load().get
       ss.size should === (1)
       ss.toSeq(0)._1 === (UUID("431c4a19-9544-4a12-8cde-824849cb6746"))
@@ -42,10 +42,10 @@ class WalletVaultSpec extends AnyWordSpec with Matchers with TestData {
 
     "read keystores: all jsons" in {
       val w1 = new WalletVaultKeyfiles(testDir, (keystoreFile) => { keystoreFile match {
-        case "keystore-1.json" => "test123"
-        case "keystore-ff04.json" => "abcd1234"
-        case "keystore-ff05.json" => "12345678"
-        case _ => ""
+        case "keystore-1.json" => Some("test123")
+        case "keystore-ff04.json" => Some("abcd1234")
+        case "keystore-ff05.json" => Some("12345678")
+        case _ => None
       }})
       val ss = w1.load().get
       ss.size should === (3)
@@ -62,6 +62,14 @@ class WalletVaultSpec extends AnyWordSpec with Matchers with TestData {
       ss.toSeq(0)._1 === (UUID("431c4a19-9544-4a12-8cde-824849cb6746"))
       ss.toSeq(0)._2.head.addr === ("0x2b5ad5c4795c026514f8317c7a215e218dccd6cf")
     }
+
+    "load keystores: only with password test123" in {
+      val w1 = new WalletVaultKeyfile(testDir,"test123")
+      val ss = w1.load().get
+      ss.size should === (1)
+      ss.toSeq(0)._1 === (UUID("431c4a19-9544-4a12-8cde-824849cb6746"))
+      ss.toSeq(0)._2.head.addr === ("0x2b5ad5c4795c026514f8317c7a215e218dccd6cf")
+    }
   }
 
   "WalletVault" should {    
@@ -72,10 +80,10 @@ class WalletVaultSpec extends AnyWordSpec with Matchers with TestData {
         .withWallet(new WalletVaultTest)
         .withWallet(new WalletVaultKeyfile(testDir + "/" + "keystore-1.json","test123"))
         .withWallet(new WalletVaultKeyfiles(testDir, (keystoreFile) => { keystoreFile match {
-          case "keystore-1.json" => "test123"
-          case "keystore-ff04.json" => "abcd1234"
-          case "keystore-ff05.json" => "12345678"
-          case _ => ""
+          case "keystore-1.json" => Some("test123")
+          case "keystore-ff04.json" => Some("abcd1234")
+          case "keystore-ff05.json" => Some("12345678")
+          case _ => None
         }}))
         .load()
       
@@ -87,10 +95,10 @@ class WalletVaultSpec extends AnyWordSpec with Matchers with TestData {
         .build
         .withWallet(new WalletVaultTest)
         .withWallet(new WalletVaultKeyfiles(testDir, (keystoreFile) => { keystoreFile match {
-          case "keystore-1.json" => "test123"
-          case "keystore-ff04.json" => "abcd1234"
-          case "keystore-ff05.json" => "12345678"
-          case _ => ""
+          case "keystore-1.json" => Some("test123")
+          case "keystore-ff04.json" => Some("abcd1234")
+          case "keystore-ff05.json" => Some("12345678")
+          case _ => None
         }}))
         .load()
       
@@ -111,10 +119,10 @@ class WalletVaultSpec extends AnyWordSpec with Matchers with TestData {
         .build
         .withWallet(new WalletVaultTest)
         .withWallet(new WalletVaultKeyfiles(testDir, (keystoreFile) => { keystoreFile match {
-          case "keystore-1.json" => "test123"
-          case "keystore-ff04.json" => "abcd1234"
-          case "keystore-ff05.json" => "12345678"
-          case _ => ""
+          case "keystore-1.json" => Some("test123")
+          case "keystore-ff04.json" => Some("abcd1234")
+          case "keystore-ff05.json" => Some("12345678")
+          case _ => None
         }}))
         .load()
 
@@ -139,10 +147,10 @@ class WalletVaultSpec extends AnyWordSpec with Matchers with TestData {
       val w61= WalletVault
         .build
         .withWallet(new WalletVaultKeyfiles(testDir, (keystoreFile) => { keystoreFile match {
-          case "keystore-1.json" => "test123"
-          case "keystore-ff04.json" => "abcd1234"
-          case "keystore-ff05.json" => "12345678"
-          case _ => ""
+          case "keystore-1.json" => Some("test123")
+          case "keystore-ff04.json" => Some("abcd1234")
+          case "keystore-ff05.json" => Some("12345678")
+          case _ => None
         }}))
         .withWallet(new WalletVaultTest().shuffle())
         .load()

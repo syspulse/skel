@@ -96,27 +96,39 @@ class WalletVaultTest extends WalletVaultable {
   override def load():Try[Map[SignerID,List[Signer]]] = Success(signers)
 }
 
-class WalletVaultKeyfiles(keystoreDir:String = ".", passwordQuestion: (String) => String) extends WalletVaultable {
+trait VaultKeyfiles extends WalletVaultable {
+  def getKeyStoreDir():String
+  def getPasswordQuestion():(String) => Option[String]
+  def getExtFilter():String
+
   override def load():Try[Map[SignerID,List[Signer]]] = {
+
+    val keystoreDir = getKeyStoreDir()
+    val passwordQuestion = getPasswordQuestion() 
+
     val dir = os.Path(keystoreDir, os.pwd)
-    val ss = os.list(dir).filter(_.ext == "json").flatMap{ fileName =>
+    val ss = os.list(dir).filter(_.ext == getExtFilter()).flatMap{ fileName =>
 
       val pass = passwordQuestion(fileName.last.toString)
       
-      // keystore file must contain UUID next to address 
-      // if not filename is expected to be UUID like
-      val json = ujson.read(scala.io.Source.fromFile(fileName.toString).getLines().mkString)
-      val uid = json.obj.getOrElse("id","") match {
-        case ""   => UNKNOWN_USER
-        case Str(str)  => UUID(str)
-      }
+      if(pass.isDefined) {
+        // keystore file must contain UUID next to address 
+        // if not filename is expected to be UUID like
+        val json = ujson.read(scala.io.Source.fromFile(fileName.toString).getLines().mkString)
+        val uid = json.obj.getOrElse("id","") match {
+          case ""   => UNKNOWN_USER
+          case Str(str)  => UUID(str)
+        }
 
-      val kk = Eth.readKeystore(pass,fileName.toString)
-      val ss = kk match {
-        case Success(s) => log.info(s"${fileName}: ${uid}: ${kk}"); Success(uid -> List(Signer(uid,s._1,s._2))) 
-        case Failure(e) => log.warn(s"${fileName}: ${uid}: ${kk}"); Failure(e)
-      }
-      ss.toOption
+        val kk = Eth.readKeystore(pass.get,fileName.toString)
+        val ss = kk match {
+          case Success(s) => log.info(s"${fileName}: ${uid}: ${kk}"); Success(uid -> List(Signer(uid,s._1,s._2))) 
+          case Failure(e) => log.warn(s"${fileName}: ${uid}: ${kk}"); Failure(e)
+        }
+        ss.toOption
+      } else 
+        None
+
     }.toMap
 
     signers = ss  
@@ -124,28 +136,49 @@ class WalletVaultKeyfiles(keystoreDir:String = ".", passwordQuestion: (String) =
   }
 }
 
-class WalletVaultKeyfile(keystoreFile:String, keystorePass:String) extends WalletVaultable {
-  
-  override def load():Try[Map[SignerID,List[Signer]]] = {
-    
-    if(os.exists(Path(keystoreFile,os.pwd))) {
-      // keystore file must contain UUID next to address 
-      // if not filename is expected to be UUID like
-      val json = ujson.read(scala.io.Source.fromFile(keystoreFile).getLines().mkString)
-      val uid = json.obj.getOrElse("id","") match {
-        case ""   => UNKNOWN_USER
-        case Str(str)  => UUID(str)
-      }
+class WalletVaultKeyfiles(keystoreDir:String = ".", passwordQuestion: (String) => Option[String]) extends VaultKeyfiles {
+  def getKeyStoreDir():String = keystoreDir
+  def getPasswordQuestion():(String) => Option[String] = passwordQuestion
+  def getExtFilter():String = "json"
+}
 
-      val kk = Eth.readKeystore(keystorePass,keystoreFile)
-      kk match {
-        case Success(k) => log.info(s"${keystoreFile}: ${uid}: ${kk}"); Success(Map(uid -> List(Signer(uid,k._1,k._2)))) 
-        case Failure(e) => log.error(s"${keystoreFile}: ${uid}: ${kk}"); Failure(e)
-      }
-      
-    } else
-      Failure(new Exception(s"keystore file not found: ${keystoreFile}"))
+class WalletVaultKeyfile(keystoreLocation:String, keystorePass:String) extends VaultKeyfiles {
+  val fullPath = Path(keystoreLocation,os.pwd)
+  val isDir = os.stat(fullPath).isDir
+  def getKeyStoreDir():String = {  
+    if(isDir) {
+      keystoreLocation
+    } else 
+      fullPath.wrapped.getParent().toString
   }
+
+  def pass(fileName:String):Option[String] = {
+    if(isDir || fileName == fullPath.wrapped.getFileName().toString) Some(keystorePass)
+    else None
+  }
+
+  def getPasswordQuestion():(String) => Option[String] = pass
+
+  def getExtFilter():String = if(isDir) "json" else fullPath.ext
+
+  //   if(os.exists(Path(keystoreFile,os.pwd))) {
+  //     // keystore file must contain UUID next to address 
+  //     // if not filename is expected to be UUID like
+  //     val json = ujson.read(scala.io.Source.fromFile(keystoreFile).getLines().mkString)
+  //     val uid = json.obj.getOrElse("id","") match {
+  //       case ""   => UNKNOWN_USER
+  //       case Str(str)  => UUID(str)
+  //     }
+
+  //     val kk = Eth.readKeystore(keystorePass,keystoreFile)
+  //     kk match {
+  //       case Success(k) => log.info(s"${keystoreFile}: ${uid}: ${kk}"); Success(Map(uid -> List(Signer(uid,k._1,k._2)))) 
+  //       case Failure(e) => log.error(s"${keystoreFile}: ${uid}: ${kk}"); Failure(e)
+  //     }
+      
+  //   } else
+  //     Failure(new Exception(s"keystore file not found: ${keystoreFile}"))
+  // }
 
 }
 
