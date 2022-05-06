@@ -22,6 +22,7 @@ case class ConfigArgs() {
 trait Arg[T]
 case class ArgString(argChar:Char,argStr:String,argText:String,default:String="") extends Arg[String]()
 case class ArgInt(argChar:Char,argStr:String,argText:String,default:Int=0) extends Arg[Int]()
+case class ArgParam(argText:String) extends Arg[String]()
 
 // Use "empty appName/appVersion for automatic inference"
 class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg[_]*) extends ConfigurationLike {
@@ -38,6 +39,7 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
       ) ++ ops.flatMap(a => a match {
         case ArgString(c,s,t,d) => Some(opt[String](c, s).action((x, c) => c.+(s,x)).text(t))
         case ArgInt(c,s,t,d) => Some(opt[Int](c, s).action((x, c) => c.+(s,x)).text(t))
+        case ArgParam(t) => Some(arg[String](t).unbounded().optional().action((x, c) => c.+(x,None)).text(t))
         case _ => None
       })
 
@@ -73,4 +75,9 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
   def getDuration(path:String):Option[Duration] = 
     if(!configArgs.isDefined) None else
     if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(v => Duration.ofMillis(v.asInstanceOf[Long])) else None
+
+  def getParams():Seq[String] = {
+    if(!configArgs.isDefined) return Seq()
+    configArgs.get.c.filter(_._2.asInstanceOf[Option[_]] == None).keySet.toSeq
+  }
 }

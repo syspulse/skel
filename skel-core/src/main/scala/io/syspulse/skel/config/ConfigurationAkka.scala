@@ -50,4 +50,7 @@ class ConfigurationAkka extends ConfigurationLike {
   def getDuration(path:String):Option[Duration] = 
     if(!akkaConfig.isDefined) None else
     if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getDuration(path)) else None
+  
+    // not supported 
+  def getParams():Seq[String] = Seq()
 }

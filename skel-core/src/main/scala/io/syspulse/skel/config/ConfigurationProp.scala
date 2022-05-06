@@ -18,5 +18,8 @@ class ConfigurationProp extends ConfigurationLike {
   def getDuration(path:String):Option[Duration] = { val e = System.getProperty(path); if(e == null) None else Some(Duration.ofMillis(e.toLong)) }
 
   def getAll():Seq[(String,Any)] = {System.getProperties.asScala.toSeq.map{ kv => (kv._1,kv._2)}}
+
+  // not supported 
+  def getParams():Seq[String] = Seq()
 }
 
