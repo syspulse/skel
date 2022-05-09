@@ -78,6 +78,9 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
 
   def getParams():Seq[String] = {
     if(!configArgs.isDefined) return Seq()
-    configArgs.get.c.filter(_._2.asInstanceOf[Option[_]] == None).keySet.toSeq
+    //configArgs.get.c.filter(_._2.asInstanceOf[Option[_]] == None).keySet.toSeq
+    configArgs.get.c.collect {
+      case (k,None) => k
+    }.toSeq
   }
 }

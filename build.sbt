@@ -582,7 +582,7 @@ lazy val twit = (project in file("demo/skel-twit"))
     ),  
   )
 
-  lazy val ingest_dynamo = (project in file("skel-ingest/ingest-dynamo"))
+lazy val ingest_dynamo = (project in file("skel-ingest/ingest-dynamo"))
   .dependsOn(core,video,ingest)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
@@ -610,7 +610,7 @@ lazy val twit = (project in file("demo/skel-twit"))
     ),  
   )
   
-  lazy val video = (project in file("skel-video"))
+lazy val video = (project in file("skel-video"))
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -624,7 +624,7 @@ lazy val twit = (project in file("demo/skel-twit"))
         ),
     )
   
-  lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
+lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
   .dependsOn(core,video,ingest)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
@@ -650,4 +650,38 @@ lazy val twit = (project in file("demo/skel-twit"))
     libraryDependencies ++= libHttp ++ libTest ++ Seq(
       libAlpakkaElastic
     ),  
+  )
+
+def appConfig(appName:String,appMainClass:String) = 
+  Seq(
+    name := appName,    
+    run / mainClass := Some(appMainClass),
+    assembly / mainClass := Some(appMainClass),
+    Compile / mainClass := Some(appMainClass), // <-- This is very important for DockerPlugin generated stage1 script!
+    assembly / assemblyJarName := jarPrefix + appName + "-" + "assembly" + "-"+  appVersion + ".jar",
+
+    Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
+    Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
+    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
+    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",   
+  )
+
+lazy val stream_std = (project in file("skel-stream/stream-std"))
+  .dependsOn(core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appConfig("stream-std","io.syspulse.skel.stream.AppStreamStd"),
+
+    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
+      libUpickleLib
+    ),
+
   )
