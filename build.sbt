@@ -159,6 +159,16 @@ def appDockerConfig(appName:String,appMainClass:String) =
     bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",   
   )
 
+def appAssemblyConfig(appName:String,appMainClass:String) = 
+  Seq(
+    name := appName,
+    run / mainClass := Some(appMainClass),
+    assembly / mainClass := Some(appMainClass),
+    Compile / mainClass := Some(appMainClass),
+    assembly / assemblyJarName := jarPrefix + appName + "-" + "assembly" + "-"+  appVersion + ".jar",
+  )
+
+
 
 lazy val root = (project in file("."))
   .aggregate(core, serde, cron, video, `skel-test`, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow)
@@ -194,8 +204,7 @@ lazy val serde = (project in file("skel-serde"))
   .settings (
       sharedConfig,
       name := "skel-serde",
-      libraryDependencies ++=         
-        libTest ++ 
+      libraryDependencies ++= libTest ++ 
         Seq(
           libUUID, 
           libAvro4s,
@@ -225,17 +234,13 @@ lazy val cron = (project in file("skel-cron"))
   .settings (
       sharedConfig,
       sharedConfigAssembly,
-      name := "skel-cron",
-      libraryDependencies ++= 
-        libCommon ++ 
-        libTest ++ 
+      
+      appAssemblyConfig("skel-cron",appBootClassCron),
+      
+      libraryDependencies ++= libCommon ++ libTest ++ 
         Seq(
           libQuartz
         ),
-      run / mainClass := Some(appBootClassCron),
-      assembly / mainClass := Some(appBootClassCron),
-      Compile / mainClass := Some(appBootClassCron),
-      assembly / assemblyJarName := jarPrefix + appNameCron + "-" + "assembly" + "-"+  appVersion + ".jar",
     )
 
 
@@ -262,18 +267,14 @@ lazy val auth = (project in file("skel-auth"))
     sharedConfig,
     sharedConfigAssembly,
 
-    name := appNameAuth,
+    appAssemblyConfig(appNameAuth,appBootClassAuth),
+
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ libJwt ++ Seq(
       libUpickleLib,
       libRequests,
       libScalaTags,
       libCask
-    ),
-    
-    run / mainClass := Some(appBootClassAuth),
-    assembly / mainClass := Some(appBootClassAuth),
-    assembly / assemblyJarName := jarPrefix + appNameAuth + "-" + "assembly" + "-"+  appVersion + ".jar",
-
+    ),    
   )
 
 lazy val otp = (project in file("skel-otp"))
@@ -321,16 +322,12 @@ lazy val kafka= (project in file("skel-kafka"))
     sharedConfig,
     sharedConfigAssembly,
 
-    name := appNameKafka,
+    appAssemblyConfig(appNameKafka,appBootClassKafka),
+
     libraryDependencies ++= Seq(
       libAkkaKafka,
       libKafkaAvroSer
     ),
-    
-    run / mainClass := Some(appBootClassKafka),
-    assembly / mainClass := Some(appBootClassKafka),
-    assembly / assemblyJarName := jarPrefix + appNameKafka + "-" + "assembly" + "-"+ appVersion + ".jar",
-
   )  
 
 lazy val world = (project in file("skel-world"))
@@ -365,7 +362,7 @@ lazy val shop = (project in file("skel-shop"))
     dockerBuildxSettings,
 
     appDockerConfig(appNameShop,appBootClassShop),
-    
+
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
       libCsv,
       libFaker
@@ -379,12 +376,14 @@ lazy val ingest = (project in file("skel-ingest"))
     sharedConfig,
     sharedConfigAssembly,
 
-    name := "skel-ingest",
+    appAssemblyConfig("skel-ingest",appNameIngest),
+    //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
+
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
       libUpickleLib
     ),
     
-    assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
+    
   )
 
 lazy val crypto = (project in file("skel-crypto"))
@@ -533,9 +532,7 @@ lazy val video = (project in file("skel-video"))
   .settings (
       sharedConfig,
       name := "skel-video",
-      libraryDependencies ++= 
-        libCommon ++ 
-        libSkel ++ 
+      libraryDependencies ++= libCommon ++ libSkel ++ 
         Seq(
           libAkkaHttpSpray,
           libUUID,
