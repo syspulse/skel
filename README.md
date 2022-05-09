@@ -3,24 +3,27 @@
 Skeletons for RnD Prototypes
 
 0. [demo](demo) - Demoable Projlets based on skel components
-0. [infra](infra) - Infrastructure (docker,kubernetes)
-1. [skel-http](skel-http) - HTTP Service (+ Kubernetes)
-2. [skel-user](skel-user) - UserProfile Service reference
-3. [skel-world](skel-world) + [skel-shop](skel-shop) - Services for E-Shop like product
-4. [skel-kafka](skel-kafka) - Kafka Processors (Source/Sink)
-5. [skel-ingest](skel-ingest) - Data Ingestion with Prometheus telemerty reference
-6. [skel-telemetry](skel-telemetry) - Telemetry (Prometheus/InfluxDB/Graphite/Loki/Grafana)
-7. [skel-db](skel-db) - DB Related stuff
-8. [skel-otp](skel-otp) - OTP Service reference service 
-9. [skel-test](skel-test) - Test helpers
-10. [skel-crypto](skel-crypto) - Cryptography and Ethereum utilities
-11. [skel-spark](skel-spark) - Spark tools
-12. [skel-datalake](skel-datalake) - Datalake and Warehouses
-13. [skel-flow](skel-flow) - DataFlows and Workflows
-14. [skel-scrap](skel-scrap) - Scraping pipelines
-15. [skel-cli](skel-cli) - Shell command line client
-16. [skel-cron](skel-cron) - Cron engine
-17. [skel-dashboard](skel-dashboard) - Dashboards (Polynote/Zepellin)
+1. [infra](infra) - Infrastructure (docker,kubernetes)
+2. [skel-http](skel-http) - HTTP Service (+ Kubernetes)
+3. [skel-user](skel-user) - UserProfile Service reference
+4. [skel-world](skel-world) + [skel-shop](skel-shop) - Services for E-Shop like product
+5. [skel-kafka](skel-kafka) - Kafka Processors (Source/Sink)
+6. [skel-ingest](skel-ingest) - Data Ingestion with Prometheus telemerty reference
+7. [skel-telemetry](skel-telemetry) - Telemetry (Prometheus/InfluxDB/Graphite/Loki/Grafana)
+8. [skel-db](skel-db) - DB Related stuff
+9. [skel-otp](skel-otp) - OTP Service reference service 
+10. [skel-test](skel-test) - Test helpers
+11. [skel-crypto](skel-crypto) - Cryptography and Ethereum utilities
+12. [skel-spark](skel-spark) - Spark tools
+13. [skel-datalake](skel-datalake) - Datalake and Warehouses
+14. [skel-flow](skel-flow) - DataFlows and Workflows
+15. [skel-scrap](skel-scrap) - Scraping pipelines
+16. [skel-cli](skel-cli) - Shell command line client
+17. [skel-cron](skel-cron) - Cron engine
+18. [skel-dashboard](skel-dashboard) - Dashboards (Polynote/Zepellin)
+19. [skel-serde](skel-serde) - Serializers
+20. [skel-video](skel-video) - Movie Metadata processors
+21. [skel-stream](skel-stream) - Akka Steams 
 
 ----
 ## Build & Run
