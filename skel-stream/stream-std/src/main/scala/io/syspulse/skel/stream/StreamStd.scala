@@ -11,28 +11,47 @@ import scala.concurrent.duration.Duration
 import scala.util.Random
 
 import com.typesafe.scalalogging.Logger
+import io.syspulse.skel.config.Configuration
+import io.syspulse.skel.dsl.JS
 
-class StreamStd(config:Config) {
+class StreamStd() {
   val log = Logger(s"${this.getClass().getSimpleName()}")
+  
+  protected var config:Configuration = Configuration.default
+  protected var js:Option[JS] = None
+
+  def withConfig(c:Configuration):StreamStd = {
+    this.config = c
+    js = config.getString("script").map(s => new JS(s))
+    
+    this
+  }
 
   implicit val sys: ActorSystem = ActorSystem(s"StreamStd")
-  //implicit val mat: Materializer = ActorMaterializer()
+  
 
   val stdinSource: Source[ByteString, Future[IOResult]] = StreamConverters.fromInputStream(() => System.in)
-  val stdoutSink: Sink[ByteString, Future[IOResult]] = StreamConverters.fromOutputStream(() => System.out)
-
-  //def capitaliseByteString(byteString: ByteString): ByteString = ByteString(byteString.utf8String.toUpperCase)
+  val outSink = Sink.foreach((data:String) => print(data)) //Sink[ByteString, Future[IOResult]] = StreamConverters.fromOutputStream(() => System.out)
 
   val flow = stdinSource
     .map(_.utf8String)
+
+  def preProc(data:String):String = {
+    if(js.isDefined) {
+      js.get.run(Map( ("input" -> data) )).toString
+    }
+      else data
+  }
+  def postProc(data:String):String = data
 
   def run(proc:Option[Flow[String,String,_]]) = {
     log.info(s"flow = ${flow}")
 
     val f = flow
+      .via(Flow.fromFunction(preProc))
       .via(proc.getOrElse(Flow.fromFunction((s:String)=>{log.debug(s);s})))
-      .map(s => ByteString(s))
-      .runWith(stdoutSink)
+      .via(Flow.fromFunction(postProc))
+      .runWith(outSink)
 
     val r = Await.result(f,Duration.Inf)
     log.info(s"finished: ${r}")
