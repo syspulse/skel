@@ -37,7 +37,7 @@ object AppStreamStd extends {
       new ConfigurationProp,
       new ConfigurationEnv, 
       new ConfigurationArgs(args,"stream-std","",
-        ArgString('s', "script","Javascript script"),
+        ArgString('s', "script","Javascript script (use: @filename.js)"),
         ArgString('c', "class.name","Classname of streamer (def: io.syspulse.skel.stream.StreamStd)"),
         ArgParam("<cmd>","commands ('write','read') (def: write)")
       )
