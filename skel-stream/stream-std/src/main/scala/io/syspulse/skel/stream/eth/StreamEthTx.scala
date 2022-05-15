@@ -54,9 +54,10 @@ class StreamEthTx() extends StreamStd {
         ("to_address" -> tx.toAddress.getOrElse("null")),
         ("value" -> tx.value),
       )
-    ).toString else ""
+    )
 
     log.info(s"tx: ${tx}: ${Console.YELLOW}${r}${Console.RESET}")
-    r
+    
+    if(r == null) "" else s"${r}\n"
   }
 }

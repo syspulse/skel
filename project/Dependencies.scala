@@ -4,7 +4,7 @@ object Dependencies {
 
     // Versions
     lazy val versionScalaLogging = "3.9.2"
-    lazy val akkaVersion    = "2.6.14"
+    lazy val akkaVersion    = "2.6.19"
     lazy val alpakkaVersion = "3.0.4"  
     lazy val akkaHttpVersion = "10.2.4"
     lazy val akkaKafkaVersion = "2.0.3"
@@ -73,7 +73,7 @@ object Dependencies {
     val libAlpakkaCassandra="com.lightbend.akka"          %% "akka-stream-alpakka-cassandra"      % alpakkaVersion //"2.0.2"
     val libAlpakkaDynamo=   "com.lightbend.akka"          %% "akka-stream-alpakka-dynamodb"       % alpakkaVersion
     val libAlpakkaElastic=  "com.lightbend.akka"          %% "akka-stream-alpakka-elasticsearch"  % alpakkaVersion
-    //val libAlpakkaMQTT=     "com.lightbend.akka"          %% "akka-stream-alpakka-mqtt-streaming" % alpakkaVersion
+    val libAlpakkaMQTT=     "com.lightbend.akka"          %% "akka-stream-alpakka-mqtt-streaming" % alpakkaVersion
 
     val libAkkaProtobuf =   "com.typesafe.akka"           %% "akka-protobuf"        % akkaVersion
     val libAkkaKafka=       "com.typesafe.akka"           %% "akka-stream-kafka"    % akkaKafkaVersion
@@ -96,7 +96,7 @@ object Dependencies {
     val libTypesafeConfig = "com.typesafe"                %  "config"               % "1.4.1"
       
     val libWsRs =           "javax.ws.rs"                 % "javax.ws.rs-api"       % "2.0.1"
-    val libSwaggerAkkaHttp ="com.github.swagger-akka-http" %% "swagger-akka-http"   % "2.3.0"
+    val libSwaggerAkkaHttp ="com.github.swagger-akka-http" %% "swagger-akka-http"   % "2.7.0"
     
     val libMetrics =        "nl.grons"                    %% "metrics4-scala"       % "4.1.14"
     //val libAkkaHttpMetrics ="fr.davit"                    %% "akka-http-metrics-dropwizard" % "1.6.0"

@@ -41,6 +41,7 @@ class StreamStd() {
 
   val stdinSource: Source[ByteString, Future[IOResult]] = StreamConverters.fromInputStream(() => System.in,chunkSize = 8192)
   val outSink = Sink.foreach((data:String) => print(data)) //Sink[ByteString, Future[IOResult]] = StreamConverters.fromOutputStream(() => System.out)
+  val outFlow = Flow.fromFunction((s:String) => s)
 
   val flow = stdinSource
     .via(Framing.delimiter(ByteString("\n"), Int.MaxValue))
@@ -63,6 +64,7 @@ class StreamStd() {
       .via(Flow.fromFunction(preProc))
       .via(proc.getOrElse(Flow.fromFunction((s:String)=>{log.debug(s);s})))
       .via(Flow.fromFunction(postProc))
+      .via(outFlow)
       .runWith(outSink)
 
     val r = Await.result(f,Duration.Inf)

@@ -128,6 +128,7 @@ val sharedConfigAssembly = Seq(
       case x if x.contains("slf4j/impl/StaticMarkerBinder.class") => MergeStrategy.first
       case x if x.contains("slf4j/impl/StaticMDCBinder.class") => MergeStrategy.first
       case x if x.contains("slf4j/impl/StaticLoggerBinder.class") => MergeStrategy.first
+      case x if x.contains("google/protobuf") => MergeStrategy.first
       case x => {
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
@@ -136,7 +137,8 @@ val sharedConfigAssembly = Seq(
   assembly / assemblyExcludedJars := {
     val cp = (assembly / fullClasspath).value
     cp filter { f =>
-      f.data.getName.contains("snakeyaml-1.27-android.jar") || f.data.getName.contains("jakarta.activation-api-1.2.1") 
+      f.data.getName.contains("snakeyaml-1.27-android.jar") || 
+      f.data.getName.contains("jakarta.activation-api-1.2.1") 
       //|| f.data.getName == "spark-core_2.11-2.0.1.jar"
     }
   },

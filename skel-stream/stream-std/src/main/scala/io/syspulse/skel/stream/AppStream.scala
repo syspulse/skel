@@ -9,6 +9,20 @@ import akka.stream.scaladsl.Flow
 import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
+import akka.stream.scaladsl.Tcp
+import akka.stream.scaladsl.Source
+import akka.util.ByteString
+import akka.actor.ActorSystem
+import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.Keep
+import scala.concurrent.Future
+import akka.stream.scaladsl.StreamConverters
+import akka.stream.IOResult
+import akka.stream.scaladsl.RestartFlow
+import akka.stream.RestartSettings
+import scala.concurrent.duration.FiniteDuration
+import java.net.InetSocketAddress
+import scala.concurrent.duration.Duration
 
 case class Config(
   script:String="",
@@ -16,7 +30,7 @@ case class Config(
   cmd:Seq[String] = Seq()
 )
 
-object AppStreamStd extends {
+object AppStream extends {
   val log = Logger(s"${this.getClass().getSimpleName()}")
   
   def spawn(className:String):Try[StreamStd] = {
@@ -56,7 +70,7 @@ object AppStreamStd extends {
     log.info(s"class=${stream.get.getClass().getName()}")
     
     stream.get.withConfig(c).run(None)
-    //new StreamStd().withConfig(c).run(scriptFlow)
+
   }
 }
 
