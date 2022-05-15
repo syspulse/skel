@@ -103,6 +103,7 @@ val sharedConfigAssemblyTeku = Seq(
       case x if x.contains("StaticMarkerBinder.class") => MergeStrategy.first
       case x if x.contains("StaticMDCBinder.class") => MergeStrategy.first
       case x if x.contains("StaticLoggerBinder.class") => MergeStrategy.first
+      case x if x.contains("google/protobuf") => MergeStrategy.first
       case x => {
         val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
@@ -572,10 +573,26 @@ lazy val stream_std = (project in file("skel-stream/stream-std"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    appDockerConfig("stream-std","io.syspulse.skel.stream.AppStreamStd"),
+    appDockerConfig("stream-std","io.syspulse.skel.stream.AppStream"),
 
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
       libUpickleLib
     ),
 
   )
+
+lazy val cli = (project in file("skel-cli"))
+  .dependsOn(core,crypto)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,
+      
+      appAssemblyConfig("skel-cli","io.syspulse.skel.cli.App"),
+      
+      libraryDependencies ++= libCommon ++ libHttp ++ libTest ++ 
+        Seq(
+          libOsLib,
+          libUpickleLib
+        ),
+    )
+

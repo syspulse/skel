@@ -138,7 +138,10 @@ object Dependencies {
 
     val libWeb3jCrypto =    "org.web3j"                     % "crypto"              % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
     val libWeb3jCore =      "org.web3j"                     % "core"                % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
-    val libBouncyCastle =   "org.bouncycastle"              % "bcprov-jdk15on"      % "1.69" //web3j depends on "1.65"
+    
+    //web3j depends on "1.65"
+    val libBouncyCastle =   "org.bouncycastle"              % "bcprov-jdk15on"      % "1.70" //"1.69" 
+    
     val libScodecBits =     "org.scodec"                    %% "scodec-bits"        % "1.1.30" //"1.1.12" 
     val libHKDF =           "at.favre.lib"                  % "hkdf"                % "1.1.0"
     val libBLS =            "tech.pegasys.teku.internal"    % "bls"                 % "23.3.1" //"21.9.2"
