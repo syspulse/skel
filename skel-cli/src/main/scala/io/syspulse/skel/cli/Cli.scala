@@ -127,6 +127,12 @@ class CommandHelp(cli:Cli) extends Command(cli,Seq()) {
   }
 }
 
+class CommandUnknown(cli:Cli,cmd:String) extends Command(cli,Seq()) {
+  def exec(state:CliState):Result = {
+    WARN(s"Unknown Command: '${cmd}'",state)
+  }
+}
+
 //case class Syntax[-C <: Cli](words:Seq[String],cmd:(C,Seq[String])=>Command,help:String="")
 case class Syntax(words:Seq[String],cmd:(Cli,Seq[String])=>Command,help:String="")
 
@@ -141,7 +147,20 @@ object Cli {
 
 abstract class Cli(initState:CliState=CliStateInit(),
                    prompt:String = ">",
+                   ignoreUnknown:Boolean = false,
                    syntax:Seq[Syntax]=Cli.DEF_SYNTAX) {
+  
+  var colors:Colorful = Colors.getColorful("night")
+  val CONSOLE = Console.out
+  var reader: LineReader = _
+  var cursorShape = ">"
+  var changedShape = s"${colors.YELLOW}*${colors.RESET}"
+  
+  def ERR(msg: String): String = s"${colors.ERR}ERR: ${colors.RESET}${msg}"
+  def PROMPT = cursorShape
+    
+  cursorShape = prompt
+  
   var syntaxMap: Map[String,Syntax] = moreSyntax(syntax)
   def getSyntax() = syntaxMap.values
   
@@ -171,7 +190,10 @@ abstract class Cli(initState:CliState=CliStateInit(),
         case cmdName :: Nil => syntaxMap.get(cmdName).map( stx => stx.cmd(this,Seq()))
         case cmdName :: args => syntaxMap.get(cmdName).map( stx => stx.cmd(this,args.toSeq))
       }
-      cmd
+      if(ignoreUnknown || cmd.isDefined)
+        cmd
+      else
+        Some(new CommandUnknown(this,cmdArgs.mkString(" ")))
     }).toList
   }
 
@@ -194,17 +216,7 @@ abstract class Cli(initState:CliState=CliStateInit(),
 
     state
   }
-
   
-  var colors:Colorful = Colors.getColorful("night")
-
-  val CONSOLE = Console.out
-  var reader: LineReader = _
-  var cursorShape = ">"
-  var changedShape = s"${colors.YELLOW}*${colors.RESET}"
-  def ERR(msg: String): String = s"${colors.ERR}ERR: ${colors.RESET}${msg}"
-  def PROMPT = cursorShape
-    
   
   def runWithParser(parser: org.jline.reader.Parser,script: Seq[String], echo: Boolean ) = {
     var exit = false
@@ -215,13 +227,6 @@ abstract class Cli(initState:CliState=CliStateInit(),
       val pl: ParsedLine = parser.parse(cmd, 0);
 
       pl.word() match {
-        // case "exit" => { System.exit(0); Right(ctx) }
-        // case "halt" => {
-        //   // does not work like in dsm2/DslConsole
-          
-        // }
-        // case "help" => help(ctx1);
-
         case "" => ; 
 
         case op: String => {
