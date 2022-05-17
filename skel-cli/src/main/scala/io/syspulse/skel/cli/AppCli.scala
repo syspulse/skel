@@ -39,17 +39,17 @@ case class CliStateLoggedOff(ctx:Ctx) extends CliState
 case class CliStateLoggedIn(ctx:Ctx) extends CliState
 
 class CommandConnect(cli:AppCli,args:String*) extends Command(cli,args) {
-  def exec(state:CliState):Result = {
-    state match {
+  def exec(st:CliState):Result = {
+    st match {
       case CliStateLoggedOff(ctx)  => {
         val (uri) = args.toList match {
           case uri :: _ => (uri)
-          case Nil => return ERR("missing uri",state) 
+          case Nil => return ERR("missing uri",st) 
         }
         OK(s"connected: ${uri}",CliStateLoggedOff(ctx.copy(uri = uri)))
       }
-      case CliStateLoggedIn(_) => OK("already logged in",state)
-      case _ => WARN("already logged in",state)
+      case CliStateLoggedIn(_) => OK("already logged in",st)
+      case _ => WARN("already logged in",st)
     }
   }
 }
@@ -57,15 +57,15 @@ class CommandConnect(cli:AppCli,args:String*) extends Command(cli,args) {
 
 class CommandLoginUser(cli:AppCli,args:String*) extends Command(cli,args) {
   val DEF_KEYSTORE = (os.home / ".config" / "skel" / "keystore.json").toString
-  def exec(state:CliState):Result = {
-    state match {
+  def exec(st:CliState):Result = {
+    st match {
       case CliStateLoggedOff(ctx) => {
         val (userId,kk) = args.toList match {
           case userId :: pass :: keystoreFile :: _ => (userId,Eth.readKeystore(pass,keystoreFile))
           case userId :: pass :: Nil => (userId,Eth.readKeystore(pass,DEF_KEYSTORE))
           case userId :: Nil => (userId,Eth.readKeystore("",DEF_KEYSTORE))
           case Nil => ("00000000-0000-0000-1000-000000000001",Eth.readKeystore("",DEF_KEYSTORE))
-          //case Nil => return ERR("missing uri,userId,password",state) 
+          //case Nil => return ERR("missing uri,userId,password",st) 
         }
         
         if(kk.isFailure) {
@@ -77,38 +77,50 @@ class CommandLoginUser(cli:AppCli,args:String*) extends Command(cli,args) {
         
         OK(s"logged in: ${user}",CliStateLoggedIn(Ctx(ctx.uri,Some(user),Some(signer))))
       }
-      case CliStateLoggedIn(_) => OK("already logged in",state)
-      case _ => WARN("already logged in",state)
+      case CliStateLoggedIn(_) => OK("already logged in",st)
+      case _ => WARN("already logged in",st)
     }
   }
 }
 
 class CommandAdd(cli:AppCli,args:String*) extends Command(cli,args) {
-  def exec(state:CliState):Result = {
-    println(s"args=${args}")
-    state match {
-      case CliStateLoggedOff(ctx) => ERR(s"not logged-in",state)
+  def exec(st:CliState):Result = {
+    st match {
+      case CliStateLoggedOff(ctx) => ERR(s"not logged-in",st)
       case CliStateLoggedIn(ctx) => {
         val (name) = args.toList match {
           case name :: Nil =>                               (name)
-          case _ => return ERR(s"missing <tag> <name> <telemetry> <measure> <units> [description] [when]",state)
+          case _ => return ERR(s"missing <tag> <name> <telemetry> <measure> <units> [description] [when]",st)
         }
 
         //val r = Await.result(f, Duration("5 seconds"))
         var r = 0
         
-        OK(s"${r}",state)
+        OK(s"${r}",st)
       }
-      case _ => ERR("in unkown state",state)
+      case _ => ERR("in unkown st",st)
     }
   }
 }
 
 
+class CommandFuture(cli:AppCli,args:String*) extends Command(cli,args) {
+  def exec(st:CliState):Result = {
+    println(args)
+    val (time) = args.toList match {
+      case msec :: Nil => (msec.toLong)
+      case _ => (1000L)
+    }
+
+    val f = Future{ Thread.sleep(time); cli.uprintln(s"${Thread.currentThread()}: ${this}")}
+    OK(s"${f}: ${time} msec",st)
+  }
+}
+
 // class CommandHealthFind(cli:AppCli,args:String*) extends CommandHealthFinder(cli,args: _*) {
-//   def exec(state:CliState):Result = {
-//     state match {
-//       case CliStateLoggedOff(ctx) => ERR(s"not logged-in",state)
+//   def exec(st:CliState):Result = {
+//     st match {
+//       case CliStateLoggedOff(ctx) => ERR(s"not logged-in",st)
 //       case CliStateLoggedIn(ctx:Ctx) => {
 
 //         val (date,name) = args.toList match {
@@ -118,9 +130,9 @@ class CommandAdd(cli:AppCli,args:String*) extends Command(cli,args) {
 //         }
 
 //         val out = find(ctx,date,name)
-//         OK(s"${out}",state)
+//         OK(s"${out}",st)
 //       }
-//       case _ => ERR("in unkown state",state)
+//       case _ => ERR("in unkown st",st)
 //     }
 //   }
 // }
@@ -129,13 +141,14 @@ class CommandAdd(cli:AppCli,args:String*) extends Command(cli,args) {
 class AppCli(serverUri:String) extends Cli(initState = CliStateLoggedOff(Ctx(serverUri)) ) {
   implicit val system = ActorSystem(Behaviors.empty, "app-cli")
   implicit val ec = system.executionContext
-
+  
   val tsFormat = "yyyy-MM-dd HH:mm:ss" //DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
   
   addSyntax(Seq (
     Syntax(words=Seq("connect","c"),cmd = (cli,args)=>new CommandConnect(this,args: _*),help="Connect"),
     Syntax(words=Seq("login","l"),cmd = (cli,args)=>new CommandLoginUser(this,args: _*),help="Login"),
-    Syntax(words=Seq("add","a"),cmd = (cli,args)=>new CommandAdd(this,args: _*),help="Add")
+    Syntax(words=Seq("add","a"),cmd = (cli,args)=>new CommandAdd(this,args: _*),help="Add"),
+    Syntax(words=Seq("future","fut","f"),cmd = (cli,args)=>new CommandFuture(this,args: _*),help="Create Future with msec (def: 1000 msec)")
   ))
 
   def uri:String = serverUri

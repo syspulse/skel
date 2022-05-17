@@ -25,97 +25,40 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Await
 
 
-// ----------------------------------------- Colors ---
-trait Colorful {
-  val RESET:String = "\u001B[0m"
-
-  // Bold \u001b[1m
-  val BOLD:String = "\u001B[1m"
-  // Underline
-  val UNDERLINED:String = "\u001B[4;30m"
-  // Background
-  val BACKGROUND:String = "\u001B[40m"
-  // High Intensity
-  val BRIGHT:String = "\u001B[0;90m"
-  // Bold High Intensity
-  val BOLD_BRIGHT:String = "\u001B[1m;90m"
-  // High Intensity backgrounds
-  val BACKGROUND_BRIGHT:String = "\u001B[0;100m"
-
-  // Regular Colors
-  val BLACK:String = "\u001B[0;30m"
-  val RED:String = "\u001B[0;31m"
-  val GREEN:String = "\u001B[0;32m"
-  val YELLOW:String = "\u001B[0;33m"
-  val BLUE:String = "\u001B[0;34m" 
-  val PURPLE:String = "\u001B[0;35m"
-  val CYAN:String = "\u001B[0;36m"
-  val WHITE:String = "\u001B[0;37m"
-  
-  val ERR:String
-  val KEY:String
-  val VALUE:String
-  val SEARCH:String
-}
-
-
-case class ColorfulDay() extends Colorful {
-  val ERR:String = RED
-  val KEY:String = BLUE
-  val VALUE:String = BLACK + BOLD
-  val SEARCH:String = BLUE
-}
-
-case class ColorfulNight () extends Colorful {
-  val ERR:String = RED
-  val KEY:String = YELLOW
-  val VALUE:String = WHITE + BOLD
-  val SEARCH:String = BLUE
-}
-
-object Colors {
-  val colors = Map(
-    "day" ->  ColorfulDay(),
-    "night" -> ColorfulNight() 
-  )
-
-  def getColorful(name:String):Colorful = colors.get(name).getOrElse(ColorfulNight())
-}
-
-
-
 abstract class CliState
 case class CliStateInit() extends CliState
 
-abstract class Result(msg:String,st:CliState) {
-  def message = msg
-  def state = st
+abstract class Result(message:String,state:CliState) {
+  def msg = message
+  def st = state
 }
-case class OK(msg:String,st:CliState) extends Result(msg,st)
-case class ERR(msg:String,st:CliState) extends Result(msg,st)
-case class WARN(msg:String,st:CliState) extends Result(msg,st)
+case class OK(message:String,state:CliState) extends Result(message,state)
+case class ERR(message:String,state:CliState) extends Result(message,state)
+case class WARN(message:String,state:CliState) extends Result(message,state)
 
 abstract class Command(cli:Cli,args:Seq[String] ) {
-  def exec(state:CliState):Result
+  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+
+  def exec(st:CliState):Result
   def getArgs = if(args.isEmpty) "" else args.reduce(_ + "," + _)
 }
 
 class CommandHalt(cli:Cli) extends Command(cli,Seq()) {
-  def exec(state:CliState):Result = {
+  def exec(st:CliState):Result = {
     Runtime.getRuntime().halt(0)
-    OK("",state)
+    OK("",st)
   }
 }
 
 class CommandExit(cli:Cli) extends Command(cli,Seq()) {
-  def exec(state:CliState):Result = {
+  def exec(st:CliState):Result = {
     Runtime.getRuntime().exit(0)
-    OK("",state)
+    OK("",st)
   }
 }
 
 class CommandHelp(cli:Cli) extends Command(cli,Seq()) {
-  def exec(state:CliState):Result = {
+  def exec(st:CliState):Result = {
     val maxText = cli.getSyntax().map(s => s"${s.words.mkString(",")}".size).max
     val o = cli.getSyntax().map(s => {
       val prefix = s.words.mkString(",")
@@ -123,13 +66,13 @@ class CommandHelp(cli:Cli) extends Command(cli,Seq()) {
       s"${prefix}${blanks} - ${s.help}"
     }).mkString("\n")
     
-    OK(o,state)
+    OK(o,st)
   }
 }
 
 class CommandUnknown(cli:Cli,cmd:String) extends Command(cli,Seq()) {
-  def exec(state:CliState):Result = {
-    WARN(s"Unknown Command: '${cmd}'",state)
+  def exec(st:CliState):Result = {
+    WARN(s"Unknown Command: '${cmd}'",st)
   }
 }
 
@@ -150,14 +93,31 @@ abstract class Cli(initState:CliState=CliStateInit(),
                    ignoreUnknown:Boolean = false,
                    syntax:Seq[Syntax]=Cli.DEF_SYNTAX) {
   
-  var colors:Colorful = Colors.getColorful("night")
-  val CONSOLE = Console.out
+  var colors:Colorful = CliColors.getColorful("night")
   var reader: LineReader = _
   var cursorShape = ">"
   var changedShape = s"${colors.YELLOW}*${colors.RESET}"
   
   def ERR(msg: String): String = s"${colors.ERR}ERR: ${colors.RESET}${msg}"
   def PROMPT = cursorShape
+  
+  // ATTENTION: Unsafe operation on non-public method
+  // jline3 fix needed
+  def updatePrompt() = {
+    reader.asInstanceOf[LineReaderImpl].setPrompt(PROMPT);
+    
+    reader.callWidget(LineReader.CLEAR);
+    //reader.getTerminal().writer().println(PROMPT);
+    reader.callWidget(LineReader.REDRAW_LINE);
+    reader.callWidget(LineReader.REDISPLAY);
+    reader.getTerminal().writer().flush();
+  }
+  val CONSOLE = Console.out
+  def uprintln(args:String) = {
+    CONSOLE.println(args)
+    updatePrompt()
+  }
+
     
   cursorShape = prompt
   
@@ -179,10 +139,9 @@ abstract class Cli(initState:CliState=CliStateInit(),
   }
 
 
-  var state: CliState = initState
+  var st: CliState = initState
   
   def parse(commands:String*):List[Command] = {
-    
     commands.mkString(";").split("[;\\n]").flatMap( s => {
       val cmdArgs = CliUtil.parseText(s).toList //s.split("\\s+").filter(!_.trim.isEmpty).toList
       val cmd:Option[Command] = cmdArgs match {
@@ -204,17 +163,16 @@ abstract class Cli(initState:CliState=CliStateInit(),
 
   def run(cmds:List[Command]):CliState = {
     for( cmd <- cmds ) {
-      val r = cmd.exec(state)
+      val r = cmd.exec(st)
       r match {
         case ERR(m,_) => CONSOLE.println(s"${colors.RED}Error${colors.RESET}: ${cmd.getClass.getSimpleName}(${cmd.getArgs}): ${m}")
         case WARN(m,_) => CONSOLE.println(s"${colors.YELLOW}Warning${colors.RESET}: ${cmd.getClass.getSimpleName}(${cmd.getArgs}): ${m}")
         case OK(m,_) => CONSOLE.println(s"${m}")
       }
 
-      state = r.state
+      st = r.st
     }
-
-    state
+    st
   }
   
   
@@ -226,7 +184,7 @@ abstract class Cli(initState:CliState=CliStateInit(),
 
       val pl: ParsedLine = parser.parse(cmd, 0);
 
-      pl.word() match {
+      pl.line match {
         case "" => ; 
 
         case op: String => {
@@ -270,7 +228,7 @@ abstract class Cli(initState:CliState=CliStateInit(),
             } != null) {
       
         try {
-          runWithParser(reader.getParser(), Seq(line), true)
+          runWithParser(reader.getParser(), Seq(line), false)
         } catch {
           case e: org.jline.reader.EndOfFileException => exit = true          
           case e: Exception                           => out.println(e)
