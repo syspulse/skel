@@ -100,9 +100,9 @@ val sharedConfigAssemblyTeku = Seq(
   assembly / assemblyMergeStrategy := {
       case x if x.contains("module-info.class") => MergeStrategy.concat
       case x if x.contains("io.netty.versions.properties") => MergeStrategy.first
-      case x if x.contains("StaticMarkerBinder.class") => MergeStrategy.first
-      case x if x.contains("StaticMDCBinder.class") => MergeStrategy.first
-      case x if x.contains("StaticLoggerBinder.class") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticMarkerBinder.class") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticMDCBinder.class") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticLoggerBinder.class") => MergeStrategy.first
       case x if x.contains("google/protobuf") => MergeStrategy.first
       case x => {
         val oldStrategy = (assembly / assemblyMergeStrategy).value
@@ -592,7 +592,8 @@ lazy val cli = (project in file("skel-cli"))
       libraryDependencies ++= libCommon ++ libHttp ++ libTest ++ 
         Seq(
           libOsLib,
-          libUpickleLib
+          libUpickleLib,
+          libJline
         ),
     )
 

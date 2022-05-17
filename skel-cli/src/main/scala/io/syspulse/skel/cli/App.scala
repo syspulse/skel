@@ -21,16 +21,17 @@ import akka.actor.typed.scaladsl.Behaviors
 object App {
   
   def main(args: Array[String]): Unit = {
-    implicit val system = ActorSystem(Behaviors.empty, "App-Cli")
-    implicit val ec = system.executionContext
+    //implicit val system = ActorSystem(Behaviors.empty, "App-Cli")
+    //implicit val ec = system.executionContext
 
     println(s"args: ${args.toList}")
 
     val cli = new AppCli("")
-    cli.run(args.mkString(" "))
+    cli.shell()
+    //cli.run(args.mkString(" "))
+    //Util.stdin( (line) => { cli.run(line); true})
 
-    Util.stdin( (line) => { cli.run(line); true})
-
-    system.terminate(); System.exit(0) 
+    //system.terminate(); 
+    System.exit(0) 
   }
 }

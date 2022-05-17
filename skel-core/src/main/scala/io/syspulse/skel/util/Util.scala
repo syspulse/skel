@@ -158,7 +158,6 @@ object Util {
   def stdin(fun:(String) => Boolean) = {
     var stdin = ""
     while ({stdin = scala.io.StdIn.readLine(); stdin != null}) {
-      println(s"Stdin: ${stdin}")
       val r = fun(stdin)
       if(!r) stdin = null
     }

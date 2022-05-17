@@ -115,7 +115,7 @@ object Dependencies {
     val libAkkaTestkit =    "com.typesafe.akka"           %% "akka-http-testkit"    % akkaHttpVersion// % Test
     val libAkkaTestkitType ="com.typesafe.akka"           %% "akka-actor-testkit-typed" % akkaVersion// % Test
     
-    //val libJline =          "org.jline"                   %  "jline"                 % "3.14.1"
+    val libJline =          "org.jline"                   %  "jline"                 % "3.14.1"
     //val libJson4s =         "org.json4s"                  %%  "json4s-native"        % "3.6.7"
     val libOsLib =          "com.lihaoyi"                 %% "os-lib"               % "0.8.0" //"0.7.7"
     val libUpickleLib =     "com.lihaoyi"                 %% "upickle"              % "1.4.1"
