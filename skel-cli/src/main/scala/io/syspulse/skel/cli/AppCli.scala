@@ -111,8 +111,14 @@ class CommandFuture(cli:AppCli,args:String*) extends Command(cli,args) {
       case _ => (1000L)
     }
 
-    val f = Future{ Thread.sleep(time); cli.uprintln(s"${Thread.currentThread()}: ${this}")}
-    OK(s"${f}: ${time} msec",st)
+    val f = Future{ 
+      Thread.sleep(time)
+      val message = s"${this}: FINISHED: ${time} msec"
+      cli.uprintln(s"${Thread.currentThread()}: ${this}: ${message}")
+      OK(message,st)
+    }
+    
+    FUTURE(f,s"${f}: ${time} msec",st)
   }
 }
 

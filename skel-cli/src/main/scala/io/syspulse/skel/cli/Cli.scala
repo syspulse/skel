@@ -31,10 +31,14 @@ case class CliStateInit() extends CliState
 abstract class Result(message:String,state:CliState) {
   def msg = message
   def st = state
+
+  def result = message
 }
+
 case class OK(message:String,state:CliState) extends Result(message,state)
 case class ERR(message:String,state:CliState) extends Result(message,state)
 case class WARN(message:String,state:CliState) extends Result(message,state)
+case class FUTURE(f:Future[Result],message:String,state:CliState) extends Result(message,state)
 
 abstract class Command(cli:Cli,args:Seq[String] ) {
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
@@ -42,6 +46,17 @@ abstract class Command(cli:Cli,args:Seq[String] ) {
   def exec(st:CliState):Result
   def getArgs = if(args.isEmpty) "" else args.reduce(_ + "," + _)
 }
+
+class BlockingCommand(cli:Cli,cmd:Command,timeout:Duration = Duration("10 seconds")) extends Command(cli,Seq()) {
+  override def exec(st:CliState):Result = {
+    println(s"Blockgin: ${this}: cmd=${cmd}")
+    cmd.exec(st) match {
+      case FUTURE(f,_,_) => Await.result(f,timeout)
+      case r @ _ => r
+    }
+  }
+}
+
 
 class CommandHalt(cli:Cli) extends Command(cli,Seq()) {
   def exec(st:CliState):Result = {
@@ -104,17 +119,22 @@ abstract class Cli(initState:CliState=CliStateInit(),
   // ATTENTION: Unsafe operation on non-public method
   // jline3 fix needed
   def updatePrompt() = {
-    reader.asInstanceOf[LineReaderImpl].setPrompt(PROMPT);
-    
-    reader.callWidget(LineReader.CLEAR);
-    //reader.getTerminal().writer().println(PROMPT);
-    reader.callWidget(LineReader.REDRAW_LINE);
-    reader.callWidget(LineReader.REDISPLAY);
-    reader.getTerminal().writer().flush();
+    try {
+      reader.asInstanceOf[LineReaderImpl].setPrompt(PROMPT);
+      
+      reader.callWidget(LineReader.CLEAR);
+      //reader.getTerminal().writer().println(PROMPT);
+      reader.callWidget(LineReader.REDRAW_LINE);
+      reader.callWidget(LineReader.REDISPLAY);
+      reader.getTerminal().writer().flush();
+    } catch {
+      case e:Exception => // ignore
+    }
   }
   val CONSOLE = Console.out
   def uprintln(args:String) = {
     CONSOLE.println(args)
+    //CONSOLE.flush()
     updatePrompt()
   }
 
@@ -143,11 +163,23 @@ abstract class Cli(initState:CliState=CliStateInit(),
   
   def parse(commands:String*):List[Command] = {
     commands.mkString(";").split("[;\\n]").flatMap( s => {
-      val cmdArgs = CliUtil.parseText(s).toList //s.split("\\s+").filter(!_.trim.isEmpty).toList
+      val cmdArgs = CliUtil.parseText(s).toList
+      
       val cmd:Option[Command] = cmdArgs match {
         case Nil => None
-        case cmdName :: Nil => syntaxMap.get(cmdName).map( stx => stx.cmd(this,Seq()))
-        case cmdName :: args => syntaxMap.get(cmdName).map( stx => stx.cmd(this,args.toSeq))
+        case cmdName :: Nil => {
+          val b = cmdName.startsWith("!")
+          
+          (if(b) syntaxMap.get(cmdName.tail) else syntaxMap.get(cmdName))
+            .map( stx => stx.cmd(this,Seq()))
+            .map( stx => if(b) new BlockingCommand(this,stx) else stx )
+        }
+        case cmdName :: args => {
+          val b = cmdName.startsWith("!")
+          (if(b) syntaxMap.get(cmdName.tail) else syntaxMap.get(cmdName))
+            .map( stx => stx.cmd(this,args.toSeq))
+            .map( stx => if(b) new BlockingCommand(this,stx) else stx )
+        }
       }
       if(ignoreUnknown || cmd.isDefined)
         cmd
@@ -168,6 +200,7 @@ abstract class Cli(initState:CliState=CliStateInit(),
         case ERR(m,_) => CONSOLE.println(s"${colors.RED}Error${colors.RESET}: ${cmd.getClass.getSimpleName}(${cmd.getArgs}): ${m}")
         case WARN(m,_) => CONSOLE.println(s"${colors.YELLOW}Warning${colors.RESET}: ${cmd.getClass.getSimpleName}(${cmd.getArgs}): ${m}")
         case OK(m,_) => CONSOLE.println(s"${m}")
+        case FUTURE(_,m,_) => CONSOLE.println(s"${m}")
       }
 
       st = r.st
