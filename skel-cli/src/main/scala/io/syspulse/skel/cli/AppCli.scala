@@ -106,7 +106,6 @@ class CommandAdd(cli:AppCli,args:String*) extends Command(cli,args) {
 
 class CommandFuture(cli:AppCli,args:String*) extends Command(cli,args) {
   def exec(st:CliState):Result = {
-    println(args)
     val (time) = args.toList match {
       case msec :: Nil => (msec.toLong)
       case _ => (1000L)
@@ -116,6 +115,19 @@ class CommandFuture(cli:AppCli,args:String*) extends Command(cli,args) {
     OK(s"${f}: ${time} msec",st)
   }
 }
+
+class CommandSleep(cli:AppCli,args:String*) extends Command(cli,args) {
+  def exec(st:CliState):Result = {
+    val (time) = args.toList match {
+      case msec :: Nil => (msec.toLong)
+      case _ => (1000L)
+    }
+
+    Thread.sleep(time)
+    OK(s"woke: ${time} msec",st)
+  }
+}
+
 
 // class CommandHealthFind(cli:AppCli,args:String*) extends CommandHealthFinder(cli,args: _*) {
 //   def exec(st:CliState):Result = {
@@ -148,7 +160,8 @@ class AppCli(serverUri:String) extends Cli(initState = CliStateLoggedOff(Ctx(ser
     Syntax(words=Seq("connect","c"),cmd = (cli,args)=>new CommandConnect(this,args: _*),help="Connect"),
     Syntax(words=Seq("login","l"),cmd = (cli,args)=>new CommandLoginUser(this,args: _*),help="Login"),
     Syntax(words=Seq("add","a"),cmd = (cli,args)=>new CommandAdd(this,args: _*),help="Add"),
-    Syntax(words=Seq("future","fut","f"),cmd = (cli,args)=>new CommandFuture(this,args: _*),help="Create Future with msec (def: 1000 msec)")
+    Syntax(words=Seq("future","fut","f"),cmd = (cli,args)=>new CommandFuture(this,args: _*),help="Create non-blocking Future (def: 1000 msec)"),
+    Syntax(words=Seq("sleep"),cmd = (cli,args)=>new CommandSleep(this,args: _*),help="Blockcing sleep (def: 1000 msec)")
   ))
 
   def uri:String = serverUri
