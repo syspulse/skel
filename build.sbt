@@ -597,3 +597,16 @@ lazy val cli = (project in file("skel-cli"))
         ),
     )
 
+lazy val db_cli = (project in file("skel-db/db-cli"))
+  .dependsOn(core,cli)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,
+      
+      appAssemblyConfig("db-cli","io.syspulse.skel.db.AppCliDB"),
+      
+      libraryDependencies ++= libCommon ++ libHttp ++ libTest ++ 
+        Seq(
+          
+        ),
+    )
