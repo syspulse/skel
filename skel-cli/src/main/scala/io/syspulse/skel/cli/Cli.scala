@@ -55,7 +55,7 @@ abstract class Command(cli:Cli,args:Seq[String]) {
 
 class BlockingCommand(cli:Cli,cmd:Command,timeout:Duration = Duration("10 seconds")) extends Command(cli,Seq()) {
   override def exec(st:CliState):Result = {
-    println(s"Blockgin: ${this}: cmd=${cmd}")
+    //println(s"Blocking: ${this}: cmd=${cmd}")
     cmd.exec(st) match {
       case FUTURE(f,_,_) => Await.result(f,timeout)
       case r @ _ => r

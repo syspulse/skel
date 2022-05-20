@@ -136,13 +136,24 @@ class CommandSleep(cli:AppCli,args:String*) extends Command(cli,args) {
 class CommandIpConfig(cli:AppCli,args:String*) extends Command(cli,args) {
   def exec(st:CliState):Result = {
     val (attr) = args.toList match {
-      case attr :: Nil => (attr)
+      case attr :: Nil => (attr.toString)
       case _ => ("")
     }
+    val blocking = ! attr.isEmpty
 
-    val ipconfig = http.ipconfig.HttpClient()//(cli.system,cli.ec)
-    OK(s"${ipconfig}",st)
-    //FUTURE(f,s"${f}: ${time} msec",st)
+    if(blocking) {
+      // blocking
+      val ipconfig = http.ipconfig.HttpClient()
+      OK(s"${ipconfig}",st)
+    } else {
+      // non-blocking
+      val fipconfig = new http.ipconfig.HttpClient().getIp2()
+      val f = fipconfig.map( r => {
+        cli.uprintln(s"${r}")
+        OK(s"${r}",st)
+      })
+      FUTURE(f,s"waiting result from ${f}...",st)
+    }
   }
 }
 
@@ -177,7 +188,7 @@ class AppCli(serverUri:String) extends Cli(initState = CliStateLoggedOff(Ctx(ser
     Syntax(words=Seq("login","l"),cmd = (cli,args)=>new CommandLoginUser(this,args: _*),help="Login"),
     Syntax(words=Seq("add","a"),cmd = (cli,args)=>new CommandAdd(this,args: _*),help="Add"),
     Syntax(words=Seq("future","fut","f"),cmd = (cli,args)=>new CommandFuture(this,args: _*),help="Create non-blocking Future (def: 1000 msec)"),
-    Syntax(words=Seq("sleep"),cmd = (cli,args)=>new CommandSleep(this,args: _*),help="Blockcing sleep (def: 1000 msec)"),
+    Syntax(words=Seq("sleep"),cmd = (cli,args)=>new CommandSleep(this,args: _*),help="Blocking sleep (def: 1000 msec)"),
     
     Syntax(words=Seq("ipconfig"),cmd = (cli,args)=>new CommandIpConfig(this,args: _*),help="get public IP and metadata HttpClient")
   ))

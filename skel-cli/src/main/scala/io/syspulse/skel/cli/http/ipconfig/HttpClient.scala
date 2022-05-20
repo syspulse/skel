@@ -62,7 +62,7 @@ object IpConfigJson extends JsonCommon {
   implicit val js1 = jsonFormat16(IpConfig.apply _) // this is needed to ignore companion object
 }
 
-class HttpClient(uri:String)(implicit as:ActorSystem, ec:ExecutionContext) {
+class HttpClient(uri:String = HttpClient.URI)(implicit as:ActorSystem, ec:ExecutionContext) {
   val log = Logger(s"${this}")
 
   import IpConfigJson._
@@ -71,14 +71,14 @@ class HttpClient(uri:String)(implicit as:ActorSystem, ec:ExecutionContext) {
   def reqIp(data:String) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/")
   def reqIpJson(data:String) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/json")
   
-  def getIp(data:String):Future[IpConfig] = {
+  def getIp(data:String = ""):Future[IpConfig] = {
     for {
       rsp <- Http().singleRequest(reqIpJson(data))
       ipconfig <- Unmarshal(rsp).to[IpConfig]
     } yield ipconfig
   }
 
-  def getIp2(data:String):Future[IpConfig] = {
+  def getIp2(data:String = ""):Future[IpConfig] = {
     for {
       rsp <- Http().singleRequest(reqIpJson(data))
       body <- rsp.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
@@ -91,7 +91,8 @@ class HttpClient(uri:String)(implicit as:ActorSystem, ec:ExecutionContext) {
 }
 
 object HttpClient {
-  def apply(uri:String = "http://ipconfig.io",data:String = "",timeout:Duration = Duration("5 seconds"))(implicit system:ActorSystem, ec:ExecutionContext) = {
+  val URI = "http://ipconfig.io"
+  def apply(uri:String = URI,data:String = "",timeout:Duration = Duration("5 seconds"))(implicit system:ActorSystem, ec:ExecutionContext) = {
     val f = new HttpClient(uri).getIp2(data)
     Await.result(f, timeout)
   }
