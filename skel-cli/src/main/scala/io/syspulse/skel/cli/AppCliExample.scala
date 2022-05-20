@@ -18,11 +18,10 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Await
 import akka.actor.typed.scaladsl.Behaviors
 
-object App {
+object AppCliExample {
   
   def main(args: Array[String]): Unit = {
-    val cli = new AppCli("")
+    val cli = new CliLoginable("http://localhost:8080")
     cli.shell()
-    System.exit(0) 
   }
 }

@@ -25,7 +25,10 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Await
 import akka.actor.ActorSystem
 
-abstract class CliState
+abstract class CliState {
+  // to render in Cli shell. Like toString but for visual
+  def render():String = ""
+}
 case class CliStateInit() extends CliState
 
 abstract class Result(message:String,state:CliState) {
@@ -115,17 +118,17 @@ abstract class Cli(initState:CliState=CliStateInit(),
   
   var colors:Colorful = CliColors.getColorful("night")
   var reader: LineReader = _
-  var cursorShape = ">"
+  var cursorShape = prompt
   var changedShape = s"${colors.YELLOW}*${colors.RESET}"
   
   def ERR(msg: String): String = s"${colors.ERR}ERR: ${colors.RESET}${msg}"
-  def PROMPT = cursorShape
+  def PROMPT(st: CliState) = s"${st.render()}${cursorShape}"
   
   // ATTENTION: Unsafe operation on non-public method
   // jline3 fix needed
   def updatePrompt() = {
     try {
-      reader.asInstanceOf[LineReaderImpl].setPrompt(PROMPT);
+      reader.asInstanceOf[LineReaderImpl].setPrompt(PROMPT(state));
       
       reader.callWidget(LineReader.CLEAR);
       //reader.getTerminal().writer().println(PROMPT);
@@ -143,8 +146,7 @@ abstract class Cli(initState:CliState=CliStateInit(),
     updatePrompt()
   }
 
-  cursorShape = prompt
-  
+  @volatile var state: CliState = initState
   var syntaxMap: Map[String,Syntax] = moreSyntax(syntax)
 
   // same command with different syntax
@@ -164,8 +166,6 @@ abstract class Cli(initState:CliState=CliStateInit(),
     syntaxMap = syntaxMap ++ moreSyntax(syntax)
   }
 
-
-  var st: CliState = initState
   
   def parse(commands:String*):List[Command] = {
     commands.mkString(";").split("[;\\n]").flatMap( s => {
@@ -201,7 +201,7 @@ abstract class Cli(initState:CliState=CliStateInit(),
 
   def run(cmds:List[Command]):CliState = {
     for( cmd <- cmds ) {
-      val r = cmd.exec(st)
+      val r = cmd.exec(state)
       r match {
         case ERR(m,_) => CONSOLE.println(s"${colors.RED}Error${colors.RESET}: ${cmd.getClass.getSimpleName}(${cmd.getArgs}): ${m}")
         case WARN(m,_) => CONSOLE.println(s"${colors.YELLOW}Warning${colors.RESET}: ${cmd.getClass.getSimpleName}(${cmd.getArgs}): ${m}")
@@ -209,9 +209,9 @@ abstract class Cli(initState:CliState=CliStateInit(),
         case FUTURE(_,m,_) => CONSOLE.println(s"${m}")
       }
 
-      st = r.st
+      state = r.st
     }
-    st
+    state
   }
   
   
@@ -259,7 +259,7 @@ abstract class Cli(initState:CliState=CliStateInit(),
     try {
       while (!exit && {
               line = reader.readLine(
-                PROMPT,
+                PROMPT(state),
                 "",
                 null.asInstanceOf[MaskingCallback],
                 null

@@ -1,4 +1,4 @@
-package io.syspulse.skel.cli
+package io.syspulse.skel.cli.user
 
 import scala.collection.immutable
 

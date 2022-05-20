@@ -62,7 +62,7 @@ object IpConfigJson extends JsonCommon {
   implicit val js1 = jsonFormat16(IpConfig.apply _) // this is needed to ignore companion object
 }
 
-class HttpClient(uri:String = HttpClient.URI)(implicit as:ActorSystem, ec:ExecutionContext) {
+class HttpClient(uri:String = HttpClient.serviceUri)(implicit as:ActorSystem, ec:ExecutionContext) {
   val log = Logger(s"${this}")
 
   import IpConfigJson._
@@ -91,8 +91,8 @@ class HttpClient(uri:String = HttpClient.URI)(implicit as:ActorSystem, ec:Execut
 }
 
 object HttpClient {
-  val URI = "http://ipconfig.io"
-  def apply(uri:String = URI,data:String = "",timeout:Duration = Duration("5 seconds"))(implicit system:ActorSystem, ec:ExecutionContext) = {
+  val serviceUri = "http://ipconfig.io"
+  def apply(uri:String = serviceUri,data:String = "",timeout:Duration = Duration("5 seconds"))(implicit system:ActorSystem, ec:ExecutionContext) = {
     val f = new HttpClient(uri).getIp2(data)
     Await.result(f, timeout)
   }
