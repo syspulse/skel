@@ -9,9 +9,18 @@ Based on jline (supports history, search)
 1. Commands delimiter: ';'
 2. Prefix command with '!' to make it blocking (applies to awaitable (future) based commands)
    This is needed for scripts execution which require some state update from previous command
+3. Help, Exit, Halt commands
+4. HttpClient reference (with Future and Blocking)
 
 ### Examples
 
+Get Public IP and metadata (geo,...)
+```
+./run-cli.sh
+> ipconfig
+```
+
+Show help and exit
 ```
 echo "help; exit" | ./run-cli.sh
 ```

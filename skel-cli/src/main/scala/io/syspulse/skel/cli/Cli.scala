@@ -23,7 +23,7 @@ import io.syspulse.skel.util.Util
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Await
-
+import akka.actor.ActorSystem
 
 abstract class CliState
 case class CliStateInit() extends CliState
@@ -40,8 +40,14 @@ case class ERR(message:String,state:CliState) extends Result(message,state)
 case class WARN(message:String,state:CliState) extends Result(message,state)
 case class FUTURE(f:Future[Result],message:String,state:CliState) extends Result(message,state)
 
-abstract class Command(cli:Cli,args:Seq[String] ) {
-  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+object Command {
+  val as:ActorSystem = ActorSystem("skel-cli") //ActorSystem(Behaviors.empty, "skel-cli")
+  val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+}
+
+abstract class Command(cli:Cli,args:Seq[String]) {
+  implicit val as:ActorSystem = Command.as
+  implicit val ec: scala.concurrent.ExecutionContext = Command.ec
 
   def exec(st:CliState):Result
   def getArgs = if(args.isEmpty) "" else args.reduce(_ + "," + _)
@@ -56,7 +62,6 @@ class BlockingCommand(cli:Cli,cmd:Command,timeout:Duration = Duration("10 second
     }
   }
 }
-
 
 class CommandHalt(cli:Cli) extends Command(cli,Seq()) {
   def exec(st:CliState):Result = {
@@ -80,7 +85,7 @@ class CommandHelp(cli:Cli) extends Command(cli,Seq()) {
       val blanks = " " * ((maxText - prefix.size) + 1)
       s"${prefix}${blanks} - ${s.help}"
     }).mkString("\n")
-    
+
     OK(o,st)
   }
 }
@@ -98,7 +103,7 @@ object Cli {
   val DEF_SYNTAX = Seq(
     Syntax(Seq("exit"),(cli,args)=>new CommandExit(cli),help="Exit"),
     Syntax(Seq("halt"),(cli,args)=>new CommandHalt(cli),help="Halt"),
-    Syntax(Seq("help","h"),(cli,args)=>new CommandHelp(cli),help="show help")
+    Syntax(Seq("help","hlp","h"),(cli,args)=>new CommandHelp(cli),help="Show help")
   )
 }
 
@@ -138,11 +143,12 @@ abstract class Cli(initState:CliState=CliStateInit(),
     updatePrompt()
   }
 
-    
   cursorShape = prompt
   
   var syntaxMap: Map[String,Syntax] = moreSyntax(syntax)
-  def getSyntax() = syntaxMap.values
+
+  // same command with different syntax
+  def getSyntax() = syntaxMap.values.toList.distinct
   
   private def moreSyntax(syntax:Seq[Syntax]) = {
     if(syntax.size > 0) {

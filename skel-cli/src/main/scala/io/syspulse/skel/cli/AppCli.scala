@@ -6,8 +6,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 import scala.concurrent.Future
 import scala.util.{Try,Success,Failure}
-import akka.actor.typed.ActorSystem
-import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.ActorSystem
 import com.typesafe.scalalogging.Logger
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Await
@@ -25,8 +24,8 @@ import java.time.format.DateTimeFormatter
 import io.syspulse.skel.crypto.wallet.Signer
 
 object Ctx {
-  implicit val system = ActorSystem(Behaviors.empty, "app-cli")
-  implicit val ec = system.executionContext
+  //implicit val system = ActorSystem(Behaviors.empty, "app-cli")
+  //implicit val ec = system.executionContext
 }
 
 case class Ctx(uri:String,user:Option[User]=None,signer:Option[Signer]=None) {
@@ -134,6 +133,19 @@ class CommandSleep(cli:AppCli,args:String*) extends Command(cli,args) {
   }
 }
 
+class CommandIpConfig(cli:AppCli,args:String*) extends Command(cli,args) {
+  def exec(st:CliState):Result = {
+    val (attr) = args.toList match {
+      case attr :: Nil => (attr)
+      case _ => ("")
+    }
+
+    val ipconfig = http.ipconfig.HttpClient()//(cli.system,cli.ec)
+    OK(s"${ipconfig}",st)
+    //FUTURE(f,s"${f}: ${time} msec",st)
+  }
+}
+
 
 // class CommandHealthFind(cli:AppCli,args:String*) extends CommandHealthFinder(cli,args: _*) {
 //   def exec(st:CliState):Result = {
@@ -157,8 +169,6 @@ class CommandSleep(cli:AppCli,args:String*) extends Command(cli,args) {
 
 
 class AppCli(serverUri:String) extends Cli(initState = CliStateLoggedOff(Ctx(serverUri)) ) {
-  implicit val system = ActorSystem(Behaviors.empty, "app-cli")
-  implicit val ec = system.executionContext
   
   val tsFormat = "yyyy-MM-dd HH:mm:ss" //DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
   
@@ -167,7 +177,9 @@ class AppCli(serverUri:String) extends Cli(initState = CliStateLoggedOff(Ctx(ser
     Syntax(words=Seq("login","l"),cmd = (cli,args)=>new CommandLoginUser(this,args: _*),help="Login"),
     Syntax(words=Seq("add","a"),cmd = (cli,args)=>new CommandAdd(this,args: _*),help="Add"),
     Syntax(words=Seq("future","fut","f"),cmd = (cli,args)=>new CommandFuture(this,args: _*),help="Create non-blocking Future (def: 1000 msec)"),
-    Syntax(words=Seq("sleep"),cmd = (cli,args)=>new CommandSleep(this,args: _*),help="Blockcing sleep (def: 1000 msec)")
+    Syntax(words=Seq("sleep"),cmd = (cli,args)=>new CommandSleep(this,args: _*),help="Blockcing sleep (def: 1000 msec)"),
+    
+    Syntax(words=Seq("ipconfig"),cmd = (cli,args)=>new CommandIpConfig(this,args: _*),help="get public IP and metadata HttpClient")
   ))
 
   def uri:String = serverUri
