@@ -234,7 +234,10 @@ class ShellDB(dbUri:String) extends Cli(initState = CliStateLoggedOff(CtxNone(db
   addSyntax(Seq (
     Syntax(words=Seq("connect","c"),cmd = (cli,args)=>new CommandConnect(this,args: _*),help="Connect to db: <type> <uri> <user> <pass> (type = [jdbc,quill]"),
     Syntax(words=Seq("quill","q"),cmd = (cli,args)=>new CommandQuill(this,args: _*),help="Quill statement (quill): quill <sql>"),
+    
     Syntax(words=Seq("sql","s"),cmd = (cli,args)=>new CommandSQL(this,args: _*),help="SQL statement (jdbc): sql <sql>"),
+    Syntax(words=Seq("select","SELECT"),cmd = (cli,args)=>new CommandSQL(this,("SELECT" +: args): _*),help="SQL statement (jdbc): <sql>"),
+    
     Syntax(words=Seq("future","fut","f"),cmd = (cli,args)=>new CommandFutureSleep(this,args: _*),help="Create non-blocking Future (def: 1000 msec)"),
     Syntax(words=Seq("sleep"),cmd = (cli,args)=>new CommandSleep(this,args: _*),help="Blocking sleep (def: 1000 msec)"),
   
