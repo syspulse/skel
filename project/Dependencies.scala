@@ -91,6 +91,7 @@ object Dependencies {
 
     val libQuill =          "io.getquill"                 %% "quill-jdbc"           % "3.5.2"
     val libMySQL =          "mysql"                       %  "mysql-connector-java" % "8.0.22"
+    val libPostgres =       "org.postgresql"              % "postgresql"            % "42.3.5"
     val libInfluxDB =       "com.influxdb"                %% "influxdb-client-scala" % influxDBVersion
 
     val libTypesafeConfig = "com.typesafe"                %  "config"               % "1.4.1"
@@ -175,7 +176,7 @@ object Dependencies {
 
     val libSkel = Seq(libWsRs,libSwaggerAkkaHttp,libMetrics,libScopt,libUUID)
 
-    val libDB = Seq(libQuill,libMySQL)
+    val libDB = Seq(libQuill,libMySQL, libPostgres)
 
     val libLihaoyi = Seq(libOsLib,libUpickleLib)
 

@@ -104,15 +104,21 @@ class CommandConnect(cli:ShellDB,args:String*) extends Command(cli,args) {
         val (dbLib,dbUri,dbUser,dbPass,dbName) = args.toList match {
           case dbLib :: dbUri :: dbUser :: dbPass :: dbName :: _ => (dbLib,dbUri,dbUser,dbPass,dbName)
           case dbLib :: dbUri :: dbUser :: dbPass :: Nil => (dbLib,dbUri,dbUser,dbPass,"")
-          case dbLib :: dbUser :: dbPass :: Nil => (dbLib,ctx.getUri(),dbUser,dbPass,"")
+          case dbUri :: dbUser :: dbPass :: Nil => ("",dbUri,dbUser,dbPass,"")
           case dbLib :: dbUri :: Nil => (dbLib,dbUri,"test_user","test_pass","")
-          case dbUri :: Nil => ("jdbc",dbUri,"mesar_user","medar_pass","")
+          case dbUri :: Nil => ("jdbc",dbUri,"medar_user","medar_pass","")
           case Nil => ("jdbc", ctx.getUri(),"medar_user","medar_pass","")
         }
         
+        
+        val dbLibType = if(dbLib == "") {
+          "jdbc"
+        } else 
+          dbLib
+
         val user = User(UUID.random,dbUser,"user-1@email")
 
-        dbLib.trim() match {
+        dbLibType.trim() match {
           case "quill" => {
             val db = connectQuill(dbUri,dbUser,dbPass)
             OK(s"logged in: ${dbUser}: ${db}",CliStateLoggedIn(CtxQuill(dbUri,Some(db),Some(user))))

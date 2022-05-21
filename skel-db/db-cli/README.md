@@ -19,14 +19,20 @@ Connect as Quill:
 connect quill jdbc:mysql://172.17.0.1:3306/test_db
 ```
 
-Connect as JDBC Driver
+Connect to Docker MySQL as JDBC Driver
 ```
-connect jdbc jdbc:mysql://172.17.0.1:3306/test_db
-```
-```
-connect jdbc:mysql://172.17.0.1:3306/test_db
+connect jdbc jdbc:mysql://172.17.0.1:3306/db user pass
 ```
 
+Connect to local MySQL
+```
+connect jdbc:mysql://127.0.0.1:3306/test_db test_user test_pass
+```
+
+Connect to local Postgres as JDBC Driver
+```
+connect jdbc:postgresql://localhost:5432/test_db test_user test_pass
+```
 
 2. sql
 
