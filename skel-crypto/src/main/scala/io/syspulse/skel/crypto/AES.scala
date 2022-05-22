@@ -21,6 +21,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.util.Base64
 
 class AES {
   import Util._
@@ -39,7 +40,8 @@ class AES {
 
   def getKeyFromPassword(password:String,salt:String = "salt"):SecretKey = {
     val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-    val spec:KeySpec = new PBEKeySpec(password.toCharArray(), salt.getBytes(), 65536, 256);
+    //val spec:KeySpec = new PBEKeySpec(password.toCharArray(), salt.getBytes(), 65536, 256);
+    val spec:KeySpec = new PBEKeySpec(password.toCharArray(), salt.getBytes(), 1, 256);
     val secretKey = new SecretKeySpec(factory.generateSecret(spec).getEncoded(), "AES");
     secretKey
   }
@@ -54,8 +56,15 @@ class AES {
     cipher.init(Cipher.ENCRYPT_MODE, secretKey, iv)
     val encryptedData = cipher.doFinal(input.getBytes)
     encryptedData
-    //Base64.getEncoder().encodeToString(cipherText);
+    
   }
+
+  def encryptBase64(input:String,password:String,iv:IvParameterSpec = generateIv(),algo:String="AES/CBC/PKCS5Padding"):String = {
+    Base64.getEncoder().encodeToString(
+      encrypt(input,password,iv,algo)
+    )
+  }
+  
 
   def decrypt(input:Array[Byte],password:String,iv:IvParameterSpec = generateIv(),algo:String="AES/CBC/PKCS5Padding"):Try[Array[Byte]] = {
     val secretKey = getKeyFromPassword(password)
@@ -65,8 +74,12 @@ class AES {
       val decryptedData = cipher.doFinal(input);
       Success(decryptedData)
     } catch {
-      case e => Failure(e)
+      case e:Exception => Failure(e)
     }
+  }
+
+  def decryptBase64(input:String,password:String,iv:IvParameterSpec = generateIv(),algo:String="AES/CBC/PKCS5Padding"):Try[Array[Byte]] = {
+    decrypt(Base64.getDecoder().decode(input),password,iv,algo)
   }
 
   def encryptStream(in:InputStream,out:OutputStream,password:String,iv:IvParameterSpec = generateIv(),algo:String="AES/CBC/PKCS5Padding") = {

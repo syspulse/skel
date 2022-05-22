@@ -31,6 +31,16 @@ class AESSpec extends AnyWordSpec with Matchers with TestData {
       d1 shouldBe a [Failure[_]]
     }
 
+    "encrypt and decrypt Base64 'text'" in {
+      val e1 = (new AES).encryptBase64("text","pass1")
+      e1.size !== (0)
+      e1 !== ("text")
+
+      val d1 = (new AES).decryptBase64(e1,"pass1")
+      d1 shouldBe a [Success[_]]
+      d1 === Success("text")
+    }
+
     "encrypt and decrypt large data" in {
       val data = Random.nextString(65000)
       val e1 = (new AES).encrypt(
