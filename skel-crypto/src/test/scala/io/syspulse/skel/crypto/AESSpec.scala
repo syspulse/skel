@@ -8,6 +8,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.time._
 import io.syspulse.skel.util.Util
+import scala.util.Random
 
 class AESSpec extends AnyWordSpec with Matchers with TestData {
   import Util._
@@ -28,6 +29,19 @@ class AESSpec extends AnyWordSpec with Matchers with TestData {
       val e1 = (new AES).encrypt("text","pass1")
       val d1 = (new AES).decrypt(e1,"pass2")
       d1 shouldBe a [Failure[_]]
+    }
+
+    "encrypt and decrypt large data" in {
+      val data = Random.nextString(65000)
+      val e1 = (new AES).encrypt(
+        data,
+        "pass3"
+      )
+      e1.size !== (0)
+      
+      val d1 = (new AES).decrypt(e1,"pass3")
+      d1 shouldBe a [Success[_]]
+      d1 === Success(data)
     }
 
   }
