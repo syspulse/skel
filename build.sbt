@@ -43,6 +43,15 @@ lazy val dockerBuildxSettings = Seq(
   ).value
 )
 
+val dockerRegistryLocal = Seq(
+  dockerRepository := Some("docker.u132.net:5000"),
+  dockerUsername := Some("syspulse")
+)
+
+val dockerRegistryHub = Seq(
+  dockerUsername := Some("syspulse")
+)
+
 val sharedConfigDocker = Seq(
   maintainer := "Dev0 <dev0@syspulse.io>",
   // openjdk:8-jre-alpine - NOT WORKING ON RP4+ (arm64). Crashes JVM in kubernetes
@@ -57,7 +66,7 @@ val sharedConfigDocker = Seq(
 
   Docker / daemonUserUid := None, //Some("1000"), 
   Docker / daemonUser := "daemon"
-)
+) ++ dockerRegistryLocal
 
 val sharedConfig = Seq(
     //retrieveManaged := true,  
@@ -68,9 +77,7 @@ val sharedConfig = Seq(
 
     scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:existentials", "-language:implicitConversions", "-language:higherKinds", "-language:reflectiveCalls", "-language:postfixOps"),
     javacOptions ++= Seq("-target", "1.8", "-source", "1.8"),
-    //javacOptions ++= Seq("-target", "1.11", "-source", "1.11"),
-//    manifestSetting,
-//    publishSetting,
+    
     crossVersion := CrossVersion.binary,
     resolvers ++= Seq(
       Opts.resolver.sonatypeSnapshots, 
@@ -174,8 +181,8 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 
 lazy val root = (project in file("."))
-  .aggregate(core, serde, cron, video, `skel-test`, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow)
-  .dependsOn(core, serde, cron, video, `skel-test`, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow, scrap, ekm, npp)
+  .aggregate(core, serde, cron, video, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow, dsl)
+  .dependsOn(core, serde, cron, video, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow, dsl, scrap, demo_ekm, demo_npp, demo_twit)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -216,7 +223,7 @@ lazy val serde = (project in file("skel-serde"))
         ),
     )
     
-lazy val `skel-test` = (project in file("skel-test"))
+lazy val skel_test = (project in file("skel-test"))
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -281,7 +288,7 @@ lazy val auth = (project in file("skel-auth"))
   )
 
 lazy val otp = (project in file("skel-otp"))
-  .dependsOn(core,`skel-test` % Test)
+  .dependsOn(core,skel_test % Test)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -447,7 +454,7 @@ lazy val scrap = (project in file("skel-scrap"))
      
   )
 
-lazy val ekm = (project in file("demo/skel-ekm"))
+lazy val demo_ekm = (project in file("demo/skel-ekm"))
   .dependsOn(core,ingest)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
@@ -466,7 +473,7 @@ lazy val ekm = (project in file("demo/skel-ekm"))
     ),
   )
 
-lazy val npp = (project in file("demo/skel-npp"))
+lazy val demo_npp = (project in file("demo/skel-npp"))
   .dependsOn(core,cron,flow,scrap)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
@@ -489,7 +496,7 @@ lazy val npp = (project in file("demo/skel-npp"))
     ),  
   )
 
-lazy val twit = (project in file("demo/skel-twit"))
+lazy val demo_twit = (project in file("demo/skel-twit"))
   .dependsOn(core,cron,flow,scrap,ingest)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
@@ -562,16 +569,16 @@ lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
   )
 
 lazy val stream_std = (project in file("skel-stream/stream-std"))
-  .dependsOn(core)
+  .dependsOn(core,dsl)
   .enablePlugins(JavaAppPackaging)
-  .enablePlugins(DockerPlugin)
-  .enablePlugins(AshScriptPlugin)
+  //.enablePlugins(DockerPlugin)
+  //.enablePlugins(AshScriptPlugin)
   .settings (
 
     sharedConfig,
     sharedConfigAssembly,
-    sharedConfigDocker,
-    dockerBuildxSettings,
+    //sharedConfigDocker,
+    //dockerBuildxSettings,
 
     appDockerConfig("stream-std","io.syspulse.skel.stream.AppStream"),
 
@@ -610,3 +617,32 @@ lazy val db_cli = (project in file("skel-db/db-cli"))
           
         ),
     )
+
+lazy val dsl = (project in file("skel-dsl"))
+  .dependsOn(core)
+  .settings (
+      sharedConfig,
+      name := "skel-dsl",
+      libraryDependencies ++= libCommon ++
+        Seq(),
+    )
+
+
+lazy val demo_eth = (project in file("demo/eth-stream"))
+  .dependsOn(core,ingest,dsl,stream_std)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("eth-stream","io.syspulse.skel.stream.eth.StreamEth"),
+
+    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
+      libUpickleLib
+    ),
+  )
