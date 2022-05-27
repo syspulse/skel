@@ -1,2 +1,2 @@
-DROP DATABASE service_db;
-DROP USER 'service_user'@'%';
+DROP DATABASE medar_db;
+DROP USER 'medar_user'@'%';

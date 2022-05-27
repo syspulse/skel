@@ -6,4 +6,4 @@ source ./db-env.sh
 
 SQL_FILE=${1}
 
-mysql --host ${DB_HOST} --port 3306 -u ${ROOT_USER} -p${ROOT_PASS} --protocol=tcp < ${SQL_FILE}
+PGPASSWORD=$ROOT_PASS psql --host=$DB_HOST --port=5432 --username=$ROOT_USER -d $DB_DATABASE -f ${SQL_FILE}

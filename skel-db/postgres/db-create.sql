@@ -1,5 +1,5 @@
-CREATE DATABASE test_db;
-CREATE USER test_user WITH PASSWORD 'test_pass';
-GRANT CONNECT ON DATABASE test_db TO test_user;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO test_user;
+CREATE DATABASE medar_db;
+CREATE USER medar_user WITH PASSWORD 'medar_pass';
+GRANT CONNECT ON DATABASE medar_db TO medar_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO medar_user;
 
