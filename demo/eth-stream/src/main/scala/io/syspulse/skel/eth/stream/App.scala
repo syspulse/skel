@@ -1,4 +1,4 @@
-package io.syspulse.skel.stream.eth
+package io.syspulse.skel.eth.stream
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._

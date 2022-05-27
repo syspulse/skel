@@ -1,4 +1,4 @@
-package io.syspulse.skel.stream.eth
+package io.syspulse.skel.eth.stream
 
 import scala.concurrent.Future
 import akka.actor.ActorSystem
@@ -24,6 +24,7 @@ import java.time.ZonedDateTime
 import scala.util.Try
 import scala.util.Success
 
+import io.syspulse.skel.eth.script.Scripts
 
 class StreamEth(config:Config) {
   val log = Logger(s"${this.getClass().getSimpleName()}")

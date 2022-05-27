@@ -6,6 +6,11 @@ More convenient to have it as cli to try something in the future than test/spec
 
 ### Syntax
 
+Commands can be executed both as stdin pipe or in interactive shell:
+```
+echo "connect; select * from TABLE;" | ./db-cli.sh
+```
+
 1. connect
 ```
 connect <type> <uri> <user> <pass>
@@ -44,3 +49,9 @@ Example:
 ```
 sql SELECT * FROM TABLE
 ```
+
+There is a simplified syntax to use just SELECT:
+```
+SELECT COUNT(*) FROM TABLE
+```
+

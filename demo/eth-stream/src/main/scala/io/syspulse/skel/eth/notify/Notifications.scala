@@ -1,4 +1,4 @@
-package io.syspulse.skel.stream.eth
+package io.syspulse.skel.eth.notify
 
 import scala.util.Random
 
