@@ -1,0 +1,4 @@
+CREATE DATABASE IF NOT EXISTS shop_db;
+CREATE USER IF NOT EXISTS 'shop_user'@'%' IDENTIFIED BY 'shop_pass';
+GRANT ALL PRIVILEGES ON shop_db.* TO 'shop_user'@'%' WITH GRANT OPTION;
+

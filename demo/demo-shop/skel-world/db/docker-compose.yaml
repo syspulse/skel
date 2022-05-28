@@ -1,0 +1,16 @@
+version: '3'
+services:
+  mysql-1:
+    image: mysql/mysql-server:8.0
+    volumes:
+      - "./db:/var/lib/mysql-db"
+    restart: always
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_HOST: '%'
+      MYSQL_HOST: 0.0.0.0
+      MYSQL_DATABASE: world_db
+      MYSQL_USER: world_user
+      MYSQL_PASSWORD: world_pass

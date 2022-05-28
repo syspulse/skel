@@ -25,3 +25,11 @@ __Twitter Ingestion with Image scraping__
 
 <img src="skel-twit/doc/Skel-Twit-Architecture.jpg" width="450">
 
+----
+
+## [demo-shop](demo-shop)
+
+Old artifacts from E-Shop cloud demo. Obsolete and need refactoring
+
+
+----
