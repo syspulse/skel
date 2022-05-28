@@ -40,23 +40,33 @@ __ATTENTION__: Disable firewall for connection to docker0 (172.17.0.1) from Cont
 
 ## Configuration
 
-A lot of flexibility to pass configuration 
-
-Configuration reading priority can be customized. 
-
 Configuration parameteres are read with prioriy (from highest to lowest)
 If configuration parameter is found for highest priority, the rest will not be read.
 Example: 
 ```HTTP_PORT=8081 run.sh --http.port=8082``` - The environment var will not be even tried because arg was found and arg is the highest priority
 
-__Priority__:
+__Default Priority__:
 
-1. Command Line arguments
-2. Environment Variables (easiest to pass into Docker). The convention for env. variable name to replace __'.'__ (Dot) with __'_'__ (Underscore) and upper-case all characters: __http.port__ -> __HTTP_PORT__
-3. JVM properties (passed as __OPT='-Dname=value'__ variable to run script)
-4. HOCON style Typesafe configuration file (Default: application-*component suffix*>.conf). E.g. skel-http -> application-http.conf
+1. __Command Line arguments__
+2. __Environment Variables__ (easiest to pass into Docker). The convention for env. variable name to replace __'.'__ (Dot) with __'_'__ (Underscore) and upper-case all characters: __http.port__ -> __HTTP_PORT__
+3. __JVM properties__ (passed as __OPT='-Dname=value'__ variable to run script)
+4. conf/__application.conf__ HOCON style Typesafe configuration file
+
+   Default: __application-*component suffix*>.conf__ 
+   
+   E.g. __skel-http__ -> __application-http.conf__
+   
    Configuration file can be customized with __$SITE__ to choose specific site/environment (e.g. __SITE=dev__ would load __application-dev.conf__)
+   
    Default config file location is __conf/__
+   
+   '.' in configuration path means new section in file. E.g. __http.port__ :
+
+   ```
+   http {
+      port = 8080
+   }
+   ```
 
 __ATTENTION__: Docker Image is ALWAYS packaged with __application.conf__. 
 Customize __application.conf__ for default Docker configuration.

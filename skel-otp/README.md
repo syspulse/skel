@@ -21,6 +21,11 @@ cd db/mysql
 
 2. Postgres
 
+```
+cd db/postgres
+../../../skel-db/postgres/db-create.sh
+```
+
 ## Usage Example
 
 1. Return Random OTP secret

@@ -23,6 +23,8 @@ trait Arg[T]
 case class ArgString(argChar:Char,argStr:String,argText:String,default:String="") extends Arg[String]()
 case class ArgInt(argChar:Char,argStr:String,argText:String,default:Int=0) extends Arg[Int]()
 case class ArgParam(argText:String,desc:String="") extends Arg[String]()
+case class ArgHelp(argStr:String,desc:String="") extends Arg[String]()
+case class ArgCmd(argStr:String,desc:String="") extends Arg[String]()
 
 // Use "empty appName/appVersion for automatic inference"
 class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg[_]*) extends ConfigurationLike {
@@ -37,6 +39,8 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
       val options = List(
         head(if(appName.isEmpty) Util.info._1 else appName, if(appVer.isEmpty) Util.info._2 else appVer)
       ) ++ ops.flatMap(a => a match {
+        case ArgCmd(s,t) => Some(cmd(s).action((x, c) => c.+(s,x)).text(t))
+        case ArgHelp(s,t) => Some(help(s).text(t))
         case ArgString(c,s,t,d) => Some(opt[String](c, s).action((x, c) => c.+(s,x)).text(t))
         case ArgInt(c,s,t,d) => Some(opt[Int](c, s).action((x, c) => c.+(s,x)).text(t))
         case ArgParam(t,d) => Some(arg[String](t).unbounded().optional().action((x, c) => c.+(x,None)).text(d))
