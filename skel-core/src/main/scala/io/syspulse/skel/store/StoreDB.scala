@@ -43,7 +43,8 @@ abstract class StoreDB[E](val dbConfigName:String,val tableName:String,configura
   }
   log.info(s"HikariProperties: ${props}")
   val hikariConfig = new HikariConfig(props)
-  val ctx = new MysqlJdbcContext(NamingStrategy(SnakeCase, UpperCase),new HikariDataSource(hikariConfig))
+  //val ctx = new MysqlJdbcContext(NamingStrategy(SnakeCase, UpperCase),new HikariDataSource(hikariConfig))
+  val ctx = new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
   
   import ctx._
 

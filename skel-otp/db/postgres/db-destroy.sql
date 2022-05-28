@@ -1,0 +1,2 @@
+DROP DATABASE otp_db WITH (FORCE);
+DROP USER otp_user;

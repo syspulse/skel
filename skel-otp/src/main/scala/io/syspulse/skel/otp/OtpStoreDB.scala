@@ -17,12 +17,26 @@ import com.typesafe.scalalogging.Logger
 import io.syspulse.skel.config.{Configuration}
 import io.syspulse.skel.store.{Store,StoreDB}
 
-class OtpStoreDB(configuration:Configuration) extends StoreDB[Otp]("db","otp",Some(configuration)) with OtpStore {
+class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB[Otp](dbConfigRef,"otp",Some(configuration)) with OtpStore {
 
   import ctx._
 
   def create:Try[Long] = {
-    ctx.executeAction("CREATE TABLE IF NOT EXISTS otp (id VARCHAR(36) PRIMARY KEY, secret VARCHAR(255), name VARCHAR(255), uri VARCHAR(255), period INT(3) );")
+    ctx.executeAction(
+    s"""CREATE TABLE IF NOT EXISTS ${tableName} (
+      id VARCHAR(36) PRIMARY KEY, 
+      user_id VARCHAR(36), 
+      secret VARCHAR(255), 
+      name VARCHAR(255), 
+      account VARCHAR(255),
+      issuer VARCHAR(255),
+      period NUMERIC(3),
+      digits NUMERIC(3),
+      algo VARCHAR(64)
+    );
+    """
+    )
+
     // why do we still use MySQL which does not even support INDEX IF NOT EXISTS ?...
     //val r = ctx.executeAction("CREATE INDEX IF NOT EXISTS otp_name ON otp (name);")
     try {
