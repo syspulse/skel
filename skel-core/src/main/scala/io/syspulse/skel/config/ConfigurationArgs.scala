@@ -52,7 +52,15 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
     OParser.parse(parser1, args, ConfigArgs())
   }
 
+  def withExit(exitCode:Int):ConfigurationArgs = {
+    if(! configArgs.isDefined) {
+      System.exit(exitCode)
+    }
+    this
+  }
+
   val configArgs = parseArgs(args,ops:_*)
+  
 
   def getString(path:String):Option[String] = 
     if(!configArgs.isDefined) None else
