@@ -181,8 +181,8 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 
 lazy val root = (project in file("."))
-  .aggregate(core, serde, cron, video, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow, dsl)
-  .dependsOn(core, serde, cron, video, skel_test, http, auth, user, kafka, world, shop, ingest, otp, crypto, flow, dsl, scrap, demo_ekm, demo_npp, demo_twit)
+  .aggregate(core, serde, cron, video, skel_test, http, auth, user, kafka, ingest, otp, crypto, flow, dsl)
+  .dependsOn(core, serde, cron, video, skel_test, http, auth, user, kafka, ingest, otp, crypto, flow, dsl, scrap, demo_ekm, demo_npp, demo_twit)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -340,44 +340,44 @@ lazy val kafka= (project in file("skel-kafka"))
     ),
   )  
 
-lazy val world = (project in file("skel-world"))
-  .dependsOn(core)
-  .enablePlugins(JavaAppPackaging)
-  .enablePlugins(DockerPlugin)
-  .enablePlugins(AshScriptPlugin)
-  .settings (
+// lazy val world = (project in file("demo/demo-shop/skel-world"))
+//   .dependsOn(core)
+//   .enablePlugins(JavaAppPackaging)
+//   .enablePlugins(DockerPlugin)
+//   .enablePlugins(AshScriptPlugin)
+//   .settings (
 
-    sharedConfig,
-    sharedConfigAssembly,
-    sharedConfigDocker,
-    dockerBuildxSettings,
+//     sharedConfig,
+//     sharedConfigAssembly,
+//     sharedConfigDocker,
+//     dockerBuildxSettings,
 
-    appDockerConfig(appNameWorld,appBootClassWorld),
+//     appDockerConfig(appNameWorld,appBootClassWorld),
     
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
-      libCsv
-    ),    
-  )
+//     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
+//       libCsv
+//     ),    
+//   )
 
-lazy val shop = (project in file("skel-shop"))
-  .dependsOn(core,world)
-  .enablePlugins(JavaAppPackaging)
-  .enablePlugins(DockerPlugin)
-  .enablePlugins(AshScriptPlugin)
-  .settings (
+// lazy val shop = (project in file("demo/demo-shop/skel-shop"))
+//   .dependsOn(core,world)
+//   .enablePlugins(JavaAppPackaging)
+//   .enablePlugins(DockerPlugin)
+//   .enablePlugins(AshScriptPlugin)
+//   .settings (
 
-    sharedConfig,
-    sharedConfigAssembly,
-    sharedConfigDocker,
-    dockerBuildxSettings,
+//     sharedConfig,
+//     sharedConfigAssembly,
+//     sharedConfigDocker,
+//     dockerBuildxSettings,
 
-    appDockerConfig(appNameShop,appBootClassShop),
+//     appDockerConfig(appNameShop,appBootClassShop),
 
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
-      libCsv,
-      libFaker
-    ),
-  )
+//     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
+//       libCsv,
+//       libFaker
+//     ),
+//   )
 
 lazy val ingest = (project in file("skel-ingest"))
   .dependsOn(core)

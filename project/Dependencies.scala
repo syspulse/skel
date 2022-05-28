@@ -134,7 +134,7 @@ object Dependencies {
     //val libPrometheusPushGw = "io.prometheus"               % "simpleclient_pushgateway"   % "0.10.0"
     
     // This is modified version for Scala2.13 (https://github.com/syspulse/kuro-otp)
-    val libKuroOtp =        "com.ejisan"                    %% "kuro-otp"           % "0.0.3-SNAPSHOT"
+    val libKuroOtp =        "com.ejisan"                    %% "kuro-otp"           % "0.0.4-SNAPSHOT"
     val libQR =             "net.glxn"                      % "qrgen"               % "1.4"
 
     val libWeb3jCrypto =    "org.web3j"                     % "crypto"              % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
