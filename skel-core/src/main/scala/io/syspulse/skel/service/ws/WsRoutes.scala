@@ -25,8 +25,14 @@ import akka.stream.ActorMaterializer
 import akka.actor.ActorRef
 import scala.concurrent.ExecutionContext
 import scala.util.{Success,Failure}
+import io.syspulse.skel.service.Routeable
 
-class WsRoutes(uri:String,ws:WebSocket)(implicit val system: ActorSystem[_]) extends CommonRoutes {
+class WsRoutes(uri:String)(implicit system: ActorSystem[_]) extends CommonRoutes with Routeable {
+  implicit val ex = system.executionContext
+  implicit val mat = ActorMaterializer()(system.classicSystem)
+
+  def ws:WebSocket = new WebSocketEcho()
+
   val routes: Route =
     pathPrefix(uri) { 
       handleWebSocketMessages(ws.listen())

@@ -28,12 +28,12 @@ import scala.util.{Success,Failure}
 import akka.stream.Materializer
 
 
-class WebSocket()(implicit ex:ExecutionContext) {
+abstract class WebSocket()(implicit ex:ExecutionContext) {
   val log = Logger(s"${this}")
 
   protected var clients: List[ActorRef] = List()
   
-  def process(m:Message,a:ActorRef):Message = {m}
+  def process(m:Message,a:ActorRef):Message = ???
 
   def wsFlow()(implicit mat:Materializer): Flow[Message, Message, Any] = {
     val (wsActor, wsSource) = Source.actorRef[Message](32, OverflowStrategy.dropNew).preMaterialize()
@@ -77,13 +77,5 @@ class WebSocket()(implicit ex:ExecutionContext) {
 
   def sendText(actor:ActorRef, text: String): Unit = {
     clients.filter(_.toString == actor).foreach{ a => a ! TextMessage.Strict(text) }
-  }
-}
-
-class WebSocketEcho()(implicit ex:ExecutionContext,mat:ActorMaterializer) extends WebSocket() {
-  override def process(m:Message,a:ActorRef):Message = {
-    val txt = m.asTextMessage.getStrictText
-    a ! m
-    m
   }
 }

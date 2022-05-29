@@ -171,13 +171,13 @@ trait Server {
       val metricsRoutes = new MetricsRoutes(metricsRegistryActor)(context.system)
 
       implicit val ex = context.executionContext
-      val wsRoutes = new WsRoutes("ws",new WebSocketEcho()(ex,ActorMaterializer()(context.system.classicSystem)))(context.system)
+      //val wsRoutes = new WsRoutes("ws",new WebSocketEcho()(ex,ActorMaterializer()(context.system.classicSystem)))(context.system)
 
       val routes: Route = 
         getRoutes(
           rejectionHandler,exceptionHandler,
           uri,
-          Seq(telemetryRoutes.routes, infoRoutes.routes, healthRoutes.routes, configRoutes.routes, metricsRoutes.routes, swaggerRoutes, swaggerUI, wsRoutes.routes),
+          Seq(telemetryRoutes.routes, infoRoutes.routes, healthRoutes.routes, configRoutes.routes, metricsRoutes.routes, swaggerRoutes, swaggerUI),
           appRoutes
         )
       

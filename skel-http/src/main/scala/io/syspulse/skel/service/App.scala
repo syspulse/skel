@@ -4,7 +4,11 @@ import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
+import io.syspulse.skel.service.ws._
+
 import scopt.OParser
+import akka.actor.typed.Behavior
+import akka.actor.typed.scaladsl.Behaviors
 
 case class Config(
   host:String="",
@@ -48,6 +52,8 @@ object App extends skel.Server {
 
     run( config.host, config.port, config.uri, c, 
       Seq(
+        // example of WebSocker processor
+        (Behaviors.ignore,"",(actor,actorSystem) => new WsServiceRoutes()(actorSystem) ),
         (ServiceRegistry(new ServiceStoreMem),"ServiceRegistry",(actor,actorSystem ) => new ServiceRoutes(actor)(actorSystem) ),
       )
     )
