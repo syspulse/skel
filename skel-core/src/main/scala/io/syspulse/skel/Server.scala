@@ -44,6 +44,7 @@ import fr.davit.akka.http.metrics.core.HttpMetrics._
 
 import io.syspulse.skel.service.ws.{WebSocketEcho,WsRoutes}
 import akka.stream.ActorMaterializer
+import scala.concurrent.Future
 
 trait Server {
   val logger = Logger(s"${this}")
@@ -51,16 +52,23 @@ trait Server {
   private def startHttpServer(host:String,port:Int, routes: Route)(implicit system: ActorSystem[_]): Unit = {  
     import system.executionContext
 
-    val http = Http().newMeteredServerAt(host, port,TelemetryRegistry.prometheusRegistry).bind(routes)
-
-    http.onComplete {
-      case Success(binding) =>
-        val address = binding.localAddress
-        system.log.info(s"Listening: http://${address.getHostString}:${address.getPort}")
-        
-      case Failure(ex) =>
-        system.log.error(s"Failed to bind: ${host}:${port}", ex)
+    try {
+      val http:Future[Http.ServerBinding] =
+      Http().newMeteredServerAt(host, port,TelemetryRegistry.prometheusRegistry).bind(routes)
+      http.onComplete {
+        case Success(binding) =>
+          val address = binding.localAddress
+          system.log.info(s"Listening: http://${address.getHostString}:${address.getPort}")
+          
+        case Failure(ex) =>
+          system.log.error(s"Failed to bind: ${host}:${port}", ex)
+          system.terminate()
+      }
+    } catch {
+      case e:Exception => {
+        system.log.error(s"Failed to bind: ${host}:${port}", e)
         system.terminate()
+      }
     }
   }
 
