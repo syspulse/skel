@@ -141,6 +141,15 @@ Logging is configured with logback.xml:
 
 Default API endpoints in every service 
 
+### Health
+
+- [http://{host}:{port}/api/v1/service/health](http://{host}:{port}/api/v1/service/health) - get very simple OK response
+
+### WebSocket
+
+- [http://{host}:{port}/api/v1/service/ws](http://{host}:{port}/api/v1/service/ws) - Simple Echo websocket
+
+
 ### Telemetry API
 
 Exposes Metrics Telemetry information

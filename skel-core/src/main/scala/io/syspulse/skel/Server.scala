@@ -30,16 +30,20 @@ import akka.http.scaladsl.server.Route
 import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skel.config.Configuration
+import io.syspulse.skel.service.config.{ConfigRegistry,ConfigRoutes}
+import io.syspulse.skel.service.Routeable
+
 import io.syspulse.skel.service.swagger.{Swagger}
 import io.syspulse.skel.service.telemetry.{TelemetryRegistry,TelemetryRoutes}
 import io.syspulse.skel.service.metrics.{MetricsRegistry,MetricsRoutes}
 import io.syspulse.skel.service.info.{InfoRegistry,InfoRoutes}
 import io.syspulse.skel.service.health.{HealthRegistry,HealthRoutes}
-import io.syspulse.skel.service.config.{ConfigRegistry,ConfigRoutes}
-import io.syspulse.skel.service.Routeable
 
 import fr.davit.akka.http.metrics.core.{HttpMetricsRegistry, HttpMetricsSettings}
 import fr.davit.akka.http.metrics.core.HttpMetrics._
+
+import io.syspulse.skel.service.ws.{WebSocketEcho,WsRoutes}
+import akka.stream.ActorMaterializer
 
 trait Server {
   val logger = Logger(s"${this}")
@@ -166,11 +170,14 @@ trait Server {
       val telemetryRoutes = new TelemetryRoutes(telemetryRegistryActor)(context.system)
       val metricsRoutes = new MetricsRoutes(metricsRegistryActor)(context.system)
 
+      implicit val ex = context.executionContext
+      val wsRoutes = new WsRoutes("ws",new WebSocketEcho()(ex,ActorMaterializer()(context.system.classicSystem)))(context.system)
+
       val routes: Route = 
         getRoutes(
           rejectionHandler,exceptionHandler,
           uri,
-          Seq(telemetryRoutes.routes, infoRoutes.routes, healthRoutes.routes, configRoutes.routes, metricsRoutes.routes, swaggerRoutes,swaggerUI),
+          Seq(telemetryRoutes.routes, infoRoutes.routes, healthRoutes.routes, configRoutes.routes, metricsRoutes.routes, swaggerRoutes, swaggerUI, wsRoutes.routes),
           appRoutes
         )
       
@@ -186,11 +193,16 @@ trait Server {
     val rootBehavior = { Behaviors.supervise[Nothing] { httpBehavior }}.onFailure[Exception](SupervisorStrategy.resume)
     //.onFailure[Exception](SupervisorStrategy.restart.withLimit(maxNrOfRetries = 10, withinTimeRange = 10.seconds))
 
-    val system = {
+    implicit val (system) = {
       // ATTENTION: https://doc.akka.io/docs/akka/current/general/configuration.html#configuring-multiple-actorsystem
-      ActorSystem[Nothing](rootBehavior, "ActorSystem-HttpServer")
+      val system = ActorSystem[Nothing](rootBehavior, "ActorSystem-HttpServer")
+      //val mat = ActorMaterializer()(system.classicSystem)
+      //(system,mat)
+      (system)
     }
     
   }
 }
+
+
 
