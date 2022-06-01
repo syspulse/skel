@@ -4,8 +4,14 @@ import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 import io.syspulse.skel.otp.{OtpRegistry,OtpRoutes,OtpStoreDB}
+import io.syspulse.skel.otp.client._
 
 import scopt.OParser
+import scala.concurrent.duration.Duration
+import scala.concurrent.Future
+import scala.concurrent.Await
+
+import io.syspulse.skel.otp.client.FutureAwaitable._
 
 case class Config(
   host:String="",
@@ -13,12 +19,13 @@ case class Config(
   uri:String = "",
   datastore:String = "",
 
-  files: Seq[String] = Seq(),
+  cmd:String = "",
+  params: Seq[String] = Seq(),
 )
 
 object App extends skel.Server {
   
-  def main(args:Array[String]) = {
+  def main(args:Array[String]):Unit = {
     println(s"args: '${args.mkString(",")}'")
 
     val c = Configuration.withPriority(Seq(
@@ -30,7 +37,9 @@ object App extends skel.Server {
         ArgInt('p', "http.port","listern port (def: 8080)"),
         ArgString('u', "http.uri","api uri (def: /api/v1/otp)"),
         ArgString('d', "datastore","datastore [mysql,postgres,mem|cache] (def: cache)"),
-        ArgParam("<cmd>","")
+        ArgCmd("server","Command"),
+        ArgCmd("client","Command"),
+        ArgParam("<params>","")
       ).withExit(1)
     ))
 
@@ -39,7 +48,8 @@ object App extends skel.Server {
       port = c.getInt("http.port").getOrElse(8080),
       uri = c.getString("http.uri").getOrElse("/api/v1/otp"),
       datastore = c.getString("datastore").getOrElse("cache"),
-      files = c.getParams()
+      cmd = c.getCmd().getOrElse("server"),
+      params = c.getParams(),
     )
 
     println(s"Config: ${config}")
@@ -54,11 +64,25 @@ object App extends skel.Server {
       }
     }
 
-    run( config.host, config.port,config.uri,c,
-      Seq(
-        (OtpRegistry(store),"OtpRegistry",(actor,actorSystem ) => new OtpRoutes(actor)(actorSystem) ),    
-      )
-    )
+    config.cmd match {
+      case "server" => 
+        run( config.host, config.port,config.uri,c,
+          Seq(
+            (OtpRegistry(store),"OtpRegistry",(a,as ) => new OtpRoutes(a)(as) ),    
+          )
+        )
+      case "client" => {
+        
+        val host = if(config.host == "0.0.0.0") "localhost" else config.host
+        val otps = OtpClientHttp(s"http://${host}:${config.port}${config.uri}")
+          .withTimeout(Duration("3 seconds"))
+          .getOtps()
+          .await()
+
+        println(s"${otps}")
+        System.exit(0)
+      }
+    }
   }
 }
 

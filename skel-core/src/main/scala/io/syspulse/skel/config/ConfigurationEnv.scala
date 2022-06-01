@@ -19,5 +19,8 @@ class ConfigurationEnv extends ConfigurationLike {
 
   // not supported 
   def getParams():Seq[String] = Seq()
+
+  // not supported
+  def getCmd():Option[String] = None
 }
 

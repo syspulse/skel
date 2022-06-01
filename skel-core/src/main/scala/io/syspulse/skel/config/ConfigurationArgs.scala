@@ -12,8 +12,13 @@ import io.syspulse.skel.util.Util
 
 case class ConfigArgs() {
   var c:Map[String,Any] = Map()
+  var cmd:Option[String] = None
   def +(k:String,v:Any):ConfigArgs = {
     c = c + (k -> v)
+    this
+  }
+  def command(cmd:String):ConfigArgs = {
+    this.cmd = Some(cmd)
     this
   }
   override def toString = s"${c}"
@@ -39,7 +44,7 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
       val options = List(
         head(if(appName.isEmpty) Util.info._1 else appName, if(appVer.isEmpty) Util.info._2 else appVer)
       ) ++ ops.flatMap(a => a match {
-        case ArgCmd(s,t) => Some(cmd(s).action((x, c) => c.+(s,x)).text(t))
+        case ArgCmd(s,t) => Some(cmd(s).action((x, c) => c.command(s)).text(t))
         case ArgHelp(s,t) => Some(help(s).text(t))
         case ArgString(c,s,t,d) => Some(opt[String](c, s).action((x, c) => c.+(s,x)).text(t))
         case ArgInt(c,s,t,d) => Some(opt[Int](c, s).action((x, c) => c.+(s,x)).text(t))
@@ -94,5 +99,11 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
     configArgs.get.c.collect {
       case (k,None) => k
     }.toSeq
+  }
+
+  // not supported
+  def getCmd():Option[String] = {
+    if(!configArgs.isDefined) return None
+    configArgs.get.cmd
   }
 }

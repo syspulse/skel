@@ -14,6 +14,7 @@ trait ConfigurationLike {
   def getDuration(path:String):Option[Duration]
   def getAll():Seq[(String,Any)]
   def getParams():Seq[String]
+  def getCmd():Option[String] 
 }
 
 class Configuration(configurations: Seq[ConfigurationLike]) extends ConfigurationLike {
@@ -37,9 +38,12 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
     configurations.foldLeft[Option[Duration]](None)((r,c) => if(r.isDefined) r else c.getDuration(path))
   }
 
-  // not supported 
   def getParams():Seq[String] = {
     configurations.foldLeft[Seq[String]](Seq())((r,c) => r ++ c.getParams())
+  }
+
+  def getCmd():Option[String] = {
+    configurations.foldLeft[Option[String]](None)((r,c) => if(r.isDefined) r else c.getCmd())
   }
 }
 
