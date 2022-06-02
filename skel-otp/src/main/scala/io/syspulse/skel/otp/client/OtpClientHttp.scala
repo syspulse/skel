@@ -31,6 +31,7 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.otp._
 import io.syspulse.skel.otp.OtpJson
+import io.syspulse.skel.otp.OtpCreateResult
 
 
 class FutureAwaitable[T](f:Future[T],timeout:Duration = FutureAwaitable.timeout)  {
@@ -81,6 +82,19 @@ class OtpClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext)
   
   def reqGetOtpForUser(userId:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/user/${userId}")
   def reqGetOtps() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}")
+  def reqPostOtp(userId:UUID,secret:String,name:String,account:String,issuer:Option[String], period:Option[Int]) = 
+      HttpRequest(method = HttpMethods.POST, uri = s"${uri}",
+        entity = HttpEntity(ContentTypes.`application/json`, 
+          OtpCreate(userId,secret,name,account,issuer,period).toJson.toString)
+      )
+
+  def create(userId:UUID,secret:String,name:String,account:String,issuer:Option[String],period:Option[Int]):Future[OtpCreateResult] = {
+    log.info(s"${userId} -> ${reqPostOtp(userId,secret,name,account,issuer,period)}")
+    for {
+      rsp <- Http().singleRequest(reqPostOtp(userId,secret,name,account,issuer,period))
+      r <- Unmarshal(rsp).to[OtpCreateResult]
+    } yield r
+  }
 
   def getForUser(userId:UUID):Future[Otps] = {
     log.info(s"${userId} -> ${reqGetOtpForUser(userId)}")

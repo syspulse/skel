@@ -80,6 +80,11 @@ object App extends skel.Server {
 
         val r = 
           config.params match {
+            case "create" :: userId :: Nil => 
+              OtpClientHttp(uri)
+                .withTimeout(timeout)
+                .create(UUID(userId),"","name","account-2",None,None)
+                .await()
             case "getAll" :: Nil => 
               OtpClientHttp(uri)
                 .withTimeout(timeout)
