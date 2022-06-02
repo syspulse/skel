@@ -6,10 +6,11 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.otp.{OtpRegistry,OtpRoutes,OtpStoreDB}
 import io.syspulse.skel.otp.client._
 
-import scopt.OParser
 import scala.concurrent.duration.Duration
 import scala.concurrent.Future
 import scala.concurrent.Await
+
+import io.jvm.uuid._
 
 import io.syspulse.skel.otp.client.FutureAwaitable._
 
@@ -74,12 +75,30 @@ object App extends skel.Server {
       case "client" => {
         
         val host = if(config.host == "0.0.0.0") "localhost" else config.host
-        val otps = OtpClientHttp(s"http://${host}:${config.port}${config.uri}")
-          .withTimeout(Duration("3 seconds"))
-          .getOtps()
-          .await()
+        val uri = s"http://${host}:${config.port}${config.uri}"
+        val timeout = Duration("3 seconds")
 
-        println(s"${otps}")
+        val r = 
+          config.params match {
+            case "getAll" :: Nil => 
+              OtpClientHttp(uri)
+                .withTimeout(timeout)
+                .getAll()
+                .await()
+            case "getForUser" :: userId :: Nil => 
+              OtpClientHttp(uri)
+                .withTimeout(timeout)
+                .getForUser(UUID(userId))
+                .await()
+            case Nil => OtpClientHttp(uri)
+                .withTimeout(timeout)
+                .getAll()
+                .await()
+
+            case _ => println(s"unknown op: ${config.params}")
+          }
+        
+        println(s"${r}")
         System.exit(0)
       }
     }

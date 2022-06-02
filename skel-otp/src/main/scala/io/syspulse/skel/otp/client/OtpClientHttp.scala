@@ -82,15 +82,15 @@ class OtpClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext)
   def reqGetOtpForUser(userId:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/user/${userId}")
   def reqGetOtps() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}")
 
-  def getOtpForUser(userId:UUID):Future[Otp] = {
+  def getForUser(userId:UUID):Future[Otps] = {
     log.info(s"${userId} -> ${reqGetOtpForUser(userId)}")
     for {
       rsp <- Http().singleRequest(reqGetOtpForUser(userId))
-      otp <- Unmarshal(rsp).to[Otp]
+      otp <- Unmarshal(rsp).to[Otps]
     } yield otp 
   }
 
-  def getOtps():Future[Otps] = {
+  def getAll():Future[Otps] = {
     log.info(s" -> ${reqGetOtps()}")
     for {
       rsp <- Http().singleRequest(reqGetOtps())
