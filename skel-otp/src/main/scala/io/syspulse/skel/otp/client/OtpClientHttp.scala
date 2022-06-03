@@ -31,7 +31,6 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.otp._
 import io.syspulse.skel.otp.OtpJson
-import io.syspulse.skel.otp.OtpCreateResult
 
 
 class FutureAwaitable[T](f:Future[T],timeout:Duration = FutureAwaitable.timeout)  {
@@ -81,27 +80,45 @@ class OtpClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext)
   import spray.json._
   
   def reqGetOtpForUser(userId:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/user/${userId}")
+  def reqGetOtp(id:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/${id}")
   def reqGetOtps() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}")
   def reqPostOtp(userId:UUID,secret:String,name:String,account:String,issuer:Option[String], period:Option[Int]) = 
       HttpRequest(method = HttpMethods.POST, uri = s"${uri}",
         entity = HttpEntity(ContentTypes.`application/json`, 
-          OtpCreate(userId,secret,name,account,issuer,period).toJson.toString)
+          OtpCreateReq(userId,secret,name,account,issuer,period).toJson.toString)
       )
+  def reqDeleteOtp(id:UUID) = HttpRequest(method = HttpMethods.DELETE, uri = s"${uri}/${id}")
 
-  def create(userId:UUID,secret:String,name:String,account:String,issuer:Option[String],period:Option[Int]):Future[OtpCreateResult] = {
+  def delete(id:UUID):Future[OtpActionRes] = {
+    log.info(s"${id} -> ${reqDeleteOtp(id)}")
+    for {
+      rsp <- Http().singleRequest(reqDeleteOtp(id))
+      r <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[OtpActionRes] else Future(OtpActionRes(status=s"${rsp.status}: ${rsp.entity}",None))
+    } yield r 
+  }
+
+  def create(userId:UUID,secret:String,name:String,account:String,issuer:Option[String],period:Option[Int]):Future[OtpCreateRes] = {
     log.info(s"${userId} -> ${reqPostOtp(userId,secret,name,account,issuer,period)}")
     for {
       rsp <- Http().singleRequest(reqPostOtp(userId,secret,name,account,issuer,period))
-      r <- Unmarshal(rsp).to[OtpCreateResult]
+      r <- Unmarshal(rsp).to[OtpCreateRes]
     } yield r
+  }
+
+  def get(id:UUID):Future[Option[Otp]] = {
+    log.info(s"${id} -> ${reqGetOtp(id)}")
+    for {
+      rsp <- Http().singleRequest(reqGetOtp(id))
+      otp <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[Otp]] else Future(None)
+    } yield otp 
   }
 
   def getForUser(userId:UUID):Future[Otps] = {
     log.info(s"${userId} -> ${reqGetOtpForUser(userId)}")
     for {
       rsp <- Http().singleRequest(reqGetOtpForUser(userId))
-      otp <- Unmarshal(rsp).to[Otps]
-    } yield otp 
+      otps <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Otps] else Future(Otps(Seq()))
+    } yield otps 
   }
 
   def getAll():Future[Otps] = {

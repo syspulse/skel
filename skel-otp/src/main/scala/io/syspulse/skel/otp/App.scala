@@ -80,10 +80,20 @@ object App extends skel.Server {
 
         val r = 
           config.params match {
+            case "delete" :: id :: Nil => 
+              OtpClientHttp(uri)
+                .withTimeout(timeout)
+                .delete(UUID(id))
+                .await()
             case "create" :: userId :: Nil => 
               OtpClientHttp(uri)
                 .withTimeout(timeout)
-                .create(UUID(userId),"","name","account-2",None,None)
+                .create(if(userId == "random") UUID.random else UUID(userId),"","name","account-2",None,None)
+                .await()
+            case "get" :: id :: Nil => 
+              OtpClientHttp(uri)
+                .withTimeout(timeout)
+                .get(UUID(id))
                 .await()
             case "getAll" :: Nil => 
               OtpClientHttp(uri)

@@ -52,15 +52,15 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
 
   def getOtps(): Future[Otps] = otpRegistry.ask(GetOtps)
   def getUserOtps(userId:UUID): Future[Otps] = otpRegistry.ask(GetUserOtps(userId,_))
-  def getOtp(id: UUID): Future[GetOtpResponse] = otpRegistry.ask(GetOtp(id, _))
+  def getOtp(id: UUID): Future[OtpRes] = otpRegistry.ask(GetOtp(id, _))
 
-  def getOtpCode(id: UUID): Future[GetOtpCodeResponse] = otpRegistry.ask(GetOtpCode(id, _))
-  def getOtpCodeVerify(id: UUID, code:String): Future[GetOtpCodeVerifyResponse] = otpRegistry.ask(GetOtpCodeVerify(id,code, _))
+  def getOtpCode(id: UUID): Future[OtpCodeRes] = otpRegistry.ask(GetOtpCode(id, _))
+  def getOtpCodeVerify(id: UUID, code:String): Future[OtpCodeVerifyRes] = otpRegistry.ask(GetOtpCodeVerify(id,code, _))
 
-  def createOtp(otpCreate: OtpCreate): Future[OtpCreateResult] = otpRegistry.ask(CreateOtp(otpCreate, _))
-  def deleteOtp(id: UUID): Future[OtpActionResult] = otpRegistry.ask(DeleteOtp(id, _))
-  def randomOtp(otpRandom: OtpRandom): Future[OtpRandomResult] = otpRegistry.ask(RandomOtp(otpRandom, _))
-  def randomHtml(otpRandom: OtpRandom): Future[String] = otpRegistry.ask(RandomHtml(otpRandom, _))
+  def createOtp(otpCreate: OtpCreateReq): Future[OtpCreateRes] = otpRegistry.ask(CreateOtp(otpCreate, _))
+  def deleteOtp(id: UUID): Future[OtpActionRes] = otpRegistry.ask(DeleteOtp(id, _))
+  def randomOtp(otpRandom: OtpRandomReq): Future[OtpRandomRes] = otpRegistry.ask(RandomOtp(otpRandom, _))
+  def randomHtml(otpRandom: OtpRandomReq): Future[String] = otpRegistry.ask(RandomHtml(otpRandom, _))
 
   @GET @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("otp"),summary = "Return OTP by id",
@@ -143,11 +143,11 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
   @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("otp"),summary = "Create OTP Secret",
-    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[OtpCreate])))),
-    responses = Array(new ApiResponse(responseCode = "200", description = "OTP created",content = Array(new Content(schema = new Schema(implementation = classOf[OtpActionResult])))))
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[OtpCreateReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "OTP created",content = Array(new Content(schema = new Schema(implementation = classOf[OtpActionRes])))))
   )
   def createOtpRoute = post {
-    entity(as[OtpCreate]) { otpCreate =>
+    entity(as[OtpCreateReq]) { otpCreate =>
       onSuccess(createOtp(otpCreate)) { result =>
         metricPostCount.inc()
         complete((StatusCodes.Created, result))
@@ -161,14 +161,14 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
                        new Parameter(name = "account", in = ParameterIn.PATH, description = "OTP account"),
                        new Parameter(name = "issuer", in = ParameterIn.PATH, description = "OTP issuer"),
                        new Parameter(name = "format", in = ParameterIn.PATH, description = "'html' - generates test HTML with QR code image")),
-    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[OtpRandom])))),
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[OtpRandomReq])))),
     responses = Array(
-      new ApiResponse(responseCode = "200", description = "Randomg OTP secret",content = Array(new Content(schema = new Schema(implementation = classOf[OtpRandom])))))
+      new ApiResponse(responseCode = "200", description = "Randomg OTP secret",content = Array(new Content(schema = new Schema(implementation = classOf[OtpRandomRes])))))
   )
   def getOtpRandomRoute() = get { parameters("format".optional,"name".optional,"account".optional,"issuer".optional) { (format,name,account,issuer) => 
       metricGetRandomCount.inc()
 
-      entity(as[OtpRandom]) { otpRandom =>
+      entity(as[OtpRandomReq]) { otpRandom =>
         val r = randomOtp(otpRandom)
         complete(r)
       } ~ { 
@@ -176,14 +176,14 @@ class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system:
         format.getOrElse("").toLowerCase match {
           case "html" => {
             implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
-            val htmlOut = randomHtml(OtpRandom(name,account,issuer))
+            val htmlOut = randomHtml(OtpRandomReq(name,account,issuer))
             // NOTE: complete(200,List(`Content-Type`(`text/html(UTF-8)`)),h) is not working because 
             val h = Await.result(htmlOut,Duration.Inf)
             complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, h))
 
             //
           }
-          case _ =>  complete(randomOtp(OtpRandom(name,account,issuer)))    
+          case _ =>  complete(randomOtp(OtpRandomReq(name,account,issuer)))    
         }
       }
     }

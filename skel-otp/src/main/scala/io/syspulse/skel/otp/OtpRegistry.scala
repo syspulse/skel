@@ -21,21 +21,17 @@ object OtpRegistry extends DefaultInstrumented  {
   sealed trait Command extends io.syspulse.skel.Command
 
   final case class GetOtps(replyTo: ActorRef[Otps]) extends Command
-  final case class GetOtp(id:UUID,replyTo: ActorRef[GetOtpResponse]) extends Command
+  final case class GetOtp(id:UUID,replyTo: ActorRef[OtpRes]) extends Command
   
-  final case class GetOtpCode(id:UUID,replyTo: ActorRef[GetOtpCodeResponse]) extends Command
-  final case class GetOtpCodeVerify(id:UUID,code:String,replyTo: ActorRef[GetOtpCodeVerifyResponse]) extends Command
+  final case class GetOtpCode(id:UUID,replyTo: ActorRef[OtpCodeRes]) extends Command
+  final case class GetOtpCodeVerify(id:UUID,code:String,replyTo: ActorRef[OtpCodeVerifyRes]) extends Command
   
-  final case class CreateOtp(otpCreate: OtpCreate, replyTo: ActorRef[OtpCreateResult]) extends Command
-  final case class DeleteOtp(id: UUID, replyTo: ActorRef[OtpActionResult]) extends Command
-  final case class RandomOtp(otpRandom: OtpRandom, replyTo: ActorRef[OtpRandomResult]) extends Command
-  final case class RandomHtml(otpRandom: OtpRandom, replyTo: ActorRef[String]) extends Command
+  final case class CreateOtp(otpCreate: OtpCreateReq, replyTo: ActorRef[OtpCreateRes]) extends Command
+  final case class DeleteOtp(id: UUID, replyTo: ActorRef[OtpActionRes]) extends Command
+  final case class RandomOtp(otpRandom: OtpRandomReq, replyTo: ActorRef[OtpRandomRes]) extends Command
+  final case class RandomHtml(otpRandom: OtpRandomReq, replyTo: ActorRef[String]) extends Command
 
   final case class GetUserOtps(userId:UUID,replyTo: ActorRef[Otps]) extends Command
-
-  final case class GetOtpResponse(otp: Option[Otp])
-  final case class GetOtpCodeResponse(code: Option[String])
-  final case class GetOtpCodeVerifyResponse(code:String,authorized: Boolean)
 
   // this var reference is unfortunately needed for Metrics access
   var store: OtpStore = null //new OtpStoreDB //new OtpStoreCache
@@ -129,7 +125,7 @@ object OtpRegistry extends DefaultInstrumented  {
         val otp = Otp(id,otpCreate.userId, secret, otpCreate.name, otpCreate.account, otpCreate.issuer.getOrElse(""), otpCreate.period.getOrElse(30))
         val store1 = store.+(otp)
 
-        replyTo ! OtpCreateResult(secret,Some(id))
+        replyTo ! OtpCreateRes(secret,Some(id))
         registry(store1.getOrElse(store))
 
       case RandomOtp(otpRandom, replyTo) =>
@@ -140,7 +136,7 @@ object OtpRegistry extends DefaultInstrumented  {
           otpRandom.name.getOrElse(""), otpRandom.account.getOrElse(""), otpRandom.issuer.getOrElse(""), 
           otpRandom.period.getOrElse(30), otpRandom.digits.getOrElse(6), otpRandom.algo.getOrElse("SHA1")
         )
-        replyTo ! OtpRandomResult(secret,qrImage)
+        replyTo ! OtpRandomRes(secret,qrImage)
         Behaviors.same
 
       case RandomHtml(otpRandom, replyTo) =>
@@ -168,7 +164,7 @@ object OtpRegistry extends DefaultInstrumented  {
         Behaviors.same
 
       case GetOtp(id, replyTo) =>
-        replyTo ! GetOtpResponse(store.get(id))
+        replyTo ! OtpRes(store.get(id))
         Behaviors.same
 
       case GetOtpCode(id, replyTo) =>
@@ -177,7 +173,7 @@ object OtpRegistry extends DefaultInstrumented  {
         val code = otp.map( o => {
           authCode(o.secret,o.period)
         })
-        replyTo ! GetOtpCodeResponse(code)
+        replyTo ! OtpCodeRes(code)
         Behaviors.same
 
       case GetOtpCodeVerify(id, codeUser, replyTo) =>
@@ -187,14 +183,14 @@ object OtpRegistry extends DefaultInstrumented  {
           authCode(o.secret,o.period)
         })
 
-        replyTo ! GetOtpCodeVerifyResponse(codeUser,(
+        replyTo ! OtpCodeVerifyRes(codeUser,(
           code.map( c => c == codeUser).getOrElse(false)
         ))
         Behaviors.same
 
       case DeleteOtp(id, replyTo) =>
         val store1 = store.-(id)
-        replyTo ! OtpActionResult(s"deleted",Some(id))
+        replyTo ! OtpActionRes(s"Success",Some(id))
         registry(store1.getOrElse(store))
     }
   }
