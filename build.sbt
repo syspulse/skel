@@ -1,5 +1,6 @@
 import scala.sys.process.Process
 import Dependencies._
+import com.typesafe.sbt.packager.docker.DockerAlias
 import com.typesafe.sbt.packager.docker._
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
@@ -45,17 +46,23 @@ lazy val dockerBuildxSettings = Seq(
 
 val dockerRegistryLocal = Seq(
   dockerRepository := Some("docker.u132.net:5000"),
-  dockerUsername := Some("syspulse")
+  dockerUsername := Some("syspulse"),
+  // this fixes stupid idea of adding registry in publishLocal 
+  dockerAlias := DockerAlias(registryHost=None,username = dockerUsername.value, name = name.value, tag = Some(version.value))
 )
 
-val dockerRegistryHub = Seq(
+val dockerRegistryDockerHub = Seq(
   dockerUsername := Some("syspulse")
 )
 
 val sharedConfigDocker = Seq(
   maintainer := "Dev0 <dev0@syspulse.io>",
   // openjdk:8-jre-alpine - NOT WORKING ON RP4+ (arm64). Crashes JVM in kubernetes
-  dockerBaseImage := "openjdk:18-slim", //"openjdk:8u212-jre-alpine3.9", //"openjdk:8-jre-alpine",
+  // dockerBaseImage := "openjdk:8u212-jre-alpine3.9", //"openjdk:8-jre-alpine",
+
+  //dockerBaseImage := "openjdk:8-jre-alpine",
+  dockerBaseImage := "openjdk:18-slim",
+  
   dockerUpdateLatest := true,
   dockerUsername := Some("syspulse"),
   dockerExposedVolumes := Seq(s"${appDockerRoot}/logs",s"${appDockerRoot}/conf",s"${appDockerRoot}/data","/data"),
@@ -67,6 +74,15 @@ val sharedConfigDocker = Seq(
   Docker / daemonUserUid := None, //Some("1000"), 
   Docker / daemonUser := "daemon"
 ) ++ dockerRegistryLocal
+
+// Spark is not working with openjdk:18-slim (cannot access class sun.nio.ch.DirectBuffer)
+// openjdk:8-jre
+// Also, Spark has problems with /tmp (java.io.IOException: Failed to create a temp directory (under /tmp) after 10 attempts!)
+val sharedConfigDockerSpark = sharedConfigDocker ++ Seq(
+  //dockerBaseImage := "openjdk:8-jre-alpine",
+  dockerBaseImage := "openjdk:11-jre-slim",
+  Docker / daemonUser := "root"
+)
 
 val sharedConfig = Seq(
     //retrieveManaged := true,  
@@ -691,7 +707,7 @@ lazy val spark_convert = (project in file("skel-spark/spark-convert"))
 
     sharedConfig,
     sharedConfigAssemblySpark,
-    sharedConfigDocker,
+    sharedConfigDockerSpark,
     dockerBuildxSettings,
 
     appDockerConfig("spark-convert","io.syspulse.skel.spark.CsvConvert"),

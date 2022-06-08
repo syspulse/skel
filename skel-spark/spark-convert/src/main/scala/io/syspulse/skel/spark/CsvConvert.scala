@@ -20,11 +20,11 @@ case class Config(
   port:Int=0,
   uri:String = "",
 
-  input:String ="./data/",
+  input:String ="./data/csv/",
   output:String = "./data/parquet/",
   codec:String = "parquet", 
   batch:Int = 100, 
-  parallelism:Int = 4,
+  parallelism:Int = 2,
   
   cmd:String = "",
   params: Seq[String] = Seq(),
@@ -43,16 +43,22 @@ object CsvConvert {
       new ConfigurationArgs(args,"spark-convert","",
         ArgString('i', "input","Input path (file/dir)"),
         ArgString('o', "output","Output path (file/dir)"),
-        ArgCmd("server","Command"),
-        ArgCmd("client","Command"),
+        ArgString('c', "codec","Codec (parquet/avro)"),
+        ArgInt('b', "batch","How many records to process in stream (def: 100)"),
+        ArgInt('p', "par","Parallelism (def: 2)"),
+        ArgCmd("convert","Command"),
+        ArgCmd("read","Command"),
         ArgParam("<params>","")
       ).withExit(1)
     ))
 
     val config = Config(
-      input = c.getString("input").getOrElse("./data/"),
-      output = c.getString("input").getOrElse("./data/parquet/"),
-      cmd = c.getCmd().getOrElse("csv"),
+      input = c.getString("input").getOrElse("./data/csv/"),
+      output = c.getString("output").getOrElse("./data/parquet/"),
+      codec = c.getString("codec").getOrElse("parquet"),
+      batch = c.getInt("batch").getOrElse(100),
+      parallelism = c.getInt("par").getOrElse(2),
+      cmd = c.getCmd().getOrElse("convert"),
       params = c.getParams(),
     )
 
@@ -61,7 +67,7 @@ object CsvConvert {
     val ss = SparkSession.builder()
       .appName("csv-to-parquet")
       .config("spark.master", "local")
-      .config("default.parallelism",1)
+      .config("default.parallelism",config.parallelism)
       .config("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
       .getOrCreate()
 

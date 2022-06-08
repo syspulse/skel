@@ -4,7 +4,7 @@
 # Credentials chain: https://docs.aws.amazon.com/sdk-for-java/v1/developer-guide/credentials.html 
 # S3 access is s3a://bucket/folder/
 
-INPUT=${1:-./data/}
+INPUT=${1:-./data/csv/}
 OUTPUT=${2:-./data/parquet}
 shift
 shift
