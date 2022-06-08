@@ -14,9 +14,9 @@ AMM=${AMM:-/opt/amm/amm-2.13-2.4.0}
 CODEC=${CODEC:-parquet}
 PAR=${PAR:-1}
 # batch to process (avoid memory hog)
-LIMIT=${LIMIT:-100}
+BATCH=${BATCH:-100}
 
 echo "input=${INPUT}"
 echo "output=${OUTPUT}"
 
-JAVA_OPTS=-Xmx2G ${AMM} csv-convert.sc --parallelism $PAR --limit ${LIMIT} --codec $CODEC --input $INPUT --output $OUTPUT $@
+JAVA_OPTS=-Xmx2G ${AMM} csv-convert.sc --parallelism $PAR --batch ${BATCH} --codec $CODEC --input $INPUT --output $OUTPUT $@

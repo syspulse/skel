@@ -154,6 +154,41 @@ val sharedConfigAssembly = Seq(
   assembly / test := {}
 )
 
+val sharedConfigAssemblySpark = Seq(
+  assembly / assemblyMergeStrategy := {
+      case x if x.contains("module-info.class") => MergeStrategy.discard
+      case x if x.contains("io.netty.versions.properties") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticMarkerBinder.class") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticMDCBinder.class") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticLoggerBinder.class") => MergeStrategy.first
+      case x if x.contains("google/protobuf") => MergeStrategy.first
+      case x if x.contains("org/apache/spark/unused/UnusedStubClass.class") => MergeStrategy.first
+      case x if x.contains("git.properties") => MergeStrategy.discard
+      case x if x.contains("mozilla/public-suffix-list.txt") => MergeStrategy.first
+      case x => {
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
+        oldStrategy(x)
+      }
+  },
+  assembly / assemblyExcludedJars := {
+    val cp = (assembly / fullClasspath).value
+    cp filter { f =>
+      f.data.getName.contains("snakeyaml-1.27-android.jar") || 
+      f.data.getName.contains("jakarta.activation-api-1.2.1") ||
+      f.data.getName.contains("jakarta.activation-api-1.1.1") ||
+      f.data.getName.contains("jakarta.activation-2.0.1.jar") ||
+      f.data.getName.contains("jakarta.annotation-api-1.3.5.jar") ||
+      f.data.getName.contains("jakarta.ws.rs-api-2.1.6.jar") ||
+      f.data.getName.contains("commons-logging-1.1.3.ja") ||
+      (f.data.getName.contains("netty") && f.data.getName.contains("4.1.50.Final.jar")) 
+
+      //|| f.data.getName == "spark-core_2.11-2.0.1.jar"
+    }
+  },
+  
+  assembly / test := {}
+)
+
 def appDockerConfig(appName:String,appMainClass:String) = 
   Seq(
     name := appName,
@@ -644,5 +679,24 @@ lazy val demo_eth = (project in file("demo/eth-stream"))
 
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
       libUpickleLib
+    ),
+  )
+
+lazy val spark_convert = (project in file("skel-spark/spark-convert"))
+  .dependsOn(core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssemblySpark,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("spark-convert","io.syspulse.skel.spark.CsvConvert"),
+
+    libraryDependencies ++= libSparkAWS ++ Seq(
+      
     ),
   )

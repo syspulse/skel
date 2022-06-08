@@ -11,6 +11,10 @@ object Dependencies {
     lazy val kafkaAvroSerVersion = "5.4.1"
     lazy val quillVersion = "3.6.0"
     lazy val influxDBVersion = "3.2.0"
+
+    lazy val sparkVersion = "3.2.0"
+    lazy val hadoopAWSVersion = "3.2.2"
+    lazy val janinoVersion = "3.0.16" //"3.1.6" //"3.0.16"
     
     lazy val appNameHttp = "skel-http"
     lazy val appBootClassHttp = "io.syspulse.skel.service.App"
@@ -80,7 +84,7 @@ object Dependencies {
 
     val libScalaLogging =   "com.typesafe.scala-logging"  %% "scala-logging"        % "3.9.2"
     val libLogback =        "ch.qos.logback"              %  "logback-classic"      % "1.2.8"
-    val libJanino =         "org.codehaus.janino"         %  "janino"               % "3.1.6"
+    val libJanino =         "org.codehaus.janino"         %  "janino"               % janinoVersion
     // I need this rubbish slf4j to deal with old jboss dependecny which generates exception in loading logback.xml
     //val libSlf4jApi =       "org.slf4j"                   %  "slf4j-api"            % "1.8.0-beta4"
     // Supports only old XML Config file format
@@ -164,6 +168,11 @@ object Dependencies {
 
     val libSSSS =           "com.gladow"                    %% "scalassss"          % "0.2.0-SNAPSHOT"
 
+    val libSparkCore =       "org.apache.spark"              %% "spark-core"         % sparkVersion
+    val libSparkSQL =        "org.apache.spark"              %% "spark-sql"          % sparkVersion
+    val libHadoopAWS =       "org.apache.hadoop"             % "hadoop-aws"          % hadoopAWSVersion
+    val libJaninoCompiler =  "org.codehaus.janino"           %  "commons-compiler"   % janinoVersion
+
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)
@@ -183,5 +192,8 @@ object Dependencies {
     val libWeb3j = Seq(libBouncyCastle,libWeb3jCore,libWeb3jCrypto)
 
     val libJwt = Seq(libJwtCore,libJoseJwt)
+
+    val libSpark = Seq(libSparkCore,libSparkSQL,libJanino,libJaninoCompiler)
+    val libSparkAWS = libSpark ++ Seq(libHadoopAWS)
   }
   

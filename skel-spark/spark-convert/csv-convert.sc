@@ -9,8 +9,6 @@ import $ivy.`org.apache.spark::spark-sql:3.2.0`
 import $ivy.`org.apache.hadoop:hadoop-aws:3.2.2`
 
 import org.apache.spark.sql.{SparkSession,Dataset}
-import org.apache.spark
-import org.apache.spark._
 import org.apache.spark.sql.functions._
 
 import java.time._
@@ -18,9 +16,9 @@ import java.time._
 val region = Option(System.getenv("AWS_REGION")).getOrElse("eu-west-1")
 
 @main
-def main(input:String="./data/", output:String = "./data/parquet/", codec:String = "parquet", limit:Int = 100, parallelism:Int = 4) {
+def main(input:String="./data/", output:String = "./data/parquet/", codec:String = "parquet", batch:Int = 100, parallelism:Int = 4) {
   
-  println(s"input=${input}, output=${output}, codec=${codec}, limit=${limit}, par=${parallelism}")
+  println(s"input=${input}, output=${output}, codec=${codec}, batch=${batch}, par=${parallelism}")
 
   //val ss = SparkSession.builder().appName("csv-to-parquet").config("spark.master", "local").config("default.parallelism",parallelism).getOrCreate()
   val ss = SparkSession.builder()
@@ -37,7 +35,7 @@ def main(input:String="./data/", output:String = "./data/parquet/", codec:String
 
   val ts0 = Instant.now
 
-  df.write.option("maxRecordsPerFile", limit).option("compression", "gzip").mode("overwrite").format(codec).save(output);
+  df.write.option("maxRecordsPerFile", batch).option("compression", "gzip").mode("overwrite").format(codec).save(output);
 
   val ts1 = Instant.now
   val elapsed = Duration.between(ts0, ts1)
