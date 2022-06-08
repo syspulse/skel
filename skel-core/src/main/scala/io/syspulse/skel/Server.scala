@@ -80,7 +80,7 @@ trait Server {
             complete(HttpResponse(BadRequest,   entity = jsonEntity(s"""["error": "missing parameter"]"""")))
         }
         .handle { case AuthorizationFailedRejection =>
-          complete(HttpResponse(BadRequest, entity = jsonEntity(s"""["error": "authorization"]"""")))
+          complete(HttpResponse(Forbidden, entity = jsonEntity(s"""["error": "authorization"]"""")))
         }
         .handleAll[MethodRejection] { methodRejections =>
           val names = methodRejections.map(_.supported.name)
