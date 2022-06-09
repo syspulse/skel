@@ -34,7 +34,9 @@ STACK=${STACK:-512M}
 >&2 echo "APP: $APP"
 >&2 echo "APP_HOME: $APP_HOME"
 >&2 echo "MAIN: $MAIN"
+# to be compatibble with old scripts (to be deprecated)
 >&2 echo "OPT: $OPT"
+>&2 echo "JAVA_OPTS: $JAVA_OPTS"
 >&2 echo "ARGS: $ARGS"
 >&2 echo "SITE: ${SITE}"
 >&2 echo "CONFIG: ${CONFIG}"
@@ -45,4 +47,5 @@ STACK=${STACK:-512M}
 >&2 pwd
 
 # command:
-exec $JAVA_HOME/bin/java -Xss${STACK} -Xms${MEM} -Dcolor -Dconfig.resource=$CONFIG -cp $CP $AGENT $OPT $MAIN $ARGS
+# JAVA_OPTS should be overriden by old script parameters like $OPT
+exec $JAVA_HOME/bin/java -Xss${STACK} -Xms${MEM} -Xmx${MEM} $JAVA_OPTS -Dcolor -Dconfig.resource=$CONFIG -cp $CP $AGENT $OPT $MAIN $ARGS

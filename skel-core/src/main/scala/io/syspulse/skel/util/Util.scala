@@ -163,6 +163,15 @@ object Util {
     }
   }
 
+  case class Top(cpu:Int,freeMem:Long,maxMem:Long,totalMem:Long)
+  def top() = {
+    Top(
+      Runtime.getRuntime().availableProcessors(),
+      Runtime.getRuntime().freeMemory(),
+      Runtime.getRuntime().maxMemory(),
+      Runtime.getRuntime().totalMemory()
+    )
+  }
 }
 
 

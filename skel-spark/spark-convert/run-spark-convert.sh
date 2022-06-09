@@ -14,4 +14,6 @@ echo "app: $APP"
 echo "site: $SITE"
 echo "main: $MAIN"
 
+export JAVA_OPTS="${JAVA_OPTS:--Xmx8g -Xms8g}"
+
 exec ../../run-app.sh $APP $MAIN $@
