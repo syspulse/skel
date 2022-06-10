@@ -98,7 +98,7 @@ object CsvConvert {
         ArgString('c', "codec","Codec (parquet/avro)"),
         ArgInt('b', "batch","How many records to process in stream (def: 100)"),
         ArgInt('p', "par","Parallelism (def: 2)"),
-        ArgString('m', "mapping","Fields mapping: 'name:type;name:type,...' (ex: 'number:LongType;difficulty:DecimalType(38,0)')"),
+        ArgString('m', "map","Fields types map: 'name:type;name:type,...' (ex: 'number:LongType;difficulty:DecimalType(38,0)')"),
 
         ArgString('_', "spark.executor.memory","(def :1g)"),
         ArgString('_', "spark.driver.memory","(def: 1g)"),
@@ -118,7 +118,7 @@ object CsvConvert {
       batch = c.getInt("batch").getOrElse(100),
       parallelism = c.getInt("par").getOrElse(2),
 
-      mapping = getTypeMapping(c.getString("mapping").getOrElse("")),
+      mapping = getTypeMapping(c.getString("map").getOrElse("")),
 
       sparkExMem = c.getString("spark.executor.memory").getOrElse("1g"),
       sparkDrvMem = c.getString("spark.driver.memory").getOrElse("1g"),

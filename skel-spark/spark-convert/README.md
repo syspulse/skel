@@ -15,20 +15,20 @@ Convert from CVS -> Parquet with low memory (streaming fashion)
 ./run-spark-convert.sh --input ./data/csv/ --output ./data/parquet/ --batch 1 --par 1
 ```
 
-Convert from CVS -> Parquet with type mappings
+Convert from CVS -> Parquet with type mapping
 
 ```
-./run-spark-convert.sh --input ./data/csv/ --output ./data/parquet/ --mapping 'number:LongType;difficulty:DecimalType(38,0);total_difficulty:DecimalType(38,0);size:LongType;gas_limit:LongType;gas_used:LongType;timestamp:LongType;transaction_count:LongType;base_fee_per_gas:LongType'
+./run-spark-convert.sh --input ./data/csv/ --output ./data/parquet/ --map 'number:LongType;difficulty:DecimalType(38,0);total_difficulty:DecimalType(38,0);size:LongType;gas_limit:LongType;gas_used:LongType;timestamp:LongType;transaction_count:LongType;base_fee_per_gas:LongType'
 ```
 
 Convert from CVS -> Parquet with type mappings in config file
 
 ```
-./run-spark-convert.sh --input ./data/csv/ --output ./data/parquet/ --mapping @mapping.blocks
+./run-spark-convert.sh --input ./data/csv/ --output ./data/parquet/ --map @paruet.blocks
 ```
 application.conf:
 ```
-mapping {
+parquet {
   blocks="number:LongType;difficulty:DecimalType(38,0);total_difficulty:DecimalType(38,0);size:LongType;gas_limit:LongType;gas_used:LongType;timestamp:LongType;transaction_count:LongType;base_fee_per_gas:LongType"
   transactions=""
 }
