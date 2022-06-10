@@ -18,8 +18,13 @@ trait ConfigurationLike {
 }
 
 class Configuration(configurations: Seq[ConfigurationLike]) extends ConfigurationLike {
-  def getString(path:String):Option[String] = {
-    configurations.foldLeft[Option[String]](None)((r,c) => if(r.isDefined) r else c.getString(path))
+  // support for global reference to another string
+  def getString(path:String):Option[String] = {  
+    val r = configurations.foldLeft[Option[String]](None)((r,c) => if(r.isDefined) r else c.getString(path))
+    if(r.isDefined && r.get.startsWith("@")) 
+      getString(r.get.tail)
+    else 
+      r
   }
   
   def getInt(path:String):Option[Int] = {
