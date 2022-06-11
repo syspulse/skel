@@ -31,7 +31,7 @@ import java.nio.file.Files
 object Eth2 {
   import key._
   
-  def generate(mnemonic:String):Try[KeyBLS] = { 
+  def generate(mnemonic:String):Try[KeyPair] = { 
     // mnemonic password is not used
     val mnemonicPassword = ""
 
@@ -71,14 +71,18 @@ object Eth2 {
     )
   }
 
-  def generate(sk:SK):KeyPair = {
+  def generate(sk:SK):Try[KeyPair] = {
     val k = new BLSKeyPair(BLSSecretKey.fromBytes(Bytes32.wrap(sk)))
-    KeyBLS(k.getSecretKey().toBytes().toArray(),k.getPublicKey.toBytesCompressed().toArray())
+    Success(
+      KeyBLS(k.getSecretKey().toBytes().toArray(),k.getPublicKey.toBytesCompressed().toArray())
+    )
   }
 
-  def generateRandom():KeyPair = {
+  def generateRandom():Try[KeyPair] = {
     val k = BLSKeyPair.random(Util.random)
-    KeyBLS(k.getSecretKey.toBytes().toArray(),k.getPublicKey.toBytesCompressed().toArray())
+    Success(
+      KeyBLS(k.getSecretKey.toBytes().toArray(),k.getPublicKey.toBytesCompressed().toArray())
+    )
   }
 
   def sign(sk:SK,m:String):Array[Byte] =  sign(sk,m.getBytes)

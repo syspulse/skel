@@ -18,7 +18,7 @@ class ShamirKeysFlowSpec extends AnyWordSpec with Matchers with TestData {
   "ShamirKeysFlowSpec" should {
     
     "generate 5 shares of PrivateKey and sign with first-3 and verify with last-3" in {
-      val k1 = Eth2.generate(bsk1)
+      val k1 = Eth2.generate(bsk1).get
       val s1 = SSS.createShares(k1.sk,3,5)
       s1 shouldBe a [Success[_]]
       s1.get.size === (5)

@@ -8,13 +8,16 @@ import com.typesafe.scalalogging.Logger
 import scopt.OParser
 import io.syspulse.skel.crypto.Eth
 import io.syspulse.skel.crypto.Eth2
+import scala.util.Success
+import scala.util.Try
+import io.syspulse.skel.crypto.KeyPair
 
 case class Config(
   keystoreFile:String="",
   keystorePass:String="",
   keystoreMnemo:String="",
   keystoreType:String="eth1",
-  cmd:Seq[String] = Seq()
+  cmd:String = ""
 )
 
 object AppKeystore extends {
@@ -32,9 +35,11 @@ object AppKeystore extends {
       new ConfigurationArgs(args,"tool-keystore","",
         ArgString('w', "keystore.file","Wallet File (def: keystore.json)"),
         ArgString('p', "keystore.pass","Wallet Password (def: test123)"),
-        ArgString('p', "keystore.mnemo","Mnemonic (for creating keystore)"),
+        ArgString('m', "keystore.mnemo","Mnemo or PrivateKey (starts with 0x)"),
         ArgString('t', "keystore.type","Wallet type (def: eth1)"),
-        ArgParam("<cmd>","commands ('write','read') (def: write)")
+        ArgCmd("read","read command"),
+        ArgCmd("write","write command"),
+        ArgParam("<params>","...")
       )
     ))
     
@@ -43,33 +48,50 @@ object AppKeystore extends {
       keystorePass = c.getString("keystore.pass").getOrElse("test123"),
       keystoreType = c.getString("keystore.type").getOrElse("eth1"),
       keystoreMnemo = c.getString("keystore.mnemo").getOrElse(""),
-      cmd = c.getParams()
+      cmd = c.getCmd().getOrElse("read")
     )
 
-    config.cmd.headOption.getOrElse("write").toLowerCase() match {
+    println(s"config=${config}")
+
+    config.cmd match {
       case "write" => 
         config.keystoreType.toLowerCase match {
           case "eth1" => { 
-            val (sk,pk) = if(config.keystoreMnemo.isBlank) Eth.generateRandom() else {
-              val k = Eth.generateFromMnemo(config.keystoreMnemo)
-              if(k.isFailure) {
-                Console.err.println(s"Could not generate BLS: ${k}")
-                System.exit(1);
-              }
-              k.get
+            val ecdsa:Try[KeyPair] = {
+              if(config.keystoreMnemo.isBlank) 
+                Eth.generateRandom() 
+              else if(config.keystoreMnemo.trim.startsWith("0x")) 
+                Eth.generate(config.keystoreMnemo.trim)
+              else
+                Eth.generateFromMnemo(config.keystoreMnemo)
             }
-            val addr = Eth.address(pk)
-            Console.println(s"${Util.hex(sk)},${Util.hex(pk)},${addr}")
-            val f = Eth.writeKeystore(sk,pk,config.keystorePass,config.keystoreFile)
-            Console.println(s"result: ${f}")
+            if(ecdsa.isFailure) {
+              Console.err.println(s"Could not generate ECDSA: ${ecdsa}")
+              System.exit(1);
+            }
+
+            val kp = ecdsa.get
+
+            val addr = Eth.address(kp.pk)
+            Console.println(s"${kp},${addr}")
+            val f = Eth.writeKeystore(kp.sk,kp.pk,config.keystorePass,config.keystoreFile)
+            Console.println(s"eth1: ${f}")
           }
 
           case "eth2" => {
-            val bls = Eth2.generateRandom()
+            val bls = {
+              if(config.keystoreMnemo.isBlank) 
+              Eth2.generateRandom() 
+              else  if(config.keystoreMnemo.trim.startsWith("0x")) 
+                Eth2.generate(Util.fromHexString(config.keystoreMnemo.trim))
+              else
+                Eth2.generate(config.keystoreMnemo.trim)
+            }.get
+          
             val addr = Eth.address(bls.pk)
             Console.println(s"${Util.hex(bls.sk)},${Util.hex(bls.pk)},${addr}")
             val f = Eth2.writeKeystore(bls.sk,bls.pk,config.keystorePass,config.keystoreFile)
-            Console.println(s"result: ${f}")
+            Console.println(s"eth2: ${f}")
           }
 
           case _ => {
@@ -79,13 +101,13 @@ object AppKeystore extends {
       case "read" => 
         config.keystoreType.toLowerCase match {
           case "eth1" => { 
-            val k = Eth.readKeystore(config.keystorePass,config.keystoreFile)
-            Console.println(s"result: ${k}")
+            val kp = Eth.readKeystore(config.keystorePass,config.keystoreFile)
+            Console.println(s"eth1: ${kp}")
           }
 
           case "eth2" => {
-            val k= Eth2.readKeystore(config.keystorePass,config.keystoreFile)
-            Console.println(s"result: ${k}")
+            val kp = Eth2.readKeystore(config.keystorePass,config.keystoreFile)
+            Console.println(s"eth2: ${kp}")
           }
 
           case _ => {

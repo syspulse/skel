@@ -50,11 +50,11 @@ class EthSigSpec extends AnyWordSpec with Matchers with TestData {
       Range(1,100).map(i => 
           Eth.generate(
             Util.hex(BigInt(Util.generateRandom()).toByteArray)
-          )
+          ).get
         )
         .foreach( k => {
-          val sig = Eth.sign("message",k._1)
-          val v = Eth.verify("message",sig,k._2)
+          val sig = Eth.sign("message",k.sk)
+          val v = Eth.verify("message",sig,k.pk)
           //info(s"sk=${k._1}, pk=${k._2}")
           v should === (true)
         })

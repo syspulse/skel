@@ -59,15 +59,17 @@ object Eth {
     (sk,pk) 
   }
   
-  def generate(sk:String):(SK,PK) = { 
+  def generate(sk:String):Try[KeyPair] = { 
     val kk = ECKeyPair.create(Numeric.hexStringToByteArray(sk))
-    normalize(kk)
+    val nkk = normalize(kk)
+    Success(KeyECDSA(nkk._1,nkk._2))
   }
 
   // generate random
-  def generateRandom():(SK,PK) = { 
+  def generateRandom():Try[KeyPair] = { 
     val kk = Keys.createEcKeyPair(); 
-    normalize(kk)
+    val nkk = normalize(kk)
+    Success(KeyECDSA(nkk._1,nkk._2))
   }
 
   // derive new Secure Keys from PrivateKey
@@ -131,11 +133,11 @@ object Eth {
   }
 
   // return (SK,PK)
-  def readKeystore(keystorePass:String,keystoreFile:String):Try[(SK,PK)] = {
+  def readKeystore(keystorePass:String,keystoreFile:String):Try[KeyPair] = {
     try {
       val c = WalletUtils.loadCredentials(keystorePass, keystoreFile)
       // I have no idea why web3j adds extra 00 to make PK 65 bytes !?
-      Success(c.getEcKeyPair().getPrivateKey().toByteArray,c.getEcKeyPair().getPublicKey().toByteArray.takeRight(64))
+      Success(KeyECDSA(c.getEcKeyPair().getPrivateKey().toByteArray,c.getEcKeyPair().getPublicKey().toByteArray.takeRight(64)))
     }catch {
       case e:Exception => Failure(e)
     }
@@ -161,17 +163,17 @@ object Eth {
     }
   }
 
-  def generateFromMnemo(mnemonic:String,mnemoPass:String = null):Try[(SK,PK)] = {
+  def generateFromMnemo(mnemonic:String,mnemoPass:String = null):Try[KeyPair] = {
     try {
       val c = WalletUtils.loadBip39Credentials(mnemoPass, mnemonic)
       // I have no idea why web3j adds extra 00 to make PK 65 bytes !?
-      Success((c.getEcKeyPair().getPrivateKey().toByteArray,c.getEcKeyPair().getPublicKey().toByteArray.takeRight(64)))
+      Success(KeyECDSA(c.getEcKeyPair().getPrivateKey().toByteArray,c.getEcKeyPair().getPublicKey().toByteArray.takeRight(64)))
     }catch {
       case e:Exception => Failure(e)
     }
   }
 
-  def generateFromMnemoPath(mnemonic:String,derivation:String, mnemoPass:String = null):Try[(SK,PK)] = {
+  def generateFromMnemoPath(mnemonic:String,derivation:String, mnemoPass:String = null):Try[KeyPair] = {
     // def   m/44'/60'/0'/1
     //       m/44'/60'/0'/0
     val ss = derivation.split("/")
@@ -198,7 +200,7 @@ object Eth {
 
       val c = Credentials.create(derived)
       // I have no idea why web3j adds extra 00 to make PK 65 bytes !?
-      Success((c.getEcKeyPair().getPrivateKey().toByteArray,c.getEcKeyPair().getPublicKey().toByteArray.takeRight(64)))
+      Success(KeyECDSA(c.getEcKeyPair().getPrivateKey().toByteArray,c.getEcKeyPair().getPublicKey().toByteArray.takeRight(64)))
     }
     catch {
       case e:Exception => Failure(e)

@@ -122,7 +122,7 @@ trait VaultKeyfiles extends WalletVaultable {
 
         val kk = Eth.readKeystore(pass.get,fileName.toString)
         val ss = kk match {
-          case Success(s) => log.info(s"${fileName}: ${uid}: ${kk}"); Success(uid -> List(Signer(uid,s._1,s._2))) 
+          case Success(s) => log.info(s"${fileName}: ${uid}: ${kk}"); Success(uid -> List(Signer(uid,s.sk,s.pk))) 
           case Failure(e) => log.warn(s"${fileName}: ${uid}: ${kk}"); Failure(e)
         }
         ss.toOption

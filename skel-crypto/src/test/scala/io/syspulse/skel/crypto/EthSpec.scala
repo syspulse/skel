@@ -21,9 +21,9 @@ class EthSpec extends AnyWordSpec with Matchers with TestData {
 
     "generate random" ignore {
       Range(1,3).map(i => 
-          Eth.generateRandom()
+          Eth.generateRandom().get
         )
-        .foreach{ case (sk,pk) => {
+        .foreach{ case KeyECDSA(sk,pk) => {
           val a = Eth.address(pk)
           info(s"sk = ${sk}, pk = ${pk}, a = ${a}")
           sk should !== (null)
@@ -46,7 +46,7 @@ class EthSpec extends AnyWordSpec with Matchers with TestData {
     
 
     "read keystore keystore-1.json" in {
-      val kk = Eth.readKeystore("test123",testDir+"/keystore-1.json").map(k => (Util.hex(k._1),Util.hex(k._2)))
+      val kk = Eth.readKeystore("test123",testDir+"/keystore-1.json").map(kp => (Util.hex(kp.sk),Util.hex(kp.pk)))
       kk should === (Success("0x02","0xc6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee51ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a"))
     }
 
@@ -56,12 +56,12 @@ class EthSpec extends AnyWordSpec with Matchers with TestData {
     }
 
     "read mnemonic correctly" in {
-      val kk = Eth.generateFromMnemo("candy maple cake sugar pudding cream honey rich smooth crumble sweet treat").map(k => (Util.hex(k._1),Util.hex(k._2)))
+      val kk = Eth.generateFromMnemo("candy maple cake sugar pudding cream honey rich smooth crumble sweet treat").map(kp => (Util.hex(kp.sk),Util.hex(kp.pk)))
       kk should === (Success(("0x00d1a662526ba15b1147fcd2566ca55f7227451f9a88e83018e8a1948039856a7e","0x306e93a1bd660e6b49de5b6d8522ea2163cb7e8eb96c66f0b13d18d6cc889b3f99f28807536f0e08e392cca56354ef4965343eca2f87ea919339475235ee719e")))
     }
 
     "read mnemonic correctly with derivation path m/44'/60'/0'/0" in {
-      val kk = Eth.generateFromMnemoPath("candy maple cake sugar pudding cream honey rich smooth crumble sweet treat","m/44'/60'/0'/0").map(k => (Util.hex(k._1),Util.hex(k._2)))
+      val kk = Eth.generateFromMnemoPath("candy maple cake sugar pudding cream honey rich smooth crumble sweet treat","m/44'/60'/0'/0").map(kp => (Util.hex(kp.sk),Util.hex(kp.pk)))
       kk should === (Success("0x00c87509a1c067bbde78beb793e6fa76530b6382a4c0241e5e4a9ec0a0f44dc0d3","0xaf80b90d25145da28c583359beb47b21796b2fe1a23c1511e443e7a64dfdb27d7434c380f0aa4c500e220aa1a9d068514b1ff4d5019e624e7ba1efe82b340a59"))
     }
   }
