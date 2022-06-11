@@ -58,6 +58,12 @@ class UtilSpec extends AnyWordSpec with Matchers {
       s should === ("file-%d-%02d-%02d_%02d:%02d:%02d-suffix.log".format(t.getYear,t.getMonthValue,t.getDayOfMonth,t.getHour,t.getMinute,t.getSecond))
     }
 
+    "convert '/dir/year={yyyy}/month={MM}/day={dd}' to Hive path" in {
+      val s = Util.toFileWithTime("/dir/year={yyyy}/month={MM}/day={dd}")
+      val t = LocalDateTime.now
+      s should === ("/dir/year=%d/month=%02d/day=%02d".format(t.getYear,t.getMonthValue,t.getDayOfMonth))
+    }
+
     "produce 5,100000000000,Text,7.13 for case class" in {
       case class Data(i:Int,l:Long,s:String,d:Double)
       val c = Data(5,100000000000L,"Text",7.13)

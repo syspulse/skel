@@ -37,7 +37,7 @@ object App extends skel.Server {
         ArgString('h', "http.host","listen host (def: 0.0.0.0)"),
         ArgInt('p', "http.port","listern port (def: 8080)"),
         ArgString('u', "http.uri","api uri (def: /api/v1/otp)"),
-        ArgString('d', "datastore","datastore [mysql,postgres,mem|cache] (def: cache)"),
+        ArgString('d', "datastore","datastore [mysql,postgres,mem,cache] (def: mem)"),
         ArgCmd("server","Command"),
         ArgCmd("client","Command"),
         ArgParam("<params>","")
@@ -48,7 +48,7 @@ object App extends skel.Server {
       host = c.getString("http.host").getOrElse("0.0.0.0"),
       port = c.getInt("http.port").getOrElse(8080),
       uri = c.getString("http.uri").getOrElse("/api/v1/otp"),
-      datastore = c.getString("datastore").getOrElse("cache"),
+      datastore = c.getString("datastore").getOrElse("mem"),
       cmd = c.getCmd().getOrElse("server"),
       params = c.getParams(),
     )
