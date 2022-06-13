@@ -7,6 +7,8 @@ Global / onChangedBuildSource := ReloadOnSourceChanges
 
 Test / parallelExecution := true
 
+licenses := Seq(("ASF2", url("https://www.apache.org/licenses/LICENSE-2.0")))
+
 initialize ~= { _ =>
   System.setProperty("config.file", "conf/application.conf")
 }
