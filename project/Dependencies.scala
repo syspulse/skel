@@ -75,7 +75,7 @@ object Dependencies {
 
     val libAkkaPersistence ="com.typesafe.akka"           %% "akka-persistence-typed"         % akkaVersion
     val libAkkaSerJackon =  "com.typesafe.akka"           %% "akka-serialization-jackson"     % akkaVersion
-    val libAkkaSerProtobuf ="com.typesafe.akka"           %% "akka-serialization-protobuf"    % akkaVersion
+    //val libAkkaSerProtobuf ="com.typesafe.akka"           %% "akka-serialization-protobuf"    % akkaVersion
 
     val libAlpakkaInfluxDB ="com.lightbend.akka"          %% "akka-stream-alpakka-influxdb"       % alpakkaVersion
     val libAlpakkaCassandra="com.lightbend.akka"          %% "akka-stream-alpakka-cassandra"      % alpakkaVersion //"2.0.2"

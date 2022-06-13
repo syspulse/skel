@@ -734,10 +734,10 @@ lazy val enroll = (project in file("skel-enroll"))
     //sharedConfigDocker,
     //dockerBuildxSettings,
 
-    // appDockerConfig("skel-enroll","io.syspulse.skel.enroll.Enrollment"),
+    // appDockerConfig("skel-enroll","io.syspulse.skel.enroll.App"),
 
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
       libAkkaPersistence,
-      libAkkaSerJackon
+      //libAkkaSerJackon
     ),
   )
