@@ -235,7 +235,7 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 lazy val root = (project in file("."))
   .aggregate(core, serde, cron, video, skel_test, http, auth, user, kafka, ingest, otp, crypto, flow, dsl)
-  .dependsOn(core, serde, cron, video, skel_test, http, auth, user, kafka, ingest, otp, crypto, flow, dsl, scrap, demo_ekm, demo_npp, demo_twit)
+  .dependsOn(core, serde, cron, video, skel_test, http, auth, user, kafka, ingest, otp, crypto, flow, dsl, scrap, enroll, demo_ekm, demo_npp, demo_twit)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -718,5 +718,26 @@ lazy val spark_convert = (project in file("skel-spark/spark-convert"))
 
     libraryDependencies ++= libSparkAWS ++ Seq(
       
+    ),
+  )
+
+lazy val enroll = (project in file("skel-enroll"))
+  .dependsOn(core,skel_test % Test)
+  .enablePlugins(JavaAppPackaging)
+  //.enablePlugins(DockerPlugin)
+  //.enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    name := "skel-enroll",
+    //sharedConfigAssembly,
+    //sharedConfigDocker,
+    //dockerBuildxSettings,
+
+    // appDockerConfig("skel-enroll","io.syspulse.skel.enroll.Enrollment"),
+
+    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
+      libAkkaPersistence,
+      libAkkaSerJackon
     ),
   )

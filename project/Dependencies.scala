@@ -73,6 +73,10 @@ object Dependencies {
     val libAkkaHttpSpray =  "com.typesafe.akka"           %% "akka-http-spray-json" % akkaHttpVersion
     val libAkkaStream =     "com.typesafe.akka"           %% "akka-stream"          % akkaVersion
 
+    val libAkkaPersistence ="com.typesafe.akka"           %% "akka-persistence-typed"         % akkaVersion
+    val libAkkaSerJackon =  "com.typesafe.akka"           %% "akka-serialization-jackson"     % akkaVersion
+    val libAkkaSerProtobuf ="com.typesafe.akka"           %% "akka-serialization-protobuf"    % akkaVersion
+
     val libAlpakkaInfluxDB ="com.lightbend.akka"          %% "akka-stream-alpakka-influxdb"       % alpakkaVersion
     val libAlpakkaCassandra="com.lightbend.akka"          %% "akka-stream-alpakka-cassandra"      % alpakkaVersion //"2.0.2"
     val libAlpakkaDynamo=   "com.lightbend.akka"          %% "akka-stream-alpakka-dynamodb"       % alpakkaVersion
