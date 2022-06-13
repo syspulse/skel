@@ -60,6 +60,23 @@ class EthSpec extends AnyWordSpec with Matchers with TestData {
       kk should === (Success(("0x00d1a662526ba15b1147fcd2566ca55f7227451f9a88e83018e8a1948039856a7e","0x306e93a1bd660e6b49de5b6d8522ea2163cb7e8eb96c66f0b13d18d6cc889b3f99f28807536f0e08e392cca56354ef4965343eca2f87ea919339475235ee719e")))
     }
 
+    // Generally I would recommend that if you are storing it, that you actually use the compressed format, 
+    // which begins with 0x02 or 0x03 and is a total of 33 bytes long. You can use the computePublicKey(publicKey, true) 
+    // to get the compressed key. The key can then be uncompressed using computePublicKey(publicKey). 
+    // This works because a public key is just a point on the elliptic curve, which has two y values for any given x (more of less), 
+    // so the compressed key is just the x coordinate and the 0x02 or 0x03 prefix specify whether to take the positive or negative y.
+    "match ethers mnemonic" in {
+      val kk = Eth.generateFromMnemoPath("announce room limb pattern dry unit scale effort smooth jazz weasel alcohol","m/44'/60'/0'/0").map(kp => (Util.hex(kp.sk),Util.hex(kp.pk)))
+      
+      // leading 0x04 !
+      val ethersPrivateKey = h"0x1da6847600b0ee25e9ad9a52abbd786dd2502fa4005dd5af9310b7cc7a3b25db"
+      val ethersPublicKey = h"0x04b9e72dfd423bcf95b3801ac93f4392be5ff22143f9980eb78b3a860c4843bfd04829ae61cdba4b3b1978ac5fc64f5cc2f4350e35a108a9c9a92a81200a60cd64"
+      
+      kk should === (Success((
+        Util.hex(ethersPrivateKey),
+        Util.hex(ethersPublicKey.drop(1)))))
+    }
+
     "read mnemonic correctly with derivation path m/44'/60'/0'/0" in {
       val kk = Eth.generateFromMnemoPath("candy maple cake sugar pudding cream honey rich smooth crumble sweet treat","m/44'/60'/0'/0").map(kp => (Util.hex(kp.sk),Util.hex(kp.pk)))
       kk should === (Success("0x00c87509a1c067bbde78beb793e6fa76530b6382a4c0241e5e4a9ec0a0f44dc0d3","0xaf80b90d25145da28c583359beb47b21796b2fe1a23c1511e443e7a64dfdb27d7434c380f0aa4c500e220aa1a9d068514b1ff4d5019e624e7ba1efe82b340a59"))
