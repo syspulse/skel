@@ -34,6 +34,7 @@ object PK {
 case class SignatureEth(r:Array[Byte],s:Array[Byte],v:Int) {
   def getV():Array[Byte] = Array(v.toByte)
   def toArray():Array[Byte] = r ++ s ++ getV()
+  def isValid() = r.size == 32 && s.size == 32 && (v == 27 || v == 28)
   override def toString = s"Signature(${Util.hex(r)},${Util.hex(s)},${v})"
 }
 object SignatureEth {

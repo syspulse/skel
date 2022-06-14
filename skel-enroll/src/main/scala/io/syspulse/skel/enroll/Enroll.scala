@@ -17,6 +17,7 @@ import io.jvm.uuid._
 import io.syspulse.skel.crypto.key.{PK,Signature}
 import io.syspulse.skel.crypto.Eth
 import io.syspulse.skel.util.Util
+import io.syspulse.skel.crypto.SignatureEth
 
 case class User(uid:UUID,email:String)
 
@@ -44,14 +45,14 @@ object Enroll {
   final case class Summary(
     eid:UUID, 
     phase:String, 
-    email:Option[String], pk:Option[String], sig:Option[Signature],
+    email:Option[String], addr:Option[String], sig:Option[Signature],
     tsStart:Long, tsPhase:Long, 
     finished: Boolean, 
     confirmToken:Option[String]) extends CborSerializable
 
   final case class State(eid:UUID, phase:String = "START", 
     email:Option[String] = None, 
-    pk:Option[String] = None, sig:Option[Signature] = None,
+    pk:Option[String] = None, sig:Option[String] = None,
     uid:Option[UUID] = None,
     tsStart:Long = System.currentTimeMillis, 
     tsPhase:Long = System.currentTimeMillis,
@@ -67,8 +68,8 @@ object Enroll {
       copy(phase = "CONFIRM_EMAIL", email = Some(email),tsPhase=System.currentTimeMillis(),confirmToken=Some(token))
     def confirmEmail(): State = 
       copy(phase = "EMAIL_CONFIRMED",tsPhase=System.currentTimeMillis(),confirmToken=None)
-    def addPublicKey(pk:PK,sig:Signature): State = 
-      copy(phase = "PK_CONFIRMED", pk = Some(Util.hex(pk)), sig = Some(sig), tsPhase=System.currentTimeMillis())
+    def addPublicKey(pk:PK,sig:SignatureEth): State = 
+      copy(phase = "PK_CONFIRMED", pk = Some(Util.hex(pk)), sig = Some(Util.hex(sig.toArray())), tsPhase=System.currentTimeMillis())
     def createUser(uid:UUID): State = 
       copy(phase = "USER_CREATED", uid=Some(uid), tsPhase=System.currentTimeMillis())
     
@@ -76,7 +77,7 @@ object Enroll {
 
     def addData(k: String, v:String): State = copy(data = data + (k -> v))
     
-    def toSummary: Summary = Summary(eid,phase, email,pk,sig, tsStart,tsPhase,finished,confirmToken)
+    def toSummary: Summary = Summary(eid,phase, email, pk.map(Eth.address(_)), sig, tsStart,tsPhase,finished,confirmToken)
   }
 
   object State {
@@ -87,7 +88,7 @@ object Enroll {
 
   final case class AddEmail(email: String, replyTo: ActorRef[StatusReply[Summary]]) extends Command
   final case class ConfirmEmail(token: String, replyTo: ActorRef[StatusReply[Summary]]) extends Command
-  final case class AddPublicKey(pk: PK, sig:Signature, replyTo: ActorRef[StatusReply[Summary]]) extends Command
+  final case class AddPublicKey(sig:SignatureEth, replyTo: ActorRef[StatusReply[Summary]]) extends Command
   final case class CreateUser(replyTo: ActorRef[StatusReply[Summary]]) extends Command
   final case class Finish(replyTo: ActorRef[StatusReply[Summary]]) extends Command
 
@@ -101,7 +102,7 @@ object Enroll {
   final case class EmailAdded(eid:UUID, email: String, confirmToken:String) extends Event
   final case class EmailConfirmed(eid:UUID) extends Event
 
-  final case class PublicKeyAdded(eid:UUID, pk: PK, sig:Signature) extends Event
+  final case class PublicKeyAdded(eid:UUID, pk: PK, sig:SignatureEth) extends Event
   final case class UserCreated(eid:UUID, uid:UUID) extends Event
 
   //final case class ItemRemoved(cartId: String, itemId: String) extends Event
@@ -152,26 +153,22 @@ object Enroll {
           .persist(EmailConfirmed(eid))
           .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
         
-      case AddPublicKey(pk, sig, replyTo) =>
-        if (pk.size == 0) {
-          replyTo ! StatusReply.Error(s"${eid}: Invalid PK: '$pk'")
-          return Effect.none
-        }
-        if (sig.isBlank) {
+      case AddPublicKey(sig, replyTo) =>
+        if (!sig.isValid()) {
           replyTo ! StatusReply.Error(s"${eid}: Invalid Sig: '$sig'")
           return Effect.none
         }
 
         val data = generateSigData(eid,state.email.get)
-        val v = Eth.verify(data,sig,pk)
+        val pk = Eth.recoverMetamask(data,sig)
 
-        if(!v) {
-          replyTo ! StatusReply.Error(s"${eid}: Signature not verified: '$sig': data=${data}")
+        if(pk.isFailure) {
+          replyTo ! StatusReply.Error(s"${eid}: Signature: '$sig': ${pk}")
           return Effect.none
         }
         
         Effect
-          .persist(PublicKeyAdded(eid, pk, sig))
+          .persist(PublicKeyAdded(eid, pk.get, sig))
           .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
 
       case CreateUser(replyTo) =>

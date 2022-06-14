@@ -7,6 +7,7 @@ import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.pattern.StatusReply
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto._
 
 class EnrollSpec extends ScalaTestWithActorTestKit(s"""
@@ -73,102 +74,19 @@ class EnrollSpec extends ScalaTestWithActorTestKit(s"""
       info(s"r1=${r1}")
 
       val kk = Eth.generate("0x01").get
+      val addr = Eth.address(kk.pk)
       val d1 = Enroll.generateSigData(id1,"user-1@domain.com")
-      val pk = kk.pk
-      val sig = Eth.sign(d1,kk.sk)
-      a1 ! Enroll.AddPublicKey(kk.pk, sig ,probe.ref)
+      val sig = Eth.signMetamask(d1,kk)
+      a1 ! Enroll.AddPublicKey(sig , probe.ref)
       
       val r2 = probe.receiveMessage()
       info(s"r2=${r2}")
+      val sigData = Util.hex(sig.toArray())
       r2 should matchPattern { 
-        case StatusReply.Success(Enroll.Summary(id1,"PK_CONFIRMED",Some("user-1@domain.com"),Some(pk),Some(sig),_,_,false,_)) => }
+        case StatusReply.Success(Enroll.Summary(id1,"PK_CONFIRMED",Some("user-1@domain.com"),Some(addr),Some(sigData),_,_,false,_)) => }
     }
 
-    // "reject already added item" in {
-    //   val enroll = testKit.spawn(Enroll(newenrollId()))
-    //   val probe = testKit.createTestProbe[StatusReply[Enroll.Summary]]
-    //   enroll ! Enroll.AddEmail("foo", 42, probe.ref)
-    //   probe.receiveMessage().isSuccess should === (true)
-    //   enroll ! Enroll.AddEmail("foo", 13, probe.ref)
-    //   probe.receiveMessage().isError should === (true)
-    // }
-
-    // "remove item" in {
-    //   val enroll = testKit.spawn(Enroll(newenrollId()))
-    //   val probe = testKit.createTestProbe[StatusReply[Enroll.Summary]]
-    //   enroll ! Enroll.AddEmail("foo", 42, probe.ref)
-    //   probe.receiveMessage().isSuccess should === (true)
-    //   enroll ! Enroll.RemoveItem("foo", probe.ref)
-    //   probe.expectMessage(StatusReply.Success(Enroll.Summary(Map.empty, checkedOut = false)))
-    // }
-
-    // "adjust quantity" in {
-    //   val enroll = testKit.spawn(Enroll(newenrollId()))
-    //   val probe = testKit.createTestProbe[StatusReply[Enroll.Summary]]
-    //   enroll ! Enroll.AddEmail("foo", 42, probe.ref)
-    //   probe.receiveMessage().isSuccess should === (true)
-    //   enroll ! Enroll.AdjustItemQuantity("foo", 43, probe.ref)
-    //   probe.expectMessage(StatusReply.Success(Enroll.Summary(Map("foo" -> 43), checkedOut = false)))
-    // }
-
-    // "checkout" in {
-    //   val enroll = testKit.spawn(Enroll(newenrollId()))
-    //   val probe = testKit.createTestProbe[StatusReply[Enroll.Summary]]
-    //   enroll ! Enroll.AddEmail("foo", 42, probe.ref)
-    //   probe.receiveMessage().isSuccess should === (true)
-    //   enroll ! Enroll.Checkout(probe.ref)
-    //   probe.expectMessage(StatusReply.Success(Enroll.Summary(Map("foo" -> 42), checkedOut = true)))
-
-    //   enroll ! Enroll.AddEmail("bar", 13, probe.ref)
-    //   probe.receiveMessage().isError should === (true)
-    // }
-
-    // "keep its state" in {
-    //   val enrollId = newenrollId()
-    //   val enroll = testKit.spawn(Enroll(enrollId))
-    //   val probe = testKit.createTestProbe[StatusReply[Enroll.Summary]]
-    //   enroll ! Enroll.AddEmail("foo", 42, probe.ref)
-    //   probe.expectMessage(StatusReply.Success(Enroll.Summary(Map("foo" -> 42), checkedOut = false)))
-
-    //   testKit.stop(enroll)
-
-    //   // start again with same enrollId
-    //   val restartedenroll = testKit.spawn(Enroll(enrollId))
-    //   val stateProbe = testKit.createTestProbe[Enroll.Summary]
-    //   restartedenroll ! Enroll.Get(stateProbe.ref)
-    //   stateProbe.expectMessage(Enroll.Summary(Map("foo" -> 42), checkedOut = false))
-    // }
-
-    // "start multiple times" in {
-    //   val enrollId = newenrollId()
-    //   info(s"enrollId=${enrollId}")
-
-    //   val enroll = testKit.spawn(Enroll(enrollId))
-    //   info(s"enroll=${enroll}")
-    //   val probe = testKit.createTestProbe[StatusReply[Enroll.Summary]]
-    //   enroll ! Enroll.AddEmail("foo", 42, probe.ref)
-    //   probe.expectMessage(StatusReply.Success(Enroll.Summary(Map("foo" -> 42), checkedOut = false)))
-
-    //   //testKit.stop(enroll)
-
-    //   // start again with same enrollId
-    //   val restartedenroll = testKit.spawn(Enroll(enrollId))
-    //   info(s"restartedenroll=${restartedenroll}")
-    //   val stateProbe = testKit.createTestProbe[Enroll.Summary]
-    //   restartedenroll ! Enroll.Get(stateProbe.ref)
-    //   stateProbe.expectMessage(Enroll.Summary(Map("foo" -> 42), checkedOut = false))
-
-
-    //   val stateProbe2 = testKit.createTestProbe[Enroll.Summary]
-    //   restartedenroll ! Enroll.Get(stateProbe2.ref)
-    //   stateProbe2.expectMessage(Enroll.Summary(Map("foo" -> 42), checkedOut = false))
-      
-
-    //   val stateProbe3 = testKit.createTestProbe[Enroll.Summary]
-    //   enroll ! Enroll.Get(stateProbe3.ref)
-    //   stateProbe3.expectMessage(Enroll.Summary(Map("foo" -> 42), checkedOut = false))
-    // }
-
+    
   }
 
 }

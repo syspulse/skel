@@ -102,7 +102,7 @@ class GoogleOAuth2(val redirectUri:String) extends Idp {
   }
 
   def decodeProfile(profileRsp:ByteString)(implicit mat:Materializer,ec: scala.concurrent.ExecutionContext):Future[OAuthProfile] = {
-    Unmarshal(profileRsp).to[GoogleProfile].map( p => OAuthProfile(p.id,p.name,p.email,p.picture,p.locale))
+    Unmarshal(profileRsp).to[GoogleProfile].map( p => OAuthProfile(p.id,p.email,p.name,p.picture,p.locale))
   }
 }
 

@@ -164,7 +164,7 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
         createAuth(auth)
       }
       authRes <- {
-        Future(AuthWithProfileRsp(db.auth.auid,db.auth.idToken,profile.email,profile.name,profile.picture,profile.locale))
+        Future(AuthWithProfileRsp(db.auth.auid, db.auth.idToken, profile.email, profile.name, profile.picture, profile.locale))
       }
     } yield authRes
     
