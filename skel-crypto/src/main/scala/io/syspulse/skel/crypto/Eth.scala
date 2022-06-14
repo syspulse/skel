@@ -17,22 +17,29 @@ import org.web3j.utils.{Numeric}
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto.key
 import java.io.File
+import org.apache.tuweni.bytes.Bytes32
+import org.web3j.abi.datatypes.generated.Uint8
+import org.web3j.crypto
+import java.nio.charset.StandardCharsets
 
 object Eth {
 
   import key._
   
   def presig(m:String):Array[Byte] = presig(m.getBytes())
-  def presig(m:Array[Byte]):Array[Byte] = {val p = "\u0019Ethereum Signed Message:\n" + m.size; Hash.keccak256((Numeric.hexStringToByteArray(p) ++ m).toArray)}
+  def presig(m:Array[Byte]):Array[Byte] = {
+    val p = "\u0019Ethereum Signed Message:\n" + m.size; 
+    Hash.keccak256((Numeric.hexStringToByteArray(p) ++ m).toArray)
+  }
   
-  def normalize(b0:Array[Byte],sz:Int):String = {
+  def normalize(b0:Array[Byte],sz:Int):Array[Byte] = {
     val b1:Array[Byte] = b0.size match {
       case _ if(b0.size == sz -1) => b0.toArray.+:(0)
       case `sz` => b0
       case _ if(b0.size == sz + 1)  => b0.drop(1)
       case _ => Array.fill(sz - b0.size)(0.toByte) ++ b0
     }
-    Util.hex(b1)
+    b1
   }
 
   def denormalize(sk:SK,pk:PK): ECKeyPair = {
@@ -126,7 +133,7 @@ object Eth {
         val r2 = Sign.recoverFromSignature(1,signature,h)
       
         //The right way is probably to migrate to signed BigInteger(1,r1.toByteArray)
-        normalize(r1.toByteArray,64) == pk || normalize(r2.toByteArray,64) == pk
+        Util.hex(normalize(r1.toByteArray,64)) == pk || Util.hex(normalize(r2.toByteArray,64)) == pk
     } catch {
       case e:Exception => false
     }
@@ -205,6 +212,34 @@ object Eth {
     catch {
       case e:Exception => Failure(e)
     }
+  }
+
+  def parseMetamaskSignatureData(sig:Array[Byte]):SignatureEth = {
+    var v = sig(64)
+    if (v < 27) {
+      v = (v.toInt + 27).toByte
+    }
+
+    val r = sig.take(32)
+    val s = sig.drop(32).take(32)
+    //new Sign.SignatureData(v, r, s)
+    SignatureEth(r,s,v)
+  }
+  
+  def signMetamask(msg:String,kp:KeyPair) = {
+    val ecKP = ECKeyPair.create(kp.sk)
+    val sig:Sign.SignatureData = Sign.signPrefixedMessage(msg.getBytes(), ecKP);
+    SignatureEth(sig.getR(),sig.getS(),sig.getV())
+  }
+
+  def recoverMetamask(msg:String,sigData:Array[Byte]):Try[PK] = {
+    recoverMetamask(msg,parseMetamaskSignatureData(sigData))
+  }
+
+  def recoverMetamask(msg:String,sig:SignatureEth):Try[PK] = {
+    val sigData:Sign.SignatureData = new Sign.SignatureData(sig.getV(),sig.r,sig.s)
+    val key = Sign.signedPrefixedMessageToKey(msg.getBytes(),sigData)
+    Success(Eth.normalize(key.toByteArray(),64))
   }
 
 }

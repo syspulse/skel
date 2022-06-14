@@ -15,9 +15,10 @@ import io.syspulse.skel.crypto.KeyPair
 case class Config(
   keystoreFile:String="",
   keystorePass:String="",
-  keystoreMnemo:String="",
+  keystoreSK:String="",
   keystoreType:String="eth1",
-  cmd:String = ""
+  cmd:String = "",
+  params:Seq[String] = Seq()
 )
 
 object AppKeystore extends {
@@ -35,10 +36,12 @@ object AppKeystore extends {
       new ConfigurationArgs(args,"tool-keystore","",
         ArgString('w', "keystore.file","Wallet File (def: keystore.json)"),
         ArgString('p', "keystore.pass","Wallet Password (def: test123)"),
-        ArgString('m', "keystore.mnemo","Mnemo or PrivateKey (starts with 0x)"),
+        ArgString('k', "keystore.key","Mnemo phase or PrivateKey (starts with 0x)"),
         ArgString('t', "keystore.type","Wallet type (def: eth1)"),
         ArgCmd("read","read command"),
         ArgCmd("write","write command"),
+        ArgCmd("sign","sign command"),
+        ArgCmd("recover","recover command"),
         ArgParam("<params>","...")
       )
     ))
@@ -47,8 +50,10 @@ object AppKeystore extends {
       keystoreFile = c.getString("keystore.file").getOrElse("keystore.json"),
       keystorePass = c.getString("keystore.pass").getOrElse("test123"),
       keystoreType = c.getString("keystore.type").getOrElse("eth1"),
-      keystoreMnemo = c.getString("keystore.mnemo").getOrElse(""),
-      cmd = c.getCmd().getOrElse("read")
+      keystoreSK = c.getString("keystore.key").getOrElse(""),
+      cmd = c.getCmd().getOrElse("read"),
+      params = c.getParams()
+
     )
 
     println(s"config=${config}")
@@ -58,12 +63,12 @@ object AppKeystore extends {
         config.keystoreType.toLowerCase match {
           case "eth1" => { 
             val ecdsa:Try[KeyPair] = {
-              if(config.keystoreMnemo.isBlank) 
+              if(config.keystoreSK.isBlank) 
                 Eth.generateRandom() 
-              else if(config.keystoreMnemo.trim.startsWith("0x")) 
-                Eth.generate(config.keystoreMnemo.trim)
+              else if(config.keystoreSK.trim.startsWith("0x")) 
+                Eth.generate(config.keystoreSK.trim)
               else
-                Eth.generateFromMnemo(config.keystoreMnemo)
+                Eth.generateFromMnemo(config.keystoreSK)
             }
             if(ecdsa.isFailure) {
               Console.err.println(s"Could not generate ECDSA: ${ecdsa}")
@@ -80,12 +85,12 @@ object AppKeystore extends {
 
           case "eth2" => {
             val bls = {
-              if(config.keystoreMnemo.isBlank) 
+              if(config.keystoreSK.isBlank) 
               Eth2.generateRandom() 
-              else  if(config.keystoreMnemo.trim.startsWith("0x")) 
-                Eth2.generate(Util.fromHexString(config.keystoreMnemo.trim))
+              else  if(config.keystoreSK.trim.startsWith("0x")) 
+                Eth2.generate(Util.fromHexString(config.keystoreSK.trim))
               else
-                Eth2.generate(config.keystoreMnemo.trim)
+                Eth2.generate(config.keystoreSK.trim)
             }.get
           
             val addr = Eth.address(bls.pk)
@@ -113,7 +118,75 @@ object AppKeystore extends {
           case _ => {
             Console.err.println(s"Unknown type: ${config.keystoreType}")
           }
-        }        
+        }
+      case "sign" => 
+        config.keystoreType.toLowerCase match {
+          case "eth1" => { 
+            val kp = Eth.readKeystore(config.keystorePass,config.keystoreFile)
+            if(kp.isFailure) {
+              Console.println(s"eth1: sign: ${kp}")
+              System.exit(1)              
+            }
+            val msg = config.params.mkString(" ")
+            val sig = Eth.signMetamask(msg,kp.get)
+            Console.println(s"eth1: sk = ${Util.hex(kp.get.sk)}\n sign(${msg})\n sig = ${sig}\n ${Util.hex(sig.toArray())}")
+          }
+
+          case "eth2" => {
+            val kp = Eth2.readKeystore(config.keystorePass,config.keystoreFile)
+            if(kp.isFailure) {
+              Console.println(s"eth1: sign: ${kp}")
+              System.exit(1)              
+            }
+            
+            val msg = config.params.mkString(" ")            
+            val sig = Eth2.sign(kp.get.sk,msg)
+
+            Console.println(s"eth2: sk = ${Util.hex(kp.get.sk)}\n sign(${msg})\n sig = ${Util.hex(sig)}")
+          }
+
+          case _ => {
+            Console.err.println(s"Unknown type: ${config.keystoreType}")
+          }
+        }
+      case "recover" => 
+        config.keystoreType.toLowerCase match {
+          case "eth1" => { 
+            val kp = Eth.readKeystore(config.keystorePass,config.keystoreFile)
+            if(kp.isFailure) {
+              Console.println(s"eth1: recover: ${kp}")
+              System.exit(1)              
+            }
+
+            val sig = config.params.head
+            val msg = config.params.tail.mkString(" ")
+            
+            val pk = Eth.recoverMetamask(msg,Util.fromHexString(sig))
+            if(pk.isFailure) {
+              Console.println(s"eth1: recover(${msg},${sig}}): ${pk}")
+              System.exit(1)
+            }
+            Console.println(s"eth1: recover(${msg},${sig}})\n pk = ${Util.hex(pk.get)}\n addr = ${Eth.address(pk.get)}")
+          }
+
+          case "eth2" => {
+            val kp = Eth2.readKeystore(config.keystorePass,config.keystoreFile)
+            if(kp.isFailure) {
+              Console.println(s"eth1: sign: ${kp}")
+              System.exit(1)              
+            }
+            
+            val sig = config.params.head
+            val msg = config.params.tail.mkString(" ")
+            //val pk = Eth2.recover(msg,Util.fromHexString(sig))
+
+            //Console.println(s"eth2: sk=${Util.hex(kp.get.sk)}: sign(${msg}): ${sig}")
+          }
+
+          case _ => {
+            Console.err.println(s"Unknown type: ${config.keystoreType}")
+          }
+        }
     }
     
   }

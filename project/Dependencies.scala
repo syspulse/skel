@@ -145,8 +145,10 @@ object Dependencies {
     val libKuroOtp =        "com.ejisan"                    %% "kuro-otp"           % "0.0.4-SNAPSHOT"
     val libQR =             "net.glxn"                      % "qrgen"               % "1.4"
 
-    val libWeb3jCrypto =    "org.web3j"                     % "crypto"              % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
-    val libWeb3jCore =      "org.web3j"                     % "core"                % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
+    // val libWeb3jCrypto =    "org.web3j"                     % "crypto"              % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
+    // val libWeb3jCore =      "org.web3j"                     % "core"                % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
+    val libWeb3jCrypto =    "org.web3j"                     % "crypto"              % "4.9.2" exclude("org.bouncycastle", "bcprov-jdk15on")
+    val libWeb3jCore =      "org.web3j"                     % "core"                % "4.9.2" exclude("org.bouncycastle", "bcprov-jdk15on")
     
     //web3j depends on "1.65"
     val libBouncyCastle =   "org.bouncycastle"              % "bcprov-jdk15on"      % "1.70" //"1.69" 

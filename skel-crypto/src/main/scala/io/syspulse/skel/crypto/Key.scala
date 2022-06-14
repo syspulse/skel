@@ -31,4 +31,15 @@ object PK {
   def apply(pk:String) = Numeric.hexStringToByteArray(pk)
 }
 
+case class SignatureEth(r:Array[Byte],s:Array[Byte],v:Int) {
+  def getV():Array[Byte] = Array(v.toByte)
+  def toArray():Array[Byte] = r ++ s ++ getV()
+  override def toString = s"Signature(${Util.hex(r)},${Util.hex(s)},${v})"
+}
+object SignatureEth {
+  def apply(r:Array[Byte],s:Array[Byte],v:Array[Byte]):SignatureEth = {
+    new SignatureEth(r,s,v.head.toInt)
+  }
+  def apply(sig:Array[Byte]):SignatureEth = Eth.parseMetamaskSignatureData(sig)
+}
 
