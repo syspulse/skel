@@ -1,7 +1,7 @@
 package io.syspulse.skel
 
 import scala.concurrent.duration._
-import akka.actor.ActorContext
+import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.scaladsl
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.ActorRef
@@ -140,7 +140,7 @@ trait Server {
   }
 
   def run(host:String, port:Int, uri:String, configuration:Configuration,
-          app:Seq[(Behavior[Command],String,(ActorRef[Command],ActorSystem[_])=>Routeable)]
+          app:Seq[(Behavior[Command],String,(ActorRef[Command],scaladsl.ActorContext[_])=>Routeable)]
           ): Unit = {
     
     val httpBehavior = Behaviors.setup[Nothing] { context =>
@@ -164,7 +164,7 @@ trait Server {
 
           val actor:ActorRef[Command] = context.spawn(survivingBehavior, s"Actor-${name}")
           context.watch(actor)
-          routeFun(actor,context.system) 
+          routeFun(actor,context) 
         }
       }
       val appRoutes:Seq[Route] = appServices.map(r => r.routes)

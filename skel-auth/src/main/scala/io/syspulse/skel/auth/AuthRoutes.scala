@@ -10,8 +10,11 @@ import akka.http.scaladsl.server.{ Directive, Directive1 }
 import akka.http.scaladsl.server.directives.Credentials
 
 import scala.concurrent.Future
+import akka.actor.TypedActor
+import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.ActorRef
 import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.util.Timeout
 import com.typesafe.scalalogging.Logger
@@ -38,7 +41,8 @@ import akka.http.scaladsl.model.FormData
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.AuthRegistry._
 import io.syspulse.skel.service.Routeable
-import io.syspulse.skel.auth.oauth2.{ OAuthProfile, GoogleOAuth2, TwitterOAuth2, ProxyM2MAuth}
+import io.syspulse.skel.auth.oauth2.{ OAuthProfile, GoogleOAuth2, TwitterOAuth2, ProxyM2MAuth, EthProfile}
+import io.syspulse.skel.auth.oauth2.EthTokenReq
 import akka.http.scaladsl.model.HttpHeader
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.headers.OAuth2BearerToken
@@ -54,6 +58,12 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.auth.oauth2.EthOAuth2
 import io.syspulse.skel.crypto.Eth
 
+import io.syspulse.skel.auth.code.CodeRegistry._
+import io.syspulse.skel.auth.code._
+
+import io.syspulse.skel
+import java.time.LocalDateTime
+
 sealed trait AuthResult {
   //def token: Option[OAuth2BearerToken] = None
 }
@@ -65,14 +75,19 @@ final case class AuthWithProfileRsp(auid:String, idToken:String, email:String, n
 
 object AuthRoutesJsons {
   
-  implicit val authWithProfileFormat = jsonFormat6(AuthWithProfileRsp)
-  implicit val j1 = jsonFormat1(ProxyAuthResult)
+  implicit val jf_AuthWithProfileRsp = jsonFormat6(AuthWithProfileRsp)
+  implicit val jf_ProxyAuthResult = jsonFormat1(ProxyAuthResult)
 }    
 
-class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],serviceUri:String,redirectUri:String)(implicit val system: ActorSystem[_],config:Config) extends Routeable  {
+class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirectUri:String)(implicit context:ActorContext[_],config:Config) extends Routeable  {
   val log = Logger(s"${this}")
+  implicit val system: ActorSystem[_] = context.system
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
-
+  implicit val timeout = Timeout.create(system.settings.config.getDuration("auth.routes.ask-timeout"))
+  
+  val codeRegistry: ActorRef[skel.Command] = context.spawn(CodeRegistry(),"Actor-CodeRegistry")
+  context.watch(codeRegistry)
+  
   val idps = Map(
     GoogleOAuth2.id -> (new GoogleOAuth2(redirectUri)).withJWKS(),
     TwitterOAuth2.id -> (new TwitterOAuth2(redirectUri)),
@@ -83,19 +98,20 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],serviceUri:String,
 
   import AuthJson._
   import AuthRoutesJsons._
-  
-  private implicit val timeout = Timeout.create(system.settings.config.getDuration("auth.routes.ask-timeout"))
 
   def getAuths(): Future[Auths] = authRegistry.ask(GetAuths)
 
-  def getAuth(auid: String): Future[GetAuthResponse] =
+  def getAuth(auid: String): Future[GetAuthRsp] =
     authRegistry.ask(GetAuth(auid, _))
 
-  def createAuth(auth: Auth): Future[CreateAuthResponse] =
+  def createAuth(auth: Auth): Future[CreateAuthRsp] =
     authRegistry.ask(CreateAuth(auth, _))
 
-  def deleteAuth(auid: String): Future[ActionPerformed] =
+  def deleteAuth(auid: String): Future[AuthRegistry.ActionRsp] =
     authRegistry.ask(DeleteAuth(auid, _))
+
+  def createCode(code: Code): Future[CreateCodeRsp] = codeRegistry.ask(CreateCode(code, _))
+  def getCode(authCode: String): Future[GetCodeRsp] = codeRegistry.ask(GetCode(authCode, _))
 
   def getCallback(idp: Idp, code: String, scope: Option[String], state:Option[String]): Future[AuthWithProfileRsp] = {
     log.info(s"code=${code}, scope=${scope}, state=${state}")
@@ -247,7 +263,7 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],serviceUri:String,
               get {
                 parameters("code", "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,scope,state,prompt,authuser,hd) =>
                   onSuccess(getCallback(idps.get(GoogleOAuth2.id).get,code,scope,state)) { rsp =>
-                    complete(StatusCodes.Created, rsp)                  
+                    complete(StatusCodes.Created, rsp)
                   }
                 }
               }
@@ -258,7 +274,7 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],serviceUri:String,
               get {
                 parameters("code", "scope".optional,"state".optional) { (code,scope,state) =>
                   onSuccess(getCallback(idps.get(TwitterOAuth2.id).get,code,scope,None)) { rsp =>
-                    complete(StatusCodes.Created, rsp)                  
+                    complete(StatusCodes.Created, rsp)
                   }
                 }
               }
@@ -271,13 +287,18 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],serviceUri:String,
               parameters("sig".optional,"redirect_uri", "response_type".optional,"client_id".optional,"scope".optional,"state".optional) { 
                 (sig,redirect_uri,response_type,client_id,scope,state) => {
           
+                  // TODO: CHANGE IT
                   val data = "test"                  
                   val pk = if(sig.isDefined) Eth.recoverMetamask(data,Util.fromHexString(sig.get)) else Failure(new Exception(s"Empty signature"))
                   val addr = pk.map(p => Eth.address(p))
 
-                  log.info(s"sig=${sig}, addr=${addr}, redirect_uri=${redirect_uri}")
+                  val authCode = Util.generateAccessToken()
 
-                  redirect(redirect_uri + s"?code=AUTH_CODE_0000000001", StatusCodes.PermanentRedirect)
+                  onSuccess(createCode(Code(authCode))) { rsp =>
+                    log.info(s"sig=${sig}, addr=${addr}, redirect_uri=${redirect_uri}, code=${authCode}")
+                    redirect(redirect_uri + s"?code=${rsp.code.authCode}", StatusCodes.PermanentRedirect)  
+                  }
+                  
                 }
               }
             }
@@ -286,19 +307,59 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],serviceUri:String,
             get {
               parameters("code", "scope".optional,"state".optional) { (code,scope,state) => 
                 log.info(s"code=${code}, scope=${scope}")
-                val rsp = AuthWithProfileRsp(UUID.random.toString, "", "profile.email", "profile.name", "profile.picture", "profile.locale")
-                complete(StatusCodes.Created, rsp)                  
+                // val rsp = AuthWithProfileRsp(UUID.random.toString, "", "profile.email", "profile.name", "profile.picture", "profile.locale")
+                // complete(StatusCodes.Created, rsp)
+                onSuccess(getCallback(idps.get(EthOAuth2.id).get,code,scope,None)) { rsp =>
+                  complete(StatusCodes.Created, rsp)
+                }
               }
             }
           } ~
           path("token") {
-            get {
-              import io.syspulse.skel.auth.oauth2.EthOAuth2._
-              import io.syspulse.skel.auth.oauth2.EthTokens
+            import io.syspulse.skel.auth.oauth2.EthOAuth2._
+            import io.syspulse.skel.auth.oauth2.EthTokens
+            post {
+              //entity(as[EthTokenReq]) { req => {
+              formFields("code","client_id","client_secret","redirect_uri","grant_type") { (code,client_id,client_secret,redirect_uri,grant_type) => {
+                log.info(s"code=${code},client_id=${client_id},client_secret=${client_secret},redirect_uri=${redirect_uri},grant_type=${grant_type}")
+                onSuccess(getCode(code)) { rsp =>
+                  if(! rsp.code.isDefined) {
+                    
+                    log.error(s"code=${code}: rsp=${rsp}: not found")
+                    complete(StatusCodes.Unauthorized,s"code not found: ${code}")
 
-              log.info(s"")
-              val rsp = EthTokens(accessToken = "ACCESS_TOKEN_00000000000001",expiresIn = 300,scope = "",tokenType = "")
-              complete(StatusCodes.OK,rsp)
+                  } else {
+                    val accessToken = Util.sha256(rsp.code.get.authCode)
+                    log.info(s"code=${code}: rsp=${rsp.code}: accessToken${accessToken}")
+
+                    complete(StatusCodes.OK,EthTokens(accessToken = accessToken, expiresIn = 3600,scope = "",tokenType = ""))
+                  }
+                }  
+              }
+            }} ~
+            get { parameters("code") { (code) => 
+              onSuccess(getCode(code)) { rsp =>
+                if(! rsp.code.isDefined) {
+                  
+                  log.error(s"code=${code}: rsp=${rsp}: not found")
+                  complete(StatusCodes.Unauthorized,s"code not found: ${code}")
+
+                } else {
+                  val accessToken = Util.sha256(rsp.code.get.authCode)
+                  log.info(s"code=${code}: rsp=${rsp.code}: accessToken${accessToken}")
+
+                  complete(StatusCodes.OK,EthTokens(accessToken = accessToken, expiresIn = 3600,scope = "",tokenType = ""))
+                }
+              }
+            }}
+          } ~
+          path("profile") {
+            import io.syspulse.skel.auth.oauth2.EthOAuth2._
+            get {
+              parameters("access_token") { (access_token) => {
+                val rsp = EthProfile(UUID.random.toString, "profile.addr", "profile.email", "profile.avatar", LocalDateTime.now().toString)
+                complete(StatusCodes.OK,rsp)
+              }}
             }
           }
         } ~
@@ -346,8 +407,8 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],serviceUri:String,
               }
             },
             delete {
-              onSuccess(deleteAuth(name)) { performed =>
-                complete((StatusCodes.OK, performed))
+              onSuccess(deleteAuth(name)) { rsp =>
+                complete((StatusCodes.OK, rsp))
               }
             })
         })

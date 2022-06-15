@@ -76,10 +76,13 @@ object App extends skel.Server {
 
         run( config.host, config.port,config.uri, configuration,
           Seq(
-            (AuthRegistry(),"AuthRegistry",(actor, actorSystem) => 
-              new AuthRoutes(actor,
-                s"http://localhost:${config.port}${config.uri}",
-                s"http://localhost:${config.port}${config.uri}/callback")(actorSystem, config) )
+            (AuthRegistry(),"AuthRegistry",(actor, context) => {
+                //
+                new AuthRoutes(actor,
+                  s"http://localhost:${config.port}${config.uri}",
+                  s"http://localhost:${config.port}${config.uri}/callback")(context, config) 
+              }
+            )
             
           )
         )

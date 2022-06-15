@@ -1,7 +1,6 @@
-package io.syspulse.skel.auth
+package io.syspulse.skel.auth.code
 
 import io.syspulse.skel.service.JsonCommon
-import io.syspulse.skel.auth.AuthRegistry._
 
 import spray.json.DefaultJsonProtocol
 
@@ -9,13 +8,13 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.Directives
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsString, JsValue, JsonFormat, deserializationError}
 
-object AuthJson extends JsonCommon  {
+import io.syspulse.skel.auth.code.CodeRegistry._
+
+object CodeJson extends JsonCommon  {
   
   import DefaultJsonProtocol._
 
-  implicit val jf_Auth = jsonFormat6(Auth.apply)
-  implicit val jf_Auths = jsonFormat1(Auths)
-
-  implicit val jf_ActionRsp = jsonFormat2(ActionRsp)
-  implicit val jf_CreateAuthRsp = jsonFormat1(CreateAuthRsp)
+  implicit val jf_Code = jsonFormat2(Code.apply)
+  
+  implicit val jf_CreateRsp = jsonFormat1(CreateCodeRsp)
 }
