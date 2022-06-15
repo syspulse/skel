@@ -51,6 +51,8 @@ import akka.actor
 import akka.stream.Materializer
 import scala.util.Random
 import io.syspulse.skel.util.Util
+import io.syspulse.skel.auth.oauth2.EthOAuth2
+import io.syspulse.skel.crypto.Eth
 
 sealed trait AuthResult {
   //def token: Option[OAuth2BearerToken] = None
@@ -67,7 +69,7 @@ object AuthRoutesJsons {
   implicit val j1 = jsonFormat1(ProxyAuthResult)
 }    
 
-class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String)(implicit val system: ActorSystem[_],config:Config) extends Routeable  {
+class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],serviceUri:String,redirectUri:String)(implicit val system: ActorSystem[_],config:Config) extends Routeable  {
   val log = Logger(s"${this}")
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
 
@@ -75,6 +77,7 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
     GoogleOAuth2.id -> (new GoogleOAuth2(redirectUri)).withJWKS(),
     TwitterOAuth2.id -> (new TwitterOAuth2(redirectUri)),
     ProxyM2MAuth.id -> (new ProxyM2MAuth(redirectUri,config)),
+    EthOAuth2.id -> (new EthOAuth2(serviceUri)),
   )
   log.info(s"idps: ${idps}")
 
@@ -110,7 +113,7 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
 
     for {
       tokenReq <- {
-        log.info(s"code=${code}: requesting access_code:\n${headers}\n${data}")
+        log.info(s"code=${code}: requesting access_token:\n${headers}\n${data}")
         val rsp = Http().singleRequest(
           HttpRequest(
             method = HttpMethods.POST,
@@ -231,6 +234,8 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
     <a href="${idps.get(GoogleOAuth2.id).get.getLoginUrl()}">Google</a>
     <br>
     <a href="${idps.get(TwitterOAuth2.id).get.getLoginUrl()}">Twitter</a>
+    <br>
+    <a href="${idps.get(EthOAuth2.id).get.getLoginUrl()}">Eth</a>
 </body>
 </html>
           """
@@ -260,6 +265,43 @@ class AuthRoutes(authRegistry: ActorRef[AuthRegistry.Command],redirectUri:String
             }
           }
         },
+        pathPrefix("eth") {
+          path("auth") {
+            get {
+              parameters("sig".optional,"redirect_uri", "response_type".optional,"client_id".optional,"scope".optional,"state".optional) { 
+                (sig,redirect_uri,response_type,client_id,scope,state) => {
+          
+                  val data = "test"                  
+                  val pk = if(sig.isDefined) Eth.recoverMetamask(data,Util.fromHexString(sig.get)) else Failure(new Exception(s"Empty signature"))
+                  val addr = pk.map(p => Eth.address(p))
+
+                  log.info(s"sig=${sig}, addr=${addr}, redirect_uri=${redirect_uri}")
+
+                  redirect(redirect_uri + s"?code=AUTH_CODE_0000000001", StatusCodes.PermanentRedirect)
+                }
+              }
+            }
+          } ~
+          path("callback") {
+            get {
+              parameters("code", "scope".optional,"state".optional) { (code,scope,state) => 
+                log.info(s"code=${code}, scope=${scope}")
+                val rsp = AuthWithProfileRsp(UUID.random.toString, "", "profile.email", "profile.name", "profile.picture", "profile.locale")
+                complete(StatusCodes.Created, rsp)                  
+              }
+            }
+          } ~
+          path("token") {
+            get {
+              import io.syspulse.skel.auth.oauth2.EthOAuth2._
+              import io.syspulse.skel.auth.oauth2.EthTokens
+
+              log.info(s"")
+              val rsp = EthTokens(accessToken = "ACCESS_TOKEN_00000000000001",expiresIn = 300,scope = "",tokenType = "")
+              complete(StatusCodes.OK,rsp)
+            }
+          }
+        } ~
         // curl -POST -i -v http://localhost:8080/api/v1/auth/m2m -d '{ "username" : "user1", "password": "password"}'
         pathPrefix("m2m") {
           path("token") {
