@@ -85,6 +85,7 @@ object CsvConvert {
 
   def main(args: Array[String]): Unit = {
 
+    println(s"app: ${Util.info}")
     println(s"args: '${args.mkString(",")}'")
     println(s"res: ${Util.top()}")
 

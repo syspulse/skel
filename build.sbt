@@ -714,7 +714,7 @@ lazy val spark_convert = (project in file("skel-spark/spark-convert"))
 
     appDockerConfig("spark-convert","io.syspulse.skel.spark.CsvConvert"),
 
-    version := "0.0.6",
+    version := "0.0.7",
 
     libraryDependencies ++= libSparkAWS ++ Seq(
       

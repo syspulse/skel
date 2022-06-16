@@ -24,16 +24,20 @@ Convert from CVS -> Parquet with type mapping
 Convert from CVS -> Parquet with type mappings in config file
 
 ```
-./run-spark-convert.sh --input ./data/csv/ --output ./data/parquet/ --map @paruet.blocks
+./run-spark-convert.sh --input ./data/csv/ --output ./data/parquet/ --map @parquet.blocks
 ```
 application.conf:
 ```
 parquet {
   blocks="number:LongType;difficulty:DecimalType(38,0);total_difficulty:DecimalType(38,0);size:LongType;gas_limit:LongType;gas_used:LongType;timestamp:LongType;transaction_count:LongType;base_fee_per_gas:LongType"
-  transactions=""
+  transactions="nonce:LongType;block_number:LongType;transaction_index:LongType;value:DecimalType(38,0);gas:LongType;gas_price:LongType"
 }
 ```
 
+Convert one file:
+```
+./run-spark-convert.sh --input ./data/csv/transactions.csv --output ./data/parquet/transactions --map @parquet.transactions
+```
 
 Convert on AWS S3 
 
