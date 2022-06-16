@@ -7,6 +7,7 @@ import akka.http.scaladsl.server.Route
 import scala.concurrent.Future
 import akka.actor.typed.ActorRef
 import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.util.Timeout
 
@@ -36,9 +37,11 @@ import io.syspulse.skel.otp.OtpRegistry._
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
+
 @Path("/api/v1/otp")
-class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit val system: ActorSystem[_]) extends CommonRoutes with Routeable {
+class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {
   val log = Logger(s"${this}")  
+  implicit val system: ActorSystem[_] = context.system
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import OtpJson._

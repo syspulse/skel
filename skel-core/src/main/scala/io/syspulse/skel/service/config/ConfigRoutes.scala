@@ -28,10 +28,12 @@ import io.prometheus.client.Counter
 
 import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.service.config.ConfigRegistry._
+import akka.actor.typed.scaladsl.ActorContext
 
 @Path("/api/v1/config")
-class ConfigRoutes(configRegistry: ActorRef[ConfigRegistry.Command])(implicit val system: ActorSystem[_]) extends CommonRoutes {
-
+class ConfigRoutes(configRegistry: ActorRef[ConfigRegistry.Command])(implicit context: ActorContext[_]) extends CommonRoutes {
+  implicit val system: ActorSystem[_] = context.system
+  
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import ConfigJson._
   

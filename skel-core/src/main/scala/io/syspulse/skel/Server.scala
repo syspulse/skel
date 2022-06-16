@@ -172,11 +172,11 @@ trait Server {
 
       val swaggerRoutes = Swagger.routes
       val swaggerUI = path("swagger") { getFromResource("swagger/index.html") } ~ getFromResourceDirectory("swagger")
-      val infoRoutes = new InfoRoutes(infoRegistryActor)(context.system)
-      val healthRoutes = new HealthRoutes(healthRegistryActor)(context.system)
-      val configRoutes = new ConfigRoutes(configRegistryActor)(context.system)
-      val telemetryRoutes = new TelemetryRoutes(telemetryRegistryActor)(context.system)
-      val metricsRoutes = new MetricsRoutes(metricsRegistryActor)(context.system)
+      val infoRoutes = new InfoRoutes(infoRegistryActor)(context)
+      val healthRoutes = new HealthRoutes(healthRegistryActor)(context)
+      val configRoutes = new ConfigRoutes(configRegistryActor)(context)
+      val telemetryRoutes = new TelemetryRoutes(telemetryRegistryActor)(context)
+      val metricsRoutes = new MetricsRoutes(metricsRegistryActor)(context)
 
       implicit val ex = context.executionContext
       //val wsRoutes = new WsRoutes("ws",new WebSocketEcho()(ex,ActorMaterializer()(context.system.classicSystem)))(context.system)

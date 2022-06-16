@@ -26,8 +26,10 @@ import akka.actor.ActorRef
 import scala.concurrent.ExecutionContext
 import scala.util.{Success,Failure}
 import io.syspulse.skel.service.Routeable
+import akka.actor.typed.scaladsl.ActorContext
 
-class WsRoutes(uri:String)(implicit system: ActorSystem[_]) extends CommonRoutes with Routeable {
+class WsRoutes(uri:String)(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {
+  implicit val system: ActorSystem[_] = context.system
   implicit val ex = system.executionContext
   implicit val mat = ActorMaterializer()(system.classicSystem)
 
