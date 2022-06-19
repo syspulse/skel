@@ -71,9 +71,11 @@ object EthOAuth2 {
 
   def id = EthOAuth2.getClass().getSimpleName()
 
-  def generateSigData(data:Seq[String],tolerance:Long = 5000L):String = {
+  def generateSigData(data:Map[String,String],tolerance:Long = 15000L):String = {
     val tsSig = System.currentTimeMillis() / tolerance
-    val sigData = s"${tsSig}" + (if(data.size>0) s",${data.mkString(",")}" else "")
+    val dataSig = data.map{ case(k,v) => s"${k}: ${v}"}
+    // NOTE: BE VERY CAREFUL WITH BLANKS and COMMAS
+    val sigData = s"timestamp: ${tsSig}" + (if(data.size>0) s",${dataSig.mkString(",")}" else "")
     sigData
   }
 }
@@ -97,7 +99,7 @@ class EthOAuth2(val uri:String) extends Idp {
 
   val addr = "0x71CB05EE1b1F506fF321Da3dac38f25c0c9ce6E1" //"0x0186c7E33411617c03bc5AaA68642fFC6c60Fc8b"
   def sig() = {
-    val data = generateSigData(Seq("test"))
+    val data = generateSigData(Map("address" -> addr))
     Util.hex(
       Eth.signMetamask(
         data,

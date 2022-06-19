@@ -297,7 +297,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                 } else {
 
                   // TODO: CHANGE IT
-                  val sigData = EthOAuth2.generateSigData(Seq("test"))  //"test"
+                  val sigData = EthOAuth2.generateSigData(Map("address" -> addr.get))
                   log.info(s"sigData=${sigData}")
 
                   val pk = if(sig.isDefined) Eth.recoverMetamask(sigData,Util.fromHexString(sig.get)) else Failure(new Exception(s"Empty signature"))
