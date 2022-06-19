@@ -86,6 +86,8 @@ object Dependencies {
     val libAkkaProtobuf =   "com.typesafe.akka"           %% "akka-protobuf"        % akkaVersion
     val libAkkaKafka=       "com.typesafe.akka"           %% "akka-stream-kafka"    % akkaKafkaVersion
 
+    val libAkkaHttpCors =   "ch.megard"                   %% "akka-http-cors"       % "1.1.3"
+
     val libScalaLogging =   "com.typesafe.scala-logging"  %% "scala-logging"        % "3.9.2"
     val libLogback =        "ch.qos.logback"              %  "logback-classic"      % "1.2.8"
     val libJanino =         "org.codehaus.janino"         %  "janino"               % janinoVersion
@@ -183,7 +185,7 @@ object Dependencies {
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)
     val libPrometheus = Seq(libPrometheusClient,libPrometheusHttp,libPrometheusHotspot)
-    val libHttp = Seq(libAkkaHttp,libAkkaHttpSpray,libAkkaHttpMetrics) ++ libPrometheus
+    val libHttp = Seq(libAkkaHttp,libAkkaHttpSpray,libAkkaHttpMetrics,libAkkaHttpCors) ++ libPrometheus
     val libCommon = Seq(libScalaLogging, libSlf4jApi, libLogback, libJanino, libTypesafeConfig )
     
     val libTest = Seq(libOsLib, libScalaTest % Test,libAkkaTestkit % Test,libAkkaTestkitType % Test)

@@ -55,6 +55,7 @@ import io.syspulse.skel.auth.jwt.Jwks
 import io.syspulse.skel.auth.Idp
 
 import akka.stream.Materializer
+import io.syspulse.skel.crypto.Eth
 
 final case class EthTokens(accessToken:String,expiresIn:Int,scope:String,tokenType:String)
 final case class EthProfile(id:String,addr:String,email:String,avatar:String,createdAt:String)
@@ -69,6 +70,12 @@ object EthOAuth2 {
   implicit val jf_EthTokenReq = jsonFormat(EthTokenReq, "code","client_id","client_secret","redirect_uri","grant_type")
 
   def id = EthOAuth2.getClass().getSimpleName()
+
+  def generateSigData(data:Seq[String],tolerance:Long = 5000L):String = {
+    val tsSig = System.currentTimeMillis() / tolerance
+    val sigData = s"${tsSig}" + (if(data.size>0) s",${data.mkString(",")}" else "")
+    sigData
+  }
 }
 
 class EthOAuth2(val uri:String) extends Idp {
@@ -88,9 +95,22 @@ class EthOAuth2(val uri:String) extends Idp {
   val redirectUri:String = getRedirectUri()  
   override def getRedirectUri() = s"${uri}/eth/callback"
 
-  val sig = "0xd154fd4171820e35a1cf48e67242779714d176e59e19de02dcf62b78cd75946d0bd46da493810b66b589667286d05c0f4e1b0cc6f29a544361ad639b0a6614041c"
+  val addr = "0x71CB05EE1b1F506fF321Da3dac38f25c0c9ce6E1" //"0x0186c7E33411617c03bc5AaA68642fFC6c60Fc8b"
+  def sig() = {
+    val data = generateSigData(Seq("test"))
+    Util.hex(
+      Eth.signMetamask(
+        data,
+        Eth.generate("0x1da6847600b0ee25e9ad9a52abbd786dd2502fa4005dd5af9310b7cc7a3b25db").get
+      ).toArray()
+    )
+
+    //"0xd154fd4171820e35a1cf48e67242779714d176e59e19de02dcf62b78cd75946d0bd46da493810b66b589667286d05c0f4e1b0cc6f29a544361ad639b0a6614041c"
+  }
+  
+
   def getLoginUrl() =
-    s"${uri}/eth/auth?sig=${sig}&response_type=code&client_id=${getClientId}&scope=profile&state=state&redirect_uri=${getRedirectUri()}"
+    s"${uri}/eth/auth?sig=${sig()}&addr=${addr}&response_type=code&client_id=${getClientId}&scope=profile&state=state&redirect_uri=${getRedirectUri()}"
 
   def getProfileUrl(accessToken:String):(String,Seq[(String,String)]) = 
       (s"${uri}/eth/profile?access_token=${accessToken}",

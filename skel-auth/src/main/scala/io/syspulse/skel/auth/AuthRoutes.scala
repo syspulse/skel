@@ -37,6 +37,7 @@ import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.model.FormData
 
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.AuthRegistry._
@@ -63,6 +64,7 @@ import io.syspulse.skel.auth.code._
 
 import io.syspulse.skel
 import java.time.LocalDateTime
+import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 
 sealed trait AuthResult {
   //def token: Option[OAuth2BearerToken] = None
@@ -83,6 +85,8 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+  
+  val corsAllow = CorsSettings(system.classicSystem).withAllowGenericHttpRequests(true)
   implicit val timeout = Timeout.create(system.settings.config.getDuration("auth.routes.ask-timeout"))
   
   val codeRegistry: ActorRef[skel.Command] = context.spawn(CodeRegistry(),"Actor-CodeRegistry")
@@ -234,110 +238,106 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     authenticateBasicAuth()
   }
 
-  override val routes: Route =
-      concat(
-        // simple embedded Login FrontEnd
-        path("login") {
-          // getFromResourceDirectory("login") 
-          // getFromResource("login/index.html")
-          complete(HttpEntity(ContentTypes.`text/html(UTF-8)`,
-          s"""
-          <html>
+  override val routes: Route = cors() {
+    concat(
+      // simple embedded Login FrontEnd
+      path("login") {
+        // getFromResourceDirectory("login") 
+        // getFromResource("login/index.html")
+        complete(HttpEntity(ContentTypes.`text/html(UTF-8)`,
+        s"""
+        <html>
 <head>
 </head>
 <body>
-    <h1>skel-auth</h1>
-    <a href="${idps.get(GoogleOAuth2.id).get.getLoginUrl()}">Google</a>
-    <br>
-    <a href="${idps.get(TwitterOAuth2.id).get.getLoginUrl()}">Twitter</a>
-    <br>
-    <a href="${idps.get(EthOAuth2.id).get.getLoginUrl()}">Eth</a>
+  <h1>skel-auth</h1>
+  <a href="${idps.get(GoogleOAuth2.id).get.getLoginUrl()}">Google</a>
+  <br>
+  <a href="${idps.get(TwitterOAuth2.id).get.getLoginUrl()}">Twitter</a>
+  <br>
+  <a href="${idps.get(EthOAuth2.id).get.getLoginUrl()}">Web3 (Eth)</a><b>You must login within 5 seconds after refresh</b>
 </body>
 </html>
-          """
-          ))
-        },
-        pathPrefix("callback") {
-          path("google") {
-            pathEndOrSingleSlash {
-              get {
-                parameters("code", "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,scope,state,prompt,authuser,hd) =>
-                  onSuccess(getCallback(idps.get(GoogleOAuth2.id).get,code,scope,state)) { rsp =>
-                    complete(StatusCodes.Created, rsp)
-                  }
-                }
-              }
-            }
-          } ~
-          path("twitter") {
-            pathEndOrSingleSlash {
-              get {
-                parameters("code", "scope".optional,"state".optional) { (code,scope,state) =>
-                  onSuccess(getCallback(idps.get(TwitterOAuth2.id).get,code,scope,None)) { rsp =>
-                    complete(StatusCodes.Created, rsp)
-                  }
-                }
-              }
-            }
-          }
-        },
-        pathPrefix("eth") {
-          path("auth") {
+        """
+        ))
+      },
+      pathPrefix("callback") {
+        path("google") {
+          pathEndOrSingleSlash {
             get {
-              parameters("sig".optional,"redirect_uri", "response_type".optional,"client_id".optional,"scope".optional,"state".optional) { 
-                (sig,redirect_uri,response_type,client_id,scope,state) => {
-          
-                  // TODO: CHANGE IT
-                  val data = "test"                  
-                  val pk = if(sig.isDefined) Eth.recoverMetamask(data,Util.fromHexString(sig.get)) else Failure(new Exception(s"Empty signature"))
-                  val addr = pk.map(p => Eth.address(p))
-
-                  val authCode = Util.generateAccessToken()
-
-                  onSuccess(createCode(Code(authCode))) { rsp =>
-                    log.info(s"sig=${sig}, addr=${addr}, redirect_uri=${redirect_uri}, code=${authCode}")
-                    redirect(redirect_uri + s"?code=${rsp.code.authCode}", StatusCodes.PermanentRedirect)  
-                  }
-                  
-                }
-              }
-            }
-          } ~
-          path("callback") {
-            get {
-              parameters("code", "scope".optional,"state".optional) { (code,scope,state) => 
-                log.info(s"code=${code}, scope=${scope}")
-                // val rsp = AuthWithProfileRsp(UUID.random.toString, "", "profile.email", "profile.name", "profile.picture", "profile.locale")
-                // complete(StatusCodes.Created, rsp)
-                onSuccess(getCallback(idps.get(EthOAuth2.id).get,code,scope,None)) { rsp =>
+              parameters("code", "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,scope,state,prompt,authuser,hd) =>
+                onSuccess(getCallback(idps.get(GoogleOAuth2.id).get,code,scope,state)) { rsp =>
                   complete(StatusCodes.Created, rsp)
                 }
               }
             }
-          } ~
-          path("token") {
-            import io.syspulse.skel.auth.oauth2.EthOAuth2._
-            import io.syspulse.skel.auth.oauth2.EthTokens
-            post {
-              //entity(as[EthTokenReq]) { req => {
-              formFields("code","client_id","client_secret","redirect_uri","grant_type") { (code,client_id,client_secret,redirect_uri,grant_type) => {
-                log.info(s"code=${code},client_id=${client_id},client_secret=${client_secret},redirect_uri=${redirect_uri},grant_type=${grant_type}")
-                onSuccess(getCode(code)) { rsp =>
-                  if(! rsp.code.isDefined) {
-                    
-                    log.error(s"code=${code}: rsp=${rsp}: not found")
-                    complete(StatusCodes.Unauthorized,s"code not found: ${code}")
-
-                  } else {
-                    val accessToken = Util.sha256(rsp.code.get.authCode)
-                    log.info(s"code=${code}: rsp=${rsp.code}: accessToken${accessToken}")
-
-                    complete(StatusCodes.OK,EthTokens(accessToken = accessToken, expiresIn = 3600,scope = "",tokenType = ""))
-                  }
-                }  
+          }
+        } ~
+        path("twitter") {
+          pathEndOrSingleSlash {
+            get {
+              parameters("code", "scope".optional,"state".optional) { (code,scope,state) =>
+                onSuccess(getCallback(idps.get(TwitterOAuth2.id).get,code,scope,None)) { rsp =>
+                  complete(StatusCodes.Created, rsp)
+                }
               }
-            }} ~
-            get { parameters("code") { (code) => 
+            }
+          }
+        }
+      },
+      pathPrefix("eth") { 
+        path("auth") {
+          get {
+            parameters("sig".optional,"addr".optional,"redirect_uri", "response_type".optional,"client_id".optional,"scope".optional,"state".optional) { 
+              (sig,addr,redirect_uri,response_type,client_id,scope,state) => {
+        
+                if(!addr.isDefined ) {
+                  log.error(s"sig=${sig}, addr=${addr}: invalid signing address")
+                  complete(StatusCodes.Unauthorized,"invalid signing address")
+                } else {
+
+                  // TODO: CHANGE IT
+                  val sigData = EthOAuth2.generateSigData(Seq("test"))  //"test"
+                  log.info(s"sigData=${sigData}")
+
+                  val pk = if(sig.isDefined) Eth.recoverMetamask(sigData,Util.fromHexString(sig.get)) else Failure(new Exception(s"Empty signature"))
+                  val addrFromSig = pk.map(p => Eth.address(p))
+
+                  if(addrFromSig.isFailure || addrFromSig.get != addr.get.toLowerCase()) {
+                    log.error(s"sig=${sig}, addr=${addr}: invalid sig")
+                    complete(StatusCodes.Unauthorized,s"invalid sig: ${sig}")
+                  } else {
+
+                    val authCode = Util.generateAccessToken()
+
+                    onSuccess(createCode(Code(authCode))) { rsp =>
+                      log.info(s"sig=${sig}, addr=${addr}, redirect_uri=${redirect_uri}, code=${authCode}")
+                      redirect(redirect_uri + s"?code=${rsp.code.authCode}", StatusCodes.PermanentRedirect)  
+                    }
+                  }
+                }
+                
+              }
+            }
+          }
+        } ~
+        path("callback") {
+          get {
+            parameters("code", "scope".optional,"state".optional) { (code,scope,state) => 
+              log.info(s"code=${code}, scope=${scope}")
+              onSuccess(getCallback(idps.get(EthOAuth2.id).get,code,scope,None)) { rsp =>
+                complete(StatusCodes.Created, rsp)
+              }
+            }
+          }
+        } ~
+        path("token") {
+          import io.syspulse.skel.auth.oauth2.EthOAuth2._
+          import io.syspulse.skel.auth.oauth2.EthTokens
+          post {
+            //entity(as[EthTokenReq]) { req => {
+            formFields("code","client_id","client_secret","redirect_uri","grant_type") { (code,client_id,client_secret,redirect_uri,grant_type) => {
+              log.info(s"code=${code},client_id=${client_id},client_secret=${client_secret},redirect_uri=${redirect_uri},grant_type=${grant_type}")
               onSuccess(getCode(code)) { rsp =>
                 if(! rsp.code.isDefined) {
                   
@@ -350,66 +350,83 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
                   complete(StatusCodes.OK,EthTokens(accessToken = accessToken, expiresIn = 3600,scope = "",tokenType = ""))
                 }
-              }
-            }}
-          } ~
-          path("profile") {
-            import io.syspulse.skel.auth.oauth2.EthOAuth2._
-            get {
-              parameters("access_token") { (access_token) => {
-                val rsp = EthProfile(UUID.random.toString, "profile.addr", "profile.email", "profile.avatar", LocalDateTime.now().toString)
-                complete(StatusCodes.OK,rsp)
-              }}
+              }  
             }
-          }
-        } ~
-        // curl -POST -i -v http://localhost:8080/api/v1/auth/m2m -d '{ "username" : "user1", "password": "password"}'
-        pathPrefix("m2m") {
-          path("token") {
-            import io.syspulse.skel.auth.oauth2.ProxyM2MAuth._
-            import io.syspulse.skel.auth.oauth2.ProxyTokensRes
+          }} ~
+          get { parameters("code") { (code) => 
+            onSuccess(getCode(code)) { rsp =>
+              if(! rsp.code.isDefined) {
+                
+                log.error(s"code=${code}: rsp=${rsp}: not found")
+                complete(StatusCodes.Unauthorized,s"code not found: ${code}")
 
-            val rsp = ProxyTokensRes(id = 1,token=Util.generateAccessToken(), refreshToken=Util.generateAccessToken())
-            complete(StatusCodes.OK,rsp)
-          } ~
-          pathEndOrSingleSlash { 
-            post {
-              extractRequest { request =>
-                authenticateProxyAuth(request)(config)(rsp =>
-                  complete(StatusCodes.OK,rsp.toString)
-                )
+              } else {
+                val accessToken = Util.sha256(rsp.code.get.authCode)
+                log.info(s"code=${code}: rsp=${rsp.code}: accessToken${accessToken}")
+
+                complete(StatusCodes.OK,EthTokens(accessToken = accessToken, expiresIn = 3600,scope = "",tokenType = ""))
               }
             }
-          }
+          }}
         } ~
-        pathEndOrSingleSlash {
-          concat(
-            get {
-              authenticateAll()(config)(_ => 
-                complete(getAuths())  
-              )              
-            },
-            post {
-              entity(as[Auth]) { auth =>
-                onSuccess(createAuth(auth)) { rsp =>
-                  complete(StatusCodes.Created, rsp.auth)
-                }
+        path("profile") {
+          import io.syspulse.skel.auth.oauth2.EthOAuth2._
+          get {
+            parameters("access_token") { (access_token) => {
+              val rsp = EthProfile(UUID.random.toString, "profile.addr", "profile.email", "profile.avatar", LocalDateTime.now().toString)
+              complete(StatusCodes.OK,rsp)
+            }}
+          }
+        }
+      } ~
+      // curl -POST -i -v http://localhost:8080/api/v1/auth/m2m -d '{ "username" : "user1", "password": "password"}'
+      pathPrefix("m2m") {
+        path("token") {
+          import io.syspulse.skel.auth.oauth2.ProxyM2MAuth._
+          import io.syspulse.skel.auth.oauth2.ProxyTokensRes
+
+          val rsp = ProxyTokensRes(id = 1,token=Util.generateAccessToken(), refreshToken=Util.generateAccessToken())
+          complete(StatusCodes.OK,rsp)
+        } ~
+        pathEndOrSingleSlash { 
+          post {
+            extractRequest { request =>
+              authenticateProxyAuth(request)(config)(rsp =>
+                complete(StatusCodes.OK,rsp.toString)
+              )
+            }
+          }
+        }
+      } ~
+      pathEndOrSingleSlash {
+        concat(
+          get {
+            authenticateAll()(config)(_ => 
+              complete(getAuths())  
+            )              
+          },
+          post {
+            entity(as[Auth]) { auth =>
+              onSuccess(createAuth(auth)) { rsp =>
+                complete(StatusCodes.Created, rsp.auth)
               }
-            })
-        },
-        path(Segment) { name =>
-          concat(
-            get {
-              rejectEmptyResponse {
-                onSuccess(getAuth(name)) { response =>
-                  complete(response.auth)
-                }
+            }
+          })
+      },
+      path(Segment) { name =>
+        concat(
+          get {
+            rejectEmptyResponse {
+              onSuccess(getAuth(name)) { response =>
+                complete(response.auth)
               }
-            },
-            delete {
-              onSuccess(deleteAuth(name)) { rsp =>
-                complete((StatusCodes.OK, rsp))
-              }
-            })
-        })
+            }
+          },
+          delete {
+            onSuccess(deleteAuth(name)) { rsp =>
+              complete((StatusCodes.OK, rsp))
+            }
+          })
+      })
+    }
 }
