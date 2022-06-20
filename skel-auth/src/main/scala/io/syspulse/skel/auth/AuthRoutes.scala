@@ -280,7 +280,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           pathEndOrSingleSlash {
             get {
               parameters("code", "challenge", "redirect_uri".optional, "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,challenge,redirectUri,scope,state,prompt,authuser,hd) =>
-                onSuccess(getCallback(idps.get(GoogleOAuth2.id).get,code,redirectUri,Some(Map("code_verifier" -> challenge)),scope,state)) { rsp =>
+                onSuccess(getCallback(idps.get(TwitterOAuth2.id).get,code,redirectUri,Some(Map("code_verifier" -> challenge)),scope,state)) { rsp =>
                   complete(StatusCodes.Created, rsp)
                 }
               }
