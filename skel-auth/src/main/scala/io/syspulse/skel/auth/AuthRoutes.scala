@@ -117,14 +117,15 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   def createCode(code: Code): Future[CreateCodeRsp] = codeRegistry.ask(CreateCode(code, _))
   def getCode(authCode: String): Future[GetCodeRsp] = codeRegistry.ask(GetCode(authCode, _))
 
-  def getCallback(idp: Idp, code: String, scope: Option[String], state:Option[String]): Future[AuthWithProfileRsp] = {
-    log.info(s"code=${code}, scope=${scope}, state=${state}")
+  
+  def getCallback(idp: Idp, code: String, redirectUri:Option[String],scope: Option[String], state:Option[String]): Future[AuthWithProfileRsp] = {
+    log.info(s"code=${code}, redirectUri=${redirectUri}, scope=${scope}, state=${state}")
     
     val data = Map(
       "code" -> code,
       "client_id" -> idp.getClientId,
       "client_secret" -> idp.getClientSecret,
-      "redirect_uri" -> idp.getRedirectUri(),
+      "redirect_uri" -> redirectUri.getOrElse(idp.getRedirectUri()),
       "grant_type" -> "authorization_code"
     ) ++ idp.getGrantHeaders()
 
@@ -261,12 +262,28 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         """
         ))
       },
+      // token is requested from FrontEnt with authorization code 
+      pathPrefix("token") {
+        path("google") {
+          pathEndOrSingleSlash {
+            get {
+              parameters("code", "redirect_uri".optional, "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,redirectUri,scope,state,prompt,authuser,hd) =>
+                onSuccess(getCallback(idps.get(GoogleOAuth2.id).get,code,redirectUri,scope,state)) { rsp =>
+                  complete(StatusCodes.Created, rsp)
+                }
+              }
+            }
+          }
+        } 
+      },
+      // this is internal flow, not compatible with FrontEnd flow
       pathPrefix("callback") {
         path("google") {
           pathEndOrSingleSlash {
             get {
               parameters("code", "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,scope,state,prompt,authuser,hd) =>
-                onSuccess(getCallback(idps.get(GoogleOAuth2.id).get,code,scope,state)) { rsp =>
+                onSuccess(getCallback(idps.get(GoogleOAuth2.id).get,code,None,scope,state)) { rsp =>
+                  //redirect("",StatusCodes.PermanentRedirect)
                   complete(StatusCodes.Created, rsp)
                 }
               }
@@ -277,7 +294,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           pathEndOrSingleSlash {
             get {
               parameters("code", "scope".optional,"state".optional) { (code,scope,state) =>
-                onSuccess(getCallback(idps.get(TwitterOAuth2.id).get,code,scope,None)) { rsp =>
+                onSuccess(getCallback(idps.get(TwitterOAuth2.id).get,code,None,scope,None)) { rsp =>
                   complete(StatusCodes.Created, rsp)
                 }
               }
@@ -325,7 +342,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           get {
             parameters("code", "scope".optional,"state".optional) { (code,scope,state) => 
               log.info(s"code=${code}, scope=${scope}")
-              onSuccess(getCallback(idps.get(EthOAuth2.id).get,code,scope,None)) { rsp =>
+              onSuccess(getCallback(idps.get(EthOAuth2.id).get,code,None,scope,None)) { rsp =>
                 complete(StatusCodes.Created, rsp)
               }
             }
