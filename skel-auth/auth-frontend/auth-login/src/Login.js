@@ -3,6 +3,7 @@ import { ethers } from "ethers";
 import axios from "axios";
 
 import { GoogleLogin, GoogleLogout } from "react-google-login";
+import { BrowserRouter, Route, Switch } from 'react-router-dom';
 
 import './App.css';
 
@@ -16,6 +17,10 @@ export default function Login() {
   const [loginStatus, setLoginStatus] = useState("not authenticated");
   const [error, setError] = useState();
 
+  const onTwitterServer = (err, data) => {
+    console.log(err, data);
+
+  };
   
   const onGoogleServer = async (rsp) => {
     console.log(rsp);
@@ -56,7 +61,9 @@ export default function Login() {
     const clientId="VExtd2FtdGlBYU5NbWdIemNjWFM6MTpjaQ";
     const redirectUri=baseUrl + "/callback/twitter";
     const scope="users.read tweet.read";
-    const challenge = "challenge";
+
+    const challenge = "challenge-"+ Math.trunc(Date.now() / (1000 * 60 * 60));
+
     const loginUrl = `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=state&code_challenge=${challenge}&code_challenge_method=plain`;
     return loginUrl;
   }
@@ -117,62 +124,73 @@ export default function Login() {
   
   return (
     <div>
-      <div>
-        <GoogleLogin
-          clientId="1084039747276-3na59kcrc8ab5k65louvg5jv8ulnmv54.apps.googleusercontent.com"
-          
-          uxMode={"redirect"}
-          // IT IS IGNORED BY COMPONENT !
-          redirectUri={"http://localhost:3000"}
-          responseType={'code'}
-          
-          scope={"openid profile email"}
-          fetchBasicProfile={false}
-          
-          buttonText="Login (Server)"
-          onSuccess={onGoogleServer}
-          onFailure={onGoogleServer}
-          cookiePolicy={"single_host_origin"}
-        />
-        <span>  </span>
-        <GoogleLogin
-          clientId="1084039747276-3na59kcrc8ab5k65louvg5jv8ulnmv54.apps.googleusercontent.com"
-          
-          uxMode={"popup"}
-          
-          scope={"openid profile email"}
-          fetchBasicProfile={false}
-          
-          buttonText="Login Client"
-          onSuccess={onGoogleClient}
-          onFailure={onGoogleClient}
-          cookiePolicy={"single_host_origin"}
-        />
-        <span>  </span>
-        <button onClick={() => window.open(getGoogleLogin(),"_self")} >
-        Google
-        </button>
-        <span>  </span>
-        <a className="App-link" href={getGoogleLogin()}>Google Login</a>
-      </div>
-      <br/>
-      <div>
-        <button onClick={() => window.open(getTwitterLogin(),"_self")} >
-        Twitter
-        </button>
-        <span>  </span>
-        <a className="App-link" href={getTwitterLogin()}>Twitter Login</a>
-      </div>
-      <br/>
-      <div>
-        <button onClick={() => web3Login({setLoginStatus})} >
-          Web3
-        </button>
-        <span>  </span>
-        {/* <a className="App-link" href={web3Login()}>Metamask Login</a> */}
-      </div>
-      <br/>
-      <div>{loginStatus}</div>
+      <BrowserRouter>
+        <Switch>
+          <Route path="/">
+
+            <div>
+              <GoogleLogin
+                clientId="1084039747276-3na59kcrc8ab5k65louvg5jv8ulnmv54.apps.googleusercontent.com"
+                
+                uxMode={"redirect"}
+                // IT IS IGNORED BY COMPONENT !
+                redirectUri={"http://localhost:3000"}
+                responseType={'code'}
+                
+                scope={"openid profile email"}
+                fetchBasicProfile={false}
+                
+                buttonText="Login (Server)"
+                onSuccess={onGoogleServer}
+                onFailure={onGoogleServer}
+                cookiePolicy={"single_host_origin"}
+              />
+              <span>  </span>
+              <GoogleLogin
+                clientId="1084039747276-3na59kcrc8ab5k65louvg5jv8ulnmv54.apps.googleusercontent.com"
+                
+                uxMode={"popup"}
+                
+                scope={"openid profile email"}
+                fetchBasicProfile={false}
+                
+                buttonText="Login Client"
+                onSuccess={onGoogleClient}
+                onFailure={onGoogleClient}
+                cookiePolicy={"single_host_origin"}
+              />
+              <span>  </span>
+              <button onClick={() => window.open(getGoogleLogin(),"_self")} >
+              Google
+              </button>
+              <span>  </span>
+              <a className="App-link" href={getGoogleLogin()}>Google Login</a>
+            </div>
+            <br/>
+            <div>
+              
+              <span>  </span>
+              <button onClick={() => window.open(getTwitterLogin(),"_self")} >
+              Twitter
+              </button>
+              <span>  </span>
+              <a className="App-link" href={getTwitterLogin()}>Twitter Login</a>
+            </div>
+            <br/>
+            <div>
+              <button onClick={() => web3Login({setLoginStatus})} >
+                Web3
+              </button>
+              <span>  </span>
+              {/* <a className="App-link" href={web3Login()}>Metamask Login</a> */}
+            </div>
+            <br/>
+            <div>{loginStatus}</div>
+
+          </Route>
+        </Switch>
+      </BrowserRouter>
+      
     </div>
   );
 

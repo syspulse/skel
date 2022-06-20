@@ -82,7 +82,7 @@ class GoogleOAuth2(val redirectUri:String) extends Idp {
 
   def getBasicAuth():Option[String] = None
 
-  def getGrantHeaders():Map[String,String] = Map()
+  def getGrantData():Map[String,String] = Map()
 
   def withJWKS():GoogleOAuth2 = {
     log.info("Requesting Google OpenID configuration...")

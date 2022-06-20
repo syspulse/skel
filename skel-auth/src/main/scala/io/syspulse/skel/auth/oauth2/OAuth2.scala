@@ -19,7 +19,7 @@ trait OAuth2 {
   def getTokenUrl():String
   def getRedirectUri():String = redirectUri
   def getProfileUrl(accessToken:String):(String,Seq[(String,String)])
-  def getGrantHeaders():Map[String,String]
+  def getGrantData():Map[String,String]
 
   def decodeTokens(tokenRsp:ByteString)(implicit mat:Materializer,ec: scala.concurrent.ExecutionContext):Future[IdpTokens]
   def decodeProfile(profileRsp:ByteString)(implicit mat:Materializer,ec: scala.concurrent.ExecutionContext):Future[OAuthProfile]

@@ -73,12 +73,14 @@ class TwitterOAuth2(val redirectUri:String) extends Idp {
   
   import TwitterOAuth2._
 
-  val challenge = Util.generateAccessToken() //"challenge"
+  // https://www.oauth.com/oauth2-servers/pkce/authorization-request/
+  // THis is only for internal flow, FE Clients generate their own challeges
+  val challenge = s"challenge-${(System.currentTimeMillis / (1000 * 60 * 60)).toString}" // "challenge"
 
   override def clientId:Option[String] = Option[String](System.getenv("TWITTER_AUTH_CLIENT_ID"))
   override def clientSecret:Option[String] = Option[String](System.getenv("TWITTER_AUTH_CLIENT_SECRET")) 
 
-  def getGrantHeaders():Map[String,String] =  Map("code_verifier" -> challenge)
+  def getGrantData():Map[String,String] =  Map("code_verifier" -> challenge)
   
   def getBasicAuth():Option[String] = Some(java.util.Base64.getEncoder.encodeToString(s"${getClientId}:${getClientSecret}".getBytes()))
 

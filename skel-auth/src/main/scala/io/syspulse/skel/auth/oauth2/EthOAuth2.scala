@@ -88,7 +88,7 @@ class EthOAuth2(val uri:String) extends Idp {
   override def clientId:Option[String] = Option[String](System.getenv("ETH_AUTH_CLIENT_ID"))
   override def clientSecret:Option[String] = Option[String](System.getenv("ETH_AUTH_CLIENT_SECRET")) 
 
-  def getGrantHeaders():Map[String,String] =  Map()
+  def getGrantData():Map[String,String] =  Map()
   
   def getBasicAuth():Option[String] = Some(java.util.Base64.getEncoder.encodeToString(s"${getClientId}:${getClientSecret}".getBytes()))
 

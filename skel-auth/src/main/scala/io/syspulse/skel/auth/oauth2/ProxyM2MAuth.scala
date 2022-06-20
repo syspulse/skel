@@ -89,7 +89,7 @@ class ProxyM2MAuth(val redirectUri:String,config:Config) extends Idp {
   override def clientId:Option[String] = Some("10000") //Option[String](System.getenv("CUSTOM_AUTH_CLIENT_ID"))
   override def clientSecret:Option[String] = Some("$2a$10$9NERDMTtLDcgNPnixNqsv.Eol/4s81R5hPIPaP6LyKjhUPNVo821i") //Option[String](System.getenv("CUSTOM_AUTH_CLIENT_SECRET")) 
 
-  def getGrantHeaders():Map[String,String] =  Map("code_verifier" -> challenge)
+  def getGrantData():Map[String,String] =  Map("code_verifier" -> challenge)
   
   def getBasicAuth():Option[String] = None
 
