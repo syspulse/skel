@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import axios from "axios";
 
 import { useLocation } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
+
+import Login from "./Login";
 
 import './App.css';
 
@@ -30,8 +33,13 @@ export default function LoginTwitterCallback() {
     serverRsp.then( (rsp) => {
       console.log("server: ",rsp);
       setLoginStatus(JSON.stringify(rsp.data));
+
+      Login.setLoginStatus(JSON.stringify(rsp.data));
     })
     
+    
+
+    return <Navigate to="/" />
   }
   
   return (

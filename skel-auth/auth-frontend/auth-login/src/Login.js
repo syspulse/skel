@@ -28,6 +28,7 @@ export default function Login() {
         <LoginTwitter/><br/>
         <LoginGoogle/><br/>
         <LoginWeb3/><br/>
+        <div>{loginStatus}</div>
       </>
   );
 
