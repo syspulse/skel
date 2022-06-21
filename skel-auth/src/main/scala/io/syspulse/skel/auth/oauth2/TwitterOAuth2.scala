@@ -75,7 +75,7 @@ class TwitterOAuth2(val redirectUri:String) extends Idp {
 
   // https://www.oauth.com/oauth2-servers/pkce/authorization-request/
   // THis is only for internal flow, FE Clients generate their own challeges
-  val challenge = s"challenge-${(System.currentTimeMillis / (1000 * 60 * 60)).toString}" // "challenge"
+  def challenge = s"challenge-${(System.currentTimeMillis / (1000 * 60 * 60)).toString}" // "challenge"
 
   override def clientId:Option[String] = Option[String](System.getenv("TWITTER_AUTH_CLIENT_ID"))
   override def clientSecret:Option[String] = Option[String](System.getenv("TWITTER_AUTH_CLIENT_SECRET")) 

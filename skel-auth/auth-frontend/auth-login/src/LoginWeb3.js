@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { ethers } from "ethers";
 import axios from "axios";
 
@@ -8,13 +8,13 @@ import { useLocation } from 'react-router-dom';
 
 import './App.css';
 
-const baseUrl = "http://localhost:8080/api/v1/auth";
+import { baseUrl } from './Login';
+import LoginStateContext from "./LoginStateContext";
 
 export default function LoginWeb3() {
-  const [loginStatus, setLoginStatus] = useState("not authenticated");
+  const { state, setState } = useContext(LoginStateContext);
 
-  
-  async function web3Login({setLoginStatus}) {
+  async function web3Login() {
     try {
       if (!window.ethereum)
         throw new Error("No crypto wallet found. Please install it.");
@@ -56,7 +56,8 @@ export default function LoginWeb3() {
       const rsp = await axios.get(authUri);
       
       console.log("rsp: ",rsp);
-      setLoginStatus(JSON.stringify(rsp.data));
+      //setLoginStatus(JSON.stringify(rsp.data));
+      setState(JSON.stringify(rsp.data));
       
     } catch (err) {
       console.error(err.message);
@@ -71,14 +72,12 @@ export default function LoginWeb3() {
   return (
     <div>            
       <div>
-        <button onClick={() => web3Login({setLoginStatus})} >
-          Web3
+        <button onClick={() => web3Login()} >
+          Web3 (Metamask)
         </button>
         <span>  </span>
         {/* <a className="App-link" href={web3Login()}>Metamask Login</a> */}
       </div>
-      <br/>
-      <div>{loginStatus}</div>
     </div>
   );
 

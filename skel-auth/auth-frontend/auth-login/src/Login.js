@@ -13,22 +13,15 @@ import LoginTwitterCallback from "./LoginTwitterCallback";
 
 import './App.css';
 
-const baseUrl = "http://localhost:8080/api/v1/auth";
-
+export const baseUrl = "http://localhost:8080/api/v1/auth";
 
 export default function Login() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [url, setUrl] = useState("");
-  const [loginStatus, setLoginStatus] = useState("not authenticated");
-  const [error, setError] = useState();
-
+  
   return (
       <>
         <LoginTwitter/><br/>
         <LoginGoogle/><br/>
         <LoginWeb3/><br/>
-        <div>{loginStatus}</div>
       </>
   );
 

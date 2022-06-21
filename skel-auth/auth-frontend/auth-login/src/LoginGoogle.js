@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { ethers } from "ethers";
 import axios from "axios";
 
@@ -7,43 +7,32 @@ import { useLocation } from 'react-router-dom';
 
 import './App.css';
 
-const baseUrl = "http://localhost:8080/api/v1/auth";
-
+import { baseUrl } from './Login';
+import LoginStateContext from "./LoginStateContext";
 
 export default function LoginGoogle() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [url, setUrl] = useState("");
-  const [loginStatus, setLoginStatus] = useState("not authenticated");
-  const [error, setError] = useState();
+  const { state, setState } = useContext(LoginStateContext);
 
-  const onGoogleServer = async (rsp) => {
+  const onGoogleClient = async (rsp) => {
     console.log(rsp);
     const code = rsp.code;
+    // need to override to client redirect to successfully authorize
     const redirectUri = "http://localhost:3000"
     const tokenUrl = `http://localhost:8080/api/v1/auth/token/google?code=${code}&redirect_uri=${redirectUri}`
     console.log(tokenUrl);
     
-    //setLoginStatus(JSON.stringify(rsp));
     const serverRsp = await axios.get(tokenUrl);
-    console.log("server: ",serverRsp);
-    setLoginStatus(JSON.stringify(serverRsp.data));
+    console.log("serverRsp: ",serverRsp);
+    setState(JSON.stringify(serverRsp.data));
   };
   
-  const onGoogleClient = rsp => {
+  const onGoogleServer = rsp => {
     console.log(rsp);
-    // setName(rsp.profileObj.name);
-    // setEmail(rsp.profileObj.email);
-    // setUrl(rsp.profileObj.imageUrl);
-    
-    setLoginStatus(JSON.stringify(rsp));
+    setState(JSON.stringify(rsp));
   };
-  // const onGoogleLogout = () => {
-  //   console.log("logout");
-  //   setLoginStatus(false);
-  // };
   
-  function serverGoogleLogin() {
+  
+  function serverGoogleLoginUrl() {
     const clientId="1084039747276-3na59kcrc8ab5k65louvg5jv8ulnmv54.apps.googleusercontent.com";
     const redirectUri=baseUrl + "/callback/google";
     const scope="openid profile email";
@@ -67,9 +56,9 @@ export default function LoginGoogle() {
           scope={"openid profile email"}
           fetchBasicProfile={false}
           
-          buttonText="Login (Server)"
-          onSuccess={onGoogleServer}
-          onFailure={onGoogleServer}
+          buttonText="Login (Client)"
+          onSuccess={onGoogleClient}
+          onFailure={onGoogleClient}
           cookiePolicy={"single_host_origin"}
         />
         <span>  </span>
@@ -81,21 +70,18 @@ export default function LoginGoogle() {
           scope={"openid profile email"}
           fetchBasicProfile={false}
           
-          buttonText="Login Client"
-          onSuccess={onGoogleClient}
-          onFailure={onGoogleClient}
+          buttonText="Login (Server)"
+          onSuccess={onGoogleServer}
+          onFailure={onGoogleServer}
           cookiePolicy={"single_host_origin"}
         />
         <span>  </span>
-        <button onClick={() => window.open(serverGoogleLogin(),"_self")} >
+        <button onClick={() => window.open(serverGoogleLoginUrl(),"_self")} >
         Google (Server)
         </button>
         <span>  </span>
-        <a className="App-link" href={serverGoogleLogin()}>Google Login</a>
+        <a className="App-link" href={serverGoogleLoginUrl()}>Google (Server)</a>
       </div>
-      <br/>
-      <div>{loginStatus}</div>
-      
     </div>
   );
 
