@@ -198,7 +198,9 @@ val sharedConfigAssemblySpark = Seq(
       f.data.getName.contains("jakarta.annotation-api-1.3.5.jar") ||
       f.data.getName.contains("jakarta.ws.rs-api-2.1.6.jar") ||
       f.data.getName.contains("commons-logging-1.1.3.ja") ||
-      (f.data.getName.contains("netty") && f.data.getName.contains("4.1.50.Final.jar")) 
+      f.data.getName.contains("aws-java-sdk-bundle-1.11.563.jar") ||
+      f.data.getName.contains("jcl-over-slf4j-1.7.30.jar") ||
+      (f.data.getName.contains("netty") && (f.data.getName.contains("4.1.50.Final.jar") || (f.data.getName.contains("netty-all-4.1.68.Final.jar"))))
 
       //|| f.data.getName == "spark-core_2.11-2.0.1.jar"
     }

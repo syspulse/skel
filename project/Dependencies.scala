@@ -179,6 +179,7 @@ object Dependencies {
     val libSparkCore =       "org.apache.spark"              %% "spark-core"         % sparkVersion
     val libSparkSQL =        "org.apache.spark"              %% "spark-sql"          % sparkVersion
     val libHadoopAWS =       "org.apache.hadoop"             % "hadoop-aws"          % hadoopAWSVersion
+    val libAWSJavaSDK =      "com.amazonaws"                 % "aws-java-sdk-bundle" % "1.11.874" //"1.12.247"
     val libJaninoCompiler =  "org.codehaus.janino"           %  "commons-compiler"   % janinoVersion
 
     // Projects
@@ -202,6 +203,6 @@ object Dependencies {
     val libJwt = Seq(libJwtCore,libJoseJwt)
 
     val libSpark = Seq(libSparkCore,libSparkSQL,libJanino,libJaninoCompiler)
-    val libSparkAWS = libSpark ++ Seq(libHadoopAWS)
+    val libSparkAWS = libSpark ++ Seq(libHadoopAWS,libAWSJavaSDK)
   }
   

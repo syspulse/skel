@@ -37,6 +37,9 @@ case class Config(
   sparkExMem:String = "",
   sparkDrvMem:String = "",
   sparkCoresMax:Int = 0,
+
+  kubeServiceAccount:String = "",
+  kubeNamespace:String = "",
   
   cmd:String = "",
   params: Seq[String] = Seq(),
@@ -105,6 +108,9 @@ object CsvConvert {
         ArgString('_', "spark.driver.memory","(def: 1g)"),
         ArgInt('_',"spark.cores.max","(def: max)"),
 
+        ArgString('_', "kube.sa","(def: '')"),
+        ArgString('_', "kube.namespace","(def: '')"),
+
         ArgCmd("convert","Command"),
         ArgCmd("read","Command"),
         ArgParam("<params>","")
@@ -125,24 +131,48 @@ object CsvConvert {
       sparkDrvMem = c.getString("spark.driver.memory").getOrElse("1g"),
       sparkCoresMax = c.getInt("spark.cores.max").getOrElse(Int.MaxValue),
 
+      kubeServiceAccount = c.getString("kube.sa").getOrElse(""),
+      kubeNamespace = c.getString("kube.namespace").getOrElse(""),
+
       cmd = c.getCmd().getOrElse("convert"),
       params = c.getParams(),
     )
 
     println(s"Config: ${config}")
   
-    val ss = SparkSession.builder()
+    var sb = SparkSession.builder()
       .appName("csv-to-parquet")
       .config("spark.master", "local")
       .config("default.parallelism",config.parallelism)
-      .config("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
       .config("spark.executor.memory", config.sparkExMem)
       .config("spark.driver.memory", config.sparkDrvMem)
       .config("spark.cores.max", config.sparkCoresMax)
-
       //.config("spark.driver.cores", config.sparkDrvCores)
       //.config("spark.executor.cores", config.sparkExCores)
-    .getOrCreate()
+
+    if(config.kubeServiceAccount.isEmpty)
+      sb = sb
+      .config("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
+    else
+      sb = sb
+      .config("spark.hadoop.fs.s3a.aws.credentials.provider","com.amazonaws.auth.WebIdentityTokenCredentialsProvider")
+      
+      .config("spark.kubernetes.authenticate.driver.serviceAccountName",config.kubeServiceAccount)
+      .config("spark.kubernetes.authenticate.executor.serviceAccountName", config.kubeServiceAccount)
+      .config("spark.kubernetes.namespace",config.kubeNamespace)
+
+      //.config("spark.kubernetes.container.image", "xxxxxx.dkr.ecr.ap-southeast-1.amazonaws.com/spark-ubuntu-3.0.1")
+      //.config("spark.kubernetes.container.image.pullPolicy" ,"Always")  
+    
+      //.config("spark.kubernetes.executor.annotation.eks.amazonaws.com/role-arn","arn:aws:iam::xxxxxx:role/spark-irsa")
+      .config("spark.kubernetes.authenticate.submission.caCertFile", "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
+      .config("spark.kubernetes.authenticate.submission.oauthTokenFile", "/var/run/secrets/kubernetes.io/serviceaccount/token")
+      .config("spark.hadoop.fs.s3a.multiobjectdelete.enable", "false")
+      //.config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+      .config("spark.hadoop.fs.s3a.fast.upload","true")
+
+    val ss = sb.getOrCreate()
+    println(s"SparkSession: ${ss}: conf=${ss.conf.getAll}")
 
     val df = ss.read.option("header", "true").format("com.databricks.spark.csv").csv(config.input)
     df.printSchema()

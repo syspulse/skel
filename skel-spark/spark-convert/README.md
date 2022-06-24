@@ -45,6 +45,12 @@ Convert on AWS S3
 ./run-spark-convert.sh --input s3a://bucket/export/csv/ --output s3a://bucket/export/parquet/
 ```
 
+Convert with AWS EKS ServiceAccount credentials
+
+```
+./run-spark-convert.sh  --kube.sa="service-account" --kube.namespace="default" --input s3a://bucket/export/csv/ --output s3a://bucket/export/parquet/
+```
+
 JVM and Spark Session tuning:
 
 ```
