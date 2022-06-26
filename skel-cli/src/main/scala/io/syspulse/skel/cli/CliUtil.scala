@@ -74,7 +74,12 @@ object CliUtil {
       case s"${d}/${m}/${y}" => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withYear(y.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
       case s"${d}.${m}" => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
       case s"${d}/${m}" => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
-
+      
+      case s"${d}-${m}-${y}" if d.size < 3 => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withYear(y.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
+      case s"${y}-${m}-${d}" if y.size == 4 => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withYear(y.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
+      
+      case s"${d}-${m}" => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
+      
       case s => // try to parse anything
         formats.foreach{ f => 
           try {

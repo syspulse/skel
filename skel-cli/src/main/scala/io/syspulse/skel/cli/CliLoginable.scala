@@ -22,6 +22,7 @@ import io.syspulse.skel.crypto.Eth
 import os._
 import java.time.format.DateTimeFormatter
 import io.syspulse.skel.crypto.wallet.Signer
+import io.syspulse.skel.crypto.KeyPair
 
 case class SessionId(id:UUID = UUID.random)
 
@@ -66,7 +67,7 @@ class CommandLoginUser(cli:CliLoginable,args:String*) extends Command(cli,args) 
   def exec(st:CliState):Result = {
     st match {
       case CliStateLoggedOff(ctx) => {
-        val (userId,kk) = args.toList match {
+        val (userId,kk:Try[KeyPair]) = args.toList match {
           case userId :: pass :: keystoreFile :: _ => (userId,Eth.readKeystore(pass,keystoreFile))
           case userId :: pass :: Nil => (userId,Eth.readKeystore(pass,DEF_KEYSTORE))
           case userId :: Nil => (userId,Success(Eth.generateRandom()))
@@ -78,7 +79,7 @@ class CommandLoginUser(cli:CliLoginable,args:String*) extends Command(cli,args) 
           return ERR(s"could not load keystore: ${kk}",CliStateLoggedOff(ctx))
         }
         
-        val signer = Signer(UUID(userId),kk.get._1,kk.get._2)
+        val signer = Signer(UUID(userId),kk.get.sk,kk.get.pk)
         val user = User(UUID(userId),"user-1","user-1@email",List(signer))
         
         OK(s"logged in: ${user}",CliStateLoggedIn(Ctx(ctx.uri,Some(user))))
