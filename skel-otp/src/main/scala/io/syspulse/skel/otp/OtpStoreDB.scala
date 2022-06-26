@@ -17,7 +17,7 @@ import com.typesafe.scalalogging.Logger
 import io.syspulse.skel.config.{Configuration}
 import io.syspulse.skel.store.{Store,StoreDB}
 
-class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB[Otp](dbConfigRef,"otp",Some(configuration)) with OtpStore {
+class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB[Otp,UUID](dbConfigRef,"otp",Some(configuration)) with OtpStore {
 
   import ctx._
 
@@ -70,7 +70,7 @@ class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB
     }
   }
 
-  def -(id:UUID):Try[OtpStoreDB] = { 
+  def del(id:UUID):Try[OtpStoreDB] = { 
     log.info(s"delete: id=${id}")
     try {
       ctx.run(deleteById(lift(id)))
@@ -79,7 +79,7 @@ class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB
       case e:Exception => Failure(new Exception(s"could not delete: ${e}"))
     } 
   }
-  def -(otp:Otp):Try[OtpStoreDB] = { this.-(otp.id) }
+  def -(otp:Otp):Try[OtpStoreDB] = { this.del(otp.id) }
 
   def get(id:UUID):Option[Otp] = {
     log.info(s"select: id=${id}")

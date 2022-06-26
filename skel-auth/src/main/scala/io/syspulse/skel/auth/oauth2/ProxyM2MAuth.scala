@@ -84,7 +84,7 @@ class ProxyM2MAuth(val redirectUri:String,config:Config) extends Idp {
   import ProxyM2MAuth._
 
   val challenge = Util.generateAccessToken() //"challenge"
-  val transformers:Seq[ProxyTransformer] = getTransfomers(config.authHeadersMapping)
+  val transformers:Seq[ProxyTransformer] = getTransfomers(config.proxyHeadersMapping)
 
   override def clientId:Option[String] = Some("10000") //Option[String](System.getenv("CUSTOM_AUTH_CLIENT_ID"))
   override def clientSecret:Option[String] = Some("$2a$10$9NERDMTtLDcgNPnixNqsv.Eol/4s81R5hPIPaP6LyKjhUPNVo821i") //Option[String](System.getenv("CUSTOM_AUTH_CLIENT_SECRET")) 
@@ -93,11 +93,11 @@ class ProxyM2MAuth(val redirectUri:String,config:Config) extends Idp {
   
   def getBasicAuth():Option[String] = None
 
-  def getTokenUrl() = s"${config.authUri}/token" //"http://localhost:12090/auth/token"
+  def getTokenUrl() = s"${config.proxyUri}/token" //"http://localhost:12090/auth/token"
   
   override def getRedirectUri() = s"${redirectUri}/custom"
 
-  def getLoginUrl() = s"${config.authUri}/login"
+  def getLoginUrl() = s"${config.proxyUri}/login"
 
   def getProfileUrl(accessToken:String):(String,Seq[(String,String)]) = ("",Seq())
       
@@ -139,7 +139,7 @@ class ProxyM2MAuth(val redirectUri:String,config:Config) extends Idp {
     val tt = mapTransfomers(reqHeaders,trs)
     println(s"tt=${tt}")
 
-    var body = config.authBody
+    var body = config.proxyBody
     for( t <- tt if t.t == "BODY") {
       body = body.replaceAll("""\{\{""" + t.k + """\}\}""", s"${t.v}")
     }

@@ -21,22 +21,37 @@ object AuthRegistry {
   final case class CreateAuthRsp(auth: Auth)
   final case class ActionRsp(description: String,code:Option[String])
 
-  def apply(): Behavior[Command] = registry(Set.empty)
+  // this var reference is unfortunately needed for Metrics access
+  var store: AuthStore = null //new AuthStoreDB //new AuthStoreCache
 
-  private def registry(auths: Set[Auth]): Behavior[Command] =
+  def apply(store: AuthStore = new AuthStoreMem): Behavior[Command] = {
+    this.store = store
+    registry(store)
+  }
+
+  private def registry(store: AuthStore): Behavior[Command] = {
+    this.store = store
+
     Behaviors.receiveMessage {
       case GetAuths(replyTo) =>
-        replyTo ! Auths(auths.toSeq)
+        replyTo ! Auths(store.getAll)
         Behaviors.same
       case CreateAuth(auth, replyTo) =>
+        
+        val store1 = store.+(auth)
         replyTo ! CreateAuthRsp(auth)
-        registry(auths + auth)
+        registry(store1.getOrElse(store))
+
       case GetAuth(auid, replyTo) =>
-        replyTo ! GetAuthRsp(auths.find(_.auid == auid))
+      
+        replyTo ! GetAuthRsp(store.get(auid))
         Behaviors.same
+
       case DeleteAuth(auid, replyTo) =>
+        val store1 = store.del(auid)
         replyTo ! ActionRsp(s"deleted",Some(auid))
-        registry(auths.filterNot(_.auid == auid))
+        registry(store1.getOrElse(store))
     }
+  }
 }
 

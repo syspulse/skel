@@ -2,7 +2,8 @@ package io.syspulse.skel.auth
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv}
+import io.syspulse.skel.config._
+
 import io.syspulse.skel.auth.{AuthRegistry,AuthRoutes}
 
 import scopt.OParser
@@ -13,15 +14,15 @@ case class Config(
   uri:String = "",
   datastore:String = "",
 
-  authBasicUser:String = "",
-  authBasicPass:String = "",
-  authBasicRealm:String = "realm",
+  proxyBasicUser:String = "",
+  proxyBasicPass:String = "",
+  proxyBasicRealm:String = "realm",
+  proxyUri:String = "",
+  proxyBody:String = "",
+  proxyHeadersMapping:String = "",
 
-  authUri:String = "",
-  authBody:String = "",
-  authHeadersMapping:String = "",
-
-  files: Seq[String] = Seq(),
+  cmd:String = "",
+  params: Seq[String] = Seq(),
 )
 
 object App extends skel.Server {
@@ -29,55 +30,63 @@ object App extends skel.Server {
   def main(args:Array[String]) = {
     println(s"args: '${args.mkString(",")}'")
 
-    val builder = OParser.builder[Config]
-    val argsParser = {
-      import builder._
-      OParser.sequence(
-        programName(Util.info._1), head(Util.info._1, Util.info._2),
-        opt[String]('h', "http.host").action((x, c) => c.copy(host = x)).text("listen host (def: 0.0.0.0)"),
-        opt[Int]('p', "http.port").action((x, c) => c.copy(port = x)).text("listern port (def: 8080)"),
-        opt[String]('u', "http.uri").action((x, c) => c.copy(uri = x)).text("rest uri (def: /api/v1/otp)"),
+    val c = Configuration.withPriority(Seq(
+      new ConfigurationAkka,
+      new ConfigurationProp,
+      new ConfigurationEnv, 
+      new ConfigurationArgs(args,"eth-stream","",
+        ArgString('h', "http.host","listen host (def: 0.0.0.0)"),
+        ArgInt('p', "http.port","listern port (def: 8080)"),
+        ArgString('u', "http.uri","api uri (def: /api/v1/otp)"),
+        ArgString('d', "datastore","datastore [mysql,postgres,mem,cache] (def: mem)"),
+        
+        ArgString('_',"proxy.basic.user","Auth Basic Auth username (def: user1"),
+        ArgString('_',"proxy.basic.pass","ProxyM2M Auth Basic Auth password (def: pass1"),
+        ArgString('_',"proxy.uri","ProxyM2M Auth server endpoint (def: http://localhost:8080/api/v1/auth/m2m"),
+        ArgString('_',"proxy.body","ProxyM2M Body mapping (def:) "),
+        ArgString('_',"proxy.headers.mapping","ProxyM2M Headers mapping (def:) "),
 
-        opt[String]('d', "datastore").action((x, c) => c.copy(datastore = x)).text("datastore"),
+        ArgCmd("server","Command"),
+        ArgCmd("client","Command"),
+        ArgParam("<params>","")
+      ).withExit(1)
+    ))
 
-        opt[String]("auth.basic.user").action((x, c) => c.copy(uri = x)).text("Auth Basic Auth username (def: user1"),
-        opt[String]("auth.basic.pass").action((x, c) => c.copy(uri = x)).text("Auth Basic Auth password (def: pass1"),
+    val config = Config(
+      host = c.getString("http.host").getOrElse("0.0.0.0"),
+      port = c.getInt("http.port").getOrElse(8080),
+      uri = c.getString("http.uri").getOrElse("/api/v1/otp"),
+      datastore = c.getString("datastore").getOrElse("mem"),
 
-        opt[String]('a', "auth.uri").action((x, c) => c.copy(authUri = x)).text("Auth server endpoint (def: http://localhost:8080/api/v1/auth/m2m"),
-        opt[String]("auth.body").action((x, c) => c.copy(authBody = x)).text("Body mapping (def:) "),
-        opt[String]("auth.headers.mapping").action((x, c) => c.copy(authHeadersMapping = x)).text("Headers mapping (def:) "),
+      proxyBasicUser = c.getString("proxy.basic.user").getOrElse("user1"),
+      proxyBasicPass = c.getString("proxy.basic.pass").getOrElse("pass1"),
 
-        help("help").text(s"${Util.info._1} microservice"),
-        arg[String]("...").unbounded().optional().action((x, c) => c.copy(files = c.files :+ x)).text("files"),
-      )
-    } 
-  
-    OParser.parse(argsParser, args, Config()) match {
-      case Some(configArgs) => {
-        val configuration = Configuration.default
+      proxyUri = c.getString("proxy.uri").getOrElse("http://localhost:8080/api/v1/auth/m2m"),
+      proxyBody = c.getString("proxy.body").getOrElse("""{ "username":{{user}}, "password":{{pass}}"""),
+      proxyHeadersMapping = c.getString("proxy.headers.mapping")
+                    .getOrElse("HEADER:Content-type:application/json, HEADER:X-App-Id:{{client_id}}, HEADER:X-App-Secret:{{client_secret}}, BODY:X-User:{{user}}, BODY:X-Pass:{{pass}}"),
 
-        implicit val config = Config(
-          host = { if(! configArgs.host.isEmpty) configArgs.host else configuration.getString("http.host").getOrElse("0.0.0.0") },
-          port = { if(configArgs.port!=0) configArgs.port else configuration.getInt("http.port").getOrElse(8080) },
-          uri = { if(! configArgs.uri.isEmpty) configArgs.uri else configuration.getString("http.uri").getOrElse("/api/v1/auth") },
-          datastore = { if(! configArgs.datastore.isEmpty) configArgs.datastore else configuration.getString("datastore").getOrElse("cache") }.toLowerCase,
+      cmd = c.getCmd().getOrElse("server"),
+      params = c.getParams(),
+    )
 
-          authBasicUser = { if(! configArgs.authBasicUser.isEmpty) configArgs.authBasicUser else configuration.getString("auth.basic.user").getOrElse("user1") },
-          authBasicPass = { if(! configArgs.authBasicPass.isEmpty) configArgs.authBasicPass else configuration.getString("auth.basic.pass").getOrElse("pass1") },
+    println(s"Config: ${config}")
 
-          authUri = { if(! configArgs.authUri.isEmpty) configArgs.authUri else configuration.getString("auth.uri").getOrElse("http://localhost:8080/api/v1/auth/m2m") },
-          authBody = { if(! configArgs.authBody.isEmpty) configArgs.authBody else configuration.getString("auth.body")
-                        .getOrElse("""{ "username":{{user}}, "password":{{pass}}""") },
-          authHeadersMapping = { if(! configArgs.authHeadersMapping.isEmpty) configArgs.authHeadersMapping else configuration.getString("auth.headers.mapping")
-                        .getOrElse("HEADER:Content-type:application/json, HEADER:X-App-Id:{{client_id}}, HEADER:X-App-Secret:{{client_secret}}, BODY:X-User:{{user}}, BODY:X-Pass:{{pass}}") },
-        )
+    val store = config.datastore match {
+      //case "mysql" | "db" => new AuthStoreDB(c,"mysql")
+      //case "postgres" => new AuthStoreDB(c,"postgres")
+      case "mem" | "cache" => new AuthStoreMem
+      case _ => {
+        Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
+        new AuthStoreMem
+      }
+    }
 
-        println(s"Config: ${config}")
-
-        run( config.host, config.port,config.uri, configuration,
+    config.cmd match {
+      case "server" => 
+        run( config.host, config.port,config.uri,c,
           Seq(
-            (AuthRegistry(),"AuthRegistry",(actor, context) => {
-                //
+            (AuthRegistry(store),"AuthRegistry",(actor, context) => {
                 new AuthRoutes(actor,
                   s"http://localhost:${config.port}${config.uri}",
                   s"http://localhost:${config.port}${config.uri}/callback")(context, config) 
@@ -86,9 +95,52 @@ object App extends skel.Server {
             
           )
         )
+      case "client" => {
+        
+        // val host = if(config.host == "0.0.0.0") "localhost" else config.host
+        // val uri = s"http://${host}:${config.port}${config.uri}"
+        // val timeout = Duration("3 seconds")
+
+        // val r = 
+        //   config.params match {
+        //     case "delete" :: id :: Nil => 
+        //       OtpClientHttp(uri)
+        //         .withTimeout(timeout)
+        //         .delete(UUID(id))
+        //         .await()
+        //     case "create" :: userId :: Nil => 
+        //       OtpClientHttp(uri)
+        //         .withTimeout(timeout)
+        //         .create(if(userId == "random") UUID.random else UUID(userId),"","name","account-2",None,None)
+        //         .await()
+        //     case "get" :: id :: Nil => 
+        //       OtpClientHttp(uri)
+        //         .withTimeout(timeout)
+        //         .get(UUID(id))
+        //         .await()
+        //     case "getAll" :: Nil => 
+        //       OtpClientHttp(uri)
+        //         .withTimeout(timeout)
+        //         .getAll()
+        //         .await()
+        //     case "getForUser" :: userId :: Nil => 
+        //       OtpClientHttp(uri)
+        //         .withTimeout(timeout)
+        //         .getForUser(UUID(userId))
+        //         .await()
+        //     case Nil => OtpClientHttp(uri)
+        //         .withTimeout(timeout)
+        //         .getAll()
+        //         .await()
+
+        //     case _ => println(s"unknown op: ${config.params}")
+        //   }
+        
+        // println(s"${r}")
+        System.exit(0)
       }
-      case _ => 
     }
+    
   }
 }
 

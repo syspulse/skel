@@ -47,6 +47,8 @@ Convert on AWS S3
 
 Convert with AWS EKS ServiceAccount credentials
 
+__NOTE__: it must be run as Pod/Job/Cronjob with serviceAccountName=sevice-account 
+
 ```
 ./run-spark-convert.sh  --kube.sa="service-account" --kube.namespace="default" --input s3a://bucket/export/csv/ --output s3a://bucket/export/parquet/
 ```

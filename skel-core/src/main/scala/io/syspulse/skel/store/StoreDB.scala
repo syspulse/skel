@@ -19,7 +19,7 @@ import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skel.config.Configuration
 
-abstract class StoreDB[E](val dbConfigName:String,val tableName:String,configuration:Option[Configuration]=None) extends Store[E] {
+abstract class StoreDB[E,P](val dbConfigName:String,val tableName:String,configuration:Option[Configuration]=None) extends Store[E,P] {
   val log = Logger(s"${this}")
 
   val props = new java.util.Properties

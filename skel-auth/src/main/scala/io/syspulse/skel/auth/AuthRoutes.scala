@@ -226,8 +226,8 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
   protected def authenticateBasicAuth[T]()(implicit config:Config): Directive1[AuthResult] = {
     log.info("Authenticating: Basic-Authentication...")
-    implicit val credConfig:(String,String) = (config.authBasicUser,config.authBasicPass)
-    authenticateBasic(config.authBasicRealm, basicAuthCredentials)
+    implicit val credConfig:(String,String) = (config.proxyBasicUser,config.proxyBasicPass)
+    authenticateBasic(config.proxyBasicRealm, basicAuthCredentials)
   }
 
   protected def authenticateProxyAuth[T](request:HttpRequest)(implicit config:Config): Directive1[AuthResult] = {

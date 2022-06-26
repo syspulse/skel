@@ -189,7 +189,7 @@ object OtpRegistry extends DefaultInstrumented  {
         Behaviors.same
 
       case DeleteOtp(id, replyTo) =>
-        val store1 = store.-(id)
+        val store1 = store.del(id)
         replyTo ! OtpActionRes(s"Success",Some(id))
         registry(store1.getOrElse(store))
     }
