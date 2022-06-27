@@ -45,6 +45,8 @@ import fr.davit.akka.http.metrics.core.HttpMetrics._
 import io.syspulse.skel.service.ws.{WebSocketEcho,WsRoutes}
 import akka.stream.ActorMaterializer
 import scala.concurrent.Future
+import akka.actor.typed.SpawnProtocol
+import akka.actor.typed.Props
 
 trait Server {
   val logger = Logger(s"${this}")
@@ -139,11 +141,20 @@ trait Server {
     routes
   }
 
+  import akka.actor.typed.scaladsl.AskPattern._
+
+  final case class RoutesAsk(what: String, replyTo: ActorRef[RoutesRes])
+  final case class RoutesRes(routes: Route)
+
+  def askRoutes(as:ActorSystem[SpawnProtocol.Command]): Route = {
+    as.ask(SpawnProtocol.Spawn(behavior = GetRoutes(), name = "askRoutes", props = Props.empty, _))
+  }
+
   def run(host:String, port:Int, uri:String, configuration:Configuration,
           app:Seq[(Behavior[Command],String,(ActorRef[Command],scaladsl.ActorContext[_])=>Routeable)]
-          ): Unit = {
+          ): ActorSystem[SpawnProtocol.Command] = {
     
-    val httpBehavior = Behaviors.setup[Nothing] { context =>
+    val httpBehavior = Behaviors.setup[SpawnProtocol.Command] { context =>
       val telemetryRegistryActor = context.spawn(TelemetryRegistry(), "Actor-Skel-TelemetryRegistry")
       val infoRegistryActor = context.spawn(InfoRegistry(), "Actor-Skel-InfoRegistry")
       val healthRegistryActor = context.spawn(HealthRegistry(), "Actor-Skel-HealthRegistry")
@@ -189,26 +200,33 @@ trait Server {
           appRoutes
         )
       
+      Behaviors.receive[RoutesAsk] { (context, message) =>
+        //context.log.info2("Greeting for {} from {}", message.whom, message.from)
+        message.replyTo ! RoutesRes(routes)
+        Behaviors.stopped
+      }
       
       Swagger.withClass(appClasses).withVersion(parseUri(uri)._2.toString).withHost(host,port)
     
       // should not be here...
       startHttpServer(host, port, routes)(context.system)
 
-      Behaviors.empty
+      //Behaviors.empty
+      SpawnProtocol()
     }
     
-    val rootBehavior = { Behaviors.supervise[Nothing] { httpBehavior }}.onFailure[Exception](SupervisorStrategy.resume)
+    val rootBehavior = { Behaviors.supervise[SpawnProtocol.Command] { httpBehavior }}.onFailure[Exception](SupervisorStrategy.resume)
     //.onFailure[Exception](SupervisorStrategy.restart.withLimit(maxNrOfRetries = 10, withinTimeRange = 10.seconds))
 
     implicit val (system) = {
       // ATTENTION: https://doc.akka.io/docs/akka/current/general/configuration.html#configuring-multiple-actorsystem
-      val system = ActorSystem[Nothing](rootBehavior, "ActorSystem-HttpServer")
+      val system = ActorSystem[SpawnProtocol.Command](rootBehavior, "ActorSystem-HttpServer")
       //val mat = ActorMaterializer()(system.classicSystem)
       //(system,mat)
       (system)
     }
     
+    system
   }
 }
 

@@ -19,6 +19,9 @@ import scala.concurrent.duration.Duration
 import io.syspulse.skel.Server
 import io.syspulse.skel.test.HttpServiceTest
 import io.syspulse.skel.otp.OtpRegistry._
+import javax.ws.rs.core.Configurable
+import io.syspulse.skel.config.Configuration
+import akka.actor.typed.scaladsl.Behaviors
 
 class OtpRoutesSpec extends HttpServiceTest {
 //class OtpRoutesSpec extends WordSpec with Matchers with ScalaFutures with ScalatestRouteTest {
@@ -27,6 +30,7 @@ class OtpRoutesSpec extends HttpServiceTest {
   // so we have to adapt for now
   lazy val testKit = ActorTestKit()
   implicit def typedSystem = testKit.system
+  
   override def createActorSystem(): akka.actor.ActorSystem = testKit.system.classicSystem
 
   val uri = "/api/v1/otp"
@@ -38,14 +42,15 @@ class OtpRoutesSpec extends HttpServiceTest {
   val otpRegistry = testKit.spawn(OtpRegistry(new OtpStoreMem))
   var server = new Server {
     val (rejectionHandler,exceptionHandler) = getHandlers()
-    val routes = getRoutes(
-      rejectionHandler,exceptionHandler,
-      uri,
-      Seq(),
-      Seq(new OtpRoutes(otpRegistry).routes)
-    )
   }
-  lazy val routes = server.routes
+
+  server.run( "localhost", 8081, uri, Configuration.default,
+    Seq(
+      (OtpRegistry(store),"OtpRegistry",(a,as ) => new OtpRoutes(a)(as) ),    
+    )
+  )
+
+  lazy val routes = server.askRoutes()
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import OtpJson._
@@ -75,7 +80,7 @@ class OtpRoutesSpec extends HttpServiceTest {
       }
     }
     s"be able to add Otp (POST ${uri})" in {
-      val otpCreate = OtpCreate(userId1, "secret", "app1", "user1@email.com", Some("http://service"), Some(42))
+      val otpCreate = OtpCreateReq(userId1, "secret", "app1", "user1@email.com", Some("http://service"), Some(42))
       val otpEntity = Marshal(otpCreate).to[MessageEntity].futureValue 
 
       val request = Post(uri).withEntity(otpEntity)
@@ -84,7 +89,7 @@ class OtpRoutesSpec extends HttpServiceTest {
         status should ===(StatusCodes.Created)
         contentType should ===(ContentTypes.`application/json`)
 
-        val rsp = entityAs[OtpCreateResult]
+        val rsp = entityAs[OtpCreateRes]
         // otp is created with random UUID !
         rsp.secret === (s"""secret""")
         
@@ -115,13 +120,13 @@ class OtpRoutesSpec extends HttpServiceTest {
       request ~> routes ~> check {
         status should ===(StatusCodes.OK)
         contentType should ===(ContentTypes.`application/json`)
-        val rsp = entityAs[OtpRandomResult]
+        val rsp = entityAs[OtpRandomRes]
         rsp.secret.size should ===(32)
       }
     }
 
     s"return Random OTP with QR data(GET ${uri}/random)" in {
-      val otpRandom = OtpRandom(Some("app3"), Some("http://service3"))
+      val otpRandom = OtpRandomReq(Some("app3"), Some("http://service3"))
       val otpEntity = Marshal(otpRandom).to[MessageEntity].futureValue 
       
       val request = Get(uri = s"${uri}/random").withEntity(otpEntity)
@@ -129,7 +134,7 @@ class OtpRoutesSpec extends HttpServiceTest {
       request ~> routes ~> check {
         status should ===(StatusCodes.OK)
         contentType should ===(ContentTypes.`application/json`)
-        val rsp = entityAs[OtpRandomResult]
+        val rsp = entityAs[OtpRandomRes]
         rsp.secret.size should ===(32)
         rsp.qrImage.size should !==(0)
         rsp.qrImage.startsWith("data:image/gif;base64") should ===(true)
@@ -151,10 +156,10 @@ class OtpRoutesSpec extends HttpServiceTest {
     }
 
     s"be able to add 2 Otp to User ${userId2} (POST ${uri})" in {
-      val otpCreate1 = OtpCreate(userId2,"25gs67pxghrop232", "app1", "user2@email.com", Some("http://service1"), Some(30))
+      val otpCreate1 = OtpCreateReq(userId2,"25gs67pxghrop232", "app1", "user2@email.com", Some("http://service1"), Some(30))
       val otpEntity1 = Marshal(otpCreate1).to[MessageEntity].futureValue 
 
-      val otpCreate2 = OtpCreate(userId2,"VZUUQQXB2BJHMDFLD46AWJDNEJKJ2MPV", "app2", "user2@email.com", Some("http://service2"), Some(30))
+      val otpCreate2 = OtpCreateReq(userId2,"VZUUQQXB2BJHMDFLD46AWJDNEJKJ2MPV", "app2", "user2@email.com", Some("http://service2"), Some(30))
       val otpEntity2 = Marshal(otpCreate2).to[MessageEntity].futureValue 
 
 
@@ -166,7 +171,7 @@ class OtpRoutesSpec extends HttpServiceTest {
 
         contentType should ===(ContentTypes.`application/json`)
 
-        val rsp = entityAs[OtpCreateResult]
+        val rsp = entityAs[OtpCreateRes]
         // otp is created with random UUID !
         rsp.secret === "25gs67pxghrop232"
         userId2Otp1 = rsp.id.get
@@ -177,7 +182,7 @@ class OtpRoutesSpec extends HttpServiceTest {
 
         contentType should ===(ContentTypes.`application/json`)
 
-        val rsp = entityAs[OtpCreateResult]
+        val rsp = entityAs[OtpCreateRes]
         // otp is created with random UUID !
         rsp.secret === "VZUUQQXB2BJHMDFLD46AWJDNEJKJ2MPV"
         userId2Otp2 = rsp.id.get
@@ -222,7 +227,7 @@ class OtpRoutesSpec extends HttpServiceTest {
         status should ===(StatusCodes.OK)
 
         contentType should ===(ContentTypes.`application/json`)
-        val rsp = entityAs[GetOtpCodeResponse]
+        val rsp = entityAs[OtpCodeRes]
 
         info(s"User(${userId2}), Otp(${userId2Otp1}: Code=${rsp.code}")
         rsp.code should !==(Some(""))
@@ -250,7 +255,7 @@ class OtpRoutesSpec extends HttpServiceTest {
 
         contentType should ===(ContentTypes.`application/json`)
 
-        val rsp = entityAs[GetOtpCodeVerifyResponse]
+        val rsp = entityAs[OtpCodeVerifyRes]
 
         rsp.code should ===(codeUser)
         rsp.authorized should ===(true)
@@ -267,7 +272,7 @@ class OtpRoutesSpec extends HttpServiceTest {
 
         contentType should ===(ContentTypes.`application/json`)
 
-        val rsp = entityAs[GetOtpCodeVerifyResponse]
+        val rsp = entityAs[OtpCodeVerifyRes]
 
         rsp.code should ===(codeUser)
         rsp.authorized should ===(false)
@@ -283,8 +288,8 @@ class OtpRoutesSpec extends HttpServiceTest {
         contentType should ===(ContentTypes.`application/json`)
 
         //entityAs[String] should ===("""{"description":"Otp deleted."}""")
-        val rsp = entityAs[OtpActionResult]
-        rsp.description should startWith(s"""deleted""")
+        val rsp = entityAs[OtpActionRes]
+        rsp.status should startWith(s"""deleted""")
       }
     }
 
