@@ -37,7 +37,7 @@ class ConfigRoutes(configRegistry: ActorRef[ConfigRegistry.Command])(implicit co
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import ConfigJson._
   
-  val metricGetAllCount = Counter.build().name("skel_config_requests_total").help("Total Configuration requests.").register()
+  //val metricGetAllCount = Counter.build().name("skel_config_requests_total").help("Total Configuration requests.").register()
   
   def getConfigAll(): Future[Configs] = configRegistry.ask(GetConfigAll( _))
 
@@ -47,7 +47,7 @@ class ConfigRoutes(configRegistry: ActorRef[ConfigRegistry.Command])(implicit co
       new ApiResponse(responseCode = "200", description = "configuration",content = Array(new Content(schema = new Schema(implementation = classOf[Configs])))))
   )
   def getConfigAllRoute() = get {
-    metricGetAllCount.inc()
+    //metricGetAllCount.inc()
     complete(getConfigAll())
   }
 

@@ -69,7 +69,7 @@ object App extends skel.Server {
       case "server" => 
         run( config.host, config.port,config.uri,c,
           Seq(
-            (OtpRegistry(store),"OtpRegistry",(a,as ) => new OtpRoutes(a)(as) ),    
+            (OtpRegistry(store),"OtpRegistry",(a,ac) => new OtpRoutes(a)(ac) ),
           )
         )
       case "client" => {

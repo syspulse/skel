@@ -5,7 +5,12 @@ import com.typesafe.sbt.packager.docker._
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
+// https://www.scala-sbt.org/1.x/docs/Parallel-Execution.html#Built-in+Tags+and+Rules
 Test / parallelExecution := true
+//test / parallelExecution := false
+// I am sorry sbt, this is stupid ->
+// Non-concurrent execution is needed for Server with starting / stopping HttpServer
+Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 licenses := Seq(("ASF2", url("https://www.apache.org/licenses/LICENSE-2.0")))
 

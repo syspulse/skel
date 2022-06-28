@@ -13,12 +13,13 @@ import ejisan.kuro.otp._
 import nl.grons.metrics4.scala.DefaultInstrumented
 import nl.grons.metrics4.scala.MetricName
 
+import io.syspulse.skel.Command
 // create Otp Parameters
 
 object OtpRegistry extends DefaultInstrumented  {
   val log = Logger(s"${this}")
   
-  sealed trait Command extends io.syspulse.skel.Command
+  //sealed trait Command extends io.syspulse.skel.Command
 
   final case class GetOtps(replyTo: ActorRef[Otps]) extends Command
   final case class GetOtp(id:UUID,replyTo: ActorRef[OtpRes]) extends Command

@@ -16,8 +16,9 @@ import akka.http.scaladsl.server.Route
 import akka.util.ByteString
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import org.scalatest.flatspec.AnyFlatSpec
 
-class HttpServiceTest extends AnyWordSpec with Matchers with ScalaFutures with ScalatestRouteTest {
+trait HttpServiceTest extends AnyFlatSpec with Matchers with ScalaFutures with ScalatestRouteTest {
 
   // Custom Rejecter which preserves JSON over 404,500, ... (TestKit replaces body and Content-Type for non-200)
   implicit def jsonPreservingRejectionHandler =

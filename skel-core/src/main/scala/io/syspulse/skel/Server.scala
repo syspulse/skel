@@ -48,13 +48,18 @@ import scala.concurrent.Future
 
 trait Server {
   val logger = Logger(s"${this}")
-
+  
+  val shutdownTimeout = 1.seconds
+  
   private def startHttpServer(host:String,port:Int, routes: Route)(implicit system: ActorSystem[_]): Unit = {  
     import system.executionContext
 
     try {
       val http:Future[Http.ServerBinding] =
-      Http().newMeteredServerAt(host, port,TelemetryRegistry.prometheusRegistry).bind(routes)
+      Http()
+        .newMeteredServerAt(host, port,TelemetryRegistry.prometheusRegistry)
+        .bind(routes)
+        .map(_.addToCoordinatedShutdown(hardTerminationDeadline = shutdownTimeout))
       http.onComplete {
         case Success(binding) =>
           val address = binding.localAddress
@@ -139,9 +144,11 @@ trait Server {
     routes
   }
 
+  protected def postInit(context:ActorContext[_],routes:Route) = {}
+
   def run(host:String, port:Int, uri:String, configuration:Configuration,
-          app:Seq[(Behavior[Command],String,(ActorRef[Command],scaladsl.ActorContext[_])=>Routeable)]
-          ): Unit = {
+          app:Seq[(Behavior[Command],String,(ActorRef[Command],ActorContext[_])=>Routeable)],
+          bootstrapActorSystem: Option[ActorSystem[Nothing]] = None): Behavior[Nothing] = {
     
     val httpBehavior = Behaviors.setup[Nothing] { context =>
       val telemetryRegistryActor = context.spawn(TelemetryRegistry(), "Actor-Skel-TelemetryRegistry")
@@ -191,6 +198,8 @@ trait Server {
       
       
       Swagger.withClass(appClasses).withVersion(parseUri(uri)._2.toString).withHost(host,port)
+
+      postInit(context,routes)
     
       // should not be here...
       startHttpServer(host, port, routes)(context.system)
@@ -203,12 +212,18 @@ trait Server {
 
     implicit val (system) = {
       // ATTENTION: https://doc.akka.io/docs/akka/current/general/configuration.html#configuring-multiple-actorsystem
-      val system = ActorSystem[Nothing](rootBehavior, "ActorSystem-HttpServer")
+      val system = 
+        if(bootstrapActorSystem.isDefined) 
+          bootstrapActorSystem.get.systemActorOf[Nothing](rootBehavior, "ActorSystem-HttpServer")
+        else
+          ActorSystem[Nothing](rootBehavior, "ActorSystem-HttpServer")
+
       //val mat = ActorMaterializer()(system.classicSystem)
       //(system,mat)
       (system)
     }
     
+    rootBehavior
   }
 }
 

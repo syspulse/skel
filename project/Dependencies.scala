@@ -6,7 +6,7 @@ object Dependencies {
     lazy val versionScalaLogging = "3.9.2"
     lazy val akkaVersion    = "2.6.19"
     lazy val alpakkaVersion = "3.0.4"  
-    lazy val akkaHttpVersion = "10.2.4"
+    lazy val akkaHttpVersion = "10.2.9" //"10.2.4"
     lazy val akkaKafkaVersion = "2.0.3"
     lazy val kafkaAvroSerVersion = "5.4.1"
     lazy val quillVersion = "3.6.0"
@@ -123,7 +123,7 @@ object Dependencies {
 
     val libScalaTest =      "org.scalatest"               %% "scalatest"            % "3.1.2"// % Test
     //val libSpecs2core =     "org.specs2"                  %% "specs2-core"          % "2.4.17"
-    val libAkkaTestkit =    "com.typesafe.akka"           %% "akka-http-testkit"    % akkaHttpVersion// % Test
+    val libAkkaTestkit =    "com.typesafe.akka"           %% "akka-http-testkit"        % akkaHttpVersion// % Test
     val libAkkaTestkitType ="com.typesafe.akka"           %% "akka-actor-testkit-typed" % akkaVersion// % Test
     
     val libJline =          "org.jline"                   %  "jline"                 % "3.14.1"

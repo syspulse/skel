@@ -28,30 +28,34 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody
 import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
 import javax.ws.rs.core.MediaType
 
+import io.prometheus.client.CollectorRegistry
 import io.prometheus.client.Counter
 
 import io.syspulse.skel.service.Routeable
 import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.otp.OtpRegistry._
+import io.syspulse.skel.Command
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 
 @Path("/api/v1/otp")
-class OtpRoutes(otpRegistry: ActorRef[OtpRegistry.Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {
+class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {
   val log = Logger(s"${this}")  
   implicit val system: ActorSystem[_] = context.system
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import OtpJson._
   
-  val metricGetCount: Counter = Counter.build().name("skel_otp_get_total").help("OTP gets").register()
-  val metricDeleteCount: Counter = Counter.build().name("skel_otp_delete_total").help("OTP deletes").register()
-  val metricPostCount: Counter = Counter.build().name("skel_otp_post_total").help("OTP posts").register()
-  val metricGetCodeCount: Counter = Counter.build().name("skel_otp_code_total").help("OTP code").register()
-  val metricVerifyCodeCount: Counter = Counter.build().name("skel_otp_verify_total").help("OTP verify").register()
-  val metricGetRandomCount: Counter = Counter.build().name("skel_otp_random_total").help("OTP random").register()
+  // registry is needed because Unit-tests with multiple Routes in Suites will fail (Prometheus libary quirk)
+  val cr = new CollectorRegistry(true);
+  val metricGetCount: Counter = Counter.build().name("skel_otp_get_total").help("OTP gets").register(cr)
+  val metricDeleteCount: Counter = Counter.build().name("skel_otp_delete_total").help("OTP deletes").register(cr)
+  val metricPostCount: Counter = Counter.build().name("skel_otp_post_total").help("OTP posts").register(cr)
+  val metricGetCodeCount: Counter = Counter.build().name("skel_otp_code_total").help("OTP code").register(cr)
+  val metricVerifyCodeCount: Counter = Counter.build().name("skel_otp_verify_total").help("OTP verify").register(cr)
+  val metricGetRandomCount: Counter = Counter.build().name("skel_otp_random_total").help("OTP random").register(cr)
 
   def getOtps(): Future[Otps] = otpRegistry.ask(GetOtps)
   def getUserOtps(userId:UUID): Future[Otps] = otpRegistry.ask(GetUserOtps(userId,_))
