@@ -83,7 +83,7 @@ class ProxyM2MAuth(val redirectUri:String,config:Config) extends Idp {
   
   import ProxyM2MAuth._
 
-  val challenge = Util.generateAccessToken() //"challenge"
+  val challenge = Util.generateRandomToken() //"challenge"
   val transformers:Seq[ProxyTransformer] = getTransfomers(config.proxyHeadersMapping)
 
   override def clientId:Option[String] = Some("10000") //Option[String](System.getenv("CUSTOM_AUTH_CLIENT_ID"))

@@ -97,7 +97,8 @@ class EthOAuth2(val uri:String) extends Idp {
   val redirectUri:String = getRedirectUri()  
   override def getRedirectUri() = s"${uri}/eth/callback"
 
-  val addr = "0x71CB05EE1b1F506fF321Da3dac38f25c0c9ce6E1" //"0x0186c7E33411617c03bc5AaA68642fFC6c60Fc8b"
+  // This is only for internal tests
+  val addr = "0x71CB05EE1b1F506fF321Da3dac38f25c0c9ce6E1" 
   def sig() = {
     val data = generateSigData(Map("address" -> addr))
     Util.hex(
@@ -106,7 +107,6 @@ class EthOAuth2(val uri:String) extends Idp {
         Eth.generate("0x1da6847600b0ee25e9ad9a52abbd786dd2502fa4005dd5af9310b7cc7a3b25db").get
       ).toArray()
     )
-
     //"0xd154fd4171820e35a1cf48e67242779714d176e59e19de02dcf62b78cd75946d0bd46da493810b66b589667286d05c0f4e1b0cc6f29a544361ad639b0a6614041c"
   }
   

@@ -34,7 +34,7 @@ object Util {
   val salt: Array[Byte] = Array.fill[Byte](16)(0x1f)
   val digest = MessageDigest.getInstance("SHA-256");  
 
-  def generateAccessToken() = Base64.getUrlEncoder.withoutPadding.encodeToString(random.generateSeed(32))
+  def generateRandomToken() = Base64.getUrlEncoder.withoutPadding.encodeToString(random.generateSeed(32))
   def generateRandom() = random.generateSeed(32)
 
   def fromHexString(h:String) = ByteVector.fromHex(h).orElse(Some(ByteVector.fromByte(0))).get.toArray

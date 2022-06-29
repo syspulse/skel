@@ -9,9 +9,15 @@ import io.jvm.uuid._
 import ujson._
 
 import io.syspulse.skel.auth.Auth
+import java.time.Clock
+import pdi.jwt.algorithms.JwtHmacAlgorithm
+import pdi.jwt.algorithms.JwtAsymmetricAlgorithm
 
 object AuthJwt {
   val log = Logger(s"${this}")
+  implicit val clock = Clock.systemDefaultZone()
+
+  var secret: String = "secret"
 
   def decode(a:Auth) = {
     Jwt.decode(a.idToken,JwtOptions(signature = false))
@@ -22,5 +28,19 @@ object AuthJwt {
     ujson.read(jwt.get.toJson).obj.map(v=> v._1 -> v._2.toString.stripSuffix("\"").stripPrefix("\"")).toMap
   }
 
+  def generateAccessToken(uid:String, expire:Long = 3600L, algo:JwtAlgorithm=JwtAlgorithm.HS512):String = {
+    Jwt
+      .encode(JwtClaim({s"""{"uid":${uid}}"""})
+      .issuedNow.expiresIn(expire), secret, algo)
+  }
+
+  def isValid(token:String, algo:JwtAlgorithm=JwtAlgorithm.HS512) = {
+    algo match {
+      case a:JwtHmacAlgorithm => Jwt.isValid(token, secret, Seq(a))
+      case a:JwtAsymmetricAlgorithm => Jwt.isValid(token, secret, Seq(a))
+      case _  => false
+    }
+    
+  }
 }
 

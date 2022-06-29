@@ -336,7 +336,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                     complete(StatusCodes.Unauthorized,s"invalid sig: ${sig}")
                   } else {
 
-                    val code = Util.generateAccessToken() // this is actually a code and accessToken
+                    val code = Util.generateRandomToken()
 
                     onSuccess(createCode(Code(code,addr))) { rsp =>
                       log.info(s"sig=${sig}, addr=${addr}, redirect_uri=${redirect_uri}: -> code=${code}")
@@ -373,11 +373,12 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                   complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
 
                 } else {
-                  val accessToken = Util.sha256(rsp.code.get.authCode)
+                  val accessToken =  AuthJwt.generateAccessToken(rsp.code.get.userId.getOrElse("")) 
                   log.info(s"code=${code}: rsp=${rsp.code}: accessToken${accessToken}")
 
                   // associate accessToken with code for later Profile retrieval by rewriting Code and
                   // immediately expiring code 
+                  // Extracting user id possible from JWT 
                   onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>
                     
                     complete(StatusCodes.OK,EthTokens(accessToken = accessToken, expiresIn = 3600,scope = "",tokenType = ""))                    
@@ -392,7 +393,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
               if(! rsp.code.isDefined || rsp.code.get.expire < System.currentTimeMillis()) {
                 
                 log.error(s"code=${code}: rsp=${rsp}: not found or expired")
-                  complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
+                complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
 
               } else {
                 val accessToken = Util.sha256(rsp.code.get.authCode)
@@ -412,13 +413,20 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           import io.syspulse.skel.auth.oauth2.EthOAuth2._
           get {
             parameters("access_token") { (access_token) => {
-              
-              // request from temporary Code Cache
-              onSuccess(getCodeByToken(access_token)) { rsp => 
-                complete(StatusCodes.OK,
-                  EthProfile( rsp.code.get.userId.get, rsp.code.get.userId.get, "profile.email", "profile.avatar", LocalDateTime.now().toString)
-                )                      
-              }              
+              // validate
+              if( !AuthJwt.isValid(access_token)) {
+
+                log.error(s"access_token=${access_token}: JWT validation failed")
+                complete(StatusCodes.Unauthorized,s"access_token invalid: ${access_token}")
+
+              } else {
+                // request from temporary Code Cache
+                onSuccess(getCodeByToken(access_token)) { rsp => 
+                  complete(StatusCodes.OK,
+                    EthProfile( rsp.code.get.userId.get, rsp.code.get.userId.get, "profile.email", "profile.avatar", LocalDateTime.now().toString)
+                  )                      
+                }             
+              }
             }}
           }
         }
@@ -429,7 +437,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           import io.syspulse.skel.auth.oauth2.ProxyM2MAuth._
           import io.syspulse.skel.auth.oauth2.ProxyTokensRes
 
-          val rsp = ProxyTokensRes(id = 1,token=Util.generateAccessToken(), refreshToken=Util.generateAccessToken())
+          val rsp = ProxyTokensRes(id = 1,token=Util.generateRandomToken(), refreshToken=Util.generateRandomToken())
           complete(StatusCodes.OK,rsp)
         } ~
         pathEndOrSingleSlash { 
