@@ -128,7 +128,7 @@ class EthOAuth2(val uri:String) extends Idp {
   }
 
   def decodeProfile(profileRsp:ByteString)(implicit mat:Materializer,ec: scala.concurrent.ExecutionContext):Future[OAuthProfile] = {
-    Unmarshal(profileRsp).to[EthProfile].map( p => OAuthProfile(p.id,p.email,p.addr,p.avatar,"Sith"))
+    Unmarshal(profileRsp).to[EthProfile].map( p => OAuthProfile(p.id,p.email,p.addr,p.avatar,"universe"))
   }
     
 }

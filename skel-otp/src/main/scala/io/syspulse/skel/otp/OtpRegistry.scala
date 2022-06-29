@@ -108,7 +108,7 @@ object OtpRegistry extends DefaultInstrumented  {
 
     Behaviors.receiveMessage {
       case GetOtps(replyTo) =>
-        replyTo ! Otps(store.getAll)
+        replyTo ! Otps(store.all)
         Behaviors.same
 
       case GetUserOtps(userId,replyTo) =>
@@ -165,11 +165,11 @@ object OtpRegistry extends DefaultInstrumented  {
         Behaviors.same
 
       case GetOtp(id, replyTo) =>
-        replyTo ! OtpRes(store.get(id))
+        replyTo ! OtpRes(store.?(id))
         Behaviors.same
 
       case GetOtpCode(id, replyTo) =>
-        val otp = store.get(id)
+        val otp = store.?(id)
 
         val code = otp.map( o => {
           authCode(o.secret,o.period)
@@ -178,7 +178,7 @@ object OtpRegistry extends DefaultInstrumented  {
         Behaviors.same
 
       case GetOtpCodeVerify(id, codeUser, replyTo) =>
-        val otp = store.get(id)
+        val otp = store.?(id)
         
         val code = otp.map( o => {
           authCode(o.secret,o.period)

@@ -16,7 +16,7 @@ class OtpStoreMem extends OtpStore {
   
   var otps: Set[Otp] = Set()
 
-  def getAll:Seq[Otp] = otps.toSeq
+  def all:Seq[Otp] = otps.toSeq
 
   def getForUser(userId:UUID):Seq[Otp] = {
     otps.filter(_.userId == userId).toSeq
@@ -38,5 +38,5 @@ class OtpStoreMem extends OtpStore {
     if(sz == otps.size) Failure(new Exception(s"not found: ${otp}")) else Success(this)
   }
 
-  def get(id:UUID):Option[Otp] = otps.find(_.id == id)
+  def ?(id:UUID):Option[Otp] = otps.find(_.id == id)
 }

@@ -94,20 +94,16 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
   def getAuths(): Future[Auths] = authRegistry.ask(GetAuths)
 
-  def getAuth(auid: String): Future[AuthRes] =
-    authRegistry.ask(GetAuth(auid, _))
-
-  def createAuth(auth: Auth): Future[AuthCreateRes] =
-    authRegistry.ask(CreateAuth(auth, _))
-
-  def deleteAuth(auid: String): Future[AuthActionRes] =
-    authRegistry.ask(DeleteAuth(auid, _))
-
-  def createCode(code: Code): Future[CreateCodeRsp] = codeRegistry.ask(CreateCode(code, _))
-  def getCode(authCode: String): Future[GetCodeRsp] = codeRegistry.ask(GetCode(authCode, _))
+  def getAuth(auid: String): Future[AuthRes] = authRegistry.ask(GetAuth(auid, _))
+  def createAuth(auth: Auth): Future[AuthCreateRes] = authRegistry.ask(CreateAuth(auth, _))
+  def deleteAuth(auid: String): Future[AuthActionRes] = authRegistry.ask(DeleteAuth(auid, _))
+  def createCode(code: Code): Future[CodeCreateRes] = codeRegistry.ask(CreateCode(code, _))
+  def updateCode(code: Code): Future[CodeCreateRes] = codeRegistry.ask(UpdateCode(code, _))
+  def getCode(authCode: String): Future[CodeRes] = codeRegistry.ask(GetCode(authCode, _))
+  def getCodeByToken(accessToken: String): Future[CodeRes] = codeRegistry.ask(GetCodeByToken(accessToken, _))
 
   
-  def getCallback(idp: Idp, code: String, redirectUri:Option[String], extraData:Option[Map[String,String]], scope: Option[String], state:Option[String]): Future[AuthWithProfileRes] = {
+  def callbackFlow(idp: Idp, code: String, redirectUri:Option[String], extraData:Option[Map[String,String]], scope: Option[String], state:Option[String]): Future[AuthWithProfileRes] = {
     log.info(s"code=${code}, redirectUri=${redirectUri}, scope=${scope}, state=${state}")
     
     val data = Map(
@@ -138,11 +134,10 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         tokenReq.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
       }
       idpTokens <- {
-        log.info(s"tokenRsp: ${tokenRsp.utf8String}")
-        //Unmarshal(tokenRsp).to[GoogleTokens]
+        log.info(s"tokenRsp: ${tokenRsp.utf8String}")        
         idp.decodeTokens(tokenRsp)
       }
-      profileReq <- {
+      profileRes <- {
         log.info(s"code=${code}: tokens=${idpTokens}: requesting user profile")
         val (uri,headers) = idp.getProfileUrl(idpTokens.accessToken)
         val rsp = Http().singleRequest(
@@ -152,17 +147,22 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         )
         rsp
       }
-      profileRes <- {
-        profileReq.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
+      profileResData <- {
+        profileRes.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
       }
       profile <- {
-        val profile = profileRes.utf8String
+        val profile = profileResData.utf8String
         log.info(s"code=${code}: profile: ${profile}")
 
-        idp.decodeProfile(profileRes)
+        idp.decodeProfile(profileResData)
       }
-      db <- {
-        val auth = Auth(auid = profile.id, idpTokens.accessToken, idpTokens.idToken, scope, idpTokens.expiresIn)
+      userId <- {
+        // ATTENTION: request user id from UserService
+        val uid = UUID.random
+        Future(uid)
+      }
+      authRes <- {        
+        val auth = Auth(idpTokens.accessToken, userId , idpTokens.idToken, scope, idpTokens.expiresIn)
         
         if(auth.idToken != "") {
           val jwt = AuthJwt.decode(auth)
@@ -174,12 +174,21 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           log.info(s"code=${code}: profile=${profile}: auth=${auth}")
         }
 
+        // save Auth Session 
         createAuth(auth)
       }
-      authRes <- {
-        Future(AuthWithProfileRes(db.auth.auid, db.auth.idToken, profile.email, profile.name, profile.picture, profile.locale))
+      authProfileRes <- {
+        Future(AuthWithProfileRes(
+          authRes.auth.accessToken, 
+          authRes.auth.uid,
+          authRes.auth.idToken, 
+          profile.id,
+          profile.email, 
+          profile.name, 
+          profile.picture, 
+          profile.locale))
       }
-    } yield authRes
+    } yield authProfileRes
     
   }
 
@@ -258,7 +267,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           pathEndOrSingleSlash {
             get {
               parameters("code", "redirect_uri".optional, "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,redirectUri,scope,state,prompt,authuser,hd) =>
-                onSuccess(getCallback(idps.get(GoogleOAuth2.id).get,code,redirectUri,None,scope,state)) { rsp =>
+                onSuccess(callbackFlow(idps.get(GoogleOAuth2.id).get,code,redirectUri,None,scope,state)) { rsp =>
                   complete(StatusCodes.Created, rsp)
                 }
               }
@@ -269,7 +278,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           pathEndOrSingleSlash {
             get {
               parameters("code", "challenge", "redirect_uri".optional, "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,challenge,redirectUri,scope,state,prompt,authuser,hd) =>
-                onSuccess(getCallback(idps.get(TwitterOAuth2.id).get,code,redirectUri,Some(Map("code_verifier" -> challenge)),scope,state)) { rsp =>
+                onSuccess(callbackFlow(idps.get(TwitterOAuth2.id).get,code,redirectUri,Some(Map("code_verifier" -> challenge)),scope,state)) { rsp =>
                   complete(StatusCodes.Created, rsp)
                 }
               }
@@ -284,7 +293,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           pathEndOrSingleSlash {
             get {
               parameters("code", "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,scope,state,prompt,authuser,hd) =>
-                onSuccess(getCallback(idps.get(GoogleOAuth2.id).get,code,None,None,scope,state)) { rsp =>
+                onSuccess(callbackFlow(idps.get(GoogleOAuth2.id).get,code,None,None,scope,state)) { rsp =>
                   //redirect("",StatusCodes.PermanentRedirect)
                   complete(StatusCodes.Created, rsp)
                 }
@@ -296,7 +305,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           pathEndOrSingleSlash {
             get {
               parameters("code", "scope".optional,"state".optional) { (code,scope,state) =>
-                onSuccess(getCallback(idps.get(TwitterOAuth2.id).get,code,None,None,scope,None)) { rsp =>
+                onSuccess(callbackFlow(idps.get(TwitterOAuth2.id).get,code,None,None,scope,None)) { rsp =>
                   complete(StatusCodes.Created, rsp)
                 }
               }
@@ -327,15 +336,14 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                     complete(StatusCodes.Unauthorized,s"invalid sig: ${sig}")
                   } else {
 
-                    val authCode = Util.generateAccessToken()
+                    val code = Util.generateAccessToken() // this is actually a code and accessToken
 
-                    onSuccess(createCode(Code(authCode))) { rsp =>
-                      log.info(s"sig=${sig}, addr=${addr}, redirect_uri=${redirect_uri}, code=${authCode}")
+                    onSuccess(createCode(Code(code,addr))) { rsp =>
+                      log.info(s"sig=${sig}, addr=${addr}, redirect_uri=${redirect_uri}: -> code=${code}")
                       redirect(redirect_uri + s"?code=${rsp.code.authCode}", StatusCodes.PermanentRedirect)  
                     }
                   }
-                }
-                
+                }                
               }
             }
           }
@@ -344,7 +352,8 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           get {
             parameters("code", "scope".optional,"state".optional) { (code,scope,state) => 
               log.info(s"code=${code}, scope=${scope}")
-              onSuccess(getCallback(idps.get(EthOAuth2.id).get,code,None,None,scope,None)) { rsp =>
+              
+              onSuccess( callbackFlow(idps.get(EthOAuth2.id).get,code,None,None,scope,None) ) { rsp =>
                 complete(StatusCodes.Created, rsp)
               }
             }
@@ -358,32 +367,43 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
             formFields("code","client_id","client_secret","redirect_uri","grant_type") { (code,client_id,client_secret,redirect_uri,grant_type) => {
               log.info(s"code=${code},client_id=${client_id},client_secret=${client_secret},redirect_uri=${redirect_uri},grant_type=${grant_type}")
               onSuccess(getCode(code)) { rsp =>
-                if(! rsp.code.isDefined) {
+                if(! rsp.code.isDefined || rsp.code.get.expire < System.currentTimeMillis()) {
                   
-                  log.error(s"code=${code}: rsp=${rsp}: not found")
-                  complete(StatusCodes.Unauthorized,s"code not found: ${code}")
+                  log.error(s"code=${code}: rsp=${rsp}: not found or expired")
+                  complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
 
                 } else {
                   val accessToken = Util.sha256(rsp.code.get.authCode)
                   log.info(s"code=${code}: rsp=${rsp.code}: accessToken${accessToken}")
 
-                  complete(StatusCodes.OK,EthTokens(accessToken = accessToken, expiresIn = 3600,scope = "",tokenType = ""))
+                  // associate accessToken with code for later Profile retrieval by rewriting Code and
+                  // immediately expiring code 
+                  onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>
+                    
+                    complete(StatusCodes.OK,EthTokens(accessToken = accessToken, expiresIn = 3600,scope = "",tokenType = ""))                    
+                  }
+                  
                 }
               }  
             }
           }} ~
           get { parameters("code") { (code) => 
             onSuccess(getCode(code)) { rsp =>
-              if(! rsp.code.isDefined) {
+              if(! rsp.code.isDefined || rsp.code.get.expire < System.currentTimeMillis()) {
                 
-                log.error(s"code=${code}: rsp=${rsp}: not found")
-                complete(StatusCodes.Unauthorized,s"code not found: ${code}")
+                log.error(s"code=${code}: rsp=${rsp}: not found or expired")
+                  complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
 
               } else {
                 val accessToken = Util.sha256(rsp.code.get.authCode)
                 log.info(s"code=${code}: rsp=${rsp.code}: accessToken${accessToken}")
 
-                complete(StatusCodes.OK,EthTokens(accessToken = accessToken, expiresIn = 3600,scope = "",tokenType = ""))
+                // associate accessToken with code for later Profile retrieval by rewriting Code and
+                // immediately expiring code 
+                onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>
+                  
+                  complete(StatusCodes.OK,EthTokens(accessToken = accessToken, expiresIn = 3600,scope = "",tokenType = ""))                    
+                }
               }
             }
           }}
@@ -392,8 +412,13 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           import io.syspulse.skel.auth.oauth2.EthOAuth2._
           get {
             parameters("access_token") { (access_token) => {
-              val rsp = EthProfile(UUID.random.toString, "profile.addr", "profile.email", "profile.avatar", LocalDateTime.now().toString)
-              complete(StatusCodes.OK,rsp)
+              
+              // request from temporary Code Cache
+              onSuccess(getCodeByToken(access_token)) { rsp => 
+                complete(StatusCodes.OK,
+                  EthProfile( rsp.code.get.userId.get, rsp.code.get.userId.get, "profile.email", "profile.avatar", LocalDateTime.now().toString)
+                )                      
+              }              
             }}
           }
         }

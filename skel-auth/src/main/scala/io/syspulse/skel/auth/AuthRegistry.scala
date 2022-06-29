@@ -28,7 +28,7 @@ object AuthRegistry {
 
     Behaviors.receiveMessage {
       case GetAuths(replyTo) =>
-        replyTo ! Auths(store.getAll)
+        replyTo ! Auths(store.all)
         Behaviors.same
 
       case CreateAuth(auth, replyTo) =>
@@ -37,7 +37,7 @@ object AuthRegistry {
         registry(store1.getOrElse(store))
 
       case GetAuth(auid, replyTo) =>
-        replyTo ! AuthRes(store.get(auid))
+        replyTo ! AuthRes(store.?(auid))
         Behaviors.same
 
       case DeleteAuth(auid, replyTo) =>

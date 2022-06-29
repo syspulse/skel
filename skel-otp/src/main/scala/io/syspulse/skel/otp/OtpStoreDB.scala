@@ -50,7 +50,7 @@ class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB
     }
   }
   
-  def getAll:Seq[Otp] = ctx.run(query[Otp])
+  def all:Seq[Otp] = ctx.run(query[Otp])
 
   def getForUser(userId:UUID):Seq[Otp] = {
     ctx.run(query[Otp].filter(o => o.userId == lift(userId)))
@@ -81,7 +81,7 @@ class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB
   }
   def -(otp:Otp):Try[OtpStoreDB] = { this.del(otp.id) }
 
-  def get(id:UUID):Option[Otp] = {
+  def ?(id:UUID):Option[Otp] = {
     log.info(s"select: id=${id}")
     ctx.run(query[Otp].filter(o => o.id == lift(id))) match {
       case h :: _ => Some(h)

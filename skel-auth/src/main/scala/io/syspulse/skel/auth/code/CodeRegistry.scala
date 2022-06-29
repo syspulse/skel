@@ -9,33 +9,53 @@ import io.jvm.uuid._
 import io.syspulse.skel.Command
 
 object CodeRegistry {
- 
-  final case class CreateCode(code: Code, replyTo: ActorRef[CreateCodeRsp]) extends Command
-  final case class GetCode(auid: String, replyTo: ActorRef[GetCodeRsp]) extends Command
-  final case class DeleteCode(auid: String, replyTo: ActorRef[ActionRsp]) extends Command
+  
+  final case class CreateCode(code: Code, replyTo: ActorRef[CodeCreateRes]) extends Command
+  final case class UpdateCode(code: Code, replyTo: ActorRef[CodeCreateRes]) extends Command
+  final case class GetCode(code: String, replyTo: ActorRef[CodeRes]) extends Command
+  final case class GetCodeByToken(code: String, replyTo: ActorRef[CodeRes]) extends Command
+  final case class GetCodes(replyTo: ActorRef[Codes]) extends Command
+  final case class DeleteCode(code: String, replyTo: ActorRef[CodeActionRes]) extends Command
+  
+  // this var reference is unfortunately needed for Metrics access
+  var store: CodeStore = new CodeStoreMem
 
-  final case class GetCodeRsp(code: Option[Code])
-  final case class CreateCodeRsp(code: Code)
+  def apply(store: CodeStore = new CodeStoreMem): Behavior[Command] = {
+    this.store = store
+    registry(store)
+  }
 
-  final case class ActionRsp(description: String,code:Option[String])
+  private def registry(store: CodeStore): Behavior[Command] = {
+    this.store = store
 
-  def apply(): Behavior[Command] = registry(Map.empty)
-
-  private def registry(codes: Map[String,Code]): Behavior[Command] =
     Behaviors.receiveMessage {
-      case CreateCode(code, replyTo) =>
-        replyTo ! CreateCodeRsp(code)
-        registry( codes + (code.authCode -> code))
-      case GetCode(authCode, replyTo) =>
-        replyTo ! GetCodeRsp(codes.get(authCode))
+      case GetCodes(replyTo) =>
+        replyTo ! Codes(store.all)
         Behaviors.same
-      case DeleteCode(authCode, replyTo) =>
-        val code = codes.get(authCode)
-        if(code.isDefined) {
-          replyTo ! ActionRsp(s"deleted",code.map(_.authCode))
-          registry(codes.-(authCode))
-        } else
-          Behaviors.same
+
+      case CreateCode(code, replyTo) =>
+        val store1 = store.+(code)
+        replyTo ! CodeCreateRes(code)
+        registry(store1.getOrElse(store))
+
+      case UpdateCode(code, replyTo) =>
+        val store1 = store.!(code)
+        replyTo ! CodeCreateRes(code)
+        registry(store1.getOrElse(store))
+
+      case GetCode(code, replyTo) =>
+        replyTo ! CodeRes(store.?(code))
+        Behaviors.same
+
+      case GetCodeByToken(accessToken, replyTo) =>
+        replyTo ! CodeRes(store.getByToken(accessToken))
+        Behaviors.same
+
+      case DeleteCode(code, replyTo) =>
+        val store1 = store.del(code)
+        replyTo ! CodeActionRes(s"Success",Some(code))
+        registry(store1.getOrElse(store))
     }
+  }
 }
 
