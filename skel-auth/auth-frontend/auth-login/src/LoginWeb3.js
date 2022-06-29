@@ -65,7 +65,7 @@ export default function LoginWeb3() {
   };
   
   function generateSigData(address,tolerance = 15000) {
-    let data = "timestamp: "+Math.trunc(Date.now() / tolerance)+","+"address: "+address
+    let data = "timestamp: "+(Math.trunc(Date.now() / tolerance) + 1 )+","+"address: "+address
     return data;
   };
   

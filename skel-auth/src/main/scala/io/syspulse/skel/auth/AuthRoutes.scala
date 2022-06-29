@@ -254,7 +254,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   <br>
   <a href="${idps.get(TwitterOAuth2.id).get.getLoginUrl()}">Twitter</a>
   <br>
-  <a href="${idps.get(EthOAuth2.id).get.getLoginUrl()}">Web3 (Eth)</a><b>You must login within 5 seconds after refresh</b>
+  <a href="${idps.get(EthOAuth2.id).get.getLoginUrl()}">Web3 (Eth)</a><b>You must login within 3600 seconds after refresh</b>
 </body>
 </html>
         """

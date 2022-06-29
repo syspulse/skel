@@ -16,7 +16,7 @@ const w = new ethers.Wallet(sk)
 //console.log("address:",w.address)
 
 function generateSigData(address,tolerance = 15000) {
-  let data = "timestamp: "+Math.trunc(Date.now() / tolerance)+","+"address: "+address
+  let data = "timestamp: "+ (Math.trunc(Date.now() / tolerance) + 1)+","+"address: "+address
   return data;
 };
 
