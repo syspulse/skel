@@ -1,5 +1,7 @@
 package io.syspulse.skel.auth
 
+import java.time.LocalDateTime
+
 import io.jvm.uuid._
 
 import akka.http.scaladsl.server.Directives._
@@ -38,12 +40,8 @@ import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.model.FormData
 
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
+import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 
-import io.syspulse.skel.auth.jwt.AuthJwt
-import io.syspulse.skel.auth.AuthRegistry._
-import io.syspulse.skel.service.Routeable
-import io.syspulse.skel.auth.oauth2.{ OAuthProfile, GoogleOAuth2, TwitterOAuth2, ProxyM2MAuth, EthProfile}
-import io.syspulse.skel.auth.oauth2.EthTokenReq
 import akka.http.scaladsl.model.HttpHeader
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.headers.OAuth2BearerToken
@@ -55,31 +53,23 @@ import scala.concurrent.ExecutionContext
 import akka.actor
 import akka.stream.Materializer
 import scala.util.Random
+
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.auth.oauth2.EthOAuth2
 import io.syspulse.skel.crypto.Eth
+
+import io.syspulse.skel.auth.jwt.AuthJwt
+import io.syspulse.skel.auth.AuthRegistry._
+import io.syspulse.skel.service.Routeable
+import io.syspulse.skel.auth.oauth2.{ OAuthProfile, GoogleOAuth2, TwitterOAuth2, ProxyM2MAuth, EthProfile}
+import io.syspulse.skel.auth.oauth2.EthTokenReq
 
 import io.syspulse.skel.auth.code.CodeRegistry._
 import io.syspulse.skel.auth.code._
 
 import io.syspulse.skel
-import java.time.LocalDateTime
-import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
+import io.syspulse.skel.auth.proxy._
 
-sealed trait AuthResult {
-  //def token: Option[OAuth2BearerToken] = None
-}
-case class BasicAuthResult(token: String) extends AuthResult
-case class ProxyAuthResult(token: String) extends AuthResult
-case object AuthDisabled extends AuthResult
-
-final case class AuthWithProfileRsp(auid:String, idToken:String, email:String, name:String, avatar:String, locale:String)
-
-object AuthRoutesJsons {
-  
-  implicit val jf_AuthWithProfileRsp = jsonFormat6(AuthWithProfileRsp)
-  implicit val jf_ProxyAuthResult = jsonFormat1(ProxyAuthResult)
-}    
 
 class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirectUri:String)(implicit context:ActorContext[_],config:Config) extends Routeable  {
   val log = Logger(s"${this}")
@@ -101,24 +91,23 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   log.info(s"idps: ${idps}")
 
   import AuthJson._
-  import AuthRoutesJsons._
 
   def getAuths(): Future[Auths] = authRegistry.ask(GetAuths)
 
-  def getAuth(auid: String): Future[GetAuthRsp] =
+  def getAuth(auid: String): Future[AuthRes] =
     authRegistry.ask(GetAuth(auid, _))
 
-  def createAuth(auth: Auth): Future[CreateAuthRsp] =
+  def createAuth(auth: Auth): Future[AuthCreateRes] =
     authRegistry.ask(CreateAuth(auth, _))
 
-  def deleteAuth(auid: String): Future[AuthRegistry.ActionRsp] =
+  def deleteAuth(auid: String): Future[AuthActionRes] =
     authRegistry.ask(DeleteAuth(auid, _))
 
   def createCode(code: Code): Future[CreateCodeRsp] = codeRegistry.ask(CreateCode(code, _))
   def getCode(authCode: String): Future[GetCodeRsp] = codeRegistry.ask(GetCode(authCode, _))
 
   
-  def getCallback(idp: Idp, code: String, redirectUri:Option[String], extraData:Option[Map[String,String]], scope: Option[String], state:Option[String]): Future[AuthWithProfileRsp] = {
+  def getCallback(idp: Idp, code: String, redirectUri:Option[String], extraData:Option[Map[String,String]], scope: Option[String], state:Option[String]): Future[AuthWithProfileRes] = {
     log.info(s"code=${code}, redirectUri=${redirectUri}, scope=${scope}, state=${state}")
     
     val data = Map(
@@ -188,7 +177,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         createAuth(auth)
       }
       authRes <- {
-        Future(AuthWithProfileRsp(db.auth.auid, db.auth.idToken, profile.email, profile.name, profile.picture, profile.locale))
+        Future(AuthWithProfileRes(db.auth.auid, db.auth.idToken, profile.email, profile.name, profile.picture, profile.locale))
       }
     } yield authRes
     

@@ -27,7 +27,7 @@ case class Config(
 
 object App extends skel.Server {
   
-  def main(args:Array[String]) = {
+  def main(args:Array[String]):Unit = {
     println(s"args: '${args.mkString(",")}'")
 
     val c = Configuration.withPriority(Seq(
@@ -55,7 +55,7 @@ object App extends skel.Server {
     val config = Config(
       host = c.getString("http.host").getOrElse("0.0.0.0"),
       port = c.getInt("http.port").getOrElse(8080),
-      uri = c.getString("http.uri").getOrElse("/api/v1/otp"),
+      uri = c.getString("http.uri").getOrElse("/api/v1/auth"),
       datastore = c.getString("datastore").getOrElse("mem"),
 
       proxyBasicUser = c.getString("proxy.basic.user").getOrElse("user1"),
@@ -139,8 +139,7 @@ object App extends skel.Server {
         // println(s"${r}")
         System.exit(0)
       }
-    }
-    
+    }    
   }
 }
 

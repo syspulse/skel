@@ -40,8 +40,8 @@ class ProxyM2MAuthSpec extends AnyWordSpec with Matchers {
     // """HEADER:X-App-Id:{{USER}}, HEADER:X-App-Secret:{{HOME}} transform to EnvVars """ in {
     //   val p = new ProxyM2MAuth("",
     //     Config(
-    //       authBody = "",
-    //       authHeadersMapping = """ HEADER:X-App-Id:{{USER}}, HEADER:X-App-Secret:{{HOME}} """
+    //       proxyBody = "",
+    //       proxyHeadersMapping = """ HEADER:X-App-Id:{{USER}}, HEADER:X-App-Secret:{{HOME}} """
     //     )
     //   )  
     //   val hh = p.transformHeaders(Seq(RawHeader("X-App-Id","app1"),RawHeader("X-App-Secret","s1")))
@@ -51,8 +51,8 @@ class ProxyM2MAuthSpec extends AnyWordSpec with Matchers {
     // """HEADER:X-App-Id:{{os.name}}, HEADER:X-App-Secret:{{user.home}} transform to Properties """ in {
     //   val p = new ProxyM2MAuth("",
     //     Config(
-    //       authBody = "",
-    //       authHeadersMapping = """ HEADER:X-App-Id:{{os.name}}, HEADER:X-App-Secret:{{user.home}} """
+    //       proxyBody = "",
+    //       proxyHeadersMapping = """ HEADER:X-App-Id:{{os.name}}, HEADER:X-App-Secret:{{user.home}} """
     //     )
     //   )  
     //   val hh = p.transformHeaders(Seq(RawHeader("X-App-Id","app1"),RawHeader("X-App-Secret","s1")))
@@ -61,8 +61,8 @@ class ProxyM2MAuthSpec extends AnyWordSpec with Matchers {
     """HEADER:X-App-Id: app1, HEADER:X-App-Secret: secret1 transform to Pass through Headers """ in {
       val p = new ProxyM2MAuth("",
         Config(
-          authBody = "",
-          authHeadersMapping = """ HEADER:X-App-Id: "X-App-Id", HEADER:X-App-Secret: "X-App-Secret" """
+          proxyBody = "",
+          proxyHeadersMapping = """ HEADER:X-App-Id: "X-App-Id", HEADER:X-App-Secret: "X-App-Secret" """
         )
       )  
       val hh = p.transformHeaders(Seq(RawHeader("X-App-Id","app1"),RawHeader("X-App-Secret","s1")))
@@ -72,8 +72,8 @@ class ProxyM2MAuthSpec extends AnyWordSpec with Matchers {
     """{ "user": {{user}}, "password": {{password}} } transform to {"user":"userXXXX","password":"passXXXX"}""" in {
       val p = new ProxyM2MAuth("",
         Config(
-          authBody = """ { "username": "{{user}}", "password": "{{pass}}" }""",
-          authHeadersMapping = """ BODY:X-User:user,BODY:X-Pass:pass """
+          proxyBody = """ { "username": "{{user}}", "password": "{{pass}}" }""",
+          proxyHeadersMapping = """ BODY:X-User:user,BODY:X-Pass:pass """
         )
       )  
       val b1 = p.transformBody(Seq(RawHeader("X-User","user0001"),RawHeader("X-Pass","pass0001")))

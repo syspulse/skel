@@ -16,6 +16,9 @@ object AuthJson extends JsonCommon  {
   implicit val jf_Auth = jsonFormat6(Auth.apply)
   implicit val jf_Auths = jsonFormat1(Auths)
 
-  implicit val jf_ActionRsp = jsonFormat2(ActionRsp)
-  implicit val jf_CreateAuthRsp = jsonFormat1(CreateAuthRsp)
+  implicit val jf_ActionRsp = jsonFormat2(AuthActionRes)
+  implicit val jf_CreateAuthRsp = jsonFormat1(AuthCreateRes)
+
+  implicit val jf_AuthWithProfileRsp = jsonFormat6(AuthWithProfileRes)
+  //implicit val jf_ProxyAuthResult = jsonFormat1(ProxyAuthRes)
 }
