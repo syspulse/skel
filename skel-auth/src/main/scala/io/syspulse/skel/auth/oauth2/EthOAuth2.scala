@@ -119,7 +119,13 @@ class EthOAuth2(val uri:String) extends Idp {
        Seq(("Authorization",s"Bearer ${accessToken}")))
 
   def withJWKS():EthOAuth2 = {
-    log.warn("does not support JWKS store")
+    val jwksUri = s"${uri}/jwks"
+    log.info("Requesting JWKS: ${jwksUri} ...")
+    val certsRsp = requests.get(jwksUri)
+    
+    //jwks = Some((certsRsp.text().parseJson).convertTo[JWKSKeys])
+    jwks = setJwks(certsRsp.text())
+    log.info(s"Eth JWKS: ${jwks}")
     this
   }
 

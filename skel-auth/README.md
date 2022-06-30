@@ -78,8 +78,37 @@ Server: akka-http/10.2.9
 
 AccessToken embeds User clam with address
 
-----
 
+### JWKS
+
+WIP to add JWT support
+
+```
+http http://localhost:8080/api/v1/auth/jwks
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Content-Length: 547
+Content-Type: application/json
+Date: Thu, 30 Jun 2022 14:59:25 GMT
+ETag: "c4400181b4f00dc0"
+Last-Modified: Thu, 30 Jun 2022 14:07:20 GMT
+Server: akka-http/10.2.9
+
+{
+    "keys": [
+        {
+            "alg": "RS512",
+            "e": "AQAB",
+            "kid": "sig-1656596770",
+            "kty": "RSA",
+            "n": "iRCkJ_ReXPL_GyMBAtINFX4_spByAfOPK5AEdg21UpZqN7qxY7ROTo2uw_8LjiufjSexFIQIDUkA6RVIDZkExHSgQH6hYnlOLx45zfcWx5Cm3dbpAYO5SHmo-Mp7wsS0dnnH8bdPo2uZVrsIKD0aoLkON9xyr1_2rePjZjYjZGvqX0wUbbe_RKIlocyDTjr9uA2tdGaFb_KjSZ4nMIDoqxXhrVQv4Hfe7WTugIM6UlfCAwGeH8f4l3Yg9gTdBQBC5uX852IGqpf5Kp6xo-2L3s69vfM8l6dwqWs07gLMknfAw3aw3UKkwvQOHn5iR7TkPdsJlmEzQcOGpKE9lxxAFQ",
+            "use": "sig"
+        }
+    ]
+}
+```
+
+----
 
 ## Proxy M2M
 

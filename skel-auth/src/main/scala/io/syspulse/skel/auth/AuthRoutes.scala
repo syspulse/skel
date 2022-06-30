@@ -82,13 +82,14 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   val codeRegistry: ActorRef[skel.Command] = context.spawn(CodeRegistry(),"Actor-CodeRegistry")
   context.watch(codeRegistry)
   
-  val idps = Map(
+  // lazy because EthOAuth2 JWKS will request while server is not started yet
+  lazy val idps = Map(
     GoogleOAuth2.id -> (new GoogleOAuth2(redirectUri)).withJWKS(),
     TwitterOAuth2.id -> (new TwitterOAuth2(redirectUri)),
     ProxyM2MAuth.id -> (new ProxyM2MAuth(redirectUri,config)),
-    EthOAuth2.id -> (new EthOAuth2(serviceUri)),
+    EthOAuth2.id -> (new EthOAuth2(serviceUri)).withJWKS(),
   )
-  log.info(s"idps: ${idps}")
+  //log.info(s"idps: ${idps}")
 
   import AuthJson._
 
@@ -259,6 +260,11 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 </html>
         """
         ))
+      },
+      path("jwks") {
+        // getFromResourceDirectory("login") 
+        getFromResource("keystore/jwks.json")
+        //complete(HttpEntity(ContentTypes.`text/html(UTF-8)`,""))
       },
       // token is requested from FrontEnt with authorization code 
       // FE -> Google -> HTTP REDIRECT -> FE(callback) -> skel-auth(token) -> FE
