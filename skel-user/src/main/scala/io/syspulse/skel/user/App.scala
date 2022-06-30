@@ -9,7 +9,7 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
 import io.syspulse.skel.user._
-//import io.syspulse.skel.user.client._
+import io.syspulse.skel.user.client._
 
 import io.jvm.uuid._
 
@@ -79,42 +79,44 @@ object App extends skel.Server {
         val uri = s"http://${host}:${config.port}${config.uri}"
         val timeout = Duration("3 seconds")
 
-        // val r = 
-        //   config.params match {
-        //     case "delete" :: id :: Nil => 
-        //       UserClientHttp(uri)
-        //         .withTimeout(timeout)
-        //         .delete(UUID(id))
-        //         .await()
-        //     case "create" :: userId :: Nil => 
-        //       UserClientHttp(uri)
-        //         .withTimeout(timeout)
-        //         .create(if(userId == "random") UUID.random else UUID(userId),"","name","account-2",None,None)
-        //         .await()
-        //     case "get" :: id :: Nil => 
-        //       UserClientHttp(uri)
-        //         .withTimeout(timeout)
-        //         .get(UUID(id))
-        //         .await()
-        //     case "getAll" :: Nil => 
-        //       UserClientHttp(uri)
-        //         .withTimeout(timeout)
-        //         .getAll()
-        //         .await()
-        //     case "getForUser" :: userId :: Nil => 
-        //       UserClientHttp(uri)
-        //         .withTimeout(timeout)
-        //         .getForUser(UUID(userId))
-        //         .await()
-        //     case Nil => UserClientHttp(uri)
-        //         .withTimeout(timeout)
-        //         .getAll()
-        //         .await()
+        val r = 
+          config.params match {
+            case "delete" :: id :: Nil => 
+              UserClientHttp(uri)
+                .withTimeout(timeout)
+                .delete(UUID(id))
+                .await()
+            case "create" :: data => 
+              val (email:String,name:String,eid:String) = data match {
+                case email :: name :: eid :: _ => (email,name,eid)
+                case email :: name :: Nil => (email,name,"")
+                case email :: Nil => (email,"","")
+                case Nil => ("user-1@mail.com","","")
+              }
+              UserClientHttp(uri)
+                .withTimeout(timeout)
+                .create(email,name,eid)
+                .await()
+            case "get" :: id :: Nil => 
+              UserClientHttp(uri)
+                .withTimeout(timeout)
+                .get(UUID(id))
+                .await()
+            case "all" :: Nil => 
+              UserClientHttp(uri)
+                .withTimeout(timeout)
+                .all()
+                .await()
 
-        //     case _ => println(s"unknown op: ${config.params}")
-        //   }
+            case Nil => UserClientHttp(uri)
+                .withTimeout(timeout)
+                .all()
+                .await()
+
+            case _ => println(s"unknown op: ${config.params}")
+          }
         
-        // println(s"${r}")
+        println(s"${r}")
         System.exit(0)
       }
     }

@@ -95,10 +95,10 @@ object App extends skel.Server {
                 .withTimeout(timeout)
                 .get(UUID(id))
                 .await()
-            case "getAll" :: Nil => 
+            case "all" :: Nil => 
               OtpClientHttp(uri)
                 .withTimeout(timeout)
-                .getAll()
+                .all()
                 .await()
             case "getForUser" :: userId :: Nil => 
               OtpClientHttp(uri)
@@ -107,7 +107,7 @@ object App extends skel.Server {
                 .await()
             case Nil => OtpClientHttp(uri)
                 .withTimeout(timeout)
-                .getAll()
+                .all()
                 .await()
 
             case _ => println(s"unknown op: ${config.params}")

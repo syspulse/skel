@@ -11,7 +11,6 @@ final case class UserCreateReq(email: String, name:String, eid: String, id:Optio
 final case class UserRandomReq()
 
 final case class UserActionRes(status: String,id:Option[UUID])
-final case class UserCreateRes(secret: String,id:Option[UUID])
 
 final case class UserRes(otp: Option[User])
 

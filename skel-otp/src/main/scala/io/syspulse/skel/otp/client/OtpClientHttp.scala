@@ -80,7 +80,7 @@ class OtpClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext)
     } yield otps 
   }
 
-  def getAll():Future[Otps] = {
+  def all():Future[Otps] = {
     log.info(s" -> ${reqGetOtps()}")
     for {
       rsp <- Http().singleRequest(reqGetOtps())

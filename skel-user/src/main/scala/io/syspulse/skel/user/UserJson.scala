@@ -18,8 +18,7 @@ object UserJson extends JsonCommon {
   implicit val jf_UserRes = jsonFormat1(UserRes)
   implicit val jf_CreateReq = jsonFormat4(UserCreateReq)
   implicit val jf_ActionRes = jsonFormat2(UserActionRes)
-  implicit val jf_CreateRes = jsonFormat2(UserCreateRes)
-
+  
   implicit val jf_RadnomReq = jsonFormat0(UserRandomReq)
   
 }
