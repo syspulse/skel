@@ -5,6 +5,7 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
 import io.syspulse.skel.auth.{AuthRegistry,AuthRoutes}
+import io.syspulse.skel.auth.jwt.AuthJwt
 
 import scopt.OParser
 
@@ -20,6 +21,8 @@ case class Config(
   proxyUri:String = "",
   proxyBody:String = "",
   proxyHeadersMapping:String = "",
+
+  jwtSecret:String = "",
 
   cmd:String = "",
   params: Seq[String] = Seq(),
@@ -46,6 +49,8 @@ object App extends skel.Server {
         ArgString('_',"proxy.body","ProxyM2M Body mapping (def:) "),
         ArgString('_',"proxy.headers.mapping","ProxyM2M Headers mapping (def:) "),
 
+        ArgString('_', "jwt.secret","JWT secret"),
+
         ArgCmd("server","Command"),
         ArgCmd("client","Command"),
         ArgParam("<params>","")
@@ -66,6 +71,8 @@ object App extends skel.Server {
       proxyHeadersMapping = c.getString("proxy.headers.mapping")
                     .getOrElse("HEADER:Content-type:application/json, HEADER:X-App-Id:{{client_id}}, HEADER:X-App-Secret:{{client_secret}}, BODY:X-User:{{user}}, BODY:X-Pass:{{pass}}"),
 
+      jwtSecret = c.getString("jwt.secret").getOrElse(Util.generateRandomToken()),
+
       cmd = c.getCmd().getOrElse("server"),
       params = c.getParams(),
     )
@@ -81,6 +88,8 @@ object App extends skel.Server {
         new AuthStoreMem
       }
     }
+
+    AuthJwt.run(config)
 
     config.cmd match {
       case "server" => 

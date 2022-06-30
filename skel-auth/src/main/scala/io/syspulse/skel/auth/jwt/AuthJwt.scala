@@ -12,12 +12,17 @@ import io.syspulse.skel.auth.Auth
 import java.time.Clock
 import pdi.jwt.algorithms.JwtHmacAlgorithm
 import pdi.jwt.algorithms.JwtAsymmetricAlgorithm
+import io.syspulse.skel.auth.Config
 
 object AuthJwt {
   val log = Logger(s"${this}")
   implicit val clock = Clock.systemDefaultZone()
 
   var secret: String = "secret"
+
+  def run(config:Config) = {
+    secret = config.jwtSecret
+  }
 
   def decode(a:Auth) = {
     Jwt.decode(a.idToken,JwtOptions(signature = false))
