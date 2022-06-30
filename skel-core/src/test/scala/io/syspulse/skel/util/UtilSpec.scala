@@ -98,7 +98,7 @@ class UtilSpec extends AnyWordSpec with Matchers {
     }
 
     "AccessToken should be 32 bytes" in {
-      val bb = Util.generateAccessToken()
+      val bb = Util.generateRandomToken()
       info(bb)
       bb.size should === (43)
     }

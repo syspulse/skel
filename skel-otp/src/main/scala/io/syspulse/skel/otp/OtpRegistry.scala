@@ -10,17 +10,12 @@ import io.jvm.uuid._
 
 import ejisan.kuro.otp._
 
-import nl.grons.metrics4.scala.DefaultInstrumented
-import nl.grons.metrics4.scala.MetricName
-
 import io.syspulse.skel.Command
 // create Otp Parameters
 
-object OtpRegistry extends DefaultInstrumented  {
+object OtpRegistry {
   val log = Logger(s"${this}")
   
-  //sealed trait Command extends io.syspulse.skel.Command
-
   final case class GetOtps(replyTo: ActorRef[Otps]) extends Command
   final case class GetOtp(id:UUID,replyTo: ActorRef[OtpRes]) extends Command
   
@@ -41,9 +36,6 @@ object OtpRegistry extends DefaultInstrumented  {
     this.store = store
     registry(store)
   }
-
-  override lazy val metricBaseName = MetricName("")
-  metrics.gauge("otp-count") { store.size }
 
   def authCode(secret:String,period:Int, digits:Int=6):String = {
     val otpkey = OTPKey.fromBase32(secret.toUpperCase,false)

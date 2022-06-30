@@ -5,17 +5,21 @@ import io.syspulse.skel.user.UserRegistry._
 
 import spray.json.DefaultJsonProtocol
 
-import java.util.{UUID}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.Directives
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsString, JsValue, JsonFormat, deserializationError}
 
-object UserJson extends JsonCommon  {
+object UserJson extends JsonCommon {
   
   import DefaultJsonProtocol._
 
-  implicit val userJsonFormat = jsonFormat3(User)
-  implicit val usersJsonFormat = jsonFormat1(Users)
+  implicit val jf_User = jsonFormat5(User)
+  implicit val jf_Users = jsonFormat1(Users)
+  implicit val jf_UserRes = jsonFormat1(UserRes)
+  implicit val jf_CreateReq = jsonFormat4(UserCreateReq)
+  implicit val jf_ActionRes = jsonFormat2(UserActionRes)
+  implicit val jf_CreateRes = jsonFormat2(UserCreateRes)
 
-  implicit val actionPerformedJsonFormat = jsonFormat1(ActionPerformed)
+  implicit val jf_RadnomReq = jsonFormat0(UserRandomReq)
+  
 }

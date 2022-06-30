@@ -7,59 +7,181 @@ import akka.http.scaladsl.server.Route
 import scala.concurrent.Future
 import akka.actor.typed.ActorRef
 import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.util.Timeout
+
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.ContentTypes._
+import akka.http.scaladsl.model.headers.`Content-Type`
+import akka.http.scaladsl.server.RejectionHandler
+import akka.http.scaladsl.model.StatusCodes._
 import com.typesafe.scalalogging.Logger
 
-import io.syspulse.skel.user.UserRegistry._
-import io.syspulse.skel.service.Routeable
+import io.jvm.uuid._
 
-class UserRoutes(userRegistry: ActorRef[UserRegistry.Command])(implicit val system: ActorSystem[_]) extends Routeable  {
+import io.swagger.v3.oas.annotations.enums.ParameterIn
+import io.swagger.v3.oas.annotations.media.{Content, Schema}
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.{Operation, Parameter}
+import io.swagger.v3.oas.annotations.parameters.RequestBody
+import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
+import javax.ws.rs.core.MediaType
+
+import io.prometheus.client.CollectorRegistry
+import io.prometheus.client.Counter
+
+import io.syspulse.skel.service.Routeable
+import io.syspulse.skel.service.CommonRoutes
+import io.syspulse.skel.user.UserRegistry._
+import io.syspulse.skel.Command
+
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
+
+@Path("/api/v1/user")
+class UserRoutes(userRegistry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {
   val log = Logger(s"${this}")  
+  implicit val system: ActorSystem[_] = context.system
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import UserJson._
   
-  private implicit val timeout = Timeout.create(system.settings.config.getDuration("user.routes.ask-timeout"))
+  // registry is needed because Unit-tests with multiple Routes in Suites will fail (Prometheus libary quirk)
+  val cr = new CollectorRegistry(true);
+  val metricGetCount: Counter = Counter.build().name("skel_user_get_total").help("User gets").register(cr)
+  val metricDeleteCount: Counter = Counter.build().name("skel_user_delete_total").help("User deletes").register(cr)
+  val metricCreateCount: Counter = Counter.build().name("skel_user_create_total").help("User creates").register(cr)
+  
+  def getUsers(): Future[Users] = userRegistry.ask(GetUsers)
+  def getUser(id: UUID): Future[Option[User]] = userRegistry.ask(GetUser(id, _))
 
-  def getUsers(): Future[Users] =
-    userRegistry.ask(GetUsers)
-  def getUser(name: String): Future[GetUserResponse] =
-    userRegistry.ask(GetUser(name, _))
-  def createUser(user: User): Future[ActionPerformed] =
-    userRegistry.ask(CreateUser(user, _))
-  def deleteUser(name: String): Future[ActionPerformed] =
-    userRegistry.ask(DeleteUser(name, _))
+  def createUser(userCreate: UserCreateReq): Future[User] = userRegistry.ask(CreateUser(userCreate, _))
+  def deleteUser(id: UUID): Future[UserActionRes] = userRegistry.ask(DeleteUser(id, _))
+  def randomUser(): Future[User] = userRegistry.ask(RandomUser(_))
+
+
+  @GET @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("user"),summary = "Return User by id",
+    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "User id (uuid)")),
+    responses = Array(new ApiResponse(responseCode="200",description = "User returned",content=Array(new Content(schema=new Schema(implementation = classOf[User])))))
+  )
+  def getUserRoute(id: String) = get {
+    rejectEmptyResponse {
+      onSuccess(getUser(UUID.fromString(id))) { r =>
+        metricGetCount.inc()
+        complete(r)
+      }
+    }
+  }
+
+
+  // @GET @Path("/{id}/code") @Produces(Array(MediaType.APPLICATION_JSON))
+  // @Operation(tags = Array("user"),summary = "Get User code by id",
+  //   parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "User id (uuid)")),
+  //   responses = Array(new ApiResponse(responseCode="200",description = "User Code returned",content=Array(new Content(schema=new Schema(implementation = classOf[UserCode])))))
+  // )
+  // def getUserCodeRoute(id: String) = get {
+  //   rejectEmptyResponse {
+  //     onSuccess(getUserCode(UUID.fromString(id))) { r =>
+  //       metricGetCodeCount.inc()
+  //       complete(r)
+  //     }
+  //   }
+  // }
+
+  // @GET @Path("/{id}/code/{code}") @Produces(Array(MediaType.APPLICATION_JSON))
+  // @Operation(tags = Array("user"),summary = "Verify User code by id",
+  //   parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "User id (uuid)")),
+  //   responses = Array(new ApiResponse(responseCode="200",description = "User Code returned",content=Array(new Content(schema=new Schema(implementation = classOf[UserCode])))))
+  // )
+  // def getUserCodeVerifyRoute(id: String,code:String) = get {
+  //   rejectEmptyResponse {
+  //     onSuccess(getUserCodeVerify(UUID.fromString(id),code)) { response =>
+  //       metricVerifyCodeCount.inc()
+  //       complete(response)
+  //     }
+  //   }
+  // }
+
+  @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("user"), summary = "Return all Users",
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "List of Users",content = Array(new Content(schema = new Schema(implementation = classOf[Users])))))
+  )
+  def getUsersRoute() = get {
+    metricGetCount.inc()
+    complete(getUsers())
+  }
+
+  @DELETE @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("user"),summary = "Delete User by id",
+    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "User id (uuid)")),
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "User deleted",content = Array(new Content(schema = new Schema(implementation = classOf[User])))))
+  )
+  def deleteUserRoute(id: String) = delete {
+    onSuccess(deleteUser(UUID.fromString(id))) { r =>
+      metricDeleteCount.inc()
+      complete((StatusCodes.OK, r))
+    }
+  }
+
+  @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("user"),summary = "Create User Secret",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[UserCreateReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "User created",content = Array(new Content(schema = new Schema(implementation = classOf[UserActionRes])))))
+  )
+  def createUserRoute = post {
+    entity(as[UserCreateReq]) { userCreate =>
+      onSuccess(createUser(userCreate)) { r =>
+        metricCreateCount.inc()
+        complete((StatusCodes.Created, r))
+      }
+    }
+  }
+
+  def createUserRandomRoute() = post { 
+    onSuccess(randomUser()) { r =>
+      metricCreateCount.inc()
+      complete((StatusCodes.Created, r))
+    }
+  }
 
   override val routes: Route =
       concat(
         pathEndOrSingleSlash {
           concat(
-            get {
-              complete(getUsers())
-            },
-            post {
-              entity(as[User]) { user =>
-                onSuccess(createUser(user)) { performed =>
-                  complete((StatusCodes.Created, performed))
-                }
-              }
-            })
+            getUsersRoute(),
+            createUserRoute
+          )
         },
-        path(Segment) { name =>
-          concat(
-            get {
-              rejectEmptyResponse {
-                onSuccess(getUser(name)) { response =>
-                  complete(response.maybeUser)
-                }
-              }
-            },
-            delete {
-              onSuccess(deleteUser(name)) { performed =>
-                complete((StatusCodes.OK, performed))
-              }
-            })
-        })
-
+        // pathPrefix("info") {
+        //   path(Segment) { userId => 
+        //     getUserInfo(userId)
+        //   }
+        // },
+        pathSuffix("random") {
+          createUserRandomRoute()
+        },
+        pathPrefix(Segment) { id => 
+          // pathPrefix("code") {
+          //   pathEndOrSingleSlash {
+          //     getUserCodeRoute(id)
+          //   } ~
+          //   path(Segment) { code =>
+          //     getUserCodeVerifyRoute(id,code)
+          //   }
+          // } ~
+          pathEndOrSingleSlash {
+            concat(
+              getUserRoute(id),
+              deleteUserRoute(id),
+            )
+          } 
+        }
+      )
+    
 }

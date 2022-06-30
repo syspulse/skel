@@ -52,7 +52,7 @@ class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_
   val cr = new CollectorRegistry(true);
   val metricGetCount: Counter = Counter.build().name("skel_otp_get_total").help("OTP gets").register(cr)
   val metricDeleteCount: Counter = Counter.build().name("skel_otp_delete_total").help("OTP deletes").register(cr)
-  val metricPostCount: Counter = Counter.build().name("skel_otp_post_total").help("OTP posts").register(cr)
+  val metricCreateCount: Counter = Counter.build().name("skel_otp_create_total").help("OTP creates").register(cr)
   val metricGetCodeCount: Counter = Counter.build().name("skel_otp_code_total").help("OTP code").register(cr)
   val metricVerifyCodeCount: Counter = Counter.build().name("skel_otp_verify_total").help("OTP verify").register(cr)
   val metricGetRandomCount: Counter = Counter.build().name("skel_otp_random_total").help("OTP random").register(cr)
@@ -76,9 +76,9 @@ class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_
   )
   def getOtpRoute(id: String) = get {
     rejectEmptyResponse {
-      onSuccess(getOtp(UUID.fromString(id))) { response =>
+      onSuccess(getOtp(UUID.fromString(id))) { r =>
         metricGetCount.inc()
-        complete(response.otp)
+        complete(r.otp)
       }
     }
   }
@@ -91,9 +91,9 @@ class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_
   )
   def getOtpCodeRoute(id: String) = get {
     rejectEmptyResponse {
-      onSuccess(getOtpCode(UUID.fromString(id))) { response =>
+      onSuccess(getOtpCode(UUID.fromString(id))) { r =>
         metricGetCodeCount.inc()
-        complete(response)
+        complete(r)
       }
     }
   }
@@ -106,9 +106,9 @@ class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_
   )
   def getOtpCodeVerifyRoute(id: String,code:String) = get {
     rejectEmptyResponse {
-      onSuccess(getOtpCodeVerify(UUID.fromString(id),code)) { response =>
+      onSuccess(getOtpCodeVerify(UUID.fromString(id),code)) { r =>
         metricVerifyCodeCount.inc()
-        complete(response)
+        complete(r)
       }
     }
   }
@@ -141,9 +141,9 @@ class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_
       new ApiResponse(responseCode = "200", description = "OTP deleted",content = Array(new Content(schema = new Schema(implementation = classOf[Otp])))))
   )
   def deleteOtpRoute(id: String) = delete {
-    onSuccess(deleteOtp(UUID.fromString(id))) { result =>
+    onSuccess(deleteOtp(UUID.fromString(id))) { r =>
       metricDeleteCount.inc()
-      complete((StatusCodes.OK, result))
+      complete((StatusCodes.OK, r))
     }
   }
 
@@ -155,9 +155,9 @@ class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_
   )
   def createOtpRoute = post {
     entity(as[OtpCreateReq]) { otpCreate =>
-      onSuccess(createOtp(otpCreate)) { result =>
-        metricPostCount.inc()
-        complete((StatusCodes.Created, result))
+      onSuccess(createOtp(otpCreate)) { r =>
+        metricCreateCount.inc()
+        complete((StatusCodes.Created, r))
       }
     }
   }

@@ -27,52 +27,11 @@ import scala.util.{ Failure, Success }
 
 import io.jvm.uuid._
 
+import io.syspulse.skel.ClientHttp
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.otp._
 import io.syspulse.skel.otp.OtpJson
-
-
-class FutureAwaitable[T](f:Future[T],timeout:Duration = FutureAwaitable.timeout)  {
-  def await[R]() = Await.result(f,timeout)
-}
-
-object FutureAwaitable {
-  val timeout = Duration("5 seconds")
-  implicit def ftor[R](f: Future[R]) = new FutureAwaitable[R](f)
-}
-
-
-abstract class ClientHttp[T <: ClientHttp[T]](uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext) {
-  val log = Logger(s"${this}")
-  var timeout:Duration = FutureAwaitable.timeout
-
-  def getUri() = uri
-  
-  def reqHealth() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/health")
-  def reqInfo() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/info")
-  
-  def discard() = {
-    Http().singleRequest(reqHealth()).onComplete {
-      case Success(res) => { 
-        log.info(s"${res}: ${res.status}: ${res.entity} ")
-        res.discardEntityBytes()
-      }
-      case Failure(e)   => log.error(s"${e}")
-    }
-  }
-
-  def await[R](rsp:Future[R]):R = {
-    val r = Await.result(rsp,timeout)
-    r
-  }
-
-  def withTimeout(timeout:Duration):T = {
-    this.timeout = timeout
-    // a bit dirty
-    this.asInstanceOf[T]
-  }
-}
 
 class OtpClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext) extends ClientHttp[OtpClientHttp](uri)(as,ec) {
   

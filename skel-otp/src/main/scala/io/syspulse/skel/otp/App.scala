@@ -12,7 +12,7 @@ import scala.concurrent.Await
 
 import io.jvm.uuid._
 
-import io.syspulse.skel.otp.client.FutureAwaitable._
+import io.syspulse.skel.FutureAwaitable._
 
 case class Config(
   host:String="",
