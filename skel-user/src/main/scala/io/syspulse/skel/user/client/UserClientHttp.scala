@@ -38,11 +38,10 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
   import UserJson._
   import spray.json._
   
-  def reqGetUserForUser(userId:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/user/${userId}")
   def reqGetUser(id:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/${id}")
+  def reqGetUserByEid(eid:String) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/eid/${eid}")
   def reqGetUsers() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}")
-  def reqPostUser(email:String,name:String,eid:String) = 
-      HttpRequest(method = HttpMethods.POST, uri = s"${uri}",
+  def reqPostUser(email:String,name:String,eid:String) =  HttpRequest(method = HttpMethods.POST, uri = s"${uri}",
         entity = HttpEntity(ContentTypes.`application/json`, 
           UserCreateReq(email,name,eid).toJson.toString)
       )
@@ -68,6 +67,14 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
     log.info(s"${id} -> ${reqGetUser(id)}")
     for {
       rsp <- Http().singleRequest(reqGetUser(id))
+      user <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[User]] else Future(None)
+    } yield user 
+  }
+
+  def getByEid(eid:String):Future[Option[User]] = {
+    log.info(s"${eid} -> ${reqGetUserByEid(eid)}")
+    for {
+      rsp <- Http().singleRequest(reqGetUserByEid(eid))
       user <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[User]] else Future(None)
     } yield user 
   }

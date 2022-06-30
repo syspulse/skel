@@ -56,6 +56,7 @@ class UserRoutes(userRegistry: ActorRef[Command])(implicit context: ActorContext
   
   def getUsers(): Future[Users] = userRegistry.ask(GetUsers)
   def getUser(id: UUID): Future[Option[User]] = userRegistry.ask(GetUser(id, _))
+  def getUserByEid(eid: String): Future[Option[User]] = userRegistry.ask(GetUserByEid(eid, _))
 
   def createUser(userCreate: UserCreateReq): Future[User] = userRegistry.ask(CreateUser(userCreate, _))
   def deleteUser(id: UUID): Future[UserActionRes] = userRegistry.ask(DeleteUser(id, _))
@@ -91,19 +92,18 @@ class UserRoutes(userRegistry: ActorRef[Command])(implicit context: ActorContext
   //   }
   // }
 
-  // @GET @Path("/{id}/code/{code}") @Produces(Array(MediaType.APPLICATION_JSON))
-  // @Operation(tags = Array("user"),summary = "Verify User code by id",
-  //   parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "User id (uuid)")),
-  //   responses = Array(new ApiResponse(responseCode="200",description = "User Code returned",content=Array(new Content(schema=new Schema(implementation = classOf[UserCode])))))
-  // )
-  // def getUserCodeVerifyRoute(id: String,code:String) = get {
-  //   rejectEmptyResponse {
-  //     onSuccess(getUserCodeVerify(UUID.fromString(id),code)) { response =>
-  //       metricVerifyCodeCount.inc()
-  //       complete(response)
-  //     }
-  //   }
-  // }
+  @GET @Path("/eid/{eid}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("user"),summary = "Get User by External Id (eid)",
+    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "eid")),
+    responses = Array(new ApiResponse(responseCode="200",description = "User returned",content=Array(new Content(schema=new Schema(implementation = classOf[User])))))
+  )
+  def getUserByEidRoute(eid: String) = get {
+    rejectEmptyResponse {
+      onSuccess(getUserByEid(eid)) { r =>
+        complete(r)
+      }
+    }
+  }
 
   @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("user"), summary = "Return all Users",
@@ -166,11 +166,17 @@ class UserRoutes(userRegistry: ActorRef[Command])(implicit context: ActorContext
         pathSuffix("random") {
           createUserRandomRoute()
         },
+        pathPrefix("eid") {
+          pathPrefix(Segment) { id => 
+            getUserByEidRoute(id)
+          }
+        },
         pathPrefix(Segment) { id => 
-          // pathPrefix("code") {
+          // pathPrefix("eid") {
           //   pathEndOrSingleSlash {
-          //     getUserCodeRoute(id)
-          //   } ~
+          //     getUserByEidRoute(id)
+          //   } 
+          //   ~
           //   path(Segment) { code =>
           //     getUserCodeVerifyRoute(id,code)
           //   }

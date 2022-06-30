@@ -332,7 +332,7 @@ lazy val http = (project in file("skel-http"))
   )
 
 lazy val auth = (project in file("skel-auth"))
-  .dependsOn(core,crypto)
+  .dependsOn(core,crypto,user)
   .settings (
     sharedConfig,
     sharedConfigAssembly,

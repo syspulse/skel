@@ -102,6 +102,11 @@ object App extends skel.Server {
                 .withTimeout(timeout)
                 .get(UUID(id))
                 .await()
+            case "getByEid" :: eid :: Nil => 
+              UserClientHttp(uri)
+                .withTimeout(timeout)
+                .getByEid(eid)
+                .await()
             case "all" :: Nil => 
               UserClientHttp(uri)
                 .withTimeout(timeout)

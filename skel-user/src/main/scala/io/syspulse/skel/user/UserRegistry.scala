@@ -16,6 +16,7 @@ object UserRegistry {
 
   final case class GetUsers(replyTo: ActorRef[Users]) extends Command
   final case class GetUser(id:UUID,replyTo: ActorRef[Option[User]]) extends Command
+  final case class GetUserByEid(eid:String,replyTo: ActorRef[Option[User]]) extends Command
   
   final case class CreateUser(userCreate: UserCreateReq, replyTo: ActorRef[User]) extends Command
   final case class RandomUser(replyTo: ActorRef[User]) extends Command
@@ -38,6 +39,11 @@ object UserRegistry {
         replyTo ! Users(store.all)
         Behaviors.same
 
+      case GetUserByEid(eid, replyTo) =>
+        replyTo ! store.findByEid(eid)
+        Behaviors.same
+
+
       case CreateUser(userCreate, replyTo) =>
         val id = userCreate.id.getOrElse(UUID.randomUUID())
 
@@ -52,10 +58,7 @@ object UserRegistry {
         //replyTo ! UserRandomRes(secret,qrImage)
         Behaviors.same
 
-      case GetUser(id, replyTo) =>
-        replyTo ! store.?(id)
-        Behaviors.same
-
+      
       case DeleteUser(id, replyTo) =>
         val store1 = store.del(id)
         replyTo ! UserActionRes(s"Success",Some(id))

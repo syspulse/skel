@@ -24,6 +24,8 @@ case class Config(
 
   jwtSecret:String = "",
 
+  serviceUserUri:String = "",
+
   cmd:String = "",
   params: Seq[String] = Seq(),
 )
@@ -51,6 +53,8 @@ object App extends skel.Server {
 
         ArgString('_', "jwt.secret","JWT secret"),
 
+        ArgString('_', "service.user.uri","User Service URI (def: http://localhost:8080/api/v1/user)"),
+
         ArgCmd("server","Command"),
         ArgCmd("client","Command"),
         ArgParam("<params>","")
@@ -73,6 +77,8 @@ object App extends skel.Server {
 
       jwtSecret = c.getString("jwt.secret").getOrElse(Util.generateRandomToken()),
 
+      serviceUserUri = c.getString("service.user.uri").getOrElse("http://localhost:8080/api/v1/user"),
+
       cmd = c.getCmd().getOrElse("server"),
       params = c.getParams(),
     )
@@ -90,6 +96,7 @@ object App extends skel.Server {
     }
 
     AuthJwt.run(config)
+    val authHost = if(config.host=="0.0.0.0") "localhost" else config.host
 
     config.cmd match {
       case "server" => 
@@ -97,8 +104,9 @@ object App extends skel.Server {
           Seq(
             (AuthRegistry(store),"AuthRegistry",(actor, context) => {
                 new AuthRoutes(actor,
-                  s"http://localhost:${config.port}${config.uri}",
-                  s"http://localhost:${config.port}${config.uri}/callback")(context, config) 
+                  s"http://${authHost}:${config.port}${config.uri}",
+                  s"http://${authHost}:${config.port}${config.uri}/callback",
+                  config.serviceUserUri)(context, config) 
               }
             )
             

@@ -70,8 +70,10 @@ import io.syspulse.skel.auth.code._
 import io.syspulse.skel
 import io.syspulse.skel.auth.proxy._
 
+import io.syspulse.skel.user.client.UserClientHttp
 
-class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirectUri:String)(implicit context:ActorContext[_],config:Config) extends Routeable  {
+
+class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirectUri:String,serviceUserUri:String)(implicit context:ActorContext[_],config:Config) extends Routeable  {
   val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
@@ -157,13 +159,12 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
         idp.decodeProfile(profileResData)
       }
-      userId <- {
-        // ATTENTION: request user id from UserService
-        val uid = UUID.random
-        Future(uid)
+      user <- {
+        
+        UserClientHttp(serviceUserUri).withTimeout(timeout.duration).getByEid(profile.id)
       }
       authRes <- {        
-        val auth = Auth(idpTokens.accessToken, userId , idpTokens.idToken, scope, idpTokens.expiresIn)
+        val auth = Auth(idpTokens.accessToken, user.map(_.id) , idpTokens.idToken, scope, idpTokens.expiresIn)
         
         if(auth.idToken != "") {
           val jwt = AuthJwt.decode(auth)

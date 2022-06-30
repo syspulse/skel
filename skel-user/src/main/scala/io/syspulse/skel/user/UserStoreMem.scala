@@ -14,26 +14,27 @@ import io.jvm.uuid._
 class UserStoreMem extends UserStore {
   val log = Logger(s"${this}")
   
-  var users: Set[User] = Set()
+  var users: Map[UUID,User] = Map()
 
-  def all:Seq[User] = users.toSeq
+  def all:Seq[User] = users.values.toSeq
 
   def size:Long = users.size
 
-  def +(user:User):Try[UserStore] = { users = users + user; Success(this)}
+  def +(user:User):Try[UserStore] = { users = users + (user.id -> user); Success(this)}
 
   def del(id:UUID):Try[UserStore] = { 
-    users.find(_.id == id) match {
-      case Some(user) => { users = users - user; Success(this) }
-      case None => Failure(new Exception(s"not found: ${id}"))
-    }
-    
-  }
-  def -(user:User):Try[UserStore] = { 
     val sz = users.size
-    users = users - user;
-    if(sz == users.size) Failure(new Exception(s"not found: ${user}")) else Success(this)
+    users = users - id;
+    if(sz == users.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
   }
 
-  def ?(id:UUID):Option[User] = users.find(_.id == id)
+  def -(user:User):Try[UserStore] = { 
+    del(user.id)
+  }
+
+  def ?(id:UUID):Option[User] = users.get(id)
+
+  def findByEid(eid:String):Option[User] = {
+    users.values.find(_.eid == eid)
+  }
 }
