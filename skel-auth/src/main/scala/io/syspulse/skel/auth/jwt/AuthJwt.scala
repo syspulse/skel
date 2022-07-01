@@ -30,12 +30,23 @@ object AuthJwt {
 
   def decodeClaim(a:Auth):Map[String,String] = {
     val jwt = decode(a)
-    ujson.read(jwt.get.toJson).obj.map(v=> v._1 -> v._2.toString.stripSuffix("\"").stripPrefix("\"")).toMap
+    println(s"${jwt} ===============> ${jwt.get.toJson}")
+    if(jwt.isSuccess)
+      ujson.read(jwt.get.toJson).obj.map(v=> v._1 -> v._2.toString.stripSuffix("\"").stripPrefix("\"")).toMap
+    else 
+      Map()
   }
 
-  def generateAccessToken(uid:String, expire:Long = 3600L, algo:JwtAlgorithm=JwtAlgorithm.HS512):String = {
+  def generateIdToken(uid:String, expire:Long = 3600L, algo:JwtAlgorithm=JwtAlgorithm.HS512):String = {
     Jwt
-      .encode(JwtClaim({s"""{"uid":${uid}}"""})
+      .encode(JwtClaim({s"""{"uid":"${uid}"}"""})
+      .issuedNow.expiresIn(expire), secret, algo)
+  }
+
+  def generateAccessToken(attr:Map[String,String] = Map(), expire:Long = 3600L, algo:JwtAlgorithm=JwtAlgorithm.HS512):String = {
+    val claim = attr.map{case (k,v) => s""""${k}":"${v}""""}.mkString(",")
+    Jwt
+      .encode(JwtClaim(s"{${claim}}")
       .issuedNow.expiresIn(expire), secret, algo)
   }
 

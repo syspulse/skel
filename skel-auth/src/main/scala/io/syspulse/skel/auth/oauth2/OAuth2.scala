@@ -4,6 +4,10 @@ import akka.util.ByteString
 import scala.concurrent.Future
 import akka.stream.Materializer
 
+// ID tokens are meant to be read by the OAuth client. Access tokens are meant to be read by the resource server.
+// ID tokens are JWTs. Access tokens can be JWTs but may also be a random string.
+// ID tokens should never be sent to an API. Access tokens should never be read by the client.
+// https://auth0.com/blog/id-token-access-token-what-is-the-difference/
 final case class IdpTokens(accessToken: String,expiresIn:Int, scope:String, tokenType:String, idToken:String)
 final case class OAuthProfile(id:String,email:String,name:String,picture:String,locale:String)
 

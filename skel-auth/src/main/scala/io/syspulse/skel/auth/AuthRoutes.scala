@@ -121,7 +121,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     val headers = Seq[HttpHeader]() ++ {if(basicAuth.isDefined) Seq(RawHeader("Authorization",s"Basic ${basicAuth.get}")) else Seq()}
 
     for {
-      tokenReq <- {
+      tokenResData <- {
         log.info(s"code=${code}: requesting access_token:\n${headers}\n${data}")
         val rsp = Http().singleRequest(
           HttpRequest(
@@ -134,15 +134,16 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         rsp
       }
       tokenRsp <- {
-        tokenReq.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
+        tokenResData.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
       }
       idpTokens <- {
         log.info(s"tokenRsp: ${tokenRsp.utf8String}")        
         idp.decodeTokens(tokenRsp)
       }
-      profileRes <- {
-        log.info(s"code=${code}: tokens=${idpTokens}: requesting user profile")
+      profileRes <- {        
         val (uri,headers) = idp.getProfileUrl(idpTokens.accessToken)
+        log.info(s"code=${code}: tokens=${idpTokens}: requesting user profile -> ${uri}")
+
         val rsp = Http().singleRequest(
           HttpRequest(uri = uri)
             .withHeaders(headers.map(h => RawHeader(h._1,h._2)))
@@ -160,11 +161,10 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         idp.decodeProfile(profileResData)
       }
       user <- {
-        
-        UserClientHttp(serviceUserUri).withTimeout(timeout.duration).getByEid(profile.id)
+        UserClientHttp(serviceUserUri).withTimeout()._getByEid(profile.id)
       }
       authRes <- {        
-        val auth = Auth(idpTokens.accessToken, user.map(_.id) , idpTokens.idToken, scope, idpTokens.expiresIn)
+        val auth = Auth(idpTokens.accessToken, idpTokens.idToken, user.map(_.id), scope, idpTokens.expiresIn)
         
         if(auth.idToken != "") {
           val jwt = AuthJwt.decode(auth)
@@ -181,9 +181,9 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
       }
       authProfileRes <- {
         Future(AuthWithProfileRes(
-          authRes.auth.accessToken, 
+          authRes.auth.accessToken,
+          authRes.auth.idToken,
           authRes.auth.uid,
-          authRes.auth.idToken, 
           profile.id,
           profile.email, 
           profile.name, 
@@ -369,33 +369,8 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         path("token") {
           import io.syspulse.skel.auth.oauth2.EthOAuth2._
           import io.syspulse.skel.auth.oauth2.EthTokens
-          post {
-            //entity(as[EthTokenReq]) { req => {
-            formFields("code","client_id","client_secret","redirect_uri","grant_type") { (code,client_id,client_secret,redirect_uri,grant_type) => {
-              log.info(s"code=${code},client_id=${client_id},client_secret=${client_secret},redirect_uri=${redirect_uri},grant_type=${grant_type}")
-              onSuccess(getCode(code)) { rsp =>
-                if(! rsp.code.isDefined || rsp.code.get.expire < System.currentTimeMillis()) {
-                  
-                  log.error(s"code=${code}: rsp=${rsp}: not found or expired")
-                  complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
 
-                } else {
-                  val accessToken =  AuthJwt.generateAccessToken(rsp.code.get.userId.getOrElse("")) 
-                  log.info(s"code=${code}: rsp=${rsp.code}: accessToken${accessToken}")
-
-                  // associate accessToken with code for later Profile retrieval by rewriting Code and
-                  // immediately expiring code 
-                  // Extracting user id possible from JWT 
-                  onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>
-                    
-                    complete(StatusCodes.OK,EthTokens(accessToken = accessToken, expiresIn = 3600,scope = "",tokenType = ""))                    
-                  }
-                  
-                }
-              }  
-            }
-          }} ~
-          get { parameters("code") { (code) => 
+          def generateTokens(code:String) = {
             onSuccess(getCode(code)) { rsp =>
               if(! rsp.code.isDefined || rsp.code.get.expire < System.currentTimeMillis()) {
                 
@@ -403,17 +378,32 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                 complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
 
               } else {
-                val accessToken = Util.sha256(rsp.code.get.authCode)
-                log.info(s"code=${code}: rsp=${rsp.code}: accessToken${accessToken}")
+                val idToken = AuthJwt.generateIdToken(rsp.code.get.userId.getOrElse("")) 
+                val accessToken = AuthJwt.generateAccessToken() 
+                log.info(s"code=${code}: rsp=${rsp.code}: accessToken${accessToken}, idToken=${idToken}")
 
-                // associate accessToken with code for later Profile retrieval by rewriting Code and
+                // associate idToken with code for later Profile retrieval by rewriting Code and
                 // immediately expiring code 
+                // Extracting user id possible from JWT 
                 onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>
                   
-                  complete(StatusCodes.OK,EthTokens(accessToken = accessToken, expiresIn = 3600,scope = "",tokenType = ""))                    
+                  complete(StatusCodes.OK,EthTokens(accessToken = accessToken, idToken = idToken, expiresIn = 3600,scope = "",tokenType = ""))                    
                 }
+                
               }
             }
+          }
+
+          post {
+            //entity(as[EthTokenReq]) { req => {
+            formFields("code","client_id","client_secret","redirect_uri","grant_type") { (code,client_id,client_secret,redirect_uri,grant_type) => {
+              log.info(s"code=${code},client_id=${client_id},client_secret=${client_secret},redirect_uri=${redirect_uri},grant_type=${grant_type}")
+              
+              generateTokens(code)
+            }
+          }} ~
+          get { parameters("code") { (code) => 
+            generateTokens(code)
           }}
         } ~
         path("profile") {

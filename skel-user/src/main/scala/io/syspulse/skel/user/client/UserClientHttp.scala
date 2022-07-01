@@ -32,6 +32,8 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.user._
 import io.syspulse.skel.user.UserJson
+import akka.http.scaladsl.settings.ConnectionPoolSettings
+import akka.http.scaladsl.settings.ClientConnectionSettings
 
 class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext) extends ClientHttp[UserClientHttp](uri)(as,ec) {
   
@@ -72,11 +74,32 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
   }
 
   def getByEid(eid:String):Future[Option[User]] = {
-    log.info(s"${eid} -> ${reqGetUserByEid(eid)}")
+    log.info(s"${eid} -> ${reqGetUserByEid(eid)}")    
     for {
-      rsp <- Http().singleRequest(reqGetUserByEid(eid))
+      rsp <- Http().singleRequest(reqGetUserByEid(eid))        
       user <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[User]] else Future(None)
-    } yield user 
+    } yield user
+  }
+
+  def _getByEid(eid:String):Future[Option[User]] = {
+    log.info(s"${eid} -> ${reqGetUserByEid(eid)}")    
+    
+    for {
+      rsp <- Http().singleRequest(reqGetUserByEid(eid),
+                                  settings = ConnectionPoolSettings(UserClientHttp.system)
+                                    .withConnectionSettings(ClientConnectionSettings(UserClientHttp.system)
+                                    .withConnectingTimeout(FiniteDuration(3,"seconds"))))
+      .transform {
+        case Failure(e) => {
+          log.error(s"Failed to call -> ${reqGetUserByEid(eid)}: ${e.getMessage()}")
+          Try(HttpResponse(StatusCodes.InternalServerError))
+        }
+        case Success(r) => {
+          Try(r)
+        }
+      }
+      user <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[User]] else Future(None)
+    } yield user
   }
 
   def all():Future[Users] = {

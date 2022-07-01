@@ -57,14 +57,14 @@ import io.syspulse.skel.auth.Idp
 import akka.stream.Materializer
 import io.syspulse.skel.crypto.Eth
 
-final case class EthTokens(accessToken:String,expiresIn:Int,scope:String,tokenType:String)
+final case class EthTokens(accessToken:String,idToken:String,expiresIn:Int,scope:String,tokenType:String)
 final case class EthProfile(id:String,addr:String,email:String,avatar:String,createdAt:String)
 final case class EthProfileData(data:EthProfile)
 
 final case class EthTokenReq(code:String,client_id:String,client_secret:String,redirect_uri:String,grant_type:String)
 
 object EthOAuth2 {
-  implicit val jf_EthTokens = jsonFormat(EthTokens,"access_token", "expires_in", "scope", "token_type")
+  implicit val jf_EthTokens = jsonFormat(EthTokens,"access_token", "id_token", "expires_in", "scope", "token_type")
   implicit val jf_EthProfile = jsonFormat(EthProfile,"id","addr","email","avatar","created_at")
   implicit val jf_EthProfileData = jsonFormat(EthProfileData, "data")
   implicit val jf_EthTokenReq = jsonFormat(EthTokenReq, "code","client_id","client_secret","redirect_uri","grant_type")
@@ -130,7 +130,7 @@ class EthOAuth2(val uri:String) extends Idp {
   }
 
   def decodeTokens(tokenRsp:ByteString)(implicit mat:Materializer, ec: scala.concurrent.ExecutionContext):Future[IdpTokens] = {    
-    Unmarshal(tokenRsp).to[EthTokens].map( t => IdpTokens(t.accessToken,t.expiresIn,t.scope,t.tokenType,""))
+    Unmarshal(tokenRsp).to[EthTokens].map( t => IdpTokens(t.accessToken,t.expiresIn,t.scope,t.tokenType,t.idToken))
   }
 
   def decodeProfile(profileRsp:ByteString)(implicit mat:Materializer,ec: scala.concurrent.ExecutionContext):Future[OAuthProfile] = {

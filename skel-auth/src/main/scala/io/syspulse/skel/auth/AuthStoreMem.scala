@@ -17,7 +17,7 @@ class AuthStoreMem extends AuthStore {
   def all:Seq[Auth] = auths.values.toSeq
 
   def getForUser(userId:UUID):Seq[Auth] = {
-    auths.values.filter(_.uid == userId).toSeq
+    auths.values.filter(_.uid == Some(userId)).toSeq
   }
 
   def size:Long = auths.size
