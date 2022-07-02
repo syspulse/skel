@@ -20,12 +20,32 @@ import java.io.InputStream
 import java.io.IOException
 import java.io.File
 
+import laika.io._
+import laika.io.implicits._
+import laika.parse.code._
+import laika.api._
+import laika.format._
+import laika.markdown.github._
+
 import com.typesafe.scalalogging.Logger
 
 import os._
 import org.thymeleaf.templateresolver.FileTemplateResolver
 
-case class Issue(title:String,desc:String = "", severity:Int = 4,where:String="",recommend:String="",status:String="New")
+case class Issue(title:String,desc:String,severity:Int,where:String,recommend:String,status:String)
+
+object Issue {
+  val transformer = Transformer.from(Markdown).to(HTML).using(GitHubFlavor,SyntaxHighlighting).build
+  def apply(title:String, desc:String = "", severity:Int = 4,where:String="",recommend:String="",status:String="New") = {    
+    val descHtml = 
+      transformer.transform(desc) match {
+        case Left(e) => desc
+        case Right(html) => html
+      }
+    println(s"=======> ${descHtml}")
+    new Issue(title,descHtml,severity,where,recommend,status)
+  }
+}
 
 object PDF {
   val log = Logger(s"${this}")
@@ -109,7 +129,7 @@ object PDF {
     
     val html = PDF.generateIssues(
       templateDir + "/" + templateFile,
-      Range(1,5).map(i => Issue(s"Issue ${i}")).toList)
+      Range(1,5).map(i => Issue(s"Issue ${i}",desc="### Description\n__Text__: 100")).toList)
 
     os.write.over(os.Path(outputTemplate,os.pwd),html)
     

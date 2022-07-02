@@ -12,6 +12,8 @@
     <span th:text="${istat.index + 1}+'.'">0</span>
     <span th:text="${issue.title}">ISSUE</span>
     <span th:text="'severity = '+${issue.severity}">3</span>
-    <span th:text="'desc='+${issue.desc}">Description</span>
+    <br/>
+    <!-- <span th:text="'desc='+${issue.desc}">Description</span> -->
+    [(${issue.desc})]
   </div>
 </html>

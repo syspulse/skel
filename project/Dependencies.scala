@@ -169,8 +169,8 @@ object Dependencies {
     val libSeleniumJava =   "org.seleniumhq.selenium"       % "selenium-java"             % "4.0.0-rc-3"
     val libSeleniumFirefox ="org.seleniumhq.selenium"       % "selenium-firefox-driver"   % "4.0.0-rc-3"
 
-    val libJwtCore =   "com.pauldijou"                 %% "jwt-core"           % "4.2.0"
-    val libJoseJwt =   "com.nimbusds"                  % "nimbus-jose-jwt"     % "4.21"
+    val libJwtCore =        "com.pauldijou"                 %% "jwt-core"           % "4.2.0"
+    val libJoseJwt =        "com.nimbusds"                  % "nimbus-jose-jwt"     % "4.21"
 
     val libAvro4s =         "com.sksamuel.avro4s"           %% "avro4s-core"        % "4.0.12"
 
@@ -185,6 +185,9 @@ object Dependencies {
     val libFlyingSaucer =    "org.xhtmlrenderer"            %  "flying-saucer-pdf-itext5"   % "9.1.22"
     val libThymeleaf =       "org.thymeleaf"                % "thymeleaf"                   % "3.0.11.RELEASE"
     val libNekoHtml =        "net.sourceforge.nekohtml"     % "nekohtml"                    % "1.9.21"
+    val libLaikaCore =       "org.planet42"                 %% "laika-core"                 % "0.18.2"
+    val libLaikaIo =         "org.planet42"                 %% "laika-io"                   % "0.18.2"
+    //val libLaikaPdf =        "org.planet42"                 %% "laika-pdf"                  % "0.18.2"
     
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
