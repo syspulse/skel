@@ -30,7 +30,6 @@ object AuthJwt {
 
   def decodeClaim(a:Auth):Map[String,String] = {
     val jwt = decode(a)
-    println(s"${jwt} ===============> ${jwt.get.toJson}")
     if(jwt.isSuccess)
       ujson.read(jwt.get.toJson).obj.map(v=> v._1 -> v._2.toString.stripSuffix("\"").stripPrefix("\"")).toMap
     else 
