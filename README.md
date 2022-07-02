@@ -24,6 +24,7 @@ Skeletons for RnD Prototypes
 19. [skel-serde](skel-serde) - Serializers
 20. [skel-video](skel-video) - Movie Metadata processors
 21. [skel-stream](skel-stream) - Akka Steams 
+22. [skel-pdf](skel-pdf) - PDF Utils
 
 ----
 ## Build & Run

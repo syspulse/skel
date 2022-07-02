@@ -182,6 +182,10 @@ object Dependencies {
     val libAWSJavaSDK =      "com.amazonaws"                 % "aws-java-sdk-bundle" % "1.11.874" //"1.12.247"
     val libJaninoCompiler =  "org.codehaus.janino"           %  "commons-compiler"   % janinoVersion
 
+    val libFlyingSaucer =    "org.xhtmlrenderer"            %  "flying-saucer-pdf-itext5"   % "9.1.22"
+    val libThymeleaf =       "org.thymeleaf"                % "thymeleaf"                   % "3.0.11.RELEASE"
+    val libNekoHtml =        "net.sourceforge.nekohtml"     % "nekohtml"                    % "1.9.21"
+    
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)
@@ -204,5 +208,7 @@ object Dependencies {
 
     val libSpark = Seq(libSparkCore,libSparkSQL,libJanino,libJaninoCompiler)
     val libSparkAWS = libSpark ++ Seq(libHadoopAWS,libAWSJavaSDK)
+
+    val libPdfGen = Seq(libFlyingSaucer,libThymeleaf,libNekoHtml)
   }
   

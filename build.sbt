@@ -748,3 +748,19 @@ lazy val enroll = (project in file("skel-enroll"))
       //libAkkaSerJackon
     ),
   )
+
+lazy val pdf = (project in file("skel-pdf"))
+  .dependsOn(core)
+  .enablePlugins(JavaAppPackaging)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+    name := "skel-pdf",
+    
+    // appDockerConfig("skel-enroll","io.syspulse.skel.enroll.App"),
+
+    libraryDependencies ++= libPdfGen ++ Seq(
+      
+    ),
+  )

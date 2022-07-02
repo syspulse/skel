@@ -1,0 +1,17 @@
+<html xmlns:th="http://www.thymeleaf.org">
+  <body>
+    <h3 style="text-align: center; color: green">
+      <span th:text="'Welcome to ' + ${to} + '!'"></span>
+    </h3>
+  </body>
+  <img width="128px" height="128px" src="logo.png"/> 
+  <div>Entry 1</div>
+  <div>Entry 2</div>
+
+  <div th:each="issue,istat : ${issues}">
+    <span th:text="${istat.index + 1}+'.'">0</span>
+    <span th:text="${issue.title}">ISSUE</span>
+    <span th:text="'severity = '+${issue.severity}">3</span>
+    <span th:text="'desc='+${issue.desc}">Description</span>
+  </div>
+</html>
