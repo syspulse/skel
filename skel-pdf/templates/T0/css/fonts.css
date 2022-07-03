@@ -1,0 +1,63 @@
+@font-face {
+    font-family: 'Fira Code';
+    font-weight: 300;
+    font-style: normal;
+    -fs-pdf-font-embed: embed;
+    -fs-pdf-font-encoding: Identity-H;
+    src: url(../fonts/FiraCode-Light.ttf);
+  }
+  
+  @font-face {
+    font-family: 'Fira Code';
+    font-weight: 400;
+    font-style: normal;
+    -fs-pdf-font-embed: embed;
+    -fs-pdf-font-encoding: Identity-H;
+    src: url(../fonts/FiraCode-Regular.ttf);
+  }
+  
+  @font-face {
+    font-family: 'Fira Code';
+    font-weight: 500;
+    font-style: normal;
+    -fs-pdf-font-embed: embed;
+    -fs-pdf-font-encoding: Identity-H;
+    src: url(../fonts/FiraCode-Medium.ttf);
+  }
+  
+  @font-face {
+    font-family: 'Fira Code';
+    font-weight: 700;
+    font-style: normal;
+    -fs-pdf-font-embed: embed;
+    -fs-pdf-font-encoding: Identity-H;
+    src: url(../fonts/FiraCode-Bold.ttf);
+  }
+  
+  @font-face {
+    font-family: 'Fira Code VF';
+    -fs-pdf-font-embed: embed;
+    -fs-pdf-font-encoding: Identity-H;
+    src: url(../fonts/FiraCode-VariableFont_wght.ttf);
+    /* font-weight requires a range: https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Fonts/Variable_Fonts_Guide#Using_a_variable_font_font-face_changes */
+    font-weight: 300 700;
+    font-style: normal;
+  }
+
+@font-face {
+    font-family: 'Ubuntu';
+    font-style: normal;
+    font-weight: 300;
+    -fs-pdf-font-embed: embed;
+    -fs-pdf-font-encoding: Identity-H;
+    src: url(../fonts/Ubuntu-Light.ttf);
+  }
+
+@font-face {
+    font-family: 'Ubuntu';
+    font-style: normal;
+    font-weight: 400;
+    -fs-pdf-font-embed: embed;
+    -fs-pdf-font-encoding: Identity-H;
+    src: url(../fonts/Ubuntu-Regular.ttf);
+  }

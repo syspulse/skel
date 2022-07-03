@@ -31,6 +31,7 @@ import com.typesafe.scalalogging.Logger
 
 import os._
 import org.thymeleaf.templateresolver.FileTemplateResolver
+import io.syspulse.skel.util.Util
 
 case class Issue(title:String,desc:String,severity:Int,where:String,recommend:String,status:String)
 
@@ -129,7 +130,23 @@ object PDF {
     
     val html = PDF.generateIssues(
       templateDir + "/" + templateFile,
-      Range(1,5).map(i => Issue(s"Issue ${i}",desc="### Description\n__Text__: 100")).toList)
+      Range(1,5).map(i => Issue(s"Issue ${i}",desc=s"""
+### Description
+
+__Id__: ${Util.sha256(i.toString)}
+
+Detailed Issue description is here:
+
+Reference: [http://github.com](http://github.com)
+
+```
+code {
+   val s = "String"
+}
+```
+""")
+
+        ).toList)
 
     os.write.over(os.Path(outputTemplate,os.pwd),html)
     

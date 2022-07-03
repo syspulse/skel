@@ -1,4 +1,18 @@
 <html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="skel-pdf" />
+    <title>skel-pdf</title>
+  
+    <!-- <link rel="stylesheet" href="css/main.css"/> -->
+    <link rel="stylesheet" href="css/output.css"/>
+    
+    <style type="text/css">
+      
+    </style>
+  </head>
+  
   <body>
     <h3 style="text-align: center; color: green">
       <span th:text="'Welcome to ' + ${to} + '!'"></span>
@@ -14,6 +28,10 @@
     <span th:text="'severity = '+${issue.severity}">3</span>
     <br/>
     <!-- <span th:text="'desc='+${issue.desc}">Description</span> -->
-    [(${issue.desc})]
+    <div class="panel-body output">
+      <div class="render html-rendered">
+        [(${issue.desc})]
+      </div>  
+    </div>
   </div>
 </html>
