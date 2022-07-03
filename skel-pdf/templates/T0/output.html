@@ -25,7 +25,7 @@
      <h3 id="information" class="section">Information</h3>
      <p>Crashes at this point:</p>
      <pre><code>fn main()  {
-return 0;
+    return 0;
 }</code></pre>
     </div> 
    </div>
@@ -48,12 +48,12 @@ return 0;
       <li>Problem-2</li>
      </ol>
      <pre><code>let matches = App::new("keccak")
-.version("0.0.1")
-.arg(Arg::with_name("DATA").index(1).required(false))
-.arg(Arg::with_name("x").short("x").help("hex input"))
-.arg(Arg::with_name("b").short("b").help("binary output"))
-.arg(Arg::with_name("e").short("e").help("Ethereum signature style"))
-.get_matches();</code></pre>
+        .version("0.0.1")
+        .arg(Arg::with_name("DATA").index(1).required(false))
+        .arg(Arg::with_name("x").short("x").help("hex input"))
+        .arg(Arg::with_name("b").short("b").help("binary output"))
+        .arg(Arg::with_name("e").short("e").help("Ethereum signature style"))
+        .get_matches();</code></pre>
      <p>Should be ok now !</p>
      <hr />
     </div> 

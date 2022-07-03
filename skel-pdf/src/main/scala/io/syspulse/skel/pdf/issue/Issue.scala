@@ -22,12 +22,11 @@ case class Issue(id:String,title:String,desc:String,severity:Int,status:String,r
 object Issue {
   val transformer = Transformer.from(Markdown).to(HTML).using(GitHubFlavor,SyntaxHighlighting).build
   def apply(id:String,title:String = "", desc:String = "", severity:Int = 4,status:String="New",ref:String="",recommend:String="") = {
+    println(s"=====> '${desc}'")
     val descHtml = 
       transformer.transform(desc) match {
         case Left(e) => desc
-        case Right(html) => { 
-          html
-        }
+        case Right(html) => html
       }
     new Issue(id,title,descHtml,severity,status,ref,recommend)
   }
@@ -69,8 +68,8 @@ object Issue {
 
             case _ => {
               phase match {
-                case "desc" => issue.copy(desc = issue.desc + s + "\n")
-                case "rec" => issue.copy(recommend = issue.recommend + s + "\n")
+                case "desc" => issue.copy(desc = issue.desc + line + "\n")
+                case "rec" => issue.copy(recommend = issue.recommend + line + "\n")
                 case _ => issue
               }            
             }
