@@ -32,21 +32,7 @@ import com.typesafe.scalalogging.Logger
 import os._
 import org.thymeleaf.templateresolver.FileTemplateResolver
 import io.syspulse.skel.util.Util
-
-case class Issue(title:String,desc:String,severity:Int,where:String,recommend:String,status:String)
-
-object Issue {
-  val transformer = Transformer.from(Markdown).to(HTML).using(GitHubFlavor,SyntaxHighlighting).build
-  def apply(title:String, desc:String = "", severity:Int = 4,where:String="",recommend:String="",status:String="New") = {    
-    val descHtml = 
-      transformer.transform(desc) match {
-        case Left(e) => desc
-        case Right(html) => html
-      }
-    println(s"=======> ${descHtml}")
-    new Issue(title,descHtml,severity,where,recommend,status)
-  }
-}
+import io.syspulse.skel.pdf.issue._
 
 object PDF {
   val log = Logger(s"${this}")
@@ -130,7 +116,7 @@ object PDF {
     
     val html = PDF.generateIssues(
       templateDir + "/" + templateFile,
-      Range(1,5).map(i => Issue(s"Issue ${i}",desc=s"""
+      Range(1,5).map(i => Issue(s"ID-${i}",s"Issue ${i}",desc=s"""
 ### Description
 
 __Id__: ${Util.sha256(i.toString)}
