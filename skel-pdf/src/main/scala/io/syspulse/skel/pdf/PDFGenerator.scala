@@ -13,6 +13,7 @@ import org.xhtmlrenderer.pdf.ITextOutputDevice;
 import org.xhtmlrenderer.pdf.ITextRenderer;
 import org.xhtmlrenderer.pdf.ITextUserAgent;
 import org.xhtmlrenderer.resource.XMLResource;
+
 import java.io.OutputStream
 import org.w3c.dom.Document
 import org.xml.sax.InputSource
@@ -20,19 +21,14 @@ import java.io.InputStream
 import java.io.IOException
 import java.io.File
 
-import laika.io._
-import laika.io.implicits._
-import laika.parse.code._
-import laika.api._
-import laika.format._
-import laika.markdown.github._
-
 import com.typesafe.scalalogging.Logger
 
 import os._
 import org.thymeleaf.templateresolver.FileTemplateResolver
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.pdf.issue._
+import org.jsoup.Jsoup
+import org.jsoup.nodes
 
 class PDFGenerator {
   val log = Logger(s"${this}")
@@ -118,7 +114,12 @@ class PDFGenerator {
     
     val html = generateData(templateDir + "/" + templateFile)
 
-    os.write.over(os.Path(outputTemplate,os.pwd),html)
+    // fix HTML5 tag for SAX parser (it does not like <hr> or no </tag>)
+    val document = Jsoup.parse(html)
+    document.outputSettings().syntax(nodes.Document.OutputSettings.Syntax.xml);
+    val html2 = document.html()
+
+    os.write.over(os.Path(outputTemplate,os.pwd),html2)
     
     create(outputTemplate ,outputFile);
   }

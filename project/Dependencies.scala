@@ -185,6 +185,7 @@ object Dependencies {
     val libFlyingSaucer =    "org.xhtmlrenderer"            %  "flying-saucer-pdf-itext5"   % "9.1.22"
     val libThymeleaf =       "org.thymeleaf"                % "thymeleaf"                   % "3.0.11.RELEASE"
     val libNekoHtml =        "net.sourceforge.nekohtml"     % "nekohtml"                    % "1.9.21"
+    val libJSoup =           "org.jsoup"                    % "jsoup"                       % "1.15.1"
     val libLaikaCore =       "org.planet42"                 %% "laika-core"                 % "0.18.2"
     val libLaikaIo =         "org.planet42"                 %% "laika-io"                   % "0.18.2"
     //val libLaikaPdf =        "org.planet42"                 %% "laika-pdf"                  % "0.18.2"
@@ -212,6 +213,6 @@ object Dependencies {
     val libSpark = Seq(libSparkCore,libSparkSQL,libJanino,libJaninoCompiler)
     val libSparkAWS = libSpark ++ Seq(libHadoopAWS,libAWSJavaSDK)
 
-    val libPdfGen = Seq(libFlyingSaucer,libThymeleaf,libNekoHtml)
+    val libPdfGen = Seq(libFlyingSaucer,libThymeleaf,libNekoHtml,libJSoup)
   }
   

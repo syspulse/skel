@@ -12,7 +12,6 @@ import laika.markdown.github._
 import com.typesafe.scalalogging.Logger
 
 import os._
-import org.thymeleaf.templateresolver.FileTemplateResolver
 import io.syspulse.skel.util.Util
 import scala.util.Try
 import scala.util.Success
@@ -26,7 +25,9 @@ object Issue {
     val descHtml = 
       transformer.transform(desc) match {
         case Left(e) => desc
-        case Right(html) => html
+        case Right(html) => { 
+          html
+        }
       }
     new Issue(id,title,descHtml,severity,status,ref,recommend)
   }

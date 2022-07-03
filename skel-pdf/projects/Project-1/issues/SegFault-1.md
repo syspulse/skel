@@ -12,7 +12,11 @@ Reference: http://github.com/project/code
 
 Start of the bug description
 
+
 File: [http://github.com/project/code/file.cpp](http://github.com/project/code/file.cpp)
+
+1. Problem-1
+2. Problem-2
 
 ```
 let matches = App::new("keccak")
@@ -23,6 +27,10 @@ let matches = App::new("keccak")
         .arg(Arg::with_name("e").short("e").help("Ethereum signature style"))
         .get_matches();
 ```
+
+Should be ok now !
+
+----
 
 ## Recommendation
 
