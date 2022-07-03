@@ -18,17 +18,17 @@ import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
 
-case class Issue(id:String,title:String,desc:String,severity:Int,status:String,where:String,recommend:String)
+case class Issue(id:String,title:String,desc:String,severity:Int,status:String,ref:String,recommend:String)
 
 object Issue {
   val transformer = Transformer.from(Markdown).to(HTML).using(GitHubFlavor,SyntaxHighlighting).build
-  def apply(id:String,title:String = "", desc:String = "", severity:Int = 4,status:String="New",where:String="",recommend:String="") = {
+  def apply(id:String,title:String = "", desc:String = "", severity:Int = 4,status:String="New",ref:String="",recommend:String="") = {
     val descHtml = 
       transformer.transform(desc) match {
         case Left(e) => desc
         case Right(html) => html
       }
-    new Issue(id,title,descHtml,severity,where,recommend,status)
+    new Issue(id,title,descHtml,severity,status,ref,recommend)
   }
 
   // very memory heavy unoptimized parser
@@ -64,7 +64,7 @@ object Issue {
               issue.copy(status = unbold(s.split(":").tail.mkString))
 
             case id if phase=="title" && s.matches("(?i)^Reference:.*") => 
-              issue.copy(where = s.split(":").tail.mkString)
+              issue.copy(ref = s.split(":").tail.mkString)
 
             case _ => {
               phase match {
@@ -79,7 +79,9 @@ object Issue {
         issue1
       })
 
-      Success(issue)
+      Success(
+        Issue(issue.id, issue.title, issue.desc, issue.severity, issue.status, issue.ref,issue.recommend)
+      )
     } catch {
       case e:Exception => Failure(e)
     }

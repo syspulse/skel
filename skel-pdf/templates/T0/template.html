@@ -14,18 +14,21 @@
   </head>
   
   <body>
-    <h3 style="text-align: center; color: green">
-      <span th:text="'Welcome to ' + ${to} + '!'"></span>
+    <h3 style="text-align: left; color: rgb(19, 65, 19)">
+      <span th:text="${signature}"></span>
     </h3>
   </body>
   <img width="128px" height="128px" src="logo.png"/> 
-  <div>Entry 1</div>
-  <div>Entry 2</div>
-
+  
   <div th:each="issue,istat : ${issues}">
-    <span th:text="${istat.index + 1}+'.'">0</span>
-    <span th:text="${issue.title}">ISSUE</span>
-    <span th:text="'severity = '+${issue.severity}">3</span>
+    <!-- <div th:text="${istat.index + 1}+'.'">0</div> -->
+    <h2 th:text="${istat.index + 1}+'. '+${issue.title} + '('+ ${issue.id} +')'"><strong>ISSUE</strong></h2>
+    <!-- <h3 th:text="'ID: '+${issue.id}">ID</h3> -->
+    <h3 th:text="'Severity: '+${issue.severity}">3</h3>
+    <h4 th:text="'Status: '+${issue.status}">Status</h4>
+    <div>Reference:<a th:href="${issue.ref}">[[${issue.ref}]]</a></div>
+    
+    
     <br/>
     <!-- <span th:text="'desc='+${issue.desc}">Description</span> -->
     <div class="panel-body output">
@@ -33,5 +36,6 @@
         [(${issue.desc})]
       </div>  
     </div>
+    <br/>
   </div>
 </html>

@@ -34,10 +34,12 @@ import org.thymeleaf.templateresolver.FileTemplateResolver
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.pdf.issue._
 
-object PDF {
+class PDFGenerator {
   val log = Logger(s"${this}")
 
-  def generateIssues(template:String,issues:List[Issue],sectionTitle:String = "") = {
+  protected def setData(ctx:Context) = {}
+
+  def generateData(template:String) = {
     //val templateResolver = new ClassLoaderTemplateResolver();
     val templateResolver = new FileTemplateResolver();
     templateResolver.setPrefix("")
@@ -50,8 +52,8 @@ object PDF {
     templateEngine.setTemplateResolver(templateResolver);
 
     val ctx = new Context();
-    ctx.setVariable("section_title", sectionTitle);
-    ctx.setVariable("issues", issues.asJava);
+    
+    setData(ctx)
 
     templateEngine.process(template, ctx);
   }
@@ -114,36 +116,10 @@ object PDF {
   def generate(templateDir:String,outputFile:String="output.pdf", templateFile:String = "template.html") = {
     val outputTemplate = s"${templateDir}/output.html"
     
-    val html = PDF.generateIssues(
-      templateDir + "/" + templateFile,
-      Range(1,5).map(i => Issue(s"ID-${i}",s"Issue ${i}",desc=s"""
-### Description
-
-__Id__: ${Util.sha256(i.toString)}
-
-Detailed Issue description is here:
-
-Reference: [http://github.com](http://github.com)
-
-```
-code {
-   val s = "String"
-}
-```
-""")
-
-        ).toList)
+    val html = generateData(templateDir + "/" + templateFile)
 
     os.write.over(os.Path(outputTemplate,os.pwd),html)
     
-    PDF.create(outputTemplate ,outputFile);
+    create(outputTemplate ,outputFile);
   }
-}
-
-object PdfGenerator extends App {
-  
-  var templateDir = args.headOption.getOrElse("templates/T0")
-  val outputFile = "output.pdf"
-  
-  PDF.generate(templateDir,outputFile);
 }
