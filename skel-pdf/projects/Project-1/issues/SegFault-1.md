@@ -2,7 +2,7 @@
 
 ID: __PRJ1-35__
 
-Severity: __5__
+Severity: __3__
 
 Status: __New__
 

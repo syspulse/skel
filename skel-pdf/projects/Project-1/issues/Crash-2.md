@@ -1,4 +1,4 @@
-# Crash under heav load
+# Crash under heavy load
 
 ID: __PRJ1-12__
 

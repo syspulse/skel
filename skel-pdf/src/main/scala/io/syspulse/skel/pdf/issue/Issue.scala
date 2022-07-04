@@ -22,13 +22,19 @@ case class Issue(id:String,title:String,desc:String,severity:Int,status:String,r
 object Issue {
   val transformer = Transformer.from(Markdown).to(HTML).using(GitHubFlavor,SyntaxHighlighting).build
   def apply(id:String,title:String = "", desc:String = "", severity:Int = 4,status:String="New",ref:String="",recommend:String="") = {
-    println(s"=====> '${desc}'")
     val descHtml = 
       transformer.transform(desc) match {
         case Left(e) => desc
         case Right(html) => html
       }
-    new Issue(id,title,descHtml,severity,status,ref,recommend)
+
+    val recommendHtml = 
+      transformer.transform(recommend) match {
+        case Left(e) => recommend
+        case Right(html) => html
+      }
+
+    new Issue(id,title,descHtml,severity,status,ref,recommendHtml)
   }
 
   // very memory heavy unoptimized parser

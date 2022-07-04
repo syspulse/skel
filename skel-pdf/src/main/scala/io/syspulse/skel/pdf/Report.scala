@@ -34,5 +34,5 @@ object Report extends App {
 
   println(issues)
 
-  new IssuesGenerator(issues).generate(templateDir,outputFile);
+  new IssuesGenerator4(issues).generate(templateDir,outputFile);
 }
