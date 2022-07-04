@@ -758,6 +758,9 @@ lazy val pdf = (project in file("skel-pdf"))
     sharedConfigAssembly,
     name := "skel-pdf",
     
+    sharedConfigAssembly,
+    //sharedConfigDocker,
+    //dockerBuildxSettings,
     // appDockerConfig("skel-enroll","io.syspulse.skel.enroll.App"),
 
     libraryDependencies ++= libPdfGen ++ Seq(

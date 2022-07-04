@@ -26,7 +26,7 @@ case class Config(
   params: Seq[String] = Seq(),
 )
 
-object App extends skel.Server {
+object Report {//extends skel.Server {
   
   def main(args:Array[String]):Unit = {
     println(s"args: '${args.mkString(",")}'")
@@ -58,7 +58,7 @@ object App extends skel.Server {
       // datastore = c.getString("datastore").getOrElse("mem"),
 
       templateDir = c.getString("report.template-dir").getOrElse("templates/T0"),
-      issuesDir = c.getString("report.issues-dir").getOrElse("./skel-pdf/projects/Project-1/issues/"),
+      issuesDir = c.getString("report.issues-dir").getOrElse("./projects/Project-1/issues/"),
       outputFile = c.getString("report.output-file").getOrElse("output.pdf"),
 
       cmd = c.getCmd().getOrElse("generate"),

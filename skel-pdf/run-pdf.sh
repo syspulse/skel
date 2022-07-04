@@ -8,7 +8,7 @@ CONF=`echo $APP | awk -F"-" '{print $2}'`
 
 export SITE=${SITE:-$CONF}
 
-MAIN=io.syspulse.skel.pdf.PdfGenerator
+MAIN=io.syspulse.skel.pdf.Report
 
 echo "app: $APP"
 echo "site: $SITE"

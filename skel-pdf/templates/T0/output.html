@@ -12,53 +12,5 @@
  <body>
   <h3 style="text-align: left; color: rgb(19, 65, 19)"><span></span></h3>
   <img width="128px" height="128px" src="logo.png" /> 
-  <div><!-- <div th:text="${istat.index + 1}+'.'">0</div> -->
-   <h2>1. Crash under heav load(PRJ1-12)</h2><!-- <h3 th:text="'ID: '+${issue.id}">ID</h3> -->
-   <h3>Severity: 4</h3>
-   <h4>Status: New</h4>
-   <div>
-    Reference:<a href=" none"> none</a>
-   </div>
-   <br /><!-- <span th:text="'desc='+${issue.desc}">Description</span> -->
-   <div class="panel-body output">
-    <div class="render html-rendered">
-     <h3 id="information" class="section">Information</h3>
-     <p>Crashes at this point:</p>
-     <pre><code>fn main()  {
-    return 0;
-}</code></pre>
-    </div> 
-   </div>
-   <br />
-  </div> 
-  <div><!-- <div th:text="${istat.index + 1}+'.'">0</div> -->
-   <h2>2. Segmenation fault(PRJ1-35)</h2><!-- <h3 th:text="'ID: '+${issue.id}">ID</h3> -->
-   <h3>Severity: 5</h3>
-   <h4>Status: New</h4>
-   <div>
-    Reference:<a href=" http//github.com/project/code"> http//github.com/project/code</a>
-   </div>
-   <br /><!-- <span th:text="'desc='+${issue.desc}">Description</span> -->
-   <div class="panel-body output">
-    <div class="render html-rendered">
-     <p>Start of the bug description</p>
-     <p>File: <a href="http://github.com/project/code/file.cpp"></a><a href="http://github.com/project/code/file.cpp">http://github.com/project/code/file.cpp</a></p>
-     <ol class="arabic">
-      <li>Problem-1</li>
-      <li>Problem-2</li>
-     </ol>
-     <pre><code>let matches = App::new("keccak")
-        .version("0.0.1")
-        .arg(Arg::with_name("DATA").index(1).required(false))
-        .arg(Arg::with_name("x").short("x").help("hex input"))
-        .arg(Arg::with_name("b").short("b").help("binary output"))
-        .arg(Arg::with_name("e").short("e").help("Ethereum signature style"))
-        .get_matches();</code></pre>
-     <p>Should be ok now !</p>
-     <hr />
-    </div> 
-   </div>
-   <br />
-  </div>
  </body>
 </html>
