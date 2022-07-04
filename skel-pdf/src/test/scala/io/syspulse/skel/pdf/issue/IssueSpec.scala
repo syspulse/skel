@@ -79,5 +79,23 @@ code {
       
       issues.size should === (2)
     }
+
+    "s" in {
+      //   val issues = Range(1,5).map(i => Issue(s"ID-${i}",s"Issue ${i}",severity=i, desc=s"""
+// ### Information
+
+// __Hash__: ${Util.sha256(i.toString)}
+
+// Detailed Issue description is here:
+
+// Reference: [http://github.com](http://github.com)
+
+// ```
+// code {
+//    val s = "String"
+// }
+// ```
+// """)).toList
+    }
   }
 }
