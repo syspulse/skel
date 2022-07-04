@@ -752,16 +752,20 @@ lazy val enroll = (project in file("skel-enroll"))
 lazy val pdf = (project in file("skel-pdf"))
   .dependsOn(core)
   .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
   .settings (
 
     sharedConfig,
     sharedConfigAssembly,
-    name := "skel-pdf",
+    
     
     sharedConfigAssembly,
-    //sharedConfigDocker,
-    //dockerBuildxSettings,
-    // appDockerConfig("skel-enroll","io.syspulse.skel.enroll.App"),
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    //name := "skel-pdf",
+    appDockerConfig("skel-pdf","io.syspulse.skel.pdf.Report"),
 
     libraryDependencies ++= libPdfGen ++ Seq(
       libScalaTest,
