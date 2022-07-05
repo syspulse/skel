@@ -80,7 +80,7 @@ code {
       issues.size should === (2)
     }
 
-    "s" in {
+    // "s" in {
       //   val issues = Range(1,5).map(i => Issue(s"ID-${i}",s"Issue ${i}",severity=i, desc=s"""
 // ### Information
 
@@ -96,6 +96,6 @@ code {
 // }
 // ```
 // """)).toList
-    }
+    // }
   }
 }

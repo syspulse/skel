@@ -1,5 +1,6 @@
 package io.syspulse.skel.auth.jwt
 
+import scala.util.Success
 import com.typesafe.scalalogging.Logger
 
 import pdi.jwt.{Jwt, JwtAlgorithm, JwtHeader, JwtClaim, JwtOptions}
@@ -13,6 +14,9 @@ import java.time.Clock
 import pdi.jwt.algorithms.JwtHmacAlgorithm
 import pdi.jwt.algorithms.JwtAsymmetricAlgorithm
 import io.syspulse.skel.auth.Config
+
+import ujson._
+
 
 object AuthJwt {
   val log = Logger(s"${this}")
@@ -36,9 +40,24 @@ object AuthJwt {
       Map()
   }
 
-  def generateIdToken(uid:String, expire:Long = 3600L, algo:JwtAlgorithm=JwtAlgorithm.HS512):String = {
+  def getClaim(accessToken:String,claim:String):String = {
+    val data = Jwt.decode(accessToken,JwtOptions(signature = false))
+    data match {
+      case Success(c) => {
+        try {
+          val json = ujson.read(c.content)
+          json.obj(claim).str
+        } catch {
+          case e:Exception => log.error(s"failed to parse claim: ${c}"); ""
+        }
+      }
+      case _ => ""
+    }
+  }
+
+  def generateIdToken(id:String, expire:Long = 3600L, algo:JwtAlgorithm=JwtAlgorithm.HS512):String = {
     Jwt
-      .encode(JwtClaim({s"""{"uid":"${uid}"}"""})
+      .encode(JwtClaim({s"""{"id":"${id}"}"""})
       .issuedNow.expiresIn(expire), secret, algo)
   }
 

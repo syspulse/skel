@@ -81,7 +81,7 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
     } yield user
   }
 
-  def _getByEid(eid:String):Future[Option[User]] = {
+  def getByEidAlways(eid:String):Future[Option[User]] = {
     log.info(s"${eid} -> ${reqGetUserByEid(eid)}")    
     
     for {

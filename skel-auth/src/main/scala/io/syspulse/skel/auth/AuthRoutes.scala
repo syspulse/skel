@@ -134,10 +134,13 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         rsp
       }
       tokenRsp <- {
-        tokenResData.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
+        if(tokenResData.status != StatusCodes.OK) 
+          Future.failed(new Exception(s"${tokenResData}"))
+        else  
+          tokenResData.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
       }
       idpTokens <- {
-        log.info(s"tokenRsp: ${tokenRsp.utf8String}")        
+        log.info(s"tokenRsp: ${tokenRsp.utf8String}")
         idp.decodeTokens(tokenRsp)
       }
       profileRes <- {        
@@ -161,7 +164,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         idp.decodeProfile(profileResData)
       }
       user <- {
-        UserClientHttp(serviceUserUri).withTimeout()._getByEid(profile.id)
+        UserClientHttp(serviceUserUri).withTimeout().getByEidAlways(profile.id)
       }
       authRes <- {        
         val auth = Auth(idpTokens.accessToken, idpTokens.idToken, user.map(_.id), scope, idpTokens.expiresIn)
@@ -378,16 +381,31 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                 complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
 
               } else {
-                val idToken = AuthJwt.generateIdToken(rsp.code.get.userId.getOrElse("")) 
-                val accessToken = AuthJwt.generateAccessToken() 
-                log.info(s"code=${code}: rsp=${rsp.code}: accessToken${accessToken}, idToken=${idToken}")
 
-                // associate idToken with code for later Profile retrieval by rewriting Code and
-                // immediately expiring code 
-                // Extracting user id possible from JWT 
-                onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>
-                  
-                  complete(StatusCodes.OK,EthTokens(accessToken = accessToken, idToken = idToken, expiresIn = 3600,scope = "",tokenType = ""))                    
+                // request uid from UserService
+                onSuccess(UserClientHttp(serviceUserUri).withTimeout().getByEidAlways(rsp.code.get.eid.get)) { user => 
+                
+                  if(! user.isDefined ) {
+                
+                    log.error(s"code=${code}: user=${user}: not found")
+                    complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
+
+                  } else  {
+
+                    val uid = user.get.id
+
+                    val idToken = AuthJwt.generateIdToken(rsp.code.get.eid.getOrElse("")) 
+                    val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
+                    log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}")
+
+                    // associate idToken with code for later Profile retrieval by rewriting Code and
+                    // immediately expiring code 
+                    // Extracting user id possible from JWT 
+                    onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>
+                      
+                      complete(StatusCodes.OK,EthTokens(accessToken = accessToken, idToken = idToken, expiresIn = 3600,scope = "",tokenType = ""))                    
+                    }
+                  }
                 }
                 
               }
@@ -419,8 +437,12 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
               } else {
                 // request from temporary Code Cache
                 onSuccess(getCodeByToken(access_token)) { rsp => 
+
+                  // extract uid from AccessToken
+                  val uid = AuthJwt.getClaim(access_token,"uid")
+                  val eid = rsp.code.get.eid.get
                   complete(StatusCodes.OK,
-                    EthProfile( rsp.code.get.userId.get, rsp.code.get.userId.get, "profile.email", "profile.avatar", LocalDateTime.now().toString)
+                    EthProfile( rsp.code.get.eid.get, eid , "profile.email", "profile.avatar", LocalDateTime.now().toString)
                   )                      
                 }             
               }

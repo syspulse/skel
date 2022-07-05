@@ -63,7 +63,7 @@ object JWKSKeys {
 }
 
 trait Jwks {
-  val log = Logger(s"${this}")
+  val log = Logger(s"${this.getClass().getName()}")
 
   //var jwks:Option[JWKSKeys] = None
   var jwks:Option[JWKSet] = None
