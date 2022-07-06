@@ -4,8 +4,10 @@ import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
+import io.syspulse.skel.user._
 import io.syspulse.skel.auth.{AuthRegistry,AuthRoutes}
 import io.syspulse.skel.auth.jwt.AuthJwt
+
 
 import scopt.OParser
 
@@ -55,8 +57,9 @@ object App extends skel.Server {
 
         ArgString('_', "service.user.uri","User Service URI (def: http://localhost:8080/api/v1/user)"),
 
-        ArgCmd("server","Command"),
-        ArgCmd("client","Command"),
+        ArgCmd("server","Server"),
+        ArgCmd("server-with-user","Server with embedded UserServices (for testing)"),
+        ArgCmd("client","Client"),
         ArgParam("<params>","")
       ).withExit(1)
     ))
@@ -109,6 +112,21 @@ object App extends skel.Server {
                   config.serviceUserUri)(context, config) 
               }
             )
+            
+          )
+        )
+      case "server-with-user" => 
+        println(s"${Console.YELLOW}running with UserService(mem):${Console.RESET} http://${authHost}:${config.port}${config.uri}/user")
+        run( config.host, config.port,config.uri, c,
+          Seq(
+            (AuthRegistry(store),"AuthRegistry",(actor, context) => {
+                new AuthRoutes(actor,
+                  s"http://${authHost}:${config.port}${config.uri}",
+                  s"http://${authHost}:${config.port}${config.uri}/callback",
+                  s"http://${authHost}:${config.port}${config.uri}/user")(context, config) 
+              }
+            ),
+            (UserRegistry(new UserStoreMem),"UserRegistry",(a, ac) => new UserRoutes(a)(ac).withSuffix("user") )
             
           )
         )

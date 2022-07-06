@@ -174,7 +174,7 @@ trait Server {
           routeFun(actor,context) 
         }
       }
-      val appRoutes:Seq[Route] = appServices.map(r => r.routes)
+      val appRoutes:Seq[Route] = appServices.map(r => r.buildRoutes())
       val appClasses:Seq[Class[_]] = appServices.map(r => r.getClass())
 
       val swaggerRoutes = Swagger.routes

@@ -242,7 +242,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     authenticateBasicAuth()
   }
 
-  override val routes: Route = cors() {
+  override def routes: Route = cors() {
     concat(
       // simple embedded Login FrontEnd
       path("login") {

@@ -150,7 +150,7 @@ class UserRoutes(userRegistry: ActorRef[Command])(implicit context: ActorContext
     }
   }
 
-  override val routes: Route =
+  override def routes: Route =
       concat(
         pathEndOrSingleSlash {
           concat(

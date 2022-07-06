@@ -10,7 +10,8 @@ else
 fi
 
 REDIRECT_URI=${REDIRECT_URI:-http://localhost:8080/api/v1/auth/eth/callback}
-SERVICE_USER=${SERVICE_USER:-http://localhost:8081/api/v1/user}
+#SERVICE_USER=${SERVICE_USER:-http://localhost:8081/api/v1/user}
+SERVICE_USER=${SERVICE_USER:-http://localhost:8080/api/v1/auth/user}
 
 OUTPUT=`./auth-web3-metamask.js $SK`
 ADDR=`echo $OUTPUT | awk '{print $1}'`
@@ -26,7 +27,6 @@ if [ "$uid" == "" ]; then
    user=`SERVICE_URI=$SERVICE_USER ../skel-user/user-create.sh user-1@mail.com user-1 $ADDR`
    echo $user
 fi
-
 
 LOCATION=`curl -i -s "http://localhost:8080/api/v1/auth/eth/auth?sig=${SIG}&addr=${ADDR}&response_type=code&client_id=UNKNOWN&scope=profile&state=state&redirect_uri=${REDIRECT_URI}" | grep Location`
 echo "LOCATION: $LOCATION"
