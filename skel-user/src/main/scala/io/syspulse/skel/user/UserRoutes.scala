@@ -38,12 +38,16 @@ import io.syspulse.skel.Command
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import io.syspulse.skel.auth.permissions.rbac.Permissions
+import io.syspulse.skel.auth.RouteAuthorizers
 
 
 @Path("/api/v1/user")
-class UserRoutes(userRegistry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {
-  val log = Logger(s"${this}")  
+class UserRoutes(userRegistry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
+  //val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system
+  
+  implicit val permissions = Permissions()
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import UserJson._
@@ -153,8 +157,21 @@ class UserRoutes(userRegistry: ActorRef[Command])(implicit context: ActorContext
   override def routes: Route =
       concat(
         pathEndOrSingleSlash {
+          // authenticate()(authn =>
+          //   authorize(Permissions.isAdmin(authn)) {
+          //     concat(
+          //       getUsersRoute(),
+          //       createUserRoute
+          //     )
+          //   }
+          // )
           concat(
-            getUsersRoute(),
+            authenticate()(authn =>
+              authorize(Permissions.isAdmin(authn)) {              
+                getUsersRoute()                
+                
+              }
+            ),
             createUserRoute
           )
         },
@@ -181,12 +198,21 @@ class UserRoutes(userRegistry: ActorRef[Command])(implicit context: ActorContext
           //     getUserCodeVerifyRoute(id,code)
           //   }
           // } ~
+
           pathEndOrSingleSlash {
-            concat(
-              getUserRoute(id),
-              deleteUserRoute(id),
-            )
-          } 
+            // concat(
+            //   getUserRoute(id),
+            //   deleteUserRoute(id),
+            // )          
+            authenticate()(authn =>
+              authorize(Permissions.isUser(UUID(id),authn)) {
+                getUserRoute(id)
+              } ~
+              authorize(Permissions.isAdmin(authn)) {
+                deleteUserRoute(id)
+              }
+            ) 
+          }
         }
       )
     

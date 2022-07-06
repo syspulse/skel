@@ -11,4 +11,3 @@ abstract class Resource(s:String)
 
 case class ResourceAll() extends Resource("all")
 case class ResourceData() extends Resource("data")
-

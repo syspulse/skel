@@ -13,7 +13,6 @@ import io.syspulse.skel.Command
 object UserRegistry {
   val log = Logger(s"${this}")
   
-
   final case class GetUsers(replyTo: ActorRef[Users]) extends Command
   final case class GetUser(id:UUID,replyTo: ActorRef[Option[User]]) extends Command
   final case class GetUserByEid(eid:String,replyTo: ActorRef[Option[User]]) extends Command
@@ -39,13 +38,17 @@ object UserRegistry {
         replyTo ! Users(store.all)
         Behaviors.same
 
+      case GetUser(id, replyTo) =>
+        replyTo ! store.?(id)
+        Behaviors.same
+
       case GetUserByEid(eid, replyTo) =>
         replyTo ! store.findByEid(eid)
         Behaviors.same
 
 
       case CreateUser(userCreate, replyTo) =>
-        val id = userCreate.id.getOrElse(UUID.randomUUID())
+        val id = userCreate.uid.getOrElse(UUID.randomUUID())
 
         val user = User(id, userCreate.email, userCreate.name, userCreate.eid, System.currentTimeMillis())
         val store1 = store.+(user)

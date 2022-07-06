@@ -28,6 +28,9 @@ case class Config(
 
   serviceUserUri:String = "",
 
+  permissionsModel:String = "",
+  permissionsPolicy:String = "",
+
   cmd:String = "",
   params: Seq[String] = Seq(),
 )
@@ -57,6 +60,9 @@ object App extends skel.Server {
 
         ArgString('_', "service.user.uri","User Service URI (def: http://localhost:8080/api/v1/user)"),
 
+        ArgString('_', "permissions.model","RBAC model file (def: permissions-model-rbac.conf"),
+        ArgString('_', "permissions.policy","User Roles (def: permissions-policy-rbac.csv"),
+
         ArgCmd("server","Server"),
         ArgCmd("server-with-user","Server with embedded UserServices (for testing)"),
         ArgCmd("client","Client"),
@@ -82,6 +88,9 @@ object App extends skel.Server {
 
       serviceUserUri = c.getString("service.user.uri").getOrElse("http://localhost:8080/api/v1/user"),
 
+      permissionsModel = c.getString("permissions.model").getOrElse("conf/permissions-model-rbac.conf"),
+      permissionsPolicy = c.getString("permissions.policy").getOrElse("conf/permissions-policy-rbac.csv"),
+
       cmd = c.getCmd().getOrElse("server"),
       params = c.getParams(),
     )
@@ -98,7 +107,7 @@ object App extends skel.Server {
       }
     }
 
-    AuthJwt.run(config)
+    AuthJwt.run(config.jwtSecret)
     val authHost = if(config.host=="0.0.0.0") "localhost" else config.host
 
     config.cmd match {

@@ -54,6 +54,8 @@ import akka.actor
 import akka.stream.Materializer
 import scala.util.Random
 
+import io.syspulse.skel.auth.permissions.rbac.Permissions
+
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.auth.oauth2.EthOAuth2
 import io.syspulse.skel.crypto.Eth
@@ -106,6 +108,11 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   def getCode(authCode: String): Future[CodeRes] = codeRegistry.ask(GetCode(authCode, _))
   def getCodeByToken(accessToken: String): Future[CodeRes] = codeRegistry.ask(GetCodeByToken(accessToken, _))
 
+  implicit val permissions = Permissions(config.permissionsModel,config.permissionsPolicy)
+  // def hasAdminPermissions(authn:Authenticated) = {
+  //   val uid = authn.getUser
+  //   permissions.isAdmin(uid)
+  // }
   
   def callbackFlow(idp: Idp, code: String, redirectUri:Option[String], extraData:Option[Map[String,String]], scope: Option[String], state:Option[String]): Future[AuthWithProfileRes] = {
     log.info(s"code=${code}, redirectUri=${redirectUri}, scope=${scope}, state=${state}")
@@ -238,11 +245,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     log.info(s"Authenticating: Proxy M2M... (request=${request}")
     proxyAuthCredentials(request)
   }
-
-  protected def authenticateAll[T]()(implicit config:Config): Directive1[Authenticated] = {
-    //authenticateBasicAuthProxy()
-    authenticateOAuth2("api",oauth2Authenticator)
-  }
+  
 
   override def routes: Route = cors() {
     concat(
@@ -474,8 +477,10 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
       pathEndOrSingleSlash {
         concat(
           get {
-            authenticateAll()(config)(_ =>
-              complete(getAuths())  
+            authenticate()(authn =>
+              authorize(Permissions.isAdmin(authn)) {
+                complete(getAuths())
+              }
             )              
           },
           post {
@@ -487,7 +492,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           })
       },
       path(Segment) { auid =>
-        authenticateAll()(config)( authn => {
+        authenticate()( authn => {
           log.info(s"AuthN: ${authn}")
           concat(
             get {

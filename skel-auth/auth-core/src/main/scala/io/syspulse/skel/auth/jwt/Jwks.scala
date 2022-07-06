@@ -31,8 +31,6 @@ import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.model.FormData
 
-import requests._
-
 import com.nimbusds.jose.jwk.JWKMatcher
 import com.nimbusds.jose.jwk.KeyType
 import com.nimbusds.jose.jwk.KeyUse

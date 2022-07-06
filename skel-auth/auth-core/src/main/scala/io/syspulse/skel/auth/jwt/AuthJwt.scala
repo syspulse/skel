@@ -13,7 +13,6 @@ import io.syspulse.skel.auth.Auth
 import java.time.Clock
 import pdi.jwt.algorithms.JwtHmacAlgorithm
 import pdi.jwt.algorithms.JwtAsymmetricAlgorithm
-import io.syspulse.skel.auth.Config
 
 import ujson._
 
@@ -24,8 +23,8 @@ object AuthJwt {
 
   var secret: String = "secret"
 
-  def run(config:Config) = {
-    secret = config.jwtSecret
+  def run(jwtSecret:String) = {
+    secret = jwtSecret
   }
 
   def decode(a:Auth) = {

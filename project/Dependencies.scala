@@ -83,113 +83,115 @@ object Dependencies {
     val libAlpakkaElastic=  "com.lightbend.akka"          %% "akka-stream-alpakka-elasticsearch"  % alpakkaVersion
     val libAlpakkaMQTT=     "com.lightbend.akka"          %% "akka-stream-alpakka-mqtt-streaming" % alpakkaVersion
 
-    val libAkkaProtobuf =   "com.typesafe.akka"           %% "akka-protobuf"        % akkaVersion
-    val libAkkaKafka=       "com.typesafe.akka"           %% "akka-stream-kafka"    % akkaKafkaVersion
+    val libAkkaProtobuf =   "com.typesafe.akka"               %% "akka-protobuf"        % akkaVersion
+    val libAkkaKafka=       "com.typesafe.akka"               %% "akka-stream-kafka"    % akkaKafkaVersion
 
-    val libAkkaHttpCors =   "ch.megard"                   %% "akka-http-cors"       % "1.1.3"
+    val libAkkaHttpCors =   "ch.megard"                       %% "akka-http-cors"       % "1.1.3"
 
-    val libScalaLogging =   "com.typesafe.scala-logging"  %% "scala-logging"        % "3.9.2"
-    val libLogback =        "ch.qos.logback"              %  "logback-classic"      % "1.2.8"
-    val libJanino =         "org.codehaus.janino"         %  "janino"               % janinoVersion
+    val libScalaLogging =   "com.typesafe.scala-logging"      %% "scala-logging"        % "3.9.2"
+    val libLogback =        "ch.qos.logback"                  % "logback-classic"      % "1.2.8"
+    val libJanino =         "org.codehaus.janino"             % "janino"               % janinoVersion
     // I need this rubbish slf4j to deal with old jboss dependecny which generates exception in loading logback.xml
     //val libSlf4jApi =       "org.slf4j"                   %  "slf4j-api"            % "1.8.0-beta4"
     // Supports only old XML Config file format
-    val libSlf4jApi =       "org.slf4j"                   %  "slf4j-api"            % "1.7.26"
+    val libSlf4jApi =       "org.slf4j"                       % "slf4j-api"            % "1.7.26"
     // Needed for teku
-    val libLog4j2Api =      "org.apache.logging.log4j" % "log4j-api" % "2.17.2"
-    val libLog4j2Core =     "org.apache.logging.log4j" % "log4j-core" % "2.17.2"
+    val libLog4j2Api =      "org.apache.logging.log4j"        % "log4j-api" % "2.17.2"
+    val libLog4j2Core =     "org.apache.logging.log4j"        % "log4j-core" % "2.17.2"
 
-    val libQuill =          "io.getquill"                 %% "quill-jdbc"           % "3.5.2"
-    val libMySQL =          "mysql"                       %  "mysql-connector-java" % "8.0.22"
-    val libPostgres =       "org.postgresql"              % "postgresql"            % "42.3.5"
-    val libInfluxDB =       "com.influxdb"                %% "influxdb-client-scala" % influxDBVersion
+    val libQuill =          "io.getquill"                     %% "quill-jdbc"           % "3.5.2"
+    val libMySQL =          "mysql"                           % "mysql-connector-java" % "8.0.22"
+    val libPostgres =       "org.postgresql"                  % "postgresql"            % "42.3.5"
+    val libInfluxDB =       "com.influxdb"                    %% "influxdb-client-scala" % influxDBVersion
 
-    val libTypesafeConfig = "com.typesafe"                %  "config"               % "1.4.1"
+    val libTypesafeConfig = "com.typesafe"                    % "config"               % "1.4.1"
       
-    val libWsRs =           "javax.ws.rs"                 % "javax.ws.rs-api"       % "2.0.1"
-    val libSwaggerAkkaHttp ="com.github.swagger-akka-http" %% "swagger-akka-http"   % "2.7.0"
+    val libWsRs =           "javax.ws.rs"                     % "javax.ws.rs-api"       % "2.0.1"
+    val libSwaggerAkkaHttp ="com.github.swagger-akka-http"    %% "swagger-akka-http"   % "2.7.0"
     
-    val libMetrics =        "nl.grons"                    %% "metrics4-scala"       % "4.1.14"
-    //val libAkkaHttpMetrics ="fr.davit"                    %% "akka-http-metrics-dropwizard" % "1.6.0"
-    val libAkkaHttpMetrics ="fr.davit"                    %% "akka-http-metrics-prometheus" % "1.6.0"
+    val libMetrics =        "nl.grons"                        %% "metrics4-scala"       % "4.1.14"
+    //val libAkkaHttpMetrics ="fr.davit"                      %% "akka-http-metrics-dropwizard" % "1.6.0"
+    val libAkkaHttpMetrics ="fr.davit"                        %% "akka-http-metrics-prometheus" % "1.6.0"
 
       // "org.backuity.clist" %% "clist-core"               % "3.5.1",
       // "org.backuity.clist" %% "clist-macros"             % "3.5.1" % "provided",
-    val libScopt =          "com.github.scopt"            %% "scopt"                % "4.0.0"
+    val libScopt =          "com.github.scopt"                %% "scopt"                % "4.0.0"
 
-    val libUUID =           "io.jvm.uuid"                 %% "scala-uuid"           % "0.3.1"
+    val libUUID =           "io.jvm.uuid"                     %% "scala-uuid"           % "0.3.1"
 
-    val libKafkaAvroSer =   "io.confluent"                % "kafka-avro-serializer" % kafkaAvroSerVersion
+    val libKafkaAvroSer =   "io.confluent"                    % "kafka-avro-serializer" % kafkaAvroSerVersion
 
-    val libScalaTest =      "org.scalatest"               %% "scalatest"            % "3.1.2"// % Test
-    //val libSpecs2core =     "org.specs2"                  %% "specs2-core"          % "2.4.17"
-    val libAkkaTestkit =    "com.typesafe.akka"           %% "akka-http-testkit"        % akkaHttpVersion// % Test
-    val libAkkaTestkitType ="com.typesafe.akka"           %% "akka-actor-testkit-typed" % akkaVersion// % Test
+    val libScalaTest =      "org.scalatest"                   %% "scalatest"            % "3.1.2"// % Test
+    //val libSpecs2core =     "org.specs2"                    %% "specs2-core"          % "2.4.17"
+    val libAkkaTestkit =    "com.typesafe.akka"               %% "akka-http-testkit"        % akkaHttpVersion// % Test
+    val libAkkaTestkitType ="com.typesafe.akka"               %% "akka-actor-testkit-typed" % akkaVersion// % Test
     
-    val libJline =          "org.jline"                   %  "jline"                 % "3.14.1"
-    //val libJson4s =         "org.json4s"                  %%  "json4s-native"        % "3.6.7"
-    val libOsLib =          "com.lihaoyi"                 %% "os-lib"               % "0.8.0" //"0.7.7"
-    val libUpickleLib =     "com.lihaoyi"                 %% "upickle"              % "1.4.1"
-    //val libUjsonLib =       "com.lihaoyi"                 %% "ujson"                % "1.4.1"
-    val libScalaTags =      "com.lihaoyi"                 %% "scalatags"            % "0.9.4"
-    val libCask =           "com.lihaoyi"                 %% "cask"                 % "0.7.11" // "0.7.8"
-    val libRequests =       "com.lihaoyi"                 %% "requests"             % "0.6.9"
+    val libJline =          "org.jline"                       % "jline"                 % "3.14.1"
+    //val libJson4s =         "org.json4s"                    %%  "json4s-native"        % "3.6.7"
+    val libOsLib =          "com.lihaoyi"                     %% "os-lib"               % "0.8.0" //"0.7.7"
+    val libUpickleLib =     "com.lihaoyi"                     %% "upickle"              % "1.4.1"
+    //val libUjsonLib =       "com.lihaoyi"                   %% "ujson"                % "1.4.1"
+    val libScalaTags =      "com.lihaoyi"                     %% "scalatags"            % "0.9.4"
+    val libCask =           "com.lihaoyi"                     %% "cask"                 % "0.7.11" // "0.7.8"
+    val libRequests =       "com.lihaoyi"                     %% "requests"             % "0.6.9"
 
-    val libCsv =            "com.github.tototoshi"          %% "scala-csv"            % "1.3.7"
-    val libFaker =          "com.github.javafaker"          % "javafaker"             % "1.0.2"
+    val libCsv =            "com.github.tototoshi"            %% "scala-csv"            % "1.3.7"
+    val libFaker =          "com.github.javafaker"            % "javafaker"             % "1.0.2"
 
-    val libPrometheusClient =   "io.prometheus"             % "simpleclient"              % "0.10.0"
-    val libPrometheusHttp =     "io.prometheus"             % "simpleclient_httpserver"   % "0.10.0"
-    val libPrometheusHotspot =  "io.prometheus"             % "simpleclient_hotspot"   % "0.10.0"
+    val libPrometheusClient =   "io.prometheus"               % "simpleclient"              % "0.10.0"
+    val libPrometheusHttp =     "io.prometheus"               % "simpleclient_httpserver"   % "0.10.0"
+    val libPrometheusHotspot =  "io.prometheus"               % "simpleclient_hotspot"   % "0.10.0"
     //val libPrometheusPushGw = "io.prometheus"               % "simpleclient_pushgateway"   % "0.10.0"
     
     // This is modified version for Scala2.13 (https://github.com/syspulse/kuro-otp)
-    val libKuroOtp =        "com.ejisan"                    %% "kuro-otp"           % "0.0.4-SNAPSHOT"
-    val libQR =             "net.glxn"                      % "qrgen"               % "1.4"
+    val libKuroOtp =        "com.ejisan"                      %% "kuro-otp"           % "0.0.4-SNAPSHOT"
+    val libQR =             "net.glxn"                        % "qrgen"               % "1.4"
 
     // val libWeb3jCrypto =    "org.web3j"                     % "crypto"              % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
     // val libWeb3jCore =      "org.web3j"                     % "core"                % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
-    val libWeb3jCrypto =    "org.web3j"                     % "crypto"              % "4.9.2" exclude("org.bouncycastle", "bcprov-jdk15on")
-    val libWeb3jCore =      "org.web3j"                     % "core"                % "4.9.2" exclude("org.bouncycastle", "bcprov-jdk15on")
+    val libWeb3jCrypto =    "org.web3j"                       % "crypto"              % "4.9.2" exclude("org.bouncycastle", "bcprov-jdk15on")
+    val libWeb3jCore =      "org.web3j"                       % "core"                % "4.9.2" exclude("org.bouncycastle", "bcprov-jdk15on")
     
     //web3j depends on "1.65"
-    val libBouncyCastle =   "org.bouncycastle"              % "bcprov-jdk15on"      % "1.70" //"1.69" 
+    val libBouncyCastle =   "org.bouncycastle"                % "bcprov-jdk15on"      % "1.70" //"1.69" 
     
-    val libScodecBits =     "org.scodec"                    %% "scodec-bits"        % "1.1.30" //"1.1.12" 
-    val libHKDF =           "at.favre.lib"                  % "hkdf"                % "1.1.0"
-    val libBLS =            "tech.pegasys.teku.internal"    % "bls"                 % "23.3.1" //"21.9.2"
-    val libBLSKeystore =    "tech.pegasys.signers.internal" % "bls-keystore"        % "2.2.1"  //"1.0.21"
+    val libScodecBits =     "org.scodec"                      %% "scodec-bits"        % "1.1.30" //"1.1.12" 
+    val libHKDF =           "at.favre.lib"                    % "hkdf"                % "1.1.0"
+    val libBLS =            "tech.pegasys.teku.internal"      % "bls"                 % "23.3.1" //"21.9.2"
+    val libBLSKeystore =    "tech.pegasys.signers.internal"   % "bls-keystore"        % "2.2.1"  //"1.0.21"
 
-    val libScalaScraper =   "net.ruippeixotog"              %% "scala-scraper"      % "2.2.1"
+    val libScalaScraper =   "net.ruippeixotog"                %% "scala-scraper"      % "2.2.1"
 
-    val libQuartz =         "org.quartz-scheduler"          % "quartz"              % "2.3.2" exclude("com.zaxxer", "HikariCP-java7")
+    val libQuartz =         "org.quartz-scheduler"            % "quartz"              % "2.3.2" exclude("com.zaxxer", "HikariCP-java7")
 
-    val libTwitter4s =      "com.danielasfregola"           %% "twitter4s"          % "7.0"
+    val libTwitter4s =      "com.danielasfregola"             %% "twitter4s"          % "7.0"
     
-    val libSeleniumJava =   "org.seleniumhq.selenium"       % "selenium-java"             % "4.0.0-rc-3"
-    val libSeleniumFirefox ="org.seleniumhq.selenium"       % "selenium-firefox-driver"   % "4.0.0-rc-3"
+    val libSeleniumJava =   "org.seleniumhq.selenium"         % "selenium-java"             % "4.0.0-rc-3"
+    val libSeleniumFirefox ="org.seleniumhq.selenium"         % "selenium-firefox-driver"   % "4.0.0-rc-3"
 
-    val libJwtCore =        "com.pauldijou"                 %% "jwt-core"           % "4.2.0"
-    val libJoseJwt =        "com.nimbusds"                  % "nimbus-jose-jwt"     % "4.21"
+    val libJwtCore =        "com.pauldijou"                   %% "jwt-core"           % "4.2.0"
+    val libJoseJwt =        "com.nimbusds"                    % "nimbus-jose-jwt"     % "4.21"
 
-    val libAvro4s =         "com.sksamuel.avro4s"           %% "avro4s-core"        % "4.0.12"
+    val libAvro4s =         "com.sksamuel.avro4s"             %% "avro4s-core"        % "4.0.12"
 
-    val libSSSS =           "com.gladow"                    %% "scalassss"          % "0.2.0-SNAPSHOT"
+    val libSSSS =           "com.gladow"                      %% "scalassss"          % "0.2.0-SNAPSHOT"
 
-    val libSparkCore =       "org.apache.spark"              %% "spark-core"         % sparkVersion
-    val libSparkSQL =        "org.apache.spark"              %% "spark-sql"          % sparkVersion
-    val libHadoopAWS =       "org.apache.hadoop"             % "hadoop-aws"          % hadoopAWSVersion
-    val libAWSJavaSDK =      "com.amazonaws"                 % "aws-java-sdk-bundle" % "1.11.874" //"1.12.247"
-    val libJaninoCompiler =  "org.codehaus.janino"           %  "commons-compiler"   % janinoVersion
+    val libSparkCore =       "org.apache.spark"               %% "spark-core"         % sparkVersion
+    val libSparkSQL =        "org.apache.spark"               %% "spark-sql"          % sparkVersion
+    val libHadoopAWS =       "org.apache.hadoop"              % "hadoop-aws"          % hadoopAWSVersion
+    val libAWSJavaSDK =      "com.amazonaws"                  % "aws-java-sdk-bundle" % "1.11.874" //"1.12.247"
+    val libJaninoCompiler =  "org.codehaus.janino"            %  "commons-compiler"   % janinoVersion
 
-    val libFlyingSaucer =    "org.xhtmlrenderer"            %  "flying-saucer-pdf-itext5"   % "9.1.22"
-    val libThymeleaf =       "org.thymeleaf"                % "thymeleaf"                   % "3.0.11.RELEASE"
-    val libNekoHtml =        "net.sourceforge.nekohtml"     % "nekohtml"                    % "1.9.21"
-    val libJSoup =           "org.jsoup"                    % "jsoup"                       % "1.15.1"
-    val libLaikaCore =       "org.planet42"                 %% "laika-core"                 % "0.18.2"
-    val libLaikaIo =         "org.planet42"                 %% "laika-io"                   % "0.18.2"
+    val libFlyingSaucer =    "org.xhtmlrenderer"              %  "flying-saucer-pdf-itext5"   % "9.1.22"
+    val libThymeleaf =       "org.thymeleaf"                  % "thymeleaf"                   % "3.0.11.RELEASE"
+    val libNekoHtml =        "net.sourceforge.nekohtml"       % "nekohtml"                    % "1.9.21"
+    val libJSoup =           "org.jsoup"                      % "jsoup"                       % "1.15.1"
+    val libLaikaCore =       "org.planet42"                   %% "laika-core"                 % "0.18.2"
+    val libLaikaIo =         "org.planet42"                   %% "laika-io"                   % "0.18.2"
     //val libLaikaPdf =        "org.planet42"                 %% "laika-pdf"                  % "0.18.2"
     
+    val libCasbin =          "org.casbin"                     % "jcasbin"                     % "1.7.1"
+
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)

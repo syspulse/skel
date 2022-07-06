@@ -241,8 +241,8 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 
 lazy val root = (project in file("."))
-  .aggregate(core, serde, cron, video, skel_test, http, auth, user, kafka, ingest, otp, crypto, flow, dsl)
-  .dependsOn(core, serde, cron, video, skel_test, http, auth, user, kafka, ingest, otp, crypto, flow, dsl, scrap, enroll, demo_ekm, demo_npp, demo_twit)
+  .aggregate(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl)
+  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl, scrap, enroll, demo_ekm, demo_npp, demo_twit)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -331,8 +331,20 @@ lazy val http = (project in file("skel-http"))
     ),
   )
 
+lazy val auth_core = (project in file("skel-auth/auth-core"))
+  .dependsOn(core)
+  .settings (
+    sharedConfig,
+    name := "skel-auth-core",
+    
+    libraryDependencies ++= libJwt ++ Seq(
+      libUpickleLib,
+      libCasbin
+    ),    
+  )
+
 lazy val auth = (project in file("skel-auth"))
-  .dependsOn(core,crypto,user)
+  .dependsOn(core,crypto,auth_core,user)
   .settings (
     sharedConfig,
     sharedConfigAssembly,
@@ -343,7 +355,8 @@ lazy val auth = (project in file("skel-auth"))
       libUpickleLib,
       libRequests,
       libScalaTags,
-      libCask
+      libCask,
+      libCasbin
     ),    
   )
 
@@ -369,7 +382,7 @@ lazy val otp = (project in file("skel-otp"))
 
 
 lazy val user = (project in file("skel-user"))
-  .dependsOn(core)
+  .dependsOn(core,auth_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
