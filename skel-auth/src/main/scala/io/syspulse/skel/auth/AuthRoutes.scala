@@ -73,8 +73,9 @@ import io.syspulse.skel.auth.proxy._
 import io.syspulse.skel.user.client.UserClientHttp
 
 
-class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirectUri:String,serviceUserUri:String)(implicit context:ActorContext[_],config:Config) extends Routeable  {
-  val log = Logger(s"${this}")
+class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirectUri:String,serviceUserUri:String)(implicit context:ActorContext[_],config:Config) 
+    extends Routeable with RouteAuthorizers {
+
   implicit val system: ActorSystem[_] = context.system
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
   
@@ -174,7 +175,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           val claims = AuthJwt.decodeClaim(auth)
           // verify just for logging
           val verified = idp.verify(idpTokens.idToken)
-          log.info(s"code=${code}: profile=${profile}: auth=${auth}: jwt=${jwt.get.content}: claims=${claims}: verified=${verified}")
+          log.info(s"code=${code}: profile=${profile}: auth=${auth}: idToken: jwt=${jwt.get.content}: claims=${claims}: verified=${verified}")
         } else {
           log.info(s"code=${code}: profile=${profile}: auth=${auth}")
         }
@@ -197,7 +198,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     
   }
 
-  protected def basicAuthCredentials(creds: Credentials)(implicit up: (String,String)):Option[AuthResult] = {
+  protected def basicAuthCredentialsProxy(creds: Credentials)(implicit up: (String,String)):Option[Authenticated] = {
     creds match {
       case p @ Credentials.Provided(id) if up._1.equals(id) && p.verify(up._2) => {
         log.info(s"Authenticated: ${up}")
@@ -209,7 +210,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     }
   }
 
-  protected def proxyAuthCredentials(request:HttpRequest)(implicit config:Config):Directive1[AuthResult] = {
+  protected def proxyAuthCredentials(request:HttpRequest)(implicit config:Config):Directive1[Authenticated] = {
     val idp = idps(ProxyM2MAuth.id).asInstanceOf[ProxyM2MAuth]
     val rsp = for {
       body <- request.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
@@ -227,19 +228,20 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     }
   }
 
-  protected def authenticateBasicAuth[T]()(implicit config:Config): Directive1[AuthResult] = {
+  protected def authenticateBasicAuthProxy[T]()(implicit config:Config): Directive1[Authenticated] = {
     log.info("Authenticating: Basic-Authentication...")
     implicit val credConfig:(String,String) = (config.proxyBasicUser,config.proxyBasicPass)
-    authenticateBasic(config.proxyBasicRealm, basicAuthCredentials)
+    authenticateBasic(config.proxyBasicRealm, basicAuthCredentialsProxy)
   }
 
-  protected def authenticateProxyAuth[T](request:HttpRequest)(implicit config:Config): Directive1[AuthResult] = {
+  protected def authenticateProxyAuth[T](request:HttpRequest)(implicit config:Config): Directive1[Authenticated] = {
     log.info(s"Authenticating: Proxy M2M... (request=${request}")
     proxyAuthCredentials(request)
   }
 
-  protected def authenticateAll[T]()(implicit config:Config): Directive1[AuthResult] = {
-    authenticateBasicAuth()
+  protected def authenticateAll[T]()(implicit config:Config): Directive1[Authenticated] = {
+    //authenticateBasicAuthProxy()
+    authenticateOAuth2("api",oauth2Authenticator)
   }
 
   override def routes: Route = cors() {
@@ -472,7 +474,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
       pathEndOrSingleSlash {
         concat(
           get {
-            authenticateAll()(config)(_ => 
+            authenticateAll()(config)(_ =>
               complete(getAuths())  
             )              
           },
@@ -484,20 +486,23 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
             }
           })
       },
-      path(Segment) { name =>
-        concat(
-          get {
-            rejectEmptyResponse {
-              onSuccess(getAuth(name)) { response =>
-                complete(response.auth)
+      path(Segment) { auid =>
+        authenticateAll()(config)( authn => {
+          log.info(s"AuthN: ${authn}")
+          concat(
+            get {
+              rejectEmptyResponse {
+                onSuccess(getAuth(auid)) { rsp =>
+                  complete(rsp.auth)
+                }
               }
-            }
-          },
-          delete {
-            onSuccess(deleteAuth(name)) { rsp =>
-              complete((StatusCodes.OK, rsp))
-            }
-          })
-      })
-    }
+            },
+            delete {
+              onSuccess(deleteAuth(auid)) { rsp =>
+                complete((StatusCodes.OK, rsp))
+              }
+            })
+        })
+      }
+    )}
 }

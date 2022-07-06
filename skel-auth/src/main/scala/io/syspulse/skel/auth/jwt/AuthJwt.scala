@@ -40,18 +40,19 @@ object AuthJwt {
       Map()
   }
 
-  def getClaim(accessToken:String,claim:String):String = {
+  def getClaim(accessToken:String,claim:String):Option[String] = {
     val data = Jwt.decode(accessToken,JwtOptions(signature = false))
     data match {
       case Success(c) => {
         try {
           val json = ujson.read(c.content)
-          json.obj(claim).str
+          Some(json.obj(claim).str)
         } catch {
-          case e:Exception => log.error(s"failed to parse claim: ${c}"); ""
+          case e:Exception => log.error(s"failed to parse claim: ${c}");
+            None
         }
       }
-      case _ => ""
+      case _ => None
     }
   }
 
