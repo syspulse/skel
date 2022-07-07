@@ -20,6 +20,12 @@ source ./auth-cred.sh
 ./run-auth.sh
 ```
 
+Running skel-auth with Authentication and Authorization disabled (it still goes through all flows):
+
+```
+OPT=-Dgod ./run-auth.sh
+```
+
 2. Open Quick Test page: [http://localhost:8080/api/v1/auth/login](http://localhost:8080/api/v1/auth/login)
 
 
@@ -53,33 +59,34 @@ OAuth2 flow for login with Ethereum Signing
 
 <img src="doc/oauth2-web3.png">
 
-Simple command line cli for testing:
+
+### Simple scenario to test Web2 Authentication and Authorization:
+
+Run skel-auth in god mode with embedded UserService (for test convenience)
+
+```
+OPT=-Dgod ./run-auth.sh server-with-user
+```
+
+Login:
+
 ```
 ./auth-web3.sh
 
-HTTP/1.1 201 Created
-Content-Length: 484
-Content-Type: application/json
-Date: Wed, 29 Jun 2022 17:23:06 GMT
-Server: akka-http/10.2.9
-
-{
-    "accesToken": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJleHAiOjE2NTY1MjY5ODYsImlhdCI6MTY1NjUyMzM4NiwidWlkIjoweDcxQ0IwNUVFMWIxRjUwNmZGMzIxRGEzZGFjMzhmMjVjMGM5Y2U2RTF9.2g8CfvVh34XnaKMZYjvQEl1k6qqTaQh9FUUmCw6LEjNIb7y3RGsKBpdyL_OV8wIIioPN1_7uxbtBAEZu_NcDAg",
-    "avatar": "profile.avatar",
-    "eid": "0x71CB05EE1b1F506fF321Da3dac38f25c0c9ce6E1",
-    "email": "profile.email",
-    "idToken": "",
-    "locale": "universe",
-    "name": "0x71CB05EE1b1F506fF321Da3dac38f25c0c9ce6E1",
-    "uid": "57f59a60-efc7-4b3b-8613-14b0ddd3282c"
-}
-
 ```
 
-AccessToken embeds User clam with address
+It saves access_token in AUTH_TOKEN file for later usage
+
+Check user access:
+
+```
+./user-get.sh 
+```
 
 
-### JWKS
+----
+
+## JWKS
 
 WIP to add JWT support
 

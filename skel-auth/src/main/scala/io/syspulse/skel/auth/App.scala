@@ -47,7 +47,7 @@ object App extends skel.Server {
       new ConfigurationArgs(args,"eth-stream","",
         ArgString('h', "http.host","listen host (def: 0.0.0.0)"),
         ArgInt('p', "http.port","listern port (def: 8080)"),
-        ArgString('u', "http.uri","api uri (def: /api/v1/otp)"),
+        ArgString('u', "http.uri","api uri (def: /api/v1/auth)"),
         ArgString('d', "datastore","datastore [mysql,postgres,mem,cache] (def: mem)"),
         
         ArgString('_',"proxy.basic.user","Auth Basic Auth username (def: user1"),
@@ -124,16 +124,19 @@ object App extends skel.Server {
             
           )
         )
-      case "server-with-user" => 
-        println(s"${Console.YELLOW}running with UserService(mem):${Console.RESET} http://${authHost}:${config.port}${config.uri}/user")
-        run( config.host, config.port,config.uri, c,
+      case "server-with-user" =>
+        val uri = Util.getParentUri(config.uri)
+        println(s"${Console.YELLOW}Running with AuthService(mem):${Console.RESET} http://${authHost}:${config.port}${uri}/auth")
+        println(s"${Console.YELLOW}Running with UserService(mem):${Console.RESET} http://${authHost}:${config.port}${uri}/user")
+        run( config.host, config.port, uri, c,
           Seq(
             (AuthRegistry(store),"AuthRegistry",(actor, context) => {
                 new AuthRoutes(actor,
-                  s"http://${authHost}:${config.port}${config.uri}",
-                  s"http://${authHost}:${config.port}${config.uri}/callback",
-                  s"http://${authHost}:${config.port}${config.uri}/user")(context, config) 
+                  s"http://${authHost}:${config.port}${uri}/auth",
+                  s"http://${authHost}:${config.port}${uri}/auth/callback",
+                  s"http://${authHost}:${config.port}${uri}/user")(context, config) 
               }
+              .withSuffix("auth")
             ),
             (UserRegistry(new UserStoreMem),"UserRegistry",(a, ac) => new UserRoutes(a)(ac).withSuffix("user") )
             

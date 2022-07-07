@@ -170,5 +170,10 @@ object Util {
       Runtime.getRuntime().totalMemory()
     )
   }
+
+  def getParentUri(uri:String) = {
+    val s = uri.stripSuffix("/").split("/")
+    s.take(s.size - 1).mkString("/")
+  }
 }
 

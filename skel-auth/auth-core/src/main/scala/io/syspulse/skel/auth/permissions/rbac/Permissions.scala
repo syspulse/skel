@@ -40,7 +40,7 @@ class Permissions(modelFile:String,policyFile:String) {
 
 object Permissions {
   val log = Logger(s"${this}")
-  val isGod = System.getProperty("GOD") != null
+  val isGod = System.getProperty("god") != null
 
   def apply(modelFile:String,policyFile:String):Permissions = new Permissions(modelFile,policyFile)
 

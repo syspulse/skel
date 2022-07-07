@@ -10,8 +10,9 @@ else
 fi
 
 REDIRECT_URI=${REDIRECT_URI:-http://localhost:8080/api/v1/auth/eth/callback}
+SERVICE_USER=${SERVICE_USER:-http://localhost:8080/api/v1/user}
 #SERVICE_USER=${SERVICE_USER:-http://localhost:8081/api/v1/user}
-SERVICE_USER=${SERVICE_USER:-http://localhost:8080/api/v1/auth/user}
+#SERVICE_USER=${SERVICE_USER:-http://localhost:8080/api/v1/auth/user}
 
 OUTPUT=`./auth-web3-metamask.js $SK`
 ADDR=`echo $OUTPUT | awk '{print $1}'`
@@ -36,4 +37,11 @@ REDIRECT_URI=${REDIRECT_URI//$'\015'}
 echo -n $REDIRECT_URI >1.tmp
 echo -ne "REDIRECT_URI=${REDIRECT_URI}\n"
 
-http GET "${REDIRECT_URI}"
+rsp=`http GET "${REDIRECT_URI}"`
+echo --- Auth Response:
+echo $rsp >AUTH_RSP.json
+cat AUTH_RSP.json
+
+TOKEN=`cat AUTH_RSP.json | jq .accesToken`
+echo "TOKEN=$TOKEN"
+echo $TOKEN >AUTH_TOKEN

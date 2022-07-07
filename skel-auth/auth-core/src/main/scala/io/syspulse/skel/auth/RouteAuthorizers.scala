@@ -26,7 +26,7 @@ case class AuthenticatedUser(uid:UUID) extends Authenticated {
 
 trait RouteAuthorizers {
   val log = Logger(s"${this}")
-  val isGod = System.getProperty("GOD") != null
+  val isGod = System.getProperty("god") != null
   
   protected def verifyAuthToken(token: Option[String],id:String,data:Seq[Any]):Option[String] = token match {
     case Some(t) => {
