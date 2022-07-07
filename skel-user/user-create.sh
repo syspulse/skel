@@ -4,6 +4,7 @@ EMAIL=${1:-user-1@mail.com}
 NAME=${2:-name-1}
 EID=${3:-external-id}
 USER_ID=${4:-00000000-0000-0000-1000-000000000001}
+TOKEN=${TOKEN-`cat ACCESS_TOKEN`}
 
 SERVICE_URI=${SERVICE_URI:-http://localhost:8080/api/v1/user}
 

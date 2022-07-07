@@ -144,6 +144,12 @@ object App extends skel.Server {
             
           )
         )
+        // generate Admin token for testing
+        val adminAccessTokenFile = "ACCESS_TOKEN_ADMIN"
+        val adminAccessToken = AuthJwt.generateAccessToken(Map("uid" -> "ffffffff-0000-0000-9000-000000000001"))        
+        os.write.over(os.Path(adminAccessTokenFile,os.pwd),adminAccessToken + "\n")
+        println(s"${Console.GREEN}${adminAccessTokenFile}:${Console.RESET} ${adminAccessToken}")
+
       case "client" => {
         
         // val host = if(config.host == "0.0.0.0") "localhost" else config.host
@@ -194,7 +200,7 @@ object App extends skel.Server {
           config.params match {
             case "encode" :: uid :: Nil => 
               AuthJwt.generateAccessToken(Map("uid" -> uid))
-              
+
             case "decode" :: token :: Nil => 
               AuthJwt.decodeAll(token) match {
                 case Success(jwt) => jwt

@@ -25,7 +25,8 @@ echo "sig: ${SIG}"
 uid=`SERVICE_URI=$SERVICE_USER ../skel-user/user-find.sh $ADDR | jq -r .id 2>/dev/null`
 echo "uid=$uid"
 if [ "$uid" == "" ]; then
-   user=`SERVICE_URI=$SERVICE_USER ../skel-user/user-create.sh user-1@mail.com user-1 $ADDR`
+   TOKEN_ADMIN=`cat ACCESS_TOKEN_ADMIN`
+   user=`SERVICE_URI=$SERVICE_USER TOKEN=$TOKEN_ADMIN ../skel-user/user-create.sh user-1@mail.com user-1 $ADDR`
    echo $user
 fi
 
@@ -40,8 +41,11 @@ echo -ne "REDIRECT_URI=${REDIRECT_URI}\n"
 rsp=`http GET "${REDIRECT_URI}"`
 echo --- Auth Response:
 echo $rsp >AUTH_RSP.json
-cat AUTH_RSP.json
+cat AUTH_RSP.json | jq
 
-TOKEN=`cat AUTH_RSP.json | jq .accesToken`
+TOKEN=`cat AUTH_RSP.json | jq -r .accesToken`
 echo "TOKEN=$TOKEN"
-echo $TOKEN >AUTH_TOKEN
+echo $TOKEN >ACCESS_TOKEN
+
+../skel-user/user-get.sh 00000000-0000-0000-1000-000000000001
+echo

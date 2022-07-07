@@ -178,8 +178,8 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         val auth = Auth(idpTokens.accessToken, idpTokens.idToken, user.map(_.id), scope, idpTokens.expiresIn)
         
         if(auth.idToken != "") {
-          val jwt = AuthJwt.decode(auth)
-          val claims = AuthJwt.decodeClaim(auth)
+          val jwt = AuthJwt.decodeIdToken(auth)
+          val claims = AuthJwt.decodeIdClaim(auth)
           // verify just for logging
           val verified = idp.verify(idpTokens.idToken)
           log.info(s"code=${code}: profile=${profile}: auth=${auth}: idToken: jwt=${jwt.get.content}: claims=${claims}: verified=${verified}")
