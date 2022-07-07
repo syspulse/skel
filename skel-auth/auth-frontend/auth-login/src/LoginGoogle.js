@@ -23,12 +23,12 @@ export default function LoginGoogle() {
     
     const serverRsp = await axios.get(tokenUrl);
     console.log("serverRsp: ",serverRsp);
-    setState(JSON.stringify(serverRsp.data));
+    setState(JSON.stringify(serverRsp.data,null, 2));
   };
   
   const onGoogleServer = rsp => {
     console.log(rsp);
-    setState(JSON.stringify(rsp));
+    setState(JSON.stringify(rsp,null, 2));
   };
   
   

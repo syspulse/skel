@@ -48,6 +48,7 @@ export default function LoginWeb3() {
       const address = (await signer.getAddress()).toLowerCase();
   
       const sigData = generateSigData(address);
+      console.log("sigData=",sigData)
       const sig = await signer.signMessage(sigData);
       
       const redirectUri = baseUrl + "/eth/callback";
@@ -57,15 +58,15 @@ export default function LoginWeb3() {
       
       console.log("rsp: ",rsp);
       //setLoginStatus(JSON.stringify(rsp.data));
-      setState(JSON.stringify(rsp.data));
+      setState(JSON.stringify(rsp.data, null, 2));
       
     } catch (err) {
       console.error(err.message);
     }
   };
   
-  function generateSigData(address,tolerance = 15000) {
-    let data = "timestamp: "+(Math.trunc(Date.now() / tolerance) + 1 )+","+"address: "+address
+  function generateSigData(address,tolerance = (1000 * 60 * 60 * 24)) {
+    const data = "timestamp: "+(Math.trunc(Date.now() / tolerance))+","+"address: "+address
     return data;
   };
   

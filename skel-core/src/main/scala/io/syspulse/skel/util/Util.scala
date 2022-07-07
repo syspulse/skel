@@ -175,5 +175,8 @@ object Util {
     val s = uri.stripSuffix("/").split("/")
     s.take(s.size - 1).mkString("/")
   }
+
+  val NOBODY = UUID("00000000-0000-0000-0000-000000000000")
+  val GOD =    UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
 }
 

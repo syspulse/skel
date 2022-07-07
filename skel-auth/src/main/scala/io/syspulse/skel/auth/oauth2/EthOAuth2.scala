@@ -71,8 +71,8 @@ object EthOAuth2 {
 
   def id = EthOAuth2.getClass().getSimpleName()
 
-  def generateSigData(data:Map[String,String],tolerance:Long = 15000L):String = {
-    val tsSig = (System.currentTimeMillis() / tolerance) + 1
+  def generateSigData(data:Map[String,String],tolerance:Long = (1000L * 60 * 60 * 24)):String = {
+    val tsSig = System.currentTimeMillis() / tolerance
     val dataSig = data.map{ case(k,v) => s"${k}: ${v}"}
     // NOTE: BE VERY CAREFUL WITH BLANKS and COMMAS
     val sigData = s"timestamp: ${tsSig}" + (if(data.size>0) s",${dataSig.mkString(",")}" else "")

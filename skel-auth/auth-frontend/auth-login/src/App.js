@@ -27,6 +27,10 @@ const App = () => {
     <BrowserRouter>
       <div className="app">
         <b>skel-auth</b>
+        <div><b>ATTENTION:</b>
+          <div>Don't forget about Cache (HTTP REDIRECT is cached by browser and reuse the same code !). Hold on "Reload" button and select 'Clear cache' </div>
+          <div>Don't forget about CORS </div>
+        </div>
         <div>
           <LoginStateContext.Provider value={value}>
             <Routes>            
@@ -35,7 +39,7 @@ const App = () => {
             </Routes>
           </LoginStateContext.Provider>
         </div>
-        <div>{state}</div>
+        <div><pre>{state}</pre></div>
       </div>
       
       

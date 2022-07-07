@@ -392,8 +392,18 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                 
                   if(! user.isDefined ) {
                 
-                    log.error(s"code=${code}: user=${user}: not found")
-                    complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
+                    log.warn(s"code=${code}: user=${user}: not found")
+                    //complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
+                    
+                    // issue temporary token for Enrollment
+                    val uid = Util.NOBODY.toString
+                    val idToken = AuthJwt.generateIdToken(uid) 
+                    val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
+                    log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}")
+
+                    onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>                      
+                      complete(StatusCodes.OK,EthTokens(accessToken = accessToken, idToken = idToken, expiresIn = 60,scope = "",tokenType = ""))
+                    }
 
                   } else  {
 

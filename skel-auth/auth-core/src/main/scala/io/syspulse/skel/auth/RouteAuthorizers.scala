@@ -18,6 +18,8 @@ import akka.http.scaladsl.server.AuthenticationFailedRejection
 import akka.http.scaladsl.server.AuthenticationFailedRejection._
 import akka.http.scaladsl.model.headers.HttpChallenges
 import akka.http.scaladsl.server.directives.Credentials
+
+import io.syspulse.skel.util.Util
 import io.syspulse.skel.auth.jwt.AuthJwt
 
 case class AuthenticatedUser(uid:UUID) extends Authenticated {
@@ -69,7 +71,7 @@ trait RouteAuthorizers {
   protected def authenticate(): Directive1[Authenticated] = {
     log.info(s"god=${isGod}")
     if(isGod) 
-      provide(AuthenticatedUser(UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")))                                                              
+      provide(AuthenticatedUser(Util.GOD))
     else
       authenticateOAuth2("api",oauth2Authenticator)
   }
