@@ -10,6 +10,7 @@ import io.syspulse.skel.auth.jwt.AuthJwt
 
 
 import scopt.OParser
+import scala.util.Success
 
 case class Config(
   host:String="",
@@ -65,7 +66,8 @@ object App extends skel.Server {
 
         ArgCmd("server","Server"),
         ArgCmd("server-with-user","Server with embedded UserServices (for testing)"),
-        ArgCmd("client","Client"),
+        ArgCmd("client","Http Client"),
+        ArgCmd("jwt","JWT utils (encode/decode)"),
         ArgParam("<params>","")
       ).withExit(1)
     ))
@@ -184,6 +186,27 @@ object App extends skel.Server {
         //   }
         
         // println(s"${r}")
+        System.exit(0)
+      }
+      case "jwt" => {
+        
+        val r = 
+          config.params match {
+            case "encode" :: uid :: Nil => 
+              AuthJwt.generateAccessToken(Map("uid" -> uid))
+              
+            case "decode" :: token :: Nil => 
+              AuthJwt.decodeAll(token) match {
+                case Success(jwt) => jwt
+                case f => f
+              }
+            case "valid" :: token :: Nil => 
+              AuthJwt.isValid(token)
+
+            case _ => println(s"unknown op: ${config.params}")
+          }
+        
+        println(s"${r}")
         System.exit(0)
       }
     }    

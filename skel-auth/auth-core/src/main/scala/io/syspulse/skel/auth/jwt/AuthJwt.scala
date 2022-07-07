@@ -27,12 +27,20 @@ object AuthJwt {
     secret = jwtSecret
   }
 
-  def decode(a:Auth) = {
+  def decodeIdToken(a:Auth) = {
     Jwt.decode(a.idToken,JwtOptions(signature = false))
   }
 
-  def decodeClaim(a:Auth):Map[String,String] = {
-    val jwt = decode(a)
+  def decodeAccessToken(a:Auth) = {
+    Jwt.decode(a.accessToken,JwtOptions(signature = false))
+  }
+
+  def decodeAll(token:String) = {
+    Jwt.decodeRawAll(token,JwtOptions(signature = false))
+  }
+
+  def decodeIdClaim(a:Auth):Map[String,String] = {
+    val jwt = decodeIdToken(a)
     if(jwt.isSuccess)
       ujson.read(jwt.get.toJson).obj.map(v=> v._1 -> v._2.toString.stripSuffix("\"").stripPrefix("\"")).toMap
     else 
