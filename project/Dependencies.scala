@@ -29,29 +29,14 @@ object Dependencies {
     lazy val appNameKafka = "skel-kafka"
     lazy val appBootClassKafka = "io.syspulse.skel.kafka.App"
 
-    lazy val appNameWorld = "skel-world"
-    lazy val appBootClassWorld = "io.syspulse.skel.world.App"
-
-    lazy val appNameShop = "skel-shop"
-    lazy val appBootClassShop = "io.syspulse.skel.shop.App"
-
     lazy val appNameIngest = "skel-ingest"
     // lazy val appBootClassTelemetry = "io.syspulse.ekm.App"
-
-    lazy val appNameEkm = "skel-ekm"
-    lazy val appBootClassEkm = "io.syspulse.ekm.App"
 
     lazy val appNameScrap = "skel-scrap"
     lazy val appBootClassScrap = "io.syspulse.skel.scrap.demo.App"
 
-    lazy val appNameNpp = "skel-npp"
-    lazy val appBootClassNpp = "io.syspulse.skel.npp.App"
-
     lazy val appNameCron = "skel-cron"
     lazy val appBootClassCron = "io.syspulse.skel.cron.App"
-
-    lazy val appNameTwit = "skel-twit"
-    lazy val appBootClassTwit = "io.syspulse.skel.twit.App"
     
     lazy val appNameDynamo = "skel-dynamo"
     lazy val appBootClassDynamo = "io.syspulse.skel.ingest.dynamo.App"

@@ -242,7 +242,7 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 lazy val root = (project in file("."))
   .aggregate(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl)
-  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl, scrap, enroll, demo_ekm, demo_npp, demo_twit)
+  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl, scrap, enroll)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -413,45 +413,6 @@ lazy val kafka= (project in file("skel-kafka"))
     ),
   )  
 
-// lazy val world = (project in file("demo/demo-shop/skel-world"))
-//   .dependsOn(core)
-//   .enablePlugins(JavaAppPackaging)
-//   .enablePlugins(DockerPlugin)
-//   .enablePlugins(AshScriptPlugin)
-//   .settings (
-
-//     sharedConfig,
-//     sharedConfigAssembly,
-//     sharedConfigDocker,
-//     dockerBuildxSettings,
-
-//     appDockerConfig(appNameWorld,appBootClassWorld),
-    
-//     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
-//       libCsv
-//     ),    
-//   )
-
-// lazy val shop = (project in file("demo/demo-shop/skel-shop"))
-//   .dependsOn(core,world)
-//   .enablePlugins(JavaAppPackaging)
-//   .enablePlugins(DockerPlugin)
-//   .enablePlugins(AshScriptPlugin)
-//   .settings (
-
-//     sharedConfig,
-//     sharedConfigAssembly,
-//     sharedConfigDocker,
-//     dockerBuildxSettings,
-
-//     appDockerConfig(appNameShop,appBootClassShop),
-
-//     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
-//       libCsv,
-//       libFaker
-//     ),
-//   )
-
 lazy val ingest = (project in file("skel-ingest"))
   .dependsOn(core)
   .enablePlugins(JavaAppPackaging)
@@ -525,70 +486,6 @@ lazy val scrap = (project in file("skel-scrap"))
       libInfluxDB
     ),
      
-  )
-
-lazy val demo_ekm = (project in file("demo/skel-ekm"))
-  .dependsOn(core,ingest)
-  .enablePlugins(JavaAppPackaging)
-  .enablePlugins(DockerPlugin)
-  .enablePlugins(AshScriptPlugin)
-  .settings (
-
-    sharedConfig,
-    sharedConfigAssembly,
-    sharedConfigDocker,
-    dockerBuildxSettings,
-
-    appDockerConfig(appNameEkm,appBootClassEkm),
-
-    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
-      libUpickleLib
-    ),
-  )
-
-lazy val demo_npp = (project in file("demo/skel-npp"))
-  .dependsOn(core,cron,flow,scrap)
-  .enablePlugins(JavaAppPackaging)
-  .enablePlugins(DockerPlugin)
-  // .enablePlugins(AshScriptPlugin)
-  .settings (
-    
-    sharedConfig,
-    sharedConfigAssembly,
-    sharedConfigDocker,
-    dockerBuildxSettings,
-
-    appDockerConfig(appNameNpp,appBootClassNpp),
-
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
-      libCask,
-      libOsLib,
-      libUpickleLib,
-      libScalaScraper,
-      libInfluxDB
-    ),  
-  )
-
-lazy val demo_twit = (project in file("demo/skel-twit"))
-  .dependsOn(core,cron,flow,scrap,ingest)
-  .enablePlugins(JavaAppPackaging)
-  .enablePlugins(DockerPlugin)
-  // .enablePlugins(AshScriptPlugin)
-  .settings (
-    
-    sharedConfig,
-    sharedConfigAssembly,
-    sharedConfigDocker,
-    dockerBuildxSettings,
-
-    appDockerConfig(appNameTwit,appBootClassTwit),
-
-    libraryDependencies ++= libHttp ++ libTest ++ Seq(
-      libTwitter4s,
-      libAlpakkaCassandra,
-      libSeleniumJava,
-      libSeleniumFirefox
-    ),  
   )
 
 lazy val ingest_dynamo = (project in file("skel-ingest/ingest-dynamo"))
@@ -700,25 +597,6 @@ lazy val dsl = (project in file("skel-dsl"))
         Seq(),
     )
 
-
-lazy val demo_eth = (project in file("demo/eth-stream"))
-  .dependsOn(core,ingest,dsl,stream_std)
-  .enablePlugins(JavaAppPackaging)
-  .enablePlugins(DockerPlugin)
-  .enablePlugins(AshScriptPlugin)
-  .settings (
-
-    sharedConfig,
-    sharedConfigAssembly,
-    sharedConfigDocker,
-    dockerBuildxSettings,
-
-    appDockerConfig("eth-stream","io.syspulse.skel.stream.eth.StreamEth"),
-
-    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
-      libUpickleLib
-    ),
-  )
 
 lazy val spark_convert = (project in file("skel-spark/spark-convert"))
   .dependsOn(core)

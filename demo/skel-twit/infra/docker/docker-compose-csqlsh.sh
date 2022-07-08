@@ -1,1 +1,0 @@
-docker-compose exec -T cassandra cqlsh $@

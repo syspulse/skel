@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: skel-ekm-configmap-dev
-  namespace: default
-data:
-  EKM_URI: "http://canopus.u132.net:30001"
-  INFLUX_URI: "http://canopus.u132.net:8086"
-  LOG_FILE: "/cache/ekm-{yyyy-MM-dd-HH-mm}.log"
