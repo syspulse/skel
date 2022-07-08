@@ -2,7 +2,6 @@
 
 Skeletons for RnD Prototypes
 
-0. [demo](demo) - Demoable Projlets based on skel components
 1. [infra](infra) - Infrastructure (docker,kubernetes)
 2. [skel-http](skel-http) - HTTP Service (+ Kubernetes)
 3. [skel-user](skel-user) - UserProfile Service reference
@@ -37,7 +36,7 @@ Refer to specific demo for running Kubernetes Deployments or Docker-Compose topo
 
 ## Demos
 
-Go to [demo](demo) for demo projlets
+Go to [https://github.com/syspulse/skel-demo](https://github.com/syspulse/skel-demo) for demo projlets
 
 ----
 ## Libraries and Credits
