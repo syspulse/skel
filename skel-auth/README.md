@@ -60,7 +60,44 @@ OAuth2 flow for login with Ethereum Signing
 <img src="doc/oauth2-web3.png">
 
 
-### Simple scenario to test Web2 Authentication and Authorization:
+## Simple scenario to test Web2 Authentication and Authorization:
+
+### With Admin AccessToken (like prod)
+
+Generate Admin token. Admin user id (with admin permissions) must be in: [conf/permissions-policy-rbac.csv](conf/permissions-policy-rbac.csv)
+
+The token will be saved to __ACCESS_TOKEN_ADMIN__
+
+```
+./run-auth.sh jwt encode ffffffff-0000-0000-9000-000000000001 | tail -1 > ACCESS_TOKEN_ADMIN
+```
+
+Start skel-auth
+
+```
+./run-auth.sh server-with-user
+```
+
+Login user
+
+```
+./auth-web3.sh
+
+```
+
+Verify user access to its own resources:
+
+```
+TOKEN=`cat ACCESS_TOKEN` ./skel-user/user-get.sh 00000000-0000-0000-1000-000000000001
+```
+
+Verify admin access to all resources:
+
+```
+TOKEN=`cat ACCESS_TOKEN_ADMIN` ../skel-user/user-get.sh
+```
+
+### In test mode
 
 Run skel-auth in god mode with embedded UserService (for test convenience)
 
@@ -127,7 +164,7 @@ This modes federates authentication to configured external IDP with configurable
 
 ## auth-login frontend
 
-<img src="doc/auth-login.jpg">
+<img src="doc/auth-login.png">
 
 Modes:
 1. Client - Redirection to Client

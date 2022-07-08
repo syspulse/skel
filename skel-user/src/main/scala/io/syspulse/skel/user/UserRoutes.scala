@@ -168,11 +168,11 @@ class UserRoutes(userRegistry: ActorRef[Command])(implicit context: ActorContext
           concat(
             authenticate()(authn =>
               authorize(Permissions.isAdmin(authn)) {              
-                getUsersRoute()                
-                
+                getUsersRoute() ~                
+                createUserRoute  
               }
             ),
-            createUserRoute
+            //createUserRoute
           )
         },
         // pathPrefix("info") {
