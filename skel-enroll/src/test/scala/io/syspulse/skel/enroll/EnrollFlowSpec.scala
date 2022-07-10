@@ -15,12 +15,18 @@ class EnrollFlowSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike {
   "EnrollFlow" should {
 
     "run flow 'START,EMAIL' " in {      
-      val eid = EnrollSystem.start("START,EMAIL,CONFIRM_EMAIL,CREATE_USER")
+      val eid = EnrollSystem.start("START,EMAIL,CONFIRM_EMAIL,WAIT,CREATE_USER")
       
       info(s"eid: ${eid}")
       
       Thread.sleep(1000)
+      
+      val efActor = EnrollSystem.findFlow(eid)
+      info(s"actor = ${efActor}")
       //val a1 = testKit.spawn(ef1)
+
+      EnrollSystem.sendEmailConfirmation(eid,"123")
+      
     
       
       // val probe = testKit.createTestProbe[StatusReply[Enroll.Summary]]()
