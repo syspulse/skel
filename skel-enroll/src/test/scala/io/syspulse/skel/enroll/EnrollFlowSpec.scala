@@ -27,7 +27,6 @@ class EnrollFlowSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike {
 
       EnrollSystem.sendEmailConfirmation(eid,"123")
       
-    
       
       // val probe = testKit.createTestProbe[StatusReply[Enroll.Summary]]()
       // val r = probe.receiveMessage()

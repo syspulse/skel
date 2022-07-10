@@ -53,7 +53,7 @@ object UserService {
 //   data:Map[String,String] = Map()
 // )
 
-sealed trait Command extends CborSerializable
+trait Command extends CborSerializable
 
 object Enroll {
 
@@ -91,7 +91,8 @@ object Enroll {
     def createUser(uid:UUID): State = 
       copy(phase = "USER_CREATED", uid=Some(uid), tsPhase=System.currentTimeMillis())
     
-    def finish(now: Instant): State = copy(finished = true)
+    def finish(now: Instant): State = 
+      copy(phase = "FINISHED", tsPhase=now.getEpochSecond(), finished = true)
 
     def addData(k: String, v:String): State = copy(data = data + (k -> v))
     
@@ -129,18 +130,24 @@ object Enroll {
 
   final case class Finished(eid:UUID, eventTime: Instant) extends Event
 
-  def apply(eid:UUID = UUID.random, flow:String = ""): Behavior[Command] = {
+  def apply(eid:UUID = UUID.random, flow:String = ""): Behavior[Command] =  Behaviors.setup { ctx => {
     EventSourcedBehavior[Command, Event, State](
-      PersistenceId("Enroll", eid.toString()),
-      State(eid,flow),
-      (state, command) =>
+      persistenceId = PersistenceId("Enroll", eid.toString()),
+      emptyState = State(eid,flow),
+      commandHandler = (state, command) => {
         if (state.isFinished) 
           finishedEnroll(eid, state, command)
-        else 
-          startEnroll(eid, state, command),
-      (state, event) => handleEvent(state, event))
+        else {
+          if(flow.isEmpty())
+            startNewEnroll(eid, state, command)
+          else
+            startAutoflowEnroll(eid,flow,state,command,ctx)
+        }
+      },
+      eventHandler = (state, event) => handleEvent(state, event))
       .withRetention(RetentionCriteria.snapshotEvery(numberOfEvents = 100, keepNSnapshots = 3))
       .onPersistFailure(SupervisorStrategy.restartWithBackoff(200.millis, 5.seconds, 0.1))
+    }
   }
 
   def generateSigData(eid:UUID,email:String):String = {
@@ -149,11 +156,20 @@ object Enroll {
     data
   }
 
-  private def startEnroll(eid:UUID, state: State, command: Command): Effect[Event, State] =
+  private def startAutoflowEnroll(eid:UUID, flow:String,state: State, command: Command, ctx:ActorContext[Command]): Effect[Event, State] = {
+    startNewEnroll(eid,state,command)  
+  }
+
+  private def startNewEnroll(eid:UUID, state: State, command: Command): Effect[Event, State] =
     command match {
       case Start(eid,flow,xid,replyTo) => 
         Effect
           .persist(Started(eid,xid))
+          .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+
+      case Finish(replyTo) => 
+        Effect
+          .persist(Finished(eid,Instant.now()))
           .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
 
       case AddEmail(email, replyTo) =>
@@ -161,7 +177,7 @@ object Enroll {
           replyTo ! StatusReply.Error(s"${eid}: Invalid email: '$email'")
           return Effect.none
         } 
-        val token = Random.nextInt(1000).toString
+        val token = "123"//Random.nextInt(1000).toString
         println(s"${eid}: Sending Confirmation email (token=${token}) -> ${email}...")
 
         Effect
@@ -237,7 +253,11 @@ object Enroll {
 
   private def handleEvent(state: State, event: Event) = {
     event match {
-      case Started(_, xid) => state.addXid(xid)
+      case Started(_, xid) => {
+        val state1 = state.addXid(xid)
+
+        state1
+      }
       case EmailAdded(_, email,confirmToken) => state.addEmail(email,confirmToken)
       case EmailConfirmed(_) => state.confirmEmail()
       case PublicKeyAdded(_, pk, sig) => state.addPublicKey(pk,sig)
@@ -245,152 +265,4 @@ object Enroll {
       case Finished(_, eventTime) => state.finish(eventTime)
     }
   }
-}
-
-//==========================================================================================================================================================
-object EnrollFlow {
-  val log = Logger(s"${this}")
-
-  case class Enrollment( eid:UUID, phase:String, email:String, name:String, ts:Long, finished: Boolean)
-  final case class EnrollmentReq(replyTo:ActorRef[Enrollment]) extends Command
-  final case class EnrollmentRes(e:Enrollment) extends Command
-  
-  final case class StartFlow(eid:UUID,flow:String,xid:Option[String],replyTo: ActorRef[Command]) extends Command
-  final case class FindFlow(eid:UUID,replyTo:ActorRef[Option[(EnrollFlow,ActorRef[StatusReply[Enroll.Summary]])]]) extends Command
-
-  class EnrollFlow(eid:UUID,flow:String, xid:Option[String], ctx: ActorContext[StatusReply[Enroll.Summary]]) extends AbstractBehavior[StatusReply[Enroll.Summary]](ctx) {
-    val enroll = Enroll(eid,flow)
-
-    val enrollActor = ctx.spawn(enroll, s"Enroll-${eid}")
-    log.info(s"enrollActor=${enrollActor}")
-
-    // def start():UUID = {
-    //   val start = nextPhase(flow,"START")
-    //   enrollActor ! start.get
-      
-    //   eid  
-    // }
-
-    def nextPhase(flow:String,phase:String, summary: Option[Enroll.Summary]=None):Option[Command] = {
-      val phases = flow.split(",").map(_.toUpperCase())
-      val found = phases.dropWhile(_ != phase).drop(1).headOption
-      log.info(s"next: ${found}")
-      found match {
-        case Some("START") => Some(Enroll.Start(eid,flow,xid.getOrElse(""),ctx.self))
-     
-        case Some("EMAIL") => Some(Enroll.AddEmail("email@",ctx.self))
-        
-        case Some("WAIT") => 
-          log.info(s"Waiting for user action ...")
-          None
-
-        case Some("CONFIRM_EMAIL") =>  //Some(Enroll.ConfirmEmail(token.get, ctx.self))
-          log.info(s"Waiting for user to confirm email: ${summary.get.confirmToken}")
-          None
-
-        case Some("CREATE_USER") => Some(Enroll.CreateUser(ctx.self))
-
-        case Some("USER_CREATED") => None
-
-        case Some(s) => log.error(s"flow=${flow}: phase not supported: ${phase}"); None
-        case None => log.error(s"flow=${flow}: phase not found: ${phase}"); None
-      }      
-    }
-
-    override def onMessage(msg: StatusReply[Enroll.Summary]): Behavior[StatusReply[Enroll.Summary]] = {
-      log.info(s"msg: ${msg}")
-      msg match {
-        case StatusReply.Success(s) => {                
-          // WTF ?!
-          val summary = s.asInstanceOf[Enroll.Summary]
-          log.info(s"phase=${summary.phase}: summary=${s}")
-          
-          val next = nextPhase(flow,summary.phase,Some(summary))
-          log.info(s"phase=${summary.phase}: next=${next}")
-
-          if(next.isDefined)
-            enrollActor ! next.get 
-          else
-            log.info(s"phase=${summary.phase}: next=${next}: waiting for external action...")
-        }
-
-        case StatusReply.Error(e) => {
-          log.info(s"error=${e}")
-        }
-      }
-      
-      this
-    }
-  }
-
-  // temporary solution
-  var flows: Map[UUID,(EnrollFlow,ActorRef[StatusReply[Enroll.Summary]])] = Map()
-
-  // def create(eid:UUID,flow:String,xid:Option[String]): Behavior[StatusReply[Enroll.Summary]] = Behaviors.setup { ctx =>
-  //   val enrollFlow = new EnrollFlow(eid,flow, xid, ctx)
-  //   flows = flows + (eid -> enrollFlow)
-  //   enrollFlow
-  // }
-
-  def apply(): Behavior[Command] = Behaviors.setup { ctx =>
-    Behaviors.receiveMessage { msg =>
-      msg match {
-        case FindFlow(eid,replyTo) =>
-          replyTo ! flows.get(eid)
-          Behaviors.same
-
-        case StartFlow(eid,flow,xid,replyTo) =>
-          var enrollFlow:EnrollFlow = null 
-          val enrollFlowActor = ctx.spawn(Behaviors.setup { 
-            ctx2:ActorContext[StatusReply[Enroll.Summary]] => {enrollFlow = new EnrollFlow(eid,flow, xid, ctx2); enrollFlow 
-          }},s"EnrollFlow-${eid}")
-
-          flows = flows + (eid -> (enrollFlow,enrollFlowActor))
-
-          log.info(s"enrollFlowActor=${enrollFlowActor}")          
-          enrollFlowActor ! StatusReply.Success(Enroll.Summary(eid))
-          Behaviors.same
-
-        case _ =>
-          log.warn(s"UNKNOWN: ${msg}")
-          //enrollFlow.get.enrollActor ! msg
-          Behaviors.ignore
-      }
-    }
-  }
-    
-}
-
-object EnrollSystem {
-  val log = Logger(s"${this}")
-  val system: ActorSystem[Command] = ActorSystem(EnrollFlow(), "EnrollSystem")
-
-  def start(flow:String,xid:Option[String] = Some("XID-0000001")):UUID = {
-    val eid = UUID.random
-    val actor = system ! EnrollFlow.StartFlow(eid,flow,xid,system.ignoreRef)
-    eid
-  }
-
-  def findFlow(eid:UUID):Option[(EnrollFlow.EnrollFlow,ActorRef[StatusReply[Enroll.Summary]])] = {
-    implicit val timeout =  Timeout(3.seconds)
-    implicit val sched = system.scheduler
-    val enrollFlow = Await.result(
-      system.ask {
-        ref:ActorRef[Option[(EnrollFlow.EnrollFlow,ActorRef[StatusReply[Enroll.Summary]])]] => EnrollFlow.FindFlow(eid, ref)
-      }, timeout.duration)
-
-    //val enrollFlowActor = enrollFlow.map(ef => ef.enrollActor)
-    //log.info(s"enrollFlow = ${enrollFlow}: enrollFlowActor = ${enrollFlowActor}")
-    //enrollFlowActor
-    enrollFlow
-
-  }
-
-  def sendEmailConfirmation(eid:UUID,confirmCode:String):Unit = {
-    val a = findFlow(eid)
-    if(!a.isDefined) return;
-
-    a.get._1.enrollActor ! Enroll.ConfirmEmail(confirmCode, a.get._2)
-  }
-  
 }

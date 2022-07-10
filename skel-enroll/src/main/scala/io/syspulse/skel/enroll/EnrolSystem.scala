@@ -14,6 +14,7 @@ import akka.actor.typed.SupervisorStrategy
 import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.AskPattern._
 
 import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
@@ -27,15 +28,35 @@ import io.syspulse.skel.crypto.key.{PK,Signature}
 import io.syspulse.skel.crypto.Eth
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto.SignatureEth
+import akka.util.Timeout
+import scala.concurrent.Await
 
-object App {
-  val log = Logger(s"${this}")  
+import io.syspulse.skel.enroll.Command
+
+object EnrollSystem {
+  val log = Logger(s"${this}")
   val system: ActorSystem[Command] = ActorSystem(EnrollManager(), "EnrollSystem")
 
-  def main(args:Array[String]):Unit = {
+  def start(flow:String,xid:Option[String] = Some("XID-0000001")):UUID = {
     val eid = UUID.random
-    val actor = system ! EnrollManager.StartFlow(eid,"START,STARTED,EMAIL,CONFIRM_EMAIL,EMAIL_CONFIRMED,CREATE_USER,USER_CREATED,FINISH,FINISHED",None,system.ignoreRef)
-    println(eid)
-  } 
+    system ! EnrollManager.StartFlow(eid,flow,xid,system.ignoreRef)
+    eid
+  }
+
+  def findFlow(eid:UUID):Option[ActorRef[Command]] = {
+    implicit val timeout =  Timeout(3.seconds)
+    implicit val sched = system.scheduler
+    val enrollActor = Await.result(
+      system.ask {
+        ref => EnrollManager.FindFlow(eid, ref)
+      }, timeout.duration)
+
+    log.info(s"enrollActor = ${enrollActor}")
+    enrollActor
+  }
+
+  def sendEmailConfirmation(eid:UUID,confirmCode:String):Unit = {    
+    system ! EnrollManager.ConfirmEmailFlow(eid,confirmCode)
+  }
   
 }
