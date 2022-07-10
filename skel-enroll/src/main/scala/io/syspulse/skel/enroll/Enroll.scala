@@ -2,10 +2,19 @@ package io.syspulse.skel.enroll
 
 import java.time.Instant
 import scala.util.Random
+import com.typesafe.scalalogging.Logger
 import scala.concurrent.duration._
+
+import akka.NotUsed
+import akka.actor.typed.scaladsl.AbstractBehavior
+import akka.actor.typed
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
 import akka.actor.typed.SupervisorStrategy
+import akka.actor.typed.scaladsl.ActorContext
+import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.Behaviors
+
 import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.RetentionCriteria
@@ -18,6 +27,7 @@ import io.syspulse.skel.crypto.key.{PK,Signature}
 import io.syspulse.skel.crypto.Eth
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto.SignatureEth
+
 
 case class User(uid:UUID,email:String)
 
@@ -40,17 +50,20 @@ object UserService {
 //   data:Map[String,String] = Map()
 // )
 
+sealed trait Command extends CborSerializable
+
 object Enroll {
 
   final case class Summary(
     eid:UUID, 
-    phase:String, 
-    email:Option[String], addr:Option[String], sig:Option[Signature],
-    tsStart:Long, tsPhase:Long, 
-    finished: Boolean, 
-    confirmToken:Option[String]) extends CborSerializable
+    phase:String = "START", 
+    email:Option[String] = None, addr:Option[String] = None, sig:Option[Signature] = None,
+    tsStart:Long = 0L, tsPhase:Long = 0L, 
+    finished: Boolean = false, 
+    confirmToken:Option[String] = None) extends CborSerializable
 
-  final case class State(eid:UUID, phase:String = "START", 
+  final case class State(eid:UUID, flow:Seq[String], phase:String = "START", 
+    xid:Option[String] = None,
     email:Option[String] = None, 
     pk:Option[String] = None, sig:Option[String] = None,
     uid:Option[UUID] = None,
@@ -64,6 +77,8 @@ object Enroll {
 
     def nextPhase(phase: String): State = copy(phase = phase)
 
+    def addXid(xid:String): State = 
+      copy(phase = "STARTED", xid = Some(xid),tsPhase=System.currentTimeMillis())
     def addEmail(email:String,token:String): State = 
       copy(phase = "CONFIRM_EMAIL", email = Some(email),tsPhase=System.currentTimeMillis(),confirmToken=Some(token))
     def confirmEmail(): State = 
@@ -81,11 +96,11 @@ object Enroll {
   }
 
   object State {
-    def apply(eid:UUID) = new State(eid)
+    def apply(eid:UUID,flow:String) = new State(eid,flow.split(",").map(_.trim.toUpperCase()))
   }
 
-  sealed trait Command extends CborSerializable
 
+  final case class Start(eid:UUID,flow:String,xid:String,replyTo: ActorRef[StatusReply[Summary]]) extends Command
   final case class AddEmail(email: String, replyTo: ActorRef[StatusReply[Summary]]) extends Command
   final case class ConfirmEmail(token: String, replyTo: ActorRef[StatusReply[Summary]]) extends Command
   final case class AddPublicKey(sig:SignatureEth, replyTo: ActorRef[StatusReply[Summary]]) extends Command
@@ -99,6 +114,7 @@ object Enroll {
     def eid:UUID
   }
 
+  final case class Started(eid:UUID,xid:String) extends Event
   final case class EmailAdded(eid:UUID, email: String, confirmToken:String) extends Event
   final case class EmailConfirmed(eid:UUID) extends Event
 
@@ -110,10 +126,10 @@ object Enroll {
 
   final case class Finished(eid:UUID, eventTime: Instant) extends Event
 
-  def apply(eid:UUID = UUID.random): Behavior[Command] = {
+  def apply(eid:UUID = UUID.random, flow:String = ""): Behavior[Command] = {
     EventSourcedBehavior[Command, Event, State](
       PersistenceId("Enroll", eid.toString()),
-      State(eid),
+      State(eid,flow),
       (state, command) =>
         if (state.isFinished) 
           finishedEnroll(eid, state, command)
@@ -132,6 +148,11 @@ object Enroll {
 
   private def startEnroll(eid:UUID, state: State, command: Command): Effect[Event, State] =
     command match {
+      case Start(eid,flow,xid,replyTo) => 
+        Effect
+          .persist(Started(eid,xid))
+          .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+
       case AddEmail(email, replyTo) =>
         if (email.isEmpty() || !email.contains('@')) {
           replyTo ! StatusReply.Error(s"${eid}: Invalid email: '$email'")
@@ -172,10 +193,10 @@ object Enroll {
           .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
 
       case CreateUser(replyTo) =>
-        if(state.phase != "PK_CONFIRMED") {
-          replyTo ! StatusReply.Error(s"${eid}: Invalid phase: ${state.phase}")
-          return Effect.none
-        } 
+        // if(state.phase != "PK_CONFIRMED") {
+        //   replyTo ! StatusReply.Error(s"${eid}: Invalid phase: ${state.phase}")
+        //   return Effect.none
+        // } 
         
         val user = UserService.create(state.email.get)
         if(!user.isDefined) {
@@ -213,6 +234,7 @@ object Enroll {
 
   private def handleEvent(state: State, event: Event) = {
     event match {
+      case Started(_, xid) => state.addXid(xid)
       case EmailAdded(_, email,confirmToken) => state.addEmail(email,confirmToken)
       case EmailConfirmed(_) => state.confirmEmail()
       case PublicKeyAdded(_, pk, sig) => state.addPublicKey(pk,sig)
@@ -220,4 +242,156 @@ object Enroll {
       case Finished(_, eventTime) => state.finish(eventTime)
     }
   }
+}
+
+//==========================================================================================================================================================
+object EnrollFlow {
+  val log = Logger(s"${this}")
+
+  case class Enrollment( eid:UUID, phase:String, email:String, name:String, ts:Long, finished: Boolean)
+  final case class EnrollmentReq(replyTo:ActorRef[Enrollment]) extends Command
+  final case class EnrollmentRes(e:Enrollment) extends Command
+
+  class EnrollFlow(eid:UUID,flow:String, xid:Option[String], ctx: ActorContext[StatusReply[Enroll.Summary]]) extends AbstractBehavior[StatusReply[Enroll.Summary]](ctx) {
+    val enroll = Enroll(eid,flow)
+
+    val enrollActor = ctx.spawn(enroll, s"Enroll-${eid}")
+    log.info(s"enrollActor=${enrollActor}")
+
+    // def start():UUID = {
+    //   val start = nextPhase(flow,"START")
+    //   enrollActor ! start.get
+      
+    //   eid  
+    // }
+
+    def nextPhase(flow:String,phase:String, summary: Option[Enroll.Summary]=None):Option[Command] = {
+      val phases = flow.split(",").map(_.toUpperCase())
+      val found = phases.dropWhile(_ != phase).drop(1).headOption
+      log.info(s"next: ${found}")
+      found match {
+        case Some("START") => Some(Enroll.Start(eid,flow,xid.getOrElse(""),ctx.self))
+        
+        case Some("EMAIL") => Some(Enroll.AddEmail("email@",ctx.self))
+        
+        //case Some("CONFIRM_EMAIL") => nextPhase(flow,phase) // get next phase
+        case Some("CONFIRM_EMAIL") =>  //Some(Enroll.ConfirmEmail(token.get, ctx.self))
+          log.info(s"Waiting for user to confirm email: ${summary.get.confirmToken}")
+          None
+
+        case Some("CREATE_USER") => Some(Enroll.CreateUser(ctx.self))
+
+        case Some(s) => log.error(s"flow=${flow}: phase not supported: ${phase}"); None
+        case None => log.error(s"flow=${flow}: phase not found: ${phase}"); None
+      }      
+    }
+
+    override def onMessage(msg: StatusReply[Enroll.Summary]): Behavior[StatusReply[Enroll.Summary]] = {
+      log.info(s"msg: ${msg}")
+      msg match {
+        case StatusReply.Success(s) => {                
+          // WTF ?!
+          val summary = s.asInstanceOf[Enroll.Summary]
+          log.info(s"phase=${summary.phase}: summary=${s}")
+          
+          val next = nextPhase(flow,summary.phase,Some(summary))
+          log.info(s"phase=${summary.phase}: next=${next}")
+          enrollActor ! next.get
+        }
+
+        case StatusReply.Error(e) => {
+          log.info(s"error=${e}")
+        }
+      }
+      
+      this
+    }
+  }
+
+  def create(eid:UUID,flow:String,xid:Option[String]): Behavior[StatusReply[Enroll.Summary]] = Behaviors.setup { ctx =>
+     new EnrollFlow(eid,flow, xid, ctx) }
+
+  final case class StartFlow(eid:UUID,flow:String,xid:Option[String],replyTo: ActorRef[Command]) extends Command
+
+  def apply(): Behavior[Command] = Behaviors.setup { ctx =>
+    Behaviors.receiveMessage { msg =>
+      msg match {
+        case StartFlow(eid,flow,xid,replyTo) =>
+          val enrollFlowActor = ctx.spawn(create(eid,flow,xid),s"EnrollFlow-${eid}")
+
+          log.info(s"enrollFlowActor=${enrollFlowActor}")          
+          enrollFlowActor ! StatusReply.Success(Enroll.Summary(eid))
+          Behaviors.same
+
+        case _ =>
+          log.warn(s"UNKNOWN: ${msg}")
+          Behaviors.ignore
+      }
+    }
+  }
+    // val eid = UUID.randomUUID()
+    // val enroll = Enroll(eid,flow)
+
+    // val enrollActor = ctx.spawn(enroll, s"Enroll-${eid}")
+    // log.info(s"enrollActor=${enrollActor}")
+
+    // def nextPhase(flow:String,phase:String, summary: Option[Enroll.Summary]=None):Option[Command] = {
+    //   val phases = flow.split(",").map(_.toUpperCase())
+    //   val found = phases.dropWhile(_ != phase).drop(1).headOption
+    //   log.info(s"next: ${found}")
+    //   found match {
+    //     //case Some("START") => None // never, just a placeholder //Some(Enroll.Start(xid.getOrElse(""),ctx.self))
+        
+    //     case Some("EMAIL") => Some(Enroll.AddEmail("email@",ctx.self))
+        
+    //     //case Some("CONFIRM_EMAIL") => nextPhase(flow,phase) // get next phase
+    //     case Some("CONFIRM_EMAIL") =>  //Some(Enroll.ConfirmEmail(token.get, ctx.self))
+    //       log.info(s"Waiting for user to confirm email: ${summary.get.confirmToken}")
+    //       None
+
+    //     case Some("CREATE_USER") => Some(Enroll.CreateUser(ctx.self))
+
+    //     case Some(s) => log.error(s"flow=${flow}: phase not supported: ${phase}"); None
+    //     case None => log.error(s"flow=${flow}: phase not found: ${phase}"); None
+    //   }      
+    // }
+    
+    
+    
+    // val start = nextPhase(flow,"START")
+    // enrollActor ! start.get
+
+    // Behaviors.receiveMessage { msg: StatusReply[Enroll.Summary] =>
+    //   log.info(s"msg: ${msg}")
+    //   msg match {
+    //     case StatusReply.Success(s) => {                
+    //       // WTF ?!
+    //       val summary = s.asInstanceOf[Enroll.Summary]
+    //       log.info(s"phase=${summary.phase}: summary=${s}")
+          
+    //       val next = nextPhase(flow,summary.phase,Some(summary))
+    //       log.info(s"phase=${summary.phase}: next=${next}")
+    //       enrollActor ! next.get
+    //     }
+
+    //     case StatusReply.Error(e) => {
+    //       log.info(s"error=${e}")
+    //     }
+    //   }
+      
+    //   Behaviors.same
+
+
+}
+
+object EnrollSystem {
+  val log = Logger(s"${this}")
+  val system: ActorSystem[Command] = ActorSystem(EnrollFlow(), "EnrollSystem")
+
+  def start(flow:String,xid:Option[String] = Some("XID-0000001")):UUID = {
+    val eid = UUID.random
+    val actor = system ! EnrollFlow.StartFlow(eid,flow,xid,system.ignoreRef)
+    eid
+  } 
+  
 }

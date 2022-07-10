@@ -628,7 +628,7 @@ lazy val enroll = (project in file("skel-enroll"))
 
     sharedConfig,
     name := "skel-enroll",
-    //sharedConfigAssembly,
+    sharedConfigAssembly,
     //sharedConfigDocker,
     //dockerBuildxSettings,
 
@@ -636,6 +636,8 @@ lazy val enroll = (project in file("skel-enroll"))
 
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
       libAkkaPersistence,
+      libAkkaPersistenceTest,
+      libAkkaSerJackon
       //libAkkaSerJackon
     ),
   )

@@ -59,6 +59,8 @@ object Dependencies {
     val libAkkaStream =     "com.typesafe.akka"           %% "akka-stream"          % akkaVersion
 
     val libAkkaPersistence ="com.typesafe.akka"           %% "akka-persistence-typed"         % akkaVersion
+    val libAkkaPersistenceTest ="com.typesafe.akka"       %% "akka-persistence-testkit"       % akkaVersion % Test
+
     val libAkkaSerJackon =  "com.typesafe.akka"           %% "akka-serialization-jackson"     % akkaVersion
     //val libAkkaSerProtobuf ="com.typesafe.akka"           %% "akka-serialization-protobuf"    % akkaVersion
 

@@ -10,11 +10,14 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto._
 
-class EnrollSpec extends ScalaTestWithActorTestKit(s"""
-      akka.persistence.journal.plugin = "akka.persistence.journal.inmem"
-      akka.persistence.snapshot-store.plugin = "akka.persistence.snapshot-store.local"
-      akka.persistence.snapshot-store.local.dir = "target/snapshot-${UUID.randomUUID().toString}"
-    """) with AnyWordSpecLike {
+// class EnrollSpec extends ScalaTestWithActorTestKit(s"""
+//       akka.persistence.journal.plugin = "akka.persistence.journal.inmem"
+//       akka.persistence.snapshot-store.plugin = "akka.persistence.snapshot-store.local"
+//       akka.persistence.snapshot-store.local.dir = "target/snapshot-${UUID.randomUUID().toString}"
+//     """) with AnyWordSpecLike {
+
+class EnrollSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike {
+
 
   private var counter = 0
   def newenrollId(): String = {
@@ -22,7 +25,7 @@ class EnrollSpec extends ScalaTestWithActorTestKit(s"""
     s"enroll-$counter"
   }
 
-  "Enroll Flow" should {
+  "Enroll" should {
 
     "add email " in {
       val id1 = UUID.randomUUID()
@@ -83,7 +86,8 @@ class EnrollSpec extends ScalaTestWithActorTestKit(s"""
       info(s"r2=${r2}")
       val sigData = Util.hex(sig.toArray())
       r2 should matchPattern { 
-        case StatusReply.Success(Enroll.Summary(id1,"PK_CONFIRMED",Some("user-1@domain.com"),Some(addr),Some(sigData),_,_,false,_)) => }
+        case StatusReply.Success(Enroll.Summary(id1,"PK_CONFIRMED",Some("user-1@domain.com"),Some(addr),Some(sigData),_,_,false,_)) => 
+      }
     }
 
     
