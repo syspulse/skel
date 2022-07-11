@@ -32,6 +32,8 @@ import akka.util.Timeout
 import scala.concurrent.Await
 
 import io.syspulse.skel.enroll.Command
+import scala.util.Failure
+import scala.util.Success
 
 object EnrollManager {
   val log = Logger(s"${this}")
@@ -39,6 +41,7 @@ object EnrollManager {
   final case class StartFlow(eid:UUID,flow:String,xid:Option[String],replyTo: ActorRef[Command]) extends Command
   final case class FindFlow(eid:UUID,replyTo:ActorRef[Option[ActorRef[Command]]]) extends Command
   final case class ConfirmEmailFlow(eid:UUID,code:String) extends Command
+  final case class GetSummary(eid:UUID,replyTo:ActorRef[Option[Enroll.Summary]]) extends Command
 
   def apply(): Behavior[Command] = Behaviors.setup(context => new EnrollManager(context))
 
@@ -126,6 +129,17 @@ object EnrollManager {
       msg match {
         case FindFlow(eid,replyTo) =>
           replyTo ! enrolls.get(eid)
+          this
+
+        case GetSummary(eid,replyTo) => 
+          val enroll = enrolls.get(eid)
+          implicit val ec = context.executionContext
+          enroll.map( e => {
+            e.ask{ ref =>  Enroll.Get(ref) }(Timeout(1 second),context.system.scheduler).onComplete( f => f match {
+              case Failure(e) => replyTo ! None
+              case Success(summary) => replyTo ! Some(summary)
+            })
+          })
           this
 
         case StartFlow(eid,flow,xid,replyTo) =>

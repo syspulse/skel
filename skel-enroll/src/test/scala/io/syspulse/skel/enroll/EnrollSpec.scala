@@ -36,7 +36,7 @@ class EnrollSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike {
       a1 ! Enroll.AddEmail("user-1@domain.com", probe.ref)
       val r = probe.receiveMessage()
 
-      r should matchPattern { case StatusReply.Success(Enroll.Summary(id1,"CONFIRM_EMAIL",Some("user-1@domain.com"),None,None,_,_,false,_)) => }
+      r should matchPattern { case StatusReply.Success(Enroll.Summary(id1,"CONFIRM_EMAIL",None,Some("user-1@domain.com"),None,None,_,_,false,_)) => }
       r.getValue.confirmToken !== (None)
       //r.getValue.eid === id1 (StatusReply.Success(Enroll.Summary(id1,Some("user-1@email.com"),"CONFIRMING_EMAIL",false,r.getValue.confirmToken)))
     }
@@ -54,7 +54,7 @@ class EnrollSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike {
 
       a1 ! Enroll.ConfirmEmail(token.get, probe.ref)
       val r2 = probe.receiveMessage()
-      r2 should matchPattern { case StatusReply.Success(Enroll.Summary(id1,"EMAIL_CONFIRMED",Some("user-1@domain.com"),None,None,_,_,false,None)) => }
+      r2 should matchPattern { case StatusReply.Success(Enroll.Summary(id1,"EMAIL_CONFIRMED",None,Some("user-1@domain.com"),None,None,_,_,false,None)) => }
       //probe.expectMessage(StatusReply.Success(Enroll.Summary(id1,Some("user-1@email.com"),"EMAIL_CONFIRMED",false,None)))
     }
 
@@ -86,7 +86,7 @@ class EnrollSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike {
       info(s"r2=${r2}")
       val sigData = Util.hex(sig.toArray())
       r2 should matchPattern { 
-        case StatusReply.Success(Enroll.Summary(id1,"PK_CONFIRMED",Some("user-1@domain.com"),Some(addr),Some(sigData),_,_,false,_)) => 
+        case StatusReply.Success(Enroll.Summary(id1,"PK_CONFIRMED",None,Some("user-1@domain.com"),Some(addr),Some(sigData),_,_,false,_)) => 
       }
     }
 

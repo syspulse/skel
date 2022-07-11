@@ -14,20 +14,30 @@ class EnrollManagerSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike {
 
   "EnrollManager" should {
 
-    "run flow 'START,EMAIL' " in {      
-      val eid = EnrollSystem.start("START,STARTED,EMAIL,CONFIRM_EMAIL,EMAIL_CONFIRMED,CREATE_USER,USER_CREATED,FINISH,FINISHED")
+    "run flow 'START,STARTED,EMAIL,CONFIRM_EMAIL,EMAIL_CONFIRMED,CREATE_USER,USER_CREATED,FINISH,FINISHED' " in {      
+      val eid = EnrollSystem.start("START,STARTED,EMAIL,CONFIRM_EMAIL,EMAIL_CONFIRMED,CREATE_USER,USER_CREATED,FINISH,FINISHED",Some("0x001"))
       
       info(s"eid: ${eid}")
       
       Thread.sleep(150)
+
+      val s1 = EnrollSystem.summary(eid)
+      info(s"summary: ${s1}")
+      val confirmToken = s1.get.confirmToken.get
       
-      val efActor = EnrollSystem.findFlow(eid)
-      info(s"actor = ${efActor}")
+      // val efActor = EnrollSystem.findFlow(eid)
+      // info(s"actor = ${efActor}")
       //val a1 = testKit.spawn(ef1)
 
-      EnrollSystem.sendEmailConfirmation(eid,"123")
+      EnrollSystem.sendEmailConfirmation(eid,confirmToken)
       
       Thread.sleep(1000)
+
+      val s2 = EnrollSystem.summary(eid)
+      info(s"summary: ${s2}")
+
+      s2 should matchPattern { case Some(_) => }
+      s2 should matchPattern { case Some(Enroll.Summary(eid,"FINISHED",Some("0x001"),Some("email@"),None,None,_,_,true,None)) => }
     }    
   }
 

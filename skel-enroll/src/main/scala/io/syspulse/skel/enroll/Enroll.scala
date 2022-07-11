@@ -60,6 +60,7 @@ object Enroll {
   final case class Summary(
     eid:UUID, 
     phase:String = "START", 
+    xid:Option[String] = None,
     email:Option[String] = None, addr:Option[String] = None, sig:Option[Signature] = None,
     tsStart:Long = 0L, tsPhase:Long = 0L, 
     finished: Boolean = false, 
@@ -96,7 +97,7 @@ object Enroll {
 
     def addData(k: String, v:String): State = copy(data = data + (k -> v))
     
-    def toSummary: Summary = Summary(eid,phase, email, pk.map(Eth.address(_)), sig, tsStart,tsPhase,finished,confirmToken)
+    def toSummary: Summary = Summary(eid, phase, xid, email, pk.map(Eth.address(_)), sig, tsStart,tsPhase,finished,confirmToken)
   }
 
   object State {
@@ -177,7 +178,7 @@ object Enroll {
           replyTo ! StatusReply.Error(s"${eid}: Invalid email: '$email'")
           return Effect.none
         } 
-        val token = "123"//Random.nextInt(1000).toString
+        val token = Math.abs(Random.nextLong(100000000)).toString
         println(s"${eid}: Sending Confirmation email (token=${token}) -> ${email}...")
 
         Effect
@@ -253,11 +254,7 @@ object Enroll {
 
   private def handleEvent(state: State, event: Event) = {
     event match {
-      case Started(_, xid) => {
-        val state1 = state.addXid(xid)
-
-        state1
-      }
+      case Started(_, xid) => state.addXid(xid)
       case EmailAdded(_, email,confirmToken) => state.addEmail(email,confirmToken)
       case EmailConfirmed(_) => state.confirmEmail()
       case PublicKeyAdded(_, pk, sig) => state.addPublicKey(pk,sig)

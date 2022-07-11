@@ -36,16 +36,17 @@ import io.syspulse.skel.enroll.Command
 object EnrollSystem {
   val log = Logger(s"${this}")
   val system: ActorSystem[Command] = ActorSystem(EnrollManager(), "EnrollSystem")
+  implicit val sched = system.scheduler
+  implicit val timeout =  Timeout(3.seconds)
 
-  def start(flow:String,xid:Option[String] = Some("XID-0000001")):UUID = {
+  def start(flow:String,xid:Option[String] = None):UUID = {
     val eid = UUID.random
     system ! EnrollManager.StartFlow(eid,flow,xid,system.ignoreRef)
     eid
   }
 
   def findFlow(eid:UUID):Option[ActorRef[Command]] = {
-    implicit val timeout =  Timeout(3.seconds)
-    implicit val sched = system.scheduler
+    
     val enrollActor = Await.result(
       system.ask {
         ref => EnrollManager.FindFlow(eid, ref)
@@ -54,6 +55,18 @@ object EnrollSystem {
     log.info(s"enrollActor = ${enrollActor}")
     enrollActor
   }
+
+  def summary(eid:UUID):Option[Enroll.Summary] = {
+    
+    val summary = Await.result(
+      system.ask {
+        ref => EnrollManager.GetSummary(eid, ref)
+      }, timeout.duration)
+
+    log.info(s"summary = ${summary}")
+    summary
+  }
+  
 
   def sendEmailConfirmation(eid:UUID,confirmCode:String):Unit = {    
     system ! EnrollManager.ConfirmEmailFlow(eid,confirmCode)
