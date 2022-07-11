@@ -89,7 +89,7 @@ object Enroll {
     def addEmail(email:String,token:String): State = 
       copy(phase = "EMAIL_ACK", email = Some(email),tsPhase=System.currentTimeMillis(),confirmToken=Some(token))
     def confirmEmail(): State = 
-      copy(phase = "CONFIRMED_EMAIL_ACK",tsPhase=System.currentTimeMillis(),confirmToken=None)
+      copy(phase = "CONFIRM_EMAIL_ACK",tsPhase=System.currentTimeMillis(),confirmToken=None)
     def addPublicKey(pk:PK,sig:SignatureEth): State = 
       copy(phase = "PK_ACK", pk = Some(Util.hex(pk)), sig = Some(Util.hex(sig.toArray())), tsPhase=System.currentTimeMillis())
     def createUser(uid:UUID): State = 
@@ -191,7 +191,7 @@ object Enroll {
           .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
         
       case ConfirmEmail(token, replyTo) =>
-        if (state.phase != "CONFIRM_EMAIL" || token.isEmpty() || Some(token) != state.confirmToken) {
+        if (token.isEmpty() || Some(token) != state.confirmToken) {
           replyTo ! StatusReply.Error(s"${eid}: Invalid Confirm token: '$token'")
           return Effect.none
         } 

@@ -16,7 +16,7 @@ class EnrollManagerSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike {
 
     "run full flow '1' " in {      
       
-      val eid = EnrollSystem.start("START,START_ACK,EMAIL,EMAIL_ACK,CONFIRM_EMAIL,CONFIRMED_EMAIL_ACK,CREATE_USER,CREATE_USER_ACK,FINISH,FINISH_ACK",Some("0x001"))
+      val eid = EnrollSystem.start("START,START_ACK,EMAIL,EMAIL_ACK,CONFIRM_EMAIL,CONFIRM_EMAIL_ACK,CREATE_USER,CREATE_USER_ACK,FINISH,FINISH_ACK",Some("0x001"))
       
       info(s"eid: ${eid}")
       

@@ -81,7 +81,7 @@ object EnrollManager {
             enrollActor ! Enroll.UpdatePhase("CONFIRM_EMAIL",ctx.self)
             (phase,None)
 
-          case Some("CONFIRMED_EMAIL_ACK") => nextPhase(flow,next,summary)
+          case Some("CONFIRM_EMAIL_ACK") => nextPhase(flow,next,summary)
 
           case Some("CREATE_USER") => 
             (phase,Some(Enroll.CreateUser(ctx.self)))
@@ -103,7 +103,7 @@ object EnrollManager {
       }
 
       Behaviors.receiveMessage { msg =>
-        log.info(s">>> msg = ${msg}")
+        log.info(s"<<< msg = ${msg}")
 
         msg match {
           case StatusReply.Success(s) => {                
