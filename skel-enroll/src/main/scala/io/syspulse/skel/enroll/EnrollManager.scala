@@ -68,7 +68,8 @@ object EnrollManager {
           
           case Some("STARTED") => nextPhase(flow,next,summary)
                   
-          case Some("EMAIL") => Some(Enroll.AddEmail("email@",ctx.self))
+          case Some("EMAIL") => //Some(Enroll.AddEmail("email@",ctx.self))
+            None
           
           case Some("CONFIRM_EMAIL") =>  //Some(Enroll.ConfirmEmail(token.get, ctx.self))
             log.info(s"Waiting for user to confirm email: ${summary.get.confirmToken}")
