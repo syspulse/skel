@@ -67,9 +67,12 @@ object EnrollSystem {
     summary
   }
   
-
   def sendEmailConfirmation(eid:UUID,confirmCode:String):Unit = {    
-    system ! EnrollManager.ConfirmEmailFlow(eid,confirmCode)
+    system ! EnrollManager.ConfirmEmail(eid,confirmCode)
+  }
+
+  def addEmail(eid:UUID,email:String):Unit = {    
+    system ! EnrollManager.AddEmail(eid,email)
   }
   
 }

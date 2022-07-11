@@ -81,19 +81,22 @@ object Enroll {
 
     def nextPhase(phase: String): State = copy(phase = phase)
 
+    def updatePhase(phase:String): State = 
+      copy(phase = phase, tsPhase=System.currentTimeMillis())
+
     def addXid(xid:String): State = 
-      copy(phase = "STARTED", xid = Some(xid),tsPhase=System.currentTimeMillis())
+      copy(phase = "START_ACK", xid = Some(xid),tsPhase=System.currentTimeMillis())
     def addEmail(email:String,token:String): State = 
-      copy(phase = "CONFIRM_EMAIL", email = Some(email),tsPhase=System.currentTimeMillis(),confirmToken=Some(token))
+      copy(phase = "EMAIL_ACK", email = Some(email),tsPhase=System.currentTimeMillis(),confirmToken=Some(token))
     def confirmEmail(): State = 
-      copy(phase = "EMAIL_CONFIRMED",tsPhase=System.currentTimeMillis(),confirmToken=None)
+      copy(phase = "CONFIRMED_EMAIL_ACK",tsPhase=System.currentTimeMillis(),confirmToken=None)
     def addPublicKey(pk:PK,sig:SignatureEth): State = 
-      copy(phase = "PK_CONFIRMED", pk = Some(Util.hex(pk)), sig = Some(Util.hex(sig.toArray())), tsPhase=System.currentTimeMillis())
+      copy(phase = "PK_ACK", pk = Some(Util.hex(pk)), sig = Some(Util.hex(sig.toArray())), tsPhase=System.currentTimeMillis())
     def createUser(uid:UUID): State = 
-      copy(phase = "USER_CREATED", uid=Some(uid), tsPhase=System.currentTimeMillis())
+      copy(phase = "CREATE_USER_ACK", uid=Some(uid), tsPhase=System.currentTimeMillis())
     
     def finish(now: Instant): State = 
-      copy(phase = "FINISHED", tsPhase=now.getEpochSecond(), finished = true)
+      copy(phase = "FINISH_ACK", tsPhase=now.getEpochSecond(), finished = true)
 
     def addData(k: String, v:String): State = copy(data = data + (k -> v))
     
@@ -113,6 +116,7 @@ object Enroll {
   final case class Finish(replyTo: ActorRef[StatusReply[Summary]]) extends Command
 
   final case class Get(replyTo: ActorRef[Summary]) extends Command
+  final case class UpdatePhase(phase:String,replyTo: ActorRef[StatusReply[Summary]]) extends Command
 
 
   sealed trait Event extends CborSerializable {
@@ -122,14 +126,10 @@ object Enroll {
   final case class Started(eid:UUID,xid:String) extends Event
   final case class EmailAdded(eid:UUID, email: String, confirmToken:String) extends Event
   final case class EmailConfirmed(eid:UUID) extends Event
-
   final case class PublicKeyAdded(eid:UUID, pk: PK, sig:SignatureEth) extends Event
   final case class UserCreated(eid:UUID, uid:UUID) extends Event
-
-  //final case class ItemRemoved(cartId: String, itemId: String) extends Event
-  //final case class ItemQuantityAdjusted(cartId: String, itemId: String, newQuantity: Int) extends Event
-
   final case class Finished(eid:UUID, eventTime: Instant) extends Event
+  final case class PhaseUpdated(eid:UUID, phase: String) extends Event
 
   def apply(eid:UUID = UUID.random, flow:String = ""): Behavior[Command] =  Behaviors.setup { ctx => {
     EventSourcedBehavior[Command, Event, State](
@@ -173,6 +173,11 @@ object Enroll {
           .persist(Finished(eid,Instant.now()))
           .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
 
+      case UpdatePhase(phase, replyTo) =>
+        Effect
+          .persist(PhaseUpdated(eid, phase))
+          //.thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+
       case AddEmail(email, replyTo) =>
         if (email.isEmpty() || !email.contains('@')) {
           replyTo ! StatusReply.Error(s"${eid}: Invalid email: '$email'")
@@ -213,7 +218,7 @@ object Enroll {
           .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
 
       case CreateUser(replyTo) =>
-        // if(state.phase != "PK_CONFIRMED") {
+        // if(state.phase != "PK_ACK") {
         //   replyTo ! StatusReply.Error(s"${eid}: Invalid phase: ${state.phase}")
         //   return Effect.none
         // } 
@@ -260,6 +265,8 @@ object Enroll {
       case PublicKeyAdded(_, pk, sig) => state.addPublicKey(pk,sig)
       case UserCreated(_, uid) => state.createUser(uid)
       case Finished(_, eventTime) => state.finish(eventTime)
+
+      case PhaseUpdated(_, phase) => state.updatePhase(phase)
     }
   }
 }

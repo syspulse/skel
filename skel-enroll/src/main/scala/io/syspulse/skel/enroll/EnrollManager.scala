@@ -40,7 +40,8 @@ object EnrollManager {
 
   final case class StartFlow(eid:UUID,flow:String,xid:Option[String],replyTo: ActorRef[Command]) extends Command
   final case class FindFlow(eid:UUID,replyTo:ActorRef[Option[ActorRef[Command]]]) extends Command
-  final case class ConfirmEmailFlow(eid:UUID,code:String) extends Command
+  final case class ConfirmEmail(eid:UUID,code:String) extends Command
+  final case class AddEmail(eid:UUID,email:String) extends Command
   final case class GetSummary(eid:UUID,replyTo:ActorRef[Option[Enroll.Summary]]) extends Command
 
   def apply(): Behavior[Command] = Behaviors.setup(context => new EnrollManager(context))
@@ -58,40 +59,46 @@ object EnrollManager {
 
     def enrollListener(enrollActor:ActorRef[Command],eid:UUID,flow:String,xid:Option[String]): Behavior[StatusReply[Enroll.Summary]] = Behaviors.setup { ctx =>
       
-      def nextPhase(flow:String,phase:String, summary: Option[Enroll.Summary]=None):Option[Command] = {
+      def nextPhase(flow:String,phase:String, summary: Option[Enroll.Summary]=None):(String,Option[Command]) = {
         val phases = flow.split(",").map(_.toUpperCase())
         val next = phases.dropWhile(_ != phase).drop(1).headOption.getOrElse("")
         
         log.info(s"phase=${phase}, next=${next}")
         Option(phase) match {
-          case Some("START") => Some(Enroll.Start(eid,flow,xid.getOrElse(""),ctx.self))
+          case Some("START") => (phase,Some(Enroll.Start(eid,flow,xid.getOrElse(""),ctx.self)))
           
-          case Some("STARTED") => nextPhase(flow,next,summary)
+          case Some("START_ACK") => nextPhase(flow,next,summary)
                   
           case Some("EMAIL") => //Some(Enroll.AddEmail("email@",ctx.self))
-            None
-          
+            log.info(s"Waiting for user email: email=${summary.get.email}")
+            enrollActor ! Enroll.UpdatePhase("EMAIL",ctx.self)
+            (phase,None)
+
+          case Some("EMAIL_ACK") => nextPhase(flow,next,summary)
+            
           case Some("CONFIRM_EMAIL") =>  //Some(Enroll.ConfirmEmail(token.get, ctx.self))
-            log.info(s"Waiting for user to confirm email: ${summary.get.confirmToken}")
-            None
+            log.info(s"Waiting for user to confirm email: ${summary.get.email}: token=${summary.get.confirmToken}")
+            enrollActor ! Enroll.UpdatePhase("CONFIRM_EMAIL",ctx.self)
+            (phase,None)
 
-          case Some("EMAIL_CONFIRMED") => nextPhase(flow,next,summary)
+          case Some("CONFIRMED_EMAIL_ACK") => nextPhase(flow,next,summary)
 
-          case Some("CREATE_USER") => Some(Enroll.CreateUser(ctx.self))
+          case Some("CREATE_USER") => 
+            (phase,Some(Enroll.CreateUser(ctx.self)))
 
-          case Some("USER_CREATED") => nextPhase(flow ,next,summary)
+          case Some("CREATE_USER_ACK") => nextPhase(flow ,next,summary)
 
           case Some("FINISH") =>
             log.info(s"Finishing: ${summary.get.eid}")
-            Some(Enroll.Finish(ctx.self))
+            (phase,Some(Enroll.Finish(ctx.self)))
             
           case Some("") =>
             log.warn(s"Finished: ${summary.get.eid}")
-            None
+            (phase,None)
 
-          case Some(s) => log.error(s"flow='${flow}' : found=${s} : phase not supported: ${phase}"); None
+          case Some(s) => log.error(s"flow='${flow}' : found=${s} : phase not supported: ${phase}"); ("",None)
 
-          case None => log.error(s"flow=${flow}: phase not found: ${phase}"); None
+          case None => log.error(s"flow=${flow}: phase not found: ${phase}"); ("",None)
         }      
       }
 
@@ -102,15 +109,17 @@ object EnrollManager {
           case StatusReply.Success(s) => {                
             // WTF ?!
             val summary = s.asInstanceOf[Enroll.Summary]
-            log.info(s"phase=${summary.phase}: summary=${s}")
+            val phase0 = summary.phase
+            log.info(s"phase0=${phase0}: summary=${s}")
             
-            val action = nextPhase(flow,summary.phase,Some(summary))
-            log.info(s"phase=${summary.phase}: action=${action}")
-
-            if(action.isDefined)
+            val (phase1,action) = nextPhase(flow,summary.phase,Some(summary))
+            
+            if(action.isDefined) { 
+              log.info(s"phase1=${phase1}: action=${action} ---> ${enrollActor}")
               enrollActor ! action.get 
+            }
             else
-              log.info(s"phase=${summary.phase}: action=${action}: ...")
+              log.info(s"phase1=${phase1}: waiting external action ...")
             Behaviors.same
           }
 
@@ -153,13 +162,18 @@ object EnrollManager {
           enrollActor ! Enroll.Start(eid,flow,xid.getOrElse(""),listener)
           this
 
-        case ConfirmEmailFlow(eid,code) =>     
+        case ConfirmEmail(eid,code) =>     
           val enrollActor = enrolls.get(eid)
           val listenerActor = listeners.get((eid))
           
-          //log.info(s"${enrollActor} ${listenerActor}")
           enrollActor.map(a => a ! Enroll.ConfirmEmail(code,listenerActor.get))
+          this
 
+        case AddEmail(eid,email) =>     
+          val enrollActor = enrolls.get(eid)
+          val listenerActor = listeners.get((eid))
+          
+          enrollActor.map(a => a ! Enroll.AddEmail(email,listenerActor.get))
           this
 
         case _ =>
