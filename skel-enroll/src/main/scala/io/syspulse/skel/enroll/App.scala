@@ -30,11 +30,11 @@ import io.syspulse.skel.crypto.SignatureEth
 
 object App {
   val log = Logger(s"${this}")  
-  val system: ActorSystem[Command] = ActorSystem(EnrollManager(), "EnrollSystem")
+  val system: ActorSystem[Command] = ActorSystem(EnrollFlow(), "EnrollSystem")
 
   def main(args:Array[String]):Unit = {
     val eid = UUID.random
-    val actor = system ! EnrollManager.StartFlow(eid,"START,STARTED,EMAIL,CONFIRM_EMAIL,EMAIL_CONFIRMED,CREATE_USER,USER_CREATED,FINISH,FINISHED",None,system.ignoreRef)
+    val actor = system ! EnrollFlow.StartFlow(eid,"START,STARTED,EMAIL,CONFIRM_EMAIL,EMAIL_CONFIRMED,CREATE_USER,USER_CREATED,FINISH,FINISHED",None,system.ignoreRef)
     println(eid)
   } 
   

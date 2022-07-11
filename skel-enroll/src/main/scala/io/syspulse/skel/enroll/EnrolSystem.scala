@@ -35,21 +35,21 @@ import io.syspulse.skel.enroll.Command
 
 object EnrollSystem {
   val log = Logger(s"${this}")
-  val system: ActorSystem[Command] = ActorSystem(EnrollManager(), "EnrollSystem")
+  val system: ActorSystem[Command] = ActorSystem(EnrollFlow(), "EnrollSystem")
   implicit val sched = system.scheduler
   implicit val timeout =  Timeout(3.seconds)
 
   def start(flow:String,xid:Option[String] = None):UUID = {
     val eid = UUID.random
-    system ! EnrollManager.StartFlow(eid,flow,xid,system.ignoreRef)
+    system ! EnrollFlow.StartFlow(eid,flow,xid,system.ignoreRef)
     eid
   }
 
-  def findFlow(eid:UUID):Option[ActorRef[Command]] = {
+  def findEnroll(eid:UUID):Option[ActorRef[Command]] = {
     
     val enrollActor = Await.result(
       system.ask {
-        ref => EnrollManager.FindFlow(eid, ref)
+        ref => EnrollFlow.FindFlow(eid, ref)
       }, timeout.duration)
 
     log.info(s"enrollActor = ${enrollActor}")
@@ -60,7 +60,7 @@ object EnrollSystem {
     
     val summary = Await.result(
       system.ask {
-        ref => EnrollManager.GetSummary(eid, ref)
+        ref => EnrollFlow.GetSummary(eid, ref)
       }, timeout.duration)
 
     log.info(s"summary = ${summary}")
@@ -68,11 +68,11 @@ object EnrollSystem {
   }
   
   def sendEmailConfirmation(eid:UUID,confirmCode:String):Unit = {    
-    system ! EnrollManager.ConfirmEmail(eid,confirmCode)
+    system ! EnrollFlow.ConfirmEmail(eid,confirmCode)
   }
 
   def addEmail(eid:UUID,email:String):Unit = {    
-    system ! EnrollManager.AddEmail(eid,email)
+    system ! EnrollFlow.AddEmail(eid,email)
   }
   
 }

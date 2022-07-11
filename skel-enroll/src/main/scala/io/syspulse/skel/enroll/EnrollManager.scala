@@ -35,7 +35,7 @@ import io.syspulse.skel.enroll.Command
 import scala.util.Failure
 import scala.util.Success
 
-object EnrollManager {
+object EnrollFlow {
   val log = Logger(s"${this}")
 
   final case class StartFlow(eid:UUID,flow:String,xid:Option[String],replyTo: ActorRef[Command]) extends Command
@@ -44,13 +44,13 @@ object EnrollManager {
   final case class AddEmail(eid:UUID,email:String) extends Command
   final case class GetSummary(eid:UUID,replyTo:ActorRef[Option[Enroll.Summary]]) extends Command
 
-  def apply(): Behavior[Command] = Behaviors.setup(context => new EnrollManager(context))
+  def apply(): Behavior[Command] = Behaviors.setup(context => new EnrollFlow(context))
 
-  class EnrollManager(context: ActorContext[Command]) extends AbstractBehavior[Command](context) {  
+  class EnrollFlow(context: ActorContext[Command]) extends AbstractBehavior[Command](context) {  
     var enrolls: Map[UUID,ActorRef[Command]] = Map()
     var listeners: Map[UUID,ActorRef[StatusReply[Enroll.Summary]]] = Map()
 
-    log.info(s"EnrollManager started")
+    log.info(s"EnrollFlow started")
 
     def enroll(eid:UUID,flow:String,xid:Option[String]): Behavior[Command] = Behaviors.setup { ctx =>
       Enroll(eid,flow) 
