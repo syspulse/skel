@@ -33,9 +33,27 @@ import scala.concurrent.Await
 
 import io.syspulse.skel.enroll.Command
 
-object EnrollSystem {
+import io.syspulse.skel.enroll.event._
+import com.typesafe.config.ConfigFactory
+
+// for tests
+case class User(uid:UUID,email:String)
+object UserService {
+  def findByEmail(email:String):Option[User] = None
+
+  def create(email:String):Option[User] = {
+    Some(User(UUID.random,email))
+  }
+}
+
+class EnrollActorSystem(name:String = "EnrollSystem",config:Option[String] = None) {
   val log = Logger(s"${this}")
-  val system: ActorSystem[Command] = ActorSystem(EnrollFlow(), "EnrollSystem")
+  
+  val system: ActorSystem[Command] = if(config.isDefined) 
+    ActorSystem(EnrollFlow(), name, ConfigFactory.parseString(config.get)) 
+  else 
+    ActorSystem(EnrollFlow(), name)
+
   implicit val sched = system.scheduler
   implicit val timeout =  Timeout(3.seconds)
 
@@ -73,6 +91,10 @@ object EnrollSystem {
 
   def addEmail(eid:UUID,email:String):Unit = {    
     system ! EnrollFlow.AddEmail(eid,email)
-  }
-  
+  }  
 }
+
+object EnrollSystem extends EnrollActorSystem() {
+
+}
+

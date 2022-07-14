@@ -35,6 +35,8 @@ import io.syspulse.skel.enroll.Command
 import scala.util.Failure
 import scala.util.Success
 
+import io.syspulse.skel.enroll.event._
+
 object EnrollFlow {
   val log = Logger(s"${this}")
 
@@ -142,14 +144,22 @@ object EnrollFlow {
           this
 
         case GetSummary(eid,replyTo) => 
-          val enroll = enrolls.get(eid)
+          val enrollActor = enrolls.get(eid)
+            .getOrElse({
+              val enrollActor = context.spawn(enroll(eid,"",None),s"Enroll-${eid}")
+              val listener = context.spawn(enrollListener(enrollActor,eid,"",None),s"Listener-${eid}")
+              enrolls = enrolls + (eid -> enrollActor)
+              listeners = listeners + (eid -> listener)
+              enrollActor
+            })
+
           implicit val ec = context.executionContext
-          enroll.map( e => {
-            e.ask{ ref =>  Enroll.Get(ref) }(Timeout(1 second),context.system.scheduler).onComplete( f => f match {
+          
+          enrollActor.ask{ ref =>  Enroll.Get(ref) }(Timeout(1 second),context.system.scheduler).onComplete( f => f match {
               case Failure(e) => replyTo ! None
               case Success(summary) => replyTo ! Some(summary)
-            })
           })
+          
           this
 
         case StartFlow(eid,flow,xid,replyTo) =>

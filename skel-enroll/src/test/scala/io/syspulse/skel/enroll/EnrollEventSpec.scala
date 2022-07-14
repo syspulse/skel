@@ -10,8 +10,12 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto._
 
-class EnrollSpec extends ScalaTestWithActorTestKit(s"""
+import io.syspulse.skel.enroll.event._
+
+class EnrollEventSpec extends ScalaTestWithActorTestKit(s"""
       akka.persistence.journal.plugin = "akka.persistence.journal.inmem"
+      akka.actor.allow-java-serialization = true
+      akka.persistence.journal.inmem.test-serialization = on
       akka.persistence.snapshot-store.plugin = "akka.persistence.snapshot-store.local"
       akka.persistence.snapshot-store.local.dir = "target/snapshot-${UUID.randomUUID().toString}"
     """) with AnyWordSpecLike {

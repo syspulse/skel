@@ -1,4 +1,4 @@
-package io.syspulse.skel.enroll
+package io.syspulse.skel.enroll.state
 
 import java.time.Instant
 import scala.util.Random
@@ -30,32 +30,12 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto.SignatureEth
 import akka.util.Timeout
 import scala.concurrent.Await
+import akka.persistence.typed.RecoveryCompleted
 
-
-case class User(uid:UUID,email:String)
-
-object UserService {
-
-  def findByEmail(email:String):Option[User] = None
-
-  def create(email:String):Option[User] = {
-    Some(User(UUID.random,email))
-  }
-}
-
-// case class EnrollSession(
-//   id:UUID,
-//   email:String,
-//   phase:String = "START",
-//   tsStart:Long = System.currentTimeMillis, 
-//   tsPhase:Long = System.currentTimeMillis,
-//   finished:Boolean = false,
-//   data:Map[String,String] = Map()
-// )
-
-trait Command extends CborSerializable
+import io.syspulse.skel.enroll._
 
 object Enroll {
+  val log = Logger(s"${this}")
 
   final case class Summary(
     eid:UUID, 
@@ -84,8 +64,10 @@ object Enroll {
     def updatePhase(phase:String): State = 
       copy(phase = phase, tsPhase=System.currentTimeMillis())
 
-    def addXid(xid:String): State = 
+    def addXid(xid:String): State = {
+      log.info(s"${eid}: ++++++++++++++++++> ${xid}")
       copy(phase = "START_ACK", xid = Some(xid),tsPhase=System.currentTimeMillis())
+    }
     def addEmail(email:String,token:String): State = 
       copy(phase = "EMAIL_ACK", email = Some(email),tsPhase=System.currentTimeMillis(),confirmToken=Some(token))
     def confirmEmail(): State = 
@@ -101,6 +83,8 @@ object Enroll {
     def addData(k: String, v:String): State = copy(data = data + (k -> v))
     
     def toSummary: Summary = Summary(eid, phase, xid, email, pk.map(Eth.address(_)), sig, tsStart,tsPhase,finished,confirmToken)
+
+    //def toByteArray() = toString.getBytes()
   }
 
   object State {
@@ -146,6 +130,14 @@ object Enroll {
         }
       },
       eventHandler = (state, event) => handleEvent(state, event))
+      .receiveSignal {
+        case (state, RecoveryCompleted) =>
+          log.info(s"RECOVERY: ${eid}: =========> ${state}")
+      }
+      // .snapshotWhen((state, _, _) => {
+      //   log.info(s"SNAPSHOT: ${ctx.self.path.name} => state: ${state}")
+      //   true
+      // })
       .withRetention(RetentionCriteria.snapshotEvery(numberOfEvents = 100, keepNSnapshots = 3))
       .onPersistFailure(SupervisorStrategy.restartWithBackoff(200.millis, 5.seconds, 0.1))
     }
