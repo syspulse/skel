@@ -11,6 +11,7 @@ object Dependencies {
     lazy val kafkaAvroSerVersion = "5.4.1"
     lazy val quillVersion = "3.6.0"
     lazy val influxDBVersion = "3.2.0"
+    lazy val slickVersion = "3.3.3"
 
     lazy val sparkVersion = "3.2.0"
     lazy val hadoopAWSVersion = "3.2.2"
@@ -178,6 +179,13 @@ object Dependencies {
     //val libLaikaPdf =        "org.planet42"                 %% "laika-pdf"                  % "0.18.2"
     
     val libCasbin =          "org.casbin"                     % "jcasbin"                     % "1.7.1"
+
+    val libAkkaPersistJDBC =  "com.lightbend.akka" %% "akka-persistence-jdbc" % "5.0.4"
+    //val libAkkaPersistQuery = "com.typesafe.akka" %% "akka-persistence-query" % akkaVersion
+    val libSlick =            "com.typesafe.slick" %% "slick" % slickVersion
+    val libSlickHikari =      "com.typesafe.slick" %% "slick-hikaricp" % slickVersion
+    val libH2 =               "com.h2database" % "h2" % "1.4.200" % Test
+    val libLevelDB =          "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8" % Test
 
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)

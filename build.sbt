@@ -637,7 +637,12 @@ lazy val enroll = (project in file("skel-enroll"))
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
       libAkkaPersistence,
       libAkkaPersistenceTest,
-      libAkkaSerJackon
+      libAkkaSerJackon,
+      libAkkaPersistJDBC,
+      libSlick,
+      libSlickHikari,
+      libH2,
+      libLevelDB
       //libAkkaSerJackon
     ),
   )
