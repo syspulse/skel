@@ -18,9 +18,17 @@ import akka.actor.typed.scaladsl.AskPattern._
 
 import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
-import akka.persistence.typed.scaladsl.RetentionCriteria
-import akka.persistence.typed.scaladsl.Effect
-import akka.persistence.typed.scaladsl.EventSourcedBehavior
+import akka.persistence.typed.state.scaladsl.DurableStateBehavior
+import akka.persistence.typed.state.scaladsl.Effect
+import akka.persistence.typed.state.RecoveryCompleted
+
+import java.time.Instant
+import scala.util.Random
+import scala.concurrent.duration._
+import akka.actor.typed.ActorRef
+import akka.actor.typed.Behavior
+import akka.actor.typed.SupervisorStrategy
+import akka.pattern.StatusReply
 
 import io.jvm.uuid._
 
@@ -30,7 +38,7 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto.SignatureEth
 import akka.util.Timeout
 import scala.concurrent.Await
-import akka.persistence.typed.RecoveryCompleted
+
 
 import io.syspulse.skel.enroll._
 
@@ -61,24 +69,14 @@ object Enroll {
 
     def nextPhase(phase: String): State = copy(phase = phase)
 
-    def updatePhase(phase:String): State = 
-      copy(phase = phase, tsPhase=System.currentTimeMillis())
-
-    def addXid(xid:String): State = {
-      log.info(s"${eid}: ++++++++++++++++++> ${xid}")
-      copy(phase = "START_ACK", xid = Some(xid),tsPhase=System.currentTimeMillis())
-    }
-    def addEmail(email:String,token:String): State = 
-      copy(phase = "EMAIL_ACK", email = Some(email),tsPhase=System.currentTimeMillis(),confirmToken=Some(token))
-    def confirmEmail(): State = 
-      copy(phase = "CONFIRM_EMAIL_ACK",tsPhase=System.currentTimeMillis(),confirmToken=None)
-    def addPublicKey(pk:PK,sig:SignatureEth): State = 
-      copy(phase = "PK_ACK", pk = Some(Util.hex(pk)), sig = Some(Util.hex(sig.toArray())), tsPhase=System.currentTimeMillis())
-    def createUser(uid:UUID): State = 
-      copy(phase = "CREATE_USER_ACK", uid=Some(uid), tsPhase=System.currentTimeMillis())
+    def updatePhase(phase:String): State =  copy(phase = phase, tsPhase=System.currentTimeMillis())
+    def addXid(xid:String): State = copy(phase = "START_ACK", xid = Some(xid),tsPhase=System.currentTimeMillis())
+    def addEmail(email:String,token:String): State = copy(phase = "EMAIL_ACK", email = Some(email),tsPhase=System.currentTimeMillis(),confirmToken=Some(token))
+    def confirmEmail(): State = copy(phase = "CONFIRM_EMAIL_ACK",tsPhase=System.currentTimeMillis(),confirmToken=None)
+    def addPublicKey(pk:PK,sig:SignatureEth): State = copy(phase = "PK_ACK", pk = Some(Util.hex(pk)), sig = Some(Util.hex(sig.toArray())), tsPhase=System.currentTimeMillis())
+    def createUser(uid:UUID): State = copy(phase = "CREATE_USER_ACK", uid=Some(uid), tsPhase=System.currentTimeMillis())
     
-    def finish(now: Instant): State = 
-      copy(phase = "FINISH_ACK", tsPhase=now.getEpochSecond(), finished = true)
+    def finish(now: Instant): State = copy(phase = "FINISH_ACK", tsPhase=now.getEpochSecond(), finished = true)
 
     def addData(k: String, v:String): State = copy(data = data + (k -> v))
     
@@ -116,7 +114,7 @@ object Enroll {
   final case class PhaseUpdated(eid:UUID, phase: String) extends Event
 
   def apply(eid:UUID = UUID.random, flow:String = ""): Behavior[Command] =  Behaviors.setup { ctx => {
-    EventSourcedBehavior[Command, Event, State](
+    DurableStateBehavior[Command, State](
       persistenceId = PersistenceId("Enroll", eid.toString()),
       emptyState = State(eid,flow),
       commandHandler = (state, command) => {
@@ -128,17 +126,11 @@ object Enroll {
           else
             startAutoflowEnroll(eid,flow,state,command,ctx)
         }
-      },
-      eventHandler = (state, event) => handleEvent(state, event))
+      })
       .receiveSignal {
         case (state, RecoveryCompleted) =>
-          log.info(s"RECOVERY: ${eid}: =========> ${state}")
-      }
-      // .snapshotWhen((state, _, _) => {
-      //   log.info(s"SNAPSHOT: ${ctx.self.path.name} => state: ${state}")
-      //   true
-      // })
-      .withRetention(RetentionCriteria.snapshotEvery(numberOfEvents = 100, keepNSnapshots = 3))
+          log.info(s"RECOVERY: ${eid}: ${state}")
+      }      
       .onPersistFailure(SupervisorStrategy.restartWithBackoff(200.millis, 5.seconds, 0.1))
     }
   }
@@ -149,25 +141,29 @@ object Enroll {
     data
   }
 
-  private def startAutoflowEnroll(eid:UUID, flow:String,state: State, command: Command, ctx:ActorContext[Command]): Effect[Event, State] = {
+  private def startAutoflowEnroll(eid:UUID, flow:String,state: State, command: Command, ctx:ActorContext[Command]): Effect[State] = {
     startNewEnroll(eid,state,command)  
   }
 
-  private def startNewEnroll(eid:UUID, state: State, command: Command): Effect[Event, State] =
+  private def startNewEnroll(eid:UUID, state: State, command: Command): Effect[State] =
     command match {
       case Start(eid,flow,xid,replyTo) => 
         Effect
-          .persist(Started(eid,xid))
+          .persist(state.addXid(xid))
           .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
 
-      case Finish(replyTo) => 
+      case Finish(replyTo) =>
+        if (state.isFinished) {
+          replyTo ! StatusReply.Error(s"${eid}: Already finished")
+          return Effect.none
+        } 
         Effect
-          .persist(Finished(eid,Instant.now()))
+          .persist(state.finish(Instant.now()))
           .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
 
       case UpdatePhase(phase, replyTo) =>
         Effect
-          .persist(PhaseUpdated(eid, phase))
+          .persist(state.updatePhase(phase))
           //.thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
 
       case AddEmail(email, replyTo) =>
@@ -179,7 +175,7 @@ object Enroll {
         println(s"${eid}: Sending Confirmation email (token=${token}) -> ${email}...")
 
         Effect
-          .persist(EmailAdded(eid, email, token))
+          .persist(state.addEmail(email,token))
           .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
         
       case ConfirmEmail(token, replyTo) =>
@@ -188,7 +184,7 @@ object Enroll {
           return Effect.none
         } 
         Effect
-          .persist(EmailConfirmed(eid))
+          .persist(state.confirmEmail())
           .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
         
       case AddPublicKey(sig, replyTo) =>
@@ -206,7 +202,7 @@ object Enroll {
         }
         
         Effect
-          .persist(PublicKeyAdded(eid, pk.get, sig))
+          .persist(state.addPublicKey(pk.get, sig))
           .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
 
       case CreateUser(replyTo) =>
@@ -222,16 +218,7 @@ object Enroll {
         } 
 
         Effect
-          .persist(UserCreated(eid,user.get.uid))
-          .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
-
-      case Finish(replyTo) =>
-        if (state.isFinished) {
-          replyTo ! StatusReply.Error(s"${eid}: Already finished")
-          return Effect.none
-        } 
-        Effect
-          .persist(Finished(eid, Instant.now()))
+          .persist(state.createUser(user.get.uid))
           .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
       
       case Get(replyTo) =>
@@ -239,7 +226,7 @@ object Enroll {
         Effect.none
     }
 
-  private def finishedEnroll(eid:UUID, state: State, command: Command): Effect[Event, State] =
+  private def finishedEnroll(eid:UUID, state: State, command: Command): Effect[State] =
     command match {
       case Get(replyTo) =>
         replyTo ! state.toSummary
@@ -249,16 +236,16 @@ object Enroll {
         Effect.none
     }
 
-  private def handleEvent(state: State, event: Event) = {
-    event match {
-      case Started(_, xid) => state.addXid(xid)
-      case EmailAdded(_, email,confirmToken) => state.addEmail(email,confirmToken)
-      case EmailConfirmed(_) => state.confirmEmail()
-      case PublicKeyAdded(_, pk, sig) => state.addPublicKey(pk,sig)
-      case UserCreated(_, uid) => state.createUser(uid)
-      case Finished(_, eventTime) => state.finish(eventTime)
+  // private def handleEvent(state: State, event: Event) = {
+  //   event match {
+  //     case Started(_, xid) => state.addXid(xid)
+  //     case EmailAdded(_, email,confirmToken) => state.addEmail(email,confirmToken)
+  //     case EmailConfirmed(_) => state.confirmEmail()
+  //     case PublicKeyAdded(_, pk, sig) => state.addPublicKey(pk,sig)
+  //     case UserCreated(_, uid) => state.createUser(uid)
+  //     case Finished(_, eventTime) => state.finish(eventTime)
 
-      case PhaseUpdated(_, phase) => state.updatePhase(phase)
-    }
-  }
+  //     case PhaseUpdated(_, phase) => state.updatePhase(phase)
+  //   }
+  // }
 }
