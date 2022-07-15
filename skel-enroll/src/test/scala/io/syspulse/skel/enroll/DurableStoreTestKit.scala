@@ -124,6 +124,8 @@ slick {
 }
 """) extends ScalaTestWithActorTestKit(config) {
 
+  def getConfigDurable() = config
+
   val done: Future[Done] = SchemaUtils.createIfNotExists("jdbc-durable-state-store")
 }
 
