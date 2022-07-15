@@ -184,8 +184,8 @@ object Dependencies {
     //val libAkkaPersistQuery = "com.typesafe.akka" %% "akka-persistence-query" % akkaVersion
     val libSlick =            "com.typesafe.slick" %% "slick" % slickVersion
     val libSlickHikari =      "com.typesafe.slick" %% "slick-hikaricp" % slickVersion
-    val libH2 =               "com.h2database" % "h2" % "1.4.200" % Test
-    val libLevelDB =          "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8" % Test
+    val libH2 =               "com.h2database" % "h2" % "1.4.200"                     //% Test
+    val libLevelDB =          "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8"  % Test
 
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)

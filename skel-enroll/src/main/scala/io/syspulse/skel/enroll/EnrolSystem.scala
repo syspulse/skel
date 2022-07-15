@@ -35,6 +35,9 @@ import io.syspulse.skel.enroll.Command
 
 import io.syspulse.skel.enroll.event._
 import com.typesafe.config.ConfigFactory
+import scala.concurrent.Future
+import akka.persistence.jdbc.testkit.scaladsl.SchemaUtils
+import akka.Done
 
 // for tests
 case class User(uid:UUID,email:String)
@@ -57,6 +60,11 @@ class EnrollActorSystem(name:String = "EnrollSystem",enrollType:String = "state"
   implicit val sched = system.scheduler
   implicit val timeout =  Timeout(3.seconds)
 
+  def withAutoTables():EnrollActorSystem = {
+    val done: Future[Done] = SchemaUtils.createIfNotExists("jdbc-durable-state-store")(system)
+    this
+  }
+  
   def start(flow:String,xid:Option[String] = None):UUID = {
     val eid = UUID.random
     system ! EnrollFlow.StartFlow(eid,enrollType,flow,xid,system.ignoreRef)

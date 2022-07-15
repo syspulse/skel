@@ -27,20 +27,20 @@ import io.syspulse.skel.crypto.key.{PK,Signature}
 import io.syspulse.skel.crypto.Eth
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto.SignatureEth
+import scala.concurrent.Future
+import akka.Done
+import akka.persistence.jdbc.testkit.scaladsl.SchemaUtils
 
 object App {
   val log = Logger(s"${this}")  
-  val system: ActorSystem[Command] = ActorSystem(EnrollFlow(), "EnrollSystem")
+  //val system: ActorSystem[Command] = ActorSystem(EnrollFlow(), "EnrollSystem")
 
   def main(args:Array[String]):Unit = {
-    val eid = UUID.random
-    val actor = system ! EnrollFlow.StartFlow(
-      eid,
-      "event",
-      "START,STARTED,EMAIL,CONFIRM_EMAIL,EMAIL_CONFIRMED,CREATE_USER,USER_CREATED,FINISH,FINISHED",
-      None,
-      system.ignoreRef
-    )
+    val eid = EnrollSystem
+      .withAutoTables()
+      .start(
+        "START,STARTED,EMAIL,CONFIRM_EMAIL,EMAIL_CONFIRMED,CREATE_USER,USER_CREATED,FINISH,FINISHED",
+        None)
 
     println(eid)
   } 
