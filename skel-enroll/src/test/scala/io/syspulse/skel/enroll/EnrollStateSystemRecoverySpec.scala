@@ -14,35 +14,6 @@ import io.syspulse.skel.util.Util
 
 import io.syspulse.skel.enroll.state._
 
-// class EnrollStateSystemRecoverySpec extends ScalaTestWithActorTestKit with AnyWordSpecLike {
-
-//   "EnrollStateSystemRecovery" should {
-
-//     // "recover Enroll between systems" in {      
-      
-//     //   val em1 = new EnrollSystem("EM-1")
-//     //   val eid1 = em1.start("START,START_ACK,EMAIL,EMAIL_ACK,CONFIRM_EMAIL,CONFIRM_EMAIL_ACK,CREATE_USER,CREATE_USER_ACK,FINISH,FINISH_ACK",Some("XID-001"))
-//     //   info(s"eid: ${eid1}")
-      
-//     //   Thread.sleep(50)
-//     //   val s1 = em1.summary(eid1)
-//     //   info(s"summary: ${s1}")
-
-//     //   em1.system.terminate()
-//     //   Thread.sleep(150)
-
-//     //   val em2 = new EnrollSystem("EM-1")
-//     //   val s2 = em2.summary(eid1)
-//     //   info(s"summary: ${s2}")
-      
-//     //   Thread.sleep(150)
-//     //   em2.system.terminate()
-
-//     // }    
-//   }
-
-// }
-
 object TestObjects {
   val id1 = UUID.randomUUID()
 }
@@ -64,7 +35,7 @@ class EnrollStateSpec2 extends AnyWordSpecLike {
 
       val id1 = TestObjects.id1
 
-      val e2 = Enroll(id1)      
+      val e2 = EnrollState(id1)      
       val a2 = as.testKit.spawn(e2)
       val probe2 = as.testKit.createTestProbe[Enroll.Summary]
       a2 ! Enroll.Get(probe2.ref)
@@ -79,17 +50,15 @@ class EnrollStateSpec2 extends AnyWordSpecLike {
 
 @DoNotDiscover
 class EnrollStateSpec1 extends AnyWordSpecLike {
-
-
   "Enroll-1" should {
-
+    
 
     "recover state email from same ActorSystem" in {
       val as = new EnrollStateActorSystem
 
       val id1 = TestObjects.id1
 
-      val e1 = Enroll(id1)
+      val e1 = EnrollState(id1)
       val a1 = as.testKit.spawn(e1)
       val probe = as.testKit.createTestProbe[StatusReply[Enroll.Summary]]
       a1 ! Enroll.AddEmail("user-1@email.com", probe.ref)
@@ -102,7 +71,7 @@ class EnrollStateSpec1 extends AnyWordSpecLike {
 
       as.testKit.stop(a1)
 
-      val e2 = Enroll(id1)      
+      val e2 = EnrollState(id1)      
       val a2 = as.testKit.spawn(e2)
       val probe2 = as.testKit.createTestProbe[Enroll.Summary]
       a2 ! Enroll.Get(probe2.ref)

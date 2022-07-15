@@ -57,7 +57,7 @@ class EnrollEventSpec2 extends AnyWordSpecLike {
 
       val id1 = TestsRecovery.id1
 
-      val e2 = Enroll(id1)      
+      val e2 = EnrollEvent(id1)      
       val a2 = as.testKit.spawn(e2)
       val probe2 = as.testKit.createTestProbe[Enroll.Summary]
       a2 ! Enroll.Get(probe2.ref)
@@ -80,7 +80,7 @@ class EnrollEventSpec1 extends AnyWordSpecLike {
 
       val id1 = TestsRecovery.id1
 
-      val e1 = Enroll(id1)      
+      val e1 = EnrollEvent(id1)      
       val a1 = as.testKit.spawn(e1)
       val probe = as.testKit.createTestProbe[StatusReply[Enroll.Summary]]      
       a1 ! Enroll.AddEmail("user-1@email.com", probe.ref)
@@ -93,7 +93,7 @@ class EnrollEventSpec1 extends AnyWordSpecLike {
 
       as.testKit.stop(a1)
 
-      val e2 = Enroll(id1)      
+      val e2 = EnrollEvent(id1)      
       val a2 = as.testKit.spawn(e2)
       val probe2 = as.testKit.createTestProbe[Enroll.Summary]
       a2 ! Enroll.Get(probe2.ref)

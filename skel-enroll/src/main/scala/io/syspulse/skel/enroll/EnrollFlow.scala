@@ -20,7 +20,6 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.RetentionCriteria
 import akka.persistence.typed.scaladsl.Effect
-import akka.persistence.typed.scaladsl.EventSourcedBehavior
 
 import io.jvm.uuid._
 
@@ -35,16 +34,18 @@ import io.syspulse.skel.enroll.Command
 import scala.util.Failure
 import scala.util.Success
 
-import io.syspulse.skel.enroll.event._
+import io.syspulse.skel.enroll._
 
 object EnrollFlow {
   val log = Logger(s"${this}")
 
-  final case class StartFlow(eid:UUID,flow:String,xid:Option[String],replyTo: ActorRef[Command]) extends Command
+  import io.syspulse.skel.enroll.Enroll._
+
+  final case class StartFlow(eid:UUID,enrollType:String,flow:String,xid:Option[String],replyTo: ActorRef[Command]) extends Command
   final case class FindFlow(eid:UUID,replyTo:ActorRef[Option[ActorRef[Command]]]) extends Command
   final case class ConfirmEmail(eid:UUID,code:String) extends Command
   final case class AddEmail(eid:UUID,email:String) extends Command
-  final case class GetSummary(eid:UUID,replyTo:ActorRef[Option[Enroll.Summary]]) extends Command
+  final case class GetSummary(eid:UUID,enrollType:String,replyTo:ActorRef[Option[Enroll.Summary]]) extends Command
 
   def apply(): Behavior[Command] = Behaviors.setup(context => new EnrollFlow(context))
 
@@ -54,10 +55,13 @@ object EnrollFlow {
 
     log.info(s"EnrollFlow started")
 
-    def enroll(eid:UUID,flow:String,xid:Option[String]): Behavior[Command] = Behaviors.setup { ctx =>
-      Enroll(eid,flow) 
+    def enroll(eid:UUID,enrollType:String,flow:String,xid:Option[String]): Behavior[Command] = Behaviors.setup { ctx =>
+      // temporary solution, not type to build Class heirarchy
+      enrollType.toLowerCase() match {
+        case "event" => event.EnrollEvent(eid,flow)
+        case "state" | "" => state.EnrollState(eid,flow)
+      }
     }
-
 
     def enrollListener(enrollActor:ActorRef[Command],eid:UUID,flow:String,xid:Option[String]): Behavior[StatusReply[Enroll.Summary]] = Behaviors.setup { ctx =>
       
@@ -143,10 +147,10 @@ object EnrollFlow {
           replyTo ! enrolls.get(eid)
           this
 
-        case GetSummary(eid,replyTo) => 
+        case GetSummary(eid,enrollType,replyTo) => 
           val enrollActor = enrolls.get(eid)
             .getOrElse({
-              val enrollActor = context.spawn(enroll(eid,"",None),s"Enroll-${eid}")
+              val enrollActor = context.spawn(enroll(eid,enrollType,"",None),s"Enroll-${eid}")
               val listener = context.spawn(enrollListener(enrollActor,eid,"",None),s"Listener-${eid}")
               enrolls = enrolls + (eid -> enrollActor)
               listeners = listeners + (eid -> listener)
@@ -162,8 +166,8 @@ object EnrollFlow {
           
           this
 
-        case StartFlow(eid,flow,xid,replyTo) =>
-          val enrollActor = context.spawn(enroll(eid,flow,xid),s"Enroll-${eid}")
+        case StartFlow(eid,enrollType,flow,xid,replyTo) =>
+          val enrollActor = context.spawn(enroll(eid,enrollType,flow,xid),s"Enroll-${eid}")
           val listener = context.spawn(enrollListener(enrollActor,eid,flow,xid),s"Listener-${eid}")
           enrolls = enrolls + (eid -> enrollActor)
           listeners = listeners + (eid -> listener)

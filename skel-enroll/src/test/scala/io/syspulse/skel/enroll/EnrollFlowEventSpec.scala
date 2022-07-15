@@ -9,7 +9,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto._
-import io.syspulse.skel.enroll.event.Enroll
+//import io.syspulse.skel.enroll.event.Enroll
 
 // ATTENTION: EnrollSystem ignores ScalaTestWithActorTestKit() and reads from project_root/conf/application.conf !
 class EnrollFlowEventSpec extends ScalaTestWithActorTestKit() with AnyWordSpecLike {
@@ -25,10 +25,10 @@ akka.actor.allow-java-serialization = on
 
     "run full flow '1' " in {      
       
-      val es = new EnrollActorSystem("ES-1",Some(config))
+      val es = new EnrollActorSystem("ES-1","event",Some(config))
 
       val eid = es.start(
-        "START,START_ACK,EMAIL,EMAIL_ACK,CONFIRM_EMAIL,CONFIRM_EMAIL_ACK,CREATE_USER,CREATE_USER_ACK,FINISH,FINISH_ACK",
+        "START,START_ACK,EMAIL,EMAIL_ACK,CONFIRM_EMAIL,CONFIRM_EMAIL_ACK,CREATE_USER,CREATE_USER_ACK,FINISH,FINISH_ACK",        
         Some("0x001")
       )
       

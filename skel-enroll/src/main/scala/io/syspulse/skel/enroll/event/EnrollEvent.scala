@@ -32,75 +32,11 @@ import akka.util.Timeout
 import scala.concurrent.Await
 import akka.persistence.typed.RecoveryCompleted
 
+import io.syspulse.skel.enroll.Enroll
 import io.syspulse.skel.enroll._
 
-object Enroll {
-  val log = Logger(s"${this}")
-
-  final case class Summary(
-    eid:UUID, 
-    phase:String = "START", 
-    xid:Option[String] = None,
-    email:Option[String] = None, addr:Option[String] = None, sig:Option[Signature] = None,
-    tsStart:Long = 0L, tsPhase:Long = 0L, 
-    finished: Boolean = false, 
-    confirmToken:Option[String] = None) extends CborSerializable
-
-  final case class State(eid:UUID, flow:Seq[String], phase:String = "START", 
-    xid:Option[String] = None,
-    email:Option[String] = None, 
-    pk:Option[String] = None, sig:Option[String] = None,
-    uid:Option[UUID] = None,
-    tsStart:Long = System.currentTimeMillis, 
-    tsPhase:Long = System.currentTimeMillis,
-    finished:Boolean = false,
-    confirmToken:Option[String] = None,
-    data:Map[String,String] = Map()) extends CborSerializable {
-
-    def isFinished: Boolean = finished
-
-    def nextPhase(phase: String): State = copy(phase = phase)
-
-    def updatePhase(phase:String): State = 
-      copy(phase = phase, tsPhase=System.currentTimeMillis())
-
-    def addXid(xid:String): State = {      
-      copy(phase = "START_ACK", xid = Some(xid),tsPhase=System.currentTimeMillis())
-    }
-    def addEmail(email:String,token:String): State = 
-      copy(phase = "EMAIL_ACK", email = Some(email),tsPhase=System.currentTimeMillis(),confirmToken=Some(token))
-    def confirmEmail(): State = 
-      copy(phase = "CONFIRM_EMAIL_ACK",tsPhase=System.currentTimeMillis(),confirmToken=None)
-    def addPublicKey(pk:PK,sig:SignatureEth): State = 
-      copy(phase = "PK_ACK", pk = Some(Util.hex(pk)), sig = Some(Util.hex(sig.toArray())), tsPhase=System.currentTimeMillis())
-    def createUser(uid:UUID): State = 
-      copy(phase = "CREATE_USER_ACK", uid=Some(uid), tsPhase=System.currentTimeMillis())
-    
-    def finish(now: Instant): State = 
-      copy(phase = "FINISH_ACK", tsPhase=now.getEpochSecond(), finished = true)
-
-    def addData(k: String, v:String): State = copy(data = data + (k -> v))
-    
-    def toSummary: Summary = Summary(eid, phase, xid, email, pk.map(Eth.address(_)), sig, tsStart,tsPhase,finished,confirmToken)
-
-    //def toByteArray() = toString.getBytes()
-  }
-
-  object State {
-    def apply(eid:UUID,flow:String) = new State(eid,flow.split(",").map(_.trim.toUpperCase()))
-  }
-
-
-  final case class Start(eid:UUID,flow:String,xid:String,replyTo: ActorRef[StatusReply[Summary]]) extends Command
-  final case class AddEmail(email: String, replyTo: ActorRef[StatusReply[Summary]]) extends Command
-  final case class ConfirmEmail(token: String, replyTo: ActorRef[StatusReply[Summary]]) extends Command
-  final case class AddPublicKey(sig:SignatureEth, replyTo: ActorRef[StatusReply[Summary]]) extends Command
-  final case class CreateUser(replyTo: ActorRef[StatusReply[Summary]]) extends Command
-  final case class Finish(replyTo: ActorRef[StatusReply[Summary]]) extends Command
-
-  final case class Get(replyTo: ActorRef[Summary]) extends Command
-  final case class UpdatePhase(phase:String,replyTo: ActorRef[StatusReply[Summary]]) extends Command
-
+object EnrollEvent extends Enroll {
+  import io.syspulse.skel.enroll.Enroll._
 
   sealed trait Event extends CborSerializable {
     def eid:UUID
@@ -114,7 +50,7 @@ object Enroll {
   final case class Finished(eid:UUID, eventTime: Instant) extends Event
   final case class PhaseUpdated(eid:UUID, phase: String) extends Event
 
-  def apply(eid:UUID = UUID.random, flow:String = ""): Behavior[Command] =  Behaviors.setup { ctx => {
+  override def apply(eid:UUID = UUID.random, flow:String = ""): Behavior[Command] =  Behaviors.setup { ctx => {
     EventSourcedBehavior[Command, Event, State](
       persistenceId = PersistenceId("Enroll", eid.toString()),
       emptyState = State(eid,flow),
@@ -140,12 +76,6 @@ object Enroll {
       .withRetention(RetentionCriteria.snapshotEvery(numberOfEvents = 100, keepNSnapshots = 3))
       .onPersistFailure(SupervisorStrategy.restartWithBackoff(200.millis, 5.seconds, 0.1))
     }
-  }
-
-  def generateSigData(eid:UUID,email:String):String = {
-    val tsSig = System.currentTimeMillis() / 5000L
-    val data = s"${tsSig},${eid},${email}"
-    data
   }
 
   private def startAutoflowEnroll(eid:UUID, flow:String,state: State, command: Command, ctx:ActorContext[Command]): Effect[Event, State] = {

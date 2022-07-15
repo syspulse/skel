@@ -30,7 +30,7 @@ class EnrollEventSpec extends ScalaTestWithActorTestKit(s"""
 
     "add email " in {
       val id1 = UUID.randomUUID()
-      val e1 = Enroll(id1)
+      val e1 = EnrollEvent(id1)
       val a1 = testKit.spawn(e1)
       val probe = testKit.createTestProbe[StatusReply[Enroll.Summary]]()
       
@@ -44,7 +44,7 @@ class EnrollEventSpec extends ScalaTestWithActorTestKit(s"""
 
     "confirm email" in {
       val id1 = UUID.randomUUID()
-      val e1 = Enroll(id1)
+      val e1 = EnrollEvent(id1)
       val a1 = testKit.spawn(e1)
       val probe = testKit.createTestProbe[StatusReply[Enroll.Summary]]()
       
@@ -62,15 +62,15 @@ class EnrollEventSpec extends ScalaTestWithActorTestKit(s"""
 
     "geneate data for sig with delay" in {
       val id1 = UUID.randomUUID()
-      val d1 = Enroll.generateSigData(id1,"user-1@domain.com")
+      val d1 = EnrollEvent.generateSigData(id1,"user-1@domain.com")
       Thread.sleep(500)
-      val d2 = Enroll.generateSigData(id1,"user-1@domain.com")
+      val d2 = EnrollEvent.generateSigData(id1,"user-1@domain.com")
       d1 === (d2)
     }
 
     "confirm PublicKey" in {
       val id1 = UUID.randomUUID()
-      val e1 = Enroll(id1)
+      val e1 = EnrollEvent(id1)
       val a1 = testKit.spawn(e1)
       val probe = testKit.createTestProbe[StatusReply[Enroll.Summary]]()
 
@@ -80,7 +80,7 @@ class EnrollEventSpec extends ScalaTestWithActorTestKit(s"""
 
       val kk = Eth.generate("0x01").get
       val addr = Eth.address(kk.pk)
-      val d1 = Enroll.generateSigData(id1,"user-1@domain.com")
+      val d1 = EnrollEvent.generateSigData(id1,"user-1@domain.com")
       val sig = Eth.signMetamask(d1,kk)
       a1 ! Enroll.AddPublicKey(sig , probe.ref)
       

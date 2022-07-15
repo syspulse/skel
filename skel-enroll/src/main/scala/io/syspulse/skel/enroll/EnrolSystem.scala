@@ -46,7 +46,7 @@ object UserService {
   }
 }
 
-class EnrollActorSystem(name:String = "EnrollSystem",config:Option[String] = None) {
+class EnrollActorSystem(name:String = "EnrollSystem",enrollType:String = "state", config:Option[String] = None) {
   val log = Logger(s"${this}")
   
   val system: ActorSystem[Command] = if(config.isDefined) 
@@ -59,7 +59,7 @@ class EnrollActorSystem(name:String = "EnrollSystem",config:Option[String] = Non
 
   def start(flow:String,xid:Option[String] = None):UUID = {
     val eid = UUID.random
-    system ! EnrollFlow.StartFlow(eid,flow,xid,system.ignoreRef)
+    system ! EnrollFlow.StartFlow(eid,enrollType,flow,xid,system.ignoreRef)
     eid
   }
 
@@ -78,7 +78,7 @@ class EnrollActorSystem(name:String = "EnrollSystem",config:Option[String] = Non
     
     val summary = Await.result(
       system.ask {
-        ref => EnrollFlow.GetSummary(eid, ref)
+        ref => EnrollFlow.GetSummary(eid, enrollType, ref)
       }, timeout.duration)
 
     log.info(s"summary = ${summary}")
