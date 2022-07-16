@@ -58,10 +58,12 @@ class EnrollActorSystem(name:String = "EnrollSystem",enrollType:String = "state"
     ActorSystem(EnrollFlow(), name)
 
   implicit val sched = system.scheduler
-  implicit val timeout =  Timeout(3.seconds)
+  implicit val timeout = Timeout(3.seconds)
 
   def withAutoTables():EnrollActorSystem = {
     val done: Future[Done] = SchemaUtils.createIfNotExists("jdbc-durable-state-store")(system)
+    val r = Await.result(done,timeout.duration)
+    log.info(s"Auto-Tables: ${r}")
     this
   }
   
@@ -93,7 +95,7 @@ class EnrollActorSystem(name:String = "EnrollSystem",enrollType:String = "state"
     summary
   }
   
-  def sendEmailConfirmation(eid:UUID,confirmCode:String):Unit = {    
+  def confirmEmail(eid:UUID,confirmCode:String):Unit = {    
     system ! EnrollFlow.ConfirmEmail(eid,confirmCode)
   }
 

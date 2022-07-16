@@ -140,23 +140,28 @@ object EnrollFlow {
       }  
     }
 
+    def find(eid:UUID,enrollType:String = "state") = {
+      val enrollActor = enrolls.get(eid)
+        .getOrElse({
+          val enrollActor = context.spawn(enroll(eid,enrollType,"",None),s"Enroll-${eid}")
+          val listener = context.spawn(enrollListener(enrollActor,eid,"",None),s"Listener-${eid}")
+          enrolls = enrolls + (eid -> enrollActor)
+          listeners = listeners + (eid -> listener)
+          enrollActor
+        })
+      enrollActor
+    }
 
     override def onMessage(msg: Command): Behavior[Command] = {
+      log.info(s"<- command: ${msg}")
+
       msg match {
         case FindFlow(eid,replyTo) =>
           replyTo ! enrolls.get(eid)
           this
 
         case GetSummary(eid,enrollType,replyTo) => 
-          val enrollActor = enrolls.get(eid)
-            .getOrElse({
-              val enrollActor = context.spawn(enroll(eid,enrollType,"",None),s"Enroll-${eid}")
-              val listener = context.spawn(enrollListener(enrollActor,eid,"",None),s"Listener-${eid}")
-              enrolls = enrolls + (eid -> enrollActor)
-              listeners = listeners + (eid -> listener)
-              enrollActor
-            })
-
+          val enrollActor = find(eid,enrollType)
           implicit val ec = context.executionContext
           
           enrollActor.ask{ ref =>  Enroll.Get(ref) }(Timeout(1 second),context.system.scheduler).onComplete( f => f match {
@@ -176,18 +181,18 @@ object EnrollFlow {
           enrollActor ! Enroll.Start(eid,flow,xid.getOrElse(""),listener)
           this
 
-        case ConfirmEmail(eid,code) =>     
-          val enrollActor = enrolls.get(eid)
+        case AddEmail(eid,email) =>     
+          val enrollActor = find(eid)
           val listenerActor = listeners.get((eid))
           
-          enrollActor.map(a => a ! Enroll.ConfirmEmail(code,listenerActor.get))
+          enrollActor ! Enroll.AddEmail(email,listenerActor.get)
           this
 
-        case AddEmail(eid,email) =>     
-          val enrollActor = enrolls.get(eid)
+        case ConfirmEmail(eid,code) =>     
+          val enrollActor = find(eid)
           val listenerActor = listeners.get((eid))
           
-          enrollActor.map(a => a ! Enroll.AddEmail(email,listenerActor.get))
+          enrollActor ! Enroll.ConfirmEmail(code,listenerActor.get)
           this
 
         case _ =>

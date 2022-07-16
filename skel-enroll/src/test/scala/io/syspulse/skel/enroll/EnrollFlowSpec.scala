@@ -30,7 +30,7 @@ akka.actor.allow-java-serialization = on
       val es = new EnrollActorSystem("ES-Event-1","event",Some(configEvents))
 
       val eid = es.start(
-        "START,START_ACK,EMAIL,EMAIL_ACK,CONFIRM_EMAIL,CONFIRM_EMAIL_ACK,CREATE_USER,CREATE_USER_ACK,FINISH,FINISH_ACK",        
+        "START,START_ACK,EMAIL,EMAIL_ACK,CONFIRM_EMAIL,CONFIRM_EMAIL_ACK,CREATE_USER,CREATE_USER_ACK,FINISH,FINISH_ACK",
         Some("0x001")
       )
       
@@ -57,7 +57,7 @@ akka.actor.allow-java-serialization = on
       s3.get.confirmToken should !== (None)
 
       val confirmToken = s3.get.confirmToken.get
-      es.sendEmailConfirmation(eid,confirmToken)
+      es.confirmEmail(eid,confirmToken)
       
       Thread.sleep(250)
 
@@ -99,7 +99,7 @@ akka.actor.allow-java-serialization = on
       s3.get.confirmToken should !== (None)
 
       val confirmToken = s3.get.confirmToken.get
-      es.sendEmailConfirmation(eid,confirmToken)
+      es.confirmEmail(eid,confirmToken)
       
       Thread.sleep(250)
 
