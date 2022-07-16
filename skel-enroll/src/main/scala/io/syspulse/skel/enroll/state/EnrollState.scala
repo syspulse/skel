@@ -78,6 +78,11 @@ object EnrollState extends Enroll {
           .persist(state.addXid(xid))
           .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
 
+      case Continue(replyTo) =>
+        log.info(s"${eid}: Continue...")
+        replyTo ! StatusReply.Success(state.toSummary)
+        return Effect.none
+
       case Finish(replyTo) =>
         if (state.isFinished) {
           replyTo ! StatusReply.Error(s"${eid}: Already finished")
@@ -150,6 +155,10 @@ object EnrollState extends Enroll {
       case Get(replyTo) =>
         replyTo ! state.toSummary
         Effect.none
+
+      case Info(replyTo) =>
+        replyTo ! state
+        Effect.none
     }
 
   private def finishedEnroll(eid:UUID, state: State, command: Command): Effect[State] =
@@ -157,8 +166,11 @@ object EnrollState extends Enroll {
       case Get(replyTo) =>
         replyTo ! state.toSummary
         Effect.none
+      case Info(replyTo) =>
+        replyTo ! state
+        Effect.none
       case cmd:Command =>
-        print(s"${eid}: already finished")
+        print(s"${eid}: already finished: no more commands accepted")
         Effect.none
     }
 

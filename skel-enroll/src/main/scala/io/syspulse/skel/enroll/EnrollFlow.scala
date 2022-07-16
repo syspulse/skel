@@ -42,6 +42,7 @@ object EnrollFlow {
   import io.syspulse.skel.enroll.Enroll._
 
   final case class StartFlow(eid:UUID,enrollType:String,flow:String,xid:Option[String],replyTo: ActorRef[Command]) extends Command
+  final case class ContinueFlow(eid:UUID) extends Command
   final case class FindFlow(eid:UUID,replyTo:ActorRef[Option[ActorRef[Command]]]) extends Command
   final case class ConfirmEmail(eid:UUID,code:String) extends Command
   final case class AddEmail(eid:UUID,email:String) extends Command
@@ -63,9 +64,16 @@ object EnrollFlow {
       }
     }
 
-    def enrollListener(enrollActor:ActorRef[Command],eid:UUID,flow:String,xid:Option[String]): Behavior[StatusReply[Enroll.Summary]] = Behaviors.setup { ctx =>
+    def enrollListener(enrollActor:ActorRef[Command],eidStart:UUID,flowStart:String,xid:Option[String]): Behavior[StatusReply[Enroll.Summary]] = Behaviors.setup { ctx =>
+      val timeout = Timeout(1 second)
       
-      def nextPhase(flow:String,phase:String, summary: Option[Enroll.Summary]=None):(String,Option[Command]) = {
+      // get recoverted flow state 
+      val f = enrollActor.ask{ ref =>  Enroll.Info(ref) }(timeout,ctx.system.scheduler)
+      val r = Await.result(f,timeout.duration)
+      val flow = if(flowStart.isEmpty()) r.flow.mkString(",") else flowStart
+      val eid = eidStart
+
+      def nextPhase(flow:String, phase:String, summary: Option[Enroll.Summary]=None):(String,Option[Command]) = {
         val phases = flow.split(",").map(_.toUpperCase())
         val next = phases.dropWhile(_ != phase).drop(1).headOption.getOrElse("")
         
@@ -160,7 +168,7 @@ object EnrollFlow {
           replyTo ! enrolls.get(eid)
           this
 
-        case GetSummary(eid,enrollType,replyTo) => 
+        case GetSummary(eid,enrollType,replyTo) =>
           val enrollActor = find(eid,enrollType)
           implicit val ec = context.executionContext
           
@@ -179,6 +187,12 @@ object EnrollFlow {
 
           log.info(s"enrollActor=${enrollActor}")          
           enrollActor ! Enroll.Start(eid,flow,xid.getOrElse(""),listener)
+          this
+
+        case ContinueFlow(eid) =>
+          val enrollActor = find(eid)
+          val listenerActor = listeners.get((eid))          
+          enrollActor ! Enroll.Continue(listenerActor.get)
           this
 
         case AddEmail(eid,email) =>     

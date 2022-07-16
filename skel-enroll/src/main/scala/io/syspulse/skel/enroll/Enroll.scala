@@ -89,10 +89,14 @@ object Enroll {
   final case class ConfirmEmail(token: String, replyTo: ActorRef[StatusReply[Summary]]) extends Command
   final case class AddPublicKey(sig:SignatureEth, replyTo: ActorRef[StatusReply[Summary]]) extends Command
   final case class CreateUser(replyTo: ActorRef[StatusReply[Summary]]) extends Command
+
+  final case class Continue(replyTo: ActorRef[StatusReply[Summary]]) extends Command
   final case class Finish(replyTo: ActorRef[StatusReply[Summary]]) extends Command
 
   final case class Get(replyTo: ActorRef[Summary]) extends Command
   final case class UpdatePhase(phase:String,replyTo: ActorRef[StatusReply[Summary]]) extends Command
+
+  final case class Info(replyTo: ActorRef[State]) extends Command
 }
 
 abstract class Enroll {

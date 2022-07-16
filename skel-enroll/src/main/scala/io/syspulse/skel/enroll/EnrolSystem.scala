@@ -73,6 +73,11 @@ class EnrollActorSystem(name:String = "EnrollSystem",enrollType:String = "state"
     eid
   }
 
+  def continue(eid:UUID):UUID = {
+    system ! EnrollFlow.ContinueFlow(eid)
+    eid
+  }
+
   def findEnroll(eid:UUID):Option[ActorRef[Command]] = {
     
     val enrollActor = Await.result(

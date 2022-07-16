@@ -32,6 +32,10 @@ object App {
         val s = EnrollSystem.summary(UUID(eid))
         println(s"summary: ${eid}: ${s}")
 
+      case "continue" :: eid :: Nil => 
+        val s = EnrollSystem.continue(UUID(eid))
+        println(s"summary: ${eid}: ${s}")
+
       case _ => 
         val eid = EnrollSystem
           .withAutoTables()
