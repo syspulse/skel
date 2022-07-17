@@ -24,6 +24,7 @@ Skeletons for RnD Prototypes
 20. [skel-video](skel-video) - Movie Metadata processors
 21. [skel-stream](skel-stream) - Akka Steams 
 22. [skel-pdf](skel-pdf) - PDF Utils
+23. [skel-enroll](skel-enroll) - Registration Flow
 
 ----
 ## Build & Run
@@ -41,6 +42,7 @@ Go to [https://github.com/syspulse/skel-demo](https://github.com/syspulse/skel-d
 ----
 ## Libraries and Credits
 
+0. Akka: [https://akka.io/](https://akka.io/)
 1. HTTP: Akka-HTTP [https://doc.akka.io/docs/akka-http/current/index.html](https://doc.akka.io/docs/akka-http/current/index.html)
 2. Metrics (Dropwizard): [https://github.com/erikvanoosten/metrics-scala](https://github.com/erikvanoosten/metrics-scala)
 3. Metrics (Prometheus): [https://github.com/RustedBones/akka-http-metrics](https://github.com/RustedBones/akka-http-metrics)
