@@ -31,6 +31,7 @@ object App {
       case eid :: Nil => 
         val s = EnrollSystem.summary(UUID(eid))
         println(s"summary: ${eid}: ${s}")
+        System.exit(0)
 
       case "continue" :: eid :: Nil => 
         val s = EnrollSystem.continue(UUID(eid))
