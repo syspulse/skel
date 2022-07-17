@@ -12,6 +12,4 @@ final case class UserRandomReq()
 
 final case class UserActionRes(status: String,id:Option[UUID])
 
-final case class UserRes(otp: Option[User])
-
-
+final case class UserRes(user: Option[User])

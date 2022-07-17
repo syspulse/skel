@@ -31,23 +31,12 @@ import io.syspulse.skel.crypto.SignatureEth
 import akka.util.Timeout
 import scala.concurrent.Await
 
-import io.syspulse.skel.enroll.Command
+import io.syspulse.skel.enroll.flow._
 
-import io.syspulse.skel.enroll.event._
 import com.typesafe.config.ConfigFactory
 import scala.concurrent.Future
 import akka.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import akka.Done
-
-// for tests
-case class User(uid:UUID,email:String)
-object UserService {
-  def findByEmail(email:String):Option[User] = None
-
-  def create(email:String):Option[User] = {
-    Some(User(UUID.random,email))
-  }
-}
 
 class EnrollActorSystem(name:String = "EnrollSystem",enrollType:String = "state", config:Option[String] = None) {
   val log = Logger(s"${this}")
@@ -89,15 +78,16 @@ class EnrollActorSystem(name:String = "EnrollSystem",enrollType:String = "state"
     enrollActor
   }
 
-  def summary(eid:UUID):Option[Enroll.Summary] = {
-    
-    val summary = Await.result(
-      system.ask {
-        ref => EnrollFlow.GetSummary(eid, enrollType, ref)
-      }, timeout.duration)
-
+  def summary(eid:UUID):Option[Enrollment.Summary] = {    
+    val summary = Await.result(summaryFuture(eid), timeout.duration)
     log.info(s"summary = ${summary}")
     summary
+  }
+
+  def summaryFuture(eid:UUID):Future[Option[Enrollment.Summary]] = {    
+    system.ask {
+      ref => EnrollFlow.GetSummary(eid, enrollType, ref)
+    }
   }
   
   def confirmEmail(eid:UUID,confirmCode:String):Unit = {    

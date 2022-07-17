@@ -1,4 +1,4 @@
-package io.syspulse.skel.enroll
+package io.syspulse.skel.enroll.flow
 
 import java.time.Instant
 import scala.util.Random
@@ -30,29 +30,29 @@ import io.syspulse.skel.crypto.SignatureEth
 import akka.util.Timeout
 import scala.concurrent.Await
 
-import io.syspulse.skel.enroll.Command
+import io.syspulse.skel.enroll.flow.Command
 import scala.util.Failure
 import scala.util.Success
 
-import io.syspulse.skel.enroll._
+import io.syspulse.skel.enroll.flow._
 
 object EnrollFlow {
   val log = Logger(s"${this}")
 
-  import io.syspulse.skel.enroll.Enroll._
+  import io.syspulse.skel.enroll.flow.Enrollment._
 
   final case class StartFlow(eid:UUID,enrollType:String,flow:String,xid:Option[String],replyTo: ActorRef[Command]) extends Command
   final case class ContinueFlow(eid:UUID) extends Command
   final case class FindFlow(eid:UUID,replyTo:ActorRef[Option[ActorRef[Command]]]) extends Command
   final case class ConfirmEmail(eid:UUID,code:String) extends Command
   final case class AddEmail(eid:UUID,email:String) extends Command
-  final case class GetSummary(eid:UUID,enrollType:String,replyTo:ActorRef[Option[Enroll.Summary]]) extends Command
+  final case class GetSummary(eid:UUID,enrollType:String,replyTo:ActorRef[Option[Enrollment.Summary]]) extends Command
 
   def apply(): Behavior[Command] = Behaviors.setup(context => new EnrollFlow(context))
 
   class EnrollFlow(context: ActorContext[Command]) extends AbstractBehavior[Command](context) {  
     var enrolls: Map[UUID,ActorRef[Command]] = Map()
-    var listeners: Map[UUID,ActorRef[StatusReply[Enroll.Summary]]] = Map()
+    var listeners: Map[UUID,ActorRef[StatusReply[Enrollment.Summary]]] = Map()
 
     log.info(s"EnrollFlow started")
 
@@ -64,47 +64,47 @@ object EnrollFlow {
       }
     }
 
-    def enrollListener(enrollActor:ActorRef[Command],eidStart:UUID,flowStart:String,xid:Option[String]): Behavior[StatusReply[Enroll.Summary]] = Behaviors.setup { ctx =>
+    def enrollListener(enrollActor:ActorRef[Command],eidStart:UUID,flowStart:String,xid:Option[String]): Behavior[StatusReply[Enrollment.Summary]] = Behaviors.setup { ctx =>
       val timeout = Timeout(1 second)
       
       // get recoverted flow state 
-      val f = enrollActor.ask{ ref =>  Enroll.Info(ref) }(timeout,ctx.system.scheduler)
+      val f = enrollActor.ask{ ref =>  Enrollment.Info(ref) }(timeout,ctx.system.scheduler)
       val r = Await.result(f,timeout.duration)
       val flow = if(flowStart.isEmpty()) r.flow.mkString(",") else flowStart
       val eid = eidStart
 
-      def nextPhase(flow:String, phase:String, summary: Option[Enroll.Summary]=None):(String,Option[Command]) = {
+      def nextPhase(flow:String, phase:String, summary: Option[Enrollment.Summary]=None):(String,Option[Command]) = {
         val phases = flow.split(",").map(_.toUpperCase())
         val next = phases.dropWhile(_ != phase).drop(1).headOption.getOrElse("")
         
         log.info(s"phase=${phase}, next=${next}")
         Option(phase) match {
-          case Some("START") => (phase,Some(Enroll.Start(eid,flow,xid.getOrElse(""),ctx.self)))
+          case Some("START") => (phase,Some(Enrollment.Start(eid,flow,xid.getOrElse(""),ctx.self)))
           
           case Some("START_ACK") => nextPhase(flow,next,summary)
                   
-          case Some("EMAIL") => //Some(Enroll.AddEmail("email@",ctx.self))
+          case Some("EMAIL") => //Some(Enrollment.AddEmail("email@",ctx.self))
             log.info(s"Waiting for user email: email=${summary.get.email}")
-            enrollActor ! Enroll.UpdatePhase("EMAIL",ctx.self)
+            enrollActor ! Enrollment.UpdatePhase("EMAIL",ctx.self)
             (phase,None)
 
           case Some("EMAIL_ACK") => nextPhase(flow,next,summary)
             
-          case Some("CONFIRM_EMAIL") =>  //Some(Enroll.ConfirmEmail(token.get, ctx.self))
+          case Some("CONFIRM_EMAIL") =>  //Some(Enrollment.ConfirmEmail(token.get, ctx.self))
             log.info(s"Waiting for user to confirm email: ${summary.get.email}: token=${summary.get.confirmToken}")
-            enrollActor ! Enroll.UpdatePhase("CONFIRM_EMAIL",ctx.self)
+            enrollActor ! Enrollment.UpdatePhase("CONFIRM_EMAIL",ctx.self)
             (phase,None)
 
           case Some("CONFIRM_EMAIL_ACK") => nextPhase(flow,next,summary)
 
           case Some("CREATE_USER") => 
-            (phase,Some(Enroll.CreateUser(ctx.self)))
+            (phase,Some(Enrollment.CreateUser(ctx.self)))
 
           case Some("CREATE_USER_ACK") => nextPhase(flow ,next,summary)
 
           case Some("FINISH") =>
             log.info(s"Finishing: ${summary.get.eid}")
-            (phase,Some(Enroll.Finish(ctx.self)))
+            (phase,Some(Enrollment.Finish(ctx.self)))
             
           case Some("") | Some("FINISH_ACK") =>
             log.warn(s"Finished: ${summary.get.eid}")
@@ -122,7 +122,7 @@ object EnrollFlow {
         msg match {
           case StatusReply.Success(s) => {                
             // WTF ?!
-            val summary = s.asInstanceOf[Enroll.Summary]
+            val summary = s.asInstanceOf[Enrollment.Summary]
             val phase0 = summary.phase
             log.info(s"phase0=${phase0}: summary=${s}")
             
@@ -172,7 +172,7 @@ object EnrollFlow {
           val enrollActor = find(eid,enrollType)
           implicit val ec = context.executionContext
           
-          enrollActor.ask{ ref =>  Enroll.Get(ref) }(Timeout(1 second),context.system.scheduler).onComplete( f => f match {
+          enrollActor.ask{ ref =>  Enrollment.Get(ref) }(Timeout(1 second),context.system.scheduler).onComplete( f => f match {
               case Failure(e) => replyTo ! None
               case Success(summary) => replyTo ! Some(summary)
           })
@@ -186,27 +186,27 @@ object EnrollFlow {
           listeners = listeners + (eid -> listener)
 
           log.info(s"enrollActor=${enrollActor}")          
-          enrollActor ! Enroll.Start(eid,flow,xid.getOrElse(""),listener)
+          enrollActor ! Enrollment.Start(eid,flow,xid.getOrElse(""),listener)
           this
 
         case ContinueFlow(eid) =>
           val enrollActor = find(eid)
           val listenerActor = listeners.get((eid))          
-          enrollActor ! Enroll.Continue(listenerActor.get)
+          enrollActor ! Enrollment.Continue(listenerActor.get)
           this
 
         case AddEmail(eid,email) =>     
           val enrollActor = find(eid)
           val listenerActor = listeners.get((eid))
           
-          enrollActor ! Enroll.AddEmail(email,listenerActor.get)
+          enrollActor ! Enrollment.AddEmail(email,listenerActor.get)
           this
 
         case ConfirmEmail(eid,code) =>     
           val enrollActor = find(eid)
           val listenerActor = listeners.get((eid))
           
-          enrollActor ! Enroll.ConfirmEmail(code,listenerActor.get)
+          enrollActor ! Enrollment.ConfirmEmail(code,listenerActor.get)
           this
 
         case _ =>

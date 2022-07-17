@@ -1,4 +1,4 @@
-package io.syspulse.skel.enroll.state
+package io.syspulse.skel.enroll.flow.state
 
 import java.time.Instant
 import scala.util.Random
@@ -39,11 +39,12 @@ import io.syspulse.skel.crypto.SignatureEth
 import akka.util.Timeout
 import scala.concurrent.Await
 
-import io.syspulse.skel.enroll.Enroll
-import io.syspulse.skel.enroll._
+import io.syspulse.skel.enroll.flow.Enrollment
+import io.syspulse.skel.enroll.flow._
+import io.syspulse.skel.user.UserService
 
-object EnrollState extends Enroll {
-  import io.syspulse.skel.enroll.Enroll._
+object EnrollState extends Enrollment {
+  import io.syspulse.skel.enroll.flow.Enrollment._
   
   override def apply(eid:UUID = UUID.random, flow:String = ""): Behavior[Command] =  Behaviors.setup { ctx => {
     DurableStateBehavior[Command, State](
@@ -76,7 +77,7 @@ object EnrollState extends Enroll {
       case Start(eid,flow,xid,replyTo) => 
         Effect
           .persist(state.addXid(xid))
-          .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+          .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
 
       case Continue(replyTo) =>
         log.info(s"${eid}: Continue...")
@@ -90,12 +91,12 @@ object EnrollState extends Enroll {
         } 
         Effect
           .persist(state.finish(Instant.now()))
-          .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+          .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
 
       case UpdatePhase(phase, replyTo) =>
         Effect
           .persist(state.updatePhase(phase))
-          //.thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+          //.thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
 
       case AddEmail(email, replyTo) =>
         if (email.isEmpty() || !email.contains('@')) {
@@ -107,7 +108,7 @@ object EnrollState extends Enroll {
 
         Effect
           .persist(state.addEmail(email,token))
-          .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+          .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
         
       case ConfirmEmail(token, replyTo) =>
         if (token.isEmpty() || Some(token) != state.confirmToken) {
@@ -116,7 +117,7 @@ object EnrollState extends Enroll {
         } 
         Effect
           .persist(state.confirmEmail())
-          .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+          .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
         
       case AddPublicKey(sig, replyTo) =>
         if (!sig.isValid()) {
@@ -134,7 +135,7 @@ object EnrollState extends Enroll {
         
         Effect
           .persist(state.addPublicKey(pk.get, sig))
-          .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+          .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
 
       case CreateUser(replyTo) =>
         // if(state.phase != "PK_ACK") {
@@ -142,15 +143,15 @@ object EnrollState extends Enroll {
         //   return Effect.none
         // } 
         
-        val user = UserService.create(state.email.get)
+        val user = UserService.create(state.email.get,"",state.xid.getOrElse(""))
         if(!user.isDefined) {
           replyTo ! StatusReply.Error(s"${eid}: could not create user")
           return Effect.none
         } 
 
         Effect
-          .persist(state.createUser(user.get.uid))
-          .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+          .persist(state.createUser(user.get.id))
+          .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
       
       case Get(replyTo) =>
         replyTo ! state.toSummary

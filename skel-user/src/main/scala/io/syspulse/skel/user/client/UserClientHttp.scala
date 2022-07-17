@@ -35,17 +35,17 @@ import io.syspulse.skel.user.UserJson
 import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.http.scaladsl.settings.ClientConnectionSettings
 
-class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext) extends ClientHttp[UserClientHttp](uri)(as,ec) {
+class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext) extends ClientHttp[UserClientHttp](uri)(as,ec) with UserService {
   
   import UserJson._
   import spray.json._
   
   def reqGetUser(id:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/${id}")
-  def reqGetUserByEid(eid:String) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/eid/${eid}")
+  def reqGetUserByEid(xid:String) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/xid/${xid}")
   def reqGetUsers() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}")
-  def reqPostUser(email:String,name:String,eid:String) =  HttpRequest(method = HttpMethods.POST, uri = s"${uri}",
+  def reqPostUser(email:String,name:String,xid:String) =  HttpRequest(method = HttpMethods.POST, uri = s"${uri}",
         entity = HttpEntity(ContentTypes.`application/json`, 
-          UserCreateReq(email,name,eid).toJson.toString)
+          UserCreateReq(email,name,xid).toJson.toString)
       )
   def reqDeleteUser(id:UUID) = HttpRequest(method = HttpMethods.DELETE, uri = s"${uri}/${id}")
 
@@ -57,11 +57,11 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
     } yield r 
   }
 
-  def create(email:String,name:String,eid:String):Future[User] = {
-    log.info(s"-> ${reqPostUser(email,name,eid)}")
+  def create(email:String,name:String,xid:String):Future[Option[User]] = {
+    log.info(s"-> ${reqPostUser(email,name,xid)}")
     for {
-      rsp <- Http().singleRequest(reqPostUser(email,name,eid))
-      r <- Unmarshal(rsp).to[User]
+      rsp <- Http().singleRequest(reqPostUser(email,name,xid))
+      r <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[User]] else Future(None)
     } yield r
   }
 
@@ -73,25 +73,25 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
     } yield user 
   }
 
-  def getByEid(eid:String):Future[Option[User]] = {
-    log.info(s"${eid} -> ${reqGetUserByEid(eid)}")    
+  def getByEid(xid:String):Future[Option[User]] = {
+    log.info(s"${xid} -> ${reqGetUserByEid(xid)}")    
     for {
-      rsp <- Http().singleRequest(reqGetUserByEid(eid))        
+      rsp <- Http().singleRequest(reqGetUserByEid(xid))        
       user <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[User]] else Future(None)
     } yield user
   }
 
-  def getByEidAlways(eid:String):Future[Option[User]] = {
-    log.info(s"${eid} -> ${reqGetUserByEid(eid)}")    
+  def getByEidAlways(xid:String):Future[Option[User]] = {
+    log.info(s"${xid} -> ${reqGetUserByEid(xid)}")    
     
     for {
-      rsp <- Http().singleRequest(reqGetUserByEid(eid),
+      rsp <- Http().singleRequest(reqGetUserByEid(xid),
                                   settings = ConnectionPoolSettings(UserClientHttp.system)
                                     .withConnectionSettings(ClientConnectionSettings(UserClientHttp.system)
                                     .withConnectingTimeout(FiniteDuration(3,"seconds"))))
       .transform {
         case Failure(e) => {
-          log.error(s"Failed to call -> ${reqGetUserByEid(eid)}: ${e.getMessage()}")
+          log.error(s"Failed to call -> ${reqGetUserByEid(xid)}: ${e.getMessage()}")
           Try(HttpResponse(StatusCodes.InternalServerError))
         }
         case Success(r) => {
@@ -100,6 +100,10 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
       }
       user <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[User]] else Future(None)
     } yield user
+  }
+
+  def findByEmail(email:String):Future[Option[User]] = {
+    Future.failed(new NotImplementedError(s""))
   }
 
   def all():Future[Users] = {

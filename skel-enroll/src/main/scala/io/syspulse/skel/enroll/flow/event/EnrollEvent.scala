@@ -1,4 +1,4 @@
-package io.syspulse.skel.enroll.event
+package io.syspulse.skel.enroll.flow.event
 
 import java.time.Instant
 import scala.util.Random
@@ -32,11 +32,12 @@ import akka.util.Timeout
 import scala.concurrent.Await
 import akka.persistence.typed.RecoveryCompleted
 
-import io.syspulse.skel.enroll.Enroll
-import io.syspulse.skel.enroll._
+import io.syspulse.skel.enroll.flow.Enrollment
+import io.syspulse.skel.enroll.flow._
+import io.syspulse.skel.user.UserService
 
-object EnrollEvent extends Enroll {
-  import io.syspulse.skel.enroll.Enroll._
+object EnrollEvent extends Enrollment {
+  import io.syspulse.skel.enroll.flow.Enrollment._
 
   sealed trait Event extends CborSerializable {
     def eid:UUID
@@ -87,17 +88,17 @@ object EnrollEvent extends Enroll {
       case Start(eid,flow,xid,replyTo) => 
         Effect
           .persist(Started(eid,xid))
-          .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+          .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
 
       case Finish(replyTo) => 
         Effect
           .persist(Finished(eid,Instant.now()))
-          .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+          .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
 
       case UpdatePhase(phase, replyTo) =>
         Effect
           .persist(PhaseUpdated(eid, phase))
-          //.thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+          //.thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
 
       case AddEmail(email, replyTo) =>
         if (email.isEmpty() || !email.contains('@')) {
@@ -109,7 +110,7 @@ object EnrollEvent extends Enroll {
 
         Effect
           .persist(EmailAdded(eid, email, token))
-          .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+          .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
         
       case ConfirmEmail(token, replyTo) =>
         if (token.isEmpty() || Some(token) != state.confirmToken) {
@@ -118,7 +119,7 @@ object EnrollEvent extends Enroll {
         } 
         Effect
           .persist(EmailConfirmed(eid))
-          .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+          .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
         
       case AddPublicKey(sig, replyTo) =>
         if (!sig.isValid()) {
@@ -136,7 +137,7 @@ object EnrollEvent extends Enroll {
         
         Effect
           .persist(PublicKeyAdded(eid, pk.get, sig))
-          .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+          .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
 
       case CreateUser(replyTo) =>
         // if(state.phase != "PK_ACK") {
@@ -144,15 +145,15 @@ object EnrollEvent extends Enroll {
         //   return Effect.none
         // } 
         
-        val user = UserService.create(state.email.get)
+        val user = UserService.create(state.email.get,"",state.xid.getOrElse(""))
         if(!user.isDefined) {
           replyTo ! StatusReply.Error(s"${eid}: could not create user")
           return Effect.none
         } 
 
         Effect
-          .persist(UserCreated(eid,user.get.uid))
-          .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+          .persist(UserCreated(eid,user.get.id))
+          .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
 
       case Finish(replyTo) =>
         if (state.isFinished) {
@@ -161,7 +162,7 @@ object EnrollEvent extends Enroll {
         } 
         Effect
           .persist(Finished(eid, Instant.now()))
-          .thenRun(updatedEnroll => replyTo ! StatusReply.Success(updatedEnroll.toSummary))
+          .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
       
       case Get(replyTo) =>
         replyTo ! state.toSummary
