@@ -106,7 +106,7 @@ object EnrollFlow {
             log.info(s"Finishing: ${summary.get.eid}")
             (phase,Some(Enroll.Finish(ctx.self)))
             
-          case Some("") =>
+          case Some("") | Some("FINISH_ACK") =>
             log.warn(s"Finished: ${summary.get.eid}")
             (phase,None)
 
