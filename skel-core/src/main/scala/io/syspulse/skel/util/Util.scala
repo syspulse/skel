@@ -21,6 +21,11 @@ import java.util.Base64
 
 import scodec.bits.ByteVector
 
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.io.FileReader
+import scala.util.Success
+
 object Util {
   
   implicit class HexStringInterpolator(val sc: StringContext) extends AnyVal {
@@ -178,5 +183,17 @@ object Util {
 
   val NOBODY = UUID("00000000-0000-0000-0000-000000000000")
   val GOD =    UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
+
+  import scala.util.Using
+  def loadFile(path:String):scala.util.Try[String] = {
+    if(path.trim.startsWith("classpath:")) {
+      Using( new BufferedReader(new InputStreamReader(this.getClass().getResourceAsStream(path.stripPrefix("classpath:"))))) { reader => 
+        reader.lines().toArray.mkString(System.lineSeparator())
+      }
+    } else
+    {
+      Success(os.read(os.Path(path,os.pwd)))
+    }
+  }
 }
 

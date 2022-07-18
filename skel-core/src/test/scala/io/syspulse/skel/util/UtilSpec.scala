@@ -8,6 +8,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import java.time._
 import io.jvm.uuid._
 import io.syspulse.skel.util.Util
+import scala.util.Success
 
 case class DataUnit(v:Double,unit:String)
 case class Data(ts:Long,v:DataUnit)
@@ -103,6 +104,19 @@ class UtilSpec extends AnyWordSpec with Matchers {
       bb.size should === (43)
     }
 
+    "load file from classpath:/resource-1.conf" in {
+      val txt = Util.loadFile("classpath:/resource-1.conf")
+      
+      txt should === (Success("data"))
+      txt.get.size should === (4)
+    }
+
+    "load file from conf/resource-2.conf (in project root ./conf/)" in {
+      val txt = Util.loadFile("conf/resource-2.conf")
+      
+      txt should === (Success("data2"))
+      txt.get.size should === (5)
+    }
     
   }
 }

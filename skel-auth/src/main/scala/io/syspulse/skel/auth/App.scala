@@ -4,7 +4,9 @@ import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
-import io.syspulse.skel.user._
+import io.syspulse.skel.user.server.UserRoutes
+import io.syspulse.skel.user.store._
+
 import io.syspulse.skel.auth.{AuthRegistry,AuthRoutes}
 import io.syspulse.skel.auth.jwt.AuthJwt
 

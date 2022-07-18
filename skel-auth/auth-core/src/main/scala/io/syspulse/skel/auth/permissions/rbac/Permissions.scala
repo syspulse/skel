@@ -5,11 +5,21 @@ import io.jvm.uuid._
 import io.syspulse.skel.util.Util
 import org.casbin.jcasbin.main.Enforcer
 import io.syspulse.skel.auth.Authenticated
+import org.casbin.jcasbin.model.Model
+import org.casbin.jcasbin.persist.file_adapter.FileAdapter
+import java.io.InputStream
+import java.io.ByteArrayInputStream
+import java.nio.charset.StandardCharsets
 
 class Permissions(modelFile:String,policyFile:String) {
   val log = Logger(s"${this}")
 
-  val enforcer = new Enforcer(modelFile, policyFile);
+  log.info(s"model=${modelFile}, policy=${policyFile}")
+  val enforcer = //new Enforcer(modelFile, policyFile);
+    new Enforcer(
+      {val m = new Model(); m.loadModelFromText(Util.loadFile(modelFile).toOption.getOrElse("")); m}, 
+      new FileAdapter(new ByteArrayInputStream(Util.loadFile(policyFile).toOption.getOrElse("").getBytes(StandardCharsets.UTF_8)))
+    )
   
   def isAdmin(uid:Option[UUID]):Boolean = {
     log.info(s"god=${Permissions.isGod}: uid=${uid}")
@@ -44,7 +54,9 @@ object Permissions {
 
   def apply(modelFile:String,policyFile:String):Permissions = new Permissions(modelFile,policyFile)
 
-  def apply():Permissions = new Permissions("conf/permissions-model-rbac.conf","conf/permissions-policy-rbac.csv")
+  def apply():Permissions = 
+    new Permissions("classpath:/default-permissions-model-rbac.conf","classpath:/default-permissions-policy-rbac.csv")
+    //new Permissions("conf/permissions-model-rbac.conf","conf/permissions-policy-rbac.csv")
 
   def isAdmin(authn:Authenticated)(implicit permissions:Permissions):Boolean = {
     val uid = authn.getUser
