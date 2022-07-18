@@ -1,4 +1,4 @@
-package io.syspulse.skel.user
+package io.syspulse.skel.user.store
 
 import scala.util.Try
 import scala.util.{Success,Failure}
@@ -10,6 +10,8 @@ import akka.actor.typed.scaladsl.Behaviors
 import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
+
+import io.syspulse.skel.user._
 
 class UserStoreMem extends UserStore {
   val log = Logger(s"${this}")

@@ -10,6 +10,8 @@ import io.syspulse.skel.config._
 
 import io.syspulse.skel.user._
 import io.syspulse.skel.user.client._
+import io.syspulse.skel.user.store._
+import io.syspulse.skel.user.server.UserRoutes
 
 import io.jvm.uuid._
 

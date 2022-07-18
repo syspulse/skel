@@ -1,4 +1,4 @@
-package io.syspulse.skel.user
+package io.syspulse.skel.user.store
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
@@ -9,6 +9,8 @@ import com.typesafe.scalalogging.Logger
 import io.jvm.uuid._
 
 import io.syspulse.skel.Command
+
+import io.syspulse.skel.user._
 
 object UserRegistry {
   val log = Logger(s"${this}")

@@ -1,4 +1,4 @@
-package io.syspulse.skel.user
+package io.syspulse.skel.user.server
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.StatusCodes
@@ -33,13 +33,18 @@ import io.prometheus.client.Counter
 
 import io.syspulse.skel.service.Routeable
 import io.syspulse.skel.service.CommonRoutes
-import io.syspulse.skel.user.UserRegistry._
+
 import io.syspulse.skel.Command
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+
 import io.syspulse.skel.auth.permissions.rbac.Permissions
 import io.syspulse.skel.auth.RouteAuthorizers
+
+import io.syspulse.skel.user._
+import io.syspulse.skel.user.store.UserRegistry
+import io.syspulse.skel.user.store.UserRegistry._
 
 
 @Path("/api/v1/user")

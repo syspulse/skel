@@ -8,6 +8,8 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.util.ByteString
+import akka.http.scaladsl.settings.ConnectionPoolSettings
+import akka.http.scaladsl.settings.ClientConnectionSettings
 
 //import spray.json.DefaultJsonProtocol._
 import akka.http.scaladsl.unmarshalling.Unmarshal
@@ -31,9 +33,7 @@ import io.syspulse.skel.ClientHttp
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.user._
-import io.syspulse.skel.user.UserJson
-import akka.http.scaladsl.settings.ConnectionPoolSettings
-import akka.http.scaladsl.settings.ClientConnectionSettings
+import io.syspulse.skel.user.server.UserJson
 
 class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext) extends ClientHttp[UserClientHttp](uri)(as,ec) with UserService {
   
