@@ -14,4 +14,4 @@ echo "app: $APP"
 echo "site: $SITE"
 echo "main: $MAIN"
 
-exec ../run-app.sh $APP $MAIN "$@"
+exec ../run-app.sh $APP $MAIN server "$@"

@@ -43,7 +43,7 @@ import io.syspulse.skel.auth.RouteAuthorizers
 
 
 @Path("/api/v1/user")
-class UserRoutes(userRegistry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
+class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
   //val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system
   
@@ -58,13 +58,13 @@ class UserRoutes(userRegistry: ActorRef[Command])(implicit context: ActorContext
   val metricDeleteCount: Counter = Counter.build().name("skel_user_delete_total").help("User deletes").register(cr)
   val metricCreateCount: Counter = Counter.build().name("skel_user_create_total").help("User creates").register(cr)
   
-  def getUsers(): Future[Users] = userRegistry.ask(GetUsers)
-  def getUser(id: UUID): Future[Option[User]] = userRegistry.ask(GetUser(id, _))
-  def getUserByEid(eid: String): Future[Option[User]] = userRegistry.ask(GetUserByEid(eid, _))
+  def getUsers(): Future[Users] = registry.ask(GetUsers)
+  def getUser(id: UUID): Future[Option[User]] = registry.ask(GetUser(id, _))
+  def getUserByEid(eid: String): Future[Option[User]] = registry.ask(GetUserByEid(eid, _))
 
-  def createUser(userCreate: UserCreateReq): Future[User] = userRegistry.ask(CreateUser(userCreate, _))
-  def deleteUser(id: UUID): Future[UserActionRes] = userRegistry.ask(DeleteUser(id, _))
-  def randomUser(): Future[User] = userRegistry.ask(RandomUser(_))
+  def createUser(userCreate: UserCreateReq): Future[User] = registry.ask(CreateUser(userCreate, _))
+  def deleteUser(id: UUID): Future[UserActionRes] = registry.ask(DeleteUser(id, _))
+  def randomUser(): Future[User] = registry.ask(RandomUser(_))
 
 
   @GET @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))

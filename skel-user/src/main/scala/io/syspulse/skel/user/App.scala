@@ -70,7 +70,7 @@ object App extends skel.Server {
       case "server" => 
         run( config.host, config.port,config.uri,c,
           Seq(
-            (UserRegistry(store ),"UserRegistry",(a, ac) => new UserRoutes(a)(ac) )
+            (UserRegistry(store),"UserRegistry",(r, ac) => new UserRoutes(r)(ac) )
           )
         )
       case "client" => {

@@ -627,11 +627,11 @@ lazy val enroll = (project in file("skel-enroll"))
   .settings (
 
     sharedConfig,
-    name := "skel-enroll",
     sharedConfigAssembly,
     //sharedConfigDocker,
     //dockerBuildxSettings,
 
+    name := "skel-enroll",
     // appDockerConfig("skel-enroll","io.syspulse.skel.enroll.App"),
 
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
@@ -663,7 +663,7 @@ lazy val pdf = (project in file("skel-pdf"))
     dockerBuildxSettings,
 
     //name := "skel-pdf",
-    appDockerConfig("skel-pdf","io.syspulse.skel.pdf.Report"),
+    appDockerConfig("skel-pdf","io.syspulse.skel.pdf.App"),
 
     libraryDependencies ++= libPdfGen ++ Seq(
       libScalaTest,

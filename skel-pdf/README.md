@@ -20,11 +20,23 @@ PDF Tools
 
 __NOTE__: Requires write permission to template dir (to write output.html)
 
-```
-./run-pdf <template dir> [output file] 
-```
+## Usage
+
+1. Generate pdf
 
 By default generates __output.pdf__
+
+```
+./run-pdf.sh generate <template dir> [output file] 
+
+```
+
+
+2. Service which runs report generation asynchrously
+
+```
+./run-report.sh 
+```
 
 ### Templates Examples
 
