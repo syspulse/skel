@@ -36,7 +36,7 @@ object App extends skel.Server {
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv, 
-      new ConfigurationArgs(args,"eth-stream","",
+      new ConfigurationArgs(args,"skel-user","",
         ArgString('h', "http.host","listen host (def: 0.0.0.0)"),
         ArgInt('p', "http.port","listern port (def: 8080)"),
         ArgString('u', "http.uri","api uri (def: /api/v1/user)"),
@@ -129,6 +129,3 @@ object App extends skel.Server {
     }
   }
 }
-
-
-

@@ -11,9 +11,9 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
 import io.syspulse.skel.user.UserService
-import io.syspulse.skel.user.UserRegistry
-import io.syspulse.skel.user.UserStoreMem
-import io.syspulse.skel.user.UserRoutes
+import io.syspulse.skel.user.store.UserRegistry
+import io.syspulse.skel.user.store.UserStoreMem
+import io.syspulse.skel.user.server.UserRoutes
 
 import io.syspulse.skel.enroll.store.{EnrollRegistry,EnrollStoreMem}
 import io.syspulse.skel.enroll.server.EnrollRoutes
