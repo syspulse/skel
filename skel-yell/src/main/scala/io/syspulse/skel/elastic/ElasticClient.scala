@@ -33,8 +33,7 @@ import spray.json.JsonFormat
 
 trait ElasticClient[T] {
   val log = Logger(s"${this}")
-
-  implicit val system = ActorSystem("ActorSystem-ElasticClient")
+  implicit val as = ActorSystem("ActorSystem-ElasticClient")
 
   def timeout() = Duration("3 seconds")
 
@@ -70,6 +69,7 @@ trait ElasticClient[T] {
   def connect(elasticUri:String = "http://localhost:9200",elasticIndex:String = "index"):ElasticClient[T] = {
     connectionSettings = Some(getElasticClient(elasticUri,elasticIndex))
     indexName = Some(elasticIndex)
+    log.info(s"-> Elastic(${elasticUri}): index=${elasticIndex}")
     this
   }
 

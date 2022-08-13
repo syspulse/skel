@@ -8,6 +8,8 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
+import io.syspulse.skel.ingest.IngestFlow
+
 case class Config(
   host:String="",
   port:Int=0,
@@ -97,7 +99,9 @@ object App {
     val expr = config.expr + config.params.mkString(" ")
 
     config.cmd match {
-      case "ingest" => new YellSink().connect(config.elasticUri, config.elasticIndex).run(config.feed)
+      case "ingest" => new YellFlow().connect(config.elasticUri, config.elasticIndex)
+        .from(IngestFlow.fromFile(config.feed))
+        .run()
 
       //case "get" => (new Object with DynamoGet).connect( config.elasticUri, config.elasticIndex).get(expr)
       case "scan" => new YellScan().connect( config.elasticUri, config.elasticIndex).scan(expr)
