@@ -242,7 +242,7 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 lazy val root = (project in file("."))
   .aggregate(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl)
-  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl, scrap, enroll)
+  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl, scrap, enroll,yell)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -670,4 +670,24 @@ lazy val pdf = (project in file("skel-pdf"))
       libLaikaCore,
       libLaikaIo      
     ),
+  )
+
+
+lazy val yell = (project in file("skel-yell"))
+  .dependsOn(core,video,ingest)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  // .enablePlugins(AshScriptPlugin)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("skel-yell","io.syspulse.skel.yell.App"),
+
+    libraryDependencies ++= libHttp ++ libTest ++ Seq(
+      libAlpakkaElastic
+    ),  
   )
