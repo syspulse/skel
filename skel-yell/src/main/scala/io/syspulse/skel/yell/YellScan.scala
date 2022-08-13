@@ -13,6 +13,6 @@ class YellScan extends ElasticScan[Yell] {
 
   override def getSearchParamas():Map[String,String] = Map(
           "query" -> s""" {"match_all": {}} """,
-          "_source" -> """ ["vid", "ts", "title", "category"] """
+          "_source" -> """ ["ts", "level", "area", "text"] """
         )
 }

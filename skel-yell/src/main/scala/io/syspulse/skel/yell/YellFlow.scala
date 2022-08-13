@@ -15,8 +15,8 @@ class YellFlow extends ElasticFlow[Yell] {
   import io.syspulse.skel.yell.YellElasticJson._
   implicit val fmt = YellElasticJson.fmt 
 
-  override def sink():Sink[WriteMessage[Yell,NotUsed],Any] = 
-    Sink.foreach(println _)
+  // override def sink():Sink[WriteMessage[Yell,NotUsed],Any] = 
+  //   Sink.foreach(println _)
 
   override def parse(data:String):Seq[Yell] = data.split("\n").flatMap( line => 
     line.split(",").toList match {

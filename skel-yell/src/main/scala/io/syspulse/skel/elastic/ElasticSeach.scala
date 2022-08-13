@@ -57,8 +57,7 @@ trait ElasticSearch[T] extends ElasticClient[T] {
       .runWith(Sink.seq)
 
     val r = Await.result(result, timeout())
-    //log.info(s"result: ${r.mkString("\n")}")
-    //r.map(r => convertTo(r))
+    log.info(s"result: ${r.mkString("\n")}")
     r
   }
 

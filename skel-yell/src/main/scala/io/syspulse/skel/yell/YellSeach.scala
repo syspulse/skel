@@ -15,16 +15,16 @@ class YellSearch extends ElasticSearch[Yell] {
     { 
       "query_string": {
         "query": "${txt}",
-        "fields": ["title", "vid"]
+        "fields": ["area", "text"]
       }
     }
     """
 
   def getSearches(txt:String) = s"""
-    { "multi_match": { "query": "${txt}", "fields": [ "title", "vid" ] }}
+    { "multi_match": { "query": "${txt}", "fields": [ "area", "text" ] }}
     """
 
   def getSearch(txt:String) = s"""
-    { "match": { "title": "${txt}" }}
+    { "match": { "text": "${txt}" }}
     """
 }

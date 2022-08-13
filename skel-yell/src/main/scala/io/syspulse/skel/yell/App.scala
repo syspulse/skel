@@ -49,7 +49,7 @@ object App {
         ArgString('_', "elastic.uri","Elastic uri (def: http://localhost:9200)"),
         ArgString('_', "elastic.user","Elastic user (def: )"),
         ArgString('_', "elastic.pass","Elastic pass (def: )"),
-        ArgString('_', "elastic.index","Elastic Index (def: index)"),
+        ArgString('_', "elastic.index","Elastic Index (def: yell)"),
 
         ArgLong('n', "limit","Limit (def: -1)"),
 
@@ -57,7 +57,8 @@ object App {
         
         ArgCmd("ingest","Ingest Command"),
         ArgCmd("scan","Scan all"),
-        ArgCmd("search","Search pattern"),
+        ArgCmd("search","Multi-Search pattern"),
+        ArgCmd("wild","Wildcards search"),
 
         ArgParam("<params>","")
       ).withExit(1)
@@ -69,7 +70,7 @@ object App {
       uri = c.getString("http.uri").getOrElse("/api/v1/yell"),
 
       elasticUri = c.getString("elastic.uri").getOrElse("http://localhost:9200"),
-      elasticIndex = c.getString("elastic.index").getOrElse("index"),
+      elasticIndex = c.getString("elastic.index").getOrElse("yell"),
       elasticUser = c.getString("elastic.user").getOrElse(""),
       elasticPass = c.getString("elastic.pass").getOrElse(""),
       
@@ -105,9 +106,8 @@ object App {
 
       //case "get" => (new Object with DynamoGet).connect( config.elasticUri, config.elasticIndex).get(expr)
       case "scan" => new YellScan().connect( config.elasticUri, config.elasticIndex).scan(expr)
-      case "search" => new YellSearch().connect( config.elasticUri, config.elasticIndex).search(expr)
-      case "searches" => new YellSearch().connect( config.elasticUri, config.elasticIndex).searches(expr)
-      case "wildcards" => new YellSearch().connect( config.elasticUri, config.elasticIndex).wildcards(expr)
+      case "search" => new YellSearch().connect( config.elasticUri, config.elasticIndex).searches(expr)
+      case "wild" => new YellSearch().connect( config.elasticUri, config.elasticIndex).wildcards(expr)
     
     }
   }
