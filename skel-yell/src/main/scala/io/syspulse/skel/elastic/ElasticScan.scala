@@ -21,7 +21,7 @@ import scala.jdk.CollectionConverters._
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.video._
+
 import akka.stream.alpakka.elasticsearch.scaladsl.ElasticsearchSink
 import akka.stream.alpakka.elasticsearch.WriteMessage
 import akka.stream.alpakka.elasticsearch.ElasticsearchParams
@@ -53,5 +53,5 @@ trait ElasticScan[T] extends ElasticClient[T] {
     r
   }
 
-  override def connect(elasticUri:String,elasticIndex:String):ElasticScan[T] = super.connect(elasticUri,elasticIndex).asInstanceOf[ElasticScan[T]]
+  //override def connect(elasticUri:String,elasticIndex:String):ElasticScan[T] = super.connect(elasticUri,elasticIndex).asInstanceOf[ElasticScan[T]]
 }

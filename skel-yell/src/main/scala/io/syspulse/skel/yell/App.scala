@@ -9,6 +9,7 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
 import io.syspulse.skel.ingest.IngestFlow
+import io.syspulse.skel.yell.store._
 
 case class Config(
   host:String="",
@@ -30,7 +31,7 @@ case class Config(
   params: Seq[String] = Seq(),
 )
 
-object App {
+object App extends skel.Server {
   
   def main(args:Array[String]): Unit = {
     println(s"args: '${args.mkString(",")}'")
@@ -55,10 +56,11 @@ object App {
 
         ArgString('d', "datastore","datastore [mysql,postgres,mem,cache] (def: mem)"),
         
+        ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
         ArgCmd("scan","Scan all"),
         ArgCmd("search","Multi-Search pattern"),
-        ArgCmd("wild","Wildcards search"),
+        ArgCmd("grep","Wildcards search"),
 
         ArgParam("<params>","")
       ).withExit(1)
@@ -77,7 +79,7 @@ object App {
       feed = c.getString("feed").getOrElse(""),
       limit = c.getLong("limit").getOrElse(-1L),
 
-      datastore = c.getString("datastore").getOrElse("stdout"),
+      datastore = c.getString("datastore").getOrElse("mem"),
 
       expr = c.getString("expr").getOrElse(" "),
       
@@ -87,27 +89,37 @@ object App {
 
     println(s"Config: ${config}")
 
-    // val flow = config.datastore match {
-    //   // case "mysql" | "db" => new OtpStoreDB(c,"mysql")
-    //   // case "postgres" => new OtpStoreDB(c,"postgres")
-    //   case "stdout" | "elastic" => new YellSink
-    //   case _ => {
-    //     Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
-    //     System.exit(1)
-    //   }
-    // }
+    val store:YellStore = config.datastore match {
+      case "elastic" => new YellStoreElastic().connect(config)
+      case "mem" => new YellStoreMem()
+      //case "stdout" => new YellStoreStdout
+      case _ => {
+        Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
+        sys.exit(1)
+      }
+    }
     
     val expr = config.expr + config.params.mkString(" ")
 
     config.cmd match {
-      case "ingest" => new YellFlow().connect(config.elasticUri, config.elasticIndex)
-        .from(IngestFlow.fromFile(config.feed))
+      case "server" => 
+        run( config.host, config.port,config.uri,c,
+          Seq(
+            (YellRegistry(store),"YellRegistry",(r, ac) => new server.YellRoutes(r)(ac) )
+          )
+        )
+      case "ingest" => new YellFlow()
+        .connect[YellFlow](config.elasticUri, config.elasticIndex)
+        .from(IngestFlow.fromFile(config.feed))        
         .run()
 
       //case "get" => (new Object with DynamoGet).connect( config.elasticUri, config.elasticIndex).get(expr)
-      case "scan" => new YellScan().connect( config.elasticUri, config.elasticIndex).scan(expr)
-      case "search" => new YellSearch().connect( config.elasticUri, config.elasticIndex).searches(expr)
-      case "wild" => new YellSearch().connect( config.elasticUri, config.elasticIndex).wildcards(expr)
+      case "scan" => store.connect(config).scan(expr)
+      case "search" => store.connect(config).search(expr)
+      case "grep" => store.connect( config).grep(expr)
+      //case "scan" => (new Object with YellScan() {}).connect( config.elasticUri, config.elasticIndex).scan(expr)
+      // case "search" => new YellSearch().connect( config.elasticUri, config.elasticIndex).searches(expr)
+      // case "grep" => new YellSearch().connect( config.elasticUri, config.elasticIndex).grep(expr)
     
     }
   }

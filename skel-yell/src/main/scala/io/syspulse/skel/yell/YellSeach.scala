@@ -6,7 +6,7 @@ import io.syspulse.skel.util.Util
 
 import io.syspulse.skel.elastic._
 
-class YellSearch extends ElasticSearch[Yell] {
+trait YellSearch extends ElasticSearch[Yell] {
 
   import io.syspulse.skel.yell.YellElasticJson._
   implicit val fmt = YellElasticJson.fmt 

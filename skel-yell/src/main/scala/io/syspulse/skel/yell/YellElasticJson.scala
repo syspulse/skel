@@ -8,7 +8,7 @@ import spray.json._
 import DefaultJsonProtocol._
 
 object YellElasticJson extends  DefaultJsonProtocol {
-  implicit val fmt: JsonFormat[Yell] = jsonFormat4(Yell)
+  implicit val fmt: JsonFormat[Yell] = jsonFormat4(Yell.apply _)
 }
 
 object YellElastic {

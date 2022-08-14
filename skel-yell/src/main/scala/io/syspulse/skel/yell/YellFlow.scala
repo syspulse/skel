@@ -18,7 +18,7 @@ class YellFlow extends ElasticFlow[Yell] {
   // override def sink():Sink[WriteMessage[Yell,NotUsed],Any] = 
   //   Sink.foreach(println _)
 
-  override def parse(data:String):Seq[Yell] = data.split("\n").flatMap( line => 
+  override def parse(data:String):Seq[Yell] = data.split("\n").toIndexedSeq.flatMap( line => 
     line.split(",").toList match {
       case ts :: lvl :: area :: txt :: Nil => Some(Yell(ts.toLong,lvl.toInt,area,txt))
       case _ => None

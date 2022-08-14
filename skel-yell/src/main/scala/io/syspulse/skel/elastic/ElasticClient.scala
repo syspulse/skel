@@ -66,11 +66,11 @@ trait ElasticClient[T] {
   }
 
 
-  def connect(elasticUri:String = "http://localhost:9200",elasticIndex:String = "index"):ElasticClient[T] = {
+  def connect[C <: ElasticClient[T]](elasticUri:String = "http://localhost:9200",elasticIndex:String = "index"):C = {
     connectionSettings = Some(getElasticClient(elasticUri,elasticIndex))
     indexName = Some(elasticIndex)
     log.info(s"-> Elastic(${elasticUri}): index=${elasticIndex}")
-    this
+    this.asInstanceOf[C]
   }
 
   implicit val fmt:JsonFormat[T]

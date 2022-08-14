@@ -1,6 +1,9 @@
 {
   "mappings" : {
     "properties" : {
+      "ts" : {
+        "type" : "date"
+      },
       "area" : {
         "type" : "text",
         "fields" : {
@@ -11,7 +14,7 @@
         }
       },
       "level" : {
-        "type" : "float"
+        "type" : "long"
       },
       "text" : {
         "type" : "search_as_you_type",

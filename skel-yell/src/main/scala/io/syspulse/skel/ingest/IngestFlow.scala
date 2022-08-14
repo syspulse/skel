@@ -23,7 +23,6 @@ import scala.jdk.CollectionConverters._
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.video._
 
 trait IngestFlow[T,D] {
   private val log = Logger(s"${this}")

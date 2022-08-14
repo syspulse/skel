@@ -44,5 +44,5 @@ trait ElasticFlow[T] extends IngestFlow[T,WriteMessage[T,NotUsed]] with ElasticC
     WriteMessage.createIndexMessage(index, t2)
   }
 
-  override def connect(elasticUri:String,elasticIndex:String):ElasticFlow[T] = super.connect(elasticUri,elasticIndex).asInstanceOf[ElasticFlow[T]]
+  //override def connect(elasticUri:String,elasticIndex:String):ElasticFlow[T] = super.connect(elasticUri,elasticIndex).asInstanceOf[ElasticFlow[T]]
 }
