@@ -38,7 +38,7 @@ trait ElasticFlow[T] extends IngestFlow[T,WriteMessage[T,NotUsed]] with ElasticC
     )
 
   override def transform(t:T):WriteMessage[T,NotUsed] = {
-    log.info(s"${Util.now}} ${t}")
+    //log.debug(s"${Util.now} ${t}")
         
     val (index,t2) = getIndex(t)
     WriteMessage.createIndexMessage(index, t2)

@@ -53,7 +53,7 @@ trait DynamoGet extends DynamoClient {
     val r = Await.result(result, Duration.Inf)
     println(s"Result: ${r}")
     
-    val m = MovieDynamo.fromDynamo(r.item().asScala.toMap)
+    val m = VideoDynamo.fromDynamo(r.item().asScala.toMap)
     println(s"${m}")
     this
   }
@@ -73,7 +73,7 @@ trait DynamoGet extends DynamoClient {
     val r = Await.result(result, Duration.Inf)
     println(s"Result: ${r}")
     
-    val mm = r.items().asScala.map( r => MovieDynamo.fromDynamo(r.asScala.toMap))
+    val mm = r.items().asScala.map( r => VideoDynamo.fromDynamo(r.asScala.toMap))
     mm.foreach{m => println(s"${m}")}
     this
   }
@@ -91,7 +91,7 @@ trait DynamoGet extends DynamoClient {
     val r = Await.result(result, Duration.Inf)
     println(s"Result: ${r}")
 
-    val mm = r.items().asScala.map( r => MovieDynamo.fromDynamo(r.asScala.toMap))
+    val mm = r.items().asScala.map( r => VideoDynamo.fromDynamo(r.asScala.toMap))
     mm.foreach{m => println(s"${m}")}
     this
   }

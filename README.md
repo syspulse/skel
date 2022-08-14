@@ -25,6 +25,7 @@ Skeletons for RnD Prototypes
 21. [skel-stream](skel-stream) - Akka Steams 
 22. [skel-pdf](skel-pdf) - PDF Utils
 23. [skel-enroll](skel-enroll) - Registration Flow
+24. [skel-yell](skel-yell) - Auditlog like system service
 
 ----
 ## Build & Run

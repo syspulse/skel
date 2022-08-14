@@ -506,21 +506,9 @@ lazy val ingest_dynamo = (project in file("skel-ingest/ingest-dynamo"))
       libAlpakkaDynamo
     ),  
   )
-  
-lazy val video = (project in file("skel-video"))
-  .disablePlugins(sbtassembly.AssemblyPlugin)
-  .settings (
-      sharedConfig,
-      name := "skel-video",
-      libraryDependencies ++= libCommon ++ libSkel ++ 
-        Seq(
-          libAkkaHttpSpray,
-          libUUID,
-        ),
-    )
-  
+ 
 lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
-  .dependsOn(core,video,ingest)
+  .dependsOn(core,ingest)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -674,7 +662,7 @@ lazy val pdf = (project in file("skel-pdf"))
 
 
 lazy val yell = (project in file("skel-yell"))
-  .dependsOn(core,auth_core,ingest)
+  .dependsOn(core,auth_core,ingest,ingest_elastic)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -690,4 +678,24 @@ lazy val yell = (project in file("skel-yell"))
     libraryDependencies ++= libHttp ++ libTest ++ Seq(
       libAlpakkaElastic
     ),  
+  )
+
+lazy val video = (project in file("skel-video"))
+  .dependsOn(core,auth_core,ingest,ingest_elastic)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("skel-video","io.syspulse.skel.video.App"),
+
+    libraryDependencies ++= libCommon ++ libSkel ++ 
+      Seq(
+        libAkkaHttpSpray,
+        libUUID,
+      ),
   )

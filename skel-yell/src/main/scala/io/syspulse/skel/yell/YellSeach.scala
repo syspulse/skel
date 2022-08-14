@@ -4,11 +4,12 @@ import scala.jdk.CollectionConverters._
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 
-import io.syspulse.skel.elastic._
+import io.syspulse.skel.elastic.ElasticSearch
 
 trait YellSearch extends ElasticSearch[Yell] {
 
-  import io.syspulse.skel.yell.YellElasticJson._
+  import io.syspulse.skel.yell.elastic.YellElasticJson
+  import io.syspulse.skel.yell.elastic.YellElasticJson._
   implicit val fmt = YellElasticJson.fmt 
 
   def getWildcards(txt:String) = s"""

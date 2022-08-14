@@ -31,6 +31,7 @@ import scala.jdk.CollectionConverters._
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.video._
+import io.syspulse.skel.video.tms._
 
 trait DynamoSink extends DynamoClient {
   
@@ -50,7 +51,7 @@ trait DynamoSink extends DynamoClient {
         val req = PutItemRequest
           .builder()
           .tableName(getTable())
-          .item(MovieDynamo.toDynamo(Movie(vid=tms.id, title=tms.title)).asJava)
+          .item(VideoDynamo.toDynamo(Video(vid=VID(tms.id), title=tms.title)).asJava)
           .build()
 
         println(s"${Util.now}} ${tms}: ${req}")

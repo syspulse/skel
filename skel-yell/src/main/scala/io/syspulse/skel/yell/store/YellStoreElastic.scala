@@ -15,10 +15,11 @@ import io.syspulse.skel.yell._
 import io.syspulse.skel.yell.Yell.ID
 
 import io.syspulse.skel.yell.YellScan
-import javax.ws.rs.NotSupportedException
 
 class YellStoreElastic extends YellScan with YellSearch with YellStore {
   
+  import io.syspulse.skel.yell.elastic.YellElasticJson
+  import io.syspulse.skel.yell.elastic.YellElasticJson._
   override implicit val fmt = YellElasticJson.fmt
   
   def all:Seq[Yell] = scan("")
@@ -27,15 +28,15 @@ class YellStoreElastic extends YellScan with YellSearch with YellStore {
   def size:Long = scan("").size
 
   def +(yell:Yell):Try[YellStore] = { 
-    Failure(new NotSupportedException(s"not implemented: ${yell}"))
+    Failure(new UnsupportedOperationException(s"not implemented: ${yell}"))
   }
 
   def del(id:ID):Try[YellStore] = { 
-    Failure(new NotSupportedException(s"not implemented: ${id}"))
+    Failure(new UnsupportedOperationException(s"not implemented: ${id}"))
   }
 
   def -(yell:Yell):Try[YellStore] = {     
-    Failure(new NotSupportedException(s"not implemented: ${yell}"))
+    Failure(new UnsupportedOperationException(s"not implemented: ${yell}"))
   }
 
   def ?(id:ID):Option[Yell] = searches(id.split("_").mkString(" ")).headOption

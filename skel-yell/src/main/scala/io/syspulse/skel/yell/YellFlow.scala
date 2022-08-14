@@ -5,14 +5,12 @@ import scala.jdk.CollectionConverters._
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 
-import io.syspulse.skel.elastic._
-import akka.stream.scaladsl.Sink
-import akka.stream.alpakka.elasticsearch.WriteMessage
-import akka.NotUsed
+import io.syspulse.skel.elastic.ElasticFlow
 
 class YellFlow extends ElasticFlow[Yell] {
   
-  import io.syspulse.skel.yell.YellElasticJson._
+  import io.syspulse.skel.yell.elastic.YellElasticJson
+  import io.syspulse.skel.yell.elastic.YellElasticJson._
   implicit val fmt = YellElasticJson.fmt 
 
   // override def sink():Sink[WriteMessage[Yell,NotUsed],Any] = 
