@@ -78,6 +78,21 @@ object Util {
     tssPairs.foldLeft(fileName)( (fileName,pair) => { fileName.replace("{"+pair._1+"}",pair._2) })
   }
 
+  def getParentUri(uri:String) = {
+    val s = uri.stripSuffix("/").split("/")
+    s.take(s.size - 1).mkString("/")
+  }
+
+  def toDirWithSlash(dir:String):String = if(dir.isBlank()) dir else if(dir.trim.endsWith("/")) dir else dir + "/"
+  def extractDirWithSlash(dir:String):String = {
+    if(dir.isBlank()) 
+      "" 
+    else if(dir.trim.endsWith("/")) 
+      dir 
+    else 
+      getParentUri(dir) + "/"
+  }
+
   def info = {
     val p = getClass.getPackage
     val name = p.getImplementationTitle
@@ -144,9 +159,7 @@ object Util {
     val mm = traverseAny(o)
     mm.foldRight("")(_._2 + sep + _).stripSuffix(sep)
   }
-
-  def getDirWithSlash(dir:String):String = if(dir.isBlank()) dir else if(dir.trim.endsWith("/")) dir else dir + "/"
-
+  
   def writeToFile(fileName:String,lines:Seq[String]) = 
     Using(Files.newBufferedWriter(Paths.get(fileName), Charset.forName("UTF-8"), StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
       writer => lines.foreach(line => writer.write(s"${line}\n"))
@@ -175,12 +188,7 @@ object Util {
       Runtime.getRuntime().totalMemory()
     )
   }
-
-  def getParentUri(uri:String) = {
-    val s = uri.stripSuffix("/").split("/")
-    s.take(s.size - 1).mkString("/")
-  }
-
+  
   val NOBODY = UUID("00000000-0000-0000-0000-000000000000")
   val GOD =    UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
 

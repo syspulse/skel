@@ -72,23 +72,23 @@ class UtilSpec extends AnyWordSpec with Matchers {
       csv should === ("5,100000000000,Text,7.13")
     }
 
-    "getDirWithSlash('') return ''" in {
-      val s = Util.getDirWithSlash("")
+    "toDirWithSlash('') return ''" in {
+      val s = Util.toDirWithSlash("")
       s should === ("")
     }
 
-    "getDirWithSlash('data/') return 'data/'" in {
-      val s = Util.getDirWithSlash("data/")
+    "toDirWithSlash('data/') return 'data/'" in {
+      val s = Util.toDirWithSlash("data/")
       s should === ("data/")
     }
 
-    "getDirWithSlash('data') return 'data/'" in {
-      val s = Util.getDirWithSlash("data")
+    "toDirWithSlash('data') return 'data/'" in {
+      val s = Util.toDirWithSlash("data")
       s should === ("data/")
     }
 
-    "getDirWithSlash('/data') return '/data/'" in {
-      val s = Util.getDirWithSlash("/data")
+    "toDirWithSlash('/data') return '/data/'" in {
+      val s = Util.toDirWithSlash("/data")
       s should === ("/data/")
     }
 
@@ -117,6 +117,30 @@ class UtilSpec extends AnyWordSpec with Matchers {
       txt should === (Success("data2"))
       txt.get.size should === (5)
     }
-    
+
+    "extractDirWithSlash('') return ''" in {
+      val s = Util.extractDirWithSlash("")
+      s should === ("")
+    }
+
+    "extractDirWithSlash('/data/file.log') return '/data/'" in {
+      val s = Util.extractDirWithSlash("/data/file.log")
+      s should === ("/data/")
+    }
+
+    "extractDirWithSlash('/data/') return '/data/'" in {
+      val s = Util.extractDirWithSlash("/data/")
+      s should === ("/data/")
+    }
+
+    "extractDirWithSlash('/dir1/dir2/file.log') return '/dir1/dir2/'" in {
+      val s = Util.extractDirWithSlash("/dir1/dir2/file.log")
+      s should === ("/dir1/dir2/")
+    }
+
+    "extractDirWithSlash('dir1/dir2/file.log') return 'dir1/dir2/'" in {
+      val s = Util.extractDirWithSlash("dir1/dir2/file.log")
+      s should === ("dir1/dir2/")
+    }
   }
 }
