@@ -5,7 +5,7 @@ import scala.jdk.CollectionConverters._
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 
-abstract class Ingestable extends Product {
+trait Ingestable extends Product {
     def toLog:String
     def toSimpleLog:String
 

@@ -70,6 +70,7 @@ object Dependencies {
     val libAlpakkaDynamo=   "com.lightbend.akka"          %% "akka-stream-alpakka-dynamodb"       % alpakkaVersion
     val libAlpakkaElastic=  "com.lightbend.akka"          %% "akka-stream-alpakka-elasticsearch"  % alpakkaVersion
     val libAlpakkaMQTT=     "com.lightbend.akka"          %% "akka-stream-alpakka-mqtt-streaming" % alpakkaVersion
+    val libAlpakkaFile=     "com.lightbend.akka"          %% "akka-stream-alpakka-file"           % alpakkaVersion
 
     val libAkkaProtobuf =   "com.typesafe.akka"               %% "akka-protobuf"        % akkaVersion
     val libAkkaKafka=       "com.typesafe.akka"               %% "akka-stream-kafka"    % akkaKafkaVersion

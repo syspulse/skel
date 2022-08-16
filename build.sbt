@@ -424,7 +424,8 @@ lazy val ingest = (project in file("skel-ingest"))
     //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
 
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
-      libUpickleLib
+      libAlpakkaFile,
+      libUpickleLib,
     ),
     
     

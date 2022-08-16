@@ -10,6 +10,8 @@ import io.syspulse.skel.config._
 
 import io.syspulse.skel.ingest.IngestFlow
 import io.syspulse.skel.video.store._
+import io.syspulse.skel.video.file._
+import io.syspulse.skel.video.elastic._
 
 case class Config(
   host:String="",
@@ -24,6 +26,7 @@ case class Config(
   
   limit:Long = -1,
   feed:String = "",
+  output:String = "",
 
   datastore:String = "",
 
@@ -46,6 +49,7 @@ object App extends skel.Server {
         ArgString('u', "http.uri","api uri (def: /api/v1/video)"),
         
         ArgString('f', "feed","Input Feed (def: )"),
+        ArgString('o', "output","Output file (pattern is supported: data-{yyyy-MM-dd-HH-mm}.log)"),
 
         ArgString('_', "elastic.uri","Elastic uri (def: http://localhost:9200)"),
         ArgString('_', "elastic.user","Elastic user (def: )"),
@@ -54,7 +58,7 @@ object App extends skel.Server {
 
         ArgLong('n', "limit","Limit (def: -1)"),
 
-        ArgString('d', "datastore","datastore [elastic,mem] (def: mem)"),
+        ArgString('d', "datastore","Datastore [elastic,mem,stdout] (def: mem)"),
         
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
@@ -78,6 +82,7 @@ object App extends skel.Server {
       
       feed = c.getString("feed").getOrElse(""),
       limit = c.getLong("limit").getOrElse(-1L),
+      output = c.getString("output").getOrElse("output.log"),
 
       datastore = c.getString("datastore").getOrElse("mem"),
 
@@ -92,7 +97,7 @@ object App extends skel.Server {
     val store:VideoStore = config.datastore match {
       case "elastic" => new VideoStoreElastic().connect(config)
       case "mem" => new VideoStoreMem()
-      //case "stdout" => new VideoStoreStdout
+      case "stdout" => new VideoStoreStdout()
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
         sys.exit(1)
@@ -110,10 +115,18 @@ object App extends skel.Server {
         // )
         Console.err.println(s"Not supported")
         sys.exit(1)
-      case "ingest" => new elastic.VideoFlow()
-        .connect[elastic.VideoFlow](config.elasticUri, config.elasticIndex)
-        .from(IngestFlow.fromFile(config.feed))        
-        .run()
+      case "ingest" => 
+        config.datastore match {
+          case "elastic" => 
+            new VideoFlowElastic()
+              .connect[VideoFlowElastic](config.elasticUri, config.elasticIndex)
+              .from(IngestFlow.fromFile(config.feed))
+              .run()
+          case "mem" | "stdout" => 
+            new VideoFlowFile(config.output)
+              .from(IngestFlow.fromFile(config.feed))
+              .run()
+        }
 
       //case "get" => store.connect(config).?(expr)
       case "scan" => store.connect(config).scan(expr)
