@@ -55,4 +55,7 @@ class VideoStoreElastic extends VideoScan with VideoSearch with VideoStore {
   override def scan(txt:String):List[Video] = super.scan(txt).toList
   override def search(txt:String):List[Video] = super.searches(txt).toList
   override def grep(txt:String):List[Video] = super.grep(txt).toList
+  override def typing(txt:String):List[Video] = {    
+    super.typing(txt).toList
+  }
 }

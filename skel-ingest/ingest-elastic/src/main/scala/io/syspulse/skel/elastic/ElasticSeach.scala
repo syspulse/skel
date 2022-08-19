@@ -35,11 +35,15 @@ trait ElasticSearch[T] extends ElasticClient[T] {
 
   def getSearch(txt:String):String
 
+  def getTyping(txt:String):String
+
   def grep(txt:String):Seq[T] = search(txt,getWildcards(txt))
 
   def searches(txt:String):Seq[T] = search(txt,getSearches(txt))
 
   def search(txt:String):Seq[T] = search(txt,getSearch(txt))
+
+  def typing(txt:String):Seq[T] = search(txt,getTyping(txt))
 
   def search(txt:String,q:String):Seq[T] = {
     val result = ElasticsearchSource.typed[T](

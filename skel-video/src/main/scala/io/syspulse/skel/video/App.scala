@@ -65,6 +65,7 @@ object App extends skel.Server {
         ArgCmd("scan","Scan all"),
         ArgCmd("search","Multi-Search pattern"),
         ArgCmd("grep","Wildcards search"),
+        ArgCmd("typing","Typeahead"),
 
         ArgParam("<params>","")
       ).withExit(1)
@@ -131,7 +132,8 @@ object App extends skel.Server {
       //case "get" => store.connect(config).?(expr)
       case "scan" => store.connect(config).scan(expr)
       case "search" => store.connect(config).search(expr)
-      case "grep" => store.connect( config).grep(expr)      
+      case "grep" => store.connect( config).grep(expr)
+      case "typing" => store.connect( config).typing(expr)
     }
   }
 }

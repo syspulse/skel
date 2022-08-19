@@ -26,39 +26,61 @@ import scala.util.Random
 import java.nio.file.{Paths,Files}
 import scala.jdk.CollectionConverters._
 
+import io.syspulse.skel.Ingestable
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
+import akka.http.scaladsl.model.HttpRequest
+import akka.http.scaladsl.Http
+import java.util.concurrent.TimeUnit
 
 trait IngestFlow[T,D] {
   private val log = Logger(s"${this}")
   implicit val system = ActorSystem("ActorSystem-IngestFlow")
+  
+  val retrySettings = RestartSettings(
+    minBackoff = FiniteDuration(3000,TimeUnit.MILLISECONDS),
+    maxBackoff = FiniteDuration(10000,TimeUnit.MILLISECONDS),
+    randomFactor = 0.2 // adds 20% "noise" to vary the intervals slightly
+  )
+  //.withMaxRestarts(10, 5.minutes)
+
+  var count:Long = 0L
 
   var defaultSource:Option[Source[ByteString,_]] = None
+  var defaultSink:Option[Sink[D,_]] = None
 
   def parse(data:String):Seq[T]
 
-  def sink():Sink[D,Any]
+  def sink():Sink[D,Any] = if(defaultSink.isDefined) defaultSink.get else IngestFlow.toStdout()
+
+  def sink0():Sink[D,Any] = Sink.ignore
 
   def source():Source[ByteString,_] = if(defaultSource.isDefined) defaultSource.get else IngestFlow.fromStdin()
+
+  def flow:Flow[T,T,_] = Flow[T].map(t => t)
 
   def transform(t:T):D
 
   def debug = Flow.fromFunction( (data:ByteString) => { log.debug(s"data=${data}"); data})
 
+  def counter = Flow[ByteString].map(t => { count = count + 1; t})
+
   def run() = {    
-    val flow =
+    val flowing =
       source()
       .via(debug)
-      .log("ingest-flow")
+      .via(counter)      
       .mapConcat(txt => parse(txt.utf8String))
-      .map( data => { log.info(s"data=${data}"); data})
+      .via(flow)
       .viaMat(KillSwitches.single)(Keep.right)
       .map(t => transform(t))
-      .runWith(sink())      
+      .log("ingest-flow")
+      .alsoTo(sink0())
+      .runWith(sink())
 
     //val r = Await.result(result, timeout())
-    log.info(s"flow: ${flow}")
-    flow
+    log.info(s"flow: ${flowing}")
+    flowing
   }
 
   def from(src:Source[ByteString,_]):IngestFlow[T,D] = {
@@ -68,9 +90,13 @@ trait IngestFlow[T,D] {
 }
 
 object IngestFlow {
+  def fromHttp(req: HttpRequest)(implicit as:ActorSystem) = Http().singleRequest(req).flatMap(res => res.entity.dataBytes.runReduce(_ ++ _))
+
   def fromStdin():Source[ByteString, Future[IOResult]] = StreamConverters.fromInputStream(() => System.in)
   // this is non-streaming simple ingester for TmsParser. Reads full file, flattens it and parses into Stream of Tms objects
   def fromFile(file:String = "/dev/stdin"):Source[ByteString, Future[IOResult]] = FileIO.fromPath(Paths.get(file),chunkSize = Files.size(Paths.get(file)).toInt)
+
+  def toStdout() = Sink.foreach(println _)
 
   def toFile(file:String) = {
     if(file.trim.isEmpty) 

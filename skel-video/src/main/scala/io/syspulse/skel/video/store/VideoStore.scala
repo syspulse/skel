@@ -29,4 +29,5 @@ trait VideoStore extends Store[Video,ID] {
   def scan(txt:String):List[Video]
   def search(txt:String):List[Video]
   def grep(txt:String):List[Video]
+  def typing(txt:String):List[Video]
 }

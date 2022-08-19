@@ -52,5 +52,5 @@ class VideoStoreMem extends VideoStore {
   def scan(txt:String):List[Video] = ??(txt)
   def search(txt:String):List[Video] = ??(txt)
   def grep(txt:String):List[Video] = ??(txt)
-
+  def typing(txt:String):List[Video] = ??(txt)
 }

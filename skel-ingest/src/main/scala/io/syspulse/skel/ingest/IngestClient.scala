@@ -31,7 +31,7 @@ import scala.jdk.CollectionConverters._
 import io.prometheus.client.Counter
 
 import io.syspulse.skel
-import io.syspulse.skel.ingest.Ingestable
+import io.syspulse.skel.Ingestable
 import io.syspulse.skel.util.Util
 
 

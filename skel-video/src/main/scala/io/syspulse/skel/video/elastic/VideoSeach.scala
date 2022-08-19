@@ -29,4 +29,12 @@ trait VideoSearch extends ElasticSearch[Video] {
   def getSearch(txt:String) = s"""
     { "match": { "title": "${txt}" }}
     """
+
+  def getTyping(txt:String) = 
+    // s"""
+    // { "multi_match": { "query": "${txt}", "type": "bool_prefix", "fields": [ "title", "vid" ] }}
+    // """
+    s"""
+    { "multi_match": { "query": "${txt}", "type": "bool_prefix", "fields": [ "title", "title._3gram" ] }}
+    """
 }
