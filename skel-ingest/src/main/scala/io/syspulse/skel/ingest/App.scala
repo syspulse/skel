@@ -149,11 +149,15 @@ object App extends skel.Server {
   }
 }
 
-class Ingesting(feed:String) extends IngestFlow[String,String]() {
+case class StringLike(s:String) extends skel.Ingestable
+
+class Ingesting(feed:String,output:String = "stdout://") extends IngestFlow[String,StringLike]() {
+
+  
   def parse(data: String): Seq[String] = {
     data.split("\n").toSeq
   }
-  def transform(t: String): String = s"${count}: ${t}"
+  def transform(t: String): StringLike = StringLike(s"${count}: ${t}")
   
   override def source() = {
     val flow = feed.split("://").toList match {
@@ -164,4 +168,15 @@ class Ingesting(feed:String) extends IngestFlow[String,String]() {
     }
     flow
   }
+
+  override def sink() = {
+    val sink = output.split("://").toList match {
+      //case "http" :: _ => IngestFlow.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = "\r")      
+      case "file" :: fileName :: Nil => IngestFlow.toFile(fileName)
+      case "stdout" :: _ => IngestFlow.toStdout()
+      case _ => IngestFlow.toFile(output)
+    }
+    sink
+  }
+
 }
