@@ -157,10 +157,7 @@ class Ingesting(feed:String) extends IngestFlow[String,String]() {
   
   override def source() = {
     val flow = feed.split("://").toList match {
-      case "http" :: _ => {
-        val httpFuture = IngestFlow.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)))
-        Source.future(httpFuture)
-      }
+      case "http" :: _ => IngestFlow.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = "\r")      
       case "file" :: fileName :: Nil => IngestFlow.fromFile(fileName,1024)
       case "stdin" :: _ => IngestFlow.fromStdin()
       case _ => IngestFlow.fromFile(feed)

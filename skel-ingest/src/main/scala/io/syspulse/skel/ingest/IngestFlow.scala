@@ -90,7 +90,12 @@ trait IngestFlow[T,D] {
 }
 
 object IngestFlow {
-  def fromHttp(req: HttpRequest)(implicit as:ActorSystem) = Http().singleRequest(req).flatMap(res => res.entity.dataBytes.runReduce(_ ++ _))
+  def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem) = Http()
+    .singleRequest(req)
+    .flatMap(res => res.entity.dataBytes.runReduce(_ ++ _))
+
+  def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = Source.future(fromHttpFuture(req))
+    .via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
 
   def fromStdin():Source[ByteString, Future[IOResult]] = StreamConverters.fromInputStream(() => System.in)
   // this is non-streaming simple ingester. Reads full file, flattens it and parses into Stream of Tms objects
