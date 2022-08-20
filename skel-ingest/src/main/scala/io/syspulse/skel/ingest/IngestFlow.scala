@@ -94,8 +94,10 @@ object IngestFlow {
 
   def fromStdin():Source[ByteString, Future[IOResult]] = StreamConverters.fromInputStream(() => System.in)
   // this is non-streaming simple ingester. Reads full file, flattens it and parses into Stream of Tms objects
-  def fromFile(file:String = "/dev/stdin",chunk:Int = 0):Source[ByteString, Future[IOResult]] = 
-    FileIO.fromPath(Paths.get(file),chunkSize = if(chunk==0) Files.size(Paths.get(file)).toInt else chunk)
+  def fromFile(file:String = "/dev/stdin",chunk:Int = 0,frameDelimiter:String="\r\n",frameSize:Int = 8192):Source[ByteString, Future[IOResult]] = 
+    FileIO
+      .fromPath(Paths.get(file),chunkSize = if(chunk==0) Files.size(Paths.get(file)).toInt else chunk)
+      .via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
 
   def toStdout() = Sink.foreach(println _)
 

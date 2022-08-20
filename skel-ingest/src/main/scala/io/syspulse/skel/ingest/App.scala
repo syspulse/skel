@@ -150,8 +150,10 @@ object App extends skel.Server {
 }
 
 class Ingesting(feed:String) extends IngestFlow[String,String]() {
-  def parse(data: String): Seq[String] = Seq(data)
-  def transform(t: String): String = t
+  def parse(data: String): Seq[String] = {
+    data.split("\n").toSeq
+  }
+  def transform(t: String): String = s"${count}: ${t}"
   
   override def source() = {
     val flow = feed.split("://").toList match {
@@ -159,7 +161,7 @@ class Ingesting(feed:String) extends IngestFlow[String,String]() {
         val httpFuture = IngestFlow.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)))
         Source.future(httpFuture)
       }
-      case "file" :: _ => IngestFlow.fromFile(feed)
+      case "file" :: fileName :: Nil => IngestFlow.fromFile(fileName,1024)
       case "stdin" :: _ => IngestFlow.fromStdin()
       case _ => IngestFlow.fromFile(feed)
     }
