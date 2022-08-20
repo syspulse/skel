@@ -9,7 +9,7 @@ CONF=`echo $APP | awk -F"-" '{print $2}'`
 
 export SITE=${SITE:-$CONF}
 
-MAIN=io.syspulse.skel.ingest.IngestApp
+MAIN=io.syspulse.skel.ingest.App
 
 $DEVICE=${2:-0001}
 LOG_FILE="data-$DEVICE-{yyyy-MM-dd-HH-mm}.log"
@@ -19,4 +19,4 @@ echo "site: $SITE"
 echo "main: $MAIN"
 
 cd ..
-exec ./run-app.sh $APP $MAIN --log-file ${LOG_FILE} $@
+exec ./run-app.sh $APP $MAIN $@

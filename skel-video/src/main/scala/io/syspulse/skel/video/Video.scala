@@ -18,4 +18,3 @@ case class Video (vid:Video.ID, title:String,ts:Long = System.currentTimeMillis
 object Video {
   type ID = VID
 }
-

@@ -93,8 +93,9 @@ object IngestFlow {
   def fromHttp(req: HttpRequest)(implicit as:ActorSystem) = Http().singleRequest(req).flatMap(res => res.entity.dataBytes.runReduce(_ ++ _))
 
   def fromStdin():Source[ByteString, Future[IOResult]] = StreamConverters.fromInputStream(() => System.in)
-  // this is non-streaming simple ingester for TmsParser. Reads full file, flattens it and parses into Stream of Tms objects
-  def fromFile(file:String = "/dev/stdin"):Source[ByteString, Future[IOResult]] = FileIO.fromPath(Paths.get(file),chunkSize = Files.size(Paths.get(file)).toInt)
+  // this is non-streaming simple ingester. Reads full file, flattens it and parses into Stream of Tms objects
+  def fromFile(file:String = "/dev/stdin",chunk:Int = 0):Source[ByteString, Future[IOResult]] = 
+    FileIO.fromPath(Paths.get(file),chunkSize = if(chunk==0) Files.size(Paths.get(file)).toInt else chunk)
 
   def toStdout() = Sink.foreach(println _)
 
