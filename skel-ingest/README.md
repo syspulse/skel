@@ -1,31 +1,44 @@
 # skel-ingest
 
-Data Ingestion and Collection Flow
+Data Ingestion Flow
+
+__feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
+
+## Feeds
+
+1. ```stdin://``` - from stdin
+2. ```http://```  - Outgoing HTTP connection
+3. ```file://```  - From single file
+
+## Output
+
+1. ```stdout://``` - to stdout
+2. ```file://```   - single file
+3. ```hive://```   - Hive style file (support for subdirs and Time pattern)
 
 
+### Examples
 
-## Data Sinks
+Ingest from File into Hive based directory:
 
-1. InfluxDB
-2. Graphite
-3. LogFiles
-4. Stdout
+```
+./run-ingest.sh -f file://data/0001.csv -o "hive://output/{YYYY-mm-DD}/data.log"
+```
+
+Ingest from HTTP into stdout
+
+```
+./run-ingest.sh -f http://localhost:8100/data -o stdout://
+```
+
+
 
 ## Telemetry Collection
 
 Prometheus Telemetry
 
-
 <img src="doc/Skel-Architecture-skel-ingest.png" width="500">
 
-----
-
-## NFS Sink on Kubernetes 
-
-Simple shared NFS for Kubernetes Worker nodes. All worker nodes must have NFS mount point configured.
-The diagram depicts topology with autofs NFS mount
-
-<img src="doc/Skel-Architecture-nfs-hostPath.png" width="750">
 
 ---
 ## Prometheus Visualization

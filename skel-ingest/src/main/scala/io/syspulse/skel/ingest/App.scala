@@ -22,12 +22,7 @@ case class Config(
   host:String="",
   port:Int=0,
   uri:String = "",
-
-  elasticUri:String = "",
-  elasticUser:String = "",
-  elasticPass:String = "",
-  elasticIndex:String = "",
-  
+    
   filter:String = "",
   
   limit:Long = -1,
@@ -54,13 +49,8 @@ object App extends skel.Server {
         ArgInt('p', "http.port","listern port (def: 8080)"),
         ArgString('u', "http.uri","api uri (def: /api/v1/ingest)"),
         
-        ArgString('f', "feed","Input Feed (def: )"),
-        ArgString('o', "output","Output file (pattern is supported: data-{yyyy-MM-dd-HH-mm}.log)"),
-
-        ArgString('_', "elastic.uri","Elastic uri (def: http://localhost:9200)"),
-        ArgString('_', "elastic.user","Elastic user (def: )"),
-        ArgString('_', "elastic.pass","Elastic pass (def: )"),
-        ArgString('_', "elastic.index","Elastic Index (def: ingest)"),
+        ArgString('f', "feed","Input Feed () (def: stdin://, http://, file://)"),
+        ArgString('o', "output","Output sink (stdout://, file://, hive:// "),
 
         ArgLong('n', "limit","Limit (def: -1)"),
 
@@ -68,11 +58,7 @@ object App extends skel.Server {
         
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
-        ArgCmd("scan","Scan all"),
-        ArgCmd("search","Multi-Search pattern"),
-        ArgCmd("grep","Wildcards search"),
-        ArgCmd("typing","Typeahead"),
-
+        
         ArgParam("<params>","")
       ).withExit(1)
     ))
@@ -81,11 +67,6 @@ object App extends skel.Server {
       host = c.getString("http.host").getOrElse("0.0.0.0"),
       port = c.getInt("http.port").getOrElse(8080),
       uri = c.getString("http.uri").getOrElse("/api/v1/ingest"),
-
-      elasticUri = c.getString("elastic.uri").getOrElse("http://localhost:9200"),
-      elasticIndex = c.getString("elastic.index").getOrElse("ingest"),
-      elasticUser = c.getString("elastic.user").getOrElse(""),
-      elasticPass = c.getString("elastic.pass").getOrElse(""),
       
       feed = c.getString("feed").getOrElse("stdin://"),
       datastore = c.getString("datastore").getOrElse("mem"),
@@ -123,33 +104,18 @@ object App extends skel.Server {
         Console.err.println(s"Not supported")
         sys.exit(1)
       case "ingest" => {
-        val f1 = new Ingesting(config.feed,config.output)
-        
+        val f1 = new Ingesting(config.feed,config.output)        
         f1.run()
-        // config.datastore match {
-        //   case "elastic" => 
-        //     new IngestFlowElastic()
-        //       .connect[IngestFlowElastic](config.elasticUri, config.elasticIndex)
-        //       .from(IngestFlow.fromFile(config.feed))
-        //       .run()
-        //   case "mem" | "stdout" => 
-        //     new VideoFlowFile(config.output)
-        //       .from(IngestFlow.fromFile(config.feed))
-        //       .run()
-        }
-
-      //case "get" => store.connect(config).?(filter)
-      // case "scan" => store.connect(config).scan(filter)
-      // case "search" => store.connect(config).search(filter)
-      // case "grep" => store.connect( config).grep(filter)
-      // case "typing" => store.connect( config).typing(filter)
+      }     
     }
 
     println(s"r = ${r}")
   }
 }
 
-case class StringLike(s:String) extends skel.Ingestable
+case class StringLike(s:String) extends skel.Ingestable {
+  override def toString = s
+}
 
 class Ingesting(feed:String,output:String) extends IngestFlow[String,StringLike]() {
 
@@ -176,7 +142,6 @@ class Ingesting(feed:String,output:String) extends IngestFlow[String,StringLike]
       case "stdout" :: _ => IngestFlow.toStdout()
       case _ => IngestFlow.toFile(output)
     }
-    println(s"SINK: ${sink}")
     sink
   }
 
