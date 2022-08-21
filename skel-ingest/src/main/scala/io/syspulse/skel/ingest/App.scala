@@ -123,7 +123,7 @@ object App extends skel.Server {
         Console.err.println(s"Not supported")
         sys.exit(1)
       case "ingest" => {
-        val f1 = new Ingesting(config.feed)
+        val f1 = new Ingesting(config.feed,config.output)
         
         f1.run()
         // config.datastore match {
@@ -151,31 +151,32 @@ object App extends skel.Server {
 
 case class StringLike(s:String) extends skel.Ingestable
 
-class Ingesting(feed:String,output:String = "stdout://") extends IngestFlow[String,StringLike]() {
+class Ingesting(feed:String,output:String) extends IngestFlow[String,StringLike]() {
 
-  
   def parse(data: String): Seq[String] = {
     data.split("\n").toSeq
   }
   def transform(t: String): StringLike = StringLike(s"${count}: ${t}")
   
   override def source() = {
-    val flow = feed.split("://").toList match {
+    val source = feed.split("://").toList match {
       case "http" :: _ => IngestFlow.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = "\r")      
       case "file" :: fileName :: Nil => IngestFlow.fromFile(fileName,1024)
       case "stdin" :: _ => IngestFlow.fromStdin()
       case _ => IngestFlow.fromFile(feed)
     }
-    flow
+    source
   }
 
   override def sink() = {
     val sink = output.split("://").toList match {
       //case "http" :: _ => IngestFlow.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = "\r")      
       case "file" :: fileName :: Nil => IngestFlow.toFile(fileName)
+      case "hive" :: fileName :: Nil => IngestFlow.toHiveFile(fileName)
       case "stdout" :: _ => IngestFlow.toStdout()
       case _ => IngestFlow.toFile(output)
     }
+    println(s"SINK: ${sink}")
     sink
   }
 

@@ -203,5 +203,10 @@ object Util {
       Success(os.read(os.Path(path,os.pwd)))
     }
   }
+
+  def pathToFullPath(path:String):String = {
+    if(path.trim.startsWith("/")) return path
+    s"${os.pwd.toString}/${path}"
+  }
 }
 

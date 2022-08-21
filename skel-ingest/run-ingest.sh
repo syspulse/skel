@@ -11,12 +11,8 @@ export SITE=${SITE:-$CONF}
 
 MAIN=io.syspulse.skel.ingest.App
 
-$DEVICE=${2:-0001}
-LOG_FILE="data-$DEVICE-{yyyy-MM-dd-HH-mm}.log"
+>&2 echo "app: $APP"
+>&2 echo "site: $SITE"
+>&2 echo "main: $MAIN"
 
-echo "app: $APP"
-echo "site: $SITE"
-echo "main: $MAIN"
-
-cd ..
-exec ./run-app.sh $APP $MAIN $@
+exec ../run-app.sh $APP $MAIN $@

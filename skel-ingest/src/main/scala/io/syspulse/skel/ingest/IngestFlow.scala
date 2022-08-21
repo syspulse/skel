@@ -99,10 +99,12 @@ object IngestFlow {
 
   def fromStdin():Source[ByteString, Future[IOResult]] = StreamConverters.fromInputStream(() => System.in)
   // this is non-streaming simple ingester. Reads full file, flattens it and parses into Stream of Tms objects
-  def fromFile(file:String = "/dev/stdin",chunk:Int = 0,frameDelimiter:String="\r\n",frameSize:Int = 8192):Source[ByteString, Future[IOResult]] = 
+  def fromFile(file:String = "/dev/stdin",chunk:Int = 0,frameDelimiter:String="\r\n",frameSize:Int = 8192):Source[ByteString, Future[IOResult]] =  {
+    val filePath = Util.pathToFullPath(file)
     FileIO
-      .fromPath(Paths.get(file),chunkSize = if(chunk==0) Files.size(Paths.get(file)).toInt else chunk)
+      .fromPath(Paths.get(filePath),chunkSize = if(chunk==0) Files.size(Paths.get(filePath)).toInt else chunk)
       .via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+  }
 
   def toStdout() = Sink.foreach(println _)
 
@@ -114,7 +116,7 @@ object IngestFlow {
         .map(t=>s"${t.toSimpleLog}\n")
         .map(ByteString(_))
         .to(FileIO.toPath(
-          Paths.get(Util.toFileWithTime(file)),options =  Set(WRITE, CREATE))
+          Paths.get(Util.pathToFullPath(Util.toFileWithTime(file))),options =  Set(WRITE, CREATE))
         )
   }
 
@@ -133,7 +135,7 @@ object IngestFlow {
           size = size + element.size
           None
         } else {
-          currentFilename = Some(Util.toFileWithTime(file))
+          currentFilename = Some(Util.pathToFullPath(Util.toFileWithTime(file)))
           
           count = 0L
           size = 0L
