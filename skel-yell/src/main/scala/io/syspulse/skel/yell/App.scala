@@ -54,7 +54,7 @@ object App extends skel.Server {
 
         ArgLong('n', "limit","Limit (def: -1)"),
 
-        ArgString('d', "datastore","datastore [mysql,postgres,mem,cache] (def: mem)"),
+        ArgString('d', "datastore","datastore [elastic,mem,cache] (def: mem)"),
         
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
@@ -83,18 +83,18 @@ object App extends skel.Server {
 
       expr = c.getString("expr").getOrElse(" "),
       
-      cmd = c.getCmd().getOrElse("scan"),
+      cmd = c.getCmd().getOrElse("search"),
       params = c.getParams(),
     )
 
     println(s"Config: ${config}")
 
     val store:YellStore = config.datastore match {
-      case "elastic" => new YellStoreElastic().connect(config)
+      case "elastic" => new YellStoreElastic(config.elasticUri,config.elasticIndex)
       case "mem" => new YellStoreMem()
       //case "stdout" => new YellStoreStdout
       case _ => {
-        Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
+        Console.err.println(s"Uknown datastore: '${config.datastore}'")
         sys.exit(1)
       }
     }
@@ -114,13 +114,10 @@ object App extends skel.Server {
         .run()
 
       //case "get" => (new Object with DynamoGet).connect( config.elasticUri, config.elasticIndex).get(expr)
-      case "scan" => store.connect(config).scan(expr)
-      case "search" => store.connect(config).search(expr)
-      case "grep" => store.connect( config).grep(expr)
-      //case "scan" => (new Object with YellScan() {}).connect( config.elasticUri, config.elasticIndex).scan(expr)
-      // case "search" => new YellSearch().connect( config.elasticUri, config.elasticIndex).searches(expr)
-      // case "grep" => new YellSearch().connect( config.elasticUri, config.elasticIndex).grep(expr)
-    
+      case "scan" => store.scan(expr)
+      case "search" => store.search(expr)
+      case "grep" => store.grep(expr)
+  
     }
   }
 }

@@ -677,7 +677,8 @@ lazy val yell = (project in file("skel-yell"))
     appDockerConfig("skel-yell","io.syspulse.skel.yell.App"),
 
     libraryDependencies ++= libHttp ++ libTest ++ Seq(
-      libAlpakkaElastic
+      libAlpakkaElastic,
+      libElastic4s
     ),  
   )
 
