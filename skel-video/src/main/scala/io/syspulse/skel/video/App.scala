@@ -96,7 +96,8 @@ object App extends skel.Server {
     println(s"Config: ${config}")
 
     val store:VideoStore = config.datastore match {
-      case "elastic" => new VideoStoreElastic().connect(config)
+      case "elastic" => new VideoStoreElastic(config.elasticUri,config.elasticIndex)
+      case "elastic-flow" => new VideoStoreElasticFlow(config.elasticUri,config.elasticIndex)
       case "mem" => new VideoStoreMem()
       case "stdout" => new VideoStoreStdout()
       case _ => {
@@ -107,7 +108,7 @@ object App extends skel.Server {
     
     val expr = config.expr + config.params.mkString(" ")
 
-    config.cmd match {
+    val r = config.cmd match {
       case "server" => 
         // run( config.host, config.port,config.uri,c,
         //   Seq(
@@ -119,8 +120,8 @@ object App extends skel.Server {
       case "ingest" => 
         config.datastore match {
           case "elastic" => 
-            new VideoFlowElastic()
-              .connect[VideoFlowElastic](config.elasticUri, config.elasticIndex)
+            // only Elastic is supported here
+            new VideoStoreElasticFlow(config.elasticUri, config.elasticIndex)
               .from(IngestFlow.fromFile(config.feed))
               .run()
           case "mem" | "stdout" => 
@@ -130,10 +131,16 @@ object App extends skel.Server {
         }
 
       //case "get" => store.connect(config).?(expr)
-      case "scan" => store.connect(config).scan(expr)
-      case "search" => store.connect(config).search(expr)
-      case "grep" => store.connect( config).grep(expr)
-      case "typing" => store.connect( config).typing(expr)
+      case "scan" => store.scan(expr)
+      case "search" => store.search(expr)
+      case "grep" => store.grep(expr)
+      case "typing" => store.typing(expr)
     }
+
+    r match {
+      case l:List[_] => l.map(r => println(s"${r}"))
+      case _ => println(s"\n${r}")
+    }
+    
   }
 }

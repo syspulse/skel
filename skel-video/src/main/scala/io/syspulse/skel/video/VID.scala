@@ -13,6 +13,10 @@ object VID {
     new VID(id)
   }
 
+  def fromElastic(id:Map[String,String]):VID = {
+    new VID(id("id"))
+  }
+
   def fromVideo(v:Video):VID = new VID(s"M-${Math.abs(Random.nextInt())}")
 
   def apply(typ:String,xid:Option[String] = None, episode:Option[Int] = None):VID = {

@@ -10,8 +10,8 @@ import DefaultJsonProtocol._
 import io.syspulse.skel.video._
 
 object VideoElasticJson extends  DefaultJsonProtocol {
-  implicit val jf_VID: JsonFormat[VID] = jsonFormat1(VID.apply _)
-  implicit val fmt: JsonFormat[Video] = jsonFormat3(Video.apply _)
+  implicit val jf_VID = jsonFormat1(VID.apply _)
+  implicit val fmt = jsonFormat3(Video.apply _)
 }
 
 object VideoElastic {

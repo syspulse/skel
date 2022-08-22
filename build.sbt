@@ -696,6 +696,7 @@ lazy val video = (project in file("skel-video"))
 
     libraryDependencies ++= libCommon ++ libSkel ++ 
       Seq(
+        libElastic4s,
         libAkkaHttpSpray,
         libUUID,
       ),

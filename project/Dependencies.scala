@@ -12,10 +12,10 @@ object Dependencies {
     lazy val quillVersion = "3.6.0"
     lazy val influxDBVersion = "3.2.0"
     lazy val slickVersion = "3.3.3"
-
     lazy val sparkVersion = "3.2.0"
     lazy val hadoopAWSVersion = "3.2.2"
     lazy val janinoVersion = "3.0.16" //"3.1.6" //"3.0.16"
+    lazy val elastic4sVersion = "7.17.3"
     
     lazy val appNameHttp = "skel-http"
     lazy val appBootClassHttp = "io.syspulse.skel.service.App"
@@ -187,6 +187,9 @@ object Dependencies {
     val libSlickHikari =      "com.typesafe.slick" %% "slick-hikaricp" % slickVersion
     val libH2 =               "com.h2database" % "h2" % "1.4.200"                     //% Test
     val libLevelDB =          "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8"  % Test
+    
+    val libElastic4s =        "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % elastic4sVersion
+    val libElastic4sTest =    "com.sksamuel.elastic4s" %% "elastic4s-testkit" % elastic4sVersion % "test"
 
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)

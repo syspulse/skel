@@ -24,7 +24,7 @@ trait VideoStore extends Store[Video,ID] {
 
   def ??(txt:String):List[Video]
 
-  def connect(config:Config):VideoStore = this
+  // def connect(config:Config):VideoStore = this
 
   def scan(txt:String):List[Video]
   def search(txt:String):List[Video]
