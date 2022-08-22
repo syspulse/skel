@@ -424,11 +424,10 @@ lazy val ingest = (project in file("skel-ingest"))
     //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
 
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
+      libScalaTest % Test,
       libAlpakkaFile,
-      libUpickleLib,
-    ),
-    
-    
+      libUpickleLib,      
+    ),        
   )
 
 lazy val crypto = (project in file("skel-crypto"))
