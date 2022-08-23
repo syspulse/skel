@@ -122,11 +122,12 @@ class Ingesting(feed:String,output:String) extends IngestFlow[String,StringLike]
   def parse(data: String): Seq[String] = {
     data.split("\n").toSeq
   }
-  def transform(t: String): StringLike = StringLike(s"${count}: ${t}")
+  def transform(t: String): Seq[StringLike] = Seq(StringLike(s"${count}: ${t}"))
   
   override def source() = {
     val source = feed.split("://").toList match {
-      case "http" :: _ => IngestFlow.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = "\r")      
+      case "http" :: _ => IngestFlow.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = "\r")
+      case "https" :: _ => IngestFlow.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = "\r")
       case "file" :: fileName :: Nil => IngestFlow.fromFile(fileName,1024)
       case "stdin" :: _ => IngestFlow.fromStdin()
       case _ => IngestFlow.fromFile(feed)

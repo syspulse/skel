@@ -40,7 +40,7 @@ trait IngestFlow[T,D] {
   val retrySettings = RestartSettings(
     minBackoff = FiniteDuration(3000,TimeUnit.MILLISECONDS),
     maxBackoff = FiniteDuration(10000,TimeUnit.MILLISECONDS),
-    randomFactor = 0.2 // adds 20% "noise" to vary the intervals slightly
+    randomFactor = 0.2
   )
   //.withMaxRestarts(10, 5.minutes)
 
@@ -59,7 +59,7 @@ trait IngestFlow[T,D] {
 
   def flow:Flow[T,T,_] = Flow[T].map(t => t)
 
-  def transform(t:T):D
+  def transform(t:T):Seq[D]
 
   def debug = Flow.fromFunction( (data:ByteString) => { log.debug(s"data=${data}"); data})
 
@@ -73,7 +73,7 @@ trait IngestFlow[T,D] {
       .mapConcat(txt => parse(txt.utf8String))
       .via(flow)
       .viaMat(KillSwitches.single)(Keep.right)
-      .map(t => transform(t))
+      .mapConcat(t => transform(t))
       .log("ingest-flow")
       .alsoTo(sink0())
       .runWith(sink())

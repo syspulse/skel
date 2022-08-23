@@ -37,11 +37,11 @@ trait ElasticFlow[T] extends IngestFlow[T,WriteMessage[T,NotUsed]] with ElasticC
       ElasticsearchParams.V7(getIndexName()), settings = getSinkSettings()
     )
 
-  override def transform(t:T):WriteMessage[T,NotUsed] = {
+  override def transform(t:T):Seq[WriteMessage[T,NotUsed]] = {
     //log.debug(s"${Util.now} ${t}")
         
     val (index,t2) = getIndex(t)
-    WriteMessage.createIndexMessage(index, t2)
+    Seq(WriteMessage.createIndexMessage(index, t2))
   }
 
   //override def connect(elasticUri:String,elasticIndex:String):ElasticFlow[T] = super.connect(elasticUri,elasticIndex).asInstanceOf[ElasticFlow[T]]
