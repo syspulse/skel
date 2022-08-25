@@ -12,6 +12,7 @@ import io.syspulse.skel.ingest.IngestFlow
 import io.syspulse.skel.video.store._
 import io.syspulse.skel.video.file._
 import io.syspulse.skel.video.elastic._
+import akka.NotUsed
 
 case class Config(
   host:String="",
@@ -100,6 +101,7 @@ object App extends skel.Server {
       case "elastic-flow" => new VideoStoreElasticFlow(config.elasticUri,config.elasticIndex)
       case "mem" => new VideoStoreMem()
       case "stdout" => new VideoStoreStdout()
+      case "file" => new VideoStoreFile()
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
         sys.exit(1)
@@ -119,14 +121,18 @@ object App extends skel.Server {
         sys.exit(1)
       case "ingest" => 
         config.datastore match {
-          case "elastic" => 
+          case "elastic" =>
             // only Elastic is supported here
             new VideoStoreElasticFlow(config.elasticUri, config.elasticIndex)
-              .from(IngestFlow.fromFile(config.feed))
+              .from(IngestFlow.fromFile(config.feed, frameSize = Int.MaxValue))
               .run()
-          case "mem" | "stdout" => 
+          case "file" =>
             new VideoFlowFile(config.output)
-              .from(IngestFlow.fromFile(config.feed))
+              .from(IngestFlow.fromFile(config.feed,frameSize = Int.MaxValue))
+              .run()
+          case "stdout" =>
+            new VideoFlowStdout()
+              .from(IngestFlow.fromFile(config.feed,frameSize = Int.MaxValue))
               .run()
         }
 
@@ -139,7 +145,8 @@ object App extends skel.Server {
 
     r match {
       case l:List[_] => l.map(r => println(s"${r}"))
-      case _ => println(s"\n${r}")
+      case NotUsed => println(r)
+      case _ => Console.err.println(s"\n${r}")
     }
     
   }

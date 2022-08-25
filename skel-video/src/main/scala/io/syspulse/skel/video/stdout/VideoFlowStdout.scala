@@ -15,12 +15,9 @@ import io.syspulse.skel.video.VideoFlow
 import io.syspulse.skel.ingest.IngestFlow
 import akka.stream.scaladsl.Flow
 
-class VideoFlowFile(file:String) extends VideoFlow with IngestFlow[Video,Video,Video]{
+class VideoFlowStdout extends VideoFlow with IngestFlow[Video,Video,Video]{
 
   def transform(t: Video): Seq[Video] = Seq(t)  
   
-  override def sink():Sink[Video,Any] = {
-    log.info(s"writing -> ${file}")
-    IngestFlow.toHiveFile(file)
-  }
+  override def sink():Sink[Video,Any] = IngestFlow.toStdout()
 }

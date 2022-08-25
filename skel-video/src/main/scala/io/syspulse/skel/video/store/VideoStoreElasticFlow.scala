@@ -20,7 +20,8 @@ import io.syspulse.skel.video.elastic.VideoSearch
 
 // Datastore base on Akka Flow ElasticClient 
 class VideoStoreElasticFlow(elasticUri:String,elacticIndex:String) extends VideoFlowElastic with VideoScan with VideoSearch with VideoStore {
-  
+  override val log = Logger(s"${this}")
+
   import io.syspulse.skel.video.elastic.VideoElasticJson
   import io.syspulse.skel.video.elastic.VideoElasticJson._
   override implicit val fmt = VideoElasticJson.fmt

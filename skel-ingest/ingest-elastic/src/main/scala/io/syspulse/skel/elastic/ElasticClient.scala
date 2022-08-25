@@ -32,7 +32,7 @@ import spray.json.JsonFormat
 
 
 trait ElasticClient[T] {
-  val log = Logger(s"${this}")
+  protected val log = Logger(s"${this}")
   implicit val as = ActorSystem("ActorSystem-ElasticClient")
 
   def timeout() = Duration("3 seconds")

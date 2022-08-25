@@ -1,6 +1,7 @@
 package io.syspulse.skel.video
 
 import scala.jdk.CollectionConverters._
+import com.typesafe.scalalogging.Logger
 
 import akka.stream.scaladsl.Sink
 
@@ -15,7 +16,8 @@ import io.syspulse.skel.video.VID
 import io.syspulse.skel.video.tms._
 import io.syspulse.skel.video.elastic.VideoElasticJson
 
-class VideoFlowElastic extends VideoFlow with ElasticFlow[Video] {
+class VideoFlowElastic extends ElasticFlow[Video,Video] with VideoFlow {
+  override val log = Logger(s"${this}")
   
   import VideoElasticJson._
   implicit val fmt = VideoElasticJson.fmt 

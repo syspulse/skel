@@ -28,7 +28,7 @@ import akka.stream.alpakka.elasticsearch.WriteMessage
 import akka.stream.alpakka.elasticsearch.ElasticsearchParams
 import spray.json.JsonFormat
 
-trait ElasticFlow[T] extends IngestFlow[T,WriteMessage[T,NotUsed]] with ElasticClient[T] {
+trait ElasticFlow[I,T] extends IngestFlow[I,T,WriteMessage[T,NotUsed]] with ElasticClient[T] {
   
   def getIndex(t:T):(String,T)
   
@@ -38,8 +38,6 @@ trait ElasticFlow[T] extends IngestFlow[T,WriteMessage[T,NotUsed]] with ElasticC
     )
 
   override def transform(t:T):Seq[WriteMessage[T,NotUsed]] = {
-    //log.debug(s"${Util.now} ${t}")
-        
     val (index,t2) = getIndex(t)
     Seq(WriteMessage.createIndexMessage(index, t2))
   }

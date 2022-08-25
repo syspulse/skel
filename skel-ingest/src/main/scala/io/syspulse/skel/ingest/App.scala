@@ -17,6 +17,7 @@ import akka.http.scaladsl.model.headers.Accept
 import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl
 import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.Flow
 
 case class Config(
   host:String="",
@@ -117,8 +118,10 @@ case class StringLike(s:String) extends skel.Ingestable {
   override def toString = s
 }
 
-class Ingesting(feed:String,output:String) extends IngestFlow[String,StringLike]() {
+class Ingesting(feed:String,output:String) extends IngestFlow[String,String,StringLike]() {
 
+  def flow:Flow[String,String,_] = Flow[String].map(s => s)
+  
   def parse(data: String): Seq[String] = {
     data.split("\n").toSeq
   }

@@ -33,7 +33,7 @@ import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.Http
 import java.util.concurrent.TimeUnit
 
-trait IngestFlow[T,D] {
+trait IngestFlow[I,T,O] {
   private val log = Logger(s"${this}")
   implicit val system = ActorSystem("ActorSystem-IngestFlow")
   
@@ -47,26 +47,26 @@ trait IngestFlow[T,D] {
   var count:Long = 0L
 
   var defaultSource:Option[Source[ByteString,_]] = None
-  var defaultSink:Option[Sink[D,_]] = None
+  var defaultSink:Option[Sink[O,_]] = None
 
-  def parse(data:String):Seq[T]
+  def parse(data:String):Seq[I]
 
-  def sink():Sink[D,Any] = if(defaultSink.isDefined) defaultSink.get else IngestFlow.toStdout()
+  def sink():Sink[O,Any] = if(defaultSink.isDefined) defaultSink.get else IngestFlow.toStdout()
 
-  def sink0():Sink[D,Any] = Sink.ignore
+  def sink0():Sink[O,Any] = Sink.ignore
 
   def source():Source[ByteString,_] = if(defaultSource.isDefined) defaultSource.get else IngestFlow.fromStdin()
 
-  def flow:Flow[T,T,_] = Flow[T].map(t => t)
+  def flow:Flow[I,T,_]
 
-  def transform(t:T):Seq[D]
+  def transform(t:T):Seq[O]
 
   def debug = Flow.fromFunction( (data:ByteString) => { log.debug(s"data=${data}"); data})
 
   def counter = Flow[ByteString].map(t => { count = count + 1; t})
 
   def run() = {    
-    val flowing =
+    val flowGraph =
       source()
       .via(debug)
       .via(counter)      
@@ -76,14 +76,16 @@ trait IngestFlow[T,D] {
       .mapConcat(t => transform(t))
       .log("ingest-flow")
       .alsoTo(sink0())
+    
+    val flowing = flowGraph
       .runWith(sink())
 
     //val r = Await.result(result, timeout())
-    log.info(s"flow: ${flowing}")
+    log.info(s"graph: ${flowGraph}: flow=${flowing}")
     flowing
   }
 
-  def from(src:Source[ByteString,_]):IngestFlow[T,D] = {
+  def from(src:Source[ByteString,_]):IngestFlow[I,T,O] = {
     defaultSource = Some(src)
     this
   }
