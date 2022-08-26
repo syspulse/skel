@@ -3,20 +3,23 @@ package io.syspulse.skel.video
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration,FiniteDuration}
 
+import akka.NotUsed
+import scala.concurrent.Awaitable
+import scala.concurrent.Await
+import java.util.concurrent.TimeUnit
+import scala.concurrent.Future
+
 import io.syspulse.skel
 import io.syspulse.skel.config._
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
 import io.syspulse.skel.ingest.IngestFlow
+import io.syspulse.skel.ingest.flow.Flows
 import io.syspulse.skel.video.store._
 import io.syspulse.skel.video.file._
 import io.syspulse.skel.video.elastic._
-import akka.NotUsed
-import scala.concurrent.Awaitable
-import scala.concurrent.Await
-import java.util.concurrent.TimeUnit
-import scala.concurrent.Future
+
 
 case class Config(
   host:String="",
@@ -128,15 +131,15 @@ object App extends skel.Server {
           case "elastic" =>
             // only Elastic is supported here
             new VideoStoreElasticFlow(config.elasticUri, config.elasticIndex)
-              .from(IngestFlow.fromFile(config.feed, frameSize = Int.MaxValue))
+              .from(Flows.fromFile(config.feed, frameSize = Int.MaxValue))
               .run()
           case "file" =>
             new VideoFlowFile(config.output)
-              .from(IngestFlow.fromFile(config.feed,frameSize = Int.MaxValue))
+              .from(Flows.fromFile(config.feed,frameSize = Int.MaxValue))
               .run()
           case "stdout" =>
             new VideoFlowStdout()
-              .from(IngestFlow.fromFile(config.feed,frameSize = Int.MaxValue))
+              .from(Flows.fromFile(config.feed,frameSize = Int.MaxValue))
               .run()
         }
 

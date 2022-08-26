@@ -51,11 +51,11 @@ trait IngestFlow[I,T,O] {
 
   def parse(data:String):Seq[I]
 
-  def sink():Sink[O,Any] = if(defaultSink.isDefined) defaultSink.get else IngestFlow.toStdout()
+  def sink():Sink[O,Any] = if(defaultSink.isDefined) defaultSink.get else Sink.foreach(println _)
 
   def sink0():Sink[O,Any] = Sink.ignore
 
-  def source():Source[ByteString,_] = if(defaultSource.isDefined) defaultSource.get else IngestFlow.fromStdin()
+  def source():Source[ByteString,_] = if(defaultSource.isDefined) defaultSource.get else StreamConverters.fromInputStream(() => System.in)
 
   def flow:Flow[I,T,_]
 
@@ -89,81 +89,4 @@ trait IngestFlow[I,T,O] {
     defaultSource = Some(src)
     this
   }
-}
-
-object IngestFlow {
-  def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem) = Http()
-    .singleRequest(req)
-    .flatMap(res => res.entity.dataBytes.runReduce(_ ++ _))
-
-  def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = Source.future(fromHttpFuture(req))
-    .via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
-
-  def fromStdin():Source[ByteString, Future[IOResult]] = StreamConverters.fromInputStream(() => System.in)
-  // this is non-streaming simple ingester. Reads full file, flattens it and parses into Stream of Tms objects
-  def fromFile(file:String = "/dev/stdin",chunk:Int = 0,frameDelimiter:String="\r\n",frameSize:Int = 8192):Source[ByteString, Future[IOResult]] =  {
-    val filePath = Util.pathToFullPath(file)
-    FileIO
-      .fromPath(Paths.get(filePath),chunkSize = if(chunk==0) Files.size(Paths.get(filePath)).toInt else chunk)
-      .via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
-  }
-
-  def toStdout() = Sink.foreach(println _)
-
-  def toFile(file:String) = {
-    if(file.trim.isEmpty) 
-      Sink.ignore 
-    else
-      Flow[Ingestable]
-        .map(t=>s"${t.toSimpleLog}\n")
-        .map(ByteString(_))
-        .to(FileIO.toPath(
-          Paths.get(Util.pathToFullPath(Util.toFileWithTime(file))),options =  Set(WRITE, CREATE))
-        )
-  }
-
-  def toHiveFile(file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue) = {
-
-    val fileRotateTrigger: () => ByteString => Option[Path] = () => {
-      var currentFilename: Option[String] = None
-      var init = false
-      val max = 10 * 1024 * 1024
-      var count: Long = 0L
-      var size: Long = 0L
-      var currentTs = System.currentTimeMillis
-      (element: ByteString) => {
-        if(init && (count < fileLimit && size < fileSize)) {
-          count = count + 1
-          size = size + element.size
-          None
-        } else {
-          currentFilename = Some(Util.pathToFullPath(Util.toFileWithTime(file)))
-          
-          count = 0L
-          size = 0L
-          init = true
-          
-          val currentDirname = Util.extractDirWithSlash(currentFilename.get)
-          try {
-            // try to create dir
-            Files.createDirectories(Path.of(currentDirname))
-            val outputPath = currentFilename.get
-            Some(Paths.get(outputPath))
-
-          } catch {
-            case e:Exception => None
-          }                    
-        }
-      }
-    }
-
-    if(file.trim.isEmpty) 
-      Sink.ignore 
-    else
-      Flow[Ingestable]
-        .map(t=>s"${t.toSimpleLog}\n")
-        .map(ByteString(_))
-        .to(LogRotatorSink(fileRotateTrigger))
-  }
-
 }

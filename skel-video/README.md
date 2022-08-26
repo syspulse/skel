@@ -16,6 +16,14 @@ Create index:
 
 ## Ingest Data
 
+Check what will be ingested:
+
+```
+./run-video.sh ingest -f ./feed/1.csv -d stdout
+```
+
+Ingest into Elastic:
+
 ```
 ./run-video.sh ingest -f ./feed/1.csv -d elastic
 ```

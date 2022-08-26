@@ -413,23 +413,6 @@ lazy val kafka= (project in file("skel-kafka"))
     ),
   )  
 
-lazy val ingest = (project in file("skel-ingest"))
-  .dependsOn(core)
-  .enablePlugins(JavaAppPackaging)
-  .settings (
-    sharedConfig,
-    sharedConfigAssembly,
-
-    appAssemblyConfig("skel-ingest",appNameIngest),
-    //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
-
-    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
-      libScalaTest % Test,
-      libAlpakkaFile,
-      libUpickleLib,      
-    ),        
-  )
-
 lazy val crypto = (project in file("skel-crypto"))
   .dependsOn(core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
@@ -488,6 +471,23 @@ lazy val scrap = (project in file("skel-scrap"))
      
   )
 
+lazy val ingest = (project in file("skel-ingest"))
+  .dependsOn(core)
+  .enablePlugins(JavaAppPackaging)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+
+    appAssemblyConfig("skel-ingest",""),
+    //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
+
+    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
+      libScalaTest % Test,
+      libAlpakkaFile,
+      libUpickleLib,      
+    ),        
+  )
+
 lazy val ingest_dynamo = (project in file("skel-ingest/ingest-dynamo"))
   .dependsOn(core,video,ingest)
   .enablePlugins(JavaAppPackaging)
@@ -524,6 +524,23 @@ lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
     libraryDependencies ++= libHttp ++ libTest ++ Seq(
       libAlpakkaElastic
     ),  
+  )
+
+lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
+  .dependsOn(core,ingest,ingest_elastic)
+  .enablePlugins(JavaAppPackaging)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+
+    appAssemblyConfig("inget-flow","io.syspulse.skel.ingest.flow.App"),
+    //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
+
+    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
+      libScalaTest % Test,
+      libAlpakkaFile,
+      libUpickleLib,      
+    ),        
   )
 
 lazy val stream_std = (project in file("skel-stream/stream-std"))
@@ -682,7 +699,7 @@ lazy val yell = (project in file("skel-yell"))
   )
 
 lazy val video = (project in file("skel-video"))
-  .dependsOn(core,auth_core,ingest,ingest_elastic)
+  .dependsOn(core,auth_core,ingest,ingest_flow,ingest_elastic)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (

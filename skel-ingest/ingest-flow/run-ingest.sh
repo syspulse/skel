@@ -9,10 +9,10 @@ CONF=`echo $APP | awk -F"-" '{print $2}'`
 
 export SITE=${SITE:-$CONF}
 
-MAIN=io.syspulse.skel.ingest.App
+MAIN=io.syspulse.skel.ingest.flow.App
 
 >&2 echo "app: $APP"
 >&2 echo "site: $SITE"
 >&2 echo "main: $MAIN"
 
-exec ../run-app.sh $APP $MAIN $@
+exec ../../run-app.sh $APP $MAIN $@

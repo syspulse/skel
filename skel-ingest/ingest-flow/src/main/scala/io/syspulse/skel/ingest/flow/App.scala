@@ -1,15 +1,9 @@
-package io.syspulse.skel.ingest
+package io.syspulse.skel.ingest.flow
 
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration,FiniteDuration}
 import com.typesafe.scalalogging.Logger
 
-import io.syspulse.skel
-import io.syspulse.skel.config._
-import io.syspulse.skel.util.Util
-import io.syspulse.skel.config._
-
-import io.syspulse.skel.ingest.store._
 import akka.util.ByteString
 import akka.http.javadsl.Http
 import akka.http.scaladsl.model.HttpRequest
@@ -18,6 +12,15 @@ import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl
 import akka.stream.scaladsl.Source
 import akka.stream.scaladsl.Flow
+
+import io.syspulse.skel
+import io.syspulse.skel.config._
+import io.syspulse.skel.util.Util
+import io.syspulse.skel.config._
+
+import io.syspulse.skel.ingest._
+import io.syspulse.skel.ingest.store._
+
 
 case class Config(
   host:String="",
@@ -29,6 +32,9 @@ case class Config(
   limit:Long = -1,
   feed:String = "",
   output:String = "",
+  
+  delimiter:String = "",
+  buffer:Long = 0L,
 
   datastore:String = "",
 
@@ -45,13 +51,16 @@ object App extends skel.Server {
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv, 
-      new ConfigurationArgs(args,"skell-ingest","",
+      new ConfigurationArgs(args,"ingest-flow","",
         ArgString('h', "http.host","listen host (def: 0.0.0.0)"),
         ArgInt('p', "http.port","listern port (def: 8080)"),
         ArgString('u', "http.uri","api uri (def: /api/v1/ingest)"),
         
         ArgString('f', "feed","Input Feed () (def: stdin://, http://, file://)"),
         ArgString('o', "output","Output sink (stdout://, file://, hive:// "),
+
+        ArgString('_', "delimiter","""Delimiter characteds (def: '\n'). Usage example: --delimiter=`echo -e $"\r"` """),
+        ArgLong('_', "buffer","Frame buffer (Akka Framing) (def: 8192)"),
 
         ArgLong('n', "limit","Limit (def: -1)"),
 
@@ -64,7 +73,7 @@ object App extends skel.Server {
       ).withExit(1)
     ))
 
-    val config = Config(
+    implicit val config = Config(
       host = c.getString("http.host").getOrElse("0.0.0.0"),
       port = c.getInt("http.port").getOrElse(8080),
       uri = c.getString("http.uri").getOrElse("/api/v1/ingest"),
@@ -74,6 +83,9 @@ object App extends skel.Server {
 
       limit = c.getLong("limit").getOrElse(-1L),
       output = c.getString("output").getOrElse("output.log"),
+
+      delimiter = c.getString("delimiter").getOrElse("\n"),
+      buffer = c.getLong("buffer").getOrElse(8192),
 
       filter = c.getString("filter").getOrElse(""),
       
@@ -114,11 +126,19 @@ object App extends skel.Server {
   }
 }
 
+
+
+import spray.json._
+import DefaultJsonProtocol._
+object StringLikeJson extends  DefaultJsonProtocol {
+  implicit val fmt = jsonFormat1(StringLike.apply _)
+}
+
 case class StringLike(s:String) extends skel.Ingestable {
   override def toString = s
 }
 
-class Ingesting(feed:String,output:String) extends IngestFlow[String,String,StringLike]() {
+class Ingesting(feed:String,output:String)(implicit config:Config) extends IngestFlow[String,String,StringLike]() {
 
   def flow:Flow[String,String,_] = Flow[String].map(s => s)
   
@@ -129,22 +149,23 @@ class Ingesting(feed:String,output:String) extends IngestFlow[String,String,Stri
   
   override def source() = {
     val source = feed.split("://").toList match {
-      case "http" :: _ => IngestFlow.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = "\r")
-      case "https" :: _ => IngestFlow.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = "\r")
-      case "file" :: fileName :: Nil => IngestFlow.fromFile(fileName,1024)
-      case "stdin" :: _ => IngestFlow.fromStdin()
-      case _ => IngestFlow.fromFile(feed)
+      case "http" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = config.delimiter,frameSize = config.buffer.toInt)
+      case "https" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = config.delimiter,frameSize = config.buffer.toInt)
+      case "file" :: fileName :: Nil => Flows.fromFile(fileName,1024,frameDelimiter = config.delimiter, frameSize = config.buffer.toInt)
+      case "stdin" :: _ => Flows.fromStdin()
+      case _ => Flows.fromFile(feed,1024,frameDelimiter = config.delimiter,frameSize = config.buffer.toInt)
     }
     source
   }
 
   override def sink() = {
+    import StringLikeJson._
     val sink = output.split("://").toList match {
-      //case "http" :: _ => IngestFlow.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = "\r")      
-      case "file" :: fileName :: Nil => IngestFlow.toFile(fileName)
-      case "hive" :: fileName :: Nil => IngestFlow.toHiveFile(fileName)
-      case "stdout" :: _ => IngestFlow.toStdout()
-      case _ => IngestFlow.toFile(output)
+      case "elastic" :: _ => Flows.toElastic[StringLike](output)
+      case "file" :: fileName :: Nil => Flows.toFile(fileName)
+      case "hive" :: fileName :: Nil => Flows.toHiveFile(fileName)
+      case "stdout" :: _ => Flows.toStdout()
+      case _ => Flows.toFile(output)
     }
     sink
   }
