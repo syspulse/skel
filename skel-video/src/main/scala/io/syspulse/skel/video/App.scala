@@ -13,6 +13,10 @@ import io.syspulse.skel.video.store._
 import io.syspulse.skel.video.file._
 import io.syspulse.skel.video.elastic._
 import akka.NotUsed
+import scala.concurrent.Awaitable
+import scala.concurrent.Await
+import java.util.concurrent.TimeUnit
+import scala.concurrent.Future
 
 case class Config(
   host:String="",
@@ -146,7 +150,9 @@ object App extends skel.Server {
     r match {
       case l:List[_] => l.map(r => println(s"${r}"))
       case NotUsed => println(r)
-      case _ => Console.err.println(s"\n${r}")
+      case f:Future[_] if config.cmd == "ingest" => Await.result(f,FiniteDuration(3000,TimeUnit.MILLISECONDS)); sys.exit(0)
+      case a:Awaitable[_] if config.cmd == "ingest" => Await.result(a,FiniteDuration(3000,TimeUnit.MILLISECONDS)); sys.exit(0)
+      case _ => Console.err.println(s"\n${r}")      
     }
     
   }
