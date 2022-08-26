@@ -679,7 +679,7 @@ lazy val pdf = (project in file("skel-pdf"))
 
 
 lazy val yell = (project in file("skel-yell"))
-  .dependsOn(core,auth_core,ingest,ingest_elastic)
+  .dependsOn(core,auth_core,ingest,ingest_elastic,ingest_flow)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)

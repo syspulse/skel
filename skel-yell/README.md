@@ -2,6 +2,8 @@
 
 AuditLog for system important events (yells)
 
+NOTE: [skel-video](../skel-video) is usually first to have updates
+
 ----
 
 ## Local Elastic Setup

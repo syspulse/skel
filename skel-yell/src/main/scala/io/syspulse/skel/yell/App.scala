@@ -9,6 +9,7 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
 import io.syspulse.skel.ingest.IngestFlow
+import io.syspulse.skel.ingest.flow.Flows
 import io.syspulse.skel.yell.store._
 
 case class Config(
@@ -110,7 +111,7 @@ object App extends skel.Server {
         )
       case "ingest" => new YellFlow()
         .connect[YellFlow](config.elasticUri, config.elasticIndex)
-        .from(IngestFlow.fromFile(config.feed))        
+        .from(Flows.fromFile(config.feed))        
         .run()
 
       //case "get" => (new Object with DynamoGet).connect( config.elasticUri, config.elasticIndex).get(expr)
