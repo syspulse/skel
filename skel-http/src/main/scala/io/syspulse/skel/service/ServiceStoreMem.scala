@@ -16,11 +16,12 @@ class ServiceStoreMem extends ServiceStore {
   
   var services: Set[Service] = Set()
 
-  def getAll:Seq[Service] = services.toSeq
+  def all:Seq[Service] = services.toSeq
   def size:Long = services.size
 
   def +(service:Service):Try[ServiceStore] = { services = services + service; Success(this)}
-  def -(id:UUID):Try[ServiceStore] = { 
+  
+  def del(id:UUID):Try[ServiceStore] = { 
     services.find(_.id == id) match {
       case Some(service) => { services = services - service; Success(this) }
       case None => Failure(new Exception(s"not found: ${id}"))
@@ -33,5 +34,5 @@ class ServiceStoreMem extends ServiceStore {
     if(sz == services.size) Failure(new Exception(s"not found: ${service}")) else Success(this)
   }
 
-  def get(id:UUID):Option[Service] = services.find(_.id == id)
+  def ?(id:UUID):Option[Service] = services.find(_.id == id)
 }

@@ -44,7 +44,7 @@ object ServiceRegistry {
 
     Behaviors.receiveMessage {
       case GetServices(replyTo) =>
-        replyTo ! Services(store.getAll)
+        replyTo ! Services(store.all)
         Behaviors.same
       case CreateService(serviceCreate, replyTo) =>
         val id = UUID.randomUUID()
@@ -54,10 +54,10 @@ object ServiceRegistry {
         replyTo ! ServiceActionPerformed(s"created",Some(id))
         registry(store1.getOrElse(store))
       case GetService(id, replyTo) =>
-        replyTo ! GetServiceResponse(store.get(id))
+        replyTo ! GetServiceResponse(store.?(id))
         Behaviors.same
       case DeleteService(id, replyTo) =>
-        val store1 = store.-(id)
+        val store1 = store.del(id)
         metricStoreSize.set(store1.map(s => s.size.toDouble).getOrElse(store.size.toDouble))
         replyTo ! ServiceActionPerformed(s"deleted",Some(id))
         registry(store1.getOrElse(store))

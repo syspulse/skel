@@ -50,13 +50,15 @@ object App extends skel.Server {
 
     println(s"Config: ${config}")
 
-    run( config.host, config.port, config.uri, c, 
+    val r = run( config.host, config.port, config.uri, c, 
       Seq(
         // example of WebSocker processor
         (Behaviors.ignore,"",(actor,actorSystem) => new WsServiceRoutes()(actorSystem) ),
         (ServiceRegistry(new ServiceStoreMem),"ServiceRegistry",(actor,actorSystem ) => new ServiceRoutes(actor)(actorSystem) ),
       )
     )
+
+    println(s"r=${r}")
   }
 }
 
