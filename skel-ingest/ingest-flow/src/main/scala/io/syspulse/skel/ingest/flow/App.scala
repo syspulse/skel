@@ -34,7 +34,7 @@ case class Config(
   output:String = "",
   
   delimiter:String = "",
-  buffer:Long = 0L,
+  buffer:Int = 0,
   throttle:Long = 0L,
 
   datastore:String = "",
@@ -61,7 +61,7 @@ object App extends skel.Server {
         ArgString('o', "output","Output sink (stdout://, file://, hive://, elastic://, kafka:// "),
 
         ArgString('_', "delimiter","""Delimiter characteds (def: '\n'). Usage example: --delimiter=`echo -e $"\r"` """),
-        ArgLong('_', "buffer","Frame buffer (Akka Framing) (def: 8192)"),
+        ArgInt('_', "buffer","Frame buffer (Akka Framing) (def: 8192)"),
         ArgLong('_', "throttle","Throttle messages in msec (def: 0)"),
 
         ArgLong('n', "limit","Limit (def: -1)"),
@@ -87,7 +87,7 @@ object App extends skel.Server {
       output = c.getString("output").getOrElse("stdout://"),
 
       delimiter = c.getString("delimiter").getOrElse("\n"),
-      buffer = c.getLong("buffer").getOrElse(8192),
+      buffer = c.getInt("buffer").getOrElse(8192),
       throttle = c.getLong("throttle").getOrElse(0L),
 
       filter = c.getString("filter").getOrElse(""),
@@ -120,7 +120,7 @@ object App extends skel.Server {
         Console.err.println(s"Not supported")
         sys.exit(1)
       case "ingest" => {
-        val f1 = new PipelineTextline(config.feed,config.output,config.throttle)
+        val f1 = new PipelineTextline(config.feed,config.output)
         f1.run()
       }     
     }

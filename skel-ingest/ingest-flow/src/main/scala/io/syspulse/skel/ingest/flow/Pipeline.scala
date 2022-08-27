@@ -23,7 +23,7 @@ import io.syspulse.skel.ingest.store._
 import spray.json._
 import java.util.concurrent.TimeUnit
 
-abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,throttle:Long = 0, delimiter:String = "\n", buffer:Long = 8192)
+abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024)
   (implicit fmt:JsonFormat[O]) extends IngestFlow[I,T,O]() {
   
   // this is needed for Elastic
@@ -44,18 +44,18 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
   override def source() = {
     val source = feed.split("://").toList match {
       case "kafka" :: _ => Flows.fromKafka[Textline](feed)
-      case "http" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer.toInt)
-      case "https" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer.toInt)
-      case "file" :: fileName :: Nil => Flows.fromFile(fileName,1024,frameDelimiter = delimiter, frameSize = buffer.toInt)
+      case "http" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
+      case "https" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
+      case "file" :: fileName :: Nil => Flows.fromFile(fileName,chunk,frameDelimiter = delimiter, frameSize = buffer)
       case "stdin" :: _ => Flows.fromStdin()
-      case _ => Flows.fromFile(feed,1024,frameDelimiter = delimiter,frameSize = buffer.toInt)
+      case _ => Flows.fromFile(feed,chunk,frameDelimiter = delimiter,frameSize = buffer)
     }
     source
   }
   
   override def sink() = {
     val sink = output.split("://").toList match {
-      case "json" :: _ => Flows.toJsonite[O](output)(fmt)
+      case "json" :: _ => Flows.toJson[O](output)(fmt)
 
       case "kafka" :: _ => Flows.toKafka[O](output)
       case "elastic" :: _ => Flows.toElastic[O](output)(fmt)

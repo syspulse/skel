@@ -28,11 +28,13 @@ import java.util.concurrent.TimeUnit
 
 import io.syspulse.skel.video.tms._
 
-class PipelineVideo(feed:String,output:String,throttle:Long = 0)
-  extends Pipeline[Video,Video,Video](feed,output,throttle,"\n",8192) {
+import VideoJson._
 
-  import VideoJson._
-  implicit val fmt:JsonFormat[Video] = VideoJson.fmt
+class PipelineVideo(feed:String,output:String)(implicit config:Config)
+  extends Pipeline[Video,Video,Video](feed,output,config.throttle,config.delimiter,config.buffer) {
+
+  // import VideoJson._
+  // implicit val fmt:JsonFormat[Video] = VideoJson.fmt
 
   def parse(data:String):Seq[Video] = TmsParser.fromString(data).map( tms => {
     Video(VID(tms.id),tms.title)

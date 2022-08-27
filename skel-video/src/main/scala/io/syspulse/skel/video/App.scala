@@ -35,6 +35,9 @@ case class Config(
   limit:Long = -1,
   feed:String = "",
   output:String = "",
+  delimiter:String = "",
+  buffer:Int = 0,
+  throttle:Long = 0L,
 
   datastore:String = "",
 
@@ -66,6 +69,10 @@ object App extends skel.Server {
 
         ArgLong('n', "limit","Limit (def: -1)"),
 
+        ArgString('_', "delimiter","""Delimiter characteds (def: ''). Usage example: --delimiter=`echo -e $"\r"` """),
+        ArgInt('_', "buffer","Frame buffer (Akka Framing) (def: 1M)"),
+        ArgLong('_', "throttle","Throttle messages in msec (def: 0)"),
+
         ArgString('d', "datastore","Datastore [elastic,mem,stdout] (def: mem)"),
         
         ArgCmd("server","HTTP Service"),
@@ -92,6 +99,10 @@ object App extends skel.Server {
       feed = c.getString("feed").getOrElse(""),
       limit = c.getLong("limit").getOrElse(-1L),
       output = c.getString("output").getOrElse("output.log"),
+
+      delimiter = c.getString("delimiter").getOrElse(""),
+      buffer = c.getInt("buffer").getOrElse(1024*1024),
+      throttle = c.getLong("throttle").getOrElse(0L),
 
       datastore = c.getString("datastore").getOrElse("mem"),
 
@@ -126,7 +137,7 @@ object App extends skel.Server {
         // )
         Console.err.println(s"Not supported")
         sys.exit(1)
-      case "ingest" => 
+      case "ingest-old" => 
         config.datastore match {
           case "elastic" =>
             // only Elastic is supported here
@@ -142,6 +153,11 @@ object App extends skel.Server {
               .from(Flows.fromFile(config.feed,frameSize = Int.MaxValue))
               .run()
         }
+
+      case "ingest" => {
+        val f1 = new PipelineVideo(config.feed,config.output)(config)
+        f1.run()
+      }
 
       //case "get" => store.connect(config).?(expr)
       case "scan" => store.scan(expr)

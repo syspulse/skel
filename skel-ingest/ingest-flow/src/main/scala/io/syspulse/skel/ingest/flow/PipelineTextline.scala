@@ -53,8 +53,8 @@ object TextlineJson extends TextlineJsonProtocol {
 
 import TextlineJson._
 
-class PipelineTextline(feed:String,output:String,throttle:Long = 0)(implicit config:Config) extends 
-      Pipeline[String,String,Textline](feed,output,throttle,config.delimiter,config.buffer) {
+class PipelineTextline(feed:String,output:String)(implicit config:Config) extends 
+      Pipeline[String,String,Textline](feed,output,config.throttle,config.delimiter,config.buffer) {
   
   private val log = Logger(s"${this}")
       

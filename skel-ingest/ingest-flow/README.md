@@ -18,6 +18,7 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 3. ```hive:///data/{YYYY}/{MM}/{dd}/file-{HH:MM:SS}.log```   - Hive style file (support for subdirs and Time pattern)
 4. ```elastic://host:9200/index```                           - To Elastic index
 5. ```kafka://broker:9092/topic```                           - To Kafka
+6. ```json://```                                             - Json to stdout (uses Spray to convert to AST and prettyprint)
 
 
 ### Examples

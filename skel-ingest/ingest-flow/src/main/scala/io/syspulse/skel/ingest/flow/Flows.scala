@@ -48,16 +48,24 @@ object Flows {
     .singleRequest(req)
     .flatMap(res => res.entity.dataBytes.runReduce(_ ++ _))
 
-  def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = Source.future(fromHttpFuture(req))
-    .via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+  def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = {
+    val s = Source.future(fromHttpFuture(req))
+    if(frameDelimiter.isEmpty())
+      s
+    else
+      s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+  }
 
   def fromStdin():Source[ByteString, Future[IOResult]] = StreamConverters.fromInputStream(() => System.in)
   // this is non-streaming simple ingester. Reads full file, flattens it and parses into Stream of Tms objects
   def fromFile(file:String = "/dev/stdin",chunk:Int = 0,frameDelimiter:String="\r\n",frameSize:Int = 8192):Source[ByteString, Future[IOResult]] =  {
     val filePath = Util.pathToFullPath(file)
-    FileIO
+    val s = FileIO
       .fromPath(Paths.get(filePath),chunkSize = if(chunk==0) Files.size(Paths.get(filePath)).toInt else chunk)
-      .via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+    if(frameDelimiter.isEmpty())
+      s
+    else
+      s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
   }
 
   def toStdout() = Sink.foreach(println _)
@@ -136,8 +144,8 @@ object Flows {
     kafka.source()
   }
 
-  def toJsonite[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
-    val es = new ToJsonite[T](uri)(fmt)
+  def toJson[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
+    val es = new ToJson[T](uri)(fmt)
     Flow[T]
       .mapConcat(t => es.transform(t))
       .to(es.sink())
@@ -186,7 +194,7 @@ class ToElastic[T <: Ingestable](uri:String)(jf:JsonFormat[T]) extends ElasticCl
 }
 
 // JsonWriter Tester
-class ToJsonite[T <: Ingestable](uri:String)(implicit fmt:JsonFormat[T]) {
+class ToJson[T <: Ingestable](uri:String)(implicit fmt:JsonFormat[T]) {
   import spray.json._
 
   def sink():Sink[T,Any] = Sink.foreach(t => println(s"${t.toJson.prettyPrint}"))
