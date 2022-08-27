@@ -149,6 +149,7 @@ class Ingesting(feed:String,output:String)(implicit config:Config) extends Inges
   
   override def source() = {
     val source = feed.split("://").toList match {
+      case "kafka" :: _ => Flows.fromKafka[StringLike](feed)
       case "http" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = config.delimiter,frameSize = config.buffer.toInt)
       case "https" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = config.delimiter,frameSize = config.buffer.toInt)
       case "file" :: fileName :: Nil => Flows.fromFile(fileName,1024,frameDelimiter = config.delimiter, frameSize = config.buffer.toInt)
@@ -161,6 +162,7 @@ class Ingesting(feed:String,output:String)(implicit config:Config) extends Inges
   override def sink() = {
     import StringLikeJson._
     val sink = output.split("://").toList match {
+      case "kafka" :: _ => Flows.toKafka[StringLike](output)
       case "elastic" :: _ => Flows.toElastic[StringLike](output)
       case "file" :: fileName :: Nil => Flows.toFile(fileName)
       case "hive" :: fileName :: Nil => Flows.toHiveFile(fileName)

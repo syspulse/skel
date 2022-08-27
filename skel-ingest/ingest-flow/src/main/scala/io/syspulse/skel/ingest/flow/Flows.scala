@@ -39,6 +39,7 @@ import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.elastic.ElasticClient
 import io.syspulse.skel.ingest.uri.ElasticURI
+import io.syspulse.skel.ingest.uri.KafkaURI
 import spray.json.JsonFormat
 
 object Flows {
@@ -122,9 +123,40 @@ object Flows {
       .mapConcat(t => es.transform(t))
       .to(es.sink())
   }
+
+  def toKafka[T <: Ingestable](uri:String) = {
+    val kafka = new ToKafka[T](uri)
+    Flow[T]
+      .to(kafka.sink())
+  }
+
+  def fromKafka[T <: Ingestable](uri:String) = {
+    val kafka = new FromKafka[T](uri)
+    kafka.source()
+  }
 }
 
 
+// Kafka Client
+class ToKafka[T <: Ingestable](uri:String) extends skel.ingest.kafka.KafkaSink[T] {
+  val kafkaUri = KafkaURI(uri)
+  
+  val sink0 = sink(kafkaUri.broker,Set(kafkaUri.topic))
+
+  def sink():Sink[T,_] = sink0
+  
+  override def transform(t:T):ByteString = {
+    ByteString(t.toString)
+  }  
+}
+
+class FromKafka[T <: Ingestable](uri:String) extends skel.ingest.kafka.KafkaSource[T] {
+  val kafkaUri = KafkaURI(uri)
+    
+  def source():Source[ByteString,_] = source(kafkaUri.broker,Set(kafkaUri.topic),kafkaUri.group)
+}
+
+// Elastic Client
 class ToElastic[T <: Ingestable](uri:String)(implicit val fmt:JsonFormat[T]) extends ElasticClient[T] {
   val elasticUri = ElasticURI(uri)
   connect(elasticUri.uri,elasticUri.index)
@@ -136,9 +168,9 @@ class ToElastic[T <: Ingestable](uri:String)(implicit val fmt:JsonFormat[T]) ext
     )
 
   def transform(t:T):Seq[WriteMessage[T,NotUsed]] = {
-    val index = t.getIndex
-    if(index.isDefined)
-      Seq(WriteMessage.createIndexMessage(index.get.toString, t))
+    val id = t.getId
+    if(id.isDefined)
+      Seq(WriteMessage.createIndexMessage(id.get.toString, t))
     else
       Seq(WriteMessage.createIndexMessage("", t))
   }

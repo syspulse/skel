@@ -9,5 +9,6 @@ trait Ingestable extends Product {
   def toLog:String = toCSV
   def toSimpleLog:String = toString()
   def toCSV:String = Util.toCSV(this)
-  def getIndex:Option[Any] = None
+  def getId:Option[Any] = getKey
+  def getKey:Option[Any] = None
 }

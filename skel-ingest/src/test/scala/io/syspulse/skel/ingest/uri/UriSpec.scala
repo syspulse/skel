@@ -41,4 +41,22 @@ class UriSpec extends AnyWordSpec with Matchers {
       s.index should === ("")
     }
   }
+
+  "KafkaUri" should {
+    "broker ('kafka://host:port/topic') -> 'host:port'" in {
+      val s = KafkaURI("kafka://host:port/topic")
+      s.broker should === ("host:port")
+    }
+
+    "topic ('kafka://host:port/topic/group') -> 'topic'" in {
+      val s = KafkaURI("kafka://host:port/topic/group")
+      s.topic should === ("topic")
+    }
+
+    "group ('kafka://host:port/topic/group') -> 'group'" in {
+      val s = KafkaURI("kafka://host:port/topic/group")
+      s.group should === ("group")
+    }
+
+  }
 }
