@@ -84,7 +84,7 @@ object App extends skel.Server {
       datastore = c.getString("datastore").getOrElse("mem"),
 
       limit = c.getLong("limit").getOrElse(-1L),
-      output = c.getString("output").getOrElse("output.log"),
+      output = c.getString("output").getOrElse("stdout://"),
 
       delimiter = c.getString("delimiter").getOrElse("\n"),
       buffer = c.getLong("buffer").getOrElse(8192),
@@ -120,7 +120,7 @@ object App extends skel.Server {
         Console.err.println(s"Not supported")
         sys.exit(1)
       case "ingest" => {
-        val f1 = new Pipeline(config.feed,config.output,config.throttle)
+        val f1 = new PipelineTextline(config.feed,config.output,config.throttle)
         f1.run()
       }     
     }

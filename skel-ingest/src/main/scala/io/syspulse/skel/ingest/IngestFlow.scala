@@ -33,6 +33,7 @@ import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.Http
 import java.util.concurrent.TimeUnit
 
+// Source[ByteString] -> InputObject [I] -> TransformedObject [T] -> OutputObject [O] -> Sink[O]
 trait IngestFlow[I,T,O] {
   private val log = Logger(s"${this}")
   implicit val system = ActorSystem("ActorSystem-IngestFlow")
@@ -44,7 +45,10 @@ trait IngestFlow[I,T,O] {
   )
   //.withMaxRestarts(10, 5.minutes)
 
-  var count:Long = 0L
+  var countBytes:Long = 0L
+  var countInput:Long = 0L
+  var countObj:Long = 0L
+  var countOutput:Long = 0L
 
   var defaultSource:Option[Source[ByteString,_]] = None
   var defaultSink:Option[Sink[O,_]] = None
@@ -57,32 +61,41 @@ trait IngestFlow[I,T,O] {
 
   def source():Source[ByteString,_] = if(defaultSource.isDefined) defaultSource.get else StreamConverters.fromInputStream(() => System.in)
 
-  def flow:Flow[I,T,_]
+  def process:Flow[I,T,_]
 
   def transform(t:T):Seq[O]
 
   def debug = Flow.fromFunction( (data:ByteString) => { log.debug(s"data=${data}"); data})
 
-  def counter = Flow[ByteString].map(t => { count = count + 1; t})
+  def counterBytes = Flow[ByteString].map(t => { countBytes = countBytes + 1; t})
+  def counterI = Flow[I].map(t => { countInput = countInput + 1; t})
+  def counterT = Flow[T].map(t => { countObj = countObj + 1; t})
+  def counterO = Flow[O].map(t => { countOutput = countOutput + 1; t})
 
   def run() = {    
-    val flowGraph =
+    val f1 =
       source()
       .via(debug)
-      .via(counter)      
+      .via(counterBytes)      
       .mapConcat(txt => parse(txt.utf8String))
-      .via(flow)
+      .via(counterI)
+
+    val f2 = f1
+      .via(process)
+      .via(counterT)
       .viaMat(KillSwitches.single)(Keep.right)
       .mapConcat(t => transform(t))
+      .via(counterO)
       .log("ingest-flow")
       .alsoTo(sink0())
     
-    val flowing = flowGraph
-      .runWith(sink())
+    val f3 = f2
+
+    val mat = f3.runWith(sink())
 
     //val r = Await.result(result, timeout())
-    log.info(s"graph: ${flowGraph}: flow=${flowing}")
-    flowing
+    log.info(s"graph: ${f3}: flow=${mat}")
+    mat
   }
 
   def from(src:Source[ByteString,_]):IngestFlow[I,T,O] = {

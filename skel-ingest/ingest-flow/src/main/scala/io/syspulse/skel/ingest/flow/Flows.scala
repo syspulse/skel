@@ -137,7 +137,7 @@ object Flows {
 }
 
 
-// Kafka Client
+// Kafka Client Flows
 class ToKafka[T <: Ingestable](uri:String) extends skel.ingest.kafka.KafkaSink[T] {
   val kafkaUri = KafkaURI(uri)
   
@@ -155,8 +155,8 @@ class FromKafka[T <: Ingestable](uri:String) extends skel.ingest.kafka.KafkaSour
     
   def source():Source[ByteString,_] = source(kafkaUri.broker,Set(kafkaUri.topic),kafkaUri.group)
 }
-
-// Elastic Client
+ 
+// Elastic Client Flow
 class ToElastic[T <: Ingestable](uri:String)(implicit val fmt:JsonFormat[T]) extends ElasticClient[T] {
   val elasticUri = ElasticURI(uri)
   connect(elasticUri.uri,elasticUri.index)
