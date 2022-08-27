@@ -35,6 +35,7 @@ case class Config(
   
   delimiter:String = "",
   buffer:Long = 0L,
+  throttle:Long = 0L,
 
   datastore:String = "",
 
@@ -56,11 +57,12 @@ object App extends skel.Server {
         ArgInt('p', "http.port","listern port (def: 8080)"),
         ArgString('u', "http.uri","api uri (def: /api/v1/ingest)"),
         
-        ArgString('f', "feed","Input Feed () (def: stdin://, http://, file://)"),
-        ArgString('o', "output","Output sink (stdout://, file://, hive:// "),
+        ArgString('f', "feed","Input Feed () (def: stdin://, http://, file://, kafka://)"),
+        ArgString('o', "output","Output sink (stdout://, file://, hive://, elastic://, kafka:// "),
 
         ArgString('_', "delimiter","""Delimiter characteds (def: '\n'). Usage example: --delimiter=`echo -e $"\r"` """),
         ArgLong('_', "buffer","Frame buffer (Akka Framing) (def: 8192)"),
+        ArgLong('_', "throttle","Throttle messages in msec (def: 0)"),
 
         ArgLong('n', "limit","Limit (def: -1)"),
 
@@ -86,6 +88,7 @@ object App extends skel.Server {
 
       delimiter = c.getString("delimiter").getOrElse("\n"),
       buffer = c.getLong("buffer").getOrElse(8192),
+      throttle = c.getLong("throttle").getOrElse(0L),
 
       filter = c.getString("filter").getOrElse(""),
       
@@ -95,8 +98,8 @@ object App extends skel.Server {
 
     println(s"Config: ${config}")
 
+    // store is not used
     val store:IngestStore[_,_] = config.datastore match {
-      //case "elastic" => new StoreElastic().connect(config)
       case "mem" => new IngestStoreMem()
       case "stdout" => new IngestStoreStdout()
       case _ => {
@@ -117,59 +120,11 @@ object App extends skel.Server {
         Console.err.println(s"Not supported")
         sys.exit(1)
       case "ingest" => {
-        val f1 = new Ingesting(config.feed,config.output)        
+        val f1 = new Pipeline(config.feed,config.output,config.throttle)
         f1.run()
       }     
     }
 
     println(s"r = ${r}")
   }
-}
-
-
-
-import spray.json._
-import DefaultJsonProtocol._
-object StringLikeJson extends  DefaultJsonProtocol {
-  implicit val fmt = jsonFormat1(StringLike.apply _)
-}
-
-case class StringLike(s:String) extends skel.Ingestable {
-  override def toString = s
-}
-
-class Ingesting(feed:String,output:String)(implicit config:Config) extends IngestFlow[String,String,StringLike]() {
-
-  def flow:Flow[String,String,_] = Flow[String].map(s => s)
-  
-  def parse(data: String): Seq[String] = {
-    data.split("\n").toSeq
-  }
-  def transform(t: String): Seq[StringLike] = Seq(StringLike(s"${count}: ${t}"))
-  
-  override def source() = {
-    val source = feed.split("://").toList match {
-      case "kafka" :: _ => Flows.fromKafka[StringLike](feed)
-      case "http" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = config.delimiter,frameSize = config.buffer.toInt)
-      case "https" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = config.delimiter,frameSize = config.buffer.toInt)
-      case "file" :: fileName :: Nil => Flows.fromFile(fileName,1024,frameDelimiter = config.delimiter, frameSize = config.buffer.toInt)
-      case "stdin" :: _ => Flows.fromStdin()
-      case _ => Flows.fromFile(feed,1024,frameDelimiter = config.delimiter,frameSize = config.buffer.toInt)
-    }
-    source
-  }
-
-  override def sink() = {
-    import StringLikeJson._
-    val sink = output.split("://").toList match {
-      case "kafka" :: _ => Flows.toKafka[StringLike](output)
-      case "elastic" :: _ => Flows.toElastic[StringLike](output)
-      case "file" :: fileName :: Nil => Flows.toFile(fileName)
-      case "hive" :: fileName :: Nil => Flows.toHiveFile(fileName)
-      case "stdout" :: _ => Flows.toStdout()
-      case _ => Flows.toFile(output)
-    }
-    sink
-  }
-
 }

@@ -58,7 +58,13 @@ Pull from Kafka into file
 ./run-ingest.sh -f kafka://localhost:9200/topic.2/group.2 -o file:///tmp/file.data
 ```
 
-Getting transactions from ethereum-etl into partitions for S3 processing:
+Pipeline with throttling 1 msg/sec (throttle == 1000 msec)
+```
+./run-ingest.sh -f kafka://localhost:9200/topic.2/group.2 --throttle=1000
+```
+
+
+Getting transactions from ethereum-etl into file partitions. (e.g. for Spark processing)
 
 Run ETL:
 ```
