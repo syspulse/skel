@@ -44,7 +44,7 @@ trait ElasticClient[T] {
     val connectionSettings = ElasticsearchConnectionSettings(elasticUri)
       //.withCredentials("user", "pass")
 
-    //system.registerOnTermination(client.close())
+    //as.registerOnTermination(client.close())
     connectionSettings
   }
 

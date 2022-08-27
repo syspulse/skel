@@ -13,19 +13,19 @@ import scala.util.Success
 class UriSpec extends AnyWordSpec with Matchers {
   
   "ElasticUri" should {
-    "url ('elastic://host:port/index') -> 'host:port'" in {
+    "url ('elastic://host:port/index') -> 'http://host:port'" in {
       val s = ElasticURI("elastic://host:port/index")
-      s.url should === ("host:port")
+      s.url should === ("http://host:port")
     }
 
-    "url ('elastic://host:port/') -> 'host:port'" in {
+    "url ('elastic://host:port/') -> 'http://host:port'" in {
       val s = ElasticURI("elastic://host:port/")
-      s.url should === ("host:port")
+      s.url should === ("http://host:port")
     }
 
-    "url ('elastic://host:port') -> 'host:port'" in {
+    "url ('elastic://host:port') -> 'http://host:port'" in {
       val s = ElasticURI("elastic://host:port")
-      s.url should === ("host:port")
+      s.url should === ("http://host:port")
     }
 
     "index ('elastic://host:port/index') -> 'index'" in {

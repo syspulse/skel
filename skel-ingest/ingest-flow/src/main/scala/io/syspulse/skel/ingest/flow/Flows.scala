@@ -40,6 +40,7 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.elastic.ElasticClient
 import io.syspulse.skel.ingest.uri.ElasticURI
 import io.syspulse.skel.ingest.uri.KafkaURI
+
 import spray.json.JsonFormat
 
 object Flows {
@@ -117,8 +118,8 @@ object Flows {
         .to(LogRotatorSink(fileRotateTrigger))
   }
 
-  def toElastic[T <: Ingestable](uri:String)(implicit fmt:JsonFormat[T]) = {
-    val es = new ToElastic[T](uri)
+  def toElastic[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
+    val es = new ToElastic[T](uri)(fmt)
     Flow[T]
       .mapConcat(t => es.transform(t))
       .to(es.sink())
@@ -133,6 +134,13 @@ object Flows {
   def fromKafka[T <: Ingestable](uri:String) = {
     val kafka = new FromKafka[T](uri)
     kafka.source()
+  }
+
+  def toJsonite[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
+    val es = new ToJsonite[T](uri)(fmt)
+    Flow[T]
+      .mapConcat(t => es.transform(t))
+      .to(es.sink())
   }
 }
 
@@ -157,21 +165,34 @@ class FromKafka[T <: Ingestable](uri:String) extends skel.ingest.kafka.KafkaSour
 }
  
 // Elastic Client Flow
-class ToElastic[T <: Ingestable](uri:String)(implicit val fmt:JsonFormat[T]) extends ElasticClient[T] {
+class ToElastic[T <: Ingestable](uri:String)(jf:JsonFormat[T]) extends ElasticClient[T] {
   val elasticUri = ElasticURI(uri)
-  connect(elasticUri.uri,elasticUri.index)
+  connect(elasticUri.url,elasticUri.index)
 
+  override implicit val fmt:JsonFormat[T] = jf
 
   def sink():Sink[WriteMessage[T,NotUsed],Any] = 
     ElasticsearchSink.create[T](
       ElasticsearchParams.V7(getIndexName()), settings = getSinkSettings()
-    )
+    )(jf)
 
   def transform(t:T):Seq[WriteMessage[T,NotUsed]] = {
     val id = t.getId
     if(id.isDefined)
       Seq(WriteMessage.createIndexMessage(id.get.toString, t))
     else
-      Seq(WriteMessage.createIndexMessage("", t))
+      Seq(WriteMessage.createIndexMessage(t))
   }
 }
+
+// JsonWriter Tester
+class ToJsonite[T <: Ingestable](uri:String)(implicit fmt:JsonFormat[T]) {
+  import spray.json._
+
+  def sink():Sink[T,Any] = Sink.foreach(t => println(s"${t.toJson.prettyPrint}"))
+    
+  def transform(t:T):Seq[T] = {
+    Seq(t)
+  }
+}
+

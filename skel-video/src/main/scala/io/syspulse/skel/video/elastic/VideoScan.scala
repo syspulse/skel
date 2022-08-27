@@ -7,11 +7,12 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.elastic.ElasticScan
 
 import io.syspulse.skel.video.Video
+import io.syspulse.skel.video.VideoJson
 
 trait VideoScan extends ElasticScan[Video] {
 
-  import io.syspulse.skel.video.elastic.VideoElasticJson._
-  implicit val fmt = VideoElasticJson.fmt 
+  import io.syspulse.skel.video.VideoJson._
+  implicit val fmt = VideoJson.fmt
 
   override def getSearchParamas():Map[String,String] = Map(
           "query" -> s""" {"match_all": {}} """,

@@ -14,13 +14,13 @@ import io.syspulse.skel.elastic.ElasticFlow
 import io.syspulse.skel.video.Video
 import io.syspulse.skel.video.VID
 import io.syspulse.skel.video.tms._
-import io.syspulse.skel.video.elastic.VideoElasticJson
+import io.syspulse.skel.video.VideoJson
 
 class VideoFlowElastic extends ElasticFlow[Video,Video] with VideoFlow {
   override val log = Logger(s"${this}")
   
-  import VideoElasticJson._
-  implicit val fmt = VideoElasticJson.fmt 
+  import VideoJson._
+  implicit val fmt = VideoJson.fmt 
 
   override def getIndex(d:Video):(String,Video) = (s"${d.title}",d)  
 }

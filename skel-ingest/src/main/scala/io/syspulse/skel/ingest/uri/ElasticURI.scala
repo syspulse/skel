@@ -7,10 +7,12 @@ case class ElasticURI(uri:String) {
   val PREFIX = "elastic://"
 
   def url:String = {
+    val prefix = "http://"
+
     uri.stripPrefix(PREFIX).split("[@/]").toList match {
-      case user :: host :: index :: _ => host
-      case host :: index :: Nil => host
-      case host :: Nil => host
+      case user :: host :: index :: _ => prefix + host
+      case host :: index :: Nil => prefix + host
+      case host :: Nil => prefix + host
       case _ => ""
     }
   }

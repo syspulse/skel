@@ -24,7 +24,7 @@ class VideoStoreElasticFlow(elasticUri:String,elacticIndex:String) extends Video
 
   import io.syspulse.skel.video.elastic.VideoElasticJson
   import io.syspulse.skel.video.elastic.VideoElasticJson._
-  override implicit val fmt = VideoElasticJson.fmt
+  override implicit val fmt = VideoJson.fmt
   
   connect(elasticUri,elacticIndex)
   

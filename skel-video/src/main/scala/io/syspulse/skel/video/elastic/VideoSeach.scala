@@ -7,11 +7,12 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.elastic.ElasticSearch
 
 import io.syspulse.skel.video.Video
+import io.syspulse.skel.video.VideoJson
 
 trait VideoSearch extends ElasticSearch[Video] {
 
   import io.syspulse.skel.video.elastic.VideoElasticJson._
-  implicit val fmt = VideoElasticJson.fmt 
+  implicit val fmt = VideoJson.fmt 
 
   def getWildcards(txt:String) = s"""
     { 
