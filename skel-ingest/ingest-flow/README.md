@@ -6,15 +6,18 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 
 ## Feeds
 
-1. ```stdin://``` - from stdin
-2. ```http://```  - Outgoing HTTP connection
-3. ```file://```  - From single file
+1. ```stdin://```                               - from stdin
+2. ```http://host:port/api```                   - Outgoing HTTP connection
+3. ```file://dir/file```                        - From single file
+4. ```kafka://broker:9092/topic/group```        - From Kafka
 
 ## Output
 
-1. ```stdout://``` - to stdout
-2. ```file://```   - single file
-3. ```hive://```   - Hive style file (support for subdirs and Time pattern)
+1. ```stdout://```                                           - to stdout
+2. ```file://dir/file```                                     - to single file
+3. ```hive:///data/{YYYY}/{MM}/{dd}/file-{HH:MM:SS}.log```   - Hive style file (support for subdirs and Time pattern)
+4. ```elastic://host:9200/index```                           - To Elastic index
+5. ```kafka://broker:9092/topic```                           - To Kafka
 
 
 ### Examples
@@ -49,3 +52,20 @@ Large lines (don't fit into default stream buffer)
 ./run-ingest.sh -f file://data/0001.csv --buffer=100000
 ```
 
+Pull from Kafka into file
+
+```
+./run-ingest.sh -f kafka://localhost:9200/topic.2/group.2 -o file:///tmp/file.data
+```
+
+Getting transactions from ethereum-etl into partitions for S3 processing:
+
+Run ETL:
+```
+ethereumetl stream -e transaction --start-block `eth-last-block.sh` --provider-uri $ETH_RPC -o kafka/localhost:9092
+```
+
+Run Ingest:
+```
+./run-ingest.sh -f  kafka://localhost:9092/transactions/g1 -o hive:///mnt/share/data/spark/eth/{YYYY}/{MM}/{dd}/transactions-{HH_MM_SS}.log
+```
