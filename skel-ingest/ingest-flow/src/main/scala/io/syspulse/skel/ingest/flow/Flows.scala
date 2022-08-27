@@ -75,7 +75,7 @@ object Flows {
       Sink.ignore 
     else
       Flow[Ingestable]
-        .map(t=>s"${t.toSimpleLog}\n")
+        .map(t=>s"${t.toLog}\n")
         .map(ByteString(_))
         .to(FileIO.toPath(
           Paths.get(Util.pathToFullPath(Util.toFileWithTime(file))),options =  Set(WRITE, CREATE))
@@ -121,7 +121,7 @@ object Flows {
       Sink.ignore 
     else
       Flow[Ingestable]
-        .map(t=>s"${t.toSimpleLog}\n")
+        .map(t=>s"${t.toLog}\n")
         .map(ByteString(_))
         .to(LogRotatorSink(fileRotateTrigger))
   }
