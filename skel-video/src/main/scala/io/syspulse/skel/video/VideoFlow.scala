@@ -17,7 +17,7 @@ import akka.stream.scaladsl.Flow
 trait VideoFlow {
   protected val log = Logger(s"${this}")
 
-  def flow:Flow[Video,Video,_] = Flow[Video].map(v => v)
+  def process:Flow[Video,Video,_] = Flow[Video].map(v => v)
 
   def parse(data:String):Seq[Video] = TmsParser.fromString(data).map( tms => {
     Video(VID(tms.id),tms.title)

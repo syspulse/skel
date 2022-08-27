@@ -15,7 +15,7 @@ class YellFlow extends ElasticFlow[Yell,Yell] {
   implicit val fmt = YellElasticJson.fmt 
 
   
-  def flow:Flow[Yell,Yell,_] = Flow[Yell].map(v => v)
+  def process:Flow[Yell,Yell,_] = Flow[Yell].map(v => v)
 
   override def parse(data:String):Seq[Yell] = data.split("\n").toIndexedSeq.flatMap( line => 
     line.split(",").toList match {
