@@ -77,9 +77,9 @@ object Flows {
       Flow[Ingestable]
         .map(t=>s"${t.toLog}\n")
         .map(ByteString(_))
-        .to(FileIO.toPath(
+        .toMat(FileIO.toPath(
           Paths.get(Util.pathToFullPath(Util.toFileWithTime(file))),options =  Set(WRITE, CREATE))
-        )
+        )(Keep.right)
   }
 
   def toHiveFile(file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue) = {
@@ -123,7 +123,7 @@ object Flows {
       Flow[Ingestable]
         .map(t=>s"${t.toLog}\n")
         .map(ByteString(_))
-        .to(LogRotatorSink(fileRotateTrigger))
+        .toMat(LogRotatorSink(fileRotateTrigger))(Keep.right)
   }
 
   def toElastic[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
