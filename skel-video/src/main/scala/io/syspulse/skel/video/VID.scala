@@ -13,6 +13,8 @@ object VID {
     new VID(id)
   }
 
+  def fromString(s:String):VID = new VID(s)
+
   def fromElastic(id:Map[String,String]):VID = {
     new VID(id("id"))
   }

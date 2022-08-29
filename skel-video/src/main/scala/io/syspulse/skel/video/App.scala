@@ -48,7 +48,7 @@ case class Config(
 object App extends skel.Server {
   
   def main(args:Array[String]): Unit = {
-    println(s"args: '${args.mkString(",")}'")
+    Console.err.println(s"args: '${args.mkString(",")}'")
 
     val c = Configuration.withPriority(Seq(
       new ConfigurationAkka,
@@ -112,7 +112,7 @@ object App extends skel.Server {
       params = c.getParams(),
     )
 
-    println(s"Config: ${config}")
+    Console.err.println(s"Config: ${config}")
 
     val store:VideoStore = config.datastore match {
       case "elastic" => new VideoStoreElastic(config.elasticUri,config.elasticIndex)
@@ -130,14 +130,12 @@ object App extends skel.Server {
 
     val r = config.cmd match {
       case "server" => 
-        // run( config.host, config.port,config.uri,c,
-        //   Seq(
-        //     (VideoRegistry(store),"VideoRegistry",(r, ac) => new server.VideoRoutes(r)(ac) )
-        //   )
-        // )
-        Console.err.println(s"Not supported")
-        sys.exit(1)
-
+        run( config.host, config.port,config.uri,c,
+          Seq(
+            (VideoRegistry(store),"VideoRegistry",(r, ac) => new server.VideoRoutes(r)(ac) )
+          )
+        )
+        
       // old Ingest based on Flows
       case "ingest-old" => 
         config.datastore match {
@@ -170,10 +168,13 @@ object App extends skel.Server {
     }
 
     r match {
-      case l:List[_] => l.map(r => println(s"${r}"))
+      case l:List[_] => l.map(r => println(s"${r}")); sys.exit(0)
       case NotUsed => println(r)
-      case f:Future[_] if config.cmd == "ingest" => Await.result(f,FiniteDuration(3000,TimeUnit.MILLISECONDS)); sys.exit(0)
-      case a:Awaitable[_] if config.cmd == "ingest" => Await.result(a,FiniteDuration(3000,TimeUnit.MILLISECONDS)); sys.exit(0)
+      //case f:Future[_] if config.cmd == "ingest" || config.cmd == "search" => Await.result(f,FiniteDuration(3000,TimeUnit.MILLISECONDS)); sys.exit(0)
+      case a:Awaitable[_] if  config.cmd == "ingest" 
+          || config.cmd == "scan"
+          || config.cmd == "grep"
+          || config.cmd == "typing" => Await.result(a,FiniteDuration(3000,TimeUnit.MILLISECONDS)); sys.exit(0)
       case _ => Console.err.println(s"\n${r}")      
     }
     

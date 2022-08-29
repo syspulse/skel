@@ -12,13 +12,14 @@ import io.syspulse.skel.Command
 
 import io.syspulse.skel.video._
 import io.syspulse.skel.video.Video.ID
+import io.syspulse.skel.video.server._
 
 object VideoRegistry {
   val log = Logger(s"${this}")
   
   final case class GetVideos(replyTo: ActorRef[Videos]) extends Command
   final case class GetVideo(id:VID,replyTo: ActorRef[Option[Video]]) extends Command
-  final case class SearchVideo(txt:String,replyTo: ActorRef[List[Video]]) extends Command
+  final case class SearchVideo(txt:String,replyTo: ActorRef[Videos]) extends Command
   
   final case class CreateVideo(videoCreate: VideoCreateReq, replyTo: ActorRef[Video]) extends Command
   final case class RandomVideo(replyTo: ActorRef[Video]) extends Command
@@ -46,7 +47,7 @@ object VideoRegistry {
         Behaviors.same
 
       case SearchVideo(txt, replyTo) =>
-        replyTo ! store.??(txt)
+        replyTo ! Videos(store.??(txt))
         Behaviors.same
 
 
