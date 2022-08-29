@@ -46,7 +46,7 @@ case class Config(
 object App extends skel.Server {
 
   def main(args:Array[String]): Unit = {
-    println(s"args: '${args.mkString(",")}'")
+    Console.err.println(s"args: ${args.size}: ${args.toSeq}")
 
     val c = Configuration.withPriority(Seq(
       new ConfigurationAkka,

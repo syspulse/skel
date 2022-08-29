@@ -239,7 +239,7 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
   )
 
 
-
+// ======================================================================================================================
 lazy val root = (project in file("."))
   .aggregate(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl)
   .dependsOn(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl, scrap, enroll,yell)
@@ -533,7 +533,7 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
     sharedConfig,
     sharedConfigAssembly,
 
-    appAssemblyConfig("inget-flow","io.syspulse.skel.ingest.flow.App"),
+    appAssemblyConfig("ingest-flow","io.syspulse.skel.ingest.flow.App"),
     //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
 
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(

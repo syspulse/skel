@@ -137,6 +137,8 @@ object App extends skel.Server {
         // )
         Console.err.println(s"Not supported")
         sys.exit(1)
+
+      // old Ingest based on Flows
       case "ingest-old" => 
         config.datastore match {
           case "elastic" =>
@@ -154,6 +156,7 @@ object App extends skel.Server {
               .run()
         }
 
+      // new Ingest based on Pipeline
       case "ingest" => {
         val f1 = new PipelineVideo(config.feed,config.output)(config)
         f1.run()
