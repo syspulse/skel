@@ -1,4 +1,4 @@
-package io.syspulse.skel.video
+package io.syspulse.skel.video.flow
 
 import scala.jdk.CollectionConverters._
 import com.typesafe.scalalogging.Logger

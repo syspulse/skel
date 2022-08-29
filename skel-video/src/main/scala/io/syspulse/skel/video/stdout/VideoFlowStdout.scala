@@ -11,7 +11,7 @@ import io.syspulse.skel.util.Util
 
 import io.syspulse.skel.video.Video
 import io.syspulse.skel.video.VID
-import io.syspulse.skel.video.VideoFlow
+import io.syspulse.skel.video.flow.VideoFlow
 
 import io.syspulse.skel.ingest.IngestFlow
 import io.syspulse.skel.ingest.flow.Flows

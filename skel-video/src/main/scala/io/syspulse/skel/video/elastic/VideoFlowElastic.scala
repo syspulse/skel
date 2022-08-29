@@ -15,6 +15,7 @@ import io.syspulse.skel.video.Video
 import io.syspulse.skel.video.VID
 import io.syspulse.skel.video.tms._
 import io.syspulse.skel.video.VideoJson
+import io.syspulse.skel.video.flow.VideoFlow
 
 class VideoFlowElastic extends ElasticFlow[Video,Video] with VideoFlow {
   override val log = Logger(s"${this}")

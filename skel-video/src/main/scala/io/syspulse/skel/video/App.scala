@@ -158,7 +158,7 @@ object App extends skel.Server {
 
       // new Ingest based on Pipeline
       case "ingest" => {
-        val f1 = new PipelineVideo(config.feed,config.output)(config)
+        val f1 = new flow.PipelineVideo(config.feed,config.output)(config)
         f1.run()
       }
 

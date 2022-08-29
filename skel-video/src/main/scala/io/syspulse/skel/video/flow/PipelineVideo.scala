@@ -1,4 +1,4 @@
-package io.syspulse.skel.video
+package io.syspulse.skel.video.flow
 
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration,FiniteDuration}
@@ -26,6 +26,7 @@ import spray.json._
 import DefaultJsonProtocol._
 import java.util.concurrent.TimeUnit
 
+import io.syspulse.skel.video._
 import io.syspulse.skel.video.tms._
 
 import VideoJson._
