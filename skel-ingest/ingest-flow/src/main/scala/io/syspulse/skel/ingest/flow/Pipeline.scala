@@ -26,6 +26,8 @@ import java.util.concurrent.TimeUnit
 abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024)
   (implicit fmt:JsonFormat[O]) extends IngestFlow[I,T,O]() {
   
+  private val log = Logger(s"${this}")
+  
   // this is needed for Elastic
   //def fmt:JsonFormat[O]
   //implicit val fmt:JsonFormat[O]
@@ -42,6 +44,11 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
   }
   
   override def source() = {
+    source(feed)
+  }
+
+  def source(feed:String) = {
+    log.info(s"feed=${feed}")
     val source = feed.split("://").toList match {
       case "kafka" :: _ => Flows.fromKafka[Textline](feed)
       case "http" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
@@ -52,8 +59,14 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
     }
     source
   }
-  
+
   override def sink() = {
+    sink(output)
+  }
+  
+  def sink(output:String) = {
+    log.info(s"output=${output}")
+    
     val sink = output.split("://").toList match {
       case "json" :: _ => Flows.toJson[O](output)(fmt)
 
