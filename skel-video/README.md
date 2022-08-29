@@ -53,3 +53,23 @@ Scan all videos from index __video__ with match_all
 ```
 ./run-video.sh grep 'Star*' -d elastic
 ```
+
+## Run REST server 
+
+All skel-http standards apply
+
+```
+./run-video.sh server -d elastic
+```
+
+Run Search query:
+
+```
+./video-search.sh The | jq .
+```
+
+Run Type-ahead query:
+
+```
+./video-typing.sh Sta | jq .
+```

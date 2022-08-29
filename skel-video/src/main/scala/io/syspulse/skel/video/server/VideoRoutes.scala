@@ -67,6 +67,7 @@ class VideoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]
   def getVideos(): Future[Videos] = registry.ask(GetVideos)
   def getVideo(id: VID): Future[Option[Video]] = registry.ask(GetVideo(id, _))
   def getVideoBySearch(txt: String): Future[Videos] = registry.ask(SearchVideo(txt, _))
+  def getVideoByTyping(txt: String): Future[Videos] = registry.ask(TypingVideo(txt, _))
 
   def createVideo(videoCreate: VideoCreateReq): Future[Video] = registry.ask(CreateVideo(videoCreate, _))
   def deleteVideo(id: VID): Future[VideoActionRes] = registry.ask(DeleteVideo(id, _))
@@ -88,24 +89,11 @@ class VideoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]
   }
 
 
-  // @GET @Path("/{id}/code") @Produces(Array(MediaType.APPLICATION_JSON))
-  // @Operation(tags = Array("video"),summary = "Get Video code by id",
-  //   parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Video id (uuid)")),
-  //   responses = Array(new ApiResponse(responseCode="200",description = "Video Code returned",content=Array(new Content(schema=new Schema(implementation = classOf[VideoCode])))))
-  // )
-  // def getVideoCodeRoute(id: String) = get {
-  //   rejectEmptyResponse {
-  //     onSuccess(getVideoCode(UUID.fromString(id))) { r =>
-  //       metricGetCodeCount.inc()
-  //       complete(r)
-  //     }
-  //   }
-  // }
 
-  @GET @Path("/eid/{eid}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("video"),summary = "Get Video by External Id (eid)",
-    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "eid")),
-    responses = Array(new ApiResponse(responseCode="200",description = "Video returned",content=Array(new Content(schema=new Schema(implementation = classOf[Video])))))
+  @GET @Path("/search/{txt}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("video"),summary = "Search Video by term",
+    parameters = Array(new Parameter(name = "txt", in = ParameterIn.PATH, description = "search term")),
+    responses = Array(new ApiResponse(responseCode="200",description = "Found Videos",content=Array(new Content(schema=new Schema(implementation = classOf[Videos])))))
   )
   def getVideoSearch(txt: String) = get {
     rejectEmptyResponse {
@@ -114,6 +102,21 @@ class VideoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]
       }
     }
   }
+
+  @GET @Path("/typing/{txt}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("video"),summary = "Search Video by Type-Ahead",
+    parameters = Array(new Parameter(name = "txt", in = ParameterIn.PATH, description = "search letters")),
+    responses = Array(new ApiResponse(responseCode="200",description = "Found Videos",content=Array(new Content(schema=new Schema(implementation = classOf[Videos])))))
+  )
+  def getVideoTyping(txt: String) = get {
+    rejectEmptyResponse {
+      onSuccess(getVideoByTyping(txt)) { r =>
+        complete(r)
+      }
+    }
+  }
+
+
 
   @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("video"), summary = "Return all Videos",
@@ -178,6 +181,11 @@ class VideoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]
         pathPrefix("search") {
           pathPrefix(Segment) { txt => 
             getVideoSearch(txt)
+          }
+        },
+        pathPrefix("typing") {
+          pathPrefix(Segment) { txt => 
+            getVideoTyping(txt)
           }
         },
         pathPrefix(Segment) { id =>         

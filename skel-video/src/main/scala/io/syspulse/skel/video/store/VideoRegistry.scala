@@ -20,6 +20,7 @@ object VideoRegistry {
   final case class GetVideos(replyTo: ActorRef[Videos]) extends Command
   final case class GetVideo(id:VID,replyTo: ActorRef[Option[Video]]) extends Command
   final case class SearchVideo(txt:String,replyTo: ActorRef[Videos]) extends Command
+  final case class TypingVideo(txt:String,replyTo: ActorRef[Videos]) extends Command
   
   final case class CreateVideo(videoCreate: VideoCreateReq, replyTo: ActorRef[Video]) extends Command
   final case class RandomVideo(replyTo: ActorRef[Video]) extends Command
@@ -50,6 +51,9 @@ object VideoRegistry {
         replyTo ! Videos(store.??(txt))
         Behaviors.same
 
+      case TypingVideo(txt, replyTo) =>
+        replyTo ! Videos(store.typing(txt))
+        Behaviors.same
 
       case CreateVideo(videoCreate, replyTo) =>
         val vid = VID("M",None,None)
