@@ -187,8 +187,10 @@ class ToElastic[T <: Ingestable](uri:String)(jf:JsonFormat[T]) extends ElasticCl
   def transform(t:T):Seq[WriteMessage[T,NotUsed]] = {
     val id = t.getId
     if(id.isDefined)
-      Seq(WriteMessage.createIndexMessage(id.get.toString, t))
+      // Upsert !!!
+      Seq(WriteMessage.createUpsertMessage(id.get.toString, t))
     else
+      // Upsert is not supported without id
       Seq(WriteMessage.createIndexMessage(t))
   }
 }

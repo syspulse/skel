@@ -11,7 +11,8 @@ final case class VideoRandomReq()
 final case class VideoActionRes(status: String,id:Option[String])
 
 case class Video (vid:Video.ID, title:String,ts:Long = System.currentTimeMillis) extends Ingestable {
-  //override def toLog:String = toString
+  override def toLog:String = toString
+  override def getKey:Option[Any] = Some(vid.id)
 }
 
 object Video {
