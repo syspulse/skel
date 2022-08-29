@@ -130,7 +130,7 @@ object Flows {
     val es = new ToElastic[T](uri)(fmt)
     Flow[T]
       .mapConcat(t => es.transform(t))
-      .to(es.sink())
+      .toMat(es.sink())((Keep.right))
   }
 
   def toKafka[T <: Ingestable](uri:String) = {
@@ -179,7 +179,7 @@ class ToElastic[T <: Ingestable](uri:String)(jf:JsonFormat[T]) extends ElasticCl
 
   override implicit val fmt:JsonFormat[T] = jf
 
-  def sink():Sink[WriteMessage[T,NotUsed],Any] = 
+  def sink():Sink[WriteMessage[T,NotUsed],Future[Done]] = 
     ElasticsearchSink.create[T](
       ElasticsearchParams.V7(getIndexName()), settings = getSinkSettings()
     )(jf)
