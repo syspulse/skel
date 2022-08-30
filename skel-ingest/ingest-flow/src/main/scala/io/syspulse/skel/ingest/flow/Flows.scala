@@ -56,7 +56,14 @@ object Flows {
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
   }
 
-  def fromStdin():Source[ByteString, Future[IOResult]] = StreamConverters.fromInputStream(() => System.in)
+  def fromStdin(frameDelimiter:String="\n",frameSize:Int = 8192):Source[ByteString, Future[IOResult]] = {
+    val s = StreamConverters.fromInputStream(() => System.in)
+    if(frameDelimiter.isEmpty())
+      s
+    else
+      s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+  }
+
   // this is non-streaming simple ingester. Reads full file, flattens it and parses into Stream of Tms objects
   def fromFile(file:String = "/dev/stdin",chunk:Int = 0,frameDelimiter:String="\r\n",frameSize:Int = 8192):Source[ByteString, Future[IOResult]] =  {
     val filePath = Util.pathToFullPath(file)
@@ -68,7 +75,12 @@ object Flows {
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
   }
 
-  def toStdout() = Sink.foreach(println _)
+  def toStdout[O](flush:Boolean = false): Sink[O, Future[IOResult]] = 
+    Flow[O]
+      .map(o => if(o!=null) ByteString(o.toString+"\n") else ByteString())
+      .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.right)
+  // This sink returns Future[Done] and not possible to wait for completion of the flow
+  //def toStdout() = Sink.foreach(println _)
 
   def toFile(file:String) = {
     if(file.trim.isEmpty) 
