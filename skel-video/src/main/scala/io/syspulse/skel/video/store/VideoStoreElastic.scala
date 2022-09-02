@@ -32,7 +32,7 @@ class VideoStoreElastic(elasticUri:String,elacticIndex:String) extends VideoStor
     // becasue of VID case class, it is converted unmarchsalled as Map from Elastic (field vid.id)
     override def read(hit: Hit): Try[Video] = {
       val source = hit.sourceAsMap
-      Success(Video(VID.fromElastic(source("vid").asInstanceOf[Map[String,String]]), source("title").toString, 0L))
+      Success(Video(VID.fromElastic(source("vid").asInstanceOf[Map[String,String]]), source("title").toString))
     }
   }
   

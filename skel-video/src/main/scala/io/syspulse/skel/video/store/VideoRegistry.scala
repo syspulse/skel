@@ -57,7 +57,7 @@ object VideoRegistry {
 
       case CreateVideo(videoCreate, replyTo) =>
         val vid = VID("M",None,None)
-        val video = Video(vid, videoCreate.title, System.currentTimeMillis())
+        val video = Video(vid, videoCreate.title, ts = System.currentTimeMillis())
                 
         val store1 = store.+(video)
 
