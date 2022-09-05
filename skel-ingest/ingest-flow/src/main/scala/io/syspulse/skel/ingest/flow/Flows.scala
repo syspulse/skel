@@ -44,6 +44,8 @@ import io.syspulse.skel.ingest.uri.KafkaURI
 import spray.json.JsonFormat
 
 object Flows {
+  def toNull = Sink.ignore
+
   def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem) = Http()
     .singleRequest(req)
     .flatMap(res => res.entity.dataBytes.runReduce(_ ++ _))
