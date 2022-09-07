@@ -124,7 +124,10 @@ object Dependencies {
     val libCask =           "com.lihaoyi"                     %% "cask"                 % "0.7.11" // "0.7.8"
     val libRequests =       "com.lihaoyi"                     %% "requests"             % "0.6.9"
 
+    // lightweight, no deps
     val libCsv =            "com.github.tototoshi"            %% "scala-csv"            % "1.3.7"
+    // seems to be only 1 dependency. Can generate CSV from Case classes ?. Only 2.12
+    //val libCsvProductCollections =     "com.github.marklister"           %% "product-collections"  % "1.4.5" 
     val libFaker =          "com.github.javafaker"            % "javafaker"             % "1.0.2"
 
     val libPrometheusClient =   "io.prometheus"               % "simpleclient"              % "0.10.0"

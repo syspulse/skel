@@ -2,6 +2,7 @@
 
 ## Frameworks and Libraries
 
+- pandas [https://pandas.pydata.org/]
 - dask [https://www.dask.org/]
 - h3-pandas [https://github.com/DahnJ/H3-Pandas]
 
