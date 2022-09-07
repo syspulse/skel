@@ -423,13 +423,15 @@ lazy val crypto = (project in file("skel-crypto"))
       name := "skel-crypto",
       libraryDependencies ++= Seq() ++ //Seq(libLog4j2Api, libLog4j2Core) ++ 
         libTest ++ libWeb3j ++ Seq(
-        libOsLib,libUpickleLib,
-        libScodecBits,
-        libHKDF,
-        libBLS,
-        libBLSKeystore,
-        libSSSS
-      ),
+          libOsLib,
+          libUpickleLib,
+          libScodecBits,
+          libHKDF,
+          libBLS,
+          libBLSKeystore,
+          libSSSS,
+          libEthAbi,
+        ),
       // this is important option to support latest log4j2 
       assembly / packageOptions += sbt.Package.ManifestAttributes("Multi-Release" -> "true")
     )
@@ -566,18 +568,18 @@ lazy val stream_std = (project in file("skel-stream/stream-std"))
 lazy val cli = (project in file("skel-cli"))
   .dependsOn(core,crypto)
   .settings (
-      sharedConfig,
-      sharedConfigAssembly,
-      
-      appAssemblyConfig("skel-cli","io.syspulse.skel.cli.App"),
-      
-      libraryDependencies ++= libCommon ++ libHttp ++ libTest ++ 
-        Seq(
-          libOsLib,
-          libUpickleLib,
-          libJline
-        ),
-    )
+    sharedConfig,
+    sharedConfigAssembly,
+    
+    appAssemblyConfig("skel-cli","io.syspulse.skel.cli.App"),
+    
+    libraryDependencies ++= libCommon ++ libHttp ++ libTest ++ 
+      Seq(        
+        libOsLib,
+        libUpickleLib,
+        libJline
+      ),
+  )
 
 lazy val db_cli = (project in file("skel-db/db-cli"))
   .dependsOn(core,cli)

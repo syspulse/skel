@@ -143,6 +143,8 @@ object Dependencies {
     // val libWeb3jCore =      "org.web3j"                     % "core"                % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
     val libWeb3jCrypto =    "org.web3j"                       % "crypto"              % "4.9.2" exclude("org.bouncycastle", "bcprov-jdk15on")
     val libWeb3jCore =      "org.web3j"                       % "core"                % "4.9.2" exclude("org.bouncycastle", "bcprov-jdk15on")
+    // Refactored: https://github.com/syspulse/eth-abi
+    val libEthAbi =         "com.github.lbqds"                %% "ethabi"             % "0.4.0"
     
     //web3j depends on "1.65"
     val libBouncyCastle =   "org.bouncycastle"                % "bcprov-jdk15on"      % "1.70" //"1.69" 
