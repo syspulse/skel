@@ -1,7 +1,11 @@
 # DataLake Refernce Architecture Snippets
 
+## Frameworks and Libraries
 
+- dask [https://www.dask.org/]
+- h3-pandas [https://github.com/DahnJ/H3-Pandas]
 
+----
 ## Generic Data Flow
 
 A lot of BigDate projects may look like this from data flow perspective
