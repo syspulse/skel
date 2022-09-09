@@ -5,6 +5,9 @@ import org.scalatest.wordspec.AnyWordSpec
 //import org.scalatest.TryValues._
 import scala.io.Source
 
+import io.syspulse.skel.util.Util
+import io.syspulse.skel.crypto.Hash
+
 import codegen.Decoder
 import codegen.AbiDefinition
 import io.syspulse.crypto.eth.Tx
@@ -109,5 +112,14 @@ class ABISpec extends AnyWordSpec with Matchers {
     s(1).toString shouldBe "(_to,address,0xec30d02f10353f8efc9601371f56e808751f396f)"
     s(2).toString shouldBe "(_value,uint256,1264496154)"
   }
+
+  "function 'totalSupply()'" in {
+      val func = "totalSupply()"
+      Util.hex(Hash.keccak256(func).take(4)) should === ("0x18160ddd")
+    }
+  "function 'balanceOf(address)'" in {
+      val func = "balanceOf(address)"
+      Util.hex(Hash.keccak256(func).take(4)) should === ("0x70a08231")
+    }
 
 }

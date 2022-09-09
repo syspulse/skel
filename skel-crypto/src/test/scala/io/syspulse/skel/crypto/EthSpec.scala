@@ -8,6 +8,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.time._
 import io.syspulse.skel.util.Util
+import io.syspulse.skel.crypto.Hash
 
 class EthSpec extends AnyWordSpec with Matchers with TestData {
   import Util._
@@ -81,5 +82,6 @@ class EthSpec extends AnyWordSpec with Matchers with TestData {
       val kk = Eth.generateFromMnemoPath("candy maple cake sugar pudding cream honey rich smooth crumble sweet treat","m/44'/60'/0'/0").map(kp => (Util.hex(kp.sk),Util.hex(kp.pk)))
       kk should === (Success("0x00c87509a1c067bbde78beb793e6fa76530b6382a4c0241e5e4a9ec0a0f44dc0d3","0xaf80b90d25145da28c583359beb47b21796b2fe1a23c1511e443e7a64dfdb27d7434c380f0aa4c500e220aa1a9d068514b1ff4d5019e624e7ba1efe82b340a59"))
     }
+    
   }
 }
