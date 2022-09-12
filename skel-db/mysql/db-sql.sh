@@ -11,4 +11,5 @@ echo "DB_HOST=$DB_HOST"
 
 SQL_FILE=${1}
 
-mysql --host ${DB_HOST} --port 3306 -u ${ROOT_USER} -p${ROOT_PASS} --protocol=tcp < ${SQL_FILE}
+#mysql --host ${DB_HOST} --port 3306 -u ${ROOT_USER} -p${ROOT_PASS} --protocol=tcp < ${SQL_FILE}
+mysql --host ${DB_HOST} --port 3306 -u ${DB_USER} -p${DB_PASS} --protocol=tcp < ${SQL_FILE}
