@@ -142,5 +142,58 @@ class UtilSpec extends AnyWordSpec with Matchers {
       val s = Util.extractDirWithSlash("dir1/dir2/file.log")
       s should === ("dir1/dir2/")
     }
+
+
+    "nextTimestamp '/dir/year={yyyy}/month={MM}/day={dd}/file.log' should be next day" in {
+      val t1 = 1662982804209L 
+      val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/day={dd}/file.log",t1)      
+      val f2 = Util.toFileWithTime("{dd}",t2)      
+      f2 should === ("13")
+    }
+
+    "nextTimestamp '/dir/year={yyyy}/month={MM}/file.log' should be next month" in {
+      val t1 = 1662982804209L 
+      val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/file.log",t1)      
+      val f2 = Util.toFileWithTime("{MM}",t2)      
+      f2 should === ("10")
+    }
+
+    "nextTimestamp '/dir/year={yyyy}/file.log' should be next year" in {
+      val t1 = 1662982804209L 
+      val t2 = Util.nextTimestampDir("/dir/year={yyyy}/file.log",t1)      
+      val f2 = Util.toFileWithTime("{yyyy}",t2)      
+      f2 should === ("2023")
+    }
+
+    "nextTimestamp '/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/file.log' should be next hour" in {
+      val t1 = 1662982804209L 
+      val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/file.log",t1)
+      val f2 = Util.toFileWithTime("{HH}",t2)
+      f2 should === ("15")
+    }
+
+    "nextTimestamp '/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/min=${mm}/file.log' should be next minute" in {
+      val t1 = 1662982804209L 
+      val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/min=${mm}/file.log",t1)
+      val f2 = Util.toFileWithTime("{mm}",t2)
+      f2 should === ("41")
+    }
+
+    "nextTimestamp '/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/file-${HH}-${mm}.log' should be next hour (ignore file)" in {
+      val t1 = 1662982804209L 
+      val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/file-${HH}-${mm}.log",t1)
+      val f2 = Util.toFileWithTime("{HH}",t2)
+      f2 should === ("15")
+    }
+
+    // "nextTimestamp '/dir/year={yyyy}/month={MM}/day={dd}' should be next day" in {
+    //   val t1 = System.currentTimeMillis()
+    //   val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/day={dd}",t1)
+      
+    //   val f2 = Util.toFileWithTime("{dd}",t2)
+    //   val t3 = "%02d".format(ZonedDateTime.ofInstant(Instant.ofEpochMilli(t1), ZoneId.systemDefault).plusDays(1).getDayOfMonth)
+      
+    //   f2 should === (t3)
+    // }
   }
 }

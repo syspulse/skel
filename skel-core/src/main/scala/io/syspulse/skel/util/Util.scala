@@ -78,6 +78,22 @@ object Util {
     tssPairs.foldLeft(fileName)( (fileName,pair) => { fileName.replace("{"+pair._1+"}",pair._2) })
   }
 
+  // only applicable to yyyy-MM-dd HH:mm (not to seconds)
+  def nextTimestampDir(fileName:String,ts:Long=System.currentTimeMillis()) = {
+    val tss = extractDirWithSlash(fileName).split("[{]").filter(_.contains("}")).map(s => s.substring(0,s.indexOf("}")))
+    val deltas = tss.reverse.map(s => s match {
+      case "mm" | "m" => (0,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).plusMinutes(1).toInstant().toEpochMilli())
+      case "HH" | "H" => (1,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).plusHours(1).toInstant().toEpochMilli())
+      case "dd" | "d" => (2,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).plusDays(1).toInstant().toEpochMilli())
+      case "MM" | "M" => (3,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).plusMonths(1).toInstant().toEpochMilli())
+      case "yyyy" | "yy" | "y" => (4,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).plusYears(1).toInstant().toEpochMilli())
+    }).toList
+
+    println(s"${deltas}")
+    println(s"${deltas.sortBy(_._1)}")
+    deltas.sortBy(_._1).map(_._2).head
+  }
+
   def getParentUri(uri:String) = {
     val s = uri.stripSuffix("/").split("/")
     s.take(s.size - 1).mkString("/")

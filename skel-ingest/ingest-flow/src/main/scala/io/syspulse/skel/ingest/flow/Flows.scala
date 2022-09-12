@@ -96,26 +96,84 @@ object Flows {
         )(Keep.right)
   }
 
-  def toHiveFile(file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue) = {
-
+  // return false in askLimits to create new destination File
+  // Option is used for speed optimization (instead of calling function at each byte)
+  def toHive(file:String,askLimits:Option[(Long,Long,Long) => Boolean] = None, fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue) = {
+    // if file contains times patterns, create threshold
+    val tsRotated = Util.extractDirWithSlash(file).matches("[{}]")
+    
     val fileRotateTrigger: () => ByteString => Option[Path] = () => {
       var currentFilename: Option[String] = None
-      var init = false
-      val max = 10 * 1024 * 1024
+      var inited = false
       var count: Long = 0L
       var size: Long = 0L
-      var currentTs = System.currentTimeMillis
+      
+      var nextTs = if(tsRotated) Util.nextTimestampDir(file) else 0
+
       (element: ByteString) => {
-        if(init && (count < fileLimit && size < fileSize)) {
+        if(inited && (
+            count < fileLimit && 
+            size < fileSize && 
+            (nextTs != 0 && System.currentTimeMillis() < nextTs) &&
+            (if(askLimits.isDefined) askLimits.get(count,size,System.currentTimeMillis()) else true)
+          )
+        ) {
+          
           count = count + 1
           size = size + element.size
           None
         } else {
-          currentFilename = Some(Util.pathToFullPath(Util.toFileWithTime(file)))
+          val now = System.currentTimeMillis()
+          
+          currentFilename = Some(Util.pathToFullPath(Util.toFileWithTime(file,now)))
           
           count = 0L
           size = 0L
-          init = true
+          nextTs = if(tsRotated) Util.nextTimestampDir(file,now) else 0
+          inited = true          
+          
+          val currentDirname = Util.extractDirWithSlash(currentFilename.get)
+          try {
+            // try to create dir
+            Files.createDirectories(Path.of(currentDirname))
+            val outputPath = currentFilename.get
+            Some(Paths.get(outputPath))
+
+          } catch {
+            case e:Exception => None
+          }                    
+        }
+      }
+    }
+
+    if(file.trim.isEmpty) 
+      Sink.ignore 
+    else
+      Flow[Ingestable]
+        .map(t=>s"${t.toLog}\n")
+        .map(ByteString(_))
+        .toMat(LogRotatorSink(fileRotateTrigger))(Keep.right)
+  }
+
+  def toHiveFile(file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue) = {
+
+    val fileRotateTrigger: () => ByteString => Option[Path] = () => {
+      var currentFilename: Option[String] = None
+      var inited = false
+      var count: Long = 0L
+      var size: Long = 0L
+      var currentTs = System.currentTimeMillis
+      (element: ByteString) => {
+        if(inited && (count < fileLimit && size < fileSize)) {
+          count = count + 1
+          size = size + element.size
+          None
+        } else {
+          currentFilename = Some(Util.pathToFullPath(Util.toFileWithTime(file,currentTs)))
+          
+          count = 0L
+          size = 0L
+          inited = true
           
           val currentDirname = Util.extractDirWithSlash(currentFilename.get)
           try {
