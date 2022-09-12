@@ -65,11 +65,18 @@ class UtilSpec extends AnyWordSpec with Matchers {
       s should === ("/dir/year=%d/month=%02d/day=%02d".format(t.getYear,t.getMonthValue,t.getDayOfMonth))
     }
 
-    "produce 5,100000000000,Text,7.13 for case class" in {
+    "produce CSV '5,100000000000,Text,7.13' for case class" in {
       case class Data(i:Int,l:Long,s:String,d:Double)
       val c = Data(5,100000000000L,"Text",7.13)
       val csv = Util.toCSV(c)
       csv should === ("5,100000000000,Text,7.13")
+    }
+
+    "produce CSV '5,100000000000,,7.13' for case class" in {
+      case class Data(i:Option[Int],l:Long,s:Option[String] = None,d:Option[Double]=None)
+      val c = Data(Some(5),100000000000L,None,Some(7.13))
+      val csv = Util.toCSV(c)
+      csv should === ("5,100000000000,,7.13")
     }
 
     "toDirWithSlash('') return ''" in {

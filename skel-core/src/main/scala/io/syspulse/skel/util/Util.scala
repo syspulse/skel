@@ -131,7 +131,13 @@ object Util {
 
   def rnd(limit:Double) = Random.between(0,limit)
 
-  def toCSV(o:Product):String = o.productIterator.foldRight("")(_.toString + "," + _.toString).stripSuffix(",")
+  def toCSV(o:Product):String = {
+    //o.productIterator.foldRight("")(_.toString + "," + _.toString).stripSuffix(",")
+    o.productIterator.map{
+      case p: Product =>  toCSV(p)
+      case pp => pp
+    }.mkString(",")
+  }
 
   import scala.reflect.runtime.universe._ 
 
