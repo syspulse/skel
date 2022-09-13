@@ -22,6 +22,9 @@ import io.syspulse.skel.ingest.store._
 
 import spray.json._
 import java.util.concurrent.TimeUnit
+import java.time.ZonedDateTime
+import java.time.Instant
+import java.time.ZoneId
 
 abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024)
   (implicit fmt:JsonFormat[O]) extends IngestFlow[I,T,O]() {
@@ -66,19 +69,28 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
   override def sink() = {
     sink(output)
   }
+
+  def getRotator():Flows.Rotator = new Flows.RotatorCurrentTime()
   
   def sink(output:String) = {
     log.info(s"output=${output}")
-    
+        
     val sink = output.split("://").toList match {
       case "null" :: _ => Flows.toNull
       case "json" :: _ => Flows.toJson[O](output)(fmt)
 
       case "kafka" :: _ => Flows.toKafka[O](output)
       case "elastic" :: _ => Flows.toElastic[O](output)(fmt)
+      
       case "file" :: fileName :: Nil => Flows.toFile(fileName)
       case "files" :: fileName :: Nil => Flows.toHiveFile(fileName)
-      case "hive" :: fileName :: Nil => Flows.toHive(fileName)
+      case "hive" :: fileName :: Nil => Flows.toHive(fileName)(getRotator())
+      
+      // funny test implementation for custom timestamp into the past 1000 years
+      // TODO: remove it !
+      case "past" :: fileName :: Nil => 
+        Flows.toHive(fileName)(new Flows.RotatorTimestamp( () => ZonedDateTime.ofInstant(Instant.now, ZoneId.systemDefault).minusYears(1000).toInstant().toEpochMilli() ))
+
       case "stdout" :: _ => Flows.toStdout()
       case "" :: Nil => Flows.toStdout()
       case _ => Flows.toFile(output)

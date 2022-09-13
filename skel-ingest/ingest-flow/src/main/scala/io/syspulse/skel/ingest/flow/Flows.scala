@@ -96,11 +96,53 @@ object Flows {
         )(Keep.right)
   }
 
-  // return false in askLimits to create new destination File
-  // Option is used for speed optimization (instead of calling function at each byte)
-  def toHive(file:String,askLimits:Option[(Long,Long,Long) => Boolean] = None, fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue) = {
+  // Hive Rotators
+  abstract class Rotator {
+    def init(file:String,fileLimit:Long,fileSize:Long)
+    def isRotatable():Boolean
+    def needRotate(count:Long,size:Long):Boolean
+    def rotate(file:String,count:Long,size:Long):Option[String]
+  }
+
+  class RotatorCurrentTime extends Rotator {
+    var tsRotated = false
+    var nextTs = 0L
+
+    def init(file:String,fileLimit:Long,fileSize:Long) = {
+      tsRotated = Util.extractDirWithSlash(file).matches("[{}]")
+    }
+
+    def isRotatable():Boolean = tsRotated
+    
+    def needRotate(count:Long,size:Long):Boolean = {      
+      isRotatable() && (nextTs != 0 && System.currentTimeMillis() < nextTs)
+    }
+
+    def rotate(file:String,count:Long,size:Long):Option[String]  = {
+      nextTs = if(tsRotated) Util.nextTimestampDir(file) else 0L
+      val now = System.currentTimeMillis()
+      Some(Util.pathToFullPath(Util.toFileWithTime(file,now)))
+    }
+  }
+
+  // supply custom Timestamp
+  class RotatorTimestamp(askTime:()=>Long) extends RotatorCurrentTime {
+  
+    override def needRotate(count:Long,size:Long):Boolean = {      
+      isRotatable() && (nextTs != 0 && askTime() != nextTs)
+    }
+
+    override def rotate(file:String,count:Long,size:Long):Option[String]  = {
+      val ts = askTime()
+      nextTs = if(tsRotated) ts else 0L
+      Some(Util.pathToFullPath(Util.toFileWithTime(file,ts)))
+    }
+  }
+
+
+  def toHive(file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue)(implicit rotator:Rotator) = {
     // if file contains times patterns, create threshold
-    val tsRotated = Util.extractDirWithSlash(file).matches("[{}]")
+    //val tsRotated = Util.extractDirWithSlash(file).matches("[{}]")
     
     val fileRotateTrigger: () => ByteString => Option[Path] = () => {
       var currentFilename: Option[String] = None
@@ -108,14 +150,13 @@ object Flows {
       var count: Long = 0L
       var size: Long = 0L
       
-      var nextTs = if(tsRotated) Util.nextTimestampDir(file) else 0
+      //var nextTs = if(tsRotated) Util.nextTimestampDir(file) else 0
 
       (element: ByteString) => {
         if(inited && (
             count < fileLimit && 
             size < fileSize && 
-            (nextTs != 0 && System.currentTimeMillis() < nextTs) &&
-            (if(askLimits.isDefined) askLimits.get(count,size,System.currentTimeMillis()) else true)
+            rotator.needRotate(count,size)
           )
         ) {
           
@@ -124,12 +165,12 @@ object Flows {
           None
         } else {
           val now = System.currentTimeMillis()
-          
-          currentFilename = Some(Util.pathToFullPath(Util.toFileWithTime(file,now)))
+
+          currentFilename = rotator.rotate(file,count,size) //Some(Util.pathToFullPath(Util.toFileWithTime(file,now)))
           
           count = 0L
           size = 0L
-          nextTs = if(tsRotated) Util.nextTimestampDir(file,now) else 0
+          //nextTs = if(tsRotated) Util.nextTimestampDir(file,now) else 0
           inited = true          
           
           val currentDirname = Util.extractDirWithSlash(currentFilename.get)
