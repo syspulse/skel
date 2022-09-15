@@ -3,6 +3,7 @@ package io.syspulse.skel.ingest.flow
 import scala.jdk.CollectionConverters._
 
 import java.nio.file.StandardOpenOption._
+import java.nio.file.{Paths,Files}
 
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.Http
@@ -23,13 +24,11 @@ import akka.stream._
 import akka.stream.scaladsl._
 
 import java.nio.file.{Path,Paths, Files}
-import akka.stream.alpakka.file.scaladsl.LogRotatorSink
 
 import scala.concurrent.ExecutionContext.Implicits.global 
 import scala.util.Random
-import java.nio.file.{Paths,Files}
-import scala.jdk.CollectionConverters._
 
+import akka.stream.alpakka.file.scaladsl.LogRotatorSink
 import akka.stream.alpakka.elasticsearch.WriteMessage
 import akka.stream.alpakka.elasticsearch.scaladsl.ElasticsearchSink
 import akka.stream.alpakka.elasticsearch.ElasticsearchParams
@@ -58,10 +57,11 @@ object Flows {
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
   }
 
-  def fromHttpList(req: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = {
+  def fromHttpList(req: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem) = {
+    // Http().singleRequest does not respect mapAsync for parallelization !!!
     val s = 
       Source(req)
-      //.throttle(1,FiniteDuration(1000,TimeUnit.MILLISECONDS))
+      .throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))
       .mapAsync(par)(r => Flows.fromHttpFuture(r)(as))
     
     if(frameDelimiter.isEmpty())

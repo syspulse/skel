@@ -36,6 +36,7 @@ case class Config(
   delimiter:String = "",
   buffer:Int = 0,
   throttle:Long = 0L,
+  throttleSource:Long = 0L,
 
   datastore:String = "",
 
@@ -63,6 +64,7 @@ object App extends skel.Server {
         ArgString('_', "delimiter","""Delimiter characteds (def: '\n'). Usage example: --delimiter=`echo -e $"\r"` """),
         ArgInt('_', "buffer","Frame buffer (Akka Framing) (def: 8192)"),
         ArgLong('_', "throttle","Throttle messages in msec (def: 0)"),
+        ArgLong('_', "throttle.source","Throttle source (e.g. http, def=0L)"),
 
         ArgLong('n', "limit","Limit (def: -1)"),
 
@@ -89,6 +91,7 @@ object App extends skel.Server {
       delimiter = c.getString("delimiter").getOrElse("\n"),
       buffer = c.getInt("buffer").getOrElse(8192),
       throttle = c.getLong("throttle").getOrElse(0L),
+      throttleSource = c.getLong("throttle.source").getOrElse(0L),
 
       filter = c.getString("filter").getOrElse(""),
       
