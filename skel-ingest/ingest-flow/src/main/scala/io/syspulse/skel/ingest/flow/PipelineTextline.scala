@@ -25,6 +25,7 @@ import spray.json._
 import java.util.concurrent.TimeUnit
 
 case class Textline(txt:String) extends skel.Ingestable {
+  override def getKey: Option[Any] = Some(txt.hashCode())
   override def toString = txt
 }
 

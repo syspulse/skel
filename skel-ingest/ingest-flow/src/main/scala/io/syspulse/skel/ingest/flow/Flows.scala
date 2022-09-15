@@ -41,6 +41,8 @@ import io.syspulse.skel.ingest.uri.ElasticURI
 import io.syspulse.skel.ingest.uri.KafkaURI
 
 import spray.json.JsonFormat
+import java.nio.file.StandardOpenOption
+import java.nio.file.OpenOption
 
 object Flows {
   def toNull = Sink.ignore
@@ -152,18 +154,29 @@ object Flows {
   }
 
 
+  def toFileNew[O <: Ingestable](file:String,rotator:(O,String) => String)(implicit mat: Materializer) = {
+      
+    if(file.trim.isEmpty) 
+      Sink.ignore 
+    else
+      Flow[O].map( t => {
+        Source
+          .single(ByteString(t.toLog))
+          .toMat(FileIO.toPath(
+            Paths.get(rotator(t,file)),options =  Set(WRITE, CREATE))
+          )(Keep.left).run()
+      })
+      .toMat(Sink.seq)(Keep.both)
+  }
+
   def toHive(file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue)(implicit rotator:Rotator) = {
-    // if file contains times patterns, create threshold
-    //val tsRotated = Util.extractDirWithSlash(file).matches("[{}]")
     
     val fileRotateTrigger: () => ByteString => Option[Path] = () => {
       var currentFilename: Option[String] = None
       var inited = false
       var count: Long = 0L
       var size: Long = 0L
-      
-      //var nextTs = if(tsRotated) Util.nextTimestampDir(file) else 0
-
+          
       (element: ByteString) => {
         if(inited && (
             count < fileLimit && 
@@ -178,11 +191,10 @@ object Flows {
         } else {
           val now = System.currentTimeMillis()
 
-          currentFilename = rotator.rotate(file,count,size) //Some(Util.pathToFullPath(Util.toFileWithTime(file,now)))
+          currentFilename = rotator.rotate(file,count,size)
           
           count = 0L
           size = 0L
-          //nextTs = if(tsRotated) Util.nextTimestampDir(file,now) else 0
           inited = true          
           
           val currentDirname = Util.extractDirWithSlash(currentFilename.get)
@@ -208,7 +220,7 @@ object Flows {
         .toMat(LogRotatorSink(fileRotateTrigger))(Keep.right)
   }
 
-  def toHiveFile(file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue) = {
+  def toHiveFileSize(file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue) = {
 
     val fileRotateTrigger: () => ByteString => Option[Path] = () => {
       var currentFilename: Option[String] = None
@@ -255,13 +267,13 @@ object Flows {
     val es = new ToElastic[T](uri)(fmt)
     Flow[T]
       .mapConcat(t => es.transform(t))
-      .toMat(es.sink())((Keep.right))
+      .toMat(es.sink())(Keep.right)
   }
 
   def toKafka[T <: Ingestable](uri:String) = {
     val kafka = new ToKafka[T](uri)
     Flow[T]
-      .to(kafka.sink())
+      .toMat(kafka.sink())(Keep.right)
   }
 
   def fromKafka[T <: Ingestable](uri:String) = {

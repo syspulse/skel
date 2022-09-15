@@ -92,8 +92,12 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
       case "elastic" :: _ => Flows.toElastic[O](output)(fmt)
       
       case "file" :: fileName :: Nil => Flows.toFile(fileName)
-      case "files" :: fileName :: Nil => Flows.toHiveFile(fileName)
+      case "files" :: fileName :: Nil => Flows.toHiveFileSize(fileName)
       case "hive" :: fileName :: Nil => Flows.toHive(fileName)(getRotator())
+
+      // test to create new file for every object
+      // TODO: remove it
+      case "filenew" :: fileName :: Nil => Flows.toFileNew(fileName,(o:O,file) => file + o.getId.getOrElse("").toString)
       
       // funny test implementation for custom timestamp into the past 1000 years
       // TODO: remove it !
