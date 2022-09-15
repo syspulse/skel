@@ -39,8 +39,9 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
 
   override def process:Flow[I,T,_] = {
     val f0 = processing
-    val f1 = if(throttle != 0L) 
-      f0.throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))
+    val f1 = if(throttle != 0L) {      
+      f0.throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))      
+    }
     else
       f0
     f1

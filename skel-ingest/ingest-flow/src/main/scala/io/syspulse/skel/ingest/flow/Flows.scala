@@ -58,6 +58,14 @@ object Flows {
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
   }
 
+  def fromHttpList(req: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = {
+    val s = Source(req).mapAsync(par)(r => Flows.fromHttpFuture(r)(as))
+    if(frameDelimiter.isEmpty())
+      s
+    else
+      s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+  }
+
   def fromStdin(frameDelimiter:String="\n",frameSize:Int = 8192):Source[ByteString, Future[IOResult]] = {
     val s = StreamConverters.fromInputStream(() => System.in)
     if(frameDelimiter.isEmpty())
