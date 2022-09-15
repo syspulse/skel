@@ -14,7 +14,8 @@ case class Data(ts:Long,v:DataUnit)
 case class DataList(name:String,data:List[Data])
 
 class ConfigurationSpec extends AnyWordSpec with Matchers {
-  
+  val testDir = this.getClass.getClassLoader.getResource(".").getPath
+
   "Configuration" should {
 
     "return multiple args parameters" in {
@@ -31,6 +32,33 @@ class ConfigurationSpec extends AnyWordSpec with Matchers {
 
       c.getParams().size should === (3)
       c.getParams() should === (Seq("1","2","3"))
+    }
+
+    "get List from 'str1,  2, 1000 ' " in {
+      val args = Array("-s","str1,  2, 1000 ")
+      val c = Configuration.withPriority(Seq(
+        new ConfigurationArgs(args,"test-1","",
+          ArgString('s', "param.list","")          
+        )
+      ))
+      
+      val s = c.getListString("param.list") 
+      s.size should === (3)
+      s should === (Seq("str1","2","1000"))
+    }
+
+    "get List from file: 'str1,  2, 1000 ' " in {
+      val args = Array("-s",s" file://${testDir}/resource-2.conf")
+      val c = Configuration.withPriority(Seq(
+        new ConfigurationArgs(args,"test-1","",
+          ArgString('s', "param.list","")          
+        )
+      ))
+      
+      val s = c.getListString("param.list") 
+      info(s"s = ${s}")
+      s.size should === (3)
+      s should === (Seq("str1","2","1000"))
     }
     
   }

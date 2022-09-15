@@ -50,6 +50,21 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
   def getCmd():Option[String] = {
     configurations.foldLeft[Option[String]](None)((r,c) => if(r.isDefined) r else c.getCmd())
   }
+
+  def getListString(path:String):Seq[String] = {
+    val v = getString(path)
+    if(!v.isDefined) return Seq()
+    
+    if(v.get.trim.startsWith("file://")) {
+      val data = scala.io.Source.fromFile(v.get.drop("file://".size)).getLines().mkString(",")
+      data.split(",").map(_.trim).filter(!_.isEmpty).toSeq
+    } else {
+      v.map(v => v.split(",").map(_.trim).filter(!_.isEmpty)).getOrElse(Array()).toSeq
+    }
+  }
+
+  def getListLong(path:String):Seq[Long] = getListString(path).flatMap( s => s.toLongOption)
+  def getListInt(path:String):Seq[Int] = getListString(path).flatMap( s => s.toIntOption)
 }
 
 object Configuration {
