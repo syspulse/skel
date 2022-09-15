@@ -66,7 +66,10 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config) extend
 
   override def processing:Flow[String,String,_] = Flow[String].map(s => s)
   def parse(data: String): Seq[String] = {
-    data.split("\n").toSeq
+    if(config.delimiter.isEmpty())
+      Seq(data)
+    else
+      data.split(config.delimiter).toSeq
   }
   def transform(txt: String): Seq[Textline] = {
     //Seq(Textline(s"[${countBytes},${countInput},${countObj},${countOutput}]: ${t}"))

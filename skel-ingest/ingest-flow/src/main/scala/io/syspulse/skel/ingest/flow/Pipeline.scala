@@ -55,7 +55,12 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
     log.info(s"feed=${feed}")
     val source = feed.split("://").toList match {
       case "kafka" :: _ => Flows.fromKafka[Textline](feed)
-      case "http" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
+      case "http" :: _ => {
+        if(feed.contains(","))
+          Flows.fromHttpList(feed.split(",").map(uri => HttpRequest(uri = uri.trim).withHeaders(Accept(MediaTypes.`application/json`))),frameDelimiter = delimiter,frameSize = buffer)
+        else
+          Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
+      }
       case "https" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
       case "file" :: fileName :: Nil => Flows.fromFile(fileName,chunk,frameDelimiter = delimiter, frameSize = buffer)
       case "stdin" :: _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer)
