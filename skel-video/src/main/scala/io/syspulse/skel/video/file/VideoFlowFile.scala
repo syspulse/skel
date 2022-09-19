@@ -21,6 +21,6 @@ class VideoFlowFile(file:String) extends VideoFlow with IngestFlow[Video,Video,V
   
   override def sink():Sink[Video,Any] = {
     log.info(s"writing -> ${file}")
-    Flows.toHiveFile(file)
+    Flows.toHiveFileSize(file)
   }
 }
