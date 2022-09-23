@@ -10,20 +10,6 @@ abstract class NotifyReceiver[R] {
   def send(title:String,msg:String):Try[R]
 }
 
-class NotifyEmail(to:String) extends NotifyReceiver[String] {
-  val log = Logger(s"${this}")
-
-  def sendEmail(to:String,title:String,msg:String):Try[String] = {
-    log.info(s"sending email -> $to")
-    Success(s"${to}: OK")
-  }
-
-  def send(title:String,msg:String):Try[String] = {
-    val r = sendEmail(to,title,msg)
-    r
-  }
-}
-
 class NotifyWebsocket(id:String) extends NotifyReceiver[Int] {
   def send(title:String,msg:String):Try[Int] = {
     Success(0)

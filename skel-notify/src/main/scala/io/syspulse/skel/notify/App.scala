@@ -6,6 +6,8 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.Future
 import scala.concurrent.Await
 
+import io.jvm.uuid._
+
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
@@ -14,10 +16,7 @@ import io.syspulse.skel.notify._
 import io.syspulse.skel.notify.client._
 import io.syspulse.skel.notify.store._
 import io.syspulse.skel.notify.server.NotifyRoutes
-
-import io.jvm.uuid._
-
-import io.syspulse.skel.FutureAwaitable._
+import io.syspulse.skel.notify.aws.NotifySNS
 
 case class Config(
   host:String="0.0.0.0",
@@ -81,6 +80,7 @@ object App extends skel.Server {
           val n = p.split("://").toList match {
             case "email" :: to :: _ => new NotifyEmail(to)
             case "stdout" :: _ => new NotifyStdout
+            case "sns" :: arn :: _ => new NotifySNS(arn)
             case _ => new NotifyStdout
           }
           nn = nn :+ n
@@ -105,7 +105,8 @@ object App extends skel.Server {
         )
       case "notify" => 
         val (receivers,subj,msg) = parseUri(config.params.toList)
-        Notification.send(receivers,subj,msg)
+        val rr = Notification.send(receivers,subj,msg)
+        Console.err.println(s"${rr}")
       
       case "client" => {
         
