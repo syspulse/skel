@@ -17,12 +17,16 @@ import io.syspulse.skel.notify.client._
 import io.syspulse.skel.notify.store._
 import io.syspulse.skel.notify.server.NotifyRoutes
 import io.syspulse.skel.notify.aws.NotifySNS
+import io.syspulse.skel.notify.email.NotifyEmail
 
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
   uri:String = "/api/v1/notify",
   datastore:String = "mem",
+
+  smtpUri:String = "smtp://smtp.gmail.com:587/user@pass",
+  smtpFrom:String = "admin@syspulse.io",
 
   cmd:String = "notify",
   params: Seq[String] = Seq(),
@@ -44,9 +48,13 @@ object App extends skel.Server {
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
         ArgString('d', "datastore",s"datastore [mysql,postgres,mem,cache] (def: ${d.datastore})"),
+
+        ArgString('_', "smtp.uri",s"STMP uri (def: ${d.smtpUri})"),
+        ArgString('_', "smtp.from",s"From who to send email (def: ${d.smtpFrom})"),
+
         ArgCmd("server",s"Server"),
         ArgCmd("client",s"Command"),
-        ArgCmd("notify",s"Run notification to Receivers (email://to, stdout://, sns://arn"),
+        ArgCmd("notify",s"Run notification to Receivers (email://smtp/to, stdout://, sns://arn)"),
         ArgParam("<params>","")
       ).withExit(1)
     ))
@@ -56,6 +64,10 @@ object App extends skel.Server {
       port = c.getInt("http.port").getOrElse(d.port),
       uri = c.getString("http.uri").getOrElse(d.uri),
       datastore = c.getString("datastore").getOrElse(d.datastore),
+
+      smtpUri = c.getString("smtp.uri").getOrElse(d.smtpUri),
+      smtpFrom = c.getString("smtp.from").getOrElse(d.smtpFrom),
+
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
     )
@@ -78,7 +90,14 @@ object App extends skel.Server {
       for( p <- params) {
         if(p.contains("//")) {          
           val n = p.split("://").toList match {
-            case "email" :: to :: _ => new NotifyEmail(to)
+            case "email" :: dst :: _ => 
+              val (smtp,to) = dst.split("/").toList match {
+                case smtp :: to :: Nil => (smtp,to)
+                case to :: Nil => ("smtp",to)
+                case to  => ("smtp",to.mkString(""))
+              }
+              new NotifyEmail(smtp,to)(config)
+
             case "stdout" :: _ => new NotifyStdout
             case "sns" :: arn :: _ => new NotifySNS(arn)
             case _ => new NotifyStdout

@@ -199,6 +199,8 @@ object Dependencies {
     val libElastic4s =        "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % elastic4sVersion
     val libElastic4sTest =    "com.sksamuel.elastic4s" %% "elastic4s-testkit" % elastic4sVersion % "test"
 
+    val libCourier =          "com.github.daddykotex"         %% "courier"                    % "3.2.0"
+
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)

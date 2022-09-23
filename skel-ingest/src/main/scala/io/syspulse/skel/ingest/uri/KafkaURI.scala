@@ -1,7 +1,7 @@
 package io.syspulse.skel.ingest.uri
 
 /* 
-kafka://host:port/topic/group
+smtp://smtp.gmail.com:587/user@pass
 */
 case class KafkaURI(uri:String) {
   val PREFIX = "kafka://"

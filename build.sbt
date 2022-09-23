@@ -144,7 +144,7 @@ val sharedConfigAssemblyTeku = Seq(
     cp filter { f => {
         f.data.getName.contains("bcprov-") || 
         f.data.getName.contains("snakeyaml-1.27-android.jar") || 
-        f.data.getName.contains("jakarta.activation-api-1.2.1")         
+        f.data.getName.contains("jakarta.activation-api-1.2.1")
       }
     }
   },
@@ -169,7 +169,9 @@ val sharedConfigAssembly = Seq(
     val cp = (assembly / fullClasspath).value
     cp filter { f =>
       f.data.getName.contains("snakeyaml-1.27-android.jar") || 
-      f.data.getName.contains("jakarta.activation-api-1.2.1") 
+      f.data.getName.contains("jakarta.activation-api-1.2.1") ||
+      f.data.getName.contains("jakarta.activation-2.0.1") 
+      //|| f.data.getName.contains("activation-1.1.1.jar") 
       //|| f.data.getName == "spark-core_2.11-2.0.1.jar"
     }
   },
@@ -736,6 +738,7 @@ lazy val skel_notify = (project in file("skel-notify"))
     appDockerConfig("skel-notify","io.syspulse.skel.notify.App"),
 
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
-      libAWSJavaSNS
+      libAWSJavaSNS,
+      libCourier
     ),    
   )
