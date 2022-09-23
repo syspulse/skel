@@ -1,5 +1,7 @@
 package io.syspulse.skel.notify
 
+import scala.util.Random
+
 import scala.concurrent.duration.Duration
 import scala.concurrent.Future
 import scala.concurrent.Await
@@ -45,7 +47,7 @@ object App extends skel.Server {
         ArgString('d', "datastore",s"datastore [mysql,postgres,mem,cache] (def: ${d.datastore})"),
         ArgCmd("server",s"Server"),
         ArgCmd("client",s"Command"),
-        ArgCmd("notify",s"Run notification"),
+        ArgCmd("notify",s"Run notification to Receivers (email://to, stdout://, sns://arn"),
         ArgParam("<params>","")
       ).withExit(1)
     ))
@@ -71,6 +73,29 @@ object App extends skel.Server {
       }
     }
 
+    def parseUri(params:List[String]):(Receivers,String,String) = {
+      var nn = Seq[NotifyReceiver[_]]()
+      var data = Seq[String]()
+      for( p <- params) {
+        if(p.contains("//")) {          
+          val n = p.split("://").toList match {
+            case "email" :: to :: _ => new NotifyEmail(to)
+            case "stdout" :: _ => new NotifyStdout
+            case _ => new NotifyStdout
+          }
+          nn = nn :+ n
+        }
+        else 
+          data = data :+ p
+      }
+      val (subj,msg) = data.size match {
+        case 0 => ("","")
+        case 1 => ("",data(0))
+        case _ => (data(0),data(1))
+      } 
+      (Receivers(s"group-${Util.hex(Random.nextBytes(10))}", nn),subj,msg)
+    }
+
     config.cmd match {
       case "server" => 
         run( config.host, config.port,config.uri,c,
@@ -79,11 +104,8 @@ object App extends skel.Server {
           )
         )
       case "notify" => 
-        config.params.toList match {
-          case "stdout" :: txt :: Nil => Notification.broadcast(Seq(new NotifyStdout),"NOTIFICATION",txt)
-          //case "email" :: address :: subj :: body :: Nil => Notify
-          case Nil => 
-        }
+        val (receivers,subj,msg) = parseUri(config.params.toList)
+        Notification.send(receivers,subj,msg)
       
       case "client" => {
         

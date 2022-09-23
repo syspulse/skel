@@ -172,8 +172,11 @@ object Dependencies {
 
     val libSparkCore =       "org.apache.spark"               %% "spark-core"         % sparkVersion
     val libSparkSQL =        "org.apache.spark"               %% "spark-sql"          % sparkVersion
+    
     val libHadoopAWS =       "org.apache.hadoop"              % "hadoop-aws"          % hadoopAWSVersion
     val libAWSJavaSDK =      "com.amazonaws"                  % "aws-java-sdk-bundle" % "1.11.874" //"1.12.247"
+    val libAWSJavaSNS =      "com.amazonaws"                  % "aws-java-sdk-sns"    % "1.11.879"
+
     val libJaninoCompiler =  "org.codehaus.janino"            %  "commons-compiler"   % janinoVersion
 
     val libFlyingSaucer =    "org.xhtmlrenderer"              %  "flying-saucer-pdf-itext5"   % "9.1.22"

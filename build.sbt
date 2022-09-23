@@ -735,6 +735,7 @@ lazy val skel_notify = (project in file("skel-notify"))
 
     appDockerConfig("skel-notify","io.syspulse.skel.notify.App"),
 
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(  
+    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
+      libAWSJavaSNS
     ),    
   )

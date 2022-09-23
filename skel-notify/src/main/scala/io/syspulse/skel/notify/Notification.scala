@@ -11,8 +11,16 @@ abstract class NotifyReceiver[R] {
 }
 
 class NotifyEmail(to:String) extends NotifyReceiver[String] {
+  val log = Logger(s"${this}")
+
+  def sendEmail(to:String,title:String,msg:String):Try[String] = {
+    log.info(s"sending email -> $to")
+    Success(s"${to}: OK")
+  }
+
   def send(title:String,msg:String):Try[String] = {
-    Success("ok")
+    val r = sendEmail(to,title,msg)
+    r
   }
 }
 
@@ -29,6 +37,8 @@ class NotifyStdout() extends NotifyReceiver[Option[_]] {
   }
 }
 
+case class Receivers(name:String,receviers:Seq[NotifyReceiver[_]])
+
 object Notification {
   val log = Logger(s"${this}")
 
@@ -38,8 +48,13 @@ object Notification {
   }
 
   def broadcast(n:Seq[NotifyReceiver[_]],title:String,msg:String):Seq[Try[_]] = {
-    log.info(s"($title,$msg)-> ${n}")
+    log.info(s"[$title,$msg]-> ${n}")
     n.map( n => n.send(title,msg)).toSeq
   }
+
+  def send[R](g:Receivers,title:String,msg:String):Seq[Try[_]] = {
+    broadcast(g.receviers,title,msg)
+  }
+
 }
 
