@@ -10,5 +10,9 @@ import io.syspulse.skel.service.ws.WebSocket
 import io.syspulse.skel.service.ws.WebSocketEcho
 
 class WsServiceRoutes()(implicit context: ActorContext[_]) extends WsRoutes("ws")(context) {
-  override def ws:WebSocket = new WebSocketEcho()
+  val ws0 = new WebSocketEcho()
+  override def ws:WebSocket = ws0
+
+  def broadcast(txt:String,topic:String="") = ws0.broadcastText(txt,topic)
+
 }

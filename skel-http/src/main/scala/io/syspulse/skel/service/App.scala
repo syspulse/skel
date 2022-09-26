@@ -50,13 +50,33 @@ object App extends skel.Server {
 
     println(s"Config: ${config}")
 
+    @volatile
+    var ws:Option[WsServiceRoutes] = None
+
     val r = run( config.host, config.port, config.uri, c, 
       Seq(
         // example of WebSocker processor
-        (Behaviors.ignore,"",(actor,actorSystem) => new WsServiceRoutes()(actorSystem) ),
+        (Behaviors.ignore,"",(actor,actorSystem) => {
+          ws = Some(new WsServiceRoutes()(actorSystem))
+          ws.get
+        }),
         (ServiceRegistry(new ServiceStoreMem),"ServiceRegistry",(actor,actorSystem ) => new ServiceRoutes(actor)(actorSystem) ),
       )
     )
+    
+    while(true) {
+      try {
+        val d  = scala.io.StdIn.readLine().split("\\s+").toList
+        d match {
+          case txt :: Nil => ws.get.broadcast(txt)
+          case txt :: topic :: Nil => ws.get.broadcast(txt,topic)
+          case _ => ws.get.broadcast(d.mkString(" "))
+        }
+        
+      } catch {
+        case e:Exception => sys.exit(1)
+      }
+    }
 
     println(s"r=${r}")
   }

@@ -1,5 +1,7 @@
 package io.syspulse.skel.service.ws
 
+import scala.collection.mutable
+
 import com.typesafe.scalalogging.Logger
 
 import akka.http.scaladsl.server.Directives._
@@ -31,14 +33,20 @@ import akka.stream.Materializer
 abstract class WebSocket()(implicit ex:ExecutionContext) {
   val log = Logger(s"${this}")
 
-  protected var clients: List[ActorRef] = List()
+  @volatile
+  protected var clients: mutable.Map[String,mutable.ListBuffer[ActorRef]] = mutable.Map()
   
   def process(m:Message,a:ActorRef):Message = ???
 
-  def wsFlow()(implicit mat:Materializer): Flow[Message, Message, Any] = {
+  def wsFlow(topic:String)(implicit mat:Materializer): Flow[Message, Message, Any] = {    
     val (wsActor, wsSource) = Source.actorRef[Message](32, OverflowStrategy.dropNew).preMaterialize()
 
-    clients = clients :+ wsActor
+    val aa = clients.getOrElseUpdate(topic,mutable.ListBuffer())
+    aa.synchronized {
+      aa.addOne(wsActor)      
+    }
+    
+    log.info(s"topic=${topic}: clients=${clients}")
 
     // it must be coupled to detect WS client disconnects!
     val flow = Flow.fromSinkAndSourceCoupled(
@@ -56,26 +64,30 @@ abstract class WebSocket()(implicit ex:ExecutionContext) {
       f.onComplete {
         case Failure(e) => log.error(s"connection: ${wsActor}",e)
         case Success(_) => {
-          clients = clients.filter(_ != wsActor)
-          log.debug(s"clients: ${clients}")
+          val aa = clients.get(topic).getOrElse(mutable.ListBuffer())
+          aa.synchronized {
+            aa.-=(wsActor)
+          }
+          log.info(s"clients: ${clients}")
         }
       }
     })
 
-    log.debug(s"flow=${flow}, clients: ${clients}")
+    //log.debug(s"flow=${flow}, clients: ${clients}")
     flow
   }
 
-  def listen()(implicit mat:Materializer): Flow[Message, Message, Any] = {
-    wsFlow()
+  def listen(topic:String="")(implicit mat:Materializer): Flow[Message, Message, Any] = {
+    wsFlow(topic)
   }
 
-  def broadcastText(text: String): Unit = {
+  def broadcastText(text: String,topic:String=""): Unit = {
     log.info(s"broadcasting: '${text}' -> ${clients}")
-    for (client <- clients) client ! TextMessage.Strict(text)
+    for (aa <- clients.get(topic)) 
+      aa.map(_ ! TextMessage.Strict(text))
   }
 
   def sendText(actor:ActorRef, text: String): Unit = {
-    clients.filter(_.toString == actor).foreach{ a => a ! TextMessage.Strict(text) }
+    clients.values.flatten.filter(_.toString == actor).foreach{ a => a ! TextMessage.Strict(text) }
   }
 }

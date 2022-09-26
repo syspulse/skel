@@ -149,8 +149,8 @@ object App extends skel.Server {
             Console.err.println(s"${rr}")
           } catch {
             case e:Exception => sys.exit(1)
-          }                    
-        }        
+          }
+        }
       
       case "client" => {
         
