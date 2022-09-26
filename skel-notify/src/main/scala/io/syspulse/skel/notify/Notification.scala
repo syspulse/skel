@@ -10,12 +10,6 @@ abstract class NotifyReceiver[R] {
   def send(title:String,msg:String):Try[R]
 }
 
-class NotifyWebsocket(id:String) extends NotifyReceiver[Int] {
-  def send(title:String,msg:String):Try[Int] = {
-    Success(0)
-  }
-}
-
 class NotifyStdout() extends NotifyReceiver[Option[_]] {
   def send(title:String,msg:String):Try[Option[_]] = {
     println(s"title=${title},msg=${msg}")

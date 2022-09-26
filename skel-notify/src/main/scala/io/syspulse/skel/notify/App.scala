@@ -5,6 +5,7 @@ import scala.util.Random
 import scala.concurrent.duration.Duration
 import scala.concurrent.Future
 import scala.concurrent.Await
+import akka.actor.typed.scaladsl.Behaviors
 
 import io.jvm.uuid._
 
@@ -16,8 +17,11 @@ import io.syspulse.skel.notify._
 import io.syspulse.skel.notify.client._
 import io.syspulse.skel.notify.store._
 import io.syspulse.skel.notify.server.NotifyRoutes
+import io.syspulse.skel.notify.server.WsNotifyRoutes
 import io.syspulse.skel.notify.aws.NotifySNS
 import io.syspulse.skel.notify.email.NotifyEmail
+import io.syspulse.skel.notify.ws.NotifyWebsocket
+
 
 case class Config(
   host:String="0.0.0.0",
@@ -55,6 +59,7 @@ object App extends skel.Server {
         ArgCmd("server",s"Server"),
         ArgCmd("client",s"Command"),
         ArgCmd("notify",s"Run notification to Receivers (email://smtp/to, stdout://, sns://arn)"),
+        ArgCmd("server+notify",s"Server + Notify"),
         ArgParam("<params>","")
       ).withExit(1)
     ))
@@ -100,6 +105,7 @@ object App extends skel.Server {
 
             case "stdout" :: _ => new NotifyStdout
             case "sns" :: arn :: _ => new NotifySNS(arn)
+            case "ws" :: topic :: _ => new NotifyWebsocket(topic)
             case _ => new NotifyStdout
           }
           nn = nn :+ n
@@ -119,6 +125,7 @@ object App extends skel.Server {
       case "server" => 
         run( config.host, config.port,config.uri,c,
           Seq(
+            (Behaviors.ignore,"",(actor,actorSystem) => new WsNotifyRoutes()(actorSystem) ),
             (NotifyRegistry(store),"NotifyRegistry",(r, ac) => new NotifyRoutes(r)(ac) )
           )
         )
@@ -126,6 +133,24 @@ object App extends skel.Server {
         val (receivers,subj,msg) = parseUri(config.params.toList)
         val rr = Notification.send(receivers,subj,msg)
         Console.err.println(s"${rr}")
+
+      case "server+notify" => 
+        run( config.host, config.port,config.uri,c,
+          Seq(
+            (Behaviors.ignore,"",(actor,actorSystem) => new WsNotifyRoutes()(actorSystem) ),
+            (NotifyRegistry(store),"NotifyRegistry",(r, ac) => new NotifyRoutes(r)(ac) )
+          )
+        )
+        
+        while(true) {
+          try {
+            val (receivers,subj,msg) = parseUri(scala.io.StdIn.readLine().split("\\s+").toList)
+            val rr = Notification.send(receivers,subj,msg)
+            Console.err.println(s"${rr}")
+          } catch {
+            case e:Exception => sys.exit(1)
+          }                    
+        }        
       
       case "client" => {
         
