@@ -58,7 +58,7 @@ object App extends skel.Server {
 
         ArgCmd("server",s"Server"),
         ArgCmd("client",s"Command"),
-        ArgCmd("notify",s"Run notification to Receivers (email://smtp/to, stdout://, sns://arn)"),
+        ArgCmd("notify",s"Run notification to Receivers (email://smtp/to, stdout://, sns://arn, ws://topic)"),
         ArgCmd("server+notify",s"Server + Notify"),
         ArgParam("<params>","")
       ).withExit(1)
@@ -106,6 +106,7 @@ object App extends skel.Server {
             case "stdout" :: _ => new NotifyStdout
             case "sns" :: arn :: _ => new NotifySNS(arn)
             case "ws" :: topic :: _ => new NotifyWebsocket(topic)
+            case "ws" :: _ => new NotifyWebsocket("")            
             case _ => new NotifyStdout
           }
           nn = nn :+ n

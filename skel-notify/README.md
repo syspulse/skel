@@ -35,6 +35,15 @@ wscat --connect ws://localhost:8080/api/v1/notify/ws
 
 Send (type in stdin while notify is running)
 ```
-ws://topic1 Title Message
+ws:// Title Message
 ```
 
+Connect WS clients to specific topic:
+```
+wscat --connect ws://localhost:8080/api/v1/notify/ws/topic1
+```
+
+Send (type in stdin while notify is running)
+```
+ws://topic1 Title "Message for Topic-1"
+```
