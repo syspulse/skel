@@ -14,12 +14,11 @@ Skeletons for RnD Prototypes
 10. [skel-test](skel-test) - Test helpers
 11. [skel-crypto](skel-crypto) - Cryptography and Ethereum utilities
 12. [skel-spark](skel-spark) - Spark tools
-13. [skel-datalake](skel-datalake) - Datalake and Warehouses
+13. [skel-datalake](skel-datalake) - Datalake and Warehouses (+ Notebooks)
 14. [skel-flow](skel-flow) - DataFlows and Workflows
 15. [skel-scrap](skel-scrap) - Scraping pipelines
 16. [skel-cli](skel-cli) - Shell command line client
 17. [skel-cron](skel-cron) - Cron engine
-18. [skel-dashboard](skel-dashboard) - Dashboards (Polynote/Zepellin)
 19. [skel-serde](skel-serde) - Serializers
 20. [skel-video](skel-video) - Movie Metadata processors
 21. [skel-stream](skel-stream) - Akka Steams 
