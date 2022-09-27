@@ -1,5 +1,14 @@
 # DataLake Refernce Architecture Snippets
 
+## Notebooks
+
+1. __Mercury__: https://github.com/mljar/mercury
+
+- https://mljar.com/blog/dashboard-python-jupyter-notebook/ 
+
+2. __Viola__: https://github.com/voila-dashboards/voila
+
+---
 ## Frameworks and Libraries
 
 - pandas [https://pandas.pydata.org/]
