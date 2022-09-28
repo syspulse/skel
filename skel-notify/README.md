@@ -47,3 +47,30 @@ Send (type in stdin while notify is running)
 ```
 ws://topic1 Title "Message for Topic-1"
 ```
+
+### Sedn to Telegram Channel
+
+1. Create Telegram bot
+
+https://t.me/BotFather
+
+```
+/newbot
+```
+
+2. Save Bot API key to $BOT_KEY
+
+3. Create Channel and add new bot to it
+
+4. Get Channgel ID
+
+```
+curl https://api.telegram.org/bot$BOT_KEY/getUpdates |jq . > bot-update.json
+cat bot-update.json |jq .result[].message.chat.id
+```
+
+5. Run notifier to Channel Id
+
+```
+./run-notify.sh notify "tel://$CHANNEL_ID/$BOT_KEY" Title Message
+```

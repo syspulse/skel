@@ -21,7 +21,7 @@ import io.syspulse.skel.notify.server.WsNotifyRoutes
 import io.syspulse.skel.notify.aws.NotifySNS
 import io.syspulse.skel.notify.email.NotifyEmail
 import io.syspulse.skel.notify.ws.NotifyWebsocket
-
+import io.syspulse.skel.notify.telegram.NotifyTelegram
 
 case class Config(
   host:String="0.0.0.0",
@@ -64,7 +64,7 @@ object App extends skel.Server {
       ).withExit(1)
     ))
 
-    val config = Config(
+    implicit val config = Config(
       host = c.getString("http.host").getOrElse(d.host),
       port = c.getInt("http.port").getOrElse(d.port),
       uri = c.getString("http.uri").getOrElse(d.uri),
@@ -106,7 +106,8 @@ object App extends skel.Server {
             case "stdout" :: _ => new NotifyStdout
             case "sns" :: arn :: _ => new NotifySNS(arn)
             case "ws" :: topic :: _ => new NotifyWebsocket(topic)
-            case "ws" :: _ => new NotifyWebsocket("")            
+            case "ws" :: _ => new NotifyWebsocket("")
+            case "tel" :: _ => new NotifyTelegram(p)
             case _ => new NotifyStdout
           }
           nn = nn :+ n
