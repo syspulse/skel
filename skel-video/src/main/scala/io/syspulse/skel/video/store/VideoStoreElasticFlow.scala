@@ -33,16 +33,16 @@ class VideoStoreElasticFlow(elasticUri:String,elacticIndex:String) extends Video
   // slow and memory hungry !
   def size:Long = scan("").size
 
-  def +(yell:Video):Try[VideoStore] = { 
-    Failure(new UnsupportedOperationException(s"not implemented: ${yell}"))
+  def +(video:Video):Try[VideoStore] = { 
+    Failure(new UnsupportedOperationException(s"not implemented: ${video}"))
   }
 
   def del(id:ID):Try[VideoStore] = { 
     Failure(new UnsupportedOperationException(s"not implemented: ${id}"))
   }
 
-  def -(yell:Video):Try[VideoStore] = {     
-    Failure(new UnsupportedOperationException(s"not implemented: ${yell}"))
+  def -(video:Video):Try[VideoStore] = {     
+    Failure(new UnsupportedOperationException(s"not implemented: ${video}"))
   }
 
   def ?(vid:VID):Option[Video] = searches(vid.toString).headOption
