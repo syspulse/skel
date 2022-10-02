@@ -4,6 +4,15 @@ Simple Notification Servie
 
 ## Run
 
+### Server
+
+```
+./run-notify.sh server
+
+
+./notify-create.sh "stdout://,"ws://" Subject Message
+```
+
 ### Send to a group
 
 ```
@@ -48,7 +57,7 @@ Send (type in stdin while notify is running)
 ws://topic1 Title "Message for Topic-1"
 ```
 
-### Sedn to Telegram Channel
+### Send to Telegram Channel
 
 1. Create Telegram bot
 
