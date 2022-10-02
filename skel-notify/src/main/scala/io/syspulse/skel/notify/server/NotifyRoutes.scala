@@ -79,7 +79,7 @@ class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
 
   def notifyToRoute(to:String) = post {
     entity(as[NotifyReq]) { notifyReq =>
-      onSuccess(createNotify(notifyReq.copy(to=Some(to)))) { r =>
+      onSuccess(createNotify(notifyReq.copy(to=Some(s"${to}://")))) { r =>
         metricCreateCount.inc()
         complete((StatusCodes.Created, r))
       }

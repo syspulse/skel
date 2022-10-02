@@ -78,8 +78,12 @@ curl https://api.telegram.org/bot$BOT_KEY/getUpdates |jq . > bot-update.json
 cat bot-update.json |jq .result[].message.chat.id
 ```
 
+__NOTE__: How disrespectful you have to be to design API like this !?...
+
 5. Run notifier to Channel Id
 
 ```
+source telegram-test.env
+
 ./run-notify.sh notify "tel://$CHANNEL_ID/$BOT_KEY" Title Message
 ```

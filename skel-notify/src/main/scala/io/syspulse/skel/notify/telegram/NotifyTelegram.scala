@@ -53,7 +53,7 @@ object TelegramHttpClient {
 class NotifyTelegram(uri:String)(implicit config: Config) extends NotifyReceiver[String] {
   val log = Logger(s"${this}")
 
-  val telUri = TelegramURI(uri)
+  val telUri = TelegramURI(uri,Option(config.telegramUri))
 
   def send(title:String,msg:String):Try[String] = {    
     log.info(s"[${msg}]-> Telegram(${telUri})")
