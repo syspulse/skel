@@ -13,14 +13,23 @@ import io.syspulse.skel.util.Util
 case class ConfigArgs() {
   var c:Map[String,Any] = Map()
   var cmd:Option[String] = None
+  var params:Seq[String] = Seq()
+  
   def +(k:String,v:Any):ConfigArgs = {
     c = c + (k -> v)
     this
   }
+
   def command(cmd:String):ConfigArgs = {
     this.cmd = Some(cmd)
     this
   }
+
+  def param(p:String):ConfigArgs = {
+    this.params = this.params :+ p
+    this
+  }
+
   override def toString = s"${c}"
 }
 
@@ -50,7 +59,7 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
         case ArgString(c,s,t,d) => Some( (if(c=='_' || c==0) opt[String](s) else opt[String](c, s)).action((x, c) => c.+(s,x)).text(t))
         case ArgInt(c,s,t,d) => Some( (if(c=='_' || c==0) opt[Int](s) else opt[Int](c, s)).action((x, c) => c.+(s,x)).text(t))
         case ArgLong(c,s,t,d) => Some( (if(c=='_' || c==0) opt[Long](s) else opt[Long](c, s)).action((x, c) => c.+(s,x)).text(t))
-        case ArgParam(t,d) => Some(arg[String](t).unbounded().optional().action((x, c) => c.+(x,None)).text(d))
+        case ArgParam(t,d) => Some(arg[String](t).unbounded().optional().action((x, c) => c.param(x)).text(d))
         case _ => None
       })
 
@@ -98,9 +107,7 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
   def getParams():Seq[String] = {
     if(!configArgs.isDefined) return Seq()
     //configArgs.get.c.filter(_._2.asInstanceOf[Option[_]] == None).keySet.toSeq
-    configArgs.get.c.collect {
-      case (k,None) => k
-    }.toSeq
+    configArgs.get.params
   }
 
   // not supported
