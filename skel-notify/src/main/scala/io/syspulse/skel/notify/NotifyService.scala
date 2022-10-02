@@ -38,7 +38,7 @@ object NotifyService {
 // --- For tests 
 class NotifyServiceSim extends NotifyService {
 
-  def create(receivers:String,subj:String,msg:String):Future[Option[Notify]] = {
-    Future.successful(Some(Notify(Some(receivers),Some(subj),msg)))
+  def create(to:String,subj:String,msg:String):Future[Option[Notify]] = {
+    Future.successful(Some(Notify(Some(to),Some(subj),msg)))
   }
 }
