@@ -14,8 +14,7 @@ import io.syspulse.skel.notify.Notify
 import io.syspulse.skel.notify.client.NotifyClientHttp
 
 trait NotifyService {
-  def findByEmail(email:String):Future[Option[Notify]]
-  def create(email:String,name:String,xid:String):Future[Option[Notify]]
+  def create(receivers:String,subj:String,msg:String):Future[Option[Notify]]
 }
 
 object NotifyService {
@@ -30,21 +29,16 @@ object NotifyService {
     service
   }
   
-  def findByEmail(email:String)(implicit timeout:Timeout = timeout):Option[Notify] = {
-    Await.result(service.findByEmail(email),timeout.duration)
-  }
-
-  def create(email:String,name:String,xid:String)(implicit timeout:Timeout = timeout):Option[Notify] = {
-    Await.result(service.create(email,name,xid),timeout.duration)
+  def create(receivers:String,subj:String,msg:String)(implicit timeout:Timeout = timeout):Option[Notify] = {
+    Await.result(service.create(receivers,subj,msg),timeout.duration)
   }
 }
 
 
 // --- For tests 
 class NotifyServiceSim extends NotifyService {
-  def findByEmail(email:String):Future[Option[Notify]] = Future.successful(None)
 
-  def create(email:String,name:String,xid:String):Future[Option[Notify]] = {
-    Future.successful(Some(Notify(UUID.random,email)))
+  def create(receivers:String,subj:String,msg:String):Future[Option[Notify]] = {
+    Future.successful(Some(Notify(Some(receivers),Some(subj),msg)))
   }
 }

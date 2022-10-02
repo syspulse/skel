@@ -40,79 +40,19 @@ class NotifyClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionConte
   import NotifyJson._
   import spray.json._
   
-  def reqGetNotify(id:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/${id}")
-  def reqGetNotifyByEid(xid:String) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/xid/${xid}")
-  def reqGetNotifys() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}")
-  def reqPostNotify(email:String,name:String,xid:String) =  HttpRequest(method = HttpMethods.POST, uri = s"${uri}",
-        entity = HttpEntity(ContentTypes.`application/json`, 
-          NotifyCreateReq(email,name,xid).toJson.toString)
-      )
-  def reqDeleteNotify(id:UUID) = HttpRequest(method = HttpMethods.DELETE, uri = s"${uri}/${id}")
-
-  def delete(id:UUID):Future[NotifyActionRes] = {
-    log.info(s"${id} -> ${reqDeleteNotify(id)}")
+  def reqPostNotify(to:String,subj:String,msg:String) =  HttpRequest(method = HttpMethods.POST, uri = s"${uri}",
+      entity = HttpEntity(ContentTypes.`application/json`, 
+        NotifyReq(Some(to),Some(subj),msg).toJson.toString)
+    )
+  
+  def create(to:String,subj:String,msg:String):Future[Option[Notify]] = {
+    log.info(s"-> ${reqPostNotify(to,subj,msg)}")
     for {
-      rsp <- Http().singleRequest(reqDeleteNotify(id))
-      r <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[NotifyActionRes] else Future(NotifyActionRes(status=s"${rsp.status}: ${rsp.entity}",None))
-    } yield r 
-  }
-
-  def create(email:String,name:String,xid:String):Future[Option[Notify]] = {
-    log.info(s"-> ${reqPostNotify(email,name,xid)}")
-    for {
-      rsp <- Http().singleRequest(reqPostNotify(email,name,xid))
+      rsp <- Http().singleRequest(reqPostNotify(to,subj,msg))
       r <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[Notify]] else Future(None)
     } yield r
   }
 
-  def get(id:UUID):Future[Option[Notify]] = {
-    log.info(s"${id} -> ${reqGetNotify(id)}")
-    for {
-      rsp <- Http().singleRequest(reqGetNotify(id))
-      notify <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[Notify]] else Future(None)
-    } yield notify 
-  }
-
-  def getByEid(xid:String):Future[Option[Notify]] = {
-    log.info(s"${xid} -> ${reqGetNotifyByEid(xid)}")    
-    for {
-      rsp <- Http().singleRequest(reqGetNotifyByEid(xid))        
-      notify <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[Notify]] else Future(None)
-    } yield notify
-  }
-
-  def getByEidAlways(xid:String):Future[Option[Notify]] = {
-    log.info(s"${xid} -> ${reqGetNotifyByEid(xid)}")    
-    
-    for {
-      rsp <- Http().singleRequest(reqGetNotifyByEid(xid),
-                                  settings = ConnectionPoolSettings(NotifyClientHttp.system)
-                                    .withConnectionSettings(ClientConnectionSettings(NotifyClientHttp.system)
-                                    .withConnectingTimeout(FiniteDuration(3,"seconds"))))
-      .transform {
-        case Failure(e) => {
-          log.error(s"Failed to call -> ${reqGetNotifyByEid(xid)}: ${e.getMessage()}")
-          Try(HttpResponse(StatusCodes.InternalServerError))
-        }
-        case Success(r) => {
-          Try(r)
-        }
-      }
-      notify <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[Notify]] else Future(None)
-    } yield notify
-  }
-
-  def findByEmail(email:String):Future[Option[Notify]] = {
-    Future.failed(new NotImplementedError(s""))
-  }
-
-  def all():Future[Notifys] = {
-    log.info(s" -> ${reqGetNotifys()}")
-    for {
-      rsp <- Http().singleRequest(reqGetNotifys())
-      body <- rsp.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
-    } yield body.utf8String.parseJson.convertTo[Notifys]
-  }
 }
 
 object NotifyClientHttp {

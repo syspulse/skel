@@ -1,6 +1,6 @@
 package io.syspulse.skel.notify.store
 
-import scala.util.Try
+import scala.util.{Try,Success,Failure}
 
 import scala.collection.immutable
 
@@ -12,12 +12,12 @@ import io.syspulse.skel.store.Store
 trait NotifyStore extends Store[Notify,UUID] {
   
   def +(notify:Notify):Try[NotifyStore]
-  def -(notify:Notify):Try[NotifyStore]
-  def del(id:UUID):Try[NotifyStore]
-  def ?(id:UUID):Option[Notify]
-  def all:Seq[Notify]
-  def size:Long
+  
+  def -(notify:Notify):Try[NotifyStore] = Success(this)
+  def del(id:UUID):Try[NotifyStore] = Success(this)
+  def ?(id:UUID):Option[Notify] = None
+  def all:Seq[Notify] = Seq()
+  def size:Long = 0
 
-  def findByEid(eid:String):Option[Notify]
 }
 

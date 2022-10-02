@@ -58,149 +58,50 @@ class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
   
   // registry is needed because Unit-tests with multiple Routes in Suites will fail (Prometheus libary quirk)
   val cr = new CollectorRegistry(true);
-  val metricGetCount: Counter = Counter.build().name("skel_notify_get_total").help("Notify gets").register(cr)
-  val metricDeleteCount: Counter = Counter.build().name("skel_notify_delete_total").help("Notify deletes").register(cr)
   val metricCreateCount: Counter = Counter.build().name("skel_notify_create_total").help("Notify creates").register(cr)
   
-  def getNotifys(): Future[Notifys] = registry.ask(GetNotifys)
-  def getNotify(id: UUID): Future[Option[Notify]] = registry.ask(GetNotify(id, _))
-  def getNotifyByEid(eid: String): Future[Option[Notify]] = registry.ask(GetNotifyByEid(eid, _))
-
-  def createNotify(notifyCreate: NotifyCreateReq): Future[Notify] = registry.ask(CreateNotify(notifyCreate, _))
-  def deleteNotify(id: UUID): Future[NotifyActionRes] = registry.ask(DeleteNotify(id, _))
-  def randomNotify(): Future[Notify] = registry.ask(RandomNotify(_))
-
-
-  @GET @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("notify"),summary = "Return Notify by id",
-    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Notify id (uuid)")),
-    responses = Array(new ApiResponse(responseCode="200",description = "Notify returned",content=Array(new Content(schema=new Schema(implementation = classOf[Notify])))))
-  )
-  def getNotifyRoute(id: String) = get {
-    rejectEmptyResponse {
-      onSuccess(getNotify(UUID.fromString(id))) { r =>
-        metricGetCount.inc()
-        complete(r)
-      }
-    }
-  }
-
-  @GET @Path("/eid/{eid}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("notify"),summary = "Get Notify by External Id (eid)",
-    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "eid")),
-    responses = Array(new ApiResponse(responseCode="200",description = "Notify returned",content=Array(new Content(schema=new Schema(implementation = classOf[Notify])))))
-  )
-  def getNotifyByEidRoute(eid: String) = get {
-    rejectEmptyResponse {
-      onSuccess(getNotifyByEid(eid)) { r =>
-        complete(r)
-      }
-    }
-  }
-
-  @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("notify"), summary = "Return all Notifys",
-    responses = Array(
-      new ApiResponse(responseCode = "200", description = "List of Notifys",content = Array(new Content(schema = new Schema(implementation = classOf[Notifys])))))
-  )
-  def getNotifysRoute() = get {
-    metricGetCount.inc()
-    complete(getNotifys())
-  }
-
-  @DELETE @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("notify"),summary = "Delete Notify by id",
-    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Notify id (uuid)")),
-    responses = Array(
-      new ApiResponse(responseCode = "200", description = "Notify deleted",content = Array(new Content(schema = new Schema(implementation = classOf[Notify])))))
-  )
-  def deleteNotifyRoute(id: String) = delete {
-    onSuccess(deleteNotify(UUID.fromString(id))) { r =>
-      metricDeleteCount.inc()
-      complete((StatusCodes.OK, r))
-    }
-  }
-
+  def createNotify(notifyReq: NotifyReq): Future[Notify] = registry.ask(CreateNotify(notifyReq, _))
+ 
   @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("notify"),summary = "Create Notify Secret",
-    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[NotifyCreateReq])))),
-    responses = Array(new ApiResponse(responseCode = "200", description = "Notify created",content = Array(new Content(schema = new Schema(implementation = classOf[NotifyActionRes])))))
+  @Operation(tags = Array("notify"),summary = "Send Notify",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[NotifyReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "Notify sent",content = Array(new Content(schema = new Schema(implementation = classOf[NotifyActionRes])))))
   )
-  def createNotifyRoute = post {
-    entity(as[NotifyCreateReq]) { notifyCreate =>
-      onSuccess(createNotify(notifyCreate)) { r =>
+  def notifyRoute = post {
+    entity(as[NotifyReq]) { notifyReq =>
+      onSuccess(createNotify(notifyReq)) { r =>
         metricCreateCount.inc()
         complete((StatusCodes.Created, r))
       }
     }
   }
 
-  def createNotifyRandomRoute() = post { 
-    onSuccess(randomNotify()) { r =>
-      metricCreateCount.inc()
-      complete((StatusCodes.Created, r))
+  def notifyToRoute(to:String) = post {
+    entity(as[NotifyReq]) { notifyReq =>
+      onSuccess(createNotify(notifyReq.copy(to=Some(to)))) { r =>
+        metricCreateCount.inc()
+        complete((StatusCodes.Created, r))
+      }
     }
   }
 
   override def routes: Route =
       concat(
-        pathEndOrSingleSlash {
-          // authenticate()(authn =>
-          //   authorize(Permissions.isAdmin(authn)) {
-          //     concat(
-          //       getNotifysRoute(),
-          //       createNotifyRoute
-          //     )
-          //   }
-          // )
-          concat(
-            authenticate()(authn =>
-              authorize(Permissions.isAdmin(authn)) {              
-                getNotifysRoute() ~                
-                createNotifyRoute  
-              }
-            ),
-            //createNotifyRoute
-          )
-        },
-        // pathPrefix("info") {
-        //   path(Segment) { notifyId => 
-        //     getNotifyInfo(notifyId)
-        //   }
-        // },
-        pathSuffix("random") {
-          createNotifyRandomRoute()
-        },
-        pathPrefix("eid") {
-          pathPrefix(Segment) { id => 
-            getNotifyByEidRoute(id)
-          }
-        },
-        pathPrefix(Segment) { id => 
-          // pathPrefix("eid") {
-          //   pathEndOrSingleSlash {
-          //     getNotifyByEidRoute(id)
-          //   } 
-          //   ~
-          //   path(Segment) { code =>
-          //     getNotifyCodeVerifyRoute(id,code)
-          //   }
-          // } ~
-
+        pathEndOrSingleSlash { req =>
+          notifyRoute(req)
+        },        
+        pathPrefix(Segment) { to =>
           pathEndOrSingleSlash {
-            // concat(
-            //   getNotifyRoute(id),
-            //   deleteNotifyRoute(id),
-            // )          
-            authenticate()(authn =>
-              authorize(Permissions.isUser(UUID(id),authn)) {
-                getNotifyRoute(id)
-              } ~
-              authorize(Permissions.isAdmin(authn)) {
-                deleteNotifyRoute(id)
-              }
-            ) 
+            notifyToRoute(to)
+            // authenticate()(authn =>
+            //   authorize(Permissions.isUser(UUID(id),authn)) {
+            //     getNotifyRoute(id)
+            //   } ~
+            //   authorize(Permissions.isAdmin(authn)) {
+            //     deleteNotifyRoute(id)
+            //   }
+            // ) 
           }
         }
       )
