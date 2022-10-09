@@ -21,16 +21,16 @@ There are two commands:
 1. ingest-old       - old ingest where ```-d``` controls the sink
 2. ingest           - new pipepile where ```-o``` expects pipeline uri://
 
-Check what will be ingested:
+Check what will be ingested (TMS format to stdout)
 
 ```
-./run-video.sh ingest -f file://feed/1.csv -o stdout://
+./run-video.sh ingest -f file://feed/tms-100.xml
 ```
 
-Ingest into Elastic:
+Ingest into Elastic from TMS feed:
 
 ```
-./run-video.sh ingest -f ./feed/1.csv -o elastic://localhost:9200/video
+./run-video.sh ingest -f ./feed/tms-100.xml -o elastic://localhost:9200/video
 ```
 
 

@@ -22,26 +22,26 @@ import io.syspulse.skel.video.elastic._
 
 
 case class Config(
-  host:String="",
-  port:Int=0,
-  uri:String = "",
+  host:String="0.0.0.0",
+  port:Int=8080,
+  uri:String = "/api/v1/video",
 
-  elasticUri:String = "",
+  elasticUri:String = "http://localhost:9200",
   elasticUser:String = "",
   elasticPass:String = "",
-  elasticIndex:String = "",
-  expr:String = "",
+  elasticIndex:String = "video",
+  expr:String = " ",
   
   limit:Long = -1,
   feed:String = "",
   output:String = "",
   delimiter:String = "",
-  buffer:Int = 0,
+  buffer:Int = 1024*1024,
   throttle:Long = 0L,
 
-  datastore:String = "",
+  datastore:String = "mem",
 
-  cmd:String = "",
+  cmd:String = "ingest",
   params: Seq[String] = Seq(),
 )
 
@@ -50,30 +50,32 @@ object App extends skel.Server {
   def main(args:Array[String]): Unit = {
     Console.err.println(s"args: '${args.mkString(",")}'")
 
+    val d = Config()
+
     val c = Configuration.withPriority(Seq(
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv, 
       new ConfigurationArgs(args,"skell-video","",
-        ArgString('h', "http.host","listen host (def: 0.0.0.0)"),
-        ArgInt('p', "http.port","listern port (def: 8080)"),
-        ArgString('u', "http.uri","api uri (def: /api/v1/video)"),
+        ArgString('h', "http.host",s"listen host (def: ${d.host})"),
+        ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
+        ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
         
-        ArgString('f', "feed","Input Feed (def: )"),
-        ArgString('o', "output","Output file (pattern is supported: data-{yyyy-MM-dd-HH-mm}.log)"),
+        ArgString('f', "feed",s"Input Feed (def: )"),
+        ArgString('o', "output",s"Output file (pattern is supported: data-{yyyy-MM-dd-HH-mm}.log)"),
 
-        ArgString('_', "elastic.uri","Elastic uri (def: http://localhost:9200)"),
-        ArgString('_', "elastic.user","Elastic user (def: )"),
-        ArgString('_', "elastic.pass","Elastic pass (def: )"),
-        ArgString('_', "elastic.index","Elastic Index (def: video)"),
+        ArgString('_', "elastic.uri",s"Elastic uri (def: ${d.elasticUri})"),
+        ArgString('_', "elastic.user",s"Elastic user (def: )"),
+        ArgString('_', "elastic.pass",s"Elastic pass (def: )"),
+        ArgString('_', "elastic.index",s"Elastic Index (def: ${d.elasticIndex})"),
 
-        ArgLong('n', "limit","Limit (def: -1)"),
+        ArgLong('n', "limit",s"Limit (def: ${d.limit})"),
 
-        ArgString('_', "delimiter","""Delimiter characteds (def: ''). Usage example: --delimiter=`echo -e $"\r"` """),
-        ArgInt('_', "buffer","Frame buffer (Akka Framing) (def: 1M)"),
-        ArgLong('_', "throttle","Throttle messages in msec (def: 0)"),
+        ArgString('_', "delimiter",s"""Delimiter characteds (def: ''). Usage example: --delimiter=`echo -e $"\r"` """),
+        ArgInt('_', "buffer",s"Frame buffer (Akka Framing) (def: ${d.buffer})"),
+        ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
 
-        ArgString('d', "datastore","Datastore [elastic,mem,stdout] (def: mem)"),
+        ArgString('d', "datastore",s"Datastore [elastic,mem,stdout] (def: ${d.datastore})"),
         
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
@@ -87,28 +89,28 @@ object App extends skel.Server {
     ))
 
     val config = Config(
-      host = c.getString("http.host").getOrElse("0.0.0.0"),
-      port = c.getInt("http.port").getOrElse(8080),
-      uri = c.getString("http.uri").getOrElse("/api/v1/video"),
+      host = c.getString("http.host").getOrElse(d.host),
+      port = c.getInt("http.port").getOrElse(d.port),
+      uri = c.getString("http.uri").getOrElse(d.uri),
 
-      elasticUri = c.getString("elastic.uri").getOrElse("http://localhost:9200"),
-      elasticIndex = c.getString("elastic.index").getOrElse("video"),
-      elasticUser = c.getString("elastic.user").getOrElse(""),
-      elasticPass = c.getString("elastic.pass").getOrElse(""),
+      elasticUri = c.getString("elastic.uri").getOrElse(d.elasticUri),
+      elasticIndex = c.getString("elastic.index").getOrElse(d.elasticIndex),
+      elasticUser = c.getString("elastic.user").getOrElse(d.elasticUser),
+      elasticPass = c.getString("elastic.pass").getOrElse(d.elasticPass),
       
-      feed = c.getString("feed").getOrElse(""),
-      limit = c.getLong("limit").getOrElse(-1L),
-      output = c.getString("output").getOrElse("output.log"),
+      feed = c.getString("feed").getOrElse(d.feed),
+      limit = c.getLong("limit").getOrElse(d.limit),
+      output = c.getString("output").getOrElse(d.output),
 
-      delimiter = c.getString("delimiter").getOrElse(""),
-      buffer = c.getInt("buffer").getOrElse(1024*1024),
-      throttle = c.getLong("throttle").getOrElse(0L),
+      delimiter = c.getString("delimiter").getOrElse(d.delimiter),
+      buffer = c.getInt("buffer").getOrElse(d.buffer),
+      throttle = c.getLong("throttle").getOrElse(d.throttle),
 
-      datastore = c.getString("datastore").getOrElse("mem"),
+      datastore = c.getString("datastore").getOrElse(d.datastore),
 
-      expr = c.getString("expr").getOrElse(" "),
+      expr = c.getString("expr").getOrElse(d.expr),
       
-      cmd = c.getCmd().getOrElse("ingest"),
+      cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
     )
 
@@ -171,7 +173,7 @@ object App extends skel.Server {
       case l:List[_] => l.map(r => println(s"${r}")); sys.exit(0)
       case NotUsed => println(r)
       //case f:Future[_] if config.cmd == "ingest" || config.cmd == "search" => Await.result(f,FiniteDuration(3000,TimeUnit.MILLISECONDS)); sys.exit(0)
-      case a:Awaitable[_] if  config.cmd == "ingest" 
+      case a:Awaitable[_] if config.cmd == "ingest" 
           || config.cmd == "scan"
           || config.cmd == "grep"
           || config.cmd == "typing" => Await.result(a,FiniteDuration(3000,TimeUnit.MILLISECONDS)); sys.exit(0)
