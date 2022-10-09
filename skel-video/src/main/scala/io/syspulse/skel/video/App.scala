@@ -30,7 +30,7 @@ case class Config(
   elasticUser:String = "",
   elasticPass:String = "",
   elasticIndex:String = "video",
-  expr:String = " ",
+  expr:String = "",
   
   limit:Long = -1,
   feed:String = "",
@@ -116,14 +116,15 @@ object App extends skel.Server {
 
     Console.err.println(s"Config: ${config}")
 
-    val store:VideoStore = config.datastore match {
-      case "elastic" => new VideoStoreElastic(config.elasticUri,config.elasticIndex)
-      case "elastic-flow" => new VideoStoreElasticFlow(config.elasticUri,config.elasticIndex)
-      case "mem" => new VideoStoreMem()
-      case "stdout" => new VideoStoreStdout()
-      case "file" => new VideoStoreFile()
+    val store:VideoStore = config.datastore.split("://").toList match {
+      case "elastic" :: _ => new VideoStoreElastic(config.elasticUri,config.elasticIndex)
+      case "elastic-flow" :: _ => new VideoStoreElasticFlow(config.elasticUri,config.elasticIndex)
+      case "mem" :: _ => new VideoStoreMem()
+      case "stdout" :: _ => new VideoStoreStdout()
+      case "file" :: dir :: Nil => new VideoStoreFile(dir)
+      case "file" :: Nil => new VideoStoreFile()
       case _ => {
-        Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
+        Console.err.println(s"Uknown datastore: '${config.datastore}")
         sys.exit(1)
       }
     }
@@ -139,22 +140,22 @@ object App extends skel.Server {
         )
         
       // old Ingest based on Flows
-      case "ingest-old" => 
-        config.datastore match {
-          case "elastic" =>
-            // only Elastic is supported here
-            new VideoStoreElasticFlow(config.elasticUri, config.elasticIndex)
-              .from(Flows.fromFile(config.feed, frameSize = Int.MaxValue))
-              .run()
-          case "file" =>
-            new VideoFlowFile(config.output)
-              .from(Flows.fromFile(config.feed,frameSize = Int.MaxValue))
-              .run()
-          case "stdout" =>
-            new VideoFlowStdout()
-              .from(Flows.fromFile(config.feed,frameSize = Int.MaxValue))
-              .run()
-        }
+      // case "ingest-old" => 
+      //   config.datastore match {
+      //     case "elastic" =>
+      //       // only Elastic is supported here
+      //       new VideoStoreElasticFlow(config.elasticUri, config.elasticIndex)
+      //         .from(Flows.fromFile(config.feed, frameSize = Int.MaxValue))
+      //         .run()
+      //     case "file" =>
+      //       new VideoFlowFile(config.output)
+      //         .from(Flows.fromFile(config.feed,frameSize = Int.MaxValue))
+      //         .run()
+      //     case "stdout" =>
+      //       new VideoFlowStdout()
+      //         .from(Flows.fromFile(config.feed,frameSize = Int.MaxValue))
+      //         .run()
+      //   }
 
       // new Ingest based on Pipeline
       case "ingest" => {
@@ -162,7 +163,6 @@ object App extends skel.Server {
         f1.run()
       }
 
-      //case "get" => store.connect(config).?(expr)
       case "scan" => store.scan(expr)
       case "search" => store.search(expr)
       case "grep" => store.grep(expr)
@@ -170,7 +170,11 @@ object App extends skel.Server {
     }
 
     r match {
-      case l:List[_] => l.map(r => println(s"${r}")); sys.exit(0)
+      case l:List[_] => {
+        Console.err.println("Results:")
+        l.foreach(r => println(s"${r}"));
+        sys.exit(0)
+      }
       case NotUsed => println(r)
       //case f:Future[_] if config.cmd == "ingest" || config.cmd == "search" => Await.result(f,FiniteDuration(3000,TimeUnit.MILLISECONDS)); sys.exit(0)
       case a:Awaitable[_] if config.cmd == "ingest" 

@@ -4,9 +4,6 @@ import scala.util.Try
 import scala.util.{Success,Failure}
 import scala.collection.immutable
 
-import akka.actor.typed.ActorRef
-import akka.actor.typed.Behavior
-import akka.actor.typed.scaladsl.Behaviors
 import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
@@ -43,9 +40,10 @@ class VideoStoreMem extends VideoStore {
   def ?(vid:VID):Option[Video] = videos.get(vid)
 
   def ??(txt:String):List[Video] = {
-    videos.values.filter(v => 
+    videos.values.filter(v => {
       // v.desc.matches(txt) || 
       v.title.matches(txt)
+    }
     ).toList
   }
 
