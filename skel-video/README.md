@@ -33,8 +33,16 @@ Ingest into Elastic from TMS feed:
 ./run-video.sh ingest -f ./feed/tms-100.xml -o elastic://localhost:9200/video
 ```
 
-
 ## Scan
+
+Scan all videos from files datastore (regxp expression)
+
+__NOTE__: file:// datastore reads all files in directory (not recursive)
+
+```
+./run-video.sh search 'The.*" -d file://store/
+```
+
 
 Scan all videos from index __video__ with match_all
 
@@ -58,11 +66,23 @@ Scan all videos from index __video__ with match_all
 
 All skel-http standards apply
 
+
+Run with Elastic datastore
 ```
 ./run-video.sh server -d elastic
 ```
 
-Run Search query:
+Run with Files datastore (reads from store/ )
+```
+./run-video.sh server -d file
+```
+
+Run with Files datastore
+```
+./run-video.sh server -d file:///mnt/data/store
+```
+
+Run Search query against server:
 
 ```
 ./video-search.sh The | jq .
