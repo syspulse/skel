@@ -80,6 +80,9 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
   }
 
   def getRotator():Flows.Rotator = new Flows.RotatorCurrentTime()
+
+  def getFileLimit():Long = Long.MaxValue
+  def getFileSize():Long = Long.MaxValue
   
   def sink(output:String) = {
     log.info(s"output=${output}")
@@ -94,6 +97,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
       case "file" :: fileName :: Nil => Flows.toFile(fileName)
       case "files" :: fileName :: Nil => Flows.toHiveFileSize(fileName)
       case "hive" :: fileName :: Nil => Flows.toHive(fileName)(getRotator())
+
+      case "fs3" :: fileName :: Nil => Flows.toFS3(fileName,getFileLimit(),getFileSize())(getRotator())
 
       // test to create new file for every object
       // TODO: remove it

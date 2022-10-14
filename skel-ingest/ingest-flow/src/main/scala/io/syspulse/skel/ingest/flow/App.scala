@@ -23,24 +23,26 @@ import io.syspulse.skel.ingest.store._
 
 
 case class Config(
-  host:String="",
-  port:Int=0,
-  uri:String = "",
+  host:String="0.0.0.0",
+  port:Int=8080,
+  uri:String = "/api/v1/ingest",
     
   filter:String = "",
   
-  limit:Long = -1,
-  feed:String = "",
-  output:String = "",
+  limit:Long = Long.MaxValue,
+  size:Long = Long.MaxValue,
+
+  feed:String = "stdin://",
+  output:String = "stdout://",
   
-  delimiter:String = "",
-  buffer:Int = 0,
+  delimiter:String = "\n",
+  buffer:Int = 8192,
   throttle:Long = 0L,
   throttleSource:Long = 0L,
 
-  datastore:String = "",
+  datastore:String = "mem",
 
-  cmd:String = "",
+  cmd:String = "ingest",
   params: Seq[String] = Seq(),
 )
 
@@ -49,26 +51,29 @@ object App extends skel.Server {
   def main(args:Array[String]): Unit = {
     Console.err.println(s"args: ${args.size}: ${args.toSeq}")
 
+    val d = Config()
+
     val c = Configuration.withPriority(Seq(
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv, 
       new ConfigurationArgs(args,"ingest-flow","",
-        ArgString('h', "http.host","listen host (def: 0.0.0.0)"),
-        ArgInt('p', "http.port","listern port (def: 8080)"),
-        ArgString('u', "http.uri","api uri (def: /api/v1/ingest)"),
+        ArgString('h', "http.host",s"listen host (def: ${d.host})"),
+        ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
+        ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
         
-        ArgString('f', "feed","Input Feed () (def: stdin://, http://, file://, kafka://)"),
-        ArgString('o', "output","Output sink (stdout://, file://, hive://, elastic://, kafka:// "),
+        ArgString('f', "feed",s"Input Feed (stdin://, http://, file://, kafka://)"),
+        ArgString('o', "output",s"Output (stdout://, file://, hive://, elastic://, kafka:// "),
 
-        ArgString('_', "delimiter","""Delimiter characteds (def: '\n'). Usage example: --delimiter=`echo -e $"\r"` """),
-        ArgInt('_', "buffer","Frame buffer (Akka Framing) (def: 8192)"),
-        ArgLong('_', "throttle","Throttle messages in msec (def: 0)"),
-        ArgLong('_', "throttle.source","Throttle source (e.g. http, def=0L)"),
+        ArgString('_', "delimiter",s"""Delimiter characteds (def: '${d.delimiter}'). Usage example: --delimiter=`echo -e $"\r"` """),
+        ArgInt('_', "buffer",s"Frame buffer (Akka Framing) (def: ${d.buffer})"),
+        ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
+        ArgLong('_', "throttle.source",s"Throttle source (e.g. http, def=${d.throttleSource})"),
 
-        ArgLong('n', "limit","Limit (def: -1)"),
+        ArgLong('n', s"limit",s"File Limit (def: ${d.limit})"),
+        ArgLong('s', s"size",s"File Size Limit (def: ${d.size})"),
 
-        ArgString('d', "datastore","Datastore [elastic,mem,stdout] (def: mem)"),
+        ArgString('d', "datastore",s"Datastore [elastic,mem,stdout] (def: ${d.datastore})"),
         
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
@@ -78,24 +83,25 @@ object App extends skel.Server {
     ))
 
     implicit val config = Config(
-      host = c.getString("http.host").getOrElse("0.0.0.0"),
-      port = c.getInt("http.port").getOrElse(8080),
-      uri = c.getString("http.uri").getOrElse("/api/v1/ingest"),
+      host = c.getString("http.host").getOrElse(d.host),
+      port = c.getInt("http.port").getOrElse(d.port),
+      uri = c.getString("http.uri").getOrElse(d.uri),
       
-      feed = c.getString("feed").getOrElse("stdin://"),
-      datastore = c.getString("datastore").getOrElse("mem"),
+      feed = c.getString("feed").getOrElse(d.feed),
+      output = c.getString("output").getOrElse(d.output),
+      datastore = c.getString("datastore").getOrElse(d.datastore),
 
-      limit = c.getLong("limit").getOrElse(-1L),
-      output = c.getString("output").getOrElse("stdout://"),
-
-      delimiter = c.getString("delimiter").getOrElse("\n"),
-      buffer = c.getInt("buffer").getOrElse(8192),
-      throttle = c.getLong("throttle").getOrElse(0L),
-      throttleSource = c.getLong("throttle.source").getOrElse(0L),
-
-      filter = c.getString("filter").getOrElse(""),
+      limit = c.getLong("limit").getOrElse(d.limit),
+      size = c.getLong("size").getOrElse(d.size),
       
-      cmd = c.getCmd().getOrElse("ingest"),
+      delimiter = c.getString("delimiter").getOrElse(d.delimiter),
+      buffer = c.getInt("buffer").getOrElse(d.buffer),
+      throttle = c.getLong("throttle").getOrElse(d.throttle),
+      throttleSource = c.getLong("throttle.source").getOrElse(d.throttleSource),
+
+      filter = c.getString("filter").getOrElse(d.filter),
+      
+      cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
     )
 

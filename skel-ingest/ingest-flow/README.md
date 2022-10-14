@@ -20,6 +20,7 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 5. ```kafka://broker:9092/topic```                           - To Kafka
 6. ```json://```                                             - Json to stdout (uses Spray to convert to AST and prettyprint)
 7. ```null://```                                             - Sink.ignore
+8. ```fs3://```                                              - s3 like without APPEND support
 
 
 ### Examples
@@ -27,7 +28,7 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 Ingest from File into Hive based directory:
 
 ```
-./run-ingest.sh -f file://data/0001.csv -o "hive://output/{YYYY-mm-DD}/data.log"
+./run-ingest.sh -f file://data/0001.csv -o "hive://output/{YYYY-MM-dd}/data.log"
 ```
 
 Ingest from HTTP into stdout
@@ -75,5 +76,5 @@ ethereumetl stream -e transaction --start-block `eth-last-block.sh` --provider-u
 
 Run Ingest:
 ```
-./run-ingest.sh -f  kafka://localhost:9092/transactions/g1 -o hive:///mnt/share/data/spark/eth/{YYYY}/{MM}/{dd}/transactions-{HH_MM_SS}.log
+./run-ingest.sh -f  kafka://localhost:9092/transactions/g1 -o hive:///mnt/share/data/spark/eth/{YYYY}/{MM}/{dd}/transactions-{HH_mm_ss}.log
 ```

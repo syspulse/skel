@@ -181,7 +181,7 @@ object Flows {
         if(inited && (
             count < fileLimit && 
             size < fileSize && 
-            rotator.needRotate(count,size)
+            ! rotator.needRotate(count,size)
           )
         ) {
           
@@ -261,6 +261,67 @@ object Flows {
         .map(t=>s"${t.toLog}\n")
         .map(ByteString(_))
         .toMat(LogRotatorSink(fileRotateTrigger))(Keep.right)
+  }
+
+  // S3 mounted as FileSystem/Volume
+  // Does not support APPEND 
+  def toFS3(file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue)(implicit rotator:Rotator) = {
+    val log = Logger(s"${this}")
+
+    val fileRotateTrigger: () => ByteString => Option[Path] = () => {
+      var currentFilename: Option[String] = None
+      var inited = false
+      var count: Long = 0L
+      var size: Long = 0L
+          
+      (element: ByteString) => {
+        //Console.err.println(s"====> inited=${inited},count=${count},size=${size},rotate=${rotator.needRotate(count,size)} (limits: ${fileLimit},${fileSize})")
+
+        if(inited && (
+            count < fileLimit && 
+            size < fileSize && 
+            ! rotator.needRotate(count,size)
+          )
+        ) {
+          
+          count = count + 1
+          size = size + element.size
+
+          //Console.err.println(s"count=${count},size=${size} (limits: ${fileLimit},${fileSize})")
+          
+          None
+        } else {
+          val now = System.currentTimeMillis()
+
+          currentFilename = rotator.rotate(file,count,size)
+          
+          log.info(s"count=${count},size=${size},limits=(${fileLimit},${fileSize}) => ${currentFilename}")
+
+          count = 0L
+          size = 0L
+          inited = true
+          
+          val currentDirname = Util.extractDirWithSlash(currentFilename.get)          
+          try {
+            // try to create dir
+            Files.createDirectories(Path.of(currentDirname))
+            val outputPath = currentFilename.get
+            Some(Paths.get(outputPath))
+
+          } catch {
+            case e:Exception => None
+          }                    
+        }
+      }
+    }
+
+    if(file.trim.isEmpty) 
+      Sink.ignore 
+    else
+      Flow[Ingestable]
+        .map(t=>s"${t.toLog}\n")
+        .map(ByteString(_))
+        .toMat(LogRotatorSink(fileRotateTrigger,fileOpenOptions = Set(StandardOpenOption.CREATE,StandardOpenOption.WRITE)))(Keep.right)
   }
 
   def toElastic[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
