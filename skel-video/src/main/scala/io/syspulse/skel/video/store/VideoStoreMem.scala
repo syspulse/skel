@@ -41,14 +41,15 @@ class VideoStoreMem extends VideoStore {
 
   def ??(txt:String):List[Video] = {
     videos.values.filter(v => {
-      // v.desc.matches(txt) || 
       v.title.matches(txt)
+      //||
+      //v.desc.matches(txt)
     }
     ).toList
   }
 
   def scan(txt:String):List[Video] = ??(txt)
-  def search(txt:String):List[Video] = ??(txt)
+  def search(txt:String):List[Video] = ??(txt + ".*")
   def grep(txt:String):List[Video] = ??(txt)
   def typing(txt:String):List[Video] = ??(txt)
 }

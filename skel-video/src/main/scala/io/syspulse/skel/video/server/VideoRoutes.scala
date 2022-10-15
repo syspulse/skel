@@ -143,7 +143,7 @@ class VideoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]
 
   @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("video"),summary = "Create Video Secret",
+  @Operation(tags = Array("video"),summary = "Create Video",
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[VideoCreateReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "Video created",content = Array(new Content(schema = new Schema(implementation = classOf[VideoActionRes])))))
   )

@@ -67,7 +67,7 @@ trait IngestFlow[I,T,O] {
 
   def debug = Flow.fromFunction( (data:ByteString) => { log.debug(s"data=${data}"); data})
 
-  def counterBytes = Flow[ByteString].map(t => { countBytes = countBytes + 1; t})
+  def counterBytes = Flow[ByteString].map(t => { countBytes = countBytes + t.size; t})
   def counterI = Flow[I].map(t => { countInput = countInput + 1; t})
   def counterT = Flow[T].map(t => { countObj = countObj + 1; t})
   def counterO = Flow[O].map(t => { countOutput = countOutput + 1; t})

@@ -28,7 +28,9 @@ import java.nio.file.{Path,Paths, Files}
 import scala.concurrent.ExecutionContext.Implicits.global 
 import scala.util.Random
 
+import akka.stream.alpakka.file.scaladsl.Directory
 import akka.stream.alpakka.file.scaladsl.LogRotatorSink
+
 import akka.stream.alpakka.elasticsearch.WriteMessage
 import akka.stream.alpakka.elasticsearch.scaladsl.ElasticsearchSink
 import akka.stream.alpakka.elasticsearch.ElasticsearchParams
@@ -89,6 +91,32 @@ object Flows {
       s
     else
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+  }
+
+  def fromDir(dir:String,chunk:Int = 0,frameDelimiter:String="",frameSize:Int = 1024 * 1024 * 1024) =  {
+    val log = Logger(s"${this}")
+
+    val dirPath = Util.pathToFullPath(dir)
+    val s1 = Directory.ls(Paths.get(dirPath))
+
+    val s = s1
+      .filter(p => p.toFile.isFile())
+      .flatMapConcat( p => {
+        log.info(s"source: ${p}")
+        val fs = FileIO.fromPath(p,chunkSize = if(chunk==0) Files.size(p).toInt else chunk)
+        
+        // delimiting should be here otherwise file without delimiters will not progress
+        if(frameDelimiter.isEmpty())
+          fs
+        else
+          fs.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+      })
+    
+    // if(frameDelimiter.isEmpty())
+    //   s
+    // else
+    //   s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+    s
   }
 
   def toStdout[O](flush:Boolean = false): Sink[O, Future[IOResult]] = 

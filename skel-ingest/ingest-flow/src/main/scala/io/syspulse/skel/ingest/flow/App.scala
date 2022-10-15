@@ -65,7 +65,7 @@ object App extends skel.Server {
         ArgString('f', "feed",s"Input Feed (stdin://, http://, file://, kafka://)"),
         ArgString('o', "output",s"Output (stdout://, file://, hive://, elastic://, kafka:// "),
 
-        ArgString('_', "delimiter",s"""Delimiter characteds (def: '${d.delimiter}'). Usage example: --delimiter=`echo -e $"\r"` """),
+        ArgString('_', "delimiter",s"""Delimiter characteds (def: '${d.delimiter}'). Usage example: --delimiter=`echo -e $"\r\n"` """),
         ArgInt('_', "buffer",s"Frame buffer (Akka Framing) (def: ${d.buffer})"),
         ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
         ArgLong('_', "throttle.source",s"Throttle source (e.g. http, def=${d.throttleSource})"),

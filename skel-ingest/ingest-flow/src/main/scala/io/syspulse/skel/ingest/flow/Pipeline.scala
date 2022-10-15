@@ -66,6 +66,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
       }
       case "https" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
       case "file" :: fileName :: Nil => Flows.fromFile(fileName,chunk,frameDelimiter = delimiter, frameSize = buffer)
+      case "dir" :: dirName :: Nil => Flows.fromDir(dirName,chunk,frameDelimiter = delimiter, frameSize = buffer)
       case "stdin" :: _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer)
       case "" :: Nil => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
       case file :: Nil => Flows.fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)      
