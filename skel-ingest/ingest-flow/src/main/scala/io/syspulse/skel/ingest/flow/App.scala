@@ -36,7 +36,7 @@ case class Config(
   output:String = "stdout://",
   
   delimiter:String = "\n",
-  buffer:Int = 8192,
+  buffer:Int = 8192 * 100,
   throttle:Long = 0L,
   throttleSource:Long = 0L,
 

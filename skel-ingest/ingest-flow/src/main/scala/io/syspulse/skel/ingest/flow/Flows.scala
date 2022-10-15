@@ -45,6 +45,7 @@ import io.syspulse.skel.ingest.uri.KafkaURI
 import spray.json.JsonFormat
 import java.nio.file.StandardOpenOption
 import java.nio.file.OpenOption
+import java.nio.file.FileVisitOption
 
 object Flows {
   def toNull = Sink.ignore
@@ -93,16 +94,19 @@ object Flows {
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
   }
 
-  def fromDir(dir:String,chunk:Int = 0,frameDelimiter:String="",frameSize:Int = 1024 * 1024 * 1024) =  {
+  def fromDir(dir:String,depth:Int=0,chunk:Int = 0,frameDelimiter:String="",frameSize:Int = 1024 * 1024 * 1024) =  {
     val log = Logger(s"${this}")
 
     val dirPath = Util.pathToFullPath(dir)
-    val s1 = Directory.ls(Paths.get(dirPath))
+    val s1 = if(depth==0) 
+      Directory.ls(Paths.get(dirPath)) 
+    else 
+      Directory.walk(Paths.get(dirPath), maxDepth = Some(depth), List(FileVisitOption.FOLLOW_LINKS))
 
     val s = s1
       .filter(p => p.toFile.isFile())
       .flatMapConcat( p => {
-        log.info(s"source: ${p}")
+        log.info(s"file: ${p}")
         val fs = FileIO.fromPath(p,chunkSize = if(chunk==0) Files.size(p).toInt else chunk)
         
         // delimiting should be here otherwise file without delimiters will not progress

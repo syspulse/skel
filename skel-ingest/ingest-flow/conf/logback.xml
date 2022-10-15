@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration scan="true" scanPeriod="10 seconds">
-    <appender name="COLOR" target="System.err" class="ch.qos.logback.core.ConsoleAppender">
+    <appender name="COLOR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
         <encoder>
             <pattern>[%date] %highlight([%level]) [%logger{10} %file:%line] %msg%n</pattern>
             <!--             ^^^^^^^^^^ -->
@@ -12,6 +13,7 @@
         </encoder>
     </appender>
     <appender name="NOCOLOR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
         <encoder>
             <pattern>[%date] [%level] [%logger{10} %file:%line] %msg%n</pattern>
         </encoder>
