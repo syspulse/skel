@@ -28,7 +28,7 @@ class ConfigurationSpec extends AnyWordSpec with Matchers {
         )
       ))
 
-      c.getAll().size should === (3)
+      c.getAll().size should === (0)
 
       c.getParams().size should === (3)
       c.getParams() should === (Seq("1","2","3"))
@@ -45,6 +45,32 @@ class ConfigurationSpec extends AnyWordSpec with Matchers {
       val s = c.getListString("param.list") 
       s.size should === (3)
       s should === (Seq("str1","2","1000"))
+    }
+
+    "get List from default " in {
+      val args = Array[String]()
+      val c = Configuration.withPriority(Seq(
+        new ConfigurationArgs(args,"test-1","",
+          ArgString('s', "param.list","")
+        )
+      ))
+      
+      val s = c.getListString("param.list",Seq("1","2")) 
+      s.size should === (2)
+      s should === (Seq("1","2"))
+    }
+
+    "get List from default empty Seq()" in {
+      val args = Array[String]()
+      val c = Configuration.withPriority(Seq(
+        new ConfigurationArgs(args,"test-1","",
+          ArgString('s', "param.list","")
+        )
+      ))
+      
+      val s = c.getListString("param.list",Seq()) 
+      s.size should === (0)
+      s should === (Seq())
     }
 
     "get List from file: 'str1,  2, 1000 ' " in {
