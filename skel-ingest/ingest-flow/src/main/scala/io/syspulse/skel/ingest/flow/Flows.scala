@@ -399,7 +399,7 @@ class ToKafka[T <: Ingestable](uri:String) extends skel.ingest.kafka.KafkaSink[T
 class FromKafka[T <: Ingestable](uri:String) extends skel.ingest.kafka.KafkaSource[T] {
   val kafkaUri = KafkaURI(uri)
     
-  def source():Source[ByteString,_] = source(kafkaUri.broker,Set(kafkaUri.topic),kafkaUri.group)
+  def source():Source[ByteString,_] = source(kafkaUri.broker,Set(kafkaUri.topic),kafkaUri.group,offset = kafkaUri.offset)
 }
  
 // Elastic Client Flow
