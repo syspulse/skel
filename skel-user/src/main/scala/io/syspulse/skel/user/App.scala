@@ -60,8 +60,8 @@ object App extends skel.Server {
     println(s"Config: ${config}")
 
     val store = config.datastore match {
-      // case "mysql" | "db" => new UserStoreDB(c,"mysql")
-      // case "postgres" => new UserStoreDB(c,"postgres")
+      case "mysql" | "db" => new UserStoreDB(c,"mysql")
+      case "postgres" => new UserStoreDB(c,"postgres")
       case "mem" | "cache" => new UserStoreMem
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
