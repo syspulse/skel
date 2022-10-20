@@ -18,12 +18,12 @@ import io.jvm.uuid._
 import io.syspulse.skel.FutureAwaitable._
 
 case class Config(
-  host:String="",
-  port:Int=0,
-  uri:String = "",
-  datastore:String = "",
+  host:String="0.0.0.0",
+  port:Int=8080,
+  uri:String = "/api/v1/user",
+  datastore:String = "mem",
 
-  cmd:String = "",
+  cmd:String = "server",
   params: Seq[String] = Seq(),
 )
 
@@ -32,15 +32,16 @@ object App extends skel.Server {
   def main(args:Array[String]):Unit = {
     println(s"args: '${args.mkString(",")}'")
 
+    val d = Config()
     val c = Configuration.withPriority(Seq(
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv, 
       new ConfigurationArgs(args,"skel-user","",
-        ArgString('h', "http.host","listen host (def: 0.0.0.0)"),
-        ArgInt('p', "http.port","listern port (def: 8080)"),
-        ArgString('u', "http.uri","api uri (def: /api/v1/user)"),
-        ArgString('d', "datastore","datastore [mysql,postgres,mem,cache] (def: mem)"),
+        ArgString('h', "http.host",s"listen host (def: ${d.host})"),
+        ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
+        ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
+        ArgString('d', "datastore",s"datastore [mysql,postgres,mem,cache] (def: ${d.datastore})"),
         ArgCmd("server","Command"),
         ArgCmd("client","Command"),
         ArgParam("<params>","")
@@ -48,11 +49,11 @@ object App extends skel.Server {
     ))
 
     val config = Config(
-      host = c.getString("http.host").getOrElse("0.0.0.0"),
-      port = c.getInt("http.port").getOrElse(8080),
-      uri = c.getString("http.uri").getOrElse("/api/v1/user"),
-      datastore = c.getString("datastore").getOrElse("mem"),
-      cmd = c.getCmd().getOrElse("server"),
+      host = c.getString("http.host").getOrElse(d.host),
+      port = c.getInt("http.port").getOrElse(d.port),
+      uri = c.getString("http.uri").getOrElse(d.uri),
+      datastore = c.getString("datastore").getOrElse(d.datastore),
+      cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
     )
 

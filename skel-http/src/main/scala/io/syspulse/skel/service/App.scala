@@ -11,12 +11,13 @@ import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 
 case class Config(
-  host:String="",
-  port:Int=0,
-  uri:String = "",
-  datastore:String = "",
-  files: Seq[String] = Seq(),
-  action:String = ""
+  host:String="0.0.0.0",
+  port:Int=8080,
+  uri:String = "/api/v1/service",
+  datastore:String = "mem",
+
+  cmd:String = "server",
+  params: Seq[String] = Seq(),
 )
 
 object App extends skel.Server {
@@ -24,28 +25,29 @@ object App extends skel.Server {
   def main(args:Array[String]) = {
     println(s"args: '${args.mkString(",")}'")
 
+        val d = Config()
     val c = Configuration.withPriority(Seq(
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv, 
       new ConfigurationArgs(args,"skel-service","",
-        ArgString('h', "http.host","listen host (def: 0.0.0.0)"),
-        ArgInt('p', "http.port","listern port (def: 8080)"),
-        ArgString('u', "http.uri","api uri (def: /api/v1/service)"),
-        ArgString('d', "datastore","datastore [mysql,postgres,mem|cache] (def: cache)"),
-        ArgParam("<files>","List of files"),
-        ArgCmd("start","Start Command"),
-        ArgHelp("help","simple microservice")        
+        ArgString('h', "http.host",s"listen host (def: ${d.host})"),
+        ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
+        ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
+        ArgString('d', "datastore",s"datastore [mysql,postgres,mem,cache] (def: ${d.datastore})"),
+        ArgCmd("server","Command"),
+        ArgCmd("client","Command"),
+        ArgParam("<params>","")
       ).withExit(1)
     ))
 
     val config = Config(
-      host = c.getString("http.host").getOrElse("0.0.0.0"),
-      port = c.getInt("http.port").getOrElse(8080),
-      uri = c.getString("http.uri").getOrElse("/api/v1/service"),
-      datastore = c.getString("datastore").getOrElse("cache"),
-      files = c.getParams(),
-      action = c.getString("action").getOrElse("start"),
+      host = c.getString("http.host").getOrElse(d.host),
+      port = c.getInt("http.port").getOrElse(d.port),
+      uri = c.getString("http.uri").getOrElse(d.uri),
+      datastore = c.getString("datastore").getOrElse(d.datastore),
+      cmd = c.getCmd().getOrElse(d.cmd),
+      params = c.getParams(),
     )
 
     println(s"Config: ${config}")
