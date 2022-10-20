@@ -3,7 +3,8 @@ package io.syspulse.skel.otp
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
-import io.syspulse.skel.otp.{OtpRegistry,OtpRoutes,OtpStoreDB}
+import io.syspulse.skel.otp.store.{OtpRegistry,OtpStoreDB,OtpStoreMem}
+import io.syspulse.skel.otp.server.{OtpRoutes}
 import io.syspulse.skel.otp.client._
 
 import scala.concurrent.duration.Duration

@@ -1,4 +1,4 @@
-package io.syspulse.skel.otp
+package io.syspulse.skel.otp.server
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.StatusCodes
@@ -33,12 +33,15 @@ import io.prometheus.client.Counter
 
 import io.syspulse.skel.service.Routeable
 import io.syspulse.skel.service.CommonRoutes
-import io.syspulse.skel.otp.OtpRegistry._
+
 import io.syspulse.skel.Command
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
+
+import io.syspulse.skel.otp._
+import io.syspulse.skel.otp.store.OtpRegistry._
 
 @Path("/api/v1/otp")
 class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {

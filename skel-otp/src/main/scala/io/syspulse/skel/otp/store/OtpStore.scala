@@ -1,4 +1,4 @@
-package io.syspulse.skel.otp
+package io.syspulse.skel.otp.store
 
 import scala.util.Try
 
@@ -7,6 +7,8 @@ import scala.collection.immutable
 import io.jvm.uuid._
 
 import io.syspulse.skel.store.Store
+
+import io.syspulse.skel.otp.Otp
 
 trait OtpStore extends Store[Otp,UUID] {
   

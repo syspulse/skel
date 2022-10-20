@@ -1,4 +1,4 @@
-package io.syspulse.skel.otp
+package io.syspulse.skel.otp.store
 
 import scala.util.Try
 import scala.util.{Success,Failure}
@@ -10,6 +10,8 @@ import akka.actor.typed.scaladsl.Behaviors
 import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
+
+import io.syspulse.skel.otp.Otp
 
 class OtpStoreMem extends OtpStore {
   val log = Logger(s"${this}")

@@ -1,4 +1,4 @@
-package io.syspulse.skel.otp
+package io.syspulse.skel.otp.store
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
@@ -12,6 +12,8 @@ import ejisan.kuro.otp._
 
 import io.syspulse.skel.Command
 // create Otp Parameters
+
+import io.syspulse.skel.otp._
 
 object OtpRegistry {
   val log = Logger(s"${this}")

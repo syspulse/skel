@@ -31,7 +31,7 @@ import io.syspulse.skel.ClientHttp
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.otp._
-import io.syspulse.skel.otp.OtpJson
+import io.syspulse.skel.otp.server.OtpJson
 
 class OtpClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext) extends ClientHttp[OtpClientHttp](uri)(as,ec) {
   

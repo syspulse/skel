@@ -1,4 +1,4 @@
-package io.syspulse.skel.otp
+package io.syspulse.skel.otp.store
 
 import scala.util.Try
 import scala.util.{Success,Failure}
@@ -16,6 +16,8 @@ import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skel.config.{Configuration}
 import io.syspulse.skel.store.{Store,StoreDB}
+
+import io.syspulse.skel.otp.Otp
 
 class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB[Otp,UUID](dbConfigRef,"otp",Some(configuration)) with OtpStore {
 

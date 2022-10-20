@@ -1,13 +1,14 @@
-package io.syspulse.skel.otp
+package io.syspulse.skel.otp.server
 
 import io.syspulse.skel.service.JsonCommon
-import io.syspulse.skel.otp.OtpRegistry._
 
 import spray.json.DefaultJsonProtocol
 
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.Directives
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsString, JsValue, JsonFormat, deserializationError}
+
+import io.syspulse.skel.otp._
 
 object OtpJson extends JsonCommon {
   
