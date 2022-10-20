@@ -41,7 +41,7 @@ class UserStoreMem extends UserStore {
 
   def ?(id:UUID):Option[User] = users.get(id)
 
-  def findByEid(eid:String):Option[User] = {
-    users.values.find(_.eid == eid)
+  def findByXid(xid:String):Option[User] = {
+    users.values.find(_.xid == xid)
   }
 }

@@ -73,7 +73,7 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
     } yield user 
   }
 
-  def getByEid(xid:String):Future[Option[User]] = {
+  def getByXid(xid:String):Future[Option[User]] = {
     log.info(s"${xid} -> ${reqGetUserByEid(xid)}")    
     for {
       rsp <- Http().singleRequest(reqGetUserByEid(xid))        
@@ -81,7 +81,7 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
     } yield user
   }
 
-  def getByEidAlways(xid:String):Future[Option[User]] = {
+  def getByXidAlways(xid:String):Future[Option[User]] = {
     log.info(s"${xid} -> ${reqGetUserByEid(xid)}")    
     
     for {

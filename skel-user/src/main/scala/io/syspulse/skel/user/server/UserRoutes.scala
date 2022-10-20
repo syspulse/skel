@@ -65,7 +65,7 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
   
   def getUsers(): Future[Users] = registry.ask(GetUsers)
   def getUser(id: UUID): Future[Option[User]] = registry.ask(GetUser(id, _))
-  def getUserByEid(eid: String): Future[Option[User]] = registry.ask(GetUserByEid(eid, _))
+  def getUserByXid(xid: String): Future[Option[User]] = registry.ask(GetUserByXid(xid, _))
 
   def createUser(userCreate: UserCreateReq): Future[User] = registry.ask(CreateUser(userCreate, _))
   def deleteUser(id: UUID): Future[UserActionRes] = registry.ask(DeleteUser(id, _))
@@ -101,14 +101,14 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
   //   }
   // }
 
-  @GET @Path("/eid/{eid}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("user"),summary = "Get User by External Id (eid)",
-    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "eid")),
+  @GET @Path("/xid/{xid}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("user"),summary = "Get User by External Id (xid)",
+    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "xid")),
     responses = Array(new ApiResponse(responseCode="200",description = "User returned",content=Array(new Content(schema=new Schema(implementation = classOf[User])))))
   )
-  def getUserByEidRoute(eid: String) = get {
+  def getUserByXidRoute(xid: String) = get {
     rejectEmptyResponse {
-      onSuccess(getUserByEid(eid)) { r =>
+      onSuccess(getUserByXid(xid)) { r =>
         complete(r)
       }
     }
@@ -188,9 +188,9 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
         pathSuffix("random") {
           createUserRandomRoute()
         },
-        pathPrefix("eid") {
+        pathPrefix("xid") {
           pathPrefix(Segment) { id => 
-            getUserByEidRoute(id)
+            getUserByXidRoute(id)
           }
         },
         pathPrefix(Segment) { id => 

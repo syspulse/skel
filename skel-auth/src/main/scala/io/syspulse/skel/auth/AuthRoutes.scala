@@ -172,7 +172,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         idp.decodeProfile(profileResData)
       }
       user <- {
-        UserClientHttp(serviceUserUri).withTimeout().getByEidAlways(profile.id)
+        UserClientHttp(serviceUserUri).withTimeout().getByXidAlways(profile.id)
       }
       authRes <- {        
         val auth = Auth(idpTokens.accessToken, idpTokens.idToken, user.map(_.id), scope, idpTokens.expiresIn)
@@ -388,7 +388,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
               } else {
 
                 // request uid from UserService
-                onSuccess(UserClientHttp(serviceUserUri).withTimeout().getByEidAlways(rsp.code.get.eid.get)) { user => 
+                onSuccess(UserClientHttp(serviceUserUri).withTimeout().getByXidAlways(rsp.code.get.eid.get)) { user => 
                 
                   if(! user.isDefined ) {
                 

@@ -18,6 +18,6 @@ trait UserStore extends Store[User,UUID] {
   def all:Seq[User]
   def size:Long
 
-  def findByEid(eid:String):Option[User]
+  def findByXid(xid:String):Option[User]
 }
 
