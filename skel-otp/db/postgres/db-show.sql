@@ -1,2 +1,2 @@
-SELECT * FROM OTP;
+SELECT * FROM otp;
 
