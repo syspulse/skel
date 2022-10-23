@@ -8,7 +8,7 @@ final case class Enroll(id:UUID, email:String = "", name:String = "", xid:String
 final case class Enrolls(enrolls: immutable.Seq[Enroll])
 
 final case class EnrollCreateReq(email: Option[String] = None, name:Option[String]=None, xid: Option[String]=None)
-final case class EnrollUpdateReq(command:String,data:Map[String,String])
+final case class EnrollUpdateReq(id:UUID,command:Option[String] = None,data:Map[String,String])
 
 final case class EnrollActionRes(status: String,id:Option[UUID])
 

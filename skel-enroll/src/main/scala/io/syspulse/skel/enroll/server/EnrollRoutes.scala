@@ -65,6 +65,8 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
   def getEnrollByEmail(email: String): Future[Option[Enroll]] = registry.ask(GetEnrollByEmail(email, _))
 
   def createEnroll(enrollCreate: Option[EnrollCreateReq]): Future[EnrollActionRes] = registry.ask(CreateEnroll(enrollCreate, _))
+  def updateEnroll(enrollUpdate: EnrollUpdateReq): Future[Option[Enroll]] = registry.ask(UpdateEnroll(enrollUpdate, _))
+  
   def deleteEnroll(id: UUID): Future[EnrollActionRes] = registry.ask(DeleteEnroll(id, _))
   
 
@@ -79,25 +81,8 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
       onSuccess(getEnroll(UUID.fromString(id))) { r =>
         complete(r)
       }
-      // onSuccess(EnrollSystem.summaryFuture(UUID(id))) { r =>
-      //   complete(r.map( e => Enroll(e.eid,e.email.getOrElse(""),"",e.xid.getOrElse(""),e.tsPhase)))
-      // }
     }
   }
-
-
-  // @GET @Path("/xid/{xid}") @Produces(Array(MediaType.APPLICATION_JSON))
-  // @Operation(tags = Array("enroll"),summary = "Get Enroll by External Id (xid)",
-  //   parameters = Array(new Parameter(name = "xid", in = ParameterIn.PATH, description = "xid")),
-  //   responses = Array(new ApiResponse(responseCode="200",description = "Enroll returned",content=Array(new Content(schema=new Schema(implementation = classOf[Enroll])))))
-  // )
-  // def getEnrollByXidRoute(eid: String) = get {
-  //   rejectEmptyResponse {
-  //     onSuccess(getEnrollByXid(eid)) { r =>
-  //       complete(r)
-  //     }
-  //   }
-  // }
 
   @GET @Path("/email/{email}") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("enroll"),summary = "Get Enroll by Email (email)",
@@ -149,6 +134,34 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
     }
   }
 
+  @POST @Path("/{id}/email") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("emaail"),summary = "Add email to Enroll",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[EnrollUpdateReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "Enroll updated with Email",content = Array(new Content(schema = new Schema(implementation = classOf[Enroll])))))
+  )
+  def updateEnrollEmailRoute(id: String) = post {
+    entity(as[EnrollUpdateReq]) { enrollUpdate =>
+      onSuccess(updateEnroll(enrollUpdate.copy(id = UUID.fromString(id),command=Some("email")))) { r => 
+        complete((StatusCodes.OK, r))
+      }
+    }
+  }
+
+  @POST @Path("/{id}/confirm") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("confirm"),summary = "Confirm Email with code",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[EnrollUpdateReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "Email confirmed",content = Array(new Content(schema = new Schema(implementation = classOf[Enroll])))))
+  )
+  def updateEnrollEmailConfirmRoute(id: String) = post {
+    entity(as[EnrollUpdateReq]) { enrollUpdate =>
+      onSuccess(updateEnroll(enrollUpdate.copy(id = UUID.fromString(id),command=Some("confirm")))) { r => 
+        complete((StatusCodes.OK, r))
+      }
+    }
+  }
+
   override def routes: Route =
       concat(
         pathEndOrSingleSlash {
@@ -172,26 +185,27 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
         //     getEnrollByXidRoute(xid)
         //   }
         // },
-        pathPrefix(Segment) { id => 
-          // pathPrefix("eid") {
-          //   pathEndOrSingleSlash {
-          //     getEnrollByEidRoute(id)
-          //   } 
-          //   ~
-          //   path(Segment) { code =>
-          //     getEnrollCodeVerifyRoute(id,code)
-          //   }
-          // } ~
-
-          pathEndOrSingleSlash {
-            //authenticate()(authn =>
-            //  authorize(Permissions.isEnroll(UUID(id),authn)) {
-                getEnrollRoute(id) ~
-            //  } ~
-            //  authorize(Permissions.isAdmin(authn)) {
-                deleteEnrollRoute(id)
-            //  }
-            //) 
+        pathPrefix(Segment) { id => {
+            pathPrefix("email") {
+              pathEndOrSingleSlash {
+                updateEnrollEmailRoute(id)                
+              }
+            } ~
+            pathPrefix("confirm") {
+              pathEndOrSingleSlash {
+                updateEnrollEmailConfirmRoute(id)
+              }
+            } ~
+            pathEndOrSingleSlash {
+              //authenticate()(authn =>
+              //  authorize(Permissions.isEnroll(UUID(id),authn)) {
+                  getEnrollRoute(id) ~
+              //  } ~
+              //  authorize(Permissions.isAdmin(authn)) {
+                  deleteEnrollRoute(id)
+              //  }
+              //) 
+            }
           }
         }
       )

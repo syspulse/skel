@@ -19,7 +19,7 @@ object UserRegistry {
   final case class GetUser(id:UUID,replyTo: ActorRef[Option[User]]) extends Command
   final case class GetUserByXid(xid:String,replyTo: ActorRef[Option[User]]) extends Command
   
-  final case class CreateUser(userCreate: UserCreateReq, replyTo: ActorRef[User]) extends Command
+  final case class CreateUser(userCreate: UserCreateReq, replyTo: ActorRef[Option[User]]) extends Command
   final case class RandomUser(replyTo: ActorRef[User]) extends Command
 
   final case class DeleteUser(id: UUID, replyTo: ActorRef[UserActionRes]) extends Command
@@ -55,7 +55,7 @@ object UserRegistry {
         val user = User(id, userCreate.email, userCreate.name, userCreate.xid, System.currentTimeMillis())
         val store1 = store.+(user)
 
-        replyTo ! user
+        replyTo ! Some(user)
         registry(store1.getOrElse(store))
 
       case RandomUser(replyTo) =>

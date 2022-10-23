@@ -46,4 +46,12 @@ class EnrollStoreMem(implicit val ec:ExecutionContext) extends EnrollStore {
   def findByEmail(email:String):Option[Enroll] = {
     enrolls.values.find(_.email == email)
   }
+
+  def addEmail(id:UUID,email:String):Future[Option[Enroll]] = {
+    Future(None)
+  }
+
+  def confirmEmail(id:UUID,code:String):Future[Option[Enroll]] = {
+    Future(None)
+  }
 }

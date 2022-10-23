@@ -152,7 +152,7 @@ object App extends skel.Server {
             EnrollSystem.confirmEmail(UUID(eid),code)
           
           case "continue" :: eid :: Nil => 
-            EnrollSystem.continue(UUID(eid))            
+            EnrollSystem.continue(UUID(eid))
 
           case eid :: Nil => 
             // query status of the flow

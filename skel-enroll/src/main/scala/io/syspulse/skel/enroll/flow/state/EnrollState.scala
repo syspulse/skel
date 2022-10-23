@@ -156,8 +156,10 @@ object EnrollState extends Enrollment {
         // } 
         
         val user = UserService.create(state.email.get,"",state.xid.getOrElse(""))
+        log.info(s"user=${user}")
+        
         if(!user.isDefined) {
-          replyTo ! StatusReply.Error(s"${eid}: could not create user")
+          replyTo ! StatusReply.Error(s"${eid}: could not create user (${state.email},${state.xid})")
           return Effect.none
         } 
 

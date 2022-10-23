@@ -138,7 +138,7 @@ object EnrollFlow {
           }
 
           case StatusReply.Error(e) => {
-            log.info(s"error=${e}")
+            log.error(s"error=${e.getMessage()}")
             Behaviors.same
           }
           case _ =>

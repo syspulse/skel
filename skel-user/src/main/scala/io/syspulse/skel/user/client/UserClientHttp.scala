@@ -60,9 +60,18 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
   def create(email:String,name:String,xid:String):Future[Option[User]] = {
     log.info(s"-> ${reqPostUser(email,name,xid)}")
     for {
-      rsp <- Http().singleRequest(reqPostUser(email,name,xid))
-      r <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[User]] else Future(None)
-    } yield r
+      rsp <- Http().singleRequest(reqPostUser(email,name,xid))      
+      user <- if(rsp.status == StatusCodes.OK || rsp.status == StatusCodes.Created) Unmarshal(rsp).to[Option[User]] else Future(None)
+    } yield user
+
+    // for {
+    //   rsp <- Http().singleRequest(reqPostUser(email,name,xid))
+    //   body <- rsp.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
+    // } yield {
+    //   val data = body.utf8String
+    //   log.info(s"data=${data}")
+    //   data.parseJson.convertTo[Option[User]]
+    // }
   }
 
   def get(id:UUID):Future[Option[User]] = {
@@ -76,7 +85,7 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
   def getByXid(xid:String):Future[Option[User]] = {
     log.info(s"${xid} -> ${reqGetUserByEid(xid)}")    
     for {
-      rsp <- Http().singleRequest(reqGetUserByEid(xid))        
+      rsp <- Http().singleRequest(reqGetUserByEid(xid))
       user <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[User]] else Future(None)
     } yield user
   }

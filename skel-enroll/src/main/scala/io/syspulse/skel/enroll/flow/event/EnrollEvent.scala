@@ -102,7 +102,7 @@ object EnrollEvent extends Enrollment {
 
       case AddEmail(email, replyTo) =>
         if (email.isEmpty() || !email.contains('@')) {
-          replyTo ! StatusReply.Error(s"${eid}: Invalid email: '$email'")
+          replyTo ! StatusReply.Error(s"${eid}: Invalid email: '${email}'")
           return Effect.none
         } 
         val token = Math.abs(Random.nextLong(100000000)).toString
@@ -114,7 +114,7 @@ object EnrollEvent extends Enrollment {
         
       case ConfirmEmail(token, replyTo) =>
         if (token.isEmpty() || Some(token) != state.confirmToken) {
-          replyTo ! StatusReply.Error(s"${eid}: Invalid Confirm token: '$token'")
+          replyTo ! StatusReply.Error(s"${eid}: Invalid Confirm token: '${token}'")
           return Effect.none
         } 
         Effect
@@ -123,7 +123,7 @@ object EnrollEvent extends Enrollment {
         
       case AddPublicKey(sig, replyTo) =>
         if (!sig.isValid()) {
-          replyTo ! StatusReply.Error(s"${eid}: Invalid Sig: '$sig'")
+          replyTo ! StatusReply.Error(s"${eid}: Invalid Sig: '${sig}'")
           return Effect.none
         }
 
@@ -147,7 +147,7 @@ object EnrollEvent extends Enrollment {
         
         val user = UserService.create(state.email.get,"",state.xid.getOrElse(""))
         if(!user.isDefined) {
-          replyTo ! StatusReply.Error(s"${eid}: could not create user")
+          replyTo ! StatusReply.Error(s"${eid}: could not create user (${state.email},${state.xid})")
           return Effect.none
         } 
 

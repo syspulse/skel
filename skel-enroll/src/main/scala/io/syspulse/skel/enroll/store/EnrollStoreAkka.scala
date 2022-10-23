@@ -57,4 +57,14 @@ class EnrollStoreAkka(implicit val ec:ExecutionContext) extends EnrollStore {
   def findByEmail(email:String):Option[Enroll] = {
     None
   }
+
+  def addEmail(id:UUID,email:String):Future[Option[Enroll]] = {
+    EnrollSystem.addEmail(id,email)
+    ???(id)
+  }
+
+  def confirmEmail(id:UUID,code:String):Future[Option[Enroll]] = {
+    EnrollSystem.confirmEmail(id,code)
+    ???(id)
+  }
 }

@@ -35,7 +35,7 @@ object UserService {
   }
 
   def create(email:String,name:String,xid:String)(implicit timeout:Timeout = timeout):Option[User] = {
-    Await.result(service.create(email,name,xid),timeout.duration)
+    Await.result(service.create(email,name,xid),timeout.duration)    
   }
 }
 

@@ -21,7 +21,7 @@ object EnrollRegistry {
   final case class CreateEnroll(enrollCreate: Option[EnrollCreateReq], replyTo: ActorRef[EnrollActionRes]) extends Command
   final case class DeleteEnroll(id: UUID, replyTo: ActorRef[EnrollActionRes]) extends Command
 
-  final case class UpdateEnroll(enrollUpdate: EnrollUpdateReq, replyTo: ActorRef[EnrollActionRes]) extends Command
+  final case class UpdateEnroll(enrollUpdate: EnrollUpdateReq, replyTo: ActorRef[Option[Enroll]]) extends Command
   
   // this var reference is unfortunately needed for Metrics access
   var store: EnrollStore = null //new EnrollStoreMem //new EnrollStoreCache
@@ -71,6 +71,13 @@ object EnrollRegistry {
           replyTo ! EnrollActionRes("started",eid.toOption)
           Behaviors.same
       
+        case UpdateEnroll(enrollUpdate, replyTo) =>          
+          for {
+            e <- store.update(enrollUpdate.id,enrollUpdate.command.getOrElse(""),enrollUpdate.data)
+          } replyTo ! e 
+          
+          Behaviors.same
+
         case DeleteEnroll(id, replyTo) =>
           Behaviors.same
       }

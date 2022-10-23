@@ -13,10 +13,25 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.store.Store
 import io.syspulse.skel.enroll.Enroll
+import scala.concurrent.ExecutionContext
 
 
 trait EnrollStore extends Store[Enroll,UUID] {
+  implicit val ec:ExecutionContext
   
+  def update(id:UUID,command:String,data:Map[String,String]):Future[Option[Enroll]] = {
+    command match {
+      case "email" =>
+        addEmail(id,data("email"))
+      case "confirm" => 
+        confirmEmail(id,data("code"))
+      case _ => Future(None)
+    }
+  }
+
+  def addEmail(id:UUID,email:String):Future[Option[Enroll]]
+  def confirmEmail(id:UUID,code:String):Future[Option[Enroll]]
+
   def +(e:Enroll):Try[EnrollStore] = {
     this.+(Option(e.xid))
     Success(this)

@@ -67,7 +67,7 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
   def getUser(id: UUID): Future[Option[User]] = registry.ask(GetUser(id, _))
   def getUserByXid(xid: String): Future[Option[User]] = registry.ask(GetUserByXid(xid, _))
 
-  def createUser(userCreate: UserCreateReq): Future[User] = registry.ask(CreateUser(userCreate, _))
+  def createUser(userCreate: UserCreateReq): Future[Option[User]] = registry.ask(CreateUser(userCreate, _))
   def deleteUser(id: UUID): Future[UserActionRes] = registry.ask(DeleteUser(id, _))
   def randomUser(): Future[User] = registry.ask(RandomUser(_))
 
@@ -132,8 +132,8 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
   )
   def deleteUserRoute(id: String) = delete {
     onSuccess(deleteUser(UUID.fromString(id))) { r =>
-      metricDeleteCount.inc()
-      complete((StatusCodes.OK, r))
+      metricDeleteCount.inc()      
+      complete(StatusCodes.OK, r)
     }
   }
 
@@ -141,13 +141,14 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("user"),summary = "Create User Secret",
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[UserCreateReq])))),
-    responses = Array(new ApiResponse(responseCode = "200", description = "User created",content = Array(new Content(schema = new Schema(implementation = classOf[UserActionRes])))))
+    responses = Array(new ApiResponse(responseCode = "200", description = "User",content = Array(new Content(schema = new Schema(implementation = classOf[User])))))
   )
   def createUserRoute = post {
     entity(as[UserCreateReq]) { userCreate =>
       onSuccess(createUser(userCreate)) { r =>
         metricCreateCount.inc()
-        complete((StatusCodes.Created, r))
+        log.info(s"r = ${r}")
+        complete(StatusCodes.Created, r)
       }
     }
   }
@@ -155,7 +156,7 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
   def createUserRandomRoute() = post { 
     onSuccess(randomUser()) { r =>
       metricCreateCount.inc()
-      complete((StatusCodes.Created, r))
+      complete(StatusCodes.Created, r)
     }
   }
 
