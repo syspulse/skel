@@ -48,7 +48,7 @@ object App extends skel.Server {
       new ConfigurationArgs(args,"skel-enroll","",
         ArgString('h', "http.host",s"listen host (def: ${d.host})"),
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
-        ArgString('u', "http.uri",s"api uri (def: /api/v1/enroll)"),
+        ArgString('u', "http.uri",s"api uri (def: ${d.uri}"),
         ArgString('d', "datastore",s"datastore (mem,akka) (def: ${d.datastore})"),
         
         ArgString('_', "service.user.uri",s"User Service URI (def: ${d.serviceUserUri})"),
@@ -79,7 +79,7 @@ object App extends skel.Server {
     val store = config.datastore match {
       //case "mysql" | "db" => new EnrollStoreDB(c,"mysql")
       //case "postgres" => new EnrollStoreDB(c,"postgres")
-      case "mem" | "cache" => new EnrollStoreMem
+      case "mem"  => new EnrollStoreMem
       case "akka" => new EnrollStoreAkka
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}'")

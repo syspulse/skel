@@ -50,7 +50,7 @@ class EnrollStoreAkka(implicit val ec:ExecutionContext) extends EnrollStore {
         e <- EnrollSystem.summaryFuture(id)
     } yield {
       log.info(s"e = ${e}")
-      e.map( e => Enroll(e.eid,e.email.getOrElse(""),"",e.xid.getOrElse(""),e.tsPhase, e.phase))   
+      e.map( e => Enroll(e.eid,e.email.getOrElse(""),"",e.xid.getOrElse(""),e.tsPhase, e.phase, e.uid))   
     }
   }
 

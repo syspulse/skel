@@ -20,6 +20,8 @@ object EnrollRegistry {
   
   final case class CreateEnroll(enrollCreate: Option[EnrollCreateReq], replyTo: ActorRef[EnrollActionRes]) extends Command
   final case class DeleteEnroll(id: UUID, replyTo: ActorRef[EnrollActionRes]) extends Command
+
+  final case class UpdateEnroll(enrollUpdate: EnrollUpdateReq, replyTo: ActorRef[EnrollActionRes]) extends Command
   
   // this var reference is unfortunately needed for Metrics access
   var store: EnrollStore = null //new EnrollStoreMem //new EnrollStoreCache

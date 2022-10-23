@@ -47,7 +47,8 @@ object Enrollment {
     email:Option[String] = None, addr:Option[String] = None, sig:Option[Signature] = None,
     tsStart:Long = 0L, tsPhase:Long = 0L, 
     finished: Boolean = false, 
-    confirmToken:Option[String] = None) extends CborSerializable
+    confirmToken:Option[String] = None,
+    uid:Option[UUID] = None) extends CborSerializable
 
   final case class State(eid:UUID, flow:Seq[String], phase:String = "START", 
     xid:Option[String] = None,
@@ -75,7 +76,7 @@ object Enrollment {
 
     def addData(k: String, v:String): State = copy(data = data + (k -> v))
     
-    def toSummary: Summary = Summary(eid, phase, xid, email, pk.map(Eth.address(_)), sig, tsStart,tsPhase,finished,confirmToken)
+    def toSummary: Summary = Summary(eid, phase, xid, email, pk.map(Eth.address(_)), sig, tsStart,tsPhase,finished,confirmToken,uid)
 
     //def toByteArray() = toString.getBytes()
   }
