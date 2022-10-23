@@ -26,13 +26,19 @@ At definition implementation level each phase must be Acknowledged:
 1. Create new flow
 
 ```
-./run-enroll.sh start
+./run-enroll.sh command start
 ```
 
 It returns ID of Enroll Session (e.g. 9c4312dc-285b-4fec-a99b-0e12289a1d5e)
 
 
 2. Query flow state (summary)
+
+```
+./run-enroll.sh command 9c4312dc-285b-4fec-a99b-0e12289a1d5e
+```
+
+or (default action is __command__)
 
 ```
 ./run-enroll.sh 9c4312dc-285b-4fec-a99b-0e12289a1d5e
@@ -47,7 +53,7 @@ It is at phase __EMAIL__ and awaits submission of email to the Flow
 This can be done from another process/time because session is durable and will preserve its state:
 
 ```
-./run-enroll.sh email 9c4312dc-285b-4fec-a99b-0e12289a1d5e user-300@domain.org
+./run-enroll.sh command email 9c4312dc-285b-4fec-a99b-0e12289a1d5e user-300@domain.org
 
 Waiting for user to confirm email: Some(user-300@domain.org): token=Some(4671970)                                                              
 phase1=CONFIRM_EMAIL: waiting external action ...
@@ -58,32 +64,30 @@ It is at phase __EMAIL__ and awaits submission of email to the Flow
 4. Another email can be submitted as if user didn't confirm previous email and entered new email. New confirmation token will be generated
 
 
-5. Confirm Email (confirmation token)
+5. Confirm Email (with `confirmation token`)
 
-Try with invalid token:
+With invalid `token`:
 
 ```
-./run-enroll.sh confirm 9c4312dc-285b-4fec-a99b-0e12289a1d5e 111111
+./run-enroll.sh command confirm 9c4312dc-285b-4fec-a99b-0e12289a1d5e INVALID_TOKEN_111111
 
 [INFO] [i.s.s.e.EnrollFlow$@5b7a7f33 EnrollFlow.scala:141] error={}
-akka.pattern.StatusReply$ErrorMessage: 9c4312dc-285b-4fec-a99b-0e12289a1d5e: Invalid Confirm token: '111111'
+akka.pattern.StatusReply$ErrorMessage: 9c4312dc-285b-4fec-a99b-0e12289a1d5e: Invalid Confirm token: 'INVALID_TOKEN_111111'
 ```
 
 The session will stay at the same phase.
 
-Try with valid token
+With valid `token`
 
 ```
 ./run-enroll.sh confirm 9c4312dc-285b-4fec-a99b-0e12289a1d5e 4671970
 
 ```
 
-10. Queery flow state (summary)
+10. Queery enroll flow state (summary)
 
 ```
 ./run-enroll.sh 9c4312dc-285b-4fec-a99b-0e12289a1d5e
 
 summary: 9c4312dc-285b-4fec-a99b-0e12289a1d5e: Some(Summary(9c4312dc-285b-4fec-a99b-0e12289a1d5e,FINISH_ACK,Some(),Some(user-300@domain.org),None,None,1658060550774,1658061840,true,None))
 ```
-
-It shows that session is finished

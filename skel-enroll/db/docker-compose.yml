@@ -1,6 +1,6 @@
 postgres:
   image: postgres:latest
-  container_name: postgres-test
+  container_name: enroll-db
   environment:
     - "TZ=Europe/Amsterdam"
     - "POSTGRES_USER=docker"
@@ -10,7 +10,7 @@ postgres:
 
 mysql:
   image: mysql:latest
-  container_name: mysql-test
+  container_name: enroll-db
   environment:
     - "TZ=Europe/Amsterdam"
     - "MYSQL_ROOT_PASSWORD=root"

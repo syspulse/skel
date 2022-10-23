@@ -68,7 +68,7 @@ object EnrollEvent extends Enrollment {
       eventHandler = (state, event) => handleEvent(state, event))
       .receiveSignal {
         case (state, RecoveryCompleted) =>
-          log.info(s"RECOVERY: ${eid}: =========> ${state}")
+          log.info(s"RECOVERY: ${eid}: state=${state}")
       }
       // .snapshotWhen((state, _, _) => {
       //   log.info(s"SNAPSHOT: ${ctx.self.path.name} => state: ${state}")
@@ -164,7 +164,7 @@ object EnrollEvent extends Enrollment {
           .persist(Finished(eid, Instant.now()))
           .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
       
-      case Get(replyTo) =>
+      case Get(replyTo) =>        
         replyTo ! state.toSummary
         Effect.none
     }
@@ -175,7 +175,7 @@ object EnrollEvent extends Enrollment {
         replyTo ! state.toSummary
         Effect.none
       case cmd:Command =>
-        print(s"${eid}: already finished")
+        log.warn(s"${eid}: already finished")
         Effect.none
     }
 

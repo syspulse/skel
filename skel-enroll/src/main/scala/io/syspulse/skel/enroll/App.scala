@@ -13,72 +13,77 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.user.UserService
 import io.syspulse.skel.user.store.UserRegistry
 import io.syspulse.skel.user.store.UserStoreMem
+
 import io.syspulse.skel.user.server.UserRoutes
 
-import io.syspulse.skel.enroll.store.{EnrollRegistry,EnrollStoreMem}
+import io.syspulse.skel.enroll.store.{EnrollRegistry,EnrollStoreMem,EnrollStoreAkka}
 import io.syspulse.skel.enroll.server.EnrollRoutes
 
 import scopt.OParser
 import scala.util.Success
 
 case class Config(
-  host:String="",
-  port:Int=0,
-  uri:String = "",
-  datastore:String = "",
+  host:String="0.0.0.0",
+  port:Int=8080,
+  uri:String = "/api/v1/enroll",
+  datastore:String = "akka",
 
-  serviceUserUri:String = "",
+  serviceUserUri:String = "http://localhost:8080/api/v1/user",
 
-  cmd:String = "",
+  cmd:String = "command",
   params: Seq[String] = Seq(),
 )
 
 object App extends skel.Server {
+  import scala.concurrent.ExecutionContext.Implicits.global
   
   def main(args:Array[String]):Unit = {
     println(s"args: '${args.mkString(",")}'")
 
+    val d = Config()
     val c = Configuration.withPriority(Seq(
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv, 
       new ConfigurationArgs(args,"skel-enroll","",
-        ArgString('h', "http.host","listen host (def: 0.0.0.0)"),
-        ArgInt('p', "http.port","listern port (def: 8080)"),
-        ArgString('u', "http.uri","api uri (def: /api/v1/enroll)"),
-        ArgString('d', "datastore","datastore [mysql,postgres,mem,cache] (def: mem)"),
+        ArgString('h', "http.host",s"listen host (def: ${d.host})"),
+        ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
+        ArgString('u', "http.uri",s"api uri (def: /api/v1/enroll)"),
+        ArgString('d', "datastore",s"datastore (mem,akka) (def: ${d.datastore})"),
         
-        ArgString('_', "service.user.uri","User Service URI (def: http://localhost:8080/api/v1/user)"),
+        ArgString('_', "service.user.uri",s"User Service URI (def: ${d.serviceUserUri})"),
         
         ArgCmd("server","Server"),
         ArgCmd("server-with-user","Server with embedded UserServices (for testing)"),
-        ArgCmd("client","Http Client"),
-        ArgCmd("command","Command"),
+        ArgCmd("client","Http Client"),        
+        ArgCmd("command","Commands list (start,email,continue,eid)"),
+
         ArgParam("<params>","")
       ).withExit(1)
     ))
 
     val config = Config(
-      host = c.getString("http.host").getOrElse("0.0.0.0"),
-      port = c.getInt("http.port").getOrElse(8080),
-      uri = c.getString("http.uri").getOrElse("/api/v1/enroll"),
-      datastore = c.getString("datastore").getOrElse("mem"),
+      host = c.getString("http.host").getOrElse(d.host),
+      port = c.getInt("http.port").getOrElse(d.port),
+      uri = c.getString("http.uri").getOrElse(d.uri),
+      datastore = c.getString("datastore").getOrElse(d.datastore),
 
-      serviceUserUri = c.getString("service.user.uri").getOrElse("http://localhost:8080/api/v1/user"),
+      serviceUserUri = c.getString("service.user.uri").getOrElse(d.serviceUserUri),
 
-      cmd = c.getCmd().getOrElse("command"),
+      cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
     )
 
     println(s"Config: ${config}")
-
+    
     val store = config.datastore match {
       //case "mysql" | "db" => new EnrollStoreDB(c,"mysql")
       //case "postgres" => new EnrollStoreDB(c,"postgres")
       case "mem" | "cache" => new EnrollStoreMem
+      case "akka" => new EnrollStoreAkka
       case _ => {
-        Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
-        new EnrollStoreMem
+        Console.err.println(s"Uknown datastore: '${config.datastore}'")
+        sys.exit(1)
       }
     }
 
@@ -100,8 +105,8 @@ object App extends skel.Server {
 
       case "server-with-user" =>
         val uri = Util.getParentUri(config.uri)
-        println(s"${Console.YELLOW}Running with EnrollService(mem):${Console.RESET} http://${host}:${config.port}${uri}/enroll")
-        println(s"${Console.YELLOW}Running with UserService(mem):${Console.RESET} http://${host}:${config.port}${uri}/user")
+        Console.err.println(s"${Console.YELLOW}Running with EnrollService(mem):${Console.RESET} http://${host}:${config.port}${uri}/enroll")
+        Console.err.println(s"${Console.YELLOW}Running with UserService(mem):${Console.RESET} http://${host}:${config.port}${uri}/user")
         run( config.host, config.port, uri, c,
           Seq(
             (EnrollRegistry(store),"EnrollRegistry",(actor, context) => {
@@ -116,11 +121,12 @@ object App extends skel.Server {
         )
         
       case "client" => {
-        
+        Console.err.println(s"Client not implemented")
         System.exit(0)
       }
 
       case "command" => {
+        Console.err.println(s"${Console.YELLOW}command:${Console.RESET} ${config.params}")
         val r = config.params match {
           case "start" :: Nil => 
             val eid = EnrollSystem
@@ -129,7 +135,16 @@ object App extends skel.Server {
                 "START,START_ACK,EMAIL,EMAIL_ACK,CONFIRM_EMAIL,CONFIRM_EMAIL_ACK,CREATE_USER,CREATE_USER_ACK,FINISH,FINISH_ACK",
                 None)
 
-            eid          
+            eid
+          case "start" :: flow =>
+            Console.err.println(s"${Console.YELLOW}Flow:${Console.RESET} ${flow}")
+            val eid = EnrollSystem
+              .withAutoTables()
+              .start(
+                flow.mkString(","),
+                None)
+
+            eid
           case "email" :: eid :: email :: Nil => 
             EnrollSystem.addEmail(UUID(eid),email)
           
@@ -140,6 +155,7 @@ object App extends skel.Server {
             EnrollSystem.continue(UUID(eid))            
 
           case eid :: Nil => 
+            // query status of the flow
             EnrollSystem.summary(UUID(eid))            
 
           case _ => 

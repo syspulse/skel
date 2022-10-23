@@ -37,6 +37,7 @@ import com.typesafe.config.ConfigFactory
 import scala.concurrent.Future
 import akka.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import akka.Done
+import scala.concurrent.ExecutionContext
 
 class EnrollActorSystem(name:String = "EnrollSystem",enrollType:String = "state", config:Option[String] = None) {
   val log = Logger(s"${this}")
@@ -48,6 +49,7 @@ class EnrollActorSystem(name:String = "EnrollSystem",enrollType:String = "state"
 
   implicit val sched = system.scheduler
   implicit val timeout = Timeout(3.seconds)
+  implicit val ec:ExecutionContext = system.executionContext
 
   def withAutoTables():EnrollActorSystem = {
     val done: Future[Done] = SchemaUtils.createIfNotExists("jdbc-durable-state-store")(system)
@@ -78,16 +80,27 @@ class EnrollActorSystem(name:String = "EnrollSystem",enrollType:String = "state"
     enrollActor
   }
 
-  def summary(eid:UUID):Option[Enrollment.Summary] = {    
+  def summary(eid:UUID):Option[Enrollment.Summary] = { 
     val summary = Await.result(summaryFuture(eid), timeout.duration)
-    log.info(s"summary = ${summary}")
+    log.info(s"summary = ${summary}")    
     summary
   }
 
   def summaryFuture(eid:UUID):Future[Option[Enrollment.Summary]] = {    
-    system.ask {
-      ref => EnrollFlow.GetSummary(eid, enrollType, ref)
-    }
+    for {
+      summary <- {
+        system.ask {
+          ref => EnrollFlow.GetSummary(eid, enrollType, ref)
+        }
+      }
+      // special case for non-found
+      es <- {
+        if(summary.isDefined && summary.get.phase == "START") 
+          Future(None)
+        else
+          Future(summary)
+      }
+    } yield es
   }
   
   def confirmEmail(eid:UUID,confirmCode:String):Unit = {    

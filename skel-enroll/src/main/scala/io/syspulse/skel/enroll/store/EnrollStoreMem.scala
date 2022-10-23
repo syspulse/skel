@@ -8,11 +8,13 @@ import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import com.typesafe.scalalogging.Logger
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 
 import io.jvm.uuid._
 import io.syspulse.skel.enroll.Enroll
 
-class EnrollStoreMem extends EnrollStore {
+class EnrollStoreMem(implicit val ec:ExecutionContext) extends EnrollStore {
   val log = Logger(s"${this}")
   
   var enrolls: Map[UUID,Enroll] = Map()
@@ -21,10 +23,12 @@ class EnrollStoreMem extends EnrollStore {
 
   def size:Long = enrolls.size
 
-  def +(enroll:Enroll):Try[EnrollStore] = { 
+  def +(xid:Option[String]):Try[UUID] = {
+    val id = UUID.random
+    val enroll = Enroll(id = id,tsCreated=System.currentTimeMillis(), xid = xid.getOrElse(""))
     enrolls = enrolls + (enroll.id -> enroll)
     log.info(s"${enroll}")
-    Success(this)
+    Success(id)
   }
 
   def del(id:UUID):Try[EnrollStore] = { 
@@ -33,14 +37,13 @@ class EnrollStoreMem extends EnrollStore {
     log.info(s"${id}")
     if(sz == enrolls.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
   }
-
   def -(enroll:Enroll):Try[EnrollStore] = {     
     del(enroll.id)
   }
 
-  def ?(id:UUID):Option[Enroll] = enrolls.get(id)
+  def ???(id:UUID):Future[Option[Enroll]] = Future(enrolls.get(id))
 
-  def findByXid(xid:String):Option[Enroll] = {
-    enrolls.values.find(_.xid == xid)
+  def findByEmail(email:String):Option[Enroll] = {
+    enrolls.values.find(_.email == email)
   }
 }

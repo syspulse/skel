@@ -20,7 +20,7 @@ import akka.pattern.StatusReply
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.state.scaladsl.DurableStateBehavior
 import akka.persistence.typed.state.scaladsl.Effect
-import akka.persistence.typed.state.RecoveryCompleted
+import akka.persistence.typed.state.{ RecoveryCompleted, RecoveryFailed}
 
 import java.time.Instant
 import scala.util.Random
@@ -61,8 +61,20 @@ object EnrollState extends Enrollment {
         }
       })
       .receiveSignal {
-        case (state, RecoveryCompleted) =>
-          log.info(s"RECOVERY: ${eid}: ${state}")
+        case (state, recovery) => {
+          recovery match {
+            case RecoveryCompleted =>
+              log.info(s"RECOVERY: ${eid}: ${state}")
+              if(state.phase ==  "START") {
+                // non-existant, invalid
+                log.error(s"Enroll: ${eid}: Invalid (non-existant)")
+              }
+            case RecoveryFailed(e) => {
+              log.error(s"Enroll: ${eid}: failed to recover",e)
+            }
+          }          
+        }
+        
       }      
       .onPersistFailure(SupervisorStrategy.restartWithBackoff(200.millis, 5.seconds, 0.1))
     }
@@ -171,7 +183,7 @@ object EnrollState extends Enrollment {
         replyTo ! state
         Effect.none
       case cmd:Command =>
-        print(s"${eid}: already finished: no more commands accepted")
+        log.warn(s"${eid}: already finished: no more commands accepted")
         Effect.none
     }
 

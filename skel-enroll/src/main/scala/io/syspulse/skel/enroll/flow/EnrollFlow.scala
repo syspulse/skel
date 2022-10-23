@@ -107,7 +107,7 @@ object EnrollFlow {
             (phase,Some(Enrollment.Finish(ctx.self)))
             
           case Some("") | Some("FINISH_ACK") =>
-            log.warn(s"Finished: ${summary.get.eid}")
+            log.info(s"Finished: ${summary.get.eid}")
             (phase,None)
 
           case Some(s) => log.error(s"flow='${flow}' : found=${s} : phase not supported: ${phase}"); ("",None)

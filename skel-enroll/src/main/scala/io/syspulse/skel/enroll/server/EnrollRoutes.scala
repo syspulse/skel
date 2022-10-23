@@ -62,9 +62,9 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
   
   def getEnrolls(): Future[Enrolls] = registry.ask(GetEnrolls)
   def getEnroll(id: UUID): Future[Option[Enroll]] = registry.ask(GetEnroll(id, _))
-  def getEnrollByXid(xid: String): Future[Option[Enroll]] = registry.ask(GetEnrollByXid(xid, _))
+  def getEnrollByEmail(email: String): Future[Option[Enroll]] = registry.ask(GetEnrollByEmail(email, _))
 
-  def createEnroll(enrollCreate: EnrollCreateReq): Future[EnrollActionRes] = registry.ask(CreateEnroll(enrollCreate, _))
+  def createEnroll(enrollCreate: Option[EnrollCreateReq]): Future[EnrollActionRes] = registry.ask(CreateEnroll(enrollCreate, _))
   def deleteEnroll(id: UUID): Future[EnrollActionRes] = registry.ask(DeleteEnroll(id, _))
   
 
@@ -86,27 +86,27 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
   }
 
 
-  // @GET @Path("/{id}/code") @Produces(Array(MediaType.APPLICATION_JSON))
-  // @Operation(tags = Array("enroll"),summary = "Get Enroll code by id",
-  //   parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Enroll id (uuid)")),
-  //   responses = Array(new ApiResponse(responseCode="200",description = "Enroll Code returned",content=Array(new Content(schema=new Schema(implementation = classOf[EnrollCode])))))
+  // @GET @Path("/xid/{xid}") @Produces(Array(MediaType.APPLICATION_JSON))
+  // @Operation(tags = Array("enroll"),summary = "Get Enroll by External Id (xid)",
+  //   parameters = Array(new Parameter(name = "xid", in = ParameterIn.PATH, description = "xid")),
+  //   responses = Array(new ApiResponse(responseCode="200",description = "Enroll returned",content=Array(new Content(schema=new Schema(implementation = classOf[Enroll])))))
   // )
-  // def getEnrollCodeRoute(id: String) = get {
+  // def getEnrollByXidRoute(eid: String) = get {
   //   rejectEmptyResponse {
-  //     onSuccess(getEnrollCode(UUID.fromString(id))) { r =>
+  //     onSuccess(getEnrollByXid(eid)) { r =>
   //       complete(r)
   //     }
   //   }
   // }
 
-  @GET @Path("/eid/{eid}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("enroll"),summary = "Get Enroll by External Id (eid)",
-    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "eid")),
+  @GET @Path("/email/{email}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("enroll"),summary = "Get Enroll by Email (email)",
+    parameters = Array(new Parameter(name = "email", in = ParameterIn.PATH, description = "email")),
     responses = Array(new ApiResponse(responseCode="200",description = "Enroll returned",content=Array(new Content(schema=new Schema(implementation = classOf[Enroll])))))
   )
-  def getEnrollByXidRoute(eid: String) = get {
+  def getEnrollByEmailRoute(email: String) = get {
     rejectEmptyResponse {
-      onSuccess(getEnrollByXid(eid)) { r =>
+      onSuccess(getEnrollByEmail(email)) { r =>
         complete(r)
       }
     }
@@ -136,12 +136,12 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
 
   @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("enroll"),summary = "Create Enroll Secret",
+  @Operation(tags = Array("enroll"),summary = "Create (Start) Enroll Flow",
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[EnrollCreateReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "Enroll created",content = Array(new Content(schema = new Schema(implementation = classOf[EnrollActionRes])))))
   )
   def createEnrollRoute = post {
-    entity(as[EnrollCreateReq]) { enrollCreate =>
+    entity(as[Option[EnrollCreateReq]]) { enrollCreate =>
       onSuccess(createEnroll(enrollCreate)) { r =>
         metricCreateCount.inc()
         complete((StatusCodes.Created, r))
@@ -161,17 +161,17 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
             //),            
           )
         },
-        // pathPrefix("info") {
-        //   path(Segment) { enrollId => 
-        //     getEnrollInfo(enrollId)
-        //   }
-        // },
         
-        pathPrefix("xid") {
+        pathPrefix("email") {
           pathPrefix(Segment) { xid => 
-            getEnrollByXidRoute(xid)
+            getEnrollByEmailRoute(xid)
           }
         },
+        // pathPrefix("xid") {
+        //   pathPrefix(Segment) { xid => 
+        //     getEnrollByXidRoute(xid)
+        //   }
+        // },
         pathPrefix(Segment) { id => 
           // pathPrefix("eid") {
           //   pathEndOrSingleSlash {
