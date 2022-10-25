@@ -28,7 +28,7 @@ Simple Notification Servie
 ### Send to email (via STMP)
 
 ```
-./run-notify.sh notify --smtp.uri="smtp://$SMTP_HOST:25/$SMTP_USER@$SMTP_PASS" notify 'email://snmp/email-1@domain.io' Subject Body
+./run-notify.sh notify --smtp.uri="smtp://$SMTP_HOST:25/$SMTP_USER@$SMTP_PASS" notify 'email://smtp/email-1@domain.io' Subject Body
 ```
 
 ### Send to Websocket

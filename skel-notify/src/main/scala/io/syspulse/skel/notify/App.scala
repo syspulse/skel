@@ -137,7 +137,7 @@ object App extends skel.Server {
 
         val r = 
           config.params match {
-            case "create" :: data => 
+            case "notify" :: data => 
               val (to:String,subj:String,msg:String) = data match {                
                 case to :: subj :: msg :: Nil => (to,subj,msg)
                 case to :: subj :: Nil => (to,subj,"")
@@ -148,7 +148,7 @@ object App extends skel.Server {
               Console.err.println(s"(${to},${subj},${msg}) -> ${uri}")
               NotifyClientHttp(uri)
                 .withTimeout(timeout)
-                .create(to,subj,msg)
+                .notify(to,subj,msg)
                 .await()
                       
             case _ => println(s"unknown op: ${config.params}")

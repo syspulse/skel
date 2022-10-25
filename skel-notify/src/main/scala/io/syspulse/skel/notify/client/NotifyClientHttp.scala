@@ -35,7 +35,7 @@ import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.notify._
 import io.syspulse.skel.notify.server.NotifyJson
 
-class NotifyClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext) extends ClientHttp[NotifyClientHttp](uri)(as,ec) with NotifyService {
+class NotifyClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext) extends ClientHttp(uri)(as,ec) with NotifyService {
   
   import NotifyJson._
   import spray.json._
@@ -45,7 +45,7 @@ class NotifyClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionConte
         NotifyReq(Some(to),Some(subj),msg).toJson.toString)
     )
   
-  def create(to:String,subj:String,msg:String):Future[Option[Notify]] = {
+  def notify(to:String,subj:String,msg:String):Future[Option[Notify]] = {
     log.info(s"-> ${reqPostNotify(to,subj,msg)}")
     for {
       rsp <- Http().singleRequest(reqPostNotify(to,subj,msg))

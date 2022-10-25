@@ -91,3 +91,19 @@ With valid `token`
 
 summary: 9c4312dc-285b-4fec-a99b-0e12289a1d5e: Some(Summary(9c4312dc-285b-4fec-a99b-0e12289a1d5e,FINISH_ACK,Some(),Some(user-300@domain.org),None,None,1658060550774,1658061840,true,None))
 ```
+
+### Server
+
+1. Start server
+
+```
+./run-enroll.sh server
+```
+
+2. Run actions via `API`
+
+```
+./enroll-create.sh
+./enroll-get.sh [eid]
+```
+

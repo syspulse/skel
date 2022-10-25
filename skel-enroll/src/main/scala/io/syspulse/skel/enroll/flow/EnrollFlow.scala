@@ -35,6 +35,7 @@ import scala.util.Failure
 import scala.util.Success
 
 import io.syspulse.skel.enroll.flow._
+import io.syspulse.skel.enroll.flow.phase._
 
 object EnrollFlow {
   val log = Logger(s"${this}")
@@ -83,14 +84,19 @@ object EnrollFlow {
           
           case Some("START_ACK") => nextPhase(flow,next,summary)
                   
-          case Some("EMAIL") => //Some(Enrollment.AddEmail("email@",ctx.self))
-            log.info(s"Waiting for user email: email=${summary.get.email}")
+          case Some("EMAIL") =>             
             enrollActor ! Enrollment.UpdatePhase("EMAIL",ctx.self)
             (phase,None)
 
-          case Some("EMAIL_ACK") => nextPhase(flow,next,summary)
+          case Some("EMAIL_ACK") => 
+            val email = summary.get.email.getOrElse("")
+            val code = summary.get.confirmToken.getOrElse("")
+            log.info(s"Sending email -> user (email=${email})")
+            Phases.get("EMAIL_ACK").map( phase => phase.run(Map("email" -> email, "code" -> code)))
             
-          case Some("CONFIRM_EMAIL") =>  //Some(Enrollment.ConfirmEmail(token.get, ctx.self))
+            nextPhase(flow,next,summary)
+            
+          case Some("CONFIRM_EMAIL") => 
             log.info(s"Waiting for user to confirm email: ${summary.get.email}: token=${summary.get.confirmToken}")
             enrollActor ! Enrollment.UpdatePhase("CONFIRM_EMAIL",ctx.self)
             (phase,None)
@@ -117,23 +123,23 @@ object EnrollFlow {
       }
 
       Behaviors.receiveMessage { msg =>
-        log.info(s"<<< msg = ${msg}")
+        log.info(s"<= msg(${msg})")
 
         msg match {
           case StatusReply.Success(s) => {                
             // WTF ?!
             val summary = s.asInstanceOf[Enrollment.Summary]
             val phase0 = summary.phase
-            log.info(s"phase0=${phase0}: summary=${s}")
+            log.info(s"${summary.eid}: phase0=${phase0}: summary=${s}")
             
             val (phase1,action) = nextPhase(flow,summary.phase,Some(summary))
             
             if(action.isDefined) { 
-              log.info(s"phase1=${phase1}: action=${action} ---> ${enrollActor}")
+              log.info(s"${summary.eid}: phase1=${phase1}: action=${action} ---> ${enrollActor}")
               enrollActor ! action.get 
             }
             else
-              log.info(s"phase1=${phase1}: waiting external action ...")
+              log.info(s"${summary.eid}: phase1=${phase1}: waiting external action ...")
             Behaviors.same
           }
 

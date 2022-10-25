@@ -13,8 +13,13 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.user.UserService
 import io.syspulse.skel.user.store.UserRegistry
 import io.syspulse.skel.user.store.UserStoreMem
-
 import io.syspulse.skel.user.server.UserRoutes
+
+import io.syspulse.skel.notify
+import io.syspulse.skel.notify.NotifyService
+import io.syspulse.skel.notify.store.NotifyRegistry
+import io.syspulse.skel.notify.store.NotifyStoreAll
+import io.syspulse.skel.notify.server.NotifyRoutes
 
 import io.syspulse.skel.enroll.store.{EnrollRegistry,EnrollStoreMem,EnrollStoreAkka}
 import io.syspulse.skel.enroll.server.EnrollRoutes
@@ -28,7 +33,8 @@ case class Config(
   uri:String = "/api/v1/enroll",
   datastore:String = "akka",
 
-  serviceUserUri:String = "http://localhost:8080/api/v1/user",
+  userUri:String = "http://localhost:8080/api/v1/user",
+  notifyUri:String = "http://localhost:8080/api/v1/notify",
 
   cmd:String = "command",
   params: Seq[String] = Seq(),
@@ -51,10 +57,10 @@ object App extends skel.Server {
         ArgString('u', "http.uri",s"api uri (def: ${d.uri}"),
         ArgString('d', "datastore",s"datastore (mem,akka) (def: ${d.datastore})"),
         
-        ArgString('_', "service.user.uri",s"User Service URI (def: ${d.serviceUserUri})"),
+        ArgString('_', "user.uri",s"User Service URI (def: ${d.userUri})"),
         
         ArgCmd("server","Server"),
-        ArgCmd("server-with-user","Server with embedded UserServices (for testing)"),
+        ArgCmd("demo","Server with embedded UserServices + NotifyService (for testing)"),
         ArgCmd("client","Http Client"),        
         ArgCmd("command","Commands list (start,email,continue,eid)"),
 
@@ -68,7 +74,8 @@ object App extends skel.Server {
       uri = c.getString("http.uri").getOrElse(d.uri),
       datastore = c.getString("datastore").getOrElse(d.datastore),
 
-      serviceUserUri = c.getString("service.user.uri").getOrElse(d.serviceUserUri),
+      userUri = c.getString("user.uri").getOrElse(d.userUri),
+      notifyUri = c.getString("notify.uri").getOrElse(d.notifyUri),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -95,28 +102,33 @@ object App extends skel.Server {
           Seq(
             (EnrollRegistry(store),"EnrollRegistry",(actor, context) => {
                 // initialize UserService
-                UserService.discover(config.serviceUserUri)(context.system)
+                UserService.discover(config.userUri)(context.system)
+                NotifyService.discover(config.notifyUri)(context.system)
 
                 new EnrollRoutes(actor)(context, config)
               }
-            )            
+            )
           )
         )
 
-      case "server-with-user" =>
+      case "demo" =>
         val uri = Util.getParentUri(config.uri)
         Console.err.println(s"${Console.YELLOW}Running with EnrollService(mem):${Console.RESET} http://${host}:${config.port}${uri}/enroll")
         Console.err.println(s"${Console.YELLOW}Running with UserService(mem):${Console.RESET} http://${host}:${config.port}${uri}/user")
+        Console.err.println(s"${Console.YELLOW}Running with NotifyService(mem):${Console.RESET} http://${host}:${config.port}${uri}/notify")
+        
+        implicit val notifyConfig = io.syspulse.skel.notify.Config()
+
         run( config.host, config.port, uri, c,
           Seq(
             (EnrollRegistry(store),"EnrollRegistry",(actor, context) => {
-                UserService.discover(config.serviceUserUri)(context.system)
+                UserService.discover(config.userUri)(context.system)
                 new EnrollRoutes(actor)(context, config) 
               }
               .withSuffix("enroll")
             ),
-            (UserRegistry(new UserStoreMem),"UserRegistry",(a, ac) => new UserRoutes(a)(ac).withSuffix("user") )
-            
+            (UserRegistry(new UserStoreMem),"UserRegistry",(a, ac) => new UserRoutes(a)(ac).withSuffix("user") ),
+            (NotifyRegistry(new NotifyStoreAll()),"NotifyRegistry",(a, ac) => new NotifyRoutes(a)(ac).withSuffix("notify") )
           )
         )
         

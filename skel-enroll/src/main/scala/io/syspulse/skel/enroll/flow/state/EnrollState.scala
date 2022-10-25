@@ -116,7 +116,7 @@ object EnrollState extends Enrollment {
           return Effect.none
         } 
         val token = Math.abs(Random.nextLong(100000000)).toString
-        println(s"${eid}: Sending Confirmation email (token=${token}) -> ${email}...")
+        log.info(s"${eid}: Confirmation email(${email}) token =  ${token})")
 
         Effect
           .persist(state.addEmail(email,token))

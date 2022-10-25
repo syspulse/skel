@@ -12,10 +12,16 @@ import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skel.user.User
 import io.syspulse.skel.user.client.UserClientHttp
+import io.syspulse.skel.AwaitableService
 
-trait UserService {
+trait UserService extends AwaitableService[UserService] {
   def findByEmail(email:String):Future[Option[User]]
   def create(email:String,name:String,xid:String):Future[Option[User]]
+  def delete(id:UUID):Future[UserActionRes]
+  def get(id:UUID):Future[Option[User]]
+  def getByXid(xid:String):Future[Option[User]]    
+  def getByXidAlways(xid:String):Future[Option[User]]
+  def all():Future[Users]
 }
 
 object UserService {
@@ -47,4 +53,10 @@ class UserServiceSim extends UserService {
   def create(email:String,name:String,xid:String):Future[Option[User]] = {
     Future.successful(Some(User(UUID.random,email)))
   }
+
+  def delete(id:UUID):Future[UserActionRes] = Future.successful(UserActionRes("",None))
+  def get(id:UUID):Future[Option[User]] = Future.successful(None)
+  def getByXid(xid:String):Future[Option[User]] = Future.successful(None)
+  def getByXidAlways(xid:String):Future[Option[User]] = Future.successful(None)
+  def all():Future[Users] = Future.successful(Users(Seq()))
 }

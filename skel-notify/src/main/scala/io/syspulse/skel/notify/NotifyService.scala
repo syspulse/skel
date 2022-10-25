@@ -12,9 +12,10 @@ import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skel.notify.Notify
 import io.syspulse.skel.notify.client.NotifyClientHttp
+import io.syspulse.skel.AwaitableService
 
-trait NotifyService {
-  def create(receivers:String,subj:String,msg:String):Future[Option[Notify]]
+trait NotifyService extends AwaitableService[NotifyService] {
+  def notify(receivers:String,subj:String,msg:String):Future[Option[Notify]]
 }
 
 object NotifyService {
@@ -29,16 +30,17 @@ object NotifyService {
     service
   }
   
-  def create(receivers:String,subj:String,msg:String)(implicit timeout:Timeout = timeout):Option[Notify] = {
-    Await.result(service.create(receivers,subj,msg),timeout.duration)
+  def notify(receivers:String,subj:String,msg:String)(implicit timeout:Timeout = timeout):Future[Option[Notify]] = {
+    service.notify(receivers,subj,msg)
   }
 }
 
 
 // --- For tests 
 class NotifyServiceSim extends NotifyService {
-
-  def create(to:String,subj:String,msg:String):Future[Option[Notify]] = {
+  val log = Logger(s"${this}")
+  override def notify(to:String,subj:String,msg:String):Future[Option[Notify]] = {
+    log.info(s"notify: ${to},${subj},${msg}")
     Future.successful(Some(Notify(Some(to),Some(subj),msg)))
   }
 }
