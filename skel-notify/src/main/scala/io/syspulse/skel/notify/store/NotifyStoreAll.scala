@@ -15,7 +15,6 @@ import io.syspulse.skel.notify._
 
 class NotifyStoreAll(implicit config:Config) extends NotifyStore {
   val log = Logger(s"${this}")
-  
   def +(notify:Notify):Try[NotifyStore] = {     
     
     val (receivers,_,_) = Notification.parseUri(notify.to.getOrElse("").split("\\s+").toList)

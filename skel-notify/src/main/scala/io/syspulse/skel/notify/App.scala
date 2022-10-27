@@ -31,9 +31,11 @@ case class Config(
   datastore:String = "all",
 
   smtpUri:String = "smtp://smtp.gmail.com:587/user@pass",
-  smtpFrom:String = "admin@syspulse.io",
+  smtpFrom:String = "admin@domain.org",
 
-  telegramUri:String = "tel://skel-notify/$BOT_KEY",
+  snsUri:String = "sns://arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT}:notify-topic",
+  
+  telegramUri:String = "tel://skel-notify/${BOT_KEY}",
 
   cmd:String = "notify",
   params: Seq[String] = Seq(),
@@ -59,6 +61,8 @@ object App extends skel.Server {
         ArgString('_', "smtp.uri",s"STMP uri (def: ${d.smtpUri})"),
         ArgString('_', "smtp.from",s"From who to send to (def: ${d.smtpFrom})"),
 
+        ArgString('_', "sns.uri",s"SNS uri (def: ${d.snsUri})"),
+
         ArgString('_', "telegram.uri",s"Telegram uri (def: ${d.telegramUri})"),
         
         ArgCmd("server",s"Server"),
@@ -76,10 +80,12 @@ object App extends skel.Server {
       
       datastore = c.getString("datastore").getOrElse(d.datastore),
 
-      smtpUri = c.getString("smtp.uri").getOrElse(d.smtpUri),
+      smtpUri = c.getString("smtp.uri").getOrElse(Configuration.withEnv(d.smtpUri)),
       smtpFrom = c.getString("smtp.from").getOrElse(d.smtpFrom),
 
-      telegramUri = c.getString("telegram.uri").getOrElse(d.telegramUri),
+      snsUri = c.getString("sns.uri").getOrElse(Configuration.withEnv(d.snsUri)),
+
+      telegramUri = c.getString("telegram.uri").getOrElse(Configuration.withEnv(d.telegramUri)),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),

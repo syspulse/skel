@@ -38,7 +38,7 @@ class PhaseEmailSend() extends Phase {
     
     val r = NotifyService.service
       .withTimeout(timeout)
-      .notify(to,subj,msg)
+      .notify(toUri,subj,msg)
       .await()
     
     log.info(s"${toUri}: ${r}")

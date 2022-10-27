@@ -92,7 +92,7 @@ class ConfigurationSpec extends AnyWordSpec with Matchers {
       val var2 = Configuration.withEnv(var1)
       
       var2 should !== (var1)
-      var2 should === (s"var-$$${sys.env("HOME")}-_-$$${sys.env("USER")}")
+      var2 should === (s"var-${sys.env("HOME")}-_-${sys.env("USER")}")
     }
 
     "return String arg with Environment Var" in {
@@ -104,7 +104,7 @@ class ConfigurationSpec extends AnyWordSpec with Matchers {
         )
       ))
       
-      c.getString("param.env") should === (Some(s"value-$$${sys.env("USER")}"))
+      c.getString("param.env") should === (Some(s"value-${sys.env("USER")}"))
     }
     
   }

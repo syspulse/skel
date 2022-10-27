@@ -101,7 +101,7 @@ object App extends skel.Server {
         run( config.host, config.port,config.uri,c,
           Seq(
             (EnrollRegistry(store),"EnrollRegistry",(actor, context) => {
-                // initialize UserService
+                // discover services
                 UserService.discover(config.userUri)(context.system)
                 NotifyService.discover(config.notifyUri)(context.system)
 
@@ -122,7 +122,10 @@ object App extends skel.Server {
         run( config.host, config.port, uri, c,
           Seq(
             (EnrollRegistry(store),"EnrollRegistry",(actor, context) => {
+              // discover services
                 UserService.discover(config.userUri)(context.system)
+                NotifyService.discover(config.notifyUri)(context.system)
+                
                 new EnrollRoutes(actor)(context, config) 
               }
               .withSuffix("enroll")

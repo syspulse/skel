@@ -25,7 +25,8 @@ trait Phase {
 
 object Phases {
   var phases:Map[String,Phase] = Map(
-    "EMAIL_ACK" -> new PhaseEmailSend()
+    "EMAIL_ACK" -> new PhaseSNSSend()
+    //"EMAIL_ACK" -> new PhaseEmailSend()
   )
   
   def get(name:String) = phases.get(name)

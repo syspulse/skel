@@ -82,6 +82,6 @@ object Configuration {
     val env = value.split("\\$\\{").filter(_.contains("}")).map(s => s.substring(0,s.indexOf("}"))).toList
     val envPairs = env.map(s => (s,sys.env.get(s).getOrElse("${"+s+"}")))
 
-    envPairs.foldLeft(value)( (value,pair) => { value.replace("{"+pair._1+"}",pair._2) })
+    envPairs.foldLeft(value)( (value,pair) => { value.replace("${"+pair._1+"}",pair._2) })
   } 
 }

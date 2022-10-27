@@ -47,6 +47,7 @@ object Notification {
 
           case "stdout" :: _ => new NotifyStdout
           case "sns" :: arn :: _ => new NotifySNS(arn)
+          case "sns" :: Nil => new NotifySNS(config.snsUri.split("sns://")(1))
           case "ws" :: topic :: _ => new NotifyWebsocket(topic)
           case "ws" :: _ => new NotifyWebsocket("")
           case "tel" :: _ => new NotifyTelegram(p)(config)
