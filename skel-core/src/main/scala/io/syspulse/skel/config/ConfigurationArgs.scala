@@ -84,7 +84,7 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
 
   def getString(path:String):Option[String] = 
     if(!configArgs.isDefined) None else
-    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(_.asInstanceOf[String]) else None
+    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(v => Configuration.withEnv(v.asInstanceOf[String])) else None
   
   def getInt(path:String):Option[Int] = 
     if(!configArgs.isDefined) None else

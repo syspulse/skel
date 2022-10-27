@@ -86,6 +86,26 @@ class ConfigurationSpec extends AnyWordSpec with Matchers {
       s.size should === (3)
       s should === (Seq("str1","2","1000"))
     }
+
+    "withEnv inject $HOME into var-${HOME}-_-${USER}" in {
+      val var1 = "var-${HOME}-_-${USER}"
+      val var2 = Configuration.withEnv(var1)
+      
+      var2 should !== (var1)
+      var2 should === (s"var-$$${sys.env("HOME")}-_-$$${sys.env("USER")}")
+    }
+
+    "return String arg with Environment Var" in {
+      val args = Array("-s","value-${USER}")
+      val c = Configuration.withPriority(Seq(
+        new ConfigurationArgs(args,"test-1","",
+          ArgString('s', "param.env",""),
+          ArgParam("<params...>")
+        )
+      ))
+      
+      c.getString("param.env") should === (Some(s"value-$$${sys.env("USER")}"))
+    }
     
   }
 }

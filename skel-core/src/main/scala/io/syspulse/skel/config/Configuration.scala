@@ -78,4 +78,10 @@ object Configuration {
   // default: try config in this sequence, later supercese earlier (Env > Prop > Akk)
   def default:Configuration = Configuration.withPriority(Seq(new ConfigurationAkka,new ConfigurationProp,new ConfigurationEnv))
 
+  def withEnv(value:String):String = {
+    val env = value.split("\\$\\{").filter(_.contains("}")).map(s => s.substring(0,s.indexOf("}"))).toList
+    val envPairs = env.map(s => (s,sys.env.get(s).getOrElse("${"+s+"}")))
+
+    envPairs.foldLeft(value)( (value,pair) => { value.replace("{"+pair._1+"}",pair._2) })
+  } 
 }
