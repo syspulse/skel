@@ -80,6 +80,13 @@ val sharedConfigDocker = Seq(
 
   Docker / daemonUserUid := None, //Some("1000"), 
   Docker / daemonUser := "daemon"
+
+  // Experiments with S3 mount compatibility
+  // Docker / daemonUserUid := Some("1000"),  
+  // Docker / daemonUser := "ubuntu",
+  // Docker / daemonGroupGid := Some("1000"),
+  // Docker / daemonGroup := "ubuntu",
+  
 ) ++ dockerRegistryLocal
 
 // Spark is not working with openjdk:18-slim (cannot access class sun.nio.ch.DirectBuffer)

@@ -8,7 +8,7 @@ RUN apt-get install s3fs -y
 
 RUN mkdir -p "$MNT_POINT"
 
-COPY run.sh /run.sh
-RUN chmod +x /run.sh
+COPY mount-s3.sh /mount-s3.sh
+RUN chmod +x /mount-s3.sh
 
-CMD /run.sh
+CMD /mount-s3.sh
