@@ -148,12 +148,18 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
     }
   }
 
-  @POST @Path("/{id}/confirm") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @GET @Path("/{id}/confirm/{code}") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("confirm"),summary = "Confirm Email with code",
+  @Operation(tags = Array("confirm"),summary = "Confirm Email with Confirmation Code",
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[EnrollUpdateReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "Email confirmed",content = Array(new Content(schema = new Schema(implementation = classOf[Enroll])))))
   )
+  def getEnrollEmailConfirmRoute(id: String,code:String) = get {
+    onSuccess(updateEnroll(EnrollUpdateReq(id = UUID.fromString(id),command=Some("confirm"),data=Map("code"->code)))) { r => 
+      complete((StatusCodes.OK, r))
+    }
+    
+  }
   def updateEnrollEmailConfirmRoute(id: String) = post {
     entity(as[EnrollUpdateReq]) { enrollUpdate =>
       onSuccess(updateEnroll(enrollUpdate.copy(id = UUID.fromString(id),command=Some("confirm")))) { r => 
@@ -161,6 +167,7 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
       }
     }
   }
+
 
   override def routes: Route =
       concat(
@@ -180,11 +187,6 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
             getEnrollByEmailRoute(xid)
           }
         },
-        // pathPrefix("xid") {
-        //   pathPrefix(Segment) { xid => 
-        //     getEnrollByXidRoute(xid)
-        //   }
-        // },
         pathPrefix(Segment) { id => {
             pathPrefix("email") {
               pathEndOrSingleSlash {
@@ -192,8 +194,9 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
               }
             } ~
             pathPrefix("confirm") {
-              pathEndOrSingleSlash {
-                updateEnrollEmailConfirmRoute(id)
+              pathPrefix(Segment) { code => {                
+                  getEnrollEmailConfirmRoute(id,code)
+                }
               }
             } ~
             pathEndOrSingleSlash {
