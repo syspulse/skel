@@ -7,6 +7,7 @@ RUN apt-get update -qq
 RUN apt-get install s3fs -y
 
 RUN mkdir -p "$MNT_POINT"
+RUN chmod -R 777 /mnt
 
 COPY mount-s3.sh /mount-s3.sh
 RUN chmod +x /mount-s3.sh
