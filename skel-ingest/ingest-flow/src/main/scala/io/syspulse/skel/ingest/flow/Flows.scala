@@ -336,12 +336,16 @@ object Flows {
           val currentDirname = Util.extractDirWithSlash(currentFilename.get)          
           try {
             // try to create dir
-            Files.createDirectories(Path.of(currentDirname))
+            val p = Files.createDirectories(Path.of(currentDirname))
+            log.info(s"created dir: ${p}")
             val outputPath = currentFilename.get
             Some(Paths.get(outputPath))
 
           } catch {
-            case e:Exception => None
+            case e:Exception => {
+              log.error(s"Coould not create dir: ${currentDirname}",e)
+              None
+            }
           }                    
         }
       }
