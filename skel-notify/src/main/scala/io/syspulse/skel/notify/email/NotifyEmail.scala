@@ -45,6 +45,7 @@ class NotifyEmail(smtpName:String,to:String)(implicit config: Config) extends No
   val log = Logger(s"${this}")
 
   val from = config.smtpFrom
+  val timeout = config.timeout
 
   def send(title:String,msg:String):Try[String] = {
     val smtp = SMTP.get(smtpName)(config)
@@ -65,7 +66,7 @@ class NotifyEmail(smtpName:String,to:String)(implicit config: Config) extends No
     //     }
 
     try {
-      val r = Await.result(f,FiniteDuration(3000,TimeUnit.MILLISECONDS))
+      val r = Await.result(f,FiniteDuration(timeout,TimeUnit.MILLISECONDS))
       Success(s"${to}: sent")
     } catch {
       case e: TimeoutException => Failure(e)

@@ -37,6 +37,8 @@ case class Config(
   
   telegramUri:String = "tel://skel-notify/${BOT_KEY}",
 
+  timeout:Long = 10000L,
+
   cmd:String = "notify",
   params: Seq[String] = Seq(),
 )
@@ -64,6 +66,8 @@ object App extends skel.Server {
         ArgString('_', "sns.uri",s"SNS uri (def: ${d.snsUri})"),
 
         ArgString('_', "telegram.uri",s"Telegram uri (def: ${d.telegramUri})"),
+
+        ArgLong('_', "timeout",s"timeout (msec, def: ${d.timeout})"),
         
         ArgCmd("server",s"Server"),
         ArgCmd("client",s"Command"),
@@ -86,6 +90,8 @@ object App extends skel.Server {
       snsUri = c.getString("sns.uri").getOrElse(Configuration.withEnv(d.snsUri)),
 
       telegramUri = c.getString("telegram.uri").getOrElse(Configuration.withEnv(d.telegramUri)),
+
+      timeout = c.getLong("timeout").getOrElse(d.timeout),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -139,7 +145,7 @@ object App extends skel.Server {
         
         val host = if(config.host == "0.0.0.0") "localhost" else config.host
         val uri = s"http://${host}:${config.port}${config.uri}"
-        val timeout = Duration("3 seconds")
+        val timeout = Duration("10 seconds")
 
         val r = 
           config.params match {
