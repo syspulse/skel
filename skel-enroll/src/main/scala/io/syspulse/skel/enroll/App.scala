@@ -59,6 +59,7 @@ object App extends skel.Server {
         
         ArgString('_', "user.uri",s"User Service URI (def: ${d.userUri})"),
         
+        ArgCmd("init","Initialize Persistnace store (create tables)"),
         ArgCmd("server","Server"),
         ArgCmd("demo","Server with embedded UserServices + NotifyService (for testing)"),
         ArgCmd("client","Http Client"),        
@@ -97,6 +98,9 @@ object App extends skel.Server {
     val host = if(config.host=="0.0.0.0") "localhost" else config.host
   
     config.cmd match {
+      case "init" => 
+        val eid = EnrollSystem.withAutoTables()
+
       case "server" => 
         run( config.host, config.port,config.uri,c,
           Seq(
@@ -172,7 +176,7 @@ object App extends skel.Server {
           case eid :: Nil => 
             // query status of the flow
             EnrollSystem.summary(UUID(eid))            
-
+          
           case _ => 
             val eid = EnrollSystem.withAutoTables()
         }

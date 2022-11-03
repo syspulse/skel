@@ -52,7 +52,7 @@ object UserRegistry {
       case CreateUser(userCreate, replyTo) =>
         val id = userCreate.uid.getOrElse(UUID.randomUUID())
 
-        val user = User(id, userCreate.email, userCreate.name, userCreate.xid, System.currentTimeMillis())
+        val user = User(id, userCreate.email, userCreate.name, userCreate.xid, userCreate.avatar,System.currentTimeMillis())
         val store1 = store.+(user)
 
         replyTo ! Some(user)

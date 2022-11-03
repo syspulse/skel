@@ -41,7 +41,7 @@ import scala.concurrent.Await
 
 import io.syspulse.skel.enroll.flow.Enrollment
 import io.syspulse.skel.enroll.flow._
-import io.syspulse.skel.user.UserService
+//import io.syspulse.skel.user.UserService
 
 object EnrollState extends Enrollment {
   import io.syspulse.skel.enroll.flow.Enrollment._
@@ -149,22 +149,18 @@ object EnrollState extends Enrollment {
           .persist(state.addPublicKey(pk.get, sig))
           .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
 
-      case CreateUser(replyTo) =>
-        // if(state.phase != "PK_ACK") {
-        //   replyTo ! StatusReply.Error(s"${eid}: Invalid phase: ${state.phase}")
+      case CreateUser(uid,replyTo) =>
+        
+        // val user = UserService.create(state.email.get,"",state.xid.getOrElse(""))
+        // log.info(s"user=${user}")
+        
+        // if(!user.isDefined) {
+        //   replyTo ! StatusReply.Error(s"${eid}: could not create user (${state.email},${state.xid})")
         //   return Effect.none
         // } 
-        
-        val user = UserService.create(state.email.get,"",state.xid.getOrElse(""))
-        log.info(s"user=${user}")
-        
-        if(!user.isDefined) {
-          replyTo ! StatusReply.Error(s"${eid}: could not create user (${state.email},${state.xid})")
-          return Effect.none
-        } 
 
         Effect
-          .persist(state.createUser(user.get.id))
+          .persist(state.createUser(uid))
           .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
       
       case Get(replyTo) =>

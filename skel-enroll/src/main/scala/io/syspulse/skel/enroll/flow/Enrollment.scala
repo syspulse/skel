@@ -44,7 +44,8 @@ object Enrollment {
     eid:UUID, 
     phase:String = "START", 
     xid:Option[String] = None,
-    email:Option[String] = None, addr:Option[String] = None, sig:Option[Signature] = None,
+    email:Option[String] = None, name:Option[String] = None, avatar:Option[String] = None, 
+    addr:Option[String] = None, sig:Option[Signature] = None,
     tsStart:Long = 0L, tsPhase:Long = 0L, 
     finished: Boolean = false, 
     confirmToken:Option[String] = None,
@@ -52,7 +53,9 @@ object Enrollment {
 
   final case class State(eid:UUID, flow:Seq[String], phase:String = "START", 
     xid:Option[String] = None,
-    email:Option[String] = None, 
+    email:Option[String] = None,
+    name:Option[String] = None, 
+    avatar:Option[String] = None,
     pk:Option[String] = None, sig:Option[String] = None,
     uid:Option[UUID] = None,
     tsStart:Long = System.currentTimeMillis, 
@@ -68,7 +71,7 @@ object Enrollment {
     def updatePhase(phase:String): State =  copy(phase = phase, tsPhase=System.currentTimeMillis())
     def addXid(xid:String): State = copy(phase = "START_ACK", xid = Some(xid),tsPhase=System.currentTimeMillis())
     def addEmail(email:String,token:String): State = copy(phase = "EMAIL_ACK", email = Some(email),tsPhase=System.currentTimeMillis(),confirmToken=Some(token))
-    def confirmEmail(): State = copy(phase = "CONFIRM_EMAIL_ACK",tsPhase=System.currentTimeMillis(),confirmToken=None)
+    def confirmEmail(): State = copy(phase = "CONFIRM_EMAIL_ACK",tsPhase=System.currentTimeMillis())
     def addPublicKey(pk:PK,sig:SignatureEth): State = copy(phase = "PK_ACK", pk = Some(Util.hex(pk)), sig = Some(Util.hex(sig.toArray())), tsPhase=System.currentTimeMillis())
     def createUser(uid:UUID): State = copy(phase = "CREATE_USER_ACK", uid=Some(uid), tsPhase=System.currentTimeMillis())
     
@@ -76,7 +79,7 @@ object Enrollment {
 
     def addData(k: String, v:String): State = copy(data = data + (k -> v))
     
-    def toSummary: Summary = Summary(eid, phase, xid, email, pk.map(Eth.address(_)), sig, tsStart,tsPhase,finished,confirmToken,uid)
+    def toSummary: Summary = Summary(eid, phase, xid, email, name, avatar, pk.map(Eth.address(_)), sig, tsStart,tsPhase,finished,confirmToken,uid)
 
     //def toByteArray() = toString.getBytes()
   }
@@ -89,7 +92,7 @@ object Enrollment {
   final case class AddEmail(email: String, replyTo: ActorRef[StatusReply[Summary]]) extends Command
   final case class ConfirmEmail(token: String, replyTo: ActorRef[StatusReply[Summary]]) extends Command
   final case class AddPublicKey(sig:SignatureEth, replyTo: ActorRef[StatusReply[Summary]]) extends Command
-  final case class CreateUser(replyTo: ActorRef[StatusReply[Summary]]) extends Command
+  final case class CreateUser(uid:UUID,replyTo: ActorRef[StatusReply[Summary]]) extends Command
 
   final case class Continue(replyTo: ActorRef[StatusReply[Summary]]) extends Command
   final case class Finish(replyTo: ActorRef[StatusReply[Summary]]) extends Command

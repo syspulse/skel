@@ -16,7 +16,7 @@ import io.syspulse.skel.AwaitableService
 
 trait UserService extends AwaitableService[UserService] {
   def findByEmail(email:String):Future[Option[User]]
-  def create(email:String,name:String,xid:String):Future[Option[User]]
+  def create(email:String,name:String,xid:String,avatar:String):Future[Option[User]]
   def delete(id:UUID):Future[UserActionRes]
   def get(id:UUID):Future[Option[User]]
   def getByXid(xid:String):Future[Option[User]]    
@@ -40,8 +40,8 @@ object UserService {
     Await.result(service.findByEmail(email),timeout.duration)
   }
 
-  def create(email:String,name:String,xid:String)(implicit timeout:Timeout = timeout):Option[User] = {
-    Await.result(service.create(email,name,xid),timeout.duration)    
+  def create(email:String,name:String,xid:String,avatar:String="")(implicit timeout:Timeout = timeout):Option[User] = {
+    Await.result(service.create(email,name,xid,avatar),timeout.duration)    
   }
 }
 
@@ -50,8 +50,8 @@ object UserService {
 class UserServiceSim extends UserService {
   def findByEmail(email:String):Future[Option[User]] = Future.successful(None)
 
-  def create(email:String,name:String,xid:String):Future[Option[User]] = {
-    Future.successful(Some(User(UUID.random,email)))
+  def create(email:String,name:String,xid:String,avatar:String):Future[Option[User]] = {
+    Future.successful(Some(User(UUID.random,email,name,xid,avatar)))
   }
 
   def delete(id:UUID):Future[UserActionRes] = Future.successful(UserActionRes("",None))

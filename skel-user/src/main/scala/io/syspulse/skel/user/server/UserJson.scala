@@ -16,10 +16,10 @@ object UserJson extends JsonCommon {
   
   import DefaultJsonProtocol._
 
-  implicit val jf_User = jsonFormat5(User)
+  implicit val jf_User = jsonFormat6(User)
   implicit val jf_Users = jsonFormat1(Users)
   implicit val jf_UserRes = jsonFormat1(UserRes)
-  implicit val jf_CreateReq = jsonFormat4(UserCreateReq)
+  implicit val jf_CreateReq = jsonFormat5(UserCreateReq)
   implicit val jf_ActionRes = jsonFormat2(UserActionRes)
   
   implicit val jf_RadnomReq = jsonFormat0(UserRandomReq)

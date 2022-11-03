@@ -139,20 +139,16 @@ object EnrollEvent extends Enrollment {
           .persist(PublicKeyAdded(eid, pk.get, sig))
           .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
 
-      case CreateUser(replyTo) =>
-        // if(state.phase != "PK_ACK") {
-        //   replyTo ! StatusReply.Error(s"${eid}: Invalid phase: ${state.phase}")
+      case CreateUser(uid,replyTo) =>
+        
+        // val user = UserService.create(state.email.get,"",state.xid.getOrElse(""))
+        // if(!user.isDefined) {
+        //   replyTo ! StatusReply.Error(s"${eid}: could not create user (${state.email},${state.xid})")
         //   return Effect.none
         // } 
-        
-        val user = UserService.create(state.email.get,"",state.xid.getOrElse(""))
-        if(!user.isDefined) {
-          replyTo ! StatusReply.Error(s"${eid}: could not create user (${state.email},${state.xid})")
-          return Effect.none
-        } 
 
         Effect
-          .persist(UserCreated(eid,user.get.id))
+          .persist(UserCreated(eid,uid))
           .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
 
       case Finish(replyTo) =>

@@ -43,9 +43,9 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
   def reqGetUser(id:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/${id}")
   def reqGetUserByEid(xid:String) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/xid/${xid}")
   def reqGetUsers() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}")
-  def reqPostUser(email:String,name:String,xid:String) =  HttpRequest(method = HttpMethods.POST, uri = s"${uri}",
+  def reqPostUser(email:String,name:String,xid:String,avatar:String) =  HttpRequest(method = HttpMethods.POST, uri = s"${uri}",
         entity = HttpEntity(ContentTypes.`application/json`, 
-          UserCreateReq(email,name,xid).toJson.toString)
+          UserCreateReq(email,name,xid,avatar).toJson.toString)
       )
   def reqDeleteUser(id:UUID) = HttpRequest(method = HttpMethods.DELETE, uri = s"${uri}/${id}")
 
@@ -57,10 +57,10 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
     } yield r 
   }
 
-  def create(email:String,name:String,xid:String):Future[Option[User]] = {
-    log.info(s"-> ${reqPostUser(email,name,xid)}")
+  def create(email:String,name:String,xid:String,avatar:String):Future[Option[User]] = {
+    log.info(s"-> ${reqPostUser(email,name,xid,avatar)}")
     for {
-      rsp <- Http().singleRequest(reqPostUser(email,name,xid))      
+      rsp <- Http().singleRequest(reqPostUser(email,name,xid,avatar))      
       user <- if(rsp.status == StatusCodes.OK || rsp.status == StatusCodes.Created) Unmarshal(rsp).to[Option[User]] else Future(None)
     } yield user
 

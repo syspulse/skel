@@ -90,15 +90,15 @@ object App extends skel.Server {
                 .delete(UUID(id))
                 .await()
             case "create" :: data => 
-              val (email:String,name:String,eid:String) = data match {
-                case email :: name :: eid :: _ => (email,name,eid)
-                case email :: name :: Nil => (email,name,"")
-                case email :: Nil => (email,"","")
-                case Nil => ("user-1@mail.com","","")
+              val (email:String,name:String,xid:String,avatar:String) = data match {
+                case email :: name :: xid :: _ => (email,name,xid,"")
+                case email :: name :: Nil => (email,name,"","")
+                case email :: Nil => (email,"","","")
+                case Nil => ("user-1@mail.com","","","")
               }
               UserClientHttp(uri)
                 .withTimeout(timeout)
-                .create(email,name,eid)
+                .create(email,name,xid,avatar)
                 .await()
             case "get" :: id :: Nil => 
               UserClientHttp(uri)

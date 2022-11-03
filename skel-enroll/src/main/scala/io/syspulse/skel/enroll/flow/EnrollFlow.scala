@@ -104,7 +104,18 @@ object EnrollFlow {
           case Some("CONFIRM_EMAIL_ACK") => nextPhase(flow,next,summary)
 
           case Some("CREATE_USER") => 
-            (phase,Some(Enrollment.CreateUser(ctx.self)))
+            val email = summary.get.email.getOrElse("")
+            val name = summary.get.name.getOrElse("")
+            val xid = summary.get.xid.getOrElse("")
+            val avatar = summary.get.avatar.getOrElse("")
+            
+            val r = Phases.get("CREATE_USER").map( phase => phase.run(Map("email" -> email, "name" -> name, "xid" -> xid, "avatar" -> avatar)))
+            
+            r.get match {
+              case Success(uid) => (phase,Some(Enrollment.CreateUser(UUID(uid),ctx.self)))
+              case Failure(f) => (phase,None)
+            }
+            
 
           case Some("CREATE_USER_ACK") => nextPhase(flow ,next,summary)
 
