@@ -19,9 +19,13 @@ import io.syspulse.skel.store.{Store,StoreDB}
 
 import io.syspulse.skel.user.User
 
-class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB[User,UUID](dbConfigRef,"user",Some(configuration)) with UserStore {
+// Postgres does not support table name 'user' !
+class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB[User,UUID](dbConfigRef,"users",Some(configuration)) with UserStore {
 
   import ctx._
+  
+  // Because of Postgres, using dynamic schema to override table name to 'users' 
+  val table = dynamicQuerySchema[User](tableName)
 
   def create:Try[Long] = {
     ctx.executeAction(
@@ -30,6 +34,7 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreD
       email VARCHAR(255), 
       name VARCHAR(255),
       xid VARCHAR(255),
+      avatar VARCHAR(255),
       ts_created BIGINT
     );
     """
@@ -38,7 +43,7 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreD
     // why do we still use MySQL which does not even support INDEX IF NOT EXISTS ?...
     //val r = ctx.executeAction("CREATE INDEX IF NOT EXISTS user_name ON user (name);")
     try {
-      val r = ctx.executeAction("CREATE INDEX user_name ON user (name);")
+      val r = ctx.executeAction(s"CREATE INDEX user_name ON ${tableName} (name);")
       Success(r)
     } catch {
       case e:Exception => { 
@@ -47,17 +52,21 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreD
       }
     }
   }
-  
-  def all:Seq[User] = ctx.run(query[User])
 
-  val deleteById = quote { (id:UUID) => 
-    query[User].filter(o => o.id == id).delete
-  } 
+
+  //def all:Seq[User] = ctx.run(query[User])
+  def all:Seq[User] = ctx.run(table)
+
+  // val deleteById = quote { (id:UUID) => 
+  //   query[User].filter(o => o.id == id).delete    
+  // } 
+  val deleteById = (id:UUID) => table.filter(_.id == lift(id)).delete
 
   def +(user:User):Try[UserStoreDB] = { 
     log.info(s"insert: ${user}")
     try {
-      ctx.run(query[User].insert(lift(user))); 
+      //ctx.run(query[User].insert(lift(user)));
+      ctx.run(table.insertValue(user));
       Success(this)
     } catch {
       case e:Exception => Failure(new Exception(s"could not insert: ${e}"))
@@ -67,7 +76,8 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreD
   def del(id:UUID):Try[UserStoreDB] = { 
     log.info(s"delete: id=${id}")
     try {
-      ctx.run(deleteById(lift(id)))
+      //ctx.run(deleteById(lift(id)))
+      ctx.run(deleteById(id))
       Success(this)
     } catch {
       case e:Exception => Failure(new Exception(s"could not delete: ${e}"))
@@ -78,7 +88,8 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreD
 
   def ?(id:UUID):Option[User] = {
     log.info(s"select: id=${id}")
-    ctx.run(query[User].filter(o => o.id == lift(id))) match {
+    //ctx.run(query[User].filter(o => o.id == lift(id))) match {
+    ctx.run(table.filter(o => o.id == lift(id))) match {      
       case h :: _ => Some(h)
       case Nil => None
     }
@@ -86,7 +97,8 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreD
 
   def findByXid(xid:String):Option[User] = {
     log.info(s"find: xid=${xid}")
-    ctx.run(query[User].filter(o => o.xid == lift(xid))) match {
+    //ctx.run(query[User].filter(o => o.xid == lift(xid))) match {
+    ctx.run(table.filter(o => o.xid == lift(xid))) match {
       case h :: _ => Some(h)
       case Nil => None
     }
