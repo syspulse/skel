@@ -42,7 +42,7 @@ class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB
     // why do we still use MySQL which does not even support INDEX IF NOT EXISTS ?...
     //val r = ctx.executeAction("CREATE INDEX IF NOT EXISTS otp_name ON otp (name);")
     try {
-      val r = ctx.executeAction("CREATE INDEX otp_name ON otp (name);")
+      val r = ctx.executeAction(s"CREATE INDEX otp_name ON ${tableName} (name);")
       Success(r)
     } catch {
       case e:Exception => { 

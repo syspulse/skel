@@ -27,7 +27,9 @@ object Phases {
   var phases:Map[String,Phase] = Map(
     //"EMAIL_ACK" -> new PhaseSNSSend() // only for testing
     "EMAIL_ACK" -> new PhaseEmailSend(),
-    "CREATE_USER" -> new PhaseUserCreate()
+    "CREATE_USER" -> new PhaseUserCreate(),
+
+    "FINISH_ACK" -> new PhaseFinish()
   )
   
   def get(name:String) = phases.get(name)

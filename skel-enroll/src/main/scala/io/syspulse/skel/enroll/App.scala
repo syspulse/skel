@@ -36,6 +36,14 @@ case class Config(
   userUri:String = "http://localhost:8080/api/v1/user",
   notifyUri:String = "http://localhost:8080/api/v1/notify",
 
+  notifyEmail:String = "admin@syspulse.io",
+
+  // only for testing/demo
+  smtpUri:String = "smtp://${SMTP_HOST}/${SMTP_USER}@${SMTP_PASS}",
+  smtpFrom:String = "admin@domain.org",
+  snsUri:String = "sns://arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT}:notify-topic",
+  telegramUri:String = "tel://skel-notify/${BOT_KEY}",
+
   cmd:String = "command",
   params: Seq[String] = Seq(),
 )
@@ -58,6 +66,9 @@ object App extends skel.Server {
         ArgString('d', "datastore",s"datastore (mem,akka) (def: ${d.datastore})"),
         
         ArgString('_', "user.uri",s"User Service URI (def: ${d.userUri})"),
+        ArgString('_', "notify.uri",s"Notify Service URI (def: ${d.notifyUri})"),
+
+        ArgString('_', "notify.email",s"Notification email for Enroll events (def: ${d.notifyEmail})"),
         
         ArgCmd("init","Initialize Persistnace store (create tables)"),
         ArgCmd("server","Server"),
@@ -77,6 +88,8 @@ object App extends skel.Server {
 
       userUri = c.getString("user.uri").getOrElse(d.userUri),
       notifyUri = c.getString("notify.uri").getOrElse(d.notifyUri),
+
+      notifyEmail = c.getString("notify.email").getOrElse(d.notifyEmail),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -120,8 +133,13 @@ object App extends skel.Server {
         Console.err.println(s"${Console.YELLOW}Running with EnrollService(mem):${Console.RESET} http://${host}:${config.port}${uri}/enroll")
         Console.err.println(s"${Console.YELLOW}Running with UserService(mem):${Console.RESET} http://${host}:${config.port}${uri}/user")
         Console.err.println(s"${Console.YELLOW}Running with NotifyService(mem):${Console.RESET} http://${host}:${config.port}${uri}/notify")
-        
-        implicit val notifyConfig = io.syspulse.skel.notify.Config()
+                
+        implicit val notifyConfig = io.syspulse.skel.notify.Config(
+          smtpUri = c.getString("smtp.uri").getOrElse(Configuration.withEnv(d.smtpUri)),
+          smtpFrom = c.getString("smtp.from").getOrElse(d.smtpFrom),
+          snsUri = c.getString("sns.uri").getOrElse(Configuration.withEnv(d.snsUri)),
+          telegramUri = c.getString("telegram.uri").getOrElse(Configuration.withEnv(d.telegramUri)),
+        )
 
         run( config.host, config.port, uri, c,
           Seq(

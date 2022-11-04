@@ -30,7 +30,7 @@ case class Config(
   uri:String = "/api/v1/notify",
   datastore:String = "all",
 
-  smtpUri:String = "smtp://smtp.gmail.com:587/user@pass",
+  smtpUri:String = "smtp://${SMTP_HOST}/${SMTP_USER}@${SMTP_PASS}",
   smtpFrom:String = "admin@domain.org",
 
   snsUri:String = "sns://arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT}:notify-topic",

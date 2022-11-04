@@ -115,11 +115,11 @@ object EnrollState extends Enrollment {
           replyTo ! StatusReply.Error(s"${eid}: Invalid email: '$email'")
           return Effect.none
         } 
-        val token = Math.abs(Random.nextLong(100000000)).toString
-        log.info(s"${eid}: Confirmation email(${email}) token =  ${token})")
+        val confirmToken = Util.generateRandomToken() //Math.abs(Random.nextLong(100000000)).toString
+        log.info(s"${eid}: Confirmation email(${email}) token =  ${confirmToken})")
 
         Effect
-          .persist(state.addEmail(email,token))
+          .persist(state.addEmail(email,confirmToken))
           .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
         
       case ConfirmEmail(token, replyTo) =>

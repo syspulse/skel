@@ -114,8 +114,7 @@ object EnrollFlow {
             r.get match {
               case Success(uid) => (phase,Some(Enrollment.CreateUser(UUID(uid),ctx.self)))
               case Failure(f) => (phase,None)
-            }
-            
+            }            
 
           case Some("CREATE_USER_ACK") => nextPhase(flow ,next,summary)
 
@@ -123,8 +122,19 @@ object EnrollFlow {
             log.info(s"Finishing: ${summary.get.eid}")
             (phase,Some(Enrollment.Finish(ctx.self)))
             
-          case Some("") | Some("FINISH_ACK") =>
+          case Some("FINISH_ACK") =>
             log.info(s"Finished: ${summary.get.eid}")
+
+            val uid = summary.get.uid.getOrElse("")
+            val email = summary.get.email.getOrElse("")
+            val name = summary.get.name.getOrElse("")
+            
+            Phases.get("FINISH_ACK").map( phase => phase.run(Map("uid" -> uid, "email" -> email, "name"->name)))
+            
+            (phase,None)
+
+          case Some("") =>
+            log.info(s"Finished: ${summary.get.eid}")                  
             (phase,None)
 
           case Some(s) => log.error(s"flow='${flow}' : found=${s} : phase not supported: ${phase}"); ("",None)
