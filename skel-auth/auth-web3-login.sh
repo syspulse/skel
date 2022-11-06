@@ -10,9 +10,11 @@ else
 fi
 
 REDIRECT_URI=${REDIRECT_URI:-http://localhost:8080/api/v1/auth/eth/callback}
-SERVICE_USER=${SERVICE_USER:-http://localhost:8080/api/v1/user}
-#SERVICE_USER=${SERVICE_USER:-http://localhost:8081/api/v1/user}
-#SERVICE_USER=${SERVICE_USER:-http://localhost:8080/api/v1/auth/user}
+#USER_URI=${USER_URI:-http://localhost:8080/api/v1/user}
+#USER_URI=${USER_URI:-http://localhost:8080/api/v1/auth/user}
+
+USER_URI=${USER_URI:-http://localhost:8081/api/v1/user}
+ENROLL_URI=${ENROLL_URI:-http://localhost:8083/api/v1/enroll}
 
 OUTPUT=`./auth-web3-metamask.js $SK`
 ADDR=`echo $OUTPUT | awk '{print $1}'`
@@ -20,15 +22,6 @@ SIG=`echo $OUTPUT | awk '{print $2}'`
 
 echo "addr: ${ADDR}"
 echo "sig: ${SIG}"
-
-# add user
-uid=`SERVICE_URI=$SERVICE_USER ../skel-user/user-find.sh $ADDR | jq -r .id 2>/dev/null`
-echo "uid=$uid"
-if [ "$uid" == "" ]; then
-   TOKEN_ADMIN=`cat ACCESS_TOKEN_ADMIN`
-   user=`SERVICE_URI=$SERVICE_USER TOKEN=$TOKEN_ADMIN ../skel-user/user-create.sh user-1@mail.com user-1 $ADDR`
-   echo $user
-fi
 
 LOCATION=`curl -i -s "http://localhost:8080/api/v1/auth/eth/auth?sig=${SIG}&addr=${ADDR}&response_type=code&client_id=UNKNOWN&scope=profile&state=state&redirect_uri=${REDIRECT_URI}" | grep Location`
 echo "LOCATION: $LOCATION"
@@ -47,5 +40,22 @@ TOKEN=`cat AUTH_RSP.json | jq -r .accesToken`
 echo "TOKEN=$TOKEN"
 echo $TOKEN >ACCESS_TOKEN
 
-../skel-user/user-get.sh 00000000-0000-0000-1000-000000000001
-echo
+xid=`cat AUTH_RSP.json | jq -r .xid`
+uid=`cat AUTH_RSP.json | jq -r .uid`
+
+echo "xid: $xid"
+echo "uid: $uid"
+
+if [ "$uid" == "null" ]; then
+   echo "User does not exist -> Enrolling to ${ENROLL_URI}"
+
+   R=`SERVICE_URI=$ENROLL_URI ../skel-enroll/enroll-start.sh ${xid:0:8}@domain.eth ${xid:0:4} ${xid}`
+   eid=`echo $R | jq -r .id`
+   echo "Enroll: R=${R}: eid=${eid}"
+   
+   R=`SERVICE_URI=$ENROLL_URI ../skel-enroll/enroll-email.sh ${eid} andriyk@gmail.com`
+   echo "Enroll: R=${R}"
+
+else
+   echo "User: $uid"
+fi

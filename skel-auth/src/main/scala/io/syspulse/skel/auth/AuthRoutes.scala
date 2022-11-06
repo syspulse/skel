@@ -174,32 +174,44 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
       user <- {
         UserClientHttp(serviceUserUri).withTimeout().getByXidAlways(profile.id)
       }
-      authRes <- {        
-        val auth = Auth(idpTokens.accessToken, idpTokens.idToken, user.map(_.id), scope, idpTokens.expiresIn)
-        
-        if(auth.idToken != "") {
-          val jwt = AuthJwt.decodeIdToken(auth)
-          val claims = AuthJwt.decodeIdClaim(auth)
-          // verify just for logging
-          val verified = idp.verify(idpTokens.idToken)
-          log.info(s"code=${code}: profile=${profile}: auth=${auth}: idToken: jwt=${jwt.get.content}: claims=${claims}: verified=${verified}")
-        } else {
-          log.info(s"code=${code}: profile=${profile}: auth=${auth}")
-        }
-
+      auth <- {        
+        Future(Auth(idpTokens.accessToken, idpTokens.idToken, user.map(_.id), scope, idpTokens.expiresIn))        
+      }
+      authRes <- {
         // save Auth Session 
         createAuth(auth)
       }
       authProfileRes <- {
+        
+        val (profileEmail,profileName,profilePicture,profileLocale) = 
+          if(auth.idToken != "") {
+            val idJwt = AuthJwt.decodeIdToken(auth)
+            val idClaims = AuthJwt.decodeIdClaim(auth)
+            // verify just for logging
+            val verified = idp.verify(idpTokens.idToken)
+            log.info(s"code=${code}: profile=${profile}: auth=${auth}: idToken: jwt=${idJwt.get.content}: claims=${idClaims}: verified=${verified}")
+
+            (
+                if(profile.email.trim.isEmpty()) idClaims.get("email").getOrElse("") else profile.email,
+                if(profile.name.trim.isEmpty()) idClaims.get("name").getOrElse("") else profile.name,
+                if(profile.picture.trim.isEmpty()) idClaims.get("avatar").getOrElse("") else profile.picture,
+                if(profile.locale.trim.isEmpty()) idClaims.get("locale").getOrElse("") else profile.locale,                
+            )
+          } else {
+            log.info(s"code=${code}: profile=${profile}: auth=${auth}")
+            
+            (profile.email, profile.name, profile.picture, profile.locale)
+          }
+
         Future(AuthWithProfileRes(
           authRes.auth.accessToken,
           authRes.auth.idToken,
           authRes.auth.uid,
           profile.id,
-          profile.email, 
-          profile.name, 
-          profile.picture, 
-          profile.locale))
+          profileEmail, 
+          profileName, 
+          profilePicture, 
+          profileLocale))
       }
     } yield authProfileRes
     
@@ -388,7 +400,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
               } else {
 
                 // request uid from UserService
-                onSuccess(UserClientHttp(serviceUserUri).withTimeout().getByXidAlways(rsp.code.get.eid.get)) { user => 
+                onSuccess(UserClientHttp(serviceUserUri).withTimeout().getByXidAlways(rsp.code.get.xid.get)) { user => 
                 
                   if(! user.isDefined ) {
                 
@@ -408,8 +420,11 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                   } else  {
 
                     val uid = user.get.id
+                    val email = user.get.email
+                    val name = user.get.name
+                    val avatar = user.get.avatar
 
-                    val idToken = AuthJwt.generateIdToken(rsp.code.get.eid.getOrElse("")) 
+                    val idToken = AuthJwt.generateIdToken(rsp.code.get.xid.getOrElse(""),Map("email"->email,"name"->name,"avatar"->avatar)) 
                     val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
                     log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}")
 
@@ -455,9 +470,9 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
                   // extract uid from AccessToken
                   val uid = AuthJwt.getClaim(access_token,"uid")
-                  val eid = rsp.code.get.eid.get
+                  val xid = rsp.code.get.xid.get
                   complete(StatusCodes.OK,
-                    EthProfile( rsp.code.get.eid.get, eid , "profile.email", "profile.avatar", LocalDateTime.now().toString)
+                    EthProfile( rsp.code.get.xid.get, "","", "", LocalDateTime.now().toString)
                   )                      
                 }             
               }

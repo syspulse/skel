@@ -63,9 +63,11 @@ object AuthJwt {
     }
   }
 
-  def generateIdToken(id:String, expire:Long = 3600L, algo:JwtAlgorithm=JwtAlgorithm.HS512):String = {
+  def generateIdToken(id:String, attr:Map[String,String] = Map(), expire:Long = 3600L, algo:JwtAlgorithm=JwtAlgorithm.HS512):String = {
+    val claim = (attr + ("id" -> id)).map{case (k,v) => s""""${k}":"${v}""""}.mkString(",")
     Jwt
-      .encode(JwtClaim({s"""{"id":"${id}"}"""})
+      .encode(JwtClaim(s"{${claim}}")
+      //.encode(JwtClaim({s"""{"id":"${id}"}"""})
       .issuedNow.expiresIn(expire), secret, algo)
   }
 

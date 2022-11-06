@@ -42,4 +42,4 @@ echo "TOKEN=$TOKEN"
 echo $TOKEN >ACCESS_TOKEN
 
 echo
-echo "uid is missing from response, start enrollment"
+echo "User(uid) is missing from response, start Enrollment"

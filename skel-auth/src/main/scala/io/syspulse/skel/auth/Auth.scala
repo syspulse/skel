@@ -10,7 +10,7 @@ final case class AuthRes(auth: Option[Auth])
 final case class AuthCreateRes(auth: Auth)
 final case class AuthActionRes(status: String,code:Option[String])
 
-final case class AuthWithProfileRes(accesToken:String, idToken:String, uid: Option[UUID], eid:String, email:String, name:String, avatar:String, locale:String)
+final case class AuthWithProfileRes(accesToken:String, idToken:String, uid: Option[UUID], xid:String, email:String, name:String, avatar:String, locale:String)
 
 // object Auth {
 //   val DEF_AGE = 60 * 60 // seconds

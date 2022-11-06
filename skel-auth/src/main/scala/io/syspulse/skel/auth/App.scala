@@ -15,24 +15,24 @@ import scopt.OParser
 import scala.util.Success
 
 case class Config(
-  host:String="",
-  port:Int=0,
-  uri:String = "",
-  datastore:String = "",
+  host:String="0.0.0.0",
+  port:Int=8080,
+  uri:String = "/api/v1/auth",
+  datastore:String = "mem",
 
-  proxyBasicUser:String = "",
-  proxyBasicPass:String = "",
+  proxyBasicUser:String = "user1",
+  proxyBasicPass:String = "pass1",
   proxyBasicRealm:String = "realm",
-  proxyUri:String = "",
-  proxyBody:String = "",
-  proxyHeadersMapping:String = "",
+  proxyUri:String = "http://localhost:8080/api/v1/auth/m2m",
+  proxyBody:String = """{ "username":{{user}}, "password":{{pass}}""",
+  proxyHeadersMapping:String = "HEADER:Content-type:application/json, HEADER:X-App-Id:{{client_id}}, HEADER:X-App-Secret:{{client_secret}}, BODY:X-User:{{user}}, BODY:X-Pass:{{pass}}",
 
   jwtSecret:String = "",
 
-  serviceUserUri:String = "",
+  userUri:String = "http://localhost:8080/api/v1/user",
 
-  permissionsModel:String = "",
-  permissionsPolicy:String = "",
+  permissionsModel:String = "conf/permissions-model-rbac.conf",
+  permissionsPolicy:String = "conf/permissions-policy-rbac.csv",
 
   cmd:String = "",
   params: Seq[String] = Seq(),
@@ -43,57 +43,57 @@ object App extends skel.Server {
   def main(args:Array[String]):Unit = {
     println(s"args: '${args.mkString(",")}'")
 
+    val d = Config()
     val c = Configuration.withPriority(Seq(
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv, 
       new ConfigurationArgs(args,"skel-auth","",
-        ArgString('h', "http.host","listen host (def: 0.0.0.0)"),
-        ArgInt('p', "http.port","listern port (def: 8080)"),
-        ArgString('u', "http.uri","api uri (def: /api/v1/auth)"),
-        ArgString('d', "datastore","datastore [mysql,postgres,mem,cache] (def: mem)"),
+        ArgString('h', "http.host",s"listen host (def: ${d.host})"),
+        ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
+        ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
+        ArgString('d', "datastore",s"datastore [mysql,postgres,mem,cache] (def: ${d.datastore})"),
         
-        ArgString('_',"proxy.basic.user","Auth Basic Auth username (def: user1"),
-        ArgString('_',"proxy.basic.pass","ProxyM2M Auth Basic Auth password (def: pass1"),
-        ArgString('_',"proxy.uri","ProxyM2M Auth server endpoint (def: http://localhost:8080/api/v1/auth/m2m"),
-        ArgString('_',"proxy.body","ProxyM2M Body mapping (def:) "),
-        ArgString('_',"proxy.headers.mapping","ProxyM2M Headers mapping (def:) "),
+        ArgString('_',"proxy.basic.user",s"Auth Basic Auth username (def: ${d.proxyBasicUser})"),
+        ArgString('_',"proxy.basic.pass",s"ProxyM2M Auth Basic Auth password (def: ${d.proxyBasicPass}"),
+        ArgString('_',"proxy.uri",s"ProxyM2M Auth server endpoint (def: ${d.proxyUri}"),
+        ArgString('_',"proxy.body",s"ProxyM2M Body mapping (def: ${d.proxyBody}) "),
+        ArgString('_',"proxy.headers.mapping",s"ProxyM2M Headers mapping (def: ${d.proxyHeadersMapping}) "),
 
-        ArgString('_', "jwt.secret","JWT secret"),
+        ArgString('_', "jwt.secret",s"JWT secret (def: ${d.jwtSecret})"),
 
-        ArgString('_', "service.user.uri","User Service URI (def: http://localhost:8080/api/v1/user)"),
+        ArgString('_', "user.uri",s"User Service URI (def: ${d.userUri})"),
 
-        ArgString('_', "permissions.model","RBAC model file (def: permissions-model-rbac.conf"),
-        ArgString('_', "permissions.policy","User Roles (def: permissions-policy-rbac.csv"),
+        ArgString('_', "permissions.model",s"RBAC model file (def: ${d.permissionsModel}"),
+        ArgString('_', "permissions.policy",s"User Roles (def: ${d.permissionsPolicy}"),
 
-        ArgCmd("server","Server"),
-        ArgCmd("server-with-user","Server with embedded UserServices (for testing)"),
-        ArgCmd("client","Http Client"),
-        ArgCmd("jwt","JWT utils (encode/decode)"),
+        ArgCmd("server",s"Server"),
+        ArgCmd("demo",s"Server with embedded UserServices (for testing)"),
+        ArgCmd("client",s"Http Client"),
+        ArgCmd("jwt",s"JWT utils (encode/decode)"),
         ArgParam("<params>","")
       ).withExit(1)
     ))
 
     val config = Config(
-      host = c.getString("http.host").getOrElse("0.0.0.0"),
-      port = c.getInt("http.port").getOrElse(8080),
-      uri = c.getString("http.uri").getOrElse("/api/v1/auth"),
-      datastore = c.getString("datastore").getOrElse("mem"),
+      host = c.getString("http.host").getOrElse(d.host),
+      port = c.getInt("http.port").getOrElse(d.port),
+      uri = c.getString("http.uri").getOrElse(d.uri),
+      datastore = c.getString("datastore").getOrElse(d.datastore),
 
-      proxyBasicUser = c.getString("proxy.basic.user").getOrElse("user1"),
-      proxyBasicPass = c.getString("proxy.basic.pass").getOrElse("pass1"),
+      proxyBasicUser = c.getString("proxy.basic.user").getOrElse(d.proxyBasicUser),
+      proxyBasicPass = c.getString("proxy.basic.pass").getOrElse(d.proxyBasicPass),
 
-      proxyUri = c.getString("proxy.uri").getOrElse("http://localhost:8080/api/v1/auth/m2m"),
-      proxyBody = c.getString("proxy.body").getOrElse("""{ "username":{{user}}, "password":{{pass}}"""),
-      proxyHeadersMapping = c.getString("proxy.headers.mapping")
-                    .getOrElse("HEADER:Content-type:application/json, HEADER:X-App-Id:{{client_id}}, HEADER:X-App-Secret:{{client_secret}}, BODY:X-User:{{user}}, BODY:X-Pass:{{pass}}"),
+      proxyUri = c.getString("proxy.uri").getOrElse(d.proxyUri),
+      proxyBody = c.getString("proxy.body").getOrElse(d.proxyBody),
+      proxyHeadersMapping = c.getString("proxy.headers.mapping").getOrElse(d.proxyHeadersMapping),
 
       jwtSecret = c.getString("jwt.secret").getOrElse(Util.generateRandomToken()),
 
-      serviceUserUri = c.getString("service.user.uri").getOrElse("http://localhost:8080/api/v1/user"),
+      userUri = c.getString("user.uri").getOrElse(d.userUri),
 
-      permissionsModel = c.getString("permissions.model").getOrElse("conf/permissions-model-rbac.conf"),
-      permissionsPolicy = c.getString("permissions.policy").getOrElse("conf/permissions-policy-rbac.csv"),
+      permissionsModel = c.getString("permissions.model").getOrElse(d.permissionsModel),
+      permissionsPolicy = c.getString("permissions.policy").getOrElse(d.permissionsPolicy),
 
       cmd = c.getCmd().getOrElse("server"),
       params = c.getParams(),
@@ -121,14 +121,13 @@ object App extends skel.Server {
             (AuthRegistry(store),"AuthRegistry",(actor, context) => {
                 new AuthRoutes(actor,
                   s"http://${authHost}:${config.port}${config.uri}",
-                  s"http://${authHost}:${config.port}${config.uri}/callback",
-                  config.serviceUserUri)(context, config) 
+                  s"http://${authHost}:${config.port}${config.uri}/callback", config.userUri)(context, config) 
               }
             )
             
           )
         )
-      case "server-with-user" =>
+      case "demo" =>
         val uri = Util.getParentUri(config.uri)
         println(s"${Console.YELLOW}Running with AuthService(mem):${Console.RESET} http://${authHost}:${config.port}${uri}/auth")
         println(s"${Console.YELLOW}Running with UserService(mem):${Console.RESET} http://${authHost}:${config.port}${uri}/user")

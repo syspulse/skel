@@ -103,7 +103,7 @@ summary: 9c4312dc-285b-4fec-a99b-0e12289a1d5e: Some(Summary(9c4312dc-285b-4fec-a
 2. Run actions via `API`
 
 ```
-./enroll-create.sh
+./enroll-start.sh
 ./enroll-get.sh [eid]
 ```
 

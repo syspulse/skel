@@ -29,7 +29,7 @@ class CodeStoreMem extends CodeStore {
   def !(code:Code):Try[CodeStore] = { 
     val old = codes.getOrElse(code.authCode,code)
     // update onl with userId
-    codes = codes + (code.authCode -> code.copy(eid = old.eid)); 
+    codes = codes + (code.authCode -> code.copy(xid = old.xid)); 
     Success(this)
   }
   
