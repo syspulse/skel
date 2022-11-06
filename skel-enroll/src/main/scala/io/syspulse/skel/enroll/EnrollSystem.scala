@@ -39,25 +39,31 @@ import akka.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import akka.Done
 import scala.concurrent.ExecutionContext
 
-class EnrollActorSystem(name:String = "EnrollSystem",enrollType:String = "state", config:Option[String] = None) {
+class EnrollActorSystem(name:String = "EnrollSystem",enrollType:String = "state", actorConfig:Option[String] = None)(implicit config:Config) {
   val log = Logger(s"${this}")
   
-  val system: ActorSystem[Command] = if(config.isDefined) 
-    ActorSystem(EnrollFlow(), name, ConfigFactory.parseString(config.get)) 
+  val system: ActorSystem[Command] = if(actorConfig.isDefined) 
+    ActorSystem(EnrollFlow(config), name, ConfigFactory.parseString(actorConfig.get)) 
   else 
-    ActorSystem(EnrollFlow(), name)
+    ActorSystem(EnrollFlow(config), name)
 
   implicit val sched = system.scheduler
   implicit val timeout = Timeout(3.seconds)
   implicit val ec:ExecutionContext = system.executionContext
 
+  // var config:Option[Config] = None
+  // def withConfig(config:Config):EnrollActorSystem = {
+  //   this.config = Some(config)
+  //   this
+  // }
+  
   def withAutoTables():EnrollActorSystem = {
     val done: Future[Done] = SchemaUtils.createIfNotExists("jdbc-durable-state-store")(system)
     val r = Await.result(done,timeout.duration)
     log.info(s"Auto-Tables: ${r}")
     this
   }
-  
+
   def start(flow:String,xid:Option[String] = None):UUID = {
     val eid = UUID.random
     system ! EnrollFlow.StartFlow(eid,enrollType,flow,xid,system.ignoreRef)
@@ -112,7 +118,5 @@ class EnrollActorSystem(name:String = "EnrollSystem",enrollType:String = "state"
   }  
 }
 
-object EnrollSystem extends EnrollActorSystem() {
-
-}
-
+//object EnrollSystem extends EnrollActorSystem()
+class EnrollSystem()(implicit config:Config)  extends EnrollActorSystem

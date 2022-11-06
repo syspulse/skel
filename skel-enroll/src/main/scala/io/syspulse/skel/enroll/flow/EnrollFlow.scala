@@ -36,6 +36,7 @@ import scala.util.Success
 
 import io.syspulse.skel.enroll.flow._
 import io.syspulse.skel.enroll.flow.phase._
+import io.syspulse.skel.enroll.Config
 
 object EnrollFlow {
   val log = Logger(s"${this}")
@@ -49,11 +50,12 @@ object EnrollFlow {
   final case class AddEmail(eid:UUID,email:String) extends Command
   final case class GetSummary(eid:UUID,enrollType:String,replyTo:ActorRef[Option[Enrollment.Summary]]) extends Command
 
-  def apply(): Behavior[Command] = Behaviors.setup(context => new EnrollFlow(context))
+  def apply(config:Config): Behavior[Command] = Behaviors.setup(context => new EnrollFlow(context,config))
 
-  class EnrollFlow(context: ActorContext[Command]) extends AbstractBehavior[Command](context) {  
+  class EnrollFlow(context: ActorContext[Command],config:Config) extends AbstractBehavior[Command](context) {  
     var enrolls: Map[UUID,ActorRef[Command]] = Map()
     var listeners: Map[UUID,ActorRef[StatusReply[Enrollment.Summary]]] = Map()
+    val phases:Phases = new Phases(config)
 
     log.info(s"EnrollFlow started")
 
@@ -75,8 +77,8 @@ object EnrollFlow {
       val eid = eidStart
 
       def nextPhase(flow:String, phase:String, summary: Option[Enrollment.Summary]=None):(String,Option[Command]) = {
-        val phases = flow.split(",").map(_.toUpperCase())
-        val next = phases.dropWhile(_ != phase).drop(1).headOption.getOrElse("")
+        val flowPhases = flow.split(",").map(_.toUpperCase())
+        val next = flowPhases.dropWhile(_ != phase).drop(1).headOption.getOrElse("")
         
         log.info(s"phase=${phase}, next=${next}")
         Option(phase) match {
@@ -92,7 +94,7 @@ object EnrollFlow {
             val email = summary.get.email.getOrElse("")
             val code = summary.get.confirmToken.getOrElse("")
             log.info(s"Sending email -> user (email=${email})")
-            Phases.get("EMAIL_ACK").map( phase => phase.run(Map("email" -> email, "code" -> code)))
+            phases.get("EMAIL_ACK").map( phase => phase.run(Map("eid" -> eid , "email" -> email, "code" -> code)))
             
             nextPhase(flow,next,summary)
             
@@ -109,7 +111,7 @@ object EnrollFlow {
             val xid = summary.get.xid.getOrElse("")
             val avatar = summary.get.avatar.getOrElse("")
             
-            val r = Phases.get("CREATE_USER").map( phase => phase.run(Map("email" -> email, "name" -> name, "xid" -> xid, "avatar" -> avatar)))
+            val r = phases.get("CREATE_USER").map( phase => phase.run(Map("email" -> email, "name" -> name, "xid" -> xid, "avatar" -> avatar)))
             
             r.get match {
               case Success(uid) => (phase,Some(Enrollment.CreateUser(UUID(uid),ctx.self)))
@@ -129,7 +131,7 @@ object EnrollFlow {
             val email = summary.get.email.getOrElse("")
             val name = summary.get.name.getOrElse("")
             
-            Phases.get("FINISH_ACK").map( phase => phase.run(Map("uid" -> uid, "email" -> email, "name"->name)))
+            phases.get("FINISH_ACK").map( phase => phase.run(Map("uid" -> uid, "email" -> email, "name"->name)))
             
             (phase,None)
 

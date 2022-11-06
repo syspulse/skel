@@ -28,8 +28,14 @@ import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
 
-class PhaseEmailSend() extends Phase {
+import io.syspulse.skel.enroll.Config
+
+class PhaseEmailSend(config:Config) extends Phase {
   import io.syspulse.skel.FutureAwaitable._
+
+  def emailTemplate(eid:UUID,code:String)=s"""Confirm your email with code:
+    ${config.confirmUri}${config.uri}/${eid}/confirm/${code}
+  """
 
   def send(to:String,subj:String,msg:String) = {
     val toUri = s"email://${to}"
@@ -46,19 +52,16 @@ class PhaseEmailSend() extends Phase {
   }
 
   def run(data:Map[String,Any]):Try[String] = {
+    val eid = data.get("eid").get.asInstanceOf[UUID]
     val to = data.get("email")
-    val code = data.get("code")
+    val code = data.get("code").getOrElse("").toString
     to match {
       case Some(to) => 
-        send(to.toString,"Confirm your Sign-up",s"Confirm your email with code: ${code}") match {
+        send(to.toString,"Confirm your Sign-up",emailTemplate(eid,code)) match {
           case Some(n) => Success(n.toString)
           case None => Failure(new Exception(s"failed to send email: ${data}"))
         }
       case None => Failure(new Exception(s"attribute not found: 'email'"))
     }    
   }
-}
-
-object PhaseEmailSend {
-  def apply():PhaseEmailSend = new PhaseEmailSend()
 }

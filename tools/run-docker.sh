@@ -31,4 +31,10 @@ echo "OPT: $OPT"
 #       -d|-debug) debug=1 && shift ;;
 #     -no-version-check) no_version_check=1 && shift ;;
 
-docker run --rm --name $APP -p 8080:8080 -v `pwd`/conf:/app/conf -v $DATA_DIR:/data -e JAVA_OPTS=$OPT $DOCKER $@
+docker run --rm --name $APP -p 8080:8080 -v `pwd`/conf:/app/conf -v $DATA_DIR:/data \
+   -e JAVA_OPTS=$OPT \
+   -e SMTP_HOST=$SMTP_HOST \
+   -e SMTP_USER=$SMTP_USER \
+   -e SMTP_PASS=$SMTP_PASS \
+   -e SMTP_FROM=$SMTP_FROM \
+   $DOCKER $@

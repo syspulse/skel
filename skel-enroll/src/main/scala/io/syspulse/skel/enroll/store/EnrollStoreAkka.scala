@@ -19,9 +19,10 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.enroll._
 
-class EnrollStoreAkka(implicit val ec:ExecutionContext) extends EnrollStore {
+class EnrollStoreAkka(implicit val ec:ExecutionContext,config:Config) extends EnrollStore {
   val log = Logger(s"${this}")
   
+  val EnrollSystem = new EnrollSystem()(config)
   def all:Seq[Enroll] = Seq()
 
   def size:Long = 0L

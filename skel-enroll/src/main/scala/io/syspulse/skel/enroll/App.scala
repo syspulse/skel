@@ -37,6 +37,8 @@ case class Config(
   notifyUri:String = "http://localhost:8080/api/v1/notify",
 
   notifyEmail:String = "admin@syspulse.io",
+  
+  confirmUri:String = "http://localhost:8080",
 
   // only for testing/demo
   smtpUri:String = "smtp://${SMTP_HOST}/${SMTP_USER}@${SMTP_PASS}",
@@ -69,6 +71,7 @@ object App extends skel.Server {
         ArgString('_', "notify.uri",s"Notify Service URI (def: ${d.notifyUri})"),
 
         ArgString('_', "notify.email",s"Notification email for Enroll events (def: ${d.notifyEmail})"),
+        ArgString('_', "confim.uri",s"External URI to confim email (def: ${d.confirmUri})"),
         
         ArgCmd("init","Initialize Persistnace store (create tables)"),
         ArgCmd("server","Server"),
@@ -80,7 +83,7 @@ object App extends skel.Server {
       ).withExit(1)
     ))
 
-    val config = Config(
+    implicit val config = Config(
       host = c.getString("http.host").getOrElse(d.host),
       port = c.getInt("http.port").getOrElse(d.port),
       uri = c.getString("http.uri").getOrElse(d.uri),
@@ -90,6 +93,8 @@ object App extends skel.Server {
       notifyUri = c.getString("notify.uri").getOrElse(d.notifyUri),
 
       notifyEmail = c.getString("notify.email").getOrElse(d.notifyEmail),
+
+      confirmUri = c.getString("confim.uri").getOrElse(d.confirmUri),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -112,9 +117,12 @@ object App extends skel.Server {
   
     config.cmd match {
       case "init" => 
-        val eid = EnrollSystem.withAutoTables()
+        val eid = new EnrollSystem().withAutoTables()
 
       case "server" => 
+        // initialize Tables
+        new EnrollSystem().withAutoTables()
+
         run( config.host, config.port,config.uri,c,
           Seq(
             (EnrollRegistry(store),"EnrollRegistry",(actor, context) => {
@@ -166,7 +174,7 @@ object App extends skel.Server {
         Console.err.println(s"${Console.YELLOW}command:${Console.RESET} ${config.params}")
         val r = config.params match {
           case "start" :: Nil => 
-            val eid = EnrollSystem
+            val eid = new EnrollSystem()
               .withAutoTables()
               .start(
                 "START,START_ACK,EMAIL,EMAIL_ACK,CONFIRM_EMAIL,CONFIRM_EMAIL_ACK,CREATE_USER,CREATE_USER_ACK,FINISH,FINISH_ACK",
@@ -175,7 +183,7 @@ object App extends skel.Server {
             eid
           case "start" :: flow =>
             Console.err.println(s"${Console.YELLOW}Flow:${Console.RESET} ${flow}")
-            val eid = EnrollSystem
+            val eid = new EnrollSystem()
               .withAutoTables()
               .start(
                 flow.mkString(","),
@@ -183,20 +191,20 @@ object App extends skel.Server {
 
             eid
           case "email" :: eid :: email :: Nil => 
-            EnrollSystem.addEmail(UUID(eid),email)
+            new EnrollSystem().addEmail(UUID(eid),email)
           
           case "confirm" :: eid :: code :: Nil => 
-            EnrollSystem.confirmEmail(UUID(eid),code)
+            new EnrollSystem().confirmEmail(UUID(eid),code)
           
           case "continue" :: eid :: Nil => 
-            EnrollSystem.continue(UUID(eid))
+            new EnrollSystem().continue(UUID(eid))
 
           case eid :: Nil => 
             // query status of the flow
-            EnrollSystem.summary(UUID(eid))            
+            new EnrollSystem().summary(UUID(eid))            
           
           case _ => 
-            val eid = EnrollSystem.withAutoTables()
+            val eid = new EnrollSystem().withAutoTables()
         }
 
         println(s"${r}")

@@ -16,6 +16,8 @@ import io.jvm.uuid._
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 
+import io.syspulse.skel.enroll.Config
+
 trait Phase {
   val log = Logger(s"${this}") 
   val timeout = Duration("3 seconds")
@@ -23,10 +25,11 @@ trait Phase {
   def run(data:Map[String,Any]):Try[String]
 }
 
-object Phases {
+class Phases(config:Config) {
+  
   var phases:Map[String,Phase] = Map(
     //"EMAIL_ACK" -> new PhaseSNSSend() // only for testing
-    "EMAIL_ACK" -> new PhaseEmailSend(),
+    "EMAIL_ACK" -> new PhaseEmailSend(config),
     "CREATE_USER" -> new PhaseUserCreate(),
 
     "FINISH_ACK" -> new PhaseFinish()
