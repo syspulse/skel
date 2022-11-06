@@ -28,7 +28,9 @@ import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
 
-class PhaseFinish() extends Phase {
+import io.syspulse.skel.enroll.Config
+
+class PhaseFinish(config:Config) extends Phase {
   import io.syspulse.skel.FutureAwaitable._
 
   def notify(to:String,subj:String,msg:String) = {
@@ -47,7 +49,7 @@ class PhaseFinish() extends Phase {
 
   def run(data:Map[String,Any]):Try[String] = {
     
-    val to = "admin@hacken.cloud"
+    val to = config.notifyEmail
     val uid = data.get("uid").getOrElse("").toString
     val email = data.get("email").getOrElse("").toString
     
@@ -56,8 +58,4 @@ class PhaseFinish() extends Phase {
       case None => Failure(new Exception(s"failed to notify: ${data}"))
     }    
   }
-}
-
-object PhaseFinish {
-  def apply():PhaseFinish = new PhaseFinish()
 }

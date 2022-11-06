@@ -33,6 +33,7 @@ echo "OPT: $OPT"
 
 docker run --rm --name $APP -p 8080:8080 -v `pwd`/conf:/app/conf -v $DATA_DIR:/data \
    -e JAVA_OPTS=$OPT \
+   -e DB_HOST=$DB_HOST \
    -e SMTP_HOST=$SMTP_HOST \
    -e SMTP_USER=$SMTP_USER \
    -e SMTP_PASS=$SMTP_PASS \

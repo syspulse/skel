@@ -9,8 +9,13 @@ Simple Notification Servie
 ```
 ./run-notify.sh server
 
-
 ./notify-create.sh "stdout://,"ws://" Subject Message
+```
+
+Run locally as docker:
+
+```
+SMTP_HOST=mail.server.org:465 SMTP_USER=user SMTP_PASS=pass SMTP_FROM=no-reply@mail.another-server.org OPT=-Dgod ../tools/run-docker.sh server
 ```
 
 ### Send to a group

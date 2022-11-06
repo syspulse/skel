@@ -107,3 +107,8 @@ summary: 9c4312dc-285b-4fec-a99b-0e12289a1d5e: Some(Summary(9c4312dc-285b-4fec-a
 ./enroll-get.sh [eid]
 ```
 
+3. Running locally as docker
+
+```
+DB_HOST=172.17.0.1 OPT=-Dgod ../tools/run-docker.sh server --user.uri=http://172.17.0.1:8081/api/v1/user --notify.uri=http://172.17.0.1:8082/api/v1/notify
+```

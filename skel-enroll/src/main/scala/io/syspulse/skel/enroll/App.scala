@@ -37,7 +37,7 @@ case class Config(
   notifyUri:String = "http://localhost:8080/api/v1/notify",
 
   notifyEmail:String = "admin@syspulse.io",
-  
+
   confirmUri:String = "http://localhost:8080",
 
   // only for testing/demo

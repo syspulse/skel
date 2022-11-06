@@ -21,7 +21,9 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.user.UserService
 import io.syspulse.skel.user.User
 
-class PhaseUserCreate() extends Phase {
+import io.syspulse.skel.enroll.Config
+
+class PhaseUserCreate(config:Config) extends Phase {
   import io.syspulse.skel.FutureAwaitable._
 
   def create(email:String,name:String,xid:String,avatar:String):Try[UUID] = {
@@ -43,8 +45,4 @@ class PhaseUserCreate() extends Phase {
 
     create(email,name,xid,avatar).map(_.toString)
   }
-}
-
-object PhaseUserCreate {
-  def apply():PhaseUserCreate = new PhaseUserCreate()
 }

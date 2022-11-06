@@ -30,9 +30,9 @@ class Phases(config:Config) {
   var phases:Map[String,Phase] = Map(
     //"EMAIL_ACK" -> new PhaseSNSSend() // only for testing
     "EMAIL_ACK" -> new PhaseEmailSend(config),
-    "CREATE_USER" -> new PhaseUserCreate(),
+    "CREATE_USER" -> new PhaseUserCreate(config),
 
-    "FINISH_ACK" -> new PhaseFinish()
+    "FINISH_ACK" -> new PhaseFinish(config)
   )
   
   def get(name:String) = phases.get(name)
