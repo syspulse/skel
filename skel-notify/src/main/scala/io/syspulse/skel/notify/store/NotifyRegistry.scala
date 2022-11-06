@@ -33,7 +33,7 @@ object NotifyRegistry {
     Behaviors.receiveMessage {
 
       case CreateNotify(notifyReq, replyTo) =>
-        
+        log.info(s"${notifyReq}")
         val notify = Notify(notifyReq.to,notifyReq.subj, notifyReq.msg, System.currentTimeMillis())
         val store1 = store.+(notify)
 

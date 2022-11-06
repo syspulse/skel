@@ -77,9 +77,9 @@ class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
     }
   }
 
-  def notifyToRoute(to:String) = post {
+  def notifyToRoute(via:String) = post {
     entity(as[NotifyReq]) { notifyReq =>
-      onSuccess(createNotify(notifyReq.copy(to=Some(s"${to}://")))) { r =>
+      onSuccess(createNotify(notifyReq.copy(to=Some(s"${via}://${notifyReq.to.getOrElse("")}")))) { r =>
         metricCreateCount.inc()
         complete((StatusCodes.Created, r))
       }
@@ -91,9 +91,9 @@ class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
         pathEndOrSingleSlash { req =>
           notifyRoute(req)
         },        
-        pathPrefix(Segment) { to =>
+        pathPrefix(Segment) { via =>
           pathEndOrSingleSlash {
-            notifyToRoute(to)
+            notifyToRoute(via)
             // authenticate()(authn =>
             //   authorize(Permissions.isUser(UUID(id),authn)) {
             //     getNotifyRoute(id)

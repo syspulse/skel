@@ -17,5 +17,18 @@ echo "SITE: $SITE"
 echo "DOCKER: $DOCKER"
 echo "DATA_DIR: $DATA_DIR"
 echo "ARGS: $@"
+echo "OPT: $OPT"
 
-docker run --rm --name $APP -p 8080:8080 -v `pwd`/conf:/app/conf -v $DATA_DIR:/data $DOCKER $@
+# ATTENTION: /app/bin/skel-app overrides arguments !
+#
+# process_args () {
+#   local no_more_snp_opts=0
+#   while [ $# -gt 0 ]; do
+#     case "$1" in
+#              --) shift && no_more_snp_opts=1 && break ;;
+#        -h|-help) usage; exit 1 ;;
+#     -v|-verbose) verbose=1 && shift ;;
+#       -d|-debug) debug=1 && shift ;;
+#     -no-version-check) no_version_check=1 && shift ;;
+
+docker run --rm --name $APP -p 8080:8080 -v `pwd`/conf:/app/conf -v $DATA_DIR:/data -e JAVA_OPTS=$OPT $DOCKER $@

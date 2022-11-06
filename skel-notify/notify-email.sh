@@ -1,11 +1,12 @@
 #!/bin/bash
 
-SUBJ=${1:-subject-1}
-MSG=${2:-text-1}
+TO=${1}
+SUBJ=${2:-subject-1}
+MSG=${3:-text-1}
 
 TOKEN=${TOKEN-`cat ACCESS_TOKEN`}
 
-SERVICE_URI=${SERVICE_URI:-http://localhost:8080/api/v1/notify/stdout}
+SERVICE_URI=${SERVICE_URI:-http://localhost:8080/api/v1/notify/email}
 
 if [ "$TO" == "" ]; then
    DATA_JSON="{ \"subj\":\"$SUBJ\",\"msg\":\"$MSG\",\"data\":\"$DATA\"}"
