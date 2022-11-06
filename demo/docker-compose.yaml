@@ -88,3 +88,16 @@ services:
       NOTIFY_URI: http://skel-notify:8080/api/v1/notify
       NOTIFY_EMAIL: ${NOTIFY_EMAIL}
       CONFIRM_URI: http://localhost:8083
+
+  skel-auth:
+    image: syspulse/skel-auth:latest
+    container_name: skel-auth
+    restart: always
+    ports:
+      - 8080:8080
+    networks:
+      - demo
+    command: server
+    environment:
+      JAVA_OPTS: -Dgod
+      USER_URI: http://skel-user:8080/api/v1/user

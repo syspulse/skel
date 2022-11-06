@@ -23,9 +23,9 @@ class EnrollStoreMem(implicit val ec:ExecutionContext) extends EnrollStore {
 
   def size:Long = enrolls.size
 
-  def +(xid:Option[String]):Try[UUID] = {
+  def +(xid:Option[String],name:Option[String]=None,email:Option[String]=None,avatar:Option[String]=None):Try[UUID] = {
     val id = UUID.random
-    val enroll = Enroll(id = id,tsCreated=System.currentTimeMillis(), xid = xid.getOrElse(""))
+    val enroll = Enroll(id = id,name=name.getOrElse(""),email=email.getOrElse(""),avatar=avatar.getOrElse(""),tsCreated=System.currentTimeMillis(), xid = xid.getOrElse(""))
     enrolls = enrolls + (enroll.id -> enroll)
     log.info(s"${enroll}")
     Success(id)

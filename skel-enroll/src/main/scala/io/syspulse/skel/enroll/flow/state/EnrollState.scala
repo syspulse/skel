@@ -86,9 +86,9 @@ object EnrollState extends Enrollment {
 
   private def startNewEnroll(eid:UUID, state: State, command: Command): Effect[State] =
     command match {
-      case Start(eid,flow,xid,replyTo) => 
+      case Start(eid,flow,xid,name,email,avatar,replyTo) => 
         Effect
-          .persist(state.addXid(xid))
+          .persist(state.start(xid,name,email,avatar))
           .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
 
       case Continue(replyTo) =>
@@ -150,15 +150,7 @@ object EnrollState extends Enrollment {
           .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
 
       case CreateUser(uid,replyTo) =>
-        
-        // val user = UserService.create(state.email.get,"",state.xid.getOrElse(""))
-        // log.info(s"user=${user}")
-        
-        // if(!user.isDefined) {
-        //   replyTo ! StatusReply.Error(s"${eid}: could not create user (${state.email},${state.xid})")
-        //   return Effect.none
-        // } 
-
+                
         Effect
           .persist(state.createUser(uid))
           .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
@@ -184,17 +176,4 @@ object EnrollState extends Enrollment {
         log.warn(s"${eid}: already finished: no more commands accepted")
         Effect.none
     }
-
-  // private def handleEvent(state: State, event: Event) = {
-  //   event match {
-  //     case Started(_, xid) => state.addXid(xid)
-  //     case EmailAdded(_, email,confirmToken) => state.addEmail(email,confirmToken)
-  //     case EmailConfirmed(_) => state.confirmEmail()
-  //     case PublicKeyAdded(_, pk, sig) => state.addPublicKey(pk,sig)
-  //     case UserCreated(_, uid) => state.createUser(uid)
-  //     case Finished(_, eventTime) => state.finish(eventTime)
-
-  //     case PhaseUpdated(_, phase) => state.updatePhase(phase)
-  //   }
-  // }
 }

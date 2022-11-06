@@ -13,10 +13,10 @@ object EnrollJson extends JsonCommon {
   
   import DefaultJsonProtocol._
 
-  implicit val jf_Enroll = jsonFormat7(Enroll)
+  implicit val jf_Enroll = jsonFormat8(Enroll)
   implicit val jf_Enrolls = jsonFormat1(Enrolls)
   implicit val jf_EnrollRes = jsonFormat1(EnrollRes)
-  implicit val jf_CreateReq = jsonFormat3(EnrollCreateReq)
+  implicit val jf_CreateReq = jsonFormat4(EnrollCreateReq)
   implicit val jf_UpdateReq = jsonFormat3(EnrollUpdateReq)
   implicit val jf_ActionRes = jsonFormat2(EnrollActionRes)
     

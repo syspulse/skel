@@ -43,7 +43,7 @@ object EnrollFlow {
 
   import io.syspulse.skel.enroll.flow.Enrollment._
 
-  final case class StartFlow(eid:UUID,enrollType:String,flow:String,xid:Option[String],replyTo: ActorRef[Command]) extends Command
+  final case class StartFlow(eid:UUID,enrollType:String,flow:String,xid:Option[String],name:Option[String]=None,email:Option[String]=None,avatar:Option[String]=None,replyTo: ActorRef[Command]) extends Command
   final case class ContinueFlow(eid:UUID) extends Command
   final case class FindFlow(eid:UUID,replyTo:ActorRef[Option[ActorRef[Command]]]) extends Command
   final case class ConfirmEmail(eid:UUID,code:String) extends Command
@@ -59,7 +59,12 @@ object EnrollFlow {
 
     log.info(s"EnrollFlow started")
 
-    def enroll(eid:UUID,enrollType:String,flow:String,xid:Option[String]): Behavior[Command] = Behaviors.setup { ctx =>
+    def enroll(eid:UUID,enrollType:String,flow:String,
+        xid:Option[String],
+        name:Option[String],
+        email:Option[String],
+        avatar:Option[String]): Behavior[Command] = Behaviors.setup { ctx =>
+      
       // temporary solution, not type to build Class heirarchy
       enrollType.toLowerCase() match {
         case "event" => event.EnrollEvent(eid,flow)
@@ -67,7 +72,12 @@ object EnrollFlow {
       }
     }
 
-    def enrollListener(enrollActor:ActorRef[Command],eidStart:UUID,flowStart:String,xid:Option[String]): Behavior[StatusReply[Enrollment.Summary]] = Behaviors.setup { ctx =>
+    def enrollListener(enrollActor:ActorRef[Command],eidStart:UUID,flowStart:String,
+      xid:Option[String],
+      name:Option[String]=None,
+      email:Option[String]=None,
+      avatar:Option[String]=None): Behavior[StatusReply[Enrollment.Summary]] = Behaviors.setup { ctx =>
+      
       val timeout = Timeout(1 second)
       
       // get recoverted flow state 
@@ -82,7 +92,7 @@ object EnrollFlow {
         
         log.info(s"phase=${phase}, next=${next}")
         Option(phase) match {
-          case Some("START") => (phase,Some(Enrollment.Start(eid,flow,xid.getOrElse(""),ctx.self)))
+          case Some("START") => (phase,Some(Enrollment.Start(eid,flow,xid.getOrElse(""),name.getOrElse(""),email.getOrElse(""),avatar.getOrElse(""),ctx.self)))
           
           case Some("START_ACK") => nextPhase(flow,next,summary)
                   
@@ -180,8 +190,8 @@ object EnrollFlow {
     def find(eid:UUID,enrollType:String = "state") = {
       val enrollActor = enrolls.get(eid)
         .getOrElse({
-          val enrollActor = context.spawn(enroll(eid,enrollType,"",None),s"Enroll-${eid}")
-          val listener = context.spawn(enrollListener(enrollActor,eid,"",None),s"Listener-${eid}")
+          val enrollActor = context.spawn(enroll(eid,enrollType,"",None,None,None,None),s"Enroll-${eid}")
+          val listener = context.spawn(enrollListener(enrollActor,eid,"",None,None,None,None),s"Listener-${eid}")
           enrolls = enrolls + (eid -> enrollActor)
           listeners = listeners + (eid -> listener)
           enrollActor
@@ -202,20 +212,20 @@ object EnrollFlow {
           implicit val ec = context.executionContext
           
           enrollActor.ask{ ref =>  Enrollment.Get(ref) }(Timeout(1 second),context.system.scheduler).onComplete( f => f match {
-              case Failure(e) => replyTo ! None
-              case Success(summary) => replyTo ! Some(summary)
+            case Failure(e) => replyTo ! None
+            case Success(summary) => replyTo ! Some(summary)
           })
           
           this
 
-        case StartFlow(eid,enrollType,flow,xid,replyTo) =>
-          val enrollActor = context.spawn(enroll(eid,enrollType,flow,xid),s"Enroll-${eid}")
-          val listener = context.spawn(enrollListener(enrollActor,eid,flow,xid),s"Listener-${eid}")
+        case StartFlow(eid,enrollType,flow,xid,name,email,avatar,replyTo) =>
+          val enrollActor = context.spawn(enroll(eid,enrollType,flow,xid,name,email,avatar),s"Enroll-${eid}")
+          val listener = context.spawn(enrollListener(enrollActor,eid,flow,xid,name,email,avatar),s"Listener-${eid}")
           enrolls = enrolls + (eid -> enrollActor)
           listeners = listeners + (eid -> listener)
 
           log.info(s"enrollActor=${enrollActor}")          
-          enrollActor ! Enrollment.Start(eid,flow,xid.getOrElse(""),listener)
+          enrollActor ! Enrollment.Start(eid,flow,xid.getOrElse(""),name.getOrElse(""),email.getOrElse(""),avatar.getOrElse(""),listener)
           this
 
         case ContinueFlow(eid) =>

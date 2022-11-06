@@ -354,11 +354,20 @@ lazy val auth_core = (project in file("skel-auth/auth-core"))
 
 lazy val auth = (project in file("skel-auth"))
   .dependsOn(core,crypto,auth_core,user)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
   .settings (
     sharedConfig,
     sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
 
-    appAssemblyConfig(appNameAuth,appBootClassAuth),
+    Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/permissions-model-rbac.conf") -> "conf/permissions-model-rbac.conf",
+    Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/permissions-policy-rbac.csv") -> "conf/permissions-policy-rbac.csv",
+    
+    appDockerConfig(appNameAuth,appBootClassAuth),
+    //appAssemblyConfig(appNameAuth,appBootClassAuth),
 
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ libJwt ++ Seq(
       libUpickleLib,

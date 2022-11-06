@@ -63,6 +63,7 @@ import io.syspulse.skel.crypto.Eth
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.AuthRegistry._
 import io.syspulse.skel.service.Routeable
+import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.auth.oauth2.{ OAuthProfile, GoogleOAuth2, TwitterOAuth2, ProxyM2MAuth, EthProfile}
 import io.syspulse.skel.auth.oauth2.EthTokenReq
 
@@ -76,13 +77,13 @@ import io.syspulse.skel.user.client.UserClientHttp
 
 
 class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirectUri:String,serviceUserUri:String)(implicit context:ActorContext[_],config:Config) 
-    extends Routeable with RouteAuthorizers {
+    extends CommonRoutes with Routeable with RouteAuthorizers {
 
   implicit val system: ActorSystem[_] = context.system
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
   
   val corsAllow = CorsSettings(system.classicSystem).withAllowGenericHttpRequests(true)
-  implicit val timeout = Timeout.create(system.settings.config.getDuration("auth.routes.ask-timeout"))
+  //implicit val timeout = Timeout.create(system.settings.config.getDuration("auth.routes.ask-timeout"))
   
   val codeRegistry: ActorRef[skel.Command] = context.spawn(CodeRegistry(),"Actor-CodeRegistry")
   context.watch(codeRegistry)

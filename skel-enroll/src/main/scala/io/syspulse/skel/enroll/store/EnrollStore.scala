@@ -37,7 +37,7 @@ trait EnrollStore extends Store[Enroll,UUID] {
     Success(this)
   }
 
-  def +(xid:Option[String]):Try[UUID]
+  def +(xid:Option[String],name:Option[String]=None,email:Option[String]=None,avatar:Option[String]=None):Try[UUID]
   def -(enroll:Enroll):Try[EnrollStore]
   def del(id:UUID):Try[EnrollStore]
   def ?(id:UUID):Option[Enroll] = {

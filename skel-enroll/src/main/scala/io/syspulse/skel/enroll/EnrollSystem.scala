@@ -64,9 +64,9 @@ class EnrollActorSystem(name:String = "EnrollSystem",enrollType:String = "state"
     this
   }
 
-  def start(flow:String,xid:Option[String] = None):UUID = {
+  def start(flow:String,xid:Option[String] = None,name:Option[String]=None,email:Option[String]=None,avatar:Option[String]=None):UUID = {
     val eid = UUID.random
-    system ! EnrollFlow.StartFlow(eid,enrollType,flow,xid,system.ignoreRef)
+    system ! EnrollFlow.StartFlow(eid,enrollType,flow,xid,name,email,avatar,system.ignoreRef)
     eid
   }
 

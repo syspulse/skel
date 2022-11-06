@@ -43,7 +43,7 @@ object EnrollEvent extends Enrollment {
     def eid:UUID
   }
 
-  final case class Started(eid:UUID,xid:String) extends Event
+  final case class Started(eid:UUID,xid:String,name:String,email:String,avatar:String) extends Event
   final case class EmailAdded(eid:UUID, email: String, confirmToken:String) extends Event
   final case class EmailConfirmed(eid:UUID) extends Event
   final case class PublicKeyAdded(eid:UUID, pk: PK, sig:SignatureEth) extends Event
@@ -85,9 +85,9 @@ object EnrollEvent extends Enrollment {
 
   private def startNewEnroll(eid:UUID, state: State, command: Command): Effect[Event, State] =
     command match {
-      case Start(eid,flow,xid,replyTo) => 
+      case Start(eid,flow,xid,name,email,avatar,replyTo) => 
         Effect
-          .persist(Started(eid,xid))
+          .persist(Started(eid,xid,name,email,avatar))
           .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
 
       case Finish(replyTo) => 
@@ -177,7 +177,7 @@ object EnrollEvent extends Enrollment {
 
   private def handleEvent(state: State, event: Event) = {
     event match {
-      case Started(_, xid) => state.addXid(xid)
+      case Started(_, xid,name,email,avatar) => state.start(xid,name,email,avatar)
       case EmailAdded(_, email,confirmToken) => state.addEmail(email,confirmToken)
       case EmailConfirmed(_) => state.confirmEmail()
       case PublicKeyAdded(_, pk, sig) => state.addPublicKey(pk,sig)

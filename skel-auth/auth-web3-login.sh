@@ -9,7 +9,9 @@ else
    USER=`cat /proc/sys/kernel/random/uuid`
 fi
 
-REDIRECT_URI=${REDIRECT_URI:-http://localhost:8080/api/v1/auth/eth/callback}
+AUTH_URI=${AUTH_URI:-http://localhost:8080/api/v1/auth/eth}
+REDIRECT_URI=${AUTH_URI}/callback
+
 #USER_URI=${USER_URI:-http://localhost:8080/api/v1/user}
 #USER_URI=${USER_URI:-http://localhost:8080/api/v1/auth/user}
 
@@ -23,7 +25,7 @@ SIG=`echo $OUTPUT | awk '{print $2}'`
 echo "addr: ${ADDR}"
 echo "sig: ${SIG}"
 
-LOCATION=`curl -i -s "http://localhost:8080/api/v1/auth/eth/auth?sig=${SIG}&addr=${ADDR}&response_type=code&client_id=UNKNOWN&scope=profile&state=state&redirect_uri=${REDIRECT_URI}" | grep Location`
+LOCATION=`curl -i -s "$AUTH_URI/auth?sig=${SIG}&addr=${ADDR}&response_type=code&client_id=UNKNOWN&scope=profile&state=state&redirect_uri=${REDIRECT_URI}" | grep Location`
 echo "LOCATION: $LOCATION"
 REDIRECT_URI=`echo $LOCATION | awk -F' ' '{print $2}'`
 

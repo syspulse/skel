@@ -43,8 +43,7 @@ object Enrollment {
   final case class Summary(
     eid:UUID, 
     phase:String = "START", 
-    xid:Option[String] = None,
-    email:Option[String] = None, name:Option[String] = None, avatar:Option[String] = None, 
+    xid:Option[String] = None, email:Option[String] = None, name:Option[String] = None, avatar:Option[String] = None, 
     addr:Option[String] = None, sig:Option[Signature] = None,
     tsStart:Long = 0L, tsPhase:Long = 0L, 
     finished: Boolean = false, 
@@ -68,9 +67,9 @@ object Enrollment {
 
     def nextPhase(phase: String): State = copy(phase = phase)
 
-    def updatePhase(phase:String): State =  copy(phase = phase, tsPhase=System.currentTimeMillis())
-    def addXid(xid:String): State = copy(phase = "START_ACK", xid = Some(xid),tsPhase=System.currentTimeMillis())
-    def addEmail(email:String,token:String): State = copy(phase = "EMAIL_ACK", email = Some(email),tsPhase=System.currentTimeMillis(),confirmToken=Some(token))
+    def updatePhase(phase:String):State=copy(phase=phase,tsPhase=System.currentTimeMillis())
+    def start(xid:String,email:String,name:String,avatar:String):State=copy(phase="START_ACK",xid=Some(xid),email=Some(email),name=Some(name),avatar=Some(avatar),tsPhase=System.currentTimeMillis())
+    def addEmail(email:String,token:String):State=copy(phase="EMAIL_ACK",email=Some(email),tsPhase=System.currentTimeMillis(),confirmToken=Some(token))
     def confirmEmail(): State = copy(phase = "CONFIRM_EMAIL_ACK",tsPhase=System.currentTimeMillis())
     def addPublicKey(pk:PK,sig:SignatureEth): State = copy(phase = "PK_ACK", pk = Some(Util.hex(pk)), sig = Some(Util.hex(sig.toArray())), tsPhase=System.currentTimeMillis())
     def createUser(uid:UUID): State = copy(phase = "CREATE_USER_ACK", uid=Some(uid), tsPhase=System.currentTimeMillis())
@@ -88,7 +87,7 @@ object Enrollment {
     def apply(eid:UUID,flow:String) = new State(eid,flow.split(",").map(_.trim.toUpperCase()))
   }
 
-  final case class Start(eid:UUID,flow:String,xid:String,replyTo: ActorRef[StatusReply[Summary]]) extends Command
+  final case class Start(eid:UUID,flow:String,xid:String,name:String,email:String,avatar:String,replyTo: ActorRef[StatusReply[Summary]]) extends Command
   final case class AddEmail(email: String, replyTo: ActorRef[StatusReply[Summary]]) extends Command
   final case class ConfirmEmail(token: String, replyTo: ActorRef[StatusReply[Summary]]) extends Command
   final case class AddPublicKey(sig:SignatureEth, replyTo: ActorRef[StatusReply[Summary]]) extends Command

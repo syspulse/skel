@@ -27,10 +27,10 @@ class EnrollStoreAkka(implicit val ec:ExecutionContext,config:Config) extends En
 
   def size:Long = 0L
 
-  def +(xid:Option[String]):Try[UUID] = { 
+  def +(xid:Option[String],name:Option[String]=None,email:Option[String]=None,avatar:Option[String]=None):Try[UUID] = { 
     val eid = EnrollSystem.start(
       "START,START_ACK,EMAIL,EMAIL_ACK,CONFIRM_EMAIL,CONFIRM_EMAIL_ACK,CREATE_USER,CREATE_USER_ACK,FINISH,FINISH_ACK",
-      xid
+      xid,name,email,avatar
     )
     //Enroll(id, enrollCreate.email, enrollCreate.name, enrollCreate.eid, System.currentTimeMillis())
     
@@ -51,7 +51,7 @@ class EnrollStoreAkka(implicit val ec:ExecutionContext,config:Config) extends En
         e <- EnrollSystem.summaryFuture(id)
     } yield {
       log.info(s"e = ${e}")
-      e.map( e => Enroll(e.eid,e.email.getOrElse(""),"",e.xid.getOrElse(""),e.tsPhase, e.phase, e.uid))   
+      e.map( e => Enroll(e.eid,e.email.getOrElse(""),e.name.getOrElse(""),e.xid.getOrElse(""),e.avatar.getOrElse(""), e.tsPhase, e.phase, e.uid))   
     }
   }
 

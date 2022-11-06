@@ -42,12 +42,6 @@ object EnrollRegistry {
           Behaviors.same
 
         case GetEnroll(id, replyTo) =>
-          // for {
-          //     e <- EnrollSystem.summaryFuture(id)
-          // } yield {
-          //     log.info(s"e = ${e}")
-          //     replyTo ! e.map( e => Enroll(e.eid,e.email.getOrElse(""),"",e.xid.getOrElse(""),e.tsPhase))
-          // }
           for{
             e <- store.???(id)            
           } yield replyTo ! e          
@@ -59,14 +53,11 @@ object EnrollRegistry {
 
         case CreateEnroll(enrollCreate, replyTo) =>
           
-          // val eid = EnrollSystem.start(
-          //   "START,START_ACK,EMAIL,EMAIL_ACK,CONFIRM_EMAIL,CONFIRM_EMAIL_ACK,CREATE_USER,CREATE_USER_ACK,FINISH,FINISH_ACK",
-          //   Option(enrollCreate.xid)
-          // )
-          //   //Enroll(id, enrollCreate.email, enrollCreate.name, enrollCreate.eid, System.currentTimeMillis())
-
-          val eid = store.+(enrollCreate.getOrElse(EnrollCreateReq()).xid)
-          //val store1 = store.+(enroll)
+          val eid = enrollCreate match {
+            case Some(EnrollCreateReq(email,name,xid,avatar)) => store.+(xid,email,name,avatar)
+            case None => store.+(None,None,None,None)
+          }
+          //val eid = store.+(enrollCreate.getOrElse(EnrollCreateReq()).xid)          
 
           replyTo ! EnrollActionRes("started",eid.toOption)
           Behaviors.same

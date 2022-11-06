@@ -71,7 +71,7 @@ object App extends skel.Server {
         ArgString('_', "notify.uri",s"Notify Service URI (def: ${d.notifyUri})"),
 
         ArgString('_', "notify.email",s"Notification email for Enroll events (def: ${d.notifyEmail})"),
-        ArgString('_', "confim.uri",s"External URI to confim email (def: ${d.confirmUri})"),
+        ArgString('_', "confirm.uri",s"External URI to confim email (def: ${d.confirmUri})"),
         
         ArgCmd("init","Initialize Persistnace store (create tables)"),
         ArgCmd("server","Server"),
@@ -94,7 +94,7 @@ object App extends skel.Server {
 
       notifyEmail = c.getString("notify.email").getOrElse(d.notifyEmail),
 
-      confirmUri = c.getString("confim.uri").getOrElse(d.confirmUri),
+      confirmUri = c.getString("confirm.uri").getOrElse(d.confirmUri),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
