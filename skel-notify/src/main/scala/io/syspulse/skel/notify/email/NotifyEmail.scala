@@ -18,13 +18,16 @@ import io.syspulse.skel.notify.NotifyReceiver
 import javax.mail.internet.InternetAddress
 import java.util.concurrent.TimeoutException
 
-class SMTP(host:String,port:Int,smtpUser:String,smtpPass:String) {
-  val mailer = Mailer(host,port)
+class SMTP(host:String,port:Int,smtpUser:String,smtpPass:String,tls:Boolean,starttls:Boolean) {
+  val m0 = Mailer(host,port)
                .auth(true)
                .as(smtpUser,smtpPass)
-               .ssl(false)()
-               //.startTls(true)()
-  override def toString() = s"SMTP(${host}:${port}/$smtpUser/****)"
+               .debug(true)
+  val m1 = if(tls) m0.ssl(tls) else m0
+  val m2 = if(starttls) m1.startTls(starttls) else m1
+               
+  val mailer = m2()   
+  override def toString() = s"SMTP(${host}:${port}/$smtpUser/****,tls=${tls},starttls=${starttls})"
 }
 
 object SMTP {
@@ -35,7 +38,7 @@ object SMTP {
       case Some(smtp) => smtp
       case None => 
         val uri = SmtpURI(config.smtpUri)
-        val smtp = new SMTP(uri.host,uri.port,uri.user,uri.pass)
+        val smtp = new SMTP(uri.host,uri.port,uri.user,uri.pass,uri.tls,uri.starttls)
         smtp
     }
   }
@@ -51,10 +54,9 @@ class NotifyEmail(smtpName:String,to:String)(implicit config: Config) extends No
     val smtp = SMTP.get(smtpName)(config)
 
     log.info(s"[${to}]-> ${smtp}")
-
-    //if(smtp.isFailure) return smtp.map(_.toString)
-
+    
     val mailer  = smtp.mailer
+    
     val f = mailer(Envelope.from(new InternetAddress(from))
         .to(new InternetAddress(to))
         .subject(title)

@@ -27,8 +27,40 @@ Simple Notification Servie
 
 ### Send to email (via STMP)
 
+__NOTE__: it is important to specify `from` email for valid DNS domain (otherwise it may timeout requesting that domain) !
+
 ```
-./run-notify.sh notify --smtp.uri="smtp://$SMTP_HOST:25/$SMTP_USER@$SMTP_PASS" notify 'email://smtp/email-1@domain.io' Subject Body
+./run-notify.sh notify --smtp.from=test@syspulse.io --smtp.uri="smtp://$SMTP_HOST:465/$SMTP_USER/$SMTP_PASS" notify 'email://smtp/email-1@domain.io' Subject Body
+```
+
+SMTP uri:
+
+`smtp://server:port/user/pass/tls`
+
+By default if `tls` is not specified, port will select the following TLS type:
+
+| port  |  TLS type |  `tls`|
+|-------|-----------|-------|
+|  465  |  SSL      |  tls or ssl |  
+|  567  |  STARTTLS |  starttls |
+
+TLS by default: `smtp://server:465/user/pass`
+
+TLS enforced: `smtp://server:1465/user/pass/tls`
+
+STARTTLS enforced: `smtp://server:25/user/pass/starttls`
+
+STARTTLS by default: `smtp://server:567/user/pass`
+
+### Send email from AWS SES
+
+1. Configure DKIM
+2. Enabled Custom MAIL FROM : `mail.ses-domain.org`
+3. Enable SPIF: `mail.ses-domain.org TXT "v=spf1 include:amazonses.com ~all"` 
+
+
+```
+SMTP_HOST=mail.server.org:465 SMTP_USER=user SMTP_PASS=pass ./run-notify.sh notify --smtp.from=admin@mail.ses-domain.org notify email://user@gmail.com
 ```
 
 ### Send to Websocket
