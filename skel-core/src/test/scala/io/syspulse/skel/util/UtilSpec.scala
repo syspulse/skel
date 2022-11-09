@@ -202,5 +202,48 @@ class UtilSpec extends AnyWordSpec with Matchers {
       
     //   f2 should === (t3)
     // }
+
+    "produce CSV 'data,attr1;attr2,10' for case class with List(1,2)" in {
+      case class Data(data:String,attr:List[String],v:Int)
+      val c = Data("data",List("attr1","attr2"),10)
+      val csv = Util.toCSV(c)
+      csv should === ("data,attr1;attr2,10")
+    }
+
+    "produce CSV 'data,attr1,10' for case class with List(1)" in {
+      case class Data(data:String,attr:List[String],v:Int)
+      val c = Data("data",List("attr1"),10)
+      val csv = Util.toCSV(c)
+      csv should === ("data,attr1,10")
+    }
+
+    "produce CSV 'data,,10' for case class with List()" in {
+      case class Data(data:String,attr:List[String],v:Int)
+      val c = Data("data",List(),10)
+      val csv = Util.toCSV(c)
+      csv should === ("data,,10")
+    }
+
+    "produce CSV 'data,attr1;attr2,10' for case class with Seq(1,2)" in {
+      case class Data(data:String,attr:Seq[String],v:Int)
+      val c = Data("data",Seq("attr1","attr2"),10)
+      val csv = Util.toCSV(c)
+      csv should === ("data,attr1;attr2,10")
+    }
+
+    "produce CSV 'data,attr1,10' for case class with Seq(1)" in {
+      case class Data(data:String,attr:Seq[String],v:Int)
+      val c = Data("data",Seq("attr1"),10)
+      val csv = Util.toCSV(c)
+      csv should === ("data,attr1,10")
+    }
+
+    "produce CSV 'data,,10' for case class with Seq()" in {
+      case class Data(data:String,attr:Seq[String],v:Int)
+      val c = Data("data",Seq(),10)
+      val csv = Util.toCSV(c)
+      csv should === ("data,,10")
+    }
+
   }
 }
