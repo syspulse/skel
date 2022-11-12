@@ -131,15 +131,18 @@ object Util {
 
   def rnd(limit:Double) = Random.between(0,limit)
 
-  def toCSV(o:Product,d:String=","):String = {
+  def csvToList(s:String,dList:String=",") = s.split(dList).map(_.trim).toList
+  def toCSV(o:Product,d:String=",",dList:String=";"):String = toCsv(o,d,dList)
+
+  def toCsv(o:Product,d:String,dList:String):String = {
     //o.productIterator.foldRight("")(_.toString + "," + _.toString).stripSuffix(",")
     o.productIterator.map{
       case p: Product => {
         if(p.isInstanceOf[List[_]]) {
-          val s = toCSV(p,";")
-          s.stripSuffix(";")
+          val s = toCSV(p,dList,dList)
+          s.stripSuffix(dList)
         }
-          else toCSV(p)        
+          else toCSV(p,d,dList)
       }
       case pp => pp
     }.mkString(d)
