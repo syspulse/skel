@@ -131,7 +131,7 @@ object Util {
 
   def rnd(limit:Double) = Random.between(0,limit)
 
-  def csvToList(s:String,dList:String=",") = s.split(dList).map(_.trim).toList
+  def csvToList(s:String,dList:String=";") = s.split(dList).map(_.trim).toList
   def toCSV(o:Product,d:String=",",dList:String=";"):String = toCsv(o,d,dList)
 
   def toCsv(o:Product,d:String,dList:String):String = {
