@@ -63,9 +63,10 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
 
   def search(txt:String):List[Tag] = {   
     val r = client.execute {
-      com.sksamuel.elastic4s.ElasticDsl
+      com.sksamuel.elastic4s.ElasticDsl        
         .search(elacticIndex)
         .query(txt)
+        .sortByFieldDesc("score")
     }.await
 
     log.info(s"r=${r}")

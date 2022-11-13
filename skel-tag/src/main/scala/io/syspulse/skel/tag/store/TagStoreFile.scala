@@ -17,9 +17,12 @@ class TagStoreFile(storeFile:String) extends TagStoreMem {
   val feedParser = new Feed()
 
   val storeDir = os.Path(storeFile,os.pwd)
+
   log.info(s"Loading file: ${storeFile}")
+  
   feedParser
     .parse(os.read(os.Path(storeFile,os.pwd)))
     .foreach( t => this.+(t))
+  
   log.info(s"Loaded store: ${size}")
 }

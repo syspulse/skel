@@ -32,7 +32,7 @@ case class Config(
   buffer:Int = 1024*1024,
   throttle:Long = 0L,
 
-  datastore:String = "file://store/tags-10.csv",
+  datastore:String = "dir://store/",
 
   cmd:String = "server",
   params: Seq[String] = Seq(),

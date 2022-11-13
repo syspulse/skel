@@ -26,7 +26,7 @@ class TagStoreMem extends TagStore {
     this.tags.values.filter{ t => 
       t.tags.filter( t => t.toLowerCase.matches(tags.toLowerCase)).size != 0
     }
-    .toList
+    .toList.sortBy(_.score).reverse
   }
 
 }
