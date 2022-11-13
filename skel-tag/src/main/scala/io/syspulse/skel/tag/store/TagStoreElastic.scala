@@ -63,26 +63,27 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
 
   def search(txt:String):List[Tag] = {   
     val r = client.execute {
-      com.sksamuel.elastic4s.ElasticDsl        
+      com.sksamuel.elastic4s.ElasticDsl
         .search(elacticIndex)
         .query(txt)
+        //.matchQuery("_all",txt)
+        //.operator(MatchQueryBuilder.Operator.AND)
         .sortByFieldDesc("score")
     }.await
+
+    // Multiple words require fixing ElasticSearch Java lib dependency
+    // import org.elasticsearch.index.query.MatchQueryBuilder
+    // val r = client.execute {
+    //   com.sksamuel.elastic4s.ElasticDsl
+    //     .search(elacticIndex)
+    //     .query {
+    //       matchQuery("_all",txt).operator(MatchQueryBuilder.Operator.AND)
+    //     }
+    //     .sortByFieldDesc("score")
+    // }.await
 
     log.info(s"r=${r}")
     r.result.to[Tag].toList
   }
 
-  // def typing(txt:String):List[Tag] = {  
-  //   val r = client.execute {
-  //     ElasticDsl
-  //       .search(elacticIndex)
-  //       .rawQuery(s"""
-  //   { "multi_match": { "query": "${txt}", "type": "bool_prefix", "fields": [ "title", "title._3gram" ] }}
-  //   """)        
-  //   }.await
-    
-  //   log.info(s"r=${r}")
-  //   r.result.to[Tag].toList
-  // }
 }

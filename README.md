@@ -25,6 +25,7 @@ Skeletons for RnD Prototypes
 22. [skel-pdf](skel-pdf) - PDF Utils
 23. [skel-enroll](skel-enroll) - Registration Flow
 24. [skel-yell](skel-yell) - Auditlog like system service
+25. [skel-tag](skel-tag) - Tags searchable service (e.g. labels, tags)
 
 ----
 ## Build & Run
@@ -59,5 +60,6 @@ Go to [https://github.com/syspulse/skel-demo](https://github.com/syspulse/skel-d
 14. Quartz: [http://www.quartz-scheduler.org](http://www.quartz-scheduler.org)
 15. Web3: [https://github.com/web3j/web3j](https://github.com/web3j/web3j)
 16. BLS: [https://github.com/ConsenSys/teku](https://github.com/ConsenSys/teku)
+17. elastic4s: [https://github.com/sksamuel/elastic4s]
 
 Other libraries are referenced in corresponding modules

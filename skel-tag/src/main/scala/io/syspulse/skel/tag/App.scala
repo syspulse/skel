@@ -63,7 +63,7 @@ object App extends skel.Server {
         ArgInt('_', "buffer",s"Frame buffer (Akka Framing) (def: ${d.buffer})"),
         ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
 
-        ArgString('d', "datastore",s"Datastore [elastic,mem,stdout] (def: ${d.datastore})"),
+        ArgString('d', "datastore",s"Datastore [elastic://,mem,stdout,file://,dir://,resources://] (def: ${d.datastore})"),
         
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
@@ -106,6 +106,8 @@ object App extends skel.Server {
       case "dir" :: dir :: Nil => new TagStoreDir(dir)
       case "dir" :: Nil => new TagStoreDir()
       case "file" :: file :: Nil => new TagStoreFile(file)
+      case "resources" :: file :: Nil => new TagStoreResource(file)
+      case "resources" :: Nil => new TagStoreResource()      
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}")
         sys.exit(1)

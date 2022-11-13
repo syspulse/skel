@@ -17,72 +17,26 @@ Create index:
 ## Ingest Data
 
 ```
-./run-tag.sh ingest -f file://feed/tms-100.xml
+./run-tag.sh ingest -f dir://store/
 ```
 
 Ingest into Elastic:
 
 ```
-./run-tag.sh ingest -f ./feed/tms-100.xml -o elastic://localhost:9200/tag
+./run-tag.sh ingest -f ./store/tags-100.csv -o elastic://localhost:9200/tag
 ```
 
-## Scan
+## Search
 
-Scan all tags from files datastore (regxp expression)
+Search goes over all labels and returns sorted tags by score. 
 
-__NOTE__: file:// datastore reads all files in directory (not recursive)
+Labels must be full term (word). E.g `uni` and `uniswap` are different tags !
 
-```
-./run-tag.sh search 'The.*" -d file://store/
-```
+Search is case insensitive !
 
-
-Scan all tags from index __tag__ with match_all
+## Search tag
 
 ```
-./run-tag.sh scan -d elastic
+./tag-search.sh uniswap
 ```
 
-## Search one field with match (desc)
-
-```
-./run-tag.sh search 'Avatar' -d elastic
-```
-
-## Search all movies with wildcards
-
-```
-./run-tag.sh grep 'Star*' -d elastic
-```
-
-## Run REST server 
-
-All skel-http standards apply
-
-
-Run with Elastic datastore
-```
-./run-tag.sh server -d elastic
-```
-
-Run with Files datastore (reads from store/ )
-```
-./run-tag.sh server -d file
-```
-
-Run with Files datastore
-```
-./run-tag.sh server -d file:///mnt/data/store
-```
-
-Run Search query against server:
-
-```
-./tag-search.sh The | jq .
-```
-
-Run Type-ahead query:
-
-```
-./tag-typing.sh Sta | jq .
-```

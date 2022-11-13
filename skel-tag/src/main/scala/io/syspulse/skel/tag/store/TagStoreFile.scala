@@ -6,10 +6,10 @@ import scala.collection.immutable
 
 import com.typesafe.scalalogging.Logger
 
+import os._
+
 import io.syspulse.skel.tag.feed.Feed
 import io.syspulse.skel.tag._
-
-import os._
 
 // Preload from file during start
 class TagStoreFile(storeFile:String) extends TagStoreMem {
