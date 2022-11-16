@@ -18,14 +18,16 @@ REDIRECT_URI=${AUTH_URI}/callback
 USER_URI=${USER_URI:-http://localhost:8081/api/v1/user}
 ENROLL_URI=${ENROLL_URI:-http://localhost:8083/api/v1/enroll}
 
-OUTPUT=`./auth-web3-metamask.js $SK`
+OUTPUT=`./auth-web3-metamask.js $SK 2>/dev/null`
 ADDR=`echo $OUTPUT | awk '{print $1}'`
 SIG=`echo $OUTPUT | awk '{print $2}'`
+MSG64=`echo $OUTPUT | awk '{print $3}'`
 
 echo "addr: ${ADDR}"
 echo "sig: ${SIG}"
+echo "msg64: ${MSG64}"
 
-LOCATION=`curl -i -s "$AUTH_URI/auth?sig=${SIG}&addr=${ADDR}&response_type=code&client_id=UNKNOWN&scope=profile&state=state&redirect_uri=${REDIRECT_URI}" | grep Location`
+LOCATION=`curl -i -s "$AUTH_URI/auth?msg=${MSG64}&sig=${SIG}&addr=${ADDR}&response_type=code&client_id=UNKNOWN&scope=profile&state=state&redirect_uri=${REDIRECT_URI}" | grep Location`
 echo "LOCATION: $LOCATION"
 REDIRECT_URI=`echo $LOCATION | awk -F' ' '{print $2}'`
 

@@ -344,16 +344,21 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
       pathPrefix("eth") { 
         path("auth") {
           get {
-            parameters("sig".optional,"addr".optional,"redirect_uri", "response_type".optional,"client_id".optional,"scope".optional,"state".optional) { 
-              (sig,addr,redirect_uri,response_type,client_id,scope,state) => {
+            parameters("msg".optional,"sig".optional,"addr".optional,"redirect_uri", "response_type".optional,"client_id".optional,"scope".optional,"state".optional) { 
+              (msg,sig,addr,redirect_uri,response_type,client_id,scope,state) => {
         
                 if(!addr.isDefined ) {
-                  log.error(s"sig=${sig}, addr=${addr}: invalid signing address")
+                  log.error(s"sig='${sig}', addr=${addr}: invalid signing address")
                   complete(StatusCodes.Unauthorized,"invalid signing address")
                 } else {
 
-                  // TODO: CHANGE IT
-                  val sigData = EthOAuth2.generateSigData(Map("address" -> addr.get))
+                  val sigData = 
+                  if(msg.isDefined) 
+                    // decode from Base64
+                    new String(java.util.Base64.getDecoder.decode(msg.get))
+                  else
+                    EthOAuth2.generateSigDataTolerance(Map("address" -> addr.get))
+
                   log.info(s"sigData=${sigData}")
 
                   val pk = if(sig.isDefined) Eth.recoverMetamask(sigData,Util.fromHexString(sig.get)) else Failure(new Exception(s"Empty signature"))
@@ -410,7 +415,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                     
                     // issue temporary token for Enrollment
                     val uid = Util.NOBODY.toString
-                    val idToken = AuthJwt.generateIdToken(uid) 
+                    val idToken = ""//AuthJwt.generateIdToken(uid) 
                     val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
                     log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}")
 

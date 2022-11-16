@@ -50,9 +50,11 @@ export default function LoginWeb3() {
       const sigData = generateSigData(address);
       console.log("sigData=",sigData)
       const sig = await signer.signMessage(sigData);
+      const msg64 = btoa(sigData)
+      console.log("msg64=",msg64)
       
       const redirectUri = baseUrl + "/eth/callback";
-      const authUri = baseUrl + "/eth/auth" + "?sig=" + sig + "&addr="+ address +"&redirect_uri=" + redirectUri
+      const authUri = baseUrl + "/eth/auth" + "?" + "msg=" + msg64 + "&sig=" + sig + "&addr="+ address +"&redirect_uri=" + redirectUri
       console.log("authUri: ",authUri)
       const rsp = await axios.get(authUri);
       
@@ -65,8 +67,13 @@ export default function LoginWeb3() {
     }
   };
   
-  function generateSigData(address,tolerance = (1000 * 60 * 60 * 24)) {
+  function generateSigDataTolerance(address,tolerance = (1000 * 60 * 60 * 24)) {
     const data = "timestamp: "+(Math.trunc(Date.now() / tolerance))+","+"address: "+address
+    return data;
+  };
+
+  function generateSigData(address) {
+    const data = "timestamp: "+Date.now()+","+"address: "+address
     return data;
   };
   

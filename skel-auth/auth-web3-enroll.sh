@@ -14,17 +14,19 @@ SERVICE_USER=${SERVICE_USER:-http://localhost:8080/api/v1/user}
 #SERVICE_USER=${SERVICE_USER:-http://localhost:8081/api/v1/user}
 #SERVICE_USER=${SERVICE_USER:-http://localhost:8080/api/v1/auth/user}
 
-OUTPUT=`./auth-web3-metamask.js $SK`
+OUTPUT=`./auth-web3-metamask.js $SK 2>/dev/null`
 ADDR=`echo $OUTPUT | awk '{print $1}'`
 SIG=`echo $OUTPUT | awk '{print $2}'`
+MSG64=`echo $OUTPUT | awk '{print $3}'`
 
 echo "addr: ${ADDR}"
 echo "sig: ${SIG}"
+echo "msg64: ${MSG64}"
 
 # add user
 uid=
 
-LOCATION=`curl -i -s "http://localhost:8080/api/v1/auth/eth/auth?sig=${SIG}&addr=${ADDR}&response_type=code&client_id=UNKNOWN&scope=profile&state=state&redirect_uri=${REDIRECT_URI}" | grep Location`
+LOCATION=`curl -i -s "http://localhost:8080/api/v1/auth/eth/auth?msg=${MSG64}&sig=${SIG}&addr=${ADDR}&response_type=code&client_id=UNKNOWN&scope=profile&state=state&redirect_uri=${REDIRECT_URI}" | grep Location`
 echo "LOCATION: $LOCATION"
 REDIRECT_URI=`echo $LOCATION | awk -F' ' '{print $2}'`
 

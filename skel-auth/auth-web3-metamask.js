@@ -15,9 +15,14 @@ if(process.argv.length > 3) {
 const w = new ethers.Wallet(sk)
 //console.log("address:",w.address)
 
-function generateSigData(address,tolerance = (1000 * 60 * 60 * 24)) {
-    const data = "timestamp: "+(Math.trunc(Date.now() / tolerance))+","+"address: "+address
-    return data;
+function generateSigDataTolerance(address,tolerance = (1000 * 60 * 60 * 24)) {
+  const data = "timestamp: "+(Math.trunc(Date.now() / tolerance))+","+"address: "+address
+  return data;
+};
+
+function generateSigData(address) {
+  const data = "timestamp: "+Date.now()+","+"address: "+address
+  return data;
 };
 
 if(msg == "") msg = generateSigData(w.address)
@@ -25,5 +30,7 @@ if(msg == "") msg = generateSigData(w.address)
 const sig = w.signMessage(msg)
 
 sig.then( (sig) => {
-  console.log(`${w.address} ${sig}`)
+  console.error(`'${msg}'`)
+  msg64 = btoa(msg)
+  console.log(`${w.address} ${sig} ${msg64}`)
 })
