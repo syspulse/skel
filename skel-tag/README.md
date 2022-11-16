@@ -26,6 +26,22 @@ Ingest into Elastic:
 ./run-tag.sh ingest -f ./store/tags-100.csv -o elastic://localhost:9200/tag
 ```
 
+## Run server
+
+With dir as `datastore`:
+
+```
+./run-tag.sh server -d dir://store/
+```
+
+### Run in Docker with mapped datastore
+
+__NOTE__: docker maps `/data` to __$DATA_DIR__
+
+```
+OPT=-Dgod DATASTORE='dir:///data' DATA_DIR=`pwd`/store ../tools/run-docker.sh
+```
+
 ## Search
 
 Search goes over all labels and returns sorted tags by score. 
