@@ -121,21 +121,3 @@ services:
       JAVA_OPTS: -Dgod
       DATASTORE: dir:///data
       #DATASTORE: resources://
-
-  nginx:
-    image: nginx
-    container_name: nginx
-    depends_on:
-      - skel-auth
-      - skel-user
-      - skel-notify
-      - skel-enroll
-      - skel-tag
-    restart: always
-    volumes:
-      - "${PWD}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro"
-    ports:
-      - 80:80
-    networks:
-      - demo
-    #command: server    
