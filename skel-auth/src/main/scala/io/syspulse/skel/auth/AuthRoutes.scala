@@ -39,6 +39,14 @@ import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.model.FormData
 
+import io.swagger.v3.oas.annotations.enums.ParameterIn
+import io.swagger.v3.oas.annotations.media.{Content, Schema}
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.{Operation, Parameter}
+import io.swagger.v3.oas.annotations.parameters.RequestBody
+import jakarta.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
+import jakarta.ws.rs.core.MediaType
+
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
 
@@ -75,6 +83,8 @@ import io.syspulse.skel.auth.proxy._
 
 import io.syspulse.skel.user.client.UserClientHttp
 
+import io.syspulse.skel.auth.oauth2.EthOAuth2._
+import io.syspulse.skel.auth.oauth2.EthTokens
 
 class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirectUri:String,serviceUserUri:String)(implicit context:ActorContext[_],config:Config) 
     extends CommonRoutes with Routeable with RouteAuthorizers {
@@ -260,6 +270,211 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   }
   
 
+  @GET @Path("/token/google") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Get Authentication Profile with Google Code",
+    method = "GET",
+    parameters = Array(
+      new Parameter(name = "code", in = ParameterIn.PATH, description = "code"),
+      new Parameter(name = "redirect_uri", in = ParameterIn.PATH, description = "redirect_uri"),
+      new Parameter(name = "scope", in = ParameterIn.PATH, description = "scope"),
+      new Parameter(name = "state", in = ParameterIn.PATH, description = "state"),
+      new Parameter(name = "prompt", in = ParameterIn.PATH, description = "prompt"),
+      new Parameter(name = "authuser", in = ParameterIn.PATH, description = "authuser"),
+      new Parameter(name = "hd", in = ParameterIn.PATH, description = "hd"),
+    ),
+    responses = Array(new ApiResponse(responseCode="200",description = "Video returned",content=Array(new Content(schema=new Schema(implementation = classOf[AuthWithProfileRes])))))
+  )
+  def getTokenGoogle = get {
+    parameters("code", "redirect_uri".optional, "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,redirectUri,scope,state,prompt,authuser,hd) =>
+      onSuccess(callbackFlow(idps.get(GoogleOAuth2.id).get,code,redirectUri,None,scope,state)) { rsp =>
+        complete(StatusCodes.Created, rsp)
+      }
+    }
+  }
+
+  @GET @Path("/token/twitter") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Get Authentication Profile with Twitter Code",
+    method = "GET",
+    parameters = Array(
+      new Parameter(name = "code", in = ParameterIn.PATH, description = "code"),
+      new Parameter(name = "challenge", in = ParameterIn.PATH, description = "challenge"),
+      new Parameter(name = "redirect_uri", in = ParameterIn.PATH, description = "redirect_uri"),
+      new Parameter(name = "scope", in = ParameterIn.PATH, description = "scope"),
+      new Parameter(name = "state", in = ParameterIn.PATH, description = "state"),
+      new Parameter(name = "prompt", in = ParameterIn.PATH, description = "prompt"),
+      new Parameter(name = "authuser", in = ParameterIn.PATH, description = "authuser"),
+      new Parameter(name = "hd", in = ParameterIn.PATH, description = "hd"),
+    ),
+    responses = Array(new ApiResponse(responseCode="200",description = "Authenticated User ID",content=Array(new Content(schema=new Schema(implementation = classOf[AuthWithProfileRes])))))
+  )
+  def getTokenTwitter = get {
+    parameters("code", "challenge", "redirect_uri".optional, "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,challenge,redirectUri,scope,state,prompt,authuser,hd) =>
+      onSuccess(callbackFlow(idps.get(TwitterOAuth2.id).get,code,redirectUri,Some(Map("code_verifier" -> challenge)),scope,state)) { rsp =>
+        complete(StatusCodes.Created, rsp)
+      }
+    }
+  }
+
+  @GET @Path("/eth/auth") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Get Authentication Profile with Web3 IDP (Metamask) credentials",
+    method = "GET",
+    parameters = Array(
+      new Parameter(name = "msg", in = ParameterIn.PATH, description = "Message from Metamask encoded in Base64"),
+      new Parameter(name = "sig", in = ParameterIn.PATH, description = "Signature of the message (Metmask)"),
+      new Parameter(name = "addr", in = ParameterIn.PATH, description = "Ethereum Address which signed the message"),
+      new Parameter(name = "redirect_uri", in = ParameterIn.PATH, description = "redirect_uri"),
+      new Parameter(name = "response_type", in = ParameterIn.PATH, description = "response_type (ignored)"),
+      new Parameter(name = "client_id", in = ParameterIn.PATH, description = "client_id (ignored)"),
+      new Parameter(name = "scope", in = ParameterIn.PATH, description = "scope (ignored)"),
+      new Parameter(name = "state", in = ParameterIn.PATH, description = "state (ignored)")      
+    ),
+    responses = Array(new ApiResponse(responseCode="200",description = "Authenticated User ID",content=Array(new Content(schema=new Schema(implementation = classOf[AuthWithProfileRes])))))
+  )
+  def getAuthEth = get {
+    parameters("msg".optional,"sig".optional,"addr".optional,"redirect_uri", "response_type".optional,"client_id".optional,"scope".optional,"state".optional) { 
+      (msg,sig,addr,redirect_uri,response_type,client_id,scope,state) => {
+
+        if(!addr.isDefined ) {
+          log.error(s"sig='${sig}', addr=${addr}: invalid signing address")
+          complete(StatusCodes.Unauthorized,"invalid signing address")
+        } else {
+
+          val sigData = 
+          if(msg.isDefined) 
+            // decode from Base64
+            new String(java.util.Base64.getDecoder.decode(msg.get))
+          else
+            EthOAuth2.generateSigDataTolerance(Map("address" -> addr.get))
+
+          log.info(s"sigData=${sigData}")
+
+          val pk = if(sig.isDefined) Eth.recoverMetamask(sigData,Util.fromHexString(sig.get)) else Failure(new Exception(s"Empty signature"))
+          val addrFromSig = pk.map(p => Eth.address(p))
+
+          if(addrFromSig.isFailure || addrFromSig.get != addr.get.toLowerCase()) {
+            log.error(s"sig=${sig}, addr=${addr}: invalid sig")
+            complete(StatusCodes.Unauthorized,s"invalid sig: ${sig}")
+          } else {
+
+            val code = Util.generateRandomToken()
+
+            onSuccess(createCode(Code(code,addr))) { rsp =>
+              log.info(s"sig=${sig}, addr=${addr}, redirect_uri=${redirect_uri}: -> code=${code}")
+              redirect(redirect_uri + s"?code=${rsp.code.authCode}", StatusCodes.PermanentRedirect)  
+            }
+          }
+        }                
+      }
+    }
+  }
+
+  @GET @Path("/eth/callback") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Web3 Authentication Callback (Server-Side)",
+    method = "GET",
+    parameters = Array(
+      new Parameter(name = "code", in = ParameterIn.PATH, description = "code"),
+      new Parameter(name = "scope", in = ParameterIn.PATH, description = "scope (ignored)"),
+      new Parameter(name = "state", in = ParameterIn.PATH, description = "state (ignored)")      
+    ),
+    responses = Array(new ApiResponse(responseCode="200",description = "Authenticated User ID",content=Array(new Content(schema=new Schema(implementation = classOf[AuthWithProfileRes])))))
+  )
+  def getCallbackEth = get {
+    parameters("code", "scope".optional,"state".optional) { (code,scope,state) => 
+      log.info(s"code=${code}, scope=${scope}")
+      
+      onSuccess( callbackFlow(idps.get(EthOAuth2.id).get,code,None,None,scope,None) ) { rsp =>
+        complete(StatusCodes.Created, rsp)
+      }
+    }
+  }
+
+  def generateTokens(code:String) = {
+    onSuccess(getCode(code)) { rsp =>
+      if(! rsp.code.isDefined || rsp.code.get.expire < System.currentTimeMillis()) {
+        
+        log.error(s"code=${code}: rsp=${rsp}: not found or expired")
+        complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
+
+      } else {
+
+        // request uid from UserService
+        onSuccess(UserClientHttp(serviceUserUri).withTimeout().getByXidAlways(rsp.code.get.xid.get)) { user => 
+        
+          if(! user.isDefined ) {
+        
+            log.warn(s"code=${code}: user=${user}: not found")
+            //complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
+            
+            // issue temporary token for Enrollment
+            val uid = Util.NOBODY.toString
+            val idToken = ""//AuthJwt.generateIdToken(uid) 
+            val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
+            log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}")
+
+            onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>                      
+              complete(StatusCodes.OK,EthTokens(accessToken = accessToken, idToken = idToken, expiresIn = 60,scope = "",tokenType = ""))
+            }
+
+          } else  {
+
+            val uid = user.get.id
+            val email = user.get.email
+            val name = user.get.name
+            val avatar = user.get.avatar
+
+            val idToken = AuthJwt.generateIdToken(rsp.code.get.xid.getOrElse(""),Map("email"->email,"name"->name,"avatar"->avatar)) 
+            val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
+            log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}")
+
+            // associate idToken with code for later Profile retrieval by rewriting Code and
+            // immediately expiring code 
+            // Extracting user id possible from JWT 
+            onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>
+              
+              complete(StatusCodes.OK,EthTokens(accessToken = accessToken, idToken = idToken, expiresIn = 3600,scope = "",tokenType = ""))                    
+            }
+          }
+        }
+        
+      }
+    }
+  }
+
+  @POST @Path("/eth/token") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Web3 Authentication with code",
+    method = "POST",
+    parameters = Array(
+      new Parameter(name = "code", in = ParameterIn.PATH, description = "code"),
+      new Parameter(name = "client_id", in = ParameterIn.PATH, description = "client_id"),
+      new Parameter(name = "client_secret", in = ParameterIn.PATH, description = "client_secret"),
+      new Parameter(name = "redirect_uri", in = ParameterIn.PATH, description = "redirect_uri"),
+      new Parameter(name = "grant_type", in = ParameterIn.PATH, description = "grant_type")      
+    ),
+    responses = Array(new ApiResponse(responseCode="200",description = "Authenticated User ID",content=Array(new Content(schema=new Schema(implementation = classOf[AuthWithProfileRes])))))
+  )
+  def postTokenEth = post {
+    //entity(as[EthTokenReq]) { req => {
+    formFields("code","client_id","client_secret","redirect_uri","grant_type") { (code,client_id,client_secret,redirect_uri,grant_type) => {
+      log.info(s"code=${code},client_id=${client_id},client_secret=${client_secret},redirect_uri=${redirect_uri},grant_type=${grant_type}")
+      
+      generateTokens(code)
+    }
+  }}
+
+  //@GET @Path("/eth/token") @Produces(Array(MediaType.APPLICATION_JSON))
+  @GET @Path("/token/eth") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Web3 Authentication with code",
+    method = "GET",
+    parameters = Array(
+      new Parameter(name = "code", in = ParameterIn.PATH, description = "code")      
+    ),
+    responses = Array(new ApiResponse(responseCode="200",description = "Authenticated User ID",content=Array(new Content(schema=new Schema(implementation = classOf[AuthWithProfileRes])))))
+  )
+  def getTokenEth = get { parameters("code") { (code) => 
+    generateTokens(code)
+  }}
+
+// ------------------------------------------------------- Routes
   override def routes: Route = cors() {
     concat(
       // simple embedded Login FrontEnd
@@ -293,24 +508,31 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
       pathPrefix("token") {
         path("google") {
           pathEndOrSingleSlash {
-            get {
-              parameters("code", "redirect_uri".optional, "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,redirectUri,scope,state,prompt,authuser,hd) =>
-                onSuccess(callbackFlow(idps.get(GoogleOAuth2.id).get,code,redirectUri,None,scope,state)) { rsp =>
-                  complete(StatusCodes.Created, rsp)
-                }
-              }
-            }
+            getTokenGoogle
+            // get {
+            //   parameters("code", "redirect_uri".optional, "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,redirectUri,scope,state,prompt,authuser,hd) =>
+            //     onSuccess(callbackFlow(idps.get(GoogleOAuth2.id).get,code,redirectUri,None,scope,state)) { rsp =>
+            //       complete(StatusCodes.Created, rsp)
+            //     }
+            //   }
+            // }
           }
         } ~
         path("twitter") {
           pathEndOrSingleSlash {
-            get {
-              parameters("code", "challenge", "redirect_uri".optional, "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,challenge,redirectUri,scope,state,prompt,authuser,hd) =>
-                onSuccess(callbackFlow(idps.get(TwitterOAuth2.id).get,code,redirectUri,Some(Map("code_verifier" -> challenge)),scope,state)) { rsp =>
-                  complete(StatusCodes.Created, rsp)
-                }
-              }
-            }
+            getTokenTwitter
+            // get {
+            //   parameters("code", "challenge", "redirect_uri".optional, "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,challenge,redirectUri,scope,state,prompt,authuser,hd) =>
+            //     onSuccess(callbackFlow(idps.get(TwitterOAuth2.id).get,code,redirectUri,Some(Map("code_verifier" -> challenge)),scope,state)) { rsp =>
+            //       complete(StatusCodes.Created, rsp)
+            //     }
+            //   }
+            // }
+          }
+        } ~
+        path("eth") {
+          pathEndOrSingleSlash {
+            getTokenEth
           }
         }
       },
@@ -343,125 +565,130 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
       },
       pathPrefix("eth") { 
         path("auth") {
-          get {
-            parameters("msg".optional,"sig".optional,"addr".optional,"redirect_uri", "response_type".optional,"client_id".optional,"scope".optional,"state".optional) { 
-              (msg,sig,addr,redirect_uri,response_type,client_id,scope,state) => {
+          getAuthEth
+          // get {
+          //   parameters("msg".optional,"sig".optional,"addr".optional,"redirect_uri", "response_type".optional,"client_id".optional,"scope".optional,"state".optional) { 
+          //     (msg,sig,addr,redirect_uri,response_type,client_id,scope,state) => {
         
-                if(!addr.isDefined ) {
-                  log.error(s"sig='${sig}', addr=${addr}: invalid signing address")
-                  complete(StatusCodes.Unauthorized,"invalid signing address")
-                } else {
+          //       if(!addr.isDefined ) {
+          //         log.error(s"sig='${sig}', addr=${addr}: invalid signing address")
+          //         complete(StatusCodes.Unauthorized,"invalid signing address")
+          //       } else {
 
-                  val sigData = 
-                  if(msg.isDefined) 
-                    // decode from Base64
-                    new String(java.util.Base64.getDecoder.decode(msg.get))
-                  else
-                    EthOAuth2.generateSigDataTolerance(Map("address" -> addr.get))
+          //         val sigData = 
+          //         if(msg.isDefined) 
+          //           // decode from Base64
+          //           new String(java.util.Base64.getDecoder.decode(msg.get))
+          //         else
+          //           EthOAuth2.generateSigDataTolerance(Map("address" -> addr.get))
 
-                  log.info(s"sigData=${sigData}")
+          //         log.info(s"sigData=${sigData}")
 
-                  val pk = if(sig.isDefined) Eth.recoverMetamask(sigData,Util.fromHexString(sig.get)) else Failure(new Exception(s"Empty signature"))
-                  val addrFromSig = pk.map(p => Eth.address(p))
+          //         val pk = if(sig.isDefined) Eth.recoverMetamask(sigData,Util.fromHexString(sig.get)) else Failure(new Exception(s"Empty signature"))
+          //         val addrFromSig = pk.map(p => Eth.address(p))
 
-                  if(addrFromSig.isFailure || addrFromSig.get != addr.get.toLowerCase()) {
-                    log.error(s"sig=${sig}, addr=${addr}: invalid sig")
-                    complete(StatusCodes.Unauthorized,s"invalid sig: ${sig}")
-                  } else {
+          //         if(addrFromSig.isFailure || addrFromSig.get != addr.get.toLowerCase()) {
+          //           log.error(s"sig=${sig}, addr=${addr}: invalid sig")
+          //           complete(StatusCodes.Unauthorized,s"invalid sig: ${sig}")
+          //         } else {
 
-                    val code = Util.generateRandomToken()
+          //           val code = Util.generateRandomToken()
 
-                    onSuccess(createCode(Code(code,addr))) { rsp =>
-                      log.info(s"sig=${sig}, addr=${addr}, redirect_uri=${redirect_uri}: -> code=${code}")
-                      redirect(redirect_uri + s"?code=${rsp.code.authCode}", StatusCodes.PermanentRedirect)  
-                    }
-                  }
-                }                
-              }
-            }
-          }
+          //           onSuccess(createCode(Code(code,addr))) { rsp =>
+          //             log.info(s"sig=${sig}, addr=${addr}, redirect_uri=${redirect_uri}: -> code=${code}")
+          //             redirect(redirect_uri + s"?code=${rsp.code.authCode}", StatusCodes.PermanentRedirect)  
+          //           }
+          //         }
+          //       }                
+          //     }
+          //   }
+          // }
         } ~
         path("callback") {
-          get {
-            parameters("code", "scope".optional,"state".optional) { (code,scope,state) => 
-              log.info(s"code=${code}, scope=${scope}")
+          getCallbackEth
+          // get {
+          //   parameters("code", "scope".optional,"state".optional) { (code,scope,state) => 
+          //     log.info(s"code=${code}, scope=${scope}")
               
-              onSuccess( callbackFlow(idps.get(EthOAuth2.id).get,code,None,None,scope,None) ) { rsp =>
-                complete(StatusCodes.Created, rsp)
-              }
-            }
-          }
+          //     onSuccess( callbackFlow(idps.get(EthOAuth2.id).get,code,None,None,scope,None) ) { rsp =>
+          //       complete(StatusCodes.Created, rsp)
+          //     }
+          //   }
+          // }
         } ~
         path("token") {
-          import io.syspulse.skel.auth.oauth2.EthOAuth2._
-          import io.syspulse.skel.auth.oauth2.EthTokens
+          // import io.syspulse.skel.auth.oauth2.EthOAuth2._
+          // import io.syspulse.skel.auth.oauth2.EthTokens
 
-          def generateTokens(code:String) = {
-            onSuccess(getCode(code)) { rsp =>
-              if(! rsp.code.isDefined || rsp.code.get.expire < System.currentTimeMillis()) {
+          // def generateTokens(code:String) = {
+          //   onSuccess(getCode(code)) { rsp =>
+          //     if(! rsp.code.isDefined || rsp.code.get.expire < System.currentTimeMillis()) {
                 
-                log.error(s"code=${code}: rsp=${rsp}: not found or expired")
-                complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
+          //       log.error(s"code=${code}: rsp=${rsp}: not found or expired")
+          //       complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
 
-              } else {
+          //     } else {
 
-                // request uid from UserService
-                onSuccess(UserClientHttp(serviceUserUri).withTimeout().getByXidAlways(rsp.code.get.xid.get)) { user => 
+          //       // request uid from UserService
+          //       onSuccess(UserClientHttp(serviceUserUri).withTimeout().getByXidAlways(rsp.code.get.xid.get)) { user => 
                 
-                  if(! user.isDefined ) {
+          //         if(! user.isDefined ) {
                 
-                    log.warn(s"code=${code}: user=${user}: not found")
-                    //complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
+          //           log.warn(s"code=${code}: user=${user}: not found")
+          //           //complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
                     
-                    // issue temporary token for Enrollment
-                    val uid = Util.NOBODY.toString
-                    val idToken = ""//AuthJwt.generateIdToken(uid) 
-                    val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
-                    log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}")
+          //           // issue temporary token for Enrollment
+          //           val uid = Util.NOBODY.toString
+          //           val idToken = ""//AuthJwt.generateIdToken(uid) 
+          //           val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
+          //           log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}")
 
-                    onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>                      
-                      complete(StatusCodes.OK,EthTokens(accessToken = accessToken, idToken = idToken, expiresIn = 60,scope = "",tokenType = ""))
-                    }
+          //           onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>                      
+          //             complete(StatusCodes.OK,EthTokens(accessToken = accessToken, idToken = idToken, expiresIn = 60,scope = "",tokenType = ""))
+          //           }
 
-                  } else  {
+          //         } else  {
 
-                    val uid = user.get.id
-                    val email = user.get.email
-                    val name = user.get.name
-                    val avatar = user.get.avatar
+          //           val uid = user.get.id
+          //           val email = user.get.email
+          //           val name = user.get.name
+          //           val avatar = user.get.avatar
 
-                    val idToken = AuthJwt.generateIdToken(rsp.code.get.xid.getOrElse(""),Map("email"->email,"name"->name,"avatar"->avatar)) 
-                    val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
-                    log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}")
+          //           val idToken = AuthJwt.generateIdToken(rsp.code.get.xid.getOrElse(""),Map("email"->email,"name"->name,"avatar"->avatar)) 
+          //           val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
+          //           log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}")
 
-                    // associate idToken with code for later Profile retrieval by rewriting Code and
-                    // immediately expiring code 
-                    // Extracting user id possible from JWT 
-                    onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>
+          //           // associate idToken with code for later Profile retrieval by rewriting Code and
+          //           // immediately expiring code 
+          //           // Extracting user id possible from JWT 
+          //           onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>
                       
-                      complete(StatusCodes.OK,EthTokens(accessToken = accessToken, idToken = idToken, expiresIn = 3600,scope = "",tokenType = ""))                    
-                    }
-                  }
-                }
+          //             complete(StatusCodes.OK,EthTokens(accessToken = accessToken, idToken = idToken, expiresIn = 3600,scope = "",tokenType = ""))                    
+          //           }
+          //         }
+          //       }
                 
-              }
-            }
-          }
+          //     }
+          //   }
+          // }
 
-          post {
-            //entity(as[EthTokenReq]) { req => {
-            formFields("code","client_id","client_secret","redirect_uri","grant_type") { (code,client_id,client_secret,redirect_uri,grant_type) => {
-              log.info(s"code=${code},client_id=${client_id},client_secret=${client_secret},redirect_uri=${redirect_uri},grant_type=${grant_type}")
+          postTokenEth ~ getTokenEth
+
+          // post {
+          //   //entity(as[EthTokenReq]) { req => {
+          //   formFields("code","client_id","client_secret","redirect_uri","grant_type") { (code,client_id,client_secret,redirect_uri,grant_type) => {
+          //     log.info(s"code=${code},client_id=${client_id},client_secret=${client_secret},redirect_uri=${redirect_uri},grant_type=${grant_type}")
               
-              generateTokens(code)
-            }
-          }} ~
-          get { parameters("code") { (code) => 
-            generateTokens(code)
-          }}
+          //     generateTokens(code)
+          //   }
+          // }} ~
+          // get { parameters("code") { (code) => 
+          //   generateTokens(code)
+          // }}          
+
         } ~
         path("profile") {
-          import io.syspulse.skel.auth.oauth2.EthOAuth2._
+          //import io.syspulse.skel.auth.oauth2.EthOAuth2._
           get {
             parameters("access_token") { (access_token) => {
               // validate
@@ -524,7 +751,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
       },
       path(Segment) { auid =>
         authenticate()( authn => {
-          log.info(s"AuthN: ${authn}")
+          log.info(s"authn: ${authn}")
           concat(
             get {
               rejectEmptyResponse {
