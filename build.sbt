@@ -336,7 +336,7 @@ lazy val http = (project in file("skel-http"))
 
     appDockerConfig(appNameHttp,appBootClassHttp),
 
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
     ),
   )
 
@@ -369,7 +369,7 @@ lazy val auth = (project in file("skel-auth"))
     appDockerConfig(appNameAuth,appBootClassAuth),
     //appAssemblyConfig(appNameAuth,appBootClassAuth),
 
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ libJwt ++ Seq(
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ libJwt ++ Seq(
       libUpickleLib,
       libRequests,
       libScalaTags,
@@ -392,7 +392,7 @@ lazy val otp = (project in file("skel-otp"))
 
     appDockerConfig(appNameOtp,appBootClassOtp),
 
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(      
         libKuroOtp,
         libQR
     ),
@@ -413,7 +413,7 @@ lazy val user = (project in file("skel-user"))
 
     appDockerConfig(appNameUser,appBootClassUser),
 
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(  
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(  
     ),    
   )
 
@@ -659,7 +659,7 @@ lazy val enroll = (project in file("skel-enroll"))
     //name := "skel-enroll",
     appDockerConfig("skel-enroll","io.syspulse.skel.enroll.App"),
 
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
       libAkkaPersistence,
       libAkkaPersistenceTest,
       libAkkaSerJackon,
@@ -712,7 +712,7 @@ lazy val yell = (project in file("skel-yell"))
 
     appDockerConfig("skel-yell","io.syspulse.skel.yell.App"),
 
-    libraryDependencies ++= libHttp ++ libTest ++ Seq(
+    libraryDependencies ++= libSkel ++ libHttp ++ libTest ++ Seq(
       libAlpakkaElastic,
       libElastic4s
     ),  
@@ -731,7 +731,7 @@ lazy val video = (project in file("skel-video"))
 
     appDockerConfig("skel-video","io.syspulse.skel.video.App"),
 
-    libraryDependencies ++= libCommon ++ libSkel ++ 
+    libraryDependencies ++= libCommon ++ 
       Seq(
         libElastic4s,
         libAkkaHttpSpray,
@@ -753,7 +753,7 @@ lazy val skel_notify = (project in file("skel-notify"))
 
     appDockerConfig("skel-notify","io.syspulse.skel.notify.App"),
 
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
       libAWSJavaSNS,
       libCourier
     ),    
@@ -773,7 +773,7 @@ lazy val skel_tag = (project in file("skel-tag"))
 
     appDockerConfig("skel-tag","io.syspulse.skel.tag.App"),
 
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
       libElastic4s
     ),    
   )

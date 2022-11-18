@@ -33,7 +33,7 @@ import io.syspulse.skel.config.Configuration
 import io.syspulse.skel.service.config.{ConfigRegistry,ConfigRoutes}
 import io.syspulse.skel.service.Routeable
 
-import io.syspulse.skel.service.swagger.{Swagger}
+import io.syspulse.skel.service.swagger.{Swagger,SwaggerLike}
 import io.syspulse.skel.service.telemetry.{TelemetryRegistry,TelemetryRoutes}
 import io.syspulse.skel.service.metrics.{MetricsRegistry,MetricsRoutes}
 import io.syspulse.skel.service.info.{InfoRegistry,InfoRoutes}

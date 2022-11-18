@@ -138,4 +138,4 @@ services:
       - 80:80
     networks:
       - demo
-    #command: server    
+    #command: server

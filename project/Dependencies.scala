@@ -95,8 +95,13 @@ object Dependencies {
 
     val libTypesafeConfig = "com.typesafe"                    % "config"               % "1.4.1"
       
-    val libWsRs =           "javax.ws.rs"                     % "javax.ws.rs-api"       % "2.0.1"
-    val libSwaggerAkkaHttp ="com.github.swagger-akka-http"    %% "swagger-akka-http"   % "2.7.0"
+    //val libWsRs =           "javax.ws.rs"                     % "javax.ws.rs-api"       % "2.1.1"
+    val libWsRsJakarta =    "jakarta.ws.rs"                   % "jakarta.ws.rs-api"     % "3.1.0" //"3.0.0"
+    val libSwaggerAkkaHttp ="com.github.swagger-akka-http"    %% "swagger-akka-http"    % "2.7.0"
+    //val libSwaggerAkkaHttpUi ="com.github.swagger-akka-http"    %% "swagger-akka-http-with-ui" % "2.6.0"
+    //val libSwaggerAnn =     "io.swagger.core.v3"              % "swagger-annotations"   % "2.2.0"
+    //val libSwaggerAnnJakarta = "io.swagger.core.v3"              % "swagger-annotations-jakarta"   % "2.2.0"
+
     
     val libMetrics =        "nl.grons"                        %% "metrics4-scala"       % "4.1.14"
     //val libAkkaHttpMetrics ="fr.davit"                      %% "akka-http-metrics-dropwizard" % "1.6.0"
@@ -125,10 +130,10 @@ object Dependencies {
     val libRequests =       "com.lihaoyi"                     %% "requests"             % "0.6.9"
 
     // lightweight, no deps
-    val libCsv =            "com.github.tototoshi"            %% "scala-csv"            % "1.3.7"
+    val libCsv =              "com.github.tototoshi"            %% "scala-csv"            % "1.3.7"
     // seems to be only 1 dependency. Can generate CSV from Case classes ?. Only 2.12
     //val libCsvProductCollections =     "com.github.marklister"           %% "product-collections"  % "1.4.5" 
-    val libFaker =          "com.github.javafaker"            % "javafaker"             % "1.0.2"
+    val libFaker =            "com.github.javafaker"            % "javafaker"             % "1.0.2"
 
     val libPrometheusClient =   "io.prometheus"               % "simpleclient"              % "0.10.0"
     val libPrometheusHttp =     "io.prometheus"               % "simpleclient_httpserver"   % "0.10.0"
@@ -136,58 +141,58 @@ object Dependencies {
     //val libPrometheusPushGw = "io.prometheus"               % "simpleclient_pushgateway"   % "0.10.0"
     
     // This is modified version for Scala2.13 (https://github.com/syspulse/kuro-otp)
-    val libKuroOtp =        "com.ejisan"                      %% "kuro-otp"           % "0.0.4-SNAPSHOT"
-    val libQR =             "net.glxn"                        % "qrgen"               % "1.4"
+    val libKuroOtp =          "com.ejisan"                      %% "kuro-otp"           % "0.0.4-SNAPSHOT"
+    val libQR =               "net.glxn"                        % "qrgen"               % "1.4"
 
     // val libWeb3jCrypto =    "org.web3j"                     % "crypto"              % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
     // val libWeb3jCore =      "org.web3j"                     % "core"                % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
-    val libWeb3jCrypto =    "org.web3j"                       % "crypto"              % "4.9.2" exclude("org.bouncycastle", "bcprov-jdk15on")
-    val libWeb3jCore =      "org.web3j"                       % "core"                % "4.9.2" exclude("org.bouncycastle", "bcprov-jdk15on")
+    val libWeb3jCrypto =      "org.web3j"                       % "crypto"              % "4.9.2" exclude("org.bouncycastle", "bcprov-jdk15on")
+    val libWeb3jCore =        "org.web3j"                       % "core"                % "4.9.2" exclude("org.bouncycastle", "bcprov-jdk15on")
     // Refactored: https://github.com/syspulse/eth-abi
-    val libEthAbi =         "com.github.lbqds"                %% "ethabi"             % "0.4.0"
+    val libEthAbi =           "com.github.lbqds"                %% "ethabi"             % "0.4.0"
     
     //web3j depends on "1.65"
-    val libBouncyCastle =   "org.bouncycastle"                % "bcprov-jdk15on"      % "1.70" //"1.69" 
+    val libBouncyCastle =     "org.bouncycastle"                % "bcprov-jdk15on"      % "1.70" //"1.69" 
     
-    val libScodecBits =     "org.scodec"                      %% "scodec-bits"        % "1.1.30" //"1.1.12" 
-    val libHKDF =           "at.favre.lib"                    % "hkdf"                % "1.1.0"
-    val libBLS =            "tech.pegasys.teku.internal"      % "bls"                 % "23.3.1" //"21.9.2"
-    val libBLSKeystore =    "tech.pegasys.signers.internal"   % "bls-keystore"        % "2.2.1"  //"1.0.21"
+    val libScodecBits =       "org.scodec"                      %% "scodec-bits"        % "1.1.30" //"1.1.12" 
+    val libHKDF =             "at.favre.lib"                    % "hkdf"                % "1.1.0"
+    val libBLS =              "tech.pegasys.teku.internal"      % "bls"                 % "23.3.1" //"21.9.2"
+    val libBLSKeystore =      "tech.pegasys.signers.internal"   % "bls-keystore"        % "2.2.1"  //"1.0.21"
 
-    val libScalaScraper =   "net.ruippeixotog"                %% "scala-scraper"      % "2.2.1"
+    val libScalaScraper =     "net.ruippeixotog"                %% "scala-scraper"      % "2.2.1"
 
-    val libQuartz =         "org.quartz-scheduler"            % "quartz"              % "2.3.2" exclude("com.zaxxer", "HikariCP-java7")
+    val libQuartz =           "org.quartz-scheduler"            % "quartz"              % "2.3.2" exclude("com.zaxxer", "HikariCP-java7")
 
-    val libTwitter4s =      "com.danielasfregola"             %% "twitter4s"          % "7.0"
+    val libTwitter4s =        "com.danielasfregola"             %% "twitter4s"          % "7.0"
     
-    val libSeleniumJava =   "org.seleniumhq.selenium"         % "selenium-java"             % "4.0.0-rc-3"
-    val libSeleniumFirefox ="org.seleniumhq.selenium"         % "selenium-firefox-driver"   % "4.0.0-rc-3"
+    val libSeleniumJava =     "org.seleniumhq.selenium"         % "selenium-java"             % "4.0.0-rc-3"
+    val libSeleniumFirefox =  "org.seleniumhq.selenium"         % "selenium-firefox-driver"   % "4.0.0-rc-3"
 
-    val libJwtCore =        "com.pauldijou"                   %% "jwt-core"           % "4.2.0"
-    val libJoseJwt =        "com.nimbusds"                    % "nimbus-jose-jwt"     % "4.21"
+    val libJwtCore =          "com.pauldijou"                   %% "jwt-core"           % "4.2.0"
+    val libJoseJwt =          "com.nimbusds"                    % "nimbus-jose-jwt"     % "4.21"
 
-    val libAvro4s =         "com.sksamuel.avro4s"             %% "avro4s-core"        % "4.0.12"
+    val libAvro4s =           "com.sksamuel.avro4s"             %% "avro4s-core"        % "4.0.12"
 
-    val libSSSS =           "com.gladow"                      %% "scalassss"          % "0.2.0-SNAPSHOT"
+    val libSSSS =             "com.gladow"                      %% "scalassss"          % "0.2.0-SNAPSHOT"
 
-    val libSparkCore =       "org.apache.spark"               %% "spark-core"         % sparkVersion
-    val libSparkSQL =        "org.apache.spark"               %% "spark-sql"          % sparkVersion
+    val libSparkCore =        "org.apache.spark"               %% "spark-core"         % sparkVersion
+    val libSparkSQL =         "org.apache.spark"               %% "spark-sql"          % sparkVersion
     
-    val libHadoopAWS =       "org.apache.hadoop"              % "hadoop-aws"          % hadoopAWSVersion
-    val libAWSJavaSDK =      "com.amazonaws"                  % "aws-java-sdk-bundle" % "1.11.874" //"1.12.247"
-    val libAWSJavaSNS =      "com.amazonaws"                  % "aws-java-sdk-sns"    % "1.11.879"
+    val libHadoopAWS =        "org.apache.hadoop"              % "hadoop-aws"          % hadoopAWSVersion
+    val libAWSJavaSDK =       "com.amazonaws"                  % "aws-java-sdk-bundle" % "1.11.874" //"1.12.247"
+    val libAWSJavaSNS =       "com.amazonaws"                  % "aws-java-sdk-sns"    % "1.11.879"
 
-    val libJaninoCompiler =  "org.codehaus.janino"            %  "commons-compiler"   % janinoVersion
+    val libJaninoCompiler =   "org.codehaus.janino"            %  "commons-compiler"   % janinoVersion
 
-    val libFlyingSaucer =    "org.xhtmlrenderer"              %  "flying-saucer-pdf-itext5"   % "9.1.22"
-    val libThymeleaf =       "org.thymeleaf"                  % "thymeleaf"                   % "3.0.11.RELEASE"
-    val libNekoHtml =        "net.sourceforge.nekohtml"       % "nekohtml"                    % "1.9.21"
-    val libJSoup =           "org.jsoup"                      % "jsoup"                       % "1.15.1"
-    val libLaikaCore =       "org.planet42"                   %% "laika-core"                 % "0.18.2"
-    val libLaikaIo =         "org.planet42"                   %% "laika-io"                   % "0.18.2"
+    val libFlyingSaucer =     "org.xhtmlrenderer"              %  "flying-saucer-pdf-itext5"   % "9.1.22"
+    val libThymeleaf =        "org.thymeleaf"                  % "thymeleaf"                   % "3.0.11.RELEASE"
+    val libNekoHtml =         "net.sourceforge.nekohtml"       % "nekohtml"                    % "1.9.21"
+    val libJSoup =            "org.jsoup"                      % "jsoup"                       % "1.15.1"
+    val libLaikaCore =        "org.planet42"                   %% "laika-core"                 % "0.18.2"
+    val libLaikaIo =          "org.planet42"                   %% "laika-io"                   % "0.18.2"
     //val libLaikaPdf =        "org.planet42"                 %% "laika-pdf"                  % "0.18.2"
     
-    val libCasbin =          "org.casbin"                     % "jcasbin"                     % "1.7.1"
+    val libCasbin =           "org.casbin"                     % "jcasbin"                     % "1.7.1"
 
     val libAkkaPersistJDBC =  "com.lightbend.akka" %% "akka-persistence-jdbc" % "5.0.4"
     //val libAkkaPersistQuery = "com.typesafe.akka" %% "akka-persistence-query" % akkaVersion
@@ -205,13 +210,14 @@ object Dependencies {
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)
     val libPrometheus = Seq(libPrometheusClient,libPrometheusHttp,libPrometheusHotspot)
-    val libHttp = Seq(libAkkaHttp,libAkkaHttpSpray,libAkkaHttpMetrics,libAkkaHttpCors) ++ libPrometheus
+    val libHttp = Seq(libAkkaHttp,libAkkaHttpSpray,libAkkaHttpMetrics,libAkkaHttpCors,libWsRsJakarta,libSwaggerAkkaHttp) ++ libPrometheus
     val libCommon = Seq(libScalaLogging, libSlf4jApi, libLogback, libJanino, libTypesafeConfig )
     
     val libTest = Seq(libOsLib, libScalaTest % Test,libAkkaTestkit % Test,libAkkaTestkitType % Test)
     val libTestLib = Seq(libScalaTest,libAkkaTestkit,libAkkaTestkitType)
 
-    val libSkel = Seq(libWsRs,libSwaggerAkkaHttp,libMetrics,libScopt,libUUID)
+    val libSkel = Seq(libMetrics,libScopt,libUUID)
+    //val libSkel = Seq(libWsRs, libWsRsJakarta,libSwaggerAkkaHttp,libMetrics,libScopt,libUUID)
 
     val libDB = Seq(libQuill,libMySQL, libPostgres)
 

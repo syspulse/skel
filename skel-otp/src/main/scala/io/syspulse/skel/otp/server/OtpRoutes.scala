@@ -25,14 +25,17 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.{Operation, Parameter}
 import io.swagger.v3.oas.annotations.parameters.RequestBody
-import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
-import javax.ws.rs.core.MediaType
+// import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
+// import javax.ws.rs.core.MediaType
+import jakarta.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
+import jakarta.ws.rs.core.MediaType
 
 import io.prometheus.client.CollectorRegistry
 import io.prometheus.client.Counter
 
 import io.syspulse.skel.service.Routeable
 import io.syspulse.skel.service.CommonRoutes
+//import io.syspulse.skel.service.swagger.SwaggerLike
 
 import io.syspulse.skel.Command
 
@@ -74,6 +77,7 @@ class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_
 
   @GET @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("otp"),summary = "Return OTP by id",
+    method = "GET",
     parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "OTP id (uuid)")),
     responses = Array(new ApiResponse(responseCode="200",description = "OTP returned",content=Array(new Content(schema=new Schema(implementation = classOf[Otp])))))
   )

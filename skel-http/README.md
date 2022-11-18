@@ -169,13 +169,12 @@ Exposes Service information and Health check
 
 Embedded API documentation
 
-__API spec__: [http://{host}:{port}/api/v1/doc/swagger.yaml](http://{host}:{port}/api/v1/service/doc/swagger.yaml) or [http://{host}:{port}/api/v1/service/doc/swagger.json](http://{host}:{port}/api/v1/service/doc/swagger.json)
+__API spec__: [http://localhost:8080/api/v1/service/doc/swagger.yaml](http://localhost:8080/api/v1/service/doc/swagger.yaml) or [http://localhost:8080/api/v1/service/doc/swagger.json](http://localhost:8080/api/v1/service/doc/swagger.json)
 
-Quick: [http://localhost:8080/api/v1/service/doc/swagger.json](http://localhost:8080/api/v1/service/doc/swagger.json)
 
-__Swagger UI__: [http://host:port/api/v1/service/swagger](http://host:port/api/v1/service/swagger)
+__Swagger UI__:
 
-Quick: [http://localhost:8080/api/v1/service/swagger](http://localhost:8080/api/v1/service/swagger)
+[http://localhost:8080/api/v1/service/swagger](http://localhost:8080/api/v1/service/swagger)
 
 <img src="doc/scr-swagger.png" width="850">
 

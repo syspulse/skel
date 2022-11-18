@@ -22,8 +22,10 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.{Operation, Parameter}
 import io.swagger.v3.oas.annotations.parameters.RequestBody
-import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
-import javax.ws.rs.core.MediaType
+// import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
+// import javax.ws.rs.core.MediaType
+import jakarta.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
+import jakarta.ws.rs.core.MediaType
 
 
 import io.syspulse.skel.service.CommonRoutes
