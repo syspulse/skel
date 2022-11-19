@@ -1,0 +1,21 @@
+version: '3'
+
+networks:
+  db:
+
+services:
+  postgres-1:
+    image: postgres:14.3
+    container_name: postgres
+    volumes:
+      - "${PWD}/db_data:/var/lib/postgresql/data"
+    restart: always
+    ports:
+      - 5432:5432
+    networks:
+      - db
+    environment:
+      POSTGRES_HOST: 0.0.0.0
+      POSTGRES_DB: test_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root_pass

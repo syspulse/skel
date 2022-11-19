@@ -1,0 +1,1 @@
+../../../skel-db/mysql/db-destroy.sh

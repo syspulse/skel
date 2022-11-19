@@ -4,8 +4,7 @@ import java.time.Duration
 
 import scala.jdk.CollectionConverters._
 
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory
+import com.typesafe.scalalogging.Logger
 
 trait ConfigurationLike {
 
@@ -14,65 +13,18 @@ trait ConfigurationLike {
   def getLong(path:String):Option[Long]
   def getDuration(path:String):Option[Duration]
   def getAll():Seq[(String,Any)]
-}
-
-// Akka/Typesafe cofig suppors EnvVar, but the format is obtuse. 
-// I prefer the Uppercase exact match without support for .
-class ConfigurationEnv extends ConfigurationLike {
-
-  def getString(path:String):Option[String] = { val e = System.getenv(path.toUpperCase); if(e == null) None else Some(e) }
-  def getInt(path:String):Option[Int] = { val e = System.getenv(path.toUpperCase); if(e == null) None else Some(e.toInt) }
-  def getLong(path:String):Option[Long] = { val e = System.getenv(path.toUpperCase); if(e == null) None else Some(e.toLong) }
-  def getDuration(path:String):Option[Duration] = { val e = System.getenv(path.toUpperCase); if(e == null) None else Some(Duration.ofMillis(e.toLong)) }
-  def getAll():Seq[(String,Any)] = {System.getenv().asScala.toSeq.map{ kv => (kv._1,kv._2)}}
-}
-
-// akka/typesafe config supoports System properties names
-// If ConfigurationAkka is used, there is no need to include ConfigurationProp in chain
-class ConfigurationProp extends ConfigurationLike {
-
-  def getString(path:String):Option[String] = { val e = System.getProperty(path); if(e == null) None else Some(e) }
-  def getInt(path:String):Option[Int] = { val e = System.getProperty(path); if(e == null) None else Some(e.toInt) }
-  def getLong(path:String):Option[Long] = { val e = System.getProperty(path); if(e == null) None else Some(e.toLong) }
-
-  // supports only millis
-  def getDuration(path:String):Option[Duration] = { val e = System.getProperty(path); if(e == null) None else Some(Duration.ofMillis(e.toLong)) }
-
-  def getAll():Seq[(String,Any)] = {System.getProperties.asScala.toSeq.map{ kv => (kv._1,kv._2)}}
-}
-
-// Akka/Typesafe config supports EnvVar with -Dconfig.override_with_env_vars=true
-// Var format: CONFIG_FORCE_{var}. CASE-SENSITIVE !
-class ConfigurationAkka extends ConfigurationLike {
-
-  var akkaConfig:Option[Config] = Some(ConfigFactory.load())
-
-  def getString(path:String):Option[String] = 
-    if(!akkaConfig.isDefined) None else
-    if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getString(path)) else None
-  
-  def getInt(path:String):Option[Int] = 
-    if(!akkaConfig.isDefined) None else
-    if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getInt(path)) else None
-
-  def getLong(path:String):Option[Long] = 
-    if(!akkaConfig.isDefined) None else
-    if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getLong(path)) else None
-
-  def getAll():Seq[(String,Any)] = {
-    if(!akkaConfig.isDefined) return Seq()
-
-    akkaConfig.get.entrySet().asScala.toSeq.map(es => (es.getKey(),es.getValue.toString))
-  }
-
-  def getDuration(path:String):Option[Duration] = 
-    if(!akkaConfig.isDefined) None else
-    if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getDuration(path)) else None
+  def getParams():Seq[String]
+  def getCmd():Option[String] 
 }
 
 class Configuration(configurations: Seq[ConfigurationLike]) extends ConfigurationLike {
-  def getString(path:String):Option[String] = {
-    configurations.foldLeft[Option[String]](None)((r,c) => if(r.isDefined) r else c.getString(path))
+  // support for global reference to another string
+  def getString(path:String):Option[String] = {  
+    val r = configurations.foldLeft[Option[String]](None)((r,c) => if(r.isDefined) r else c.getString(path))
+    if(r.isDefined && r.get.startsWith("@")) 
+      getString(r.get.tail)
+    else 
+      r
   }
   
   def getInt(path:String):Option[Int] = {
@@ -90,7 +42,29 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
   def getDuration(path:String):Option[Duration] = {
     configurations.foldLeft[Option[Duration]](None)((r,c) => if(r.isDefined) r else c.getDuration(path))
   }
-  
+
+  def getParams():Seq[String] = {
+    configurations.foldLeft[Seq[String]](Seq())((r,c) => r ++ c.getParams())
+  }
+
+  def getCmd():Option[String] = {
+    configurations.foldLeft[Option[String]](None)((r,c) => if(r.isDefined) r else c.getCmd())
+  }
+
+  def getListString(path:String,d:Seq[String] = Seq()):Seq[String] = {
+    val v = getString(path)
+    val s = if(v.isDefined) v.get else d.mkString(",")
+    
+    if(s.trim.startsWith("file://")) {
+      val data = scala.io.Source.fromFile(s.drop("file://".size)).getLines().mkString(",")
+      data.split(",").map(_.trim).filter(!_.isEmpty).toSeq
+    } else {
+      s.split(",").map(_.trim).filter(!_.isEmpty).toSeq
+    }
+  }
+
+  def getListLong(path:String):Seq[Long] = getListString(path).flatMap( s => s.toLongOption)
+  def getListInt(path:String):Seq[Int] = getListString(path).flatMap( s => s.toIntOption)
 }
 
 object Configuration {
@@ -98,8 +72,16 @@ object Configuration {
   System.setProperty("config.override_with_env_vars","true")
   def apply():Configuration = new Configuration(Seq(new ConfigurationAkka))
 
-  def withPriority(configurations: Seq[ConfigurationLike]):Configuration = new Configuration(configurations)
+  // last has the highest priority, so because of foldLeft, reverse
+  def withPriority(configurations: Seq[ConfigurationLike]):Configuration = new Configuration(configurations.reverse)
 
-  def default:Configuration = Configuration.apply()
+  // default: try config in this sequence, later supercese earlier (Env > Prop > Akk)
+  def default:Configuration = Configuration.withPriority(Seq(new ConfigurationAkka,new ConfigurationProp,new ConfigurationEnv))
 
+  def withEnv(value:String):String = {
+    val env = value.split("\\$\\{").filter(_.contains("}")).map(s => s.substring(0,s.indexOf("}"))).toList
+    val envPairs = env.map(s => (s,sys.env.get(s).getOrElse("${"+s+"}")))
+
+    envPairs.foldLeft(value)( (value,pair) => { value.replace("${"+pair._1+"}",pair._2) })
+  } 
 }

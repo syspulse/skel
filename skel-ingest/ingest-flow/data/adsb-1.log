@@ -1,0 +1,3 @@
+{"ts":1629710253939,"raw":"8D5082F0F8230006004878DC0957","type":"ADSB_AircraftOperationStatus","icaoId":"5082f0","aircraft":"Boeing 737-94X","callsign":"UR-PSL"}
+{"ts":1629710253941,"raw":"8D5082F0990CA19CF0841130C95B","type":"ADSB_AirborneVelocity","icaoId":"5082f0","aircraft":"Boeing 737-94X","callsign":"UR-PSL"}
+{"ts":1629710254135,"raw":"8D5082F05823E16FC881E64F99B5","type":"ADSB_AirbornePositionBaro","icaoId":"5082f0","aircraft":"Boeing 737-94X","callsign":"UR-PSL"}

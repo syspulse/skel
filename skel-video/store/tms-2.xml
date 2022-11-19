@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<PGWSFullListing>
+    <fullListing>
+<contentDetails>
+            <addedDate>2010-11-08T14:10:12.397Z</addedDate>
+            <category>TV</category>
+            <subCategories>Travel</subCategories>
+            <title>Star Wars: Sith</title>
+            <tmsProgramId>MV001789240001</tmsProgramId>            
+            <tmsConnectorId>SH008048630000</tmsConnectorId>
+        </contentDetails>
+<contentDetails>
+            <addedDate>2010-11-08T14:10:12.397Z</addedDate>
+            <category>TV</category>
+            <title>Star Wars: Jedi</title>
+            <tmsProgramId>MV001789240002</tmsProgramId>
+            <tmsConnectorId>SH008048630000</tmsConnectorId>            
+        </contentDetails>        
+    </fullListing>
+</PGWSFullListing>

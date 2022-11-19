@@ -1,6 +1,6 @@
 # skel-http
 
-Skeleton for Simple HTTP Service
+Simple HTTP Service
 
 ## Build & Run
 
@@ -10,7 +10,7 @@ sbt
 ~reStart
 ```
 
-__Fat jar__
+__Assembly (Fat jar)__
 ```
 sbt assembly
 ./run.sh
@@ -21,7 +21,7 @@ __Docker__
 Local 
 ```
 sbt docker:publishLocal
-./run-docker.sh
+../tools/run-docker.sh
 ```
 
 Publish to [hub.docker.io](hub.docker.io)
@@ -40,37 +40,94 @@ __ATTENTION__: Disable firewall for connection to docker0 (172.17.0.1) from Cont
 
 ## Configuration
 
-A lot of flexibility to pass configuration 
+Configuration parameteres are read with prioriy (from highest to lowest)
+If configuration parameter is found for highest priority, the rest will not be read.
+Example: 
+```HTTP_PORT=8081 run.sh --http.port=8082``` - The environment var will not be even tried because arg was found and arg is the highest priority
 
-Configuration reading priority can be customized. Default:
+__Default Priority__:
 
-1. Command Line arguments
-2. Environment Variables (easiest to pass into Docker)
-3. JVM properties
-4. HOCON style Typesafe configuration file (application.conf). 
-   Configuration file can be customized with __$SITE__ to choose specific site/environment (e.g. __SITE=tidb__ would load __application-tidb.conf__)
-   Default File location is __conf/__
+1. __Command Line arguments__
+2. __Environment Variables__ (easiest to pass into Docker). The convention for env. variable name to replace __'.'__ (Dot) with __'_'__ (Underscore) and upper-case all characters: __http.port__ -> __HTTP_PORT__
+3. __JVM properties__ (passed as __OPT='-Dname=value'__ variable to run script)
+4. conf/__application.conf__ HOCON style Typesafe configuration file
 
-__Example__:
+   Default: __application-*component suffix*>.conf__ 
+   
+   E.g. __skel-http__ -> __application-http.conf__
+   
+   Configuration file can be customized with __$SITE__ to choose specific site/environment (e.g. __SITE=dev__ would load __application-dev.conf__)
+   
+   Default config file location is __conf/__
+   
+   '.' in configuration path means new section in file. E.g. __http.port__ :
+
+   ```
+   http {
+      port = 8080
+   }
+   ```
+
+__ATTENTION__: Docker Image is ALWAYS packaged with __application.conf__. 
+Customize __application.conf__ for default Docker configuration.
+Docker image will never package __application-*.conf__ and SITE/Component will be ignored when Docker is run. 
+
+### Examples:
+
+Read config from conf/application-http.conf (by default it uses current directory name suffix)
+```
+run.sh
+```
+
+Read config from conf/application-http.conf and override DB Url
+```
+DB_DATASOURCE_URL='jdbc:mysql://rigel.u132.net:3306/otp_db' ./run.sh
+```
+__NOTE__: Notation DB_DATASOURCE_URL overrides configuration:
+```
+db {
+  dataSource.url="jdbc:mysql://localhost:3306/service_db"
+}
+```
+By default, all services read DB configuration from "db" branch
+
+
+Read config from conf/application-dev.conf
+```
+SITE=dev run.sh
+```
+
+Read config from conf/application-http.conf and override http.host and http.port
+```
+run.sh --http.host 127.0.0.1 --http.port 8083
+```
+
+Read config from conf/application-http.conf and override with Env variables
+```
+HTTP_HOST=localhost HTTP_PORT=8084 run.sh
+```
+
+Read config from conf/application-http.conf and override with Properties
+```
+OPT="-Dhttp.host=192.168.1.100 -Dhttp.port=8086" run.sh
+```
+
+Read config from conf/application.conf and override with args
+```
+../tools/run-docker.sh --http.port=8091
+```
+
+
+Exampl of configuration file: __application-dev.conf__
 
 ```
-run.sh --host 0.0.0.0 --port 8080
+include "default-http"
+http {
+   host=0.0.0.0
+   port=8080
+}
 ```
-
-```
-HOST=0.0.0.0 PORT=8080 run.sh
-```
-
-```
-OPT="-Dhost=0.0.0.0 -Dport=8080" run.sh
-```
-
-application.conf
-```
-host=0.0.0.0
-port=8080
-```
-
+----
 ## Logging
 
 Logging is configured with logback.xml:
@@ -78,6 +135,20 @@ Logging is configured with logback.xml:
 1. logback.xml is searched on classpath
 1. __conf/logback.xml__ is first on Classpath in __run.sh__
 2. Default embedded logger config is set to "off"
+
+----
+## Default API
+
+Default API endpoints in every service 
+
+### Health
+
+- [http://{host}:{port}/api/v1/service/health](http://{host}:{port}/api/v1/service/health) - get very simple OK response
+
+### WebSocket
+
+- [http://{host}:{port}/api/v1/service/ws](http://{host}:{port}/api/v1/service/ws) - Simple Echo websocket
+
 
 ### Telemetry API
 
@@ -98,13 +169,12 @@ Exposes Service information and Health check
 
 Embedded API documentation
 
-__API spec__: [http://{host}:{port}/api/v1/doc/swagger.yaml](http://{host}:{port}/api/v1/service/doc/swagger.yaml) or [http://{host}:{port}/api/v1/service/doc/swagger.json](http://{host}:{port}/api/v1/service/doc/swagger.json)
+__API spec__: [http://localhost:8080/api/v1/service/doc/swagger.yaml](http://localhost:8080/api/v1/service/doc/swagger.yaml) or [http://localhost:8080/api/v1/service/doc/swagger.json](http://localhost:8080/api/v1/service/doc/swagger.json)
 
-Quick: [http://localhost:8080/api/v1/service/doc/swagger.json](http://localhost:8080/api/v1/service/doc/swagger.json)
 
-__Swagger UI__: [http://host:port/api/v1/service/swagger](http://host:port/api/v1/service/swagger)
+__Swagger UI__:
 
-Quick: [http://localhost:8080/api/v1/service/swagger](http://localhost:8080/api/v1/service/swagger)
+[http://localhost:8080/api/v1/service/swagger](http://localhost:8080/api/v1/service/swagger)
 
 <img src="doc/scr-swagger.png" width="850">
 

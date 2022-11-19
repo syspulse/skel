@@ -1,0 +1,58 @@
+---
+version: '2'
+
+networks:
+  kafka_net:
+    # driver: bridge
+
+services:
+  zookeeper:
+    image: 'bitnami/zookeeper:3.6.3'
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: 'yes'
+    #   ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - kafka_net
+
+  kafka:
+    image: 'bitnami/kafka:2.8.1'
+    # image: confluentinc/cp-server:5.5.1
+    hostname: broker
+    container_name: broker
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    networks:
+      - kafka_net
+    volumes:
+      - ${PWD}/client.truststore:/opt/bitnami/kafka/config/certs/kafka.truststore.jks:ro
+      - ${PWD}/broker.jks:/opt/bitnami/kafka/config/certs/kafka.keystore.jks:ro
+    environment:
+      # this is needed for Zookeeper
+      ALLOW_PLAINTEXT_LISTENER: 'yes' 
+
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_BROKER_ID: 1
+      
+      KAFKA_LISTENERS: EXTERNAL://:9092, INTERNAL://:9093
+      KAFKA_ADVERTISED_LISTENERS: EXTERNAL://localhost:9092, INTERNAL://:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: EXTERNAL:SSL, INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
+      #KAFKA_TLS_CLIENT_AUTH: none
+      KAFKA_CFG_SSL_KEY_PASSWORD: abcd1234
+
+      KAFKA_CFG_SSL_KEYSTORE_TYPE: JKS
+      KAFKA_CFG_SSL_KEYSTORE_LOCATION: /opt/bitnami/kafka/config/certs/kafka.keystore.jks
+      KAFKA_CFG_SSL_KEYSTORE_PASSWORD: abcd1234
+
+      KAFKA_CFG_SSL_TRUSTSTORE_TYPE: JKS
+      KAFKA_CFG_SSL_TRUSTSTORE_PASSWORD: abcd1234
+      KAFKA_CFG_SSL_TRUSTSTORE_LOCATION: /opt/bitnami/kafka/config/certs/kafka.truststore.jks
+      
+      KAFKA_CFG_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: ""

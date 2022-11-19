@@ -1,0 +1,47 @@
+package io.syspulse.skel.user.store
+
+import scala.util.Try
+import scala.util.{Success,Failure}
+import scala.collection.immutable
+
+import akka.actor.typed.ActorRef
+import akka.actor.typed.Behavior
+import akka.actor.typed.scaladsl.Behaviors
+import com.typesafe.scalalogging.Logger
+
+import io.jvm.uuid._
+
+import io.syspulse.skel.user._
+
+class UserStoreMem extends UserStore {
+  val log = Logger(s"${this}")
+  
+  var users: Map[UUID,User] = Map()
+
+  def all:Seq[User] = users.values.toSeq
+
+  def size:Long = users.size
+
+  def +(user:User):Try[UserStore] = { 
+    users = users + (user.id -> user)
+    log.info(s"${user}")
+    Success(this)
+  }
+
+  def del(id:UUID):Try[UserStore] = { 
+    val sz = users.size
+    users = users - id;
+    log.info(s"${id}")
+    if(sz == users.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
+  }
+
+  def -(user:User):Try[UserStore] = {     
+    del(user.id)
+  }
+
+  def ?(id:UUID):Option[User] = users.get(id)
+
+  def findByXid(xid:String):Option[User] = {
+    users.values.find(_.xid == xid)
+  }
+}

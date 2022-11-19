@@ -1,0 +1,1 @@
+kubectl delete pod "$1" -n default --grace-period 0 --force

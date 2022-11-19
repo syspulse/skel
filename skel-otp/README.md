@@ -1,12 +1,30 @@
 # skel-otp
 
-OTP Service Temaple
+OTP Service Template
 
 Provides backend for OTP Authentication (e.g.[Goole Authenticator](https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2))
 
 NOTE: __NOT for PRODUCTION__ Only for testing/prototyping ! 
 
 No authorization and returns all data including *secret*
+
+## Storage
+
+1. MySQL
+
+Setup DB
+
+```
+cd db/mysql
+../../../skel-db/mysql/db-create.sh
+```
+
+2. Postgres
+
+```
+cd db/postgres
+../../../skel-db/postgres/db-create.sh
+```
 
 ## Usage Example
 

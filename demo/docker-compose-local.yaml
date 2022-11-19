@@ -1,0 +1,123 @@
+version: '3'
+
+networks:
+  demo:
+
+services:
+  postgres:
+    image: postgres:14.3
+    container_name: postgres
+    volumes:
+      - "${PWD}/db_data:/var/lib/postgresql/data"
+    restart: always
+    ports:
+      - 5432:5432
+    networks:
+      - demo
+    environment:      
+#      TZ: Europe/Amsterdam
+      POSTGRES_HOST: 0.0.0.0
+      POSTGRES_DB: demo_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root_pass
+
+  postgres-init:
+    image: postgres:14.3
+    container_name: postgres-init
+    volumes:
+      - "${PWD}/db_init/:/db_init/"
+    networks:
+      - demo    
+    command: "bash -c 'echo Waiting for Postgres... && \
+              cd /db_init && \
+              ./db-wait.sh postgres 5432 && \
+              cd /db_init/skel-user && \
+              echo Initializing skel-user... && \
+              /db_init/db-create.sh && \
+              echo skel-user: OK && \
+              exit 0'"
+
+  skel-user:
+    image: syspulse/skel-user:latest
+    container_name: skel-user
+    depends_on:
+      - postgres
+      - postgres-init
+    restart: always
+    ports:
+      - 8081:8080
+    networks:
+      - demo
+    command: server
+    environment:
+      JAVA_OPTS: -Dgod
+      DATASTORE: postgres
+
+  skel-notify:
+    image: syspulse/skel-notify:latest
+    container_name: skel-notify
+    restart: always
+    ports:
+      - 8082:8080
+    networks:
+      - demo
+    command: server
+    environment:
+      JAVA_OPTS: -Dgod
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN}
+      AWS_REGION: ${AWS_REGION}
+      AWS_ACCOUNT: ${AWS_ACCOUNT}
+
+  skel-enroll:
+    image: syspulse/skel-enroll:latest
+    container_name: skel-enroll
+    restart: always
+    ports:
+      - 8083:8080
+    networks:
+      - demo
+    command: server
+    environment:
+      JAVA_OPTS: -Dgod
+      USER_URI: http://skel-user:8080/api/v1/user
+      NOTIFY_URI: http://skel-notify:8080/api/v1/notify
+      NOTIFY_EMAIL: ${NOTIFY_EMAIL}
+      CONFIRM_URI: http://localhost:8083
+
+  skel-auth:
+    image: syspulse/skel-auth:latest
+    container_name: skel-auth
+    restart: always
+    ports:
+      - 8080:8080
+    networks:
+      - demo
+    command: server
+    environment:
+      JAVA_OPTS: -Dgod
+      USER_URI: http://skel-user:8080/api/v1/user
+      GOOGLE_AUTH_CLIENT_ID: ${GOOGLE_AUTH_CLIENT_ID}
+      GOOGLE_AUTH_CLIENT_SECRET: ${GOOGLE_AUTH_CLIENT_SECRET}
+      TWITTER_AUTH_CLIENT_ID: ${TWITTER_AUTH_CLIENT_ID}
+      TWITTER_AUTH_CLIENT_SECRET: ${TWITTER_AUTH_CLIENT_SECRET}
+
+  skel-tag:
+    image: syspulse/skel-tag:latest
+    container_name: skel-tag
+    restart: always
+    volumes:
+      - "${PWD}/tags:/data"
+    ports:
+      - 8084:8080
+    networks:
+      - demo
+    command: server
+    environment:
+      JAVA_OPTS: -Dgod
+      DATASTORE: dir:///data
+      #DATASTORE: resources://

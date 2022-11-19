@@ -1,53 +1,132 @@
 package io.syspulse.skel.user
 
-import io.syspulse.skel
-import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv}
-import io.syspulse.skel.user.{UserRegistry,UserRoutes}
+import scala.concurrent.duration.Duration
+import scala.concurrent.Future
+import scala.concurrent.Await
 
-import scopt.OParser
+import io.syspulse.skel
+import io.syspulse.skel.util.Util
+import io.syspulse.skel.config._
+
+import io.syspulse.skel.user._
+import io.syspulse.skel.user.client._
+import io.syspulse.skel.user.store._
+import io.syspulse.skel.user.server.UserRoutes
+
+import io.jvm.uuid._
+
+import io.syspulse.skel.FutureAwaitable._
 
 case class Config(
-  host:String="",
-  port:Int=0,
-  uri:String = "",
+  host:String="0.0.0.0",
+  port:Int=8080,
+  uri:String = "/api/v1/user",
+  datastore:String = "mem",
+
+  cmd:String = "server",
+  params: Seq[String] = Seq(),
 )
 
 object App extends skel.Server {
   
-  def main(args:Array[String]) = {
-    println(s"Args: '${args.mkString(",")}'")
+  def main(args:Array[String]):Unit = {
+    println(s"args: '${args.mkString(",")}'")
 
-    val builder = OParser.builder[Config]
-    val argsParser = {
-      import builder._
-      OParser.sequence(
-        programName("skel-user"), head("skel-user", "0.0.1"),
-        opt[String]('h', "host").action((x, c) => c.copy(host = x)).text("hostname"),
-        opt[Int]('p', "port").action((x, c) => c.copy(port = x)).text("port"),
-        opt[String]('u', "uri").action((x, c) => c.copy(uri = x)).text("uri"),
-      )
-    } 
-  
-    OParser.parse(argsParser, args, Config()) match {
-      case Some(configArgs) => {
-        val configuration = Configuration.withPriority(Seq(new ConfigurationEnv,new ConfigurationAkka))
+    val d = Config()
+    val c = Configuration.withPriority(Seq(
+      new ConfigurationAkka,
+      new ConfigurationProp,
+      new ConfigurationEnv, 
+      new ConfigurationArgs(args,"skel-user","",
+        ArgString('h', "http.host",s"listen host (def: ${d.host})"),
+        ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
+        ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
+        ArgString('d', "datastore",s"datastore [mysql,postgres,mem,cache] (def: ${d.datastore})"),
+        ArgCmd("server","Command"),
+        ArgCmd("client","Command"),
+        ArgParam("<params>","")
+      ).withExit(1)
+    ))
 
-        val config = Config(
-          host = { if(! configArgs.host.isEmpty) configArgs.host else configuration.getString("host").getOrElse("0.0.0.0") },
-          port = { if(configArgs.port!=0) configArgs.port else configuration.getInt("port").getOrElse(8080) },
-          uri = { if(! configArgs.uri.isEmpty) configArgs.uri else configuration.getString("uri").getOrElse("/api/v1/user") },
-        )
+    val config = Config(
+      host = c.getString("http.host").getOrElse(d.host),
+      port = c.getInt("http.port").getOrElse(d.port),
+      uri = c.getString("http.uri").getOrElse(d.uri),
+      datastore = c.getString("datastore").getOrElse(d.datastore),
+      cmd = c.getCmd().getOrElse(d.cmd),
+      params = c.getParams(),
+    )
 
-        println(s"Config: ${config}")
+    println(s"Config: ${config}")
 
-        run( config.host, config.port, config.uri, configuration,
+    val store = config.datastore match {
+      case "mysql" | "db" => new UserStoreDB(c,"mysql")
+      case "postgres" => new UserStoreDB(c,"postgres")
+      case "mem" | "cache" => new UserStoreMem
+      case _ => {
+        Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
+        new UserStoreMem
+      }
+    }
+
+    config.cmd match {
+      case "server" => 
+        run( config.host, config.port,config.uri,c,
           Seq(
-            (UserRegistry(),"UserRegistry",(actor, actorSystem) => new UserRoutes(actor)(actorSystem) )
+            (UserRegistry(store),"UserRegistry",(r, ac) => new UserRoutes(r)(ac) )
           )
         )
+      case "client" => {
+        
+        val host = if(config.host == "0.0.0.0") "localhost" else config.host
+        val uri = s"http://${host}:${config.port}${config.uri}"
+        val timeout = Duration("3 seconds")
+
+        val r = 
+          config.params match {
+            case "delete" :: id :: Nil => 
+              UserClientHttp(uri)
+                .withTimeout(timeout)
+                .delete(UUID(id))
+                .await()
+            case "create" :: data => 
+              val (email:String,name:String,xid:String,avatar:String) = data match {
+                case email :: name :: xid :: _ => (email,name,xid,"")
+                case email :: name :: Nil => (email,name,"","")
+                case email :: Nil => (email,"","","")
+                case Nil => ("user-1@mail.com","","","")
+              }
+              UserClientHttp(uri)
+                .withTimeout(timeout)
+                .create(email,name,xid,avatar)
+                .await()
+            case "get" :: id :: Nil => 
+              UserClientHttp(uri)
+                .withTimeout(timeout)
+                .get(UUID(id))
+                .await()
+            case "getByEid" :: xid :: Nil => 
+              UserClientHttp(uri)
+                .withTimeout(timeout)
+                .getByXid(xid)
+                .await()
+            case "all" :: Nil => 
+              UserClientHttp(uri)
+                .withTimeout(timeout)
+                .all()
+                .await()
+
+            case Nil => UserClientHttp(uri)
+                .withTimeout(timeout)
+                .all()
+                .await()
+
+            case _ => println(s"unknown op: ${config.params}")
+          }
+        
+        println(s"${r}")
+        System.exit(0)
       }
-      case _ => 
     }
   }
 }
-

@@ -1,0 +1,9 @@
+0,1,SYSTEM,Global Notification Test
+16603911300000,9,SECURITY,Intrusion Detected (API)
+16603911309999,3,User, 'user-1@domain.org' (User-1) created
+16603912300000,3,User, 'user-2@mail' (User-2) deleted
+16603913300000,3,User, 'user-3@mail' (User-3) password changed
+16603914300000,9,SECURITY,Login API bruteforce 
+16603915300000,1,SYSTEM,Update to verion 0.45.1
+16604915000000,1,Ingest,feed-cg ingested (2000 items)
+16604915100000,1,Ingest,feed-cmc ingested (150 items)

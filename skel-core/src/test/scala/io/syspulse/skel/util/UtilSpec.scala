@@ -1,12 +1,20 @@
 package io.syspulse.skel.util
 
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.{Ignore}
+import org.scalatest.wordspec.{ AnyWordSpec}
+import org.scalatest.matchers.should.{ Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
 
 import java.time._
 import io.jvm.uuid._
 import io.syspulse.skel.util.Util
+import scala.util.Success
 
-class UtilSpec extends WordSpec with Matchers {
+case class DataUnit(v:Double,unit:String)
+case class Data(ts:Long,v:DataUnit)
+case class DataList(name:String,data:List[Data])
+
+class UtilSpec extends AnyWordSpec with Matchers {
   
   "Util" should {
 
@@ -51,32 +59,191 @@ class UtilSpec extends WordSpec with Matchers {
       s should === ("file-%d-%02d-%02d_%02d:%02d:%02d-suffix.log".format(t.getYear,t.getMonthValue,t.getDayOfMonth,t.getHour,t.getMinute,t.getSecond))
     }
 
-    "produce 5,100000000000,Text,7.13 for case class" in {
+    "convert '/dir/year={yyyy}/month={MM}/day={dd}' to Hive path" in {
+      val s = Util.toFileWithTime("/dir/year={yyyy}/month={MM}/day={dd}")
+      val t = LocalDateTime.now
+      s should === ("/dir/year=%d/month=%02d/day=%02d".format(t.getYear,t.getMonthValue,t.getDayOfMonth))
+    }
+
+    "produce CSV '5,100000000000,Text,7.13' for case class" in {
       case class Data(i:Int,l:Long,s:String,d:Double)
       val c = Data(5,100000000000L,"Text",7.13)
       val csv = Util.toCSV(c)
       csv should === ("5,100000000000,Text,7.13")
     }
 
-    "getDirWithSlash('') return ''" in {
-      val s = Util.getDirWithSlash("")
+    "produce CSV '5,100000000000,,7.13' for case class" in {
+      case class Data(i:Option[Int],l:Long,s:Option[String] = None,d:Option[Double]=None)
+      val c = Data(Some(5),100000000000L,None,Some(7.13))
+      val csv = Util.toCSV(c)
+      csv should === ("5,100000000000,,7.13")
+    }
+
+    "toDirWithSlash('') return ''" in {
+      val s = Util.toDirWithSlash("")
       s should === ("")
     }
 
-    "getDirWithSlash('data/') return 'data/'" in {
-      val s = Util.getDirWithSlash("data/")
+    "toDirWithSlash('data/') return 'data/'" in {
+      val s = Util.toDirWithSlash("data/")
       s should === ("data/")
     }
 
-    "getDirWithSlash('data') return 'data/'" in {
-      val s = Util.getDirWithSlash("data")
+    "toDirWithSlash('data') return 'data/'" in {
+      val s = Util.toDirWithSlash("data")
       s should === ("data/")
     }
 
-    "getDirWithSlash('/data') return '/data/'" in {
-      val s = Util.getDirWithSlash("/data")
+    "toDirWithSlash('/data') return '/data/'" in {
+      val s = Util.toDirWithSlash("/data")
       s should === ("/data/")
     }
-    
+
+    "toFlatData for Complex Class produce 'measure-0:10:1.0:m/s:20:2.0:kg'" in {
+      val dd = DataList("measure-0",List(Data(10L,DataUnit(1.0,"m/s")),Data(20L,DataUnit(2.0,"kg"))))
+      val s = Util.toFlatData(dd)
+      s should === ("measure-0:10:1.0:m/s:20:2.0:kg")
+    }
+
+    "AccessToken should be 32 bytes" in {
+      val bb = Util.generateRandomToken()
+      info(bb)
+      bb.size should === (43)
+    }
+
+    "load file from classpath:/resource-1.conf" in {
+      val txt = Util.loadFile("classpath:/resource-1.conf")
+      
+      txt should === (Success("data"))
+      txt.get.size should === (4)
+    }
+
+    "load file from conf/resource-2.conf (in project root ./conf/)" in {
+      val txt = Util.loadFile("conf/resource-2.conf")
+      
+      txt should === (Success("data2"))
+      txt.get.size should === (5)
+    }
+
+    "extractDirWithSlash('') return ''" in {
+      val s = Util.extractDirWithSlash("")
+      s should === ("")
+    }
+
+    "extractDirWithSlash('/data/file.log') return '/data/'" in {
+      val s = Util.extractDirWithSlash("/data/file.log")
+      s should === ("/data/")
+    }
+
+    "extractDirWithSlash('/data/') return '/data/'" in {
+      val s = Util.extractDirWithSlash("/data/")
+      s should === ("/data/")
+    }
+
+    "extractDirWithSlash('/dir1/dir2/file.log') return '/dir1/dir2/'" in {
+      val s = Util.extractDirWithSlash("/dir1/dir2/file.log")
+      s should === ("/dir1/dir2/")
+    }
+
+    "extractDirWithSlash('dir1/dir2/file.log') return 'dir1/dir2/'" in {
+      val s = Util.extractDirWithSlash("dir1/dir2/file.log")
+      s should === ("dir1/dir2/")
+    }
+
+
+    "nextTimestamp '/dir/year={yyyy}/month={MM}/day={dd}/file.log' should be next day" in {
+      val t1 = 1662982804209L 
+      val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/day={dd}/file.log",t1)      
+      val f2 = Util.toFileWithTime("{dd}",t2)      
+      f2 should === ("13")
+    }
+
+    "nextTimestamp '/dir/year={yyyy}/month={MM}/file.log' should be next month" in {
+      val t1 = 1662982804209L 
+      val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/file.log",t1)      
+      val f2 = Util.toFileWithTime("{MM}",t2)      
+      f2 should === ("10")
+    }
+
+    "nextTimestamp '/dir/year={yyyy}/file.log' should be next year" in {
+      val t1 = 1662982804209L 
+      val t2 = Util.nextTimestampDir("/dir/year={yyyy}/file.log",t1)      
+      val f2 = Util.toFileWithTime("{yyyy}",t2)      
+      f2 should === ("2023")
+    }
+
+    "nextTimestamp '/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/file.log' should be next hour" in {
+      val t1 = 1662982804209L 
+      val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/file.log",t1)
+      val f2 = Util.toFileWithTime("{HH}",t2)
+      f2 should === ("15")
+    }
+
+    "nextTimestamp '/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/min=${mm}/file.log' should be next minute" in {
+      val t1 = 1662982804209L 
+      val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/min=${mm}/file.log",t1)
+      val f2 = Util.toFileWithTime("{mm}",t2)
+      f2 should === ("41")
+    }
+
+    "nextTimestamp '/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/file-${HH}-${mm}.log' should be next hour (ignore file)" in {
+      val t1 = 1662982804209L 
+      val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/file-${HH}-${mm}.log",t1)
+      val f2 = Util.toFileWithTime("{HH}",t2)
+      f2 should === ("15")
+    }
+
+    // "nextTimestamp '/dir/year={yyyy}/month={MM}/day={dd}' should be next day" in {
+    //   val t1 = System.currentTimeMillis()
+    //   val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/day={dd}",t1)
+      
+    //   val f2 = Util.toFileWithTime("{dd}",t2)
+    //   val t3 = "%02d".format(ZonedDateTime.ofInstant(Instant.ofEpochMilli(t1), ZoneId.systemDefault).plusDays(1).getDayOfMonth)
+      
+    //   f2 should === (t3)
+    // }
+
+    "produce CSV 'data,attr1;attr2,10' for case class with List(1,2)" in {
+      case class Data(data:String,attr:List[String],v:Int)
+      val c = Data("data",List("attr1","attr2"),10)
+      val csv = Util.toCSV(c)
+      csv should === ("data,attr1;attr2,10")
+    }
+
+    "produce CSV 'data,attr1,10' for case class with List(1)" in {
+      case class Data(data:String,attr:List[String],v:Int)
+      val c = Data("data",List("attr1"),10)
+      val csv = Util.toCSV(c)
+      csv should === ("data,attr1,10")
+    }
+
+    "produce CSV 'data,,10' for case class with List()" in {
+      case class Data(data:String,attr:List[String],v:Int)
+      val c = Data("data",List(),10)
+      val csv = Util.toCSV(c)
+      csv should === ("data,,10")
+    }
+
+    "produce CSV 'data,attr1;attr2,10' for case class with Seq(1,2)" in {
+      case class Data(data:String,attr:Seq[String],v:Int)
+      val c = Data("data",Seq("attr1","attr2"),10)
+      val csv = Util.toCSV(c)
+      csv should === ("data,attr1;attr2,10")
+    }
+
+    "produce CSV 'data,attr1,10' for case class with Seq(1)" in {
+      case class Data(data:String,attr:Seq[String],v:Int)
+      val c = Data("data",Seq("attr1"),10)
+      val csv = Util.toCSV(c)
+      csv should === ("data,attr1,10")
+    }
+
+    "produce CSV 'data,,10' for case class with Seq()" in {
+      case class Data(data:String,attr:Seq[String],v:Int)
+      val c = Data("data",Seq(),10)
+      val csv = Util.toCSV(c)
+      csv should === ("data,,10")
+    }
+
   }
 }

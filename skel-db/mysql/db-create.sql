@@ -1,0 +1,4 @@
+CREATE DATABASE IF NOT EXISTS medar_db;
+CREATE USER IF NOT EXISTS 'medar_user'@'%' IDENTIFIED BY 'medar_pass';
+GRANT ALL PRIVILEGES ON medar_db.* TO 'medar_user'@'%' WITH GRANT OPTION;
+

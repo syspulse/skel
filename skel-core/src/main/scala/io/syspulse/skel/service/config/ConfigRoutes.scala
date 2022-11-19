@@ -21,21 +21,26 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.{Operation, Parameter}
 import io.swagger.v3.oas.annotations.parameters.RequestBody
-import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
-import javax.ws.rs.core.MediaType
+//import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
+//import javax.ws.rs.core.MediaType
+import jakarta.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
+import jakarta.ws.rs.core.MediaType
 
 import io.prometheus.client.Counter
 
 import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.service.config.ConfigRegistry._
+import akka.actor.typed.scaladsl.ActorContext
+
 
 @Path("/api/v1/config")
-class ConfigRoutes(configRegistry: ActorRef[ConfigRegistry.Command])(implicit val system: ActorSystem[_]) extends CommonRoutes {
-
+class ConfigRoutes(configRegistry: ActorRef[ConfigRegistry.Command])(implicit context: ActorContext[_]) extends CommonRoutes {
+  implicit val system: ActorSystem[_] = context.system
+  
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import ConfigJson._
   
-  val metricGetAllCount = Counter.build().name("skel_config_requests_total").help("Total Configuration requests.").register()
+  //val metricGetAllCount = Counter.build().name("skel_config_requests_total").help("Total Configuration requests.").register()
   
   def getConfigAll(): Future[Configs] = configRegistry.ask(GetConfigAll( _))
 
@@ -45,7 +50,7 @@ class ConfigRoutes(configRegistry: ActorRef[ConfigRegistry.Command])(implicit va
       new ApiResponse(responseCode = "200", description = "configuration",content = Array(new Content(schema = new Schema(implementation = classOf[Configs])))))
   )
   def getConfigAllRoute() = get {
-    metricGetAllCount.inc()
+    //metricGetAllCount.inc()
     complete(getConfigAll())
   }
 

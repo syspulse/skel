@@ -1,0 +1,40 @@
+---
+version: '3'
+
+networks:
+  kafka_net:
+    # driver: bridge
+
+services:
+  zookeeper:
+    image: 'bitnami/zookeeper:3.6.3'
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: 'yes'
+    #   ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - kafka_net
+
+  kafka:
+    image: 'bitnami/kafka:2.8.1'
+    hostname: broker
+    container_name: broker
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    networks:
+      - kafka_net
+    environment:
+      ALLOW_PLAINTEXT_LISTENER: 'yes'
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_BROKER_ID: 1
+      
+      KAFKA_LISTENERS: DOCKER://broker:29092,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: DOCKER://broker:29092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: DOCKER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
+      

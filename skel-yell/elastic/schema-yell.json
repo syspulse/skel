@@ -1,0 +1,30 @@
+{
+  "mappings" : {
+    "properties" : {
+      "ts" : {
+        "type" : "date"
+      },
+      "area" : {
+        "type" : "text",
+        "fields" : {
+          "keyword" : {
+            "type" : "keyword",
+            "ignore_above" : 256
+          }
+        }
+      },
+      "level" : {
+        "type" : "long"
+      },
+      "text" : {
+        "type" : "search_as_you_type",
+        "fields" : {
+          "keyword" : {
+            "type" : "keyword",
+            "ignore_above" : 256
+          }
+        }
+      }      
+    }
+  }
+}

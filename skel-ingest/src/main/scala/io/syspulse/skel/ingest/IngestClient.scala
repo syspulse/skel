@@ -31,12 +31,12 @@ import scala.jdk.CollectionConverters._
 import io.prometheus.client.Counter
 
 import io.syspulse.skel
-import io.syspulse.skel.ingest.Ingestable
+import io.syspulse.skel.Ingestable
 import io.syspulse.skel.util.Util
 
 
 trait IngestClient {
-  val log = Logger(s"${this}")
+  implicit val log = Logger(s"${this}")
 
   val metricEventsCounter: Counter = Counter.build().name("skel_ingest_events_total").help("Total Ingested Events").register()
 
@@ -46,7 +46,8 @@ trait IngestClient {
     minBackoff = 3.seconds,
     maxBackoff = 10.seconds,
     randomFactor = 0.2 // adds 20% "noise" to vary the intervals slightly
-  ).withMaxRestarts(10, 5.minutes)
+  )
+  //.withMaxRestarts(10, 5.minutes)
 
   val logSink = Sink.foreach[Ingestable](t => println(s"${t.toLog}"))
   

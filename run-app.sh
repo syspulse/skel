@@ -4,7 +4,6 @@
 
 test -e server-cred.sh && source server-cred.sh
 
-
 SITE=${SITE:-}
 if [ "$SITE" != "" ]; then
    SITE="-"${SITE}
@@ -14,25 +13,39 @@ APP=${1}
 MAIN=${2}
 
 shift
-shift 
+shift
 
-JAR=`ls ${APP}/target/scala-2.13/*assembly*.jar`
-CP="`pwd`/conf/:$JAR"
+ARGS="$@"
+
+APP_HOME=${APP_HOME:-`pwd`}
+
+JAR=`ls ${APP_HOME}/target/scala-2.13/*assembly*.jar`
+JAR_UNFAT=`ls ${APP_HOME}/lib/*.jar`
+CP="${APP_HOME}/conf/:$JAR:$JAR_UNFAT"
 
 CONFIG="application${SITE}.conf"
 
-echo "=== Class Path ======================================="
-echo "$CP"| sed "s/\:/\n/g"
-echo "======================================================"
-echo "APP: $APP"
-echo "MAIN: $MAIN"
-echo "OPT: $OPT"
-echo "ARGS: $@"
-echo "Site: ${SITE}"
-echo "Config: ${CONFIG}"
+MEM=${MEM:-1G}
+STACK=${STACK:-512M}
 
-echo $CP
+>&2 echo "=== Class Path ======================================="
+>&2 echo "$CP"| sed "s/\:/\n/g"
+>&2 echo "======================================================"
+>&2 echo "APP: $APP"
+>&2 echo "APP_HOME: $APP_HOME"
+>&2 echo "MAIN: $MAIN"
+# to be compatibble with old scripts (to be deprecated)
+>&2 echo "OPT: $OPT"
+>&2 echo "JAVA_OPTS: $JAVA_OPTS"
+>&2 echo "ARGS: $ARGS"
+>&2 echo "SITE: ${SITE}"
+>&2 echo "CONFIG: ${CONFIG}"
+>&2 echo "MEM: ${MEM}"
+>&2 echo "STACK: ${STACK}"
+
+>&2 echo $CP
+>&2 pwd
 
 # command:
-EXEC="$JAVA_HOME/bin/java -Xss512M -Dconfig.resource=$CONFIG -cp $CP $AGENT $OPT $MAIN $@"
-exec $EXEC
+# JAVA_OPTS should be overriden by old script parameters like $OPT
+exec $JAVA_HOME/bin/java -Xss${STACK} -Xms${MEM} -Xmx${MEM} $JAVA_OPTS -Dcolor -Dconfig.resource=$CONFIG -cp $CP $AGENT $OPT $MAIN $ARGS

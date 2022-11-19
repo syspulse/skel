@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deploy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: app-1
+  template:
+    metadata:
+      labels:
+        app: app-1
+    spec:
+      containers:
+      - name: shell
+        image: alpine:latest
+        command: ["/bin/sh", "-c"]
+        args:
+          - while true; do echo `date`; echo `date` >>/tmp/persistent/`hostname`.log ; sleep 1; done;
+        volumeMounts:
+        - name: nfs-volume
+          mountPath: "/tmp/persistent"
+      volumes:
+      - name: nfs-volume
+        persistentVolumeClaim:
+          claimName: nfs

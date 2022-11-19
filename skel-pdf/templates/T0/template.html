@@ -1,0 +1,41 @@
+<html xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="skel-pdf" />
+    <title>skel-pdf</title>
+  
+    <!-- <link rel="stylesheet" href="css/main.css"/> -->
+    <link rel="stylesheet" href="css/output.css"/>
+    
+    <style type="text/css">
+      
+    </style>
+  </head>
+  
+  <body>
+    <h3 style="text-align: left; color: rgb(19, 65, 19)">
+      <span th:text="${signature}"></span>
+    </h3>
+  </body>
+  <img width="128px" height="128px" src="logo.png"/> 
+  
+  <div th:each="issue,istat : ${issues}">
+    <!-- <div th:text="${istat.index + 1}+'.'">0</div> -->
+    <h2 th:text="${istat.index + 1}+'. '+${issue.title} + '('+ ${issue.id} +')'"><strong>ISSUE</strong></h2>
+    <!-- <h3 th:text="'ID: '+${issue.id}">ID</h3> -->
+    <h3 th:text="'Severity: '+${issue.severity}">3</h3>
+    <h4 th:text="'Status: '+${issue.status}">Status</h4>
+    <div>Reference:<a th:href="${issue.ref}">[[${issue.ref}]]</a></div>
+    
+    
+    <br/>
+    <!-- <span th:text="'desc='+${issue.desc}">Description</span> -->
+    <div class="panel-body output">
+      <div class="render html-rendered">
+        [(${issue.desc})]
+      </div>  
+    </div>
+    <br/>
+  </div>
+</html>

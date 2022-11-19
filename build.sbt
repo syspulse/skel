@@ -1,15 +1,27 @@
 import scala.sys.process.Process
 import Dependencies._
+import com.typesafe.sbt.packager.docker.DockerAlias
 import com.typesafe.sbt.packager.docker._
 
-parallelExecution in Test := true
+Global / onChangedBuildSource := ReloadOnSourceChanges
+
+// https://www.scala-sbt.org/1.x/docs/Parallel-Execution.html#Built-in+Tags+and+Rules
+Test / parallelExecution := true
+//test / parallelExecution := false
+// I am sorry sbt, this is stupid ->
+// Non-concurrent execution is needed for Server with starting / stopping HttpServer
+Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
+
+licenses := Seq(("ASF2", url("https://www.apache.org/licenses/LICENSE-2.0")))
 
 initialize ~= { _ =>
   System.setProperty("config.file", "conf/application.conf")
 }
 
-fork := true
-connectInput in run := true
+//fork := true
+test / fork := true
+run / fork := true
+run / connectInput := true
 
 enablePlugins(JavaAppPackaging)
 enablePlugins(DockerPlugin)
@@ -32,48 +44,81 @@ lazy val dockerBuildxSettings = Seq(
         alias + " .", baseDirectory.value / "target" / "docker"/ "stage").!
     )
   },
-  publish in Docker := Def.sequential(
-    publishLocal in Docker,
+  Docker / publish := Def.sequential(
+    Docker / publishLocal,
     ensureDockerBuildx,
     dockerBuildWithBuildx
   ).value
 )
 
+val dockerRegistryLocal = Seq(
+  dockerRepository := Some("docker.u132.net:5000"),
+  dockerUsername := Some("syspulse"),
+  // this fixes stupid idea of adding registry in publishLocal 
+  dockerAlias := DockerAlias(registryHost=None,username = dockerUsername.value, name = name.value, tag = Some(version.value))
+)
+
+val dockerRegistryDockerHub = Seq(
+  dockerUsername := Some("syspulse")
+)
+
 val sharedConfigDocker = Seq(
   maintainer := "Dev0 <dev0@syspulse.io>",
   // openjdk:8-jre-alpine - NOT WORKING ON RP4+ (arm64). Crashes JVM in kubernetes
-  dockerBaseImage := "openjdk:18-slim", //"openjdk:8u212-jre-alpine3.9", //"openjdk:8-jre-alpine",
+  // dockerBaseImage := "openjdk:8u212-jre-alpine3.9", //"openjdk:8-jre-alpine",
+
+  //dockerBaseImage := "openjdk:8-jre-alpine",
+  dockerBaseImage := "openjdk:18-slim",
+  
   dockerUpdateLatest := true,
   dockerUsername := Some("syspulse"),
   dockerExposedVolumes := Seq(s"${appDockerRoot}/logs",s"${appDockerRoot}/conf",s"${appDockerRoot}/data","/data"),
   //dockerRepository := "docker.io",
   dockerExposedPorts := Seq(8080),
 
-  defaultLinuxInstallLocation in Docker := appDockerRoot,
+  Docker / defaultLinuxInstallLocation := appDockerRoot,
 
-  daemonUserUid in Docker := None, //Some("1000"), 
-  daemonUser in Docker := "daemon"
+  Docker / daemonUserUid := None, //Some("1000"), 
+  Docker / daemonUser := "daemon"
+
+  // Experiments with S3 mount compatibility
+  // Docker / daemonUserUid := Some("1000"),  
+  // Docker / daemonUser := "ubuntu",
+  // Docker / daemonGroupGid := Some("1000"),
+  // Docker / daemonGroup := "ubuntu",
+  
+) ++ dockerRegistryLocal
+
+// Spark is not working with openjdk:18-slim (cannot access class sun.nio.ch.DirectBuffer)
+// openjdk:8-jre
+// Also, Spark has problems with /tmp (java.io.IOException: Failed to create a temp directory (under /tmp) after 10 attempts!)
+val sharedConfigDockerSpark = sharedConfigDocker ++ Seq(
+  //dockerBaseImage := "openjdk:8-jre-alpine",
+  dockerBaseImage := "openjdk:11-jre-slim",
+  Docker / daemonUser := "root"
 )
 
 val sharedConfig = Seq(
     //retrieveManaged := true,  
     organization    := "io.syspulse",
-    scalaVersion    := "2.13.3",
+    scalaVersion    := "2.13.6",
     name            := "skel",
     version         := appVersion,
 
     scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:existentials", "-language:implicitConversions", "-language:higherKinds", "-language:reflectiveCalls", "-language:postfixOps"),
     javacOptions ++= Seq("-target", "1.8", "-source", "1.8"),
-//    manifestSetting,
-//    publishSetting,
-    resolvers ++= Seq(Opts.resolver.sonatypeSnapshots, Opts.resolver.sonatypeReleases),
+    
     crossVersion := CrossVersion.binary,
     resolvers ++= Seq(
+      Opts.resolver.sonatypeSnapshots, 
+      Opts.resolver.sonatypeReleases,
       "spray repo"         at "https://repo.spray.io/",
       "sonatype releases"  at "https://oss.sonatype.org/content/repositories/releases/",
       "sonatype snapshots" at "https://oss.sonatype.org/content/repositories/snapshots/",
       "typesafe repo"      at "https://repo.typesafe.com/typesafe/releases/",
       "confluent repo"     at "https://packages.confluent.io/maven/",
+      "consensys repo"     at "https://artifacts.consensys.net/public/maven/maven/",
+      "consensys teku"     at "https://artifacts.consensys.net/public/teku/maven/"
     ),
   )
 
@@ -88,29 +133,125 @@ val sharedConfig = Seq(
 // }
 
 
-val sharedConfigAssembly = Seq(
-  assemblyMergeStrategy in assembly := {
-      case x if x.contains("module-info.class") => MergeStrategy.discard
+val sharedConfigAssemblyTeku = Seq(
+  assembly / assemblyMergeStrategy := {
+      case x if x.contains("module-info.class") => MergeStrategy.concat
+      case x if x.contains("io.netty.versions.properties") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticMarkerBinder.class") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticMDCBinder.class") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticLoggerBinder.class") => MergeStrategy.first
+      case x if x.contains("google/protobuf") => MergeStrategy.first
       case x => {
-        val oldStrategy = (assemblyMergeStrategy in assembly).value
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
         oldStrategy(x)
       }
   },
-  assemblyExcludedJars in assembly := {
-    val cp = (fullClasspath in assembly).value
-    cp filter { f =>
-      f.data.getName.contains("snakeyaml-1.27-android.jar") 
-      //||
-      //f.data.getName == "spark-core_2.11-2.0.1.jar"
+  assembly / assemblyExcludedJars := {
+    val cp = (assembly / fullClasspath).value
+    cp filter { f => {
+        f.data.getName.contains("bcprov-") || 
+        f.data.getName.contains("snakeyaml-1.27-android.jar") || 
+        f.data.getName.contains("jakarta.activation-api-1.2.1")
+      }
     }
   },
   
-  test in assembly := {}
+  assembly / test := {}
 )
 
+val sharedConfigAssembly = Seq(
+  assembly / assemblyMergeStrategy := {
+      case x if x.contains("module-info.class") => MergeStrategy.discard
+      case x if x.contains("io.netty.versions.properties") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticMarkerBinder.class") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticMDCBinder.class") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticLoggerBinder.class") => MergeStrategy.first
+      case x if x.contains("google/protobuf") => MergeStrategy.first
+      case x => {
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
+        oldStrategy(x)
+      }
+  },
+  assembly / assemblyExcludedJars := {
+    val cp = (assembly / fullClasspath).value
+    cp filter { f =>
+      f.data.getName.contains("snakeyaml-1.27-android.jar") || 
+      f.data.getName.contains("jakarta.activation-api-1.2.1") ||
+      f.data.getName.contains("jakarta.activation-2.0.1") 
+      //|| f.data.getName.contains("activation-1.1.1.jar") 
+      //|| f.data.getName == "spark-core_2.11-2.0.1.jar"
+    }
+  },
+  
+  assembly / test := {}
+)
+
+val sharedConfigAssemblySpark = Seq(
+  assembly / assemblyMergeStrategy := {
+      case x if x.contains("module-info.class") => MergeStrategy.discard
+      case x if x.contains("io.netty.versions.properties") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticMarkerBinder.class") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticMDCBinder.class") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticLoggerBinder.class") => MergeStrategy.first
+      case x if x.contains("google/protobuf") => MergeStrategy.first
+      case x if x.contains("org/apache/spark/unused/UnusedStubClass.class") => MergeStrategy.first
+      case x if x.contains("git.properties") => MergeStrategy.discard
+      case x if x.contains("mozilla/public-suffix-list.txt") => MergeStrategy.first
+      case x => {
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
+        oldStrategy(x)
+      }
+  },
+  assembly / assemblyExcludedJars := {
+    val cp = (assembly / fullClasspath).value
+    cp filter { f =>
+      f.data.getName.contains("snakeyaml-1.27-android.jar") || 
+      f.data.getName.contains("jakarta.activation-api-1.2.1") ||
+      f.data.getName.contains("jakarta.activation-api-1.1.1") ||
+      f.data.getName.contains("jakarta.activation-2.0.1.jar") ||
+      f.data.getName.contains("jakarta.annotation-api-1.3.5.jar") ||
+      f.data.getName.contains("jakarta.ws.rs-api-2.1.6.jar") ||
+      f.data.getName.contains("commons-logging-1.1.3.ja") ||
+      f.data.getName.contains("aws-java-sdk-bundle-1.11.563.jar") ||
+      f.data.getName.contains("jcl-over-slf4j-1.7.30.jar") ||
+      (f.data.getName.contains("netty") && (f.data.getName.contains("4.1.50.Final.jar") || (f.data.getName.contains("netty-all-4.1.68.Final.jar"))))
+
+      //|| f.data.getName == "spark-core_2.11-2.0.1.jar"
+    }
+  },
+  
+  assembly / test := {}
+)
+
+def appDockerConfig(appName:String,appMainClass:String) = 
+  Seq(
+    name := appName,
+
+    run / mainClass := Some(appMainClass),
+    assembly / mainClass := Some(appMainClass),
+    Compile / mainClass := Some(appMainClass), // <-- This is very important for DockerPlugin generated stage1 script!
+    assembly / assemblyJarName := jarPrefix + appName + "-" + "assembly" + "-"+  appVersion + ".jar",
+
+    Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
+    Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
+    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
+    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",   
+  )
+
+def appAssemblyConfig(appName:String,appMainClass:String) = 
+  Seq(
+    name := appName,
+    run / mainClass := Some(appMainClass),
+    assembly / mainClass := Some(appMainClass),
+    Compile / mainClass := Some(appMainClass),
+    assembly / assemblyJarName := jarPrefix + appName + "-" + "assembly" + "-"+  appVersion + ".jar",
+  )
+
+
+// ======================================================================================================================
 lazy val root = (project in file("."))
-  .aggregate(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp)
-  .dependsOn(core, skel_test, http, auth, user, kafka, world, shop, ingest, otp)
+  .aggregate(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl)
+  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl, scrap, enroll,yell,skel_notify,skel_tag)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -131,9 +272,26 @@ lazy val core = (project in file("skel-core"))
         libSkel ++ 
         libDB ++ 
         libTest ++ 
-        Seq(),
+        Seq(
+          libUUID, 
+          libScodecBits
+        ),
     )
 
+lazy val serde = (project in file("skel-serde"))
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      name := "skel-serde",
+      libraryDependencies ++= libTest ++ 
+        Seq(
+          libUUID, 
+          libAvro4s,
+          libUpickleLib,
+          libScodecBits
+        ),
+    )
+    
 lazy val skel_test = (project in file("skel-test"))
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
@@ -149,6 +307,21 @@ lazy val skel_test = (project in file("skel-test"))
         Seq(),
     )
 
+lazy val cron = (project in file("skel-cron"))
+  .dependsOn(core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,
+      
+      appAssemblyConfig("skel-cron",appBootClassCron),
+      
+      libraryDependencies ++= libCommon ++ libTest ++ 
+        Seq(
+          libQuartz
+        ),
+    )
+
 
 lazy val http = (project in file("skel-http"))
   .dependsOn(core)
@@ -161,38 +334,48 @@ lazy val http = (project in file("skel-http"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    sharedConfigDocker,
-    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
-    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
-    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
-    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
+    appDockerConfig(appNameHttp,appBootClassHttp),
 
-    name := appNameHttp,
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
-      
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
     ),
-    
-    mainClass in run := Some(appBootClassHttp),
-    mainClass in assembly := Some(appBootClassHttp),
-    assemblyJarName in assembly := jarPrefix + appNameHttp + "-" + "assembly" + "-"+  appVersion + ".jar",
-
   )
 
-lazy val auth = (project in file("skel-auth"))
+lazy val auth_core = (project in file("skel-auth/auth-core"))
   .dependsOn(core)
   .settings (
     sharedConfig,
-    sharedConfigAssembly,
-
-    name := appNameAuth,
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
-      
-    ),
+    name := "skel-auth-core",
     
-    mainClass in run := Some(appBootClassAuth),
-    mainClass in assembly := Some(appBootClassAuth),
-    assemblyJarName in assembly := jarPrefix + appNameAuth + "-" + "assembly" + "-"+  appVersion + ".jar",
+    libraryDependencies ++= libJwt ++ Seq(
+      libUpickleLib,
+      libCasbin
+    ),    
+  )
 
+lazy val auth = (project in file("skel-auth"))
+  .dependsOn(core,crypto,auth_core,user)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/permissions-model-rbac.conf") -> "conf/permissions-model-rbac.conf",
+    Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/permissions-policy-rbac.csv") -> "conf/permissions-policy-rbac.csv",
+    
+    appDockerConfig(appNameAuth,appBootClassAuth),
+    //appAssemblyConfig(appNameAuth,appBootClassAuth),
+
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ libJwt ++ Seq(
+      libUpickleLib,
+      libRequests,
+      libScalaTags,
+      libCask,
+      libCasbin
+    ),    
   )
 
 lazy val otp = (project in file("skel-otp"))
@@ -207,26 +390,17 @@ lazy val otp = (project in file("skel-otp"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
-    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
-    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
-    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
+    appDockerConfig(appNameOtp,appBootClassOtp),
 
-    name := appNameOtp,
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(      
         libKuroOtp,
         libQR
     ),
-    
-    mainClass in run := Some(appBootClassOtp),
-    mainClass in assembly := Some(appBootClassOtp),
-    assemblyJarName in assembly := jarPrefix + appNameOtp + "-" + "assembly" + "-"+  appVersion + ".jar",
-
   )
 
 
 lazy val user = (project in file("skel-user"))
-  .dependsOn(core)
+  .dependsOn(core,auth_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -237,20 +411,10 @@ lazy val user = (project in file("skel-user"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
-    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
-    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
-    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
+    appDockerConfig(appNameUser,appBootClassUser),
 
-    name := appNameUser,
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
-      
-    ),
-    
-    mainClass in run := Some(appBootClassHttp),
-    mainClass in assembly := Some(appBootClassHttp),
-    assemblyJarName in assembly := jarPrefix + appNameUser + "-" + "assembly" + "-"+  appVersion + ".jar",
-
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(  
+    ),    
   )
 
 lazy val kafka= (project in file("skel-kafka"))
@@ -259,73 +423,72 @@ lazy val kafka= (project in file("skel-kafka"))
     sharedConfig,
     sharedConfigAssembly,
 
-    name := appNameKafka,
+    appAssemblyConfig(appNameKafka,appBootClassKafka),
+
     libraryDependencies ++= Seq(
       libAkkaKafka,
       libKafkaAvroSer
     ),
-    
-    mainClass in run := Some(appBootClassKafka),
-    mainClass in assembly := Some(appBootClassKafka),
-    assemblyJarName in assembly := jarPrefix + appNameKafka + "-" + "assembly" + "-"+ appVersion + ".jar",
-
   )  
 
-lazy val world = (project in file("skel-world"))
+lazy val crypto = (project in file("skel-crypto"))
   .dependsOn(core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssemblyTeku,
+      //sharedConfigAssembly,
+      name := "skel-crypto",
+      libraryDependencies ++= Seq() ++ //Seq(libLog4j2Api, libLog4j2Core) ++ 
+        libTest ++ libWeb3j ++ Seq(
+          libOsLib,
+          libUpickleLib,
+          libScodecBits,
+          libHKDF,
+          libBLS,
+          libBLSKeystore,
+          libSSSS,
+          libEthAbi,
+        ),
+      // this is important option to support latest log4j2 
+      assembly / packageOptions += sbt.Package.ManifestAttributes("Multi-Release" -> "true")
+    )
+
+lazy val flow = (project in file("skel-flow"))
+  .dependsOn(core)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      name := "skel-flow",
+      libraryDependencies ++= libTest ++ Seq(
+        libOsLib,
+        libUpickleLib,
+      )
+    )
+
+
+lazy val scrap = (project in file("skel-scrap"))
+  .dependsOn(core,cron,flow)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
-  .enablePlugins(AshScriptPlugin)
+  // .enablePlugins(AshScriptPlugin)
   .settings (
-
+    
     sharedConfig,
     sharedConfigAssembly,
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
-    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
-    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
-    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
+    appDockerConfig(appNameScrap,appBootClassScrap),
 
-    name := appNameWorld,
     libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
-      libCsv
+      libCask,
+      libOsLib,
+      libUpickleLib,
+      libScalaScraper,
+      libInfluxDB
     ),
-    
-    mainClass in run := Some(appBootClassWorld),
-    mainClass in assembly := Some(appBootClassWorld),
-    assemblyJarName in assembly := jarPrefix + appNameWorld + "-" + "assembly" + "-"+  appVersion + ".jar",
-
-  )
-
-lazy val shop = (project in file("skel-shop"))
-  .dependsOn(core,world)
-  .enablePlugins(JavaAppPackaging)
-  .enablePlugins(DockerPlugin)
-  .enablePlugins(AshScriptPlugin)
-  .settings (
-
-    sharedConfig,
-    sharedConfigAssembly,
-    sharedConfigDocker,
-    dockerBuildxSettings,
-
-    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
-    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
-    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
-    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
-
-    name := appNameShop,
-    libraryDependencies ++= libHttp ++ libDB ++ libTest ++ Seq(
-      libCsv,
-      libFaker
-    ),
-    
-    mainClass in run := Some(appBootClassShop),
-    mainClass in assembly := Some(appBootClassShop),
-    assemblyJarName in assembly := jarPrefix + appNameShop + "-" + "assembly" + "-"+  appVersion + ".jar",
-
+     
   )
 
 lazy val ingest = (project in file("skel-ingest"))
@@ -335,16 +498,154 @@ lazy val ingest = (project in file("skel-ingest"))
     sharedConfig,
     sharedConfigAssembly,
 
-    name := "skel-ingest",
+    appAssemblyConfig("skel-ingest",""),
+    //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
+
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
-      libUjsonLib
-    ),
-    
-    assemblyJarName in assembly := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
+      libScalaTest % Test,
+      libAlpakkaFile,
+      libUpickleLib,      
+    ),        
   )
 
-lazy val ekm = (project in file("skel-ekm"))
+lazy val ingest_dynamo = (project in file("skel-ingest/ingest-dynamo"))
+  .dependsOn(core,video,ingest)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  // .enablePlugins(AshScriptPlugin)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig(appNameDynamo,appBootClassDynamo),
+
+    libraryDependencies ++= libHttp ++ libTest ++ Seq(
+      libAlpakkaDynamo
+    ),  
+  )
+ 
+lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
   .dependsOn(core,ingest)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  // .enablePlugins(AshScriptPlugin)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig(appNameElastic,appBootClassElastic),
+
+    libraryDependencies ++= libHttp ++ libTest ++ Seq(
+      libAlpakkaElastic
+    ),  
+  )
+
+lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
+  .dependsOn(core,ingest,ingest_elastic,kafka)
+  .enablePlugins(JavaAppPackaging)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+
+    appAssemblyConfig("ingest-flow","io.syspulse.skel.ingest.flow.App"),
+    //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
+
+    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
+      libScalaTest % Test,
+      libAlpakkaFile,
+      libUpickleLib,      
+    ),        
+  )
+
+lazy val stream_std = (project in file("skel-stream/stream-std"))
+  .dependsOn(core,dsl)
+  .enablePlugins(JavaAppPackaging)
+  //.enablePlugins(DockerPlugin)
+  //.enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+    //sharedConfigDocker,
+    //dockerBuildxSettings,
+
+    appDockerConfig("stream-std","io.syspulse.skel.stream.AppStream"),
+
+    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
+      libUpickleLib
+    ),
+
+  )
+
+lazy val cli = (project in file("skel-cli"))
+  .dependsOn(core,crypto)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+    
+    appAssemblyConfig("skel-cli","io.syspulse.skel.cli.App"),
+    
+    libraryDependencies ++= libCommon ++ libHttp ++ libTest ++ 
+      Seq(        
+        libOsLib,
+        libUpickleLib,
+        libJline
+      ),
+  )
+
+lazy val db_cli = (project in file("skel-db/db-cli"))
+  .dependsOn(core,cli)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,
+      
+      appAssemblyConfig("db-cli","io.syspulse.skel.db.AppCliDB"),
+      
+      libraryDependencies ++= libCommon ++ libHttp ++ libTest ++ 
+        Seq(
+          
+        ),
+    )
+
+lazy val dsl = (project in file("skel-dsl"))
+  .dependsOn(core)
+  .settings (
+      sharedConfig,
+      name := "skel-dsl",
+      libraryDependencies ++= libCommon ++
+        Seq(),
+    )
+
+
+lazy val spark_convert = (project in file("skel-spark/spark-convert"))
+  .dependsOn(core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssemblySpark,
+    sharedConfigDockerSpark,
+    dockerBuildxSettings,
+
+    appDockerConfig("spark-convert","io.syspulse.skel.spark.CsvConvert"),
+
+    version := "0.0.7",
+
+    libraryDependencies ++= libSparkAWS ++ Seq(
+      
+    ),
+  )
+
+lazy val enroll = (project in file("skel-enroll"))
+  .dependsOn(core,crypto,user,skel_notify,skel_test % Test)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -355,18 +656,124 @@ lazy val ekm = (project in file("skel-ekm"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    mappings in Universal += file("conf/application.conf") -> "conf/application.conf",
-    mappings in Universal += file("conf/logback.xml") -> "conf/logback.xml",
-    bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
-    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",
+    //name := "skel-enroll",
+    appDockerConfig("skel-enroll","io.syspulse.skel.enroll.App"),
 
-    name := appNameEkm,
-    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
-      libUjsonLib
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
+      libAkkaPersistence,
+      libAkkaPersistenceTest,
+      libAkkaSerJackon,
+      libAkkaPersistJDBC,
+      libSlick,
+      libSlickHikari,
+      libH2,
+      libLevelDB
+      //libAkkaSerJackon
     ),
-    
-    mainClass in run := Some(appBootClassEkm),
-    mainClass in assembly := Some(appBootClassEkm),
-    assemblyJarName in assembly := jarPrefix + appNameEkm + "-" + "assembly" + "-"+  appVersion + ".jar",
+  )
 
+lazy val pdf = (project in file("skel-pdf"))
+  .dependsOn(core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+    
+    
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    //name := "skel-pdf",
+    appDockerConfig("skel-pdf","io.syspulse.skel.pdf.App"),
+
+    libraryDependencies ++= libPdfGen ++ Seq(
+      libScalaTest,
+      libLaikaCore,
+      libLaikaIo      
+    ),
+  )
+
+
+lazy val yell = (project in file("skel-yell"))
+  .dependsOn(core,auth_core,ingest,ingest_elastic,ingest_flow)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  // .enablePlugins(AshScriptPlugin)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("skel-yell","io.syspulse.skel.yell.App"),
+
+    libraryDependencies ++= libSkel ++ libHttp ++ libTest ++ Seq(
+      libAlpakkaElastic,
+      libElastic4s
+    ),  
+  )
+
+lazy val video = (project in file("skel-video"))
+  .dependsOn(core,auth_core,ingest,ingest_flow,ingest_elastic)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("skel-video","io.syspulse.skel.video.App"),
+
+    libraryDependencies ++= libCommon ++ 
+      Seq(
+        libElastic4s,
+        libAkkaHttpSpray,
+        libUUID,
+      ),
+  )
+
+lazy val skel_notify = (project in file("skel-notify"))
+  .dependsOn(core,auth_core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("skel-notify","io.syspulse.skel.notify.App"),
+
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
+      libAWSJavaSNS,
+      libCourier
+    ),    
+  )
+
+lazy val skel_tag = (project in file("skel-tag"))
+  .dependsOn(core,auth_core,ingest_flow)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("skel-tag","io.syspulse.skel.tag.App"),
+
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
+      libElastic4s
+    ),    
   )

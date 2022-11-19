@@ -1,0 +1,13 @@
+apiVersion: com.ie.ibm.hpsys/v1alpha1
+kind: Dataset
+metadata:
+  name: data-s3
+spec:
+  local:
+    type: "COS"
+    accessKeyID: "{AWS_ACCESS_KEY_ID}"
+    secretAccessKey: "{AWS_SECRET_ACCESS_KEY}"
+    endpoint: "https://s3.eu-west-1.amazonaws.com"
+    bucket: "bucket-data-dev"
+    readonly: "false"
+    region: ""

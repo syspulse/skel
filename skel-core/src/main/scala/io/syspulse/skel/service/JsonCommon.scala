@@ -12,12 +12,12 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.Directives
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsString, JsValue, JsonFormat, deserializationError}
 
-class JsonCommon  {
+trait JsonCommon extends DefaultJsonProtocol {
   
-  import DefaultJsonProtocol._
+  //import DefaultJsonProtocol._
   
   //val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssZ")
-  val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+  val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
 
   implicit object UUIDFormat extends JsonFormat[UUID] {
     def write(uuid: UUID) = JsString(uuid.toString)
@@ -30,7 +30,7 @@ class JsonCommon  {
   }
 
   implicit object LocalDateTimeFormat extends JsonFormat[LocalDateTime] {
-    override def write(obj: LocalDateTime) : JsValue = JsString(fmt.format(obj))
+    override def write(obj: LocalDateTime) : JsValue = JsString(dateFormatter.format(obj))
 
     override def read(json: JsValue) : LocalDateTime = json match {
       case JsString(rawDate) => {
@@ -50,7 +50,7 @@ class JsonCommon  {
   }
 
   implicit object ZonedDateTimeFormat extends JsonFormat[ZonedDateTime] {
-    override def write(obj: ZonedDateTime) : JsValue = JsString(fmt.format(obj))
+    override def write(obj: ZonedDateTime) : JsValue = JsString(dateFormatter.format(obj))
 
     override def read(json: JsValue) : ZonedDateTime = json match {
       case JsString(rawDate) => {
