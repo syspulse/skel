@@ -138,7 +138,7 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
 
   @POST @Path("/{id}/email") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("emaail"),summary = "Add email to Enroll",
+  @Operation(tags = Array("enroll"),summary = "Add email to Enroll",
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[EnrollUpdateReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "Enroll updated with Email",content = Array(new Content(schema = new Schema(implementation = classOf[Enroll])))))
   )
@@ -152,8 +152,7 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
 
   @GET @Path("/{id}/confirm/{code}") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("confirm"),summary = "Confirm Email with Confirmation Code",
-    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[EnrollUpdateReq])))),
+  @Operation(tags = Array("enroll"),summary = "Confirm Email with Confirmation Code",
     responses = Array(new ApiResponse(responseCode = "200", description = "Email confirmed",content = Array(new Content(schema = new Schema(implementation = classOf[Enroll])))))
   )
   def getEnrollEmailConfirmRoute(id: String,code:String) = get {
@@ -162,14 +161,20 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
     }
     
   }
-  def updateEnrollEmailConfirmRoute(id: String) = post {
+
+  @POST @Path("/{id}/confirm") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("enroll"),summary = "Confirm Email with Confirmation Code",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[EnrollUpdateReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "Email confirmed",content = Array(new Content(schema = new Schema(implementation = classOf[Enroll])))))
+  )
+  def updateEnrollEmailConfirmRoute = post {
     entity(as[EnrollUpdateReq]) { enrollUpdate =>
-      onSuccess(updateEnroll(enrollUpdate.copy(id = UUID.fromString(id),command=Some("confirm")))) { r => 
+      onSuccess(updateEnroll(enrollUpdate.copy(command=Some("confirm")))) { r => 
         complete((StatusCodes.OK, r))
       }
     }
   }
-
 
   override def routes: Route =
       concat(
@@ -199,7 +204,10 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
               pathPrefix(Segment) { code => {                
                   getEnrollEmailConfirmRoute(id,code)
                 }
-              }
+              } ~
+              pathEndOrSingleSlash {
+                updateEnrollEmailConfirmRoute
+              }              
             } ~
             pathEndOrSingleSlash {
               //authenticate()(authn =>

@@ -106,7 +106,13 @@ object App extends skel.Server {
       //case "mysql" | "db" => new EnrollStoreDB(c,"mysql")
       //case "postgres" => new EnrollStoreDB(c,"postgres")
       case "mem"  => new EnrollStoreMem
-      case "akka" => new EnrollStoreAkka
+      case "akka" => {
+        val store = new EnrollStoreAkka
+
+        // initialize Tables
+        new EnrollSystem().withAutoTables()
+        store
+      }
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}'")
         sys.exit(1)
@@ -120,9 +126,7 @@ object App extends skel.Server {
         val eid = new EnrollSystem().withAutoTables()
 
       case "server" => 
-        // initialize Tables
-        new EnrollSystem().withAutoTables()
-
+        
         run( config.host, config.port,config.uri,c,
           Seq(
             (EnrollRegistry(store),"EnrollRegistry",(actor, context) => {
