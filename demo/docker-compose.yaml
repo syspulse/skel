@@ -89,6 +89,22 @@ services:
       NOTIFY_EMAIL: ${NOTIFY_EMAIL}
       CONFIRM_URI: http://localhost:8083
 
+  skel-tag:
+    image: syspulse/skel-tag:latest
+    container_name: skel-tag
+    restart: always
+    volumes:
+      - "${PWD}/tags:/data"
+    ports:
+      - 8084:8080
+    networks:
+      - demo
+    command: server
+    environment:
+      JAVA_OPTS: -Dgod
+      DATASTORE: dir:///data
+      #DATASTORE: resources://
+
   skel-auth:
     image: syspulse/skel-auth:latest
     container_name: skel-auth
@@ -105,22 +121,6 @@ services:
       GOOGLE_AUTH_CLIENT_SECRET: ${GOOGLE_AUTH_CLIENT_SECRET}
       TWITTER_AUTH_CLIENT_ID: ${TWITTER_AUTH_CLIENT_ID}
       TWITTER_AUTH_CLIENT_SECRET: ${TWITTER_AUTH_CLIENT_SECRET}
-
-  skel-tag:
-    image: syspulse/skel-tag:latest
-    container_name: skel-tag
-    restart: always
-    volumes:
-      - "${PWD}/tags:/data"
-    ports:
-      - 8084:8080
-    networks:
-      - demo
-    command: server
-    environment:
-      JAVA_OPTS: -Dgod
-      DATASTORE: dir:///data
-      #DATASTORE: resources://
 
   nginx:
     image: nginx

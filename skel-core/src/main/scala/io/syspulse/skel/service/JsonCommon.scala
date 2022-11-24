@@ -11,6 +11,9 @@ import java.time.format.DateTimeFormatter
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.Directives
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsString, JsValue, JsonFormat, deserializationError}
+import spray.json.JsNumber
+import spray.json.JsTrue
+import spray.json.JsFalse
 
 trait JsonCommon extends DefaultJsonProtocol {
   
@@ -95,6 +98,21 @@ trait JsonCommon extends DefaultJsonProtocol {
       }
 
       case unknown => deserializationError(s"Expected JsString, got $unknown")
+    }
+  }
+
+  implicit object AnyFormat extends JsonFormat[Any] {
+    def write(x: Any) = x match {
+      case n: Int => JsNumber(n)
+      case s: String => JsString(s)
+      case b: Boolean if b == true => JsTrue
+      case b: Boolean if b == false => JsFalse
+    }
+    def read(value: JsValue) = value match {
+      case JsNumber(n) => n
+      case JsString(s) => s
+      case JsTrue => true
+      case JsFalse => false
     }
   }
 

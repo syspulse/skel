@@ -9,6 +9,9 @@ import io.swagger.v3.oas.models.ExternalDocumentation
 
 import io.syspulse.skel.service.telemetry.{TelemetryRoutes}
 import io.syspulse.skel.service.info.{InfoRoutes}
+import io.syspulse.skel.service.health.HealthRoutes
+import io.syspulse.skel.service.config.ConfigRoutes
+import io.syspulse.skel.service.metrics.MetricsRoutes
 
 
 trait SwaggerLike extends SwaggerHttpService { 
@@ -21,7 +24,10 @@ trait SwaggerLike extends SwaggerHttpService {
   @volatile
   var classes:Set[Class[_]] = Set(
     classOf[TelemetryRoutes],
-    classOf[InfoRoutes]
+    classOf[InfoRoutes],
+    classOf[HealthRoutes],
+    classOf[ConfigRoutes],
+    classOf[MetricsRoutes]
   )
 
   override def apiClasses: Set[Class[_]] = {

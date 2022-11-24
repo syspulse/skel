@@ -251,7 +251,12 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 // ======================================================================================================================
 lazy val root = (project in file("."))
   .aggregate(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl)
-  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl, scrap, enroll,yell,skel_notify,skel_tag)
+  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl, scrap,
+             enroll,
+             yell,
+             skel_notify,
+             skel_tag, 
+             skel_telemetry)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -772,6 +777,25 @@ lazy val skel_tag = (project in file("skel-tag"))
     dockerBuildxSettings,
 
     appDockerConfig("skel-tag","io.syspulse.skel.tag.App"),
+
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
+      libElastic4s
+    ),    
+  )
+
+lazy val skel_telemetry = (project in file("skel-telemetry"))
+  .dependsOn(core,auth_core,ingest_flow)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("skel-telemetry","io.syspulse.skel.telemetry.App"),
 
     libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
       libElastic4s
