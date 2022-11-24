@@ -7,7 +7,7 @@ import io.syspulse.skel.Ingestable
 
 abstract class TelemetryLike(id:Telemetry.ID, ts:Long = System.currentTimeMillis)
 
-case class Telemetry(id:Telemetry.ID, ts:Long = System.currentTimeMillis, data:Map[String,Any]) extends TelemetryLike(id,ts) with Ingestable
+case class Telemetry(id:Telemetry.ID, ts:Long = System.currentTimeMillis, data:List[Any]) extends TelemetryLike(id,ts) with Ingestable
 
 // trait Telemetry extends Ingestable { 
 //   def id:Telemetry.ID

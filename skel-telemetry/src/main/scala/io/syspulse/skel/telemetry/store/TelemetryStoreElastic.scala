@@ -33,7 +33,7 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
     // becasue of VID case class, it is converted unmarchsalled as Map from Elastic (field vid.id)
     override def read(hit: Hit): Try[Telemetry] = {
       val source = hit.sourceAsMap
-      Success(Telemetry(source("id").asInstanceOf[String], source("ts").asInstanceOf[Long], source("data").asInstanceOf[Map[String,AnyRef]]))
+      Success(Telemetry(source("id").asInstanceOf[String], source("ts").asInstanceOf[Long], source("data").asInstanceOf[List[AnyRef]]))
     }
   }
   

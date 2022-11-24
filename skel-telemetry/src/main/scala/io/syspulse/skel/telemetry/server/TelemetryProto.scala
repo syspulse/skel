@@ -13,7 +13,7 @@ import io.syspulse.skel.service.JsonCommon
 
 final case class Telemetrys(telemetrys: immutable.Seq[Telemetry])
 
-final case class TelemetryCreateReq(id:Telemetry.ID,ts:Long,data:Map[String,Any])
+final case class TelemetryCreateReq(id:Telemetry.ID,ts:Long,data:List[Any])
 final case class TelemetryRandomReq()
 final case class TelemetryActionRes(status: String,id:Option[Telemetry.ID])
 final case class TelemetryRes(telemetry: Option[Telemetry])
