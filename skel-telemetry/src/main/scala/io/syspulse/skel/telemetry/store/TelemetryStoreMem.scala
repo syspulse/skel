@@ -13,40 +13,49 @@ import io.syspulse.skel.telemetry._
 class TelemetryStoreMem extends TelemetryStore {
   val log = Logger(s"${this}")
   
-  var telemetrys: Map[Telemetry.ID,Telemetry] = Map()
+  var telemetrys: immutable.TreeMap[Long,List[Telemetry]] = immutable.TreeMap() 
+  // Map[Telemetry.ID,Telemetry] = Map()
 
-  def all:Seq[Telemetry] = telemetrys.values.toSeq
+  def all:Seq[Telemetry] = telemetrys.values.flatten.toSeq
 
-  def size:Long = telemetrys.size
+  def size:Long = telemetrys.values.flatten.size
 
   def +(t:Telemetry):Try[TelemetryStore] = { 
-    telemetrys = telemetrys + (t.id -> t)
     log.info(s"${t}")
+    telemetrys = telemetrys + (t.ts -> {telemetrys.getOrElse(t.ts,List()) :+ t})
     Success(this)
   }
 
-  def del(vid:Telemetry.ID):Try[TelemetryStore] = { 
-    val sz = telemetrys.size
-    telemetrys = telemetrys - vid;
-    log.info(s"${vid}")
-    if(sz == telemetrys.size) Failure(new Exception(s"not found: ${vid}")) else Success(this)  
+  def del(id:Telemetry.ID):Try[TelemetryStore] = { 
+    val r = telemetrys.values.flatten.filter(_.id == id).map( t => {
+      telemetrys = telemetrys - t.ts
+      true
+    })
+    log.info(s"${id}")
+    if(r.size > 0)
+      Success(this)
+    else
+      Failure(new Exception(s"not found: ${id}"))
   }
 
   def -(t:Telemetry):Try[TelemetryStore] = {     
     del(t.id)
   }
 
-  def ?(id:Telemetry.ID):Option[Telemetry] = telemetrys.get(id)
+  def ?(id:Telemetry.ID,ts0:Long,ts1:Long):Seq[Telemetry] = {
+    log.info(s"id=${id},ts=(${ts0},${ts1})")
+    telemetrys.range(ts0,ts1).values.flatten.filter(_.id == id).toSeq
+  }
 
-  def ??(txt:String):List[Telemetry] = {
-    telemetrys.values.filter(t => {
+  def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = {
+    telemetrys.range(ts0,ts1).values.flatten.filter(t => {
       t.id.matches(txt)
       //||
       //v.desc.matches(txt)
     }
-    ).toList
+    ).toSeq
   }
 
-  def scan(txt:String):List[Telemetry] = ??(txt)
-  def search(txt:String):List[Telemetry] = ??(txt + ".*")  
+  def scan(txt:String):Seq[Telemetry] = ??(txt,0L,Long.MaxValue)
+  def search(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = ??(txt + ".*",ts0,ts1)
 }

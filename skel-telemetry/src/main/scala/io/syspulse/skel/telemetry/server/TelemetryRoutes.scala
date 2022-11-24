@@ -49,6 +49,7 @@ import io.syspulse.skel.telemetry.store.TelemetryRegistry._
 import io.syspulse.skel.telemetry.server._
 
 import io.syspulse.skel.telemetry.Telemetry.ID
+import io.syspulse.skel.cli.CliUtil
 
 @Path("/api/v1/telemetry")
 class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
@@ -68,9 +69,8 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
   val metricCreateCount: Counter = Counter.build().name("skel_telemetry_create_total").help("Telemetry creates").register(cr)
   
   def getTelemetrys(): Future[Telemetrys] = registry.ask(GetTelemetrys)
-  def getTelemetry(id: ID): Future[Option[Telemetry]] = registry.ask(GetTelemetry(id, _))
-  def getTelemetryBySearch(txt: String): Future[Telemetrys] = registry.ask(SearchTelemetry(txt, _))
-  def getTelemetryByTyping(txt: String): Future[Telemetrys] = registry.ask(TypingTelemetry(txt, _))
+  def getTelemetry(id: ID,ts0:Long,ts1:Long): Future[Telemetrys] = registry.ask(GetTelemetry(id, ts0,ts1, _))
+  def getTelemetryBySearch(txt: String,ts0:Long,ts1:Long): Future[Telemetrys] = registry.ask(SearchTelemetry(txt,ts0,ts1, _))
 
   def createTelemetry(telemetryCreate: TelemetryCreateReq): Future[Telemetry] = registry.ask(CreateTelemetry(telemetryCreate, _))
   def deleteTelemetry(id: ID): Future[TelemetryActionRes] = registry.ask(DeleteTelemetry(id, _))
@@ -78,30 +78,45 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
 
 
   @GET @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("telemetry"),summary = "Return Telemetry by id",
-    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Telemetry id")),
+  @Operation(tags = Array("telemetry"),summary = "Return Telemetry by id in time range",
+    parameters = Array(
+      new Parameter(name = "id", in = ParameterIn.PATH, description = "Telemetry id"),
+      new Parameter(name = "ts0", in = ParameterIn.PATH, description = "Start Timestamp (millisec) (optional)"),
+      new Parameter(name = "ts1", in = ParameterIn.PATH, description = "End Timestamp (millisec) (optional)")
+    ),
     responses = Array(new ApiResponse(responseCode="200",description = "Telemetry returned",content=Array(new Content(schema=new Schema(implementation = classOf[Telemetry])))))
   )
   def getTelemetryRoute(id: String) = get {
     rejectEmptyResponse {
-      onSuccess(getTelemetry(id)) { r =>
-        metricGetCount.inc()
-        complete(r)
+      parameters("ts0".as[String].optional, "ts1".as[String].optional) { (ts0, ts1) => 
+        onSuccess(getTelemetry(id,
+          CliUtil.wordToTs(ts0.getOrElse(""),0L).get,
+          CliUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue).get)) { r =>
+          
+          metricGetCount.inc()
+          complete(r)
+        }
       }
     }
   }
 
-
-
   @GET @Path("/search/{txt}") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("telemetry"),summary = "Search Telemetry by term",
-    parameters = Array(new Parameter(name = "txt", in = ParameterIn.PATH, description = "search term")),
+    parameters = Array(
+      new Parameter(name = "txt", in = ParameterIn.PATH, description = "search term"),
+      new Parameter(name = "ts0", in = ParameterIn.PATH, description = "Start Timestamp (millisec) (optional)"),
+      new Parameter(name = "ts1", in = ParameterIn.PATH, description = "End Timestamp (millisec) (optional)")),
     responses = Array(new ApiResponse(responseCode="200",description = "Found Telemetrys",content=Array(new Content(schema=new Schema(implementation = classOf[Telemetrys])))))
   )
   def getTelemetrySearch(txt: String) = get {
     rejectEmptyResponse {
-      onSuccess(getTelemetryBySearch(txt)) { r =>
-        complete(r)
+      parameters("ts0".as[String].optional, "ts1".as[String].optional) { (ts0, ts1) => 
+        onSuccess(getTelemetryBySearch(txt,
+          CliUtil.wordToTs(ts0.getOrElse(""),0L).get,
+          CliUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue).get)) { r =>
+          
+          complete(r)
+        }
       }
     }
   }
@@ -159,9 +174,10 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
             authenticate()(authn =>
               authorize(Permissions.isAdmin(authn)) {              
                 createTelemetryRoute  
-              } ~
-              getTelemetrysRoute()
-            ),          
+              } 
+              //getTelemetrysRoute()
+            ),
+            getTelemetrysRoute()        
           )
         },
         pathSuffix("random") {
@@ -174,15 +190,16 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
         },
         pathPrefix(Segment) { id =>         
           pathEndOrSingleSlash {
-            authenticate()(authn =>
-              //authorize(Permissions.isUser(UUID(id),authn)) {
-                getTelemetryRoute(id)
-              //} ~
-              ~ 
-              authorize(Permissions.isAdmin(authn)) {
-                deleteTelemetryRoute(id)
-              }
-            ) 
+            getTelemetryRoute(id)
+            // authenticate()(authn =>
+            //   authorize(Permissions.isUser(UUID(id),authn)) {
+            //     getTelemetryRoute(id)
+            //   } ~
+            //   ~ 
+            //   authorize(Permissions.isAdmin(authn)) {
+            //     deleteTelemetryRoute(id)
+            //   }
+            // ) 
           }
         }
       )

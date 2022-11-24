@@ -784,7 +784,7 @@ lazy val skel_tag = (project in file("skel-tag"))
   )
 
 lazy val skel_telemetry = (project in file("skel-telemetry"))
-  .dependsOn(core,auth_core,ingest_flow)
+  .dependsOn(core,auth_core,ingest_flow,cli)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)

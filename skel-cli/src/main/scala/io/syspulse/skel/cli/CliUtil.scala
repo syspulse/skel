@@ -56,8 +56,9 @@ object CliUtil {
   }
 
   // guess date from human 
-  def wordToDate(word:String,tHour:Int = 0,tMin:Int=0,tSec:Int=0):Try[ZonedDateTime] = {
+  def wordToDate(word:String,tHour:Int = 0,tMin:Int=0,tSec:Int=0,default:Long = 0L):Try[ZonedDateTime] = {
     word.trim.toLowerCase.replaceAll("\\s+","") match {
+      case "" => Success(ZonedDateTime.ofInstant(Instant.ofEpochMilli(default),ZoneId.systemDefault()))
       case "now" => Success(ZonedDateTime.now)
       case "today" => Success(ZonedDateTime.now.withHour(tHour).withMinute(tMin).withSecond(tSec))
       case "yesterday" => Success(ZonedDateTime.now.minusDays(1).withHour(tHour).withMinute(tMin).withSecond(tSec))
@@ -81,6 +82,10 @@ object CliUtil {
       case s"${d}-${m}" => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
       
       case s => // try to parse anything
+        // try timestamp first
+        if(s.head.isDigit) {
+          Success(ZonedDateTime.ofInstant(Instant.ofEpochMilli(s.toLong), ZoneId.systemDefault()))
+        } else
         formats.foreach{ f => 
           try {
             return Success(ZonedDateTime.parse(word, f))
@@ -102,7 +107,7 @@ object CliUtil {
     }
   }
   
-  def wordToTs(word:String):Try[Long] = wordToDate(word).map(_.toInstant().toEpochMilli())
+  def wordToTs(word:String,default:Long = 0L):Try[Long] = wordToDate(word,default = default).map(_.toInstant().toEpochMilli())
   def wordToTsRage(word:String):(Try[Long],Try[Long]) = {
     val (d0,d1) = wordToDateRange(word)
     (d0.map(_.toInstant.toEpochMilli),d1.map(_.toInstant.toEpochMilli))

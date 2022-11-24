@@ -71,12 +71,12 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
     Failure(new UnsupportedOperationException(s"not implemented: ${telemetry}"))
   }
 
-  def ?(id:ID):Option[Telemetry] = {
-    search(id.toString).headOption
+  def ?(id:ID,ts0:Long,ts1:Long):Seq[Telemetry] = {
+    search(id.toString,ts0,ts1)
   }
 
-  def ??(txt:String):List[Telemetry] = {
-    search(txt)
+  def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = {
+    search(txt,ts0,ts1)
   }
 
   def scan(txt:String):List[Telemetry] = {
@@ -87,21 +87,44 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
     { 
       "query_string": {
         "query": "${txt}",
-        "fields": ["title", "vid"]
+        "fields": ["id", "ts0", "ts1"]
       }
     }
-    """)        
+    """)
     }.await
 
     log.info(s"r=${r}")
     r.result.to[Telemetry].toList
   }
 
-  def search(txt:String):List[Telemetry] = {   
+  def search(txt:String,ts0:Long,ts1:Long):List[Telemetry] = {   
     val r = client.execute {
-      com.sksamuel.elastic4s.ElasticDsl
+      ElasticDsl
         .search(uri.index)
-        .query(txt)
+        .rawQuery(
+        
+        //.search(uri.index)
+        //.query(txt)
+        s"""
+        "query": {
+          "bool" : {             
+            "must" : {
+              "range": {
+                "ts": {
+                  "gte": ${ts0},
+                  "lte": ${ts1}
+                }
+              }
+            },
+            "must" : {
+              "query_string": {
+                "query": "${txt}",
+                "default_operator": "AND"
+              }
+            }
+          }
+        }
+        """)
     }.await
 
     log.info(s"r=${r}")
@@ -132,7 +155,7 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
       ElasticDsl
         .search(uri.index)
         .rawQuery(s"""
-    { "multi_match": { "query": "${txt}", "type": "bool_prefix", "fields": [ "title", "title._3gram" ] }}
+    { "multi_match": { "query": "${txt}", "type": "bool_prefix", "fields": [ "id", "id._3gram" ] }}
     """)        
     }.await
     

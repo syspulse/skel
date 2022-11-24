@@ -18,14 +18,18 @@ trait TelemetryStore extends Store[Telemetry,ID] {
   def +(telemetry:Telemetry):Try[TelemetryStore]
   def -(telemetry:Telemetry):Try[TelemetryStore]
   def del(id:ID):Try[TelemetryStore]
-  def ?(id:ID):Option[Telemetry]
+  def ?(id:ID,ts0:Long,ts1:Long):Seq[Telemetry]
+
+  // Attention: returns only Head !
+  def ?(id:ID):Option[Telemetry] =  ?(id,0L,Long.MaxValue).headOption
+
   def all:Seq[Telemetry]
   def size:Long
 
-  def ??(txt:String):List[Telemetry]
+  def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry]
 
   // def connect(config:Config):TelemetryStore = this
 
-  def scan(txt:String):List[Telemetry]
-  def search(txt:String):List[Telemetry]
+  def scan(txt:String):Seq[Telemetry]
+  def search(txt:String,ts0:Long,ts1:Long):Seq[Telemetry]
 }

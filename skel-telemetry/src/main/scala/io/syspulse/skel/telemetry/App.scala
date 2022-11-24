@@ -12,6 +12,7 @@ import scala.concurrent.Future
 import io.syspulse.skel
 import io.syspulse.skel.config._
 import io.syspulse.skel.util.Util
+import io.syspulse.skel.cli.CliUtil
 import io.syspulse.skel.config._
 
 import io.syspulse.skel.telemetry.store._
@@ -131,7 +132,11 @@ object App extends skel.Server {
       }
 
       case "scan" => store.scan(expr)
-      case "search" => store.search(expr)      
+      case "search" => {
+        config.params.toList match {
+          case ts0 :: ts1 :: _ => store.search(expr,CliUtil.wordToTs(ts0).getOrElse(0L),CliUtil.wordToTs(ts1).getOrElse(Long.MaxValue))
+        }      
+      }
     }
 
     r match {
