@@ -798,6 +798,7 @@ lazy val skel_telemetry = (project in file("skel-telemetry"))
     appDockerConfig("skel-telemetry","io.syspulse.skel.telemetry.App"),
 
     libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
-      libElastic4s
+      libElastic4s,
+      libAlpakkaDynamo
     ),    
   )

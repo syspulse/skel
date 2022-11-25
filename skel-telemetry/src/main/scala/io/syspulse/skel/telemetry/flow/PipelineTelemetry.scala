@@ -39,4 +39,11 @@ class PipelineTelemetry(feed:String,output:String)(implicit config:Config,parser
   override def processing:Flow[Telemetry,Telemetry,_] = Flow[Telemetry].map(v => v)
 
   def transform(v: Telemetry): Seq[Telemetry] = Seq(v)
+
+  override def sink() = {
+    feed.split("://").toList match {
+      case "dynamo" :: uri :: _ => skel.ingest.dynamo.FlowsDynamo.toDynamo[Telemetry](uri)(io.syspulse.skel.telemetry.store.TelemetryDynamoFormat)
+      case _ => super.sink()
+    }
+  }
 }

@@ -1,40 +1,38 @@
-package io.syspulse.skel.ingest.dynamo
+package io.syspulse.skel.telemetry.store
+
+import java.net.URI
+
+import scala.jdk.CollectionConverters._
+import com.typesafe.scalalogging.Logger
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.{Duration,FiniteDuration}
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Keep
 import akka.{Done, NotUsed}
-
-import scala.concurrent.duration.{Duration,FiniteDuration}
-import scala.concurrent.{Await, ExecutionContext, Future}
-
 import akka.stream.ActorMaterializer
 import akka.stream._
 import akka.stream.scaladsl._
 
-import com.typesafe.scalalogging.Logger
-
-import scala.concurrent.ExecutionContext.Implicits.global
-
+import akka.http.scaladsl.settings.ConnectionPoolSettings
 import com.github.matsluni.akkahttpspi.AkkaHttpClient
+
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider,DefaultCredentialsProvider}
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 
-import scala.jdk.CollectionConverters._
+import io.syspulse.skel.ingest.uri.DynamoURI
 
-import io.syspulse.skel
-import akka.http.scaladsl.settings.ConnectionPoolSettings
-import java.net.URI
-
-
-trait DynamoClient {
+abstract class DynamoClient(dynamoUri:DynamoURI) {
   val log = Logger(s"${this}")
-
+  
   implicit val system = ActorSystem("ActorSystem-DynamoClient")
 
   private val credentialsProvider = DefaultCredentialsProvider.create //StaticCredentialsProvider.create(AwsBasicCredentials.create("x", "x"))
-  
-  private def getDynamoClient(dynamoUri:String): DynamoDbAsyncClient = {
+
+  private def getDynamoClient(uri:String): DynamoDbAsyncClient = {
     val client = DynamoDbAsyncClient
     .builder()
     .region(Region.AWS_GLOBAL)
@@ -44,7 +42,7 @@ trait DynamoClient {
         .withActorSystem(system)
         .build()
     )
-    .endpointOverride(new URI(dynamoUri))
+    .endpointOverride(new URI(uri))
     // Possibility to configure the retry policy
     // see https://doc.akka.io/docs/alpakka/current/aws-shared-configuration.html
     // .overrideConfiguration(...)
@@ -54,17 +52,9 @@ trait DynamoClient {
     client
   }
 
-  // cannot use Option because of implicit
-  implicit var dynamo: DynamoDbAsyncClient = null
-  var tableName:String = ""
-
   def getTable():String = tableName
 
-  def connect(dynamoUri:String,dynamoTable:String):DynamoClient = {
-    dynamo = getDynamoClient(dynamoUri)
-    tableName = dynamoTable
-    log.info(s"Dynamo: ${dynamoUri}: table=${dynamoTable}")
-    this
-  }
-
+  // cannot use Option because of implicit
+  implicit var dynamoClient: DynamoDbAsyncClient = getDynamoClient(dynamoUri.uri)
+  val tableName:String = dynamoUri.table  
 }

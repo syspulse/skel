@@ -322,7 +322,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
       new Parameter(name = "msg", in = ParameterIn.PATH, description = "Message from Metamask encoded in Base64"),
       new Parameter(name = "sig", in = ParameterIn.PATH, description = "Signature of the message (Metmask)"),
       new Parameter(name = "addr", in = ParameterIn.PATH, description = "Ethereum Address which signed the message"),
-      new Parameter(name = "redirect_uri", in = ParameterIn.PATH, description = "redirect_uri"),
+      new Parameter(name = "redirect_uri", in = ParameterIn.PATH, description = "redirect_uri (/api/v1/auth/eth/callback)"),
       new Parameter(name = "response_type", in = ParameterIn.PATH, description = "response_type (ignored)"),
       new Parameter(name = "client_id", in = ParameterIn.PATH, description = "client_id (ignored)"),
       new Parameter(name = "scope", in = ParameterIn.PATH, description = "scope (ignored)"),

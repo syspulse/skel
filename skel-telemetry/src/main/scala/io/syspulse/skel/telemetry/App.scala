@@ -15,6 +15,8 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.cli.CliUtil
 import io.syspulse.skel.config._
 
+import io.syspulse.skel.ingest.uri.DynamoURI
+
 import io.syspulse.skel.telemetry.store._
 import io.syspulse.skel.telemetry.flow.PipelineTelemetry
 import io.syspulse.skel.telemetry.parser.TelemetryParserDefault
@@ -105,6 +107,7 @@ object App extends skel.Server {
 
     val store:TelemetryStore = config.datastore.split("://").toList match {
       case "elastic" :: uri :: Nil => new TelemetryStoreElastic(uri)
+      case "dynamo" :: uri :: Nil => new TelemetryStoreDynamo(DynamoURI(uri))
       case "mem" :: _ => new TelemetryStoreMem()
       case "stdout" :: _ => new TelemetryStoreStdout()
       case "dir" :: dir :: Nil => new TelemetryStoreDir(dir,TelemetryParserDefault)
