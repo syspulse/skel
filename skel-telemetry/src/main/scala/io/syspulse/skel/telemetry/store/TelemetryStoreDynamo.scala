@@ -53,8 +53,8 @@ case class DynamoData(d:List[Any])
 
 class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) with TelemetryStore {
   
-  def all:Seq[Telemetry] = Seq()
-  def size:Long = 0
+  def all:Seq[Telemetry] = scan().toSeq
+  def size:Long = scan().size
   def +(t:Telemetry):Try[TelemetryStore] = {
     log.info(s"t=${t}")
     val req = PutItemRequest
@@ -81,7 +81,7 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
   def ?(id:ID,ts0:Long,ts1:Long):Seq[Telemetry] = query(id,ts0,ts1).toSeq
   def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = query(txt,ts0,ts1).toSeq
   def scan(txt:String):Seq[Telemetry] = scan().toSeq
-  def search(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = Seq()
+  def search(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = query(txt,ts0,ts1).toSeq
 
   def get(id:String,ts:Long) = {
     log.info(s"id=${id},ts=${ts}")
@@ -107,8 +107,6 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
   }
 
   def query(id:String,ts0:Long,ts1:Long) = {
-    val q = ""
-    log.info(s"q=${q}")
     val req = QueryRequest
           .builder()
           .tableName(getTable())
@@ -117,12 +115,14 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
           .expressionAttributeValues(
             Map(
               ":id" -> AttributeValue.builder().s(id).build(),
-              ":ts0" -> AttributeValue.builder().s(ts0.toString).build(),
-              ":ts1" -> AttributeValue.builder().s(ts1.toString).build()
+              ":ts0" -> AttributeValue.builder().n(ts0.toString).build(),
+              ":ts1" -> AttributeValue.builder().n(ts1.toString).build()
             ).asJava
           )
-          .attributesToGet("ID","TS","DATA")
+          //.attributesToGet("ID","TS","DATA")
           .build()
+
+    log.info(s"req=${req}")
           
     val result = DynamoDb.single(req)
   
