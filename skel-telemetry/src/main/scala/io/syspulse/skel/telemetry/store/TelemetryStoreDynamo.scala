@@ -51,7 +51,7 @@ object TelemetryDynamoFormat extends DynamoFormat[Telemetry] {
 case class DynamoData(d:List[Any])
 
 class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) with TelemetryStore {
-  
+  val timeout:Duration = Duration("5 seconds")
   def all:Seq[Telemetry] = scan().toSeq
   def size:Long = scan().size
   def +(t:Telemetry):Try[TelemetryStore] = {
@@ -70,17 +70,17 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
           
     val result = DynamoDb.single(req)
   
-    val r = Await.result(result, Duration.Inf)
+    val r = Await.result(result, timeout)
     log.info(s"t=${t}: ")
     Success(this)
   }
 
   def del(id:Telemetry.ID):Try[TelemetryStore] = Failure(new UnsupportedOperationException)
   def -(telemetry:Telemetry):Try[TelemetryStore] = Failure(new UnsupportedOperationException)
-  def ?(id:ID,ts0:Long,ts1:Long):Seq[Telemetry] = query(id,ts0,ts1).toSeq
-  def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = query(txt,ts0,ts1).toSeq
+  def ?(id:ID,ts0:Long,ts1:Long):Seq[Telemetry] = range(id,ts0,ts1).toSeq
+  def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = range(txt,ts0,ts1).toSeq
   def scan(txt:String):Seq[Telemetry] = scan().toSeq
-  def search(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = query(txt,ts0,ts1).toSeq
+  def search(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = range(txt,ts0,ts1).toSeq
 
   def get(id:String,ts:Long) = {
     log.info(s"id=${id},ts=${ts}")
@@ -97,7 +97,7 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
           
     val result = DynamoDb.single(req)
   
-    val r = Await.result(result, Duration.Inf)
+    val r = Await.result(result, timeout)
     
     if(r.hasItem())
       Some(TelemetryDynamoFormat.fromDynamo(r.item().asScala.toMap))
@@ -105,7 +105,7 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
       None
   }
 
-  def query(id:String,ts0:Long,ts1:Long) = {
+  def range(id:String,ts0:Long,ts1:Long,limit:Int = 1000) = {
     val req = QueryRequest
           .builder()
           .tableName(getTable())
@@ -118,16 +118,59 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
               ":ts1" -> AttributeValue.builder().n(ts1.toString).build()
             ).asJava
           )
+          .limit(limit)
           //.attributesToGet("ID","TS","DATA")
           .build()
 
     log.info(s"req=${req}")
           
     val result = DynamoDb.single(req)
-  
-    val r = Await.result(result, Duration.Inf)
-    
+    val r = Await.result(result, timeout)
     r.items().asScala.map( r => TelemetryDynamoFormat.fromDynamo(r.asScala.toMap))
+  }
+
+  override def last(id:String):Option[Telemetry] = {
+    val req = QueryRequest
+          .builder()
+          .tableName(getTable())          
+          .keyConditionExpression("ID = :id")
+          .expressionAttributeValues(
+            Map(
+              ":id" -> AttributeValue.builder().s(id).build(),
+            ).asJava
+          )
+          .scanIndexForward(false)
+          .limit(1)
+          .build()
+
+    log.info(s"req=${req}")
+          
+    val result = DynamoDb.single(req)
+    val r = Await.result(result, timeout)
+    r.items().asScala.map( r => TelemetryDynamoFormat.fromDynamo(r.asScala.toMap)).headOption
+  }
+
+  // returns the latest inserted element !  
+  def lastest(id:String):Option[Telemetry] = {
+    val req = QueryRequest
+          .builder()
+          .tableName(getTable())          
+          .keyConditionExpression("ID = :id")
+          .expressionAttributeValues(
+            Map(
+              ":id" -> AttributeValue.builder().s(id).build(),
+            ).asJava
+          )
+          .scanIndexForward(true)
+          .limit(1)
+          //.attributesToGet("ID","TS","DATA")
+          .build()
+
+    log.info(s"req=${req}")
+          
+    val result = DynamoDb.single(req)
+    val r = Await.result(result, timeout)
+    r.items().asScala.map( r => TelemetryDynamoFormat.fromDynamo(r.asScala.toMap)).headOption
   }
 
   def scan(limit:Int = -1) = {
@@ -140,9 +183,8 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
           
     val result = DynamoDb.single(req)
   
-    val r = Await.result(result, Duration.Inf)
+    val r = Await.result(result, timeout)
     
     r.items().asScala.map( r => TelemetryDynamoFormat.fromDynamo(r.asScala.toMap))    
   }
-
 }

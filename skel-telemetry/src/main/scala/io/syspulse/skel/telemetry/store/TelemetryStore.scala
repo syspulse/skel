@@ -18,10 +18,14 @@ trait TelemetryStore extends Store[Telemetry,ID] {
   def +(telemetry:Telemetry):Try[TelemetryStore]
   def -(telemetry:Telemetry):Try[TelemetryStore]
   def del(id:ID):Try[TelemetryStore]
+  
+  // return sorted
   def ?(id:ID,ts0:Long,ts1:Long):Seq[Telemetry]
 
-  // Attention: returns only Head !
-  def ?(id:ID):Option[Telemetry] =  ?(id,0L,Long.MaxValue).headOption
+  // Attention: returns last by default
+  def ?(id:ID):Option[Telemetry] =  last(id)
+
+  def last(id:ID):Option[Telemetry] =  ?(id,0L,Long.MaxValue).sortBy(- _.ts).headOption
 
   def all:Seq[Telemetry]
   def size:Long

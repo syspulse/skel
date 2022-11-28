@@ -70,6 +70,7 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
   
   def getTelemetrys(): Future[Telemetrys] = registry.ask(GetTelemetrys)
   def getTelemetry(id: ID,ts0:Long,ts1:Long): Future[Telemetrys] = registry.ask(GetTelemetry(id, ts0,ts1, _))
+  def getTelemetryLast(id: ID): Future[Option[Telemetry]] = registry.ask(GetTelemetryLast(id, _))
   def getTelemetryBySearch(txt: String,ts0:Long,ts1:Long): Future[Telemetrys] = registry.ask(SearchTelemetry(txt,ts0,ts1, _))
 
   def createTelemetry(telemetryCreate: TelemetryCreateReq): Future[Telemetry] = registry.ask(CreateTelemetry(telemetryCreate, _))
@@ -96,6 +97,22 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
           metricGetCount.inc()
           complete(r)
         }
+      }
+    }
+  }
+
+  @GET @Path("/{id}/last") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("telemetry"),summary = "Return last Telemetry by id",
+    parameters = Array(
+      new Parameter(name = "id", in = ParameterIn.PATH, description = "Telemetry id"),
+    ),
+    responses = Array(new ApiResponse(responseCode="200",description = "Last Telemetry returned",content=Array(new Content(schema=new Schema(implementation = classOf[Telemetry])))))
+  )
+  def getTelemetryLastRoute(id: String) = get {
+    rejectEmptyResponse {
+      onSuccess(getTelemetryLast(id)) { r =>
+        metricGetCount.inc()
+        complete(r)
       }
     }
   }
@@ -189,6 +206,9 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
           }
         },
         pathPrefix(Segment) { id =>         
+          pathSuffix("last") {
+            getTelemetryLastRoute(id)
+          } ~
           pathEndOrSingleSlash {
             getTelemetryRoute(id)
             // authenticate()(authn =>

@@ -19,6 +19,7 @@ object TelemetryRegistry {
   
   final case class GetTelemetrys(replyTo: ActorRef[Telemetrys]) extends Command
   final case class GetTelemetry(id:Telemetry.ID,ts0:Long, ts1:Long, replyTo: ActorRef[Telemetrys]) extends Command
+  final case class GetTelemetryLast(id:Telemetry.ID,replyTo: ActorRef[Option[Telemetry]]) extends Command
   final case class SearchTelemetry(txt:String,ts0:Long, ts1:Long, replyTo: ActorRef[Telemetrys]) extends Command
   
   final case class CreateTelemetry(telemetryCreate: TelemetryCreateReq, replyTo: ActorRef[Telemetry]) extends Command
@@ -44,6 +45,10 @@ object TelemetryRegistry {
 
       case GetTelemetry(id, ts0, ts1, replyTo) =>
         replyTo ! Telemetrys(store.?(id,ts0,ts1))
+        Behaviors.same
+
+      case GetTelemetryLast(id, replyTo) =>
+        replyTo ! store.last(id)
         Behaviors.same
 
       case SearchTelemetry(txt, ts0,ts1, replyTo) => 
