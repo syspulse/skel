@@ -38,14 +38,13 @@ object TelemetryDynamoFormat extends DynamoFormat[Telemetry] {
   def toDynamo(o:Telemetry) = Map(
     "ID" -> AttributeValue.builder.s(o.id.toString).build(),
     "TS" -> AttributeValue.builder.n(o.ts.toString).build(),
-    //"DATA" -> AttributeValue.builder.ns(o.data.map(_.toString).asJava).build(),
+    "DATA" -> AttributeValue.builder.ns(o.data.map(_.toString).asJava).build(),
   )
 
   def fromDynamo(m:Map[String,AttributeValue]) = Telemetry(
     id = m.get("ID").map(_.s()).getOrElse(""),
     ts = m.get("TS").map(_.n()).getOrElse("0").toLong,
-    //data = m.get("DATA").map(_.ns().asScala).getOrElse(List()).asInstanceOf[List[String]]
-    data = List()
+    data = m.get("DATA").map(_.ns().asScala.toList).getOrElse(List()).asInstanceOf[List[String]]
   )
 }
 
