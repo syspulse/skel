@@ -29,8 +29,6 @@ import java.util.concurrent.TimeUnit
 import io.syspulse.skel.telemetry._
 import io.syspulse.skel.telemetry.parser.TelemetryParser
 
-//import TelemetryJson._
-
 class PipelineTelemetry(feed:String,output:String)(implicit config:Config,parser:TelemetryParser,fmt:JsonFormat[Telemetry])
   extends Pipeline[Telemetry,Telemetry,Telemetry](feed,output,config.throttle,config.delimiter,config.buffer) {
 
@@ -41,7 +39,7 @@ class PipelineTelemetry(feed:String,output:String)(implicit config:Config,parser
   def transform(v: Telemetry): Seq[Telemetry] = Seq(v)
 
   override def sink() = {
-    feed.split("://").toList match {
+    output.split("://").toList match {
       case "dynamo" :: uri :: _ => skel.ingest.dynamo.FlowsDynamo.toDynamo[Telemetry](uri)(io.syspulse.skel.telemetry.store.TelemetryDynamoFormat)
       case _ => super.sink()
     }

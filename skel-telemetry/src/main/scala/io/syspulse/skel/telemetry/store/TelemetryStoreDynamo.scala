@@ -1,8 +1,7 @@
 package io.syspulse.skel.telemetry.store
 
 import scala.jdk.CollectionConverters._
-import scala.util.Try
-import scala.util.Failure
+import scala.util.{Success,Failure,Try}
 
 import scala.concurrent.duration.{Duration,FiniteDuration}
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -39,36 +38,59 @@ object TelemetryDynamoFormat extends DynamoFormat[Telemetry] {
   def toDynamo(o:Telemetry) = Map(
     "ID" -> AttributeValue.builder.s(o.id.toString).build(),
     "TS" -> AttributeValue.builder.n(o.ts.toString).build(),
-    "DATA" -> AttributeValue.builder.ns(o.data.map(_.toString).asJava).build(),
+    //"DATA" -> AttributeValue.builder.ns(o.data.map(_.toString).asJava).build(),
   )
 
   def fromDynamo(m:Map[String,AttributeValue]) = Telemetry(
     id = m.get("ID").map(_.s()).getOrElse(""),
     ts = m.get("TS").map(_.n()).getOrElse("0").toLong,
-    data = m.get("DATA").map(_.ns().asScala).getOrElse(List()).asInstanceOf[List[String]]
+    //data = m.get("DATA").map(_.ns().asScala).getOrElse(List()).asInstanceOf[List[String]]
+    data = List()
   )
 }
+
+case class DynamoData(d:List[Any])
 
 class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) with TelemetryStore {
   
   def all:Seq[Telemetry] = Seq()
   def size:Long = 0
-  def +(t:Telemetry):Try[TelemetryStore] = Failure(new UnsupportedOperationException)
+  def +(t:Telemetry):Try[TelemetryStore] = {
+    log.info(s"t=${t}")
+    val req = PutItemRequest
+          .builder()
+          .item(
+            Map(
+              "ID"-> AttributeValue.builder.s(t.id).build(),
+              "TS" -> AttributeValue.builder.n(t.ts.toString).build(),
+              "DATA" -> AttributeValue.builder.s(Util.toCSV(DynamoData(t.data))).build(),
+            ).asJava
+          )
+          .tableName(getTable())
+          .build()
+          
+    val result = DynamoDb.single(req)
+  
+    val r = Await.result(result, Duration.Inf)
+    log.info(s"t=${t}: ")
+    Success(this)
+  }
+
   def del(id:Telemetry.ID):Try[TelemetryStore] = Failure(new UnsupportedOperationException)
   def -(telemetry:Telemetry):Try[TelemetryStore] = Failure(new UnsupportedOperationException)
-  def ?(id:ID,ts0:Long,ts1:Long):Seq[Telemetry] = query(id).toSeq
-  def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = Seq()
+  def ?(id:ID,ts0:Long,ts1:Long):Seq[Telemetry] = query(id,ts0,ts1).toSeq
+  def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = query(txt,ts0,ts1).toSeq
   def scan(txt:String):Seq[Telemetry] = scan().toSeq
   def search(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = Seq()
 
-  def get(key:String) = {
-    log.info(s"key=${key}")
+  def get(id:String,ts:Long) = {
+    log.info(s"id=${id},ts=${ts}")
     val req = GetItemRequest
           .builder()
           .key(
             Map(
-              "VID"-> AttributeValue.builder.s(key).build(),
-              "TS" -> AttributeValue.builder.n("0".toString).build(),
+              "ID"-> AttributeValue.builder.s(id).build(),
+              "TS" -> AttributeValue.builder.n(ts.toString).build(),
             ).asJava
           )
           .tableName(getTable())
@@ -84,14 +106,22 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
       None
   }
 
-  def query(q:String) = {
+  def query(id:String,ts0:Long,ts1:Long) = {
+    val q = ""
     log.info(s"q=${q}")
     val req = QueryRequest
           .builder()
           .tableName(getTable())
-          .keyConditionExpression("VID = :vid")
-          .expressionAttributeValues(Map(":vid" -> AttributeValue.builder().s(q).build()).asJava)
-          //.attributesToGet("VID","TS","TITLE")
+          .keyConditionExpression("ID = :id and TS BETWEEN :ts0 AND :ts1 ")
+          //.withKeyConditionExpression("#ID = :id and #TS BETWEEN :ts0 AND :ts1 ")
+          .expressionAttributeValues(
+            Map(
+              ":id" -> AttributeValue.builder().s(id).build(),
+              ":ts0" -> AttributeValue.builder().s(ts0.toString).build(),
+              ":ts1" -> AttributeValue.builder().s(ts1.toString).build()
+            ).asJava
+          )
+          .attributesToGet("ID","TS","DATA")
           .build()
           
     val result = DynamoDb.single(req)

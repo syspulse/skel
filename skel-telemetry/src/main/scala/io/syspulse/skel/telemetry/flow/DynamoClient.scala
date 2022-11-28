@@ -55,6 +55,8 @@ abstract class DynamoClient(dynamoUri:DynamoURI) {
   def getTable():String = tableName
 
   // cannot use Option because of implicit
-  implicit var dynamoClient: DynamoDbAsyncClient = getDynamoClient(dynamoUri.uri)
-  val tableName:String = dynamoUri.table  
+  implicit var dynamoClient: DynamoDbAsyncClient = getDynamoClient(dynamoUri.host)
+  val tableName:String = dynamoUri.table
+
+  log.info(s"${dynamoUri}: client = ${dynamoClient}")
 }
