@@ -70,6 +70,11 @@ object CliUtil {
       case s"${x}dayago" => Success(ZonedDateTime.now.minusDays(wordToLong(x)).withHour(tHour).withMinute(tMin).withSecond(tSec))
       case s"${x}weeksago" => Success(ZonedDateTime.now.minusWeeks(wordToLong(x)).withHour(tHour).withMinute(tMin).withSecond(tSec))
       case s"${x}weekago" => Success(ZonedDateTime.now.minusWeeks(wordToLong(x)).withHour(tHour).withMinute(tMin).withSecond(tSec))
+      
+      case s"${x}monthago" => Success(ZonedDateTime.now.minusMonths(wordToLong(x)).withHour(tHour).withMinute(tMin).withSecond(tSec))
+      case s"${x}monthsago" => Success(ZonedDateTime.now.minusMonths(wordToLong(x)).withHour(tHour).withMinute(tMin).withSecond(tSec))
+      case s"${x}yearago" => Success(ZonedDateTime.now.minusYears(wordToLong(x)).withHour(tHour).withMinute(tMin).withSecond(tSec))
+      case s"${x}yearsago" => Success(ZonedDateTime.now.minusYears(wordToLong(x)).withHour(tHour).withMinute(tMin).withSecond(tSec))
 
       case s"${d}.${m}.${y}" => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withYear(y.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
       case s"${d}/${m}/${y}" => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withYear(y.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
@@ -84,7 +89,7 @@ object CliUtil {
       case s => // try to parse anything
         // try timestamp first
         if(s.head.isDigit) {
-          Success(ZonedDateTime.ofInstant(Instant.ofEpochMilli(s.toLong), ZoneId.systemDefault()))
+          return Success(ZonedDateTime.ofInstant(Instant.ofEpochMilli(s.toLong), ZoneId.systemDefault()))
         } else
         formats.foreach{ f => 
           try {

@@ -34,7 +34,6 @@ class CliUtilSpec extends AnyWordSpec with Matchers {
 
     "convert '21-03-1999' to correct date" in {
       val d1 = CliUtil.wordToDate("21-03-1999")
-      info(s"${d1}")
       d1.get.getDayOfMonth should === (21)
       d1.get.getMonthValue should === (3)
       d1.get.getYear should === (1999)
@@ -42,10 +41,17 @@ class CliUtilSpec extends AnyWordSpec with Matchers {
 
     "convert '1999-03-21-03' to correct date" in {
       val d1 = CliUtil.wordToDate("1999-03-21")
-      info(s"${d1}")
       d1.get.getDayOfMonth should === (21)
       d1.get.getMonthValue should === (3)
       d1.get.getYear should === (1999)
+    }
+
+    "convert '1437875677349' to correct date" in {
+      val d1 = CliUtil.wordToDate("1437875677349")
+      info(s"${d1}")
+      d1.get.getDayOfMonth should === (26)
+      d1.get.getMonthValue should === (7)
+      d1.get.getYear should === (2015)
     }
 
     """parse  'cmd text "w1 w2 w3 w4 " end' as 4 stirngs""" in {

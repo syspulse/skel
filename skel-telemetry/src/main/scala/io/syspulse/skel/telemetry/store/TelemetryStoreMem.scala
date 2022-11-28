@@ -44,11 +44,13 @@ class TelemetryStoreMem extends TelemetryStore {
 
   def ?(id:Telemetry.ID,ts0:Long,ts1:Long):Seq[Telemetry] = {
     log.info(s"id=${id},ts=(${ts0},${ts1})")
-    telemetrys.range(ts0,ts1).values.flatten.filter(_.id == id).toSeq
+    val ts2 = if(ts1 == Long.MaxValue) ts1 else ts1 + 1
+    telemetrys.range(ts0,ts2).values.flatten.filter(_.id == id).toSeq
   }
 
   def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = {
-    telemetrys.range(ts0,ts1).values.flatten.filter(t => {
+    val ts2 = if(ts1 == Long.MaxValue) ts1 else ts1 + 1
+    telemetrys.range(ts0,ts2).values.flatten.filter(t => {
       t.id.matches(txt)
       //||
       //v.desc.matches(txt)
