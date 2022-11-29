@@ -37,6 +37,7 @@ case class Config(
   throttle:Long = 0L,
 
   datastore:String = "mem",
+  datastoreCron:String = "*/60 * * * * ?",
 
   cmd:String = "ingest",
   params: Seq[String] = Seq(),
@@ -68,6 +69,7 @@ object App extends skel.Server {
         ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
 
         ArgString('d', "datastore",s"Datastore [elastic,mem,stdout] (def: ${d.datastore})"),
+        ArgString('_', "datastore.cron",s"Datastore Load cron (def: ${d.datastoreCron})"),
         
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
@@ -94,6 +96,7 @@ object App extends skel.Server {
       throttle = c.getLong("throttle").getOrElse(d.throttle),
 
       datastore = c.getString("datastore").getOrElse(d.datastore),
+      datastoreCron = c.getString("datastore.cron").getOrElse(d.datastoreCron),
 
       expr = c.getString("expr").getOrElse(d.expr),
       
@@ -110,8 +113,8 @@ object App extends skel.Server {
       case "dynamo" :: uri :: Nil => new TelemetryStoreDynamo(DynamoURI(uri))
       case "mem" :: _ => new TelemetryStoreMem()
       case "stdout" :: _ => new TelemetryStoreStdout()
-      case "dir" :: dir :: Nil => new TelemetryStoreDir(dir,TelemetryParserDefault)
-      case "dir" :: Nil => new TelemetryStoreDir(parser = TelemetryParserDefault)
+      case "dir" :: dir :: Nil => new TelemetryStoreDir(dir,TelemetryParserDefault, cron = Option(config.datastoreCron))
+      case "dir" :: Nil => new TelemetryStoreDir(parser = TelemetryParserDefault,cron = Option(config.datastoreCron))
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}")
         sys.exit(1)
