@@ -20,7 +20,8 @@ class TelemetryStoreDir(dir:String = "store/",parser:TelemetryParser) extends Te
     val storeDir = os.Path(dir,os.pwd)
     log.info(s"Loading store: ${storeDir}")
 
-    val dd = os.list(storeDir)
+    val dd = os.walk(storeDir)
+      .filter(_.toIO.isFile())
       .map(f => {
         log.info(s"Loading file: ${f}")
         os.read(f)
