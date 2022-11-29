@@ -12,7 +12,7 @@ case class Config(
   quartz:String = "",
 )
 
-object CronApp  {
+object App  {
 
   def main(args:Array[String]):Unit = {
     Console.err.println(s"Args: '${args.mkString(",")}'")

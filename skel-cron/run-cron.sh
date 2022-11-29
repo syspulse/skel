@@ -9,7 +9,7 @@ CONF=`echo $APP | awk -F"-" '{print $2}'`
 
 export SITE=${SITE:-$CONF}
 
-MAIN=io.syspulse.skel.cron.CronApp
+MAIN=io.syspulse.skel.cron.App
 
 >&2 echo "app: $APP"
 >&2 echo "site: $SITE"
