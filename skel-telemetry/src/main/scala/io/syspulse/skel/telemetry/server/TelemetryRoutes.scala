@@ -70,6 +70,7 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
   
   def getTelemetrys(): Future[Telemetrys] = registry.ask(GetTelemetrys)
   def getTelemetry(id: ID,ts0:Long,ts1:Long): Future[Telemetrys] = registry.ask(GetTelemetry(id, ts0,ts1, _))
+  def getTelemetryOp(id: ID,ts0:Long,ts1:Long,op:Option[String]): Future[Option[Telemetry]] = registry.ask(GetTelemetryOp(id, ts0,ts1, op, _))
   def getTelemetryLast(id: ID): Future[Option[Telemetry]] = registry.ask(GetTelemetryLast(id, _))
   def getTelemetryBySearch(txt: String,ts0:Long,ts1:Long): Future[Telemetrys] = registry.ask(SearchTelemetry(txt,ts0,ts1, _))
 
@@ -83,20 +84,30 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
     parameters = Array(
       new Parameter(name = "id", in = ParameterIn.PATH, description = "Telemetry id"),
       new Parameter(name = "ts0", in = ParameterIn.PATH, description = "Start Timestamp (millisec) (optional)"),
-      new Parameter(name = "ts1", in = ParameterIn.PATH, description = "End Timestamp (millisec) (optional)")
+      new Parameter(name = "ts1", in = ParameterIn.PATH, description = "End Timestamp (millisec) (optional)"),
+      new Parameter(name = "op", in = ParameterIn.PATH, description = "Operation (avg,last,first,sum) (optional)")
     ),
     responses = Array(new ApiResponse(responseCode="200",description = "Telemetry returned",content=Array(new Content(schema=new Schema(implementation = classOf[Telemetry])))))
   )
   def getTelemetryRoute(id: String) = get {
     rejectEmptyResponse {
-      parameters("ts0".as[String].optional, "ts1".as[String].optional) { (ts0, ts1) => 
-        onSuccess(getTelemetry(id,
-          CliUtil.wordToTs(ts0.getOrElse(""),0L).get,
-          CliUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue).get)) { r =>
-          
-          metricGetCount.inc()
-          complete(r)
-        }
+      parameters("ts0".as[String].optional, "ts1".as[String].optional, "op".as[String].optional) { (ts0, ts1, op) => 
+        if(! op.isDefined)
+          onSuccess(getTelemetry(id,
+            CliUtil.wordToTs(ts0.getOrElse(""),0L).get,
+            CliUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue).get)) { r =>
+            
+            metricGetCount.inc()
+            complete(r)
+          }
+        else
+          onSuccess(getTelemetryOp(id,
+            CliUtil.wordToTs(ts0.getOrElse(""),0L).get,
+            CliUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue).get, op)) { r =>
+            
+            metricGetCount.inc()
+            complete(r)
+          } 
       }
     }
   }

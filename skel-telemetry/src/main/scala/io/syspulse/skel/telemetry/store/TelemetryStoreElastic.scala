@@ -71,7 +71,7 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
     Failure(new UnsupportedOperationException(s"not implemented: ${telemetry}"))
   }
 
-  def ?(id:ID,ts0:Long,ts1:Long):Seq[Telemetry] = {
+  def ?(id:ID,ts0:Long,ts1:Long,op:Option[String] = None):Seq[Telemetry] = {
     search(id.toString,ts0,ts1)
   }
 

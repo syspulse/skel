@@ -107,6 +107,7 @@ trait JsonCommon extends DefaultJsonProtocol {
       case s: String => JsString(s)
       case b: Boolean if b == true => JsTrue
       case b: Boolean if b == false => JsFalse
+      case d: Double => JsNumber(d)
     }
     def read(value: JsValue) = value match {
       case JsNumber(n) => n

@@ -42,7 +42,7 @@ class TelemetryStoreMem extends TelemetryStore {
     del(t.id)
   }
 
-  def ?(id:Telemetry.ID,ts0:Long,ts1:Long):Seq[Telemetry] = {
+  def ?(id:Telemetry.ID,ts0:Long,ts1:Long,op:Option[String] = None):Seq[Telemetry] = {
     log.info(s"id=${id},ts=(${ts0},${ts1})")
     val ts2 = if(ts1 == Long.MaxValue) ts1 else ts1 + 1
     telemetrys.range(ts0,ts2).values.flatten.filter(_.id == id).toSeq

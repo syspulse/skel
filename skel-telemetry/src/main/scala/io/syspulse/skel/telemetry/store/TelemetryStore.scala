@@ -20,7 +20,20 @@ trait TelemetryStore extends Store[Telemetry,ID] {
   def del(id:ID):Try[TelemetryStore]
   
   // return sorted
-  def ?(id:ID,ts0:Long,ts1:Long):Seq[Telemetry]
+  def ?(id:ID,ts0:Long,ts1:Long,op:Option[String] = None):Seq[Telemetry]
+
+  def ??(id:ID,ts0:Long,ts1:Long,op:Option[String]):Option[Telemetry] = {
+    val tt = ?(id,ts0,ts1,op)
+    val d = op match {
+      case Some("avg") => tt.foldLeft(0.0)((r,t) => r + t.data.asInstanceOf[List[String]].headOption.getOrElse("0.0").toDouble) / tt.size
+      case Some("sum") => tt.foldLeft(0.0)((r,t) => r + t.data.asInstanceOf[List[String]].headOption.getOrElse("0.0").toDouble)
+      case Some("last") => if(tt.size==0) 0.0 else tt.last.data.asInstanceOf[List[String]].headOption.getOrElse("0.0").toDouble
+      case Some("first") => if(tt.size==0) 0.0 else tt.head.data.asInstanceOf[List[String]].headOption.getOrElse("0.0").toDouble
+      case _ => tt.foldLeft(0.0)((r,t) => r + t.data.asInstanceOf[List[String]].headOption.getOrElse("0.0").toDouble) / tt.size
+    }
+    Some(Telemetry(id,0L,List(d)))
+  }
+
 
   // Attention: returns last by default
   def ?(id:ID):Option[Telemetry] =  last(id)
