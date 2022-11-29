@@ -11,12 +11,14 @@ import io.syspulse.skel.telemetry.Telemetry.ID
 
 import os._
 import io.syspulse.skel.telemetry.parser.TelemetryParser
+import io.syspulse.skel.cron.Cron
 
-class TelemetryStoreDir(dir:String = "store/",parser:TelemetryParser) extends TelemetryStoreMem {
+class TelemetryStoreDir(dir:String = "store/",parser:TelemetryParser,cron:Option[String]=Some("*/60 * * * * ?")) extends TelemetryStoreMem {
  
   load(dir)
 
   def load(dir:String) = {
+  
     val storeDir = os.Path(dir,os.pwd)
     log.info(s"Loading store: ${storeDir}")
 
@@ -34,5 +36,17 @@ class TelemetryStoreDir(dir:String = "store/",parser:TelemetryParser) extends Te
     dd.foreach(t => this.+(t))
 
     log.info(s"Loaded store: ${size}")
+  }
+
+  if(cron.isDefined) {
+    val c = new Cron((_) => {
+        load(dir)
+        true
+      },
+      expr = cron.get,
+      cronName = "TelemetryStoreDir",
+      jobName = "load"
+    )
+    c.start
   }
 }

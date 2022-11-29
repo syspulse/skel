@@ -13,9 +13,10 @@ import io.syspulse.skel.telemetry._
 class TelemetryStoreMem extends TelemetryStore {
   val log = Logger(s"${this}")
   
-  var telemetrys: immutable.TreeMap[Long,List[Telemetry]] = immutable.TreeMap() 
+  var telemetrys: immutable.TreeMap[Long,List[Telemetry]] = immutable.TreeMap()
   // Map[Telemetry.ID,Telemetry] = Map()
 
+  def clean():Try[TelemetryStore] = { telemetrys = immutable.TreeMap(); Success(this); }
   def all:Seq[Telemetry] = telemetrys.values.flatten.toSeq
 
   def size:Long = telemetrys.values.flatten.size

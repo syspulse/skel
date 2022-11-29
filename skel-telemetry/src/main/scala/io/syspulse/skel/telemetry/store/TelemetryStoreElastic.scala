@@ -40,6 +40,9 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
   val client = ElasticClient(JavaClient(ElasticProperties(elasticUri)))
 
   import ElasticDsl._  
+
+  def clean():Try[TelemetryStore] = { Failure(new UnsupportedOperationException) }
+  
   def all:Seq[Telemetry] = {    
     val r = client.execute {
       ElasticDsl

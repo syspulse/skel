@@ -52,6 +52,8 @@ case class DynamoData(d:List[Any])
 
 class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) with TelemetryStore {
   val timeout:Duration = Duration("5 seconds")
+
+  def clean():Try[TelemetryStore] = { Failure(new UnsupportedOperationException) }
   def all:Seq[Telemetry] = scan().toSeq
   def size:Long = scan().size
   def +(t:Telemetry):Try[TelemetryStore] = {
