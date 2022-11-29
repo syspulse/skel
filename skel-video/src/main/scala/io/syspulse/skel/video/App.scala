@@ -121,8 +121,8 @@ object App extends skel.Server {
       case "elastic-flow" :: _ => new VideoStoreElasticFlow(config.elasticUri,config.elasticIndex)
       case "mem" :: _ => new VideoStoreMem()
       case "stdout" :: _ => new VideoStoreStdout()
-      case "file" :: dir :: Nil => new VideoStoreFile(dir)
-      case "file" :: Nil => new VideoStoreFile()
+      case "dir" :: dir :: Nil => new VideoStoreDir(dir)
+      case "dir" :: Nil => new VideoStoreDir()
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}")
         sys.exit(1)
