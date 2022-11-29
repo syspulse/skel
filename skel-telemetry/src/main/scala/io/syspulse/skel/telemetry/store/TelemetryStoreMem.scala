@@ -23,7 +23,13 @@ class TelemetryStoreMem extends TelemetryStore {
 
   def +(t:Telemetry):Try[TelemetryStore] = { 
     log.info(s"${t}")
-    telemetrys = telemetrys + (t.ts -> {telemetrys.getOrElse(t.ts,List()) :+ t})
+
+    // avoid duplicates
+    val d = telemetrys.get(t.ts).map(_.find(_.data == t.data)).flatten
+    
+    if(!d.isDefined)
+      telemetrys = telemetrys + (t.ts -> {telemetrys.getOrElse(t.ts,List()) :+ t})
+    
     Success(this)
   }
 
