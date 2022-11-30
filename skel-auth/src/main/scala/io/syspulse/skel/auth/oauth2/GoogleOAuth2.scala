@@ -85,14 +85,18 @@ class GoogleOAuth2(val redirectUri:String) extends Idp {
   def getGrantData():Map[String,String] = Map()
 
   def withJWKS():GoogleOAuth2 = {
-    log.info("Requesting Google OpenID configuration...")
-    val config = requests.get("https://accounts.google.com/.well-known/openid-configuration")
-    log.info("Requesting Google OAuth2 JWKS...")
-    val certsRsp = requests.get("https://www.googleapis.com/oauth2/v3/certs")
-    
-    //jwks = Some((certsRsp.text().parseJson).convertTo[JWKSKeys])
-    jwks = setJwks(certsRsp.text())
-    log.info(s"Google OAuth2 JWKS: ${jwks}")
+    try {
+      log.info("Requesting Google OpenID configuration...")
+      val config = requests.get("https://accounts.google.com/.well-known/openid-configuration")
+      log.info("Requesting Google OAuth2 JWKS...")
+      val certsRsp = requests.get("https://www.googleapis.com/oauth2/v3/certs")
+      
+      //jwks = Some((certsRsp.text().parseJson).convertTo[JWKSKeys])
+      jwks = setJwks(certsRsp.text())
+      log.info(s"Google OAuth2 JWKS: ${jwks}")
+    } catch {
+      case e:Exception => log.error(s"failed to get JWKS",e)
+    }
 
     this
   }

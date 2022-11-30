@@ -111,9 +111,9 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
   def getAuths(): Future[Auths] = authRegistry.ask(GetAuths)
 
-  def getAuth(auid: String): Future[AuthRes] = authRegistry.ask(GetAuth(auid, _))
+  def getAuth(aid: String): Future[AuthRes] = authRegistry.ask(GetAuth(aid, _))
   def createAuth(auth: Auth): Future[AuthCreateRes] = authRegistry.ask(CreateAuth(auth, _))
-  def deleteAuth(auid: String): Future[AuthActionRes] = authRegistry.ask(DeleteAuth(auid, _))
+  def deleteAuth(aid: String): Future[AuthActionRes] = authRegistry.ask(DeleteAuth(aid, _))
   def createCode(code: Code): Future[CodeCreateRes] = codeRegistry.ask(CreateCode(code, _))
   def updateCode(code: Code): Future[CodeCreateRes] = codeRegistry.ask(UpdateCode(code, _))
   def getCode(authCode: String): Future[CodeRes] = codeRegistry.ask(GetCode(authCode, _))
@@ -214,9 +214,16 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
             (profile.email, profile.name, profile.picture, profile.locale)
           }
 
+        val accessToken = {
+          if(authRes.auth.uid.isDefined)
+            AuthJwt.generateAccessToken(Map( "uid" -> authRes.auth.uid.get.toString))        
+          else  
+            AuthJwt.generateAccessToken(Map( "uid" -> Util.NOBODY.toString))
+        } 
+
         Future(AuthWithProfileRes(
-          authRes.auth.accessToken,
-          authRes.auth.idToken,
+          accessToken, 
+          AuthIdp(authRes.auth.accessToken, authRes.auth.idToken),
           authRes.auth.uid,
           profile.id,
           profileEmail, 
@@ -509,25 +516,13 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         path("google") {
           pathEndOrSingleSlash {
             getTokenGoogle
-            // get {
-            //   parameters("code", "redirect_uri".optional, "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,redirectUri,scope,state,prompt,authuser,hd) =>
-            //     onSuccess(callbackFlow(idps.get(GoogleOAuth2.id).get,code,redirectUri,None,scope,state)) { rsp =>
-            //       complete(StatusCodes.Created, rsp)
-            //     }
-            //   }
-            // }
+            
           }
         } ~
         path("twitter") {
           pathEndOrSingleSlash {
             getTokenTwitter
-            // get {
-            //   parameters("code", "challenge", "redirect_uri".optional, "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,challenge,redirectUri,scope,state,prompt,authuser,hd) =>
-            //     onSuccess(callbackFlow(idps.get(TwitterOAuth2.id).get,code,redirectUri,Some(Map("code_verifier" -> challenge)),scope,state)) { rsp =>
-            //       complete(StatusCodes.Created, rsp)
-            //     }
-            //   }
-            // }
+            
           }
         } ~
         path("eth") {
@@ -566,125 +561,15 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
       pathPrefix("eth") { 
         path("auth") {
           getAuthEth
-          // get {
-          //   parameters("msg".optional,"sig".optional,"addr".optional,"redirect_uri", "response_type".optional,"client_id".optional,"scope".optional,"state".optional) { 
-          //     (msg,sig,addr,redirect_uri,response_type,client_id,scope,state) => {
-        
-          //       if(!addr.isDefined ) {
-          //         log.error(s"sig='${sig}', addr=${addr}: invalid signing address")
-          //         complete(StatusCodes.Unauthorized,"invalid signing address")
-          //       } else {
-
-          //         val sigData = 
-          //         if(msg.isDefined) 
-          //           // decode from Base64
-          //           new String(java.util.Base64.getDecoder.decode(msg.get))
-          //         else
-          //           EthOAuth2.generateSigDataTolerance(Map("address" -> addr.get))
-
-          //         log.info(s"sigData=${sigData}")
-
-          //         val pk = if(sig.isDefined) Eth.recoverMetamask(sigData,Util.fromHexString(sig.get)) else Failure(new Exception(s"Empty signature"))
-          //         val addrFromSig = pk.map(p => Eth.address(p))
-
-          //         if(addrFromSig.isFailure || addrFromSig.get != addr.get.toLowerCase()) {
-          //           log.error(s"sig=${sig}, addr=${addr}: invalid sig")
-          //           complete(StatusCodes.Unauthorized,s"invalid sig: ${sig}")
-          //         } else {
-
-          //           val code = Util.generateRandomToken()
-
-          //           onSuccess(createCode(Code(code,addr))) { rsp =>
-          //             log.info(s"sig=${sig}, addr=${addr}, redirect_uri=${redirect_uri}: -> code=${code}")
-          //             redirect(redirect_uri + s"?code=${rsp.code.authCode}", StatusCodes.PermanentRedirect)  
-          //           }
-          //         }
-          //       }                
-          //     }
-          //   }
-          // }
+          
         } ~
         path("callback") {
           getCallbackEth
-          // get {
-          //   parameters("code", "scope".optional,"state".optional) { (code,scope,state) => 
-          //     log.info(s"code=${code}, scope=${scope}")
-              
-          //     onSuccess( callbackFlow(idps.get(EthOAuth2.id).get,code,None,None,scope,None) ) { rsp =>
-          //       complete(StatusCodes.Created, rsp)
-          //     }
-          //   }
-          // }
+          
         } ~
         path("token") {
-          // import io.syspulse.skel.auth.oauth2.EthOAuth2._
-          // import io.syspulse.skel.auth.oauth2.EthTokens
-
-          // def generateTokens(code:String) = {
-          //   onSuccess(getCode(code)) { rsp =>
-          //     if(! rsp.code.isDefined || rsp.code.get.expire < System.currentTimeMillis()) {
-                
-          //       log.error(s"code=${code}: rsp=${rsp}: not found or expired")
-          //       complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
-
-          //     } else {
-
-          //       // request uid from UserService
-          //       onSuccess(UserClientHttp(serviceUserUri).withTimeout().getByXidAlways(rsp.code.get.xid.get)) { user => 
-                
-          //         if(! user.isDefined ) {
-                
-          //           log.warn(s"code=${code}: user=${user}: not found")
-          //           //complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
-                    
-          //           // issue temporary token for Enrollment
-          //           val uid = Util.NOBODY.toString
-          //           val idToken = ""//AuthJwt.generateIdToken(uid) 
-          //           val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
-          //           log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}")
-
-          //           onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>                      
-          //             complete(StatusCodes.OK,EthTokens(accessToken = accessToken, idToken = idToken, expiresIn = 60,scope = "",tokenType = ""))
-          //           }
-
-          //         } else  {
-
-          //           val uid = user.get.id
-          //           val email = user.get.email
-          //           val name = user.get.name
-          //           val avatar = user.get.avatar
-
-          //           val idToken = AuthJwt.generateIdToken(rsp.code.get.xid.getOrElse(""),Map("email"->email,"name"->name,"avatar"->avatar)) 
-          //           val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
-          //           log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}")
-
-          //           // associate idToken with code for later Profile retrieval by rewriting Code and
-          //           // immediately expiring code 
-          //           // Extracting user id possible from JWT 
-          //           onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>
-                      
-          //             complete(StatusCodes.OK,EthTokens(accessToken = accessToken, idToken = idToken, expiresIn = 3600,scope = "",tokenType = ""))                    
-          //           }
-          //         }
-          //       }
-                
-          //     }
-          //   }
-          // }
-
-          postTokenEth ~ getTokenEth
-
-          // post {
-          //   //entity(as[EthTokenReq]) { req => {
-          //   formFields("code","client_id","client_secret","redirect_uri","grant_type") { (code,client_id,client_secret,redirect_uri,grant_type) => {
-          //     log.info(s"code=${code},client_id=${client_id},client_secret=${client_secret},redirect_uri=${redirect_uri},grant_type=${grant_type}")
-              
-          //     generateTokens(code)
-          //   }
-          // }} ~
-          // get { parameters("code") { (code) => 
-          //   generateTokens(code)
-          // }}          
+          
+          postTokenEth ~ getTokenEth          
 
         } ~
         path("profile") {
