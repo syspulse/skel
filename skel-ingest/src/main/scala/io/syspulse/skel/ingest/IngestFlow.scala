@@ -93,7 +93,6 @@ trait IngestFlow[I,T,O] {
 
     val mat = f3.runWith(sink())
 
-    //val r = Await.result(result, timeout())
     log.info(s"graph: ${f3}: flow=${mat}")
     mat
   }
