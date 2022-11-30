@@ -69,7 +69,7 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
   def getEnroll(id: UUID): Future[Option[Enroll]] = registry.ask(GetEnroll(id, _))
   def getEnrollByEmail(email: String): Future[Option[Enroll]] = registry.ask(GetEnrollByEmail(email, _))
 
-  def createEnroll(enrollCreate: Option[EnrollCreateReq]): Future[EnrollActionRes] = registry.ask(CreateEnroll(enrollCreate, _))
+  def createEnroll(enrollCreate: Option[EnrollCreateReq]): Future[Option[Enroll]] = registry.ask(CreateEnroll(enrollCreate, _))
   def updateEnroll(enrollUpdate: EnrollUpdateReq): Future[Option[Enroll]] = registry.ask(UpdateEnroll(enrollUpdate, _))
   
   def deleteEnroll(id: UUID): Future[EnrollActionRes] = registry.ask(DeleteEnroll(id, _))

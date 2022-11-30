@@ -18,7 +18,7 @@ object EnrollRegistry {
   final case class GetEnroll(id:UUID,replyTo: ActorRef[Option[Enroll]]) extends Command
   final case class GetEnrollByEmail(eid:String,replyTo: ActorRef[Option[Enroll]]) extends Command
   
-  final case class CreateEnroll(enrollCreate: Option[EnrollCreateReq], replyTo: ActorRef[EnrollActionRes]) extends Command
+  final case class CreateEnroll(enrollCreate: Option[EnrollCreateReq], replyTo: ActorRef[Option[Enroll]]) extends Command
   final case class DeleteEnroll(id: UUID, replyTo: ActorRef[EnrollActionRes]) extends Command
 
   final case class UpdateEnroll(enrollUpdate: EnrollUpdateReq, replyTo: ActorRef[Option[Enroll]]) extends Command
@@ -54,12 +54,19 @@ object EnrollRegistry {
         case CreateEnroll(enrollCreate, replyTo) =>
           
           val eid = enrollCreate match {
-            case Some(EnrollCreateReq(email,name,xid,avatar)) => store.+(xid,email,name,avatar)
-            case None => store.+(None,None,None,None)
+            case Some(EnrollCreateReq(email,name,xid,avatar)) => {              
+              val eid = store.+(xid,email,name,avatar)
+              for{
+                e <- store.???(eid.get)            
+              } yield replyTo ! e
+              eid
+            }
+            case None => {
+              replyTo ! None //Some(Enroll(UUID.random,"", "", "", "",tsCreated = System.currentTimeMillis, phase="FAILED"))
+            }
           }
-          //val eid = store.+(enrollCreate.getOrElse(EnrollCreateReq()).xid)          
-
-          replyTo ! EnrollActionRes("started",eid.toOption)
+          
+          //replyTo ! EnrollActionRes("started",eid.toOption)
           Behaviors.same
       
         case UpdateEnroll(enrollUpdate, replyTo) =>          
