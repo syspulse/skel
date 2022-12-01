@@ -4,13 +4,14 @@ CWD=`echo $(dirname $(readlink -f $0))`
 t=`pwd`;
 APP_DEF=`basename "$t"`
 
-if [ "$1" != "" ]; then
-   APP_FULL=$1
+CMD=${1:-deploy}
+
+if [ "$2" != "" ]; then
+   APP_FULL=$2
 else
    APP_FULL=syspulse/${APP_DEF}:latest
 fi
 
-CMD=${2:-deploy}
 
 APP_NAME=`echo $APP_FULL | awk -F':' '{print $1}'`
 APP_VER=`echo $APP_FULL | awk -F':' '{print $2}'`
