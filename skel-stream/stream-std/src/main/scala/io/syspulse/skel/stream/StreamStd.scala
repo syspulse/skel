@@ -15,11 +15,13 @@ import io.syspulse.skel.config.Configuration
 import io.syspulse.skel.dsl.JS
 import akka.stream.scaladsl.Framing
 
+class JSScript(val src:String) extends JS
+
 class StreamStd() {
   val log = Logger(s"${this.getClass().getSimpleName()}")
   
   protected var config:Configuration = Configuration.default
-  protected var js:Option[JS] = None
+  protected var js:Option[JSScript] = None
   protected var script:Option[String] = None
 
   def withConfig(c:Configuration):StreamStd = {
@@ -31,7 +33,7 @@ class StreamStd() {
     } else 
       None
 
-    js = script.map(s => new JS(s))
+    js = script.map(s => new JSScript(s))
 
     this
   }
@@ -51,7 +53,7 @@ class StreamStd() {
 
   def preProc(data:String):String = {
     if(js.isDefined) {
-      js.get.run(Map( ("input" -> data) )).toString
+      js.get.run(js.get.src,Map( ("input" -> data) )).toString
     }
       else data
   }

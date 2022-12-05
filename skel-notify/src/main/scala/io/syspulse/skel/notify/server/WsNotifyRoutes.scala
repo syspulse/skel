@@ -22,7 +22,9 @@ object WS {
 
   def broadcast(topic:String,title:String,msg:String):Try[Unit] = {
     ws match {
-      case Some(ws) => Success( ws.broadcastText(s"${topic}: ${title}(${msg})",topic) )
+      case Some(ws) => 
+        //Success( ws.broadcastText(s"${topic}: ${title}(${msg})",topic) )
+        Success( ws.broadcastText(s"${title}${msg}",topic) )
       case None => Failure(new Exception(s"not initialized: ${ws}"))
     }
   }
