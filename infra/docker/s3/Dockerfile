@@ -1,4 +1,5 @@
-FROM openjdk:18-slim
+#FROM openjdk:18-slim
+FROM openjdk:11-slim
 
 ENV MNT_POINT /mnt/s3
 ARG S3FS_VERSION=v1.86
