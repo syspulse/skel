@@ -22,7 +22,7 @@ import io.syspulse.skel.telemetry._
 import io.syspulse.skel.telemetry.Telemetry.ID
 
 import io.syspulse.skel.telemetry._
-import io.syspulse.skel.ingest.uri.ElasticURI
+import io.syspulse.skel.uri.ElasticURI
 
 class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
   private val log = Logger(s"${this}")

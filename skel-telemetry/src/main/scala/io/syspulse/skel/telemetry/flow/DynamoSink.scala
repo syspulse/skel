@@ -30,7 +30,7 @@ import scala.jdk.CollectionConverters._
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.Ingestable
-import io.syspulse.skel.ingest.uri.DynamoURI
+import io.syspulse.skel.uri.DynamoURI
 import io.syspulse.skel.telemetry.store.DynamoClient
 import scala.util.Success
 import scala.util.Failure
@@ -45,9 +45,6 @@ object FlowsDynamo {
   
   def toDynamo[T <: Ingestable](uri:String)(fmt:DynamoFormat[T]) = {
     val dynamo = new ToDynamo[T](DynamoURI(uri),fmt)
-    // Flow[T]
-    // //  .mapConcat(t => dynamo.transform(t))
-    //   .toMat(dynamo.sink())(Keep.right)
     dynamo.sink()
   }
 }
@@ -55,7 +52,6 @@ object FlowsDynamo {
 class ToDynamo[T <: Ingestable](dynamoUri:DynamoURI,fmt:DynamoFormat[T]) extends DynamoClient(dynamoUri) with DynamoSink[T] {
   val sink0 = sink(dynamoUri)(dynamoClient,fmt)
   def sink():Sink[T,_] = sink0
-  //def transform(t:T):Seq[T] = Seq(t)
 }
 
 
@@ -76,12 +72,7 @@ trait DynamoSink[T] {
         req
       })
       .via(DynamoDb.flow(parallelism = 1))
-      // .map( r => {
-      //   //log.debug(s"res: ${r}")
-      //   r
-      // })
       .toMat(
-        //Sink.foreach(println)
         Sink.ignore
       )(Keep.both)
   }

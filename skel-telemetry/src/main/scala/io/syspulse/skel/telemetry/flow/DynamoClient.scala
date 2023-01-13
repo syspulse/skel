@@ -23,14 +23,14 @@ import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCrede
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient
 
-import io.syspulse.skel.ingest.uri.DynamoURI
+import io.syspulse.skel.uri.DynamoURI
 
 abstract class DynamoClient(dynamoUri:DynamoURI) {
   val log = Logger(s"${this}")
   
   implicit val system = ActorSystem("ActorSystem-DynamoClient")
 
-  private val credentialsProvider = DefaultCredentialsProvider.create //StaticCredentialsProvider.create(AwsBasicCredentials.create("x", "x"))
+  private val credentialsProvider = DefaultCredentialsProvider.create
 
   private def getDynamoClient(uri:String): DynamoDbAsyncClient = {
     val client = DynamoDbAsyncClient

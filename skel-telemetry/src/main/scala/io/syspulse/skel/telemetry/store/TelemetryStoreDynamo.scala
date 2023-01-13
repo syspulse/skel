@@ -27,7 +27,7 @@ import software.amazon.awssdk.services.dynamodb.model.QueryRequest
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest
 
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.ingest.uri.DynamoURI
+import io.syspulse.skel.uri.DynamoURI
 import io.syspulse.skel.telemetry.Telemetry
 import io.syspulse.skel.ingest.dynamo.DynamoFormat
 
