@@ -92,6 +92,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
     val sink = output.split("://").toList match {
       case "null" :: _ => Flows.toNull
       case "json" :: _ => Flows.toJson[O](output)(fmt)
+      case "csv" :: _ => Flows.toCsv(output)
 
       case "kafka" :: _ => Flows.toKafka[O](output)
       case "elastic" :: _ => Flows.toElastic[O](output)(fmt)
@@ -112,6 +113,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
         Flows.toHive(fileName)(new Flows.RotatorTimestamp( () => ZonedDateTime.ofInstant(Instant.now, ZoneId.systemDefault).minusYears(1000).toInstant().toEpochMilli() ))
 
       case "stdout" :: _ => Flows.toStdout()
+      case "stderr" :: _ => Flows.toStderr()
       case "" :: Nil => Flows.toStdout()
       case _ => Flows.toFile(output)
     }

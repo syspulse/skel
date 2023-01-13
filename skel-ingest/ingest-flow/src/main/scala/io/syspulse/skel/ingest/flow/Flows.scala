@@ -48,11 +48,18 @@ import java.nio.file.OpenOption
 import java.nio.file.FileVisitOption
 
 object Flows {
+  val log = Logger(this.toString)
+
   def toNull = Sink.ignore
 
   def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem) = Http()
     .singleRequest(req)
-    .flatMap(res => res.entity.dataBytes.runReduce(_ ++ _))
+    .flatMap(res => {      
+      val body = res.entity.dataBytes.runReduce(_ ++ _)
+      log.debug(s"body=${body}")
+      body
+    })
+      
 
   def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = {
     val s = Source.future(fromHttpFuture(req))
@@ -122,13 +129,6 @@ object Flows {
     //   s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
     s
   }
-
-  def toStdout[O](flush:Boolean = false): Sink[O, Future[IOResult]] = 
-    Flow[O]
-      .map(o => if(o!=null) ByteString(o.toString+"\n") else ByteString())
-      .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.right)
-  // This sink returns Future[Done] and not possible to wait for completion of the flow
-  //def toStdout() = Sink.foreach(println _)
 
   def toFile(file:String) = {
     if(file.trim.isEmpty) 
@@ -378,12 +378,35 @@ object Flows {
     kafka.source()
   }
 
-  def toJson[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
-    val es = new ToJson[T](uri)(fmt)
+  // def toJson[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
+  //   val js = new ToJson[T](uri)(fmt)
+  //   Flow[T]
+  //     .mapConcat(t => js.transform(t))
+  //     .to(js.sink())
+  // }
+
+  def toJson[T <: Ingestable](uri:String,flush:Boolean = false)(implicit fmt:JsonFormat[T]) = {
+    import spray.json._
     Flow[T]
-      .mapConcat(t => es.transform(t))
-      .to(es.sink())
+      .map(o => if(o!=null) ByteString(o.toJson.prettyPrint+"\n") else ByteString())
+      .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.right)
   }
+
+  def toCsv[T <: Ingestable](uri:String,flush:Boolean = false):Sink[T, Future[IOResult]] = {
+    Flow[T]
+      .map(o => if(o!=null) ByteString(o.toCSV+"\n") else ByteString())
+      .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.right)
+  }
+
+  def toStdout[O](flush:Boolean = false): Sink[O, Future[IOResult]] = toPipe(flush,System.out)
+  def toStderr[O](flush:Boolean = false): Sink[O, Future[IOResult]] = toPipe(flush,System.err)
+  def toPipe[O](flush:Boolean,pipe:java.io.PrintStream): Sink[O, Future[IOResult]] = 
+    Flow[O]
+      .map(o => if(o!=null) ByteString(o.toString+"\n") else ByteString())
+      .toMat(StreamConverters.fromOutputStream(() => pipe,flush))(Keep.right)
+  // This sink returns Future[Done] and not possible to wait for completion of the flow
+  //def toStdout() = Sink.foreach(println _)
+
 }
 
 
@@ -433,10 +456,23 @@ class ToElastic[T <: Ingestable](uri:String)(jf:JsonFormat[T]) extends ElasticCl
 class ToJson[T <: Ingestable](uri:String)(implicit fmt:JsonFormat[T]) {
   import spray.json._
 
-  def sink():Sink[T,Any] = Sink.foreach(t => println(s"${t.toJson.prettyPrint}"))
+  def sink():Sink[T,Any] = Sink.foreach(t => { println(s"${t.toJson.prettyPrint}"); System.out.flush })
     
   def transform(t:T):Seq[T] = {
     Seq(t)
   }
 }
 
+// Csv Tester
+class ToCsv[T <: Ingestable](uri:String) {
+  //def sink():Sink[T,Any] = Sink.foreach(t => {println(t.toCSV); System.out.flush()})
+
+  def sink(flush:Boolean = true):Sink[T,Any] =
+  Flow[T]
+      .map(o => if(o!=null) ByteString(o.toCSV+"\n") else ByteString())
+      .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.both)
+
+  def transform(t:T):Seq[T] = {
+    Seq(t)
+  }
+}
