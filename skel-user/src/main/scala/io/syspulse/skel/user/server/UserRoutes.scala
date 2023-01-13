@@ -161,7 +161,7 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
   @PUT @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("user"),summary = "Update User",
-    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[UserCreateReq])))),
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[UserUpdateReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "User",content = Array(new Content(schema = new Schema(implementation = classOf[User])))))
   )
   def updateUserRoute(uid:String) = put {
