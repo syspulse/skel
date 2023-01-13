@@ -8,6 +8,7 @@ final case class User(id:UUID, email:String = "", name:String = "", xid:String =
 final case class Users(users: immutable.Seq[User])
 
 final case class UserCreateReq(email: String, name:String, xid: String, avatar:String = "", uid:Option[UUID] = None)
+final case class UserUpdateReq(email: Option[String] = None, name:Option[String] = None, avatar:Option[String] = None)
 final case class UserRandomReq()
 
 final case class UserActionRes(status: String,id:Option[UUID])

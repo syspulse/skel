@@ -27,7 +27,7 @@ import io.swagger.v3.oas.annotations.{Operation, Parameter}
 import io.swagger.v3.oas.annotations.parameters.RequestBody
 // import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
 // import javax.ws.rs.core.MediaType
-import jakarta.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
+import jakarta.ws.rs.{Consumes, POST, PUT, GET, DELETE, Path, Produces}
 import jakarta.ws.rs.core.MediaType
 
 
@@ -65,12 +65,14 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
   val metricGetCount: Counter = Counter.build().name("skel_user_get_total").help("User gets").register(cr)
   val metricDeleteCount: Counter = Counter.build().name("skel_user_delete_total").help("User deletes").register(cr)
   val metricCreateCount: Counter = Counter.build().name("skel_user_create_total").help("User creates").register(cr)
+  val metricUpdateCount: Counter = Counter.build().name("skel_user_update_total").help("User updates").register(cr)
   
   def getUsers(): Future[Users] = registry.ask(GetUsers)
   def getUser(id: UUID): Future[Option[User]] = registry.ask(GetUser(id, _))
   def getUserByXid(xid: String): Future[Option[User]] = registry.ask(GetUserByXid(xid, _))
 
-  def createUser(userCreate: UserCreateReq): Future[Option[User]] = registry.ask(CreateUser(userCreate, _))
+  def createUser(req: UserCreateReq): Future[Option[User]] = registry.ask(CreateUser(req, _))
+  def updateUser(uid:UUID,req: UserUpdateReq): Future[Option[User]] = registry.ask(UpdateUser(uid,req, _))
   def deleteUser(id: UUID): Future[UserActionRes] = registry.ask(DeleteUser(id, _))
   def randomUser(): Future[User] = registry.ask(RandomUser(_))
 
@@ -142,16 +144,32 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
 
   @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("user"),summary = "Create User Secret",
+  @Operation(tags = Array("user"),summary = "Create User",
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[UserCreateReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "User",content = Array(new Content(schema = new Schema(implementation = classOf[User])))))
   )
   def createUserRoute = post {
-    entity(as[UserCreateReq]) { userCreate =>
-      onSuccess(createUser(userCreate)) { r =>
+    entity(as[UserCreateReq]) { req =>
+      onSuccess(createUser(req)) { r =>
         metricCreateCount.inc()
         log.info(s"r = ${r}")
         complete(StatusCodes.Created, r)
+      }
+    }
+  }
+
+  @PUT @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("user"),summary = "Update User",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[UserCreateReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "User",content = Array(new Content(schema = new Schema(implementation = classOf[User])))))
+  )
+  def updateUserRoute(uid:String) = put {
+    entity(as[UserUpdateReq]) { req =>
+      onSuccess(updateUser(UUID(uid),req)) { r =>
+        metricUpdateCount.inc()
+        log.info(s"r = ${r}")
+        complete(StatusCodes.OK, r)
       }
     }
   }
@@ -166,31 +184,14 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
   override def routes: Route =
       concat(
         pathEndOrSingleSlash {
-          // authenticate()(authn =>
-          //   authorize(Permissions.isAdmin(authn)) {
-          //     concat(
-          //       getUsersRoute(),
-          //       createUserRoute
-          //     )
-          //   }
-          // )
           concat(
             authenticate()(authn =>
-              authorize(Permissions.isAdmin(authn)) {              
+              authorize(Permissions.isAdmin(authn)) {
                 getUsersRoute() ~                
                 createUserRoute  
               }
-            ),
-            //createUserRoute
+            ),            
           )
-        },
-        // pathPrefix("info") {
-        //   path(Segment) { userId => 
-        //     getUserInfo(userId)
-        //   }
-        // },
-        pathSuffix("random") {
-          createUserRandomRoute()
         },
         pathPrefix("xid") {
           pathPrefix(Segment) { id => 
@@ -198,23 +199,10 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
           }
         },
         pathPrefix(Segment) { id => 
-          // pathPrefix("eid") {
-          //   pathEndOrSingleSlash {
-          //     getUserByEidRoute(id)
-          //   } 
-          //   ~
-          //   path(Segment) { code =>
-          //     getUserCodeVerifyRoute(id,code)
-          //   }
-          // } ~
-
           pathEndOrSingleSlash {
-            // concat(
-            //   getUserRoute(id),
-            //   deleteUserRoute(id),
-            // )          
             authenticate()(authn =>
               authorize(Permissions.isUser(UUID(id),authn)) {
+                updateUserRoute(id) ~
                 getUserRoute(id)
               } ~
               authorize(Permissions.isAdmin(authn)) {
