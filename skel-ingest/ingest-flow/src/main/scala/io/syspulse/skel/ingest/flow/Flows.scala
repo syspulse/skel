@@ -39,8 +39,8 @@ import io.syspulse.skel.Ingestable
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.elastic.ElasticClient
-import io.syspulse.skel.ingest.uri.ElasticURI
-import io.syspulse.skel.ingest.uri.KafkaURI
+import io.syspulse.skel.uri.ElasticURI
+import io.syspulse.skel.uri.KafkaURI
 
 import spray.json.JsonFormat
 import java.nio.file.StandardOpenOption

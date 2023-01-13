@@ -745,7 +745,7 @@ lazy val video = (project in file("skel-video"))
   )
 
 lazy val skel_notify = (project in file("skel-notify"))
-  .dependsOn(core,auth_core)
+  .dependsOn(core,auth_core,kafka)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)

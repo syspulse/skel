@@ -13,6 +13,8 @@ __NOTE__: Image must be from openjdk-11 or JavaScript Nashhorn is not working !
 
 ### Run 
 
+__ATTENTION__: Must be run with `--privileged` !!!
+
 ```
 docker run -it -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY -e S3_BUCKET=haas-data-dev --privileged s3-mount:latest
 ```
