@@ -151,21 +151,22 @@ object Flows {
   }
 
   class RotatorCurrentTime extends Rotator {
-    var tsRotated = false
+    var tsRotatable = false
     var nextTs = 0L
 
     def init(file:String,fileLimit:Long,fileSize:Long) = {      
-      tsRotated = Util.extractDirWithSlash(file).matches(""".*[{}].*""")      
+      //tsRotatable = Util.extractDirWithSlash(file).matches(""".*[{}].*""")
+      tsRotatable = file.matches(""".*[{}].*""")      
     }
 
-    def isRotatable():Boolean = tsRotated
+    def isRotatable():Boolean = tsRotatable
     
-    def needRotate(count:Long,size:Long):Boolean = {      
-      isRotatable() && (nextTs != 0 && System.currentTimeMillis() >= nextTs)
+    def needRotate(count:Long,size:Long):Boolean = {            
+      isRotatable() && (nextTs != 0 && System.currentTimeMillis() >= nextTs)      
     }
 
     def rotate(file:String,count:Long,size:Long):Option[String]  = {
-      nextTs = if(tsRotated) Util.nextTimestampDir(file) else 0L
+      nextTs = if(tsRotatable) Util.nextFile(file) else 0L
       val now = System.currentTimeMillis()
       Some(Util.pathToFullPath(Util.toFileWithTime(file,now)))
     }
@@ -180,7 +181,7 @@ object Flows {
 
     override def rotate(file:String,count:Long,size:Long):Option[String]  = {
       val ts = askTime()
-      nextTs = if(tsRotated) ts else 0L
+      nextTs = if(tsRotatable) ts else 0L
       Some(Util.pathToFullPath(Util.toFileWithTime(file,ts)))
     }
   }
@@ -208,22 +209,20 @@ object Flows {
       var inited = false
       var count: Long = 0L
       var size: Long = 0L
+      
+      rotator.init(file,fileLimit,fileSize)
           
       (element: ByteString) => {
-        if(inited && (
-            count < fileLimit && 
-            size < fileSize && 
-            ! rotator.needRotate(count,size)
-          )
-        ) {
+        if(inited && !rotator.needRotate(count,size) && count < fileLimit && size < fileSize) {
           
           count = count + 1
           size = size + element.size
           None
-        } else {
-          val now = System.currentTimeMillis()
-
+        } else {          
+          
           currentFilename = rotator.rotate(file,count,size)
+          
+          log.info(s"count=${count},size=${size},limits=(${fileLimit},${fileSize}) => ${currentFilename}")
           
           count = 0L
           size = 0L
@@ -232,7 +231,8 @@ object Flows {
           val currentDirname = Util.extractDirWithSlash(currentFilename.get)
           try {
             // try to create dir
-            Files.createDirectories(Path.of(currentDirname))
+            val p = Files.createDirectories(Path.of(currentDirname))
+            log.info(s"created dir: ${p}")
             val outputPath = currentFilename.get
             Some(Paths.get(outputPath))
 
@@ -305,10 +305,11 @@ object Flows {
       var inited = false
       var count: Long = 0L
       var size: Long = 0L
+
+      rotator.init(file,fileLimit,fileSize)
           
       (element: ByteString) => {
-        //Console.err.println(s"====> inited=${inited},count=${count},size=${size},rotate=${rotator.needRotate(count,size)} (limits: ${fileLimit},${fileSize})")
-
+        
         if(inited && (
             count < fileLimit && 
             size < fileSize && 
@@ -318,13 +319,9 @@ object Flows {
           
           count = count + 1
           size = size + element.size
-
-          //Console.err.println(s"count=${count},size=${size} (limits: ${fileLimit},${fileSize})")
           
           None
-        } else {
-          val now = System.currentTimeMillis()
-
+        } else {          
           currentFilename = rotator.rotate(file,count,size)
           
           log.info(s"count=${count},size=${size},limits=(${fileLimit},${fileSize}) => ${currentFilename}")
