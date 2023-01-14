@@ -198,15 +198,23 @@ class UtilSpec extends AnyWordSpec with Matchers {
       if(DST) f2 should === ("15") else f2 should === ("14")
     }
 
-    // "nextTimestamp '/dir/year={yyyy}/month={MM}/day={dd}' should be next day" in {
-    //   val t1 = System.currentTimeMillis()
-    //   val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/day={dd}",t1)
+    "nextTimestampFile '/dir/file-{mm}.log' should be next minute" in {
+      val t1 = System.currentTimeMillis()
+      val t2 = Util.nextTimestampFile("/dir/file-{mm}.log",t1)
       
-    //   val f2 = Util.toFileWithTime("{dd}",t2)
-    //   val t3 = "%02d".format(ZonedDateTime.ofInstant(Instant.ofEpochMilli(t1), ZoneId.systemDefault).plusDays(1).getDayOfMonth)
+      val f2 = Util.toFileWithTime("{mm}",t2)
+      val t3 = "%02d".format(ZonedDateTime.ofInstant(Instant.ofEpochMilli(t1), ZoneId.systemDefault).plusMinutes(1).getMinute())
+      f2 should === (t3)
+    }
+
+    "nextTimestampFile '/dir/{HH}/file-{mm}.log' should be next minute and not hour" in {
+      val t1 = System.currentTimeMillis()
+      val t2 = Util.nextTimestampFile("/dir/{HH}/file-{mm}.log",t1)
       
-    //   f2 should === (t3)
-    // }
+      val f2 = Util.toFileWithTime("{mm}",t2)
+      val t3 = "%02d".format(ZonedDateTime.ofInstant(Instant.ofEpochMilli(t1), ZoneId.systemDefault).plusMinutes(1).getMinute())
+      f2 should === (t3)
+    }
 
     "produce CSV 'data,attr1;attr2,10' for case class with List(1,2)" in {
       case class Data(data:String,attr:List[String],v:Int)

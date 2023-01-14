@@ -156,7 +156,7 @@ object Flows {
 
     def init(file:String,fileLimit:Long,fileSize:Long) = {      
       //tsRotatable = Util.extractDirWithSlash(file).matches(""".*[{}].*""")
-      tsRotatable = file.matches(""".*[{}].*""")      
+      tsRotatable = file.matches(""".*[{}].*""")
     }
 
     def isRotatable():Boolean = tsRotatable
@@ -166,7 +166,7 @@ object Flows {
     }
 
     def rotate(file:String,count:Long,size:Long):Option[String]  = {
-      nextTs = if(tsRotatable) Util.nextFile(file) else 0L
+      nextTs = if(tsRotatable) Util.nextTimestampFile(file) else 0L
       val now = System.currentTimeMillis()
       Some(Util.pathToFullPath(Util.toFileWithTime(file,now)))
     }

@@ -79,18 +79,24 @@ object Util {
   }
 
   def nextTimestampDir(fileName:String,ts:Long=System.currentTimeMillis()) = {
-    nextFile(extractDirWithSlash(fileName),ts)
+    nextTimestampFile(extractDirWithSlash(fileName),ts)
   }
 
-  def nextFile(fullName:String,ts:Long=System.currentTimeMillis()) = {
+  def nextTimestampFile(fullName:String,ts:Long=System.currentTimeMillis()) = {
     val tss = fullName.split("[{]").filter(_.contains("}")).map(s => s.substring(0,s.indexOf("}")))
     val deltas = tss.reverse.map(s => s match {
-      case "ss" | "s" => (0,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).plusSeconds(1).toInstant().toEpochMilli())
-      case "mm" | "m" => (0,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).plusMinutes(1).toInstant().toEpochMilli())
-      case "HH" | "H" => (1,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).plusHours(1).toInstant().toEpochMilli())
-      case "dd" | "d" => (2,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).plusDays(1).toInstant().toEpochMilli())
-      case "MM" | "M" => (3,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).plusMonths(1).toInstant().toEpochMilli())
-      case "yyyy" | "yy" | "y" => (4,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).plusYears(1).toInstant().toEpochMilli())
+      case "ss" | "s" =>          (0,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), 
+                                     ZoneId.systemDefault).plusSeconds(1).toInstant().toEpochMilli())
+      case "mm" | "m" =>          (1,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), 
+                                     ZoneId.systemDefault).plusMinutes(1).withSecond(0).toInstant().toEpochMilli())
+      case "HH" | "H" =>          (2,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), 
+                                     ZoneId.systemDefault).plusHours(1).withMinute(0).withSecond(0).toInstant().toEpochMilli())
+      case "dd" | "d" =>          (3,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), 
+                                     ZoneId.systemDefault).plusDays(1).withHour(0).withMinute(0).withSecond(0).toInstant().toEpochMilli())
+      case "MM" | "M" =>          (4,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), 
+                                     ZoneId.systemDefault).plusMonths(1).withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).toInstant().toEpochMilli())
+      case "yyyy" | "yy" | "y" => (5,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), 
+                                     ZoneId.systemDefault).plusYears(1).withMonth(1).withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).toInstant().toEpochMilli())
     }).toList
 
     //println(s"${deltas}")
