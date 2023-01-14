@@ -154,14 +154,14 @@ object Flows {
     var tsRotated = false
     var nextTs = 0L
 
-    def init(file:String,fileLimit:Long,fileSize:Long) = {
-      tsRotated = Util.extractDirWithSlash(file).matches("[{}]")
+    def init(file:String,fileLimit:Long,fileSize:Long) = {      
+      tsRotated = Util.extractDirWithSlash(file).matches(""".*[{}].*""")      
     }
 
     def isRotatable():Boolean = tsRotated
     
     def needRotate(count:Long,size:Long):Boolean = {      
-      isRotatable() && (nextTs != 0 && System.currentTimeMillis() < nextTs)
+      isRotatable() && (nextTs != 0 && System.currentTimeMillis() >= nextTs)
     }
 
     def rotate(file:String,count:Long,size:Long):Option[String]  = {
