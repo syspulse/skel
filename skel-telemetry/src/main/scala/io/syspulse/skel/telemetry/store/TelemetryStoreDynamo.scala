@@ -44,7 +44,7 @@ object TelemetryDynamoFormat extends DynamoFormat[Telemetry] {
   def fromDynamo(m:Map[String,AttributeValue]) = Telemetry(
     id = m.get("ID").map(_.s()).getOrElse(""),
     ts = m.get("TS").map(_.n()).getOrElse("0").toLong,
-    data = m.get("DATA").map(_.ns().asScala.toList).getOrElse(List()).asInstanceOf[List[String]]
+    v = m.get("DATA").map(_.ns().asScala.toList).getOrElse(List()).asInstanceOf[List[String]]
   )
 }
 
@@ -153,7 +153,7 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
   }
 
   // returns the latest inserted element !  
-  def lastest(id:String):Option[Telemetry] = {
+  def latest(id:String):Option[Telemetry] = {
     val req = QueryRequest
           .builder()
           .tableName(getTable())          

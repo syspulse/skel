@@ -30,14 +30,23 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
   val uri = ElasticURI(elasticUri)
 
   implicit object TelemetryHitReader extends HitReader[Telemetry] {
-    // becasue of VID case class, it is converted unmarchsalled as Map from Elastic (field vid.id)
+    // special very slow 'intelligent' mapper to parse different default formats
     override def read(hit: Hit): Try[Telemetry] = {
       val source = hit.sourceAsMap
-      Success(Telemetry(source("id").asInstanceOf[String], source("ts").asInstanceOf[Long], source("data").asInstanceOf[List[AnyRef]]))
+      val data = List(
+        try { Some(source("data").asInstanceOf[List[AnyRef]]) } catch {case e:Exception => None},
+        try { Some(source("v").asInstanceOf[List[AnyRef]]) } catch { case e:Exception => None},
+        try { Some(List(source("v").asInstanceOf[AnyRef])) } catch { case e:Exception => None},
+      ).flatten   
+      
+      data.headOption match {
+        case Some(data) => Success(Telemetry(source("id").asInstanceOf[String], source("ts").asInstanceOf[Long], data))
+        case None => Failure(new Exception(s"could not parse 'data': ${source}"))
+      }      
     }
   }
   
-  val client = ElasticClient(JavaClient(ElasticProperties(elasticUri)))
+  val client = ElasticClient(JavaClient(ElasticProperties(uri.url)))
 
   import ElasticDsl._  
 
@@ -75,7 +84,37 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
   }
 
   def ?(id:ID,ts0:Long,ts1:Long,op:Option[String] = None):Seq[Telemetry] = {
-    search(id.toString,ts0,ts1)
+    val r = {
+      if(ts0 == 0L && ts1 == Long.MaxValue)
+        client.execute { ElasticDsl.search(uri.index).termQuery(("id",id)) }
+      else 
+        client.execute { ElasticDsl.search(uri.index)
+          .rawQuery(s"""
+            "query": {
+              "bool" : {             
+                "must" : {
+                  "range": {
+                    "ts": {
+                      "gte": ${ts0},
+                      "lte": ${ts1}
+                    }
+                  }
+                },
+                "must" : {
+                  "term": {
+                    "id": {
+                      "value": "${id}"
+                    }
+                  }
+                }
+              }
+            }
+            """)
+        }      
+    }.await
+
+    log.info(s"r=${r}")
+    r.result.to[Telemetry].toList
   }
 
   def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = {
@@ -145,7 +184,7 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
       ElasticDsl
         .search(uri.index)
         .query {
-          ElasticDsl.wildcardQuery("title",txt)
+          ElasticDsl.wildcardQuery("id",txt)
         }
     }.await
 
