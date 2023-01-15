@@ -84,32 +84,35 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
   }
 
   def ?(id:ID,ts0:Long,ts1:Long,op:Option[String] = None):Seq[Telemetry] = {
+    log.info(s"id=${id} range=[$ts0,$ts1], op=${op}")
     val r = {
       if(ts0 == 0L && ts1 == Long.MaxValue)
         client.execute { ElasticDsl.search(uri.index).termQuery(("id",id)) }
       else 
         client.execute { ElasticDsl.search(uri.index)
-          .rawQuery(s"""
-            "query": {
-              "bool" : {             
-                "must" : {
-                  "range": {
-                    "ts": {
-                      "gte": ${ts0},
-                      "lte": ${ts1}
+        .rawQuery(s"""
+          {
+            "bool": {
+                "must": [
+                    {
+                        "terms": {
+                            "id": [
+                                "${id}"
+                            ]
+                        }
+                    },
+                    {
+                        "range": {
+                            "ts": {
+                                "gte": ${ts0},
+                                "lte": ${ts1}
+                            }
+                        }
                     }
-                  }
-                },
-                "must" : {
-                  "term": {
-                    "id": {
-                      "value": "${id}"
-                    }
-                  }
-                }
-              }
+                ]
             }
-            """)
+          }
+          """)
         }      
     }.await
 
@@ -148,7 +151,7 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
         //.search(uri.index)
         //.query(txt)
         s"""
-        "query": {
+        {
           "bool" : {             
             "must" : {
               "range": {
