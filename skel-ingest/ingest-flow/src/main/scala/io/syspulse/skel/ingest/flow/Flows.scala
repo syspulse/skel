@@ -439,13 +439,18 @@ class ToElastic[T <: Ingestable](uri:String)(jf:JsonFormat[T]) extends ElasticCl
     )(jf)
 
   def transform(t:T):Seq[WriteMessage[T,NotUsed]] = {
-    val id = t.getId
+    // Key must be uqique to time series (it will be ID+Timestamp)
+    // For non-timestamp based it will be
+    val id = t.getKey
     if(id.isDefined)
-      // Upsert !!!
+      // Upsert with a new ID. 
+      // It will update if ID already exists
       Seq(WriteMessage.createUpsertMessage(id.get.toString, t))
-    else
-      // Upsert is not supported without id
+    else {
+      // Insert always new record with automatically generated key
+      // DUPLICATES !
       Seq(WriteMessage.createIndexMessage(t))
+    }
   }
 }
 

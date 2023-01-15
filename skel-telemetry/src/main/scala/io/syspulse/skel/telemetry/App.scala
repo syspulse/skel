@@ -15,7 +15,7 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.cli.CliUtil
 import io.syspulse.skel.config._
 
-import io.syspulse.skel.ingest.uri.DynamoURI
+import io.syspulse.skel.uri.DynamoURI
 
 import io.syspulse.skel.telemetry.store._
 import io.syspulse.skel.telemetry.flow.PipelineTelemetry

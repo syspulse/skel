@@ -1,0 +1,11 @@
+{
+  "mappings" : {
+    "date_detection": true,
+    "properties" : {
+      "ts": {
+        "type": "date",
+        "format": "epoch_millis"
+      }
+    }
+  }
+}
