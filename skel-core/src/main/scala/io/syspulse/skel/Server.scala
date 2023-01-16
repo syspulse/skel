@@ -45,9 +45,16 @@ import fr.davit.akka.http.metrics.core.HttpMetrics._
 import io.syspulse.skel.service.ws.{WebSocketEcho,WsRoutes}
 import akka.stream.ActorMaterializer
 import scala.concurrent.Future
+import akka.http.scaladsl.server.directives.ContentTypeResolver
+import akka.actor
+import akka.http.scaladsl.server.directives.FileAndResourceDirectives
+import akka.http.scaladsl.server.directives.RangeDirectives
+import akka.http.scaladsl.server.directives.CodingDirectives
+import akka.stream.scaladsl.StreamConverters
+import akka.util.ByteString
 
 trait Server {
-  val logger = Logger(s"${this}")
+  val log = Logger(s"${this}")
   
   val shutdownTimeout = 1.seconds
   
@@ -100,7 +107,7 @@ trait Server {
       ExceptionHandler {
         case e: java.lang.IllegalArgumentException =>
           extractUri { uri =>
-            logger.error(s"Request '$uri' failed:",e)
+            log.error(s"Request '$uri' failed:",e)
             complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""["error": "${e}"]""")))
           }
         // case e: Exception => complete(HttpResponse(InternalServerError))
@@ -109,6 +116,17 @@ trait Server {
   }
 
   def parseUri(uri:String) = {
+    val (apiUri,apiVersion,serviceUri) = uri.split("/").filter(!_.isEmpty()) match {
+      case Array(p,v,s) => (p,v,s)
+      case Array(p,s) => (p,"",s)
+      case Array(s) => ("","",s)
+      case Array() => ("","","")
+      case Array(p,v,s,_*) => (p,v,s)
+    }  
+    (apiUri,apiVersion,serviceUri)  
+  }
+
+  def parseUriPath(uri:String) = {
     val (apiUri,apiVersion,serviceUri) = uri.split("/").filter(!_.isEmpty()) match {
       case Array(p,v,s) => (Slash ~ p,Slash ~ v,Slash ~ s)
       case Array(p,s) => (Slash ~ p,PathMatcher(""),Slash ~ s)
@@ -123,7 +141,7 @@ trait Server {
                 uri:String,
                 systemRoutes:Seq[Route],
                 appRoutes:Seq[Route]) = {
-    val (apiUri,apiVersion,serviceUri) = parseUri(uri)
+    val (apiUri,apiVersion,serviceUri) = parseUriPath(uri)
     val routes: Route =
       handleRejections(rejectionHandler) {
         handleExceptions(exceptionHandler) {
@@ -145,6 +163,36 @@ trait Server {
   }
 
   protected def postInit(context:ActorContext[_],routes:Route) = {}
+
+
+  // =================================================================================================================================
+  val withRangeSupportAndPrecompressedMediaTypeSupport = RangeDirectives.withRangeSupport & CodingDirectives.withPrecompressedMediaTypeSupport
+  def getFromResource2(resourceName: String, serviceName:String = "service", classLoader: ClassLoader = classOf[actor.ActorSystem].getClassLoader)(implicit resolver: ContentTypeResolver): Route = {
+    val contentType: ContentType = resolver(resourceName)
+    log.info(s"documentation: resource=${resourceName}: serviceName=${serviceName}")
+    if (!resourceName.endsWith("/"))
+      get {
+        Option(classLoader.getResource(resourceName)) flatMap FileAndResourceDirectives.ResourceFile.apply match {
+          case Some(FileAndResourceDirectives.ResourceFile(url, length, lastModified)) =>
+            if (length > 0) {
+                withRangeSupportAndPrecompressedMediaTypeSupport {
+                  // val stream = StreamConverters.fromInputStream(() => url.openStream(),chunkSize = 8192).map( s=> {
+                  //   val body = ByteString(s.utf8String.replace("{service}",serviceName))
+                  //   body
+                  // })
+                  // complete(HttpEntity.Default(contentType, length, stream))
+                  val body0 = new String(url.openStream().readAllBytes())
+                  val body1 = ByteString(body0.replace("{service}",serviceName))
+                  complete(HttpEntity(contentType,body1))
+                }
+              } else complete(HttpEntity.Empty)
+            
+          case _ => reject // not found or directory
+        }
+      }
+    else reject
+  }
+  // =================================================================================================================================
 
   def run(host:String, port:Int, uri:String, configuration:Configuration,
           app:Seq[(Behavior[Command],String,(ActorRef[Command],ActorContext[_])=>Routeable)],
@@ -178,7 +226,7 @@ trait Server {
       val appClasses:Seq[Class[_]] = appServices.map(r => r.getClass())
 
       val swaggerRoutes = Swagger.routes
-      val swaggerUI = path("swagger") { getFromResource("swagger/index.html") } ~ getFromResourceDirectory("swagger")
+      val swaggerUI = path("swagger") { getFromResource2("swagger/index.html",parseUri(uri)._3) } ~ getFromResourceDirectory("swagger")
       val infoRoutes = new InfoRoutes(infoRegistryActor)(context)
       val healthRoutes = new HealthRoutes(healthRegistryActor)(context)
       val configRoutes = new ConfigRoutes(configRegistryActor)(context)
@@ -197,8 +245,8 @@ trait Server {
         )
       
       
-      Swagger.withClass(appClasses).withVersion(parseUri(uri)._2.toString).withHost(host,port)
-
+      val swagger = Swagger.withClass(appClasses).withVersion(parseUri(uri)._2).withHost(host,port).withUri(uri)
+      
       postInit(context,routes)
     
       // should not be here...

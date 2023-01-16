@@ -18,7 +18,7 @@ trait SwaggerLike extends SwaggerHttpService {
   private val log = Logger(s"${this}")
 
   @volatile
-  var uri:String = ""
+  var hostPort:String = ""
   @volatile
   var information = Info(version = "1.0")
   @volatile
@@ -29,17 +29,22 @@ trait SwaggerLike extends SwaggerHttpService {
     classOf[ConfigRoutes],
     classOf[MetricsRoutes]
   )
+  @volatile
+  var uriPath:String = ""
 
   override def apiClasses: Set[Class[_]] = {
     log.info(s"Documented Classes: ${classes}")
     classes
   }
   override def info = information
-  override def host = uri
+  override def host = hostPort
+
+  override def basePath = uriPath
 
   def withClass(cc:Seq[Class[_]]):SwaggerLike = { classes = classes ++ cc; this }
   def withVersion(v:String):SwaggerLike = { information = Info(version = v); this }
-  def withHost(h:String,p:Int):SwaggerLike = { uri = s"${h}:${p}"; this }
+  def withHost(h:String,p:Int):SwaggerLike = { hostPort = s"${h}:${p}"; this }
+  def withUri(u:String):SwaggerLike = { uriPath = u; this }
 }
 
 object Swagger extends SwaggerLike {
