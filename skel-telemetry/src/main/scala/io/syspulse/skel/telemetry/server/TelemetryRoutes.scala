@@ -51,7 +51,10 @@ import io.syspulse.skel.telemetry.server._
 import io.syspulse.skel.telemetry.Telemetry.ID
 import io.syspulse.skel.cli.CliUtil
 
-@Path("/api/v1/telemetry")
+@Path(s"/")
+class PriceRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends TelemetryRoutes(registry)(context)
+
+@Path(s"/")
 class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
   //val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system
@@ -80,14 +83,14 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
 
 
   @GET @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("telemetry"),summary = "Return Telemetry by id in time range",
+  @Operation(tags = Array("telemetry"),summary = "Return telemetry by id in time range",
     parameters = Array(
-      new Parameter(name = "id", in = ParameterIn.PATH, description = "Telemetry id"),
+      new Parameter(name = "id", in = ParameterIn.PATH, description = "telemetry id"),
       new Parameter(name = "ts0", in = ParameterIn.PATH, description = "Start Timestamp (millisec) (optional)"),
       new Parameter(name = "ts1", in = ParameterIn.PATH, description = "End Timestamp (millisec) (optional)"),
       new Parameter(name = "op", in = ParameterIn.PATH, description = "Operation (avg,last,first,sum) (optional)")
     ),
-    responses = Array(new ApiResponse(responseCode="200",description = "Telemetry returned",content=Array(new Content(schema=new Schema(implementation = classOf[Telemetry])))))
+    responses = Array(new ApiResponse(responseCode="200",description = "telemetry returned",content=Array(new Content(schema=new Schema(implementation = classOf[Telemetry])))))
   )
   def getTelemetryRoute(id: String) = get {
     rejectEmptyResponse {
@@ -149,7 +152,6 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
     }
   }
 
-
   @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("telemetry"), summary = "Return all Telemetrys",
     responses = Array(
@@ -202,18 +204,20 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
             authenticate()(authn =>
               authorize(Permissions.isAdmin(authn)) {              
                 createTelemetryRoute  
-              } 
-              //getTelemetrysRoute()
+              } ~
+              getTelemetrysRoute()
             ),
-            getTelemetrysRoute()        
+            //getTelemetrysRoute()        
           )
         },
-        pathSuffix("random") {
-          createTelemetryRandomRoute()
-        },
+        // pathSuffix("random") {
+        //   createTelemetryRandomRoute()
+        // },
         pathPrefix("search") {
           pathPrefix(Segment) { txt => 
-            getTelemetrySearch(txt)
+            authenticate()(authn => {
+              getTelemetrySearch(txt)
+            })
           }
         },
         pathPrefix(Segment) { id =>         
@@ -222,15 +226,14 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
           } ~
           pathEndOrSingleSlash {
             getTelemetryRoute(id)
-            // authenticate()(authn =>
-            //   authorize(Permissions.isUser(UUID(id),authn)) {
-            //     getTelemetryRoute(id)
-            //   } ~
-            //   ~ 
-            //   authorize(Permissions.isAdmin(authn)) {
-            //     deleteTelemetryRoute(id)
-            //   }
-            // ) 
+            authenticate()(authn =>
+              authorize(Permissions.isUser(UUID(id),authn)) {
+                getTelemetryRoute(id)
+              } ~
+              authorize(Permissions.isAdmin(authn)) {
+                deleteTelemetryRoute(id)
+              }
+            ) 
           }
         }
       )

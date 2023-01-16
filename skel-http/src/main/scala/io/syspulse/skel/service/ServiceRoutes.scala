@@ -34,7 +34,7 @@ import io.syspulse.skel.service.Routeable
 import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.service.ServiceRegistry._
 
-@Path("/api/v1/service")
+@Path("/")
 class ServiceRoutes(serviceRegistry: ActorRef[ServiceRegistry.Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {
   val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system

@@ -86,6 +86,7 @@ import io.syspulse.skel.user.client.UserClientHttp
 import io.syspulse.skel.auth.oauth2.EthOAuth2._
 import io.syspulse.skel.auth.oauth2.EthTokens
 
+@Path("/")
 class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirectUri:String,serviceUserUri:String)(implicit context:ActorContext[_],config:Config) 
     extends CommonRoutes with Routeable with RouteAuthorizers {
 

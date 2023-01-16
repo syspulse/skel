@@ -174,7 +174,7 @@ __API spec__: [http://localhost:8080/api/v1/service/doc/swagger.yaml](http://loc
 
 __Swagger UI__:
 
-[http://localhost:8080/api/v1/service/swagger](http://localhost:8080/api/v1/service/swagger)
+[http://localhost:8080/api/v1/service/doc](http://localhost:8080/api/v1/service/doc)
 
 <img src="doc/scr-swagger.png" width="850">
 

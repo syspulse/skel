@@ -166,6 +166,7 @@ trait Server {
 
 
   // =================================================================================================================================
+  // Load HTTP resource with replacement (borrowed from akka)
   val withRangeSupportAndPrecompressedMediaTypeSupport = RangeDirectives.withRangeSupport & CodingDirectives.withPrecompressedMediaTypeSupport
   def getFromResource2(resourceName: String, serviceName:String = "service", classLoader: ClassLoader = classOf[actor.ActorSystem].getClassLoader)(implicit resolver: ContentTypeResolver): Route = {
     val contentType: ContentType = resolver(resourceName)
@@ -224,9 +225,12 @@ trait Server {
       }
       val appRoutes:Seq[Route] = appServices.map(r => r.buildRoutes())
       val appClasses:Seq[Class[_]] = appServices.map(r => r.getClass())
+      
+      val swagger = Swagger.withClass(appClasses).withVersion(parseUri(uri)._2).withHost(host,port).withUri(uri)
 
-      val swaggerRoutes = Swagger.routes
-      val swaggerUI = path("swagger") { getFromResource2("swagger/index.html",parseUri(uri)._3) } ~ getFromResourceDirectory("swagger")
+      val swaggerRoutes = swagger.routes
+      val swaggerUI = path("doc") { getFromResource2("doc/index.html",parseUri(uri)._3) } ~ getFromResourceDirectory("doc")
+      //val swaggerUI = path("swagger") { getFromResource2("swagger/index.html",parseUri(uri)._3) } ~ getFromResourceDirectory("swagger")
       val infoRoutes = new InfoRoutes(infoRegistryActor)(context)
       val healthRoutes = new HealthRoutes(healthRegistryActor)(context)
       val configRoutes = new ConfigRoutes(configRegistryActor)(context)
@@ -243,10 +247,7 @@ trait Server {
           Seq(telemetryRoutes.routes, infoRoutes.routes, healthRoutes.routes, configRoutes.routes, metricsRoutes.routes, swaggerRoutes, swaggerUI),
           appRoutes
         )
-      
-      
-      val swagger = Swagger.withClass(appClasses).withVersion(parseUri(uri)._2).withHost(host,port).withUri(uri)
-      
+            
       postInit(context,routes)
     
       // should not be here...

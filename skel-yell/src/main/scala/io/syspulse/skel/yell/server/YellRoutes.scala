@@ -50,7 +50,7 @@ import io.syspulse.skel.yell.store.YellRegistry
 import io.syspulse.skel.yell.store.YellRegistry._
 
 
-@Path("/api/v1/yell")
+@Path("/")
 class YellRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
   //val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system

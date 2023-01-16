@@ -37,7 +37,7 @@ case class Config(
   throttle:Long = 0L,
 
   datastore:String = "mem",
-  storeCron:String = "*/60 * * * * ?",
+  storeCron:String = "*/60 * * * * ?", // not supported at the moment (need Flows integration)
 
   cmd:String = "ingest",
   params: Seq[String] = Seq(),
@@ -73,6 +73,7 @@ object App extends skel.Server {
         
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
+        ArgCmd("test","Test Command"),
         ArgCmd("scan","Scan all"),
         ArgCmd("search","Multi-Search pattern"),
         ArgCmd("grep","Wildcards search"),
@@ -128,6 +129,13 @@ object App extends skel.Server {
         run( config.host, config.port,config.uri,c,
           Seq(
             (TelemetryRegistry(store),"TelemetryRegistry",(r, ac) => new server.TelemetryRoutes(r)(ac) )
+          )
+        )
+
+      case "test" => 
+        run( config.host, config.port,config.uri,c,
+          Seq(
+            (TelemetryRegistry(store),"PriceRegistry",(r, ac) => new server.PriceRoutes(r)(ac) )
           )
         )
 

@@ -35,7 +35,7 @@ import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.service.telemetry.TelemetryRegistry._
 import akka.actor.typed.scaladsl.ActorContext
 
-@Path("/api/v1/{service}/telemetry")
+@Path("/telemetry")
 class TelemetryRoutes(telemetryRegistry: ActorRef[TelemetryRegistry.Command])(implicit context: ActorContext[_]) extends CommonRoutes {
   
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._

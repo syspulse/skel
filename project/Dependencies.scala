@@ -97,7 +97,7 @@ object Dependencies {
       
     //val libWsRs =           "javax.ws.rs"                     % "javax.ws.rs-api"       % "2.1.1"
     val libWsRsJakarta =    "jakarta.ws.rs"                   % "jakarta.ws.rs-api"     % "3.1.0" //"3.0.0"
-    val libSwaggerAkkaHttp ="com.github.swagger-akka-http"    %% "swagger-akka-http"    % "2.7.0"
+    val libSwaggerAkkaHttp ="com.github.swagger-akka-http"    %% "swagger-akka-http"    % "2.7.0" //"2.10.0"
     //val libSwaggerAkkaHttpUi ="com.github.swagger-akka-http"    %% "swagger-akka-http-with-ui" % "2.6.0"
     //val libSwaggerAnn =     "io.swagger.core.v3"              % "swagger-annotations"   % "2.2.0"
     //val libSwaggerAnnJakarta = "io.swagger.core.v3"              % "swagger-annotations-jakarta"   % "2.2.0"

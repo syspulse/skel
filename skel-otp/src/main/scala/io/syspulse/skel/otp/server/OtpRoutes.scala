@@ -46,7 +46,7 @@ import scala.concurrent.duration.Duration
 import io.syspulse.skel.otp._
 import io.syspulse.skel.otp.store.OtpRegistry._
 
-@Path("/api/v1/otp")
+@Path("/")
 class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {
   val log = Logger(s"${this}")  
   implicit val system: ActorSystem[_] = context.system

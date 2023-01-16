@@ -50,7 +50,7 @@ import io.syspulse.skel.user.store.UserRegistry
 import io.syspulse.skel.user.store.UserRegistry._
 
 
-@Path("/api/v1/user")
+@Path("/")
 class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
   //val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system

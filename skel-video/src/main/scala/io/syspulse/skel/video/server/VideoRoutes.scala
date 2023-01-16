@@ -49,7 +49,7 @@ import io.syspulse.skel.video.store.VideoRegistry
 import io.syspulse.skel.video.store.VideoRegistry._
 import io.syspulse.skel.video.server._
 
-@Path("/api/v1/video")
+@Path("/")
 class VideoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
   //val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system

@@ -50,7 +50,7 @@ import io.syspulse.skel.enroll.Config
 import io.syspulse.skel.enroll.store.EnrollRegistry._
 
 
-@Path("/api/v1/enroll")
+@Path("/")
 class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],config:Config) extends CommonRoutes with Routeable { 
   //with RouteAuthorizers {
   val log = Logger(s"${this}")

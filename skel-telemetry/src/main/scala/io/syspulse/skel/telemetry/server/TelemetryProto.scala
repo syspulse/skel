@@ -19,13 +19,12 @@ final case class TelemetryActionRes(status: String,id:Option[Telemetry.ID])
 final case class TelemetryRes(telemetry: Option[Telemetry])
 
 object TelemetryProto extends JsonCommon {
-  
-  import DefaultJsonProtocol._
 
+  import DefaultJsonProtocol._
   import TelemetryJson._
 
-  implicit val jf_Telemetrys = jsonFormat1(Telemetrys)
-  implicit val jf_TelemetryRes = jsonFormat1(TelemetryRes)
+  implicit val jf_Telemetrys = jsonFormat(Telemetrys,"result")
+  implicit val jf_TelemetryRes = jsonFormat(TelemetryRes,"result")
   implicit val jf_CreateReq = jsonFormat3(TelemetryCreateReq)
   implicit val jf_ActionRes = jsonFormat2(TelemetryActionRes)
   

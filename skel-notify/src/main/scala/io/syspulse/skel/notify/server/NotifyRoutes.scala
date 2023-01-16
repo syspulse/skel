@@ -48,7 +48,7 @@ import io.syspulse.skel.notify._
 import io.syspulse.skel.notify.store.NotifyRegistry
 import io.syspulse.skel.notify.store.NotifyRegistry._
 
-@Path("/api/v1/notify")
+@Path("/")
 class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
   //val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system
