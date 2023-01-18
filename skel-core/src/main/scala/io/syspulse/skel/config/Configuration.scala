@@ -18,13 +18,20 @@ trait ConfigurationLike {
 }
 
 class Configuration(configurations: Seq[ConfigurationLike]) extends ConfigurationLike {
+
+  def convertBackslash(s:String) = s
+    .replace("\\n","\n")
+    .replace("\\r","\r")
+
   // support for global reference to another string
   def getString(path:String):Option[String] = {  
     val r = configurations.foldLeft[Option[String]](None)((r,c) => if(r.isDefined) r else c.getString(path))
-    if(r.isDefined && r.get.startsWith("@")) 
+    
+    val s = if(r.isDefined && r.get.startsWith("@")) 
       getString(r.get.tail)
     else 
       r
+    s.map(convertBackslash(_))
   }
   
   def getInt(path:String):Option[Int] = {

@@ -38,6 +38,23 @@ abstract class WebSocket(idleTimeout:Long = 1000L*60*5)(implicit ex:ExecutionCon
 
   @volatile
   protected var clients: mutable.Map[String,mutable.ListBuffer[ActorRef]] = mutable.Map()
+  def -(topic:String,wsActor:ActorRef) = {
+    val aa = clients.get(topic).getOrElse(mutable.ListBuffer())
+    aa.synchronized {
+      aa.-=(wsActor)
+      if(aa.size == 0) {
+        clients.remove(topic)
+      }
+    }
+    log.info(s"clients: ${clients}")
+  }
+  def +(topic:String,wsActor:ActorRef) = {
+    val aa = clients.getOrElseUpdate(topic,mutable.ListBuffer())
+    aa.synchronized {
+      aa.addOne(wsActor)      
+    }
+    log.info(s"clients: ${clients}")
+  }
   
   def process(m:Message,a:ActorRef):Message = ???
 
@@ -47,13 +64,8 @@ abstract class WebSocket(idleTimeout:Long = 1000L*60*5)(implicit ex:ExecutionCon
         .actorRef[Message](32, OverflowStrategy.dropNew)
         .preMaterialize()
 
-    val aa = clients.getOrElseUpdate(topic,mutable.ListBuffer())
-    aa.synchronized {
-      aa.addOne(wsActor)      
-    }
+    this.+(topic,wsActor)    
     
-    log.info(s"topic=${topic}: clients=${clients}")
-
     // it must be coupled to detect WS client disconnects!
     val flow = Flow.fromSinkAndSourceCoupled(
       Sink.foreach{ m:Message =>         
@@ -71,23 +83,14 @@ abstract class WebSocket(idleTimeout:Long = 1000L*60*5)(implicit ex:ExecutionCon
       f.onComplete {
         case Failure(e) => {
           log.error(s"connection: ${wsActor}",e)
-          val aa = clients.get(topic).getOrElse(mutable.ListBuffer())
-          aa.synchronized {
-            aa.-=(wsActor)
-          }
-          log.info(s"clients: ${clients}")
+          this.-(topic,wsActor)          
         }
         case Success(_) => {
-          val aa = clients.get(topic).getOrElse(mutable.ListBuffer())
-          aa.synchronized {
-            aa.-=(wsActor)
-          }
-          log.info(s"clients: ${clients}")
+          this.-(topic,wsActor)          
         }
       }
     })
 
-    //log.debug(s"flow=${flow}, clients: ${clients}")
     flow
   }
 

@@ -37,9 +37,12 @@ abstract class WsRoutes(uri:String)(implicit context: ActorContext[_]) extends C
 
   val routes: Route =
     pathPrefix(uri) { 
-      pathPrefix(Segment) { topic => 
+      pathPrefix(Segment) { topic =>
         handleWebSocketMessages(ws.listen(topic))
       } ~
-      handleWebSocketMessages(ws.listen())
+      pathEndOrSingleSlash {
+        //system.log.info(s"Default Websocket")
+        handleWebSocketMessages(ws.listen())
+      }
   }
 }
