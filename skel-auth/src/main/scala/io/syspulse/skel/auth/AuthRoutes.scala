@@ -187,7 +187,12 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         UserClientHttp(serviceUserUri).withTimeout().getByXidAlways(profile.id)
       }
       auth <- {        
-        Future(Auth(idpTokens.accessToken, idpTokens.idToken, user.map(_.id), scope, idpTokens.expiresIn))        
+        Future(Auth(
+          idpTokens.accessToken, 
+          idpTokens.idToken, 
+          idpTokens.refreshToken,
+          user.map(_.id), scope, idpTokens.expiresIn
+        ))        
       }
       authRes <- {
         // save Auth Session 
@@ -224,7 +229,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
         Future(AuthWithProfileRes(
           accessToken, 
-          AuthIdp(authRes.auth.accessToken, authRes.auth.idToken),
+          AuthIdp(authRes.auth.accessToken, authRes.auth.idToken, authRes.auth.refreshToken),
           authRes.auth.uid,
           profile.id,
           profileEmail, 
@@ -416,11 +421,12 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
             // issue temporary token for Enrollment
             val uid = Util.NOBODY.toString
             val idToken = ""//AuthJwt.generateIdToken(uid) 
-            val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
+            val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString))
             log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}")
 
             onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>                      
-              complete(StatusCodes.OK,EthTokens(accessToken = accessToken, idToken = idToken, expiresIn = 60,scope = "",tokenType = ""))
+              complete(StatusCodes.OK,
+                EthTokens(accessToken = accessToken, idToken = idToken, expiresIn = 60,scope = "",tokenType = "",refreshToken=""))
             }
 
           } else  {
@@ -432,14 +438,23 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
             val idToken = AuthJwt.generateIdToken(rsp.code.get.xid.getOrElse(""),Map("email"->email,"name"->name,"avatar"->avatar)) 
             val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
-            log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}")
+            val refreshToken = AuthJwt.generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = 3600L * 10) 
+            
+            log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
 
             // associate idToken with code for later Profile retrieval by rewriting Code and
             // immediately expiring code 
             // Extracting user id possible from JWT 
             onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>
               
-              complete(StatusCodes.OK,EthTokens(accessToken = accessToken, idToken = idToken, expiresIn = 3600,scope = "",tokenType = ""))                    
+              complete(StatusCodes.OK,
+                EthTokens(
+                  accessToken = accessToken, 
+                  idToken = idToken, 
+                  expiresIn = 3600,
+                  scope = "",
+                  tokenType = "",
+                  refreshToken = refreshToken))                    
             }
           }
         }

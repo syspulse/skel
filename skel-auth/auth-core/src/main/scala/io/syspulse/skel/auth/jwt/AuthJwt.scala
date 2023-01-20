@@ -71,12 +71,15 @@ object AuthJwt {
       .issuedNow.expiresIn(expire), secret, algo)
   }
 
-  def generateAccessToken(attr:Map[String,String] = Map(), expire:Long = 3600L, algo:JwtAlgorithm=JwtAlgorithm.HS512):String = {
+  def generateToken(attr:Map[String,String] = Map(), expire:Long = 3600L, algo:JwtAlgorithm=JwtAlgorithm.HS512):String = {
     val claim = attr.map{case (k,v) => s""""${k}":"${v}""""}.mkString(",")
     Jwt
       .encode(JwtClaim(s"{${claim}}")
       .issuedNow.expiresIn(expire), secret, algo)
   }
+
+  def generateAccessToken(attr:Map[String,String] = Map(), expire:Long = 3600L, algo:JwtAlgorithm=JwtAlgorithm.HS512):String = 
+    generateToken(attr,expire,algo)   
 
   def isValid(token:String, algo:JwtAlgorithm=JwtAlgorithm.HS512) = {
     algo match {
