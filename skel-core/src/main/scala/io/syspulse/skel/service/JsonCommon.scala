@@ -14,11 +14,26 @@ import spray.json.{DefaultJsonProtocol, DeserializationException, JsString, JsVa
 import spray.json.JsNumber
 import spray.json.JsTrue
 import spray.json.JsFalse
+import scala.collection.SortedSet
+import spray.json.JsArray
+import spray.json.RootJsonFormat
+import spray.json.CollectionFormats
 
-trait JsonCommon extends DefaultJsonProtocol {
-  
+object JsonCommon extends DefaultJsonProtocol with CollectionFormats {
+  implicit def sortedSetFormat[T :JsonFormat](implicit ordering: Ordering[T]) = viaSeq[SortedSet[T], T](seq => SortedSet(seq :_*))
+}
+
+trait JsonCommon extends DefaultJsonProtocol with CollectionFormats { 
   //import DefaultJsonProtocol._
-  
+
+  // implicit def sortedSetFormat[T :JsonFormat] = new RootJsonFormat[SortedSet[T]] {
+  //   def write(list: SortedSet[T]) = JsArray(list.map(_.toJson).toVector)
+  //   def read(value: JsValue): SortedSet[T] = value match {
+  //     case JsArray(elements) => SortedSet[T](elements.toIterator.map(_.convertTo[T]).toSet)
+  //     case x => deserializationError("Expected List as JsArray, but got " + x)
+  //   }
+  // }
+
   //val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssZ")
   val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
 
