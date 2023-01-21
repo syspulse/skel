@@ -31,7 +31,7 @@ trait RouteAuthorizers {
   val log = Logger(s"${this}")
   
   protected def verifyAuthToken(token: Option[String],id:String,data:Seq[Any]):Option[String] = token match {
-    case Some(t) => {
+    case Some(t) => {      
       val v = AuthJwt.isValid(t)
       val uid = AuthJwt.getClaim(t,"uid")
       log.info(s"token=${token}: uid=${uid}: valid=${v}")
@@ -71,7 +71,7 @@ trait RouteAuthorizers {
   protected def authenticate(): Directive1[Authenticated] = {
     log.info(s"GOD=${Permissions.isGod}")
     if(Permissions.isGod) 
-      provide(AuthenticatedUser(Util.GOD))
+      provide(AuthenticatedUser(Permissions.USER_ADMIN))
     else
       authenticateOAuth2("api",oauth2Authenticator)
   }

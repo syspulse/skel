@@ -22,7 +22,11 @@ class AuthStoreMem extends AuthStore {
 
   def size:Long = auths.size
 
-  def +(auth:Auth):Try[AuthStore] = { auths = auths + (auth.accessToken -> auth); Success(this)}
+  def +(auth:Auth):Try[AuthStore] = { 
+    auths = auths + (auth.accessToken -> auth); 
+    log.info(s"Auth: ${auth}")
+    Success(this)
+  }
   
   def del(token:String):Try[AuthStore] = { 
     val sz = auths.size

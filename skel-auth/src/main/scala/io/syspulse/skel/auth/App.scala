@@ -12,6 +12,7 @@ import io.syspulse.skel.user.store._
 import io.syspulse.skel.auth.server.AuthRoutes
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.store._
+import io.syspulse.skel.auth.permissions.rbac.Permissions
 
 case class Config(
   host:String="0.0.0.0",
@@ -26,7 +27,7 @@ case class Config(
   proxyBody:String = """{ "username":{{user}}, "password":{{pass}}""",
   proxyHeadersMapping:String = "HEADER:Content-type:application/json, HEADER:X-App-Id:{{client_id}}, HEADER:X-App-Secret:{{client_secret}}, BODY:X-User:{{user}}, BODY:X-Pass:{{pass}}",
 
-  jwtSecret:String = "",
+  jwtSecret:Option[String] = None,
 
   userUri:String = "http://localhost:8080/api/v1/user",
 
@@ -40,7 +41,7 @@ case class Config(
 object App extends skel.Server {
   
   def main(args:Array[String]):Unit = {
-    println(s"args: '${args.mkString(",")}'")
+    Console.err.println(s"args: '${args.mkString(",")}'")
 
     val d = Config()
     val c = Configuration.withPriority(Seq(
@@ -87,7 +88,7 @@ object App extends skel.Server {
       proxyBody = c.getString("proxy.body").getOrElse(d.proxyBody),
       proxyHeadersMapping = c.getString("proxy.headers.mapping").getOrElse(d.proxyHeadersMapping),
 
-      jwtSecret = c.getString("jwt.secret").getOrElse(Util.generateRandomToken()),
+      jwtSecret = c.getString("jwt.secret"),
 
       userUri = c.getString("user.uri").getOrElse(d.userUri),
 
@@ -110,7 +111,9 @@ object App extends skel.Server {
       }
     }
 
-    AuthJwt.withSecret(config.jwtSecret)
+    if(config.jwtSecret.isDefined) 
+      AuthJwt.withSecret(config.jwtSecret.get)
+
     val authHost = if(config.host=="0.0.0.0") "localhost" else config.host
 
     config.cmd match {
@@ -198,6 +201,12 @@ object App extends skel.Server {
         
         val r = 
           config.params match {
+            case "admin" :: Nil => 
+              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_ADMIN.toString))
+            
+            case "service" :: Nil => 
+              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString))
+
             case "encode" :: uid :: Nil => 
               AuthJwt.generateAccessToken(Map("uid" -> uid))
 
@@ -212,7 +221,7 @@ object App extends skel.Server {
             case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
           }
         
-        Console.err.println(s"${r}")
+        println(s"${r}")
         System.exit(0)
       }
     }    

@@ -249,10 +249,6 @@ object Util {
     )
   }
   
-  val NOBODY = UUID("00000000-0000-0000-0000-000000000000")
-  val GOD =    UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
-  val SERVICE =UUID("ffffffff-ffff-ffff-ffff-000000000001")
-
   import scala.util.Using
   def loadFile(path:String):scala.util.Try[String] = {
     if(path.trim.startsWith("classpath:")) {

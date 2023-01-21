@@ -11,6 +11,7 @@ import scala.util.Success
 
 import io.syspulse.skel.util.Util
 import pdi.jwt.JwtAlgorithm
+import io.syspulse.skel.auth.permissions.rbac.Permissions
 
 class AuthJwtSpec extends AnyWordSpec with Matchers {
   val testDir = this.getClass.getClassLoader.getResource(".").getPath
@@ -35,5 +36,16 @@ class AuthJwtSpec extends AnyWordSpec with Matchers {
       val j1 = AuthJwt.generateToken(secret = "secret2", algo = JwtAlgorithm.HS512)
       AuthJwt.isValid(j1,secret = "secret2", algo = JwtAlgorithm.HS256) === false
     }
+
+    "validate generated Admin token" in {
+      val j1 = AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_ADMIN.toString))
+      AuthJwt.isValid(j1) === true
+    }
+
+    "validate JWT token as Admin" in {
+      val j1 = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJleHAiOjE2NzQzNDMxODAsImlhdCI6MTY3NDMzOTU4MCwidWlkIjoiZmZmZmZmZmYtZmZmZi1mZmZmLWZmZmYtZmZmZmZmZmZmZmZmIn0.VaYS9CVgFKH9sw81TTWTuztG-zo4y7LAab7Sb_diQZMViMH9HZpHDMq0NGbt7mmvyhB1tsLnsv-AZMnUAtZMSw"
+      AuthJwt.isValid(j1) === true
+    }
+
   }
 }

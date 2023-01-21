@@ -230,7 +230,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           }
           else {
             (
-              AuthJwt.generateAccessToken(Map( "uid" -> Util.NOBODY.toString)),
+              AuthJwt.generateAccessToken(Map( "uid" -> Permissions.USER_NOBODY.toString)),
               None,
               None
             )
@@ -510,7 +510,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
             //complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
                         
             // non-esisting user
-            val uid = Util.NOBODY.toString
+            val uid = Permissions.USER_NOBODY.toString
             // issue token for nobody with a scope to start enrollment 
             val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid, "role" -> Permissions.ROLE_NOBODY, "scope" -> "enrollment"))
             val idToken = ""

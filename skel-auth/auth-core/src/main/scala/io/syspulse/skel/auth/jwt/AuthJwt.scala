@@ -127,7 +127,9 @@ object AuthJwt {
     algo match {
       case a:JwtHmacAlgorithm => Jwt.isValid(token, secret, Seq(a))
       case a:JwtAsymmetricAlgorithm => Jwt.isValid(token, secret, Seq(a))
-      case _  => false
+      case _  => 
+        log.error(s"unknwon algo: ${algo.getClass().getName()}")
+        false
     }
     
   }
