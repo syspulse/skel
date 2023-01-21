@@ -346,7 +346,7 @@ lazy val http = (project in file("skel-http"))
   )
 
 lazy val auth_core = (project in file("skel-auth/auth-core"))
-  .dependsOn(core)
+  .dependsOn(core, skel_test % Test)
   .settings (
     sharedConfig,
     name := "skel-auth-core",
@@ -384,7 +384,7 @@ lazy val auth = (project in file("skel-auth"))
   )
 
 lazy val otp = (project in file("skel-otp"))
-  .dependsOn(core,skel_test % Test)
+  .dependsOn(core, skel_test % Test)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)

@@ -1,12 +1,18 @@
-package io.syspulse.skel.auth
+package io.syspulse.skel.auth.store
+
+import scala.collection.immutable
+import io.jvm.uuid._
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
-import scala.collection.immutable
 
-import io.jvm.uuid._
 import io.syspulse.skel.Command
+
+import io.syspulse.skel.auth._
+
+import io.syspulse.skel.auth.store.AuthStore
+import io.syspulse.skel.auth.store.AuthStoreMem
 
 object AuthRegistry {
   

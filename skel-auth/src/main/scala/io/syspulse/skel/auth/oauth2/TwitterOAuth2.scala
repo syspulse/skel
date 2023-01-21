@@ -1,6 +1,7 @@
 package io.syspulse.skel.auth.oauth2
 
 import io.jvm.uuid._
+import scala.jdk.CollectionConverters._
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.{ StatusCodes, HttpEntity, ContentTypes}
@@ -32,6 +33,7 @@ import akka.http.scaladsl.model.HttpCharsets
 import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.model.FormData
+import akka.stream.Materializer
 
 import requests._
 
@@ -39,9 +41,6 @@ import com.nimbusds.jose.jwk.JWKMatcher
 import com.nimbusds.jose.jwk.KeyType
 import com.nimbusds.jose.jwk.KeyUse
 import com.nimbusds.jose.jwk.JWKSet
-
-import scala.jdk.CollectionConverters._
-
 
 import com.nimbusds.jose.jwk.JWKSelector
 import com.nimbusds.jose.jwk.RSAKey
@@ -52,9 +51,7 @@ import pdi.jwt.JwtClaim
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.jwt.Jwks
-import io.syspulse.skel.auth.Idp
-
-import akka.stream.Materializer
+import io.syspulse.skel.auth.oauth2.Idp
 
 
 final case class TwitterTokens(accessToken:String,expiresIn:Int,scope:String,tokenType:String,refreshToken:Option[String] = None)

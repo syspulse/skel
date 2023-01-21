@@ -1,0 +1,39 @@
+package io.syspulse.skel.auth.jwt
+
+import org.scalatest.{Ignore}
+import org.scalatest.wordspec.{ AnyWordSpec}
+import org.scalatest.matchers.should.{ Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+
+import java.time._
+import io.jvm.uuid._
+import scala.util.Success
+
+import io.syspulse.skel.util.Util
+import pdi.jwt.JwtAlgorithm
+
+class AuthJwtSpec extends AnyWordSpec with Matchers {
+  val testDir = this.getClass.getClassLoader.getResource(".").getPath
+  
+  "AuthJWT" should {
+    "default secret is secure" in {      
+      info(s"${AuthJwt.defaultSecret}")
+      AuthJwt.defaultSecret !== ""
+    }
+
+    "validate JWT with defaults" in {
+      val j1 = AuthJwt.generateToken()
+      AuthJwt.isValid(j1) === true
+    }
+
+    "fail JWT validation with a wrong secret" in {
+      val j1 = AuthJwt.generateToken(secret = "secret")
+      AuthJwt.isValid(j1,secret = "secret2") === false
+    }
+
+    "fail JWT validation with a wrong HS algo" in {
+      val j1 = AuthJwt.generateToken(secret = "secret2", algo = JwtAlgorithm.HS512)
+      AuthJwt.isValid(j1,secret = "secret2", algo = JwtAlgorithm.HS256) === false
+    }
+  }
+}

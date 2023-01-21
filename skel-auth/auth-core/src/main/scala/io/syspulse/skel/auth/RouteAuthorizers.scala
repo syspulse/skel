@@ -21,6 +21,7 @@ import akka.http.scaladsl.server.directives.Credentials
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.auth.jwt.AuthJwt
+import io.syspulse.skel.auth.permissions.rbac.Permissions
 
 case class AuthenticatedUser(uid:UUID) extends Authenticated {
   override def getUser: Option[UUID] = Some(uid)
@@ -28,7 +29,6 @@ case class AuthenticatedUser(uid:UUID) extends Authenticated {
 
 trait RouteAuthorizers {
   val log = Logger(s"${this}")
-  val isGod = System.getProperty("god") != null
   
   protected def verifyAuthToken(token: Option[String],id:String,data:Seq[Any]):Option[String] = token match {
     case Some(t) => {
@@ -69,8 +69,8 @@ trait RouteAuthorizers {
   // }
 
   protected def authenticate(): Directive1[Authenticated] = {
-    log.info(s"god=${isGod}")
-    if(isGod) 
+    log.info(s"GOD=${Permissions.isGod}")
+    if(Permissions.isGod) 
       provide(AuthenticatedUser(Util.GOD))
     else
       authenticateOAuth2("api",oauth2Authenticator)

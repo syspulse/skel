@@ -1,4 +1,4 @@
-package io.syspulse.skel.auth
+package io.syspulse.skel.auth.oauth2
 
 import io.syspulse.skel.auth.oauth2.OAuth2
 import io.syspulse.skel.auth.jwt.Jwks

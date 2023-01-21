@@ -2,29 +2,48 @@ package io.syspulse.skel.auth.jwt
 
 import scala.util.Success
 import com.typesafe.scalalogging.Logger
+import io.jvm.uuid._
+import java.time.Clock
 
 import pdi.jwt.{Jwt, JwtAlgorithm, JwtHeader, JwtClaim, JwtOptions}
-import com.nimbusds.jose.jwk._
-
-import io.jvm.uuid._
-import ujson._
-
-import io.syspulse.skel.auth.Auth
-import java.time.Clock
 import pdi.jwt.algorithms.JwtHmacAlgorithm
 import pdi.jwt.algorithms.JwtAsymmetricAlgorithm
 
+import com.nimbusds.jose.jwk._
 import ujson._
 
+import io.syspulse.skel.auth.Auth
+import io.syspulse.skel.util.Util
 
 object AuthJwt {
   val log = Logger(s"${this}")
   implicit val clock = Clock.systemDefaultZone()
 
-  var secret: String = "secret"
+  // ATTENTION: it is non-secure deterministic on purpose !
+  var defaultSecret: String = Util.generateRandomToken(seed = Some("0xsecret"))
 
-  def run(jwtSecret:String) = {
-    secret = jwtSecret
+  var defaultAlgo:JwtAlgorithm = JwtAlgorithm.HS512
+  var defaultAccessTokenTTL = 3600L
+  var defaultRefreshTokenTTL = 3600L * 10
+
+  def withSecret(secret:String) = {
+    defaultSecret = secret
+    this
+  }
+
+  def withAlgo(algo:JwtAlgorithm) = {
+    defaultAlgo = algo
+    this
+  }
+
+  def withAccessTokenTTL(ttl:Long) = {
+    defaultAccessTokenTTL = ttl
+    this
+  }
+
+  def withRefreshTokenTTL(ttl:Long) = {
+    defaultRefreshTokenTTL = ttl
+    this
   }
 
   def decodeIdToken(a:Auth) = {
@@ -63,7 +82,12 @@ object AuthJwt {
     }
   }
 
-  def generateIdToken(id:String, attr:Map[String,String] = Map(), expire:Long = 3600L, algo:JwtAlgorithm=JwtAlgorithm.HS512):String = {
+  def generateIdToken(id:String, 
+    attr:Map[String,String] = Map(), 
+    expire:Long = defaultAccessTokenTTL, 
+    algo:JwtAlgorithm = defaultAlgo,
+    secret:String = defaultSecret):String = {
+    
     val claim = (attr + ("id" -> id)).map{case (k,v) => s""""${k}":"${v}""""}.mkString(",")
     Jwt
       .encode(JwtClaim(s"{${claim}}")
@@ -71,17 +95,25 @@ object AuthJwt {
       .issuedNow.expiresIn(expire), secret, algo)
   }
 
-  def generateToken(attr:Map[String,String] = Map(), expire:Long = 3600L, algo:JwtAlgorithm=JwtAlgorithm.HS512):String = {
+  def generateToken(
+    attr:Map[String,String] = Map(), 
+    expire:Long = defaultAccessTokenTTL, 
+    algo:JwtAlgorithm = defaultAlgo,
+    secret:String = defaultSecret):String = {
+
     val claim = attr.map{case (k,v) => s""""${k}":"${v}""""}.mkString(",")
     Jwt
       .encode(JwtClaim(s"{${claim}}")
       .issuedNow.expiresIn(expire), secret, algo)
   }
 
-  def generateAccessToken(attr:Map[String,String] = Map(), expire:Long = 3600L, algo:JwtAlgorithm=JwtAlgorithm.HS512):String = 
-    generateToken(attr,expire,algo)   
+  def generateAccessToken(
+    attr:Map[String,String] = Map(), 
+    expire:Long = defaultAccessTokenTTL, 
+    algo:JwtAlgorithm = defaultAlgo,
+    secret:String = defaultSecret):String = generateToken(attr,expire,algo)   
 
-  def isValid(token:String, algo:JwtAlgorithm=JwtAlgorithm.HS512) = {
+  def isValid(token:String, algo:JwtAlgorithm = defaultAlgo,secret:String = defaultSecret) = {
     algo match {
       case a:JwtHmacAlgorithm => Jwt.isValid(token, secret, Seq(a))
       case a:JwtAsymmetricAlgorithm => Jwt.isValid(token, secret, Seq(a))

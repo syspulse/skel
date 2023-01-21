@@ -52,7 +52,7 @@ import pdi.jwt.JwtClaim
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.jwt.Jwks
-import io.syspulse.skel.auth.Idp
+import io.syspulse.skel.auth.oauth2.Idp
 
 import akka.stream.Materializer
 import io.syspulse.skel.crypto.Eth

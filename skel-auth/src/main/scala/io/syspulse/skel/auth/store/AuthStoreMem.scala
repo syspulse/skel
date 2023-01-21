@@ -1,13 +1,13 @@
-package io.syspulse.skel.auth
+package io.syspulse.skel.auth.store
 
 import scala.util.Try
 import scala.util.{Success,Failure}
 import scala.collection.immutable
-
-import akka.actor.typed.scaladsl.Behaviors
+import io.jvm.uuid._
 import com.typesafe.scalalogging.Logger
 
-import io.jvm.uuid._
+import io.syspulse.skel.auth.Auth
+import io.syspulse.skel.auth.store.AuthStore
 
 class AuthStoreMem extends AuthStore {
   val log = Logger(s"${this}")

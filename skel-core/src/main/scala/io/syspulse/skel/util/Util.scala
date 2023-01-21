@@ -39,8 +39,27 @@ object Util {
   val salt: Array[Byte] = Array.fill[Byte](16)(0x1f)
   val digest = MessageDigest.getInstance("SHA-256");  
 
-  def generateRandomToken() = Base64.getUrlEncoder.withoutPadding.encodeToString(random.generateSeed(32))
-  def generateRandom() = random.generateSeed(32)
+  // ATTENTION: Never use seeds in Production !!!
+  // This is only for testing 
+  def generateRandomToken(seed:Option[String] = None,sz:Int = 32) = {
+    val rnd = generateRandom(seed)
+    Base64.getUrlEncoder.withoutPadding.encodeToString(rnd)
+  }
+
+  def generateRandom(seed:Option[String] = None,sz:Int = 32) = {
+    seed match {
+      case Some(seed) => 
+        // use non-secure Random for deterministic tests
+        val buf: Array[Byte] = Array.fill[Byte](sz)(0)
+        new Random(Util.toHexString(seed.getBytes()).take("0x12345678".size).toLong).nextBytes(buf)
+        buf
+      case None => 
+        // SecureRandom is non-deterministic, so seed only adds to existing seed
+        val buf: Array[Byte] = Array.fill[Byte](sz)(0)
+        random.nextBytes(buf)
+        buf
+    }
+  }
 
   def fromHexString(h:String) = ByteVector.fromHex(h).orElse(Some(ByteVector.fromByte(0))).get.toArray
   def toHexString(b:Array[Byte]) = b.foldLeft("")((s,b)=>s + f"$b%02x")
@@ -232,6 +251,7 @@ object Util {
   
   val NOBODY = UUID("00000000-0000-0000-0000-000000000000")
   val GOD =    UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
+  val SERVICE =UUID("ffffffff-ffff-ffff-ffff-000000000001")
 
   import scala.util.Using
   def loadFile(path:String):scala.util.Try[String] = {

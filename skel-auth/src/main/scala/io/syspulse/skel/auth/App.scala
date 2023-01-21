@@ -1,5 +1,7 @@
 package io.syspulse.skel.auth
 
+import scala.util.Success
+
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
@@ -7,12 +9,9 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.user.server.UserRoutes
 import io.syspulse.skel.user.store._
 
-import io.syspulse.skel.auth.{AuthRegistry,AuthRoutes}
+import io.syspulse.skel.auth.server.AuthRoutes
 import io.syspulse.skel.auth.jwt.AuthJwt
-
-
-import scopt.OParser
-import scala.util.Success
+import io.syspulse.skel.auth.store._
 
 case class Config(
   host:String="0.0.0.0",
@@ -70,7 +69,7 @@ object App extends skel.Server {
         ArgCmd("server",s"Server"),
         ArgCmd("demo",s"Server with embedded UserServices (for testing)"),
         ArgCmd("client",s"Http Client"),
-        ArgCmd("jwt",s"JWT utils (encode/decode)"),
+        ArgCmd("jwt",s"JWT utils (encode/decode/jwt)"),
         ArgParam("<params>","")
       ).withExit(1)
     ))
@@ -99,7 +98,7 @@ object App extends skel.Server {
       params = c.getParams(),
     )
 
-    println(s"Config: ${config}")
+    Console.err.println(s"Config: ${config}")
 
     val store = config.datastore match {
       //case "mysql" | "db" => new AuthStoreDB(c,"mysql")
@@ -111,7 +110,7 @@ object App extends skel.Server {
       }
     }
 
-    AuthJwt.run(config.jwtSecret)
+    AuthJwt.withSecret(config.jwtSecret)
     val authHost = if(config.host=="0.0.0.0") "localhost" else config.host
 
     config.cmd match {
@@ -129,8 +128,8 @@ object App extends skel.Server {
         )
       case "demo" =>
         val uri = Util.getParentUri(config.uri)
-        println(s"${Console.YELLOW}Running with AuthService(mem):${Console.RESET} http://${authHost}:${config.port}${uri}/auth")
-        println(s"${Console.YELLOW}Running with UserService(mem):${Console.RESET} http://${authHost}:${config.port}${uri}/user")
+        Console.err.println(s"${Console.YELLOW}Running with AuthService(mem):${Console.RESET} http://${authHost}:${config.port}${uri}/auth")
+        Console.err.println(s"${Console.YELLOW}Running with UserService(mem):${Console.RESET} http://${authHost}:${config.port}${uri}/user")
         run( config.host, config.port, uri, c,
           Seq(
             (AuthRegistry(store),"AuthRegistry",(actor, context) => {
@@ -149,7 +148,7 @@ object App extends skel.Server {
         val adminAccessTokenFile = "ACCESS_TOKEN_ADMIN"
         val adminAccessToken = AuthJwt.generateAccessToken(Map("uid" -> "ffffffff-0000-0000-9000-000000000001"))        
         os.write.over(os.Path(adminAccessTokenFile,os.pwd),adminAccessToken + "\n")
-        println(s"${Console.GREEN}${adminAccessTokenFile}:${Console.RESET} ${adminAccessToken}")
+        Console.err.println(s"${Console.GREEN}${adminAccessTokenFile}:${Console.RESET} ${adminAccessToken}")
 
       case "client" => {
         
@@ -189,10 +188,10 @@ object App extends skel.Server {
         //         .getAll()
         //         .await()
 
-        //     case _ => println(s"unknown op: ${config.params}")
+        //     case _ => Console.err.println(s"unknown op: ${config.params}")
         //   }
+        // Console.err.println(r)
         
-        // println(s"${r}")
         System.exit(0)
       }
       case "jwt" => {
@@ -210,10 +209,10 @@ object App extends skel.Server {
             case "valid" :: token :: Nil => 
               AuthJwt.isValid(token)
 
-            case _ => println(s"unknown op: ${config.params}")
+            case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
           }
         
-        println(s"${r}")
+        Console.err.println(s"${r}")
         System.exit(0)
       }
     }    

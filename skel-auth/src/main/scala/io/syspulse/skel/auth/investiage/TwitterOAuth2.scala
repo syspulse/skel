@@ -28,7 +28,7 @@ object TwitterOAuth2 extends cask.MainRoutes{
   // val config = requests.get("https://accounts.google.com/.well-known/openid-configuration")
   // println("Requesting Twitter OAuth2 JWKS...")
   // val jwks = requests.get("https://www.googleapis.com/oauth2/v3/certs")
-  // val jwksJson = ujson.read(jwks.text)
+  // val jwksJson = ujson.read(jwks.text())
   // println(s"Twitter OAuth2 JWKS:\n${jwksJson}")
 
   @cask.get("/")
@@ -101,7 +101,7 @@ object TwitterOAuth2 extends cask.MainRoutes{
 
     println(s"${r}")
 
-    val json = ujson.read(r.text)
+    val json = ujson.read(r.text())
     val access_token = json.obj("access_token").str
     val id_token = ""
 
@@ -111,7 +111,7 @@ object TwitterOAuth2 extends cask.MainRoutes{
     val profileRsp = requests.get(s"https://api.twitter.com/2/users/me?user.fields=id,name,profile_image_url,location,created_at,url,description,entities,public_metrics",
                                   headers = Map("Authorization" -> s"Bearer ${access_token}"))
     
-    val profile = ujson.read(profileRsp.text).obj("data").obj
+    val profile = ujson.read(profileRsp.text()).obj("data").obj
 
     println(s"profile: ${profile}")
 
@@ -120,7 +120,7 @@ object TwitterOAuth2 extends cask.MainRoutes{
 
   // def verify(jwtStr:String,index:Int= -1):Seq[String] = {
     
-  //   val jwk = JWKSet.parse(jwks.text) 
+  //   val jwk = JWKSet.parse(jwks.text()) 
   //   val matcher = (new JWKMatcher.Builder).publicOnly(true).keyType(KeyType.RSA).keyUse(KeyUse.SIGNATURE).build
     
   //   jwksJson.obj("keys").arr.view.zipWithIndex.collect{ case(o,i) if(index== -1 || i==index) => {
@@ -131,7 +131,7 @@ object TwitterOAuth2 extends cask.MainRoutes{
   //     // create Public Key from JKS
   //     val publicKey = (new JWKSelector(matcher)).select(jwk).get(i).asInstanceOf[RSAKey].toPublicKey
      
-  //     val jwt = Jwt.decode(jwtStr,publicKey,JwtAlgorithm.allRSA)
+  //     val jwt = Jwt.decode(jwtStr,publicKey,JwtAlgorithm.allRSA())
   //     println(s"JWT Verification: ${jwt}")
   //     s"${i}: JWK.n=${n}: JWK.publicKey=${publicKey}: ${jwt.toString}\n==================================\n"
   //   }}.toSeq

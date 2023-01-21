@@ -22,13 +22,26 @@ class Permissions(modelFile:String,policyFile:String) {
     )
   
   def isAdmin(uid:Option[UUID]):Boolean = {
-    log.info(s"god=${Permissions.isGod}: uid=${uid}")
+    log.info(s"GOD=${Permissions.isGod}: uid=${uid}")
 
     if(Permissions.isGod) return true
     if(!uid.isDefined) return false
 
     val sub = uid.get.toString; // the user that wants to access a resource.
     val obj = "api";        // the resource that is going to be accessed.
+    val act = "write";      // the operation that the user performs on the resource.
+
+    enforcer.enforce(sub, obj, act)
+  }
+
+  def isService(uid:Option[UUID]):Boolean = {
+    log.info(s"GOD=${Permissions.isGod}: uid=${uid}")
+
+    if(Permissions.isGod) return true
+    if(!uid.isDefined) return false
+
+    val sub = uid.get.toString; // the user that wants to access a resource.
+    val obj = "service";        // the resource that is going to be accessed.
     val act = "write";      // the operation that the user performs on the resource.
 
     enforcer.enforce(sub, obj, act)
@@ -50,7 +63,7 @@ class Permissions(modelFile:String,policyFile:String) {
 
 object Permissions {
   val log = Logger(s"${this}")
-  val isGod = System.getProperty("god") != null
+  val isGod = sys.props.contains("god") || sys.props.contains("GOD") || sys.env.contains("god") || sys.env.contains("GOD")
 
   def apply(modelFile:String,policyFile:String):Permissions = new Permissions(modelFile,policyFile)
 
@@ -63,13 +76,18 @@ object Permissions {
     permissions.isAdmin(uid)
   }
 
+  def isService(authn:Authenticated)(implicit permissions:Permissions):Boolean = {
+    val uid = authn.getUser
+    permissions.isService(uid)
+  }
+
   def isUser(id:UUID,authn:Authenticated)(implicit permissions:Permissions):Boolean = {    
     val uid = authn.getUser
     
-    log.info(s"god=${isGod}: id=${id}: uid=${uid}")
+    log.info(s"GOD=${isGod}: id=${id}: uid=${uid}")
 
     if(!isGod && Some(id) != uid) return {
-      log.error(s"god=${isGod}: id=${id} != uid=${uid}: ")
+      log.error(s"GOD=${isGod}: id=${id} != uid=${uid}: ")
       false
     }
 

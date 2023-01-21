@@ -1,4 +1,4 @@
-package io.syspulse.skel.auth
+package io.syspulse.skel.auth.server
 
 import java.time.LocalDateTime
 
@@ -65,13 +65,14 @@ import scala.util.Random
 import io.syspulse.skel.auth.permissions.rbac.Permissions
 
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.auth.oauth2.EthOAuth2
-import io.syspulse.skel.crypto.Eth
 
-import io.syspulse.skel.auth.jwt.AuthJwt
-import io.syspulse.skel.auth.AuthRegistry._
+import io.syspulse.skel.crypto.Eth
 import io.syspulse.skel.service.Routeable
 import io.syspulse.skel.service.CommonRoutes
+
+import io.syspulse.skel.auth.jwt.AuthJwt
+import io.syspulse.skel.auth.store.AuthRegistry._
+
 import io.syspulse.skel.auth.oauth2.{ OAuthProfile, GoogleOAuth2, TwitterOAuth2, ProxyM2MAuth, EthProfile}
 import io.syspulse.skel.auth.oauth2.EthTokenReq
 
@@ -83,8 +84,18 @@ import io.syspulse.skel.auth.proxy._
 
 import io.syspulse.skel.user.client.UserClientHttp
 
+import io.syspulse.skel.auth.oauth2.EthOAuth2
 import io.syspulse.skel.auth.oauth2.EthOAuth2._
 import io.syspulse.skel.auth.oauth2.EthTokens
+
+import io.syspulse.skel.auth.server.AuthJson
+import io.syspulse.skel.auth.RouteAuthorizers
+
+import io.syspulse.skel.auth.store.AuthRegistry
+
+import io.syspulse.skel.auth.oauth2.Idp
+
+import io.syspulse.skel.auth._
 
 @Path("/")
 class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirectUri:String,serviceUserUri:String)(implicit context:ActorContext[_],config:Config) 

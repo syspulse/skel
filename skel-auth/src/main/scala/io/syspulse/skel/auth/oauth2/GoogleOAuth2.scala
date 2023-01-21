@@ -32,6 +32,7 @@ import akka.http.scaladsl.model.HttpCharsets
 import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.model.FormData
+import akka.stream.Materializer
 
 import requests._
 
@@ -50,9 +51,7 @@ import pdi.jwt.JwtClaim
 
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.jwt.Jwks
-import io.syspulse.skel.auth.Idp
-
-import akka.stream.Materializer
+import io.syspulse.skel.auth.oauth2.Idp
 
 final case class GoogleTokens(accessToken: String,expiresIn:Int, scope:String, tokenType:String, idToken:String, refreshToken:Option[String] = None)
 final case class GoogleProfile(id:String,email:String,name:String,picture:String,locale:String)
