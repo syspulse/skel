@@ -41,7 +41,7 @@ class Permissions(modelFile:String,policyFile:String) {
     if(!uid.isDefined) return false
 
     val sub = uid.get.toString; // the user that wants to access a resource.
-    val obj = "service";        // the resource that is going to be accessed.
+    val obj = "api";        // the resource that is going to be accessed.
     val act = "write";      // the operation that the user performs on the resource.
 
     enforcer.enforce(sub, obj, act)
@@ -63,6 +63,12 @@ class Permissions(modelFile:String,policyFile:String) {
 
 object Permissions {
   val log = Logger(s"${this}")
+
+  val ROLE_ADMIN = "admin"      
+  val ROLE_SERVICE = "service"  // service (skel-enroll -> skel-notify)
+  val ROLE_USER = "user"        // user (external -> API)
+  val ROLE_NOBODY = "nobody"      // non-existing user (new user or anonymous -> API)
+
   val isGod = sys.props.contains("god") || sys.props.contains("GOD") || sys.env.contains("god") || sys.env.contains("GOD")
 
   def apply(modelFile:String,policyFile:String):Permissions = new Permissions(modelFile,policyFile)

@@ -11,9 +11,11 @@ import io.syspulse.skel.Command
 
 import io.syspulse.skel.auth._
 
+import io.syspulse.skel.auth.server._
 import io.syspulse.skel.auth.store.AuthStore
 import io.syspulse.skel.auth.store.AuthStoreMem
 
+import io.syspulse.skel.auth.server.{Auths, AuthRes, AuthCreateRes, AuthActionRes}
 object AuthRegistry {
   
   final case class GetAuths(replyTo: ActorRef[Auths]) extends Command

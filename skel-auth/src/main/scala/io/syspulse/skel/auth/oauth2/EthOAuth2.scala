@@ -57,7 +57,7 @@ import io.syspulse.skel.auth.oauth2.Idp
 import akka.stream.Materializer
 import io.syspulse.skel.crypto.Eth
 
-final case class EthTokens(accessToken:String,idToken:String,expiresIn:Int,scope:String,tokenType:String,refreshToken:String)
+final case class EthTokens(accessToken:String,idToken:String,expiresIn:Long,scope:String,tokenType:String,refreshToken:String)
 final case class EthProfile(id:String,addr:String,email:String,avatar:String,createdAt:String)
 final case class EthProfileData(data:EthProfile)
 

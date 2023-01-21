@@ -19,12 +19,15 @@ object AuthJwt {
   val log = Logger(s"${this}")
   implicit val clock = Clock.systemDefaultZone()
 
+  val DEFAULT_ACCESS_TOKEN_TTL = 3600L
+  val DEFAULT_REFRESH_TOKEN_TTL = 3600L * 10
+
   // ATTENTION: it is non-secure deterministic on purpose !
   var defaultSecret: String = Util.generateRandomToken(seed = Some("0xsecret"))
 
   var defaultAlgo:JwtAlgorithm = JwtAlgorithm.HS512
-  var defaultAccessTokenTTL = 3600L
-  var defaultRefreshTokenTTL = 3600L * 10
+  var defaultAccessTokenTTL = DEFAULT_ACCESS_TOKEN_TTL
+  var defaultRefreshTokenTTL = DEFAULT_REFRESH_TOKEN_TTL
 
   def withSecret(secret:String) = {
     defaultSecret = secret
@@ -112,6 +115,8 @@ object AuthJwt {
     expire:Long = defaultAccessTokenTTL, 
     algo:JwtAlgorithm = defaultAlgo,
     secret:String = defaultSecret):String = generateToken(attr,expire,algo)   
+
+  def generateRefreshToken(id:String) = Util.generateRandomToken()
 
   def isValid(token:String, algo:JwtAlgorithm = defaultAlgo,secret:String = defaultSecret) = {
     algo match {

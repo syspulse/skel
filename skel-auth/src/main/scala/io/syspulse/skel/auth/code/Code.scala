@@ -11,7 +11,7 @@ final case class CodeCreateRes(code: Code)
 final case class CodeActionRes(status: String,code:Option[String])
 
 object Code {
-  val DEF_AGE = 60 // short live span
+  val DEF_AGE = 60 // seconds short live span
 
   def apply(authCode:String, xid:Option[String] = None, accessToken:Option[String] = None, age: Long = DEF_AGE):Code = {
     new Code(authCode, xid, accessToken, System.currentTimeMillis + age * 1000L)

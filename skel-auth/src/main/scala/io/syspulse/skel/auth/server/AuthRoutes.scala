@@ -97,6 +97,7 @@ import io.syspulse.skel.auth.oauth2.Idp
 
 import io.syspulse.skel.auth._
 
+import io.syspulse.skel.auth.server.{AuthCreateRes, Auths, AuthActionRes, AuthRes, AuthIdp, AuthWithProfileRes}
 @Path("/")
 class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirectUri:String,serviceUserUri:String)(implicit context:ActorContext[_],config:Config) 
     extends CommonRoutes with Routeable with RouteAuthorizers {
@@ -231,18 +232,31 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
             (profile.email, profile.name, profile.picture, profile.locale)
           }
 
-        val accessToken = {
-          if(authRes.auth.uid.isDefined)
-            AuthJwt.generateAccessToken(Map( "uid" -> authRes.auth.uid.get.toString))        
-          else  
-            AuthJwt.generateAccessToken(Map( "uid" -> Util.NOBODY.toString))
-        } 
-
+        val (accessToken,idToken,refreshToken) =
+          if(authRes.auth.uid.isDefined) {
+            val uid = authRes.auth.uid.get.toString
+            (
+              AuthJwt.generateAccessToken(Map( "uid" -> uid)),
+              Some(AuthJwt.generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
+              Some(AuthJwt.generateRefreshToken(uid))
+            )
+          }
+          else {
+            (
+              AuthJwt.generateAccessToken(Map( "uid" -> Util.NOBODY.toString)),
+              None,
+              None
+            )
+          }
+        
+        
         Future(AuthWithProfileRes(
-          accessToken, 
+          accessToken,
+          idToken,
+          refreshToken,
           AuthIdp(authRes.auth.accessToken, authRes.auth.idToken, authRes.auth.refreshToken),
-          authRes.auth.uid,
-          profile.id,
+          uid = authRes.auth.uid,
+          xid = profile.id,
           profileEmail, 
           profileName, 
           profilePicture, 
@@ -428,16 +442,27 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         
             log.warn(s"code=${code}: user=${user}: not found")
             //complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
-            
-            // issue temporary token for Enrollment
+                        
+            // non-esisting user
             val uid = Util.NOBODY.toString
-            val idToken = ""//AuthJwt.generateIdToken(uid) 
-            val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString))
-            log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}")
+            // issue token for nobody with a scope to start enrollment 
+            val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid, "role" -> Permissions.ROLE_NOBODY, "scope" -> "enrollment"))
+            val idToken = ""
+            val refreshToken = ""
+            
+            log.warn(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
 
+            // Generate token for non-existing user
             onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>                      
               complete(StatusCodes.OK,
-                EthTokens(accessToken = accessToken, idToken = idToken, expiresIn = 60,scope = "",tokenType = "",refreshToken=""))
+                EthTokens(
+                  accessToken = accessToken, 
+                  idToken = idToken, 
+                  expiresIn = Auth.NOBODY_AGE,
+                  scope = "",
+                  tokenType = "",
+                  refreshToken = refreshToken
+                ))
             }
 
           } else  {
@@ -447,6 +472,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
             val name = user.get.name
             val avatar = user.get.avatar
 
+            // generate IDP tokens 
             val idToken = AuthJwt.generateIdToken(rsp.code.get.xid.getOrElse(""),Map("email"->email,"name"->name,"avatar"->avatar)) 
             val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
             val refreshToken = AuthJwt.generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = 3600L * 10) 
@@ -462,7 +488,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                 EthTokens(
                   accessToken = accessToken, 
                   idToken = idToken, 
-                  expiresIn = 3600,
+                  expiresIn = Auth.DEF_AGE,
                   scope = "",
                   tokenType = "",
                   refreshToken = refreshToken))                    
