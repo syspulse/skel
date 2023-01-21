@@ -14,6 +14,7 @@ trait AuthStore extends Store[Auth,String] {
   def del(auid:String):Try[AuthStore]
   def ?(auid:String):Option[Auth]
   def all:Seq[Auth]
+  
   def getForUser(userId:UUID):Seq[Auth]
   def size:Long
 }

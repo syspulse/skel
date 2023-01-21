@@ -9,9 +9,11 @@ import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.auth._
 
 import io.syspulse.skel.auth.server.{AuthCreateRes, Auths, AuthActionRes, AuthIdp, AuthWithProfileRes}
-object AuthJson extends JsonCommon  {
-  
+import spray.json.PrettyPrinter
+
+object AuthJson extends JsonCommon  {  
   import DefaultJsonProtocol._
+  implicit val printer = PrettyPrinter
 
   implicit val jf_Auth = jsonFormat7(Auth.apply)
   implicit val jf_Auths = jsonFormat1(Auths)
@@ -19,6 +21,6 @@ object AuthJson extends JsonCommon  {
   implicit val jf_ActionRsp = jsonFormat2(AuthActionRes)
   implicit val jf_CreateAuthRsp = jsonFormat1(AuthCreateRes)
 
-  implicit val jf_4 = jsonFormat3(AuthIdp)
+  implicit val jf_4 = jsonFormat4(AuthIdp)
   implicit val jf_5 = jsonFormat10(AuthWithProfileRes)
 }

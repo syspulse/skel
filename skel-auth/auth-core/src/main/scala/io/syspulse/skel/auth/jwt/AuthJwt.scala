@@ -14,10 +14,13 @@ import ujson._
 
 import io.syspulse.skel.auth.Auth
 import io.syspulse.skel.util.Util
+import scala.util.Try
 
 object AuthJwt {
   val log = Logger(s"${this}")
-  implicit val clock = Clock.systemDefaultZone()
+
+  // JWT ttl to UTC 
+  implicit val clock = Clock.systemUTC //Clock.systemDefaultZone()
 
   val DEFAULT_ACCESS_TOKEN_TTL = 3600L
   val DEFAULT_REFRESH_TOKEN_TTL = 3600L * 10
@@ -49,25 +52,27 @@ object AuthJwt {
     this
   }
 
-  def decodeIdToken(a:Auth) = {
-    Jwt.decode(a.idToken,JwtOptions(signature = false))
-  }
-
-  def decodeAccessToken(a:Auth) = {
-    Jwt.decode(a.accessToken,JwtOptions(signature = false))
-  }
-
   def decodeAll(token:String) = {
     Jwt.decodeRawAll(token,JwtOptions(signature = false))
   }
 
-  def decodeIdClaim(a:Auth):Map[String,String] = {
-    val jwt = decodeIdToken(a)
+  def decodeIdToken(t:String):Try[JwtClaim] = {
+    Jwt.decode(t,JwtOptions(signature = false))
+  }
+  def decodeAccessToken(t:String):Try[JwtClaim] = {
+    Jwt.decode(t,JwtOptions(signature = false))
+  }
+  def decodeIdClaim(t:String):Map[String,String] = {
+    val jwt = decodeIdToken(t)
     if(jwt.isSuccess)
       ujson.read(jwt.get.toJson).obj.map(v=> v._1 -> v._2.toString.stripSuffix("\"").stripPrefix("\"")).toMap
     else 
       Map()
   }
+
+  def decodeIdToken(a:Auth):Try[JwtClaim] = decodeIdToken(a.idToken.getOrElse(""))
+  def decodeAccessToken(a:Auth):Try[JwtClaim] = decodeAccessToken(a.accessToken)
+  def decodeIdClaim(a:Auth):Map[String,String] = decodeIdClaim(a.idToken.getOrElse(""))
 
   def getClaim(accessToken:String,claim:String):Option[String] = {
     val data = Jwt.decode(accessToken,JwtOptions(signature = false))

@@ -4,7 +4,7 @@ import scala.collection.immutable
 import io.jvm.uuid._
 import io.syspulse.skel.auth.jwt.AuthJwt
 
-final case class Auth(accessToken:String, idToken:String, refreshToken:String, uid: Option[UUID], scope:Option[String], expire: Long, ts:Option[Long] = None)
+final case class Auth(accessToken:String, idToken:Option[String], refreshToken:Option[String], uid: Option[UUID], scope:Option[String], expire: Long, ts:Option[Long] = None)
 
 object Auth {
   val DEF_AGE:Long = AuthJwt.DEFAULT_ACCESS_TOKEN_TTL
@@ -12,7 +12,7 @@ object Auth {
 
   // accessToken cannot be here for prod. It is for RnD purposes here and will be removed
   // ATTENTION: age must be Long and correspond to final case class
-  def apply(accessToken:String, idToken:String, refreshToken:String, uid: Option[UUID], scope:Option[String], age: Long = DEF_AGE, ts:Option[Long] = Some(System.currentTimeMillis())):Auth = {
+  def apply(accessToken:String, idToken:Option[String] = None, refreshToken:Option[String] = None, uid: Option[UUID], scope:Option[String], age: Long = DEF_AGE, ts:Option[Long] = Some(System.currentTimeMillis())):Auth = {
     new Auth(
       accessToken, 
       idToken, 

@@ -138,7 +138,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   //   permissions.isAdmin(uid)
   // }
   
-  def callbackFlow(idp: Idp, code: String, redirectUri:Option[String], extraData:Option[Map[String,String]], scope: Option[String], state:Option[String]): Future[AuthWithProfileRes] = {
+  def callbackFlow(idp: Idp, code: String, redirectUri:Option[String], extraData:Option[Map[String,String]], scope: Option[String], state:Option[String]) = {//: Future[AuthWithProfileRes] = {
     log.info(s"code=${code}, redirectUri=${redirectUri}, scope=${scope}, state=${state}")
     
     val data = Map(
@@ -198,27 +198,14 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
       user <- {
         UserClientHttp(serviceUserUri).withTimeout().getByXidAlways(profile.id)
       }
-      auth <- {        
-        Future(Auth(
-          idpTokens.accessToken, 
-          idpTokens.idToken, 
-          idpTokens.refreshToken,
-          user.map(_.id), scope, idpTokens.expiresIn
-        ))        
-      }
-      authRes <- {
-        // save Auth Session 
-        createAuth(auth)
-      }
-      authProfileRes <- {
-        
+      authProfileRes <- {        
         val (profileEmail,profileName,profilePicture,profileLocale) = 
-          if(auth.idToken != "") {
-            val idJwt = AuthJwt.decodeIdToken(auth)
-            val idClaims = AuthJwt.decodeIdClaim(auth)
+          if(idpTokens.idToken != "") {
+            val idJwt = AuthJwt.decodeIdToken(idpTokens.idToken)
+            val idClaims = AuthJwt.decodeIdClaim(idpTokens.idToken)
             // verify just for logging
             val verified = idp.verify(idpTokens.idToken)
-            log.info(s"code=${code}: profile=${profile}: auth=${auth}: idToken: jwt=${idJwt.get.content}: claims=${idClaims}: verified=${verified}")
+            log.info(s"code=${code}: profile=${profile}: idToken: jwt=${idJwt.get.content}: claims=${idClaims}: verified=${verified}")
 
             (
                 if(profile.email.trim.isEmpty()) idClaims.get("email").getOrElse("") else profile.email,
@@ -227,14 +214,14 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                 if(profile.locale.trim.isEmpty()) idClaims.get("locale").getOrElse("") else profile.locale,                
             )
           } else {
-            log.info(s"code=${code}: profile=${profile}: auth=${auth}")
+            log.info(s"code=${code}: profile=${profile}")
             
             (profile.email, profile.name, profile.picture, profile.locale)
           }
 
         val (accessToken,idToken,refreshToken) =
-          if(authRes.auth.uid.isDefined) {
-            val uid = authRes.auth.uid.get.toString
+          if(user.isDefined) {
+            val uid = user.get.toString
             (
               AuthJwt.generateAccessToken(Map( "uid" -> uid)),
               Some(AuthJwt.generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
@@ -248,22 +235,101 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
               None
             )
           }
-        
-        
+                
         Future(AuthWithProfileRes(
           accessToken,
           idToken,
           refreshToken,
-          AuthIdp(authRes.auth.accessToken, authRes.auth.idToken, authRes.auth.refreshToken),
-          uid = authRes.auth.uid,
+          idp = AuthIdp(idpTokens.accessToken, idpTokens.idToken, idpTokens.refreshToken),
+          uid = user.map(_.id),
           xid = profile.id,
           profileEmail, 
           profileName, 
           profilePicture, 
-          profileLocale))
+          profileLocale)
+        )
       }
-    } yield authProfileRes
-    
+      authRes <- {
+        // Save Auth Session        
+        createAuth(Auth(
+          authProfileRes.accessToken, 
+          authProfileRes.idToken, 
+          authProfileRes.refreshToken,
+          user.map(_.id), 
+          scope = Some("service")          
+        ))
+      }
+
+      // auth <- {        
+      //   Future(Auth(
+      //     idpTokens.accessToken, 
+      //     idpTokens.idToken, 
+      //     idpTokens.refreshToken,
+      //     user.map(_.id), scope, idpTokens.expiresIn
+      //   ))        
+      // }
+      // authRes <- {
+      //   // save Auth Session
+      //   createAuth(auth)
+      // }
+      // authProfileRes <- {
+        
+      //   val (profileEmail,profileName,profilePicture,profileLocale) = 
+      //     if(auth.idToken != "") {
+      //       val idJwt = AuthJwt.decodeIdToken(auth)
+      //       val idClaims = AuthJwt.decodeIdClaim(auth)
+      //       // verify just for logging
+      //       val verified = idp.verify(idpTokens.idToken)
+      //       log.info(s"code=${code}: profile=${profile}: auth=${auth}: idToken: jwt=${idJwt.get.content}: claims=${idClaims}: verified=${verified}")
+
+      //       (
+      //           if(profile.email.trim.isEmpty()) idClaims.get("email").getOrElse("") else profile.email,
+      //           if(profile.name.trim.isEmpty()) idClaims.get("name").getOrElse("") else profile.name,
+      //           if(profile.picture.trim.isEmpty()) idClaims.get("avatar").getOrElse("") else profile.picture,
+      //           if(profile.locale.trim.isEmpty()) idClaims.get("locale").getOrElse("") else profile.locale,                
+      //       )
+      //     } else {
+      //       log.info(s"code=${code}: profile=${profile}: auth=${auth}")
+            
+      //       (profile.email, profile.name, profile.picture, profile.locale)
+      //     }
+
+      //   val (accessToken,idToken,refreshToken) =
+      //     if(authRes.auth.uid.isDefined) {
+      //       val uid = authRes.auth.uid.get.toString
+      //       (
+      //         AuthJwt.generateAccessToken(Map( "uid" -> uid)),
+      //         Some(AuthJwt.generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
+      //         Some(AuthJwt.generateRefreshToken(uid))
+      //       )
+      //     }
+      //     else {
+      //       (
+      //         AuthJwt.generateAccessToken(Map( "uid" -> Util.NOBODY.toString)),
+      //         None,
+      //         None
+      //       )
+      //     }
+        
+        
+      //   Future(AuthWithProfileRes(
+      //     accessToken,
+      //     idToken,
+      //     refreshToken,
+      //     AuthIdp(authRes.auth.accessToken, authRes.auth.idToken, authRes.auth.refreshToken),
+      //     uid = authRes.auth.uid,
+      //     xid = profile.id,
+      //     profileEmail, 
+      //     profileName, 
+      //     profilePicture, 
+      //     profileLocale))
+      // }
+    } yield { 
+      // import spray.json._
+      // authProfileRes.toJson.prettyPrint
+      authProfileRes
+    }
+        
   }
 
   protected def basicAuthCredentialsProxy(creds: Credentials)(implicit up: (String,String)):Option[Authenticated] = {
@@ -322,7 +388,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     ),
     responses = Array(new ApiResponse(responseCode="200",description = "Video returned",content=Array(new Content(schema=new Schema(implementation = classOf[AuthWithProfileRes])))))
   )
-  def getTokenGoogle = get {
+  def getTokenGoogle = get {    
     parameters("code", "redirect_uri".optional, "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,redirectUri,scope,state,prompt,authuser,hd) =>
       onSuccess(callbackFlow(idps.get(GoogleOAuth2.id).get,code,redirectUri,None,scope,state)) { rsp =>
         complete(StatusCodes.Created, rsp)
