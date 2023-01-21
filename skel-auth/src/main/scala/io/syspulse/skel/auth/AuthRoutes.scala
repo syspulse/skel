@@ -142,7 +142,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
     for {
       tokenResData <- {
-        log.info(s"code=${code}: requesting access_token:\n${headers}\n${data}")
+        log.info(s"code=${code}: => (${idp.getTokenUrl()}):\n${headers}\n${data}")
         val rsp = Http().singleRequest(
           HttpRequest(
             method = HttpMethods.POST,

@@ -57,12 +57,12 @@ import io.syspulse.skel.auth.Idp
 import akka.stream.Materializer
 
 
-final case class TwitterTokens(accessToken:String,expiresIn:Int,scope:String,tokenType:String)
+final case class TwitterTokens(accessToken:String,expiresIn:Int,scope:String,tokenType:String,refreshToken:Option[String] = None)
 final case class TwitterProfile(id:String,name:String,profileImageUrl:String,createdAt:String)
 final case class TwitterProfileData(data:TwitterProfile)
 
 object TwitterOAuth2 {
-  implicit val twitterTokensFormat = jsonFormat(TwitterTokens,"access_token", "expires_in", "scope", "token_type")
+  implicit val twitterTokensFormat = jsonFormat(TwitterTokens,"access_token", "expires_in", "scope", "token_type", "refresh_token")
   implicit val twitterProfileFormat = jsonFormat(TwitterProfile,"id","name","profile_image_url","created_at")
   implicit val twitterProfileDataFormat = jsonFormat(TwitterProfileData, "data")
 
@@ -89,7 +89,15 @@ class TwitterOAuth2(val redirectUri:String) extends Idp {
   override def getRedirectUri() = s"${redirectUri}/twitter"
 
   def getLoginUrl() =
-    s"https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${getClientId}&redirect_uri=${getRedirectUri()}&scope=users.read tweet.read&state=state&code_challenge=${challenge}&code_challenge_method=plain"
+    s"https://twitter.com/i/oauth2/authorize?"+
+    s"response_type=code"+
+    s"&client_id=${getClientId}"+
+    s"&redirect_uri=${getRedirectUri()}"+
+    s"&scope=users.read tweet.read offline.access"+
+    s"&state=state"+
+    s"&code_challenge=${challenge}"+
+    s"&code_challenge_method=plain"+
+    s""
 
   def getProfileUrl(accessToken:String):(String,Seq[(String,String)]) = 
       (s"https://api.twitter.com/2/users/me?user.fields=id,name,profile_image_url,location,created_at,url,description,entities,public_metrics",
@@ -101,7 +109,9 @@ class TwitterOAuth2(val redirectUri:String) extends Idp {
   }
 
   def decodeTokens(tokenRsp:ByteString)(implicit mat:Materializer, ec: scala.concurrent.ExecutionContext):Future[IdpTokens] = {    
-    Unmarshal(tokenRsp).to[TwitterTokens].map( t => IdpTokens(t.accessToken,t.expiresIn,t.scope,t.tokenType,""))
+    Unmarshal(tokenRsp).to[TwitterTokens].map( t => 
+      IdpTokens(t.accessToken,t.expiresIn,t.scope,t.tokenType,"",t.refreshToken.getOrElse("")
+    ))
   }
 
   def decodeProfile(profileRsp:ByteString)(implicit mat:Materializer,ec: scala.concurrent.ExecutionContext):Future[OAuthProfile] = {

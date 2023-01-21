@@ -108,7 +108,9 @@ class GoogleOAuth2(val redirectUri:String) extends Idp {
   }
 
   def decodeTokens(tokenRsp:ByteString)(implicit mat:Materializer, ec: scala.concurrent.ExecutionContext):Future[IdpTokens] = {    
-    Unmarshal(tokenRsp).to[GoogleTokens].map( t => IdpTokens(t.accessToken,t.expiresIn,t.scope,t.tokenType,t.idToken,t.refreshToken.getOrElse("")))
+    Unmarshal(tokenRsp).to[GoogleTokens].map( t => 
+      IdpTokens(t.accessToken,t.expiresIn,t.scope,t.tokenType,t.idToken,t.refreshToken.getOrElse("")
+    ))
   }
 
   def decodeProfile(profileRsp:ByteString)(implicit mat:Materializer,ec: scala.concurrent.ExecutionContext):Future[OAuthProfile] = {

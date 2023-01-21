@@ -12,4 +12,3 @@ final case class AuthActionRes(status: String,code:Option[String])
 
 final case class AuthIdp(accessToken:String, idToken:String, refreshToken:String)
 final case class AuthWithProfileRes(accessToken:String, idp: AuthIdp, uid: Option[UUID], xid:String, email:String, name:String, avatar:String, locale:String)
-
