@@ -98,6 +98,11 @@ import io.syspulse.skel.auth.oauth2.Idp
 import io.syspulse.skel.auth._
 
 import io.syspulse.skel.auth.server.{AuthCreateRes, Auths, AuthActionRes, AuthRes, AuthIdp, AuthWithProfileRes}
+
+import io.syspulse.skel.auth.code._
+import io.syspulse.skel.auth.cid._
+import io.syspulse.skel.auth.cid.ClientRegistry._
+
 @Path("/")
 class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirectUri:String,serviceUserUri:String)(implicit context:ActorContext[_],config:Config) 
     extends CommonRoutes with Routeable with RouteAuthorizers {
@@ -105,11 +110,13 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   implicit val system: ActorSystem[_] = context.system
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
   
-  val corsAllow = CorsSettings(system.classicSystem).withAllowGenericHttpRequests(true)
   //implicit val timeout = Timeout.create(system.settings.config.getDuration("auth.routes.ask-timeout"))
   
   val codeRegistry: ActorRef[skel.Command] = context.spawn(CodeRegistry(),"Actor-CodeRegistry")
   context.watch(codeRegistry)
+
+  val clientRegistry: ActorRef[skel.Command] = context.spawn(ClientRegistry(),"Actor-ClietnRegistry")
+  context.watch(clientRegistry)
   
   // lazy because EthOAuth2 JWKS will request while server is not started yet
   lazy val idps = Map(
@@ -122,6 +129,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
   import AuthJson._
   import CodeJson._
+  import ClientJson._
 
   def getAuths(): Future[Auths] = authRegistry.ask(GetAuths)
 
@@ -130,9 +138,14 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   def deleteAuth(aid: String): Future[AuthActionRes] = authRegistry.ask(DeleteAuth(aid, _))
   def createCode(code: Code): Future[CodeCreateRes] = codeRegistry.ask(CreateCode(code, _))
   def updateCode(code: Code): Future[CodeCreateRes] = codeRegistry.ask(UpdateCode(code, _))
-  def getCode(authCode: String): Future[Try[Code]] = codeRegistry.ask(GetCode(authCode, _))
+  def getCode(code: String): Future[Try[Code]] = codeRegistry.ask(GetCode(code, _))
   def getCodeByToken(accessToken: String): Future[CodeRes] = codeRegistry.ask(GetCodeByToken(accessToken, _))
   def getCodes(): Future[Try[Codes]] = codeRegistry.ask(GetCodes(_))
+
+  def getClients(): Future[Try[Clients]] = clientRegistry.ask(GetClients)
+  def getClient(id: String): Future[Try[Client]] = clientRegistry.ask(GetClient(id, _))
+  def createClient(req: ClientCreateReq): Future[Try[Client]] = clientRegistry.ask(CreateClient(req, _))
+  def deleteClient(id: String): Future[ClientActionRes] = clientRegistry.ask(DeleteClient(id, _))
 
   implicit val permissions = Permissions(config.permissionsModel,config.permissionsPolicy)
   // def hasAdminPermissions(authn:Authenticated) = {
@@ -613,8 +626,62 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     generateTokens(code,state)
   }}
 
-// ------------------------------------------------------- Routes
-  override def routes: Route = cors() {
+// -------- Clients -----------------------------------------------------------------------------------------------------------------------------
+  @GET @Path("/client/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Return Client Credentials by id",
+    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "client_id")),
+    responses = Array(new ApiResponse(responseCode="200",description = "Client Credentials returned",content=Array(new Content(schema=new Schema(implementation = classOf[Client])))))
+  )
+  def getClientRoute(id: String) = get {
+    rejectEmptyResponse {
+      onSuccess(getClient(id)) { r =>
+        complete(r)
+      }
+    }
+  }
+
+  @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"), summary = "Return all Client Credentials",
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "List of Client Crednetials",content = Array(new Content(schema = new Schema(implementation = classOf[Clients])))))
+  )
+  def getClientsRoute() = get {
+    complete(getClients())
+  }
+
+  @DELETE @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Delete Client Credentials by id",
+    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "client_id")),
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "Client Credentials deleted",content = Array(new Content(schema = new Schema(implementation = classOf[ClientActionRes])))))
+  )
+  def deleteClientRoute(id: String) = delete {
+    onSuccess(deleteClient(id)) { r =>
+      complete(StatusCodes.OK, r)
+    }
+  }
+
+  @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Create Client Credentials",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[ClientCreateReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "User",content = Array(new Content(schema = new Schema(implementation = classOf[Client])))))
+  )
+  def createClientRoute = post {
+    entity(as[ClientCreateReq]) { req =>
+      onSuccess(createClient(req)) { r =>
+        complete(StatusCodes.Created, r)
+      }
+    }
+  }
+
+// --------------------------------------------------------------------------------------------------------------------------------------- Routes
+  val corsAllow = CorsSettings(system.classicSystem)
+    //.withAllowGenericHttpRequests(true)
+    .withAllowCredentials(true)
+    .withAllowedMethods(Seq(HttpMethods.OPTIONS,HttpMethods.GET,HttpMethods.POST,HttpMethods.PUT,HttpMethods.DELETE,HttpMethods.HEAD))
+
+  override def routes: Route = cors(corsAllow) {
     concat(
       // simple embedded Login FrontEnd
       path("login") {
@@ -641,6 +708,26 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         // getFromResourceDirectory("login") 
         getFromResource("keystore/jwks.json")
         //complete(HttpEntity(ContentTypes.`text/html(UTF-8)`,""))
+      },
+      pathPrefix("client") {
+        pathEndOrSingleSlash {
+          concat(
+            authenticate()(authn => authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
+                getClientsRoute() ~                
+                createClientRoute  
+              }
+            ),            
+          )
+        } ~        
+        pathPrefix(Segment) { id => 
+          pathEndOrSingleSlash {
+            authenticate()(authn => authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
+                getClientRoute(id) ~
+                deleteClientRoute(id)
+              }
+            ) 
+          }
+        }
       },
       // token is requested from FrontEnt with authorization code 
       // FE -> Google -> HTTP REDIRECT -> FE(callback) -> skel-auth(token) -> FE

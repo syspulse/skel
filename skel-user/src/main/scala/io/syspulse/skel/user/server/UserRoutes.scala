@@ -26,6 +26,9 @@ import akka.http.scaladsl.model.headers.`Content-Type`
 import akka.http.scaladsl.server.RejectionHandler
 import akka.http.scaladsl.model.StatusCodes._
 
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
+import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
+
 import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
@@ -199,8 +202,12 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
       }
     }
   
+  val corsAllow = CorsSettings(system.classicSystem)
+    //.withAllowGenericHttpRequests(true)
+    .withAllowCredentials(true)
+    .withAllowedMethods(Seq(HttpMethods.OPTIONS,HttpMethods.GET,HttpMethods.POST,HttpMethods.PUT,HttpMethods.DELETE,HttpMethods.HEAD))
 
-  override def routes: Route =
+  override def routes: Route = cors(corsAllow) {
       concat(
         pathEndOrSingleSlash {
           concat(
@@ -238,5 +245,5 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
           }
         }
       )
-    
+  }
 }
