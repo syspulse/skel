@@ -7,6 +7,7 @@ import scala.collection.immutable
 import akka.actor.typed.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.RawHeader
 
 import com.typesafe.scalalogging.Logger
 
@@ -14,6 +15,9 @@ abstract class ClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionCo
   val log = Logger(s"${this}")
 
   def getUri() = uri
+
+  def authHeaders(jwt:String = sys.env.getOrElse("ACCESS_TOKEN","")):Seq[HttpHeader] = 
+    Seq(RawHeader("Authorization",s"Bearer ${jwt}"))
   
   def reqHealth() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/health")
   def reqInfo() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/info")

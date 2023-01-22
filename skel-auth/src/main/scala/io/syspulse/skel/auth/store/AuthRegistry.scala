@@ -16,11 +16,12 @@ import io.syspulse.skel.auth.store.AuthStore
 import io.syspulse.skel.auth.store.AuthStoreMem
 
 import io.syspulse.skel.auth.server.{Auths, AuthRes, AuthCreateRes, AuthActionRes}
+import scala.util.Try
 object AuthRegistry {
   
   final case class GetAuths(replyTo: ActorRef[Auths]) extends Command
   final case class CreateAuth(auth: Auth, replyTo: ActorRef[AuthCreateRes]) extends Command
-  final case class GetAuth(auid: String, replyTo: ActorRef[AuthRes]) extends Command
+  final case class GetAuth(auid: String, replyTo: ActorRef[Try[Auth]]) extends Command
   final case class DeleteAuth(auid: String, replyTo: ActorRef[AuthActionRes]) extends Command
 
     // this var reference is unfortunately needed for Metrics access
@@ -45,7 +46,7 @@ object AuthRegistry {
         registry(store1.getOrElse(store))
 
       case GetAuth(auid, replyTo) =>
-        replyTo ! AuthRes(store.?(auid))
+        replyTo ! store.?(auid)
         Behaviors.same
 
       case DeleteAuth(auid, replyTo) =>

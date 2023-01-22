@@ -66,10 +66,24 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreD
     log.info(s"insert: ${user}")
     try {
       //ctx.run(query[User].insert(lift(user)));
-      ctx.run(table.insertValue(user));
+      ctx.run(table.insertValue(user.copy(email = user.email.toLowerCase)));
       Success(this)
     } catch {
       case e:Exception => Failure(new Exception(s"could not insert: ${e}"))
+    }
+  }
+
+  def update(id:UUID,email:Option[String]=None,name:Option[String]=None,avatar:Option[String]=None):Try[User] = {
+    this.?(id) match {
+      case Success(user) => 
+        val user1 = modify(user,email,name,avatar)
+        try {
+          ctx.run(table.updateValue(user1));
+          Success(user1)
+        } catch {
+          case e:Exception => Failure(new Exception(s"could not update: ${e}"))
+        }        
+      case f => f
     }
   }
 
@@ -86,12 +100,12 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreD
 
   def -(user:User):Try[UserStoreDB] = { this.del(user.id) }
 
-  def ?(id:UUID):Option[User] = {
+  def ?(id:UUID):Try[User] = {
     log.info(s"select: id=${id}")
     //ctx.run(query[User].filter(o => o.id == lift(id))) match {
     ctx.run(table.filter(o => o.id == lift(id))) match {      
-      case h :: _ => Some(h)
-      case Nil => None
+      case h :: _ => Success(h)
+      case Nil => Failure(new Exception(s"not found: ${id}"))
     }
   }
 
@@ -99,6 +113,14 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreD
     log.info(s"find: xid=${xid}")
     //ctx.run(query[User].filter(o => o.xid == lift(xid))) match {
     ctx.run(table.filter(o => o.xid == lift(xid))) match {
+      case h :: _ => Some(h)
+      case Nil => None
+    }
+  }
+
+  def findByEmail(email:String):Option[User] = {
+    log.info(s"find: emai=${email}")
+    ctx.run(table.filter(o => o.email == lift(email.toLowerCase()))) match {
       case h :: _ => Some(h)
       case Nil => None
     }

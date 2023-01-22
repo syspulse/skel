@@ -40,14 +40,14 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
   import UserJson._
   import spray.json._
   
-  def reqGetUser(id:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/${id}")
-  def reqGetUserByEid(xid:String) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/xid/${xid}")
-  def reqGetUsers() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}")
-  def reqPostUser(email:String,name:String,xid:String,avatar:String) =  HttpRequest(method = HttpMethods.POST, uri = s"${uri}",
+  def reqGetUser(id:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/${id}",headers=authHeaders())
+  def reqGetUserByEid(xid:String) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/xid/${xid}",headers=authHeaders())
+  def reqGetUsers() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}",headers=authHeaders())
+  def reqPostUser(email:String,name:String,xid:String,avatar:String) =  HttpRequest(method = HttpMethods.POST, uri = s"${uri}", headers=authHeaders(),
         entity = HttpEntity(ContentTypes.`application/json`, 
           UserCreateReq(email,name,xid,avatar).toJson.toString)
       )
-  def reqDeleteUser(id:UUID) = HttpRequest(method = HttpMethods.DELETE, uri = s"${uri}/${id}")
+  def reqDeleteUser(id:UUID) = HttpRequest(method = HttpMethods.DELETE, uri = s"${uri}/${id}",headers=authHeaders())
 
   def delete(id:UUID):Future[UserActionRes] = {
     log.info(s"${id} -> ${reqDeleteUser(id)}")
@@ -57,12 +57,16 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
     } yield r 
   }
 
-  def create(email:String,name:String,xid:String,avatar:String):Future[Option[User]] = {
+  def create(email:String,name:String,xid:String,avatar:String):Future[Try[User]] = {
     log.info(s"-> ${reqPostUser(email,name,xid,avatar)}")
     for {
       rsp <- Http().singleRequest(reqPostUser(email,name,xid,avatar))      
       user <- if(rsp.status == StatusCodes.OK || rsp.status == StatusCodes.Created) Unmarshal(rsp).to[Option[User]] else Future(None)
-    } yield user
+      rsp <- user match {
+        case Some(user) => Future(Success(user))
+        case None => Future(Failure(new Exception(s"${Unmarshal(rsp).to[String]}")))
+      }
+    } yield rsp
 
     // for {
     //   rsp <- Http().singleRequest(reqPostUser(email,name,xid))
@@ -74,15 +78,19 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
     // }
   }
 
-  def get(id:UUID):Future[Option[User]] = {
+  def get(id:UUID):Future[Try[User]] = {
     log.info(s"${id} -> ${reqGetUser(id)}")
     for {
       rsp <- Http().singleRequest(reqGetUser(id))
       user <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[User]] else Future(None)
-    } yield user 
+      rsp <- user match {
+        case Some(user) => Future(Success(user))
+        case None => Future(Failure(new Exception(s"${Unmarshal(rsp).to[String]}")))
+      }
+    } yield rsp
   }
 
-  def getByXid(xid:String):Future[Option[User]] = {
+  def findByXid(xid:String):Future[Option[User]] = {
     log.info(s"${xid} -> ${reqGetUserByEid(xid)}")    
     for {
       rsp <- Http().singleRequest(reqGetUserByEid(xid))
@@ -90,7 +98,7 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
     } yield user
   }
 
-  def getByXidAlways(xid:String):Future[Option[User]] = {
+  def findByXidAlways(xid:String):Future[Option[User]] = {
     log.info(s"${xid} -> ${reqGetUserByEid(xid)}")    
     
     for {
@@ -115,13 +123,25 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
     Future.failed(new NotImplementedError(s""))
   }
 
-  def all():Future[Users] = {
+  // def all():Future[Users] = {
+  //   log.info(s" -> ${reqGetUsers()}")
+  //   for {
+  //     rsp <- Http().singleRequest(reqGetUsers())
+  //     body <- rsp.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
+  //   } yield body.utf8String.parseJson.convertTo[Users]
+  // }
+  def all():Future[Try[Users]] = {
     log.info(s" -> ${reqGetUsers()}")
     for {
       rsp <- Http().singleRequest(reqGetUsers())
-      body <- rsp.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
-    } yield body.utf8String.parseJson.convertTo[Users]
+      users <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[Users]] else Future(None)
+      rsp <- users match {
+        case Some(users) => Future(Success(users))
+        case None => Future(Failure(new Exception(s"${Unmarshal(rsp).to[String]}")))
+      }
+    } yield rsp
   }
+
 }
 
 object UserClientHttp {

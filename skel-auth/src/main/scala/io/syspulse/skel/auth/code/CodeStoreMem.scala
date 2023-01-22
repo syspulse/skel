@@ -33,10 +33,10 @@ class CodeStoreMem extends CodeStore {
     Success(this)
   }
   
-  def del(token:String):Try[CodeStore] = { 
-    codes.get(token) match {
-      case Some(auth) => { codes = codes - token; Success(this) }
-      case None => Failure(new Exception(s"not found: ${token}"))
+  def del(c:String):Try[CodeStore] = { 
+    codes.get(c) match {
+      case Some(auth) => { codes = codes - c; Success(this) }
+      case None => Failure(new Exception(s"not found: ${c}"))
     }
   }
 
@@ -46,7 +46,10 @@ class CodeStoreMem extends CodeStore {
     if(sz == codes.size) Failure(new Exception(s"not found: ${code}")) else Success(this)
   }
 
-  def ?(token:String):Option[Code] = codes.get(token)
+  def ?(c:String):Try[Code] = codes.get(c) match {
+    case Some(code) => Success(code)
+    case None => Failure(new Exception(s"not found: ${c}"))
+  }
 }
 
 

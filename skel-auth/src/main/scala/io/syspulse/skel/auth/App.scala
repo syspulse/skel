@@ -70,7 +70,14 @@ object App extends skel.Server {
         ArgCmd("server",s"Server"),
         ArgCmd("demo",s"Server with embedded UserServices (for testing)"),
         ArgCmd("client",s"Http Client"),
-        ArgCmd("jwt",s"JWT utils (encode/decode/jwt)"),
+        ArgCmd("jwt",s"JWT subcommands: " +
+          s"encode k=v k=v  : generate JWT with map" +
+          s"decode <jwt>    : decode JWT" +
+          s"valid <jwt>     : validate JWT" +
+          s"admin           : create Admin role token"+
+          s"service         : create Service role token"+
+          s"user <uid>      : create User role token"
+        ),
         ArgParam("<params>","")
       ).withExit(1)
     ))
@@ -207,8 +214,11 @@ object App extends skel.Server {
             case "service" :: Nil => 
               AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString))
 
-            case "encode" :: uid :: Nil => 
+            case "user" :: uid :: Nil => 
               AuthJwt.generateAccessToken(Map("uid" -> uid))
+
+            case "encode" :: data => 
+              AuthJwt.generateAccessToken(data.map(_.split("=")).collect{ case(Array(k,v)) => k->v}.toMap)
 
             case "decode" :: token :: Nil => 
               AuthJwt.decodeAll(token) match {

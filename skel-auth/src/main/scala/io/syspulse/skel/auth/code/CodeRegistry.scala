@@ -7,12 +7,13 @@ import scala.collection.immutable
 
 import io.jvm.uuid._
 import io.syspulse.skel.Command
+import scala.util.Try
 
 object CodeRegistry {
   
   final case class CreateCode(code: Code, replyTo: ActorRef[CodeCreateRes]) extends Command
   final case class UpdateCode(code: Code, replyTo: ActorRef[CodeCreateRes]) extends Command
-  final case class GetCode(code: String, replyTo: ActorRef[CodeRes]) extends Command
+  final case class GetCode(code: String, replyTo: ActorRef[Try[Code]]) extends Command
   final case class GetCodeByToken(code: String, replyTo: ActorRef[CodeRes]) extends Command
   final case class GetCodes(replyTo: ActorRef[Codes]) extends Command
   final case class DeleteCode(code: String, replyTo: ActorRef[CodeActionRes]) extends Command
@@ -44,7 +45,7 @@ object CodeRegistry {
         registry(store1.getOrElse(store))
 
       case GetCode(code, replyTo) =>
-        replyTo ! CodeRes(store.?(code))
+        replyTo ! store.?(code)
         Behaviors.same
 
       case GetCodeByToken(accessToken, replyTo) =>

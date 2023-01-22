@@ -1,8 +1,8 @@
 #!/bin/bash
 
 ID=${1:-'00000000-0000-0000-1000-000000000001'}
-EMAIL=${2}
-NAME=${3}
+EMAIL=${2:-email-2@server.org}
+NAME=${3:-NAME}
 AVATAR=${4}
 
 TOKEN=${TOKEN-`cat ACCESS_TOKEN`}

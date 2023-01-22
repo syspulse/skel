@@ -39,9 +39,26 @@ class UserStoreMem extends UserStore {
     del(user.id)
   }
 
-  def ?(id:UUID):Option[User] = users.get(id)
+  def ?(id:UUID):Try[User] = users.get(id) match {
+    case Some(u) => Success(u)
+    case None => Failure(new Exception(s"not found: ${id}"))
+  }
 
   def findByXid(xid:String):Option[User] = {
     users.values.find(_.xid == xid)
+  }
+
+  def findByEmail(email:String):Option[User] = {
+    users.values.find(_.email.toLowerCase == email.toLowerCase)
+  }
+
+  def update(id:UUID,email:Option[String]=None,name:Option[String]=None,avatar:Option[String]=None):Try[User] = {
+    this.?(id) match {
+      case Success(user) => 
+        val user1 = modify(user,email,name,avatar)
+        this.+(user1)
+        Success(user1)
+      case f => f
+    }
   }
 }

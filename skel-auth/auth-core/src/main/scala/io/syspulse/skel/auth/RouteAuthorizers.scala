@@ -50,7 +50,7 @@ trait RouteAuthorizers {
       }
 
   def oauth2Authenticator(credentials: Credentials): Option[AuthenticatedUser] = {
-    log.info(s"credentials=${credentials}")
+    log.info(s"credentials: ${credentials}")
     credentials match {
       case p @ Credentials.Provided(accessToken) => verifyAuthToken(Some(accessToken),"",Seq.empty).map(uid => AuthenticatedUser(UUID(uid)))
       case _ => None

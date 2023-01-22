@@ -48,6 +48,7 @@ import io.syspulse.skel.auth.RouteAuthorizers
 import io.syspulse.skel.user._
 import io.syspulse.skel.user.store.UserRegistry
 import io.syspulse.skel.user.store.UserRegistry._
+import scala.util.Try
 
 
 @Path("/")
@@ -68,11 +69,11 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
   val metricUpdateCount: Counter = Counter.build().name("skel_user_update_total").help("User updates").register(cr)
   
   def getUsers(): Future[Users] = registry.ask(GetUsers)
-  def getUser(id: UUID): Future[Option[User]] = registry.ask(GetUser(id, _))
+  def getUser(id: UUID): Future[Try[User]] = registry.ask(GetUser(id, _))
   def getUserByXid(xid: String): Future[Option[User]] = registry.ask(GetUserByXid(xid, _))
 
   def createUser(req: UserCreateReq): Future[Option[User]] = registry.ask(CreateUser(req, _))
-  def updateUser(uid:UUID,req: UserUpdateReq): Future[Option[User]] = registry.ask(UpdateUser(uid,req, _))
+  def updateUser(uid:UUID,req: UserUpdateReq): Future[Try[User]] = registry.ask(UpdateUser(uid,req, _))
   def deleteUser(id: UUID): Future[UserActionRes] = registry.ask(DeleteUser(id, _))
   def randomUser(): Future[User] = registry.ask(RandomUser(_))
 
@@ -186,7 +187,7 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
         pathEndOrSingleSlash {
           concat(
             authenticate()(authn =>
-              authorize(Permissions.isAdmin(authn)) {
+              authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
                 getUsersRoute() ~                
                 createUserRoute  
               }
@@ -195,17 +196,19 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
         },
         pathPrefix("xid") {
           pathPrefix(Segment) { id => 
-            getUserByXidRoute(id)
+            authenticate()(authn =>
+              getUserByXidRoute(id)
+            )
           }
         },
         pathPrefix(Segment) { id => 
           pathEndOrSingleSlash {
             authenticate()(authn =>
-              authorize(Permissions.isUser(UUID(id),authn)) {
+              authorize(Permissions.isUser(UUID(id),authn) || Permissions.isAdmin(authn) || Permissions.isService(authn)) {
                 updateUserRoute(id) ~
                 getUserRoute(id)
               } ~
-              authorize(Permissions.isAdmin(authn)) {
+              authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
                 deleteUserRoute(id)
               }
             ) 

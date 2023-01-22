@@ -111,6 +111,10 @@ trait Server {
             complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""["error": "${e}"]""")))
           }
         // case e: Exception => complete(HttpResponse(InternalServerError))
+        case e: Exception => {
+          // nice forwarding errors to clients
+          complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""["error": "${e}"]""")))
+        }
       }
     (rejectionHandler,exceptionHandler)
   }

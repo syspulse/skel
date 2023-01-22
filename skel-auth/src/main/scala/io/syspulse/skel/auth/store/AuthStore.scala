@@ -11,11 +11,11 @@ trait AuthStore extends Store[Auth,String] {
   
   def +(auth:Auth):Try[AuthStore]
   def -(auth:Auth):Try[AuthStore]
-  def del(auid:String):Try[AuthStore]
-  def ?(auid:String):Option[Auth]
+  def del(aid:String):Try[AuthStore]
+  def ?(aid:String):Try[Auth]
   def all:Seq[Auth]
   
-  def getForUser(userId:UUID):Seq[Auth]
+  def getForUser(uid:UUID):Seq[Auth]
   def size:Long
 }
 

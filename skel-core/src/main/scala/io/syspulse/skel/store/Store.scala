@@ -11,7 +11,7 @@ trait Store[E,P]  {
   def +(e:E):Try[Store[E,P]]
   def -(e:E):Try[Store[E,P]]
   def del(id:P):Try[Store[E,P]]
-  def ?(id:P):Option[E]
+  def ?(id:P):Try[E]
   def all:Seq[E]
   def size:Long
 }

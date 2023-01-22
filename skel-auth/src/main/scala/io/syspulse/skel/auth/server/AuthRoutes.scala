@@ -124,12 +124,12 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
   def getAuths(): Future[Auths] = authRegistry.ask(GetAuths)
 
-  def getAuth(aid: String): Future[AuthRes] = authRegistry.ask(GetAuth(aid, _))
+  def getAuth(aid: String): Future[Try[Auth]] = authRegistry.ask(GetAuth(aid, _))
   def createAuth(auth: Auth): Future[AuthCreateRes] = authRegistry.ask(CreateAuth(auth, _))
   def deleteAuth(aid: String): Future[AuthActionRes] = authRegistry.ask(DeleteAuth(aid, _))
   def createCode(code: Code): Future[CodeCreateRes] = codeRegistry.ask(CreateCode(code, _))
   def updateCode(code: Code): Future[CodeCreateRes] = codeRegistry.ask(UpdateCode(code, _))
-  def getCode(authCode: String): Future[CodeRes] = codeRegistry.ask(GetCode(authCode, _))
+  def getCode(authCode: String): Future[Try[Code]] = codeRegistry.ask(GetCode(authCode, _))
   def getCodeByToken(accessToken: String): Future[CodeRes] = codeRegistry.ask(GetCodeByToken(accessToken, _))
 
   implicit val permissions = Permissions(config.permissionsModel,config.permissionsPolicy)
@@ -196,7 +196,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         idp.decodeProfile(profileResData)
       }
       user <- {
-        UserClientHttp(serviceUserUri).withTimeout().getByXidAlways(profile.id)
+        UserClientHttp(serviceUserUri).withTimeout().findByXidAlways(profile.id)
       }
       authProfileRes <- {        
         val (profileEmail,profileName,profilePicture,profileLocale) = 
@@ -494,7 +494,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
   def generateTokens(code:String) = {
     onSuccess(getCode(code)) { rsp =>
-      if(! rsp.code.isDefined || rsp.code.get.expire < System.currentTimeMillis()) {
+      if(! rsp.isSuccess || rsp.get.expire < System.currentTimeMillis()) {
         
         log.error(s"code=${code}: rsp=${rsp}: not found or expired")
         complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
@@ -502,7 +502,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
       } else {
 
         // request uid from UserService
-        onSuccess(UserClientHttp(serviceUserUri).withTimeout().getByXidAlways(rsp.code.get.xid.get)) { user => 
+        onSuccess(UserClientHttp(serviceUserUri).withTimeout().findByXidAlways(rsp.get.xid.get)) { user => 
         
           if(! user.isDefined ) {
         
@@ -516,7 +516,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
             val idToken = ""
             val refreshToken = ""
             
-            log.warn(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
+            log.warn(s"code=${code}: rsp=${rsp.get}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
 
             // Generate token for non-existing user
             onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>                      
@@ -539,11 +539,11 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
             val avatar = user.get.avatar
 
             // generate IDP tokens 
-            val idToken = AuthJwt.generateIdToken(rsp.code.get.xid.getOrElse(""),Map("email"->email,"name"->name,"avatar"->avatar)) 
+            val idToken = AuthJwt.generateIdToken(rsp.get.xid.getOrElse(""),Map("email"->email,"name"->name,"avatar"->avatar)) 
             val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
             val refreshToken = AuthJwt.generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = 3600L * 10) 
             
-            log.info(s"code=${code}: rsp=${rsp.code}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
+            log.info(s"code=${code}: rsp=${rsp.get}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
 
             // associate idToken with code for later Profile retrieval by rewriting Code and
             // immediately expiring code 
@@ -760,7 +760,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
             get {
               rejectEmptyResponse {
                 onSuccess(getAuth(auid)) { rsp =>
-                  complete(rsp.auth)
+                  complete(rsp)
                 }
               }
             },
