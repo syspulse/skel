@@ -140,6 +140,9 @@ object App extends skel.Server {
         val uri = Util.getParentUri(config.uri)
         Console.err.println(s"${Console.YELLOW}Running with AuthService(mem):${Console.RESET} http://${authHost}:${config.port}${uri}/auth")
         Console.err.println(s"${Console.YELLOW}Running with UserService(mem):${Console.RESET} http://${authHost}:${config.port}${uri}/user")
+
+        implicit val userConfig = io.syspulse.skel.user.Config( )
+
         run( config.host, config.port, uri, c,
           Seq(
             (AuthRegistry(store),"AuthRegistry",(actor, context) => {
@@ -150,7 +153,7 @@ object App extends skel.Server {
               }
               .withSuffix("auth")
             ),
-            (UserRegistry(new UserStoreMem),"UserRegistry",(a, ac) => new UserRoutes(a)(ac).withSuffix("user") )
+            (UserRegistry(new UserStoreMem),"UserRegistry",(a, ac) => new UserRoutes(a)(ac,userConfig).withSuffix("user") )
             
           )
         )

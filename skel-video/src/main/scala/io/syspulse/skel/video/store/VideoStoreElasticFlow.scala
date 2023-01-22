@@ -45,7 +45,10 @@ class VideoStoreElasticFlow(elasticUri:String,elacticIndex:String) extends Video
     Failure(new UnsupportedOperationException(s"not implemented: ${video}"))
   }
 
-  def ?(vid:VID):Option[Video] = searches(vid.toString).headOption
+  def ?(vid:VID):Try[Video] = searches(vid.toString).take(1).headOption match {
+    case Some(o) => Success(o)
+    case None => Failure(new Exception(s"not found: ${vid}"))
+  }
 
   def ??(txt:String):List[Video] = {
     searches(txt).toList

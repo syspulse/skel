@@ -37,7 +37,10 @@ class VideoStoreMem extends VideoStore {
     del(video.vid)
   }
 
-  def ?(vid:VID):Option[Video] = videos.get(vid)
+  def ?(vid:VID):Try[Video] = videos.get(vid) match {
+    case Some(v) => Success(v)
+    case None => Failure(new Exception(s"not found: ${vid}"))
+  }
 
   def ??(txt:String):List[Video] = {
     videos.values.filter(v => {

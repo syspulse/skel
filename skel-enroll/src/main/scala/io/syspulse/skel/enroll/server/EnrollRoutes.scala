@@ -48,6 +48,7 @@ import scala.concurrent.duration.Duration
 import io.syspulse.skel.enroll._
 import io.syspulse.skel.enroll.Config
 import io.syspulse.skel.enroll.store.EnrollRegistry._
+import scala.util.Try
 
 
 @Path("/")
@@ -66,10 +67,10 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
   val metricCreateCount: Counter = Counter.build().name("skel_enroll_create_total").help("Enroll creates").register(cr)
   
   def getEnrolls(): Future[Enrolls] = registry.ask(GetEnrolls)
-  def getEnroll(id: UUID): Future[Option[Enroll]] = registry.ask(GetEnroll(id, _))
+  def getEnroll(id: UUID): Future[Try[Enroll]] = registry.ask(GetEnroll(id, _))
   def getEnrollByEmail(email: String): Future[Option[Enroll]] = registry.ask(GetEnrollByEmail(email, _))
 
-  def createEnroll(enrollCreate: Option[EnrollCreateReq]): Future[Option[Enroll]] = registry.ask(CreateEnroll(enrollCreate, _))
+  def createEnroll(enrollCreate: Option[EnrollCreateReq]): Future[Try[Enroll]] = registry.ask(CreateEnroll(enrollCreate, _))
   def updateEnroll(enrollUpdate: EnrollUpdateReq): Future[Option[Enroll]] = registry.ask(UpdateEnroll(enrollUpdate, _))
   
   def deleteEnroll(id: UUID): Future[EnrollActionRes] = registry.ask(DeleteEnroll(id, _))

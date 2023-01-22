@@ -27,6 +27,9 @@ case class Config(
 
   timeout:Long = 3000L,
 
+  uploadStore: String = "/tmp/upload",
+  uploadUri: String = "http://localhost:8080/upload",
+
   cmd:String = "server",
   params: Seq[String] = Seq(),
 )
@@ -48,6 +51,9 @@ object App extends skel.Server {
         ArgString('d', "datastore",s"datastore [mysql,postgres,mem,cache] (def: ${d.datastore})"),
         ArgString('_', "timeout",s"Timeouts, msec (def: ${d.timeout})"),
 
+        ArgString('_', "upload.store",s"Store for user uploaded files (def: ${d.uploadStore})"),
+        ArgString('_', "upload.uri",s"Uri for uploaded data (def: ${d.uploadUri})"),
+
         ArgCmd("server","Command"),
         ArgCmd("client","Command"),
         ArgParam("<params>","")
@@ -60,6 +66,9 @@ object App extends skel.Server {
       uri = c.getString("http.uri").getOrElse(d.uri),
       datastore = c.getString("datastore").getOrElse(d.datastore),
       timeout = c.getLong("timeout").getOrElse(d.timeout),
+
+      uploadStore = c.getString("upload.store").getOrElse(d.uploadStore),
+      uploadUri = c.getString("upload.uri").getOrElse(d.uploadUri),
       
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -81,7 +90,7 @@ object App extends skel.Server {
       case "server" => 
         run( config.host, config.port,config.uri,c,
           Seq(
-            (UserRegistry(store),"UserRegistry",(r, ac) => new UserRoutes(r)(ac) )
+            (UserRegistry(store),"UserRegistry",(r, ac) => new UserRoutes(r)(ac,config) )
           )
         )
       case "client" => {

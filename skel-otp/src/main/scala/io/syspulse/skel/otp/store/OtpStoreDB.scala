@@ -83,11 +83,11 @@ class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB
   }
   def -(otp:Otp):Try[OtpStoreDB] = { this.del(otp.id) }
 
-  def ?(id:UUID):Option[Otp] = {
+  def ?(id:UUID):Try[Otp] = {
     log.info(s"select: id=${id}")
     ctx.run(query[Otp].filter(o => o.id == lift(id))) match {
-      case h :: _ => Some(h)
-      case Nil => None
+      case h :: _ => Success(h)
+      case Nil => Failure(new Exception(s"not found: ${id}"))
     }
   }
 

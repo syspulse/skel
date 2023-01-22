@@ -13,7 +13,7 @@ trait ServiceStore extends Store[Service,UUID] {
   def +(service:Service):Try[ServiceStore]
   def -(service:Service):Try[ServiceStore]
   def del(id:UUID):Try[ServiceStore]
-  def ?(id:UUID):Option[Service]
+  def ?(id:UUID):Try[Service]
   def all:Seq[Service]
   def size:Long
 }

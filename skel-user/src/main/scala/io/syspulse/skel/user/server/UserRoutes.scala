@@ -54,7 +54,7 @@ import io.syspulse.skel.user.store.UserRegistry._
 import io.syspulse.skel.user.server.{UserActionRes, Users, UserCreateReq, UserUpdateReq}
 
 @Path("/")
-class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
+class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],config:Config) extends CommonRoutes with Routeable with RouteAuthorizers {
   //val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system
   
@@ -184,7 +184,7 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
     }
   }
 
-  def uploadFileRoute(uid:Option[UUID],fileField:String = "fileUpload",fileName:Option[String] = None,dir:String = "/tmp/avatars") = 
+  def uploadFileRoute(uid:Option[UUID],fileField:String = "fileUpload",fileName:Option[String] = None,dir:String = config.uploadStore) = 
     post {
       fileUpload(fileField) {
         case (fileInfo, fileStream) =>
@@ -197,7 +197,7 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
           onSuccess(r) { r =>
             log.info(s"${r}: ${fileName0} -> ${fullName}: ${r.count}")
             //complete(s"uploaded: ${fileName0} (${r.count})")
-            complete(OK,UserUploadRes("success",uid,fullName))
+            complete(OK,UserUploadRes("success",uid,config.uploadUri + "/" + fileName1,Some(fullName)))
           }
       }
     }

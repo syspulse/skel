@@ -17,6 +17,8 @@ object OtpJson extends JsonCommon {
   implicit val jf_Otp = jsonFormat9(Otp)
   implicit val jf_Otps = jsonFormat1(Otps)
   implicit val jf_OtpRes = jsonFormat1(OtpRes)
+  implicit val jf_OtpCode = jsonFormat2(OtpCode)
+
   implicit val jf_CreateReq = jsonFormat6(OtpCreateReq)
   implicit val jf_ActionRes = jsonFormat2(OtpActionRes)
   implicit val jf_CreateRes = jsonFormat2(OtpCreateRes)

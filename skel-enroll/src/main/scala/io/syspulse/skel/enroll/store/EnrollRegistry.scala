@@ -10,15 +10,17 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.Command
 import io.syspulse.skel.enroll._
+import scala.util.Try
+import scala.util.Failure
 
 object EnrollRegistry {
   val log = Logger(s"${this}")
   
   final case class GetEnrolls(replyTo: ActorRef[Enrolls]) extends Command
-  final case class GetEnroll(id:UUID,replyTo: ActorRef[Option[Enroll]]) extends Command
+  final case class GetEnroll(id:UUID,replyTo: ActorRef[Try[Enroll]]) extends Command
   final case class GetEnrollByEmail(eid:String,replyTo: ActorRef[Option[Enroll]]) extends Command
   
-  final case class CreateEnroll(enrollCreate: Option[EnrollCreateReq], replyTo: ActorRef[Option[Enroll]]) extends Command
+  final case class CreateEnroll(enrollCreate: Option[EnrollCreateReq], replyTo: ActorRef[Try[Enroll]]) extends Command
   final case class DeleteEnroll(id: UUID, replyTo: ActorRef[EnrollActionRes]) extends Command
 
   final case class UpdateEnroll(enrollUpdate: EnrollUpdateReq, replyTo: ActorRef[Option[Enroll]]) extends Command
@@ -62,7 +64,8 @@ object EnrollRegistry {
               eid
             }
             case None => {
-              replyTo ! None //Some(Enroll(UUID.random,"", "", "", "",tsCreated = System.currentTimeMillis, phase="FAILED"))
+              //Some(Enroll(UUID.random,"", "", "", "",tsCreated = System.currentTimeMillis, phase="FAILED"))
+              replyTo ! Failure(new Exception(s"could not create: ${enrollCreate}")) 
             }
           }
           

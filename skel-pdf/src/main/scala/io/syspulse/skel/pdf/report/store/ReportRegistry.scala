@@ -19,7 +19,7 @@ object ReportRegistry {
   val log = Logger(s"${this}")
   
   final case class GetReports(replyTo: ActorRef[Reports]) extends Command
-  final case class GetReport(id:UUID,replyTo: ActorRef[Option[Report]]) extends Command
+  final case class GetReport(id:UUID,replyTo: ActorRef[Try[Report]]) extends Command
   final case class GetReportByXid(eid:String,replyTo: ActorRef[Option[Report]]) extends Command
   
   final case class CreateReport(enrollCreate: ReportCreateReq, replyTo: ActorRef[ReportActionRes]) extends Command
@@ -70,7 +70,7 @@ object ReportRegistry {
           log.info(s"completed: ${id}: status = ${status}")
 
           val report = store ? (id)
-          if(report.isDefined) {
+          if(report.isSuccess) {
             val report1 = status match {            
               case Success(s) => report.get.copy(phase = "GENERATED",output = s)
               case Failure(e) => report.get.copy(phase = s"FAILED: ${e}")

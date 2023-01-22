@@ -40,7 +40,10 @@ class YellStoreMem extends YellStore {
     del(Yell.uid(yell))
   }
 
-  def ?(id:ID):Option[Yell] = yells.get(id)
+  def ?(id:ID):Try[Yell] = yells.get(id) match {
+    case Some(y) => Success(y)
+    case None => Failure(new Exception(s"not found: ${id}"))
+  }
 
   def ??(txt:String):List[Yell] = {
     yells.values.filter(y => 

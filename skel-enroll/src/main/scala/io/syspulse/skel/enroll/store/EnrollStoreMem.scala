@@ -41,7 +41,12 @@ class EnrollStoreMem(implicit val ec:ExecutionContext) extends EnrollStore {
     del(enroll.id)
   }
 
-  def ???(id:UUID):Future[Option[Enroll]] = Future(enrolls.get(id))
+  def ???(id:UUID):Future[Try[Enroll]] = Future(
+    enrolls.get(id) match {
+      case Some(e) => Success(e)
+      case None => Failure(new Exception(s"not found: ${id}"))
+    }
+  )
 
   def findByEmail(email:String):Option[Enroll] = {
     enrolls.values.find(_.email == email)

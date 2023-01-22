@@ -34,5 +34,8 @@ class ServiceStoreMem extends ServiceStore {
     if(sz == services.size) Failure(new Exception(s"not found: ${service}")) else Success(this)
   }
 
-  def ?(id:UUID):Option[Service] = services.find(_.id == id)
+  def ?(id:UUID):Try[Service] = services.find(_.id == id) match {
+    case Some(s) => Success(s)
+    case None => Failure(new Exception(s"not found: ${id}"))
+  }
 }

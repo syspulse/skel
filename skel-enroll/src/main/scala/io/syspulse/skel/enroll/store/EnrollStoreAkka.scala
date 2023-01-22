@@ -46,12 +46,23 @@ class EnrollStoreAkka(implicit val ec:ExecutionContext,config:Config) extends En
     del(enroll.id)
   }
 
-  def ???(id:UUID):Future[Option[Enroll]] = {
+  def ???(id:UUID):Future[Try[Enroll]] = {
     for {
         e <- EnrollSystem.summaryFuture(id)
     } yield {
       log.info(s"e = ${e}")
-      e.map( e => Enroll(e.eid,e.email.getOrElse(""),e.name.getOrElse(""),e.xid.getOrElse(""),e.avatar.getOrElse(""), e.tsPhase, e.phase, e.uid))   
+      e match {
+        case Some(e) => 
+          Success(Enroll(
+            e.eid,
+            e.email.getOrElse(""),
+            e.name.getOrElse(""),
+            e.xid.getOrElse(""),
+            e.avatar.getOrElse(""), 
+            e.tsPhase, e.phase, e.uid
+          ))
+        case None => Failure(new Exception(s"not found: ${id}"))
+      }
     }
   }
 
@@ -61,11 +72,11 @@ class EnrollStoreAkka(implicit val ec:ExecutionContext,config:Config) extends En
 
   def addEmail(id:UUID,email:String):Future[Option[Enroll]] = {
     EnrollSystem.addEmail(id,email)
-    ???(id)
+    ???(id).map(_.toOption)
   }
 
   def confirmEmail(id:UUID,code:String):Future[Option[Enroll]] = {
     EnrollSystem.confirmEmail(id,code)
-    ???(id)
+    ???(id).map(_.toOption)
   }
 }

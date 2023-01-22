@@ -17,7 +17,7 @@ trait IngestStore[IN,ID] extends Store[IN,ID] {
   def +(yell:IN):Try[IngestStore[IN,ID]]
   def -(yell:IN):Try[IngestStore[IN,ID]]
   def del(id:ID):Try[IngestStore[IN,ID]]
-  def ?(id:ID):Option[IN]
+  def ?(id:ID):Try[IN]
   def all:Seq[IN]
   def size:Long
 

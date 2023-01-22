@@ -695,7 +695,7 @@ lazy val pdf = (project in file("skel-pdf"))
     //name := "skel-pdf",
     appDockerConfig("skel-pdf","io.syspulse.skel.pdf.App"),
 
-    libraryDependencies ++= libPdfGen ++ Seq(
+    libraryDependencies ++= libHttp ++ libPdfGen ++ Seq(
       libScalaTest,
       libLaikaCore,
       libLaikaIo      

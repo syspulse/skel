@@ -14,7 +14,7 @@ trait ReportStore extends Store[Report,UUID] {
   def +(enroll:Report):Try[ReportStore]
   def -(enroll:Report):Try[ReportStore]
   def del(id:UUID):Try[ReportStore]
-  def ?(id:UUID):Option[Report]
+  def ?(id:UUID):Try[Report]
   def all:Seq[Report]
   def size:Long
 

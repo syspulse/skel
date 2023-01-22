@@ -50,6 +50,7 @@ import io.syspulse.skel.telemetry.server._
 
 import io.syspulse.skel.telemetry.Telemetry.ID
 import io.syspulse.skel.cli.CliUtil
+import scala.util.Try
 
 @Path(s"/")
 class PriceRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends TelemetryRoutes(registry)(context)
@@ -74,7 +75,7 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
   def getTelemetrys(): Future[Telemetrys] = registry.ask(GetTelemetrys)
   def getTelemetry(id: ID,ts0:Long,ts1:Long): Future[Telemetrys] = registry.ask(GetTelemetry(id, ts0,ts1, _))
   def getTelemetryOp(id: ID,ts0:Long,ts1:Long,op:Option[String]): Future[Option[Telemetry]] = registry.ask(GetTelemetryOp(id, ts0,ts1, op, _))
-  def getTelemetryLast(id: ID): Future[Option[Telemetry]] = registry.ask(GetTelemetryLast(id, _))
+  def getTelemetryLast(id: ID): Future[Try[Telemetry]] = registry.ask(GetTelemetryLast(id, _))
   def getTelemetryBySearch(txt: String,ts0:Long,ts1:Long): Future[Telemetrys] = registry.ask(SearchTelemetry(txt,ts0,ts1, _))
 
   def createTelemetry(telemetryCreate: TelemetryCreateReq): Future[Telemetry] = registry.ask(CreateTelemetry(telemetryCreate, _))

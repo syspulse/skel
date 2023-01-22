@@ -131,7 +131,7 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
     r.items().asScala.map( r => TelemetryDynamoFormat.fromDynamo(r.asScala.toMap))
   }
 
-  override def last(id:String):Option[Telemetry] = {
+  override def last(id:String):Try[Telemetry] = {
     val req = QueryRequest
           .builder()
           .tableName(getTable())          
@@ -149,7 +149,10 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
           
     val result = DynamoDb.single(req)
     val r = Await.result(result, timeout)
-    r.items().asScala.map( r => TelemetryDynamoFormat.fromDynamo(r.asScala.toMap)).headOption
+    r.items().asScala.take(1).map( r => TelemetryDynamoFormat.fromDynamo(r.asScala.toMap)).headOption match {
+      case Some(o) => Success(o)
+      case None => Failure(new Exception(s"not found: ${id}"))
+    }    
   }
 
   // returns the latest inserted element !  

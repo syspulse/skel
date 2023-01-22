@@ -13,6 +13,7 @@ import io.syspulse.skel.Command
 import io.syspulse.skel.telemetry._
 import io.syspulse.skel.telemetry.Telemetry.ID
 import io.syspulse.skel.telemetry.server._
+import scala.util.Try
 
 object TelemetryRegistry {
   val log = Logger(s"${this}")
@@ -20,7 +21,7 @@ object TelemetryRegistry {
   final case class GetTelemetrys(replyTo: ActorRef[Telemetrys]) extends Command
   final case class GetTelemetry(id:Telemetry.ID,ts0:Long, ts1:Long, replyTo: ActorRef[Telemetrys]) extends Command
   final case class GetTelemetryOp(id:Telemetry.ID,ts0:Long, ts1:Long, op:Option[String], replyTo: ActorRef[Option[Telemetry]]) extends Command
-  final case class GetTelemetryLast(id:Telemetry.ID,replyTo: ActorRef[Option[Telemetry]]) extends Command
+  final case class GetTelemetryLast(id:Telemetry.ID,replyTo: ActorRef[Try[Telemetry]]) extends Command
   final case class SearchTelemetry(txt:String,ts0:Long, ts1:Long, replyTo: ActorRef[Telemetrys]) extends Command
   
   final case class CreateTelemetry(telemetryCreate: TelemetryCreateReq, replyTo: ActorRef[Telemetry]) extends Command

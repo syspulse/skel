@@ -9,6 +9,8 @@ import io.jvm.uuid._
 import io.syspulse.skel.user._
 import io.syspulse.skel.store.Store
 
+import io.syspulse.skel.user.User
+
 trait UserStore extends Store[User,UUID] {
   
   def +(user:User):Try[UserStore]

@@ -18,7 +18,7 @@ trait VideoStore extends Store[Video,ID] {
   def +(video:Video):Try[VideoStore]
   def -(video:Video):Try[VideoStore]
   def del(id:ID):Try[VideoStore]
-  def ?(id:ID):Option[Video]
+  def ?(id:ID):Try[Video]
   def all:Seq[Video]
   def size:Long
 

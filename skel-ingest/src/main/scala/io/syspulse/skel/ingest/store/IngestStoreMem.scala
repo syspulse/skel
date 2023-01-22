@@ -39,7 +39,10 @@ class IngestStoreMem[ID] extends IngestStore[IN[ID],ID] {
     del(ingest.id)
   }
 
-  def ?(id:ID):Option[IN[ID]] = ingests.get(id)
+  def ?(id:ID):Try[IN[ID]] = ingests.get(id) match {
+    case Some(i) => Success(i)
+    case None => Failure(new Exception(s"not found: ${id}"))
+  }
 
   def ??(txt:String):List[IN[ID]] = {
     ingests.values.filter(v => 

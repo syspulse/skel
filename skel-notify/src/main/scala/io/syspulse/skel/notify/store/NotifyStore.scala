@@ -15,7 +15,7 @@ trait NotifyStore extends Store[Notify,UUID] {
   
   def -(notify:Notify):Try[NotifyStore] = Success(this)
   def del(id:UUID):Try[NotifyStore] = Success(this)
-  def ?(id:UUID):Option[Notify] = None
+  def ?(id:UUID):Try[Notify] = Failure(new Exception(s"not supported"))
   def all:Seq[Notify] = Seq()
   def size:Long = 0
 

@@ -11,7 +11,7 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
-import io.syspulse.skel.user._
+import io.syspulse.skel.user.User
 
 class UserStoreMem extends UserStore {
   val log = Logger(s"${this}")

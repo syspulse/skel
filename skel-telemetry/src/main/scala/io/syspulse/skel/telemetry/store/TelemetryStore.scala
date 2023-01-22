@@ -1,6 +1,8 @@
 package io.syspulse.skel.telemetry.store
 
 import scala.util.Try
+import scala.util.Success
+import scala.util.Failure
 
 import scala.collection.immutable
 
@@ -36,9 +38,12 @@ trait TelemetryStore extends Store[Telemetry,ID] {
 
 
   // Attention: returns last by default
-  def ?(id:ID):Option[Telemetry] =  last(id)
+  def ?(id:ID):Try[Telemetry] =  last(id)
 
-  def last(id:ID):Option[Telemetry] =  ?(id,0L,Long.MaxValue).sortBy(- _.ts).headOption
+  def last(id:ID):Try[Telemetry] = ?(id,0L,Long.MaxValue).sortBy(- _.ts).headOption match {
+    case Some(t) => Success(t)
+    case None => Failure(new Exception(s"not found: ${id}"))
+  }
 
   def all:Seq[Telemetry]
   def size:Long

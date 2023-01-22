@@ -153,6 +153,8 @@ object App extends skel.Server {
           telegramUri = c.getString("telegram.uri").getOrElse(Configuration.withEnv(d.telegramUri)),
         )
 
+        implicit val userConfig = io.syspulse.skel.user.Config( )
+
         run( config.host, config.port, uri, c,
           Seq(
             (EnrollRegistry(store),"EnrollRegistry",(actor, context) => {
@@ -164,7 +166,7 @@ object App extends skel.Server {
               }
               .withSuffix("enroll")
             ),
-            (UserRegistry(new UserStoreMem),"UserRegistry",(a, ac) => new UserRoutes(a)(ac).withSuffix("user") ),
+            (UserRegistry(new UserStoreMem),"UserRegistry",(a, ac) => new UserRoutes(a)(ac,userConfig).withSuffix("user") ),
             (NotifyRegistry(new NotifyStoreAll()),"NotifyRegistry",(a, ac) => new NotifyRoutes(a)(ac).withSuffix("notify") )
           )
         )

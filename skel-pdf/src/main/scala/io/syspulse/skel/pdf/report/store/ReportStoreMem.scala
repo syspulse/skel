@@ -38,7 +38,10 @@ class ReportStoreMem extends ReportStore {
     del(enroll.id)
   }
 
-  def ?(id:UUID):Option[Report] = enrolls.get(id)
+  def ?(id:UUID):Try[Report] = enrolls.get(id) match {
+    case Some(p) => Success(p)
+    case None => Failure(new Exception(s"not found: ${id}"))
+  }
 
   def findByXid(xid:String):Option[Report] = {
     enrolls.values.find(_.xid == xid)

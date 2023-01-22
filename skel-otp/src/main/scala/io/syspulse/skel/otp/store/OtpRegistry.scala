@@ -14,14 +14,15 @@ import io.syspulse.skel.Command
 // create Otp Parameters
 
 import io.syspulse.skel.otp._
+import scala.util.Try
 
 object OtpRegistry {
   val log = Logger(s"${this}")
   
   final case class GetOtps(replyTo: ActorRef[Otps]) extends Command
-  final case class GetOtp(id:UUID,replyTo: ActorRef[OtpRes]) extends Command
+  final case class GetOtp(id:UUID,replyTo: ActorRef[Try[Otp]]) extends Command
   
-  final case class GetOtpCode(id:UUID,replyTo: ActorRef[OtpCodeRes]) extends Command
+  final case class GetOtpCode(id:UUID,replyTo: ActorRef[Try[OtpCode]]) extends Command
   final case class GetOtpCodeVerify(id:UUID,code:String,replyTo: ActorRef[OtpCodeVerifyRes]) extends Command
   
   final case class CreateOtp(otpCreate: OtpCreateReq, replyTo: ActorRef[OtpCreateRes]) extends Command
@@ -159,16 +160,17 @@ object OtpRegistry {
         Behaviors.same
 
       case GetOtp(id, replyTo) =>
-        replyTo ! OtpRes(store.?(id))
+        replyTo ! store.?(id)
         Behaviors.same
 
       case GetOtpCode(id, replyTo) =>
         val otp = store.?(id)
 
         val code = otp.map( o => {
-          authCode(o.secret,o.period)
+          OtpCode(id = o.id, code = authCode(o.secret,o.period))
         })
-        replyTo ! OtpCodeRes(code)
+
+        replyTo ! code
         Behaviors.same
 
       case GetOtpCodeVerify(id, codeUser, replyTo) =>

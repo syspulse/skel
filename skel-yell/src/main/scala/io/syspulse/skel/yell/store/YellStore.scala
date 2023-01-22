@@ -15,7 +15,7 @@ trait YellStore extends Store[Yell,ID] {
   def +(yell:Yell):Try[YellStore]
   def -(yell:Yell):Try[YellStore]
   def del(id:ID):Try[YellStore]
-  def ?(id:ID):Option[Yell]
+  def ?(id:ID):Try[Yell]
   def all:Seq[Yell]
   def size:Long
 

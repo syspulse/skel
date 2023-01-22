@@ -7,7 +7,10 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{ Matchers, WordSpec }
 
-import io.syspulse.skel.user.server.User
+import io.syspulse.skel.user.User
+import io.syspulse.skel.user.store._
+import io.syspulse.skel.user.server._
+
 //#set-up
 class UserRoutesSpec extends WordSpec with Matchers with ScalaFutures with ScalatestRouteTest {
   //#test-top

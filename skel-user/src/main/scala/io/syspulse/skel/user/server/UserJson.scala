@@ -25,5 +25,5 @@ object UserJson extends JsonCommon {
   implicit val jf_ActionRes = jsonFormat2(UserActionRes)
   
   implicit val jf_RadnomReq = jsonFormat0(UserRandomReq)
-  implicit val jf_uuf = jsonFormat3(UserUploadRes)  
+  implicit val jf_uuf = jsonFormat4(UserUploadRes)  
 }
