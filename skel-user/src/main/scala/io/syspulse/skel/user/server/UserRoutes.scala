@@ -72,7 +72,7 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
   def getUser(id: UUID): Future[Try[User]] = registry.ask(GetUser(id, _))
   def getUserByXid(xid: String): Future[Option[User]] = registry.ask(GetUserByXid(xid, _))
 
-  def createUser(req: UserCreateReq): Future[Option[User]] = registry.ask(CreateUser(req, _))
+  def createUser(req: UserCreateReq): Future[Try[User]] = registry.ask(CreateUser(req, _))
   def updateUser(uid:UUID,req: UserUpdateReq): Future[Try[User]] = registry.ask(UpdateUser(uid,req, _))
   def deleteUser(id: UUID): Future[UserActionRes] = registry.ask(DeleteUser(id, _))
   def randomUser(): Future[User] = registry.ask(RandomUser(_))

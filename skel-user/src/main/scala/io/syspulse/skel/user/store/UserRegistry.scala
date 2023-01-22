@@ -12,6 +12,8 @@ import io.syspulse.skel.Command
 
 import io.syspulse.skel.user._
 import scala.util.Try
+import scala.util.Success
+import scala.util.Failure
 
 object UserRegistry {
   val log = Logger(s"${this}")
@@ -20,7 +22,7 @@ object UserRegistry {
   final case class GetUser(id:UUID,replyTo: ActorRef[Try[User]]) extends Command
   final case class GetUserByXid(xid:String,replyTo: ActorRef[Option[User]]) extends Command
   
-  final case class CreateUser(req: UserCreateReq, replyTo: ActorRef[Option[User]]) extends Command
+  final case class CreateUser(req: UserCreateReq, replyTo: ActorRef[Try[User]]) extends Command
   final case class UpdateUser(uid:UUID, req: UserUpdateReq, replyTo: ActorRef[Try[User]]) extends Command
   final case class RandomUser(replyTo: ActorRef[User]) extends Command
 
@@ -54,10 +56,18 @@ object UserRegistry {
       case CreateUser(req, replyTo) =>
         val id = req.uid.getOrElse(UUID.randomUUID())
 
-        val user = User(id, req.email, req.name, req.xid, req.avatar, System.currentTimeMillis())
-        val store1 = store.+(user)
-
-        replyTo ! Some(user)
+        val store1 = 
+          store.?(id) match {
+            case Success(_) => 
+              replyTo ! Failure(new Exception(s"already exists: ${id}"))
+              Success(store)
+            case _ =>  
+              val user = User(id, req.email, req.name, req.xid, req.avatar, System.currentTimeMillis())
+              val store1 = store.+(user)
+              replyTo ! store1.map(_ => user)
+              store1
+          }
+        
         registry(store1.getOrElse(store))
 
       case UpdateUser(uid,req, replyTo) =>
