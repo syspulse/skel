@@ -8,6 +8,7 @@ import scala.collection.immutable
 import io.jvm.uuid._
 import io.syspulse.skel.Command
 import scala.util.Try
+import scala.util.Success
 
 object CodeRegistry {
   
@@ -15,7 +16,7 @@ object CodeRegistry {
   final case class UpdateCode(code: Code, replyTo: ActorRef[CodeCreateRes]) extends Command
   final case class GetCode(code: String, replyTo: ActorRef[Try[Code]]) extends Command
   final case class GetCodeByToken(code: String, replyTo: ActorRef[CodeRes]) extends Command
-  final case class GetCodes(replyTo: ActorRef[Codes]) extends Command
+  final case class GetCodes(replyTo: ActorRef[Try[Codes]]) extends Command
   final case class DeleteCode(code: String, replyTo: ActorRef[CodeActionRes]) extends Command
   
   // this var reference is unfortunately needed for Metrics access
@@ -31,7 +32,7 @@ object CodeRegistry {
 
     Behaviors.receiveMessage {
       case GetCodes(replyTo) =>
-        replyTo ! Codes(store.all)
+        replyTo ! Success(Codes(store.all))
         Behaviors.same
 
       case CreateCode(code, replyTo) =>

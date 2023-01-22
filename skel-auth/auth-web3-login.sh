@@ -40,9 +40,9 @@ echo --- Auth Response:
 echo $rsp >AUTH_RSP.json
 cat AUTH_RSP.json | jq
 
-TOKEN=`cat AUTH_RSP.json | jq -r .accesToken`
-echo "TOKEN=$TOKEN"
-echo $TOKEN >ACCESS_TOKEN
+ACCESS_TOKEN=`cat AUTH_RSP.json | jq -r .accessToken`
+echo "ACCESS_TOKEN=$ACCESS_TOKEN"
+echo $ACCESS_TOKEN >ACCESS_TOKEN
 
 xid=`cat AUTH_RSP.json | jq -r .xid`
 uid=`cat AUTH_RSP.json | jq -r .uid`

@@ -155,7 +155,6 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
     entity(as[UserCreateReq]) { req =>
       onSuccess(createUser(req)) { r =>
         metricCreateCount.inc()
-        log.info(s"r = ${r}")
         complete(StatusCodes.Created, r)
       }
     }
@@ -171,7 +170,6 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
     entity(as[UserUpdateReq]) { req =>
       onSuccess(updateUser(UUID(uid),req)) { r =>
         metricUpdateCount.inc()
-        log.info(s"r = ${r}")
         complete(StatusCodes.OK, r)
       }
     }
@@ -196,7 +194,6 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
           val r = fileStream.runWith(sink)
           onSuccess(r) { r =>
             log.info(s"${r}: ${fileName0} -> ${fullName}: ${r.count}")
-            //complete(s"uploaded: ${fileName0} (${r.count})")
             complete(OK,UserUploadRes("success",uid,config.uploadUri + "/" + fileName1,Some(fullName)))
           }
       }

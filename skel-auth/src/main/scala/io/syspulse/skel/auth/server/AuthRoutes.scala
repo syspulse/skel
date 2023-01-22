@@ -121,6 +121,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   //log.info(s"idps: ${idps}")
 
   import AuthJson._
+  import CodeJson._
 
   def getAuths(): Future[Auths] = authRegistry.ask(GetAuths)
 
@@ -131,6 +132,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   def updateCode(code: Code): Future[CodeCreateRes] = codeRegistry.ask(UpdateCode(code, _))
   def getCode(authCode: String): Future[Try[Code]] = codeRegistry.ask(GetCode(authCode, _))
   def getCodeByToken(accessToken: String): Future[CodeRes] = codeRegistry.ask(GetCodeByToken(accessToken, _))
+  def getCodes(): Future[Try[Codes]] = codeRegistry.ask(GetCodes(_))
 
   implicit val permissions = Permissions(config.permissionsModel,config.permissionsPolicy)
   // def hasAdminPermissions(authn:Authenticated) = {
@@ -147,7 +149,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
       "client_secret" -> idp.getClientSecret,
       "redirect_uri" -> redirectUri.getOrElse(idp.getRedirectUri()),
       "grant_type" -> "authorization_code"
-    ) ++ idp.getGrantData() ++ extraData.getOrElse(Map())
+    ) ++ idp.getGrantData() ++ extraData.getOrElse(Map()) ++ state.map("state" -> _)
 
     val basicAuth = idp.getBasicAuth()
     val headers = Seq[HttpHeader]() ++ {if(basicAuth.isDefined) Seq(RawHeader("Authorization",s"Basic ${basicAuth.get}")) else Seq()}
@@ -256,7 +258,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           authProfileRes.idToken, 
           authProfileRes.refreshToken,
           user.map(_.id), 
-          scope = Some("service")          
+          scope = Some("api")          
         ))
       }
 
@@ -452,7 +454,11 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
           log.info(s"sigData=${sigData}")
 
-          val pk = if(sig.isDefined) Eth.recoverMetamask(sigData,Util.fromHexString(sig.get)) else Failure(new Exception(s"Empty signature"))
+          val pk = if(sig.isDefined) 
+            Eth.recoverMetamask(sigData,Util.fromHexString(sig.get)) 
+          else 
+            Failure(new Exception(s"Empty signature"))
+
           val addrFromSig = pk.map(p => Eth.address(p))
 
           if(addrFromSig.isFailure || addrFromSig.get != addr.get.toLowerCase()) {
@@ -462,9 +468,10 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
             val code = Util.generateRandomToken()
 
-            onSuccess(createCode(Code(code,addr))) { rsp =>
-              log.info(s"sig=${sig}, addr=${addr}, redirect_uri=${redirect_uri}: -> code=${code}")
-              redirect(redirect_uri + s"?code=${rsp.code.authCode}", StatusCodes.PermanentRedirect)  
+            onSuccess(createCode(Code(code, addr,state = state))) { rsp =>
+              val redirectUrl = redirect_uri + s"?code=${rsp.code.code}&state=${state.getOrElse("")}"
+              log.info(s"sig=${sig}, addr=${addr}, state=${state}, redirect_uri=${redirect_uri}: -> ${redirectUrl}")
+              redirect(redirectUrl, StatusCodes.PermanentRedirect)  
             }
           }
         }                
@@ -477,26 +484,28 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     method = "GET",
     parameters = Array(
       new Parameter(name = "code", in = ParameterIn.PATH, description = "code"),
-      new Parameter(name = "scope", in = ParameterIn.PATH, description = "scope (ignored)"),
-      new Parameter(name = "state", in = ParameterIn.PATH, description = "state (ignored)")      
+      new Parameter(name = "scope", in = ParameterIn.PATH, description = "scope"),
+      new Parameter(name = "state", in = ParameterIn.PATH, description = "state")
     ),
     responses = Array(new ApiResponse(responseCode="200",description = "Authenticated User ID",content=Array(new Content(schema=new Schema(implementation = classOf[AuthWithProfileRes])))))
   )
   def getCallbackEth = get {
     parameters("code", "scope".optional,"state".optional) { (code,scope,state) => 
-      log.info(s"code=${code}, scope=${scope}")
+      log.info(s"code=${code}, scope=${scope}, state=${state}")
       
-      onSuccess( callbackFlow(idps.get(EthOAuth2.id).get,code,None,None,scope,None) ) { rsp =>
+      onSuccess( callbackFlow(idps.get(EthOAuth2.id).get,code,None,None,scope,state) ) { rsp =>
         complete(StatusCodes.Created, rsp)
       }
     }
   }
 
-  def generateTokens(code:String) = {
+  def generateTokens(code:String,state:Option[String]) = {
     onSuccess(getCode(code)) { rsp =>
-      if(! rsp.isSuccess || rsp.get.expire < System.currentTimeMillis()) {
+      if(! rsp.isSuccess || 
+        rsp.get.expire < System.currentTimeMillis() ||
+        rsp.get.state != state) {
         
-        log.error(s"code=${code}: rsp=${rsp}: not found or expired")
+        log.error(s"code=${code}: state=${state}: rsp=${rsp}: not found or expired")
         complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
 
       } else {
@@ -518,8 +527,9 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
             
             log.warn(s"code=${code}: rsp=${rsp.get}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
 
-            // Generate token for non-existing user
-            onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>                      
+            // Update code to become expired !
+            // TODO: Remove code completely !
+            onSuccess(updateCode(Code(code,None,Some(accessToken),None,0L))) { rsp =>                      
               complete(StatusCodes.OK,
                 EthTokens(
                   accessToken = accessToken, 
@@ -548,7 +558,8 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
             // associate idToken with code for later Profile retrieval by rewriting Code and
             // immediately expiring code 
             // Extracting user id possible from JWT 
-            onSuccess(updateCode(Code(code,None,Some(accessToken),0L))) { rsp =>
+            // Update code to make it expired
+            onSuccess(updateCode(Code(code,None,Some(accessToken),None,0L))) { rsp =>
               
               complete(StatusCodes.OK,
                 EthTokens(
@@ -570,20 +581,21 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   @Operation(tags = Array("auth"),summary = "Web3 Authentication with code",
     method = "POST",
     parameters = Array(
-      new Parameter(name = "code", in = ParameterIn.PATH, description = "code"),
-      new Parameter(name = "client_id", in = ParameterIn.PATH, description = "client_id"),
-      new Parameter(name = "client_secret", in = ParameterIn.PATH, description = "client_secret"),
-      new Parameter(name = "redirect_uri", in = ParameterIn.PATH, description = "redirect_uri"),
-      new Parameter(name = "grant_type", in = ParameterIn.PATH, description = "grant_type")      
+      new Parameter(name = "code", in = ParameterIn.DEFAULT, description = "code"),
+      new Parameter(name = "client_id", in = ParameterIn.DEFAULT, description = "client_id"),
+      new Parameter(name = "client_secret", in = ParameterIn.DEFAULT, description = "client_secret"),
+      new Parameter(name = "redirect_uri", in = ParameterIn.DEFAULT, description = "redirect_uri"),
+      new Parameter(name = "grant_type", in = ParameterIn.DEFAULT, description = "grant_type"),
+      new Parameter(name = "state", in = ParameterIn.DEFAULT, description = "state (optional)")
     ),
     responses = Array(new ApiResponse(responseCode="200",description = "Authenticated User ID",content=Array(new Content(schema=new Schema(implementation = classOf[AuthWithProfileRes])))))
   )
   def postTokenEth = post {
     //entity(as[EthTokenReq]) { req => {
-    formFields("code","client_id","client_secret","redirect_uri","grant_type") { (code,client_id,client_secret,redirect_uri,grant_type) => {
-      log.info(s"code=${code},client_id=${client_id},client_secret=${client_secret},redirect_uri=${redirect_uri},grant_type=${grant_type}")
+    formFields("code","client_id","client_secret","redirect_uri","grant_type","state".optional) { (code,client_id,client_secret,redirect_uri,grant_type,state) => {
+      log.info(s"code=${code},client_id=${client_id},client_secret=${client_secret},redirect_uri=${redirect_uri},grant_type=${grant_type},state=${state}")
       
-      generateTokens(code)
+      generateTokens(code,state)
     }
   }}
 
@@ -592,12 +604,13 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   @Operation(tags = Array("auth"),summary = "Web3 Authentication with code",
     method = "GET",
     parameters = Array(
-      new Parameter(name = "code", in = ParameterIn.PATH, description = "code")      
+      new Parameter(name = "code", in = ParameterIn.PATH, description = "code"),
+      new Parameter(name = "state", in = ParameterIn.PATH, description = "state (optional)")
     ),
     responses = Array(new ApiResponse(responseCode="200",description = "Authenticated User ID",content=Array(new Content(schema=new Schema(implementation = classOf[AuthWithProfileRes])))))
   )
-  def getTokenEth = get { parameters("code") { (code) => 
-    generateTokens(code)
+  def getTokenEth = get { parameters("code","state".optional) { (code,state) => 
+    generateTokens(code,state)
   }}
 
 // ------------------------------------------------------- Routes
@@ -702,7 +715,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                 complete(StatusCodes.Unauthorized,s"access_token invalid: ${access_token}")
 
               } else {
-                // request from temporary Code Cache
+                // request from Code Cache
                 onSuccess(getCodeByToken(access_token)) { rsp => 
 
                   // extract uid from AccessToken
@@ -736,6 +749,21 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           }
         }
       } ~
+      pathPrefix("code") {
+        path(Segment) { code => authenticate()( authn => { 
+          concat(
+            get { rejectEmptyResponse {
+              onSuccess(getCode(code)) { rsp => 
+                complete(rsp)
+            }}}
+          )          
+        })} ~ 
+        pathEndOrSingleSlash {
+          authenticate()( authn =>  authorize(Permissions.isAdmin(authn)) {
+            complete(getCodes())
+          })
+        }        
+      } ~
       pathEndOrSingleSlash {
         concat(
           get {
@@ -752,7 +780,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
               }
             }
           })
-      },
+      } ~
       path(Segment) { auid =>
         authenticate()( authn => {
           log.info(s"authn: ${authn}")

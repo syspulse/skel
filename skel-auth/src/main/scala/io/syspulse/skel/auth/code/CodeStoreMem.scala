@@ -23,13 +23,13 @@ class CodeStoreMem extends CodeStore {
   def size:Long = codes.size
 
   def +(code:Code):Try[CodeStore] = { 
-    codes = codes + (code.authCode -> code); Success(this)
+    codes = codes + (code.code -> code); Success(this)
   }
 
   def !(code:Code):Try[CodeStore] = { 
-    val old = codes.getOrElse(code.authCode,code)
+    val old = codes.getOrElse(code.code,code)
     // update onl with userId
-    codes = codes + (code.authCode -> code.copy(xid = old.xid)); 
+    codes = codes + (code.code -> code.copy(xid = old.xid)); 
     Success(this)
   }
   
@@ -42,7 +42,7 @@ class CodeStoreMem extends CodeStore {
 
   def -(code:Code):Try[CodeStore] = { 
     val sz = codes.size
-    codes = codes - code.authCode;
+    codes = codes - code.code;
     if(sz == codes.size) Failure(new Exception(s"not found: ${code}")) else Success(this)
   }
 

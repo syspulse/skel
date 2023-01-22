@@ -24,14 +24,14 @@ class UserStoreMem extends UserStore {
 
   def +(user:User):Try[UserStore] = { 
     users = users + (user.id -> user)
-    log.info(s"${user}")
+    log.info(s"add: ${user}")
     Success(this)
   }
 
   def del(id:UUID):Try[UserStore] = { 
     val sz = users.size
     users = users - id;
-    log.info(s"${id}")
+    log.info(s"del: ${id}")
     if(sz == users.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
   }
 
