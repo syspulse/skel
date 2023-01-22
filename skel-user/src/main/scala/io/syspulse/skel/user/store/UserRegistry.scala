@@ -1,19 +1,19 @@
 package io.syspulse.skel.user.store
 
+import scala.util.{Try,Success,Failure}
+
+import scala.collection.immutable
+import com.typesafe.scalalogging.Logger
+import io.jvm.uuid._
+
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
-import scala.collection.immutable
-import com.typesafe.scalalogging.Logger
-
-import io.jvm.uuid._
 
 import io.syspulse.skel.Command
 
 import io.syspulse.skel.user._
-import scala.util.Try
-import scala.util.Success
-import scala.util.Failure
+import io.syspulse.skel.user.server.{UserActionRes, Users, UserCreateReq, UserUpdateReq}
 
 object UserRegistry {
   val log = Logger(s"${this}")

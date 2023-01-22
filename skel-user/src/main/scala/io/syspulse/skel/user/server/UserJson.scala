@@ -11,6 +11,7 @@ import akka.http.scaladsl.server.Directives
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsString, JsValue, JsonFormat, deserializationError}
 
 import io.syspulse.skel.user._
+import io.syspulse.skel.user.server.{UserActionRes, Users, UserCreateReq, UserRandomReq, UserRes, UserUpdateReq}
 
 object UserJson extends JsonCommon {
   
@@ -24,5 +25,5 @@ object UserJson extends JsonCommon {
   implicit val jf_ActionRes = jsonFormat2(UserActionRes)
   
   implicit val jf_RadnomReq = jsonFormat0(UserRandomReq)
-  
+  implicit val jf_uuf = jsonFormat3(UserUploadRes)  
 }

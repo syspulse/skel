@@ -1,10 +1,19 @@
 package io.syspulse.skel.user.server
 
+import com.typesafe.scalalogging.Logger
+import io.jvm.uuid._
+import scala.util.{Try,Success,Failure}
+import java.nio.file.Paths
+
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
+import akka.stream.scaladsl.FileIO
 
 import scala.concurrent.Future
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 import akka.actor.typed.ActorRef
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.ActorContext
@@ -16,9 +25,6 @@ import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model.headers.`Content-Type`
 import akka.http.scaladsl.server.RejectionHandler
 import akka.http.scaladsl.model.StatusCodes._
-import com.typesafe.scalalogging.Logger
-
-import io.jvm.uuid._
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
@@ -39,17 +45,13 @@ import io.syspulse.skel.service.CommonRoutes
 
 import io.syspulse.skel.Command
 
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
-
 import io.syspulse.skel.auth.permissions.rbac.Permissions
 import io.syspulse.skel.auth.RouteAuthorizers
 
 import io.syspulse.skel.user._
 import io.syspulse.skel.user.store.UserRegistry
 import io.syspulse.skel.user.store.UserRegistry._
-import scala.util.Try
-
+import io.syspulse.skel.user.server.{UserActionRes, Users, UserCreateReq, UserUpdateReq}
 
 @Path("/")
 class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
@@ -182,6 +184,25 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
     }
   }
 
+  def uploadFileRoute(uid:Option[UUID],fileField:String = "fileUpload",fileName:Option[String] = None,dir:String = "/tmp/avatars") = 
+    post {
+      fileUpload(fileField) {
+        case (fileInfo, fileStream) =>
+          val fileName0 = fileInfo.fileName
+          val ext = fileName0.split("\\.").lastOption.getOrElse("png")
+          val fileName1 = fileName.getOrElse(s"${uid.orElse(Some("")).get}-${UUID.random}.${ext}")
+          val fullName = s"${dir}/${fileName1}"
+          val sink = FileIO.toPath(Paths.get(dir) resolve fileName1)
+          val r = fileStream.runWith(sink)
+          onSuccess(r) { r =>
+            log.info(s"${r}: ${fileName0} -> ${fullName}: ${r.count}")
+            //complete(s"uploaded: ${fileName0} (${r.count})")
+            complete(OK,UserUploadRes("success",uid,fullName))
+          }
+      }
+    }
+  
+
   override def routes: Route =
       concat(
         pathEndOrSingleSlash {
@@ -202,11 +223,16 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
           }
         },
         pathPrefix(Segment) { id => 
+          pathPrefix("avatar") {
+            authenticate()(authn =>
+              uploadFileRoute(Some(UUID(id)))
+            )
+          } ~
           pathEndOrSingleSlash {
             authenticate()(authn =>
               authorize(Permissions.isUser(UUID(id),authn) || Permissions.isAdmin(authn) || Permissions.isService(authn)) {
                 updateUserRoute(id) ~
-                getUserRoute(id)
+                getUserRoute(id)                 
               } ~
               authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
                 deleteUserRoute(id)

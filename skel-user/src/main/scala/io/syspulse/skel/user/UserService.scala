@@ -17,6 +17,8 @@ import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
 
+import io.syspulse.skel.user.server.{Users, UserActionRes}
+
 trait UserService extends AwaitableService[UserService] {
   def findByEmail(email:String):Future[Option[User]]
   def create(email:String,name:String,xid:String,avatar:String):Future[Try[User]]
