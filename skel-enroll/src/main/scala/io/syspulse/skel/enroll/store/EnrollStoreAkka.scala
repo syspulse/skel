@@ -42,10 +42,6 @@ class EnrollStoreAkka(implicit val ec:ExecutionContext,config:Config) extends En
     Failure(new Exception(s"not supported"))
   }
 
-  def -(enroll:Enroll):Try[EnrollStore] = {     
-    del(enroll.id)
-  }
-
   def ???(id:UUID):Future[Try[Enroll]] = {
     for {
         e <- EnrollSystem.summaryFuture(id)

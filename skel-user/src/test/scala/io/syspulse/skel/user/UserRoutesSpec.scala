@@ -1,5 +1,7 @@
 package io.syspulse.skel.user
 
+import io.jvm.uuid._
+
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
@@ -11,9 +13,18 @@ import io.syspulse.skel.user.User
 import io.syspulse.skel.user.store._
 import io.syspulse.skel.user.server._
 
-//#set-up
+import org.scalatest.compatible.Assertion
+import akka.actor.typed.scaladsl.ActorContext
+import akka.actor.typed.ActorRef
+import akka.actor.typed.Behavior
+import akka.actor.typed.scaladsl.Behaviors
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
+import akka.NotUsed
+
+
 class UserRoutesSpec extends WordSpec with Matchers with ScalaFutures with ScalatestRouteTest {
-  //#test-top
 
   // the Akka HTTP route testkit does not yet support a typed actor system (https://github.com/akka/akka-http/issues/2036)
   // so we have to adapt for now
@@ -21,69 +32,66 @@ class UserRoutesSpec extends WordSpec with Matchers with ScalaFutures with Scala
   implicit def typedSystem = testKit.system
   override def createActorSystem(): akka.actor.ActorSystem = testKit.system.classicSystem
 
+  def runWithContext[T,A](f: ActorContext[T] => A): A = {
+    def extractor(replyTo: ActorRef[A]): Behavior[T] =
+      Behaviors.setup { context =>
+        replyTo ! f(context)
+
+        Behaviors.ignore
+      }
+    val probe = testKit.createTestProbe[A]()
+    testKit.spawn(extractor(probe.ref))
+    probe.receiveMessage(FiniteDuration(1,TimeUnit.MINUTES))
+  }
+
   // Here we need to implement all the abstract members of UserRoutes.
   // We use the real UserRegistryActor to test it while we hit the Routes,
   // but we could "mock" it by implementing it in-place or by using a TestProbe
   // created with testKit.createTestProbe()
   val userRegistry = testKit.spawn(UserRegistry())
-  lazy val routes = new UserRoutes(userRegistry).routes
+  
 
   // use the json formats to marshal and unmarshall objects in the test
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import UserJson._
-  //#set-up
 
-  //#actual-test
-  "UserRoutes" should {
-    "return no users if no present (GET /user)" in {
-      // note that there's no need for the host part in the uri:
-      val request = HttpRequest(uri = "/user")
+  "UserRoutes" should runWithContext[NotUsed,Unit] { ctx => {
 
-      request ~> routes ~> check {
-        status should ===(StatusCodes.OK)
+      val config = Config()
+      val routes = new UserRoutes(userRegistry)(ctx,config).routes
 
-        // we expect the response to be json:
-        contentType should ===(ContentTypes.`application/json`)
+      "return no users if no present (GET /user)" in  { 
+        val request = HttpRequest(uri = "/user")
 
-        // and no entries should be in the list:
-        entityAs[String] should ===("""{"users":[]}""")
+        request ~> routes ~> check {
+          status should ===(StatusCodes.OK)
+          contentType should ===(ContentTypes.`application/json`)
+          entityAs[String] should ===("""{"users":[]}""")
+        }
       }
-    }
-    //#actual-test
 
-    //#testing-post
-    "be able to add users (POST /user)" in {
-      val user = User("Kapi", 42, "jp")
-      val userEntity = Marshal(user).to[MessageEntity].futureValue // futureValue is from ScalaFutures
+      "be able to add users (POST /user)" in {
+        val user = User(UUID.random)
+        val userEntity = Marshal(user).to[MessageEntity].futureValue // futureValue is from ScalaFutures
+        val request = Post("/user").withEntity(userEntity)
 
-      // using the RequestBuilding DSL:
-      val request = Post("/user").withEntity(userEntity)
-
-      request ~> routes ~> check {
-        status should ===(StatusCodes.Created)
-
-        // we expect the response to be json:
-        contentType should ===(ContentTypes.`application/json`)
-
-        // and we know what message we're expecting back:
-        entityAs[String] should ===("""{"description":"User Kapi created."}""")
+        request ~> routes ~> check {
+          status should ===(StatusCodes.Created)
+          contentType should ===(ContentTypes.`application/json`)
+          entityAs[String] should ===("""{"description":"User Kapi created."}""")
+        }
       }
-    }
-    //#testing-post
 
-    "be able to remove users (DELETE /user)" in {
-      // user the RequestBuilding DSL provided by ScalatestRouteSpec:
-      val request = Delete(uri = "/user/Kapi")
+      "be able to remove users (DELETE /user)" in {
+        val request = Delete(uri = "/user/1")
 
-      request ~> routes ~> check {
-        status should ===(StatusCodes.OK)
-
-        // we expect the response to be json:
-        contentType should ===(ContentTypes.`application/json`)
-
-        // and no entries should be in the list:
-        entityAs[String] should ===("""{"description":"User Kapi deleted."}""")
+        request ~> routes ~> check {
+          status should ===(StatusCodes.OK)
+          contentType should ===(ContentTypes.`application/json`)
+          entityAs[String] should ===("""{"description":"User Kapi deleted."}""")
+        }
       }
+
     }
   }
 }

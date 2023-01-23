@@ -34,10 +34,6 @@ class ReportStoreMem extends ReportStore {
     if(sz == enrolls.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
   }
 
-  def -(enroll:Report):Try[ReportStore] = {     
-    del(enroll.id)
-  }
-
   def ?(id:UUID):Try[Report] = enrolls.get(id) match {
     case Some(p) => Success(p)
     case None => Failure(new Exception(s"not found: ${id}"))

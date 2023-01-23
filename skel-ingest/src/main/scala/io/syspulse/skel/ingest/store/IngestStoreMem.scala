@@ -13,46 +13,42 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.ingest._
 
-class IngestStoreMem[ID] extends IngestStore[IN[ID],ID] {
+class IngestStoreMem[I] extends IngestStore[I] {
   val log = Logger(s"${this}")
   
-  var ingests: Map[ID,IN[ID]] = Map()
+  var ingests: Map[I,Ing[I]] = Map()
 
-  def all:Seq[IN[ID]] = ingests.values.toSeq
+  def all:Seq[Ing[I]] = ingests.values.toSeq
 
   def size:Long = ingests.size
 
-  def +(ingest:IN[ID]):Try[IngestStore[IN[ID],ID]] = { 
-    ingests = ingests + (ingest.id -> ingest)
+  def +(ingest:Ing[I]):Try[IngestStore[I]] = { 
+    ingests = ingests + (ingest.getId -> ingest)
     log.info(s"${ingest}")
     Success(this)
   }
 
-  def del(id:ID):Try[IngestStore[IN[ID],ID]] = {
+  def del(id:I):Try[IngestStore[I]] = {
     val sz = ingests.size
     ingests = ingests - id;
     log.info(s"${id}")
     if(sz == ingests.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
   }
 
-  def -(ingest:IN[ID]):Try[IngestStore[IN[ID],ID]] = {     
-    del(ingest.id)
-  }
-
-  def ?(id:ID):Try[IN[ID]] = ingests.get(id) match {
+  def ?(id:I):Try[Ing[I]] = ingests.get(id) match {
     case Some(i) => Success(i)
     case None => Failure(new Exception(s"not found: ${id}"))
   }
 
-  def ??(txt:String):List[IN[ID]] = {
+  def ??(txt:String):List[Ing[I]] = {
     ingests.values.filter(v => 
       // v.desc.matches(txt) || 
       v.searchables().matches(txt)
     ).toList
   }
 
-  def scan(txt:String):List[IN[ID]] = ??(txt)
-  def search(txt:String):List[IN[ID]] = ??(txt)
-  def grep(txt:String):List[IN[ID]] = ??(txt)
-  def typing(txt:String):List[IN[ID]] = ??(txt)
+  def scan(txt:String):List[Ing[I]] = ??(txt)
+  def search(txt:String):List[Ing[I]] = ??(txt)
+  def grep(txt:String):List[Ing[I]] = ??(txt)
+  def typing(txt:String):List[Ing[I]] = ??(txt)
 }

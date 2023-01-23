@@ -81,7 +81,7 @@ class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB
       case e:Exception => Failure(new Exception(s"could not delete: ${e}"))
     } 
   }
-  def -(otp:Otp):Try[OtpStoreDB] = { this.del(otp.id) }
+  //def -(otp:Otp):Try[OtpStoreDB] = { this.del(otp.id) }
 
   def ?(id:UUID):Try[Otp] = {
     log.info(s"select: id=${id}")

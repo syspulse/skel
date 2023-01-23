@@ -34,11 +34,11 @@ class OtpStoreMem extends OtpStore {
     }
     
   }
-  def -(otp:Otp):Try[OtpStore] = { 
-    val sz = otps.size
-    otps = otps - otp;
-    if(sz == otps.size) Failure(new Exception(s"not found: ${otp}")) else Success(this)
-  }
+  // def -(otp:Otp):Try[OtpStore] = { 
+  //   val sz = otps.size
+  //   otps = otps - otp;
+  //   if(sz == otps.size) Failure(new Exception(s"not found: ${otp}")) else Success(this)
+  // }
 
   def ?(id:UUID):Try[Otp] = otps.find(_.id == id) match {
     case Some(o) => Success(o)
