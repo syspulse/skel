@@ -13,8 +13,9 @@ import io.syspulse.skel.user.User
 
 trait UserStore extends Store[User,UUID] {
   
+  def getKey(e: User): UUID = e.id
   def +(user:User):Try[UserStore]
-  def -(user:User):Try[UserStore]
+  //def -(user:User):Try[UserStore]
   def del(id:UUID):Try[UserStore]
   def ?(id:UUID):Try[User]  
   def all:Seq[User]

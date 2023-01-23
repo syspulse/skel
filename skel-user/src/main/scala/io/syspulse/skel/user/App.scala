@@ -48,7 +48,7 @@ object App extends skel.Server {
         ArgString('h', "http.host",s"listen host (def: ${d.host})"),
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
-        ArgString('d', "datastore",s"datastore [mysql,postgres,mem,cache] (def: ${d.datastore})"),
+        ArgString('d', "datastore",s"datastore [mysql,postgres,dir,mem,cache] (def: ${d.datastore})"),
         ArgString('_', "timeout",s"Timeouts, msec (def: ${d.timeout})"),
 
         ArgString('_', "upload.store",s"Store for user uploaded files (def: ${d.uploadStore})"),
@@ -79,7 +79,8 @@ object App extends skel.Server {
     val store = config.datastore.split("://").toList match {
       case "mysql" :: _ => new UserStoreDB(c,"mysql")
       case "postgres" :: _ => new UserStoreDB(c,"postgres")
-      case "mem" :: Nil | "cache" :: Nil => new UserStoreMem
+      case "dir" :: dir ::  _ => new UserStoreDir(dir)
+      case "mem" :: Nil | "cache" :: Nil => new UserStoreMem()
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}'")
         sys.exit(1)

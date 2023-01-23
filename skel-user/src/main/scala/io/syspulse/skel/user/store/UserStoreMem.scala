@@ -35,9 +35,9 @@ class UserStoreMem extends UserStore {
     if(sz == users.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
   }
 
-  def -(user:User):Try[UserStore] = {     
-    del(user.id)
-  }
+  // def -(user:User):Try[UserStore] = {     
+  //   del(user.id)
+  // }
 
   def ?(id:UUID):Try[User] = users.get(id) match {
     case Some(u) => Success(u)

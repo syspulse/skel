@@ -98,7 +98,7 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreD
     } 
   }
 
-  def -(user:User):Try[UserStoreDB] = { this.del(user.id) }
+  //override def -(user:User):Try[UserStoreDB] = { this.del(user.id) }
 
   def ?(id:UUID):Try[User] = {
     log.info(s"select: id=${id}")
