@@ -453,38 +453,52 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     parameters("msg".optional,"sig".optional,"addr".optional,"redirect_uri", "response_type".optional,"client_id".optional,"scope".optional,"state".optional) { 
       (msg,sig,addr,redirect_uri,response_type,client_id,scope,state) => {
 
+        if(!client_id.isDefined ) {
+          log.error(s"invalid client_id: ${client_id}")
+          complete(StatusCodes.Unauthorized,"invalid client_id")
+        } 
+        else 
         if(!addr.isDefined ) {
-          log.error(s"sig='${sig}', addr=${addr}: invalid signing address")
-          complete(StatusCodes.Unauthorized,"invalid signing address")
-        } else {
+          log.error(s"invalid signing address: addr=${addr}: sig='${sig}'")
+          complete(StatusCodes.Unauthorized,"invalid signer")
+        } 
+        else {
+          val client = getClient(client_id.get)
+          onSuccess(client) { rsp =>
+            rsp match {
+              case Success(client) =>                 
+                val sigData = 
+                if(msg.isDefined) 
+                  // decode from Base64
+                  new String(java.util.Base64.getDecoder.decode(msg.get))
+                else
+                  EthOAuth2.generateSigDataTolerance(Map("address" -> addr.get))
 
-          val sigData = 
-          if(msg.isDefined) 
-            // decode from Base64
-            new String(java.util.Base64.getDecoder.decode(msg.get))
-          else
-            EthOAuth2.generateSigDataTolerance(Map("address" -> addr.get))
+                log.info(s"sigData=${sigData}")
 
-          log.info(s"sigData=${sigData}")
+                val pk = if(sig.isDefined) 
+                  Eth.recoverMetamask(sigData,Util.fromHexString(sig.get)) 
+                else 
+                  Failure(new Exception(s"Empty signature"))
 
-          val pk = if(sig.isDefined) 
-            Eth.recoverMetamask(sigData,Util.fromHexString(sig.get)) 
-          else 
-            Failure(new Exception(s"Empty signature"))
+                val addrFromSig = pk.map(p => Eth.address(p))
 
-          val addrFromSig = pk.map(p => Eth.address(p))
+                if(addrFromSig.isFailure || addrFromSig.get != addr.get.toLowerCase()) {
+                  log.error(s"sig=${sig}, addr=${addr}: invalid sig")
+                  complete(StatusCodes.Unauthorized,s"invalid sig: ${sig}")
+                } else {
 
-          if(addrFromSig.isFailure || addrFromSig.get != addr.get.toLowerCase()) {
-            log.error(s"sig=${sig}, addr=${addr}: invalid sig")
-            complete(StatusCodes.Unauthorized,s"invalid sig: ${sig}")
-          } else {
+                  val code = Util.generateRandomToken()
 
-            val code = Util.generateRandomToken()
-
-            onSuccess(createCode(Code(code, addr,state = state))) { rsp =>
-              val redirectUrl = redirect_uri + s"?code=${rsp.code.code}&state=${state.getOrElse("")}"
-              log.info(s"sig=${sig}, addr=${addr}, state=${state}, redirect_uri=${redirect_uri}: -> ${redirectUrl}")
-              redirect(redirectUrl, StatusCodes.PermanentRedirect)  
+                  onSuccess(createCode(Code(code, addr,state = state))) { rsp =>
+                    val redirectUrl = redirect_uri + s"?code=${rsp.code.code}&state=${state.getOrElse("")}"
+                    log.info(s"sig=${sig}, addr=${addr}, state=${state}, redirect_uri=${redirect_uri}: -> ${redirectUrl}")
+                    redirect(redirectUrl, StatusCodes.PermanentRedirect)  
+                  }
+                }
+              case Failure(e) => 
+                log.error(s"invalid client_id: '${client_id.get}'")
+                complete(StatusCodes.Unauthorized,"invalid client_id")
             }
           }
         }                
