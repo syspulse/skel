@@ -466,7 +466,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           val client = getCred(client_id.get)
           onSuccess(client) { rsp =>
             rsp match {
-              case Success(client) =>                 
+              case Success(client) =>
                 val sigData = 
                 if(msg.isDefined) 
                   // decode from Base64
@@ -526,7 +526,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     }
   }
 
-  def generateTokens(code:String,state:Option[String]) = {
+  def generateTokens(code:String,state:Option[String],clientId:Option[String],clientSecret:Option[String]) = {
     onSuccess(getCode(code)) { rsp =>
       if(! rsp.isSuccess || 
         rsp.get.expire < System.currentTimeMillis() ||
@@ -535,71 +535,94 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         log.error(s"code=${code}: state=${state}: rsp=${rsp}: not found or expired")
         complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
 
+      } else if(!clientId.isDefined ) {
+          log.error(s"invalid client_id: ${clientId}")
+          complete(StatusCodes.Unauthorized,"invalid client_id")
+      
       } else {
-
-        // request uid from UserService
-        onSuccess(UserClientHttp(serviceUserUri).withTimeout().findByXidAlways(rsp.get.xid.get)) { user => 
-        
-          if(! user.isDefined ) {
-        
-            log.warn(s"code=${code}: user=${user}: not found")
-            //complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
-                        
-            // non-esisting user
-            val uid = Permissions.USER_NOBODY.toString
-            // issue token for nobody with a scope to start enrollment 
-            val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid, "role" -> Permissions.ROLE_NOBODY, "scope" -> "enrollment"))
-            val idToken = ""
-            val refreshToken = ""
-            
-            log.warn(s"code=${code}: rsp=${rsp.get}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
-
-            // Update code to become expired !
-            // TODO: Remove code completely !
-            onSuccess(updateCode(Code(code,None,Some(accessToken),None,0L))) { rsp =>                      
-              complete(StatusCodes.OK,
-                EthTokens(
-                  accessToken = accessToken, 
-                  idToken = idToken, 
-                  expiresIn = Auth.NOBODY_AGE,
-                  scope = "",
-                  tokenType = "",
-                  refreshToken = refreshToken
-                ))
-            }
-
-          } else  {
-
-            val uid = user.get.id
-            val email = user.get.email
-            val name = user.get.name
-            val avatar = user.get.avatar
-
-            // generate IDP tokens 
-            val idToken = AuthJwt.generateIdToken(rsp.get.xid.getOrElse(""),Map("email"->email,"name"->name,"avatar"->avatar)) 
-            val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
-            val refreshToken = AuthJwt.generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = 3600L * 10) 
-            
-            log.info(s"code=${code}: rsp=${rsp.get}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
-
-            // associate idToken with code for later Profile retrieval by rewriting Code and
-            // immediately expiring code 
-            // Extracting user id possible from JWT 
-            // Update code to make it expired
-            onSuccess(updateCode(Code(code,None,Some(accessToken),None,0L))) { rsp =>
+        val client = getCred(clientId.get)
+        onSuccess(client) { rspClient =>
+          rspClient match {
+            case Success(client) =>
               
-              complete(StatusCodes.OK,
-                EthTokens(
-                  accessToken = accessToken, 
-                  idToken = idToken, 
-                  expiresIn = Auth.DEF_AGE,
-                  scope = "",
-                  tokenType = "",
-                  refreshToken = refreshToken))                    
-            }
+              if(!clientId.isDefined ) {
+
+                log.error(s"invalid client_id: ${clientId}")
+                complete(StatusCodes.Unauthorized,"invalid client_id")
+              } else if(Some(client.secret) != clientSecret) {
+
+                log.error(s"invalid client_secret: ${clientSecret}")
+                complete(StatusCodes.Unauthorized,"invalid client_secret")
+              } else {
+
+                // request uid from UserService
+                onSuccess(UserClientHttp(serviceUserUri).withTimeout().findByXidAlways(rsp.get.xid.get)) { user => 
+                
+                  if(! user.isDefined ) {
+                
+                    log.warn(s"code=${code}: user=${user}: not found")
+                    //complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
+                                
+                    // non-esisting user
+                    val uid = Permissions.USER_NOBODY.toString
+                    // issue token for nobody with a scope to start enrollment 
+                    val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid, "role" -> Permissions.ROLE_NOBODY, "scope" -> "enrollment"))
+                    val idToken = ""
+                    val refreshToken = ""
+                    
+                    log.warn(s"code=${code}: rsp=${rsp.get}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
+
+                    // Update code to become expired !
+                    // TODO: Remove code completely !
+                    onSuccess(updateCode(Code(code,None,Some(accessToken),None,0L))) { rsp =>                      
+                      complete(StatusCodes.OK,
+                        EthTokens(
+                          accessToken = accessToken, 
+                          idToken = idToken, 
+                          expiresIn = Auth.NOBODY_AGE,
+                          scope = "",
+                          tokenType = "",
+                          refreshToken = refreshToken
+                        ))
+                    }
+
+                  } else  {
+
+                    val uid = user.get.id
+                    val email = user.get.email
+                    val name = user.get.name
+                    val avatar = user.get.avatar
+
+                    // generate IDP tokens 
+                    val idToken = AuthJwt.generateIdToken(rsp.get.xid.getOrElse(""),Map("email"->email,"name"->name,"avatar"->avatar)) 
+                    val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
+                    val refreshToken = AuthJwt.generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = 3600L * 10) 
+                    
+                    log.info(s"code=${code}: rsp=${rsp.get}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
+
+                    // associate idToken with code for later Profile retrieval by rewriting Code and
+                    // immediately expiring code 
+                    // Extracting user id possible from JWT 
+                    // Update code to make it expired
+                    onSuccess(updateCode(Code(code,None,Some(accessToken),None,0L))) { rsp =>
+                      
+                      complete(StatusCodes.OK,
+                        EthTokens(
+                          accessToken = accessToken, 
+                          idToken = idToken, 
+                          expiresIn = Auth.DEF_AGE,
+                          scope = "",
+                          tokenType = "",
+                          refreshToken = refreshToken))
+                    }
+                  }
+                }
+              }
+            case Failure(e) => 
+              log.error(s"invalid client_id: ${e.getMessage()}")
+              complete(StatusCodes.Unauthorized,s"client_id: ${e.getMessage()}")
           }
-        }
-        
+        }        
       }
     }
   }
@@ -622,23 +645,44 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     formFields("code","client_id","client_secret","redirect_uri","grant_type","state".optional) { (code,client_id,client_secret,redirect_uri,grant_type,state) => {
       log.info(s"code=${code},client_id=${client_id},client_secret=${client_secret},redirect_uri=${redirect_uri},grant_type=${grant_type},state=${state}")
       
-      generateTokens(code,state)
+      generateTokens(code,state,Some(client_id),Some(client_secret))
     }
   }}
 
   //@GET @Path("/eth/token") @Produces(Array(MediaType.APPLICATION_JSON))
+  // @GET @Path("/token/eth") @Produces(Array(MediaType.APPLICATION_JSON))
+  // @Operation(tags = Array("auth"),summary = "Web3 Authentication with code",
+  //   method = "GET",
+  //   parameters = Array(
+  //     new Parameter(name = "code", in = ParameterIn.PATH, description = "code"),
+  //     new Parameter(name = "state", in = ParameterIn.PATH, description = "state (optional)")
+  //   ),
+  //   responses = Array(new ApiResponse(responseCode="200",description = "Authenticated User ID",content=Array(new Content(schema=new Schema(implementation = classOf[AuthWithProfileRes])))))
+  // )
+  // def getTokenEth = get { parameters("code","state".optional) { (code,state) => 
+  //   generateTokens(code,state,None,None)
+  // }}
+  
   @GET @Path("/token/eth") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("auth"),summary = "Web3 Authentication with code",
     method = "GET",
     parameters = Array(
-      new Parameter(name = "code", in = ParameterIn.PATH, description = "code"),
-      new Parameter(name = "state", in = ParameterIn.PATH, description = "state (optional)")
+      new Parameter(name = "redirect_uri", in = ParameterIn.PATH, description = "redirect_uri"),
+      new Parameter(name = "scope", in = ParameterIn.PATH, description = "scope"),
+      new Parameter(name = "state", in = ParameterIn.PATH, description = "state"),
+      new Parameter(name = "prompt", in = ParameterIn.PATH, description = "prompt"),
+      new Parameter(name = "authuser", in = ParameterIn.PATH, description = "authuser"),
+      new Parameter(name = "hd", in = ParameterIn.PATH, description = "hd"),
     ),
     responses = Array(new ApiResponse(responseCode="200",description = "Authenticated User ID",content=Array(new Content(schema=new Schema(implementation = classOf[AuthWithProfileRes])))))
   )
-  def getTokenEth = get { parameters("code","state".optional) { (code,state) => 
-    generateTokens(code,state)
-  }}
+  def getTokenEth = get { parameters("code", "challenge", "redirect_uri".optional, "scope".optional, "state".optional) { (code,challenge,redirectUri,scope,state) =>
+    onSuccess(callbackFlow(idps.get(EthOAuth2.id).get,code,redirectUri,None,scope,state)) { rsp =>
+      complete(StatusCodes.Created, rsp)
+    }}
+  }
+  
+  
 
 // -------- Creds -----------------------------------------------------------------------------------------------------------------------------
   @GET @Path("/client/{id}") @Produces(Array(MediaType.APPLICATION_JSON))

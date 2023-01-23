@@ -40,12 +40,6 @@ class CodeStoreMem extends CodeStore {
     }
   }
 
-  def -(code:Code):Try[CodeStore] = { 
-    val sz = codes.size
-    codes = codes - code.code;
-    if(sz == codes.size) Failure(new Exception(s"not found: ${code}")) else Success(this)
-  }
-
   def ?(c:String):Try[Code] = codes.get(c) match {
     case Some(code) => Success(code)
     case None => Failure(new Exception(s"not found: ${c}"))

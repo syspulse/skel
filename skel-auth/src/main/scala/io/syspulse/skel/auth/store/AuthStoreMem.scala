@@ -34,9 +34,9 @@ class AuthStoreMem extends AuthStore {
     if(sz == auths.size) Failure(new Exception(s"not found: ${token}")) else Success(this)
   }
 
-  def -(auth:Auth):Try[AuthStore] = { 
-    del(auth.accessToken)
-  }
+  // def -(auth:Auth):Try[AuthStore] = { 
+  //   del(auth.accessToken)
+  // }
 
   def ?(token:String):Try[Auth] = auths.get(token) match {
     case Some(a) => Success(a)

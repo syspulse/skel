@@ -11,37 +11,22 @@ import os._
 import spray.json._
 import DefaultJsonProtocol._
 
+import io.syspulse.skel.auth.cred.CredStoreMem
+import io.syspulse.skel.store.StoreDir
+import CredJson._
+
 // Preload from file during start
-class CredStoreDir(dir:String = "store/") extends CredStoreMem {
-  import CredJson._
+class CredStoreDir(dir:String = "store/cred/") extends StoreDir[Cred,String](dir) with CredStore {
+  val store = new CredStoreMem
+  
+  def all:Seq[Cred] = store.all
+  def size:Long = store.size
+  override def +(c:Cred):Try[CredStoreDir] = super.+(c).flatMap(_ => store.+(c)).map(_ => this)
 
+  override def del(cid:String):Try[CredStoreDir] = super.del(cid).flatMap(_ => store.del(cid)).map(_ => this)
+  override def ?(cid:String):Try[Cred] = store.?(cid)
+
+  // preload
   load(dir)
-
-  def load(dir:String) = {
-    val storeDir = os.Path(dir,os.pwd)
-    log.info(s"Loading dir store: ${storeDir}")
-
-    val vv = os.walk(storeDir)
-      .filter(_.toIO.isFile())
-      .map(f => {
-        log.info(s"Loading file: ${f}")
-        os.read(f)
-      })
-      .map(fileData => fileData.split("\n").map { data =>
-        try {
-          val c = data.parseJson.convertTo[Cred]
-          log.debug(s"c=${c}")
-          Seq(c)
-        } catch {
-          case e:Exception => log.error(s"could not parse data: ${data}",e); Seq()
-        }
-      })
-      .flatten // file
-      .flatten // files
-
-    vv.foreach(v => this.+(v))
-
-    log.info(s"Loaded store: ${size}")
-  }
 
 }

@@ -8,9 +8,10 @@ import io.syspulse.skel.auth.Auth
 import io.syspulse.skel.store.Store
 
 trait AuthStore extends Store[Auth,String] {
-  
+  def getKey(auth: Auth): String = auth.accessToken
+
   def +(auth:Auth):Try[AuthStore]
-  def -(auth:Auth):Try[AuthStore]
+  // def -(auth:Auth):Try[AuthStore]
   def del(aid:String):Try[AuthStore]
   def ?(aid:String):Try[Auth]
   def all:Seq[Auth]

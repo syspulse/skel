@@ -31,7 +31,7 @@ class EntityStoreDir(dir:String,preload:Boolean = false) extends StoreDir[Entity
 
   if(preload) load(dir)
   
-  def getId(e:Entity) = e.id
+  def getKey(e:Entity) = e.id
   override def +(e:Entity):Try[EntityStoreDir] = {
     ee = ee + (e.id -> e)
     super.+(e).map(_ => this)

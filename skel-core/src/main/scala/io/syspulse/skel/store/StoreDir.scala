@@ -12,9 +12,7 @@ import DefaultJsonProtocol._
 abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E]) extends Store[E,P] {
   val log = Logger(s"${this}")
 
-  def getId(e:E):P
-
-  def +(e:E):Try[StoreDir[E,P]] = { 
+  override def +(e:E):Try[StoreDir[E,P]] = { 
     writeFile(e).map(_ => this)
   }
 
@@ -22,19 +20,21 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E]) 
     delFileById(id).map(_ => this)
   }
 
-  def writeFile(e:E) = try {
-    Success(os.write.over(os.Path(dir,os.pwd) / s"${getId(e)}.json",e.toJson.compactPrint))
+  def writeFile(e:E):Try[E] = try {
+    os.write.over(os.Path(dir,os.pwd) / s"${getKey(e)}.json",e.toJson.compactPrint)
+    Success(e)
   } catch {
     case e:Exception => Failure(e)
   }
   
-  def delFileById(id:P) = try {
-    Success(os.remove(os.Path(dir,os.pwd) / s"${id}.json"))
+  def delFileById(id:P):Try[P] = try {
+    os.remove(os.Path(dir,os.pwd) / s"${id}.json")
+    Success(id)
   } catch {
     case e:Exception => Failure(e)
   }
 
-  def delFile(e:E) = delFileById(getId(e))
+  def delFile(e:E):Try[E] = delFileById(getKey(e)).map(_ => e)
   
   def flush(e:Option[E]):Try[StoreDir[E,P]] = {
     e match {
@@ -51,6 +51,10 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E]) 
 
   def load(dir:String) = {
     val storeDir = os.Path(dir,os.pwd)
+    if(! os.exists(storeDir)) {
+      os.makeDir.all(storeDir)
+    }
+    
     log.info(s"Loading dir store: ${storeDir}")
 
     val vv = os.walk(storeDir)
