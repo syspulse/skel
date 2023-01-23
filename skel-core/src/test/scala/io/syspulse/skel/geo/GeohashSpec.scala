@@ -2,13 +2,15 @@ package io.syspulse.skel.geo
 
 import scala.util.{Try,Success,Failure}
 
-import org.scalatest.{ Matchers, WordSpec }
-import org.scalactic.TolerantNumerics
+import org.scalatest.{Ignore}
+import org.scalatest.wordspec.{ AnyWordSpec}
+import org.scalatest.matchers.should.{ Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
 
 import java.time._
 import io.syspulse.skel.util.Util
 
-class GeohashSpec extends WordSpec with Matchers {
+class GeohashSpec extends AnyWordSpec with Matchers {
 
   "GeohashSpec" should {
     "61.702662 7.632055 -> u4vrj8tkpcbe" in {

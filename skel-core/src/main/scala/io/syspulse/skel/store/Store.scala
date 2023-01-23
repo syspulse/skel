@@ -6,8 +6,9 @@ import scala.collection.immutable
 
 import io.jvm.uuid._
 
-trait Store[E,P]  {
-  
+trait Store[E,P] {
+  this: Store[E,P] =>
+
   def +(e:E):Try[Store[E,P]]
   def -(e:E):Try[Store[E,P]]
   def del(id:P):Try[Store[E,P]]
@@ -15,4 +16,3 @@ trait Store[E,P]  {
   def all:Seq[E]
   def size:Long
 }
-
