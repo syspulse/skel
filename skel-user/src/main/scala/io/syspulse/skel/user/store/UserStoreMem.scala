@@ -45,7 +45,7 @@ class UserStoreMem extends UserStore {
   }
 
   def findByXid(xid:String):Option[User] = {
-    users.values.find(_.xid == xid)
+    users.values.find(_.xid.toLowerCase == xid.toLowerCase())
   }
 
   def findByEmail(email:String):Option[User] = {

@@ -490,8 +490,8 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
                   val code = Util.generateRandomToken()
 
-                  onSuccess(createCode(Code(code, addr,state = state))) { rsp =>
-                    val redirectUrl = redirect_uri + s"?code=${rsp.code.code}&state=${state.getOrElse("")}"
+                  onSuccess(createCode(Code(code, addr, state = state))) { rsp =>
+                    val redirectUrl = redirect_uri + s"?code=${rsp.code.code}" + {if(state.isDefined) s"&state=${state.get}" else ""}
                     log.info(s"sig=${sig}, addr=${addr}, state=${state}, redirect_uri=${redirect_uri}: -> ${redirectUrl}")
                     redirect(redirectUrl, StatusCodes.PermanentRedirect)  
                   }
@@ -528,17 +528,26 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
   def generateTokens(code:String,state:Option[String],clientId:Option[String],clientSecret:Option[String]) = {
     onSuccess(getCode(code)) { rsp =>
-      if(! rsp.isSuccess || 
-        rsp.get.expire < System.currentTimeMillis() ||
-        rsp.get.state != state) {
+      if(! rsp.isSuccess) {
+              
+        log.error(s"code=${code}: rsp=${rsp}: code not found")
+        complete(StatusCodes.Unauthorized,s"invalid code: ${code}")
+
+      } else if(rsp.get.expire < System.currentTimeMillis()) {
         
-        log.error(s"code=${code}: state=${state}: rsp=${rsp}: not found or expired")
-        complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
+        log.error(s"code=${code}: code expired: ${rsp.get.expire}")
+        complete(StatusCodes.Unauthorized,s"invalid code: ${code}")
 
       } else if(!clientId.isDefined ) {
-          log.error(s"invalid client_id: ${clientId}")
-          complete(StatusCodes.Unauthorized,"invalid client_id")
-      
+        
+        log.error(s"invalid client_id: ${clientId}")
+        complete(StatusCodes.Unauthorized,s"invalid client_id")
+
+      } else if(rsp.get.state != state) {
+
+        log.error(s"invalid state: ${state}")
+        complete(StatusCodes.Unauthorized,s"invalid state: ${state}")
+
       } else {
         val client = getCred(clientId.get)
         onSuccess(client) { rspClient =>
