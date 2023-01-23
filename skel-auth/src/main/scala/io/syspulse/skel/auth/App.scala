@@ -13,13 +13,16 @@ import io.syspulse.skel.auth.server.AuthRoutes
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.store._
 import io.syspulse.skel.auth.permissions.rbac.Permissions
-import io.syspulse.skel.auth.cid.Client
+import io.syspulse.skel.auth.cred.Cred
 
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
   uri:String = "/api/v1/auth",
-  datastore:String = "mem",
+
+  datastore:String = "mem://",
+  storeCode:String = "mem://",
+  storeCred:String = "mem://",
 
   proxyBasicUser:String = "user1",
   proxyBasicPass:String = "pass1",
@@ -246,8 +249,8 @@ object App extends skel.Server {
         val r = 
           config.params match {
             case "generate" :: Nil => 
-              val client_id = Client.generateClientId()
-              val client_secret = Client.generateClientSecret()
+              val client_id = Cred.generateClientId()
+              val client_secret = Cred.generateClientSecret()
                         
               s"""export ETH_AUTH_CLIENT_ID="${client_id}"\n"""+
               s"""export ETH_AUTH_CLIENT_SECRET="${client_secret}"\n"""

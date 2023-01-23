@@ -100,8 +100,8 @@ import io.syspulse.skel.auth._
 import io.syspulse.skel.auth.server.{AuthCreateRes, Auths, AuthActionRes, AuthRes, AuthIdp, AuthWithProfileRes}
 
 import io.syspulse.skel.auth.code._
-import io.syspulse.skel.auth.cid._
-import io.syspulse.skel.auth.cid.ClientRegistry._
+import io.syspulse.skel.auth.cred._
+import io.syspulse.skel.auth.cred.CredRegistry._
 
 @Path("/")
 class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirectUri:String,serviceUserUri:String)(implicit context:ActorContext[_],config:Config) 
@@ -115,7 +115,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   val codeRegistry: ActorRef[skel.Command] = context.spawn(CodeRegistry(),"Actor-CodeRegistry")
   context.watch(codeRegistry)
 
-  val clientRegistry: ActorRef[skel.Command] = context.spawn(ClientRegistry(),"Actor-ClietnRegistry")
+  val clientRegistry: ActorRef[skel.Command] = context.spawn(CredRegistry(),"Actor-ClietnRegistry")
   context.watch(clientRegistry)
   
   // lazy because EthOAuth2 JWKS will request while server is not started yet
@@ -129,7 +129,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
   import AuthJson._
   import CodeJson._
-  import ClientJson._
+  import CredJson._
 
   def getAuths(): Future[Auths] = authRegistry.ask(GetAuths)
 
@@ -142,10 +142,10 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   def getCodeByToken(accessToken: String): Future[CodeRes] = codeRegistry.ask(GetCodeByToken(accessToken, _))
   def getCodes(): Future[Try[Codes]] = codeRegistry.ask(GetCodes(_))
 
-  def getClients(): Future[Try[Clients]] = clientRegistry.ask(GetClients)
-  def getClient(id: String): Future[Try[Client]] = clientRegistry.ask(GetClient(id, _))
-  def createClient(req: ClientCreateReq): Future[Try[Client]] = clientRegistry.ask(CreateClient(req, _))
-  def deleteClient(id: String): Future[ClientActionRes] = clientRegistry.ask(DeleteClient(id, _))
+  def getCreds(): Future[Try[Creds]] = clientRegistry.ask(GetCreds)
+  def getCred(id: String): Future[Try[Cred]] = clientRegistry.ask(GetCred(id, _))
+  def createCred(req: CredCreateReq): Future[Try[Cred]] = clientRegistry.ask(CreateCred(req, _))
+  def deleteCred(id: String): Future[CredActionRes] = clientRegistry.ask(DeleteCred(id, _))
 
   implicit val permissions = Permissions(config.permissionsModel,config.permissionsPolicy)
   // def hasAdminPermissions(authn:Authenticated) = {
@@ -463,7 +463,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           complete(StatusCodes.Unauthorized,"invalid signer")
         } 
         else {
-          val client = getClient(client_id.get)
+          val client = getCred(client_id.get)
           onSuccess(client) { rsp =>
             rsp match {
               case Success(client) =>                 
@@ -640,50 +640,50 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     generateTokens(code,state)
   }}
 
-// -------- Clients -----------------------------------------------------------------------------------------------------------------------------
+// -------- Creds -----------------------------------------------------------------------------------------------------------------------------
   @GET @Path("/client/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("auth"),summary = "Return Client Credentials by id",
+  @Operation(tags = Array("auth"),summary = "Return Cred Credentials by id",
     parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "client_id")),
-    responses = Array(new ApiResponse(responseCode="200",description = "Client Credentials returned",content=Array(new Content(schema=new Schema(implementation = classOf[Client])))))
+    responses = Array(new ApiResponse(responseCode="200",description = "Cred Credentials returned",content=Array(new Content(schema=new Schema(implementation = classOf[Cred])))))
   )
-  def getClientRoute(id: String) = get {
+  def getCredRoute(id: String) = get {
     rejectEmptyResponse {
-      onSuccess(getClient(id)) { r =>
+      onSuccess(getCred(id)) { r =>
         complete(r)
       }
     }
   }
 
   @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("auth"), summary = "Return all Client Credentials",
+  @Operation(tags = Array("auth"), summary = "Return all Cred Credentials",
     responses = Array(
-      new ApiResponse(responseCode = "200", description = "List of Client Crednetials",content = Array(new Content(schema = new Schema(implementation = classOf[Clients])))))
+      new ApiResponse(responseCode = "200", description = "List of Cred Crednetials",content = Array(new Content(schema = new Schema(implementation = classOf[Creds])))))
   )
-  def getClientsRoute() = get {
-    complete(getClients())
+  def getCredsRoute() = get {
+    complete(getCreds())
   }
 
   @DELETE @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("auth"),summary = "Delete Client Credentials by id",
+  @Operation(tags = Array("auth"),summary = "Delete Cred Credentials by id",
     parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "client_id")),
     responses = Array(
-      new ApiResponse(responseCode = "200", description = "Client Credentials deleted",content = Array(new Content(schema = new Schema(implementation = classOf[ClientActionRes])))))
+      new ApiResponse(responseCode = "200", description = "Cred Credentials deleted",content = Array(new Content(schema = new Schema(implementation = classOf[CredActionRes])))))
   )
-  def deleteClientRoute(id: String) = delete {
-    onSuccess(deleteClient(id)) { r =>
+  def deleteCredRoute(id: String) = delete {
+    onSuccess(deleteCred(id)) { r =>
       complete(StatusCodes.OK, r)
     }
   }
 
   @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("auth"),summary = "Create Client Credentials",
-    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[ClientCreateReq])))),
-    responses = Array(new ApiResponse(responseCode = "200", description = "User",content = Array(new Content(schema = new Schema(implementation = classOf[Client])))))
+  @Operation(tags = Array("auth"),summary = "Create Cred Credentials",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[CredCreateReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "User",content = Array(new Content(schema = new Schema(implementation = classOf[Cred])))))
   )
-  def createClientRoute = post {
-    entity(as[ClientCreateReq]) { req =>
-      onSuccess(createClient(req)) { r =>
+  def createCredRoute = post {
+    entity(as[CredCreateReq]) { req =>
+      onSuccess(createCred(req)) { r =>
         complete(StatusCodes.Created, r)
       }
     }
@@ -727,8 +727,8 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         pathEndOrSingleSlash {
           concat(
             authenticate()(authn => authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
-                getClientsRoute() ~                
-                createClientRoute  
+                getCredsRoute() ~                
+                createCredRoute  
               }
             ),            
           )
@@ -736,8 +736,8 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         pathPrefix(Segment) { id => 
           pathEndOrSingleSlash {
             authenticate()(authn => authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
-                getClientRoute(id) ~
-                deleteClientRoute(id)
+                getCredRoute(id) ~
+                deleteCredRoute(id)
               }
             ) 
           }
@@ -764,7 +764,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           }
         }
       },
-      // this is internal flow, not compatible with FrontEnd flow, used as Callback instead of token request from Client
+      // this is internal flow, not compatible with FrontEnd flow, used as Callback instead of token request from Cred
       // FE -> Google -> HTTP REDIRECT -> skel-auth(callback) -> FE
       pathPrefix("callback") {
         path("google") {
