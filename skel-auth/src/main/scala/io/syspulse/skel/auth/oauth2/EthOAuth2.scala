@@ -95,6 +95,8 @@ class EthOAuth2(val uri:String) extends Idp {
   override def clientId:Option[String] = Option[String](System.getenv("ETH_AUTH_CLIENT_ID"))
   override def clientSecret:Option[String] = Option[String](System.getenv("ETH_AUTH_CLIENT_SECRET")) 
 
+  def getState():String = sys.env.get("ETH_AUTH_CLIENT_STATE").getOrElse("")
+
   def getGrantData():Map[String,String] =  Map()
   
   def getBasicAuth():Option[String] = Some(java.util.Base64.getEncoder.encodeToString(s"${getClientId}:${getClientSecret}".getBytes()))
@@ -121,7 +123,7 @@ class EthOAuth2(val uri:String) extends Idp {
   def getLoginUrl() = {
     val (sigData,msg64) = sig()
     
-    s"${uri}/eth/auth?msg=${msg64}&sig=${sigData}&addr=${addr}&response_type=code&client_id=${getClientId}&scope=profile&state=state&redirect_uri=${getRedirectUri()}"
+    s"${uri}/eth/auth?msg=${msg64}&sig=${sigData}&addr=${addr}&response_type=code&client_id=${getClientId}&scope=profile&state=${getState()}&redirect_uri=${getRedirectUri()}"
   }
 
   def getProfileUrl(accessToken:String):(String,Seq[(String,String)]) = 

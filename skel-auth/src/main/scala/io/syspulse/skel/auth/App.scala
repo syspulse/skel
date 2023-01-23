@@ -13,6 +13,7 @@ import io.syspulse.skel.auth.server.AuthRoutes
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.store._
 import io.syspulse.skel.auth.permissions.rbac.Permissions
+import io.syspulse.skel.auth.cid.Client
 
 case class Config(
   host:String="0.0.0.0",
@@ -77,6 +78,10 @@ object App extends skel.Server {
           s"admin           : create Admin role token"+
           s"service         : create Service role token"+
           s"user <uid>      : create User role token"
+        ),
+        ArgCmd("cred",s"Client Credentials subcommands: " +
+          s"generate        : generate Client Credentials pair" +
+          ""
         ),
         ArgParam("<params>","")
       ).withExit(1)
@@ -207,8 +212,7 @@ object App extends skel.Server {
         
         System.exit(0)
       }
-      case "jwt" => {
-        
+      case "jwt" => {        
         val r = 
           config.params match {
             case "admin" :: Nil => 
@@ -230,6 +234,23 @@ object App extends skel.Server {
               }
             case "valid" :: token :: Nil => 
               AuthJwt.isValid(token)
+
+            case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
+          }
+        
+        println(s"${r}")
+        System.exit(0)
+      }
+
+      case "cred" => {
+        val r = 
+          config.params match {
+            case "generate" :: Nil => 
+              val client_id = Client.generateClientId()
+              val client_secret = Client.generateClientSecret()
+                        
+              s"""export ETH_AUTH_CLIENT_ID="${client_id}"\n"""+
+              s"""export ETH_AUTH_CLIENT_SECRET="${client_secret}"\n"""
 
             case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
           }

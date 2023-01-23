@@ -12,30 +12,31 @@ import io.jvm.uuid._
 class ClientStoreMem extends ClientStore {
   val log = Logger(s"${this}")
 
-  var codes: Map[String,Client] = Map()
+  val defaultClients = { val cid="eaf9642f76195dca7529c0589e6d6259"; cid -> Client(Some(cid),Some("vn5digFyJVZCIVLExNo_Hynz0zDxEUDRlu5FHB9Qvj8")) }
+  var clients: Map[String,Client] = Map() + defaultClients
 
-  def all:Seq[Client] = codes.values.toSeq
+  def all:Seq[Client] = clients.values.toSeq
 
-  def size:Long = codes.size
+  def size:Long = clients.size
 
   def +(cid:Client):Try[ClientStore] = { 
-    codes = codes + (cid.cid -> cid); Success(this)
+    clients = clients + (cid.cid -> cid); Success(this)
   }
 
   def del(c:String):Try[ClientStore] = { 
-    codes.get(c) match {
-      case Some(auth) => { codes = codes - c; Success(this) }
+    clients.get(c) match {
+      case Some(auth) => { clients = clients - c; Success(this) }
       case None => Failure(new Exception(s"not found: ${c}"))
     }
   }
 
   def -(cid:Client):Try[ClientStore] = { 
-    val sz = codes.size
-    codes = codes - cid.cid;
-    if(sz == codes.size) Failure(new Exception(s"not found: ${cid}")) else Success(this)
+    val sz = clients.size
+    clients = clients - cid.cid;
+    if(sz == clients.size) Failure(new Exception(s"not found: ${cid}")) else Success(this)
   }
 
-  def ?(c:String):Try[Client] = codes.get(c) match {
+  def ?(c:String):Try[Client] = clients.get(c) match {
     case Some(cid) => Success(cid)
     case None => Failure(new Exception(s"not found: ${c}"))
   }
