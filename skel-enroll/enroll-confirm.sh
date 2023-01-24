@@ -11,4 +11,4 @@ DATA_JSON="{ \"id\":\"$EID\", \"data\": { \"code\":\"$CODE\"}}"
 
 2> echo $DATA_JSON
 #curl -s -X GET --data "$DATA_JSON" -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" $SERVICE_URI/$EID/confirm/$CODE
-curl -s -X GET -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" $SERVICE_URI/$EID/confirm/$CODE
+curl -i -X GET -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" $SERVICE_URI/$EID/confirm/$CODE

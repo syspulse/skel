@@ -161,6 +161,7 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
   )
   def getEnrollEmailConfirmRoute(id: String,code:String) = get {
     onSuccess(updateEnroll(EnrollUpdateReq(id = UUID.fromString(id),command=Some("confirm"),data=Map("code"->code)))) { r => 
+      log.info(s"route: r = ${r}")
       complete((StatusCodes.OK, r))
     }
     
@@ -180,7 +181,10 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
     }
   }
 
-  val corsAllow = CorsSettings(system.classicSystem).withAllowGenericHttpRequests(true)
+  val corsAllow = CorsSettings(system.classicSystem)
+    //.withAllowGenericHttpRequests(true)
+    .withAllowCredentials(true)
+    .withAllowedMethods(Seq(HttpMethods.OPTIONS,HttpMethods.GET,HttpMethods.POST,HttpMethods.PUT,HttpMethods.DELETE,HttpMethods.HEAD))
   
   override def routes: Route = cors(corsAllow) {
     concat(
