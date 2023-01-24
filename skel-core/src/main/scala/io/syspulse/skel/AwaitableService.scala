@@ -30,7 +30,7 @@ object FutureAwaitable {
 
 trait AwaitableService[T <: AwaitableService[T]] {
   var timeout:Duration = FutureAwaitable.timeout
-
+  
   def await[R](rsp:Future[R]):R = {
     val r = Await.result(rsp,timeout)
     r
@@ -41,4 +41,5 @@ trait AwaitableService[T <: AwaitableService[T]] {
     // a bit dirty
     this.asInstanceOf[T]
   }
+
 }

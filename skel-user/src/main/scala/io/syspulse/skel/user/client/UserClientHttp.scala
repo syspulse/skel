@@ -36,7 +36,7 @@ import io.syspulse.skel.user._
 import io.syspulse.skel.user.server.UserJson
 import io.syspulse.skel.user.server.{Users, UserCreateReq, UserActionRes}
 
-class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext) extends ClientHttp(uri)(as,ec) with UserService {
+class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext) extends ClientHttp[UserClientHttp](uri)(as,ec) with UserService {
   
   import UserJson._
   import spray.json._

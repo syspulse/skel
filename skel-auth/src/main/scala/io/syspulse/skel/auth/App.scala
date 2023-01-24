@@ -24,6 +24,7 @@ case class Config(
   storeCode:String = "mem://",
   storeCred:String = "mem://",
 
+  // legacy investion research
   proxyBasicUser:String = "user1",
   proxyBasicPass:String = "pass1",
   proxyBasicRealm:String = "realm",
@@ -32,6 +33,8 @@ case class Config(
   proxyHeadersMapping:String = "HEADER:Content-type:application/json, HEADER:X-App-Id:{{client_id}}, HEADER:X-App-Secret:{{client_secret}}, BODY:X-User:{{user}}, BODY:X-Pass:{{pass}}",
 
   jwtSecret:Option[String] = None,
+  jwtRoleService:String = "",
+  jwtRoleAdmin:String = "",
 
   userUri:String = "http://localhost:8080/api/v1/user",
 
@@ -65,6 +68,8 @@ object App extends skel.Server {
         ArgString('_',"proxy.headers.mapping",s"ProxyM2M Headers mapping (def: ${d.proxyHeadersMapping}) "),
 
         ArgString('_', "jwt.secret",s"JWT secret (def: ${d.jwtSecret})"),
+        ArgString('_', "jwt.role.service",s"JWT access_token for Service Account (def: ${d.jwtRoleService})"),
+        ArgString('_', "jwt.role.admin",s"JWT access_token for Admin Account (def: ${d.jwtRoleAdmin})"),
 
         ArgString('_', "user.uri",s"User Service URI (def: ${d.userUri})"),
 
@@ -104,6 +109,8 @@ object App extends skel.Server {
       proxyHeadersMapping = c.getString("proxy.headers.mapping").getOrElse(d.proxyHeadersMapping),
 
       jwtSecret = c.getString("jwt.secret"),
+      jwtRoleService = c.getString("jwt.role.service").getOrElse(""),
+      jwtRoleAdmin = c.getString("jwt.role.admin").getOrElse(""),
 
       userUri = c.getString("user.uri").getOrElse(d.userUri),
 
@@ -116,10 +123,10 @@ object App extends skel.Server {
 
     Console.err.println(s"Config: ${config}")
 
-    val store = config.datastore match {
+    val store = config.datastore.split("://").toList match {
       //case "mysql" | "db" => new AuthStoreDB(c,"mysql")
       //case "postgres" => new AuthStoreDB(c,"postgres")
-      case "mem" | "cache" => new AuthStoreMem
+      case "mem" :: _ | "cache" :: _ => new AuthStoreMem
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
         new AuthStoreMem

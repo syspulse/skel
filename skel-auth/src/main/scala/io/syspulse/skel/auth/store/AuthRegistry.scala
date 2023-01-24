@@ -83,6 +83,7 @@ object AuthRegistry {
               
               } else {
                 val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid0.get)) 
+                
                 // update Auth
                 store.!(auid, accessToken,refreshToken)                
               }

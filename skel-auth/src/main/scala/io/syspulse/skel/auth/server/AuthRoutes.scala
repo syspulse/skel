@@ -213,7 +213,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         idp.decodeProfile(profileResData)
       }
       user <- {
-        UserClientHttp(serviceUserUri).withTimeout().findByXidAlways(profile.id)
+        UserClientHttp(serviceUserUri).withAccessToken(config.jwtRoleService).withTimeout().findByXidAlways(profile.id)
       }
       authProfileRes <- {        
         val (profileEmail,profileName,profilePicture,profileLocale) = 

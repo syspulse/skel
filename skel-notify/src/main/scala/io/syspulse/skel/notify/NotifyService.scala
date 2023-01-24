@@ -13,8 +13,14 @@ import com.typesafe.scalalogging.Logger
 import io.syspulse.skel.notify.Notify
 import io.syspulse.skel.notify.client.NotifyClientHttp
 import io.syspulse.skel.AwaitableService
+import scala.concurrent.duration.Duration
 
-trait NotifyService extends AwaitableService[NotifyService] {
+trait ExternalService[T <: ExternalService[T]] {
+  def withAccessToken(token:String):T
+  def withTimeout(timeout:Duration = Duration(1000, TimeUnit.MILLISECONDS)):T
+}
+
+trait NotifyService extends ExternalService[NotifyService] {
   def notify(receivers:String,subj:String,msg:String):Future[Option[Notify]]
 }
 
@@ -43,4 +49,7 @@ class NotifyServiceSim extends NotifyService {
     log.info(s"notify: ${to},${subj},${msg}")
     Future.successful(Some(Notify(Some(to),Some(subj),msg)))
   }
+
+  def withAccessToken(token:String):NotifyServiceSim = this
+  def withTimeout(timeout:Duration = Duration(1000, TimeUnit.MILLISECONDS)):NotifyServiceSim = this
 }

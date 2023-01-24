@@ -1,10 +1,15 @@
 p, 00000000-0000-0000-1000-000000000001, api, read
 p, ffffffff-0000-0000-9000-000000000001, data, write
+p, eeeeeeee-0000-0000-1000-000000000001, data, write
+
 p, api_group_admin, api_group, write
 p, data_group_admin, data_group, write
 
 g, ffffffff-0000-0000-9000-000000000001, data_group_admin
 g, ffffffff-0000-0000-9000-000000000001, api_group_admin
+
+g, eeeeeeee-0000-0000-1000-000000000001, data_group_admin
+g, eeeeeeee-0000-0000-1000-000000000001, api_group_admin
 
 g2, data1, data_group
 g2, data2, data_group

@@ -31,22 +31,22 @@ case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
   uri:String = "/api/v1/enroll",
-  datastore:String = "akka",
+  datastore:String = "akka://",
 
   userUri:String = "http://localhost:8080/api/v1/user",
   notifyUri:String = "http://localhost:8080/api/v1/notify",
-
   notifyEmail:String = "admin@syspulse.io",
-
   confirmUri:String = "http://localhost:8080",
 
+  jwtRoleService:String = "",
+  
   // only for testing/demo
   smtpUri:String = "smtp://${SMTP_HOST}/${SMTP_USER}@${SMTP_PASS}",
   smtpFrom:String = "admin@domain.org",
   snsUri:String = "sns://arn:aws:sns:${AWS_REGION}:${AWS_ACCOUNT}:notify-topic",
   telegramUri:String = "tel://skel-notify/${BOT_KEY}",
 
-  cmd:String = "command",
+  cmd:String = "server",
   params: Seq[String] = Seq(),
 )
 
@@ -65,13 +65,15 @@ object App extends skel.Server {
         ArgString('h', "http.host",s"listen host (def: ${d.host})"),
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri}"),
-        ArgString('d', "datastore",s"datastore (mem,akka) (def: ${d.datastore})"),
+        ArgString('d', "datastore",s"datastore (mem://,akka://) (def: ${d.datastore})"),
         
         ArgString('_', "user.uri",s"User Service URI (def: ${d.userUri})"),
         ArgString('_', "notify.uri",s"Notify Service URI (def: ${d.notifyUri})"),
 
         ArgString('_', "notify.email",s"Notification email for Enroll events (def: ${d.notifyEmail})"),
         ArgString('_', "confirm.uri",s"External URI to confim email (def: ${d.confirmUri})"),
+
+        ArgString('_', "jwt.role.service",s"JWT access_token for Service Account (def: ${d.jwtRoleService})"),
         
         ArgCmd("init","Initialize Persistnace store (create tables)"),
         ArgCmd("server","Server"),
@@ -91,10 +93,10 @@ object App extends skel.Server {
 
       userUri = c.getString("user.uri").getOrElse(d.userUri),
       notifyUri = c.getString("notify.uri").getOrElse(d.notifyUri),
-
       notifyEmail = c.getString("notify.email").getOrElse(d.notifyEmail),
-
       confirmUri = c.getString("confirm.uri").getOrElse(d.confirmUri),
+
+      jwtRoleService = c.getString("jwt.role.service").getOrElse(""),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -102,11 +104,11 @@ object App extends skel.Server {
 
     println(s"Config: ${config}")
     
-    val store = config.datastore match {
+    val store = config.datastore.split("://").toList match {
       //case "mysql" | "db" => new EnrollStoreDB(c,"mysql")
       //case "postgres" => new EnrollStoreDB(c,"postgres")
-      case "mem"  => new EnrollStoreMem
-      case "akka" => {
+      case "mem" :: _ => new EnrollStoreMem
+      case "akka" :: _ => {
         val store = new EnrollStoreAkka
 
         // initialize Tables

@@ -90,11 +90,6 @@ object EnrollEvent extends Enrollment {
           .persist(Started(eid,xid,name,email,avatar))
           .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
 
-      case Finish(replyTo) => 
-        Effect
-          .persist(Finished(eid,Instant.now()))
-          .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
-
       case UpdatePhase(phase, replyTo) =>
         Effect
           .persist(PhaseUpdated(eid, phase))
@@ -150,7 +145,7 @@ object EnrollEvent extends Enrollment {
         Effect
           .persist(UserCreated(eid,uid))
           .thenRun(u => replyTo ! StatusReply.Success(u.toSummary))
-
+          
       case Finish(replyTo) =>
         if (state.isFinished) {
           replyTo ! StatusReply.Error(s"${eid}: Already finished")
