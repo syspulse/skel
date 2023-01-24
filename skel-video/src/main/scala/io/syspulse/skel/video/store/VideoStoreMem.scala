@@ -33,10 +33,6 @@ class VideoStoreMem extends VideoStore {
     if(sz == videos.size) Failure(new Exception(s"not found: ${vid}")) else Success(this)  
   }
 
-  def -(video:Video):Try[VideoStore] = {     
-    del(video.vid)
-  }
-
   def ?(vid:VID):Try[Video] = videos.get(vid) match {
     case Some(v) => Success(v)
     case None => Failure(new Exception(s"not found: ${vid}"))

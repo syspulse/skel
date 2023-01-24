@@ -78,7 +78,6 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
   }
 
   def del(id:Telemetry.ID):Try[TelemetryStore] = Failure(new UnsupportedOperationException)
-  def -(telemetry:Telemetry):Try[TelemetryStore] = Failure(new UnsupportedOperationException)
   def ?(id:ID,ts0:Long,ts1:Long,op:Option[String] = None):Seq[Telemetry] = range(id,ts0,ts1).toSeq
   def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = range(txt,ts0,ts1).toSeq
   def scan(txt:String):Seq[Telemetry] = scan().toSeq

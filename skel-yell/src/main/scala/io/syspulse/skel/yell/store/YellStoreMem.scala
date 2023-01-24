@@ -36,10 +36,6 @@ class YellStoreMem extends YellStore {
     if(sz == yells.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
   }
 
-  def -(yell:Yell):Try[YellStore] = {     
-    del(Yell.uid(yell))
-  }
-
   def ?(id:ID):Try[Yell] = yells.get(id) match {
     case Some(y) => Success(y)
     case None => Failure(new Exception(s"not found: ${id}"))

@@ -45,10 +45,6 @@ class TelemetryStoreMem extends TelemetryStore {
       Failure(new Exception(s"not found: ${id}"))
   }
 
-  def -(t:Telemetry):Try[TelemetryStore] = {     
-    del(t.id)
-  }
-
   def ?(id:Telemetry.ID,ts0:Long,ts1:Long,op:Option[String] = None):Seq[Telemetry] = {
     log.info(s"id=${id},ts=(${ts0},${ts1})")
     val ts2 = if(ts1 == Long.MaxValue) ts1 else ts1 + 1

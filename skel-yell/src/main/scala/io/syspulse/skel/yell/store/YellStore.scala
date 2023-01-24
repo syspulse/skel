@@ -11,9 +11,8 @@ import io.syspulse.skel.store.Store
 import io.syspulse.skel.yell.Yell.ID
 
 trait YellStore extends Store[Yell,ID] {
-  
+  def getKey(y: Yell): ID = Yell.uid(y)
   def +(yell:Yell):Try[YellStore]
-  def -(yell:Yell):Try[YellStore]
   def del(id:ID):Try[YellStore]
   def ?(id:ID):Try[Yell]
   def all:Seq[Yell]

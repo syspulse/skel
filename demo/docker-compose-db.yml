@@ -1,0 +1,19 @@
+
+postgres:
+  image: postgres:latest
+  container_name: enroll-db
+  environment:
+    - "TZ=Europe/Amsterdam"
+    - "POSTGRES_USER=docker"
+    - "POSTGRES_PASSWORD=docker"
+  ports:
+    - "5432:5432"  # credentials (docker:docker)
+
+mysql:
+  image: mysql:latest
+  container_name: enroll-db
+  environment:
+    - "TZ=Europe/Amsterdam"
+    - "MYSQL_ROOT_PASSWORD=root"
+  ports:
+    - "3306:3306" # credentials (root:root)

@@ -16,9 +16,10 @@ import io.syspulse.skel.telemetry.Telemetry
 import io.syspulse.skel.telemetry.Telemetry.ID
 
 trait TelemetryStore extends Store[Telemetry,ID] {
+  def getKey(t: Telemetry): ID = t.id
+
   def clean():Try[TelemetryStore]
   def +(telemetry:Telemetry):Try[TelemetryStore]
-  def -(telemetry:Telemetry):Try[TelemetryStore]
   def del(id:ID):Try[TelemetryStore]
   
   // return sorted

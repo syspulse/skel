@@ -64,10 +64,6 @@ class YellStoreElastic(elasticUri:String,elacticIndex:String) extends YellStore 
     Failure(new UnsupportedOperationException(s"not implemented: ${id}"))
   }
 
-  def -(yell:Yell):Try[YellStore] = {     
-    Failure(new UnsupportedOperationException(s"not implemented: ${yell}"))
-  }
-
   def ?(id:ID):Try[Yell] = {
     search(id.toString).take(1).headOption match {
       case Some(y) => Success(y)

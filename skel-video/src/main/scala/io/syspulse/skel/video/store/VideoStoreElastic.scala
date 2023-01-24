@@ -66,10 +66,6 @@ class VideoStoreElastic(elasticUri:String,elacticIndex:String) extends VideoStor
     Failure(new UnsupportedOperationException(s"not implemented: ${id}"))
   }
 
-  def -(video:Video):Try[VideoStore] = {     
-    Failure(new UnsupportedOperationException(s"not implemented: ${video}"))
-  }
-
   def ?(vid:VID):Try[Video] = {
     search(vid.toString).take(1).headOption match {
       case Some(o) => Success(o)
