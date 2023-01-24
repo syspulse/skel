@@ -7,6 +7,7 @@ import akka.util.Timeout
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
 import akka.actor.typed.ActorSystem
+import scala.concurrent.duration.Duration
 
 import com.typesafe.scalalogging.Logger
 
@@ -18,9 +19,11 @@ import scala.util.Success
 import scala.util.Failure
 
 import io.syspulse.skel.user.server.{Users, UserActionRes}
+import io.syspulse.skel.ExternalService
 
 //trait UserService extends AwaitableService[UserService] {
-trait UserService {  
+trait UserService extends ExternalService[UserService] {  
+
   def findByEmail(email:String):Future[Option[User]]
   def create(email:String,name:String,xid:String,avatar:String):Future[Try[User]]
   def delete(id:UUID):Future[UserActionRes]
@@ -65,4 +68,7 @@ class UserServiceSim extends UserService {
   def findByXid(xid:String):Future[Option[User]] = Future.successful(None)
   def findByXidAlways(xid:String):Future[Option[User]] = Future.successful(None)
   def all():Future[Try[Users]] = Future.successful(Success(Users(Seq())))
+
+  def withAccessToken(token:String):UserServiceSim = this
+  def withTimeout(timeout:Duration = Duration(1000, TimeUnit.MILLISECONDS)):UserServiceSim = this
 }

@@ -19,10 +19,10 @@ abstract class ClientHttp[T <: ClientHttp[T]](uri:String)(implicit as:ActorSyste
   def getUri() = uri
 
   def authHeaders(jwt:Option[String] = None):Seq[HttpHeader] = {
-    val token = Seq(jwt,accessToken,sys.env.get("ACCESS_TOKEN"),sys.props.get("ACCESS_TOKEN"))
-      .find(_.isDefined).flatten.getOrElse("")
+    val tokens = Seq(jwt, accessToken, sys.env.get("ACCESS_TOKEN"), sys.props.get("ACCESS_TOKEN"))
+    val token = tokens.find(_.isDefined).flatten.getOrElse("")
     
-    Seq(RawHeader("Authorization",s"Bearer ${jwt}"))
+    Seq(RawHeader("Authorization",s"Bearer ${token}"))
   }
     
   
