@@ -44,7 +44,7 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.{Operation, Parameter}
 import io.swagger.v3.oas.annotations.parameters.RequestBody
-import jakarta.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
+import jakarta.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces, PUT}
 import jakarta.ws.rs.core.MediaType
 
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
@@ -133,9 +133,11 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
   def getAuths(): Future[Auths] = authRegistry.ask(GetAuths)
 
-  def getAuth(aid: String): Future[Try[Auth]] = authRegistry.ask(GetAuth(aid, _))
+  def getAuth(auid: String): Future[Try[Auth]] = authRegistry.ask(GetAuth(auid, _))
   def createAuth(auth: Auth): Future[AuthCreateRes] = authRegistry.ask(CreateAuth(auth, _))
-  def deleteAuth(aid: String): Future[AuthActionRes] = authRegistry.ask(DeleteAuth(aid, _))
+  def deleteAuth(auid: String): Future[AuthActionRes] = authRegistry.ask(DeleteAuth(auid, _))
+  def refreshTokenAuth(auid: String, refreshToken:String, uid:Option[UUID]): Future[Try[Auth]] = authRegistry.ask(RefreshTokenAuth(auid,refreshToken,uid, _))
+
   def createCode(code: Code): Future[CodeCreateRes] = codeRegistry.ask(CreateCode(code, _))
   def updateCode(code: Code): Future[CodeCreateRes] = codeRegistry.ask(UpdateCode(code, _))
   def getCode(code: String): Future[Try[Code]] = codeRegistry.ask(GetCode(code, _))
@@ -236,7 +238,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
         val (accessToken,idToken,refreshToken) =
           if(user.isDefined) {
-            val uid = user.get.toString
+            val uid = user.get.id.toString
             (
               AuthJwt.generateAccessToken(Map( "uid" -> uid)),
               Some(AuthJwt.generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
@@ -401,7 +403,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
       new Parameter(name = "authuser", in = ParameterIn.PATH, description = "authuser"),
       new Parameter(name = "hd", in = ParameterIn.PATH, description = "hd"),
     ),
-    responses = Array(new ApiResponse(responseCode="200",description = "Video returned",content=Array(new Content(schema=new Schema(implementation = classOf[AuthWithProfileRes])))))
+    responses = Array(new ApiResponse(responseCode="200",description = "Auth returned",content=Array(new Content(schema=new Schema(implementation = classOf[AuthWithProfileRes])))))
   )
   def getTokenGoogle = get {    
     parameters("code", "redirect_uri".optional, "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,redirectUri,scope,state,prompt,authuser,hd) =>
@@ -434,6 +436,22 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     }
   }
 
+  @PUT @Path("/refresh/{token}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Refresh token",
+    method = "PUT",
+    parameters = Array(
+      new Parameter(name = "token", in = ParameterIn.PATH, description = "Refresh token"),      
+    ),
+    responses = Array(new ApiResponse(responseCode="200",description = "New access_token",content=Array(new Content(schema=new Schema(implementation = classOf[Auth])))))
+  )
+  def putRefreshToken(auid:String,refreshToken:String, uid:Option[UUID]) = put { 
+    onSuccess(refreshTokenAuth(auid, refreshToken, uid)) { rsp =>
+      complete(StatusCodes.OK, rsp)
+    }
+  }
+
+  // --------- Eth IDP ------------------------------------------------------------------------------------------------------------------------
+  
   @GET @Path("/eth/auth") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("auth"),summary = "Get Authentication Profile with Web3 IDP (Metamask) credentials",
     method = "GET",
@@ -695,9 +713,9 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
 // -------- Creds -----------------------------------------------------------------------------------------------------------------------------
   @GET @Path("/client/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("auth"),summary = "Return Cred Credentials by id",
+  @Operation(tags = Array("auth"),summary = "Return Client Credentials by id",
     parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "client_id")),
-    responses = Array(new ApiResponse(responseCode="200",description = "Cred Credentials returned",content=Array(new Content(schema=new Schema(implementation = classOf[Cred])))))
+    responses = Array(new ApiResponse(responseCode="200",description = "Client Credentials returned",content=Array(new Content(schema=new Schema(implementation = classOf[Cred])))))
   )
   def getCredRoute(id: String) = get {
     rejectEmptyResponse {
@@ -707,17 +725,17 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     }
   }
 
-  @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("auth"), summary = "Return all Cred Credentials",
+  @GET @Path("/client") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"), summary = "Return all Client Credentials",
     responses = Array(
-      new ApiResponse(responseCode = "200", description = "List of Cred Crednetials",content = Array(new Content(schema = new Schema(implementation = classOf[Creds])))))
+      new ApiResponse(responseCode = "200", description = "List of Client Crednetials",content = Array(new Content(schema = new Schema(implementation = classOf[Creds])))))
   )
   def getCredsRoute() = get {
     complete(getCreds())
   }
 
-  @DELETE @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("auth"),summary = "Delete Cred Credentials by id",
+  @DELETE @Path("/client/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Delete Client Credentials by id",
     parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "client_id")),
     responses = Array(
       new ApiResponse(responseCode = "200", description = "Cred Credentials deleted",content = Array(new Content(schema = new Schema(implementation = classOf[CredActionRes])))))
@@ -728,11 +746,11 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     }
   }
 
-  @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @POST @Path("/client") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("auth"),summary = "Create Cred Credentials",
+  @Operation(tags = Array("auth"),summary = "Create Client Credentials",
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[CredCreateReq])))),
-    responses = Array(new ApiResponse(responseCode = "200", description = "User",content = Array(new Content(schema = new Schema(implementation = classOf[Cred])))))
+    responses = Array(new ApiResponse(responseCode = "200", description = "Client Credentials",content = Array(new Content(schema = new Schema(implementation = classOf[Cred])))))
   )
   def createCredRoute = post {
     entity(as[CredCreateReq]) { req =>
@@ -935,10 +953,16 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
             }
           })
       } ~
-      path(Segment) { auid =>
+      pathPrefix(Segment) { auid =>
         authenticate()( authn => {
           log.info(s"authn: ${authn}")
-          concat(
+          
+          pathPrefix("refresh") {
+            pathPrefix(Segment) { refreshToken => 
+              putRefreshToken(auid,refreshToken,authn.getUser)
+            }
+          } ~
+          concat(            
             get {
               rejectEmptyResponse {
                 onSuccess(getAuth(auid)) { rsp =>

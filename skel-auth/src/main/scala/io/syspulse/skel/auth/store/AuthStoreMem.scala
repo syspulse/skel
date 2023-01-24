@@ -42,4 +42,11 @@ class AuthStoreMem extends AuthStore {
     case Some(a) => Success(a)
     case None => Failure(new Exception(s"not found: ${token}"))
   }
+
+  def !(auid:String,accessToken:String,refreshToken:String):Try[Auth] = ?(auid).map( auth => {
+    // add updated
+    val auth1 = auth.copy(accessToken = accessToken, refreshToken = Some(refreshToken))
+    this.+(auth1)
+    auth1
+  })
 }

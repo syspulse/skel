@@ -10,6 +10,7 @@ import io.syspulse.skel.Command
 import scala.util.Try
 import scala.util.Success
 
+import io.syspulse.skel.auth.cred.CredStoreMem
 object CredRegistry {
   
   final case class CreateCred(req: CredCreateReq, replyTo: ActorRef[Try[Cred]]) extends Command
