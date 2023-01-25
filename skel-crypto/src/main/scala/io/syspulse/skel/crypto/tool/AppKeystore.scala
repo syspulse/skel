@@ -12,22 +12,20 @@ import scala.util.Success
 import scala.util.Try
 import io.syspulse.skel.crypto.KeyPair
 
-case class Config(
-  keystoreFile:String="",
-  keystorePass:String="",
-  keystoreSK:String="",
-  keystoreType:String="eth1",
-  cmd:String = "",
-  params:Seq[String] = Seq()
-)
-
 object AppKeystore extends {
-  val log = Logger(s"${this.getClass().getSimpleName()}")
+  case class Config(
+    keystoreFile:String="",
+    keystorePass:String="",
+    keystoreSK:String="",
+    keystoreType:String="eth1",
+    cmd:String = "",
+    params:Seq[String] = Seq()
+  )
   
   import io.syspulse.skel.crypto.key._
 
   def main(args:Array[String]) = {
-    println(s"args: ${args.size}: ${args.toSeq}")
+    Console.err.println(s"args: ${args.size}: ${args.toSeq}")
     
     val c = Configuration.withPriority(Seq(
       new ConfigurationAkka,
@@ -56,7 +54,7 @@ object AppKeystore extends {
 
     )
 
-    println(s"config=${config}")
+    Console.err.println(s"config=${config}")
 
     config.cmd match {
       case "write" => 
@@ -78,9 +76,9 @@ object AppKeystore extends {
             val kp = ecdsa.get
 
             val addr = Eth.address(kp.pk)
-            Console.println(s"${kp},${addr}")
+            println(s"${kp},${addr}")
             val f = Eth.writeKeystore(kp.sk,kp.pk,config.keystorePass,config.keystoreFile)
-            Console.println(s"eth1: ${f}")
+            println(s"eth1: ${f}")
           }
 
           case "eth2" => {
@@ -94,9 +92,9 @@ object AppKeystore extends {
             }.get
           
             val addr = Eth.address(bls.pk)
-            Console.println(s"${Util.hex(bls.sk)},${Util.hex(bls.pk)},${addr}")
+            println(s"${Util.hex(bls.sk)},${Util.hex(bls.pk)},${addr}")
             val f = Eth2.writeKeystore(bls.sk,bls.pk,config.keystorePass,config.keystoreFile)
-            Console.println(s"eth2: ${f}")
+            println(s"eth2: ${f}")
           }
 
           case _ => {
@@ -107,12 +105,12 @@ object AppKeystore extends {
         config.keystoreType.toLowerCase match {
           case "eth1" => { 
             val kp = Eth.readKeystore(config.keystorePass,config.keystoreFile)
-            Console.println(s"eth1: ${kp}")
+            println(s"eth1: ${kp}")
           }
 
           case "eth2" => {
             val kp = Eth2.readKeystore(config.keystorePass,config.keystoreFile)
-            Console.println(s"eth2: ${kp}")
+            println(s"eth2: ${kp}")
           }
 
           case _ => {
@@ -129,20 +127,20 @@ object AppKeystore extends {
             }
             val msg = config.params.mkString(" ")
             val sig = Eth.signMetamask(msg,kp.get)
-            Console.println(s"eth1: sk = ${Util.hex(kp.get.sk)}\n sign(${msg})\n sig = ${sig}\n ${Util.hex(sig.toArray())}")
+            println(s"eth1: sk = ${Util.hex(kp.get.sk)}\n sign(${msg})\n sig = ${sig}\n ${Util.hex(sig.toArray())}")
           }
 
           case "eth2" => {
             val kp = Eth2.readKeystore(config.keystorePass,config.keystoreFile)
             if(kp.isFailure) {
-              Console.println(s"eth1: sign: ${kp}")
+              println(s"eth1: sign: ${kp}")
               System.exit(1)              
             }
             
             val msg = config.params.mkString(" ")            
             val sig = Eth2.sign(kp.get.sk,msg)
 
-            Console.println(s"eth2: sk = ${Util.hex(kp.get.sk)}\n sign(${msg})\n sig = ${Util.hex(sig)}")
+            println(s"eth2: sk = ${Util.hex(kp.get.sk)}\n sign(${msg})\n sig = ${Util.hex(sig)}")
           }
 
           case _ => {
@@ -154,7 +152,7 @@ object AppKeystore extends {
           case "eth1" => { 
             val kp = Eth.readKeystore(config.keystorePass,config.keystoreFile)
             if(kp.isFailure) {
-              Console.println(s"eth1: recover: ${kp}")
+              Console.err.println(s"eth1: recover: ${kp}")
               System.exit(1)              
             }
 
@@ -163,16 +161,16 @@ object AppKeystore extends {
             
             val pk = Eth.recoverMetamask(msg,Util.fromHexString(sig))
             if(pk.isFailure) {
-              Console.println(s"eth1: recover(${msg},${sig}}): ${pk}")
+              Console.err.println(s"eth1: recover(${msg},${sig}}): ${pk}")
               System.exit(1)
             }
-            Console.println(s"eth1: recover(${msg},${sig}})\n pk = ${Util.hex(pk.get)}\n addr = ${Eth.address(pk.get)}")
+            println(s"eth1: recover(${msg},${sig}})\n pk = ${Util.hex(pk.get)}\n addr = ${Eth.address(pk.get)}")
           }
 
           case "eth2" => {
             val kp = Eth2.readKeystore(config.keystorePass,config.keystoreFile)
             if(kp.isFailure) {
-              Console.println(s"eth1: sign: ${kp}")
+              Console.err.println(s"eth1: sign: ${kp}")
               System.exit(1)              
             }
             
@@ -180,7 +178,7 @@ object AppKeystore extends {
             val msg = config.params.tail.mkString(" ")
             //val pk = Eth2.recover(msg,Util.fromHexString(sig))
 
-            //Console.println(s"eth2: sk=${Util.hex(kp.get.sk)}: sign(${msg}): ${sig}")
+            println(s"eth2: sk=${Util.hex(kp.get.sk)}: sign(${msg}): ${sig}")
           }
 
           case _ => {

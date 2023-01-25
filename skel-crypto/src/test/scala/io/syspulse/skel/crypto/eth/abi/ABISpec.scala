@@ -12,27 +12,27 @@ import codegen.Decoder
 import codegen.AbiDefinition
 import io.syspulse.crypto.eth.Tx
 
+import io.syspulse.skel.crypto.eth.abi._
+
 class ABISpec extends AnyWordSpec with Matchers {
   val testDir = this.getClass.getClassLoader.getResource(".").getPath + "../../../"
 
-  val abi = AbiRepo.build().withRepo(new AbiRepoFiles(s"${testDir}/abi/")).load()
+  val abi = AbiStoreRepo.build().withRepo(new AbiStoreDir(s"${testDir}/abi/")).load().get
 
   "AbiRepo should load ABIs from abi/" in {
     abi.size should !== (0)    
   }
 
-  "ABI should find UNI in repo" in {
-    val t = abi.findToken("0x1f9840a85d5af5bf1d1762f925bdaddc4201f984")
+  "ABI should find UNI Contract in repo" in {
+    val t = abi.find("0x1f9840a85d5af5bf1d1762f925bdaddc4201f984","transfer")
     info(s"t=${t}")
-    t should !== (None)
-    t.get.tokenName === ("UNI")
+    t should !== (None)    
   }
 
-  "ABI should find USDT in repo" in {
-    val t = abi.findToken("0xdac17f958d2ee523a2206206994597c13d831ec7")
+  "ABI should find USDT Contract in repo" in {
+    val t = abi.find("0xdac17f958d2ee523a2206206994597c13d831ec7","transfer")
     info(s"t=${t}")
     t should !== (None)
-    t.get.tokenName === ("USDT")
   }
 
   "Uniswap tx decoded with selector=transfer()" in {
@@ -64,7 +64,7 @@ class ABISpec extends AnyWordSpec with Matchers {
       input = "0xa9059cbb000000000000000000000000f6bdeb12aba8bf4cfbfc2a60c805209002223e22000000000000000000000000000000000000000000000005a5a62f156c710000",
       value = BigInt(0))
     
-    val r = abi.decodeInput(tx.toAddress.get,tx.input)
+    val r = abi.decodeInput(tx.toAddress.get,tx.input,"")
     
     info(s"$r")
 
@@ -83,7 +83,7 @@ class ABISpec extends AnyWordSpec with Matchers {
       input = "0xa9059cbb0000000000000000000000006876dc741a44617fa7eb205cc5aa9dfbcc526a050000000000000000000000000000000000000000000000000000000001e84800",
       value = BigInt(0))
     
-    val r = abi.decodeInput(tx.toAddress.get,tx.input)
+    val r = abi.decodeInput(tx.toAddress.get,tx.input,"")
     
     info(s"$r")
 
@@ -102,7 +102,7 @@ class ABISpec extends AnyWordSpec with Matchers {
       input = "0x23b872dd000000000000000000000000b29c9f94d4c9ffa71876802196fb9b396bca631f000000000000000000000000ec30d02f10353f8efc9601371f56e808751f396f000000000000000000000000000000000000000000000000000000004b5eae1a",
       value = BigInt(0))
     
-    val r = abi.decodeInput(tx.toAddress.get,tx.input)
+    val r = abi.decodeInput(tx.toAddress.get,tx.input,"")
     
     info(s"$r")
 
