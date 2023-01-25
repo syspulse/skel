@@ -41,7 +41,7 @@ class NotifyClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionConte
   import NotifyJson._
   import spray.json._
   
-  def reqPostNotify(to:String,subj:String,msg:String) =  HttpRequest(method = HttpMethods.POST, uri = s"${uri}",
+  def reqPostNotify(to:String,subj:String,msg:String) =  HttpRequest(method = HttpMethods.POST, uri = s"${uri}", headers=authHeaders(),
       entity = HttpEntity(ContentTypes.`application/json`, 
         NotifyReq(Some(to),Some(subj),msg).toJson.toString)
     )

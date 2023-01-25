@@ -39,15 +39,15 @@ class OtpClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext)
   import OtpJson._
   import spray.json._
   
-  def reqGetOtpForUser(userId:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/user/${userId}")
-  def reqGetOtp(id:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/${id}")
-  def reqGetOtps() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}")
+  def reqGetOtpForUser(userId:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/user/${userId}",headers=authHeaders())
+  def reqGetOtp(id:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/${id}",headers=authHeaders())
+  def reqGetOtps() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}",headers=authHeaders())
   def reqPostOtp(userId:UUID,secret:String,name:String,account:String,issuer:Option[String], period:Option[Int]) = 
-      HttpRequest(method = HttpMethods.POST, uri = s"${uri}",
+      HttpRequest(method = HttpMethods.POST, uri = s"${uri}",headers=authHeaders(),
         entity = HttpEntity(ContentTypes.`application/json`, 
           OtpCreateReq(userId,secret,name,account,issuer,period).toJson.toString)
       )
-  def reqDeleteOtp(id:UUID) = HttpRequest(method = HttpMethods.DELETE, uri = s"${uri}/${id}")
+  def reqDeleteOtp(id:UUID) = HttpRequest(method = HttpMethods.DELETE, uri = s"${uri}/${id}",headers=authHeaders())
 
   def delete(id:UUID):Future[OtpActionRes] = {
     log.info(s"${id} -> ${reqDeleteOtp(id)}")

@@ -10,7 +10,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto._
 
-import io.syspulse.skel.enroll.state._
+import io.syspulse.skel.enroll.flow.state._
 import scala.concurrent.Future
 import akka.persistence.jdbc.testkit.scaladsl.SchemaUtils
 import akka.Done
