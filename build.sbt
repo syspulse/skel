@@ -250,9 +250,20 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 // ======================================================================================================================
 lazy val root = (project in file("."))
-  .aggregate(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl)
-  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl, scrap,
-             enroll,
+  .aggregate(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, otp, crypto, flow, dsl, scrap, cli, db_cli,
+             ingest_flow,
+             ingest_elastic,
+             ingest_dynamo,
+             skel_enroll,
+             yell,
+             skel_notify,
+             skel_tag, 
+             skel_telemetry)
+  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, otp, crypto, flow, dsl, scrap, cli, db_cli, 
+             ingest_flow,
+             ingest_elastic,
+             ingest_dynamo,
+             skel_enroll,
              yell,
              skel_notify,
              skel_tag, 
@@ -357,8 +368,8 @@ lazy val auth_core = (project in file("skel-auth/auth-core"))
     ),    
   )
 
-lazy val auth = (project in file("skel-auth"))
-  .dependsOn(core,crypto,auth_core,user)
+lazy val skel_auth = (project in file("skel-auth"))
+  .dependsOn(core,crypto,auth_core,skel_user)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -404,7 +415,7 @@ lazy val otp = (project in file("skel-otp"))
   )
 
 
-lazy val user = (project in file("skel-user"))
+lazy val skel_user = (project in file("skel-user"))
   .dependsOn(core,auth_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
@@ -525,7 +536,7 @@ lazy val ingest_dynamo = (project in file("skel-ingest/ingest-dynamo"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    appDockerConfig(appNameDynamo,appBootClassDynamo),
+    appDockerConfig("ingest-dynamo",appBootClassDynamo),
 
     libraryDependencies ++= libHttp ++ libTest ++ Seq(
       libAlpakkaDynamo
@@ -544,7 +555,7 @@ lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    appDockerConfig(appNameElastic,appBootClassElastic),
+    appDockerConfig("ingest-elastic",appBootClassElastic),
 
     libraryDependencies ++= libHttp ++ libTest ++ Seq(
       libAlpakkaElastic
@@ -649,8 +660,8 @@ lazy val spark_convert = (project in file("skel-spark/spark-convert"))
     ),
   )
 
-lazy val enroll = (project in file("skel-enroll"))
-  .dependsOn(core,crypto,user,skel_notify,skel_test % Test)
+lazy val skel_enroll = (project in file("skel-enroll"))
+  .dependsOn(core,crypto,skel_user,skel_notify,skel_test % Test)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
