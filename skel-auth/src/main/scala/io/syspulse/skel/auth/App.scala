@@ -226,10 +226,12 @@ object App extends skel.Server {
         val r = 
           config.params match {
             case "admin" :: Nil => 
-              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_ADMIN.toString))
+              // long living token
+              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_ADMIN.toString),expire = 3600L * 24 * 6)
             
             case "service" :: Nil => 
-              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString))
+              // long living token
+              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString),expire = 3600L * 24 * 12)
 
             case "user" :: uid :: Nil => 
               AuthJwt.generateAccessToken(Map("uid" -> uid))
