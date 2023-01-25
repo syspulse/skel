@@ -75,8 +75,10 @@ object AuthRegistry {
 
                 log.error(s"refresh token invalid: ${rt}")
                 Failure(new Exception(s"refresh token invalid: ${rt}"))
-
-              } else if( (uid != Some(Permissions.USER_ADMIN)) && (uid0 != uid1) ) {
+              
+              } 
+              // NOTE: By default uid1 is None since expired token could not be validated
+              else if( (uid1 != None) && (uid0 != uid1) ) {
                 
                 log.error(s"invalid 'uid' claim: ${uid0}: ${uid1}")
                 Failure(new Exception(s"refresh token invalid: ${rt}"))

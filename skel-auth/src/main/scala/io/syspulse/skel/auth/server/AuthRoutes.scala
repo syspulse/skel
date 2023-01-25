@@ -954,14 +954,14 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           })
       } ~
       pathPrefix(Segment) { auid =>
+        // refresh token cannot use AuthN because it is expired
+        pathPrefix("refresh") {
+          pathPrefix(Segment) { refreshToken => 
+            putRefreshToken(auid,refreshToken,None)
+          }
+        } ~
         authenticate()( authn => {
-          log.info(s"authn: ${authn}")
-          
-          pathPrefix("refresh") {
-            pathPrefix(Segment) { refreshToken => 
-              putRefreshToken(auid,refreshToken,authn.getUser)
-            }
-          } ~
+          log.info(s"authn: ${authn}")          
           concat(            
             get {
               rejectEmptyResponse {
