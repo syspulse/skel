@@ -68,6 +68,7 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
       SMTP_FROM: ${SMTP_FROM}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN}
       AWS_REGION: ${AWS_REGION}
@@ -89,22 +90,6 @@ services:
       NOTIFY_EMAIL: ${NOTIFY_EMAIL}
       CONFIRM_URI: http://localhost:8083
 
-  skel-tag:
-    image: syspulse/skel-tag:latest
-    container_name: skel-tag
-    restart: always
-    volumes:
-      - "${PWD}/tags:/data"
-    ports:
-      - 8084:8080
-    networks:
-      - demo
-    command: server
-    environment:
-      JAVA_OPTS: -Dgod
-      DATASTORE: dir:///data
-      #DATASTORE: resources://
-
   skel-auth:
     image: syspulse/skel-auth:latest
     container_name: skel-auth
@@ -121,6 +106,8 @@ services:
       GOOGLE_AUTH_CLIENT_SECRET: ${GOOGLE_AUTH_CLIENT_SECRET}
       TWITTER_AUTH_CLIENT_ID: ${TWITTER_AUTH_CLIENT_ID}
       TWITTER_AUTH_CLIENT_SECRET: ${TWITTER_AUTH_CLIENT_SECRET}
+      ETH_AUTH_CLIENT_ID: ${ETH_AUTH_CLIENT_ID}
+      ETH_AUTH_CLIENT_SECRET: ${ETH_AUTH_CLIENT_SECRET}
 
   nginx:
     image: nginx
@@ -129,11 +116,11 @@ services:
       - skel-auth
       - skel-user
       - skel-notify
-      - skel-enroll
-      - skel-tag
+      - skel-enroll      
     restart: always
     volumes:
       - "${PWD}/nginx/nginx.conf:/etc/nginx/nginx.conf:ro"
+      
     ports:
       - 80:80
     networks:
