@@ -12,8 +12,13 @@ import DefaultJsonProtocol._
 abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E]) extends Store[E,P] {
   val log = Logger(s"${this}")
 
+  @volatile var loading = false
+
   override def +(e:E):Try[StoreDir[E,P]] = { 
-    writeFile(e).map(_ => this)
+    if( ! loading)
+      writeFile(e).map(_ => this)
+    else
+      Success(this)
   }
 
   override def del(id:P):Try[Store[E,P]] = { 
@@ -75,7 +80,9 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E]) 
       .flatten // file
       .flatten // files
 
+    loading = true
     vv.foreach(v => this.+(v))
+    loading = false
 
     log.info(s"Loaded store: ${size}")
   }

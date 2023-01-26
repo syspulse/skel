@@ -10,7 +10,6 @@ import codegen.AbiDefinition
 import os._
 import scala.util.Failure
 
-
 class ContractAbi(addr:String,abi:Seq[AbiDefinition]) {
   override def toString = s"${getClass().getSimpleName()}(${addr},${abi.size})"
 

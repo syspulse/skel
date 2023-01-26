@@ -60,6 +60,20 @@ object AppABI extends {
       case _ => new AbiStoreDir(config.abiStore)
     }
 
+    val eventStore = config.eventStore.split("://").toList match {
+      case "dir" :: dir :: _ => new EventSignatureStoreDir(dir)
+      case dir :: Nil => new EventSignatureStoreDir(dir)
+      case "mem" :: _ => new SignatureStoreMem[EventSignature]()
+      case _ => new SignatureStoreMem[EventSignature]()
+    }
+
+    val funStore = config.funStore.split("://").toList match {
+      case "dir" :: dir :: _ => new FunSignatureStoreDir(dir)
+      case dir :: Nil => new FunSignatureStoreDir(dir)
+      case "mem" :: _ => new SignatureStoreMem[FunSignature]()
+      case _ => new SignatureStoreMem[FunSignature]()
+    }
+
     abiStore.load()
 
     val r = config.cmd match {
