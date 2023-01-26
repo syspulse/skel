@@ -13,7 +13,7 @@ import scala.util.Failure
 class ContractAbi(addr:String,abi:Seq[AbiDefinition]) {
   override def toString = s"${getClass().getSimpleName()}(${addr},${abi.size})"
 
-  def getAbi():Seq[AbiDefinition] = abi  
+  def getAbi():Seq[AbiDefinition] = abi
 }
 
 case class ContractERC20(addr:String,abi:Seq[AbiDefinition],funcTo:String, funcValue:String, tokenName:String="") 

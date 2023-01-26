@@ -29,8 +29,8 @@ class AbiStoreRepo extends AbiStore {
 
   def size = repos.size
 
-  def find(addr:String,function:String,name:String=""):Try[ContractAbi] = {
-    repos.map(r => r.find(addr,function,name)).head
+  def find(addr:String,function:String):Try[Seq[AbiDefinition]] = {
+    repos.map(r => r.find(addr,function)).head
   }
   
   def withRepo(repo:AbiStore):AbiStoreRepo = {
@@ -43,8 +43,8 @@ class AbiStoreRepo extends AbiStore {
     Success(this)
   }
 
-  def decodeInput(contract:String,input:String,selector:String) = {
-    repos.foldLeft(Seq[Try[Seq[(String,String,Any)]]]())( (m,r)  => m :+ r.decodeInput(contract,input,selector) ).head
+  def decodeInput(contract:String,data:String,selector:String):Try[AbiResult] = {
+    repos.foldLeft(Seq[Try[AbiResult]]())( (m,r)  => m :+ r.decodeInput(contract,data,selector) ).head
   }
 }
 

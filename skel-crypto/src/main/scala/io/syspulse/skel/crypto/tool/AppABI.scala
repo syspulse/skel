@@ -37,6 +37,8 @@ object AppABI extends {
         
         ArgCmd("read","read command"),
         ArgCmd("search","Search signature"),
+        
+        ArgCmd("abi","Show ABI for contract"),
         ArgCmd("decode","Decode input (func or event)"),
         
         ArgParam("<params>","...")
@@ -78,19 +80,34 @@ object AppABI extends {
 
     val r = config.cmd match {
       case "decode" => 
-        val (contract,input,selector) = 
+        val (contract,data,entity) = 
         config.params.toList match {
-          case contract :: input :: selector :: Nil => (contract,input,selector)
-          case contract :: input :: Nil => (contract,input,"")
-          case contract :: Nil => (contract,"","")
+          case contract :: data :: entity :: Nil => (contract,data,entity)
+          case contract :: data :: Nil => (contract,data,"function")
+          case contract :: Nil => (contract,"","function")
           case _ => (
             "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
             "0xa9059cbb000000000000000000000000f6bdeb12aba8bf4cfbfc2a60c805209002223e22000000000000000000000000000000000000000000000005a5a62f156c710000",
-            "transfer")            
+            "function")            
         }
 
-        abiStore.decodeInput(contract,input,selector)
-      case "read" =>         
+        Console.err.println(s"Decoding: ${contract}: ${entity}: ${data}")
+        
+        abiStore.decodeInput(contract,data,entity)
+      
+      case "abi" => 
+        val (contract) = 
+        config.params.toList match {
+          case contract :: Nil => (contract)
+          case _ => (
+            "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984")            
+        }
+
+        val abi = abiStore.resolve(contract)
+        abi
+
+      
+      case "read" =>
       
       case _ => {
         Console.err.println(s"Unknown command: ${config.cmd}")
