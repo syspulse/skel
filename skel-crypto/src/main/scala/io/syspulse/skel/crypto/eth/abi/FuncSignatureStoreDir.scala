@@ -17,6 +17,6 @@ import io.syspulse.skel.store.StoreDir
 import io.syspulse.skel.crypto.eth.abi.AbiSignatureJson._
 
 // Preload from file during start
-class FunSignatureStoreDir(dir:String = "store/fun") extends SignatureStoreDir[FunSignature](dir) {
-
+class FuncSignatureStoreDir(dir:String = "store/func") extends SignatureStoreDir[FuncSignature](dir) with AbiStoreSigFuncResolver {
+  override def resolveFunc(sig: String): Option[String] = store.first(sig).toOption.map(_.tex)
 }

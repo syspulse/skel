@@ -9,15 +9,20 @@ import io.jvm.uuid._
 import io.syspulse.skel.store.Store
 
 
-trait SignatureStore[T <: AbiSignature] extends Store[T,String] {
+trait SignatureStore[T <: AbiSignature] extends Store[T,(String,Int)] {
   
-  def getKey(s: T): String = s.getId()
+  def getKey(s: T): (String,Int) = (s.getId(),s.getVer())
 
   def +(s:T):Try[SignatureStore[T]]
   
-  def del(id:String):Try[SignatureStore[T]]
+  def del(id:(String,Int)):Try[SignatureStore[T]]
 
-  def ?(id:String):Try[T]  
+  def ?(id:(String,Int)):Try[T]
+
+  def ??(id:String):Try[Vector[T]]
+
+  def first(id:String):Try[T]
+
   def all:Seq[T]
   def size:Long
 

@@ -18,15 +18,10 @@ import scala.util.Failure
 // class AbiReposLoaded extends AbiRepos[AbiReposLoaded] {
 // }
 
-class AbiStoreRepo extends AbiStore {
+abstract class AbiStoreRepo extends AbiStore {
 
   var repos:List[AbiStore] = List()
   
-  // var functions:Map[String,String] = Map(
-  //   "0xa9059cbb" -> "transfer",
-  //   "0x23b872dd" -> "transferFrom",
-  // )
-
   def size = repos.size
 
   def find(addr:String,function:String):Try[Seq[AbiDefinition]] = {
@@ -47,9 +42,3 @@ class AbiStoreRepo extends AbiStore {
     repos.foldLeft(Seq[Try[AbiResult]]())( (m,r)  => m :+ r.decodeInput(contract,data,entity) ).head
   }
 }
-
-object AbiStoreRepo {
-  
-  def build() = new AbiStoreRepo()
-}
-

@@ -11,20 +11,7 @@ import codegen.AbiDefinition
 import os._
 import scala.util.Failure
 
-import io.syspulse.skel.crypto.eth.abi.{AbiResult, AbiStore}
-class AbiStoreDir(dir:String) extends AbiStore {
-
-  var funcSignatures:Map[String,String] = Map(
-    "0xa9059cbb" -> "transfer",
-    "0x23b872dd" -> "transferFrom",
-  )
-  var eventSignatures:Map[String,String] = Map(
-    "0xddf252ad" -> "Transfer",
-    "0x8c5be1e5" -> "Approval",
-  )
-
-  def resolveFuncSignature(sig:String) = funcSignatures.get(sig.toLowerCase())
-  def resolveEventSignature(sig:String) = eventSignatures.get(sig.toLowerCase())
+abstract class AbiStoreDir(dir:String) extends AbiStore {
 
   var store:Map[String,ContractAbi] = Map()
 
@@ -66,7 +53,7 @@ class AbiStoreDir(dir:String) extends AbiStore {
       case "event" => 
         val sig = data.head.take(ABI.EVENT_HASH_SIZE).toLowerCase()
         val payload = data.tail.map(_.drop(2)).mkString("")
-        val selector = resolveEventSignature(sig)
+        val selector = resolveEvent(sig)
         
         if(!selector.isDefined) {
           return Failure(new Exception(s"could not find selector: ${entity}: '${data}'"))
@@ -78,7 +65,7 @@ class AbiStoreDir(dir:String) extends AbiStore {
       case "function" | _ =>
         val sig = data.head.take(ABI.FUNC_HASH_SIZE).toLowerCase()
         val payload = data.head.drop(ABI.FUNC_HASH_SIZE)
-        val selector = resolveFuncSignature(sig)
+        val selector = resolveFunc(sig)
 
         if(!selector.isDefined) {
           return Failure(new Exception(s"could not find selector: ${entity}: '${data}'"))

@@ -17,7 +17,7 @@ object AppABI extends {
   case class Config(
     abiStore: String = "dir://store/abi",
     eventStore:String = "dir://store/event",
-    funStore:String = "dir://store/fun",
+    funStore:String = "dir://store/func",
 
     cmd:String = "decode",
     params:Seq[String] = Seq()
@@ -41,6 +41,8 @@ object AppABI extends {
         
         ArgCmd("abi","Show ABI for contract: <contract> [entity] [name] (entity: event,function)"),
         ArgCmd("decode","Decode data: <contract> [entity] <data> (entity: event,function)"),
+        ArgCmd("func","Func Signature store"),
+        ArgCmd("event","Event Signature store"),
         
         ArgParam("<params>","...")
       )
@@ -58,9 +60,9 @@ object AppABI extends {
     Console.err.println(s"config=${config}")
 
     val abiStore = config.abiStore.split("://").toList match {
-      case "dir" :: dir :: _ => new AbiStoreDir(dir)
-      case dir :: Nil => new AbiStoreDir(dir)
-      case _ => new AbiStoreDir(config.abiStore)
+      case "dir" :: dir :: _ => new AbiStoreDir(dir) with AbiStoreStoreSignaturesMem
+      case dir :: Nil => new AbiStoreDir(dir) with AbiStoreStoreSignaturesMem
+      case _ => new AbiStoreDir(config.abiStore) with AbiStoreStoreSignaturesMem
     }
 
     val eventStore = config.eventStore.split("://").toList match {
@@ -70,11 +72,11 @@ object AppABI extends {
       case _ => new SignatureStoreMem[EventSignature]()
     }
 
-    val funStore = config.funStore.split("://").toList match {
-      case "dir" :: dir :: _ => new FunSignatureStoreDir(dir)
-      case dir :: Nil => new FunSignatureStoreDir(dir)
-      case "mem" :: _ => new SignatureStoreMem[FunSignature]()
-      case _ => new SignatureStoreMem[FunSignature]()
+    val funcStore = config.funStore.split("://").toList match {
+      case "dir" :: dir :: _ => new FuncSignatureStoreDir(dir)
+      case dir :: Nil => new FuncSignatureStoreDir(dir)
+      case "mem" :: _ => new SignatureStoreMem[FuncSignature]()
+      case _ => new SignatureStoreMem[FuncSignature]()
     }
 
     abiStore.load()
@@ -83,9 +85,9 @@ object AppABI extends {
       case "decode" => 
         val (contract,data,entity) = 
         config.params.toList match {
-          case contract :: entity :: data => (contract,data,entity)
           case contract :: data :: Nil => (contract,Seq(data),"function")
           case contract :: Nil => (contract,Seq(),"function")
+          case contract :: entity :: data => (contract,data,entity)
           case _ => (
             "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
             Seq("0xa9059cbb000000000000000000000000f6bdeb12aba8bf4cfbfc2a60c805209002223e22000000000000000000000000000000000000000000000005a5a62f156c710000"),
@@ -117,8 +119,18 @@ object AppABI extends {
         ).mkString("\n")) + "\n"
 
       
-      case "read" =>
-      
+      case "func" =>
+        config.params.toList match {
+          case sig :: Nil => funcStore.??(sig).map(_.mkString("\n"))
+          case _ => funcStore.all.mkString("\n")
+        }
+        
+      case "event" =>
+        config.params.toList match {
+          case sig :: Nil => eventStore.??(sig).map(_.mkString("\n"))
+          case _ => eventStore.all.mkString("\n")
+        }
+        
       case _ => {
         Console.err.println(s"Unknown command: ${config.cmd}")
         sys.exit(1)

@@ -10,7 +10,16 @@ import codegen.AbiDefinition
 import os._
 import scala.util.Failure
 
-trait AbiStore {
+
+trait AbiStoreSigFuncResolver {
+  def resolveFunc(sig:String):Option[String]
+}
+
+trait AbiStoreSigEventResolver {
+  def resolveEvent(sig:String):Option[String]
+}
+
+trait AbiStore extends AbiStoreSigFuncResolver with AbiStoreSigEventResolver {
   protected val log = Logger(s"${this.getClass()}")
 
   def size:Long

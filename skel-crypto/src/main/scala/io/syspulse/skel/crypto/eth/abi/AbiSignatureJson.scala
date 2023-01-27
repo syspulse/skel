@@ -10,5 +10,5 @@ object AbiSignatureJson extends JsonCommon {
   import DefaultJsonProtocol._
 
   implicit val jf_es = jsonFormat3(EventSignature)
-  implicit val jf_fs = jsonFormat3(FunSignature)
+  implicit val jf_fs = jsonFormat3(FuncSignature)
 }
