@@ -10,10 +10,18 @@ import codegen.AbiDefinition
 import os._
 import scala.util.Failure
 
-class ContractAbi(addr:String,abi:Seq[AbiDefinition]) {
+class ContractAbi(addr:String,abi:Seq[AbiDefinition],json:Option[String] = None) {
   override def toString = s"${getClass().getSimpleName()}(${addr},${abi.size})"
 
-  def getAbi():Seq[AbiDefinition] = abi
+  def getAddr() = addr
+  def getAbi() = abi
+  def getJson():String = json.getOrElse("")
+}
+
+object ContractAbi {
+  def apply(addr:String,json:String):Try[ContractAbi] = {
+    Decoder.loadAbi(json).map(abi => new ContractAbi(addr,abi,Some(json)))
+  }
 }
 
 case class ContractERC20(addr:String,abi:Seq[AbiDefinition],funcTo:String, funcValue:String, tokenName:String="") 

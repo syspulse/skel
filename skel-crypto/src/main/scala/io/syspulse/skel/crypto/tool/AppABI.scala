@@ -11,6 +11,7 @@ import scala.util.Try
 
 import io.syspulse.skel.crypto.eth.abi._
 import codegen.Decoder
+import codegen.AbiDefinition
 
 object AppABI extends {  
 
@@ -104,21 +105,27 @@ object AppABI extends {
           case contract :: entity :: entityName :: Nil => (contract,Some(entity),Some(entityName))
           case contract :: entity :: Nil => (contract,Some(entity),None)
           case contract :: Nil => (contract,None,None)
-          case _ => (
-            "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",None,None)
+          case _ => ("",None,None)
         }
 
-        val abi = 
-          if(contract.toLowerCase.endsWith(".json")) {
-            Decoder.loadAbi(os.read(os.Path(contract,os.pwd)))
-          } else 
-            abiStore.resolve(contract,entity,entityName)
+        def abiToString(abi:Try[Seq[AbiDefinition]]) = abi.map(_.map(ad => 
+            s"\nname = ${ad.name.getOrElse("")}\n  in  = ${ad.inputs.getOrElse(Seq()).mkString(",")}\n  out = ${ad.outputs.getOrElse(Seq()).mkString(",")}"
+          ).mkString("\n")).toString + "\n"
         
-        abi.map(_.map(ad => 
-          s"\nname = ${ad.name.getOrElse("")}\n  in  = ${ad.inputs.getOrElse(Seq()).mkString(",")}\n  out = ${ad.outputs.getOrElse(Seq()).mkString(",")}"
-        ).mkString("\n")) + "\n"
+        if(contract == "") {
+          abiStore.all
 
-      
+        } else { 
+          val abi = 
+            if(contract.toLowerCase.endsWith(".json")) {
+              Decoder.loadAbi(os.read(os.Path(contract,os.pwd)))
+            } else 
+              abiStore.resolve(contract,entity,entityName)
+
+          abiToString(abi)
+        }
+          
+              
       case "func" =>
         config.params.toList match {
           case sig :: Nil => funcStore.??(sig).map(_.mkString("\n"))
@@ -140,4 +147,3 @@ object AppABI extends {
     println(s"${r}")
   }
 }
-

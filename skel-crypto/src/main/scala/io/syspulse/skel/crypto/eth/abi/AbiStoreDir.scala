@@ -10,12 +10,42 @@ import codegen.Decoder
 import codegen.AbiDefinition
 import os._
 import scala.util.Failure
+import io.syspulse.skel.store.StoreDir
 
-abstract class AbiStoreDir(dir:String) extends AbiStore {
+import spray.json._
+import DefaultJsonProtocol._
+import AbiContractJson._
+
+abstract class AbiStoreDir(dir:String) extends StoreDir[AbiContract,String](dir) with AbiStore {
 
   var store:Map[String,ContractAbi] = Map()
-
+  
   def size = store.size
+  def all:Seq[AbiContract] = store.values.map( ca => AbiContract(ca.getAddr(),ca.getJson())).toSeq
+  
+  override def +(a:AbiContract):Try[AbiStoreDir] = {
+    ContractAbi(a.addr,a.json).map( ca => {
+      store = store + (a.addr -> ca)
+
+      if(! loading)
+        writeFile(a)
+
+      this
+    })
+  }
+  
+  override def del(id:String):Try[AbiStoreDir] = {
+    store = store - id
+    delFileById(id).map(_ => this)
+  }
+
+  def ?(id:String):Try[AbiContract] = {
+    store.get(id) match {
+      case Some(ca) => Success(AbiContract(ca.getAddr(),ca.getJson()))
+      case None => Failure(new Exception(s"not found: ${id}"))
+    }
+  }
+
 
   def find(addr:String,functionName:String) = resolve(addr,Some("function"),Some(functionName))
 
@@ -84,10 +114,11 @@ abstract class AbiStoreDir(dir:String) extends AbiStore {
     Success(this)
   }
 
-  def load(dir:String):Map[String,ContractAbi] = {
+  override def load(dir:String) = {
     log.info(s"scanning ABI: ${dir}")
     
-    val abis = os.walk(os.Path(dir,os.pwd))
+    loading = true
+    val aa = os.walk(os.Path(dir,os.pwd))
       .filter(_.toIO.isFile())
       .flatMap( f => {
 
@@ -99,22 +130,39 @@ abstract class AbiStoreDir(dir:String) extends AbiStore {
           case _ => ("","")
         }
         
-        val abi = Decoder.loadAbi(scala.io.Source.fromFile(f.toString).getLines().mkString("\n"))
+        // val abi = Decoder.loadAbi(scala.io.Source.fromFile(f.toString).getLines().mkString("\n"))
           
-        if(abi.isSuccess && abi.get.size != 0) {
-          log.info(s"${f}: ${abi.get.size}")
-          Some(addr.toLowerCase -> abi.get)
+        // if(abi.isSuccess && abi.get.size != 0) {
+        //   log.info(s"${f}: ${abi.get.size}")
+        //   Some(addr.toLowerCase -> abi.get)
           
-        } else {
-          log.warn(s"failed to load: ${f}: ${abi}")
-          None
-        }
-      }) 
-      
-    store = store ++ abis.map{ case(addr,abi) => addr.toLowerCase -> new ContractAbi(addr,abi)}
+        // } else {
+        //   log.warn(s"failed to load: ${f}: ${abi}")
+        //   None
+        // }
 
-    log.info(s"Loaded ABI: ${store.size}")
-    store
+        val fileData = os.read(f)
+        
+        // try to load as AbiContract format (multiple are possibe)
+        val aa = 
+          fileData.split("\n").map { data =>
+            try {
+              data.parseJson.convertTo[AbiContract]              
+            } catch {
+              case e:Exception => 
+                // interpret it as one single Json
+                AbiContract(addr,fileData)
+            }
+          } 
+        aa               
+      })
+
+    aa.foreach( a => this.+(a))
+    loading = false
+
+    //store = store ++ abis.map{ case(addr,abi) => addr.toLowerCase -> new ContractAbi(addr,abi)}
+
+    log.info(s"Loaded ABI: ${store.size}")    
   }
 
 }
