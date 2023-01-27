@@ -14,7 +14,28 @@ __NOTE__: for PoC and prototyping
 
 ### ABI
 
+Show ABI for Contract `json`:
 
+```
+./run-abi.sh abi abi/UNI-0x1f9840a85d5af5bf1d1762f925bdaddc4201f984.json
+```
+
+
+Show ABI for known contract
+```
+./run-abi.sh abi 0x1f9840a85d5af5bf1d1762f925bdaddc4201f984
+```
+
+Decode function call (__intput__):
+```
+./run-abi.sh decode 0x1f9840a85d5af5bf1d1762f925bdaddc4201f984 function 0xa9059cbb000000000000000000000000f6bdeb12aba8bf4cfbfc2a60c805209002223e22000000000000000000000000000000000000000000000005a5a62f156c710000
+```
+
+Decode Transfer event (__topics__):
+
+```
+./run-abi.sh decode 0xdac17f958d2ee523a2206206994597c13d831ec7 event 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef 0x000000000000000000000000cdbb7436f9d4c21b7627065d1556db29597981f4 0x00000000000000000000000080a25bb487e89e79599c9acae6dbc6b8a5f1bcdc 0x0000000000000000000000000000000000000000000000000000000000000703
+```
 
 ----
 

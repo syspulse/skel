@@ -25,13 +25,13 @@ class ABISpec extends AnyWordSpec with Matchers {
 
   "ABI should find UNI Contract in repo" in {
     val t = abi.find("0x1f9840a85d5af5bf1d1762f925bdaddc4201f984","transfer")
-    info(s"t=${t}")
+    //info(s"t=${t}")
     t should !== (None)    
   }
 
   "ABI should find USDT Contract in repo" in {
     val t = abi.find("0xdac17f958d2ee523a2206206994597c13d831ec7","transfer")
-    info(s"t=${t}")
+    //info(s"t=${t}")
     t should !== (None)
   }
 
@@ -44,12 +44,11 @@ class ABISpec extends AnyWordSpec with Matchers {
       input = "0xa9059cbb000000000000000000000000f6bdeb12aba8bf4cfbfc2a60c805209002223e22000000000000000000000000000000000000000000000005a5a62f156c710000",
       value = BigInt(0))
     
-    val selector = "transfer"
-    val r = abi.decodeInput(tx.toAddress.get,tx.input,selector)
+    val r = abi.decodeInput(tx.toAddress.get,Seq(tx.input),"function")
     
-    info(s"$r")
+    //info(s"$r")
 
-    val s = r.get
+    val s = r.get.params
     s.size shouldBe (2)
     s(0).toString shouldBe "(dst,address,0xf6bdeb12aba8bf4cfbfc2a60c805209002223e22)"
     s(1).toString shouldBe "(rawAmount,uint256,104170000000000000000)"
@@ -64,11 +63,11 @@ class ABISpec extends AnyWordSpec with Matchers {
       input = "0xa9059cbb000000000000000000000000f6bdeb12aba8bf4cfbfc2a60c805209002223e22000000000000000000000000000000000000000000000005a5a62f156c710000",
       value = BigInt(0))
     
-    val r = abi.decodeInput(tx.toAddress.get,tx.input,"")
+    val r = abi.decodeInput(tx.toAddress.get,Seq(tx.input),"function")
     
-    info(s"$r")
+    //info(s"$r")
 
-    val s = r.get
+    val s = r.get.params
     s.size shouldBe (2)
     s(0).toString shouldBe "(dst,address,0xf6bdeb12aba8bf4cfbfc2a60c805209002223e22)"
     s(1).toString shouldBe "(rawAmount,uint256,104170000000000000000)"
@@ -83,11 +82,11 @@ class ABISpec extends AnyWordSpec with Matchers {
       input = "0xa9059cbb0000000000000000000000006876dc741a44617fa7eb205cc5aa9dfbcc526a050000000000000000000000000000000000000000000000000000000001e84800",
       value = BigInt(0))
     
-    val r = abi.decodeInput(tx.toAddress.get,tx.input,"")
+    val r = abi.decodeInput(tx.toAddress.get,Seq(tx.input),"function")
     
-    info(s"$r")
+    //info(s"$r")
 
-    val s = r.get
+    val s = r.get.params
     s.size shouldBe (2)
     s(0).toString shouldBe "(_to,address,0x6876dc741a44617fa7eb205cc5aa9dfbcc526a05)"
     s(1).toString shouldBe "(_value,uint256,32000000)"
@@ -102,11 +101,11 @@ class ABISpec extends AnyWordSpec with Matchers {
       input = "0x23b872dd000000000000000000000000b29c9f94d4c9ffa71876802196fb9b396bca631f000000000000000000000000ec30d02f10353f8efc9601371f56e808751f396f000000000000000000000000000000000000000000000000000000004b5eae1a",
       value = BigInt(0))
     
-    val r = abi.decodeInput(tx.toAddress.get,tx.input,"")
+    val r = abi.decodeInput(tx.toAddress.get,Seq(tx.input),"function")
     
-    info(s"$r")
+    //info(s"$r")
 
-    val s = r.get
+    val s = r.get.params
     s.size shouldBe (3)
     s(0).toString shouldBe "(_from,address,0xb29c9f94d4c9ffa71876802196fb9b396bca631f)"
     s(1).toString shouldBe "(_to,address,0xec30d02f10353f8efc9601371f56e808751f396f)"
@@ -122,4 +121,29 @@ class ABISpec extends AnyWordSpec with Matchers {
       Util.hex(Hash.keccak256(func).take(4)) should === ("0x70a08231")
     }
 
+  "test USDT event Transfer" in {
+    // contract: 0xdac17f958d2ee523a2206206994597c13d831ec7
+    // "topics": [
+      // "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", 
+      // "0x000000000000000000000000cdbb7436f9d4c21b7627065d1556db29597981f4", 
+      // "0x00000000000000000000000080a25bb487e89e79599c9acae6dbc6b8a5f1bcdc", 
+      // "0x0000000000000000000000000000000000000000000000000000000000000703"
+      //]
+    val contract = "0xdac17f958d2ee523a2206206994597c13d831ec7"
+    val topics = Seq( 
+      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+      "0x000000000000000000000000cdbb7436f9d4c21b7627065d1556db29597981f4",
+      "0x00000000000000000000000080a25bb487e89e79599c9acae6dbc6b8a5f1bcdc", 
+      "0x0000000000000000000000000000000000000000000000000000000000000703"
+    )
+      
+    val r = abi.decodeInput(contract,topics,"event")
+    info(s"$r")
+
+    val s = r.get.params
+    s.size shouldBe (3)
+    s(0).toString shouldBe "(from,address,0xcdbb7436f9d4c21b7627065d1556db29597981f4)"
+    s(1).toString shouldBe "(to,address,0x80a25bb487e89e79599c9acae6dbc6b8a5f1bcdc)"
+    s(2).toString shouldBe "(value,uint256,1795)"
+  }
 }

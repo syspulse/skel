@@ -43,8 +43,8 @@ class AbiStoreRepo extends AbiStore {
     Success(this)
   }
 
-  def decodeInput(contract:String,data:String,selector:String):Try[AbiResult] = {
-    repos.foldLeft(Seq[Try[AbiResult]]())( (m,r)  => m :+ r.decodeInput(contract,data,selector) ).head
+  def decodeInput(contract:String,data:Seq[String],entity:String):Try[AbiResult] = {
+    repos.foldLeft(Seq[Try[AbiResult]]())( (m,r)  => m :+ r.decodeInput(contract,data,entity) ).head
   }
 }
 

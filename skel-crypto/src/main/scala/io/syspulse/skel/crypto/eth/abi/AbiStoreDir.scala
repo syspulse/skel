@@ -11,6 +11,7 @@ import codegen.AbiDefinition
 import os._
 import scala.util.Failure
 
+import io.syspulse.skel.crypto.eth.abi.{AbiResult, AbiStore}
 class AbiStoreDir(dir:String) extends AbiStore {
 
   var funcSignatures:Map[String,String] = Map(
@@ -18,12 +19,12 @@ class AbiStoreDir(dir:String) extends AbiStore {
     "0x23b872dd" -> "transferFrom",
   )
   var eventSignatures:Map[String,String] = Map(
-    "0xddf252ad" -> "Transfer(address,address,uint256)",
-    "0x8c5be1e5" -> "Approval(address,address,uint256)",
+    "0xddf252ad" -> "Transfer",
+    "0x8c5be1e5" -> "Approval",
   )
 
-  def resolveFuncSignature(sig:String) = funcSignatures.get(sig)
-  def resolveEventSignature(sig:String) = eventSignatures.get(sig)
+  def resolveFuncSignature(sig:String) = funcSignatures.get(sig.toLowerCase())
+  def resolveEventSignature(sig:String) = eventSignatures.get(sig.toLowerCase())
 
   var store:Map[String,ContractAbi] = Map()
 
@@ -51,45 +52,44 @@ class AbiStoreDir(dir:String) extends AbiStore {
         contract.get.getAbi()
     }
 
-
-    // if(function.isDefined) {
-
-    //   val parToName = function.get.inputs.get(0).name
-    //   val parValueName = function.get.inputs.get(1).name
-
-    //   Success(ContractERC20( contractAddr, contract.get.getAbi(), parToName, parValueName, name ))
-
-    // } else {
-    //   Failure(new Exception(s"could not find function: ${contractAddr}: '${functionName}'"))      
-    // }
     Success(abi)
   }
 
-  def decodeInput(contract:String,data:String,entity:String = "function"):Try[AbiResult] = {
+  def decodeInput(contract:String,data:Seq[String],entity:String):Try[AbiResult] = {
     val abi = resolve(contract,Some(entity),None)
 
     if(abi.isFailure) {
       return Failure(new Exception(s"could not resolve contract: '${contract}'"))
     }
 
-    val (selector,payload) = entity match {
+    val (r,payload) = entity match {
       case "event" => 
-        val sig = data.take(ABI.EVENT_HASH_SIZE).toLowerCase()
-        val payload = data.drop(ABI.EVENT_HASH_SIZE)
+        val sig = data.head.take(ABI.EVENT_HASH_SIZE).toLowerCase()
+        val payload = data.tail.map(_.drop(2)).mkString("")
         val selector = resolveEventSignature(sig)
-        (selector,payload)
+        
+        if(!selector.isDefined) {
+          return Failure(new Exception(s"could not find selector: ${entity}: '${data}'"))
+        }
+        
+        val r = Decoder.decodeEvent(abi.get,selector.get,payload).map(r => AbiResult(selector.get,r))
+        
+        (r,payload)
       case "function" | _ =>
-        val sig = data.take(ABI.FUNC_HASH_SIZE).toLowerCase()
-        val payload = data.drop(ABI.FUNC_HASH_SIZE)
+        val sig = data.head.take(ABI.FUNC_HASH_SIZE).toLowerCase()
+        val payload = data.head.drop(ABI.FUNC_HASH_SIZE)
         val selector = resolveFuncSignature(sig)
-        (selector,payload)
+
+        if(!selector.isDefined) {
+          return Failure(new Exception(s"could not find selector: ${entity}: '${data}'"))
+        }
+
+        val r = Decoder.decodeFunction(abi.get,selector.get,payload).map(r => AbiResult(selector.get,r))
+        
+        (r,payload)
     }
-  
-    if(!selector.isDefined) {
-      return Failure(new Exception(s"could not find selector: ${entity}: '${data}'"))
-    }
-      
-    Decoder.decodeInput(abi.get,selector.get,payload).map(r => AbiResult(selector.get,r))
+    
+    r
   }
 
   override def load():Try[AbiStore] = {
@@ -114,9 +114,9 @@ class AbiStoreDir(dir:String) extends AbiStore {
         
         val abi = Decoder.loadAbi(scala.io.Source.fromFile(f.toString).getLines().mkString("\n"))
           
-        if(abi.size != 0) {
-          log.info(s"${f}: ${abi.size}")
-          Some(addr.toLowerCase -> abi)
+        if(abi.isSuccess && abi.get.size != 0) {
+          log.info(s"${f}: ${abi.get.size}")
+          Some(addr.toLowerCase -> abi.get)
           
         } else {
           log.warn(s"failed to load: ${f}: ${abi}")

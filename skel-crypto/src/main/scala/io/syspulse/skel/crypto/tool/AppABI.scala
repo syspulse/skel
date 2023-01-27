@@ -10,6 +10,7 @@ import scala.util.Success
 import scala.util.Try
 
 import io.syspulse.skel.crypto.eth.abi._
+import codegen.Decoder
 
 object AppABI extends {  
 
@@ -38,8 +39,8 @@ object AppABI extends {
         ArgCmd("read","read command"),
         ArgCmd("search","Search signature"),
         
-        ArgCmd("abi","Show ABI for contract"),
-        ArgCmd("decode","Decode input (func or event)"),
+        ArgCmd("abi","Show ABI for contract: <contract> [entity] [name] (entity: event,function)"),
+        ArgCmd("decode","Decode data: <contract> [entity] <data> (entity: event,function)"),
         
         ArgParam("<params>","...")
       )
@@ -82,12 +83,12 @@ object AppABI extends {
       case "decode" => 
         val (contract,data,entity) = 
         config.params.toList match {
-          case contract :: data :: entity :: Nil => (contract,data,entity)
-          case contract :: data :: Nil => (contract,data,"function")
-          case contract :: Nil => (contract,"","function")
+          case contract :: entity :: data => (contract,data,entity)
+          case contract :: data :: Nil => (contract,Seq(data),"function")
+          case contract :: Nil => (contract,Seq(),"function")
           case _ => (
             "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
-            "0xa9059cbb000000000000000000000000f6bdeb12aba8bf4cfbfc2a60c805209002223e22000000000000000000000000000000000000000000000005a5a62f156c710000",
+            Seq("0xa9059cbb000000000000000000000000f6bdeb12aba8bf4cfbfc2a60c805209002223e22000000000000000000000000000000000000000000000005a5a62f156c710000"),
             "function")            
         }
 
@@ -96,15 +97,24 @@ object AppABI extends {
         abiStore.decodeInput(contract,data,entity)
       
       case "abi" => 
-        val (contract) = 
+        val (contract,entity,entityName) = 
         config.params.toList match {
-          case contract :: Nil => (contract)
+          case contract :: entity :: entityName :: Nil => (contract,Some(entity),Some(entityName))
+          case contract :: entity :: Nil => (contract,Some(entity),None)
+          case contract :: Nil => (contract,None,None)
           case _ => (
-            "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984")            
+            "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",None,None)
         }
 
-        val abi = abiStore.resolve(contract)
-        abi
+        val abi = 
+          if(contract.toLowerCase.endsWith(".json")) {
+            Decoder.loadAbi(os.read(os.Path(contract,os.pwd)))
+          } else 
+            abiStore.resolve(contract,entity,entityName)
+        
+        abi.map(_.map(ad => 
+          s"\nname = ${ad.name.getOrElse("")}\n  in  = ${ad.inputs.getOrElse(Seq()).mkString(",")}\n  out = ${ad.outputs.getOrElse(Seq()).mkString(",")}"
+        ).mkString("\n")) + "\n"
 
       
       case "read" =>
