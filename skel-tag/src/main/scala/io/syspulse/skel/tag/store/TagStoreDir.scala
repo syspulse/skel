@@ -22,7 +22,8 @@ class TagStoreDir(dir:String = "store/") extends TagStoreMem {
     val storeDir = os.Path(dir,os.pwd)
     log.info(s"Loading store: ${storeDir}")
 
-    val tt = os.list(storeDir)
+    val tt = os.walk(storeDir)
+      .filter(_.toIO.isFile())
       .map(f => {
         log.info(s"Loading file: ${f}")
         os.read(f)

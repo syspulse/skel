@@ -60,7 +60,9 @@ class NotifyEmail(smtpName:String,to:String)(implicit config: Config) extends No
     val f = mailer(Envelope.from(new InternetAddress(from))
         .to(new InternetAddress(to))
         .subject(title)
-        .content(Text(msg)))
+        .content(Multipart()
+           .html(msg))
+          )
     
     // f.onComplete {
     //       case Success(_) => println("message delivered")

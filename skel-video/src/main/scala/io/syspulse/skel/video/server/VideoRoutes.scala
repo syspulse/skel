@@ -48,8 +48,9 @@ import io.syspulse.skel.video._
 import io.syspulse.skel.video.store.VideoRegistry
 import io.syspulse.skel.video.store.VideoRegistry._
 import io.syspulse.skel.video.server._
+import scala.util.Try
 
-@Path("/api/v1/video")
+@Path("/")
 class VideoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
   //val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system
@@ -67,7 +68,7 @@ class VideoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]
   val metricCreateCount: Counter = Counter.build().name("skel_video_create_total").help("Video creates").register(cr)
   
   def getVideos(): Future[Videos] = registry.ask(GetVideos)
-  def getVideo(id: VID): Future[Option[Video]] = registry.ask(GetVideo(id, _))
+  def getVideo(id: VID): Future[Try[Video]] = registry.ask(GetVideo(id, _))
   def getVideoBySearch(txt: String): Future[Videos] = registry.ask(SearchVideo(txt, _))
   def getVideoByTyping(txt: String): Future[Videos] = registry.ask(TypingVideo(txt, _))
 
@@ -89,8 +90,6 @@ class VideoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]
       }
     }
   }
-
-
 
   @GET @Path("/search/{txt}") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("video"),summary = "Search Video by term",

@@ -39,8 +39,27 @@ object Util {
   val salt: Array[Byte] = Array.fill[Byte](16)(0x1f)
   val digest = MessageDigest.getInstance("SHA-256");  
 
-  def generateRandomToken() = Base64.getUrlEncoder.withoutPadding.encodeToString(random.generateSeed(32))
-  def generateRandom() = random.generateSeed(32)
+  // ATTENTION: Never use seeds in Production !!!
+  // This is only for testing 
+  def generateRandomToken(seed:Option[String] = None,sz:Int = 32) = {
+    val rnd = generateRandom(seed)
+    Base64.getUrlEncoder.withoutPadding.encodeToString(rnd)
+  }
+
+  def generateRandom(seed:Option[String] = None,sz:Int = 32) = {
+    seed match {
+      case Some(seed) => 
+        // use non-secure Random for deterministic tests
+        val buf: Array[Byte] = Array.fill[Byte](sz)(0)
+        new Random(Util.toHexString(seed.getBytes()).take("0x12345678".size).toLong).nextBytes(buf)
+        buf
+      case None => 
+        // SecureRandom is non-deterministic, so seed only adds to existing seed
+        val buf: Array[Byte] = Array.fill[Byte](sz)(0)
+        random.nextBytes(buf)
+        buf
+    }
+  }
 
   def fromHexString(h:String) = ByteVector.fromHex(h).orElse(Some(ByteVector.fromByte(0))).get.toArray
   def toHexString(b:Array[Byte]) = b.foldLeft("")((s,b)=>s + f"$b%02x")
@@ -78,19 +97,29 @@ object Util {
     tssPairs.foldLeft(fileName)( (fileName,pair) => { fileName.replace("{"+pair._1+"}",pair._2) })
   }
 
-  // only applicable to yyyy-MM-dd HH:mm (not to seconds)
   def nextTimestampDir(fileName:String,ts:Long=System.currentTimeMillis()) = {
-    val tss = extractDirWithSlash(fileName).split("[{]").filter(_.contains("}")).map(s => s.substring(0,s.indexOf("}")))
+    nextTimestampFile(extractDirWithSlash(fileName),ts)
+  }
+
+  def nextTimestampFile(fullName:String,ts:Long=System.currentTimeMillis()) = {
+    val tss = fullName.split("[{]").filter(_.contains("}")).map(s => s.substring(0,s.indexOf("}")))
     val deltas = tss.reverse.map(s => s match {
-      case "mm" | "m" => (0,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).plusMinutes(1).toInstant().toEpochMilli())
-      case "HH" | "H" => (1,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).plusHours(1).toInstant().toEpochMilli())
-      case "dd" | "d" => (2,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).plusDays(1).toInstant().toEpochMilli())
-      case "MM" | "M" => (3,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).plusMonths(1).toInstant().toEpochMilli())
-      case "yyyy" | "yy" | "y" => (4,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).plusYears(1).toInstant().toEpochMilli())
+      case "ss" | "s" =>          (0,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), 
+                                     ZoneId.systemDefault).plusSeconds(1).toInstant().toEpochMilli())
+      case "mm" | "m" =>          (1,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), 
+                                     ZoneId.systemDefault).plusMinutes(1).withSecond(0).toInstant().toEpochMilli())
+      case "HH" | "H" =>          (2,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), 
+                                     ZoneId.systemDefault).plusHours(1).withMinute(0).withSecond(0).toInstant().toEpochMilli())
+      case "dd" | "d" =>          (3,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), 
+                                     ZoneId.systemDefault).plusDays(1).withHour(0).withMinute(0).withSecond(0).toInstant().toEpochMilli())
+      case "MM" | "M" =>          (4,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), 
+                                     ZoneId.systemDefault).plusMonths(1).withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).toInstant().toEpochMilli())
+      case "yyyy" | "yy" | "y" => (5,ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), 
+                                     ZoneId.systemDefault).plusYears(1).withMonth(1).withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).toInstant().toEpochMilli())
     }).toList
 
-    println(s"${deltas}")
-    println(s"${deltas.sortBy(_._1)}")
+    //println(s"${deltas}")
+    //println(s"${deltas.sortBy(_._1)}")
     deltas.sortBy(_._1).map(_._2).head
   }
 
@@ -220,9 +249,6 @@ object Util {
     )
   }
   
-  val NOBODY = UUID("00000000-0000-0000-0000-000000000000")
-  val GOD =    UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
-
   import scala.util.Using
   def loadFile(path:String):scala.util.Try[String] = {
     if(path.trim.startsWith("classpath:")) {

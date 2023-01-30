@@ -52,19 +52,19 @@ import pdi.jwt.JwtClaim
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.jwt.Jwks
-import io.syspulse.skel.auth.Idp
+import io.syspulse.skel.auth.oauth2.Idp
 
 import akka.stream.Materializer
 import io.syspulse.skel.crypto.Eth
 
-final case class EthTokens(accessToken:String,idToken:String,expiresIn:Int,scope:String,tokenType:String)
+final case class EthTokens(accessToken:String,idToken:String,expiresIn:Long,scope:String,tokenType:String,refreshToken:String)
 final case class EthProfile(id:String,addr:String,email:String,avatar:String,createdAt:String)
 final case class EthProfileData(data:EthProfile)
 
 final case class EthTokenReq(code:String,client_id:String,client_secret:String,redirect_uri:String,grant_type:String)
 
 object EthOAuth2 {
-  implicit val jf_EthTokens = jsonFormat(EthTokens,"access_token", "id_token", "expires_in", "scope", "token_type")
+  implicit val jf_EthTokens = jsonFormat(EthTokens,"access_token", "id_token", "expires_in", "scope", "token_type", "refresh_token")
   implicit val jf_EthProfile = jsonFormat(EthProfile,"id","addr","email","avatar","created_at")
   implicit val jf_EthProfileData = jsonFormat(EthProfileData, "data")
   implicit val jf_EthTokenReq = jsonFormat(EthTokenReq, "code","client_id","client_secret","redirect_uri","grant_type")
@@ -95,6 +95,8 @@ class EthOAuth2(val uri:String) extends Idp {
   override def clientId:Option[String] = Option[String](System.getenv("ETH_AUTH_CLIENT_ID"))
   override def clientSecret:Option[String] = Option[String](System.getenv("ETH_AUTH_CLIENT_SECRET")) 
 
+  def getState():String = sys.env.get("ETH_AUTH_CLIENT_STATE").getOrElse("")
+
   def getGrantData():Map[String,String] =  Map()
   
   def getBasicAuth():Option[String] = Some(java.util.Base64.getEncoder.encodeToString(s"${getClientId}:${getClientSecret}".getBytes()))
@@ -121,7 +123,7 @@ class EthOAuth2(val uri:String) extends Idp {
   def getLoginUrl() = {
     val (sigData,msg64) = sig()
     
-    s"${uri}/eth/auth?msg=${msg64}&sig=${sigData}&addr=${addr}&response_type=code&client_id=${getClientId}&scope=profile&state=state&redirect_uri=${getRedirectUri()}"
+    s"${uri}/eth/auth?msg=${msg64}&sig=${sigData}&addr=${addr}&response_type=code&client_id=${getClientId}&scope=profile&state=${getState()}&redirect_uri=${getRedirectUri()}"
   }
 
   def getProfileUrl(accessToken:String):(String,Seq[(String,String)]) = 
@@ -130,7 +132,7 @@ class EthOAuth2(val uri:String) extends Idp {
 
   def withJWKS():EthOAuth2 = {
     val jwksUri = s"${uri}/jwks"
-    log.info("Requesting JWKS: ${jwksUri} ...")
+    log.info(s"Requesting JWKS: ${jwksUri} ...")
     val certsRsp = requests.get(jwksUri)
     
     //jwks = Some((certsRsp.text().parseJson).convertTo[JWKSKeys])
@@ -140,7 +142,7 @@ class EthOAuth2(val uri:String) extends Idp {
   }
 
   def decodeTokens(tokenRsp:ByteString)(implicit mat:Materializer, ec: scala.concurrent.ExecutionContext):Future[IdpTokens] = {    
-    Unmarshal(tokenRsp).to[EthTokens].map( t => IdpTokens(t.accessToken,t.expiresIn,t.scope,t.tokenType,t.idToken))
+    Unmarshal(tokenRsp).to[EthTokens].map( t => IdpTokens(t.accessToken,t.expiresIn,t.scope,t.tokenType,t.idToken,t.refreshToken))
   }
 
   def decodeProfile(profileRsp:ByteString)(implicit mat:Materializer,ec: scala.concurrent.ExecutionContext):Future[OAuthProfile] = {

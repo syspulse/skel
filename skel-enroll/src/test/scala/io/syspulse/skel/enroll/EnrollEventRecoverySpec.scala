@@ -10,7 +10,10 @@ import org.scalatest.DoNotDiscover
 import org.scalatest.Sequential
 import akka.persistence.journal.PersistencePluginProxy
 
-import io.syspulse.skel.enroll.event._
+import io.syspulse.skel.enroll.flow.event._
+import io.syspulse.skel.enroll.flow.EnrollFlow
+import io.syspulse.skel.enroll.flow.Enrollment._
+import io.syspulse.skel.enroll.flow.Enrollment
 
 object TestsRecovery {
   val id1 = UUID.randomUUID()
@@ -59,8 +62,8 @@ class EnrollEventSpec2 extends AnyWordSpecLike {
 
       val e2 = EnrollEvent(id1)      
       val a2 = as.testKit.spawn(e2)
-      val probe2 = as.testKit.createTestProbe[Enroll.Summary]
-      a2 ! Enroll.Get(probe2.ref)
+      val probe2 = as.testKit.createTestProbe[Enrollment.Summary]
+      a2 ! Enrollment.Get(probe2.ref)
       val r2 = probe2.receiveMessage()
       info(s"r2 = ${r2}")
 
@@ -82,12 +85,12 @@ class EnrollEventSpec1 extends AnyWordSpecLike {
 
       val e1 = EnrollEvent(id1)      
       val a1 = as.testKit.spawn(e1)
-      val probe = as.testKit.createTestProbe[StatusReply[Enroll.Summary]]      
-      a1 ! Enroll.AddEmail("user-1@email.com", probe.ref)
+      val probe = as.testKit.createTestProbe[StatusReply[Enrollment.Summary]]      
+      a1 ! Enrollment.AddEmail("user-1@email.com", probe.ref)
       val r = probe.receiveMessage()
       
-      val probe1 = as.testKit.createTestProbe[Enroll.Summary]
-      a1 ! Enroll.Get(probe1.ref)
+      val probe1 = as.testKit.createTestProbe[Enrollment.Summary]
+      a1 ! Enrollment.Get(probe1.ref)
       val r1 = probe1.receiveMessage()
       info(s"r1 = ${r1}")
 
@@ -95,8 +98,8 @@ class EnrollEventSpec1 extends AnyWordSpecLike {
 
       val e2 = EnrollEvent(id1)      
       val a2 = as.testKit.spawn(e2)
-      val probe2 = as.testKit.createTestProbe[Enroll.Summary]
-      a2 ! Enroll.Get(probe2.ref)
+      val probe2 = as.testKit.createTestProbe[Enrollment.Summary]
+      a2 ! Enrollment.Get(probe2.ref)
       val r2 = probe2.receiveMessage()
       info(s"r2 = ${r2}")
 

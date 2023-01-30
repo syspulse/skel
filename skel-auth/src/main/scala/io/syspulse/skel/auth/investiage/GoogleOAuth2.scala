@@ -32,7 +32,7 @@ object GoogleOAuth2 extends cask.MainRoutes{
   val config = requests.get("https://accounts.google.com/.well-known/openid-configuration")
   println("Requesting Google OAuth2 JWKS...")
   val jwks = requests.get("https://www.googleapis.com/oauth2/v3/certs")
-  val jwksJson = ujson.read(jwks.text)
+  val jwksJson = ujson.read(jwks.text())
   println(s"Google OAuth2 JWKS:\n${jwksJson}")
 
   @cask.get("/")
@@ -99,7 +99,7 @@ object GoogleOAuth2 extends cask.MainRoutes{
 
     println(s"${r}")
 
-    val json = ujson.read(r.text)
+    val json = ujson.read(r.text())
     val access_token = json.obj("access_token").str
     val id_token = json.obj("id_token").str
 
@@ -110,7 +110,7 @@ object GoogleOAuth2 extends cask.MainRoutes{
 
     // call non OpenID Connect profile
     val profileRsp = requests.get(s"https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${access_token}")
-    val profile = ujson.read(profileRsp.text).obj
+    val profile = ujson.read(profileRsp.text()).obj
     
     // verify Key with public key
     // verify(jwt.get.content,1)
@@ -120,7 +120,7 @@ object GoogleOAuth2 extends cask.MainRoutes{
 
   def verify(jwtStr:String,index:Int= -1):Seq[String] = {
     
-    val jwk = JWKSet.parse(jwks.text) 
+    val jwk = JWKSet.parse(jwks.text()) 
     val matcher = (new JWKMatcher.Builder).publicOnly(true).keyType(KeyType.RSA).keyUse(KeyUse.SIGNATURE).build
     
     jwksJson.obj("keys").arr.view.zipWithIndex.collect{ case(o,i) if(index== -1 || i==index) => {
@@ -131,7 +131,7 @@ object GoogleOAuth2 extends cask.MainRoutes{
       // create Public Key from JKS
       val publicKey = (new JWKSelector(matcher)).select(jwk).get(i).asInstanceOf[RSAKey].toPublicKey
      
-      val jwt = Jwt.decode(jwtStr,publicKey,JwtAlgorithm.allRSA)
+      val jwt = Jwt.decode(jwtStr,publicKey,JwtAlgorithm.allRSA())
       println(s"JWT Verification: ${jwt}")
       s"${i}: JWK.n=${n}: JWK.publicKey=${publicKey}: ${jwt.toString}\n==================================\n"
     }}.toSeq

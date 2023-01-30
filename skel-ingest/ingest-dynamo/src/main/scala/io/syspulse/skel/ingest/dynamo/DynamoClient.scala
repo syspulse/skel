@@ -1,6 +1,5 @@
 package io.syspulse.skel.ingest.dynamo
 
-
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Keep
 import akka.{Done, NotUsed}

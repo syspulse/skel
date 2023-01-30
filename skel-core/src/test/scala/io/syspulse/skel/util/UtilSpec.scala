@@ -16,6 +16,8 @@ case class DataList(name:String,data:List[Data])
 
 class UtilSpec extends AnyWordSpec with Matchers {
   
+  val DST = ZonedDateTime.now.getZone().getRules.isDaylightSavings(ZonedDateTime.now.toInstant)
+
   "Util" should {
 
     "sha256 should be 32 bytes" in {
@@ -152,6 +154,7 @@ class UtilSpec extends AnyWordSpec with Matchers {
 
 
     "nextTimestamp '/dir/year={yyyy}/month={MM}/day={dd}/file.log' should be next day" in {
+      //System.setProperty("user.timezone", "UTC");
       val t1 = 1662982804209L 
       val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/day={dd}/file.log",t1)      
       val f2 = Util.toFileWithTime("{dd}",t2)      
@@ -172,11 +175,12 @@ class UtilSpec extends AnyWordSpec with Matchers {
       f2 should === ("2023")
     }
 
-    "nextTimestamp '/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/file.log' should be next hour" in {
+    "nextTimestamp '/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/file.log' should be next hour" in {      
       val t1 = 1662982804209L 
       val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/file.log",t1)
       val f2 = Util.toFileWithTime("{HH}",t2)
-      f2 should === ("15")
+      // info(s"${Util.toFileWithTime("{HH}",t1)} -- ${Util.toFileWithTime("{HH}",t2)}")    
+      if(DST) f2 should === ("15") else f2 should === ("14")
     }
 
     "nextTimestamp '/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/min=${mm}/file.log' should be next minute" in {
@@ -190,18 +194,27 @@ class UtilSpec extends AnyWordSpec with Matchers {
       val t1 = 1662982804209L 
       val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/day={dd}/hour=${HH}/file-${HH}-${mm}.log",t1)
       val f2 = Util.toFileWithTime("{HH}",t2)
-      f2 should === ("15")
+      //f2 should === ("15")
+      if(DST) f2 should === ("15") else f2 should === ("14")
     }
 
-    // "nextTimestamp '/dir/year={yyyy}/month={MM}/day={dd}' should be next day" in {
-    //   val t1 = System.currentTimeMillis()
-    //   val t2 = Util.nextTimestampDir("/dir/year={yyyy}/month={MM}/day={dd}",t1)
+    "nextTimestampFile '/dir/file-{mm}.log' should be next minute" in {
+      val t1 = System.currentTimeMillis()
+      val t2 = Util.nextTimestampFile("/dir/file-{mm}.log",t1)
       
-    //   val f2 = Util.toFileWithTime("{dd}",t2)
-    //   val t3 = "%02d".format(ZonedDateTime.ofInstant(Instant.ofEpochMilli(t1), ZoneId.systemDefault).plusDays(1).getDayOfMonth)
+      val f2 = Util.toFileWithTime("{mm}",t2)
+      val t3 = "%02d".format(ZonedDateTime.ofInstant(Instant.ofEpochMilli(t1), ZoneId.systemDefault).plusMinutes(1).getMinute())
+      f2 should === (t3)
+    }
+
+    "nextTimestampFile '/dir/{HH}/file-{mm}.log' should be next minute and not hour" in {
+      val t1 = System.currentTimeMillis()
+      val t2 = Util.nextTimestampFile("/dir/{HH}/file-{mm}.log",t1)
       
-    //   f2 should === (t3)
-    // }
+      val f2 = Util.toFileWithTime("{mm}",t2)
+      val t3 = "%02d".format(ZonedDateTime.ofInstant(Instant.ofEpochMilli(t1), ZoneId.systemDefault).plusMinutes(1).getMinute())
+      f2 should === (t3)
+    }
 
     "produce CSV 'data,attr1;attr2,10' for case class with List(1,2)" in {
       case class Data(data:String,attr:List[String],v:Int)

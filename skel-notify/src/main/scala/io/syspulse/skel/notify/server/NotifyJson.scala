@@ -16,7 +16,7 @@ object NotifyJson extends JsonCommon {
   
   import DefaultJsonProtocol._
 
-  implicit val jf_Notify = jsonFormat4(Notify)
+  implicit val jf_Notify = jsonFormat5(Notify)
   implicit val jf_Notifys = jsonFormat1(Notifys)
   implicit val jf_NotifyRes = jsonFormat1(NotifyRes)
   

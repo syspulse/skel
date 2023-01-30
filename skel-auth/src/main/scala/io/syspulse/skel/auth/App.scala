@@ -1,5 +1,7 @@
 package io.syspulse.skel.auth
 
+import scala.util.Success
+
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
@@ -7,19 +9,22 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.user.server.UserRoutes
 import io.syspulse.skel.user.store._
 
-import io.syspulse.skel.auth.{AuthRegistry,AuthRoutes}
+import io.syspulse.skel.auth.server.AuthRoutes
 import io.syspulse.skel.auth.jwt.AuthJwt
-
-
-import scopt.OParser
-import scala.util.Success
+import io.syspulse.skel.auth.store._
+import io.syspulse.skel.auth.permissions.rbac.Permissions
+import io.syspulse.skel.auth.cred.Cred
 
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
   uri:String = "/api/v1/auth",
-  datastore:String = "mem",
 
+  datastore:String = "mem://",
+  storeCode:String = "mem://",
+  storeCred:String = "mem://",
+
+  // legacy investion research
   proxyBasicUser:String = "user1",
   proxyBasicPass:String = "pass1",
   proxyBasicRealm:String = "realm",
@@ -27,7 +32,9 @@ case class Config(
   proxyBody:String = """{ "username":{{user}}, "password":{{pass}}""",
   proxyHeadersMapping:String = "HEADER:Content-type:application/json, HEADER:X-App-Id:{{client_id}}, HEADER:X-App-Secret:{{client_secret}}, BODY:X-User:{{user}}, BODY:X-Pass:{{pass}}",
 
-  jwtSecret:String = "",
+  jwtSecret:Option[String] = None,
+  jwtRoleService:String = "",
+  jwtRoleAdmin:String = "",
 
   userUri:String = "http://localhost:8080/api/v1/user",
 
@@ -41,7 +48,7 @@ case class Config(
 object App extends skel.Server {
   
   def main(args:Array[String]):Unit = {
-    println(s"args: '${args.mkString(",")}'")
+    Console.err.println(s"args: '${args.mkString(",")}'")
 
     val d = Config()
     val c = Configuration.withPriority(Seq(
@@ -61,6 +68,8 @@ object App extends skel.Server {
         ArgString('_',"proxy.headers.mapping",s"ProxyM2M Headers mapping (def: ${d.proxyHeadersMapping}) "),
 
         ArgString('_', "jwt.secret",s"JWT secret (def: ${d.jwtSecret})"),
+        ArgString('_', "jwt.role.service",s"JWT access_token for Service Account (def: ${d.jwtRoleService})"),
+        ArgString('_', "jwt.role.admin",s"JWT access_token for Admin Account (def: ${d.jwtRoleAdmin})"),
 
         ArgString('_', "user.uri",s"User Service URI (def: ${d.userUri})"),
 
@@ -70,7 +79,18 @@ object App extends skel.Server {
         ArgCmd("server",s"Server"),
         ArgCmd("demo",s"Server with embedded UserServices (for testing)"),
         ArgCmd("client",s"Http Client"),
-        ArgCmd("jwt",s"JWT utils (encode/decode)"),
+        ArgCmd("jwt",s"JWT subcommands: " +
+          s"encode k=v k=v  : generate JWT with map" +
+          s"decode <jwt>    : decode JWT" +
+          s"valid <jwt>     : validate JWT" +
+          s"admin           : create Admin role token"+
+          s"service         : create Service role token"+
+          s"user <uid>      : create User role token"
+        ),
+        ArgCmd("cred",s"Client Credentials subcommands: " +
+          s"generate        : generate Client Credentials pair" +
+          ""
+        ),
         ArgParam("<params>","")
       ).withExit(1)
     ))
@@ -88,7 +108,9 @@ object App extends skel.Server {
       proxyBody = c.getString("proxy.body").getOrElse(d.proxyBody),
       proxyHeadersMapping = c.getString("proxy.headers.mapping").getOrElse(d.proxyHeadersMapping),
 
-      jwtSecret = c.getString("jwt.secret").getOrElse(Util.generateRandomToken()),
+      jwtSecret = c.getString("jwt.secret"),
+      jwtRoleService = c.getString("jwt.role.service").getOrElse(""),
+      jwtRoleAdmin = c.getString("jwt.role.admin").getOrElse(""),
 
       userUri = c.getString("user.uri").getOrElse(d.userUri),
 
@@ -99,19 +121,21 @@ object App extends skel.Server {
       params = c.getParams(),
     )
 
-    println(s"Config: ${config}")
+    Console.err.println(s"Config: ${config}")
 
-    val store = config.datastore match {
+    val store = config.datastore.split("://").toList match {
       //case "mysql" | "db" => new AuthStoreDB(c,"mysql")
       //case "postgres" => new AuthStoreDB(c,"postgres")
-      case "mem" | "cache" => new AuthStoreMem
+      case "mem" :: _ | "cache" :: _ => new AuthStoreMem
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
         new AuthStoreMem
       }
     }
 
-    AuthJwt.run(config.jwtSecret)
+    if(config.jwtSecret.isDefined) 
+      AuthJwt.withSecret(config.jwtSecret.get)
+
     val authHost = if(config.host=="0.0.0.0") "localhost" else config.host
 
     config.cmd match {
@@ -129,8 +153,11 @@ object App extends skel.Server {
         )
       case "demo" =>
         val uri = Util.getParentUri(config.uri)
-        println(s"${Console.YELLOW}Running with AuthService(mem):${Console.RESET} http://${authHost}:${config.port}${uri}/auth")
-        println(s"${Console.YELLOW}Running with UserService(mem):${Console.RESET} http://${authHost}:${config.port}${uri}/user")
+        Console.err.println(s"${Console.YELLOW}Running with AuthService(mem):${Console.RESET} http://${authHost}:${config.port}${uri}/auth")
+        Console.err.println(s"${Console.YELLOW}Running with UserService(mem):${Console.RESET} http://${authHost}:${config.port}${uri}/user")
+
+        implicit val userConfig = io.syspulse.skel.user.Config( )
+
         run( config.host, config.port, uri, c,
           Seq(
             (AuthRegistry(store),"AuthRegistry",(actor, context) => {
@@ -141,7 +168,7 @@ object App extends skel.Server {
               }
               .withSuffix("auth")
             ),
-            (UserRegistry(new UserStoreMem),"UserRegistry",(a, ac) => new UserRoutes(a)(ac).withSuffix("user") )
+            (UserRegistry(new UserStoreMem),"UserRegistry",(a, ac) => new UserRoutes(a)(ac,userConfig).withSuffix("user") )
             
           )
         )
@@ -149,7 +176,7 @@ object App extends skel.Server {
         val adminAccessTokenFile = "ACCESS_TOKEN_ADMIN"
         val adminAccessToken = AuthJwt.generateAccessToken(Map("uid" -> "ffffffff-0000-0000-9000-000000000001"))        
         os.write.over(os.Path(adminAccessTokenFile,os.pwd),adminAccessToken + "\n")
-        println(s"${Console.GREEN}${adminAccessTokenFile}:${Console.RESET} ${adminAccessToken}")
+        Console.err.println(s"${Console.GREEN}${adminAccessTokenFile}:${Console.RESET} ${adminAccessToken}")
 
       case "client" => {
         
@@ -189,18 +216,28 @@ object App extends skel.Server {
         //         .getAll()
         //         .await()
 
-        //     case _ => println(s"unknown op: ${config.params}")
+        //     case _ => Console.err.println(s"unknown op: ${config.params}")
         //   }
+        // Console.err.println(r)
         
-        // println(s"${r}")
         System.exit(0)
       }
-      case "jwt" => {
-        
+      case "jwt" => {        
         val r = 
           config.params match {
-            case "encode" :: uid :: Nil => 
+            case "admin" :: Nil => 
+              // long living token
+              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_ADMIN.toString),expire = 3600L * 24 * 6)
+            
+            case "service" :: Nil => 
+              // long living token
+              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString),expire = 3600L * 24 * 12)
+
+            case "user" :: uid :: Nil => 
               AuthJwt.generateAccessToken(Map("uid" -> uid))
+
+            case "encode" :: data => 
+              AuthJwt.generateAccessToken(data.map(_.split("=")).collect{ case(Array(k,v)) => k->v}.toMap)
 
             case "decode" :: token :: Nil => 
               AuthJwt.decodeAll(token) match {
@@ -210,7 +247,24 @@ object App extends skel.Server {
             case "valid" :: token :: Nil => 
               AuthJwt.isValid(token)
 
-            case _ => println(s"unknown op: ${config.params}")
+            case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
+          }
+        
+        println(s"${r}")
+        System.exit(0)
+      }
+
+      case "cred" => {
+        val r = 
+          config.params match {
+            case "generate" :: Nil => 
+              val client_id = Cred.generateClientId()
+              val client_secret = Cred.generateClientSecret()
+                        
+              s"""export ETH_AUTH_CLIENT_ID="${client_id}"\n"""+
+              s"""export ETH_AUTH_CLIENT_SECRET="${client_secret}"\n"""
+
+            case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
           }
         
         println(s"${r}")

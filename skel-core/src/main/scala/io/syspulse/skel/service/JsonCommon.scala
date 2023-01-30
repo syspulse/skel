@@ -11,11 +11,29 @@ import java.time.format.DateTimeFormatter
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.Directives
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsString, JsValue, JsonFormat, deserializationError}
+import spray.json.JsNumber
+import spray.json.JsTrue
+import spray.json.JsFalse
+import scala.collection.SortedSet
+import spray.json.JsArray
+import spray.json.RootJsonFormat
+import spray.json.CollectionFormats
 
-trait JsonCommon extends DefaultJsonProtocol {
-  
+object JsonCommon extends DefaultJsonProtocol with CollectionFormats {
+  implicit def sortedSetFormat[T :JsonFormat](implicit ordering: Ordering[T]) = viaSeq[SortedSet[T], T](seq => SortedSet(seq :_*))
+}
+
+trait JsonCommon extends DefaultJsonProtocol with CollectionFormats { 
   //import DefaultJsonProtocol._
-  
+
+  // implicit def sortedSetFormat[T :JsonFormat] = new RootJsonFormat[SortedSet[T]] {
+  //   def write(list: SortedSet[T]) = JsArray(list.map(_.toJson).toVector)
+  //   def read(value: JsValue): SortedSet[T] = value match {
+  //     case JsArray(elements) => SortedSet[T](elements.toIterator.map(_.convertTo[T]).toSet)
+  //     case x => deserializationError("Expected List as JsArray, but got " + x)
+  //   }
+  // }
+
   //val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssZ")
   val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
 
@@ -95,6 +113,22 @@ trait JsonCommon extends DefaultJsonProtocol {
       }
 
       case unknown => deserializationError(s"Expected JsString, got $unknown")
+    }
+  }
+
+  implicit object AnyFormat extends JsonFormat[Any] {
+    def write(x: Any) = x match {
+      case n: Int => JsNumber(n)
+      case s: String => JsString(s)
+      case b: Boolean if b == true => JsTrue
+      case b: Boolean if b == false => JsFalse
+      case d: Double => JsNumber(d)
+    }
+    def read(value: JsValue) = value match {
+      case JsNumber(n) => n
+      case JsString(s) => s
+      case JsTrue => true
+      case JsFalse => false
     }
   }
 

@@ -38,7 +38,7 @@ object YLOAuth2 extends cask.MainRoutes{
   
   println("Requesting OAuth2 JWKS...")
   val jwks = requests.get("https://localhost:5000/.well-known/openid-configuration/jwks",verifySslCerts=false)
-  val jwksJson = ujson.read(jwks.text)
+  val jwksJson = ujson.read(jwks.text())
   println(s"OAuth2 JWKS:\n${jwksJson}")
 
   @cask.get("/")
@@ -108,7 +108,7 @@ object YLOAuth2 extends cask.MainRoutes{
 
     println(s"${r}")
 
-    val json = ujson.read(r.text)
+    val json = ujson.read(r.text())
     val access_token = json.obj("access_token").str
     val id_token = json.obj("id_token").str
 
@@ -124,7 +124,7 @@ object YLOAuth2 extends cask.MainRoutes{
       ),
       verifySslCerts=false
     )
-    val profile = ujson.read(profileRsp.text).obj
+    val profile = ujson.read(profileRsp.text()).obj
     
     // verify Key with public key
     // verify(jwt.get.content,1)
@@ -134,7 +134,7 @@ object YLOAuth2 extends cask.MainRoutes{
 
   def verify(jwtStr:String,index:Int= -1):Seq[String] = {
     
-    val jwk = JWKSet.parse(jwks.text) 
+    val jwk = JWKSet.parse(jwks.text()) 
     val matcher = (new JWKMatcher.Builder).publicOnly(true).keyType(KeyType.RSA).keyUse(KeyUse.SIGNATURE).build
     
     jwksJson.obj("keys").arr.view.zipWithIndex.collect{ case(o,i) if(index== -1 || i==index) => {
@@ -145,7 +145,7 @@ object YLOAuth2 extends cask.MainRoutes{
       // create Public Key from JKS
       val publicKey = (new JWKSelector(matcher)).select(jwk).get(i).asInstanceOf[RSAKey].toPublicKey
      
-      val jwt = Jwt.decode(jwtStr,publicKey,JwtAlgorithm.allRSA)
+      val jwt = Jwt.decode(jwtStr,publicKey,JwtAlgorithm.allRSA())
       println(s"JWT Verification: ${jwt}")
       s"${i}: JWK.n=${n}: JWK.publicKey=${publicKey}: ${jwt.toString}\n==================================\n"
     }}.toSeq

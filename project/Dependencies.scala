@@ -46,7 +46,7 @@ object Dependencies {
     lazy val appBootClassElastic = "io.syspulse.skel.ingest.elastic.App"
 
 
-    lazy val appVersion = "0.0.5"
+    lazy val appVersion = "0.0.6"
     lazy val jarPrefix = "server-"
     
     lazy val appDockerRoot = "/app"
@@ -97,7 +97,7 @@ object Dependencies {
       
     //val libWsRs =           "javax.ws.rs"                     % "javax.ws.rs-api"       % "2.1.1"
     val libWsRsJakarta =    "jakarta.ws.rs"                   % "jakarta.ws.rs-api"     % "3.1.0" //"3.0.0"
-    val libSwaggerAkkaHttp ="com.github.swagger-akka-http"    %% "swagger-akka-http"    % "2.7.0"
+    val libSwaggerAkkaHttp ="com.github.swagger-akka-http"    %% "swagger-akka-http"    % "2.7.0" //"2.10.0"
     //val libSwaggerAkkaHttpUi ="com.github.swagger-akka-http"    %% "swagger-akka-http-with-ui" % "2.6.0"
     //val libSwaggerAnn =     "io.swagger.core.v3"              % "swagger-annotations"   % "2.2.0"
     //val libSwaggerAnnJakarta = "io.swagger.core.v3"              % "swagger-annotations-jakarta"   % "2.2.0"
@@ -149,7 +149,7 @@ object Dependencies {
     val libWeb3jCrypto =      "org.web3j"                       % "crypto"              % "4.9.2" exclude("org.bouncycastle", "bcprov-jdk15on")
     val libWeb3jCore =        "org.web3j"                       % "core"                % "4.9.2" exclude("org.bouncycastle", "bcprov-jdk15on")
     // Refactored: https://github.com/syspulse/eth-abi
-    val libEthAbi =           "com.github.lbqds"                %% "ethabi"             % "0.4.0"
+    val libEthAbi =           "com.github.lbqds"                %% "ethabi"             % "0.4.1"
     
     //web3j depends on "1.65"
     val libBouncyCastle =     "org.bouncycastle"                % "bcprov-jdk15on"      % "1.70" //"1.69" 

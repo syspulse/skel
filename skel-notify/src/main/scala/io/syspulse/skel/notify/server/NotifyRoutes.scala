@@ -16,8 +16,11 @@ import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model.headers.`Content-Type`
 import akka.http.scaladsl.server.RejectionHandler
 import akka.http.scaladsl.model.StatusCodes._
-import com.typesafe.scalalogging.Logger
 
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
+import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
+
+import com.typesafe.scalalogging.Logger
 import io.jvm.uuid._
 
 import io.swagger.v3.oas.annotations.enums.ParameterIn
@@ -48,7 +51,7 @@ import io.syspulse.skel.notify._
 import io.syspulse.skel.notify.store.NotifyRegistry
 import io.syspulse.skel.notify.store.NotifyRegistry._
 
-@Path("/api/v1/notify")
+@Path("/")
 class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
   //val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system
@@ -88,24 +91,24 @@ class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
     }
   }
 
-  override def routes: Route =
+  val corsAllow = CorsSettings(system.classicSystem)
+    //.withAllowGenericHttpRequests(true)
+    .withAllowCredentials(true)
+    .withAllowedMethods(Seq(HttpMethods.OPTIONS,HttpMethods.GET,HttpMethods.POST,HttpMethods.PUT,HttpMethods.DELETE,HttpMethods.HEAD))
+
+  override def routes: Route = cors(corsAllow) {
+    authenticate()(authn => authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
       concat(
         pathEndOrSingleSlash { req =>
           notifyRoute(req)
         },        
         pathPrefix(Segment) { via =>
           pathEndOrSingleSlash {
-            notifyToRoute(via)
-            // authenticate()(authn =>
-            //   authorize(Permissions.isUser(UUID(id),authn)) {
-            //     getNotifyRoute(id)
-            //   } ~
-            //   authorize(Permissions.isAdmin(authn)) {
-            //     deleteNotifyRoute(id)
-            //   }
-            // ) 
+            notifyToRoute(via)            
           }
         }
       )
+    })
+  }
     
 }

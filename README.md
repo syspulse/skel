@@ -8,7 +8,7 @@ Skeletons for RnD Prototypes
 4. [skel-world](skel-world) + [skel-shop](skel-shop) - Services for E-Shop like product
 5. [skel-kafka](skel-kafka) - Kafka Processors (Source/Sink)
 6. [skel-ingest](skel-ingest) - Data Ingestion with Prometheus telemerty reference
-7. [skel-telemetry](skel-telemetry) - Telemetry (Prometheus/InfluxDB/Graphite/Loki/Grafana)
+7. [skel-telemetry](skel-telemetry) - TimeSeries Service + Prometheus/InfluxDB/Graphite/Loki/Grafana infra
 8. [skel-db](skel-db) - DB Related stuff
 9. [skel-otp](skel-otp) - OTP Service reference service 
 10. [skel-test](skel-test) - Test helpers

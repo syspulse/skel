@@ -32,7 +32,7 @@ import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.service.info.InfoRegistry._
 import akka.actor.typed.scaladsl.ActorContext
 
-@Path("/api/v1/info")
+@Path("/info")
 class InfoRoutes(infoRegistry: ActorRef[InfoRegistry.Command])(implicit context: ActorContext[_]) extends CommonRoutes {
   implicit val system: ActorSystem[_] = context.system
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._

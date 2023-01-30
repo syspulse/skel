@@ -7,17 +7,33 @@ import scala.collection.immutable
 import akka.actor.typed.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.RawHeader
 
 import com.typesafe.scalalogging.Logger
 
-abstract class ClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext) {
+abstract class ClientHttp[T <: ClientHttp[T]](uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext) extends AwaitableService[T] {
   val log = Logger(s"${this}")
 
+  var accessToken:Option[String] = None
+
   def getUri() = uri
+
+  def authHeaders(jwt:Option[String] = None):Seq[HttpHeader] = {
+    val tokens = Seq(jwt, accessToken, sys.env.get("ACCESS_TOKEN"), sys.props.get("ACCESS_TOKEN"))
+    val token = tokens.find(_.isDefined).flatten.getOrElse("")
+    
+    Seq(RawHeader("Authorization",s"Bearer ${token}"))
+  }
+    
   
   def reqHealth() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/health")
   def reqInfo() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/info")
   
+  def withAccessToken(token:String):T = {
+    this.accessToken = Some(token)
+    this.asInstanceOf[T]
+  }
+
   def discard() = {
     Http().singleRequest(reqHealth()).onComplete {
       case Success(res) => { 

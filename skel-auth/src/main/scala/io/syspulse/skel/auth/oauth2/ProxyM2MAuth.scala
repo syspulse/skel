@@ -51,7 +51,7 @@ import pdi.jwt.JwtClaim
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.jwt.Jwks
-import io.syspulse.skel.auth.Idp
+import io.syspulse.skel.auth.oauth2.Idp
 
 import akka.stream.Materializer
 import io.syspulse.skel.auth.Config
@@ -116,7 +116,7 @@ class ProxyM2MAuth(val redirectUri:String,config:Config) extends Idp {
 
   def getTransfomers(cfg:String):Seq[ProxyTransformer] = {
     if(cfg.isEmpty) return Seq()
-    cfg.split(",").map(_.trim).map( s => {
+    cfg.split(",").toIndexedSeq.map(_.trim).map( s => {
       s.split(":") match {
         case Array(t,k,v) => ProxyTransformer(t.trim.toUpperCase,k.trim,v.trim)
         case Array(k,v) => ProxyTransformer("BODY",k.trim,v.trim)

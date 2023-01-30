@@ -10,11 +10,14 @@ import akka.actor.typed.ActorSystem
 
 import com.typesafe.scalalogging.Logger
 
+import scala.concurrent.duration.Duration
+
 import io.syspulse.skel.notify.Notify
 import io.syspulse.skel.notify.client.NotifyClientHttp
 import io.syspulse.skel.AwaitableService
+import io.syspulse.skel.ExternalService
 
-trait NotifyService extends AwaitableService[NotifyService] {
+trait NotifyService extends ExternalService[NotifyService] {
   def notify(receivers:String,subj:String,msg:String):Future[Option[Notify]]
 }
 
@@ -43,4 +46,7 @@ class NotifyServiceSim extends NotifyService {
     log.info(s"notify: ${to},${subj},${msg}")
     Future.successful(Some(Notify(Some(to),Some(subj),msg)))
   }
+
+  def withAccessToken(token:String):NotifyServiceSim = this
+  def withTimeout(timeout:Duration = Duration(1000, TimeUnit.MILLISECONDS)):NotifyServiceSim = this
 }

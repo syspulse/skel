@@ -22,10 +22,13 @@ class Permissions(modelFile:String,policyFile:String) {
     )
   
   def isAdmin(uid:Option[UUID]):Boolean = {
-    log.info(s"god=${Permissions.isGod}: uid=${uid}")
+    log.info(s"admin: GOD=${Permissions.isGod}: uid(${uid})")
 
     if(Permissions.isGod) return true
-    if(!uid.isDefined) return false
+    if(!uid.isDefined) {
+      log.error(s"admin: GOD=${Permissions.isGod}: uid($uid)")
+      return false
+    }
 
     val sub = uid.get.toString; // the user that wants to access a resource.
     val obj = "api";        // the resource that is going to be accessed.
@@ -34,12 +37,36 @@ class Permissions(modelFile:String,policyFile:String) {
     enforcer.enforce(sub, obj, act)
   }
 
-  def isUser(uid:Option[UUID]):Boolean = {
-    log.info(s"god=${Permissions.isGod}: uid=${uid}")
+  def isService(uid:Option[UUID]):Boolean = {
+    log.info(s"service: GOD=${Permissions.isGod}: uid(${uid})")
 
     if(Permissions.isGod) return true
+    if(!uid.isDefined) {
+      log.error(s"service: GOD=${Permissions.isGod}: uid($uid)")
+      return false
+    }
+
+    val sub = uid.get.toString; // the user that wants to access a resource.
+    val obj = "api";        // the resource that is going to be accessed.
+    val act = "write";      // the operation that the user performs on the resource.
+
+    enforcer.enforce(sub, obj, act)
+  }
+
+  def isUser(id:UUID,uid:Option[UUID]):Boolean = {
+    log.info(s"user: GOD=${Permissions.isGod}: id(${id}): uid=${uid}")
+
+    if(Permissions.isGod) return true
+
+    if(Some(id) != uid) return {
+      log.error(s"user: GOD=${Permissions.isGod}: id(${id}): uid($uid)")
+      false
+    }
     if(!uid.isDefined) return false
 
+    return true;
+
+    // ATTENTION: DON'T ENFORCE FOR NOW !
     val sub = uid.get.toString; // the user that wants to access a resource.
     val obj = "api";        // the resource that is going to be accessed.
     val act = "read";      // the operation that the user performs on the resource.
@@ -50,7 +77,17 @@ class Permissions(modelFile:String,policyFile:String) {
 
 object Permissions {
   val log = Logger(s"${this}")
-  val isGod = System.getProperty("god") != null
+
+  val USER_NOBODY = UUID("00000000-0000-0000-0000-000000000000")
+  val USER_ADMIN =  UUID("ffffffff-0000-0000-9000-000000000001")
+  val USER_SERVICE =UUID("eeeeeeee-0000-0000-1000-000000000001")
+
+  val ROLE_ADMIN = "admin"      
+  val ROLE_SERVICE = "service"  // service (skel-enroll -> skel-notify)
+  val ROLE_USER = "user"        // user (external -> API)
+  val ROLE_NOBODY = "nobody"      // non-existing user (new user or anonymous -> API)
+
+  val isGod = sys.props.contains("god") || sys.props.contains("GOD") || sys.env.contains("god") || sys.env.contains("GOD")
 
   def apply(modelFile:String,policyFile:String):Permissions = new Permissions(modelFile,policyFile)
 
@@ -63,16 +100,13 @@ object Permissions {
     permissions.isAdmin(uid)
   }
 
+  def isService(authn:Authenticated)(implicit permissions:Permissions):Boolean = {
+    val uid = authn.getUser
+    permissions.isService(uid)
+  }
+
   def isUser(id:UUID,authn:Authenticated)(implicit permissions:Permissions):Boolean = {    
     val uid = authn.getUser
-    
-    log.info(s"god=${isGod}: id=${id}: uid=${uid}")
-
-    if(!isGod && Some(id) != uid) return {
-      log.error(s"god=${isGod}: id=${id} != uid=${uid}: ")
-      false
-    }
-
-    permissions.isUser(uid)
+    permissions.isUser(id,uid)
   }
 }

@@ -39,8 +39,8 @@ import io.syspulse.skel.Ingestable
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.elastic.ElasticClient
-import io.syspulse.skel.ingest.uri.ElasticURI
-import io.syspulse.skel.ingest.uri.KafkaURI
+import io.syspulse.skel.uri.ElasticURI
+import io.syspulse.skel.uri.KafkaURI
 
 import spray.json.JsonFormat
 import java.nio.file.StandardOpenOption
@@ -48,11 +48,18 @@ import java.nio.file.OpenOption
 import java.nio.file.FileVisitOption
 
 object Flows {
+  val log = Logger(this.toString)
+
   def toNull = Sink.ignore
 
   def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem) = Http()
     .singleRequest(req)
-    .flatMap(res => res.entity.dataBytes.runReduce(_ ++ _))
+    .flatMap(res => {      
+      val body = res.entity.dataBytes.runReduce(_ ++ _)
+      log.debug(s"body=${body}")
+      body
+    })
+      
 
   def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = {
     val s = Source.future(fromHttpFuture(req))
@@ -123,13 +130,6 @@ object Flows {
     s
   }
 
-  def toStdout[O](flush:Boolean = false): Sink[O, Future[IOResult]] = 
-    Flow[O]
-      .map(o => if(o!=null) ByteString(o.toString+"\n") else ByteString())
-      .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.right)
-  // This sink returns Future[Done] and not possible to wait for completion of the flow
-  //def toStdout() = Sink.foreach(println _)
-
   def toFile(file:String) = {
     if(file.trim.isEmpty) 
       Sink.ignore 
@@ -151,21 +151,22 @@ object Flows {
   }
 
   class RotatorCurrentTime extends Rotator {
-    var tsRotated = false
+    var tsRotatable = false
     var nextTs = 0L
 
-    def init(file:String,fileLimit:Long,fileSize:Long) = {
-      tsRotated = Util.extractDirWithSlash(file).matches("[{}]")
+    def init(file:String,fileLimit:Long,fileSize:Long) = {      
+      //tsRotatable = Util.extractDirWithSlash(file).matches(""".*[{}].*""")
+      tsRotatable = file.matches(""".*[{}].*""")
     }
 
-    def isRotatable():Boolean = tsRotated
+    def isRotatable():Boolean = tsRotatable
     
-    def needRotate(count:Long,size:Long):Boolean = {      
-      isRotatable() && (nextTs != 0 && System.currentTimeMillis() < nextTs)
+    def needRotate(count:Long,size:Long):Boolean = {            
+      isRotatable() && (nextTs != 0 && System.currentTimeMillis() >= nextTs)      
     }
 
     def rotate(file:String,count:Long,size:Long):Option[String]  = {
-      nextTs = if(tsRotated) Util.nextTimestampDir(file) else 0L
+      nextTs = if(tsRotatable) Util.nextTimestampFile(file) else 0L
       val now = System.currentTimeMillis()
       Some(Util.pathToFullPath(Util.toFileWithTime(file,now)))
     }
@@ -180,7 +181,7 @@ object Flows {
 
     override def rotate(file:String,count:Long,size:Long):Option[String]  = {
       val ts = askTime()
-      nextTs = if(tsRotated) ts else 0L
+      nextTs = if(tsRotatable) ts else 0L
       Some(Util.pathToFullPath(Util.toFileWithTime(file,ts)))
     }
   }
@@ -208,22 +209,20 @@ object Flows {
       var inited = false
       var count: Long = 0L
       var size: Long = 0L
+      
+      rotator.init(file,fileLimit,fileSize)
           
       (element: ByteString) => {
-        if(inited && (
-            count < fileLimit && 
-            size < fileSize && 
-            ! rotator.needRotate(count,size)
-          )
-        ) {
+        if(inited && !rotator.needRotate(count,size) && count < fileLimit && size < fileSize) {
           
           count = count + 1
           size = size + element.size
           None
-        } else {
-          val now = System.currentTimeMillis()
-
+        } else {          
+          
           currentFilename = rotator.rotate(file,count,size)
+          
+          log.info(s"count=${count},size=${size},limits=(${fileLimit},${fileSize}) => ${currentFilename}")
           
           count = 0L
           size = 0L
@@ -232,7 +231,8 @@ object Flows {
           val currentDirname = Util.extractDirWithSlash(currentFilename.get)
           try {
             // try to create dir
-            Files.createDirectories(Path.of(currentDirname))
+            val p = Files.createDirectories(Path.of(currentDirname))
+            log.info(s"created dir: ${p}")
             val outputPath = currentFilename.get
             Some(Paths.get(outputPath))
 
@@ -305,10 +305,11 @@ object Flows {
       var inited = false
       var count: Long = 0L
       var size: Long = 0L
+
+      rotator.init(file,fileLimit,fileSize)
           
       (element: ByteString) => {
-        //Console.err.println(s"====> inited=${inited},count=${count},size=${size},rotate=${rotator.needRotate(count,size)} (limits: ${fileLimit},${fileSize})")
-
+        
         if(inited && (
             count < fileLimit && 
             size < fileSize && 
@@ -318,13 +319,9 @@ object Flows {
           
           count = count + 1
           size = size + element.size
-
-          //Console.err.println(s"count=${count},size=${size} (limits: ${fileLimit},${fileSize})")
           
           None
-        } else {
-          val now = System.currentTimeMillis()
-
+        } else {          
           currentFilename = rotator.rotate(file,count,size)
           
           log.info(s"count=${count},size=${size},limits=(${fileLimit},${fileSize}) => ${currentFilename}")
@@ -378,12 +375,35 @@ object Flows {
     kafka.source()
   }
 
-  def toJson[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
-    val es = new ToJson[T](uri)(fmt)
+  // def toJson[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
+  //   val js = new ToJson[T](uri)(fmt)
+  //   Flow[T]
+  //     .mapConcat(t => js.transform(t))
+  //     .to(js.sink())
+  // }
+
+  def toJson[T <: Ingestable](uri:String,flush:Boolean = false)(implicit fmt:JsonFormat[T]) = {
+    import spray.json._
     Flow[T]
-      .mapConcat(t => es.transform(t))
-      .to(es.sink())
+      .map(o => if(o!=null) ByteString(o.toJson.prettyPrint+"\n") else ByteString())
+      .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.right)
   }
+
+  def toCsv[T <: Ingestable](uri:String,flush:Boolean = false):Sink[T, Future[IOResult]] = {
+    Flow[T]
+      .map(o => if(o!=null) ByteString(o.toCSV+"\n") else ByteString())
+      .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.right)
+  }
+
+  def toStdout[O](flush:Boolean = false): Sink[O, Future[IOResult]] = toPipe(flush,System.out)
+  def toStderr[O](flush:Boolean = false): Sink[O, Future[IOResult]] = toPipe(flush,System.err)
+  def toPipe[O](flush:Boolean,pipe:java.io.PrintStream): Sink[O, Future[IOResult]] = 
+    Flow[O]
+      .map(o => if(o!=null) ByteString(o.toString+"\n") else ByteString())
+      .toMat(StreamConverters.fromOutputStream(() => pipe,flush))(Keep.right)
+  // This sink returns Future[Done] and not possible to wait for completion of the flow
+  //def toStdout() = Sink.foreach(println _)
+
 }
 
 
@@ -419,13 +439,18 @@ class ToElastic[T <: Ingestable](uri:String)(jf:JsonFormat[T]) extends ElasticCl
     )(jf)
 
   def transform(t:T):Seq[WriteMessage[T,NotUsed]] = {
-    val id = t.getId
+    // Key must be uqique to time series (it will be ID+Timestamp)
+    // For non-timestamp based it will be
+    val id = t.getKey
     if(id.isDefined)
-      // Upsert !!!
+      // Upsert with a new ID. 
+      // It will update if ID already exists
       Seq(WriteMessage.createUpsertMessage(id.get.toString, t))
-    else
-      // Upsert is not supported without id
+    else {
+      // Insert always new record with automatically generated key
+      // DUPLICATES !
       Seq(WriteMessage.createIndexMessage(t))
+    }
   }
 }
 
@@ -433,10 +458,23 @@ class ToElastic[T <: Ingestable](uri:String)(jf:JsonFormat[T]) extends ElasticCl
 class ToJson[T <: Ingestable](uri:String)(implicit fmt:JsonFormat[T]) {
   import spray.json._
 
-  def sink():Sink[T,Any] = Sink.foreach(t => println(s"${t.toJson.prettyPrint}"))
+  def sink():Sink[T,Any] = Sink.foreach(t => { println(s"${t.toJson.prettyPrint}"); System.out.flush })
     
   def transform(t:T):Seq[T] = {
     Seq(t)
   }
 }
 
+// Csv Tester
+class ToCsv[T <: Ingestable](uri:String) {
+  //def sink():Sink[T,Any] = Sink.foreach(t => {println(t.toCSV); System.out.flush()})
+
+  def sink(flush:Boolean = true):Sink[T,Any] =
+  Flow[T]
+      .map(o => if(o!=null) ByteString(o.toCSV+"\n") else ByteString())
+      .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.both)
+
+  def transform(t:T):Seq[T] = {
+    Seq(t)
+  }
+}

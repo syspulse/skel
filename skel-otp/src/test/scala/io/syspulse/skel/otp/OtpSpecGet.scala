@@ -21,7 +21,8 @@ import scala.concurrent.duration.Duration
 
 import io.syspulse.skel.Server
 import io.syspulse.skel.test.HttpServiceTest
-import io.syspulse.skel.otp.OtpRegistry._
+import io.syspulse.skel.otp.store._
+import io.syspulse.skel.otp.server._
 import io.syspulse.skel.config.Configuration
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.BeforeAndAfterAll

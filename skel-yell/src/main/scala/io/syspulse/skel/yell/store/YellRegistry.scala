@@ -12,12 +12,13 @@ import io.syspulse.skel.Command
 
 import io.syspulse.skel.yell._
 import io.syspulse.skel.yell.Yell.ID
+import scala.util.Try
 
 object YellRegistry {
   val log = Logger(s"${this}")
   
   final case class GetYells(replyTo: ActorRef[Yells]) extends Command
-  final case class GetYell(id:ID,replyTo: ActorRef[Option[Yell]]) extends Command
+  final case class GetYell(id:ID,replyTo: ActorRef[Try[Yell]]) extends Command
   final case class SearchYell(txt:String,replyTo: ActorRef[List[Yell]]) extends Command
   
   final case class CreateYell(yellCreate: YellCreateReq, replyTo: ActorRef[Yell]) extends Command

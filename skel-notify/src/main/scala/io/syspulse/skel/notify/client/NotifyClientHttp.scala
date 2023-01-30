@@ -35,12 +35,13 @@ import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.notify._
 import io.syspulse.skel.notify.server.NotifyJson
 
-class NotifyClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext) extends ClientHttp(uri)(as,ec) with NotifyService {
+
+class NotifyClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext) extends ClientHttp[NotifyClientHttp](uri)(as,ec) with NotifyService {
   
   import NotifyJson._
   import spray.json._
   
-  def reqPostNotify(to:String,subj:String,msg:String) =  HttpRequest(method = HttpMethods.POST, uri = s"${uri}",
+  def reqPostNotify(to:String,subj:String,msg:String) =  HttpRequest(method = HttpMethods.POST, uri = s"${uri}", headers=authHeaders(),
       entity = HttpEntity(ContentTypes.`application/json`, 
         NotifyReq(Some(to),Some(subj),msg).toJson.toString)
     )

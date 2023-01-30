@@ -14,18 +14,19 @@ cd skel-db/dynamodb
 
 Use __db-cred.sh__ for AWS Credentials
 
-Local DynamoDB requires the following credentials
+Local DynamoDB requires the following credentials to work
 ```
 AWS_ACCESS_KEY_ID=<random generated>
 AWS_SECRET_ACCESS_KEY=<random generated>
 AWS_REGION=localhost
 ```
 
+
 All commands for local acceept DB_URI enviroment variable to override default (http://localhost:8100):
 
 Example:
 ```
-DB_URI=http://dynamodb-host:8200 db-scan.sh
+DB_URI=http://dynamodb-host:8100 db-scan.sh
 
 ```
 

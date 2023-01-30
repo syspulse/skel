@@ -108,7 +108,7 @@ object App extends skel.Server {
     println(s"Config: ${config}")
 
     // store is not used
-    val store:IngestStore[_,_] = config.datastore match {
+    val store:IngestStore[_] = config.datastore match {
       case "mem" => new IngestStoreMem()
       case "stdout" => new IngestStoreStdout()
       case _ => {
@@ -135,5 +135,6 @@ object App extends skel.Server {
     }
 
     println(s"r = ${r}")
+    //sys.exit(0)
   }
 }

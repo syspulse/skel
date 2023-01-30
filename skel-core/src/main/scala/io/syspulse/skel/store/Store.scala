@@ -6,13 +6,18 @@ import scala.collection.immutable
 
 import io.jvm.uuid._
 
-trait Store[E,P]  {
-  
+// E - Entity
+// P - Primary Key
+
+trait Store[E,P] {
+  //this: Store[E,P] =>
+
+  def getKey(e:E):P
+
   def +(e:E):Try[Store[E,P]]
-  def -(e:E):Try[Store[E,P]]
+  def -(e:E):Try[Store[E,P]] = del(getKey(e))
   def del(id:P):Try[Store[E,P]]
-  def ?(id:P):Option[E]
+  def ?(id:P):Try[E]
   def all:Seq[E]
   def size:Long
 }
-

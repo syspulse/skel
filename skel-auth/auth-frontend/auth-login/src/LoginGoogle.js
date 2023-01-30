@@ -18,7 +18,9 @@ export default function LoginGoogle() {
     const code = rsp.code;
     // need to override to client redirect to successfully authorize
     const redirectUri = "http://localhost:3000"
-    const tokenUrl = `http://localhost:8080/api/v1/auth/token/google?code=${code}&redirect_uri=${redirectUri}`
+    // const tokenUrl = `http://api.hacken.cloud/api/v1/auth/token/google?code=${code}&redirect_uri=${redirectUri}`
+    //const tokenUrl = `http://localhost:8080/api/v1/auth/token/google?code=${code}&redirect_uri=${redirectUri}`
+    const tokenUrl = `${baseUrl}/token/google?code=${code}&redirect_uri=${redirectUri}`
     console.log(tokenUrl);
     
     const serverRsp = await axios.get(tokenUrl);

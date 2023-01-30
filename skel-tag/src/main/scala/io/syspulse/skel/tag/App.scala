@@ -98,7 +98,7 @@ object App extends skel.Server {
 
     val store:TagStore = config.datastore.split("://").toList match {
       case "elastic" :: uri :: Nil => {
-        val eUri = skel.ingest.uri.ElasticURI(uri)
+        val eUri = skel.uri.ElasticURI(uri)
         new TagStoreElastic(eUri.url,eUri.index)
       }
       case "mem" :: _ => new TagStoreMem()

@@ -28,11 +28,8 @@ class ServiceStoreMem extends ServiceStore {
     }
     
   }
-  def -(service:Service):Try[ServiceStore] = { 
-    val sz = services.size
-    services = services - service;
-    if(sz == services.size) Failure(new Exception(s"not found: ${service}")) else Success(this)
+  def ?(id:UUID):Try[Service] = services.find(_.id == id) match {
+    case Some(s) => Success(s)
+    case None => Failure(new Exception(s"not found: ${id}"))
   }
-
-  def ?(id:UUID):Option[Service] = services.find(_.id == id)
 }

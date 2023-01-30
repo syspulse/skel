@@ -45,8 +45,9 @@ import scala.concurrent.duration.Duration
 
 import io.syspulse.skel.otp._
 import io.syspulse.skel.otp.store.OtpRegistry._
+import scala.util.Try
 
-@Path("/api/v1/otp")
+@Path("/")
 class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {
   val log = Logger(s"${this}")  
   implicit val system: ActorSystem[_] = context.system
@@ -65,9 +66,9 @@ class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_
 
   def getOtps(): Future[Otps] = otpRegistry.ask(GetOtps)
   def getUserOtps(userId:UUID): Future[Otps] = otpRegistry.ask(GetUserOtps(userId,_))
-  def getOtp(id: UUID): Future[OtpRes] = otpRegistry.ask(GetOtp(id, _))
+  def getOtp(id: UUID): Future[Try[Otp]] = otpRegistry.ask(GetOtp(id, _))
 
-  def getOtpCode(id: UUID): Future[OtpCodeRes] = otpRegistry.ask(GetOtpCode(id, _))
+  def getOtpCode(id: UUID): Future[Try[OtpCode]] = otpRegistry.ask(GetOtpCode(id, _))
   def getOtpCodeVerify(id: UUID, code:String): Future[OtpCodeVerifyRes] = otpRegistry.ask(GetOtpCodeVerify(id,code, _))
 
   def createOtp(otpCreate: OtpCreateReq): Future[OtpCreateRes] = otpRegistry.ask(CreateOtp(otpCreate, _))
@@ -85,7 +86,7 @@ class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_
     rejectEmptyResponse {
       onSuccess(getOtp(UUID.fromString(id))) { r =>
         metricGetCount.inc()
-        complete(r.otp)
+        complete(r)
       }
     }
   }

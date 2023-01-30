@@ -71,7 +71,7 @@ object App extends skel.Server {
         
         ArgCmd("server",s"Server"),
         ArgCmd("client",s"Command"),
-        ArgCmd("notify",s"Run notification to Receivers (smtp://to, stdout://, sns://arn, ws://topic, tel://)"),
+        ArgCmd("notify",s"Run notification to Receivers (smtp://to, stdout://, sns://arn, ws://topic, tel://, kafka://)"),
         ArgCmd("server+notify",s"Server + Notify"),
         ArgParam("<params>","")
       ).withExit(1)

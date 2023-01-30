@@ -48,9 +48,10 @@ import io.syspulse.skel.yell._
 import io.syspulse.skel.yell.Yell.ID
 import io.syspulse.skel.yell.store.YellRegistry
 import io.syspulse.skel.yell.store.YellRegistry._
+import scala.util.Try
 
 
-@Path("/api/v1/yell")
+@Path("/")
 class YellRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
   //val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system
@@ -67,7 +68,7 @@ class YellRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
   val metricCreateCount: Counter = Counter.build().name("skel_yell_create_total").help("Yell creates").register(cr)
   
   def getYells(): Future[Yells] = registry.ask(GetYells)
-  def getYell(id: ID): Future[Option[Yell]] = registry.ask(GetYell(id, _))
+  def getYell(id: ID): Future[Try[Yell]] = registry.ask(GetYell(id, _))
   def searchYell(txt: String): Future[List[Yell]] = registry.ask(SearchYell(txt, _))
 
   def createYell(yellCreate: YellCreateReq): Future[Yell] = registry.ask(CreateYell(yellCreate, _))

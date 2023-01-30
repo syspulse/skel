@@ -9,7 +9,12 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto._
-//import io.syspulse.skel.enroll.event.Enroll
+
+import io.syspulse.skel.enroll.flow.event._
+import io.syspulse.skel.enroll.flow.EnrollFlow
+import io.syspulse.skel.enroll.flow.Enrollment._
+import io.syspulse.skel.enroll.flow.Enrollment
+
 
 // ATTENTION: EnrollSystem ignores ScalaTestWithActorTestKit() and reads from project_root/conf/application.conf !
 class EnrollFlowSpec extends DurableStoreTestKit() with AnyWordSpecLike {
@@ -22,6 +27,7 @@ akka.actor.allow-java-serialization = on
   """
 
   val configStates = getConfigDurable()
+  implicit val config = Config()
 
   "EnrollFlowSpec" should {
 
@@ -39,13 +45,13 @@ akka.actor.allow-java-serialization = on
       Thread.sleep(50)
       val s1 = es.summary(eid)
       info(s"summary: ${s1}")    
-      s1 should matchPattern { case Some(Enroll.Summary(eid,"START_ACK",_,_,None,None,_,_,false,None)) => }
+      s1 should matchPattern { case Some(Enrollment.Summary(eid,"START_ACK",_,_,None,None,None,None,_,_,false,None,_)) => }
       s1.get.confirmToken should === (None)
       
       Thread.sleep(250)
       val s2 = es.summary(eid)
       info(s"summary: ${s2}")    
-      s2 should matchPattern { case Some(Enroll.Summary(eid,"EMAIL",Some("0x001"),_,None,None,_,_,false,None)) => }
+      s2 should matchPattern { case Some(Enrollment.Summary(eid,"EMAIL",Some("0x001"),None,None,_,None,None,_,_,false,None,_)) => }
       s2.get.confirmToken should === (None)
 
       es.addEmail(eid,"1@email.org")
@@ -53,7 +59,7 @@ akka.actor.allow-java-serialization = on
       
       val s3 = es.summary(eid)
       info(s"summary: ${s3}")    
-      s3 should matchPattern { case Some(Enroll.Summary(eid,"CONFIRM_EMAIL",Some("0x001"),Some("1@email.org"),None,None,_,_,false,Some(_))) => }
+      s3 should matchPattern { case Some(Enrollment.Summary(eid,"CONFIRM_EMAIL",Some("0x001"),Some("1@email.org"),None,None,None,None,_,_,false,Some(_),_)) => }
       s3.get.confirmToken should !== (None)
 
       val confirmToken = s3.get.confirmToken.get
@@ -65,7 +71,7 @@ akka.actor.allow-java-serialization = on
       info(s"summary: ${s10}")
 
       s10 should matchPattern { case Some(_) => }
-      s10 should matchPattern { case Some(Enroll.Summary(eid,"FINISH_ACK",Some("0x001"),Some("1@email.org"),None,None,_,_,true,None)) => }
+      s10 should matchPattern { case Some(Enrollment.Summary(eid,"FINISH_ACK",Some("0x001"),Some("1@email.org"),None,None,None,None,_,_,true,None,_)) => }
     }
 
     "run full flow (State) " in {            
@@ -81,13 +87,13 @@ akka.actor.allow-java-serialization = on
       Thread.sleep(50)
       val s1 = es.summary(eid)
       info(s"summary: ${s1}")    
-      s1 should matchPattern { case Some(Enroll.Summary(eid,"START_ACK",_,_,None,None,_,_,false,None)) => }
+      s1 should matchPattern { case Some(Enrollment.Summary(eid,"START_ACK",_,_,None,None,None,None,_,_,false,None,_)) => }
       s1.get.confirmToken should === (None)
       
       Thread.sleep(250)
       val s2 = es.summary(eid)
       info(s"summary: ${s2}")    
-      s2 should matchPattern { case Some(Enroll.Summary(eid,"EMAIL",Some("0x001"),_,None,None,_,_,false,None)) => }
+      s2 should matchPattern { case Some(Enrollment.Summary(eid,"EMAIL",Some("0x001"),_,None,None,None,None,_,_,false,None,_)) => }
       s2.get.confirmToken should === (None)
 
       es.addEmail(eid,"1@email.org")
@@ -95,7 +101,7 @@ akka.actor.allow-java-serialization = on
       
       val s3 = es.summary(eid)
       info(s"summary: ${s3}")    
-      s3 should matchPattern { case Some(Enroll.Summary(eid,"CONFIRM_EMAIL",Some("0x001"),Some("1@email.org"),None,None,_,_,false,Some(_))) => }
+      s3 should matchPattern { case Some(Enrollment.Summary(eid,"CONFIRM_EMAIL",Some("0x001"),Some("1@email.org"),None,None,None,None,_,_,false,Some(_),_)) => }
       s3.get.confirmToken should !== (None)
 
       val confirmToken = s3.get.confirmToken.get
@@ -107,7 +113,7 @@ akka.actor.allow-java-serialization = on
       info(s"summary: ${s10}")
 
       s10 should matchPattern { case Some(_) => }
-      s10 should matchPattern { case Some(Enroll.Summary(eid,"FINISH_ACK",Some("0x001"),Some("1@email.org"),None,None,_,_,true,None)) => }
+      s10 should matchPattern { case Some(Enrollment.Summary(eid,"FINISH_ACK",Some("0x001"),Some("1@email.org"),None,None,None,None,_,_,true,None,_)) => }
    }
   }
 }

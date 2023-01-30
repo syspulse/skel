@@ -1,5 +1,8 @@
 package io.syspulse.skel.otp
 
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.BeforeAndAfterAll
+
 import akka.actor.testkit.typed.scaladsl.ActorTestKit
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
@@ -21,10 +24,9 @@ import scala.concurrent.duration.Duration
 
 import io.syspulse.skel.Server
 import io.syspulse.skel.test.HttpServiceTest
-import io.syspulse.skel.otp.OtpRegistry._
+import io.syspulse.skel.otp.store._
+import io.syspulse.skel.otp.server._
 import io.syspulse.skel.config.Configuration
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.BeforeAndAfterAll
 
 class TestSpecCreate extends ServerTestable("/api/v1/otp",Seq(
         (OtpRegistry(new OtpStoreMem),"OtpRegistry",(a,ac) => new OtpRoutes(a)(ac) ),

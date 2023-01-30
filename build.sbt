@@ -101,7 +101,7 @@ val sharedConfigDockerSpark = sharedConfigDocker ++ Seq(
 val sharedConfig = Seq(
     //retrieveManaged := true,  
     organization    := "io.syspulse",
-    scalaVersion    := "2.13.6",
+    scalaVersion    := "2.13.9",
     name            := "skel",
     version         := appVersion,
 
@@ -250,8 +250,24 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 // ======================================================================================================================
 lazy val root = (project in file("."))
-  .aggregate(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl)
-  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, auth, user, kafka, ingest, otp, crypto, flow, dsl, scrap, enroll,yell,skel_notify,skel_tag)
+  .aggregate(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, otp, crypto, flow, dsl, scrap, cli, db_cli,
+             ingest_flow,
+             ingest_elastic,
+             ingest_dynamo,
+             skel_enroll,
+             yell,
+             skel_notify,
+             skel_tag, 
+             skel_telemetry)
+  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, otp, crypto, flow, dsl, scrap, cli, db_cli, 
+             ingest_flow,
+             ingest_elastic,
+             ingest_dynamo,
+             skel_enroll,
+             yell,
+             skel_notify,
+             skel_tag, 
+             skel_telemetry)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -341,7 +357,7 @@ lazy val http = (project in file("skel-http"))
   )
 
 lazy val auth_core = (project in file("skel-auth/auth-core"))
-  .dependsOn(core)
+  .dependsOn(core, skel_test % Test)
   .settings (
     sharedConfig,
     name := "skel-auth-core",
@@ -352,8 +368,8 @@ lazy val auth_core = (project in file("skel-auth/auth-core"))
     ),    
   )
 
-lazy val auth = (project in file("skel-auth"))
-  .dependsOn(core,crypto,auth_core,user)
+lazy val skel_auth = (project in file("skel-auth"))
+  .dependsOn(core,crypto,auth_core,skel_user)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -379,7 +395,7 @@ lazy val auth = (project in file("skel-auth"))
   )
 
 lazy val otp = (project in file("skel-otp"))
-  .dependsOn(core,skel_test % Test)
+  .dependsOn(core, skel_test % Test)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -399,7 +415,7 @@ lazy val otp = (project in file("skel-otp"))
   )
 
 
-lazy val user = (project in file("skel-user"))
+lazy val skel_user = (project in file("skel-user"))
   .dependsOn(core,auth_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
@@ -520,7 +536,7 @@ lazy val ingest_dynamo = (project in file("skel-ingest/ingest-dynamo"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    appDockerConfig(appNameDynamo,appBootClassDynamo),
+    appDockerConfig("ingest-dynamo",appBootClassDynamo),
 
     libraryDependencies ++= libHttp ++ libTest ++ Seq(
       libAlpakkaDynamo
@@ -539,7 +555,7 @@ lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    appDockerConfig(appNameElastic,appBootClassElastic),
+    appDockerConfig("ingest-elastic",appBootClassElastic),
 
     libraryDependencies ++= libHttp ++ libTest ++ Seq(
       libAlpakkaElastic
@@ -644,8 +660,8 @@ lazy val spark_convert = (project in file("skel-spark/spark-convert"))
     ),
   )
 
-lazy val enroll = (project in file("skel-enroll"))
-  .dependsOn(core,crypto,user,skel_notify,skel_test % Test)
+lazy val skel_enroll = (project in file("skel-enroll"))
+  .dependsOn(core,crypto,skel_user,skel_notify,skel_test % Test)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -690,7 +706,7 @@ lazy val pdf = (project in file("skel-pdf"))
     //name := "skel-pdf",
     appDockerConfig("skel-pdf","io.syspulse.skel.pdf.App"),
 
-    libraryDependencies ++= libPdfGen ++ Seq(
+    libraryDependencies ++= libHttp ++ libPdfGen ++ Seq(
       libScalaTest,
       libLaikaCore,
       libLaikaIo      
@@ -740,7 +756,7 @@ lazy val video = (project in file("skel-video"))
   )
 
 lazy val skel_notify = (project in file("skel-notify"))
-  .dependsOn(core,auth_core)
+  .dependsOn(core,auth_core,kafka)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -760,7 +776,7 @@ lazy val skel_notify = (project in file("skel-notify"))
   )
 
 lazy val skel_tag = (project in file("skel-tag"))
-  .dependsOn(core,auth_core,ingest_flow)
+  .dependsOn(core,auth_core,ingest_flow,cron)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -775,5 +791,25 @@ lazy val skel_tag = (project in file("skel-tag"))
 
     libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
       libElastic4s
+    ),    
+  )
+
+lazy val skel_telemetry = (project in file("skel-telemetry"))
+  .dependsOn(core,auth_core,ingest_flow,cli,cron)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("skel-telemetry","io.syspulse.skel.telemetry.App"),
+
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
+      libElastic4s,
+      libAlpakkaDynamo
     ),    
   )

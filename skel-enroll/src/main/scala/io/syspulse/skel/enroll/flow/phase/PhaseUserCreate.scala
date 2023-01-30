@@ -27,14 +27,15 @@ class PhaseUserCreate(config:Config) extends Phase {
   import io.syspulse.skel.FutureAwaitable._
 
   def create(email:String,name:String,xid:String,avatar:String):Try[UUID] = {
-    // log.info(s"Sending email(${toUri},${subj},${msg}) -> ${NotifyService.service}")
-    val user = UserService.create(email,name,xid,avatar)
+        
+    val user = UserService.service
+      .withAccessToken(config.jwtRoleService)
+      .withTimeout(timeout)
+      .create(email,name,xid,avatar)
+      .await()
+
     log.info(s"user=${user}")
-    
-    if(!user.isDefined) {
-      return Failure(new Exception(s"${email}: could not create user (${name},${xid})"))
-    }
-    Success(user.get.id)
+    user.map(_.id)    
   }
 
   def run(data:Map[String,Any]):Try[String] = {

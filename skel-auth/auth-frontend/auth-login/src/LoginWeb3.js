@@ -53,8 +53,15 @@ export default function LoginWeb3() {
       const msg64 = btoa(sigData)
       console.log("msg64=",msg64)
       
+      const clientId="eaf9642f76195dca7529c0589e6d6259";
       const redirectUri = baseUrl + "/eth/callback";
-      const authUri = baseUrl + "/eth/auth" + "?" + "msg=" + msg64 + "&sig=" + sig + "&addr="+ address +"&redirect_uri=" + redirectUri
+      const authUri = baseUrl + "/eth/auth" + "?" + 
+        "msg=" + msg64 + 
+        "&sig=" + sig + 
+        "&addr="+ address +
+        "&redirect_uri=" + redirectUri + 
+        "&client_id=" + clientId
+        
       console.log("authUri: ",authUri)
       const rsp = await axios.get(authUri);
       

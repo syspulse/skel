@@ -1,0 +1,14 @@
+{
+  "mappings" : {
+    "date_detection": true,
+    "properties" : {
+      "id": {
+        "type": "keyword"
+      },
+      "ts": {
+        "type": "date",
+        "format": "epoch_millis"
+      }
+    }
+  }
+}

@@ -14,6 +14,7 @@ import io.syspulse.skel.notify.telegram.NotifyTelegram
 import io.syspulse.skel.util.Util
 
 import io.jvm.uuid._
+import io.syspulse.skel.notify.kafka.NotifyKafka
 
 abstract class NotifyReceiver[R] {
   def send(title:String,msg:String):Try[R]
@@ -51,6 +52,7 @@ object Notification {
           case "ws" :: topic :: _ => new NotifyWebsocket(topic)
           case "ws" :: _ => new NotifyWebsocket("")
           case "tel" :: _ => new NotifyTelegram(p)(config)
+          case "kafka" :: _ => new NotifyKafka(p)
           case _ => new NotifyStdout
         }
         nn = nn :+ n

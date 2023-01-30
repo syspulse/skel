@@ -32,7 +32,7 @@ import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.service.health.HealthRegistry._
 import akka.actor.typed.scaladsl.ActorContext
 
-@Path("/api/v1/health")
+@Path("/health")
 class HealthRoutes(healthRegistry: ActorRef[HealthRegistry.Command])(implicit context: ActorContext[_]) extends CommonRoutes {
   implicit val system: ActorSystem[_] = context.system
   

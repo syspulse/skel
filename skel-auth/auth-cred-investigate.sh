@@ -1,2 +1,0 @@
-export AUTH_CLIENT_ID=
-export AUTH_CLIENT_SECRET=

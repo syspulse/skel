@@ -13,12 +13,13 @@ import io.syspulse.skel.Command
 import io.syspulse.skel.video._
 import io.syspulse.skel.video.Video.ID
 import io.syspulse.skel.video.server._
+import scala.util.Try
 
 object VideoRegistry {
   val log = Logger(s"${this}")
   
   final case class GetVideos(replyTo: ActorRef[Videos]) extends Command
-  final case class GetVideo(id:VID,replyTo: ActorRef[Option[Video]]) extends Command
+  final case class GetVideo(id:VID,replyTo: ActorRef[Try[Video]]) extends Command
   final case class SearchVideo(txt:String,replyTo: ActorRef[Videos]) extends Command
   final case class TypingVideo(txt:String,replyTo: ActorRef[Videos]) extends Command
   

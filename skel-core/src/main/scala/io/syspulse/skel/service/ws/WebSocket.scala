@@ -28,26 +28,44 @@ import akka.actor.ActorRef
 import scala.concurrent.ExecutionContext
 import scala.util.{Success,Failure}
 import akka.stream.Materializer
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
 
 
-abstract class WebSocket()(implicit ex:ExecutionContext) {
+abstract class WebSocket(idleTimeout:Long = 1000L*60*5)(implicit ex:ExecutionContext) {
   val log = Logger(s"${this}")
 
   @volatile
   protected var clients: mutable.Map[String,mutable.ListBuffer[ActorRef]] = mutable.Map()
-  
-  def process(m:Message,a:ActorRef):Message = ???
-
-  def wsFlow(topic:String)(implicit mat:Materializer): Flow[Message, Message, Any] = {    
-    val (wsActor, wsSource) = Source.actorRef[Message](32, OverflowStrategy.dropNew).preMaterialize()
-
+  def -(topic:String,wsActor:ActorRef) = {
+    val aa = clients.get(topic).getOrElse(mutable.ListBuffer())
+    aa.synchronized {
+      aa.-=(wsActor)
+      if(aa.size == 0) {
+        clients.remove(topic)
+      }
+    }
+    log.info(s"clients: ${clients}")
+  }
+  def +(topic:String,wsActor:ActorRef) = {
     val aa = clients.getOrElseUpdate(topic,mutable.ListBuffer())
     aa.synchronized {
       aa.addOne(wsActor)      
     }
-    
-    log.info(s"topic=${topic}: clients=${clients}")
+    log.info(s"clients: ${clients}")
+  }
+  
+  def process(m:Message,a:ActorRef):Message = ???
 
+  def wsFlow(topic:String)(implicit mat:Materializer): Flow[Message, Message, Any] = {    
+    val (wsActor, wsSource) = 
+      Source
+        .actorRef[Message](32, OverflowStrategy.dropNew)
+        .preMaterialize()
+
+    this.+(topic,wsActor)    
+    
     // it must be coupled to detect WS client disconnects!
     val flow = Flow.fromSinkAndSourceCoupled(
       Sink.foreach{ m:Message =>         
@@ -58,22 +76,21 @@ abstract class WebSocket()(implicit ex:ExecutionContext) {
           log.debug(s"connection=${wsActor}: ${m}")
           m
         })
+        .idleTimeout(FiniteDuration(idleTimeout,TimeUnit.MILLISECONDS))
     ).watchTermination()( (prevMatValue, f) => {
       // this function will be run when the stream terminates
       // the Future provided as a second parameter indicates whether the stream completed successfully or failed
       f.onComplete {
-        case Failure(e) => log.error(s"connection: ${wsActor}",e)
+        case Failure(e) => {
+          log.error(s"connection: ${wsActor}",e)
+          this.-(topic,wsActor)          
+        }
         case Success(_) => {
-          val aa = clients.get(topic).getOrElse(mutable.ListBuffer())
-          aa.synchronized {
-            aa.-=(wsActor)
-          }
-          log.info(s"clients: ${clients}")
+          this.-(topic,wsActor)          
         }
       }
     })
 
-    //log.debug(s"flow=${flow}, clients: ${clients}")
     flow
   }
 

@@ -19,6 +19,8 @@ import scala.concurrent.ExecutionContext
 trait EnrollStore extends Store[Enroll,UUID] {
   implicit val ec:ExecutionContext
   
+  def getKey(e: Enroll): UUID = e.id
+
   def update(id:UUID,command:String,data:Map[String,String]):Future[Option[Enroll]] = {
     command match {
       case "email" =>
@@ -38,13 +40,13 @@ trait EnrollStore extends Store[Enroll,UUID] {
   }
 
   def +(xid:Option[String],name:Option[String]=None,email:Option[String]=None,avatar:Option[String]=None):Try[UUID]
-  def -(enroll:Enroll):Try[EnrollStore]
+  
   def del(id:UUID):Try[EnrollStore]
-  def ?(id:UUID):Option[Enroll] = {
+  def ?(id:UUID):Try[Enroll] = {
     Await.result(???(id),FiniteDuration(1000L, TimeUnit.MILLISECONDS))
   }
 
-  def ???(id:UUID):Future[Option[Enroll]]
+  def ???(id:UUID):Future[Try[Enroll]]
 
   def all:Seq[Enroll]
   def size:Long

@@ -40,6 +40,7 @@ import scala.concurrent.Await
 import io.syspulse.skel.enroll._
 
 object Enrollment {
+
   final case class Summary(
     eid:UUID, 
     phase:String = "START", 
@@ -84,7 +85,7 @@ object Enrollment {
   }
 
   object State {
-    def apply(eid:UUID,flow:String) = new State(eid,flow.split(",").map(_.trim.toUpperCase()))
+    def apply(eid:UUID,flow:String) = new State(eid,flow.split(",").toIndexedSeq.map(_.trim.toUpperCase()))
   }
 
   final case class Start(eid:UUID,flow:String,xid:String,name:String,email:String,avatar:String,replyTo: ActorRef[StatusReply[Summary]]) extends Command

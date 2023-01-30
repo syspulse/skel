@@ -32,6 +32,7 @@ import akka.http.scaladsl.model.HttpCharsets
 import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.model.FormData
+import akka.stream.Materializer
 
 import requests._
 
@@ -50,15 +51,13 @@ import pdi.jwt.JwtClaim
 
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.jwt.Jwks
-import io.syspulse.skel.auth.Idp
+import io.syspulse.skel.auth.oauth2.Idp
 
-import akka.stream.Materializer
-
-final case class GoogleTokens(accessToken: String,expiresIn:Int, scope:String, tokenType:String, idToken:String)
+final case class GoogleTokens(accessToken: String,expiresIn:Int, scope:String, tokenType:String, idToken:String, refreshToken:Option[String] = None)
 final case class GoogleProfile(id:String,email:String,name:String,picture:String,locale:String)
 
 object GoogleOAuth2 {
-  implicit val googleTokensFormat = jsonFormat(GoogleTokens,"access_token","expires_in","scope", "token_type", "id_token")
+  implicit val googleTokensFormat = jsonFormat(GoogleTokens,"access_token","expires_in","scope", "token_type", "id_token","refresh_token")
   implicit val googleProfileFormat = jsonFormat(GoogleProfile,"id","email","name","picture","locale")
 
   def id = GoogleOAuth2.getClass().getSimpleName()
@@ -75,7 +74,13 @@ class GoogleOAuth2(val redirectUri:String) extends Idp {
   override def getRedirectUri() = s"${redirectUri}/google"
 
   def getLoginUrl() =
-    s"https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${getClientId}&scope=openid profile email&redirect_uri=${getRedirectUri()}"
+    s"https://accounts.google.com/o/oauth2/v2/auth?"+
+      s"response_type=code"+
+      s"&client_id=${getClientId}"+
+      s"&access_type=offline"+
+      s"&prompt=consent"+
+      s"&scope=openid profile email"+
+      s"&redirect_uri=${getRedirectUri()}"
 
   def getProfileUrl(accessToken:String):(String,Seq[(String,String)]) = 
     (s"https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${accessToken}",Seq())
@@ -85,20 +90,26 @@ class GoogleOAuth2(val redirectUri:String) extends Idp {
   def getGrantData():Map[String,String] = Map()
 
   def withJWKS():GoogleOAuth2 = {
-    log.info("Requesting Google OpenID configuration...")
-    val config = requests.get("https://accounts.google.com/.well-known/openid-configuration")
-    log.info("Requesting Google OAuth2 JWKS...")
-    val certsRsp = requests.get("https://www.googleapis.com/oauth2/v3/certs")
-    
-    //jwks = Some((certsRsp.text().parseJson).convertTo[JWKSKeys])
-    jwks = setJwks(certsRsp.text())
-    log.info(s"Google OAuth2 JWKS: ${jwks}")
+    try {
+      log.info("Requesting Google OpenID configuration...")
+      val config = requests.get("https://accounts.google.com/.well-known/openid-configuration")
+      log.info("Requesting Google OAuth2 JWKS...")
+      val certsRsp = requests.get("https://www.googleapis.com/oauth2/v3/certs")
+      
+      //jwks = Some((certsRsp.text().parseJson).convertTo[JWKSKeys])
+      jwks = setJwks(certsRsp.text())
+      log.info(s"Google OAuth2 JWKS: ${jwks}")
+    } catch {
+      case e:Exception => log.error(s"failed to get JWKS",e)
+    }
 
     this
   }
 
   def decodeTokens(tokenRsp:ByteString)(implicit mat:Materializer, ec: scala.concurrent.ExecutionContext):Future[IdpTokens] = {    
-    Unmarshal(tokenRsp).to[GoogleTokens].map( t => IdpTokens(t.accessToken,t.expiresIn,t.scope,t.tokenType,t.idToken))
+    Unmarshal(tokenRsp).to[GoogleTokens].map( t => 
+      IdpTokens(t.accessToken,t.expiresIn,t.scope,t.tokenType,t.idToken,t.refreshToken.getOrElse("")
+    ))
   }
 
   def decodeProfile(profileRsp:ByteString)(implicit mat:Materializer,ec: scala.concurrent.ExecutionContext):Future[OAuthProfile] = {

@@ -33,7 +33,7 @@ import io.syspulse.skel.service.config.ConfigRegistry._
 import akka.actor.typed.scaladsl.ActorContext
 
 
-@Path("/api/v1/config")
+@Path("/config")
 class ConfigRoutes(configRegistry: ActorRef[ConfigRegistry.Command])(implicit context: ActorContext[_]) extends CommonRoutes {
   implicit val system: ActorSystem[_] = context.system
   

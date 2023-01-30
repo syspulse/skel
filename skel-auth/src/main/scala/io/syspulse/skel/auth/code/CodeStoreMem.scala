@@ -23,30 +23,27 @@ class CodeStoreMem extends CodeStore {
   def size:Long = codes.size
 
   def +(code:Code):Try[CodeStore] = { 
-    codes = codes + (code.authCode -> code); Success(this)
+    codes = codes + (code.code -> code); Success(this)
   }
 
   def !(code:Code):Try[CodeStore] = { 
-    val old = codes.getOrElse(code.authCode,code)
+    val old = codes.getOrElse(code.code,code)
     // update onl with userId
-    codes = codes + (code.authCode -> code.copy(xid = old.xid)); 
+    codes = codes + (code.code -> code.copy(xid = old.xid)); 
     Success(this)
   }
   
-  def del(token:String):Try[CodeStore] = { 
-    codes.get(token) match {
-      case Some(auth) => { codes = codes - token; Success(this) }
-      case None => Failure(new Exception(s"not found: ${token}"))
+  def del(c:String):Try[CodeStore] = { 
+    codes.get(c) match {
+      case Some(auth) => { codes = codes - c; Success(this) }
+      case None => Failure(new Exception(s"not found: ${c}"))
     }
   }
 
-  def -(code:Code):Try[CodeStore] = { 
-    val sz = codes.size
-    codes = codes - code.authCode;
-    if(sz == codes.size) Failure(new Exception(s"not found: ${code}")) else Success(this)
+  def ?(c:String):Try[Code] = codes.get(c) match {
+    case Some(code) => Success(code)
+    case None => Failure(new Exception(s"not found: ${c}"))
   }
-
-  def ?(token:String):Option[Code] = codes.get(token)
 }
 
 

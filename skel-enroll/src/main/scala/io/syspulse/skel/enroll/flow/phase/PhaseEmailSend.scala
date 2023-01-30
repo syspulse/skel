@@ -33,9 +33,14 @@ import io.syspulse.skel.enroll.Config
 class PhaseEmailSend(config:Config) extends Phase {
   import io.syspulse.skel.FutureAwaitable._
 
-  def emailTemplate(eid:UUID,code:String)=s"""Confirm your email with code:
-    ${config.confirmUri}${config.uri}/${eid}/confirm/${code}
-  """
+  def emailTemplate(eid:UUID,code:String)=s"""<html><body>
+<h2>Confirm your email with code:</h2>
+<br>
+<h1>${code}</h1>
+<br>
+    <a href="${config.confirmUri}${config.uri}/${eid}/confirm/${code}">${config.confirmUri}${config.uri}/${eid}/confirm/${code}</a>
+</body></html>
+"""
 
   def send(to:String,subj:String,msg:String) = {
     val toUri = s"email://${to}"
@@ -44,6 +49,7 @@ class PhaseEmailSend(config:Config) extends Phase {
     
     val r = NotifyService.service
       .withTimeout(timeout)
+      .withAccessToken(config.jwtRoleService)
       .notify(toUri,subj,msg)
       .await()
     

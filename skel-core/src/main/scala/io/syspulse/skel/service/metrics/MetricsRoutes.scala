@@ -29,7 +29,7 @@ import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.service.metrics.MetricsRegistry._
 import akka.actor.typed.scaladsl.ActorContext
 
-@Path("/api/v1/metrics")
+@Path("/metrics")
 class MetricsRoutes(metricsRegistry: ActorRef[MetricsRegistry.Command])(implicit context: ActorContext[_]) extends CommonRoutes {
   implicit val system: ActorSystem[_] = context.system
 

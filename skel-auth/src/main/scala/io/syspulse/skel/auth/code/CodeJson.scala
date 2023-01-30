@@ -14,7 +14,7 @@ object CodeJson extends JsonCommon  {
   
   import DefaultJsonProtocol._
 
-  implicit val jf_Code = jsonFormat4(Code.apply)
+  implicit val jf_Code = jsonFormat5(Code.apply)
   implicit val jf_Codes = jsonFormat1(Codes)
   
   implicit val jf_CreateRsp = jsonFormat1(CodeCreateRes)

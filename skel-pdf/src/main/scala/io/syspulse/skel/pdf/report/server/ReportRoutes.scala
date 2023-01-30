@@ -25,8 +25,9 @@ import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.{Operation, Parameter}
 import io.swagger.v3.oas.annotations.parameters.RequestBody
-import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
-import javax.ws.rs.core.MediaType
+
+import jakarta.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
+import jakarta.ws.rs.core.MediaType
 
 import io.prometheus.client.CollectorRegistry
 import io.prometheus.client.Counter
@@ -43,6 +44,7 @@ import scala.concurrent.duration.Duration
 import io.syspulse.skel.pdf.report._
 import io.syspulse.skel.pdf.Config
 import io.syspulse.skel.pdf.report.store.ReportRegistry._
+import scala.util.Try
 
 
 @Path("/api/v1/report")
@@ -61,7 +63,7 @@ class ReportRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
   val metricCreateCount: Counter = Counter.build().name("skel_report_create_total").help("Report creates").register(cr)
   
   def getReports(): Future[Reports] = registry.ask(GetReports)
-  def getReport(id: UUID): Future[Option[Report]] = registry.ask(GetReport(id, _))
+  def getReport(id: UUID): Future[Try[Report]] = registry.ask(GetReport(id, _))
   def getReportByXid(xid: String): Future[Option[Report]] = registry.ask(GetReportByXid(xid, _))
 
   def createReport(reportCreate: ReportCreateReq): Future[ReportActionRes] = registry.ask(CreateReport(reportCreate, _))

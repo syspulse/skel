@@ -8,6 +8,7 @@ import scala.collection.immutable
 import io.jvm.uuid._
 
 import io.prometheus.client.Gauge
+import scala.util.Try
 
 final case class ServiceCode(id:UUID,code: String)
 final case class Services(services: immutable.Seq[Service])
@@ -25,7 +26,7 @@ object ServiceRegistry {
   final case class CreateService(serviceCreate: ServiceCreate, replyTo: ActorRef[ServiceActionPerformed]) extends Command
   final case class DeleteService(id: UUID, replyTo: ActorRef[ServiceActionPerformed]) extends Command
 
-  final case class GetServiceResponse(service: Option[Service])
+  final case class GetServiceResponse(service: Try[Service])
   final case class GetServiceCodeResponse(serviceCode: Option[ServiceCode])
   final case class ServiceActionPerformed(description: String,id:Option[UUID])
 
