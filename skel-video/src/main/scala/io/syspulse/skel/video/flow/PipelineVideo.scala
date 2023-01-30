@@ -41,7 +41,7 @@ class PipelineVideo(feed:String,output:String)(implicit config:Config)
     Video(VID(tms.id),tms.title)
   }).toSeq
   
-  override def processing:Flow[Video,Video,_] = Flow[Video].map(v => v)
+  def process:Flow[Video,Video,_] = Flow[Video].map(v => v)
 
   def transform(v: Video): Seq[Video] = Seq(v)
 }

@@ -61,6 +61,9 @@ trait IngestFlow[I,T,O] {
 
   def source():Source[ByteString,_] = if(defaultSource.isDefined) defaultSource.get else StreamConverters.fromInputStream(() => System.in)
 
+  // flow shaping (throttle, etc)
+  def shaping:Flow[I,I,_]
+
   def process:Flow[I,T,_]
 
   def transform(t:T):Seq[O]
@@ -81,6 +84,7 @@ trait IngestFlow[I,T,O] {
       .via(counterI)
 
     val f2 = f1
+      .via(shaping)
       .via(process)
       .via(counterT)
       .viaMat(KillSwitches.single)(Keep.right)

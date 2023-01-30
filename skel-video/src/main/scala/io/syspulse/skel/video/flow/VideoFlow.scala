@@ -19,6 +19,8 @@ trait VideoFlow {
 
   def process:Flow[Video,Video,_] = Flow[Video].map(v => v)
 
+  def shaping:Flow[Video,Video,_] = Flow[Video].map(v => v)
+
   def parse(data:String):Seq[Video] = TmsParser.fromString(data).map( tms => {
     Video(VID(tms.id),tms.title)
   }).toSeq

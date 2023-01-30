@@ -17,8 +17,8 @@ import io.syspulse.skel.ingest.flow.Flows
 
 class VideoFlowFile(file:String) extends VideoFlow with IngestFlow[Video,Video,Video]{
 
-  def transform(t: Video): Seq[Video] = Seq(t)  
-  
+  def transform(t: Video): Seq[Video] = Seq(t)
+
   override def sink():Sink[Video,Any] = {
     log.info(s"writing -> ${file}")
     Flows.toHiveFileSize(file)

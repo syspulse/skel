@@ -32,20 +32,23 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
   
   private val log = Logger(s"${this}")
   
-  // this is needed for Elastic
-  //def fmt:JsonFormat[O]
-  //implicit val fmt:JsonFormat[O]
+  //def processing:Flow[I,T,_]
 
-  def processing:Flow[I,T,_]
+  // override def process:Flow[I,T,_] = {
+  //   val f0 = processing
+  //   val f1 = if(throttle != 0L) {      
+  //     f0.throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))      
+  //   }
+  //   else
+  //     f0
+  //   f1
+  // }
 
-  override def process:Flow[I,T,_] = {
-    val f0 = processing
-    val f1 = if(throttle != 0L) {      
-      f0.throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))      
-    }
+  def shaping:Flow[I,I,_] = {
+    if(throttle != 0L)
+      Flow[I].throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))          
     else
-      f0
-    f1
+      Flow[I].map(i => i)
   }
   
   override def source() = {

@@ -69,7 +69,7 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config) extend
   override def getFileLimit():Long = config.limit
   override def getFileSize():Long = config.size
 
-  override def processing:Flow[String,String,_] = Flow[String].map(s => s)
+  override def process:Flow[String,String,_] = Flow[String].map(s => s)
   def parse(data: String): Seq[String] = {
     log.debug(s"data='${data}'")
     if(config.delimiter.isEmpty())
