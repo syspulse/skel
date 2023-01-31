@@ -58,6 +58,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
   def source(feed:String) = {
     log.info(s"feed=${feed}")
     val source = feed.split("://").toList match {
+      case "null" :: _ => Flows.fromNull
       case "kafka" :: _ => Flows.fromKafka[Textline](feed)
       case "http" :: _ => {
         if(feed.contains(",")) {

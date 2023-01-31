@@ -51,6 +51,7 @@ object Flows {
   val log = Logger(this.toString)
 
   def toNull = Sink.ignore
+  def fromNull = Source.future(Future({Thread.sleep(Long.MaxValue);ByteString("")})) //Source.never
 
   def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem) = Http()
     .singleRequest(req)

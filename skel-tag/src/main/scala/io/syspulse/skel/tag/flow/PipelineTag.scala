@@ -40,7 +40,7 @@ class PipelineTag(feed:String,output:String)(implicit config:Config)
     feedParser.parse(data)
   }
   
-  override def processing:Flow[Tag,Tag,_] = Flow[Tag].map(v => v)
+  def process:Flow[Tag,Tag,_] = Flow[Tag].map(v => v)
 
   def transform(v: Tag): Seq[Tag] = Seq(v)
 }

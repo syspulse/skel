@@ -2,7 +2,6 @@ package io.syspulse.skel.crypto.eth.abi
 
 import com.typesafe.scalalogging.Logger
 
-// ATTENTION
 import scala.util.Try
 import scala.util.Success
 
