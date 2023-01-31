@@ -20,11 +20,11 @@ object AbiSignature {
 
   def toSig(abiDef:AbiDefinition) = {
     abiDef.`type` match {
-      case "event" =>
+      case AbiStore.EVENT =>
         val name = abiDef.name.getOrElse("")
         val params = abiDef.inputs.get.map(p => s"${p.`type`}").mkString(",")
         s"${name}($params)"
-      case "function" =>
+      case AbiStore.FUNCTION =>
         // https://docs.soliditylang.org/en/v0.8.17/abi-spec.html
         // The return type of a function is not part of this signature.
         val name = abiDef.name.getOrElse("")

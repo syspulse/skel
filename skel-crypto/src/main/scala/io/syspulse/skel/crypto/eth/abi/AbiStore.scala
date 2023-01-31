@@ -36,11 +36,14 @@ trait AbiStore extends Store[AbiContract,AbiStore.ID] with AbiStoreSigFuncResolv
   def size:Long
 
   
-  def find(contractAddr:String,functionName:String = "transfer"):Try[Seq[AbiDefinition]]
+  def find(contractAddr:String,functionName:String):Try[Seq[AbiDefinition]]
   def load():Try[AbiStore]
   def decodeInput(contract:String,data:Seq[String],entity:String):Try[AbiResult]
 }
 
 object AbiStore {
   type ID = String
+
+  val EVENT = "event"
+  val FUNCTION = "function"
 }

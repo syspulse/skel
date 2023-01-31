@@ -46,7 +46,7 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
   }
 
 
-  def find(addr:String,functionName:String) = resolve(addr,Some("function"),Some(functionName))
+  def find(addr:String,functionName:String) = resolve(addr,Some(AbiStore.FUNCTION),Some(functionName))
 
   def resolve(contractAddr:String,entity:Option[String]=None,entityName:Option[String] = None):Try[Seq[AbiDefinition]] = {
     
@@ -56,13 +56,13 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
     }
 
     val abi = (entity,entityName) match {
-      case (Some("event"),Some(name)) =>
+      case (Some(AbiStore.EVENT),Some(name)) =>
         contract.get.getAbi().filter(d => d.isEvent).filter(_.name == Option(name))
-      case (Some("event"),None) =>
+      case (Some(AbiStore.EVENT),None) =>
         contract.get.getAbi().filter(d => d.isEvent)
-      case (Some("function"),Some(name)) =>
+      case (Some(AbiStore.FUNCTION),Some(name)) =>
         contract.get.getAbi().filter(d => d.isFunction).filter(_.name == Option(name))
-      case (Some("function"),None) =>
+      case (Some(AbiStore.FUNCTION),None) =>
         contract.get.getAbi().filter(d => d.isFunction)      
       case _ =>
         contract.get.getAbi()
@@ -79,7 +79,7 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
     }
 
     val (r,payload) = entity match {
-      case "event" => 
+      case AbiStore.EVENT => 
         val sig = data.head.take(ABI.EVENT_HASH_SIZE).toLowerCase()
         val payload = data.tail.map(_.drop(2)).mkString("")
         val selector = resolveEvent(sig)
@@ -94,7 +94,7 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
           Success(AbiResult(selector.get,Seq()))
         
         (r,payload)
-      case "function" | _ =>
+      case AbiStore.FUNCTION | _ =>
         val sig = data.head.take(ABI.FUNC_HASH_SIZE).toLowerCase()
         val payload = data.head.drop(ABI.FUNC_HASH_SIZE)
         val selector = resolveFunc(sig)

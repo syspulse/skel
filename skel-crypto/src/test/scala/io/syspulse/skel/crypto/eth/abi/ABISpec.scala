@@ -21,7 +21,9 @@ class ABISpec extends AnyWordSpec with Matchers {
   info(s"testDir=${testDir}")
 
   val abi = //AbiStoreRepo.build().withRepo(new AbiStoreDir(s"${testDir}/abi/") with AbiStoreStoreSignaturesMem ).load().get
-    new AbiStoreDir(s"${testDir}/store/abi") with AbiStoreStoreSignaturesMem
+    new AbiStoreDir(s"${testDir}/store/abi",
+      new SignatureStoreMem[FuncSignature](),
+      new SignatureStoreMem[EventSignature]()) with AbiStoreSignaturesMem
 
   //info(s"${os.list(os.Path(s"${testDir}/store/abi",os.pwd))}")
   abi.load()
@@ -42,7 +44,7 @@ class ABISpec extends AnyWordSpec with Matchers {
     t should !== (None)
   }
 
-  "Uniswap tx decoded with selector=transfer()" in {
+  "Uniswap tx decoded with selector 'transfer()'" in {
     // https://etherscan.io/tx/0xc3292d77c6a2212a6f928ab005164a7ee113bf8b341b77a68fb777fa013fde98
     val tx = Tx(0L,0,"",0,
       fromAddress = "0x1d6b36dfb2b4f8648f0458197457622c8a9a94a7",
@@ -51,7 +53,7 @@ class ABISpec extends AnyWordSpec with Matchers {
       input = "0xa9059cbb000000000000000000000000f6bdeb12aba8bf4cfbfc2a60c805209002223e22000000000000000000000000000000000000000000000005a5a62f156c710000",
       value = BigInt(0))
     
-    val r = abi.decodeInput(tx.toAddress.get,Seq(tx.input),"function")
+    val r = abi.decodeInput(tx.toAddress.get,Seq(tx.input),AbiStore.FUNCTION)
     
     //info(s"$r")
 
@@ -70,7 +72,7 @@ class ABISpec extends AnyWordSpec with Matchers {
       input = "0xa9059cbb000000000000000000000000f6bdeb12aba8bf4cfbfc2a60c805209002223e22000000000000000000000000000000000000000000000005a5a62f156c710000",
       value = BigInt(0))
     
-    val r = abi.decodeInput(tx.toAddress.get,Seq(tx.input),"function")
+    val r = abi.decodeInput(tx.toAddress.get,Seq(tx.input),AbiStore.FUNCTION)
     
     //info(s"$r")
 
@@ -89,7 +91,7 @@ class ABISpec extends AnyWordSpec with Matchers {
       input = "0xa9059cbb0000000000000000000000006876dc741a44617fa7eb205cc5aa9dfbcc526a050000000000000000000000000000000000000000000000000000000001e84800",
       value = BigInt(0))
     
-    val r = abi.decodeInput(tx.toAddress.get,Seq(tx.input),"function")
+    val r = abi.decodeInput(tx.toAddress.get,Seq(tx.input),AbiStore.FUNCTION)
     
     //info(s"$r")
 
@@ -108,7 +110,7 @@ class ABISpec extends AnyWordSpec with Matchers {
       input = "0x23b872dd000000000000000000000000b29c9f94d4c9ffa71876802196fb9b396bca631f000000000000000000000000ec30d02f10353f8efc9601371f56e808751f396f000000000000000000000000000000000000000000000000000000004b5eae1a",
       value = BigInt(0))
     
-    val r = abi.decodeInput(tx.toAddress.get,Seq(tx.input),"function")
+    val r = abi.decodeInput(tx.toAddress.get,Seq(tx.input),AbiStore.FUNCTION)
     
     //info(s"$r")
 
@@ -144,7 +146,7 @@ class ABISpec extends AnyWordSpec with Matchers {
       "0x0000000000000000000000000000000000000000000000000000000000000703"
     )
       
-    val r = abi.decodeInput(contract,topics,"event")
+    val r = abi.decodeInput(contract,topics,AbiStore.EVENT)
     info(s"$r")
 
     val s = r.get.params
@@ -163,7 +165,7 @@ class ABISpec extends AnyWordSpec with Matchers {
     )
     val data ="0x000000000000000000000000000000000000000000000000000000000441c6d1"
       
-    val r = abi.decodeInput(contract,topics :+ data,"event")
+    val r = abi.decodeInput(contract,topics :+ data,AbiStore.EVENT)
     info(s"$r")
 
     val s = r.get.params
@@ -240,7 +242,7 @@ class ABISpec extends AnyWordSpec with Matchers {
 
     abi.?(contract) === (Success[AbiContract](_))
       
-    val r2 = abi.decodeInput(contract,topics :+ data,"event")
+    val r2 = abi.decodeInput(contract,topics :+ data,AbiStore.EVENT)
     info(s"$r2")
 
     val s = r2.get.params
