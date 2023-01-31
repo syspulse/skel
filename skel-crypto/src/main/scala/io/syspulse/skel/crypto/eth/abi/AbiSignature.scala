@@ -17,6 +17,22 @@ object ABI {
 
 object AbiSignature {
   def getKey(id:String,ver:Option[Int] = None) = s"${id}.${ver.getOrElse("0").toString}"
+
+  def toSig(abiDef:AbiDefinition) = {
+    abiDef.`type` match {
+      case "event" =>
+        val name = abiDef.name.getOrElse("")
+        val params = abiDef.inputs.get.map(p => s"${p.`type`}").mkString(",")
+        s"${name}($params)"
+      case "function" =>
+        // https://docs.soliditylang.org/en/v0.8.17/abi-spec.html
+        // The return type of a function is not part of this signature.
+        val name = abiDef.name.getOrElse("")
+        val params = abiDef.inputs.get.map(p => s"${p.`type`}").mkString(",")
+        s"${name}($params)"
+      case _ => ""
+    }    
+  }
 }
 
 // collisions are possible

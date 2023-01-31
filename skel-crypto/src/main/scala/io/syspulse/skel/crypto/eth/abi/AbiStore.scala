@@ -12,7 +12,7 @@ import scala.util.Failure
 
 import io.syspulse.skel.store.Store
 
-case class AbiContract(addr:String,json:String,tsCreated:Option[Long] = None)
+case class AbiContract(addr:String,json:String,ts0:Option[Long] = None)
 
 
 trait AbiStoreSigFuncResolver {
@@ -23,14 +23,14 @@ trait AbiStoreSigEventResolver {
   def resolveEvent(sig:String):Option[String]
 }
 
-trait AbiStore extends Store[AbiContract,String] with AbiStoreSigFuncResolver with AbiStoreSigEventResolver {
+trait AbiStore extends Store[AbiContract,AbiStore.ID] with AbiStoreSigFuncResolver with AbiStoreSigEventResolver {
   def getKey(a: AbiContract):String = a.addr
 
   def +(s:AbiContract):Try[AbiStore]
   
-  def del(id:String):Try[AbiStore]
+  def del(id:AbiStore.ID):Try[AbiStore]
 
-  def ?(id:String):Try[AbiContract]
+  def ?(id:AbiStore.ID):Try[AbiContract]
 
   def all:Seq[AbiContract]
   def size:Long
@@ -41,3 +41,6 @@ trait AbiStore extends Store[AbiContract,String] with AbiStoreSigFuncResolver wi
   def decodeInput(contract:String,data:Seq[String],entity:String):Try[AbiResult]
 }
 
+object AbiStore {
+  type ID = String
+}

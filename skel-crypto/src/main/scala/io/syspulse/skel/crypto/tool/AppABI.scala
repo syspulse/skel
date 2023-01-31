@@ -60,12 +60,6 @@ object AppABI extends {
 
     Console.err.println(s"config=${config}")
 
-    val abiStore = config.abiStore.split("://").toList match {
-      case "dir" :: dir :: _ => new AbiStoreDir(dir) with AbiStoreStoreSignaturesMem
-      case dir :: Nil => new AbiStoreDir(dir) with AbiStoreStoreSignaturesMem
-      case _ => new AbiStoreDir(config.abiStore) with AbiStoreStoreSignaturesMem
-    }
-
     val eventStore = config.eventStore.split("://").toList match {
       case "dir" :: dir :: _ => new EventSignatureStoreDir(dir)
       case dir :: Nil => new EventSignatureStoreDir(dir)
@@ -78,6 +72,12 @@ object AppABI extends {
       case dir :: Nil => new FuncSignatureStoreDir(dir)
       case "mem" :: _ => new SignatureStoreMem[FuncSignature]()
       case _ => new SignatureStoreMem[FuncSignature]()
+    }
+
+    val abiStore = config.abiStore.split("://").toList match {
+      case "dir" :: dir :: _ => new AbiStoreDir(dir,funcStore,eventStore)
+      case dir :: Nil => new AbiStoreDir(dir,funcStore,eventStore)
+      case _ => new AbiStoreDir(config.abiStore,funcStore,eventStore)
     }
 
     abiStore.load()
@@ -107,9 +107,13 @@ object AppABI extends {
           case contract :: Nil => (contract,None,None)
           case _ => ("",None,None)
         }
-
+        
         def abiToString(abi:Try[Seq[AbiDefinition]]) = abi.map(_.map(ad => 
-            s"\nname = ${ad.name.getOrElse("")}\n  in  = ${ad.inputs.getOrElse(Seq()).mkString(",")}\n  out = ${ad.outputs.getOrElse(Seq()).mkString(",")}"
+            s"\nname = ${ad.name.getOrElse("")}\n"+
+            s"  type = ${ad.`type`}\n"+
+            s"  in  = ${ad.inputs.getOrElse(Seq()).mkString(",")}\n"+
+            s"  out = ${ad.outputs.getOrElse(Seq()).mkString(",")}\n"+
+            s"  sig = ${AbiSignature.toSig(ad)}\n"
           ).mkString("\n")).toString + "\n"
         
         if(contract == "") {

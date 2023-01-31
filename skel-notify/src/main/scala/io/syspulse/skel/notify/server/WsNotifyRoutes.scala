@@ -24,7 +24,7 @@ object WS {
     ws match {
       case Some(ws) => 
         //Success( ws.broadcastText(s"${topic}: ${title}(${msg})",topic) )
-        Success( ws.broadcastText(s"${title}${msg}",topic) )
+        Success( ws.broadcastText(s"${msg}",topic) )
       case None => Failure(new Exception(s"not initialized: ${ws}"))
     }
   }

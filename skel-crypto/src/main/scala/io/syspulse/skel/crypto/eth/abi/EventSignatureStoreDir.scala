@@ -19,6 +19,9 @@ import io.syspulse.skel.crypto.eth.abi.AbiSignatureJson._
 // Preload from file during start
 class EventSignatureStoreDir(dir:String = "store/event") extends SignatureStoreDir[EventSignature](dir) with AbiStoreSigEventResolver {
 
-  override def resolveEvent(sig: String): Option[String] = store.first(sig).toOption.map(_.tex)
+  def resolveEvent(sig: String): Option[String] = {
+    println(s"====================> ${store.all}")
+    store.first(sig).toOption.map(_.tex)
+  }
 
 }

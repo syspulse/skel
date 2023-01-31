@@ -15,7 +15,7 @@ import spray.json._
 import DefaultJsonProtocol._
 import AbiContractJson._
 
-abstract class AbiStoreDir(dir:String) extends StoreDir[AbiContract,String](dir) with AbiStore {
+class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:SignatureStore[EventSignature]) extends StoreDir[AbiContract,String](dir) with AbiStore {
 
   var store:Map[String,ContractAbi] = Map()
   
@@ -74,8 +74,8 @@ abstract class AbiStoreDir(dir:String) extends StoreDir[AbiContract,String](dir)
   def decodeInput(contract:String,data:Seq[String],entity:String):Try[AbiResult] = {
     val abi = resolve(contract,Some(entity),None)
 
-    if(abi.isFailure) {
-      return Failure(new Exception(s"could not resolve contract: '${contract}'"))
+    if(abi.isFailure) {      
+      return Failure(new Exception(s"could not resolve Contract: '${contract}'"))
     }
 
     val (r,payload) = entity match {
@@ -85,10 +85,13 @@ abstract class AbiStoreDir(dir:String) extends StoreDir[AbiContract,String](dir)
         val selector = resolveEvent(sig)
         
         if(!selector.isDefined) {
-          return Failure(new Exception(s"could not find selector: ${entity}: '${data}'"))
+          return Failure(new Exception(s"could not resolve Event sig: ${entity}: '${data}'"))
         }
         
-        val r = Decoder.decodeEvent(abi.get,selector.get,payload).map(r => AbiResult(selector.get,r))
+        val r = if(abi.isSuccess)
+          Decoder.decodeEvent(abi.get,selector.get,payload).map(r => AbiResult(selector.get,r))
+        else
+          Success(AbiResult(selector.get,Seq()))
         
         (r,payload)
       case "function" | _ =>
@@ -97,10 +100,13 @@ abstract class AbiStoreDir(dir:String) extends StoreDir[AbiContract,String](dir)
         val selector = resolveFunc(sig)
 
         if(!selector.isDefined) {
-          return Failure(new Exception(s"could not find selector: ${entity}: '${data}'"))
+          return Failure(new Exception(s"could not resolve Func sig: ${entity}: '${data}'"))
         }
 
-        val r = Decoder.decodeFunction(abi.get,selector.get,payload).map(r => AbiResult(selector.get,r))
+        val r = if(abi.isSuccess)
+          Decoder.decodeFunction(abi.get,selector.get,payload).map(r => AbiResult(selector.get,r))
+        else
+          Success(AbiResult(selector.get,Seq()))
         
         (r,payload)
     }
@@ -164,5 +170,7 @@ abstract class AbiStoreDir(dir:String) extends StoreDir[AbiContract,String](dir)
     log.info(s"Loaded ABI: ${store.size}")    
   }
 
+  def resolveFunc(sig:String) = funcStore.first(sig.toLowerCase()).map(_.tex).toOption
+  def resolveEvent(sig:String) = eventStore.first(sig.toLowerCase()).map(_.tex).toOption
 }
 
