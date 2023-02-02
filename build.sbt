@@ -661,7 +661,7 @@ lazy val spark_convert = (project in file("skel-spark/spark-convert"))
   )
 
 lazy val skel_enroll = (project in file("skel-enroll"))
-  .dependsOn(core,crypto,skel_user,skel_notify,skel_test % Test)
+  .dependsOn(core,auth_core,crypto,skel_user,skel_notify,skel_test % Test)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)

@@ -108,9 +108,9 @@ object App extends skel.Server {
       proxyBody = c.getString("proxy.body").getOrElse(d.proxyBody),
       proxyHeadersMapping = c.getString("proxy.headers.mapping").getOrElse(d.proxyHeadersMapping),
 
-      jwtSecret = c.getString("jwt.secret"),
-      jwtRoleService = c.getString("jwt.role.service").getOrElse(""),
-      jwtRoleAdmin = c.getString("jwt.role.admin").getOrElse(""),
+      jwtSecret = c.getSmartString("jwt.secret"),
+      jwtRoleService = c.getSmartString("jwt.role.service").getOrElse(""),
+      jwtRoleAdmin = c.getSmartString("jwt.role.admin").getOrElse(""),
 
       userUri = c.getString("user.uri").getOrElse(d.userUri),
 

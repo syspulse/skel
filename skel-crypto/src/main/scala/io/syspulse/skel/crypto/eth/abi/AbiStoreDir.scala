@@ -131,7 +131,7 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
 
         val (label:String,addr:String) = f.last.split("[-.]").toList match {
           case label :: addr :: _ => (label,addr.toLowerCase())
-          case addr :: Nil => ("",addr)
+          case addr :: Nil => ("",addr.toLowerCase())
           case _ => ("","")
         }
         

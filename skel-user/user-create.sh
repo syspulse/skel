@@ -5,7 +5,7 @@ NAME=${2:-name-1}
 XID=${3:-external-id}
 USER_ID=${4:-00000000-0000-0000-1000-000000000001}
 
-TOKEN=${TOKEN-`cat ACCESS_TOKEN`}
+TOKEN=${ACCESS_TOKEN-`cat ACCESS_TOKEN`}
 AVATAR=${AVATAR:-http://s3.aws.com/avatar-1.jpg}
 
 SERVICE_URI=${SERVICE_URI:-http://localhost:8080/api/v1/user}

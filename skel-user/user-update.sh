@@ -5,7 +5,7 @@ EMAIL=${2:-email-2@server.org}
 NAME=${3:-NAME}
 AVATAR=${4}
 
-TOKEN=${TOKEN-`cat ACCESS_TOKEN`}
+TOKEN=${ACCESS_TOKEN-`cat ACCESS_TOKEN`}
 
 SERVICE_URI=${SERVICE_URI:-http://localhost:8080/api/v1/user}
 

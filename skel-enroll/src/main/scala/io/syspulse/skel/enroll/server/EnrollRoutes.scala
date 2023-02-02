@@ -50,11 +50,17 @@ import io.syspulse.skel.enroll.Config
 import io.syspulse.skel.enroll.store.EnrollRegistry._
 import scala.util.Try
 
+import io.syspulse.skel.auth.permissions.rbac.Permissions
+import io.syspulse.skel.auth.RouteAuthorizers
+
 
 @Path("/")
-class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],config:Config) extends CommonRoutes with Routeable { 
-  //with RouteAuthorizers {
-  val log = Logger(s"${this}")
+class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],config:Config) extends CommonRoutes 
+  with Routeable with RouteAuthorizers {
+     
+  override val log = Logger(s"${this}")
+
+  implicit val permissions = Permissions()
   
   implicit val system: ActorSystem[_] = context.system
   
@@ -190,12 +196,12 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
     concat(
       pathEndOrSingleSlash {
         concat(
-          //authenticate()(authn =>
-          //  authorize(Permissions.isAdmin(authn)) {              
-              getEnrollsRoute() ~                
-              createEnrollRoute  
-          //  }
-          //),            
+          authenticate()(authn =>
+           authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {              
+              getEnrollsRoute()             
+           }
+          ),
+          createEnrollRoute
         )
       },
       
@@ -205,31 +211,28 @@ class EnrollRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
         }
       },
       pathPrefix(Segment) { id => {
-          pathPrefix("email") {
-            pathEndOrSingleSlash {
-              updateEnrollEmailRoute(id)                
+        pathPrefix("email") {
+          pathEndOrSingleSlash {
+            updateEnrollEmailRoute(id)                
+          }
+        } ~
+        pathPrefix("confirm") {
+          pathPrefix(Segment) { code => {                
+              getEnrollEmailConfirmRoute(id,code)
             }
           } ~
-          pathPrefix("confirm") {
-            pathPrefix(Segment) { code => {                
-                getEnrollEmailConfirmRoute(id,code)
-              }
-            } ~
-            pathEndOrSingleSlash {
-              updateEnrollEmailConfirmRoute
-            }              
-          } ~
           pathEndOrSingleSlash {
-            //authenticate()(authn =>
-            //  authorize(Permissions.isEnroll(UUID(id),authn)) {
-                getEnrollRoute(id) ~
-            //  } ~
-            //  authorize(Permissions.isAdmin(authn)) {
-                deleteEnrollRoute(id)
-            //  }
-            //) 
-          }
-        }
+            updateEnrollEmailConfirmRoute
+          }              
+        } ~
+        pathEndOrSingleSlash {
+          getEnrollRoute(id) ~
+          authenticate()(authn =>
+            authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
+              deleteEnrollRoute(id)
+            }
+          ) 
+        }}
       }
     )
   }
