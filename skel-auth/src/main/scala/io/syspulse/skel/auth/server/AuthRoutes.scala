@@ -213,7 +213,12 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         idp.decodeProfile(profileResData)
       }
       user <- {
-        UserClientHttp(serviceUserUri).withAccessToken(config.jwtRoleService).withTimeout().findByXidAlways(profile.id)
+        val jwtRoleService = if(config.jwtRoleService.isEmpty()) 
+          // generate temproary short living token
+          AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString),expire = 60L)
+        else 
+          config.jwtRoleService 
+        UserClientHttp(serviceUserUri).withAccessToken(jwtRoleService).withTimeout().findByXidAlways(profile.id)
       }
       authProfileRes <- {        
         val (profileEmail,profileName,profilePicture,profileLocale) = 
@@ -276,74 +281,8 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           scope = Some("api")          
         ))
       }
-
-      // auth <- {        
-      //   Future(Auth(
-      //     idpTokens.accessToken, 
-      //     idpTokens.idToken, 
-      //     idpTokens.refreshToken,
-      //     user.map(_.id), scope, idpTokens.expiresIn
-      //   ))        
-      // }
-      // authRes <- {
-      //   // save Auth Session
-      //   createAuth(auth)
-      // }
-      // authProfileRes <- {
-        
-      //   val (profileEmail,profileName,profilePicture,profileLocale) = 
-      //     if(auth.idToken != "") {
-      //       val idJwt = AuthJwt.decodeIdToken(auth)
-      //       val idClaims = AuthJwt.decodeIdClaim(auth)
-      //       // verify just for logging
-      //       val verified = idp.verify(idpTokens.idToken)
-      //       log.info(s"code=${code}: profile=${profile}: auth=${auth}: idToken: jwt=${idJwt.get.content}: claims=${idClaims}: verified=${verified}")
-
-      //       (
-      //           if(profile.email.trim.isEmpty()) idClaims.get("email").getOrElse("") else profile.email,
-      //           if(profile.name.trim.isEmpty()) idClaims.get("name").getOrElse("") else profile.name,
-      //           if(profile.picture.trim.isEmpty()) idClaims.get("avatar").getOrElse("") else profile.picture,
-      //           if(profile.locale.trim.isEmpty()) idClaims.get("locale").getOrElse("") else profile.locale,                
-      //       )
-      //     } else {
-      //       log.info(s"code=${code}: profile=${profile}: auth=${auth}")
-            
-      //       (profile.email, profile.name, profile.picture, profile.locale)
-      //     }
-
-      //   val (accessToken,idToken,refreshToken) =
-      //     if(authRes.auth.uid.isDefined) {
-      //       val uid = authRes.auth.uid.get.toString
-      //       (
-      //         AuthJwt.generateAccessToken(Map( "uid" -> uid)),
-      //         Some(AuthJwt.generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
-      //         Some(AuthJwt.generateRefreshToken(uid))
-      //       )
-      //     }
-      //     else {
-      //       (
-      //         AuthJwt.generateAccessToken(Map( "uid" -> Util.NOBODY.toString)),
-      //         None,
-      //         None
-      //       )
-      //     }
-        
-        
-      //   Future(AuthWithProfileRes(
-      //     accessToken,
-      //     idToken,
-      //     refreshToken,
-      //     AuthIdp(authRes.auth.accessToken, authRes.auth.idToken, authRes.auth.refreshToken),
-      //     uid = authRes.auth.uid,
-      //     xid = profile.id,
-      //     profileEmail, 
-      //     profileName, 
-      //     profilePicture, 
-      //     profileLocale))
-      // }
+      
     } yield { 
-      // import spray.json._
-      // authProfileRes.toJson.prettyPrint
       authProfileRes
     }
         
