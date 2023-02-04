@@ -22,8 +22,8 @@ object AuthJwt {
   // JWT ttl to UTC 
   implicit val clock = Clock.systemUTC //Clock.systemDefaultZone()
 
-  val DEFAULT_ACCESS_TOKEN_TTL = 3600L
-  val DEFAULT_REFRESH_TOKEN_TTL = 3600L * 10
+  val DEFAULT_ACCESS_TOKEN_TTL = 3600L // seconds
+  val DEFAULT_REFRESH_TOKEN_TTL = 3600L * 10 // seconds
 
   // ATTENTION: it is non-secure deterministic on purpose !
   var defaultSecret: String = Util.generateRandomToken(seed = Some("0xsecret"))

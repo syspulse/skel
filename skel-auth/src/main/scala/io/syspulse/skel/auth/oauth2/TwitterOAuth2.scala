@@ -112,7 +112,7 @@ class TwitterOAuth2(val redirectUri:String) extends Idp {
   }
 
   def decodeProfile(profileRsp:ByteString)(implicit mat:Materializer,ec: scala.concurrent.ExecutionContext):Future[OAuthProfile] = {
-    Unmarshal(profileRsp).to[TwitterProfileData].map( p => OAuthProfile(p.data.id,p.data.name,"",p.data.profileImageUrl,""))
+    Unmarshal(profileRsp).to[TwitterProfileData].map( p => OAuthProfile(p.data.id,"",p.data.name,p.data.profileImageUrl,""))
   }
     
 }

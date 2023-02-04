@@ -68,26 +68,62 @@ object AuthRegistry {
         val r:Try[Auth] = auth.flatMap(a => 
           a.refreshToken match {
             case Some(rt) => 
-              val uid0 = AuthJwt.getClaim(auid,"uid")
-              val uid1 = uid.map(_.toString)
+              // fail if refreshToken is expired
+              if(a.tsExpire <= System.currentTimeMillis()) {
 
-              if(refreshToken != rt) {
-
-                log.error(s"refresh token invalid: ${rt}")
-                Failure(new Exception(s"refresh token invalid: ${rt}"))
-              
-              } 
-              // NOTE: By default uid1 is None since expired token could not be validated
-              else if( (uid1 != None) && (uid0 != uid1) ) {
+                log.error(s"refresh token expired: ${rt}: ${a.tsExpire}")
+                Failure(new Exception(s"refresh token expired: ${rt}"))
                 
-                log.error(s"invalid 'uid' claim: ${uid0}: ${uid1}")
-                Failure(new Exception(s"refresh token invalid: ${rt}"))
-              
               } else {
-                val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid0.get)) 
+
+                val uid0:Option[UUID] = AuthJwt.getClaim(auid,"uid").map(UUID(_))
+                val uid1 = uid
+                val uid2 = a.uid
+
+                if(refreshToken != rt) {
+
+                  log.error(s"refresh token invalid: ${rt}")
+                  Failure(new Exception(s"refresh token invalid: ${rt}"))
                 
-                // update Auth
-                store.!(auid, accessToken,refreshToken)                
+                } 
+                // NOTE: By default uid1 is None since expired token could not be validated
+                else 
+                // if( (uid1 != None) && (uid0 != uid1) ) {
+                  
+                //   log.error(s"invalid 'uid' claim: ${uid0}: ${uid1}")
+                //   Failure(new Exception(s"refresh token invalid: ${rt}"))
+                
+                // } else {
+                //   val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid0.get)) 
+                  
+                //   // update Auth
+                //   store.!(auid, accessToken,refreshToken)
+                // }
+                {
+                  (uid0, uid1, uid2) match {
+                    case (_,Some(uid1),_) => 
+                      // override with specified UID
+                      val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid1.toString)) 
+                      store.!(auid, accessToken,refreshToken, Some(uid1))
+
+                    case (Some(uid0),_,Some(uid2)) => 
+                      // claim and Existing token must be identical
+                      if( (uid0  != uid2 ) ) {                
+                        log.error(s"unmatched identity: ${uid0}: ${uid2}")
+                        Failure(new Exception(s"refresh token invalid: ${rt}"))
+                      } else {
+                        val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid2.toString)) 
+                        store.!(auid, accessToken,refreshToken)
+                      }
+                    case (_,_,Some(uid2)) => 
+                      val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid2.toString)) 
+                      store.!(auid, accessToken,refreshToken)
+                    
+                    case _ =>
+                      log.error(s"missing identity: ${uid2}")
+                      Failure(new Exception(s"refresh token invalid: ${rt}"))
+                  }
+                }
               }
             case None => 
               log.warn(s"refresh token invalid: ${a.refreshToken}")
