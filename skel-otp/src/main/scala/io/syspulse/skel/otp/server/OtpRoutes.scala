@@ -1,5 +1,7 @@
 package io.syspulse.skel.otp.server
 
+import scala.util.Try
+
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
@@ -30,11 +32,15 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody
 import jakarta.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
 import jakarta.ws.rs.core.MediaType
 
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
+import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
+
 import io.prometheus.client.CollectorRegistry
 import io.prometheus.client.Counter
 
 import io.syspulse.skel.service.Routeable
 import io.syspulse.skel.service.CommonRoutes
+import io.syspulse.skel.auth.RouteAuthorizers
 //import io.syspulse.skel.service.swagger.SwaggerLike
 
 import io.syspulse.skel.Command
@@ -42,15 +48,16 @@ import io.syspulse.skel.Command
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
-
 import io.syspulse.skel.otp._
 import io.syspulse.skel.otp.store.OtpRegistry._
-import scala.util.Try
+import io.syspulse.skel.auth.permissions.rbac.Permissions
 
 @Path("/")
-class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {
-  val log = Logger(s"${this}")  
+class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
+  override val log = Logger(s"${this}")  
   implicit val system: ActorSystem[_] = context.system
+
+  implicit val permissions = Permissions()
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import OtpJson._
@@ -204,38 +211,52 @@ class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_
     }
   }
 
-  override val routes: Route =
+  val corsAllow = CorsSettings(system.classicSystem)
+    //.withAllowGenericHttpRequests(true)
+    .withAllowCredentials(true)
+    .withAllowedMethods(Seq(HttpMethods.OPTIONS,HttpMethods.GET,HttpMethods.POST,HttpMethods.PUT,HttpMethods.DELETE,HttpMethods.HEAD))
+
+  override def routes: Route = cors(corsAllow) {
       concat(
         pathEndOrSingleSlash {
           concat(
-            getOtpsRoute(),
-            createOtpRoute
+            authenticate()(authn => authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
+                getOtpsRoute() ~
+                createOtpRoute
+              }
+            )
           )
         },
         pathPrefix("user") {
-          path(Segment) { userId => 
-            getUserOtpsRoute(userId)
+          path(Segment) { uid =>
+            authenticate()(authn =>  authorize(Permissions.isUser(UUID(uid),authn) || Permissions.isAdmin(authn) || Permissions.isService(authn)) { 
+                getUserOtpsRoute(uid)
+              }
+            )
           }
         },
         pathSuffix("random") {
           getOtpRandomRoute()
         },
         pathPrefix(Segment) { id => 
-          pathPrefix("code") {
-            pathEndOrSingleSlash {
-              getOtpCodeRoute(id)
+          authenticate()(authn =>
+            pathPrefix("code") {
+              pathEndOrSingleSlash {
+                getOtpCodeRoute(id)
+              } ~
+              path(Segment) { code =>
+                getOtpCodeVerifyRoute(id,code)
+              }
             } ~
-            path(Segment) { code =>
-              getOtpCodeVerifyRoute(id,code)
+            pathEndOrSingleSlash {
+              concat(
+                getOtpRoute(id),
+                deleteOtpRoute(id),
+              )
             }
-          } ~
-          pathEndOrSingleSlash {
-            concat(
-              getOtpRoute(id),
-              deleteOtpRoute(id),
-            )
-          } 
+          ) 
         }
       )
+  }
     
 }

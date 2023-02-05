@@ -37,4 +37,4 @@ DATA_JSON="{$DATA_JSON}"
 
 2> echo $DATA_JSON
 
-curl -s -X PUT --data "$DATA_JSON" -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" "$SERVICE_URI/${ID}"
+curl -S -s -D /dev/stderr -X PUT --data "$DATA_JSON" -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" "$SERVICE_URI/${ID}"

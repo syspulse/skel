@@ -24,7 +24,10 @@ export default function LoginTwitterCallback() {
       _code = code;
 
       const challenge = "challenge";
-      const redirectUri = "http://localhost:3000/callback";
+      
+      //const redirectUri = "http://localhost:3000/callback";
+      const redirectUri= baseUrl + "/callback/twitter";
+
       const tokenUrl = `${baseUrl}/token/twitter?code=${code}&redirect_uri=${redirectUri}&challenge=${challenge}`
       console.log("tokenUrl",tokenUrl);
       

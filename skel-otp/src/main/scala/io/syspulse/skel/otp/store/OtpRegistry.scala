@@ -6,15 +6,15 @@ import akka.actor.typed.scaladsl.Behaviors
 import scala.collection.immutable
 import com.typesafe.scalalogging.Logger
 
-import io.jvm.uuid._
+import scala.util.Try
 
+import io.jvm.uuid._
 import ejisan.kuro.otp._
 
 import io.syspulse.skel.Command
-// create Otp Parameters
 
 import io.syspulse.skel.otp._
-import scala.util.Try
+import io.syspulse.skel.otp.server._
 
 object OtpRegistry {
   val log = Logger(s"${this}")
@@ -30,7 +30,7 @@ object OtpRegistry {
   final case class RandomOtp(otpRandom: OtpRandomReq, replyTo: ActorRef[OtpRandomRes]) extends Command
   final case class RandomHtml(otpRandom: OtpRandomReq, replyTo: ActorRef[String]) extends Command
 
-  final case class GetUserOtps(userId:UUID,replyTo: ActorRef[Otps]) extends Command
+  final case class GetUserOtps(uid:UUID,replyTo: ActorRef[Otps]) extends Command
 
   // this var reference is unfortunately needed for Metrics access
   var store: OtpStore = null //new OtpStoreDB //new OtpStoreCache
@@ -106,8 +106,8 @@ object OtpRegistry {
         replyTo ! Otps(store.all)
         Behaviors.same
 
-      case GetUserOtps(userId,replyTo) =>
-        replyTo ! Otps(store.getForUser(userId))
+      case GetUserOtps(uid,replyTo) =>
+        replyTo ! Otps(store.getForUser(uid))
         Behaviors.same
 
       case CreateOtp(otpCreate, replyTo) =>
@@ -118,7 +118,7 @@ object OtpRegistry {
           shaKey.toBase32.toLowerCase
         } else otpCreate.secret
 
-        val otp = Otp(id,otpCreate.userId, secret, otpCreate.name, otpCreate.account, otpCreate.issuer.getOrElse(""), otpCreate.period.getOrElse(30))
+        val otp = Otp(id,otpCreate.uid, secret, otpCreate.name, otpCreate.account, otpCreate.issuer.getOrElse(""), otpCreate.period.getOrElse(30))
         val store1 = store.+(otp)
 
         replyTo ! OtpCreateRes(secret,Some(id))

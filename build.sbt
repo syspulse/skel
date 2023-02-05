@@ -250,7 +250,7 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 // ======================================================================================================================
 lazy val root = (project in file("."))
-  .aggregate(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, otp, crypto, flow, dsl, scrap, cli, db_cli,
+  .aggregate(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, flow, dsl, scrap, cli, db_cli,
              ingest_flow,
              ingest_elastic,
              ingest_dynamo,
@@ -259,7 +259,7 @@ lazy val root = (project in file("."))
              skel_notify,
              skel_tag, 
              skel_telemetry)
-  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, otp, crypto, flow, dsl, scrap, cli, db_cli, 
+  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, flow, dsl, scrap, cli, db_cli, 
              ingest_flow,
              ingest_elastic,
              ingest_dynamo,
@@ -394,8 +394,8 @@ lazy val skel_auth = (project in file("skel-auth"))
     ),    
   )
 
-lazy val otp = (project in file("skel-otp"))
-  .dependsOn(core, skel_test % Test)
+lazy val skel_otp = (project in file("skel-otp"))
+  .dependsOn(core, auth_core, skel_test % Test)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)

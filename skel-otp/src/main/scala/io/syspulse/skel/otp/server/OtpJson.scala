@@ -9,6 +9,7 @@ import akka.http.scaladsl.server.Directives
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsString, JsValue, JsonFormat, deserializationError}
 
 import io.syspulse.skel.otp._
+import io.syspulse.skel.otp.server._
 
 object OtpJson extends JsonCommon {
   

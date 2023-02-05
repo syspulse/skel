@@ -17,10 +17,17 @@ export default function LoginGoogle() {
     console.log(rsp);
     const code = rsp.code;
     // need to override to client redirect to successfully authorize
+    
+    // const redirectUri = "https://api.hacken.cloud/api/v1/auth/callback/google"
     const redirectUri = "http://localhost:3000"
+    // const redirectUri=baseUrl + "/callback/google";
+
     // const tokenUrl = `http://api.hacken.cloud/api/v1/auth/token/google?code=${code}&redirect_uri=${redirectUri}`
     //const tokenUrl = `http://localhost:8080/api/v1/auth/token/google?code=${code}&redirect_uri=${redirectUri}`
-    const tokenUrl = `${baseUrl}/token/google?code=${code}&redirect_uri=${redirectUri}`
+    
+    //const tokenUrl = `${baseUrl}/token/google?code=${code}&redirect_uri=${redirectUri}`
+    const tokenUrl = `${baseUrl}/callback/google?code=${code}&redirect_uri=${redirectUri}`
+
     console.log(tokenUrl);
     
     const serverRsp = await axios.get(tokenUrl);
@@ -52,7 +59,8 @@ export default function LoginGoogle() {
           
           uxMode={"redirect"}
           // IT IS IGNORED BY COMPONENT !
-          redirectUri={"http://localhost:3000"}
+          // redirectUri={baseUrl + "/callback/google"}
+          redirectUri={"localhost:3000"}
           responseType={'code'}
           
           scope={"openid profile email"}

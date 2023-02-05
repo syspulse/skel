@@ -55,7 +55,7 @@ class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB
   def all:Seq[Otp] = ctx.run(query[Otp])
 
   def getForUser(userId:UUID):Seq[Otp] = {
-    ctx.run(query[Otp].filter(o => o.userId == lift(userId)))
+    ctx.run(query[Otp].filter(o => o.uid == lift(userId)))
   }
   
   val deleteById = quote { (id:UUID) => 

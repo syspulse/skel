@@ -5,7 +5,8 @@ NAME=${2:-name-1}
 XID=${3:-XID-0001}
 AVATAR=${4:-http://avatar/a0001.jpg}
 USER_ID=${5:-00000000-0000-0000-1000-000000000001}
-TOKEN=${TOKEN-`cat ACCESS_TOKEN`}
+
+ACCSSS_TOKEN=${ACCESS_TOKEN-`cat ACCESS_TOKEN`}
 
 SERVICE_URI=${SERVICE_URI:-http://localhost:8080/api/v1/enroll}
 
@@ -17,4 +18,4 @@ else
 fi
 
 2> echo $DATA_JSON
-curl -s -X POST --data "$DATA_JSON" -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" $SERVICE_URI/
+curl -S -s -D /dev/stderr -X POST --data "$DATA_JSON" -H 'Content-Type: application/json' -H "Authorization: Bearer $ACCESS_TOKEN" $SERVICE_URI/

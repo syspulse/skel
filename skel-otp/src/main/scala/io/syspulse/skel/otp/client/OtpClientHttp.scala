@@ -34,6 +34,8 @@ import io.syspulse.skel.otp._
 import io.syspulse.skel.otp.server.OtpJson
 import io.syspulse.skel.AwaitableService
 
+import io.syspulse.skel.otp.server._
+
 class OtpClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext) extends ClientHttp[OtpClientHttp](uri)(as,ec) {
   
   import OtpJson._
