@@ -83,6 +83,24 @@ object Flows {
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
   }
 
+  def fromHttpListAsFlow(req: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem) = {
+    val f1 = Flow[String]
+      .throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))
+      .mapConcat(tick => {        
+        req
+      })
+      .mapAsync(par)(r => {
+        log.info(s"--> ${req}")
+        Flows.fromHttpFuture(r)(as)
+      })
+      .log(s"--> ${req}")
+    
+    if(frameDelimiter.isEmpty())
+      f1
+    else
+      f1.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+  }
+
   def fromStdin(frameDelimiter:String="\n",frameSize:Int = 8192):Source[ByteString, Future[IOResult]] = {
     val s = StreamConverters.fromInputStream(() => System.in)
     if(frameDelimiter.isEmpty())
@@ -145,7 +163,7 @@ object Flows {
 
   // Hive Rotators
   abstract class Rotator {
-    def init(file:String,fileLimit:Long,fileSize:Long)
+    def init(file:String,fileLimit:Long,fileSize:Long):Unit
     def isRotatable():Boolean
     def needRotate(count:Long,size:Long):Boolean
     def rotate(file:String,count:Long,size:Long):Option[String]
