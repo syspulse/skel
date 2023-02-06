@@ -12,6 +12,7 @@ import scala.util.Try
 import io.syspulse.skel.crypto.eth.abi._
 import codegen.Decoder
 import codegen.AbiDefinition
+import io.syspulse.skel.crypto.Hash
 
 object AppABI extends {  
 
@@ -44,6 +45,7 @@ object AppABI extends {
         ArgCmd("decode","Decode data: <contract> [entity] <data> (entity: event,function)"),
         ArgCmd("func","Func Signature store"),
         ArgCmd("event","Event Signature store"),
+        ArgCmd("sig","Calculate signature pattern (ex: 'totalSupply()'')"),
         
         ArgParam("<params>","...")
       )
@@ -140,6 +142,13 @@ object AppABI extends {
         config.params.toList match {
           case sig :: Nil => eventStore.??(sig).map(_.mkString("\n"))
           case _ => eventStore.all.mkString("\n")
+        }
+
+      case "sig" | "signature" =>
+        config.params.toList match {
+          case pattern :: Nil => 
+            Util.hex(Hash.keccak256(pattern)).take(10)
+          case _ => ""
         }
         
       case _ => {
