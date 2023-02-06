@@ -46,6 +46,9 @@ import spray.json.JsonFormat
 import java.nio.file.StandardOpenOption
 import java.nio.file.OpenOption
 import java.nio.file.FileVisitOption
+import akka.http.scaladsl.model.StatusCodes.Success
+import akka.http.scaladsl.model.StatusCode
+import akka.http.scaladsl.model.StatusCodes
 
 object Flows {
   val log = Logger(this.toString)
@@ -55,10 +58,17 @@ object Flows {
 
   def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem) = Http()
     .singleRequest(req)
-    .flatMap(res => {      
-      val body = res.entity.dataBytes.runReduce(_ ++ _)
-      log.debug(s"body=${body}")
-      body
+    .flatMap(res => { 
+      res.status match {
+        case StatusCodes.OK => 
+          val body = res.entity.dataBytes.runReduce(_ ++ _)
+          log.debug(s"body=${body}")
+          body
+        case _ => 
+          val body = Await.result(res.entity.dataBytes.runReduce(_ ++ _),FiniteDuration(1000L,TimeUnit.MILLISECONDS)).utf8String
+          log.error(s"${req}: ${res.status}: body=${body}")
+          throw new Exception(s"${req}: ${res.status}")
+      }      
     })
       
 
@@ -93,7 +103,7 @@ object Flows {
         log.info(s"--> ${req}")
         Flows.fromHttpFuture(r)(as)
       })
-      .log(s"--> ${req}")
+      //.log(s"--> ${req}")
     
     if(frameDelimiter.isEmpty())
       f1
