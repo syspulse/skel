@@ -10,8 +10,9 @@ import scala.util.Try
 
 import io.getquill._
 import io.getquill.MysqlJdbcContext
+import io.getquill.PostgresJdbcContext
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
-import io.getquill.{Literal, MySQLDialect}
+//import io.getquill.{Literal, MySQLDialect}
 
 import scala.jdk.CollectionConverters._
 import com.typesafe.config.ConfigFactory
@@ -44,8 +45,17 @@ abstract class StoreDB[E,P](val dbConfigName:String,val tableName:String,configu
   log.info(s"HikariProperties: ${props}")
   val hikariConfig = new HikariConfig(props)
   //val ctx = new MysqlJdbcContext(NamingStrategy(SnakeCase, UpperCase),new HikariDataSource(hikariConfig))
-  val ctx = new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
-  
+  val ctx = dbConfigName.split("://").toList match {
+    case "mysql" :: _ => 
+      new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
+    case "postgres" :: _ => 
+      // postgres context does not support UUID as String!
+      //new PostgresJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
+      new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
+    case _ => 
+      new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
+  }
+
   import ctx._
 
   // Always store UTC timestamp
