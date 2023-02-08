@@ -35,7 +35,7 @@ import io.syspulse.skel.kafka.KafkaClient
 trait KafkaSource[T <: skel.Ingestable ] extends KafkaClient {
   
   def source(brokerUri:String, topics:Set[String], groupId:String, 
-             pollInterval:FiniteDuration = FiniteDuration(100L,TimeUnit.MILLISECONDS), offset:String="earliest", autoCommit:Boolean=false) = {    
+             pollInterval:FiniteDuration = FiniteDuration(100L,TimeUnit.MILLISECONDS), offset:String="earliest", autoCommit:Boolean=true) = {    
     
     val consumerSettings = ConsumerSettings(system, new ByteArrayDeserializer, new ByteArrayDeserializer)
       .withBootstrapServers(brokerUri)

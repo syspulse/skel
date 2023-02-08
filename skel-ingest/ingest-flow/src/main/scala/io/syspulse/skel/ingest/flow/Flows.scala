@@ -205,12 +205,16 @@ object Flows {
   class RotatorTimestamp(askTime:()=>Long) extends RotatorCurrentTime {
   
     override def needRotate(count:Long,size:Long):Boolean = {      
-      isRotatable() && (nextTs != 0 && askTime() != nextTs)
+      isRotatable() && (nextTs != 0L && askTime() >= nextTs)
     }
 
     override def rotate(file:String,count:Long,size:Long):Option[String]  = {
       val ts = askTime()
-      nextTs = if(tsRotatable) ts else 0L
+      nextTs = if(tsRotatable) 
+        //ts 
+        Util.nextTimestampFile(file,ts)
+      else 
+        0L
       Some(Util.pathToFullPath(Util.toFileWithTime(file,ts)))
     }
   }
