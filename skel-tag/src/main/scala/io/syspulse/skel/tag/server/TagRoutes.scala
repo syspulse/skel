@@ -20,6 +20,9 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
+import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
+
 import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
@@ -48,6 +51,7 @@ import io.syspulse.skel.tag._
 import io.syspulse.skel.tag.store.TagRegistry
 import io.syspulse.skel.tag.store.TagRegistry._
 import io.syspulse.skel.tag.server._
+import scala.util.Try
 
 @Path("/api/v1/tag")
 class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
@@ -67,18 +71,33 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   val metricCreateCount: Counter = Counter.build().name("skel_tag_create_total").help("Tag creates").register(cr)
   
   def getTags(): Future[Tags] = registry.ask(GetTags)
-  def getTag(tags: String): Future[Tags] = registry.ask(GetTag(tags, _))
+  def getTag(tags: String): Future[Try[Tag]] = registry.ask(GetTag(tags, _))
+  def getSearchTag(tags: String): Future[Tags] = registry.ask(GetSearchTag(tags, _))
   
   def randomTag(): Future[Tag] = registry.ask(RandomTag(_))
 
-  @GET @Path("/{tags}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("tags"),summary = "Search Objects by Tags",
+  @GET @Path("/{tag}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("tag"),summary = "Get tag by id",
     parameters = Array(new Parameter(name = "tag", in = ParameterIn.PATH, description = "Tag")),
-    responses = Array(new ApiResponse(responseCode="200",description = "Objects found",content=Array(new Content(schema=new Schema(implementation = classOf[Tag])))))
+    responses = Array(new ApiResponse(responseCode="200",description = "Object found",content=Array(new Content(schema=new Schema(implementation = classOf[Tag])))))
   )
-  def getTagRoute(tags: String) = get {
+  def getTagRoute(id: String) = get {
     rejectEmptyResponse {
-      onSuccess(getTag(tags)) { r =>
+      onSuccess(getTag(id)) { r =>
+        metricGetCount.inc()
+        complete(r)
+      }
+    }
+  }
+
+  @GET @Path("/search/{tags}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("tags"),summary = "Search Objects by tags",
+    parameters = Array(new Parameter(name = "tag", in = ParameterIn.PATH, description = "Tag")),
+    responses = Array(new ApiResponse(responseCode="200",description = "Tags found",content=Array(new Content(schema=new Schema(implementation = classOf[Tags])))))
+  )
+  def getTagSearchRoute(tags: String) = get {
+    rejectEmptyResponse {
+      onSuccess(getSearchTag(tags)) { r =>
         metricGetCount.inc()
         complete(r)
       }
@@ -103,14 +122,27 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
     }
   }
 
-  override def routes: Route =
+  val corsAllow = CorsSettings(system.classicSystem)
+    //.withAllowGenericHttpRequests(true)
+    .withAllowCredentials(true)
+    .withAllowedMethods(Seq(HttpMethods.OPTIONS,HttpMethods.GET,HttpMethods.POST,HttpMethods.PUT,HttpMethods.DELETE,HttpMethods.HEAD))
+
+  override def routes: Route = cors(corsAllow) {
+    authenticate()(authn =>
       concat(
         pathEndOrSingleSlash {
           concat(
             getTagsRoute()            
           )
         },
-        pathSuffix("random") {
+        pathPrefix("search") {
+          pathPrefix(Segment) { tags =>
+            pathEndOrSingleSlash {
+              getTagSearchRoute(tags)            
+            }
+        }
+        },
+        pathPrefix("random") {
           createTagRandomRoute()
         },
         pathPrefix(Segment) { tags =>
@@ -119,5 +151,7 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
           }
         }
       )
+    )
+  }
     
 }

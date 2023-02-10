@@ -9,7 +9,7 @@ import com.typesafe.scalalogging.Logger
 import spray.json._
 import DefaultJsonProtocol._
 
-abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E]) extends Store[E,P] {
+abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],fmt2:Option[ExtFormat[E]]=None) extends Store[E,P] {
   val log = Logger(s"${this}")
 
   @volatile var loading = false
@@ -74,7 +74,18 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E]) 
           log.debug(s"c=${c}")
           Seq(c)
         } catch {
-          case e:Exception => log.error(s"could not parse data: ${data}",e); Seq()
+          case e:Exception => 
+            if(fmt2.isDefined) {
+              fmt2.get.decode(data) match {
+                case Success(e) => e
+                case Failure(en) => 
+                  log.error(s"could not parse data (${fmt2}): ${data}",e)
+                  Seq()
+              }
+            } else {
+              log.error(s"could not parse data (${fmt}): ${data}",e); 
+              Seq()
+            }
         }
       })
       .flatten // file

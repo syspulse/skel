@@ -102,7 +102,6 @@ object App extends skel.Server {
         new TagStoreElastic(eUri.url,eUri.index)
       }
       case "mem" :: _ => new TagStoreMem()
-      case "stdout" :: _ => new TagStoreStdout()
       case "dir" :: dir :: Nil => new TagStoreDir(dir)
       case "dir" :: Nil => new TagStoreDir()
       case "file" :: file :: Nil => new TagStoreFile(file)

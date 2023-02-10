@@ -13,12 +13,14 @@ import io.syspulse.skel.Command
 import io.syspulse.skel.tag._
 
 import io.syspulse.skel.tag.server._
+import scala.util.Try
 
 object TagRegistry {
   val log = Logger(s"${this}")
   
   final case class GetTags(replyTo: ActorRef[Tags]) extends Command
-  final case class GetTag(tags:String,replyTo: ActorRef[Tags]) extends Command
+  final case class GetTag(id:String,replyTo: ActorRef[Try[Tag]]) extends Command
+  final case class GetSearchTag(tags:String,replyTo: ActorRef[Tags]) extends Command
   final case class RandomTag(replyTo: ActorRef[Tag]) extends Command
 
   // this var reference is unfortunately needed for Metrics access
@@ -37,8 +39,12 @@ object TagRegistry {
         replyTo ! Tags(store.all)
         Behaviors.same
 
-      case GetTag(tags, replyTo) =>
-        replyTo ! Tags(store.?(tags))
+      case GetTag(id,replyTo) =>
+        replyTo ! store.?(id)
+        Behaviors.same
+
+      case GetSearchTag(tags, replyTo) =>
+        replyTo ! Tags(store.??(tags))
         Behaviors.same
       
       case RandomTag(replyTo) =>        

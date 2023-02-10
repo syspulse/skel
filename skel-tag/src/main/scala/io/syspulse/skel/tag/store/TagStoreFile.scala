@@ -8,13 +8,12 @@ import com.typesafe.scalalogging.Logger
 
 import os._
 
-import io.syspulse.skel.tag.feed.Feed
 import io.syspulse.skel.tag._
 
 // Preload from file during start
 class TagStoreFile(storeFile:String) extends TagStoreMem {
   
-  val feedParser = new Feed()
+  val feedParser = TagCvs.fmtTag.get
 
   val storeDir = os.Path(storeFile,os.pwd)
 

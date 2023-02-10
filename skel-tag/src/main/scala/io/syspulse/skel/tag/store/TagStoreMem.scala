@@ -19,10 +19,23 @@ class TagStoreMem extends TagStore {
 
   def +(tag:Tag):Try[TagStore] = { 
     tags = tags + (tag.id -> tag)
+    log.info(s"add: ${tag}")
     Success(this)
   }
 
-  def ?(tags:String):List[Tag] = {
+  def del(id:String):Try[TagStore] = { 
+    val sz = tags.size
+    tags = tags - id;
+    log.info(s"del: ${id}")
+    if(sz == tags.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
+  }
+
+  def ?(id:String):Try[Tag] = tags.get(id) match {
+    case Some(t) => Success(t)
+    case None => Failure(new Exception(s"not found: ${id}"))
+  }
+
+  def ??(tags:String):List[Tag] = {
     this.tags.values.filter{ t => 
       t.tags.filter( t => t.toLowerCase.matches(tags.toLowerCase)).size != 0
     }
