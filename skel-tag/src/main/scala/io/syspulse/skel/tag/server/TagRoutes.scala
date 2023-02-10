@@ -70,9 +70,9 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   val metricDeleteCount: Counter = Counter.build().name("skel_tag_delete_total").help("Tag deletes").register(cr)
   val metricCreateCount: Counter = Counter.build().name("skel_tag_create_total").help("Tag creates").register(cr)
   
-  def getTags(): Future[Tags] = registry.ask(GetTags)
+  def getTags(from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetTags(from,size, _))
   def getTag(tags: String): Future[Try[Tag]] = registry.ask(GetTag(tags, _))
-  def getSearchTag(tags: String): Future[Tags] = registry.ask(GetSearchTag(tags, _))
+  def getSearchTag(tags: String,from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetSearchTag(tags,from,size, _))
   
   def randomTag(): Future[Tag] = registry.ask(RandomTag(_))
 
@@ -81,7 +81,7 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
     parameters = Array(new Parameter(name = "tag", in = ParameterIn.PATH, description = "Tag")),
     responses = Array(new ApiResponse(responseCode="200",description = "Object found",content=Array(new Content(schema=new Schema(implementation = classOf[Tag])))))
   )
-  def getTagRoute(id: String) = get {
+  def getTagRoute(id: String) = get {    
     rejectEmptyResponse {
       onSuccess(getTag(id)) { r =>
         metricGetCount.inc()
@@ -91,15 +91,20 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   }
 
   @GET @Path("/search/{tags}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("tags"),summary = "Search Objects by tags",
-    parameters = Array(new Parameter(name = "tag", in = ParameterIn.PATH, description = "Tag")),
+  @Operation(tags = Array("tags"),summary = "Search Objects by tags", parameters = Array(
+      new Parameter(name = "tags", in = ParameterIn.PATH, description = "Tags (semicolon separated)"),
+      new Parameter(name = "from", in = ParameterIn.PATH, description = "Page index"),
+      new Parameter(name = "size", in = ParameterIn.PATH, description = "Page Size"),
+    ),
     responses = Array(new ApiResponse(responseCode="200",description = "Tags found",content=Array(new Content(schema=new Schema(implementation = classOf[Tags])))))
   )
-  def getTagSearchRoute(tags: String) = get {
-    rejectEmptyResponse {
-      onSuccess(getSearchTag(tags)) { r =>
-        metricGetCount.inc()
-        complete(r)
+  def getTagSearchRoute(tags: String) = get { 
+    parameters("from".as[Int].optional,"size".as[Int].optional) { (from,size) =>
+      rejectEmptyResponse {
+        onSuccess(getSearchTag(tags,from,size)) { r =>
+          metricGetCount.inc()
+          complete(r)
+        }
       }
     }
   }
@@ -109,11 +114,13 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
     responses = Array(
       new ApiResponse(responseCode = "200", description = "List of Objects",content = Array(new Content(schema = new Schema(implementation = classOf[Tags])))))
   )
-  def getTagsRoute() = get {
-    onSuccess(getTags()) { r => 
-      metricGetCount.inc()
-      complete(r)
-    }    
+  def getTagsRoute() = get { 
+    parameters("from".as[Int].optional,"size".as[Int].optional) { (from,size) =>
+      onSuccess(getTags(from,size)) { r => 
+        metricGetCount.inc()
+        complete(r)
+      }    
+    }
   }
 
   def createTagRandomRoute() = post { 

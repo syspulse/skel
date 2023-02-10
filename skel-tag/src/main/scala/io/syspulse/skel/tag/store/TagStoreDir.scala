@@ -19,13 +19,14 @@ class TagStoreDir(dir:String = "store/") extends StoreDir[Tag,String](dir) with 
   val store = new TagStoreMem
 
   def all:Seq[Tag] = store.all
+  override def limit(from:Option[Int],size:Option[Int]):Seq[Tag] = store.limit(from,size)
   def size:Long = store.size
   override def +(u:Tag):Try[TagStoreDir] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)
 
   override def del(id:String):Try[TagStoreDir] = super.del(id).flatMap(_ => store.del(id)).map(_ => this)
   override def ?(id:String):Try[Tag] = store.?(id)
   
-  def ??(id:String):Seq[Tag] = store.??(id)
+  def ??(id:String,from:Option[Int],size:Option[Int]):Seq[Tag] = store.??(id,from,size)
 
   // preload
   load(dir)

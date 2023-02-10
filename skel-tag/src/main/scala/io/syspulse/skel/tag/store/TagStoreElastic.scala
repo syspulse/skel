@@ -45,6 +45,19 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     r.result.to[Tag].toList
   }
 
+  override def limit(from:Option[Int]=None,size:Option[Int]=None):Seq[Tag] = {    
+    val r = client.execute {
+      ElasticDsl
+      .search(elacticIndex)
+      .from(from.getOrElse(0))
+      .size(size.getOrElse(10))
+      .matchAllQuery()
+    }.await
+
+    log.info(s"r=${r}")
+    r.result.to[Tag].toList
+  }
+
   // slow and memory hungry !
   def size:Long = {
     val r = client.execute {
@@ -70,10 +83,12 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     }
   }
 
-  def ??(txt:String):List[Tag] = {   
+  def ??(txt:String,from:Option[Int],size:Option[Int]):List[Tag] = {   
     val r = client.execute {
       com.sksamuel.elastic4s.ElasticDsl
         .search(elacticIndex)
+        .from(from.getOrElse(0))
+        .size(size.getOrElse(10))
         .query(txt)
         //.matchQuery("_all",txt)
         //.operator(MatchQueryBuilder.Operator.AND)

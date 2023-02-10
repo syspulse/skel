@@ -15,5 +15,13 @@ import io.syspulse.skel.tag.Tag
 trait TagStore extends Store[Tag,String] {
   
   def getKey(e:Tag):String = e.id
-  def ??(tags:String):Seq[Tag]
+  
+  def ??(tags:String,from:Option[Int],size:Option[Int]):Seq[Tag]
+
+  def limit(from:Option[Int]=None,size:Option[Int]=None):Seq[Tag] = {
+    if(!from.isDefined && !size.isDefined)
+      return all
+    
+    all.drop(from.getOrElse(0)).take(size.getOrElse(10))
+  }
 }
