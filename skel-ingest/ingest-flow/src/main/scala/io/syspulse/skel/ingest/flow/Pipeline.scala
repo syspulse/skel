@@ -27,7 +27,7 @@ import java.time.ZoneId
 
 // throttleSource - reduce load on Source (e.g. HttpSource)
 // throttle - delay objects downstream
-abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=0L)
+abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=100L)
   (implicit fmt:JsonFormat[O]) extends IngestFlow[I,T,O]() {
   
   private val log = Logger(s"${this}")
@@ -66,16 +66,19 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
                              ,frameDelimiter = delimiter,frameSize = buffer, throttle =  throttleSource)
         }
         else
+          // ATTENTION!
           Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
+          //Flows.fromHttpRestartable(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
       }
       case "https" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
       case "file" :: fileName :: Nil => Flows.fromFile(fileName,chunk,frameDelimiter = delimiter, frameSize = buffer)
       case "dir" :: dirName :: Nil => Flows.fromDir(dirName,0,chunk,frameDelimiter = delimiter, frameSize = buffer)
       case "dirs" :: dirName :: Nil => Flows.fromDir(dirName,Int.MaxValue,chunk,frameDelimiter = delimiter, frameSize = buffer)
       case "stdin" :: _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer)
+      // case "cron" :: cron :: Nil => Flows.fromCron(cron)
+
       case "" :: Nil => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
       case file :: Nil => Flows.fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)      
-      
       case _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
     }
     source

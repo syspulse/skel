@@ -49,61 +49,150 @@ import java.nio.file.FileVisitOption
 import akka.http.scaladsl.model.StatusCodes.Success
 import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.http.scaladsl.model.sse.ServerSentEvent
+import scala.concurrent.Promise
+import akka.http.scaladsl.settings.ConnectionPoolSettings
+import akka.http.scaladsl.settings.ClientConnectionSettings
+import akka.actor.Actor
+import akka.actor.Props
+import akka.actor.ActorRef
+import akka.actor.Cancellable
 
 object Flows {
   val log = Logger(this.toString)
 
+  val retrySettingsDefault = RestartSettings(
+    minBackoff = FiniteDuration(1000L,TimeUnit.MILLISECONDS),
+    maxBackoff = FiniteDuration(1000L,TimeUnit.MILLISECONDS),
+    randomFactor = 0.2
+  )
+
+  // NOTE: https://github.com/akka/akka-http/issues/4128
+  // WARNING: Nobody understands how akka http works except Lightbend          
+  def retryDeterministicSettings(as:ActorSystem) = ConnectionPoolSettings(as)
+                          .withBaseConnectionBackoff(FiniteDuration(1000,TimeUnit.MILLISECONDS))
+                          .withMaxConnectionBackoff(FiniteDuration(1000,TimeUnit.MILLISECONDS))
+                          .withMaxConnections(1)
+                          .withMaxRetries(1)
+                          // .withMaxOpenRequests(1)
+                          .withConnectionSettings(ClientConnectionSettings(as)
+                            .withIdleTimeout(retrySettingsDefault.minBackoff)
+                            .withConnectingTimeout(retrySettingsDefault.minBackoff))
+
+  def fromSourceRestart(s:Source[ByteString, _],retry:RestartSettings = retrySettingsDefault) = RestartSource.onFailuresWithBackoff(retry) { () =>
+    log.info(s"Restarting -> Source(${s})...")
+    s
+  }
+
+  def toSinkRestart(s:Sink[Ingestable,_],retry:RestartSettings = retrySettingsDefault) = RestartSink.withBackoff(retry) { () =>
+    log.info(s"Restating -> Sink(${s})...")
+    s
+  }
+
+
+  case class CronTick(sourceActor:Source[Nothing,ActorRef])
+  
+  class CronActor() extends Actor {    
+    def receive = {
+      case CronTick(sourceActor) => 
+        val m = s"cron: ${System.currentTimeMillis()}"
+        log.info(s"cron: ${m}")
+        //sourceActor.off ! ByteString(m)
+      case m      => log.warn(s"unknown: ${m}")
+    }
+  }
+
+  // def fromCron[T](cron:String)(implicit as:ActorSystem):Source[T, Cancellable] = {
+  //   import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension    
+
+  //   val cronSource = Source.actorRef(
+  //     completionMatcher = {
+  //       case Done =>
+  //         // complete stream immediately if we send it Done
+  //         CompletionStrategy.immediately
+  //     },
+  //     // never fail the stream because of a message
+  //     failureMatcher = PartialFunction.empty,
+  //     bufferSize = 100,
+  //     overflowStrategy = OverflowStrategy.dropHead
+  //   )
+
+  //   val cronActor: ActorRef = cronSource.to(Sink.foreach(println)).run()
+
+  //   //val cronActor = as.actorOf(Props[CronActor](), s"cron-actor-${System.currentTimeMillis()}")
+
+  //   val sched = QuartzSchedulerExtension(as).schedule(cron, cronActor, ByteString(s"${System.currentTimeMillis()}"))
+  //   log.info(s"schedule: ${sched}")
+
+  //   Source.tick
+  // }
+
   def toNull = Sink.ignore
   def fromNull = Source.future(Future({Thread.sleep(Long.MaxValue);ByteString("")})) //Source.never
 
-  def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem) = Http()
-    .singleRequest(req)
+  def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem) = 
+    Http()
+    .singleRequest(req, settings = retryDeterministicSettings(as))
     .flatMap(res => { 
       res.status match {
         case StatusCodes.OK => 
           val body = res.entity.dataBytes.runReduce(_ ++ _)
-          log.debug(s"body=${body}")
-          body
+          Future(Source.future(body))
         case _ => 
           val body = Await.result(res.entity.dataBytes.runReduce(_ ++ _),FiniteDuration(1000L,TimeUnit.MILLISECONDS)).utf8String
           log.error(s"${req}: ${res.status}: body=${body}")
           throw new Exception(s"${req}: ${res.status}")
+          // not really reachable... But looks extra-nice :-/
+          Future(Source.future(Future(ByteString(body))))
       }      
     })
       
-
   def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = {
-    val s = Source.future(fromHttpFuture(req))
+    //val s = Source.future(fromHttpFuture(req))
+    val s = RestartSource.withBackoff(retrySettingsDefault) { () =>
+      Source.futureSource {
+        Flows.fromHttpFuture(req)
+      }
+    }
+      
     if(frameDelimiter.isEmpty())
       s
     else
-      s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+      s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))    
   }
 
-  def fromHttpList(req: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem) = {
+  def fromHttpRestartable(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = {
+    fromHttp(req,frameDelimiter,frameSize)
+  }
+
+  def fromHttpList(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem) = {
     // Http().singleRequest does not respect mapAsync for parallelization !!!
     val s = 
-      Source(req)
+      Source(reqs)
       .throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))
-      .mapAsync(par)(r => Flows.fromHttpFuture(r)(as))
+      .flatMapConcat(req => Flows.fromHttpRestartable(req))
     
     if(frameDelimiter.isEmpty())
       s
     else
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+
+    // fromSourceRestart(s)
+    s
   }
 
-  def fromHttpListAsFlow(req: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem) = {
+  def fromHttpListAsFlow(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem) = {
     val f1 = Flow[String]
       .throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))
       .mapConcat(tick => {        
-        req
+        reqs
       })
-      .mapAsync(par)(r => {
+      .flatMapConcat(req => {
         log.info(s"--> ${req}")
-        Flows.fromHttpFuture(r)(as)
-      })
-      //.log(s"--> ${req}")
+        //Flows.fromHttpFuture(req)(as)
+        Flows.fromHttpRestartable(req)
+      })      
     
     if(frameDelimiter.isEmpty())
       f1
