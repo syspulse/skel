@@ -35,13 +35,14 @@ class TagStoreMem extends TagStore {
     case None => Failure(new Exception(s"not found: ${id}"))
   }
 
-  def ??(tags:String,from:Option[Int],size:Option[Int]):List[Tag] = {
+  def ??(tags:String,from:Option[Int],size:Option[Int]):Tags = {
     val tt =
       this.tags.values.filter{ t => 
         t.tags.filter( t => t.toLowerCase.matches(tags.toLowerCase)).size != 0
       }
       .toList.sortBy(_.score).reverse
-    tt.drop(from.getOrElse(0)).take(size.getOrElse(10))
+    
+    Tags(tt.drop(from.getOrElse(0)).take(size.getOrElse(10)),Some(tt.size))
   }
 
 }

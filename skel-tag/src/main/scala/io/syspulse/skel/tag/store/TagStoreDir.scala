@@ -26,7 +26,7 @@ class TagStoreDir(dir:String = "store/") extends StoreDir[Tag,String](dir) with 
   override def del(id:String):Try[TagStoreDir] = super.del(id).flatMap(_ => store.del(id)).map(_ => this)
   override def ?(id:String):Try[Tag] = store.?(id)
   
-  def ??(id:String,from:Option[Int],size:Option[Int]):Seq[Tag] = store.??(id,from,size)
+  def ??(id:String,from:Option[Int],size:Option[Int]):Tags = store.??(id,from,size)
 
   // preload
   load(dir)

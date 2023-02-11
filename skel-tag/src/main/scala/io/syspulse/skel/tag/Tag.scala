@@ -10,3 +10,4 @@ case class Tag (id:String, tags:List[String], score:Double = 0.0) extends Ingest
   override def getKey:Option[Any] = Some(id)
 }
 
+final case class Tags(tags: immutable.Seq[Tag],total:Option[Long] = None)

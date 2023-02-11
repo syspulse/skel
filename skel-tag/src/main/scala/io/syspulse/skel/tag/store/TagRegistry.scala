@@ -36,7 +36,7 @@ object TagRegistry {
 
     Behaviors.receiveMessage {
       case GetTags(from,size,replyTo) =>
-        replyTo ! Tags(store.limit(from,size))
+        replyTo ! Tags(store.limit(from,size),total = Some(store.size))
         Behaviors.same
 
       case GetTag(id,replyTo) =>
@@ -44,7 +44,7 @@ object TagRegistry {
         Behaviors.same
 
       case GetSearchTag(tags,from,size,replyTo) =>
-        replyTo ! Tags(store.??(tags,from,size))
+        replyTo ! store.??(tags,from,size)
         Behaviors.same
       
       case RandomTag(replyTo) =>        

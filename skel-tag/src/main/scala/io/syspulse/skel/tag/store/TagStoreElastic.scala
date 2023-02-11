@@ -83,7 +83,7 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     }
   }
 
-  def ??(txt:String,from:Option[Int],size:Option[Int]):List[Tag] = {   
+  def ??(txt:String,from:Option[Int],size:Option[Int]):Tags = {   
     val r = client.execute {
       com.sksamuel.elastic4s.ElasticDsl
         .search(elacticIndex)
@@ -107,7 +107,8 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     // }.await
 
     log.info(s"r=${r}")
-    r.result.to[Tag].toList
+    
+    Tags(r.result.to[Tag].toList,total = Some(r.result.hits.total.value))
   }
 
   def del(id:String):Try[TagStore] = { 

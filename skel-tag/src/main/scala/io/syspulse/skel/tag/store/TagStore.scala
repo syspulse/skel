@@ -16,7 +16,7 @@ trait TagStore extends Store[Tag,String] {
   
   def getKey(e:Tag):String = e.id
   
-  def ??(tags:String,from:Option[Int],size:Option[Int]):Seq[Tag]
+  def ??(tags:String,from:Option[Int],size:Option[Int]):Tags
 
   def limit(from:Option[Int]=None,size:Option[Int]=None):Seq[Tag] = {
     if(!from.isDefined && !size.isDefined)
