@@ -325,7 +325,8 @@ lazy val skel_test = (project in file("skel-test"))
 
 lazy val cron = (project in file("skel-cron"))
   .dependsOn(core)
-  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .enablePlugins(JavaAppPackaging)
+  // .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
       sharedConfigAssembly,
@@ -575,6 +576,7 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
       libScalaTest % Test,
       libAlpakkaFile,
+      libAkkaQuartz,
       libUpickleLib,      
     ),        
   )
