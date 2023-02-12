@@ -206,6 +206,8 @@ object Dependencies {
 
     val libCourier =          "com.github.daddykotex"         %% "courier"                    % "3.2.0"
 
+    val libAkkaQuartz =       "com.enragedginger"             %% "akka-quartz-scheduler"      % "1.9.3-akka-2.6.x"
+
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)

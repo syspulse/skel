@@ -89,44 +89,31 @@ object Flows {
     log.info(s"Restating -> Sink(${s})...")
     s
   }
-
-
-  case class CronTick(sourceActor:Source[Nothing,ActorRef])
   
-  class CronActor() extends Actor {    
-    def receive = {
-      case CronTick(sourceActor) => 
-        val m = s"cron: ${System.currentTimeMillis()}"
-        log.info(s"cron: ${m}")
-        //sourceActor.off ! ByteString(m)
-      case m      => log.warn(s"unknown: ${m}")
-    }
+  def fromCron(cron:String)(implicit as:ActorSystem):Source[ByteString, _] = {
+    import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension 
+    //import akka.stream.typed.scaladsl.ActorSource
+
+    val cronSource = Source.actorRef[ByteString](
+      bufferSize = 100,
+      overflowStrategy = OverflowStrategy.dropHead //OverflowStrategy.fail // <- convenient for testing
+    ).map(t => {
+        log.info(s"tick: ${t.utf8String}")
+        ByteString(s"${System.currentTimeMillis()}\n")
+    })
+
+    val (cronActor,cronSourceMat) = cronSource.preMaterialize() //.to(Sink.foreach(println)).run()
+    log.info(s"actor: ${cronActor}")
+    log.info(s"source: ${cronSource}")
+
+    //val cronActor = as.actorOf(Props[CronActor](), s"cron-actor-${System.currentTimeMillis()}")
+
+    val sched = QuartzSchedulerExtension(as).schedule(cron, cronActor, ByteString())
+    log.info(s"sched: ${sched}")
+    //Future { for( i <- Range(0,1000)) { Thread.sleep(1000); cronActor ! ByteString(s"${i}\n") } }
+
+    cronSourceMat
   }
-
-  // def fromCron[T](cron:String)(implicit as:ActorSystem):Source[T, Cancellable] = {
-  //   import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension    
-
-  //   val cronSource = Source.actorRef(
-  //     completionMatcher = {
-  //       case Done =>
-  //         // complete stream immediately if we send it Done
-  //         CompletionStrategy.immediately
-  //     },
-  //     // never fail the stream because of a message
-  //     failureMatcher = PartialFunction.empty,
-  //     bufferSize = 100,
-  //     overflowStrategy = OverflowStrategy.dropHead
-  //   )
-
-  //   val cronActor: ActorRef = cronSource.to(Sink.foreach(println)).run()
-
-  //   //val cronActor = as.actorOf(Props[CronActor](), s"cron-actor-${System.currentTimeMillis()}")
-
-  //   val sched = QuartzSchedulerExtension(as).schedule(cron, cronActor, ByteString(s"${System.currentTimeMillis()}"))
-  //   log.info(s"schedule: ${sched}")
-
-  //   Source.tick
-  // }
 
   def toNull = Sink.ignore
   def fromNull = Source.future(Future({Thread.sleep(Long.MaxValue);ByteString("")})) //Source.never

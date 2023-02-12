@@ -75,7 +75,9 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
       case "dir" :: dirName :: Nil => Flows.fromDir(dirName,0,chunk,frameDelimiter = delimiter, frameSize = buffer)
       case "dirs" :: dirName :: Nil => Flows.fromDir(dirName,Int.MaxValue,chunk,frameDelimiter = delimiter, frameSize = buffer)
       case "stdin" :: _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer)
-      // case "cron" :: cron :: Nil => Flows.fromCron(cron)
+      
+      case "cron" :: expr :: Nil => Flows.fromCron(expr)
+      case "cron" :: Nil => Flows.fromCron("*/1 * * * * ?")
 
       case "" :: Nil => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
       case file :: Nil => Flows.fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)      

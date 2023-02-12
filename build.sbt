@@ -564,7 +564,7 @@ lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
   )
 
 lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
-  .dependsOn(core,ingest,ingest_elastic,kafka)
+  .dependsOn(core, ingest, ingest_elastic, kafka)
   .enablePlugins(JavaAppPackaging)
   .settings (
     sharedConfig,
@@ -576,7 +576,7 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
       libScalaTest % Test,
       libAlpakkaFile,
-      libAkkaQuartz,
+      libAkkaQuartz,      
       libUpickleLib,      
     ),        
   )
