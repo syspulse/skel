@@ -180,6 +180,9 @@ object Eth {
     }
   }
 
+  def generateFromMnemoMetamask(mnemonic:String):Try[KeyPair] = 
+    generateFromMnemoPath(mnemonic,"m/44'/60'/0'/0")
+
   def generateFromMnemoPath(mnemonic:String,derivation:String, mnemoPass:String = null):Try[KeyPair] = {
     // def   m/44'/60'/0'/1
     //       m/44'/60'/0'/0
