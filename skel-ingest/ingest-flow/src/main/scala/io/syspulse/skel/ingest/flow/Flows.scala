@@ -90,7 +90,7 @@ object Flows {
     s
   }
   
-  def fromCron(cron:String)(implicit as:ActorSystem):Source[ByteString, _] = {
+  def fromCron(cron:String)(implicit as:ActorSystem):Source[ByteString, NotUsed] = {
     import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension 
     //import akka.stream.typed.scaladsl.ActorSource
 
@@ -137,7 +137,7 @@ object Flows {
       
   def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = {
     //val s = Source.future(fromHttpFuture(req))
-    val s = RestartSource.withBackoff(retrySettingsDefault) { () =>
+    val s = RestartSource.onFailuresWithBackoff(retrySettingsDefault) { () =>
       Source.futureSource {
         Flows.fromHttpFuture(req)
       }

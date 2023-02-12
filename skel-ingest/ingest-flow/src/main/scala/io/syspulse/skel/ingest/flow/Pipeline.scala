@@ -55,9 +55,9 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
     source(feed)
   }
 
-  def source(feed:String) = {
+  def source(feed:String):Source[ByteString,_] = {
     log.info(s"feed=${feed}")
-    val source = feed.split("://").toList match {
+    val src0 = feed.split("://").toList match {
       case "null" :: _ => Flows.fromNull
       case "kafka" :: _ => Flows.fromKafka[Textline](feed)
       case "http" :: _ => {
@@ -76,14 +76,20 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
       case "dirs" :: dirName :: Nil => Flows.fromDir(dirName,Int.MaxValue,chunk,frameDelimiter = delimiter, frameSize = buffer)
       case "stdin" :: _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer)
       
-      case "cron" :: expr :: Nil => Flows.fromCron(expr)
+      case "cron" :: expr :: next :: rest => 
+        val cronSource = Flows.fromCron(expr)
+        val nextSource:Source[ByteString,_] = source(next + "://" + rest.mkString(""))
+        val src1 = cronSource
+          .flatMapConcat( tick => nextSource)
+        src1        
+      // test cron
       case "cron" :: Nil => Flows.fromCron("*/1 * * * * ?")
 
       case "" :: Nil => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
       case file :: Nil => Flows.fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)      
       case _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
     }
-    source
+    src0
   }
 
   override def sink() = {
