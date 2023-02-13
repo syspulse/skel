@@ -2,12 +2,16 @@
 
 Data Ingestion Flow 
 
+All input data is ByteString
+
+All output data is `Ingestable` and must provide `Json` serde
+
 __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 
-## Feeds
+## Input Feeds
 
 1. ```stdin://```                               - from stdin
-2. ```http://host:port/api```                   - From HTTP connection
+2. ```http://host:port/api```                   - From HTTP external connection
 3. ```file://dir/file```                        - From single file
                                                   Support multiple source with comma: (`http://host1,http://host2`)
 4. ```kafka://broker:9092/topic/group/offset``` - From Kafka `offset` == latest,earliest
@@ -15,11 +19,12 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 6. ```dirs://dir```                             - From directories (all levels)
 7. ```null://```                                - No source
 8. ```tick://inteval://{source}```              - Tick cron. ex: `tick://1000://http://localhost:8300`
-8. ```cron://expr://{source}```                 - Crontab cron. ex: `cron://exprName://http://localhost:8300`
-                                                  `exprName` is currently the name of the configured scheduler
+8. ```cron://expr://{source}```                 - Crontab cron. ex: `cron://expr://http://localhost:8300`
+                                                  `expr` is either configured scheduler name (applicaion.conf) or cron expression
+                                                  __NOTE__: because of bash, use this format: `'cron://*/1_*_*_*_*_?'`
 9. ```null://```                                - No source
 
-## Output
+## Output Feeds
 
 1. ```stdout://```, ```stderr```                             - std pipes
 2. ```file://dir/file```                                     - to single file
@@ -27,7 +32,7 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 4. ```elastic://host:9200/index```                           - To Elastic index
 5. ```kafka://broker:9092/topic```                           - To Kafka
 6. ```null://```                                             - Sink.ignore
-7. ```fs3://```                                              - s3 like without APPEND support
+7. ```fs3://```                                              - file without APPEND (S3 object store)
 8. ```json://```                                             - Json to stdout (uses Spray to convert to AST and prettyprint)
 9. ```csv://```                                              - CSV to stdout
 10. ```filenew://```                                         - Generate new file for every event

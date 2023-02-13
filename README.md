@@ -2,30 +2,33 @@
 
 Skeletons for RnD Prototypes
 
-1. [infra](infra) - Infrastructure (docker,kubernetes)
-2. [skel-http](skel-http) - HTTP Service (+ Kubernetes)
-3. [skel-user](skel-user) - UserProfile Service reference
-4. [skel-world](skel-world) + [skel-shop](skel-shop) - Services for E-Shop like product
-5. [skel-kafka](skel-kafka) - Kafka Processors (Source/Sink)
-6. [skel-ingest](skel-ingest) - Data Ingestion with Prometheus telemerty reference
-7. [skel-telemetry](skel-telemetry) - TimeSeries Service + Prometheus/InfluxDB/Graphite/Loki/Grafana infra
-8. [skel-db](skel-db) - DB Related stuff
-9. [skel-otp](skel-otp) - OTP Service reference service 
-10. [skel-test](skel-test) - Test helpers
-11. [skel-crypto](skel-crypto) - Cryptography and Ethereum utilities
-12. [skel-spark](skel-spark) - Spark tools
-13. [skel-datalake](skel-datalake) - Datalake and Warehouses (+ Notebooks)
-14. [skel-flow](skel-flow) - DataFlows and Workflows
-15. [skel-scrap](skel-scrap) - Scraping pipelines
-16. [skel-cli](skel-cli) - Shell command line client
-17. [skel-cron](skel-cron) - Cron engine
-19. [skel-serde](skel-serde) - Serializers
-20. [skel-video](skel-video) - Movie Metadata processors
-21. [skel-stream](skel-stream) - Akka Steams 
-22. [skel-pdf](skel-pdf) - PDF Utils
-23. [skel-enroll](skel-enroll) - Registration Flow
-24. [skel-yell](skel-yell) - Auditlog like system service
-25. [skel-tag](skel-tag) - Tags searchable service (e.g. labels, tags)
+[infra](infra) - Infrastructure (docker,kubernetes)
+[skel-http](skel-http) - HTTP Service (+ Kubernetes)
+
+[skel-auth](skel-auth) - Authentication/Authorization (IDP for Web3)
+[skel-user](skel-user) - UserProfile Service reference
+[skel-notify](skel-notify) - Notification Service
+[skel-enroll](skel-enroll) - Registration Flow
+[skel-yell](skel-yell) - Auditlog like system service
+
+[skel-kafka](skel-kafka) - Kafka Processors (Source/Sink)
+[skel-ingest](skel-ingest) - Data Ingestion with Prometheus telemerty reference
+[skel-telemetry](skel-telemetry) - TimeSeries Service + Prometheus/InfluxDB/Graphite/Loki/Grafana infra
+[skel-db](skel-db) - DB Related stuff
+[skel-otp](skel-otp) - OTP Service reference service 
+[skel-test](skel-test) - Test helpers
+[skel-crypto](skel-crypto) - Cryptography and Ethereum utilities
+[skel-spark](skel-spark) - Spark tools
+[skel-datalake](skel-datalake) - Datalake and Warehouses (+ Notebooks)
+[skel-flow](skel-flow) - DataFlows and Workflows
+[skel-scrap](skel-scrap) - Scraping pipelines
+[skel-cli](skel-cli) - Shell command line client
+[skel-cron](skel-cron) - Cron engine
+[skel-serde](skel-serde) - Serializers
+[skel-video](skel-video) - Movie Metadata processors
+[skel-stream](skel-stream) - Akka Steams 
+[skel-pdf](skel-pdf) - PDF Utils
+[skel-tag](skel-tag) - Tags searchable service (e.g. labels, tags)
 
 ----
 ## Build & Run
@@ -61,5 +64,6 @@ Go to [https://github.com/syspulse/skel-demo](https://github.com/syspulse/skel-d
 15. Web3: [https://github.com/web3j/web3j](https://github.com/web3j/web3j)
 16. BLS: [https://github.com/ConsenSys/teku](https://github.com/ConsenSys/teku)
 17. elastic4s: [https://github.com/sksamuel/elastic4s]
+18. akka-quartz-scheduler: [https://github.com/enragedginger/akka-quartz-scheduler]
 
 Other libraries are referenced in corresponding modules

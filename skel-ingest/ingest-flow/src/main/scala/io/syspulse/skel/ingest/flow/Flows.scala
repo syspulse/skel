@@ -58,6 +58,8 @@ import akka.actor.Actor
 import akka.actor.Props
 import akka.actor.ActorRef
 import akka.actor.Cancellable
+import java.util.TimeZone
+import java.time.ZoneId
 
 object Flows {
   val log = Logger(this.toString)
@@ -90,7 +92,7 @@ object Flows {
     s
   }
   
-  def fromCron(cron:String)(implicit as:ActorSystem):Source[ByteString, NotUsed] = {
+  def fromCron(expr:String)(implicit as:ActorSystem):Source[ByteString, NotUsed] = {
     import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension 
     //import akka.stream.typed.scaladsl.ActorSource
 
@@ -106,9 +108,23 @@ object Flows {
     log.info(s"actor: ${cronActor}")
     log.info(s"source: ${cronSource}")
 
-    //val cronActor = as.actorOf(Props[CronActor](), s"cron-actor-${System.currentTimeMillis()}")
+    val sched = 
+      if(expr.contains("_") || expr.contains("*")) {
+        try { 
+          val name = s"job-${System.currentTimeMillis()}"
+          val job = QuartzSchedulerExtension(as).createSchedule( 
+            name , Some("job"),
+            expr.replaceAll("_"," "),
+            timezone = TimeZone.getTimeZone(ZoneId.of("UTC"))
+          )
+          
+          QuartzSchedulerExtension(as).schedule(name, cronActor, ByteString())
+        } catch {
+          case iae: IllegalArgumentException => iae // Do something useful with it.
+        }	
+      } else
+        QuartzSchedulerExtension(as).schedule(expr, cronActor, ByteString())
 
-    val sched = QuartzSchedulerExtension(as).schedule(cron, cronActor, ByteString())
     log.info(s"sched: ${sched}")
     //Future { for( i <- Range(0,1000)) { Thread.sleep(1000); cronActor ! ByteString(s"${i}\n") } }
 
