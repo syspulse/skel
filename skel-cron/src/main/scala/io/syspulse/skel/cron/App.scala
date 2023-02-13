@@ -8,7 +8,7 @@ import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 
 case class Config(
-  cron:String = "0/20 * * * * ?", //"*/1 * * * * ?",
+  expr:String = "*/1 * * * * ?", //"0/20 * * * * ?"
   quartz:String = "default",
 
   cmd:String = "cron",
@@ -30,7 +30,7 @@ object App  {
         // ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         // ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
         // ArgString('d', "datastore",s"datastore [mysql,postgres,mem,cache] (def: ${d.datastore})"),
-        ArgString('c', "cron.cron",s"cron expression (def: '*/1 * * * * *') (def: ${d.cron})"),
+        ArgString('c', "cron.expr",s"cron expression (use '_': '--cron.expr='*/1_*_*_*_*_?') (def: ${d.expr})"),
         ArgString('q', "cron.quartz",s"quartz config properties (def: default) (def: ${d.quartz})"),
 
         // ArgCmd("server","Command"),
@@ -44,7 +44,7 @@ object App  {
       // port = c.getInt("http.port").getOrElse(d.port),
       // uri = c.getString("http.uri").getOrElse(d.uri),
       // datastore = c.getString("datastore").getOrElse(d.datastore),
-      cron = c.getString("cron.cron").getOrElse(d.cron),
+      expr = c.getString("cron.expr").getOrElse(d.expr),
       quartz = c.getString("cron.quartz").getOrElse(d.quartz),
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -52,14 +52,13 @@ object App  {
 
     Console.err.println(s"Config: ${config}")
 
-
     val r = config.cmd match {
       case "cron" =>         
         new Cron((elapsed:Long) => {
             println(s"${System.currentTimeMillis}: ${Thread.currentThread}: Ping: ${elapsed}")
             true
           },
-          config.cron,
+          config.expr.replaceAll("_"," "),
           conf = if(config.quartz == "default") None else Some((config.quartz,c))
         ).start
                       
