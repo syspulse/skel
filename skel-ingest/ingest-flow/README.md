@@ -7,9 +7,17 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 ## Feeds
 
 1. ```stdin://```                               - from stdin
-2. ```http://host:port/api```                   - Outgoing HTTP connection
+2. ```http://host:port/api```                   - From HTTP connection
 3. ```file://dir/file```                        - From single file
-4. ```kafka://broker:9092/topic/group```        - From Kafka
+                                                  Support multiple source with comma: (`http://host1,http://host2`)
+4. ```kafka://broker:9092/topic/group/offset``` - From Kafka `offset` == latest,earliest
+5. ```dir://dir```                              - From directory 
+6. ```dirs://dir```                             - From directories (all levels)
+7. ```null://```                                - No source
+8. ```tick://inteval://{source}```              - Tick cron. ex: `tick://1000://http://localhost:8300`
+8. ```cron://expr://{source}```                 - Crontab cron. ex: `cron://exprName://http://localhost:8300`
+                                                  `exprName` is currently the name of the configured scheduler
+9. ```null://```                                - No source
 
 ## Output
 
@@ -22,6 +30,8 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 7. ```fs3://```                                              - s3 like without APPEND support
 8. ```json://```                                             - Json to stdout (uses Spray to convert to AST and prettyprint)
 9. ```csv://```                                              - CSV to stdout
+10. ```filenew://```                                         - Generate new file for every event
+11. ```files://```                                           - Limit file by size
 
 
 ### Examples
