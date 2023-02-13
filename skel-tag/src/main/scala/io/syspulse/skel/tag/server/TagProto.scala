@@ -24,7 +24,6 @@ object TagProto extends JsonCommon {
 
   import TagJson._
 
-  //implicit val jf_Tags = jsonFormat2(Tags)
   implicit val jf_TagRes = jsonFormat1(TagRes)
   implicit val jf_CreateReq = jsonFormat2(TagCreateReq)
   implicit val jf_ActionRes = jsonFormat2(TagActionRes)

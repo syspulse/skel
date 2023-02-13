@@ -18,4 +18,4 @@ if [ "$SIZE" != "" ]; then
 fi
 
 
-curl -S -s -D /dev/stderr -X GET -H 'Content-Type: application/json' -H "Authorization: Bearer $ACCESS_TOKEN" $SERVICE_URI/search/${TAGS}${PREFIX}
+curl -S -s -D /dev/stderr -X GET -H 'Content-Type: application/json' -H "Authorization: Bearer $ACCESS_TOKEN" $SERVICE_URI/typing/${TAGS}${PREFIX}

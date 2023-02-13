@@ -27,7 +27,13 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     // becasue of VID case class, it is converted unmarchsalled as Map from Elastic (field vid.id)
     override def read(hit: Hit): Try[Tag] = {
       val source = hit.sourceAsMap
-      Success(Tag(source("id").toString, source("tags").asInstanceOf[List[String]]))
+      Success(Tag(
+        source("id").toString, 
+        source("ts").asInstanceOf[Long],
+        source("tags").asInstanceOf[List[String]],
+        source("score").asInstanceOf[Option[Long]],
+        source("sid").asInstanceOf[Option[Long]],
+      ))
     }
   }
   
@@ -83,13 +89,16 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     }
   }
 
-  def ??(txt:String,from:Option[Int],size:Option[Int]):Tags = {   
+  def typing(txt:String,from:Option[Int],size:Option[Int]):Tags = 
+    ??(txt,from,size)
+
+  def ??(tags:String,from:Option[Int],size:Option[Int]):Tags = {   
     val r = client.execute {
       com.sksamuel.elastic4s.ElasticDsl
         .search(elacticIndex)
         .from(from.getOrElse(0))
         .size(size.getOrElse(10))
-        .query(txt)
+        .query(tags)
         //.matchQuery("_all",txt)
         //.operator(MatchQueryBuilder.Operator.AND)
         .sortByFieldDesc("score")

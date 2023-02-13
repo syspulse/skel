@@ -21,6 +21,7 @@ object TagRegistry {
   final case class GetTags(from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
   final case class GetTag(id:String,replyTo: ActorRef[Try[Tag]]) extends Command
   final case class GetSearchTag(tags:String,from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
+  final case class GetTypingTag(txt:String,from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
   final case class RandomTag(replyTo: ActorRef[Tag]) extends Command
 
   // this var reference is unfortunately needed for Metrics access
@@ -45,6 +46,10 @@ object TagRegistry {
 
       case GetSearchTag(tags,from,size,replyTo) =>
         replyTo ! store.??(tags,from,size)
+        Behaviors.same
+
+      case GetTypingTag(txt,from,size,replyTo) =>
+        replyTo ! store.typing(txt,from,size)
         Behaviors.same
       
       case RandomTag(replyTo) =>        

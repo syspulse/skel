@@ -11,6 +11,6 @@ import io.syspulse.skel.tag._
 
 object TagJson extends  DefaultJsonProtocol {
   
-  implicit val jf_tag = jsonFormat3(Tag.apply _)
+  implicit val jf_tag = jsonFormat5(Tag.apply _)
   implicit val jf_tags = jsonFormat2(Tags.apply _)
 }

@@ -5,7 +5,7 @@ import scala.jdk.CollectionConverters._
 import scala.collection.immutable
 import io.syspulse.skel.Ingestable
 
-case class Tag (id:String, tags:List[String], score:Double = 0.0) extends Ingestable {
+case class Tag (id:String, ts:Long = 0L, tags:List[String], score:Option[Long] = None, sid:Option[Long] = None) extends Ingestable {
   override def toLog:String = toString
   override def getKey:Option[Any] = Some(id)
 }

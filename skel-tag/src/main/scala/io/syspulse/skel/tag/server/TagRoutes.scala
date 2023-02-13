@@ -73,6 +73,7 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   def getTags(from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetTags(from,size, _))
   def getTag(tags: String): Future[Try[Tag]] = registry.ask(GetTag(tags, _))
   def getSearchTag(tags: String,from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetSearchTag(tags,from,size, _))
+  def getTypingTag(txt: String,from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetTypingTag(txt,from,size, _))
   
   def randomTag(): Future[Tag] = registry.ask(RandomTag(_))
 
@@ -102,6 +103,25 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
     parameters("from".as[Int].optional,"size".as[Int].optional) { (from,size) =>
       rejectEmptyResponse {
         onSuccess(getSearchTag(tags,from,size)) { r =>
+          metricGetCount.inc()
+          complete(r)
+        }
+      }
+    }
+  }
+
+  @GET @Path("/typing/{txt}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("tags"),summary = "Type-ahead search", parameters = Array(
+      new Parameter(name = "txt", in = ParameterIn.PATH, description = "Prefix text match"),
+      new Parameter(name = "from", in = ParameterIn.PATH, description = "Page index"),
+      new Parameter(name = "size", in = ParameterIn.PATH, description = "Page Size"),
+    ),
+    responses = Array(new ApiResponse(responseCode="200",description = "Tags found",content=Array(new Content(schema=new Schema(implementation = classOf[Tags])))))
+  )
+  def getTagTypingRoute(txt: String) = get { 
+    parameters("from".as[Int].optional,"size".as[Int].optional) { (from,size) =>
+      rejectEmptyResponse {
+        onSuccess(getTypingTag(txt,from,size)) { r =>
           metricGetCount.inc()
           complete(r)
         }
@@ -147,7 +167,14 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
             pathEndOrSingleSlash {
               getTagSearchRoute(tags)            
             }
-        }
+          }
+        },
+        pathPrefix("typing") {
+          pathPrefix(Segment) { txt =>
+            pathEndOrSingleSlash {
+              getTagTypingRoute(txt)            
+            }
+          }
         },
         pathPrefix("random") {
           createTagRandomRoute()
