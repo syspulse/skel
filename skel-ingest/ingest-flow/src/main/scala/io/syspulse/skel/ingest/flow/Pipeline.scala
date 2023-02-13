@@ -79,11 +79,23 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
       case "cron" :: expr :: next :: rest => 
         val cronSource = Flows.fromCron(expr)
         val nextSource:Source[ByteString,_] = source(next + "://" + rest.mkString(""))
-        val src1 = cronSource
-          .flatMapConcat( tick => nextSource)
-        src1        
+        cronSource.flatMapConcat( tick => nextSource)
+        
       // test cron
       case "cron" :: Nil => Flows.fromCron("*/1 * * * * ?")
+
+      case "tick" :: expr :: next :: rest =>
+        val (tickInitial,tickInterval) = expr.split(",").toList match {
+          case tickInitial :: tickInterval :: Nil => (tickInitial.toLong,tickInterval.toLong)
+          case tickInterval :: Nil => (0L,tickInterval.toLong)
+          case _ => (0L,1000L)
+        }
+        val cronSource = Source.tick[ByteString](
+          FiniteDuration(tickInitial.toLong,TimeUnit.MILLISECONDS),FiniteDuration(tickInterval,TimeUnit.MILLISECONDS),
+          ByteString(s"${System.currentTimeMillis()}")
+        )
+        val nextSource:Source[ByteString,_] = source(next + "://" + rest.mkString(""))
+        cronSource.flatMapConcat( tick => nextSource)
 
       case "" :: Nil => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
       case file :: Nil => Flows.fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)      

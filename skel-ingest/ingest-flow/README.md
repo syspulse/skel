@@ -67,6 +67,17 @@ Pipeline with throttling 1 msg/sec (throttle == 1000 msec)
 ./run-ingest.sh -f kafka://localhost:9200/topic.2/group.2 --throttle=1000
 ```
 
+Pipeline to HTTP with periodic cron (`cron://exprName`)
+```
+./run-ingest.sh -f cron://EverySecond://http://localhost:8300 -o stdout://
+```
+
+Pipeline to HTTP with periodic tick (`tick://initial,interval`)
+
+```
+./run-ingest.sh -f tick://0,1000://http://localhost:8300 -o stdout://
+```
+
 
 Getting transactions from ethereum-etl into file partitions. (e.g. for Spark processing)
 
