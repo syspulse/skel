@@ -78,9 +78,11 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
 
   def ?(id:String):Try[Tag] = {
     log.info(s"id=${id}")
-    val r = {
-     client.execute { ElasticDsl.search(elacticIndex).termQuery(("id",id)) }      
-    }.await
+    val r = { client.execute { 
+      ElasticDsl
+        .search(elacticIndex)
+        .termQuery(("id",id))
+    }}.await
 
     log.info(s"r=${r}")
     r.result.to[Tag].toList match {
@@ -92,13 +94,16 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
   def typing(txt:String,from:Option[Int],size:Option[Int]):Tags = 
     ??(txt,from,size)
 
-  def ??(tags:String,from:Option[Int],size:Option[Int]):Tags = {   
+  def search(txt:String,from:Option[Int],size:Option[Int]):Tags = 
+    ??(txt,from,size)
+
+  def ??(terms:String,from:Option[Int],size:Option[Int]):Tags = {   
     val r = client.execute {
       com.sksamuel.elastic4s.ElasticDsl
         .search(elacticIndex)
         .from(from.getOrElse(0))
         .size(size.getOrElse(10))
-        .query(tags)
+        .query(terms)
         //.matchQuery("_all",txt)
         //.operator(MatchQueryBuilder.Operator.AND)
         .sortByFieldDesc("score")

@@ -18,6 +18,8 @@ trait TagStore extends Store[Tag,String] {
   
   def ??(tags:String,from:Option[Int],size:Option[Int]):Tags
 
+  def search(txt:String,from:Option[Int],size:Option[Int]):Tags 
+
   def typing(txt:String,from:Option[Int],size:Option[Int]):Tags
 
   def limit(from:Option[Int]=None,size:Option[Int]=None):Seq[Tag] = {

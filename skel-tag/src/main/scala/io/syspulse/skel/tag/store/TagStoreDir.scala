@@ -22,13 +22,11 @@ class TagStoreDir(dir:String = "store/") extends StoreDir[Tag,String](dir) with 
   override def limit(from:Option[Int],size:Option[Int]):Seq[Tag] = store.limit(from,size)
   def size:Long = store.size
   override def +(u:Tag):Try[TagStoreDir] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)
-
   override def del(id:String):Try[TagStoreDir] = super.del(id).flatMap(_ => store.del(id)).map(_ => this)
   override def ?(id:String):Try[Tag] = store.?(id)
-  
   def ??(tags:String,from:Option[Int],size:Option[Int]):Tags = store.??(tags,from,size)
-
-  def typing(txt:String,from:Option[Int],size:Option[Int]):Tags = store.typing(txt,from,size)
+  override def typing(txt:String,from:Option[Int],size:Option[Int]):Tags = store.typing(txt,from,size)
+  override def search(txt:String,from:Option[Int],size:Option[Int]):Tags = store.search(txt,from,size)
 
   // preload
   load(dir)

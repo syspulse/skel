@@ -45,7 +45,7 @@ object TagRegistry {
         Behaviors.same
 
       case GetSearchTag(tags,from,size,replyTo) =>
-        replyTo ! store.??(tags,from,size)
+        replyTo ! store.search(tags,from,size)
         Behaviors.same
 
       case GetTypingTag(txt,from,size,replyTo) =>

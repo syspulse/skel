@@ -94,7 +94,7 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   @GET @Path("/search/{tags}") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("tags"),summary = "Search Objects by tags", parameters = Array(
       new Parameter(name = "tags", in = ParameterIn.PATH, description = "Tags (semicolon separated)"),
-      new Parameter(name = "from", in = ParameterIn.PATH, description = "Page index"),
+      new Parameter(name = "from", in = ParameterIn.PATH, description = "Page from (inclusive)"),
       new Parameter(name = "size", in = ParameterIn.PATH, description = "Page Size"),
     ),
     responses = Array(new ApiResponse(responseCode="200",description = "Tags found",content=Array(new Content(schema=new Schema(implementation = classOf[Tags])))))
@@ -113,7 +113,7 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   @GET @Path("/typing/{txt}") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("tags"),summary = "Type-ahead search", parameters = Array(
       new Parameter(name = "txt", in = ParameterIn.PATH, description = "Prefix text match"),
-      new Parameter(name = "from", in = ParameterIn.PATH, description = "Page index"),
+      new Parameter(name = "from", in = ParameterIn.PATH, description = "Page from (inclusive)"),
       new Parameter(name = "size", in = ParameterIn.PATH, description = "Page Size"),
     ),
     responses = Array(new ApiResponse(responseCode="200",description = "Tags found",content=Array(new Content(schema=new Schema(implementation = classOf[Tags])))))
@@ -130,7 +130,10 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   }
 
   @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("tag"), summary = "Return all Objects",
+  @Operation(tags = Array("tag"), summary = "Return all Objects",parameters = Array(
+      new Parameter(name = "from", in = ParameterIn.PATH, description = "Page from (inclusive)"),
+      new Parameter(name = "size", in = ParameterIn.PATH, description = "Page Size"),
+    ),
     responses = Array(
       new ApiResponse(responseCode = "200", description = "List of Objects",content = Array(new Content(schema = new Schema(implementation = classOf[Tags])))))
   )

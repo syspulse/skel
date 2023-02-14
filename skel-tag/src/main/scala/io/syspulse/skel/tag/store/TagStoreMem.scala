@@ -44,18 +44,26 @@ class TagStoreMem extends TagStore {
     case None => Failure(new Exception(s"not found: ${id}"))
   }
 
+  def search(txt:String,from:Option[Int],size:Option[Int]):Tags = {
+    if(txt.trim.size < 3 )
+      Tags(Seq())
+    else
+      ??(".*" + txt + ".*",from,size)
+  }
+
   def typing(txt:String,from:Option[Int],size:Option[Int]):Tags = {
     if(txt.trim.size < 3 )
       Tags(Seq())
     else
-      ??(txt,from,size)
+      ??(txt+".*",from,size)
   }
 
-  def ??(tags:String,from:Option[Int],size:Option[Int]):Tags = {
+  def ??(txt:String,from:Option[Int],size:Option[Int]):Tags = {
+    val terms = txt.toLowerCase
     val tt =
       this.tags.values.filter{ t => 
-        t.id.toLowerCase.matches(".*" + tags.toLowerCase() + ".*") ||
-        t.tags.filter( t => t.toLowerCase.matches(".*" + tags.toLowerCase + ".*")).size != 0
+        t.id.toLowerCase.matches(terms) ||
+        t.tags.filter( tag => tag.toLowerCase.matches(terms)).size > 0
       }
       .toList.sortBy(_.score).reverse
     
