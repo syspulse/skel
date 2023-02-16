@@ -5,6 +5,8 @@ import org.scalatest.wordspec.{ AnyWordSpec}
 import org.scalatest.matchers.should.{ Matchers}
 import org.scalatest.flatspec.AnyFlatSpec
 import io.syspulse.skel.notify.email.SmtpURI
+import akka.http.javadsl.model.HttpMethod
+import akka.http.scaladsl.model.HttpMethods
 
 class NotifySpec extends AnyWordSpec with Matchers {
   
@@ -58,6 +60,33 @@ class NotifySpec extends AnyWordSpec with Matchers {
       s.pass should === ("pass")
       s.tls should === (false)
       s.starttls should === (true)
+    }
+
+    "http ('http://localhost:8300/')" in {
+      val n = new NotifyHttp("http://localhost:8300/")
+      info(s"${n.request}")
+      n.request.uri should === ("http://localhost:8300")
+      n.request.verb should === (HttpMethods.GET)
+    }
+
+    "http ('http://localhost:8300/{msg}')" in {
+      val n = new NotifyHttp("http://localhost:8300/{msg}")
+      info(s"${n.request}")
+      n.request.uri should === ("http://localhost:8300/{msg}")
+    }
+
+    "http ('http://POST/localhost:8300/{msg}')" in {
+      val n = new NotifyHttp("http://POST/localhost:8300/{msg}")
+      info(s"${n.request}")
+      n.request.uri should === ("http://localhost:8300/{msg}")
+      n.request.verb should === (HttpMethods.POST)
+    }
+
+    "http ('http://localhost:8300/{msg}') with ('subj1,msg1')" in {
+      val n = new NotifyHttp("http://localhost:8300/{msg}")      
+      val r = n.request.withUri("subj1","msg1")
+      info(s"${r}")
+      r.uri should === ("http://localhost:8300/msg1")
     }
 
   }

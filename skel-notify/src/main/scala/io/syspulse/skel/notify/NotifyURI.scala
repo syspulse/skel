@@ -15,10 +15,9 @@ import io.syspulse.skel.notify.kafka.NotifyKafka
 
 import io.syspulse.skel.util.Util
 
-
 object NotifyUri {
 
-  def apply(uri:String)(implicit config:Config):NotifyReceiver[_] = {
+  def apply(uri:String)(implicit config:Config):NotifyReceiver[_] = {    
     uri.split("://").toList match {
       case "email" :: dst :: _ => 
         val (smtp,to) = dst.split("/").toList match {
@@ -35,8 +34,13 @@ object NotifyUri {
       case "ws" :: _ => new NotifyWebsocket("")
       case "tel" :: _ => new NotifyTelegram(uri)(config)
       case "kafka" :: _ => new NotifyKafka(uri)
+      
       case "syslog" :: Nil => new NotifySyslog(None)
       case "syslog" :: scope :: Nil => new NotifySyslog(Some(scope))
+
+      case "http" :: _ => new NotifyHttp(uri)
+      case "https" :: _ => new NotifyHttp(uri)
+
       case _ => new NotifyStdout
     }    
   }
