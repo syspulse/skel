@@ -26,13 +26,21 @@ trait AbiStoreSigEventResolver {
 trait AbiStore extends Store[AbiContract,AbiStore.ID] with AbiStoreSigFuncResolver with AbiStoreSigEventResolver {
   def getKey(a: AbiContract):String = a.addr
 
+  def events:SignatureStore[EventSignature]
+  def functions:SignatureStore[FuncSignature]
+
   def +(s:AbiContract):Try[AbiStore]
   
   def del(id:AbiStore.ID):Try[AbiStore]
 
   def ?(id:AbiStore.ID):Try[AbiContract]
 
+  def search(txt:String,from:Option[Int],size:Option[Int]):(Seq[AbiContract],Long)
+
   def all:Seq[AbiContract]
+
+  def all(from:Option[Int],size:Option[Int]):(Seq[AbiContract],Long)
+
   def size:Long
 
   
@@ -46,4 +54,5 @@ object AbiStore {
 
   val EVENT = "event"
   val FUNCTION = "function"
+  val CONTRACT = "contract"
 }

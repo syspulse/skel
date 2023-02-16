@@ -34,11 +34,11 @@ class NotifyKafka(uri:String)(implicit config: Config) extends NotifyReceiver[St
 
   val kafka = Source.queue(10).toMat(sink(kafkaUri.broker,Set(kafkaUri.topic)))(Keep.left).run()
 
-  def send(title:String,msg:String):Try[String] = {    
+  def send(title:String,msg:String,severity:Option[Int],scope:Option[String]):Try[String] = {    
     log.info(s"[${msg}]-> Kafka(${kafkaUri})")
 
     //val f = TelegramHttpClient.sendMessage(telUri,s"${title}: ${msg}")
-    val r = kafka.offer(s"""["title":"${title}","msg":"${msg}","ts":${System.currentTimeMillis()}]""")
+    val r = kafka.offer(s"""["title":"${title}","msg":"${msg}","ts":${System.currentTimeMillis()}, "severity": ${severity.getOrElse(0)}, "scope": "${scope.getOrElse("sys.none")}"]""")
         
     Success(s"${r}")
   }

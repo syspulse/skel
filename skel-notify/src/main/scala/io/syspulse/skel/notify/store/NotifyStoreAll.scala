@@ -19,7 +19,7 @@ class NotifyStoreAll(implicit config:Config) extends NotifyStore {
     
     val (receivers,_,_) = Notification.parseUri(notify.to.getOrElse("").split("\\s+").toList)
 
-    val rr = Notification.send(receivers,notify.subj.getOrElse(""),notify.msg)
+    val rr = Notification.broadcast(receivers.receviers, notify.subj.getOrElse(""), notify.msg, notify.severity, notify.scope)
     
     log.info(s"${notify}: ${rr}")
     Success(this)

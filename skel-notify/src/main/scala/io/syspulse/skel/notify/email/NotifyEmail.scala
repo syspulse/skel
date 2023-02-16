@@ -50,7 +50,7 @@ class NotifyEmail(smtpName:String,to:String)(implicit config: Config) extends No
   val from = config.smtpFrom
   val timeout = config.timeout
 
-  def send(title:String,msg:String):Try[String] = {
+  def send(title:String,msg:String,severity:Option[Int],scope:Option[String]):Try[String] = {
     val smtp = SMTP.get(smtpName)(config)
 
     log.info(s"[${to}]-> ${smtp}")

@@ -41,15 +41,17 @@ class NotifyClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionConte
   import NotifyJson._
   import spray.json._
   
-  def reqPostNotify(to:String,subj:String,msg:String) =  HttpRequest(method = HttpMethods.POST, uri = s"${uri}", headers=authHeaders(),
+  def reqPostNotify(to:String,subj:String,msg:String,severity:Option[Int],scope:Option[String]) =  
+    HttpRequest(method = HttpMethods.POST, uri = s"${uri}", headers=authHeaders(),
       entity = HttpEntity(ContentTypes.`application/json`, 
-        NotifyReq(Some(to),Some(subj),msg).toJson.toString)
+        NotifyReq(Some(to),Some(subj),msg,severity,scope).toJson.toString)
     )
   
-  def notify(to:String,subj:String,msg:String):Future[Option[Notify]] = {
-    log.info(s"-> ${reqPostNotify(to,subj,msg)}")
+  def notify(to:String,subj:String,msg:String,severity:Option[Int],scope:Option[String]):Future[Option[Notify]] = {
+    val req = reqPostNotify(to,subj,msg,severity,scope)
+    log.info(s"-> ${req}")
     for {
-      rsp <- Http().singleRequest(reqPostNotify(to,subj,msg))
+      rsp <- Http().singleRequest(req)
       r <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[Notify]] else Future(None)
     } yield r
   }

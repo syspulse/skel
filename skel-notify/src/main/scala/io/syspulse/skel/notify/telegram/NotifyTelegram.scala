@@ -55,10 +55,10 @@ class NotifyTelegram(uri:String)(implicit config: Config) extends NotifyReceiver
 
   val telUri = TelegramURI(uri,Option(config.telegramUri))
 
-  def send(title:String,msg:String):Try[String] = {    
+  def send(title:String,msg:String,severity:Option[Int],scope:Option[String]):Try[String] = {    
     log.info(s"[${msg}]-> Telegram(${telUri})")
 
-    val f = TelegramHttpClient.sendMessage(telUri,s"${title}: ${msg}")
+    val f = TelegramHttpClient.sendMessage(telUri,s"${severity}:${scope}: ${title}: ${msg}")
         
     // f.onComplete {
     //       case Success(_) => println("message delivered")

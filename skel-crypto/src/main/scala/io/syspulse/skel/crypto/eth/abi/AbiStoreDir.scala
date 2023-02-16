@@ -18,9 +18,17 @@ import AbiContractJson._
 class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:SignatureStore[EventSignature]) extends StoreDir[AbiContract,String](dir) with AbiStore {
 
   var store:Map[String,ContractAbi] = Map()
+
+  def functions:SignatureStore[FuncSignature] = funcStore
+  def events:SignatureStore[EventSignature] = eventStore 
   
   def size = store.size
   def all:Seq[AbiContract] = store.values.map( ca => AbiContract(ca.getAddr(),ca.getJson())).toSeq
+
+  def all(from:Option[Int],size:Option[Int]):(Seq[AbiContract],Long) = {
+    val aa = all
+    (aa.drop(from.getOrElse(0)).take(size.getOrElse(10)),aa.size)
+  }
   
   override def +(a:AbiContract):Try[AbiStoreDir] = {
     ContractAbi(a.addr,a.json).map( ca => {
@@ -43,6 +51,21 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
       case Some(ca) => Success(AbiContract(ca.getAddr(),ca.getJson()))
       case None => Failure(new Exception(s"not found: ${id}"))
     }
+  }
+
+  def search(txt:String,from:Option[Int],size:Option[Int]):(Seq[AbiContract],Long) = {
+    if(txt.trim.size < 3) 
+      return (Seq(),0L)
+
+    val term = txt.toLowerCase + ".*"
+
+    val vv = store.values.filter(v => {
+        v.getAddr().toLowerCase.matches(term) || 
+        v.getJson().toLowerCase.matches(term)
+    })
+    .map( ca => AbiContract(ca.getAddr(),ca.getJson()))
+    
+    (vv.drop(from.getOrElse(0)).take(size.getOrElse(10)).toList,vv.size)
   }
 
 
