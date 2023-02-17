@@ -24,6 +24,8 @@ object AuthJwt {
 
   val DEFAULT_ACCESS_TOKEN_TTL = 3600L // in seconds
   val DEFAULT_REFRESH_TOKEN_TTL = 3600L * 24 * 5 // in seconds
+  val DEFAULT_ACCESS_TOKEN_SERVICE_TTL = 3600L * 24 * 356 // in seconds
+  val DEFAULT_ACCESS_TOKEN_ADMIN_TTL = 3600L * 24 * 30 // in seconds
 
   // ATTENTION: it is non-secure deterministic on purpose !
   var defaultSecret: String = Util.generateRandomToken(seed = Some("0xsecret"))
