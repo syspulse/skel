@@ -295,6 +295,7 @@ lazy val core = (project in file("skel-core"))
     )
 
 lazy val serde = (project in file("skel-serde"))
+  .dependsOn(core) // needed only for App application
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -304,7 +305,10 @@ lazy val serde = (project in file("skel-serde"))
           libUUID, 
           libAvro4s,
           libUpickleLib,
-          libScodecBits
+          libScodecBits,
+                    
+          libParq,
+          libHadoop
         ),
     )
     
