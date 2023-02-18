@@ -14,6 +14,7 @@ import io.syspulse.skel.store.StoreDir
 import spray.json._
 import DefaultJsonProtocol._
 import AbiContractJson._
+import io.methvin.watcher.hashing.FileHasher
 
 class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:SignatureStore[EventSignature]) extends StoreDir[AbiContract,String](dir) with AbiStore {
 
@@ -155,25 +156,44 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
     import io.methvin.better.files._
     import java.nio.file.{Path, StandardWatchEventKinds => EventType, WatchEvent}
     import scala.concurrent.ExecutionContext.Implicits.global
+
+    @volatile
+    var modifying = false
     
-    val watcher = new RecursiveFileMonitor(File(dir)) {
+    // try to prevent modifications by touching file
+    val watcher = new RecursiveFileMonitor(
+      File(dir),
+      fileHasher = Some(FileHasher.LAST_MODIFIED_TIME)) {
       override def onCreate(file: File, count: Int) = {
-        val id = file.nameWithoutExtension
-        log.info(s"${file}: added")
-        val aa = addAsFile(os.Path(file.toString,os.pwd))
-        aa.foreach( a => add(a))
+        if(! modifying) {
+          modifying = true
+          val id = file.nameWithoutExtension
+          log.info(s"${file}: added")
+          val aa = addAsFile(os.Path(file.toString,os.pwd))
+          aa.foreach( a => add(a))
+          modifying = false
+        }
       }
       override def onModify(file: File, count: Int) = {
-        val id = file.nameWithoutExtension
-        log.info(s"${file}: modified")
-        del(id)
-        addAsFile(os.Path(file.toString,os.pwd))
+        if(! modifying) {
+          modifying = true
+          val id = file.nameWithoutExtension
+          log.info(s"${file}: modified")
+          //del(id)
+          val aa = addAsFile(os.Path(file.toString,os.pwd))
+          aa.foreach( a => add(a))
+          modifying = false
+        }
       }
       override def onDelete(file: File, count: Int) = {
-        val id = file.nameWithoutExtension
-        log.info(s"${file}: deleted")
-        
-        del(id)
+        if(! modifying) {
+          modifying = true
+          val id = file.nameWithoutExtension
+          log.info(s"${file}: deleted")
+          
+          del(id)
+          modifying = false
+        }
       }
     }
 
