@@ -466,6 +466,9 @@ lazy val crypto = (project in file("skel-crypto"))
           libBLSKeystore,
           libSSSS,
           libEthAbi,
+
+          libDirWatcher,
+          libDirWatcherScala,
         ),
       // this is important option to support latest log4j2 
       assembly / packageOptions += sbt.Package.ManifestAttributes("Multi-Release" -> "true")

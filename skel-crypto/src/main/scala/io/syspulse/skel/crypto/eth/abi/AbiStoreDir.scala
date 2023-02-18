@@ -32,7 +32,7 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
   
   override def +(a:AbiContract):Try[AbiStoreDir] = {
     ContractAbi(a.addr,a.json).map( ca => {
-      store = store + (a.addr -> ca)
+      store = store + (a.addr.toLowerCase -> ca)
 
       if(! loading)
         writeFile(a)
@@ -40,14 +40,21 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
       this
     })
   }
+
+  def add(a:AbiContract) = {
+    loading = true
+    this.+(a)
+    loading = false
+  }
   
   override def del(id:String):Try[AbiStoreDir] = {
-    store = store - id
-    delFileById(id).map(_ => this)
+    log.info(s"del: ${id}")
+    store = store - id.toLowerCase
+    delFileById(id.toLowerCase).map(_ => this)
   }
 
   def ?(id:String):Try[AbiContract] = {
-    store.get(id) match {
+    store.get(id.toLowerCase) match {
       case Some(ca) => Success(AbiContract(ca.getAddr(),ca.getJson()))
       case None => Failure(new Exception(s"not found: ${id}"))
     }
@@ -73,7 +80,7 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
 
   def resolve(contractAddr:String,entity:Option[String]=None,entityName:Option[String] = None):Try[Seq[AbiDefinition]] = {
     
-    val contract = store.get(contractAddr.toLowerCase())
+    val contract = store.get(contractAddr.toLowerCase)
     if(! contract.isDefined) {
       return Failure(new Exception(s"not found: ${contractAddr}"))
     }
@@ -139,7 +146,64 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
 
   override def load():Try[AbiStore] = {
     load(dir)
+    watcher(dir)
     Success(this)
+  }
+
+  def watcher(dir:String) = {
+    import better.files._
+    import io.methvin.better.files._
+    import java.nio.file.{Path, StandardWatchEventKinds => EventType, WatchEvent}
+    import scala.concurrent.ExecutionContext.Implicits.global
+    
+    val watcher = new RecursiveFileMonitor(File(dir)) {
+      override def onCreate(file: File, count: Int) = {
+        val id = file.nameWithoutExtension
+        log.info(s"${file}: added")
+        val aa = addAsFile(os.Path(file.toString,os.pwd))
+        aa.foreach( a => add(a))
+      }
+      override def onModify(file: File, count: Int) = {
+        val id = file.nameWithoutExtension
+        log.info(s"${file}: modified")
+        del(id)
+        addAsFile(os.Path(file.toString,os.pwd))
+      }
+      override def onDelete(file: File, count: Int) = {
+        val id = file.nameWithoutExtension
+        log.info(s"${file}: deleted")
+        
+        del(id)
+      }
+    }
+
+    watcher.start()
+    log.info(s"watching: ${dir}")
+  }
+
+  def addAsFile(f:Path) = {
+    log.info(s"Loading file: ${f}")
+
+    val (label:String,addr:String) = f.last.split("[-.]").toList match {
+      case label :: addr :: _ => (label,addr.toLowerCase())
+      case addr :: Nil => ("",addr.toLowerCase())
+      case _ => ("","")
+    }
+    
+    val fileData = os.read(f)
+    
+    // try to load as AbiContract format (multiple are possibe)
+    val aa = 
+      fileData.split("\n").map { data =>
+        try {
+          data.parseJson.convertTo[AbiContract]              
+        } catch {
+          case e:Exception => 
+            // interpret it as one single Json
+            AbiContract(addr,fileData)
+        }
+      } 
+    aa
   }
 
   override def load(dir:String) = {
@@ -149,40 +213,7 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
     val aa = os.walk(os.Path(dir,os.pwd))
       .filter(_.toIO.isFile())
       .flatMap( f => {
-
-        log.info(s"Loading file: ${f}")
-
-        val (label:String,addr:String) = f.last.split("[-.]").toList match {
-          case label :: addr :: _ => (label,addr.toLowerCase())
-          case addr :: Nil => ("",addr.toLowerCase())
-          case _ => ("","")
-        }
-        
-        // val abi = Decoder.loadAbi(scala.io.Source.fromFile(f.toString).getLines().mkString("\n"))
-          
-        // if(abi.isSuccess && abi.get.size != 0) {
-        //   log.info(s"${f}: ${abi.get.size}")
-        //   Some(addr.toLowerCase -> abi.get)
-          
-        // } else {
-        //   log.warn(s"failed to load: ${f}: ${abi}")
-        //   None
-        // }
-
-        val fileData = os.read(f)
-        
-        // try to load as AbiContract format (multiple are possibe)
-        val aa = 
-          fileData.split("\n").map { data =>
-            try {
-              data.parseJson.convertTo[AbiContract]              
-            } catch {
-              case e:Exception => 
-                // interpret it as one single Json
-                AbiContract(addr,fileData)
-            }
-          } 
-        aa               
+        addAsFile(f)
       })
 
     aa.foreach( a => this.+(a))

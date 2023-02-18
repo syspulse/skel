@@ -46,6 +46,7 @@ object AppABI extends {
         ArgCmd("func","Func Signature store"),
         ArgCmd("event","Event Signature store"),
         ArgCmd("sig","Calculate signature pattern (ex: 'totalSupply()'')"),
+        ArgCmd("watch","Watch store changes (testing AbiStorDir)"),
         
         ArgParam("<params>","...")
       )
@@ -150,11 +151,14 @@ object AppABI extends {
             Util.hex(Hash.keccak256(pattern)).take(10)
           case _ => ""
         }
-        
-      case _ => {
+
+      case "watch" => 
+        //Console.err.println(s"Watching ${config.abiStore}...")        
+        Thread.sleep(Long.MaxValue)
+      case _ => 
         Console.err.println(s"Unknown command: ${config.cmd}")
         sys.exit(1)
-      }
+      
     }
 
     println(s"${r}")

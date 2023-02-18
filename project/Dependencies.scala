@@ -208,6 +208,9 @@ object Dependencies {
 
     val libAkkaQuartz =       "com.enragedginger"             %% "akka-quartz-scheduler"      % "1.9.3-akka-2.6.x"
 
+    val libDirWatcher =       "io.methvin"                    % "directory-watcher"               % "0.18.0"
+    val libDirWatcherScala =  "io.methvin"                    %% "directory-watcher-better-files" % "0.18.0"
+
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)
