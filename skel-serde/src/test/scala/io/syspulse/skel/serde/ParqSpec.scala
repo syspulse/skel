@@ -30,6 +30,7 @@ class ParqSpec extends AnyWordSpec with Matchers {
   
   
   case class Data(id: Int, text: String)
+  case class DataBig(v:BigInt)
 
   "Parquet" should {
 
@@ -84,6 +85,24 @@ class ParqSpec extends AnyWordSpec with Matchers {
       data2.close()
     }
 
-    
+
+    "serialize and deserialize BigIn)" in {            
+      os.remove(os.Path(file1))
+
+      val data1  = Seq(
+        DataBig(BigInt(9001))
+      )
+      
+      ParquetWriter.of[DataBig].writeAndClose(Path(file1), data1)
+
+      val bin1 = os.read(os.Path(file1))
+      bin1.size !== (0)
+      //info(s"${Util.hex(bin1.getBytes())}")
+
+      val data2 = ParquetReader.as[DataBig].read(Path(file1))
+            
+      data2.toList should === (data1.toList)
+      data2.close()
+    }    
   }
 }
