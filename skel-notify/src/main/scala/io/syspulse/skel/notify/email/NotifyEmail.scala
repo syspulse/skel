@@ -17,6 +17,7 @@ import io.syspulse.skel.notify.Config
 import io.syspulse.skel.notify.NotifyReceiver
 import javax.mail.internet.InternetAddress
 import java.util.concurrent.TimeoutException
+import io.syspulse.skel.notify.NotifySeverity
 
 class SMTP(host:String,port:Int,smtpUser:String,smtpPass:String,tls:Boolean,starttls:Boolean) {
   val m0 = Mailer(host,port)
@@ -50,7 +51,7 @@ class NotifyEmail(smtpName:String,to:String)(implicit config: Config) extends No
   val from = config.smtpFrom
   val timeout = config.timeout
 
-  def send(title:String,msg:String,severity:Option[Int],scope:Option[String]):Try[String] = {
+  def send(title:String,msg:String,severity:Option[NotifySeverity.ID],scope:Option[String]):Try[String] = {
     val smtp = SMTP.get(smtpName)(config)
 
     log.info(s"[${to}]-> ${smtp}")

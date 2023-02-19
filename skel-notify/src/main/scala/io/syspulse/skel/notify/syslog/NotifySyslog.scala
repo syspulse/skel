@@ -12,7 +12,7 @@ import io.jvm.uuid._
 
 class NotifySyslog(scope:Option[String]) extends NotifyReceiver[Option[_]] {
   
-  def send(title:String,msg:String,severity:Option[Int],scopeOver:Option[String]):Try[Option[_]] = {
+  def send(title:String,msg:String,severity:Option[NotifySeverity.ID],scopeOver:Option[String]):Try[Option[_]] = {
     println(s"severity=${severity}:scope=${scopeOver.getOrElse(scope.getOrElse(""))}: title=${title},msg=${msg}")
     Success(None)
   }

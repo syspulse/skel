@@ -18,7 +18,7 @@ import io.syspulse.skel.AwaitableService
 import io.syspulse.skel.ExternalService
 
 trait NotifyService extends ExternalService[NotifyService] {
-  def notify(receivers:String,subj:String,msg:String,severity:Option[Int],scope:Option[String]):Future[Option[Notify]]
+  def notify(receivers:String,subj:String,msg:String,severity:Option[NotifySeverity.ID],scope:Option[String]):Future[Option[Notify]]
 }
 
 object NotifyService {
@@ -33,7 +33,7 @@ object NotifyService {
     service
   }
   
-  def notify(receivers:String,subj:String,msg:String,severity:Option[Int],scope:Option[String])(implicit timeout:Timeout = timeout):Future[Option[Notify]] = {
+  def notify(receivers:String,subj:String,msg:String,severity:Option[NotifySeverity.ID],scope:Option[String])(implicit timeout:Timeout = timeout):Future[Option[Notify]] = {
     service.notify(receivers,subj,msg,severity,scope)
   }
 }
@@ -42,7 +42,7 @@ object NotifyService {
 // --- For tests 
 class NotifyServiceSim extends NotifyService {
   val log = Logger(s"${this}")
-  override def notify(to:String,subj:String,msg:String,severity:Option[Int],scope:Option[String]):Future[Option[Notify]] = {
+  override def notify(to:String,subj:String,msg:String,severity:Option[NotifySeverity.ID],scope:Option[String]):Future[Option[Notify]] = {
     log.info(s"notify(${to},${subj},${msg},${severity},${scope})")
     Future.successful(Some(Notify(Some(to),Some(subj),msg,severity = severity,scope = scope)))
   }

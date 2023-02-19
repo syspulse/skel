@@ -34,13 +34,13 @@ class PhaseFinish(config:Config) extends Phase {
   import io.syspulse.skel.FutureAwaitable._
 
   def notify(to:String,subj:String,msg:String) = {
-    val toUri = s"stdout://${to} email://${to}"
+    val toUri = s"stdout://${to} email://${to} syslog://enroll"
 
     log.info(s"Notify(${toUri},${subj},${msg}) -> ${NotifyService.service}")
     
     val r = NotifyService.service
       .withTimeout(timeout)
-      .notify(toUri,subj,msg)
+      .notify(toUri,subj,msg,Some(NotificationSeverity.INFO),None)
       .await()
     
     log.info(s"${toUri}: ${r}")

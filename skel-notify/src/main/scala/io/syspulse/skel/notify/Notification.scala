@@ -6,15 +6,9 @@ import scala.collection.immutable
 import scala.util.{Try,Success,Failure}
 import com.typesafe.scalalogging.Logger
 
-import io.syspulse.skel.notify.aws.NotifySNS
-import io.syspulse.skel.notify.email.NotifyEmail
-import io.syspulse.skel.notify.ws.NotifyWebsocket
-import io.syspulse.skel.notify.telegram.NotifyTelegram
-
 import io.syspulse.skel.util.Util
 
 import io.jvm.uuid._
-import io.syspulse.skel.notify.kafka.NotifyKafka
 
 case class Receivers(name:String,receviers:Seq[NotifyReceiver[_]])
 
@@ -40,17 +34,17 @@ object Notification {
     (Receivers(s"group-${Util.hex(Random.nextBytes(10))}", nn),subj,msg)
   }
 
-  def send[R](n:NotifyReceiver[R],title:String,msg:String,severity:Option[Int],scope:Option[String]) = {
+  def send[R](n:NotifyReceiver[R],title:String,msg:String,severity:Option[NotifySeverity.ID],scope:Option[String]) = {
     log.info(s"Notification(${severity},${scope},$title,$msg)-> ${n}")
     n.send(title,msg,severity,scope)
   }
 
-  def broadcast(nn:Seq[NotifyReceiver[_]],title:String,msg:String,severity:Option[Int],scope:Option[String]):Seq[Try[_]] = {
+  def broadcast(nn:Seq[NotifyReceiver[_]],title:String,msg:String,severity:Option[NotifySeverity.ID],scope:Option[String]):Seq[Try[_]] = {
     log.info(s"Notification(${severity},${scope},$title,$msg)-> ${nn}")
     nn.map( n => n.send(title,msg,severity,scope)).toSeq
   }
 
-  // def broadcast[R](rr:Receivers,title:String,msg:String,severity:Option[Int],scope:Option[String]):Seq[Try[_]] = {
+  // def broadcast[R](rr:Receivers,title:String,msg:String,severity:Option[NotifySeverity.ID],scope:Option[String]):Seq[Try[_]] = {
   //   broadcast(rr.receviers,title,msg,severity,scope)
   // }
 

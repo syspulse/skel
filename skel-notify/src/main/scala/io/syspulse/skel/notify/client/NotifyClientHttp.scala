@@ -41,13 +41,13 @@ class NotifyClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionConte
   import NotifyJson._
   import spray.json._
   
-  def reqPostNotify(to:String,subj:String,msg:String,severity:Option[Int],scope:Option[String]) =  
+  def reqPostNotify(to:String,subj:String,msg:String,severity:Option[NotifySeverity.ID],scope:Option[String]) =  
     HttpRequest(method = HttpMethods.POST, uri = s"${uri}", headers=authHeaders(),
       entity = HttpEntity(ContentTypes.`application/json`, 
         NotifyReq(Some(to),Some(subj),msg,severity,scope).toJson.toString)
     )
   
-  def notify(to:String,subj:String,msg:String,severity:Option[Int],scope:Option[String]):Future[Option[Notify]] = {
+  def notify(to:String,subj:String,msg:String,severity:Option[NotifySeverity.ID],scope:Option[String]):Future[Option[Notify]] = {
     val req = reqPostNotify(to,subj,msg,severity,scope)
     log.info(s"-> ${req}")
     for {

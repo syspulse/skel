@@ -50,7 +50,7 @@ class PhaseEmailSend(config:Config) extends Phase {
     val r = NotifyService.service
       .withTimeout(timeout)
       .withAccessToken(config.jwtRoleService)
-      .notify(toUri,subj,msg)
+      .notify(toUri,subj,msg,None,None)
       .await()
     
     log.info(s"${toUri}: ${r}")

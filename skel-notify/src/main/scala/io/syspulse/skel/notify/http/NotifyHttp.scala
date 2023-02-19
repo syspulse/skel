@@ -79,7 +79,7 @@ class NotifyHttp(uri:String) extends NotifyReceiver[String] {
     //entity = HttpEntity(ContentTypes.`application/json`)
   )
   
-  def send(subj:String,msg:String,severity:Option[Int],scopeOver:Option[String]):Try[String] = {
+  def send(subj:String,msg:String,severity:Option[NotifySeverity.ID],scopeOver:Option[String]):Try[String] = {
     import NotifyHttp._
 
     val req = ->(request.withUri(subj,msg))

@@ -23,6 +23,7 @@ import akka.actor.ActorSystem
 import scala.concurrent.ExecutionContext
 import io.syspulse.skel.uri.KafkaURI
 import io.syspulse.skel.ingest.kafka.KafkaSink
+import io.syspulse.skel.notify.NotifySeverity
 
 
 class NotifyKafka(uri:String)(implicit config: Config) extends NotifyReceiver[String] with KafkaSink[String] {  
@@ -34,7 +35,7 @@ class NotifyKafka(uri:String)(implicit config: Config) extends NotifyReceiver[St
 
   val kafka = Source.queue(10).toMat(sink(kafkaUri.broker,Set(kafkaUri.topic)))(Keep.left).run()
 
-  def send(title:String,msg:String,severity:Option[Int],scope:Option[String]):Try[String] = {    
+  def send(title:String,msg:String,severity:Option[NotifySeverity.ID],scope:Option[String]):Try[String] = {    
     log.info(s"[${msg}]-> Kafka(${kafkaUri})")
 
     //val f = TelegramHttpClient.sendMessage(telUri,s"${title}: ${msg}")
