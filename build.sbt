@@ -103,7 +103,7 @@ val sharedConfig = Seq(
     organization    := "io.syspulse",
     scalaVersion    := "2.13.9",
     name            := "skel",
-    version         := appVersion,
+    version         := skelVersion,
 
     scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:existentials", "-language:implicitConversions", "-language:higherKinds", "-language:reflectiveCalls", "-language:postfixOps"),
     javacOptions ++= Seq("-target", "1.8", "-source", "1.8"),
@@ -230,7 +230,7 @@ def appDockerConfig(appName:String,appMainClass:String) =
     run / mainClass := Some(appMainClass),
     assembly / mainClass := Some(appMainClass),
     Compile / mainClass := Some(appMainClass), // <-- This is very important for DockerPlugin generated stage1 script!
-    assembly / assemblyJarName := jarPrefix + appName + "-" + "assembly" + "-"+  appVersion + ".jar",
+    assembly / assemblyJarName := jarPrefix + appName + "-" + "assembly" + "-"+  skelVersion + ".jar",
 
     Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
     Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
@@ -244,7 +244,7 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
     run / mainClass := Some(appMainClass),
     assembly / mainClass := Some(appMainClass),
     Compile / mainClass := Some(appMainClass),
-    assembly / assemblyJarName := jarPrefix + appName + "-" + "assembly" + "-"+  appVersion + ".jar",
+    assembly / assemblyJarName := jarPrefix + appName + "-" + "assembly" + "-"+  skelVersion + ".jar",
   )
 
 
@@ -523,7 +523,7 @@ lazy val ingest = (project in file("skel-ingest"))
     sharedConfigAssembly,
 
     appAssemblyConfig("skel-ingest",""),
-    //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
+    //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  skelVersion + ".jar",
 
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
       libScalaTest % Test,
@@ -578,7 +578,7 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
     sharedConfigAssembly,
 
     appAssemblyConfig("ingest-flow","io.syspulse.skel.ingest.flow.App"),
-    //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
+    //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  skelVersion + ".jar",
 
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
       libScalaTest % Test,
