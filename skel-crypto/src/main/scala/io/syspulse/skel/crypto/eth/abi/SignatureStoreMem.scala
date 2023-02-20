@@ -15,6 +15,21 @@ class SignatureStoreMem[T <: AbiSignature] extends SignatureStore[T] {
 
   def all:Seq[T] = sigs.values.foldLeft(Seq[T]())(_ ++ _)
 
+  def all(from:Option[Int],size:Option[Int]):(Seq[T],Long) = {
+    var n = 0
+    val aa = 
+      sigs.takeWhile{ case(sig,vv) => {
+        val b = n < (from.getOrElse(0) + size.getOrElse(10))        
+        n = n + vv.size
+        b        
+      }}.values.flatten.toSeq
+    
+    (aa.drop(from.getOrElse(0)).take(size.getOrElse(10)),this.size)
+    
+    //val aa = all
+    //(aa.drop(from.getOrElse(0)).take(size.getOrElse(10)),aa.size)
+  }
+
   def size:Long = sigs.values.foldLeft(0)(_ + _.size)
 
   def +(sig:T):Try[SignatureStoreMem[T]] = { 
@@ -84,5 +99,20 @@ class SignatureStoreMem[T <: AbiSignature] extends SignatureStore[T] {
       case None => Failure(new Exception(s"not found: ${tex}"))
     }
   }
+
+  def search(txt:String,from:Option[Int],size:Option[Int]):(Seq[T],Long) = {
+    if(txt.trim.size < 3) 
+      return (Seq(),0L)
+
+    val term = txt.toLowerCase + ".*"
+
+    val vv = sigs.values.flatten.filter(v => {
+        v.getId().toLowerCase.matches(term) || 
+        v.getTex().toLowerCase.matches(term)
+    })
+    
+    (vv.drop(from.getOrElse(0)).take(size.getOrElse(10)).toList,vv.size)
+  }
+
 
 }

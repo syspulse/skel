@@ -15,7 +15,8 @@ MAIN=${2}
 shift
 shift
 
-ARGS="$@"
+#ARGS="$@"
+ARGS=$@
 
 APP_HOME=${APP_HOME:-`pwd`}
 
@@ -48,4 +49,10 @@ STACK=${STACK:-512M}
 
 # command:
 # JAVA_OPTS should be overriden by old script parameters like $OPT
+
+# WARNING: Experiment no-globbing !
+# WARNING: $ARGS must not be quoted or it will squash multiple arguments from the launch script.
+# NOTE: I think the only thing which is extremely stupid in Linux/Unix is SH/BASH 
+set -o noglob
 exec $JAVA_HOME/bin/java -Xss${STACK} -Xms${MEM} -Xmx${MEM} $JAVA_OPTS -Dcolor -Dconfig.resource=$CONFIG -cp $CP $AGENT $OPT $MAIN $ARGS
+set +o noglob

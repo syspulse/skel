@@ -13,7 +13,10 @@ object Dependencies {
     lazy val influxDBVersion = "3.2.0"
     lazy val slickVersion = "3.3.3"
     lazy val sparkVersion = "3.2.0"
+
     lazy val hadoopAWSVersion = "3.2.2"
+    lazy val hadoopVersion = "3.2.2"
+
     lazy val janinoVersion = "3.0.16" //"3.1.6" //"3.0.16"
     lazy val elastic4sVersion = "7.17.3"
     
@@ -205,6 +208,14 @@ object Dependencies {
     val libElastic4sTest =    "com.sksamuel.elastic4s" %% "elastic4s-testkit" % elastic4sVersion % "test"
 
     val libCourier =          "com.github.daddykotex"         %% "courier"                    % "3.2.0"
+
+    val libAkkaQuartz =       "com.enragedginger"             %% "akka-quartz-scheduler"      % "1.9.3-akka-2.6.x"
+
+    val libDirWatcher =       "io.methvin"                    % "directory-watcher"               % "0.18.0"
+    val libDirWatcherScala =  "io.methvin"                    %% "directory-watcher-better-files" % "0.18.0"
+
+    val libParq =             "com.github.mjakubowski84"      %% "parquet4s-core"                 % "2.10.0"
+    val libHadoop =           "org.apache.hadoop"             % "hadoop-client"                   % hadoopVersion
 
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)

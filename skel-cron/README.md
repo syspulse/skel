@@ -4,24 +4,34 @@
 
 ### Running with Cron expression
 
-__NOTE__: To avoid auto-gobbling and expansion it scrips, cron expression must be quoted:
+__NOTE__: Unfortunately, it is impossible to pass quoted arguments through 2 bash scripts.
+Bash removes quotes and second script loses the boundary of the quoted expression
+
+Cron expression must be passed as `CRON_EXPR="expression"`
 
 
-0. Run every second with default Scheduler
-
-```
-./run.sh --crontab.cron="*/1 * * * * *"
-```
-
-1. Run every 14:30 with default Scheduler
+Run every second with default Scheduler
 
 ```
-./run.sh --crontab.quartz=default --crontab.cron="* 30 14 * * *"
+CRON_EXPR="*/1 * * * * ?" ./run-cron.sh
+```
+
+Run every 14:30 with default Scheduler
+
+```
+CRON_EXPR="* 30 14 * * *" ./run-cron.sh --cron.quartz=default
+```
+
+Run with *protected* expression 
+
+```
+./run-cron.sh --cron.quartz=default --cron.expr='*/1_*_*_*_*_?'
 ```
 
 2. Run with custom Scheduler
 
 __application.conf__:
+
 ```
 quartz-1 {
   org.quartz.threadPool.threadCount=5
@@ -31,5 +41,5 @@ quartz-1 {
 ```
 
 ```
-./run.sh --crontab.quartz=quartz-1
+./run.sh-cron --cron.quartz=quartz-1
 ```

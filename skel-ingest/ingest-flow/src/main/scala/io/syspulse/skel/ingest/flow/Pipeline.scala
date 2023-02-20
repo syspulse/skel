@@ -27,34 +27,38 @@ import java.time.ZoneId
 
 // throttleSource - reduce load on Source (e.g. HttpSource)
 // throttle - delay objects downstream
-abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=0L)
+abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=100L)
   (implicit fmt:JsonFormat[O]) extends IngestFlow[I,T,O]() {
   
   private val log = Logger(s"${this}")
   
-  // this is needed for Elastic
-  //def fmt:JsonFormat[O]
-  //implicit val fmt:JsonFormat[O]
+  //def processing:Flow[I,T,_]
 
-  def processing:Flow[I,T,_]
+  // override def process:Flow[I,T,_] = {
+  //   val f0 = processing
+  //   val f1 = if(throttle != 0L) {      
+  //     f0.throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))      
+  //   }
+  //   else
+  //     f0
+  //   f1
+  // }
 
-  override def process:Flow[I,T,_] = {
-    val f0 = processing
-    val f1 = if(throttle != 0L) {      
-      f0.throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))      
-    }
+  def shaping:Flow[I,I,_] = {
+    if(throttle != 0L)
+      Flow[I].throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))          
     else
-      f0
-    f1
+      Flow[I].map(i => i)
   }
   
   override def source() = {
     source(feed)
   }
 
-  def source(feed:String) = {
+  def source(feed:String):Source[ByteString,_] = {
     log.info(s"feed=${feed}")
-    val source = feed.split("://").toList match {
+    val src0 = feed.split("://").toList match {
+      case "null" :: _ => Flows.fromNull
       case "kafka" :: _ => Flows.fromKafka[Textline](feed)
       case "http" :: _ => {
         if(feed.contains(",")) {
@@ -62,19 +66,42 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
                              ,frameDelimiter = delimiter,frameSize = buffer, throttle =  throttleSource)
         }
         else
+          // ATTENTION!
           Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
+          //Flows.fromHttpRestartable(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
       }
       case "https" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
       case "file" :: fileName :: Nil => Flows.fromFile(fileName,chunk,frameDelimiter = delimiter, frameSize = buffer)
       case "dir" :: dirName :: Nil => Flows.fromDir(dirName,0,chunk,frameDelimiter = delimiter, frameSize = buffer)
       case "dirs" :: dirName :: Nil => Flows.fromDir(dirName,Int.MaxValue,chunk,frameDelimiter = delimiter, frameSize = buffer)
       case "stdin" :: _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer)
+      
+      case "cron" :: expr :: next :: rest => 
+        val cronSource = Flows.fromCron(expr)
+        val nextSource:Source[ByteString,_] = source(next + "://" + rest.mkString(""))
+        cronSource.flatMapConcat( tick => nextSource)
+        
+      // test cron
+      case "cron" :: Nil => Flows.fromCron("*/1 * * * * ?")
+
+      case "tick" :: expr :: next :: rest =>
+        val (tickInitial,tickInterval) = expr.split(",").toList match {
+          case tickInitial :: tickInterval :: Nil => (tickInitial.toLong,tickInterval.toLong)
+          case tickInterval :: Nil => (0L,tickInterval.toLong)
+          case _ => (0L,1000L)
+        }
+        val cronSource = Source.tick[ByteString](
+          FiniteDuration(tickInitial.toLong,TimeUnit.MILLISECONDS),FiniteDuration(tickInterval,TimeUnit.MILLISECONDS),
+          ByteString(s"${System.currentTimeMillis()}")
+        )
+        val nextSource:Source[ByteString,_] = source(next + "://" + rest.mkString(""))
+        cronSource.flatMapConcat( tick => nextSource)
+
       case "" :: Nil => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
       case file :: Nil => Flows.fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)      
-      
       case _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
     }
-    source
+    src0
   }
 
   override def sink() = {

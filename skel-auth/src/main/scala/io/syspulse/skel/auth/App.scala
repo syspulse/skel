@@ -108,9 +108,9 @@ object App extends skel.Server {
       proxyBody = c.getString("proxy.body").getOrElse(d.proxyBody),
       proxyHeadersMapping = c.getString("proxy.headers.mapping").getOrElse(d.proxyHeadersMapping),
 
-      jwtSecret = c.getString("jwt.secret"),
-      jwtRoleService = c.getString("jwt.role.service").getOrElse(""),
-      jwtRoleAdmin = c.getString("jwt.role.admin").getOrElse(""),
+      jwtSecret = c.getSmartString("jwt.secret"),
+      jwtRoleService = c.getSmartString("jwt.role.service").getOrElse(""),
+      jwtRoleAdmin = c.getSmartString("jwt.role.admin").getOrElse(""),
 
       userUri = c.getString("user.uri").getOrElse(d.userUri),
 
@@ -225,16 +225,19 @@ object App extends skel.Server {
       case "jwt" => {        
         val r = 
           config.params match {
-            case "admin" :: Nil => 
+            case "admin" :: ttl => 
               // long living token
-              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_ADMIN.toString),expire = 3600L * 24 * 6)
+              val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_ADMIN_TTL else ttl.head.toLong
+              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_ADMIN.toString),expire = exp)
             
-            case "service" :: Nil => 
+            case "service" :: ttl => 
               // long living token
-              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString),expire = 3600L * 24 * 12)
+              val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL else ttl.head.toLong
+              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString),expire = exp)
 
-            case "user" :: uid :: Nil => 
-              AuthJwt.generateAccessToken(Map("uid" -> uid))
+            case "user" :: uid :: ttl => 
+              val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL else ttl.head.toLong
+              AuthJwt.generateAccessToken(Map("uid" -> uid),expire = exp)
 
             case "encode" :: data => 
               AuthJwt.generateAccessToken(data.map(_.split("=")).collect{ case(Array(k,v)) => k->v}.toMap)

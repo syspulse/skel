@@ -1,60 +1,70 @@
 package io.syspulse.skel.cron
 
+import io.syspulse.skel
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.config.{Configuration,ConfigurationAkka,ConfigurationEnv,ConfigurationProp}
+import io.syspulse.skel.config._
 
-import scopt.OParser
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 
 case class Config(
-  cron:String = "",
-  quartz:String = "",
+  expr:String = "*/1 * * * * ?", //"0/20 * * * * ?"
+  quartz:String = "default",
+
+  cmd:String = "cron",
+  params: Seq[String] = Seq(),
 )
 
 object App  {
 
   def main(args:Array[String]):Unit = {
-    Console.err.println(s"Args: '${args.mkString(",")}'")
+    Console.err.println(s"args(${args.size}): '${args.mkString(",")}'")
 
-    val builder = OParser.builder[Config]
-    val argsParser = {
-      import builder._
-      OParser.sequence(
-        programName(Util.info._1), head(Util.info._1, Util.info._2),
-        opt[String]("crontab.cron").action((x, c) => c.copy(cron = x)).text("cron expression (def: '*/1 * * * * *')"),
-        opt[String]("crontab.quartz").action((x, c) => c.copy(quartz = x)).text("quartz config properties (def: default)"),
+    val d = Config()
+    val c = Configuration.withPriority(Seq(
+      new ConfigurationAkka,
+      new ConfigurationProp,
+      new ConfigurationEnv, 
+      new ConfigurationArgs(args,"skel-cron","",
+        // ArgString('h', "http.host",s"listen host (def: ${d.host})"),
+        // ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
+        // ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
+        // ArgString('d', "datastore",s"datastore [mysql,postgres,mem,cache] (def: ${d.datastore})"),
+        ArgString('c', "cron.expr",s"cron expression (use '_': '--cron.expr='*/1_*_*_*_*_?') (def: ${d.expr})"),
+        ArgString('q', "cron.quartz",s"quartz config properties (def: default) (def: ${d.quartz})"),
 
-        arg[String]("<args>...").unbounded().optional()
-          //.action((x, c) => c.copy(sinks = c.sinks :+ x)).text("Sinks"), note("" + sys.props("line.separator")),
-      )
-    } 
-  
-    OParser.parse(argsParser, args, Config()) match {
-      case Some(configArgs) => {
-        val confuration = Configuration.withPriority(Seq(new ConfigurationAkka,new ConfigurationProp,new ConfigurationEnv))
+        // ArgCmd("server","Command"),
+        ArgCmd("cron","Command"),
+        ArgParam("<params>","")
+      ).withExit(1)
+    ))
 
-        val config = Config(
-          cron = { if(! configArgs.cron.isEmpty) configArgs.cron else confuration.getString("crontab.cron").getOrElse("*/1 * * * * *") },
-          quartz = { if(! configArgs.quartz.isEmpty) configArgs.quartz else "default" },
-          
-        )
+    val config = Config(
+      // host = c.getString("http.host").getOrElse(d.host),
+      // port = c.getInt("http.port").getOrElse(d.port),
+      // uri = c.getString("http.uri").getOrElse(d.uri),
+      // datastore = c.getString("datastore").getOrElse(d.datastore),
+      expr = c.getString("cron.expr").getOrElse(d.expr),
+      quartz = c.getString("cron.quartz").getOrElse(d.quartz),
+      cmd = c.getCmd().getOrElse(d.cmd),
+      params = c.getParams(),
+    )
 
-        Console.err.println(s"Config: ${config}")
+    Console.err.println(s"Config: ${config}")
 
+    val r = config.cmd match {
+      case "cron" =>         
         new Cron((elapsed:Long) => {
-            //val flow = pipe.run(NppData())
             println(s"${System.currentTimeMillis}: ${Thread.currentThread}: Ping: ${elapsed}")
             true
           },
-          config.cron,
-          conf = if(config.quartz == "default") None else Some((config.quartz,confuration))
+          config.expr.replaceAll("_"," "),
+          conf = if(config.quartz == "default") None else Some((config.quartz,c))
         ).start
-        
-        
-      }
+                      
       case _ => 
     }
+    Console.err.println(s"r = ${r}")
   }
 }
 

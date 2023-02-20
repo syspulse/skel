@@ -12,6 +12,7 @@ import scala.util.Try
 import io.syspulse.skel.crypto.eth.abi._
 import codegen.Decoder
 import codegen.AbiDefinition
+import io.syspulse.skel.crypto.Hash
 
 object AppABI extends {  
 
@@ -44,6 +45,8 @@ object AppABI extends {
         ArgCmd("decode","Decode data: <contract> [entity] <data> (entity: event,function)"),
         ArgCmd("func","Func Signature store"),
         ArgCmd("event","Event Signature store"),
+        ArgCmd("sig","Calculate signature pattern (ex: 'totalSupply()'')"),
+        ArgCmd("watch","Watch store changes (testing AbiStorDir)"),
         
         ArgParam("<params>","...")
       )
@@ -60,12 +63,6 @@ object AppABI extends {
 
     Console.err.println(s"config=${config}")
 
-    val abiStore = config.abiStore.split("://").toList match {
-      case "dir" :: dir :: _ => new AbiStoreDir(dir) with AbiStoreStoreSignaturesMem
-      case dir :: Nil => new AbiStoreDir(dir) with AbiStoreStoreSignaturesMem
-      case _ => new AbiStoreDir(config.abiStore) with AbiStoreStoreSignaturesMem
-    }
-
     val eventStore = config.eventStore.split("://").toList match {
       case "dir" :: dir :: _ => new EventSignatureStoreDir(dir)
       case dir :: Nil => new EventSignatureStoreDir(dir)
@@ -80,19 +77,25 @@ object AppABI extends {
       case _ => new SignatureStoreMem[FuncSignature]()
     }
 
+    val abiStore = config.abiStore.split("://").toList match {
+      case "dir" :: dir :: _ => new AbiStoreDir(dir,funcStore,eventStore)
+      case dir :: Nil => new AbiStoreDir(dir,funcStore,eventStore)
+      case _ => new AbiStoreDir(config.abiStore,funcStore,eventStore)
+    }
+
     abiStore.load()
 
     val r = config.cmd match {
       case "decode" => 
         val (contract,data,entity) = 
         config.params.toList match {
-          case contract :: data :: Nil => (contract,Seq(data),"function")
-          case contract :: Nil => (contract,Seq(),"function")
+          case contract :: data :: Nil => (contract,Seq(data),AbiStore.FUNCTION)
+          case contract :: Nil => (contract,Seq(),AbiStore.FUNCTION)
           case contract :: entity :: data => (contract,data,entity)
           case _ => (
             "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984",
             Seq("0xa9059cbb000000000000000000000000f6bdeb12aba8bf4cfbfc2a60c805209002223e22000000000000000000000000000000000000000000000005a5a62f156c710000"),
-            "function")            
+            AbiStore.FUNCTION)            
         }
 
         Console.err.println(s"Decoding: ${contract}: ${entity}: ${data}")
@@ -107,9 +110,13 @@ object AppABI extends {
           case contract :: Nil => (contract,None,None)
           case _ => ("",None,None)
         }
-
+        
         def abiToString(abi:Try[Seq[AbiDefinition]]) = abi.map(_.map(ad => 
-            s"\nname = ${ad.name.getOrElse("")}\n  in  = ${ad.inputs.getOrElse(Seq()).mkString(",")}\n  out = ${ad.outputs.getOrElse(Seq()).mkString(",")}"
+            s"\nname = ${ad.name.getOrElse("")}\n"+
+            s"  type = ${ad.`type`}\n"+
+            s"  in  = ${ad.inputs.getOrElse(Seq()).mkString(",")}\n"+
+            s"  out = ${ad.outputs.getOrElse(Seq()).mkString(",")}\n"+
+            s"  sig = ${AbiSignature.toSig(ad)}\n"
           ).mkString("\n")).toString + "\n"
         
         if(contract == "") {
@@ -137,11 +144,21 @@ object AppABI extends {
           case sig :: Nil => eventStore.??(sig).map(_.mkString("\n"))
           case _ => eventStore.all.mkString("\n")
         }
-        
-      case _ => {
+
+      case "sig" | "signature" =>
+        config.params.toList match {
+          case pattern :: Nil => 
+            Util.hex(Hash.keccak256(pattern)).take(10)
+          case _ => ""
+        }
+
+      case "watch" => 
+        //Console.err.println(s"Watching ${config.abiStore}...")        
+        Thread.sleep(Long.MaxValue)
+      case _ => 
         Console.err.println(s"Unknown command: ${config.cmd}")
         sys.exit(1)
-      }
+      
     }
 
     println(s"${r}")

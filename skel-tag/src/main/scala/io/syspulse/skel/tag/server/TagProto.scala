@@ -11,7 +11,7 @@ import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.tag.Tag
 import io.syspulse.skel.tag.TagJson
 
-final case class Tags(tags: immutable.Seq[Tag])
+// final case class Tags(tags: immutable.Seq[Tag],total:Option[Long] = None)
 
 final case class TagCreateReq(id:String,tags:List[String])
 final case class TagRandomReq()
@@ -24,7 +24,6 @@ object TagProto extends JsonCommon {
 
   import TagJson._
 
-  implicit val jf_Tags = jsonFormat1(Tags)
   implicit val jf_TagRes = jsonFormat1(TagRes)
   implicit val jf_CreateReq = jsonFormat2(TagCreateReq)
   implicit val jf_ActionRes = jsonFormat2(TagActionRes)

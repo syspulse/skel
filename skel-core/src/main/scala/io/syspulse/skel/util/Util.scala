@@ -71,12 +71,14 @@ object Util {
   def sha256(data:Array[Byte]):String = toHexString(digest.digest(data))
   def sha256(data:String):String = toHexString(digest.digest(data.getBytes(StandardCharsets.UTF_8)))
   
+  val tsFormatSerde = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss:SSSZ")
   val tsFormatLongest = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss:SSS")
   val tsFormatLong = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmssZ")
   val tsFormatYM = DateTimeFormatter.ofPattern("yyyy-MM")
 
   def now:String = tsFormatLongest.format(LocalDateTime.now)
   def now(fmt:String):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(Instant.now.toEpochMilli), ZoneId.systemDefault).format(DateTimeFormatter.ofPattern(fmt))
+  def toZoneDateTime(s:String,fmt:DateTimeFormatter = tsFormatLong) = ZonedDateTime.parse(s,fmt)
   def timestamp(ts:Long,fmt:String):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).format(DateTimeFormatter.ofPattern(fmt))
 
   def tsToString(ts:Long) = ZonedDateTime.ofInstant(
@@ -160,7 +162,11 @@ object Util {
 
   def rnd(limit:Double) = Random.between(0,limit)
 
-  def csvToList(s:String,dList:String=";") = s.split(dList).map(_.trim).toList
+  def csvToList(s:String,dList:String=";") = s
+    .split(dList)
+    .map(_.trim)
+    .filter(s => !s.isEmpty() && s != "\"\"")
+    .toList
   def toCSV(o:Product,d:String=",",dList:String=";"):String = toCsv(o,d,dList)
 
   def toCsv(o:Product,d:String,dList:String):String = {

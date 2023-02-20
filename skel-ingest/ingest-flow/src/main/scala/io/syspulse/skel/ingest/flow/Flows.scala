@@ -46,40 +46,161 @@ import spray.json.JsonFormat
 import java.nio.file.StandardOpenOption
 import java.nio.file.OpenOption
 import java.nio.file.FileVisitOption
+import akka.http.scaladsl.model.StatusCodes.Success
+import akka.http.scaladsl.model.StatusCode
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.http.scaladsl.model.sse.ServerSentEvent
+import scala.concurrent.Promise
+import akka.http.scaladsl.settings.ConnectionPoolSettings
+import akka.http.scaladsl.settings.ClientConnectionSettings
+import akka.actor.Actor
+import akka.actor.Props
+import akka.actor.ActorRef
+import akka.actor.Cancellable
+import java.util.TimeZone
+import java.time.ZoneId
 
 object Flows {
   val log = Logger(this.toString)
 
-  def toNull = Sink.ignore
+  val retrySettingsDefault = RestartSettings(
+    minBackoff = FiniteDuration(1000L,TimeUnit.MILLISECONDS),
+    maxBackoff = FiniteDuration(1000L,TimeUnit.MILLISECONDS),
+    randomFactor = 0.2
+  )
 
-  def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem) = Http()
-    .singleRequest(req)
-    .flatMap(res => {      
-      val body = res.entity.dataBytes.runReduce(_ ++ _)
-      log.debug(s"body=${body}")
-      body
+  // NOTE: https://github.com/akka/akka-http/issues/4128
+  // WARNING: Nobody understands how akka http works except Lightbend          
+  def retryDeterministicSettings(as:ActorSystem) = ConnectionPoolSettings(as)
+                          .withBaseConnectionBackoff(FiniteDuration(1000,TimeUnit.MILLISECONDS))
+                          .withMaxConnectionBackoff(FiniteDuration(1000,TimeUnit.MILLISECONDS))
+                          .withMaxConnections(1)
+                          .withMaxRetries(1)
+                          // .withMaxOpenRequests(1)
+                          .withConnectionSettings(ClientConnectionSettings(as)
+                            .withIdleTimeout(retrySettingsDefault.minBackoff)
+                            .withConnectingTimeout(retrySettingsDefault.minBackoff))
+
+  def fromSourceRestart(s:Source[ByteString, _],retry:RestartSettings = retrySettingsDefault) = RestartSource.onFailuresWithBackoff(retry) { () =>
+    log.info(s"Restarting -> Source(${s})...")
+    s
+  }
+
+  def toSinkRestart(s:Sink[Ingestable,_],retry:RestartSettings = retrySettingsDefault) = RestartSink.withBackoff(retry) { () =>
+    log.info(s"Restating -> Sink(${s})...")
+    s
+  }
+  
+  def fromCron(expr:String)(implicit as:ActorSystem):Source[ByteString, NotUsed] = {
+    import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension 
+    //import akka.stream.typed.scaladsl.ActorSource
+
+    val cronSource = Source.actorRef[ByteString](
+      bufferSize = 100,
+      overflowStrategy = OverflowStrategy.dropHead //OverflowStrategy.fail // <- convenient for testing
+    ).map(t => {
+        log.info(s"tick: ${t.utf8String}")
+        ByteString(s"${System.currentTimeMillis()}\n")
+    })
+
+    val (cronActor,cronSourceMat) = cronSource.preMaterialize() //.to(Sink.foreach(println)).run()
+    log.info(s"actor: ${cronActor}")
+    log.info(s"source: ${cronSource}")
+
+    val sched = 
+      if(expr.contains("_") || expr.contains("*")) {
+        try { 
+          val name = s"job-${System.currentTimeMillis()}"
+          val job = QuartzSchedulerExtension(as).createSchedule( 
+            name , Some("job"),
+            expr.replaceAll("_"," "),
+            timezone = TimeZone.getTimeZone(ZoneId.of("UTC"))
+          )
+          
+          QuartzSchedulerExtension(as).schedule(name, cronActor, ByteString())
+        } catch {
+          case iae: IllegalArgumentException => iae // Do something useful with it.
+        }	
+      } else
+        QuartzSchedulerExtension(as).schedule(expr, cronActor, ByteString())
+
+    log.info(s"sched: ${sched}")
+    //Future { for( i <- Range(0,1000)) { Thread.sleep(1000); cronActor ! ByteString(s"${i}\n") } }
+
+    cronSourceMat
+  }
+
+  def toNull = Sink.ignore
+  def fromNull = Source.future(Future({Thread.sleep(Long.MaxValue);ByteString("")})) //Source.never
+
+  def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem) = 
+    Http()
+    .singleRequest(req, settings = retryDeterministicSettings(as))
+    .flatMap(res => { 
+      res.status match {
+        case StatusCodes.OK => 
+          val body = res.entity.dataBytes.runReduce(_ ++ _)
+          Future(Source.future(body))
+        case _ => 
+          val body = Await.result(res.entity.dataBytes.runReduce(_ ++ _),FiniteDuration(1000L,TimeUnit.MILLISECONDS)).utf8String
+          log.error(s"${req}: ${res.status}: body=${body}")
+          throw new Exception(s"${req}: ${res.status}")
+          // not really reachable... But looks extra-nice :-/
+          Future(Source.future(Future(ByteString(body))))
+      }      
     })
       
-
   def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = {
-    val s = Source.future(fromHttpFuture(req))
+    //val s = Source.future(fromHttpFuture(req))
+    val s = RestartSource.onFailuresWithBackoff(retrySettingsDefault) { () =>
+      Source.futureSource {
+        Flows.fromHttpFuture(req)
+      }
+    }
+      
     if(frameDelimiter.isEmpty())
       s
     else
-      s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+      s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))    
   }
 
-  def fromHttpList(req: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem) = {
+  def fromHttpRestartable(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = {
+    fromHttp(req,frameDelimiter,frameSize)
+  }
+
+  def fromHttpList(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem) = {
     // Http().singleRequest does not respect mapAsync for parallelization !!!
     val s = 
-      Source(req)
+      Source(reqs)
       .throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))
-      .mapAsync(par)(r => Flows.fromHttpFuture(r)(as))
+      .flatMapConcat(req => Flows.fromHttpRestartable(req))
     
     if(frameDelimiter.isEmpty())
       s
     else
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+
+    // fromSourceRestart(s)
+    s
+  }
+
+  def fromHttpListAsFlow(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem) = {
+    val f1 = Flow[String]
+      .throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))
+      .mapConcat(tick => {        
+        reqs
+      })
+      .flatMapConcat(req => {
+        log.info(s"--> ${req}")
+        //Flows.fromHttpFuture(req)(as)
+        Flows.fromHttpRestartable(req)
+      })      
+    
+    if(frameDelimiter.isEmpty())
+      f1
+    else
+      f1.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
   }
 
   def fromStdin(frameDelimiter:String="\n",frameSize:Int = 8192):Source[ByteString, Future[IOResult]] = {
@@ -144,7 +265,7 @@ object Flows {
 
   // Hive Rotators
   abstract class Rotator {
-    def init(file:String,fileLimit:Long,fileSize:Long)
+    def init(file:String,fileLimit:Long,fileSize:Long):Unit
     def isRotatable():Boolean
     def needRotate(count:Long,size:Long):Boolean
     def rotate(file:String,count:Long,size:Long):Option[String]
@@ -176,12 +297,16 @@ object Flows {
   class RotatorTimestamp(askTime:()=>Long) extends RotatorCurrentTime {
   
     override def needRotate(count:Long,size:Long):Boolean = {      
-      isRotatable() && (nextTs != 0 && askTime() != nextTs)
+      isRotatable() && (nextTs != 0L && askTime() >= nextTs)
     }
 
     override def rotate(file:String,count:Long,size:Long):Option[String]  = {
       val ts = askTime()
-      nextTs = if(tsRotatable) ts else 0L
+      nextTs = if(tsRotatable) 
+        //ts 
+        Util.nextTimestampFile(file,ts)
+      else 
+        0L
       Some(Util.pathToFullPath(Util.toFileWithTime(file,ts)))
     }
   }

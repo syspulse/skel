@@ -23,7 +23,10 @@ export default function LoginTwitter() {
 
   function clientTwitterLoginUrl() {
     const clientId="VExtd2FtdGlBYU5NbWdIemNjWFM6MTpjaQ";
-    const redirectUri = "http://localhost:3000/callback";
+
+    //const redirectUri = "http://localhost:3000/callback";
+    const redirectUri= baseUrl + "/callback/twitter";
+    
     const scope="users.read tweet.read";
 
     const challenge = "challenge";

@@ -18,7 +18,8 @@ trait OtpStore extends Store[Otp,UUID] {
   def del(id:UUID):Try[OtpStore]
   def ?(id:UUID):Try[Otp]
   def all:Seq[Otp]
-  def getForUser(userId:UUID):Seq[Otp]
+  
+  def getForUser(uid:UUID):Seq[Otp]
   def size:Long
 }
 

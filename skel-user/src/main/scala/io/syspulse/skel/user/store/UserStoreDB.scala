@@ -6,9 +6,10 @@ import scala.util.{Success,Failure}
 import io.jvm.uuid._
 
 import io.getquill._
-import io.getquill.MysqlJdbcContext
-import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
-import io.getquill.{Literal, MySQLDialect}
+import io.getquill.context._
+//import io.getquill.MysqlJdbcContext
+// import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
+// import io.getquill.{Literal, MySQLDialect}
 
 import scala.jdk.CollectionConverters._
 import com.typesafe.config.ConfigFactory
@@ -20,7 +21,9 @@ import io.syspulse.skel.store.{Store,StoreDB}
 import io.syspulse.skel.user.User
 
 // Postgres does not support table name 'user' !
-class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB[User,UUID](dbConfigRef,"users",Some(configuration)) with UserStore {
+class UserStoreDB(configuration:Configuration,dbConfigRef:String) 
+  extends StoreDB[User,UUID](dbConfigRef,"users",Some(configuration)) 
+  with UserStore {
 
   import ctx._
   
@@ -63,7 +66,7 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreD
   val deleteById = (id:UUID) => table.filter(_.id == lift(id)).delete
 
   def +(user:User):Try[UserStoreDB] = { 
-    log.info(s"insert: ${user}")
+    log.info(s"INSERT: ${user}")
     try {
       //ctx.run(query[User].insert(lift(user)));
       ctx.run(table.insertValue(user.copy(email = user.email.toLowerCase)));
@@ -75,20 +78,34 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreD
 
   def update(id:UUID,email:Option[String]=None,name:Option[String]=None,avatar:Option[String]=None):Try[User] = {
     this.?(id) match {
-      case Success(user) => 
+      case Success(user) =>
         val user1 = modify(user,email,name,avatar)
+
+        log.info(s"UPDATE: ${user1}")
         try {
-          ctx.run(table.updateValue(user1));
-          Success(user1)
+          val q = 
+            table
+              .filter(u => u.id == lift(id))
+              .update(
+                set(_.name, quote(lift(user1.name))),
+                set(_.email, quote(lift(user1.email))),
+                set(_.avatar, quote(lift(user1.avatar)))
+              )
+          
+          ctx.run(q)
+
+          //Success(user1)
+          // query again
+          this.?(id)
+
         } catch {
           case e:Exception => Failure(new Exception(s"could not update: ${e}"))
-        }        
+        }
       case f => f
-    }
-  }
+  }}
 
   def del(id:UUID):Try[UserStoreDB] = { 
-    log.info(s"delete: id=${id}")
+    log.info(s"DELETE: id=${id}")
     try {
       //ctx.run(deleteById(lift(id)))
       ctx.run(deleteById(id))
@@ -101,7 +118,7 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreD
   //override def -(user:User):Try[UserStoreDB] = { this.del(user.id) }
 
   def ?(id:UUID):Try[User] = {
-    log.info(s"select: id=${id}")
+    log.info(s"SELECT: id=${id}")
     //ctx.run(query[User].filter(o => o.id == lift(id))) match {
     ctx.run(table.filter(o => o.id == lift(id))) match {      
       case h :: _ => Success(h)
@@ -110,7 +127,7 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreD
   }
 
   def findByXid(xid:String):Option[User] = {
-    log.info(s"find: xid=${xid}")
+    log.info(s"FIND: xid=${xid}")
     //ctx.run(query[User].filter(o => o.xid == lift(xid))) match {
     ctx.run(table.filter(o => o.xid == lift(xid))) match {
       case h :: _ => Some(h)
@@ -119,7 +136,7 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreD
   }
 
   def findByEmail(email:String):Option[User] = {
-    log.info(s"find: emai=${email}")
+    log.info(s"FIND: emai=${email}")
     ctx.run(table.filter(o => o.email == lift(email.toLowerCase()))) match {
       case h :: _ => Some(h)
       case Nil => None

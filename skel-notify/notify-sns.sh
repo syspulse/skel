@@ -3,7 +3,7 @@
 SUBJ=${1:-SNS}
 MSG=${2:-Notification from AWS SNS}
 
-TOKEN=${TOKEN-`cat ACCESS_TOKEN`}
+ACCESS_TOKEN=${ACCESS_TOKEN-`cat ACCESS_TOKEN`}
 
 SERVICE_URI=${SERVICE_URI:-http://localhost:8080/api/v1/notify/sns}
 
@@ -14,4 +14,4 @@ else
 fi
 
 2> echo $DATA_JSON
-curl -s -X POST --data "$DATA_JSON" -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" $SERVICE_URI/
+curl -S -s -D /dev/stderr -X POST --data "$DATA_JSON" -H 'Content-Type: application/json' -H "Authorization: Bearer $ACCESS_TOKEN" $SERVICE_URI/

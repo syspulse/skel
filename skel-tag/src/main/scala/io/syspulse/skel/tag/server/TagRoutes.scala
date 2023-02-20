@@ -20,6 +20,9 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
+import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
+
 import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.annotations.media.{Content, Schema}
 import io.swagger.v3.oas.annotations.responses.ApiResponse
@@ -48,6 +51,7 @@ import io.syspulse.skel.tag._
 import io.syspulse.skel.tag.store.TagRegistry
 import io.syspulse.skel.tag.store.TagRegistry._
 import io.syspulse.skel.tag.server._
+import scala.util.Try
 
 @Path("/api/v1/tag")
 class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
@@ -66,35 +70,80 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   val metricDeleteCount: Counter = Counter.build().name("skel_tag_delete_total").help("Tag deletes").register(cr)
   val metricCreateCount: Counter = Counter.build().name("skel_tag_create_total").help("Tag creates").register(cr)
   
-  def getTags(): Future[Tags] = registry.ask(GetTags)
-  def getTag(tags: String): Future[Tags] = registry.ask(GetTag(tags, _))
+  def getTags(from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetTags(from,size, _))
+  def getTag(tags: String): Future[Try[Tag]] = registry.ask(GetTag(tags, _))
+  def getSearchTag(tags: String,from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetSearchTag(tags,from,size, _))
+  def getTypingTag(txt: String,from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetTypingTag(txt,from,size, _))
   
   def randomTag(): Future[Tag] = registry.ask(RandomTag(_))
 
-  @GET @Path("/{tags}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("tags"),summary = "Search Objects by Tags",
+  @GET @Path("/{tag}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("tag"),summary = "Get tag by id",
     parameters = Array(new Parameter(name = "tag", in = ParameterIn.PATH, description = "Tag")),
-    responses = Array(new ApiResponse(responseCode="200",description = "Objects found",content=Array(new Content(schema=new Schema(implementation = classOf[Tag])))))
+    responses = Array(new ApiResponse(responseCode="200",description = "Object found",content=Array(new Content(schema=new Schema(implementation = classOf[Tag])))))
   )
-  def getTagRoute(tags: String) = get {
+  def getTagRoute(id: String) = get {    
     rejectEmptyResponse {
-      onSuccess(getTag(tags)) { r =>
+      onSuccess(getTag(id)) { r =>
         metricGetCount.inc()
         complete(r)
       }
     }
   }
 
+  @GET @Path("/search/{tags}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("tags"),summary = "Search Objects by tags", parameters = Array(
+      new Parameter(name = "tags", in = ParameterIn.PATH, description = "Tags (semicolon separated)"),
+      new Parameter(name = "from", in = ParameterIn.PATH, description = "Page from (inclusive)"),
+      new Parameter(name = "size", in = ParameterIn.PATH, description = "Page Size"),
+    ),
+    responses = Array(new ApiResponse(responseCode="200",description = "Tags found",content=Array(new Content(schema=new Schema(implementation = classOf[Tags])))))
+  )
+  def getTagSearchRoute(tags: String) = get { 
+    parameters("from".as[Int].optional,"size".as[Int].optional) { (from,size) =>
+      rejectEmptyResponse {
+        onSuccess(getSearchTag(tags,from,size)) { r =>
+          metricGetCount.inc()
+          complete(r)
+        }
+      }
+    }
+  }
+
+  @GET @Path("/typing/{txt}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("tags"),summary = "Type-ahead search", parameters = Array(
+      new Parameter(name = "txt", in = ParameterIn.PATH, description = "Prefix text match"),
+      new Parameter(name = "from", in = ParameterIn.PATH, description = "Page from (inclusive)"),
+      new Parameter(name = "size", in = ParameterIn.PATH, description = "Page Size"),
+    ),
+    responses = Array(new ApiResponse(responseCode="200",description = "Tags found",content=Array(new Content(schema=new Schema(implementation = classOf[Tags])))))
+  )
+  def getTagTypingRoute(txt: String) = get { 
+    parameters("from".as[Int].optional,"size".as[Int].optional) { (from,size) =>
+      rejectEmptyResponse {
+        onSuccess(getTypingTag(txt,from,size)) { r =>
+          metricGetCount.inc()
+          complete(r)
+        }
+      }
+    }
+  }
+
   @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("tag"), summary = "Return all Objects",
+  @Operation(tags = Array("tag"), summary = "Return all Objects",parameters = Array(
+      new Parameter(name = "from", in = ParameterIn.PATH, description = "Page from (inclusive)"),
+      new Parameter(name = "size", in = ParameterIn.PATH, description = "Page Size"),
+    ),
     responses = Array(
       new ApiResponse(responseCode = "200", description = "List of Objects",content = Array(new Content(schema = new Schema(implementation = classOf[Tags])))))
   )
-  def getTagsRoute() = get {
-    onSuccess(getTags()) { r => 
-      metricGetCount.inc()
-      complete(r)
-    }    
+  def getTagsRoute() = get { 
+    parameters("from".as[Int].optional,"size".as[Int].optional) { (from,size) =>
+      onSuccess(getTags(from,size)) { r => 
+        metricGetCount.inc()
+        complete(r)
+      }    
+    }
   }
 
   def createTagRandomRoute() = post { 
@@ -103,14 +152,34 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
     }
   }
 
-  override def routes: Route =
+  val corsAllow = CorsSettings(system.classicSystem)
+    //.withAllowGenericHttpRequests(true)
+    .withAllowCredentials(true)
+    .withAllowedMethods(Seq(HttpMethods.OPTIONS,HttpMethods.GET,HttpMethods.POST,HttpMethods.PUT,HttpMethods.DELETE,HttpMethods.HEAD))
+
+  override def routes: Route = cors(corsAllow) {
+    authenticate()(authn =>
       concat(
         pathEndOrSingleSlash {
           concat(
             getTagsRoute()            
           )
         },
-        pathSuffix("random") {
+        pathPrefix("search") {
+          pathPrefix(Segment) { tags =>
+            pathEndOrSingleSlash {
+              getTagSearchRoute(tags)            
+            }
+          }
+        },
+        pathPrefix("typing") {
+          pathPrefix(Segment) { txt =>
+            pathEndOrSingleSlash {
+              getTagTypingRoute(txt)            
+            }
+          }
+        },
+        pathPrefix("random") {
           createTagRandomRoute()
         },
         pathPrefix(Segment) { tags =>
@@ -119,5 +188,7 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
           }
         }
       )
+    )
+  }
     
 }

@@ -16,17 +16,6 @@ import io.syspulse.skel.util.Util
 import io.jvm.uuid._
 import io.syspulse.skel.notify.kafka.NotifyKafka
 
-abstract class NotifyReceiver[R] {
-  def send(title:String,msg:String):Try[R]
-}
-
-class NotifyStdout() extends NotifyReceiver[Option[_]] {
-  def send(title:String,msg:String):Try[Option[_]] = {
-    println(s"title=${title},msg=${msg}")
-    Success(None)
-  }
-}
-
 case class Receivers(name:String,receviers:Seq[NotifyReceiver[_]])
 
 object Notification {
@@ -37,24 +26,7 @@ object Notification {
     var data = Seq[String]()
     for( p <- params) {
       if(p.contains("//")) {          
-        val n = p.split("://").toList match {
-          case "email" :: dst :: _ => 
-            val (smtp,to) = dst.split("/").toList match {
-              case smtp :: to :: Nil => (smtp,to)
-              case to :: Nil => ("smtp",to)
-              case to  => ("smtp",to.mkString(""))
-            }
-            new NotifyEmail(smtp,to)(config)
-
-          case "stdout" :: _ => new NotifyStdout
-          case "sns" :: arn :: _ => new NotifySNS(arn)
-          case "sns" :: Nil => new NotifySNS(config.snsUri.split("sns://")(1))
-          case "ws" :: topic :: _ => new NotifyWebsocket(topic)
-          case "ws" :: _ => new NotifyWebsocket("")
-          case "tel" :: _ => new NotifyTelegram(p)(config)
-          case "kafka" :: _ => new NotifyKafka(p)
-          case _ => new NotifyStdout
-        }
+        val n = NotifyUri(p)
         nn = nn :+ n
       }
       else 
@@ -68,19 +40,19 @@ object Notification {
     (Receivers(s"group-${Util.hex(Random.nextBytes(10))}", nn),subj,msg)
   }
 
-  def send[R](n:NotifyReceiver[R],title:String,msg:String) = {
-    log.info(s"($title,$msg)-> ${n}")
-    n.send(title,msg)
+  def send[R](n:NotifyReceiver[R],title:String,msg:String,severity:Option[Int],scope:Option[String]) = {
+    log.info(s"Notification(${severity},${scope},$title,$msg)-> ${n}")
+    n.send(title,msg,severity,scope)
   }
 
-  def broadcast(n:Seq[NotifyReceiver[_]],title:String,msg:String):Seq[Try[_]] = {
-    log.info(s"[$title,$msg]-> ${n}")
-    n.map( n => n.send(title,msg)).toSeq
+  def broadcast(nn:Seq[NotifyReceiver[_]],title:String,msg:String,severity:Option[Int],scope:Option[String]):Seq[Try[_]] = {
+    log.info(s"Notification(${severity},${scope},$title,$msg)-> ${nn}")
+    nn.map( n => n.send(title,msg,severity,scope)).toSeq
   }
 
-  def send[R](g:Receivers,title:String,msg:String):Seq[Try[_]] = {
-    broadcast(g.receviers,title,msg)
-  }
+  // def broadcast[R](rr:Receivers,title:String,msg:String,severity:Option[Int],scope:Option[String]):Seq[Try[_]] = {
+  //   broadcast(rr.receviers,title,msg,severity,scope)
+  // }
 
 }
 

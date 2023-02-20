@@ -7,6 +7,7 @@ import scala.collection.immutable
 import io.jvm.uuid._
 
 import io.syspulse.skel.store.Store
+import scala.meta.tokens.Tokens
 
 
 trait SignatureStore[T <: AbiSignature] extends Store[T,(String,Int)] {
@@ -24,9 +25,14 @@ trait SignatureStore[T <: AbiSignature] extends Store[T,(String,Int)] {
   def first(id:String):Try[T]
 
   def all:Seq[T]
+
+  def all(from:Option[Int],size:Option[Int]):(Seq[T],Long)
+
   def size:Long
 
   def findByTex(tex:String):Try[T]
+
+  def search(txt:String,from:Option[Int],size:Option[Int]):(Seq[T],Long)
   
 }
 

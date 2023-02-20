@@ -34,7 +34,15 @@ object NotifyRegistry {
 
       case CreateNotify(notifyReq, replyTo) =>
         log.info(s"${notifyReq}")
-        val notify = Notify(notifyReq.to,notifyReq.subj, notifyReq.msg, System.currentTimeMillis())
+        val notify = Notify(
+          notifyReq.to,
+          notifyReq.subj, 
+          notifyReq.msg, 
+          System.currentTimeMillis(),
+          severity = notifyReq.severity,
+          scope = notifyReq.scope
+        )
+        
         val store1 = store.+(notify)
 
         replyTo ! notify

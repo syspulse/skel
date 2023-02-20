@@ -96,7 +96,7 @@ object App extends skel.Server {
       notifyEmail = c.getString("notify.email").getOrElse(d.notifyEmail),
       confirmUri = c.getString("confirm.uri").getOrElse(d.confirmUri),
 
-      jwtRoleService = c.getString("jwt.role.service").getOrElse(""),
+      jwtRoleService = c.getSmartString("jwt.role.service").getOrElse(""),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),

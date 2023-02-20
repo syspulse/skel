@@ -23,6 +23,16 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
     .replace("\\n","\n")
     .replace("\\r","\r")
 
+  def getSmartString(path:String):Option[String] = {  
+    val v = getString(path)
+    v.flatMap(_.trim.split("://").toList match {
+      case "file" :: file => 
+        Some(os.read(os.Path(file.head,os.pwd)))
+      case _ =>
+        v
+    })
+  }
+
   // support for global reference to another string
   def getString(path:String):Option[String] = {  
     val r = configurations.foldLeft[Option[String]](None)((r,c) => if(r.isDefined) r else c.getString(path))

@@ -42,4 +42,6 @@ trait ElasticFlow[I,T] extends IngestFlow[I,T,WriteMessage[T,NotUsed]] with Elas
     Seq(WriteMessage.createIndexMessage(index, t2))
   }
 
+  def shaping:Flow[I,I,_] = Flow[I].map(i => i)
+
 }

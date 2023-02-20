@@ -250,7 +250,7 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 // ======================================================================================================================
 lazy val root = (project in file("."))
-  .aggregate(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, otp, crypto, flow, dsl, scrap, cli, db_cli,
+  .aggregate(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, flow, dsl, scrap, cli, db_cli,
              ingest_flow,
              ingest_elastic,
              ingest_dynamo,
@@ -259,7 +259,7 @@ lazy val root = (project in file("."))
              skel_notify,
              skel_tag, 
              skel_telemetry)
-  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, otp, crypto, flow, dsl, scrap, cli, db_cli, 
+  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, flow, dsl, scrap, cli, db_cli, 
              ingest_flow,
              ingest_elastic,
              ingest_dynamo,
@@ -295,6 +295,7 @@ lazy val core = (project in file("skel-core"))
     )
 
 lazy val serde = (project in file("skel-serde"))
+  .dependsOn(core) // needed only for App application
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -304,7 +305,10 @@ lazy val serde = (project in file("skel-serde"))
           libUUID, 
           libAvro4s,
           libUpickleLib,
-          libScodecBits
+          libScodecBits,
+                    
+          libParq,
+          libHadoop
         ),
     )
     
@@ -325,7 +329,8 @@ lazy val skel_test = (project in file("skel-test"))
 
 lazy val cron = (project in file("skel-cron"))
   .dependsOn(core)
-  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .enablePlugins(JavaAppPackaging)
+  // .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
       sharedConfigAssembly,
@@ -394,8 +399,8 @@ lazy val skel_auth = (project in file("skel-auth"))
     ),    
   )
 
-lazy val otp = (project in file("skel-otp"))
-  .dependsOn(core, skel_test % Test)
+lazy val skel_otp = (project in file("skel-otp"))
+  .dependsOn(core, auth_core, skel_test % Test)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -465,6 +470,9 @@ lazy val crypto = (project in file("skel-crypto"))
           libBLSKeystore,
           libSSSS,
           libEthAbi,
+
+          libDirWatcher,
+          libDirWatcherScala,
         ),
       // this is important option to support latest log4j2 
       assembly / packageOptions += sbt.Package.ManifestAttributes("Multi-Release" -> "true")
@@ -563,7 +571,7 @@ lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
   )
 
 lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
-  .dependsOn(core,ingest,ingest_elastic,kafka)
+  .dependsOn(core, ingest, ingest_elastic, kafka)
   .enablePlugins(JavaAppPackaging)
   .settings (
     sharedConfig,
@@ -575,6 +583,7 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
       libScalaTest % Test,
       libAlpakkaFile,
+      libAkkaQuartz,      
       libUpickleLib,      
     ),        
   )
@@ -661,7 +670,7 @@ lazy val spark_convert = (project in file("skel-spark/spark-convert"))
   )
 
 lazy val skel_enroll = (project in file("skel-enroll"))
-  .dependsOn(core,crypto,skel_user,skel_notify,skel_test % Test)
+  .dependsOn(core,auth_core,crypto,skel_user,skel_notify,skel_test % Test)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)

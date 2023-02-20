@@ -156,7 +156,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   // }
   
   def callbackFlow(idp: Idp, code: String, redirectUri:Option[String], extraData:Option[Map[String,String]], scope: Option[String], state:Option[String]) = {//: Future[AuthWithProfileRes] = {
-    log.info(s"code=${code}, redirectUri=${redirectUri}, scope=${scope}, state=${state}")
+    log.info(s"CALLBACK (Universal): ${idp}: code=${code}, redirectUri=${redirectUri}, scope=${scope}, state=${state}")
     
     val data = Map(
       "code" -> code,
@@ -183,8 +183,14 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         rsp
       }
       tokenRsp <- {
-        if(tokenResData.status != StatusCodes.OK) 
-          Future.failed(new Exception(s"${tokenResData}"))
+        if(tokenResData.status != StatusCodes.OK) {
+          val r = Await.result(
+            tokenResData.entity.dataBytes.runFold(ByteString(""))(_ ++ _),
+            FiniteDuration(3000L,TimeUnit.MILLISECONDS)
+          ).utf8String
+          log.error(s"IDP response: status=${tokenResData.status}: ${r}")
+          Future.failed(new Exception(s"${r}"))
+        }
         else  
           tokenResData.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
       }
@@ -213,7 +219,12 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         idp.decodeProfile(profileResData)
       }
       user <- {
-        UserClientHttp(serviceUserUri).withAccessToken(config.jwtRoleService).withTimeout().findByXidAlways(profile.id)
+        val jwtRoleService = if(config.jwtRoleService.isEmpty()) 
+          // generate temproary short living token
+          AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString),expire = 60L)
+        else 
+          config.jwtRoleService 
+        UserClientHttp(serviceUserUri).withAccessToken(jwtRoleService).withTimeout().findByXidAlways(profile.id)
       }
       authProfileRes <- {        
         val (profileEmail,profileName,profilePicture,profileLocale) = 
@@ -276,74 +287,8 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           scope = Some("api")          
         ))
       }
-
-      // auth <- {        
-      //   Future(Auth(
-      //     idpTokens.accessToken, 
-      //     idpTokens.idToken, 
-      //     idpTokens.refreshToken,
-      //     user.map(_.id), scope, idpTokens.expiresIn
-      //   ))        
-      // }
-      // authRes <- {
-      //   // save Auth Session
-      //   createAuth(auth)
-      // }
-      // authProfileRes <- {
-        
-      //   val (profileEmail,profileName,profilePicture,profileLocale) = 
-      //     if(auth.idToken != "") {
-      //       val idJwt = AuthJwt.decodeIdToken(auth)
-      //       val idClaims = AuthJwt.decodeIdClaim(auth)
-      //       // verify just for logging
-      //       val verified = idp.verify(idpTokens.idToken)
-      //       log.info(s"code=${code}: profile=${profile}: auth=${auth}: idToken: jwt=${idJwt.get.content}: claims=${idClaims}: verified=${verified}")
-
-      //       (
-      //           if(profile.email.trim.isEmpty()) idClaims.get("email").getOrElse("") else profile.email,
-      //           if(profile.name.trim.isEmpty()) idClaims.get("name").getOrElse("") else profile.name,
-      //           if(profile.picture.trim.isEmpty()) idClaims.get("avatar").getOrElse("") else profile.picture,
-      //           if(profile.locale.trim.isEmpty()) idClaims.get("locale").getOrElse("") else profile.locale,                
-      //       )
-      //     } else {
-      //       log.info(s"code=${code}: profile=${profile}: auth=${auth}")
-            
-      //       (profile.email, profile.name, profile.picture, profile.locale)
-      //     }
-
-      //   val (accessToken,idToken,refreshToken) =
-      //     if(authRes.auth.uid.isDefined) {
-      //       val uid = authRes.auth.uid.get.toString
-      //       (
-      //         AuthJwt.generateAccessToken(Map( "uid" -> uid)),
-      //         Some(AuthJwt.generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
-      //         Some(AuthJwt.generateRefreshToken(uid))
-      //       )
-      //     }
-      //     else {
-      //       (
-      //         AuthJwt.generateAccessToken(Map( "uid" -> Util.NOBODY.toString)),
-      //         None,
-      //         None
-      //       )
-      //     }
-        
-        
-      //   Future(AuthWithProfileRes(
-      //     accessToken,
-      //     idToken,
-      //     refreshToken,
-      //     AuthIdp(authRes.auth.accessToken, authRes.auth.idToken, authRes.auth.refreshToken),
-      //     uid = authRes.auth.uid,
-      //     xid = profile.id,
-      //     profileEmail, 
-      //     profileName, 
-      //     profilePicture, 
-      //     profileLocale))
-      // }
+      
     } yield { 
-      // import spray.json._
-      // authProfileRes.toJson.prettyPrint
       authProfileRes
     }
         
@@ -581,9 +526,15 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                 log.error(s"invalid client_secret: ${clientSecret}")
                 complete(StatusCodes.Unauthorized,"invalid client_secret")
               } else {
-
+                
                 // request uid from UserService
-                onSuccess(UserClientHttp(serviceUserUri).withTimeout().findByXidAlways(rsp.get.xid.get)) { user => 
+                val jwtRoleService = if(config.jwtRoleService.isEmpty()) 
+                  // generate temproary short living token
+                  AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString),expire = 60L)
+                else 
+                  config.jwtRoleService 
+                
+                onSuccess(UserClientHttp(serviceUserUri).withAccessToken(jwtRoleService).withTimeout().findByXidAlways(rsp.get.xid.get)) { user => 
                 
                   if(! user.isDefined ) {
                 
@@ -606,7 +557,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                         EthTokens(
                           accessToken = accessToken, 
                           idToken = idToken, 
-                          expiresIn = Auth.NOBODY_AGE,
+                          expiresIn = Auth.DEF_NOBODY_AGE,
                           scope = "",
                           tokenType = "",
                           refreshToken = refreshToken
@@ -637,7 +588,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                         EthTokens(
                           accessToken = accessToken, 
                           idToken = idToken, 
-                          expiresIn = Auth.DEF_AGE,
+                          expiresIn = Auth.DEF_NOBODY_AGE,
                           scope = "",
                           tokenType = "",
                           refreshToken = refreshToken))
@@ -841,9 +792,9 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         path("google") {
           pathEndOrSingleSlash {
             get {
-              parameters("code", "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,scope,state,prompt,authuser,hd) =>
-                onSuccess(callbackFlow(idps.get(GoogleOAuth2.id).get,code,None,None,scope,state)) { rsp =>
-                  //redirect("",StatusCodes.PermanentRedirect)
+              parameters("code", "redirect_uri".optional, "scope".optional, "state".optional, "prompt".optional, "authuser".optional, "hd".optional) { (code,redirect_uri,scope,state,prompt,authuser,hd) =>
+                log.info(s"CALLBACK (Google): code=${code},redirect_uri=${redirect_uri}")
+                onSuccess(callbackFlow(idps.get(GoogleOAuth2.id).get,code,redirect_uri,None,scope,state)) { rsp =>
                   complete(StatusCodes.Created, rsp)
                 }
               }
@@ -853,8 +804,9 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         path("twitter") {
           pathEndOrSingleSlash {
             get {
-              parameters("code", "scope".optional,"state".optional) { (code,scope,state) =>
-                onSuccess(callbackFlow(idps.get(TwitterOAuth2.id).get,code,None,None,scope,None)) { rsp =>
+              parameters("code", "redirect_uri".optional, "scope".optional,"state".optional) { (code,redirect_uri,scope,state) =>
+                log.info(s"CALLBACK (Twitter): code=${code},redirect_uri=${redirect_uri}")
+                onSuccess(callbackFlow(idps.get(TwitterOAuth2.id).get,code,redirect_uri,None,scope,None)) { rsp =>
                   complete(StatusCodes.Created, rsp)
                 }
               }

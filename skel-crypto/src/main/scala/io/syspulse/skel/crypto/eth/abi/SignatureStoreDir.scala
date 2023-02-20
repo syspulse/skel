@@ -21,6 +21,9 @@ abstract class SignatureStoreDir[T <: AbiSignature](dir:String = "store/")(impli
   val store = new SignatureStoreMem[T]()
 
   def all:Seq[T] = store.all
+
+  def all(from:Option[Int],size:Option[Int]):(Seq[T],Long) = store.all(from,size)
+
   def size:Long = store.size
   override def +(u:T):Try[SignatureStoreDir[T]] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)
 
@@ -33,6 +36,8 @@ abstract class SignatureStoreDir[T <: AbiSignature](dir:String = "store/")(impli
 
   override def findByTex(tex:String):Try[T] = store.findByTex(tex)
   
+  override def search(txt:String,from:Option[Int],size:Option[Int]):(Seq[T],Long) = store.search(txt,from,size)
+
   // preload
   load(dir)
 }

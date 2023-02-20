@@ -18,15 +18,56 @@ class TagStoreMem extends TagStore {
   def size:Long = tags.size
 
   def +(tag:Tag):Try[TagStore] = { 
-    tags = tags + (tag.id -> tag)
+    // update existing
+    val tag1 = tags.get(tag.id) match {
+      case Some(tag0) => 
+        tags = tags + (tag0.id -> tag0.copy(tags = tag0.tags ++ tag.tags))
+        tag0
+      case None => 
+        tags = tags + (tag.id -> tag)
+        tag
+    }
+
+    log.info(s"add: ${tag1}")
     Success(this)
   }
 
-  def ?(tags:String):List[Tag] = {
-    this.tags.values.filter{ t => 
-      t.tags.filter( t => t.toLowerCase.matches(tags.toLowerCase)).size != 0
-    }
-    .toList.sortBy(_.score).reverse
+  def del(id:String):Try[TagStore] = { 
+    val sz = tags.size
+    tags = tags - id;
+    log.info(s"del: ${id}")
+    if(sz == tags.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
+  }
+
+  def ?(id:String):Try[Tag] = tags.get(id) match {
+    case Some(t) => Success(t)
+    case None => Failure(new Exception(s"not found: ${id}"))
+  }
+
+  def search(txt:String,from:Option[Int],size:Option[Int]):Tags = {
+    if(txt.trim.size < 3 )
+      Tags(Seq())
+    else
+      ??(".*" + txt + ".*",from,size)
+  }
+
+  def typing(txt:String,from:Option[Int],size:Option[Int]):Tags = {
+    if(txt.trim.size < 3 )
+      Tags(Seq())
+    else
+      ??(txt+".*",from,size)
+  }
+
+  def ??(txt:String,from:Option[Int],size:Option[Int]):Tags = {
+    val terms = txt.toLowerCase
+    val tt =
+      this.tags.values.filter{ t => 
+        t.id.toLowerCase.matches(terms) ||
+        t.tags.filter( tag => tag.toLowerCase.matches(terms)).size > 0
+      }
+      .toList.sortBy(_.score).reverse
+    
+    Tags(tt.drop(from.getOrElse(0)).take(size.getOrElse(10)),Some(tt.size))
   }
 
 }

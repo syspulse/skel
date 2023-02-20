@@ -71,7 +71,7 @@ object App extends skel.Server {
         
         ArgCmd("server",s"Server"),
         ArgCmd("client",s"Command"),
-        ArgCmd("notify",s"Run notification to Receivers (smtp://to, stdout://, sns://arn, ws://topic, tel://, kafka://)"),
+        ArgCmd("notify",s"Run notification to Receivers (smtp://to, stdout://, sns://arn, ws://topic, tel://, kafka://, http://)"),
         ArgCmd("server+notify",s"Server + Notify"),
         ArgParam("<params>","")
       ).withExit(1)
@@ -119,7 +119,7 @@ object App extends skel.Server {
         )
       case "notify" => 
         val (receivers,subj,msg) = Notification.parseUri(config.params.toList)
-        val rr = Notification.send(receivers,subj,msg)
+        val rr = Notification.broadcast(receivers.receviers,subj,msg,Some(2),Some("sys.all"))
         Console.err.println(s"${rr}")
 
       case "server+notify" => 
@@ -133,7 +133,7 @@ object App extends skel.Server {
         while(true) {
           try {
             val (receivers,subj,msg) = Notification.parseUri(scala.io.StdIn.readLine().split("\\s+").toList)
-            val rr = Notification.send(receivers,subj,msg)
+            val rr = Notification.broadcast(receivers.receviers,subj,msg,Some(1),Some("sys.all"))
             Console.err.println(s"${rr}")
           } catch {
             case e:Exception => sys.exit(1)
@@ -150,17 +150,19 @@ object App extends skel.Server {
         val r = 
           config.params match {
             case "notify" :: data => 
-              val (to:String,subj:String,msg:String) = data match {                
-                case to :: subj :: msg :: Nil => (to,subj,msg)
-                case to :: subj :: Nil => (to,subj,"")
-                case to :: Nil => (to,"","")
-                case Nil => ("stdout://","","")
+              val (to:String,subj:String,msg:String,severity:Int,scope:String) = data match {
+                case to :: subj :: msg :: severity :: scope :: Nil => (to,subj,msg,severity.toInt,scope)
+                case to :: subj :: msg :: severity :: Nil => (to,subj,msg,severity.toInt,"sys.all")
+                case to :: subj :: msg :: Nil => (to,subj,msg,1,"sys.all")
+                case to :: subj :: Nil => (to,subj,"",1,"sys.all")
+                case to :: Nil => (to,"","",1,"sys.all")
+                case Nil => ("stdout://","","",1,"sys.all")
                 case _ => (data.take(data.size-2).mkString(" "),data.takeRight(2).head,data.last)
               }
               Console.err.println(s"(${to},${subj},${msg}) -> ${uri}")
               NotifyClientHttp(uri)
                 .withTimeout(timeout)
-                .notify(to,subj,msg)
+                .notify(to,subj,msg,Some(severity),Some(scope))
                 .await()
                       
             case _ => println(s"unknown op: ${config.params}")

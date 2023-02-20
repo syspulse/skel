@@ -28,7 +28,7 @@ case class Config(
 object App extends skel.Server {
   
   def main(args:Array[String]):Unit = {
-    println(s"args: '${args.mkString(",")}'")
+    Console.err.println(s"args: '${args.mkString(",")}'")
 
     val d = Config()
     val c = Configuration.withPriority(Seq(
@@ -55,12 +55,12 @@ object App extends skel.Server {
       params = c.getParams(),
     )
 
-    println(s"Config: ${config}")
+    Console.err.println(s"Config: ${config}")
 
-    val store = config.datastore match {
-      case "mysql" | "db" => new OtpStoreDB(c,"mysql")
-      case "postgres" => new OtpStoreDB(c,"postgres")
-      case "mem" | "cache" => new OtpStoreMem
+    val store = config.datastore.split("://").toList match {
+      case "mysql" :: _ | "db" :: _ => new OtpStoreDB(c,"mysql")
+      case "postgres" :: _ => new OtpStoreDB(c,"postgres")
+      case "mem" :: _ | "cache" :: _ => new OtpStoreMem
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
         new OtpStoreMem
@@ -112,7 +112,7 @@ object App extends skel.Server {
                 .all()
                 .await()
 
-            case _ => println(s"unknown op: ${config.params}")
+            case _ => Console.err.println(s"unknown op: ${config.params}")
           }
         
         println(s"${r}")

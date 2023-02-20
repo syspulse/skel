@@ -59,29 +59,20 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config) extend
   
   private val log = Logger(s"${this}")
       
-  // Jsoners are needed for ElasticSink !
-  //import TextlineJson._
-  
-  //import TextlineJsonProtocol._
-  //override val fmt:JsonFormat[Textline] = TextlineJson.fmt
-
-
   override def getFileLimit():Long = config.limit
   override def getFileSize():Long = config.size
 
-  override def processing:Flow[String,String,_] = Flow[String].map(s => s)
+  override def process:Flow[String,String,_] = Flow[String].map(s => s)
   def parse(data: String): Seq[String] = {
-    log.debug(s"data='${data}'")
     if(config.delimiter.isEmpty())
       Seq(data)
     else
       data.split(config.delimiter).toSeq
   }
+
   def transform(txt: String): Seq[Textline] = {
     //Seq(Textline(s"[${countBytes},${countInput},${countObj},${countOutput}]: ${t}"))
     val t = Textline(txt)
-    //log.info(s"json=${t.toJson.prettyPrint}")
-    //t.toJson.prettyPrint
     Seq(t)
   }
 }

@@ -24,7 +24,7 @@ class MsgPackSerdeSpec extends AnyWordSpec with Matchers {
       val dd = upack.write(upack.Str("StrData"))
       dd.size should !== (0)
       val s = upack.read(dd)
-      s === ("StrData")
+      s should === (upack.Str("StrData"))
     }
 
     "should serialize and deserialize DataObj" in {
@@ -34,8 +34,14 @@ class MsgPackSerdeSpec extends AnyWordSpec with Matchers {
       )
       val dd = upack.write(msg)
       dd.size should !== (0)
-      val s = upickle.default.readBinary[DataObjMsgPack](dd)
-      s === (DataObjMsgPack(UUID("c3ce9adb-8008-426a-8828-6dfdf732df95"),ts.toString,"str",10,Long.MaxValue,"data".getBytes))
+      val o = upickle.default.readBinary[DataObjMsgPack](dd)
+      //o should === (DataObjMsgPack(UUID("c3ce9adb-8008-426a-8828-6dfdf732df95"),ts.toString,"str",10,Long.MaxValue,"data".getBytes))
+      o.id should === (UUID("c3ce9adb-8008-426a-8828-6dfdf732df95"))
+      o.ts.toString should === (ts.toString)
+      o.str should === ("str")
+      o.int should === (10)
+      o.long should === (Long.MaxValue)
+      o.data should === ("data".getBytes())
     }
 
     "should serialize and deserialize Lists via Msg" in {
@@ -45,8 +51,8 @@ class MsgPackSerdeSpec extends AnyWordSpec with Matchers {
       val dd = upack.write(msg)
       dd.size should !== (0)
       
-      val s = upickle.default.readBinary[DataList](dd)
-      s === (DataList("measure-0",List(Data(10L,DataUnit(1.0,"m/s")),Data(20L,DataUnit(2.0,"kg")))))
+      val o = upickle.default.readBinary[DataList](dd)
+      o should === (DataList("measure-0",List(Data(10L,DataUnit(1.0,"m/s")),Data(20L,DataUnit(2.0,"kg")))))
     }
 
     "should serialize and deserialize Lists via Binary (performance)" in {
@@ -55,8 +61,8 @@ class MsgPackSerdeSpec extends AnyWordSpec with Matchers {
       )
       dd.size should !== (0)
       
-      val s = upickle.default.readBinary[DataList](dd)
-      s === (DataList("measure-0",List(Data(10L,DataUnit(1.0,"m/s")),Data(20L,DataUnit(2.0,"kg")))))
+      val o = upickle.default.readBinary[DataList](dd)
+      o should === (DataList("measure-0",List(Data(10L,DataUnit(1.0,"m/s")),Data(20L,DataUnit(2.0,"kg")))))
     }
 
   }

@@ -107,5 +107,16 @@ class ConfigurationSpec extends AnyWordSpec with Matchers {
       c.getString("param.env") should === (Some(s"value-${sys.env("USER")}"))
     }
     
+    "get String from file" in {
+      val args = Array("-s",s"file://${testDir}/VAR_FILE.conf")
+      val c = Configuration.withPriority(Seq(
+        new ConfigurationArgs(args,"test-10","",
+          ArgString('s', "param.str", "file ref" )
+        )
+      ))
+      
+      val s = c.getSmartString("param.str") 
+      s should === (Some("value-10"))
+    }
   }
 }

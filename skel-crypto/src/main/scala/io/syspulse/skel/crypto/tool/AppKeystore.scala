@@ -40,6 +40,8 @@ object AppKeystore extends {
         ArgCmd("write","write command"),
         ArgCmd("sign","sign command"),
         ArgCmd("recover","recover command"),
+        ArgCmd("mnemonic","Mnemonic command"),
+        ArgCmd("generate","Generate from SK"),
         ArgParam("<params>","...")
       )
     ))
@@ -59,6 +61,7 @@ object AppKeystore extends {
     config.cmd match {
       case "write" => 
         config.keystoreType.toLowerCase match {
+          
           case "eth1" => { 
             val ecdsa:Try[KeyPair] = {
               if(config.keystoreSK.isBlank) 
@@ -117,6 +120,7 @@ object AppKeystore extends {
             Console.err.println(s"Unknown type: ${config.keystoreType}")
           }
         }
+  
       case "sign" => 
         config.keystoreType.toLowerCase match {
           case "eth1" => { 
@@ -185,6 +189,62 @@ object AppKeystore extends {
             Console.err.println(s"Unknown type: ${config.keystoreType}")
           }
         }
+
+      case "mnemonic" => 
+
+        val kp = config.params.toList match {
+          case words12 :: Nil => 
+            val mnemo = words12
+            val path = "m/44'/60'/0'/0"
+            Console.err.println(s"Mnemonic: path=${path}: '${mnemo}'")
+            Eth.generateFromMnemoPath(mnemo,path)
+
+          case "metmask" :: word1 :: words11  => 
+            val mnemo = word1 + " " + words11.mkString(" ")
+            Console.err.println(s"Mnemonic: '${mnemo}'")
+            Eth.generateFromMnemoMetamask(mnemo)
+
+          case "metmask" :: words12  => 
+            val mnemo = words12.mkString(" ")
+            Console.err.println(s"Mnemonic: '${mnemo}'")
+            Eth.generateFromMnemoMetamask(mnemo)
+          
+          case "path" :: path :: words12 => 
+            val mnemo = words12.mkString(" ")
+            Console.err.println(s"Mnemonic: path=${path}: '${mnemo}'")
+            Eth.generateFromMnemoPath(mnemo,path)
+
+          case word1 :: words11 => 
+            val mnemo = word1 + " " + words11.mkString(" ")
+            val path = "m/44'/60'/0'/0"
+            Console.err.println(s"Mnemonic: path=${path}: '${mnemo}'")
+            Eth.generateFromMnemoPath(mnemo,path)
+
+          
+          case Nil => 
+            Console.err.println(s"Invalid mnemonic")
+            sys.exit(1)
+        }
+
+        if(kp.isFailure) {
+          Console.err.println(s"eth1: mnemoic: ${kp}")
+          sys.exit(1)              
+        }
+        println(s"sk=${Util.hex(kp.get.sk)}: addr=${Eth.address(kp.get.pk)}")
+
+      case "generate" => 
+          val kp = config.params.toList match {
+            case sk :: Nil => 
+              Console.err.println(s"SK: '${sk}'")
+              Eth.generate(sk)
+            case "eth1" :: sk :: Nil => 
+              Console.err.println(s"SK: '${sk}'")
+              Eth.generate(sk)
+            case _ => 
+              Console.err.println(s"Invalid SK")
+              sys.exit(1)
+          }
+          println(s"sk=${Util.hex(kp.get.sk)}: addr=${Eth.address(kp.get.pk)}")
     }
     
   }

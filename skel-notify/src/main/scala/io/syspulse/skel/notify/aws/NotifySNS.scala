@@ -11,7 +11,9 @@ import io.syspulse.skel.notify.NotifyReceiver
 class NotifySNS(arn:String) extends NotifyReceiver[String] with SNS {
   val log = Logger(s"${this}")
 
-  def send(title:String,msg:String):Try[String] = {
-    publish(msg,arn).map(_.getMessageId)
+  def send(title:String,msg:String,severity:Option[Int],scope:Option[String]):Try[String] = {
+    publish(
+      s"""["title":"${title}","msg":"${msg}","ts":${System.currentTimeMillis()}, "severity": ${severity.getOrElse(0)}, "scope": "${scope.getOrElse("sys.none")}"]""",
+      arn).map(_.getMessageId)
   }
 }

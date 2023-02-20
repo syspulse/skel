@@ -34,7 +34,7 @@ class PipelineTelemetry(feed:String,output:String)(implicit config:Config,parser
 
   def parse(data:String):Seq[Telemetry] = parser.fromString(data).toSeq
   
-  override def processing:Flow[Telemetry,Telemetry,_] = Flow[Telemetry].map(v => v)
+  def process:Flow[Telemetry,Telemetry,_] = Flow[Telemetry].map(v => v)
 
   def transform(v: Telemetry): Seq[Telemetry] = Seq(v)
 

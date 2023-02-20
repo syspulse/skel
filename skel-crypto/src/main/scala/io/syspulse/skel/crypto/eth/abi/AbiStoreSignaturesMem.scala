@@ -10,7 +10,7 @@ import codegen.AbiDefinition
 import os._
 import scala.util.Failure
 
-trait AbiStoreStoreSignaturesMem extends AbiStoreSigFuncResolver with AbiStoreSigEventResolver {
+trait AbiStoreSignaturesMem extends AbiStoreSigFuncResolver with AbiStoreSigEventResolver {
 
   var funcSignatures:Map[String,String] = Map(
     "0xa9059cbb" -> "transfer",
@@ -21,7 +21,8 @@ trait AbiStoreStoreSignaturesMem extends AbiStoreSigFuncResolver with AbiStoreSi
     "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925" -> "Approval",
   )
 
-  def resolveFunc(sig:String) = funcSignatures.get(sig.toLowerCase())
-  def resolveEvent(sig:String) = eventSignatures.get(sig.toLowerCase())
+  // must be override because it is a test mix-in
+  override def resolveFunc(sig:String) = funcSignatures.get(sig.toLowerCase())
+  override def resolveEvent(sig:String) = eventSignatures.get(sig.toLowerCase())
 }
 

@@ -27,7 +27,14 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     // becasue of VID case class, it is converted unmarchsalled as Map from Elastic (field vid.id)
     override def read(hit: Hit): Try[Tag] = {
       val source = hit.sourceAsMap
-      Success(Tag(source("id").toString, source("tags").asInstanceOf[List[String]]))
+      Success(Tag(
+        source("id").toString, 
+        source("ts").asInstanceOf[Long],
+        source("cat").asInstanceOf[String],
+        source("tags").asInstanceOf[List[String]],
+        source("score").asInstanceOf[Option[Long]],
+        source("sid").asInstanceOf[Option[Long]],
+      ))
     }
   }
   
@@ -45,6 +52,19 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     r.result.to[Tag].toList
   }
 
+  override def limit(from:Option[Int]=None,size:Option[Int]=None):Seq[Tag] = {    
+    val r = client.execute {
+      ElasticDsl
+      .search(elacticIndex)
+      .from(from.getOrElse(0))
+      .size(size.getOrElse(10))
+      .matchAllQuery()
+    }.await
+
+    log.info(s"r=${r}")
+    r.result.to[Tag].toList
+  }
+
   // slow and memory hungry !
   def size:Long = {
     val r = client.execute {
@@ -54,18 +74,55 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
   }
 
   def +(tag:Tag):Try[TagStore] = { 
-    Failure(new UnsupportedOperationException(s"not implemented: ${tag}"))
+    //Failure(new UnsupportedOperationException(s"not implemented: ${tag}"))
+    val r = client.execute {
+      com.sksamuel.elastic4s.ElasticDsl
+        .indexInto(elacticIndex)
+        .fields("id" -> tag.id)
+        .fields("ts" -> tag.ts)
+        .fields("cat" -> tag.cat)
+        .fields("tags" -> tag.tags)
+        .fields("score" -> tag.score.getOrElse(-1))
+        .fields("sid" -> tag.sid.getOrElse(-1))
+        .refresh(RefreshPolicy.Immediate)        
+    }.await
+    
+    log.info(s"r=${r}")
+
+    r.isError match {
+      case false => Success(this)
+      case _ => Failure(new Exception(s"could not insert: ${tag}: ${r.error }"))
+    }
   }
 
-  def ?(tags:String):List[Tag] = {
-    search(tags)
+  def ?(id:String):Try[Tag] = {
+    log.info(s"id=${id}")
+    val r = { client.execute { 
+      ElasticDsl
+        .search(elacticIndex)
+        .termQuery(("id",id))
+    }}.await
+
+    log.info(s"r=${r}")
+    r.result.to[Tag].toList match {
+      case t :: _ => Success(t)
+      case _ => Failure(new Exception(s"not found: ${id}"))
+    }
   }
 
-  def search(txt:String):List[Tag] = {   
+  def typing(txt:String,from:Option[Int],size:Option[Int]):Tags = 
+    ??(txt,from,size)
+
+  def search(txt:String,from:Option[Int],size:Option[Int]):Tags = 
+    ??(txt,from,size)
+
+  def ??(terms:String,from:Option[Int],size:Option[Int]):Tags = {   
     val r = client.execute {
       com.sksamuel.elastic4s.ElasticDsl
         .search(elacticIndex)
-        .query(txt)
+        .from(from.getOrElse(0))
+        .size(size.getOrElse(10))
+        .query(terms)
         //.matchQuery("_all",txt)
         //.operator(MatchQueryBuilder.Operator.AND)
         .sortByFieldDesc("score")
@@ -83,7 +140,21 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     // }.await
 
     log.info(s"r=${r}")
-    r.result.to[Tag].toList
+    
+    Tags(r.result.to[Tag].toList,total = Some(r.result.hits.total.value))
   }
 
+  def del(id:String):Try[TagStore] = { 
+    //Failure(new UnsupportedOperationException(s"not implemented: ${id}"))
+    val r = client.execute {
+      ElasticDsl
+        .deleteById(elacticIndex, id)
+    }.await
+
+    log.info(s"r=${r}")
+    r.isError match {
+      case false => Success(this)
+      case _ => Failure(new Exception(s"could not delete: ${id}: ${r.error }"))
+    }
+  }
 }

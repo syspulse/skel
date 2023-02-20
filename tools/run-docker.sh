@@ -10,7 +10,11 @@ export SITE=${SITE:-$CONF}
 
 DOCKER="syspulse/${APP}:latest"
 
-DATA_DIR=${DATA_DIR:-/mnt/share/data}
+DATA_DIR=${DATA_DIR:-/mnt/data}
+
+if [ "$S3_BUCKET" != "" ]; then
+   PRIVILEGED="--privileged"
+fi
 
 echo "APP: $APP"
 echo "SITE: $SITE"
@@ -18,6 +22,7 @@ echo "DOCKER: $DOCKER"
 echo "DATA_DIR: $DATA_DIR"
 echo "ARGS: $@"
 echo "OPT: $OPT"
+
 
 # ATTENTION: /app/bin/skel-app overrides arguments !
 #
@@ -39,4 +44,9 @@ docker run --rm --name $APP -p 8080:8080 -v `pwd`/conf:/app/conf -v $DATA_DIR:/d
    -e SMTP_USER=$SMTP_USER \
    -e SMTP_PASS=$SMTP_PASS \
    -e SMTP_FROM=$SMTP_FROM \
+   -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
+   -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
+   -e AWS_REGION=$AWS_REGION \
+   -e S3_BUCKET=$S3_BUCKET \
+   $PRIVILEGED \
    $DOCKER $@
