@@ -19,7 +19,8 @@ class TagStoreDir(dir:String = "store/") extends StoreDir[Tag,String](dir) with 
   val store = new TagStoreMem
 
   def all:Seq[Tag] = store.all
-  override def limit(from:Option[Int],size:Option[Int]):Seq[Tag] = store.limit(from,size)
+  
+  override def all(from:Option[Int],size:Option[Int]):Seq[Tag] = store.all(from,size)
   def size:Long = store.size
   override def +(u:Tag):Try[TagStoreDir] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)
   override def del(id:String):Try[TagStoreDir] = super.del(id).flatMap(_ => store.del(id)).map(_ => this)
@@ -28,6 +29,9 @@ class TagStoreDir(dir:String = "store/") extends StoreDir[Tag,String](dir) with 
   override def typing(txt:String,from:Option[Int],size:Option[Int]):Tags = store.typing(txt,from,size)
   override def search(txt:String,from:Option[Int],size:Option[Int]):Tags = store.search(txt,from,size)
 
+  override def !(id:String,cat:Option[String],tags:Option[Seq[String]]):Try[Tag] = 
+    store.!(id,cat,tags).flatMap(t => this.writeFile(t))
+    
   // preload
   load(dir)
 }

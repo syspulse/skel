@@ -22,10 +22,12 @@ trait TagStore extends Store[Tag,String] {
 
   def typing(txt:String,from:Option[Int],size:Option[Int]):Tags
 
-  def limit(from:Option[Int]=None,size:Option[Int]=None):Seq[Tag] = {
+  def all(from:Option[Int]=None,size:Option[Int]=None):Seq[Tag] = {
     if(!from.isDefined && !size.isDefined)
       return all
     
-    all.drop(from.getOrElse(0)).take(size.getOrElse(10))
+    all().drop(from.getOrElse(0)).take(size.getOrElse(10))
   }
+
+  def !(id:String,cat:Option[String],tags:Option[Seq[String]]):Try[Tag]
 }

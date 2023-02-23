@@ -14,6 +14,8 @@ import io.syspulse.skel.tag._
 
 import io.syspulse.skel.tag.server._
 import scala.util.Try
+import scala.util.Success
+import scala.util.Failure
 
 object TagRegistry {
   val log = Logger(s"${this}")
@@ -23,6 +25,9 @@ object TagRegistry {
   final case class GetSearchTag(tags:String,from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
   final case class GetTypingTag(txt:String,from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
   final case class RandomTag(replyTo: ActorRef[Tag]) extends Command
+  final case class CreateTag(req: TagCreateReq, replyTo: ActorRef[Try[Tag]]) extends Command
+  final case class UpdateTag(id: String,req: TagUpdateReq, replyTo: ActorRef[Try[Tag]]) extends Command
+  final case class DeleteTag(id: String,replyTo: ActorRef[TagActionRes]) extends Command
 
   // this var reference is unfortunately needed for Metrics access
   var store: TagStore = null //new TagStoreDB //new TagStoreCache
@@ -37,7 +42,7 @@ object TagRegistry {
 
     Behaviors.receiveMessage {
       case GetTags(from,size,replyTo) =>
-        replyTo ! Tags(store.limit(from,size),total = Some(store.size))
+        replyTo ! Tags(store.all(from,size),total = Some(store.size))
         Behaviors.same
 
       case GetTag(id,replyTo) =>
@@ -54,7 +59,32 @@ object TagRegistry {
       
       case RandomTag(replyTo) =>        
         //replyTo ! TagRandomRes(secret,qrImage)
-        Behaviors.same      
+        Behaviors.same
+
+      case CreateTag(req, replyTo) =>
+        store.?(req.id) match {
+          case Success(_) => 
+            replyTo ! Failure(new Exception(s"already exists: ${req.id}"))
+            Success(store)
+          case _ =>  
+            val tag = Tag(req.id, ts = System.currentTimeMillis, req.cat, req.tags.map(_.split(";")).flatten)
+            val r = store.+(tag)
+            replyTo ! r.map(_ => tag)
+            Success(store)
+        }        
+        Behaviors.same
+
+      case UpdateTag(id, req, replyTo) =>
+        val tag = store.!(id,req.cat,req.tags.map(_.map(_.split(";")).flatten))
+
+        replyTo ! tag
+        Behaviors.same
+      
+      case DeleteTag(id, replyTo) =>
+        val store1 = store.del(id)
+        replyTo ! TagActionRes(s"Success",Some(id))
+        Behaviors.same
     }
+    
   }
 }

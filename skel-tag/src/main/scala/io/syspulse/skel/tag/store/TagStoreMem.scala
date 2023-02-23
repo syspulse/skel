@@ -19,16 +19,17 @@ class TagStoreMem extends TagStore {
 
   def +(tag:Tag):Try[TagStore] = { 
     // update existing
-    val tag1 = tags.get(tag.id) match {
-      case Some(tag0) => 
-        tags = tags + (tag0.id -> tag0.copy(tags = tag0.tags ++ tag.tags))
-        tag0
-      case None => 
-        tags = tags + (tag.id -> tag)
-        tag
-    }
+    // val tag1 = tags.get(tag.id) match {
+    //   case Some(tag0) => 
+    //     tags = tags + (tag0.id -> tag0.copy(tags = tag0.tags ++ tag.tags))
+    //     tag0
+    //   case None => 
+    //     tags = tags + (tag.id -> tag)
+    //     tag
+    // }
+    tags = tags + (tag.id -> tag)
 
-    log.info(s"add: ${tag1}")
+    log.info(s"add: ${tag}")
     Success(this)
   }
 
@@ -70,4 +71,14 @@ class TagStoreMem extends TagStore {
     Tags(tt.drop(from.getOrElse(0)).take(size.getOrElse(10)),Some(tt.size))
   }
 
+  def !(id:String,cat:Option[String],tags:Option[Seq[String]]):Try[Tag] = {
+    log.info(s"update: ${id},${cat},${tags}")
+    val t = for {
+        t0 <- ?(id)
+        t1 <- Success(if(cat.isDefined) t0.copy(cat = cat.get) else t0)
+        t2 <- Success(if(tags.isDefined) t1.copy(tags = tags.get) else t1)
+        t3 <- `+`(t2)
+      } yield t2
+    t
+  }
 }

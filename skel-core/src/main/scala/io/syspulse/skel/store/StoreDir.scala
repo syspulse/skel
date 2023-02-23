@@ -64,6 +64,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
 
     val vv = os.walk(storeDir)
       .filter(_.toIO.isFile())
+      .sortBy(_.toIO.lastModified())
       .map(f => {
         log.info(s"Loading file: ${f}")
         os.read(f)
