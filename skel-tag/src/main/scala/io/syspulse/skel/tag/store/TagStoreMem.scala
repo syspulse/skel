@@ -74,7 +74,13 @@ class TagStoreMem extends TagStore {
   def !(id:String,cat:Option[String],tags:Option[Seq[String]]):Try[Tag] = {
     log.info(s"update: ${id},${cat},${tags}")
     val t = for {
-        t0 <- ?(id)
+        t0 <- {
+          // create new 
+          ?(id) match {
+            case Failure(_) => Success(Tag(id,ts = System.currentTimeMillis, "", Seq()))
+            case t0 => t0
+          }
+        }
         t1 <- Success(if(cat.isDefined) t0.copy(cat = cat.get) else t0)
         t2 <- Success(if(tags.isDefined) t1.copy(tags = tags.get) else t1)
         t3 <- `+`(t2)
