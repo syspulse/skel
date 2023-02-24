@@ -520,6 +520,12 @@ object Flows {
       .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.right)
   }
 
+  def toLog[T <: Ingestable](uri:String,flush:Boolean = false):Sink[T, Future[IOResult]] = {
+    Flow[T]
+      .map(o => if(o!=null) ByteString(o.toLog+"\n") else ByteString())
+      .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.right)
+  }
+
   def toStdout[O](flush:Boolean = false): Sink[O, Future[IOResult]] = toPipe(flush,System.out)
   def toStderr[O](flush:Boolean = false): Sink[O, Future[IOResult]] = toPipe(flush,System.err)
   def toPipe[O](flush:Boolean,pipe:java.io.PrintStream): Sink[O, Future[IOResult]] = 
