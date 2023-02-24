@@ -87,4 +87,11 @@ class TagStoreMem extends TagStore {
       } yield t2
     t
   }
+
+  def find(attr:String,v:Any,from:Option[Int],size:Option[Int]):Tags = {
+    import io.syspulse.skel.util.Reflect._
+    val tt = tags.values.filter(t => t.valueOf(attr).map(v => v.equals(v)).getOrElse(false)).toSeq
+    
+    Tags(tt.drop(from.getOrElse(0)).take(size.getOrElse(10)),Some(tt.size))
+  }
 }

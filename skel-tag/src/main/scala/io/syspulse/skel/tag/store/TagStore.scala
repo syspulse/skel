@@ -30,4 +30,6 @@ trait TagStore extends Store[Tag,String] {
   }
 
   def !(id:String,cat:Option[String],tags:Option[Seq[String]]):Try[Tag]
+
+  def find(attr:String,v:Any,from:Option[Int],size:Option[Int]):Tags
 }

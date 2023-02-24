@@ -31,6 +31,8 @@ class TagStoreDir(dir:String = "store/") extends StoreDir[Tag,String](dir) with 
 
   override def !(id:String,cat:Option[String],tags:Option[Seq[String]]):Try[Tag] = 
     store.!(id,cat,tags).flatMap(t => this.writeFile(t))
+
+  override def find(attr:String,v:Any,from:Option[Int],size:Option[Int]):Tags = store.find(attr,v,from,size)
     
   // preload
   load(dir)

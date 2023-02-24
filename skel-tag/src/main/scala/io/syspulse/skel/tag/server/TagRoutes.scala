@@ -75,7 +75,8 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   def getTag(tags: String): Future[Try[Tag]] = registry.ask(GetTag(tags, _))
   def getSearchTag(tags: String,from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetSearchTag(tags,from,size, _))
   def getTypingTag(txt: String,from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetTypingTag(txt,from,size, _))
-  
+  def getFindTag(attr: Map[String,String],from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetFindTag(attr,from,size, _))
+
   def createTag(req: TagCreateReq): Future[Try[Tag]] = registry.ask(CreateTag(req, _))
   def updateTag(id:String,req: TagUpdateReq): Future[Try[Tag]] = registry.ask(UpdateTag(id,req, _))
   def deleteTag(id:String): Future[TagActionRes] = registry.ask(DeleteTag(id, _))
@@ -92,6 +93,26 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
       onSuccess(getTag(id)) { r =>
         metricGetCount.inc()
         complete(r)
+      }
+    }
+  }
+
+  @GET @Path("/find") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("tags"),summary = "Find by attributes", parameters = Array(
+      new Parameter(name = "<attr>", in = ParameterIn.PATH, description = "Attribute to search"),
+      new Parameter(name = "from", in = ParameterIn.PATH, description = "Page from (inclusive)"),
+      new Parameter(name = "size", in = ParameterIn.PATH, description = "Page Size"),
+    ),
+    responses = Array(new ApiResponse(responseCode="200",description = "Tags found",content=Array(new Content(schema=new Schema(implementation = classOf[Tags])))))
+  )
+  def getTagFindRoute() = get { 
+    parameterMap { params =>
+      rejectEmptyResponse {
+        val attr = params.filter{ case(k,v) => k.toLowerCase != "from" && k.toLowerCase != "size"}
+        onSuccess(getFindTag(attr,params.get("from").map(_.toInt),params.get("size").map(_.toInt))) { r =>
+          metricGetCount.inc()
+          complete(r)
+        }
       }
     }
   }

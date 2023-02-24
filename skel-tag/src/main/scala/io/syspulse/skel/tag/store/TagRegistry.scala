@@ -24,6 +24,8 @@ object TagRegistry {
   final case class GetTag(id:String,replyTo: ActorRef[Try[Tag]]) extends Command
   final case class GetSearchTag(tags:String,from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
   final case class GetTypingTag(txt:String,from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
+  final case class GetFindTag(attr:Map[String,String],from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
+
   final case class RandomTag(replyTo: ActorRef[Tag]) extends Command
   final case class CreateTag(req: TagCreateReq, replyTo: ActorRef[Try[Tag]]) extends Command
   final case class UpdateTag(id: String,req: TagUpdateReq, replyTo: ActorRef[Try[Tag]]) extends Command
@@ -55,6 +57,11 @@ object TagRegistry {
 
       case GetTypingTag(txt,from,size,replyTo) =>
         replyTo ! store.typing(txt,from,size)
+        Behaviors.same
+
+      case GetFindTag(attr,from,size,replyTo) =>
+        val (a,v) = attr.head
+        replyTo ! store.find(a,v,from,size)
         Behaviors.same
       
       case RandomTag(replyTo) =>        

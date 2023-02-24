@@ -110,6 +110,20 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     }
   }
 
+  def find(attr:String,v:Any,from:Option[Int],size:Option[Int]):Tags = {
+    log.info(s"attr=(${attr},${v})")
+    val r = { client.execute { 
+      ElasticDsl
+        .search(elacticIndex)        
+        .termQuery((attr,v))
+        .from(from.getOrElse(0))
+        .size(size.getOrElse(10))
+    }}.await
+
+    log.info(s"r=${r}")
+    Tags(r.result.to[Tag].toList,total = Some(r.result.hits.total.value))
+  }
+
   def !(id:String,cat:Option[String],tags:Option[Seq[String]]):Try[Tag] = {
     log.info(s"id=${id}, cat=${cat}, tags=${tags}")
     
