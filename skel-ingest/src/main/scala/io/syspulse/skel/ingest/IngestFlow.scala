@@ -49,10 +49,10 @@ trait IngestFlow[I,T,O] {
   //.withMaxRestarts(10, 5.minutes)
 
   val cr = new CollectorRegistry(true);
-  val countBytes: Counter = Counter.build().name("ingest_bytes").register(cr)
-  val countInput: Counter = Counter.build().name("ingest_input").register(cr)
-  val countObj: Counter = Counter.build().name("ingest_obj")register(cr)
-  val countOutput: Counter = Counter.build().name("ingest_output").register(cr)
+  val countBytes: Counter = Counter.build().name("ingest_bytes").help("total bytes").register(cr)
+  val countInput: Counter = Counter.build().name("ingest_input").help("input data").register(cr)
+  val countObj: Counter = Counter.build().name("ingest_obj").help("total objects")register(cr)
+  val countOutput: Counter = Counter.build().name("ingest_output").help("output data").register(cr)
 
   var defaultSource:Option[Source[ByteString,_]] = None
   var defaultSink:Option[Sink[O,_]] = None
