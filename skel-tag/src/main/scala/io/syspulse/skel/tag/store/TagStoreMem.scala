@@ -89,8 +89,9 @@ class TagStoreMem extends TagStore {
   }
 
   def find(attr:String,v:Any,from:Option[Int],size:Option[Int]):Tags = {
+    log.info(s"attr=(${attr},${v})")
     import io.syspulse.skel.util.Reflect._
-    val tt = tags.values.filter(t => t.valueOf(attr).map(v => v.equals(v)).getOrElse(false)).toSeq
+    val tt = tags.values.filter(t => t.valueOf[String](attr).map(av => av.toLowerCase.equals(v.toString.toLowerCase)).getOrElse(false)).toSeq
     
     Tags(tt.drop(from.getOrElse(0)).take(size.getOrElse(10)),Some(tt.size))
   }

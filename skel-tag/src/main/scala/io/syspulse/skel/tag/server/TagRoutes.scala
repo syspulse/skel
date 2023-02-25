@@ -236,6 +236,11 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
             createTagRoute
           )
         },
+        pathPrefix("find") {
+          pathEndOrSingleSlash {
+            getTagFindRoute()             
+          }
+        },
         pathPrefix("search") {
           pathPrefix(Segment) { tags =>
             pathEndOrSingleSlash {
