@@ -300,11 +300,17 @@ lazy val core = (project in file("skel-core"))
 // FIXME !
 lazy val serde = (project in file("skel-serde"))
   .dependsOn(core) // needed only for App application
-  .disablePlugins(sbtassembly.AssemblyPlugin)
+  // .disablePlugins(sbtassembly.AssemblyPlugin)
+  .enablePlugins(JavaAppPackaging)
   .settings (
       sharedConfig,
-      name := "skel-serde",
-      libraryDependencies ++= libTest ++ 
+      sharedConfigAssembly,
+      
+      appAssemblyConfig("skel-serde","io.syspulse.skel.serde.App"),
+      // name := "skel-serde",
+
+      libraryDependencies ++= libCommon ++
+        libTest ++ 
         Seq(
           libUUID, 
           libAvro4s,
