@@ -35,7 +35,7 @@ object App extends skel.Server {
         
         
         ArgCmd("server",s"Server"),
-        ArgCmd("parq",s"Server with embedded UserServices (for testing)"),
+        ArgCmd("parq",s"Parquet utils"),
                 
         ArgParam("<params>","")
       ).withExit(1)
@@ -53,17 +53,29 @@ object App extends skel.Server {
 
     Console.err.println(s"Config: ${config}")
 
-    val store = config.datastore.split("://").toList match {
-      case _ => {
-        Console.err.println(s"Uknown datastore: '${config.datastore}'")        
-      }
-    }
-
     var r = config.cmd match {
       case "server" => 
         
       case "parq" =>
-                      
+        import com.github.mjakubowski84.parquet4s.{ParquetReader, ParquetWriter, Path}
+        import io.syspulse.skel.serde.Parq._
+        // params.toList match {
+        //   case "encode" :: data =>
+        //     data.map(d => d.split(":").toList match {
+
+        //     })
+        // } 
+        val file1 = "file-1.parquet"
+        os.remove(os.Path(file1,os.pwd))
+
+        case class Data(str:String,v:Long)
+        val d1 = Seq(
+          Data("data",1000L)
+        )
+        ParquetWriter.of[Data].writeAndClose(Path(file1), d1)
+
+        val d = os.read(os.Path(file1,os.pwd))
+        log.info(s"data=${Util.hex(d.getBytes())}")
     }
 
     println(s"${r}")        
