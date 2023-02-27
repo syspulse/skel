@@ -131,9 +131,12 @@ object Util {
     s.take(s.size - 1).mkString("/")
   }
 
-  def toDirWithSlash(dir:String):String = if(dir.isBlank()) dir else if(dir.trim.endsWith("/")) dir else dir + "/"
+  // Java11: use isBlank
+  def toDirWithSlash(dir:String):String = 
+    if(dir.trim.isEmpty) dir else if(dir.trim.endsWith("/")) dir else dir + "/"
+
   def extractDirWithSlash(dir:String):String = {
-    if(dir.isBlank()) 
+    if(dir.trim.isEmpty) 
       "" 
     else if(dir.trim.endsWith("/")) 
       dir 

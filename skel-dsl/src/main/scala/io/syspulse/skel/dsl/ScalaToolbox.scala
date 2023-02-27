@@ -13,10 +13,11 @@ class ScalaToolbox() {
   val engine = currentMirror.mkToolBox()
 
   def run(script:String,args:Map[String,Any] = Map()):Any = {
-    log.debug(s"args=${args}, script=${script}")
+    log.info(s"args=${args}, script=${script}")
     val q = engine.parse(script)
+    log.info(s"q=${q}")
     val r = engine.compile(q)()
-    log.debug(s"r=${r}")
+    log.info(s"r=${r}")
     r
   }
 }

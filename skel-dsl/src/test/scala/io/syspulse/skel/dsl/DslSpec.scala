@@ -11,6 +11,7 @@ import io.syspulse.skel.util.Util
 import scala.util.Success
 import javax.script.ScriptEngineManager
 import com.typesafe.scalalogging.Logger
+import scala.tools.nsc.interpreter.shell.Scripted
 
 class DummyClass
 
@@ -80,60 +81,72 @@ class DslSpec extends AnyWordSpec with Matchers {
         val r = c().asInstanceOf[List[Int]]
       }
 
-      Util.timed(10) { 
+      Util.timed(1) { 
         val c = e.compile(e.parse(script))
         val r = c().asInstanceOf[List[Int]]
       }      
     }
   }
 
-  "ScalaInterpreter" should {
 
-    // s"run script: '${SCRIPT_1}'" in {
-    //   val r = new ScalaInterpreter().run(SCRIPT_1)
-    //   info(s"r=${r}")
-    //   r.toString should === ("test")
-    // }
+  "ScalaInterpreter" ignore {
 
-    // s"run script'" in {
-    //   val r = new ScalaInterpreter().run("""println("test")""")
-    //   info(s"r=${r}")
-    //   // r.toString should === ("test")
-    // }
-
+    s"run script: '${SCRIPT_1}'" in {
+      val r = new ScalaInterpreter().run(SCRIPT_1)
+      info(s"r=${r}")
+      r.toString should === ("test")
+    }
   }
 
-  "SCALA" should {
+  "Interpreter Shell" ignore {
+    s"test" in {
+      import javax.script._
+      import scala.tools.nsc.Settings
+            
+      val settings: Settings = new Settings      
+      settings.usejavacp.value = true
+      settings.dependencyfile.value = "*.scala"
+      settings.sourcepath.value = "src/main/scripts"
+      val engine: Scripted = Scripted(new Scripted.Factory, settings)
+      
+      val var1 = "test"
+      engine.getContext.setAttribute("var1",var1,ScriptContext.ENGINE_SCOPE)
 
-    // s"run script: '${SCRIPT_1}'" in {
-    //   val r = new SCALA().run(SCRIPT_2)
-    //   info(s"r=${r}")
-    //   r.toString should === ("test")
-    // }
+      //val reader = new FileReader("src/main/scripts/script-1.scala")
+      val d1 = Seq(1,2,3)
+      val d1s = s"""Seq(${d1.mkString(",")})"""
+      val script = s"""$d1s.filter(_ ==2).map(_ * 100)"""
+      info(s"script=${script}")
+      
+      val compiledScript : CompiledScript = engine.compile(script)
+      val r = compiledScript.eval()
+    }
 
-    // s"test" in {
-
-    //   val engine = new ScriptEngineManager().getEngineByName("scala")
-    //   val settings = engine.asInstanceOf[scala.tools.nsc.interpreter.IMain].settings
-    //   settings.embeddedDefaults[DummyClass]
-    //   engine.eval("val x: Int = 5")
-    //   val thing = engine.eval("x + 9").asInstanceOf[Int]
-    // }
-
-    // s"run with input args" in {
-    //   val data = Seq(1,2,3)
-    //   val r = new SCALA().run("""
-    //     data.filter(v => v == f).map(v => v + 10)
-    //   """,
-    //   Map(
-    //     "data" -> data,
-    //     "f" -> 3
-    //   ))
-    //   info(s"r=${r}")
-    //   //r.toString should === ("test")
-    // }
+    s"run script" in {
+      scala.tools.nsc.interpreter.shell.Scripted().eval("""System.out.println("Hello, World!")""")
+    }
   }
 
+  "ScriptEngineManager" ignore {
+
+    // this works:
+    // JAVA_HOME=/opt/jdk1.8.0_211 /opt/scala-2.13.3/bin/scala -cp /opt/scala-2.13.3/lib/scala-compiler.jar
+    // scala.tools.nsc.interpreter.shell.Scripted().eval("""System.out.println("Hello, World!")""")    
+    
+    s"run script" in {
+      import javax.script._
+      import javax.script.ScriptEngine;
+      import javax.script.ScriptEngineManager
+      import scala.tools.nsc.interpreter.IMain
+      
+      val engine = new ScriptEngineManager().getEngineByName("scala");
+
+      engine.asInstanceOf[IMain].settings.usejavacp.value = true        
+
+      val testScript = "var a:Int =  10";
+      engine.eval(testScript);      
+    }
+  }
 }
 
 

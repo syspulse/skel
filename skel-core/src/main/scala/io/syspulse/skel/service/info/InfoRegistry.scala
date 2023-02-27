@@ -33,7 +33,11 @@ object InfoRegistry {
           val v1 = Runtime.getRuntime.getClass.getPackage().getImplementationVersion()
           if(v1 != null)
             v1
-          else Runtime.version.toString
+          else 
+            // Java11
+            //Runtime.version.toString
+            // Java8
+            sys.props.get("java.version").getOrElse("unknown")
         }
 
         val jvmProperties = System.getProperties.entrySet.asScala.map(es => 

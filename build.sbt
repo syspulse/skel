@@ -638,8 +638,7 @@ lazy val db_cli = (project in file("skel-db/db-cli"))
   .dependsOn(core,cli)
   .settings (
       sharedConfig,
-      sharedConfigAssembly,
-      
+      sharedConfigAssembly,      
       appAssemblyConfig("db-cli","io.syspulse.skel.db.AppCliDB"),
       
       libraryDependencies ++= libCommon ++ libHttp ++ libTest ++ 
@@ -650,9 +649,15 @@ lazy val db_cli = (project in file("skel-db/db-cli"))
 
 lazy val dsl = (project in file("skel-dsl"))
   .dependsOn(core)
+  .enablePlugins(JavaAppPackaging) // for experiments
   .settings (
       sharedConfig,
-      name := "skel-dsl",
+      
+      // Only for experiments
+      sharedConfigAssembly,      
+      appAssemblyConfig("db-cli","io.syspulse.skel.db.AppCliDB"),
+      //name := "skel-dsl",
+
       libraryDependencies ++= libCommon ++ libTest ++
         Seq(
           "org.scala-lang" % "scala-compiler" % scalaVersion.value,
