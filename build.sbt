@@ -101,7 +101,7 @@ val sharedConfigDockerSpark = sharedConfigDocker ++ Seq(
 val sharedConfig = Seq(
     //retrieveManaged := true,  
     organization    := "io.syspulse",
-    scalaVersion    := "2.13.9",
+    scalaVersion    := Dependencies.scala,
     name            := "skel",
     version         := skelVersion,
 
@@ -612,7 +612,7 @@ lazy val stream_std = (project in file("skel-stream/stream-std"))
 
     appDockerConfig("stream-std","io.syspulse.skel.stream.AppStream"),
 
-    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
+    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(      
       libUpickleLib
     ),
 
@@ -653,8 +653,10 @@ lazy val dsl = (project in file("skel-dsl"))
   .settings (
       sharedConfig,
       name := "skel-dsl",
-      libraryDependencies ++= libCommon ++
-        Seq(),
+      libraryDependencies ++= libCommon ++ libTest ++
+        Seq(
+          "org.scala-lang" % "scala-compiler" % scalaVersion.value,
+        ),
     )
 
 

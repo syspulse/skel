@@ -25,6 +25,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.FileReader
 import scala.util.Success
+import com.typesafe.scalalogging.Logger
 
 object Util {
   
@@ -270,6 +271,24 @@ object Util {
   def pathToFullPath(path:String):String = {
     if(path.trim.startsWith("/")) return path
     s"${os.pwd.toString}/${path}"
+  }
+
+  def timed[C](code: => C)(implicit log:Logger): C = {
+    val ts0 = System.nanoTime
+    val r = code
+    val ts1 = System.nanoTime
+    log.info(s"Elapsed: ${Duration.ofNanos(ts1 - ts0).toMillis()} msec")
+    r
+  }
+
+  def timed[C](n:Int = 0)(code: => C)(implicit log:Logger): Unit = {
+    val ts0 = System.nanoTime
+    var r = null
+    for(i <- Range(0,n)) {      
+      code      
+    }
+    val ts1 = System.nanoTime      
+    log.info(s"Elapsed: ${Duration.ofNanos(ts1 - ts0).toMillis()} msec")    
   }
 }
 

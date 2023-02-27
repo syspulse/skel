@@ -4,4 +4,6 @@ package io.syspulse.skel.dsl
 import com.typesafe.scalalogging.Logger
 import javax.script.ScriptEngineManager
 
-class JS() extends ScriptEngine("nashorn")
+// not working
+class SCALA() extends ScriptEngine("scala") {
+}
