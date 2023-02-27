@@ -78,11 +78,11 @@ val sharedConfigDocker = Seq(
 
   Docker / defaultLinuxInstallLocation := appDockerRoot,
 
-  Docker / daemonUserUid := None, //Some("1000"), 
-  Docker / daemonUser := "daemon"
+  // Docker / daemonUserUid := None,
+  // Docker / daemonUser := "daemon",
 
   // Experiments with S3 mount compatibility
-  // Docker / daemonUserUid := Some("1000"),  
+  Docker / daemonUserUid := Some("1000"),  
   // Docker / daemonUser := "ubuntu",
   // Docker / daemonGroupGid := Some("1000"),
   // Docker / daemonGroup := "ubuntu",
