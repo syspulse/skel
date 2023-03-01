@@ -9,9 +9,6 @@ import scala.tools.reflect.ToolBox
 import com.typesafe.scalalogging.Logger
 import scala.tools.nsc.Settings
 
-// https://stackoverflow.com/questions/70945320/how-to-compile-and-execute-scala-code-at-run-time-in-scala3
-// https://stackoverflow.com/questions/73911801/how-can-i-run-generated-code-during-script-runtime
-
 class ScalaInterpreter() {
   val log = Logger(s"${this}")
  
