@@ -110,6 +110,18 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     }
   }
 
+  override def ??(ids:Seq[String]):Seq[Tag] = {
+    log.info(s"ids=${ids}")
+    val r = { client.execute { 
+      multi {
+        ids.map(id => ElasticDsl.search(elacticIndex).termQuery(("id",ids)))
+      }
+    }}.await
+
+    log.info(s"r=${r}")
+    r.result.to[Tag].toSeq
+  }
+
   def find(attr:String,v:Any,from:Option[Int],size:Option[Int]):Tags = {
     log.info(s"attr=(${attr},${v})")
     val r = { client.execute { 
@@ -147,12 +159,12 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
   }
 
   def typing(txt:String,from:Option[Int],size:Option[Int]):Tags = 
-    ??(txt,from,size)
+    ???(txt,from,size)
 
   def search(txt:String,from:Option[Int],size:Option[Int]):Tags = 
-    ??(txt,from,size)
+    ???(txt,from,size)
 
-  def ??(terms:String,from:Option[Int],size:Option[Int]):Tags = {   
+  def ???(terms:String,from:Option[Int],size:Option[Int]):Tags = {
     val r = client.execute {
       com.sksamuel.elastic4s.ElasticDsl
         .search(elacticIndex)

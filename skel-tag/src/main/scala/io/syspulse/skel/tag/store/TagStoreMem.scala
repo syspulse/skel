@@ -45,21 +45,25 @@ class TagStoreMem extends TagStore {
     case None => Failure(new Exception(s"not found: ${id}"))
   }
 
+  override def ??(ids:Seq[String]):Seq[Tag] = {
+    ids.flatMap(tags.get(_))
+  }
+
   def search(txt:String,from:Option[Int],size:Option[Int]):Tags = {
     if(txt.trim.size < 3 )
       Tags(Seq())
     else
-      ??(".*" + txt + ".*",from,size)
+      ???(".*" + txt + ".*",from,size)
   }
 
   def typing(txt:String,from:Option[Int],size:Option[Int]):Tags = {
     if(txt.trim.size < 3 )
       Tags(Seq())
     else
-      ??(txt+".*",from,size)
+      ???(txt+".*",from,size)
   }
 
-  def ??(txt:String,from:Option[Int],size:Option[Int]):Tags = {
+  def ???(txt:String,from:Option[Int],size:Option[Int]):Tags = {
     val terms = txt.toLowerCase
     val tt =
       this.tags.values.filter{ t => 

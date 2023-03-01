@@ -21,7 +21,7 @@ object TagRegistry {
   val log = Logger(s"${this}")
   
   final case class GetTags(from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
-  final case class GetTag(id:String,replyTo: ActorRef[Try[Tag]]) extends Command
+  final case class GetTag(ids:Seq[String],replyTo: ActorRef[Tags]) extends Command
   final case class GetSearchTag(tags:String,from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
   final case class GetTypingTag(txt:String,from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
   final case class GetFindTag(attr:Map[String,String],from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
@@ -47,8 +47,9 @@ object TagRegistry {
         replyTo ! Tags(store.all(from,size),total = Some(store.size))
         Behaviors.same
 
-      case GetTag(id,replyTo) =>
-        replyTo ! store.?(id)
+      case GetTag(ids,replyTo) =>
+        val tt = store.??(ids)
+        replyTo ! Tags(tt,Some(tt.size))
         Behaviors.same
 
       case GetSearchTag(tags,from,size,replyTo) =>

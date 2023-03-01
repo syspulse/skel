@@ -72,7 +72,7 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   val metricUpdateCount: Counter = Counter.build().name("skel_tag_update_total").help("Tag updates").register(cr)
   
   def getTags(from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetTags(from,size, _))
-  def getTag(tags: String): Future[Try[Tag]] = registry.ask(GetTag(tags, _))
+  def getTag(tags: Seq[String]): Future[Tags] = registry.ask(GetTag(tags, _))
   def getSearchTag(tags: String,from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetSearchTag(tags,from,size, _))
   def getTypingTag(txt: String,from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetTypingTag(txt,from,size, _))
   def getFindTag(attr: Map[String,String],from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetFindTag(attr,from,size, _))
@@ -83,14 +83,14 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   
   def randomTag(): Future[Tag] = registry.ask(RandomTag(_))
 
-  @GET @Path("/{tag}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("tag"),summary = "Get tag by id",
+  @GET @Path("/{tags}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("tag"),summary = "Get tag by ids (comma)",
     parameters = Array(new Parameter(name = "tag", in = ParameterIn.PATH, description = "Tag")),
-    responses = Array(new ApiResponse(responseCode="200",description = "Object found",content=Array(new Content(schema=new Schema(implementation = classOf[Tag])))))
+    responses = Array(new ApiResponse(responseCode="200",description = "Object found",content=Array(new Content(schema=new Schema(implementation = classOf[Tags])))))
   )
-  def getTagRoute(id: String) = get {    
+  def getTagRoute(id: String) = get {
     rejectEmptyResponse {
-      onSuccess(getTag(id)) { r =>
+      onSuccess(getTag(id.split(",").map(_.trim).toSeq)) { r =>
         metricGetCount.inc()
         complete(r)
       }
