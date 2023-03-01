@@ -140,7 +140,7 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
               ":id" -> AttributeValue.builder().s(id).build(),
             ).asJava
           )
-          .scanIndexForward(false)
+          .scanIndexForward(false)          
           .limit(1)
           .build()
 

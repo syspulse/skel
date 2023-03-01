@@ -144,10 +144,10 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   def getCodeByToken(accessToken: String): Future[CodeRes] = codeRegistry.ask(GetCodeByToken(accessToken, _))
   def getCodes(): Future[Try[Codes]] = codeRegistry.ask(GetCodes(_))
 
-  def getCreds(): Future[Try[Creds]] = clientRegistry.ask(GetCreds)
-  def getCred(id: String): Future[Try[Cred]] = clientRegistry.ask(GetCred(id, _))
-  def createCred(req: CredCreateReq): Future[Try[Cred]] = clientRegistry.ask(CreateCred(req, _))
-  def deleteCred(id: String): Future[CredActionRes] = clientRegistry.ask(DeleteCred(id, _))
+  def getCreds(uid:Option[UUID]): Future[Try[Creds]] = clientRegistry.ask(GetCreds(uid, _))
+  def getCred(id: String,uid:Option[UUID]): Future[Try[Cred]] = clientRegistry.ask(GetCred(id, uid, _))
+  def createCred(req: CredCreateReq, uid:UUID): Future[Try[Cred]] = clientRegistry.ask(CreateCred(req, uid, _))
+  def deleteCred(id: String,uid:Option[UUID]): Future[Try[CredActionRes]] = clientRegistry.ask(DeleteCred(id, uid, _))
 
   implicit val permissions = Permissions(config.permissionsModel,config.permissionsPolicy)
   // def hasAdminPermissions(authn:Authenticated) = {
@@ -426,7 +426,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           complete(StatusCodes.Unauthorized,"invalid signer")
         } 
         else {
-          val client = getCred(client_id.get)
+          val client = getCred(client_id.get, None)
           onSuccess(client) { rsp =>
             rsp match {
               case Success(client) =>
@@ -512,7 +512,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         complete(StatusCodes.Unauthorized,s"invalid state: ${state}")
 
       } else {
-        val client = getCred(clientId.get)
+        val client = getCred(clientId.get, None)
         onSuccess(client) { rspClient =>
           rspClient match {
             case Success(client) =>
@@ -663,49 +663,49 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   
 
 // -------- Creds -----------------------------------------------------------------------------------------------------------------------------
-  @GET @Path("/client/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @GET @Path("/cred/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("auth"),summary = "Return Client Credentials by id",
     parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "client_id")),
     responses = Array(new ApiResponse(responseCode="200",description = "Client Credentials returned",content=Array(new Content(schema=new Schema(implementation = classOf[Cred])))))
   )
-  def getCredRoute(id: String) = get {
+  def getCredRoute(id: String, uid:Option[UUID]) = get {
     rejectEmptyResponse {
-      onSuccess(getCred(id)) { r =>
+      onSuccess(getCred(id,uid)) { r =>
         complete(r)
       }
     }
   }
 
-  @GET @Path("/client") @Produces(Array(MediaType.APPLICATION_JSON))
+  @GET @Path("/cred") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("auth"), summary = "Return all Client Credentials",
     responses = Array(
       new ApiResponse(responseCode = "200", description = "List of Client Crednetials",content = Array(new Content(schema = new Schema(implementation = classOf[Creds])))))
   )
-  def getCredsRoute() = get {
-    complete(getCreds())
+  def getCredsRoute(uid:Option[UUID]) = get {
+    complete(getCreds(uid))
   }
 
-  @DELETE @Path("/client/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @DELETE @Path("/cred/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("auth"),summary = "Delete Client Credentials by id",
     parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "client_id")),
     responses = Array(
       new ApiResponse(responseCode = "200", description = "Cred Credentials deleted",content = Array(new Content(schema = new Schema(implementation = classOf[CredActionRes])))))
   )
-  def deleteCredRoute(id: String) = delete {
-    onSuccess(deleteCred(id)) { r =>
+  def deleteCredRoute(id: String,uid:Option[UUID]) = delete {
+    onSuccess(deleteCred(id,uid)) { r =>
       complete(StatusCodes.OK, r)
     }
   }
 
-  @POST @Path("/client") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @POST @Path("/cred") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("auth"),summary = "Create Client Credentials",
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[CredCreateReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "Client Credentials",content = Array(new Content(schema = new Schema(implementation = classOf[Cred])))))
   )
-  def createCredRoute = post {
+  def createCredRoute(uid:UUID) = post {
     entity(as[CredCreateReq]) { req =>
-      onSuccess(createCred(req)) { r =>
+      onSuccess(createCred(req,uid)) { r =>
         complete(StatusCodes.Created, r)
       }
     }
@@ -745,23 +745,27 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
         getFromResource("keystore/jwks.json")
         //complete(HttpEntity(ContentTypes.`text/html(UTF-8)`,""))
       },
-      pathPrefix("client") {
+      pathPrefix("cred") {
         pathEndOrSingleSlash {
           concat(
-            authenticate()(authn => authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
-                getCredsRoute() ~                
-                createCredRoute  
+            authenticate()(authn => {
+                // ATTENTION: no extra checks for User !
+                createCredRoute(authn.getUser.get)
               }
-            ),            
+            ),
+            authenticate()(authn => {
+              val uid = if(Permissions.isAdmin(authn) || Permissions.isService(authn)) None else authn.getUser
+              getCredsRoute(uid)                
+            })
           )
         } ~        
         pathPrefix(Segment) { id => 
           pathEndOrSingleSlash {
-            authenticate()(authn => authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
-                getCredRoute(id) ~
-                deleteCredRoute(id)
-              }
-            ) 
+            authenticate()(authn => {
+              val uid = if(Permissions.isAdmin(authn) || Permissions.isService(authn)) None else authn.getUser
+              getCredRoute(id,uid) ~
+              deleteCredRoute(id,uid)
+            }) 
           }
         }
       },

@@ -8,10 +8,15 @@ import akka.actor.typed.scaladsl.Behaviors
 import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
+import io.syspulse.skel.auth.permissions.rbac.Permissions
 
 trait CredStoreCache extends CredStore {
   // default clinet for quick prototyping
-  val defaultCreds = { val cid="eaf9642f76195dca7529c0589e6d6259"; cid -> Cred(Some(cid),Some("vn5digFyJVZCIVLExNo_Hynz0zDxEUDRlu5FHB9Qvj8"),age=3600L*24 *365) }
+  val defaultCreds = { 
+    val cid="eaf9642f76195dca7529c0589e6d6259"; 
+    cid -> Cred(Some(cid),Some("vn5digFyJVZCIVLExNo_Hynz0zDxEUDRlu5FHB9Qvj8"),age= 3600L*24 *365, 
+                uid = UUID("00000000-0000-0000-1000-000000000001"))
+  }
 
   var clients: Map[String,Cred] = Map() + defaultCreds
 
