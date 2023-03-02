@@ -12,8 +12,8 @@ import scala.util.Success
 
 import io.syspulse.skel.auth.cred.CredStoreMem
 import scala.util.Failure
-object CredRegistry {
-  
+
+object CredRegistry {  
   final case class CreateCred(req: CredCreateReq, uid:UUID, replyTo: ActorRef[Try[Cred]]) extends Command
   final case class GetCred(cid: String, uid:Option[UUID], replyTo: ActorRef[Try[Cred]]) extends Command
   final case class GetCreds(uid:Option[UUID], replyTo: ActorRef[Try[Creds]]) extends Command
@@ -22,7 +22,7 @@ object CredRegistry {
   // this var reference is unfortunately needed for Metrics access
   var store: CredStore = new CredStoreMem
 
-  def apply(store: CredStore = new CredStoreMem): Behavior[Command] = {
+  def apply(store: CredStore): Behavior[Command] = {
     this.store = store
     registry(store)
   }
@@ -63,8 +63,11 @@ object CredRegistry {
         replyTo ! {
           for {
             c <- store.?(cid)
-            c2 <- if(!uid.isDefined || (c.uid == uid.get)) Success(c) else Failure(new Exception(s"access denined: ${uid}"))
-            r <- Success(CredActionRes(s"deleted",Some(cid)))
+            c2 <- if(!uid.isDefined || (c.uid == uid.get)) Success(c) else Failure(new Exception(s"access denined: ${uid}"))            
+            r <- {
+              store.del(cid)
+              Success(CredActionRes(s"deleted",Some(cid)))
+            }
           } yield r
         }
 

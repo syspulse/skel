@@ -11,6 +11,8 @@ import io.jvm.uuid._
 import io.syspulse.skel.auth.permissions.rbac.Permissions
 
 trait CredStoreCache extends CredStore {
+  val log = Logger(s"${this}")
+
   // default clinet for quick prototyping
   val defaultCreds = { 
     val cid="eaf9642f76195dca7529c0589e6d6259"; 
@@ -24,14 +26,16 @@ trait CredStoreCache extends CredStore {
 
   def size:Long = clients.size
 
-  def +(cid:Cred):Try[CredStore] = { 
-    clients = clients + (cid.cid -> cid); Success(this)
+  def +(c:Cred):Try[CredStore] = {
+    log.info(s"add: ${c}")
+    clients = clients + (c.cid -> c); Success(this)
   }
 
-  def del(c:String):Try[CredStore] = { 
-    clients.get(c) match {
-      case Some(auth) => { clients = clients - c; Success(this) }
-      case None => Failure(new Exception(s"not found: ${c}"))
+  def del(cid:String):Try[CredStore] = { 
+    log.info(s"del: ${cid}")
+    clients.get(cid) match {
+      case Some(auth) => { clients = clients - cid; Success(this) }
+      case None => Failure(new Exception(s"not found: ${cid}"))
     }
   }
 
