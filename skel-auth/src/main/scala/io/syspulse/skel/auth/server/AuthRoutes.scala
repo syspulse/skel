@@ -115,7 +115,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   val codeRegistry: ActorRef[skel.Command] = context.spawn(CodeRegistry(),"Actor-CodeRegistry")
   context.watch(codeRegistry)
 
-  val clientRegistry: ActorRef[skel.Command] = context.spawn(CredRegistry(),"Actor-ClietnRegistry")
+  val clientRegistry: ActorRef[skel.Command] = context.spawn(CredRegistry(new CredStoreMem()),"Actor-ClietnRegistry")
   context.watch(clientRegistry)
   
   // lazy because EthOAuth2 JWKS will request while server is not started yet

@@ -90,10 +90,11 @@ object App extends skel.Server {
         ArgCmd("cred",s"Client Credentials subcommands: " +
           s"generate        : generate Client Credentials pair" +
           ""
-        ),
-        ArgParam("<params>","")
+        ),        
+        ArgParam("<params>",""),
+        ArgLogging()
       ).withExit(1)
-    ))
+    )).withLogging()
 
     val config = Config(
       host = c.getString("http.host").getOrElse(d.host),
@@ -122,12 +123,13 @@ object App extends skel.Server {
     )
 
     Console.err.println(s"Config: ${config}")
+    log.debug(s"config=${config}")
 
     val store = config.datastore.split("://").toList match {
       //case "mysql" | "db" => new AuthStoreDB(c,"mysql")
       //case "postgres" => new AuthStoreDB(c,"postgres")
-      case "dir" :: Nil => new AuthStoreDir()
-      case "dir" :: dir => new AuthStoreDir(dir)
+      // case "dir" :: Nil => new AuthStoreDir()
+      // case "dir" :: dir => new AuthStoreDir(dir)
       case "mem" :: _ | "cache" :: _ => new AuthStoreMem
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
@@ -152,7 +154,7 @@ object App extends skel.Server {
             )
             
           )
-        )
+        )        
       case "demo" =>
         val uri = Util.getParentUri(config.uri)
         Console.err.println(s"${Console.YELLOW}Running with AuthService(mem):${Console.RESET} http://${authHost}:${config.port}${uri}/auth")

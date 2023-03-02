@@ -83,11 +83,21 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
   def getListLong(path:String):Seq[Long] = getListString(path).flatMap( s => s.toLongOption)
   def getListInt(path:String):Seq[Int] = getListString(path).flatMap( s => s.toIntOption)
 
-  def withLogging(name:String="root"):Configuration = {
-    getString(Configuration.LOGGING_ARG).map(level => 
-      org.slf4j.LoggerFactory.getLogger(name)
-        .asInstanceOf[ch.qos.logback.classic.Logger]
-        .setLevel(ch.qos.logback.classic.Level.valueOf(level))
+  def withLogging():Configuration = { 
+    import org.slf4j.LoggerFactory
+    import ch.qos.logback.classic.{Logger,Level}
+    
+    getString(Configuration.LOGGING_ARG).map(loggers => 
+      // format: class:level,class:level
+      // if class is not specified, it is root
+      loggers.split(",").foreach( lg => {
+        val (name,level) = lg.split(":").toList match {
+          case name :: level :: Nil => (name,level)
+          case level :: Nil => ("root",level)
+          case _ => ("root","INFO")
+        }
+        LoggerFactory.getLogger(name).asInstanceOf[Logger].setLevel(Level.valueOf(level))
+      })      
     )
     this
   }
