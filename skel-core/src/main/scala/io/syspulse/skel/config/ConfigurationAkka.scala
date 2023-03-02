@@ -29,16 +29,28 @@ class ConfigurationAkka extends ConfigurationLike {
   }
 
   def getString(path:String):Option[String] = 
-    if(!akkaConfig.isDefined) None else
-    if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getString(path)) else None
+    try {
+      if(!akkaConfig.isDefined) None else
+      if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getString(path)) else None
+    } catch {
+      case e:Exception => log.warn(s"${e}"); None
+    }
   
   def getInt(path:String):Option[Int] = 
-    if(!akkaConfig.isDefined) None else
-    if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getInt(path)) else None
+    try {
+      if(!akkaConfig.isDefined) None else
+      if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getInt(path)) else None
+    } catch {
+      case e:Exception => log.warn(s"${e}"); None
+    }
 
   def getLong(path:String):Option[Long] = 
-    if(!akkaConfig.isDefined) None else
-    if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getLong(path)) else None
+    try {
+      if(!akkaConfig.isDefined) None else
+      if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getLong(path)) else None
+    } catch {
+      case e:Exception => log.warn(s"${e}"); None
+    }
 
   def getAll():Seq[(String,Any)] = {
     if(!akkaConfig.isDefined) return Seq()
@@ -48,8 +60,12 @@ class ConfigurationAkka extends ConfigurationLike {
   }
 
   def getDuration(path:String):Option[Duration] = 
-    if(!akkaConfig.isDefined) None else
-    if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getDuration(path)) else None
+    try {
+      if(!akkaConfig.isDefined) None else
+      if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getDuration(path)) else None
+    } catch {
+      case e:Exception => log.warn(s"${e}"); None
+    }
   
     // not supported 
   def getParams():Seq[String] = Seq()
