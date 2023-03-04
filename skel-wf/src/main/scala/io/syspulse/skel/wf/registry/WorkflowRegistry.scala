@@ -8,14 +8,14 @@ import scala.util.{Try,Success,Failure}
 import io.syspulse.skel.wf._
 import io.syspulse.skel.wf.runtime._
 
-class WorkflowRegistry(default:Seq[Flowlet]) {
+class WorkflowRegistry(default:Seq[Exec]) {
   val log = Logger(s"${this}")
 
-  val flowlets:Map[Flowlet.ID,Flowlet] = default.map(f => f.typ -> f).toMap  
+  val flowlets:Map[Exec.ID,Exec] = default.map(f => f.typ -> f).toMap  
   
   log.info(s"flowlets: ${flowlets}")
 
-  def resolve(name:String): Option[Flowlet] = {
+  def resolve(name:String): Option[Exec] = {
     flowlets.get(name)
   }
 

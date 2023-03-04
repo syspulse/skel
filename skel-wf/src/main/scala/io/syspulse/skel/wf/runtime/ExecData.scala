@@ -6,11 +6,11 @@ import scala.util.{Try,Success,Failure}
 
 import io.syspulse.skel.wf._
 
-case class FlowingData(attr:Map[String,Any]) {
+case class ExecData(attr:Map[String,Any]) {
 
 }
 
-object FlowingData {
-  def empty:FlowingData = FlowingData(Map())
+object ExecData {
+  def empty:ExecData = ExecData(Map())
 }
 

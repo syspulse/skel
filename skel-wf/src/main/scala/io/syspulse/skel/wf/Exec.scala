@@ -7,7 +7,7 @@ import scala.util.{Try,Success,Failure}
 
 import io.syspulse.skel.wf.runtime._
 
-object Flowlet {
+object Exec {
   type ID = String
 
   def apply(name:String):ID = id(name)
@@ -27,10 +27,10 @@ object Let {
   type ID = String  
 }
 
-case class Link(id:Link.ID,from:Flowlet.ID,out:Let.ID,to:Flowlet.ID,in:Let.ID)
+case class Link(id:Link.ID,from:Exec.ID,out:Let.ID,to:Exec.ID,in:Let.ID)
 
-case class Flowlet(name:String,typ:String,in:Seq[In] = Seq(),out:Seq[Out] = Seq()) {
-  val id = Flowlet(name)
+case class Exec(name:String,typ:String,in:Seq[In] = Seq(),out:Seq[Out] = Seq()) {
+  val id = Exec(name)
   val log = Logger(s"${this}-${id}")
   
   def getId = id

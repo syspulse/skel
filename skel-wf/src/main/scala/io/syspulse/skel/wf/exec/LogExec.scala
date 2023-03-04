@@ -7,9 +7,9 @@ import scala.util.{Try,Success,Failure}
 import io.syspulse.skel.wf.runtime._
 import io.syspulse.skel.wf._
 
-class LogExec(wid:Workflowing.ID,name:String) extends Flowing(wid,name) {
+class LogExec(wid:Workflowing.ID,name:String) extends Executing(wid,name) {
 
-  def exec(data:FlowingData):Try[FlowingData] = {
+  def exec(data:ExecData):Try[ExecData] = {
     log.warn(s"data=${data}")
     Success(data)
   }

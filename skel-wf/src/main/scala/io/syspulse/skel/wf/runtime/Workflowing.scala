@@ -35,7 +35,7 @@ object Workflowing {
 class Workflowing(id:Workflowing.ID,wf:Workflow,stateStore:String)(implicit engine:WorkflowEngine) {
   val log = Logger(s"${this}-${id}")
 
-  var data:FlowingData = wf.attributes
+  var data:ExecData = wf.attributes
   val stateLoc = s"${stateStore}/${id.toString}"
 
   // create directory
@@ -43,7 +43,7 @@ class Workflowing(id:Workflowing.ID,wf:Workflow,stateStore:String)(implicit engi
 
   log.info(s"state=${stateLoc}: wf=${wf}: data=${data}")
 
-  def start(data0:FlowingData):Seq[Try[Status]] = {
+  def start(data0:ExecData):Seq[Try[Status]] = {
     
     val rr = wf.flow.map( f => {
       log.info(s"starting: ${f}")

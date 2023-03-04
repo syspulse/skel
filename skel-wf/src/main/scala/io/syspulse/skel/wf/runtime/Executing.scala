@@ -7,17 +7,18 @@ import scala.util.{Try,Success,Failure}
 import io.syspulse.skel.wf.runtime._
 import io.syspulse.skel.wf._
 
-object Flowing {
+object Executing {
   case class ID(wid:Workflowing.ID,name:String)
 
   def id(wid:Workflowing.ID,name:String):ID = ID(wid,name)
 }
 
-class Flowing(wid:Workflowing.ID,name:String)(implicit errorPolicy:ErrorPolicy = new RepeatErrorPolicy()) {
+class Executing(wid:Workflowing.ID,name:String)(implicit errorPolicy:ErrorPolicy = new RepeatErrorPolicy()) {
   
+  @volatile
   var status:Status = Status.INITIALIZED()
 
-  // this constructor and init are need for dynamic class instantiation of Flowing Executors
+  // this constructor and init are need for dynamic class instantiation of Executing Executors
   def this() = {
     this(Workflowing.id(),"")
     status = Status.CREATED()
@@ -25,7 +26,7 @@ class Flowing(wid:Workflowing.ID,name:String)(implicit errorPolicy:ErrorPolicy =
   def init(wid:Workflowing.ID,name:String):Unit = {
     status match {
       case Status.CREATED() => 
-        id = Flowing.ID(wid,name)
+        id = Executing.ID(wid,name)
         status = Status.INITIALIZED()
       case _ => 
         // already initialized
@@ -40,7 +41,7 @@ class Flowing(wid:Workflowing.ID,name:String)(implicit errorPolicy:ErrorPolicy =
   def getName = name
   def getErrorPolicy = errorPolicy
 
-  def start(data:FlowingData):Try[Status] = {
+  def start(data:ExecData):Try[Status] = {
     log.info(s"data=${data}")
     Success(Status.STARTED())
   }

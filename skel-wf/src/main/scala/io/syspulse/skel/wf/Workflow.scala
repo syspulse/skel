@@ -9,9 +9,9 @@ import io.syspulse.skel.wf.runtime._
 
 case class Workflow(
   id:Workflow.ID,
-  attributes:FlowingData,
+  attributes:ExecData,
   store:String,
-  flow: Seq[Flowlet],
+  flow: Seq[Exec],
   links: Seq[Link])(implicit engine:WorkflowEngine) {
   
   def getAttributes = attributes

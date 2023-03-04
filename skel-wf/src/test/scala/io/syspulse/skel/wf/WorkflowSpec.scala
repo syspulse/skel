@@ -7,7 +7,7 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import java.time._
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.wf.runtime.FlowingData
+import io.syspulse.skel.wf.runtime._
 
 class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
   
@@ -16,11 +16,11 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
     "create Workflow with 2 Logs" in {
       implicit val we = new WorkflowEngine
 
-      val w1 = Workflow("wf-1",FlowingData.empty,
+      val w1 = Workflow("wf-1",ExecData.empty,
         store = wfDir,
         flow = Seq(
-          Flowlet("F-1","io.syspulse.skel.wf.exe.Log",in = Seq(In("in-0")), out = Seq(Out("out-0"))),
-          Flowlet("F-2","io.syspulse.skel.wf.exe.Log",in = Seq(In("in-0"))),
+          Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0"))),
+          Exec("F-2","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0"))),
         ),
         links = Seq(
           Link("link-1","F1","out-0","F2","in-0")

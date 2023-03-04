@@ -5,7 +5,6 @@ import com.typesafe.scalalogging.Logger
 import io.jvm.uuid._
 import scala.util.{Try,Success,Failure}
 
-import io.syspulse.skel.wf.exec
 import io.syspulse.skel.wf.runtime._
 import io.syspulse.skel.wf.registy.WorkflowRegistry
 
@@ -16,7 +15,7 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf") {
   val storeRuntime = s"${store}/runtime"
 
   val registry = new WorkflowRegistry(Seq(
-    Flowlet("Log","io.syspulse.skel.wf.exe.Log")
+    Exec("Log","io.syspulse.skel.wf.exec.LogExec")
   ))
 
   // create stores
@@ -35,11 +34,21 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf") {
       status
     })
 
-    log.info(s"${w}: ${ss}")
-    Success(w)
+    val ssError = ss.filter{ s => s match {
+      case Failure(e) => 
+        log.error(s"${w}: ${ss}: ${e}")
+        true
+      case _ => log.info(s"${w}: ${ss}")
+        false
+    }}    
+    
+    if(ssError.size > 0)
+      Failure(ssError.head.failed.get)
+    else
+      Success(w)
   }
 
-  def spawn(f:Flowlet,wid:Workflowing.ID):Try[Status] = {
+  def spawn(f:Exec,wid:Workflowing.ID):Try[Status] = {
     log.info(s"spawn: ${f}: wid=${wid}")
     for {
       flowlet <- registry.resolve(f.typ) match {
@@ -47,17 +56,22 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf") {
         case None => Failure(new Exception(s"not resolved: ${f.typ}"))
       }
       flowing <- try {
-        //val e = new exec.LogExec(wid,flowlet.name)
-        val cz = Class.forName(flowlet.name)
+        
+        log.info(s"spawning: class=${flowlet.typ}")
+        val cz = Class.forName(flowlet.typ)
 
-        val args = Seq(wid,flowlet.name)
+        val args = Array(wid,flowlet.name)
+        val argsStr = args.map(_.getClass).toSeq.toString
         cz.getConstructors().find { c => 
-          c.getParameters().map(_.getParameterizedType) == args.map(_.getClass)
+          val ctorStr = c.getParameters().map(_.getParameterizedType).toSeq.toString
+          val b = argsStr == ctorStr
+          log.debug(s"class=${cz}: ctor=${c}: '${argsStr}'=='${ctorStr}': ${b}")
+          b
         } match {
           case Some(ctor) => 
-            val instance = ctor.newInstance(args)
-            log.info(s"${f.typ} ===> ${instance}")
-            val e = instance.asInstanceOf[Flowing]
+            val instance = ctor.newInstance(args:_*)
+            log.info(s"'${f.typ}' => ${instance}")
+            val e = instance.asInstanceOf[Executing]
             Success(e.status)
           case None => 
             Failure(new Exception(s"constructor not resolved: ${f.typ}: ${cz}"))
