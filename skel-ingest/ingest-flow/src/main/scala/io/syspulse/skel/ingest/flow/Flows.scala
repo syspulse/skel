@@ -194,7 +194,7 @@ object Flows {
       .flatMapConcat(req => {
         log.info(s"--> ${req}")
         //Flows.fromHttpFuture(req)(as)
-        Flows.fromHttpRestartable(req)
+        Flows.fromHttpRestartable(req, frameDelimiter, frameSize)
       })      
     
     if(frameDelimiter.isEmpty())
@@ -256,7 +256,7 @@ object Flows {
       Sink.ignore 
     else
       Flow[Ingestable]
-        .map(t=>s"${t.toLog}\n")
+        .map(t => s"${t.toLog}\n")
         .map(ByteString(_))
         .toMat(FileIO.toPath(
           Paths.get(Util.pathToFullPath(Util.toFileWithTime(file))),options =  Set(WRITE, CREATE))
@@ -507,10 +507,14 @@ object Flows {
   //     .to(js.sink())
   // }
 
-  def toJson[T <: Ingestable](uri:String,flush:Boolean = false)(implicit fmt:JsonFormat[T]) = {
+  def toJson[T <: Ingestable](uri:String,flush:Boolean = false,pretty:Boolean = false)(implicit fmt:JsonFormat[T]) = {
     import spray.json._
     Flow[T]
-      .map(o => if(o!=null) ByteString(o.toJson.prettyPrint+"\n") else ByteString())
+      .map(o => if(o!=null) {
+        val j = o.toJson
+        val js = if(pretty) j.prettyPrint else j
+        ByteString(s"${js}\n")
+      } else ByteString())
       .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.right)
   }
 

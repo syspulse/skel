@@ -119,7 +119,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
     val sink = output.split("://").toList match {
       case "null" :: _ => Flows.toNull
       
-      case "json" :: _ => Flows.toJson[O](output)(fmt)
+      case "json" :: _ => Flows.toJson[O](output,pretty=false)(fmt)
+      case "pjson" :: _ => Flows.toJson[O](output,pretty=true)(fmt)
       case "csv" :: _ => Flows.toCsv(output)
       case "log" :: _ => Flows.toLog(output)
 

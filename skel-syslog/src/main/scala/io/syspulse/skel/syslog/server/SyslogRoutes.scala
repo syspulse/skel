@@ -1,4 +1,4 @@
-package io.syspulse.skel.yell.server
+package io.syspulse.skel.syslog.server
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.StatusCodes
@@ -44,46 +44,46 @@ import scala.concurrent.duration.Duration
 import io.syspulse.skel.auth.permissions.rbac.Permissions
 import io.syspulse.skel.auth.RouteAuthorizers
 
-import io.syspulse.skel.yell._
-import io.syspulse.skel.yell.Yell.ID
-import io.syspulse.skel.yell.store.YellRegistry
-import io.syspulse.skel.yell.store.YellRegistry._
+import io.syspulse.skel.syslog._
+import io.syspulse.skel.syslog.Syslog.ID
+import io.syspulse.skel.syslog.store.SyslogRegistry
+import io.syspulse.skel.syslog.store.SyslogRegistry._
 import scala.util.Try
 
 
 @Path("/")
-class YellRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
+class SyslogRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
   //val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system
   
   implicit val permissions = Permissions()
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-  import YellJson._
+  import SyslogJson._
   
   // registry is needed because Unit-tests with multiple Routes in Suites will fail (Prometheus libary quirk)
   val cr = new CollectorRegistry(true);
-  val metricGetCount: Counter = Counter.build().name("skel_yell_get_total").help("Yell gets").register(cr)
-  val metricDeleteCount: Counter = Counter.build().name("skel_yell_delete_total").help("Yell deletes").register(cr)
-  val metricCreateCount: Counter = Counter.build().name("skel_yell_create_total").help("Yell creates").register(cr)
+  val metricGetCount: Counter = Counter.build().name("skel_syslog_get_total").help("Syslog gets").register(cr)
+  val metricDeleteCount: Counter = Counter.build().name("skel_syslog_delete_total").help("Syslog deletes").register(cr)
+  val metricCreateCount: Counter = Counter.build().name("skel_syslog_create_total").help("Syslog creates").register(cr)
   
-  def getYells(): Future[Yells] = registry.ask(GetYells)
-  def getYell(id: ID): Future[Try[Yell]] = registry.ask(GetYell(id, _))
-  def searchYell(txt: String): Future[List[Yell]] = registry.ask(SearchYell(txt, _))
+  def getSyslogs(): Future[Syslogs] = registry.ask(GetSyslogs)
+  def getSyslog(id: ID): Future[Try[Syslog]] = registry.ask(GetSyslog(id, _))
+  def searchSyslog(txt: String): Future[List[Syslog]] = registry.ask(SearchSyslog(txt, _))
 
-  def createYell(yellCreate: YellCreateReq): Future[Yell] = registry.ask(CreateYell(yellCreate, _))
-  def deleteYell(id: ID): Future[YellActionRes] = registry.ask(DeleteYell(id, _))
-  def randomYell(): Future[Yell] = registry.ask(RandomYell(_))
+  def createSyslog(syslogCreate: SyslogCreateReq): Future[Syslog] = registry.ask(CreateSyslog(syslogCreate, _))
+  def deleteSyslog(id: ID): Future[SyslogActionRes] = registry.ask(DeleteSyslog(id, _))
+  def randomSyslog(): Future[Syslog] = registry.ask(RandomSyslog(_))
 
 
   @GET @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("yell"),summary = "Return Yell by id",
-    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Yell id (uuid)")),
-    responses = Array(new ApiResponse(responseCode="200",description = "Yell returned",content=Array(new Content(schema=new Schema(implementation = classOf[Yell])))))
+  @Operation(tags = Array("syslog"),summary = "Return Syslog by id",
+    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Syslog id (uuid)")),
+    responses = Array(new ApiResponse(responseCode="200",description = "Syslog returned",content=Array(new Content(schema=new Schema(implementation = classOf[Syslog])))))
   )
-  def getYellRoute(id: String) = get {
+  def getSyslogRoute(id: String) = get {
     rejectEmptyResponse {
-      onSuccess(getYell(id)) { r =>
+      onSuccess(getSyslog(id)) { r =>
         metricGetCount.inc()
         complete(r)
       }
@@ -92,36 +92,36 @@ class YellRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
 
 
   @GET @Path("/search/{txt}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("yell"),summary = "Search yell",
+  @Operation(tags = Array("syslog"),summary = "Search syslog",
     parameters = Array(new Parameter(name = "txt", in = ParameterIn.PATH, description = "text to search")),
-    responses = Array(new ApiResponse(responseCode="200",description = "Yell returned",content=Array(new Content(schema=new Schema(implementation = classOf[Yell])))))
+    responses = Array(new ApiResponse(responseCode="200",description = "Syslog returned",content=Array(new Content(schema=new Schema(implementation = classOf[Syslog])))))
   )
-  def searchYellRoute(txt: String) = get {
+  def searchSyslogRoute(txt: String) = get {
     rejectEmptyResponse {
-      onSuccess(searchYell(txt)) { r =>
+      onSuccess(searchSyslog(txt)) { r =>
         complete(r)
       }
     }
   }
 
   @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("yell"), summary = "Return all Yells",
+  @Operation(tags = Array("syslog"), summary = "Return all Syslogs",
     responses = Array(
-      new ApiResponse(responseCode = "200", description = "List of Yells",content = Array(new Content(schema = new Schema(implementation = classOf[Yells])))))
+      new ApiResponse(responseCode = "200", description = "List of Syslogs",content = Array(new Content(schema = new Schema(implementation = classOf[Syslogs])))))
   )
-  def getYellsRoute() = get {
+  def getSyslogsRoute() = get {
     metricGetCount.inc()
-    complete(getYells())
+    complete(getSyslogs())
   }
 
   @DELETE @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("yell"),summary = "Delete Yell by id",
-    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Yell id (uuid)")),
+  @Operation(tags = Array("syslog"),summary = "Delete Syslog by id",
+    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Syslog id (uuid)")),
     responses = Array(
-      new ApiResponse(responseCode = "200", description = "Yell deleted",content = Array(new Content(schema = new Schema(implementation = classOf[Yell])))))
+      new ApiResponse(responseCode = "200", description = "Syslog deleted",content = Array(new Content(schema = new Schema(implementation = classOf[Syslog])))))
   )
-  def deleteYellRoute(id: String) = delete {
-    onSuccess(deleteYell(id)) { r =>
+  def deleteSyslogRoute(id: String) = delete {
+    onSuccess(deleteSyslog(id)) { r =>
       metricDeleteCount.inc()
       complete((StatusCodes.OK, r))
     }
@@ -129,21 +129,21 @@ class YellRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
 
   @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("yell"),summary = "Create Yell Secret",
-    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[YellCreateReq])))),
-    responses = Array(new ApiResponse(responseCode = "200", description = "Yell created",content = Array(new Content(schema = new Schema(implementation = classOf[YellActionRes])))))
+  @Operation(tags = Array("syslog"),summary = "Create Syslog Secret",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[SyslogCreateReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "Syslog created",content = Array(new Content(schema = new Schema(implementation = classOf[SyslogActionRes])))))
   )
-  def createYellRoute = post {
-    entity(as[YellCreateReq]) { yellCreate =>
-      onSuccess(createYell(yellCreate)) { r =>
+  def createSyslogRoute = post {
+    entity(as[SyslogCreateReq]) { syslogCreate =>
+      onSuccess(createSyslog(syslogCreate)) { r =>
         metricCreateCount.inc()
         complete((StatusCodes.Created, r))
       }
     }
   }
 
-  def createYellRandomRoute() = post { 
-    onSuccess(randomYell()) { r =>
+  def createSyslogRandomRoute() = post { 
+    onSuccess(randomSyslog()) { r =>
       metricCreateCount.inc()
       complete((StatusCodes.Created, r))
     }
@@ -155,56 +155,56 @@ class YellRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
           // authenticate()(authn =>
           //   authorize(Permissions.isAdmin(authn)) {
           //     concat(
-          //       getYellsRoute(),
-          //       createYellRoute
+          //       getSyslogsRoute(),
+          //       createSyslogRoute
           //     )
           //   }
           // )
           concat(
             authenticate()(authn =>
               authorize(Permissions.isAdmin(authn)) {              
-                getYellsRoute() ~                
-                createYellRoute  
+                getSyslogsRoute() ~                
+                createSyslogRoute  
               }
             ),
-            //createYellRoute
+            //createSyslogRoute
           )
         },
         // pathPrefix("info") {
-        //   path(Segment) { yellId => 
-        //     getYellInfo(yellId)
+        //   path(Segment) { syslogId => 
+        //     getSyslogInfo(syslogId)
         //   }
         // },
         pathSuffix("random") {
-          createYellRandomRoute()
+          createSyslogRandomRoute()
         },
         pathPrefix("search") {
           pathPrefix(Segment) { txt => 
-            searchYellRoute(txt)
+            searchSyslogRoute(txt)
           }
         },
         pathPrefix(Segment) { id => 
           // pathPrefix("eid") {
           //   pathEndOrSingleSlash {
-          //     searchYellRoute(id)
+          //     searchSyslogRoute(id)
           //   } 
           //   ~
           //   path(Segment) { code =>
-          //     getYellCodeVerifyRoute(id,code)
+          //     getSyslogCodeVerifyRoute(id,code)
           //   }
           // } ~
 
           pathEndOrSingleSlash {
             // concat(
-            //   getYellRoute(id),
-            //   deleteYellRoute(id),
+            //   getSyslogRoute(id),
+            //   deleteSyslogRoute(id),
             // )          
             authenticate()(authn =>
               authorize(Permissions.isAdmin(authn)) {
-                getYellRoute(id)
+                getSyslogRoute(id)
               } ~
               authorize(Permissions.isAdmin(authn)) {
-                deleteYellRoute(id)
+                deleteSyslogRoute(id)
               }
             ) 
           }

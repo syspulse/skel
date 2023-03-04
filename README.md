@@ -1,34 +1,34 @@
 # skel
 
-Skeletons for RnD Prototypes
+Prototyping Framework for Cloud Products
 
-[infra](infra) - Infrastructure (docker,kubernetes)
-[skel-http](skel-http) - HTTP Service (+ Kubernetes)
+- [infra](infra) - Infrastructure (docker,kubernetes)
+- [skel-http](skel-http) - HTTP Service (+ Kubernetes)
 
-[skel-auth](skel-auth) - Authentication/Authorization (IDP for Web3)
-[skel-user](skel-user) - UserProfile Service reference
-[skel-notify](skel-notify) - Notification Service
-[skel-enroll](skel-enroll) - Registration Flow
-[skel-yell](skel-yell) - Auditlog like system service
+- [skel-auth](skel-auth) - Authentication/Authorization (IDP for Web3)
+- [skel-user](skel-user) - UserProfile Service reference
+- [skel-notify](skel-notify) - Notification Service
+- [skel-enroll](skel-enroll) - Registration Flow
+- [skel-syslog](skel-syslog) - Auditlog service (Cloud syslog)
 
-[skel-kafka](skel-kafka) - Kafka Processors (Source/Sink)
-[skel-ingest](skel-ingest) - Data Ingestion with Prometheus telemerty reference
-[skel-telemetry](skel-telemetry) - TimeSeries Service + Prometheus/InfluxDB/Graphite/Loki/Grafana infra
-[skel-db](skel-db) - DB Related stuff
-[skel-otp](skel-otp) - OTP Service reference service 
-[skel-test](skel-test) - Test helpers
-[skel-crypto](skel-crypto) - Cryptography and Ethereum utilities
-[skel-spark](skel-spark) - Spark tools
-[skel-datalake](skel-datalake) - Datalake and Warehouses (+ Notebooks)
-[skel-flow](skel-flow) - DataFlows and Workflows
-[skel-scrap](skel-scrap) - Scraping pipelines
-[skel-cli](skel-cli) - Shell command line client
-[skel-cron](skel-cron) - Cron engine
-[skel-serde](skel-serde) - Serializers
-[skel-video](skel-video) - Movie Metadata processors
-[skel-stream](skel-stream) - Akka Steams 
-[skel-pdf](skel-pdf) - PDF Utils
-[skel-tag](skel-tag) - Tags searchable service (e.g. labels, tags)
+- [skel-kafka](skel-kafka) - Kafka Processors (Source/Sink)
+- [skel-ingest](skel-ingest) - Data Ingestion with Prometheus telemerty reference
+- [skel-telemetry](skel-telemetry) - TimeSeries Service + Prometheus/InfluxDB/Graphite/Loki/Grafana infra
+- [skel-db](skel-db) - DB Related stuff
+- [skel-otp](skel-otp) - OTP Service reference service 
+- [skel-test](skel-test) - Test helpers
+- [skel-crypto](skel-crypto) - Cryptography and Ethereum utilities
+- [skel-spark](skel-spark) - Spark tools
+- [skel-datalake](skel-datalake) - Datalake and Warehouses (+ Notebooks)
+- [skel-flow](skel-flow) - DataFlows and Workflows
+- [skel-scrap](skel-scrap) - Scraping pipelines
+- [skel-cli](skel-cli) - Shell command line client
+- [skel-cron](skel-cron) - Cron engine
+- [skel-serde](skel-serde) - Serializers
+- [skel-video](skel-video) - Movie Metadata processors
+- [skel-stream](skel-stream) - Akka Steams 
+- [skel-pdf](skel-pdf) - PDF Utils
+- [skel-tag](skel-tag) - Tags searchable service (e.g. labels, tags)
 
 ----
 ## Build & Run
@@ -41,7 +41,7 @@ Refer to specific demo for running Kubernetes Deployments or Docker-Compose topo
 
 ## Demos
 
-Go to [https://github.com/syspulse/skel-demo](https://github.com/syspulse/skel-demo) for demo projlets
+- [https://github.com/syspulse/skel-demo](https://github.com/syspulse/skel-demo) for demo projlets
 
 ----
 ## Libraries and Credits

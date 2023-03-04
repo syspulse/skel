@@ -255,7 +255,7 @@ lazy val root = (project in file("."))
              ingest_elastic,
              ingest_dynamo,
              skel_enroll,
-             yell,
+             skel_syslog,
              skel_notify,
              skel_tag, 
              skel_telemetry)
@@ -264,7 +264,7 @@ lazy val root = (project in file("."))
              ingest_elastic,
              ingest_dynamo,
              skel_enroll,
-             yell,
+             skel_syslog,
              skel_notify,
              skel_tag, 
              skel_telemetry)
@@ -740,7 +740,7 @@ lazy val pdf = (project in file("skel-pdf"))
   )
 
 
-lazy val yell = (project in file("skel-yell"))
+lazy val skel_syslog = (project in file("skel-syslog"))
   .dependsOn(core,auth_core,ingest,ingest_elastic,ingest_flow)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
@@ -752,7 +752,7 @@ lazy val yell = (project in file("skel-yell"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    appDockerConfig("skel-yell","io.syspulse.skel.yell.App"),
+    appDockerConfig("skel-syslog","io.syspulse.skel.syslog.App"),
 
     libraryDependencies ++= libSkel ++ libHttp ++ libTest ++ Seq(
       libAlpakkaElastic,

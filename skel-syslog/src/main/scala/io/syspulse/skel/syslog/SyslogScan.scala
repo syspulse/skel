@@ -1,4 +1,4 @@
-package io.syspulse.skel.yell
+package io.syspulse.skel.syslog
 
 import scala.jdk.CollectionConverters._
 
@@ -6,11 +6,11 @@ import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.elastic.ElasticScan
 
-trait YellScan extends ElasticScan[Yell] {
+trait SyslogScan extends ElasticScan[Syslog] {
 
-  import io.syspulse.skel.yell.elastic.YellElasticJson
-  import io.syspulse.skel.yell.elastic.YellElasticJson._
-  implicit val fmt = YellElasticJson.fmt 
+  import io.syspulse.skel.syslog.elastic.SyslogElasticJson
+  import io.syspulse.skel.syslog.elastic.SyslogElasticJson._
+  implicit val fmt = SyslogElasticJson.fmt 
 
   override def getSearchParamas():Map[String,String] = Map(
           "query" -> s""" {"match_all": {}} """,

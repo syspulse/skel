@@ -1,13 +1,7 @@
-package io.syspulse.skel.tag
+package io.syspulse.skel.syslog
 
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration,FiniteDuration}
-
-import akka.NotUsed
-import scala.concurrent.Awaitable
-import scala.concurrent.Await
-import java.util.concurrent.TimeUnit
-import scala.concurrent.Future
 
 import io.syspulse.skel
 import io.syspulse.skel.config._
@@ -16,13 +10,17 @@ import io.syspulse.skel.config._
 
 import io.syspulse.skel.ingest.IngestFlow
 import io.syspulse.skel.ingest.flow.Flows
-import io.syspulse.skel.tag.store._
+import io.syspulse.skel.syslog.store._
 
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
-  uri:String = "/api/v1/tag",
+  uri:String = "/api/v1/syslog",
 
+  elasticUri:String = "",
+  elasticUser:String = "",
+  elasticPass:String = "",
+  elasticIndex:String = "",
   expr:String = "",
   
   limit:Long = -1,
@@ -32,7 +30,7 @@ case class Config(
   buffer:Int = 1024*1024,
   throttle:Long = 0L,
 
-  datastore:String = "dir://store/",
+  datastore:String = "mem://",
 
   cmd:String = "server",
   params: Seq[String] = Seq(),
@@ -49,11 +47,16 @@ object App extends skel.Server {
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv, 
-      new ConfigurationArgs(args,"skel-tag","",
+      new ConfigurationArgs(args,"skell-syslog","",
         ArgString('h', "http.host",s"listen host (def: ${d.host})"),
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
         
+        ArgString('_', "elastic.uri","Elastic uri (def: http://localhost:9200)"),
+        ArgString('_', "elastic.user","Elastic user (def: )"),
+        ArgString('_', "elastic.pass","Elastic pass (def: )"),
+        ArgString('_', "elastic.index","Elastic Index (def: syslog)"),
+
         ArgString('f', "feed",s"Input Feed (def: )"),
         ArgString('o', "output",s"Output file (pattern is supported: data-{yyyy-MM-dd-HH-mm}.log)"),
         ArgLong('n', "limit",s"Limit (def: ${d.limit})"),
@@ -61,11 +64,13 @@ object App extends skel.Server {
         ArgInt('_', "buffer",s"Frame buffer (Akka Framing) (def: ${d.buffer})"),
         ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
 
-        ArgString('d', "datastore",s"Datastore [elastic://,mem,stdout,file://,dir://,resources://] (def: ${d.datastore})"),
+        ArgString('d', "datastore","datastore [elastic,mem,cache] (def: mem)"),
         
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
+        ArgCmd("scan","Scan all"),
         ArgCmd("search","Multi-Search pattern"),
+        ArgCmd("grep","Wildcards search"),
 
         ArgParam("<params>","")
       ).withExit(1)
@@ -76,6 +81,11 @@ object App extends skel.Server {
       port = c.getInt("http.port").getOrElse(d.port),
       uri = c.getString("http.uri").getOrElse(d.uri),
 
+      elasticUri = c.getString("elastic.uri").getOrElse("http://localhost:9200"),
+      elasticIndex = c.getString("elastic.index").getOrElse("syslog"),
+      elasticUser = c.getString("elastic.user").getOrElse(""),
+      elasticPass = c.getString("elastic.pass").getOrElse(""),
+      
       feed = c.getString("feed").getOrElse(d.feed),
       limit = c.getLong("limit").getOrElse(d.limit),
       output = c.getString("output").getOrElse(d.output),
@@ -85,7 +95,7 @@ object App extends skel.Server {
 
       datastore = c.getString("datastore").getOrElse(d.datastore),
 
-      expr = c.getString("expr").getOrElse(d.expr),
+      expr = c.getString("expr").getOrElse(" "),
       
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -94,55 +104,34 @@ object App extends skel.Server {
     Console.err.println(s"Config: ${config}")
 
     val store:TagStore = config.datastore.split("://").toList match {
-      case "elastic" :: uri :: Nil => {
-        val eUri = skel.uri.ElasticURI(uri)
-        new TagStoreElastic(eUri.url,eUri.index)
-      }
-      case "mem" :: _ => new TagStoreMem()
-      case "dir" :: dir :: Nil => new TagStoreDir(dir)
-      case "dir" :: Nil => new TagStoreDir()
-      case "file" :: file :: Nil => new TagStoreFile(file)
-      case "resources" :: file :: Nil => new TagStoreResource(file)
-      case "resources" :: Nil => new TagStoreResource()      
+      case "elastic" => new SyslogStoreElastic(config.elasticUri,config.elasticIndex)
+      case "mem" => new SyslogStoreMem()
+      //case "stdout" => new SyslogStoreStdout
       case _ => {
-        Console.err.println(s"Uknown datastore: '${config.datastore}")
+        Console.err.println(s"Uknown datastore: '${config.datastore}'")
         sys.exit(1)
       }
     }
     
     val expr = config.expr + config.params.mkString(" ")
 
-    val r = config.cmd match {
+    config.cmd match {
       case "server" => 
         run( config.host, config.port,config.uri,c,
           Seq(
-            (TagRegistry(store),"TagRegistry",(r, ac) => new server.TagRoutes(r)(ac) )
+            (SyslogRegistry(store),"SyslogRegistry",(r, ac) => new server.SyslogRoutes(r)(ac) )
           )
         )
-              
-      // new Ingest based on Pipeline
-      case "ingest" => {
-        val f = new flow.PipelineTag(config.feed,config.output)(config)
-        f.run()
-      }
+      case "ingest" => new SyslogFlow()
+        .connect[SyslogFlow](config.elasticUri, config.elasticIndex)
+        .from(Flows.fromFile(config.feed))        
+        .run()
 
-      case "search" => store.?(expr)
+      //case "get" => (new Object with DynamoGet).connect( config.elasticUri, config.elasticIndex).get(expr)
+      case "scan" => store.scan(expr)
+      case "search" => store.search(expr)
+      case "grep" => store.grep(expr)
+  
     }
-
-    r match {
-      case l:List[_] => {
-        Console.err.println("Results:")
-        l.foreach(r => println(s"${r}"));
-        sys.exit(0)
-      }
-      case NotUsed => println(r)
-      //case f:Future[_] if config.cmd == "ingest" || config.cmd == "search" => Await.result(f,FiniteDuration(3000,TimeUnit.MILLISECONDS)); sys.exit(0)
-      case a:Awaitable[_] if config.cmd == "ingest" 
-          || config.cmd == "scan"
-          || config.cmd == "grep"
-          || config.cmd == "typing" => Await.result(a,FiniteDuration(3000,TimeUnit.MILLISECONDS)); sys.exit(0)
-      case _ => Console.err.println(s"\n${r}")      
-    }
-    
   }
 }

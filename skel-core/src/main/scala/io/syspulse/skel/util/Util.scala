@@ -66,6 +66,7 @@ object Util {
   def toHexString(b:Array[Byte]) = b.foldLeft("")((s,b)=>s + f"$b%02x")
   //def hex(x: Array[Byte],prefix:Boolean=true):String = s"""${if(prefix) "0x" else ""}${x.toArray.map("%02x".format(_)).mkString}"""
   def hex(x: Array[Byte],prefix:Boolean=true):String = s"""${if(prefix) "0x" else ""}${ByteVector(x).toHex}"""
+  def unhex(h:String) = fromHexString(h)
 
   def SHA256(data:Array[Byte]):Array[Byte] = digest.digest(data)
   def SHA256(data:String):Array[Byte] = digest.digest(data.getBytes(StandardCharsets.UTF_8))

@@ -1,4 +1,4 @@
-package io.syspulse.skel.yell.store
+package io.syspulse.skel.syslog.store
 
 import scala.util.Try
 import scala.util.{Success,Failure}
@@ -18,26 +18,26 @@ import com.sksamuel.elastic4s.http.JavaClient
 import com.sksamuel.elastic4s.requests.common.RefreshPolicy
 import com.sksamuel.elastic4s.requests.searches.SearchResponse
 
-import io.syspulse.skel.yell._
-import io.syspulse.skel.yell.Yell.ID
+import io.syspulse.skel.syslog._
+import io.syspulse.skel.syslog.Syslog.ID
 
-import io.syspulse.skel.yell.YellScan
+import io.syspulse.skel.syslog.SyslogScan
 
-class YellStoreElastic(elasticUri:String,elacticIndex:String) extends YellStore {  
+class SyslogStoreElastic(elasticUri:String,elacticIndex:String) extends SyslogStore {  
   private val log = Logger(s"${this}")
 
-  implicit object VideoHitReader extends HitReader[Yell] {
+  implicit object VideoHitReader extends HitReader[Syslog] {
     // becasue of VID case class, it is converted unmarchsalled as Map from Elastic (field vid.id)
-    override def read(hit: Hit): Try[Yell] = {
+    override def read(hit: Hit): Try[Syslog] = {
       val source = hit.sourceAsMap
-      Success(Yell(source("vid").asInstanceOf[Long], source("vid").asInstanceOf[Int], source("area").asInstanceOf[String], source("text").asInstanceOf[String]))
+      Success(Syslog(source("vid").asInstanceOf[Long], source("vid").asInstanceOf[Int], source("area").asInstanceOf[String], source("text").asInstanceOf[String]))
     }
   }
   
   val client = ElasticClient(JavaClient(ElasticProperties(elasticUri)))
 
   import ElasticDsl._  
-  def all:Seq[Yell] = {    
+  def all:Seq[Syslog] = {    
     val r = client.execute {
       ElasticDsl
       .search(elacticIndex)
@@ -45,7 +45,7 @@ class YellStoreElastic(elasticUri:String,elacticIndex:String) extends YellStore 
     }.await
 
     log.info(s"r=${r}")
-    r.result.to[Yell].toList
+    r.result.to[Syslog].toList
   }
 
   // slow and memory hungry !
@@ -56,26 +56,26 @@ class YellStoreElastic(elasticUri:String,elacticIndex:String) extends YellStore 
     r.result.count
   }
 
-  def +(yell:Yell):Try[YellStore] = { 
-    Failure(new UnsupportedOperationException(s"not implemented: ${yell}"))
+  def +(syslog:Syslog):Try[SyslogStore] = { 
+    Failure(new UnsupportedOperationException(s"not implemented: ${syslog}"))
   }
 
-  def del(id:ID):Try[YellStore] = { 
+  def del(id:ID):Try[SyslogStore] = { 
     Failure(new UnsupportedOperationException(s"not implemented: ${id}"))
   }
 
-  def ?(id:ID):Try[Yell] = {
+  def ?(id:ID):Try[Syslog] = {
     search(id.toString).take(1).headOption match {
       case Some(y) => Success(y)
       case None => Failure(new Exception(s"not found: ${id}"))
     }
   }
 
-  def ??(txt:String):List[Yell] = {
+  def ??(txt:String):List[Syslog] = {
     search(txt)
   }
 
-  def scan(txt:String):List[Yell] = {
+  def scan(txt:String):List[Syslog] = {
     val r = client.execute {
       ElasticDsl
         .search(elacticIndex)
@@ -90,10 +90,10 @@ class YellStoreElastic(elasticUri:String,elacticIndex:String) extends YellStore 
     }.await
 
     log.info(s"r=${r}")
-    r.result.to[Yell].toList
+    r.result.to[Syslog].toList
   }
 
-  def search(txt:String):List[Yell] = {   
+  def search(txt:String):List[Syslog] = {   
     val r = client.execute {
       com.sksamuel.elastic4s.ElasticDsl
         .search(elacticIndex)
@@ -101,10 +101,10 @@ class YellStoreElastic(elasticUri:String,elacticIndex:String) extends YellStore 
     }.await
 
     log.info(s"r=${r}")
-    r.result.to[Yell].toList
+    r.result.to[Syslog].toList
   }
 
-  def grep(txt:String):List[Yell] = {
+  def grep(txt:String):List[Syslog] = {
     val r = client.execute {
       ElasticDsl
         .search(elacticIndex)
@@ -114,10 +114,10 @@ class YellStoreElastic(elasticUri:String,elacticIndex:String) extends YellStore 
     }.await
 
     log.info(s"r=${r}")
-    r.result.to[Yell].toList
+    r.result.to[Syslog].toList
   }
 
-  def typing(txt:String):List[Yell] = {  
+  def typing(txt:String):List[Syslog] = {  
     val r = client.execute {
       ElasticDsl
         .search(elacticIndex)
@@ -127,6 +127,6 @@ class YellStoreElastic(elasticUri:String,elacticIndex:String) extends YellStore 
     }.await
     
     log.info(s"r=${r}")
-    r.result.to[Yell].toList
+    r.result.to[Syslog].toList
   }
 }
