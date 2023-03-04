@@ -250,7 +250,7 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 // ======================================================================================================================
 lazy val root = (project in file("."))
-  .aggregate(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, flow, dsl, scrap, cli, db_cli,
+  .aggregate(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, dsl, scrap, cli, db_cli,
              ingest_flow,
              ingest_elastic,
              ingest_dynamo,
@@ -259,7 +259,7 @@ lazy val root = (project in file("."))
              skel_notify,
              skel_tag, 
              skel_telemetry)
-  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, flow, dsl, scrap, cli, db_cli, 
+  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, dsl, scrap, cli, db_cli, 
              ingest_flow,
              ingest_elastic,
              ingest_dynamo,
@@ -499,7 +499,6 @@ lazy val flow = (project in file("skel-flow"))
         libUpickleLib,
       )
     )
-
 
 lazy val scrap = (project in file("skel-scrap"))
   .dependsOn(core,cron,flow)
@@ -839,3 +838,15 @@ lazy val skel_telemetry = (project in file("skel-telemetry"))
       libAlpakkaDynamo
     ),    
   )
+
+lazy val skel_wf = (project in file("skel-wf"))
+  .dependsOn(core)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      name := "skel-wf",
+      libraryDependencies ++= libTest ++ Seq(
+        libOsLib,
+        libUpickleLib,
+      )
+    )

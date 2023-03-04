@@ -1,0 +1,51 @@
+package io.syspulse.skel.wf
+
+import scala.util.{Try,Success,Failure}
+
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+
+import java.time._
+import io.syspulse.skel.util.Util
+import io.syspulse.skel.wf.runtime.FlowingData
+
+class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
+  
+  "WorkflowSpec" should {
+
+    "create Workflow with 2 Logs" in {
+      implicit val we = new WorkflowEngine
+
+      val w1 = Workflow("wf-1",FlowingData.empty,
+        store = wfDir,
+        flow = Seq(
+          Flowlet("F-1","io.syspulse.skel.wf.exe.Log",in = Seq(In("in-0")), out = Seq(Out("out-0"))),
+          Flowlet("F-2","io.syspulse.skel.wf.exe.Log",in = Seq(In("in-0"))),
+        ),
+        links = Seq(
+          Link("link-1","F1","out-0","F2","in-0")
+        )
+      )
+      
+      info(s"w1 = ${w1}")      
+      val s1 = w1.spawn()
+      info(s"s1 = ${s1}")
+      
+      val s2 = we.spawn(w1)
+      info(s"s2 = ${s2}")
+
+      s1 should !== (s2)
+    }
+
+    // "run Workflowing with 5 errors and 3 retries as Failure" in {
+    //   val p = new Workflowing[String]("Workflowing-1",
+    //     stages = List(
+    //       new StageError(5)
+    //     )
+    //   )
+    //   val f1 = p.run("started")
+    //   f1.data should === ("error: 4")
+    // }
+    
+  }
+}
