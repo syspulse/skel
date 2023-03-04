@@ -28,9 +28,10 @@ object App  {
         ArgCmd("scala","Scala ScriptEngine script"),
         ArgCmd("scala-interpreter","Scala interpreter script"),
         ArgCmd("scala-toolbox","Scala Toolbox script"),
-        ArgParam("<params>","")
+        ArgParam("<params>",""),
+        ArgLogging()
       ).withExit(1)
-    ))
+    )).withLogging()
 
     val config = Config(
       cmd = c.getCmd().getOrElse(d.cmd),

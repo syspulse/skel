@@ -81,9 +81,10 @@ object App extends skel.Server {
         ArgCmd("client","Http Client"),        
         ArgCmd("command","Commands list (start,email,continue,eid)"),
 
-        ArgParam("<params>","")
+        ArgParam("<params>",""),
+        ArgLogging()
       ).withExit(1)
-    ))
+    )).withLogging()
 
     implicit val config = Config(
       host = c.getString("http.host").getOrElse(d.host),

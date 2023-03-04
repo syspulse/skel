@@ -67,9 +67,10 @@ object App extends skel.Server {
         ArgCmd("ingest","Ingest Command"),
         ArgCmd("search","Multi-Search pattern"),
 
-        ArgParam("<params>","")
+        ArgParam("<params>",""),
+        ArgLogging()
       ).withExit(1)
-    ))
+    )).withLogging()
 
     val config = Config(
       host = c.getString("http.host").getOrElse(d.host),

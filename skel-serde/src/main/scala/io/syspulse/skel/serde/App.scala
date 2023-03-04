@@ -37,9 +37,10 @@ object App extends skel.Server {
         ArgCmd("server",s"Server"),
         ArgCmd("parq",s"Parquet utils"),
                 
-        ArgParam("<params>","")
+        ArgParam("<params>",""),
+        ArgLogging()
       ).withExit(1)
-    ))
+    )).withLogging()
 
     val config = Config(
       host = c.getString("http.host").getOrElse(d.host),

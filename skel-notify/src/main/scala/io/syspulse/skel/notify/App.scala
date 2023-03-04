@@ -73,9 +73,10 @@ object App extends skel.Server {
         ArgCmd("client",s"Command"),
         ArgCmd("notify",s"Run notification to Receivers (smtp://to, stdout://, sns://arn, ws://topic, tel://, kafka://, http://)"),
         ArgCmd("server+notify",s"Server + Notify"),
-        ArgParam("<params>","")
+        ArgParam("<params>",""),
+        ArgLogging()
       ).withExit(1)
-    ))
+    )).withLogging()
 
     implicit val config = Config(
       host = c.getString("http.host").getOrElse(d.host),

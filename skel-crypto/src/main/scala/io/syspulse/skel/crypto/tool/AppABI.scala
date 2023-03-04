@@ -48,9 +48,10 @@ object AppABI extends {
         ArgCmd("sig","Calculate signature pattern (ex: 'totalSupply()'')"),
         ArgCmd("watch","Watch store changes (testing AbiStorDir)"),
         
-        ArgParam("<params>","...")
-      )
-    ))
+        ArgParam("<params>","..."),
+        ArgLogging()
+      ).withExit(1)
+    )).withLogging()
     
     val config = Config(
       abiStore = c.getString("store.abi").getOrElse(d.abiStore),

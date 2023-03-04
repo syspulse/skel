@@ -35,9 +35,10 @@ object App  {
 
         // ArgCmd("server","Command"),
         ArgCmd("cron","Command"),
-        ArgParam("<params>","")
+        ArgParam("<params>",""),
+        ArgLogging()
       ).withExit(1)
-    ))
+    )).withLogging()
 
     val config = Config(
       // host = c.getString("http.host").getOrElse(d.host),
