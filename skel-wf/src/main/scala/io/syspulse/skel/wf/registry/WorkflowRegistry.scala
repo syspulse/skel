@@ -11,12 +11,12 @@ import io.syspulse.skel.wf.runtime._
 class WorkflowRegistry(default:Seq[Exec]) {
   val log = Logger(s"${this}")
 
-  val flowlets:Map[Exec.ID,Exec] = default.map(f => f.typ -> f).toMap  
+  val execs:Map[Exec.ID,Exec] = default.map(f => f.typ -> f).toMap  
   
-  log.info(s"flowlets: ${flowlets}")
+  log.info(s"execs: ${execs}")
 
   def resolve(name:String): Option[Exec] = {
-    flowlets.get(name)
+    execs.get(name)
   }
 
 }

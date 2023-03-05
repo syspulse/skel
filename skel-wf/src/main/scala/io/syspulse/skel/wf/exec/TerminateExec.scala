@@ -7,10 +7,10 @@ import scala.util.{Try,Success,Failure}
 import io.syspulse.skel.wf.runtime._
 import io.syspulse.skel.wf._
 
-class LogExec(wid:Workflowing.ID,name:String) extends Executing(wid,name) {
+class TerminateExec(wid:Workflowing.ID,name:String) extends Executing(wid,name) {
 
   def exec(data:ExecData):Try[ExecData] = {
-    log.info(s"data=${data}")
-    Success(data)
+    log.warn(s"terminating=${data}")
+    Failure(new Exception(s"Terminated"))
   }
 }

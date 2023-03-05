@@ -36,10 +36,4 @@ case class Exec(name:String,typ:String,in:Seq[In] = Seq(),out:Seq[Out] = Seq()) 
   def getId = id
   def getName = name
 
-  // def spawn(wid:Workflowing.ID):Try[Status] = {    
-  //   val f = new Flowing(wid,name)
-  //   log.info(s"wid=${wid}: ${f}")
-  //   Success(f.status)
-  // }
-
 }

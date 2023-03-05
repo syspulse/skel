@@ -16,12 +16,6 @@ case class Workflow(
   
   def getAttributes = attributes
   def getStore = store
-
-  def spawn():Try[Workflowing] = {
-    val wid = Workflowing.id(this)
-    val w = new Workflowing(wid,this,engine.getStoreRuntime())
-    Success(w)
-  }
 }
 
 object Workflow {

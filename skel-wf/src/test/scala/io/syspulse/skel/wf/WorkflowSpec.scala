@@ -20,21 +20,21 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
         store = wfDir,
         flow = Seq(
           Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0"))),
-          Exec("F-2","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0"))),
+          Exec("F-2","io.syspulse.skel.wf.exec.ProcessExec",in = Seq(In("in-0")), out = Seq(Out("out-0"),Out("err-0"))),
+          Exec("F-3","io.syspulse.skel.wf.exec.TerminateExec",in = Seq(In("in-0")),out = Seq(Out("err-0"))),
         ),
         links = Seq(
-          Link("link-1","F1","out-0","F2","in-0")
+          Link("link-1","F-1","out-0","F-2","in-0"),
+          Link("link-2","F-2","out-0","F-3","in-0")
         )
       )
       
       info(s"w1 = ${w1}")      
-      val s1 = w1.spawn()
-      info(s"s1 = ${s1}")
       
       val s2 = we.spawn(w1)
       info(s"s2 = ${s2}")
 
-      s1 should !== (s2)
+      // s1 should !== (s2)
     }
 
     // "run Workflowing with 5 errors and 3 retries as Failure" in {

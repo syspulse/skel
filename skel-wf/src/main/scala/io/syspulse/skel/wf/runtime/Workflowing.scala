@@ -33,7 +33,9 @@ object Workflowing {
 }
 
 class Workflowing(id:Workflowing.ID,wf:Workflow,stateStore:String)(implicit engine:WorkflowEngine) {
-  val log = Logger(s"${this}-${id}")
+  val log = Logger(s"${id}")
+
+  override def toString() = s"Workflowing(${id})"
 
   var data:ExecData = wf.attributes
   val stateLoc = s"${stateStore}/${id.toString}"
@@ -43,7 +45,7 @@ class Workflowing(id:Workflowing.ID,wf:Workflow,stateStore:String)(implicit engi
 
   log.info(s"state=${stateLoc}: wf=${wf}: data=${data}")
 
-  def start(data0:ExecData):Seq[Try[Status]] = {
+  def start(data0:ExecData):Seq[Try[Executing]] = {
     
     val rr = wf.flow.map( f => {
       log.info(s"starting: ${f}")
@@ -53,31 +55,4 @@ class Workflowing(id:Workflowing.ID,wf:Workflow,stateStore:String)(implicit engi
     })    
     rr
   }
-
-  // protected def exec(flow0:Flow[F]):Flow[F] = {
-  //   var flow = flow0
-  //   stages.foreach( st => {
-  //     log.info(s"${name}: executing Stage: ${st}")
-
-  //     val stageLocation = resolveStageLocation(flow.id,st,"")
-  //     flow.location = stageLocation
-
-  //     var err:Boolean = false
-  //     do {
-  //       err = try {
-  //         flow = st.exec(flow)
-  //         false
-  //       }catch {
-  //         case e:Throwable => {
-  //           val errorPolicy = st.getErrorPolicy
-  //           log.error(s"${name}: Stage ${st}: failed: errorPolicy=${errorPolicy}: err=",e)
-            
-  //           errorPolicy.repeat
-  //         }
-  //       }
-  //     } while(err)
-  //   })
-
-  //   flow
-  // }
 }

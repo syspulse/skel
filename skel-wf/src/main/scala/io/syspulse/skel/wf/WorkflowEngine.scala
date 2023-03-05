@@ -5,8 +5,33 @@ import com.typesafe.scalalogging.Logger
 import io.jvm.uuid._
 import scala.util.{Try,Success,Failure}
 
+import akka.actor.typed.ActorRef
+import akka.actor.typed.Behavior
+import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.ActorSystem
+import akka.actor.typed.SupervisorStrategy
+
 import io.syspulse.skel.wf.runtime._
 import io.syspulse.skel.wf.registy.WorkflowRegistry
+
+
+trait WorkflowCommand
+
+object WorkflowEngine {
+
+  val rootBehavior = { 
+    Behaviors.supervise[WorkflowCommand] { 
+      workflow()
+  }}.onFailure[Exception](SupervisorStrategy.resume)
+
+  def workflow(): Behavior[WorkflowCommand] = {
+    Behaviors.receiveMessage {
+      case _ => Behaviors.same
+    }
+  }
+
+  val as = ActorSystem[WorkflowCommand](rootBehavior, "WorfklowEngine")
+}
 
 class WorkflowEngine(store:String = "dir:///tmp/skel-wf") {
   val log = Logger(s"${this}")
@@ -15,7 +40,9 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf") {
   val storeRuntime = s"${store}/runtime"
 
   val registry = new WorkflowRegistry(Seq(
-    Exec("Log","io.syspulse.skel.wf.exec.LogExec")
+    Exec("Log","io.syspulse.skel.wf.exec.LogExec"),
+    Exec("Process","io.syspulse.skel.wf.exec.ProcessExec"),
+    Exec("Terminate","io.syspulse.skel.wf.exec.TerminateExec")
   ))
 
   // create stores
@@ -28,39 +55,65 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf") {
   def spawn(wf:Workflow):Try[Workflowing] = {
     val wid = Workflowing.id(wf)
     val w = new Workflowing(wid,wf,getStoreRuntime())(this)
-    
-    val ss = wf.flow.map(f => {
-      val status = spawn(f,wid)
-      status
+
+    // temporary map for Linking    
+    var mesh: Map[Exec.ID,Executing] = Map()
+
+    val ee = wf.flow.map(f => {
+      spawn(f,wid)      
     })
 
-    val ssError = ss.filter{ s => s match {
+    val errors = ee.filter{ s => s match {
       case Failure(e) => 
-        log.error(s"${w}: ${ss}: ${e}")
+        log.error(s"${w}: ${ee}: ${e}")
         true
-      case _ => log.info(s"${w}: ${ss}")
+      case Success(e) => 
+        log.info(s"${w}: ${ee}")
+        mesh = mesh + (e.getExecId -> e)
         false
-    }}    
+    }}
     
-    if(ssError.size > 0)
-      Failure(ssError.head.failed.get)
-    else
-      Success(w)
+    if(errors.size > 0)
+      return Failure(errors.head.failed.get)
+
+    log.info(s"mesh=${mesh}")
+    log.info(s"links=${wf.links}")
+
+    // initialize Link vectors
+    wf.links.map( link => {
+      val from = mesh.get(link.from)
+      val to = mesh.get(link.to)
+      
+      if(! from.isDefined || ! to.isDefined) {
+        log.error(s"could not find links: from=${link.from}, to=${link.to}")
+        return Failure(new Exception(s"could not find links: from=${link.from}, to=${link.to}"))
+      } 
+      
+      val linking = Linking( wid,
+        from = LinkAddr( from.get , link.out),
+        to = LinkAddr( to.get , link.in)
+      )
+
+      log.info(s"${w}: linking=${linking}")      
+    })
+
+    Success(w)
   }
 
-  def spawn(f:Exec,wid:Workflowing.ID):Try[Status] = {
+  def spawn(f:Exec,wid:Workflowing.ID):Try[Executing] = {
     log.info(s"spawn: ${f}: wid=${wid}")
     for {
-      flowlet <- registry.resolve(f.typ) match {
+      exec <- registry.resolve(f.typ) match {
         case Some(t) => Success(t)
-        case None => Failure(new Exception(s"not resolved: ${f.typ}"))
+        case None => 
+          Failure(new Exception(s"not resolved: ${f.typ}"))
       }
-      flowing <- try {
+      executing <- try {
         
-        log.info(s"spawning: class=${flowlet.typ}")
-        val cz = Class.forName(flowlet.typ)
+        log.info(s"spawning: class=${exec.typ}")
+        val cz = Class.forName(exec.typ)
 
-        val args = Array(wid,flowlet.name)
+        val args = Array(wid,f.name)
         val argsStr = args.map(_.getClass).toSeq.toString
         cz.getConstructors().find { c => 
           val ctorStr = c.getParameters().map(_.getParameterizedType).toSeq.toString
@@ -72,7 +125,8 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf") {
             val instance = ctor.newInstance(args:_*)
             log.info(s"'${f.typ}' => ${instance}")
             val e = instance.asInstanceOf[Executing]
-            Success(e.status)
+            Success(e)
+            
           case None => 
             Failure(new Exception(s"constructor not resolved: ${f.typ}: ${cz}"))
         }        
@@ -80,7 +134,7 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf") {
       } catch {
         case e:Exception => Failure(e)
       }
-    } yield flowing
+    } yield executing
   }
 
 }
