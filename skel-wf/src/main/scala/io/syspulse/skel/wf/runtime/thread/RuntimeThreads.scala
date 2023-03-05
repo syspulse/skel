@@ -21,7 +21,7 @@ class RunningThread(link:Linking) extends Running {
       log.info(s"queue=${queue}: link=${link}: running...")
       while( !terminated ) {
         val e = queue.take
-        link.!(e)
+        link.output(e)
       }
       log.info(s"queue=${queue}: link=${link}: stop")
     }

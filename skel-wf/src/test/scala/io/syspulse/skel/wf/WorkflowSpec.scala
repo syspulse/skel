@@ -39,7 +39,11 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
 
       Thread.sleep(100L)
 
-      //wf.emit("F1")
+      // val r1 = wf1.get.emit("F-1","in-0",ExecDataEvent(ExecData(Map("k1"->"v1"))))
+      // info(s"r1 = ${r1}")
+
+      val r2 = wf1.get.emit("F-1","in-0",ExecDataEvent(ExecData(Map("script"->"{SCRIPT_CODE}"))))
+      info(s"r2 = ${r2}")
 
       // s1 should !== (s2)
     }

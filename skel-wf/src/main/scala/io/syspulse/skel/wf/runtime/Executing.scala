@@ -21,24 +21,12 @@ class Executing(wid:Workflowing.ID,name:String) {
   
   @volatile
   var status:Status = Status.CREATED()
-  // var inputs:Map[String,ActorRef[ExecEvent]] = Map()
-  // var outputs:Map[String,Option[ActorRef[ExecEvent]]] = Map()
+
   var inputs:Map[String,Linking] = Map()
   var outputs:Map[String,Linking] = Map()
 
-  def output(let:String,cmd:ExecEvent):Try[Executing] = {
-    outputs.get(let) match {
-      // case Some(a) if a.isDefined => 
-      //   a.get ! cmd
-      //   Success(this)
-       case Some(a)  =>
-        a ! cmd
-        //log.warn(s"no output: ${let}: ${outputs}: ignored")
-        Success(this)
-      case None => 
-        Failure(new Exception(s"output not found: ${let}"))
-    }
-  }
+  //override def toString = s"${this.getClass.getName()}(${name},${getStatus},${getInputs},${getOutpus})"
+  override def toString = this.getClass.getName()+":"+name+":"+getStatus+":"+getInputs+":"+getOutpus
 
   // this constructor and init are need for dynamic class instantiation of Executing Executors
   def this() = {
@@ -50,10 +38,12 @@ class Executing(wid:Workflowing.ID,name:String) {
            in:Seq[Linking],out:Seq[Linking]):Unit = {
     status match {
       case Status.CREATED() => 
-        id = Executing.ID(wid,name)
-        status = Status.INITIALIZED()
-        inputs = in.map(link => link.from.let -> link).toMap
-        outputs = out.map(link => link.to.let -> link).toMap
+        
+        id = Executing.ID(wid,name)        
+        inputs = inputs ++ in.map(link => link.from.let -> link).toMap
+        outputs = outputs ++ out.map(link => link.to.let -> link).toMap
+        status = Status.INITIALIZED()        
+
       case Status.INITIALIZED() => 
         log.warn(s"already: ${status}")
       case _ => 
@@ -68,7 +58,20 @@ class Executing(wid:Workflowing.ID,name:String) {
   def getId = getRuntimeId
   def getRuntimeId = id
   def getName = name
+  def getStatus = status
+  def getInputs = inputs.keys
+  def getOutpus = outputs.keys
   //def getErrorPolicy = errorPolicy
+
+  def addIn(link:Linking):Executing = {
+    inputs = inputs + (link.from.let -> link)
+    this
+  }
+
+  def addOut(link:Linking):Executing = {
+    outputs = outputs + (link.to.let -> link)
+    this
+  }
 
   def start(data:ExecData):Try[Status] = {
     log.info(s"start: ${data}")
@@ -80,7 +83,45 @@ class Executing(wid:Workflowing.ID,name:String) {
     Success(Status.STOPPED())
   }
 
-  def onEvent(e:ExecEvent):Try[ExecEvent] = {
-    Success(e)
+  def broadcast(data:ExecData) = {
+    log.info(s"${data}: Broadcast ------------------->>>>> [${outputs.values}]")
+    outputs.values.map( linking => {
+      linking.input(ExecDataEvent(data))
+    })
+  }
+
+  def output(out:String,cmd:ExecEvent):Try[Executing] = {
+    outputs.get(out) match {
+      // case Some(a) if a.isDefined => 
+      //   a.get ! cmd
+      //   Success(this)
+       case Some(linking)  =>
+        linking.input(cmd)
+        //log.warn(s"no output: ${let}: ${outputs}: ignored")
+        Success(this)
+      case None => 
+        Failure(new Exception(s"output not found: ${out}"))
+    }
+  }
+
+  def send(out:Let.ID,data:ExecData) = {
+    outputs.get(out).map( linking => {
+      linking.input(ExecDataEvent(data))
+    })
+  }
+
+  def exec(in:Let.ID,data:ExecData):Try[ExecData] = {
+    // broadcast to all output
+    broadcast(data)
+    Success(data)
+  }
+
+  def onEvent(in:Let.ID,e:ExecEvent):Try[ExecEvent] = {
+    log.info(s": ${e} -> [${in}]-${this}")
+    e match {
+      case ExecDataEvent(d) => 
+        val r = exec(in,d).map(d => ExecDataEvent(d))
+        r
+    }
   }
 }

@@ -88,20 +88,31 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf",runtime:Runtime) {
         return Failure(new Exception(s"could not find links: from=${link.from}, to=${link.to}"))
       } 
       
-      val linking = Linking( wid,
+      val linking = Linking( 
         from = LinkAddr( from.get , link.out),
         to = LinkAddr( to.get , link.in)
       )
       
-      log.info(s"${wf}: linking=${linking}")  
+      log.info(s"${wf}: linking=${linking}")
+
+      from.get.addOut(linking)
+      to.get.addIn(linking)
+
       linking
     })
 
+    // create Runtime
     val llr = ll.map(linking => {
       val linkingRun = runtime.spawn(linking)
+      linking.bind(linkingRun)
       log.info(s"${wf}: linking=${linking}: runtime=${linkingRun}")
       linkingRun
     })
+
+    // init 
+    ee.flatMap(_.toOption).map( e =>
+      e.init(wid,e.getName,Seq(),Seq()) 
+    )
 
     val w = new Workflowing(wid,wf,getStoreRuntime(),mesh,ll,llr)(this)
     Success(w)

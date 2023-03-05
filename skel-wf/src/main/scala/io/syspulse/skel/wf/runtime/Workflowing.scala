@@ -46,15 +46,23 @@ class Workflowing(id:Workflowing.ID,wf:Workflow,stateStore:String,mesh:Map[Exec.
   def getLinks = links
   def getRunning = running
 
-  // def start(data0:ExecData):Seq[Try[Executing]] = {
-    
-  //   val rr = wf.flow.map( f => {
-  //     log.info(s"starting: ${f}")
-  //     val r = engine.spawn(f,id)
-  //     log.info(s"${f}: ${r}")
-  //     r
-  //   })    
-  //   rr
-  // }
+  def emit(execName:String,input:Let.ID,event:ExecEvent):Try[Workflowing] = {
+    mesh.get(execName) match {
+      case Some(e) => 
+        val in = e.inputs.get(input)
 
+        in match {          
+          case Some(linking) => 
+            val r =  linking.input(event)
+            Success(this)
+
+          case None =>
+            // link is not found, so emit synchronously into input directly
+            e.onEvent(input,event).map(_ => this)
+            //Failure(new Exception(s"not found: ${execName}:${input}"))
+        }        
+      case None => 
+        Failure(new Exception(s"not found: ${execName}"))
+    }
+  }
 }

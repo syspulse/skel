@@ -20,9 +20,29 @@ sealed case class ExecCmdStop() extends ExecEvent
 
 case class LinkAddr(exec:Executing,let:String)
 
-case class Linking(wid:Workflowing.ID,from:LinkAddr,to:LinkAddr) {
+case class Linking(from:LinkAddr,to:LinkAddr) {
+  val log = Logger(s"${this}")
 
-  def !(e: ExecEvent) = to.exec.onEvent(e)
+  var running:Option[Running] = None
+  
+  def bind(running:Running) = {
+    this.running = Some(running)
+  }
+
+  def input(e: ExecEvent) = {
+    log.info(s"${e} >>> Running(${running})")
+    running match {
+      case Some(r) => r.!(e)
+      case None => 
+        log.warn(s"not bound Running: ${running}: ${e}")
+    }
+    
+  }
+
+  def output(e: ExecEvent) = {
+    log.info(s"${e} ---> Running(${running}) -> ${to.exec}")
+    to.exec.onEvent(to.let,e)    
+  }
 }
 
 
