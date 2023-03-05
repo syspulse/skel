@@ -33,7 +33,7 @@ object WorkflowEngine {
   val as = ActorSystem[WorkflowCommand](rootBehavior, "WorfklowEngine")
 }
 
-class WorkflowEngine(store:String = "dir:///tmp/skel-wf") {
+class WorkflowEngine(store:String = "dir:///tmp/skel-wf",runtime:Runtime) {
   val log = Logger(s"${this}")
 
   val storeWorkflow = s"${store}/workflow"  
@@ -54,8 +54,7 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf") {
 
   def spawn(wf:Workflow):Try[Workflowing] = {
     val wid = Workflowing.id(wf)
-    val w = new Workflowing(wid,wf,getStoreRuntime())(this)
-
+    
     // temporary map for Linking    
     var mesh: Map[Exec.ID,Executing] = Map()
 
@@ -65,10 +64,10 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf") {
 
     val errors = ee.filter{ s => s match {
       case Failure(e) => 
-        log.error(s"${w}: ${ee}: ${e}")
+        log.error(s"${wf}: ${ee}: ${e}")
         true
       case Success(e) => 
-        log.info(s"${w}: ${ee}")
+        log.info(s"${wf}: ${ee}")
         mesh = mesh + (e.getExecId -> e)
         false
     }}
@@ -80,7 +79,7 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf") {
     log.info(s"links=${wf.links}")
 
     // initialize Link vectors
-    wf.links.map( link => {
+    val ll = wf.links.map( link => {
       val from = mesh.get(link.from)
       val to = mesh.get(link.to)
       
@@ -93,10 +92,18 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf") {
         from = LinkAddr( from.get , link.out),
         to = LinkAddr( to.get , link.in)
       )
-
-      log.info(s"${w}: linking=${linking}")      
+      
+      log.info(s"${wf}: linking=${linking}")  
+      linking
     })
 
+    val llr = ll.map(linking => {
+      val linkingRun = runtime.spawn(linking)
+      log.info(s"${wf}: linking=${linking}: runtime=${linkingRun}")
+      linkingRun
+    })
+
+    val w = new Workflowing(wid,wf,getStoreRuntime(),mesh,ll,llr)(this)
     Success(w)
   }
 
@@ -135,6 +142,14 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf") {
         case e:Exception => Failure(e)
       }
     } yield executing
+  }
+
+  def start(wf:Workflowing):Try[Workflowing] = {
+    log.info(s"start: ${wf}")
+
+    wf.getRunning.map( r => r.start())
+
+    Success(wf)
   }
 
 }

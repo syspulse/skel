@@ -8,13 +8,14 @@ import org.scalatest.wordspec.AnyWordSpec
 import java.time._
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.wf.runtime._
+import io.syspulse.skel.wf.runtime.thread._
 
 class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
   
   "WorkflowSpec" should {
 
     "create Workflow with 2 Logs" in {
-      implicit val we = new WorkflowEngine
+      implicit val we = new WorkflowEngine(runtime = new RuntimeThreads())
 
       val w1 = Workflow("wf-1",ExecData.empty,
         store = wfDir,
@@ -31,8 +32,14 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       
       info(s"w1 = ${w1}")      
       
-      val s2 = we.spawn(w1)
-      info(s"s2 = ${s2}")
+      val wf1 = we.spawn(w1)
+      info(s"wf = ${wf1}")
+
+      we.start(wf1.get)
+
+      Thread.sleep(100L)
+
+      //wf.emit("F1")
 
       // s1 should !== (s2)
     }

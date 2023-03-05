@@ -16,33 +16,29 @@ trait ExecEvent
 sealed case class ExecDataEvent(data:ExecData) extends ExecEvent
 sealed case class ExecCmdEvent(cmd:String,replyTo: ActorRef[ExecEvent]) extends ExecEvent
 sealed case class ExecCmdStart(replyTo:ActorRef[ExecEvent]) extends ExecEvent
+sealed case class ExecCmdStop() extends ExecEvent
 
 case class LinkAddr(exec:Executing,let:String)
 
 case class Linking(wid:Workflowing.ID,from:LinkAddr,to:LinkAddr) {
 
-  @volatile
-  var actor:Option[ActorRef[ExecEvent]] = None
-  
-  def init(actor:Option[ActorRef[ExecEvent]]) = this.actor = actor
-
-  def !(e: ExecEvent) = actor.map(_ ! e)
+  def !(e: ExecEvent) = to.exec.onEvent(e)
 }
 
 
-object Linking {
-  val log = Logger(s"${this}")
+// object Linking {
+//   val log = Logger(s"${this}")
 
-  def actor(link:Linking): Behavior[ExecEvent] = {
-    Behaviors.receiveMessage {
-      case ExecCmdEvent(cmd,replyTo) =>
-        log.info(s"cmd=${cmd}")
-        Behaviors.same
-      case ExecDataEvent(data) =>
-        log.info(s"data=${data}")
-        link.to.exec.onEvent(data)
-        Behaviors.same
-    }
-  }
-}
+//   def actor(link:Linking): Behavior[ExecEvent] = {
+//     Behaviors.receiveMessage { 
+//       case ExecCmdEvent(cmd,replyTo) =>
+//         log.info(s"cmd=${cmd}")
+//         Behaviors.same
+//       case event @ ExecDataEvent(data) =>
+//         log.info(s"data=${data}")
+//         link.!(event)
+//         Behaviors.same
+//     }
+//   }
+// }
 

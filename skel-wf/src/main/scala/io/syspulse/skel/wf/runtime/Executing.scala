@@ -71,17 +71,16 @@ class Executing(wid:Workflowing.ID,name:String) {
   //def getErrorPolicy = errorPolicy
 
   def start(data:ExecData):Try[Status] = {
-    log.info(s"data=${data}")
+    log.info(s"start: ${data}")
     Success(Status.STARTED())
   }
 
   def stop():Try[Status] = {
-    Success(
-      Status.STOPPED()
-    )
+    log.info(s"stop")
+    Success(Status.STOPPED())
   }
 
-  def onEvent(data:ExecData):Try[ExecData] = {
-    Success(data)
+  def onEvent(e:ExecEvent):Try[ExecEvent] = {
+    Success(e)
   }
 }

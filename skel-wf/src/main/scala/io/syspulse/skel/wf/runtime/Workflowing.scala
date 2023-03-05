@@ -18,10 +18,6 @@ import upickle.default._
 
 import io.syspulse.skel.wf._
 
-// Pipeline(Name):    Stage     ->     Stage     ->     Stage
-// Flow(id=1):         [FlowData] ->    FlowData[]
-// Flow(id=2):         [FlowData] ->    FlowData[]
-
 object Workflowing {
   case class ID(wid:Workflow.ID,ts:Long) {
     override def toString = s"${wid}-${ts}"
@@ -32,10 +28,10 @@ object Workflowing {
   def id():ID = id("",0L)
 }
 
-class Workflowing(id:Workflowing.ID,wf:Workflow,stateStore:String)(implicit engine:WorkflowEngine) {
+class Workflowing(id:Workflowing.ID,wf:Workflow,stateStore:String,mesh:Map[Exec.ID,Executing],links:Seq[Linking],running:Seq[Running])(implicit engine:WorkflowEngine) {
   val log = Logger(s"${id}")
 
-  override def toString() = s"Workflowing(${id})"
+  override def toString() = s"Workflowing(${id})[${mesh},${links}]"
 
   var data:ExecData = wf.attributes
   val stateLoc = s"${stateStore}/${id.toString}"
@@ -45,14 +41,20 @@ class Workflowing(id:Workflowing.ID,wf:Workflow,stateStore:String)(implicit engi
 
   log.info(s"state=${stateLoc}: wf=${wf}: data=${data}")
 
-  def start(data0:ExecData):Seq[Try[Executing]] = {
+  def getMesh = mesh
+  def getExecs = mesh.values
+  def getLinks = links
+  def getRunning = running
+
+  // def start(data0:ExecData):Seq[Try[Executing]] = {
     
-    val rr = wf.flow.map( f => {
-      log.info(s"starting: ${f}")
-      val r = engine.spawn(f,id)
-      log.info(s"${f}: ${r}")
-      r
-    })    
-    rr
-  }
+  //   val rr = wf.flow.map( f => {
+  //     log.info(s"starting: ${f}")
+  //     val r = engine.spawn(f,id)
+  //     log.info(s"${f}: ${r}")
+  //     r
+  //   })    
+  //   rr
+  // }
+
 }
