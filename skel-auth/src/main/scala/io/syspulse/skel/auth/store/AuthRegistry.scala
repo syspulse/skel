@@ -113,11 +113,11 @@ object AuthRegistry {
                         Failure(new Exception(s"refresh token invalid: ${rt}"))
                       } else {
                         val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid2.toString)) 
-                        store.!(auid, accessToken,refreshToken)
+                        store.!(auid, accessToken,refreshToken,None)
                       }
                     case (_,_,Some(uid2)) => 
                       val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid2.toString)) 
-                      store.!(auid, accessToken,refreshToken)
+                      store.!(auid, accessToken,refreshToken,None)
                     
                     case _ =>
                       log.error(s"missing identity: ${uid2}")

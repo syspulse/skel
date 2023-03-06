@@ -138,8 +138,8 @@ object App extends skel.Server {
     val authStore = config.datastore.split("://").toList match {
       //case "mysql" | "db" => new AuthStoreDB(c,"mysql")
       //case "postgres" => new AuthStoreDB(c,"postgres")
-      // case "dir" :: Nil => new AuthStoreDir()
-      // case "dir" :: dir :: Nil => new AuthStoreDir(dir)
+      case "dir" :: Nil => new AuthStoreDir()
+      case "dir" :: dir :: Nil => new AuthStoreDir(dir)
       case "mem" :: _ | "cache" :: _ => new AuthStoreMem
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}'")
