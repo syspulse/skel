@@ -72,15 +72,15 @@ object Flows {
 
   // NOTE: https://github.com/akka/akka-http/issues/4128
   // WARNING: Nobody understands how akka http works except Lightbend          
-  def retryDeterministicSettings(as:ActorSystem) = ConnectionPoolSettings(as)
+  def retry_1_deterministic(as:ActorSystem,timeout:FiniteDuration) = ConnectionPoolSettings(as)
                           .withBaseConnectionBackoff(FiniteDuration(1000,TimeUnit.MILLISECONDS))
                           .withMaxConnectionBackoff(FiniteDuration(1000,TimeUnit.MILLISECONDS))
                           .withMaxConnections(1)
                           .withMaxRetries(1)
                           // .withMaxOpenRequests(1)
                           .withConnectionSettings(ClientConnectionSettings(as)
-                            .withIdleTimeout(retrySettingsDefault.minBackoff)
-                            .withConnectingTimeout(retrySettingsDefault.minBackoff))
+                            .withIdleTimeout(timeout)
+                            .withConnectingTimeout(timeout))
 
   def fromSourceRestart(s:Source[ByteString, _],retry:RestartSettings = retrySettingsDefault) = RestartSource.onFailuresWithBackoff(retry) { () =>
     log.info(s"Restarting -> Source(${s})...")
@@ -134,9 +134,9 @@ object Flows {
   def toNull = Sink.ignore
   def fromNull = Source.future(Future({Thread.sleep(Long.MaxValue);ByteString("")})) //Source.never
 
-  def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem) = 
+  def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem,timeout:FiniteDuration) = 
     Http()
-    .singleRequest(req, settings = retryDeterministicSettings(as))
+    .singleRequest(req, settings = retry_1_deterministic(as,timeout))
     .flatMap(res => { 
       res.status match {
         case StatusCodes.OK => 
@@ -151,7 +151,7 @@ object Flows {
       }      
     })
       
-  def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = {
+  def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem,timeout:FiniteDuration) = {
     //val s = Source.future(fromHttpFuture(req))
     val s = RestartSource.onFailuresWithBackoff(retrySettingsDefault) { () =>
       Source.futureSource {
@@ -165,11 +165,11 @@ object Flows {
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))    
   }
 
-  def fromHttpRestartable(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = {
+  def fromHttpRestartable(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem,timeout:FiniteDuration) = {
     fromHttp(req,frameDelimiter,frameSize)
   }
 
-  def fromHttpList(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem) = {
+  def fromHttpList(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem,timeout:FiniteDuration) = {
     // Http().singleRequest does not respect mapAsync for parallelization !!!
     val s = 
       Source(reqs)
@@ -185,7 +185,7 @@ object Flows {
     s
   }
 
-  def fromHttpListAsFlow(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem) = {
+  def fromHttpListAsFlow(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem,timeout:FiniteDuration) = {
     val f1 = Flow[String]
       .throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))
       .mapConcat(tick => {        
