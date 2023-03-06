@@ -19,5 +19,7 @@ object CredJson extends JsonCommon  {
   
   implicit val jf_CreateReq = jsonFormat3(CredCreateReq)
   implicit val jf_CreateRsp = jsonFormat1(CredCreateRes)
-  implicit val jf_ar = jsonFormat2(CredActionRes)
+  implicit val jf_CredARes = jsonFormat2(CredActionRes)
+
+  implicit val jf_CredToken = jsonFormat2(CredTokenReq)
 }

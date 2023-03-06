@@ -4,6 +4,9 @@ import java.time.LocalDateTime
 
 import io.jvm.uuid._
 
+import scala.concurrent.duration._
+import java.util.concurrent.TimeUnit
+
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.{ StatusCodes, HttpEntity, ContentTypes}
 import akka.http.scaladsl.server.Route
@@ -541,7 +544,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                     log.warn(s"code=${code}: user=${user}: not found")
                     //complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
                                 
-                    // non-esisting user
+                    // non-existing user
                     val uid = Permissions.USER_NOBODY.toString
                     // issue token for nobody with a scope to start enrollment 
                     val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid, "role" -> Permissions.ROLE_NOBODY, "scope" -> "enrollment"))
@@ -574,7 +577,7 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
                     // generate IDP tokens 
                     val idToken = AuthJwt.generateIdToken(rsp.get.xid.getOrElse(""),Map("email"->email,"name"->name,"avatar"->avatar)) 
                     val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
-                    val refreshToken = AuthJwt.generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = 3600L * 10) 
+                    val refreshToken = AuthJwt.generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = Auth.DEF_REFRESH_TOKEN_AGE) 
                     
                     log.info(s"code=${code}: rsp=${rsp.get}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
 
@@ -605,6 +608,69 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     }
   }
 
+  def generateCredTokens(uid:Option[UUID],clientId:String,clientSecret:String) = {
+    val client = getCred(clientId, uid)
+    onSuccess(client) { rspClient =>
+      rspClient match {
+        case Success(client) =>
+          
+          // this check is not really needed
+          if(clientId != client.cid ) {
+
+            log.error(s"invalid client_id: ${clientId}")
+            complete(StatusCodes.Unauthorized,"invalid client_id")
+          } else if(client.secret != clientSecret) {
+
+            log.error(s"invalid client_secret: ${clientSecret}")
+            complete(StatusCodes.Unauthorized,"invalid client_secret")
+          } else {
+            
+            // request uid from UserService
+            val jwtRoleService = if(config.jwtRoleService.isEmpty()) 
+              // generate temproary short living token
+              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString),expire = 60L)
+            else 
+              config.jwtRoleService 
+            
+            val uf = UserClientHttp(serviceUserUri).withAccessToken(jwtRoleService).withTimeout(Duration(1000, MILLISECONDS)).get(client.uid)
+
+            onSuccess(uf) { user =>
+              if( user.isFailure ) {                
+                log.error(s"clinet_id=${clientId}: uid=${client.uid}: not found")
+                complete(StatusCodes.Unauthorized,"invalid client_secret")
+              } else {
+
+                val uid = user.get.id
+                val email = user.get.email
+                val name = user.get.name
+                val avatar = user.get.avatar
+
+                // generate IDP tokens 
+                val idToken = AuthJwt.generateIdToken(uid.toString,Map("email"->email,"name"->name,"avatar"->avatar)) 
+                val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString, "typ" -> "m2m")) 
+                val refreshToken = AuthJwt.generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = Auth.DEF_REFRESH_TOKEN_AGE) 
+                
+                log.info(s"client_id=${clientId}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
+
+                complete(StatusCodes.OK,
+                  EthTokens(
+                      accessToken = accessToken, 
+                      idToken = idToken, 
+                      expiresIn = client.expire,
+                      scope = "api",
+                      tokenType = "m2m",
+                      refreshToken = refreshToken
+                ))
+              }
+            }
+          }
+        case Failure(e) => 
+          log.error(s"invalid client_id: ${e.getMessage()}")
+          complete(StatusCodes.Unauthorized,s"client_id: ${e.getMessage()}")
+      }
+    }
+  }
+
   @POST @Path("/eth/token") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("auth"),summary = "Web3 Authentication with code",
     method = "POST",
@@ -627,19 +693,6 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
     }
   }}
 
-  //@GET @Path("/eth/token") @Produces(Array(MediaType.APPLICATION_JSON))
-  // @GET @Path("/token/eth") @Produces(Array(MediaType.APPLICATION_JSON))
-  // @Operation(tags = Array("auth"),summary = "Web3 Authentication with code",
-  //   method = "GET",
-  //   parameters = Array(
-  //     new Parameter(name = "code", in = ParameterIn.PATH, description = "code"),
-  //     new Parameter(name = "state", in = ParameterIn.PATH, description = "state (optional)")
-  //   ),
-  //   responses = Array(new ApiResponse(responseCode="200",description = "Authenticated User ID",content=Array(new Content(schema=new Schema(implementation = classOf[AuthWithProfileRes])))))
-  // )
-  // def getTokenEth = get { parameters("code","state".optional) { (code,state) => 
-  //   generateTokens(code,state,None,None)
-  // }}
   
   @GET @Path("/token/eth") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("auth"),summary = "Web3 Authentication with code",
@@ -659,7 +712,22 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
       complete(StatusCodes.Created, rsp)
     }}
   }
-  
+
+  // Generate token for M2M interface
+  @POST @Path("/token/cred") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Credentials based token (M2M). Use it only for trusted connections",
+    method = "POST",
+    parameters = Array(
+      new Parameter(name = "client_id", in = ParameterIn.PATH, description = "Client ID"),
+      new Parameter(name = "client_secret", in = ParameterIn.PATH, description = "Client Secret")
+    ),
+    responses = Array(new ApiResponse(responseCode="200",description = "Authenticated User ID",content=Array(new Content(schema=new Schema(implementation = classOf[AuthWithProfileRes])))))
+  )
+  def getTokenCred() = post { 
+    entity(as[CredTokenReq]) { req => {
+      //parameters("code","state".optional) { (code,state) => 
+      generateCredTokens(None,req.client_id,req.client_secret)
+  }}}  
   
 
 // -------- Creds -----------------------------------------------------------------------------------------------------------------------------
@@ -788,6 +856,11 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           pathEndOrSingleSlash {
             getTokenEth
           }
+        } ~
+        path("cred") {
+          pathEndOrSingleSlash {
+            getTokenCred()            
+          }
         }
       },
       // this is internal flow, not compatible with FrontEnd flow, used as Callback instead of token request from Cred
@@ -833,7 +906,6 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
 
         } ~
         path("profile") {
-          //import io.syspulse.skel.auth.oauth2.EthOAuth2._
           get {
             parameters("access_token") { (access_token) => {
               // validate
@@ -858,8 +930,8 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
           }
         }
       } ~
-      // curl -POST -i -v http://localhost:8080/api/v1/auth/m2m -d '{ "username" : "user1", "password": "password"}'
-      pathPrefix("m2m") {
+      // curl -POST -i -v http://localhost:8080/api/v1/auth/proxy -d '{ "username" : "user1", "password": "password"}'
+      pathPrefix("proxy") {
         path("token") {
           import io.syspulse.skel.auth.oauth2.ProxyM2MAuth._
           import io.syspulse.skel.auth.oauth2.ProxyTokensRes

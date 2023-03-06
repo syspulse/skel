@@ -9,3 +9,4 @@ final case class CredCreateReq(cid:Option[String], secret:Option[String], name:O
 final case class CredRes(cid: Option[Cred])
 final case class CredCreateRes(cid: Cred)
 final case class CredActionRes(status: String,cid:Option[String])
+final case class CredTokenReq(client_id:String,client_secret:String)

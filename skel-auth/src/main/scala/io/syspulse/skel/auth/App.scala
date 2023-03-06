@@ -186,7 +186,7 @@ object App extends skel.Server {
         
         // val host = if(config.host == "0.0.0.0") "localhost" else config.host
         // val uri = s"http://${host}:${config.port}${config.uri}"
-        // val timeout = Duration("3 seconds")
+        // val timeout = FiniteDuration(3,TimeUnit.SECONDS)
 
         // val r = 
         //   config.params match {

@@ -23,6 +23,8 @@ import io.syspulse.skel.notify.aws.NotifySNS
 import io.syspulse.skel.notify.email.NotifyEmail
 import io.syspulse.skel.notify.ws.NotifyWebsocket
 import io.syspulse.skel.notify.telegram.NotifyTelegram
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
 
 case class Config(
   host:String="0.0.0.0",
@@ -146,7 +148,7 @@ object App extends skel.Server {
         
         val host = if(config.host == "0.0.0.0") "localhost" else config.host
         val uri = s"http://${host}:${config.port}${config.uri}"
-        val timeout = Duration("10 seconds")
+        val timeout = FiniteDuration(10,TimeUnit.SECONDS)
 
         val r = 
           config.params match {

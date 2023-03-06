@@ -20,6 +20,7 @@ import scala.util.Failure
 
 import io.syspulse.skel.user.server.{Users, UserActionRes}
 import io.syspulse.skel.ExternalService
+import scala.concurrent.duration.FiniteDuration
 
 //trait UserService extends AwaitableService[UserService] {
 trait UserService extends ExternalService[UserService] {  
@@ -70,5 +71,5 @@ class UserServiceSim extends UserService {
   def all():Future[Try[Users]] = Future.successful(Success(Users(Seq())))
 
   def withAccessToken(token:String):UserServiceSim = this
-  def withTimeout(timeout:Duration = Duration(1000, TimeUnit.MILLISECONDS)):UserServiceSim = this
+  def withTimeout(timeout:FiniteDuration = FiniteDuration(1000, TimeUnit.MILLISECONDS)):UserServiceSim = this
 }

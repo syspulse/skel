@@ -20,7 +20,7 @@ import io.syspulse.skel.enroll.Config
 
 trait Phase {
   val log = Logger(s"${this}") 
-  val timeout = Duration("3 seconds")
+  val timeout = FiniteDuration(3,TimeUnit.SECONDS)
 
   def run(data:Map[String,Any]):Try[String]
 }

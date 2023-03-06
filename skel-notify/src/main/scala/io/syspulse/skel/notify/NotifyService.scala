@@ -16,6 +16,7 @@ import io.syspulse.skel.notify.Notify
 import io.syspulse.skel.notify.client.NotifyClientHttp
 import io.syspulse.skel.AwaitableService
 import io.syspulse.skel.ExternalService
+import scala.concurrent.duration.FiniteDuration
 
 trait NotifyService extends ExternalService[NotifyService] {
   def notify(receivers:String,subj:String,msg:String,severity:Option[NotifySeverity.ID],scope:Option[String]):Future[Option[Notify]]
@@ -48,5 +49,5 @@ class NotifyServiceSim extends NotifyService {
   }
 
   def withAccessToken(token:String):NotifyServiceSim = this
-  def withTimeout(timeout:Duration = Duration(1000, TimeUnit.MILLISECONDS)):NotifyServiceSim = this
+  def withTimeout(timeout:FiniteDuration = FiniteDuration(1000, TimeUnit.MILLISECONDS)):NotifyServiceSim = this
 }
