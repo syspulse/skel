@@ -7,7 +7,6 @@ import scala.util.{Try,Success,Failure}
 import io.syspulse.skel.wf._
 
 case class ExecData(attr:Map[String,Any]) {
-
 }
 
 object ExecData {

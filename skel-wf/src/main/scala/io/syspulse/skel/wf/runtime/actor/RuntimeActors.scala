@@ -11,97 +11,82 @@ import io.syspulse.skel.wf._
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.AskPattern._
 import akka.NotUsed
 import akka.actor.typed.Terminated
 import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.scaladsl.AbstractBehavior
 import akka.actor.typed.ActorRef
+import akka.util.Timeout
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
+import scala.concurrent.Await
 
 trait RuntimeCmd
 final case class StopRuntime() extends RuntimeCmd
-final case class SpawnLinking(ra:RunningActor) extends RuntimeCmd
+final case class SpawnLinking(link:Linking,replyTo:ActorRef[SpawnLinkingRes]) extends RuntimeCmd
+final case class SpawnLinkingRes(r:Running) extends RuntimeCmd
 
-class RunningActor(link:Linking) extends Running {
+class RunningActor(link:Linking,context: ActorContext[ExecEvent]) extends AbstractBehavior[ExecEvent](context) with Running {
   val log = Logger(s"${this}")
 
   def getLinking = link
-  @volatile
-  var actor:Option[ActorRef[ExecEvent]] = None
+  var actor:ActorRef[ExecEvent] = context.self
   val failure = Failure(new Exception(s"actor is not bound"))
-
-  def setActor(actor:ActorRef[ExecEvent]) = {
-    this.actor = Some(actor)
-  }
-
+  
   override def !(e: ExecEvent):Try[RunningActor] = {
-    actor match {
-      case Some(a) =>
-        a ! e 
-        Success(this)
-      case None =>
-        log.error(s"${failure}")
-        failure
-    }
+    actor ! e 
+    Success(this)
   }
 
   def start():Try[RunningActor] = {
-    actor match {
-      case Some(a) =>
-        Success(this)
-      case None =>
-        log.error(s"${failure}")
-        failure
-    }
+    Success(this)
   }
 
   def stop():Try[RunningActor] = {
-    actor match {
-      case Some(a) =>
-        // send to self
-        a ! ExecCmdStop()
-        Success(this)
-      case None =>
-        log.error(s"${failure}")
-        failure
+    actor ! ExecCmdStop()
+    Success(this)
+  }
+
+  override def onMessage(msg: ExecEvent): Behavior[ExecEvent] = {
+    msg match {
+      case ExecCmdRunningReq(replyTo) => 
+        replyTo ! ExecCmdRunningRes(this)
+        this
+      case ExecCmdStop() =>
+        log.info(s"stopping: actor=${context.self}")
+        Behaviors.stopped  
+      case e:ExecEvent =>
+        link.output(e)
+        this
     }
   }
 }
 
 object RunningActor {
   
-  def apply(master:ActorRef[RuntimeCmd],ra:RunningActor): Behavior[ExecEvent] =
+  def apply(master:ActorRef[RuntimeCmd],link:Linking): Behavior[ExecEvent] =
     Behaviors.setup(context => {
       val actor = context.self
-      ra.setActor(actor)
-      new RunningBehavior(ra,context)
+      val ra = new RunningActor(link,context)
+      ra      
     })
-
-  class RunningBehavior(ra:RunningActor,context: ActorContext[ExecEvent]) extends AbstractBehavior[ExecEvent](context) {
-    val log = Logger(s"${this}-${ra}")
-    
-    override def onMessage(message: ExecEvent): Behavior[ExecEvent] = {
-      message match {
-        case ExecCmdStop() =>
-          log.info(s"stopping: actor=${context.self}")
-          Behaviors.stopped  
-        case e:ExecEvent =>
-          ra.getLinking.output(e)
-          this
-      }
-    }
-  }
 }
 
 // ---------------------------------------------------------- Runtime ------------------
 object RuntimeActors {
-  
+  val as = ActorSystem(RuntimeActors(), "RuntimeActors")
+  implicit val sched = as.scheduler
+
   def apply(): Behavior[RuntimeCmd] = Behaviors.setup { context =>    
     Behaviors.receiveMessage {
-      case SpawnLinking(ra) =>
-        val a = context.spawn(RunningActor(context.self,ra), s"Actor-${ra}")
+      case SpawnLinking(link,relpyTo) => 
+        implicit val timeout = Timeout(FiniteDuration(100,TimeUnit.MILLISECONDS))
+        val a = context.spawn(RunningActor(context.self,link), s"Actor-${link.from.exec.getName}-${link.to.exec.getName}")
+        val rsp = Await.result( a.ask { ref => ExecCmdRunningReq(ref) }, timeout.duration )
         // don't watch because RunningActor stops itself
         //context.watch(a)
-        
+        relpyTo ! SpawnLinkingRes(rsp.r)
         Behaviors.same
       case StopRuntime() =>
         Behaviors.stopped
@@ -118,14 +103,11 @@ class RuntimeActors extends Runtime {
   val log = Logger(s"${this}")
   import RuntimeActors._
 
-  val as = ActorSystem(RuntimeActors(), "RuntimeActors")
-
   def spawn(link: Linking):Try[Running] = {
-    val ra = new RunningActor(link)
+    implicit val timeout = Timeout(FiniteDuration(100,TimeUnit.MILLISECONDS))
     
-    as ! SpawnLinking(ra)
-
-    Success(ra)
+    val rsp = Await.result( as.ask { ref => SpawnLinking(link,ref) }, timeout.duration)
+    Success(rsp.r)
   }
 }
 
