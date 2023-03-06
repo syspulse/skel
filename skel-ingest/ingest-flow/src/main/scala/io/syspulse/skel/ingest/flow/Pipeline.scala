@@ -33,7 +33,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
   
   private val log = Logger(s"${this}")
   
-  implicit def timeout:FiniteDuration = FiniteDuration(3000, TimeUnit.MILLISECONDS)
+  implicit def timeout:FiniteDuration = FiniteDuration(5000, TimeUnit.MILLISECONDS)
   
   def shaping:Flow[I,I,_] = {
     if(throttle != 0L)

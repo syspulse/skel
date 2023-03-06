@@ -102,11 +102,16 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf",runtime:Runtime) {
     })
 
     // create Runtime
-    val llr = ll.map(linking => {
-      val linkingRun = runtime.spawn(linking)
-      linking.bind(linkingRun)
-      log.info(s"${wf}: linking=${linking}: runtime=${linkingRun}")
-      linkingRun
+    val llr = ll.map(linking => { 
+        
+      runtime.spawn(linking) match {
+        case Failure(e) => 
+          return Failure(e)
+        case Success(linkingRun) => 
+          linking.bind(linkingRun)
+          log.info(s"${wf}: linking=${linking}: runtime=${linkingRun}")
+          linkingRun
+      }
     })
 
     // init 
@@ -159,6 +164,14 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf",runtime:Runtime) {
     log.info(s"start: ${wf}")
 
     wf.getRunning.map( r => r.start())
+
+    Success(wf)
+  }
+
+  def stop(wf:Workflowing):Try[Workflowing] = {
+    log.info(s"stop: ${wf}")
+
+    wf.getRunning.map( r => r.stop())
 
     Success(wf)
   }

@@ -122,6 +122,9 @@ class Executing(wid:Workflowing.ID,name:String) {
       case ExecDataEvent(d) => 
         val r = exec(in,d).map(d => ExecDataEvent(d))
         r
+      case e @ ExecCmdStop() =>
+        // internal command to stop Runtime
+        Success(e)
     }
   }
 }

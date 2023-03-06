@@ -23,29 +23,33 @@ class RunningThread(link:Linking) extends Running {
         val e = queue.take
         link.output(e)
       }
-      log.info(s"queue=${queue}: link=${link}: stop")
+      log.info(s"queue=${queue}: link=${link}: stopped")
     }
   }
 
-  override def !(e: ExecEvent) = {
+  override def !(e: ExecEvent):Try[RunningThread] = {
     queue.put(e)
+    Success(this)
   }
 
-  def start() = {
+  def start():Try[RunningThread] = {
     thr.start()
+    Success(this)
   }
 
-  def stop() = {
+  def stop():Try[RunningThread] = {
     terminated = true
-    queue.put(ExecCmdStop())    
+    queue.put(ExecCmdStop())
+    Success(this)
   }
 }
 
+// ---------------------------------- Runtime ---
 class RuntimeThreads extends Runtime {
   val log = Logger(s"${this}")
 
-  def spawn(link: Linking):Running = {
-    new RunningThread(link)
+  def spawn(link: Linking):Try[Running] = {
+    Success(new RunningThread(link))
   }
 }
 
