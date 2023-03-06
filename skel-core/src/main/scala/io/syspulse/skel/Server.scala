@@ -230,14 +230,16 @@ trait Server {
 
       val (rejectionHandler:RejectionHandler,exceptionHandler:ExceptionHandler) = getHandlers() //(context)
 
-      val appServices:Seq[Routeable] = app.map{ case(behavior,name,routeFun) => {
+      val appServices:Seq[Routeable] = app.map { 
+        case(behavior,name,routeCallback) => {
           val survivingBehavior = Behaviors.supervise[Command] {
             behavior  
           }.onFailure[Exception](SupervisorStrategy.resume)
 
           val actor:ActorRef[Command] = context.spawn(survivingBehavior, s"Actor-${name}")
           context.watch(actor)
-          routeFun(actor,context) 
+
+          routeCallback(actor,context) 
         }
       }
       val appRoutes:Seq[Route] = appServices.map(r => r.buildRoutes())

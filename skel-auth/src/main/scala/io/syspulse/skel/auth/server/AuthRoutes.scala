@@ -107,7 +107,13 @@ import io.syspulse.skel.auth.cred._
 import io.syspulse.skel.auth.cred.CredRegistry._
 
 @Path("/")
-class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirectUri:String,serviceUserUri:String)(implicit context:ActorContext[_],config:Config) 
+class AuthRoutes(
+  authRegistry: ActorRef[skel.Command],
+  codeRegistry: ActorRef[skel.Command],
+  credRegistry: ActorRef[skel.Command],
+  serviceUri:String,
+  redirectUri:String,
+  serviceUserUri:String)(implicit context:ActorContext[_],config:Config) 
     extends CommonRoutes with Routeable with RouteAuthorizers {
 
   implicit val system: ActorSystem[_] = context.system
@@ -115,11 +121,11 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   
   //implicit val timeout = Timeout.create(system.settings.config.getDuration("auth.routes.ask-timeout"))
   
-  val codeRegistry: ActorRef[skel.Command] = context.spawn(CodeRegistry(),"Actor-CodeRegistry")
+  //val codeRegistry: ActorRef[skel.Command] = context.spawn(CodeRegistry(),"Actor-CodeRegistry")
   context.watch(codeRegistry)
 
-  val clientRegistry: ActorRef[skel.Command] = context.spawn(CredRegistry(new CredStoreMem()),"Actor-ClietnRegistry")
-  context.watch(clientRegistry)
+  //val credRegistry: ActorRef[skel.Command] = context.spawn(CredRegistry(new CredStoreMem()),"Actor-ClietnRegistry")
+  context.watch(credRegistry)
   
   // lazy because EthOAuth2 JWKS will request while server is not started yet
   lazy val idps = Map(
@@ -147,10 +153,10 @@ class AuthRoutes(authRegistry: ActorRef[skel.Command],serviceUri:String,redirect
   def getCodeByToken(accessToken: String): Future[CodeRes] = codeRegistry.ask(GetCodeByToken(accessToken, _))
   def getCodes(): Future[Try[Codes]] = codeRegistry.ask(GetCodes(_))
 
-  def getCreds(uid:Option[UUID]): Future[Try[Creds]] = clientRegistry.ask(GetCreds(uid, _))
-  def getCred(id: String,uid:Option[UUID]): Future[Try[Cred]] = clientRegistry.ask(GetCred(id, uid, _))
-  def createCred(req: CredCreateReq, uid:UUID): Future[Try[Cred]] = clientRegistry.ask(CreateCred(req, uid, _))
-  def deleteCred(id: String,uid:Option[UUID]): Future[Try[CredActionRes]] = clientRegistry.ask(DeleteCred(id, uid, _))
+  def getCreds(uid:Option[UUID]): Future[Try[Creds]] = credRegistry.ask(GetCreds(uid, _))
+  def getCred(id: String,uid:Option[UUID]): Future[Try[Cred]] = credRegistry.ask(GetCred(id, uid, _))
+  def createCred(req: CredCreateReq, uid:UUID): Future[Try[Cred]] = credRegistry.ask(CreateCred(req, uid, _))
+  def deleteCred(id: String,uid:Option[UUID]): Future[Try[CredActionRes]] = credRegistry.ask(DeleteCred(id, uid, _))
 
   implicit val permissions = Permissions(config.permissionsModel,config.permissionsPolicy)
   // def hasAdminPermissions(authn:Authenticated) = {

@@ -17,6 +17,8 @@ import io.syspulse.skel
 import io.syspulse.skel.util.Util
 
 import io.syspulse.skel.enroll.Config
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
 
 trait Phase {
   val log = Logger(s"${this}") 
