@@ -32,7 +32,7 @@ case class Config(
   proxyBasicUser:String = "user1",
   proxyBasicPass:String = "pass1",
   proxyBasicRealm:String = "realm",
-  proxyUri:String = "http://localhost:8080/api/v1/auth/m2m",
+  proxyUri:String = "http://localhost:8080/api/v1/auth/proxy",
   proxyBody:String = """{ "username":{{user}}, "password":{{pass}}""",
   proxyHeadersMapping:String = "HEADER:Content-type:application/json, HEADER:X-App-Id:{{client_id}}, HEADER:X-App-Secret:{{client_secret}}, BODY:X-User:{{user}}, BODY:X-Pass:{{pass}}",
 
