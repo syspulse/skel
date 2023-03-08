@@ -26,6 +26,9 @@ class CredStoreDir(dir:String = "store/cred/") extends StoreDir[Cred,String](dir
   override def del(cid:String):Try[CredStoreDir] = super.del(cid).flatMap(_ => store.del(cid)).map(_ => this)
   override def ?(cid:String):Try[Cred] = store.?(cid)
 
+  override def update(id:String,secret:Option[String]=None,name:Option[String]=None,expire:Option[Long] = None):Try[Cred] =
+    store.update(id).flatMap(c => writeFile(c))
+
   // preload
   load(dir)
 

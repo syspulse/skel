@@ -4,7 +4,7 @@ import scala.collection.immutable
 import io.jvm.uuid._
 import io.syspulse.skel.util.Util
 
-final case class Cred(cid:String, secret:String, name:String, expire: Long, tsCreated:Long, uid:UUID)
+case class Cred(cid:String, secret:String, name:String, expire: Long, tsCreated:Long, uid:UUID)
 
 object Cred {
   val DEF_AGE = 3600L * 24 * 90// long lived (3 months)

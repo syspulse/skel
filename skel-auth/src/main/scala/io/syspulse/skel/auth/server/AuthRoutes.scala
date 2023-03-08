@@ -157,6 +157,7 @@ class AuthRoutes(
   def getCred(id: String,uid:Option[UUID]): Future[Try[Cred]] = credRegistry.ask(GetCred(id, uid, _))
   def createCred(req: CredCreateReq, uid:UUID): Future[Try[Cred]] = credRegistry.ask(CreateCred(req, uid, _))
   def deleteCred(id: String,uid:Option[UUID]): Future[Try[CredActionRes]] = credRegistry.ask(DeleteCred(id, uid, _))
+  def updateCred(id:String,req: CredUpdateReq): Future[Try[Cred]] = credRegistry.ask(UpdateCred(id,req, _))
 
   implicit val permissions = Permissions(config.permissionsModel,config.permissionsPolicy)
   // def hasAdminPermissions(authn:Authenticated) = {
@@ -644,7 +645,11 @@ class AuthRoutes(
               if( user.isFailure ) {                
                 log.error(s"clinet_id=${clientId}: uid=${client.uid}: not found")
                 complete(StatusCodes.Unauthorized,"invalid client_secret")
+
               } else {
+
+                // try to update the expiration of the cred
+                updateCred(clientId, CredUpdateReq(age = Some(Cred.DEF_AGE)))
 
                 val uid = user.get.id
                 val email = user.get.email

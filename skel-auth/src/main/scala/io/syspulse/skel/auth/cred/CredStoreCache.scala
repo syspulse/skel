@@ -39,15 +39,13 @@ trait CredStoreCache extends CredStore {
     }
   }
 
-  // override def -(cid:Cred):Try[CredStore] = { 
-  //   val sz = clients.size
-  //   clients = clients - cid.cid;
-  //   if(sz == clients.size) Failure(new Exception(s"not found: ${cid}")) else Success(this)
-  // }
+  def ?(id:String):Try[Cred] = clients.get(id) match {
+    case Some(c) => Success(c)
+    case None => Failure(new Exception(s"not found: ${id}"))
+  }
 
-  def ?(c:String):Try[Cred] = clients.get(c) match {
-    case Some(cid) => Success(cid)
-    case None => Failure(new Exception(s"not found: ${c}"))
+  def update(id:String,secret:Option[String]=None,name:Option[String]=None,expire:Option[Long] = None):Try[Cred] = {
+    ?(id).map(c => modify(c,secret,name,expire))
   }
 }
 

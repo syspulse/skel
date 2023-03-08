@@ -18,6 +18,7 @@ object CredRegistry {
   final case class GetCred(cid: String, uid:Option[UUID], replyTo: ActorRef[Try[Cred]]) extends Command
   final case class GetCreds(uid:Option[UUID], replyTo: ActorRef[Try[Creds]]) extends Command
   final case class DeleteCred(cid: String, uid:Option[UUID], replyTo: ActorRef[Try[CredActionRes]]) extends Command
+  final case class UpdateCred(cid:String,req:CredUpdateReq, replyTo: ActorRef[Try[Cred]]) extends Command
   
   // this var reference is unfortunately needed for Metrics access
   var store: CredStore = new CredStoreMem
@@ -70,7 +71,10 @@ object CredRegistry {
             }
           } yield r
         }
+        Behaviors.same
 
+      case UpdateCred(id, req, replyTo) =>
+        replyTo ! store.update(id,req.secret,req.name,req.age)
         Behaviors.same
     }
   }
