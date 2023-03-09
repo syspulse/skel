@@ -54,6 +54,9 @@ object TextlineJson extends TextlineJsonProtocol {
 
 import TextlineJson._
 
+import com.github.mjakubowski84.parquet4s._
+import org.apache.parquet.schema._
+
 class PipelineTextline(feed:String,output:String)(implicit config:Config) extends 
       Pipeline[String,String,Textline](feed,output,config.throttle,config.delimiter,config.buffer,throttleSource = config.throttleSource) {
   

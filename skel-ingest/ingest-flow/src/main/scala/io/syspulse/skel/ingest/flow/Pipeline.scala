@@ -24,11 +24,15 @@ import java.util.concurrent.TimeUnit
 import java.time.ZonedDateTime
 import java.time.Instant
 import java.time.ZoneId
+import com.github.mjakubowski84.parquet4s.ParquetRecordEncoder
+import com.github.mjakubowski84.parquet4s.ParquetSchemaResolver
 
 // throttleSource - reduce load on Source (e.g. HttpSource)
 // throttle - delay objects downstream
 abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
-  throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=100L)(implicit fmt:JsonFormat[O]) 
+  throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=100L)
+  (implicit fmt:JsonFormat[O], parqEncoders:ParquetRecordEncoder[O],parsResolver:ParquetSchemaResolver[O]) 
+
   extends IngestFlow[I,T,O]() {
   
   private val log = Logger(s"${this}")
@@ -123,6 +127,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "hive" :: fileName :: Nil => Flows.toHive(fileName)(getRotator())
 
       case "fs3" :: fileName :: Nil => Flows.toFS3(fileName,getFileLimit(),getFileSize())(getRotator())
+      case "parq" :: fileName :: Nil => Flows.toParq[O](fileName,getFileLimit(),getFileSize())(getRotator(),parqEncoders,parsResolver)
 
       // test to create new file for every object
       // TODO: remove it

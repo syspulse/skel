@@ -17,6 +17,7 @@ object Dependencies {
 
     lazy val hadoopAWSVersion = "3.2.2"
     lazy val hadoopVersion = "3.2.2"
+    lazy val parq4sVersion = "2.10.0"
 
     lazy val janinoVersion = "3.0.16" //"3.1.6" //"3.0.16"
     lazy val elastic4sVersion = "7.17.3"
@@ -216,8 +217,10 @@ object Dependencies {
     val libDirWatcher =       "io.methvin"                    % "directory-watcher"               % "0.18.0"
     val libDirWatcherScala =  "io.methvin"                    %% "directory-watcher-better-files" % "0.18.0"
 
-    val libParq =             "com.github.mjakubowski84"      %% "parquet4s-core"                 % "2.10.0"
+    val libParq =             "com.github.mjakubowski84"      %% "parquet4s-core"                 % parq4sVersion
+    val libParqAkka =         "com.github.mjakubowski84"      %% "parquet4s-akka"                 % parq4sVersion
     val libHadoop =           "org.apache.hadoop"             % "hadoop-client"                   % hadoopVersion
+    val libHadoopLZO =        "hadoop-lzo"                    % "hadoop-lzo"                      % "0.4.15"
 
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)

@@ -593,7 +593,11 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
       libScalaTest % Test,
       libAlpakkaFile,
       libAkkaQuartz,      
-      libUpickleLib,      
+      libUpickleLib,
+
+      libParq,
+      libParqAkka,
+      libHadoop
     ),        
   )
 

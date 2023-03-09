@@ -61,6 +61,16 @@ import akka.actor.Cancellable
 import java.util.TimeZone
 import java.time.ZoneId
 
+import com.github.mjakubowski84.parquet4s.{ParquetReader, ParquetWriter}
+import org.apache.parquet.hadoop.ParquetFileWriter.Mode
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.parquet.hadoop.{ParquetWriter => HadoopParquetWriter}
+import org.apache.hadoop.conf.Configuration
+import com.github.mjakubowski84.parquet4s.ValueEncoder
+import com.github.mjakubowski84.parquet4s.ParquetRecordEncoder
+import com.github.mjakubowski84.parquet4s.ParquetSchemaResolver
+import com.github.mjakubowski84.parquet4s.ParquetStreams
+
 object Flows {
   val log = Logger(this.toString)
 
@@ -480,6 +490,97 @@ object Flows {
         .map(t=>s"${t.toLog}\n")
         .map(ByteString(_))
         .toMat(LogRotatorSink(fileRotateTrigger,fileOpenOptions = Set(StandardOpenOption.CREATE,StandardOpenOption.WRITE)))(Keep.right)
+  }
+
+  // Parquet (does not support !)
+  // ATTENTION: this is a very hacky implementation
+  // parquet4s supports its own Rotator, but cannot change file name to be compatible with fs3://
+  def toParq[T](fileUri:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue)
+    (implicit rotator:Rotator,parqEncoders:ParquetRecordEncoder[T],parsResolver:ParquetSchemaResolver[T]) = {
+    
+    val log = Logger(s"${this}")
+    val parqUri = skel.uri.ParqURI(fileUri)
+    val file = parqUri.file
+    val writeMode = parqUri.mode match {
+      case "OVERWRITE" => Mode.OVERWRITE
+      case "CREATE" => Mode.CREATE
+    }
+    val zip = parqUri.zip match {
+      case "parq" => CompressionCodecName.UNCOMPRESSED
+      case "snappy" => CompressionCodecName.SNAPPY
+      case "gzip" => CompressionCodecName.GZIP
+      case "lz4" => CompressionCodecName.LZ4
+      case "zstd" => CompressionCodecName.ZSTD
+      case _ => CompressionCodecName.UNCOMPRESSED
+    }      
+    
+    val fileRotateTrigger: () => T => Option[Sink[T,Future[Done]]] = () => {
+      var currentFilename: Option[String] = None
+      var inited = false
+      var count: Long = 0L
+      var size: Long = 0L
+      
+      rotator.init(file,fileLimit,fileSize)
+          
+      (element: T) => {
+        
+        if(inited && (
+            count < fileLimit && 
+            size < fileSize && 
+            ! rotator.needRotate(count,size)
+          )
+        ) {
+          
+          count = count + 1
+          size = size + 0//element.size
+          
+          None
+        } else {          
+          currentFilename = rotator.rotate(file,count,size)
+          
+          log.info(s"count=${count},size=${size},limits=(${fileLimit},${fileSize}) => ${currentFilename}")
+
+          count = 0L
+          size = 0L
+          inited = true
+          
+          val currentDirname = Util.extractDirWithSlash(currentFilename.get)          
+          try {
+            // try to create dir
+            val p = Files.createDirectories(Path.of(currentDirname))
+            log.info(s"created dir: ${p}")
+            val outputPath = currentFilename.get
+
+            val parqOptions = ParquetWriter.Options(
+              writeMode = writeMode,
+              compressionCodecName = zip,
+            )
+            
+            val parq = ParquetStreams
+              .toParquetSingleFile.of[T]
+              .options(parqOptions)
+              .write(com.github.mjakubowski84.parquet4s.Path(outputPath))
+              //ParquetWriter.of[T].options(parqOptions).build(com.github.mjakubowski84.parquet4s.Path(outputPath))
+            Some(parq)
+
+          } catch {
+            case e:Exception => {
+              log.error(s"Coould not create dir: ${currentDirname}",e)
+              None
+            }
+          }                    
+        }
+      }
+    }
+
+    if(file.trim.isEmpty) 
+      Sink.ignore 
+    else {
+      val fileOpenOptions = Set(StandardOpenOption.CREATE,StandardOpenOption.WRITE)
+      val sinkParq = LogRotatorSink.withTypedSinkFactory[T, Sink[T,Future[Done]], Done](fileRotateTrigger,sinkFactory = (s) => s)
+      Flow[T]
+        .toMat(sinkParq)(Keep.right)
+    }
   }
 
   def toElastic[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
