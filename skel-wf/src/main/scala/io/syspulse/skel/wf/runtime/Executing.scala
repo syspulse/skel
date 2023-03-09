@@ -10,6 +10,7 @@ import akka.actor.typed.scaladsl.Behaviors
 
 import io.syspulse.skel.wf.runtime._
 import io.syspulse.skel.wf._
+import io.syspulse.skel.wf.store.WorkflowStateStore
 
 object Executing { 
   case class ID(wid:Workflowing.ID,name:String)
@@ -22,6 +23,7 @@ class Executing(wid:Workflowing.ID,name:String) {
   @volatile
   var status:Status = Status.CREATED()
 
+  var stateStore:Option[WorkflowStateStore] = None
   var inputs:Map[String,Linking] = Map()
   var outputs:Map[String,Linking] = Map()
 
@@ -34,11 +36,12 @@ class Executing(wid:Workflowing.ID,name:String) {
     status = Status.CREATED()
   }
 
-  def init(wid:Workflowing.ID,name:String,
+  def init(store:WorkflowStateStore,
+           wid:Workflowing.ID,name:String,
            in:Seq[Linking],out:Seq[Linking]):Unit = {
     status match {
       case Status.CREATED() => 
-        
+        stateStore = Some(store)
         id = Executing.ID(wid,name)        
         inputs = inputs ++ in.map(link => link.from.let -> link).toMap
         outputs = outputs ++ out.map(link => link.to.let -> link).toMap
@@ -75,12 +78,14 @@ class Executing(wid:Workflowing.ID,name:String) {
 
   def start(data:ExecData):Try[Status] = {
     log.info(s"start: ${data}")
-    Success(Status.STARTED())
+    status = Status.RUNNING()
+    Success(status)
   }
 
   def stop():Try[Status] = {
     log.info(s"stop")
-    Success(Status.STOPPED())
+    status = Status.STOPPED()
+    Success(status)
   }
 
   def broadcast(data:ExecData) = {
@@ -121,6 +126,18 @@ class Executing(wid:Workflowing.ID,name:String) {
     e match {
       case ExecDataEvent(d) => 
         val r = exec(in,d).map(d => ExecDataEvent(d))
+
+        if(stateStore.isDefined) {
+          //log.info(s">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> COMMITTING: ${r}")
+          r match {
+            case Success(de1) => 
+              stateStore.get.commit(wid,id, de1.data, status = Some("ok"))
+            case f => 
+              stateStore.get.commit(wid,id, d,status = Some(f.toString))
+          }
+          
+        }
+
         r
       case e @ ExecCmdStop() =>
         // internal command to stop Runtime

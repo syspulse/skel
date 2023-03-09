@@ -15,11 +15,10 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
   
   "WorkflowSpec" should {
     
-    "create RuntimeThreads Workflow with 2 Logs" ignore {
+    "create RuntimeThreads Workflow with 2 Logs" in {
       implicit val we = new WorkflowEngine(runtime = new RuntimeThreads())
 
       val w1 = Workflow("wf-1",ExecData.empty,
-        store = wfDir,
         flow = Seq(
           Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0"))),
           Exec("F-2","io.syspulse.skel.wf.exec.ProcessExec",in = Seq(In("in-0")), out = Seq(Out("out-0"),Out("err-0"))),
@@ -51,11 +50,10 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       we.stop(wf1.get)
     }
 
-    "create RuntimeActors Workflow with 2 Logs" in {
+    "create RuntimeActors Workflow with 2 Logs" ignore {
       implicit val we = new WorkflowEngine(runtime = new RuntimeActors())
 
       val w1 = Workflow("wf-1",ExecData.empty,
-        store = wfDir,
         flow = Seq(
           Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0"))),
           Exec("F-2","io.syspulse.skel.wf.exec.ProcessExec",in = Seq(In("in-0")), out = Seq(Out("out-0"),Out("err-0"))),

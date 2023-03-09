@@ -17,6 +17,7 @@ import upickle._
 import upickle.default._
 
 import io.syspulse.skel.wf._
+import io.syspulse.skel.wf.store.WorkflowStateStore
 
 object Workflowing {
   case class ID(wid:Workflow.ID,ts:Long) {
@@ -28,18 +29,14 @@ object Workflowing {
   def id():ID = id("",0L)
 }
 
-class Workflowing(id:Workflowing.ID,wf:Workflow,stateStore:String,mesh:Map[Exec.ID,Executing],links:Seq[Linking],running:Seq[Running])(implicit engine:WorkflowEngine) {
+class Workflowing(id:Workflowing.ID,wf:Workflow,stateStore:WorkflowStateStore,mesh:Map[Exec.ID,Executing],links:Seq[Linking],running:Seq[Running])(implicit engine:WorkflowEngine) {
   val log = Logger(s"${id}")
 
   override def toString() = s"Workflowing(${id})[${mesh},${links}]"
 
   var data:ExecData = wf.attributes
-  val stateLoc = s"${stateStore}/${id.toString}"
-
-  // create directory
-  os.makeDir.all(os.Path(stateLoc,os.pwd))
-
-  log.info(s"state=${stateLoc}: wf=${wf}: data=${data}")
+  
+  log.info(s"state=${stateStore}: wf=${wf}: data=${data}")
 
   def getMesh = mesh
   def getExecs = mesh.values

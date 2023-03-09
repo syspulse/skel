@@ -38,6 +38,7 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 10. ```log://```                                             - Calls toLog on Ingestable
 11. ```filenew://```                                         - Generate new file for every event
 12. ```files://```                                           - Limit file by size
+13. ```parq://``                                             - Parquet Format
 
 
 ### Examples

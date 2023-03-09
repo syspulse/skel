@@ -6,7 +6,7 @@ elastic://user:pass@host:port/index
 case class ElasticURI(uri:String) {
   val PREFIX = "elastic://"
 
-  val (eurl:String,eindex:String) = parse(uri)
+  private val (eurl:String,eindex:String) = parse(uri)
 
   def url:String = eurl
   def index:String = eindex

@@ -512,7 +512,11 @@ object Flows {
       case "lz4" => CompressionCodecName.LZ4
       case "zstd" => CompressionCodecName.ZSTD
       case _ => CompressionCodecName.UNCOMPRESSED
-    }      
+    }
+    val parqOptions = ParquetWriter.Options(
+      writeMode = writeMode,
+      compressionCodecName = zip,
+    )
     
     val fileRotateTrigger: () => T => Option[Sink[T,Future[Done]]] = () => {
       var currentFilename: Option[String] = None
@@ -551,11 +555,6 @@ object Flows {
             log.info(s"created dir: ${p}")
             val outputPath = currentFilename.get
 
-            val parqOptions = ParquetWriter.Options(
-              writeMode = writeMode,
-              compressionCodecName = zip,
-            )
-            
             val parq = ParquetStreams
               .toParquetSingleFile.of[T]
               .options(parqOptions)

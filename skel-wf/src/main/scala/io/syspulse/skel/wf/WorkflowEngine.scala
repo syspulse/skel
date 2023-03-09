@@ -14,6 +14,7 @@ import akka.actor.typed.SupervisorStrategy
 import io.syspulse.skel.wf.runtime._
 import io.syspulse.skel.wf.registy.WorkflowRegistry
 
+import io.syspulse.skel.wf.store._
 
 trait WorkflowCommand
 
@@ -33,11 +34,25 @@ object WorkflowEngine {
   val as = ActorSystem[WorkflowCommand](rootBehavior, "WorfklowEngine")
 }
 
-class WorkflowEngine(store:String = "dir:///tmp/skel-wf",runtime:Runtime) {
+class WorkflowEngine(
+  workflowStoreUri:String = "mem://",
+  stateStoreUri:String = "dir:///tmp/skel-wf/runtime",
+  runtime:Runtime) {
+  
   val log = Logger(s"${this}")
 
-  val storeWorkflow = s"${store}/workflow"  
-  val storeRuntime = s"${store}/runtime"
+  val stateStore = stateStoreUri.split("://").toList match {
+    case "dir" :: dir :: Nil => new WorkflowStateStoreDir(dir)
+    case "mem" :: Nil => new WorkflowStateStoreMem()
+    case _ => new WorkflowStateStoreMem()
+  }
+
+  val workflowStore = workflowStoreUri.split("://").toList match {
+    //case "dir" :: dir :: Nil => new WorkflowStoreDir(dir)
+    case "mem" :: Nil => new WorkflowStoreMem()
+    //case _ => new WorkflowStoreMem()
+  }
+
 
   val registry = new WorkflowRegistry(Seq(
     Exec("Log","io.syspulse.skel.wf.exec.LogExec"),
@@ -45,12 +60,8 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf",runtime:Runtime) {
     Exec("Terminate","io.syspulse.skel.wf.exec.TerminateExec")
   ))
 
-  // create stores
-  os.makeDir.all(os.Path(s"${storeWorkflow}",os.pwd))
-  os.makeDir.all(os.Path(s"${storeRuntime}",os.pwd))
-
-  def getStoreRuntime() = storeRuntime
-  def getStoreWorkflow() = storeWorkflow
+  def getStoreWorkflow() = workflowStore
+  def getStoreState() = stateStore
 
   def spawn(wf:Workflow):Try[Workflowing] = {
     val wid = Workflowing.id(wf)
@@ -103,7 +114,7 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf",runtime:Runtime) {
 
     // create Runtime
     val llr = ll.map(linking => { 
-        
+
       runtime.spawn(linking) match {
         case Failure(e) => 
           return Failure(e)
@@ -114,12 +125,16 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf",runtime:Runtime) {
       }
     })
 
+    // add to state store
+    val ws = WorkflowState(wid,Seq(),0)
+    getStoreState().+(ws)
+
     // init 
     ee.flatMap(_.toOption).map( e =>
-      e.init(wid,e.getName,Seq(),Seq()) 
+      e.init(getStoreState(),wid,e.getName,Seq(),Seq()) 
     )
 
-    val w = new Workflowing(wid,wf,getStoreRuntime(),mesh,ll,llr)(this)
+    val w = new Workflowing(wid,wf,getStoreState(),mesh,ll,llr)(this)
     Success(w)
   }
 
@@ -163,6 +178,10 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf",runtime:Runtime) {
   def start(wf:Workflowing):Try[Workflowing] = {
     log.info(s"start: ${wf}")
 
+    // start Executings with initial data
+    wf.getExecs.map( e => e.start(wf.data) )
+
+    // start Running infra
     wf.getRunning.map( r => r.start())
 
     Success(wf)
@@ -171,6 +190,10 @@ class WorkflowEngine(store:String = "dir:///tmp/skel-wf",runtime:Runtime) {
   def stop(wf:Workflowing):Try[Workflowing] = {
     log.info(s"stop: ${wf}")
 
+    // stop Executings with initial data
+    wf.getExecs.map( e => e.stop())
+
+    // stop running infra
     wf.getRunning.map( r => r.stop())
 
     Success(wf)

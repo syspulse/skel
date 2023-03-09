@@ -6,16 +6,15 @@ import io.jvm.uuid._
 import scala.util.{Try,Success,Failure}
 
 import io.syspulse.skel.wf.runtime._
+import io.syspulse.skel.wf.store.WorkflowStateStore
 
 case class Workflow(
   id:Workflow.ID,
   attributes:ExecData,
-  store:String,
   flow: Seq[Exec],
-  links: Seq[Link])(implicit engine:WorkflowEngine) {
+  links: Seq[Link]) {
   
   def getAttributes = attributes
-  def getStore = store
 }
 
 object Workflow {
