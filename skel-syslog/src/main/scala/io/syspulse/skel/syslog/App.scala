@@ -104,9 +104,9 @@ object App extends skel.Server {
 
     Console.err.println(s"Config: ${config}")
 
-    val store:TagStore = config.datastore.split("://").toList match {
-      case "elastic" => new SyslogStoreElastic(config.elasticUri,config.elasticIndex)
-      case "mem" => new SyslogStoreMem()
+    val store:SyslogStore = config.datastore.split("://").toList match {
+      case "elastic" :: _ => new SyslogStoreElastic(config.elasticUri,config.elasticIndex)
+      case "mem" :: Nil => new SyslogStoreMem()
       //case "stdout" => new SyslogStoreStdout
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}'")

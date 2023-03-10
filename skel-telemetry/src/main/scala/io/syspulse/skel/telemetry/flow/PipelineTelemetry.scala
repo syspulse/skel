@@ -24,6 +24,8 @@ import io.syspulse.skel.ingest.flow.Pipeline
 
 import spray.json._
 import DefaultJsonProtocol._
+import io.syspulse.skel.serde.Parq._
+
 import java.util.concurrent.TimeUnit
 
 import io.syspulse.skel.telemetry._
