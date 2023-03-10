@@ -580,7 +580,7 @@ lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
   )
 
 lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
-  .dependsOn(core, ingest, ingest_elastic, kafka)
+  .dependsOn(core, serde, ingest, ingest_elastic, kafka)
   .enablePlugins(JavaAppPackaging)
   .settings (
     sharedConfig,

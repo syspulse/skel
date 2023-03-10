@@ -5,7 +5,7 @@ object Dependencies {
     lazy val scala = "2.13.9"
     // Versions
     lazy val versionScalaLogging = "3.9.2"
-    lazy val akkaVersion    = "2.6.19"
+    lazy val akkaVersion    = "2.6.20"
     lazy val alpakkaVersion = "3.0.4"  
     lazy val akkaHttpVersion = "10.2.9" //"10.2.4"
     lazy val akkaKafkaVersion = "2.0.3"
