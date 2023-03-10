@@ -14,6 +14,24 @@ import io.syspulse.skel.util.Util
 object Parq { 
   import ValueCodecConfiguration._
 
+  // ----- Any ------------------------------------------------------------------------------------------------
+  // Treat is as String
+  implicit val anyTypeCodec: OptionalValueCodec[Any] = new OptionalValueCodec[Any] {
+    override protected def decodeNonNull(value: Value, configuration: ValueCodecConfiguration): Any =
+      value match {
+          case BinaryValue(binary) => new String(binary.getBytes())
+        }
+    override protected def encodeNonNull(data: Any, configuration: ValueCodecConfiguration): Value =
+      BinaryValue(data.toString.getBytes())
+  }
+
+  implicit val anySchema: TypedSchemaDef[Any] = SchemaDef
+      .primitive(
+        primitiveType         = PrimitiveType.PrimitiveTypeName.BINARY,
+        logicalTypeAnnotation = Option(LogicalTypeAnnotation.stringType())        
+      )
+      .typed[Any]
+
   // ----- UUID ------------------------------------------------------------------------------------------------
   implicit val uuidTypeCodec: OptionalValueCodec[UUID] = new OptionalValueCodec[UUID] {
     override protected def decodeNonNull(value: Value, configuration: ValueCodecConfiguration): UUID =

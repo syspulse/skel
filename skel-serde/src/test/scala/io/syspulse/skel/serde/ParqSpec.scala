@@ -34,108 +34,125 @@ class ParqSpec extends AnyWordSpec with Matchers {
   val file1 = "/tmp/skel-seder/parq/file-1.parquet"
   val file2 = "/tmp/skel-seder/parq/file-2.parquet"
   
-  
+  case class DataAny(data:Any)
   case class Data(id: Int, text: String)
   case class DataBig(v:BigInt)
 
   "Parquet" should {
 
-    // "serialize and deserialize Data(Int,String)" in {            
-    //   os.remove(os.Path(file1))
+    "serialize and deserialize Data(Any)" in {            
+      os.remove(os.Path(file1))
 
-    //   val count = 1
-    //   val data1  = (1 to count).map(i => Data(id = i, text = Random.nextString(4)))
+      val count = 1
+      val data1  = (1 to count).map(i => DataAny(data=s"data-${Random.nextLong()}"))
       
-    //   ParquetWriter.of[Data].writeAndClose(Path(file1), data1)
+      ParquetWriter.of[DataAny].writeAndClose(Path(file1), data1)
 
-    //   val bin1 = os.read(os.Path(file1))
-    //   bin1.size !== (0)
-    //   //info(s"${Util.hex(bin1.getBytes())}")
-
-    //   val data2 = ParquetReader.as[Data].read(Path(file1))
+      val bin1 = os.read(os.Path(file1))
+      bin1.size !== (0)
       
-    //   // try data2.foreach(println)
-    //   // finally data2.close()
-
-    //   data2.toList should === (data1.toList)
-    //   data2.close()
-    // }
-
-    // "serialize and deserialize DataObj(UUID,ZoneDateTime,String,Long,Array)" in {            
-    //   os.remove(os.Path(file2))
-
-    //   val ts = ZonedDateTime.now()
-    //   val data1 = Seq(
-    //     DataObj(UUID("c3ce9adb-8008-426a-8828-6dfdf732df95"),ts,"str",10,Long.MaxValue,"data".getBytes)
-    //   )
-      
-    //   ParquetWriter.of[DataObj].writeAndClose(Path(file2), data1)
-
-    //   val bin1 = os.read(os.Path(file1))
-    //   bin1.size !== (0)
-    //   //info(s"${Util.hex(bin1.getBytes())}")
-
-    //   val data2 = ParquetReader.as[DataObj].read(Path(file2))      
-    //   // try data2.foreach(println)
-    //   // finally data2.close()
-    //   //data2.toList should === (data1.toList)
-
-    //   val o = data2.head
-    //   o.id should === (UUID("c3ce9adb-8008-426a-8828-6dfdf732df95"))
-    //   o.ts.format(Util.tsFormatSerde) should === (ts.format(Util.tsFormatSerde))
-    //   o.str should === ("str")
-    //   o.int should === (10)
-    //   o.long should === (Long.MaxValue)
-    //   o.data should === ("data".getBytes())
-
-    //   data2.close()
-    // }
-
-    // "serialize and deserialize BigInt" in {            
-    //   os.remove(os.Path(file1))
-
-    //   val data1  = Seq(
-    //     DataBig(BigInt(9001))
-    //   )
-      
-    //   ParquetWriter.of[DataBig].writeAndClose(Path(file1), data1)
-
-    //   val bin1 = os.read(os.Path(file1))
-    //   bin1.size !== (0)
-    //   //info(s"${Util.hex(bin1.getBytes())}")
-
-    //   val data2 = ParquetReader.as[DataBig].read(Path(file1))
+      val data2 = ParquetReader.as[DataAny].read(Path(file1))
             
-    //   data2.toList should === (data1.toList)
-    //   data2.close()
-    // }    
+      data2.toList should === (data1.toList)
+      data2.close()
+    }
 
-    // "write as stream to separate files" in {
-    //   val dir = "/tmp/skel-seder/parq/stream"
-    //   os.remove.all(os.Path(s"${dir}",os.pwd))
-    //   os.makeDir.all(os.Path(dir,os.pwd))
+    "serialize and deserialize Data(Int,String)" ignore {            
+      os.remove(os.Path(file1))
 
-    //   val data1  = (1 to 100).map(i => Data(id = i, text = Random.nextString(4)))
-
-    //   val writeOptions = ParquetWriter.Options(
-    //     writeMode = Mode.OVERWRITE,
-    //     compressionCodecName = CompressionCodecName.UNCOMPRESSED,
-    //     //hadoopConf = conf // optional hadoopConf
-    //   )
-            
-    //   data1.grouped(10).foreach{ g => {
-    //     val file1 = s"${dir}/file-${System.currentTimeMillis}.parq"
-    //     val pw = ParquetWriter.of[Data].build(Path(file1))
-    //     g.foreach{ d => 
-    //       pw.write(Seq(d))
-    //     }
-    //     pw.close()
-    //   }}
+      val count = 1
+      val data1  = (1 to count).map(i => Data(id = i, text = Random.nextString(4)))
       
-    //   info(s"files=${os.list(os.Path(dir,os.pwd)).toList}")
-    // }
+      ParquetWriter.of[Data].writeAndClose(Path(file1), data1)
 
-    "compare snappy to csv sizes" in {
+      val bin1 = os.read(os.Path(file1))
+      bin1.size !== (0)
+      //info(s"${Util.hex(bin1.getBytes())}")
+
+      val data2 = ParquetReader.as[Data].read(Path(file1))
+      
+      // try data2.foreach(println)
+      // finally data2.close()
+
+      data2.toList should === (data1.toList)
+      data2.close()
+    }
+
+    "serialize and deserialize DataObj(UUID,ZoneDateTime,String,Long,Array)" ignore {            
+      os.remove(os.Path(file2))
+
+      val ts = ZonedDateTime.now()
+      val data1 = Seq(
+        DataObj(UUID("c3ce9adb-8008-426a-8828-6dfdf732df95"),ts,"str",10,Long.MaxValue,"data".getBytes)
+      )
+      
+      ParquetWriter.of[DataObj].writeAndClose(Path(file2), data1)
+
+      val bin1 = os.read(os.Path(file1))
+      bin1.size !== (0)
+      //info(s"${Util.hex(bin1.getBytes())}")
+
+      val data2 = ParquetReader.as[DataObj].read(Path(file2))      
+      // try data2.foreach(println)
+      // finally data2.close()
+      //data2.toList should === (data1.toList)
+
+      val o = data2.head
+      o.id should === (UUID("c3ce9adb-8008-426a-8828-6dfdf732df95"))
+      o.ts.format(Util.tsFormatSerde) should === (ts.format(Util.tsFormatSerde))
+      o.str should === ("str")
+      o.int should === (10)
+      o.long should === (Long.MaxValue)
+      o.data should === ("data".getBytes())
+
+      data2.close()
+    }
+
+    "serialize and deserialize BigInt" ignore {            
+      os.remove(os.Path(file1))
+
+      val data1  = Seq(
+        DataBig(BigInt(9001))
+      )
+      
+      ParquetWriter.of[DataBig].writeAndClose(Path(file1), data1)
+
+      val bin1 = os.read(os.Path(file1))
+      bin1.size !== (0)
+      //info(s"${Util.hex(bin1.getBytes())}")
+
+      val data2 = ParquetReader.as[DataBig].read(Path(file1))
+            
+      data2.toList should === (data1.toList)
+      data2.close()
+    }    
+
+    "write as stream to separate files" ignore {
+      val dir = "/tmp/skel-seder/parq/stream"
+      os.remove.all(os.Path(s"${dir}",os.pwd))
+      os.makeDir.all(os.Path(dir,os.pwd))
+
+      val data1  = (1 to 100).map(i => Data(id = i, text = Random.nextString(4)))
+
+      val writeOptions = ParquetWriter.Options(
+        writeMode = Mode.OVERWRITE,
+        compressionCodecName = CompressionCodecName.UNCOMPRESSED,
+        //hadoopConf = conf // optional hadoopConf
+      )
+            
+      data1.grouped(10).foreach{ g => {
+        val file1 = s"${dir}/file-${System.currentTimeMillis}.parq"
+        val pw = ParquetWriter.of[Data].build(Path(file1))
+        g.foreach{ d => 
+          pw.write(Seq(d))
+        }
+        pw.close()
+      }}
+      
+      info(s"files=${os.list(os.Path(dir,os.pwd)).toList}")
+    }
+
+    "compare snappy to csv sizes" ignore {
       val dir = "/tmp/skel-seder/parq/size"
       os.remove.all(os.Path(s"${dir}",os.pwd))
       os.makeDir.all(os.Path(dir,os.pwd))
