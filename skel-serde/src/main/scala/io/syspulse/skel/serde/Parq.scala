@@ -118,3 +118,31 @@ object ParqAnySerializable {
       )
       .typed[Any]
 }
+
+// ----- Any Type as Serializable ------------------------------------------------------------------------------------------
+// This is useful for Abstract Types 
+object ParqCodecTypedSerializable { 
+  import ValueCodecConfiguration._
+
+  class AbstractClassCodec[T <: Serializable] extends OptionalValueCodec[T] {
+    override protected def decodeNonNull(value: Value, configuration: ValueCodecConfiguration): T =
+      value match {
+          case BinaryValue(binary) => Serde.deserialize(binary.getBytes())
+      }
+
+    override protected def encodeNonNull(data: T, configuration: ValueCodecConfiguration): Value = {
+      BinaryValue(Serde.serialize(data))
+    }
+    
+    implicit val abstractClassSchema: TypedSchemaDef[T] = SchemaDef
+      .primitive(
+        primitiveType         = PrimitiveType.PrimitiveTypeName.BINARY,
+        logicalTypeAnnotation = None
+      )
+      .typed[T]
+  }
+
+  def forClass[T <: Serializable] = {
+    new AbstractClassCodec[T]()
+  }
+}
