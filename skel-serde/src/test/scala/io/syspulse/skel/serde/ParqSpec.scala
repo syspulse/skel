@@ -28,19 +28,52 @@ import scala.util.Random
 
 import io.syspulse.skel.serde.Parq._
 
+// Attention: Abstract classes are not supported, so can only be encapsulated as ByteArray
+abstract class DataAbstract extends Serializable
+case class DataInsideId(id:String) extends DataAbstract
+
+case class DataAny(data:Any)
+case class DataWithAbstract(id: Int, text: String,b:Byte, inside:DataAbstract)
+case class DataBig(v:BigInt)
+
+import com.github.mjakubowski84.parquet4s._
+import org.apache.parquet.schema._
+import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY
+
+object ParqCodecAbstractClass { 
+  import ValueCodecConfiguration._
+  implicit val abstactClassTypeCodec: OptionalValueCodec[DataAbstract] = new OptionalValueCodec[DataAbstract] {
+    override protected def decodeNonNull(value: Value, configuration: ValueCodecConfiguration): DataAbstract =
+      value match {
+          case BinaryValue(binary) => Serde.deserialize(binary.getBytes())
+      }
+
+    override protected def encodeNonNull(data: DataAbstract, configuration: ValueCodecConfiguration): Value = {
+      BinaryValue(Serde.serialize(data))
+    }
+  }
+
+  implicit val abstractClassSchema: TypedSchemaDef[DataAbstract] = SchemaDef
+      .primitive(
+        primitiveType         = PrimitiveType.PrimitiveTypeName.BINARY,
+        logicalTypeAnnotation = None
+      )
+      .typed[DataAbstract]
+}
+
 class ParqSpec extends AnyWordSpec with Matchers {
   
   //val tmp  = Path(Files.createTempDirectory("/tmp/skel"))
   val file1 = "/tmp/skel-seder/parq/file-1.parquet"
   val file2 = "/tmp/skel-seder/parq/file-2.parquet"
   
-  case class DataAny(data:Any)
-  case class Data(id: Int, text: String)
-  case class DataBig(v:BigInt)
+  import ParqCodecAbstractClass._
 
   "Parquet" should {
 
-    "serialize and deserialize Data(Any)" in {            
+    "serialize and deserialize Any type in Data(Any) as String" in {
+      import ParqAnyString._
+
       os.remove(os.Path(file1))
 
       val count = 1
@@ -57,19 +90,38 @@ class ParqSpec extends AnyWordSpec with Matchers {
       data2.close()
     }
 
-    "serialize and deserialize Data(Int,String)" ignore {            
+    "serialize and deserialize Any type in Data(Any) as Serializable" in {
+      import ParqAnySerializable._
+
       os.remove(os.Path(file1))
 
       val count = 1
-      val data1  = (1 to count).map(i => Data(id = i, text = Random.nextString(4)))
+      val data1  = (1 to count).map(i => DataAny(data=s"data-${Random.nextLong()}"))
       
-      ParquetWriter.of[Data].writeAndClose(Path(file1), data1)
+      ParquetWriter.of[DataAny].writeAndClose(Path(file1), data1)
+
+      val bin1 = os.read(os.Path(file1))
+      bin1.size !== (0)
+      
+      val data2 = ParquetReader.as[DataAny].read(Path(file1))
+            
+      data2.toList should === (data1.toList)
+      data2.close()
+    }
+
+    "serialize and deserialize Data(Int,String,Byte,Abstract)" in {            
+      os.remove(os.Path(file1))
+
+      val count = 1
+      val data1  = (1 to count).map(i => DataWithAbstract(id = i, text = Random.nextString(4), b = Random.nextBytes(1).head, inside = DataInsideId(s"{id}")))
+      
+      ParquetWriter.of[DataWithAbstract].writeAndClose(Path(file1), data1)
 
       val bin1 = os.read(os.Path(file1))
       bin1.size !== (0)
       //info(s"${Util.hex(bin1.getBytes())}")
 
-      val data2 = ParquetReader.as[Data].read(Path(file1))
+      val data2 = ParquetReader.as[DataWithAbstract].read(Path(file1))
       
       // try data2.foreach(println)
       // finally data2.close()
@@ -78,7 +130,7 @@ class ParqSpec extends AnyWordSpec with Matchers {
       data2.close()
     }
 
-    "serialize and deserialize DataObj(UUID,ZoneDateTime,String,Long,Array)" ignore {            
+    "serialize and deserialize DataObj(UUID,ZoneDateTime,String,Long,Array)" in {            
       os.remove(os.Path(file2))
 
       val ts = ZonedDateTime.now()
@@ -108,7 +160,7 @@ class ParqSpec extends AnyWordSpec with Matchers {
       data2.close()
     }
 
-    "serialize and deserialize BigInt" ignore {            
+    "serialize and deserialize BigInt" in {            
       os.remove(os.Path(file1))
 
       val data1  = Seq(
@@ -127,12 +179,12 @@ class ParqSpec extends AnyWordSpec with Matchers {
       data2.close()
     }    
 
-    "write as stream to separate files" ignore {
+    "write as stream to separate files" in {
       val dir = "/tmp/skel-seder/parq/stream"
       os.remove.all(os.Path(s"${dir}",os.pwd))
       os.makeDir.all(os.Path(dir,os.pwd))
 
-      val data1  = (1 to 100).map(i => Data(id = i, text = Random.nextString(4)))
+      val data1  = (1 to 100).map(i => DataWithAbstract(id = i, text = Random.nextString(4),i.toByte,DataInsideId(s"${i}")))
 
       val writeOptions = ParquetWriter.Options(
         writeMode = Mode.OVERWRITE,
@@ -142,7 +194,7 @@ class ParqSpec extends AnyWordSpec with Matchers {
             
       data1.grouped(10).foreach{ g => {
         val file1 = s"${dir}/file-${System.currentTimeMillis}.parq"
-        val pw = ParquetWriter.of[Data].build(Path(file1))
+        val pw = ParquetWriter.of[DataWithAbstract].build(Path(file1))
         g.foreach{ d => 
           pw.write(Seq(d))
         }

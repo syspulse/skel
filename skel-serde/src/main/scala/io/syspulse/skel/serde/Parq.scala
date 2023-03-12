@@ -14,24 +14,6 @@ import io.syspulse.skel.util.Util
 object Parq { 
   import ValueCodecConfiguration._
 
-  // ----- Any ------------------------------------------------------------------------------------------------
-  // Treat is as String
-  implicit val anyTypeCodec: OptionalValueCodec[Any] = new OptionalValueCodec[Any] {
-    override protected def decodeNonNull(value: Value, configuration: ValueCodecConfiguration): Any =
-      value match {
-          case BinaryValue(binary) => new String(binary.getBytes())
-        }
-    override protected def encodeNonNull(data: Any, configuration: ValueCodecConfiguration): Value =
-      BinaryValue(data.toString.getBytes())
-  }
-
-  implicit val anySchema: TypedSchemaDef[Any] = SchemaDef
-      .primitive(
-        primitiveType         = PrimitiveType.PrimitiveTypeName.BINARY,
-        logicalTypeAnnotation = Option(LogicalTypeAnnotation.stringType())        
-      )
-      .typed[Any]
-
   // ----- UUID ------------------------------------------------------------------------------------------------
   implicit val uuidTypeCodec: OptionalValueCodec[UUID] = new OptionalValueCodec[UUID] {
     override protected def decodeNonNull(value: Value, configuration: ValueCodecConfiguration): UUID =
@@ -89,4 +71,50 @@ object Parq {
         logicalTypeAnnotation = Option(LogicalTypeAnnotation.decimalType(18,38))
       )
       .typed[BigInt]
+}
+
+// ----- Any as String ----------------------------------------------------------------------------------------------
+object ParqAnyString { 
+  import ValueCodecConfiguration._
+
+  // Treat is as String
+  implicit val anyTypeCodec: OptionalValueCodec[Any] = new OptionalValueCodec[Any] {
+    override protected def decodeNonNull(value: Value, configuration: ValueCodecConfiguration): Any =
+      value match {
+          case BinaryValue(binary) => new String(binary.getBytes())
+        }
+    override protected def encodeNonNull(data: Any, configuration: ValueCodecConfiguration): Value =
+      BinaryValue(data.toString.getBytes())
+  }
+
+  implicit val anySchema: TypedSchemaDef[Any] = SchemaDef
+      .primitive(
+        primitiveType         = PrimitiveType.PrimitiveTypeName.BINARY,
+        logicalTypeAnnotation = Option(LogicalTypeAnnotation.stringType())        
+      )
+      .typed[Any]
+}
+
+// ----- Any as Serializable ------------------------------------------------------------------------------------------
+object ParqAnySerializable { 
+  import ValueCodecConfiguration._
+  implicit val abstactClassTypeCodec: OptionalValueCodec[Any] = new OptionalValueCodec[Any] {
+    override protected def decodeNonNull(value: Value, configuration: ValueCodecConfiguration): Any =
+      value match {
+          case BinaryValue(binary) => Serde.deserialize(binary.getBytes())
+      }
+
+    override protected def encodeNonNull(data: Any, configuration: ValueCodecConfiguration): Value = {
+      // Attention: Enforced cast
+      // Exception is good since it always requires class to be serializable
+      BinaryValue(Serde.serialize(data.asInstanceOf[Serializable]))
+    }
+  }
+
+  implicit val abstractClassSchema: TypedSchemaDef[Any] = SchemaDef
+      .primitive(
+        primitiveType         = PrimitiveType.PrimitiveTypeName.BINARY,
+        logicalTypeAnnotation = None
+      )
+      .typed[Any]
 }
