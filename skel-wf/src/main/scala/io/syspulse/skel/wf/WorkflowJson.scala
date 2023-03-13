@@ -15,5 +15,5 @@ object WorkflowJson extends JsonCommon {
   implicit val jf_wfid = jsonFormat2(Workflowing.ID)
   implicit val jf_ExecId = jsonFormat2(Executing.ID)
   implicit val jf_states = jsonFormat4(State)
-  implicit val jf_wfs = jsonFormat4(WorkflowState.apply _)
+  implicit val jf_wfs = jsonFormat5(WorkflowState.apply _)
 }

@@ -11,8 +11,13 @@ import io.syspulse.skel.wf.runtime.Executing
 
 case class State(ts:Long,eid:Executing.ID,data:ExecData,status:Option[String] = None)
 
-case class WorkflowState(wid: Workflowing.ID, states:Seq[State], var count:Long = 0, ts0:Long = System.currentTimeMillis)
+case class WorkflowState(wid: Workflowing.ID, status:WorkflowState.Status, states:Seq[State]=Seq(), var count:Long = 0, ts0:Long = System.currentTimeMillis)
 
-// object WorkflowState {
-//   type ID = String
-// }
+object WorkflowState {
+  type Status = String
+
+  val STATUS_CREATED = "created"
+  val STATUS_INITIALIZED = "init"
+  val STATUS_STOPPED = "stopped"
+  val STATUS_RUNNING = "running"
+}

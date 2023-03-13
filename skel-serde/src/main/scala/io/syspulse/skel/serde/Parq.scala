@@ -98,7 +98,7 @@ object ParqAnyString {
 // ----- Any as Serializable ------------------------------------------------------------------------------------------
 object ParqAnySerializable { 
   import ValueCodecConfiguration._
-  implicit val abstactClassTypeCodec: OptionalValueCodec[Any] = new OptionalValueCodec[Any] {
+  implicit val abstactSerClassTypeCodec: OptionalValueCodec[Any] = new OptionalValueCodec[Any] {
     override protected def decodeNonNull(value: Value, configuration: ValueCodecConfiguration): Any =
       value match {
           case BinaryValue(binary) => Serde.deserialize(binary.getBytes())
@@ -111,7 +111,7 @@ object ParqAnySerializable {
     }
   }
 
-  implicit val abstractClassSchema: TypedSchemaDef[Any] = SchemaDef
+  implicit val abstractSerClassSchema: TypedSchemaDef[Any] = SchemaDef
       .primitive(
         primitiveType         = PrimitiveType.PrimitiveTypeName.BINARY,
         logicalTypeAnnotation = None
@@ -134,7 +134,7 @@ object ParqCodecTypedSerializable {
       BinaryValue(Serde.serialize(data))
     }
     
-    implicit val abstractClassSchema: TypedSchemaDef[T] = SchemaDef
+    implicit def abstractTypedClassSchema: TypedSchemaDef[T] = SchemaDef
       .primitive(
         primitiveType         = PrimitiveType.PrimitiveTypeName.BINARY,
         logicalTypeAnnotation = None
@@ -143,6 +143,7 @@ object ParqCodecTypedSerializable {
   }
 
   def forClass[T <: Serializable] = {
-    new AbstractClassCodec[T]()
+    val codec = new AbstractClassCodec[T]()
+    (codec,codec.abstractTypedClassSchema)
   }
 }

@@ -34,14 +34,37 @@ class Workflowing(id:Workflowing.ID,wf:Workflow,stateStore:WorkflowStateStore,me
 
   override def toString() = s"Workflowing(${id})[${mesh},${links}]"
 
+  var state:WorkflowState = WorkflowState(id,WorkflowState.STATUS_CREATED)
   var data:ExecData = wf.attributes
   
-  log.info(s"state=${stateStore}: wf=${wf}: data=${data}")
+  log.info(s"store=${stateStore}: wf=${wf}: data=${data}")
 
   def getMesh = mesh
   def getExecs = mesh.values
   def getLinks = links
   def getRunning = running
+
+  def init():Try[WorkflowState] = {
+    state = WorkflowState(id,WorkflowState.STATUS_INITIALIZED)
+    log.info(s"init: ${state}")
+    stateStore.+(state).map(_ => state)    
+  }
+
+  def start():Try[WorkflowState] = {
+    log.info(s"start: ${state}")
+    stateStore.update(id,status = Some(WorkflowState.STATUS_RUNNING)).map(state1 => {
+      state = state1
+      state
+    })
+  }
+
+  def stop():Try[WorkflowState] = {
+    log.info(s"stop: ${state}")
+    stateStore.update(id,status = Some(WorkflowState.STATUS_STOPPED)).map(state1 => {
+      state = state1
+      state
+    })
+  }
 
   def emit(execName:String,input:Let.ID,event:ExecEvent):Try[Workflowing] = {
     mesh.get(execName) match {

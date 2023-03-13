@@ -32,8 +32,8 @@ class WorkflowStateStoreDir(dir:String = "store/") extends StoreDir[WorkflowStat
   override def del(id:Workflowing.ID):Try[WorkflowStateStoreDir] = super.del(id).flatMap(_ => store.del(id)).map(_ => this)
   override def ?(id:Workflowing.ID):Try[WorkflowState] = store.?(id)
 
-  override def update(id:Workflowing.ID, states:Option[Seq[State]] = None, events:Option[Long] = None):Try[WorkflowState] = 
-    store.update(id, states, events).flatMap(u => writeFile(u))
+  override def update(id:Workflowing.ID,status:Option[WorkflowState.Status]=None,states:Option[Seq[State]] = None, events:Option[Long] = None):Try[WorkflowState] = 
+    store.update(id, status, states, events).flatMap(u => writeFile(u))
 
   override def commit(id:Workflowing.ID,eid:Executing.ID,data:ExecData,status:Option[String]):Try[WorkflowState] = 
     store.commit(id, eid, data, status).flatMap(u => writeFile(u))

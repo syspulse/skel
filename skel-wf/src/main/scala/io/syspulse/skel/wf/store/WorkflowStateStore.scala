@@ -23,15 +23,15 @@ trait WorkflowStateStore extends Store[WorkflowState,Workflowing.ID] {
   def all:Seq[WorkflowState]
   def size:Long
 
-  def update(id:Workflowing.ID, states:Option[Seq[State]] = None, count:Option[Long] = None):Try[WorkflowState]
+  def update(id:Workflowing.ID,status:Option[String]=None,states:Option[Seq[State]]=None,count:Option[Long] = None):Try[WorkflowState]
 
-  protected def modify(ws:WorkflowState, states:Option[Seq[State]] = None, count:Option[Long] = None):WorkflowState = {    
+  protected def modify(ws:WorkflowState,status:Option[String]=None,states:Option[Seq[State]] = None, count:Option[Long] = None):WorkflowState = {    
     (for {
       ws0 <- Some(ws)
       ws1 <- Some(if(states.isDefined) ws0.copy(states = states.get) else ws0)
       ws2 <- Some(if(count.isDefined) ws1.copy(count = ws1.count + count.get) else ws1)
-      ws3 <- Some(ws2)
-    } yield ws3).get    
+      ws3 <- Some(if(status.isDefined) ws2.copy(status = status.get) else ws2)      
+    } yield ws3).get
   }
 
   def commit(id:Workflowing.ID,eid:Executing.ID,data:ExecData,status:Option[String]):Try[WorkflowState]

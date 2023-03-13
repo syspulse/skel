@@ -126,8 +126,8 @@ class WorkflowEngine(
     })
 
     // add to state store
-    val ws = WorkflowState(wid,Seq(),0)
-    getStoreState().+(ws)
+    // val ws = WorkflowState(wid,Seq(),WorkflowState.STATUS_INIT)
+    // getStoreState().+(ws)
 
     // init 
     ee.flatMap(_.toOption).map( e =>
@@ -135,6 +135,7 @@ class WorkflowEngine(
     )
 
     val w = new Workflowing(wid,wf,getStoreState(),mesh,ll,llr)(this)
+    w.init()
     Success(w)
   }
 
@@ -184,6 +185,8 @@ class WorkflowEngine(
     // start Running infra
     wf.getRunning.map( r => r.start())
 
+    wf.start()
+
     Success(wf)
   }
 
@@ -195,6 +198,8 @@ class WorkflowEngine(
 
     // stop running infra
     wf.getRunning.map( r => r.stop())
+
+    wf.stop()
 
     Success(wf)
   }

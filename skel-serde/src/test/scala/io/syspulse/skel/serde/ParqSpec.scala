@@ -37,6 +37,8 @@ case class DataMany(id: Int, text: String,b:Byte)
 case class DataWithAbstract(id: Int, text: String,b:Byte, inside:DataAbstract)
 case class DataBig(v:BigInt)
 
+case class DataInside(inside:DataInsideId)
+
 import com.github.mjakubowski84.parquet4s._
 import org.apache.parquet.schema._
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY
@@ -89,10 +91,24 @@ class ParqSpec extends AnyWordSpec with Matchers {
       data2.close()
     }
 
+    "serialize and deserialize with internal case class DataInside(DataInsideId)" in {       
+      os.remove(os.Path(file1))
+
+      val count = 1
+      val data1  = (1 to count).map(i => DataInside(DataInsideId(s"${i}")))
+      
+      ParquetWriter.of[DataInside].writeAndClose(Path(file1), data1)
+
+      val bin1 = os.read(os.Path(file1))
+      bin1.size !== (0)      
+      val data2 = ParquetReader.as[DataInside].read(Path(file1))      
+      data2.toList should === (data1.toList)
+      data2.close()
+    }
+
     "serialize and deserialize Data(Int,String,Byte,Abstract)" in { 
-      // not working because of Type erasure, needs Macros
-      implicit val codecs = ParqCodecTypedSerializable.forClass[DataAbstract]
-      import codecs._
+      implicit val (codecs,types) = ParqCodecTypedSerializable.forClass[DataAbstract]
+      //import codecs._
       
       os.remove(os.Path(file1))
 
