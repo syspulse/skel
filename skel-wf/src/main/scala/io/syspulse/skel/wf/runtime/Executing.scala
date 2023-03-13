@@ -13,9 +13,10 @@ import io.syspulse.skel.wf._
 import io.syspulse.skel.wf.store.WorkflowStateStore
 
 object Executing { 
-  case class ID(wid:Workflowing.ID,name:String)
-  def id(wid:Workflowing.ID,name:String):ID = ID(wid,name)
-
+  //case class ID(wid:Workflowing.ID,name:String)
+  type ID = String
+  def apply(wid:Workflowing.ID,name:String):ID = s"${name}:${wid}"
+  def id(wid:Workflowing.ID,name:String):ID = apply(wid,name) //ID(wid,name)
 }
 
 class Executing(wid:Workflowing.ID,name:String) {
@@ -42,7 +43,7 @@ class Executing(wid:Workflowing.ID,name:String) {
     status match {
       case Status.CREATED() => 
         stateStore = Some(store)
-        id = Executing.ID(wid,name)        
+        id = Executing.id(wid,name)        
         inputs = inputs ++ in.map(link => link.from.let -> link).toMap
         outputs = outputs ++ out.map(link => link.to.let -> link).toMap
         status = Status.INITIALIZED()        
@@ -54,7 +55,7 @@ class Executing(wid:Workflowing.ID,name:String) {
     }
   }
 
-  var id = Executing.ID(wid,name)  
+  var id = Executing.id(wid,name)  
   val log = Logger(s"${this}-${id}")
 
   def getExecId = name

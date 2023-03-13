@@ -20,11 +20,13 @@ import io.syspulse.skel.wf._
 import io.syspulse.skel.wf.store.WorkflowStateStore
 
 object Workflowing {
-  case class ID(wid:Workflow.ID,ts:Long) {
-    override def toString = s"${wid}-${ts}"
-  }
+  // case class ID(wid:Workflow.ID,ts:Long) {
+  //   override def toString = s"${wid}-${ts}"
+  // }
+  type ID = String
+  def apply(wid:Workflow.ID,ts:Long):ID = s"${wid}-${ts}"
 
-  def id(name:String,ts:Long = System.currentTimeMillis):ID = Workflowing.ID(name,ts)
+  def id(name:String,ts:Long = System.currentTimeMillis):ID = apply(name,ts)//Workflowing.ID(name,ts)
   def id(wf: Workflow):ID = id(wf.id,System.currentTimeMillis)
   def id():ID = id("",0L)
 }
