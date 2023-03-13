@@ -10,11 +10,11 @@ import io.syspulse.skel.wf.store.WorkflowStateStore
 
 case class Workflow(
   id:Workflow.ID,
-  attributes:ExecData,
+  data:ExecData,
   flow: Seq[Exec],
   links: Seq[Link]) {
   
-  def getAttributes = attributes
+  def getData = data
 }
 
 object Workflow {

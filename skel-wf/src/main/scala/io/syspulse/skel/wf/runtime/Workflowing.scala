@@ -37,7 +37,7 @@ class Workflowing(id:Workflowing.ID,wf:Workflow,stateStore:WorkflowStateStore,me
   override def toString() = s"Workflowing(${id})[${mesh},${links}]"
 
   var state:WorkflowState = WorkflowState(id,WorkflowState.STATUS_CREATED)
-  var data:ExecData = wf.attributes
+  var data:ExecData = wf.data
   
   log.info(s"store=${stateStore}: wf=${wf}: data=${data}")
 
