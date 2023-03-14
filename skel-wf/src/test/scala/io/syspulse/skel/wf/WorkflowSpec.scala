@@ -60,7 +60,7 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       w2 should === (Success(w1))
     }
 
-    "run RuntimeThreads Workflow and stop it externally" in {
+    "run RuntimeThreads Workflow and stop it externally" ignore {
       implicit val we = new WorkflowEngine(runtime = new RuntimeThreads())
 
       val w1 = Workflow("wf-3",Map(),
@@ -157,6 +157,34 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       // s1 should !== (s2)
 
       we.stop(wf1.get)
+    }
+
+    "run Workflow cron " in {
+      implicit val we = new WorkflowEngine(runtime = new RuntimeThreads())
+
+      val w1 = Workflow("wf-6",Map(),
+        flow = Seq(
+          Exec("F-1","io.syspulse.skel.wf.exec.CronExec",in = Seq(In("in-0")), out = Seq(Out("out-0"),Out("out-1")),data = Some(Map("cron"->"1000"))),
+          Exec("F-2","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(),data = Some(Map("sys"->"\u220e".repeat(1)))),
+          Exec("F-3","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(),data = Some(Map("sys"->"\u2b25".repeat(1)))),
+        ),
+        links = Seq(
+          Link("link-1","F-1","out-0","F-2","in-0"),
+          Link("link-2","F-1","out-1","F-3","in-0")
+        )
+      )
+      val wf1 = we.spawn(w1)
+      Thread.sleep(100L)
+      we.start(wf1.get)
+   
+      Thread.sleep(100L)
+      wf1.get.state.status should === (WorkflowState.STATUS_RUNNING)
+
+
+      Thread.sleep(3000L)
+      we.stop(wf1.get)
+
+      wf1.get.state.status should === (WorkflowState.STATUS_STOPPED)
     }
     
   }

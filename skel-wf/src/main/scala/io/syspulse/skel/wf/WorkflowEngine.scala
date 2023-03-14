@@ -59,7 +59,8 @@ class WorkflowEngine(workflowStoreUri:String = "mem://", stateStoreUri:String = 
   val registry = new WorkflowRegistry(Seq(
     Exec("Log","io.syspulse.skel.wf.exec.LogExec"),
     Exec("Process","io.syspulse.skel.wf.exec.ProcessExec"),
-    Exec("Terminate","io.syspulse.skel.wf.exec.TerminateExec")
+    Exec("Terminate","io.syspulse.skel.wf.exec.TerminateExec"),
+    Exec("Cron","io.syspulse.skel.wf.exec.CronExec")
   ))
 
   def getStoreWorkflow() = workflowStore
