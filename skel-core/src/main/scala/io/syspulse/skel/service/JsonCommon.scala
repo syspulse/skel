@@ -18,6 +18,8 @@ import scala.collection.SortedSet
 import spray.json.JsArray
 import spray.json.RootJsonFormat
 import spray.json.CollectionFormats
+import spray.json.JsNull
+import spray.json.JsObject
 
 object JsonCommon extends DefaultJsonProtocol with CollectionFormats {
   implicit def sortedSetFormat[T :JsonFormat](implicit ordering: Ordering[T]) = viaSeq[SortedSet[T], T](seq => SortedSet(seq :_*))
@@ -116,6 +118,7 @@ trait JsonCommon extends DefaultJsonProtocol with CollectionFormats {
     }
   }
 
+  // attention - does not support arrays 
   implicit object AnyFormat extends JsonFormat[Any] {
     def write(x: Any) = x match {
       case n: Int => JsNumber(n)
@@ -129,6 +132,9 @@ trait JsonCommon extends DefaultJsonProtocol with CollectionFormats {
       case JsString(s) => s
       case JsTrue => true
       case JsFalse => false
+      case JsNull => None
+      case JsArray(elements) => elements.map(e => read(e)).toArray
+      case JsObject(fields) => fields.map{ case(k,v) => k -> read(v)}.toMap
     }
   }
 

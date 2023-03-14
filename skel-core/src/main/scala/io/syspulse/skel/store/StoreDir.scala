@@ -26,7 +26,9 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
   }
 
   def writeFile(e:E):Try[E] = try {
-    os.write.over(os.Path(dir,os.pwd) / s"${getKey(e)}.json",e.toJson.compactPrint)
+    val f = os.Path(dir,os.pwd) / s"${getKey(e)}.json"
+    log.info(s"saving ${e} -> ${f}")
+    os.write.over(f,e.toJson.compactPrint)
     Success(e)
   } catch {
     case e:Exception => Failure(e)
