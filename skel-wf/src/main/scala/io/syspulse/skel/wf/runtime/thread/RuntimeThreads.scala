@@ -39,7 +39,7 @@ class RunningThread(link:Linking) extends Running {
 
   def stop():Try[RunningThread] = {
     terminated = true
-    queue.put(ExecCmdStop())
+    queue.put(ExecCmdStop(this.toString))
     Success(this)
   }
 }

@@ -9,8 +9,9 @@ import io.syspulse.skel.wf._
 
 class TerminateExec(wid:Workflowing.ID,name:String) extends Executing(wid,name) {
 
-  override def exec(in:Let.ID,data:ExecData):Try[ExecData] = {
+  override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
     log.warn(s"TERMINATING(${data})")
-    Failure(new Exception(s"Terminated"))
+    //Failure(new Exception(s"Terminated"))
+    Success(ExecCmdStop(name))
   }
 }

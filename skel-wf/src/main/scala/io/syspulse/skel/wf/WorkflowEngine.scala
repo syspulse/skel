@@ -131,13 +131,14 @@ class WorkflowEngine(workflowStoreUri:String = "mem://", stateStoreUri:String = 
     // val ws = WorkflowState(wid,Seq(),WorkflowState.STATUS_INIT)
     // getStoreState().+(ws)
 
-    // init 
-    ee.flatMap(_.toOption).map( e =>
-      e.init(getStoreState(),wid,e.getName,Seq(),Seq()) 
-    )
-
     val w = new Workflowing(wid,wf,getStoreState(),mesh,ll,llr)(this)
     w.init()
+
+    // init 
+    ee.flatMap(_.toOption).map( e =>
+      e.init(getStoreState(), w, wid, e.getName,Seq(),Seq()) 
+    )
+
     Success(w)
   }
 

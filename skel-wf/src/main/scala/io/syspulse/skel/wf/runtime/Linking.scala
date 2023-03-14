@@ -16,7 +16,7 @@ trait ExecEvent
 sealed case class ExecDataEvent(data:ExecData) extends ExecEvent
 sealed case class ExecCmdEvent(cmd:String,replyTo: ActorRef[ExecEvent]) extends ExecEvent
 sealed case class ExecCmdStart(replyTo:ActorRef[ExecEvent]) extends ExecEvent
-sealed case class ExecCmdStop() extends ExecEvent
+sealed case class ExecCmdStop(who:String) extends ExecEvent
 sealed case class ExecCmdRunningReq(replyTo:ActorRef[ExecCmdRunningRes]) extends ExecEvent
 sealed case class ExecCmdRunningRes(r:Running) extends ExecEvent
 

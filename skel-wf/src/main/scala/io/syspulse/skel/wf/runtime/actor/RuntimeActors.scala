@@ -44,7 +44,7 @@ class RunningActor(link:Linking,context: ActorContext[ExecEvent]) extends Abstra
   }
 
   def stop():Try[RunningActor] = {
-    actor ! ExecCmdStop()
+    actor ! ExecCmdStop(actor.toString)
     Success(this)
   }
 
@@ -53,7 +53,7 @@ class RunningActor(link:Linking,context: ActorContext[ExecEvent]) extends Abstra
       case ExecCmdRunningReq(replyTo) => 
         replyTo ! ExecCmdRunningRes(this)
         this
-      case ExecCmdStop() =>
+      case ExecCmdStop(who) =>
         log.info(s"stopping: actor=${context.self}")
         Behaviors.stopped  
       case e:ExecEvent =>

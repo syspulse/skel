@@ -28,6 +28,7 @@ class Executing(wid:Workflowing.ID,name:String) {
   var inputs:Map[String,Linking] = Map()
   var outputs:Map[String,Linking] = Map()
   var wfData = ExecData(Map())
+  var workflowing:Option[Workflowing] = None
 
   //override def toString = s"${this.getClass.getName()}(${name},${getStatus},${getInputs},${getOutpus})"
   override def toString = this.getClass.getName()+":"+name+":"+getStatus+":"+getInputs+":"+getOutpus
@@ -39,11 +40,13 @@ class Executing(wid:Workflowing.ID,name:String) {
   }
 
   def init(store:WorkflowStateStore,
+           workflowing:Workflowing,
            wid:Workflowing.ID,name:String,
            in:Seq[Linking],out:Seq[Linking]):Unit = {
     status match {
       case Status.CREATED() => 
         stateStore = Some(store)
+        this.workflowing = Some(workflowing)
         id = Executing.id(wid,name)        
         inputs = inputs ++ in.map(link => link.from.let -> link).toMap
         outputs = outputs ++ out.map(link => link.to.let -> link).toMap
@@ -118,31 +121,41 @@ class Executing(wid:Workflowing.ID,name:String) {
     })
   }
 
-  def exec(in:Let.ID,data:ExecData):Try[ExecData] = {
+  def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
     // broadcast to all output
     broadcast(data)
-    Success(data)
+    Success(ExecDataEvent(data))
   }
 
   def onEvent(in:Let.ID,e:ExecEvent):Try[ExecEvent] = {
     log.info(s": ${e} -> [${in}]-${this}")
     e match {
       case ExecDataEvent(d) => 
-        val r = exec(in,ExecData(d.attr ++ wfData.attr)).map(d => ExecDataEvent(d))
+        val r = exec(in,ExecData(d.attr ++ wfData.attr))
 
         if(stateStore.isDefined) {
           //log.info(s">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> COMMITTING: ${r}")
           r match {
-            case Success(de1) => 
-              stateStore.get.commit(wid,id, de1.data, status = Some("ok"))
+            case Success(e1) => 
+              e1 match {
+                case ExecDataEvent(data1) =>
+                  stateStore.get.commit(wid,id, data1, status = Some("ok"))
+                case ExecCmdStop(who) =>
+                  // Exec asks to stop
+                  stateStore.get.commit(wid,id, ExecData(Map()), status = Some("stop"))
+                  // signal termination
+                  workflowing.get.terminate()
+              }
             case f => 
               stateStore.get.commit(wid,id, d,status = Some(f.toString))
           }
           
+        } else {
+          log.error(s"stateStore undefined: event=${r}")
         }
 
         r
-      case e @ ExecCmdStop() =>
+      case e @ ExecCmdStop(who) =>
         // internal command to stop Runtime
         Success(e)
     }

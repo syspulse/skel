@@ -31,11 +31,19 @@ object Workflowing {
   def id():ID = id("",0L)
 }
 
-class Workflowing(id:Workflowing.ID,wf:Workflow,stateStore:WorkflowStateStore,mesh:Map[Exec.ID,Executing],links:Seq[Linking],running:Seq[Running])(implicit engine:WorkflowEngine) {
+class Workflowing(
+  id:Workflowing.ID,
+  wf:Workflow,
+  stateStore:WorkflowStateStore,
+  mesh:Map[Exec.ID,Executing],
+  links:Seq[Linking],
+  running:Seq[Running])(implicit engine:WorkflowEngine) {
+  
   val log = Logger(s"${id}")
 
   override def toString() = s"Workflowing(${id})[${mesh},${links}]"
 
+  @volatile
   var state:WorkflowState = WorkflowState(id,WorkflowState.STATUS_CREATED)
   var data:ExecData = wf.data
   
@@ -67,6 +75,11 @@ class Workflowing(id:Workflowing.ID,wf:Workflow,stateStore:WorkflowStateStore,me
       state = state1
       state
     })
+  }
+
+  def terminate():Try[WorkflowState] = {
+    log.warn(s"terminating: ${id}(${state})")
+    engine.stop(this).map( _ => state)
   }
 
   def emit(execName:String,input:Let.ID,event:ExecEvent):Try[Workflowing] = {

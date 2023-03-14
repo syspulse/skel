@@ -9,11 +9,11 @@ import io.syspulse.skel.wf._
 import io.syspulse.skel.util.Util
 
 class LogExec(wid:Workflowing.ID,name:String) extends Executing(wid,name) {
-  override def exec(in:Let.ID,data:ExecData):Try[ExecData] = {
+  override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
     log.info(s"LOGGING: > data=${data}")
     
     val data1 = ExecData(data.attr ++ Map(s"log.ts.${System.currentTimeMillis}" -> Util.sha256(data.attr.toString)))
     broadcast(data1)
-    Success(data1)
+    Success(ExecDataEvent(data1))
   }
 }

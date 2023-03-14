@@ -9,7 +9,7 @@ import io.syspulse.skel.wf._
 
 class ProcessExec(wid:Workflowing.ID,name:String) extends Executing(wid,name) {
   
-  override def exec(in:Let.ID,data:ExecData):Try[ExecData] = {
+  override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
     val data1 = data.attr.get("script") match {
       case Some(script) => ExecData(attr = data.attr ++ Map("processed" -> System.currentTimeMillis.toString))
       case None => data
@@ -18,6 +18,6 @@ class ProcessExec(wid:Workflowing.ID,name:String) extends Executing(wid,name) {
     log.info(s"data1 = ${data1}")
     
     broadcast(data1)
-    Success(data1)
+    Success(ExecDataEvent(data1))
   }
 }
