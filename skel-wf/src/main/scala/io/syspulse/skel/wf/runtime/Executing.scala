@@ -76,12 +76,14 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
   //def getErrorPolicy = errorPolicy
 
   def addIn(link:Linking):Executing = {
-    inputs = inputs + (link.from.let -> link)
+    //inputs = inputs + (link.from.let -> link)
+    inputs = inputs + (link.to.let -> link)
     this
   }
 
-  def addOut(link:Linking):Executing = {
-    outputs = outputs + (link.to.let -> link)
+  def addOut(link:Linking):Executing = {    
+    //outputs = outputs + (link.to.let -> link)
+    outputs = outputs + (link.from.let -> link)
     this
   }
 
