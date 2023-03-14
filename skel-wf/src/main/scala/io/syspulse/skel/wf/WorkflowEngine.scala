@@ -34,10 +34,7 @@ object WorkflowEngine {
   val as = ActorSystem[WorkflowCommand](rootBehavior, "WorfklowEngine")
 }
 
-class WorkflowEngine(
-  workflowStoreUri:String = "mem://",
-  stateStoreUri:String = "dir:///tmp/skel-wf/runtime",
-  runtime:Runtime) {
+class WorkflowEngine(workflowStoreUri:String = "mem://", stateStoreUri:String = "dir:///tmp/skel-wf/runtime", runtime:Runtime, runtimeStoreUri:String = "dir:///tmp/skel-wf/runtime") {
   
   val log = Logger(s"${this}")
 
@@ -51,6 +48,11 @@ class WorkflowEngine(
     //case "dir" :: dir :: Nil => new WorkflowStoreDir(dir)
     case "mem" :: Nil => new WorkflowStoreMem()
     //case _ => new WorkflowStoreMem()
+  }
+
+  // only directory is supported
+  val runtimeStore = runtimeStoreUri.split("://").toList match {
+    case "dir" :: dir :: Nil => dir
   }
 
 
@@ -179,8 +181,13 @@ class WorkflowEngine(
   def start(wf:Workflowing):Try[Workflowing] = {
     log.info(s"start: ${wf}")
 
-    // start Executings with initial data
-    wf.getExecs.map( e => e.start(wf.data) )
+    // start Executings with initial default data
+    val wfRuntimeDir = runtimeStore + "/" + wf.getId
+    os.makeDir.all(os.Path(wfRuntimeDir,os.pwd))
+
+    val data = ExecData(wf.data.attr ++ Map( "data_dir" -> wfRuntimeDir))
+    
+    wf.getExecs.map( e => e.start(data) )
 
     // start Running infra
     wf.getRunning.map( r => r.start())

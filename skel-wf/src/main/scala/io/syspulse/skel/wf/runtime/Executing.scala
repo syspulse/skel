@@ -27,6 +27,7 @@ class Executing(wid:Workflowing.ID,name:String) {
   var stateStore:Option[WorkflowStateStore] = None
   var inputs:Map[String,Linking] = Map()
   var outputs:Map[String,Linking] = Map()
+  var wfData = ExecData(Map())
 
   //override def toString = s"${this.getClass.getName()}(${name},${getStatus},${getInputs},${getOutpus})"
   override def toString = this.getClass.getName()+":"+name+":"+getStatus+":"+getInputs+":"+getOutpus
@@ -79,6 +80,7 @@ class Executing(wid:Workflowing.ID,name:String) {
 
   def start(data:ExecData):Try[Status] = {
     log.info(s"start: ${data}")
+    wfData = data
     status = Status.RUNNING()
     Success(status)
   }
@@ -126,7 +128,7 @@ class Executing(wid:Workflowing.ID,name:String) {
     log.info(s": ${e} -> [${in}]-${this}")
     e match {
       case ExecDataEvent(d) => 
-        val r = exec(in,d).map(d => ExecDataEvent(d))
+        val r = exec(in,ExecData(d.attr ++ wfData.attr)).map(d => ExecDataEvent(d))
 
         if(stateStore.isDefined) {
           //log.info(s">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> COMMITTING: ${r}")

@@ -41,6 +41,7 @@ class Workflowing(id:Workflowing.ID,wf:Workflow,stateStore:WorkflowStateStore,me
   
   log.info(s"store=${stateStore}: wf=${wf}: data=${data}")
 
+  def getId = id
   def getMesh = mesh
   def getExecs = mesh.values
   def getLinks = links

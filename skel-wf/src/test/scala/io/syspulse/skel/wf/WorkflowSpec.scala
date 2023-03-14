@@ -60,7 +60,7 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       w2 should === (Success(w1))
     }
 
-    "create RuntimeThreads Workflow with 2 Logs" ignore {
+    "create RuntimeThreads Workflow with 2 Logs" in {
       implicit val we = new WorkflowEngine(runtime = new RuntimeThreads())
 
       val w1 = Workflow("wf-1",ExecData.empty,
