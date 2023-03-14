@@ -41,7 +41,7 @@ class WorkflowStoreMem extends WorkflowStore {
     case None => Failure(new Exception(s"not found: ${id}"))
   }
  
-  def update(id:Workflow.ID, data:Option[ExecData] = None):Try[Workflow] = 
+  def update(id:Workflow.ID, data:Option[Map[String,Any]] = None):Try[Workflow] = 
     this.?(id) match {
       case Success(wf) => 
         val wf1 = modify(wf,data)

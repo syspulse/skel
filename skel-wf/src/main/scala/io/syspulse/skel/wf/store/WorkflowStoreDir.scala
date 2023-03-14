@@ -30,7 +30,7 @@ class WorkflowStoreDir(dir:String = "store/") extends StoreDir[Workflow,Workflow
   override def del(id:Workflow.ID):Try[WorkflowStoreDir] = super.del(id).flatMap(_ => store.del(id)).map(_ => this)
   override def ?(id:Workflow.ID):Try[Workflow] = store.?(id)
 
-  def update(id:Workflow.ID, data:Option[ExecData] = None):Try[Workflow] = store.update(id, data).flatMap(u => writeFile(u))
+  def update(id:Workflow.ID, data:Option[Map[String,Any]] = None):Try[Workflow] = store.update(id, data).flatMap(u => writeFile(u))
 
   // create directory
   os.makeDir.all(os.Path(dir,os.pwd))

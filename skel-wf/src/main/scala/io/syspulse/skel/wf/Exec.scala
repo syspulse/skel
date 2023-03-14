@@ -29,7 +29,7 @@ object Let {
 
 case class Link(id:Link.ID,from:Exec.ID,out:Let.ID,to:Exec.ID,in:Let.ID)
 
-case class Exec(name:String,typ:String,in:Seq[In] = Seq(),out:Seq[Out] = Seq()) {
+case class Exec(name:String,typ:String,in:Seq[In] = Seq(),out:Seq[Out] = Seq(),data:Option[Map[String,Any]]=None) {
   private val id = Exec(name)
     
   def getId = Exec(name)

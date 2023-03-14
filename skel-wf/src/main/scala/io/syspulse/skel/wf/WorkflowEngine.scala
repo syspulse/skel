@@ -131,15 +131,15 @@ class WorkflowEngine(workflowStoreUri:String = "mem://", stateStoreUri:String = 
     // val ws = WorkflowState(wid,Seq(),WorkflowState.STATUS_INIT)
     // getStoreState().+(ws)
 
-    val w = new Workflowing(wid,wf,getStoreState(),mesh,ll,llr)(this)
-    w.init()
+    val workflowing = new Workflowing(wid,wf,getStoreState(),mesh,ll,llr)(this)
+    workflowing.init()
 
     // init 
     ee.flatMap(_.toOption).map( e =>
-      e.init(getStoreState(), w, wid, e.getName,Seq(),Seq()) 
+      e.init(getStoreState(), workflowing, wid, e.getName, Seq(), Seq()) 
     )
 
-    Success(w)
+    Success(workflowing)
   }
 
   def spawn(f:Exec,wid:Workflowing.ID):Try[Executing] = {
@@ -155,12 +155,13 @@ class WorkflowEngine(workflowStoreUri:String = "mem://", stateStoreUri:String = 
         log.info(s"spawning: class=${exec.typ}")
         val cz = Class.forName(exec.typ)
 
-        val args = Array(wid,f.name)
-        val argsStr = args.map(_.getClass).toSeq.toString
+        val args = Array(wid,f.name,f.data.getOrElse(Map.empty[String,Any]))
+        val argsStr = args.map(_.getClass).toSeq
         cz.getConstructors().find { c => 
-          val ctorStr = c.getParameters().map(_.getParameterizedType).toSeq.toString
-          val b = argsStr == ctorStr
-          log.debug(s"class=${cz}: ctor=${c}: '${argsStr}'=='${ctorStr}': ${b}")
+          val ctorStr = c.getParameters().map(_.getParameterizedType).toSeq
+          // ATTENTION: expecting 3 parameters !
+          val b = ctorStr.size == 3//argsStr.toString == ctorStr.toString
+          log.info(s"class=${cz}: ctor=${c}: '${argsStr.toString}'=='${ctorStr.toString}': ${b}")
           b
         } match {
           case Some(ctor) => 
@@ -186,8 +187,10 @@ class WorkflowEngine(workflowStoreUri:String = "mem://", stateStoreUri:String = 
     val wfRuntimeDir = runtimeStore + "/" + wf.getId
     os.makeDir.all(os.Path(wfRuntimeDir,os.pwd))
 
+    // ingest additional metadata
     val data = ExecData(wf.data.attr ++ Map( "data_dir" -> wfRuntimeDir))
     
+    // start all Executing with Workflow global data !
     wf.getExecs.map( e => e.start(data) )
 
     // start Running infra

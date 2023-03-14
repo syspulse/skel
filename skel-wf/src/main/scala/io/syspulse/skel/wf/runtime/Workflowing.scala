@@ -45,7 +45,7 @@ class Workflowing(
 
   @volatile
   var state:WorkflowState = WorkflowState(id,WorkflowState.STATUS_CREATED)
-  var data:ExecData = wf.data
+  var data:ExecData = ExecData(wf.data)
   
   log.info(s"store=${stateStore}: wf=${wf}: data=${data}")
 

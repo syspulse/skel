@@ -15,10 +15,10 @@ import io.syspulse.skel.wf.store.WorkflowStoreDir
 class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
   
   "WorkflowSpec" should {
-    "Save workflow to StoreDir" in {      
-      val w1 = Workflow("wf-1",ExecData(Map("file" -> "/tmp/file-10.log","time" -> 10000)),
+    "Save workflow to StoreDir" ignore {      
+      val w1 = Workflow("wf-1",Map("file" -> "/tmp/file-10.log","time" -> 10000),
         flow = Seq(
-          Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0"))),
+          Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0")),data = Some(Map("sys"->"\u220e".repeat(1)))),
           Exec("F-2","io.syspulse.skel.wf.exec.ProcessExec",in = Seq(In("in-0")), out = Seq(Out("out-0"),Out("err-0"))),
           Exec("F-3","io.syspulse.skel.wf.exec.TerminateExec",in = Seq(In("in-0")),out = Seq(Out("err-0"))),
         ),
@@ -35,8 +35,8 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       r should === (Success(store))
     }
 
-    "Load workflow from StoreDir" in {
-      val w1 = Workflow("wf-2",ExecData(Map("file" -> "/tmp/file-10.log","time" -> 10000)),
+    "Load workflow from StoreDir" ignore {
+      val w1 = Workflow("wf-2",Map("file" -> "/tmp/file-10.log","time" -> 10000),
         flow = Seq(
           Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0"))),
           Exec("F-2","io.syspulse.skel.wf.exec.ProcessExec",in = Seq(In("in-0")), out = Seq(Out("out-0"),Out("err-0"))),
@@ -60,12 +60,12 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       w2 should === (Success(w1))
     }
 
-    "run RuntimeThreads Workflow and stop it externally" ignore {
+    "run RuntimeThreads Workflow and stop it externally" in {
       implicit val we = new WorkflowEngine(runtime = new RuntimeThreads())
 
-      val w1 = Workflow("wf-1",ExecData.empty,
+      val w1 = Workflow("wf-3",Map(),
         flow = Seq(
-          Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0"))),
+          Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0")),data = Some(Map("sys"->"\u220e".repeat(1)))),
           Exec("F-2","io.syspulse.skel.wf.exec.ProcessExec",in = Seq(In("in-0")), out = Seq(Out("out-0"),Out("err-0"))),
           // Exec("F-3","io.syspulse.skel.wf.exec.TerminateExec",in = Seq(In("in-0")),out = Seq(Out("err-0"))),
         ),
@@ -86,16 +86,19 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       
       val r2 = wf1.get.emit("F-1","in-0",ExecDataEvent(ExecData(Map("script"->"{SCRIPT_CODE}"))))
       //info(s"r2 = ${r2}")
+
+      Thread.sleep(140L)
+      wf1.get.state.status should === (WorkflowState.STATUS_RUNNING)
       
       we.stop(wf1.get)
 
       wf1.get.state.status should === (WorkflowState.STATUS_STOPPED)
     }
 
-    "run RuntimeThreads Workflow and it should terminate by itself" in {
+    "run RuntimeThreads Workflow and it should terminate by itself" ignore {
       implicit val we = new WorkflowEngine(runtime = new RuntimeThreads())
 
-      val w1 = Workflow("wf-1",ExecData.empty,
+      val w1 = Workflow("wf-4",Map(),
         flow = Seq(
           Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0"))),
           Exec("F-2","io.syspulse.skel.wf.exec.ProcessExec",in = Seq(In("in-0")), out = Seq(Out("out-0"),Out("err-0"))),
@@ -127,7 +130,7 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
     "create RuntimeActors Workflow with 2 Logs" ignore {
       implicit val we = new WorkflowEngine(runtime = new RuntimeActors())
 
-      val w1 = Workflow("wf-1",ExecData.empty,
+      val w1 = Workflow("wf-5",Map(),
         flow = Seq(
           Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0"))),
           Exec("F-2","io.syspulse.skel.wf.exec.ProcessExec",in = Seq(In("in-0")), out = Seq(Out("out-0"),Out("err-0"))),

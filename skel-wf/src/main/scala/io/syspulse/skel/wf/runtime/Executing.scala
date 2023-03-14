@@ -19,7 +19,8 @@ object Executing {
   def id(wid:Workflowing.ID,name:String):ID = apply(wid,name) //ID(wid,name)
 }
 
-class Executing(wid:Workflowing.ID,name:String) {
+// data0 - initial preconfigured data from Exec 
+class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
   
   @volatile
   var status:Status = Status.CREATED()
@@ -27,7 +28,9 @@ class Executing(wid:Workflowing.ID,name:String) {
   var stateStore:Option[WorkflowStateStore] = None
   var inputs:Map[String,Linking] = Map()
   var outputs:Map[String,Linking] = Map()
-  var wfData = ExecData(Map())
+  
+  // data during execution
+  var dataWorkflow = ExecData(Map())
   var workflowing:Option[Workflowing] = None
 
   //override def toString = s"${this.getClass.getName()}(${name},${getStatus},${getInputs},${getOutpus})"
@@ -35,7 +38,7 @@ class Executing(wid:Workflowing.ID,name:String) {
 
   // this constructor and init are need for dynamic class instantiation of Executing Executors
   def this() = {
-    this(Workflowing.id(),"")
+    this(Workflowing.id(),"",Map.empty)
     status = Status.CREATED()
   }
 
@@ -69,6 +72,7 @@ class Executing(wid:Workflowing.ID,name:String) {
   def getStatus = status
   def getInputs = inputs.keys
   def getOutpus = outputs.keys
+  //def getData = dataWorkflow.attr
   //def getErrorPolicy = errorPolicy
 
   def addIn(link:Linking):Executing = {
@@ -81,9 +85,9 @@ class Executing(wid:Workflowing.ID,name:String) {
     this
   }
 
-  def start(data:ExecData):Try[Status] = {
-    log.info(s"start: ${data}")
-    wfData = data
+  def start(dataWorkflow:ExecData):Try[Status] = {
+    log.info(s"start: ${dataWorkflow}")
+    this.dataWorkflow = dataWorkflow
     status = Status.RUNNING()
     Success(status)
   }
@@ -131,10 +135,9 @@ class Executing(wid:Workflowing.ID,name:String) {
     log.info(s": ${e} -> [${in}]-${this}")
     e match {
       case ExecDataEvent(d) => 
-        val r = exec(in,ExecData(d.attr ++ wfData.attr))
+        val r = exec(in,ExecData(d.attr))
 
         if(stateStore.isDefined) {
-          //log.info(s">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> COMMITTING: ${r}")
           r match {
             case Success(e1) => 
               e1 match {

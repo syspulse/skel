@@ -10,7 +10,7 @@ import io.syspulse.skel.wf.store.WorkflowStateStore
 
 case class Workflow(
   id:Workflow.ID,
-  data:ExecData,
+  data:Map[String,Any],  // global workflow data
   flow: Seq[Exec],
   links: Seq[Link]) {
   

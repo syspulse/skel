@@ -16,8 +16,8 @@ case class WorkflowState(wid: Workflowing.ID, status:WorkflowState.Status, state
 object WorkflowState {
   type Status = String
 
-  val STATUS_CREATED = "created"
-  val STATUS_INITIALIZED = "init"
-  val STATUS_STOPPED = "stopped"
-  val STATUS_RUNNING = "running"
+  val STATUS_CREATED = "CREATED"
+  val STATUS_INITIALIZED = "INIT"
+  val STATUS_STOPPED = "STOPPED"
+  val STATUS_RUNNING = "RUNNING"
 }
