@@ -81,7 +81,7 @@ class WorkflowEngine(workflowStoreUri:String = "mem://", stateStoreUri:String = 
         log.error(s"${wf}: ${ee}: ${e}")
         true
       case Success(e) => 
-        log.info(s"${wf}: ${ee}")
+        log.debug(s"${wf}: ${ee}")
         mesh = mesh + (e.getExecId -> e)
         false
     }}
@@ -89,8 +89,8 @@ class WorkflowEngine(workflowStoreUri:String = "mem://", stateStoreUri:String = 
     if(errors.size > 0)
       return Failure(errors.head.failed.get)
 
-    log.info(s"mesh=${mesh}")
-    log.info(s"links=${wf.links}")
+    log.debug(s"mesh=${mesh}")
+    log.debug(s"links=${wf.links}")
 
     // initialize Link vectors
     val ll = wf.links.map( link => {
@@ -107,7 +107,7 @@ class WorkflowEngine(workflowStoreUri:String = "mem://", stateStoreUri:String = 
         to = LinkAddr( to.get , link.in)
       )
       
-      log.info(s"${wf}: linking=${linking}")
+      log.debug(s"${wf}: linking=${linking}")
 
       from.get.addOut(linking)
       to.get.addIn(linking)
@@ -123,7 +123,7 @@ class WorkflowEngine(workflowStoreUri:String = "mem://", stateStoreUri:String = 
           return Failure(e)
         case Success(linkingRun) => 
           linking.bind(linkingRun)
-          log.info(s"${wf}: linking=${linking}: runtime=${linkingRun}")
+          log.debug(s"${wf}: linking=${linking}: runtime=${linkingRun}")
           linkingRun
       }
     })
@@ -144,7 +144,7 @@ class WorkflowEngine(workflowStoreUri:String = "mem://", stateStoreUri:String = 
   }
 
   def spawn(f:Exec,wid:Workflowing.ID):Try[Executing] = {
-    log.info(s"spawn: ${f}: wid=${wid}")
+    log.debug(s"spawn: ${f}: wid=${wid}")
     for {
       exec <- registry.resolve(f.typ) match {
         case Some(t) => Success(t)
@@ -153,7 +153,7 @@ class WorkflowEngine(workflowStoreUri:String = "mem://", stateStoreUri:String = 
       }
       executing <- try {
         
-        log.info(s"spawning: class=${exec.typ}")
+        log.debug(s"spawning: class=${exec.typ}")
         val cz = Class.forName(exec.typ)
 
         val args = Array(wid,f.name,f.data.getOrElse(Map.empty[String,Any]))
@@ -162,12 +162,12 @@ class WorkflowEngine(workflowStoreUri:String = "mem://", stateStoreUri:String = 
           val ctorStr = c.getParameters().map(_.getParameterizedType).toSeq
           // ATTENTION: expecting 3 parameters !
           val b = ctorStr.size == 3//argsStr.toString == ctorStr.toString
-          log.info(s"class=${cz}: ctor=${c}: '${argsStr.toString}'=='${ctorStr.toString}': ${b}")
+          log.debug(s"class=${cz}: ctor=${c}: '${argsStr.toString}'=='${ctorStr.toString}': ${b}")
           b
         } match {
           case Some(ctor) => 
             val instance = ctor.newInstance(args:_*)
-            log.info(s"'${f.typ}' => ${instance}")
+            log.debug(s"'${f.typ}' => ${instance}")
             val e = instance.asInstanceOf[Executing]
             Success(e)
             

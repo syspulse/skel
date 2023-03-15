@@ -101,7 +101,7 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
   }
 
   def broadcast(data:ExecData) = {
-    log.info(s"${data}: Broadcast ------------------->>>>> [${outputs.values}]")
+    log.info(s"${data}: Broadcast >>>>> [${outputs.values}]")
     outputs.values.map( linking => {
       linking.input(ExecDataEvent(data))
     })
@@ -134,7 +134,7 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
   }
 
   def onEvent(in:Let.ID,e:ExecEvent):Try[ExecEvent] = {
-    log.info(s": ${e} -> [${in}]-${this}")
+    log.debug(s": ${e} -> [${in}]-${this}")
     e match {
       case ExecDataEvent(d) => 
         val r = exec(in,ExecData(d.attr))

@@ -32,7 +32,7 @@ case class Linking(from:LinkAddr,to:LinkAddr) {
   }
 
   def input(e: ExecEvent) = {
-    log.info(s"${e} >>> Running(${running})")
+    log.debug(s"${e} ---> Running(${running})")
     running match {
       case Some(r) => r.!(e)
       case None => 
@@ -42,25 +42,7 @@ case class Linking(from:LinkAddr,to:LinkAddr) {
   }
 
   def output(e: ExecEvent) = {
-    log.info(s"${e} ---> Running(${running}) -> ${to.exec}")
+    log.debug(s"${e} ---> Running(${running}) -> ${to.exec}")
     to.exec.onEvent(to.let,e)    
   }
 }
-
-
-// object Linking {
-//   val log = Logger(s"${this}")
-
-//   def actor(link:Linking): Behavior[ExecEvent] = {
-//     Behaviors.receiveMessage { 
-//       case ExecCmdEvent(cmd,replyTo) =>
-//         log.info(s"cmd=${cmd}")
-//         Behaviors.same
-//       case event @ ExecDataEvent(data) =>
-//         log.info(s"data=${data}")
-//         link.!(event)
-//         Behaviors.same
-//     }
-//   }
-// }
-

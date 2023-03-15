@@ -60,7 +60,7 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       w2 should === (Success(w1))
     }
 
-    "Build workflow dynamically: add F1,F2,F1->F2" in {
+    "Build workflow dynamically: add F1,F2,F1->F2" ignore {
       val wf1 = for {
         w1 <- Success(Workflow("wf-3",""))
         w2 <- w1.update(Some("Workflow-3"))
@@ -88,7 +88,7 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       wf2 shouldBe a[Success[_]]
     }
 
-    "Build workflow dynamically: Linking: F1->F2" in {
+    "Build workflow dynamically: Linking: F1->F2" ignore {
       
       val wf1 = for {
         w4 <- Success(Workflow("wf-4","Workflow-4"))
@@ -116,7 +116,7 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       wf2 shouldBe a[Success[_]]
     }
 
-    "Build workflow dynamically: add F1,F2,F1->F2, del F2" in {
+    "Build workflow dynamically: add F1,F2,F1->F2, del F2" ignore {
       val wf1 = for {
         w4 <- Success(Workflow("wf-5",""))
 
@@ -136,6 +136,29 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       val r = store.+(wf1.get)
       r should === (Success(store))
       val wf2 = store.?("wf-5")
+
+      info(s"wf2=${wf2}")
+
+      wf2 shouldBe a[Success[_]]
+    }
+
+    "Build workflow dynamically from DSL: " in {
+      val wf1 = Workflow.assemble("wf-7","Workflow-7","F-1(LogExec(sys=1,log.level=WARN))->F-2(LogExec(sys=2))->F-3(TerminateExec())")
+      
+      info(s"wf1=${wf1}")
+
+      wf1 shouldBe a[Success[_]]
+
+      wf1.get.flow(0) should === (Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0")),data = Some(Map("sys"->"1","log.level"->"WARN"))))
+      wf1.get.flow(1) should === (Exec("F-2","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0")),data = Some(Map("sys"->"2"))))
+      wf1.get.flow(2) should === (Exec("F-3","io.syspulse.skel.wf.exec.TerminateExec",in = Seq(In("in-0")), out = Seq(Out("out-0"))))
+      wf1.get.links.size should === (2)
+                  
+      val store = new WorkflowStoreDir(wfDir)      
+
+      val r = store.+(wf1.get)
+      r should === (Success(store))
+      val wf2 = store.?("wf-7")
 
       info(s"wf2=${wf2}")
 

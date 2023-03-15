@@ -18,12 +18,12 @@ class RunningThread(link:Linking) extends Running {
 
   val thr = new Thread() {
     override def run() = {
-      log.info(s"queue=${queue}: link=${link}: running...")
+      log.debug(s"queue=${queue}: link=${link}: running...")
       while( !terminated ) {
         val e = queue.take
         link.output(e)
       }
-      log.info(s"queue=${queue}: link=${link}: stopped")
+      log.debug(s"queue=${queue}: link=${link}: stopped")
     }
   }
 
