@@ -31,14 +31,19 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     os.write.over(f,e.toJson.compactPrint)
     Success(e)
   } catch {
-    case e:Exception => Failure(e)
+    case e:Exception =>
+      log.error(s"failed to write: ${e}")
+      Failure(e)
+
   }
   
   def delFileById(id:P):Try[P] = try {
     os.remove(os.Path(dir,os.pwd) / s"${id}.json")
     Success(id)
   } catch {
-    case e:Exception => Failure(e)
+    case e:Exception => 
+      log.error(s"failed to delete: ${e}")
+      Failure(e)
   }
 
   def delFile(e:E):Try[E] = delFileById(getKey(e)).map(_ => e)

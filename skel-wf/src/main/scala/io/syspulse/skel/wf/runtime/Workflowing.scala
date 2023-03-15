@@ -44,7 +44,7 @@ class Workflowing(
   override def toString() = s"Workflowing(${id})[${mesh},${links}]"
 
   @volatile
-  var state:WorkflowState = WorkflowState(id,WorkflowState.STATUS_CREATED)
+  var state:WorkflowState = WorkflowState(id,wf.id,WorkflowState.STATUS_CREATED)
   var data:ExecData = ExecData(wf.data)
   
   log.info(s"store=${stateStore}: wf=${wf}: data=${data}")
@@ -56,14 +56,15 @@ class Workflowing(
   def getRunning = running
 
   def init():Try[WorkflowState] = {
-    state = WorkflowState(id,WorkflowState.STATUS_INITIALIZED)
+    state = WorkflowState(id,wf.id,WorkflowState.STATUS_INITIALIZED)
     log.info(s"init: ${state}")
     stateStore.+(state).map(_ => state)    
   }
 
   def start():Try[WorkflowState] = {
-    log.info(s"start: ${state}")
+    log.info(s"start: ----------------------------------------------> ${state}")
     stateStore.update(id,status = Some(WorkflowState.STATUS_RUNNING)).map(state1 => {
+      log.info(s"start: ---------------------------------------------------> ${state} -> ${state1}")
       state = state1
       state
     })

@@ -15,7 +15,7 @@ import scala.util.Success
 
 trait WorkflowStateStore extends Store[WorkflowState,Workflowing.ID] {
   
-  def getKey(ws: WorkflowState): Workflowing.ID = ws.wid
+  def getKey(ws: WorkflowState): Workflowing.ID = ws.id
   def +(ws:WorkflowState):Try[WorkflowStateStore]
   
   def del(id:Workflowing.ID):Try[WorkflowStateStore]

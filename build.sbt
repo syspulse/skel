@@ -845,12 +845,24 @@ lazy val skel_telemetry = (project in file("skel-telemetry"))
 
 lazy val skel_wf = (project in file("skel-wf"))
   .dependsOn(core)
-  .disablePlugins(sbtassembly.AssemblyPlugin)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
   .settings (
-      sharedConfig,
-      name := "skel-wf",
-      libraryDependencies ++= libTest ++ Seq(
-        libOsLib,
-        libUpickleLib,
-      )
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+    
+    appDockerConfig("skel-wf","io.syspulse.skel.wf.App"),
+
+    libraryDependencies ++= libTest ++ Seq(
+      libOsLib,
+      libUpickleLib,
     )
+  )
+
+    
+
+    

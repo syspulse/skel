@@ -20,7 +20,7 @@ import io.syspulse.skel.wf.runtime.ExecData
 import io.syspulse.skel.wf.WorkflowJson._
 
 // Preload from file during start
-class WorkflowStoreDir(dir:String = "store/") extends StoreDir[Workflow,Workflow.ID](dir) with WorkflowStore {
+class WorkflowStoreDir(dir:String = "store/workflows") extends StoreDir[Workflow,Workflow.ID](dir) with WorkflowStore {
   val store = new WorkflowStoreMem
 
   def all:Seq[Workflow] = store.all

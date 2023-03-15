@@ -1,4 +1,4 @@
-package io.syspulse.skel.wf.registy
+package io.syspulse.skel.wf.registry
 
 //import scala.jdk.CollectionConverters._
 import com.typesafe.scalalogging.Logger
@@ -8,7 +8,7 @@ import scala.util.{Try,Success,Failure}
 import io.syspulse.skel.wf._
 import io.syspulse.skel.wf.runtime._
 
-class WorkflowRegistry(default:Seq[Exec]) {
+class WorkflowRegistry(default:Seq[Exec] = Seq()) {
   val log = Logger(s"${this}")
 
   val execs:Map[Exec.ID,Exec] = default.map(f => f.typ -> f).toMap  

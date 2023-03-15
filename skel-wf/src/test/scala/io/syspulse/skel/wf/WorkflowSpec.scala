@@ -11,11 +11,12 @@ import io.syspulse.skel.wf.runtime._
 import io.syspulse.skel.wf.runtime.thread._
 import io.syspulse.skel.wf.runtime.actor.RuntimeActors
 import io.syspulse.skel.wf.store.WorkflowStoreDir
+import io.syspulse.skel.wf.store.WorkflowStateStoreDir
 
 class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
   
   "Workflow" should {
-    "Save workflow to StoreDir" ignore {      
+    "Save workflow to StoreDir" in {      
       val w1 = Workflow("wf-1","Workflow-1",Map("file" -> "/tmp/file-10.log","time" -> 10000),
         execs = Seq(
           Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0")),data = Some(Map("sys"->"\u220e".repeat(1)))),
@@ -35,7 +36,7 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       r should === (Success(store))
     }
 
-    "Load workflow from StoreDir" ignore {
+    "Load workflow from StoreDir" in {
       val w1 = Workflow("wf-2","Workflow-2",Map("file" -> "/tmp/file-10.log","time" -> 10000),
         execs = Seq(
           Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0"))),
@@ -60,7 +61,7 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       w2 should === (Success(w1))
     }
 
-    "Build workflow dynamically: add F1,F2,F1->F2" ignore {
+    "Build workflow dynamically: add F1,F2,F1->F2" in {
       val wf1 = for {
         w1 <- Success(Workflow("wf-3",""))
         w2 <- w1.update(Some("Workflow-3"))
@@ -88,7 +89,7 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       wf2 shouldBe a[Success[_]]
     }
 
-    "Build workflow dynamically: Linking: F1->F2" ignore {
+    "Build workflow dynamically: Linking: F1->F2" in {
       
       val wf1 = for {
         w4 <- Success(Workflow("wf-4","Workflow-4"))
@@ -116,7 +117,7 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       wf2 shouldBe a[Success[_]]
     }
 
-    "Build workflow dynamically: add F1,F2,F1->F2, del F2" ignore {
+    "Build workflow dynamically: add F1,F2,F1->F2, del F2" in {
       val wf1 = for {
         w4 <- Success(Workflow("wf-5",""))
 
@@ -172,8 +173,8 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
 
   "WorkflowEngine" should {
     
-    "run RuntimeThreads Workflow and stop it externally" ignore {
-      implicit val we = new WorkflowEngine(runtime = new RuntimeThreads())
+    "run RuntimeThreads Workflow and stop it externally" in {
+      implicit val we = new WorkflowEngine(new WorkflowStoreDir(wfDir),new WorkflowStateStoreDir(runtimeDir),new RuntimeThreads(), s"dir://${runtimeDir}")
 
       val w1 = Workflow("wf-3","wf-3",Map(),
         execs = Seq(
@@ -206,9 +207,9 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
 
       wf1.get.state.status should === (WorkflowState.STATUS_STOPPED)
     }
-
-    "run RuntimeThreads Workflow and it should terminate by itself" ignore {
-      implicit val we = new WorkflowEngine(runtime = new RuntimeThreads())
+    
+    "run RuntimeThreads Workflow and it should terminate by itself" in {
+      implicit val we = new WorkflowEngine(new WorkflowStoreDir(wfDir),new WorkflowStateStoreDir(runtimeDir),new RuntimeThreads(), s"dir://${runtimeDir}")
 
       val w1 = Workflow("wf-4","wf-4",Map(),
         execs = Seq(
@@ -239,9 +240,9 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       wf1.get.state.status should === (WorkflowState.STATUS_STOPPED)
     }
 
-    "create RuntimeActors Workflow with 2 Logs" ignore {
-      implicit val we = new WorkflowEngine(runtime = new RuntimeActors())
-
+    "create RuntimeActors Workflow with 2 Logs" in {
+      implicit val we = new WorkflowEngine(new WorkflowStoreDir(wfDir),new WorkflowStateStoreDir(runtimeDir),new RuntimeActors(), s"dir://${runtimeDir}")
+      
       val w1 = Workflow("wf-5","wf-5",Map(),
         execs = Seq(
           Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0"))),
@@ -271,8 +272,8 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
       we.stop(wf1.get)
     }
 
-    "run Workflow cron " ignore {
-      implicit val we = new WorkflowEngine(runtime = new RuntimeThreads())
+    "run Workflow cron " in {
+      implicit val we = new WorkflowEngine(new WorkflowStoreDir(wfDir),new WorkflowStateStoreDir(runtimeDir),new RuntimeThreads(), s"dir://${runtimeDir}")
 
       val w1 = Workflow("wf-6","wf-6",Map(),
         execs = Seq(

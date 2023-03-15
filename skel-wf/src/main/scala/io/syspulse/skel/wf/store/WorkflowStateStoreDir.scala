@@ -22,7 +22,7 @@ import io.syspulse.skel.wf.runtime.Workflowing
 import io.syspulse.skel.wf.runtime.Executing
 
 // Preload from file during start
-class WorkflowStateStoreDir(dir:String = "store/") extends StoreDir[WorkflowState,Workflowing.ID](dir) with WorkflowStateStore {
+class WorkflowStateStoreDir(dir:String = "store/runtime") extends StoreDir[WorkflowState,Workflowing.ID](dir) with WorkflowStateStore {
   val store = new WorkflowStateStoreMem
 
   def all:Seq[WorkflowState] = store.all

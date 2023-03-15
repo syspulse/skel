@@ -12,7 +12,7 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.SupervisorStrategy
 
 import io.syspulse.skel.wf.runtime._
-import io.syspulse.skel.wf.registy.WorkflowRegistry
+import io.syspulse.skel.wf.registry.WorkflowRegistry
 
 import io.syspulse.skel.wf.store._
 
@@ -34,27 +34,27 @@ object WorkflowEngine {
   val as = ActorSystem[WorkflowCommand](rootBehavior, "WorfklowEngine")
 }
 
-class WorkflowEngine(workflowStoreUri:String = "mem://", stateStoreUri:String = "dir:///tmp/skel-wf/runtime", runtime:Runtime, runtimeStoreUri:String = "dir:///tmp/skel-wf/runtime") {
+class WorkflowEngine(workflowStore:WorkflowStore, stateStore:WorkflowStateStore, runtime:Runtime, runtimeStoreUri:String = "dir://store/runtime") {
+// class WorkflowEngine(workflowStoreUri:String = "dir://store", stateStoreUri:String = "dir://store/runtime", runtime:Runtime, runtimeStoreUri:String = "dir://store/runtime") {
   
   val log = Logger(s"${this}")
 
-  val stateStore = stateStoreUri.split("://").toList match {
-    case "dir" :: dir :: Nil => new WorkflowStateStoreDir(dir)
-    case "mem" :: Nil => new WorkflowStateStoreMem()
-    case _ => new WorkflowStateStoreMem()
-  }
+  // val workflowStore = workflowStoreUri.split("://").toList match {
+  //   case "dir" :: dir :: Nil => new WorkflowStoreDir(dir)
+  //   case "mem" :: Nil => new WorkflowStoreMem()
+  //   case _ => new WorkflowStoreDir()
+  // }
 
-  val workflowStore = workflowStoreUri.split("://").toList match {
-    //case "dir" :: dir :: Nil => new WorkflowStoreDir(dir)
-    case "mem" :: Nil => new WorkflowStoreMem()
-    //case _ => new WorkflowStoreMem()
-  }
+  // val stateStore = stateStoreUri.split("://").toList match {
+  //   case "dir" :: dir :: Nil => new WorkflowStateStoreDir(dir)
+  //   case "mem" :: Nil => new WorkflowStateStoreMem()
+  //   case _ => new WorkflowStateStoreMem()
+  // }
 
   // only directory is supported
   val runtimeStore = runtimeStoreUri.split("://").toList match {
-    case "dir" :: dir :: Nil => dir
+    case "dir" :: dir :: Nil => dir    
   }
-
 
   val registry = new WorkflowRegistry(Seq(
     Exec("Log","io.syspulse.skel.wf.exec.LogExec"),
@@ -66,8 +66,16 @@ class WorkflowEngine(workflowStoreUri:String = "mem://", stateStoreUri:String = 
   def getStoreWorkflow() = workflowStore
   def getStoreState() = stateStore
 
-  def spawn(wf:Workflow):Try[Workflowing] = {
-    val wid = Workflowing.id(wf)
+  def respawn(id:Workflowing.ID) = {
+    for {
+      st <- stateStore.?(id)
+      wf <- workflowStore.?(st.wid)
+      w <- spawn(wf,Some(id))
+    } yield w
+  }
+
+  def spawn(wf:Workflow,wid0:Option[Workflowing.ID] = None):Try[Workflowing] = {
+    val wid = wid0.getOrElse(Workflowing.id(wf))
     
     // temporary map for Linking    
     var mesh: Map[Exec.ID,Executing] = Map()

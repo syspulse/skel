@@ -12,9 +12,8 @@ import os._
 trait WorkflowTestable {
   val testDir = this.getClass.getClassLoader.getResource(".").getPath
   val wfDir = "/tmp/skel-wf/test/workflows"
-  val storeDir = "/tmp/skel-wf/test/runtime"
-  os.makeDir.all(os.Path("/tmp/skel-wf/test/wf-1"))
-
+  val runtimeDir = "/tmp/skel-wf/test/runtime"
+  
   implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(0.0001)
 
 }

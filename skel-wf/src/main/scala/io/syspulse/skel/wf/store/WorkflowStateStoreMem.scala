@@ -26,7 +26,7 @@ class WorkflowStateStoreMem extends WorkflowStateStore {
   def size:Long = states.size
 
   def +(ws:WorkflowState):Try[WorkflowStateStore] = { 
-    states = states + (ws.wid -> ws)
+    states = states + (ws.id -> ws)
     log.info(s"add: ${ws}")
     Success(this)
   }
