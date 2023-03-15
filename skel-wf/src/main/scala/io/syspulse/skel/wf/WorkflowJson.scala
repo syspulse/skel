@@ -21,5 +21,5 @@ object WorkflowJson extends JsonCommon with NullOptions {
   implicit val jf_wfLinkOut = jsonFormat1(Out.apply _)
   implicit val jf_wfLink = jsonFormat5(Link.apply _)
   implicit val jf_wfExec = jsonFormat(Exec.apply _,"name","typ","in","out","data")
-  implicit val jf_workflow = jsonFormat4(Workflow.apply _)
+  implicit val jf_workflow = jsonFormat5(Workflow.apply _)
 }
