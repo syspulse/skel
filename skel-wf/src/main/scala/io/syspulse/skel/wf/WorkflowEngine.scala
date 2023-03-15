@@ -72,7 +72,7 @@ class WorkflowEngine(workflowStoreUri:String = "mem://", stateStoreUri:String = 
     // temporary map for Linking    
     var mesh: Map[Exec.ID,Executing] = Map()
 
-    val ee = wf.flow.map(f => {
+    val ee = wf.execs.map(f => {
       spawn(f,wid)      
     })
 

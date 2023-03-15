@@ -12,7 +12,7 @@ case class Workflow(
   id:Workflow.ID,
   var name:String,
   var data:Map[String,Any] = Map(),  // global workflow data
-  var flow: Seq[Exec] = Seq(),
+  var execs: Seq[Exec] = Seq(),
   var links: Seq[Link] = Seq()
   ) {
   
@@ -24,12 +24,12 @@ case class Workflow(
   }
 
   def addExec(e:Exec):Try[Workflow] = {
-    flow = flow :+ e
+    execs = execs :+ e
     Success(this)
   }
 
   def delExec(eid:Exec.ID):Try[Workflow] = {
-    flow = flow.filter( e => {
+    execs = execs.filter( e => {
       if(e.getId == eid) {
         // remove all links to this Exec
         links = links.filter( l => l.from != eid && l.to != eid )
