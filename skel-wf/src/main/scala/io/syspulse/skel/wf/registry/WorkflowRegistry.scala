@@ -26,6 +26,8 @@ object WorkflowRegistry {
     Exec("Process","io.syspulse.skel.wf.exec.ProcessExec"),
     Exec("Terminate","io.syspulse.skel.wf.exec.TerminateExec"),
     Exec("Cron","io.syspulse.skel.wf.exec.CronExec"),
-    Exec("Throttle","io.syspulse.skel.wf.exec.ThrottleExec")
+    Exec("Throttle","io.syspulse.skel.wf.exec.ThrottleExec"),
+    Exec("Seq","io.syspulse.skel.wf.exec.SeqExec"),
+    Exec("Rand","io.syspulse.skel.wf.exec.RandExec")
   )
 }

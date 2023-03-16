@@ -12,7 +12,7 @@ import io.syspulse.skel.wf._
 class ProcessExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends Executing(wid,name,dataExec) {
   
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
-    val data1 = data.attr.get("script").orElse(dataExec.get("script")) match {
+    val data1 = getAttr("script",data) match {
       case Some(script) => 
         // replace {} with variables from Data
         val cmd = (data.attr ++ dataExec).foldLeft(script.toString){ case(s,(name,v)) => {
@@ -23,7 +23,7 @@ class ProcessExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) exten
         val r = cmd lazyLines_! ProcessLogger(err append _)
         val txt = r.mkString("\n")
         log.info(s"cmd = '${cmd}' -> '${txt}'")
-        ExecData(data.attr ++ Map("output" -> txt))
+        ExecData(data.attr + ("output" -> txt))
       case None => 
         data
     }

@@ -36,6 +36,8 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
   //override def toString = s"${this.getClass.getName()}(${name},${getStatus},${getInputs},${getOutpus})"
   override def toString = this.getClass.getName()+":"+name+":"+getStatus+":"+getInputs+":"+getOutpus
 
+  def getAttr(name:String,data:ExecData) = data.attr.get(name).orElse(dataExec.get(name))
+
   // this constructor and init are need for dynamic class instantiation of Executing Executors
   def this() = {
     this(Workflowing.id(),"",Map.empty)

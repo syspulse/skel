@@ -14,7 +14,8 @@ class RunningThread(link:Linking) extends Running {
   
   @volatile
   var terminated = false
-  val queue = new ArrayBlockingQueue[ExecEvent](5)
+  // ATTENTION: Queue size is important for SeqExec
+  val queue = new ArrayBlockingQueue[ExecEvent](1999)
 
   val thr = new Thread() {
     override def run() = {

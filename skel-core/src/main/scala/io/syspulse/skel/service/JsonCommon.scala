@@ -128,7 +128,11 @@ trait JsonCommon extends DefaultJsonProtocol with CollectionFormats {
       case b: Boolean if b == true => JsTrue
       case b: Boolean if b == false => JsFalse
       case d: Double => JsNumber(d)
+      case d: List[_] => JsArray( d.map(write(_)).toVector)
+      case d: Seq[_] => JsArray( d.map(write(_)).toVector)
+      case d: Array[_] => JsArray( d.map(write(_)).toVector)
     }
+    
     def read(value: JsValue) = value match {
       case JsNumber(n) => n
       case JsString(s) => s
