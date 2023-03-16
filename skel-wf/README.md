@@ -2,32 +2,66 @@
 
 ## WorkFlow Engine Prototype
 
-Workflow primary features:
+Features:
 
-- long-running workflow (hours and days)
-- large data processing via files
-- data passing via context state (moderate size)
-- lightweight and integration into existing Streaming Pipeines as seperates phases (Execs)
-- Different simple runtimes (Threads,akka-actors)
+- Long-running workflow optimized (hours and days)
+- State persistance and recovery
+- Event driven. However not suitable for high-performance streaming
+- Private directory for large data processing via files
+- Data passing via DataEvent map (not for large datasets passing <10M)
+- Lightweight and integration into existing Streaming Pipeines as seperates phases (Execs)
+- Different runtime engines (Threads,akka-actors)
 
 
+## DSL Assembly
 
-## DSL 
+DSL Assembly is a script to assemble simple Workflows.
 
-One-pass Flow with two logger with termination:
+Complex workflows should be designed with UI
+
+One-pass Workflow with two logger with termination:
 
 ```
-./run-wf.sh wf create wf-1 'F-1(LogExec(sys=1,log.level=WARN))->F-2(LogExec(sys=2))->F-3(TerminateExec())'
+./run-wf.sh wf assemble wf-1 'F-1(LogExec(sys=1,log.level=WARN))->F-2(LogExec(sys=2))->F-3(TerminateExec())'
 ```
 
-Infinite Cron:
+Star the Worfklow:
+
+```
+./run-wf.sh runtime run wf-1
+```
+
+Runnning workflow has unique ID. 
+
+Find WID with checking the status:
+
+```
+./run-wf.sh runtime status
+```
+
+Stop the Workflow:
+
+```
+./run-wf.sh runtime stop <WID>
+```
+
+----
+### Workflow DSL Examples
+
+1. Infinite Cron Workflow
 ```
 ./run-wf.sh wf assemble wf-2 'F-0(CronExec(cron=1000))->F-1(LogExec(sys=1,log.level=WARN))->F-2(LogExec(sys=2))'
 ```
 
-Infintite Loop with throttling
+2. Infintite Loop with controllable throttling
 
 ```
 ./run-wf.sh wf assemble wf-3 'F-1(LogExec(sys=1,log.level=WARN))->F-2(ThrottleExec(throttle=1000)->F1[in-0])'
+
+./run-wf.sh runtime run wf-3
+
+./run-wf.sh runtime status
+
+./run-wf.sh runtime emit wf-3-1678978472628 F-1 throttle=500
 ```
 

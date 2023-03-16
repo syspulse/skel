@@ -46,7 +46,7 @@ object App extends skel.Server {
         ArgString('_', "store.state",s"Runtime store [dir://] (def: ${d.storeState})"),
         
         ArgCmd("server",s"Server"),        
-        ArgCmd("registry",s"Registry"),
+        ArgCmd("registry",s"Show Execs Registry"),
         ArgCmd("wf",s"Workflow subcommands: " +
           s"assemble name 'dsl'  : create Workflow with dsl commands, ex: 'F-1(LogExec(sys=1,log.level=WARN))->F-2(LogExec(sys=2))->F-3(TerminateExec())'" +
           s"load <id>            : Load workflow by id from store" +
@@ -103,12 +103,12 @@ object App extends skel.Server {
     val r = config.cmd match {
       case "server" => 
 
-      case "registry" => 
+      case "registry" | "reg" => 
         val reg = new WorkflowRegistry()
-        reg.execs
+        reg.execs.mkString("\n")
 
       case "wf" => config.params match {
-        case "assemble" :: name :: dsl => 
+        case ("assemble" | "assembly") :: name :: dsl => 
           val wf = for {
             wf <- Workflow.assemble(s"${name}",name,dsl.mkString(" "))
             wf <- storeWorkflow.+(wf).map(_ => wf)

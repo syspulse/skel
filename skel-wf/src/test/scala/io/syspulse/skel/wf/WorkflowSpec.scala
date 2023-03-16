@@ -20,7 +20,7 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
     //   val w1 = Workflow("wf-1","Workflow-1",Map("file" -> "/tmp/file-10.log","time" -> 10000),
     //     execs = Seq(
     //       Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0")),data = Some(Map("sys"->"\u220e".repeat(1)))),
-    //       Exec("F-2","io.syspulse.skel.wf.exec.ProcessExec",in = Seq(In("in-0")), out = Seq(Out("out-0"),Out("err-0"))),
+    //       Exec("F-2","io.syspulse.skel.wf.exec.TestExec",in = Seq(In("in-0")), out = Seq(Out("out-0"),Out("err-0"))),
     //       Exec("F-3","io.syspulse.skel.wf.exec.TerminateExec",in = Seq(In("in-0")),out = Seq(Out("err-0"))),
     //     ),
     //     links = Seq(
@@ -40,7 +40,7 @@ class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
     //   val w1 = Workflow("wf-2","Workflow-2",Map("file" -> "/tmp/file-10.log","time" -> 10000),
     //     execs = Seq(
     //       Exec("F-1","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0"))),
-    //       Exec("F-2","io.syspulse.skel.wf.exec.ProcessExec",in = Seq(In("in-0")), out = Seq(Out("out-0"),Out("err-0"))),
+    //       Exec("F-2","io.syspulse.skel.wf.exec.TestExec",in = Seq(In("in-0")), out = Seq(Out("out-0"),Out("err-0"))),
     //       Exec("F-3","io.syspulse.skel.wf.exec.TerminateExec",in = Seq(In("in-0")),out = Seq(Out("err-0"))),
     //     ),
     //     links = Seq(

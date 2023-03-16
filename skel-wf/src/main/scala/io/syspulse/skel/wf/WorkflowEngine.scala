@@ -34,35 +34,17 @@ object WorkflowEngine {
   val as = ActorSystem[WorkflowCommand](rootBehavior, "WorfklowEngine")
 }
 
-class WorkflowEngine(workflowStore:WorkflowStore, stateStore:WorkflowStateStore, runtime:Runtime, runtimeStoreUri:String = "dir://store/runtime") {
+class WorkflowEngine(workflowStore:WorkflowStore, stateStore:WorkflowStateStore, runtime:Runtime, runtimeStoreUri:String = "dir://store/runtime", execs:Seq[Exec] = Seq()) {
 // class WorkflowEngine(workflowStoreUri:String = "dir://store", stateStoreUri:String = "dir://store/runtime", runtime:Runtime, runtimeStoreUri:String = "dir://store/runtime") {
   
   val log = Logger(s"${this}")
-
-  // val workflowStore = workflowStoreUri.split("://").toList match {
-  //   case "dir" :: dir :: Nil => new WorkflowStoreDir(dir)
-  //   case "mem" :: Nil => new WorkflowStoreMem()
-  //   case _ => new WorkflowStoreDir()
-  // }
-
-  // val stateStore = stateStoreUri.split("://").toList match {
-  //   case "dir" :: dir :: Nil => new WorkflowStateStoreDir(dir)
-  //   case "mem" :: Nil => new WorkflowStateStoreMem()
-  //   case _ => new WorkflowStateStoreMem()
-  // }
 
   // only directory is supported
   val runtimeStore = runtimeStoreUri.split("://").toList match {
     case "dir" :: dir :: Nil => dir    
   }
 
-  val registry = new WorkflowRegistry(Seq(
-    Exec("Log","io.syspulse.skel.wf.exec.LogExec"),
-    Exec("Process","io.syspulse.skel.wf.exec.ProcessExec"),
-    Exec("Terminate","io.syspulse.skel.wf.exec.TerminateExec"),
-    Exec("Cron","io.syspulse.skel.wf.exec.CronExec"),
-    Exec("Throttle","io.syspulse.skel.wf.exec.ThrottleExec")
-  ))
+  val registry = new WorkflowRegistry(execs)
 
   def getStoreWorkflow() = workflowStore
   def getStoreState() = stateStore
