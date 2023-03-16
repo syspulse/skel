@@ -16,7 +16,7 @@ class CronExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends 
   
   val thr = new Thread() {
     override def run() = {
-      log.info(s"CronExec: running...")
+      log.info(s"CronExec: ${cronExpr}: running...")
       while( !terminated ) {
         Thread.sleep(cronExpr.toLong)
 

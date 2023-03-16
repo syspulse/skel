@@ -122,6 +122,8 @@ trait JsonCommon extends DefaultJsonProtocol with CollectionFormats {
   implicit object AnyFormat extends JsonFormat[Any] {
     def write(x: Any) = x match {
       case n: Int => JsNumber(n)
+      case n: Long => JsNumber(n)
+      case n: BigInt => JsNumber(n)
       case s: String => JsString(s)
       case b: Boolean if b == true => JsTrue
       case b: Boolean if b == false => JsFalse

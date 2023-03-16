@@ -62,9 +62,8 @@ class Workflowing(
   }
 
   def start():Try[WorkflowState] = {
-    log.info(s"start: ----------------------------------------------> ${state}")
+    log.info(s"start: ${state}")
     stateStore.update(id,status = Some(WorkflowState.STATUS_RUNNING)).map(state1 => {
-      log.info(s"start: ---------------------------------------------------> ${state} -> ${state1}")
       state = state1
       state
     })

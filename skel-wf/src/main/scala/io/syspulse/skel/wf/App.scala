@@ -121,51 +121,87 @@ object App extends skel.Server {
           storeWorkflow.all
       } 
 
-      case "runtime" => config.params match {
-        case "spawn" :: id :: Nil => 
-          implicit val we = new WorkflowEngine(storeWorkflow,storeState,runtime = new RuntimeThreads())
-          for {
-            wf <- storeWorkflow.?(id)          
-            wr <- we.spawn(wf)            
-          } yield wr
-        
-        case "state" :: wid :: Nil => 
-          implicit val we = new WorkflowEngine(storeWorkflow,storeState,runtime = new RuntimeThreads())
-          for {
-            st <- storeState.?(wid)            
-          } yield st
-
-        case "start" :: id :: Nil => 
-          implicit val we = new WorkflowEngine(storeWorkflow,storeState,runtime = new RuntimeThreads())
-          for {
-            w <- we.respawn(id)
-            w <- we.start(w)
-          } yield w
-
-        case "stop" :: id :: Nil => 
-          implicit val we = new WorkflowEngine(storeWorkflow,storeState,runtime = new RuntimeThreads())
-          for {
-            w <- we.respawn(id)
-            w <- we.stop(w)
-          } yield w
-
-        case "run" :: id :: Nil => 
-          implicit val we = new WorkflowEngine(storeWorkflow,storeState,runtime = new RuntimeThreads())
-          val wr = for {
-            wf <- storeWorkflow.?(id)
-            w <- we.spawn(wf)
-            w <- we.start(w)
-          } yield w
-
+      case "runtime" => {
+        def prompt() = {
+          Console.err.println("press [Enter] to gracefully continue, or [CTRL+C] to abort")
           Console.in.readLine()
+        }
 
-          we.stop(wr.get)
+        implicit val we = new WorkflowEngine(storeWorkflow,storeState,runtime = new RuntimeThreads())
+        config.params match {
+          case "spawn" :: id :: Nil => 
+            
+            for {
+              wf <- storeWorkflow.?(id)          
+              wr <- we.spawn(wf)            
+            } yield wr
+          
+          case "status" :: wid :: Nil => 
+            for {
+              ws <- storeState.?(wid)            
+            } yield s"${ws.id}: ${ws.status}"
 
-        case _ => 
-          for {
-            st <- storeState.all
-          } yield st
-      }
+          case "status" :: Nil =>
+            storeState.all.map(ws => s"${ws.id}: ${ws.status}").mkString("\n")
+
+          case "recover" :: id :: Nil => 
+            for {
+              w <- we.respawn(id)
+              w <- we.start(w)
+            } yield w
+            
+            prompt()
+
+          case "recover" :: Nil => 
+            storeState.all.map(ws => {
+              for {
+                w <- we.respawn(ws.id)
+                w <- we.start(w)
+              } yield w
+            })
+
+            prompt()
+
+          case "start" :: id :: Nil => 
+            for {
+              w <- we.respawn(id)
+              w <- we.start(w)
+            } yield w
+
+            prompt()
+
+          case "stop" :: id :: Nil => 
+            for {
+              w <- we.respawn(id)
+              w <- we.stop(w)
+            } yield w
+
+          case "run" :: id :: Nil => 
+            val wr = for {
+              wf <- storeWorkflow.?(id)
+              w <- we.spawn(wf)
+              w <- we.start(w)
+            } yield w
+
+            prompt()
+
+            we.stop(wr.get)
+
+          case "emit" :: id :: exec :: data :: Nil =>
+            val wr =for {
+              w <- we.respawn(id)
+              w <- we.start(w)
+            } yield w
+
+            wr.get.emit(exec,"in-0",ExecDataEvent(ExecData(data.split("[,=]").grouped(2).map(a => a(0) -> a(1)).toMap)))
+
+            prompt()            
+
+          case _ => 
+            for {
+              st <- storeState.all
+            } yield st
+      }}
     }   
     println(s"${r}")
     sys.exit(0) 

@@ -62,8 +62,8 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
     }
   }
 
-  var id = Executing.id(wid,name)  
-  val log = Logger(s"${this}-${id}")
+  var id = Executing.id(wid,name)
+  val log = Logger(this.getClass.getName()+":"+name)
 
   def getExecId = name
   def getId = getRuntimeId
@@ -101,7 +101,7 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
   }
 
   def broadcast(data:ExecData) = {
-    log.info(s"${data}: Broadcast >>>>> [${outputs.values}]")
+    log.debug(s"${data}: Broadcast >>> [${outputs.values}]")
     outputs.values.map( linking => {
       linking.input(ExecDataEvent(data))
     })

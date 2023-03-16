@@ -62,45 +62,76 @@ case class Workflow(
   }
 
   // F1(LogExec(sys=1,log.level=WARN)) -> F2(LogExec(sys=2)) -> F3(TerminateExec())
+  // F1(LogExcec())[out-0] -> F1[in-0]
+  // F1([in-0]LogExcec()[out-0]) -> F1([in-0]())
   def assemble(dsl:String,data:Map[String,Any] = Map()):Try[Workflow] = {
     
-    def assembleExec(name:String,typ:String,data:Option[String]) = {
-      val typWithClass = if(typ.contains(".")) typ else s"io.syspulse.skel.wf.exec.${typ}"
-      val dataMap = if(data.isDefined) Some(data.get.split("[,=]").grouped(2).map(a => a(0) -> a(1)).toMap) else None
-      Exec(name,typWithClass,in = Seq(In("in-0")), out = Seq(Out("out-0")),data = dataMap)
+    var execs:Map[String,Exec] = Map()
+
+    def assembleExec(name0:String,typ:String,data:Option[String],outlet:String = "out-0") = {
+      val (name,inlet) = name0.split("[\\[\\]]").toList match {
+        case name :: inlet :: Nil => (name,inlet)
+        case name :: Nil => (name,"in-0")
+      }
+
+      if(typ == "") {
+        // reference to existing Exec
+        execs.get(name) match {
+          case Some(exec) => Success(exec)
+          case None => Failure(new Exception(s"Exec not found: ${name}"))
+        }
+      } else {
+        val typWithClass = if(typ.contains(".")) typ else s"io.syspulse.skel.wf.exec.${typ}"
+        val dataMap = if(data.isDefined) Some(data.get.split("[,=]").grouped(2).map(a => a(0) -> a(1)).toMap) else None
+        val ex = Exec(name,typWithClass,in = Seq(In(inlet)), out = Seq(Out(outlet)),data = dataMap)
+        execs = execs + (ex.getId -> ex)
+        Success(ex)
+      }
     }
 
     val ee = dsl.split("->").map(_.trim).filter(!_.isEmpty()).map( e => {
       e.split("[()]").toList match {
-        case name :: typ :: data :: Nil =>           
-          Success(assembleExec(name,typ,Some(data)))
+        case name :: typ :: data :: outlet :: Nil if(outlet.startsWith("[")) =>
+          assembleExec(name,typ,Some(data),outlet.stripPrefix("[").stripSuffix("]"))
+        case name :: typ :: data :: "" :: outlet :: Nil if(outlet.startsWith("[")) =>
+          assembleExec(name,typ,Some(data),outlet.stripPrefix("[").stripSuffix("]"))
+        case name :: "" :: outlet :: Nil if(outlet.startsWith("[")) =>
+          assembleExec(name,"",None,outlet.stripPrefix("[").stripSuffix("]"))
+        case name :: typ :: data :: Nil =>
+          assembleExec(name,typ,Some(data))
         case name :: typ :: Nil => 
-          Success(assembleExec(name,typ,None))
+          assembleExec(name,typ,None)
+        case name :: Nil => 
+          assembleExec(name,"",None)
         case _ => 
           Failure(new Exception(s"failed to parse: ${e}"))
       }
     }).toList
 
     val eeFailed = ee.filter(_.isFailure)
-    if(eeFailed.size > 0) 
+    if(eeFailed.size > 0) {
       return eeFailed.head.map(_ => this)
+    }
 
     def assembleLinks(ee:List[Exec]):Seq[Link] = {
+      println(s"${ee}")
       ee match {
         case exec1 :: exec2 :: Nil  => 
           Seq(linkExecs(exec1,exec2,0,0).get)
-        case exec1 :: execs =>
-          Seq(linkExecs(exec1,execs.head,0,0).get) ++ assembleLinks(execs)
         case exec1 :: Nil =>
           // one exec, not links
           Seq()
-        case Nil => Seq()
+        case exec1 :: execs =>
+          Seq(linkExecs(exec1,execs.head,0,0).get) ++ assembleLinks(execs)        
+        case Nil => 
+          Seq()
       }
     }
 
-    val flow = ee.map(_.toOption.get)
     // create links
-    val links = assembleLinks(flow)
+    val links = assembleLinks(ee.map(_.toOption.get))
+
+    val flow = execs.values.toList
 
     Success(Workflow(id,name,Map(),flow,links))
   }

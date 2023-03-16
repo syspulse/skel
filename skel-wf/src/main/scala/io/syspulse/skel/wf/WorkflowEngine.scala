@@ -60,7 +60,8 @@ class WorkflowEngine(workflowStore:WorkflowStore, stateStore:WorkflowStateStore,
     Exec("Log","io.syspulse.skel.wf.exec.LogExec"),
     Exec("Process","io.syspulse.skel.wf.exec.ProcessExec"),
     Exec("Terminate","io.syspulse.skel.wf.exec.TerminateExec"),
-    Exec("Cron","io.syspulse.skel.wf.exec.CronExec")
+    Exec("Cron","io.syspulse.skel.wf.exec.CronExec"),
+    Exec("Throttle","io.syspulse.skel.wf.exec.ThrottleExec")
   ))
 
   def getStoreWorkflow() = workflowStore
