@@ -13,8 +13,8 @@ class SeqExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends E
   
   // ATTENTION: Expected List[] in the 'input' !
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
-    log.debug(s"Sequence: ${data}")
-    val units = data.attr.get("input").getOrElse(List()).asInstanceOf[List[_]]
+    // log.debug(s"Sequence: ${data}")
+    val units = getAttr("input",data).getOrElse(List()).asInstanceOf[List[_]]
 
     // this is async
     for (u <- units) {

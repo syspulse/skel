@@ -10,7 +10,7 @@ import io.syspulse.skel.wf._
 
 class RandExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends Executing(wid,name,dataExec) {  
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {    
-    val randNum:Int = getAttr("rand.num",data).getOrElse(3).toString.toInt
+    val randNum:Int = getAttr("rand.max",data).getOrElse(3).toString.toInt
 
     log.info(s"randoming: ${randNum}")
     
