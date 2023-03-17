@@ -16,26 +16,11 @@ import io.syspulse.skel.wf.registry.WorkflowRegistry
 
 import io.syspulse.skel.wf.store._
 
-trait WorkflowCommand
-
 object WorkflowEngine {
-
-  val rootBehavior = { 
-    Behaviors.supervise[WorkflowCommand] { 
-      workflow()
-  }}.onFailure[Exception](SupervisorStrategy.resume)
-
-  def workflow(): Behavior[WorkflowCommand] = {
-    Behaviors.receiveMessage {
-      case _ => Behaviors.same
-    }
-  }
-
-  val as = ActorSystem[WorkflowCommand](rootBehavior, "WorfklowEngine")
+  val DATA_DIR = "data.dir"
 }
 
 class WorkflowEngine(workflowStore:WorkflowStore, stateStore:WorkflowStateStore, runtime:Runtime, runtimeStoreUri:String = "dir://store/runtime", execs:Seq[Exec] = Seq()) {
-// class WorkflowEngine(workflowStoreUri:String = "dir://store", stateStoreUri:String = "dir://store/runtime", runtime:Runtime, runtimeStoreUri:String = "dir://store/runtime") {
   
   val log = Logger(s"${this}")
 
@@ -210,7 +195,7 @@ class WorkflowEngine(workflowStore:WorkflowStore, stateStore:WorkflowStateStore,
     createDataDir(wf.getId)
 
     // ingest additional metadata
-    val data = ExecData(wf.data.attr ++ Map( "data_dir" -> wfRuntimeDir))
+    val data = ExecData(wf.data.attr ++ Map( WorkflowEngine.DATA_DIR -> wfRuntimeDir))
     
     // start all Executing with Workflow global data !
     wf.getExecs.map( e => e.start(data) )

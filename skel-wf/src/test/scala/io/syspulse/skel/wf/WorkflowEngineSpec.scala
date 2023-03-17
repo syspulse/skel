@@ -12,6 +12,7 @@ import io.syspulse.skel.wf.runtime.thread._
 import io.syspulse.skel.wf.runtime.actor.RuntimeActors
 import io.syspulse.skel.wf.store.WorkflowStoreDir
 import io.syspulse.skel.wf.store.WorkflowStateStoreDir
+import io.syspulse.skel.wf.exec.TestExec
 
 class WorkflowEngineSpec extends AnyWordSpec with Matchers with WorkflowTestable {
   
@@ -240,36 +241,62 @@ class WorkflowEngineSpec extends AnyWordSpec with Matchers with WorkflowTestable
     //   we.stop(wf1.get)
     // }
 
-    "run Workflow with Kafka Signals simulation: RandExec -> FifoExec -> LogExec " in {
+    // "run Workflow with Kafka Signals simulation: RandExec -> FifoExec -> LogExec " in {
+    //   implicit val we = new WorkflowEngine(new WorkflowStoreDir(wfDir),new WorkflowStateStoreDir(runtimeDir),new RuntimeThreads(), s"dir://${runtimeDir}",testRegistry)
+      
+    //   val w1 = Workflow("wf-23","wf-23",Map(),
+    //     execs = Seq(
+    //       Exec("F-1","io.syspulse.skel.wf.exec.RandExec",in = Seq(In("in-0")), out = Seq(Out("out-0")),Some(Map("rand.max" -> 1))),
+    //       Exec("F-2","io.syspulse.skel.wf.exec.FifoExec",in = Seq(In("in-0")), out = Seq(Out("out-0")),Some(Map("fifo.file" -> "/tmp/skel-wf/test/FIFO"))),
+    //       Exec("F-3","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0"))),          
+    //     ),
+    //     links = Seq(
+    //       Link("link-1","F-1","out-0","F-2","in-0"),
+    //       Link("link-2","F-2","out-0","F-3","in-0"),          
+    //     )
+    //   )
+           
+    //   val wf1 = we.spawn(w1)
+    //   info(s"wf = ${wf1}")
+
+    //   we.start(wf1.get)
+    //   Thread.sleep(100L)
+
+    //   val r2 = wf1.get.emit("F-1","in-0",ExecDataEvent(ExecData(Map())))
+    //   info(s"r2 = ${r2}")
+
+    //   Thread.sleep(250L)
+    //   // s1 should !== (s2)
+
+    //   Console.in.readLine()
+    //   //we.stop(wf1.get)
+    // }
+    
+    "run Workflow with Retry failed Exec 2 times" in {
       implicit val we = new WorkflowEngine(new WorkflowStoreDir(wfDir),new WorkflowStateStoreDir(runtimeDir),new RuntimeThreads(), s"dir://${runtimeDir}",testRegistry)
       
-      val w1 = Workflow("wf-23","wf-23",Map(),
+      val w1 = Workflow("wf-24","wf-24",Map(),
         execs = Seq(
-          Exec("F-1","io.syspulse.skel.wf.exec.RandExec",in = Seq(In("in-0")), out = Seq(Out("out-0")),Some(Map("rand.max" -> 1))),
-          Exec("F-2","io.syspulse.skel.wf.exec.FifoExec",in = Seq(In("in-0")), out = Seq(Out("out-0")),Some(Map("fifo.file" -> "/tmp/skel-wf/test/FIFO"))),
-          Exec("F-3","io.syspulse.skel.wf.exec.LogExec",in = Seq(In("in-0")), out = Seq(Out("out-0"))),          
+          Exec("F-1","io.syspulse.skel.wf.exec.TestExec",in = Seq(In("in-0")), out = Seq(Out("out-0")),Some(Map("retry.max" -> 2, "retry.delay" -> 500L))), 
         ),
         links = Seq(
-          Link("link-1","F-1","out-0","F-2","in-0"),
-          Link("link-2","F-2","out-0","F-3","in-0"),          
+          // Link("link-1","F-1","out-0","F-2","in-0"),          
         )
       )
            
       val wf1 = we.spawn(w1)
-      info(s"wf = ${wf1}")
-
+      
       we.start(wf1.get)
       Thread.sleep(100L)
 
-      val r2 = wf1.get.emit("F-1","in-0",ExecDataEvent(ExecData(Map())))
+      val r2 = wf1.get.emit("F-1","in-0",ExecDataEvent(ExecData(Map("fail" -> "403"))))
       info(s"r2 = ${r2}")
 
-      Thread.sleep(250L)
       // s1 should !== (s2)
-
-      Console.in.readLine()
-      //we.stop(wf1.get)
+      val e = wf1.get.getMesh.get("F-1").get
+      e.asInstanceOf[TestExec].err should === (3)
+      
+      we.stop(wf1.get)
     }
-
   }
 }

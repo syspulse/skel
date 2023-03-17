@@ -36,6 +36,8 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
   //override def toString = s"${this.getClass.getName()}(${name},${getStatus},${getInputs},${getOutpus})"
   override def toString = this.getClass.getName()+":"+name+":"+getStatus+":"+getInputs+":"+getOutpus
 
+  def getDir:Option[String] = dataExec.get(WorkflowEngine.DATA_DIR).map(_.toString)
+
   def getAttr(name:String,data:ExecData) = data.attr.get(name).orElse(dataExec.get(name))
 
   // this constructor and init are need for dynamic class instantiation of Executing Executors
@@ -46,7 +48,8 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
 
   def init(store:WorkflowStateStore,
            workflowing:Workflowing,
-           wid:Workflowing.ID,name:String,
+           wid:Workflowing.ID,
+           name:String,
            in:Seq[Linking],out:Seq[Linking]):Unit = {
     status match {
       case Status.CREATED() => 
@@ -136,32 +139,51 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
   }
 
   def onEvent(in:Let.ID,e:ExecEvent):Try[ExecEvent] = {
-    log.debug(s": ${e} -> [${in}]-${this}")
+    log.debug(s": ${e} -> [${in}]-${this}")    
     e match {
       case ExecDataEvent(d) => 
-        val r = exec(in,ExecData(d.attr))
+        var retry = 0
+        var retryMax = getAttr("retry.max",d).getOrElse(0).asInstanceOf[Int]
+        var retryDelay = getAttr("retry.delay",d).getOrElse(1000L).asInstanceOf[Long]
 
-        if(stateStore.isDefined) {
-          r match {
+        var r:Option[Try[ExecEvent]] = None
+        do {
+          r = Some(exec(in,ExecData(d.attr)))
+          r.get match {
             case Success(e1) => 
               e1 match {
                 case ExecDataEvent(data1) =>
-                  stateStore.get.commit(wid,id, data1, status = Some("ok"))
+                  stateStore.map(_.commit(wid,id, data1, status = Some("ok")))
+                  
                 case ExecCmdStop(who) =>
                   // Exec asks to stop
-                  stateStore.get.commit(wid,id, ExecData(Map()), status = Some("stop"))
+                  stateStore.map(_.commit(wid,id, ExecData(Map()), status = Some("stop")))
+                  
                   // signal termination
                   workflowing.get.terminate()
               }
             case f => 
-              stateStore.get.commit(wid,id, d,status = Some(f.toString))
-          }
-          
-        } else {
-          log.error(s"stateStore undefined: event=${r}")
-        }
+              // reread since Exec could have changed it
+              retryMax = getAttr("retry.max",d).getOrElse(0).asInstanceOf[Int]
+              retryDelay = getAttr("retry.delay",d).getOrElse(1000L).asInstanceOf[Long]
 
-        r
+              log.debug(s"Failed: ${f}: Retry=(${retry},max=${retryMax},delay=${retryDelay})")
+
+              if(retry <= retryMax) {
+                
+                Thread.sleep(retryDelay)
+                retry = retry + 1
+                log.debug(s"Retry: ${retry}")
+
+              } else {
+
+                stateStore.map(_.commit(wid,id, d,status = Some(f.toString)))
+              }
+          }          
+        } while( r.get.isFailure && retry <= retryMax )
+
+        r.get
+
       case e @ ExecCmdStop(who) =>
         // internal command to stop Runtime
         Success(e)
