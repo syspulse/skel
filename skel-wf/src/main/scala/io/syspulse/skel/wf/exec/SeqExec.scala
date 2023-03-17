@@ -16,11 +16,14 @@ class SeqExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends E
     // log.debug(s"Sequence: ${data}")
     val units = getAttr("input",data).getOrElse(List()).asInstanceOf[List[_]]
 
+    log.debug(s"units=${units}")
+    val data1 = data.attr + ("seq.size" -> units.size)
+
     // this is async
     for (u <- units) {
       // override input with new value
-      val data1 = data.attr + ("input" -> u)
-      broadcast( ExecData(data1) ) 
+      val data2 = data1 + ("input" -> u)
+      broadcast( ExecData(data2) ) 
     }
     Success(ExecDataEvent(data))
   }

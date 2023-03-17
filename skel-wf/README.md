@@ -65,3 +65,33 @@ Stop the Workflow:
 ./run-wf.sh runtime emit wf-3-1678978472628 F-1 throttle=500
 ```
 
+3. External events workflow (based on FifoExec )
+
+Create FIFO:
+```
+mkfifo /tmp/skel-wf/test/FIFO
+```
+
+Assembly:
+```
+./run-wf.sh wf assemble wf-4 'F-1(FifoExec(fifo.file=/tmp/skel-wf/test/FIFO))->F2(LogExec())'
+```
+
+Start:
+```
+./run-wf.sh runtime run wf-4
+./run-wf.sh runtime emit wf-4-1679045999379 F-1
+```
+
+Emit External Event:
+```
+echo "Event" >/tmp/skel-wf/test/FIFO
+```
+
+4. Workflow with exploding data into List and then Collecting
+
+```
+./run-wf.sh wf assemble wf-5 'F1(RandExec())->F2(SeqExec())->F3(CollExec())->F4(LogExec())->F5(TerminateExec())'
+./run-wf.sh runtime spawn wf-5
+./run-wf.sh runtime emit wf-5-1679057202485 F1 'rand.max=100'
+```

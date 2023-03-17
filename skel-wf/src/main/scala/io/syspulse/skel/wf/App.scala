@@ -46,7 +46,9 @@ object App extends skel.Server {
         ArgString('_', "store.state",s"Runtime store [dir://] (def: ${d.storeState})"),
         
         ArgCmd("server",s"Server"),        
+        
         ArgCmd("registry",s"Show Execs Registry"),
+
         ArgCmd("wf",s"Workflow subcommands: " +
           s"assemble name 'dsl'  : create Workflow with dsl commands, ex: 'F-1(LogExec(sys=1,log.level=WARN))->F-2(LogExec(sys=2))->F-3(TerminateExec())'" +
           s"load <id>            : Load workflow by id from store" +
@@ -54,8 +56,13 @@ object App extends skel.Server {
           ""
         ),
         ArgCmd("runtime",s"Runtime subcommands: " +
-          s"spawn <id>           : Spawn + start workflow"+
-          s"stop <id>            : Stop workflow"+
+          s"spawn <id>          : Spawn + start Workflow"+
+          s"run <id>            : Spawn + start + wait Workflow"+
+          s"start <wid>         : Start spawned Workflowing"+
+          s"stop <wid>          : Stop running Workflowing"+
+          s"kill <wid>          : Kill with deleting all states and data"+
+          s"status [wid]        : Workflowing status"+
+          s"emit <wid> <Exec> [data]    : Emit event into Exec (Input: in-0) or running Workflowing"+
           ""
         ),        
         ArgParam("<params>",""),
@@ -129,8 +136,7 @@ object App extends skel.Server {
 
         implicit val we = new WorkflowEngine(storeWorkflow,storeState,runtime = new RuntimeThreads())
         config.params match {
-          case "spawn" :: id :: Nil => 
-            
+          case "spawn" :: id :: Nil =>             
             for {
               wf <- storeWorkflow.?(id)          
               wr <- we.spawn(wf)            
@@ -144,37 +150,33 @@ object App extends skel.Server {
           case "status" :: Nil =>
             storeState.all.map(ws => s"${ws.id}: ${ws.status}").mkString("\n")
 
-          case "recover" :: id :: Nil => 
-            for {
-              w <- we.respawn(id)
-              w <- we.start(w)
-            } yield w
-            
-            prompt()
-
-          case "recover" :: Nil => 
-            storeState.all.map(ws => {
+          case "recover" :: id =>
+            (id match {
+              case Nil => storeState.all.map(_.id)
+              case wids => wids.toSeq              
+            }).map(id => {
               for {
-                w <- we.respawn(ws.id)
+                w <- we.respawn(id)
                 w <- we.start(w)
               } yield w
             })
-
+            
             prompt()
 
           case "start" :: id :: Nil => 
             for {
               w <- we.respawn(id)
               w <- we.start(w)
-            } yield w
-
-            prompt()
-
+            } yield w            
+            
           case "stop" :: id :: Nil => 
             for {
               w <- we.respawn(id)
               w <- we.stop(w)
             } yield w
+
+          case "kill" :: id :: Nil => 
+            we.kill(id)            
 
           case "run" :: id :: Nil => 
             val wr = for {
@@ -187,13 +189,18 @@ object App extends skel.Server {
 
             we.stop(wr.get)
 
-          case "emit" :: id :: exec :: data :: Nil =>
+          case "emit" :: id :: exec :: data =>             
             val wr =for {
               w <- we.respawn(id)
               w <- we.start(w)
             } yield w
 
-            wr.get.emit(exec,"in-0",ExecDataEvent(ExecData(data.split("[,=]").grouped(2).map(a => a(0) -> a(1)).toMap)))
+            val exData = data match {
+              case Nil => Map[String,Any]()
+              case data => data.mkString("").split("[,=]").grouped(2).map(a => a(0) -> a(1)).toMap              
+            }
+            val r = wr.get.emit(exec,"in-0",ExecDataEvent(ExecData(exData)))
+            Console.err.println(s"${r}")
 
             prompt()            
 

@@ -20,7 +20,7 @@ Prototyping Framework for Cloud Products
 - [skel-crypto](skel-crypto) - Cryptography and Ethereum utilities
 - [skel-spark](skel-spark) - Spark tools
 - [skel-datalake](skel-datalake) - Datalake and Warehouses (+ Notebooks)
-- [skel-flow](skel-flow) - DataFlows and Workflows
+- [skel-flow](skel-flow) - Streaming DataFlows (Workflows -> [skel-wf](skel-wf))
 - [skel-scrap](skel-scrap) - Scraping pipelines
 - [skel-cli](skel-cli) - Shell command line client
 - [skel-cron](skel-cron) - Cron engine
@@ -29,6 +29,7 @@ Prototyping Framework for Cloud Products
 - [skel-stream](skel-stream) - Akka Steams 
 - [skel-pdf](skel-pdf) - PDF Utils
 - [skel-tag](skel-tag) - Tags searchable service (e.g. labels, tags)
+- [skel-wf](skel-wf) - Workflow Engine (long running jobs/tasks with complex steps)
 
 ----
 ## Build & Run
@@ -47,8 +48,8 @@ Refer to specific demo for running Kubernetes Deployments or Docker-Compose topo
 ## Libraries and Credits
 
 0. Akka: [https://akka.io/](https://akka.io/)
-1. HTTP: Akka-HTTP [https://doc.akka.io/docs/akka-http/current/index.html](https://doc.akka.io/docs/akka-http/current/index.html)
-2. Metrics (Dropwizard): [https://github.com/erikvanoosten/metrics-scala](https://github.com/erikvanoosten/metrics-scala)
+1. Akka-HTTP [https://doc.akka.io/docs/akka-http/current/index.html](https://doc.akka.io/docs/akka-http/current/index.html)
+2. Akka-Streams
 3. Metrics (Prometheus): [https://github.com/RustedBones/akka-http-metrics](https://github.com/RustedBones/akka-http-metrics)
 4. OpenAPI (Swagger): [https://github.com/swagger-akka-http/swagger-akka-http](https://github.com/swagger-akka-http/swagger-akka-http)
 5. UUID: [https://github.com/melezov/scala-uuid](https://github.com/melezov/scala-uuid)
@@ -58,7 +59,7 @@ Refer to specific demo for running Kubernetes Deployments or Docker-Compose topo
 9. JDBC: Quill [https://getquill.io](https://getquill.io)
 10. Kafka: Alpakka [https://github.com/akka/alpakka](https://github.com/akka/alpakka)
 11. InfluxDB Stream: Alpakka [https://github.com/akka/alpakka](https://github.com/akka/alpakka)
-12. InfluxDB-2: [https://github.com/influxdata/influxdb-client-java](https://github.com/influxdata/influxdb-client-java)
+12. InfluxDB Java Client: [https://github.com/influxdata/influxdb-client-java](https://github.com/influxdata/influxdb-client-java)
 13. Geohash: [https://github.com/davidallsopp/geohash-scala](https://github.com/davidallsopp/geohash-scala)
 14. Quartz: [http://www.quartz-scheduler.org](http://www.quartz-scheduler.org)
 15. Web3: [https://github.com/web3j/web3j](https://github.com/web3j/web3j)

@@ -20,8 +20,9 @@ class CollExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends 
       case Some(v) => 
         collected = collected :+ v
       case None =>
-
     }
+
+    log.debug(s"max(${max}): collected=${collected}")
         
     if(collected.size == max) {
       val data1 = ExecData(data.attr + ("input" -> collected))

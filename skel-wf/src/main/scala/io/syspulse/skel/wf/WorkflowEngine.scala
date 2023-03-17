@@ -49,7 +49,15 @@ class WorkflowEngine(workflowStore:WorkflowStore, stateStore:WorkflowStateStore,
   def getStoreWorkflow() = workflowStore
   def getStoreState() = stateStore
 
-  def respawn(id:Workflowing.ID) = {
+  def kill(id:Workflowing.ID):Try[WorkflowEngine] = {
+    log.info(s"kill: ${id}")
+    for {
+      _ <- stateStore.del(id)
+      r <- deleteDataDir(id)
+    } yield r
+  }
+
+  def respawn(id:Workflowing.ID):Try[Workflowing] = {
     for {
       st <- stateStore.?(id)
       wf <- workflowStore.?(st.wid)
@@ -172,12 +180,34 @@ class WorkflowEngine(workflowStore:WorkflowStore, stateStore:WorkflowStateStore,
     } yield executing
   }
 
+  def createDataDir(id:Workflowing.ID):Try[WorkflowEngine] = {
+    val wfRuntimeDir = runtimeStore + "/" + id
+    try {
+      os.makeDir.all(os.Path(wfRuntimeDir,os.pwd))
+      Success(this)
+    } catch {
+      case e:Exception => Failure(e)
+    }
+  }
+
+  def deleteDataDir(id:Workflowing.ID):Try[WorkflowEngine] = {
+    val wfRuntimeDir = runtimeStore + "/" + id
+    try {      
+      os.remove.all(os.Path(wfRuntimeDir,os.pwd))
+      Success(this)
+    } catch {
+      case e:Exception => Failure(e)
+    }
+  }
+
+
   def start(wf:Workflowing):Try[Workflowing] = {
     log.info(s"start: ${wf}")
-
-    // start Executings with initial default data
+    
     val wfRuntimeDir = runtimeStore + "/" + wf.getId
-    os.makeDir.all(os.Path(wfRuntimeDir,os.pwd))
+
+    // os.makeDir.all(os.Path(wfRuntimeDir,os.pwd))
+    createDataDir(wf.getId)
 
     // ingest additional metadata
     val data = ExecData(wf.data.attr ++ Map( "data_dir" -> wfRuntimeDir))
