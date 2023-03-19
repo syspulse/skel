@@ -30,7 +30,9 @@ object WorkflowRegistry {
     Exec("Rand","io.syspulse.skel.wf.exec.RandExec"),
     Exec("Seq","io.syspulse.skel.wf.exec.SeqExec"),
     Exec("Coll","io.syspulse.skel.wf.exec.CollExec"),
+    Exec("Notify","io.syspulse.skel.wf.exec.NotifyExec"),
 
     Exec("Fifo","io.syspulse.skel.wf.exec.FifoExec"),
+
   )
 }

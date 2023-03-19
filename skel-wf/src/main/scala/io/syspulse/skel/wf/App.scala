@@ -123,7 +123,7 @@ object App extends skel.Server {
           wf
         case "load" :: id :: Nil => 
           val wf = storeWorkflow.?(id)
-          wf        
+          wf   
         case _ => 
           storeWorkflow.all
       } 

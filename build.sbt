@@ -784,8 +784,21 @@ lazy val video = (project in file("skel-video"))
       ),
   )
 
-lazy val skel_notify = (project in file("skel-notify"))
+lazy val notify_core = (project in file("skel-notify/notify-core"))
   .dependsOn(core,auth_core,kafka)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+    sharedConfig,
+  
+    name := "notify-core",
+
+    libraryDependencies ++= libSkel ++ libTest ++ Seq(
+
+    ),    
+  )
+
+lazy val skel_notify = (project in file("skel-notify"))
+  .dependsOn(core,notify_core,auth_core,kafka)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -844,7 +857,7 @@ lazy val skel_telemetry = (project in file("skel-telemetry"))
   )
 
 lazy val skel_wf = (project in file("skel-wf"))
-  .dependsOn(core)
+  .dependsOn(core,notify_core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
@@ -862,7 +875,3 @@ lazy val skel_wf = (project in file("skel-wf"))
       libUpickleLib,
     )
   )
-
-    
-
-    
