@@ -16,7 +16,7 @@ class NotifyExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extend
   val timeout = FiniteDuration(10,TimeUnit.SECONDS)
 
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
-    var notifyTarget = dataExec.get("notify").getOrElse("stdout://").asInstanceOf[String]
+    var notifyTarget = getAttr("notify",data).getOrElse("stdout://").asInstanceOf[String]
         
     import io.syspulse.skel.FutureAwaitable._                
           
@@ -30,7 +30,7 @@ class NotifyExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extend
       case _ => (notifyTarget.take(notifyTarget.size-2).mkString(" "),notifyTarget.takeRight(2).head,notifyTarget.last)
     }
 
-    log.info(s"Notify(${to},${subj},${msg},${severity},${scope}) -> ${serviceUri}")
+    log.info(s"${notifyTarget}: Notify(${to},${subj},${msg},${severity},${scope}) -> ${serviceUri}")
                     
     val r = NotifyClientHttp(serviceUri)
         .withTimeout(this.timeout)
