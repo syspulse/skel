@@ -18,7 +18,7 @@ class SyslogFlow extends ElasticFlow[Syslog,Syslog] {
   def process:Flow[Syslog,Syslog,_] = Flow[Syslog].map(v => v)
 
   override def parse(data:String):Seq[Syslog] = data.split("\n").toIndexedSeq.flatMap( line => 
-    line.split(",").toList match {
+    line.split(",",-1).toList match {
       case ts :: lvl :: area :: txt :: Nil => Some(Syslog(ts.toLong,lvl.toInt,area,txt))
       case _ => None
     }

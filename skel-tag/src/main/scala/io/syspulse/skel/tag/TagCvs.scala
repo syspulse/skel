@@ -24,7 +24,7 @@ class TagCvs extends ExtFormat[Tag] {
 
   def decode(data:String):Try[Seq[Tag]] = {
     log.debug(s"data='${data}'")
-    val dd = data.split("\\n").toIndexedSeq.map(_.trim).filter(_.nonEmpty).flatMap( s => s.split(",").toList match {      
+    val dd = data.split("\\n").toIndexedSeq.map(_.trim).filter(_.nonEmpty).flatMap( s => s.split(",",-1).toList match {      
       case id :: ts :: cat :: tags :: score :: sid :: Nil =>         
         try {
           val ts1 = if(ts.toLong > 9000000000L) ts.toLong else ts.toLong * 1000L

@@ -35,7 +35,7 @@ object TelemetryParserDefault extends TelemetryParser {
 
   override def parse(s:String):Option[Telemetry] = {
     try {
-      s.split(",").map(_.trim).toList match {
+      s.split(",",-1).map(_.trim).toList match {
         case id :: ts :: data => Some(Telemetry(id,ts.toLong,data))
         case _ => {
           log.error(s"failed to parse: '${s}'")
