@@ -60,7 +60,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     Success(this)
   }
 
-  def load(dir:String) = {
+  def load(dir:String,hint:String="") = {
     val storeDir = os.Path(dir,os.pwd)
     if(! os.exists(storeDir)) {
       os.makeDir.all(storeDir)
@@ -76,24 +76,28 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
         os.read(f)
       })
       .map(fileData => fileData.split("\n").map { data =>
-        try {
-          val c = data.parseJson.convertTo[E]
-          log.debug(s"c=${c}")
-          Seq(c)
-        } catch {
-          case e:Exception => 
-            if(fmt2.isDefined) {
-              fmt2.get.decode(data) match {
-                case Success(e) => e
-                case Failure(en) => 
-                  log.error(s"could not parse data (${fmt2}): ${data}",e)
-                  Seq()
+        if(! hint.isEmpty() && data.contains(hint)) {
+          try {
+            val c = data.parseJson.convertTo[E]
+            log.debug(s"c=${c}")
+            Seq(c)
+          } catch {
+            case e:Exception => 
+              if(fmt2.isDefined) {
+                fmt2.get.decode(data) match {
+                  case Success(e) => e
+                  case Failure(en) => 
+                    log.error(s"could not parse data (${fmt2}): ${data}",e)
+                    Seq()
+                }
+              } else {
+                log.error(s"could not parse data (${fmt}): ${data}",e); 
+                Seq()
               }
-            } else {
-              log.error(s"could not parse data (${fmt}): ${data}",e); 
-              Seq()
-            }
-        }
+          }
+        } else
+          // ignore
+          Seq()
       })
       .flatten // file
       .flatten // files
