@@ -24,6 +24,7 @@ import io.syspulse.skel.util.Util
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Await
 import akka.actor.ActorSystem
+import io.syspulse.skel.util.TimeUtil
 
 abstract class CliState {
   // to render in Cli shell. Like toString but for visual
@@ -169,7 +170,7 @@ abstract class Cli(initState:CliState=CliStateInit(),
   
   def parse(commands:String*):List[Command] = {
     commands.mkString(";").split("[;\\n]").flatMap( s => {
-      val cmdArgs = CliUtil.parseText(s).toList
+      val cmdArgs = TimeUtil.parseText(s).toList
       
       val cmd:Option[Command] = cmdArgs match {
         case Nil => None

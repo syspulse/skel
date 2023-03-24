@@ -226,7 +226,7 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
     aa
   }
 
-  override def load(dir:String) = {
+  override def load(dir:String,hint:String = "") = {
     log.info(s"scanning ABI: ${dir}")
     
     loading = true

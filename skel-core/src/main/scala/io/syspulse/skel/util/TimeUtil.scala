@@ -1,4 +1,4 @@
-package io.syspulse.skel.cli
+package io.syspulse.skel.util
 
 import scala.collection.immutable
 import scala.concurrent.duration._
@@ -23,7 +23,7 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.util.Util
 
-object CliUtil {
+object TimeUtil {
   val formats = Seq(
     DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmssZ"),
     DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmss"),
