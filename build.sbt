@@ -875,3 +875,23 @@ lazy val skel_wf = (project in file("skel-wf"))
       libUpickleLib,
     )
   )
+
+lazy val lake_job = (project in file("skel-lake/lake-job"))
+  .dependsOn(core,notify_core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+    
+    appDockerConfig("lake-job","io.syspulse.skel.lake.job.App"),
+
+    libraryDependencies ++= libTest ++ Seq(
+      libOsLib,
+      libUpickleLib,
+    )
+  )

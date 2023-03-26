@@ -20,12 +20,13 @@ import spray.json.RootJsonFormat
 import spray.json.CollectionFormats
 import spray.json.JsNull
 import spray.json.JsObject
+import spray.json.NullOptions
 
 object JsonCommon extends DefaultJsonProtocol with CollectionFormats {
   implicit def sortedSetFormat[T :JsonFormat](implicit ordering: Ordering[T]) = viaSeq[SortedSet[T], T](seq => SortedSet(seq :_*))
 }
 
-trait JsonCommon extends DefaultJsonProtocol with CollectionFormats { 
+trait JsonCommon extends DefaultJsonProtocol with CollectionFormats with NullOptions { 
   //import DefaultJsonProtocol._
 
   // implicit def sortedSetFormat[T :JsonFormat] = new RootJsonFormat[SortedSet[T]] {
