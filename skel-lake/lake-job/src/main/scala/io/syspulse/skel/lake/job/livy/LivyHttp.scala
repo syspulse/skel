@@ -39,7 +39,7 @@ object LivyHttp {
   implicit val ec = as.getDispatcher
 }
 
-class LivyHttp(uri:String) extends JobEngine {
+class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
   val log = Logger(s"${this}")
   
   import LivyHttp._
@@ -100,7 +100,7 @@ class LivyHttp(uri:String) extends JobEngine {
     } yield r
 
     if(!request.async)
-      Await.result(f,FiniteDuration(3000L,TimeUnit.MILLISECONDS)).map(_.utf8String)
+      Await.result(f,FiniteDuration(timeout,TimeUnit.MILLISECONDS)).map(_.utf8String)
     else 
       Success(f.toString) 
   }
@@ -112,13 +112,28 @@ class LivyHttp(uri:String) extends JobEngine {
     log = Some(sess.log)
   )
 
-  def toJob(job:Job,st:LivyStatement) = Job(
-    xid = job.xid,
-    status = job.status,
-    src = st.code,
-    log = job.log,
-    res = Some(st.output.data.values.mkString("\n"))
-  )
+  def toJob(job:Job,st:LivyStatement) = {
+    val j = Job(
+      xid = job.xid,
+      status = job.status,
+      src = st.code,
+      log = job.log,
+      result = st.output.map(o => o.status),
+      tsStart = Some(st.started),
+      tsEnd = Some(st.completed)
+    )
+
+    //log.info(s"${j.result}")
+
+    j.result match {
+      case Some("error") =>
+        j.copy(output = st.output.map(o => o.ename.getOrElse("") + "\n" + o.traceback.get.mkString("\n")))
+      case Some(_) => 
+        j.copy(output = st.output.map(o => o.data.get.values.mkString("\n")))
+      case None => 
+        j
+    }
+  }
 
   def all():Try[Seq[Job]] = {
     val res = ->(Request(uri + "/sessions", HttpMethods.GET))
@@ -127,11 +142,33 @@ class LivyHttp(uri:String) extends JobEngine {
   }
 
   def ask(xid:String):Try[Job] = {
-    val res = ->(Request(uri + s"/sessions/${xid}", HttpMethods.GET))
-    log.info(s"res = ${res}")
-    res.map(r => toJob(r.parseJson.convertTo[LivySession]))
+    // val res = ->(Request(uri + s"/sessions/${xid}", HttpMethods.GET))
+    // log.info(s"res = ${res}")
+    // res.map(r => toJob(r.parseJson.convertTo[LivySession]))
+    for {
+      session <- {
+        val res = this.->(Request(uri + s"/sessions/${xid}", HttpMethods.GET))
+        log.info(s"res = ${res}")
+        res
+      }
+      results <- {
+        val res = this.->(Request(uri + s"/sessions/${xid}/statements", HttpMethods.GET))
+        log.info(s"res = ${res}")
+        res
+      }
+      job <- {
+        val job = toJob(session.parseJson.convertTo[LivySession])
+        val res = results.parseJson.convertTo[LivySessionResults]
+        if(res.total_statements == 0)
+          Success(job)
+        else
+          Success(toJob(job,res.statements.last))
+      }
+    } yield job    
   }
 
+  // status: "starting" -> "idle"
+  // run() can be executed only against "idle" status
   def create(name:String,conf:Map[String,String]=Map()):Try[Job] = {
     val res = ->(Request(uri + s"/sessions", HttpMethods.POST, 
       body = Some(LivySessionCreate(kind = "pyspark", name, conf).toJson.compactPrint)
@@ -146,12 +183,15 @@ class LivyHttp(uri:String) extends JobEngine {
     res.map(r => r.parseJson.convertTo[LivySessionRes].msg)
   }
 
-  def run(job:Job,script:String):Try[Job] = {
-    val res = ->(Request(uri + s"/sessions/${job.xid}/statements", HttpMethods.POST, 
-      body = Some(LivySessionRun(code = script).toJson.compactPrint)
+  // state: "waiting" -> 
+  def run(job:Job,script:String):Try[Job] = run(job.xid,script).map(r => toJob(job,r))
+
+  def run(xid:String,script:String):Try[LivyStatement] = {
+    val res = ->(Request(uri + s"/sessions/${xid}/statements", HttpMethods.POST, 
+      body = Some(LivySessionRun(code = script.replaceAll("\\\\n","\n")).toJson.compactPrint)
     ))
     log.info(s"res = ${res}")
-    res.map(r => toJob(job,r.parseJson.convertTo[LivyStatement]))
+    res.map(r => r.parseJson.convertTo[LivyStatement])
   }
 }
 

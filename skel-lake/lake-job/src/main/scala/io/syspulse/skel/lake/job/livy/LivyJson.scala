@@ -19,18 +19,20 @@ case class LivySessions(from:Int,total:Int,sessions:Seq[LivySession])
 
 case class LivyStatementOutput(
   status:String,
-  execution_count:Int,
-  data:Map[String,String]  
+  execution_count:Int,  
+  data:Option[Map[String,String]],
+  ename:Option[String] = None,
+  traceback:Option[Seq[String]] = None
 )
 
 case class LivyStatement(
   id:Long, 
-  code:String,
   state:String,
-  output:LivyStatementOutput,
-  progress: Int,
+  progress: Double,
   started: Long,
-  completed: Long
+  completed: Long,
+  code:String,  
+  output:Option[LivyStatementOutput],  
 )
 
 case class LivySessionResults(total_statements:Long,statements:Seq[LivyStatement])
@@ -55,7 +57,7 @@ import spray.json._
 import DefaultJsonProtocol._
 
 object LivyJson extends JsonCommon with NullOptions {
-  implicit val jf_LSOu = jsonFormat3(LivyStatementOutput.apply _)
+  implicit val jf_LSOu = jsonFormat5(LivyStatementOutput.apply _)
   implicit val jf_LSt = jsonFormat7(LivyStatement.apply _)
   implicit val jf_LSts = jsonFormat2(LivySessionResults.apply _)
 

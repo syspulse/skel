@@ -13,10 +13,10 @@ import io.syspulse.skel.lake.job.livy.LivyHttp
 
 object JobUri {
 
-  def apply(uri:String):JobEngine = {
+  def apply(uri:String,timeout:Long=5000L):JobEngine = {
     uri.split("://").toList match {
     
-      case "livy" :: loc :: u => new LivyHttp(loc + "://" + u.mkString(""))
+      case "livy" :: loc :: u => new LivyHttp(loc + "://" + u.mkString(""))(timeout)
       
       case _ => new JobStdout
     }    

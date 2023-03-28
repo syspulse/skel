@@ -13,11 +13,10 @@ import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
-import io.syspulse.skel.notify._
-import io.syspulse.skel.notify.client._
-
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
+
+import io.syspulse.skel.lake.job.livy._
 
 case class Config(
   host:String="0.0.0.0",
@@ -29,7 +28,7 @@ case class Config(
 
   jobEngine:String = "livy://http://emr.hacken.cloud:8998",
 
-  cmd:String = "list",
+  cmd:String = "job",
   params: Seq[String] = Seq(),
 )
 
@@ -73,13 +72,13 @@ object App extends skel.Server {
 
     Console.err.println(s"Config: ${config}")
 
-    val store = config.datastore match {
-      // case "all" => new JobStoreAll
-      case _ => {
-        Console.err.println(s"Unknown datastore: '${config.datastore}")
-        sys.exit(1)
-      }
-    }
+    // val store = config.datastore match {
+    //   // case "all" => new JobStoreAll
+    //   case _ => {
+    //     Console.err.println(s"Unknown datastore: '${config.datastore}")
+    //     sys.exit(1)
+    //   }
+    // }
 
     val engine = JobUri(config.jobEngine)
 
@@ -108,17 +107,31 @@ object App extends skel.Server {
         sys.exit(0)
       }
 
-      case "job" =>         
+      case "job" =>
+        val engine = JobUri(config.jobEngine).asInstanceOf[LivyHttp]
+                            
         val r = config.params match {
-          case "create" :: data =>               
+          case "create" :: name :: Nil => 
+            engine.create(name)
+          case "create" :: name :: data => 
+            engine.create(name,data.mkString(",").split(",").map(kv => kv.split("=").toList match { case k :: v :: Nil => k -> v }).toMap)
                   
+          case "ask" :: xid :: Nil => 
+            engine.ask(xid)
+
+          case "del" :: xid :: Nil => 
+            engine.del(xid)
+
+          case "run" :: xid :: script => 
+            engine.run(xid,script.mkString(" "))
+
           case _ => 
             engine.all()
 
             println(s"unknown op: ${config.params}")
         }
         
-        println(s"${r}")
+        println(s"\n${r}")
         sys.exit(0)
     }
   }

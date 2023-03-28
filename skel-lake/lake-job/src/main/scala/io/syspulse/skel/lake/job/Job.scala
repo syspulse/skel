@@ -13,7 +13,11 @@ import io.jvm.uuid._
 case class Job(
   xid:String,
   status:String,
+  ts0:Long = System.currentTimeMillis,
   src:String,
   log:Option[Seq[String]] = None,
-  res:Option[String] = None
+  tsStart:Option[Long] = None,
+  tsEnd:Option[Long] = None,
+  result:Option[String] = None,
+  output:Option[String] = None,  
 )

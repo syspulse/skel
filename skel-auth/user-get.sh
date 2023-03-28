@@ -6,4 +6,4 @@ TOKEN=${TOKEN-`cat ACCESS_TOKEN`}
 
 echo $TOKEN
 
-curl -i -X GET -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" $SERVICE_URI/${ID}
+curl -S -s -D /dev/stderr -X GET -H 'Content-Type: application/json' -H "Authorization: Bearer $TOKEN" $SERVICE_URI/${ID}
