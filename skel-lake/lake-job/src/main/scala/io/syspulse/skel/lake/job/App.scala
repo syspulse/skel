@@ -116,14 +116,19 @@ object App extends skel.Server {
           case "create" :: name :: data => 
             engine.create(name,data.mkString(",").split(",").map(kv => kv.split("=").toList match { case k :: v :: Nil => k -> v }).toMap)
                   
-          case "ask" :: xid :: Nil => 
+          case ("ask" | "get") :: xid :: Nil => 
             engine.ask(xid)
 
           case "del" :: xid :: Nil => 
             engine.del(xid)
 
           case "run" :: xid :: script => 
-            engine.run(xid,script.mkString(" "))
+            val src = if(script.head.startsWith("file://"))
+              os.read(os.Path(script.head.stripPrefix("file://"),os.pwd))
+            else
+              script.mkString(" ")
+
+            engine.run(xid,src)
 
           case _ => 
             engine.all()
