@@ -115,7 +115,7 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
   def toJob(job:Job,st:LivyStatement) = {
     val j = Job(
       xid = job.xid,
-      status = job.status,
+      status = st.state, //job.status,
       src = st.code,
       log = job.log,
       result = st.output.map(o => o.status),
@@ -139,6 +139,12 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
     val res = ->(Request(uri + "/sessions", HttpMethods.GET))
     log.info(s"res = ${res}")
     res.map(_.parseJson.convertTo[LivySessions].sessions.map(r => toJob(r)))
+  }
+
+  def get(xid:String):Try[Job] = {
+    val res = ->(Request(uri + s"/sessions/${xid}", HttpMethods.GET))
+    log.info(s"res = ${res}")
+    res.map(r => toJob(r.parseJson.convertTo[LivySession]))
   }
 
   def ask(xid:String):Try[Job] = {

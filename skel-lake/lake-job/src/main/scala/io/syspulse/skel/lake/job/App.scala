@@ -17,6 +17,7 @@ import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 
 import io.syspulse.skel.lake.job.livy._
+import scala.util.Try
 
 case class Config(
   host:String="0.0.0.0",
@@ -25,6 +26,7 @@ case class Config(
   datastore:String = "all",
 
   timeout:Long = 10000L,
+  poll:Long = 1000L,
 
   jobEngine:String = "livy://http://emr.hacken.cloud:8998",
 
@@ -108,13 +110,41 @@ object App extends skel.Server {
       }
 
       case "job" =>
-        val engine = JobUri(config.jobEngine).asInstanceOf[LivyHttp]
+        val engine = JobUri(config.jobEngine,config.timeout).asInstanceOf[LivyHttp]
+
+        def pipeline(name:String,script:String,data:List[String] = List()) = {
+          val src = os.read(os.Path(script.stripPrefix("file://"),os.pwd))
+            
+            for {
+              j1 <- engine.create(name,data.mkString(",").split(",").filter(!_.trim.isEmpty).map(kv => kv.split("=").toList match { case k :: v :: Nil => k -> v }).toMap)
+              j2 <- {
+                var j:Try[Job] = engine.get(j1.xid)
+                while(j.isSuccess && j.get.status == "starting") {                  
+                  Thread.sleep(config.poll)
+                  j = engine.get(j1.xid)
+                } 
+                j
+              }
+              j3 <- {
+                engine.run(j2,src)                              
+              }
+              j4 <- {
+                var j:Try[Job] = engine.ask(j3.xid)
+
+                while(j.isSuccess && j.get.status != "available") {
+                  Thread.sleep(config.poll)
+                  j = engine.ask(j3.xid)                  
+                } 
+                j
+              }
+            } yield j4
+          }
                             
         val r = config.params match {
           case "create" :: name :: Nil => 
             engine.create(name)
           case "create" :: name :: data => 
-            engine.create(name,data.mkString(",").split(",").map(kv => kv.split("=").toList match { case k :: v :: Nil => k -> v }).toMap)
+            engine.create(name,data.mkString(",").split(",").filter(!_.trim.isEmpty).map(kv => kv.split("=").toList match { case k :: v :: Nil => k -> v }).toMap)
                   
           case ("ask" | "get") :: xid :: Nil => 
             engine.ask(xid)
@@ -129,6 +159,12 @@ object App extends skel.Server {
               script.mkString(" ")
 
             engine.run(xid,src)
+
+          case "pipeline" :: name :: script :: Nil =>
+            pipeline(name,script,List())
+
+          case "pipeline" :: name :: script :: data =>
+            pipeline(name,script,data)          
 
           case _ => 
             engine.all()
