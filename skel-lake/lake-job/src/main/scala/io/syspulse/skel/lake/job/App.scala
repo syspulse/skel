@@ -137,6 +137,9 @@ object App extends skel.Server {
                 } 
                 j
               }
+              j5 <- {
+                engine.del(j4.xid)
+              }
             } yield j4
           }
                             
