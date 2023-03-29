@@ -74,7 +74,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     
     log.info(s"Loading dir store: ${storeDir}")
 
-    val vv = os.walk(storeDir)
+    val ee = os.walk(storeDir)
       .filter(_.toIO.isFile())
       .sortBy(_.toIO.lastModified())
       .map(f => {
@@ -88,14 +88,14 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
       .flatten // files
 
     loading = true
-    vv.foreach(v => this.+(v))
+    ee.foreach(e => this.+(e))
     loading = false
 
     log.info(s"Loaded store: ${size}")
   }
 
   def loadData(fileData:String,hint:String):Seq[E] = {    
-    val ee = fileData.split("\n").map { data =>
+    val ee = fileData.split("\n").filter(!_.trim.isEmpty).map { data =>
       if(hint.isEmpty || data.contains(hint)) {
         try {
           val c = data.parseJson.convertTo[E]
@@ -107,26 +107,27 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
               fmt2.get.decode(data) match {
                 case Success(e) => e
                 case Failure(en) => 
-                  log.error(s"could not parse data (${fmt2}): ${data}",e)
+                  log.error(s"could not parse data with code=(${fmt2}): ${data}",en)
                   Seq()
               }
             } else {
-              log.error(s"could not parse data (${fmt}): ${data}",e); 
+              log.error(s"could not parse data (${fmt}): ${data}",e)
               Seq()
             }
         }
       } else
         // ignore
         Seq()
-    }
+    }    
     ee.toSeq.flatten
   }
 
   def addAsFile(f:String) = {
     val file = os.Path(f,os.pwd)
     log.info(s"Loading file: ${file}")
-    
-    loadData(os.read(file),"")   
+    val data = os.read(file)
+    val ee = loadData(data,"")
+    ee.foreach( e => StoreDir.this.+(e))    
   }
 
   def watch(dir:String) = {
@@ -137,45 +138,43 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     import scala.concurrent.ExecutionContext.Implicits.global
 
     @volatile
-    var modifying = false
+    var modifying:Option[File] = None
     
     // try to prevent modifications by touching file
     val watcher = new RecursiveFileMonitor(
       File(dir),
       fileHasher = Some(FileHasher.LAST_MODIFIED_TIME)) {
       override def onCreate(file: File, count: Int) = {
-        if(! modifying) {
-          modifying = true
-          loading = true
-          val id = file.nameWithoutExtension
+        if(!file.isDirectory && (!modifying.isDefined || modifying.get != file)) {
           log.info(s"${file}: added")
-          val ee = addAsFile(file.toString)
-          ee.foreach( e => StoreDir.this.+(e))
-          loading = false
-          modifying = false
+          modifying = Some(file)
+
+          // this will not load on ext4 !
+          loading = true
+          addAsFile(file.toString)          
+          loading = false  
         }
       }
       override def onModify(file: File, count: Int) = {
-        if(! modifying) {
-          modifying = true
-          loading = true
-          val id = file.nameWithoutExtension
+        if(!file.isDirectory) {
           log.info(s"${file}: modified")
+          
+          modifying = Some(file)
+
+          loading = true
           //del(id)
-          val ee = addAsFile(file.toString)
-          ee.foreach( e => StoreDir.this.+(e))
+          addAsFile(file.toString)          
           loading = false
-          modifying = false
+
+          modifying = None
         }
       }
-      override def onDelete(file: File, count: Int) = {
-        if(! modifying) {
-          modifying = true
+
+      override def onDelete(file: File, count: Int) = {        
+        if(!file.isDirectory) {
           val id = file.nameWithoutExtension
           log.info(s"${file}: deleted")
-          
           StoreDir.this.del(toKey(id))
-          modifying = false
         }
       }
     }

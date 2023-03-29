@@ -37,7 +37,7 @@ case class Config(
   throttle:Long = 0L,
 
   datastore:String = "dir://",
-  storeCron:String = "0 0/30 * * * ?", // evert 30 minutes
+  storeCron:String = "", //"0 0/30 * * * ?", // evert 30 minutes
 
   cmd:String = "ingest",
   params: Seq[String] = Seq(),
@@ -115,8 +115,8 @@ object App extends skel.Server {
       case "dynamo" :: uri :: Nil => new TelemetryStoreDynamo(DynamoURI(uri))
       case "mem" :: _ => new TelemetryStoreMem()
       case "stdout" :: _ => new TelemetryStoreStdout()
-      case "dir" :: dir :: Nil => new TelemetryStoreDir(dir,TelemetryParserDefault, cron = Option(config.storeCron))
-      case "dir" :: Nil => new TelemetryStoreDir(parser = TelemetryParserDefault,cron = Option(config.storeCron))
+      case "dir" :: dir :: Nil => new TelemetryStoreDir(dir,TelemetryParserDefault, cron = Option.unless(config.storeCron.isEmpty)(config.storeCron))
+      case "dir" :: Nil => new TelemetryStoreDir(parser = TelemetryParserDefault,cron = Option.unless(config.storeCron.isEmpty)(config.storeCron))
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}")
         sys.exit(1)

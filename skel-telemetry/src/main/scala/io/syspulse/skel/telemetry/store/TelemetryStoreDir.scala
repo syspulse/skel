@@ -45,7 +45,11 @@ class TelemetryStoreDir(dir:String = "store/",parser:TelemetryParser,cron:Option
 
   override def +(u:Telemetry):Try[TelemetryStoreDir] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)
   override def del(id:ID):Try[TelemetryStoreDir] = {
-    store.del(id)
+    store.del(id) match {
+      case Success(_) => 
+      case Failure(e) =>
+        log.warn(s"faild to delete: ${id}: ${e.getMessage()}")
+    }
     super.del(id).map(_ => this)
   }
   override def ?(id:ID):Try[Telemetry] = store.?(id)

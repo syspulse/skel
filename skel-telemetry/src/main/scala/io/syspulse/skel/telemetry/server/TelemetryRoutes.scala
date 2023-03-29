@@ -237,9 +237,8 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
           pathEndOrSingleSlash {
             getTelemetryRoute(id)
             authenticate()(authn =>
-              authorize(Permissions.isUser(UUID(id),authn)) {
-                getTelemetryRoute(id)
-              } ~
+              getTelemetryRoute(id)
+               ~
               authorize(Permissions.isAdmin(authn)) {
                 deleteTelemetryRoute(id)
               }

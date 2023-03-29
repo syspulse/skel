@@ -22,7 +22,7 @@ class TelemetryStoreMem extends TelemetryStore {
   def size:Long = telemetrys.values.flatten.size
 
   def +(t:Telemetry):Try[TelemetryStore] = { 
-    log.info(s"${t}")
+    log.debug(s"${t}")
 
     // avoid duplicates
     val d = telemetrys.get(t.ts).map(_.find(_.data == t.data)).flatten
@@ -38,7 +38,7 @@ class TelemetryStoreMem extends TelemetryStore {
       telemetrys = telemetrys - t.ts
       true
     })
-    log.info(s"${id}")
+    log.debug(s"${id}")
     if(r.size > 0)
       Success(this)
     else
