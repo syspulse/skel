@@ -14,11 +14,12 @@ import io.syspulse.skel.store.StoreDir
 import spray.json._
 import DefaultJsonProtocol._
 import AbiContractJson._
-import io.methvin.watcher.hashing.FileHasher
 
 class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:SignatureStore[EventSignature]) extends StoreDir[AbiContract,String](dir) with AbiStore {
 
   var store:Map[String,ContractAbi] = Map()
+
+  def toKey(id:String):String = id
 
   def functions:SignatureStore[FuncSignature] = funcStore
   def events:SignatureStore[EventSignature] = eventStore 
@@ -147,13 +148,14 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
 
   override def load():Try[AbiStore] = {
     load(dir)
-    watcher(dir)
+    watch(dir)
     Success(this)
   }
 
-  def watcher(dir:String) = {
+  override def watch(dir:String) = {
     import better.files._
     import io.methvin.better.files._
+    import io.methvin.watcher.hashing.FileHasher
     import java.nio.file.{Path, StandardWatchEventKinds => EventType, WatchEvent}
     import scala.concurrent.ExecutionContext.Implicits.global
 

@@ -12,7 +12,7 @@ import scala.concurrent.Future
 import io.syspulse.skel
 import io.syspulse.skel.config._
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.cli.CliUtil
+import io.syspulse.skel.util.TimeUtil
 import io.syspulse.skel.config._
 
 import io.syspulse.skel.uri.DynamoURI
@@ -149,23 +149,27 @@ object App extends skel.Server {
       case "scan" => store.scan(expr)
       case "search" => {
         config.params.toList match {
-          case ts0 :: ts1 :: _ => store.search(expr,CliUtil.wordToTs(ts0).getOrElse(0L),CliUtil.wordToTs(ts1).getOrElse(Long.MaxValue))
+          case ts0 :: ts1 :: _ => store.search(expr,TimeUtil.wordToTs(ts0).getOrElse(0L),TimeUtil.wordToTs(ts1).getOrElse(Long.MaxValue))
         }      
       }
     }
 
     r match {
-      case l:List[_] => {
+      case l:List[_] => 
         Console.err.println("Results:")
         l.foreach(r => println(s"${r}"));
         sys.exit(0)
-      }
-      case NotUsed => println(r)
+      
+      case NotUsed => 
+        println(r)
+
       //case f:Future[_] if config.cmd == "ingest" || config.cmd == "search" => Await.result(f,FiniteDuration(3000,TimeUnit.MILLISECONDS)); sys.exit(0)
-      case a:Awaitable[_] if config.cmd == "ingest" 
-          || config.cmd == "scan" => Await.result(a,FiniteDuration(3000,TimeUnit.MILLISECONDS)); sys.exit(0)
-      case _ => Console.err.println(s"\n${r}")      
+      case a:Awaitable[_] if config.cmd == "ingest"  || config.cmd == "scan" => 
+        Await.result(a,FiniteDuration(300000,TimeUnit.MILLISECONDS))
+        sys.exit(0)
+
+      case _ =>         
     }
-    
+    Console.err.println(s"\n${r}")     
   }
 }

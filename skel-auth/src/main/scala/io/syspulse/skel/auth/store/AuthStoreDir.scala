@@ -1,4 +1,4 @@
-package io.syspulse.skel.auth.store
+  package io.syspulse.skel.auth.store
 
 import scala.util.{Try,Success,Failure}
 import scala.collection.immutable
@@ -20,7 +20,8 @@ import io.syspulse.skel.auth.store.AuthStoreMem
 // Preload from file during start
 class AuthStoreDir(dir:String = "store/auth/") extends StoreDir[Auth,String](dir) with AuthStore {
   val store = new AuthStoreMem
-  
+
+  def toKey(id:String):String = id
   def all:Seq[Auth] = store.all
   def size:Long = store.size
   override def +(a:Auth):Try[AuthStoreDir] = super.+(a).flatMap(_ => store.+(a)).map(_ => this)

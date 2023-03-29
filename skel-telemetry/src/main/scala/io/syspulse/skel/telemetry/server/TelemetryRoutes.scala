@@ -26,8 +26,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.{Operation, Parameter}
 import io.swagger.v3.oas.annotations.parameters.RequestBody
 
-import jakarta.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
+import jakarta.ws.rs.{Consumes, POST, PUT, GET, DELETE, Path, Produces}
 import jakarta.ws.rs.core.MediaType
+
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
+import ch.megard.akka.http.cors.scaladsl.settings.CorsSettings
+
 
 import io.prometheus.client.CollectorRegistry
 import io.prometheus.client.Counter
@@ -49,7 +53,7 @@ import io.syspulse.skel.telemetry.store.TelemetryRegistry._
 import io.syspulse.skel.telemetry.server._
 
 import io.syspulse.skel.telemetry.Telemetry.ID
-import io.syspulse.skel.cli.CliUtil
+import io.syspulse.skel.util.TimeUtil
 import scala.util.Try
 
 @Path(s"/")
@@ -98,16 +102,16 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
       parameters("ts0".as[String].optional, "ts1".as[String].optional, "op".as[String].optional) { (ts0, ts1, op) => 
         if(! op.isDefined)
           onSuccess(getTelemetry(id,
-            CliUtil.wordToTs(ts0.getOrElse(""),0L).get,
-            CliUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue).get)) { r =>
+            TimeUtil.wordToTs(ts0.getOrElse(""),0L).get,
+            TimeUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue).get)) { r =>
             
             metricGetCount.inc()
             complete(r)
           }
         else
           onSuccess(getTelemetryOp(id,
-            CliUtil.wordToTs(ts0.getOrElse(""),0L).get,
-            CliUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue).get, op)) { r =>
+            TimeUtil.wordToTs(ts0.getOrElse(""),0L).get,
+            TimeUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue).get, op)) { r =>
             
             metricGetCount.inc()
             complete(r)
@@ -144,8 +148,8 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
     rejectEmptyResponse {
       parameters("ts0".as[String].optional, "ts1".as[String].optional) { (ts0, ts1) => 
         onSuccess(getTelemetryBySearch(txt,
-          CliUtil.wordToTs(ts0.getOrElse(""),0L).get,
-          CliUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue).get)) { r =>
+          TimeUtil.wordToTs(ts0.getOrElse(""),0L).get,
+          TimeUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue).get)) { r =>
           
           complete(r)
         }
@@ -198,7 +202,12 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
     }
   }
 
-  override def routes: Route =
+  val corsAllow = CorsSettings(system.classicSystem)
+    //.withAllowGenericHttpRequests(true)
+    .withAllowCredentials(true)
+    .withAllowedMethods(Seq(HttpMethods.OPTIONS,HttpMethods.GET,HttpMethods.POST,HttpMethods.PUT,HttpMethods.DELETE,HttpMethods.HEAD))
+
+  override def routes: Route = cors(corsAllow) {
       concat(
         pathEndOrSingleSlash {
           concat(
@@ -238,5 +247,6 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
           }
         }
       )
+  }
     
 }

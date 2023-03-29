@@ -20,6 +20,9 @@ import io.syspulse.skel.crypto.eth.abi.AbiSignatureJson._
 abstract class SignatureStoreDir[T <: AbiSignature](dir:String = "store/")(implicit fmt:JsonFormat[T]) extends StoreDir[T,(String,Int)](dir) with SignatureStore[T] {
   val store = new SignatureStoreMem[T]()
 
+  // ATTENTION: only one version is supported !
+  def toKey(id:String):(String,Int) = (id,0)
+
   def all:Seq[T] = store.all
 
   def all(from:Option[Int],size:Option[Int]):(Seq[T],Long) = store.all(from,size)

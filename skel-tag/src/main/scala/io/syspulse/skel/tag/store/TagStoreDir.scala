@@ -18,12 +18,16 @@ import io.syspulse.skel.tag.TagJson._
 class TagStoreDir(dir:String = "store/") extends StoreDir[Tag,String](dir) with TagStore {  
   val store = new TagStoreMem
 
+  def toKey(id:String):String = id
   def all:Seq[Tag] = store.all
   
   override def all(from:Option[Int],size:Option[Int]):Seq[Tag] = store.all(from,size)
   def size:Long = store.size
   override def +(u:Tag):Try[TagStoreDir] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)
-  override def del(id:String):Try[TagStoreDir] = super.del(id).flatMap(_ => store.del(id)).map(_ => this)
+  override def del(id:String):Try[TagStoreDir] = {
+    store.del(id)
+    super.del(id).map(_ => this)
+  }
   override def ?(id:String):Try[Tag] = store.?(id)
 
   override def ??(ids:Seq[String]):Seq[Tag] = store.??(ids)
@@ -39,4 +43,6 @@ class TagStoreDir(dir:String = "store/") extends StoreDir[Tag,String](dir) with 
     
   // preload
   load(dir)
+  // watch
+  watch(dir)
 }
