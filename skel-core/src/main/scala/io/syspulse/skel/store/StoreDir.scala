@@ -99,7 +99,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
       if(hint.isEmpty || data.contains(hint)) {
         try {
           val c = data.parseJson.convertTo[E]
-          log.info(s"c=${c}")
+          log.debug(s"c=${c}")
           Seq(c)
         } catch {
           case e:Exception => 

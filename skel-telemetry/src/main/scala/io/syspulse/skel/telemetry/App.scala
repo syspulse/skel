@@ -37,7 +37,7 @@ case class Config(
   throttle:Long = 0L,
 
   datastore:String = "dir://",
-  storeCron:String = "*/60 * * * * ?",
+  storeCron:String = "0 0/30 * * * ?", // evert 30 minutes
 
   cmd:String = "ingest",
   params: Seq[String] = Seq(),

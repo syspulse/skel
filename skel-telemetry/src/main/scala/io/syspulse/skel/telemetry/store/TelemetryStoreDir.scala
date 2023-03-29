@@ -21,16 +21,17 @@ import io.syspulse.skel.telemetry.parser.TelemetryParserDefault
 class TelemetryCsv extends ExtFormat[Telemetry] {
   
   def decode(data:String):Try[Seq[Telemetry]] = {
-    TelemetryParserDefault.parse(data)
+    TelemetryParserDefault.parse(data).map(Seq(_))
   }
 
-  def encode(e:Telemertry):String = e.toCSV
+  def encode(e:Telemetry):String = e.toCSV
 }
 
-object TagCsv {
-  
-  implicit val fmtTag = Some(new TagCvs())
+object TelemetryCsv {
+  implicit val fmtTag = Some(new TelemetryCsv())
 }
+
+import TelemetryCsv._
 
 class TelemetryStoreDir(dir:String = "store/",parser:TelemetryParser,cron:Option[String]) extends StoreDir[Telemetry,ID](dir) with TelemetryStore { 
   val store = new TelemetryStoreMem
