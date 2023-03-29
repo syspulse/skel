@@ -34,6 +34,7 @@ class UserStoreDir(dir:String = "store/") extends StoreDir[User,UUID](dir) with 
   override def update(id:UUID, email:Option[String] = None, name:Option[String] = None, avatar:Option[String] = None):Try[User] = 
     store.update(id,email,name,avatar).flatMap(u => writeFile(u))
 
-  // preload
+  // preload and watch
   load(dir)
+  watch(dir)
 }
