@@ -8,8 +8,8 @@ import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skel.store.StoreDir
 
-import io.syspulse.skel.tag.TagCvs
-import io.syspulse.skel.tag.TagCvs._
+import io.syspulse.skel.tag.TagCsv
+import io.syspulse.skel.tag.TagCsv._
 import io.syspulse.skel.tag._
 import io.syspulse.skel.tag.TagJson
 import io.syspulse.skel.tag.TagJson._

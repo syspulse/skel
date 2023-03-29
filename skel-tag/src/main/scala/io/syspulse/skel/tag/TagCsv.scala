@@ -12,7 +12,7 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.tag.Tag
 import io.syspulse.skel.store.ExtFormat
 
-class TagCvs extends ExtFormat[Tag] {
+class TagCsv extends ExtFormat[Tag] {
   val log = Logger(s"${this}")
 
   def parse(data:String):Seq[Tag] = {
@@ -59,7 +59,7 @@ class TagCvs extends ExtFormat[Tag] {
   def encode(e:Tag):String = e.toCSV
 }
 
-object TagCvs {
+object TagCsv {
   
-  implicit val fmtTag = Some(new TagCvs())
+  implicit val fmtTag = Some(new TagCsv())
 }

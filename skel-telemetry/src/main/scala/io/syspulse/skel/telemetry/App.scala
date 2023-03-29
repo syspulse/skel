@@ -36,8 +36,8 @@ case class Config(
   buffer:Int = 1024*1024,
   throttle:Long = 0L,
 
-  datastore:String = "mem",
-  storeCron:String = "*/60 * * * * ?", // not supported at the moment (need Flows integration)
+  datastore:String = "dir://",
+  storeCron:String = "*/60 * * * * ?",
 
   cmd:String = "ingest",
   params: Seq[String] = Seq(),
