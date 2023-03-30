@@ -118,7 +118,7 @@ object App extends skel.Server {
       case "dir" :: dir :: Nil => new TelemetryStoreDir(dir,TelemetryParserDefault, cron = Option.unless(config.storeCron.isEmpty)(config.storeCron))
       case "dir" :: Nil => new TelemetryStoreDir(parser = TelemetryParserDefault,cron = Option.unless(config.storeCron.isEmpty)(config.storeCron))
       case _ => {
-        Console.err.println(s"Uknown datastore: '${config.datastore}")
+        Console.err.println(s"Uknown datastore: '${config.datastore}"')
         sys.exit(1)
       }
     }

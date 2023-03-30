@@ -24,8 +24,13 @@ import io.jvm.uuid._
 import io.syspulse.skel.util.Util
 
 object TimeUtil {
-  val formats = Seq(
-    DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmssZ"),
+  val formatsZone = Seq(
+    DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmssZ"),    
+  )
+
+  val formatsLocal = Seq(
+    DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"),
+    DateTimeFormatter.ofPattern("yyyyMMddHHmmss"),
     DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmss"),
     DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"),
     DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
@@ -57,7 +62,8 @@ object TimeUtil {
 
   // guess date from human 
   def wordToDate(word:String,tHour:Int = 0,tMin:Int=0,tSec:Int=0,default:Long = 0L):Try[ZonedDateTime] = {
-    word.trim.toLowerCase.replaceAll("\\s+","") match {
+    val pattern = word.trim.toLowerCase.replaceAll("\\s+","")
+    pattern match {
       case "" => Success(ZonedDateTime.ofInstant(Instant.ofEpochMilli(default),ZoneId.systemDefault()))
       case "now" => Success(ZonedDateTime.now)
       case "today" => Success(ZonedDateTime.now.withHour(tHour).withMinute(tMin).withSecond(tSec))
@@ -81,21 +87,31 @@ object TimeUtil {
       case s"${d}.${m}" => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
       case s"${d}/${m}" => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
       
-      case s"${d}-${m}-${y}" if d.size < 3 => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withYear(y.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
-      case s"${y}-${m}-${d}" if y.size == 4 => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withYear(y.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
+      case s"${d}-${m}-${y}" if d.size < 3 && pattern.size <= "dd-MM-yyyy".size  => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withYear(y.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
+      case s"${y}-${m}-${d}" if y.size == 4 && pattern.size <= "yyyy-MM-dd".size => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withYear(y.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
       
-      case s"${d}-${m}" => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
+      case s"${d}-${m}" if pattern.size <= "dd-MM".size => Success(ZonedDateTime.now.withDayOfMonth(d.toInt).withMonth(m.toInt).withHour(tHour).withMinute(tMin).withSecond(tSec))
       
       case s => // try to parse anything
         // try timestamp first
-        if(s.head.isDigit) {
+        if(s.head.isDigit && s.size == System.currentTimeMillis.toString.size) {
           return Success(ZonedDateTime.ofInstant(Instant.ofEpochMilli(s.toLong), ZoneId.systemDefault()))
-        } else
-        formats.foreach{ f => 
-          try {
-            return Success(ZonedDateTime.parse(word, f))
-          } catch {
-            case e:Exception => // just repeat
+        } else {
+          formatsZone.foreach{ f => 
+            try {
+              return Success(ZonedDateTime.parse(word, f))
+            } catch {
+              case e:Exception => // just repeat
+            }
+          }
+
+          formatsLocal.foreach{ f => 
+            try {
+              val ldt = LocalDateTime.parse(word, f)
+              return Success(ZonedDateTime.of(ldt,ZoneId.systemDefault()))
+            } catch {
+              case e:Exception => // just repeat
+            }
           }
         }
         Failure(new Exception(s"could not parse: ${word}"))

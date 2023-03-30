@@ -54,6 +54,14 @@ class TimeUtilSpec extends AnyWordSpec with Matchers {
       d1.get.getYear should === (2015)
     }
 
+    "convert '2023-03-21_00:00:00' to correct date and time" in {
+      val d1 = TimeUtil.wordToDate("2023-03-21_00:00:00")
+      d1.get.getDayOfMonth should === (21)
+      d1.get.getMonthValue should === (3)
+      d1.get.getYear should === (2023)
+      d1.get.getHour should === (0)
+    }
+
     """parse  'cmd text "w1 w2 w3 w4 " end' as 4 stirngs""" in {
       val ss = TimeUtil.parseText("""cmd text "w1 w2 w3 w4 " end""")
       ss.size should === (4)

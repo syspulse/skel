@@ -68,7 +68,13 @@ val sharedConfigDocker = Seq(
   // dockerBaseImage := "openjdk:8u212-jre-alpine3.9", //"openjdk:8-jre-alpine",
 
   //dockerBaseImage := "openjdk:8-jre-alpine",
-  dockerBaseImage := "openjdk:18-slim",
+  // dockerBaseImage := "openjdk:18-slim",
+  dockerBaseImage := "openjdk-s3fs:11-slim",  // WARNING: this image is needed for JavaScript Nashorn !
+  // Add S3 mount options
+  // Requires running docker: 
+  // --privileged -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY -e S3_BUCKET=haas-data-dev
+  bashScriptExtraDefines += """/mount-s3.sh""",
+  // bashScriptExtraDefines += """ls -l /mnt/s3/""",
   
   dockerUpdateLatest := true,
   dockerUsername := Some("syspulse"),

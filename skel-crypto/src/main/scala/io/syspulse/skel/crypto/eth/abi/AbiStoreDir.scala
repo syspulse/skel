@@ -152,6 +152,7 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
     Success(this)
   }
 
+  // NOTE: replce with standard StoreDir watcher !
   override def watch(dir:String) = {
     import better.files._
     import io.methvin.better.files._
