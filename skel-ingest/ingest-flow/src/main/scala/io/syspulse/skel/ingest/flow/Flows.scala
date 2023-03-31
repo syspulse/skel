@@ -76,7 +76,7 @@ object Flows {
 
   val retrySettingsDefault = RestartSettings(
     minBackoff = FiniteDuration(1000L,TimeUnit.MILLISECONDS),
-    maxBackoff = FiniteDuration(1000L,TimeUnit.MILLISECONDS),
+    maxBackoff = FiniteDuration(9000L,TimeUnit.MILLISECONDS),
     randomFactor = 0.2
   )
 
@@ -196,13 +196,13 @@ object Flows {
   }
 
   def fromHttpListAsFlow(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem,timeout:FiniteDuration) = {
-    val f1 = Flow[String]
-      .throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))
-      .mapConcat(tick => {        
+    val f1 = Flow[String]      
+      .mapConcat(_ => {
         reqs
       })
+      .throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))
       .flatMapConcat(req => {
-        log.info(s"--> ${req}")
+        log.info(s"${throttle} --> ${req}")
         //Flows.fromHttpFuture(req)(as)
         Flows.fromHttpRestartable(req, frameDelimiter, frameSize)
       })      
