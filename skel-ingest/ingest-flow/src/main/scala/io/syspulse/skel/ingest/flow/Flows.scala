@@ -202,7 +202,7 @@ object Flows {
       })
       .throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))
       .flatMapConcat(req => {
-        log.info(s"${throttle} --> ${req}")
+        log.info(s"--> ${req}")
         //Flows.fromHttpFuture(req)(as)
         Flows.fromHttpRestartable(req, frameDelimiter, frameSize)
       })      
