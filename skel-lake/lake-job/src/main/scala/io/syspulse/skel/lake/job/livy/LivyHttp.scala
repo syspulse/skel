@@ -107,7 +107,7 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
    
   def toJob(sess:LivySession) = Job(
     xid = sess.id.toString,
-    status = sess.state,
+    state = sess.state,
     src = "",
     log = Some(sess.log)
   )
@@ -115,7 +115,7 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
   def toJob(job:Job,st:LivyStatement) = {
     val j = Job(
       xid = job.xid,
-      status = st.state, //job.status,
+      state = st.state, //job.status,
       src = st.code,
       log = job.log,
       result = st.output.map(o => o.status),
@@ -173,8 +173,8 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
     } yield job    
   }
 
-  // status: "starting" -> "idle"
-  // run() can be executed only against "idle" status
+  // state: "starting" -> "idle"
+  // run() can be executed only against "idle" state
   def create(name:String,conf:Map[String,String]=Map()):Try[Job] = {
     val res = ->(Request(uri + s"/sessions", HttpMethods.POST, 
       body = Some(LivySessionCreate(kind = "pyspark", name, conf).toJson.compactPrint)

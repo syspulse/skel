@@ -12,12 +12,12 @@ import io.jvm.uuid._
 
 case class Job(
   xid:String,
-  status:String,
+  state:String,
   ts0:Long = System.currentTimeMillis,
   src:String,
   log:Option[Seq[String]] = None,
   tsStart:Option[Long] = None,
-  tsEnd:Option[Long] = None,
+  tsEnd:Option[Long] = None,  
   result:Option[String] = None,
   output:Option[String] = None,  
 )

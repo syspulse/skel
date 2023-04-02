@@ -26,7 +26,7 @@ case class Config(
   datastore:String = "all",
 
   timeout:Long = 10000L,
-  poll:Long = 1000L,
+  poll:Long = 3000L,
 
   jobEngine:String = "livy://http://emr.hacken.cloud:8998",
 
@@ -112,42 +112,68 @@ object App extends skel.Server {
       case "job" =>
         val engine = JobUri(config.jobEngine,config.timeout).asInstanceOf[LivyHttp]
 
-        def pipeline(name:String,script:String,data:List[String] = List()) = {
-          val src = os.read(os.Path(script.stripPrefix("file://"),os.pwd))
-            
-            for {
-              j1 <- engine.create(name,data.mkString(",").split(",").filter(!_.trim.isEmpty).map(kv => kv.split("=").toList match { case k :: v :: Nil => k -> v }).toMap)
-              j2 <- {
-                var j:Try[Job] = engine.get(j1.xid)
-                while(j.isSuccess && j.get.status == "starting") {                  
-                  Thread.sleep(config.poll)
-                  j = engine.get(j1.xid)
-                } 
-                j
-              }
-              j3 <- {
-                engine.run(j2,src)                              
-              }
-              j4 <- {
-                var j:Try[Job] = engine.ask(j3.xid)
+        def dataToMap(data:List[String]) = 
+          data
+            .mkString(",")
+            .split(",")
+            .filter(!_.trim.isEmpty)
+            .map(kv => kv.split("=").toList match { case k :: v :: Nil => k -> v })
+            .toMap
 
-                while(j.isSuccess && j.get.status != "available") {
-                  Thread.sleep(config.poll)
-                  j = engine.ask(j3.xid)                  
-                } 
-                j
-              }
-              j5 <- {
-                engine.del(j4.xid)
-              }
-            } yield j4
-          }
+        def pipeline(name:String,script:String,data:List[String] = List()) = {
+          var srcVars = dataToMap(data).map{ case(name,value) => {
+            s"${name} = ${value}"
+          }}.mkString("\n")
+
+          val src = srcVars + "\n" +
+            os.read(os.Path(script.stripPrefix("file://"),os.pwd))
+
+          log.info(s"src=${src}")          
+
+          for {
+            j1 <- engine.create(name,dataToMap(data))
+
+            j2 <- {
+              var j:Try[Job] = engine.get(j1.xid)
+              while(j.isSuccess && j.get.state == "starting") {                  
+                Thread.sleep(config.poll)
+                j = engine.get(j1.xid)
+              } 
+              j
+            }
+            j3 <- {
+              engine.run(j2,src)                              
+            }
+            j4 <- {
+              var j:Try[Job] = engine.ask(j3.xid)
+
+              while(j.isSuccess && j.get.state != "available") {
+                Thread.sleep(config.poll)
+                j = engine.ask(j3.xid)                  
+              } 
+              j
+            }
+            j5 <- {
+              j4.result match {
+                case Some("error") => 
+                  log.error(s"Job: Error=${j4.output.getOrElse("")}")
+                case Some("ok") =>
+                  log.info(s"Job: OK=${j4.output.getOrElse("")}")
+                case _ => 
+                  log.info(s"Job: Unknown=${j4.result}: output=${j4.output.getOrElse("")}")
+              }              
+
+              engine.del(j4.xid)
+            }
+          } yield j4
+        }
                             
         val r = config.params match {
           case "create" :: name :: Nil => 
             engine.create(name)
+
           case "create" :: name :: data => 
-            engine.create(name,data.mkString(",").split(",").filter(!_.trim.isEmpty).map(kv => kv.split("=").toList match { case k :: v :: Nil => k -> v }).toMap)
+            engine.create(name,dataToMap(data))
                   
           case ("ask" | "get") :: xid :: Nil => 
             engine.ask(xid)
