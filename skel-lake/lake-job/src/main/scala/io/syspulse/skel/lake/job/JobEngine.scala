@@ -12,22 +12,18 @@ import io.jvm.uuid._
 
 trait JobEngine {  
   def all():Try[Seq[Job]]
-  def ask(xid:String):Try[Job]
-  def get(xid:String):Try[Job]
-  def create(name:String,conf:Map[String,String]=Map()):Try[Job]
-  def del(xid:String):Try[String]
+  def ask(job:Job):Try[Job]
+  def get(job:Job):Try[Job]
+  def create(name:String,inputs:Map[String,String]=Map()):Try[Job]
+  def del(job:Job):Try[Job]
   def run(job:Job,script:String):Try[Job]
 }
 
-class JobStdout extends JobEngine {
-  def all():Try[Seq[Job]] = Failure(new Exception(s"not supported"))
-  
-  def ask(xid:String):Try[Job] = Failure(new Exception(s"not supported: ${xid}"))
-  def get(xid:String):Try[Job] = ask(xid)
-
-  def create(name:String,conf:Map[String,String]=Map()):Try[Job] = Failure(new Exception(s"not supported: ${name}"))
-  
-  def del(xid:String):Try[String] = Failure(new Exception(s"not supported: ${xid}"))
-
-  def run(job:Job,script:String):Try[Job] = Failure(new Exception(s"not supported: ${job}"))
-}
+// class JobStdout extends JobEngine {
+//   def all():Try[Seq[Job]] = Failure(new Exception(s"not supported"))
+//   def ask(xid:String):Try[Job] = Failure(new Exception(s"not supported: ${xid}"))
+//   def get(xid:String):Try[Job] = ask(xid)
+//   def create(name:String,inputs:Map[String,String]=Map()):Try[Job] = Failure(new Exception(s"not supported: ${name}"))  
+//   def del(xid:String):Try[String] = Failure(new Exception(s"not supported: ${xid}"))
+//   def run(job:Job,script:String):Try[Job] = Failure(new Exception(s"not supported: ${job}"))
+// }

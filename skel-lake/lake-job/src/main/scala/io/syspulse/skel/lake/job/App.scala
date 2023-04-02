@@ -134,10 +134,10 @@ object App extends skel.Server {
             j1 <- engine.create(name,dataToMap(data))
 
             j2 <- {
-              var j:Try[Job] = engine.get(j1.xid)
+              var j:Try[Job] = engine.get(j1)
               while(j.isSuccess && j.get.state == "starting") {                  
                 Thread.sleep(config.poll)
-                j = engine.get(j1.xid)
+                j = engine.get(j1)
               } 
               j
             }
@@ -145,11 +145,11 @@ object App extends skel.Server {
               engine.run(j2,src)                              
             }
             j4 <- {
-              var j:Try[Job] = engine.ask(j3.xid)
+              var j:Try[Job] = engine.ask(j3)
 
               while(j.isSuccess && j.get.state != "available") {
                 Thread.sleep(config.poll)
-                j = engine.ask(j3.xid)                  
+                j = engine.ask(j3)
               } 
               j
             }
@@ -175,11 +175,14 @@ object App extends skel.Server {
           case "create" :: name :: data => 
             engine.create(name,dataToMap(data))
                   
-          case ("ask" | "get") :: xid :: Nil => 
-            engine.ask(xid)
+          case "get" :: xid :: Nil => 
+            engine.get(Job(xid=xid))
+
+          case "ask" :: xid :: Nil => 
+            engine.ask(Job(xid=xid))
 
           case "del" :: xid :: Nil => 
-            engine.del(xid)
+            engine.del(Job(xid=xid))
 
           case "run" :: xid :: script => 
             val src = if(script.head.startsWith("file://"))

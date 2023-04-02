@@ -150,26 +150,20 @@ class JobSpec extends AnyWordSpec with Matchers {
 
       Thread.sleep(1000)
 
-//       val script = """
-// par1 = spark.conf.get("spark.job.param1")
-// par2 = spark.conf.get("spark.job.param2")
-// print(par1)
-// print(par2)
-// """
       val script = """print(19)"""
 
       var r2 = engine.run(r1.get,script)
       info(s"r2 = ${r2}")
       Thread.sleep(1000)
 
-      val r3 = engine.ask(xid)
+      val r3 = engine.ask(r2.get)
       info(s"r3 = ${r3}")
       
       Thread.sleep(1000)
-      val r4 = engine.ask(xid)
+      val r4 = engine.ask(r3.get)
       info(s"r4 = ${r4}")
 
-      engine.del(xid)
+      engine.del(r4.get)
       //r3.get should === ("runnging")
     }
 

@@ -11,10 +11,14 @@ import io.syspulse.skel.util.Util
 import io.jvm.uuid._
 
 case class Job(
-  xid:String,
-  state:String,
+  id:UUID = Util.UUID_0,  
+  name:String = "",
+  xid:String = "",
+  state:String = "unknown",
   ts0:Long = System.currentTimeMillis,
-  src:String,
+  src:String = "",
+  inputs:Map[String,String] = Map(),
+
   log:Option[Seq[String]] = None,
   tsStart:Option[Long] = None,
   tsEnd:Option[Long] = None,  

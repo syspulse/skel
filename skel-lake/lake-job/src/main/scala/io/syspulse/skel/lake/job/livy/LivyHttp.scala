@@ -106,6 +106,17 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
   }
    
   def toJob(sess:LivySession) = Job(
+    id = Util.UUID_0,
+    name = "",
+    xid = sess.id.toString,
+    state = sess.state,
+    src = "",
+    log = Some(sess.log)
+  )
+
+  def toJob(job:Job,sess:LivySession) = job.copy(
+    id = job.id,
+    name = job.name,
     xid = sess.id.toString,
     state = sess.state,
     src = "",
@@ -114,6 +125,8 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
 
   def toJob(job:Job,st:LivyStatement) = {
     val j = Job(
+      id = job.id,
+      name = job.name,
       xid = job.xid,
       state = st.state, //job.status,
       src = st.code,
@@ -141,16 +154,18 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
     res.map(_.parseJson.convertTo[LivySessions].sessions.map(r => toJob(r)))
   }
 
-  def get(xid:String):Try[Job] = {
+  def get(xid:String):Try[LivySession] = {
     val res = ->(Request(uri + s"/sessions/${xid}", HttpMethods.GET))
     log.info(s"res = ${res}")
-    res.map(r => toJob(r.parseJson.convertTo[LivySession]))
+    res.map(r => r.parseJson.convertTo[LivySession])
   }
 
-  def ask(xid:String):Try[Job] = {
-    // val res = ->(Request(uri + s"/sessions/${xid}", HttpMethods.GET))
-    // log.info(s"res = ${res}")
-    // res.map(r => toJob(r.parseJson.convertTo[LivySession]))
+  def get(job:Job):Try[Job] = {
+    get(job.xid).map(ls => toJob(job,ls))
+  }
+
+  def ask(job:Job):Try[Job] = {
+    val xid = job.xid
     for {
       session <- {
         val res = this.->(Request(uri + s"/sessions/${xid}", HttpMethods.GET))
@@ -162,15 +177,15 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
         log.info(s"res = ${res}")
         res
       }
-      job <- {
-        val job = toJob(session.parseJson.convertTo[LivySession])
+      job1 <- {
+        val j = toJob(job,session.parseJson.convertTo[LivySession])
         val res = results.parseJson.convertTo[LivySessionResults]
         if(res.total_statements == 0)
-          Success(job)
+          Success(j)
         else
-          Success(toJob(job,res.statements.last))
+          Success(toJob(j,res.statements.last))
       }
-    } yield job    
+    } yield job1
   }
 
   // state: "starting" -> "idle"
@@ -180,7 +195,12 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
       body = Some(LivySessionCreate(kind = "pyspark", name, conf).toJson.compactPrint)
     ))
     log.info(s"res = ${res}")
-    res.map(r => toJob(r.parseJson.convertTo[LivySession]))
+    res.map(r => 
+      toJob(
+        Job(id=UUID.random,name = name),
+        r.parseJson.convertTo[LivySession]
+      )
+    )
   }
 
   def del(xid:String):Try[String] = {
@@ -189,8 +209,14 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
     res.map(r => r.parseJson.convertTo[LivySessionRes].msg)
   }
 
+  def del(job:Job):Try[Job] = {
+    del(job.xid).map(r => job.copy(state = "deleted"))
+  }
+
   // state: "waiting" -> 
-  def run(job:Job,script:String):Try[Job] = run(job.xid,script).map(r => toJob(job,r))
+  def run(job:Job,script:String):Try[Job] = 
+    run(job.xid,script)
+    .map(r => toJob(job,r))
 
   def run(xid:String,script:String):Try[LivyStatement] = {
     val res = ->(Request(uri + s"/sessions/${xid}/statements", HttpMethods.POST, 

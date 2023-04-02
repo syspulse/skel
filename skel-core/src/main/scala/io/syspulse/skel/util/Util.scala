@@ -157,6 +157,8 @@ object Util {
     UUID(bb)
   }
 
+  val UUID_0 = UUID(Array.fill[Byte](16)(0))
+
   def getHostPort(address:String):(String,Int) = { 
     val (host,port) = address.split(":").toList match{ 
       case h::p => (h,p(0))

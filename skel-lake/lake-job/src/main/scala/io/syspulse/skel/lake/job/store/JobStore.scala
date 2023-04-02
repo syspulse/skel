@@ -1,9 +1,7 @@
 package io.syspulse.skel.lake.job.store
 
 import scala.util.{Try,Success,Failure}
-
 import scala.collection.immutable
-
 import io.jvm.uuid._
 
 import io.syspulse.skel.store.Store
