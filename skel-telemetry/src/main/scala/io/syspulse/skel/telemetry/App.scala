@@ -37,7 +37,9 @@ case class Config(
   throttle:Long = 0L,
 
   datastore:String = "dir://",
+
   storeCron:String = "", //"0 0/30 * * * ?", // evert 30 minutes
+  storeEvict:Long = 1000L * 60 * 60 * 24, // evict older than 
 
   cmd:String = "ingest",
   params: Seq[String] = Seq(),
@@ -69,7 +71,9 @@ object App extends skel.Server {
         ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
 
         ArgString('d', "datastore",s"Datastore [elastic,mem,stdout] (def: ${d.datastore})"),
-        ArgString('_', "store.cron",s"Datastore Load cron (def: ${d.storeCron})"),
+        
+        ArgString('_', "store.cron",s"Datastore Re-Load cron (def: ${d.storeCron})"),
+        ArgLong('_', "store.evict",s"Datastore eviction age (def: ${d.storeEvict})"),
         
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
@@ -98,7 +102,9 @@ object App extends skel.Server {
       throttle = c.getLong("throttle").getOrElse(d.throttle),
 
       datastore = c.getString("datastore").getOrElse(d.datastore),
+      
       storeCron = c.getString("store.cron").getOrElse(d.storeCron),
+      storeEvict = c.getLong("store.evict").getOrElse(d.storeEvict),
 
       expr = c.getString("expr").getOrElse(d.expr),
       
@@ -115,12 +121,18 @@ object App extends skel.Server {
       case "dynamo" :: uri :: Nil => new TelemetryStoreDynamo(DynamoURI(uri))
       case "mem" :: _ => new TelemetryStoreMem()
       case "stdout" :: _ => new TelemetryStoreStdout()
-      case "dir" :: dir :: Nil => new TelemetryStoreDir(dir,TelemetryParserDefault, cron = Option.unless(config.storeCron.isEmpty)(config.storeCron))
-      case "dir" :: Nil => new TelemetryStoreDir(parser = TelemetryParserDefault,cron = Option.unless(config.storeCron.isEmpty)(config.storeCron))
-      case _ => {
-        Console.err.println(s"Uknown datastore: '${config.datastore}"')
+      case "dir" :: dir :: Nil => 
+        new TelemetryStoreDir(dir,TelemetryParserDefault, 
+                              cron = Option.unless(config.storeCron.isEmpty)(config.storeCron),
+                              eviction = Option.unless(config.storeEvict==0L)(config.storeEvict))
+      case "dir" :: Nil => 
+        new TelemetryStoreDir(parser = TelemetryParserDefault, 
+                              cron = Option.unless(config.storeCron.isEmpty)(config.storeCron),
+                              eviction = Option.unless(config.storeEvict==0L)(config.storeEvict))
+      case _ => 
+        Console.err.println(s"Uknown datastore: '${config.datastore}'")
         sys.exit(1)
-      }
+      
     }
     
     val expr = config.expr + config.params.mkString(" ")

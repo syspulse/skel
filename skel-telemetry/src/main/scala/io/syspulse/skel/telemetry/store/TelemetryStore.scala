@@ -14,6 +14,7 @@ import io.syspulse.skel.store.Store
 import io.syspulse.skel.telemetry.Config
 import io.syspulse.skel.telemetry.Telemetry
 import io.syspulse.skel.telemetry.Telemetry.ID
+import io.syspulse.skel.telemetry.server.Telemetrys
 
 trait TelemetryStore extends Store[Telemetry,ID] {
   def getKey(t: Telemetry): ID = t.id
@@ -47,6 +48,8 @@ trait TelemetryStore extends Store[Telemetry,ID] {
   }
 
   def all:Seq[Telemetry]
+  def ???(ts0:Long,ts1:Long,from:Option[Int],size:Option[Int]):Telemetrys
+
   def size:Long
 
   def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry]

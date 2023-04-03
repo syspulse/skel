@@ -9,6 +9,7 @@ import com.typesafe.scalalogging.Logger
 import io.jvm.uuid._
 
 import io.syspulse.skel.telemetry._
+import io.syspulse.skel.telemetry.server.Telemetrys
 
 class TelemetryStoreMem extends TelemetryStore {
   val log = Logger(s"${this}")
@@ -20,6 +21,16 @@ class TelemetryStoreMem extends TelemetryStore {
   def all:Seq[Telemetry] = telemetrys.values.flatten.toSeq
 
   def size:Long = telemetrys.values.flatten.size
+
+  def ???(ts0:Long,ts1:Long,from:Option[Int]=None,size:Option[Int]=None):Telemetrys = {
+    val ts2 = if(ts1 == Long.MaxValue) ts1 else ts1 + 1    
+    val tt = telemetrys
+      .range(ts0,ts2)
+      .values
+      .flatten
+      .toSeq
+    Telemetrys(tt.drop(from.getOrElse(0)).take(size.getOrElse(Int.MaxValue)),total = Some(tt.size))
+  }
 
   def +(t:Telemetry):Try[TelemetryStore] = { 
     log.debug(s"${t}")

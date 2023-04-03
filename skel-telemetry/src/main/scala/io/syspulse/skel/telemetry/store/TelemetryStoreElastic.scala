@@ -23,6 +23,7 @@ import io.syspulse.skel.telemetry.Telemetry.ID
 
 import io.syspulse.skel.telemetry._
 import io.syspulse.skel.uri.ElasticURI
+import io.syspulse.skel.telemetry.server.Telemetrys
 
 class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
   private val log = Logger(s"${this}")
@@ -113,14 +114,14 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
     }.await
 
     log.info(s"r=${r}")
-    r.result.to[Telemetry].toList
+    r.result.to[Telemetry].toSeq
   }
 
   def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = {
     search(txt,ts0,ts1)
   }
 
-  def scan(txt:String):List[Telemetry] = {
+  def scan(txt:String):Seq[Telemetry] = {
     val r = client.execute {
       ElasticDsl
         .search(uri.index)
@@ -135,10 +136,10 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
     }.await
 
     log.info(s"r=${r}")
-    r.result.to[Telemetry].toList
+    r.result.to[Telemetry].toSeq
   }
 
-  def search(txt:String,ts0:Long,ts1:Long):List[Telemetry] = {   
+  def search(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = {   
     val r = client.execute {
       ElasticDsl
         .search(uri.index)
@@ -169,7 +170,7 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
     }.await
 
     log.info(s"r=${r}")
-    r.result.to[Telemetry].toList
+    r.result.to[Telemetry].toSeq
     
     // r match {
     //   case failure: RequestFailure => List.empty
@@ -178,7 +179,7 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
     // }
   }
 
-  def grep(txt:String):List[Telemetry] = {
+  def grep(txt:String):Seq[Telemetry] = {
     val r = client.execute {
       ElasticDsl
         .search(uri.index)
@@ -188,10 +189,10 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
     }.await
 
     log.info(s"r=${r}")
-    r.result.to[Telemetry].toList
+    r.result.to[Telemetry].toSeq
   }
 
-  def typing(txt:String):List[Telemetry] = {  
+  def typing(txt:String):Seq[Telemetry] = {  
     val r = client.execute {
       ElasticDsl
         .search(uri.index)
@@ -201,6 +202,35 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
     }.await
     
     log.info(s"r=${r}")
-    r.result.to[Telemetry].toList
+    r.result.to[Telemetry].toSeq
+  }
+
+  def ???(ts0:Long,ts1:Long,from:Option[Int]=None,size:Option[Int]=None):Telemetrys = {
+    val r = client.execute {
+      ElasticDsl
+        .search(uri.index)
+        .from(from.getOrElse(0))
+        .size(size.getOrElse(Int.MaxValue))
+        .rawQuery(
+        s"""
+        {
+          "bool" : {             
+            "must" : {
+              "range": {
+                "ts": {
+                  "gte": ${ts0},
+                  "lte": ${ts1}
+                }
+              }
+            }            
+          }
+        }
+        """)
+    }.await
+
+    log.debug(s"r=${r}")
+    val tt = r.result.to[Telemetry].toSeq
+
+    Telemetrys(tt.drop(from.getOrElse(0)).take(size.getOrElse(Int.MaxValue)),total = Some(tt.size))
   }
 }
