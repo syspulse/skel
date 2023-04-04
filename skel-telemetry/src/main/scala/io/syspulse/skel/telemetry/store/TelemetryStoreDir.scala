@@ -19,20 +19,8 @@ import io.syspulse.skel.store.ExtFormat
 import io.syspulse.skel.telemetry.parser.TelemetryParserDefault
 import io.syspulse.skel.telemetry.server.Telemetrys
 
-class TelemetryCsv extends ExtFormat[Telemetry] {
-  
-  def decode(data:String):Try[Seq[Telemetry]] = {
-    TelemetryParserDefault.parse(data).map(Seq(_))
-  }
 
-  def encode(e:Telemetry):String = e.toCSV
-}
-
-object TelemetryCsv {
-  implicit val fmtTag = Some(new TelemetryCsv())
-}
-
-import TelemetryCsv._
+import io.syspulse.skel.telemetry.parser.TelemetryJsonCsvFormat._
 
 class TelemetryStoreDir(dir:String = "store/",parser:TelemetryParser,cron:Option[String],eviction:Option[Long]=None) 
   extends StoreDir[Telemetry,ID](dir) with TelemetryStore { 
