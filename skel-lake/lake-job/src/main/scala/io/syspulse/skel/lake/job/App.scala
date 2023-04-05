@@ -141,9 +141,11 @@ object App extends skel.Server {
               } 
               j
             }
+            
             j3 <- {
-              engine.run(j2,src)                              
+              engine.run(j2,src)
             }
+
             j4 <- {
               var j:Try[Job] = engine.ask(j3)
 

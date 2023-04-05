@@ -191,8 +191,15 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
   // state: "starting" -> "idle"
   // run() can be executed only against "idle" state
   def create(name:String,conf:Map[String,String]=Map()):Try[Job] = {
+    //Map("spark.pyspark.virtualenv.enabled" -> "true")
+    val config = Map(
+      "spark.pyspark.python" -> "python3",
+      "spark.pyspark.virtualenv.enabled" -> "true",
+      "spark.pyspark.virtualenv.type" -> "native",
+      "spark.pyspark.virtualenv.bin.path" -> "/usr/bin/virtualenv"
+    )
     val res = ->(Request(uri + s"/sessions", HttpMethods.POST, 
-      body = Some(LivySessionCreate(kind = "pyspark", name, conf).toJson.compactPrint)
+      body = Some(LivySessionCreate(kind = "pyspark", name, conf ++ config).toJson.compactPrint)
     ))
     log.info(s"res = ${res}")
     res.map(r => 
