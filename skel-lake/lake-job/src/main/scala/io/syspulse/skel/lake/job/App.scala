@@ -200,8 +200,7 @@ object App extends skel.Server {
 
           case _ => 
             engine.all()
-
-            println(s"unknown op: ${config.params}")
+            
         }
         
         println(s"\n${r}")

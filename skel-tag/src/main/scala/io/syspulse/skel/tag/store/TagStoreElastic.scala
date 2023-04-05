@@ -159,18 +159,31 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
   }
 
   def typing(txt:String,from:Option[Int],size:Option[Int]):Tags = 
-    ???(txt,from,size)
+    ???(txt,None,from,size)
 
   def search(txt:String,from:Option[Int],size:Option[Int]):Tags = 
-    ???(txt,from,size)
+    ???(txt,None,from,size)
 
-  def ???(terms:String,from:Option[Int],size:Option[Int]):Tags = {
+  def ???(terms:String,cat:Option[String],from:Option[Int],size:Option[Int]):Tags = {
     val r = client.execute {
       com.sksamuel.elastic4s.ElasticDsl
         .search(elacticIndex)
         .from(from.getOrElse(0))
         .size(size.getOrElse(10))
-        .query(terms)
+        .rawQuery(
+          s"""{ 
+            "bool": { 
+              "must": [
+                { "match": { "tags":   "${terms}" }}                
+              ],
+              "filter": [ 
+                { "term":  { "cat": "${cat.getOrElse("")}" }}                
+              ]
+            }
+          }
+          """
+        )
+        //.query(terms)
         //.matchQuery("_all",txt)
         //.operator(MatchQueryBuilder.Operator.AND)
         .sortByFieldDesc("score")

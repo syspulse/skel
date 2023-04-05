@@ -22,6 +22,7 @@ object TagRegistry {
   
   final case class GetTags(from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
   final case class GetTag(ids:Seq[String],replyTo: ActorRef[Tags]) extends Command
+  final case class GetSearchFindTag(tags:String,cat:Option[String],from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
   final case class GetSearchTag(tags:String,from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
   final case class GetTypingTag(txt:String,from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
   final case class GetFindTag(attr:Map[String,String],from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
@@ -50,6 +51,10 @@ object TagRegistry {
       case GetTag(ids,replyTo) =>
         val tt = store.??(ids)
         replyTo ! Tags(tt,Some(tt.size))
+        Behaviors.same
+
+      case GetSearchFindTag(tags,cat,from,size,replyTo) =>
+        replyTo ! store.???(tags,cat,from,size)
         Behaviors.same
 
       case GetSearchTag(tags,from,size,replyTo) =>

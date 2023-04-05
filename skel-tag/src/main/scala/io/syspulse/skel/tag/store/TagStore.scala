@@ -16,7 +16,7 @@ trait TagStore extends Store[Tag,String] {
   
   def getKey(e:Tag):String = e.id
   
-  def ???(tags:String,from:Option[Int],size:Option[Int]):Tags
+  def ???(tags:String,cat:Option[String],from:Option[Int],size:Option[Int]):Tags
 
   def search(txt:String,from:Option[Int],size:Option[Int]):Tags 
 

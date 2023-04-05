@@ -75,6 +75,7 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   def getTag(tags: Seq[String]): Future[Tags] = registry.ask(GetTag(tags, _))
   def getSearchTag(tags: String,from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetSearchTag(tags,from,size, _))
   def getTypingTag(txt: String,from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetTypingTag(txt,from,size, _))
+  def getSearchFindTag(tags: String,cat:Option[String],from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetSearchFindTag(tags,cat,from,size, _))
   def getFindTag(attr: Map[String,String],from:Option[Int],size:Option[Int]): Future[Tags] = registry.ask(GetFindTag(attr,from,size, _))
 
   def createTag(req: TagCreateReq): Future[Try[Tag]] = registry.ask(CreateTag(req, _))
@@ -83,8 +84,8 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   
   def randomTag(): Future[Tag] = registry.ask(RandomTag(_))
 
-  @GET @Path("/{tags}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("tag"),summary = "Get tag by ids (comma)",
+  @GET @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("tag"),summary = "Get tags by IDs (comma list)",
     parameters = Array(new Parameter(name = "tag", in = ParameterIn.PATH, description = "Tag")),
     responses = Array(new ApiResponse(responseCode="200",description = "Object found",content=Array(new Content(schema=new Schema(implementation = classOf[Tags])))))
   )
@@ -98,8 +99,8 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   }
 
   @GET @Path("/find") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("tags"),summary = "Find by attributes", parameters = Array(
-      new Parameter(name = "<attr>", in = ParameterIn.PATH, description = "Attribute to search"),
+  @Operation(tags = Array("tags"),summary = "Find by attr", parameters = Array(
+      new Parameter(name = "<attr>", in = ParameterIn.PATH, description = "Attributes to find (attr1=v1,attr2=v2)"),
       new Parameter(name = "from", in = ParameterIn.PATH, description = "Page from (inclusive)"),
       new Parameter(name = "size", in = ParameterIn.PATH, description = "Page Size"),
     ),
@@ -111,32 +112,39 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
         val attr = params.filter{ case(k,v) => k.toLowerCase != "from" && k.toLowerCase != "size"}
         onSuccess(getFindTag(attr,params.get("from").map(_.toInt),params.get("size").map(_.toInt))) { r =>
           metricGetCount.inc()
-          complete(r)
+          encodeResponse(complete(r))
         }
       }
     }
   }
 
+
   @GET @Path("/search/{tags}") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("tags"),summary = "Search Objects by tags", parameters = Array(
       new Parameter(name = "tags", in = ParameterIn.PATH, description = "Tags (semicolon separated)"),
+      new Parameter(name = "cat", in = ParameterIn.PATH, description = "Optional Category filter "),
       new Parameter(name = "from", in = ParameterIn.PATH, description = "Page from (inclusive)"),
       new Parameter(name = "size", in = ParameterIn.PATH, description = "Page Size"),
     ),
     responses = Array(new ApiResponse(responseCode="200",description = "Tags found",content=Array(new Content(schema=new Schema(implementation = classOf[Tags])))))
   )
   def getTagSearchRoute(tags: String) = get { 
-    parameters("from".as[Int].optional,"size".as[Int].optional) { (from,size) =>
+    parameters("cat".as[String].optional,"from".as[Int].optional,"size".as[Int].optional) { (cat,from,size) =>
       rejectEmptyResponse {
-        onSuccess(getSearchTag(tags,from,size)) { r =>
+        val f = if(cat.isDefined)
+            getSearchFindTag(tags,cat,from,size)
+          else
+            getSearchTag(tags,from,size)
+
+        onSuccess(f){ r =>
           metricGetCount.inc()
-          complete(r)
-        }
+          encodeResponse (complete(r))
+        }        
       }
     }
   }
 
-  @GET @Path("/typing/{txt}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @GET @Path("/typing/{tag}") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("tags"),summary = "Type-ahead search", parameters = Array(
       new Parameter(name = "txt", in = ParameterIn.PATH, description = "Prefix text match"),
       new Parameter(name = "from", in = ParameterIn.PATH, description = "Page from (inclusive)"),
@@ -149,7 +157,7 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
       rejectEmptyResponse {
         onSuccess(getTypingTag(txt,from,size)) { r =>
           metricGetCount.inc()
-          complete(r)
+          encodeResponse(complete(r))
         }
       }
     }
@@ -167,7 +175,7 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
     parameters("from".as[Int].optional,"size".as[Int].optional) { (from,size) =>
       onSuccess(getTags(from,size)) { r => 
         metricGetCount.inc()
-        complete(r)
+        encodeResponse(complete(r))
       }    
     }
   }
@@ -244,8 +252,11 @@ class TagRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
         pathPrefix("search") {
           pathPrefix(Segment) { tags =>
             pathEndOrSingleSlash {
-              getTagSearchRoute(tags)            
+              getTagSearchRoute(tags)
             }
+          } ~
+          pathEndOrSingleSlash {
+            getTagSearchRoute("")
           }
         },
         pathPrefix("typing") {

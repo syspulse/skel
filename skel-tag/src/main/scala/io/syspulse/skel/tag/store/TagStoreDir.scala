@@ -32,7 +32,7 @@ class TagStoreDir(dir:String = "store/") extends StoreDir[Tag,String](dir) with 
 
   override def ??(ids:Seq[String]):Seq[Tag] = store.??(ids)
 
-  def ???(tags:String,from:Option[Int],size:Option[Int]):Tags = store.???(tags,from,size)
+  def ???(tags:String,cat:Option[String],from:Option[Int],size:Option[Int]):Tags = store.???(tags,cat,from,size)
   override def typing(txt:String,from:Option[Int],size:Option[Int]):Tags = store.typing(txt,from,size)
   override def search(txt:String,from:Option[Int],size:Option[Int]):Tags = store.search(txt,from,size)
 

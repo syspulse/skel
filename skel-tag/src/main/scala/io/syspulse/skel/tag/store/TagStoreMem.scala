@@ -53,24 +53,30 @@ class TagStoreMem extends TagStore {
     if(txt.trim.size < 3 )
       Tags(Seq())
     else
-      ???(".*" + txt + ".*",from,size)
+      ???(".*" + txt + ".*",None,from,size)
   }
 
   def typing(txt:String,from:Option[Int],size:Option[Int]):Tags = {
     if(txt.trim.size < 3 )
       Tags(Seq())
     else
-      ???(txt+".*",from,size)
+      ???(txt+".*",None,from,size)
   }
 
-  def ???(txt:String,from:Option[Int],size:Option[Int]):Tags = {
-    val terms = txt.toLowerCase
+  def ???(tags:String,cat:Option[String],from:Option[Int],size:Option[Int]):Tags = {
+    log.info(s"???: ${tags},${cat},${from},${size}")
+    val terms = tags.toLowerCase
     val tt =
-      this.tags.values.filter{ t => 
-        t.id.toLowerCase.matches(terms) ||
-        t.tags.filter( tag => tag.toLowerCase.matches(terms)).size > 0
+      this.tags
+      .values
+      .filter(!cat.isDefined || _.cat.equalsIgnoreCase(cat.get))
+      .filter{ t => 
+        terms.isEmpty || 
+        ( t.id.toLowerCase.matches(terms) ||
+         t.tags.filter( tag => tag.toLowerCase.matches(terms)).size > 0
+        )
       }
-      .toList.sortBy(_.score).reverse
+      .toList.sortBy(_.score.map(v => -v))
     
     Tags(tt.drop(from.getOrElse(0)).take(size.getOrElse(10)),Some(tt.size))
   }
