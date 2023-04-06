@@ -191,7 +191,7 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
   // state: "starting" -> "idle"
   // run() can be executed only against "idle" state
   def create(name:String,conf:Map[String,String]=Map()):Try[Job] = {
-    //Map("spark.pyspark.virtualenv.enabled" -> "true")
+    // https://aws.amazon.com/de/blogs/big-data/install-python-libraries-on-a-running-cluster-with-emr-notebooks/
     val config = Map(
       "spark.pyspark.python" -> "python3",
       "spark.pyspark.virtualenv.enabled" -> "true",

@@ -22,7 +22,7 @@ import scala.util.Try
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
-  uri:String = "/api/v1/lake",
+  uri:String = "/api/v1/job",
   datastore:String = "all",
 
   timeout:Long = 10000L,
@@ -112,93 +112,14 @@ object App extends skel.Server {
       case "job" =>
         val engine = JobUri(config.jobEngine,config.timeout).asInstanceOf[LivyHttp]
 
-        def decodeData(data:List[String],confFilter:(String) => Boolean) = {
-          data
-            .filter(!_.trim.isEmpty)
-            .filter(d => confFilter(d.trim))
-            .map(d => {
-              if(d.startsWith("file://")) {
-                val code = os.read(os.Path(d.stripPrefix("file://"),os.pwd))
-                code -> ""
-              } else {
-                d.split("=").toList match {
-                  case k :: v :: Nil => k -> v
-                  case _ => d -> ""
-                }
-              }
-            })
-            .toMap
-        }
-
-        def dataToVars(data:List[String]) = decodeData(data,(d) => {! d.startsWith("spark.")}) 
-
-        def dataToConf(data:List[String]) = decodeData(data,(d) => { d.startsWith("spark.")})           
-
-        def pipeline(name:String,script:String,data:List[String] = List()) = {
-          // to_date_input = "2023-02-28"
-          // custom_locks={"0x77730ed992d286c53f3a0838232c3957daeaaf73":"veSOLID","0x0000000000000000000000000000000000000000":"mint/burn"}
-          // custom_locks = {
-          //     '0x77730ed992d286c53f3a0838232c3957daeaaf73': 'veSOLID',
-          // }
-          // 
-          var srcVars = dataToVars(data).map( _ match {
-            case(code,"") =>
-              code
-            case(name,value) =>
-              s"${name} = ${value}"
-          }).mkString("\n")
-
-          val src = srcVars + "\n" +
-            os.read(os.Path(script.stripPrefix("file://"),os.pwd))
-
-          log.info(s"src=${src}")
-          
-          for {
-            j1 <- engine.create(name,dataToConf(data))
-
-            j2 <- {
-              var j:Try[Job] = engine.get(j1)
-              while(j.isSuccess && j.get.state == "starting") {                  
-                Thread.sleep(config.poll)
-                j = engine.get(j1)
-              } 
-              j
-            }
-            
-            j3 <- {
-              engine.run(j2,src)
-            }
-
-            j4 <- {
-              var j:Try[Job] = engine.ask(j3)
-
-              while(j.isSuccess && j.get.state != "available") {
-                Thread.sleep(config.poll)
-                j = engine.ask(j3)
-              } 
-              j
-            }
-            j5 <- {
-              j4.result match {
-                case Some("error") => 
-                  log.error(s"Job: Error=${j4.output.getOrElse("")}")
-                case Some("ok") =>
-                  log.info(s"Job: OK=${j4.output.getOrElse("")}")
-                case _ => 
-                  log.info(s"Job: Unknown=${j4.result}: output=${j4.output.getOrElse("")}")
-              }              
-
-              engine.del(j4.xid)
-            }
-          } yield j4
-        }
+        
                             
         val r = config.params match {
           case "create" :: name :: Nil => 
             engine.create(name)
 
           case "create" :: name :: data => 
-            engine.create(name,dataToConf(data))
+            engine.create(name,JobEngine.dataToConf(data))
                   
           case "get" :: xid :: Nil => 
             engine.get(Job(xid=xid))
@@ -218,10 +139,10 @@ object App extends skel.Server {
             engine.run(xid,src)
 
           case "pipeline" :: name :: script :: Nil =>
-            pipeline(name,script,List())
+            JobEngine.pipeline(engine,name,script,List(),config.poll)
 
           case "pipeline" :: name :: script :: data =>
-            pipeline(name,script,data)          
+            JobEngine.pipeline(engine,name,script,data,config.poll)
 
           case _ => 
             engine.all()
