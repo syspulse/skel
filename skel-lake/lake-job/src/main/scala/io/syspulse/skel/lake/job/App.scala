@@ -112,26 +112,49 @@ object App extends skel.Server {
       case "job" =>
         val engine = JobUri(config.jobEngine,config.timeout).asInstanceOf[LivyHttp]
 
-        def dataToMap(data:List[String]) = 
+        def decodeData(data:List[String],confFilter:(String) => Boolean) = {
           data
-            .mkString(",")
-            .split(",")
             .filter(!_.trim.isEmpty)
-            .map(kv => kv.split("=").toList match { case k :: v :: Nil => k -> v })
+            .filter(d => confFilter(d.trim))
+            .map(d => {
+              if(d.startsWith("file://")) {
+                val code = os.read(os.Path(d.stripPrefix("file://"),os.pwd))
+                code -> ""
+              } else {
+                d.split("=").toList match {
+                  case k :: v :: Nil => k -> v
+                  case _ => d -> ""
+                }
+              }
+            })
             .toMap
+        }
+
+        def dataToVars(data:List[String]) = decodeData(data,(d) => {! d.startsWith("spark.")}) 
+
+        def dataToConf(data:List[String]) = decodeData(data,(d) => { d.startsWith("spark.")})           
 
         def pipeline(name:String,script:String,data:List[String] = List()) = {
-          var srcVars = dataToMap(data).map{ case(name,value) => {
-            s"${name} = ${value}"
-          }}.mkString("\n")
+          // to_date_input = "2023-02-28"
+          // custom_locks={"0x77730ed992d286c53f3a0838232c3957daeaaf73":"veSOLID","0x0000000000000000000000000000000000000000":"mint/burn"}
+          // custom_locks = {
+          //     '0x77730ed992d286c53f3a0838232c3957daeaaf73': 'veSOLID',
+          // }
+          // 
+          var srcVars = dataToVars(data).map( _ match {
+            case(code,"") =>
+              code
+            case(name,value) =>
+              s"${name} = ${value}"
+          }).mkString("\n")
 
           val src = srcVars + "\n" +
             os.read(os.Path(script.stripPrefix("file://"),os.pwd))
 
-          log.info(s"src=${src}")          
-
+          log.info(s"src=${src}")
+          
           for {
-            j1 <- engine.create(name,dataToMap(data))
+            j1 <- engine.create(name,dataToConf(data))
 
             j2 <- {
               var j:Try[Job] = engine.get(j1)
@@ -175,7 +198,7 @@ object App extends skel.Server {
             engine.create(name)
 
           case "create" :: name :: data => 
-            engine.create(name,dataToMap(data))
+            engine.create(name,dataToConf(data))
                   
           case "get" :: xid :: Nil => 
             engine.get(Job(xid=xid))
