@@ -1,5 +1,7 @@
 package io.syspulse.skel.lake.job.server
 
+import scala.util.Try
+
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
@@ -49,65 +51,107 @@ import io.syspulse.skel.auth.RouteAuthorizers
 
 import io.syspulse.skel.lake.job._
 import io.syspulse.skel.lake.job.store._
+import io.syspulse.skel.lake.job.server.JobJson
+import io.syspulse.skel.lake.job.server._
 
-// @Path("/")
-// class JobRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
-//   //val log = Logger(s"${this}")
-//   implicit val system: ActorSystem[_] = context.system
+import JobRegistry._
+
+@Path("/")
+class JobRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
+  //val log = Logger(s"${this}")
+  implicit val system: ActorSystem[_] = context.system
   
-//   implicit val permissions = Permissions()
+  implicit val permissions = Permissions()
 
-//   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-//   import JobJson._
+  import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+  import JobJson._
   
-//   // registry is needed because Unit-tests with multiple Routes in Suites will fail (Prometheus libary quirk)
-//   val cr = new CollectorRegistry(true);
-//   val metricCreateCount: Counter = Counter.build().name("skel_job_create_total").help("Job creates").register(cr)
+  // registry is needed because Unit-tests with multiple Routes in Suites will fail (Prometheus libary quirk)
+  val cr = new CollectorRegistry(true);
+  val metricCreateCount: Counter = Counter.build().name("skel_job_create_total").help("Job creates").register(cr)
   
-//   def createJob(jobReq: JobReq): Future[Job] = registry.ask(CreateJob(jobReq, _))
- 
-//   @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
-//   @Produces(Array(MediaType.APPLICATION_JSON))
-//   @Operation(tags = Array("job"),summary = "Send Job",
-//     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[JobReq])))),
-//     responses = Array(new ApiResponse(responseCode = "200", description = "Job sent",content = Array(new Content(schema = new Schema(implementation = classOf[JobActionRes])))))
-//   )
-//   def jobRoute = post {
-//     entity(as[JobReq]) { jobReq =>
-//       onSuccess(createJob(jobReq)) { r =>
-//         metricCreateCount.inc()
-//         complete((StatusCodes.Created, r))
-//       }
-//     }
-//   }
+  def createJob(uid:Option[UUID],req: JobCreateReq): Future[Try[Job]] = registry.ask(CreateJob(uid,req, _))
+  def getJobs(): Future[Jobs] = registry.ask(GetJobs)
+  def getJob(uid:Option[UUID],id: Job.ID): Future[Try[Job]] = registry.ask(GetJob(uid,id, _))  
+  def deleteJob(uid:Option[UUID],id: Job.ID): Future[JobRes] = registry.ask(DeleteJob(uid,id, _))
 
-//   def jobToRoute(via:String) = post {
-//     entity(as[JobReq]) { jobReq =>
-//       onSuccess(createJob(jobReq.copy(to=Some(s"${via}://${jobReq.to.getOrElse("")}")))) { r =>
-//         metricCreateCount.inc()
-//         complete((StatusCodes.Created, r))
-//       }
-//     }
-//   }
+  @GET @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("job"),summary = "Return Job ",
+    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Job ID")),
+    responses = Array(new ApiResponse(responseCode="200",description = "Job",content=Array(new Content(schema=new Schema(implementation = classOf[Job])))))
+  )
+  def getJobRoute(uid:Option[UUID],id:String) = get {
+    rejectEmptyResponse {
+      onSuccess(getJob(uid,id)) { r =>
+        complete(r)
+      }
+    }
+  }
 
-//   val corsAllow = CorsSettings(system.classicSystem)
-//     //.withAllowGenericHttpRequests(true)
-//     .withAllowCredentials(true)
-//     .withAllowedMethods(Seq(HttpMethods.OPTIONS,HttpMethods.GET,HttpMethods.POST,HttpMethods.PUT,HttpMethods.DELETE,HttpMethods.HEAD))
+  @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("job"),summary = "Create Job",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[JobCreateReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "Job sent",content = Array(new Content(schema = new Schema(implementation = classOf[Job])))))
+  )
+  def createJobRoute(uid:Option[UUID]) = post {
+    entity(as[JobCreateReq]) { req =>
+      onSuccess(createJob(uid,req)) { r =>
+        metricCreateCount.inc()
+        complete((StatusCodes.Created, r))
+      }
+    }
+  }
 
-//   override def routes: Route = cors(corsAllow) {
-//     authenticate()(authn => authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
-//       concat(
-//         pathEndOrSingleSlash { req =>
-//           jobRoute(req)
-//         },        
-//         pathPrefix(Segment) { via =>
-//           pathEndOrSingleSlash {
-//             jobToRoute(via)            
-//           }
-//         }
-//       )
-//     })
-//   }
+  @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("job"), summary = "Return all Jobs",
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "List of Jobs",content = Array(new Content(schema = new Schema(implementation = classOf[Jobs])))))
+  )
+  def getJobsRoute() = get {
+    complete(getJobs())
+  }
+
+  @DELETE @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("user"),summary = "Delete User by id",
+    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Job ID")),
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "Job deleted",content = Array(new Content(schema = new Schema(implementation = classOf[Job])))))
+  )
+  def deleteJobRoute(uid:Option[UUID],id: String) = delete {
+    onSuccess(deleteJob(uid,id)) { r =>
+      complete(StatusCodes.OK, r)
+    }
+  }
+
+  
+  val corsAllow = CorsSettings(system.classicSystem)
+    //.withAllowGenericHttpRequests(true)
+    .withAllowCredentials(true)
+    .withAllowedMethods(Seq(HttpMethods.OPTIONS,HttpMethods.GET,HttpMethods.POST,HttpMethods.PUT,HttpMethods.DELETE,HttpMethods.HEAD))
+
+  override def routes: Route = cors(corsAllow) {
+      concat(
+        pathEndOrSingleSlash {
+          concat(
+            authenticate()(authn =>
+              //authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) 
+              {
+                getJobsRoute() ~                
+                createJobRoute(authn.getUser)
+              }
+            ),            
+          )
+        },
+        pathPrefix(Segment) { id => 
+          pathEndOrSingleSlash {
+            authenticate()(authn =>
+              getJobRoute(authn.getUser,id) ~
+              deleteJobRoute(authn.getUser,id)              
+            ) 
+          }
+        }
+      )
+  }
     
-// }
+}

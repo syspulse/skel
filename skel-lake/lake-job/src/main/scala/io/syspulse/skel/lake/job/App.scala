@@ -1,11 +1,13 @@
 package io.syspulse.skel.lake.job
 
+import scala.util.Try
 import scala.util.Random
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.Future
 import scala.concurrent.Await
-import akka.actor.typed.scaladsl.Behaviors
 
 import io.jvm.uuid._
 
@@ -13,22 +15,21 @@ import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
-import scala.concurrent.duration.FiniteDuration
-import java.util.concurrent.TimeUnit
-
 import io.syspulse.skel.lake.job.livy._
-import scala.util.Try
+import io.syspulse.skel.lake.job.server._
+import io.syspulse.skel.lake.job.store._
 
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
   uri:String = "/api/v1/job",
-  datastore:String = "all",
+  
+  datastore:String = "livy://http://emr.hacken.cloud:8998",
 
   timeout:Long = 10000L,
   poll:Long = 3000L,
 
-  jobEngine:String = "livy://http://emr.hacken.cloud:8998",
+  //jobEngine:String = "livy://http://emr.hacken.cloud:8998",
 
   cmd:String = "job",
   params: Seq[String] = Seq(),
@@ -74,24 +75,23 @@ object App extends skel.Server {
 
     Console.err.println(s"Config: ${config}")
 
-    // val store = config.datastore match {
-    //   // case "all" => new JobStoreAll
-    //   case _ => {
-    //     Console.err.println(s"Unknown datastore: '${config.datastore}")
-    //     sys.exit(1)
-    //   }
-    // }
+    val store = config.datastore.split("://").toList match {
+      case "livy" :: uri => new JobStoreLivy(config.datastore)
+      case _ => {
+        Console.err.println(s"Unknown datastore: '${config.datastore}")
+        sys.exit(1)
+      }
+    }
 
-    val engine = JobUri(config.jobEngine)
+    val engine = store.getEngine //JobUri(config.jobEngine)
 
     config.cmd match {
       case "server" => 
-        // run( config.host, config.port,config.uri,c,
-        //   Seq(
-        //     (Behaviors.ignore,"",(actor,actorSystem) => new WsNotifyRoutes()(actorSystem) ),
-        //     (NotifyRegistry(store),"NotifyRegistry",(r, ac) => new NotifyRoutes(r)(ac) )
-        //   )
-        // )      
+        run( config.host, config.port, config.uri, c,
+          Seq(
+            (JobRegistry(store),"JobRegistry",(r, ac) => new JobRoutes(r)(ac) )
+          )
+        )      
       case "client" => {        
         import io.syspulse.skel.FutureAwaitable._
         
@@ -110,9 +110,6 @@ object App extends skel.Server {
       }
 
       case "job" =>
-        val engine = JobUri(config.jobEngine,config.timeout).asInstanceOf[LivyHttp]
-
-        
                             
         val r = config.params match {
           case "create" :: name :: Nil => 
@@ -136,7 +133,7 @@ object App extends skel.Server {
             else
               script.mkString(" ")
 
-            engine.run(xid,src)
+            engine.run(Job(xid = xid),src)
 
           case "pipeline" :: name :: script :: Nil =>
             JobEngine.pipeline(engine,name,script,List(),config.poll)

@@ -124,13 +124,9 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
   )
 
   def toJob(job:Job,st:LivyStatement) = {
-    val j = Job(
-      id = job.id,
-      name = job.name,
-      xid = job.xid,
+    val j = job.copy(
       state = st.state, //job.status,
       src = st.code,
-      log = job.log,
       result = st.output.map(o => o.status),
       tsStart = Some(st.started),
       tsEnd = Some(st.completed)

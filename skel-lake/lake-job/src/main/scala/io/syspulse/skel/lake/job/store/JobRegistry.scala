@@ -11,42 +11,48 @@ import io.jvm.uuid._
 import io.syspulse.skel.Command
 
 import io.syspulse.skel.lake.job._
+import scala.util.Try
 
-// object JobRegistry {
-//   val log = Logger(s"${this}")
+import io.syspulse.skel.lake.job.server.{JobCreateReq, JobRes, Jobs}
+
+object JobRegistry {
+  val log = Logger(s"${this}")
   
-//   final case class CreateJob(jobCreate: JobReq, replyTo: ActorRef[Job]) extends Command
+  final case class GetJob(uid:Option[UUID],id: Job.ID, replyTo: ActorRef[Try[Job]]) extends Command
+  final case class GetJobs(replyTo: ActorRef[Jobs]) extends Command
+  final case class CreateJob(uid:Option[UUID], req: JobCreateReq, replyTo: ActorRef[Try[Job]]) extends Command  
+  final case class DeleteJob(uid:Option[UUID], id: Job.ID, replyTo: ActorRef[JobRes]) extends Command
   
-//   final case class DeleteJob(id: UUID, replyTo: ActorRef[JobActionRes]) extends Command
-  
-//   // this var reference is unfortunately needed for Metrics access
-//   var store: JobStore = null
+  // this var reference is unfortunately needed for Metrics access
+  var store: JobStore = null
 
-//   def apply(store: JobStore): Behavior[io.syspulse.skel.Command] = {
-//     this.store = store
-//     registry(store)
-//   }
+  def apply(store: JobStore): Behavior[Command] = {
+    this.store = store
+    registry(store)
+  }
 
-//   private def registry(store: JobStore): Behavior[io.syspulse.skel.Command] = {
-//     this.store = store
+  private def registry(store: JobStore): Behavior[Command] = {
+    this.store = store
 
-//     Behaviors.receiveMessage {
+    Behaviors.receiveMessage {
+      case GetJobs(replyTo) =>
+        val jj = store.all
+        replyTo ! Jobs(jj,Some(jj.size))
+        Behaviors.same
 
-//       case CreateJob(jobReq, replyTo) =>
-//         log.info(s"${jobReq}")
-//         val job = Job(
-//           jobReq.to,
-//           jobReq.subj, 
-//           jobReq.msg, 
-//           System.currentTimeMillis(),
-//           severity = jobReq.severity,
-//           scope = jobReq.scope
-//         )
-        
-//         val store1 = store.+(job)
+      case GetJob(uid, id, replyTo) =>
+        replyTo ! store.?(id)
+        Behaviors.same
 
-//         replyTo ! job
-//         registry(store1.getOrElse(store))
-//     }
-//   }
-// }
+      case DeleteJob(uid, id, replyTo) =>
+        replyTo ! store.del(id).map(_ => JobRes("deleted",Some(id))).get
+        Behaviors.same
+
+      case CreateJob(uid:Option[UUID], req, replyTo) =>
+        log.info(s"${req}")        
+        val job = store.+(req.name,req.src,req.data).map(_.copy(id = UUID.random,uid = uid))
+        replyTo ! job
+        Behaviors.same
+    }
+  }
+}
