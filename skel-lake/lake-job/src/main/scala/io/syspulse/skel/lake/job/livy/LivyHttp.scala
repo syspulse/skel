@@ -217,11 +217,11 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
   }
 
   // state: "waiting" -> 
-  def run(job:Job,script:String):Try[Job] = 
-    run(job.xid,script)
+  def run(job:Job,script:String,inputs:Map[String,String]=Map()):Try[Job] = 
+    run(job.xid,script,inputs)
     .map(r => toJob(job,r))
 
-  def run(xid:String,script:String):Try[LivyStatement] = {
+  def run(xid:String,script:String,inputs:Map[String,String]):Try[LivyStatement] = {
     val res = ->(Request(uri + s"/sessions/${xid}/statements", HttpMethods.POST, 
       body = Some(LivySessionRun(code = script.replaceAll("\\\\n","\n")).toJson.compactPrint)
     ))
@@ -229,4 +229,3 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
     res.map(r => r.parseJson.convertTo[LivyStatement])
   }
 }
-

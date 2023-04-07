@@ -82,7 +82,7 @@ class JobRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   )
   def getJobRoute(uid:Option[UUID],id:String) = get {
     rejectEmptyResponse {
-      onSuccess(getJob(uid,id)) { r =>
+      onSuccess(getJob(uid,UUID(id))) { r =>
         complete(r)
       }
     }
@@ -119,7 +119,7 @@ class JobRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
       new ApiResponse(responseCode = "200", description = "Job deleted",content = Array(new Content(schema = new Schema(implementation = classOf[Job])))))
   )
   def deleteJobRoute(uid:Option[UUID],id: String) = delete {
-    onSuccess(deleteJob(uid,id)) { r =>
+    onSuccess(deleteJob(uid,UUID(id))) { r =>
       complete(StatusCodes.OK, r)
     }
   }

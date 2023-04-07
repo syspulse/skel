@@ -30,5 +30,5 @@ case class Job(
 )
 
 object Job {
-  type ID = String
+  type ID = UUID
 }

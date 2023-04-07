@@ -11,11 +11,11 @@ import io.syspulse.skel.lake.job._
 import io.syspulse.skel.lake.job.Job.ID
 
 trait JobStore extends Store[Job,ID] {
-  def getKey(n: Job): ID = n.xid
+  def getKey(j: Job): ID = j.id
   
   def +(job:Job):Try[JobStore] = Failure(new Exception(s"not supported"))
 
-  def +(name:String,script:String,data:List[String]):Try[Job]
+  def +(name:String,script:String,conf:Seq[String],inputs:Seq[String]):Try[Job]
   
   def del(id:ID):Try[JobStore]
   def ?(id:ID):Try[Job]

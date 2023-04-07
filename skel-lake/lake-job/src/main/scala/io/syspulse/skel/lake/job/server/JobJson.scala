@@ -16,5 +16,5 @@ object JobJson extends JsonCommon {
   implicit val jf_Job = jsonFormat13(Job.apply _)
   implicit val jf_Jobs = jsonFormat2(Jobs)
   implicit val jf_JobRes = jsonFormat2(JobRes)
-  implicit val jf_CreateReq = jsonFormat3(JobCreateReq)
+  implicit val jf_CreateReq = jsonFormat4(JobCreateReq)
 }

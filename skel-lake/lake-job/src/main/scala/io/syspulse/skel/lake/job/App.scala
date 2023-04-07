@@ -24,12 +24,12 @@ case class Config(
   port:Int=8080,
   uri:String = "/api/v1/job",
   
-  datastore:String = "livy://http://emr.hacken.cloud:8998",
+  datastore:String = "dir://",
 
   timeout:Long = 10000L,
   poll:Long = 3000L,
 
-  //jobEngine:String = "livy://http://emr.hacken.cloud:8998",
+  engine:String = "livy://http://emr.hacken.cloud:8998",
 
   cmd:String = "job",
   params: Seq[String] = Seq(),
@@ -50,7 +50,8 @@ object App extends skel.Server {
         ArgString('h', "http.host",s"listen host (def: ${d.host})"),
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
-        ArgString('d', "datastore",s"datastore [all] (def: ${d.datastore})"),
+        ArgString('d', "datastore",s"datastore (mem://,dir://) (def: ${d.datastore})"),
+        ArgString('e', "engine",s"Job Engine  (def: ${d.engine})"),
         
         ArgLong('_', "timeout",s"timeout (msec, def: ${d.timeout})"),
         
@@ -75,15 +76,19 @@ object App extends skel.Server {
 
     Console.err.println(s"Config: ${config}")
 
-    val store = config.datastore.split("://").toList match {
-      case "livy" :: uri => new JobStoreLivy(config.datastore)
+    val engine = JobUri(config.engine)
+
+    val store:JobStore = config.datastore.split("://").toList match {
+      //case "livy" :: uri => new JobStoreLivy(config.datastore)
+      case "dir" :: Nil => new JobStoreDir(engine)
+      case "dir" :: dir :: Nil => new JobStoreDir(engine,dir)
       case _ => {
         Console.err.println(s"Unknown datastore: '${config.datastore}")
         sys.exit(1)
       }
     }
 
-    val engine = store.getEngine //JobUri(config.jobEngine)
+    
 
     config.cmd match {
       case "server" => 
@@ -109,8 +114,7 @@ object App extends skel.Server {
         sys.exit(0)
       }
 
-      case "job" =>
-                            
+      case "livy" =>                            
         val r = config.params match {
           case "create" :: name :: Nil => 
             engine.create(name)
@@ -143,6 +147,33 @@ object App extends skel.Server {
 
           case _ => 
             engine.all()
+            
+        }
+        
+        println(s"\n${r}")
+        sys.exit(0)
+
+      case "job" =>
+                            
+        val r = config.params.toList match {
+
+          case "create" :: name :: script :: data => 
+            val src = if(script.startsWith("file://"))
+              os.read(os.Path(script.stripPrefix("file://"),os.pwd))
+            else
+              script.mkString(" ")
+
+            store.+(Job(name = name, src = src, inputs = JobEngine.dataToConf(data)))
+            //engine.run(Job(xid = xid),src)
+
+          case "get" :: id :: Nil => 
+            engine.get(Job(id=UUID(id)))
+          
+          case "del" :: id :: Nil => 
+            store.del(UUID(id))
+          
+          case _ => 
+            store.all
             
         }
         

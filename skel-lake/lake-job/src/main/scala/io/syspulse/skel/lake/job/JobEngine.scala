@@ -14,15 +14,15 @@ trait JobEngine {
   def all():Try[Seq[Job]]
   def ask(job:Job):Try[Job]
   def get(job:Job):Try[Job]
-  def create(name:String,inputs:Map[String,String]=Map()):Try[Job]
+  def create(name:String,conf:Map[String,String]=Map()):Try[Job]
   def del(job:Job):Try[Job]
-  def run(job:Job,script:String):Try[Job]
+  def run(job:Job,script:String,inputs:Map[String,String]=Map()):Try[Job]
 }
 
 object JobEngine {
   val log = Logger(s"${this}")
 
-  def decodeData(data:List[String],confFilter:(String) => Boolean) = {
+  def decodeData(data:Seq[String],confFilter:(String) => Boolean) = {
     data
       .filter(!_.trim.isEmpty)
       .filter(d => confFilter(d.trim))
@@ -40,11 +40,12 @@ object JobEngine {
       .toMap
   }
 
-  def dataToVars(data:List[String]) = decodeData(data,(d) => {! d.startsWith("spark.")}) 
+  def dataToVars(data:Seq[String]) = decodeData(data,(d) => {! d.startsWith("spark.")}) 
 
-  def dataToConf(data:List[String]) = decodeData(data,(d) => { d.startsWith("spark.")})           
+  def dataToConf(data:Seq[String]) = decodeData(data,(d) => { d.startsWith("spark.")})           
 
-  def pipeline(engine:JobEngine,name:String,script:String,data:List[String] = List(),poll:Long = 5000L) = {
+  // full blocking pipeline 
+  def pipeline(engine:JobEngine,name:String,script:String,data:Seq[String] = List(),poll:Long = 5000L) = {
     
     // create source block with all expected variables
     var src0 = dataToVars(data).map( _ match {
