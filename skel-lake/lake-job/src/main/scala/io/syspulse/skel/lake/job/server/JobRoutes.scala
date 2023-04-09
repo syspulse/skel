@@ -55,6 +55,8 @@ import io.syspulse.skel.lake.job.server.JobJson
 import io.syspulse.skel.lake.job.server._
 
 import JobRegistry._
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
 
 @Path("/")
 class JobRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
@@ -65,6 +67,8 @@ class JobRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import JobJson._
+
+  implicit override val timeout = Timeout(FiniteDuration(10000L,TimeUnit.MILLISECONDS))
   
   // registry is needed because Unit-tests with multiple Routes in Suites will fail (Prometheus libary quirk)
   val cr = new CollectorRegistry(true);

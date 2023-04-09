@@ -50,7 +50,7 @@ object JobRegistry {
 
       case CreateJob(uid:Option[UUID], req, replyTo) =>
         log.info(s"${req}")        
-        val job = store.+(req.name,req.src,req.conf,req.inputs).map(_.copy(id = UUID.random,uid = uid))
+        val job = store.+(req.name,req.src,req.conf.getOrElse(Seq()),req.inputs.getOrElse(Seq()),uid)
         replyTo ! job
         Behaviors.same
     }

@@ -106,7 +106,7 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
             TimeUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue).get)) { r =>
             
             metricGetCount.inc()
-            complete(r)
+            encodeResponse(complete(r))
           }
         else
           onSuccess(getTelemetryOp(id,
@@ -114,7 +114,7 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
             TimeUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue).get, op)) { r =>
             
             metricGetCount.inc()
-            complete(r)
+            encodeResponse(complete(r))
           } 
       }
     }
@@ -131,7 +131,7 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
     rejectEmptyResponse {
       onSuccess(getTelemetryLast(id)) { r =>
         metricGetCount.inc()
-        complete(r)
+        encodeResponse(complete(r))
       }
     }
   }
@@ -151,7 +151,7 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
           TimeUtil.wordToTs(ts0.getOrElse(""),0L).get,
           TimeUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue).get)) { r =>
           
-          complete(r)
+          encodeResponse(complete(r))
         }
       }
     }
@@ -164,7 +164,7 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
   )
   def getTelemetrysRoute() = get {
     metricGetCount.inc()
-    complete(getTelemetrys())
+    encodeResponse(complete(getTelemetrys()))
   }
 
   @DELETE @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))

@@ -58,6 +58,7 @@ object App extends skel.Server {
         ArgCmd("server",s"Server"),
         ArgCmd("client",s"Command"),
         ArgCmd("job",s"Jobs"),
+        ArgCmd("livy",s"Livy commands"),
         ArgParam("<params>",""),
         ArgLogging()
       ).withExit(1)
@@ -157,7 +158,7 @@ object App extends skel.Server {
                             
         val r = config.params.toList match {
 
-          case "create" :: name :: script :: data => 
+          case "submit" :: name :: script :: data => 
             val src = if(script.startsWith("file://"))
               os.read(os.Path(script.stripPrefix("file://"),os.pwd))
             else

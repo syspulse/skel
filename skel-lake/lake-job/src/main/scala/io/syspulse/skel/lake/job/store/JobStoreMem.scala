@@ -10,30 +10,50 @@ import akka.actor.typed.scaladsl.Behaviors
 import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
+
+import io.syspulse.skel.lake.job.Config
 import io.syspulse.skel.lake.job.Job
 import io.syspulse.skel.lake.job.JobEngine
 
-class JobStoreMem(engine:JobEngine) extends JobStore {
+class JobStoreMem(engine:JobEngine)(implicit config:Config) extends JobStore {
   val log = Logger(s"${this}")
   
   var jobs: Map[UUID,Job] = Map()
 
-  def all:Seq[Job] = jobs.values.toSeq
+  def all:Seq[Job] = jobs.values.flatMap{ j => 
+    // request all jobs
+    this.?(j.id).toOption
+  }.toSeq
 
   def size:Long = jobs.size
 
-  def +(name:String,script:String,conf:Seq[String],inputs:Seq[String]):Try[Job] = {
-    log.info(s"create: ${name},${script.take(25)},${conf},${inputs}")
-    val j = engine.create(name,JobEngine.dataToConf(conf))
-    j match {
-      case Success(job) => 
-        for {
-          j1 <- engine.run(job,script,JobEngine.dataToVars(inputs))
-          j2 <- this.+(j1)
-        } yield j1
+  def +(name:String,script:String,conf:Seq[String],inputs:Seq[String],uid:Option[UUID]):Try[Job] = {
+    log.info(s"add: ${name},${script.take(25)},${conf},${inputs}")
 
-      case f => f
-    }
+    // for {
+    //   j1 <- engine.create(name,JobEngine.dataToConf(conf))
+      
+    //   j2 <- {
+    //     var j:Try[Job] = engine.get(j1)
+    //     while(j.isSuccess && j.get.state == "starting") {
+    //       log.info(s"add: ${name}: sleeping poll ${config.poll}")
+    //       Thread.sleep(config.poll)          
+    //       j = engine.get(j1)
+    //     } 
+    //     j
+    //   }
+  
+    //   j3 <- engine.run(j2,script,JobEngine.dataToVars(inputs))
+
+    //   j4 <- this.+(j3)
+    
+    // } yield j3
+    
+    for {
+      j1 <- engine.submit(name,script,conf,inputs,config.poll).map(_.copy(uid = uid))
+      _ <- this.+(j1)
+    } yield j1
+    
   }
 
   override def +(job:Job):Try[JobStore] = { 
@@ -59,10 +79,15 @@ class JobStoreMem(engine:JobEngine) extends JobStore {
         case Some("error") | Some("ok") =>
           Success(j)
         case _ =>
-          engine.ask(j).map(j2 => {
-            this.+(j2)
-            j2
-          })
+          engine.ask(j) match {
+            case Success(j2) => 
+              // update store (persistance)
+              this.+(j2).map(_ => j2)              
+            case Failure(e) => 
+              // not found, need to set to error
+              val j2 = j.copy(result = Some("error"), output = Some(s"Failed to find: ${e}"))
+              this.+(j2).map(_ => j2)              
+          }
       }
     case None => 
       Failure(new Exception(s"not found: ${id}"))

@@ -228,4 +228,66 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
     log.info(s"res = ${res}")
     res.map(r => r.parseJson.convertTo[LivyStatement])
   }
+
+  def submit(name:String,script:String,conf:Seq[String]=Seq(),inputs:Seq[String]=Seq(),poll:Long):Try[Job] = {
+      
+    // create source block with all expected variables
+    var src0 = JobEngine.dataToVars(inputs).map( _ match {
+      case(code,"") =>
+        code
+      case(name,value) =>
+        s"${name} = ${value}"
+    }).mkString("\n")
+
+    val src = src0 + "\n" +
+      os.read(os.Path(script.stripPrefix("file://"),os.pwd))
+
+    log.info(s"src=${src}")
+    
+    val j0 = create(name,JobEngine.dataToConf(conf))
+
+    Future {
+      for {
+        j1 <- j0
+
+        j2 <- {
+          var j:Try[Job] = get(j1)
+          while(j.isSuccess && j.get.state == "starting") {                  
+            Thread.sleep(poll)
+            j = get(j1)
+          } 
+          j
+        }
+        
+        j3 <- {
+          run(j2,src)
+        }
+
+        j4 <- {
+          var j:Try[Job] = ask(j3)
+
+          while(j.isSuccess && j.get.state != "available") {
+            Thread.sleep(poll)
+            j = ask(j3)
+          } 
+          j
+        }
+        j5 <- {
+          j4.result match {
+            case Some("error") => 
+              log.error(s"Job: Error=${j4.output.getOrElse("")}")
+            case Some("ok") =>
+              log.info(s"Job: OK=${j4.output.getOrElse("")}")
+            case _ => 
+              log.info(s"Job: Unknown=${j4.result}: output=${j4.output.getOrElse("")}")
+          }              
+
+          del(j4)
+        }
+      } yield j4
+    }
+
+    j0
+  }
+  
 }

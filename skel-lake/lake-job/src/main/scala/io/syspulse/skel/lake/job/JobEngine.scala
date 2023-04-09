@@ -17,6 +17,8 @@ trait JobEngine {
   def create(name:String,conf:Map[String,String]=Map()):Try[Job]
   def del(job:Job):Try[Job]
   def run(job:Job,script:String,inputs:Map[String,String]=Map()):Try[Job]
+
+  def submit(name:String,script:String,conf:Seq[String],inputs:Seq[String] = List(),poll:Long):Try[Job]
 }
 
 object JobEngine {
