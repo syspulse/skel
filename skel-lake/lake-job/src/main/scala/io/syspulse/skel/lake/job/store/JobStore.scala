@@ -12,6 +12,8 @@ import io.syspulse.skel.lake.job._
 import io.syspulse.skel.lake.job.Job.ID
 
 trait JobStore extends Store[Job,ID] {
+  private val log = Logger(s"${this}")
+
   def getKey(j: Job): ID = j.id
   
   // update
@@ -19,7 +21,7 @@ trait JobStore extends Store[Job,ID] {
 
   def +(job:Job):Try[JobStore]
 
-  def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,String],uid:Option[UUID]):Try[Job]
+  //def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,String],uid:Option[UUID]):Try[Job]
   
   def del(id:ID):Try[JobStore]
   def ?(id:ID):Try[Job]
@@ -35,18 +37,19 @@ trait JobStore extends Store[Job,ID] {
   var running = false
 
   def enqueue(job:Job) = {
+    log.info(s"${job} ->> queue(${runningJobs.size})")
     runningJobs = runningJobs :+ job
   }
 
   def startFSM(implicit config:Config) = {
     val jobWatcherThr = new Thread() {
-      val log = Logger(s"${this}")    
+      
       override def run() = {
         running = true
 
         while(running) {
           log.info(s"watcher: ${runningJobs.size}")
-          runningJobs = runningJobs.filter( j0 => {          
+          runningJobs = runningJobs.flatMap( j0 => {          
             log.info(s"watcher: ${j0}")
             var removing = false
 
@@ -54,23 +57,28 @@ trait JobStore extends Store[Job,ID] {
               case "unknown" =>
                 Success(j0)
 
-              case "starting" => 
+              case "starting" | "not_started" => 
                 getEngine.get(j0)            
+              
+              case "waiting" | "running" | "busy" => 
+                // script is running
+                getEngine.ask(j0)
 
-              case "available" => 
+              case "idle" | "available" => 
                 if(j0.tsEnd.isDefined ) {
-                  // script already finished
-                  Success(j0.copy(state = "finished"))
+                  // script already finished, stop it
+                  getEngine.del(j0)
+                  //Success(j0.copy(state = "finished"))
                 } else {
                   // run the job script
                   getEngine.run(j0,j0.src)
                 }
 
-              case "waiting" => 
-                // script is running
-                getEngine.ask(j0)
+              case "deleted" => 
+                // when we finish by deleting it
+                Success(j0.copy(state = "finished"))
 
-              case "finished" =>
+              case "finished" | "error" | "dead" | "killed" | "success" =>
                 // removed from the list
                 removing = true
                 Success(j0)
@@ -83,11 +91,14 @@ trait JobStore extends Store[Job,ID] {
             if(j1.isFailure) {
               // update failed
               log.warn(s"job failed: ${j1}: removing")
-              update(j0.copy(state = "finished"))
+              update(j0.copy(state = "finished", result = Some(s"${j1.toString}")))
               removing = true
             }
 
-            !removing || j1.isSuccess
+            if(removing || j1.isFailure)
+              None
+            else
+              Some(j1.get)
           })
 
           Thread.sleep(config.poll)
@@ -96,6 +107,44 @@ trait JobStore extends Store[Job,ID] {
     }
     
     jobWatcherThr.start()
+  }
+
+  def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,String],uid:Option[UUID],poll:Long):Try[Job] = {
+    log.info(s"submit: ${name},${script.take(25)},${conf},${inputs}")
+
+    val src = if(script.startsWith("file://"))
+        os.read(os.Path(script.stripPrefix("file://"),os.pwd))
+      else
+        script.mkString(" ")
+
+    // for {
+    //   j1 <- engine.create(name,JobEngine.dataToConf(conf))
+      
+    //   j2 <- {
+    //     var j:Try[Job] = engine.get(j1)
+    //     while(j.isSuccess && j.get.state == "starting") {
+    //       log.info(s"add: ${name}: sleeping poll ${config.poll}")
+    //       Thread.sleep(config.poll)          
+    //       j = engine.get(j1)
+    //     } 
+    //     j
+    //   }
+  
+    //   j3 <- engine.run(j2,script,JobEngine.dataToVars(inputs))
+
+    //   j4 <- this.+(j3)
+    
+    // } yield j3
+    
+    for {
+      j1 <- getEngine.submit(name,script,conf,inputs,poll).map(_.copy(uid = uid))
+      _ <- this.+(j1)
+      _ <- {
+        enqueue(j1)
+        Success(j1)
+      }
+    } yield j1
+    
   }
 }
 

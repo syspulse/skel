@@ -80,22 +80,24 @@ object App extends skel.Server {
 
     Console.err.println(s"Config: ${config}")
 
-    val engine = JobUri(config.engine)
+    def getStore() = {
+      val engine = JobUri(config.engine)
 
-    val store:JobStore = config.datastore.split("://").toList match {
-      //case "livy" :: uri => new JobStoreLivy(config.datastore)
-      case "dir" :: Nil => new JobStoreDir(engine)
-      case "dir" :: dir :: Nil => new JobStoreDir(engine,dir)
-      case _ => {
-        Console.err.println(s"Unknown datastore: '${config.datastore}")
-        sys.exit(1)
+      val store:JobStore = config.datastore.split("://").toList match {
+        //case "livy" :: uri => new JobStoreLivy(config.datastore)
+        case "dir" :: Nil => new JobStoreDir(engine)
+        case "dir" :: dir :: Nil => new JobStoreDir(engine,dir)
+        case _ => {
+          Console.err.println(s"Unknown datastore: '${config.datastore}")
+          sys.exit(1)
+        }
       }
+      store
     }
-
-    
 
     config.cmd match {
       case "server" => 
+        val store = getStore()
         run( config.host, config.port, config.uri, c,
           Seq(
             (JobRegistry(store),"JobRegistry",(r, ac) => new JobRoutes(r)(ac) )
@@ -118,7 +120,9 @@ object App extends skel.Server {
         sys.exit(0)
       }
 
-      case "livy" =>                            
+      case "livy" => 
+        val engine = JobUri(config.engine)
+
         val r = config.params match {
           case "create" :: name :: Nil => 
             engine.create(name)
@@ -158,6 +162,7 @@ object App extends skel.Server {
         sys.exit(0)
 
       case "job" =>
+        val store = getStore()        
                             
         val r = config.params.toList match {
 
@@ -170,12 +175,13 @@ object App extends skel.Server {
               script = script, 
               conf = JobEngine.dataToConf(data), 
               inputs = JobEngine.dataToVars(data),
-              None
+              None,
+              5000L
             )
             //engine.run(Job(xid = xid),src)
 
           case "get" :: id :: Nil => 
-            engine.get(Job(id=UUID(id)))
+            store.?(UUID(id))
           
           case "del" :: id :: Nil => 
             store.del(UUID(id))

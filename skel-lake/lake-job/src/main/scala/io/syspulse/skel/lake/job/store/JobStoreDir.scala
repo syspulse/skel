@@ -26,10 +26,10 @@ class JobStoreDir(engine:JobEngine,dir:String = "store/")(implicit config:Config
   def all:Seq[Job] = store.all
   def size:Long = store.size
   
-  // this is called when new job is created
-  def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,String],uid:Option[UUID]):Try[Job] = {
-    store.submit(name,script,conf,inputs,uid).flatMap(j => super.+(j).map(_ => j))
-  }
+  // this is job submission
+  // def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,String],uid:Option[UUID]):Try[Job] = {
+  //   store.submit(name,script,conf,inputs,uid).flatMap(j => super.+(j).map(_ => j))
+  // }
 
   // this is called on load, so we can update the status
   override def +(u:Job):Try[JobStoreDir] = {
@@ -59,11 +59,14 @@ class JobStoreDir(engine:JobEngine,dir:String = "store/")(implicit config:Config
       case "unknown" =>
         // just started
         enqueue(job)
-
+      
       case "starting" => 
         enqueue(job)
 
       case "available" => 
+        enqueue(job)
+
+      case "idle" =>
         enqueue(job)
 
       case "waiting" => 
@@ -72,6 +75,12 @@ class JobStoreDir(engine:JobEngine,dir:String = "store/")(implicit config:Config
 
       case "finished" =>
         // finished
+
+      case "deleted" => 
+        enqueue(job)
+
+      case _ =>
+        enqueue(job)
     }}
   }
 

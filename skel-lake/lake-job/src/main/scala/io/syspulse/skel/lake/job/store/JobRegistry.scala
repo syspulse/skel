@@ -26,12 +26,12 @@ object JobRegistry {
   // this var reference is unfortunately needed for Metrics access
   var store: JobStore = null
 
-  def apply(store: JobStore): Behavior[Command] = {
+  def apply(store: JobStore)(implicit config:Config): Behavior[Command] = {
     this.store = store
-    registry(store)
+    registry(store)(config)
   }
 
-  private def registry(store: JobStore): Behavior[Command] = {
+  private def registry(store: JobStore)(config:Config): Behavior[Command] = {
     this.store = store
 
     Behaviors.receiveMessage {
@@ -50,7 +50,7 @@ object JobRegistry {
 
       case SubmitJob(uid:Option[UUID], req, replyTo) =>
         log.info(s"${req}")        
-        val job = store.submit(req.name,req.src,req.conf.getOrElse(Map()),req.inputs.getOrElse(Map()),uid)
+        val job = store.submit(req.name,req.src,req.conf.getOrElse(Map()),req.inputs.getOrElse(Map()),uid,config.poll)
         replyTo ! job
         Behaviors.same
     }
