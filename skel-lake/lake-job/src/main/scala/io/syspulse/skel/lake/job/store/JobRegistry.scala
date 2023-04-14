@@ -13,14 +13,14 @@ import io.syspulse.skel.Command
 import io.syspulse.skel.lake.job._
 import scala.util.Try
 
-import io.syspulse.skel.lake.job.server.{JobCreateReq, JobRes, Jobs}
+import io.syspulse.skel.lake.job.server.{JobSubmitReq, JobRes, Jobs}
 
 object JobRegistry {
   val log = Logger(s"${this}")
   
   final case class GetJob(uid:Option[UUID],id: Job.ID, replyTo: ActorRef[Try[Job]]) extends Command
   final case class GetJobs(replyTo: ActorRef[Jobs]) extends Command
-  final case class CreateJob(uid:Option[UUID], req: JobCreateReq, replyTo: ActorRef[Try[Job]]) extends Command  
+  final case class SubmitJob(uid:Option[UUID], req: JobSubmitReq, replyTo: ActorRef[Try[Job]]) extends Command  
   final case class DeleteJob(uid:Option[UUID], id: Job.ID, replyTo: ActorRef[JobRes]) extends Command
   
   // this var reference is unfortunately needed for Metrics access
@@ -48,9 +48,9 @@ object JobRegistry {
         replyTo ! store.del(id).map(_ => JobRes("deleted",Some(id))).get
         Behaviors.same
 
-      case CreateJob(uid:Option[UUID], req, replyTo) =>
+      case SubmitJob(uid:Option[UUID], req, replyTo) =>
         log.info(s"${req}")        
-        val job = store.+(req.name,req.src,req.conf.getOrElse(Seq()),req.inputs.getOrElse(Seq()),uid)
+        val job = store.submit(req.name,req.src,req.conf.getOrElse(Map()),req.inputs.getOrElse(Map()),uid)
         replyTo ! job
         Behaviors.same
     }

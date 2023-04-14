@@ -54,6 +54,7 @@ object App extends skel.Server {
         ArgString('e', "engine",s"Job Engine  (def: ${d.engine})"),
         
         ArgLong('_', "timeout",s"timeout (msec, def: ${d.timeout})"),
+        ArgLong('_', "poll",s"poll interval (msec, def: ${d.poll})"),
         
         ArgCmd("server",s"Server"),
         ArgCmd("client",s"Command"),
@@ -69,7 +70,9 @@ object App extends skel.Server {
       port = c.getInt("http.port").getOrElse(d.port),
       uri = c.getString("http.uri").getOrElse(d.uri),      
       datastore = c.getString("datastore").getOrElse(d.datastore),      
+      
       timeout = c.getLong("timeout").getOrElse(d.timeout),
+      poll = c.getLong("poll").getOrElse(d.poll),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -158,13 +161,17 @@ object App extends skel.Server {
                             
         val r = config.params.toList match {
 
-          case "submit" :: name :: script :: data => 
-            val src = if(script.startsWith("file://"))
-              os.read(os.Path(script.stripPrefix("file://"),os.pwd))
-            else
-              script.mkString(" ")
+          case "src" :: script :: data => 
+            JobEngine.toSrc(script,data)            
 
-            store.+(Job(name = name, src = src, inputs = JobEngine.dataToConf(data)))
+          case "submit" :: name :: script :: data => 
+            
+            store.submit(name = name, 
+              script = script, 
+              conf = JobEngine.dataToConf(data), 
+              inputs = JobEngine.dataToVars(data),
+              None
+            )
             //engine.run(Job(xid = xid),src)
 
           case "get" :: id :: Nil => 

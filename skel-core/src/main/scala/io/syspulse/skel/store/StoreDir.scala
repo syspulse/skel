@@ -66,6 +66,8 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     Success(this)
   }
 
+  def loaded() = {}
+
   def load(dir:String,hint:String="") = {
     val storeDir = os.Path(dir,os.pwd)
     if(! os.exists(storeDir)) {
@@ -92,6 +94,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     loading = false
 
     log.info(s"Loaded store: ${size}")
+    loaded()
   }
 
   def loadData(fileData:String,hint:String):Seq[E] = {    

@@ -18,7 +18,7 @@ trait JobEngine {
   def del(job:Job):Try[Job]
   def run(job:Job,script:String,inputs:Map[String,String]=Map()):Try[Job]
 
-  def submit(name:String,script:String,conf:Seq[String],inputs:Seq[String] = List(),poll:Long):Try[Job]
+  def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,String],poll:Long):Try[Job]
 }
 
 object JobEngine {
@@ -44,12 +44,9 @@ object JobEngine {
 
   def dataToVars(data:Seq[String]) = decodeData(data,(d) => {! d.startsWith("spark.")}) 
 
-  def dataToConf(data:Seq[String]) = decodeData(data,(d) => { d.startsWith("spark.")})           
+  def dataToConf(data:Seq[String]) = decodeData(data,(d) => { d.startsWith("spark.")})
 
-  // full blocking pipeline 
-  def pipeline(engine:JobEngine,name:String,script:String,data:Seq[String] = List(),poll:Long = 5000L) = {
-    
-    // create source block with all expected variables
+  def toSrc(script:String,data:Seq[String]) = {
     var src0 = dataToVars(data).map( _ match {
       case(code,"") =>
         code
@@ -59,6 +56,27 @@ object JobEngine {
 
     val src = src0 + "\n" +
       os.read(os.Path(script.stripPrefix("file://"),os.pwd))
+    src
+  }
+
+  def toSrc(script:String,inputs:Map[String,String]) = {
+    var src0 = inputs.map( _ match {
+      case(code,"") =>
+        code
+      case(name,value) =>
+        s"${name} = ${value}"
+    }).mkString("\n")
+
+    val src = src0 + "\n" +
+      os.read(os.Path(script.stripPrefix("file://"),os.pwd))
+    src
+  }
+
+  // full blocking pipeline 
+  def pipeline(engine:JobEngine,name:String,script:String,data:Seq[String] = List(),poll:Long = 5000L) = {
+    
+    // create source block with all expected variables
+    val src = toSrc(script,data)
 
     log.info(s"src=${src}")
     

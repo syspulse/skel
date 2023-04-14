@@ -72,9 +72,9 @@ class JobRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   
   // registry is needed because Unit-tests with multiple Routes in Suites will fail (Prometheus libary quirk)
   val cr = new CollectorRegistry(true);
-  val metricCreateCount: Counter = Counter.build().name("skel_job_create_total").help("Job creates").register(cr)
+  val metricCreateCount: Counter = Counter.build().name("skel_job_submit_total").help("Job submits").register(cr)
   
-  def createJob(uid:Option[UUID],req: JobCreateReq): Future[Try[Job]] = registry.ask(CreateJob(uid,req, _))
+  def submitJob(uid:Option[UUID],req: JobSubmitReq): Future[Try[Job]] = registry.ask(SubmitJob(uid,req, _))
   def getJobs(): Future[Jobs] = registry.ask(GetJobs)
   def getJob(uid:Option[UUID],id: Job.ID): Future[Try[Job]] = registry.ask(GetJob(uid,id, _))  
   def deleteJob(uid:Option[UUID],id: Job.ID): Future[JobRes] = registry.ask(DeleteJob(uid,id, _))
@@ -94,13 +94,13 @@ class JobRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
 
   @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("job"),summary = "Create Job",
-    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[JobCreateReq])))),
+  @Operation(tags = Array("job"),summary = "Submit Job",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[JobSubmitReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "Job sent",content = Array(new Content(schema = new Schema(implementation = classOf[Job])))))
   )
-  def createJobRoute(uid:Option[UUID]) = post {
-    entity(as[JobCreateReq]) { req =>
-      onSuccess(createJob(uid,req)) { r =>
+  def submitJobRoute(uid:Option[UUID]) = post {
+    entity(as[JobSubmitReq]) { req =>
+      onSuccess(submitJob(uid,req)) { r =>
         metricCreateCount.inc()
         complete((StatusCodes.Created, r))
       }
@@ -142,7 +142,7 @@ class JobRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
               //authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) 
               {
                 getJobsRoute() ~                
-                createJobRoute(authn.getUser)
+                submitJobRoute(authn.getUser)
               }
             ),            
           )

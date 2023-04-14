@@ -27,13 +27,18 @@ class JobStoreDir(engine:JobEngine,dir:String = "store/")(implicit config:Config
   def size:Long = store.size
   
   // this is called when new job is created
-  def +(name:String,script:String,conf:Seq[String],inputs:Seq[String],uid:Option[UUID]):Try[Job] = {
-    store.+(name,script,conf,inputs,uid).flatMap(j => super.+(j).map(_ => j))
+  def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,String],uid:Option[UUID]):Try[Job] = {
+    store.submit(name,script,conf,inputs,uid).flatMap(j => super.+(j).map(_ => j))
   }
 
   // this is called on load, so we can update the status
   override def +(u:Job):Try[JobStoreDir] = {
     super.+(u).flatMap(_ => store.+(u)).map(_ => this)
+  }
+
+  override def update(job:Job):Try[Job] = {
+    writeFile(job)
+    store.update(job)
   }
 
   // del does not delete the file, but only the status
@@ -45,6 +50,30 @@ class JobStoreDir(engine:JobEngine,dir:String = "store/")(implicit config:Config
 
   // load and fix statuses
   load(dir)
+
+  // start FSM
+  startFSM(config)
+
+  override def loaded() = {
+    all.foreach{ job => job.state match {      
+      case "unknown" =>
+        // just started
+        enqueue(job)
+
+      case "starting" => 
+        enqueue(job)
+
+      case "available" => 
+        enqueue(job)
+
+      case "waiting" => 
+        // script is running
+        enqueue(job)
+
+      case "finished" =>
+        // finished
+    }}
+  }
 
   def getEngine = store.getEngine
 }
