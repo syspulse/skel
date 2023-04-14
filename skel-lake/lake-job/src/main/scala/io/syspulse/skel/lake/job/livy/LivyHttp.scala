@@ -105,28 +105,19 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
       Success(f.toString) 
   }
    
-  def toJob(sess:LivySession) = Job(
-    id = Util.UUID_0,
-    name = "",
-    xid = sess.id.toString,
-    state = sess.state,
-    src = "",
-    log = Some(sess.log)
-  )
-
   def toJob(job:Job,sess:LivySession) = job.copy(
-    id = job.id,
-    name = job.name,
+    // id = job.id,
+    // name = job.name,
     xid = sess.id.toString,
     state = sess.state,
-    src = "",
+    // src = job.src,
     log = Some(sess.log)
   )
 
   def toJob(job:Job,st:LivyStatement) = {
     val j = job.copy(
       state = st.state, //job.status,
-      src = st.code,
+      //src = st.code,
       result = st.output.map(o => o.status),
       tsStart = Some(st.started),
       tsEnd = Some(st.completed)
@@ -147,7 +138,16 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
   def all():Try[Seq[Job]] = {
     val res = ->(Request(uri + "/sessions", HttpMethods.GET))
     log.info(s"res = ${res}")
-    res.map(_.parseJson.convertTo[LivySessions].sessions.map(r => toJob(r)))
+    res.map(_.parseJson.convertTo[LivySessions].sessions.map(r => {
+      Job(
+        id = Util.UUID_0,
+        name = "",
+        xid = r.id.toString,
+        state = r.state,
+        src = "",
+        log = Some(r.log)
+      )
+    }))
   }
 
   def get(xid:String):Try[LivySession] = {
@@ -222,6 +222,7 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
     .map(r => toJob(job,r))
 
   def run(xid:String,script:String,inputs:Map[String,String]):Try[LivyStatement] = {
+    log.info(s"running: \n${"-".repeat(40)}\n${script}\n${"-".repeat(40)}\n")
     val res = ->(Request(uri + s"/sessions/${xid}/statements", HttpMethods.POST, 
       body = Some(LivySessionRun(code = script.replaceAll("\\\\n","\n")).toJson.compactPrint)
     ))
@@ -229,7 +230,7 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
     res.map(r => r.parseJson.convertTo[LivyStatement])
   }
 
-  def submit(name:String,script:String,conf:Map[String,String]=Map(),inputs:Map[String,String]=Map(),poll:Long):Try[Job] = {      
+  def submit(name:String,script:String,conf:Map[String,String]=Map(),inputs:Map[String,Any]=Map(),poll:Long):Try[Job] = {      
     // create source block with all expected variables
     
     // var src0 = JobEngine.dataToVars(inputs).map( _ match {
@@ -242,11 +243,10 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
     // val src = src0 + "\n" +
     //   os.read(os.Path(script.stripPrefix("file://"),os.pwd))
 
-    val src = JobEngine.toSrc(script,inputs)
-    log.info(s"src=${src}")
+    // val src = JobEngine.toSrc(script,inputs)
+    // log.info(s"src=${src}")
     
-    
-    val j0 = create(name,conf)
+    val j0 = create(name,conf).map(_.copy(src = script))
     j0
   }
 

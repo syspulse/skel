@@ -18,7 +18,7 @@ trait JobEngine {
   def del(job:Job):Try[Job]
   def run(job:Job,script:String,inputs:Map[String,String]=Map()):Try[Job]
 
-  def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,String],poll:Long):Try[Job]
+  def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,Any],poll:Long):Try[Job]
 }
 
 object JobEngine {
@@ -59,7 +59,7 @@ object JobEngine {
     src
   }
 
-  def toSrc(script:String,inputs:Map[String,String]) = {
+  def toSrc(script:String,inputs:Map[String,Any]) = {
     var src0 = inputs.map( _ match {
       case(code,"") =>
         code
@@ -67,9 +67,12 @@ object JobEngine {
         s"${name} = ${value}"
     }).mkString("\n")
 
-    val src = src0 + "\n" +
-      os.read(os.Path(script.stripPrefix("file://"),os.pwd))
-    src
+    val src1 = if(script.startsWith("file://"))
+        os.read(os.Path(script.stripPrefix("file://"),os.pwd))
+      else
+        script.mkString(" ")
+
+    src0 + "\n" + src1    
   }
 
   // full blocking pipeline 

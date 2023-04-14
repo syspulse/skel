@@ -9,7 +9,7 @@ ACCESS_TOKEN=${ACCESS_TOKEN-`cat ACCESS_TOKEN`}
 
 SERVICE_URI=${SERVICE_URI:-http://localhost:8080/api/v1/job}
 
-INPUTS=`cat $INPUTS`
+INPUTS=`cat $INPUTS | jq -c .`
 
 # Sevice supports parseing '1;2;3' into list, but it still must be encoded into JSON array !
 DATA_JSON="{\"name\":\"$NAME\",\"src\":\"$SCRIPT\",\"inputs\": $INPUTS}"

@@ -129,6 +129,8 @@ trait JsonCommon extends DefaultJsonProtocol with CollectionFormats with NullOpt
       case b: Boolean if b == true => JsTrue
       case b: Boolean if b == false => JsFalse
       case d: Double => JsNumber(d)
+      case d: java.math.BigDecimal => JsNumber(d)
+      case d: scala.math.BigDecimal => JsNumber(d)
       case d: List[_] => JsArray( d.map(write(_)).toVector)
       case d: Seq[_] => JsArray( d.map(write(_)).toVector)
       case d: Array[_] => JsArray( d.map(write(_)).toVector)

@@ -71,7 +71,9 @@ trait JobStore extends Store[Job,ID] {
                   //Success(j0.copy(state = "finished"))
                 } else {
                   // run the job script
-                  getEngine.run(j0,j0.src)
+                  val src = JobEngine.toSrc(j0.src,j0.inputs)
+                  log.debug(s"src=${src}")
+                  getEngine.run(j0,src)
                 }
 
               case "deleted" => 
@@ -109,14 +111,18 @@ trait JobStore extends Store[Job,ID] {
     jobWatcherThr.start()
   }
 
-  def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,String],uid:Option[UUID],poll:Long):Try[Job] = {
+  def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,Any],uid:Option[UUID],poll:Long):Try[Job] = {
     log.info(s"submit: ${name},${script.take(25)},${conf},${inputs}")
 
-    val src = if(script.startsWith("file://"))
-        os.read(os.Path(script.stripPrefix("file://"),os.pwd))
-      else
-        script.mkString(" ")
+    // val src = if(script.startsWith("file://"))
+    //     os.read(os.Path(script.stripPrefix("file://"),os.pwd))
+    //   else
+    //     script.mkString(" ")
 
+    //val src = JobEngine.toSrc(script,inputs)
+    //log.info(s"src=${src}")
+        
+  
     // for {
     //   j1 <- engine.create(name,JobEngine.dataToConf(conf))
       
@@ -137,7 +143,7 @@ trait JobStore extends Store[Job,ID] {
     // } yield j3
     
     for {
-      j1 <- getEngine.submit(name,script,conf,inputs,poll).map(_.copy(uid = uid))
+      j1 <- getEngine.submit(name,script,conf,inputs,poll).map(_.copy(uid = uid,inputs = inputs))
       _ <- this.+(j1)
       _ <- {
         enqueue(j1)

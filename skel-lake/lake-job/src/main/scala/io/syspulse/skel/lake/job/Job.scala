@@ -15,7 +15,7 @@ case class Job(
   name:String = "",
   xid:String = "",
   src:String = "",
-  inputs:Map[String,String] = Map(),
+  inputs:Map[String,Any] = Map(),
   uid:Option[UUID] = None,
 
   state:String = "unknown",
