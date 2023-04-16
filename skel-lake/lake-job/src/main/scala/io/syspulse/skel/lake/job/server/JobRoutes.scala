@@ -78,6 +78,7 @@ class JobRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   def getJobs(): Future[Jobs] = registry.ask(GetJobs)
   def getJob(uid:Option[UUID],id: Job.ID): Future[Try[Job]] = registry.ask(GetJob(uid,id, _))  
   def deleteJob(uid:Option[UUID],id: Job.ID): Future[JobRes] = registry.ask(DeleteJob(uid,id, _))
+  def findJobs(uid:Option[UUID],state:Option[String]): Future[Try[Jobs]] = registry.ask(FindJobs(uid,state, _))
 
   @GET @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("job"),summary = "Return Job ",
@@ -116,6 +117,20 @@ class JobRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
     complete(getJobs())
   }
 
+  @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("job"), summary = "Filter Jobs",
+    parameters = Array(new Parameter(name = "state", in = ParameterIn.PATH, description = "Job state")),
+    responses = Array(      
+      new ApiResponse(responseCode = "200", description = "List of Jobs",content = Array(new Content(schema = new Schema(implementation = classOf[Jobs])))))
+  )
+  def findJobsRoute(uid:Option[UUID]) = get {
+    parameters("state".as[String].optional) { (state) => 
+      onSuccess(findJobs(uid,state)) { r =>
+        complete((StatusCodes.OK, r))
+      }
+    }
+  }
+
   @DELETE @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("user"),summary = "Delete User by id",
     parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Job ID")),
@@ -141,7 +156,13 @@ class JobRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
             authenticate()(authn =>
               //authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) 
               {
-                getJobsRoute() ~                
+                findJobsRoute(
+                  if(Permissions.isAdmin(authn) || Permissions.isService(authn)) 
+                    None
+                  else
+                    authn.getUser
+                ) ~
+                //getJobsRoute() ~
                 submitJobRoute(authn.getUser)
               }
             ),            

@@ -1,0 +1,5 @@
+{
+  "file": "\"FILE-000.log\"",
+  "path": "\"s3a://haas-data-dev/data/dev/zksync/mainnet/raw/csv/transactions/2023/03/01/tx-00.csv\"",
+  "limit": 10
+}

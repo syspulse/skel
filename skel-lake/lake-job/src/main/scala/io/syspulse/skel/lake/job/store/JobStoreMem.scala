@@ -14,6 +14,7 @@ import io.jvm.uuid._
 import io.syspulse.skel.lake.job.Config
 import io.syspulse.skel.lake.job.Job
 import io.syspulse.skel.lake.job.JobEngine
+import io.syspulse.skel.lake.job.server.Jobs
 
 class JobStoreMem(engine:JobEngine)(implicit config:Config) extends JobStore {
   val log = Logger(s"${this}")
@@ -27,8 +28,6 @@ class JobStoreMem(engine:JobEngine)(implicit config:Config) extends JobStore {
   // }.toSeq
 
   def size:Long = jobs.size
-
-
 
   override def +(job:Job):Try[JobStore] = { 
     log.info(s"add: ${job}")
@@ -57,6 +56,15 @@ class JobStoreMem(engine:JobEngine)(implicit config:Config) extends JobStore {
   def ?(id:UUID):Try[Job] = jobs.get(id) match {
     case Some(j) => Success(j)
     case None => Failure(new Exception(s"not found: ${id}"))
+  }
+
+  def ??(uid:Option[UUID],state:Option[String]=None):Try[Jobs] = {
+    log.info(s"??: ${uid},${state}")
+    val jj = jobs.values.filter( j =>
+      (uid == None || Some(j.id) == uid) && 
+      (state == None || state.get.toLowerCase == j.state.toLowerCase)
+    ).toSeq
+    Success(Jobs(jj,Some(jj.size)))
   }
 
   // def ?(id:UUID):Try[Job] = jobs.get(id) match {

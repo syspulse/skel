@@ -17,6 +17,7 @@ import io.syspulse.skel.store.StoreDir
 import io.syspulse.skel.lake.job.Job
 import io.syspulse.skel.lake.job.server.JobJson._
 import io.syspulse.skel.lake.job.JobEngine
+import io.syspulse.skel.lake.job.server.Jobs
 
 // Preload from file during start
 class JobStoreDir(engine:JobEngine,dir:String = "store/")(implicit config:Config) extends StoreDir[Job,UUID](dir) with JobStore {
@@ -47,6 +48,8 @@ class JobStoreDir(engine:JobEngine,dir:String = "store/")(implicit config:Config
   }
 
   override def ?(uid:UUID):Try[Job] = store.?(uid)
+
+  override def ??(uid:Option[UUID],state:Option[String]=None):Try[Jobs] = store.??(uid,state)
 
   // load and fix statuses
   load(dir)

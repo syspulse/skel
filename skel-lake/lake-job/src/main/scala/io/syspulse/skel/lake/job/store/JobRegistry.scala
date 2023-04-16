@@ -22,6 +22,7 @@ object JobRegistry {
   final case class GetJobs(replyTo: ActorRef[Jobs]) extends Command
   final case class SubmitJob(uid:Option[UUID], req: JobSubmitReq, replyTo: ActorRef[Try[Job]]) extends Command  
   final case class DeleteJob(uid:Option[UUID], id: Job.ID, replyTo: ActorRef[JobRes]) extends Command
+  final case class FindJobs(uid:Option[UUID], state:Option[String], replyTo: ActorRef[Try[Jobs]]) extends Command
   
   // this var reference is unfortunately needed for Metrics access
   var store: JobStore = null
@@ -42,6 +43,10 @@ object JobRegistry {
 
       case GetJob(uid, id, replyTo) =>
         replyTo ! store.?(id)
+        Behaviors.same
+
+      case FindJobs(uid, state, replyTo) =>
+        replyTo ! store.??(uid,state)
         Behaviors.same
 
       case DeleteJob(uid, id, replyTo) =>

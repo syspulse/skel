@@ -26,7 +26,7 @@ case class Config(
   
   datastore:String = "dir://",
 
-  timeout:Long = 10000L,
+  timeout:Long = 15000L,
   poll:Long = 3000L,
 
   engine:String = "livy://http://emr.hacken.cloud:8998",

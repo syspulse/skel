@@ -10,6 +10,7 @@ import io.syspulse.skel.store.Store
 import io.syspulse.skel.lake.job._
 
 import io.syspulse.skel.lake.job.Job.ID
+import io.syspulse.skel.lake.job.server.Jobs
 
 trait JobStore extends Store[Job,ID] {
   private val log = Logger(s"${this}")
@@ -25,6 +26,8 @@ trait JobStore extends Store[Job,ID] {
   
   def del(id:ID):Try[JobStore]
   def ?(id:ID):Try[Job]
+
+  def ??(uid:Option[UUID],state:Option[String]=None):Try[Jobs]
   def all:Seq[Job]
   def size:Long
 
