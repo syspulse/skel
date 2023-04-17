@@ -23,6 +23,7 @@ import io.syspulse.skel.wf.WorkflowJson._
 class WorkflowStoreDir(dir:String = "store/workflows") extends StoreDir[Workflow,Workflow.ID](dir) with WorkflowStore {
   val store = new WorkflowStoreMem
 
+  def toKey(id:String):Workflow.ID = id
   def all:Seq[Workflow] = store.all
   def size:Long = store.size
   override def +(u:Workflow):Try[WorkflowStoreDir] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)

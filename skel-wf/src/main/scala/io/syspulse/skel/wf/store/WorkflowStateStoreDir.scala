@@ -25,6 +25,7 @@ import io.syspulse.skel.wf.runtime.Executing
 class WorkflowStateStoreDir(dir:String = "store/runtime") extends StoreDir[WorkflowState,Workflowing.ID](dir) with WorkflowStateStore {
   val store = new WorkflowStateStoreMem
 
+  def toKey(id:String):Workflowing.ID = id
   def all:Seq[WorkflowState] = store.all
   def size:Long = store.size
   override def +(u:WorkflowState):Try[WorkflowStateStoreDir] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)
