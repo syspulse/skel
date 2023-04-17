@@ -38,7 +38,9 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
 
   def getDir:Option[String] = dataExec.get(WorkflowEngine.DATA_DIR).map(_.toString)
 
-  def getAttr(name:String,data:ExecData) = data.attr.get(name).orElse(dataExec.get(name))
+  def getAttr(name:String,data:ExecData) = {
+    data.attr.get(name).orElse(dataExec.get(name))
+  }
 
   // this constructor and init are need for dynamic class instantiation of Executing Executors
   def this() = {

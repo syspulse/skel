@@ -51,7 +51,7 @@ class HttpClientExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) ex
   case class Request(uri:String,verb:HttpMethod,headers:Map[String,String]=Map(),body:Option[String] = None,async:Boolean=false,json:Boolean=false) {
     def getHeaders:Seq[HttpHeader] = headers.map{ case(k,v) => RawHeader(k,v) }.toSeq 
 
-    def asJson(body:Option[String]) = {
+    def withJson(body:Option[String]) = {
       this.copy(
         body = body,
         json = true
@@ -97,7 +97,7 @@ class HttpClientExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) ex
   }
   
   def request(uri:String,body:Option[String]) = {
-    val r = parseUri(uri).withAuth(auth).asJson(body)
+    val r = parseUri(uri).withAuth(auth).withJson(body)
     HttpRequest(
       method = r.verb, 
       uri = r.uri, 
@@ -109,21 +109,48 @@ class HttpClientExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) ex
     
     val req = request(uri,body)
     log.info(s"${req}")
-    
-    val f = for {
-      rsp <- Http().singleRequest(req)
-      r <- if(rsp.status == StatusCodes.OK) {
-          val f = rsp.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
-          f.map(Success(_))
-        } else 
-          Future(Failure(new Exception(s"${rsp.status}")))        
-    } yield r
 
-    Await.result(f,FiniteDuration(3000L,TimeUnit.MILLISECONDS)).map(_.utf8String)
-    // if(!req.async)
-    //   Await.result(f,FiniteDuration(3000L,TimeUnit.MILLISECONDS)).map(_.utf8String)
-    // else 
-    //   Success(f.toString)    
+    val f:Future[Try[ByteString]] = for {
+      r0 <- try {
+          Http().singleRequest(req).map(Success(_))
+        } catch {
+          case e:Exception => Future(Failure(e))
+        }
+      r1 <- { r0 match {
+        case Success(rsp) => 
+          val f:Future[Try[ByteString]] = if(rsp.status == StatusCodes.OK) {
+            val f = rsp.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
+            f.map(Success(_))            
+          } else 
+            Future(Failure(new Exception(s"${rsp.status}")))
+          f
+        case Failure(e) => Future(Failure(e))
+      }}
+      
+    } yield r1
+
+    try {
+      Await.result(f,FiniteDuration(3000L,TimeUnit.MILLISECONDS)).map(_.utf8String)
+    } catch {
+      case e:Exception => 
+        log.warn(s"send failed: ${e}")
+        Failure(e)
+    }
+    
+    // val f = for {
+    //   rsp <- Http().singleRequest(req)
+    //   r <- if(rsp.status == StatusCodes.OK) {
+    //       val f = rsp.entity.dataBytes.runFold(ByteString(""))(_ ++ _)
+    //       f.map(Success(_))
+    //     } else 
+    //       Future(Failure(new Exception(s"${rsp.status}")))        
+    // } yield r
+
+    // Await.result(f,FiniteDuration(3000L,TimeUnit.MILLISECONDS)).map(_.utf8String)
+    // // if(!req.async)
+    // //   Await.result(f,FiniteDuration(3000L,TimeUnit.MILLISECONDS)).map(_.utf8String)
+    // // else 
+    // //   Success(f.toString)    
   }
 
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
