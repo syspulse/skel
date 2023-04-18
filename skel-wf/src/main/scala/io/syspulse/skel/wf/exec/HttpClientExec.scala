@@ -33,6 +33,8 @@ import io.syspulse.skel.wf._
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.notify.client._
 
+import ujson._
+
 import io.syspulse.skel.wf.runtime.Workflowing
 import io.syspulse.skel.wf.runtime.Executing
 
@@ -44,6 +46,7 @@ object HttpClientExec {
 class HttpClientExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends Executing(wid,name,dataExec) {
   val uri = dataExec.get("http.uri").getOrElse("http://localhost:8300").asInstanceOf[String]
   val auth = dataExec.get("http.auth").getOrElse("").asInstanceOf[String]
+  val decode = dataExec.get("http.res.decode").getOrElse(true).asInstanceOf[Boolean]
 
   import HttpClientExec._
   val timeout = FiniteDuration(10,TimeUnit.SECONDS)
@@ -158,7 +161,25 @@ class HttpClientExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) ex
     log.info(s"body=${body}")                       
     val data1 = --->(uri,Option.when(!body.isEmpty)(body)) match {
       case Success(res) => 
-        data.copy(attr = data.attr + ("http.res" -> res) )
+        data.copy(attr = data.attr + ("http.res" -> res) ++ {
+        if(decode) {
+          try {
+            ujson.read(res).obj.map{case (k,v) => {
+              v match {
+                case Str(s) => k -> s
+                case Num(n) => k -> n
+                case Bool(b) => k -> b
+                case _ => k -> v.toString
+              }
+            }}.toMap            
+          } catch {
+            case e:Error => 
+              log.warn(s"could not parse json: ${res}",e)
+              Map[String,Any]()
+          }
+        } else
+          Map[String,Any]()
+        })
       case f => 
         data
     }

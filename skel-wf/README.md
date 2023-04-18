@@ -95,3 +95,13 @@ echo "Event" >/tmp/skel-wf/test/FIFO
 ./run-wf.sh runtime spawn wf-5
 ./run-wf.sh runtime emit wf-5-1679057202485 F1 'rand.max=100'
 ```
+
+
+5. Parameterzied inputs and variable replacements
+
+```
+cat inputs.conf 
+http.body={"from":"2023","addr":"{addr}"}
+
+./run-wf.sh runtime emit wf-7-1681759525495 F-0 file://inputs.conf 'addr=0x1111'
+```
