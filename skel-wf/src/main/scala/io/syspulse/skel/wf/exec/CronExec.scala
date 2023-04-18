@@ -10,6 +10,7 @@ import io.syspulse.skel.util.Util
 
 class CronExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends Executing(wid,name,dataExec) {
   val cronExpr = dataExec.getOrElse("cron","1000").toString
+  var dataEmit:Map[String,Any] = Map()
 
   @volatile
   var terminated = false
@@ -20,7 +21,9 @@ class CronExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends 
       while( !terminated ) {
         Thread.sleep(cronExpr.toLong)
 
-        broadcast(ExecData(dataExec))
+        val data = ExecData(dataExec ++ dataEmit)
+        log.info(s"CronExec: ${cronExpr}: ${data}")
+        broadcast(data)
       }        
     }
   }
@@ -31,9 +34,15 @@ class CronExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends 
     super.stop()
   }
 
-  override def start(dataWorkflow: ExecData): Try[Status] = {
+  override def start(dataWorkflow: ExecData): Try[Status] = {    
     val s = super.start(dataWorkflow)
     thr.start()
     s
+  }
+
+  override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
+    // memorize data if we are emitted
+    dataEmit = data.attr
+    super.exec(in,data)
   }
 }

@@ -197,8 +197,15 @@ object App extends skel.Server {
 
             val exData = data match {
               case Nil => Map[String,Any]()
-              case data => data.mkString("").split("[,=]").grouped(2).map(a => a(0) -> a(1)).toMap              
+              case file :: Nil if file.startsWith("file://") => 
+                val data = os.read(os.Path(file.stripPrefix("file://"),os.pwd))
+                data.split("\n").map(s => 
+                  s.trim.split("[=]").grouped(2).map(a => a(0) -> a(1))
+                ).flatten.toMap
+              case data => 
+                data.mkString("").split("[,=]").grouped(2).map(a => a(0) -> a(1)).toMap              
             }
+            Console.err.println(s"data=${exData}")
             val r = wr.get.emit(exec,"in-0",ExecDataEvent(ExecData(exData)))
             Console.err.println(s"${r}")
 

@@ -11,6 +11,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import io.syspulse.skel.wf.runtime._
 import io.syspulse.skel.wf._
 import io.syspulse.skel.wf.store.WorkflowStateStore
+import io.syspulse.skel.util.Util
 
 object Executing { 
   //case class ID(wid:Workflowing.ID,name:String)
@@ -39,7 +40,11 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
   def getDir:Option[String] = dataExec.get(WorkflowEngine.DATA_DIR).map(_.toString)
 
   def getAttr(name:String,data:ExecData) = {
-    data.attr.get(name).orElse(dataExec.get(name))
+    data.attr.get(name).orElse(dataExec.get(name)).map(_ match {
+      case expr:String =>         
+        Util.replaceVar(expr,data.attr)        
+      case v => v
+    })      
   }
 
   // this constructor and init are need for dynamic class instantiation of Executing Executors
