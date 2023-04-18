@@ -296,5 +296,20 @@ object Util {
     val ts1 = System.nanoTime      
     log.info(s"Elapsed: ${Duration.ofNanos(ts1 - ts0).toMillis()} msec")    
   }
+
+  def replaceVar(expr:String,vars:Map[String,Any]):String = {
+    val rexpr = """(\{[a-zA-Z_-]+\})""".r
+    val pairs = rexpr.findAllIn(expr).flatMap( v =>{
+      val variable = v.substring(1,v.size-1)      
+      val vv = vars.collect{ case(n,value) if(n == variable) => value}
+      vv.headOption.map(value => (variable,value))
+
+    })
+    val expr1 = pairs.foldLeft(expr)((e,p) => {
+      val r = "\\{"+p._1+"\\}"
+      e.replaceAll(r,p._2.toString)
+    })
+    expr1
+  }
 }
 

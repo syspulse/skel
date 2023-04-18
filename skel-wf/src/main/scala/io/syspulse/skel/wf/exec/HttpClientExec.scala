@@ -133,7 +133,7 @@ class HttpClientExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) ex
       Await.result(f,FiniteDuration(3000L,TimeUnit.MILLISECONDS)).map(_.utf8String)
     } catch {
       case e:Exception => 
-        log.warn(s"send failed: ${e}")
+        log.warn(s"send failed:",e)
         Failure(e)
     }
     
