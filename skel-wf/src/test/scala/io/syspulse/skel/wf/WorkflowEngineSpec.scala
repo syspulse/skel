@@ -239,6 +239,33 @@ class WorkflowEngineSpec extends AnyWordSpec with Matchers with WorkflowTestable
     //   // s1 should !== (s2)
 
     //   we.stop(wf1.get)
+    // }    
+    
+    // "run Workflow with Retry failed Exec 2 times" in {
+    //   implicit val we = new WorkflowEngine(new WorkflowStoreDir(wfDir),new WorkflowStateStoreDir(runtimeDir),new RuntimeThreads(), s"dir://${runtimeDir}",testRegistry)
+      
+    //   val w1 = Workflow("wf-24","wf-24",Map(),
+    //     execs = Seq(
+    //       Exec("F-1","io.syspulse.skel.wf.exec.TestExec",in = Seq(In("in-0")), out = Seq(Out("out-0")),Some(Map("retry.max" -> 2, "retry.delay" -> 500L))), 
+    //     ),
+    //     links = Seq(
+    //       // Link("link-1","F-1","out-0","F-2","in-0"),          
+    //     )
+    //   )
+           
+    //   val wf1 = we.spawn(w1)
+      
+    //   we.start(wf1.get)
+    //   Thread.sleep(100L)
+
+    //   val r2 = wf1.get.emit("F-1","in-0",ExecDataEvent(ExecData(Map("fail" -> "403"))))
+    //   info(s"r2 = ${r2}")
+
+    //   // s1 should !== (s2)
+    //   val e = wf1.get.getMesh.get("F-1").get
+    //   e.asInstanceOf[TestExec].err should === (3)
+      
+    //   we.stop(wf1.get)
     // }
 
     // "run Workflow with Kafka Signals simulation: RandExec -> FifoExec -> LogExec " in {
@@ -268,35 +295,9 @@ class WorkflowEngineSpec extends AnyWordSpec with Matchers with WorkflowTestable
     //   Thread.sleep(250L)
     //   // s1 should !== (s2)
 
-    //   Console.in.readLine()
-    //   //we.stop(wf1.get)
+    //   //Console.in.readLine()
+    //   Thread.sleep(1000L)
+    //   we.stop(wf1.get)
     // }
-    
-    "run Workflow with Retry failed Exec 2 times" in {
-      implicit val we = new WorkflowEngine(new WorkflowStoreDir(wfDir),new WorkflowStateStoreDir(runtimeDir),new RuntimeThreads(), s"dir://${runtimeDir}",testRegistry)
-      
-      val w1 = Workflow("wf-24","wf-24",Map(),
-        execs = Seq(
-          Exec("F-1","io.syspulse.skel.wf.exec.TestExec",in = Seq(In("in-0")), out = Seq(Out("out-0")),Some(Map("retry.max" -> 2, "retry.delay" -> 500L))), 
-        ),
-        links = Seq(
-          // Link("link-1","F-1","out-0","F-2","in-0"),          
-        )
-      )
-           
-      val wf1 = we.spawn(w1)
-      
-      we.start(wf1.get)
-      Thread.sleep(100L)
-
-      val r2 = wf1.get.emit("F-1","in-0",ExecDataEvent(ExecData(Map("fail" -> "403"))))
-      info(s"r2 = ${r2}")
-
-      // s1 should !== (s2)
-      val e = wf1.get.getMesh.get("F-1").get
-      e.asInstanceOf[TestExec].err should === (3)
-      
-      we.stop(wf1.get)
-    }
   }
 }

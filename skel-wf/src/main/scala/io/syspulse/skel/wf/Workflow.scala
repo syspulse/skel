@@ -64,58 +64,84 @@ case class Workflow(
   // F1(LogExec(sys=1,log.level=WARN)) -> F2(LogExec(sys=2)) -> F3(TerminateExec())
   // F1(LogExcec())[out-0] -> F1[in-0]
   // F1([in-0]LogExcec()[out-0]) -> F1([in-0]())
-  def assemble(dsl:String,data:Map[String,Any] = Map()):Try[Workflow] = {
+  def assemble(script:String,data:Map[String,Any] = Map()):Try[Workflow] = {
     
-    var execs:Map[String,Exec] = Map()
+    var execsExecs:Map[String,Exec] = Map()
 
-    def assembleExec(name0:String,typ:String,data:Option[String],outlet:String = "out-0") = {
+    def assembleExec(execs:Map[String,Exec],name0:String,typ:String,data:Option[String],outlet:String = "out-0",update:Boolean=true) = {
       val (name,inlet) = name0.split("[\\[\\]]").toList match {
         case name :: inlet :: Nil => (name,inlet)
         case name :: Nil => (name,"in-0")
       }
-
-      if(typ == "") {
-        // reference to existing Exec
+      
+      if(typ == "") { 
+        // reference to existing Exec, update lets
         execs.get(name) match {
-          case Some(exec) => Success(exec)
-          case None => Failure(new Exception(s"Exec not found: ${name}"))
+          case Some(exec) =>             
+            if(update) {
+              val exec1 = exec.in.find(_.id == inlet) match {
+                case Some(_) => exec
+                case None => exec.copy(in = exec.in :+ In(inlet))
+              }
+              val exec2 = exec1.out.find(_.id == outlet) match {
+                case Some(_) => exec1
+                case None => exec1.copy(out = exec1.out :+ Out(outlet))
+              }
+              // update map
+              // execs = execs + (exec2.getId -> exec2)    
+              Success(exec2)
+            } else
+              Success(exec.copy(in = Seq(In(inlet)),out=Seq(Out(outlet))))
+          case None => 
+            Failure(new Exception(s"Exec not found: ${name}"))
         }
       } else {
         val typWithClass = if(typ.contains(".")) typ else s"io.syspulse.skel.wf.exec.${typ}"
         val dataMap = if(data.isDefined) Some(data.get.split("[,=]").grouped(2).map(a => a(0) -> a(1)).toMap) else None
         val ex = Exec(name,typWithClass,in = Seq(In(inlet)), out = Seq(Out(outlet)),data = dataMap)
-        execs = execs + (ex.getId -> ex)
+        // execs = execs + (ex.getId -> ex)
         Success(ex)
       }
     }
 
-    val ee = dsl.split("->").map(_.trim).filter(!_.isEmpty()).map( e => {
+    def parseExec(e:String,execs:Map[String,Exec],update:Boolean=true) = {
       e.split("[()]").toList match {
         case name :: typ :: data :: outlet :: Nil if(outlet.startsWith("[")) =>
-          assembleExec(name,typ,Some(data),outlet.stripPrefix("[").stripSuffix("]"))
+          assembleExec(execs,name,typ,if(data.isEmpty()) None else Some(data),outlet.stripPrefix("[").stripSuffix("]"),update=update)
         case name :: typ :: data :: "" :: outlet :: Nil if(outlet.startsWith("[")) =>
-          assembleExec(name,typ,Some(data),outlet.stripPrefix("[").stripSuffix("]"))
+          assembleExec(execs,name,typ,if(data.isEmpty()) None else Some(data),outlet.stripPrefix("[").stripSuffix("]"),update=update)
+        case name :: typ :: outlet :: Nil if(outlet.startsWith("[")) =>
+          assembleExec(execs,name,typ,None,outlet.stripPrefix("[").stripSuffix("]"),update=update)
         case name :: "" :: outlet :: Nil if(outlet.startsWith("[")) =>
-          assembleExec(name,"",None,outlet.stripPrefix("[").stripSuffix("]"))
+          assembleExec(execs,name,"",None,outlet.stripPrefix("[").stripSuffix("]"),update=update)
         case name :: typ :: data :: Nil =>
-          assembleExec(name,typ,Some(data))
+          assembleExec(execs,name,typ,if(data.isEmpty()) None else Some(data),update=update)
         case name :: typ :: Nil => 
-          assembleExec(name,typ,None)
+          assembleExec(execs,name,typ,None,update=update)
         case name :: Nil => 
-          assembleExec(name,"",None)
+          assembleExec(execs,name,"",None,update=update)
         case _ => 
           Failure(new Exception(s"failed to parse: ${e}"))
       }
-    }).toList
+    }
 
+    val ee = script.split("\n").filter(!_.trim.isEmpty).map(dsl => 
+      dsl.split("->").map(_.trim).filter(!_.isEmpty()).map( e => {
+        parseExec(e,execsExecs,true).map(ex => {
+          execsExecs = execsExecs + (ex.getId -> ex)
+          ex
+        })
+      })
+    ).flatten
+    
     val eeFailed = ee.filter(_.isFailure)
     if(eeFailed.size > 0) {
       return eeFailed.head.map(_ => this)
     }
 
-    def assembleLinks(ee:List[Exec]):Seq[Link] = {
-      println(s"${ee}")
-      ee match {
+    def assembleLinks(ee:Seq[Exec]):Seq[Link] = {
+      //println(s"${ee}")
+      ee.toList match {
         case exec1 :: exec2 :: Nil  => 
           Seq(linkExecs(exec1,exec2,0,0).get)
         case exec1 :: Nil =>
@@ -126,12 +152,26 @@ case class Workflow(
         case Nil => 
           Seq()
       }
-    }
+    }    
 
+    val flow = execsExecs.values.toList
+
+    var execsLinks:Map[String,Exec] = Map()
     // create links
-    val links = assembleLinks(ee.map(_.toOption.get))
+    //val links = assembleLinks(ee.map(_.toOption.get))
 
-    val flow = execs.values.toList
+    // treat each line as possible pipeline
+    val links = script.split("\n").filter(!_.trim.isEmpty).map(dsl => {
+      val ee = dsl.split("->").map(_.trim).filter(!_.isEmpty()).map(line => {
+        val ex = parseExec(line,execsLinks,false).get
+        execsLinks = execsLinks + (ex.getId -> ex)
+        ex     
+      })
+
+      assembleLinks(ee.toIndexedSeq)
+
+    }).flatten.toSeq
+        
 
     Success(Workflow(id,name,Map(),flow,links))
   }

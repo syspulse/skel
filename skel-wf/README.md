@@ -100,8 +100,11 @@ echo "Event" >/tmp/skel-wf/test/FIFO
 5. Parameterzied inputs and variable replacements
 
 ```
+./run-wf.sh wf assemble wf-7 'F1(CronExec(cron=1000))->F2(HttpClientExec(http.uri=http://localhost:8300))->F3(LogExec(sys=2))'
+
 cat inputs.conf 
 http.body={"from":"2023","addr":"{addr}"}
 
-./run-wf.sh runtime emit wf-7-1681759525495 F-0 file://inputs.conf 'addr=0x1111'
+./run-wf.sh runtime emit wf-7-1681759525495 F1 file://inputs.conf 'addr=0x1111'
 ```
+

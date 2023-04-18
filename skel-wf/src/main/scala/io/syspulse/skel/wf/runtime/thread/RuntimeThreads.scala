@@ -29,8 +29,12 @@ class RunningThread(link:Linking) extends Running {
   }
 
   override def !(e: ExecEvent):Try[RunningThread] = {
-    queue.put(e)
-    Success(this)
+    try {
+      queue.put(e)
+      Success(this)
+    } catch {
+      case e:Exception => Failure(e)
+    }
   }
 
   def start():Try[RunningThread] = {

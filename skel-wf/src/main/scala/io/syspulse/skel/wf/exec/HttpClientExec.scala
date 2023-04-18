@@ -159,9 +159,10 @@ class HttpClientExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) ex
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
     var body = getAttr("http.body",data).getOrElse("").asInstanceOf[String]
     log.info(s"body=${body}")                       
-    val data1 = --->(uri,Option.when(!body.isEmpty)(body)) match {
+    
+    --->(uri,Option.when(!body.isEmpty)(body)) match {
       case Success(res) => 
-        data.copy(attr = data.attr + ("http.res" -> res) ++ {
+        val data1 = data.copy(attr = data.attr + ("http.res" -> res) ++ {
         if(decode) {
           try {
             ujson.read(res).obj.map{case (k,v) => {
@@ -180,12 +181,12 @@ class HttpClientExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) ex
         } else
           Map[String,Any]()
         })
-      case f => 
-        data
+
+        broadcast(data1)
+        Success(ExecDataEvent(data1))
+      case Failure(e) => 
+        Failure(e)
     }
-    
-    broadcast(data1)
-    Success(ExecDataEvent(data1))
   }
 }
 

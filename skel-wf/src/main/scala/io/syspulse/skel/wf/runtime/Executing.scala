@@ -155,7 +155,9 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
 
         var r:Option[Try[ExecEvent]] = None
         do {
+          // execute 
           r = Some(exec(in,ExecData(d.attr)))
+          
           r.get match {
             case Success(e1) => 
               e1 match {

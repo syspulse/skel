@@ -32,8 +32,14 @@ class FifoExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends 
         val d = rafInput.get.readLine()
         
         log.info(s"${d} <<- Fifo[${file}]")
-
-        broadcast(ExecData(Map("input" -> d)))
+        
+        if(d != null) {
+          broadcast(ExecData(Map("input" -> d)))
+        } else {
+          // don't do anything, exit
+          log.warn(s"could not read from: ${rafInput}, stopping")
+          terminated = true
+        }        
       }      
     }
   }
