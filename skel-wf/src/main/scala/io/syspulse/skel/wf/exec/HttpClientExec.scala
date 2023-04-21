@@ -49,7 +49,7 @@ class HttpClientExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) ex
   val decode = dataExec.get("http.res.decode").getOrElse(true).asInstanceOf[Boolean]
 
   import HttpClientExec._
-  val timeout = FiniteDuration(10,TimeUnit.SECONDS)
+  val timeout = FiniteDuration(dataExec.get("http.timeout").getOrElse(3000L).asInstanceOf[Long],TimeUnit.MILLISECONDS)
   
   case class Request(uri:String,verb:HttpMethod,headers:Map[String,String]=Map(),body:Option[String] = None,async:Boolean=false,json:Boolean=false) {
     def getHeaders:Seq[HttpHeader] = headers.map{ case(k,v) => RawHeader(k,v) }.toSeq 
@@ -133,7 +133,7 @@ class HttpClientExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) ex
     } yield r1
 
     try {
-      Await.result(f,FiniteDuration(3000L,TimeUnit.MILLISECONDS)).map(_.utf8String)
+      Await.result(f,timeout).map(_.utf8String)
     } catch {
       case e:Exception => 
         log.warn(s"send failed:",e)
@@ -149,9 +149,9 @@ class HttpClientExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) ex
     //       Future(Failure(new Exception(s"${rsp.status}")))        
     // } yield r
 
-    // Await.result(f,FiniteDuration(3000L,TimeUnit.MILLISECONDS)).map(_.utf8String)
+    // Await.result(f,timeout).map(_.utf8String)
     // // if(!req.async)
-    // //   Await.result(f,FiniteDuration(3000L,TimeUnit.MILLISECONDS)).map(_.utf8String)
+    // //   Await.result(f,timeout).map(_.utf8String)
     // // else 
     // //   Success(f.toString)    
   }

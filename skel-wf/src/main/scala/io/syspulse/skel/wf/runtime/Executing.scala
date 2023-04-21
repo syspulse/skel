@@ -113,9 +113,13 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
   }
 
   def broadcast(data:ExecData) = {
+    // ignore Error outlets (starting with 'err-')
     log.debug(s"${data}: Broadcast >>> [${outputs.values}]")
-    outputs.values.map( linking => {
-      linking.input(ExecDataEvent(data))
+    outputs
+      .filter{case(k,v)=> ! k.startsWith("err")}
+      .values      
+      .map( linking => {
+        linking.input(ExecDataEvent(data))
     })
   }
 
@@ -153,12 +157,12 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
         var retryMax = getAttr("retry.max",d).getOrElse(0).asInstanceOf[Int]
         var retryDelay = getAttr("retry.delay",d).getOrElse(1000L).asInstanceOf[Long]
 
-        var r:Option[Try[ExecEvent]] = None
+        var ro:Option[Try[ExecEvent]] = None
         do {
           // execute 
-          r = Some(exec(in,ExecData(d.attr)))
+          ro = Some(exec(in,ExecData(d.attr)))
           
-          r.get match {
+          ro.get match {
             case Success(e1) => 
               e1 match {
                 case ExecDataEvent(data1) =>
@@ -189,9 +193,18 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
                 stateStore.map(_.commit(wid,id, d,status = Some(f.toString)))
               }
           }          
-        } while( r.get.isFailure && retry <= retryMax )
+        } while( ro.get.isFailure && retry <= retryMax )
 
-        r.get
+        val result = ro.get
+        result match {
+          case Failure(e) => 
+            // try to send to "err-0"
+            send("err-0",ExecData(d.attr + ("error"->e.getMessage)))
+          case _ => 
+            // nothing to do for success
+        }
+        
+        result
 
       case e @ ExecCmdStop(who) =>
         // internal command to stop Runtime
