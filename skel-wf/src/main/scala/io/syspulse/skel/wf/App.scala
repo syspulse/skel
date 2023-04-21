@@ -115,9 +115,15 @@ object App extends skel.Server {
         reg.execs.mkString("\n")
 
       case "wf" => config.params match {
-        case ("assemble" | "assembly") :: name :: dsl => 
+        case ("assemble" | "assembly") :: name :: assembly => 
+          
+          val dsl = if(assembly.head.startsWith("file://")) {
+            os.read(os.Path(assembly.head.stripPrefix("file://"),os.pwd))
+          } else 
+            assembly.mkString(" ")
+
           val wf = for {
-            wf <- Workflow.assemble(s"${name}",name,dsl.mkString(" "))
+            wf <- Workflow.assemble(s"${name}",name,dsl)
             wf <- storeWorkflow.+(wf).map(_ => wf)
           } yield wf
           wf
