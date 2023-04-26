@@ -22,7 +22,7 @@ sealed case class ExecCmdRunningRes(r:Running) extends ExecEvent
 
 case class LinkAddr(exec:Executing,let:String)
 
-case class Linking(from:LinkAddr,to:LinkAddr) {
+case class Linking(from:LinkAddr,to:LinkAddr,var count:Long=0L) {
   val log = Logger(s"${this}")
 
   var running:Option[Running] = None
@@ -34,9 +34,11 @@ case class Linking(from:LinkAddr,to:LinkAddr) {
   def input(e: ExecEvent) = {
     log.debug(s"${e} ---> Running(${running})")
     running match {
-      case Some(r) => r.!(e)
+      case Some(r) => 
+        count = count + 1
+        r.!(e)
       case None => 
-        log.warn(s"not bound Running: ${running}: ${e}")
+        log.warn(s"no bound Running: ${running}: ${e}")
     }
     
   }

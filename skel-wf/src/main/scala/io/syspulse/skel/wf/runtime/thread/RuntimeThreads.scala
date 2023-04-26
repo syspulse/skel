@@ -9,13 +9,13 @@ import scala.util.{Try,Success,Failure}
 import io.syspulse.skel.wf.runtime._
 import io.syspulse.skel.wf._
 
-class RunningThread(link:Linking) extends Running {
+class RunningThread(link:Linking,queueSize:Int = 1999) extends Running {
   val log = Logger(s"${this}")
   
   @volatile
   var terminated = false
   // ATTENTION: Queue size is important for SeqExec
-  val queue = new ArrayBlockingQueue[ExecEvent](1999)
+  val queue = new ArrayBlockingQueue[ExecEvent](queueSize)
 
   val thr = new Thread() {
     override def run() = {
