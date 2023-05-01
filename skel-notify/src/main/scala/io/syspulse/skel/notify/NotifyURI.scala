@@ -12,6 +12,7 @@ import io.syspulse.skel.notify.email.NotifyEmail
 import io.syspulse.skel.notify.ws.NotifyWebsocket
 import io.syspulse.skel.notify.telegram.NotifyTelegram
 import io.syspulse.skel.notify.kafka.NotifyKafka
+import io.syspulse.skel.notify.user.NotifyUser
 
 import io.syspulse.skel.util.Util
 
@@ -40,6 +41,8 @@ object NotifyUri {
 
       case "http" :: _ => new NotifyHttp(uri)
       case "https" :: _ => new NotifyHttp(uri)
+
+      case "user" :: Nil => new NotifyUser()
 
       case _ => new NotifyStdout
     }    

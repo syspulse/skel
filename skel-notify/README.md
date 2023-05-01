@@ -71,7 +71,7 @@ SMTP_HOST=mail.server.org:465 SMTP_USER=user SMTP_PASS=pass ./run-notify.sh noti
 ### Send to Websocket
 
 ```
-./run-notify.sh server+notify
+./run-notify.sh server
 ```
 
 Connect WS clients:
@@ -123,4 +123,27 @@ __NOTE__: How disrespectful you have to be to design API like this !?...
 source telegram-test.env
 
 ./run-notify.sh notify "tel://$CHANNEL_ID/$BOT_KEY" Title Message
+```
+
+### Push Notification to User
+
+__ATTENTION__: uri is `api/v1/notify/user` 
+
+Connect User clients:
+
+```
+wscat --connect ws://localhost:8080/api/v1/notify/user/00000000-0000-0000-1000-000000000001
+wscat --connect ws://localhost:8080/api/v1/notify/user/00000000-0000-0000-1000-000000000002
+```
+
+Notify specific client
+
+```
+./run-notify.sh client notify user:// Alarm Attention!! 10 00000000-0000-0000-1000-000000000001
+```
+
+Notify ALL connected clients (via websocket)
+
+```
+./run-notify.sh client notify user:// Alarm Attention!!! 100 sys.all
 ```

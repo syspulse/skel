@@ -40,6 +40,7 @@ case class Config(
   telegramUri:String = "tel://skel-notify/${BOT_KEY}",
 
   timeout:Long = 10000L,
+  timeoutIdle:Long = 1000L*60*10,
 
   cmd:String = "notify",
   params: Seq[String] = Seq(),
@@ -70,6 +71,7 @@ object App extends skel.Server {
         ArgString('_', "telegram.uri",s"Telegram uri (def: ${d.telegramUri})"),
 
         ArgLong('_', "timeout",s"timeout (msec, def: ${d.timeout})"),
+        ArgLong('_', "timeout.idle",s"timeout for Idle WS connection (msec, def: ${d.timeoutIdle})"),
         
         ArgCmd("server",s"Server"),
         ArgCmd("client",s"Command"),
@@ -95,6 +97,7 @@ object App extends skel.Server {
       telegramUri = c.getString("telegram.uri").getOrElse(Configuration.withEnv(d.telegramUri)),
 
       timeout = c.getLong("timeout").getOrElse(d.timeout),
+      timeoutIdle = c.getLong("timeout.idle").getOrElse(d.timeoutIdle),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -116,7 +119,8 @@ object App extends skel.Server {
       case "server" => 
         run( config.host, config.port,config.uri,c,
           Seq(
-            (Behaviors.ignore,"",(actor,actorSystem) => new WsNotifyRoutes()(actorSystem) ),
+            (Behaviors.ignore,"WS-Notify",(actor,actorSystem) => new WsNotifyRoutes(config.timeoutIdle)(actorSystem) ),
+            (Behaviors.ignore,"WS-Users",(actor,actorSystem) => new WsNotifyRoutes(config.timeoutIdle,"user")(actorSystem) ),
             (NotifyRegistry(store),"NotifyRegistry",(r, ac) => new NotifyRoutes(r)(ac) )
           )
         )
@@ -128,7 +132,8 @@ object App extends skel.Server {
       case "server+notify" => 
         run( config.host, config.port,config.uri,c,
           Seq(
-            (Behaviors.ignore,"",(actor,actorSystem) => new WsNotifyRoutes()(actorSystem) ),
+            (Behaviors.ignore,"WS-Notify",(actor,actorSystem) => new WsNotifyRoutes(config.timeoutIdle)(actorSystem) ),
+            (Behaviors.ignore,"WS-Users",(actor,actorSystem) => new WsNotifyRoutes(config.timeoutIdle,"user")(actorSystem) ),
             (NotifyRegistry(store),"NotifyRegistry",(r, ac) => new NotifyRoutes(r)(ac) )
           )
         )
