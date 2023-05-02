@@ -1,4 +1,4 @@
-package io.syspulse.skel.lake.job.server
+package io.syspulse.skel.job.server
 
 import scala.util.Try
 
@@ -49,10 +49,10 @@ import scala.concurrent.duration.Duration
 import io.syspulse.skel.auth.permissions.rbac.Permissions
 import io.syspulse.skel.auth.RouteAuthorizers
 
-import io.syspulse.skel.lake.job._
-import io.syspulse.skel.lake.job.store._
-import io.syspulse.skel.lake.job.server.JobJson
-import io.syspulse.skel.lake.job.server._
+import io.syspulse.skel.job._
+import io.syspulse.skel.job.store._
+import io.syspulse.skel.job.server.JobJson
+import io.syspulse.skel.job.server._
 
 import JobRegistry._
 import java.util.concurrent.TimeUnit

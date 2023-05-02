@@ -1,6 +1,6 @@
-package io.syspulse.skel.lake.job.livy
+package io.syspulse.skel.job.livy
 
-import io.syspulse.skel.lake.job._
+import io.syspulse.skel.job._
 import io.syspulse.skel.service.JsonCommon
 
 case class LivySessionAppInfo(driverLogUrl:Option[String],sparkUiUrl:Option[String])

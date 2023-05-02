@@ -1,4 +1,4 @@
-package io.syspulse.skel.lake.job
+package io.syspulse.skel.job
 
 import scala.util.Random
 

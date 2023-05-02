@@ -1,4 +1,4 @@
-package io.syspulse.skel.lake.job.store
+package io.syspulse.skel.job.store
 
 import scala.util.Try
 import scala.util.{Success,Failure}
@@ -11,10 +11,10 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
-import io.syspulse.skel.lake.job.Config
-import io.syspulse.skel.lake.job.Job
-import io.syspulse.skel.lake.job.JobEngine
-import io.syspulse.skel.lake.job.server.Jobs
+import io.syspulse.skel.job.Config
+import io.syspulse.skel.job.Job
+import io.syspulse.skel.job.JobEngine
+import io.syspulse.skel.job.server.Jobs
 
 class JobStoreMem(engine:JobEngine)(implicit config:Config) extends JobStore {
   val log = Logger(s"${this}")

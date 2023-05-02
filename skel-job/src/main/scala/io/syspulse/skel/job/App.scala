@@ -1,4 +1,4 @@
-package io.syspulse.skel.lake.job
+package io.syspulse.skel.job
 
 import scala.util.Try
 import scala.util.Random
@@ -15,9 +15,9 @@ import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
-import io.syspulse.skel.lake.job.livy._
-import io.syspulse.skel.lake.job.server._
-import io.syspulse.skel.lake.job.store._
+import io.syspulse.skel.job.livy._
+import io.syspulse.skel.job.server._
+import io.syspulse.skel.job.store._
 
 case class Config(
   host:String="0.0.0.0",
@@ -41,12 +41,11 @@ object App extends skel.Server {
     Console.err.println(s"args: '${args.mkString(",")}'")
 
     val d = Config()
-
     val c = Configuration.withPriority(Seq(
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv, 
-      new ConfigurationArgs(args,"lake-job","",
+      new ConfigurationArgs(args,"skel-job","",
         ArgString('h', "http.host",s"listen host (def: ${d.host})"),
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),

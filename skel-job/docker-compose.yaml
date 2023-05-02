@@ -1,0 +1,22 @@
+version: '3'
+
+networks:
+  demo:
+
+services:
+  skel-job:
+    privileged: true
+    image: syspulse/skel-job:latest
+    container_name: skel-job
+    restart: always
+    ports:
+      - 8080:8080
+    volumes:
+      - "${PWD}/store:/store"
+    networks:
+      - demo
+    command: server
+    environment:
+      JAVA_OPTS: -Dgod
+      DATASTORE: dir:///store/job
+      POLL: 10000

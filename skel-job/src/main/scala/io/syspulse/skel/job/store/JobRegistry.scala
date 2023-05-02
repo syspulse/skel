@@ -1,4 +1,4 @@
-package io.syspulse.skel.lake.job.store
+package io.syspulse.skel.job.store
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
@@ -10,10 +10,10 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.Command
 
-import io.syspulse.skel.lake.job._
+import io.syspulse.skel.job._
 import scala.util.Try
 
-import io.syspulse.skel.lake.job.server.{JobSubmitReq, JobRes, Jobs}
+import io.syspulse.skel.job.server.{JobSubmitReq, JobRes, Jobs}
 
 object JobRegistry {
   val log = Logger(s"${this}")

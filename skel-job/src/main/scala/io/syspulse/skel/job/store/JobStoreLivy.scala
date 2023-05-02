@@ -1,4 +1,4 @@
-package io.syspulse.skel.lake.job.store
+package io.syspulse.skel.job.store
 
 import scala.util.Try
 import scala.util.{Success,Failure}
@@ -11,9 +11,9 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
-import io.syspulse.skel.lake.job._
-import io.syspulse.skel.lake.job.Job.ID
-import io.syspulse.skel.lake.job.livy.LivyHttp
+import io.syspulse.skel.job._
+import io.syspulse.skel.job.Job.ID
+import io.syspulse.skel.job.livy.LivyHttp
 
 // class JobStoreLivy(engine:JobEngine,uri:String)(implicit config:Config) extends JobStore {
 //   val log = Logger(s"${this}")

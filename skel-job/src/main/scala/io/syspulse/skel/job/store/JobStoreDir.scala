@@ -1,4 +1,4 @@
-package io.syspulse.skel.lake.job.store
+package io.syspulse.skel.job.store
 
 import scala.util.Try
 import scala.util.{Success,Failure}
@@ -12,12 +12,12 @@ import io.jvm.uuid._
 import spray.json._
 import DefaultJsonProtocol._
 
-import io.syspulse.skel.lake.job.Config
+import io.syspulse.skel.job.Config
 import io.syspulse.skel.store.StoreDir
-import io.syspulse.skel.lake.job.Job
-import io.syspulse.skel.lake.job.server.JobJson._
-import io.syspulse.skel.lake.job.JobEngine
-import io.syspulse.skel.lake.job.server.Jobs
+import io.syspulse.skel.job.Job
+import io.syspulse.skel.job.server.JobJson._
+import io.syspulse.skel.job.JobEngine
+import io.syspulse.skel.job.server.Jobs
 
 // Preload from file during start
 class JobStoreDir(engine:JobEngine,dir:String = "store/")(implicit config:Config) extends StoreDir[Job,UUID](dir) with JobStore {

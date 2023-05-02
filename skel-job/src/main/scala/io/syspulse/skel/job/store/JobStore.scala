@@ -1,4 +1,4 @@
-package io.syspulse.skel.lake.job.store
+package io.syspulse.skel.job.store
 
 import scala.util.{Try,Success,Failure}
 import scala.collection.immutable
@@ -7,10 +7,10 @@ import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skel.store.Store
 
-import io.syspulse.skel.lake.job._
+import io.syspulse.skel.job._
 
-import io.syspulse.skel.lake.job.Job.ID
-import io.syspulse.skel.lake.job.server.Jobs
+import io.syspulse.skel.job.Job.ID
+import io.syspulse.skel.job.server.Jobs
 
 trait JobStore extends Store[Job,ID] {
   private val log = Logger(s"${this}")

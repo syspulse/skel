@@ -1,4 +1,4 @@
-package io.syspulse.skel.lake.job.livy
+package io.syspulse.skel.job.livy
 
 import scala.util.Random
 
@@ -31,8 +31,8 @@ import akka.actor
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 
-import io.syspulse.skel.lake.job._
-import io.syspulse.skel.lake.job.livy._
+import io.syspulse.skel.job._
+import io.syspulse.skel.job.livy._
 
 object LivyHttp {
   implicit val as:actor.ActorSystem = actor.ActorSystem("LivyHttp-System")

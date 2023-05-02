@@ -1,10 +1,10 @@
-package io.syspulse.skel.lake.job.server
+package io.syspulse.skel.job.server
 
 import scala.collection.immutable
 
 import io.jvm.uuid._
 
-import io.syspulse.skel.lake.job.Job
+import io.syspulse.skel.job.Job
 
 final case class Jobs(jobs: immutable.Seq[Job],total:Option[Long])
 

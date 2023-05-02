@@ -1,4 +1,4 @@
-package io.syspulse.skel.lake.job.server
+package io.syspulse.skel.job.server
 
 import io.syspulse.skel.service.JsonCommon
 
@@ -6,8 +6,8 @@ import spray.json.DefaultJsonProtocol
 
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsString, JsValue, JsonFormat, deserializationError}
 
-import io.syspulse.skel.lake.job.Job
-import io.syspulse.skel.lake.job.server._
+import io.syspulse.skel.job.Job
+import io.syspulse.skel.job.server._
 
 object JobJson extends JsonCommon {
   

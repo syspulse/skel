@@ -886,7 +886,7 @@ lazy val skel_wf = (project in file("skel-wf"))
     )
   )
 
-lazy val lake_job = (project in file("skel-lake/lake-job"))
+lazy val skel_job = (project in file("skel-job"))
   .dependsOn(core,notify_core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .enablePlugins(JavaAppPackaging)
@@ -898,7 +898,7 @@ lazy val lake_job = (project in file("skel-lake/lake-job"))
     sharedConfigDocker,
     dockerBuildxSettings,
     
-    appDockerConfig("lake-job","io.syspulse.skel.lake.job.App"),
+    appDockerConfig("skel-job","io.syspulse.skel.job.App"),
 
     libraryDependencies ++= libTest ++ Seq(
       libOsLib,
