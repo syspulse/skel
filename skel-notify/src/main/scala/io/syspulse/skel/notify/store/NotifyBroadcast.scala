@@ -13,12 +13,12 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.notify._
 
-class NotifyStoreAll(implicit config:Config) extends NotifyStore {
-  val log = Logger(s"${this}")
-  def +(notify:Notify):Try[NotifyStore] = {     
+abstract class NotifyBroadcast(implicit config:Config) {
+  private val log = Logger(s"${this}")
+  
+  def broadcast(notify:Notify):Try[NotifyBroadcast] = {     
     
     val (receivers,_,_) = Notification.parseUri(notify.to.getOrElse("").split("\\s+").toList)
-
     val rr = Notification.broadcast(receivers.receviers, notify.subj.getOrElse(""), notify.msg, notify.severity, notify.scope)
     
     log.info(s"${notify}: ${rr}")

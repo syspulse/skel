@@ -18,7 +18,7 @@ import io.syspulse.skel.user.server.UserRoutes
 import io.syspulse.skel.notify
 import io.syspulse.skel.notify.NotifyService
 import io.syspulse.skel.notify.store.NotifyRegistry
-import io.syspulse.skel.notify.store.NotifyStoreAll
+import io.syspulse.skel.notify.store.NotifyStoreMem
 import io.syspulse.skel.notify.server.NotifyRoutes
 
 import io.syspulse.skel.enroll.store.{EnrollRegistry,EnrollStoreMem,EnrollStoreAkka}
@@ -170,7 +170,7 @@ object App extends skel.Server {
               .withSuffix("enroll")
             ),
             (UserRegistry(new UserStoreMem),"UserRegistry",(a, ac) => new UserRoutes(a)(ac,userConfig).withSuffix("user") ),
-            (NotifyRegistry(new NotifyStoreAll()),"NotifyRegistry",(a, ac) => new NotifyRoutes(a)(ac).withSuffix("notify") )
+            (NotifyRegistry(new NotifyStoreMem()),"NotifyRegistry",(a, ac) => new NotifyRoutes(a)(ac).withSuffix("notify") )
           )
         )
         

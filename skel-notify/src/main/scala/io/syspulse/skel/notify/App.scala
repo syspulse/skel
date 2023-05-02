@@ -5,6 +5,9 @@ import scala.util.Random
 import scala.concurrent.duration.Duration
 import scala.concurrent.Future
 import scala.concurrent.Await
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
+
 import akka.actor.typed.scaladsl.Behaviors
 
 import io.jvm.uuid._
@@ -23,14 +26,14 @@ import io.syspulse.skel.notify.aws.NotifySNS
 import io.syspulse.skel.notify.email.NotifyEmail
 import io.syspulse.skel.notify.ws.NotifyWebsocket
 import io.syspulse.skel.notify.telegram.NotifyTelegram
-import scala.concurrent.duration.FiniteDuration
-import java.util.concurrent.TimeUnit
+
+import io.syspulse.skel.notify.store._
 
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
   uri:String = "/api/v1/notify",
-  datastore:String = "all",
+  datastore:String = "mem://",
 
   smtpUri:String = "smtp://${SMTP_HOST}/${SMTP_USER}/${SMTP_PASS}",
   smtpFrom:String = "admin@syspulse.io",
@@ -61,7 +64,7 @@ object App extends skel.Server {
         ArgString('h', "http.host",s"listen host (def: ${d.host})"),
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
-        ArgString('d', "datastore",s"datastore [all] (def: ${d.datastore})"),
+        ArgString('d', "datastore",s"datastore [mem://] (def: ${d.datastore})"),
 
         ArgString('_', "smtp.uri",s"STMP uri (def: ${d.smtpUri})"),
         ArgString('_', "smtp.from",s"From who to send to (def: ${d.smtpFrom})"),
@@ -105,13 +108,13 @@ object App extends skel.Server {
 
     Console.err.println(s"Config: ${config}")
 
-    val store = config.datastore match {
+    val store = config.datastore.split("://").toList match {
       // case "mysql" | "db" => new NotifyStoreDB(c,"mysql")
       // case "postgres" => new NotifyStoreDB(c,"postgres")
-      case "all" => new NotifyStoreAll
+      case "mem" :: Nil => new NotifyStoreMem
       case _ => {
-        Console.err.println(s"Unknown datastore: '${config.datastore}': using 'all'")
-        new NotifyStoreAll
+        Console.err.println(s"Unknown datastore: '${config.datastore}'")
+        sys.exit(1)
       }
     }
 
