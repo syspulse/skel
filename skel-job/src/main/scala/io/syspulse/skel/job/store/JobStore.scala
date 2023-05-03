@@ -6,9 +6,10 @@ import io.jvm.uuid._
 import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skel.store.Store
+import io.syspulse.skel.notify.NotifyService
+import io.syspulse.skel.notify.NotifySeverity
 
 import io.syspulse.skel.job._
-
 import io.syspulse.skel.job.Job.ID
 import io.syspulse.skel.job.server.Jobs
 
@@ -102,8 +103,16 @@ trait JobStore extends Store[Job,ID] {
               removing = true
             }
 
-            if(removing || j1.isFailure)
+            if(removing || j1.isFailure) {
+              // send notify
+              NotifyService.notify(
+                s"user://${j0.uid}",
+                subj = "",
+                msg = s"""{"typ":"job","id":"${j0.id}"}""",
+                if(j1.isFailure) Some(NotifySeverity.ERROR) else Some(NotifySeverity.INFO),
+                Some("sys.job"))
               None
+            }
             else
               Some(j1.get)
           })

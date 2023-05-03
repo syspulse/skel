@@ -15,6 +15,7 @@ object NotifySeverity {
   
   val CRITICAL = 0
   val ALERT = 1
+  val ERROR = 2
   val WARNING = 3
   val INFO = 5
 }

@@ -15,6 +15,8 @@ import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
+import io.syspulse.skel.notify.NotifyService
+
 import io.syspulse.skel.job.livy._
 import io.syspulse.skel.job.server._
 import io.syspulse.skel.job.store._
@@ -30,6 +32,8 @@ case class Config(
   poll:Long = 3000L,
 
   engine:String = "livy://http://emr.hacken.cloud:8998",
+
+  notifyUri:String = "http://localhost:8080/api/v1/notify",
 
   cmd:String = "job",
   params: Seq[String] = Seq(),
@@ -54,6 +58,8 @@ object App extends skel.Server {
         
         ArgLong('_', "timeout",s"timeout (msec, def: ${d.timeout})"),
         ArgLong('_', "poll",s"poll interval (msec, def: ${d.poll})"),
+
+        ArgString('_', "notify.uri",s"Notify Service URI (def: ${d.notifyUri})"),
         
         ArgCmd("server",s"Server"),
         ArgCmd("client",s"Command"),
@@ -72,6 +78,8 @@ object App extends skel.Server {
       
       timeout = c.getLong("timeout").getOrElse(d.timeout),
       poll = c.getLong("poll").getOrElse(d.poll),
+
+      notifyUri = c.getString("notify.uri").getOrElse(d.notifyUri),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -95,11 +103,14 @@ object App extends skel.Server {
     }
 
     config.cmd match {
-      case "server" => 
+      case "server" =>         
         val store = getStore()
         run( config.host, config.port, config.uri, c,
           Seq(
-            (JobRegistry(store),"JobRegistry",(r, ac) => new JobRoutes(r)(ac) )
+            (JobRegistry(store),"JobRegistry",(actor, context) => {
+              NotifyService.discover(config.notifyUri)(context.system)
+              new JobRoutes(actor)(context) 
+            })
           )
         )      
       case "client" => {        
