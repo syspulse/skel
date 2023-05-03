@@ -60,8 +60,9 @@ class JobStoreMem(engine:JobEngine)(implicit config:Config) extends JobStore {
 
   def ??(uid:Option[UUID],state:Option[String]=None):Try[Jobs] = {
     log.info(s"??: ${uid},${state}")
-    val jj = jobs.values.filter( j =>
-      (uid == None || Some(j.id) == uid) && 
+    val jj = jobs.values.filter( j => {
+      //log.debug(s"??: ${uid}: ${j.uid}: state=${state}")
+      (uid == None || j.uid == uid) && 
       (state == None || 
         (
           if(state.get.startsWith("!"))
@@ -70,7 +71,7 @@ class JobStoreMem(engine:JobEngine)(implicit config:Config) extends JobStore {
             state.get.toLowerCase == j.state.toLowerCase
         )
       )
-    ).toSeq
+    }).toSeq
     Success(Jobs(jj,Some(jj.size)))
   }
 

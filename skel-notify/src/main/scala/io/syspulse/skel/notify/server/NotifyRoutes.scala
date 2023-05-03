@@ -73,7 +73,7 @@ class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
   def getNotifyUser(uid:UUID,fresh:Boolean): Future[Notifys] = registry.ask(GetNotifyUser(uid,fresh, _))
   def ackNotifyUser(uid:UUID,req:NotifyAckReq): Future[Try[Notify]] = registry.ask(AckNotifyUser(uid,req, _))
  
-  @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @POST @Path("/users") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("notify"),summary = "Ack Notify",
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[NotifyAckReq])))),

@@ -132,7 +132,7 @@ class JobRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) 
   }
 
   @DELETE @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("user"),summary = "Delete User by id",
+  @Operation(tags = Array("job"),summary = "Delete Job by id",
     parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "Job ID")),
     responses = Array(
       new ApiResponse(responseCode = "200", description = "Job deleted",content = Array(new Content(schema = new Schema(implementation = classOf[Job])))))

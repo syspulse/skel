@@ -51,7 +51,9 @@ trait JobStore extends Store[Job,ID] {
         running = true
 
         while(running) {
-          log.info(s"watcher: ${runningJobs.size}")
+          if(runningJobs.size > 0)
+            log.info(s"watcher: ${runningJobs.size}")
+            
           runningJobs = runningJobs.flatMap( j0 => {          
             log.info(s"watcher: ${j0}")
             var removing = false
