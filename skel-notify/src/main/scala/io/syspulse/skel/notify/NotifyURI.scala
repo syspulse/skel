@@ -43,6 +43,7 @@ object NotifyUri {
       case "https" :: _ => new NotifyHttp(uri)
 
       case "user" :: Nil => new NotifyUser()
+      case "user" :: user :: Nil => new NotifyUser(Some(user))
 
       case _ => new NotifyStdout
     }    

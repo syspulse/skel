@@ -9,13 +9,15 @@ import io.jvm.uuid._
 import io.syspulse.skel.notify.NotifyReceiver
 import io.syspulse.skel.notify.server.WS
 
-class NotifyUser() extends NotifyReceiver[Long] {
+class NotifyUser(user:Option[String] = None) extends NotifyReceiver[Long] {
   val log = Logger(s"${this}")
 
   // scope is user id or global
   def send(title:String,msg:String,severity:Option[Int],scope:Option[String]):Try[Long] = {
-    log.info(s"-> User(${scope})")
-    val loggedUsers = scope match {
+    val u = if(user.isDefined) user else scope
+    log.info(s"-> User(${u})")
+
+    val loggedUsers = u match {
       case None | Some("sys.all") => 
         // all users, but get only connected users
         WS.all(id = "user")

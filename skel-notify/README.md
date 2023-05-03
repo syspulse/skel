@@ -4,7 +4,7 @@ Simple Notification Servie
 
 ## Run
 
-### Server
+## Server
 
 ```
 ./run-notify.sh server
@@ -18,19 +18,19 @@ Run locally as docker:
 SMTP_HOST=mail.server.org:465 SMTP_USER=user SMTP_PASS=pass SMTP_FROM=no-reply@mail.another-server.org OPT=-Dgod ../tools/run-docker.sh server
 ```
 
-### Send to a group
+## Send to a group
 
 ```
 ./run-notify.sh notify stdout:// email://user-1@domain.com email://user-2@domain.com stdout:// Subject Message
 ```
 
-### Send to AWS SNS arn:
+## Send to AWS SNS arn:
 
 ```
 ./run-notify.sh notify 'sns://arn:aws:sns:eu-west-1:649502643044:notify-topic' Subject Body  
 ```
 
-### Send to email (via STMP)
+## Send to email (via STMP)
 
 __NOTE__: it is important to specify `from` email for valid DNS domain (otherwise it may timeout requesting that domain) !
 
@@ -57,7 +57,7 @@ STARTTLS enforced: `smtp://server:25/user/pass/starttls`
 
 STARTTLS by default: `smtp://server:567/user/pass`
 
-### Send email from AWS SES
+## Send email from AWS SES
 
 1. Configure DKIM
 2. Enabled Custom MAIL FROM : `mail.ses-domain.org`
@@ -68,7 +68,7 @@ STARTTLS by default: `smtp://server:567/user/pass`
 SMTP_HOST=mail.server.org:465 SMTP_USER=user SMTP_PASS=pass ./run-notify.sh notify --smtp.from=admin@mail.ses-domain.org notify email://user@gmail.com
 ```
 
-### Send to Websocket
+## Send to Websocket
 
 ```
 ./run-notify.sh server
@@ -94,7 +94,7 @@ Send (type in stdin while notify is running)
 ws://topic1 Title "Message for Topic-1"
 ```
 
-### Send to Telegram Channel
+## Send to Telegram Channel
 
 1. Create Telegram bot
 
@@ -125,7 +125,7 @@ source telegram-test.env
 ./run-notify.sh notify "tel://$CHANNEL_ID/$BOT_KEY" Title Message
 ```
 
-### Push Notification to User
+## Push Notification to User
 
 __ATTENTION__: uri is `api/v1/notify/user` 
 
@@ -139,6 +139,7 @@ wscat --connect ws://localhost:8080/api/v1/notify/user/00000000-0000-0000-1000-0
 Notify specific client
 
 ```
+./run-notify.sh client notify user://00000000-0000-0000-1000-000000000001 Alarm Attention!! 10
 ./run-notify.sh client notify user:// Alarm Attention!! 10 00000000-0000-0000-1000-000000000001
 ```
 
@@ -146,4 +147,5 @@ Notify ALL connected clients (via websocket)
 
 ```
 ./run-notify.sh client notify user:// Alarm Attention!!! 100 sys.all
+./run-notify.sh client notify user://sys.all Alarm Attention!!! 100
 ```
