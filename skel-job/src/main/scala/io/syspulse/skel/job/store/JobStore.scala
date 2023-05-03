@@ -106,8 +106,8 @@ trait JobStore extends Store[Job,ID] {
             if(removing || j1.isFailure) {
               // send notify
               NotifyService.notify(
-                s"user://${j0.uid}",
-                subj = "",
+                s"user://${j0.uid.getOrElse("")}",
+                subj = j0.name,
                 msg = s"""{"typ":"job","id":"${j0.id}"}""",
                 if(j1.isFailure) Some(NotifySeverity.ERROR) else Some(NotifySeverity.INFO),
                 Some("sys.job"))

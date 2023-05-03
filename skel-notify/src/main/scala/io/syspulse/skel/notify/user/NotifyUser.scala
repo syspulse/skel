@@ -8,6 +8,7 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.notify.NotifyReceiver
 import io.syspulse.skel.notify.server.WS
+import io.syspulse.skel.notify.NotifySeverity
 
 class NotifyUser(user:Option[String] = None) extends NotifyReceiver[Long] {
   val log = Logger(s"${this}")
@@ -30,7 +31,7 @@ class NotifyUser(user:Option[String] = None) extends NotifyReceiver[Long] {
 
     val ts = System.currentTimeMillis
     loggedUsers.foreach{ uid => {
-      val data = s"""{"ts":${ts},"title": "${title}","msg": "${msg}","severity":"${severity}"}"""
+      val data = s"""{"ts":${ts},"title": "${title}","msg": "${msg}","severity":"${severity.getOrElse(NotifySeverity.INFO)}"}"""
       WS.broadcast(s"${uid}", title, data, id = "user")
     }}
 
