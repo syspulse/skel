@@ -37,7 +37,7 @@ object NotifyUri {
       case "kafka" :: _ => new NotifyKafka(uri)
       
       case "syslog" :: Nil => new NotifySyslog(None)
-      case "syslog" :: scope :: Nil => new NotifySyslog(Some(scope))
+      case "syslog" :: channel :: Nil => new NotifySyslog(Some(channel))
 
       case "http" :: _ => new NotifyHttp(uri)
       case "https" :: _ => new NotifyHttp(uri)

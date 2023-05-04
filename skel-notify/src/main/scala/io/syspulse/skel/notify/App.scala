@@ -42,6 +42,8 @@ case class Config(
   
   telegramUri:String = "tel://skel-notify/${BOT_KEY}",
 
+  kafkaUri:String = "kafka://localhost:9092",
+
   timeout:Long = 10000L,
   timeoutIdle:Long = 1000L*60*10,
 
@@ -73,6 +75,8 @@ object App extends skel.Server {
 
         ArgString('_', "telegram.uri",s"Telegram uri (def: ${d.telegramUri})"),
 
+        ArgString('_', "kafka.uri",s"Kafka URI (used in kafka:// and syslog://) (def: ${d.kafkaUri})"),
+
         ArgLong('_', "timeout",s"timeout (msec, def: ${d.timeout})"),
         ArgLong('_', "timeout.idle",s"timeout for Idle WS connection (msec, def: ${d.timeoutIdle})"),
         
@@ -98,6 +102,8 @@ object App extends skel.Server {
       snsUri = c.getString("sns.uri").getOrElse(Configuration.withEnv(d.snsUri)),
 
       telegramUri = c.getString("telegram.uri").getOrElse(Configuration.withEnv(d.telegramUri)),
+
+      kafkaUri = c.getString("kafka.uri").getOrElse(Configuration.withEnv(d.kafkaUri)),
 
       timeout = c.getLong("timeout").getOrElse(d.timeout),
       timeoutIdle = c.getLong("timeout.idle").getOrElse(d.timeoutIdle),

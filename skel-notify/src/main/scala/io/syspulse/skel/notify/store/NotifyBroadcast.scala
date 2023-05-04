@@ -19,9 +19,15 @@ abstract class NotifyBroadcast(implicit config:Config) {
   def broadcast(notify:Notify):Try[NotifyBroadcast] = {     
     
     val (receivers,_,_) = Notification.parseUri(notify.to.getOrElse("").split("\\s+").toList)
-    val rr = Notification.broadcast(receivers.receviers, notify.subj.getOrElse(""), notify.msg, notify.severity, notify.scope)
+    try {
+      val rr = Notification.broadcast(receivers.receviers, notify.subj.getOrElse(""), notify.msg, notify.severity, notify.scope)
     
-    log.info(s"${notify}: ${rr}")
-    Success(this)
+      log.info(s"${notify}: ${rr}")
+      Success(this)
+    } catch {
+      case e:Exception => 
+        log.error(s"${notify}",e)
+        Failure(e)
+    }
   }
 }
