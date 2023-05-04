@@ -43,6 +43,8 @@ trait KafkaSource[T <: skel.Ingestable ] extends KafkaClient {
       .withPollInterval(pollInterval)
       .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, offset)
       .withProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, autoCommit.toString)
+      .withProperty("reconnect.backoff.ms","3000")
+      .withProperty("reconnect.backoff.max.ms","10000")
 
     log.info(s"Consumer: ${consumerSettings}")
 
