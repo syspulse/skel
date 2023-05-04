@@ -67,7 +67,7 @@ class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
   val metricCreateCount: Counter = Counter.build().name("skel_notify_create_total").help("Notify Ceates").register(cr)
   val metricAckCount: Counter = Counter.build().name("skel_notify_ack_total").help("Notify Acks").register(cr)
   
-  def createNotify(notifyReq: NotifyReq): Future[Try[Notify]] = registry.ask(CreateNotify(notifyReq, _))
+  def createNotify(uid:Option[UUID],req: NotifyReq): Future[Try[Notify]] = registry.ask(CreateNotify(uid,req, _))
   def allNotifys(): Future[Notifys] = registry.ask(GetNotifys(_))
   def getNotify(id:UUID): Future[Try[Notify]] = registry.ask(GetNotify(id, _))
   def getNotifyUser(uid:UUID,fresh:Boolean): Future[Notifys] = registry.ask(GetNotifyUser(uid,fresh, _))
@@ -94,9 +94,9 @@ class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[NotifyReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "Notify sent",content = Array(new Content(schema = new Schema(implementation = classOf[Notify])))))
   )
-  def routeNotify = post {
+  def routeNotify(uid:Option[UUID]) = post {
     entity(as[NotifyReq]) { req =>
-      onSuccess(createNotify(req)) { r =>
+      onSuccess(createNotify(uid,req)) { r =>
         metricCreateCount.inc()
         complete((StatusCodes.Created, r))
       }
@@ -107,9 +107,9 @@ class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
   //  /notify/email 
   //  /notify/stdout
   //  /notify/user
-  def routeNotifyTo(via:String) = post {
+  def routeNotifyTo(uid:Option[UUID],via:String) = post {
     entity(as[NotifyReq]) { req =>
-      onSuccess(createNotify(req.copy(to=Some(s"${via}://${req.to.getOrElse("")}")))) { r =>
+      onSuccess(createNotify(uid,req.copy(to=Some(s"${via}://${req.to.getOrElse("")}")))) { r =>
         metricCreateCount.inc()
         complete((StatusCodes.Created, r))
       }
@@ -169,7 +169,7 @@ class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
         pathEndOrSingleSlash { 
           authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
             routeAll ~
-            routeNotify
+            routeNotify(authn.getUser)
           }
         },
         pathPrefix("users") {
@@ -181,7 +181,7 @@ class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
         pathPrefix(Segment) { via =>
           authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
             pathEndOrSingleSlash {
-              routeNotifyTo(via) ~
+              routeNotifyTo(authn.getUser,via) ~
               routeGet(via)      
             }
           }

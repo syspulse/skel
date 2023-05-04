@@ -21,7 +21,7 @@ object NotifyRegistry {
   final case class GetNotify(id:UUID,replyTo: ActorRef[Try[Notify]]) extends Command
   final case class GetNotifyUser(uid:UUID,fresh:Boolean,replyTo: ActorRef[Notifys]) extends Command
   final case class AckNotifyUser(uid:UUID,req:NotifyAckReq,replyTo: ActorRef[Try[Notify]]) extends Command
-  final case class CreateNotify(req: NotifyReq, replyTo: ActorRef[Try[Notify]]) extends Command  
+  final case class CreateNotify(uid:Option[UUID],req: NotifyReq, replyTo: ActorRef[Try[Notify]]) extends Command  
   
   // final case class DeleteNotify(id: UUID, replyTo: ActorRef[NotifyActionRes]) extends Command  
   
@@ -55,8 +55,8 @@ object NotifyRegistry {
         replyTo ! n
         Behaviors.same
 
-      case CreateNotify(req, replyTo) =>
-        log.info(s"${req}")
+      case CreateNotify(uid,req, replyTo) =>
+        log.info(s"uid=${uid},${req}")        
         val notify = Notify(
           req.to,
           req.subj, 
@@ -64,7 +64,7 @@ object NotifyRegistry {
           System.currentTimeMillis(),
           severity = req.severity,
           scope = req.scope,
-          uid = req.uid
+          uid = if(req.uid.isDefined) req.uid else uid
         )
         
         val store1 = store.+(notify)
