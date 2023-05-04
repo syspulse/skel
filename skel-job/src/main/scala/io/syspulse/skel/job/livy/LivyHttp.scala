@@ -187,6 +187,7 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
   // state: "starting" -> "idle"
   // run() can be executed only against "idle" state
   def create(name:String,conf:Map[String,String]=Map()):Try[Job] = {
+    val ts0 = System.currentTimeMillis
     // https://aws.amazon.com/de/blogs/big-data/install-python-libraries-on-a-running-cluster-with-emr-notebooks/
     val config = Map(
       "spark.pyspark.python" -> "python3",
@@ -200,7 +201,7 @@ class LivyHttp(uri:String)(timeout:Long) extends JobEngine {
     log.info(s"res = ${res}")
     res.map(r => 
       toJob(
-        Job(id=UUID.random,name = name),
+        Job(id=UUID.random,name = name, ts0 = ts0),
         r.parseJson.convertTo[LivySession]
       )
     )
