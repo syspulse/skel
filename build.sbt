@@ -886,8 +886,22 @@ lazy val skel_wf = (project in file("skel-wf"))
     )
   )
 
+lazy val job_core = (project in file("skel-job/job-core"))
+  .dependsOn(core,auth_core,kafka)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+    sharedConfig,
+  
+    name := "job-core",
+
+    libraryDependencies ++= libSkel ++ libTest ++ Seq(
+
+    ),    
+  )
+
+
 lazy val skel_job = (project in file("skel-job"))
-  .dependsOn(core,notify_core)
+  .dependsOn(core,job_core,notify_core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)

@@ -34,6 +34,9 @@ case class Config(
   engine:String = "livy://http://emr.hacken.cloud:8998",
 
   notifyUri:String = "http://localhost:8080/api/v1/notify",
+  jwtRoleService:String = "",
+
+  syslog:String = "sys.job",
 
   cmd:String = "job",
   params: Seq[String] = Seq(),
@@ -60,6 +63,9 @@ object App extends skel.Server {
         ArgLong('_', "poll",s"poll interval (msec, def: ${d.poll})"),
 
         ArgString('_', "notify.uri",s"Notify Service URI (def: ${d.notifyUri})"),
+        ArgString('_', "jwt.role.service",s"JWT access_token for Service Account (def: ${d.jwtRoleService})"),
+
+        ArgString('e', "syslog",s"Syslog OID (def: ${d.syslog})"),
         
         ArgCmd("server",s"Server"),
         ArgCmd("client",s"Command"),
@@ -80,6 +86,9 @@ object App extends skel.Server {
       poll = c.getLong("poll").getOrElse(d.poll),
 
       notifyUri = c.getString("notify.uri").getOrElse(d.notifyUri),
+      jwtRoleService = c.getSmartString("jwt.role.service").getOrElse(d.jwtRoleService),
+
+      syslog = c.getSmartString("syslog").getOrElse(d.syslog),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),

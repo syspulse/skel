@@ -6,7 +6,7 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.notify.Notify
 
-final case class Notifys(notiys:Seq[Notify],total:Option[Long]=None)
+final case class Notifys(notifys:Seq[Notify],total:Option[Long]=None)
 
 final case class NotifyReq(
   to:Option[String] = None, 

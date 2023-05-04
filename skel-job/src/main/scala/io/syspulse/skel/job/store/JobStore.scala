@@ -104,13 +104,42 @@ trait JobStore extends Store[Job,ID] {
             }
 
             if(removing || j1.isFailure) {
-              // send notify
-              NotifyService.notify(
-                s"user://${j0.uid.getOrElse("")}",
-                subj = j0.name,
-                msg = s"""{"typ":"job","id":"${j0.id}"}""",
-                if(j1.isFailure) Some(NotifySeverity.ERROR) else Some(NotifySeverity.INFO),
-                Some("sys.job"))
+              import spray.json._
+              import JobNotificationJson._
+
+              // val msg = s"""{"typ":"job","id":"${j0.id}","":""}"""
+              val msg = (j1 match {
+                case Success(j) => 
+                  JobsNotification(
+                    id = j.id,
+                    inputs = j.inputs,
+                    uid = j.uid,
+                    state = j.state,
+                    result = j.result,
+                    src = j.src
+                  )
+                case Failure(e) => 
+                  JobsNotification(
+                    id = j0.id,
+                    inputs = j0.inputs,
+                    uid = j0.uid,
+                    state = "error",
+                    result = Some(e.getMessage()),
+                    src = j0.src
+                  )
+              }).toJson.compactPrint
+              
+              // send notify to user:// and syslog://
+              NotifyService
+                .service
+                .withAccessToken(config.jwtRoleService)
+                .notify(
+                  s"user://${j0.uid.getOrElse("")} syslog://${config.syslog}",
+                  subj = j0.name,
+                  msg = msg,
+                  if(j1.isFailure) Some(NotifySeverity.ERROR) else Some(NotifySeverity.INFO),
+                  Some(config.syslog)
+                )
               None
             }
             else
