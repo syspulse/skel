@@ -31,7 +31,7 @@ class NotifySyslog(channel:Option[String])(implicit config: Config) extends Noti
   import spray.json._
   import SyslogEventJson._
 
-  val kafkaUri = KafkaURI(s"${config.kafkaUri}/${channel.getOrElse("sys.notify")}")
+  val kafkaUri = KafkaURI(s"${config.kafkaUri}/${channel.getOrElse(config.syslog)}")
 
   override def transform(t:String):ByteString = {
     ByteString(t.toString)
@@ -43,7 +43,7 @@ class NotifySyslog(channel:Option[String])(implicit config: Config) extends Noti
     log.info(s"severity=${severity}:scope=${scope.getOrElse(scope.getOrElse(""))}: title=${title},msg=${msg} -> Kafka(${kafkaUri})")
     
     //val m = s"""["title":"${title}","msg":"${msg}","ts":${System.currentTimeMillis()},"severity":${severity.getOrElse(-1)},"scope":"${scope.getOrElse("sys.all")}"]"""
-    val m = SyslogEvent( title, msg, System.currentTimeMillis, severity, scope).toJson.compactPrint
+    val m = SyslogEvent( subj = title, msg, System.currentTimeMillis, severity, scope, from = None ).toJson.compactPrint
     val r = kafka.offer(m)
         
     Success(s"${r}")

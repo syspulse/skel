@@ -13,5 +13,6 @@ final case class Notify(
   severity:Option[NotifySeverity.ID]=None,
   scope:Option[String]=None,
   uid:Option[UUID] = None,
-  var ack:Boolean = false
+  from:Option[UUID] = None,
+  var ack:Boolean = false  
 )

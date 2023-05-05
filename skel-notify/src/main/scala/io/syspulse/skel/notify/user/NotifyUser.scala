@@ -9,9 +9,14 @@ import io.jvm.uuid._
 import io.syspulse.skel.notify.NotifyReceiver
 import io.syspulse.skel.notify.server.WS
 import io.syspulse.skel.notify.NotifySeverity
+import io.syspulse.skel.notify.SyslogEvent
+import io.syspulse.skel.notify.SyslogEventJson
 
 class NotifyUser(user:Option[String] = None) extends NotifyReceiver[Long] {
   val log = Logger(s"${this}")
+
+  import spray.json._
+  import SyslogEventJson._
 
   // scope is user id or global
   def send(title:String,msg:String,severity:Option[Int],scope:Option[String]):Try[Long] = {
@@ -31,8 +36,9 @@ class NotifyUser(user:Option[String] = None) extends NotifyReceiver[Long] {
 
     val ts = System.currentTimeMillis
     loggedUsers.foreach{ uid => {
-      val data = s"""{"ts":${ts},"title": "${title}","msg": "${msg}","severity":"${severity.getOrElse(NotifySeverity.INFO)}"}"""
-      WS.broadcast(s"${uid}", title, data, id = "user")
+      //val m = s"""{"ts":${ts},"title": "${title}","msg": "${msg}","severity":"${severity.getOrElse(NotifySeverity.INFO)}"}"""
+      val m = SyslogEvent( subj = title, msg, System.currentTimeMillis, severity, scope, from = None ).toJson.compactPrint
+      WS.broadcast(s"${uid}", title, m, id = "user")
     }}
 
     Success(loggedUsers.size)

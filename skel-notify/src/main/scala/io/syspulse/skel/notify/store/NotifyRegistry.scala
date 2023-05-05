@@ -55,21 +55,22 @@ object NotifyRegistry {
         replyTo ! n
         Behaviors.same
 
-      case CreateNotify(uid,req, replyTo) =>
+      case CreateNotify(uid, req, replyTo) =>
         log.info(s"uid=${uid},${req}")        
-        val notify = Notify(
+        val n = Notify(
           req.to,
           req.subj, 
           req.msg, 
           System.currentTimeMillis(),
           severity = req.severity,
           scope = req.scope,
-          uid = if(req.uid.isDefined) req.uid else uid
+          uid = req.uid,
+          from = if(req.from.isDefined) req.from else uid
         )
         
-        val store1 = store.+(notify)
+        val store1 = store.notify(n)
 
-        replyTo ! Success(notify)
+        replyTo ! Success(n)
         registry(store1.getOrElse(store))
     }
   }

@@ -138,7 +138,8 @@ trait JobStore extends Store[Job,ID] {
                   subj = j0.name,
                   msg = msg,
                   if(j1.isFailure) Some(NotifySeverity.ERROR) else Some(NotifySeverity.INFO),
-                  Some(config.syslog)
+                  Some(config.syslog),
+                  uid = j0.uid
                 )
               None
             }

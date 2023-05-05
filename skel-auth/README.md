@@ -62,30 +62,44 @@ OAuth2 flow for login with Ethereum Signing
 
 ## Simple scenario to test Web2 Authentication and Authorization:
 
-### With Admin AccessToken (like prod)
+### Generate Admin Token (like prod)
 
 Generate Admin token. Admin user id (with admin permissions) must be in: [conf/permissions-policy-rbac.csv](conf/permissions-policy-rbac.csv)
 
 The token will be saved to __ACCESS_TOKEN_ADMIN__
 
 ```
-./run-auth.sh jwt encode ffffffff-0000-0000-9000-000000000001 | tail -1 > ACCESS_TOKEN_ADMIN
+./run-auth.sh jwt admin | tail -1 > ACCESS_TOKEN_ADMIN
 ```
 
-Start skel-auth
+### Enable all OAuth2 credentials (client/secrets)
 
 ```
-./run-auth.sh server-with-user
+source auth-IDP-ALL.sh
 ```
 
-Login user
+### Start skel-auth
+
+Can be with user emulation and without:
 
 ```
-./auth-web3.sh
-
+./run-auth.sh demo
+```
+or
+```
+./run-auth.sh server
 ```
 
-Verify user access to its own resources:
+
+### Login Wallet
+
+```
+./auth-web3-login.sh
+```
+
+`ACCESS_TOKEN` file will have JWT (if user is not registered it will be short lived token)
+
+### Verify user access to its own resources:
 
 ```
 TOKEN=`cat ACCESS_TOKEN` ./skel-user/user-get.sh 00000000-0000-0000-1000-000000000001
@@ -95,29 +109,6 @@ Verify admin access to all resources:
 
 ```
 TOKEN=`cat ACCESS_TOKEN_ADMIN` ../skel-user/user-get.sh
-```
-
-### In test mode
-
-Run skel-auth in god mode with embedded UserService (for test convenience)
-
-```
-OPT=-Dgod ./run-auth.sh server-with-user
-```
-
-Login:
-
-```
-./auth-web3.sh
-
-```
-
-It saves access_token in AUTH_TOKEN file for later usage
-
-Check user access:
-
-```
-./user-get.sh 
 ```
 
 

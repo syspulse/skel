@@ -7,5 +7,5 @@ import spray.json.{DefaultJsonProtocol, DeserializationException, JsString, JsVa
 object SyslogEventJson extends JsonCommon {  
   import DefaultJsonProtocol._
 
-  implicit val jf_Notify = jsonFormat5(SyslogEvent)
+  implicit val jf_Notify = jsonFormat6(SyslogEvent)
 }

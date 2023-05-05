@@ -26,12 +26,23 @@ class NotifyStoreDir(dir:String = "store/")(implicit config:Config) extends Stor
   def all:Seq[Notify] = store.all
   def size:Long = store.size
 
-  override def del(id:UUID):Try[NotifyStore] = super.del(id)
+  override def del(id:UUID):Try[NotifyStore] = store.del(id)
   
-  override def +(n:Notify):Try[NotifyStoreDir] = super.+(n).flatMap(_ => store.+(n)).map(_ => this)
+  // Attention: call + after notify here !
+  override def notify(n:Notify):Try[NotifyStoreDir] = {
+    for {
+      _ <- `+`(n)
+      _ <- store.broadcast(n)
+    } yield this    
+  }
+  override def +(n:Notify):Try[NotifyStoreDir] = {
+    super.+(n).flatMap(_ => store.+(n)).map(_ => this)
+  }
   override def ?(id:UUID):Try[Notify] = store.?(id)
   override def ??(uid:UUID,fresh:Boolean):Seq[Notify] = store.??(uid,fresh)
   override def ack(id:UUID):Try[Notify] = store.ack(id).flatMap(n => writeFile(n))
+
+
 
   // preload and watch
   load(dir)

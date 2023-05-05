@@ -30,7 +30,7 @@ import io.swagger.v3.oas.annotations.{Operation, Parameter}
 import io.swagger.v3.oas.annotations.parameters.RequestBody
 // import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
 // import javax.ws.rs.core.MediaType
-import jakarta.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
+import jakarta.ws.rs.{Consumes, POST, PUT, GET, DELETE, Path, Produces}
 import jakarta.ws.rs.core.MediaType
 
 import io.prometheus.client.CollectorRegistry
@@ -73,19 +73,20 @@ class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
   def getNotifyUser(uid:UUID,fresh:Boolean): Future[Notifys] = registry.ask(GetNotifyUser(uid,fresh, _))
   def ackNotifyUser(uid:UUID,req:NotifyAckReq): Future[Try[Notify]] = registry.ask(AckNotifyUser(uid,req, _))
  
-  @POST @Path("/users") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @PUT @Path("/users") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("notify"),summary = "Ack Notify",
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[NotifyAckReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "Notify Acked",content = Array(new Content(schema = new Schema(implementation = classOf[Notify])))))
   )
-  def routeAckNotifyUser(uid:String) = post {
-    entity(as[NotifyAckReq]) { req =>
+  def routeAckNotifyUser(uid:String) = put {    
+    entity(as[NotifyAckReq]) { req => {
+      log.info(s"ACK: ${uid}: ${req}")
       onSuccess(ackNotifyUser(UUID(uid),req)) { r =>
         metricAckCount.inc()
         complete(r)
       }
-    }
+    }}
   }
 
   @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -167,10 +168,10 @@ class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
     authenticate()(authn => {
       concat(
         pathEndOrSingleSlash { 
+          routeNotify(authn.getUser) ~
           authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
-            routeAll ~
-            routeNotify(authn.getUser)
-          }
+            routeAll            
+          }          
         },
         pathPrefix("users") {
           pathPrefix(Segment) { uid => 
@@ -179,7 +180,8 @@ class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
           }          
         },
         pathPrefix(Segment) { via =>
-          authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
+          //authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
+          {
             pathEndOrSingleSlash {
               routeNotifyTo(authn.getUser,via) ~
               routeGet(via)      

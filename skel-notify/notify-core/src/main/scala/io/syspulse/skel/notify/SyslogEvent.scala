@@ -5,9 +5,10 @@ import scala.collection.immutable
 import io.jvm.uuid._
 
 final case class SyslogEvent(
-  title:String,
+  subj:String,
   msg:String,
   ts:Long, 
   severity:Option[NotifySeverity.ID]=None,
-  scope:Option[String]=None,  
+  scope:Option[String]=None,
+  from:Option[String]
 )

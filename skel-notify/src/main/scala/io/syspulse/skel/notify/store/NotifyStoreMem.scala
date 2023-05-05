@@ -25,6 +25,13 @@ class NotifyStoreMem(implicit config:Config) extends NotifyBroadcast()(config) w
 
   def size:Long = notifys.values.map( nq => nq.old.size + nq.fresh.size ).fold(0)(_ + _)
 
+  def notify(n:Notify):Try[NotifyStore] = {
+    for {
+      _ <- `+`(n)
+      _ <- broadcast(n)
+    } yield this
+  }
+
   def +(n:Notify):Try[NotifyStore] = { 
     val uid = n.uid.orElse(Some(Util.UUID_0)).get
     log.info(s"add: ${n} -> ${uid}")
@@ -34,8 +41,7 @@ class NotifyStoreMem(implicit config:Config) extends NotifyBroadcast()(config) w
       case None => NotifyQueue(uid,fresh = List(n))
     }
     notifys = notifys + (uid -> nq)
-    
-    broadcast(n).map(_ => this)    
+    Success(this)
   }
 
   def ?(id:UUID):Try[Notify] = all.find(_.id == id) match {

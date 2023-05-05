@@ -12,6 +12,8 @@ import io.syspulse.skel.store.Store
 trait NotifyStore extends Store[Notify,UUID] {
   def getKey(n: Notify): UUID = n.id
   
+  def notify(n:Notify):Try[NotifyStore]
+
   def +(n:Notify):Try[NotifyStore]
   
   def del(id:UUID):Try[NotifyStore] = Failure(new Exception(s"not supported"))  

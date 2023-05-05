@@ -210,7 +210,7 @@ object App extends skel.Server {
         )
         // generate Admin token for testing
         val adminAccessTokenFile = "ACCESS_TOKEN_ADMIN"
-        val adminAccessToken = AuthJwt.generateAccessToken(Map("uid" -> "ffffffff-0000-0000-9000-000000000001"))        
+        val adminAccessToken = AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_ADMIN.toString))
         os.write.over(os.Path(adminAccessTokenFile,os.pwd),adminAccessToken + "\n")
         Console.err.println(s"${Console.GREEN}${adminAccessTokenFile}:${Console.RESET} ${adminAccessToken}")
 

@@ -17,10 +17,6 @@ case class Config(
   port:Int=8080,
   uri:String = "/api/v1/syslog",
 
-  elasticUri:String = "",
-  elasticUser:String = "",
-  elasticPass:String = "",
-  elasticIndex:String = "",
   expr:String = "",
   
   limit:Long = -1,
@@ -51,12 +47,7 @@ object App extends skel.Server {
         ArgString('h', "http.host",s"listen host (def: ${d.host})"),
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
-        
-        ArgString('_', "elastic.uri","Elastic uri (def: http://localhost:9200)"),
-        ArgString('_', "elastic.user","Elastic user (def: )"),
-        ArgString('_', "elastic.pass","Elastic pass (def: )"),
-        ArgString('_', "elastic.index","Elastic Index (def: syslog)"),
-
+                
         ArgString('f', "feed",s"Input Feed (def: )"),
         ArgString('o', "output",s"Output file (pattern is supported: data-{yyyy-MM-dd-HH-mm}.log)"),
         ArgLong('n', "limit",s"Limit (def: ${d.limit})"),
@@ -81,11 +72,6 @@ object App extends skel.Server {
       host = c.getString("http.host").getOrElse(d.host),
       port = c.getInt("http.port").getOrElse(d.port),
       uri = c.getString("http.uri").getOrElse(d.uri),
-
-      elasticUri = c.getString("elastic.uri").getOrElse("http://localhost:9200"),
-      elasticIndex = c.getString("elastic.index").getOrElse("syslog"),
-      elasticUser = c.getString("elastic.user").getOrElse(""),
-      elasticPass = c.getString("elastic.pass").getOrElse(""),
       
       feed = c.getString("feed").getOrElse(d.feed),
       limit = c.getLong("limit").getOrElse(d.limit),

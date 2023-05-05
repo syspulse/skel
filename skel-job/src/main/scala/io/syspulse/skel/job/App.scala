@@ -36,7 +36,7 @@ case class Config(
   notifyUri:String = "http://localhost:8080/api/v1/notify",
   jwtRoleService:String = "",
 
-  syslog:String = "sys.job",
+  syslog:String = "sys.notify",
 
   cmd:String = "job",
   params: Seq[String] = Seq(),
@@ -65,7 +65,7 @@ object App extends skel.Server {
         ArgString('_', "notify.uri",s"Notify Service URI (def: ${d.notifyUri})"),
         ArgString('_', "jwt.role.service",s"JWT access_token for Service Account (def: ${d.jwtRoleService})"),
 
-        ArgString('e', "syslog",s"Syslog OID (def: ${d.syslog})"),
+        ArgString('_', "syslog",s"Syslog OID (def: ${d.syslog})"),
         
         ArgCmd("server",s"Server"),
         ArgCmd("client",s"Command"),

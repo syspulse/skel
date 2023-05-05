@@ -15,6 +15,7 @@ final case class NotifyReq(
   severity:Option[NotifySeverity.ID]=None, 
   scope:Option[String]=None,
   uid:Option[UUID] = None,
+  from:Option[UUID] = None
 )
 
 final case class NotifyAckReq(id:UUID)

@@ -57,6 +57,16 @@ trait RouteAuthorizers {
     }
   }
 
+  // always authenticate regardless of credentials and return user
+  def oauth2AuthenticatorGod(credentials: Credentials): Option[AuthenticatedUser] = {
+    credentials match {
+      case p @ Credentials.Provided(accessToken) => 
+        AuthJwt.getClaim(accessToken,"uid").map(uid => AuthenticatedUser(UUID(uid)))        
+      case _ => 
+        Some(AuthenticatedUser(Permissions.USER_ADMIN))
+    }
+  }
+
   // def loginRoute(addr: String) = get {
   //   rejectEmptyResponse {
   //     extractAuthToken(addr,Seq(addr)) { t => 
@@ -71,7 +81,9 @@ trait RouteAuthorizers {
   protected def authenticate(): Directive1[Authenticated] = {
     log.info(s"GOD=${Permissions.isGod}")
     if(Permissions.isGod) 
-      provide(AuthenticatedUser(Permissions.USER_ADMIN))
+      //provide(AuthenticatedUser(Permissions.USER_ADMIN))
+      // try to allo and inject correct user UID
+      authenticateOAuth2("api",oauth2AuthenticatorGod)
     else
       authenticateOAuth2("api",oauth2Authenticator)
   }

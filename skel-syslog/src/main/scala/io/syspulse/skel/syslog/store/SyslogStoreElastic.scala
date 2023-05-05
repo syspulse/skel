@@ -22,25 +22,28 @@ import io.syspulse.skel.syslog._
 import io.syspulse.skel.syslog.Syslog.ID
 
 import io.syspulse.skel.syslog.SyslogScan
+import io.syspulse.skel.uri.ElasticURI
 
-class SyslogStoreElastic(elasticUri:String,elacticIndex:String) extends SyslogStore {  
+class SyslogStoreElastic(elasticUri:String) extends SyslogStore {  
   private val log = Logger(s"${this}")
 
-  implicit object VideoHitReader extends HitReader[Syslog] {
+  val uri = ElasticURI(elasticUri)
+
+  implicit object SyslogHitReader extends HitReader[Syslog] {
     // becasue of VID case class, it is converted unmarchsalled as Map from Elastic (field vid.id)
     override def read(hit: Hit): Try[Syslog] = {
       val source = hit.sourceAsMap
-      Success(Syslog(source("vid").asInstanceOf[Long], source("vid").asInstanceOf[Int], source("area").asInstanceOf[String], source("text").asInstanceOf[String]))
+      Success(Syslog(source("ts").asInstanceOf[Long], source("severity").asInstanceOf[Int], source("area").asInstanceOf[String], source("msg").asInstanceOf[String]))
     }
   }
   
-  val client = ElasticClient(JavaClient(ElasticProperties(elasticUri)))
+  val client = ElasticClient(JavaClient(ElasticProperties(uri.uri)))
 
   import ElasticDsl._  
   def all:Seq[Syslog] = {    
     val r = client.execute {
       ElasticDsl
-      .search(elacticIndex)
+      .search(uri.index)
       .matchAllQuery()
     }.await
 
@@ -51,7 +54,7 @@ class SyslogStoreElastic(elasticUri:String,elacticIndex:String) extends SyslogSt
   // slow and memory hungry !
   def size:Long = {
     val r = client.execute {
-      ElasticDsl.count(Indexes(elacticIndex))
+      ElasticDsl.count(Indexes(uri.index))
     }.await
     r.result.count
   }
@@ -78,12 +81,12 @@ class SyslogStoreElastic(elasticUri:String,elacticIndex:String) extends SyslogSt
   def scan(txt:String):List[Syslog] = {
     val r = client.execute {
       ElasticDsl
-        .search(elacticIndex)
+        .search(uri.index)
         .rawQuery(s"""
     { 
       "query_string": {
         "query": "${txt}",
-        "fields": ["area", "text"]
+        "fields": ["area", "msg"]
       }
     }
     """)        
@@ -96,7 +99,7 @@ class SyslogStoreElastic(elasticUri:String,elacticIndex:String) extends SyslogSt
   def search(txt:String):List[Syslog] = {   
     val r = client.execute {
       com.sksamuel.elastic4s.ElasticDsl
-        .search(elacticIndex)
+        .search(uri.index)
         .query(txt)
     }.await
 
@@ -107,9 +110,9 @@ class SyslogStoreElastic(elasticUri:String,elacticIndex:String) extends SyslogSt
   def grep(txt:String):List[Syslog] = {
     val r = client.execute {
       ElasticDsl
-        .search(elacticIndex)
+        .search(uri.index)
         .query {
-          ElasticDsl.wildcardQuery("text",txt)
+          ElasticDsl.wildcardQuery("msg",txt)
         }
     }.await
 
@@ -120,9 +123,9 @@ class SyslogStoreElastic(elasticUri:String,elacticIndex:String) extends SyslogSt
   def typing(txt:String):List[Syslog] = {  
     val r = client.execute {
       ElasticDsl
-        .search(elacticIndex)
+        .search(uri.index)
         .rawQuery(s"""
-    { "multi_match": { "query": "${txt}", "type": "bool_prefix", "fields": [ "text._3gram" ] }}
+    { "multi_match": { "query": "${txt}", "type": "bool_prefix", "fields": [ "msg._3gram" ] }}
     """)        
     }.await
     
