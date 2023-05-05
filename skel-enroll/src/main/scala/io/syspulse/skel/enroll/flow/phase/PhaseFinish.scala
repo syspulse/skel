@@ -40,7 +40,7 @@ class PhaseFinish(config:Config) extends Phase {
     
     val r = NotifyService.service
       .withTimeout(timeout)
-      .notify(toUri,subj,msg,Some(NotifySeverity.INFO),None)
+      .notify(toUri,subj,msg,Some(NotifySeverity.INFO),None,None)
       .await()
     
     log.info(s"${toUri}: ${r}")
