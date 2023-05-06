@@ -21,7 +21,6 @@ import com.sksamuel.elastic4s.requests.searches.SearchResponse
 import io.syspulse.skel.syslog._
 import io.syspulse.skel.syslog.Syslog.ID
 
-import io.syspulse.skel.syslog.SyslogScan
 import io.syspulse.skel.uri.ElasticURI
 
 class SyslogStoreElastic(elasticUri:String) extends SyslogStore {  

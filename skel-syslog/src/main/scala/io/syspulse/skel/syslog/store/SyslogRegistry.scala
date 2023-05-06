@@ -51,8 +51,8 @@ object SyslogRegistry {
         Behaviors.same
 
 
-      case CreateSyslog(syslogCreate, replyTo) =>
-        val syslog = Syslog(System.currentTimeMillis(),syslogCreate.level,syslogCreate.area,syslogCreate.text)
+      case CreateSyslog(req, replyTo) =>
+        val syslog = Syslog(System.currentTimeMillis(),req.level,req.area, req.msg)
         val uid = Syslog.uid(syslog)
         
         val store1 = store.+(syslog)

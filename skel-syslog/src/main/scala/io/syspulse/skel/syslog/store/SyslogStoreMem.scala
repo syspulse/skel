@@ -44,7 +44,7 @@ class SyslogStoreMem extends SyslogStore {
   def ??(txt:String):List[Syslog] = {
     syslogs.values.filter(y => 
       y.area.matches(txt) || 
-      y.text.matches(txt)
+      y.msg.matches(txt)
     ).toList
   }
 

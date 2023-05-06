@@ -28,6 +28,8 @@ case class Config(
 
   datastore:String = "mem://",
 
+  channel:String = "sys.notify",
+
   cmd:String = "server",
   params: Seq[String] = Seq(),
 )
@@ -48,17 +50,20 @@ object App extends skel.Server {
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
                 
-        ArgString('f', "feed",s"Input Feed (def: )"),
-        ArgString('o', "output",s"Output file (pattern is supported: data-{yyyy-MM-dd-HH-mm}.log)"),
+        ArgString('f', "feed",s"Input Feed (def: ${d.feed})"),
+        ArgString('o', "output",s"Output file (def: ${d.output})"),
         ArgLong('n', "limit",s"Limit (def: ${d.limit})"),
         ArgString('_', "delimiter",s"""Delimiter characteds (def: ''). Usage example: --delimiter=`echo -e $"\r"` """),
         ArgInt('_', "buffer",s"Frame buffer (Akka Framing) (def: ${d.buffer})"),
         ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
 
-        ArgString('d', "datastore","datastore [elastic,mem,cache] (def: mem)"),
+        ArgString('d', "datastore",s"datastore [elastic,mem,cache] (def: ${d.datastore})"),
+        ArgString('c', "channel",s"Syslog channel (topic) (def: ${d.channel})"),
         
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
+        ArgCmd("recv","Receive Syslog Event Command"),
+        ArgCmd("send","Send Syslog Event Command"),
         ArgCmd("scan","Scan all"),
         ArgCmd("search","Multi-Search pattern"),
         ArgCmd("grep","Wildcards search"),
@@ -91,9 +96,8 @@ object App extends skel.Server {
     Console.err.println(s"Config: ${config}")
 
     val store:SyslogStore = config.datastore.split("://").toList match {
-      case "elastic" :: _ => new SyslogStoreElastic(config.elasticUri,config.elasticIndex)
+      case "elastic" :: uri :: Nil => new SyslogStoreElastic(uri)
       case "mem" :: Nil => new SyslogStoreMem()
-      //case "stdout" => new SyslogStoreStdout
       case _ => {
         Console.err.println(s"Uknown datastore: '${config.datastore}'")
         sys.exit(1)
@@ -109,10 +113,28 @@ object App extends skel.Server {
             (SyslogRegistry(store),"SyslogRegistry",(r, ac) => new server.SyslogRoutes(r)(ac) )
           )
         )
-      case "ingest" => new SyslogFlow()
-        .connect[SyslogFlow](config.elasticUri, config.elasticIndex)
-        .from(Flows.fromFile(config.feed))        
-        .run()
+      case "send" => 
+        val (subj,msg,severity,scope) = config.params.toList match {
+          case subj :: msg :: severity :: scope :: Nil => (subj,msg,Some(severity.toInt),Some(scope))
+          case subj :: msg :: severity :: Nil => (subj,msg,Some(severity.toInt),Some("sys.all"))
+          case subj :: msg :: Nil => (subj,msg,Some(5),Some("sys.all"))
+          case subj :: Nil => (subj,"",Some(5),Some("sys.all"))
+          case _ => ("Unknown","",Some(5),Some("sys.all"))
+        }
+        import SyslogEventJson._
+        val bus = new SyslogBus[SyslogEvent]() { override def recv(msg:SyslogEvent):SyslogEvent = msg }
+        bus.send(SyslogEvent(subj,msg,severity,scope))
+
+      case "recv" => 
+        import SyslogEventJson._
+        val bus = new SyslogBus[SyslogEvent]() {
+          override def recv(msg:SyslogEvent):SyslogEvent = {
+            println(s">>>>>>>>> event=${msg}")
+            msg
+          }
+        }
+
+      case "ingest" => 
 
       //case "get" => (new Object with DynamoGet).connect( config.elasticUri, config.elasticIndex).get(expr)
       case "scan" => store.scan(expr)

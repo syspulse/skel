@@ -1,4 +1,4 @@
-package io.syspulse.skel.notify
+package io.syspulse.skel.syslog
 
 import io.syspulse.skel.service.JsonCommon
 

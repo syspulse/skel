@@ -752,9 +752,22 @@ lazy val pdf = (project in file("skel-pdf"))
     ),
   )
 
+lazy val syslog_core = (project in file("skel-syslog/syslog-core"))
+  .dependsOn(core,auth_core,kafka)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+    sharedConfig,
+  
+    name := "syslog-core",
+
+    libraryDependencies ++= libSkel ++ libTest ++ Seq(
+
+    ),    
+  )
+
 
 lazy val skel_syslog = (project in file("skel-syslog"))
-  .dependsOn(core,auth_core,ingest,ingest_elastic,ingest_flow)
+  .dependsOn(core,syslog_core,auth_core,ingest,ingest_elastic,ingest_flow)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -808,7 +821,7 @@ lazy val notify_core = (project in file("skel-notify/notify-core"))
   )
 
 lazy val skel_notify = (project in file("skel-notify"))
-  .dependsOn(core,notify_core,auth_core,kafka)
+  .dependsOn(core,notify_core,auth_core,syslog_core,kafka)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)

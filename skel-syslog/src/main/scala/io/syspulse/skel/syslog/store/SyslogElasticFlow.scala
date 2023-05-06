@@ -1,4 +1,4 @@
-package io.syspulse.skel.syslog
+package io.syspulse.skel.syslog.store
 
 import scala.jdk.CollectionConverters._
 
@@ -8,7 +8,9 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.elastic.ElasticFlow
 import akka.stream.scaladsl.Flow
 
-class SyslogFlow extends ElasticFlow[Syslog,Syslog] {
+import io.syspulse.skel.syslog.Syslog
+
+class SyslogElasticFlow extends ElasticFlow[Syslog,Syslog] {
   
   import io.syspulse.skel.syslog.elastic.SyslogElasticJson
   import io.syspulse.skel.syslog.elastic.SyslogElasticJson._
@@ -24,6 +26,6 @@ class SyslogFlow extends ElasticFlow[Syslog,Syslog] {
     }
   )
   
-  override def getIndex(d:Syslog):(String,Syslog) = (s"${d.text}",d)
+  override def getIndex(d:Syslog):(String,Syslog) = (s"${d.msg}",d)
   
 }

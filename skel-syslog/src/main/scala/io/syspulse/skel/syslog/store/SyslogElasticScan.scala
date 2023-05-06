@@ -1,12 +1,13 @@
-package io.syspulse.skel.syslog
+package io.syspulse.skel.syslog.store
 
 import scala.jdk.CollectionConverters._
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.elastic.ElasticScan
+import io.syspulse.skel.syslog.Syslog
 
-trait SyslogScan extends ElasticScan[Syslog] {
+trait SyslogElasticScan extends ElasticScan[Syslog] {
 
   import io.syspulse.skel.syslog.elastic.SyslogElasticJson
   import io.syspulse.skel.syslog.elastic.SyslogElasticJson._
