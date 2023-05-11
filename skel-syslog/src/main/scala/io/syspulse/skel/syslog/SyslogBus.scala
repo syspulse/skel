@@ -59,12 +59,13 @@ trait SyslogFlow[T] {
 
 }
 
-class FromKafka[T](uri:String,recv:(T)=>T)(implicit fmt:JsonFormat[T]) extends skel.ingest.kafka.KafkaSource[T] {
+class FromKafka[T](uri:String,recv:(T)=>T,filter:(T)=>Boolean)(implicit fmt:JsonFormat[T]) extends skel.ingest.kafka.KafkaSource[T] {
   val kafkaUri = KafkaURI(uri)
     
   val source:Source[T,_] = 
     source(kafkaUri.broker,Set(kafkaUri.topic),kafkaUri.group,offset = kafkaUri.offset)
     .map(data => data.utf8String.parseJson.convertTo[T])
+    .filter(filter)
     .map(msg => recv(msg))
 
   val kafka = source.runWith(Sink.ignore)
@@ -87,18 +88,34 @@ class ToKafka[T](uri:String)(implicit fmt:JsonFormat[T]) extends skel.ingest.kaf
   def send(msg:T) = kafka.offer(msg)
 }
 
-abstract class SyslogBus[T](uri:String = "kafka://localhost:9092",channel:String = "sys.notify")(implicit fmt:JsonFormat[T]) {
+abstract class SyslogBusKafka[T](uri:String = "kafka://localhost:9092",channel:String = "sys.notify")(implicit fmt:JsonFormat[T]) {
   private val log = Logger(s"${this}")
   
   val toKafka = new ToKafka(s"${uri}/${channel}")
-  val fromKafka = new FromKafka(s"${uri}/${channel}",recv)
+  val fromKafka = new FromKafka(s"${uri}/${channel}",recv,filter)
+
+  def filter(msg:T):Boolean
 
   def recv(msg:T):T
 
-  def send(msg:T):Try[SyslogBus[T]] = {
+  def send(msg:T):Try[SyslogBusKafka[T]] = {
     log.info(s"${msg} -> ${toKafka}")
     toKafka.send(msg)
     Success(this)
   }
+}
 
+abstract class SyslogBus(uri:String = "kafka://localhost:9092",channel:String = "sys.notify") extends SyslogBusKafka(uri,channel)(SyslogEventJson.jf_Notify) {  
+  private val log = Logger(s"${this}")
+  var scope:Option[String] = None
+  
+  def filter(event:SyslogEvent):Boolean = 
+    if(scope.isDefined) scope.get == event.scope.get else true  
+
+  def recv(msg:SyslogEvent):SyslogEvent
+
+  def withScope(scope:String):SyslogBus = {
+    this.scope = if(scope.isEmpty()) None else Some(scope)
+    this
+  }
 }

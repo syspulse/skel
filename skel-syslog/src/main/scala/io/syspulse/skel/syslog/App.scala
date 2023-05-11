@@ -29,6 +29,7 @@ case class Config(
   datastore:String = "mem://",
 
   channel:String = "sys.notify",
+  scope:String = "",
 
   cmd:String = "server",
   params: Seq[String] = Seq(),
@@ -59,6 +60,8 @@ object App extends skel.Server {
 
         ArgString('d', "datastore",s"datastore [elastic,mem,cache] (def: ${d.datastore})"),
         ArgString('c', "channel",s"Syslog channel (topic) (def: ${d.channel})"),
+
+        ArgString('_', "scope",s"Scope filter (def: ${d.scope})"),
         
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
@@ -86,6 +89,8 @@ object App extends skel.Server {
       throttle = c.getLong("throttle").getOrElse(d.throttle),
 
       datastore = c.getString("datastore").getOrElse(d.datastore),
+      channel = c.getString("channel").getOrElse(d.channel),
+      scope = c.getString("scope").getOrElse(d.scope),
 
       expr = c.getString("expr").getOrElse(" "),
       
@@ -122,17 +127,17 @@ object App extends skel.Server {
           case _ => ("Unknown","",Some(5),Some("sys.all"))
         }
         import SyslogEventJson._
-        val bus = new SyslogBus[SyslogEvent]() { override def recv(msg:SyslogEvent):SyslogEvent = msg }
+        val bus = new SyslogBus() { override def recv(msg:SyslogEvent):SyslogEvent = msg }
         bus.send(SyslogEvent(subj,msg,severity,scope))
 
       case "recv" => 
         import SyslogEventJson._
-        val bus = new SyslogBus[SyslogEvent]() {
+        val bus = new SyslogBus() {
           override def recv(msg:SyslogEvent):SyslogEvent = {
             println(s">>>>>>>>> event=${msg}")
             msg
           }
-        }
+        }.withScope(config.scope)
 
       case "ingest" => 
 
