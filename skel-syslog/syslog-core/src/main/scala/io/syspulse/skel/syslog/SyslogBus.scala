@@ -24,7 +24,6 @@ import io.prometheus.client.CollectorRegistry
 import io.prometheus.client.Counter
 
 import java.nio.file.{Path,Paths, Files}
-import akka.stream.alpakka.file.scaladsl.LogRotatorSink
 
 import scala.concurrent.ExecutionContext.Implicits.global 
 import scala.util.Random

@@ -767,7 +767,7 @@ lazy val syslog_core = (project in file("skel-syslog/syslog-core"))
 
 
 lazy val skel_syslog = (project in file("skel-syslog"))
-  .dependsOn(core,syslog_core,auth_core,ingest,ingest_elastic,ingest_flow)
+  .dependsOn(core,syslog_core,auth_core,ingest_flow)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
