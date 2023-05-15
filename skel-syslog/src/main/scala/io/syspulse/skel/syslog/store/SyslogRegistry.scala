@@ -16,6 +16,13 @@ import scala.util.Try
 
 object SyslogRegistry {
   val log = Logger(s"${this}")
+
+  val bus = new SyslogBus() {
+    override def recv(msg:SyslogEvent):SyslogEvent = {
+      log.info(s"event=${msg}")
+      msg
+    }
+  }
   
   final case class GetSyslogs(replyTo: ActorRef[Syslogs]) extends Command
   final case class GetSyslog(id:ID,replyTo: ActorRef[Try[Syslog]]) extends Command

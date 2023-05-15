@@ -7,5 +7,5 @@ import spray.json.{DefaultJsonProtocol, DeserializationException, JsString, JsVa
 object JobNotificationJson extends JsonCommon { 
   import DefaultJsonProtocol._
 
-  implicit val jf_JobNo = jsonFormat8(JobsNotification.apply _)  
+  implicit val jf_JobNo = jsonFormat8(JobNotification.apply _)  
 }

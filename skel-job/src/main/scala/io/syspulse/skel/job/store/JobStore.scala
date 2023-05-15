@@ -110,7 +110,7 @@ trait JobStore extends Store[Job,ID] {
               // val msg = s"""{"typ":"job","id":"${j0.id}","":""}"""
               val msg = (j1 match {
                 case Success(j) => 
-                  JobsNotification(
+                  JobNotification(
                     id = j.id,
                     inputs = j.inputs,
                     uid = j.uid,
@@ -119,7 +119,7 @@ trait JobStore extends Store[Job,ID] {
                     src = j.src
                   )
                 case Failure(e) => 
-                  JobsNotification(
+                  JobNotification(
                     id = j0.id,
                     inputs = j0.inputs,
                     uid = j0.uid,

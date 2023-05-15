@@ -111,7 +111,7 @@ object App extends skel.Server {
     
     val expr = config.expr + config.params.mkString(" ")
 
-    config.cmd match {
+    val r = config.cmd match {
       case "server" => 
         run( config.host, config.port,config.uri,c,
           Seq(
@@ -133,12 +133,12 @@ object App extends skel.Server {
       case "recv" => 
         import SyslogEventJson._
         val bus = new SyslogBus() {
-          override def recv(msg:SyslogEvent):SyslogEvent = {
-            println(s">>>>>>>>> event=${msg}")
-            msg
+          override def recv(ev:SyslogEvent):SyslogEvent = {
+            println(s">>>>>>>>> event=${ev}")
+            ev
           }
         }.withScope(config.scope)
-
+        bus
       case "ingest" => 
 
       //case "get" => (new Object with DynamoGet).connect( config.elasticUri, config.elasticIndex).get(expr)
@@ -147,5 +147,7 @@ object App extends skel.Server {
       case "grep" => store.grep(expr)
   
     }
+    println(s"${"-".*(80)}\nr = ${r}")
   }
+  
 }

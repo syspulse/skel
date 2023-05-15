@@ -3,7 +3,7 @@ package io.syspulse.skel.job
 import scala.collection.immutable
 import io.jvm.uuid._
 
-final case class JobsNotification(
+final case class JobNotification(
   id:UUID,  // job id
   inputs:Map[String,Any],
   uid:Option[UUID],
