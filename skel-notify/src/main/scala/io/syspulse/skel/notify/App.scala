@@ -42,8 +42,8 @@ case class Config(
   
   telegramUri:String = "tel://skel-notify/${BOT_KEY}",
 
-  kafkaUri:String = "kafka://localhost:9092",
-  syslog:String = "sys.notify",
+  syslogUri:String = "kafka://localhost:9092",
+  syslogChannel:String = "sys.notify",
 
   timeout:Long = 10000L,
   timeoutIdle:Long = 1000L*60*10,
@@ -76,8 +76,8 @@ object App extends skel.Server {
 
         ArgString('_', "telegram.uri",s"Telegram uri (def: ${d.telegramUri})"),
 
-        ArgString('_', "kafka.uri",s"Kafka URI (used in kafka:// and syslog://) (def: ${d.kafkaUri})"),
-        ArgString('_', "syslog",s"Syslog OID (def: ${d.syslog})"),
+        ArgString('_', "syslog.uri",s"Syslog uir (kafka:// and syslog://) (def: ${d.syslogUri})"),
+        ArgString('_', "syslog.channel",s"Syslog OID (def: ${d.syslogChannel})"),
 
         ArgLong('_', "timeout",s"timeout (msec, def: ${d.timeout})"),
         ArgLong('_', "timeout.idle",s"timeout for Idle WS connection (msec, def: ${d.timeoutIdle})"),
@@ -105,8 +105,8 @@ object App extends skel.Server {
 
       telegramUri = c.getString("telegram.uri").getOrElse(Configuration.withEnv(d.telegramUri)),
 
-      kafkaUri = c.getString("kafka.uri").getOrElse(Configuration.withEnv(d.kafkaUri)),
-      syslog = c.getSmartString("syslog").getOrElse(d.syslog),
+      syslogUri = c.getString("syslog.uri").getOrElse(Configuration.withEnv(d.syslogUri)),
+      syslogChannel = c.getSmartString("syslog.channel").getOrElse(d.syslogChannel),
 
       timeout = c.getLong("timeout").getOrElse(d.timeout),
       timeoutIdle = c.getLong("timeout.idle").getOrElse(d.timeoutIdle),
@@ -137,6 +137,11 @@ object App extends skel.Server {
           )
         )
       case "notify" => 
+        val (receivers,subj,msg) = Notification.parseUri(config.params.toList)
+        val rr = Notification.broadcast(receivers.receviers,Notify(None,Some(subj),msg,severity = Some(2),scope = Some("sys.all")))
+        Console.err.println(s"${rr}")
+
+      case "notification" => 
         val (receivers,subj,msg) = Notification.parseUri(config.params.toList)
         val rr = Notification.broadcast(receivers.receviers,subj,msg,Some(2),Some("sys.all"))
         Console.err.println(s"${rr}")

@@ -87,11 +87,11 @@ class ToKafka[T](uri:String)(implicit fmt:JsonFormat[T]) extends skel.ingest.kaf
   def send(msg:T) = kafka.offer(msg)
 }
 
-abstract class SyslogBusKafka[T](uri:String = "kafka://localhost:9092",channel:String = "sys.notify")(implicit fmt:JsonFormat[T]) {
+abstract class SyslogBusKafka[T](busId:String,uri:String = "kafka://localhost:9092",channel:String = "sys.notify")(implicit fmt:JsonFormat[T]) {
   private val log = Logger(s"${this}")
   
-  val toKafka = new ToKafka(s"${uri}/${channel}")
-  val fromKafka = new FromKafka(s"${uri}/${channel}",recv,filter)
+  val toKafka = new ToKafka(s"${uri}/${channel}/${busId}")
+  val fromKafka = new FromKafka(s"${uri}/${channel}/${busId}",recv,filter)
 
   def filter(msg:T):Boolean
 
@@ -104,7 +104,7 @@ abstract class SyslogBusKafka[T](uri:String = "kafka://localhost:9092",channel:S
   }
 }
 
-abstract class SyslogBus(uri:String = "kafka://localhost:9092",channel:String = "sys.notify") extends SyslogBusKafka(uri,channel)(SyslogEventJson.jf_Notify) {  
+abstract class SyslogBus(busId:String,uri:String = "kafka://localhost:9092",channel:String = "sys.notify") extends SyslogBusKafka(busId,uri,channel)(SyslogEventJson.jf_Notify) {  
   private val log = Logger(s"${this}")
   var scope:Option[String] = None
   

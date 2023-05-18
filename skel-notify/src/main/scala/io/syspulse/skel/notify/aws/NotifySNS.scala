@@ -8,6 +8,7 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.notify.NotifyReceiver
 import io.syspulse.skel.notify.NotifySeverity
+import io.syspulse.skel.notify.Notify
 
 class NotifySNS(arn:String) extends NotifyReceiver[String] with SNS {
   val log = Logger(s"${this}")
@@ -16,5 +17,9 @@ class NotifySNS(arn:String) extends NotifyReceiver[String] with SNS {
     publish(
       s"""["title":"${title}","msg":"${msg}","ts":${System.currentTimeMillis()}, "severity": ${severity.getOrElse(0)}, "scope": "${scope.getOrElse("sys.none")}"]""",
       arn).map(_.getMessageId)
+  }
+
+  def send(no:Notify):Try[String] = {
+    send(no.subj.getOrElse(""),no.msg,no.severity,no.scope)
   }
 }

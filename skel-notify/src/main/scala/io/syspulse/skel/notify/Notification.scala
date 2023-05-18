@@ -39,6 +39,11 @@ object Notification {
     n.send(title,msg,severity,scope)
   }
 
+  def broadcast(nn:Seq[NotifyReceiver[_]],no:Notify):Seq[Try[_]] = {
+    log.info(s"${no}-> ${nn}")
+    nn.map( n => n.send(no)).toSeq
+  }
+
   def broadcast(nn:Seq[NotifyReceiver[_]],title:String,msg:String,severity:Option[NotifySeverity.ID],scope:Option[String]):Seq[Try[_]] = {
     log.info(s"Notification(${severity},${scope},$title,$msg)-> ${nn}")
     nn.map( n => n.send(title,msg,severity,scope)).toSeq

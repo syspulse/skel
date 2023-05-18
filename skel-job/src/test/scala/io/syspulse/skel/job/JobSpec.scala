@@ -18,7 +18,7 @@ class JobSpec extends AnyWordSpec with Matchers {
   "LivyEngine" should {
 
     "return all Livy sessions" in {
-      val engine = JobUri("livy://http://emr.hacken.cloud:8998")
+      val engine = JobUri("livy://http://emr.demo.hacken.cloud:8998")
       info(s"${engine}")
       
       //val r = engine.all()
@@ -102,14 +102,14 @@ class JobSpec extends AnyWordSpec with Matchers {
 //     }
 
 //     "get Livy session by xid" in {
-//       val engine = JobUri("livy://http://emr.hacken.cloud:8998")
+//       val engine = JobUri("livy://http://emr.demo.hacken.cloud:8998")
 //       val r = engine.ask("139")
 //       // info(s"${r}")
 //     }
 
 
     // "create Livy session and delete" in {
-    //   val engine = JobUri("livy://http://emr.hacken.cloud:8998")
+    //   val engine = JobUri("livy://http://emr.demo.hacken.cloud:8998")
             
     //   val r1 = engine.create("App-1",Map("param" -> "0"))
     //   val xid = r1.get.xid
@@ -123,7 +123,7 @@ class JobSpec extends AnyWordSpec with Matchers {
 
 
     // "create Livy session, run script, delete" in {
-    //   val engine = JobUri("livy://http://emr.hacken.cloud:8998")
+    //   val engine = JobUri("livy://http://emr.demo.hacken.cloud:8998")
             
     //   val r1 = engine.create("App-2",Map("param" -> "10"))
     //   val xid = r1.get.xid
@@ -140,7 +140,7 @@ class JobSpec extends AnyWordSpec with Matchers {
 
     // state: "starting" -> "idle" -> 
     "run script, wait for results, delete" in {
-      val engine = JobUri("livy://http://emr.hacken.cloud:8998")
+      val engine = JobUri("livy://http://emr.demo.hacken.cloud:8998")
             
       val r1 = engine.create("App-3",Map("spark.job.param1" -> "100","spark.job.param2" -> "Text"))
       val xid = r1.get.xid

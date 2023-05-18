@@ -134,11 +134,11 @@ trait JobStore extends Store[Job,ID] {
                 .service
                 .withAccessToken(config.jwtRoleService)
                 .notify(
-                  s"user://${j0.uid.getOrElse("")} syslog://${config.syslog}",
+                  s"user://${j0.uid.getOrElse("")} syslog://${config.syslogChannel}",
                   subj = j0.name,
                   msg = msg,
                   if(j1.isFailure) Some(NotifySeverity.ERROR) else Some(NotifySeverity.INFO),
-                  Some(config.syslog),
+                  Some("sys.job"),
                   uid = j0.uid
                 )
               None

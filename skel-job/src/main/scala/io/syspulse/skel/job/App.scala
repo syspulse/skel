@@ -31,12 +31,13 @@ case class Config(
   timeout:Long = 15000L,
   poll:Long = 3000L,
 
-  engine:String = "livy://http://emr.hacken.cloud:8998",
+  engine:String = "livy://http://emr.demo.hacken.cloud:8998",
 
   notifyUri:String = "http://localhost:8080/api/v1/notify",
   jwtRoleService:String = "",
 
-  syslog:String = "sys.notify",
+  // syslogUri:String = "kafka://localhost:9092",
+  syslogChannel:String = "sys.notify",
 
   cmd:String = "job",
   params: Seq[String] = Seq(),
@@ -65,7 +66,8 @@ object App extends skel.Server {
         ArgString('_', "notify.uri",s"Notify Service URI (def: ${d.notifyUri})"),
         ArgString('_', "jwt.role.service",s"JWT access_token for Service Account (def: ${d.jwtRoleService})"),
 
-        ArgString('_', "syslog",s"Syslog OID (def: ${d.syslog})"),
+        // ArgString('_', "syslog.uri",s"Syslog uir (kafka:// and syslog://) (def: ${d.syslogUri})"),
+        ArgString('_', "syslog.channel",s"Syslog OID (def: ${d.syslogChannel})"),
         
         ArgCmd("server",s"Server"),
         ArgCmd("client",s"Command"),
@@ -88,7 +90,10 @@ object App extends skel.Server {
       notifyUri = c.getString("notify.uri").getOrElse(d.notifyUri),
       jwtRoleService = c.getSmartString("jwt.role.service").getOrElse(d.jwtRoleService),
 
-      syslog = c.getSmartString("syslog").getOrElse(d.syslog),
+      engine = c.getString("engine").getOrElse(d.engine),
+
+      // syslogUri = c.getString("syslog.uri").getOrElse(Configuration.withEnv(d.syslogUri)),
+      syslogChannel = c.getSmartString("syslog.channel").getOrElse(d.syslogChannel),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),

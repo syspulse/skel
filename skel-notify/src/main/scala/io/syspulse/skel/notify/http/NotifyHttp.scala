@@ -99,5 +99,9 @@ class NotifyHttp(uri:String) extends NotifyReceiver[String] {
     else 
       Success(f.toString)    
   }
+
+  def send(no:Notify):Try[String] = {
+    send(no.subj.getOrElse(""),no.msg,no.severity,no.scope)
+  }
 }
 

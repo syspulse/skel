@@ -9,8 +9,10 @@ import io.jvm.uuid._
 import io.syspulse.skel.notify.NotifyReceiver
 import io.syspulse.skel.notify.server.WS
 import io.syspulse.skel.notify.NotifySeverity
-import io.syspulse.skel.notify.SyslogEvent
-import io.syspulse.skel.notify.SyslogEventJson
+
+import io.syspulse.skel.syslog.SyslogEvent
+import io.syspulse.skel.syslog.SyslogEventJson
+import io.syspulse.skel.notify.Notify
 
 class NotifyUser(user:Option[String] = None) extends NotifyReceiver[Long] {
   val log = Logger(s"${this}")
@@ -37,11 +39,15 @@ class NotifyUser(user:Option[String] = None) extends NotifyReceiver[Long] {
     val ts = System.currentTimeMillis
     loggedUsers.foreach{ uid => {
       //val m = s"""{"ts":${ts},"title": "${title}","msg": "${msg}","severity":"${severity.getOrElse(NotifySeverity.INFO)}"}"""
-      val m = SyslogEvent( subj = title, msg, System.currentTimeMillis, severity, scope, from = None ).toJson.compactPrint
+      val m = SyslogEvent( subj = title, msg, severity, scope, from = None ).toJson.compactPrint
       WS.broadcast(s"${uid}", title, m, id = "user")
     }}
 
     Success(loggedUsers.size)
+  }
+
+  def send(no:Notify):Try[Long] = {
+    send(no.subj.getOrElse(""),no.msg,no.severity,no.scope)
   }
 }
 

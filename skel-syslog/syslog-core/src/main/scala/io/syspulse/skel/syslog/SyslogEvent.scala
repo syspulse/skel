@@ -10,5 +10,6 @@ final case class SyslogEvent(
   severity:Option[Int]=None,
   scope:Option[String]=None,
   from:Option[String]=None,
-  ts:Long = System.currentTimeMillis
+  id:Option[UUID] = None,
+  ts:Long = System.currentTimeMillis,  
 )
