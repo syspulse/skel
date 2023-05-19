@@ -13,6 +13,7 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.notify._
+import io.syspulse.skel.auth.permissions.rbac.Permissions
 
 
 class NotifyStoreMem(implicit config:Config) extends NotifyBroadcast()(config) with NotifyStore {
@@ -27,20 +28,59 @@ class NotifyStoreMem(implicit config:Config) extends NotifyBroadcast()(config) w
 
   def notify(n:Notify):Try[NotifyStore] = {
     for {
-      _ <- `+`(n)
+      _ <- `++`(n)
       _ <- broadcast(n)
     } yield this
   }
 
+  def ++(n:Notify):Try[Notify] = { 
+    // parse special case for user://{uid}    
+    val uid:UUID = NotifyUri.isUser(n.to.getOrElse("")) match {
+      case Some("user.all") => 
+        // ATTENTION: Getting all Users from skel-user !!
+        Util.UUID_0
+      case Some(uid) => 
+        UUID(uid)
+      case None =>
+        n.uid.orElse(Some(Permissions.USER_ADMIN)).get
+    }
+    
+    log.info(s"add: ${n} --> ${uid}")
+
+    // uids.foreach{ uid => 
+    //   val nq = notifys.get(uid) match {
+    //     case Some(nq) => nq.copy(fresh = nq.fresh :+ n)
+    //     case None => NotifyQueue(uid,fresh = List(n))
+    //   }
+    //   notifys = notifys + (uid -> nq)  
+    // }
+    val n1 = n.copy(uid = Some(uid))
+    `+`(n1)
+    
+    Success(n1)
+  }
+
+
   def +(n:Notify):Try[NotifyStore] = { 
-    val uid = n.uid.orElse(Some(Util.UUID_0)).get
+    // this should always resolve correctly here
+    val uid = (n.uid.orElse(Some(Permissions.USER_ADMIN)).get)
+    
     log.info(s"add: ${n} -> ${uid}")
 
     val nq = notifys.get(uid) match {
-      case Some(nq) => nq.copy(fresh = nq.fresh :+ n)
-      case None => NotifyQueue(uid,fresh = List(n))
+      case Some(nq) => 
+        if(n.ack) 
+          nq.copy(old = nq.old :+ n)
+        else
+          nq.copy(fresh = nq.fresh :+ n)
+      case None => 
+        if(n.ack) 
+          NotifyQueue(uid,old = List(n))
+        else
+          NotifyQueue(uid,fresh = List(n))      
     }
-    notifys = notifys + (uid -> nq)
+    
+    notifys = notifys + (uid -> nq)    
     Success(this)
   }
 

@@ -31,13 +31,24 @@ class NotifyStoreDir(dir:String = "store/")(implicit config:Config) extends Stor
   // Attention: call + after notify here !
   override def notify(n:Notify):Try[NotifyStoreDir] = {
     for {
-      _ <- `+`(n)
+      _ <- `++`(n)
       _ <- store.broadcast(n)
     } yield this    
   }
   override def +(n:Notify):Try[NotifyStoreDir] = {
     super.+(n).flatMap(_ => store.+(n)).map(_ => this)
   }
+
+  override def ++(n:Notify):Try[Notify] = {
+    for {
+      n1 <- store.++(n)
+      _ <- {
+        println(s"===========================================> ${n1}")
+        super.+(n1)
+      }
+    } yield n1
+  }
+
   override def ?(id:UUID):Try[Notify] = store.?(id)
   override def ??(uid:UUID,fresh:Boolean):Seq[Notify] = store.??(uid,fresh)
   override def ack(id:UUID):Try[Notify] = store.ack(id).flatMap(n => writeFile(n))

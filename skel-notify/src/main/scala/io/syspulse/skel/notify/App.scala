@@ -33,7 +33,7 @@ case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
   uri:String = "/api/v1/notify",
-  datastore:String = "mem://",
+  datastore:String = "dir://",
 
   smtpUri:String = "smtp://${SMTP_HOST}/${SMTP_USER}/${SMTP_PASS}",
   smtpFrom:String = "admin@syspulse.io",

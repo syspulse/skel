@@ -14,6 +14,9 @@ trait NotifyStore extends Store[Notify,UUID] {
   
   def notify(n:Notify):Try[NotifyStore]
 
+  // add during runtime on broadcast (with special processing for user.all,...)
+  def ++(n:Notify):Try[Notify]
+
   def +(n:Notify):Try[NotifyStore]
   
   def del(id:UUID):Try[NotifyStore] = Failure(new Exception(s"not supported"))  

@@ -68,7 +68,7 @@ abstract class WebSocket(idleTimeout:Long)(implicit ex:ExecutionContext) {
         .actorRef[Message](32, OverflowStrategy.dropNew)
         .preMaterialize()
 
-    this.+(topic,wsActor)    
+    this.+(topic,wsActor)
     
     // it must be coupled to detect WS client disconnects!
     val flow = Flow.fromSinkAndSourceCoupled(
@@ -80,8 +80,10 @@ abstract class WebSocket(idleTimeout:Long)(implicit ex:ExecutionContext) {
           log.debug(s"connection=${wsActor}: ${m}")
           m
         })
-        .idleTimeout(FiniteDuration(idleTimeout,TimeUnit.MILLISECONDS))
-    ).watchTermination()( (prevMatValue, f) => {
+        //.idleTimeout(FiniteDuration(idleTimeout,TimeUnit.MILLISECONDS))
+    )
+    .idleTimeout(FiniteDuration(idleTimeout,TimeUnit.MILLISECONDS))
+    .watchTermination()( (prevMatValue, f) => {
       // this function will be run when the stream terminates
       // the Future provided as a second parameter indicates whether the stream completed successfully or failed
       f.onComplete {

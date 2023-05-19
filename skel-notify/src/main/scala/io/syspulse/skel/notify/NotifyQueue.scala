@@ -7,6 +7,6 @@ import io.jvm.uuid._
 
 final case class NotifyQueue(
   uid:UUID,
-  var old:Seq[Notify] = Seq(),
+  var old:List[Notify] = List(),
   var fresh:List[Notify] = List()
 )

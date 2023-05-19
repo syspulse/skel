@@ -20,7 +20,7 @@ import io.syspulse.skel.util.Util
 object NotifyUri {
 
   def apply(uri:String)(implicit config:Config):NotifyReceiver[_] = {    
-    uri.split("://").toList match {
+    uri.trim.split("://").toList match {
       case "email" :: dst :: _ => 
         val (smtp,to) = dst.split("/").toList match {
           case smtp :: to :: Nil => (smtp,to)
@@ -47,6 +47,14 @@ object NotifyUri {
       case "user" :: user :: Nil => new NotifyUser(Some(user))
 
       case _ => new NotifyStdout
+    }    
+  }
+
+  def isUser(uri:String):Option[String] = {
+    uri.trim.split("://").toList match {
+      case "user" :: Nil => Some("user.all")
+      case "user" :: user :: Nil => Some(user)
+      case _ => None
     }    
   }
 }

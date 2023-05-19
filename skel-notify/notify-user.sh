@@ -1,9 +1,9 @@
 #!/bin/bash
 
 TO=${1:-00000000-0000-0000-1000-000000000001}
-SEVERITY=${2:-100}
+MSG=${2:-Attention!!!}
 SUBJ=${3:-All User Notification}
-MSG=${4:-Attention!!!}
+SEVERITY=${4:-100}
 SCOPE=${5:-sys.user}
 
 
