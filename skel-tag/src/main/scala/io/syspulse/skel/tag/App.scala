@@ -56,9 +56,7 @@ object App extends skel.Server {
         
         ArgString('f', "feed",s"Input Feed (def: )"),
         ArgString('o', "output",s"Output file (pattern is supported: data-{yyyy-MM-dd-HH-mm}.log)"),
-
         ArgLong('n', "limit",s"Limit (def: ${d.limit})"),
-
         ArgString('_', "delimiter",s"""Delimiter characteds (def: ''). Usage example: --delimiter=`echo -e $"\r"` """),
         ArgInt('_', "buffer",s"Frame buffer (Akka Framing) (def: ${d.buffer})"),
         ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
@@ -69,9 +67,10 @@ object App extends skel.Server {
         ArgCmd("ingest","Ingest Command"),
         ArgCmd("search","Multi-Search pattern"),
 
-        ArgParam("<params>","")
+        ArgParam("<params>",""),
+        ArgLogging()
       ).withExit(1)
-    ))
+    )).withLogging()
 
     val config = Config(
       host = c.getString("http.host").getOrElse(d.host),
@@ -81,7 +80,6 @@ object App extends skel.Server {
       feed = c.getString("feed").getOrElse(d.feed),
       limit = c.getLong("limit").getOrElse(d.limit),
       output = c.getString("output").getOrElse(d.output),
-
       delimiter = c.getString("delimiter").getOrElse(d.delimiter),
       buffer = c.getInt("buffer").getOrElse(d.buffer),
       throttle = c.getLong("throttle").getOrElse(d.throttle),

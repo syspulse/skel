@@ -19,16 +19,17 @@ class TagStoreMem extends TagStore {
 
   def +(tag:Tag):Try[TagStore] = { 
     // update existing
-    val tag1 = tags.get(tag.id) match {
-      case Some(tag0) => 
-        tags = tags + (tag0.id -> tag0.copy(tags = tag0.tags ++ tag.tags))
-        tag0
-      case None => 
-        tags = tags + (tag.id -> tag)
-        tag
-    }
+    // val tag1 = tags.get(tag.id) match {
+    //   case Some(tag0) => 
+    //     tags = tags + (tag0.id -> tag0.copy(tags = tag0.tags ++ tag.tags))
+    //     tag0
+    //   case None => 
+    //     tags = tags + (tag.id -> tag)
+    //     tag
+    // }
+    tags = tags + (tag.id -> tag)
 
-    log.info(s"add: ${tag1}")
+    log.info(s"add: ${tag}")
     Success(this)
   }
 
@@ -44,30 +45,64 @@ class TagStoreMem extends TagStore {
     case None => Failure(new Exception(s"not found: ${id}"))
   }
 
+  override def ??(ids:Seq[String]):Seq[Tag] = {
+    ids.flatMap(tags.get(_))
+  }
+
   def search(txt:String,from:Option[Int],size:Option[Int]):Tags = {
     if(txt.trim.size < 3 )
       Tags(Seq())
     else
-      ??(".*" + txt + ".*",from,size)
+      ???(".*" + txt + ".*",None,from,size)
   }
 
   def typing(txt:String,from:Option[Int],size:Option[Int]):Tags = {
     if(txt.trim.size < 3 )
       Tags(Seq())
     else
-      ??(txt+".*",from,size)
+      ???(txt+".*",None,from,size)
   }
 
-  def ??(txt:String,from:Option[Int],size:Option[Int]):Tags = {
-    val terms = txt.toLowerCase
+  def ???(tags:String,cat:Option[String],from:Option[Int],size:Option[Int]):Tags = {
+    log.info(s"???: ${tags},${cat},${from},${size}")
+    val terms = tags.toLowerCase
     val tt =
-      this.tags.values.filter{ t => 
-        t.id.toLowerCase.matches(terms) ||
-        t.tags.filter( tag => tag.toLowerCase.matches(terms)).size > 0
+      this.tags
+      .values
+      .filter(!cat.isDefined || _.cat.equalsIgnoreCase(cat.get))
+      .filter{ t => 
+        terms.isEmpty || 
+        ( t.id.toLowerCase.matches(terms) ||
+         t.tags.filter( tag => tag.toLowerCase.matches(terms)).size > 0
+        )
       }
-      .toList.sortBy(_.score).reverse
+      .toList.sortBy(_.score.map(v => -v))
     
     Tags(tt.drop(from.getOrElse(0)).take(size.getOrElse(10)),Some(tt.size))
   }
 
+  def !(id:String,cat:Option[String],tags:Option[Seq[String]]):Try[Tag] = {
+    log.info(s"update: ${id},${cat},${tags}")
+    val t = for {
+        t0 <- {
+          // create new 
+          ?(id) match {
+            case Failure(_) => Success(Tag(id,ts = System.currentTimeMillis, "", Seq()))
+            case t0 => t0
+          }
+        }
+        t1 <- Success(if(cat.isDefined) t0.copy(cat = cat.get) else t0)
+        t2 <- Success(if(tags.isDefined) t1.copy(tags = tags.get) else t1)
+        t3 <- `+`(t2)
+      } yield t2
+    t
+  }
+
+  def find(attr:String,v:Any,from:Option[Int],size:Option[Int]):Tags = {
+    log.info(s"attr=(${attr},${v})")
+    import io.syspulse.skel.util.Reflect._
+    val tt = tags.values.filter(t => t.valueOf[String](attr).map(av => av.toLowerCase.equals(v.toString.toLowerCase)).getOrElse(false)).toSeq
+    
+    Tags(tt.drop(from.getOrElse(0)).take(size.getOrElse(10)),Some(tt.size))
+  }
 }

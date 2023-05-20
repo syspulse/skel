@@ -14,10 +14,12 @@ object CredJson extends JsonCommon  {
   
   import DefaultJsonProtocol._
 
-  implicit val jf_Cred = jsonFormat5(Cred.apply _)
+  implicit val jf_Cred = jsonFormat6(Cred.apply _)
   implicit val jf_Creds = jsonFormat1(Creds)
   
   implicit val jf_CreateReq = jsonFormat3(CredCreateReq)
   implicit val jf_CreateRsp = jsonFormat1(CredCreateRes)
-  implicit val jf_ar = jsonFormat2(CredActionRes)
+  implicit val jf_CredARes = jsonFormat2(CredActionRes)
+
+  implicit val jf_CredToken = jsonFormat2(CredTokenReq)
 }

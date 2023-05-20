@@ -18,12 +18,15 @@ import scala.collection.SortedSet
 import spray.json.JsArray
 import spray.json.RootJsonFormat
 import spray.json.CollectionFormats
+import spray.json.JsNull
+import spray.json.JsObject
+import spray.json.NullOptions
 
 object JsonCommon extends DefaultJsonProtocol with CollectionFormats {
   implicit def sortedSetFormat[T :JsonFormat](implicit ordering: Ordering[T]) = viaSeq[SortedSet[T], T](seq => SortedSet(seq :_*))
 }
 
-trait JsonCommon extends DefaultJsonProtocol with CollectionFormats { 
+trait JsonCommon extends DefaultJsonProtocol with CollectionFormats with NullOptions { 
   //import DefaultJsonProtocol._
 
   // implicit def sortedSetFormat[T :JsonFormat] = new RootJsonFormat[SortedSet[T]] {
@@ -116,19 +119,31 @@ trait JsonCommon extends DefaultJsonProtocol with CollectionFormats {
     }
   }
 
+  // attention - does not support arrays 
   implicit object AnyFormat extends JsonFormat[Any] {
     def write(x: Any) = x match {
       case n: Int => JsNumber(n)
+      case n: Long => JsNumber(n)
+      case n: BigInt => JsNumber(n)
       case s: String => JsString(s)
       case b: Boolean if b == true => JsTrue
       case b: Boolean if b == false => JsFalse
       case d: Double => JsNumber(d)
+      case d: java.math.BigDecimal => JsNumber(d)
+      case d: scala.math.BigDecimal => JsNumber(d)
+      case d: List[_] => JsArray( d.map(write(_)).toVector)
+      case d: Seq[_] => JsArray( d.map(write(_)).toVector)
+      case d: Array[_] => JsArray( d.map(write(_)).toVector)
     }
+    
     def read(value: JsValue) = value match {
       case JsNumber(n) => n
       case JsString(s) => s
       case JsTrue => true
       case JsFalse => false
+      case JsNull => None
+      case JsArray(elements) => elements.map(e => read(e)).toArray
+      case JsObject(fields) => fields.map{ case(k,v) => k -> read(v)}.toMap
     }
   }
 

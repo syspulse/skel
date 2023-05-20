@@ -18,13 +18,17 @@ import CredJson._
 // Preload from file during start
 class CredStoreDir(dir:String = "store/cred/") extends StoreDir[Cred,String](dir) with CredStore {
   val store = new CredStoreMem
-  
+
+  def toKey(id:String):String = id
   def all:Seq[Cred] = store.all
   def size:Long = store.size
   override def +(c:Cred):Try[CredStoreDir] = super.+(c).flatMap(_ => store.+(c)).map(_ => this)
 
   override def del(cid:String):Try[CredStoreDir] = super.del(cid).flatMap(_ => store.del(cid)).map(_ => this)
   override def ?(cid:String):Try[Cred] = store.?(cid)
+
+  override def update(id:String,secret:Option[String]=None,name:Option[String]=None,expire:Option[Long] = None):Try[Cred] =
+    store.update(id).flatMap(c => writeFile(c))
 
   // preload
   load(dir)

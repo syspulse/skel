@@ -22,7 +22,7 @@ echo "DOCKER: $DOCKER"
 echo "DATA_DIR: $DATA_DIR"
 echo "ARGS: $@"
 echo "OPT: $OPT"
-
+echo "DATASTORE: $DATASTORE"
 
 # ATTENTION: /app/bin/skel-app overrides arguments !
 #

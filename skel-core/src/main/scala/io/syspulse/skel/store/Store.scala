@@ -16,8 +16,9 @@ trait Store[E,P] {
 
   def +(e:E):Try[Store[E,P]]
   def -(e:E):Try[Store[E,P]] = del(getKey(e))
-  def del(id:P):Try[Store[E,P]]
+  def del(id:P):Try[Store[E,P]]  
   def ?(id:P):Try[E]
+  def ??(ids:Seq[P]):Seq[E] = ids.flatMap(id => ?(id).toOption)
   def all:Seq[E]
   def size:Long
 }

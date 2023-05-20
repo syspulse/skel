@@ -32,6 +32,7 @@ import io.syspulse.skel.telemetry.Telemetry
 import io.syspulse.skel.ingest.dynamo.DynamoFormat
 
 import io.syspulse.skel.telemetry.Telemetry.ID
+import io.syspulse.skel.telemetry.server.Telemetrys
 
 object TelemetryDynamoFormat extends DynamoFormat[Telemetry] {
   
@@ -130,6 +131,31 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
     r.items().asScala.map( r => TelemetryDynamoFormat.fromDynamo(r.asScala.toMap))
   }
 
+  def ???(ts0:Long,ts1:Long,from:Option[Int]=None,size:Option[Int]=None):Telemetrys = {
+    val req = QueryRequest
+          .builder()
+          .tableName(getTable())
+          .keyConditionExpression("TS BETWEEN :ts0 AND :ts1 ")
+          //.withKeyConditionExpression("#ID = :id and #TS BETWEEN :ts0 AND :ts1 ")
+          .expressionAttributeValues(
+            Map(
+              ":ts0" -> AttributeValue.builder().n(ts0.toString).build(),
+              ":ts1" -> AttributeValue.builder().n(ts1.toString).build()
+            ).asJava
+          )
+          .limit(from.getOrElse(0) + size.getOrElse(Int.MaxValue))
+          //.attributesToGet("ID","TS","DATA")
+          .build()
+
+    log.info(s"req=${req}")
+          
+    val result = DynamoDb.single(req)
+    val r = Await.result(result, timeout)
+    val tt = r.items().asScala.map( r => TelemetryDynamoFormat.fromDynamo(r.asScala.toMap)).toSeq
+    
+    Telemetrys(tt.drop(from.getOrElse(0)).take(size.getOrElse(Int.MaxValue)),total = Some(tt.size))
+  }
+
   override def last(id:String):Try[Telemetry] = {
     val req = QueryRequest
           .builder()
@@ -140,7 +166,7 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
               ":id" -> AttributeValue.builder().s(id).build(),
             ).asJava
           )
-          .scanIndexForward(false)
+          .scanIndexForward(false)          
           .limit(1)
           .build()
 

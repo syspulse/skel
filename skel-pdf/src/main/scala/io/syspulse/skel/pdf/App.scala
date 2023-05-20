@@ -49,9 +49,10 @@ object App extends skel.Server {
 
         ArgCmd("server","Command"),
         ArgCmd("generate","Command"),
-        ArgParam("<params>","")
+        ArgParam("<params>",""),
+        ArgLogging()
       ).withExit(1)
-    ))
+    )).withLogging()
 
     val config = Config(
       host = c.getString("http.host").getOrElse("0.0.0.0"),

@@ -68,7 +68,13 @@ val sharedConfigDocker = Seq(
   // dockerBaseImage := "openjdk:8u212-jre-alpine3.9", //"openjdk:8-jre-alpine",
 
   //dockerBaseImage := "openjdk:8-jre-alpine",
-  dockerBaseImage := "openjdk:18-slim",
+  // dockerBaseImage := "openjdk:18-slim",
+  dockerBaseImage := "openjdk-s3fs:11-slim",  // WARNING: this image is needed for JavaScript Nashorn !
+  // Add S3 mount options
+  // Requires running docker: 
+  // --privileged -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY -e S3_BUCKET=haas-data-dev
+  bashScriptExtraDefines += """/mount-s3.sh""",
+  // bashScriptExtraDefines += """ls -l /mnt/s3/""",
   
   dockerUpdateLatest := true,
   dockerUsername := Some("syspulse"),
@@ -78,11 +84,11 @@ val sharedConfigDocker = Seq(
 
   Docker / defaultLinuxInstallLocation := appDockerRoot,
 
-  Docker / daemonUserUid := None, //Some("1000"), 
-  Docker / daemonUser := "daemon"
+  // Docker / daemonUserUid := None,
+  // Docker / daemonUser := "daemon",
 
   // Experiments with S3 mount compatibility
-  // Docker / daemonUserUid := Some("1000"),  
+  Docker / daemonUserUid := Some("1000"),  
   // Docker / daemonUser := "ubuntu",
   // Docker / daemonGroupGid := Some("1000"),
   // Docker / daemonGroup := "ubuntu",
@@ -101,9 +107,9 @@ val sharedConfigDockerSpark = sharedConfigDocker ++ Seq(
 val sharedConfig = Seq(
     //retrieveManaged := true,  
     organization    := "io.syspulse",
-    scalaVersion    := "2.13.9",
+    scalaVersion    := Dependencies.scala,
     name            := "skel",
-    version         := appVersion,
+    version         := skelVersion,
 
     scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:existentials", "-language:implicitConversions", "-language:higherKinds", "-language:reflectiveCalls", "-language:postfixOps"),
     javacOptions ++= Seq("-target", "1.8", "-source", "1.8"),
@@ -230,7 +236,7 @@ def appDockerConfig(appName:String,appMainClass:String) =
     run / mainClass := Some(appMainClass),
     assembly / mainClass := Some(appMainClass),
     Compile / mainClass := Some(appMainClass), // <-- This is very important for DockerPlugin generated stage1 script!
-    assembly / assemblyJarName := jarPrefix + appName + "-" + "assembly" + "-"+  appVersion + ".jar",
+    assembly / assemblyJarName := jarPrefix + appName + "-" + "assembly" + "-"+  skelVersion + ".jar",
 
     Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
     Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
@@ -244,27 +250,27 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
     run / mainClass := Some(appMainClass),
     assembly / mainClass := Some(appMainClass),
     Compile / mainClass := Some(appMainClass),
-    assembly / assemblyJarName := jarPrefix + appName + "-" + "assembly" + "-"+  appVersion + ".jar",
+    assembly / assemblyJarName := jarPrefix + appName + "-" + "assembly" + "-"+  skelVersion + ".jar",
   )
 
 
 // ======================================================================================================================
 lazy val root = (project in file("."))
-  .aggregate(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, flow, dsl, scrap, cli, db_cli,
+  .aggregate(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, dsl, scrap, cli, db_cli,
              ingest_flow,
              ingest_elastic,
              ingest_dynamo,
              skel_enroll,
-             yell,
+             skel_syslog,
              skel_notify,
              skel_tag, 
              skel_telemetry)
-  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, flow, dsl, scrap, cli, db_cli, 
+  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, dsl, scrap, cli, db_cli, 
              ingest_flow,
              ingest_elastic,
              ingest_dynamo,
              skel_enroll,
-             yell,
+             skel_syslog,
              skel_notify,
              skel_tag, 
              skel_telemetry)
@@ -287,20 +293,34 @@ lazy val core = (project in file("skel-core"))
         libCommon ++ 
         libSkel ++ 
         libDB ++ 
+        
         libTest ++ 
         Seq(
           libUUID, 
-          libScodecBits
+          libScodecBits,
+          
+          libDirWatcher,
+          libDirWatcherScala,
         ),
     )
 
+// ATTENTION:
+// serde currently injects log4j-1.7.2 due to old Hadoop dependency !
+// it breaks logging with log4j2 !
+// FIXME !
 lazy val serde = (project in file("skel-serde"))
   .dependsOn(core) // needed only for App application
-  .disablePlugins(sbtassembly.AssemblyPlugin)
+  // .disablePlugins(sbtassembly.AssemblyPlugin)
+  .enablePlugins(JavaAppPackaging)
   .settings (
       sharedConfig,
-      name := "skel-serde",
-      libraryDependencies ++= libTest ++ 
+      sharedConfigAssembly,
+      
+      appAssemblyConfig("skel-serde","io.syspulse.skel.serde.App"),
+      // name := "skel-serde",
+
+      libraryDependencies ++= libCommon ++
+        libTest ++ 
         Seq(
           libUUID, 
           libAvro4s,
@@ -490,7 +510,6 @@ lazy val flow = (project in file("skel-flow"))
       )
     )
 
-
 lazy val scrap = (project in file("skel-scrap"))
   .dependsOn(core,cron,flow)
   .enablePlugins(JavaAppPackaging)
@@ -523,7 +542,7 @@ lazy val ingest = (project in file("skel-ingest"))
     sharedConfigAssembly,
 
     appAssemblyConfig("skel-ingest",""),
-    //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
+    //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  skelVersion + ".jar",
 
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
       libScalaTest % Test,
@@ -571,20 +590,24 @@ lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
   )
 
 lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
-  .dependsOn(core, ingest, ingest_elastic, kafka)
+  .dependsOn(core, serde, ingest, ingest_elastic, kafka)
   .enablePlugins(JavaAppPackaging)
   .settings (
     sharedConfig,
     sharedConfigAssembly,
 
     appAssemblyConfig("ingest-flow","io.syspulse.skel.ingest.flow.App"),
-    //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  appVersion + ".jar",
+    //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  skelVersion + ".jar",
 
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
       libScalaTest % Test,
       libAlpakkaFile,
       libAkkaQuartz,      
-      libUpickleLib,      
+      libUpickleLib,
+
+      libParq,
+      libParqAkka,
+      libHadoop
     ),        
   )
 
@@ -602,7 +625,7 @@ lazy val stream_std = (project in file("skel-stream/stream-std"))
 
     appDockerConfig("stream-std","io.syspulse.skel.stream.AppStream"),
 
-    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
+    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(      
       libUpickleLib
     ),
 
@@ -628,8 +651,7 @@ lazy val db_cli = (project in file("skel-db/db-cli"))
   .dependsOn(core,cli)
   .settings (
       sharedConfig,
-      sharedConfigAssembly,
-      
+      sharedConfigAssembly,      
       appAssemblyConfig("db-cli","io.syspulse.skel.db.AppCliDB"),
       
       libraryDependencies ++= libCommon ++ libHttp ++ libTest ++ 
@@ -640,11 +662,19 @@ lazy val db_cli = (project in file("skel-db/db-cli"))
 
 lazy val dsl = (project in file("skel-dsl"))
   .dependsOn(core)
+  .enablePlugins(JavaAppPackaging) // for experiments
   .settings (
       sharedConfig,
-      name := "skel-dsl",
-      libraryDependencies ++= libCommon ++
-        Seq(),
+      
+      // Only for experiments
+      sharedConfigAssembly,      
+      appAssemblyConfig("db-cli","io.syspulse.skel.db.AppCliDB"),
+      //name := "skel-dsl",
+
+      libraryDependencies ++= libCommon ++ libTest ++
+        Seq(
+          "org.scala-lang" % "scala-compiler" % scalaVersion.value,
+        ),
     )
 
 
@@ -722,9 +752,22 @@ lazy val pdf = (project in file("skel-pdf"))
     ),
   )
 
+lazy val syslog_core = (project in file("skel-syslog/syslog-core"))
+  .dependsOn(core,auth_core,kafka)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+    sharedConfig,
+  
+    name := "syslog-core",
 
-lazy val yell = (project in file("skel-yell"))
-  .dependsOn(core,auth_core,ingest,ingest_elastic,ingest_flow)
+    libraryDependencies ++= libSkel ++ libTest ++ Seq(
+
+    ),    
+  )
+
+
+lazy val skel_syslog = (project in file("skel-syslog"))
+  .dependsOn(core,syslog_core,auth_core,ingest_flow)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -735,7 +778,7 @@ lazy val yell = (project in file("skel-yell"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    appDockerConfig("skel-yell","io.syspulse.skel.yell.App"),
+    appDockerConfig("skel-syslog","io.syspulse.skel.syslog.App"),
 
     libraryDependencies ++= libSkel ++ libHttp ++ libTest ++ Seq(
       libAlpakkaElastic,
@@ -764,8 +807,21 @@ lazy val video = (project in file("skel-video"))
       ),
   )
 
-lazy val skel_notify = (project in file("skel-notify"))
+lazy val notify_core = (project in file("skel-notify/notify-core"))
   .dependsOn(core,auth_core,kafka)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+    sharedConfig,
+  
+    name := "notify-core",
+
+    libraryDependencies ++= libSkel ++ libTest ++ Seq(
+
+    ),    
+  )
+
+lazy val skel_notify = (project in file("skel-notify"))
+  .dependsOn(core,notify_core,auth_core,syslog_core,kafka)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -821,4 +877,58 @@ lazy val skel_telemetry = (project in file("skel-telemetry"))
       libElastic4s,
       libAlpakkaDynamo
     ),    
+  )
+
+lazy val skel_wf = (project in file("skel-wf"))
+  .dependsOn(core,notify_core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+    
+    appDockerConfig("skel-wf","io.syspulse.skel.wf.App"),
+
+    libraryDependencies ++= libTest ++ Seq(
+      libOsLib,
+      libUpickleLib,
+    )
+  )
+
+lazy val job_core = (project in file("skel-job/job-core"))
+  .dependsOn(core,auth_core,kafka)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+    sharedConfig,
+  
+    name := "job-core",
+
+    libraryDependencies ++= libSkel ++ libTest ++ Seq(
+
+    ),    
+  )
+
+
+lazy val skel_job = (project in file("skel-job"))
+  .dependsOn(core,job_core,notify_core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+    
+    appDockerConfig("skel-job","io.syspulse.skel.job.App"),
+
+    libraryDependencies ++= libTest ++ Seq(
+      libOsLib,
+      libUpickleLib,
+    )
   )

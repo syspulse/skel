@@ -5,6 +5,9 @@ import scala.util.Random
 import scala.concurrent.duration.Duration
 import scala.concurrent.Future
 import scala.concurrent.Await
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
+
 import akka.actor.typed.scaladsl.Behaviors
 
 import io.jvm.uuid._
@@ -24,11 +27,13 @@ import io.syspulse.skel.notify.email.NotifyEmail
 import io.syspulse.skel.notify.ws.NotifyWebsocket
 import io.syspulse.skel.notify.telegram.NotifyTelegram
 
+import io.syspulse.skel.notify.store._
+
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
   uri:String = "/api/v1/notify",
-  datastore:String = "all",
+  datastore:String = "dir://",
 
   smtpUri:String = "smtp://${SMTP_HOST}/${SMTP_USER}/${SMTP_PASS}",
   smtpFrom:String = "admin@syspulse.io",
@@ -37,7 +42,11 @@ case class Config(
   
   telegramUri:String = "tel://skel-notify/${BOT_KEY}",
 
+  syslogUri:String = "kafka://localhost:9092",
+  syslogChannel:String = "sys.notify",
+
   timeout:Long = 10000L,
+  timeoutIdle:Long = 1000L*60*10,
 
   cmd:String = "notify",
   params: Seq[String] = Seq(),
@@ -58,7 +67,7 @@ object App extends skel.Server {
         ArgString('h', "http.host",s"listen host (def: ${d.host})"),
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
-        ArgString('d', "datastore",s"datastore [all] (def: ${d.datastore})"),
+        ArgString('d', "datastore",s"datastore [mem://,dir://] (def: ${d.datastore})"),
 
         ArgString('_', "smtp.uri",s"STMP uri (def: ${d.smtpUri})"),
         ArgString('_', "smtp.from",s"From who to send to (def: ${d.smtpFrom})"),
@@ -67,15 +76,20 @@ object App extends skel.Server {
 
         ArgString('_', "telegram.uri",s"Telegram uri (def: ${d.telegramUri})"),
 
+        ArgString('_', "syslog.uri",s"Syslog uir (kafka:// and syslog://) (def: ${d.syslogUri})"),
+        ArgString('_', "syslog.channel",s"Syslog OID (def: ${d.syslogChannel})"),
+
         ArgLong('_', "timeout",s"timeout (msec, def: ${d.timeout})"),
+        ArgLong('_', "timeout.idle",s"timeout for Idle WS connection (msec, def: ${d.timeoutIdle})"),
         
         ArgCmd("server",s"Server"),
         ArgCmd("client",s"Command"),
         ArgCmd("notify",s"Run notification to Receivers (smtp://to, stdout://, sns://arn, ws://topic, tel://, kafka://, http://)"),
         ArgCmd("server+notify",s"Server + Notify"),
-        ArgParam("<params>","")
+        ArgParam("<params>",""),
+        ArgLogging()
       ).withExit(1)
-    ))
+    )).withLogging()
 
     implicit val config = Config(
       host = c.getString("http.host").getOrElse(d.host),
@@ -91,7 +105,11 @@ object App extends skel.Server {
 
       telegramUri = c.getString("telegram.uri").getOrElse(Configuration.withEnv(d.telegramUri)),
 
+      syslogUri = c.getString("syslog.uri").getOrElse(Configuration.withEnv(d.syslogUri)),
+      syslogChannel = c.getSmartString("syslog.channel").getOrElse(d.syslogChannel),
+
       timeout = c.getLong("timeout").getOrElse(d.timeout),
+      timeoutIdle = c.getLong("timeout.idle").getOrElse(d.timeoutIdle),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -99,13 +117,13 @@ object App extends skel.Server {
 
     Console.err.println(s"Config: ${config}")
 
-    val store = config.datastore match {
-      // case "mysql" | "db" => new NotifyStoreDB(c,"mysql")
-      // case "postgres" => new NotifyStoreDB(c,"postgres")
-      case "all" => new NotifyStoreAll
+    val store = config.datastore.split("://").toList match {
+      case "dir" :: Nil => new NotifyStoreDir
+      case "dir" :: dir :: Nil => new NotifyStoreDir(dir)
+      case "mem" :: Nil => new NotifyStoreMem
       case _ => {
-        Console.err.println(s"Unknown datastore: '${config.datastore}': using 'all'")
-        new NotifyStoreAll
+        Console.err.println(s"Unknown datastore: '${config.datastore}'")
+        sys.exit(1)
       }
     }
 
@@ -113,11 +131,17 @@ object App extends skel.Server {
       case "server" => 
         run( config.host, config.port,config.uri,c,
           Seq(
-            (Behaviors.ignore,"",(actor,actorSystem) => new WsNotifyRoutes()(actorSystem) ),
+            (Behaviors.ignore,"WS-Notify",(actor,actorSystem) => new WsNotifyRoutes(config.timeoutIdle)(actorSystem) ),
+            (Behaviors.ignore,"WS-Users",(actor,actorSystem) => new WsNotifyRoutes(config.timeoutIdle,"user")(actorSystem) ),
             (NotifyRegistry(store),"NotifyRegistry",(r, ac) => new NotifyRoutes(r)(ac) )
           )
         )
       case "notify" => 
+        val (receivers,subj,msg) = Notification.parseUri(config.params.toList)
+        val rr = Notification.broadcast(receivers.receviers,Notify(None,Some(subj),msg,severity = Some(2),scope = Some("sys.all")))
+        Console.err.println(s"${rr}")
+
+      case "notification" => 
         val (receivers,subj,msg) = Notification.parseUri(config.params.toList)
         val rr = Notification.broadcast(receivers.receviers,subj,msg,Some(2),Some("sys.all"))
         Console.err.println(s"${rr}")
@@ -125,7 +149,8 @@ object App extends skel.Server {
       case "server+notify" => 
         run( config.host, config.port,config.uri,c,
           Seq(
-            (Behaviors.ignore,"",(actor,actorSystem) => new WsNotifyRoutes()(actorSystem) ),
+            (Behaviors.ignore,"WS-Notify",(actor,actorSystem) => new WsNotifyRoutes(config.timeoutIdle)(actorSystem) ),
+            (Behaviors.ignore,"WS-Users",(actor,actorSystem) => new WsNotifyRoutes(config.timeoutIdle,"user")(actorSystem) ),
             (NotifyRegistry(store),"NotifyRegistry",(r, ac) => new NotifyRoutes(r)(ac) )
           )
         )
@@ -145,7 +170,7 @@ object App extends skel.Server {
         
         val host = if(config.host == "0.0.0.0") "localhost" else config.host
         val uri = s"http://${host}:${config.port}${config.uri}"
-        val timeout = Duration("10 seconds")
+        val timeout = FiniteDuration(10,TimeUnit.SECONDS)
 
         val r = 
           config.params match {

@@ -18,6 +18,9 @@ import akka.stream.ActorMaterializer
 import akka.stream._
 import akka.stream.scaladsl._
 
+import io.prometheus.client.CollectorRegistry
+import io.prometheus.client.Counter
+
 import java.nio.file.{Path,Paths, Files}
 import akka.stream.alpakka.file.scaladsl.LogRotatorSink
 
@@ -45,10 +48,11 @@ trait IngestFlow[I,T,O] {
   )
   //.withMaxRestarts(10, 5.minutes)
 
-  var countBytes:Long = 0L
-  var countInput:Long = 0L
-  var countObj:Long = 0L
-  var countOutput:Long = 0L
+  val cr = new CollectorRegistry(true);
+  val countBytes: Counter = Counter.build().name("ingest_bytes").help("total bytes").register(cr)
+  val countInput: Counter = Counter.build().name("ingest_input").help("input data").register(cr)
+  val countObj: Counter = Counter.build().name("ingest_obj").help("total objects")register(cr)
+  val countOutput: Counter = Counter.build().name("ingest_output").help("output data").register(cr)
 
   var defaultSource:Option[Source[ByteString,_]] = None
   var defaultSink:Option[Sink[O,_]] = None
@@ -70,10 +74,10 @@ trait IngestFlow[I,T,O] {
 
   def debug = Flow.fromFunction( (data:ByteString) => { log.debug(s"data=${data}"); data})
 
-  def counterBytes = Flow[ByteString].map(t => { countBytes = countBytes + t.size; t})
-  def counterI = Flow[I].map(t => { countInput = countInput + 1; t})
-  def counterT = Flow[T].map(t => { countObj = countObj + 1; t})
-  def counterO = Flow[O].map(t => { countOutput = countOutput + 1; t})
+  def counterBytes = Flow[ByteString].map(t => { countBytes.inc(t.size); t})
+  def counterI = Flow[I].map(t => { countInput.inc(); t})
+  def counterT = Flow[T].map(t => { countObj.inc(); t})
+  def counterO = Flow[O].map(t => { countOutput.inc(); t})
 
   def run() = {    
     val f1 =

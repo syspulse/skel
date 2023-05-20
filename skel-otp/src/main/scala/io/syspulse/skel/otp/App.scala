@@ -14,6 +14,8 @@ import scala.concurrent.Await
 import io.jvm.uuid._
 
 import io.syspulse.skel.FutureAwaitable._
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
 
 case class Config(
   host:String="0.0.0.0",
@@ -42,9 +44,10 @@ object App extends skel.Server {
         ArgString('d', "datastore",s"datastore [mysql,postgres,mem,cache] (def: ${d.datastore})"),
         ArgCmd("server","Command"),
         ArgCmd("client","Command"),
-        ArgParam("<params>","")
+        ArgParam("<params>",""),
+        ArgLogging()
       ).withExit(1)
-    ))
+    )).withLogging()
 
     val config = Config(
       host = c.getString("http.host").getOrElse(d.host),
@@ -78,7 +81,7 @@ object App extends skel.Server {
         
         val host = if(config.host == "0.0.0.0") "localhost" else config.host
         val uri = s"http://${host}:${config.port}${config.uri}"
-        val timeout = Duration("3 seconds")
+        val timeout = FiniteDuration(3,TimeUnit.SECONDS)
 
         val r = 
           config.params match {

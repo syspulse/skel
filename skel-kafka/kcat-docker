@@ -1,0 +1,2 @@
+#!/bin/bash
+exec docker run -it edenhill/kcat:1.7.0 $@

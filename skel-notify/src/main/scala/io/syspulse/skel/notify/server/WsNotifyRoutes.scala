@@ -14,14 +14,14 @@ import akka.actor.ActorRef
 import scala.concurrent.ExecutionContext
 
 object WS {  
-  @volatile var ws:Option[WebSocketServer] = None
+  @volatile var ws:Map[String,WebSocketServer] = Map()
 
-  def +(ws0: WebSocketServer) = {
-    ws = Some(ws0)
+  def +(ws0: WebSocketServer,id:String = "ws") = {
+    ws = ws + (id -> ws0)
   }
 
-  def broadcast(topic:String,title:String,msg:String):Try[Unit] = {
-    ws match {
+  def broadcast(topic:String, title:String, msg:String, id:String = "ws"):Try[Unit] = {
+    ws.get(id) match {
       case Some(ws) => 
         //Success( ws.broadcastText(s"${topic}: ${title}(${msg})",topic) )
         Success( ws.broadcastText(s"${msg}",topic) )
@@ -29,9 +29,14 @@ object WS {
     }
   }
 
+  def all(id:String = "ws") = ws.get(id) match {
+    case Some(ws) => ws.all()
+    case None => Seq()
+  } 
+
 }
 
-class WebSocketServer()(implicit ex:ExecutionContext,mat:ActorMaterializer) extends WebSocket() {
+class WebSocketServer(idleTimeout:Long)(implicit ex:ExecutionContext,mat:ActorMaterializer) extends WebSocket(idleTimeout) {
   override def process(m:Message,a:ActorRef):Message = {
     val txt = m.asTextMessage.getStrictText
     
@@ -41,9 +46,10 @@ class WebSocketServer()(implicit ex:ExecutionContext,mat:ActorMaterializer) exte
   }
 }
 
-class WsNotifyRoutes()(implicit context: ActorContext[_]) extends WsRoutes("ws")(context) {
-  val wsServer:WebSocketServer = new WebSocketServer()
-  WS.+(wsServer)
+class WsNotifyRoutes(idleTimeout:Long = 1000L*60*5, uri:String = "ws")(implicit context: ActorContext[_]) extends WsRoutes(uri)(context) {
+  val wsServer:WebSocketServer = new WebSocketServer(idleTimeout)
+  
+  WS.+(wsServer, uri)
 
   override def ws:WebSocket = wsServer
 }

@@ -23,20 +23,20 @@ class FutureAwaitable[T](f:Future[T],timeout:Duration = FutureAwaitable.timeout)
 }
 
 object FutureAwaitable {
-  val timeout = Duration("5 seconds")
+  val timeout = FiniteDuration(5,TimeUnit.SECONDS)
   implicit def ftor[R](f: Future[R]) = new FutureAwaitable[R](f)
 }
 
 
 trait AwaitableService[T <: AwaitableService[T]] {
-  var timeout:Duration = FutureAwaitable.timeout
+  var timeout:FiniteDuration = FutureAwaitable.timeout
   
   def await[R](rsp:Future[R]):R = {
     val r = Await.result(rsp,timeout)
     r
   }
 
-  def withTimeout(timeout:Duration = Duration(1000, MILLISECONDS)):T = {
+  def withTimeout(timeout:FiniteDuration = FiniteDuration(1000, MILLISECONDS)):T = {
     this.timeout = timeout
     // a bit dirty
     this.asInstanceOf[T]

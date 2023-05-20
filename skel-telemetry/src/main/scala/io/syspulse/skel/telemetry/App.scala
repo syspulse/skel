@@ -12,7 +12,7 @@ import scala.concurrent.Future
 import io.syspulse.skel
 import io.syspulse.skel.config._
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.cli.CliUtil
+import io.syspulse.skel.util.TimeUtil
 import io.syspulse.skel.config._
 
 import io.syspulse.skel.uri.DynamoURI
@@ -36,8 +36,10 @@ case class Config(
   buffer:Int = 1024*1024,
   throttle:Long = 0L,
 
-  datastore:String = "mem",
-  storeCron:String = "*/60 * * * * ?", // not supported at the moment (need Flows integration)
+  datastore:String = "dir://",
+
+  storeCron:String = "", //"0 0/30 * * * ?", // evert 30 minutes
+  storeEvict:Long = 1000L * 60 * 60 * 24, // evict older than 
 
   cmd:String = "ingest",
   params: Seq[String] = Seq(),
@@ -69,7 +71,9 @@ object App extends skel.Server {
         ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
 
         ArgString('d', "datastore",s"Datastore [elastic,mem,stdout] (def: ${d.datastore})"),
-        ArgString('_', "store.cron",s"Datastore Load cron (def: ${d.storeCron})"),
+        
+        ArgString('_', "store.cron",s"Datastore Re-Load cron (def: ${d.storeCron})"),
+        ArgLong('_', "store.evict",s"Datastore eviction age (def: ${d.storeEvict})"),
         
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
@@ -79,9 +83,10 @@ object App extends skel.Server {
         ArgCmd("grep","Wildcards search"),
         ArgCmd("typing","Typeahead"),
 
-        ArgParam("<params>","")
+        ArgParam("<params>",""),
+        ArgLogging()
       ).withExit(1)
-    ))
+    )).withLogging()
 
     implicit val config = Config(
       host = c.getString("http.host").getOrElse(d.host),
@@ -97,7 +102,9 @@ object App extends skel.Server {
       throttle = c.getLong("throttle").getOrElse(d.throttle),
 
       datastore = c.getString("datastore").getOrElse(d.datastore),
+      
       storeCron = c.getString("store.cron").getOrElse(d.storeCron),
+      storeEvict = c.getLong("store.evict").getOrElse(d.storeEvict),
 
       expr = c.getString("expr").getOrElse(d.expr),
       
@@ -114,12 +121,18 @@ object App extends skel.Server {
       case "dynamo" :: uri :: Nil => new TelemetryStoreDynamo(DynamoURI(uri))
       case "mem" :: _ => new TelemetryStoreMem()
       case "stdout" :: _ => new TelemetryStoreStdout()
-      case "dir" :: dir :: Nil => new TelemetryStoreDir(dir,TelemetryParserDefault, cron = Option(config.storeCron))
-      case "dir" :: Nil => new TelemetryStoreDir(parser = TelemetryParserDefault,cron = Option(config.storeCron))
-      case _ => {
-        Console.err.println(s"Uknown datastore: '${config.datastore}")
+      case "dir" :: dir :: Nil => 
+        new TelemetryStoreDir(dir,TelemetryParserDefault, 
+                              cron = Option.unless(config.storeCron.isEmpty)(config.storeCron),
+                              eviction = Option.unless(config.storeEvict==0L)(config.storeEvict))
+      case "dir" :: Nil => 
+        new TelemetryStoreDir(parser = TelemetryParserDefault, 
+                              cron = Option.unless(config.storeCron.isEmpty)(config.storeCron),
+                              eviction = Option.unless(config.storeEvict==0L)(config.storeEvict))
+      case _ => 
+        Console.err.println(s"Uknown datastore: '${config.datastore}'")
         sys.exit(1)
-      }
+      
     }
     
     val expr = config.expr + config.params.mkString(" ")
@@ -148,23 +161,27 @@ object App extends skel.Server {
       case "scan" => store.scan(expr)
       case "search" => {
         config.params.toList match {
-          case ts0 :: ts1 :: _ => store.search(expr,CliUtil.wordToTs(ts0).getOrElse(0L),CliUtil.wordToTs(ts1).getOrElse(Long.MaxValue))
+          case ts0 :: ts1 :: _ => store.search(expr,TimeUtil.wordToTs(ts0).getOrElse(0L),TimeUtil.wordToTs(ts1).getOrElse(Long.MaxValue))
         }      
       }
     }
 
     r match {
-      case l:List[_] => {
+      case l:List[_] => 
         Console.err.println("Results:")
         l.foreach(r => println(s"${r}"));
         sys.exit(0)
-      }
-      case NotUsed => println(r)
+      
+      case NotUsed => 
+        println(r)
+
       //case f:Future[_] if config.cmd == "ingest" || config.cmd == "search" => Await.result(f,FiniteDuration(3000,TimeUnit.MILLISECONDS)); sys.exit(0)
-      case a:Awaitable[_] if config.cmd == "ingest" 
-          || config.cmd == "scan" => Await.result(a,FiniteDuration(3000,TimeUnit.MILLISECONDS)); sys.exit(0)
-      case _ => Console.err.println(s"\n${r}")      
+      case a:Awaitable[_] if config.cmd == "ingest"  || config.cmd == "scan" => 
+        Await.result(a,FiniteDuration(300000,TimeUnit.MILLISECONDS))
+        sys.exit(0)
+
+      case _ =>         
     }
-    
+    Console.err.println(s"\n${r}")     
   }
 }

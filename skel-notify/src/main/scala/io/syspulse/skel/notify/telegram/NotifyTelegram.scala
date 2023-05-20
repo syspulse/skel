@@ -21,6 +21,7 @@ import io.syspulse.skel.notify.Config
 import io.syspulse.skel.notify.NotifyReceiver
 import akka.actor.ActorSystem
 import scala.concurrent.ExecutionContext
+import io.syspulse.skel.notify.Notify
 
 object TelegramHttpClient {
   val log = Logger(s"${this}")
@@ -71,5 +72,9 @@ class NotifyTelegram(uri:String)(implicit config: Config) extends NotifyReceiver
     } catch {
       case e: TimeoutException => Failure(e)
     }    
+  }
+
+  def send(no:Notify):Try[String] = {
+    send(no.subj.getOrElse(""),no.msg,no.severity,no.scope)
   }
 }

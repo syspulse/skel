@@ -52,7 +52,7 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     r.result.to[Tag].toList
   }
 
-  override def limit(from:Option[Int]=None,size:Option[Int]=None):Seq[Tag] = {    
+  override def all(from:Option[Int]=None,size:Option[Int]=None):Seq[Tag] = {    
     val r = client.execute {
       ElasticDsl
       .search(elacticIndex)
@@ -110,19 +110,80 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     }
   }
 
+  override def ??(ids:Seq[String]):Seq[Tag] = {
+    log.info(s"ids=${ids}")
+    val r = { client.execute { 
+      multi {
+        ids.map(id => ElasticDsl.search(elacticIndex).termQuery(("id",ids)))
+      }
+    }}.await
+
+    log.info(s"r=${r}")
+    r.result.to[Tag].toSeq
+  }
+
+  def find(attr:String,v:Any,from:Option[Int],size:Option[Int]):Tags = {
+    log.info(s"attr=(${attr},${v})")
+    val r = { client.execute { 
+      ElasticDsl
+        .search(elacticIndex)        
+        .termQuery((attr,v))
+        .from(from.getOrElse(0))
+        .size(size.getOrElse(10))
+    }}.await
+
+    log.info(s"r=${r}")
+    Tags(r.result.to[Tag].toList,total = Some(r.result.hits.total.value))
+  }
+
+  def !(id:String,cat:Option[String],tags:Option[Seq[String]]):Try[Tag] = {
+    log.info(s"id=${id}, cat=${cat}, tags=${tags}")
+    
+    ?(id).flatMap{ t => 
+      val r = { client.execute { 
+        ElasticDsl
+          .updateById(elacticIndex,id)
+          .doc(          
+            {if(cat.isDefined) Seq(("cat",cat.get)) else Seq()} ++ 
+            {if(tags.isDefined) Seq(("tags",tags.get)) else Seq()}          
+          )
+      }}.await
+
+      log.info(s"r=${r}")
+      val t1 = r.toEither match {
+        case Left(e) => Failure(e.asException)
+        case Right(t) => ?(id)
+      }
+      t1
+    }
+  }
+
   def typing(txt:String,from:Option[Int],size:Option[Int]):Tags = 
-    ??(txt,from,size)
+    ???(txt,None,from,size)
 
   def search(txt:String,from:Option[Int],size:Option[Int]):Tags = 
-    ??(txt,from,size)
+    ???(txt,None,from,size)
 
-  def ??(terms:String,from:Option[Int],size:Option[Int]):Tags = {   
+  def ???(terms:String,cat:Option[String],from:Option[Int],size:Option[Int]):Tags = {
     val r = client.execute {
       com.sksamuel.elastic4s.ElasticDsl
         .search(elacticIndex)
         .from(from.getOrElse(0))
         .size(size.getOrElse(10))
-        .query(terms)
+        .rawQuery(
+          s"""{ 
+            "bool": { 
+              "must": [
+                { "match": { "tags":   "${terms}" }}                
+              ],
+              "filter": [ 
+                { "term":  { "cat": "${cat.getOrElse("")}" }}                
+              ]
+            }
+          }
+          """
+        )
+        //.query(terms)
         //.matchQuery("_all",txt)
         //.operator(MatchQueryBuilder.Operator.AND)
         .sortByFieldDesc("score")

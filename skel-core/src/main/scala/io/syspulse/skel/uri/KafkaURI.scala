@@ -6,7 +6,7 @@ kafka://broker:9092/topic/group/offset
 case class KafkaURI(uri:String) {
   val PREFIX = "kafka://"
 
-  val (kbroker:String,ktopic:String,kgroup:String,koffset:String) = parse(uri)
+  private val (kbroker:String,ktopic:String,kgroup:String,koffset:String) = parse(uri)
 
   def broker:String = kbroker
   def topic:String = ktopic

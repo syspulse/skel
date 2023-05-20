@@ -11,7 +11,7 @@ import io.syspulse.skel.telemetry.Telemetry.ID
 import io.syspulse.skel.telemetry.TelemetryJson
 import io.syspulse.skel.service.JsonCommon
 
-final case class Telemetrys(telemetrys: immutable.Seq[Telemetry])
+final case class Telemetrys(data: immutable.Seq[Telemetry],total:Option[Long]=None)
 
 final case class TelemetryCreateReq(id:Telemetry.ID,ts:Long,data:List[Any])
 final case class TelemetryRandomReq()
@@ -23,8 +23,8 @@ object TelemetryProto extends JsonCommon {
   import DefaultJsonProtocol._
   import TelemetryJson._
 
-  implicit val jf_Telemetrys = jsonFormat(Telemetrys,"result")
-  implicit val jf_TelemetryRes = jsonFormat(TelemetryRes,"result")
+  implicit val jf_Telemetrys = jsonFormat2(Telemetrys)
+  implicit val jf_TelemetryRes = jsonFormat1(TelemetryRes)
   implicit val jf_CreateReq = jsonFormat3(TelemetryCreateReq)
   implicit val jf_ActionRes = jsonFormat2(TelemetryActionRes)
   

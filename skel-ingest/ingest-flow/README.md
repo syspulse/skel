@@ -35,8 +35,10 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 7. ```fs3://```                                              - file without APPEND (S3 object store)
 8. ```json://```                                             - Json to stdout (uses Spray to convert to AST and prettyprint)
 9. ```csv://```                                              - CSV to stdout
-10. ```filenew://```                                         - Generate new file for every event
-11. ```files://```                                           - Limit file by size
+10. ```log://```                                             - Calls toLog on Ingestable
+11. ```filenew://```                                         - Generate new file for every event
+12. ```files://```                                           - Limit file by size
+13. ```parq://``                                             - Parquet Format
 
 
 ### Examples

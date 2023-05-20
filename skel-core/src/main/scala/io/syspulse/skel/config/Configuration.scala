@@ -82,9 +82,29 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
 
   def getListLong(path:String):Seq[Long] = getListString(path).flatMap( s => s.toLongOption)
   def getListInt(path:String):Seq[Int] = getListString(path).flatMap( s => s.toIntOption)
+
+  def withLogging():Configuration = { 
+    import org.slf4j.LoggerFactory
+    import ch.qos.logback.classic.{Logger,Level}
+    
+    getString(Configuration.LOGGING_ARG).map(loggers => 
+      // format: class:level,class:level
+      // if class is not specified, it is root
+      loggers.split(",").foreach( lg => {
+        val (name,level) = lg.split(":").toList match {
+          case name :: level :: Nil => (name,level)
+          case level :: Nil => ("root",level)
+          case _ => ("root","INFO")
+        }
+        LoggerFactory.getLogger(name).asInstanceOf[Logger].setLevel(Level.valueOf(level))
+      })      
+    )
+    this
+  }
 }
 
 object Configuration {
+  val LOGGING_ARG = "logging"
   // automatically support Akka-stype EnvVar
   System.setProperty("config.override_with_env_vars","true")
   def apply():Configuration = new Configuration(Seq(new ConfigurationAkka))
@@ -101,4 +121,5 @@ object Configuration {
 
     envPairs.foldLeft(value)( (value,pair) => { value.replace("${"+pair._1+"}",pair._2) })
   } 
+
 }

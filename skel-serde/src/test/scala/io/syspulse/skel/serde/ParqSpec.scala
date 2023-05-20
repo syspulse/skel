@@ -17,36 +17,111 @@ import java.io.ByteArrayInputStream
 import java.io.File
 
 import com.github.mjakubowski84.parquet4s.{ParquetReader, ParquetWriter, Path}
+import org.apache.parquet.hadoop.ParquetFileWriter.Mode
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.parquet.hadoop.{ParquetWriter => HadoopParquetWriter}
+import org.apache.hadoop.conf.Configuration
+
+import com.github.mjakubowski84.parquet4s.{ParquetReader, ParquetWriter, Path}
 import java.nio.file.Files
 import scala.util.Random
 
 import io.syspulse.skel.serde.Parq._
 
+// Attention: Abstract classes are not supported, so can only be encapsulated as ByteArray
+abstract class DataAbstract extends Serializable
+case class DataInsideId(id:String) extends DataAbstract
+
+case class DataAny(data:Any)
+case class DataMany(id: Int, text: String,b:Byte)
+case class DataWithAbstract(id: Int, text: String,b:Byte, inside:DataAbstract)
+case class DataBig(v:BigInt)
+
+case class DataInside(inside:DataInsideId)
+
+import com.github.mjakubowski84.parquet4s._
+import org.apache.parquet.schema._
+import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY
+
+
 class ParqSpec extends AnyWordSpec with Matchers {
   
   //val tmp  = Path(Files.createTempDirectory("/tmp/skel"))
-  val file1 = "/tmp/file-1.parquet"
-  val file2 = "/tmp/file-2.parquet"
+  val file1 = "/tmp/skel-seder/parq/file-1.parquet"
+  val file2 = "/tmp/skel-seder/parq/file-2.parquet"
   
-  
-  case class Data(id: Int, text: String)
-  case class DataBig(v:BigInt)
 
   "Parquet" should {
 
-    "serialize and deserialize Data(Int,String)" in {            
+    "serialize and deserialize Any type in Data(Any) as String" in {
+      import ParqAnyString._
+
       os.remove(os.Path(file1))
 
       val count = 1
-      val data1  = (1 to count).map(i => Data(id = i, text = Random.nextString(4)))
+      val data1  = (1 to count).map(i => DataAny(data=s"data-${Random.nextLong()}"))
       
-      ParquetWriter.of[Data].writeAndClose(Path(file1), data1)
+      ParquetWriter.of[DataAny].writeAndClose(Path(file1), data1)
+
+      val bin1 = os.read(os.Path(file1))
+      bin1.size !== (0)
+      
+      val data2 = ParquetReader.as[DataAny].read(Path(file1))
+            
+      data2.toList should === (data1.toList)
+      data2.close()
+    }
+
+    "serialize and deserialize Any type in Data(Any) as Serializable" in {
+      import ParqAnySerializable._
+
+      os.remove(os.Path(file1))
+
+      val count = 1
+      val data1  = (1 to count).map(i => DataAny(data=s"data-${Random.nextLong()}"))
+      
+      ParquetWriter.of[DataAny].writeAndClose(Path(file1), data1)
+
+      val bin1 = os.read(os.Path(file1))
+      bin1.size !== (0)
+      
+      val data2 = ParquetReader.as[DataAny].read(Path(file1))
+            
+      data2.toList should === (data1.toList)
+      data2.close()
+    }
+
+    "serialize and deserialize with internal case class DataInside(DataInsideId)" in {       
+      os.remove(os.Path(file1))
+
+      val count = 1
+      val data1  = (1 to count).map(i => DataInside(DataInsideId(s"${i}")))
+      
+      ParquetWriter.of[DataInside].writeAndClose(Path(file1), data1)
+
+      val bin1 = os.read(os.Path(file1))
+      bin1.size !== (0)      
+      val data2 = ParquetReader.as[DataInside].read(Path(file1))      
+      data2.toList should === (data1.toList)
+      data2.close()
+    }
+
+    "serialize and deserialize Data(Int,String,Byte,Abstract)" in { 
+      implicit val (codecs,types) = ParqCodecTypedSerializable.forClass[DataAbstract]
+      //import codecs._
+      
+      os.remove(os.Path(file1))
+
+      val count = 1
+      val data1  = (1 to count).map(i => DataWithAbstract(id = i, text = Random.nextString(4), b = Random.nextBytes(1).head, inside = DataInsideId(s"{id}")))
+      
+      ParquetWriter.of[DataWithAbstract].writeAndClose(Path(file1), data1)
 
       val bin1 = os.read(os.Path(file1))
       bin1.size !== (0)
       //info(s"${Util.hex(bin1.getBytes())}")
 
-      val data2 = ParquetReader.as[Data].read(Path(file1))
+      val data2 = ParquetReader.as[DataWithAbstract].read(Path(file1))
       
       // try data2.foreach(println)
       // finally data2.close()
@@ -85,8 +160,7 @@ class ParqSpec extends AnyWordSpec with Matchers {
       data2.close()
     }
 
-
-    "serialize and deserialize BigIn)" in {            
+    "serialize and deserialize BigInt" in {            
       os.remove(os.Path(file1))
 
       val data1  = Seq(
@@ -104,5 +178,100 @@ class ParqSpec extends AnyWordSpec with Matchers {
       data2.toList should === (data1.toList)
       data2.close()
     }    
+
+    "write as stream to separate files" in {
+      val dir = "/tmp/skel-seder/parq/stream"
+      os.remove.all(os.Path(s"${dir}",os.pwd))
+      os.makeDir.all(os.Path(dir,os.pwd))
+
+      val data1  = (1 to 100).map(i => DataMany(id = i, text = Random.nextString(4),i.toByte))
+
+      val writeOptions = ParquetWriter.Options(
+        writeMode = Mode.OVERWRITE,
+        compressionCodecName = CompressionCodecName.UNCOMPRESSED,
+        //hadoopConf = conf // optional hadoopConf
+      )
+            
+      data1.grouped(10).foreach{ g => {
+        val file1 = s"${dir}/file-${System.currentTimeMillis}.parq"
+        val pw = ParquetWriter.of[DataMany].build(Path(file1))
+        g.foreach{ d => 
+          pw.write(Seq(d))
+        }
+        pw.close()
+      }}
+      
+      info(s"files=${os.list(os.Path(dir,os.pwd)).toList}")
+    }
+
+    "compare snappy to csv sizes" ignore {
+      val dir = "/tmp/skel-seder/parq/size"
+      os.remove.all(os.Path(s"${dir}",os.pwd))
+      os.makeDir.all(os.Path(dir,os.pwd))
+
+      case class Tx(ts:Long, hash:String,from:String,to: String, value:BigInt,block:Long, nonce:Long)
+
+      val from = Util.hex(Random.nextBytes(32))
+      val data  = (1 to 10000).map(i => 
+        Tx(
+          System.currentTimeMillis - i * 1000 * 30,
+          hash = Util.hex(Random.nextBytes(32)),
+          from = from, //Util.hex(Random.nextBytes(32)),
+          to = Util.hex(Random.nextBytes(32)),
+          value = BigInt(Random.nextLong()),
+          block = 60000 + i ,
+          nonce = i
+        )
+      )
+
+      val snappyOptions = ParquetWriter.Options(
+        writeMode = Mode.OVERWRITE,
+        compressionCodecName = CompressionCodecName.SNAPPY,        
+      )
+
+      val gzipOptions = ParquetWriter.Options(
+        writeMode = Mode.OVERWRITE,
+        compressionCodecName = CompressionCodecName.GZIP,
+      )
+
+      val lzoOptions = ParquetWriter.Options(
+        writeMode = Mode.OVERWRITE,
+        compressionCodecName = CompressionCodecName.LZO,
+      )
+
+      val brotliOptions = ParquetWriter.Options(
+        writeMode = Mode.OVERWRITE,
+        compressionCodecName = CompressionCodecName.BROTLI,
+      )
+
+      // set this in sbt 
+      // eval System.setProperty("java.library.path", "hadoop-3.2.2/lib/native"
+      val lz4Options = ParquetWriter.Options(
+        writeMode = Mode.OVERWRITE,
+        compressionCodecName = CompressionCodecName.LZ4,
+      )
+      val zstdOptions = ParquetWriter.Options(
+        writeMode = Mode.OVERWRITE,
+        compressionCodecName = CompressionCodecName.ZSTD,
+      )
+
+      Seq(snappyOptions, gzipOptions, lz4Options, zstdOptions).foreach{ opts => 
+        data.grouped(data.size).foreach{ g => {
+          val file1 = s"${dir}/file-${System.currentTimeMillis}.parq.${opts.compressionCodecName.toString.toLowerCase()}"
+          val pw = ParquetWriter.of[Tx].options(opts).build(Path(file1))
+          g.foreach{ d => 
+            pw.write(Seq(d))
+          }
+          pw.close()
+        }}
+      }      
+
+      os.write.over(os.Path(s"${dir}/file.csv",os.pwd),
+        data.map( e => Util.toCSV(e)).mkString("\n")
+      )
+      
+      val ss = os.list(os.Path(dir,os.pwd)).map(f => s"${f}: ${new java.io.File(f.toString).length}\n")
+      info(s"files=${ss}")
+    }
   }
 }

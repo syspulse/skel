@@ -15,6 +15,10 @@ import io.syspulse.skel.auth.store._
 import io.syspulse.skel.auth.permissions.rbac.Permissions
 import io.syspulse.skel.auth.cred.Cred
 
+import io.syspulse.skel.auth.cred._
+import io.syspulse.skel.auth.code._
+import io.syspulse.skel.auth.store._
+
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
@@ -28,7 +32,7 @@ case class Config(
   proxyBasicUser:String = "user1",
   proxyBasicPass:String = "pass1",
   proxyBasicRealm:String = "realm",
-  proxyUri:String = "http://localhost:8080/api/v1/auth/m2m",
+  proxyUri:String = "http://localhost:8080/api/v1/auth/proxy",
   proxyBody:String = """{ "username":{{user}}, "password":{{pass}}""",
   proxyHeadersMapping:String = "HEADER:Content-type:application/json, HEADER:X-App-Id:{{client_id}}, HEADER:X-App-Secret:{{client_secret}}, BODY:X-User:{{user}}, BODY:X-Pass:{{pass}}",
 
@@ -59,7 +63,10 @@ object App extends skel.Server {
         ArgString('h', "http.host",s"listen host (def: ${d.host})"),
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
+
         ArgString('d', "datastore",s"datastore [mysql,postgres,mem,cache] (def: ${d.datastore})"),
+        ArgString('_', "store.code",s"Datastore for Codes (def: ${d.storeCode})"),
+        ArgString('_', "store.cred",s"Datastore for Creds (def: ${d.storeCred})"),
         
         ArgString('_',"proxy.basic.user",s"Auth Basic Auth username (def: ${d.proxyBasicUser})"),
         ArgString('_',"proxy.basic.pass",s"ProxyM2M Auth Basic Auth password (def: ${d.proxyBasicPass}"),
@@ -90,16 +97,20 @@ object App extends skel.Server {
         ArgCmd("cred",s"Client Credentials subcommands: " +
           s"generate        : generate Client Credentials pair" +
           ""
-        ),
-        ArgParam("<params>","")
+        ),        
+        ArgParam("<params>",""),
+        ArgLogging()
       ).withExit(1)
-    ))
+    )).withLogging()
 
     val config = Config(
       host = c.getString("http.host").getOrElse(d.host),
       port = c.getInt("http.port").getOrElse(d.port),
       uri = c.getString("http.uri").getOrElse(d.uri),
+      
       datastore = c.getString("datastore").getOrElse(d.datastore),
+      storeCode = c.getString("store.code").getOrElse(d.storeCode),
+      storeCred = c.getString("store.cred").getOrElse(d.storeCred),
 
       proxyBasicUser = c.getString("proxy.basic.user").getOrElse(d.proxyBasicUser),
       proxyBasicPass = c.getString("proxy.basic.pass").getOrElse(d.proxyBasicPass),
@@ -122,16 +133,38 @@ object App extends skel.Server {
     )
 
     Console.err.println(s"Config: ${config}")
+    log.debug(s"config=${config}")
 
-    val store = config.datastore.split("://").toList match {
+    val authStore = config.datastore.split("://").toList match {
       //case "mysql" | "db" => new AuthStoreDB(c,"mysql")
       //case "postgres" => new AuthStoreDB(c,"postgres")
+      case "dir" :: Nil => new AuthStoreDir()
+      case "dir" :: dir :: Nil => new AuthStoreDir(dir)
       case "mem" :: _ | "cache" :: _ => new AuthStoreMem
       case _ => {
-        Console.err.println(s"Uknown datastore: '${config.datastore}': using 'mem'")
-        new AuthStoreMem
+        Console.err.println(s"Uknown datastore: '${config.datastore}'")
+        sys.exit(1)
       }
     }
+
+    val codeStore = config.storeCode.split("://").toList match {
+      case "mem" :: _ | "cache" :: _ => new CodeStoreMem()
+      case _ => {
+        Console.err.println(s"Uknown store: '${config.storeCode}'")        
+        sys.exit(1)
+      }
+    }
+
+    val credStore = config.storeCred.split("://").toList match {
+      case "dir" :: Nil => new CredStoreDir()
+      case "dir" :: dir :: Nil => new CredStoreDir(dir)
+      case "mem" :: _ | "cache" :: _ => new CredStoreMem()
+      case _ => {
+        Console.err.println(s"Uknown store: '${config.storeCred}'")        
+        sys.exit(1)
+      }
+    }
+
 
     if(config.jwtSecret.isDefined) 
       AuthJwt.withSecret(config.jwtSecret.get)
@@ -142,15 +175,16 @@ object App extends skel.Server {
       case "server" => 
         run( config.host, config.port,config.uri,c,
           Seq(
-            (AuthRegistry(store),"AuthRegistry",(actor, context) => {
-                new AuthRoutes(actor,
+            (AuthRegistry(authStore),"AuthRegistry",(authRegistry, context) => {
+                val codeRegistry = context.spawn(CodeRegistry(codeStore),"Actor-CodeRegistry")
+                val credRegistry = context.spawn(CredRegistry(credStore),"Actor-ClietnRegistry")
+                new AuthRoutes(authRegistry,codeRegistry,credRegistry,
                   s"http://${authHost}:${config.port}${config.uri}",
                   s"http://${authHost}:${config.port}${config.uri}/callback", config.userUri)(context, config) 
               }
-            )
-            
+            )            
           )
-        )
+        )        
       case "demo" =>
         val uri = Util.getParentUri(config.uri)
         Console.err.println(s"${Console.YELLOW}Running with AuthService(mem):${Console.RESET} http://${authHost}:${config.port}${uri}/auth")
@@ -160,8 +194,10 @@ object App extends skel.Server {
 
         run( config.host, config.port, uri, c,
           Seq(
-            (AuthRegistry(store),"AuthRegistry",(actor, context) => {
-                new AuthRoutes(actor,
+            (AuthRegistry(authStore),"AuthRegistry",(authRegistry, context) => {
+                val codeRegistry = context.spawn(CodeRegistry(codeStore),"Actor-CodeRegistry")
+                val credRegistry = context.spawn(CredRegistry(credStore),"Actor-ClietnRegistry")
+                new AuthRoutes(authRegistry,codeRegistry,credRegistry,
                   s"http://${authHost}:${config.port}${uri}/auth",
                   s"http://${authHost}:${config.port}${uri}/auth/callback",
                   s"http://${authHost}:${config.port}${uri}/user")(context, config) 
@@ -174,53 +210,13 @@ object App extends skel.Server {
         )
         // generate Admin token for testing
         val adminAccessTokenFile = "ACCESS_TOKEN_ADMIN"
-        val adminAccessToken = AuthJwt.generateAccessToken(Map("uid" -> "ffffffff-0000-0000-9000-000000000001"))        
+        val adminAccessToken = AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_ADMIN.toString))
         os.write.over(os.Path(adminAccessTokenFile,os.pwd),adminAccessToken + "\n")
         Console.err.println(s"${Console.GREEN}${adminAccessTokenFile}:${Console.RESET} ${adminAccessToken}")
 
       case "client" => {
-        
-        // val host = if(config.host == "0.0.0.0") "localhost" else config.host
-        // val uri = s"http://${host}:${config.port}${config.uri}"
-        // val timeout = Duration("3 seconds")
-
-        // val r = 
-        //   config.params match {
-        //     case "delete" :: id :: Nil => 
-        //       OtpClientHttp(uri)
-        //         .withTimeout(timeout)
-        //         .delete(UUID(id))
-        //         .await()
-        //     case "create" :: userId :: Nil => 
-        //       OtpClientHttp(uri)
-        //         .withTimeout(timeout)
-        //         .create(if(userId == "random") UUID.random else UUID(userId),"","name","account-2",None,None)
-        //         .await()
-        //     case "get" :: id :: Nil => 
-        //       OtpClientHttp(uri)
-        //         .withTimeout(timeout)
-        //         .get(UUID(id))
-        //         .await()
-        //     case "getAll" :: Nil => 
-        //       OtpClientHttp(uri)
-        //         .withTimeout(timeout)
-        //         .getAll()
-        //         .await()
-        //     case "getForUser" :: userId :: Nil => 
-        //       OtpClientHttp(uri)
-        //         .withTimeout(timeout)
-        //         .getForUser(UUID(userId))
-        //         .await()
-        //     case Nil => OtpClientHttp(uri)
-        //         .withTimeout(timeout)
-        //         .getAll()
-        //         .await()
-
-        //     case _ => Console.err.println(s"unknown op: ${config.params}")
-        //   }
-        // Console.err.println(r)
-        
-        System.exit(0)
+                      
+        sys.exit(0)
       }
       case "jwt" => {        
         val r = 

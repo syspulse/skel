@@ -11,13 +11,19 @@ import io.jvm.uuid._
 import io.syspulse.skel.Command
 
 import io.syspulse.skel.notify._
+import scala.util.Try
+import scala.util.Success
 
 object NotifyRegistry {
   val log = Logger(s"${this}")
   
-  final case class CreateNotify(notifyCreate: NotifyReq, replyTo: ActorRef[Notify]) extends Command
+  final case class GetNotifys(replyTo: ActorRef[Notifys]) extends Command
+  final case class GetNotify(id:UUID,replyTo: ActorRef[Try[Notify]]) extends Command
+  final case class GetNotifyUser(uid:UUID,fresh:Boolean,replyTo: ActorRef[Notifys]) extends Command
+  final case class AckNotifyUser(uid:UUID,req:NotifyAckReq,replyTo: ActorRef[Try[Notify]]) extends Command
+  final case class CreateNotify(uid:Option[UUID],req: NotifyReq, replyTo: ActorRef[Try[Notify]]) extends Command  
   
-  final case class DeleteNotify(id: UUID, replyTo: ActorRef[NotifyActionRes]) extends Command
+  // final case class DeleteNotify(id: UUID, replyTo: ActorRef[NotifyActionRes]) extends Command  
   
   // this var reference is unfortunately needed for Metrics access
   var store: NotifyStore = null
@@ -31,21 +37,40 @@ object NotifyRegistry {
     this.store = store
 
     Behaviors.receiveMessage {
+      case GetNotifys(replyTo) =>
+        replyTo ! Notifys(store.all,Some(store.size))
+        Behaviors.same
 
-      case CreateNotify(notifyReq, replyTo) =>
-        log.info(s"${notifyReq}")
-        val notify = Notify(
-          notifyReq.to,
-          notifyReq.subj, 
-          notifyReq.msg, 
+      case GetNotify(id, replyTo) =>
+        replyTo ! store.?(id)
+        Behaviors.same
+
+      case GetNotifyUser(uid, fresh, replyTo) =>
+        val nn = store.??(uid,fresh)
+        replyTo ! Notifys(nn,Some(nn.size)) 
+        Behaviors.same
+
+      case AckNotifyUser(uid, req, replyTo) =>
+        val n = store.ack(req.id)
+        replyTo ! n
+        Behaviors.same
+
+      case CreateNotify(uid, req, replyTo) =>
+        log.info(s"uid=${uid},${req}")        
+        val n = Notify(
+          req.to,
+          req.subj, 
+          req.msg, 
           System.currentTimeMillis(),
-          severity = notifyReq.severity,
-          scope = notifyReq.scope
+          severity = req.severity,
+          scope = req.scope,
+          uid = req.uid,
+          from = if(req.from.isDefined) req.from else uid
         )
         
-        val store1 = store.+(notify)
+        val store1 = store.notify(n)
 
-        replyTo ! notify
+        replyTo ! Success(n)
         registry(store1.getOrElse(store))
     }
   }

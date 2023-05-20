@@ -40,6 +40,7 @@ case class ArgLong(argChar:Char,argStr:String,argText:String,default:Long=0) ext
 case class ArgParam(argText:String,desc:String="") extends Arg[String]()
 case class ArgHelp(argStr:String,desc:String="") extends Arg[String]()
 case class ArgCmd(argStr:String,desc:String="") extends Arg[String]()
+case class ArgLogging(argText:String = "logging level",default:String="") extends Arg[String]()
 
 // Use "empty appName/appVersion for automatic inference"
 class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg[_]*) extends ConfigurationLike {
@@ -60,6 +61,7 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
         case ArgInt(c,s,t,d) => Some( (if(c=='_' || c==0) opt[Int](s) else opt[Int](c, s)).action((x, c) => c.+(s,x)).text(t))
         case ArgLong(c,s,t,d) => Some( (if(c=='_' || c==0) opt[Long](s) else opt[Long](c, s)).action((x, c) => c.+(s,x)).text(t))
         case ArgParam(t,d) => Some(arg[String](t).unbounded().optional().action((x, c) => c.param(x)).text(d))
+        case ArgLogging(t,d) => Some(opt[String](Configuration.LOGGING_ARG).action((x, c) => c.+(Configuration.LOGGING_ARG,x)).text(t))
         case _ => None
       })
 

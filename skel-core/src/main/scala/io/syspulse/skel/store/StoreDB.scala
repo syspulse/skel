@@ -30,7 +30,8 @@ abstract class StoreDB[E,P](val dbConfigName:String,val tableName:String,configu
       e => props.setProperty(e.getKey(), config.getString(e.getKey()))
     )
   } else {
-    val prefix = if(dbConfigName.isBlank) "" else dbConfigName + "."
+    // Java11: use isBlank
+    val prefix = if(dbConfigName.trim.isEmpty) "" else dbConfigName + "."
 
     Set("dataSourceClassName","dataSource.url","dataSource.user","dataSource.password",
         "connectionTimeout","idleTimeout","minimumIdle","maximumPoolSize","poolName","maxLifetime")

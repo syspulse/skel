@@ -14,6 +14,6 @@ import akka.stream.Materializer
 import scala.concurrent.ExecutionContext
 
 
-class WebSocketPassthrough()(implicit ex:ExecutionContext, mat:ActorMaterializer) extends WebSocket() {
+class WebSocketPassthrough(idleTimeout:Long = 1000L*60*5)(implicit ex:ExecutionContext, mat:ActorMaterializer) extends WebSocket(idleTimeout) {
   override def process(m:Message,a:ActorRef):Message = m
 }

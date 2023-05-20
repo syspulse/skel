@@ -21,6 +21,7 @@ import io.syspulse.skel.user.server.UserJson._
 class UserStoreDir(dir:String = "store/") extends StoreDir[User,UUID](dir) with UserStore {
   val store = new UserStoreMem
 
+  def toKey(id:String):UUID = UUID(id)
   def all:Seq[User] = store.all
   def size:Long = store.size
   override def +(u:User):Try[UserStoreDir] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)
@@ -33,6 +34,7 @@ class UserStoreDir(dir:String = "store/") extends StoreDir[User,UUID](dir) with 
   override def update(id:UUID, email:Option[String] = None, name:Option[String] = None, avatar:Option[String] = None):Try[User] = 
     store.update(id,email,name,avatar).flatMap(u => writeFile(u))
 
-  // preload
+  // preload and watch
   load(dir)
+  watch(dir)
 }

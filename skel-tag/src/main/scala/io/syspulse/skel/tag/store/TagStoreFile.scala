@@ -10,10 +10,11 @@ import os._
 
 import io.syspulse.skel.tag._
 
+import io.syspulse.skel.tag.TagCsv
 // Preload from file during start
 class TagStoreFile(storeFile:String) extends TagStoreMem {
   
-  val feedParser = TagCvs.fmtTag.get
+  val feedParser = TagCsv.fmtTag.get
 
   val storeDir = os.Path(storeFile,os.pwd)
 

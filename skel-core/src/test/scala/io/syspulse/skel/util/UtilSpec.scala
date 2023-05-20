@@ -258,5 +258,23 @@ class UtilSpec extends AnyWordSpec with Matchers {
       csv should === ("data,,10")
     }
 
+    """replaceVar should replace '{"name" = "{name}"}'""" in {
+      val e1 = """{"name" = "{name}"}"""
+      val e2 = Util.replaceVar(e1,Map("name"->"User-1"))
+      e2 should === ("""{"name" = "User-1"}""")
+    }
+
+    """replaceVar should replace multiple '{"name1" = "{name}","name2":"{name}"}'""" in {
+      val e1 = """{"name1" = "{name}","name2":"{name}"}"""
+      val e2 = Util.replaceVar(e1,Map("name"->"User-1"))
+      e2 should === ("""{"name1" = "User-1","name2":"User-1"}""")
+    }
+
+    """replaceVar should replace different multiple '{"name1" = "{name}","name2":"{name}", "count1":{count},"count2":{count}}'""" in {
+      val e1 = """{"name1" = "{name}","name2":"{name}", "count1":{count},"count2":{count}}"""
+      val e2 = Util.replaceVar(e1,Map("name"->"User-1","count"->10))
+      e2 should === ("""{"name1" = "User-1","name2":"User-1", "count1":10,"count2":10}""")
+    }
+
   }
 }

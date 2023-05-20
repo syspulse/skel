@@ -30,7 +30,7 @@ import io.swagger.v3.oas.annotations.{Operation, Parameter}
 import io.swagger.v3.oas.annotations.parameters.RequestBody
 // import javax.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
 // import javax.ws.rs.core.MediaType
-import jakarta.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
+import jakarta.ws.rs.{Consumes, POST, PUT, GET, DELETE, Path, Produces}
 import jakarta.ws.rs.core.MediaType
 
 import io.prometheus.client.CollectorRegistry
@@ -50,6 +50,7 @@ import io.syspulse.skel.auth.RouteAuthorizers
 import io.syspulse.skel.notify._
 import io.syspulse.skel.notify.store.NotifyRegistry
 import io.syspulse.skel.notify.store.NotifyRegistry._
+import scala.util.Try
 
 @Path("/")
 class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {
@@ -63,30 +64,97 @@ class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
   
   // registry is needed because Unit-tests with multiple Routes in Suites will fail (Prometheus libary quirk)
   val cr = new CollectorRegistry(true);
-  val metricCreateCount: Counter = Counter.build().name("skel_notify_create_total").help("Notify creates").register(cr)
+  val metricCreateCount: Counter = Counter.build().name("skel_notify_create_total").help("Notify Ceates").register(cr)
+  val metricAckCount: Counter = Counter.build().name("skel_notify_ack_total").help("Notify Acks").register(cr)
   
-  def createNotify(notifyReq: NotifyReq): Future[Notify] = registry.ask(CreateNotify(notifyReq, _))
+  def createNotify(uid:Option[UUID],req: NotifyReq): Future[Try[Notify]] = registry.ask(CreateNotify(uid,req, _))
+  def allNotifys(): Future[Notifys] = registry.ask(GetNotifys(_))
+  def getNotify(id:UUID): Future[Try[Notify]] = registry.ask(GetNotify(id, _))
+  def getNotifyUser(uid:UUID,fresh:Boolean): Future[Notifys] = registry.ask(GetNotifyUser(uid,fresh, _))
+  def ackNotifyUser(uid:UUID,req:NotifyAckReq): Future[Try[Notify]] = registry.ask(AckNotifyUser(uid,req, _))
  
+  @PUT @Path("/users") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("notify"),summary = "Ack Notify",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[NotifyAckReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "Notify Acked",content = Array(new Content(schema = new Schema(implementation = classOf[Notify])))))
+  )
+  def routeAckNotifyUser(uid:String) = put {    
+    entity(as[NotifyAckReq]) { req => {
+      log.info(s"ACK: ${uid}: ${req}")
+      onSuccess(ackNotifyUser(UUID(uid),req)) { r =>
+        metricAckCount.inc()
+        complete(r)
+      }
+    }}
+  }
+
   @POST @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("notify"),summary = "Send Notify",
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[NotifyReq])))),
-    responses = Array(new ApiResponse(responseCode = "200", description = "Notify sent",content = Array(new Content(schema = new Schema(implementation = classOf[NotifyActionRes])))))
+    responses = Array(new ApiResponse(responseCode = "200", description = "Notify sent",content = Array(new Content(schema = new Schema(implementation = classOf[Notify])))))
   )
-  def notifyRoute = post {
-    entity(as[NotifyReq]) { notifyReq =>
-      onSuccess(createNotify(notifyReq)) { r =>
+  def routeNotify(uid:Option[UUID]) = post {
+    entity(as[NotifyReq]) { req =>
+      onSuccess(createNotify(uid,req)) { r =>
         metricCreateCount.inc()
         complete((StatusCodes.Created, r))
       }
     }
   }
 
-  def notifyToRoute(via:String) = post {
-    entity(as[NotifyReq]) { notifyReq =>
-      onSuccess(createNotify(notifyReq.copy(to=Some(s"${via}://${notifyReq.to.getOrElse("")}")))) { r =>
+  // special route with dynamic suffix to 'TO:' destination
+  //  /notify/email 
+  //  /notify/stdout
+  //  /notify/user
+  def routeNotifyTo(uid:Option[UUID],via:String) = post {
+    entity(as[NotifyReq]) { req =>
+      onSuccess(createNotify(uid,req.copy(to=Some(s"${via}://${req.to.getOrElse("")}")))) { r =>
         metricCreateCount.inc()
         complete((StatusCodes.Created, r))
+      }
+    }
+  }
+
+  @GET @Path("/") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("notify"),summary = "Get All",
+    responses = Array(new ApiResponse(responseCode = "200", description = "Notify sent",content = Array(new Content(schema = new Schema(implementation = classOf[Notifys])))))
+  )
+  def routeAll = get {
+    onSuccess(allNotifys()) { r =>
+      complete(r)
+    }    
+  }
+
+  @GET @Path("/{id}") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("notify"),summary = "Get notify",
+    parameters = Array(
+      new Parameter(name = "id", in = ParameterIn.PATH, description = "Notify id (uuid)"),      
+    ),    
+    responses = Array(new ApiResponse(responseCode = "200", description = "Notifys",content = Array(new Content(schema = new Schema(implementation = classOf[Notifys])))))
+  )
+  def routeGet(id:String) = get {
+    onSuccess(getNotify(UUID(id))) { r =>
+      complete(r)
+    }
+  }
+
+  @GET @Path("/users/{uid}") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("notify"),summary = "Get User notifys",
+    parameters = Array(
+      new Parameter(name = "uid", in = ParameterIn.PATH, description = "User id (uuid)"),
+      new Parameter(name = "fresh", in = ParameterIn.PATH, description = "Only Unacknowledged Notifies")
+    ),    
+    responses = Array(new ApiResponse(responseCode = "200", description = "User Notifys",content = Array(new Content(schema = new Schema(implementation = classOf[Notifys])))))
+  )
+  def routeGetUser(uid:String) = get {
+    parameters("fresh".as[Boolean].optional) { (fresh) =>
+      onSuccess(getNotifyUser(UUID(uid),fresh.getOrElse(true))) { r =>
+        complete(r)
       }
     }
   }
@@ -97,14 +165,27 @@ class NotifyRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
     .withAllowedMethods(Seq(HttpMethods.OPTIONS,HttpMethods.GET,HttpMethods.POST,HttpMethods.PUT,HttpMethods.DELETE,HttpMethods.HEAD))
 
   override def routes: Route = cors(corsAllow) {
-    authenticate()(authn => authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
+    authenticate()(authn => {
       concat(
-        pathEndOrSingleSlash { req =>
-          notifyRoute(req)
-        },        
+        pathEndOrSingleSlash { 
+          routeNotify(authn.getUser) ~
+          authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
+            routeAll            
+          }          
+        },
+        pathPrefix("users") {
+          pathPrefix(Segment) { uid => 
+            routeGetUser(uid) ~
+            routeAckNotifyUser(uid)
+          }          
+        },
         pathPrefix(Segment) { via =>
-          pathEndOrSingleSlash {
-            notifyToRoute(via)            
+          //authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
+          {
+            pathEndOrSingleSlash {
+              routeNotifyTo(authn.getUser,via) ~
+              routeGet(via)      
+            }
           }
         }
       )

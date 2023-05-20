@@ -11,14 +11,16 @@ else
    USER=`cat /proc/sys/kernel/random/uuid`
 fi
 
-AUTH_URI=${AUTH_URI:-http://localhost:8080/api/v1/auth/eth}
-REDIRECT_URI=${AUTH_URI}/callback
+AUTH_URI=${AUTH_URI:-http://localhost:8080/api/v1/auth}
+REDIRECT_URI=${AUTH_URI}/eth/callback
 
 #USER_URI=${USER_URI:-http://localhost:8080/api/v1/user}
 #USER_URI=${USER_URI:-http://localhost:8080/api/v1/auth/user}
 
 USER_URI=${USER_URI:-http://localhost:8081/api/v1/user}
 ENROLL_URI=${ENROLL_URI:-http://localhost:8083/api/v1/enroll}
+
+>&2 echo "=================================== Login to Metamask (${SK})"
 
 OUTPUT=`./auth-web3-metamask.js $SK 2>/dev/null`
 ADDR=`echo $OUTPUT | awk '{print $1}'`
@@ -29,9 +31,11 @@ MSG64=`echo $OUTPUT | awk '{print $3}'`
 >&2 echo "sig: ${SIG}"
 >&2 echo "msg64: ${MSG64}"
 
-RSP=`curl -i -s "$AUTH_URI/auth?msg=${MSG64}&sig=${SIG}&addr=${ADDR}&response_type=code&client_id=${CLIENT_ID}&scope=profile&state=${STATE}&redirect_uri=${REDIRECT_URI}"`
+>&2 echo "=================================== OAuth2 Code -> ${AUTH_URI}"
+
+RSP=`curl -i -s "$AUTH_URI/eth/auth?msg=${MSG64}&sig=${SIG}&addr=${ADDR}&response_type=code&client_id=${CLIENT_ID}&scope=profile&state=${STATE}&redirect_uri=${REDIRECT_URI}"`
 >&2 echo "RSP: $RSP"
-LOCATION=`echo "$RSP" | grep Location`
+LOCATION=`echo "$RSP" | grep -i Location`
 >&2 echo "LOCATION: $LOCATION"
 REDIRECT_URI=`echo $LOCATION | awk -F' ' '{print $2}'`
 
@@ -39,11 +43,13 @@ REDIRECT_URI=${REDIRECT_URI//$'\015'}
 echo -n $REDIRECT_URI >1.tmp
 echo -ne "REDIRECT_URI=${REDIRECT_URI}\n"
 
+>&2 echo "=================================== OAuth2 Redirecting -> ${REDIRECT_URI}"
+
 rsp=`http GET "${REDIRECT_URI}"`
-echo --- Auth Response:
 echo $rsp >AUTH_RSP.json
 cat AUTH_RSP.json | jq
 
+>&2 echo "=================================== Saving JWT"
 ACCESS_TOKEN=`cat AUTH_RSP.json | jq -r .accessToken`
 echo "ACCESS_TOKEN=$ACCESS_TOKEN"
 echo $ACCESS_TOKEN >ACCESS_TOKEN

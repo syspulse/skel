@@ -41,6 +41,10 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
   import UserJson._
   import spray.json._
   
+  def connSettings = ConnectionPoolSettings(UserClientHttp.system)
+    .withConnectionSettings(ClientConnectionSettings(UserClientHttp.system)
+    .withConnectingTimeout(timeout))
+
   def reqGetUser(id:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/${id}",headers=authHeaders())
   def reqGetUserByEid(xid:String) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/xid/${xid}",headers=authHeaders())
   def reqGetUsers() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}",headers=authHeaders())
@@ -53,7 +57,7 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
   def delete(id:UUID):Future[UserActionRes] = {
     log.info(s"${id} -> ${reqDeleteUser(id)}")
     for {
-      rsp <- Http().singleRequest(reqDeleteUser(id))
+      rsp <- Http().singleRequest(reqDeleteUser(id), settings = connSettings)
       r <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[UserActionRes] else Future(UserActionRes(status=s"${rsp.status}: ${rsp.entity}",None))
     } yield r 
   }
@@ -61,7 +65,7 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
   def create(email:String,name:String,xid:String,avatar:String):Future[Try[User]] = {
     log.info(s"-> ${reqPostUser(email,name,xid,avatar)}")
     for {
-      rsp <- Http().singleRequest(reqPostUser(email,name,xid,avatar))      
+      rsp <- Http().singleRequest(reqPostUser(email,name,xid,avatar), settings = connSettings)
       user <- if(rsp.status == StatusCodes.OK || rsp.status == StatusCodes.Created) Unmarshal(rsp).to[Option[User]] else Future(None)
       rsp <- user match {
         case Some(user) => Future(Success(user))
@@ -82,7 +86,7 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
   def get(id:UUID):Future[Try[User]] = {
     log.info(s"${id} -> ${reqGetUser(id)}")
     for {
-      rsp <- Http().singleRequest(reqGetUser(id))
+      rsp <- Http().singleRequest(reqGetUser(id), settings = connSettings)
       user <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[User]] else Future(None)
       rsp <- user match {
         case Some(user) => Future(Success(user))
@@ -94,7 +98,7 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
   def findByXid(xid:String):Future[Option[User]] = {
     log.info(s"${xid} -> ${reqGetUserByEid(xid)}")    
     for {
-      rsp <- Http().singleRequest(reqGetUserByEid(xid))
+      rsp <- Http().singleRequest(reqGetUserByEid(xid), settings = connSettings)
       user <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[User]] else Future(None)
     } yield user
   }
@@ -103,10 +107,7 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
     log.info(s"${xid} -> ${reqGetUserByEid(xid)}")    
     
     for {
-      rsp <- Http().singleRequest(reqGetUserByEid(xid),
-                                  settings = ConnectionPoolSettings(UserClientHttp.system)
-                                    .withConnectionSettings(ClientConnectionSettings(UserClientHttp.system)
-                                    .withConnectingTimeout(FiniteDuration(3,"seconds"))))
+      rsp <- Http().singleRequest(reqGetUserByEid(xid), settings = connSettings)
       .transform {
         case Failure(e) => {
           log.error(s"Failed to call -> ${reqGetUserByEid(xid)}: ${e.getMessage()}")
@@ -134,7 +135,7 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
   def all():Future[Try[Users]] = {
     log.info(s" -> ${reqGetUsers()}")
     for {
-      rsp <- Http().singleRequest(reqGetUsers())
+      rsp <- Http().singleRequest(reqGetUsers(), settings = connSettings)
       users <- if(rsp.status == StatusCodes.OK) Unmarshal(rsp).to[Option[Users]] else Future(None)
       rsp <- users match {
         case Some(users) => Future(Success(users))

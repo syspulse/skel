@@ -24,26 +24,19 @@ import java.util.concurrent.TimeUnit
 import java.time.ZonedDateTime
 import java.time.Instant
 import java.time.ZoneId
+import com.github.mjakubowski84.parquet4s.ParquetRecordEncoder
+import com.github.mjakubowski84.parquet4s.ParquetSchemaResolver
 
 // throttleSource - reduce load on Source (e.g. HttpSource)
 // throttle - delay objects downstream
-abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=100L)
-  (implicit fmt:JsonFormat[O]) extends IngestFlow[I,T,O]() {
+abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
+  throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=100L)
+  (implicit fmt:JsonFormat[O], parqEncoders:ParquetRecordEncoder[O],parsResolver:ParquetSchemaResolver[O])  extends IngestFlow[I,T,O]() {
   
   private val log = Logger(s"${this}")
   
-  //def processing:Flow[I,T,_]
-
-  // override def process:Flow[I,T,_] = {
-  //   val f0 = processing
-  //   val f1 = if(throttle != 0L) {      
-  //     f0.throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))      
-  //   }
-  //   else
-  //     f0
-  //   f1
-  // }
-
+  implicit def timeout:FiniteDuration = FiniteDuration(5000, TimeUnit.MILLISECONDS)
+  
   def shaping:Flow[I,I,_] = {
     if(throttle != 0L)
       Flow[I].throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))          
@@ -118,8 +111,11 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
         
     val sink = output.split("://").toList match {
       case "null" :: _ => Flows.toNull
-      case "json" :: _ => Flows.toJson[O](output)(fmt)
+      
+      case "json" :: _ => Flows.toJson[O](output,pretty=false)(fmt)
+      case "pjson" :: _ => Flows.toJson[O](output,pretty=true)(fmt)
       case "csv" :: _ => Flows.toCsv(output)
+      case "log" :: _ => Flows.toLog(output)
 
       case "kafka" :: _ => Flows.toKafka[O](output)
       case "elastic" :: _ => Flows.toElastic[O](output)(fmt)
@@ -129,6 +125,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,thro
       case "hive" :: fileName :: Nil => Flows.toHive(fileName)(getRotator())
 
       case "fs3" :: fileName :: Nil => Flows.toFS3(fileName,getFileLimit(),getFileSize())(getRotator())
+      case "parq" :: fileName :: Nil => Flows.toParq[O](fileName,getFileLimit(),getFileSize())(getRotator(),parqEncoders,parsResolver)
 
       // test to create new file for every object
       // TODO: remove it

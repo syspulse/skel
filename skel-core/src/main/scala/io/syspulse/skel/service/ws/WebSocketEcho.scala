@@ -13,7 +13,7 @@ import scala.util.{Success,Failure}
 import akka.stream.Materializer
 
 
-class WebSocketEcho()(implicit ex:ExecutionContext,mat:ActorMaterializer) extends WebSocket() {
+class WebSocketEcho(idleTimeout:Long = 1000L*60*5)(implicit ex:ExecutionContext,mat:ActorMaterializer) extends WebSocket(idleTimeout) {
   override def process(m:Message,a:ActorRef):Message = {
     val txt = m.asTextMessage.getStrictText
     a ! m

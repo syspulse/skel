@@ -61,26 +61,36 @@ import akka.actor.Cancellable
 import java.util.TimeZone
 import java.time.ZoneId
 
+import com.github.mjakubowski84.parquet4s.{ParquetReader, ParquetWriter}
+import org.apache.parquet.hadoop.ParquetFileWriter.Mode
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.parquet.hadoop.{ParquetWriter => HadoopParquetWriter}
+import org.apache.hadoop.conf.Configuration
+import com.github.mjakubowski84.parquet4s.ValueEncoder
+import com.github.mjakubowski84.parquet4s.ParquetRecordEncoder
+import com.github.mjakubowski84.parquet4s.ParquetSchemaResolver
+import com.github.mjakubowski84.parquet4s.ParquetStreams
+
 object Flows {
   val log = Logger(this.toString)
 
   val retrySettingsDefault = RestartSettings(
     minBackoff = FiniteDuration(1000L,TimeUnit.MILLISECONDS),
-    maxBackoff = FiniteDuration(1000L,TimeUnit.MILLISECONDS),
+    maxBackoff = FiniteDuration(9000L,TimeUnit.MILLISECONDS),
     randomFactor = 0.2
   )
 
   // NOTE: https://github.com/akka/akka-http/issues/4128
   // WARNING: Nobody understands how akka http works except Lightbend          
-  def retryDeterministicSettings(as:ActorSystem) = ConnectionPoolSettings(as)
+  def retry_1_deterministic(as:ActorSystem,timeout:FiniteDuration) = ConnectionPoolSettings(as)
                           .withBaseConnectionBackoff(FiniteDuration(1000,TimeUnit.MILLISECONDS))
                           .withMaxConnectionBackoff(FiniteDuration(1000,TimeUnit.MILLISECONDS))
                           .withMaxConnections(1)
                           .withMaxRetries(1)
                           // .withMaxOpenRequests(1)
                           .withConnectionSettings(ClientConnectionSettings(as)
-                            .withIdleTimeout(retrySettingsDefault.minBackoff)
-                            .withConnectingTimeout(retrySettingsDefault.minBackoff))
+                            .withIdleTimeout(timeout)
+                            .withConnectingTimeout(timeout))
 
   def fromSourceRestart(s:Source[ByteString, _],retry:RestartSettings = retrySettingsDefault) = RestartSource.onFailuresWithBackoff(retry) { () =>
     log.info(s"Restarting -> Source(${s})...")
@@ -134,9 +144,9 @@ object Flows {
   def toNull = Sink.ignore
   def fromNull = Source.future(Future({Thread.sleep(Long.MaxValue);ByteString("")})) //Source.never
 
-  def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem) = 
+  def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem,timeout:FiniteDuration) = 
     Http()
-    .singleRequest(req, settings = retryDeterministicSettings(as))
+    .singleRequest(req, settings = retry_1_deterministic(as,timeout))
     .flatMap(res => { 
       res.status match {
         case StatusCodes.OK => 
@@ -151,7 +161,7 @@ object Flows {
       }      
     })
       
-  def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = {
+  def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem,timeout:FiniteDuration) = {
     //val s = Source.future(fromHttpFuture(req))
     val s = RestartSource.onFailuresWithBackoff(retrySettingsDefault) { () =>
       Source.futureSource {
@@ -165,11 +175,11 @@ object Flows {
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))    
   }
 
-  def fromHttpRestartable(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem) = {
+  def fromHttpRestartable(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem,timeout:FiniteDuration) = {
     fromHttp(req,frameDelimiter,frameSize)
   }
 
-  def fromHttpList(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem) = {
+  def fromHttpList(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem,timeout:FiniteDuration) = {
     // Http().singleRequest does not respect mapAsync for parallelization !!!
     val s = 
       Source(reqs)
@@ -185,16 +195,16 @@ object Flows {
     s
   }
 
-  def fromHttpListAsFlow(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem) = {
-    val f1 = Flow[String]
-      .throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))
-      .mapConcat(tick => {        
+  def fromHttpListAsFlow(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem,timeout:FiniteDuration) = {
+    val f1 = Flow[String]      
+      .mapConcat(_ => {
         reqs
       })
+      .throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))
       .flatMapConcat(req => {
         log.info(s"--> ${req}")
         //Flows.fromHttpFuture(req)(as)
-        Flows.fromHttpRestartable(req)
+        Flows.fromHttpRestartable(req, frameDelimiter, frameSize)
       })      
     
     if(frameDelimiter.isEmpty())
@@ -256,7 +266,7 @@ object Flows {
       Sink.ignore 
     else
       Flow[Ingestable]
-        .map(t=>s"${t.toLog}\n")
+        .map(t => s"${t.toLog}\n")
         .map(ByteString(_))
         .toMat(FileIO.toPath(
           Paths.get(Util.pathToFullPath(Util.toFileWithTime(file))),options =  Set(WRITE, CREATE))
@@ -482,6 +492,96 @@ object Flows {
         .toMat(LogRotatorSink(fileRotateTrigger,fileOpenOptions = Set(StandardOpenOption.CREATE,StandardOpenOption.WRITE)))(Keep.right)
   }
 
+  // Parquet (does not support !)
+  // ATTENTION: this is a very hacky implementation
+  // parquet4s supports its own Rotator, but cannot change file name to be compatible with fs3://
+  def toParq[T](fileUri:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue)
+    (implicit rotator:Rotator,parqEncoders:ParquetRecordEncoder[T],parsResolver:ParquetSchemaResolver[T]) = {
+    
+    val log = Logger(s"${this}")
+    val parqUri = skel.uri.ParqURI(fileUri)
+    val file = parqUri.file
+    val writeMode = parqUri.mode match {
+      case "OVERWRITE" => Mode.OVERWRITE
+      case "CREATE" => Mode.CREATE
+    }
+    val zip = parqUri.zip match {
+      case "parq" => CompressionCodecName.UNCOMPRESSED
+      case "snappy" => CompressionCodecName.SNAPPY
+      case "gzip" => CompressionCodecName.GZIP
+      case "lz4" => CompressionCodecName.LZ4
+      case "zstd" => CompressionCodecName.ZSTD
+      case _ => CompressionCodecName.UNCOMPRESSED
+    }
+    val parqOptions = ParquetWriter.Options(
+      writeMode = writeMode,
+      compressionCodecName = zip,
+    )
+    
+    val fileRotateTrigger: () => T => Option[Sink[T,Future[Done]]] = () => {
+      var currentFilename: Option[String] = None
+      var inited = false
+      var count: Long = 0L
+      var size: Long = 0L
+      
+      rotator.init(file,fileLimit,fileSize)
+          
+      (element: T) => {
+        
+        if(inited && (
+            count < fileLimit && 
+            size < fileSize && 
+            ! rotator.needRotate(count,size)
+          )
+        ) {
+          
+          count = count + 1
+          size = size + 0//element.size
+          
+          None
+        } else {          
+          currentFilename = rotator.rotate(file,count,size)
+          
+          log.info(s"count=${count},size=${size},limits=(${fileLimit},${fileSize}) => ${currentFilename}")
+
+          count = 0L
+          size = 0L
+          inited = true
+          
+          val currentDirname = Util.extractDirWithSlash(currentFilename.get)          
+          try {
+            // try to create dir
+            val p = Files.createDirectories(Path.of(currentDirname))
+            log.info(s"created dir: ${p}")
+            val outputPath = currentFilename.get
+
+            val parq = ParquetStreams
+              .toParquetSingleFile.of[T]
+              .options(parqOptions)
+              .write(com.github.mjakubowski84.parquet4s.Path(outputPath))
+              //ParquetWriter.of[T].options(parqOptions).build(com.github.mjakubowski84.parquet4s.Path(outputPath))
+            Some(parq)
+
+          } catch {
+            case e:Exception => {
+              log.error(s"Coould not create dir: ${currentDirname}",e)
+              None
+            }
+          }                    
+        }
+      }
+    }
+
+    if(file.trim.isEmpty) 
+      Sink.ignore 
+    else {
+      val fileOpenOptions = Set(StandardOpenOption.CREATE,StandardOpenOption.WRITE)
+      val sinkParq = LogRotatorSink.withTypedSinkFactory[T, Sink[T,Future[Done]], Done](fileRotateTrigger,sinkFactory = (s) => s)
+      Flow[T]
+        .toMat(sinkParq)(Keep.right)
+    }
+  }
+
   def toElastic[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
     val es = new ToElastic[T](uri)(fmt)
     Flow[T]
@@ -507,16 +607,26 @@ object Flows {
   //     .to(js.sink())
   // }
 
-  def toJson[T <: Ingestable](uri:String,flush:Boolean = false)(implicit fmt:JsonFormat[T]) = {
+  def toJson[T <: Ingestable](uri:String,flush:Boolean = false,pretty:Boolean = false)(implicit fmt:JsonFormat[T]) = {
     import spray.json._
     Flow[T]
-      .map(o => if(o!=null) ByteString(o.toJson.prettyPrint+"\n") else ByteString())
+      .map(o => if(o!=null) {
+        val j = o.toJson
+        val js = if(pretty) j.prettyPrint else j
+        ByteString(s"${js}\n")
+      } else ByteString())
       .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.right)
   }
 
   def toCsv[T <: Ingestable](uri:String,flush:Boolean = false):Sink[T, Future[IOResult]] = {
     Flow[T]
       .map(o => if(o!=null) ByteString(o.toCSV+"\n") else ByteString())
+      .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.right)
+  }
+
+  def toLog[T <: Ingestable](uri:String,flush:Boolean = false):Sink[T, Future[IOResult]] = {
+    Flow[T]
+      .map(o => if(o!=null) ByteString(o.toLog+"\n") else ByteString())
       .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.right)
   }
 

@@ -11,17 +11,19 @@ import scala.util.Try
 import scala.util.Success
 
 import io.syspulse.skel.auth.cred.CredStoreMem
-object CredRegistry {
-  
-  final case class CreateCred(req: CredCreateReq, replyTo: ActorRef[Try[Cred]]) extends Command
-  final case class GetCred(cid: String, replyTo: ActorRef[Try[Cred]]) extends Command
-  final case class GetCreds(replyTo: ActorRef[Try[Creds]]) extends Command
-  final case class DeleteCred(cid: String, replyTo: ActorRef[CredActionRes]) extends Command
+import scala.util.Failure
+
+object CredRegistry {  
+  final case class CreateCred(req: CredCreateReq, uid:UUID, replyTo: ActorRef[Try[Cred]]) extends Command
+  final case class GetCred(cid: String, uid:Option[UUID], replyTo: ActorRef[Try[Cred]]) extends Command
+  final case class GetCreds(uid:Option[UUID], replyTo: ActorRef[Try[Creds]]) extends Command
+  final case class DeleteCred(cid: String, uid:Option[UUID], replyTo: ActorRef[Try[CredActionRes]]) extends Command
+  final case class UpdateCred(cid:String,req:CredUpdateReq, replyTo: ActorRef[Try[Cred]]) extends Command
   
   // this var reference is unfortunately needed for Metrics access
   var store: CredStore = new CredStoreMem
 
-  def apply(store: CredStore = new CredStoreMem): Behavior[Command] = {
+  def apply(store: CredStore): Behavior[Command] = {
     this.store = store
     registry(store)
   }
@@ -30,24 +32,50 @@ object CredRegistry {
     this.store = store
 
     Behaviors.receiveMessage {
-      case GetCreds(replyTo) =>
-        replyTo ! Success(Creds(store.all))
+      case GetCreds(uid,replyTo) =>
+        replyTo ! Success(Creds(store.all.filter(c => !uid.isDefined || (c.uid == uid.get) )))
         Behaviors.same
 
-      case CreateCred(req, replyTo) =>
-        val cid = Cred(req.cid,req.secret,req.name.getOrElse(""))
-        val store1 = store.+(cid)
+      case CreateCred(req, uid, replyTo) =>
+        val cid = Cred(
+          req.cid,
+          req.secret,
+          req.name.getOrElse(""),
+          uid = uid)
+        
+        store.+(cid)
+        
         replyTo ! Success(cid)
-        registry(store1.getOrElse(store))
-
-      case GetCred(cid, replyTo) =>
-        replyTo ! store.?(cid)
         Behaviors.same
 
-      case DeleteCred(cid, replyTo) =>
-        val store1 = store.del(cid)
-        replyTo ! CredActionRes(s"success",Some(cid))
-        registry(store1.getOrElse(store))
+      case GetCred(cid, uid, replyTo) =>
+        replyTo ! {
+          for {
+            c <- store.?(cid)
+            c2 <- if(!uid.isDefined || (c.uid == uid.get)) Success(c) else Failure(new Exception(s"access denined: ${uid}"))
+          } yield c2
+        }
+        Behaviors.same
+
+      case DeleteCred(cid, uid, replyTo) =>
+        //val store1 = store.del(cid)
+        //replyTo ! CredActionRes(s"success",Some(cid))
+
+        replyTo ! {
+          for {
+            c <- store.?(cid)
+            c2 <- if(!uid.isDefined || (c.uid == uid.get)) Success(c) else Failure(new Exception(s"access denined: ${uid}"))            
+            r <- {
+              store.del(cid)
+              Success(CredActionRes(s"deleted",Some(cid)))
+            }
+          } yield r
+        }
+        Behaviors.same
+
+      case UpdateCred(id, req, replyTo) =>
+        replyTo ! store.update(id,req.secret,req.name,req.age)
+        Behaviors.same
     }
   }
 }

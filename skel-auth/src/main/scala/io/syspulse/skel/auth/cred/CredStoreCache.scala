@@ -8,10 +8,17 @@ import akka.actor.typed.scaladsl.Behaviors
 import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
+import io.syspulse.skel.auth.permissions.rbac.Permissions
 
 trait CredStoreCache extends CredStore {
+  val log = Logger(s"${this}")
+
   // default clinet for quick prototyping
-  val defaultCreds = { val cid="eaf9642f76195dca7529c0589e6d6259"; cid -> Cred(Some(cid),Some("vn5digFyJVZCIVLExNo_Hynz0zDxEUDRlu5FHB9Qvj8"),age=3600L*24 *365) }
+  val defaultCreds = { 
+    val cid="eaf9642f76195dca7529c0589e6d6259"; 
+    cid -> Cred(Some(cid),Some("vn5digFyJVZCIVLExNo_Hynz0zDxEUDRlu5FHB9Qvj8"),age= 3600L*24 *365, 
+                uid = UUID("00000000-0000-0000-1000-000000000001"))
+  }
 
   var clients: Map[String,Cred] = Map() + defaultCreds
 
@@ -19,26 +26,26 @@ trait CredStoreCache extends CredStore {
 
   def size:Long = clients.size
 
-  def +(cid:Cred):Try[CredStore] = { 
-    clients = clients + (cid.cid -> cid); Success(this)
+  def +(c:Cred):Try[CredStore] = {
+    log.info(s"add: ${c}")
+    clients = clients + (c.cid -> c); Success(this)
   }
 
-  def del(c:String):Try[CredStore] = { 
-    clients.get(c) match {
-      case Some(auth) => { clients = clients - c; Success(this) }
-      case None => Failure(new Exception(s"not found: ${c}"))
+  def del(cid:String):Try[CredStore] = { 
+    log.info(s"del: ${cid}")
+    clients.get(cid) match {
+      case Some(auth) => { clients = clients - cid; Success(this) }
+      case None => Failure(new Exception(s"not found: ${cid}"))
     }
   }
 
-  // override def -(cid:Cred):Try[CredStore] = { 
-  //   val sz = clients.size
-  //   clients = clients - cid.cid;
-  //   if(sz == clients.size) Failure(new Exception(s"not found: ${cid}")) else Success(this)
-  // }
+  def ?(id:String):Try[Cred] = clients.get(id) match {
+    case Some(c) => Success(c)
+    case None => Failure(new Exception(s"not found: ${id}"))
+  }
 
-  def ?(c:String):Try[Cred] = clients.get(c) match {
-    case Some(cid) => Success(cid)
-    case None => Failure(new Exception(s"not found: ${c}"))
+  def update(id:String,secret:Option[String]=None,name:Option[String]=None,expire:Option[Long] = None):Try[Cred] = {
+    ?(id).map(c => modify(c,secret,name,expire))
   }
 }
 

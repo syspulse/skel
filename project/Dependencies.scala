@@ -2,9 +2,10 @@ import sbt._
 
 object Dependencies {
 
+    lazy val scala = "2.13.9"
     // Versions
     lazy val versionScalaLogging = "3.9.2"
-    lazy val akkaVersion    = "2.6.19"
+    lazy val akkaVersion    = "2.6.20"
     lazy val alpakkaVersion = "3.0.4"  
     lazy val akkaHttpVersion = "10.2.9" //"10.2.4"
     lazy val akkaKafkaVersion = "2.0.3"
@@ -16,6 +17,7 @@ object Dependencies {
 
     lazy val hadoopAWSVersion = "3.2.2"
     lazy val hadoopVersion = "3.2.2"
+    lazy val parq4sVersion = "2.10.0"
 
     lazy val janinoVersion = "3.0.16" //"3.1.6" //"3.0.16"
     lazy val elastic4sVersion = "7.17.3"
@@ -49,7 +51,7 @@ object Dependencies {
     lazy val appBootClassElastic = "io.syspulse.skel.ingest.elastic.App"
 
 
-    lazy val appVersion = "0.0.6"
+    lazy val skelVersion = "0.0.6"
     lazy val jarPrefix = "server-"
     
     lazy val appDockerRoot = "/app"
@@ -81,12 +83,13 @@ object Dependencies {
     val libAkkaHttpCors =   "ch.megard"                       %% "akka-http-cors"       % "1.1.3"
 
     val libScalaLogging =   "com.typesafe.scala-logging"      %% "scala-logging"        % "3.9.2"
-    val libLogback =        "ch.qos.logback"                  % "logback-classic"      % "1.2.8"
+    val libLogback =        "ch.qos.logback"                  % "logback-classic"      % "1.3.5" //"1.2.8"
     val libJanino =         "org.codehaus.janino"             % "janino"               % janinoVersion
     // I need this rubbish slf4j to deal with old jboss dependecny which generates exception in loading logback.xml
     //val libSlf4jApi =       "org.slf4j"                   %  "slf4j-api"            % "1.8.0-beta4"
     // Supports only old XML Config file format
-    val libSlf4jApi =       "org.slf4j"                       % "slf4j-api"            % "1.7.26"
+    // val libSlf4jApi =       "org.slf4j"                       % "slf4j-api"            % "1.7.26"
+    val libSlf4jApi =       "org.slf4j"                       % "slf4j-api"            % "2.0.5"
     // Needed for teku
     val libLog4j2Api =      "org.apache.logging.log4j"        % "log4j-api" % "2.17.2"
     val libLog4j2Core =     "org.apache.logging.log4j"        % "log4j-core" % "2.17.2"
@@ -214,8 +217,10 @@ object Dependencies {
     val libDirWatcher =       "io.methvin"                    % "directory-watcher"               % "0.18.0"
     val libDirWatcherScala =  "io.methvin"                    %% "directory-watcher-better-files" % "0.18.0"
 
-    val libParq =             "com.github.mjakubowski84"      %% "parquet4s-core"                 % "2.10.0"
+    val libParq =             "com.github.mjakubowski84"      %% "parquet4s-core"                 % parq4sVersion
+    val libParqAkka =         "com.github.mjakubowski84"      %% "parquet4s-akka"                 % parq4sVersion
     val libHadoop =           "org.apache.hadoop"             % "hadoop-client"                   % hadoopVersion
+    val libHadoopLZO =        "hadoop-lzo"                    % "hadoop-lzo"                      % "0.4.15"
 
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)

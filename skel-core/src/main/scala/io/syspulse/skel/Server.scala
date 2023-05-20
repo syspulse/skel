@@ -52,6 +52,8 @@ import akka.http.scaladsl.server.directives.RangeDirectives
 import akka.http.scaladsl.server.directives.CodingDirectives
 import akka.stream.scaladsl.StreamConverters
 import akka.util.ByteString
+import java.io.DataInputStream
+import java.io.FileInputStream
 
 trait Server {
   val log = Logger(s"${this}")
@@ -186,7 +188,18 @@ trait Server {
                   //   body
                   // })
                   // complete(HttpEntity.Default(contentType, length, stream))
-                  val body0 = new String(url.openStream().readAllBytes())
+                  
+                  // ATTENTION: Migrate to Java11
+                  // Java11
+                  // val body0 = new String(url.openStream().readAllBytes())
+                  // Java8
+                  val body0 = {
+                    val bytes = new Array[Byte](length.toInt);
+                    val dataInputStream = new DataInputStream(url.openStream());
+                    dataInputStream.readFully(bytes)
+                    new String(bytes)
+                  }
+
                   val body1 = ByteString(body0.replace("{service}",serviceName))
                   complete(HttpEntity(contentType,body1))
                 }
@@ -217,14 +230,16 @@ trait Server {
 
       val (rejectionHandler:RejectionHandler,exceptionHandler:ExceptionHandler) = getHandlers() //(context)
 
-      val appServices:Seq[Routeable] = app.map{ case(behavior,name,routeFun) => {
+      val appServices:Seq[Routeable] = app.map { 
+        case(behavior,name,routeCallback) => {
           val survivingBehavior = Behaviors.supervise[Command] {
             behavior  
           }.onFailure[Exception](SupervisorStrategy.resume)
 
           val actor:ActorRef[Command] = context.spawn(survivingBehavior, s"Actor-${name}")
           context.watch(actor)
-          routeFun(actor,context) 
+
+          routeCallback(actor,context) 
         }
       }
       val appRoutes:Seq[Route] = appServices.map(r => r.buildRoutes())

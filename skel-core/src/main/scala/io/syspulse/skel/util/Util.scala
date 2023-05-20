@@ -25,6 +25,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.FileReader
 import scala.util.Success
+import com.typesafe.scalalogging.Logger
 
 object Util {
   
@@ -65,6 +66,7 @@ object Util {
   def toHexString(b:Array[Byte]) = b.foldLeft("")((s,b)=>s + f"$b%02x")
   //def hex(x: Array[Byte],prefix:Boolean=true):String = s"""${if(prefix) "0x" else ""}${x.toArray.map("%02x".format(_)).mkString}"""
   def hex(x: Array[Byte],prefix:Boolean=true):String = s"""${if(prefix) "0x" else ""}${ByteVector(x).toHex}"""
+  def unhex(h:String) = fromHexString(h)
 
   def SHA256(data:Array[Byte]):Array[Byte] = digest.digest(data)
   def SHA256(data:String):Array[Byte] = digest.digest(data.getBytes(StandardCharsets.UTF_8))
@@ -130,9 +132,12 @@ object Util {
     s.take(s.size - 1).mkString("/")
   }
 
-  def toDirWithSlash(dir:String):String = if(dir.isBlank()) dir else if(dir.trim.endsWith("/")) dir else dir + "/"
+  // Java11: use isBlank
+  def toDirWithSlash(dir:String):String = 
+    if(dir.trim.isEmpty) dir else if(dir.trim.endsWith("/")) dir else dir + "/"
+
   def extractDirWithSlash(dir:String):String = {
-    if(dir.isBlank()) 
+    if(dir.trim.isEmpty) 
       "" 
     else if(dir.trim.endsWith("/")) 
       dir 
@@ -151,6 +156,8 @@ object Util {
     val bb = Util.SHA256(entityName).take(4) ++  Array.fill[Byte](2+2+2)(0) ++ Util.SHA256(id).take(6)
     UUID(bb)
   }
+
+  val UUID_0 = UUID(Array.fill[Byte](16)(0))
 
   def getHostPort(address:String):(String,Int) = { 
     val (host,port) = address.split(":").toList match{ 
@@ -270,6 +277,39 @@ object Util {
   def pathToFullPath(path:String):String = {
     if(path.trim.startsWith("/")) return path
     s"${os.pwd.toString}/${path}"
+  }
+
+  def timed[C](code: => C)(implicit log:Logger): C = {
+    val ts0 = System.nanoTime
+    val r = code
+    val ts1 = System.nanoTime
+    log.info(s"Elapsed: ${Duration.ofNanos(ts1 - ts0).toMillis()} msec")
+    r
+  }
+
+  def timed[C](n:Int = 0)(code: => C)(implicit log:Logger): Unit = {
+    val ts0 = System.nanoTime
+    var r = null
+    for(i <- Range(0,n)) {      
+      code      
+    }
+    val ts1 = System.nanoTime      
+    log.info(s"Elapsed: ${Duration.ofNanos(ts1 - ts0).toMillis()} msec")    
+  }
+
+  def replaceVar(expr:String,vars:Map[String,Any]):String = {
+    val rexpr = """(\{[a-zA-Z_-]+\})""".r
+    val pairs = rexpr.findAllIn(expr).flatMap( v =>{
+      val variable = v.substring(1,v.size-1)      
+      val vv = vars.collect{ case(n,value) if(n == variable) => value}
+      vv.headOption.map(value => (variable,value))
+
+    })
+    val expr1 = pairs.foldLeft(expr)((e,p) => {
+      val r = "\\{"+p._1+"\\}"
+      e.replaceAll(r,p._2.toString)
+    })
+    expr1
   }
 }
 

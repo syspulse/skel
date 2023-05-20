@@ -6,7 +6,7 @@ dynamo://server:8100/table
 case class DynamoURI(uri:String) {
   val PREFIX = "dynamo://"
 
-  val (khost:String,ktable:String) = parse(uri)
+  private val (khost:String,ktable:String) = parse(uri)
 
   def host:String = "http://" + khost
   def table:String = ktable

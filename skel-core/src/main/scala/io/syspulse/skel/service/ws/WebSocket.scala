@@ -33,11 +33,14 @@ import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 
 
-abstract class WebSocket(idleTimeout:Long = 1000L*60*5)(implicit ex:ExecutionContext) {
+abstract class WebSocket(idleTimeout:Long)(implicit ex:ExecutionContext) {
   val log = Logger(s"${this}")
 
   @volatile
   protected var clients: mutable.Map[String,mutable.ListBuffer[ActorRef]] = mutable.Map()
+
+  def all() = clients.keys
+
   def -(topic:String,wsActor:ActorRef) = {
     val aa = clients.get(topic).getOrElse(mutable.ListBuffer())
     aa.synchronized {
@@ -48,6 +51,7 @@ abstract class WebSocket(idleTimeout:Long = 1000L*60*5)(implicit ex:ExecutionCon
     }
     log.info(s"clients: ${clients}")
   }
+  
   def +(topic:String,wsActor:ActorRef) = {
     val aa = clients.getOrElseUpdate(topic,mutable.ListBuffer())
     aa.synchronized {
@@ -64,7 +68,7 @@ abstract class WebSocket(idleTimeout:Long = 1000L*60*5)(implicit ex:ExecutionCon
         .actorRef[Message](32, OverflowStrategy.dropNew)
         .preMaterialize()
 
-    this.+(topic,wsActor)    
+    this.+(topic,wsActor)
     
     // it must be coupled to detect WS client disconnects!
     val flow = Flow.fromSinkAndSourceCoupled(
@@ -76,8 +80,10 @@ abstract class WebSocket(idleTimeout:Long = 1000L*60*5)(implicit ex:ExecutionCon
           log.debug(s"connection=${wsActor}: ${m}")
           m
         })
-        .idleTimeout(FiniteDuration(idleTimeout,TimeUnit.MILLISECONDS))
-    ).watchTermination()( (prevMatValue, f) => {
+        //.idleTimeout(FiniteDuration(idleTimeout,TimeUnit.MILLISECONDS))
+    )
+    .idleTimeout(FiniteDuration(idleTimeout,TimeUnit.MILLISECONDS))
+    .watchTermination()( (prevMatValue, f) => {
       // this function will be run when the stream terminates
       // the Future provided as a second parameter indicates whether the stream completed successfully or failed
       f.onComplete {

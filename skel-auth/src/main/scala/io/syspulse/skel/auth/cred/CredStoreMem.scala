@@ -11,9 +11,4 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.auth.cred.CredStoreCache
 
-class CredStoreMem extends CredStoreCache {
-  val log = Logger(s"${this}")
-
-}
-
-
+class CredStoreMem extends CredStoreCache

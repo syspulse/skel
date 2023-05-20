@@ -28,7 +28,9 @@ import java.util.concurrent.TimeUnit
 import io.syspulse.skel.tag._
 
 import TagJson._
-import TagCvs._
+import TagCsv._
+
+import io.syspulse.skel.tag.TagCsv
 
 class PipelineTag(feed:String,output:String)(implicit config:Config)
   extends Pipeline[Tag,Tag,Tag](feed,output,config.throttle,config.delimiter,config.buffer) {
