@@ -43,7 +43,6 @@ class NotifyStoreDir(dir:String = "store/")(implicit config:Config) extends Stor
     for {
       n1 <- store.++(n)
       _ <- {
-        println(s"===========================================> ${n1}")
         super.+(n1)
       }
     } yield n1
