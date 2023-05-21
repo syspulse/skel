@@ -17,7 +17,7 @@ import scala.util.Try
 object SyslogRegistry {
   val log = Logger(s"${this}")
 
-  val bus = new SyslogBus() {
+  val bus = new SyslogBus(busId = "syslog") {
     override def recv(msg:SyslogEvent):SyslogEvent = {
       log.info(s"event=${msg}")
       msg
