@@ -35,5 +35,6 @@ object WorkflowRegistry {
     Exec("Fifo","io.syspulse.skel.wf.exec.FifoExec"),
 
     Exec("HTTP","io.syspulse.skel.wf.exec.HttpClientExec"),
+    Exec("Script","io.syspulse.skel.wf.exec.ScriptExec"),
   )
 }

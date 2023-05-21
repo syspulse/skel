@@ -256,7 +256,7 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 // ======================================================================================================================
 lazy val root = (project in file("."))
-  .aggregate(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, dsl, scrap, cli, db_cli,
+  .aggregate(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, skel_dsl, scrap, cli, db_cli,
              ingest_flow,
              ingest_elastic,
              ingest_dynamo,
@@ -265,7 +265,7 @@ lazy val root = (project in file("."))
              skel_notify,
              skel_tag, 
              skel_telemetry)
-  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, dsl, scrap, cli, db_cli, 
+  .dependsOn(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, skel_dsl, scrap, cli, db_cli, 
              ingest_flow,
              ingest_elastic,
              ingest_dynamo,
@@ -612,7 +612,7 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
   )
 
 lazy val stream_std = (project in file("skel-stream/stream-std"))
-  .dependsOn(core,dsl)
+  .dependsOn(core,skel_dsl)
   .enablePlugins(JavaAppPackaging)
   //.enablePlugins(DockerPlugin)
   //.enablePlugins(AshScriptPlugin)
@@ -660,7 +660,7 @@ lazy val db_cli = (project in file("skel-db/db-cli"))
         ),
     )
 
-lazy val dsl = (project in file("skel-dsl"))
+lazy val skel_dsl = (project in file("skel-dsl"))
   .dependsOn(core)
   .enablePlugins(JavaAppPackaging) // for experiments
   .settings (
@@ -673,6 +673,7 @@ lazy val dsl = (project in file("skel-dsl"))
 
       libraryDependencies ++= libCommon ++ libTest ++
         Seq(
+          libUpickleLib,
           "org.scala-lang" % "scala-compiler" % scalaVersion.value,
         ),
     )
@@ -821,7 +822,7 @@ lazy val notify_core = (project in file("skel-notify/notify-core"))
   )
 
 lazy val skel_notify = (project in file("skel-notify"))
-  .dependsOn(core,notify_core,auth_core,syslog_core,kafka)
+  .dependsOn(core,notify_core,auth_core,syslog_core,skel_dsl)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -880,7 +881,7 @@ lazy val skel_telemetry = (project in file("skel-telemetry"))
   )
 
 lazy val skel_wf = (project in file("skel-wf"))
-  .dependsOn(core,notify_core)
+  .dependsOn(core,notify_core,skel_dsl)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
