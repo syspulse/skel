@@ -45,6 +45,12 @@ Stop the Workflow:
 ./run-wf.sh runtime stop <WID>
 ```
 
+Assemble, Run, Wait, Stop and Remove in one pass (JSON Parsing example)
+
+```
+echo "{\"id\":\"100\"}" | ./run-wf.sh wf run WF00001 'F-0(ScriptExec(script=file://script-json1.sc))->F-1(LogExec(log.level=WARN))'
+```
+
 ----
 ### Workflow DSL Examples
 

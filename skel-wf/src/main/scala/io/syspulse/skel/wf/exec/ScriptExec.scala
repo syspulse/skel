@@ -27,14 +27,14 @@ class ScriptExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extend
 
         val output = try {
           val output = engine.run(src,data.attr ++ dataExec)
-          val data1 = ExecData(data.attr + ("output" -> output))
+          val data1 = ExecData(data.attr + ("input" -> output))
           broadcast(data1)
           Success(ExecDataEvent(data1))
 
         } catch {
           case e:Throwable => 
             log.error(s"script failed",e)
-            val data1 = ExecData(data.attr + ("output" -> e.getMessage()))
+            val data1 = ExecData(data.attr + ("input" -> e.getMessage()))
             send("err-0",data1)
             Failure(e)
         }
@@ -45,6 +45,7 @@ class ScriptExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extend
         Success(ExecDataEvent(data))
     }
 
+    log.info(s"r = ${r}")
     r
   }
 }

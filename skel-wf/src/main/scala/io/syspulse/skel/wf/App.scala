@@ -147,7 +147,7 @@ object App extends skel.Server {
             w <- we.start(w)
             input <- { Success(prompt()) }
             w <- w.emit(wf.execs(0).name,"in-0",ExecDataEvent(ExecData(Map("input"->input))))
-            _ <- { Thread.sleep(1000); Success("") }
+            _ <- { Success(prompt()) }
             w <- we.stop(w)
             _ <- we.remove(w)
           } yield w
