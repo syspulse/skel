@@ -24,8 +24,6 @@ class SplitExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends
         (!s.trim.isEmpty() && !(splitter=="\n" && (s.trim == "\r")))
       )
 
-    println(s"========================>${output.toSeq}")
-
     val data1 = data.attr + ("input.size" -> output.size)
 
     // this is async

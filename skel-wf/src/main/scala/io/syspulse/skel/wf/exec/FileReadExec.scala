@@ -12,32 +12,33 @@ import io.syspulse.skel.dsl.ScalaToolbox
 
 import ujson._
 
-class ScriptExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends Executing(wid,name,dataExec) {
-  
-  val engine = new ScalaToolbox()
+class FileReadExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends Executing(wid,name,dataExec) {
   
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
-    val r = getAttr("script",data) match {
-      case Some(script) =>         
-        log.info(s"script='${script}'")
-        val src = if(script.toString.startsWith("file://")) 
-          os.read(os.Path(script.toString.stripPrefix("file://"),os.pwd))
-        else
-          script.toString
-
+    val r = getAttr("file",data) match {
+      case Some(f) =>         
+        log.info(s"file='${f}'")
+                          
         val r = try {
-          val output = engine.run(src,data.attr ++ dataExec)
+          val output = f.toString.split("//").toList match {
+            case "file" :: name :: Nil =>
+              os.read(os.Path(name,os.pwd))
+            case name :: Nil => 
+              os.read(os.Path(name,os.pwd))
+          }
+
           val data1 = ExecData(data.attr + ("input" -> output))
           broadcast(data1)
           Success(ExecDataEvent(data1))
 
         } catch {
           case e:Throwable => 
-            log.error(s"script failed",e)
+            log.error(s"failed to read file: ${f}",e)
             val data1 = ExecData(data.attr + ("input" -> e.getMessage()))
             send("err-0",data1)
             Failure(e)
         }
+
         r
         
       case _ => 
