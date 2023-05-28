@@ -10,8 +10,8 @@ import io.syspulse.skel.wf.runtime._
 import io.syspulse.skel.wf._
 
 class SplitExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends Executing(wid,name,dataExec) {
-  val empty = dataExec.get("empty").getOrElse("false").asInstanceOf[String].toBoolean
-  val splitter = dataExec.get("splitter").getOrElse("\n").asInstanceOf[String]
+  val empty = dataExec.get("split.empty").getOrElse("false").asInstanceOf[String].toBoolean
+  val splitter = dataExec.get("split.symbol").getOrElse("\n").asInstanceOf[String]
   
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
     val inputs = getAttr("input",data).getOrElse("").asInstanceOf[String]

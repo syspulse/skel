@@ -38,5 +38,8 @@ object WorkflowRegistry {
     Exec("Script","io.syspulse.skel.wf.exec.ScriptExec"),
     Exec("Split","io.syspulse.skel.wf.exec.SplitExec"),
     Exec("FileRead","io.syspulse.skel.wf.exec.FileReadExec"),
+    Exec("FileWrite","io.syspulse.skel.wf.exec.FileWriteExec"),
+
+    Exec("Join","io.syspulse.skel.wf.exec.JoinExec"),
   )
 }
