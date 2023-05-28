@@ -14,7 +14,7 @@ class CollExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends 
   var collected:List[Any] = List()
 
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {    
-    val max = getAttr("collect.max",data).getOrElse(10).asInstanceOf[Int]
+    val max = getAttr("collect.max",data,10)
     
     data.attr.get("input") match {
       case Some(v) => 
@@ -25,6 +25,7 @@ class CollExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends 
     log.debug(s"max(${max}): collected=${collected}")
         
     if(collected.size == max) {
+      log.info(s"max(${max}): collected=${collected}")
       val data1 = ExecData(data.attr + ("input" -> collected))
       collected = List()
       broadcast(data1) 
