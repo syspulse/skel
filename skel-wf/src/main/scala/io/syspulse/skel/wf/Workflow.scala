@@ -97,7 +97,7 @@ case class Workflow(
         }
       } else {
         val typWithClass = if(typ.contains(".")) typ else s"io.syspulse.skel.wf.exec.${typ}"
-        val dataMap = if(data.isDefined) Some(data.get.split("[,=]").grouped(2).map(a => a(0) -> a(1)).toMap) else None
+        val dataMap = if(data.isDefined) Some(data.get.split("[,=]").grouped(2).map(a => a(0) -> {if(a.size>1) a(1) else ""}).toMap) else None
         val ex = Exec(name,typWithClass,in = Seq(In(inlet)), out = Seq(Out(outlet)),data = dataMap)
         // execs = execs + (ex.getId -> ex)
         Success(ex)

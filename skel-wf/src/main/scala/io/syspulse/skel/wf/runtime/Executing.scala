@@ -42,7 +42,7 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
   def getAttr(name:String,data:ExecData) = {
     data.attr.get(name).orElse(dataExec.get(name)).map(_ match {
       case expr:String =>         
-        Util.replaceVar(expr,data.attr)        
+        Util.replaceVar(expr,data.attr ++ Map("sys.timestamp" -> System.currentTimeMillis))
       case v => v
     })      
   }
@@ -50,7 +50,7 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
   def getAttr(name:String,data:ExecData,default:Any):Any = {
     val v = data.attr.get(name).orElse(dataExec.get(name)).map(_ match {
       case expr:String =>         
-        Util.replaceVar(expr,data.attr)
+        Util.replaceVar(expr,data.attr ++ Map("sys.timestamp" -> System.currentTimeMillis))
       case v => v
     })
     v match {

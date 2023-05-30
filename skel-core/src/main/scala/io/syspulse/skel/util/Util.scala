@@ -298,7 +298,7 @@ object Util {
   }
 
   def replaceVar(expr:String,vars:Map[String,Any]):String = {
-    val rexpr = """(\{[a-zA-Z_-]+\})""".r
+    val rexpr = """(\{[a-zA-Z_\.-]+\})""".r
     val pairs = rexpr.findAllIn(expr).flatMap( v =>{
       val variable = v.substring(1,v.size-1)      
       val vv = vars.collect{ case(n,value) if(n == variable) => value}
