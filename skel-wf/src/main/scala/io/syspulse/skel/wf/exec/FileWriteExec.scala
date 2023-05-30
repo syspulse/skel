@@ -11,6 +11,7 @@ import io.syspulse.skel.wf._
 import io.syspulse.skel.dsl.ScalaToolbox
 
 import ujson._
+import io.syspulse.skel.util.Util
 
 class FileWriteExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends Executing(wid,name,dataExec) {
   
@@ -22,8 +23,12 @@ class FileWriteExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) ext
         log.info(s"file='${f}'")
                           
         val r = try {
-          val output = f.toString.split("//").toList match {
+          val output = f.toString.split("://").toList match {
             case "file" :: name :: Nil =>
+              // try to create dir
+              val dir = Util.extractDirWithSlash(name)
+              os.makeDir.all(os.Path(dir,os.pwd))
+        
               os.write.over(os.Path(name,os.pwd),input)
             case name :: Nil => 
               os.write.over(os.Path(name,os.pwd),input)

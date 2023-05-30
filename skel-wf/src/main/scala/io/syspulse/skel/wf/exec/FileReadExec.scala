@@ -20,7 +20,7 @@ class FileReadExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) exte
         log.info(s"file='${f}'")
                           
         val r = try {
-          val output = f.toString.split("//").toList match {
+          val output = f.toString.split("://").toList match {
             case "file" :: name :: Nil =>
               os.read(os.Path(name,os.pwd))
             case name :: Nil => 

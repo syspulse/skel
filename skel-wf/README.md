@@ -126,8 +126,8 @@ http.body={"from":"2023","addr":"{addr}"}
 ./run-wf.sh wf run WF00001 'F-0(HttpClientExec(http.uri=http://localhost:8300))->F-1(ScriptExec(script=file://script-json-ids.sc))->F-3(SplitExec(split.symbol=;))->F-4(LogExec(log.level=WARN))'
 ```
 
-8. Complex worklfow with ID based ingest into Squashed File
+8. Complex worklfow with ID based ingest into unqiue Squashed File
 
 ```
-./run-wf.sh wf run WF00001 'F-0(FileReadExec(file=data/RSP-IDs-3.json))->F-1(ScriptExec(script=file://script-json-ids.sc))->F-3(SplitExec(split.symbol=;))->F5(HttpClientExec(http.uri=http://localhost:8301))->F6(JoinExec(join.max=3,join.symbol=\n))->F7(FileWriteExec(file=data/FILE.json))'
+./run-wf.sh wf run WF00001 'F-0(FileReadExec(file=data/RSP-IDs-3.json))->F-1(ScriptExec(script=file://script-json-ids.sc))->F-3(SplitExec(split.symbol=;))->F5(HttpClientExec(http.uri=http://localhost:8301))->F6(JoinExec(join.max=3,join.symbol=\n))->F7(FileWriteExec(file=data/FILE-{sys.timestamp}.json))'
 ```

@@ -297,7 +297,13 @@ object Util {
     log.info(s"Elapsed: ${Duration.ofNanos(ts1 - ts0).toMillis()} msec")    
   }
 
-  def replaceVar(expr:String,vars:Map[String,Any]):String = {
+  def replaceVar(expr0:String,vars:Map[String,Any]):String = {
+    // special case for file patterns
+    val expr = if(expr0.startsWith("file://") || expr0.startsWith("dir://") || expr0.startsWith("dirs://")) 
+      toFileWithTime(expr0)
+    else 
+      expr0
+
     val rexpr = """(\{[a-zA-Z_\.-]+\})""".r
     val pairs = rexpr.findAllIn(expr).flatMap( v =>{
       val variable = v.substring(1,v.size-1)      
