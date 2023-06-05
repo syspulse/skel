@@ -11,21 +11,13 @@ import scala.tools.nsc.Settings
 
 class ScalaInterpreter() {
   val log = Logger(s"${this}")
- 
-  val settings = new Settings()//.withErrorFn((s) => {println(s"Error: ${s}")})
-  settings.usejavacp.value = true
-  val reporter = new shell.ReplReporterImpl(settings)
-
-  val engine = new IMain(settings,reporter)
+   
+  val engine = scala.tools.nsc.interpreter.shell.Scripted()
 
   def run(script:String,args:Map[String,Any] = Map()):Any = {
-    log.debug(s"args=${args}, script=${script}")
+    log.info(s"args=${args}, script=${script}, engine=${engine}")
 
-    // val param1 = "str"
-    // val param2 = 10    
-    // val r = engine.interpret(s"val param1 = $param1; val param2 = $param2; $script")    
-
-    val r = engine.interpretSynthetic("")
+    val r = engine.eval(script)    
     log.debug(s"r=${r}")
     r
   }

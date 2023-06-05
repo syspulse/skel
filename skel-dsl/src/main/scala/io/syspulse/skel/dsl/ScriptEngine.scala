@@ -9,7 +9,7 @@ abstract class ScriptEngine(lang:String) {
   val engine = new ScriptEngineManager(this.getClass().getClassLoader()).getEngineByName(lang);
 
   def run(script:String,args:Map[String,Any] = Map()):Any = {
-    log.debug(s"args=${args}, script=${script}")
+    log.info(s"args=${args}, script=${script}, engine=$engine")
 
     val bind = engine.createBindings();
     args.foreach{ case(n,v) => bind.put(n, v) }

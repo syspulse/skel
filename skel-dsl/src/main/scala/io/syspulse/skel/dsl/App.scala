@@ -26,8 +26,10 @@ object App  {
         
         ArgCmd("js","JavaScript ScriptEngine script"),
         ArgCmd("scala","Scala ScriptEngine script"),
+        ArgCmd("scala-script","Scala ScriptEngine"),
         ArgCmd("scala-interpreter","Scala interpreter script"),
         ArgCmd("scala-toolbox","Scala Toolbox script"),
+        
         ArgParam("<params>",""),
         ArgLogging()
       ).withExit(1)
@@ -44,14 +46,21 @@ object App  {
       case "js" =>
         new JS().run(config.params.mkString(" "))
 
-      case "scala" =>
+      case "scala-script" =>
         new SCALA().run(config.params.mkString(" "))
+
+      case "scala" =>
+        new ScalaScript().run(config.params.mkString(" "),Map("i"->Util.generateRandomToken(None,sz=64)))
 
       case "scala-toolbox" =>
         new ScalaToolbox().run(config.params.mkString(" "))
 
       case "scala-interpreter" =>
-        scala.tools.nsc.interpreter.shell.Scripted().eval(config.params.mkString(" "))
+        //scala.tools.nsc.interpreter.shell.Scripted().eval(config.params.mkString(" "))
+        new ScalaInterpreter().run(config.params.mkString(" "))
+
+      case "scala-imain" =>
+        new ScalaIMain().run(config.params.mkString(" "))
       
       case _ => 
         Console.err.println(s"unknown Script Enginer: ${config.cmd}")

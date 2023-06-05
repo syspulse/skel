@@ -26,7 +26,8 @@ class ScalaToolbox(src:Option[String]=None) {
   def run(script:String,args:Map[String,Any] = Map()):Any = {
     // log.info(s"args=${args}, script=${script}")
     val src = args.foldLeft(script.toString){ case(s,(name,v)) => {
-      s.replaceAll(s"\\{${name}\\}",v.toString) 
+      //s.replaceAll(s"\\{${name}\\}",v.toString)
+      s.replace(s"{${name}}",v.toString)
     }}
     log.info(s"args=${args}, script=${script}, src=${src}")
     val q = engine.parse(src)
