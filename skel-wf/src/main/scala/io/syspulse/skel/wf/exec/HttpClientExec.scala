@@ -37,6 +37,7 @@ import ujson._
 
 import io.syspulse.skel.wf.runtime.Workflowing
 import io.syspulse.skel.wf.runtime.Executing
+import java.net.URLEncoder
 
 object HttpClientExec {
   implicit val as:actor.ActorSystem = actor.ActorSystem("HttpClient-System")
@@ -158,11 +159,16 @@ class HttpClientExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) ex
 
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
     var body = getAttr("http.body",data).getOrElse("").asInstanceOf[String]
-    val httpUri = Util.replaceVar(uri,data.attr)
+    val attrEncoded = if(uri.contains("{")) 
+      data.attr.map{ case(k,v) => k -> URLEncoder.encode(v.toString, "UTF-8")}
+    else
+      data.attr
+    val httpUri = Util.replaceVar(uri,attrEncoded)
     log.info(s"http.uri=${httpUri}: http.body=${body}")                       
     
     --->(httpUri,Option.when(!body.isEmpty)(body)) match {
       case Success(res) => 
+        log.debug(s"res=${res}")
         val data1 = data.copy( attr = {
           if(decode) {
             try {

@@ -8,13 +8,14 @@ import scala.util.{Try,Success,Failure}
 
 import io.syspulse.skel.wf.runtime._
 import io.syspulse.skel.wf._
-import io.syspulse.skel.dsl.ScalaToolbox
+import io.syspulse.skel.dsl.{ScalaScript,ScalaToolbox}
 
 import ujson._
 
 class ScriptExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends Executing(wid,name,dataExec) {
   
-  val engine = new ScalaToolbox()
+  //val engine = new ScalaToolbox()
+  val engine = new ScalaScript()
   
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
     val r = getAttr("script",data) match {
