@@ -26,10 +26,10 @@ class JoinExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends 
       case None =>
     }
 
-    log.debug(s"max(${max}): collected=${collected}")
+    // log.debug(s"max(${max}): collected=${collected}")
         
     if(collected.size == max) {
-      log.info(s"max(${max}): collected=${collected}")
+      log.debug(s"max(${max}): collected=${collected}")
 
       val output = input match {
         case Some(v) => 

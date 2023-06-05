@@ -17,7 +17,7 @@ class SplitExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends
     val splitMax = getAttr("split.max",data,-1).asInstanceOf[Int]
     val inputs = getAttr("input",data).getOrElse("").asInstanceOf[String]
     
-    log.info(s"input=${inputs}")
+    log.debug(s"input=${inputs}")
     val output = {
       val ii1 = inputs
         .split(splitter)

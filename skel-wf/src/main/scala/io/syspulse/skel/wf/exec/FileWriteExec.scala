@@ -52,7 +52,7 @@ class FileWriteExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) ext
         Success(ExecDataEvent(data))
     }
 
-    log.info(s"r = ${r}")
+    // log.debug(s"r = ${r}")
     r
   }
 }

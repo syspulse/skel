@@ -145,6 +145,7 @@ Get Ids from External service:
 ./run-wf.sh wf run WF00001 'F-0(HttpClientExec(http.uri=http://localhost:8300/))->F-1(ScriptExec(script=file://script-json-ids.sc))->F-3(SplitExec(split.symbol=;))->F4(VarExec(var.name=id))->F5(HttpClientExec(http.uri=http://localhost:8301/{id}))->F6(JoinExec(join.max=1,join.symbol=\n))->F7(FileWriteExec(file=data/FILE-{id}-{sys.timestamp}.json))'
 ```
 
+9. Simulate Json Objects Ingest Workflow from External HTTP service (coingecko) with throttling (3sec) and max object == 3
+
 ```
-./run-wf.sh wf run WF00001 'F-0(HttpClientExec(http.uri=https://api.coingecko.com/api/v3/coins/list))->F-1(ScriptExec(script=file://script-json-ids.sc))->F-3(SplitExec(split.symbol=;,split.max=1))->F4(VarExec(var.name=id))->F5(HttpClientExec(http.uri=https://api.coingecko.com/api/v3/coins/{id}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false))->F6(JoinExec(join.max=1,join.symbol=\n))->F7(FileWriteExec(file=data/FILE-{id}-{sys.timestamp}.json))'
-```
+./run-wf.sh wf run WF00001 'F-0(HttpClientExec(file=https://api.coingecko.com/api/v3/coins/list))->F-1(ScriptExec(script=file://script-json-ids.sc))->F-3(SplitExec(split.symbol=;,split.max=3))->F33(ThrottleExec(throttle.delay=1000))->F4(VarExec(var.name=id))->F5(HttpClientExec(http.uri=https://api.coingecko.com/api/v3/coins/{id}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false))->F6(JoinExec(join.max={input.size},join.symbol=\n))->F7(FileWriteExec(file=data/FILE-{sys.timestamp}.json))'
