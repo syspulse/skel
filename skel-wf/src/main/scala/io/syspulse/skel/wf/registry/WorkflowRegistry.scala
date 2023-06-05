@@ -41,5 +41,7 @@ object WorkflowRegistry {
     Exec("FileWrite","io.syspulse.skel.wf.exec.FileWriteExec"),
 
     Exec("Join","io.syspulse.skel.wf.exec.JoinExec"),
+
+    Exec("Var","io.syspulse.skel.wf.exec.VarExec"),
   )
 }

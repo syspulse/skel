@@ -17,7 +17,7 @@ class JoinExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends 
   var collected:List[Any] = List()
 
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {    
-    val max = getAttr("join.max",data,10)
+    val max = getAttr("join.max",data,10).asInstanceOf[Int]
     
     val input = data.attr.get("input")
     input match {

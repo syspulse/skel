@@ -158,9 +158,10 @@ class HttpClientExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) ex
 
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
     var body = getAttr("http.body",data).getOrElse("").asInstanceOf[String]
-    log.info(s"http.body=${body}")                       
+    val httpUri = Util.replaceVar(uri,data.attr)
+    log.info(s"http.uri=${httpUri}: http.body=${body}")                       
     
-    --->(uri,Option.when(!body.isEmpty)(body)) match {
+    --->(httpUri,Option.when(!body.isEmpty)(body)) match {
       case Success(res) => 
         val data1 = data.copy( attr = {
           if(decode) {

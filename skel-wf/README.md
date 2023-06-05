@@ -126,8 +126,25 @@ http.body={"from":"2023","addr":"{addr}"}
 ./run-wf.sh wf run WF00001 'F-0(HttpClientExec(http.uri=http://localhost:8300))->F-1(ScriptExec(script=file://script-json-ids.sc))->F-3(SplitExec(split.symbol=;))->F-4(LogExec(log.level=WARN))'
 ```
 
-8. Complex worklfow with ID based ingest into unqiue Squashed File
+8. Complex worklfow with ID based ingest
+
+Save into aggregated file:
+```
+./run-wf.sh wf run WF00001 'F-0(FileReadExec(file=data/RSP-IDs-3.json))->F-1(ScriptExec(script=file://script-json-ids.sc))->F-3(SplitExec(split.symbol=;))->F5(HttpClientExec(http.uri=http://localhost:8301))->F6(JoinExec(join.max={input.size},join.symbol=\n))->F7(FileWriteExec(file=data/FILE-{sys.timestamp}.json))'
+```
+
+Save into separate files with unique id:
 
 ```
-./run-wf.sh wf run WF00001 'F-0(FileReadExec(file=data/RSP-IDs-3.json))->F-1(ScriptExec(script=file://script-json-ids.sc))->F-3(SplitExec(split.symbol=;))->F5(HttpClientExec(http.uri=http://localhost:8301))->F6(JoinExec(join.max=3,join.symbol=\n))->F7(FileWriteExec(file=data/FILE-{sys.timestamp}.json))'
+./run-wf.sh wf run WF00001 'F-0(FileReadExec(file=data/RSP-IDs-3.json))->F-1(ScriptExec(script=file://script-json-ids.sc))->F-3(SplitExec(split.symbol=;))->F4(VarExec(var.name=id))->F5(HttpClientExec(http.uri=http://localhost:8301/{id}))->F6(JoinExec(join.max=1,join.symbol=\n))->F7(FileWriteExec(file=data/FILE-{id}-{sys.timestamp}.json))'
+```
+
+Get Ids from External service:
+
+```
+./run-wf.sh wf run WF00001 'F-0(HttpClientExec(http.uri=http://localhost:8300/))->F-1(ScriptExec(script=file://script-json-ids.sc))->F-3(SplitExec(split.symbol=;))->F4(VarExec(var.name=id))->F5(HttpClientExec(http.uri=http://localhost:8301/{id}))->F6(JoinExec(join.max=1,join.symbol=\n))->F7(FileWriteExec(file=data/FILE-{id}-{sys.timestamp}.json))'
+```
+
+```
+./run-wf.sh wf run WF00001 'F-0(HttpClientExec(http.uri=https://api.coingecko.com/api/v3/coins/list))->F-1(ScriptExec(script=file://script-json-ids.sc))->F-3(SplitExec(split.symbol=;))->F4(VarExec(var.name=id))->F5(HttpClientExec(http.uri=https://api.coingecko.com/api/v3/coins/{id}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false))->F6(JoinExec(join.max=1,join.symbol=\n))->F7(FileWriteExec(file=data/FILE-{id}-{sys.timestamp}.json))'
 ```
