@@ -14,7 +14,8 @@ import io.syspulse.skel.wf._
 // -> [in-1] - expects external event to continue. Filter will control if this is expected event (e.g. from kafka://)
 class SyslogExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends Executing(wid,name,dataExec) {
   var filter = dataExec.get("syslog.filter").getOrElse("").asInstanceOf[String]
-  var uri = dataExec.get("syslog.notify").getOrElse("stdout://").asInstanceOf[String]
+  var notifySyslog = dataExec.get("syslog.notify")
+  var listenSystlog = dataExec.get("syslog.listen")
     
   override def start(dataWorkflow:ExecData):Try[Status] = {    
     super.start(dataWorkflow)
@@ -28,7 +29,7 @@ class SyslogExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extend
   // push to FIFO file on input
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {      
     val d = data.attr.get("input").getOrElse("").toString
-    log.info(s"${d} ->> Syslog[${uri}]")
+    log.info(s"${d} ->> Syslog[${notifySyslog}]")
        
     Success(ExecDataEvent(data))  
   }

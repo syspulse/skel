@@ -28,6 +28,7 @@ case class Config(
 
   datastore:String = "mem://",
 
+  bus:String = "std://",
   channel:String = "sys.notify",
   scope:String = "",
 
@@ -59,6 +60,7 @@ object App extends skel.Server {
         ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
 
         ArgString('d', "datastore",s"datastore [elastic,mem,cache] (def: ${d.datastore})"),
+        ArgString('b', "bus",s"Syslog bus [kafka://,std://] (def: ${d.bus})"),
         ArgString('c', "channel",s"Syslog channel (topic) (def: ${d.channel})"),
 
         ArgString('_', "scope",s"Scope filter (def: ${d.scope})"),
@@ -89,6 +91,7 @@ object App extends skel.Server {
       throttle = c.getLong("throttle").getOrElse(d.throttle),
 
       datastore = c.getString("datastore").getOrElse(d.datastore),
+      bus = c.getString("bus").getOrElse(d.bus),
       channel = c.getString("channel").getOrElse(d.channel),
       scope = c.getString("scope").getOrElse(d.scope),
 
@@ -126,19 +129,18 @@ object App extends skel.Server {
           case subj :: Nil => (subj,"",Some(5),Some("sys.all"))
           case _ => ("Unknown","",Some(5),Some("sys.all"))
         }
-        import SyslogEventJson._
-        val bus = new SyslogBus() { override def recv(msg:SyslogEvent):SyslogEvent = msg }
+        val bus = new SyslogBus("bus-1",config.bus) { override def recv(msg:SyslogEvent):SyslogEvent = msg }
         bus.send(SyslogEvent(subj,msg,severity,scope))
 
       case "recv" => 
-        import SyslogEventJson._
-        val bus = new SyslogBus() {
+        val bus = new SyslogBus("bus-1",config.bus) {
           override def recv(ev:SyslogEvent):SyslogEvent = {
             println(s">>>>>>>>> event=${ev}")
             ev
           }
         }.withScope(config.scope)
         bus
+      
       case "ingest" => 
 
       //case "get" => (new Object with DynamoGet).connect( config.elasticUri, config.elasticIndex).get(expr)
