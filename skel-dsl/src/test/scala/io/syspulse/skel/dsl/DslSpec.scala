@@ -12,6 +12,7 @@ import scala.util.Success
 import javax.script.ScriptEngineManager
 import com.typesafe.scalalogging.Logger
 import scala.tools.nsc.interpreter.shell.Scripted
+import io.syspulse.skel.dsl.ScalaInterpreter
 
 class DummyClass
 

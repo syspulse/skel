@@ -110,8 +110,7 @@ class SyslogBusKafka(busId:String,uri:String,channel:String = "sys.notify",
   }
 }
 
-class SyslogBusStd(
-  receive:(ByteString)=>ByteString) extends SyslogBusEngine {
+class SyslogBusStd(receive:(ByteString)=>ByteString) extends SyslogBusEngine {
   
   private val log = Logger(s"${this}")
   import SyslogEventJson._
@@ -124,11 +123,20 @@ class SyslogBusStd(
     Success(this)
   }
 
-  Util.stdin((txt:String) => {
-    val msg = if(txt.isBlank()) SyslogEvent("stdin://","nothing").toJson.compactPrint else SyslogEvent("stdin://",txt).toJson.compactPrint
-    recv(ByteString(msg))
-    true
-  })
+  Future {
+    Util.stdin((txt:String) => {
+      val msg = if(txt.isBlank()) SyslogEvent("stdin://","nothing").toJson.compactPrint else SyslogEvent("stdin://",txt).toJson.compactPrint
+      recv(ByteString(msg))
+      true
+    })
+  }
+}
+
+class SyslogBusNone(receive:(ByteString)=>ByteString) extends SyslogBusEngine {      
+  def recv(msg:ByteString):ByteString = msg
+  def send(msg:ByteString):Try[SyslogBusNone] = {
+    Success(this)
+  }
 }
 
 abstract class SyslogBus(busId:String,uri:String = "kafka://localhost:9092",channel:String = "sys.notify") {  
@@ -142,6 +150,8 @@ abstract class SyslogBus(busId:String,uri:String = "kafka://localhost:9092",chan
       new SyslogBusKafka(busId,uri,channel,receive)
     case ("std" | "stdin" | "stdout") :: Nil =>
       new SyslogBusStd(receive)
+    case "none" :: Nil =>
+      new SyslogBusNone(receive)
     case _ =>
       new SyslogBusStd(receive)
   }

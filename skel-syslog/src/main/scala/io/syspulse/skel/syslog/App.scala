@@ -131,6 +131,8 @@ object App extends skel.Server {
         }
         val bus = new SyslogBus("bus-1",config.bus) { override def recv(msg:SyslogEvent):SyslogEvent = msg }
         bus.send(SyslogEvent(subj,msg,severity,scope))
+        
+        Thread.sleep(350L)
 
       case "recv" => 
         val bus = new SyslogBus("bus-1",config.bus) {
@@ -149,6 +151,7 @@ object App extends skel.Server {
       case "grep" => store.grep(expr)
   
     }
+    
     println(s"${"-".*(80)}\nr = ${r}")
   }
   

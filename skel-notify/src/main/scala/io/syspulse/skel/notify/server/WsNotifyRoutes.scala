@@ -46,7 +46,7 @@ class WebSocketServer(idleTimeout:Long)(implicit ex:ExecutionContext,mat:ActorMa
   }
 }
 
-class WsNotifyRoutes(idleTimeout:Long = 1000L*60*5, uri:String = "ws")(implicit context: ActorContext[_]) extends WsRoutes(uri)(context) {
+class WsNotifyRoutes(idleTimeout:Long = 1000L*60*60*24, uri:String = "ws")(implicit context: ActorContext[_]) extends WsRoutes(uri)(context) {
   val wsServer:WebSocketServer = new WebSocketServer(idleTimeout)
   
   WS.+(wsServer, uri)
