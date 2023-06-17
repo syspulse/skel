@@ -318,5 +318,13 @@ object Util {
     })
     expr1
   }
+
+  // more reliable BigInt converter of format is into double
+  def toBigInt(v:String):BigInt = {
+    if(v.contains(".")) 
+      java.math.BigDecimal.valueOf(v.toDouble).toBigInteger
+    else
+      BigInt(v)
+  }
 }
 
