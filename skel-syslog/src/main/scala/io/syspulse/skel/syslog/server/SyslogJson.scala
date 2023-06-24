@@ -16,10 +16,10 @@ object SyslogJson extends JsonCommon {
   
   import DefaultJsonProtocol._
 
-  implicit val jf_Syslog = jsonFormat4(Syslog.apply _)
-  implicit val jf_Syslogs = jsonFormat1(Syslogs)
+  implicit val jf_Syslog = jsonFormat8(Syslog.apply _)
+  implicit val jf_Syslogs = jsonFormat2(Syslogs)
   implicit val jf_SyslogRes = jsonFormat1(SyslogRes)
-  implicit val jf_CreateReq = jsonFormat3(SyslogCreateReq)
+  implicit val jf_CreateReq = jsonFormat6(SyslogCreateReq)
   implicit val jf_ActionRes = jsonFormat2(SyslogActionRes)
   
   implicit val jf_RadnomReq = jsonFormat0(SyslogRandomReq)

@@ -41,15 +41,15 @@ class SyslogStoreMem extends SyslogStore {
     case None => Failure(new Exception(s"not found: ${id}"))
   }
 
-  def ??(txt:String):List[Syslog] = {
+  def ??(txt:String):Seq[Syslog] = {
     syslogs.values.filter(y => 
-      y.area.matches(txt) || 
+      y.scope.map(_.matches(txt)).getOrElse(false) || 
       y.msg.matches(txt)
-    ).toList
+    ).toSeq
   }
 
-  def scan(txt:String):List[Syslog] = ??(txt)
-  def search(txt:String):List[Syslog] = ??(txt)
-  def grep(txt:String):List[Syslog] = ??(txt)
+  def scan(txt:String):Seq[Syslog] = ??(txt)
+  def search(txt:String):Seq[Syslog] = ??(txt)
+  def grep(txt:String):Seq[Syslog] = ??(txt)
 
 }
