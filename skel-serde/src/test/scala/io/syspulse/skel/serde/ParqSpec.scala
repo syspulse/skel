@@ -204,7 +204,7 @@ class ParqSpec extends AnyWordSpec with Matchers {
       info(s"files=${os.list(os.Path(dir,os.pwd)).toList}")
     }
 
-    "compare snappy to csv sizes" ignore {
+    "compare snappy to csv sizes" in {
       val dir = "/tmp/skel-seder/parq/size"
       os.remove.all(os.Path(s"${dir}",os.pwd))
       os.makeDir.all(os.Path(dir,os.pwd))
@@ -245,7 +245,8 @@ class ParqSpec extends AnyWordSpec with Matchers {
       )
 
       // set this in sbt 
-      // eval System.setProperty("java.library.path", "hadoop-3.2.2/lib/native"
+      // eval System.setProperty("java.library.path", "hadoop-3.2.2/lib/native")
+      // this will not work here: System.setProperty("java.library.path", "~/tmp/hadoop-3.2.2/lib/native")      
       val lz4Options = ParquetWriter.Options(
         writeMode = Mode.OVERWRITE,
         compressionCodecName = CompressionCodecName.LZ4,

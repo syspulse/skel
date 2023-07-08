@@ -12,6 +12,7 @@ import scala.util.Success
 import javax.script.ScriptEngineManager
 import com.typesafe.scalalogging.Logger
 import scala.tools.nsc.interpreter.shell.Scripted
+import io.syspulse.skel.dsl.ScalaInterpreter
 
 class DummyClass
 
@@ -62,7 +63,7 @@ class DslSpec extends AnyWordSpec with Matchers {
       r should === (List(200))
     }
 
-    s"re-compiled vs. compiled performance" in {
+    s"compare re-compiled vs. compiled performance" in {
       import scala.tools.reflect.ToolBox
       import scala.reflect.runtime.universe._
       import scala.reflect.runtime.currentMirror
@@ -85,6 +86,33 @@ class DslSpec extends AnyWordSpec with Matchers {
         val c = e.compile(e.parse(script))
         val r = c().asInstanceOf[List[Int]]
       }      
+    }
+
+    s"parse ujson " in {
+      import scala.tools.reflect.ToolBox
+      import scala.reflect.runtime.universe._
+      import scala.reflect.runtime.currentMirror
+
+      import ujson._
+
+      val script = s"""
+      val s = "{ \\"id\\":\\"111111\\",\\"v\\":100 }"; 
+      val o = ujson.read(s); 
+      val id = ujson.read(s).obj("id").str
+      val v = ujson.read(s).obj("v").num
+      id.toString + "/" + v.toString
+      """
+      info(s"script=${script}")
+      
+      val e = scala.reflect.runtime.currentMirror.mkToolBox()
+      
+      implicit val log = Logger(s"${this}")
+      
+      val c = e.compile(e.parse(script))
+      val r1 = c().asInstanceOf[String]
+      val r2 = c().toString
+      info(s"r1 = $r1")
+      info(s"r2 = $r2")
     }
   }
 

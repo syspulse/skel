@@ -7,7 +7,8 @@ PORT=${PORT:-8300}
 while true; do { 
   >&2 echo `date +%s` "0.0.0.0:$PORT..."
 
-  echo -e 'HTTP/1.1 200 OK\r\n\r\n'; 
+  echo -e 'HTTP/1.1 200 OK\r\n'; 
+  #echo -e 'HTTP/1.1 200 OK\r\n\r\n'; 
   #echo $RSP; 
   cat $RSP_FILE
 

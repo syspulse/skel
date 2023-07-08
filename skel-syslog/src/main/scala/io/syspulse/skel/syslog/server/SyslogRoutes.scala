@@ -69,7 +69,7 @@ class SyslogRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_
   
   def getSyslogs(): Future[Syslogs] = registry.ask(GetSyslogs)
   def getSyslog(id: ID): Future[Try[Syslog]] = registry.ask(GetSyslog(id, _))
-  def searchSyslog(txt: String): Future[List[Syslog]] = registry.ask(SearchSyslog(txt, _))
+  def searchSyslog(txt: String): Future[Syslogs] = registry.ask(SearchSyslog(txt, _))
 
   def createSyslog(syslogCreate: SyslogCreateReq): Future[Syslog] = registry.ask(CreateSyslog(syslogCreate, _))
   def deleteSyslog(id: ID): Future[SyslogActionRes] = registry.ask(DeleteSyslog(id, _))

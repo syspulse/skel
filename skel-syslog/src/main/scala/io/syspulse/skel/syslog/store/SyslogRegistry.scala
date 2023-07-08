@@ -17,7 +17,7 @@ import scala.util.Try
 object SyslogRegistry {
   val log = Logger(s"${this}")
 
-  val bus = new SyslogBus() {
+  val bus = new SyslogBus(busId = "syslog") {
     override def recv(msg:SyslogEvent):SyslogEvent = {
       log.info(s"event=${msg}")
       msg
@@ -26,9 +26,9 @@ object SyslogRegistry {
   
   final case class GetSyslogs(replyTo: ActorRef[Syslogs]) extends Command
   final case class GetSyslog(id:ID,replyTo: ActorRef[Try[Syslog]]) extends Command
-  final case class SearchSyslog(txt:String,replyTo: ActorRef[List[Syslog]]) extends Command
+  final case class SearchSyslog(txt:String,replyTo: ActorRef[Syslogs]) extends Command
   
-  final case class CreateSyslog(syslogCreate: SyslogCreateReq, replyTo: ActorRef[Syslog]) extends Command
+  final case class CreateSyslog(req: SyslogCreateReq, replyTo: ActorRef[Syslog]) extends Command
   final case class RandomSyslog(replyTo: ActorRef[Syslog]) extends Command
 
   final case class DeleteSyslog(id: ID, replyTo: ActorRef[SyslogActionRes]) extends Command
@@ -46,7 +46,7 @@ object SyslogRegistry {
 
     Behaviors.receiveMessage {
       case GetSyslogs(replyTo) =>
-        replyTo ! Syslogs(store.all)
+        replyTo ! Syslogs(store.all,store.size)
         Behaviors.same
 
       case GetSyslog(id, replyTo) =>
@@ -54,13 +54,21 @@ object SyslogRegistry {
         Behaviors.same
 
       case SearchSyslog(txt, replyTo) =>
-        replyTo ! store.??(txt)
+        val ss = store.??(txt)
+        replyTo ! Syslogs(ss,ss.size)
         Behaviors.same
 
-
       case CreateSyslog(req, replyTo) =>
-        val syslog = Syslog(System.currentTimeMillis(),req.level,req.area, req.msg)
-        val uid = Syslog.uid(syslog)
+        val syslog = Syslog(
+          msg = req.msg,
+          severity = req.severity,
+          scope = req.scope,
+          from = req.from,
+          id = Some(UUID.random),
+          cid = req.cid,
+          ts = System.currentTimeMillis,
+          subj =  req.subj,          
+        )
         
         val store1 = store.+(syslog)
 
@@ -71,7 +79,6 @@ object SyslogRegistry {
         
         //replyTo ! SyslogRandomRes(secret,qrImage)
         Behaviors.same
-
       
       case DeleteSyslog(id, replyTo) =>
         val store1 = store.del(id)

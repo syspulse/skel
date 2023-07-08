@@ -34,8 +34,12 @@ class WorkflowEngine(workflowStore:WorkflowStore, stateStore:WorkflowStateStore,
   def getStoreWorkflow() = workflowStore
   def getStoreState() = stateStore
 
-  def kill(id:Workflowing.ID):Try[WorkflowEngine] = {
-    log.info(s"kill: ${id}")
+  def remove(wf:Workflowing):Try[WorkflowEngine] = {
+    remove(wf.getId)
+  }
+
+  def remove(id:Workflowing.ID):Try[WorkflowEngine] = {
+    log.info(s"remove: ${id}")
     for {
       _ <- stateStore.del(id)
       r <- deleteDataDir(id)

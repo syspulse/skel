@@ -15,7 +15,11 @@ fi
 
 APP_NAME=`echo $APP_FULL | awk -F':' '{print $1}'`
 APP_VER=`echo $APP_FULL | awk -F':' '{print $2}'`
-#VERSION=${VERSION:-0.0.1}
+
+if [ "$VERSION" != "" ]; then
+  APP_VER=$VERSION
+fi
+
 if [ "$APP_VER" != "" ]; then
   APP=$APP_NAME:$APP_VER
 else

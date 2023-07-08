@@ -58,63 +58,127 @@ trait SyslogFlow[T] {
 
 }
 
-class FromKafka[T](uri:String,recv:(T)=>T,filter:(T)=>Boolean)(implicit fmt:JsonFormat[T]) extends skel.ingest.kafka.KafkaSource[T] {
+class FromKafka(uri:String,recv:(ByteString)=>ByteString) extends skel.ingest.kafka.KafkaSource[ByteString] {
   val kafkaUri = KafkaURI(uri)
     
-  val source:Source[T,_] = 
+  val source:Source[ByteString,_] = 
     source(kafkaUri.broker,Set(kafkaUri.topic),kafkaUri.group,offset = kafkaUri.offset)
-    .map(data => data.utf8String.parseJson.convertTo[T])
-    .filter(filter)
+    //.map(data => data.utf8String.parseJson.convertTo[T])
+    //.filter(filter)
     .map(msg => recv(msg))
 
   val kafka = source.runWith(Sink.ignore)
 }
 
-class ToKafka[T](uri:String)(implicit fmt:JsonFormat[T]) extends skel.ingest.kafka.KafkaSink[T] {
+class ToKafka(uri:String) extends skel.ingest.kafka.KafkaSink[ByteString] {
   val kafkaUri = KafkaURI(uri)
     
   val source = Source.queue(10)
     .toMat(sink(kafkaUri.broker,Set(kafkaUri.topic)))(Keep.left)//.run()
-  
-  //def sink():Sink[T,_] = sink(kafkaUri.broker,Set(kafkaUri.topic))
-  
-  override def transform(t:T):ByteString = {
-    ByteString(t.toJson.compactPrint)
-  } 
+    
+  // override def transform(t:T):ByteString = {
+  //   ByteString(t.toJson.compactPrint)
+  // }
+  override def transform(t:ByteString):ByteString = t
 
   val kafka = source.run() //Flow[T].toMat(sink())(Keep.right) 
 
-  def send(msg:T) = kafka.offer(msg)
+  def send(msg:ByteString) = kafka.offer(msg)
 }
 
-abstract class SyslogBusKafka[T](busId:String,uri:String = "kafka://localhost:9092",channel:String = "sys.notify")(implicit fmt:JsonFormat[T]) {
+
+trait SyslogBusEngine {  
+  def recv(msg:ByteString):ByteString
+  def send(msg:ByteString):Try[SyslogBusEngine]
+}
+
+
+class SyslogBusKafka(busId:String,uri:String,channel:String = "sys.notify",
+  receive:(ByteString)=>ByteString) extends SyslogBusEngine {
+  
   private val log = Logger(s"${this}")
   
   val toKafka = new ToKafka(s"${uri}/${channel}/${busId}")
-  val fromKafka = new FromKafka(s"${uri}/${channel}/${busId}",recv,filter)
+  val fromKafka = new FromKafka(s"${uri}/${channel}/${busId}",recv)
 
-  def filter(msg:T):Boolean
+  def recv(msg:ByteString):ByteString = receive(msg)
 
-  def recv(msg:T):T
-
-  def send(msg:T):Try[SyslogBusKafka[T]] = {
+  def send(msg:ByteString):Try[SyslogBusKafka] = {
     log.info(s"${msg} -> ${toKafka}")
     toKafka.send(msg)
     Success(this)
   }
 }
 
-abstract class SyslogBus(busId:String,uri:String = "kafka://localhost:9092",channel:String = "sys.notify") extends SyslogBusKafka(busId,uri,channel)(SyslogEventJson.jf_Notify) {  
+class SyslogBusStd(receive:(ByteString)=>ByteString) extends SyslogBusEngine {
+  
   private val log = Logger(s"${this}")
+  import SyslogEventJson._
+    
+  def recv(msg:ByteString):ByteString = receive(msg)
+
+  def send(msg:ByteString):Try[SyslogBusStd] = {
+    log.info(s"${msg} -> ")
+    Console.out.println(msg.utf8String)
+    Success(this)
+  }
+
+  Future {
+    Util.stdin((txt:String) => {
+      val msg = if(txt.isBlank()) SyslogEvent("stdin://","nothing").toJson.compactPrint else SyslogEvent("stdin://",txt).toJson.compactPrint
+      recv(ByteString(msg))
+      true
+    })
+  }
+}
+
+class SyslogBusNone(receive:(ByteString)=>ByteString) extends SyslogBusEngine {      
+  def recv(msg:ByteString):ByteString = msg
+  def send(msg:ByteString):Try[SyslogBusNone] = {
+    Success(this)
+  }
+}
+
+abstract class SyslogBus(busId:String,uri:String = "kafka://localhost:9092",channel:String = "sys.notify") {  
+  private val log = Logger(s"${this}")
+  import SyslogEventJson._
+
   var scope:Option[String] = None
+
+  val bus = uri.split("://").toList match {
+    case "kafka" :: uri :: Nil => 
+      new SyslogBusKafka(busId,uri,channel,receive)
+    case ("std" | "stdin" | "stdout") :: Nil =>
+      new SyslogBusStd(receive)
+    case "none" :: Nil =>
+      new SyslogBusNone(receive)
+    case _ =>
+      new SyslogBusStd(receive)
+  }
   
   def filter(event:SyslogEvent):Boolean = 
-    if(scope.isDefined) scope.get == event.scope.get else true  
+    if(scope.isDefined) scope.get == event.scope.get else true 
 
-  def recv(msg:SyslogEvent):SyslogEvent
+  private def receive(data:ByteString):ByteString = {    
+    val msg = data.utf8String.parseJson.convertTo[SyslogEvent]
+    log.info(s"msg=${msg}")
+    if(filter(msg))
+      recv(msg)
+
+    data
+  }
+
+  def recv(ev:SyslogEvent):SyslogEvent
+
+  def send(ev:SyslogEvent):Try[SyslogBus] = {
+    val msg = ByteString(ev.toJson.compactPrint)
+    bus.send(msg).map(_ => this)    
+  }
 
   def withScope(scope:String):SyslogBus = {
     this.scope = if(scope.isEmpty()) None else Some(scope)
     this
   }
 }
+
+

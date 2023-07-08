@@ -32,7 +32,14 @@ class SyslogStoreElastic(elasticUri:String) extends SyslogStore {
     // becasue of VID case class, it is converted unmarchsalled as Map from Elastic (field vid.id)
     override def read(hit: Hit): Try[Syslog] = {
       val source = hit.sourceAsMap
-      Success(Syslog(source("ts").asInstanceOf[Long], source("severity").asInstanceOf[Int], source("area").asInstanceOf[String], source("msg").asInstanceOf[String]))
+      Success(
+        Syslog(
+          msg = source("msg").asInstanceOf[String],
+          severity = Some(source("severity").asInstanceOf[Int]), 
+          scope = Some(source("scope").asInstanceOf[String]),
+          ts = source("ts").asInstanceOf[Long], 
+        )
+      )
     }
   }
   

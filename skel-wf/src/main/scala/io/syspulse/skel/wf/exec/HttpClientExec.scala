@@ -37,6 +37,7 @@ import ujson._
 
 import io.syspulse.skel.wf.runtime.Workflowing
 import io.syspulse.skel.wf.runtime.Executing
+import java.net.URLEncoder
 
 object HttpClientExec {
   implicit val as:actor.ActorSystem = actor.ActorSystem("HttpClient-System")
@@ -46,7 +47,7 @@ object HttpClientExec {
 class HttpClientExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends Executing(wid,name,dataExec) {
   val uri = dataExec.get("http.uri").getOrElse("http://localhost:8300").asInstanceOf[String]
   val auth = dataExec.get("http.auth").getOrElse("").asInstanceOf[String]
-  val decode = dataExec.get("http.res.decode").getOrElse(true).asInstanceOf[Boolean]
+  val decode = dataExec.get("http.res.decode").getOrElse(false).asInstanceOf[Boolean]
 
   import HttpClientExec._
   val timeout = FiniteDuration(dataExec.get("http.timeout").getOrElse(3000L).asInstanceOf[Long],TimeUnit.MILLISECONDS)
@@ -158,29 +159,36 @@ class HttpClientExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) ex
 
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
     var body = getAttr("http.body",data).getOrElse("").asInstanceOf[String]
-    log.info(s"body=${body}")                       
+    val attrEncoded = if(uri.contains("{")) 
+      data.attr.map{ case(k,v) => k -> URLEncoder.encode(v.toString, "UTF-8")}
+    else
+      data.attr
+    val httpUri = Util.replaceVar(uri,attrEncoded)
+    log.info(s"http.uri=${httpUri}: http.body=${body}")                       
     
-    --->(uri,Option.when(!body.isEmpty)(body)) match {
+    --->(httpUri,Option.when(!body.isEmpty)(body)) match {
       case Success(res) => 
-        val data1 = data.copy(attr = data.attr + ("http.res" -> res) ++ {
-        if(decode) {
-          try {
-            ujson.read(res).obj.map{case (k,v) => {
-              v match {
-                case Str(s) => k -> s
-                case Num(n) => k -> n
-                case Bool(b) => k -> b
-                case _ => k -> v.toString
-              }
-            }}.toMap            
-          } catch {
-            case e:Error => 
-              log.warn(s"could not parse json: ${res}",e)
-              Map[String,Any]()
-          }
-        } else
-          Map[String,Any]()
-        })
+        log.debug(s"res=${res}")
+        val data1 = data.copy( attr = {
+          if(decode) {
+            try {
+              ujson.read(res).obj.map{case (k,v) => {
+                v match {
+                  case Str(s) => k -> s
+                  case Num(n) => k -> n
+                  case Bool(b) => k -> b
+                  case _ => k -> v.toString
+                }
+              }}.toMap            
+            } catch {
+              case e:Error => 
+                log.warn(s"could not parse json: ${res}",e)
+                Map[String,Any]()
+            }
+          } else
+            Map[String,Any]()
+          } ++ data.attr + ("input" -> res) 
+        )
 
         broadcast(data1)
         Success(ExecDataEvent(data1))

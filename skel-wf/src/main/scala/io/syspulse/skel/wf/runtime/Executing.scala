@@ -42,9 +42,25 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
   def getAttr(name:String,data:ExecData) = {
     data.attr.get(name).orElse(dataExec.get(name)).map(_ match {
       case expr:String =>         
-        Util.replaceVar(expr,data.attr)        
+        Util.replaceVar(expr,data.attr ++ Map("sys.timestamp" -> System.currentTimeMillis))
       case v => v
     })      
+  }
+
+  def getAttr(name:String,data:ExecData,default:Any):Any = {
+    val v = data.attr.get(name).orElse(dataExec.get(name)).map(_ match {
+      case expr:String =>         
+        Util.replaceVar(expr,data.attr ++ Map("sys.timestamp" -> System.currentTimeMillis))
+      case v => v
+    })
+    v match {
+      case Some(v) if default.isInstanceOf[String] && v.isInstanceOf[String] => v
+      case Some(v) if default.isInstanceOf[Int] && v.isInstanceOf[String] => v.toString.toInt
+      case Some(v) if default.isInstanceOf[Long] && v.isInstanceOf[String] => v.toString.toLong
+      case Some(v) if default.isInstanceOf[Double] && v.isInstanceOf[String] => v.toString.toDouble
+      case Some(v) => v
+      case None => default
+    }
   }
 
   // this constructor and init are need for dynamic class instantiation of Executing Executors

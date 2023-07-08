@@ -21,7 +21,7 @@ class SyslogElasticFlow extends ElasticFlow[Syslog,Syslog] {
 
   override def parse(data:String):Seq[Syslog] = data.split("\n").toIndexedSeq.flatMap( line => 
     line.split(",",-1).toList match {
-      case ts :: lvl :: area :: txt :: Nil => Some(Syslog(ts.toLong,lvl.toInt,area,txt))
+      case ts :: severity :: scope :: msg :: Nil => Some(Syslog(ts = ts.toLong,severity = Some(severity.toInt),scope = Some(scope),msg = msg))
       case _ => None
     }
   )

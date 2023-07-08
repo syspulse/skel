@@ -9,7 +9,7 @@ import io.syspulse.skel.wf._
 
 class ThrottleExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends Executing(wid,name,dataExec) {  
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {    
-    val throttle:Long = getAttr("throttle",data).getOrElse("1000").toString.toLong
+    val throttle:Long = getAttr("throttle.delay",data).getOrElse("1000").toString.toLong
 
     log.info(s"throttling: ${throttle}...")
     

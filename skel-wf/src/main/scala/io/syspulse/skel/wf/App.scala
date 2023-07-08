@@ -27,7 +27,11 @@ case class Config(
 )
 
 object App extends skel.Server {
-  
+  def prompt() = {
+    Console.err.println("press [Enter] to gracefully continue, or [CTRL+C] to abort")
+    Console.in.readLine()
+  }
+
   def main(args:Array[String]):Unit = {
     Console.err.println(s"args: '${args.mkString(",")}'")
 
@@ -107,6 +111,19 @@ object App extends skel.Server {
       }
     }
 
+    def assemble(name:String,assembly:List[String]) = {
+      val dsl = if(assembly.head.startsWith("file://")) {
+        os.read(os.Path(assembly.head.stripPrefix("file://"),os.pwd))
+      } else 
+        assembly.mkString(" ")
+
+      val wf = for {
+        wf <- Workflow.assemble(s"${name}",name,dsl)
+        wf <- storeWorkflow.+(wf).map(_ => wf)
+      } yield wf
+      wf
+    }
+
     val r = config.cmd match {
       case "server" => 
 
@@ -116,29 +133,30 @@ object App extends skel.Server {
 
       case "wf" => config.params match {
         case ("assemble" | "assembly") :: name :: assembly => 
-          
-          val dsl = if(assembly.head.startsWith("file://")) {
-            os.read(os.Path(assembly.head.stripPrefix("file://"),os.pwd))
-          } else 
-            assembly.mkString(" ")
-
-          val wf = for {
-            wf <- Workflow.assemble(s"${name}",name,dsl)
-            wf <- storeWorkflow.+(wf).map(_ => wf)
-          } yield wf
+          val wf = assemble(name,assembly)          
           wf
         case "load" :: id :: Nil => 
           val wf = storeWorkflow.?(id)
-          wf   
+          wf
+        case "run" :: name :: assembly => 
+          implicit val we = new WorkflowEngine(storeWorkflow,storeState,runtime = new RuntimeThreads())
+          
+          val w = for {
+            wf <- assemble(name,assembly)
+            w <- we.spawn(wf)
+            w <- we.start(w)
+            input <- { Success(prompt()) }
+            w <- w.emit(wf.execs(0).name,"in-0",ExecDataEvent(ExecData(Map("input"->input))))
+            _ <- { Success(prompt()) }
+            w <- we.stop(w)
+            _ <- we.remove(w)
+          } yield w
+          w
         case _ => 
           storeWorkflow.all
       } 
 
-      case "runtime" => {
-        def prompt() = {
-          Console.err.println("press [Enter] to gracefully continue, or [CTRL+C] to abort")
-          Console.in.readLine()
-        }
+      case "runtime" => {        
 
         implicit val we = new WorkflowEngine(storeWorkflow,storeState,runtime = new RuntimeThreads())
         config.params match {
@@ -181,8 +199,8 @@ object App extends skel.Server {
               w <- we.stop(w)
             } yield w
 
-          case "kill" :: id :: Nil => 
-            we.kill(id)            
+          case "remove" :: id :: Nil => 
+            we.remove(id)            
 
           case "run" :: id :: Nil => 
             val wr = for {

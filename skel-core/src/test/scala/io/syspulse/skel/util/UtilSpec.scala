@@ -276,5 +276,15 @@ class UtilSpec extends AnyWordSpec with Matchers {
       e2 should === ("""{"name1" = "User-1","name2":"User-1", "count1":10,"count2":10}""")
     }
 
+    "toBigInt convert '100000000000000000000000'" in {
+      val v = Util.toBigInt("100000000000000000000000")
+      v should === (BigInt("100000000000000000000000"))
+    }
+
+    "toBigInt convert '1.0E+20'" in {
+      val v = Util.toBigInt("1.0E+20")
+      v should === (BigInt("100000000000000000000"))
+    }
+
   }
 }

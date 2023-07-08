@@ -81,7 +81,8 @@ object Util {
   def now:String = tsFormatLongest.format(LocalDateTime.now)
   def now(fmt:String):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(Instant.now.toEpochMilli), ZoneId.systemDefault).format(DateTimeFormatter.ofPattern(fmt))
   def toZoneDateTime(s:String,fmt:DateTimeFormatter = tsFormatLong) = ZonedDateTime.parse(s,fmt)
-  def timestamp(ts:Long,fmt:String):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).format(DateTimeFormatter.ofPattern(fmt))
+  def timestamp(ts:Long,fmt:String,zone:ZoneId = ZoneId.systemDefault):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), zone).format(DateTimeFormatter.ofPattern(fmt))
+  //def timestamp(ts:Long,fmt:String):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).format(DateTimeFormatter.ofPattern(fmt))
 
   def tsToString(ts:Long) = ZonedDateTime.ofInstant(
       Instant.ofEpochMilli(ts), 
@@ -297,8 +298,14 @@ object Util {
     log.info(s"Elapsed: ${Duration.ofNanos(ts1 - ts0).toMillis()} msec")    
   }
 
-  def replaceVar(expr:String,vars:Map[String,Any]):String = {
-    val rexpr = """(\{[a-zA-Z_-]+\})""".r
+  def replaceVar(expr0:String,vars:Map[String,Any]):String = {
+    // special case for file patterns
+    val expr = if(expr0.startsWith("file://") || expr0.startsWith("dir://") || expr0.startsWith("dirs://")) 
+      toFileWithTime(expr0)
+    else 
+      expr0
+
+    val rexpr = """(\{[a-zA-Z_\.-]+\})""".r
     val pairs = rexpr.findAllIn(expr).flatMap( v =>{
       val variable = v.substring(1,v.size-1)      
       val vv = vars.collect{ case(n,value) if(n == variable) => value}
@@ -310,6 +317,14 @@ object Util {
       e.replaceAll(r,p._2.toString)
     })
     expr1
+  }
+
+  // more reliable BigInt converter of format is into double
+  def toBigInt(v:String):BigInt = {
+    if(v.contains(".")) 
+      java.math.BigDecimal.valueOf(v.toDouble).toBigInteger
+    else
+      BigInt(v)
   }
 }
 

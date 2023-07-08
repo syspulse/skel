@@ -113,6 +113,9 @@ object TimeUtil {
               case e:Exception => // just repeat
             }
           }
+
+          // try timestamp
+          return Success(ZonedDateTime.ofInstant(Instant.ofEpochMilli(s.toLong), ZoneId.systemDefault()))
         }
         Failure(new Exception(s"could not parse: ${word}"))
     }
