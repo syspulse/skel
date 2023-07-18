@@ -161,9 +161,10 @@ object Flows {
       }      
     })
       
-  def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem,timeout:FiniteDuration) = {
+  def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192, retry:RestartSettings=retrySettingsDefault)(implicit as:ActorSystem,timeout:FiniteDuration) = {
     //val s = Source.future(fromHttpFuture(req))
-    val s = RestartSource.onFailuresWithBackoff(retrySettingsDefault) { () =>
+    val s = RestartSource.onFailuresWithBackoff(retry) { () =>
+      log.info(s"${retry}: ==> ${req}")
       Source.futureSource {
         Flows.fromHttpFuture(req)
       }
@@ -175,16 +176,16 @@ object Flows {
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))    
   }
 
-  def fromHttpRestartable(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192)(implicit as:ActorSystem,timeout:FiniteDuration) = {
-    fromHttp(req,frameDelimiter,frameSize)
+  def fromHttpRestartable(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192,retry:RestartSettings=retrySettingsDefault)(implicit as:ActorSystem,timeout:FiniteDuration) = {
+    fromHttp(req,frameDelimiter,frameSize,retry)
   }
 
-  def fromHttpList(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L)(implicit as:ActorSystem,timeout:FiniteDuration) = {
+  def fromHttpList(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L,retry:RestartSettings=retrySettingsDefault)(implicit as:ActorSystem,timeout:FiniteDuration) = {
     // Http().singleRequest does not respect mapAsync for parallelization !!!
     val s = 
       Source(reqs)
       .throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))
-      .flatMapConcat(req => Flows.fromHttpRestartable(req))
+      .flatMapConcat(req => Flows.fromHttpRestartable(req,frameDelimiter,frameSize,retry))
     
     if(frameDelimiter.isEmpty())
       s
