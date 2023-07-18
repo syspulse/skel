@@ -264,7 +264,8 @@ lazy val root = (project in file("."))
              skel_syslog,
              skel_notify,
              skel_tag, 
-             skel_telemetry)
+             skel_telemetry,
+             tools)
   .dependsOn(core, serde, cron, video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, skel_dsl, scrap, cli, db_cli, 
              ingest_flow,
              ingest_elastic,
@@ -933,3 +934,16 @@ lazy val skel_job = (project in file("skel-job"))
       libUpickleLib,
     )
   )
+
+lazy val tools = (project in file("tools"))
+  .enablePlugins(JavaAppPackaging)
+  .settings (
+      sharedConfig,
+      name := "skel-tools",
+      libraryDependencies ++= 
+        Seq(
+          libCask, 
+          libOsLib,
+          libUpickleLib
+        ),
+    )
