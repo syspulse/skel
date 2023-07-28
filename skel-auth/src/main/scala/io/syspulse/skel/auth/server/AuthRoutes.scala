@@ -65,8 +65,6 @@ import akka.actor
 import akka.stream.Materializer
 import scala.util.Random
 
-import io.syspulse.skel.auth.permissions.rbac.Permissions
-
 import io.syspulse.skel.util.Util
 
 import io.syspulse.skel.crypto.Eth
@@ -106,11 +104,15 @@ import io.syspulse.skel.auth.code._
 import io.syspulse.skel.auth.cred._
 import io.syspulse.skel.auth.cred.CredRegistry._
 
+import io.syspulse.skel.auth.permissions._
+import io.syspulse.skel.auth.permissions.PermissionsRegistry._
+
 @Path("/")
 class AuthRoutes(
   authRegistry: ActorRef[skel.Command],
   codeRegistry: ActorRef[skel.Command],
   credRegistry: ActorRef[skel.Command],
+  permissionsRegistry: ActorRef[skel.Command],
   serviceUri:String,
   redirectUri:String,
   serviceUserUri:String)(implicit context:ActorContext[_],config:Config) 
@@ -126,6 +128,8 @@ class AuthRoutes(
 
   //val credRegistry: ActorRef[skel.Command] = context.spawn(CredRegistry(new CredStoreMem()),"Actor-ClietnRegistry")
   context.watch(credRegistry)
+
+  context.watch(permissionsRegistry)
   
   // lazy because EthOAuth2 JWKS will request while server is not started yet
   lazy val idps = Map(
@@ -139,6 +143,7 @@ class AuthRoutes(
   import AuthJson._
   import CodeJson._
   import CredJson._
+  import PermissionsJson._
 
   def getAuths(): Future[Auths] = authRegistry.ask(GetAuths)
 
@@ -159,11 +164,15 @@ class AuthRoutes(
   def deleteCred(id: String,uid:Option[UUID]): Future[Try[CredActionRes]] = credRegistry.ask(DeleteCred(id, uid, _))
   def updateCred(id:String,req: CredUpdateReq): Future[Try[Cred]] = credRegistry.ask(UpdateCred(id,req, _))
 
-  implicit val permissions = Permissions(config.permissionsModel,config.permissionsPolicy)
-  // def hasAdminPermissions(authn:Authenticated) = {
-  //   val uid = authn.getUser
-  //   permissions.isAdmin(uid)
-  // }
+  def getPermissions(uid:UUID): Future[Try[Permissions]] = permissionsRegistry.ask(GetPermissions(uid, _))
+  def getPermissionss(): Future[Try[Permissionss]] = permissionsRegistry.ask(GetPermissionss(_))
+
+  import io.syspulse.skel.auth.permissions.rbac
+  implicit val defaultPermissions = rbac.Permissions(config.permissionsModel,config.permissionsPolicy)
+  def hasAdminPermissions(authn:Authenticated) = {
+     val uid = authn.getUser
+     defaultPermissions.isAdmin(uid)
+  }
   
   def callbackFlow(idp: Idp, code: String, redirectUri:Option[String], extraData:Option[Map[String,String]], scope: Option[String], state:Option[String]) = {//: Future[AuthWithProfileRes] = {
     log.info(s"CALLBACK (Universal): ${idp}: code=${code}, redirectUri=${redirectUri}, scope=${scope}, state=${state}")
@@ -231,7 +240,7 @@ class AuthRoutes(
       user <- {
         val jwtRoleService = if(config.jwtRoleService.isEmpty()) 
           // generate temproary short living token
-          AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString),expire = 60L)
+          AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_SERVICE.toString),expire = 60L)
         else 
           config.jwtRoleService 
         UserClientHttp(serviceUserUri).withAccessToken(jwtRoleService).withTimeout().findByXidAlways(profile.id)
@@ -268,7 +277,7 @@ class AuthRoutes(
           }
           else {
             (
-              AuthJwt.generateAccessToken(Map( "uid" -> Permissions.USER_NOBODY.toString)),
+              AuthJwt.generateAccessToken(Map( "uid" -> DefaultPermissions.USER_NOBODY.toString)),
               None,
               None
             )
@@ -540,7 +549,7 @@ class AuthRoutes(
                 // request uid from UserService
                 val jwtRoleService = if(config.jwtRoleService.isEmpty()) 
                   // generate temproary short living token
-                  AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString),expire = 60L)
+                  AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_SERVICE.toString),expire = 60L)
                 else 
                   config.jwtRoleService 
                 
@@ -552,9 +561,9 @@ class AuthRoutes(
                     //complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
                                 
                     // non-existing user
-                    val uid = Permissions.USER_NOBODY.toString
+                    val uid = DefaultPermissions.USER_NOBODY.toString
                     // issue token for nobody with a scope to start enrollment 
-                    val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid, "role" -> Permissions.ROLE_NOBODY, "scope" -> "enrollment"))
+                    val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid, "role" -> DefaultPermissions.ROLE_NOBODY, "scope" -> "enrollment"))
                     val idToken = ""
                     val refreshToken = ""
                     
@@ -635,7 +644,7 @@ class AuthRoutes(
             // request uid from UserService
             val jwtRoleService = if(config.jwtRoleService.isEmpty()) 
               // generate temproary short living token
-              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString),expire = 60L)
+              AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_SERVICE.toString),expire = 60L)
             else 
               config.jwtRoleService 
             
@@ -790,6 +799,25 @@ class AuthRoutes(
     }
   }
 
+// ------ Permissions ----
+  @GET @Path("/permission") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"), summary = "Get permissions",
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "List of Permissions",content = Array(new Content(schema = new Schema(implementation = classOf[AuthPermissions])))))
+  )
+  def getPermissionsUserRoute(uid:UUID) = get {
+    complete(getPermissions(uid))
+  }
+
+  @GET @Path("/permission") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"), summary = "Get all permissions",
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "List of Permissions",content = Array(new Content(schema = new Schema(implementation = classOf[AuthPermissions])))))
+  )
+  def getPermissionsRoute() = get {
+    complete(getPermissionss())
+  }
+
 // --------------------------------------------------------------------------------------------------------------------------------------- Routes
   val corsAllow = CorsSettings(system.classicSystem)
     //.withAllowGenericHttpRequests(true)
@@ -833,7 +861,7 @@ class AuthRoutes(
               }
             ),
             authenticate()(authn => {
-              val uid = if(Permissions.isAdmin(authn) || Permissions.isService(authn)) None else authn.getUser
+              val uid = if(rbac.Permissions.isAdmin(authn) || rbac.Permissions.isService(authn)) None else authn.getUser
               getCredsRoute(uid)                
             })
           )
@@ -841,7 +869,7 @@ class AuthRoutes(
         pathPrefix(Segment) { id => 
           pathEndOrSingleSlash {
             authenticate()(authn => {
-              val uid = if(Permissions.isAdmin(authn) || Permissions.isService(authn)) None else authn.getUser
+              val uid = if(rbac.Permissions.isAdmin(authn) || rbac.Permissions.isService(authn)) None else authn.getUser
               getCredRoute(id,uid) ~
               deleteCredRoute(id,uid)
             }) 
@@ -970,16 +998,26 @@ class AuthRoutes(
           )          
         })} ~ 
         pathEndOrSingleSlash {
-          authenticate()( authn =>  authorize(Permissions.isAdmin(authn)) {
+          authenticate()( authn =>  authorize(rbac.Permissions.isAdmin(authn)) {
             complete(getCodes())
           })
         }        
+      } ~
+      pathPrefix("permission") {
+        path(Segment) { uid => authenticate()( authn => { 
+          concat(
+            getPermissionsUserRoute(UUID(uid))
+          )})
+        } ~ 
+        pathEndOrSingleSlash {
+          getPermissionsRoute()
+        }
       } ~
       pathEndOrSingleSlash {
         concat(
           get {
             authenticate()(authn =>
-              authorize(Permissions.isAdmin(authn)) {
+              authorize(rbac.Permissions.isAdmin(authn)) {
                 complete(getAuths())
               }
             )              

@@ -22,6 +22,7 @@ import akka.http.scaladsl.server.directives.Credentials
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.permissions.rbac.Permissions
+import io.syspulse.skel.auth.permissions.DefaultPermissions
 
 case class AuthenticatedUser(uid:UUID) extends Authenticated {
   override def getUser: Option[UUID] = Some(uid)
@@ -63,7 +64,7 @@ trait RouteAuthorizers {
       case p @ Credentials.Provided(accessToken) => 
         AuthJwt.getClaim(accessToken,"uid").map(uid => AuthenticatedUser(UUID(uid)))        
       case _ => 
-        Some(AuthenticatedUser(Permissions.USER_ADMIN))
+        Some(AuthenticatedUser(DefaultPermissions.USER_ADMIN))
     }
   }
 

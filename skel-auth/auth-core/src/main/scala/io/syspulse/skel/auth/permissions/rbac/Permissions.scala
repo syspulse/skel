@@ -11,15 +11,10 @@ import java.io.InputStream
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 
-class Permissions(modelFile:String,policyFile:String) {
+trait Permissions {
   val log = Logger(s"${this}")
 
-  log.info(s"model=${modelFile}, policy=${policyFile}")
-  val enforcer = //new Enforcer(modelFile, policyFile);
-    new Enforcer(
-      {val m = new Model(); m.loadModelFromText(Util.loadFile(modelFile).toOption.getOrElse("")); m}, 
-      new FileAdapter(new ByteArrayInputStream(Util.loadFile(policyFile).toOption.getOrElse("").getBytes(StandardCharsets.UTF_8)))
-    )
+  val enforcer:Enforcer
   
   def isAdmin(uid:Option[UUID]):Boolean = {
     log.info(s"admin: GOD=${Permissions.isGod}: uid(${uid})")
@@ -78,21 +73,13 @@ class Permissions(modelFile:String,policyFile:String) {
 object Permissions {
   val log = Logger(s"${this}")
 
-  val USER_NOBODY = UUID("00000000-0000-0000-0000-000000000000")
-  val USER_ADMIN =  UUID("ffffffff-0000-0000-9000-000000000001")
-  val USER_SERVICE =UUID("eeeeeeee-0000-0000-1000-000000000001")
-
-  val ROLE_ADMIN = "admin"      
-  val ROLE_SERVICE = "service"  // service (skel-enroll -> skel-notify)
-  val ROLE_USER = "user"        // user (external -> API)
-  val ROLE_NOBODY = "nobody"      // non-existing user (new user or anonymous -> API)
-
   val isGod = sys.props.contains("god") || sys.props.contains("GOD") || sys.env.contains("god") || sys.env.contains("GOD")
 
-  def apply(modelFile:String,policyFile:String):Permissions = new Permissions(modelFile,policyFile)
+  def apply(modelFile:String,policyFile:String):Permissions = 
+    new PermissionsFile(modelFile,policyFile)
 
   def apply():Permissions = 
-    new Permissions("classpath:/default-permissions-model-rbac.conf","classpath:/default-permissions-policy-rbac.csv")
+    new PermissionsFile("classpath:/default-permissions-model-rbac.conf","classpath:/default-permissions-policy-rbac.csv")
     //new Permissions("conf/permissions-model-rbac.conf","conf/permissions-policy-rbac.csv")
 
   def isAdmin(authn:Authenticated)(implicit permissions:Permissions):Boolean = {

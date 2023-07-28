@@ -13,10 +13,12 @@ import io.syspulse.skel.auth.server.AuthRoutes
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.store._
 import io.syspulse.skel.auth.permissions.rbac.Permissions
+import io.syspulse.skel.auth.permissions.DefaultPermissions
 import io.syspulse.skel.auth.cred.Cred
 
 import io.syspulse.skel.auth.cred._
 import io.syspulse.skel.auth.code._
+import io.syspulse.skel.auth.permissions._
 import io.syspulse.skel.auth.store._
 
 case class Config(
@@ -27,6 +29,7 @@ case class Config(
   datastore:String = "mem://",
   storeCode:String = "mem://",
   storeCred:String = "mem://",
+  storePermissions:String = "mem://",  
 
   // legacy investion research
   proxyBasicUser:String = "user1",
@@ -41,7 +44,7 @@ case class Config(
   jwtRoleAdmin:String = "",
 
   userUri:String = "http://localhost:8080/api/v1/user",
-
+  
   permissionsModel:String = "conf/permissions-model-rbac.conf",
   permissionsPolicy:String = "conf/permissions-policy-rbac.csv",
 
@@ -67,6 +70,7 @@ object App extends skel.Server {
         ArgString('d', "datastore",s"datastore [mysql,postgres,mem,cache] (def: ${d.datastore})"),
         ArgString('_', "store.code",s"Datastore for Codes (def: ${d.storeCode})"),
         ArgString('_', "store.cred",s"Datastore for Creds (def: ${d.storeCred})"),
+        ArgString('_', "store.permissions",s"Datastore for Permissions (def: ${d.storePermissions})"),
         
         ArgString('_',"proxy.basic.user",s"Auth Basic Auth username (def: ${d.proxyBasicUser})"),
         ArgString('_',"proxy.basic.pass",s"ProxyM2M Auth Basic Auth password (def: ${d.proxyBasicPass}"),
@@ -111,6 +115,7 @@ object App extends skel.Server {
       datastore = c.getString("datastore").getOrElse(d.datastore),
       storeCode = c.getString("store.code").getOrElse(d.storeCode),
       storeCred = c.getString("store.cred").getOrElse(d.storeCred),
+      storePermissions = c.getString("store.permissions").getOrElse(d.storePermissions),
 
       proxyBasicUser = c.getString("proxy.basic.user").getOrElse(d.proxyBasicUser),
       proxyBasicPass = c.getString("proxy.basic.pass").getOrElse(d.proxyBasicPass),
@@ -165,6 +170,16 @@ object App extends skel.Server {
       }
     }
 
+    val permissionsStore = config.storePermissions.split("://").toList match {
+      case "dir" :: Nil => new PermissionsStoreDir()
+      case "dir" :: dir :: Nil => new PermissionsStoreDir(dir)
+      case "mem" :: _ | "cache" :: _ => new PermissionsStoreMem()
+      case _ => {
+        Console.err.println(s"Uknown store: '${config.storeCred}'")        
+        sys.exit(1)
+      }
+    }
+
 
     if(config.jwtSecret.isDefined) 
       AuthJwt.withSecret(config.jwtSecret.get)
@@ -177,8 +192,9 @@ object App extends skel.Server {
           Seq(
             (AuthRegistry(authStore),"AuthRegistry",(authRegistry, context) => {
                 val codeRegistry = context.spawn(CodeRegistry(codeStore),"Actor-CodeRegistry")
-                val credRegistry = context.spawn(CredRegistry(credStore),"Actor-ClietnRegistry")
-                new AuthRoutes(authRegistry,codeRegistry,credRegistry,
+                val credRegistry = context.spawn(CredRegistry(credStore),"Actor-ClientRegistry")
+                val permissionsRegistry = context.spawn(PermissionsRegistry(permissionsStore),"Actor-PermissionsRegistry")
+                new AuthRoutes(authRegistry,codeRegistry,credRegistry,permissionsRegistry,
                   s"http://${authHost}:${config.port}${config.uri}",
                   s"http://${authHost}:${config.port}${config.uri}/callback", config.userUri)(context, config) 
               }
@@ -196,8 +212,9 @@ object App extends skel.Server {
           Seq(
             (AuthRegistry(authStore),"AuthRegistry",(authRegistry, context) => {
                 val codeRegistry = context.spawn(CodeRegistry(codeStore),"Actor-CodeRegistry")
-                val credRegistry = context.spawn(CredRegistry(credStore),"Actor-ClietnRegistry")
-                new AuthRoutes(authRegistry,codeRegistry,credRegistry,
+                val credRegistry = context.spawn(CredRegistry(credStore),"Actor-ClientRegistry")
+                val permissionsRegistry = context.spawn(PermissionsRegistry(permissionsStore),"Actor-PermissionsRegistry")
+                new AuthRoutes(authRegistry,codeRegistry,credRegistry,permissionsRegistry,
                   s"http://${authHost}:${config.port}${uri}/auth",
                   s"http://${authHost}:${config.port}${uri}/auth/callback",
                   s"http://${authHost}:${config.port}${uri}/user")(context, config) 
@@ -210,7 +227,7 @@ object App extends skel.Server {
         )
         // generate Admin token for testing
         val adminAccessTokenFile = "ACCESS_TOKEN_ADMIN"
-        val adminAccessToken = AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_ADMIN.toString))
+        val adminAccessToken = AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_ADMIN.toString))
         os.write.over(os.Path(adminAccessTokenFile,os.pwd),adminAccessToken + "\n")
         Console.err.println(s"${Console.GREEN}${adminAccessTokenFile}:${Console.RESET} ${adminAccessToken}")
 
@@ -224,12 +241,12 @@ object App extends skel.Server {
             case "admin" :: ttl => 
               // long living token
               val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_ADMIN_TTL else ttl.head.toLong
-              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_ADMIN.toString),expire = exp)
+              AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_ADMIN.toString),expire = exp)
             
             case "service" :: ttl => 
               // long living token
               val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL else ttl.head.toLong
-              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString),expire = exp)
+              AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_SERVICE.toString),expire = exp)
 
             case "user" :: uid :: ttl => 
               val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL else ttl.head.toLong
