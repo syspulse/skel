@@ -107,7 +107,7 @@ object App extends skel.Server {
       ).withExit(1)
     )).withLogging()
 
-    val config = Config(
+    implicit val config = Config(
       host = c.getString("http.host").getOrElse(d.host),
       port = c.getInt("http.port").getOrElse(d.port),
       uri = c.getString("http.uri").getOrElse(d.uri),
@@ -147,7 +147,7 @@ object App extends skel.Server {
       case "dir" :: dir :: Nil => new AuthStoreDir(dir)
       case "mem" :: _ | "cache" :: _ => new AuthStoreMem
       case _ => {
-        Console.err.println(s"Uknown datastore: '${config.datastore}'")
+        Console.err.println(s"Uknown auth datastore: '${config.datastore}'")
         sys.exit(1)
       }
     }
@@ -155,7 +155,7 @@ object App extends skel.Server {
     val codeStore = config.storeCode.split("://").toList match {
       case "mem" :: _ | "cache" :: _ => new CodeStoreMem()
       case _ => {
-        Console.err.println(s"Uknown store: '${config.storeCode}'")        
+        Console.err.println(s"Uknown code store: '${config.storeCode}'")        
         sys.exit(1)
       }
     }
@@ -165,7 +165,7 @@ object App extends skel.Server {
       case "dir" :: dir :: Nil => new CredStoreDir(dir)
       case "mem" :: _ | "cache" :: _ => new CredStoreMem()
       case _ => {
-        Console.err.println(s"Uknown store: '${config.storeCred}'")        
+        Console.err.println(s"Uknown cred store: '${config.storeCred}'")        
         sys.exit(1)
       }
     }
@@ -173,9 +173,9 @@ object App extends skel.Server {
     val permissionsStore = config.storePermissions.split("://").toList match {
       case "dir" :: Nil => new PermissionsStoreDir()
       case "dir" :: dir :: Nil => new PermissionsStoreDir(dir)
-      case "mem" :: _ | "cache" :: _ => new PermissionsStoreMem()
+      case "casbin" :: _  | "mem" :: _ | "cache" :: _ => new PermissionsStoreCasbin()
       case _ => {
-        Console.err.println(s"Uknown store: '${config.storeCred}'")        
+        Console.err.println(s"Uknown permissions store: '${config.storeCred}'")        
         sys.exit(1)
       }
     }

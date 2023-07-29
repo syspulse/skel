@@ -14,7 +14,7 @@ trait PermissionsStoreCache extends PermissionsStore {
 
   // default clinet for quick prototyping
   val defaultPermissions = { 
-    DefaultPermissions.USER_ADMIN -> Permissions(DefaultPermissions.USER_ADMIN,Seq("role-1"))
+    DefaultPermissions.USER_ADMIN -> Permissions(DefaultPermissions.USER_ADMIN,permissions = Seq(Perm("*","write")),roles = Seq("admin"))
   }
 
   var permissions: Map[UUID,Permissions] = Map() + defaultPermissions
@@ -41,7 +41,7 @@ trait PermissionsStoreCache extends PermissionsStore {
     case None => Failure(new Exception(s"not found: ${uid}"))
   }
 
-  def update(uid:UUID,permissions:Option[Seq[String]]):Try[Permissions] = {
+  def update(uid:UUID,permissions:Option[Seq[Perm]]):Try[Permissions] = {
     ?(uid).map(p => modify(p,permissions))
   }
 }

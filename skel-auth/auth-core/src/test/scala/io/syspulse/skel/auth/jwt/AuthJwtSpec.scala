@@ -12,6 +12,7 @@ import scala.util.Success
 import io.syspulse.skel.util.Util
 import pdi.jwt.JwtAlgorithm
 import io.syspulse.skel.auth.permissions.rbac.Permissions
+import io.syspulse.skel.auth.permissions.DefaultPermissions
 
 class AuthJwtSpec extends AnyWordSpec with Matchers {
   val testDir = this.getClass.getClassLoader.getResource(".").getPath
@@ -38,7 +39,7 @@ class AuthJwtSpec extends AnyWordSpec with Matchers {
     }
 
     "validate generated Admin token" in {
-      val j1 = AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_ADMIN.toString))
+      val j1 = AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_ADMIN.toString))
       AuthJwt.isValid(j1) === true
     }
 

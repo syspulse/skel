@@ -28,7 +28,7 @@ class PermissionsStoreDir(dir:String = "store/permissions/") extends StoreDir[Pe
   override def del(uid:UUID):Try[PermissionsStoreDir] = super.del(uid).flatMap(_ => store.del(uid)).map(_ => this)
   override def ?(uid:UUID):Try[Permissions] = store.?(uid)
 
-  override def update(uid:UUID,permissions:Option[Seq[String]]):Try[Permissions] =
+  override def update(uid:UUID,permissions:Option[Seq[Perm]]):Try[Permissions] =
     store.update(uid,permissions).flatMap(c => writeFile(c))
 
   // preload

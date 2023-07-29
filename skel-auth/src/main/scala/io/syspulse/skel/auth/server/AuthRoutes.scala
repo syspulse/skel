@@ -1003,7 +1003,7 @@ class AuthRoutes(
           })
         }        
       } ~
-      pathPrefix("permission") {
+      pathPrefix("permissions") {
         path(Segment) { uid => authenticate()( authn => { 
           concat(
             getPermissionsUserRoute(UUID(uid))

@@ -326,5 +326,7 @@ object Util {
     else
       BigInt(v)
   }
+
+  def isUUID(s:String) = s.matches("""\d{8}-\d{4}-\d{4}-\d{4}-\d{12}""")
 }
 

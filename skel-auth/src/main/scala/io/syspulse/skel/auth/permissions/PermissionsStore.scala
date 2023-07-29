@@ -20,9 +20,9 @@ trait PermissionsStore extends Store[Permissions,UUID] {
   def all:Seq[Permissions]
   def size:Long
 
-  def update(uid:UUID,permissions:Option[Seq[String]]):Try[Permissions]
+  def update(uid:UUID,permissions:Option[Seq[Perm]]):Try[Permissions]
 
-  protected def modify(perm:Permissions,permissions:Option[Seq[String]]=None):Permissions = {    
+  protected def modify(perm:Permissions,permissions:Option[Seq[Perm]]=None):Permissions = {    
     (for {
       c0 <- Some(perm)
       c1 <- Some(if(permissions.isDefined) c0.copy(permissions = permissions.get) else c0)      

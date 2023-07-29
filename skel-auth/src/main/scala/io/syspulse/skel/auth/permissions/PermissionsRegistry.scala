@@ -40,7 +40,8 @@ object PermissionsRegistry {
       case CreatePermissions(req, replyTo) =>
         val p = Permissions(
           req.uid,
-          req.permissions
+          req.permissions,
+          req.roles
         )
         
         store.+(p)
