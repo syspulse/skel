@@ -43,7 +43,7 @@ trait Permissions {
 
     val sub = uid.get.toString; // the user that wants to access a resource.
     val obj = "api";        // the resource that is going to be accessed.
-    val act = "write";      // the operation that the user performs on the resource.
+    val act = "write";      // write across the system
 
     enforcer.enforce(sub, obj, act)
   }
@@ -65,6 +65,19 @@ trait Permissions {
     val sub = uid.get.toString; // the user that wants to access a resource.
     val obj = "api";        // the resource that is going to be accessed.
     val act = "read";      // the operation that the user performs on the resource.
+
+    enforcer.enforce(sub, obj, act)
+  }
+
+  def isAllowed(uid:Option[UUID],role:String,action:String):Boolean = {
+    if(!uid.isDefined) {
+      log.error(s"allowed: GOD=${Permissions.isGod}: uid($uid), role=${role}:${action}")
+      return false
+    }
+
+    val sub = uid.get.toString; // the user that wants to access a resource.
+    val obj = role;        // the resource that is going to be accessed.
+    val act = action;      // the operation that the user performs on the resource.
 
     enforcer.enforce(sub, obj, act)
   }
@@ -95,5 +108,9 @@ object Permissions {
   def isUser(id:UUID,authn:Authenticated)(implicit permissions:Permissions):Boolean = {    
     val uid = authn.getUser
     permissions.isUser(id,uid)
+  }
+
+  def isAllowed(role:String,action:String,authn:Authenticated)(implicit permissions:Permissions):Boolean = {    
+    permissions.isAllowed(authn.getUser,role,action)
   }
 }

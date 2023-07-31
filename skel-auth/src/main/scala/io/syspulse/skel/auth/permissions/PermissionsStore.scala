@@ -28,5 +28,7 @@ trait PermissionsStore extends Store[Permissions,UUID] {
       c1 <- Some(if(permissions.isDefined) c0.copy(permissions = permissions.get) else c0)      
     } yield c1).get    
   }
+  
+  def getEnforcer():Option[rbac.Permissions] = None
 }
 

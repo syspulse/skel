@@ -1,6 +1,7 @@
 package io.syspulse.skel.auth
 
 import scala.util.Success
+import io.jvm.uuid._
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
@@ -29,7 +30,7 @@ case class Config(
   datastore:String = "mem://",
   storeCode:String = "mem://",
   storeCred:String = "mem://",
-  storePermissions:String = "mem://",  
+  storePermissions:String = "casbin://",
 
   // legacy investion research
   proxyBasicUser:String = "user1",
@@ -101,7 +102,10 @@ object App extends skel.Server {
         ArgCmd("cred",s"Client Credentials subcommands: " +
           s"generate        : generate Client Credentials pair" +
           ""
-        ),        
+        ),
+        ArgCmd("permissions",s"Permissions" +
+          s"allowed jwt role <action>  : Check enforcer for JWT against role:action (def action=write)"
+        ),
         ArgParam("<params>",""),
         ArgLogging()
       ).withExit(1)
@@ -235,22 +239,62 @@ object App extends skel.Server {
                       
         sys.exit(0)
       }
+      
+      case "permissions" => {
+        val r = 
+          config.params match {
+            case "allowed" :: jwt :: role :: action :: Nil => 
+              //val exp = AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL
+              //val jwt = AuthJwt.generateAccessToken(Map("role" -> role),expire = exp)
+              val vt = AuthJwt.verifyAuthToken(Some(jwt),"",Seq())
+              if(!vt.isDefined) {
+                Console.err.println(s"not valid: ${jwt}")
+                sys.exit(1)
+              }
+              
+              if(!permissionsStore.getEnforcer().isDefined) {
+                Console.err.println(s"store does not support enforcer: ${permissionsStore}")
+                sys.exit(1)
+              }
+
+              implicit val permissions = permissionsStore.getEnforcer().get
+              rbac.Permissions.isAllowed(role,action,AuthenticatedUser(UUID(vt.get.uid),Seq()))
+
+            case "allow" :: role :: Nil => 
+              //AuthJwt.isValid(token)
+
+            case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
+          }
+        
+        println(s"${r}")
+        System.exit(0)
+      }
+
       case "jwt" => {        
         val r = 
           config.params match {
             case "admin" :: ttl => 
               // long living token
               val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_ADMIN_TTL else ttl.head.toLong
-              AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_ADMIN.toString),expire = exp)
+              AuthJwt.generateAccessToken(
+                Map("uid" -> DefaultPermissions.USER_ADMIN.toString, "roles" -> "admin"),
+                expire = exp
+              )
             
             case "service" :: ttl => 
               // long living token
               val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL else ttl.head.toLong
-              AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_SERVICE.toString),expire = exp)
+              AuthJwt.generateAccessToken(
+                Map("uid" -> DefaultPermissions.USER_SERVICE.toString, "roles" -> "service"),
+                expire = exp
+              )
 
             case "user" :: uid :: ttl => 
               val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL else ttl.head.toLong
-              AuthJwt.generateAccessToken(Map("uid" -> uid),expire = exp)
+              AuthJwt.generateAccessToken(
+                Map("uid" -> uid,"roles" -> "user"),
+                expire = exp
+              )
 
             case "encode" :: data => 
               AuthJwt.generateAccessToken(data.map(_.split("=")).collect{ case(Array(k,v)) => k->v}.toMap)

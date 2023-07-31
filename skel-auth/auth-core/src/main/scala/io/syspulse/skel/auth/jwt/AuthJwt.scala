@@ -84,7 +84,7 @@ object AuthJwt {
           val json = ujson.read(c.content)
           Some(json.obj(claim).str)
         } catch {
-          case e:Exception => log.error(s"failed to parse claim: ${c}");
+          case e:Exception => log.warn(s"failed to parse claim: '${claim}'");
             None
         }
       }
@@ -134,6 +134,22 @@ object AuthJwt {
         false
     }
     
+  }
+
+  case class VerifiedToken(uid:String,roles:Seq[String])
+  
+  def verifyAuthToken(token: Option[String],id:String,data:Seq[Any]):Option[VerifiedToken] = token match {
+    case Some(jwt) => {      
+      val v = AuthJwt.isValid(jwt)
+      val uid = AuthJwt.getClaim(jwt,"uid")
+      val roles = AuthJwt.getClaim(jwt,"roles").getOrElse("").split(",").toSeq
+      log.info(s"token=${jwt}: uid=${uid}: roles=${roles}: valid=${v}")
+      if(v && !uid.isEmpty) 
+        Some(VerifiedToken(uid.get,roles))
+      else 
+        None
+    }
+    case _ => None
   }
 }
 

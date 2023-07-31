@@ -1,18 +1,28 @@
-p, 00000000-0000-0000-1000-000000000001, api, read
-p, 00000000-0000-0000-1000-000000000001, user, write
+p, user, resource_user, write
+p, admin, resource_admin, write
+p, service, resource_service, write
 
-p, ffffffff-0000-0000-9000-000000000001, data, write
-p, eeeeeeee-0000-0000-1000-000000000001, data, write
+p, role_api_admin, api, write
+p, role_api, api, read
+p, role_data, data, read
+p, role_data_admin, data, write
 
-p, api_group_admin, api_group, write
-p, data_group_admin, data_group, write
 
-g, ffffffff-0000-0000-9000-000000000001, data_group_admin
-g, ffffffff-0000-0000-9000-000000000001, api_group_admin
 
-g, eeeeeeee-0000-0000-1000-000000000001, data_group_admin
-g, eeeeeeee-0000-0000-1000-000000000001, api_group_admin
 
-g2, data1, data_group
-g2, data2, data_group
-g2, api, api_group
+g, user, role_api
+g, user, role_data
+
+g, service, role_api_admin
+
+g, admin, user
+g, admin, service
+g, admin, role_data_admin
+g, admin, role_api_admin
+
+
+g, ffffffff-0000-0000-9000-000000000001, admin
+g, eeeeeeee-0000-0000-1000-000000000001, service
+g, 00000000-0000-0000-1000-000000000001, user
+
+g2, resource_api, api
