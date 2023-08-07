@@ -21,7 +21,7 @@ import akka.http.scaladsl.server.directives.Credentials
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.auth.jwt.AuthJwt
-import io.syspulse.skel.auth.permissions.rbac.Permissions
+import io.syspulse.skel.auth.permissions.Permissions
 import io.syspulse.skel.auth.permissions.DefaultPermissions
 
 case class AuthenticatedUser(uid:UUID,roles:Seq[String]) extends Authenticated {

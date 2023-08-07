@@ -9,10 +9,4 @@ case class PermissionRead() extends Permisson("r")
 case class PermissionWrite() extends Permisson("w")
 case class PermissionAll() extends Permisson("*")
 
-object Permissions { 
-  val permissions = Map(
-    (UUID.random -> List())
-  )
-}
-
 case class ResourcePermission(r:Resource,pp:Seq[Permisson])

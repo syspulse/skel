@@ -91,7 +91,7 @@ abstract class HttpServerable extends cask.MainRoutes{
   
   @cask.get("/")
   def rootGet() = {
-    Console.err.println(s"<-")
+    Console.err.println(s"GET -")
     if(current >= requests.size)
       current = 0
 
@@ -105,7 +105,7 @@ abstract class HttpServerable extends cask.MainRoutes{
 
   @cask.post("/")
   def rootPort() = {
-    Console.err.println(s"<-")
+    Console.err.println(s"POST <-")
     if(current >= requests.size)
       current = 0
 

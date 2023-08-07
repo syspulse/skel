@@ -8,8 +8,6 @@ p, role_data, data, read
 p, role_data_admin, data, write
 
 
-
-
 g, user, role_api
 g, user, role_data
 
@@ -26,3 +24,14 @@ g, eeeeeeee-0000-0000-1000-000000000001, service
 g, 00000000-0000-0000-1000-000000000001, user
 
 g2, resource_api, api
+
+
+
+
+p, user, group_user, write
+p, admin, group_admin, write
+p, data_group_admin, data_group, write
+
+g, 00000000-0000-0000-1000-000000000001, group_user
+g2, api, resource_api
+g2, data, resource_data

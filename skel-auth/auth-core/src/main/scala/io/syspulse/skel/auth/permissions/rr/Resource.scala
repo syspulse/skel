@@ -9,5 +9,6 @@ import io.syspulse.skel.util.Util
 
 abstract class Resource(s:String)
 
-case class ResourceAll() extends Resource("all")
+case class ResourceAll() extends Resource("*")
 case class ResourceData() extends Resource("data")
+case class ResourceApi() extends Resource("api")

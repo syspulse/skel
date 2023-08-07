@@ -21,8 +21,7 @@ import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
 import io.syspulse.skel.auth.jwt.AuthJwt
-import io.syspulse.skel.auth.permissions.rr.Permisson
-import io.syspulse.skel.auth.permissions.rbac.Permissions
+
 
 object AuthRegistry {
   val log = Logger(s"${this}")

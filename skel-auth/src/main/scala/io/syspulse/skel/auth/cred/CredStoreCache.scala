@@ -8,7 +8,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
-import io.syspulse.skel.auth.permissions.rbac.Permissions
+import io.syspulse.skel.auth.permissions.Permissions
 
 trait CredStoreCache extends CredStore {
   val log = Logger(s"${this}")

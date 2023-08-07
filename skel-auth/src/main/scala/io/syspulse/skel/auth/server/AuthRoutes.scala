@@ -104,8 +104,10 @@ import io.syspulse.skel.auth.code._
 import io.syspulse.skel.auth.cred._
 import io.syspulse.skel.auth.cred.CredRegistry._
 
-import io.syspulse.skel.auth.permissions._
-import io.syspulse.skel.auth.permissions.PermissionsRegistry._
+import io.syspulse.skel.auth.permissions.Permissions
+import io.syspulse.skel.auth.permissions.DefaultPermissions
+import io.syspulse.skel.auth.permit._
+import io.syspulse.skel.auth.permit.PermitsRegistry._
 
 @Path("/")
 class AuthRoutes(
@@ -143,7 +145,7 @@ class AuthRoutes(
   import AuthJson._
   import CodeJson._
   import CredJson._
-  import PermissionsJson._
+  import PermitsJson._
 
   def getAuths(): Future[Auths] = authRegistry.ask(GetAuths)
 
@@ -164,11 +166,10 @@ class AuthRoutes(
   def deleteCred(id: String,uid:Option[UUID]): Future[Try[CredActionRes]] = credRegistry.ask(DeleteCred(id, uid, _))
   def updateCred(id:String,req: CredUpdateReq): Future[Try[Cred]] = credRegistry.ask(UpdateCred(id,req, _))
 
-  def getPermissions(uid:UUID): Future[Try[Permissions]] = permissionsRegistry.ask(GetPermissions(uid, _))
-  def getPermissionss(): Future[Try[Permissionss]] = permissionsRegistry.ask(GetPermissionss(_))
+  def getPermits(uid:UUID): Future[Try[Permits]] = permissionsRegistry.ask(GetPermits(uid, _))
+  def getPermitss(): Future[Try[Permitss]] = permissionsRegistry.ask(GetPermitss(_))
 
-  import io.syspulse.skel.auth.permissions.rbac
-  implicit val defaultPermissions = rbac.Permissions(config.permissionsModel,config.permissionsPolicy)
+  implicit val defaultPermissions = Permissions(config.permissionsModel,config.permissionsPolicy)
   def hasAdminPermissions(authn:Authenticated) = {
      val uid = authn.getUser
      defaultPermissions.isAdmin(uid)
@@ -803,19 +804,19 @@ class AuthRoutes(
   @GET @Path("/permission") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("auth"), summary = "Get permissions",
     responses = Array(
-      new ApiResponse(responseCode = "200", description = "List of Permissions",content = Array(new Content(schema = new Schema(implementation = classOf[AuthPermissions])))))
+      new ApiResponse(responseCode = "200", description = "List of Permits",content = Array(new Content(schema = new Schema(implementation = classOf[Permits])))))
   )
-  def getPermissionsUserRoute(uid:UUID) = get {
-    complete(getPermissions(uid))
+  def getPermitsUserRoute(uid:UUID) = get {
+    complete(getPermits(uid))
   }
 
   @GET @Path("/permission") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("auth"), summary = "Get all permissions",
     responses = Array(
-      new ApiResponse(responseCode = "200", description = "List of Permissions",content = Array(new Content(schema = new Schema(implementation = classOf[AuthPermissions])))))
+      new ApiResponse(responseCode = "200", description = "List of Permits",content = Array(new Content(schema = new Schema(implementation = classOf[Permitss])))))
   )
-  def getPermissionsRoute() = get {
-    complete(getPermissionss())
+  def getPermitsRoute() = get {
+    complete(getPermitss())
   }
 
 // --------------------------------------------------------------------------------------------------------------------------------------- Routes
@@ -861,7 +862,7 @@ class AuthRoutes(
               }
             ),
             authenticate()(authn => {
-              val uid = if(rbac.Permissions.isAdmin(authn) || rbac.Permissions.isService(authn)) None else authn.getUser
+              val uid = if(Permissions.isAdmin(authn) || Permissions.isService(authn)) None else authn.getUser
               getCredsRoute(uid)                
             })
           )
@@ -869,7 +870,7 @@ class AuthRoutes(
         pathPrefix(Segment) { id => 
           pathEndOrSingleSlash {
             authenticate()(authn => {
-              val uid = if(rbac.Permissions.isAdmin(authn) || rbac.Permissions.isService(authn)) None else authn.getUser
+              val uid = if(Permissions.isAdmin(authn) || Permissions.isService(authn)) None else authn.getUser
               getCredRoute(id,uid) ~
               deleteCredRoute(id,uid)
             }) 
@@ -998,7 +999,7 @@ class AuthRoutes(
           )          
         })} ~ 
         pathEndOrSingleSlash {
-          authenticate()( authn =>  authorize(rbac.Permissions.isAdmin(authn)) {
+          authenticate()( authn =>  authorize(Permissions.isAdmin(authn)) {
             complete(getCodes())
           })
         }        
@@ -1006,18 +1007,18 @@ class AuthRoutes(
       pathPrefix("permissions") {
         path(Segment) { uid => authenticate()( authn => { 
           concat(
-            getPermissionsUserRoute(UUID(uid))
+            getPermitsUserRoute(UUID(uid))
           )})
         } ~ 
         pathEndOrSingleSlash {
-          getPermissionsRoute()
+          getPermitsRoute()
         }
       } ~
       pathEndOrSingleSlash {
         concat(
           get {
             authenticate()(authn =>
-              authorize(rbac.Permissions.isAdmin(authn)) {
+              authorize(Permissions.isAdmin(authn)) {
                 complete(getAuths())
               }
             )              

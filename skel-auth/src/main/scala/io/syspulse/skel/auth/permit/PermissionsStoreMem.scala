@@ -1,4 +1,4 @@
-package io.syspulse.skel.auth.permissions
+package io.syspulse.skel.auth.permit
 
 import scala.util.Try
 import scala.util.{Success,Failure}
@@ -9,4 +9,4 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
-class PermissionsStoreMem extends PermissionsStoreCache
+class PermitsStoreMem extends PermitsStoreCache

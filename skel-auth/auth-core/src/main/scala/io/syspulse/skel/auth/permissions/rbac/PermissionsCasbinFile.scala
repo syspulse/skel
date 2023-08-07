@@ -11,7 +11,7 @@ import java.io.InputStream
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 
-class PermissionsFile(modelFile:String,policyFile:String) extends Permissions() {
+class PermissionsCasbinFile(modelFile:String,policyFile:String) extends PermissionsCasbin() {
   
   log.info(s"model=${modelFile}, policy=${policyFile}")
   

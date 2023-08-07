@@ -11,7 +11,9 @@ import java.io.InputStream
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 
-trait Permissions {
+import io.syspulse.skel.auth.permissions.Permissions
+
+trait PermissionsCasbin extends Permissions {
   val log = Logger(s"${this}")
 
   val enforcer:Enforcer
@@ -61,7 +63,7 @@ trait Permissions {
 
     return true;
 
-    // ATTENTION: DON'T ENFORCE FOR NOW !
+    
     val sub = uid.get.toString; // the user that wants to access a resource.
     val obj = "api";        // the resource that is going to be accessed.
     val act = "read";      // the operation that the user performs on the resource.
@@ -69,48 +71,29 @@ trait Permissions {
     enforcer.enforce(sub, obj, act)
   }
 
-  def isAllowed(uid:Option[UUID],role:String,action:String):Boolean = {
+  def isAllowed(uid:Option[UUID],resource:String,action:String):Boolean = {
     if(!uid.isDefined) {
-      log.error(s"allowed: GOD=${Permissions.isGod}: uid($uid), role=${role}:${action}")
+      log.error(s"allowed: GOD=${Permissions.isGod}: uid($uid), resource=${resource}:${action}")
+      return false
+    }
+
+    val sub = uid.get.toString; // the user that wants to access a resource.
+    val obj = resource;        // the resource that is going to be accessed.
+    val act = action;      // the operation that the user performs on the resource.
+
+    enforcer.enforce(sub, obj, act)
+  }
+
+  def isRole(uid:Option[UUID],roles:Seq[String],role:String):Boolean = {
+    if(!uid.isDefined) {
+      log.error(s"allowed: GOD=${Permissions.isGod}: uid($uid), roles=${roles}")
       return false
     }
 
     val sub = uid.get.toString; // the user that wants to access a resource.
     val obj = role;        // the resource that is going to be accessed.
-    val act = action;      // the operation that the user performs on the resource.
+    val act = "write";      // the operation that the user performs on the resource.
 
     enforcer.enforce(sub, obj, act)
-  }
-}
-
-object Permissions {
-  val log = Logger(s"${this}")
-
-  val isGod = sys.props.contains("god") || sys.props.contains("GOD") || sys.env.contains("god") || sys.env.contains("GOD")
-
-  def apply(modelFile:String,policyFile:String):Permissions = 
-    new PermissionsFile(modelFile,policyFile)
-
-  def apply():Permissions = 
-    new PermissionsFile("classpath:/default-permissions-model-rbac.conf","classpath:/default-permissions-policy-rbac.csv")
-    //new Permissions("conf/permissions-model-rbac.conf","conf/permissions-policy-rbac.csv")
-
-  def isAdmin(authn:Authenticated)(implicit permissions:Permissions):Boolean = {
-    val uid = authn.getUser
-    permissions.isAdmin(uid)
-  }
-
-  def isService(authn:Authenticated)(implicit permissions:Permissions):Boolean = {
-    val uid = authn.getUser
-    permissions.isService(uid)
-  }
-
-  def isUser(id:UUID,authn:Authenticated)(implicit permissions:Permissions):Boolean = {    
-    val uid = authn.getUser
-    permissions.isUser(id,uid)
-  }
-
-  def isAllowed(role:String,action:String,authn:Authenticated)(implicit permissions:Permissions):Boolean = {    
-    permissions.isAllowed(authn.getUser,role,action)
   }
 }

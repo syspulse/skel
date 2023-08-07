@@ -13,13 +13,14 @@ import io.syspulse.skel.user.store._
 import io.syspulse.skel.auth.server.AuthRoutes
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.store._
-import io.syspulse.skel.auth.permissions.rbac.Permissions
+import io.syspulse.skel.auth.permissions.rbac.PermissionsCasbin
+import io.syspulse.skel.auth.permissions.Permissions
 import io.syspulse.skel.auth.permissions.DefaultPermissions
 import io.syspulse.skel.auth.cred.Cred
 
 import io.syspulse.skel.auth.cred._
 import io.syspulse.skel.auth.code._
-import io.syspulse.skel.auth.permissions._
+import io.syspulse.skel.auth.permit._
 import io.syspulse.skel.auth.store._
 
 case class Config(
@@ -175,9 +176,9 @@ object App extends skel.Server {
     }
 
     val permissionsStore = config.storePermissions.split("://").toList match {
-      case "dir" :: Nil => new PermissionsStoreDir()
-      case "dir" :: dir :: Nil => new PermissionsStoreDir(dir)
-      case "casbin" :: _  | "mem" :: _ | "cache" :: _ => new PermissionsStoreCasbin()
+      case "dir" :: Nil => new PermitsStoreDir()
+      case "dir" :: dir :: Nil => new PermitsStoreDir(dir)
+      case "casbin" :: _  | "mem" :: _ | "cache" :: _ => new PermitsStoreCasbin()
       case _ => {
         Console.err.println(s"Uknown permissions store: '${config.storeCred}'")        
         sys.exit(1)
@@ -197,7 +198,7 @@ object App extends skel.Server {
             (AuthRegistry(authStore),"AuthRegistry",(authRegistry, context) => {
                 val codeRegistry = context.spawn(CodeRegistry(codeStore),"Actor-CodeRegistry")
                 val credRegistry = context.spawn(CredRegistry(credStore),"Actor-ClientRegistry")
-                val permissionsRegistry = context.spawn(PermissionsRegistry(permissionsStore),"Actor-PermissionsRegistry")
+                val permissionsRegistry = context.spawn(PermitsRegistry(permissionsStore),"Actor-PermissionsRegistry")
                 new AuthRoutes(authRegistry,codeRegistry,credRegistry,permissionsRegistry,
                   s"http://${authHost}:${config.port}${config.uri}",
                   s"http://${authHost}:${config.port}${config.uri}/callback", config.userUri)(context, config) 
@@ -217,7 +218,7 @@ object App extends skel.Server {
             (AuthRegistry(authStore),"AuthRegistry",(authRegistry, context) => {
                 val codeRegistry = context.spawn(CodeRegistry(codeStore),"Actor-CodeRegistry")
                 val credRegistry = context.spawn(CredRegistry(credStore),"Actor-ClientRegistry")
-                val permissionsRegistry = context.spawn(PermissionsRegistry(permissionsStore),"Actor-PermissionsRegistry")
+                val permissionsRegistry = context.spawn(PermitsRegistry(permissionsStore),"Actor-PermissionsRegistry")
                 new AuthRoutes(authRegistry,codeRegistry,credRegistry,permissionsRegistry,
                   s"http://${authHost}:${config.port}${uri}/auth",
                   s"http://${authHost}:${config.port}${uri}/auth/callback",
@@ -241,27 +242,73 @@ object App extends skel.Server {
       }
       
       case "permissions" => {
+        
+        def resolvePermissions(jwt:String,resource:String,action:String) = {
+          
+          Console.err.println(s"Permissions: ${resource}:${action}: ${jwt}")
+
+          //val exp = AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL
+          //val jwt = AuthJwt.generateAccessToken(Map("role" -> role),expire = exp)
+          val vt = AuthJwt.verifyAuthToken(Some(jwt),"",Seq())
+          if(!vt.isDefined) {
+            Console.err.println(s"not valid: ${jwt}")
+            sys.exit(1)
+          }
+                    
+          implicit val permissions = permissionsStore.getEngine().get
+          Permissions.isAllowed(resource,action,AuthenticatedUser(UUID(vt.get.uid),Seq()))
+        }
+
         val r = 
           config.params match {
-            case "allowed" :: jwt :: role :: action :: Nil => 
-              //val exp = AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL
-              //val jwt = AuthJwt.generateAccessToken(Map("role" -> role),expire = exp)
-              val vt = AuthJwt.verifyAuthToken(Some(jwt),"",Seq())
-              if(!vt.isDefined) {
-                Console.err.println(s"not valid: ${jwt}")
-                sys.exit(1)
-              }
-              
-              if(!permissionsStore.getEnforcer().isDefined) {
-                Console.err.println(s"store does not support enforcer: ${permissionsStore}")
-                sys.exit(1)
-              }
+            case "allow" :: jwt :: resource :: Nil => 
+              resolvePermissions(jwt,resource,"read")
 
-              implicit val permissions = permissionsStore.getEnforcer().get
-              rbac.Permissions.isAllowed(role,action,AuthenticatedUser(UUID(vt.get.uid),Seq()))
+            case "allow" :: jwt :: resource :: action :: Nil => 
+              resolvePermissions(jwt,resource,action)
 
-            case "allow" :: role :: Nil => 
-              //AuthJwt.isValid(token)
+            case "all" :: jwt :: Nil => 
+              resolvePermissions(jwt,"*","write")
+
+
+            case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
+          }
+        
+        println(s"${r}")
+        System.exit(0)
+      }
+
+      case "role" => {
+        
+        def resolveRole(jwt:String,role:String) = {
+          
+          Console.err.println(s"Role: ${role}: ${jwt}")
+
+          val vt = AuthJwt.verifyAuthToken(Some(jwt),"",Seq())
+          if(!vt.isDefined) {
+            Console.err.println(s"not valid: ${jwt}")
+            sys.exit(1)
+          }
+          
+          if(!permissionsStore.getEngine().isDefined) {
+            Console.err.println(s"store does not support enforcer: ${permissionsStore}")
+            sys.exit(1)
+          }
+
+          implicit val permissions = permissionsStore.getEngine().get
+          Permissions.isRole(role,AuthenticatedUser(UUID(vt.get.uid),vt.get.roles))
+        }
+
+        val r = 
+          config.params match {
+            case "role" :: jwt :: role :: Nil => 
+              resolveRole(jwt,role)
+
+            case "admin" :: jwt :: Nil => 
+              resolveRole(jwt,"admin")
+
+            case "service" :: jwt :: Nil => 
+              resolveRole(jwt,"service")
 
             case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
           }
