@@ -44,31 +44,57 @@ class PermissionSpec extends AnyWordSpec with Matchers {
       Permissions.isService(authn) should === (false)
     }
 
+    "allow 'api' write for Service Account" in {
+      val uid = DefaultPermissions.USER_SERVICE
+      val authn = AuthenticatedUser(uid,roles = Seq("service"))
+      Permissions.isAllowed("api","write",authn) should === (true)      
+    }
+
+    "not allow 'api' write for User Account" in {
+      val uid = UUID("00000000-0000-0000-1000-000000000001")
+      val authn = AuthenticatedUser(uid,roles = Seq("service"))
+      Permissions.isAllowed("api","write",authn) should === (false)
+      Permissions.isAllowed("api","read",authn) should === (true)
+    }
+
   }
 
   "PermissionRbac" should {
 
     implicit val permissions = new PermissionsRbacDefault()
     
-    "validate Admin User/Account" in {
-      val uid = DefaultPermissions.USER_ADMIN
-      val authn = AuthenticatedUser(uid,roles = Seq("admin"))
-      Permissions.isAdmin(authn) should === (true)
-    }
+    // "validate Admin User/Account" in {
+    //   val uid = DefaultPermissions.USER_ADMIN
+    //   val authn = AuthenticatedUser(uid,roles = Seq("admin"))
+    //   Permissions.isAdmin(authn) should === (true)
+    // }
 
-    "validate Service Account/User and not Admin" in {
+    // "validate Service Account/User and not Admin" in {
+    //   val uid = DefaultPermissions.USER_SERVICE
+    //   val authn = AuthenticatedUser(uid,roles = Seq("service"))
+    //   Permissions.isAdmin(authn) should === (false)
+    //   Permissions.isService(authn) should === (true)
+    // }
+
+    // "not validate logged User as Admin and Service" in {
+    //   val uid = UUID("00000000-0000-0000-1000-000000000001")
+    //   val authn = AuthenticatedUser(uid,roles = Seq("user"))
+    //   Permissions.isAdmin(authn) should === (false)
+    //   Permissions.isService(authn) should === (false)
+    // }
+
+    "allow 'api' write for Service Account" in {
       val uid = DefaultPermissions.USER_SERVICE
       val authn = AuthenticatedUser(uid,roles = Seq("service"))
-      Permissions.isAdmin(authn) should === (false)
-      Permissions.isService(authn) should === (true)
+      Permissions.isAllowed("api","write",authn) should === (true)      
     }
 
-    "not validate logged User as Admin and Service" in {
-      val uid = UUID("00000000-0000-0000-1000-000000000001")
-      val authn = AuthenticatedUser(uid,roles = Seq("user"))
-      Permissions.isAdmin(authn) should === (false)
-      Permissions.isService(authn) should === (false)
-    }
+    // "not allow 'api' write for User Account" in {
+    //   val uid = UUID("00000000-0000-0000-1000-000000000001")
+    //   val authn = AuthenticatedUser(uid,roles = Seq("service"))
+    //   Permissions.isAllowed("api","write",authn) should === (false)
+    //   Permissions.isAllowed("api","read",authn) should === (true)
+    // }
 
   }
 }

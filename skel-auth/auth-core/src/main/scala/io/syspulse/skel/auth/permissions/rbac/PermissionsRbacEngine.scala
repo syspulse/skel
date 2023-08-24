@@ -38,12 +38,14 @@ trait PermissionsRbacEngine {
       .view
       .mapValues(_.map(_._2).toSeq.flatten.distinct)
       .toMap
-    
+        
     val res = rp.get(reqRes)
+
+    log.info(s"req=[${reqRes}/${reqPerm}: ${rp}] => ${res}")
+
     if(! res.isDefined)
       return false
 
-    log.info(s"req=[${reqRes}/${reqPerm} ---> ${res}]")
     res.get.contains(reqPerm)      
    
   }
