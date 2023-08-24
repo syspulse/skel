@@ -1,24 +1,20 @@
-package io.syspulse.skel.auth.permissions.casbin
+package io.syspulse.skel.auth.permissions.rbac
 
-import scala.jdk.CollectionConverters._
 import com.typesafe.scalalogging.Logger
 import io.jvm.uuid._
 import io.syspulse.skel.util.Util
-import org.casbin.jcasbin.main.Enforcer
 import io.syspulse.skel.auth.Authenticated
-import org.casbin.jcasbin.model.Model
-import org.casbin.jcasbin.persist.file_adapter.FileAdapter
 import java.io.InputStream
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 
 import io.syspulse.skel.auth.permissions.Permissions
 
-trait PermissionsCasbin extends Permissions {
+trait PermissionsRbac extends Permissions {
   val log = Logger(s"${this}")
-
-  val enforcer:Enforcer
   
+  val engine:PermissionsRbacEngine
+
   def isAdmin(uid:Option[UUID]):Boolean = {
     log.info(s"admin: GOD=${Permissions.isGod}: uid(${uid})")
 
@@ -27,12 +23,8 @@ trait PermissionsCasbin extends Permissions {
       log.error(s"admin: GOD=${Permissions.isGod}: uid($uid)")
       return false
     }
-
-    val sub = uid.get.toString; // the user that wants to access a resource.
-    val obj = "*";        // the resource that is going to be accessed.
-    val act = "write";      // the operation that the user performs on the resource.
-
-    enforcer.enforce(sub, obj, act)
+    
+    engine.permit(uid,ResourceAll(),PermissionAll())
   }
 
   def isService(uid:Option[UUID]):Boolean = {
@@ -43,12 +35,8 @@ trait PermissionsCasbin extends Permissions {
       log.error(s"service: GOD=${Permissions.isGod}: uid($uid)")
       return false
     }
-
-    val sub = uid.get.toString; // the user that wants to access a resource.
-    val obj = "api";        // the resource that is going to be accessed.
-    val act = "write";      // write across the system
-
-    enforcer.enforce(sub, obj, act)
+    
+    engine.permit(uid,ResourceApi(),PermissionWrite())
   }
 
   def isUser(id:UUID,uid:Option[UUID]):Boolean = {
@@ -60,16 +48,10 @@ trait PermissionsCasbin extends Permissions {
       log.error(s"user: GOD=${Permissions.isGod}: id(${id}): uid($uid)")
       false
     }
-    if(!uid.isDefined) return false
+    if(!uid.isDefined) 
+      return false
 
-    return true;
-
-    
-    val sub = uid.get.toString; // the user that wants to access a resource.
-    val obj = "api";        // the resource that is going to be accessed.
-    val act = "read";      // the operation that the user performs on the resource.
-
-    enforcer.enforce(sub, obj, act)
+    return true;    
   }
 
   def isAllowed(uid:Option[UUID],resource:String,action:String):Boolean = {
@@ -78,11 +60,7 @@ trait PermissionsCasbin extends Permissions {
       return false
     }
 
-    val sub = uid.get.toString; // the user that wants to access a resource.
-    val obj = resource;        // the resource that is going to be accessed.
-    val act = action;      // the operation that the user performs on the resource.
-
-    enforcer.enforce(sub, obj, act)
+    engine.permit(uid,ResourceOf(resource),PermissionOf(action))
   }
 
   def hasRole(uid:Option[UUID],role:String):Boolean = {
@@ -91,7 +69,6 @@ trait PermissionsCasbin extends Permissions {
       return false
     }
 
-    val r = enforcer.getRolesForUser(uid.get.toString)
-    r.contains(role)    
+    engine.hasRole(uid,role)
   }
 }

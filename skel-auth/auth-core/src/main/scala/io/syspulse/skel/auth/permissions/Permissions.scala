@@ -21,7 +21,7 @@ trait Permissions {
 
   def isAllowed(uid:Option[UUID],resource:String,action:String):Boolean 
 
-  def isRole(uid:Option[UUID],roles:Seq[String],role:String):Boolean 
+  def hasRole(uid:Option[UUID],role:String):Boolean 
 }
 
 object Permissions {
@@ -69,7 +69,15 @@ object Permissions {
     permissions.isAllowed(authn.getUser,resource,action)
   }
 
-  def isRole(role:String,authn:Authenticated)(implicit permissions:Permissions):Boolean = {    
-    permissions.isRole(authn.getUser,authn.getRoles,role)
+  def hasRole(role:String,authn:Authenticated)(implicit permissions:Permissions):Boolean = {
+    // if roles are extracted from authn, it can be trusted and quickly validate
+    val roles = authn.getRoles
+    roles match {
+      case Seq() => 
+        permissions.hasRole(authn.getUser,role)
+      case _ => 
+        roles.contains(role)
+    }
+    
   }
 }

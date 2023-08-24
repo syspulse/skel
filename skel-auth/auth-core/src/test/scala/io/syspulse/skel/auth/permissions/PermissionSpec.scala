@@ -14,6 +14,8 @@ import pdi.jwt.JwtAlgorithm
 import io.syspulse.skel.auth.permissions.Permissions
 import io.syspulse.skel.auth.permissions.DefaultPermissions
 import io.syspulse.skel.auth.AuthenticatedUser
+import io.syspulse.skel.auth.permissions.rbac.PermissionsRbac
+import io.syspulse.skel.auth.permissions.rbac.PermissionsRbacDefault
 
 class PermissionSpec extends AnyWordSpec with Matchers {
   val testDir = this.getClass.getClassLoader.getResource(".").getPath
@@ -21,6 +23,32 @@ class PermissionSpec extends AnyWordSpec with Matchers {
   "Permission (default)" should {
 
     implicit val permissions = Permissions()
+    
+    "validate Admin User/Account" in {
+      val uid = DefaultPermissions.USER_ADMIN
+      val authn = AuthenticatedUser(uid,roles = Seq("admin"))
+      Permissions.isAdmin(authn) should === (true)
+    }
+
+    "validate Service Account/User and not Admin" in {
+      val uid = DefaultPermissions.USER_SERVICE
+      val authn = AuthenticatedUser(uid,roles = Seq("service"))
+      Permissions.isAdmin(authn) should === (false)
+      Permissions.isService(authn) should === (true)
+    }
+
+    "not validate logged User as Admin and Service" in {
+      val uid = UUID("00000000-0000-0000-1000-000000000001")
+      val authn = AuthenticatedUser(uid,roles = Seq("user"))
+      Permissions.isAdmin(authn) should === (false)
+      Permissions.isService(authn) should === (false)
+    }
+
+  }
+
+  "PermissionRbac" should {
+
+    implicit val permissions = new PermissionsRbacDefault()
     
     "validate Admin User/Account" in {
       val uid = DefaultPermissions.USER_ADMIN
