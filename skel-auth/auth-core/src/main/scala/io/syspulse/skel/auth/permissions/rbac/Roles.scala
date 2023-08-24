@@ -9,7 +9,6 @@ import io.syspulse.skel.util.Util
 case class Role(n:String)
 
 object Roles {
-
   val ROLE_ADMIN = Role("admin")
   val ROLE_SERVICE = Role("service")
   val ROLE_USER = Role("user")

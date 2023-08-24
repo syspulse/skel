@@ -14,13 +14,21 @@ object DefaultRbac {
   val roles = Map(
     Roles.ROLE_ADMIN -> Seq( ResourcePermission(ResourceAll(),Seq(PermissionAll())) ),
     Roles.ROLE_SERVICE -> Seq( ResourcePermission(ResourceApi(),Seq(PermissionWrite(),PermissionRead())) ),
-    Roles.ROLE_USER -> Seq( ResourcePermission(ResourceData(),Seq(PermissionRead())) )
+    Roles.ROLE_USER -> Seq( 
+      ResourcePermission(Resource("00000000-0000-0000-1000-000000000001"),Seq(PermissionWrite())),
+      ResourcePermission(Resource("notify"),Seq(PermissionRead())),
+      ResourcePermission(ResourceApi(),Seq(PermissionRead()))
+    ),
+    Role("data") -> Seq(
+      ResourcePermission(ResourceOf("data"),Seq(PermissionWrite())),
+    )
   )
 
   val users = Map(
     {val u = UUID("ffffffff-0000-0000-9000-000000000001"); u -> Seq(Roles.ROLE_ADMIN)},
     {val u = UUID("eeeeeeee-0000-0000-1000-000000000001"); u -> Seq(Roles.ROLE_SERVICE)},
-    {val u = UUID("00000000-0000-0000-1000-000000000001"); u -> Seq(Roles.ROLE_USER)}
+    {val u = UUID("00000000-0000-0000-1000-000000000001"); u -> Seq(Roles.ROLE_USER)},
+    {val u = UUID("00000000-0000-0000-1000-000000000002"); u -> Seq(Roles.ROLE_USER,Role("data"))}
   )
 }
 

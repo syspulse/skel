@@ -69,6 +69,10 @@ object Permissions {
     permissions.isAllowed(authn.getUser,resource,action)
   }
 
+  def isAllowedRole(role:String,authn:Authenticated)(implicit permissions:Permissions):Boolean = {    
+    hasRole(role,authn)
+  }
+
   def hasRole(role:String,authn:Authenticated)(implicit permissions:Permissions):Boolean = {
     // if roles are extracted from authn, it can be trusted and quickly validate
     val roles = authn.getRoles

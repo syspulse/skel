@@ -13,6 +13,11 @@ abstract class Permission(p:String) {
   def get = p
 }
 
+object Permission {
+  def apply(p:String) = PermissionOf(p)
+}
+
+
 case class PermissionOf(p:String) extends Permission(p)
 case class PermissionRead() extends Permission("read")
 case class PermissionWrite() extends Permission("write")

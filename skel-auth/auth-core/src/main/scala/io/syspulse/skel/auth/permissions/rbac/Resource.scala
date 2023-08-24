@@ -18,6 +18,10 @@ abstract class Resource(r:String) {
   def get = r
 }
 
+object Resource {
+  def apply(r:String) = ResourceOf(r)
+}
+
 case class ResourceOf(r:String) extends Resource(r)
 case class ResourceAll() extends Resource("*")
 case class ResourceData() extends Resource("data")
