@@ -12,12 +12,14 @@ import io.syspulse.skel.util.Util
 import io.jvm.uuid._
 import io.syspulse.skel.auth.Config
 import io.syspulse.skel.auth.permissions.Permissions
-import io.syspulse.skel.auth.permissions.rbac._
+import io.syspulse.skel.auth.permissions.casbin._
 
 class PermitsStoreCasbin(implicit config:Config) extends PermitsStore {
   val log = Logger(s"${this}")
 
   val permissions = new PermissionsCasbinFile(config.permissionsModel,config.permissionsPolicy)
+
+  override def getEngine():Option[Permissions] = Some(permissions)
   
   def toPermits(cbPerm:java.util.List[java.util.List[String]]):Seq[Perm] = 
     cbPerm.asScala.toSeq.foldLeft(Seq[Perm]()){ case(pp,p) => {

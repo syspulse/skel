@@ -10,7 +10,7 @@ import org.casbin.jcasbin.persist.file_adapter.FileAdapter
 import java.io.InputStream
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
-import io.syspulse.skel.auth.permissions.rbac.PermissionsCasbinFile
+import io.syspulse.skel.auth.permissions.casbin.PermissionsCasbinFile
 
 trait Permissions {
   def isAdmin(uid:Option[UUID]):Boolean 
@@ -39,7 +39,8 @@ object Permissions {
       val modelFile = options("modelFile")
       val policyFile = options("policyFile")
       new PermissionsCasbinFile(modelFile,policyFile)
-    case "default" | "" => throw new Exception(s"unknown engine: ${engine}")
+    case "default" | "" => 
+      throw new Exception(s"unknown engine: ${engine}")
   }
 
   def apply():Permissions = 

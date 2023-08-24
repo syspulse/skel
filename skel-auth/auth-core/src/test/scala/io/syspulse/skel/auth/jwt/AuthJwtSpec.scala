@@ -11,7 +11,7 @@ import scala.util.Success
 
 import io.syspulse.skel.util.Util
 import pdi.jwt.JwtAlgorithm
-import io.syspulse.skel.auth.permissions.rbac.Permissions
+import io.syspulse.skel.auth.permissions.Permissions
 import io.syspulse.skel.auth.permissions.DefaultPermissions
 
 class AuthJwtSpec extends AnyWordSpec with Matchers {

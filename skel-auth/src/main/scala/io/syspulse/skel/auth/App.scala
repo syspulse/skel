@@ -13,7 +13,7 @@ import io.syspulse.skel.user.store._
 import io.syspulse.skel.auth.server.AuthRoutes
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.store._
-import io.syspulse.skel.auth.permissions.rbac.PermissionsCasbin
+import io.syspulse.skel.auth.permissions.casbin.PermissionsCasbin
 import io.syspulse.skel.auth.permissions.Permissions
 import io.syspulse.skel.auth.permissions.DefaultPermissions
 import io.syspulse.skel.auth.cred.Cred
