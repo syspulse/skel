@@ -13,6 +13,7 @@ import scala.util.Success
 import io.syspulse.skel.auth.permit.PermitsStoreMem
 
 import scala.util.Failure
+import io.syspulse.skel.auth.permit.{Permitss, PermitsCreateReq, PermitsActionRes, PermitsUpdateReq}
 
 object PermitsRegistry {    
   final case class CreatePermits(req: PermitsCreateReq, replyTo: ActorRef[Try[Permits]]) extends Command
@@ -40,7 +41,7 @@ object PermitsRegistry {
       case CreatePermits(req, replyTo) =>
         val p = Permits(
           req.uid,
-          req.Permits,
+          //req.permits,
           req.roles
         )
         
@@ -70,7 +71,7 @@ object PermitsRegistry {
         Behaviors.same
 
       case UpdatePermits(uid, req, replyTo) =>
-        replyTo ! store.update(uid,req.Permits)
+        replyTo ! store.update(uid,req.roles)
         Behaviors.same
     }
   }

@@ -108,6 +108,7 @@ import io.syspulse.skel.auth.permissions.Permissions
 import io.syspulse.skel.auth.permissions.DefaultPermissions
 import io.syspulse.skel.auth.permit._
 import io.syspulse.skel.auth.permit.PermitsRegistry._
+import io.syspulse.skel.auth.permit.Permitss
 
 @Path("/")
 class AuthRoutes(
@@ -169,7 +170,15 @@ class AuthRoutes(
   def getPermits(uid:UUID): Future[Try[Permits]] = permissionsRegistry.ask(GetPermits(uid, _))
   def getPermitss(): Future[Try[Permitss]] = permissionsRegistry.ask(GetPermitss(_))
 
-  implicit val defaultPermissions = Permissions(config.permissionsModel,config.permissionsPolicy)
+  implicit val defaultPermissions = Permissions(
+    config.storePermissions, 
+    Map(
+      "modelFile"->config.permissionsModel,
+      "policyFile"->config.permissionsPolicy,
+      "store"->config.storePermissions
+    )
+  )
+
   def hasAdminPermissions(authn:Authenticated) = {
      val uid = authn.getUser
      defaultPermissions.isAdmin(uid)

@@ -21,15 +21,14 @@ trait PermitsStore extends Store[Permits,UUID] {
   def all:Seq[Permits]
   def size:Long
 
-  def update(uid:UUID,permissions:Option[Seq[Perm]]):Try[Permits]
+  def update(uid:UUID,roles:Option[Seq[String]]):Try[Permits]
 
-  protected def modify(perm:Permits,permissions:Option[Seq[Perm]]=None):Permits = {    
+  protected def modify(perm:Permits,roles:Option[Seq[String]]=None):Permits = {    
     (for {
       c0 <- Some(perm)
-      c1 <- Some(if(permissions.isDefined) c0.copy(permissions = permissions.get) else c0)      
+      c1 <- Some(if(roles.isDefined) c0.copy(roles = roles.get) else c0)      
     } yield c1).get    
   }
-
 
   def getEngine():Option[Permissions] = None
 }

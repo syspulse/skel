@@ -11,6 +11,9 @@ import java.io.InputStream
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 import io.syspulse.skel.auth.permissions.casbin.PermissionsCasbinFile
+import io.syspulse.skel.auth.permissions.rbac.PermissionsRbac
+import io.syspulse.skel.auth.permissions.rbac.PermissionsRbacFile
+import io.syspulse.skel.auth.permissions.rbac.PermissionsRbacDefault
 
 trait Permissions {
   def isAdmin(uid:Option[UUID]):Boolean 
@@ -34,12 +37,17 @@ object Permissions {
     "policyFile" -> permissionsPolicy
   ))
 
-  def apply(engine:String,options:Map[String,String] = Map()):Permissions = engine.trim.toLowerCase match {
-    case "casbin" => 
+  def apply(engine:String,options:Map[String,String] = Map()):Permissions = engine.trim.toLowerCase.split("://").toList match {
+    case "casbin" :: Nil | "casbin://" :: Nil => 
       val modelFile = options("modelFile")
       val policyFile = options("policyFile")
       new PermissionsCasbinFile(modelFile,policyFile)
-    case "default" | "" => 
+    case "default" :: _ | "default://" :: _| "dir://" :: _ =>
+      new PermissionsRbacDefault()
+    case "rbac" :: _ | "rbac://" :: _ | "mem" :: _ | "mem://" :: _ | "cache" :: _ | "cache://" :: _ => 
+      //new PermissionsRbacFile(options("store"))
+      new PermissionsRbacDefault()
+    case _ =>
       throw new Exception(s"unknown engine: ${engine}")
   }
 
@@ -47,8 +55,7 @@ object Permissions {
     apply("casbin",Map(
       "modelFile" -> "classpath:/default-permissions-model-rbac.conf",
       "policyFile" -> "classpath:/default-permissions-policy-rbac.csv"
-    ))
-    //new Permissions("conf/permissions-model-rbac.conf","conf/permissions-policy-rbac.csv")
+    ))    
 
   def isAdmin(authn:Authenticated)(implicit permissions:Permissions):Boolean = {
     val uid = authn.getUser

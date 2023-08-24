@@ -22,6 +22,8 @@ import io.syspulse.skel.auth.cred._
 import io.syspulse.skel.auth.code._
 import io.syspulse.skel.auth.permit._
 import io.syspulse.skel.auth.store._
+import io.syspulse.skel.auth.permit.PermitsStoreCasbin
+import io.syspulse.skel.auth.permit.PermitsStoreDir
 
 case class Config(
   host:String="0.0.0.0",
@@ -31,7 +33,7 @@ case class Config(
   datastore:String = "mem://",
   storeCode:String = "mem://",
   storeCred:String = "mem://",
-  storePermissions:String = "casbin://",
+  storePermissions:String = "rbac://", //"casbin://",
 
   // legacy investion research
   proxyBasicUser:String = "user1",
@@ -176,9 +178,15 @@ object App extends skel.Server {
     }
 
     val permissionsStore = config.storePermissions.split("://").toList match {
+      case "casbin" :: _  => new PermitsStoreCasbin()
+
       case "dir" :: Nil => new PermitsStoreDir()
-      case "dir" :: dir :: Nil => new PermitsStoreDir(dir)
-      case "casbin" :: _  | "mem" :: _ | "cache" :: _ => new PermitsStoreCasbin()
+      case "dir" :: dir :: Nil => new PermitsStoreDir(dir) 
+
+      case "rbac" :: ext :: Nil => new PermitsStoreRbac(ext)
+      case "rbac" :: Nil => new PermitsStoreRbac()
+      
+      case "mem" :: _ | "cache" :: _ => new PermitsStoreMem()
       case _ => {
         Console.err.println(s"Uknown permissions store: '${config.storeCred}'")        
         sys.exit(1)
@@ -296,7 +304,7 @@ object App extends skel.Server {
           }
 
           implicit val permissions = permissionsStore.getEngine().get
-          Permissions.isRole(role,AuthenticatedUser(UUID(vt.get.uid),vt.get.roles))
+          Permissions.hasRole(role,AuthenticatedUser(UUID(vt.get.uid),vt.get.roles))
         }
 
         val r = 
