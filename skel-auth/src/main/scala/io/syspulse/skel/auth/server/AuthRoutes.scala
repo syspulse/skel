@@ -1039,9 +1039,7 @@ class AuthRoutes(
             }                     
           } ~
           path(Segment) { uid => 
-            if(Some(UUID(uid)) != authn.getUser) {
-              reject(AuthorizationFailedRejection)
-            } else {
+            authorize(Permissions.isAdmin(authn) || Some(UUID(uid)) == authn.getUser) {
               concat(
                 getPermitsUserRoute(UUID(uid))
               )
