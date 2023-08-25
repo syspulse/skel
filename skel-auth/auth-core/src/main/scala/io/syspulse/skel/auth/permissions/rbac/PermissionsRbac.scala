@@ -15,60 +15,68 @@ trait PermissionsRbac extends Permissions {
   
   val engine:PermissionsRbacEngine
 
-  def isAdmin(uid:Option[UUID]):Boolean = {
-    log.info(s"admin: GOD=${Permissions.isGod}: uid(${uid})")
+  def isAdmin(authn:Authenticated):Boolean = {
+    log.info(s"admin: GOD=${Permissions.isGod}: authn(${authn})")
 
-    if(Permissions.isGod) return true
-    if(!uid.isDefined) {
-      log.error(s"admin: GOD=${Permissions.isGod}: uid($uid)")
+    if(Permissions.isGod) 
+      return true
+
+    if(! authn.getUser.isDefined) {
+      log.error(s"admin: GOD=${Permissions.isGod}: authn($authn)")
       return false
     }
     
-    engine.permit(uid,ResourceAll(),PermissionAll())
+    //engine.permit(authn,ResourceAll(),PermissionAll())
+    engine.hasRole(authn,"admin")
   }
 
-  def isService(uid:Option[UUID]):Boolean = {
-    log.info(s"service: GOD=${Permissions.isGod}: uid(${uid})")
+  def isService(authn:Authenticated):Boolean = {
+    log.info(s"service: GOD=${Permissions.isGod}: authn(${authn})")
 
-    if(Permissions.isGod) return true
-    if(!uid.isDefined) {
-      log.error(s"service: GOD=${Permissions.isGod}: uid($uid)")
+    if(Permissions.isGod) 
+      return true
+    
+    if(!authn.getUser.isDefined) {
+      log.error(s"service: GOD=${Permissions.isGod}: authn($authn)")
       return false
     }
     
-    engine.permit(uid,ResourceApi(),PermissionWrite())
+    //engine.permit(authn,ResourceApi(),PermissionWrite())
+    engine.hasRole(authn,"service")
   }
 
-  def isUser(id:UUID,uid:Option[UUID]):Boolean = {
-    log.info(s"user: GOD=${Permissions.isGod}: id(${id}): uid=${uid}")
+  def isUser(id:UUID,authn:Authenticated):Boolean = {
+    log.info(s"user: GOD=${Permissions.isGod}: id(${id}): authn=${authn}")
 
-    if(Permissions.isGod) return true
+    if(Permissions.isGod) 
+      return true
 
-    if(Some(id) != uid) return {
-      log.error(s"user: GOD=${Permissions.isGod}: id(${id}): uid($uid)")
-      false
-    }
-    if(!uid.isDefined) 
-      return false
-
-    return true;    
-  }
-
-  def isAllowed(uid:Option[UUID],resource:String,action:String):Boolean = {
-    if(!uid.isDefined) {
-      log.error(s"allowed: GOD=${Permissions.isGod}: uid($uid), resource=${resource}:${action}")
+    if(Some(id) != authn.getUser) {
+      log.error(s"user: GOD=${Permissions.isGod}: id(${id}): authn($authn)")
       return false
     }
 
-    engine.permit(uid,ResourceOf(resource),PermissionOf(action))
+    if(!authn.getUser.isDefined) 
+      return false
+
+    engine.hasRole(authn,"user")
   }
 
-  def hasRole(uid:Option[UUID],role:String):Boolean = {
-    if(!uid.isDefined) {
-      log.error(s"allowed: GOD=${Permissions.isGod}: uid($uid), role=${role}")
+  def isAllowed(authn:Authenticated,resource:String,action:String):Boolean = {
+    if(!authn.getUser.isDefined) {
+      log.error(s"not allowed: GOD=${Permissions.isGod}: authn($authn), resource=${resource}:${action}")
       return false
     }
 
-    engine.hasRole(uid,role)
+    engine.permit(authn,ResourceOf(resource),PermissionOf(action))
+  }
+
+  def hasRole(authn:Authenticated,role:String):Boolean = {
+    if(!authn.getUser.isDefined) {
+      log.error(s"not allowed: GOD=${Permissions.isGod}: authn($authn), role=${role}")
+      return false
+    }
+
+    engine.hasRole(authn,role)
   }
 }

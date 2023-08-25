@@ -19,79 +19,83 @@ trait PermissionsCasbin extends Permissions {
 
   val enforcer:Enforcer
   
-  def isAdmin(uid:Option[UUID]):Boolean = {
-    log.info(s"admin: GOD=${Permissions.isGod}: uid(${uid})")
+  def isAdmin(authn:Authenticated):Boolean = {
+    log.info(s"admin: GOD=${Permissions.isGod}: authn(${authn})")
 
-    if(Permissions.isGod) return true
-    if(!uid.isDefined) {
-      log.error(s"admin: GOD=${Permissions.isGod}: uid($uid)")
+    if(Permissions.isGod) 
+      return true
+    if(!authn.getUser.isDefined) {
+      log.error(s"admin: GOD=${Permissions.isGod}: authn(${authn})")
       return false
     }
 
-    val sub = uid.get.toString; // the user that wants to access a resource.
+    val sub = authn.getUser.get.toString; // the user that wants to access a resource.
     val obj = "*";        // the resource that is going to be accessed.
     val act = "write";      // the operation that the user performs on the resource.
 
     enforcer.enforce(sub, obj, act)
   }
 
-  def isService(uid:Option[UUID]):Boolean = {
-    log.info(s"service: GOD=${Permissions.isGod}: uid(${uid})")
+  def isService(authn:Authenticated):Boolean = {
+    log.info(s"service: GOD=${Permissions.isGod}: authn(${authn})")
 
-    if(Permissions.isGod) return true
-    if(!uid.isDefined) {
-      log.error(s"service: GOD=${Permissions.isGod}: uid($uid)")
+    if(Permissions.isGod) 
+      return true
+    if(! authn.getUser.isDefined) {
+      log.error(s"service: GOD=${Permissions.isGod}: authn(${authn})")
       return false
     }
 
-    val sub = uid.get.toString; // the user that wants to access a resource.
+    val sub = authn.getUser.get.toString; // the user that wants to access a resource.
     val obj = "api";        // the resource that is going to be accessed.
     val act = "write";      // write across the system
 
     enforcer.enforce(sub, obj, act)
   }
 
-  def isUser(id:UUID,uid:Option[UUID]):Boolean = {
-    log.info(s"user: GOD=${Permissions.isGod}: id(${id}): uid=${uid}")
+  def isUser(id:UUID,authn:Authenticated):Boolean = {
+    log.info(s"user: GOD=${Permissions.isGod}: id(${id}): authn(${authn})")
 
-    if(Permissions.isGod) return true
+    if(Permissions.isGod) 
+      return true
 
-    if(Some(id) != uid) return {
-      log.error(s"user: GOD=${Permissions.isGod}: id(${id}): uid($uid)")
-      false
-    }
-    if(!uid.isDefined) return false
-
-    return true;
-
-    
-    val sub = uid.get.toString; // the user that wants to access a resource.
-    val obj = "api";        // the resource that is going to be accessed.
-    val act = "read";      // the operation that the user performs on the resource.
-
-    enforcer.enforce(sub, obj, act)
-  }
-
-  def isAllowed(uid:Option[UUID],resource:String,action:String):Boolean = {
-    if(!uid.isDefined) {
-      log.error(s"allowed: GOD=${Permissions.isGod}: uid($uid), resource=${resource}:${action}")
+    if(Some(id) != authn.getUser) {
+      log.error(s"user: GOD=${Permissions.isGod}: id(${id}): authn(${authn})")
       return false
     }
 
-    val sub = uid.get.toString; // the user that wants to access a resource.
+    if(!authn.getUser.isDefined) 
+      return false
+    
+    // val sub = uid.get.toString; // the user that wants to access a resource.
+    // val obj = "api";        // the resource that is going to be accessed.
+    // val act = "read";      // the operation that the user performs on the resource.
+
+    // enforcer.enforce(sub, obj, act)
+    return true
+  }
+
+  def isAllowed(authn:Authenticated,resource:String,action:String):Boolean = {
+    
+    if(! authn.getUser.isDefined) {
+      log.error(s"allowed: GOD=${Permissions.isGod}: authn($authn), resource=${resource}:${action}")
+      return false
+    }
+
+    val sub = authn.getUser.get.toString; // the user that wants to access a resource.
     val obj = resource;        // the resource that is going to be accessed.
     val act = action;      // the operation that the user performs on the resource.
 
     enforcer.enforce(sub, obj, act)
   }
 
-  def hasRole(uid:Option[UUID],role:String):Boolean = {
-    if(!uid.isDefined) {
-      log.error(s"allowed: GOD=${Permissions.isGod}: uid($uid), role=${role}")
+  def hasRole(authn:Authenticated,role:String):Boolean = {
+    if(! authn.getUser.isDefined) {
+      log.error(s"allowed: GOD=${Permissions.isGod}: authn($authn), role=${role}")
       return false
     }
 
-    val r = enforcer.getRolesForUser(uid.get.toString)
+    val r = enforcer.getRolesForUser(authn.getUser.get.toString)
     r.contains(role)    
   }
 }

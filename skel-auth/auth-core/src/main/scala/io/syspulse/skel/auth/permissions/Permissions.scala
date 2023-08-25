@@ -12,19 +12,19 @@ import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 import io.syspulse.skel.auth.permissions.casbin.PermissionsCasbinFile
 import io.syspulse.skel.auth.permissions.rbac.PermissionsRbac
-import io.syspulse.skel.auth.permissions.rbac.PermissionsRbacFile
 import io.syspulse.skel.auth.permissions.rbac.PermissionsRbacDefault
+import io.syspulse.skel.auth.permissions.rbac.PermissionsRbacDemo
 
 trait Permissions {
-  def isAdmin(uid:Option[UUID]):Boolean 
+  def isAdmin(authn:Authenticated):Boolean 
 
-  def isService(uid:Option[UUID]):Boolean 
+  def isService(authn:Authenticated):Boolean 
 
-  def isUser(id:UUID,uid:Option[UUID]):Boolean
+  def isUser(id:UUID,authn:Authenticated):Boolean
 
-  def isAllowed(uid:Option[UUID],resource:String,action:String):Boolean 
+  def isAllowed(authn:Authenticated,resource:String,action:String):Boolean 
 
-  def hasRole(uid:Option[UUID],role:String):Boolean 
+  def hasRole(authn:Authenticated,role:String):Boolean 
 }
 
 object Permissions {
@@ -45,34 +45,37 @@ object Permissions {
     case "default" :: _  =>
       new PermissionsRbacDefault()
     case "rbac" :: _ |  "mem" :: _ | "cache" :: _  => 
-      //new PermissionsRbacFile(options("store"))
       new PermissionsRbacDefault()
-    case "dir" :: dir =>
+    case "dir" :: _ =>
       new PermissionsRbacDefault()
+    case "demo" :: _  =>
+      // demo preconfigured users and roles
+      new PermissionsRbacDemo()
     case _ =>
       throw new Exception(s"unknown engine: ${engine}")
   }
 
   def apply():Permissions = 
-    apply("casbin",Map(
-      "modelFile" -> "classpath:/default-permissions-model-rbac.conf",
-      "policyFile" -> "classpath:/default-permissions-policy-rbac.csv"
-    ))    
+    apply("demo")
+    // apply("casbin",Map(
+    //   "modelFile" -> "classpath:/default-permissions-model-rbac.conf",
+    //   "policyFile" -> "classpath:/default-permissions-policy-rbac.csv"
+    // ))
 
   def isAdmin(authn:Authenticated)(implicit permissions:Permissions):Boolean = {
-    permissions.isAdmin(authn.getUser)
+    permissions.isAdmin(authn)
   }
 
   def isService(authn:Authenticated)(implicit permissions:Permissions):Boolean = {
-    permissions.isService(authn.getUser)
+    permissions.isService(authn)
   }
 
   def isUser(id:UUID,authn:Authenticated)(implicit permissions:Permissions):Boolean = {    
-    permissions.isUser(id,authn.getUser)
+    permissions.isUser(id,authn)
   }
 
   def isAllowed(resource:String,action:String,authn:Authenticated)(implicit permissions:Permissions):Boolean = {    
-    permissions.isAllowed(authn.getUser,resource,action)
+    permissions.isAllowed(authn,resource,action)
   }
 
   def isAllowedRole(role:String,authn:Authenticated)(implicit permissions:Permissions):Boolean = {    
@@ -84,7 +87,7 @@ object Permissions {
     val roles = authn.getRoles
     roles match {
       case Seq() => 
-        permissions.hasRole(authn.getUser,role)
+        permissions.hasRole(authn,role)
       case _ => 
         roles.contains(role)
     }

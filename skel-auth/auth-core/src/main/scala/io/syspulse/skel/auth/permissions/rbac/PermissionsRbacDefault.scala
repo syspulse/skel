@@ -32,7 +32,8 @@ object DefaultRbac {
   )
 }
 
-class PermissionsRbacEngineDefault() extends PermissionsRbacEngine {
+// ================================================== Demo =====
+class PermissionsRbacEngineDemo() extends PermissionsRbacEngine {
   
   def getUserRoles(uid:UUID):Seq[Role] = {
     DefaultRbac.users.get(uid).getOrElse(Seq())
@@ -43,7 +44,24 @@ class PermissionsRbacEngineDefault() extends PermissionsRbacEngine {
   }
 }
 
+class PermissionsRbacDemo() extends PermissionsRbac {  
+  val engine = new PermissionsRbacEngineDemo()
+  log.info(s"RBAC: ${engine}: ${DefaultRbac.users}")
+}
+
+// =================================================== Default  =====
+class PermissionsRbacEngineDefault() extends PermissionsRbacEngine {
+  
+  def getUserRoles(uid:UUID):Seq[Role] = Seq()
+  def getRolePermissions(role:Role):Seq[ResourcePermission] = Seq()
+
+  // role can be matched since it is signed 
+  override def hasRole(authn:Authenticated,role:String):Boolean = {
+    authn.getUser.isDefined && authn.getRoles.contains(role)
+  }  
+}
+
 class PermissionsRbacDefault() extends PermissionsRbac {  
   val engine = new PermissionsRbacEngineDefault()
-  log.info(s"RBAC: ${engine}: ${DefaultRbac.users}")
+  log.info(s"RBAC: ${engine}")
 }

@@ -183,11 +183,6 @@ class AuthRoutes(
     )
   )
 
-  def hasAdminPermissions(authn:Authenticated) = {
-     val uid = authn.getUser
-     defaultPermissions.isAdmin(uid)
-  }
-  
   def callbackFlow(idp: Idp, code: String, redirectUri:Option[String], extraData:Option[Map[String,String]], scope: Option[String], state:Option[String]) = {//: Future[AuthWithProfileRes] = {
     log.info(s"CALLBACK (Universal): ${idp}: code=${code}, redirectUri=${redirectUri}, scope=${scope}, state=${state}")
     
@@ -813,7 +808,7 @@ class AuthRoutes(
     }
   }
 
-// ------ Permissions ----
+// ------ Role Permissions ----
   @GET @Path("/permission") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("auth"), summary = "Get permissions for role",
     responses = Array(
@@ -824,7 +819,7 @@ class AuthRoutes(
   }
 
   @GET @Path("/permission") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("auth"), summary = "Get all permissions",
+  @Operation(tags = Array("auth"), summary = "Get all role/permissions",
     responses = Array(
       new ApiResponse(responseCode = "200", description = "List of Permissions",content = Array(new Content(schema = new Schema(implementation = classOf[Permitss])))))
   )
@@ -832,9 +827,9 @@ class AuthRoutes(
     complete(getPermitss())
   }
 
-// ------ Roles ----
+// ------ User Roles ----
   @GET @Path("/role") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("auth"), summary = "Get roles",
+  @Operation(tags = Array("auth"), summary = "Get roles for user",
     responses = Array(
       new ApiResponse(responseCode = "200", description = "List of Roles",content = Array(new Content(schema = new Schema(implementation = classOf[Roles])))))
   )
@@ -843,7 +838,7 @@ class AuthRoutes(
   }
 
   @GET @Path("/role") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("auth"), summary = "Get all roles",
+  @Operation(tags = Array("auth"), summary = "Get all user roles",
     responses = Array(
       new ApiResponse(responseCode = "200", description = "List of Roles",content = Array(new Content(schema = new Schema(implementation = classOf[Roless])))))
   )

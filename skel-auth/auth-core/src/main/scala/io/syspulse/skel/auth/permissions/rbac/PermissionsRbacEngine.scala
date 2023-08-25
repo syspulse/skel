@@ -13,19 +13,19 @@ trait PermissionsRbacEngine {
   def getUserRoles(uid:UUID):Seq[Role]
   def getRolePermissions(role:Role):Seq[ResourcePermission]
 
-  def hasRole(uid:Option[UUID],role:String):Boolean = {
-    if(!uid.isDefined)
+  def hasRole(authn:Authenticated,role:String):Boolean = {
+    if(!authn.getUser.isDefined)
       return false
 
-    val roles = getUserRoles(uid.get)
+    val roles = getUserRoles(authn.getUser.get)
     roles.find(r => r.n == role).isDefined
   }
     
-  def permit(uid:Option[UUID],reqRes:Resource,reqPerm:Permission):Boolean = {    
-    if(!uid.isDefined)
+  def permit(authn:Authenticated,reqRes:Resource,reqPerm:Permission):Boolean = {    
+    if(!authn.getUser.isDefined)
       return false
 
-    val roles = getUserRoles(uid.get)
+    val roles = getUserRoles(authn.getUser.get)
     val rp:Map[Resource,Seq[Permission]] = roles
       .map(role => {
         val rps = getRolePermissions(role)
