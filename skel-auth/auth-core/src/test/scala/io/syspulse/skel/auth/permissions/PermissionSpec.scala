@@ -16,6 +16,7 @@ import io.syspulse.skel.auth.permissions.DefaultPermissions
 import io.syspulse.skel.auth.AuthenticatedUser
 import io.syspulse.skel.auth.permissions.rbac.PermissionsRbac
 import io.syspulse.skel.auth.permissions.rbac.PermissionsRbacDefault
+import io.syspulse.skel.auth.permissions.rbac.PermissionsRbacDemo
 
 class PermissionSpec extends AnyWordSpec with Matchers {
   val testDir = this.getClass.getClassLoader.getResource(".").getPath
@@ -67,7 +68,7 @@ class PermissionSpec extends AnyWordSpec with Matchers {
 
   "PermissionRbac" should {
 
-    implicit val permissions = new PermissionsRbacDefault()
+    implicit val permissions = new PermissionsRbacDemo()
     
     "validate Admin User/Account" in {
       val uid = DefaultPermissions.USER_ADMIN
