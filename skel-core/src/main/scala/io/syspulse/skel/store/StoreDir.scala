@@ -30,15 +30,26 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
       Success(this)
   }
 
-  def writeFile(e:E):Try[E] = try {
-    val f = os.Path(dir,os.pwd) / s"${getKey(e)}.json"    
-    os.write.over(f,e.toJson.compactPrint)
-    Success(e)
+  def write(data:String,name:String,subdir:String=""):Try[StoreDir[E,P]] = try {
+    val f = os.Path(dir + subdir,os.pwd) / name
+    os.write.over(f,data)
+    Success(this)
   } catch {
     case e:Exception =>
       log.error(s"failed to write: ${e}")
       Failure(e)
   }
+
+  def writeFile(e:E):Try[E] = write(e.toJson.compactPrint,s"${getKey(e)}.json","").map(_ => e)
+  // try {
+  //   val f = os.Path(dir,os.pwd) / s"${getKey(e)}.json"    
+  //   os.write.over(f,e.toJson.compactPrint)
+  //   Success(e)
+  // } catch {
+  //   case e:Exception =>
+  //     log.error(s"failed to write: ${e}")
+  //     Failure(e)
+  // }
   
   def delFileById(id:String):Try[String] = {
     try {
@@ -86,7 +97,6 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
       .map(fileData => 
         loadData(fileData,hint)
       )
-      //.flatten // file
       .flatten // files
 
     loading = true

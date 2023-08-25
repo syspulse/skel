@@ -16,6 +16,9 @@ object PermitsJson extends JsonCommon  {
   import DefaultJsonProtocol._
 
   //implicit val jf_perm = jsonFormat2(Perm.apply _)
-  implicit val jf_permissions = jsonFormat2(Permits.apply _)
-  implicit val jf_jf_permissionss = jsonFormat1(Permitss.apply _)
+  implicit val jf_permits = jsonFormat2(Permits.apply _)
+  implicit val jf_permitss = jsonFormat1(Permitss.apply _)
+
+  implicit val jf_roles = jsonFormat2(Roles.apply _)
+  implicit val jf_roless = jsonFormat1(Roless.apply _)
 }

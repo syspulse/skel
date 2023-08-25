@@ -42,10 +42,12 @@ object Permissions {
       val modelFile = options("modelFile")
       val policyFile = options("policyFile")
       new PermissionsCasbinFile(modelFile,policyFile)
-    case "default" :: _ | "default://" :: _| "dir://" :: _ =>
+    case "default" :: _  =>
       new PermissionsRbacDefault()
-    case "rbac" :: _ | "rbac://" :: _ | "mem" :: _ | "mem://" :: _ | "cache" :: _ | "cache://" :: _ => 
+    case "rbac" :: _ |  "mem" :: _ | "cache" :: _  => 
       //new PermissionsRbacFile(options("store"))
+      new PermissionsRbacDefault()
+    case "dir" :: dir =>
       new PermissionsRbacDefault()
     case _ =>
       throw new Exception(s"unknown engine: ${engine}")

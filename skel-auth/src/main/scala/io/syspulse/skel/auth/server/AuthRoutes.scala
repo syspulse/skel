@@ -168,8 +168,11 @@ class AuthRoutes(
   def deleteCred(id: String,uid:Option[UUID]): Future[Try[CredActionRes]] = credRegistry.ask(DeleteCred(id, uid, _))
   def updateCred(id:String,req: CredUpdateReq): Future[Try[Cred]] = credRegistry.ask(UpdateCred(id,req, _))
 
-  def getPermits(uid:UUID): Future[Try[Permits]] = permissionsRegistry.ask(GetPermits(uid, _))
+  def getPermits(role:String): Future[Try[Permits]] = permissionsRegistry.ask(GetPermits(role, _))
   def getPermitss(): Future[Try[Permitss]] = permissionsRegistry.ask(GetPermitss(_))
+
+  def getRoles(uid:UUID): Future[Try[Roles]] = permissionsRegistry.ask(GetRoles(uid, _))
+  def getRoless(): Future[Try[Roless]] = permissionsRegistry.ask(GetRoless(_))
 
   implicit val defaultPermissions = Permissions(
     config.storePermissions, 
@@ -812,21 +815,40 @@ class AuthRoutes(
 
 // ------ Permissions ----
   @GET @Path("/permission") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("auth"), summary = "Get permissions",
+  @Operation(tags = Array("auth"), summary = "Get permissions for role",
     responses = Array(
-      new ApiResponse(responseCode = "200", description = "List of Permits",content = Array(new Content(schema = new Schema(implementation = classOf[Permits])))))
+      new ApiResponse(responseCode = "200", description = "List of Permissions",content = Array(new Content(schema = new Schema(implementation = classOf[Permits])))))
   )
-  def getPermitsUserRoute(uid:UUID) = get {
-    complete(getPermits(uid))
+  def getPermitsRoute(role:String) = get {
+    complete(getPermits(role))
   }
 
   @GET @Path("/permission") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("auth"), summary = "Get all permissions",
     responses = Array(
-      new ApiResponse(responseCode = "200", description = "List of Permits",content = Array(new Content(schema = new Schema(implementation = classOf[Permitss])))))
+      new ApiResponse(responseCode = "200", description = "List of Permissions",content = Array(new Content(schema = new Schema(implementation = classOf[Permitss])))))
   )
   def getPermitsRoute() = get {
     complete(getPermitss())
+  }
+
+// ------ Roles ----
+  @GET @Path("/role") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"), summary = "Get roles",
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "List of Roles",content = Array(new Content(schema = new Schema(implementation = classOf[Roles])))))
+  )
+  def getRolesUserRoute(uid:UUID) = get {
+    complete(getRoles(uid))
+  }
+
+  @GET @Path("/role") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"), summary = "Get all roles",
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "List of Roles",content = Array(new Content(schema = new Schema(implementation = classOf[Roless])))))
+  )
+  def getRolesRoute() = get {
+    complete(getRoless())
   }
 
 // --------------------------------------------------------------------------------------------------------------------------------------- Routes
@@ -1031,22 +1053,39 @@ class AuthRoutes(
             }
           })
       },
-      pathPrefix("permissions") {         
+      pathPrefix("permission") {
         authenticate(){ authn => { 
           pathEndOrSingleSlash {            
             authorize(Permissions.isAdmin(authn)) {
               getPermitsRoute()
             }                     
           } ~
-          path(Segment) { uid => 
-            authorize(Permissions.isAdmin(authn) || Some(UUID(uid)) == authn.getUser) {
+          path(Segment) { role => 
+            authorize(Permissions.isAdmin(authn)) {
               concat(
-                getPermitsUserRoute(UUID(uid))
+                getPermitsRoute(role)
               )
             }            
           }          
         }}        
       },
+      pathPrefix("role") {
+        authenticate(){ authn => { 
+          pathEndOrSingleSlash {            
+            authorize(Permissions.isAdmin(authn)) {
+              getRolesRoute()
+            }                     
+          } ~
+          path(Segment) { uid => 
+            authorize(Permissions.isAdmin(authn) || Some(UUID(uid)) == authn.getUser) {
+              concat(
+                getRolesUserRoute(UUID(uid))
+              )
+            }            
+          }          
+        }}        
+      },
+      // this matcher will match in case of authorize/authenticate failures !
       //pathPrefix(Segment) { auid =>
       pathPrefix(SegmentUUID) { auid =>
         // refresh token cannot use AuthN because it is expired
