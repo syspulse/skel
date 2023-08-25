@@ -58,18 +58,15 @@ object Permissions {
     ))    
 
   def isAdmin(authn:Authenticated)(implicit permissions:Permissions):Boolean = {
-    val uid = authn.getUser
-    permissions.isAdmin(uid)
+    permissions.isAdmin(authn.getUser)
   }
 
   def isService(authn:Authenticated)(implicit permissions:Permissions):Boolean = {
-    val uid = authn.getUser
-    permissions.isService(uid)
+    permissions.isService(authn.getUser)
   }
 
   def isUser(id:UUID,authn:Authenticated)(implicit permissions:Permissions):Boolean = {    
-    val uid = authn.getUser
-    permissions.isUser(id,uid)
+    permissions.isUser(id,authn.getUser)
   }
 
   def isAllowed(resource:String,action:String,authn:Authenticated)(implicit permissions:Permissions):Boolean = {    

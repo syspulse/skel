@@ -45,5 +45,5 @@ class PermissionsRbacEngineDefault() extends PermissionsRbacEngine {
 
 class PermissionsRbacDefault() extends PermissionsRbac {  
   val engine = new PermissionsRbacEngineDefault()
-  
+  log.info(s"RBAC: ${engine}: ${DefaultRbac.users}")
 }

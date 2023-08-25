@@ -185,7 +185,7 @@ object App extends skel.Server {
 
       case "rbac" :: ext :: Nil => new PermitsStoreRbac(ext)
       case "rbac" :: Nil => new PermitsStoreRbac()
-      
+
       case "mem" :: _ | "cache" :: _ => new PermitsStoreMem()
       case _ => {
         Console.err.println(s"Uknown permissions store: '${config.storeCred}'")        

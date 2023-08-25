@@ -109,6 +109,7 @@ import io.syspulse.skel.auth.permissions.DefaultPermissions
 import io.syspulse.skel.auth.permit._
 import io.syspulse.skel.auth.permit.PermitsRegistry._
 import io.syspulse.skel.auth.permit.Permitss
+import akka.http.scaladsl.server.AuthorizationFailedRejection
 
 @Path("/")
 class AuthRoutes(
@@ -978,7 +979,7 @@ class AuthRoutes(
             }}
           }
         }
-      } ~
+      },
       // curl -POST -i -v http://localhost:8080/api/v1/auth/proxy -d '{ "username" : "user1", "password": "password"}'
       pathPrefix("proxy") {
         path("token") {
@@ -997,7 +998,7 @@ class AuthRoutes(
             }
           }
         }
-      } ~
+      },
       pathPrefix("code") {
         path(Segment) { code => authenticate()( authn => { 
           concat(
@@ -1012,18 +1013,8 @@ class AuthRoutes(
             complete(getCodes())
           })
         }        
-      } ~
-      pathPrefix("permissions") {
-        path(Segment) { uid => authenticate()( authn => { 
-          concat(
-            getPermitsUserRoute(UUID(uid))
-          )})
-        } ~ 
-        pathEndOrSingleSlash {
-          getPermitsRoute()
-        }
-      } ~
-      pathEndOrSingleSlash {
+      },
+      pathEndOrSingleSlash {         
         concat(
           get {
             authenticate()(authn =>
@@ -1039,8 +1030,27 @@ class AuthRoutes(
               }
             }
           })
-      } ~
-      pathPrefix(Segment) { auid =>
+      },
+      pathPrefix("permissions") {         
+        authenticate(){ authn => { 
+          pathEndOrSingleSlash {            
+            authorize(Permissions.isAdmin(authn)) {
+              getPermitsRoute()
+            }                     
+          } ~
+          path(Segment) { uid => 
+            if(Some(UUID(uid)) != authn.getUser) {
+              reject(AuthorizationFailedRejection)
+            } else {
+              concat(
+                getPermitsUserRoute(UUID(uid))
+              )
+            }            
+          }          
+        }}        
+      },
+      //pathPrefix(Segment) { auid =>
+      pathPrefix(SegmentUUID) { auid =>
         // refresh token cannot use AuthN because it is expired
         pathPrefix("refresh") {
           pathPrefix(Segment) { refreshToken => 
@@ -1048,7 +1058,6 @@ class AuthRoutes(
           }
         } ~
         authenticate()( authn => {
-          log.info(s"authn: ${authn}")          
           concat(            
             get {
               rejectEmptyResponse {
@@ -1063,6 +1072,24 @@ class AuthRoutes(
               }
             })
         })
-      }
+      }       
     )}
+
+  import akka.http.scaladsl.server.PathMatcher._
+  import akka.http.scaladsl.server.PathMatcher1
+  import akka.http.scaladsl.model.Uri.Path
+  
+  
+  object SegmentUUID extends PathMatcher1[String] {
+    def apply(path: Path) = path match {
+      case Path.Segment(segment, tail) =>
+        try {
+          val uuid = UUID(segment)
+          Matched(tail, Tuple1(uuid.toString))
+        } catch {
+          case e:java.lang.IllegalArgumentException => Unmatched
+        }
+      case _ => Unmatched
+    }
+  }
 }
