@@ -126,5 +126,12 @@ class PermissionSpec extends AnyWordSpec with Matchers {
       Permissions.isAllowed("data","write",authn2) should === (true)
     }
 
+    "allow 'api' and 'data' write for Admin Account" in {
+      val uid = DefaultPermissions.USER_ADMIN
+      val authn = AuthenticatedUser(uid,roles = Seq("admin"))
+      Permissions.isAllowed("api","write",authn) should === (true)
+      Permissions.isAllowed("data","write",authn) should === (true)      
+    }
+
   }
 }

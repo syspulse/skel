@@ -18,6 +18,7 @@ import PermitJson._
 import io.syspulse.skel.auth.permit.{PermitUser, PermitResource, PermitRole}
 import io.syspulse.skel.auth.permit.PermitJson
 import io.syspulse.skel.auth.permit.PermitStore
+import io.syspulse.skel.auth.permissions.Permissions
 
 class PermissionsStoreDir(dir:String = "store/auth/rbac/permissions") extends StoreDir[PermitRole,String](dir) {
   val store = new PermitStoreMem
@@ -57,6 +58,8 @@ class PermitUserStoreDir(dir:String = "store/auth/rbac/roles") extends StoreDir[
 class PermitStoreDir(dir:String = "store/auth/rbac") extends PermitStore {
   val permitsStore = new PermissionsStoreDir(dir + "/permissions")
   val rolesStore = new PermitUserStoreDir(dir + "/roles")
+
+  def getEngine():Option[Permissions] = permitsStore.store.getEngine()
 
   def all:Seq[PermitUser] = rolesStore.all
   def size:Long = rolesStore.size

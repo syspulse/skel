@@ -20,6 +20,8 @@ class PermitStoreMem extends PermitStore {
 
   val permissions:Permissions = new PermissionsRbacDefault() //new PermissionsRbacFile(config.rbac)
 
+  def getEngine():Option[Permissions] = Some(permissions)
+
   val defaultUsers = { DefaultRbac.users.map(u =>
       u._1 -> PermitUser( 
         uid = u._1,

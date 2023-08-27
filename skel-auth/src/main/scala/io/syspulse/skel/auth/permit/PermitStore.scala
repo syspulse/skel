@@ -38,7 +38,7 @@ trait PermitStore extends Store[PermitUser,UUID] {
     } yield c1).get    
   }
 
-  def getEngine():Option[Permissions] = None
+  def getEngine():Option[Permissions]
 
   def getPermit():Seq[PermitRole]
   def getPermitUser():Seq[PermitUser] = all

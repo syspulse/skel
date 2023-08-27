@@ -9,13 +9,22 @@ import io.syspulse.skel.util.Util
 
 abstract class Resource(r:String) {
   override def equals(obj: Any): Boolean = obj match {
-    case other: Resource => other.get == this.r
+    case other: Resource => 
+      //other.get == this.r
+      other === this
     case _ => false
   }
     
   override def hashCode(): Int = r.hashCode()
 
   def get = r
+
+  def ===(other:Resource) = (this.get,other.get) match {
+    case ("*","*") => true
+    case ("*",_) => true
+    case (_,"*") => true
+    case (t,o) => t == o
+  }
 }
 
 object Resource {

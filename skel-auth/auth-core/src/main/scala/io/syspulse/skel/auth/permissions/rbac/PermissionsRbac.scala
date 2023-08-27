@@ -68,7 +68,7 @@ trait PermissionsRbac extends Permissions {
       return false
     }
 
-    engine.permit(authn,ResourceOf(resource),PermissionOf(action))
+    engine.permit(authn,Resource(resource),Permission(action))
   }
 
   def hasRole(authn:Authenticated,role:String):Boolean = {

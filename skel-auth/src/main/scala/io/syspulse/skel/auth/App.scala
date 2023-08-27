@@ -109,8 +109,11 @@ object App extends skel.Server {
           s"generate        : generate Client Credentials pair" +
           ""
         ),
-        ArgCmd("permissions",s"Permissions" +
-          s"allowed jwt role <action>  : Check enforcer for JWT against role:action (def action=write)"
+        ArgCmd("permission",s"Permissions subcommand:" +
+          s"jwt <resource> [action]  : Verify user has 'action' permissions for 'resource' (def action=write)"
+        ),
+        ArgCmd("role",s"Role subcommands" +
+          s"jwt <role> : Verify user has 'role'"
         ),
         ArgParam("<params>",""),
         ArgLogging()
@@ -252,7 +255,7 @@ object App extends skel.Server {
         sys.exit(0)
       }
       
-      case "permissions" => {
+      case "permission" => {
         
         def resolvePermissions(jwt:String,resource:String,action:String) = {
           
@@ -272,15 +275,14 @@ object App extends skel.Server {
 
         val r = 
           config.params match {
-            case "allow" :: jwt :: resource :: Nil => 
+            case jwt :: resource :: Nil => 
               resolvePermissions(jwt,resource,"read")
 
-            case "allow" :: jwt :: resource :: action :: Nil => 
+            case jwt :: resource :: action :: Nil => 
               resolvePermissions(jwt,resource,action)
 
-            case "all" :: jwt :: Nil => 
+            case jwt :: Nil => 
               resolvePermissions(jwt,"*","write")
-
 
             case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
           }
@@ -301,10 +303,10 @@ object App extends skel.Server {
             sys.exit(1)
           }
           
-          if(!permissionsStore.getEngine().isDefined) {
-            Console.err.println(s"store does not support enforcer: ${permissionsStore}")
-            sys.exit(1)
-          }
+          // if(!permissionsStore.getEngine().isDefined) {
+          //   Console.err.println(s"store does not support enforcer: ${permissionsStore}")
+          //   sys.exit(1)
+          // }
 
           implicit val permissions = permissionsStore.getEngine().get
           Permissions.hasRole(role,AuthenticatedUser(UUID(vt.get.uid),vt.get.roles))
@@ -312,15 +314,12 @@ object App extends skel.Server {
 
         val r = 
           config.params match {
-            case "role" :: jwt :: role :: Nil => 
+            case jwt :: role :: Nil => 
               resolveRole(jwt,role)
 
-            case "admin" :: jwt :: Nil => 
-              resolveRole(jwt,"admin")
-
-            case "service" :: jwt :: Nil => 
-              resolveRole(jwt,"service")
-
+            case jwt :: Nil => 
+              resolveRole(jwt,"user")
+            
             case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
           }
         
