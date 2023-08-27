@@ -120,7 +120,7 @@ class AuthRoutes(
   authRegistry: ActorRef[skel.Command],
   codeRegistry: ActorRef[skel.Command],
   credRegistry: ActorRef[skel.Command],
-  permissionsRegistry: ActorRef[skel.Command],
+  permitRegistry: ActorRef[skel.Command],
   serviceUri:String,
   redirectUri:String,
   serviceUserUri:String)(implicit context:ActorContext[_],config:Config) 
@@ -137,7 +137,7 @@ class AuthRoutes(
   //val credRegistry: ActorRef[skel.Command] = context.spawn(CredRegistry(new CredStoreMem()),"Actor-ClietnRegistry")
   context.watch(credRegistry)
 
-  context.watch(permissionsRegistry)
+  context.watch(permitRegistry)
   
   // lazy because EthOAuth2 JWKS will request while server is not started yet
   lazy val idps = Map(
@@ -172,11 +172,13 @@ class AuthRoutes(
   def deleteCred(id: String,uid:Option[UUID]): Future[Try[CredActionRes]] = credRegistry.ask(DeleteCred(id, uid, _))
   def updateCred(id:String,req: CredUpdateReq): Future[Try[Cred]] = credRegistry.ask(UpdateCred(id,req, _))
 
-  def getPermitRole(role:String): Future[Try[PermitRole]] = permissionsRegistry.ask(GetPermitRole(role, _))
-  def getPermitRoles(): Future[Try[PermitRoles]] = permissionsRegistry.ask(GetPermitRoles(_))
+  def getPermitRole(role:String): Future[Try[PermitRole]] = permitRegistry.ask(GetPermitRole(role, _))
+  def getPermitRoles(): Future[Try[PermitRoles]] = permitRegistry.ask(GetPermitRoles(_))
 
-  def getPermitUser(uid:UUID): Future[Try[PermitUser]] = permissionsRegistry.ask(GetPermitUser(uid, _))
-  def getPermitUsers(): Future[Try[PermitUsers]] = permissionsRegistry.ask(GetPermitUsers(_))
+  def createPermitUser(req:PermitUserCreateReq): Future[Try[PermitUser]] = permitRegistry.ask(CreatePermitUser(req, _))
+  def getPermitUser(uid:UUID): Future[Try[PermitUser]] = permitRegistry.ask(GetPermitUser(uid, _))
+  def getPermitUsers(): Future[Try[PermitUsers]] = permitRegistry.ask(GetPermitUsers(_))
+  def getPermitUserByXid(xid:String): Future[Try[PermitUser]] = permitRegistry.ask(GetPermitUserByXid(xid, _))
 
   implicit val defaultPermissions = Permissions(
     config.storePermissions, 
@@ -253,10 +255,15 @@ class AuthRoutes(
       user <- {
         val jwtRoleService = if(config.jwtRoleService.isEmpty()) 
           // generate temproary short living token
-          AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_SERVICE.toString),expire = 60L)
+          AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_SERVICE.toString,"roles"->"service"),expire = 60L)
         else 
           config.jwtRoleService 
+        
         UserClientHttp(serviceUserUri).withAccessToken(jwtRoleService).withTimeout().findByXidAlways(profile.id)
+      }
+      userAuth <- {
+        // get user from Auth database
+        getPermitUserByXid(profile.id)
       }
       authProfileRes <- {        
         val (profileEmail,profileName,profilePicture,profileLocale) = 
@@ -279,21 +286,50 @@ class AuthRoutes(
             (profile.email, profile.name, profile.picture, profile.locale)
           }
 
-        val (accessToken,idToken,refreshToken) =
-          if(user.isDefined) {
-            val uid = user.get.id.toString
-            (
-              AuthJwt.generateAccessToken(Map( "uid" -> uid)),
-              Some(AuthJwt.generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
-              Some(AuthJwt.generateRefreshToken(uid))
-            )
-          }
-          else {
-            (
-              AuthJwt.generateAccessToken(Map( "uid" -> DefaultPermissions.USER_NOBODY.toString)),
-              None,
-              None
-            )
+        // val (accessToken,idToken,refreshToken) =
+        //   if(user.isDefined) {
+        //     val uid = user.get.id.toString
+        //     (
+        //       AuthJwt.generateAccessToken(Map( "uid" -> uid)),
+        //       Some(AuthJwt.generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
+        //       Some(AuthJwt.generateRefreshToken(uid))
+        //     )
+        //   }
+        //   else {
+        //     (
+        //       AuthJwt.generateAccessToken(Map( "uid" -> DefaultPermissions.USER_NOBODY.toString)),
+        //       None,
+        //       None
+        //     )
+        //   }
+          val (uid,accessToken,idToken,refreshToken) = (user,userAuth) match {
+            case (_,Success(user)) => 
+              // roles are known from our Auth DB
+              val uid = user.uid.toString
+              (
+                Some(user.uid),
+                AuthJwt.generateAccessToken(Map( "uid" -> uid, "roles" -> user.roles.mkString(","))),
+                Some(AuthJwt.generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
+                Some(AuthJwt.generateRefreshToken(uid))
+              )
+
+            case (Some(user),_) => 
+              // roles are not known here
+              val uid = user.id.toString
+              (
+                Some(user.id),
+                AuthJwt.generateAccessToken(Map( "uid" -> uid, "roles" -> "user")),
+                Some(AuthJwt.generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
+                Some(AuthJwt.generateRefreshToken(uid))
+              )
+            
+            case (_,_) =>
+              (
+                None,
+                AuthJwt.generateAccessToken(Map( "uid" -> DefaultPermissions.USER_NOBODY.toString)),
+                None,
+                None
+              )
           }
                 
         Future(AuthWithProfileRes(
@@ -301,7 +337,7 @@ class AuthRoutes(
           idToken,
           refreshToken,
           idp = AuthIdp(idpTokens.accessToken, idpTokens.idToken, idpTokens.refreshToken),
-          uid = user.map(_.id),
+          uid = uid,
           xid = profile.id,
           profileEmail, 
           profileName, 
@@ -309,6 +345,7 @@ class AuthRoutes(
           profileLocale)
         )
       }
+      
       authRes <- {
         // Save Auth Session        
         createAuth(Auth(
@@ -850,6 +887,20 @@ class AuthRoutes(
     complete(getPermitUsers())
   }
 
+  @POST @Path("/user") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Create user roles",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[PermitUserCreateReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "Created User roles",content = Array(new Content(schema = new Schema(implementation = classOf[PermitUser])))))
+  )
+  def createPermitUserRoute() = post {
+    entity(as[PermitUserCreateReq]) { req =>
+      onSuccess(createPermitUser(req)) { r =>
+        complete(StatusCodes.Created, r)
+      }
+    }
+  }
+
 // --------------------------------------------------------------------------------------------------------------------------------------- Routes
   val corsAllow = CorsSettings(system.classicSystem)
     //.withAllowGenericHttpRequests(true)
@@ -1071,8 +1122,9 @@ class AuthRoutes(
       pathPrefix("user") {
         authenticate(){ authn => { 
           pathEndOrSingleSlash {            
-            authorize(Permissions.isAdmin(authn)) {
-              getPermitUserRoute()
+            authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
+              getPermitUserRoute() ~
+              createPermitUserRoute()
             }                     
           } ~
           path(Segment) { uid => 

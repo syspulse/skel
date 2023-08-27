@@ -40,7 +40,8 @@ class PermitStoreCasbin(implicit config:Config) extends PermitStore {
        if(Util.isUUID(subj)) {
           Some(PermitUser(
             UUID(subj),
-            roles = roles.asScala.toSeq
+            roles = roles.asScala.toSeq,
+            xid = ""
           ))
        } else {
           // not UUID, don't bother
@@ -117,10 +118,13 @@ class PermitStoreCasbin(implicit config:Config) extends PermitStore {
        case _ => 
         Success(PermitUser(
           uid,
-          roles = roles.asScala.toSeq
+          roles = roles.asScala.toSeq,
+          xid = ""
         ))
     }
   }
+
+  def findPermitUserByXid(xid:String):Try[PermitUser] = Failure(new Exception(s"not supported"))
 
   def update(uid:UUID,roles:Option[Seq[String]]):Try[PermitUser] = {
     ?(uid).map(p => modify(p,roles))

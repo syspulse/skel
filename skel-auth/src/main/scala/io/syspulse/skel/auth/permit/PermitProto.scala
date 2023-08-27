@@ -15,6 +15,6 @@ final case class PermitRoleUpdateReq(role:String, permissions:Option[Seq[String]
 
 final case class PermitUsers(results: immutable.Seq[PermitUser])
 
-final case class PermitUserCreateReq(uid:UUID, roles:Seq[String])
+final case class PermitUserCreateReq(uid:UUID, roles:Seq[String], xid:String = "")
 final case class PermitUserUpdateReq(uid:UUID, roles:Option[Seq[String]])
 final case class PermitUserActionRes(status: String,p:Option[UUID])

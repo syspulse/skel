@@ -28,6 +28,7 @@ object PermitRegistry {
   final case class GetPermitUsers(replyTo: ActorRef[Try[PermitUsers]]) extends Command
   final case class CreatePermitUser(req: PermitUserCreateReq, replyTo: ActorRef[Try[PermitUser]]) extends Command
   final case class GetPermitUser(uid:UUID, replyTo: ActorRef[Try[PermitUser]]) extends Command
+  final case class GetPermitUserByXid(xid:String, replyTo: ActorRef[Try[PermitUser]]) extends Command
   final case class DeletePermitUser(uid:UUID, replyTo: ActorRef[Try[PermitUserActionRes]]) extends Command
   final case class UpdatePermitUser(uid:UUID,req:PermitUserUpdateReq, replyTo: ActorRef[Try[PermitUser]]) extends Command
   
@@ -50,7 +51,7 @@ object PermitRegistry {
       case GetPermitUsers(replyTo) =>
         replyTo ! Success(PermitUsers(store.getPermitUser()))
         Behaviors.same
-
+      
       case CreatePermitRole(req, replyTo) =>
         val p = PermitRole( req.role, req.resources)              
         store.addPermit(p)        
@@ -58,7 +59,7 @@ object PermitRegistry {
         Behaviors.same
 
       case CreatePermitUser(req, replyTo) =>
-        val p = PermitUser(req.uid,req.roles)        
+        val p = PermitUser(req.uid,req.roles,req.xid)
         store.addPermitUser(p)
         
         replyTo ! Success(p)
@@ -76,6 +77,14 @@ object PermitRegistry {
         replyTo ! {
           for {
             c1 <- store.getPermitUser(uid)
+          } yield c1
+        }
+        Behaviors.same
+
+      case GetPermitUserByXid(xid, replyTo) =>
+        replyTo ! {
+          for {
+            c1 <- store.findPermitUserByXid(xid)
           } yield c1
         }
         Behaviors.same

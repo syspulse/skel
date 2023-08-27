@@ -37,7 +37,7 @@ class PermissionsStoreDir(dir:String = "store/auth/rbac/permissions") extends St
 
 }
 
-class PermitUserStoreDir(dir:String = "store/auth/rbac/roles") extends StoreDir[PermitUser,UUID](dir) {
+class PermitUserStoreDir(dir:String = "store/auth/rbac/users") extends StoreDir[PermitUser,UUID](dir) {
   val store = new PermitStoreMem
 
   def getKey(r: PermitUser): UUID = r.uid
@@ -49,6 +49,8 @@ class PermitUserStoreDir(dir:String = "store/auth/rbac/roles") extends StoreDir[
   override def del(uid:UUID):Try[PermitUserStoreDir] = super.del(uid).flatMap(_ => store.del(uid)).map(_ => this)
   override def ?(uid:UUID):Try[PermitUser] = store.?(uid)
 
+  def findPermitUserByXid(xid:String):Try[PermitUser] = store.findPermitUserByXid(xid)
+
   def update(uid:UUID,roles:Option[Seq[String]]):Try[PermitUser] =
     store.update(uid,roles).flatMap(c => writeFile(c))
 
@@ -56,29 +58,31 @@ class PermitUserStoreDir(dir:String = "store/auth/rbac/roles") extends StoreDir[
 
 // Preload from file during start
 class PermitStoreDir(dir:String = "store/auth/rbac") extends PermitStore {
-  val permitsStore = new PermissionsStoreDir(dir + "/permissions")
-  val rolesStore = new PermitUserStoreDir(dir + "/roles")
+  val permissionStore = new PermissionsStoreDir(dir + "/permissions")
+  val userStore = new PermitUserStoreDir(dir + "/users")
 
-  def getEngine():Option[Permissions] = permitsStore.store.getEngine()
+  def getEngine():Option[Permissions] = permissionStore.store.getEngine()
 
-  def all:Seq[PermitUser] = rolesStore.all
-  def size:Long = rolesStore.size
+  def all:Seq[PermitUser] = userStore.all
+  def size:Long = userStore.size
+  
+  override def +(r:PermitUser):Try[PermitStoreDir] = userStore.+(r).map(_ => this)
+  override def addPermit(p:PermitRole):Try[PermitStoreDir] = permissionStore.+(p).map(_ => this)
 
-  override def +(r:PermitUser):Try[PermitStoreDir] = rolesStore.+(r).map(_ => this)
-  override def addPermit(p:PermitRole):Try[PermitStoreDir] = permitsStore.+(p).map(_ => this)
+  override def del(uid:UUID):Try[PermitStoreDir] = userStore.del(uid).map(_ => this)
+  override def ?(uid:UUID):Try[PermitUser] = userStore.?(uid)
 
-  override def del(uid:UUID):Try[PermitStoreDir] = rolesStore.del(uid).map(_ => this)
-  override def ?(uid:UUID):Try[PermitUser] = rolesStore.?(uid)
+  def findPermitUserByXid(xid:String):Try[PermitUser] = userStore.findPermitUserByXid(xid)
 
   override def update(uid:UUID,roles:Option[Seq[String]]):Try[PermitUser] =
-    rolesStore.update(uid,roles)
+    userStore.update(uid,roles)
 
-  def delPermit(role:String):Try[PermitStore] = permitsStore.del(role).map(_ => this)
-  def getPermit(role:String):Try[PermitRole] = permitsStore.?(role)
-  def getPermit():Seq[PermitRole] = permitsStore.all
+  def delPermit(role:String):Try[PermitStore] = permissionStore.del(role).map(_ => this)
+  def getPermit(role:String):Try[PermitRole] = permissionStore.?(role)
+  def getPermit():Seq[PermitRole] = permissionStore.all
 
   // preload
-  permitsStore.load(dir)
-  rolesStore.load(dir)
+  permissionStore.load(dir)
+  userStore.load(dir)
 
 }

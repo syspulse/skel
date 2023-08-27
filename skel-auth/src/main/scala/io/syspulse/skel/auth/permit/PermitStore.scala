@@ -48,6 +48,7 @@ trait PermitStore extends Store[PermitUser,UUID] {
 
   def getPermit(role:String):Try[PermitRole]
   def getPermitUser(uid:UUID):Try[PermitUser] = `?`(uid)
+  def findPermitUserByXid(xid:String):Try[PermitUser]
 
   def delUser(uid:UUID):Try[PermitStore] = del(uid)  
   def delPermit(role:String):Try[PermitStore]

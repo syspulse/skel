@@ -25,7 +25,8 @@ class PermitStoreMem extends PermitStore {
   val defaultUsers = { DefaultRbac.users.map(u =>
       u._1 -> PermitUser( 
         uid = u._1,
-        roles = u._2.map(_.n)
+        roles = u._2.map(_.n),
+        xid = if(u._1 == UUID("00000000-0000-0000-1000-000000000002")) "0x71CB05EE1b1F506fF321Da3dac38f25c0c9ce6E1" else ""
       )
     ).toMap
   }
@@ -39,30 +40,36 @@ class PermitStoreMem extends PermitStore {
     ).toMap
   }
 
-  var roles: Map[UUID,PermitUser] = Map() ++ defaultUsers
+  var users: Map[UUID,PermitUser] = Map() ++ defaultUsers
   var permits: Map[String,PermitRole] = Map() ++ defaultPermit
 
-  def all:Seq[PermitUser] = roles.values.toSeq
+  def all:Seq[PermitUser] = users.values.toSeq
 
-  def size:Long = roles.size
+  def size:Long = users.size
 
   def +(p:PermitUser):Try[PermitStore] = {
     log.info(s"add: ${p}")
-    roles = roles + (p.uid -> p)
+    users = users + (p.uid -> p)
     Success(this)
   }
 
   def del(uid:UUID):Try[PermitStore] = { 
     log.info(s"del: ${uid}")
-    roles.get(uid) match {
-      case Some(auth) => { roles = roles - uid; Success(this) }
+    users.get(uid) match {
+      case Some(auth) => { users = users - uid; Success(this) }
       case None => Failure(new Exception(s"not found: ${uid}"))
     }
   }
 
-  def ?(uid:UUID):Try[PermitUser] = roles.get(uid) match {
+  def ?(uid:UUID):Try[PermitUser] = users.get(uid) match {
     case Some(p) => Success(p)
     case None => Failure(new Exception(s"not found: ${uid}"))
+  }
+
+  def findPermitUserByXid(xid:String):Try[PermitUser] = 
+    users.values.find( u => u.xid == xid) match {
+      case Some(p) => Success(p)
+      case None => Failure(new Exception(s"not found: ${xid}"))  
   }
 
   def update(uid:UUID,roles:Option[Seq[String]]):Try[PermitUser] = {
