@@ -115,6 +115,9 @@ object App extends skel.Server {
         ArgCmd("role",s"Role subcommands" +
           s"jwt <role> : Verify user has 'role'"
         ),
+        ArgCmd("permit",s"Validation permission (as in routes Service)" +
+          s"jwt <role> : Verify user has 'role' (default is admin)"
+        ),
         ArgParam("<params>",""),
         ArgLogging()
       ).withExit(1)
@@ -189,9 +192,8 @@ object App extends skel.Server {
       case "dir" :: Nil => new PermitStoreDir()
       case "dir" :: dir :: Nil => new PermitStoreDir(dir) 
 
-    case "rbac" :: ext :: Nil => new PermitStoreRbac(ext)
+      case "rbac" :: ext :: Nil => new PermitStoreRbac(ext)
       case "rbac" :: Nil => new PermitStoreRbac()
-
 
       case "mem" :: _ | "cache" :: _ => new PermitStoreMem()
       case _ => {
@@ -322,6 +324,35 @@ object App extends skel.Server {
               resolveRole(jwt,"user")
             
             case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
+          }
+        
+        println(s"${r}")
+        System.exit(0)
+      }
+
+      case "permit" => {
+        implicit val permissions = permissionsStore.getEngine().get
+        
+        val r = 
+          config.params match {
+            case jwt :: tail if (tail == Nil || tail == "admin" :: Nil) => 
+              val vt = AuthJwt.verifyAuthToken(Some(jwt),"",Seq())
+                  if(!vt.isDefined) {
+                Console.err.println(s"not valid: ${jwt}")
+                sys.exit(1)
+              }
+              Permissions.isAdmin(AuthenticatedUser(UUID(vt.get.uid),vt.get.roles))
+
+            case jwt :: "service" :: Nil => 
+              val vt = AuthJwt.verifyAuthToken(Some(jwt),"",Seq())
+                  if(!vt.isDefined) {
+                Console.err.println(s"not valid: ${jwt}")
+                sys.exit(1)
+              }
+              Permissions.isService(AuthenticatedUser(UUID(vt.get.uid),vt.get.roles))
+            
+            case _ => 
+              Console.err.println(s"unknown operation: ${config.params.mkString("")}")
           }
         
         println(s"${r}")

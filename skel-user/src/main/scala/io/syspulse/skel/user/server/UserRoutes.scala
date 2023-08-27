@@ -220,9 +220,9 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
           )
         },
         pathPrefix("xid") {
-          pathPrefix(Segment) { id => 
+          pathPrefix(Segment) { xid => 
             authenticate()(authn =>
-              getUserByXidRoute(id)
+              getUserByXidRoute(xid)
             )
           }
         },
