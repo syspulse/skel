@@ -22,8 +22,11 @@ import io.syspulse.skel.auth.cred._
 import io.syspulse.skel.auth.code._
 import io.syspulse.skel.auth.permit._
 import io.syspulse.skel.auth.store._
-import io.syspulse.skel.auth.permit.PermitsStoreCasbin
-import io.syspulse.skel.auth.permit.PermitsStoreDir
+import io.syspulse.skel.auth.permit.PermitStoreCasbin
+import io.syspulse.skel.auth.permit.PermitStoreDir
+import io.syspulse.skel.auth.permit.PermitRegistry
+import io.syspulse.skel.auth.permit.PermitStoreMem
+import io.syspulse.skel.auth.permit.PermitStoreRbac
 
 case class Config(
   host:String="0.0.0.0",
@@ -178,15 +181,15 @@ object App extends skel.Server {
     }
 
     val permissionsStore = config.storePermissions.split("://").toList match {
-      case "casbin" :: _  => new PermitsStoreCasbin()
+      case "casbin" :: _  => new PermitStoreCasbin()
 
-      case "dir" :: Nil => new PermitsStoreDir()
-      case "dir" :: dir :: Nil => new PermitsStoreDir(dir) 
+      case "dir" :: Nil => new PermitStoreDir()
+      case "dir" :: dir :: Nil => new PermitStoreDir(dir) 
 
-      case "rbac" :: ext :: Nil => new PermitsStoreRbac(ext)
-      case "rbac" :: Nil => new PermitsStoreRbac()
+      case "rbac" :: ext :: Nil => new PermitStoreRbac(ext)
+      case "rbac" :: Nil => new PermitStoreRbac()
 
-      case "mem" :: _ | "cache" :: _ => new PermitsStoreMem()
+      case "mem" :: _ | "cache" :: _ => new PermitStoreMem()
       case _ => {
         Console.err.println(s"Uknown permissions store: '${config.storeCred}'")        
         sys.exit(1)
@@ -206,7 +209,7 @@ object App extends skel.Server {
             (AuthRegistry(authStore),"AuthRegistry",(authRegistry, context) => {
                 val codeRegistry = context.spawn(CodeRegistry(codeStore),"Actor-CodeRegistry")
                 val credRegistry = context.spawn(CredRegistry(credStore),"Actor-ClientRegistry")
-                val permissionsRegistry = context.spawn(PermitsRegistry(permissionsStore),"Actor-PermissionsRegistry")
+                val permissionsRegistry = context.spawn(PermitRegistry(permissionsStore),"Actor-PermissionsRegistry")
                 new AuthRoutes(authRegistry,codeRegistry,credRegistry,permissionsRegistry,
                   s"http://${authHost}:${config.port}${config.uri}",
                   s"http://${authHost}:${config.port}${config.uri}/callback", config.userUri)(context, config) 
@@ -226,7 +229,7 @@ object App extends skel.Server {
             (AuthRegistry(authStore),"AuthRegistry",(authRegistry, context) => {
                 val codeRegistry = context.spawn(CodeRegistry(codeStore),"Actor-CodeRegistry")
                 val credRegistry = context.spawn(CredRegistry(credStore),"Actor-ClientRegistry")
-                val permissionsRegistry = context.spawn(PermitsRegistry(permissionsStore),"Actor-PermissionsRegistry")
+                val permissionsRegistry = context.spawn(PermitRegistry(permissionsStore),"Actor-PermissionsRegistry")
                 new AuthRoutes(authRegistry,codeRegistry,credRegistry,permissionsRegistry,
                   s"http://${authHost}:${config.port}${uri}/auth",
                   s"http://${authHost}:${config.port}${uri}/auth/callback",

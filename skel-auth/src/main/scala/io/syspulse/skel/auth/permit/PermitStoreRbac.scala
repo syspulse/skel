@@ -11,8 +11,9 @@ import io.jvm.uuid._
 import io.syspulse.skel.auth.permissions.DefaultPermissions
 import io.syspulse.skel.auth.permissions.rbac.DefaultRbac
 import io.syspulse.skel.auth.permissions.rbac.PermissionsRbacDefault
+import io.syspulse.skel.auth.permit.PermitStoreMem
 
-class PermitsStoreRbac(ext:String="") extends PermitsStoreMem {
+class PermitStoreRbac(ext:String="") extends PermitStoreMem {
 
   override val permissions = ext match {
     case ""  => new PermissionsRbacDefault()

@@ -12,43 +12,45 @@ import io.syspulse.skel.auth.permissions.DefaultPermissions
 import io.syspulse.skel.auth.permissions.rbac.DefaultRbac
 import io.syspulse.skel.auth.permissions.rbac.PermissionsRbacDefault
 import io.syspulse.skel.auth.permissions.Permissions
+import io.syspulse.skel.auth.permit.{PermitUser, PermitResource, PermitRole}
+import io.syspulse.skel.auth.permit.PermitStore
 
-class PermitsStoreMem extends PermitsStore {
+class PermitStoreMem extends PermitStore {
   val log = Logger(s"${this}")
 
   val permissions:Permissions = new PermissionsRbacDefault() //new PermissionsRbacFile(config.rbac)
 
   val defaultUsers = { DefaultRbac.users.map(u =>
-      u._1 -> Roles( 
+      u._1 -> PermitUser( 
         uid = u._1,
         roles = u._2.map(_.n)
       )
     ).toMap
   }
 
-  val defaultPermits = { 
+  val defaultPermit = { 
     DefaultRbac.roles.map(r =>
-      r._1.n -> Permits( 
+      r._1.n -> PermitRole( 
         role = r._1.n,
-        permissions = r._2.map(rp => rp.pp).flatten.map(p => p.get)
+        resources = r._2.map(rp => PermitResource(rp.r.get,rp.pp.map(p => p.get)))
       )
     ).toMap
   }
 
-  var roles: Map[UUID,Roles] = Map() ++ defaultUsers
-  var permits: Map[String,Permits] = Map() ++ defaultPermits
+  var roles: Map[UUID,PermitUser] = Map() ++ defaultUsers
+  var permits: Map[String,PermitRole] = Map() ++ defaultPermit
 
-  def all:Seq[Roles] = roles.values.toSeq
+  def all:Seq[PermitUser] = roles.values.toSeq
 
   def size:Long = roles.size
 
-  def +(p:Roles):Try[PermitsStore] = {
+  def +(p:PermitUser):Try[PermitStore] = {
     log.info(s"add: ${p}")
     roles = roles + (p.uid -> p)
     Success(this)
   }
 
-  def del(uid:UUID):Try[PermitsStore] = { 
+  def del(uid:UUID):Try[PermitStore] = { 
     log.info(s"del: ${uid}")
     roles.get(uid) match {
       case Some(auth) => { roles = roles - uid; Success(this) }
@@ -56,25 +58,25 @@ class PermitsStoreMem extends PermitsStore {
     }
   }
 
-  def ?(uid:UUID):Try[Roles] = roles.get(uid) match {
+  def ?(uid:UUID):Try[PermitUser] = roles.get(uid) match {
     case Some(p) => Success(p)
     case None => Failure(new Exception(s"not found: ${uid}"))
   }
 
-  def update(uid:UUID,roles:Option[Seq[String]]):Try[Roles] = {
+  def update(uid:UUID,roles:Option[Seq[String]]):Try[PermitUser] = {
     ?(uid).map(p => modify(p,roles))
   }
 
-  def updatePermits(role:String,permissions:Option[Seq[String]]):Try[Permits] = {
-    getPermits(role).map(p => modifyPermits(p,permissions))
+  def updatePermit(role:String,resources:Option[Seq[PermitResource]]):Try[PermitRole] = {
+    getPermit(role).map(p => modifyPermit(p,resources))
   }
 
-  def addPermits(p:Permits):Try[PermitsStore] = {
+  def addPermit(p:PermitRole):Try[PermitStore] = {
     permits = permits + (p.role -> p)
     Success(this)
   }
 
-  def delPermits(role:String):Try[PermitsStore] = { 
+  def delPermit(role:String):Try[PermitStore] = { 
     log.info(s"del: ${role}")
     permits.get(role) match {
       case Some(r) => { permits = permits - role; Success(this) }
@@ -82,9 +84,9 @@ class PermitsStoreMem extends PermitsStore {
     }
   }
 
-  def getPermits():Seq[Permits] = permits.values.toSeq
+  def getPermit():Seq[PermitRole] = permits.values.toSeq
 
-  def getPermits(role:String):Try[Permits] = permits.get(role) match {
+  def getPermit(role:String):Try[PermitRole] = permits.get(role) match {
     case Some(r) => Success(r)
     case None => Failure(new Exception(s"not found: ${role}"))
   }

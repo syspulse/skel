@@ -107,9 +107,13 @@ import io.syspulse.skel.auth.cred.CredRegistry._
 import io.syspulse.skel.auth.permissions.Permissions
 import io.syspulse.skel.auth.permissions.DefaultPermissions
 import io.syspulse.skel.auth.permit._
-import io.syspulse.skel.auth.permit.PermitsRegistry._
-import io.syspulse.skel.auth.permit.Permitss
+import io.syspulse.skel.auth.permit.PermitRegistry._
+import io.syspulse.skel.auth.permit.PermitRoles
 import akka.http.scaladsl.server.AuthorizationFailedRejection
+import io.syspulse.skel.auth.permit.{PermitUser, PermitRole}
+import io.syspulse.skel.auth.permit.PermitJson
+import io.syspulse.skel.auth.permit.PermitUsers
+import io.syspulse.skel.auth.permit.PermitRegistry
 
 @Path("/")
 class AuthRoutes(
@@ -147,7 +151,7 @@ class AuthRoutes(
   import AuthJson._
   import CodeJson._
   import CredJson._
-  import PermitsJson._
+  import PermitJson._
 
   def getAuths(): Future[Auths] = authRegistry.ask(GetAuths)
 
@@ -168,11 +172,11 @@ class AuthRoutes(
   def deleteCred(id: String,uid:Option[UUID]): Future[Try[CredActionRes]] = credRegistry.ask(DeleteCred(id, uid, _))
   def updateCred(id:String,req: CredUpdateReq): Future[Try[Cred]] = credRegistry.ask(UpdateCred(id,req, _))
 
-  def getPermits(role:String): Future[Try[Permits]] = permissionsRegistry.ask(GetPermits(role, _))
-  def getPermitss(): Future[Try[Permitss]] = permissionsRegistry.ask(GetPermitss(_))
+  def getPermitRole(role:String): Future[Try[PermitRole]] = permissionsRegistry.ask(GetPermitRole(role, _))
+  def getPermitRoles(): Future[Try[PermitRoles]] = permissionsRegistry.ask(GetPermitRoles(_))
 
-  def getRoles(uid:UUID): Future[Try[Roles]] = permissionsRegistry.ask(GetRoles(uid, _))
-  def getRoless(): Future[Try[Roless]] = permissionsRegistry.ask(GetRoless(_))
+  def getPermitUser(uid:UUID): Future[Try[PermitUser]] = permissionsRegistry.ask(GetPermitUser(uid, _))
+  def getPermitUsers(): Future[Try[PermitUsers]] = permissionsRegistry.ask(GetPermitUsers(_))
 
   implicit val defaultPermissions = Permissions(
     config.storePermissions, 
@@ -809,41 +813,41 @@ class AuthRoutes(
   }
 
 // ------ Role Permissions ----
-  @GET @Path("/permission") @Produces(Array(MediaType.APPLICATION_JSON))
+  @GET @Path("/role") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("auth"), summary = "Get permissions for role",
     responses = Array(
-      new ApiResponse(responseCode = "200", description = "List of Permissions",content = Array(new Content(schema = new Schema(implementation = classOf[Permits])))))
+      new ApiResponse(responseCode = "200", description = "List of Permissions",content = Array(new Content(schema = new Schema(implementation = classOf[PermitRole])))))
   )
-  def getPermitsRoute(role:String) = get {
-    complete(getPermits(role))
+  def getPermitRoleRoute(role:String) = get {
+    complete(getPermitRole(role))
   }
 
-  @GET @Path("/permission") @Produces(Array(MediaType.APPLICATION_JSON))
+  @GET @Path("/role") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("auth"), summary = "Get all role/permissions",
     responses = Array(
-      new ApiResponse(responseCode = "200", description = "List of Permissions",content = Array(new Content(schema = new Schema(implementation = classOf[Permitss])))))
+      new ApiResponse(responseCode = "200", description = "List of Permissions",content = Array(new Content(schema = new Schema(implementation = classOf[PermitRoles])))))
   )
-  def getPermitsRoute() = get {
-    complete(getPermitss())
+  def getPermitRoleRoute() = get {
+    complete(getPermitRoles())
   }
 
-// ------ User Roles ----
-  @GET @Path("/role") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("auth"), summary = "Get roles for user",
+// ------ User PermitUser ----
+  @GET @Path("/user") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"), summary = "Get user roles",
     responses = Array(
-      new ApiResponse(responseCode = "200", description = "List of Roles",content = Array(new Content(schema = new Schema(implementation = classOf[Roles])))))
+      new ApiResponse(responseCode = "200", description = "List of PermitUser",content = Array(new Content(schema = new Schema(implementation = classOf[PermitUser])))))
   )
-  def getRolesUserRoute(uid:UUID) = get {
-    complete(getRoles(uid))
+  def getPermitUserRoute(uid:UUID) = get {
+    complete(getPermitUser(uid))
   }
 
-  @GET @Path("/role") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("auth"), summary = "Get all user roles",
+  @GET @Path("/user") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"), summary = "Get all users roles",
     responses = Array(
-      new ApiResponse(responseCode = "200", description = "List of Roles",content = Array(new Content(schema = new Schema(implementation = classOf[Roless])))))
+      new ApiResponse(responseCode = "200", description = "List of PermitUser",content = Array(new Content(schema = new Schema(implementation = classOf[PermitUsers])))))
   )
-  def getRolesRoute() = get {
-    complete(getRoless())
+  def getPermitUserRoute() = get {
+    complete(getPermitUsers())
   }
 
 // --------------------------------------------------------------------------------------------------------------------------------------- Routes
@@ -1048,33 +1052,33 @@ class AuthRoutes(
             }
           })
       },
-      pathPrefix("permission") {
+      pathPrefix("role") {
         authenticate(){ authn => { 
           pathEndOrSingleSlash {            
             authorize(Permissions.isAdmin(authn)) {
-              getPermitsRoute()
+              getPermitRoleRoute()
             }                     
           } ~
           path(Segment) { role => 
             authorize(Permissions.isAdmin(authn)) {
               concat(
-                getPermitsRoute(role)
+                getPermitRoleRoute(role)
               )
             }            
           }          
         }}        
       },
-      pathPrefix("role") {
+      pathPrefix("user") {
         authenticate(){ authn => { 
           pathEndOrSingleSlash {            
             authorize(Permissions.isAdmin(authn)) {
-              getRolesRoute()
+              getPermitUserRoute()
             }                     
           } ~
           path(Segment) { uid => 
             authorize(Permissions.isAdmin(authn) || Some(UUID(uid)) == authn.getUser) {
               concat(
-                getRolesUserRoute(UUID(uid))
+                getPermitUserRoute(UUID(uid))
               )
             }            
           }          
@@ -1107,6 +1111,7 @@ class AuthRoutes(
       }       
     )}
 
+  // ------------------------------- Matcher for UUID -------------------------
   import akka.http.scaladsl.server.PathMatcher._
   import akka.http.scaladsl.server.PathMatcher1
   import akka.http.scaladsl.model.Uri.Path
