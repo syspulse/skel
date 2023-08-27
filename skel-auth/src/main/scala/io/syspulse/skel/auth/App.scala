@@ -189,12 +189,13 @@ object App extends skel.Server {
       case "dir" :: Nil => new PermitStoreDir()
       case "dir" :: dir :: Nil => new PermitStoreDir(dir) 
 
-      case "rbac" :: ext :: Nil => new PermitStoreRbac(ext)
+    case "rbac" :: ext :: Nil => new PermitStoreRbac(ext)
       case "rbac" :: Nil => new PermitStoreRbac()
+
 
       case "mem" :: _ | "cache" :: _ => new PermitStoreMem()
       case _ => {
-        Console.err.println(s"Uknown permissions store: '${config.storeCred}'")        
+        Console.err.println(s"Uknown permissions store: '${config.storePermissions}'")        
         sys.exit(1)
       }
     }
@@ -270,7 +271,7 @@ object App extends skel.Server {
           }
                     
           implicit val permissions = permissionsStore.getEngine().get
-          Permissions.isAllowed(resource,action,AuthenticatedUser(UUID(vt.get.uid),Seq()))
+          Permissions.isAllowed(resource,action,AuthenticatedUser(UUID(vt.get.uid),vt.get.roles))
         }
 
         val r = 

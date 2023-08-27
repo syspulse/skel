@@ -9,3 +9,8 @@ trait Authenticated {
 }
 
 case object AuthDisabled extends Authenticated
+
+case class AuthenticatedUser(uid:UUID,roles:Seq[String]) extends Authenticated {
+  override def getUser: Option[UUID] = Some(uid)
+  override def getRoles: Seq[String] = roles
+}

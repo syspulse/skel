@@ -53,7 +53,7 @@ class PermissionSpec extends AnyWordSpec with Matchers {
 
     "not allow 'api' write for User Account" in {
       val uid = UUID("00000000-0000-0000-1000-000000000001")
-      val authn = AuthenticatedUser(uid,roles = Seq("service"))
+      val authn = AuthenticatedUser(uid,roles = Seq("user"))
       Permissions.isAllowed("api","write",authn) should === (false)
       Permissions.isAllowed("api","read",authn) should === (true)
     }

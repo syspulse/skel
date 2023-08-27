@@ -142,7 +142,7 @@ object AuthJwt {
     case Some(jwt) => {      
       val v = AuthJwt.isValid(jwt)
       val uid = AuthJwt.getClaim(jwt,"uid")
-      val roles = AuthJwt.getClaim(jwt,"roles").getOrElse("").split(",").toSeq
+      val roles = AuthJwt.getClaim(jwt,"roles").map(_.split(",").filter(!_.trim.isEmpty()).toSeq).getOrElse(Seq.empty)
       log.info(s"token=${jwt}: uid=${uid}: roles=${roles}: valid=${v}")
       if(v && !uid.isEmpty) 
         Some(VerifiedToken(uid.get,roles))

@@ -24,11 +24,6 @@ import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.permissions.Permissions
 import io.syspulse.skel.auth.permissions.DefaultPermissions
 
-case class AuthenticatedUser(uid:UUID,roles:Seq[String]) extends Authenticated {
-  override def getUser: Option[UUID] = Some(uid)
-  override def getRoles: Seq[String] = roles
-}
-
 trait RouteAuthorizers {
   val log = Logger(s"${this}")
 
