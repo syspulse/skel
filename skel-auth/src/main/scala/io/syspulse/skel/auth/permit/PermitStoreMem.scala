@@ -21,27 +21,9 @@ class PermitStoreMem extends PermitStore {
   val permissions:Permissions = new PermissionsRbacDefault() //new PermissionsRbacFile(config.rbac)
 
   def getEngine():Option[Permissions] = Some(permissions)
-
-  val defaultUsers = { DefaultRbac.users.map(u =>
-      u._1 -> PermitUser( 
-        uid = u._1,
-        roles = u._2.map(_.n),
-        xid = if(u._1 == UUID("00000000-0000-0000-1000-000000000002")) "0x71CB05EE1b1F506fF321Da3dac38f25c0c9ce6E1" else ""
-      )
-    ).toMap
-  }
-
-  val defaultPermit = { 
-    DefaultRbac.roles.map(r =>
-      r._1.n -> PermitRole( 
-        role = r._1.n,
-        resources = r._2.map(rp => PermitResource(rp.r.get,rp.pp.map(p => p.get)))
-      )
-    ).toMap
-  }
-
-  var users: Map[UUID,PermitUser] = Map() ++ defaultUsers
-  var permits: Map[String,PermitRole] = Map() ++ defaultPermit
+  
+  var users: Map[UUID,PermitUser] = Map()
+  var permits: Map[String,PermitRole] = Map()
 
   def all:Seq[PermitUser] = users.values.toSeq
 

@@ -27,6 +27,7 @@ import io.syspulse.skel.auth.permit.PermitStoreDir
 import io.syspulse.skel.auth.permit.PermitRegistry
 import io.syspulse.skel.auth.permit.PermitStoreMem
 import io.syspulse.skel.auth.permit.PermitStoreRbac
+import io.syspulse.skel.auth.permit.PermitStoreRbacDemo
 
 case class Config(
   host:String="0.0.0.0",
@@ -192,6 +193,7 @@ object App extends skel.Server {
       case "dir" :: Nil => new PermitStoreDir()
       case "dir" :: dir :: Nil => new PermitStoreDir(dir) 
 
+      case "rbac" :: "demo" :: Nil => new PermitStoreRbacDemo()
       case "rbac" :: ext :: Nil => new PermitStoreRbac(ext)
       case "rbac" :: Nil => new PermitStoreRbac()
 
