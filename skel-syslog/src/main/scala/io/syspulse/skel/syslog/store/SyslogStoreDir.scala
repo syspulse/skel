@@ -1,4 +1,4 @@
-package io.syspulse.haas.holder.store
+package io.syspulse.skel.syslog.store
 
 import scala.util.Try
 import scala.util.{Success,Failure}
