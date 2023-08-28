@@ -174,6 +174,7 @@ class AuthRoutes(
 
   def getPermitRole(role:String): Future[Try[PermitRole]] = permitRegistry.ask(GetPermitRole(role, _))
   def getPermitRoles(): Future[Try[PermitRoles]] = permitRegistry.ask(GetPermitRoles(_))
+  def createPermitRole(req:PermitRoleCreateReq): Future[Try[PermitRole]] = permitRegistry.ask(CreatePermitRole(req, _))
 
   def createPermitUser(req:PermitUserCreateReq): Future[Try[PermitUser]] = permitRegistry.ask(CreatePermitUser(req, _))
   def getPermitUser(uid:UUID): Future[Try[PermitUser]] = permitRegistry.ask(GetPermitUser(uid, _))
@@ -868,6 +869,20 @@ class AuthRoutes(
     complete(getPermitRoles())
   }
 
+  @POST @Path("/role") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Create role",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[PermitRoleCreateReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "Created Role",content = Array(new Content(schema = new Schema(implementation = classOf[PermitRole])))))
+  )
+  def createPermitRoleRoute() = post {
+    entity(as[PermitRoleCreateReq]) { req =>
+      onSuccess(createPermitRole(req)) { r =>
+        complete(StatusCodes.Created, r)
+      }
+    }
+  }
+
 // ------ User PermitUser ----
   @GET @Path("/user") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("auth"), summary = "Get user roles",
@@ -1105,10 +1120,14 @@ class AuthRoutes(
       },
       pathPrefix("role") {
         authenticate(){ authn => { 
-          pathEndOrSingleSlash {            
+          pathEndOrSingleSlash {
             authorize(Permissions.isAdmin(authn)) {
               getPermitRoleRoute()
-            }                     
+              
+            } ~ 
+            authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
+              createPermitRoleRoute()
+            }
           } ~
           path(Segment) { role => 
             authorize(Permissions.isAdmin(authn)) {

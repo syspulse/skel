@@ -26,4 +26,5 @@ object PermitJson extends JsonCommon  {
   implicit val jf_pus = jsonFormat1(PermitUsers.apply _)
 
   implicit val jf_pu_create = jsonFormat3(PermitUserCreateReq.apply _)
+  implicit val jf_pr_create = jsonFormat2(PermitRoleCreateReq.apply _)
 }

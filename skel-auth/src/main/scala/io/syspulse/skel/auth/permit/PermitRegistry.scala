@@ -1,18 +1,19 @@
 package io.syspulse.skel.auth.permit
 
+import scala.util.Failure
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import scala.collection.immutable
 
 import io.jvm.uuid._
-import io.syspulse.skel.Command
+
 import scala.util.Try
 import scala.util.Success
+import com.typesafe.scalalogging.Logger
 
+import io.syspulse.skel.Command
 import io.syspulse.skel.auth.permit.PermitStoreMem
-
-import scala.util.Failure
 import io.syspulse.skel.auth.permit.{PermitRoles, PermitRoleCreateReq, PermitRoleActionRes, PermitRoleUpdateReq}
 import io.syspulse.skel.auth.permit.{PermitUser, PermitRole}
 import io.syspulse.skel.auth.permit.{PermitUserCreateReq, PermitUsers, PermitUserUpdateReq}
@@ -32,6 +33,8 @@ object PermitRegistry {
   final case class DeletePermitUser(uid:UUID, replyTo: ActorRef[Try[PermitUserActionRes]]) extends Command
   final case class UpdatePermitUser(uid:UUID,req:PermitUserUpdateReq, replyTo: ActorRef[Try[PermitUser]]) extends Command
   
+  val log = Logger(s"${this}")
+
   // this var reference is unfortunately needed for Metrics access
   var store: PermitStore = new PermitStoreMem
 
@@ -53,15 +56,16 @@ object PermitRegistry {
         Behaviors.same
       
       case CreatePermitRole(req, replyTo) =>
+        log.info(s"role: ${req}")
         val p = PermitRole( req.role, req.resources)              
         store.addPermit(p)        
         replyTo ! Success(p)
         Behaviors.same
 
       case CreatePermitUser(req, replyTo) =>
+        log.info(s"user: ${req}")
         val p = PermitUser(req.uid,req.roles,req.xid)
-        store.addPermitUser(p)
-        
+        store.addPermitUser(p)        
         replyTo ! Success(p)
         Behaviors.same
 

@@ -82,7 +82,7 @@ class PermitStoreDir(dir:String = "store/auth/rbac") extends PermitStore {
   def getPermit():Seq[PermitRole] = permissionStore.all
 
   // preload
-  permissionStore.load(dir)
-  userStore.load(dir)
+  permissionStore.load()
+  userStore.load()
 
 }

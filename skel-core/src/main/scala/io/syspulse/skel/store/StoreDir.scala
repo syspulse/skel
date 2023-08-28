@@ -79,7 +79,9 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
 
   def loaded() = {}
 
-  def load(dir:String,hint:String="") = {
+  def load():Unit = load(this.dir,"")
+
+  def load(dir:String,hint:String=""):Unit = {
     val storeDir = os.Path(dir,os.pwd)
     if(! os.exists(storeDir)) {
       os.makeDir.all(storeDir)
