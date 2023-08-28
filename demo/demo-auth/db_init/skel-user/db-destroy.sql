@@ -1,0 +1,2 @@
+DROP DATABASE user_db WITH (FORCE);
+DROP USER user_user;

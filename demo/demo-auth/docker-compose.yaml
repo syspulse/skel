@@ -8,7 +8,7 @@ services:
     image: postgres:14.3
     container_name: postgres
     volumes:
-      - "${PWD}/db_data:/var/lib/postgresql/data"
+      - "${PWD}/data/db_data:/var/lib/postgresql/data"
     restart: always
     ports:
       - 5432:5432
@@ -40,6 +40,8 @@ services:
   skel-user:
     image: syspulse/skel-user:latest
     container_name: skel-user
+    volumes:
+      - "${PWD}/data:/data"
     depends_on:
       - postgres
       - postgres-init
@@ -56,6 +58,8 @@ services:
   skel-notify:
     image: syspulse/skel-notify:latest
     container_name: skel-notify
+    volumes:
+      - "${PWD}/data:/data"
     restart: always
     ports:
       - 8082:8080
@@ -64,7 +68,7 @@ services:
     command: server
     environment:
       #JAVA_OPTS: -Dgod
-      DATASTORE: dir:///store/notify
+      DATASTORE: dir:///data/store/notify
       SMTP_HOST: ${SMTP_HOST}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
@@ -80,6 +84,8 @@ services:
   skel-enroll:
     image: syspulse/skel-enroll:latest
     container_name: skel-enroll
+    volumes:
+      - "${PWD}/data:/data"
     restart: always
     ports:
       - 8083:8080
@@ -92,11 +98,13 @@ services:
       NOTIFY_URI: http://skel-notify:8080/api/v1/notify
       NOTIFY_EMAIL: ${NOTIFY_EMAIL}
       CONFIRM_URI: http://localhost:8083
-      JWT_ROLE_SERVICE: file:///auth/ACCESS_TOKEN_SERVICE
+      JWT_ROLE_SERVICE: file:///data/auth/ACCESS_TOKEN_SERVICE
 
   skel-auth:
     image: syspulse/skel-auth:latest
     container_name: skel-auth
+    volumes:
+      - "${PWD}/data:/data"
     restart: always
     ports:
       - 8080:8080
@@ -106,7 +114,7 @@ services:
     environment:
       #JAVA_OPTS: -Dgod
       DATASTORE: mem://
-      STORE_CRED: dir:///store/auth/cred
+      STORE_CRED: dir:///data/store/auth/cred
       USER_URI: http://skel-user:8080/api/v1/user
       GOOGLE_AUTH_CLIENT_ID: ${GOOGLE_AUTH_CLIENT_ID}
       GOOGLE_AUTH_CLIENT_SECRET: ${GOOGLE_AUTH_CLIENT_SECRET}
