@@ -18,7 +18,11 @@ shift
 #ARGS="$@"
 ARGS=$@
 
-APP_HOME=${APP_HOME:-`pwd`}
+if [ "$CWD" != "" ]; then
+   APP_HOME=$CWD
+else
+   APP_HOME=${APP_HOME:-`pwd`}
+fi
 
 JAR=`ls ${APP_HOME}/target/scala-2.13/*assembly*.jar`
 JAR_UNFAT=`ls ${APP_HOME}/lib/*.jar`

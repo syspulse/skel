@@ -35,18 +35,26 @@ import io.syspulse.skel.util.Util
 import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.Http
 import java.util.concurrent.TimeUnit
+import akka.event.Logging
 
 // Source[ByteString] -> InputObject [I] -> TransformedObject [T] -> OutputObject [O] -> Sink[O]
 trait IngestFlow[I,T,O] {
   private val log = Logger(s"${this}")
   implicit val system = ActorSystem("ActorSystem-IngestFlow")
+
+  def ingestFlowName() = "ingest-flow"
   
-  val retrySettings = RestartSettings(
-    minBackoff = FiniteDuration(3000,TimeUnit.MILLISECONDS),
-    maxBackoff = FiniteDuration(10000,TimeUnit.MILLISECONDS),
-    randomFactor = 0.2
-  )
+  val retrySettings:Option[RestartSettings] = None
+  // RestartSettings(
+  //   minBackoff = FiniteDuration(3000,TimeUnit.MILLISECONDS),
+  //   maxBackoff = FiniteDuration(10000,TimeUnit.MILLISECONDS),
+  //   randomFactor = 0.2
+  // )
   //.withMaxRestarts(10, 5.minutes)
+  
+  // used by Flow.log()
+  val logLevels =
+      Attributes.createLogLevels(Logging.DebugLevel, Logging.DebugLevel, Logging.DebugLevel)
 
   val cr = new CollectorRegistry(true);
   val countBytes: Counter = Counter.build().name("ingest_bytes").help("total bytes").register(cr)
@@ -79,13 +87,21 @@ trait IngestFlow[I,T,O] {
   def counterT = Flow[T].map(t => { countObj.inc(); t})
   def counterO = Flow[O].map(t => { countOutput.inc(); t})
 
-  def run() = {    
-    val f1 =
-      source()
+  def run() = {
+    val f0 = source()
       .via(debug)
       .via(counterBytes)      
       .mapConcat(txt => parse(txt.utf8String))
       .via(counterI)
+    
+    val f1 = if(retrySettings.isDefined) {
+      RestartSource.onFailuresWithBackoff(retrySettings.get) { () =>
+        log.info(s"source retry: ${retrySettings.get}")
+        f0
+      } 
+    }
+    else
+      f0
 
     val f2 = f1
       .via(shaping)
@@ -94,14 +110,14 @@ trait IngestFlow[I,T,O] {
       .viaMat(KillSwitches.single)(Keep.right)
       .mapConcat(t => transform(t))
       .via(counterO)
-      .log("ingest-flow")
+      .log(ingestFlowName()).withAttributes(logLevels)
       .alsoTo(sink0())
     
     val f3 = f2
 
     val mat = f3.runWith(sink())
 
-    log.info(s"graph: ${f3}: flow=${mat}")
+    log.info(s"f1=${f1}: f2=${f2}: graph: ${f3}: flow=${mat}")
     mat
   }
 
