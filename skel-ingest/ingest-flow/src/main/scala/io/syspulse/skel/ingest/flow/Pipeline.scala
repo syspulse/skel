@@ -37,11 +37,11 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
   
   implicit def timeout:FiniteDuration = FiniteDuration(5000, TimeUnit.MILLISECONDS)
   
-  def shaping:Flow[I,I,_] = {
+  def shaping:Flow[T,T,_] = {
     if(throttle != 0L)
-      Flow[I].throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))          
+      Flow[T].throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))          
     else
-      Flow[I].map(i => i)
+      Flow[T].map(t => t)
   }
   
   override def source() = {
