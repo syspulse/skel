@@ -38,13 +38,13 @@ trait WalletVaultable {
 
   val UNKNOWN_USER = UUID("00000000-0000-0000-0000-000000000000")
 
-  var signers: Map[SignerID,List[Signer]] = Map()
+  var signers: Map[SignerID,Signer] = Map()
 
   def msign(data:Array[Byte],userSk:Option[SK]=None,userId:Option[UserID]=None):List[Signature] = {
     val signers = if(userSk.isDefined) 
-                    Signer(userId.getOrElse(UNKNOWN_USER),userSk.get,Array[Byte]()) +: this.signers.values.flatten.toList
+                    Signer(userId.getOrElse(UNKNOWN_USER),userSk.get,Array[Byte]()) +: this.signers.values.toList
                   else 
-                    this.signers.values.flatten.toList
+                    this.signers.values.toList
     
     val sigs = signers.map(signer => {
       val s = Eth.sign(data,signer.sk)
@@ -56,22 +56,18 @@ trait WalletVaultable {
     sigs
   }
 
-  def mverify(sigs:List[Signature],data:Array[Byte],userPk:Option[PK]=None,userId:Option[UserID]=None):Int = {
-    val signers = if(userPk.isDefined) 
-                    Signer(userId.getOrElse(UNKNOWN_USER),Array[Byte](),userPk.get) +: this.signers.values.flatten.toList
-                  else 
-                    this.signers.values.flatten.toList
+  def mverify(sigs:List[Signature],data:Array[Byte],userPk:Seq[PK]):Int = mverifyAddress(sigs,data,userPk.map(Eth.address(_)))
 
-    val pks = signers.map(_.pk)
+  def mverifyAddress(sigs:List[Signature],data:Array[Byte],userAddr:Seq[String]):Int = {
     
-    val vv = sigs.map(sig => pks.map(pk => (sig,pk))).flatten.map{ case (sig,pk) => {
+    val vv = sigs.flatMap{ sig => {
       //log.debug(s"signer=${sp}: data=${data}")
-      Eth.verify(data, sig, pk)
+      userAddr.map( addr => Eth.verifyAddress(data, sig, addr))
     }}
     vv.filter(_ == true).size
   }
 
-  def load():Try[Map[SignerID,List[Signer]]]
+  def load():Try[Map[SignerID,Signer]]
 }
 
 class WalletVaultTest extends WalletVaultable {
@@ -81,19 +77,19 @@ class WalletVaultTest extends WalletVaultable {
   val signer3 = Signer(UUID("00000000-0000-0000-9999-00000000ff03"),"0x000000000000000000000000000000000000000000000000000000000000ff03","0xd8fb72d474f217f38f86369228f3199c3f2ef7db099ff490a58fb79d26c09d2757c564a0def15f95e59206151545ee65bfd30cd679c4d5cbd602ec9226a25a95")
   
   signers = Map(
-    signer1.uid -> List(signer1),
-    signer2.uid -> List(signer2),
-    signer3.uid -> List(signer3),
+    signer1.uid -> signer1,
+    signer2.uid -> signer2,
+    signer3.uid -> signer3,
   )
 
   def shuffle():WalletVaultable = {
     signers = signers.map{ case(uid,ss) => {
       val uid = UUID.random
-      uid -> List(ss.head.copy(uid = uid))
+      uid -> ss.copy(uid = uid)
     }}.toMap
     this
   }
-  override def load():Try[Map[SignerID,List[Signer]]] = Success(signers)
+  override def load():Try[Map[SignerID,Signer]] = Success(signers)
 }
 
 trait VaultKeyfiles extends WalletVaultable {
@@ -101,7 +97,7 @@ trait VaultKeyfiles extends WalletVaultable {
   def getPasswordQuestion():(String) => Option[String]
   def getExtFilter():String
 
-  override def load():Try[Map[SignerID,List[Signer]]] = {
+  override def load():Try[Map[SignerID,Signer]] = {
 
     val keystoreDir = getKeyStoreDir()
     val passwordQuestion = getPasswordQuestion() 
@@ -122,7 +118,7 @@ trait VaultKeyfiles extends WalletVaultable {
 
         val kk = Eth.readKeystore(pass.get,fileName.toString)
         val ss = kk match {
-          case Success(s) => log.info(s"${fileName}: ${uid}: ${kk}"); Success(uid -> List(Signer(uid,s.sk,s.pk))) 
+          case Success(s) => log.info(s"${fileName}: ${uid}: ${kk}"); Success(uid -> Signer(uid,s.sk,s.pk))
           case Failure(e) => log.warn(s"${fileName}: ${uid}: ${kk}"); Failure(e)
         }
         ss.toOption
@@ -196,7 +192,7 @@ class WalletVault {
 
   def load():WalletVault = {
     log.info(s"Loading vaults: ${vaults}")
-    signers = vaults.flatMap( v => v.load().toOption).map(_.values).flatten.flatten
+    signers = vaults.flatMap( v => v.load().toOption).map(_.values).flatten
     this
   }
 
@@ -206,8 +202,12 @@ class WalletVault {
     vaults.map(_.msign(data,userSk,userId)).flatten.take(if(m == -1) signers.size else m).toList
   }
 
-  def mverify(sigs:List[Signature],data:Array[Byte],userPk:Option[PK]=None,userId:Option[UserID]=None, m:Int = -1):Boolean = {
-    vaults.map(_.mverify(sigs,data,userPk,userId)).sum >= (if(m == -1) signers.size else m)
+  def mverify(sigs:List[Signature],data:Array[Byte],userPk:Seq[PK],m:Int = -1):Boolean = {
+    vaults.map(_.mverify(sigs,data,userPk)).sum >= (if(m == -1) signers.size else m)
+  }
+
+  def mverifyAddress(sigs:List[Signature],data:Array[Byte],userAddr:Seq[String],m:Int = -1):Boolean = {
+    vaults.map(_.mverifyAddress(sigs,data,userAddr)).sum >= (if(m == -1) signers.size else m)
   }
 
 
