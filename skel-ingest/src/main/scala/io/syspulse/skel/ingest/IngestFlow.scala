@@ -91,7 +91,10 @@ trait IngestFlow[I,T,O] {
     val f0 = source()
       .via(debug)
       .via(counterBytes)      
-      .mapConcat(txt => parse(txt.utf8String))
+      .mapConcat(txt => {
+        // ATTENTION: replace with ByteString because it is impossible to properly parse BinaryData !
+        parse(txt.utf8String)
+      })
       .via(counterI)
     
     val f1 = if(retrySettings.isDefined) {

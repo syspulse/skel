@@ -118,7 +118,7 @@ trait VaultKeyfiles extends WalletVaultable {
 
         val kk = Eth.readKeystore(pass.get,fileName.toString)
         val ss = kk match {
-          case Success(s) => log.info(s"${fileName}: ${uid}: ${kk}"); Success(uid -> Signer(uid,s.sk,s.pk))
+          case Success(s) => log.info(s"${fileName}: ${uid}: ${Eth.address(s.pk)}"); Success(uid -> Signer(uid,s.sk,s.pk))
           case Failure(e) => log.warn(s"${fileName}: ${uid}: ${kk}"); Failure(e)
         }
         ss.toOption
@@ -168,7 +168,7 @@ class WalletVaultKeyfile(keystoreLocation:String, keystorePass:String) extends V
 
   //     val kk = Eth.readKeystore(keystorePass,keystoreFile)
   //     kk match {
-  //       case Success(k) => log.info(s"${keystoreFile}: ${uid}: ${kk}"); Success(Map(uid -> List(Signer(uid,k._1,k._2)))) 
+  //       case Success(k) => log.info(s"${keystoreFile}: ${uid}: ${Eth.address(k.pk)}"); Success(Map(uid -> List(Signer(uid,k._1,k._2)))) 
   //       case Failure(e) => log.error(s"${keystoreFile}: ${uid}: ${kk}"); Failure(e)
   //     }
       
