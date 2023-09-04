@@ -121,7 +121,7 @@ trait IngestFlow[I,T,O] {
 
     val mat = f3.runWith(sink())
 
-    log.info(s"f1=${f1}: f2=${f2}: graph: ${f3}: flow=${mat}")
+    log.debug(s"f1=${f1}: f2=${f2}: graph: ${f3}: flow=${mat}")
     mat
   }
 
