@@ -146,7 +146,7 @@ object App extends skel.Server {
               sys.exit(1)
           }
         
-        println(s"${r}")
+        Console.err.println(s"${r}")
         System.exit(0)
       }
     }

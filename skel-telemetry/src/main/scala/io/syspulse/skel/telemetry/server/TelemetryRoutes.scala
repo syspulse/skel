@@ -103,7 +103,7 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
         if(! op.isDefined)
           onSuccess(getTelemetry(id,
             TimeUtil.wordToTs(ts0.getOrElse(""),0L).get,
-            TimeUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue).get)) { r =>
+            TimeUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue-1).get)) { r =>
             
             metricGetCount.inc()
             encodeResponse(complete(r))
@@ -111,7 +111,7 @@ class TelemetryRoutes(registry: ActorRef[Command])(implicit context: ActorContex
         else
           onSuccess(getTelemetryOp(id,
             TimeUtil.wordToTs(ts0.getOrElse(""),0L).get,
-            TimeUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue).get, op)) { r =>
+            TimeUtil.wordToTs(ts1.getOrElse(""),Long.MaxValue-1).get, op)) { r =>
             
             metricGetCount.inc()
             encodeResponse(complete(r))
