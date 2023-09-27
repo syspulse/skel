@@ -65,8 +65,16 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       }
       case "https" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
       case "file" :: fileName :: Nil => Flows.fromFile(fileName,chunk,frameDelimiter = delimiter, frameSize = buffer)
+      
+      case "tail" :: fileName :: Nil => Flows.fromTail(fileName,chunk,frameDelimiter = delimiter, frameSize = buffer)
+      case "tails" :: Nil => Flows.fromDirTail("./",chunk,frameDelimiter = delimiter, frameSize = buffer)
+      case "tails" :: dirName :: Nil => Flows.fromDirTail(dirName,chunk,frameDelimiter = delimiter, frameSize = buffer)
+      
+      case "dir" :: Nil => Flows.fromDir("./",0,chunk,frameDelimiter = delimiter, frameSize = buffer)
       case "dir" :: dirName :: Nil => Flows.fromDir(dirName,0,chunk,frameDelimiter = delimiter, frameSize = buffer)
+      case "dirs" :: Nil => Flows.fromDir("./",Int.MaxValue,chunk,frameDelimiter = delimiter, frameSize = buffer)
       case "dirs" :: dirName :: Nil => Flows.fromDir(dirName,Int.MaxValue,chunk,frameDelimiter = delimiter, frameSize = buffer)
+
       case "stdin" :: _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer)
       
       case "cron" :: expr :: next :: rest => 

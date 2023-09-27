@@ -30,6 +30,7 @@ import scala.util.Random
 
 import akka.stream.alpakka.file.scaladsl.Directory
 import akka.stream.alpakka.file.scaladsl.LogRotatorSink
+import akka.stream.alpakka.file.scaladsl.FileTailSource
 
 import akka.stream.alpakka.elasticsearch.WriteMessage
 import akka.stream.alpakka.elasticsearch.scaladsl.ElasticsearchSink
@@ -70,6 +71,9 @@ import com.github.mjakubowski84.parquet4s.ValueEncoder
 import com.github.mjakubowski84.parquet4s.ParquetRecordEncoder
 import com.github.mjakubowski84.parquet4s.ParquetSchemaResolver
 import com.github.mjakubowski84.parquet4s.ParquetStreams
+import akka.stream.alpakka.file.DirectoryChange
+import akka.stream.alpakka.file.impl.DirectoryChangesSource
+import akka.stream.alpakka.file
 
 object Flows {
   val log = Logger(this.toString)
@@ -260,6 +264,48 @@ object Flows {
     // else
     //   s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
     s
+  }
+
+  def fromTail(file:String,chunk:Int = 1024 * 1024,frameDelimiter:String="\r\n",frameSize:Int = 8192,
+              retry:Option[RestartSettings]=Some(retrySettingsDefault)):Source[ByteString, NotUsed] =  {
+
+    val filePath = Util.pathToFullPath(file)
+    
+    val s0 = FileTailSource.apply(
+      path = Paths.get(filePath),
+      maxChunkSize = chunk,
+      startingPosition = 0,
+      pollingInterval = FiniteDuration(250,TimeUnit.MILLISECONDS)
+    )
+    
+    val s = 
+      if(retry.isDefined) RestartSource.onFailuresWithBackoff(retry.get) { () =>
+        log.info(s"tail: ${file}")
+        // this is a trick because FileTailSource is stupid to fail in preStart instead of flow, so exception will stop the stream
+        // https://www.signifytechnology.com/blog/2019/11/akka-streams-pitfalls-to-avoid-part-1-by-jakub-dziworski
+        // Unfortunately FileTailSource is dumb and does not detect file truncations (like `tail`)
+        Source.single("").flatMapConcat(_ => s0)
+      } else
+        s0
+      
+    if(frameDelimiter.isEmpty())
+      s
+    else
+      s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+  }
+
+  def fromDirTail(dir:String,chunk:Int = 1024 * 1024,frameDelimiter:String="\r\n",frameSize:Int = 8192,retry:RestartSettings=retrySettingsDefault):Source[ByteString, NotUsed] = {
+    val maxFiles = 1000
+    val sourceTail = 
+      file.scaladsl.DirectoryChangesSource(Paths.get(dir), pollInterval = FiniteDuration(1000,TimeUnit.MILLISECONDS), maxBufferSize = maxFiles)
+        // only watch for file creation events (5)
+        .collect { case (path, DirectoryChange.Creation) => path }
+        .map { path:Path =>
+          log.info(s"File detected: '${path}'")
+          fromTail(path.toFile.toString,chunk,frameDelimiter,frameSize,None)          
+        }
+      
+    sourceTail.flatMapMerge(maxFiles, identity)
   }
 
   def toFile(file:String) = {
