@@ -74,6 +74,7 @@ import com.github.mjakubowski84.parquet4s.ParquetStreams
 import akka.stream.alpakka.file.DirectoryChange
 import akka.stream.alpakka.file.impl.DirectoryChangesSource
 import akka.stream.alpakka.file
+import java.net.InetSocketAddress
 
 object Flows {
   val log = Logger(this.toString)
@@ -308,6 +309,48 @@ object Flows {
     sourceTail.flatMapMerge(maxFiles, identity)
   }
 
+  def fromTcpClientUri(uri:String,
+    chunk:Int = 0,frameDelimiter:String="\r\n",frameSize:Int = 8192,
+    connectTimeout:Long=1000L,idleTimeout:Long=1000L * 60L * 60L,retry:RestartSettings=retrySettingsDefault)(implicit as:ActorSystem):Source[ByteString,NotUsed] = {
+      uri.split(":").toList match {
+        case host :: port :: Nil => 
+          tcpClient(host,port.toInt,chunk,frameDelimiter,frameSize,connectTimeout,idleTimeout,retry)
+        case _ => 
+          throw new Exception(s"invalid uri (port missing): ${uri}")
+      }
+  }
+
+  def fromTcpClient(host:String, port:Int,
+    chunk:Int = 0,frameDelimiter:String="\r\n",frameSize:Int = 8192,
+    connectTimeout:Long=1000L,idleTimeout:Long=1000L * 60L * 60L,retry:RestartSettings=retrySettingsDefault)(implicit as:ActorSystem):Source[ByteString,NotUsed] = 
+      tcpClient(host,port,chunk,frameDelimiter,frameSize,connectTimeout,idleTimeout,retry)
+
+  def tcpClient(host:String,port:Int,
+    chunk:Int,frameDelimiter:String,frameSize:Int,
+    connectTimeout:Long,idleTimeout:Long,retry:RestartSettings)(implicit as:ActorSystem):Source[ByteString,NotUsed] = {
+    
+    val ip = InetSocketAddress.createUnresolved(host, port)
+    val conn = Tcp().outgoingConnection(
+      remoteAddress = ip,
+      connectTimeout = Duration(connectTimeout,TimeUnit.MILLISECONDS),
+      idleTimeout = Duration(idleTimeout,TimeUnit.MILLISECONDS)
+    )
+    val s0 = Source.actorRef(1, OverflowStrategy.fail)
+        .via(conn)
+    val s = RestartSource.withBackoff(retry) { () => 
+      log.info(s"Connecting -> tcp://${host}:${port}")
+      s0
+    }
+
+    if(frameDelimiter.isEmpty())
+      s
+    else
+      s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+  }
+
+// ==================================================================================================
+// Sinks
+// ==================================================================================================
   def toFile(file:String) = {
     if(file.trim.isEmpty) 
       Sink.ignore 

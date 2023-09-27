@@ -64,6 +64,9 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
           //Flows.fromHttpRestartable(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
       }
       case "https" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
+      
+      case "tcp" :: uri :: Nil => Flows.fromTcpClientUri(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
+
       case "file" :: fileName :: Nil => Flows.fromFile(fileName,chunk,frameDelimiter = delimiter, frameSize = buffer)
       
       case "tail" :: fileName :: Nil => Flows.fromTail(fileName,chunk,frameDelimiter = delimiter, frameSize = buffer)
@@ -76,7 +79,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "dirs" :: dirName :: Nil => Flows.fromDir(dirName,Int.MaxValue,chunk,frameDelimiter = delimiter, frameSize = buffer)
 
       case "stdin" :: _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer)
-      
+            
       case "cron" :: expr :: next :: rest => 
         val cronSource = Flows.fromCron(expr)
         val nextSource:Source[ByteString,_] = source(next + "://" + rest.mkString(""))
@@ -99,7 +102,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
         cronSource.flatMapConcat( tick => nextSource)
 
       case "" :: Nil => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
-      case file :: Nil => Flows.fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)      
+      case file :: Nil => Flows.fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)
       case _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
     }
     src0
