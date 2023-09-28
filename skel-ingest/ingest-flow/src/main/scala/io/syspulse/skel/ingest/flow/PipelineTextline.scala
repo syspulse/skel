@@ -62,7 +62,38 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config) extend
   override def getFileLimit():Long = config.limit
   override def getFileSize():Long = config.size
 
-  override def process:Flow[String,String,_] = Flow[String].map(s => s)
+  // deduplication
+  override def process:Flow[String,String,_] = Flow[String]
+    .map(s => s)
+    .groupedWithin(Int.MaxValue,FiniteDuration(2000L,TimeUnit.MILLISECONDS))
+    // .mapConcat( group => {
+    //   //var state = Map.empty[String, Set[String]]
+    //   val g = group
+    //     .sortBy(_ => System.currentTimeMillis())
+    //     .distinctBy( f => f)
+
+    //   Console.err.println(s"Group: ${g}")
+    //   g
+    // })
+    .statefulMapConcat { () =>
+      // Create a function to maintain a set of seen message IDs for each key
+      var state = List.empty[String]
+      var lastTs = System.currentTimeMillis()
+      (mm) => {
+        //val currentWindowStart = eventTime - windowDuration.toMillis
+        val uniq = mm.filter(m => ! state.find(_ == m).isDefined)
+        state =  state.prependedAll( uniq )
+        val now = System.currentTimeMillis()
+        if( (now - lastTs) > 2000L * 3 ) {
+          state = state.take(2)
+          lastTs = now
+        }
+
+        Console.err.println(s"Group: ${uniq} (state=${state})")
+        uniq
+      }
+    }
+
   def parse(data: String): Seq[String] = {
     if(config.delimiter.isEmpty())
       Seq(data)
