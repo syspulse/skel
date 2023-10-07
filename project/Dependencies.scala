@@ -13,8 +13,8 @@ object Dependencies {
     lazy val quillVersion = "3.6.0"
     lazy val influxDBVersion = "3.2.0"
     lazy val slickVersion = "3.3.3"
-    lazy val sparkVersion = "3.2.0"
-
+    
+    lazy val sparkVersion = "3.2.2" //"3.2.0"
     lazy val hadoopAWSVersion = "3.2.2"
     lazy val hadoopVersion = "3.2.2"
     lazy val parq4sVersion = "2.10.0"

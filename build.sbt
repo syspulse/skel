@@ -192,6 +192,43 @@ val sharedConfigAssembly = Seq(
   assembly / test := {}
 )
 
+val sharedConfigAssemblySparkAWS = Seq(
+  assembly / assemblyMergeStrategy := {
+      case x if x.contains("module-info.class") => MergeStrategy.discard
+      case x if x.contains("io.netty.versions.properties") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticMarkerBinder.class") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticMDCBinder.class") => MergeStrategy.first
+      case x if x.contains("slf4j/impl/StaticLoggerBinder.class") => MergeStrategy.first
+      case x if x.contains("google/protobuf") => MergeStrategy.first
+      case x if x.contains("org/apache/spark/unused/UnusedStubClass.class") => MergeStrategy.first
+      case x if x.contains("git.properties") => MergeStrategy.discard
+      case x if x.contains("mozilla/public-suffix-list.txt") => MergeStrategy.first
+      case x => {
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
+        oldStrategy(x)
+      }
+  },
+  assembly / assemblyExcludedJars := {
+    val cp = (assembly / fullClasspath).value
+    cp filter { f =>
+      f.data.getName.contains("snakeyaml-1.27-android.jar") || 
+      f.data.getName.contains("jakarta.activation-api-1.2.1") ||
+      f.data.getName.contains("jakarta.activation-api-1.1.1") ||
+      f.data.getName.contains("jakarta.activation-2.0.1.jar") ||
+      f.data.getName.contains("jakarta.annotation-api-1.3.5.jar") ||
+      f.data.getName.contains("jakarta.ws.rs-api-2.1.6.jar") ||
+      f.data.getName.contains("commons-logging-1.1.3.jar") ||
+      f.data.getName.contains("aws-java-sdk-bundle-1.11.563.jar") ||
+      f.data.getName.contains("jcl-over-slf4j-1.7.30.jar") ||
+      (f.data.getName.contains("netty") && (f.data.getName.contains("4.1.50.Final.jar") || (f.data.getName.contains("netty-all-4.1.68.Final.jar"))))
+
+      //|| f.data.getName == "spark-core_2.11-2.0.1.jar"
+    }
+  },
+  
+  assembly / test := {}
+)
+
 val sharedConfigAssemblySpark = Seq(
   assembly / assemblyMergeStrategy := {
       case x if x.contains("module-info.class") => MergeStrategy.discard
@@ -217,10 +254,11 @@ val sharedConfigAssemblySpark = Seq(
       f.data.getName.contains("jakarta.activation-2.0.1.jar") ||
       f.data.getName.contains("jakarta.annotation-api-1.3.5.jar") ||
       f.data.getName.contains("jakarta.ws.rs-api-2.1.6.jar") ||
-      f.data.getName.contains("commons-logging-1.1.3.ja") ||
+      // f.data.getName.contains("commons-logging-1.1.3.jar") ||
       f.data.getName.contains("aws-java-sdk-bundle-1.11.563.jar") ||
       f.data.getName.contains("jcl-over-slf4j-1.7.30.jar") ||
-      (f.data.getName.contains("netty") && (f.data.getName.contains("4.1.50.Final.jar") || (f.data.getName.contains("netty-all-4.1.68.Final.jar"))))
+      //(f.data.getName.contains("netty") && (f.data.getName.contains("4.1.50.Final.jar") || (f.data.getName.contains("netty-all-4.1.68.Final.jar"))))
+      f.data.getName.contains("netty") && f.data.getName.contains("4.1.50.Final.jar")
 
       //|| f.data.getName == "spark-core_2.11-2.0.1.jar"
     }
@@ -688,7 +726,7 @@ lazy val spark_convert = (project in file("skel-spark/spark-convert"))
   .settings (
 
     sharedConfig,
-    sharedConfigAssemblySpark,
+    sharedConfigAssemblySparkAWS,
     sharedConfigDockerSpark,
     dockerBuildxSettings,
 
@@ -697,6 +735,25 @@ lazy val spark_convert = (project in file("skel-spark/spark-convert"))
     version := "0.0.7",
 
     libraryDependencies ++= libSparkAWS ++ Seq(
+      
+    ),
+  )
+
+lazy val spark_read = (project in file("skel-spark/spark-read"))
+  .dependsOn(core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssemblySpark,
+    sharedConfigDockerSpark,
+    dockerBuildxSettings,
+
+    appDockerConfig("spark-read","io.syspulse.skel.spark.AppSparkRead"),
+    
+    libraryDependencies ++= libSpark ++ Seq(
       
     ),
   )
