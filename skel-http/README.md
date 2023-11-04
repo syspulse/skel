@@ -4,19 +4,30 @@ Simple HTTP Service
 
 ## Build & Run
 
-__Dev__
+### Dev
 ```
 sbt
 ~reStart
 ```
 
-__Assembly (Fat jar)__
+### Assembly (Fat jar)
 ```
 sbt assembly
 ./run.sh
 ```
 
-__Docker__
+### Dependencies (Light jar)
+
+Replace `MODULE` with correct sbt module name. It is expected to be run in project root
+
+```
+pushd ..; sbt -error ";project MODULE; export dependencyClasspath" >CLASSPATH; popd; mv ../CLASSPATH ./
+./run.sh
+```
+`CLASSPATH` file will have a precendence, so to run with Fatjar delete `CLASSPATH`
+
+
+### Docker
 
 Local 
 ```
@@ -133,8 +144,9 @@ http {
 Logging is configured with logback.xml:
 
 1. logback.xml is searched on classpath
-1. __conf/logback.xml__ is first on Classpath in __run.sh__
-2. Default embedded logger config is set to "off"
+2. __conf/logback.xml__ is first on Classpath in __run.sh__
+3. Default embedded logger config is set to "off"
+4. Command line option (must be enabled in code): `--log=DEBUG` or `--log=class:DEBUG`
 
 ----
 ## Default API

@@ -104,7 +104,7 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
 }
 
 object Configuration {
-  val LOGGING_ARG = "logging"
+  val LOGGING_ARG = "log"
   // automatically support Akka-stype EnvVar
   System.setProperty("config.override_with_env_vars","true")
   def apply():Configuration = new Configuration(Seq(new ConfigurationAkka))

@@ -10,7 +10,7 @@ object Dependencies {
     lazy val akkaHttpVersion = "10.2.9" //"10.2.4"
     lazy val akkaKafkaVersion = "2.0.3"
     lazy val kafkaAvroSerVersion = "5.4.1"
-    lazy val quillVersion = "3.6.0"
+    lazy val quillVersion = "3.5.2" //"3.6.0"
     lazy val influxDBVersion = "3.2.0"
     lazy val slickVersion = "3.3.3"
     
@@ -94,12 +94,14 @@ object Dependencies {
     val libLog4j2Api =      "org.apache.logging.log4j"        % "log4j-api" % "2.17.2"
     val libLog4j2Core =     "org.apache.logging.log4j"        % "log4j-core" % "2.17.2"
 
-    val libQuill =          "io.getquill"                     %% "quill-jdbc"           % "3.5.2"
-    val libMySQL =          "mysql"                           % "mysql-connector-java" % "8.0.22"
-    val libPostgres =       "org.postgresql"                  % "postgresql"            % "42.3.5"
-    val libInfluxDB =       "com.influxdb"                    %% "influxdb-client-scala" % influxDBVersion
+    val libQuill =          "io.getquill"                     %% "quill-jdbc"             % quillVersion
+    val libQuillAsyncPostgres =  "io.getquill"                %% "quill-async-postgres"   % quillVersion
+    val libQuillAsyncMySQL =     "io.getquill"                %% "quill-async-mysql"      % quillVersion
+    val libMySQL =          "mysql"                           % "mysql-connector-java"    % "8.0.22"
+    val libPostgres =       "org.postgresql"                  % "postgresql"              % "42.3.5"
+    val libInfluxDB =       "com.influxdb"                    %% "influxdb-client-scala"  % influxDBVersion
 
-    val libTypesafeConfig = "com.typesafe"                    % "config"               % "1.4.1"
+    val libTypesafeConfig = "com.typesafe"                    % "config"                  % "1.4.1"
       
     //val libWsRs =           "javax.ws.rs"                     % "javax.ws.rs-api"       % "2.1.1"
     val libWsRsJakarta =    "jakarta.ws.rs"                   % "jakarta.ws.rs-api"     % "3.1.0" //"3.0.0"
@@ -235,7 +237,7 @@ object Dependencies {
     val libSkel = Seq(libMetrics,libScopt,libUUID)
     //val libSkel = Seq(libWsRs, libWsRsJakarta,libSwaggerAkkaHttp,libMetrics,libScopt,libUUID)
 
-    val libDB = Seq(libQuill,libMySQL, libPostgres)
+    val libDB = Seq(libQuill,libQuillAsyncPostgres, libMySQL, libPostgres)
 
     val libLihaoyi = Seq(libOsLib,libUpickleLib)
 

@@ -19,3 +19,18 @@ cd ./db/mysql
 cd ./db/postgres
 ../../../skel-db/postgres/db-create.sh
 ```
+
+## Run 
+
+
+Postgres
+
+```
+GOD=1 ./run-user.sh --datastore=postgres:// --log=DEBUG
+```
+
+MySql
+
+```
+GOD=1 ./run-user.sh --datastore=mysql:// --log=DEBUG
+```
