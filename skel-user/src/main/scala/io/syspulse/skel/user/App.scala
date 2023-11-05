@@ -101,10 +101,14 @@ object App extends skel.Server {
           case "dir" :: dir ::  _ => (Some(new UserStoreDir(dir)),None)
           case "mem" :: Nil | "cache" :: Nil => (Some(new UserStoreMem()),None)
 
-          case "jdbc" :: Nil => (Some(new UserStoreDB(c,"mysql://mysql")),None)    
-          case "jdbc" :: db :: Nil => (Some(new UserStoreDB(c,s"mysql://${db}")),None)
-          case "jdbc" :: "async" :: db :: Nil => (None,Some(new UserStoreDBAsync(c,s"mysql://${db}"))) 
-
+          case "jdbc" :: Nil => (Some(new UserStoreDB(c,"mysql://mysql")),None)
+          case "jdbc" :: "async" :: Nil => (None,Some(new UserStoreDBAsync(c,s"mysql://mysql")))
+          case "jdbc" :: typ :: Nil => (Some(new UserStoreDB(c,s"${typ}://${typ}")),None)
+          
+          case "jdbc" :: "async" :: typ :: Nil => (None,Some(new UserStoreDBAsync(c,s"${typ}://${typ}")))
+          case "jdbc" :: "async" :: typ:: db :: Nil => (None,Some(new UserStoreDBAsync(c,s"${typ}://${db}")))          
+          case "jdbc" :: typ :: db :: Nil => (Some(new UserStoreDB(c,s"${typ}://${db}")),None)
+          
           case _ => {
             Console.err.println(s"Uknown datastore: '${config.datastore}'")
             sys.exit(1)

@@ -23,14 +23,45 @@ cd ./db/postgres
 ## Run 
 
 
-Postgres
+### Postgres
 
 ```
-GOD=1 ./run-user.sh --datastore=postgres:// --log=DEBUG
+GOD=1 ./run-user.sh --datastore=postgres:// 
 ```
 
-MySql
+or
+
 
 ```
-GOD=1 ./run-user.sh --datastore=mysql:// --log=DEBUG
+GOD=1 ./run-user.sh --datastore=jdbc://postgres
+```
+
+### MySql
+
+```
+GOD=1 ./run-user.sh --datastore=mysql://
+```
+
+### Database with specific config (application.conf section)
+
+```
+GOD=1 ./run-user.sh --datastore=postgres://db1
+```
+
+or
+
+```
+GOD=1 ./run-user.sh --datastore=jdbc://postgres/db1
+```
+
+### Postgres Async
+
+```
+GOD=1 ./run-user.sh server --datastore=jdbc://async/postgres/postgres_async
+```
+
+### MySql Async
+
+```
+GOD=1 ./run-user.sh server --datastore=jdbc://async/mysql/mysql_async
 ```
