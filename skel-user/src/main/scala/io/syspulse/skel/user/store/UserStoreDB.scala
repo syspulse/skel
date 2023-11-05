@@ -170,8 +170,11 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String)
     log.info(s"DELETE: id=${id}")
     try {
       //ctx.run(deleteById(lift(id)))
-      ctx.run(deleteById(id))
-      Success(this)
+      ctx.run(deleteById(id)) match {
+        case 0 => Failure(new Exception(s"not found: ${id}"))
+        case _ => Success(this)
+      } 
+      
     } catch {
       case e:Exception => Failure(new Exception(s"could not delete: ${e}"))
     } 

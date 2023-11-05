@@ -93,11 +93,6 @@ class UserStoreDBAsync(configuration:Configuration,dbConfigRef:String)
 
   def all:Future[Seq[User]] = ctx.run(table)
 
-  // val deleteById = quote { (id:UUID) => 
-  //   query[User].filter(o => o.id == id).delete    
-  // } 
-  val deleteById = (id:UUID) => table.filter(_.id == lift(id)).delete
-
   def +(user:User):Future[UserStoreDBAsync] = { 
     log.info(s"INSERT: ${user}")
     ctx.run(table.insertValue(user.copy(email = user.email.toLowerCase))).map(_ => this)
@@ -133,11 +128,18 @@ class UserStoreDBAsync(configuration:Configuration,dbConfigRef:String)
     } yield user1
   }
 
+  // val deleteById = quote { (id:UUID) => 
+  //   query[User].filter(o => o.id == id).delete    
+  // } 
+  val deleteById = (id:UUID) => table.filter(_.id == lift(id)).delete
+
   def del(id:UUID):Future[UserStoreDBAsync] = { 
     log.info(s"DELETE: id=${id}")
-    ctx.run(deleteById(id)).map(_ => this)
+    ctx.run(deleteById(id)).map(r => r match {
+      case 0 => throw new Exception(s"not found: ${id}")
+      case _ => this
+    })
   }
-
   
   def ?(id:UUID):Future[User] = {
     log.info(s"SELECT: id=${id}")

@@ -80,7 +80,7 @@ object UserRegistry {
         val user = store.update(uid,req.email, req.name, req.avatar)
 
         replyTo ! user
-        registry(store)
+        Behaviors.same
 
       case RandomUser(replyTo) =>
         
@@ -88,9 +88,12 @@ object UserRegistry {
         Behaviors.same
       
       case DeleteUser(id, replyTo) =>
-        val store1 = store.del(id)
-        replyTo ! UserActionRes(s"Success",Some(id))
-        registry(store1.getOrElse(store))
+        val r = store.del(id)
+        r match {
+          case Success(_) => replyTo ! UserActionRes("200",Some(id))
+          case Failure(e) => replyTo ! UserActionRes("619",Some(id))
+        }
+        Behaviors.same
     }
   }
 }

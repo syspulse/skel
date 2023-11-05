@@ -69,12 +69,18 @@ object UserRegistryAsync {
         Behaviors.same
 
       case UpdateUser(uid,req, replyTo) =>
-        replyTo ! Failure(new Exception("IMPLEMENT ME"))
+        val r = store.update(uid,req.email, req.name, req.avatar)
+
+        r.onComplete(replyTo ! _)
         Behaviors.same
       
       case DeleteUser(id, replyTo) =>
-        val store1 = store.del(id)
-        replyTo ! UserActionRes(s"Success",Some(id))
+        val r = store.del(id)
+        r.onComplete(r => r match {
+          case Success(_) => replyTo ! UserActionRes("200",Some(id))
+          case Failure(e) => replyTo ! UserActionRes("619",Some(id))
+        })
+
         Behaviors.same
     }
   }

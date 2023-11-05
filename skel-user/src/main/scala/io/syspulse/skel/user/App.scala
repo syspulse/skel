@@ -77,18 +77,7 @@ object App extends skel.Server {
     )
 
     Console.err.println(s"Config: ${config}")
-
-    // val store = config.datastore.split("://").toList match {
-    //   case "mysql" :: _ => new UserStoreDB(c,"mysql")
-    //   case "postgres" :: _ => new UserStoreDB(c,"postgres")
-    //   case "dir" :: dir ::  _ => new UserStoreDir(dir)
-    //   case "mem" :: Nil | "cache" :: Nil => new UserStoreMem()
-    //   case _ => {
-    //     Console.err.println(s"Uknown datastore: '${config.datastore}'")
-    //     sys.exit(1)
-    //   }
-    // }
-
+    
     config.cmd match {
       case "server" => 
         val (store,storeAsync) = config.datastore.split("://|/").toList match {
