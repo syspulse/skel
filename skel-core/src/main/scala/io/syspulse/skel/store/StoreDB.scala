@@ -45,7 +45,7 @@ abstract class StoreDBCore[E,P](dbUri:String,val tableName:String,configuration:
   def getTableName = tableName
 
   log.info(s"StoreDB: database=${dbType},config=${dbConfigName},table=${tableName}")
-  
+
   if( ! configuration.isDefined) {
     val config = ConfigFactory.load().getConfig(dbConfigName)
     config.entrySet().asScala.foreach(
@@ -104,7 +104,8 @@ abstract class StoreDB[E,P](dbUri:String,tableName:String,configuration:Option[C
     case "mysql" => 
       new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
     case "postgres" => 
-      // postgres context does not support UUID as String!
+      // ATTENTION: postgres context does not support UUID as String!
+      // Using it as MySQL will work !      
       //new PostgresJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
       new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
     case _ => 
