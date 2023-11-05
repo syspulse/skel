@@ -31,6 +31,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.ResultSet
 import java.sql.Statement
+import io.getquill.context.ExecutionInfo
 
 case class SessionId(id:UUID = UUID.random)
 
@@ -148,7 +149,7 @@ class CommandQuill(cli:ShellDB,args:String*) extends Command(cli,args) {
 
         val r = 
           ctx match {
-            case CtxQuill(dbUri, db, user) => Some(db.get.executeQuerySingle(sql))
+            case CtxQuill(dbUri, db, user) => Some(db.get.executeQuerySingle(sql)(ExecutionInfo.unknown, ()))
             case _ => None
           }
         

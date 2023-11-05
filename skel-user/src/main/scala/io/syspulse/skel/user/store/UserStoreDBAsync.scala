@@ -7,9 +7,6 @@ import io.jvm.uuid._
 
 import io.getquill._
 import io.getquill.context._
-//import io.getquill.MysqlJdbcContext
-// import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
-// import io.getquill.{Literal, MySQLDialect}
 
 import scala.jdk.CollectionConverters._
 import com.typesafe.config.ConfigFactory

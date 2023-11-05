@@ -7,9 +7,6 @@ import io.jvm.uuid._
 
 import io.getquill._
 import io.getquill.context._
-//import io.getquill.MysqlJdbcContext
-// import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
-// import io.getquill.{Literal, MySQLDialect}
 
 import scala.jdk.CollectionConverters._
 import com.typesafe.config.ConfigFactory
@@ -29,44 +26,43 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String)
   
   // Because of Postgres, using dynamic schema to override table name to 'users' 
   val table = dynamicQuerySchema[User](tableName)
-
-  // val createTableMySqlSQL = () => quote {     
-  //   infix"""CREATE TABLE IF NOT EXISTS ${lift(tableName)} (
-  //     id VARCHAR(36) PRIMARY KEY, 
-  //     email VARCHAR(255), 
-  //     name VARCHAR(255),
-  //     xid VARCHAR(255),
-  //     avatar VARCHAR(255),
-  //     ts_created BIGINT
-  //   );
-  //   """.as[Long]
-  // }
-
-  // val createTablePostgresSQL = () => quote {     
-  //   infix"""CREATE TABLE IF NOT EXISTS ${lift(tableName)} (
-  //     id UUID PRIMARY KEY, 
-  //     email VARCHAR(255), 
-  //     name VARCHAR(255),
-  //     xid VARCHAR(255),
-  //     avatar VARCHAR(255),
-  //     ts_created BIGINT
-  //   );
-  //   """.as[Long]
-  // }
-
-  // val createIndexSQL = () => quote {
-  //   infix"CREATE INDEX user_name ON ${lift(tableName)} (name);".as[Long]
-  // }
-
-  // val createTableSQL = getDbType match {
-  //   case "mysql" => createTableMySqlSQL
-  //   case "postgres" => createTablePostgresSQL
-  // }
   
   def indexUserName = "user_name"
 
   // ATTENTION: called from constructor, so derived class vals are not initialized yet !
   def create:Try[Long] = {    
+    // val createTableMySqlSQL = () => quote {     
+    //   infix"""CREATE TABLE IF NOT EXISTS ${lift(tableName)} (
+    //     id VARCHAR(36) PRIMARY KEY, 
+    //     email VARCHAR(255), 
+    //     name VARCHAR(255),
+    //     xid VARCHAR(255),
+    //     avatar VARCHAR(255),
+    //     ts_created BIGINT
+    //   );
+    //   """.as[Long]
+    // }
+
+    // val createTablePostgresSQL = () => quote {     
+    //   infix"""CREATE TABLE IF NOT EXISTS ${lift(tableName)} (
+    //     id UUID PRIMARY KEY, 
+    //     email VARCHAR(255), 
+    //     name VARCHAR(255),
+    //     xid VARCHAR(255),
+    //     avatar VARCHAR(255),
+    //     ts_created BIGINT
+    //   );
+    //   """.as[Long]
+    // }
+
+    // val createIndexSQL = () => quote {
+    //   infix"CREATE INDEX user_name ON ${lift(tableName)} (name);".as[Long]
+    // }
+
+    // val createTableSQL = getDbType match {
+    //   case "mysql" => createTableMySqlSQL
+    //   case "postgres" => createTablePostgresSQL
+    // }
 
     val CREATE_INDEX_MYSQL_SQL = s"CREATE INDEX ${indexUserName} ON ${tableName} (name);"
     val CREATE_INDEX_POSTGRES_SQL = s"CREATE INDEX IF NOT EXISTS ${indexUserName} ON ${tableName} (name);"    
@@ -105,14 +101,14 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String)
     
     // why do we still use MySQL which does not even support INDEX IF NOT EXISTS ?...    
     try {
-      // val r1 = ctx.run( createTableSQL())
+      // val r1 = ctx.run(createTableSQL())
       // val r2 = ctx.run(createIndexSQL())      
 
       val r1 = ctx.executeAction(CREATE_TABLE_SQL)(ExecutionInfo.unknown, ())
       log.info(s"table: ${tableName}: ${r1}")
       val r2 = ctx.executeAction(CREATE_INDEX_SQL)(ExecutionInfo.unknown, ())
       log.info(s"index: ${indexUserName}: ${r2}")
-      
+
       Success(r1)
     } catch {
       case e:Exception => { 
@@ -134,7 +130,7 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String)
   def +(user:User):Try[UserStoreDB] = { 
     log.info(s"INSERT: ${user}")
     try {
-      //ctx.run(query[User].insert(lift(user)));
+      //ctx.run(query[User].insertValue(lift(user)));
       ctx.run(table.insertValue(user.copy(email = user.email.toLowerCase)));
       Success(this)
     } catch {
