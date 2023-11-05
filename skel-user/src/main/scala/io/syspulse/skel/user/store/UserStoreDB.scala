@@ -30,9 +30,8 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String)
   // Because of Postgres, using dynamic schema to override table name to 'users' 
   val table = dynamicQuerySchema[User](tableName)
 
-  def create:Try[Long] = {
-    ctx.executeAction(
-    s"""CREATE TABLE IF NOT EXISTS ${tableName} (
+  val createTableSQL = () => quote {     
+    infix"""CREATE TABLE IF NOT EXISTS ${lift(tableName)} (
       id VARCHAR(36) PRIMARY KEY, 
       email VARCHAR(255), 
       name VARCHAR(255),
@@ -40,13 +39,21 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String)
       avatar VARCHAR(255),
       ts_created BIGINT
     );
-    """
-    )
+    """.as[Long]
+  }
 
+  val createIndexSQL = () => quote {
+    infix"CREATE INDEX user_name ON ${lift(tableName)} (name);".as[Long]
+  }
+
+  def create:Try[Long] = {
+    
     // why do we still use MySQL which does not even support INDEX IF NOT EXISTS ?...
     //val r = ctx.executeAction("CREATE INDEX IF NOT EXISTS user_name ON user (name);")
     try {
-      val r = ctx.executeAction(s"CREATE INDEX user_name ON ${tableName} (name);")
+      ctx.run( createTableSQL())
+
+      val r = ctx.run(createIndexSQL())
       Success(r)
     } catch {
       case e:Exception => { 

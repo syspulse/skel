@@ -126,6 +126,9 @@ val sharedConfig = Seq(
       "consensys repo"     at "https://artifacts.consensys.net/public/maven/maven/",
       "consensys teku"     at "https://artifacts.consensys.net/public/teku/maven/"
     ),
+
+    // needed to fix error with quill-jasync
+    libraryDependencySchemes += "org.scala-lang.modules" %% "scala-java8-compat" % VersionScheme.Always
   )
 
 // assemblyMergeStrategy in assembly := {
@@ -162,7 +165,7 @@ val sharedConfigAssemblyTeku = Seq(
     }
   },
   
-  assembly / test := {}
+  assembly / test := {}  
 )
 
 val sharedConfigAssembly = Seq(

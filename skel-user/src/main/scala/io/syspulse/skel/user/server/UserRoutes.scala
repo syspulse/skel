@@ -63,6 +63,8 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
   
   implicit val permissions = Permissions()
 
+  import io.syspulse.skel.user.store.UserRegistryProto._
+
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import UserJson._
   

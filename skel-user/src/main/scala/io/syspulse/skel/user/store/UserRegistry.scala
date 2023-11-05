@@ -15,9 +15,7 @@ import io.syspulse.skel.Command
 import io.syspulse.skel.user._
 import io.syspulse.skel.user.server.{UserActionRes, Users, UserCreateReq, UserUpdateReq}
 
-object UserRegistry {
-  val log = Logger(s"${this}")
-  
+object UserRegistryProto {
   final case class GetUsers(replyTo: ActorRef[Users]) extends Command
   final case class GetUser(id:UUID,replyTo: ActorRef[Try[User]]) extends Command
   final case class GetUserByXid(xid:String,replyTo: ActorRef[Option[User]]) extends Command
@@ -28,8 +26,24 @@ object UserRegistry {
 
   final case class DeleteUser(id: UUID, replyTo: ActorRef[UserActionRes]) extends Command
   
+}
+
+object UserRegistry {  
+  val log = Logger(s"${this}")
+  
+  import UserRegistryProto._
+  // final case class GetUsers(replyTo: ActorRef[Users]) extends Command
+  // final case class GetUser(id:UUID,replyTo: ActorRef[Try[User]]) extends Command
+  // final case class GetUserByXid(xid:String,replyTo: ActorRef[Option[User]]) extends Command
+  
+  // final case class CreateUser(req: UserCreateReq, replyTo: ActorRef[Try[User]]) extends Command
+  // final case class UpdateUser(uid:UUID, req: UserUpdateReq, replyTo: ActorRef[Try[User]]) extends Command
+  // final case class RandomUser(replyTo: ActorRef[User]) extends Command
+
+  // final case class DeleteUser(id: UUID, replyTo: ActorRef[UserActionRes]) extends Command
+  
   // this var reference is unfortunately needed for Metrics access
-  var store: UserStore = null //new UserStoreDB //new UserStoreCache
+  var store: UserStore = null 
 
   def apply(store: UserStore = new UserStoreMem): Behavior[io.syspulse.skel.Command] = {
     this.store = store
