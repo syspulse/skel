@@ -30,39 +30,98 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String)
   // Because of Postgres, using dynamic schema to override table name to 'users' 
   val table = dynamicQuerySchema[User](tableName)
 
-  val createTableSQL = () => quote {     
-    infix"""CREATE TABLE IF NOT EXISTS ${lift(tableName)} (
-      id VARCHAR(36) PRIMARY KEY, 
-      email VARCHAR(255), 
-      name VARCHAR(255),
-      xid VARCHAR(255),
-      avatar VARCHAR(255),
-      ts_created BIGINT
-    );
-    """.as[Long]
-  }
+  // val createTableMySqlSQL = () => quote {     
+  //   infix"""CREATE TABLE IF NOT EXISTS ${lift(tableName)} (
+  //     id VARCHAR(36) PRIMARY KEY, 
+  //     email VARCHAR(255), 
+  //     name VARCHAR(255),
+  //     xid VARCHAR(255),
+  //     avatar VARCHAR(255),
+  //     ts_created BIGINT
+  //   );
+  //   """.as[Long]
+  // }
 
-  val createIndexSQL = () => quote {
-    infix"CREATE INDEX user_name ON ${lift(tableName)} (name);".as[Long]
-  }
+  // val createTablePostgresSQL = () => quote {     
+  //   infix"""CREATE TABLE IF NOT EXISTS ${lift(tableName)} (
+  //     id UUID PRIMARY KEY, 
+  //     email VARCHAR(255), 
+  //     name VARCHAR(255),
+  //     xid VARCHAR(255),
+  //     avatar VARCHAR(255),
+  //     ts_created BIGINT
+  //   );
+  //   """.as[Long]
+  // }
 
-  def create:Try[Long] = {
+  // val createIndexSQL = () => quote {
+  //   infix"CREATE INDEX user_name ON ${lift(tableName)} (name);".as[Long]
+  // }
+
+  // val createTableSQL = getDbType match {
+  //   case "mysql" => createTableMySqlSQL
+  //   case "postgres" => createTablePostgresSQL
+  // }
+  
+  def indexUserName = "user_name"
+
+  // ATTENTION: called from constructor, so derived class vals are not initialized yet !
+  def create:Try[Long] = {    
+
+    val CREATE_INDEX_MYSQL_SQL = s"CREATE INDEX ${indexUserName} ON ${tableName} (name);"
+    val CREATE_INDEX_POSTGRES_SQL = s"CREATE INDEX IF NOT EXISTS ${indexUserName} ON ${tableName} (name);"    
     
-    // why do we still use MySQL which does not even support INDEX IF NOT EXISTS ?...
-    //val r = ctx.executeAction("CREATE INDEX IF NOT EXISTS user_name ON user (name);")
-    try {
-      ctx.run( createTableSQL())
+    val CREATE_INDEX_SQL = getDbType match {
+      case "mysql" => CREATE_INDEX_MYSQL_SQL
+      case "postgres" => CREATE_INDEX_POSTGRES_SQL
+    }
 
-      val r = ctx.run(createIndexSQL())
-      Success(r)
+    val CREATE_TABLE_MYSQL_SQL = 
+      s"""CREATE TABLE IF NOT EXISTS ${tableName} (
+        id VARCHAR(36) PRIMARY KEY, 
+        email VARCHAR(255), 
+        name VARCHAR(255),
+        xid VARCHAR(255),
+        avatar VARCHAR(255),
+        ts_created BIGINT
+      );
+      """
+
+    val CREATE_TABLE_POSTGRES_SQL = 
+      s"""CREATE TABLE IF NOT EXISTS ${tableName} (
+        id UUID PRIMARY KEY, 
+        email VARCHAR(255), 
+        name VARCHAR(255),
+        xid VARCHAR(255),
+        avatar VARCHAR(255),
+        ts_created BIGINT
+      );
+      """
+
+    val CREATE_TABLE_SQL = getDbType match {
+      case "mysql" => CREATE_TABLE_MYSQL_SQL
+      case "postgres" => CREATE_TABLE_POSTGRES_SQL
+    }
+    
+    // why do we still use MySQL which does not even support INDEX IF NOT EXISTS ?...    
+    try {
+      // val r1 = ctx.run( createTableSQL())
+      // val r2 = ctx.run(createIndexSQL())      
+
+      val r1 = ctx.executeAction(CREATE_TABLE_SQL)(ExecutionInfo.unknown, ())
+      log.info(s"table: ${tableName}: ${r1}")
+      val r2 = ctx.executeAction(CREATE_INDEX_SQL)(ExecutionInfo.unknown, ())
+      log.info(s"index: ${indexUserName}: ${r2}")
+      
+      Success(r1)
     } catch {
       case e:Exception => { 
         // short name without full stack (change to check for duplicate index)
-        log.warn(s"failed to create index: ${e.getMessage()}"); Success(0) 
+        log.warn(s"failed to create: ${e.getMessage()}"); 
+        Failure(e) 
       }
     }
   }
-
 
   //def all:Seq[User] = ctx.run(query[User])
   def all:Seq[User] = ctx.run(table)
@@ -127,9 +186,13 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String)
   def ?(id:UUID):Try[User] = {
     log.info(s"SELECT: id=${id}")
     //ctx.run(query[User].filter(o => o.id == lift(id))) match {
-    ctx.run(table.filter(o => o.id == lift(id))) match {      
-      case h :: _ => Success(h)
-      case Nil => Failure(new Exception(s"not found: ${id}"))
+    try { 
+      ctx.run(table.filter(o => o.id == lift(id))) match {      
+        case h :: _ => Success(h)
+        case Nil => Failure(new Exception(s"not found: ${id}"))
+      }
+    } catch {
+      case e:Exception => Failure(e)
     }
   }
 

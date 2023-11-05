@@ -31,16 +31,7 @@ object UserRegistryProto {
 object UserRegistry {  
   val log = Logger(s"${this}")
   
-  import UserRegistryProto._
-  // final case class GetUsers(replyTo: ActorRef[Users]) extends Command
-  // final case class GetUser(id:UUID,replyTo: ActorRef[Try[User]]) extends Command
-  // final case class GetUserByXid(xid:String,replyTo: ActorRef[Option[User]]) extends Command
-  
-  // final case class CreateUser(req: UserCreateReq, replyTo: ActorRef[Try[User]]) extends Command
-  // final case class UpdateUser(uid:UUID, req: UserUpdateReq, replyTo: ActorRef[Try[User]]) extends Command
-  // final case class RandomUser(replyTo: ActorRef[User]) extends Command
-
-  // final case class DeleteUser(id: UUID, replyTo: ActorRef[UserActionRes]) extends Command
+  import UserRegistryProto._  
   
   // this var reference is unfortunately needed for Metrics access
   var store: UserStore = null 
@@ -86,11 +77,6 @@ object UserRegistry {
 
       case UpdateUser(uid,req, replyTo) =>
         
-        // val user:Option[User] = for {
-        //   u <- store.?(uid)
-        //   user1 <- Some(u.copy(email = req.email.getOrElse(u.email), name = req.name.getOrElse(u.name), avatar = req.avatar.getOrElse(u.avatar)))
-        //   user2 <- if(store.+(user1).isSuccess) Some(user1) else None          
-        // } yield user2
         val user = store.update(uid,req.email, req.name, req.avatar)
 
         replyTo ! user

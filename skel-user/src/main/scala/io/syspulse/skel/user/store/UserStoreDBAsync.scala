@@ -34,13 +34,21 @@ class UserStoreDBAsync(configuration:Configuration,dbConfigRef:String)
   
   // Because of Postgres, using dynamic schema to override table name to 'users' 
   val table = dynamicQuerySchema[User](tableName)
-  
-  def indexUserName = "user_name"
 
+  def indexUserName = "user_name"
+  
+  // ATTENTION: called from constructor, so derived class vals are not initialized yet !
   def create:Try[Long] = {
-        
-    try {
-      val f1 = ctx.executeAction(s"""CREATE TABLE IF NOT EXISTS ${tableName} (
+    val CREATE_INDEX_MYSQL_SQL = s"CREATE INDEX ${indexUserName} ON ${tableName} (name);"
+    val CREATE_INDEX_POSTGRES_SQL = s"CREATE INDEX IF NOT EXISTS ${indexUserName} ON ${tableName} (name);"    
+    
+    val CREATE_INDEX_SQL = getDbType match {
+      case "mysql" => CREATE_INDEX_MYSQL_SQL
+      case "postgres" => CREATE_INDEX_POSTGRES_SQL
+    }
+
+    val CREATE_TABLE_MYSQL_SQL = 
+      s"""CREATE TABLE IF NOT EXISTS ${tableName} (
         id VARCHAR(36) PRIMARY KEY, 
         email VARCHAR(255), 
         name VARCHAR(255),
@@ -48,21 +56,39 @@ class UserStoreDBAsync(configuration:Configuration,dbConfigRef:String)
         avatar VARCHAR(255),
         ts_created BIGINT
       );
-      """)(ExecutionInfo.unknown, ())
+      """
 
+    val CREATE_TABLE_POSTGRES_SQL = 
+      s"""CREATE TABLE IF NOT EXISTS ${tableName} (
+        id UUID PRIMARY KEY, 
+        email VARCHAR(255), 
+        name VARCHAR(255),
+        xid VARCHAR(255),
+        avatar VARCHAR(255),
+        ts_created BIGINT
+      );
+      """
+
+    val CREATE_TABLE_SQL = getDbType match {
+      case "mysql" => CREATE_TABLE_MYSQL_SQL
+      case "postgres" => CREATE_TABLE_POSTGRES_SQL
+    }
+
+    try {
+      val f1 = ctx.executeAction(CREATE_TABLE_SQL)(ExecutionInfo.unknown, ())
       val r1 = Await.result(f1,FiniteDuration(10000L,TimeUnit.MILLISECONDS))
       log.info(s"table: ${tableName}: ${r1}")
 
-      val f2 = ctx.executeAction(s"""CREATE INDEX ${indexUserName} ON ${tableName} (name);""")(ExecutionInfo.unknown, ())
+      val f2 = ctx.executeAction(CREATE_INDEX_SQL)(ExecutionInfo.unknown, ())
       val r2 = Await.result(f2,FiniteDuration(10000L,TimeUnit.MILLISECONDS))
       log.info(s"index: ${indexUserName}: ${r2}")
 
-      Success(r2)
+      Success(r1)
     } catch {
       case e:Exception => { 
         // short name without full stack (change to check for duplicate index)
         log.warn(s"failed to create: ${e.getMessage()}");
-        Success(0) 
+        Failure(e)
       }
     }
   }

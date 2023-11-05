@@ -43,6 +43,8 @@ abstract class StoreDBCore[E,P](dbUri:String,val tableName:String,configuration:
   protected val (dbType,dbConfigName) = StoreDB.parseUri(dbUri)
 
   def getTableName = tableName
+  def getDbType = dbType
+  def getDbConfigName = dbConfigName
 
   log.info(s"StoreDB: database=${dbType},config=${dbConfigName},table=${tableName}")
 
@@ -106,8 +108,8 @@ abstract class StoreDB[E,P](dbUri:String,tableName:String,configuration:Option[C
     case "postgres" => 
       // ATTENTION: postgres context does not support UUID as String!
       // Using it as MySQL will work !      
-      //new PostgresJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
-      new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
+      new PostgresJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
+      //new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
     case _ => 
       new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
   }
@@ -142,7 +144,7 @@ abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Opt
   val ctx = dbType.split("://").toList match {
     case "postgres" :: _ =>                   
       // new PostgresAsyncContext(NamingStrategy(SnakeCase),config)    
-      new PostgresJAsyncContext(NamingStrategy(SnakeCase),config)
+      new PostgresJAsyncContext(NamingStrategy(SnakeCase),config)      
     case "mysql" :: _ => 
       new MysqlJAsyncContext(NamingStrategy(SnakeCase),config)
     case _ =>
