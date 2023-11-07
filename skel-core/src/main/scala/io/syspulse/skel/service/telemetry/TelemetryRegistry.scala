@@ -36,6 +36,6 @@ object TelemetryRegistry {
     .withSentBytesConfig(PrometheusSettings.DefaultQuantiles)
     .withDefineError(_.status.isFailure)
 
-  val prometheusCollector: CollectorRegistry = CollectorRegistry.defaultRegistry
-  val prometheusRegistry: PrometheusRegistry = PrometheusRegistry(prometheusCollector, prometheusSettings)
+  val registry: CollectorRegistry = CollectorRegistry.defaultRegistry
+  val prometheus: PrometheusRegistry = PrometheusRegistry(registry, prometheusSettings)
 }

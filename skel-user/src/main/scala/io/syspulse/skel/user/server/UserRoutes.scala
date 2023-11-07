@@ -55,6 +55,7 @@ import io.syspulse.skel.user._
 import io.syspulse.skel.user.store.UserRegistry
 import io.syspulse.skel.user.store.UserRegistry._
 import io.syspulse.skel.user.server.{UserActionRes, Users, UserCreateReq, UserUpdateReq}
+import io.syspulse.skel.service.telemetry.TelemetryRegistry
 
 @Path("/")
 class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],config:Config) extends CommonRoutes with Routeable with RouteAuthorizers {
@@ -69,11 +70,11 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
   import UserJson._
   
   // registry is needed because Unit-tests with multiple Routes in Suites will fail (Prometheus libary quirk)
-  val cr = new CollectorRegistry(true);
-  val metricGetCount: Counter = Counter.build().name("skel_user_get_total").help("User gets").register(cr)
-  val metricDeleteCount: Counter = Counter.build().name("skel_user_delete_total").help("User deletes").register(cr)
-  val metricCreateCount: Counter = Counter.build().name("skel_user_create_total").help("User creates").register(cr)
-  val metricUpdateCount: Counter = Counter.build().name("skel_user_update_total").help("User updates").register(cr)
+  // val cr = new CollectorRegistry(true);
+  val metricGetCount: Counter = Counter.build().name("skel_user_get_total").help("User gets").register(TelemetryRegistry.registry)
+  val metricDeleteCount: Counter = Counter.build().name("skel_user_delete_total").help("User deletes").register(TelemetryRegistry.registry)
+  val metricCreateCount: Counter = Counter.build().name("skel_user_create_total").help("User creates").register(TelemetryRegistry.registry)
+  val metricUpdateCount: Counter = Counter.build().name("skel_user_update_total").help("User updates").register(TelemetryRegistry.registry)
   
   def getUsers(): Future[Users] = registry.ask(GetUsers)
   def getUser(id: UUID): Future[Try[User]] = registry.ask(GetUser(id, _))
