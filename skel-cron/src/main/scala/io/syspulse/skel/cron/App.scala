@@ -53,7 +53,7 @@ object App  {
           },
           config.expr.replaceAll("_"," "),
           conf = if(config.quartz == "default") None else Some((config.quartz,c))
-        ).start
+        ).start()
 
       case "freq" =>         
         new CronFreq(() => {
@@ -61,7 +61,7 @@ object App  {
             true
           },
           FiniteDuration(config.expr.toLong,TimeUnit.MILLISECONDS)        
-        ).start
+        ).start()
                       
       case _ => 
     }

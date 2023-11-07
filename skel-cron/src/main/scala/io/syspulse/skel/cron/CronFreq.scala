@@ -11,10 +11,7 @@ class CronFreq(runner: ()=>Boolean, interval:Duration, delay:Long = 0L, limit:Lo
   @volatile
   protected var cronFuture: Option[ScheduledFuture[_]] = None
 
-  // Start immediately
-  start
-
-  def start = {    
+  def start() = {    
     if(cronFuture.isDefined) cronFuture.get.cancel(true)
     val task = new Runnable { 
       def run() = runner()
@@ -28,4 +25,7 @@ class CronFreq(runner: ()=>Boolean, interval:Duration, delay:Long = 0L, limit:Lo
   override def close = {
     if(cronFuture.isDefined) cronFuture.get.cancel(true)
   }
+
+  // Start immediately
+  // start()
 }

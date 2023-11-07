@@ -73,7 +73,7 @@ class Cron(exec:(Long)=>Boolean, expr:String, conf:Option[(String,Configuration)
       StdSchedulerFactory.getDefaultScheduler()
     }
 
-  def start:Try[java.time.LocalDate] = {
+  def start():Try[java.time.LocalDate] = {
     try {
       scheduler.start();
 
@@ -96,7 +96,7 @@ class Cron(exec:(Long)=>Boolean, expr:String, conf:Option[(String,Configuration)
     }
   }
 
-  def stop = {
+  def stop() = {
     scheduler.shutdown()
   } 
 

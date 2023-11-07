@@ -21,11 +21,11 @@ class CronSpec extends AnyWordSpec with Matchers {
         },
         "0 0/5 * * * ?"
       )
-      val r = c.start
+      val r = c.start()
       r.getClass should !== (classOf[Failure[_]])
       
       Thread.sleep(1000L)
-      c.stop
+      c.stop()
 
       n should === (0)
     }
@@ -38,11 +38,11 @@ class CronSpec extends AnyWordSpec with Matchers {
         },
         "*/1 * * * * ?"
       )
-      val r = c.start
+      val r = c.start()
       r.getClass should !== (classOf[Failure[_]])
       
       Thread.sleep(1200L)
-      c.stop
+      c.stop()
 
       n should === (2)
     }
