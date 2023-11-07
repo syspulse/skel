@@ -3,8 +3,8 @@ package io.syspulse.skel.cron
 import scala.concurrent.duration.Duration
 import java.io.Closeable
 
-// Legacy to be removed
-class CronInterval(interval:Duration, runner: ()=>Unit, delay:Long = 0L, limit:Long = 0L) extends Closeable {
+// Simple Frequncy ticker
+class CronFreq(runner: ()=>Boolean, interval:Duration, delay:Long = 0L, limit:Long = 0L) extends Closeable {
   import java.util.concurrent._
   protected val cronScheduler = new ScheduledThreadPoolExecutor(1)
   var count = 0L

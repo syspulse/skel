@@ -26,8 +26,8 @@ object Cron {
 }
 
 case class CronJobData(exec:(Long)=>Boolean,var ts0:Long)
-class CronJob extends Job {
 
+class CronJob extends Job {
 	def execute(context:JobExecutionContext) = {
     val data: JobDataMap = context.getMergedJobDataMap();
     
