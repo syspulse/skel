@@ -1007,3 +1007,21 @@ lazy val tools = (project in file("tools"))
           libUpickleLib
         ),
     )
+
+lazy val skel_odometer = (project in file("skel-odometer"))
+  .dependsOn(core,auth_core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig(appNameUser,appBootClassUser),
+
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(  
+    ),    
+  )
