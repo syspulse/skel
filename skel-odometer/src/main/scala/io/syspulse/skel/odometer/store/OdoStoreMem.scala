@@ -49,4 +49,9 @@ class OdoStoreMem extends OdoStore {
       case f => f
     }
   }
+
+  def clear():Try[OdoStore] = {
+    odometers = Map()
+    Success(this)
+  }
 }

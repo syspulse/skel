@@ -31,6 +31,8 @@ class OdoStoreDir(dir:String = "store/") extends StoreDir[Odo,String](dir) with 
   override def update(id:String, delta:Long):Try[Odo] = 
     store.update(id,delta).flatMap(u => writeFile(u))
 
+  override def clear():Try[OdoStoreDir] = super.clear().map(_ => this)
+
   // preload and watch
   load(dir)
   watch(dir)

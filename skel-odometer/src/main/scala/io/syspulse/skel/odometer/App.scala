@@ -86,7 +86,9 @@ object App extends skel.Server {
           }
         }
 
-        val reg = OdoRegistry(store)
+        val cache = new OdoStoreCache(store)
+
+        val reg = OdoRegistry(cache)
 
         run( config.host, config.port,config.uri,c,
           Seq(

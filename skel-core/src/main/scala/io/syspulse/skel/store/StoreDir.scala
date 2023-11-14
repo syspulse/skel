@@ -61,7 +61,8 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     Success(this)
   }
 
-  def clean():Try[StoreDir[E,P]] = {
+  def clean():Try[StoreDir[E,P]] = clear()
+  def clear():Try[StoreDir[E,P]] = {
     all.foreach(e => delFile(e))
     Success(this)
   }

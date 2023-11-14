@@ -1009,7 +1009,7 @@ lazy val tools = (project in file("tools"))
     )
 
 lazy val skel_odometer = (project in file("skel-odometer"))
-  .dependsOn(core,auth_core)
+  .dependsOn(core,auth_core,skel_cron)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)

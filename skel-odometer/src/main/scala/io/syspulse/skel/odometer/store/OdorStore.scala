@@ -23,6 +23,8 @@ trait OdoStore extends Store[Odo,String] {
   
   def update(id:String, delta:Long):Try[Odo]
 
+  def clear():Try[OdoStore]
+
   protected def modify(o:Odo, delta:Long):Odo = {    
     (for {
       o0 <- Some(o)

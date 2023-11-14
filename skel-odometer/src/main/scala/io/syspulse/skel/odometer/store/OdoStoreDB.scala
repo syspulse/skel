@@ -61,6 +61,7 @@ class OdoStoreDB(configuration:Configuration,dbConfigRef:String)
       case "postgres" => CREATE_TABLE_POSTGRES_SQL
     }
     
+    
     try {
       
       val r1 = ctx.executeAction(CREATE_TABLE_SQL)(ExecutionInfo.unknown, ())
@@ -135,6 +136,20 @@ class OdoStoreDB(configuration:Configuration,dbConfigRef:String)
         case h :: _ => Success(h)
         case Nil => Failure(new Exception(s"not found: ${id}"))
       }
+    } catch {
+      case e:Exception => Failure(e)
+    }
+  }
+
+  def clear():Try[OdoStore] = {
+    log.info(s"CLEAR: ")
+    
+    val TRUNCATE_TABLE_SQL = 
+      s"""TRUNCATE TABLE ${tableName};"""
+
+    try { 
+      ctx.executeAction(TRUNCATE_TABLE_SQL)(ExecutionInfo.unknown, ())
+      Success(this)
     } catch {
       case e:Exception => Failure(e)
     }

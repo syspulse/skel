@@ -27,7 +27,7 @@ object OdoRegistryProto {
 object OdoRegistry {  
   val log = Logger(s"${this}")
   
-  import OdoRegistryProto._  
+  import OdoRegistryProto._
   
   // this var reference is unfortunately needed for Metrics access
   var store: OdoStore = null 
@@ -37,9 +37,9 @@ object OdoRegistry {
     registry(store)
   }
 
-  private def registry(store: OdoStore): Behavior[io.syspulse.skel.Command] = {
+  private def registry(store: OdoStore): Behavior[io.syspulse.skel.Command] = {    
     this.store = store
-
+    
     Behaviors.receiveMessage {
       case GetOdos(replyTo) =>
         replyTo ! Odos(store.all)
@@ -56,19 +56,17 @@ object OdoRegistry {
               replyTo ! Failure(new Exception(s"already exists: ${req.id}"))
               Success(store)
             case _ =>  
-              val odometer = Odo(req.id, req.counter.getOrElse(0L))
-              val store1 = store.+(odometer)
-              replyTo ! store1.map(_ => odometer)
-              store1
+              val o = Odo(req.id, req.counter.getOrElse(0L))
+              val store1 = store.+(o)
+              replyTo ! store1.map(_ => o) 
           }
-        
+
         Behaviors.same
 
-      case UpdateOdo(id, req, replyTo) =>
-        
-        val odometer = store.update(id,req.delta)
+      case UpdateOdo(id, req, replyTo) =>        
+        val o = store.update(id,req.delta)        
+        replyTo ! o
 
-        replyTo ! odometer
         Behaviors.same
       
       case DeleteOdo(id, replyTo) =>
@@ -78,6 +76,7 @@ object OdoRegistry {
           case Failure(e) => replyTo ! Failure(e)
         }
         Behaviors.same
+      
     }
   }
 }
