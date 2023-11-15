@@ -14,6 +14,8 @@ object Dependencies {
     // 3.12.0 - Postgres JAsync does not support Postgres 14 
     lazy val quillVersion = "3.19.0" //"4.8.0" //"3.12.0" //"3.5.2" //"3.6.0"
 
+    lazy val redisVersion = "2.4.3"
+
     lazy val influxDBVersion = "3.2.0"
     lazy val slickVersion = "3.3.3"
     
@@ -106,6 +108,7 @@ object Dependencies {
     val libMySQL =          "mysql"                           % "mysql-connector-java"    % "8.0.22"
     val libPostgres =       "org.postgresql"                  % "postgresql"              % "42.3.5"
     val libInfluxDB =       "com.influxdb"                    %% "influxdb-client-scala"  % influxDBVersion
+    val libRedis =          "com.github.scredis"              %% "scredis"                % redisVersion
 
     val libTypesafeConfig = "com.typesafe"                    % "config"                  % "1.4.1"
       

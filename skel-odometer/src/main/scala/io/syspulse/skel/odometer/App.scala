@@ -85,6 +85,8 @@ object App extends skel.Server {
           case "postgres" :: Nil => new OdoStoreDB(c,"postgres://postgres")
           case "jdbc" :: Nil => new OdoStoreDB(c,"mysql://mysql")
 
+          case "redis" :: uri :: Nil => new OdoStoreRedis(uri)
+
           case "dir" :: dir ::  _ => new OdoStoreDir(dir)
           case "mem" :: Nil | "cache" :: Nil => new OdoStoreMem()
           
@@ -94,6 +96,7 @@ object App extends skel.Server {
           }
         }
 
+        // redis does not actually need a cache
         val cache = new OdoStoreCache(store, freq = config.cacheFlush)
 
         val reg = OdoRegistry(cache)

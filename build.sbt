@@ -1022,6 +1022,7 @@ lazy val skel_odometer = (project in file("skel-odometer"))
 
     appDockerConfig(appNameUser,appBootClassUser),
 
-    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(  
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq( 
+      libRedis
     ),    
   )
