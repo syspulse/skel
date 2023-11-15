@@ -1,0 +1,20 @@
+version: '2'
+
+networks:
+  redis:
+    driver: bridge
+
+services:
+  redis:
+    image: 'bitnami/redis:6.2.14'
+    restart: always    
+    ports:
+      - 16379:6379
+    networks:
+      - redis
+    volumes:
+      - "${PWD}/redis_db:/bitnami/redis/data"
+    environment:
+      - REDIS_PORT_NUMBER=6379
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_PASSWORD=
