@@ -44,15 +44,15 @@ class OdoStoreDB(configuration:Configuration,dbConfigRef:String)
       s"""CREATE TABLE IF NOT EXISTS ${tableName} (
         id VARCHAR(36) PRIMARY KEY, 
         counter BIGINT,
-        ts_created BIGINT
+        ts BIGINT
       );
       """
 
     val CREATE_TABLE_POSTGRES_SQL = 
       s"""CREATE TABLE IF NOT EXISTS ${tableName} (
-        id String PRIMARY KEY,
+        id VARCHAR(36) PRIMARY KEY,
         counter BIGINT,
-        ts_created BIGINT
+        ts BIGINT
       );
       """
 

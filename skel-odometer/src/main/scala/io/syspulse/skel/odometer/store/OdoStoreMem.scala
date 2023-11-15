@@ -24,7 +24,7 @@ class OdoStoreMem extends OdoStore {
 
   def +(o:Odo):Try[OdoStore] = { 
     odometers = odometers + (o.id -> o)
-    log.info(s"add: ${o}")
+    log.debug(s"add: ${o}")
     Success(this)
   }
 
@@ -54,8 +54,7 @@ class OdoStoreMem extends OdoStore {
     this.?(id) match {
       case Success(o) => 
         val o1 = o.copy(counter = o.counter + delta, ts = System.currentTimeMillis)
-        this.+(o1)
-        log.info(s"++: ${o1}")
+        this.+(o1)        
         Success(o1)
       case f => f
     }

@@ -25,6 +25,8 @@ case class Config(
   datastore:String = "mem://",
 
   timeout:Long = 3000L,
+
+  cacheFlush:Long = 5000L,
   
   cmd:String = "server",
   params: Seq[String] = Seq(),
@@ -44,8 +46,11 @@ object App extends skel.Server {
         ArgString('h', "http.host",s"listen host (def: ${d.host})"),
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
+        
         ArgString('d', "datastore",s"datastore [mysql,postgres,dir,mem,cache] (def: ${d.datastore})"),
         ArgString('_', "timeout",s"Timeouts, msec (def: ${d.timeout})"),
+
+        ArgLong('_', "cache.flush",s"Cache flush interval, msec (def: ${d.cacheFlush})"),
 
         ArgCmd("server","Command"),
         ArgCmd("server-async","Command"),
@@ -59,8 +64,11 @@ object App extends skel.Server {
       host = c.getString("http.host").getOrElse(d.host),
       port = c.getInt("http.port").getOrElse(d.port),
       uri = c.getString("http.uri").getOrElse(d.uri),
+      
       datastore = c.getString("datastore").getOrElse(d.datastore),
       timeout = c.getLong("timeout").getOrElse(d.timeout),
+
+      cacheFlush = c.getLong("cache.flush").getOrElse(d.cacheFlush),
      
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -86,7 +94,7 @@ object App extends skel.Server {
           }
         }
 
-        val cache = new OdoStoreCache(store)
+        val cache = new OdoStoreCache(store, freq = config.cacheFlush)
 
         val reg = OdoRegistry(cache)
 
