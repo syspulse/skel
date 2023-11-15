@@ -55,6 +55,7 @@ object App extends skel.Server {
         ArgString('_', "upload.uri",s"Uri for uploaded data (def: ${d.uploadUri})"),
 
         ArgCmd("server","Command"),
+        ArgCmd("server-async","Command"),
         ArgCmd("client","Command"),
         ArgParam("<params>",""),
         ArgLogging()
@@ -76,23 +77,53 @@ object App extends skel.Server {
     )
 
     Console.err.println(s"Config: ${config}")
-
-    val store = config.datastore.split("://").toList match {
-      case "mysql" :: _ => new UserStoreDB(c,"mysql")
-      case "postgres" :: _ => new UserStoreDB(c,"postgres")
-      case "dir" :: dir ::  _ => new UserStoreDir(dir)
-      case "mem" :: Nil | "cache" :: Nil => new UserStoreMem()
-      case _ => {
-        Console.err.println(s"Uknown datastore: '${config.datastore}'")
-        sys.exit(1)
-      }
-    }
-
+    
     config.cmd match {
       case "server" => 
+        val (store,storeAsync) = config.datastore.split("://|/").toList match {
+          case "mysql" :: db :: Nil => (Some(new UserStoreDB(c,s"mysql://${db}")),None)
+          case "postgres" :: db :: Nil => (Some(new UserStoreDB(c,s"postgres://${db}")),None)
+
+          case "mysql" :: Nil => (Some(new UserStoreDB(c,"mysql://mysql")),None)
+          case "postgres" :: Nil => (Some(new UserStoreDB(c,"postgres://postgres")),None)
+          
+          case "dir" :: dir ::  _ => (Some(new UserStoreDir(dir)),None)
+          case "mem" :: Nil | "cache" :: Nil => (Some(new UserStoreMem()),None)
+
+          case "jdbc" :: Nil => (Some(new UserStoreDB(c,"mysql://mysql")),None)
+          case "jdbc" :: "async" :: Nil => (None,Some(new UserStoreDBAsync(c,s"mysql://mysql")))
+          case "jdbc" :: typ :: Nil => (Some(new UserStoreDB(c,s"${typ}://${typ}")),None)
+          
+          case "jdbc" :: "async" :: typ :: Nil => (None,Some(new UserStoreDBAsync(c,s"${typ}://${typ}")))
+          case "jdbc" :: "async" :: typ:: db :: Nil => (None,Some(new UserStoreDBAsync(c,s"${typ}://${db}")))          
+          case "jdbc" :: typ :: db :: Nil => (Some(new UserStoreDB(c,s"${typ}://${db}")),None)
+          
+          case _ => {
+            Console.err.println(s"Uknown datastore: '${config.datastore}'")
+            sys.exit(1)
+          }
+        }
+
+        val reg = if(store.isDefined) UserRegistry(store.get) else UserRegistryAsync(storeAsync.get)
+
         run( config.host, config.port,config.uri,c,
           Seq(
-            (UserRegistry(store),"UserRegistry",(r, ac) => new UserRoutes(r)(ac,config) )
+            (reg,"UserRegistry",(r, ac) => new UserRoutes(r)(ac,config) )
+          )
+        )
+      case "server-async" => 
+        val store = config.datastore.split("://").toList match {
+          case "mysql" :: _ => new UserStoreDBAsync(c,"mysql_async")
+          case "postgres" :: _ => new UserStoreDBAsync(c,"postgres_async")
+          case _ => {
+            Console.err.println(s"Uknown datastore: '${config.datastore}'")
+            sys.exit(1)
+          }
+        }
+
+        run( config.host, config.port,config.uri,c,
+          Seq(
+            (UserRegistryAsync(store),"UserRegistry",(r, ac) => new UserRoutes(r)(ac,config) )
           )
         )
       case "client" => {
@@ -146,7 +177,7 @@ object App extends skel.Server {
               sys.exit(1)
           }
         
-        println(s"${r}")
+        Console.err.println(s"${r}")
         System.exit(0)
       }
     }

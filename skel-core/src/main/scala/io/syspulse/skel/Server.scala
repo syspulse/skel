@@ -66,7 +66,7 @@ trait Server {
     try {
       val http:Future[Http.ServerBinding] =
       Http()
-        .newMeteredServerAt(host, port,TelemetryRegistry.prometheusRegistry)
+        .newMeteredServerAt(host, port,TelemetryRegistry.prometheus)
         .bind(routes)
         .map(_.addToCoordinatedShutdown(hardTerminationDeadline = shutdownTimeout))
       http.onComplete {

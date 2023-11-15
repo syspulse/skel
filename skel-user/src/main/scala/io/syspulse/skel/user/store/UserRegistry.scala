@@ -15,9 +15,7 @@ import io.syspulse.skel.Command
 import io.syspulse.skel.user._
 import io.syspulse.skel.user.server.{UserActionRes, Users, UserCreateReq, UserUpdateReq}
 
-object UserRegistry {
-  val log = Logger(s"${this}")
-  
+object UserRegistryProto {
   final case class GetUsers(replyTo: ActorRef[Users]) extends Command
   final case class GetUser(id:UUID,replyTo: ActorRef[Try[User]]) extends Command
   final case class GetUserByXid(xid:String,replyTo: ActorRef[Option[User]]) extends Command
@@ -28,8 +26,15 @@ object UserRegistry {
 
   final case class DeleteUser(id: UUID, replyTo: ActorRef[UserActionRes]) extends Command
   
+}
+
+object UserRegistry {  
+  val log = Logger(s"${this}")
+  
+  import UserRegistryProto._  
+  
   // this var reference is unfortunately needed for Metrics access
-  var store: UserStore = null //new UserStoreDB //new UserStoreCache
+  var store: UserStore = null 
 
   def apply(store: UserStore = new UserStoreMem): Behavior[io.syspulse.skel.Command] = {
     this.store = store
@@ -72,15 +77,10 @@ object UserRegistry {
 
       case UpdateUser(uid,req, replyTo) =>
         
-        // val user:Option[User] = for {
-        //   u <- store.?(uid)
-        //   user1 <- Some(u.copy(email = req.email.getOrElse(u.email), name = req.name.getOrElse(u.name), avatar = req.avatar.getOrElse(u.avatar)))
-        //   user2 <- if(store.+(user1).isSuccess) Some(user1) else None          
-        // } yield user2
         val user = store.update(uid,req.email, req.name, req.avatar)
 
         replyTo ! user
-        registry(store)
+        Behaviors.same
 
       case RandomUser(replyTo) =>
         
@@ -88,9 +88,12 @@ object UserRegistry {
         Behaviors.same
       
       case DeleteUser(id, replyTo) =>
-        val store1 = store.del(id)
-        replyTo ! UserActionRes(s"Success",Some(id))
-        registry(store1.getOrElse(store))
+        val r = store.del(id)
+        r match {
+          case Success(_) => replyTo ! UserActionRes("200",Some(id))
+          case Failure(e) => replyTo ! UserActionRes("619",Some(id))
+        }
+        Behaviors.same
     }
   }
 }

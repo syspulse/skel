@@ -74,7 +74,7 @@ trait IngestFlow[I,T,O] {
   def source():Source[ByteString,_] = if(defaultSource.isDefined) defaultSource.get else StreamConverters.fromInputStream(() => System.in)
 
   // flow shaping (throttle, etc)
-  def shaping:Flow[I,I,_]
+  def shaping:Flow[T,T,_]
 
   def process:Flow[I,T,_]
 
@@ -91,7 +91,10 @@ trait IngestFlow[I,T,O] {
     val f0 = source()
       .via(debug)
       .via(counterBytes)      
-      .mapConcat(txt => parse(txt.utf8String))
+      .mapConcat(txt => {
+        // ATTENTION: replace with ByteString because it is impossible to properly parse BinaryData !
+        parse(txt.utf8String)
+      })
       .via(counterI)
     
     val f1 = if(retrySettings.isDefined) {
@@ -104,8 +107,9 @@ trait IngestFlow[I,T,O] {
       f0
 
     val f2 = f1
-      .via(shaping)
+      //.via(shaping)
       .via(process)
+      .via(shaping)
       .via(counterT)
       .viaMat(KillSwitches.single)(Keep.right)
       .mapConcat(t => transform(t))
@@ -117,7 +121,7 @@ trait IngestFlow[I,T,O] {
 
     val mat = f3.runWith(sink())
 
-    log.info(s"f1=${f1}: f2=${f2}: graph: ${f3}: flow=${mat}")
+    log.debug(s"f1=${f1}: f2=${f2}: graph: ${f3}: flow=${mat}")
     mat
   }
 

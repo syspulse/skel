@@ -1,3 +1,3 @@
 USE user_db;
-SELECT * FROM user;
+SELECT * FROM users;
 

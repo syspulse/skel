@@ -61,8 +61,11 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     Success(this)
   }
 
-  def clean():Try[StoreDir[E,P]] = {
+  def clean():Try[StoreDir[E,P]] = clear()
+  def clear():Try[StoreDir[E,P]] = {
+    loading = true
     all.foreach(e => delFile(e))
+    loading = false
     Success(this)
   }
 
@@ -165,7 +168,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
           modifying = Some(file)
 
           loading = true
-          //del(id)
+          
           addAsFile(file.toString)          
           loading = false
 

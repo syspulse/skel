@@ -120,11 +120,15 @@ object Eth {
 
   def verify(m:String,sig:String,pk:String):Boolean = verify(m.getBytes(),sig,pk)
   def verify(m:String,sig:String,pk:PK):Boolean = verify(m.getBytes(),sig,Util.hex(pk))
-  def verify(m:Array[Byte],sig:String,pk:PK):Boolean = verify(m,sig,Util.hex(pk))
+  def verify(m:Array[Byte],sig:String,pk:PK):Boolean = verify(m,sig,Util.hex(pk))  
   
-  def verify(m:Array[Byte],sig:String,pk:String):Boolean = {
-    if(m==null || sig==null || sig.isEmpty || pk==null || pk.isEmpty ) return false
+  def verify(m:Array[Byte],sig:String,pk:String):Boolean = verifyAddress(m,sig,address(pk))  
+  def verifyAddress(m:String,sig:String,addr:String):Boolean = verifyAddress(m.getBytes(),sig,addr)
 
+  def verifyAddress(m:Array[Byte],sig:String,addr0:String):Boolean = {
+    if(m==null || sig==null || sig.isEmpty || addr0==null || addr0.isEmpty ) return false
+
+    val addr = addr0.toLowerCase
     val rs = Eth.fromSig(sig)
     try {
         val signature = new ECDSASignature(new BigInteger(Numeric.hexStringToByteArray(rs._1)),new BigInteger(Numeric.hexStringToByteArray(rs._2)))
@@ -133,7 +137,7 @@ object Eth {
         val r2 = Sign.recoverFromSignature(1,signature,h)
       
         //The right way is probably to migrate to signed BigInteger(1,r1.toByteArray)
-        Util.hex(normalize(r1.toByteArray,64)) == pk || Util.hex(normalize(r2.toByteArray,64)) == pk
+        address(normalize(r1.toByteArray,64)) == addr || address(normalize(r2.toByteArray,64)) == addr
     } catch {
       case e:Exception => false
     }

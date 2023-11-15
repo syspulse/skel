@@ -26,25 +26,17 @@ object App  {
       new ConfigurationProp,
       new ConfigurationEnv, 
       new ConfigurationArgs(args,"skel-cron","",
-        // ArgString('h', "http.host",s"listen host (def: ${d.host})"),
-        // ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
-        // ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
-        // ArgString('d', "datastore",s"datastore [mysql,postgres,mem,cache] (def: ${d.datastore})"),
         ArgString('c', "cron.expr",s"cron expression (use '_': '--cron.expr='*/1_*_*_*_*_?') (def: ${d.expr})"),
         ArgString('q', "cron.quartz",s"quartz config properties (def: default) (def: ${d.quartz})"),
 
-        // ArgCmd("server","Command"),
-        ArgCmd("cron","Command"),
+        ArgCmd("cron","Cron command"),
+        ArgCmd("freq","Frequency command (use cron.expr=10000)"),
         ArgParam("<params>",""),
         ArgLogging()
       ).withExit(1)
     )).withLogging()
 
     val config = Config(
-      // host = c.getString("http.host").getOrElse(d.host),
-      // port = c.getInt("http.port").getOrElse(d.port),
-      // uri = c.getString("http.uri").getOrElse(d.uri),
-      // datastore = c.getString("datastore").getOrElse(d.datastore),
       expr = c.getString("cron.expr").getOrElse(d.expr),
       quartz = c.getString("cron.quartz").getOrElse(d.quartz),
       cmd = c.getCmd().getOrElse(d.cmd),
@@ -61,7 +53,15 @@ object App  {
           },
           config.expr.replaceAll("_"," "),
           conf = if(config.quartz == "default") None else Some((config.quartz,c))
-        ).start
+        ).start()
+
+      case "freq" =>         
+        new CronFreq(() => {
+            println(s"${System.currentTimeMillis}: ${Thread.currentThread}: Ping")
+            true
+          },
+          FiniteDuration(config.expr.toLong,TimeUnit.MILLISECONDS)        
+        ).start()
                       
       case _ => 
     }

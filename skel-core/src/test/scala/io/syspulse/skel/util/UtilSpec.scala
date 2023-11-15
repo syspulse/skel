@@ -216,6 +216,13 @@ class UtilSpec extends AnyWordSpec with Matchers {
       f2 should === (t3)
     }
 
+    "nextTimestampFile '/dir/file.log' == 0" in {
+      val t1 = System.currentTimeMillis()
+      val t2 = Util.nextTimestampFile("/dir/file.log",t1)
+      
+      t2 should === (0L)
+    }
+
     "produce CSV 'data,attr1;attr2,10' for case class with List(1,2)" in {
       case class Data(data:String,attr:List[String],v:Int)
       val c = Data("data",List("attr1","attr2"),10)

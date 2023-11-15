@@ -18,6 +18,7 @@ import io.syspulse.skel.config.{Configuration}
 import io.syspulse.skel.store.{Store,StoreDB}
 
 import io.syspulse.skel.otp.Otp
+import io.getquill.context.ExecutionInfo
 
 class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB[Otp,UUID](dbConfigRef,"otp",Some(configuration)) with OtpStore {
 
@@ -37,12 +38,12 @@ class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB
       algo VARCHAR(64)
     );
     """
-    )
+    )(ExecutionInfo.unknown, ())
 
     // why do we still use MySQL which does not even support INDEX IF NOT EXISTS ?...
     //val r = ctx.executeAction("CREATE INDEX IF NOT EXISTS otp_name ON otp (name);")
     try {
-      val r = ctx.executeAction(s"CREATE INDEX otp_name ON ${tableName} (name);")
+      val r = ctx.executeAction(s"CREATE INDEX otp_name ON ${tableName} (name);")(ExecutionInfo.unknown, ())
       Success(r)
     } catch {
       case e:Exception => { 
@@ -65,7 +66,7 @@ class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB
   def +(otp:Otp):Try[OtpStoreDB] = { 
     log.info(s"insert: ${otp}")
     try {
-      ctx.run(query[Otp].insert(lift(otp))); 
+      ctx.run(query[Otp].insertValue(lift(otp))); 
       Success(this)
     } catch {
       case e:Exception => Failure(new Exception(s"could not insert: ${e}"))

@@ -37,11 +37,11 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
   
   implicit def timeout:FiniteDuration = FiniteDuration(5000, TimeUnit.MILLISECONDS)
   
-  def shaping:Flow[I,I,_] = {
+  def shaping:Flow[T,T,_] = {
     if(throttle != 0L)
-      Flow[I].throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))          
+      Flow[T].throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))          
     else
-      Flow[I].map(i => i)
+      Flow[T].map(t => t)
   }
   
   override def source() = {
@@ -64,11 +64,22 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
           //Flows.fromHttpRestartable(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
       }
       case "https" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
-      case "file" :: fileName :: Nil => Flows.fromFile(fileName,chunk,frameDelimiter = delimiter, frameSize = buffer)
-      case "dir" :: dirName :: Nil => Flows.fromDir(dirName,0,chunk,frameDelimiter = delimiter, frameSize = buffer)
-      case "dirs" :: dirName :: Nil => Flows.fromDir(dirName,Int.MaxValue,chunk,frameDelimiter = delimiter, frameSize = buffer)
-      case "stdin" :: _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer)
       
+      case "tcp" :: uri :: Nil => Flows.fromTcpClientUri(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
+
+      case "file" :: fileName :: Nil => Flows.fromFile(fileName,chunk,frameDelimiter = delimiter, frameSize = buffer)
+      
+      case "tail" :: fileName :: Nil => Flows.fromTail(fileName,chunk,frameDelimiter = delimiter, frameSize = buffer)
+      case "tails" :: Nil => Flows.fromDirTail("./",chunk,frameDelimiter = delimiter, frameSize = buffer)
+      case "tails" :: dirName :: Nil => Flows.fromDirTail(dirName,chunk,frameDelimiter = delimiter, frameSize = buffer)
+      
+      case "dir" :: Nil => Flows.fromDir("./",0,chunk,frameDelimiter = delimiter, frameSize = buffer)
+      case "dir" :: dirName :: Nil => Flows.fromDir(dirName,0,chunk,frameDelimiter = delimiter, frameSize = buffer)
+      case "dirs" :: Nil => Flows.fromDir("./",Int.MaxValue,chunk,frameDelimiter = delimiter, frameSize = buffer)
+      case "dirs" :: dirName :: Nil => Flows.fromDir(dirName,Int.MaxValue,chunk,frameDelimiter = delimiter, frameSize = buffer)
+
+      case "stdin" :: _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer)
+            
       case "cron" :: expr :: next :: rest => 
         val cronSource = Flows.fromCron(expr)
         val nextSource:Source[ByteString,_] = source(next + "://" + rest.mkString(""))
@@ -91,7 +102,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
         cronSource.flatMapConcat( tick => nextSource)
 
       case "" :: Nil => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
-      case file :: Nil => Flows.fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)      
+      case file :: Nil => Flows.fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)
       case _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
     }
     src0

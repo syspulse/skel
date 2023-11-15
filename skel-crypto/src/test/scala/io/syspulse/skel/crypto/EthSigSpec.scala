@@ -25,6 +25,24 @@ class EthSigSpec extends AnyWordSpec with Matchers with TestData {
       v should === (true)
     }
 
+    "sign and verify signature on Address" in {
+      val sig = Eth.sign("message",sk1)
+      val v = Eth.verifyAddress("message",sig,Eth.address(pk1))
+      v should === (true)
+    }
+
+    "sign and verify signature on Address in upper-case" in {
+      val sig = Eth.sign("message",sk1)
+      val v = Eth.verifyAddress("message",sig,Eth.address(pk1).toUpperCase())
+      v should === (true)
+    }
+
+    "NOT verify signature on incorrect Address" in {
+      val sig = Eth.sign("message",sk1)
+      val v = Eth.verifyAddress("message",sig,"0x388C818CA8B9251b393131C08a736A67ccB19297")
+      v should === (false)
+    }
+
     "NOT verify signature for corrupted data" in {
       val sig = Eth.sign("message",sk1)
       val v = Eth.verify("MESSAGE",sig,pk1)

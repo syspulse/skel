@@ -81,7 +81,7 @@ object App extends skel.Server {
       }
     }
 
-    println(s"r=${r}")
+    Console.err.println(s"r=${r}")
   }
 }
 

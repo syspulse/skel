@@ -105,7 +105,7 @@ abstract class WebSocket(idleTimeout:Long)(implicit ex:ExecutionContext) {
   }
 
   def broadcastText(text: String,topic:String=""): Unit = {
-    log.info(s"broadcasting: '${text}' -> ${clients}")
+    log.debug(s"broadcast: '${text}' -> ${clients}")
     for (aa <- clients.get(topic)) 
       aa.map(_ ! TextMessage.Strict(text))
   }

@@ -51,7 +51,7 @@ class TelemetryRoutes(telemetryRegistry: ActorRef[TelemetryRegistry.Command])(im
 
   val routes: Route =
     pathPrefix("telemetry") {
-      fr.davit.akka.http.metrics.core.scaladsl.server.HttpMetricsDirectives.metrics(prometheusRegistry)
+      fr.davit.akka.http.metrics.core.scaladsl.server.HttpMetricsDirectives.metrics(prometheus)
     }
 }
 

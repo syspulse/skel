@@ -125,7 +125,7 @@ object Util {
 
     //println(s"${deltas}")
     //println(s"${deltas.sortBy(_._1)}")
-    deltas.sortBy(_._1).map(_._2).head
+    deltas.sortBy(_._1).map(_._2).headOption.getOrElse(0L)
   }
 
   def getParentUri(uri:String) = {
