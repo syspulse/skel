@@ -21,14 +21,16 @@ trait OdoStore extends Store[Odo,String] {
   def all:Seq[Odo]
   def size:Long
   
-  def update(id:String, delta:Long):Try[Odo]
+  def update(id:String, counter:Long):Try[Odo]
+
+  def ++(id:String, delta:Long):Try[Odo]
 
   def clear():Try[OdoStore]
 
-  protected def modify(o:Odo, delta:Long):Odo = {    
+  protected def modify(o:Odo, counter:Long):Odo = {    
     (for {
-      o0 <- Some(o)
-      o1 <- Some(o.copy(counter = o.counter + delta))      
+      o0 <- Some(o.copy(ts = System.currentTimeMillis))
+      o1 <- Some(o.copy(counter = counter))
     } yield o1).get    
   }
 }

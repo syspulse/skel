@@ -64,7 +64,8 @@ object OdoRegistry {
         Behaviors.same
 
       case UpdateOdo(id, req, replyTo) =>        
-        val o = store.update(id,req.delta)        
+        // ATTENTION: Update is ++ !
+        val o = store.++(id,req.delta)
         replyTo ! o
 
         Behaviors.same

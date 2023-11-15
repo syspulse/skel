@@ -92,10 +92,10 @@ class OdoStoreDB(configuration:Configuration,dbConfigRef:String)
     }
   }
 
-  def update(id:String,delta:Long):Try[Odo] = {
+  def update(id:String,counter:Long):Try[Odo] = {
     this.?(id) match {
       case Success(o) =>
-        val o1 = modify(o,delta)
+        val o1 = modify(o,counter)
 
         log.info(s"UPDATE: ${o1}")
         try {
@@ -110,6 +110,28 @@ class OdoStoreDB(configuration:Configuration,dbConfigRef:String)
 
           Success(o1)
 
+        } catch {
+          case e:Exception => Failure(new Exception(s"could not update: ${e}"))
+        }
+      case f => f
+  }}
+
+  def ++(id:String,delta:Long):Try[Odo] = {
+    this.?(id) match {
+      case Success(o) =>
+        val o1 = o.copy(counter = o.counter + delta)
+
+        log.info(s"UPDATE: ${o1}")
+        try {
+          val q = 
+            table
+              .filter(o => o.id == lift(id))
+              .update(
+                set(_.counter, quote(lift(o1.counter))),
+              )
+          
+          ctx.run(q)
+          Success(o1)
         } catch {
           case e:Exception => Failure(new Exception(s"could not update: ${e}"))
         }

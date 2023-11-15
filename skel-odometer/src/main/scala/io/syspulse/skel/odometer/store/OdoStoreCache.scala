@@ -17,16 +17,16 @@ import io.syspulse.skel.odometer.Odo
 import io.syspulse.skel.cron.CronFreq
 
 class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
-  
+  val log = Logger(s"${this}")
+
   val cache = new OdoStoreMem()
 
   val cron = new CronFreq(() => {
+      log.info(s"Flushing cache: ${size}")
       all.foreach{ o => {
+        log.info(s"Flushing: ${o}")
         store.update(o.id,o.counter)
-      }}
-
-      store.clear()
-
+      }}      
       true
     },
     FiniteDuration(freq,TimeUnit.MILLISECONDS),
@@ -51,11 +51,35 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
     } yield this
   }
 
-  def ?(id:String):Try[Odo] = cache.?(id)
+  def ????(id:String) = {
+    cache.?(id) match {
+      case Success(o) => Success(o)
+      case _ => 
+        // try to get from store
+        store.?(id).map(o => {
+          cache.+(o)
+          o
+        })
+    }
+  }
 
-  def update(id:String,delta:Long):Try[Odo] = {
+  def ?(id:String):Try[Odo] = {
+    ????(id)
+  }
+
+  def update(id:String,counter:Long):Try[Odo] = {
+    val o = ????(id)
     for {
-      r1 <- cache.update(id,delta)
+      o <- o
+      r1 <- cache.update(id,counter)
+    } yield r1
+  }
+
+  def ++(id:String,delta:Long):Try[Odo] = {
+    val o = ????(id)    
+    for {
+      o <- o
+      r1 <- cache.++(o.id,delta)
     } yield r1
   }
 
@@ -66,7 +90,6 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
     } yield this
   }
   
-
-  // start updater
-  def start() = cron.start()
+  // start cron
+  cron.start()
 }
