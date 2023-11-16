@@ -13,7 +13,7 @@ class WorkflowRegistry(execs0:Seq[Exec] = Seq()) {
 
   val execs:Map[Exec.ID,Exec] = (WorkflowRegistry.default ++ execs0).map(f => f.typ -> f).toMap  
   
-  log.info(s"execs: ${execs}")
+  log.info(s"execs: ${execs.values.toSeq.map(_.name).mkString(",")}")
 
   def resolve(name:String): Option[Exec] = {
     execs.get(name)
@@ -43,5 +43,7 @@ object WorkflowRegistry {
     Exec("Join","io.syspulse.skel.wf.exec.JoinExec"),
 
     Exec("Var","io.syspulse.skel.wf.exec.VarExec"),
+
+    Exec("Server","io.syspulse.skel.wf.exec.HttpServerExec"),
   )
 }
