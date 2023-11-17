@@ -710,7 +710,7 @@ lazy val skel_dsl = (project in file("skel-dsl"))
       
       // Only for experiments
       sharedConfigAssembly,      
-      appAssemblyConfig("db-cli","io.syspulse.skel.db.AppCliDB"),
+      appAssemblyConfig("dsl-cli","io.syspulse.skel.dsl.App"),
       //name := "skel-dsl",
 
       libraryDependencies ++= libCommon ++ libTest ++

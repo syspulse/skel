@@ -21,6 +21,8 @@ case class Config(
   datastore:String = "dir://",
   storeWorkflow:String = "dir://",
   storeState:String = "dir://",
+
+  registry:Seq[String] = Seq(""),
   
   cmd:String = "wf",
   params: Seq[String] = Seq(),
@@ -48,6 +50,8 @@ object App extends skel.Server {
         ArgString('d', "datastore",s"Datastore [dir://] (def: ${d.datastore})"),
         ArgString('_', "store.workflow",s"Workflows store [dir://] (def: ${d.storeWorkflow})"),
         ArgString('_', "store.state",s"Runtime store [dir://] (def: ${d.storeState})"),
+
+        ArgString('r', "registry",s"Extra Registry (def: ${d.registry})"),
         
         ArgCmd("server",s"Server"),        
         
@@ -83,6 +87,8 @@ object App extends skel.Server {
       storeWorkflow = c.getString("store.workflow").getOrElse(d.storeWorkflow),
       storeState = c.getString("store.state").getOrElse(d.storeState),
 
+      registry = c.getListString("registry",d.registry),
+
       cmd = c.getCmd().getOrElse("server"),
       params = c.getParams(),
     )
@@ -98,20 +104,24 @@ object App extends skel.Server {
         val storeWorkflow = config.storeWorkflow.split("://").toList match {
           case "dir" :: dir :: Nil => new WorkflowStoreDir(dir)
           case "dir" :: Nil => new WorkflowStoreDir()
+          case _ => new WorkflowStoreDir()
         }
 
         val storeState = config.storeState.split("://").toList match {
           case "dir" :: dir :: Nil => new WorkflowStateStoreDir(dir)
           case "dir" :: Nil => new WorkflowStateStoreDir()
           case "mem" :: Nil => new WorkflowStateStoreMem()
-          case Nil => new WorkflowStateStoreDir()
+          case _ => new WorkflowStateStoreDir()
         }
 
         (storeWorkflow,storeState)
       }
     }
 
-    def assemble(name:String,assembly:List[String]) = {
+    implicit val registry = new WorkflowRegistry(WorkflowRegistry.fromString(config.registry))
+
+    def assemble(name:String,assembly:List[String]) = {      
+
       val dsl = if(assembly.head.startsWith("file://")) {
         os.read(os.Path(assembly.head.stripPrefix("file://"),os.pwd))
       } else 
@@ -128,7 +138,7 @@ object App extends skel.Server {
       case "server" => 
 
       case "registry" | "reg" => 
-        val reg = new WorkflowRegistry()
+        val reg = new WorkflowRegistry(WorkflowRegistry.fromString(config.registry))
         reg.execs.mkString("\n")
 
       case "wf" => config.params match {

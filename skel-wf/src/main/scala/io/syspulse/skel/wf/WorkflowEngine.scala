@@ -20,7 +20,8 @@ object WorkflowEngine {
   val DATA_DIR = "data.dir"
 }
 
-class WorkflowEngine(workflowStore:WorkflowStore, stateStore:WorkflowStateStore, runtime:Runtime, runtimeStoreUri:String = "dir://store/runtime", execs:Seq[Exec] = Seq()) {
+class WorkflowEngine(workflowStore:WorkflowStore, stateStore:WorkflowStateStore, runtime:Runtime, runtimeStoreUri:String = "dir://store/runtime")
+    (implicit registry:WorkflowRegistry) {
   
   val log = Logger(s"${this}")
 
@@ -28,9 +29,7 @@ class WorkflowEngine(workflowStore:WorkflowStore, stateStore:WorkflowStateStore,
   val runtimeStore = runtimeStoreUri.split("://").toList match {
     case "dir" :: dir :: Nil => dir    
   }
-
-  val registry = new WorkflowRegistry(execs)
-
+  
   def getStoreWorkflow() = workflowStore
   def getStoreState() = stateStore
 

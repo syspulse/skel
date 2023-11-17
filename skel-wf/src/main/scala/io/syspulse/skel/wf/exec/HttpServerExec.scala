@@ -80,20 +80,20 @@ object HttpServerRegistry {
   }
 }
 
-class HttpRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {
+class HttpRoutes(http:HttpServer,registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {
   val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system
     
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   
-  def getRoute(id: String) = get {
-    log.info(s"====> ${id}")
-    HttpServer.push(id)
+  def getRoute(msg: String) = get {
+    log.info(s"=> ${msg}")
+    http.push(msg)
     complete("OK")
   }
 
   def getRoute() = get {
-    log.info(s"====>")
+    log.info(s"=>")
     complete("OK")
   }
   
@@ -119,18 +119,18 @@ class HttpRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_])
             // postRoute()
           )
         },        
-        pathPrefix(Segment) { id => 
+        pathPrefix(Segment) { msg => 
           pathEndOrSingleSlash {
             // postRoute(id) ~
-            getRoute(id)          
+            getRoute(msg)
           }
         }
       )
   }
 }
 
-object HttpServer extends skel.Server {
-  implicit val as:actor.ActorSystem = actor.ActorSystem("HttpServer-System")
+class HttpServer(name:String,routes: (HttpServer,ActorRef[Command],ActorContext[_])=>Routeable) extends skel.Server {
+  implicit val as:actor.ActorSystem = actor.ActorSystem(s"HttpServer-${name}")
   implicit val ec = as.getDispatcher
 
   val queue = new LinkedBlockingQueue[String](10) //Queue[String]()
@@ -155,13 +155,13 @@ object HttpServer extends skel.Server {
     started = true
     run( host, port, uri, c,
       Seq(
-        (HttpServerRegistry(),"HttpRegistry",(r, ac) => new HttpRoutes(r)(ac) )
+        (HttpServerRegistry(),s"HttpRegistry-${name}",(r, ac) => routes(this,r,ac) )
       )
     )
   }}
 }
 
-class HttpServerExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) 
+abstract class HttpServerExecuting(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) 
   extends Executing(wid,name,dataExec ++ Map("retry.max" -> 10)) {
   
   val host = dataExec.get("http.host").getOrElse("0.0.0.0").asInstanceOf[String]
@@ -170,32 +170,35 @@ class HttpServerExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any])
   val auth = dataExec.get("http.auth").getOrElse("").asInstanceOf[String]
   
   
-  import HttpServer._
+  val http = getServer()
   val timeout = FiniteDuration(dataExec.get("http.timeout").getOrElse(3000L).asInstanceOf[Long],TimeUnit.MILLISECONDS)
-  
-  HttpServer.start(host, port, uri, 
+    
+  http.start(host, port, uri, 
     Configuration.withPriority(Seq(
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv)
     )
   )
+
+  def getServer():HttpServer
+  
+  override def exec(in:Let.ID,data:ExecData):Try[ExecEvent]
+}
+
+class HttpServerExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) 
+  extends HttpServerExecuting(wid,name,dataExec) {
+  
+  // default server with only GET
+  def getServer():HttpServer = new HttpServer("",(http,r,ac) => new HttpRoutes(http,r)(ac))
   
   override def exec(in:Let.ID,data:ExecData):Try[ExecEvent] = {
     
-    HttpServer.take() match {
-      case cmd @ "1" => 
-        log.info(s"cmd=${cmd}")
-        val data1 = data.copy( attr = data.attr + ("input" -> cmd))
+    val msg = http.take()
+    log.info(s"msg=${msg}")
+    val data1 = data.copy( attr = data.attr + ("input" -> msg))
 
-        broadcast(data1)
-        Success(ExecDataEvent(data1))
-      case cmd => 
-        // nothing to do, stay
-        log.info(s"Wrong command: ${cmd}")
-        Failure(new Exception(s"invalid command: ${cmd}"))
-    }
+    broadcast(data1)
+    Success(ExecDataEvent(data1))    
   }
 }
-
-
