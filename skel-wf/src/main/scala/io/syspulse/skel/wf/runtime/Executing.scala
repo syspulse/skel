@@ -74,6 +74,7 @@ class Executing(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) {
            wid:Workflowing.ID,
            name:String,
            in:Seq[Linking],out:Seq[Linking]):Unit = {
+    
     status match {
       case Status.CREATED() => 
         stateStore = Some(store)

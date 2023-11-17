@@ -56,9 +56,17 @@ class Workflowing(
   def getRunning = running
 
   def init():Try[WorkflowState] = {
-    state = WorkflowState(id,wf.id,WorkflowState.STATUS_INITIALIZED)
+    state = 
+      //stateStore.+(state).map(_ => state)    
+      stateStore.?(id) match {
+        case Success(state1) => 
+          state1
+        case Failure(e) => // not found, leave as initialized
+          WorkflowState(id,wf.id,WorkflowState.STATUS_INITIALIZED)    
+      } 
+
     log.info(s"init: ${state}")
-    stateStore.+(state).map(_ => state)    
+    Success(state)
   }
 
   def start():Try[WorkflowState] = {
@@ -83,18 +91,36 @@ class Workflowing(
   }
 
   def emit(execName:String,input:Let.ID,event:ExecEvent):Try[Workflowing] = {
+    
     mesh.get(execName) match {
       case Some(e) => 
+        // if event is DataEvent, inject state
+        val event1 = event match {
+          case ExecDataEvent(data) =>
+              val attr = { 
+                if(state.states.size == 0) Map[String,Any]() else {
+                  state.states.filter(_.eid == e.id).lastOption match {
+                    case Some(es) => es.data.attr
+                    case None => Map[String,Any]()
+                  }
+                }
+              } ++ data.attr
+              ExecDataEvent(ExecData(attr))
+          case _ => event
+        }
+
+        println(s"=========================> event1 = ${event1}, states=${state.states}")
+        
         val in = e.inputs.get(input)
 
         in match {          
           case Some(linking) => 
-            val r =  linking.input(event)
+            val r =  linking.input(event1)
             Success(this)
 
           case None =>
             // link is not found, so emit synchronously into input directly
-            e.onEvent(input,event).map(_ => this)
+            e.onEvent(input,event1).map(_ => this)
             //Failure(new Exception(s"not found: ${execName}:${input}"))
         }        
       case None => 

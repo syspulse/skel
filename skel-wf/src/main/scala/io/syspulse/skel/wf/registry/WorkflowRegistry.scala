@@ -59,5 +59,8 @@ object WorkflowRegistry {
 
     Exec("Server","io.syspulse.skel.wf.exec.HttpServerExec"),
     //Exec("ServerCommand","io.syspulse.skel.wf.exec.HttpServerCommandExec"),
+
+    Exec("EnrollStart","io.syspulse.skel.wf.exec.EnrollPhaseStartExec"),
+    Exec("EnrollConfirm","io.syspulse.skel.wf.exec.EnrollPhaseConfirmExec"),
   )
 }
