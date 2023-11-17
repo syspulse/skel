@@ -955,7 +955,7 @@ lazy val skel_wf = (project in file("skel-wf"))
     
     appDockerConfig("skel-wf","io.syspulse.skel.wf.App"),
 
-    libraryDependencies ++= libTest ++ Seq(
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
       libOsLib,
       libUpickleLib,
     )

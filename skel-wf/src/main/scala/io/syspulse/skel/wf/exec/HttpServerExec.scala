@@ -2,8 +2,9 @@ package io.syspulse.skel.wf.exec
 
 import scala.util.Random
 
-import scala.collection.immutable
 import scala.collection.immutable.Queue
+import java.util.concurrent.BlockingDeque
+import java.util.concurrent.{LinkedBlockingQueue,ArrayBlockingQueue}
 
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.Future
@@ -132,22 +133,19 @@ object HttpServer extends skel.Server {
   implicit val as:actor.ActorSystem = actor.ActorSystem("HttpServer-System")
   implicit val ec = as.getDispatcher
 
-  @volatile
-  var queue = Queue[String]()
+  val queue = new LinkedBlockingQueue[String](10) //Queue[String]()
 
   def push(cmd:String) = {
-    queue = queue :+ cmd
+    queue.offer(cmd) match {
+      case false => 
+        log.warn(s"Queue is full: ${cmd}")
+      case _ =>
+        // nothing to do
+    }
   }
 
   def take() = {
-    val d = queue.headOption
-    d match {
-      case None => ""
-      case Some(cmd) =>
-        queue = queue.tail
-        cmd
-    }
-    
+    queue.take        
   }
 
   @volatile
