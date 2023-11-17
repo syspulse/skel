@@ -180,19 +180,6 @@ class DslSpec extends AnyWordSpec with Matchers {
 //
 //   java.lang.AssertionError: assertion failed: 
 // [info]   No RuntimeVisibleAnnotations in classfile with ScalaSignature attribute: class Predef
-// [info]      while compiling: <init>
-// [info]         during phase: globalPhase=namer, enteringPhase=parser
-// [info]      library version: version 2.13.9
-// [info]     compiler version: version 2.13.9
-// [info]   reconstructed args: -nowarn -usejavacp -usemanifestcp -Xmaxwarns 0 -Yrepl-class-based
-// [info] 
-// [info]   last tree to typer: EmptyTree
-// [info]        tree position: <unknown>
-// [info]             tree tpe: <notype>
-// [info]               symbol: null
-// [info]            call site: package <root> in <none>
-// [info] 
-
   "ScalaScript" should {
     s"run Scala script" in {
       val e = new ScalaScript()
