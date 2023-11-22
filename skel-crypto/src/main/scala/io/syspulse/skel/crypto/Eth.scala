@@ -2,7 +2,7 @@ package io.syspulse.skel.crypto
 
 import scala.util.{Try,Success,Failure}
 import os._
-
+import com.typesafe.scalalogging.Logger
 import scala.jdk.CollectionConverters
 import java.math.BigInteger
 
@@ -23,8 +23,17 @@ import org.web3j.crypto
 import java.nio.charset.StandardCharsets
 import org.web3j.utils.Convert
 import org.web3j.tx.gas.DefaultGasProvider
+import org.web3j.protocol.Web3j
+import org.web3j.protocol.http.HttpService
+import org.web3j.tx.TransactionManager
+import org.web3j.tx.RawTransactionManager
+import org.web3j.tx.response.TransactionReceiptProcessor
+import org.web3j.tx.response.PollingTransactionReceiptProcessor
+import org.web3j.protocol.core.methods.response.TransactionReceipt
+import org.web3j.protocol.core.DefaultBlockParameterName
 
 object Eth {
+  val log = Logger(s"${this}")
 
   import key._
   
@@ -251,10 +260,12 @@ object Eth {
     Success(Eth.normalize(key.toByteArray(),64))
   }
 
+  // ATTENTION !!!
   // gas is in GWEI 
   // value is in ETHER   
+  // 11155111 - Sepolia
   def signTx(sk:String, to:String, value:String, nonce:Long = 0, 
-             gasPrice:String = "20.0", gasTip:String = "5.0", gasLimit:BigInt = DefaultGasProvider.GAS_LIMIT,
+             gasPrice:String = "20.0", gasTip:String = "5.0", gasLimit:Long = 21000,
              data:Option[String] = None,
              chainId:Long = 11155111):String = 
       signTransaction(sk,
@@ -266,10 +277,9 @@ object Eth {
              gasLimit,
              data,
              chainId)
-
-  // 11155111 - Sepolia
+  
   def signTransaction(sk:String, to:String, value:BigInt, nonce:Long, 
-             gasPrice:BigInt, gasTip:BigInt, gasLimit:BigInt = DefaultGasProvider.GAS_LIMIT,
+             gasPrice:BigInt, gasTip:BigInt, gasLimit:Long = 21000,
              data:Option[String] = None,
              chainId:Long = 11155111) = {
     
@@ -277,9 +287,9 @@ object Eth {
       RawTransaction.createTransaction(
         chainId,
         BigInteger.valueOf(nonce), 
-        gasLimit.bigInteger, 
+        BigInteger.valueOf(gasLimit), 
         to,            
-        Convert.toWei(BigDecimal(value).bigDecimal, Convert.Unit.ETHER).toBigInteger(),
+        value.bigInteger,
         data.get,
         gasTip.bigInteger,
         gasPrice.bigInteger
@@ -288,9 +298,9 @@ object Eth {
       RawTransaction.createEtherTransaction(
         chainId,
         BigInteger.valueOf(nonce), 
-        gasLimit.bigInteger, 
+        BigInteger.valueOf(gasLimit),
         to,            
-        Convert.toWei(BigDecimal(value).bigDecimal, Convert.Unit.ETHER).toBigInteger(),
+        value.bigInteger,
         gasTip.bigInteger,
         gasPrice.bigInteger
       )
@@ -303,6 +313,125 @@ object Eth {
 
     Numeric.toHexString(signedMessage)
   }
+
+  // Raw transaction (Blocking !)
+  def transaction(sk:String, to:String, value:String, 
+             gasPrice:String = "20.0", gasTip:String = "5.0", gasLimit:Long = 21000,
+             data:Option[String] = None, nonce:Long = -1,
+             chainId:Long = 11155111, rpcUri:String = "http://localhost:8545"):Try[TransactionReceipt] = {
+
+    val web3 = Web3j.build(new HttpService(rpcUri));
+    val ver = web3.web3ClientVersion().send()
+    val id = web3.netVersion().send().getNetVersion();
+    log.info(s"web3: ${ver.getWeb3ClientVersion()}/${id}")
+
+    val cred: Credentials = Credentials.create(sk)
+
+    val nonceTx = if(nonce == -1) {
+      val addr = cred.getAddress()
+      web3.ethGetTransactionCount(addr,DefaultBlockParameterName.PENDING).send().getTransactionCount().longValue()
+    } else nonce
+
+    val valueWei = Convert.toWei(value,Convert.Unit.ETHER).toBigInteger()
+    val gasPriceWei = Convert.toWei(gasPrice,Convert.Unit.GWEI).toBigInteger()
+    val gasTipWei = Convert.toWei(gasTip,Convert.Unit.GWEI).toBigInteger()
+    
+    val sig = signTransaction(sk,
+             to, 
+             valueWei,
+             nonceTx, 
+             gasPriceWei, 
+             gasTipWei,
+             gasLimit,
+             data,
+             chainId)
+
+    
+    val r = web3.ethSendRawTransaction(sig).send()    
+    val txHash = r.getTransactionHash()
+
+    if(txHash == null) {
+      log.error(s"Tx[${to},${valueWei},${gasPriceWei}/${gasTipWei}]: ${r.getError().getMessage()}")
+      return(Failure(new Exception(r.getError().getMessage())))
+    }
+
+    log.info(s"txHash: ${txHash}")
+    
+    val receiptProcessor:TransactionReceiptProcessor = new PollingTransactionReceiptProcessor(
+      web3, 
+      TransactionManager.DEFAULT_POLLING_FREQUENCY, 
+      TransactionManager.DEFAULT_POLLING_ATTEMPTS_PER_TX_HASH
+    )
+    
+    val txReceipt:TransactionReceipt = receiptProcessor.waitForTransactionReceipt(txHash)
+    log.info(s"txReceipt: ${txReceipt}")    
+    
+    if(txReceipt.getStatus() != "0x1") {
+      return Failure(new Exception(s"${txHash}: failed with status=${txReceipt.getStatus()}"))
+    }
+    Success(txReceipt)
+  }
+
+  // -----------------------------------------------------------------------------
+  def cotract(sk:String, contract:String, data:String,  value:String,
+             gasPrice:String, gasTip:String, gasLimit:Long = 21000,             
+             chainId:Long = 11155111, rpcUri:String = "http://localhost:8545") = 
+    sendContract(sk,
+             contract, data,
+             Convert.toWei(value,Convert.Unit.ETHER).toBigInteger(),
+             Convert.toWei(gasPrice,Convert.Unit.GWEI).toBigInteger(), 
+             Convert.toWei(gasTip,Convert.Unit.GWEI).toBigInteger(),
+             gasLimit,
+             chainId,
+             rpcUri) 
+
+
+  def sendContract(sk:String, contract:String, data:String,value:BigInt,
+             gasPrice:BigInt, gasTip:BigInt, gasLimit:Long = 21000,             
+             chainId:Long = 11155111, rpcUri:String = "http://localhost:8545"):Try[TransactionReceipt] = {
+    
+    val web3 = Web3j.build(new HttpService(rpcUri));
+    val ver = web3.web3ClientVersion().send()
+    val id = web3.netVersion().send().getNetVersion();
+    log.info(s"web3: ${ver}/${id}")
+
+    val cred: Credentials = Credentials.create(sk)
+    
+    val txManager:TransactionManager = new RawTransactionManager(web3, cred, chainId)
+
+    val r = txManager.sendEIP1559Transaction(
+      chainId,
+      gasTip.bigInteger,
+      gasPrice.bigInteger,
+      BigInteger.valueOf(gasLimit),
+      contract,
+      data,
+      value.bigInteger,
+      true
+    )
+    val txHash = r.getTransactionHash()
+
+    if(txHash == null) {
+      log.error(s"Tx[${contract},${value},${gasPrice}/${gasTip}]: ${r.getError().getMessage()}")
+      return(Failure(new Exception(r.getError().getMessage())))
+    }
+
+    log.info(s"txHash: ${txHash}")
+    
+    val receiptProcessor:TransactionReceiptProcessor = new PollingTransactionReceiptProcessor(
+      web3, 
+      TransactionManager.DEFAULT_POLLING_FREQUENCY, 
+      TransactionManager.DEFAULT_POLLING_ATTEMPTS_PER_TX_HASH
+    )
+    
+    val txReceipt:TransactionReceipt = receiptProcessor.waitForTransactionReceipt(txHash)
+    if(txReceipt.getStatus() != "0x1") {
+      return Failure(new Exception(s"${txHash}: failed with status=${txReceipt.getStatus()}"))
+    }
+    Success(txReceipt)
+  }
+
+  
 }
 
 
