@@ -57,8 +57,6 @@ class EnrollPhaseConfirmExec(wid:Workflowing.ID,name:String,dataExec:Map[String,
         
         val code = data.attr.get("enroll.code").getOrElse("").asInstanceOf[String]
         val confirm = data.attr.get("enroll.confirm").getOrElse("").asInstanceOf[String]
-
-        println(s"===========================> ${code}, ${confirm}")
         
         // remove data to make it clean
         val data1 = data.copy( attr = data.attr - ("enroll.data"))

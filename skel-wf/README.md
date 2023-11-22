@@ -149,4 +149,15 @@ Get Ids from External service:
 
 ```
 ./run-wf.sh wf run WF00001 'F-0(HttpClientExec(file=https://api.coingecko.com/api/v3/coins/list))->F-1(ScriptExec(script=file://script-json-ids.sc))->F-3(SplitExec(split.symbol=;,split.max=3))->F33(ThrottleExec(throttle.delay=1000))->F4(VarExec(var.name=id))->F5(HttpClientExec(http.uri=https://api.coingecko.com/api/v3/coins/{id}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false))->F6(JoinExec(join.max={input.size},join.symbol=\n))->F7(FileWriteExec(file=data/FILE-{sys.timestamp}.json))'
+```
+
+#### Enrollment Workflow Eample (HTTP Server)
+
+```
+./run-wf.sh runtime run wf-11
+./run-wf.sh runtime emit wf-11-1700258204657 F-0 enroll.email=test@domain.org
+./run-wf.sh runtime emit wf-11-1700258204657 F-1 enroll.code=1234
+./run-wf.sh runtime emit wf-11-1700258204657 F-1 enroll.confirm=1111
+
+```
 

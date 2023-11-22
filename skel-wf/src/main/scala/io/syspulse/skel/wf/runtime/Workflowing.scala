@@ -108,8 +108,6 @@ class Workflowing(
               ExecDataEvent(ExecData(attr))
           case _ => event
         }
-
-        println(s"=========================> event1 = ${event1}, states=${state.states}")
         
         val in = e.inputs.get(input)
 
