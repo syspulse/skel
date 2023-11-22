@@ -11,7 +11,7 @@ import org.bouncycastle.jcajce.provider.digest.SHA3;
 import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey
 
 import java.security.Security
-import org.web3j.crypto.{ECKeyPair,ECDSASignature,Sign,Credentials,WalletUtils,Bip32ECKeyPair,MnemonicUtils,Keys}
+import org.web3j.crypto.{ECKeyPair,ECDSASignature,Sign,Credentials,WalletUtils,Bip32ECKeyPair,MnemonicUtils,Keys,RawTransaction,TransactionEncoder}
 import org.web3j.utils.{Numeric}
 
 import io.syspulse.skel.util.Util
@@ -21,6 +21,8 @@ import org.apache.tuweni.bytes.Bytes32
 import org.web3j.abi.datatypes.generated.Uint8
 import org.web3j.crypto
 import java.nio.charset.StandardCharsets
+import org.web3j.utils.Convert
+import org.web3j.tx.gas.DefaultGasProvider
 
 object Eth {
 
@@ -249,6 +251,58 @@ object Eth {
     Success(Eth.normalize(key.toByteArray(),64))
   }
 
+  // gas is in GWEI 
+  // value is in ETHER   
+  def signTx(sk:String, to:String, value:String, nonce:Long = 0, 
+             gasPrice:String = "20.0", gasTip:String = "5.0", gasLimit:BigInt = DefaultGasProvider.GAS_LIMIT,
+             data:Option[String] = None,
+             chainId:Long = 11155111):String = 
+      signTransaction(sk,
+             to, 
+             Convert.toWei(value,Convert.Unit.ETHER).toBigInteger(),
+             nonce, 
+             Convert.toWei(gasPrice,Convert.Unit.GWEI).toBigInteger(), 
+             Convert.toWei(gasTip,Convert.Unit.GWEI).toBigInteger(),
+             gasLimit,
+             data,
+             chainId)
+
+  // 11155111 - Sepolia
+  def signTransaction(sk:String, to:String, value:BigInt, nonce:Long, 
+             gasPrice:BigInt, gasTip:BigInt, gasLimit:BigInt = DefaultGasProvider.GAS_LIMIT,
+             data:Option[String] = None,
+             chainId:Long = 11155111) = {
+    
+    val rawTx: RawTransaction = if(data.isDefined)
+      RawTransaction.createTransaction(
+        chainId,
+        BigInteger.valueOf(nonce), 
+        gasLimit.bigInteger, 
+        to,            
+        Convert.toWei(BigDecimal(value).bigDecimal, Convert.Unit.ETHER).toBigInteger(),
+        data.get,
+        gasTip.bigInteger,
+        gasPrice.bigInteger
+      )
+    else 
+      RawTransaction.createEtherTransaction(
+        chainId,
+        BigInteger.valueOf(nonce), 
+        gasLimit.bigInteger, 
+        to,            
+        Convert.toWei(BigDecimal(value).bigDecimal, Convert.Unit.ETHER).toBigInteger(),
+        gasTip.bigInteger,
+        gasPrice.bigInteger
+      )
+    
+    val signedMessage = TransactionEncoder.signMessage(
+      rawTx, 
+      chainId, 
+      Credentials.create(sk)
+    )
+
+    Numeric.toHexString(signedMessage)
+  }
 }
 
 
