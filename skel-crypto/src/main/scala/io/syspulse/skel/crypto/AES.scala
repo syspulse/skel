@@ -26,9 +26,12 @@ import java.util.Base64
 class AES {
   import Util._
 
-  def generateIv(seed:String = ""):IvParameterSpec = {
-    val iv = SHA256(seed).take(16)
-    new IvParameterSpec(iv)
+  def generateIv(seed:Option[String] = Some("")):IvParameterSpec = {
+    val iv = seed match {
+      case Some(seed) => new IvParameterSpec(SHA256(seed).take(16))
+      case None => generateIvRandom()
+    }
+    iv
   }
 
   def generateIvRandom():IvParameterSpec = {
@@ -50,7 +53,8 @@ class AES {
     new SecretKeySpec(secret, "AES")
   }
   
-  def encrypt(input:String,password:String,iv:IvParameterSpec = generateIv(),algo:String="AES/CBC/PKCS5Padding"):Array[Byte] = {
+  def encrypt(input:String,password:String,seed:Option[String]=Some(""),algo:String="AES/CBC/PKCS5Padding"):Array[Byte] = {
+    val iv:IvParameterSpec = generateIv(seed)
     val secretKey = getKeyFromPassword(password)
     val cipher = Cipher.getInstance(algo)
     cipher.init(Cipher.ENCRYPT_MODE, secretKey, iv)
@@ -59,14 +63,15 @@ class AES {
     
   }
 
-  def encryptBase64(input:String,password:String,iv:IvParameterSpec = generateIv(),algo:String="AES/CBC/PKCS5Padding"):String = {
+  def encryptBase64(input:String,password:String,seed:Option[String]=Some(""),algo:String="AES/CBC/PKCS5Padding"):String = {
     Base64.getEncoder().encodeToString(
-      encrypt(input,password,iv,algo)
+      encrypt(input,password,seed,algo)
     )
   }
   
 
-  def decrypt(input:Array[Byte],password:String,iv:IvParameterSpec = generateIv(),algo:String="AES/CBC/PKCS5Padding"):Try[Array[Byte]] = {
+  def decrypt(input:Array[Byte],password:String,seed:Option[String]=Some(""),algo:String="AES/CBC/PKCS5Padding"):Try[Array[Byte]] = {
+    val iv:IvParameterSpec = generateIv(seed)
     val secretKey = getKeyFromPassword(password)
     val cipher = Cipher.getInstance(algo)
     cipher.init(Cipher.DECRYPT_MODE, secretKey, iv)
@@ -78,11 +83,12 @@ class AES {
     }
   }
 
-  def decryptBase64(input:String,password:String,iv:IvParameterSpec = generateIv(),algo:String="AES/CBC/PKCS5Padding"):Try[Array[Byte]] = {
-    decrypt(Base64.getDecoder().decode(input),password,iv,algo)
+  def decryptBase64(input:String,password:String,seed:Option[String]=Some(""),algo:String="AES/CBC/PKCS5Padding"):Try[Array[Byte]] = {
+    decrypt(Base64.getDecoder().decode(input),password,seed,algo)
   }
 
-  def encryptStream(in:InputStream,out:OutputStream,password:String,iv:IvParameterSpec = generateIv(),algo:String="AES/CBC/PKCS5Padding") = {
+  def encryptStream(in:InputStream,out:OutputStream,password:String,seed:Option[String]=Some(""),algo:String="AES/CBC/PKCS5Padding") = {
+    val iv:IvParameterSpec = generateIv(seed)
     val secretKey = getKeyFromPassword(password)
     val cipher = Cipher.getInstance(algo)
     cipher.init(Cipher.ENCRYPT_MODE, secretKey, iv);
@@ -103,11 +109,11 @@ class AES {
     
   }
 
-  def encryptFile(inFile:String,outFile:String,password:String,iv:IvParameterSpec = generateIv(),algo:String="AES/CBC/PKCS5Padding") = {
+  def encryptFile(inFile:String,outFile:String,password:String,seed:Option[String]=Some(""),algo:String="AES/CBC/PKCS5Padding") = {
     val in:FileInputStream = new FileInputStream(inFile)
     val out:FileOutputStream = new FileOutputStream(outFile)
     
-    encryptStream(in,out,password,iv,algo)
+    encryptStream(in,out,password,seed,algo)
 
     in.close()
     out.close()
