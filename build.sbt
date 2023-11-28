@@ -540,6 +540,25 @@ lazy val crypto = (project in file("skel-crypto"))
       assembly / packageOptions += sbt.Package.ManifestAttributes("Multi-Release" -> "true")
     )
 
+lazy val crypto_kms = (project in file("skel-crypto/crypto-kms"))
+  .dependsOn(core,crypto)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssemblyTeku,
+      //sharedConfigAssembly,
+      name := "crypto-kms",
+      libraryDependencies ++= Seq() ++ //Seq(libLog4j2Api, libLog4j2Core) ++ 
+        libTest ++ libWeb3j ++ Seq(
+          libOsLib,
+          libUpickleLib,
+
+          libAWSJavaKMS
+        ),
+      // this is important option to support latest log4j2 
+      assembly / packageOptions += sbt.Package.ManifestAttributes("Multi-Release" -> "true")
+    )
+
 lazy val flow = (project in file("skel-flow"))
   .dependsOn(core)
   .disablePlugins(sbtassembly.AssemblyPlugin)

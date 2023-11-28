@@ -70,7 +70,7 @@ class AES {
   }
   
 
-  def decrypt(input:Array[Byte],password:String,seed:Option[String]=Some(""),algo:String="AES/CBC/PKCS5Padding"):Try[Array[Byte]] = {
+  def decryptBytes(input:Array[Byte],password:String,seed:Option[String]=Some(""),algo:String="AES/CBC/PKCS5Padding"):Try[Array[Byte]] = {
     val iv:IvParameterSpec = generateIv(seed)
     val secretKey = getKeyFromPassword(password)
     val cipher = Cipher.getInstance(algo)
@@ -83,7 +83,11 @@ class AES {
     }
   }
 
-  def decryptBase64(input:String,password:String,seed:Option[String]=Some(""),algo:String="AES/CBC/PKCS5Padding"):Try[Array[Byte]] = {
+  def decrypt(input:Array[Byte],password:String,seed:Option[String]=Some(""),algo:String="AES/CBC/PKCS5Padding"):Try[String] = {
+    decryptBytes(input,password,seed,algo).map(o => new String(o))
+  }
+
+  def decryptBase64(input:String,password:String,seed:Option[String]=Some(""),algo:String="AES/CBC/PKCS5Padding"):Try[String] = {
     decrypt(Base64.getDecoder().decode(input),password,seed,algo)
   }
 
@@ -118,6 +122,7 @@ class AES {
     in.close()
     out.close()
   }
+
 }
 
 
