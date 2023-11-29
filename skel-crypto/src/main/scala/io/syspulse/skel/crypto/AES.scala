@@ -35,10 +35,19 @@ class AES {
   }
 
   def generateIvRandom():IvParameterSpec = {
-    val iv = Array.fill[Byte](16){0}
-    val sr = new SecureRandom()
-    sr.nextBytes(iv)
+    val iv = generateRandom()
     new IvParameterSpec(iv)
+  }
+
+  def generateSeedRandom():String = {
+    new String(generateRandom())
+  }
+
+  def generateRandom(size:Int = 16):Array[Byte] = {
+    val block = Array.fill[Byte](size){0}
+    val sr = new SecureRandom()
+    sr.nextBytes(block)
+    block
   }
 
   def getKeyFromPassword(password:String,salt:String = "salt"):SecretKey = {
