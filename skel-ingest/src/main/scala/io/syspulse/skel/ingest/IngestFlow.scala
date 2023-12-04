@@ -54,7 +54,7 @@ trait IngestFlow[I,T,O] {
   
   // used by Flow.log()
   val logLevels =
-      Attributes.createLogLevels(Logging.DebugLevel, Logging.DebugLevel, Logging.DebugLevel)
+      Attributes.createLogLevels(Logging.DebugLevel, Logging.DebugLevel, Logging.ErrorLevel)
 
   val cr = new CollectorRegistry(true);
   val countBytes: Counter = Counter.build().name("ingest_bytes").help("total bytes").register(cr)

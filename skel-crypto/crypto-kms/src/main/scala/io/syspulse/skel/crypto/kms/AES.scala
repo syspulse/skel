@@ -34,11 +34,10 @@ import com.amazonaws.services.kms.model.ListAliasesRequest
 
 class AES {
   import Util._
-  
-  def decrypt(input: Array[Byte], keyId:String): Try[String] = {
-    try {
-      val kms: AWSKMS = AWSKMSClientBuilder.standard.build
+  val kms: AWSKMS = AWSKMSClientBuilder.standard.build
 
+  def decrypt(input: Array[Byte], keyId:String): Try[String] = {
+    try {      
       if(input.size > 4096) {
         
           // derive the datakey (256 bits)
@@ -62,7 +61,6 @@ class AES {
   }
 
   def encrypt(input: String, keyId:String): Array[Byte] = {
-    val kms: AWSKMS = AWSKMSClientBuilder.standard.build
 
     if(input.size > 2048) {
         val req: GenerateDataKeyRequest = new GenerateDataKeyRequest().withKeyId(keyId).withKeySpec("AES_256")
@@ -95,8 +93,7 @@ class AES {
     )
   }
   
-  def getKeyId(alias:String):Try[String] = {
-    val kms: AWSKMS = AWSKMSClientBuilder.standard.build
+  def getKeyId(alias:String):Try[String] = {    
     try {
       val req = new ListAliasesRequest().withLimit(512)
       val aa = kms.listAliases(req)
