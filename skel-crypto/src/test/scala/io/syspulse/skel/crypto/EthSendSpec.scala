@@ -11,6 +11,8 @@ import io.syspulse.skel.util.Util
 
 class EthSendSpec extends AnyWordSpec with Matchers with TestData {
 
+  implicit val web3 = Eth.web3(rpcUri="http://localhost:8545")
+
   // Run 'anvil' befire running tests !
   "EthSendSpec" should {
     
@@ -23,8 +25,7 @@ class EthSendSpec extends AnyWordSpec with Matchers with TestData {
         gasTip = "5.0",
         gasLimit = 21000L,
         data = None,
-        chainId = 31337,
-        rpcUri = "http://localhost:8545"
+        chainId = 31337
       )
       
       info(s"r=${r}")

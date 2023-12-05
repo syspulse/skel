@@ -260,28 +260,28 @@ object Eth {
     Success(Eth.normalize(key.toByteArray(),64))
   }
 
+  // =============================================================================== Wallet ========
+
   def web3(rpcUri:String = "http://localhost:8545") = {
-    Web3j.build(new HttpService(rpcUri)); 
+    Web3j.build(new HttpService(rpcUri))
   }
 
-  def strToWei(v:String)(implicit web3:Web3j):BigInt = {
+  def strToWei(v:String)(implicit web3:Web3j):Try[BigInt] = {
     v.trim.toLowerCase.split("\\s+").toList match {
       case "current" :: Nil =>
-        gasPrice()(web3) match {
-          case Success(v) => v
-          case Failure(e) => 
-            log.warn(s"could not get gas price")
-            0
+        getGasPrice()(web3) match {
+          case Success(v) => Success(v)
+          case f => f
         }
       case v :: "eth" :: _ => 
-        Convert.toWei(v,Convert.Unit.ETHER).toBigInteger
+        Success(Convert.toWei(v,Convert.Unit.ETHER).toBigInteger)
       case v :: unit :: _ => 
         val u = org.web3j.utils.Convert.Unit.fromString(unit)
-        Convert.toWei(v,u).toBigInteger
+        Success(Convert.toWei(v,u).toBigInteger)
       case v :: Nil =>
-        Convert.toWei(v,Convert.Unit.WEI).toBigInteger
+        Success(Convert.toWei(v,Convert.Unit.WEI).toBigInteger)
       case _ =>
-        Convert.toWei(v,Convert.Unit.WEI).toBigInteger
+        Success(Convert.toWei(v,Convert.Unit.WEI).toBigInteger)
     }
   }
 
@@ -292,21 +292,26 @@ object Eth {
   def signTx(sk:String, to:String, value:String, nonce:Long = 0, 
              gasPrice:String = "20.0", gasTip:String = "5.0", gasLimit:Long = 21000,
              data:Option[String] = None,
-             chainId:Long = 11155111):String = 
-      signTransaction(sk,
+             chainId:Long = 11155111)(implicit web3:Web3j):Try[String] = 
+    for {
+      value <- strToWei(value)
+      gasPrice <- strToWei(gasPrice)
+      gasTip <- strToWei(gasTip)  
+      hash <- signTransaction(sk,
              to, 
-             Convert.toWei(value,Convert.Unit.ETHER).toBigInteger(),
+             value,
              nonce, 
-             Convert.toWei(gasPrice,Convert.Unit.GWEI).toBigInteger(), 
-             Convert.toWei(gasTip,Convert.Unit.GWEI).toBigInteger(),
+             gasPrice, 
+             gasTip,
              gasLimit,
              data,
              chainId)
+    } yield hash
   
   def signTransaction(sk:String, to:String, value:BigInt, nonce:Long, 
              gasPrice:BigInt, gasTip:BigInt, gasLimit:Long = 21000,
              data:Option[String] = None,
-             chainId:Long = 11155111) = {
+             chainId:Long = 11155111):Try[String] = {
     
     val rawTx: RawTransaction = if(data.isDefined)
       RawTransaction.createTransaction(
@@ -336,16 +341,15 @@ object Eth {
       Credentials.create(sk)
     )
 
-    Numeric.toHexString(signedMessage)
+    Success(Numeric.toHexString(signedMessage))
   }
 
   // Raw transaction (Blocking until hash is returned !)
   def transaction(sk:String, to:String, value:String, 
              gasPrice:String = "20.0", gasTip:String = "5.0", gasLimit:Long = 21000,
              data:Option[String] = None, nonce:Long = -1,
-             chainId:Long = 11155111, rpcUri:String = "http://localhost:8545"):Try[TransactionReceipt] = {
+             chainId:Long = 11155111)(implicit web3:Web3j):Try[TransactionReceipt] = {
 
-    val web3 = Eth.web3(rpcUri)
     val ver = web3.web3ClientVersion().send()
     val id = web3.netVersion().send().getNetVersion()
     log.info(s"web3: ${ver.getWeb3ClientVersion()}/${id}")
@@ -356,12 +360,12 @@ object Eth {
       val addr = cred.getAddress()
       web3.ethGetTransactionCount(addr,DefaultBlockParameterName.PENDING).send().getTransactionCount().longValue()
     } else nonce
-
-    val valueWei = Convert.toWei(value,Convert.Unit.ETHER).toBigInteger()
-    val gasPriceWei = Convert.toWei(gasPrice,Convert.Unit.GWEI).toBigInteger()
-    val gasTipWei = Convert.toWei(gasTip,Convert.Unit.GWEI).toBigInteger()
-    
-    val sig = signTransaction(sk,
+        
+    for {
+      valueWei <- strToWei(value)
+      gasPriceWei <- strToWei(gasPrice)
+      gasTipWei <- strToWei(gasTip)
+      sig <- signTransaction(sk,
              to, 
              valueWei,
              nonceTx, 
@@ -370,36 +374,37 @@ object Eth {
              gasLimit,
              data,
              chainId)
+      r <- Success(web3.ethSendRawTransaction(sig).send())
+      
+      txHash <- {    
+        val txHash = r.getTransactionHash()
 
+        if(txHash == null) {
+          log.error(s"Tx[${to},${valueWei},${gasPriceWei}/${gasTipWei}]: ${r.getError().getMessage()}")
+          throw new Exception(r.getError().getMessage())
+        } 
+        
+        log.info(s"txHash: ${txHash}")
+        Success(txHash)
+      }
+      
+      txReceipt <- {
+        val receiptProcessor:TransactionReceiptProcessor = new PollingTransactionReceiptProcessor(
+          web3, 
+          TransactionManager.DEFAULT_POLLING_FREQUENCY, 
+          TransactionManager.DEFAULT_POLLING_ATTEMPTS_PER_TX_HASH
+        )
+        
+        val txReceipt:TransactionReceipt = receiptProcessor.waitForTransactionReceipt(txHash)
+        log.info(s"txReceipt: ${txReceipt}")
+        
+        if(txReceipt.getStatus() != "0x1") {
+          new Exception(s"${txHash}: failed with status=${txReceipt.getStatus()}")
+        } 
+        Success(txReceipt)
+      }
+    } yield txReceipt
     
-    val r = try {
-      web3.ethSendRawTransaction(sig).send()    
-    } catch {
-      case e:Exception => return Failure(e)
-    }
-    
-    val txHash = r.getTransactionHash()
-
-    if(txHash == null) {
-      log.error(s"Tx[${to},${valueWei},${gasPriceWei}/${gasTipWei}]: ${r.getError().getMessage()}")
-      return(Failure(new Exception(r.getError().getMessage())))
-    }
-
-    log.info(s"txHash: ${txHash}")
-    
-    val receiptProcessor:TransactionReceiptProcessor = new PollingTransactionReceiptProcessor(
-      web3, 
-      TransactionManager.DEFAULT_POLLING_FREQUENCY, 
-      TransactionManager.DEFAULT_POLLING_ATTEMPTS_PER_TX_HASH
-    )
-    
-    val txReceipt:TransactionReceipt = receiptProcessor.waitForTransactionReceipt(txHash)
-    log.info(s"txReceipt: ${txReceipt}")    
-    
-    if(txReceipt.getStatus() != "0x1") {
-      return Failure(new Exception(s"${txHash}: failed with status=${txReceipt.getStatus()}"))
-    }
-    Success(txReceipt)
   }
 
   // -----------------------------------------------------------------------------
@@ -467,11 +472,11 @@ object Eth {
     Success(txReceipt)
   }
   
-  def gasPrice(rpcUri:String = "http://localhost:8545"):Try[BigInt] = { 
-    gasPrice()(Eth.web3(rpcUri))
+  def getGasPrice(rpcUri:String = "http://localhost:8545"):Try[BigInt] = { 
+    getGasPrice()(Eth.web3(rpcUri))
   }
 
-  def gasPrice()(implicit web3:Web3j):Try[BigInt] = {     
+  def getGasPrice()(implicit web3:Web3j):Try[BigInt] = {     
     // val ver = web3.web3ClientVersion().send()
     // val id = web3.netVersion().send().getNetVersion();
     // log.info(s"web3: ${ver}/${id}")
@@ -489,7 +494,17 @@ object Eth {
         Failure(new Exception(r.getResult()))
     }
   }
+
+  // Raw transaction (Blocking until hash is returned !)
+  def getNonce(addr:String)(implicit web3:Web3j):Try[Long] = {
+    val nonce = try {
+      Success(
+        web3.ethGetTransactionCount(addr,DefaultBlockParameterName.PENDING).send().getTransactionCount().longValue()
+      )
+    } catch {
+      case e:Exception => Failure(e)
+    }
+    nonce
+  }
   
 }
-
-

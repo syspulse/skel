@@ -11,6 +11,8 @@ import io.syspulse.skel.util.Util
 
 class EthTxSpec extends AnyWordSpec with Matchers with TestData {
 
+  implicit val web3 = Eth.web3(rpcUri="https://eth-sepolia.public.blastapi.io")
+
   "EthTxSpec" should {
     
     "sign Tx without data" in {
@@ -20,13 +22,13 @@ class EthTxSpec extends AnyWordSpec with Matchers with TestData {
         "0x3c5f859ee194b293871cf01a6eb072edd2e46a22",
         value = "0",
         nonce = 0,
-        gasPrice = "20.0",
-        gasTip = "5.0",
+        gasPrice = "20.0 gwei",
+        gasTip = "5.0 gwei",
         gasLimit = 21000L,
         data = None,
         chainId = 11155111)
       info(s"sig=${sig}")
-      sig should === ("0x02f86f83aa36a78085012a05f2008504a817c800825208943c5f859ee194b293871cf01a6eb072edd2e46a228080c080a0a9f1e4f8ecf54e57c1e192d025c82b56946986b8e0eccc2ad2f008c8f5669e5fa030eb3bf72f25a33a89c77c70c96cc9bc8452c19f16bf137454fa95d9606019bc")
+      sig should === (Success("0x02f86f83aa36a78085012a05f2008504a817c800825208943c5f859ee194b293871cf01a6eb072edd2e46a228080c080a0a9f1e4f8ecf54e57c1e192d025c82b56946986b8e0eccc2ad2f008c8f5669e5fa030eb3bf72f25a33a89c77c70c96cc9bc8452c19f16bf137454fa95d9606019bc"))
     }
 
     "sign Tx with data" in {
@@ -36,13 +38,13 @@ class EthTxSpec extends AnyWordSpec with Matchers with TestData {
         "0x3c5f859ee194b293871cf01a6eb072edd2e46a22",
         value = "0",
         nonce = 0,
-        gasPrice = "20.0",
-        gasTip = "5.0",
+        gasPrice = "20.0 gwei",
+        gasTip = "5.0 gwei",
         gasLimit = 21000L,
         data = Some("0x11"),
         chainId = 11155111)
       info(s"sig=${sig}")
-      sig should === ("0x02f86f83aa36a78085012a05f2008504a817c800825208943c5f859ee194b293871cf01a6eb072edd2e46a228011c080a052f893d59dc1c574f1a74421a2b4a2639a495af47bee01a3afa9006c3b2b9d13a015065a6a1accf88bce154326bdeae24a1ad43d77b8fdb899edb56500765785ad")
+      sig should === (Success("0x02f86f83aa36a78085012a05f2008504a817c800825208943c5f859ee194b293871cf01a6eb072edd2e46a228011c080a052f893d59dc1c574f1a74421a2b4a2639a495af47bee01a3afa9006c3b2b9d13a015065a6a1accf88bce154326bdeae24a1ad43d77b8fdb899edb56500765785ad"))
     }
     
   }
