@@ -9,11 +9,11 @@ import org.scalatest.flatspec.AnyFlatSpec
 import java.time._
 import io.syspulse.skel.util.Util
 
-class EthTxSpec extends AnyWordSpec with Matchers with TestData {
+class EthTxSignSpec extends AnyWordSpec with Matchers with TestData {
 
   implicit val web3 = Eth.web3(rpcUri="https://eth-sepolia.public.blastapi.io")
 
-  "EthTxSpec" should {
+  "EthTxSignSpec" should {
     
     "sign Tx without data" in {
       val sig = Eth.signTx(

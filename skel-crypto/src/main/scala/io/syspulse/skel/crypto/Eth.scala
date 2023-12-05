@@ -344,24 +344,15 @@ object Eth {
     Success(Numeric.toHexString(signedMessage))
   }
 
-  // Raw transaction (Blocking until hash is returned !)
   def transaction(sk:String, to:String, value:String, 
              gasPrice:String = "20.0", gasTip:String = "5.0", gasLimit:Long = 21000,
              data:Option[String] = None, nonce:Long = -1,
              chainId:Long = 11155111)(implicit web3:Web3j):Try[TransactionReceipt] = {
-
-    val ver = web3.web3ClientVersion().send()
-    val id = web3.netVersion().send().getNetVersion()
-    log.info(s"web3: ${ver.getWeb3ClientVersion()}/${id}")
-
+    
     val cred: Credentials = Credentials.create(sk)
 
-    val nonceTx = if(nonce == -1) {
-      val addr = cred.getAddress()
-      web3.ethGetTransactionCount(addr,DefaultBlockParameterName.PENDING).send().getTransactionCount().longValue()
-    } else nonce
-        
     for {
+      nonceTx <- if(nonce == -1 ) getNonce(cred.getAddress()) else Success(nonce)
       valueWei <- strToWei(value)
       gasPriceWei <- strToWei(gasPrice)
       gasTipWei <- strToWei(gasTip)
@@ -374,13 +365,24 @@ object Eth {
              gasLimit,
              data,
              chainId)
+      r <- transaction(sig)
+    } yield r
+  }
+
+  // Raw transaction (Blocking until hash is returned !)
+  def transaction(sig:String)(implicit web3:Web3j):Try[TransactionReceipt] = {
+    // val ver = web3.web3ClientVersion().send()
+    // val id = web3.netVersion().send().getNetVersion()
+    // log.info(s"web3: ${ver.getWeb3ClientVersion()}/${id}")    
+        
+    for {
       r <- Success(web3.ethSendRawTransaction(sig).send())
       
       txHash <- {    
         val txHash = r.getTransactionHash()
 
         if(txHash == null) {
-          log.error(s"Tx[${to},${valueWei},${gasPriceWei}/${gasTipWei}]: ${r.getError().getMessage()}")
+          //log.error(s"Tx[${to},${valueWei},${gasPriceWei}/${gasTipWei}]: ${r.getError().getMessage()}")
           throw new Exception(r.getError().getMessage())
         } 
         
