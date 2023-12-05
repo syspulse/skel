@@ -347,7 +347,12 @@ object Eth {
              chainId)
 
     
-    val r = web3.ethSendRawTransaction(sig).send()    
+    val r = try {
+      web3.ethSendRawTransaction(sig).send()    
+    } catch {
+      case e:Exception => return Failure(e)
+    }
+    
     val txHash = r.getTransactionHash()
 
     if(txHash == null) {
@@ -399,16 +404,22 @@ object Eth {
     
     val txManager:TransactionManager = new RawTransactionManager(web3, cred, chainId)
 
-    val r = txManager.sendEIP1559Transaction(
-      chainId,
-      gasTip.bigInteger,
-      gasPrice.bigInteger,
-      BigInteger.valueOf(gasLimit),
-      contract,
-      data,
-      value.bigInteger,
-      true
-    )
+    val r = try {
+      txManager.sendEIP1559Transaction(
+        chainId,
+        gasTip.bigInteger,
+        gasPrice.bigInteger,
+        BigInteger.valueOf(gasLimit),
+        contract,
+        data,
+        value.bigInteger,
+        true
+      )
+    } catch {
+      case e:Exception =>
+        return Failure(e)
+    }
+
     val txHash = r.getTransactionHash()
 
     if(txHash == null) {
@@ -431,6 +442,28 @@ object Eth {
     Success(txReceipt)
   }
 
+  // Raw transaction (Blocking !)
+  def gasPrice(chainId:Long = 11155111, rpcUri:String = "http://localhost:8545"):Try[Long] = { 
+    val web3 = Web3j.build(new HttpService(rpcUri));
+    
+    // val ver = web3.web3ClientVersion().send()
+    // val id = web3.netVersion().send().getNetVersion();
+    // log.info(s"web3: ${ver}/${id}")
+    
+    val r = try {
+      web3.ethGasPrice().send()
+    } catch {
+      case e:Exception => return Failure(e)
+    }
+
+    r.hasError() match {
+      case false => 
+        Success(r.getGasPrice().longValue())
+      case true =>
+        Failure(new Exception(r.getResult()))
+    }
+  }
+            
   
 }
 
