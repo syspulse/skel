@@ -260,6 +260,31 @@ object Eth {
     Success(Eth.normalize(key.toByteArray(),64))
   }
 
+  def web3(rpcUri:String = "http://localhost:8545") = {
+    Web3j.build(new HttpService(rpcUri)); 
+  }
+
+  def strToWei(v:String)(implicit web3:Web3j):BigInt = {
+    v.trim.toLowerCase.split("\\s+").toList match {
+      case "current" :: Nil =>
+        gasPrice()(web3) match {
+          case Success(v) => v
+          case Failure(e) => 
+            log.warn(s"could not get gas price")
+            0
+        }
+      case v :: "eth" :: _ => 
+        Convert.toWei(v,Convert.Unit.ETHER).toBigInteger
+      case v :: unit :: _ => 
+        val u = org.web3j.utils.Convert.Unit.fromString(unit)
+        Convert.toWei(v,u).toBigInteger
+      case v :: Nil =>
+        Convert.toWei(v,Convert.Unit.WEI).toBigInteger
+      case _ =>
+        Convert.toWei(v,Convert.Unit.WEI).toBigInteger
+    }
+  }
+
   // ATTENTION !!!
   // gas is in GWEI 
   // value is in ETHER   
@@ -314,15 +339,15 @@ object Eth {
     Numeric.toHexString(signedMessage)
   }
 
-  // Raw transaction (Blocking !)
+  // Raw transaction (Blocking until hash is returned !)
   def transaction(sk:String, to:String, value:String, 
              gasPrice:String = "20.0", gasTip:String = "5.0", gasLimit:Long = 21000,
              data:Option[String] = None, nonce:Long = -1,
              chainId:Long = 11155111, rpcUri:String = "http://localhost:8545"):Try[TransactionReceipt] = {
 
-    val web3 = Web3j.build(new HttpService(rpcUri));
+    val web3 = Eth.web3(rpcUri)
     val ver = web3.web3ClientVersion().send()
-    val id = web3.netVersion().send().getNetVersion();
+    val id = web3.netVersion().send().getNetVersion()
     log.info(s"web3: ${ver.getWeb3ClientVersion()}/${id}")
 
     val cred: Credentials = Credentials.create(sk)
@@ -395,7 +420,7 @@ object Eth {
              gasPrice:BigInt, gasTip:BigInt, gasLimit:Long = 21000,             
              chainId:Long = 11155111, rpcUri:String = "http://localhost:8545"):Try[TransactionReceipt] = {
     
-    val web3 = Web3j.build(new HttpService(rpcUri));
+    val web3 = Eth.web3(rpcUri)
     val ver = web3.web3ClientVersion().send()
     val id = web3.netVersion().send().getNetVersion();
     log.info(s"web3: ${ver}/${id}")
@@ -441,11 +466,12 @@ object Eth {
     }
     Success(txReceipt)
   }
+  
+  def gasPrice(rpcUri:String = "http://localhost:8545"):Try[BigInt] = { 
+    gasPrice()(Eth.web3(rpcUri))
+  }
 
-  // Raw transaction (Blocking !)
-  def gasPrice(chainId:Long = 11155111, rpcUri:String = "http://localhost:8545"):Try[Long] = { 
-    val web3 = Web3j.build(new HttpService(rpcUri));
-    
+  def gasPrice()(implicit web3:Web3j):Try[BigInt] = {     
     // val ver = web3.web3ClientVersion().send()
     // val id = web3.netVersion().send().getNetVersion();
     // log.info(s"web3: ${ver}/${id}")
@@ -463,7 +489,6 @@ object Eth {
         Failure(new Exception(r.getResult()))
     }
   }
-            
   
 }
 
