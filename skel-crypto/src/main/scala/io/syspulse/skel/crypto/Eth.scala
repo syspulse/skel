@@ -294,13 +294,14 @@ object Eth {
              data:Option[String] = None,
              chainId:Long = 11155111)(implicit web3:Web3j):Try[String] = 
     for {
+      nonceTx <- if(nonce == -1 ) getNonce(Credentials.create(sk).getAddress()) else Success(nonce)
       value <- strToWei(value)
       gasPrice <- strToWei(gasPrice)
       gasTip <- strToWei(gasTip)  
       hash <- signTransaction(sk,
              to, 
              value,
-             nonce, 
+             nonceTx, 
              gasPrice, 
              gasTip,
              gasLimit,
@@ -409,6 +410,24 @@ object Eth {
     
   }
 
+  def send(sig:String)(implicit web3:Web3j):Try[String] = {
+    for {
+      r <- Success(web3.ethSendRawTransaction(sig).send())
+      
+      txHash <- {    
+        val txHash = r.getTransactionHash()
+
+        if(txHash == null) {
+          //log.error(s"Tx[${to},${valueWei},${gasPriceWei}/${gasTipWei}]: ${r.getError().getMessage()}")
+          throw new Exception(r.getError().getMessage())
+        } 
+        
+        log.info(s"txHash: ${txHash}")
+        Success(txHash)
+      }      
+    } yield txHash
+  }
+
   // -----------------------------------------------------------------------------
   def cotract(sk:String, contract:String, data:String,  value:String,
              gasPrice:String, gasTip:String, gasLimit:Long = 21000,             
@@ -497,7 +516,6 @@ object Eth {
     }
   }
 
-  // Raw transaction (Blocking until hash is returned !)
   def getNonce(addr:String)(implicit web3:Web3j):Try[Long] = {
     val nonce = try {
       Success(
@@ -507,6 +525,17 @@ object Eth {
       case e:Exception => Failure(e)
     }
     nonce
+  }
+
+  def getBalance(addr:String)(implicit web3:Web3j):Try[BigInt] = {
+    val bal = try {
+      Success(
+        BigInt(web3.ethGetBalance(addr,DefaultBlockParameterName.PENDING).send().getBalance())
+      )
+    } catch {
+      case e:Exception => Failure(e)
+    }
+    bal
   }
   
 }
