@@ -89,6 +89,7 @@ trait IngestFlow[I,T,O] {
 
   def run() = {
     val f0 = source()
+      .log(ingestFlowName()).withAttributes(logLevels)
       .via(debug)
       .via(counterBytes)      
       .mapConcat(txt => {
