@@ -146,6 +146,13 @@ object Flows {
     cronSourceMat
   }
 
+  def fromClock(expr:String) = {
+    val freq = FiniteDuration(Duration.create(expr).toMillis,TimeUnit.MILLISECONDS)
+    Source
+      .tick(FiniteDuration(0L,TimeUnit.MILLISECONDS),freq,"")
+      .map(_ => ByteString(s"${System.currentTimeMillis()}"))      
+  }
+
   def toNull = Sink.ignore
   def fromNull = Source.future(Future({Thread.sleep(Long.MaxValue);ByteString("")})) //Source.never
 

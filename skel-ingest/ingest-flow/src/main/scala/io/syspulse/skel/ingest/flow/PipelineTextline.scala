@@ -23,6 +23,7 @@ import io.syspulse.skel.ingest.store._
 
 import spray.json._
 import java.util.concurrent.TimeUnit
+import scala.annotation.tailrec
 
 case class Textline(txt:String) extends skel.Ingestable {
   override def getKey: Option[Any] = Some(txt.hashCode())
@@ -63,18 +64,9 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config) extend
   override def getFileSize():Long = config.size
 
   // deduplication
-  override def process:Flow[String,String,_] = Flow[String]
+  def processDedup:Flow[String,String,_] = Flow[String]
     .map(s => s)
     .groupedWithin(Int.MaxValue,FiniteDuration(2000L,TimeUnit.MILLISECONDS))
-    // .mapConcat( group => {
-    //   //var state = Map.empty[String, Set[String]]
-    //   val g = group
-    //     .sortBy(_ => System.currentTimeMillis())
-    //     .distinctBy( f => f)
-
-    //   Console.err.println(s"Group: ${g}")
-    //   g
-    // })
     .statefulMapConcat { () =>
       // Create a function to maintain a set of seen message IDs for each key
       var state = List.empty[String]
@@ -93,6 +85,30 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config) extend
         uniq
       }
     }
+
+  def processNone:Flow[String,String,_] = Flow[String]
+    .map(s => s)
+    
+  override def process:Flow[String,String,_] = {
+    val ff = config.params.map(_.toLowerCase match {
+      case "dedup" => processDedup
+      case "none" => processNone
+      case _ => processNone
+    })
+    
+    def pipe(ff:List[Flow[String,String,_]]):Flow[String,String,_] = {
+      ff match {
+        case Nil => processNone
+        case f :: Nil => f
+        case f :: ff => f.via(pipe(ff))        
+      }
+    }
+
+    pipe(ff.toList)
+  }
+    
+
+  
 
   def parse(data: String): Seq[String] = {
     if(config.delimiter.isEmpty())
