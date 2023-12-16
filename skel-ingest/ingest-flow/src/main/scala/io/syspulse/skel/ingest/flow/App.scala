@@ -78,7 +78,7 @@ object App extends skel.Server {
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
         
-        ArgParam("<processors>","List of processors"),
+        ArgParam("<processors>","List of processors (none/map,print,dedup)"),
         ArgLogging()
       ).withExit(1)
     )).withLogging()

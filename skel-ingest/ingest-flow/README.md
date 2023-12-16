@@ -23,6 +23,7 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
                                                   `expr` is either configured scheduler name (applicaion.conf) or cron expression
                                                   __NOTE__: because of bash, use this format: `'cron://*/1_*_*_*_*_?'`
 9. ```null://```                                - No source
+10. ```clock://```                              - Clock ticker
 
 ## Output Feeds
 
@@ -106,4 +107,9 @@ ethereumetl stream -e transaction --start-block `eth-last-block.sh` --provider-u
 Run Ingest:
 ```
 ./run-ingest.sh -f  kafka://localhost:9092/transactions/g1 -o hive:///mnt/share/data/spark/eth/{YYYY}/{MM}/{dd}/transactions-{HH_mm_ss}.log
+```
+
+Run Clock with mulitple processors:
+```
+./run-ingest.sh -f clock:// print dedup
 ```

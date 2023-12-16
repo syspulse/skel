@@ -88,11 +88,18 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config) extend
 
   def processNone:Flow[String,String,_] = Flow[String]
     .map(s => s)
+
+  def processPrint:Flow[String,String,_] = Flow[String]
+    .map(s => {
+      println(s"print: ${s}")
+      s
+    })
     
   override def process:Flow[String,String,_] = {
     val ff = config.params.map(_.toLowerCase match {
       case "dedup" => processDedup
-      case "none" => processNone
+      case "none" | "map" => processNone
+      case "print" => processPrint
       case _ => processNone
     })
     
