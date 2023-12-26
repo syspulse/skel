@@ -110,6 +110,15 @@ Run Ingest:
 ```
 
 Run Clock with mulitple processors:
+
+Clock is very similar to tick://, but does not allow to pipeline
+
 ```
 ./run-ingest.sh -f clock:// print dedup
 ```
+
+---
+
+## Akka
+
+https://medium.com/@yuvalshi0/batch-transformation-with-akka-streams-6a9b58b5e29c

@@ -22,7 +22,7 @@ class AESSpec extends AnyWordSpec with Matchers with TestData {
 
       val d1 = (new AES).decrypt(e1,"pass1")
       d1 shouldBe a [Success[_]]
-      d1 === Success("text")
+      d1 should === (Success("text"))
     }
 
     "encrypt and decrypt 'text' with random seed" in {
@@ -33,7 +33,7 @@ class AESSpec extends AnyWordSpec with Matchers with TestData {
 
       val d1 = (new AES).decrypt(e1,"pass1",Some(seed))
       d1 shouldBe a [Success[_]]
-      d1 === Success("text")
+      d1 should === (Success("text"))
 
       val d2 = (new AES).decrypt(e1,"pass1")
       d2 shouldBe a [Failure[_]]
@@ -65,12 +65,12 @@ class AESSpec extends AnyWordSpec with Matchers with TestData {
 
     "encrypt and decrypt Base64 'text'" in {
       val e1 = (new AES).encryptBase64("text","pass1")
-      e1.size !== (0)
-      e1 !== ("text")
+      e1.size should !== (0)
+      e1 should !== ("text")
 
       val d1 = (new AES).decryptBase64(e1,"pass1")
       d1 shouldBe a [Success[_]]
-      d1 === Success("text")
+      d1 should === (Success("text"))
     }
 
     "encrypt and decrypt data block (128K)" in {
@@ -79,11 +79,11 @@ class AESSpec extends AnyWordSpec with Matchers with TestData {
         data,
         "pass3"
       )
-      e1.size !== (0)
+      e1.size should !== (0)
       
       val d1 = (new AES).decrypt(e1,"pass3")
       d1 shouldBe a [Success[_]]
-      d1 === Success(data)
+      d1 should === (Success(data))
     }
 
   }

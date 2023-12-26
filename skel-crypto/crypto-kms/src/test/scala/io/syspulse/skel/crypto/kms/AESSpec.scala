@@ -21,17 +21,17 @@ class AESSpec extends AnyWordSpec with Matchers with TestData {
     "get ARN by alias" in {      
       val kid = (new AES).getKeyId("extractor/wallet")
       kid shouldBe a [Success[_]]
-      kid === Success(keyId)
+      kid should === (Success(keyId))
     }
 
     // "encrypt and decrypt 'text'" in {
     //   val e1 = (new AES).encrypt("text",keyId)
-    //   e1.size !== (0)
-    //   new String(e1) !== ("text")
+    //   e1.size should !== (0)
+    //   new String(e1) should !== ("text")
 
     //   val d1 = (new AES).decrypt(e1,keyId)
     //   d1 shouldBe a [Success[_]]
-    //   d1 === Success("text")
+    //   d1 should === (Success("text"))
     // }
 
     // "fail to decrypt with wrong keyId" in {
@@ -42,12 +42,12 @@ class AESSpec extends AnyWordSpec with Matchers with TestData {
 
     // "encrypt and decrypt Base64 'text'" in {
     //   val e1 = (new AES).encryptBase64("text",keyId)
-    //   e1.size !== (0)
-    //   e1 !== ("text")
+    //   e1.size should !== (0)
+    //   e1 should !== ("text")
 
     //   val d1 = (new AES).decryptBase64(e1,keyId)
     //   d1 shouldBe a [Success[_]]
-    //   d1 === Success("text")
+    //   d1 should === (Success("text"))
     // }
 
     // "encrypt and decrypt data block (128K)" in {
@@ -56,11 +56,11 @@ class AESSpec extends AnyWordSpec with Matchers with TestData {
     //     data,
     //     keyId
     //   )
-    //   e1.size !== (0)
+    //   e1.size should !== (0)
       
     //   val d1 = (new AES).decrypt(e1,keyId)
     //   d1 shouldBe a [Success[_]]
-    //   d1 === Success(data)
+    //   d1 === should (Success(data))
     // }
 
   }
