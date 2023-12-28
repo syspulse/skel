@@ -52,6 +52,11 @@ import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.http.scaladsl.model.sse.ServerSentEvent
+import akka.http.scaladsl.common.EntityStreamingSupport
+import akka.http.scaladsl.model.ContentTypes._
+import akka.http.scaladsl.model.HttpEntity
+import akka.http.scaladsl.server.Directives._
+
 import scala.concurrent.Promise
 import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.http.scaladsl.settings.ClientConnectionSettings
@@ -75,6 +80,9 @@ import akka.stream.alpakka.file.DirectoryChange
 import akka.stream.alpakka.file.impl.DirectoryChangesSource
 import akka.stream.alpakka.file
 import java.net.InetSocketAddress
+
+import akka.http.scaladsl.server.PathMatcher
+import akka.http.scaladsl.server.PathMatcher0
 
 object Flows {
   val log = Logger(this.toString)
@@ -353,6 +361,49 @@ object Flows {
       s
     else
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
+  }
+
+  def fromHttpServer(uri:String,chunk:Int = 0, frameDelimiter:String="\n",frameSize:Int = 8192, retry:RestartSettings=retrySettingsDefault)(implicit sys:ActorSystem,timeout:FiniteDuration) = {
+    val (host,port,suffix) = uri.split("[:/]").toList match {      
+      case h :: p :: Nil => (h,p.toInt,"")
+      case h :: p :: s => (h,p.toInt,s.mkString("/"))
+      case h :: Nil => (h,8080,"")
+      case _ => throw new Exception(s"invalid uri: ${uri}")
+    }
+    
+    val (a,s0) = Source
+      .actorRef[ByteString](32,OverflowStrategy.fail)
+      .preMaterialize()
+    
+    //val fullPath = suffix.split("/").foldLeft[PathMatcher0](Slash)((r,s) => r ~ s ~ Slash)
+    // not working correctly with /api/v1/path/
+    val fullPath = separateOnSlashes(suffix)
+    
+    val route = path(fullPath) { //rawPathPrefix(fullPath) { 
+      post {
+        extractClientIP { addr =>  // requires: akka.http.server.remote-address-attribute = on
+          entity(as[String]) { data =>
+            log.debug(s"REQ: ${addr}: ${data}")
+            a ! ByteString(data)
+            // complete with Success !
+            complete(StatusCodes.OK)
+          }
+        }
+      }      
+    }
+          
+    val binding = Http()
+      .newServerAt(host, port)
+      .bindFlow(route)
+
+    log.info(s"http://${host}:${port}): ${binding}")
+
+    val s = s0
+      
+    if(frameDelimiter.isEmpty())
+      s
+    else
+      s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))    
   }
 
 // ==================================================================================================
