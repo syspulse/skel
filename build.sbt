@@ -540,6 +540,25 @@ lazy val crypto = (project in file("skel-crypto"))
       assembly / packageOptions += sbt.Package.ManifestAttributes("Multi-Release" -> "true")
     )
 
+lazy val crypto_kms = (project in file("skel-crypto/crypto-kms"))
+  .dependsOn(core,crypto)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssemblyTeku,
+      //sharedConfigAssembly,
+      name := "crypto-kms",
+      libraryDependencies ++= Seq() ++ //Seq(libLog4j2Api, libLog4j2Core) ++ 
+        libTest ++ libWeb3j ++ Seq(
+          libOsLib,
+          libUpickleLib,
+
+          libAWSJavaKMS
+        ),
+      // this is important option to support latest log4j2 
+      assembly / packageOptions += sbt.Package.ManifestAttributes("Multi-Release" -> "true")
+    )
+
 lazy val flow = (project in file("skel-flow"))
   .dependsOn(core)
   .disablePlugins(sbtassembly.AssemblyPlugin)
@@ -710,7 +729,7 @@ lazy val skel_dsl = (project in file("skel-dsl"))
       
       // Only for experiments
       sharedConfigAssembly,      
-      appAssemblyConfig("db-cli","io.syspulse.skel.db.AppCliDB"),
+      appAssemblyConfig("dsl-cli","io.syspulse.skel.dsl.App"),
       //name := "skel-dsl",
 
       libraryDependencies ++= libCommon ++ libTest ++
@@ -955,7 +974,7 @@ lazy val skel_wf = (project in file("skel-wf"))
     
     appDockerConfig("skel-wf","io.syspulse.skel.wf.App"),
 
-    libraryDependencies ++= libTest ++ Seq(
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
       libOsLib,
       libUpickleLib,
     )
@@ -1022,6 +1041,7 @@ lazy val skel_odometer = (project in file("skel-odometer"))
 
     appDockerConfig(appNameUser,appBootClassUser),
 
-    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(  
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq( 
+      libRedis
     ),    
   )

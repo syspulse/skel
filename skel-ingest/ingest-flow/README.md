@@ -11,7 +11,7 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 ## Input Feeds
 
 1. ```stdin://```                               - from stdin
-2. ```http://host:port/api```                   - From HTTP external connection
+2. ```http://host:port/api```                   - HTTP Client
 3. ```file://dir/file```                        - From single file
                                                   Support multiple source with comma: (`http://host1,http://host2`)
 4. ```kafka://broker:9092/topic/group/offset``` - From Kafka `offset` == latest,earliest
@@ -23,6 +23,9 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
                                                   `expr` is either configured scheduler name (applicaion.conf) or cron expression
                                                   __NOTE__: because of bash, use this format: `'cron://*/1_*_*_*_*_?'`
 9. ```null://```                                - No source
+10. ```clock://```                              - Clock ticker
+11. ```server://host:port/path```               - HTTP Server. Server accepts `POST` and always responds "200" (behaves like webhook)
+12. ```tcp://host:port```                       - TCP Server
 
 ## Output Feeds
 
@@ -62,7 +65,7 @@ Windows files:
 ./run-ingest.sh -f file://data/win.csv --delimiter=`echo -e $"\r"`
 ```
 
-HTTP server with `\r\n`:
+To remote HTTP server with `\r\n`:
 ```
 ./run-ingest.sh -f http://localhost:8100/data --delimiter=`echo -e $"\r\n"`
 ```
@@ -84,7 +87,7 @@ Pipeline with throttling 1 msg/sec (throttle == 1000 msec)
 ./run-ingest.sh -f kafka://localhost:9200/topic.2/group.2 --throttle=1000
 ```
 
-Pipeline to HTTP with periodic cron (`cron://exprName`)
+Pipeline to remote HTTP Server with periodic cron (`cron://exprName`)
 ```
 ./run-ingest.sh -f cron://EverySecond://http://localhost:8300 -o stdout://
 ```
@@ -107,3 +110,26 @@ Run Ingest:
 ```
 ./run-ingest.sh -f  kafka://localhost:9092/transactions/g1 -o hive:///mnt/share/data/spark/eth/{YYYY}/{MM}/{dd}/transactions-{HH_mm_ss}.log
 ```
+
+Run Clock with mulitple processors:
+
+Clock is very similar to tick://, but does not allow to pipeline
+
+```
+./run-ingest.sh -f clock:// print dedup
+```
+
+Listen for HTTP POST requests
+
+```
+./run-ingest.sh -f server://0.0.0.0:8080/webhook --delimiter=
+
+echo "test" |curl -i -X POST --data @-  http://localhost:8080/webhook
+
+```
+
+---
+
+## Akka
+
+https://medium.com/@yuvalshi0/batch-transformation-with-akka-streams-6a9b58b5e29c

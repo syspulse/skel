@@ -7,6 +7,7 @@ import scala.util.{Try,Success,Failure}
 
 import io.syspulse.skel.wf.runtime._
 import io.syspulse.skel.wf.store.WorkflowStateStore
+import io.syspulse.skel.wf.registry.WorkflowRegistry
 
 case class Workflow(  
   id:Workflow.ID,
@@ -64,7 +65,7 @@ case class Workflow(
   // F1(LogExec(sys=1,log.level=WARN)) -> F2(LogExec(sys=2)) -> F3(TerminateExec())
   // F1(LogExcec())[out-0] -> F1[in-0]
   // F1([in-0]LogExcec()[out-0]) -> F1([in-0]())
-  def assemble(script:String,data:Map[String,Any] = Map()):Try[Workflow] = {
+  def assemble(script:String,data:Map[String,Any] = Map())(implicit registry:WorkflowRegistry):Try[Workflow] = {
     
     var execsExecs:Map[String,Exec] = Map()
 
@@ -96,7 +97,14 @@ case class Workflow(
             Failure(new Exception(s"Exec not found: ${name}"))
         }
       } else {
-        val typWithClass = if(typ.contains(".")) typ else s"io.syspulse.skel.wf.exec.${typ}"
+        val typWithClass = {
+          // resolve           
+          if(typ.contains(".")) 
+            typ 
+          else 
+            //s"io.syspulse.skel.wf.exec.${typ}"
+            registry.resolve(typ).map(e => e.typ).getOrElse(typ)            
+        }
         val dataMap = if(data.isDefined) Some(data.get.split("[,=]").grouped(2).map(a => a(0) -> {if(a.size>1) a(1) else ""}).toMap) else None
         val ex = Exec(name,typWithClass,in = Seq(In(inlet)), out = Seq(Out(outlet)),data = dataMap)
         // execs = execs + (ex.getId -> ex)
@@ -180,7 +188,7 @@ case class Workflow(
 object Workflow {
   type ID = String
 
-  def assemble(id:Workflow.ID,name:String,dsl:String,data:Map[String,Any] = Map()):Try[Workflow] = {
+  def assemble(id:Workflow.ID,name:String,dsl:String,data:Map[String,Any] = Map())(implicit registry:WorkflowRegistry):Try[Workflow] = {
     for {
       w1 <- Success(Workflow(id,name))
       w2 <- w1.assemble(dsl,data)

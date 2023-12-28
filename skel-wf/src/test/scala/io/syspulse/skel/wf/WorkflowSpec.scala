@@ -12,9 +12,11 @@ import io.syspulse.skel.wf.runtime.thread._
 import io.syspulse.skel.wf.runtime.actor.RuntimeActors
 import io.syspulse.skel.wf.store.WorkflowStoreDir
 import io.syspulse.skel.wf.store.WorkflowStateStoreDir
+import io.syspulse.skel.wf.registry.WorkflowRegistry
 
 class WorkflowSpec extends AnyWordSpec with Matchers with WorkflowTestable {
-  
+  implicit val registry = new WorkflowRegistry()
+
   "Workflow" should {
     "Save workflow to StoreDir" in {      
       val w1 = Workflow("wf-1","Workflow-1",Map("file" -> "/tmp/file-10.log","time" -> 10000),

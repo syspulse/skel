@@ -67,7 +67,7 @@ class CommandLoginUser(cli:CliLoginable,args:String*) extends Command(cli,args) 
   def exec(st:CliState):Result = {
     st match {
       case CliStateLoggedOff(ctx) => {
-        val (userId,kk:Try[KeyPair]) = args.toList match {
+        val (userId:String,kk:Try[KeyPair]) = args.toList match {
           case userId :: pass :: keystoreFile :: _ => (userId,Eth.readKeystore(pass,keystoreFile))
           case userId :: pass :: Nil => (userId,Eth.readKeystore(pass,DEF_KEYSTORE))
           case userId :: Nil => (userId,Success(Eth.generateRandom()))

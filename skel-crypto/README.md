@@ -9,6 +9,12 @@ __NOTE__: for PoC and prototyping
 3. [keccak](keccak) - Keccak256 tool
 4. ABI tools
 
+
+----
+## Links
+
+https://sepolia-faucet.pk910.de/
+
 ----
 
 ## Tools

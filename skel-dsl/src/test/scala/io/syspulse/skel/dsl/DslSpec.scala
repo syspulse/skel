@@ -175,6 +175,17 @@ class DslSpec extends AnyWordSpec with Matchers {
       engine.eval(testScript);      
     }
   }
+
+//   This fails on test with:
+//
+//   java.lang.AssertionError: assertion failed: 
+// [info]   No RuntimeVisibleAnnotations in classfile with ScalaSignature attribute: class Predef
+  "ScalaScript" should {
+    s"run Scala script" in {
+      val e = new ScalaScript()
+      e should !== (null)
+    }
+  }
 }
 
 

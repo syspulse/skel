@@ -21,7 +21,7 @@ abstract class HttpServerable extends cask.MainRoutes{
   var requests:Seq[String] = Seq()
   var current = 0
 
-  override def main(args0: Array[String]) {
+  override def main(args0: Array[String]) = {
     if(args0.size>0) println(s"${args0.mkString(",")}")
 
     // Docker arguments fix

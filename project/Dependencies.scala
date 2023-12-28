@@ -14,6 +14,8 @@ object Dependencies {
     // 3.12.0 - Postgres JAsync does not support Postgres 14 
     lazy val quillVersion = "3.19.0" //"4.8.0" //"3.12.0" //"3.5.2" //"3.6.0"
 
+    lazy val redisVersion = "2.4.3"
+
     lazy val influxDBVersion = "3.2.0"
     lazy val slickVersion = "3.3.3"
     
@@ -106,6 +108,7 @@ object Dependencies {
     val libMySQL =          "mysql"                           % "mysql-connector-java"    % "8.0.22"
     val libPostgres =       "org.postgresql"                  % "postgresql"              % "42.3.5"
     val libInfluxDB =       "com.influxdb"                    %% "influxdb-client-scala"  % influxDBVersion
+    val libRedis =          "com.github.scredis"              %% "scredis"                % redisVersion
 
     val libTypesafeConfig = "com.typesafe"                    % "config"                  % "1.4.1"
       
@@ -129,7 +132,7 @@ object Dependencies {
 
     val libKafkaAvroSer =   "io.confluent"                    % "kafka-avro-serializer" % kafkaAvroSerVersion
 
-    val libScalaTest =      "org.scalatest"                   %% "scalatest"            % "3.1.2"// % Test
+    val libScalaTest =      "org.scalatest"                   %% "scalatest"            % "3.2.17" //"3.1.2"// % Test
     //val libSpecs2core =     "org.specs2"                    %% "specs2-core"          % "2.4.17"
     val libAkkaTestkit =    "com.typesafe.akka"               %% "akka-http-testkit"        % akkaHttpVersion// % Test
     val libAkkaTestkitType ="com.typesafe.akka"               %% "akka-actor-testkit-typed" % akkaVersion// % Test
@@ -195,6 +198,7 @@ object Dependencies {
     val libHadoopAWS =        "org.apache.hadoop"              % "hadoop-aws"          % hadoopAWSVersion
     val libAWSJavaSDK =       "com.amazonaws"                  % "aws-java-sdk-bundle" % "1.11.874" //"1.12.247"
     val libAWSJavaSNS =       "com.amazonaws"                  % "aws-java-sdk-sns"    % "1.11.879"
+    val libAWSJavaKMS =       "com.amazonaws"                  % "aws-java-sdk-kms"    % "1.11.879"
 
     val libJaninoCompiler =   "org.codehaus.janino"            %  "commons-compiler"   % janinoVersion
 

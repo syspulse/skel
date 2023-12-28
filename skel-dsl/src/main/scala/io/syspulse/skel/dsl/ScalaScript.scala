@@ -7,6 +7,10 @@ import scala.jdk.CollectionConverters._
 
 class ScalaScript()  {
   val log = Logger(s"${this}")
+
+  // scala tests are not working in sbt ->
+  // java.lang.AssertionError: assertion failed:                                                                        
+  // No RuntimeVisibleAnnotations in classfile with ScalaSignature attribute: class Predef
   val engine = new ScriptEngineManager().getEngineByName("scala").asInstanceOf[ScriptEngine with Compilable]
 
   def run(script:String,args:Map[String,Any] = Map()):Any = {
