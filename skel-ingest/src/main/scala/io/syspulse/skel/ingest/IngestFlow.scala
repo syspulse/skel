@@ -37,7 +37,7 @@ import akka.http.scaladsl.Http
 import java.util.concurrent.TimeUnit
 import akka.event.Logging
 
-// Source[ByteString] -> InputObject [I] -> TransformedObject [T] -> OutputObject [O] -> Sink[O]
+// Source[ByteString] -> [ByteString] InputObject [I] -> [I] Process [T] -> [T] TransformedObject [O] -> Sink[O]
 trait IngestFlow[I,T,O] {
   private val log = Logger(s"${this}")
   implicit val system = ActorSystem("ActorSystem-IngestFlow")

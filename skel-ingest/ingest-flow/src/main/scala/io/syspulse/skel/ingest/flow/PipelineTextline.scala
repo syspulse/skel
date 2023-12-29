@@ -114,17 +114,14 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config) extend
     pipe(ff.toList)
   }
     
-
-  
-
-  def parse(data: String): Seq[String] = {
+  override def parse(data: String): Seq[String] = {
     if(config.delimiter.isEmpty())
       Seq(data)
     else
       data.split(config.delimiter).toSeq
   }
 
-  def transform(txt: String): Seq[Textline] = {
+  override def transform(txt: String): Seq[Textline] = {
     //Seq(Textline(s"[${countBytes},${countInput},${countObj},${countOutput}]: ${t}"))
     val t = Textline(txt)
     Seq(t)

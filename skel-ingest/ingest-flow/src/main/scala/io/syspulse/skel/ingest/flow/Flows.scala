@@ -396,7 +396,7 @@ object Flows {
       .newServerAt(host, port)
       .bindFlow(route)
 
-    log.info(s"http://${host}:${port}): ${binding}")
+    log.info(s"http://${host}:${port}/${suffix}: ${binding}")
 
     val s = s0
       
