@@ -306,6 +306,7 @@ lazy val root = (project in file("."))
              skel_notify,
              skel_tag, 
              skel_telemetry,
+             crypto_kms,
              tools)
   .dependsOn(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, skel_dsl, scrap, cli, db_cli, 
              ingest_flow,
@@ -314,7 +315,7 @@ lazy val root = (project in file("."))
              skel_enroll,
              skel_syslog,
              skel_notify,
-             skel_tag, 
+             skel_tag,
              skel_telemetry)
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(

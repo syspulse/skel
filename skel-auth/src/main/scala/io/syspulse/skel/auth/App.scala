@@ -98,26 +98,26 @@ object App extends skel.Server {
         ArgCmd("server",s"Server"),
         ArgCmd("demo",s"Server with embedded UserServices (for testing)"),
         ArgCmd("client",s"Http Client"),
-        ArgCmd("jwt",s"JWT subcommands: " +
-          s"encode k=v k=v  : generate JWT with map" +
-          s"decode <jwt>    : decode JWT" +
-          s"valid <jwt>     : validate JWT" +
-          s"admin           : create Admin role token"+
-          s"service         : create Service role token"+
-          s"user <uid>      : create User role token"
+        ArgCmd("jwt",s"JWT subcommands: \n" +
+          s"encode k=v k=v  : generate JWT with map\n" +
+          s"decode <jwt>    : decode JWT\n" +
+          s"valid <jwt>     : validate JWT\n" +
+          s"admin           : create Admin role token\n"+
+          s"service         : create Service role token\n"+
+          s"user <uid>      : create User role token\n"
         ),
-        ArgCmd("cred",s"Client Credentials subcommands: " +
-          s"generate        : generate Client Credentials pair" +
+        ArgCmd("cred",s"Client Credentials subcommands: \n" +
+          s"generate        : generate Client Credentials pair\n" +
           ""
         ),
-        ArgCmd("permission",s"Permissions subcommand:" +
-          s"jwt <resource> [action]  : Verify user has 'action' permissions for 'resource' (def action=write)"
+        ArgCmd("permission",s"Permissions subcommand:\n" +
+          s"jwt <resource> [action]  : Verify user has 'action' permissions for 'resource' (def action=write)\n"
         ),
-        ArgCmd("role",s"Role subcommands" +
-          s"jwt <role> : Verify user has 'role'"
+        ArgCmd("role",s"Role subcommands\n" +
+          s"jwt <role> : Verify user has 'role'\n"
         ),
-        ArgCmd("permit",s"Validation permission (as in routes Service)" +
-          s"jwt <role> : Verify user has 'role' (default is admin)"
+        ArgCmd("permit",s"Validation permission (as in routes Service)\n" +
+          s"jwt <role> : Verify user has 'role' (default is admin)\n"
         ),
         ArgParam("<params>",""),
         ArgLogging()

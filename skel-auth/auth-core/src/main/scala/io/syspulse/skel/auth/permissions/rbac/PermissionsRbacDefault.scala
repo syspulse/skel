@@ -9,8 +9,9 @@ import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 
 import io.syspulse.skel.auth.permissions.Permissions
+import io.syspulse.skel.auth.permissions.DefaultPermissions
 
-object DefaultRbac {
+object DemoRbac {
   val roles = Map(
     Roles.ROLE_ADMIN -> Seq( ResourcePermission(ResourceAll(),Seq(PermissionAll())) ),
     Roles.ROLE_SERVICE -> Seq( ResourcePermission(ResourceApi(),Seq(PermissionWrite(),PermissionRead())) ),
@@ -25,8 +26,8 @@ object DefaultRbac {
   )
 
   val users = Map(
-    {val u = UUID("ffffffff-0000-0000-9000-000000000001"); u -> Seq(Roles.ROLE_ADMIN)},
-    {val u = UUID("eeeeeeee-0000-0000-1000-000000000001"); u -> Seq(Roles.ROLE_SERVICE)},
+    {val u = DefaultPermissions.USER_ADMIN; u -> Seq(Roles.ROLE_ADMIN)},
+    {val u = DefaultPermissions.USER_SERVICE; u -> Seq(Roles.ROLE_SERVICE)},
     {val u = UUID("00000000-0000-0000-1000-000000000001"); u -> Seq(Roles.ROLE_USER)},
     {val u = UUID("00000000-0000-0000-1000-000000000002"); u -> Seq(Roles.ROLE_USER,Role("data"))}
   )
@@ -36,17 +37,17 @@ object DefaultRbac {
 class PermissionsRbacEngineDemo() extends PermissionsRbacEngine {
   
   def getUserRoles(uid:UUID):Seq[Role] = {
-    DefaultRbac.users.get(uid).getOrElse(Seq())
+    DemoRbac.users.get(uid).getOrElse(Seq())
   }
 
   def getRolePermissions(role:Role):Seq[ResourcePermission] = {
-    DefaultRbac.roles.get(role).getOrElse(Seq())
+    DemoRbac.roles.get(role).getOrElse(Seq())
   }
 }
 
 class PermissionsRbacDemo() extends PermissionsRbac {  
   val engine = new PermissionsRbacEngineDemo()
-  log.info(s"RBAC: ${engine}: ${DefaultRbac.users}")
+  log.info(s"RBAC: ${engine}: ${DemoRbac.users}")
 }
 
 // =================================================== Default  =====

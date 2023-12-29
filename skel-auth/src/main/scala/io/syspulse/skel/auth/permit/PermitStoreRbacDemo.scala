@@ -9,7 +9,7 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 import io.syspulse.skel.auth.permissions.DefaultPermissions
-import io.syspulse.skel.auth.permissions.rbac.DefaultRbac
+import io.syspulse.skel.auth.permissions.rbac.DemoRbac
 import io.syspulse.skel.auth.permissions.rbac.PermissionsRbacDefault
 import io.syspulse.skel.auth.permissions.Permissions
 import io.syspulse.skel.auth.permit.{PermitUser, PermitResource, PermitRole}
@@ -17,7 +17,7 @@ import io.syspulse.skel.auth.permit.PermitStore
 
 class PermitStoreRbacDemo extends PermitStoreMem {  
 
-  users = { DefaultRbac.users.map(u =>
+  users = { DemoRbac.users.map(u =>
       u._1 -> PermitUser( 
         uid = u._1,
         roles = u._2.map(_.n),
@@ -29,7 +29,7 @@ class PermitStoreRbacDemo extends PermitStoreMem {
   }
 
   permits = { 
-    DefaultRbac.roles.map(r =>
+    DemoRbac.roles.map(r =>
       r._1.n -> PermitRole( 
         role = r._1.n,
         resources = r._2.map(rp => PermitResource(rp.r.get,rp.pp.map(p => p.get)))

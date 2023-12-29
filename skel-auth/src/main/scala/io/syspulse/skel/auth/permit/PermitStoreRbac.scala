@@ -9,7 +9,7 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 import io.syspulse.skel.auth.permissions.DefaultPermissions
-import io.syspulse.skel.auth.permissions.rbac.DefaultRbac
+
 import io.syspulse.skel.auth.permissions.rbac.PermissionsRbacDefault
 import io.syspulse.skel.auth.permit.PermitStoreMem
 import io.syspulse.skel.auth.permissions.rbac.PermissionsRbacDemo
