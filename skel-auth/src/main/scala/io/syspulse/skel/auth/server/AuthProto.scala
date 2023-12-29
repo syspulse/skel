@@ -21,3 +21,5 @@ final case class AuthWithProfileRes(
   uid: Option[UUID], xid:String, email:String, name:String, avatar:String, locale:String
 )
 
+final case class AuthPermissions(perm:List[String])
+

@@ -1,0 +1,5 @@
+CREATE DATABASE user_db;
+CREATE USER user_user WITH PASSWORD 'user_pass';
+GRANT CONNECT ON DATABASE user_db TO user_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO user_user;
+

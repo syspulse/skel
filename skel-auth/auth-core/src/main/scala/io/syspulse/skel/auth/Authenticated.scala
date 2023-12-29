@@ -5,7 +5,12 @@ import io.jvm.uuid.UUID
 trait Authenticated {
   //def token: Option[OAuth2BearerToken] = None
   def getUser:Option[UUID] = None
-  //def getRoles:List[String] = List.empty
+  def getRoles:Seq[String] = Seq.empty
 }
 
 case object AuthDisabled extends Authenticated
+
+case class AuthenticatedUser(uid:UUID,roles:Seq[String]) extends Authenticated {
+  override def getUser: Option[UUID] = Some(uid)
+  override def getRoles: Seq[String] = roles
+}

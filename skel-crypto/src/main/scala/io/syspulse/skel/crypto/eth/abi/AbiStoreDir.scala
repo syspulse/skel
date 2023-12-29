@@ -146,10 +146,9 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
     r
   }
 
-  override def load():Try[AbiStore] = {
+  override def load():Unit = {
     load(dir)
     watch(dir)
-    Success(this)
   }
 
   // NOTE: replce with standard StoreDir watcher !

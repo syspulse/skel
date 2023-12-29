@@ -1,6 +1,7 @@
 package io.syspulse.skel.auth
 
 import scala.util.Success
+import io.jvm.uuid._
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
@@ -12,12 +13,21 @@ import io.syspulse.skel.user.store._
 import io.syspulse.skel.auth.server.AuthRoutes
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.store._
-import io.syspulse.skel.auth.permissions.rbac.Permissions
+import io.syspulse.skel.auth.permissions.casbin.PermissionsCasbin
+import io.syspulse.skel.auth.permissions.Permissions
+import io.syspulse.skel.auth.permissions.DefaultPermissions
 import io.syspulse.skel.auth.cred.Cred
 
 import io.syspulse.skel.auth.cred._
 import io.syspulse.skel.auth.code._
+import io.syspulse.skel.auth.permit._
 import io.syspulse.skel.auth.store._
+import io.syspulse.skel.auth.permit.PermitStoreCasbin
+import io.syspulse.skel.auth.permit.PermitStoreDir
+import io.syspulse.skel.auth.permit.PermitRegistry
+import io.syspulse.skel.auth.permit.PermitStoreMem
+import io.syspulse.skel.auth.permit.PermitStoreRbac
+import io.syspulse.skel.auth.permit.PermitStoreRbacDemo
 
 case class Config(
   host:String="0.0.0.0",
@@ -27,6 +37,7 @@ case class Config(
   datastore:String = "mem://",
   storeCode:String = "mem://",
   storeCred:String = "mem://",
+  storePermissions:String = "rbac://", //"casbin://",
 
   // legacy investion research
   proxyBasicUser:String = "user1",
@@ -41,7 +52,7 @@ case class Config(
   jwtRoleAdmin:String = "",
 
   userUri:String = "http://localhost:8080/api/v1/user",
-
+  
   permissionsModel:String = "conf/permissions-model-rbac.conf",
   permissionsPolicy:String = "conf/permissions-policy-rbac.csv",
 
@@ -67,6 +78,7 @@ object App extends skel.Server {
         ArgString('d', "datastore",s"datastore [mysql,postgres,mem,cache] (def: ${d.datastore})"),
         ArgString('_', "store.code",s"Datastore for Codes (def: ${d.storeCode})"),
         ArgString('_', "store.cred",s"Datastore for Creds (def: ${d.storeCred})"),
+        ArgString('_', "store.permissions",s"Datastore for Permissions (def: ${d.storePermissions})"),
         
         ArgString('_',"proxy.basic.user",s"Auth Basic Auth username (def: ${d.proxyBasicUser})"),
         ArgString('_',"proxy.basic.pass",s"ProxyM2M Auth Basic Auth password (def: ${d.proxyBasicPass}"),
@@ -97,13 +109,22 @@ object App extends skel.Server {
         ArgCmd("cred",s"Client Credentials subcommands: " +
           s"generate        : generate Client Credentials pair" +
           ""
-        ),        
+        ),
+        ArgCmd("permission",s"Permissions subcommand:" +
+          s"jwt <resource> [action]  : Verify user has 'action' permissions for 'resource' (def action=write)"
+        ),
+        ArgCmd("role",s"Role subcommands" +
+          s"jwt <role> : Verify user has 'role'"
+        ),
+        ArgCmd("permit",s"Validation permission (as in routes Service)" +
+          s"jwt <role> : Verify user has 'role' (default is admin)"
+        ),
         ArgParam("<params>",""),
         ArgLogging()
       ).withExit(1)
     )).withLogging()
 
-    val config = Config(
+    implicit val config = Config(
       host = c.getString("http.host").getOrElse(d.host),
       port = c.getInt("http.port").getOrElse(d.port),
       uri = c.getString("http.uri").getOrElse(d.uri),
@@ -111,6 +132,7 @@ object App extends skel.Server {
       datastore = c.getString("datastore").getOrElse(d.datastore),
       storeCode = c.getString("store.code").getOrElse(d.storeCode),
       storeCred = c.getString("store.cred").getOrElse(d.storeCred),
+      storePermissions = c.getString("store.permissions").getOrElse(d.storePermissions),
 
       proxyBasicUser = c.getString("proxy.basic.user").getOrElse(d.proxyBasicUser),
       proxyBasicPass = c.getString("proxy.basic.pass").getOrElse(d.proxyBasicPass),
@@ -142,7 +164,7 @@ object App extends skel.Server {
       case "dir" :: dir :: Nil => new AuthStoreDir(dir)
       case "mem" :: _ | "cache" :: _ => new AuthStoreMem
       case _ => {
-        Console.err.println(s"Uknown datastore: '${config.datastore}'")
+        Console.err.println(s"Uknown auth datastore: '${config.datastore}'")
         sys.exit(1)
       }
     }
@@ -150,7 +172,7 @@ object App extends skel.Server {
     val codeStore = config.storeCode.split("://").toList match {
       case "mem" :: _ | "cache" :: _ => new CodeStoreMem()
       case _ => {
-        Console.err.println(s"Uknown store: '${config.storeCode}'")        
+        Console.err.println(s"Uknown code store: '${config.storeCode}'")        
         sys.exit(1)
       }
     }
@@ -160,7 +182,24 @@ object App extends skel.Server {
       case "dir" :: dir :: Nil => new CredStoreDir(dir)
       case "mem" :: _ | "cache" :: _ => new CredStoreMem()
       case _ => {
-        Console.err.println(s"Uknown store: '${config.storeCred}'")        
+        Console.err.println(s"Uknown cred store: '${config.storeCred}'")        
+        sys.exit(1)
+      }
+    }
+
+    val permissionsStore = config.storePermissions.split("://").toList match {
+      case "casbin" :: _  => new PermitStoreCasbin()
+
+      case "dir" :: Nil => new PermitStoreDir()
+      case "dir" :: dir :: Nil => new PermitStoreDir(dir) 
+
+      case "rbac" :: "demo" :: Nil => new PermitStoreRbacDemo()
+      case "rbac" :: ext :: Nil => new PermitStoreRbac(ext)
+      case "rbac" :: Nil => new PermitStoreRbac()
+
+      case "mem" :: _ | "cache" :: _ => new PermitStoreMem()
+      case _ => {
+        Console.err.println(s"Uknown permissions store: '${config.storePermissions}'")        
         sys.exit(1)
       }
     }
@@ -177,8 +216,9 @@ object App extends skel.Server {
           Seq(
             (AuthRegistry(authStore),"AuthRegistry",(authRegistry, context) => {
                 val codeRegistry = context.spawn(CodeRegistry(codeStore),"Actor-CodeRegistry")
-                val credRegistry = context.spawn(CredRegistry(credStore),"Actor-ClietnRegistry")
-                new AuthRoutes(authRegistry,codeRegistry,credRegistry,
+                val credRegistry = context.spawn(CredRegistry(credStore),"Actor-ClientRegistry")
+                val permissionsRegistry = context.spawn(PermitRegistry(permissionsStore),"Actor-PermissionsRegistry")
+                new AuthRoutes(authRegistry,codeRegistry,credRegistry,permissionsRegistry,
                   s"http://${authHost}:${config.port}${config.uri}",
                   s"http://${authHost}:${config.port}${config.uri}/callback", config.userUri)(context, config) 
               }
@@ -196,8 +236,9 @@ object App extends skel.Server {
           Seq(
             (AuthRegistry(authStore),"AuthRegistry",(authRegistry, context) => {
                 val codeRegistry = context.spawn(CodeRegistry(codeStore),"Actor-CodeRegistry")
-                val credRegistry = context.spawn(CredRegistry(credStore),"Actor-ClietnRegistry")
-                new AuthRoutes(authRegistry,codeRegistry,credRegistry,
+                val credRegistry = context.spawn(CredRegistry(credStore),"Actor-ClientRegistry")
+                val permissionsRegistry = context.spawn(PermitRegistry(permissionsStore),"Actor-PermissionsRegistry")
+                new AuthRoutes(authRegistry,codeRegistry,credRegistry,permissionsRegistry,
                   s"http://${authHost}:${config.port}${uri}/auth",
                   s"http://${authHost}:${config.port}${uri}/auth/callback",
                   s"http://${authHost}:${config.port}${uri}/user")(context, config) 
@@ -210,7 +251,7 @@ object App extends skel.Server {
         )
         // generate Admin token for testing
         val adminAccessTokenFile = "ACCESS_TOKEN_ADMIN"
-        val adminAccessToken = AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_ADMIN.toString))
+        val adminAccessToken = AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_ADMIN.toString))
         os.write.over(os.Path(adminAccessTokenFile,os.pwd),adminAccessToken + "\n")
         Console.err.println(s"${Console.GREEN}${adminAccessTokenFile}:${Console.RESET} ${adminAccessToken}")
 
@@ -218,22 +259,133 @@ object App extends skel.Server {
                       
         sys.exit(0)
       }
+      
+      case "permission" => {
+        
+        def resolvePermissions(jwt:String,resource:String,action:String) = {
+          
+          Console.err.println(s"Permissions: ${resource}:${action}: ${jwt}")
+
+          //val exp = AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL
+          //val jwt = AuthJwt.generateAccessToken(Map("role" -> role),expire = exp)
+          val vt = AuthJwt.verifyAuthToken(Some(jwt),"",Seq())
+          if(!vt.isDefined) {
+            Console.err.println(s"not valid: ${jwt}")
+            sys.exit(1)
+          }
+                    
+          implicit val permissions = permissionsStore.getEngine().get
+          Permissions.isAllowed(resource,action,AuthenticatedUser(UUID(vt.get.uid),vt.get.roles))
+        }
+
+        val r = 
+          config.params match {
+            case jwt :: resource :: Nil => 
+              resolvePermissions(jwt,resource,"read")
+
+            case jwt :: resource :: action :: Nil => 
+              resolvePermissions(jwt,resource,action)
+
+            case jwt :: Nil => 
+              resolvePermissions(jwt,"*","write")
+
+            case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
+          }
+        
+        println(s"${r}")
+        System.exit(0)
+      }
+
+      case "role" => {
+        
+        def resolveRole(jwt:String,role:String) = {
+          
+          Console.err.println(s"Role: ${role}: ${jwt}")
+
+          val vt = AuthJwt.verifyAuthToken(Some(jwt),"",Seq())
+          if(!vt.isDefined) {
+            Console.err.println(s"not valid: ${jwt}")
+            sys.exit(1)
+          }
+          
+          // if(!permissionsStore.getEngine().isDefined) {
+          //   Console.err.println(s"store does not support enforcer: ${permissionsStore}")
+          //   sys.exit(1)
+          // }
+
+          implicit val permissions = permissionsStore.getEngine().get
+          Permissions.hasRole(role,AuthenticatedUser(UUID(vt.get.uid),vt.get.roles))
+        }
+
+        val r = 
+          config.params match {
+            case jwt :: role :: Nil => 
+              resolveRole(jwt,role)
+
+            case jwt :: Nil => 
+              resolveRole(jwt,"user")
+            
+            case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
+          }
+        
+        println(s"${r}")
+        System.exit(0)
+      }
+
+      case "permit" => {
+        implicit val permissions = permissionsStore.getEngine().get
+        
+        val r = 
+          config.params match {
+            case jwt :: tail if (tail == Nil || tail == "admin" :: Nil) => 
+              val vt = AuthJwt.verifyAuthToken(Some(jwt),"",Seq())
+                  if(!vt.isDefined) {
+                Console.err.println(s"not valid: ${jwt}")
+                sys.exit(1)
+              }
+              Permissions.isAdmin(AuthenticatedUser(UUID(vt.get.uid),vt.get.roles))
+
+            case jwt :: "service" :: Nil => 
+              val vt = AuthJwt.verifyAuthToken(Some(jwt),"",Seq())
+                  if(!vt.isDefined) {
+                Console.err.println(s"not valid: ${jwt}")
+                sys.exit(1)
+              }
+              Permissions.isService(AuthenticatedUser(UUID(vt.get.uid),vt.get.roles))
+            
+            case _ => 
+              Console.err.println(s"unknown operation: ${config.params.mkString("")}")
+          }
+        
+        println(s"${r}")
+        System.exit(0)
+      }
+
       case "jwt" => {        
         val r = 
           config.params match {
             case "admin" :: ttl => 
               // long living token
               val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_ADMIN_TTL else ttl.head.toLong
-              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_ADMIN.toString),expire = exp)
+              AuthJwt.generateAccessToken(
+                Map("uid" -> DefaultPermissions.USER_ADMIN.toString, "roles" -> "admin"),
+                expire = exp
+              )
             
             case "service" :: ttl => 
               // long living token
               val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL else ttl.head.toLong
-              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString),expire = exp)
+              AuthJwt.generateAccessToken(
+                Map("uid" -> DefaultPermissions.USER_SERVICE.toString, "roles" -> "service"),
+                expire = exp
+              )
 
             case "user" :: uid :: ttl => 
               val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL else ttl.head.toLong
-              AuthJwt.generateAccessToken(Map("uid" -> uid),expire = exp)
+              AuthJwt.generateAccessToken(
+                Map("uid" -> uid,"roles" -> "user"),
+                expire = exp
+              )
 
             case "encode" :: data => 
               AuthJwt.generateAccessToken(data.map(_.split("=")).collect{ case(Array(k,v)) => k->v}.toMap)

@@ -65,8 +65,6 @@ import akka.actor
 import akka.stream.Materializer
 import scala.util.Random
 
-import io.syspulse.skel.auth.permissions.rbac.Permissions
-
 import io.syspulse.skel.util.Util
 
 import io.syspulse.skel.crypto.Eth
@@ -106,11 +104,23 @@ import io.syspulse.skel.auth.code._
 import io.syspulse.skel.auth.cred._
 import io.syspulse.skel.auth.cred.CredRegistry._
 
+import io.syspulse.skel.auth.permissions.Permissions
+import io.syspulse.skel.auth.permissions.DefaultPermissions
+import io.syspulse.skel.auth.permit._
+import io.syspulse.skel.auth.permit.PermitRegistry._
+import io.syspulse.skel.auth.permit.PermitRoles
+import akka.http.scaladsl.server.AuthorizationFailedRejection
+import io.syspulse.skel.auth.permit.{PermitUser, PermitRole}
+import io.syspulse.skel.auth.permit.PermitJson
+import io.syspulse.skel.auth.permit.PermitUsers
+import io.syspulse.skel.auth.permit.PermitRegistry
+
 @Path("/")
 class AuthRoutes(
   authRegistry: ActorRef[skel.Command],
   codeRegistry: ActorRef[skel.Command],
   credRegistry: ActorRef[skel.Command],
+  permitRegistry: ActorRef[skel.Command],
   serviceUri:String,
   redirectUri:String,
   serviceUserUri:String)(implicit context:ActorContext[_],config:Config) 
@@ -126,6 +136,8 @@ class AuthRoutes(
 
   //val credRegistry: ActorRef[skel.Command] = context.spawn(CredRegistry(new CredStoreMem()),"Actor-ClietnRegistry")
   context.watch(credRegistry)
+
+  context.watch(permitRegistry)
   
   // lazy because EthOAuth2 JWKS will request while server is not started yet
   lazy val idps = Map(
@@ -139,6 +151,7 @@ class AuthRoutes(
   import AuthJson._
   import CodeJson._
   import CredJson._
+  import PermitJson._
 
   def getAuths(): Future[Auths] = authRegistry.ask(GetAuths)
 
@@ -159,12 +172,24 @@ class AuthRoutes(
   def deleteCred(id: String,uid:Option[UUID]): Future[Try[CredActionRes]] = credRegistry.ask(DeleteCred(id, uid, _))
   def updateCred(id:String,req: CredUpdateReq): Future[Try[Cred]] = credRegistry.ask(UpdateCred(id,req, _))
 
-  implicit val permissions = Permissions(config.permissionsModel,config.permissionsPolicy)
-  // def hasAdminPermissions(authn:Authenticated) = {
-  //   val uid = authn.getUser
-  //   permissions.isAdmin(uid)
-  // }
-  
+  def getPermitRole(role:String): Future[Try[PermitRole]] = permitRegistry.ask(GetPermitRole(role, _))
+  def getPermitRoles(): Future[Try[PermitRoles]] = permitRegistry.ask(GetPermitRoles(_))
+  def createPermitRole(req:PermitRoleCreateReq): Future[Try[PermitRole]] = permitRegistry.ask(CreatePermitRole(req, _))
+
+  def createPermitUser(req:PermitUserCreateReq): Future[Try[PermitUser]] = permitRegistry.ask(CreatePermitUser(req, _))
+  def getPermitUser(uid:UUID): Future[Try[PermitUser]] = permitRegistry.ask(GetPermitUser(uid, _))
+  def getPermitUsers(): Future[Try[PermitUsers]] = permitRegistry.ask(GetPermitUsers(_))
+  def getPermitUserByXid(xid:String): Future[Try[PermitUser]] = permitRegistry.ask(GetPermitUserByXid(xid, _))
+
+  implicit val defaultPermissions = Permissions(
+    config.storePermissions, 
+    Map(
+      "modelFile"->config.permissionsModel,
+      "policyFile"->config.permissionsPolicy,
+      "store"->config.storePermissions
+    )
+  )
+
   def callbackFlow(idp: Idp, code: String, redirectUri:Option[String], extraData:Option[Map[String,String]], scope: Option[String], state:Option[String]) = {//: Future[AuthWithProfileRes] = {
     log.info(s"CALLBACK (Universal): ${idp}: code=${code}, redirectUri=${redirectUri}, scope=${scope}, state=${state}")
     
@@ -231,10 +256,15 @@ class AuthRoutes(
       user <- {
         val jwtRoleService = if(config.jwtRoleService.isEmpty()) 
           // generate temproary short living token
-          AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString),expire = 60L)
+          AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_SERVICE.toString,"roles"->"service"),expire = 60L)
         else 
           config.jwtRoleService 
+        
         UserClientHttp(serviceUserUri).withAccessToken(jwtRoleService).withTimeout().findByXidAlways(profile.id)
+      }
+      userAuth <- {
+        // get user from Auth database
+        getPermitUserByXid(profile.id)
       }
       authProfileRes <- {        
         val (profileEmail,profileName,profilePicture,profileLocale) = 
@@ -257,21 +287,50 @@ class AuthRoutes(
             (profile.email, profile.name, profile.picture, profile.locale)
           }
 
-        val (accessToken,idToken,refreshToken) =
-          if(user.isDefined) {
-            val uid = user.get.id.toString
-            (
-              AuthJwt.generateAccessToken(Map( "uid" -> uid)),
-              Some(AuthJwt.generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
-              Some(AuthJwt.generateRefreshToken(uid))
-            )
-          }
-          else {
-            (
-              AuthJwt.generateAccessToken(Map( "uid" -> Permissions.USER_NOBODY.toString)),
-              None,
-              None
-            )
+        // val (accessToken,idToken,refreshToken) =
+        //   if(user.isDefined) {
+        //     val uid = user.get.id.toString
+        //     (
+        //       AuthJwt.generateAccessToken(Map( "uid" -> uid)),
+        //       Some(AuthJwt.generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
+        //       Some(AuthJwt.generateRefreshToken(uid))
+        //     )
+        //   }
+        //   else {
+        //     (
+        //       AuthJwt.generateAccessToken(Map( "uid" -> DefaultPermissions.USER_NOBODY.toString)),
+        //       None,
+        //       None
+        //     )
+        //   }
+          val (uid,accessToken,idToken,refreshToken) = (user,userAuth) match {
+            case (_,Success(user)) => 
+              // roles are known from our Auth DB
+              val uid = user.uid.toString
+              (
+                Some(user.uid),
+                AuthJwt.generateAccessToken(Map( "uid" -> uid, "roles" -> user.roles.mkString(","))),
+                Some(AuthJwt.generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
+                Some(AuthJwt.generateRefreshToken(uid))
+              )
+
+            case (Some(user),_) => 
+              // roles are not known here
+              val uid = user.id.toString
+              (
+                Some(user.id),
+                AuthJwt.generateAccessToken(Map( "uid" -> uid, "roles" -> "user")),
+                Some(AuthJwt.generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
+                Some(AuthJwt.generateRefreshToken(uid))
+              )
+            
+            case (_,_) =>
+              (
+                None,
+                AuthJwt.generateAccessToken(Map( "uid" -> DefaultPermissions.USER_NOBODY.toString)),
+                None,
+                None
+              )
           }
                 
         Future(AuthWithProfileRes(
@@ -279,7 +338,7 @@ class AuthRoutes(
           idToken,
           refreshToken,
           idp = AuthIdp(idpTokens.accessToken, idpTokens.idToken, idpTokens.refreshToken),
-          uid = user.map(_.id),
+          uid = uid,
           xid = profile.id,
           profileEmail, 
           profileName, 
@@ -287,6 +346,7 @@ class AuthRoutes(
           profileLocale)
         )
       }
+      
       authRes <- {
         // Save Auth Session        
         createAuth(Auth(
@@ -540,7 +600,7 @@ class AuthRoutes(
                 // request uid from UserService
                 val jwtRoleService = if(config.jwtRoleService.isEmpty()) 
                   // generate temproary short living token
-                  AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString),expire = 60L)
+                  AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_SERVICE.toString),expire = 60L)
                 else 
                   config.jwtRoleService 
                 
@@ -552,9 +612,9 @@ class AuthRoutes(
                     //complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
                                 
                     // non-existing user
-                    val uid = Permissions.USER_NOBODY.toString
+                    val uid = DefaultPermissions.USER_NOBODY.toString
                     // issue token for nobody with a scope to start enrollment 
-                    val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid, "role" -> Permissions.ROLE_NOBODY, "scope" -> "enrollment"))
+                    val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid, "role" -> DefaultPermissions.ROLE_NOBODY, "scope" -> "enrollment"))
                     val idToken = ""
                     val refreshToken = ""
                     
@@ -635,7 +695,7 @@ class AuthRoutes(
             // request uid from UserService
             val jwtRoleService = if(config.jwtRoleService.isEmpty()) 
               // generate temproary short living token
-              AuthJwt.generateAccessToken(Map("uid" -> Permissions.USER_SERVICE.toString),expire = 60L)
+              AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_SERVICE.toString),expire = 60L)
             else 
               config.jwtRoleService 
             
@@ -785,6 +845,72 @@ class AuthRoutes(
   def createCredRoute(uid:UUID) = post {
     entity(as[CredCreateReq]) { req =>
       onSuccess(createCred(req,uid)) { r =>
+        complete(StatusCodes.Created, r)
+      }
+    }
+  }
+
+// ------ Role Permissions ----
+  @GET @Path("/role") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"), summary = "Get permissions for role",
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "List of Permissions",content = Array(new Content(schema = new Schema(implementation = classOf[PermitRole])))))
+  )
+  def getPermitRoleRoute(role:String) = get {
+    complete(getPermitRole(role))
+  }
+
+  @GET @Path("/role") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"), summary = "Get all role/permissions",
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "List of Permissions",content = Array(new Content(schema = new Schema(implementation = classOf[PermitRoles])))))
+  )
+  def getPermitRoleRoute() = get {
+    complete(getPermitRoles())
+  }
+
+  @POST @Path("/role") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Create role",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[PermitRoleCreateReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "Created Role",content = Array(new Content(schema = new Schema(implementation = classOf[PermitRole])))))
+  )
+  def createPermitRoleRoute() = post {
+    entity(as[PermitRoleCreateReq]) { req =>
+      onSuccess(createPermitRole(req)) { r =>
+        complete(StatusCodes.Created, r)
+      }
+    }
+  }
+
+// ------ User PermitUser ----
+  @GET @Path("/user") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"), summary = "Get user roles",
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "List of PermitUser",content = Array(new Content(schema = new Schema(implementation = classOf[PermitUser])))))
+  )
+  def getPermitUserRoute(uid:UUID) = get {
+    complete(getPermitUser(uid))
+  }
+
+  @GET @Path("/user") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"), summary = "Get all users roles",
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "List of PermitUser",content = Array(new Content(schema = new Schema(implementation = classOf[PermitUsers])))))
+  )
+  def getPermitUserRoute() = get {
+    complete(getPermitUsers())
+  }
+
+  @POST @Path("/user") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Create user roles",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[PermitUserCreateReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "Created User roles",content = Array(new Content(schema = new Schema(implementation = classOf[PermitUser])))))
+  )
+  def createPermitUserRoute() = post {
+    entity(as[PermitUserCreateReq]) { req =>
+      onSuccess(createPermitUser(req)) { r =>
         complete(StatusCodes.Created, r)
       }
     }
@@ -940,7 +1066,7 @@ class AuthRoutes(
             }}
           }
         }
-      } ~
+      },
       // curl -POST -i -v http://localhost:8080/api/v1/auth/proxy -d '{ "username" : "user1", "password": "password"}'
       pathPrefix("proxy") {
         path("token") {
@@ -959,7 +1085,7 @@ class AuthRoutes(
             }
           }
         }
-      } ~
+      },
       pathPrefix("code") {
         path(Segment) { code => authenticate()( authn => { 
           concat(
@@ -974,8 +1100,8 @@ class AuthRoutes(
             complete(getCodes())
           })
         }        
-      } ~
-      pathEndOrSingleSlash {
+      },
+      pathEndOrSingleSlash {         
         concat(
           get {
             authenticate()(authn =>
@@ -991,8 +1117,47 @@ class AuthRoutes(
               }
             }
           })
-      } ~
-      pathPrefix(Segment) { auid =>
+      },
+      pathPrefix("role") {
+        authenticate(){ authn => { 
+          pathEndOrSingleSlash {
+            authorize(Permissions.isAdmin(authn)) {
+              getPermitRoleRoute()
+              
+            } ~ 
+            authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
+              createPermitRoleRoute()
+            }
+          } ~
+          path(Segment) { role => 
+            authorize(Permissions.isAdmin(authn)) {
+              concat(
+                getPermitRoleRoute(role)
+              )
+            }            
+          }          
+        }}        
+      },
+      pathPrefix("user") {
+        authenticate(){ authn => { 
+          pathEndOrSingleSlash {            
+            authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
+              getPermitUserRoute() ~
+              createPermitUserRoute()
+            }                     
+          } ~
+          path(Segment) { uid => 
+            authorize(Permissions.isAdmin(authn) || Some(UUID(uid)) == authn.getUser) {
+              concat(
+                getPermitUserRoute(UUID(uid))
+              )
+            }            
+          }          
+        }}        
+      },
+      // this matcher will match in case of authorize/authenticate failures !
+      //pathPrefix(Segment) { auid =>
+      pathPrefix(SegmentUUID) { auid =>
         // refresh token cannot use AuthN because it is expired
         pathPrefix("refresh") {
           pathPrefix(Segment) { refreshToken => 
@@ -1000,7 +1165,6 @@ class AuthRoutes(
           }
         } ~
         authenticate()( authn => {
-          log.info(s"authn: ${authn}")          
           concat(            
             get {
               rejectEmptyResponse {
@@ -1015,6 +1179,25 @@ class AuthRoutes(
               }
             })
         })
-      }
+      }       
     )}
+
+  // ------------------------------- Matcher for UUID -------------------------
+  import akka.http.scaladsl.server.PathMatcher._
+  import akka.http.scaladsl.server.PathMatcher1
+  import akka.http.scaladsl.model.Uri.Path
+  
+  
+  object SegmentUUID extends PathMatcher1[String] {
+    def apply(path: Path) = path match {
+      case Path.Segment(segment, tail) =>
+        try {
+          val uuid = UUID(segment)
+          Matched(tail, Tuple1(uuid.toString))
+        } catch {
+          case e:java.lang.IllegalArgumentException => Unmatched
+        }
+      case _ => Unmatched
+    }
+  }
 }

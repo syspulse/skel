@@ -13,7 +13,7 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.notify._
-import io.syspulse.skel.auth.permissions.rbac.Permissions
+import io.syspulse.skel.auth.permissions.DefaultPermissions
 
 
 class NotifyStoreMem(implicit config:Config) extends NotifyBroadcast()(config) with NotifyStore {
@@ -42,7 +42,7 @@ class NotifyStoreMem(implicit config:Config) extends NotifyBroadcast()(config) w
       case Some(uid) => 
         UUID(uid)
       case None =>
-        n.uid.orElse(Some(Permissions.USER_ADMIN)).get
+        n.uid.orElse(Some(DefaultPermissions.USER_ADMIN)).get
     }
     
     log.info(s"add: ${n} --> ${uid}")
@@ -63,7 +63,7 @@ class NotifyStoreMem(implicit config:Config) extends NotifyBroadcast()(config) w
 
   def +(n:Notify):Try[NotifyStore] = { 
     // this should always resolve correctly here
-    val uid = (n.uid.orElse(Some(Permissions.USER_ADMIN)).get)
+    val uid = (n.uid.orElse(Some(DefaultPermissions.USER_ADMIN)).get)
     
     log.info(s"add: ${n} -> ${uid}")
 

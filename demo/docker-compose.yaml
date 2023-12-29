@@ -50,7 +50,7 @@ services:
       - demo
     command: server
     environment:
-      JAVA_OPTS: -Dgod
+      #JAVA_OPTS: -Dgod
       DATASTORE: postgres
 
   skel-notify:
@@ -63,7 +63,8 @@ services:
       - demo
     command: server
     environment:
-      JAVA_OPTS: -Dgod
+      #JAVA_OPTS: -Dgod
+      DATASTORE: dir:///store/notify
       SMTP_HOST: ${SMTP_HOST}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
@@ -73,6 +74,8 @@ services:
       AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN}
       AWS_REGION: ${AWS_REGION}
       AWS_ACCOUNT: ${AWS_ACCOUNT}
+      TIMEOUT_IDLE: 600000
+      SYSLOG_URI: kafka://broker-1:9092
 
   skel-enroll:
     image: syspulse/skel-enroll:latest
@@ -84,11 +87,12 @@ services:
       - demo
     command: server
     environment:
-      JAVA_OPTS: -Dgod
+      #JAVA_OPTS: -Dgod
       USER_URI: http://skel-user:8080/api/v1/user
       NOTIFY_URI: http://skel-notify:8080/api/v1/notify
       NOTIFY_EMAIL: ${NOTIFY_EMAIL}
       CONFIRM_URI: http://localhost:8083
+      JWT_ROLE_SERVICE: file:///auth/ACCESS_TOKEN_SERVICE
 
   skel-auth:
     image: syspulse/skel-auth:latest
@@ -100,7 +104,9 @@ services:
       - demo
     command: server
     environment:
-      JAVA_OPTS: -Dgod
+      #JAVA_OPTS: -Dgod
+      DATASTORE: mem://
+      STORE_CRED: dir:///store/auth/cred
       USER_URI: http://skel-user:8080/api/v1/user
       GOOGLE_AUTH_CLIENT_ID: ${GOOGLE_AUTH_CLIENT_ID}
       GOOGLE_AUTH_CLIENT_SECRET: ${GOOGLE_AUTH_CLIENT_SECRET}
