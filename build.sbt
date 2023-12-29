@@ -303,20 +303,30 @@ lazy val root = (project in file("."))
              ingest_dynamo,
              skel_enroll,
              skel_syslog,
+             syslog_core,
              skel_notify,
+             notify_core,
              skel_tag, 
              skel_telemetry,
+             skel_job,
+             job_core,
              crypto_kms,
              tools)
-  .dependsOn(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, skel_dsl, scrap, cli, db_cli, 
+  .dependsOn(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, skel_dsl, scrap, cli, db_cli,
              ingest_flow,
              ingest_elastic,
              ingest_dynamo,
              skel_enroll,
              skel_syslog,
+             syslog_core,
              skel_notify,
-             skel_tag,
-             skel_telemetry)
+             notify_core,
+             skel_tag, 
+             skel_telemetry,
+             skel_job,
+             job_core,
+             crypto_kms,
+             )  
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -730,7 +740,7 @@ lazy val skel_dsl = (project in file("skel-dsl"))
       
       // Only for experiments
       sharedConfigAssembly,      
-      appAssemblyConfig("dsl-cli","io.syspulse.skel.dsl.App"),
+      appAssemblyConfig("skel-dsl","io.syspulse.skel.dsl.App"),
       //name := "skel-dsl",
 
       libraryDependencies ++= libCommon ++ libTest ++
