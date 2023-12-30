@@ -1,5 +1,7 @@
 package io.syspulse.skel.ingest.flow
 
+import scala.util.{Success,Failure,Try}
+
 import scala.jdk.CollectionConverters._
 
 import java.nio.file.StandardOpenOption._
@@ -47,7 +49,6 @@ import spray.json.JsonFormat
 import java.nio.file.StandardOpenOption
 import java.nio.file.OpenOption
 import java.nio.file.FileVisitOption
-import akka.http.scaladsl.model.StatusCodes.Success
 import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.unmarshalling.Unmarshal
@@ -83,6 +84,11 @@ import java.net.InetSocketAddress
 
 import akka.http.scaladsl.server.PathMatcher
 import akka.http.scaladsl.server.PathMatcher0
+import akka.http.scaladsl.model.HttpMethods
+import akka.http.scaladsl.model.ContentTypes
+import akka.http.scaladsl.model.headers.Authorization
+import akka.http.scaladsl.model.headers.OAuth2BearerToken
+import akka.http.scaladsl.model.HttpResponse
 
 object Flows {
   val log = Logger(this.toString)
@@ -110,10 +116,11 @@ object Flows {
     s
   }
 
-  def toSinkRestart(s:Sink[Ingestable,_],retry:RestartSettings = retrySettingsDefault) = RestartSink.withBackoff(retry) { () =>
-    log.info(s"Restating -> Sink(${s})...")
-    s
-  }
+  def toSinkRestart[T <: Ingestable](s:Sink[Ingestable,_],retry:RestartSettings = retrySettingsDefault) = 
+    RestartSink.withBackoff[T](retry) { () =>
+      log.info(s"Restating -> Sink(${s})...")
+      s
+    }
   
   def fromCron(expr:String)(implicit as:ActorSystem):Source[ByteString, NotUsed] = {
     import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension 
@@ -419,6 +426,75 @@ object Flows {
         .toMat(FileIO.toPath(
           Paths.get(Util.pathToFullPath(Util.toFileWithTime(file))),options =  Set(WRITE, CREATE))
         )(Keep.right)
+  }
+
+  def toHTTP[T <: Ingestable](uri:String,pretty:Boolean=false)(implicit as:ActorSystem,fmt:JsonFormat[T]) = {
+    
+    val sink = 
+    if(uri.trim.isEmpty) {
+      log.warn(s"invalid uri: ${uri}")
+      Sink.ignore 
+    } else {     
+      import spray.json._
+     
+     def retry_deterministic(as:ActorSystem,timeout:FiniteDuration) = ConnectionPoolSettings(as)
+        .withBaseConnectionBackoff(timeout)
+        .withMaxConnectionBackoff(timeout)
+
+      Flow[T]
+        .map(t => {
+          val j = t.toJson          
+          if(pretty) j.prettyPrint else j.compactPrint          
+        })
+        .mapAsync(1)(body => {
+          log.debug(s"body(${body}) --> ${uri}")
+          
+          val http = Http()
+            .singleRequest(
+              HttpRequest(
+                HttpMethods.POST,
+                uri = uri, 
+                entity = HttpEntity(ContentTypes.`application/json`,body),
+                headers = Seq(Authorization(OAuth2BearerToken(sys.env.get("API_KEY").getOrElse(""))))
+              ),
+              //
+              settings = retry_deterministic(as,FiniteDuration(1000L,TimeUnit.MILLISECONDS))
+            )
+
+          val f = http.flatMap( r => r match {
+            case response @ HttpResponse(status, _ , entity, _) =>              
+              status match {
+                case StatusCodes.OK => 
+                  val data = entity.dataBytes.runReduce(_ ++ _)
+                  val body = data.map(_.utf8String)                  
+                  body
+                case _ =>
+                  log.error(s"error: ${status}")
+                  val body = entity.dataBytes.runReduce(_ ++ _)
+                  val txt = Await.result(body.map(_.utf8String),FiniteDuration(5000L,TimeUnit.MILLISECONDS))
+                  throw new Exception(s"${status}: ${txt}")
+              }
+            case f   => 
+              log.error(s"failed connection: ${uri}",f)
+              throw new Exception(s"${f}")
+          })
+          
+          f
+        })
+        .log(s"${this}")
+        .map(r => {
+          log.debug(s"res: '${r}'")
+          r
+        })
+        .toMat(
+          Sink.ignore
+        )(Keep.right)
+    }
+
+    RestartSink.withBackoff[T](retrySettingsDefault) { () =>
+      log.info(s"Connection --> ${uri}")
+      sink
+    }
   }
 
   // Hive Rotators

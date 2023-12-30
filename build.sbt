@@ -128,6 +128,7 @@ val sharedConfig = Seq(
     ),
 
     // needed to fix error with quill-jasync
+    // org.scala-lang.modules:scala-java8-compat_2.13:1.0.2 (early-semver) is selected over {1.0.0, 0.9.1}
     libraryDependencySchemes += "org.scala-lang.modules" %% "scala-java8-compat" % VersionScheme.Always
   )
 

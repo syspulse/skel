@@ -55,8 +55,9 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "kafka" :: _ => Flows.fromKafka[Textline](feed)
       case "http" :: _ => {
         if(feed.contains(",")) {
-          Flows.fromHttpList(feed.split(",").map(uri => HttpRequest(uri = uri.trim).withHeaders(Accept(MediaTypes.`application/json`)))
-                             ,frameDelimiter = delimiter,frameSize = buffer, throttle =  throttleSource)
+          Flows.fromHttpList(feed.split(",").toIndexedSeq.map(uri => 
+            HttpRequest(uri = uri.trim).withHeaders(Accept(MediaTypes.`application/json`))),
+            frameDelimiter = delimiter,frameSize = buffer, throttle =  throttleSource)
         }
         else
           // ATTENTION!
@@ -153,6 +154,9 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       // TODO: remove it !
       case "past" :: fileName :: Nil => 
         Flows.toHive(fileName)(new Flows.RotatorTimestamp( () => ZonedDateTime.ofInstant(Instant.now, ZoneId.systemDefault).minusYears(1000).toInstant().toEpochMilli() ))
+
+      case "http" :: uri :: Nil => Flows.toHTTP[O](output,pretty=false)
+      case "https" :: uri :: Nil => Flows.toHTTP[O](output,pretty=false)
 
       case "stdout" :: _ => Flows.toStdout()
       case "stderr" :: _ => Flows.toStderr()
