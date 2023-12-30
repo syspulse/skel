@@ -415,17 +415,25 @@ object Flows {
 
 // ==================================================================================================
 // Sinks
-// ==================================================================================================
+// ==================================================================================================  
+
   def toFile(file:String) = {
+    import akka.event.Logging
+
     if(file.trim.isEmpty) 
       Sink.ignore 
-    else
-      Flow[Ingestable]
-        .map(t => s"${t.toLog}\n")
-        .map(ByteString(_))
-        .toMat(FileIO.toPath(
-          Paths.get(Util.pathToFullPath(Util.toFileWithTime(file))),options =  Set(WRITE, CREATE))
-        )(Keep.right)
+    else {
+      //toSinkRestart({
+        Flow[Ingestable]
+          .map(t => s"${t.toLog}\n")
+          .map(ByteString(_))          
+          .log(s"${this}")
+          .withAttributes(Attributes.createLogLevels(Logging.DebugLevel, Logging.InfoLevel, Logging.ErrorLevel))       
+          .toMat(FileIO.toPath(
+            Paths.get(Util.pathToFullPath(Util.toFileWithTime(file))),options =  Set(WRITE, CREATE))
+          )(Keep.right)
+      //})
+    }
   }
 
   def toHTTP[T <: Ingestable](uri:String,pretty:Boolean=false)(implicit as:ActorSystem,fmt:JsonFormat[T]) = {
@@ -444,12 +452,13 @@ object Flows {
       Flow[T]
         .map(t => {
           val j = t.toJson          
-          if(pretty) j.prettyPrint else j.compactPrint          
+          if(pretty) j.prettyPrint else j.compactPrint
         })
         .mapAsync(1)(body => {
           log.debug(s"body(${body}) --> ${uri}")
           
-          val http = Http()
+          val http =
+            Http()
             .singleRequest(
               HttpRequest(
                 HttpMethods.POST,
@@ -459,8 +468,8 @@ object Flows {
               ),
               //
               settings = retry_deterministic(as,FiniteDuration(1000L,TimeUnit.MILLISECONDS))
-            )
-
+            )          
+          
           val f = http.flatMap( r => r match {
             case response @ HttpResponse(status, _ , entity, _) =>              
               status match {

@@ -111,7 +111,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
 
       case "" :: Nil => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
       case file :: Nil => Flows.fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)
-      case _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
+      case _ =>         
+        Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
     }
     src0
   }
@@ -161,7 +162,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "stdout" :: _ => Flows.toStdout()
       case "stderr" :: _ => Flows.toStderr()
       case "" :: Nil => Flows.toStdout()
-      case _ => Flows.toFile(output)
+      case _ => 
+        Flows.toFile(output)
     }
     sink
   }

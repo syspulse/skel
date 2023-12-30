@@ -99,7 +99,7 @@ object Util {
     val tss = fileName.split("[{]").filter(_.contains("}")).map(s => s.substring(0,s.indexOf("}")))
     val tssPairs = tss.map(s => (s,timestamp(ts,s)))
 
-    tssPairs.foldLeft(fileName)( (fileName,pair) => { fileName.replace("{"+pair._1+"}",pair._2) })
+    tssPairs.foldLeft(fileName)( (fileName,pair) => { fileName.replace("{"+pair._1+"}",pair._2) })    
   }
 
   def nextTimestampDir(fileName:String,ts:Long=System.currentTimeMillis()) = {
