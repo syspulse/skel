@@ -48,6 +48,8 @@ case class Config(
   proxyHeadersMapping:String = "HEADER:Content-type:application/json, HEADER:X-App-Id:{{client_id}}, HEADER:X-App-Secret:{{client_secret}}, BODY:X-User:{{user}}, BODY:X-Pass:{{pass}}",
 
   jwtSecret:Option[String] = None,
+  jwtAlgo:String = "HS512",
+
   jwtRoleService:String = "",
   jwtRoleAdmin:String = "",
 
@@ -87,6 +89,8 @@ object App extends skel.Server {
         ArgString('_',"proxy.headers.mapping",s"ProxyM2M Headers mapping (def: ${d.proxyHeadersMapping}) "),
 
         ArgString('_', "jwt.secret",s"JWT secret (def: ${d.jwtSecret})"),
+        ArgString('_', "jwt.algo",s"JWT Algo [HS512,RS512,...] (def: ${d.jwtAlgo})"),
+
         ArgString('_', "jwt.role.service",s"JWT access_token for Service Account (def: ${d.jwtRoleService})"),
         ArgString('_', "jwt.role.admin",s"JWT access_token for Admin Account (def: ${d.jwtRoleAdmin})"),
 
@@ -142,6 +146,8 @@ object App extends skel.Server {
       proxyHeadersMapping = c.getString("proxy.headers.mapping").getOrElse(d.proxyHeadersMapping),
 
       jwtSecret = c.getSmartString("jwt.secret"),
+      jwtAlgo = c.getString("jwt.algo").getOrElse(d.jwtAlgo),
+
       jwtRoleService = c.getSmartString("jwt.role.service").getOrElse(""),
       jwtRoleAdmin = c.getSmartString("jwt.role.admin").getOrElse(""),
 
@@ -369,7 +375,9 @@ object App extends skel.Server {
               val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_ADMIN_TTL else ttl.head.toLong
               AuthJwt.generateAccessToken(
                 Map("uid" -> DefaultPermissions.USER_ADMIN.toString, "roles" -> "admin"),
-                expire = exp
+                expire = exp,
+                algo = config.jwtAlgo,
+                secret = config.jwtSecret.getOrElse(AuthJwt.defaultSecret)
               )
             
             case "service" :: ttl => 
@@ -377,22 +385,36 @@ object App extends skel.Server {
               val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL else ttl.head.toLong
               AuthJwt.generateAccessToken(
                 Map("uid" -> DefaultPermissions.USER_SERVICE.toString, "roles" -> "service"),
-                expire = exp
+                expire = exp,
+                algo = config.jwtAlgo,
+                secret = config.jwtSecret.getOrElse(AuthJwt.defaultSecret)              
               )
 
             case "user" :: uid :: ttl => 
               val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL else ttl.head.toLong
               AuthJwt.generateAccessToken(
                 Map("uid" -> uid,"roles" -> "user"),
-                expire = exp
+                expire = exp,
+                algo = config.jwtAlgo,
+                secret = config.jwtSecret.getOrElse(AuthJwt.defaultSecret)
               )
 
             case "encode" :: data => 
-              AuthJwt.generateAccessToken(data.map(_.split("=")).collect{ case(Array(k,v)) => k->v}.toMap)
+              val exp = AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL
+              AuthJwt.generateAccessToken(
+                data.map(_.split("=")).collect{ case(Array(k,v)) => k->v}.toMap,
+                expire = exp,
+                algo = config.jwtAlgo,
+                secret = config.jwtSecret.getOrElse(AuthJwt.defaultSecret)
+              )
 
             case "decode" :: token :: Nil => 
-              AuthJwt.decodeAll(token) match {
-                case Success(jwt) => jwt
+              AuthJwt.decodeAll(token,config.jwtAlgo,config.jwtSecret.getOrElse(AuthJwt.defaultSecret)) match {
+                case Success(jwt) => 
+                  s"valid = ${jwt._1}\n"+
+                  s"header = ${jwt._2.algorithm},${jwt._2.contentType},${jwt._2.keyId},${jwt._2.typ}\n" +
+                  s"claim = ${jwt._3.audience},${jwt._3.content},${jwt._3.expiration},${jwt._3.issuedAt},${jwt._3.issuer},${jwt._3.jwtId},${jwt._3.notBefore},${jwt._3.subject}\n" + 
+                  s"sig = ${jwt._4}"
                 case f => f
               }
             case "valid" :: token :: Nil => 

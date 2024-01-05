@@ -184,3 +184,25 @@ SITE=idp ./run-investigate.sh
 
 3. Open [http://localhost:3001](http://localhost:3001)
 
+
+## RSA Keys
+
+Generate Keypair in PKCS8 format (java.security understans only pkcs8)
+
+```
+ssh-keygen -t rsa -b 4096 -m PEM -E SHA512 -f RS512.key -N ""
+# Don't add passphrase
+openssl rsa -in RS512.key -pubout -outform PEM -out RS512.key.pub
+openssl pkcs8 -topk8 -nocrypt -in RS512.key -out RS512.key.pkcs8
+```
+
+Generate JWT:
+```
+./run-auth.sh jwt admin --jwt.algo=RS512 --jwt.secret=file://RS512.key.pkcs8
+```
+
+Run Server with Public key
+
+```
+./run-auth.sh --jwt.secret=file://RS512.key.pub
+```
