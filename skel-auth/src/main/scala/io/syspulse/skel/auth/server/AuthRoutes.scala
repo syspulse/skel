@@ -256,7 +256,7 @@ class AuthRoutes(
       user <- {
         val jwtRoleService = if(config.jwtRoleService.isEmpty()) 
           // generate temproary short living token
-          AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_SERVICE.toString,"roles"->"service"),expire = 60L)
+          AuthJwt().generateAccessToken(Map("uid" -> DefaultPermissions.USER_SERVICE.toString,"roles"->"service"),expire = 60L)
         else 
           config.jwtRoleService 
         
@@ -269,8 +269,8 @@ class AuthRoutes(
       authProfileRes <- {        
         val (profileEmail,profileName,profilePicture,profileLocale) = 
           if(idpTokens.idToken != "") {
-            val idJwt = AuthJwt.decodeIdToken(idpTokens.idToken)
-            val idClaims = AuthJwt.decodeIdClaim(idpTokens.idToken)
+            val idJwt = AuthJwt().decodeIdToken(idpTokens.idToken)
+            val idClaims = AuthJwt().decodeIdClaim(idpTokens.idToken)
             // verify just for logging
             val verified = idp.verify(idpTokens.idToken)
             log.info(s"code=${code}: profile=${profile}: idToken: jwt=${idJwt.get.content}: claims=${idClaims}: verified=${verified}")
@@ -309,9 +309,9 @@ class AuthRoutes(
               val uid = user.uid.toString
               (
                 Some(user.uid),
-                AuthJwt.generateAccessToken(Map( "uid" -> uid, "roles" -> user.roles.mkString(","))),
-                Some(AuthJwt.generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
-                Some(AuthJwt.generateRefreshToken(uid))
+                AuthJwt().generateAccessToken(Map( "uid" -> uid, "roles" -> user.roles.mkString(","))),
+                Some(AuthJwt().generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
+                Some(AuthJwt().generateRefreshToken(uid))
               )
 
             case (Some(user),_) => 
@@ -319,15 +319,15 @@ class AuthRoutes(
               val uid = user.id.toString
               (
                 Some(user.id),
-                AuthJwt.generateAccessToken(Map( "uid" -> uid, "roles" -> "user")),
-                Some(AuthJwt.generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
-                Some(AuthJwt.generateRefreshToken(uid))
+                AuthJwt().generateAccessToken(Map( "uid" -> uid, "roles" -> "user")),
+                Some(AuthJwt().generateIdToken(uid, Map("email" -> profileEmail,"name"->profileName,"avatar"->profilePicture,"locale"->profileLocale ))),
+                Some(AuthJwt().generateRefreshToken(uid))
               )
             
             case (_,_) =>
               (
                 None,
-                AuthJwt.generateAccessToken(Map( "uid" -> DefaultPermissions.USER_NOBODY.toString)),
+                AuthJwt().generateAccessToken(Map( "uid" -> DefaultPermissions.USER_NOBODY.toString)),
                 None,
                 None
               )
@@ -600,7 +600,7 @@ class AuthRoutes(
                 // request uid from UserService
                 val jwtRoleService = if(config.jwtRoleService.isEmpty()) 
                   // generate temproary short living token
-                  AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_SERVICE.toString),expire = 60L)
+                  AuthJwt().generateAccessToken(Map("uid" -> DefaultPermissions.USER_SERVICE.toString),expire = 60L)
                 else 
                   config.jwtRoleService 
                 
@@ -614,7 +614,7 @@ class AuthRoutes(
                     // non-existing user
                     val uid = DefaultPermissions.USER_NOBODY.toString
                     // issue token for nobody with a scope to start enrollment 
-                    val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid, "role" -> DefaultPermissions.ROLE_NOBODY, "scope" -> "enrollment"))
+                    val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid, "role" -> DefaultPermissions.ROLE_NOBODY, "scope" -> "enrollment"))
                     val idToken = ""
                     val refreshToken = ""
                     
@@ -642,9 +642,9 @@ class AuthRoutes(
                     val avatar = user.get.avatar
 
                     // generate IDP tokens 
-                    val idToken = AuthJwt.generateIdToken(rsp.get.xid.getOrElse(""),Map("email"->email,"name"->name,"avatar"->avatar)) 
-                    val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString)) 
-                    val refreshToken = AuthJwt.generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = Auth.DEF_REFRESH_TOKEN_AGE) 
+                    val idToken = AuthJwt().generateIdToken(rsp.get.xid.getOrElse(""),Map("email"->email,"name"->name,"avatar"->avatar)) 
+                    val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid.toString)) 
+                    val refreshToken = AuthJwt().generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = Auth.DEF_REFRESH_TOKEN_AGE) 
                     
                     log.info(s"code=${code}: rsp=${rsp.get}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
 
@@ -695,7 +695,7 @@ class AuthRoutes(
             // request uid from UserService
             val jwtRoleService = if(config.jwtRoleService.isEmpty()) 
               // generate temproary short living token
-              AuthJwt.generateAccessToken(Map("uid" -> DefaultPermissions.USER_SERVICE.toString),expire = 60L)
+              AuthJwt().generateAccessToken(Map("uid" -> DefaultPermissions.USER_SERVICE.toString),expire = 60L)
             else 
               config.jwtRoleService 
             
@@ -717,9 +717,9 @@ class AuthRoutes(
                 val avatar = user.get.avatar
 
                 // generate IDP tokens 
-                val idToken = AuthJwt.generateIdToken(uid.toString,Map("email"->email,"name"->name,"avatar"->avatar)) 
-                val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid.toString, "typ" -> "m2m")) 
-                val refreshToken = AuthJwt.generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = Auth.DEF_REFRESH_TOKEN_AGE) 
+                val idToken = AuthJwt().generateIdToken(uid.toString,Map("email"->email,"name"->name,"avatar"->avatar)) 
+                val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid.toString, "typ" -> "m2m")) 
+                val refreshToken = AuthJwt().generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = Auth.DEF_REFRESH_TOKEN_AGE) 
                 
                 log.info(s"client_id=${clientId}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
 

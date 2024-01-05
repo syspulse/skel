@@ -102,7 +102,7 @@ object AuthRegistry {
                   (uid0, uid1, uid2) match {
                     case (_,Some(uid1),_) => 
                       // override with specified UID
-                      val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid1.toString)) 
+                      val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid1.toString)) 
                       store.!(auid, accessToken,refreshToken, Some(uid1))
 
                     case (Some(uid0),_,Some(uid2)) => 
@@ -111,11 +111,11 @@ object AuthRegistry {
                         log.error(s"unmatched identity: ${uid0}: ${uid2}")
                         Failure(new Exception(s"refresh token invalid: ${rt}"))
                       } else {
-                        val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid2.toString)) 
+                        val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid2.toString)) 
                         store.!(auid, accessToken,refreshToken,None)
                       }
                     case (_,_,Some(uid2)) => 
-                      val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid2.toString)) 
+                      val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid2.toString)) 
                       store.!(auid, accessToken,refreshToken,None)
                     
                     case _ =>

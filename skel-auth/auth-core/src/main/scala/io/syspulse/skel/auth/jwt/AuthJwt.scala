@@ -23,32 +23,39 @@ import pdi.jwt.algorithms.JwtRSAAlgorithm
 import java.security.spec.X509EncodedKeySpec
 import java.security.interfaces.RSAPublicKey
 
-object AuthJwt {
+class AuthJwt(uri:String = "") {
   val log = Logger(s"${this}")
 
   // JWT ttl to UTC 
   implicit val clock = Clock.systemUTC //Clock.systemDefaultZone()
 
-  val DEFAULT_ACCESS_TOKEN_TTL = 3600L // in seconds
-  val DEFAULT_REFRESH_TOKEN_TTL = 3600L * 24 * 5 // in seconds
-  val DEFAULT_ACCESS_TOKEN_SERVICE_TTL = 3600L * 24 * 356 // in seconds
-  val DEFAULT_ACCESS_TOKEN_ADMIN_TTL = 3600L * 24 * 30 // in seconds
 
   // ATTENTION: it is non-secure deterministic on purpose !
-  var defaultSecret: String = Util.generateRandomToken(seed = Some("0xsecret"))
+  protected var defaultSecret: String = Util.generateRandomToken(seed = Some("0xsecret"))
+  // no default PublicKey
+  protected var defaultPublicKey: String = ""
 
-  val DEFAULT_ALGO = "HS512"
-  var defaultAlgo:JwtAlgorithm = JwtAlgorithm.fromString(DEFAULT_ALGO)
-  var defaultAccessTokenTTL = DEFAULT_ACCESS_TOKEN_TTL
-  var defaultRefreshTokenTTL = DEFAULT_REFRESH_TOKEN_TTL
+  
+  protected var defaultAlgo:JwtAlgorithm = JwtAlgorithm.fromString(AuthJwt.DEFAULT_ALGO)
+  protected var defaultAccessTokenTTL = AuthJwt.DEFAULT_ACCESS_TOKEN_TTL
+  protected var defaultRefreshTokenTTL = AuthJwt.DEFAULT_REFRESH_TOKEN_TTL
+
+  def getAlgo() = defaultAlgo.name
+  def getSecret() = defaultSecret
+  def getPublicKey() = defaultPublicKey
 
   def withSecret(secret:String) = {
     defaultSecret = secret
     this
   }
 
-  def withAlgo(algo:JwtAlgorithm) = {
-    defaultAlgo = algo
+  def withPublicKey(pk:String) = {
+    defaultPublicKey = pk
+    this
+  }
+
+  def withAlgo(algo:String) = {
+    defaultAlgo = JwtAlgorithm.fromString(algo)
     this
   }
 
@@ -62,7 +69,97 @@ object AuthJwt {
     this
   }
 
-  def decodeAll(token:String) = {
+  def getPublicKey(publicKey:String) = {
+    val pk = try {
+      val publicKeyPEM = publicKey
+        .replace("-----BEGIN PUBLIC KEY-----", "")
+        .replace("-----END PUBLIC KEY-----", "")
+        .replaceAll("\\s+","")
+        .replaceAll(System.lineSeparator(), "")    
+
+      val encoded = Base64.getDecoder.decode(publicKeyPEM)
+
+      val keyFactory:KeyFactory = KeyFactory.getInstance("RSA");
+      val keySpec:X509EncodedKeySpec = new X509EncodedKeySpec(encoded)
+      val rsa:RSAPublicKey = keyFactory.generatePublic(keySpec).asInstanceOf[RSAPublicKey]
+      
+      rsa
+
+    } catch {
+      case e:Exception => 
+        log.error(s"failed to decode RSA PublicKey",e)
+        throw e
+    }
+    pk
+  }
+
+  def getPrivateKey(privateKey:String) = {
+    val sk = try {
+      val privateKeyPEM = privateKey        
+        .replace("-----BEGIN PRIVATE KEY-----", "")
+        .replace("-----BEGIN RSA PRIVATE KEY-----", "")        
+        .replace("-----END PRIVATE KEY-----", "")
+        .replace("-----END RSA PRIVATE KEY-----", "")
+        .replaceAll("\\s+","")
+        .replaceAll(System.lineSeparator(), "")
+      
+      val encoded = Base64.getDecoder.decode(privateKeyPEM)
+
+      val keyFactory:KeyFactory = KeyFactory.getInstance("RSA");
+      val keySpec:PKCS8EncodedKeySpec = new PKCS8EncodedKeySpec(encoded);
+      val rsa:RSAPrivateKey = keyFactory.generatePrivate(keySpec).asInstanceOf[RSAPrivateKey]
+      
+      rsa
+
+    } catch {
+      case e:Exception => 
+        log.error(s"failed to decode RSA PrivateKey",e)
+        throw e
+    }
+    sk
+  }
+
+  def withUri(uri:String) = {
+    uri.trim.split("://|:").toList match {
+      case algo :: secret :: Nil if(algo.toLowerCase == "hs256" | algo.toLowerCase == "hs512") =>
+        this
+          .withAlgo(algo.toUpperCase())
+          .withSecret(secret)
+
+      case algo :: "pk" :: ("cer" | "x509") :: file :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
+        val rsa = getPublicKey(os.read(os.Path(file,os.pwd)))
+        this.
+          withAlgo(algo.toUpperCase())
+          withPublicKey(new String(rsa.getEncoded()))
+
+      case algo :: "pk" :: publicKey :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
+        val rsa = getPublicKey(publicKey)
+        this.
+          withAlgo(algo.toUpperCase())
+          withPublicKey(new String(rsa.getEncoded()))
+
+      case algo :: "sk" :: "pkcs8" :: file :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
+        val rsa = getPrivateKey(os.read(os.Path(file,os.pwd)))
+        this.
+          withAlgo(algo.toUpperCase())
+          withSecret(new String(rsa.getEncoded()))
+
+      case algo :: "sk" :: "hex" :: privateKey :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
+        val rsa = Util.fromHexString(privateKey)
+        this.
+          withAlgo(algo.toUpperCase())
+          withSecret(new String(rsa))
+
+      case algo :: "sk" :: privateKey :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
+        val rsa = getPrivateKey(privateKey)
+        this.
+          withAlgo(algo.toUpperCase())
+          withSecret(new String(rsa.getEncoded()))
+    }
+    this
+  }
+
+  def decodeRawAll(token:String) = {
     Jwt.decodeRawAll(token,JwtOptions(signature = false))
   }
   
@@ -104,7 +201,7 @@ object AuthJwt {
     id:String, 
     attr:Map[String,String] = Map(), 
     expire:Long = defaultAccessTokenTTL, 
-    algo:String = DEFAULT_ALGO,
+    algo:String = defaultAlgo.name,
     secret:String = defaultSecret,
     sub:Option[String] = None,
     aud:Option[String] = None):String = {
@@ -115,7 +212,7 @@ object AuthJwt {
   def generateToken(
     attr:Map[String,String] = Map(), 
     expire:Long = defaultAccessTokenTTL, 
-    algo:String = DEFAULT_ALGO,
+    algo:String = defaultAlgo.name,
     secret:String = defaultSecret,
     sub:Option[String] = None,
     aud:Option[String] = None):String = {
@@ -128,19 +225,20 @@ object AuthJwt {
 
     algo.toUpperCase().take(2) match {
       case "RS" => 
-        val privateKeyPEM = secret
-          .replace("-----BEGIN PRIVATE KEY-----", "")
-          .replace("-----BEGIN RSA PRIVATE KEY-----", "")
-          .replaceAll(System.lineSeparator(), "")
-          .replace("-----END PRIVATE KEY-----", "")
-          .replace("-----END RSA PRIVATE KEY-----", "")
+        // val privateKeyPEM = secret
+        //   .replace("-----BEGIN PRIVATE KEY-----", "")
+        //   .replace("-----BEGIN RSA PRIVATE KEY-----", "")
+        //   .replaceAll(System.lineSeparator(), "")
+        //   .replace("-----END PRIVATE KEY-----", "")
+        //   .replace("-----END RSA PRIVATE KEY-----", "")
 
-        val encoded = Base64.getDecoder.decode(privateKeyPEM)
+        // val encoded = Base64.getDecoder.decode(privateKeyPEM)
 
-        val keyFactory:KeyFactory = KeyFactory.getInstance("RSA");
-        val keySpec:PKCS8EncodedKeySpec = new PKCS8EncodedKeySpec(encoded);
-        val rsa:RSAPrivateKey = keyFactory.generatePrivate(keySpec).asInstanceOf[RSAPrivateKey] 
-        
+        // val keyFactory:KeyFactory = KeyFactory.getInstance("RSA");
+        // val keySpec:PKCS8EncodedKeySpec = new PKCS8EncodedKeySpec(encoded);
+        // val rsa:RSAPrivateKey = keyFactory.generatePrivate(keySpec).asInstanceOf[RSAPrivateKey] 
+
+        val rsa = getPrivateKey(secret)
         Jwt.encode(c3, rsa, JwtAlgorithm.fromString(algo).asInstanceOf[JwtAsymmetricAlgorithm])
 
       case "HS" =>
@@ -153,7 +251,7 @@ object AuthJwt {
   def generateAccessToken(
     attr:Map[String,String] = Map(), 
     expire:Long = defaultAccessTokenTTL, 
-    algo:String = DEFAULT_ALGO,
+    algo:String = defaultAlgo.name,
     secret:String = defaultSecret):String = generateToken(attr,expire,algo)   
 
   def generateRefreshToken(id:String) = Util.generateRandomToken()
@@ -168,23 +266,25 @@ object AuthJwt {
   //   }    
   // }
 
-  def decodeAll(token:String,algo:String,secret:String):Try[(Boolean,JwtHeader,JwtClaim,String)] = {
+  def decodeAll(token:String):Try[(Boolean,JwtHeader,JwtClaim,String)] = {
     Jwt.decodeAll(token,JwtOptions(signature = false)) match {
       case Success((header,claim,sig)) => 
         val algo = header.algorithm.getOrElse(defaultAlgo)
         val valid = algo.name.take(2) match {
           case "RS" =>
             try {
-              val privateKeyPEM = secret
-                .replace("-----BEGIN PUBLIC KEY-----", "")
-                .replaceAll(System.lineSeparator(), "")
-                .replace("-----END PUBLIC KEY-----", "")              
+              // val publicKeyPEM = secret
+              //   .replace("-----BEGIN PUBLIC KEY-----", "")
+              //   .replaceAll(System.lineSeparator(), "")
+              //   .replace("-----END PUBLIC KEY-----", "")              
 
-              val encoded = Base64.getDecoder.decode(privateKeyPEM)
+              // val encoded = Base64.getDecoder.decode(publicKeyPEM)
 
-              val keyFactory:KeyFactory = KeyFactory.getInstance("RSA");
-              val keySpec:X509EncodedKeySpec = new X509EncodedKeySpec(encoded)
-              val rsa:RSAPublicKey = keyFactory.generatePublic(keySpec).asInstanceOf[RSAPublicKey]
+              // val keyFactory:KeyFactory = KeyFactory.getInstance("RSA");
+              // val keySpec:X509EncodedKeySpec = new X509EncodedKeySpec(encoded)
+              // val rsa:RSAPublicKey = keyFactory.generatePublic(keySpec).asInstanceOf[RSAPublicKey]
+              
+              val rsa = getPublicKey(defaultPublicKey)
               
               //Jwt.decodeAll(token, rsa, Seq(algo.asInstanceOf[JwtAsymmetricAlgorithm]))
               Jwt.isValid(token, rsa, Seq(algo.asInstanceOf[JwtAsymmetricAlgorithm]))
@@ -195,14 +295,14 @@ object AuthJwt {
             }
           case "HS" =>
             //Jwt.decodeAll(token, secret, Seq(algo.asInstanceOf[JwtHmacAlgorithm]))
-            Jwt.isValid(token, secret, Seq(algo.asInstanceOf[JwtHmacAlgorithm]))
+            Jwt.isValid(token, defaultSecret, Seq(algo.asInstanceOf[JwtHmacAlgorithm]))
         }
         
         Success(
           (valid,header,claim,sig)
         )
       case f @ Failure(e) =>
-        log.error(s"could not decode JWT",e)
+        //log.error(s"could not decode JWT",e)
         Failure(e)
     }
   }
@@ -217,19 +317,19 @@ object AuthJwt {
     //     log.error(s"could not decode JWT",e)
     //     false
     // } 
-    val r = decodeAll(token,DEFAULT_ALGO,defaultSecret)
+    val r = decodeAll(token)
     r.isSuccess && r.get._1
   }
-
-  case class VerifiedToken(uid:String,roles:Seq[String])
-  
+    
+  // this is called from HTTP Routes on every call !
   def verifyAuthToken(token: Option[String],id:String,data:Seq[Any]):Option[VerifiedToken] = token match {
     case Some(jwt) => {           
-      val v = AuthJwt.isValid(jwt)
+      val v = isValid(jwt)
 
-      val uid = AuthJwt.getClaim(jwt,"uid")
-      val roles = AuthJwt.getClaim(jwt,"roles").map(_.split(",").filter(!_.trim.isEmpty()).toSeq).getOrElse(Seq.empty)
+      val uid = getClaim(jwt,"uid")
+      val roles = getClaim(jwt,"roles").map(_.split(",").filter(!_.trim.isEmpty()).toSeq).getOrElse(Seq.empty)
       log.info(s"token=${jwt}: uid=${uid}: roles=${roles}: valid=${v}")
+
       if(v && !uid.isEmpty) 
         Some(VerifiedToken(uid.get,roles))
       else 
@@ -237,5 +337,32 @@ object AuthJwt {
     }
     case _ => None
   }
+
+  if(!uri.isEmpty()) 
+    withUri(uri)
 }
 
+case class VerifiedToken(uid:String,roles:Seq[String])
+
+object AuthJwt {
+  val DEFAULT_ACCESS_TOKEN_TTL = 3600L // in seconds
+  val DEFAULT_REFRESH_TOKEN_TTL = 3600L * 24 * 5 // in seconds
+  val DEFAULT_ACCESS_TOKEN_SERVICE_TTL = 3600L * 24 * 356 // in seconds
+  val DEFAULT_ACCESS_TOKEN_ADMIN_TTL = 3600L * 24 * 30 // in seconds
+  val DEFAULT_ALGO = "HS512"
+
+  // ATTENTION: default token to be compatible with all demos !
+  val default = new AuthJwt()
+
+  def apply() = default
+  def apply(uri:String) = new AuthJwt(uri)
+
+  def verifyAuthToken(token: Option[String],id:String,data:Seq[Any]):Option[VerifiedToken] =
+    default.verifyAuthToken(token,id,data)
+
+  def getClaim(accessToken:String,claim:String):Option[String] =
+    default.getClaim(accessToken,claim)
+
+  def isValid(token:String):Boolean = 
+    default.isValid(token)
+}
