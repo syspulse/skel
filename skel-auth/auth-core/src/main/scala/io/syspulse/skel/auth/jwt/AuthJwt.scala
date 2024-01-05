@@ -22,6 +22,10 @@ import java.security.interfaces.RSAPrivateKey
 import pdi.jwt.algorithms.JwtRSAAlgorithm
 import java.security.spec.X509EncodedKeySpec
 import java.security.interfaces.RSAPublicKey
+import java.security.spec.RSAPublicKeySpec
+import java.security.PublicKey
+import java.security.PrivateKey
+import java.security.interfaces.RSAPrivateCrtKey
 
 class AuthJwt(uri:String = "") {
   val log = Logger(s"${this}")
@@ -29,11 +33,10 @@ class AuthJwt(uri:String = "") {
   // JWT ttl to UTC 
   implicit val clock = Clock.systemUTC //Clock.systemDefaultZone()
 
-
-  // ATTENTION: it is non-secure deterministic on purpose !
-  protected var defaultSecret: String = Util.generateRandomToken(seed = Some("0xsecret"))
+  protected var defaultSecret: String = ""
   // no default PublicKey
-  protected var defaultPublicKey: String = ""
+  protected var defaultPublicKey: Option[PublicKey] = None
+  protected var defaultPrivateKey: Option[PrivateKey] = None
 
   
   protected var defaultAlgo:JwtAlgorithm = JwtAlgorithm.fromString(AuthJwt.DEFAULT_ALGO)
@@ -49,8 +52,15 @@ class AuthJwt(uri:String = "") {
     this
   }
 
-  def withPublicKey(pk:String) = {
-    defaultPublicKey = pk
+  def withPublicKey(publicKey:String) = {
+    defaultPublicKey = Some(getPublicKey(publicKey))
+    this
+  }
+
+  def withPrivateKey(privateKey:String) = {
+    val (sk,pk) = getPrivateKey(privateKey)
+    defaultPrivateKey = Some(sk)
+    defaultPublicKey = Some(pk)    
     this
   }
 
@@ -81,9 +91,9 @@ class AuthJwt(uri:String = "") {
 
       val keyFactory:KeyFactory = KeyFactory.getInstance("RSA");
       val keySpec:X509EncodedKeySpec = new X509EncodedKeySpec(encoded)
-      val rsa:RSAPublicKey = keyFactory.generatePublic(keySpec).asInstanceOf[RSAPublicKey]
+      val pk:RSAPublicKey = keyFactory.generatePublic(keySpec).asInstanceOf[RSAPublicKey]
       
-      rsa
+      pk
 
     } catch {
       case e:Exception => 
@@ -94,67 +104,83 @@ class AuthJwt(uri:String = "") {
   }
 
   def getPrivateKey(privateKey:String) = {
-    val sk = try {
-      val privateKeyPEM = privateKey        
-        .replace("-----BEGIN PRIVATE KEY-----", "")
-        .replace("-----BEGIN RSA PRIVATE KEY-----", "")        
-        .replace("-----END PRIVATE KEY-----", "")
-        .replace("-----END RSA PRIVATE KEY-----", "")
-        .replaceAll("\\s+","")
-        .replaceAll(System.lineSeparator(), "")
+    val (sk,pk) = try {
+      val encoded = {
+        if(privateKey.startsWith("0x")) {
+          Util.fromHexString(privateKey)
+        } else {
+          val privateKeyStr =  privateKey  
+          .replace("-----BEGIN PRIVATE KEY-----", "")
+          .replace("-----BEGIN RSA PRIVATE KEY-----", "")        
+          .replace("-----END PRIVATE KEY-----", "")
+          .replace("-----END RSA PRIVATE KEY-----", "")
+          .replaceAll("\\s+","")
+          .replaceAll(System.lineSeparator(), "")
       
-      val encoded = Base64.getDecoder.decode(privateKeyPEM)
+          Base64.getDecoder.decode(privateKeyStr)
+        }
+      }
 
       val keyFactory:KeyFactory = KeyFactory.getInstance("RSA");
       val keySpec:PKCS8EncodedKeySpec = new PKCS8EncodedKeySpec(encoded);
-      val rsa:RSAPrivateKey = keyFactory.generatePrivate(keySpec).asInstanceOf[RSAPrivateKey]
+      val sk:RSAPrivateKey = keyFactory.generatePrivate(keySpec).asInstanceOf[RSAPrivateKey]
+
+      val e = sk.asInstanceOf[RSAPrivateCrtKey].getPublicExponent()
       
-      rsa
+      val publicKeySpec:RSAPublicKeySpec = new RSAPublicKeySpec(sk.getModulus, e)     
+      val pk:RSAPublicKey = keyFactory.generatePublic(publicKeySpec).asInstanceOf[RSAPublicKey]
+      
+      (sk,pk)
 
     } catch {
       case e:Exception => 
         log.error(s"failed to decode RSA PrivateKey",e)
         throw e
     }
-    sk
+    (sk,pk)
   }
 
   def withUri(uri:String) = {
     uri.trim.split("://|:").toList match {
+      case algo :: Nil if(algo.toLowerCase == "hs256" | algo.toLowerCase == "hs512") =>
+        this
+          .withAlgo(algo.toUpperCase())
+          .withSecret(AuthJwt.DEFAULT_SECRET)
+
       case algo :: secret :: Nil if(algo.toLowerCase == "hs256" | algo.toLowerCase == "hs512") =>
         this
           .withAlgo(algo.toUpperCase())
           .withSecret(secret)
 
       case algo :: "pk" :: ("cer" | "x509") :: file :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
-        val rsa = getPublicKey(os.read(os.Path(file,os.pwd)))
-        this.
-          withAlgo(algo.toUpperCase())
-          withPublicKey(new String(rsa.getEncoded()))
+        val pk = os.read(os.Path(file,os.pwd))
+        this
+          .withAlgo(algo.toUpperCase())
+          .withPublicKey(pk)
 
       case algo :: "pk" :: publicKey :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
-        val rsa = getPublicKey(publicKey)
-        this.
-          withAlgo(algo.toUpperCase())
-          withPublicKey(new String(rsa.getEncoded()))
+        this
+          .withAlgo(algo.toUpperCase())
+          .withPublicKey(publicKey)
 
-      case algo :: "sk" :: "pkcs8" :: file :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
-        val rsa = getPrivateKey(os.read(os.Path(file,os.pwd)))
-        this.
-          withAlgo(algo.toUpperCase())
-          withSecret(new String(rsa.getEncoded()))
+      case algo :: "sk" :: ("pkcs8"|"file") :: file :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
+        val sk = os.read(os.Path(file,os.pwd))
+        this
+          .withAlgo(algo.toUpperCase())
+          .withPrivateKey(sk)          
 
       case algo :: "sk" :: "hex" :: privateKey :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
-        val rsa = Util.fromHexString(privateKey)
-        this.
-          withAlgo(algo.toUpperCase())
-          withSecret(new String(rsa))
+        val sk = privateKey
+        this
+          .withAlgo(algo.toUpperCase())
+          .withPrivateKey(sk)
 
       case algo :: "sk" :: privateKey :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
-        val rsa = getPrivateKey(privateKey)
-        this.
-          withAlgo(algo.toUpperCase())
-          withSecret(new String(rsa.getEncoded()))
+        val (sk,pk) = getPrivateKey(privateKey)
+        this
+          .withAlgo(algo.toUpperCase())
+          .withPrivateKey(privateKey)          
+
     }
     this
   }
@@ -238,8 +264,13 @@ class AuthJwt(uri:String = "") {
         // val keySpec:PKCS8EncodedKeySpec = new PKCS8EncodedKeySpec(encoded);
         // val rsa:RSAPrivateKey = keyFactory.generatePrivate(keySpec).asInstanceOf[RSAPrivateKey] 
 
-        val rsa = getPrivateKey(secret)
-        Jwt.encode(c3, rsa, JwtAlgorithm.fromString(algo).asInstanceOf[JwtAsymmetricAlgorithm])
+        // val encoded = secret.getBytes()
+        // val keyFactory:KeyFactory = KeyFactory.getInstance("RSA");
+        // val keySpec:PKCS8EncodedKeySpec = new PKCS8EncodedKeySpec(encoded);
+        // val sk:RSAPrivateKey = keyFactory.generatePrivate(keySpec).asInstanceOf[RSAPrivateKey] 
+        val sk = defaultPrivateKey.get
+        
+        Jwt.encode(c3, sk, JwtAlgorithm.fromString(algo).asInstanceOf[JwtAsymmetricAlgorithm])
 
       case "HS" =>
         //
@@ -284,10 +315,10 @@ class AuthJwt(uri:String = "") {
               // val keySpec:X509EncodedKeySpec = new X509EncodedKeySpec(encoded)
               // val rsa:RSAPublicKey = keyFactory.generatePublic(keySpec).asInstanceOf[RSAPublicKey]
               
-              val rsa = getPublicKey(defaultPublicKey)
+              val pk = defaultPublicKey.get
               
               //Jwt.decodeAll(token, rsa, Seq(algo.asInstanceOf[JwtAsymmetricAlgorithm]))
-              Jwt.isValid(token, rsa, Seq(algo.asInstanceOf[JwtAsymmetricAlgorithm]))
+              Jwt.isValid(token, pk, Seq(algo.asInstanceOf[JwtAsymmetricAlgorithm]))
             } catch {
               case e:Exception => 
                 log.error(s"failed to decode RSA JWT",e)
@@ -350,12 +381,17 @@ object AuthJwt {
   val DEFAULT_ACCESS_TOKEN_SERVICE_TTL = 3600L * 24 * 356 // in seconds
   val DEFAULT_ACCESS_TOKEN_ADMIN_TTL = 3600L * 24 * 30 // in seconds
   val DEFAULT_ALGO = "HS512"
+  val DEFAULT_SECRET = Util.generateRandomToken(seed = Some("0xsecret"))
 
   // ATTENTION: default token to be compatible with all demos !
-  val default = new AuthJwt()
+  var default = new AuthJwt().withSecret(DEFAULT_SECRET)
 
   def apply() = default
-  def apply(uri:String) = new AuthJwt(uri)
+
+  def apply(uri:String) = {
+    default = new AuthJwt(uri)
+    default
+  }
 
   def verifyAuthToken(token: Option[String],id:String,data:Seq[Any]):Option[VerifiedToken] =
     default.verifyAuthToken(token,id,data)

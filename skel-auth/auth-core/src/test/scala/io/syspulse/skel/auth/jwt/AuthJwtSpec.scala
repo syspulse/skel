@@ -164,13 +164,13 @@ d86616d2764f106c959768190d80bd8fb6d1c651dd6e8c24b989f364fa50855a0cf789f9e795a27f
     // ----------------------------------- RSA
 
     "generate JWT with RS512" in {
-      val a1 = new AuthJwt().withSecret(RSA_SK_PKCS8).withAlgo("RS512")
+      val a1 = new AuthJwt().withPrivateKey(RSA_SK_PKCS8).withAlgo("RS512")
       val j1 = a1.generateToken()
       j1 should !== ("")
     }
 
     "validate JWT with RS512" in {
-      val a1 = new AuthJwt().withSecret(RSA_SK_PKCS8).withAlgo("RS512")
+      val a1 = new AuthJwt().withPrivateKey(RSA_SK_PKCS8).withAlgo("RS512")
       val j1 = a1.generateToken()
 
       val a2 = new AuthJwt().withPublicKey(RSA_PK).withAlgo("RS512")
@@ -178,7 +178,7 @@ d86616d2764f106c959768190d80bd8fb6d1c651dd6e8c24b989f364fa50855a0cf789f9e795a27f
     }
 
     "NOT validate JWT with wrong PublicKey" in {
-      val a1 = new AuthJwt().withSecret(RSA_SK_PKCS8).withAlgo("RS512")
+      val a1 = new AuthJwt().withPrivateKey(RSA_SK_PKCS8).withAlgo("RS512")
       val j1 = a1.generateToken()
 
       val a2 = new AuthJwt().withPublicKey(RSA_PK_2).withAlgo("RS512")
@@ -187,13 +187,20 @@ d86616d2764f106c959768190d80bd8fb6d1c651dd6e8c24b989f364fa50855a0cf789f9e795a27f
 
     // ----------------------------------- Uri
 
+    "create AuthJwt with default HMAC" in {
+      val a1 = new AuthJwt().withUri("hs512://")
+      
+      a1.getAlgo() should === ("HS512")
+      a1.getSecret() should !== ("")
+    }
+
     "create AuthJwt with HS512" in {
       val a1 = new AuthJwt().withUri("hs512://secret1")
       
       a1.getAlgo() should === ("HS512")
       a1.getSecret() should === ("secret1")
     }
-
+    
     "create AuthJwt with RS512 PrivateKey from PKCS8 file" in {
       val a1 = new AuthJwt().withUri(s"rs512://sk:pkcs8:${testDir}/RS512.key.pkcs8")
       
@@ -215,13 +222,16 @@ d86616d2764f106c959768190d80bd8fb6d1c651dd6e8c24b989f364fa50855a0cf789f9e795a27f
       a1.getPublicKey() should !== ("")
     }
 
-    // "generate Signing and Verifying AuthJwt" in {
-    //   val a1 = new AuthJwt().withUri(s"rs512://sk:pkcs8:${testDir}/RS512.key.pkcs8")
-    //   val a2 = new AuthJwt().withUri(s"rs512://pk:pkcs8:${testDir}/RS512.key")
+    "create AuthJwt with RS512 PrivateKey and verify with its PublicKey" in {
+      val a1 = new AuthJwt().withUri(s"rs512://sk:pkcs8:${testDir}/RS512.key.pkcs8")
       
-    //   a1.getAlgo() should === ("RS512")
-    //   a1.getSecret() should !== ("")
-    // }
+      a1.getAlgo() should === ("RS512")
+      a1.getSecret() should !== ("")
+      a1.getPublicKey() should !== ("")
 
+      val j1 = a1.generateToken()
+      a1.isValid(j1) should === (true)
+    }
+    
   }
 }
