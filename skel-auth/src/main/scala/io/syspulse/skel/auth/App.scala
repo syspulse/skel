@@ -28,6 +28,14 @@ import io.syspulse.skel.auth.permit.PermitRegistry
 import io.syspulse.skel.auth.permit.PermitStoreMem
 import io.syspulse.skel.auth.permit.PermitStoreRbac
 import io.syspulse.skel.auth.permit.PermitStoreRbacDemo
+import java.math.BigInteger
+import java.util.Base64
+import java.security.KeyFactory
+import java.security.spec.RSAPublicKeySpec
+import java.security.cert.CertificateFactory
+import java.io.ByteArrayInputStream
+import pdi.jwt.Jwt
+import pdi.jwt.JwtAlgorithm
 
 case class Config(
   host:String="0.0.0.0",
@@ -122,6 +130,9 @@ object App extends skel.Server {
         ),
         ArgCmd("permit",s"Validation permission (as in routes Service)\n" +
           s"jwt <role> : Verify user has 'role' (default is admin)\n"
+        ),
+        ArgCmd("jwks",s"JWT Key stores\n" +
+          s"get <uri> : Get JWKS from uri\n"
         ),
         ArgParam("<params>",""),
         ArgLogging()
@@ -436,6 +447,62 @@ object App extends skel.Server {
                         
               s"""export ETH_AUTH_CLIENT_ID="${client_id}"\n"""+
               s"""export ETH_AUTH_CLIENT_SECRET="${client_secret}"\n"""
+
+            case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
+          }
+        
+        println(s"${r}")
+        System.exit(0)
+      }
+
+      case "jwks" => {       
+
+        def getPublicKey(jwks:String) = {
+          val json = ujson.read(jwks)
+          val n = json.obj("keys").arr(0).obj("n").str
+          val e = json.obj("keys").arr(0).obj("e").str
+          val x5c = json.obj("keys").arr(0).obj("x5c").arr(0).str
+
+          val modulus = new BigInteger(1, Base64.getUrlDecoder().decode(n))
+          val exponent = new BigInteger(1, Base64.getUrlDecoder().decode(e))
+          val publicKey = KeyFactory.getInstance("RSA").generatePublic(new RSAPublicKeySpec(modulus, exponent))
+          
+          // val factory = CertificateFactory.getInstance("X.509")
+          // val x5cData = Base64.getDecoder.decode(x5c)
+          // val cert = factory
+          //     .generateCertificate(new ByteArrayInputStream(x5cData))              
+          // val publicKey = cert.getPublicKey().asInstanceOf[RSAPublicKey]
+          log.debug(s"PK: ${publicKey}")
+          publicKey
+        }
+
+        val r = 
+          config.params match {
+            case "get" :: uri :: Nil =>               
+              val jwks = uri.split("://").toList match {
+                case ("http" | "https") :: url =>
+                  val r = requests.get(uri)
+                  r.text()
+                case "file" :: url :: Nil => // file
+                  os.read(os.Path(url,os.pwd))
+                case _ => 
+                  os.read(os.Path(uri,os.pwd))
+              }              
+              getPublicKey(jwks)
+
+            case "verify" :: uri :: token :: Nil =>               
+              val jwks = uri.split("://").toList match {
+                case ("http" | "https") :: url =>
+                  val r = requests.get(uri)
+                  r.text()
+                case "file" :: url :: Nil => // file
+                  os.read(os.Path(url,os.pwd))
+                case _ => 
+                  os.read(os.Path(uri,os.pwd))
+              }              
+              val pk = getPublicKey(jwks)
+              val valid = Jwt.isValid(token, pk, Seq(JwtAlgorithm.RS256,JwtAlgorithm.RS512))
+              s"PK: ${pk}\nhex: ${Util.hex(pk.getEncoded())}\nvalid=${valid}"
 
             case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
           }
