@@ -16,7 +16,7 @@ object AuthJson extends JsonCommon  {
   implicit val printer = PrettyPrinter
 
   implicit val jf_Auth = jsonFormat7(Auth.apply)
-  implicit val jf_Auths = jsonFormat1(Auths)
+  implicit val jf_Auths = jsonFormat2(Auths)
 
   implicit val jf_ActionRsp = jsonFormat2(AuthActionRes)
   implicit val jf_CreateAuthRsp = jsonFormat1(AuthCreateRes)

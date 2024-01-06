@@ -159,6 +159,7 @@ class AuthRoutes(
   def createAuth(auth: Auth): Future[AuthCreateRes] = authRegistry.ask(CreateAuth(auth, _))
   def deleteAuth(auid: String): Future[AuthActionRes] = authRegistry.ask(DeleteAuth(auid, _))
   def refreshTokenAuth(auid: String, refreshToken:String, uid:Option[UUID]): Future[Try[Auth]] = authRegistry.ask(RefreshTokenAuth(auid,refreshToken,uid, _))
+  def logoff(uid:Option[UUID]): Future[Auths] = authRegistry.ask(Logoff(uid, _))
 
   def createCode(code: Code): Future[CodeCreateRes] = codeRegistry.ask(CreateCode(code, _))
   def updateCode(code: Code): Future[CodeCreateRes] = codeRegistry.ask(UpdateCode(code, _))
@@ -315,7 +316,8 @@ class AuthRoutes(
               )
 
             case (Some(user),_) => 
-              // roles are not known here
+              // user is known in UserService (for compatibility)
+              // roles are not known here              
               val uid = user.id.toString
               (
                 Some(user.id),
@@ -325,8 +327,9 @@ class AuthRoutes(
               )
             
             case (_,_) =>
+              // user is not known anywhere
               (
-                None,
+                Some(DefaultPermissions.USER_NOBODY),
                 AuthJwt().generateAccessToken(Map( "uid" -> DefaultPermissions.USER_NOBODY.toString)),
                 None,
                 None
@@ -353,7 +356,8 @@ class AuthRoutes(
           authProfileRes.accessToken, 
           authProfileRes.idToken, 
           authProfileRes.refreshToken,
-          user.map(_.id), 
+          //user.map(_.id), 
+          authProfileRes.uid,
           scope = Some("api")          
         ))
       }
@@ -612,13 +616,13 @@ class AuthRoutes(
                     //complete(StatusCodes.Unauthorized,s"code invalid: ${code}")
                                 
                     // non-existing user
-                    val uid = DefaultPermissions.USER_NOBODY.toString
+                    val uid = DefaultPermissions.USER_NOBODY
                     // issue token for nobody with a scope to start enrollment 
-                    val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid, "role" -> DefaultPermissions.ROLE_NOBODY, "scope" -> "enrollment"))
+                    val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid.toString, "role" -> DefaultPermissions.ROLE_NOBODY, "scope" -> "enrollment"))
                     val idToken = ""
                     val refreshToken = ""
                     
-                    log.warn(s"code=${code}: rsp=${rsp.get}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
+                    log.warn(s"code=${code}: uid=${uid}: rsp=${rsp.get}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
 
                     // Update code to become expired !
                     // TODO: Remove code completely !
@@ -646,7 +650,7 @@ class AuthRoutes(
                     val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid.toString)) 
                     val refreshToken = AuthJwt().generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = Auth.DEF_REFRESH_TOKEN_AGE) 
                     
-                    log.info(s"code=${code}: rsp=${rsp.get}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
+                    log.info(s"code=${code}: uid=${uid}: rsp=${rsp.get}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
 
                     // associate idToken with code for later Profile retrieval by rewriting Code and
                     // immediately expiring code 
@@ -916,6 +920,22 @@ class AuthRoutes(
     }
   }
 
+  // -------- Logoff ---
+  @POST @Path("/logoff/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("auth"),summary = "Logoff User",
+    parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "user uid")),
+    responses = Array(new ApiResponse(responseCode="200",description = "User logged off",content=Array(new Content(schema=new Schema(implementation = classOf[Auths])))))
+  )
+  def logoffRoute(id: String) = post {
+    rejectEmptyResponse {
+      entity(as[String]) { req =>
+        onSuccess(logoff(Some(UUID(id)))) { r =>
+          complete(r)
+        }
+      }
+    }
+  }
+
 // --------------------------------------------------------------------------------------------------------------------------------------- Routes
   val corsAllow = CorsSettings(system.classicSystem)
     //.withAllowGenericHttpRequests(true)
@@ -944,6 +964,17 @@ class AuthRoutes(
 </html>
         """
         ))
+      },
+      pathPrefix("logoff") {
+        pathPrefix(Segment) { id => 
+          pathEndOrSingleSlash {
+            authenticate()(authn => {
+              authorize(Permissions.isAdmin(authn) || Permissions.isService(authn) || authn.getUser == Some(UUID(id))) {
+                logoffRoute(id)
+              }              
+            }) 
+          }
+        }
       },
       path("jwks") {
         // getFromResourceDirectory("login") 

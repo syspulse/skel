@@ -4,7 +4,15 @@ import scala.collection.immutable
 import io.jvm.uuid._
 import io.syspulse.skel.auth.jwt.AuthJwt
 
-final case class Auth(accessToken:String, idToken:Option[String], refreshToken:Option[String], uid: Option[UUID], scope:Option[String], tsExpire: Long, ts:Option[Long] = None)
+final case class Auth(
+  accessToken:String, 
+  idToken:Option[String], 
+  refreshToken:Option[String], 
+  uid: Option[UUID], 
+  scope:Option[String], 
+  tsExpire: Long, 
+  ts:Option[Long] = None
+)
 
 object Auth {
   val DEF_REFRESH_TOKEN_AGE:Long = AuthJwt.DEFAULT_REFRESH_TOKEN_TTL

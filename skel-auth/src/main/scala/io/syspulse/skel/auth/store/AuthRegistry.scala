@@ -31,6 +31,7 @@ object AuthRegistry {
   final case class GetAuth(auid: String, replyTo: ActorRef[Try[Auth]]) extends Command
   final case class DeleteAuth(auid: String, replyTo: ActorRef[AuthActionRes]) extends Command
   final case class RefreshTokenAuth(auid: String, refreshToken:String, uid:Option[UUID], replyTo: ActorRef[Try[Auth]]) extends Command
+  final case class Logoff(uid:Option[UUID], replyTo: ActorRef[Auths]) extends Command
 
     // this var reference is unfortunately needed for Metrics access
   var store: AuthStore = null //new AuthStoreDB //new AuthStoreCache
@@ -45,7 +46,8 @@ object AuthRegistry {
 
     Behaviors.receiveMessage {
       case GetAuths(replyTo) =>
-        replyTo ! Auths(store.all)
+        val aa = store.all
+        replyTo ! Auths(aa,Some(aa.size))
         Behaviors.same
 
       case CreateAuth(auth, replyTo) =>
@@ -130,6 +132,19 @@ object AuthRegistry {
           }
         )
         replyTo ! r
+        Behaviors.same
+
+      case Logoff(uid, replyTo) =>
+        val auths:Seq[Auth] = if(uid.isDefined) store.findUser(uid.get) else store.all
+        val aa = auths.flatMap(a => 
+          store.del(a.accessToken) match {
+            case Success(s) => Some(a)
+            case Failure(e) =>
+              log.error(s"could not logoff: ${uid}: ${a.accessToken}")
+              None
+          }
+        )
+        replyTo ! Auths(aa,Some(aa.size))
         Behaviors.same
     }
   }
