@@ -328,9 +328,11 @@ class AuthRoutes(
             
             case (_,_) =>
               // user is not known anywhere
+              // return 'null' so that Enrollment may start
               (
-                Some(DefaultPermissions.USER_NOBODY),
-                AuthJwt().generateAccessToken(Map( "uid" -> DefaultPermissions.USER_NOBODY.toString)),
+                None,
+                //AuthJwt().generateAccessToken(Map( "uid" -> DefaultPermissions.USER_NOBODY.toString)),
+                AuthJwt().generateAccessToken(),
                 None,
                 None
               )
