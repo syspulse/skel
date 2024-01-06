@@ -8,7 +8,7 @@ import { useLocation } from 'react-router-dom';
 
 import './App.css';
 
-import { baseUrl } from './Login';
+import { baseUrl } from './App';
 import LoginStateContext from "./LoginStateContext";
 
 export default function LoginWeb3() {

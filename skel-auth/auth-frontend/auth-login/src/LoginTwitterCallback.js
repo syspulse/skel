@@ -4,7 +4,7 @@ import axios from "axios";
 import { useLocation } from 'react-router-dom';
 import { Navigate, Outlet } from 'react-router-dom';
 
-import { baseUrl } from './Login';
+import { baseUrl } from './App';
 import LoginStateContext from "./LoginStateContext";
 
 var _code = "";
