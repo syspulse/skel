@@ -35,7 +35,10 @@ export default function LoginTwitterCallback() {
       serverRsp.then( (rsp) => {
         console.log("server: ",rsp);
         console.log("====> LoginStateContext",setState);
-        setState(JSON.stringify(rsp.data, null,2));
+        // setState(JSON.stringify(rsp.data, null,2));
+        setState(
+          { ...state, auth: JSON.stringify(rsp.data,null, 2) }
+        ); 
       })
     }
 

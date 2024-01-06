@@ -68,15 +68,20 @@ const App = () => {
 
   async function logoff() {
     const jwt = state.auth ? JSON.parse(state.auth).accessToken : ""    
-    console.log(`===> jwt: ${jwt}`)
+    const uid = state.auth ? JSON.parse(state.auth).uid : ""
+
+    console.log(`===> uid: ${uid}, jwt: ${jwt}`)
+
     const headers = { 
       'Content-Type': 'application/json',
       'Authorization' : `Bearer ${jwt}`
     };
-    const res = await fetch(`${baseUrl}/logoff`, { method: "POST", headers })        
+    const res = await fetch(`${baseUrl}/logoff/${uid}`, { method: "POST", headers })        
     const data = await res.text();
     console.log(`===> ${data}`)
     try {
+      if(res.status != 200)
+        throw `error: ${res.status}`;
       const json = JSON.parse(data)
       setState(
         { ...state, auth: "", api_res: json }
