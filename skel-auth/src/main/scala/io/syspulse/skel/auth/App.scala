@@ -456,26 +456,7 @@ object App extends skel.Server {
       }
 
       case "jwks" => {       
-
-        def getPublicKey(jwks:String) = {
-          val json = ujson.read(jwks)
-          val n = json.obj("keys").arr(0).obj("n").str
-          val e = json.obj("keys").arr(0).obj("e").str
-          val x5c = json.obj("keys").arr(0).obj("x5c").arr(0).str
-
-          val modulus = new BigInteger(1, Base64.getUrlDecoder().decode(n))
-          val exponent = new BigInteger(1, Base64.getUrlDecoder().decode(e))
-          val publicKey = KeyFactory.getInstance("RSA").generatePublic(new RSAPublicKeySpec(modulus, exponent))
-          
-          // val factory = CertificateFactory.getInstance("X.509")
-          // val x5cData = Base64.getDecoder.decode(x5c)
-          // val cert = factory
-          //     .generateCertificate(new ByteArrayInputStream(x5cData))              
-          // val publicKey = cert.getPublicKey().asInstanceOf[RSAPublicKey]
-          log.debug(s"PK: ${publicKey}")
-          publicKey
-        }
-
+        
         val r = 
           config.params match {
             case "get" :: uri :: Nil =>               
@@ -488,7 +469,7 @@ object App extends skel.Server {
                 case _ => 
                   os.read(os.Path(uri,os.pwd))
               }              
-              getPublicKey(jwks)
+              AuthJwt.getPublicKeyFromJWKS(jwks)
 
             case "verify" :: uri :: token :: Nil =>               
               val jwks = uri.split("://").toList match {
@@ -500,9 +481,14 @@ object App extends skel.Server {
                 case _ => 
                   os.read(os.Path(uri,os.pwd))
               }              
-              val pk = getPublicKey(jwks)
-              val valid = Jwt.isValid(token, pk, Seq(JwtAlgorithm.RS256,JwtAlgorithm.RS512))
-              s"PK: ${pk}\nhex: ${Util.hex(pk.getEncoded())}\nvalid=${valid}"
+              val ppk = AuthJwt.getPublicKeyFromJWKS(jwks)
+              ppk.map( ak => {
+                val algo = ak._1
+                val pk = ak._2
+                val valid = Jwt.isValid(token, pk, Seq(JwtAlgorithm.RS256,JwtAlgorithm.RS512))
+                s"PK: ${algo}: ${pk}\nhex: ${Util.hex(pk.getEncoded())}\nvalid=${valid}"
+              })
+              
 
             case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
           }

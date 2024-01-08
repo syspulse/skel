@@ -442,6 +442,7 @@ lazy val auth_core = (project in file("skel-auth/auth-core"))
     name := "skel-auth-core",
     
     libraryDependencies ++= libJwt ++ Seq(
+      libRequests,  // for JWKS http request
       libUpickleLib,
       libCasbin
     ),    
