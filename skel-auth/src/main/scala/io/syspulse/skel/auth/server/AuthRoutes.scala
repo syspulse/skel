@@ -967,6 +967,13 @@ class AuthRoutes(
         """
         ))
       },
+      pathPrefix("jwks") {        
+        pathEndOrSingleSlash {
+          // getFromResourceDirectory("login") 
+          getFromResource("keystore/jwks.json")
+          //complete(HttpEntity(ContentTypes.`text/html(UTF-8)`,""))          
+        }
+      },
       pathPrefix("logoff") {
         pathPrefix(Segment) { id => 
           pathEndOrSingleSlash {
@@ -977,12 +984,7 @@ class AuthRoutes(
             }) 
           }
         }
-      },
-      path("jwks") {
-        // getFromResourceDirectory("login") 
-        getFromResource("keystore/jwks.json")
-        //complete(HttpEntity(ContentTypes.`text/html(UTF-8)`,""))
-      },
+      },      
       pathPrefix("cred") {
         pathEndOrSingleSlash {
           concat(
@@ -1133,24 +1135,7 @@ class AuthRoutes(
             complete(getCodes())
           })
         }        
-      },
-      pathEndOrSingleSlash {         
-        concat(
-          get {
-            authenticate()(authn =>
-              authorize(Permissions.isAdmin(authn)) {
-                complete(getAuths())
-              }
-            )              
-          },
-          post {
-            entity(as[Auth]) { auth =>
-              onSuccess(createAuth(auth)) { rsp =>
-                complete(StatusCodes.Created, rsp.auth)
-              }
-            }
-          })
-      },
+      },      
       pathPrefix("role") {
         authenticate(){ authn => { 
           pathEndOrSingleSlash {
@@ -1212,7 +1197,24 @@ class AuthRoutes(
               }
             })
         })
-      }       
+      },
+      pathEndOrSingleSlash {         
+        concat(
+          get {
+            authenticate()(authn =>
+              authorize(Permissions.isAdmin(authn)) {
+                complete(getAuths())
+              }
+            )              
+          },
+          post {
+            entity(as[Auth]) { auth =>
+              onSuccess(createAuth(auth)) { rsp =>
+                complete(StatusCodes.Created, rsp.auth)
+              }
+            }
+          })
+      },
     )}
 
   // ------------------------------- Matcher for UUID -------------------------

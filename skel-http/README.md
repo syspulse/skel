@@ -24,7 +24,16 @@ Replace `MODULE` with correct sbt module name. It is expected to be run in proje
 pushd ..; sbt -error ";project MODULE; export dependencyClasspath" >CLASSPATH; popd; mv ../CLASSPATH ./
 ./run.sh
 ```
+
+or run the script:
+
+```
+../classpath.sh
+```
+
 `CLASSPATH` file will have a precendence, so to run with Fatjar delete `CLASSPATH`
+
+__ATTENTION__: Resources aren not copied with `sbt compile`. Copy with `skel_auth/copyResources`
 
 
 ### Docker

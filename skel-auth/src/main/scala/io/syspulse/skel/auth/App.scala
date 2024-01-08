@@ -441,7 +441,8 @@ object App extends skel.Server {
                 case f => f
               }
             case ("valid" | "validate") :: token :: Nil => 
-              AuthJwt().isValid(token)
+              val aj = AuthJwt(config.jwtUri)
+              aj.isValid(token)
 
             case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
           }

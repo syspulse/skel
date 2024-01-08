@@ -222,5 +222,12 @@ __NOTE__: Token must not contain any trailing new lines !
 ./run-auth.sh jwt valid --jwt.uri=rs512://pk:cer:RS512.key.pub `cat /tmp/JWT-0`
 ```
 
+### Validate against JWKS
+
+Login to google and get Profile JWT (__not AccessToken !!!__):
+
+```
+./run-auth.sh jwt valid --jwt.uri=https://www.googleapis.com/oauth2/v3/certs `cat /tmp/JWT-Google-Profile`
+```
 
 

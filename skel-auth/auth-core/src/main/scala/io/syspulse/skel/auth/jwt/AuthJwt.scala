@@ -133,7 +133,7 @@ class AuthJwt(uri:String = "") {
         val jwks = requests.get(uri).text()        
         val ppk = AuthJwt.getPublicKeyFromJWKS(jwks)
         // get the first public key
-        log.info(s"PublicKeys: ${ppk}: applying: ${ppk(0)}")
+        log.debug(s"PublicKeys: ${ppk}: applying: ${ppk(0)}")
         this
           .withAlgo(ppk(0)._1.toUpperCase())
           .withPublicKey(ppk(0)._2)
@@ -262,15 +262,23 @@ class AuthJwt(uri:String = "") {
               val pk = defaultPublicKey.get
               
               //Jwt.decodeAll(token, rsa, Seq(algo.asInstanceOf[JwtAsymmetricAlgorithm]))
-              Jwt.isValid(token, pk, Seq(algo.asInstanceOf[JwtAsymmetricAlgorithm]))
+              Jwt.validate(token, pk, Seq(algo.asInstanceOf[JwtAsymmetricAlgorithm]))
+              true
             } catch {
               case e:Exception => 
-                log.error(s"failed to decode RSA JWT",e)
+                log.warn(s"failed to decode JWT",e)
                 false
             }
           case "HS" =>
             //Jwt.decodeAll(token, secret, Seq(algo.asInstanceOf[JwtHmacAlgorithm]))
-            Jwt.isValid(token, defaultSecret, Seq(algo.asInstanceOf[JwtHmacAlgorithm]))
+            try {
+              Jwt.validate(token, defaultSecret, Seq(algo.asInstanceOf[JwtHmacAlgorithm]))
+              true
+            } catch {
+              case e:Exception => 
+                log.warn(s"failed to decode JWT",e)
+                false
+            }
         }
         
         Success(
