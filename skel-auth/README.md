@@ -116,7 +116,13 @@ TOKEN=`cat ACCESS_TOKEN_ADMIN` ../skel-user/user-get.sh
 
 ## JWKS
 
-WIP to add JWT support
+### External JWK
+
+```
+./run-auth.sh jwks get https://www.googleapis.com/oauth2/v3/certs
+```
+
+### Own JWK
 
 ```
 http http://localhost:8080/api/v1/auth/jwks
@@ -196,13 +202,15 @@ openssl rsa -in RS512.key -pubout -outform PEM -out RS512.key.pub
 openssl pkcs8 -topk8 -nocrypt -in RS512.key -out RS512.key.pkcs8
 ```
 
-Generate JWT:
+### Generate Admin JWT with Private Key in file
 ```
-./run-auth.sh jwt admin --jwt.algo=RS512 --jwt.secret=file://RS512.key.pkcs8
+./run-auth.sh jwt admin --jwt.uri=rs512://sk:pkcs8:RS512.key.pkcs8
 ```
 
-Run Server with Public key
+### Run Server with Public key
 
 ```
-./run-auth.sh --jwt.secret=file://RS512.key.pub
+./run-auth.sh --jwt.uri=rs512://pk:cer:RS512.key.pub
 ```
+
+

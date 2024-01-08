@@ -29,7 +29,7 @@ import java.security.interfaces.RSAPrivateCrtKey
 import java.math.BigInteger
 
 class AuthJwt(uri:String = "") {
-  val log = Logger(s"${this}")
+  val log = Logger(s"${this.getClass()}")
 
   // JWT ttl to UTC 
   implicit val clock = Clock.systemUTC //Clock.systemDefaultZone()
@@ -43,6 +43,8 @@ class AuthJwt(uri:String = "") {
   protected var defaultAlgo:JwtAlgorithm = JwtAlgorithm.fromString(AuthJwt.DEFAULT_ALGO)
   protected var defaultAccessTokenTTL = AuthJwt.DEFAULT_ACCESS_TOKEN_TTL
   protected var defaultRefreshTokenTTL = AuthJwt.DEFAULT_REFRESH_TOKEN_TTL
+
+  override def toString = s"${this.getClass().getSimpleName()}(${defaultAlgo},${Util.sha256(defaultSecret)},${defaultPublicKey},${defaultPrivateKey})"
 
   def getAlgo() = defaultAlgo.name
   def getSecret() = defaultSecret
@@ -160,6 +162,7 @@ class AuthJwt(uri:String = "") {
           .withPrivateKey(privateKey)          
 
     }
+    log.info(s"${this}")
     this
   }
 
@@ -354,7 +357,7 @@ class AuthJwt(uri:String = "") {
 case class VerifiedToken(uid:String,roles:Seq[String])
 
 object AuthJwt {
-  val log = Logger(s"${this}")
+  val log = Logger(s"${this.getClass()}")
 
   val DEFAULT_ACCESS_TOKEN_TTL = 3600L // in seconds
   val DEFAULT_REFRESH_TOKEN_TTL = 3600L * 24 * 5 // in seconds
