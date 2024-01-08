@@ -213,4 +213,14 @@ openssl pkcs8 -topk8 -nocrypt -in RS512.key -out RS512.key.pkcs8
 ./run-auth.sh --jwt.uri=rs512://pk:cer:RS512.key.pub
 ```
 
+### Generate JWT and Validate it
+
+__NOTE__: Token must not contain any trailing new lines !
+
+```
+./run-auth.sh jwt user --jwt.uri=rs512://sk:pkcs8:RS512.key.pkcs8 >/tmp/JWT-0
+./run-auth.sh jwt valid --jwt.uri=rs512://pk:cer:RS512.key.pub `cat /tmp/JWT-0`
+```
+
+
 

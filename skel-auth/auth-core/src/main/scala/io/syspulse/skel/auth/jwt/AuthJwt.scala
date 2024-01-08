@@ -129,9 +129,9 @@ class AuthJwt(uri:String = "") {
           .withAlgo(algo.toUpperCase())
           .withPublicKey(pk)
 
-      case ("http" | "https") :: uri =>
-        val jwks = requests.get(uri.mkString(":")).text()        
-        val ppk = AuthJwt.getPublicKeyFromJWKS(jwks) 
+      case ("http" | "https") :: _ =>
+        val jwks = requests.get(uri).text()        
+        val ppk = AuthJwt.getPublicKeyFromJWKS(jwks)
         // get the first public key
         log.info(s"PublicKeys: ${ppk}: applying: ${ppk(0)}")
         this
@@ -229,32 +229,14 @@ class AuthJwt(uri:String = "") {
     val c1 = JwtClaim(s"{${claim}}").issuedNow.expiresIn(expire)
     val c2 = if(sub.isDefined) c1.about(sub.getOrElse("")) else c1
     val c3 = if(aud.isDefined) c2.to(aud.getOrElse("")) else c2
-
+    
     algo.toUpperCase().take(2) match {
       case "RS" => 
-        // val privateKeyPEM = secret
-        //   .replace("-----BEGIN PRIVATE KEY-----", "")
-        //   .replace("-----BEGIN RSA PRIVATE KEY-----", "")
-        //   .replaceAll(System.lineSeparator(), "")
-        //   .replace("-----END PRIVATE KEY-----", "")
-        //   .replace("-----END RSA PRIVATE KEY-----", "")
-
-        // val encoded = Base64.getDecoder.decode(privateKeyPEM)
-
-        // val keyFactory:KeyFactory = KeyFactory.getInstance("RSA");
-        // val keySpec:PKCS8EncodedKeySpec = new PKCS8EncodedKeySpec(encoded);
-        // val rsa:RSAPrivateKey = keyFactory.generatePrivate(keySpec).asInstanceOf[RSAPrivateKey] 
-
-        // val encoded = secret.getBytes()
-        // val keyFactory:KeyFactory = KeyFactory.getInstance("RSA");
-        // val keySpec:PKCS8EncodedKeySpec = new PKCS8EncodedKeySpec(encoded);
-        // val sk:RSAPrivateKey = keyFactory.generatePrivate(keySpec).asInstanceOf[RSAPrivateKey] 
         val sk = defaultPrivateKey.get
         
         Jwt.encode(c3, sk, JwtAlgorithm.fromString(algo).asInstanceOf[JwtAsymmetricAlgorithm])
 
       case "HS" =>
-        //
         Jwt.encode(c3, secret, JwtAlgorithm.fromString(algo))
     }
 
@@ -268,15 +250,6 @@ class AuthJwt(uri:String = "") {
 
   def generateRefreshToken(id:String) = Util.generateRandomToken()
 
-  // def isValid(token:String, algo:JwtAlgorithm,secret:String):Boolean = {
-  //   algo match {
-  //     case a:JwtHmacAlgorithm => Jwt.isValid(token, secret, Seq(a))
-  //     case a:JwtAsymmetricAlgorithm => Jwt.isValid(token, secret, Seq(a))
-  //     case _  => 
-  //       log.error(s"unknwon algo: ${algo.getClass().getName()}")
-  //       false
-  //   }    
-  // }
 
   def decodeAll(token:String):Try[(Boolean,JwtHeader,JwtClaim,String)] = {
     Jwt.decodeAll(token,JwtOptions(signature = false)) match {
@@ -285,16 +258,6 @@ class AuthJwt(uri:String = "") {
         val valid = algo.name.take(2) match {
           case "RS" =>
             try {
-              // val publicKeyPEM = secret
-              //   .replace("-----BEGIN PUBLIC KEY-----", "")
-              //   .replaceAll(System.lineSeparator(), "")
-              //   .replace("-----END PUBLIC KEY-----", "")              
-
-              // val encoded = Base64.getDecoder.decode(publicKeyPEM)
-
-              // val keyFactory:KeyFactory = KeyFactory.getInstance("RSA");
-              // val keySpec:X509EncodedKeySpec = new X509EncodedKeySpec(encoded)
-              // val rsa:RSAPublicKey = keyFactory.generatePublic(keySpec).asInstanceOf[RSAPublicKey]
               
               val pk = defaultPublicKey.get
               
@@ -321,14 +284,6 @@ class AuthJwt(uri:String = "") {
 
   // secret can be HMAC or PublicKey
   def isValid(token:String):Boolean = {
-    // Jwt.decodeAll(token,JwtOptions(signature = false)) match {
-    //   case Success((header,claim,sig)) => 
-    //     val algo = header.algorithm.getOrElse(defaultAlgo)
-    //     isValid(token, algo ,secret)
-    //   case Failure(e) =>
-    //     log.error(s"could not decode JWT",e)
-    //     false
-    // } 
     val r = decodeAll(token)
     r.isSuccess && r.get._1
   }

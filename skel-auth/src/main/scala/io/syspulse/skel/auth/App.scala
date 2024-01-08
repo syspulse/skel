@@ -403,12 +403,24 @@ object App extends skel.Server {
                 expire = exp
               )
 
+            case "user" :: Nil => 
+              val uid = DefaultPermissions.USER_1.toString
+              val exp = AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL
+              val aj = AuthJwt(config.jwtUri)
+              val jwt = aj.generateAccessToken(
+                Map("uid" -> uid,"roles" -> "user")                
+              )
+              log.info(s"User: ${uid}")
+              jwt
+
             case "user" :: uid :: ttl => 
               val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL else ttl.head.toLong
               val aj = AuthJwt(config.jwtUri)
-              aj.generateAccessToken(
+              val jwt = aj.generateAccessToken(
                 Map("uid" -> uid,"roles" -> "user")                
               )
+              log.info(s"User: ${uid}")
+              jwt
 
             case "encode" :: data => 
               val exp = AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL
@@ -428,7 +440,7 @@ object App extends skel.Server {
                   s"sig = ${jwt._4}"
                 case f => f
               }
-            case "valid" :: token :: Nil => 
+            case ("valid" | "validate") :: token :: Nil => 
               AuthJwt().isValid(token)
 
             case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")

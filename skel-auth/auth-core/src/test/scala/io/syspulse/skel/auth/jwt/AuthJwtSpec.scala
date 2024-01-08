@@ -135,9 +135,21 @@ d86616d2764f106c959768190d80bd8fb6d1c651dd6e8c24b989f364fa50855a0cf789f9e795a27f
       AuthJwt().getSecret() should !== ("")
     }
 
-    "validate JWT with defaults" in {      
+    "default algo is HS512" in {      
+      val a1 = AuthJwt()
+      a1.getAlgo() should === ("HS512")
+      a1.getSecret() should !== ("")
+    }
+
+    "default validate JWT with defaults" in {      
       val j1 = AuthJwt().generateToken()
       AuthJwt().isValid(j1) should === (true)
+    }
+
+    "default generate JWT AccessToken" in {
+      val a1 = AuthJwt()      
+      val j1 = a1.generateAccessToken(Map("uid" -> DefaultPermissions.USER_ADMIN.toString))
+      j1 should !== ("")
     }
 
     "fail JWT validation with a wrong secret" in {
@@ -147,12 +159,13 @@ d86616d2764f106c959768190d80bd8fb6d1c651dd6e8c24b989f364fa50855a0cf789f9e795a27f
       val a2 = new AuthJwt().withSecret("secret2")
       a2.isValid(j1) should === (false)
     }
-    
-    "validate generated Admin token" in {
-      val a1 = new AuthJwt()
+
+        
+    "default validate generated Admin token" in {
+      val a1 = AuthJwt()
       val j1 = a1.generateAccessToken(Map("uid" -> DefaultPermissions.USER_ADMIN.toString))
       
-      val a2 = new AuthJwt()
+      val a2 = AuthJwt()
       a2.isValid(j1) should === (true)
     }
 
@@ -205,14 +218,14 @@ d86616d2764f106c959768190d80bd8fb6d1c651dd6e8c24b989f364fa50855a0cf789f9e795a27f
       val a1 = new AuthJwt().withUri(s"rs512://sk:pkcs8:${testDir}/RS512.key.pkcs8")
       
       a1.getAlgo() should === ("RS512")
-      a1.getSecret() should !== ("")
+      a1.getSecret() should === ("")
     }
 
     "create AuthJwt with RS512 PrivateKey from Raw hexdata" in {
       val a1 = new AuthJwt().withUri(s"rs512://sk:hex:${RSA_SK_RAW}")
       
       a1.getAlgo() should === ("RS512")
-      a1.getSecret() should !== ("")
+      a1.getSecret() should === ("")
     }
 
     "create AuthJwt with RS512 PublicKey from CER (X509) file" in {
@@ -226,11 +239,19 @@ d86616d2764f106c959768190d80bd8fb6d1c651dd6e8c24b989f364fa50855a0cf789f9e795a27f
       val a1 = new AuthJwt().withUri(s"rs512://sk:pkcs8:${testDir}/RS512.key.pkcs8")
       
       a1.getAlgo() should === ("RS512")
-      a1.getSecret() should !== ("")
+      a1.getSecret() should === ("")
       a1.getPublicKey() should !== ("")
 
       val j1 = a1.generateToken()
       a1.isValid(j1) should === (true)
+    }
+
+    "create AuthJwt with PublicKey from JWKS Google store" in {
+      val a1 = new AuthJwt().withUri(s"https://www.googleapis.com/oauth2/v3/certs")
+      
+      a1.getAlgo() should (be("RS512") or be("RS256"))
+      a1.getPublicKey() should !== ("")
+      
     }
     
   }

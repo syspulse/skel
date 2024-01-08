@@ -16,7 +16,7 @@ object DemoRbac {
     Roles.ROLE_ADMIN -> Seq( ResourcePermission(ResourceAll(),Seq(PermissionAll())) ),
     Roles.ROLE_SERVICE -> Seq( ResourcePermission(ResourceApi(),Seq(PermissionWrite(),PermissionRead())) ),
     Roles.ROLE_USER -> Seq( 
-      ResourcePermission(Resource("00000000-0000-0000-1000-000000000001"),Seq(PermissionWrite())),
+      ResourcePermission(Resource(DefaultPermissions.USER_1.toString),Seq(PermissionWrite())),
       ResourcePermission(Resource("notify"),Seq(PermissionRead())),
       ResourcePermission(ResourceApi(),Seq(PermissionRead()))
     ),
@@ -28,8 +28,8 @@ object DemoRbac {
   val users = Map(
     {val u = DefaultPermissions.USER_ADMIN; u -> Seq(Roles.ROLE_ADMIN)},
     {val u = DefaultPermissions.USER_SERVICE; u -> Seq(Roles.ROLE_SERVICE)},
-    {val u = UUID("00000000-0000-0000-1000-000000000001"); u -> Seq(Roles.ROLE_USER)},
-    {val u = UUID("00000000-0000-0000-1000-000000000002"); u -> Seq(Roles.ROLE_USER,Role("data"))}
+    {val u = DefaultPermissions.USER_1; u -> Seq(Roles.ROLE_USER)},
+    {val u = DefaultPermissions.USER_2; u -> Seq(Roles.ROLE_USER,Role("data"))}
   )
 }
 
