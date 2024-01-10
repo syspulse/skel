@@ -26,6 +26,9 @@ import java.io.InputStreamReader
 import java.io.FileReader
 import scala.util.Success
 import com.typesafe.scalalogging.Logger
+import scala.concurrent.Future
+import scala.util.Failure
+import scala.concurrent.ExecutionContext
 
 object Util {
   
@@ -328,5 +331,10 @@ object Util {
   }
 
   def isUUID(s:String) = s.matches("""\d{8}-\d{4}-\d{4}-\d{4}-\d{12}""")
+
+  // Future lifter
+  // https://stackoverflow.com/a/29344937
+  def lift[T](futures: Seq[Future[T]])(implicit ec:ExecutionContext) = futures.map(_.map { Success(_) }.recover { case t => Failure(t) })
+  def waitAll[T](futures: Seq[Future[T]])(implicit ec:ExecutionContext) = Future.sequence(lift(futures))
 }
 
