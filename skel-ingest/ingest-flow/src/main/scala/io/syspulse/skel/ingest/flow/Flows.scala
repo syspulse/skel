@@ -403,7 +403,7 @@ object Flows {
       .newServerAt(host, port)
       .bindFlow(route)
 
-    log.info(s"http://${host}:${port}/${suffix}: ${binding}")
+    log.info(s"Listen: http://${host}:${port}/${suffix} ...")
 
     val s = s0
       
@@ -822,8 +822,8 @@ object Flows {
       .toMat(es.sink())(Keep.right)
   }
 
-  def toKafka[T <: Ingestable](uri:String) = {
-    val kafka = new ToKafka[T](uri)
+  def toKafka[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
+    val kafka = new ToKafka[T](uri)(fmt)
     Flow[T]
       .toMat(kafka.sink())(Keep.right)
   }
@@ -871,12 +871,12 @@ object Flows {
       .toMat(StreamConverters.fromOutputStream(() => pipe,flush))(Keep.right)
   // This sink returns Future[Done] and not possible to wait for completion of the flow
   //def toStdout() = Sink.foreach(println _)
-
 }
 
-
 // Kafka Client Flows
-class ToKafka[T <: Ingestable](uri:String) extends skel.ingest.kafka.KafkaSink[T] {
+class ToKafka[T <: Ingestable](uri:String)(implicit jf:JsonFormat[T]) extends skel.ingest.kafka.KafkaSink[T] {
+  import spray.json._
+  
   val kafkaUri = KafkaURI(uri)
   
   val sink0 = sink(kafkaUri.broker,Set(kafkaUri.topic))
@@ -884,7 +884,10 @@ class ToKafka[T <: Ingestable](uri:String) extends skel.ingest.kafka.KafkaSink[T
   def sink():Sink[T,_] = sink0
   
   override def transform(t:T):ByteString = {
-    ByteString(t.toString)
+    if(kafkaUri.isRaw)
+      ByteString(t.toString)
+    else
+      ByteString(t.toJson.compactPrint)
   }  
 }
 

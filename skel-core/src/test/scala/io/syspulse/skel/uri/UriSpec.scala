@@ -59,6 +59,11 @@ class UriSpec extends AnyWordSpec with Matchers {
       s.group should === ("group")
     }
 
+    "resovle with raw option ('kafka://host:port/topic?raw')" in {
+      val s = KafkaURI("kafka://host:port/topic?raw")
+      s.isRaw should === (true)
+    }
+
   }
 
   "ParqURI" should {

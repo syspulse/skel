@@ -137,7 +137,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "csv" :: _ => Flows.toCsv(output)
       case "log" :: _ => Flows.toLog(output)
 
-      case "kafka" :: _ => Flows.toKafka[O](output)
+      case "kafka" :: _ => Flows.toKafka[O](output)(fmt)
       case "elastic" :: _ => Flows.toElastic[O](output)(fmt)
       
       case "file" :: fileName :: Nil => Flows.toFile(fileName)
