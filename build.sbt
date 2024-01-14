@@ -143,6 +143,16 @@ val sharedConfig = Seq(
 // }
 
 
+val sharedConfigPlugin = Seq(
+  assembly / assemblyMergeStrategy := {
+      case PathList("META-INF/MANIFEST.MF", xs @ _*) => MergeStrategy.concat
+      case x => {
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
+        oldStrategy(x)
+      }
+  }
+)
+
 val sharedConfigAssemblyTeku = Seq(
   assembly / assemblyMergeStrategy := {
       case x if x.contains("module-info.class") => MergeStrategy.concat
@@ -270,6 +280,7 @@ val sharedConfigAssemblySpark = Seq(
   
   assembly / test := {}
 )
+
 
 def appDockerConfig(appName:String,appMainClass:String) = 
   Seq(
@@ -1060,7 +1071,7 @@ lazy val skel_odometer = (project in file("skel-odometer"))
   )
 
 lazy val skel_plugin = (project in file("skel-plugin"))
-  .dependsOn(core,notify_core,skel_dsl)
+  .dependsOn(core,skel_dsl)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
@@ -1076,5 +1087,29 @@ lazy val skel_plugin = (project in file("skel-plugin"))
     libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
       libOsLib,
       libUpickleLib,
+    )
+  )
+
+lazy val skel_plugin_1 = (project in file("skel-plugin/plugin-1"))
+  .dependsOn(skel_plugin)
+  .enablePlugins(JavaAppPackaging)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+    //sharedConfigPlugin,
+
+    // this is required to inject Plugin Metadata
+    // 'assembly' may not work, use 'sbt package'
+    packageOptions += Package.ManifestAttributes(
+      "Plugin-Title" -> "TestPlugin-1",
+      "Plugin-Version" -> "1.0.0",
+      "Plugin-Class" -> "io.syspulse.skel.plugin.TestPlugin_1"
+    ),
+    
+    name := "plugin-1",
+    version := "1.0.0",
+
+    libraryDependencies ++= Seq(      
     )
   )
