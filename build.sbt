@@ -1058,3 +1058,23 @@ lazy val skel_odometer = (project in file("skel-odometer"))
       libRedis
     ),    
   )
+
+lazy val skel_plugin = (project in file("skel-plugin"))
+  .dependsOn(core,notify_core,skel_dsl)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+    
+    appDockerConfig("skel-plugin","io.syspulse.skel.plugin.App"),
+
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
+      libOsLib,
+      libUpickleLib,
+    )
+  )
