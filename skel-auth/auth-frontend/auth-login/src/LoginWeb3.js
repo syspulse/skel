@@ -8,7 +8,7 @@ import { useLocation } from 'react-router-dom';
 
 import './App.css';
 
-import { baseUrl } from './Login';
+import { baseUrl } from './App';
 import LoginStateContext from "./LoginStateContext";
 
 export default function LoginWeb3() {
@@ -67,7 +67,10 @@ export default function LoginWeb3() {
       
       console.log("rsp: ",rsp);
       //setLoginStatus(JSON.stringify(rsp.data));
-      setState(JSON.stringify(rsp.data, null, 2));
+      // setState(JSON.stringify(rsp.data, null, 2));
+      setState(
+        { ...state, auth: JSON.stringify(rsp.data,null, 2) }
+      ); 
       
     } catch (err) {
       console.error(err.message);

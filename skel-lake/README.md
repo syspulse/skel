@@ -8,6 +8,11 @@
 
 2. __Viola__: https://github.com/voila-dashboards/voila
 
+## Visualization
+
+- [https://seaborn.pydata.org/]
+- [https://altair-viz.github.io/gallery/index.html#example-gallery]
+
 ---
 ## Frameworks and Libraries
 

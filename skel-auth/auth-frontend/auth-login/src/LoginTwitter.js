@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom';
 
 import './App.css';
 
-import { baseUrl } from './Login';
+import { baseUrl } from './App';
 
 export default function LoginTwitter() {
   

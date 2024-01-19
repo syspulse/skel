@@ -50,7 +50,7 @@ import io.syspulse.skel.enroll.Config
 import io.syspulse.skel.enroll.store.EnrollRegistry._
 import scala.util.Try
 
-import io.syspulse.skel.auth.permissions.rbac.Permissions
+import io.syspulse.skel.auth.permissions.Permissions
 import io.syspulse.skel.auth.RouteAuthorizers
 
 

@@ -26,6 +26,9 @@ import java.io.InputStreamReader
 import java.io.FileReader
 import scala.util.Success
 import com.typesafe.scalalogging.Logger
+import scala.concurrent.Future
+import scala.util.Failure
+import scala.concurrent.ExecutionContext
 
 object Util {
   
@@ -99,7 +102,7 @@ object Util {
     val tss = fileName.split("[{]").filter(_.contains("}")).map(s => s.substring(0,s.indexOf("}")))
     val tssPairs = tss.map(s => (s,timestamp(ts,s)))
 
-    tssPairs.foldLeft(fileName)( (fileName,pair) => { fileName.replace("{"+pair._1+"}",pair._2) })
+    tssPairs.foldLeft(fileName)( (fileName,pair) => { fileName.replace("{"+pair._1+"}",pair._2) })    
   }
 
   def nextTimestampDir(fileName:String,ts:Long=System.currentTimeMillis()) = {
@@ -326,5 +329,12 @@ object Util {
     else
       BigInt(v)
   }
+
+  def isUUID(s:String) = s.matches("""\d{8}-\d{4}-\d{4}-\d{4}-\d{12}""")
+
+  // Future lifter
+  // https://stackoverflow.com/a/29344937
+  def lift[T](futures: Seq[Future[T]])(implicit ec:ExecutionContext) = futures.map(_.map { Success(_) }.recover { case t => Failure(t) })
+  def waitAll[T](futures: Seq[Future[T]])(implicit ec:ExecutionContext) = Future.sequence(lift(futures))
 }
 

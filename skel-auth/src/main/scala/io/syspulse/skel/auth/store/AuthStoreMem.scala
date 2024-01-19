@@ -16,8 +16,8 @@ class AuthStoreMem extends AuthStore {
 
   def all:Seq[Auth] = auths.values.toSeq
 
-  def getForUser(userId:UUID):Seq[Auth] = {
-    auths.values.filter(_.uid == Some(userId)).toSeq
+  def findUser(uid:UUID):Seq[Auth] = {
+    auths.values.filter(_.uid == Some(uid)).toSeq
   }
 
   def size:Long = auths.size
@@ -28,24 +28,24 @@ class AuthStoreMem extends AuthStore {
     Success(this)
   }
   
-  def del(token:String):Try[AuthStore] = { 
+  def del(aid:String):Try[AuthStore] = { 
     val sz = auths.size
-    auths = auths - token
-    if(sz == auths.size) Failure(new Exception(s"not found: ${token}")) else Success(this)
+    auths = auths - aid
+    if(sz == auths.size) Failure(new Exception(s"not found: ${aid}")) else Success(this)
   }
 
   // def -(auth:Auth):Try[AuthStore] = { 
   //   del(auth.accessToken)
   // }
 
-  def ?(token:String):Try[Auth] = auths.get(token) match {
+  def ?(aid:String):Try[Auth] = auths.get(aid) match {
     case Some(a) => Success(a)
-    case None => Failure(new Exception(s"not found: ${token}"))
+    case None => Failure(new Exception(s"not found: ${aid}"))
   }
 
-  def !(auid:String,accessToken:String,refreshToken:String,uid:Option[UUID] = None):Try[Auth] = ?(auid).map( auth => {
+  def !(aid:String,accessToken:String,refreshToken:String,uid:Option[UUID] = None):Try[Auth] = ?(aid).map( auth => {
     // remove old one
-    this.del(auid)
+    this.del(aid)
 
     // add updated
     val auth1 = auth.copy(

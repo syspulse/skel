@@ -34,7 +34,7 @@ class AuthStoreDir(dir:String = "store/auth/") extends StoreDir[Auth,String](dir
     
   override def del(aid:String):Try[AuthStoreDir] = super.del(aid).flatMap(_ => store.del(aid)).map(_ => this)
   override def ?(aid:String):Try[Auth] = store.?(aid)
-  override def getForUser(uid:UUID):Seq[Auth] = store.getForUser(uid)
+  override def findUser(uid:UUID):Seq[Auth] = store.findUser(uid)
 
   // preload
   load(dir)

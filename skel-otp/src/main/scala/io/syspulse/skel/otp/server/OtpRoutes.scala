@@ -50,7 +50,7 @@ import scala.concurrent.duration.Duration
 
 import io.syspulse.skel.otp._
 import io.syspulse.skel.otp.store.OtpRegistry._
-import io.syspulse.skel.auth.permissions.rbac.Permissions
+import io.syspulse.skel.auth.permissions.Permissions
 
 @Path("/")
 class OtpRoutes(otpRegistry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable with RouteAuthorizers {

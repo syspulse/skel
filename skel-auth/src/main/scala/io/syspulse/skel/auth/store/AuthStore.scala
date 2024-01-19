@@ -16,9 +16,8 @@ trait AuthStore extends Store[Auth,String] {
   def ?(aid:String):Try[Auth]
   def all:Seq[Auth]
   
-  def getForUser(uid:UUID):Seq[Auth]
+  def findUser(uid:UUID):Seq[Auth]
   def size:Long
 
   def !(aid:String,accessToken:String,rereshToken:String,uid:Option[UUID]):Try[Auth]
 }
-

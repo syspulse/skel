@@ -1,0 +1,3 @@
+Plugin-Title: TestPlugin
+Plugin-Version: 0.0.1
+Plugin-Class: io.syspulse.skel.plugin.TestPlugin

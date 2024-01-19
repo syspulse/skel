@@ -37,7 +37,7 @@ import akka.http.scaladsl.Http
 import java.util.concurrent.TimeUnit
 import akka.event.Logging
 
-// Source[ByteString] -> InputObject [I] -> TransformedObject [T] -> OutputObject [O] -> Sink[O]
+// Source[ByteString] -> [ByteString] InputObject [I] -> [I] Process [T] -> [T] TransformedObject [O] -> Sink[O]
 trait IngestFlow[I,T,O] {
   private val log = Logger(s"${this}")
   implicit val system = ActorSystem("ActorSystem-IngestFlow")
@@ -120,7 +120,23 @@ trait IngestFlow[I,T,O] {
     
     val f3 = f2
 
-    val mat = f3.runWith(sink())
+    val s0 = sink()
+
+    // val errorSupervisor: Supervision.Decider = {
+    //   case e: java.lang.RuntimeException =>
+    //     log.error("",e)
+    //     Supervision.Resume
+    //   case e: Exception =>
+    //     log.error("",e)          
+    //     Supervision.Resume
+    // }
+
+    val mat = f3      
+      // .withAttributes(
+      //   ActorAttributes.supervisionStrategy(errorSupervisor)
+      // )
+      .runWith(s0)
+      
 
     log.debug(s"f1=${f1}: f2=${f2}: graph: ${f3}: flow=${mat}")
     mat

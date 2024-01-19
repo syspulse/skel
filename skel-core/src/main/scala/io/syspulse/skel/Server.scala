@@ -91,17 +91,17 @@ trait Server {
   def getHandlers():(RejectionHandler,ExceptionHandler) = {
     val rejectionHandler = RejectionHandler.newBuilder()
         .handle { case MissingQueryParamRejection(param) =>
-            complete(HttpResponse(BadRequest,   entity = jsonEntity(s"""["error": "missing parameter"]"""")))
+            complete(HttpResponse(BadRequest,   entity = jsonEntity(s"""{"error": "missing parameter"}""")))
         }
         .handle { case AuthorizationFailedRejection =>
-          complete(HttpResponse(Forbidden, entity = jsonEntity(s"""["error": "authorization"]"""")))
+          complete(HttpResponse(Forbidden, entity = jsonEntity(s"""{"error": "authorization"}""")))
         }
         .handleAll[MethodRejection] { methodRejections =>
           val names = methodRejections.map(_.supported.name)
-          complete(HttpResponse(MethodNotAllowed, entity = jsonEntity(s"""["error": "rejected"]"""")))
+          complete(HttpResponse(MethodNotAllowed, entity = jsonEntity(s"""{"error": "rejected"}""")))
         }
         .handleNotFound { extractUnmatchedPath { p =>
-          complete(HttpResponse(NotFound, entity = jsonEntity(s"""["error": "not found: '${p}']"""")))
+          complete(HttpResponse(NotFound, entity = jsonEntity(s"""{"error": "not found: '${p}'"}""")))
         }}
         .result()
     
@@ -110,12 +110,12 @@ trait Server {
         case e: java.lang.IllegalArgumentException =>
           extractUri { uri =>
             log.error(s"Request '$uri' failed:",e)
-            complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""["error": "${e}"]""")))
+            complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""{"error": "${e}"}""")))
           }
         // case e: Exception => complete(HttpResponse(InternalServerError))
         case e: Exception => {
           // nice forwarding errors to clients
-          complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""["error": "${e}"]""")))
+          complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""{"error": "${e}"}""")))
         }
       }
     (rejectionHandler,exceptionHandler)

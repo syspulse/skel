@@ -56,7 +56,7 @@ object Dependencies {
     lazy val appBootClassElastic = "io.syspulse.skel.ingest.elastic.App"
 
 
-    lazy val skelVersion = "0.0.6"
+    lazy val skelVersion = "0.0.7"
     lazy val jarPrefix = "server-"
     
     lazy val appDockerRoot = "/app"
@@ -118,7 +118,6 @@ object Dependencies {
     //val libSwaggerAkkaHttpUi ="com.github.swagger-akka-http"    %% "swagger-akka-http-with-ui" % "2.6.0"
     //val libSwaggerAnn =     "io.swagger.core.v3"              % "swagger-annotations"   % "2.2.0"
     //val libSwaggerAnnJakarta = "io.swagger.core.v3"              % "swagger-annotations-jakarta"   % "2.2.0"
-
     
     val libMetrics =        "nl.grons"                        %% "metrics4-scala"       % "4.1.14"
     //val libAkkaHttpMetrics ="fr.davit"                      %% "akka-http-metrics-dropwizard" % "1.6.0"
@@ -192,8 +191,8 @@ object Dependencies {
 
     val libSSSS =             "com.gladow"                      %% "scalassss"          % "0.2.0-SNAPSHOT"
 
-    val libSparkCore =        "org.apache.spark"               %% "spark-core"         % sparkVersion
-    val libSparkSQL =         "org.apache.spark"               %% "spark-sql"          % sparkVersion
+    // val libSparkCore =        "org.apache.spark"               %% "spark-core"         % sparkVersion
+    // val libSparkSQL =         "org.apache.spark"               %% "spark-sql"          % sparkVersion
     
     val libHadoopAWS =        "org.apache.hadoop"              % "hadoop-aws"          % hadoopAWSVersion
     val libAWSJavaSDK =       "com.amazonaws"                  % "aws-java-sdk-bundle" % "1.11.874" //"1.12.247"
@@ -233,7 +232,9 @@ object Dependencies {
     val libParqAkka =         "com.github.mjakubowski84"      %% "parquet4s-akka"                 % parq4sVersion
     val libHadoop =           "org.apache.hadoop"             % "hadoop-client"                   % hadoopVersion
     val libHadoopLZO =        "hadoop-lzo"                    % "hadoop-lzo"                      % "0.4.15"
-
+    val libSparkCore =        "org.apache.spark"              %% "spark-core"                     % sparkVersion
+    val libSparkSQL =         "org.apache.spark"              %% "spark-sql"                      % sparkVersion
+  
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)

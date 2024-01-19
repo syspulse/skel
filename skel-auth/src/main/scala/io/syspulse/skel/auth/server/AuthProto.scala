@@ -5,7 +5,7 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.auth.Auth
 
-final case class Auths(auths: immutable.Seq[Auth])
+final case class Auths(auths: immutable.Seq[Auth],total:Option[Long] = None)
 
 final case class AuthRes(auth: Option[Auth])
 final case class AuthCreateRes(auth: Auth)
@@ -20,4 +20,6 @@ final case class AuthWithProfileRes(
   idp: AuthIdp, 
   uid: Option[UUID], xid:String, email:String, name:String, avatar:String, locale:String
 )
+
+final case class AuthPermissions(perm:List[String])
 

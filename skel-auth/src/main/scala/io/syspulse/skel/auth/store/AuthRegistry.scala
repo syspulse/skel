@@ -21,8 +21,7 @@ import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
 import io.syspulse.skel.auth.jwt.AuthJwt
-import io.syspulse.skel.auth.permissions.rr.Permisson
-import io.syspulse.skel.auth.permissions.rbac.Permissions
+
 
 object AuthRegistry {
   val log = Logger(s"${this}")
@@ -32,6 +31,7 @@ object AuthRegistry {
   final case class GetAuth(auid: String, replyTo: ActorRef[Try[Auth]]) extends Command
   final case class DeleteAuth(auid: String, replyTo: ActorRef[AuthActionRes]) extends Command
   final case class RefreshTokenAuth(auid: String, refreshToken:String, uid:Option[UUID], replyTo: ActorRef[Try[Auth]]) extends Command
+  final case class Logoff(uid:Option[UUID], replyTo: ActorRef[Auths]) extends Command
 
     // this var reference is unfortunately needed for Metrics access
   var store: AuthStore = null //new AuthStoreDB //new AuthStoreCache
@@ -46,7 +46,8 @@ object AuthRegistry {
 
     Behaviors.receiveMessage {
       case GetAuths(replyTo) =>
-        replyTo ! Auths(store.all)
+        val aa = store.all
+        replyTo ! Auths(aa,Some(aa.size))
         Behaviors.same
 
       case CreateAuth(auth, replyTo) =>
@@ -103,7 +104,7 @@ object AuthRegistry {
                   (uid0, uid1, uid2) match {
                     case (_,Some(uid1),_) => 
                       // override with specified UID
-                      val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid1.toString)) 
+                      val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid1.toString)) 
                       store.!(auid, accessToken,refreshToken, Some(uid1))
 
                     case (Some(uid0),_,Some(uid2)) => 
@@ -112,11 +113,11 @@ object AuthRegistry {
                         log.error(s"unmatched identity: ${uid0}: ${uid2}")
                         Failure(new Exception(s"refresh token invalid: ${rt}"))
                       } else {
-                        val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid2.toString)) 
+                        val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid2.toString)) 
                         store.!(auid, accessToken,refreshToken,None)
                       }
                     case (_,_,Some(uid2)) => 
-                      val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid2.toString)) 
+                      val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid2.toString)) 
                       store.!(auid, accessToken,refreshToken,None)
                     
                     case _ =>
@@ -131,6 +132,19 @@ object AuthRegistry {
           }
         )
         replyTo ! r
+        Behaviors.same
+
+      case Logoff(uid, replyTo) =>
+        val auths:Seq[Auth] = if(uid.isDefined) store.findUser(uid.get) else store.all
+        val aa = auths.flatMap(a => 
+          store.del(a.accessToken) match {
+            case Success(s) => Some(a)
+            case Failure(e) =>
+              log.error(s"could not logoff: ${uid}: ${a.accessToken}")
+              None
+          }
+        )
+        replyTo ! Auths(aa,Some(aa.size))
         Behaviors.same
     }
   }

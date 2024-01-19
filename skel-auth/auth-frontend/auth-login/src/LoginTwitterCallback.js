@@ -4,7 +4,7 @@ import axios from "axios";
 import { useLocation } from 'react-router-dom';
 import { Navigate, Outlet } from 'react-router-dom';
 
-import { baseUrl } from './Login';
+import { baseUrl } from './App';
 import LoginStateContext from "./LoginStateContext";
 
 var _code = "";
@@ -35,7 +35,10 @@ export default function LoginTwitterCallback() {
       serverRsp.then( (rsp) => {
         console.log("server: ",rsp);
         console.log("====> LoginStateContext",setState);
-        setState(JSON.stringify(rsp.data, null,2));
+        // setState(JSON.stringify(rsp.data, null,2));
+        setState(
+          { ...state, auth: JSON.stringify(rsp.data,null, 2) }
+        ); 
       })
     }
 

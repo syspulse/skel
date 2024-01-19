@@ -116,7 +116,13 @@ TOKEN=`cat ACCESS_TOKEN_ADMIN` ../skel-user/user-get.sh
 
 ## JWKS
 
-WIP to add JWT support
+### External JWK
+
+```
+./run-auth.sh jwks get https://www.googleapis.com/oauth2/v3/certs
+```
+
+### Own JWK
 
 ```
 http http://localhost:8080/api/v1/auth/jwks
@@ -183,4 +189,45 @@ SITE=idp ./run-investigate.sh
 ```
 
 3. Open [http://localhost:3001](http://localhost:3001)
+
+
+## RSA Keys
+
+Generate Keypair in PKCS8 format (java.security understans only pkcs8)
+
+```
+ssh-keygen -t rsa -b 4096 -m PEM -E SHA512 -f RS512.key -N ""
+# Don't add passphrase
+openssl rsa -in RS512.key -pubout -outform PEM -out RS512.key.pub
+openssl pkcs8 -topk8 -nocrypt -in RS512.key -out RS512.key.pkcs8
+```
+
+### Generate Admin JWT with Private Key in file
+```
+./run-auth.sh jwt admin --jwt.uri=rs512://sk:pkcs8:RS512.key.pkcs8
+```
+
+### Run Server with Public key
+
+```
+./run-auth.sh --jwt.uri=rs512://pk:cer:RS512.key.pub
+```
+
+### Generate JWT and Validate it
+
+__NOTE__: Token must not contain any trailing new lines !
+
+```
+./run-auth.sh jwt user --jwt.uri=rs512://sk:pkcs8:RS512.key.pkcs8 >/tmp/JWT-0
+./run-auth.sh jwt valid --jwt.uri=rs512://pk:cer:RS512.key.pub `cat /tmp/JWT-0`
+```
+
+### Validate against JWKS
+
+Login to google and get Profile JWT (__not AccessToken !!!__):
+
+```
+./run-auth.sh jwt valid --jwt.uri=https://www.googleapis.com/oauth2/v3/certs `cat /tmp/JWT-Google-Profile`
+```
+
 

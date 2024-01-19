@@ -1,6 +1,8 @@
 package io.syspulse.skel.crypto
 
 import scala.util.{Try,Success,Failure}
+import scala.concurrent.{Future,ExecutionContext}
+import scala.jdk.FutureConverters._
 import os._
 import com.typesafe.scalalogging.Logger
 import scala.jdk.CollectionConverters
@@ -536,6 +538,13 @@ object Eth {
       case e:Exception => Failure(e)
     }
     bal
+  }
+
+  def getBalanceAsync(addr:String)(implicit web3:Web3j,ec: ExecutionContext):Future[BigInt] = {
+    web3
+      .ethGetBalance(addr,DefaultBlockParameterName.PENDING).sendAsync()
+      .asScala
+      .map(r => BigInt(r.getBalance()))
   }
   
 }

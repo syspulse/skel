@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useEffect, useContext, useState } from "react";
 import { ethers } from "ethers";
 import axios from "axios";
 
@@ -7,7 +7,7 @@ import { useLocation } from 'react-router-dom';
 
 import './App.css';
 
-import { baseUrl } from './Login';
+import { baseUrl } from './App';
 import LoginStateContext from "./LoginStateContext";
 
 export default function LoginGoogle() {
@@ -32,12 +32,17 @@ export default function LoginGoogle() {
     
     const serverRsp = await axios.get(tokenUrl);
     console.log("serverRsp: ",serverRsp);
-    setState(JSON.stringify(serverRsp.data,null, 2));
+    setState(
+      { ...state, auth: JSON.stringify(serverRsp.data,null, 2) }
+    );
+    localStorage.setItem( 'state', state );    
   };
   
   const onGoogleServer = rsp => {
     console.log(rsp);
-    setState(JSON.stringify(rsp,null, 2));
+    setState(
+      { ...state, auth: JSON.stringify(rsp,null, 2) }
+    );    
   };
   
   

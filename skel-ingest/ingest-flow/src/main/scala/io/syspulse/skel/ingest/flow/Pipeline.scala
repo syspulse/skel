@@ -55,8 +55,9 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "kafka" :: _ => Flows.fromKafka[Textline](feed)
       case "http" :: _ => {
         if(feed.contains(",")) {
-          Flows.fromHttpList(feed.split(",").map(uri => HttpRequest(uri = uri.trim).withHeaders(Accept(MediaTypes.`application/json`)))
-                             ,frameDelimiter = delimiter,frameSize = buffer, throttle =  throttleSource)
+          Flows.fromHttpList(feed.split(",").toIndexedSeq.map(uri => 
+            HttpRequest(uri = uri.trim).withHeaders(Accept(MediaTypes.`application/json`))),
+            frameDelimiter = delimiter,frameSize = buffer, throttle =  throttleSource)
         }
         else
           // ATTENTION!
@@ -110,7 +111,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
 
       case "" :: Nil => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
       case file :: Nil => Flows.fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)
-      case _ => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
+      case _ =>         
+        Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
     }
     src0
   }
@@ -135,7 +137,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "csv" :: _ => Flows.toCsv(output)
       case "log" :: _ => Flows.toLog(output)
 
-      case "kafka" :: _ => Flows.toKafka[O](output)
+      case "kafka" :: _ => Flows.toKafka[O](output)(fmt)
       case "elastic" :: _ => Flows.toElastic[O](output)(fmt)
       
       case "file" :: fileName :: Nil => Flows.toFile(fileName)
@@ -154,10 +156,14 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "past" :: fileName :: Nil => 
         Flows.toHive(fileName)(new Flows.RotatorTimestamp( () => ZonedDateTime.ofInstant(Instant.now, ZoneId.systemDefault).minusYears(1000).toInstant().toEpochMilli() ))
 
+      case "http" :: uri :: Nil => Flows.toHTTP[O](output,pretty=false)
+      case "https" :: uri :: Nil => Flows.toHTTP[O](output,pretty=false)
+
       case "stdout" :: _ => Flows.toStdout()
       case "stderr" :: _ => Flows.toStderr()
       case "" :: Nil => Flows.toStdout()
-      case _ => Flows.toFile(output)
+      case _ => 
+        Flows.toFile(output)
     }
     sink
   }

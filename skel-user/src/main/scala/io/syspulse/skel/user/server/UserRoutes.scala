@@ -48,7 +48,7 @@ import io.syspulse.skel.service.CommonRoutes
 
 import io.syspulse.skel.Command
 
-import io.syspulse.skel.auth.permissions.rbac.Permissions
+import io.syspulse.skel.auth.permissions.Permissions
 import io.syspulse.skel.auth.RouteAuthorizers
 
 import io.syspulse.skel.user._
@@ -223,9 +223,9 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
           )
         },
         pathPrefix("xid") {
-          pathPrefix(Segment) { id => 
+          pathPrefix(Segment) { xid => 
             authenticate()(authn =>
-              getUserByXidRoute(id)
+              getUserByXidRoute(xid)
             )
           }
         },

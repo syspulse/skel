@@ -42,3 +42,50 @@ br {
   display: block;
   margin: 0.3em 0;
 }
+
+.sep1 {
+  height: 10px;
+  background-color: gray;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+.sep2 {
+  height: 20px;
+}
+
+.input_server {
+  height: 30px;
+  width: 500px;
+  font-size: large;
+  background-color: lightgray;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+
+.input_api {
+  width: 420px;
+  height: 20px;
+}
+
+.pre_auth {
+  background-color: black;
+  color: greenyellow;
+  padding: 15px;
+  width: auto;
+  word-wrap: break-word;
+  white-space:pre-wrap;
+}
+
+
+.pre_response {
+  background-color: black;
+  color: orange;
+  padding: 15px;
+  width: auto;
+  word-wrap: break-word;
+  white-space:pre-wrap;
+}
+
+

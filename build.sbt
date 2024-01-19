@@ -128,6 +128,7 @@ val sharedConfig = Seq(
     ),
 
     // needed to fix error with quill-jasync
+    // org.scala-lang.modules:scala-java8-compat_2.13:1.0.2 (early-semver) is selected over {1.0.0, 0.9.1}
     libraryDependencySchemes += "org.scala-lang.modules" %% "scala-java8-compat" % VersionScheme.Always
   )
 
@@ -141,6 +142,16 @@ val sharedConfig = Seq(
   // case x => MergeStrategy.first
 // }
 
+
+val sharedConfigPlugin = Seq(
+  assembly / assemblyMergeStrategy := {
+      case PathList("META-INF/MANIFEST.MF", xs @ _*) => MergeStrategy.concat
+      case x => {
+        val oldStrategy = (assembly / assemblyMergeStrategy).value
+        oldStrategy(x)
+      }
+  }
+)
 
 val sharedConfigAssemblyTeku = Seq(
   assembly / assemblyMergeStrategy := {
@@ -270,6 +281,7 @@ val sharedConfigAssemblySpark = Seq(
   assembly / test := {}
 )
 
+
 def appDockerConfig(appName:String,appMainClass:String) = 
   Seq(
     name := appName,
@@ -303,19 +315,30 @@ lazy val root = (project in file("."))
              ingest_dynamo,
              skel_enroll,
              skel_syslog,
+             syslog_core,
              skel_notify,
+             notify_core,
              skel_tag, 
              skel_telemetry,
+             skel_job,
+             job_core,
+             crypto_kms,
              tools)
-  .dependsOn(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, skel_dsl, scrap, cli, db_cli, 
+  .dependsOn(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, skel_dsl, scrap, cli, db_cli,
              ingest_flow,
              ingest_elastic,
              ingest_dynamo,
              skel_enroll,
              skel_syslog,
+             syslog_core,
              skel_notify,
+             notify_core,
              skel_tag, 
-             skel_telemetry)
+             skel_telemetry,
+             skel_job,
+             job_core,
+             crypto_kms,
+             )  
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -430,6 +453,7 @@ lazy val auth_core = (project in file("skel-auth/auth-core"))
     name := "skel-auth-core",
     
     libraryDependencies ++= libJwt ++ Seq(
+      libRequests,  // for JWKS http request
       libUpickleLib,
       libCasbin
     ),    
@@ -729,7 +753,7 @@ lazy val skel_dsl = (project in file("skel-dsl"))
       
       // Only for experiments
       sharedConfigAssembly,      
-      appAssemblyConfig("dsl-cli","io.syspulse.skel.dsl.App"),
+      appAssemblyConfig("skel-dsl","io.syspulse.skel.dsl.App"),
       //name := "skel-dsl",
 
       libraryDependencies ++= libCommon ++ libTest ++
@@ -1044,4 +1068,48 @@ lazy val skel_odometer = (project in file("skel-odometer"))
     libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq( 
       libRedis
     ),    
+  )
+
+lazy val skel_plugin = (project in file("skel-plugin"))
+  .dependsOn(core,skel_dsl)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+    
+    appDockerConfig("skel-plugin","io.syspulse.skel.plugin.App"),
+
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
+      libOsLib,
+      libUpickleLib,
+    )
+  )
+
+lazy val skel_plugin_1 = (project in file("skel-plugin/plugin-1"))
+  .dependsOn(skel_plugin)
+  .enablePlugins(JavaAppPackaging)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+    //sharedConfigPlugin,
+
+    // this is required to inject Plugin Metadata
+    // 'assembly' may not work, use 'sbt package'
+    packageOptions += Package.ManifestAttributes(
+      "Plugin-Title" -> "TestPlugin-1",
+      "Plugin-Version" -> "1.0.0",
+      "Plugin-Class" -> "io.syspulse.skel.plugin.TestPlugin_1"
+    ),
+    
+    name := "plugin-1",
+    version := "1.0.0",
+
+    libraryDependencies ++= Seq(      
+    )
   )
