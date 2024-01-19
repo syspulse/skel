@@ -40,7 +40,7 @@ case class ArgLong(argChar:Char,argStr:String,argText:String,default:Long=0) ext
 case class ArgParam(argText:String,desc:String="") extends Arg[String]()
 case class ArgHelp(argStr:String,desc:String="") extends Arg[String]()
 case class ArgCmd(argStr:String,desc:String="") extends Arg[String]()
-case class ArgLogging(argText:String = "logging level",default:String="") extends Arg[String]()
+case class ArgLogging(argText:String = "logging level (INFO,ERROR,WARN,DEBUG)",default:String="") extends Arg[String]()
 
 // Use "empty appName/appVersion for automatic inference"
 class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg[_]*) extends ConfigurationLike {
@@ -52,8 +52,11 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
     val parser1 = {
       import builder._
 
+      val ver = if(appVer.isEmpty) Util.info._2 else appVer
+      val app = if(appName.isEmpty) Util.info._1 else appName
+
       val options = List(
-        head(if(appName.isEmpty) Util.info._1 else appName, if(appVer.isEmpty) Util.info._2 else appVer)
+        head(app, ver)
       ) ++ ops.flatMap(a => a match {
         case ArgCmd(s,t) => Some(cmd(s).action((x, c) => c.command(s)).text(t))
         case ArgHelp(s,t) => Some(help(s).text(t))
@@ -63,10 +66,13 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
         case ArgParam(t,d) => Some(arg[String](t).unbounded().optional().action((x, c) => c.param(x)).text(d))
         case ArgLogging(t,d) => Some(opt[String](Configuration.LOGGING_ARG).action((x, c) => c.+(Configuration.LOGGING_ARG,x)).text(t))
         case _ => None
-      })
+      }) ++ List(
+        version("version"),
+        help("help")
+      )
 
       OParser.sequence(
-        programName(Util.info._1), 
+        programName(app),
         options: _*
       )
     }
