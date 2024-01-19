@@ -8,6 +8,7 @@ import io.syspulse.skel.config._
 
 import io.syspulse.skel.plugin.runtime._
 import io.syspulse.skel.plugin.store._
+import store.PluginStoreMem
 
 case class Config(
   host:String="0.0.0.0",
