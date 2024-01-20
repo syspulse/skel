@@ -38,6 +38,18 @@ import akka.stream.alpakka.elasticsearch.WriteMessage
 import akka.stream.alpakka.elasticsearch.scaladsl.ElasticsearchSink
 import akka.stream.alpakka.elasticsearch.ElasticsearchParams
 
+// Slick !!!
+// import akka.stream.alpakka.slick.scaladsl._
+// import akka.stream.scaladsl._
+// import slick.jdbc.GetResult
+// import slick.basic.DatabaseConfig
+// import slick.jdbc.JdbcProfile
+
+// Quill
+import io.getquill._
+import io.getquill.context._
+import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
+
 import io.syspulse.skel.Ingestable
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
@@ -89,6 +101,7 @@ import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.model.headers.OAuth2BearerToken
 import akka.http.scaladsl.model.HttpResponse
+import io.getquill.context.jdbc.JdbcContext
 
 object Flows {
   val log = Logger(this.toString)
@@ -871,9 +884,59 @@ object Flows {
       .toMat(StreamConverters.fromOutputStream(() => pipe,flush))(Keep.right)
   // This sink returns Future[Done] and not possible to wait for completion of the flow
   //def toStdout() = Sink.foreach(println _)
+
+  
+  // JDBC
+  def toJDBC[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = { 
+    
+    val jdbc = new ToJDBC[T](uri,None).flow()
+    
+    Flow[T]
+      .via(jdbc)
+      .log("jdbc")
+      .toMat(Sink.ignore)(Keep.right)
+  }
 }
 
-// Kafka Client Flows
+// === JDBC ============================================================================================
+
+class ToJDBC[T <: Ingestable](dbUri:String,configuration:Option[Configuration]=None) 
+  extends skel.store.StoreDBCore(dbUri,"",None) {
+  
+  val ctx = dbType match {
+    case "mysql" => 
+      new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig)) //with Queries
+    case "postgres" => 
+      new PostgresJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig)) //with Queries      
+    case _ => 
+      new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig)) //with Queries
+  }
+
+  import ctx._
+        
+  def flow() = Flow[T].map( t => {
+    log.debug(s"INSERT: ${t}")
+
+    val SQL_DATA = Util.traverseAnySQL(t).map( kv => kv._2).mkString(",")
+
+    val SQL = s"INSERT INTO ${t.getClass().getSimpleName()} VALUES(${SQL_DATA})"
+
+    log.debug(s"SQL='${SQL}'")
+
+    try {
+      //ctx.insertOnly(t)
+      val r = ctx.executeAction(SQL)(ExecutionInfo.unknown, ())
+      t
+    } catch {
+      case e:Exception => 
+        throw new Exception(s"could not insert: ${e}")
+    }
+  })
+}
+
+// === Kafka ================================================================================================
+
+// Kafka Client Flows 
 class ToKafka[T <: Ingestable](uri:String)(implicit jf:JsonFormat[T]) extends skel.ingest.kafka.KafkaSink[T] {
   import spray.json._
   

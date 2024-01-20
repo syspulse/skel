@@ -1,4 +1,4 @@
 #!/bin/bash
 CWD=`echo $(dirname $(readlink -f $0))`
 
-$CWD/db-sql.sh db-destroy.sql
+$CWD/db-sql-root.sh db-destroy.sql

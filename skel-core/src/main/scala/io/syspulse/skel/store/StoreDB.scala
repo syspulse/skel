@@ -30,12 +30,16 @@ object StoreDB {
     dbUri.split("://").toList match {
       case "mysql" :: db :: _ => ("mysql",db)
       case "postgres" :: db :: _ => ("postgres",db)
-      case _ => ("mysql","mysql")   
+      case "jdbc" :: "mysql" :: db :: _ => ("mysql",db)
+      case "jdbc" :: "postgres" :: db :: _ => ("postgres",db)
+      case "jdbc" :: db :: _ => ("postgres",db)
+      case "jdbc" :: Nil => ("postgres","postgres")
+      case _ => ("mysql","mysql")
     }
   }
 }
 
-abstract class StoreDBCore[E,P](dbUri:String,val tableName:String,configuration:Option[Configuration]=None) {
+abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Option[Configuration]=None) {
   val log = Logger(s"${this}")
 
   val props = new java.util.Properties
@@ -99,7 +103,7 @@ abstract class StoreDBCore[E,P](dbUri:String,val tableName:String,configuration:
 
 // ========================================================================= StoreDB
 abstract class StoreDB[E,P](dbUri:String,tableName:String,configuration:Option[Configuration]=None) 
-  extends StoreDBCore[E,P](dbUri,tableName,configuration) 
+  extends StoreDBCore(dbUri,tableName,configuration) 
   with Store[E,P] {
   
   val ctx = dbType match {
@@ -132,7 +136,7 @@ abstract class StoreDB[E,P](dbUri:String,tableName:String,configuration:Option[C
 // ========================================================================= StoreDBAsync
 
 abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Option[Configuration]=None) 
-  extends StoreDBCore[E,P](dbUri,tableName,configuration) 
+  extends StoreDBCore(dbUri,tableName,configuration) 
   with StoreAsync[E,P] {
 
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global

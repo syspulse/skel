@@ -674,8 +674,19 @@ lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
     ),  
   )
 
+lazy val ingest_macro = (project in file("skel-ingest/ingest-macro"))
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+    sharedConfig,
+    name := "ingest-macro",
+    
+    libraryDependencies ++= libDB ++
+      Seq(          
+      ),
+  )
+
 lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
-  .dependsOn(core, serde, ingest, ingest_elastic, kafka)
+  .dependsOn(core, serde, ingest, ingest_elastic, kafka, ingest_macro)
   .enablePlugins(JavaAppPackaging)
   .settings (
     sharedConfig,
@@ -684,9 +695,12 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
     appAssemblyConfig("ingest-flow","io.syspulse.skel.ingest.flow.App"),
     //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  skelVersion + ".jar",
 
-    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
+    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ libDB ++ Seq(
       libScalaTest % Test,
       libAlpakkaFile,
+
+      //libAlpakkaSlick,      
+      
       libAkkaQuartz,      
       libUpickleLib,
 

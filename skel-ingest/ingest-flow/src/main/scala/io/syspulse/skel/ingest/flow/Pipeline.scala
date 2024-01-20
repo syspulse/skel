@@ -161,6 +161,11 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
 
       case "stdout" :: _ => Flows.toStdout()
       case "stderr" :: _ => Flows.toStderr()
+
+      case "jdbc" :: _ => Flows.toJDBC[O](output)(fmt)
+      case "postgres" :: _ => Flows.toJDBC[O](output)(fmt)
+      case "mysql" :: _ => Flows.toJDBC[O](output)(fmt)
+
       case "" :: Nil => Flows.toStdout()
       case _ => 
         Flows.toFile(output)
