@@ -45,7 +45,7 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 12. ```files://```                                           - Limit file by size
 13. ```parq://{file}```                                      - Parquet Format file (time patterns supported)
 14. ```http://host:port```                                   - HTTP Client to remote HTTP server which accepts `POST`
-
+15. ```jdbc://db```                                          - Exeperimental JDBC (only flat object)
 
 ### Examples
 
@@ -101,15 +101,7 @@ Pipeline to HTTP with periodic tick (`tick://initial,interval`)
 ./run-ingest.sh -f tick://0,1000://http://localhost:8300 -o stdout://
 ```
 
-
-Getting transactions from ethereum-etl into file partitions. (e.g. for Spark processing)
-
-Run ETL:
-```
-ethereumetl stream -e transaction --start-block `eth-last-block.sh` --provider-uri $ETH_RPC -o kafka/localhost:9092
-```
-
-Run Ingest:
+Ingest from Kafka to files:
 ```
 ./run-ingest.sh -f  kafka://localhost:9092/transactions/g1 -o hive:///mnt/share/data/spark/eth/{YYYY}/{MM}/{dd}/transactions-{HH_mm_ss}.log
 ```
@@ -130,6 +122,24 @@ Listen for HTTP POST requests
 echo "test" |curl -i -X POST --data @-  http://localhost:8080/webhook
 
 ```
+
+Push to Postgres
+
+`db1` is a DB config profile in `applicaion.conf`:
+
+```
+db1 {
+  dataSourceClassName=org.postgresql.ds.PGSimpleDataSource
+  dataSource.url="jdbc:postgresql://localhost:5432/ingest_db"  
+  dataSource.user=ingest_user
+  dataSource.password=ingest_pass
+}
+```
+
+```
+./run-ingest.sh -f 5.log -o "jdbc://db1"
+```
+
 
 ---
 

@@ -96,4 +96,73 @@ class UriSpec extends AnyWordSpec with Matchers {
     }
  
   }
+
+  "JdbcURI" should {
+    
+    "parse 'postgres://host:5433/ingest_db'" in {
+      val u = JdbcURI("postgres://host:5433/ingest_db")
+      u.dbType should === ("postgres")
+      u.db should === (Some("ingest_db"))
+      u.dbConfig should === (None)
+      u.host should === ("host")
+      u.port should === (5433)
+    }
+
+    "parse 'postgres://user:pass@host:5433/ingest_db'" in {
+      val u = JdbcURI("postgres://user:pass@host:5433/ingest_db")
+      u.dbType should === ("postgres")
+      u.db should === (Some("ingest_db"))
+      u.dbConfig should === (None)
+      u.host should === ("host")
+      u.port should === (5433)
+      
+      u.user should === (Some("user"))
+      u.pass should === (Some("pass"))
+    }
+
+    "parse 'mysql://host:5433/ingest_db'" in {
+      val u = JdbcURI("mysql://host:5433/ingest_db")
+      u.dbType should === ("mysql")
+      u.db should === (Some("ingest_db"))
+      u.dbConfig should === (None)
+      u.host should === ("host")
+      u.port should === (5433)
+    }
+
+    "parse 'jdbc://db1'" in {
+      val u = JdbcURI("jdbc://db1")      
+      u.dbType should === ("postgres")
+      u.db should === (None)
+      u.dbConfig should === (Some("db1"))
+    }
+
+    "parse 'jdbc:postgres://db1'" in {
+      val u = JdbcURI("jdbc:postgres://db1")      
+      u.dbType should === ("postgres")
+      u.db should === (None)
+      u.dbConfig should === (Some("db1"))
+    }
+
+    "parse 'jdbc://postgres://db1'" in {
+      val u = JdbcURI("jdbc://postgres://db1")      
+      u.dbType should === ("postgres")
+      u.db should === (None)
+      u.dbConfig should === (Some("db1"))
+    }
+
+    "parse 'postgres://db1'" in {
+      val u = JdbcURI("postgres://db1")      
+      u.dbType should === ("postgres")
+      u.db should === (None)
+      u.dbConfig should === (Some("db1"))
+    }
+
+    "parse 'mysql://db1'" in {
+      val u = JdbcURI("mysql://db1")      
+      u.dbType should === ("mysql")
+      u.db should === (None)
+      u.dbConfig should === (Some("db1"))
+    }
+ 
+  }
 }
