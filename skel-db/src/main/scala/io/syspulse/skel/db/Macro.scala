@@ -1,4 +1,4 @@
-package io.syspulse.skel.ingest.flow
+package io.syspulse.skel.db
 
 import scala.util.{Success,Failure,Try}
 import scala.jdk.CollectionConverters._

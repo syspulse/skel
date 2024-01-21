@@ -674,19 +674,8 @@ lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
     ),  
   )
 
-lazy val ingest_macro = (project in file("skel-ingest/ingest-macro"))
-  .disablePlugins(sbtassembly.AssemblyPlugin)
-  .settings (
-    sharedConfig,
-    name := "ingest-macro",
-    
-    libraryDependencies ++= libDB ++
-      Seq(          
-      ),
-  )
-
 lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
-  .dependsOn(core, serde, ingest, ingest_elastic, kafka, ingest_macro)
+  .dependsOn(core, serde, ingest, ingest_elastic, kafka)
   .enablePlugins(JavaAppPackaging)
   .settings (
     sharedConfig,
@@ -746,6 +735,18 @@ lazy val cli = (project in file("skel-cli"))
       ),
   )
 
+lazy val skel_db = (project in file("skel-db"))
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+    sharedConfig,
+    name := "skel-db",
+    
+    libraryDependencies ++= libDB ++
+      Seq(
+
+      ),
+  )
+  
 lazy val db_cli = (project in file("skel-db/db-cli"))
   .dependsOn(core,cli)
   .settings (
