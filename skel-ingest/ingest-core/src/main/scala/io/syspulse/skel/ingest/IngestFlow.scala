@@ -1,41 +1,27 @@
 package io.syspulse.skel.ingest
 
 import scala.jdk.CollectionConverters._
-
-import java.nio.file.StandardOpenOption._
+import java.util.concurrent.TimeUnit
+import com.typesafe.scalalogging.Logger
+import scala.concurrent.duration.{Duration,FiniteDuration}
+import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.ExecutionContext.Implicits.global 
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Keep
 import akka.{Done, NotUsed}
 import akka.util.ByteString
-
-import com.typesafe.scalalogging.Logger
-
-import scala.concurrent.duration.{Duration,FiniteDuration}
-import scala.concurrent.{Await, ExecutionContext, Future}
-
 import akka.stream.ActorMaterializer
 import akka.stream._
 import akka.stream.scaladsl._
+import akka.event.Logging
+
 
 import io.prometheus.client.CollectorRegistry
 import io.prometheus.client.Counter
 
-import java.nio.file.{Path,Paths, Files}
-import akka.stream.alpakka.file.scaladsl.LogRotatorSink
-
-import scala.concurrent.ExecutionContext.Implicits.global 
-import scala.util.Random
-import java.nio.file.{Paths,Files}
-import scala.jdk.CollectionConverters._
-
 import io.syspulse.skel.Ingestable
-import io.syspulse.skel
 import io.syspulse.skel.util.Util
-import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.Http
-import java.util.concurrent.TimeUnit
-import akka.event.Logging
 
 // Source[ByteString] -> [ByteString] InputObject [I] -> [I] Process [T] -> [T] TransformedObject [O] -> Sink[O]
 trait IngestFlow[I,T,O] {
@@ -53,8 +39,7 @@ trait IngestFlow[I,T,O] {
   //.withMaxRestarts(10, 5.minutes)
   
   // used by Flow.log()
-  val logLevels =
-      Attributes.createLogLevels(Logging.DebugLevel, Logging.DebugLevel, Logging.ErrorLevel)
+  val logLevels = Attributes.createLogLevels(Logging.DebugLevel, Logging.DebugLevel, Logging.ErrorLevel)
 
   val cr = new CollectorRegistry(true);
   val countBytes: Counter = Counter.build().name("ingest_bytes").help("total bytes").register(cr)

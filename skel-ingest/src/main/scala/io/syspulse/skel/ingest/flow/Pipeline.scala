@@ -52,7 +52,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
     log.info(s"feed=${feed}")
     val src0 = feed.split("://").toList match {
       case "null" :: _ => Flows.fromNull
-      case "kafka" :: _ => Flows.fromKafka[Textline](feed)
+      case "kafka" :: _ => Flows.fromKafka(feed)
       case "http" :: _ => {
         if(feed.contains(",")) {
           Flows.fromHttpList(feed.split(",").toIndexedSeq.map(uri => 

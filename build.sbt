@@ -309,10 +309,12 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 // ======================================================================================================================
 lazy val root = (project in file("."))
-  .aggregate(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, skel_dsl, scrap, cli, db_cli,
+  .aggregate(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, crypto, skel_dsl, scrap, cli, db_cli,
+             ingest_core, 
              ingest_flow,
              ingest_elastic,
              ingest_dynamo,
+             ingest,
              skel_enroll,
              skel_syslog,
              syslog_core,
@@ -324,10 +326,12 @@ lazy val root = (project in file("."))
              job_core,
              crypto_kms,
              tools)
-  .dependsOn(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, ingest, skel_otp, crypto, skel_dsl, scrap, cli, db_cli,
+  .dependsOn(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, crypto, skel_dsl, scrap, cli, db_cli,
+             ingest_core,
              ingest_flow,
              ingest_elastic,
              ingest_dynamo,
+             ingest,
              skel_enroll,
              skel_syslog,
              syslog_core,
@@ -619,25 +623,24 @@ lazy val scrap = (project in file("skel-scrap"))
      
   )
 
-lazy val ingest = (project in file("skel-ingest"))
-  .dependsOn(core)
-  .enablePlugins(JavaAppPackaging)
+lazy val ingest_core = (project in file("skel-ingest/ingest-core"))
+  .dependsOn(core, serde)
+  //.enablePlugins(JavaAppPackaging)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
     sharedConfig,
-    sharedConfigAssembly,
+    //sharedConfigAssembly,
+    //appAssemblyConfig("skel-ingest",""),
+    name := "ingest-core",
 
-    appAssemblyConfig("skel-ingest",""),
-    //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  skelVersion + ".jar",
-
-    libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ Seq(
+    libraryDependencies ++= libAkka ++ Seq(            
+      libUpickleLib,
       libScalaTest % Test,
-      libAlpakkaFile,
-      libUpickleLib,      
     ),        
   )
 
 lazy val ingest_dynamo = (project in file("skel-ingest/ingest-dynamo"))
-  .dependsOn(core,skel_video,ingest)
+  .dependsOn(core,skel_video,ingest_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -650,13 +653,13 @@ lazy val ingest_dynamo = (project in file("skel-ingest/ingest-dynamo"))
 
     appDockerConfig("ingest-dynamo",appBootClassDynamo),
 
-    libraryDependencies ++= libHttp ++ libTest ++ Seq(
+    libraryDependencies ++= libHttp ++ Seq(
       libAlpakkaDynamo
     ),  
   )
  
 lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
-  .dependsOn(core,ingest)
+  .dependsOn(core, ingest_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -669,25 +672,24 @@ lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
 
     appDockerConfig("ingest-elastic",appBootClassElastic),
 
-    libraryDependencies ++= libHttp ++ libTest ++ Seq(
+    libraryDependencies ++= Seq(
       libAlpakkaElastic
     ),  
   )
 
-lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
-  .dependsOn(core, serde, ingest, ingest_elastic, kafka)
-  .enablePlugins(JavaAppPackaging)
+lazy val ingest = (project in file("skel-ingest"))
+  .dependsOn(core, serde, ingest_core, ingest_elastic, kafka)
+  //.enablePlugins(JavaAppPackaging)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
     sharedConfig,
-    sharedConfigAssembly,
-
-    appAssemblyConfig("ingest-flow","io.syspulse.skel.ingest.flow.App"),
-    //assembly / assemblyJarName := jarPrefix + appNameIngest + "-" + "assembly" + "-"+  skelVersion + ".jar",
+    //sharedConfigAssembly,
+    //appAssemblyConfig("skel-ingest",""),
+    name := "skel-ingest",
 
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ libDB ++ Seq(
-      libScalaTest % Test,
+      
       libAlpakkaFile,
-
       //libAlpakkaSlick,      
       
       libAkkaQuartz,      
@@ -695,9 +697,28 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
 
       libParq,
       libParqAkka,
-      libHadoop
+      libHadoop,
+
+      libUpickleLib,
+
+      libScalaTest % Test,
     ),        
   )
+
+lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
+  .dependsOn(core, serde, ingest)
+  .enablePlugins(JavaAppPackaging)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+
+    appAssemblyConfig("ingest-flow","io.syspulse.skel.ingest.flow.App"),    
+
+    libraryDependencies ++= Seq(
+      libScalaTest % Test,      
+    ),        
+  )
+
 
 lazy val stream_std = (project in file("skel-stream/stream-std"))
   .dependsOn(core,skel_dsl)
@@ -887,7 +908,7 @@ lazy val syslog_core = (project in file("skel-syslog/syslog-core"))
 
 
 lazy val skel_syslog = (project in file("skel-syslog"))
-  .dependsOn(core,syslog_core,auth_core,ingest_flow)
+  .dependsOn(core,syslog_core,auth_core,ingest)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -907,7 +928,7 @@ lazy val skel_syslog = (project in file("skel-syslog"))
   )
 
 lazy val skel_video = (project in file("skel-video"))
-  .dependsOn(core,auth_core,ingest,ingest_flow,ingest_elastic)
+  .dependsOn(core,auth_core,ingest,ingest_elastic)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (
@@ -961,7 +982,7 @@ lazy val skel_notify = (project in file("skel-notify"))
   )
 
 lazy val skel_tag = (project in file("skel-tag"))
-  .dependsOn(core,auth_core,ingest_flow,skel_cron)
+  .dependsOn(core,auth_core,ingest,skel_cron)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -980,7 +1001,7 @@ lazy val skel_tag = (project in file("skel-tag"))
   )
 
 lazy val skel_telemetry = (project in file("skel-telemetry"))
-  .dependsOn(core,auth_core,ingest_flow,cli,skel_cron)
+  .dependsOn(core,auth_core,ingest,cli,skel_cron)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)

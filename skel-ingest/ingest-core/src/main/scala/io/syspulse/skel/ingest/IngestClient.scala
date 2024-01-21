@@ -14,8 +14,6 @@ import akka.stream.ActorMaterializer
 import akka.stream._
 import akka.stream.scaladsl._
 
-import akka.http.scaladsl._
-import akka.http.scaladsl.model.{ HttpRequest, HttpResponse, MediaRanges,MediaTypes, HttpMethods }
 import java.util.concurrent.TimeUnit
 
 import akka.util.ByteString
@@ -33,7 +31,6 @@ import io.prometheus.client.Counter
 import io.syspulse.skel
 import io.syspulse.skel.Ingestable
 import io.syspulse.skel.util.Util
-
 
 trait IngestClient {
   implicit val log = Logger(s"${this}")
@@ -59,9 +56,7 @@ trait IngestClient {
   }
 
   def countFlow(d:ByteString) = {metricEventsCounter.inc(); d}
-
-  def httpFlow(req: HttpRequest) = Http().singleRequest(req).flatMap(res => res.entity.dataBytes.runReduce(_ ++ _))
-
+  
   def toJson(body:ByteString):String = body.utf8String.replaceAll("\\n","").replaceAll("\\s+","")
 
   val toLog = Flow[Ingestable].map(t=>s"${t.toLog}\n")

@@ -19,14 +19,12 @@ import scala.util.Random
 import java.nio.file.{Paths,Files}
 import scala.jdk.CollectionConverters._
 
-import io.syspulse.skel
-import io.syspulse.skel.util.Util
-import io.syspulse.skel.ingest.IngestFlow
-
 import akka.stream.alpakka.elasticsearch.scaladsl.ElasticsearchSink
 import akka.stream.alpakka.elasticsearch.WriteMessage
 import akka.stream.alpakka.elasticsearch.ElasticsearchParams
-import spray.json.JsonFormat
+
+import io.syspulse.skel.ingest.IngestFlow
+import io.syspulse.skel.util.Util
 
 trait ElasticFlow[I,T] extends IngestFlow[I,T,WriteMessage[T,NotUsed]] with ElasticClient[T] {
   
