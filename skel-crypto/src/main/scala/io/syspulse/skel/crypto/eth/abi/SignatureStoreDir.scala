@@ -28,9 +28,9 @@ abstract class SignatureStoreDir[T <: AbiSignature](dir:String = "store/")(impli
   def all(from:Option[Int],size:Option[Int]):(Seq[T],Long) = store.all(from,size)
 
   def size:Long = store.size
-  override def +(u:T):Try[SignatureStoreDir[T]] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)
+  override def +(u:T):Try[T] = super.+(u).flatMap(_ => store.+(u))
 
-  override def del(id:(String,Int)):Try[SignatureStoreDir[T]] = super.del(id).flatMap(_ => store.del(id)).map(_ => this)
+  override def del(id:(String,Int)):Try[(String,Int)] = super.del(id).flatMap(_ => store.del(id))
   override def ?(id:(String,Int)):Try[T] = store.?(id)
 
   override def ??(id:String):Try[Vector[T]] = store.??(id)

@@ -50,18 +50,22 @@ object ServiceRegistry {
       case CreateService(serviceCreate, replyTo) =>
         val id = UUID.randomUUID()
         val service = Service(id,serviceCreate.secret,serviceCreate.name,serviceCreate.uri,serviceCreate.period.getOrElse(30))
-        val store1 = store.+(service)
-        metricStoreSize.set(store1.map(s => s.size.toDouble).getOrElse(store.size.toDouble))
+        store.+(service)
+        
+        metricStoreSize.set(store.size.toDouble)
+        
         replyTo ! ServiceActionPerformed(s"created",Some(id))
-        registry(store1.getOrElse(store))
+        Behaviors.same
+
       case GetService(id, replyTo) =>
         replyTo ! GetServiceResponse(store.?(id))
         Behaviors.same
+        
       case DeleteService(id, replyTo) =>
         val store1 = store.del(id)
-        metricStoreSize.set(store1.map(s => s.size.toDouble).getOrElse(store.size.toDouble))
+        metricStoreSize.set(store.size.toDouble)
         replyTo ! ServiceActionPerformed(s"deleted",Some(id))
-        registry(store1.getOrElse(store))
+        Behaviors.same
     }
   }
 }

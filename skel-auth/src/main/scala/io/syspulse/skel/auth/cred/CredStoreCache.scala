@@ -26,15 +26,15 @@ trait CredStoreCache extends CredStore {
 
   def size:Long = clients.size
 
-  def +(c:Cred):Try[CredStore] = {
+  def +(c:Cred):Try[Cred] = {
     log.info(s"add: ${c}")
-    clients = clients + (c.cid -> c); Success(this)
+    clients = clients + (c.cid -> c); Success(c)
   }
 
-  def del(cid:String):Try[CredStore] = { 
+  def del(cid:String):Try[String] = { 
     log.info(s"del: ${cid}")
     clients.get(cid) match {
-      case Some(auth) => { clients = clients - cid; Success(this) }
+      case Some(auth) => { clients = clients - cid; Success(cid) }
       case None => Failure(new Exception(s"not found: ${cid}"))
     }
   }

@@ -32,7 +32,7 @@ class TelemetryStoreMem extends TelemetryStore {
     Telemetrys(tt.drop(from.getOrElse(0)).take(size.getOrElse(Int.MaxValue)),total = Some(tt.size))
   }
 
-  def +(t:Telemetry):Try[TelemetryStore] = { 
+  def +(t:Telemetry):Try[Telemetry] = { 
     log.debug(s"${t}")
 
     // avoid duplicates
@@ -41,17 +41,17 @@ class TelemetryStoreMem extends TelemetryStore {
     if(!d.isDefined)
       telemetrys = telemetrys + (t.ts -> {telemetrys.getOrElse(t.ts,List()) :+ t})
     
-    Success(this)
+    Success(t)
   }
 
-  def del(id:Telemetry.ID):Try[TelemetryStore] = { 
+  def del(id:Telemetry.ID):Try[Telemetry.ID] = { 
     val r = telemetrys.values.flatten.filter(_.id == id).map( t => {
       telemetrys = telemetrys - t.ts
       true
     })
     log.debug(s"${id}")
     if(r.size > 0)
-      Success(this)
+      Success(id)
     else
       Failure(new Exception(s"not found: ${id}"))
   }

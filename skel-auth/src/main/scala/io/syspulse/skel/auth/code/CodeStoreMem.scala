@@ -22,20 +22,20 @@ class CodeStoreMem extends CodeStore {
 
   def size:Long = codes.size
 
-  def +(code:Code):Try[CodeStore] = { 
-    codes = codes + (code.code -> code); Success(this)
+  def +(code:Code):Try[Code] = { 
+    codes = codes + (code.code -> code); Success(code)
   }
 
-  def !(code:Code):Try[CodeStore] = { 
+  def !(code:Code):Try[Code] = { 
     val old = codes.getOrElse(code.code,code)
     // update onl with userId
     codes = codes + (code.code -> code.copy(xid = old.xid)); 
-    Success(this)
+    Success(code)
   }
   
-  def del(c:String):Try[CodeStore] = { 
+  def del(c:String):Try[String] = { 
     codes.get(c) match {
-      case Some(auth) => { codes = codes - c; Success(this) }
+      case Some(auth) => { codes = codes - c; Success(c) }
       case None => Failure(new Exception(s"not found: ${c}"))
     }
   }

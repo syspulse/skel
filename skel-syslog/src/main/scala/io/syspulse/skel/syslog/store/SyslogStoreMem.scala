@@ -23,17 +23,17 @@ class SyslogStoreMem extends SyslogStore {
 
   def size:Long = syslogs.size
 
-  def +(syslog:Syslog):Try[SyslogStore] = { 
+  def +(syslog:Syslog):Try[Syslog] = { 
     syslogs = syslogs + (Syslog.uid(syslog) -> syslog)
     log.info(s"${syslog}")
-    Success(this)
+    Success(syslog)
   }
 
-  def del(id:ID):Try[SyslogStore] = { 
+  def del(id:ID):Try[ID] = { 
     val sz = syslogs.size
     syslogs = syslogs - id;
     log.info(s"${id}")
-    if(sz == syslogs.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
+    if(sz == syslogs.size) Failure(new Exception(s"not found: ${id}")) else Success(id)  
   }
 
   def ?(id:ID):Try[Syslog] = syslogs.get(id) match {

@@ -33,8 +33,8 @@ class JobStoreDir(engine:JobEngine,dir:String = "store/")(implicit config:Config
   // }
 
   // this is called on load, so we can update the status
-  override def +(u:Job):Try[JobStoreDir] = {
-    super.+(u).flatMap(_ => store.+(u)).map(_ => this)
+  override def +(u:Job):Try[Job] = {
+    super.+(u).flatMap(_ => store.+(u))
   }
 
   override def update(job:Job):Try[Job] = {
@@ -43,8 +43,8 @@ class JobStoreDir(engine:JobEngine,dir:String = "store/")(implicit config:Config
   }
 
   // del does not delete the file, but only the status
-  override def del(uid:UUID):Try[JobStoreDir] = {
-    super.del(uid).flatMap(_ => store.del(uid)).map(_ => this)
+  override def del(uid:UUID):Try[UUID] = {
+    super.del(uid).flatMap(_ => store.del(uid))
   }
 
   override def ?(uid:UUID):Try[Job] = store.?(uid)

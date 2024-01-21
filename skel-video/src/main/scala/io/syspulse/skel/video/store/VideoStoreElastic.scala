@@ -58,11 +58,11 @@ class VideoStoreElastic(elasticUri:String,elacticIndex:String) extends VideoStor
     r.result.count
   }
 
-  def +(video:Video):Try[VideoStore] = { 
+  def +(video:Video):Try[Video] = { 
     Failure(new UnsupportedOperationException(s"not implemented: ${video}"))
   }
 
-  def del(id:ID):Try[VideoStore] = { 
+  def del(id:ID):Try[ID] = { 
     Failure(new UnsupportedOperationException(s"not implemented: ${id}"))
   }
 

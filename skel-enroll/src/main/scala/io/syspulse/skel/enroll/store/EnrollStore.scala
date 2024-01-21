@@ -34,14 +34,14 @@ trait EnrollStore extends Store[Enroll,UUID] {
   def addEmail(id:UUID,email:String):Future[Option[Enroll]]
   def confirmEmail(id:UUID,code:String):Future[Option[Enroll]]
 
-  def +(e:Enroll):Try[EnrollStore] = {
+  def +(e:Enroll):Try[Enroll] = {
     this.+(Option(e.xid))
-    Success(this)
+    Success(e)
   }
 
   def +(xid:Option[String],name:Option[String]=None,email:Option[String]=None,avatar:Option[String]=None):Try[UUID]
   
-  def del(id:UUID):Try[EnrollStore]
+  def del(id:UUID):Try[UUID]
   def ?(id:UUID):Try[Enroll] = {
     Await.result(???(id),FiniteDuration(1000L, TimeUnit.MILLISECONDS))
   }

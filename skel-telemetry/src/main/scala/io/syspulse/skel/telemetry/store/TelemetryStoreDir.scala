@@ -36,14 +36,14 @@ class TelemetryStoreDir(dir:String = "store/",parser:TelemetryParser,cron:Option
   //override def all(from:Option[Int],size:Option[Int]):Seq[Telemetry] = store.all(from,size)
   def size:Long = store.size
 
-  override def +(u:Telemetry):Try[TelemetryStoreDir] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)
-  override def del(id:ID):Try[TelemetryStoreDir] = {
+  override def +(u:Telemetry):Try[Telemetry] = super.+(u).flatMap(_ => store.+(u))
+  override def del(id:ID):Try[ID] = {
     store.del(id) match {
       case Success(_) => 
       case Failure(e) =>
         log.warn(s"faild to delete: ${id}: ${e.getMessage()}")
     }
-    super.del(id).map(_ => this)
+    super.del(id)
   }
   override def ?(id:ID):Try[Telemetry] = store.?(id)
   override def ??(ids:Seq[ID]):Seq[Telemetry] = store.??(ids)

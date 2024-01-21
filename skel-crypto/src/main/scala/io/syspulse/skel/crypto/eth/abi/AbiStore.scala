@@ -29,9 +29,9 @@ trait AbiStore extends Store[AbiContract,AbiStore.ID] with AbiStoreSigFuncResolv
   def events:SignatureStore[EventSignature]
   def functions:SignatureStore[FuncSignature]
 
-  def +(s:AbiContract):Try[AbiStore]
+  def +(s:AbiContract):Try[AbiContract]
   
-  def del(id:AbiStore.ID):Try[AbiStore]
+  def del(id:AbiStore.ID):Try[AbiStore.ID]
 
   def ?(id:AbiStore.ID):Try[AbiContract]
 

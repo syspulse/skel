@@ -37,8 +37,7 @@ class EnrollStoreAkka(implicit val ec:ExecutionContext,config:Config) extends En
     Success(eid)
   }
 
-  def del(id:UUID):Try[EnrollStore] = { 
-    //log.info(s"del: ${id}")
+  def del(id:UUID):Try[UUID] = {     
     Failure(new Exception(s"not supported"))
   }
 

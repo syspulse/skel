@@ -12,14 +12,14 @@ import io.syspulse.skel.store.Store
 trait NotifyStore extends Store[Notify,UUID] {
   def getKey(n: Notify): UUID = n.id
   
-  def notify(n:Notify):Try[NotifyStore]
+  def notify(n:Notify):Try[Notify]
 
   // add during runtime on broadcast (with special processing for user.all,...)
   def ++(n:Notify):Try[Notify]
 
-  def +(n:Notify):Try[NotifyStore]
+  def +(n:Notify):Try[Notify]
   
-  def del(id:UUID):Try[NotifyStore] = Failure(new Exception(s"not supported"))  
+  def del(id:UUID):Try[UUID] = Failure(new Exception(s"not supported"))  
   
   def all:Seq[Notify]
   def size:Long

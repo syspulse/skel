@@ -10,8 +10,10 @@ import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.javadsl.Behaviors
 
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{ Matchers, WordSpec }
-import org.scalatest.BeforeAndAfter
+import org.scalatest.{Ignore}
+import org.scalatest.wordspec.{ AnyWordSpec}
+import org.scalatest.matchers.should.{ Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
 
 import io.jvm.uuid._
 

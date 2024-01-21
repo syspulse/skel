@@ -25,6 +25,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 import akka.NotUsed
+import org.scalatest.concurrent.ScalaFutures
 
 
 class UserRoutesSpec extends AnyWordSpec with Matchers with ScalaFutures with ScalatestRouteTest {

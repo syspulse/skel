@@ -73,7 +73,7 @@ object SyslogRegistry {
         val store1 = store.+(syslog)
 
         replyTo ! syslog
-        registry(store1.getOrElse(store))
+        Behaviors.same
 
       case RandomSyslog(replyTo) =>
         
@@ -83,7 +83,7 @@ object SyslogRegistry {
       case DeleteSyslog(id, replyTo) =>
         val store1 = store.del(id)
         replyTo ! SyslogActionRes(s"Success",Some(id))
-        registry(store1.getOrElse(store))
+        Behaviors.same
     }
   }
 }

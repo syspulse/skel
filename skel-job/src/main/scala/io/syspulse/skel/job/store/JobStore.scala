@@ -21,11 +21,11 @@ trait JobStore extends Store[Job,ID] {
   // update
   def update(job:Job):Try[Job]
 
-  def +(job:Job):Try[JobStore]
+  def +(job:Job):Try[Job]
 
   //def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,String],uid:Option[UUID]):Try[Job]
   
-  def del(id:ID):Try[JobStore]
+  def del(id:ID):Try[ID]
   def ?(id:ID):Try[Job]
 
   def ??(uid:Option[UUID],state:Option[String]=None):Try[Jobs]

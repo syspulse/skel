@@ -38,12 +38,12 @@ object CodeRegistry {
       case CreateCode(code, replyTo) =>
         val store1 = store.+(code)
         replyTo ! CodeCreateRes(code)
-        registry(store1.getOrElse(store))
+        Behaviors.same
 
       case UpdateCode(code, replyTo) =>
         val store1 = store.!(code)
         replyTo ! CodeCreateRes(code)
-        registry(store1.getOrElse(store))
+        Behaviors.same
 
       case GetCode(code, replyTo) =>
         replyTo ! store.?(code)
@@ -56,7 +56,7 @@ object CodeRegistry {
       case DeleteCode(code, replyTo) =>
         val store1 = store.del(code)
         replyTo ! CodeActionRes(s"Success",Some(code))
-        registry(store1.getOrElse(store))
+        Behaviors.same
     }
   }
 }

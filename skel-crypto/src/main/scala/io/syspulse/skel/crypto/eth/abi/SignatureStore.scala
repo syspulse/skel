@@ -14,9 +14,9 @@ trait SignatureStore[T <: AbiSignature] extends Store[T,(String,Int)] {
   
   def getKey(s: T): (String,Int) = (s.getId(),s.getVer())
 
-  def +(s:T):Try[SignatureStore[T]]
+  def +(s:T):Try[T]
   
-  def del(id:(String,Int)):Try[SignatureStore[T]]
+  def del(id:(String,Int)):Try[(String,Int)]
 
   def ?(id:(String,Int)):Try[T]
 

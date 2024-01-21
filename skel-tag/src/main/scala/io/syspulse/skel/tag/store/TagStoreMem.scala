@@ -17,7 +17,7 @@ class TagStoreMem extends TagStore {
 
   def size:Long = tags.size
 
-  def +(tag:Tag):Try[TagStore] = { 
+  def +(tag:Tag):Try[Tag] = { 
     // update existing
     // val tag1 = tags.get(tag.id) match {
     //   case Some(tag0) => 
@@ -30,14 +30,14 @@ class TagStoreMem extends TagStore {
     tags = tags + (tag.id -> tag)
 
     log.info(s"add: ${tag}")
-    Success(this)
+    Success(tag)
   }
 
-  def del(id:String):Try[TagStore] = { 
+  def del(id:String):Try[String] = { 
     val sz = tags.size
     tags = tags - id;
     log.info(s"del: ${id}")
-    if(sz == tags.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
+    if(sz == tags.size) Failure(new Exception(s"not found: ${id}")) else Success(id)  
   }
 
   def ?(id:String):Try[Tag] = tags.get(id) match {

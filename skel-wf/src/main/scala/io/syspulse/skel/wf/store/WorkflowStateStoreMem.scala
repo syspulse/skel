@@ -25,15 +25,15 @@ class WorkflowStateStoreMem extends WorkflowStateStore {
 
   def size:Long = states.size
 
-  def +(ws:WorkflowState):Try[WorkflowStateStore] = { 
+  def +(ws:WorkflowState):Try[WorkflowState] = { 
     states = states + (ws.id -> ws)
-    Success(this)
+    Success(ws)
   }
 
-  def del(id:Workflowing.ID):Try[WorkflowStateStore] = { 
+  def del(id:Workflowing.ID):Try[Workflowing.ID] = { 
     val sz = states.size
     states = states - id;
-    if(sz == states.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
+    if(sz == states.size) Failure(new Exception(s"not found: ${id}")) else Success(id)  
   }
 
   def ?(id:Workflowing.ID):Try[WorkflowState] = states.get(id) match {

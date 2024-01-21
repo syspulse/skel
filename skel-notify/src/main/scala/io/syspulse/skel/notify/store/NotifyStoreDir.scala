@@ -26,17 +26,17 @@ class NotifyStoreDir(dir:String = "store/")(implicit config:Config) extends Stor
   def all:Seq[Notify] = store.all
   def size:Long = store.size
 
-  override def del(id:UUID):Try[NotifyStore] = store.del(id)
+  override def del(id:UUID):Try[UUID] = store.del(id).map(_ => id)
   
   // Attention: call + after notify here !
-  override def notify(n:Notify):Try[NotifyStoreDir] = {
+  override def notify(n:Notify):Try[Notify] = {
     for {
       _ <- `++`(n)
       _ <- store.broadcast(n)
-    } yield this    
+    } yield n    
   }
-  override def +(n:Notify):Try[NotifyStoreDir] = {
-    super.+(n).flatMap(_ => store.+(n)).map(_ => this)
+  override def +(n:Notify):Try[Notify] = {
+    super.+(n).flatMap(_ => store.+(n))
   }
 
   override def ++(n:Notify):Try[Notify] = {

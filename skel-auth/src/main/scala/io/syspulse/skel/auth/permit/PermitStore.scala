@@ -12,12 +12,12 @@ trait PermitStore extends Store[PermitUser,UUID] {
   
   def getKey(c: PermitUser): UUID = c.uid
   
-  def +(c:PermitUser):Try[PermitStore]
+  def +(c:PermitUser):Try[PermitUser]
 
   // def !(client:PermitRole):Try[PermitStore]
   //def -(c:PermitRole):Try[PermitStore]
   
-  def del(uid:UUID):Try[PermitStore]
+  def del(uid:UUID):Try[UUID]
   def ?(uid:UUID):Try[PermitUser]
   def all:Seq[PermitUser]
   def size:Long
@@ -43,14 +43,14 @@ trait PermitStore extends Store[PermitUser,UUID] {
   def getPermit():Seq[PermitRole]
   def getPermitUser():Seq[PermitUser] = all
 
-  def addPermit(p:PermitRole):Try[PermitStore]
-  def addPermitUser(r:PermitUser):Try[PermitStore] = `+`(r)
+  def addPermit(p:PermitRole):Try[PermitRole]
+  def addPermitUser(r:PermitUser):Try[PermitUser] = `+`(r)
 
   def getPermit(role:String):Try[PermitRole]
   def getPermitUser(uid:UUID):Try[PermitUser] = `?`(uid)
   def findPermitUserByXid(xid:String):Try[PermitUser]
 
-  def delUser(uid:UUID):Try[PermitStore] = del(uid)  
-  def delPermit(role:String):Try[PermitStore]
+  def delUser(uid:UUID):Try[UUID] = del(uid)  
+  def delPermit(role:String):Try[String]
 }
 

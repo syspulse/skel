@@ -27,9 +27,9 @@ class PermissionsStoreDir(dir:String = "store/auth/rbac/permissions") extends St
   def toKey(id:String):String = id
   def all:Seq[PermitRole] = store.getPermit()
   def size:Long = store.getPermit().size
-  override def +(r:PermitRole):Try[PermissionsStoreDir] = super.+(r).flatMap(_ => store.addPermit(r)).map(_ => this)
+  override def +(r:PermitRole):Try[PermitRole] = super.+(r).flatMap(_ => store.addPermit(r))
 
-  override def del(r:String):Try[PermissionsStoreDir] = super.del(r).flatMap(_ => store.delPermit(r)).map(_ => this)
+  override def del(r:String):Try[String] = super.del(r).flatMap(_ => store.delPermit(r))
   override def ?(r:String):Try[PermitRole] = store.getPermit(r)
 
   def update(role:String,resources:Option[Seq[PermitResource]]):Try[PermitRole] =
@@ -44,9 +44,9 @@ class PermitUserStoreDir(dir:String = "store/auth/rbac/users") extends StoreDir[
   def toKey(id:String):UUID = UUID(id)
   def all:Seq[PermitUser] = store.all
   def size:Long = store.size
-  override def +(c:PermitUser):Try[PermitUserStoreDir] = super.+(c).flatMap(_ => store.+(c)).map(_ => this)
+  override def +(c:PermitUser):Try[PermitUser] = super.+(c).flatMap(_ => store.+(c))
 
-  override def del(uid:UUID):Try[PermitUserStoreDir] = super.del(uid).flatMap(_ => store.del(uid)).map(_ => this)
+  override def del(uid:UUID):Try[UUID] = super.del(uid).flatMap(_ => store.del(uid))
   override def ?(uid:UUID):Try[PermitUser] = store.?(uid)
 
   def findPermitUserByXid(xid:String):Try[PermitUser] = store.findPermitUserByXid(xid)
@@ -66,10 +66,10 @@ class PermitStoreDir(dir:String = "store/auth/rbac") extends PermitStore {
   def all:Seq[PermitUser] = userStore.all
   def size:Long = userStore.size
   
-  override def +(r:PermitUser):Try[PermitStoreDir] = userStore.+(r).map(_ => this)
-  override def addPermit(p:PermitRole):Try[PermitStoreDir] = permissionStore.+(p).map(_ => this)
+  override def +(r:PermitUser):Try[PermitUser] = userStore.+(r)
+  override def addPermit(p:PermitRole):Try[PermitRole] = permissionStore.+(p)
 
-  override def del(uid:UUID):Try[PermitStoreDir] = userStore.del(uid).map(_ => this)
+  override def del(uid:UUID):Try[UUID] = userStore.del(uid)
   override def ?(uid:UUID):Try[PermitUser] = userStore.?(uid)
 
   def findPermitUserByXid(xid:String):Try[PermitUser] = userStore.findPermitUserByXid(xid)
@@ -77,7 +77,7 @@ class PermitStoreDir(dir:String = "store/auth/rbac") extends PermitStore {
   override def update(uid:UUID,roles:Option[Seq[String]]):Try[PermitUser] =
     userStore.update(uid,roles)
 
-  def delPermit(role:String):Try[PermitStore] = permissionStore.del(role).map(_ => this)
+  def delPermit(role:String):Try[String] = permissionStore.del(role)
   def getPermit(role:String):Try[PermitRole] = permissionStore.?(role)
   def getPermit():Seq[PermitRole] = permissionStore.all
 

@@ -10,10 +10,10 @@ trait CredStore extends Store[Cred,String] {
   
   def getKey(c: Cred): String = c.cid
   
-  def +(c:Cred):Try[CredStore]
-  // def !(client:Cred):Try[CredStore]
-  //def -(c:Cred):Try[CredStore]
-  def del(cid:String):Try[CredStore]
+  def +(c:Cred):Try[Cred]
+  // def !(client:Cred):Try[Cred]
+  //def -(c:Cred):Try[Cred]
+  def del(cid:String):Try[String]
   def ?(cid:String):Try[Cred]
   def all:Seq[Cred]
   def size:Long

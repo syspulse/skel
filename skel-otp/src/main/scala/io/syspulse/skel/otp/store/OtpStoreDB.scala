@@ -63,21 +63,21 @@ class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB
     query[Otp].filter(o => o.id == id).delete
   } 
 
-  def +(otp:Otp):Try[OtpStoreDB] = { 
+  def +(otp:Otp):Try[Otp] = { 
     log.info(s"insert: ${otp}")
     try {
       ctx.run(query[Otp].insertValue(lift(otp))); 
-      Success(this)
+      Success(otp)
     } catch {
       case e:Exception => Failure(new Exception(s"could not insert: ${e}"))
     }
   }
 
-  def del(id:UUID):Try[OtpStoreDB] = { 
+  def del(id:UUID):Try[UUID] = { 
     log.info(s"delete: id=${id}")
     try {
       ctx.run(deleteById(lift(id)))
-      Success(this)
+      Success(id)
     } catch {
       case e:Exception => Failure(new Exception(s"could not delete: ${e}"))
     } 

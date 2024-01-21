@@ -57,7 +57,7 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
   def clean():Try[TelemetryStore] = { Failure(new UnsupportedOperationException) }
   def all:Seq[Telemetry] = scan().toSeq
   def size:Long = scan().size
-  def +(t:Telemetry):Try[TelemetryStore] = {
+  def +(t:Telemetry):Try[Telemetry] = {
     log.info(s"t=${t}")
     val req = PutItemRequest
           .builder()
@@ -75,10 +75,10 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
   
     val r = Await.result(result, timeout)
     log.info(s"t=${t}: ")
-    Success(this)
+    Success(t)
   }
 
-  def del(id:Telemetry.ID):Try[TelemetryStore] = Failure(new UnsupportedOperationException)
+  def del(id:Telemetry.ID):Try[Telemetry.ID] = Failure(new UnsupportedOperationException)
   def ?(id:ID,ts0:Long,ts1:Long,op:Option[String] = None):Seq[Telemetry] = range(id,ts0,ts1).toSeq
   def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = range(txt,ts0,ts1).toSeq
   def scan(txt:String):Seq[Telemetry] = scan().toSeq

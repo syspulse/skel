@@ -26,11 +26,11 @@ class NotifyStoreMem(implicit config:Config) extends NotifyBroadcast()(config) w
 
   def size:Long = notifys.values.map( nq => nq.old.size + nq.fresh.size ).fold(0)(_ + _)
 
-  def notify(n:Notify):Try[NotifyStore] = {
+  def notify(n:Notify):Try[Notify] = {
     for {
       _ <- `++`(n)
       _ <- broadcast(n)
-    } yield this
+    } yield n
   }
 
   def ++(n:Notify):Try[Notify] = { 
@@ -61,7 +61,7 @@ class NotifyStoreMem(implicit config:Config) extends NotifyBroadcast()(config) w
   }
 
 
-  def +(n:Notify):Try[NotifyStore] = { 
+  def +(n:Notify):Try[Notify] = { 
     // this should always resolve correctly here
     val uid = (n.uid.orElse(Some(DefaultPermissions.USER_ADMIN)).get)
     
@@ -81,7 +81,7 @@ class NotifyStoreMem(implicit config:Config) extends NotifyBroadcast()(config) w
     }
     
     notifys = notifys + (uid -> nq)    
-    Success(this)
+    Success(n)
   }
 
   def ?(id:UUID):Try[Notify] = all.find(_.id == id) match {

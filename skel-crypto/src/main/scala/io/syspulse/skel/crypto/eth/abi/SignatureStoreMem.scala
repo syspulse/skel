@@ -32,10 +32,10 @@ class SignatureStoreMem[T <: AbiSignature] extends SignatureStore[T] {
 
   def size:Long = sigs.values.foldLeft(0)(_ + _.size)
 
-  def +(sig:T):Try[SignatureStoreMem[T]] = { 
+  def +(sig:T):Try[T] = { 
     sigs = sigs + { sig.getId().toLowerCase -> { sigs.getOrElse(sig.getId().toLowerCase(),Vector[T]()).appended(sig).sortBy(_.getVer())  }}
     //sigs = sigs + (sig.getKey() -> sig)    
-    Success(this)
+    Success(sig)
   }
 
   // override def del(sig:T):Try[SignatureStoreMem[T]] = { 
@@ -49,11 +49,12 @@ class SignatureStoreMem[T <: AbiSignature] extends SignatureStore[T] {
   //   }
   // }
 
-  def del(id:(String,Int)):Try[SignatureStoreMem[T]] = { 
+  def del(id:(String,Int)):Try[(String,Int)] = { 
     val v = sigs.get(id._1.toLowerCase())
     if(v.isDefined) {
-      sigs = sigs + { id._1.toLowerCase -> { v.get.filter(_.getVer() != id._2) }}
-      Success(this)
+      val sig = id._1.toLowerCase -> { v.get.filter(_.getVer() != id._2) }
+      sigs = sigs + { sig }
+      Success(id)
     } else {
       Failure(new Exception(s"not found: ${id}"))
     }

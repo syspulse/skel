@@ -20,8 +20,8 @@ trait TelemetryStore extends Store[Telemetry,ID] {
   def getKey(t: Telemetry): ID = t.id
 
   def clean():Try[TelemetryStore]
-  def +(telemetry:Telemetry):Try[TelemetryStore]
-  def del(id:ID):Try[TelemetryStore]
+  def +(telemetry:Telemetry):Try[Telemetry]
+  def del(id:ID):Try[ID]
   
   // return sorted
   def ?(id:ID,ts0:Long,ts1:Long,op:Option[String] = None):Seq[Telemetry]

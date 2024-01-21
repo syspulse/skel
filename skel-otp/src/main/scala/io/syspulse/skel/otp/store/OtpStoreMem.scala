@@ -26,13 +26,12 @@ class OtpStoreMem extends OtpStore {
 
   def size:Long = otps.size
 
-  def +(otp:Otp):Try[OtpStore] = { otps = otps + otp; Success(this)}
-  def del(id:UUID):Try[OtpStore] = { 
+  def +(otp:Otp):Try[Otp] = { otps = otps + otp; Success(otp)}
+  def del(id:UUID):Try[UUID] = { 
     otps.find(_.id == id) match {
-      case Some(otp) => { otps = otps - otp; Success(this) }
+      case Some(otp) => { otps = otps - otp; Success(id) }
       case None => Failure(new Exception(s"not found: ${id}"))
-    }
-    
+    }    
   }
 
   def ?(id:UUID):Try[Otp] = otps.find(_.id == id) match {

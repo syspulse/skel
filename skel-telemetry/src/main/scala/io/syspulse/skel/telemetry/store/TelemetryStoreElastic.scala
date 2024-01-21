@@ -72,11 +72,11 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
     r.result.count
   }
 
-  def +(telemetry:Telemetry):Try[TelemetryStore] = { 
+  def +(telemetry:Telemetry):Try[Telemetry] = { 
     Failure(new UnsupportedOperationException(s"not implemented: ${telemetry}"))
   }
 
-  def del(id:ID):Try[TelemetryStore] = { 
+  def del(id:ID):Try[ID] = { 
     Failure(new UnsupportedOperationException(s"not implemented: ${id}"))
   }
 
