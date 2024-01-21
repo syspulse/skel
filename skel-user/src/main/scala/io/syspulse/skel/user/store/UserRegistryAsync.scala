@@ -22,24 +22,24 @@ object UserRegistryAsync {
     
   import UserRegistryProto._
   
-  def apply(store: UserStoreAsync): Behavior[io.syspulse.skel.Command] = {
+  def apply(store: UserStore): Behavior[io.syspulse.skel.Command] = {
     registry(store)
   }
 
-  private def registry(store: UserStoreAsync): Behavior[io.syspulse.skel.Command] = {
+  private def registry(store: UserStore): Behavior[io.syspulse.skel.Command] = {
     
     Behaviors.receiveMessage {
       case GetUsers(replyTo) =>
-        store.all.map(r => replyTo ! Users(r))
+        store.allAsync.map(r => replyTo ! Users(r))
         Behaviors.same
 
       case GetUser(id, replyTo) =>
-        val r = store.?(id)
+        val r = store.?!(id)
         r.onComplete(replyTo ! _)
         Behaviors.same
 
       case GetUserByXid(eid, replyTo) =>
-        val r = store.findByXid(eid)
+        val r = store.findByXidAsync(eid)
         r.onComplete( r => r match {
           case f @ Failure(e) => 
             log.warn(s"user not found: ${eid}")
@@ -52,13 +52,13 @@ object UserRegistryAsync {
         val id = req.uid.getOrElse(UUID.randomUUID())
 
         val store1 = 
-          store.?(id).onComplete(_ match {
+          store.?!(id).onComplete(_ match {
             case Success(_) => 
               replyTo ! Failure(new Exception(s"already exists: ${id}"))
               
             case _ =>  
               val user = User(id, req.email, req.name, req.xid, req.avatar, System.currentTimeMillis())
-              val store1 = store.+(user)
+              val store1 = store.+!(user)
               
               store1.onComplete(r => r match {
                 case f @ Failure(e) => replyTo ! Failure(e)
@@ -69,13 +69,13 @@ object UserRegistryAsync {
         Behaviors.same
 
       case UpdateUser(uid,req, replyTo) =>
-        val r = store.update(uid,req.email, req.name, req.avatar)
+        val r = store.updateAsync(uid,req.email, req.name, req.avatar)
 
         r.onComplete(replyTo ! _)
         Behaviors.same
       
       case DeleteUser(id, replyTo) =>
-        val r = store.del(id)
+        val r = store.delAsync(id)
         r.onComplete(r => r match {
           case Success(_) => replyTo ! UserActionRes("200",Some(id))
           case Failure(e) => replyTo ! UserActionRes("619",Some(id))

@@ -1,7 +1,7 @@
 package io.syspulse.skel.user.store
 
-import scala.util.Try
-import scala.util.{Success,Failure}
+import scala.util.{Try,Success,Failure}
+import scala.concurrent.Future
 
 import io.jvm.uuid._
 
@@ -127,12 +127,12 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String)
   // } 
   val deleteById = (id:UUID) => table.filter(_.id == lift(id)).delete
 
-  def +(user:User):Try[UserStoreDB] = { 
+  def +(user:User):Try[User] = { 
     log.info(s"INSERT: ${user}")
     try {
       //ctx.run(query[User].insertValue(lift(user)));
       ctx.run(table.insertValue(user.copy(email = user.email.toLowerCase)));
-      Success(this)
+      Success(user)
     } catch {
       case e:Exception => Failure(new Exception(s"could not insert: ${e}"))
     }
@@ -166,13 +166,13 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String)
       case f => f
   }}
 
-  def del(id:UUID):Try[UserStoreDB] = { 
+  def del(id:UUID):Try[UUID] = { 
     log.info(s"DELETE: id=${id}")
     try {
       //ctx.run(deleteById(lift(id)))
       ctx.run(deleteById(id)) match {
         case 0 => Failure(new Exception(s"not found: ${id}"))
-        case _ => Success(this)
+        case _ => Success(id)
       } 
       
     } catch {
@@ -211,5 +211,19 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String)
       case Nil => None
     }
   }
+
+  // Async ======================================================================================================================
+  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+
+  override def sizeAsync:Future[Long] = Future{ size }
+  override def allAsync:Future[Seq[User]] = Future{ all }
+  override def +!(user:User):Future[User] = Future{ this.+(user).get }
+  def updateAsync(id:UUID,email:Option[String]=None,name:Option[String]=None,avatar:Option[String]=None):Future[User] = Future {
+    update(id,email,name,avatar).get
+  }
+  override def delAsync(id:UUID):Future[UUID] = Future { del(id).get }       
+  override def ?!(id:UUID):Future[User] = Future { this.?(id).get }    
+  def findByXidAsync(xid:String):Future[User] = Future { findByXid(xid).get }
+  def findByEmailAsync(email:String):Future[User] = Future { findByEmail(email).get }
 
 }

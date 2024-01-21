@@ -163,6 +163,31 @@ class UriSpec extends AnyWordSpec with Matchers {
       u.db should === (None)
       u.dbConfig should === (Some("db1"))
     }
+
+    // --- Async ----------------------------
+    "parse 'jdbc:async://db1'" in {
+      val u = JdbcURI("jdbc:async://db1")      
+      u.dbType should === ("postgres")
+      u.db should === (None)
+      u.async should === (true)
+      u.dbConfig should === (Some("db1"))
+    }
+
+    "parse 'postgres:async://db1'" in {
+      val u = JdbcURI("postgres:async://db1")      
+      u.dbType should === ("postgres")
+      u.db should === (None)
+      u.async should === (true)
+      u.dbConfig should === (Some("db1"))
+    }
+
+    "parse 'mysql:async://db1'" in {
+      val u = JdbcURI("mysql:async://db1")      
+      u.dbType should === ("mysql")
+      u.db should === (None)
+      u.async should === (true)
+      u.dbConfig should === (Some("db1"))
+    }
  
   }
 }

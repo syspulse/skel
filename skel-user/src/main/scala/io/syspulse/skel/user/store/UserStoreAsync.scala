@@ -1,7 +1,7 @@
 package io.syspulse.skel.user.store
 
 import scala.util.Try
-
+import scala.concurrent.Future
 import scala.collection.immutable
 
 import io.jvm.uuid._
@@ -11,7 +11,6 @@ import io.syspulse.skel.store.Store
 
 import io.syspulse.skel.user.User
 import io.syspulse.skel.store.StoreAsync
-import scala.concurrent.Future
 
 trait UserStoreAsync extends StoreAsync[User,UUID] {
   

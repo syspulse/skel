@@ -14,20 +14,20 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
 
   @volatile var loading = false
 
-  override def +(e:E):Try[StoreDir[E,P]] = { 
+  override def +(e:E):Try[E] = { 
     if( ! loading)
-      writeFile(e).map(_ => this)
+      writeFile(e)
     else
-      Success(this)
+      Success(e)
   }
 
   def toKey(id:String):P
 
-  override def del(id:P):Try[Store[E,P]] = { 
+  override def del(id:P):Try[P] = { 
     if( ! loading) 
-      delFileById(id.toString).map(_ => this)
+      delFileById(id.toString).map(_ => id)
     else
-      Success(this)
+      Success(id)
   }
 
   def write(data:String,name:String,subdir:String=""):Try[StoreDir[E,P]] = try {

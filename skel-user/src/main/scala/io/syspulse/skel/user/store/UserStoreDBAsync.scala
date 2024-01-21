@@ -25,7 +25,8 @@ import scala.concurrent.Future
 // Postgres does not support table name 'user' !
 class UserStoreDBAsync(configuration:Configuration,dbConfigRef:String) 
   extends StoreDBAsync[User,UUID](dbConfigRef,"users",Some(configuration)) 
-  with UserStoreAsync {
+  //with UserStoreAsync {
+  with UserStore {
 
   import ctx._
   
@@ -91,16 +92,16 @@ class UserStoreDBAsync(configuration:Configuration,dbConfigRef:String)
   }
 
 
-  def all:Future[Seq[User]] = ctx.run(table)
+  override def allAsync:Future[Seq[User]] = ctx.run(table)
 
-  def +(user:User):Future[UserStoreDBAsync] = { 
+  override def +!(user:User):Future[User] = { 
     log.info(s"INSERT: ${user}")
-    ctx.run(table.insertValue(user.copy(email = user.email.toLowerCase))).map(_ => this)
+    ctx.run(table.insertValue(user.copy(email = user.email.toLowerCase))).map(_ => user)
   }
 
-  def update(id:UUID,email:Option[String]=None,name:Option[String]=None,avatar:Option[String]=None):Future[User] = {
+  def updateAsync(id:UUID,email:Option[String]=None,name:Option[String]=None,avatar:Option[String]=None):Future[User] = {
     for {
-      user <- this.?(id)
+      user <- this.?!(id)
       user1 <- {
         val user1 = modify(user,email,name,avatar)
 
@@ -119,7 +120,7 @@ class UserStoreDBAsync(configuration:Configuration,dbConfigRef:String)
 
           //Success(user1)
           // query again
-          this.?(id)
+          this.?!(id)
 
         } catch {
           case e:Exception => throw new Exception(s"could not update: ${e}")
@@ -133,15 +134,15 @@ class UserStoreDBAsync(configuration:Configuration,dbConfigRef:String)
   // } 
   val deleteById = (id:UUID) => table.filter(_.id == lift(id)).delete
 
-  def del(id:UUID):Future[UserStoreDBAsync] = { 
+  override def delAsync(id:UUID):Future[UUID] = { 
     log.info(s"DELETE: id=${id}")
     ctx.run(deleteById(id)).map(r => r match {
       case 0 => throw new Exception(s"not found: ${id}")
-      case _ => this
+      case _ => id
     })
   }
   
-  def ?(id:UUID):Future[User] = {
+  override def ?!(id:UUID):Future[User] = {
     log.info(s"SELECT: id=${id}")
     ctx.run(table.filter(o => o.id == lift(id))).map(r => r.headOption match {
       case Some(u) => u
@@ -149,7 +150,7 @@ class UserStoreDBAsync(configuration:Configuration,dbConfigRef:String)
     })
   }
 
-  def findByXid(xid:String):Future[User] = {
+  def findByXidAsync(xid:String):Future[User] = {
     log.info(s"FIND: xid=${xid}")
     ctx.run(table.filter(o => o.xid == lift(xid))).map(r => r.headOption match {
       case Some(u) => u
@@ -157,12 +158,23 @@ class UserStoreDBAsync(configuration:Configuration,dbConfigRef:String)
     })
   }
 
-  def findByEmail(email:String):Future[User] = {
+  def findByEmailAsync(email:String):Future[User] = {
     log.info(s"FIND: emai=${email}")
     ctx.run(table.filter(o => o.email == lift(email.toLowerCase()))).map(r => r.headOption match {
       case Some(u) => u
       case None => throw new Exception(s"user not found: ${email}")
     })
   }
+  
 
+  // === Sync ================================================================================================
+  def +(user:User):Try[User] = Store.fromFuture(this.+!(user))
+  def del(id:UUID):Try[UUID] = Store.fromFuture(this.delAsync(id))
+  def ?(id:UUID):Try[User] = Store.fromFuture(this.?!(id))
+  def all:Seq[User] = Await.result(this.allAsync,FiniteDuration(15000L,TimeUnit.MILLISECONDS))
+  def size:Long = Await.result(this.sizeAsync,FiniteDuration(15000L,TimeUnit.MILLISECONDS))
+  def findByXid(xid:String):Option[User] = Store.fromFuture(this.findByXidAsync(xid)).toOption
+  def findByEmail(email:String):Option[User] = Store.fromFuture(this.findByEmailAsync(email)).toOption
+  def update(id:UUID, email:Option[String] = None, name:Option[String] = None, avatar:Option[String] = None):Try[User] = 
+    Store.fromFuture(this.updateAsync(id,email,name,avatar))
 }

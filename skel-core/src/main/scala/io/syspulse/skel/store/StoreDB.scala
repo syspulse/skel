@@ -124,7 +124,8 @@ abstract class StoreDB[E,P](dbUri:String,tableName:String,configuration:Option[C
 
 abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Option[Configuration]=None) 
   extends StoreDBCore(dbUri,tableName,configuration) 
-  with StoreAsync[E,P] {
+  //with StoreAsync[E,P] {
+  with Store[E,P] {
 
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
   
@@ -152,7 +153,7 @@ abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Opt
   def truncateSQL = () => quote { infix"""TRUNCATE TABLE ${lift(tableName)}""".as[Long] }
   def truncate():Future[Long] = ctx.run(truncateSQL())
 
-  def size:Future[Long] = ctx.run(totalSQL())
+  override def sizeAsync:Future[Long] = ctx.run(totalSQL())
 
   // create Store
   create

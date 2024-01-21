@@ -34,14 +34,14 @@ class EntityStoreDir(dir:String,preload:Boolean = false) extends StoreDir[Entity
   def getKey(e:Entity) = e.id
 
   def toKey(id:String):String = id
-  override def +(e:Entity):Try[EntityStoreDir] = {
+  override def +(e:Entity):Try[Entity] = {
     ee = ee + (e.id -> e)
-    super.+(e).map(_ => this)
+    super.+(e)
   }
-  override def -(e:Entity):Try[EntityStoreDir] = del(e.id)
-  override def del(id:String):Try[EntityStoreDir] = {
+  override def -(e:Entity):Try[Entity] = del(e.id).map(_ => e)
+  override def del(id:String):Try[String] = {
     ee = ee - id
-    super.del(id).map(_ => this)
+    super.del(id)
   }
   override def ?(id:String):Try[Entity] = ee.get(id) match {
     case Some(e) => Success(e)

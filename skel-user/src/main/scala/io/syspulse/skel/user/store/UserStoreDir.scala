@@ -1,8 +1,8 @@
 package io.syspulse.skel.user.store
 
-import scala.util.Try
-import scala.util.{Success,Failure}
+import scala.util.{Try,Success,Failure}
 import scala.collection.immutable
+import scala.concurrent.Future
 
 import com.typesafe.scalalogging.Logger
 
@@ -24,9 +24,9 @@ class UserStoreDir(dir:String = "store/") extends StoreDir[User,UUID](dir) with 
   def toKey(id:String):UUID = UUID(id)
   def all:Seq[User] = store.all
   def size:Long = store.size
-  override def +(u:User):Try[UserStoreDir] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)
+  override def +(u:User):Try[User] = super.+(u).flatMap(_ => store.+(u))
 
-  override def del(uid:UUID):Try[UserStoreDir] = super.del(uid).flatMap(_ => store.del(uid)).map(_ => this)
+  override def del(uid:UUID):Try[UUID] = super.del(uid).flatMap(_ => store.del(uid))
   override def ?(uid:UUID):Try[User] = store.?(uid)
 
   override def findByXid(xid:String):Option[User] = store.findByXid(xid)
@@ -37,4 +37,15 @@ class UserStoreDir(dir:String = "store/") extends StoreDir[User,UUID](dir) with 
   // preload and watch
   load(dir)
   watch(dir)
+ 
+  // Async not implemented
+  // def +!(user:User):Future[User] = throw new NotImplementedError()
+  // def delAsync(id:UUID):Future[UUID] = throw new NotImplementedError()
+  // def ?!(id:UUID):Future[User] = throw new NotImplementedError()
+  // def allAsync:Future[Seq[User]] = throw new NotImplementedError()
+  // def sizeAsync:Future[Long] = throw new NotImplementedError()
+  
+  def findByXidAsync(xid:String):Future[User] = throw new NotImplementedError()
+  def findByEmailAsync(email:String):Future[User] = throw new NotImplementedError()
+  def updateAsync(id:UUID, email:Option[String] = None, name:Option[String] = None, avatar:Option[String] = None):Future[User] = throw new NotImplementedError()
 }
