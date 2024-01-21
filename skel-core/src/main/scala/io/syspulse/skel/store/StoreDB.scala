@@ -2,6 +2,10 @@ package io.syspulse.skel.store
 
 import scala.util.Try
 import scala.util.{Success,Failure}
+import scala.concurrent.Future
+import scala.jdk.CollectionConverters._
+import com.typesafe.config.ConfigFactory
+import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 import java.time._
@@ -14,37 +18,20 @@ import io.getquill.MysqlJdbcContext
 import io.getquill.PostgresJdbcContext
 import io.getquill.PostgresJAsyncContext
 import io.getquill.MysqlJAsyncContext
-
-import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 //import io.getquill.{Literal, MySQLDialect}
-
-import scala.jdk.CollectionConverters._
-import com.typesafe.config.ConfigFactory
-import com.typesafe.scalalogging.Logger
+import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 
 import io.syspulse.skel.config.Configuration
-import scala.concurrent.Future
-
-object StoreDB {
-  def parseUri(dbUri:String) = {
-    dbUri.split("://").toList match {
-      case "mysql" :: db :: _ => ("mysql",db)
-      case "postgres" :: db :: _ => ("postgres",db)
-      case "jdbc" :: "mysql" :: db :: _ => ("mysql",db)
-      case "jdbc" :: "postgres" :: db :: _ => ("postgres",db)
-      case "jdbc" :: db :: _ => ("postgres",db)
-      case "jdbc" :: Nil => ("postgres","postgres")
-      case _ => ("mysql","mysql")
-    }
-  }
-}
+import io.syspulse.skel.uri.JdbcURI
 
 abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Option[Configuration]=None) {
   val log = Logger(s"${this}")
 
   val props = new java.util.Properties
 
-  protected val (dbType,dbConfigName) = StoreDB.parseUri(dbUri)
+  val uri = new JdbcURI(dbUri)
+    
+  protected val (dbType,dbConfigName) = (uri.dbType,uri.dbConfig.getOrElse("posgtres"))
 
   def getTableName = tableName
   def getDbType = dbType
@@ -145,11 +132,11 @@ abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Opt
   val config = ConfigFactory.load().getConfig(dbConfigName)
   log.info(s"DB Config: ${config}")
 
-  val ctx = dbType.split("://").toList match {
-    case "postgres" :: _ =>                   
+  val ctx = dbType match {
+    case "postgres" =>                   
       // new PostgresAsyncContext(NamingStrategy(SnakeCase),config)    
       new PostgresJAsyncContext(NamingStrategy(SnakeCase),config)      
-    case "mysql" :: _ => 
+    case "mysql" => 
       new MysqlJAsyncContext(NamingStrategy(SnakeCase),config)
     case _ =>
       new MysqlJAsyncContext(NamingStrategy(SnakeCase),config)      
