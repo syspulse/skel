@@ -53,7 +53,7 @@ object AuthRegistry {
       case CreateAuth(auth, replyTo) =>
         val store1 = store.+(auth)
         replyTo ! AuthCreateRes(auth)
-        registry(store1.getOrElse(store))
+        Behaviors.same
 
       case GetAuth(auid, replyTo) =>
         replyTo ! store.?(auid)
@@ -62,7 +62,7 @@ object AuthRegistry {
       case DeleteAuth(auid, replyTo) =>
         val store1 = store.del(auid)
         replyTo ! AuthActionRes(s"Success",Some(auid))
-        registry(store1.getOrElse(store))
+        Behaviors.same
       
       case RefreshTokenAuth(auid, refreshToken, uid, replyTo) =>
         val auth = store.?(auid)

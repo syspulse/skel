@@ -73,7 +73,7 @@ object UserRegistry {
               store1
           }
         
-        registry(store1.getOrElse(store))
+        Behaviors.same
 
       case UpdateUser(uid,req, replyTo) =>
         

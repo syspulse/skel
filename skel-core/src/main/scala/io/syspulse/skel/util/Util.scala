@@ -178,6 +178,7 @@ object Util {
     .map(_.trim)
     .filter(s => !s.isEmpty() && s != "\"\"")
     .toList
+  
   def toCSV(o:Product,d:String=",",dList:String=";"):String = toCsv(o,d,dList)
 
   def toCsv(o:Product,d:String,dList:String):String = {
@@ -204,7 +205,8 @@ object Util {
      symbol.isCaseClass
   }
 
-  protected def traverseAny(a:Any):Array[(String,String)] = {
+  // sqlWrap tells to wrap string into ''
+  def traverseAny(a:Any):Array[(String,String)] = {
     val ff = a.getClass.getDeclaredFields.map( v => (v.getName,v))
     ff.map { case(n,f) => {
       f.setAccessible(true)
@@ -223,10 +225,55 @@ object Util {
           && !v.isInstanceOf[java.lang.Short]
           && !v.isInstanceOf[java.lang.Boolean]
           && !v.isInstanceOf[java.lang.Double]
-          && !v.isInstanceOf[java.lang.String])
+          && !v.isInstanceOf[java.lang.String]
+        )
           traverseAny(v)
         else
-          Array[(String,String)]((n,if(v!=null) v.toString else "null"))
+          Array[(String,String)]((n,
+            if(v!=null) 
+              v.toString 
+            else 
+              "null"
+          ))
+      }
+    }}.flatten
+  }
+
+  def traverseAnySQL(a:Any):Array[(String,String)] = {
+    val ff = a.getClass.getDeclaredFields.map( v => (v.getName,v))
+    ff.map { case(n,f) => {
+      f.setAccessible(true)
+      val typeName = f.getGenericType.getTypeName.toString
+      if(typeName.startsWith("scala.collection")) {
+        val o = f.get(a)
+        val vv:Array[(String,String)] = o.asInstanceOf[Seq[_]].map(v => traverseAny(v)).toArray.flatten
+        vv
+      } else {
+        val v = f.get(a)
+        if(v!=null 
+          && !v.getClass.isPrimitive 
+          && !v.isInstanceOf[java.lang.Byte]
+          && !v.isInstanceOf[java.lang.Integer]
+          && !v.isInstanceOf[java.lang.Long]
+          && !v.isInstanceOf[java.lang.Short]
+          && !v.isInstanceOf[java.lang.Boolean]
+          && !v.isInstanceOf[java.lang.Double]
+          && !v.isInstanceOf[java.lang.String]
+        )
+          traverseAny(v)
+        else
+          Array[(String,String)]((n, {            
+            if(v!=null)
+              if(v.isInstanceOf[String])
+                s"'${v.toString}'"
+              else
+                v.toString
+            else
+              if(v.isInstanceOf[String])
+                "NULL"
+              else
+                "null"
+          }))
       }
     }}.flatten
   }

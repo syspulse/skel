@@ -19,11 +19,11 @@ class ServiceStoreMem extends ServiceStore {
   def all:Seq[Service] = services.toSeq
   def size:Long = services.size
 
-  def +(service:Service):Try[ServiceStore] = { services = services + service; Success(this)}
+  def +(service:Service):Try[Service] = { services = services + service; Success(service)}
   
-  def del(id:UUID):Try[ServiceStore] = { 
+  def del(id:UUID):Try[UUID] = { 
     services.find(_.id == id) match {
-      case Some(service) => { services = services - service; Success(this) }
+      case Some(service) => { services = services - service; Success(id) }
       case None => Failure(new Exception(s"not found: ${id}"))
     }
     

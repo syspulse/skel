@@ -73,7 +73,7 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     r.result.count
   }
 
-  def +(tag:Tag):Try[TagStore] = { 
+  def +(tag:Tag):Try[Tag] = { 
     //Failure(new UnsupportedOperationException(s"not implemented: ${tag}"))
     val r = client.execute {
       com.sksamuel.elastic4s.ElasticDsl
@@ -90,7 +90,7 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     log.info(s"r=${r}")
 
     r.isError match {
-      case false => Success(this)
+      case false => Success(tag)
       case _ => Failure(new Exception(s"could not insert: ${tag}: ${r.error }"))
     }
   }
@@ -205,7 +205,7 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     Tags(r.result.to[Tag].toList,total = Some(r.result.hits.total.value))
   }
 
-  def del(id:String):Try[TagStore] = { 
+  def del(id:String):Try[String] = { 
     //Failure(new UnsupportedOperationException(s"not implemented: ${id}"))
     val r = client.execute {
       ElasticDsl
@@ -214,7 +214,7 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
 
     log.info(s"r=${r}")
     r.isError match {
-      case false => Success(this)
+      case false => Success(id)
       case _ => Failure(new Exception(s"could not delete: ${id}: ${r.error }"))
     }
   }

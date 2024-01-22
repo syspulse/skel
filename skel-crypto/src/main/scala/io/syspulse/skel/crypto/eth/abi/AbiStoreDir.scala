@@ -32,14 +32,14 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
     (aa.drop(from.getOrElse(0)).take(size.getOrElse(10)),aa.size)
   }
   
-  override def +(a:AbiContract):Try[AbiStoreDir] = {
+  override def +(a:AbiContract):Try[AbiContract] = {
     ContractAbi(a.addr,a.json).map( ca => {
       store = store + (a.addr.toLowerCase -> ca)
 
       if(! loading)
         writeFile(a)
 
-      this
+      a
     })
   }
 
@@ -49,10 +49,10 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
     loading = false
   }
   
-  override def del(id:String):Try[AbiStoreDir] = {
+  override def del(id:String):Try[String] = {
     log.info(s"del: ${id}")
     store = store - id.toLowerCase
-    delFileById(id.toLowerCase).map(_ => this)
+    delFileById(id.toLowerCase)
   }
 
   def ?(id:String):Try[AbiContract] = {

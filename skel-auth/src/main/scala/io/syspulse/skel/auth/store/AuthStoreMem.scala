@@ -22,16 +22,16 @@ class AuthStoreMem extends AuthStore {
 
   def size:Long = auths.size
 
-  def +(auth:Auth):Try[AuthStore] = { 
+  def +(auth:Auth):Try[Auth] = { 
     auths = auths + (auth.accessToken -> auth); 
     log.info(s"Auth: ${auth}")
-    Success(this)
+    Success(auth)
   }
   
-  def del(aid:String):Try[AuthStore] = { 
+  def del(aid:String):Try[String] = { 
     val sz = auths.size
     auths = auths - aid
-    if(sz == auths.size) Failure(new Exception(s"not found: ${aid}")) else Success(this)
+    if(sz == auths.size) Failure(new Exception(s"not found: ${aid}")) else Success(aid)
   }
 
   // def -(auth:Auth):Try[AuthStore] = { 

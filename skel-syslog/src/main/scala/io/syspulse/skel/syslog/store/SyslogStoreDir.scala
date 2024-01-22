@@ -33,9 +33,9 @@ class SyslogStoreDir(dir:String = "store/") extends StoreDir[Syslog,ID](dir) wit
   def toKey(id:String):ID = id
   def all:Seq[Syslog] = store.all
   def size:Long = store.size
-  override def +(u:Syslog):Try[SyslogStoreDir] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)
+  override def +(u:Syslog):Try[Syslog] = super.+(u).flatMap(_ => store.+(u))
 
-  override def del(uid:ID):Try[SyslogStoreDir] = super.del(uid).flatMap(_ => store.del(uid)).map(_ => this)
+  override def del(uid:ID):Try[ID] = super.del(uid).flatMap(_ => store.del(uid))
   override def ?(uid:ID):Try[Syslog] = store.?(uid)
 
   override def ??(txt:String):Seq[Syslog] = store.??(txt)

@@ -12,8 +12,8 @@ import io.syspulse.skel.syslog.Syslog.ID
 
 trait SyslogStore extends Store[Syslog,ID] {
   def getKey(y: Syslog): ID = Syslog.uid(y)
-  def +(syslog:Syslog):Try[SyslogStore]
-  def del(id:ID):Try[SyslogStore]
+  def +(syslog:Syslog):Try[Syslog]
+  def del(id:ID):Try[ID]
   def ?(id:ID):Try[Syslog]
   def all:Seq[Syslog]
   def size:Long

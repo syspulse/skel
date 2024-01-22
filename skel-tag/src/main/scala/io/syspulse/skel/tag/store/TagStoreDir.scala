@@ -23,10 +23,10 @@ class TagStoreDir(dir:String = "store/") extends StoreDir[Tag,String](dir) with 
   
   override def all(from:Option[Int],size:Option[Int]):Seq[Tag] = store.all(from,size)
   def size:Long = store.size
-  override def +(u:Tag):Try[TagStoreDir] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)
-  override def del(id:String):Try[TagStoreDir] = {
+  override def +(u:Tag):Try[Tag] = super.+(u).flatMap(_ => store.+(u))
+  override def del(id:String):Try[String] = {
     store.del(id)
-    super.del(id).map(_ => this)
+    super.del(id)
   }
   override def ?(id:String):Try[Tag] = store.?(id)
 

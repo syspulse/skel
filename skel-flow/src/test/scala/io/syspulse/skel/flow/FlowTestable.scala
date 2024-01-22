@@ -2,7 +2,11 @@ package io.syspulse.skel.flow
 
 import scala.util.{Try,Success,Failure}
 
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.{Ignore}
+import org.scalatest.wordspec.{ AnyWordSpec}
+import org.scalatest.matchers.should.{ Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+
 import org.scalactic.TolerantNumerics
 
 import java.time._

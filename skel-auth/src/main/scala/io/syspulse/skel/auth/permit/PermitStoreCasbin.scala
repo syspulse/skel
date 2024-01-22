@@ -91,22 +91,22 @@ class PermitStoreCasbin(implicit config:Config) extends PermitStore {
 
   def size:Long = all.size
 
-  def +(r:PermitUser):Try[PermitStore] = {
+  def +(r:PermitUser):Try[PermitUser] = {
     log.info(s"add: ${r}")
     r.roles.foreach { role => 
       engine.enforcer.addRoleForUser(r.uid.toString, role)
     }    
-    Success(this)
+    Success(r)
   }
 
-  def del(uid:UUID):Try[PermitStore] = { 
+  def del(uid:UUID):Try[UUID] = { 
     log.info(s"del: ${uid}")
     val roles = engine.enforcer.getRolesForUser(uid.toString)
     roles match {      
       case Nil => Failure(new Exception(s"not found: ${uid}"))
       case _ => 
         engine.enforcer.deleteUser(uid.toString)
-        Success(this)
+        Success(uid)
     }
   }
 
@@ -130,7 +130,7 @@ class PermitStoreCasbin(implicit config:Config) extends PermitStore {
     ?(uid).map(p => modify(p,roles))
   }
 
-  def addPermit(p:PermitRole):Try[PermitStore] = Failure(new Exception(s"not supported"))
-  def delPermit(role:String):Try[PermitStore] = Failure(new Exception(s"not supported"))
+  def addPermit(p:PermitRole):Try[PermitRole] = Failure(new Exception(s"not supported"))
+  def delPermit(role:String):Try[String] = Failure(new Exception(s"not supported"))
 }
 

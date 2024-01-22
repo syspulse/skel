@@ -22,10 +22,8 @@ import java.util.concurrent.TimeUnit
 
 import scala.jdk.CollectionConverters._
 
-import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import scala.util.Random
-
 
 class IngestStdout extends IngestClient {
 

@@ -29,10 +29,10 @@ class JobStoreMem(engine:JobEngine)(implicit config:Config) extends JobStore {
 
   def size:Long = jobs.size
 
-  override def +(job:Job):Try[JobStore] = { 
+  override def +(job:Job):Try[Job] = { 
     log.info(s"add: ${job}")
     jobs = jobs + (job.id -> job)
-    Success(this)
+    Success(job)
   }
 
   def update(job:Job):Try[Job] = {
@@ -44,11 +44,11 @@ class JobStoreMem(engine:JobEngine)(implicit config:Config) extends JobStore {
 
 
   // jobs are not removed, but status is changed
-  def del(id:UUID):Try[JobStore] = { 
+  def del(id:UUID):Try[UUID] = { 
     log.info(s"del: ${id}")
     this.?(id) match {
       case Success(job) => 
-        engine.del(job).map(_ => this)
+        engine.del(job).map(_ => id)
       case Failure(e) => Failure(e)
     }    
   }

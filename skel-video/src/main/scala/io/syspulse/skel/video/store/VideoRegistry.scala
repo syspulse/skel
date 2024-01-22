@@ -63,18 +63,16 @@ object VideoRegistry {
         val store1 = store.+(video)
 
         replyTo ! video
-        registry(store1.getOrElse(store))
-
-      case RandomVideo(replyTo) =>
-        
-        //replyTo ! VideoRandomRes(secret,qrImage)
         Behaviors.same
 
+      case RandomVideo(replyTo) =>        
+        //replyTo ! VideoRandomRes(secret,qrImage)
+        Behaviors.same
       
       case DeleteVideo(vid, replyTo) =>
         val store1 = store.del(vid)
         replyTo ! VideoActionRes(s"Success",Some(vid.toString))
-        registry(store1.getOrElse(store))
+        Behaviors.same
     }
   }
 }

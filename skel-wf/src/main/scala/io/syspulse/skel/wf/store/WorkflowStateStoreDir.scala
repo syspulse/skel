@@ -28,9 +28,9 @@ class WorkflowStateStoreDir(dir:String = "store/runtime") extends StoreDir[Workf
   def toKey(id:String):Workflowing.ID = id
   def all:Seq[WorkflowState] = store.all
   def size:Long = store.size
-  override def +(u:WorkflowState):Try[WorkflowStateStoreDir] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)
+  override def +(u:WorkflowState):Try[WorkflowState] = super.+(u).flatMap(_ => store.+(u))
 
-  override def del(id:Workflowing.ID):Try[WorkflowStateStoreDir] = super.del(id).flatMap(_ => store.del(id)).map(_ => this)
+  override def del(id:Workflowing.ID):Try[Workflowing.ID] = super.del(id).flatMap(_ => store.del(id))
   override def ?(id:Workflowing.ID):Try[WorkflowState] = store.?(id)
 
   override def update(id:Workflowing.ID,status:Option[WorkflowState.Status]=None,states:Option[Seq[State]] = None, events:Option[Long] = None):Try[WorkflowState] = 

@@ -68,7 +68,7 @@ object TelemetryRegistry {
         val store1 = store.+(telemetry)
 
         replyTo ! telemetry
-        registry(store1.getOrElse(store))
+        Behaviors.same
 
       case RandomTelemetry(replyTo) =>
         
@@ -79,7 +79,7 @@ object TelemetryRegistry {
       case DeleteTelemetry(vid, replyTo) =>
         val store1 = store.del(vid)
         replyTo ! TelemetryActionRes(s"Success",Some(vid.toString))
-        registry(store1.getOrElse(store))
+        Behaviors.same
     }
   }
 }

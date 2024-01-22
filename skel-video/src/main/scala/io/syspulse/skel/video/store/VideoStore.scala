@@ -16,8 +16,8 @@ import io.syspulse.skel.video.Video.ID
 trait VideoStore extends Store[Video,ID] {
   def getKey(v: Video): ID = v.vid  
 
-  def +(video:Video):Try[VideoStore]
-  def del(id:ID):Try[VideoStore]
+  def +(video:Video):Try[Video]
+  def del(id:ID):Try[ID]
   def ?(id:ID):Try[Video]
   def all:Seq[Video]
   def size:Long

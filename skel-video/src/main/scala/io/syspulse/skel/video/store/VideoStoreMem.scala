@@ -20,17 +20,17 @@ class VideoStoreMem extends VideoStore {
 
   def size:Long = videos.size
 
-  def +(video:Video):Try[VideoStore] = { 
+  def +(video:Video):Try[Video] = { 
     videos = videos + (video.vid -> video)
     log.info(s"${video}")
-    Success(this)
+    Success(video)
   }
 
-  def del(vid:VID):Try[VideoStore] = { 
+  def del(vid:VID):Try[VID] = { 
     val sz = videos.size
     videos = videos - vid;
     log.info(s"${vid}")
-    if(sz == videos.size) Failure(new Exception(s"not found: ${vid}")) else Success(this)  
+    if(sz == videos.size) Failure(new Exception(s"not found: ${vid}")) else Success(vid)  
   }
 
   def ?(vid:VID):Try[Video] = videos.get(vid) match {

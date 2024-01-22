@@ -2,6 +2,10 @@ package io.syspulse.skel.store
 
 import scala.util.Try
 import scala.util.{Success,Failure}
+import scala.concurrent.Future
+import scala.jdk.CollectionConverters._
+import com.typesafe.config.ConfigFactory
+import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 import java.time._
@@ -14,33 +18,20 @@ import io.getquill.MysqlJdbcContext
 import io.getquill.PostgresJdbcContext
 import io.getquill.PostgresJAsyncContext
 import io.getquill.MysqlJAsyncContext
-
-import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 //import io.getquill.{Literal, MySQLDialect}
-
-import scala.jdk.CollectionConverters._
-import com.typesafe.config.ConfigFactory
-import com.typesafe.scalalogging.Logger
+import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 
 import io.syspulse.skel.config.Configuration
-import scala.concurrent.Future
+import io.syspulse.skel.uri.JdbcURI
 
-object StoreDB {
-  def parseUri(dbUri:String) = {
-    dbUri.split("://").toList match {
-      case "mysql" :: db :: _ => ("mysql",db)
-      case "postgres" :: db :: _ => ("postgres",db)
-      case _ => ("mysql","mysql")   
-    }
-  }
-}
-
-abstract class StoreDBCore[E,P](dbUri:String,val tableName:String,configuration:Option[Configuration]=None) {
+abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Option[Configuration]=None) {
   val log = Logger(s"${this}")
 
   val props = new java.util.Properties
 
-  protected val (dbType,dbConfigName) = StoreDB.parseUri(dbUri)
+  val uri = new JdbcURI(dbUri)
+    
+  protected val (dbType,dbConfigName) = (uri.dbType,uri.dbConfig.getOrElse("posgtres"))
 
   def getTableName = tableName
   def getDbType = dbType
@@ -99,7 +90,7 @@ abstract class StoreDBCore[E,P](dbUri:String,val tableName:String,configuration:
 
 // ========================================================================= StoreDB
 abstract class StoreDB[E,P](dbUri:String,tableName:String,configuration:Option[Configuration]=None) 
-  extends StoreDBCore[E,P](dbUri,tableName,configuration) 
+  extends StoreDBCore(dbUri,tableName,configuration) 
   with Store[E,P] {
   
   val ctx = dbType match {
@@ -132,8 +123,9 @@ abstract class StoreDB[E,P](dbUri:String,tableName:String,configuration:Option[C
 // ========================================================================= StoreDBAsync
 
 abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Option[Configuration]=None) 
-  extends StoreDBCore[E,P](dbUri,tableName,configuration) 
-  with StoreAsync[E,P] {
+  extends StoreDBCore(dbUri,tableName,configuration) 
+  //with StoreAsync[E,P] {
+  with Store[E,P] {
 
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
   
@@ -141,11 +133,11 @@ abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Opt
   val config = ConfigFactory.load().getConfig(dbConfigName)
   log.info(s"DB Config: ${config}")
 
-  val ctx = dbType.split("://").toList match {
-    case "postgres" :: _ =>                   
+  val ctx = dbType match {
+    case "postgres" =>                   
       // new PostgresAsyncContext(NamingStrategy(SnakeCase),config)    
       new PostgresJAsyncContext(NamingStrategy(SnakeCase),config)      
-    case "mysql" :: _ => 
+    case "mysql" => 
       new MysqlJAsyncContext(NamingStrategy(SnakeCase),config)
     case _ =>
       new MysqlJAsyncContext(NamingStrategy(SnakeCase),config)      
@@ -161,7 +153,7 @@ abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Opt
   def truncateSQL = () => quote { infix"""TRUNCATE TABLE ${lift(tableName)}""".as[Long] }
   def truncate():Future[Long] = ctx.run(truncateSQL())
 
-  def size:Future[Long] = ctx.run(totalSQL())
+  override def sizeAsync:Future[Long] = ctx.run(totalSQL())
 
   // create Store
   create

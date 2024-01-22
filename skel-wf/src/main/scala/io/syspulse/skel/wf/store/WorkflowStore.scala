@@ -13,9 +13,9 @@ import io.syspulse.skel.wf.runtime.ExecData
 trait WorkflowStore extends Store[Workflow,Workflow.ID] {
   
   def getKey(wf: Workflow): Workflow.ID = wf.id
-  def +(wf:Workflow):Try[WorkflowStore]
+  def +(wf:Workflow):Try[Workflow]
   
-  def del(id:Workflow.ID):Try[WorkflowStore]
+  def del(id:Workflow.ID):Try[Workflow.ID]
   def ?(id:Workflow.ID):Try[Workflow]  
   def all:Seq[Workflow]
   def size:Long

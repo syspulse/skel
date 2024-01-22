@@ -29,16 +29,16 @@ class PermitStoreMem extends PermitStore {
 
   def size:Long = users.size
 
-  def +(p:PermitUser):Try[PermitStore] = {
+  def +(p:PermitUser):Try[PermitUser] = {
     log.info(s"add: ${p}")
     users = users + (p.uid -> p)
-    Success(this)
+    Success(p)
   }
 
-  def del(uid:UUID):Try[PermitStore] = { 
+  def del(uid:UUID):Try[UUID] = { 
     log.info(s"del: ${uid}")
     users.get(uid) match {
-      case Some(auth) => { users = users - uid; Success(this) }
+      case Some(auth) => { users = users - uid; Success(uid) }
       case None => Failure(new Exception(s"not found: ${uid}"))
     }
   }
@@ -62,15 +62,15 @@ class PermitStoreMem extends PermitStore {
     getPermit(role).map(p => modifyPermit(p,resources))
   }
 
-  def addPermit(p:PermitRole):Try[PermitStore] = {
+  def addPermit(p:PermitRole):Try[PermitRole] = {
     permits = permits + (p.role -> p)
-    Success(this)
+    Success(p)
   }
 
-  def delPermit(role:String):Try[PermitStore] = { 
+  def delPermit(role:String):Try[String] = { 
     log.info(s"del: ${role}")
     permits.get(role) match {
-      case Some(r) => { permits = permits - role; Success(this) }
+      case Some(r) => { permits = permits - role; Success(role) }
       case None => Failure(new Exception(s"not found: ${role}"))
     }
   }

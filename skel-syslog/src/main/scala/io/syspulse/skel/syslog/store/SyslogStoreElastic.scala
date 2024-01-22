@@ -65,11 +65,11 @@ class SyslogStoreElastic(elasticUri:String) extends SyslogStore {
     r.result.count
   }
 
-  def +(syslog:Syslog):Try[SyslogStore] = { 
+  def +(syslog:Syslog):Try[Syslog] = { 
     Failure(new UnsupportedOperationException(s"not implemented: ${syslog}"))
   }
 
-  def del(id:ID):Try[SyslogStore] = { 
+  def del(id:ID):Try[ID] = { 
     Failure(new UnsupportedOperationException(s"not implemented: ${id}"))
   }
 

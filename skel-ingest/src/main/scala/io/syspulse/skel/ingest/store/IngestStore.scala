@@ -14,8 +14,8 @@ abstract class Ing[I] {
 
 trait IngestStore[I] extends Store[Ing[I],I] {
   def getKey(i: Ing[I]): I = i.getId
-  def +(i:Ing[I]):Try[IngestStore[I]]
-  def del(id:I):Try[IngestStore[I]]
+  def +(i:Ing[I]):Try[Ing[I]]
+  def del(id:I):Try[I]
   def ?(id:I):Try[Ing[I]]
   def all:Seq[Ing[I]]
   def size:Long

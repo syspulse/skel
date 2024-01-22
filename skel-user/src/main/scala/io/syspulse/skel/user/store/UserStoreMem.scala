@@ -1,8 +1,8 @@
 package io.syspulse.skel.user.store
 
-import scala.util.Try
-import scala.util.{Success,Failure}
+import scala.util.{Try,Success,Failure}
 import scala.collection.immutable
+import scala.concurrent.Future
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
@@ -22,17 +22,17 @@ class UserStoreMem extends UserStore {
 
   def size:Long = users.size
 
-  def +(user:User):Try[UserStore] = { 
+  def +(user:User):Try[User] = { 
     users = users + (user.id -> user)
     log.info(s"add: ${user}")
-    Success(this)
+    Success(user)
   }
 
-  def del(id:UUID):Try[UserStore] = { 
+  def del(id:UUID):Try[UUID] = { 
     val sz = users.size
     users = users - id;
     log.info(s"del: ${id}")
-    if(sz == users.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
+    if(sz == users.size) Failure(new Exception(s"not found: ${id}")) else Success(id)  
   }
 
   // def -(user:User):Try[UserStore] = {     
@@ -61,4 +61,14 @@ class UserStoreMem extends UserStore {
       case f => f
     }
   }
+
+  // Async not implemented
+  // def +!(user:User):Future[User] = throw new NotImplementedError()
+  // def delAsync(id:UUID):Future[UUID] = throw new NotImplementedError()
+  // def ?!(id:UUID):Future[User] = throw new NotImplementedError()
+  // def allAsync:Future[Seq[User]] = throw new NotImplementedError()
+  // def sizeAsync:Future[Long] = throw new NotImplementedError()
+  def findByXidAsync(xid:String):Future[User] = throw new NotImplementedError()
+  def findByEmailAsync(email:String):Future[User] = throw new NotImplementedError()
+  def updateAsync(id:UUID, email:Option[String] = None, name:Option[String] = None, avatar:Option[String] = None):Future[User] = throw new NotImplementedError()
 }

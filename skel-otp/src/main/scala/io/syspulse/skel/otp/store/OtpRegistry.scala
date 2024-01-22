@@ -122,7 +122,7 @@ object OtpRegistry {
         val store1 = store.+(otp)
 
         replyTo ! OtpCreateRes(secret,Some(id))
-        registry(store1.getOrElse(store))
+        Behaviors.same
 
       case RandomOtp(otpRandom, replyTo) =>
         
@@ -188,7 +188,7 @@ object OtpRegistry {
       case DeleteOtp(id, replyTo) =>
         val store1 = store.del(id)
         replyTo ! OtpActionRes(s"Success",Some(id))
-        registry(store1.getOrElse(store))
+        Behaviors.same
     }
   }
 }

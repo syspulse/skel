@@ -31,11 +31,11 @@ class EnrollStoreMem(implicit val ec:ExecutionContext) extends EnrollStore {
     Success(id)
   }
 
-  def del(id:UUID):Try[EnrollStore] = { 
+  def del(id:UUID):Try[UUID] = { 
     val sz = enrolls.size
     enrolls = enrolls - id;
     log.info(s"${id}")
-    if(sz == enrolls.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
+    if(sz == enrolls.size) Failure(new Exception(s"not found: ${id}")) else Success(id)  
   }
   
   def ???(id:UUID):Future[Try[Enroll]] = Future(

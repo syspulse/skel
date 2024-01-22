@@ -71,7 +71,7 @@ object NotifyRegistry {
         val store1 = store.notify(n)
 
         replyTo ! Success(n)
-        registry(store1.getOrElse(store))
+        Behaviors.same
     }
   }
 }
