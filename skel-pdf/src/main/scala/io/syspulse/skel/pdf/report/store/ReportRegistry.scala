@@ -60,7 +60,7 @@ object ReportRegistry {
 
           // notify user
           replyTo ! ReportActionRes("started",Some(id))
-          registry(store1.getOrElse(store))(poolActor,ctx)
+          Behaviors.same
       
         case DeleteReport(id, replyTo) =>
           Behaviors.same
@@ -77,7 +77,7 @@ object ReportRegistry {
             }
 
             val store1 = store.+(report1)
-            registry(store1.getOrElse(store))(poolActor,ctx)
+            Behaviors.same
 
           } else
             Behaviors.ignore

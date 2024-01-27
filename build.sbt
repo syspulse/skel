@@ -29,6 +29,9 @@ enablePlugins(AshScriptPlugin)
 //enablePlugins(JavaAppPackaging, AshScriptPlugin)
 
 // Huge Credits -> https://softwaremill.com/how-to-build-multi-platform-docker-image-with-sbt-and-docker-buildx
+// Install emulators:
+// docker run -it --rm --privileged tonistiigi/binfmt --install all
+//
 lazy val ensureDockerBuildx = taskKey[Unit]("Ensure that docker buildx configuration exists")
 lazy val dockerBuildWithBuildx = taskKey[Unit]("Build docker images using buildx")
 lazy val dockerBuildxSettings = Seq(

@@ -41,21 +41,21 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
 
   def size:Long = cache.size
 
-  def +(o:Odo):Try[OdoStore] = { 
+  def +(o:Odo):Try[Odo] = { 
     for {
       r1 <- store.+(o)
       r2 <- cache.+(o)      
-    } yield this
+    } yield o
   }
 
-  def del(id:String):Try[OdoStore] = {
+  def del(id:String):Try[String] = {
     // optimistic delete dirty
     dirty.del(id)
 
     for {
       r1 <- store.del(id)
       r2 <- cache.del(id)
-    } yield this
+    } yield id
   }
 
   def ????(id:String) = {

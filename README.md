@@ -4,34 +4,33 @@ Prototyping Framework for Cloud Products
 
 <img src="doc/Skel-Architecture-ref0.drawio.png" width="1000">
 
-- [infra](infra) - Infrastructure (docker,kubernetes)
-- [skel-http](skel-http) - HTTP Service (+ Kubernetes)
-
-- [skel-auth](skel-auth) - Authentication/Authorization (IDP for Web3)
-- [skel-user](skel-user) - UserProfile Service reference
-- [skel-notify](skel-notify) - Notification Service
-- [skel-enroll](skel-enroll) - Registration Flow
-- [skel-syslog](skel-syslog) - Auditlog service (Cloud syslog)
-
-- [skel-kafka](skel-kafka) - Kafka Processors (Source/Sink)
-- [skel-ingest](skel-ingest) - Data Ingestion with Prometheus telemerty reference
-- [skel-telemetry](skel-telemetry) - TimeSeries Service + Prometheus/InfluxDB/Graphite/Loki/Grafana infra
-- [skel-db](skel-db) - DB Related stuff
-- [skel-otp](skel-otp) - OTP Service reference service 
-- [skel-test](skel-test) - Test helpers
-- [skel-crypto](skel-crypto) - Cryptography and Ethereum utilities
-- [skel-spark](skel-spark) - Spark tools
-- [skel-datalake](skel-datalake) - Datalake and Warehouses (+ Notebooks)
-- [skel-flow](skel-flow) - Streaming DataFlows (Workflows -> [skel-wf](skel-wf))
-- [skel-scrap](skel-scrap) - Scraping pipelines
-- [skel-cli](skel-cli) - Shell command line client
-- [skel-cron](skel-cron) - Cron engine
-- [skel-serde](skel-serde) - Serializers
-- [skel-video](skel-video) - Movie Metadata processors
-- [skel-stream](skel-stream) - Akka Steams 
-- [skel-pdf](skel-pdf) - PDF Utils
-- [skel-tag](skel-tag) - Tags searchable service (e.g. labels, tags)
-- [skel-wf](skel-wf) - Workflow Engine (long running jobs/tasks with complex steps)
+* [infra](infra) - Infrastructure (docker,kubernetes)
+* [skel-http](skel-http) - HTTP Service (+ Kubernetes)
+* [skel-auth](skel-auth) - Authentication/Authorization (IDP for Web3)
+* [skel-user](skel-user) - UserProfile Service reference
+* [skel-notify](skel-notify) - Notification Service
+* [skel-enroll](skel-enroll) - Registration Flow
+* [skel-syslog](skel-syslog) - Auditlog service (Cloud syslog)
+* [skel-kafka](skel-kafka) - Kafka Processors (Source/Sink)
+* [skel-ingest](skel-ingest) - Data Ingestion with Prometheus telemerty reference
+* [skel-telemetry](skel-telemetry) - TimeSeries Service + Prometheus/InfluxDB/Graphite/Loki/Grafana infra
+* [skel-db](skel-db) - DB Related stuff
+* [skel-otp](skel-otp) - OTP Service reference service 
+* [skel-test](skel-test) - Test helpers
+* [skel-crypto](skel-crypto) - Cryptography and Ethereum utilities
+* [skel-spark](skel-spark) - Spark tools
+* [skel-datalake](skel-datalake) - Datalake and Warehouses (+ Notebooks)
+* [skel-flow](skel-flow) - Streaming DataFlows (Workflows -> [skel-wf](skel-wf))
+* [skel-scrap](skel-scrap) - Scraping pipelines
+* [skel-cli](skel-cli) - Shell command line client
+* [skel-cron](skel-cron) - Cron engine
+* [skel-serde](skel-serde) - Serializers
+* [skel-video](skel-video) - Movie Metadata processors
+* [skel-stream](skel-stream) - Akka Steams 
+* [skel-pdf](skel-pdf) - PDF Utils
+* [skel-tag](skel-tag) - Tags searchable service (e.g. labels, tags)
+* [skel-wf](skel-wf) - Workflow Engine (long running jobs/tasks with complex steps)
+* [skel-odometer](skel-odometer) - Counters Datastore
 
 ----
 ## Build & Run

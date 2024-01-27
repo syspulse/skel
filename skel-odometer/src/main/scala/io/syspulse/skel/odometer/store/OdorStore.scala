@@ -14,9 +14,9 @@ import io.syspulse.skel.odometer.Odo
 trait OdoStore extends Store[Odo,String] {
   
   def getKey(e: Odo): String = e.id
-  def +(odometer:Odo):Try[OdoStore]
+  def +(odometer:Odo):Try[Odo]
   
-  def del(id:String):Try[OdoStore]
+  def del(id:String):Try[String]
   def ?(id:String):Try[Odo]  
   def all:Seq[Odo]
   def size:Long
