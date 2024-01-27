@@ -121,5 +121,12 @@ class NotifySpec extends AnyWordSpec with Matchers {
       n.asInstanceOf[NotifyEmbed[_]].getEmbed.asInstanceOf[NotifyHttp].request.uri should === ("https://localhost:8300/")
       n.asInstanceOf[NotifyEmbed[_]].getEmbed.asInstanceOf[NotifyHttp].request.verb.value should === (HttpMethods.POST.value)
     }
+
+    "parse http 'event://stdout://' to NotifyEmbed(NotifyStdout)" in {
+      val n = NotifyUri("event://stdout://")
+      n.isInstanceOf[NotifyEmbed[_]] should === (true)
+      n.asInstanceOf[NotifyEmbed[_]].getEmbed.isInstanceOf[NotifyStdout] should === (true)
+      
+    }
   }
 }

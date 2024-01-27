@@ -10,7 +10,7 @@ import io.syspulse.skel.notify.NotifyReceiver
 import io.syspulse.skel.notify.server.WS
 import io.syspulse.skel.notify.Notify
 
-class NotifyWebsocket(id:String) extends NotifyReceiver[Unit] {
+case class NotifyWebsocket(id:String) extends NotifyReceiver[Unit] {
   def send(title:String,msg:String,severity:Option[Int],scope:Option[String]):Try[Unit] = {
     val r = WS.broadcast(id,title,msg)
     Success(r)

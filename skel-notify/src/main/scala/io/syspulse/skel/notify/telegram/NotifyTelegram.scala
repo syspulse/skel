@@ -51,7 +51,7 @@ object TelegramHttpClient {
   }
 }
 
-class NotifyTelegram(uri:String)(implicit config: Config) extends NotifyReceiver[String] {
+case class NotifyTelegram(uri:String)(implicit config: Config) extends NotifyReceiver[String] {
   val log = Logger(s"${this}")
 
   val telUri = TelegramURI(uri,Option(config.telegramUri))

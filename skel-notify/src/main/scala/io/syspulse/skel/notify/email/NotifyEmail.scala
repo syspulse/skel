@@ -46,7 +46,7 @@ object SMTP {
   }
 }
 
-class NotifyEmail(smtpName:String,to:String)(implicit config: Config) extends NotifyReceiver[String] {
+case class NotifyEmail(smtpName:String,to:String)(implicit config: Config) extends NotifyReceiver[String] {
   val log = Logger(s"${this}")
 
   val from = config.smtpFrom

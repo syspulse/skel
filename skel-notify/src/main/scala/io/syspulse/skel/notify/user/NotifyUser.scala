@@ -14,7 +14,7 @@ import io.syspulse.skel.syslog.SyslogEvent
 import io.syspulse.skel.syslog.SyslogEventJson
 import io.syspulse.skel.notify.Notify
 
-class NotifyUser(user:Option[String] = None) extends NotifyReceiver[Long] {
+case class NotifyUser(user:Option[String] = None) extends NotifyReceiver[Long] {
   val log = Logger(s"${this}")
 
   import spray.json._

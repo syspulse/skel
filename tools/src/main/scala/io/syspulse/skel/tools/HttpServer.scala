@@ -37,8 +37,12 @@ abstract class HttpServerable extends cask.MainRoutes{
     val (reqs) = args.toList match {            
       case Nil => 
         Seq(s"""{"ts": ${System.currentTimeMillis}, "status": 100}\n""")
-      case reqs => 
-        reqs.map(f => os.read(os.Path(f,os.pwd)))
+      case reqs =>         
+        reqs.map(f => f.split("://").toList match {
+          case "file" :: file :: Nil =>
+            os.read(os.Path(f,os.pwd))
+          case rsp :: Nil => rsp
+        })
     }
 
     this.requests = reqs
@@ -91,7 +95,7 @@ abstract class HttpServerable extends cask.MainRoutes{
   
   @cask.get("/")
   def rootGet() = {
-    Console.err.println(s"GET -")
+    Console.err.println(s"<- GET")
     if(current >= requests.size)
       current = 0
 
@@ -104,8 +108,9 @@ abstract class HttpServerable extends cask.MainRoutes{
   }
 
   @cask.post("/")
-  def rootPort() = {
-    Console.err.println(s"POST <-")
+  def rootPort(req: cask.Request) = {
+    Console.err.println(s"<- POST")
+    Console.err.println(s"${req.text()}")
     if(current >= requests.size)
       current = 0
 

@@ -28,7 +28,7 @@ import io.syspulse.skel.notify.Notify
 import spray.json._
 import io.syspulse.skel.syslog.{SyslogEvent,SyslogEventJson}
 
-class NotifyKafka(uri:String)(implicit config: Config) extends NotifyReceiver[String] with KafkaSink[String] {  
+case class NotifyKafka(uri:String)(implicit config: Config) extends NotifyReceiver[String] with KafkaSink[String] {  
   import spray.json._
   import SyslogEventJson._
   

@@ -36,7 +36,7 @@ object NotifyHttp {
   implicit val ec = as.getDispatcher
 }
 
-class NotifyHttp(uri:String) extends NotifyReceiver[String] {
+case class NotifyHttp(uri:String) extends NotifyReceiver[String] {
   val log = Logger(s"${this}")
 
   override def toString = s"${this.getClass.getSimpleName}(${request})"
@@ -45,10 +45,13 @@ class NotifyHttp(uri:String) extends NotifyReceiver[String] {
     def getHeaders:Seq[HttpHeader] = headers.map{ case(k,v) => RawHeader(k,v) }.toSeq 
 
     def withUri(subj:String,msg:String) = {
-      this.copy(uri = uri
-        .replaceAll("\\{subj\\}",subj)
-        .replaceAll("\\{msg\\}",msg)
-      )
+      verb.value match {
+        case "GET" | "AGET" =>
+          this.copy(uri = uri.replaceAll("\\{subj\\}",subj).replaceAll("\\{msg\\}",msg))
+        case "POST" | "PUT" | "APOST" | "APUT" =>
+          this.copy(uri = uri.replaceAll("\\{subj\\}",subj), body = Some(msg) )
+      }
+      
     }
   }
 
@@ -88,9 +91,12 @@ class NotifyHttp(uri:String) extends NotifyReceiver[String] {
   val request = parseUri(uri)
 
   def ->(r:Request) =  
-    HttpRequest(method = r.verb, uri = r.uri, headers = r.getHeaders
-    //entity = HttpEntity(ContentTypes.`application/json`)
-  )
+    if(r.body.isDefined)
+      HttpRequest(method = r.verb, uri = r.uri, headers = r.getHeaders,
+                  entity = HttpEntity(ContentTypes.`application/json`, r.body.get))
+    else
+      HttpRequest(method = r.verb, uri = r.uri, headers = r.getHeaders)
+  
   
   def send(subj:String,msg:String,severity:Option[NotifySeverity.ID],scopeOver:Option[String]):Try[String] = {
     import NotifyHttp._

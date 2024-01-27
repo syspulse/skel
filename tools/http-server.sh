@@ -12,4 +12,4 @@ while true; do {
   #echo $RSP; 
   cat $RSP_FILE
 
-} | nc -l $PORT -q 0; done
+} | nc -l $PORT -q 0 -vvvv; done
