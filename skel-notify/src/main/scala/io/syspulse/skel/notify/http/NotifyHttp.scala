@@ -49,26 +49,36 @@ class NotifyHttp(uri:String) extends NotifyReceiver[String] {
     }
   }
 
-  // http://POST/host:port/url{subj}/{msg}
+  // http://host:port/url{subj}/{msg}
+  // http://GET@host:port/url{subj}/{msg}
+  // http://POST@host:port/url{subj}
+  // http://POST@123456789@host:port/url{subj}
   // replace {} with real data
   def parseUri(uri:String) = {
 
-    def buildRequest(proto:String,verb:HttpMethod,rest:List[String],headers:Map[String,String]=Map(),body:Option[String]=None,async:Boolean=false) = {
-      Request(s"${proto}://${rest.mkString("/")}",verb, headers, body)
+    def buildRequest(proto:String,verb:HttpMethod,rest:String,headers:Map[String,String]=Map(),body:Option[String]=None,async:Boolean=false) = {
+      Request(s"${proto}://${rest}",verb, headers, body)
     }
 
-    uri.split("(://|/)").toList match {
-      case proto :: "GET" :: rest => buildRequest(proto,HttpMethods.GET,rest)
-      case proto :: "POST" :: rest => buildRequest(proto,HttpMethods.POST,rest)
-      case proto :: "PUT" :: rest => buildRequest(proto,HttpMethods.PUT,rest)
-      case proto :: "DELETE" :: rest => buildRequest(proto,HttpMethods.DELETE,rest)
+    uri.split("(://|@)").toList match {
+      case proto :: "GET" :: auth :: rest :: Nil => buildRequest(proto,HttpMethods.GET,rest,Map("Authorization" -> s"Bearer ${auth}"))
+      case proto :: "POST" :: auth  :: rest :: Nil  => buildRequest(proto,HttpMethods.POST,rest,Map("Authorization" -> s"Bearer ${auth}"))
+      case proto :: "PUT" :: auth  :: rest :: Nil => buildRequest(proto,HttpMethods.PUT,rest,Map("Authorization" -> s"Bearer ${auth}"))
+      case proto :: "DELETE" :: auth  :: rest :: Nil => buildRequest(proto,HttpMethods.DELETE,rest,Map("Authorization" -> s"Bearer ${auth}"))
 
-      case proto :: "AGET" :: rest => buildRequest(proto,HttpMethods.GET,rest,async=true)
-      case proto :: "APOST" :: rest => buildRequest(proto,HttpMethods.POST,rest,async=true)
-      case proto :: "APUT" :: rest => buildRequest(proto,HttpMethods.PUT,rest,async=true)
-      case proto :: "ADELETE" :: rest => buildRequest(proto,HttpMethods.DELETE,rest,async=true)
+      case proto :: "GET" :: rest :: Nil => buildRequest(proto,HttpMethods.GET,rest)
+      case proto :: "POST" :: rest :: Nil => buildRequest(proto,HttpMethods.POST,rest)
+      case proto :: "PUT" :: rest :: Nil => buildRequest(proto,HttpMethods.PUT,rest)
+      case proto :: "DELETE" :: rest :: Nil => buildRequest(proto,HttpMethods.DELETE,rest)
 
-      case proto :: rest => buildRequest(proto,HttpMethods.GET,rest)      
+      case proto :: "AGET" :: rest :: Nil => buildRequest(proto,HttpMethods.GET,rest,async=true)
+      case proto :: "APOST" :: rest :: Nil => buildRequest(proto,HttpMethods.POST,rest,async=true)
+      case proto :: "APUT" :: rest :: Nil => buildRequest(proto,HttpMethods.PUT,rest,async=true)
+      case proto :: "ADELETE" :: rest :: Nil => buildRequest(proto,HttpMethods.DELETE,rest,async=true)
+
+      case proto :: rest :: Nil => buildRequest(proto,HttpMethods.GET,rest)
+
+      case u => buildRequest("http",HttpMethods.GET,"localhost:8080")
     }
   }
 
