@@ -56,8 +56,8 @@ class PluginStoreDir(dir:String = "plugins") extends StoreDir[Plugin,Plugin.ID](
   def size:Long = store.size
   
   // all these should not be supported
-  override def +(u:Plugin):Try[PluginStoreDir] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)
-  override def del(id:Plugin.ID):Try[PluginStoreDir] = super.del(id).flatMap(_ => store.del(id)).map(_ => this)
+  override def +(u:Plugin):Try[Plugin] = super.+(u).flatMap(_ => store.+(u))
+  override def del(id:Plugin.ID):Try[Plugin.ID] = super.del(id).flatMap(_ => store.del(id))
   override def ?(id:Plugin.ID):Try[Plugin] = store.?(id)
 
   // create directory
