@@ -4,10 +4,14 @@ import org.scalatest.{Ignore}
 import org.scalatest.wordspec.{ AnyWordSpec}
 import org.scalatest.matchers.should.{ Matchers}
 import org.scalatest.flatspec.AnyFlatSpec
-import io.syspulse.skel.notify.email.SmtpURI
+
 import akka.http.javadsl.model.HttpMethod
 import akka.http.scaladsl.model.HttpMethods
 import akka.http.scaladsl.model.headers.RawHeader
+
+import io.syspulse.skel.notify._
+import io.syspulse.skel.notify.email._
+import io.syspulse.skel.notify.http._
 
 class NotifySpec extends AnyWordSpec with Matchers {
   
@@ -63,6 +67,10 @@ class NotifySpec extends AnyWordSpec with Matchers {
       s.starttls should === (true)
     }
 
+  }
+
+  "HttpURI" should {
+
     "parse http ('http://localhost:8300/')" in {
       val n = new NotifyHttp("http://localhost:8300")
       n.request.uri should === ("http://localhost:8300")
@@ -93,6 +101,25 @@ class NotifySpec extends AnyWordSpec with Matchers {
       n.request.verb should === (HttpMethods.POST)
       n.request.getHeaders should === (Seq(RawHeader("Authorization","Bearer 123456789")))
     }
+  }
 
+  "NotifyUri" should {
+    implicit val config:Config = Config()
+
+    "parse http 'https://POST@123456789@localhost:8300/' to NotifyHttp" in {
+      val n = NotifyUri("https://POST@123456789@localhost:8300/")
+      //info(s"${n}")
+      n.isInstanceOf[NotifyHttp] should === (true)
+    }
+
+    "parse http 'event://https://POST@123456789@localhost:8300/' to NotifyEmbed(NotifyHttp)" in {
+      val n = NotifyUri("event://https://POST@123456789@localhost:8300/")
+      info(s"${n}")
+      n.isInstanceOf[NotifyEmbed[_]] should === (true)
+      n.asInstanceOf[NotifyEmbed[_]].getEmbed.isInstanceOf[NotifyHttp] should === (true)
+
+      n.asInstanceOf[NotifyEmbed[_]].getEmbed.asInstanceOf[NotifyHttp].request.uri should === ("https://localhost:8300/")
+      n.asInstanceOf[NotifyEmbed[_]].getEmbed.asInstanceOf[NotifyHttp].request.verb.value should === (HttpMethods.POST.value)
+    }
   }
 }

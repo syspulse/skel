@@ -31,6 +31,7 @@ Prototyping Framework for Cloud Products
 * [skel-tag](skel-tag) - Tags searchable service (e.g. labels, tags)
 * [skel-wf](skel-wf) - Workflow Engine (long running jobs/tasks with complex steps)
 * [skel-odometer](skel-odometer) - Counters Datastore
+* [skel-plugin](skel-plugin) - Experiments with plugins
 
 ----
 ## Build & Run

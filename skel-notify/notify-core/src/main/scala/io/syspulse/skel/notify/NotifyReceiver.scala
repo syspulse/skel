@@ -28,3 +28,15 @@ class NotifyStdout() extends NotifyReceiver[NotUsed] {
   }
 }
 
+class NotifyEmbed[R](uri:String,nr: NotifyReceiver[R]) extends NotifyReceiver[R] {
+  override def toString = s"${this.getClass().getSimpleName()}(${nr.toString})"
+  def send(title:String,msg:String,severity:Option[NotifySeverity.ID],scope:Option[String]):Try[R] = {
+    nr.send(title,msg,severity,scope)
+  }
+
+  def send(no:Notify):Try[R] = {
+    nr.send(no)
+  }
+
+  def getEmbed():NotifyReceiver[R] = nr
+}

@@ -1,4 +1,4 @@
-package io.syspulse.skel.notify
+package io.syspulse.skel.notify.http
 
 import scala.util.Random
 
@@ -27,6 +27,9 @@ import akka.util.ByteString
 import akka.actor
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
+import io.syspulse.skel.notify.NotifyReceiver
+import io.syspulse.skel.notify.NotifySeverity
+import io.syspulse.skel.notify.Notify
 
 object NotifyHttp {
   implicit val as:actor.ActorSystem = actor.ActorSystem("NotifyHttp-System")

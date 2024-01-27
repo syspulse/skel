@@ -14,6 +14,7 @@ import io.syspulse.skel.notify.telegram.NotifyTelegram
 import io.syspulse.skel.notify.kafka.NotifyKafka
 import io.syspulse.skel.notify.user.NotifyUser
 import io.syspulse.skel.notify.syslog.NotifySyslog
+import io.syspulse.skel.notify.http.NotifyHttp
 
 import io.syspulse.skel.util.Util
 
@@ -46,7 +47,9 @@ object NotifyUri {
       case "user" :: Nil => new NotifyUser()
       case "user" :: user :: Nil => new NotifyUser(Some(user))
 
-      case _ => new NotifyStdout
+      case "" :: Nil => new NotifyStdout
+      case unknown :: uri :: rest :: Nil => new NotifyEmbed(unknown,NotifyUri(uri + "://" + rest))
+      // expected exception on unknown uri      
     }    
   }
 
