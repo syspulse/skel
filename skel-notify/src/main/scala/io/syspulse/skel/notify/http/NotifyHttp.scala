@@ -36,7 +36,7 @@ object NotifyHttp {
   implicit val ec = as.getDispatcher
 }
 
-case class NotifyHttp(uri:String) extends NotifyReceiver[String] {
+case class NotifyHttp(uri:String,timeout:Long = 3000L) extends NotifyReceiver[String] {
   val log = Logger(s"${this}")
 
   override def toString = s"${this.getClass.getSimpleName}(${request})"
@@ -59,6 +59,7 @@ case class NotifyHttp(uri:String) extends NotifyReceiver[String] {
   // http://GET@host:port/url{subj}/{msg}
   // http://POST@host:port/url{subj}
   // http://POST@123456789@host:port/url{subj}
+  // http://POST@{VAR}@host:port/url{subj}
   // replace {} with real data
   def parseUri(uri:String) = {
 
@@ -67,10 +68,10 @@ case class NotifyHttp(uri:String) extends NotifyReceiver[String] {
     }
 
     uri.split("(://|@)").toList match {
-      case proto :: "GET" :: auth :: rest :: Nil => buildRequest(proto,HttpMethods.GET,rest,Map("Authorization" -> s"Bearer ${auth}"))
-      case proto :: "POST" :: auth  :: rest :: Nil  => buildRequest(proto,HttpMethods.POST,rest,Map("Authorization" -> s"Bearer ${auth}"))
-      case proto :: "PUT" :: auth  :: rest :: Nil => buildRequest(proto,HttpMethods.PUT,rest,Map("Authorization" -> s"Bearer ${auth}"))
-      case proto :: "DELETE" :: auth  :: rest :: Nil => buildRequest(proto,HttpMethods.DELETE,rest,Map("Authorization" -> s"Bearer ${auth}"))
+      case proto :: "GET" :: auth :: rest :: Nil => buildRequest(proto,HttpMethods.GET,rest,Map("Authorization" -> s"Bearer ${Util.replaceEnvVar(auth)}"))
+      case proto :: "POST" :: auth  :: rest :: Nil  => buildRequest(proto,HttpMethods.POST,rest,Map("Authorization" -> s"Bearer ${Util.replaceEnvVar(auth)}"))
+      case proto :: "PUT" :: auth  :: rest :: Nil => buildRequest(proto,HttpMethods.PUT,rest,Map("Authorization" -> s"Bearer ${Util.replaceEnvVar(auth)}"))
+      case proto :: "DELETE" :: auth  :: rest :: Nil => buildRequest(proto,HttpMethods.DELETE,rest,Map("Authorization" -> s"Bearer ${Util.replaceEnvVar(auth)}"))
 
       case proto :: "GET" :: rest :: Nil => buildRequest(proto,HttpMethods.GET,rest)
       case proto :: "POST" :: rest :: Nil => buildRequest(proto,HttpMethods.POST,rest)
@@ -114,7 +115,7 @@ case class NotifyHttp(uri:String) extends NotifyReceiver[String] {
     } yield r
 
     if(!request.async)
-      Await.result(f,FiniteDuration(3000L,TimeUnit.MILLISECONDS)).map(_.utf8String)
+      Await.result(f,FiniteDuration(timeout,TimeUnit.MILLISECONDS)).map(_.utf8String)
     else 
       Success(f.toString)    
   }
