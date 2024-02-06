@@ -37,6 +37,7 @@ trait Arg[T]
 case class ArgString(argChar:Char,argStr:String,argText:String,default:String="") extends Arg[String]()
 case class ArgInt(argChar:Char,argStr:String,argText:String,default:Int=0) extends Arg[Int]()
 case class ArgLong(argChar:Char,argStr:String,argText:String,default:Long=0) extends Arg[Long]()
+case class ArgDouble(argChar:Char,argStr:String,argText:String,default:Double=0.0) extends Arg[Double]()
 case class ArgParam(argText:String,desc:String="") extends Arg[String]()
 case class ArgHelp(argStr:String,desc:String="") extends Arg[String]()
 case class ArgCmd(argStr:String,desc:String="") extends Arg[String]()
@@ -63,6 +64,7 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
         case ArgString(c,s,t,d) => Some( (if(c=='_' || c==0) opt[String](s) else opt[String](c, s)).action((x, c) => c.+(s,x)).text(t))
         case ArgInt(c,s,t,d) => Some( (if(c=='_' || c==0) opt[Int](s) else opt[Int](c, s)).action((x, c) => c.+(s,x)).text(t))
         case ArgLong(c,s,t,d) => Some( (if(c=='_' || c==0) opt[Long](s) else opt[Long](c, s)).action((x, c) => c.+(s,x)).text(t))
+        case ArgDouble(c,s,t,d) => Some( (if(c=='_' || c==0) opt[Double](s) else opt[Double](c, s)).action((x, c) => c.+(s,x)).text(t))
         case ArgParam(t,d) => Some(arg[String](t).unbounded().optional().action((x, c) => c.param(x)).text(d))
         case ArgLogging(t,d) => Some(opt[String](Configuration.LOGGING_ARG).action((x, c) => c.+(Configuration.LOGGING_ARG,x)).text(t))
         case _ => None
@@ -101,6 +103,10 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
   def getLong(path:String):Option[Long] = 
     if(!configArgs.isDefined) None else
     if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(_.asInstanceOf[Long]) else None
+
+  def getDouble(path:String):Option[Double] = 
+    if(!configArgs.isDefined) None else
+    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(_.asInstanceOf[Double]) else None
 
   def getAll():Seq[(String,Any)] = {
     if(!configArgs.isDefined) return Seq()

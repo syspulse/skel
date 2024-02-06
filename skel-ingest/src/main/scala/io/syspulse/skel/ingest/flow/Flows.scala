@@ -430,15 +430,22 @@ object Flows {
 // Sinks
 // ==================================================================================================  
 
-  def toFile(file:String) = {
+  def toFile[T <: Ingestable](file:String)(implicit fmt:JsonFormat[T]) = {
     import akka.event.Logging
+    import spray.json._
 
     if(file.trim.isEmpty) 
       Sink.ignore 
     else {
       //toSinkRestart({
-        Flow[Ingestable]
-          .map(t => s"${t.toLog}\n")
+        Flow[T]
+          .map(t => if(file.endsWith(".json")) 
+              s"${t.toJson}\n" 
+            else if(file.endsWith(".csv")) 
+              s"${t.toCSV}\n" 
+            else 
+              s"${t.toLog}\n"
+          )
           .map(ByteString(_))          
           .log(s"${this}")
           .withAttributes(Attributes.createLogLevels(Logging.DebugLevel, Logging.InfoLevel, Logging.ErrorLevel))       
@@ -568,14 +575,20 @@ object Flows {
   }
 
 
-  def toFileNew[O <: Ingestable](file:String,rotator:(O,String) => String)(implicit mat: Materializer) = {
-      
+  def toFileNew[T <: Ingestable](file:String,rotator:(T,String) => String)(implicit mat: Materializer,fmt:JsonFormat[T]) = {
+    import spray.json._  
     if(file.trim.isEmpty) 
       Sink.ignore 
     else
-      Flow[O].map( t => {
+      Flow[T].map( t => {
+        val out = if(file.endsWith(".json")) 
+              s"${t.toJson}\n" 
+            else if(file.endsWith(".csv")) 
+              s"${t.toCSV}\n" 
+            else 
+              s"${t.toLog}\n"
         Source
-          .single(ByteString(t.toLog))
+          .single(ByteString(out))
           .toMat(FileIO.toPath(
             Paths.get(rotator(t,file)),options =  Set(WRITE, CREATE))
           )(Keep.left).run()
@@ -633,8 +646,8 @@ object Flows {
         .toMat(LogRotatorSink(fileRotateTrigger))(Keep.right)
   }
 
-  def toHiveFileSize(file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue) = {
-
+  def toHiveFileSize[T <: Ingestable](file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue)(implicit fmt:JsonFormat[T]) = {
+    import spray.json._
     val fileRotateTrigger: () => ByteString => Option[Path] = () => {
       var currentFilename: Option[String] = None
       var inited = false
@@ -670,15 +683,22 @@ object Flows {
     if(file.trim.isEmpty) 
       Sink.ignore 
     else
-      Flow[Ingestable]
-        .map(t=>s"${t.toLog}\n")
+      Flow[T]
+        .map(t => if(file.endsWith(".json")) 
+              s"${t.toJson}\n" 
+            else if(file.endsWith(".csv")) 
+              s"${t.toCSV}\n" 
+            else 
+              s"${t.toLog}\n"
+        )
         .map(ByteString(_))
         .toMat(LogRotatorSink(fileRotateTrigger))(Keep.right)
   }
 
   // S3 mounted as FileSystem/Volume
   // Does not support APPEND 
-  def toFS3(file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue)(implicit rotator:Rotator) = {
+  def toFS3[T <: Ingestable](file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue)(implicit rotator:Rotator,fmt:JsonFormat[T]) = {
+    import spray.json._
     val log = Logger(s"${this}")
 
     val fileRotateTrigger: () => ByteString => Option[Path] = () => {
@@ -732,8 +752,14 @@ object Flows {
     if(file.trim.isEmpty) 
       Sink.ignore 
     else
-      Flow[Ingestable]
-        .map(t=>s"${t.toLog}\n")
+      Flow[T]
+        .map(t => if(file.endsWith(".json")) 
+              s"${t.toJson}\n" 
+            else if(file.endsWith(".csv")) 
+              s"${t.toCSV}\n" 
+            else 
+              s"${t.toLog}\n"
+        )
         .map(ByteString(_))
         .toMat(LogRotatorSink(fileRotateTrigger,fileOpenOptions = Set(StandardOpenOption.CREATE,StandardOpenOption.WRITE)))(Keep.right)
   }

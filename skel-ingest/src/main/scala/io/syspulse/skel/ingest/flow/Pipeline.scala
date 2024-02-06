@@ -144,7 +144,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "files" :: fileName :: Nil => Flows.toHiveFileSize(fileName)
       case "hive" :: fileName :: Nil => Flows.toHive(fileName)(getRotator())
 
-      case "fs3" :: fileName :: Nil => Flows.toFS3(fileName,getFileLimit(),getFileSize())(getRotator())
+      case "fs3" :: fileName :: Nil => Flows.toFS3(fileName,getFileLimit(),getFileSize())(getRotator(),fmt)
       case "parq" :: fileName :: Nil => Flows.toParq[O](fileName,getFileLimit(),getFileSize())(getRotator(),parqEncoders,parsResolver)
 
       // test to create new file for every object

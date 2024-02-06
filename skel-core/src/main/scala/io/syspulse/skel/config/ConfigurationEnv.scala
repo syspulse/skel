@@ -14,6 +14,7 @@ class ConfigurationEnv extends ConfigurationLike {
   def getString(path:String):Option[String] = { val e = System.getenv(path.replaceAll("\\.","_").toUpperCase); if(e == null) None else Some(e) }
   def getInt(path:String):Option[Int] = { val e = System.getenv(path.replaceAll("\\.","_").toUpperCase); if(e == null) None else Some(e.toInt) }
   def getLong(path:String):Option[Long] = { val e = System.getenv(path.replaceAll("\\.","_").toUpperCase); if(e == null) None else Some(e.toLong) }
+  def getDouble(path:String):Option[Double] = { val e = System.getenv(path.replaceAll("\\.","_").toUpperCase); if(e == null) None else Some(e.toDouble) }
   def getDuration(path:String):Option[Duration] = { val e = System.getenv(path.replaceAll("\\.","_").toUpperCase); if(e == null) None else Some(Duration.ofMillis(e.toLong)) }
   def getAll():Seq[(String,Any)] = {System.getenv().asScala.toSeq.map{ kv => (kv._1,kv._2)}}
 

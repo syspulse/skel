@@ -11,6 +11,7 @@ trait ConfigurationLike {
   def getString(path:String):Option[String] 
   def getInt(path:String):Option[Int]
   def getLong(path:String):Option[Long]
+  def getDouble(path:String):Option[Double]
   def getDuration(path:String):Option[Duration]
   def getAll():Seq[(String,Any)]
   def getParams():Seq[String]
@@ -50,6 +51,10 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
 
   def getLong(path:String):Option[Long] = {
     configurations.foldLeft[Option[Long]](None)((r,c) => if(r.isDefined) r else c.getLong(path))
+  }
+
+  def getDouble(path:String):Option[Double] = {
+    configurations.foldLeft[Option[Double]](None)((r,c) => if(r.isDefined) r else c.getDouble(path))
   }
 
   def getAll():Seq[(String,Any)] = {

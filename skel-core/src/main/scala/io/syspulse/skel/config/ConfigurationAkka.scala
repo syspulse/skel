@@ -51,6 +51,14 @@ class ConfigurationAkka extends ConfigurationLike {
     } catch {
       case e:Exception => log.warn(s"${e}"); None
     }
+  
+  def getDouble(path:String):Option[Double] = 
+    try {
+      if(!akkaConfig.isDefined) None else
+      if (akkaConfig.get.hasPath(path)) Some(akkaConfig.get.getDouble(path)) else None
+    } catch {
+      case e:Exception => log.warn(s"${e}"); None
+    }
 
   def getAll():Seq[(String,Any)] = {
     if(!akkaConfig.isDefined) return Seq()
