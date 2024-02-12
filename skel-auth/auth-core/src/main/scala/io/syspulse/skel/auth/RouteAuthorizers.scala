@@ -66,7 +66,12 @@ trait RouteAuthorizers {
   def oauth2AuthenticatorGod(credentials: Credentials): Option[AuthenticatedUser] = {
     credentials match {
       case p @ Credentials.Provided(accessToken) => 
-        AuthJwt.getClaim(accessToken,"uid").map(uid => AuthenticatedUser(UUID(uid),Seq("admin")))
+        val au = AuthJwt.getClaim(accessToken,"uid").map(uid => AuthenticatedUser(UUID(uid),Seq("admin")))
+        if(!au.isDefined) {
+          log.warn(s"GOD=${Permissions.isGod}: JWT(uid) not found: using: ${DefaultPermissions.USER_1}")
+          Some(AuthenticatedUser(DefaultPermissions.USER_1,roles = Seq("admin")))
+        } else
+          au
       case _ => 
         Some(AuthenticatedUser(DefaultPermissions.USER_ADMIN,roles = Seq("admin")))
     }
@@ -84,12 +89,14 @@ trait RouteAuthorizers {
   // }
 
   protected def authenticate(): Directive1[Authenticated] = {
-    log.info(s"GOD=${Permissions.isGod}")
-    if(Permissions.isGod) 
+    //log.debug(s"GOD=${Permissions.isGod}")
+    val a:Directive1[Authenticated] = if(Permissions.isGod) 
       // try to allo and inject correct user UID
       authenticateOAuth2("api",oauth2AuthenticatorGod)
     else
       authenticateOAuth2("api",oauth2Authenticator)
+    log.debug(s"GOD=${Permissions.isGod}: authenticated=${a}")
+    a
   }
 
   protected def authenticateAll[T](): Directive1[Authenticated] = {
