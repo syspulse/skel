@@ -29,6 +29,7 @@ import java.security.interfaces.RSAPrivateCrtKey
 import java.math.BigInteger
 import java.security.cert.CertificateFactory
 import java.io.ByteArrayInputStream
+import io.syspulse.skel.auth.permissions.DefaultPermissions
 
 class AuthJwt(uri:String = "") {
   val log = Logger(s"${this.getClass()}")
@@ -321,13 +322,14 @@ class AuthJwt(uri:String = "") {
       val v = isValid(jwt)
 
       val uid = getClaim(jwt,"uid")
-      val roles = getClaim(jwt,"roles").map(_.split(",").filter(!_.trim.isEmpty()).toSeq).getOrElse(Seq.empty)
-      log.info(s"token=${jwt}: uid=${uid}: roles=${roles}: valid=${v}")
+      val roles = getClaim(jwt,"roles").map(_.split(",").filter(!_.trim.isEmpty()).toSeq).getOrElse(Seq.empty)      
       
       val claim = Jwt.decode(jwt,JwtOptions(signature = false)).get
+
+      log.debug(s"token=${jwt}: uid=${uid}: roles=${roles}: claim=${claim.content}: valid=${v}")
       
-      if(v && !uid.isEmpty) 
-        Some(VerifiedToken(uid.get,roles,claim))
+      if(v) 
+        Some(VerifiedToken(uid.orElse(Some(DefaultPermissions.USER_NOBODY.toString())).get,roles,claim))
       else 
         None
     }
