@@ -209,6 +209,8 @@ openssl pkcs8 -topk8 -nocrypt -in RS512.key -out RS512.key.pkcs8
 
 ### Run Server with Public key
 
+
+From x509 Certificate PEM file:
 ```
 ./run-auth.sh --jwt.uri=rs512://pk:cer:RS512.key.pub
 ```
@@ -230,4 +232,20 @@ Login to google and get Profile JWT (__not AccessToken !!!__):
 ./run-auth.sh jwt valid --jwt.uri=https://www.googleapis.com/oauth2/v3/certs `cat /tmp/JWT-Google-Profile`
 ```
 
+### Keycloak
+
+Keys are here: https://keycloak/admin/master/console/#/realm1/realm-settings/keys
+
+### Run Server with Public key
+
+
+From Base64 encoded public key file (Keycloak)
+```
+./run-auth.sh --jwt.uri=rs256://pk:base64:RS256.key
+```
+
+From Base64 encoded certificate file (Keycloak)
+```
+./run-auth.sh --jwt.uri=rs256://cer:base64:RS256.key
+```
 
