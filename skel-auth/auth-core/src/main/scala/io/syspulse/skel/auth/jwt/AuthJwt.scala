@@ -213,7 +213,7 @@ class AuthJwt(uri:String = "") {
           val json = ujson.read(c.content)
           Some(json.obj(claim).str)
         } catch {
-          case e:Exception => log.warn(s"failed to parse claim: '${claim}'");
+          case e:Exception => log.debug(s"failed to parse claim: '${claim}'");
             None
         }
       }
@@ -316,7 +316,7 @@ class AuthJwt(uri:String = "") {
     r.isSuccess && r.get._1
   }
     
-  // this is called from HTTP Routes on every call !
+  // this is called from HTTP Routes on every call !!!
   def verifyAuthToken(token: Option[String],id:String,data:Seq[Any]):Option[VerifiedToken] = token match {
     case Some(jwt) => {           
       val v = isValid(jwt)

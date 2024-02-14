@@ -41,7 +41,7 @@ trait RouteAuthorizers {
       }
 
   def oauth2Authenticator(credentials: Credentials): Option[AuthenticatedUser] = {
-    log.info(s"credentials: ${credentials}")
+    log.debug(s"credentials: ${credentials}")
     credentials match {
       case p @ Credentials.Provided(accessToken) => 
         AuthJwt

@@ -51,16 +51,13 @@ object Permissions {
     case "demo" :: _  =>
       // demo preconfigured users and roles
       new PermissionsRbacDemo()
-    case _ =>
-      throw new Exception(s"unknown engine: ${engine}")
+    case className :: Nil =>
+      // try to spawn custom Permissions Engine
+      this.getClass.getClassLoader.loadClass(className).getDeclaredConstructor().newInstance().asInstanceOf[Permissions]
   }
 
   def apply():Permissions = 
-    apply("demo")
-    // apply("casbin",Map(
-    //   "modelFile" -> "classpath:/default-permissions-model-rbac.conf",
-    //   "policyFile" -> "classpath:/default-permissions-policy-rbac.csv"
-    // ))
+    apply("demo")    
 
   def isAdmin(authn:Authenticated)(implicit permissions:Permissions):Boolean = {
     permissions.isAdmin(authn)
