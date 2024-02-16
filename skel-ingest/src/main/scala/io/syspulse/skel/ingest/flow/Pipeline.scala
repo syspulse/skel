@@ -67,7 +67,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "https" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
       
       case "listen" :: uri :: Nil => Flows.fromHttpServer(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
-      case "server" :: uri :: Nil => Flows.fromHttpServer(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
+      case ("server" | "http:server" | "https:server") :: uri :: Nil => Flows.fromHttpServer(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
 
       case "tcp" :: uri :: Nil => Flows.fromTcpClientUri(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
 
@@ -165,6 +165,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "jdbc" :: _ => Flows.toJDBC[O](output)(fmt)
       case "postgres" :: _ => Flows.toJDBC[O](output)(fmt)
       case "mysql" :: _ => Flows.toJDBC[O](output)(fmt)
+
+      case "server:ws" :: uri :: Nil => Flows.toWsServer[O](uri)
 
       case "" :: Nil => Flows.toStdout()
       case _ => 

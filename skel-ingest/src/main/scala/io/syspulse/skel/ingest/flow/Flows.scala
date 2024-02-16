@@ -102,6 +102,10 @@ import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.model.headers.OAuth2BearerToken
 import akka.http.scaladsl.model.HttpResponse
 import io.getquill.context.jdbc.JdbcContext
+import akka.http.scaladsl.model.ws.Message
+import akka.http.scaladsl.model.ws.TextMessage
+import akka.http.scaladsl.model.ws.BinaryMessage
+import akka.http.scaladsl.server.Route
 
 object Flows {
   val log = Logger(this.toString)
@@ -383,13 +387,18 @@ object Flows {
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
   }
 
-  def fromHttpServer(uri:String,chunk:Int = 0, frameDelimiter:String="\n",frameSize:Int = 8192, retry:RestartSettings=retrySettingsDefault)(implicit sys:ActorSystem,timeout:FiniteDuration) = {
+  def uriToHostPort(uri:String) = {
     val (host,port,suffix) = uri.split("[:/]").toList match {      
-      case h :: p :: Nil => (h,p.toInt,"")
-      case h :: p :: s => (h,p.toInt,s.mkString("/"))
-      case h :: Nil => (h,8080,"")
-      case _ => throw new Exception(s"invalid uri: ${uri}")
-    }
+        case h :: p :: Nil => (h,p.toInt,"")
+        case h :: p :: s => (h,p.toInt,s.mkString("/"))
+        case h :: Nil => (h,8080,"")
+        case _ => throw new Exception(s"invalid uri: ${uri}")
+      }
+    (host,port,suffix)
+  }
+
+  def fromHttpServer(uri:String,chunk:Int = 0, frameDelimiter:String="\n",frameSize:Int = 8192, retry:RestartSettings=retrySettingsDefault)(implicit sys:ActorSystem,timeout:FiniteDuration) = {
+    val (host,port,suffix) = uriToHostPort(uri)
     
     val (a,s0) = Source
       .actorRef[ByteString](32,OverflowStrategy.fail)
@@ -525,6 +534,70 @@ object Flows {
       sink
     }
   }
+
+  // ===== WebSocket Sink
+  def toWsServer[T <: Ingestable](uri:String)(implicit as:ActorSystem,fmt:JsonFormat[T]) = { 
+    import io.syspulse.skel.service.ws._
+    import akka.actor.typed.scaladsl.ActorContext
+
+    class WsProxyServer(idleTimeout:Long = 1000L*60*60*24, uri:String = "ws") extends WebSocket(idleTimeout) {
+      // ignore incoming messages
+      override def process(m:Message,a:ActorRef):Message = m        
+
+      val routes: Route =
+        pathPrefix(uri) { 
+          pathPrefix(Segment) { topic =>
+            handleWebSocketMessages(this.listen(topic))
+          } ~
+          pathEndOrSingleSlash {
+            //system.log.info(s"Default Websocket")
+            handleWebSocketMessages(this.listen())
+          }
+      }
+      
+      def broadcast(msg:String):Try[Unit] = {
+        Success(this.broadcastText(msg) )        
+      }            
+    }
+    
+    if(uri.trim.isEmpty) {
+      log.warn(s"invalid uri: ${uri}")
+      Sink.ignore 
+    } else {     
+      import spray.json._
+      import akka.http.scaladsl.model.{ HttpResponse, Uri, HttpRequest }
+      import akka.http.scaladsl.model.HttpMethods._
+      import akka.http.scaladsl.model.AttributeKeys
+      import akka.event.Logging
+     
+      def retry_deterministic(as:ActorSystem,timeout:FiniteDuration) = ConnectionPoolSettings(as)
+        .withBaseConnectionBackoff(timeout)
+        .withMaxConnectionBackoff(timeout)
+
+      val (host,port,suffix) = uriToHostPort(uri)
+    
+      val (actor,source0) = Source
+        .actorRef[String](1,OverflowStrategy.dropTail)
+        .preMaterialize()   
+      
+      val ws = new WsProxyServer()
+      val bindingFuture = Http().newServerAt(host, port).bind(ws.routes)      
+
+      val sink0 = Flow[T]
+        .map(t => { 
+          val s = t.toLog
+          log.debug(s"data=${s}")
+          ws.broadcast(s)
+        }) 
+        .toMat(
+          Sink.ignore
+        )(Keep.right)
+
+      val sink = sink0
+      
+      sink
+    }
+  }  
 
   // Hive Rotators
   abstract class Rotator {
