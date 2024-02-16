@@ -48,7 +48,7 @@ object Permissions {
       new PermissionsRbacDefault()
     case "dir" :: _ =>
       new PermissionsRbacDefault()
-    case "demo" :: _  =>
+    case ("demo" | "") :: _  =>
       // demo preconfigured users and roles
       new PermissionsRbacDemo()
     case className :: Nil =>
