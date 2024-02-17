@@ -39,6 +39,7 @@ case class Config(
   buffer:Int = 8192 * 100,
   throttle:Long = 0L,
   throttleSource:Long = 100L,
+  format:String = "",
 
   datastore:String = "mem",
 
@@ -69,6 +70,7 @@ object App extends skel.Server {
         ArgInt('_', "buffer",s"Frame buffer (Akka Framing) (def: ${d.buffer})"),
         ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
         ArgLong('_', "throttle.source",s"Throttle source (e.g. http, def=${d.throttleSource})"),
+        ArgString('_', "format",s"Format output (json,csv,log) (def=${d.format})"),
 
         ArgLong('n', s"limit",s"File Limit (def: ${d.limit})"),
         ArgLong('s', s"size",s"File Size Limit (def: ${d.size})"),
@@ -99,6 +101,7 @@ object App extends skel.Server {
       buffer = c.getInt("buffer").getOrElse(d.buffer),
       throttle = c.getLong("throttle").getOrElse(d.throttle),
       throttleSource = c.getLong("throttle.source").getOrElse(d.throttleSource),
+      format = c.getString("format").getOrElse(d.format),
 
       filter = c.getString("filter").getOrElse(d.filter),
       

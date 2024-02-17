@@ -146,11 +146,18 @@ db1 {
 (while [ 1 ]; do echo `date`; sleep 1;done)| ./run-ingest.sh -o server:ws://0.0.0.0:9300/ws
 ```
 
-Connnect with clients:
+Connnect with clients (beware of websocat buffering):
 
 ```
-websocat ws://localhost:9300/ws
-websocat ws://localhost:9300/ws
+websocat ws://localhost:9300/ws -B 1000000
+websocat ws://localhost:9300/ws -B 1000000
+```
+
+__ATTENTION__: `websocat` buffers large messages to stdout (default). Use `wscat` or pipe to file and tail:
+
+```
+websocat ws://localhost:9300/ws -B 1000000 >output.log
+tail -F output.log
 ```
 
 ---

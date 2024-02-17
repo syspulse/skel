@@ -30,7 +30,7 @@ import com.github.mjakubowski84.parquet4s.ParquetSchemaResolver
 // throttleSource - reduce load on Source (e.g. HttpSource)
 // throttle - delay objects downstream
 abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
-  throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=100L)
+  throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=100L,format:String="")
   (implicit fmt:JsonFormat[O], parqEncoders:ParquetRecordEncoder[O],parsResolver:ParquetSchemaResolver[O])  extends IngestFlow[I,T,O]() {
   
   private val log = Logger(s"${this}")
@@ -166,7 +166,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "postgres" :: _ => Flows.toJDBC[O](output)(fmt)
       case "mysql" :: _ => Flows.toJDBC[O](output)(fmt)
 
-      case "server:ws" :: uri :: Nil => Flows.toWsServer[O](uri)
+      case "server:ws" :: uri :: Nil => Flows.toWsServer[O](uri,format)
 
       case "" :: Nil => Flows.toStdout()
       case _ => 

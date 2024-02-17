@@ -536,7 +536,7 @@ object Flows {
   }
 
   // ===== WebSocket Sink
-  def toWsServer[T <: Ingestable](uri:String)(implicit as:ActorSystem,fmt:JsonFormat[T]) = { 
+  def toWsServer[T <: Ingestable](uri:String,format:String="")(implicit as:ActorSystem,fmt:JsonFormat[T]) = { 
     import io.syspulse.skel.service.ws._
     import akka.actor.typed.scaladsl.ActorContext
 
@@ -585,9 +585,13 @@ object Flows {
 
       val sink0 = Flow[T]
         .map(t => { 
-          val s = t.toLog
-          log.debug(s"data=${s}")
-          ws.broadcast(s)
+          val out = format match {
+            case "json" => t.toJson.compactPrint
+            case "csv" => t.toCSV
+            case _ => t.toLog
+          }
+          //log.debug(s"out=${out}")
+          ws.broadcast(out)
         }) 
         .toMat(
           Sink.ignore
@@ -977,17 +981,17 @@ object Flows {
 
   def toStdout[O](flush:Boolean = false): Sink[O, Future[IOResult]] = toPipe(flush,System.out)
   def toStderr[O](flush:Boolean = false): Sink[O, Future[IOResult]] = toPipe(flush,System.err)
-  def toPipe[O](flush:Boolean,pipe:java.io.PrintStream): Sink[O, Future[IOResult]] = 
+  def toPipe[O](flush:Boolean,pipe:java.io.PrintStream): Sink[O, Future[IOResult]] = {
     Flow[O]
       .map(o => if(o!=null) ByteString(o.toString+"\n") else ByteString())
-      .toMat(StreamConverters.fromOutputStream(() => pipe,flush))(Keep.right)
+      .toMat(StreamConverters.fromOutputStream(() => pipe,flush))(Keep.right)  
+  }
+  
   // This sink returns Future[Done] and not possible to wait for completion of the flow
   //def toStdout() = Sink.foreach(println _)
 
-  
   // JDBC
-  def toJDBC[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = { 
-    
+  def toJDBC[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {     
     val jdbc = new ToJDBC[T](uri,None).flow()
     
     Flow[T]
@@ -997,8 +1001,7 @@ object Flows {
   }
 }
 
-// === JDBC ============================================================================================
-
+// === JDBC ============================================================================================  
 class ToJDBC[T <: Ingestable](dbUri:String,configuration:Option[Configuration]=None) 
   extends skel.store.StoreDBCore(dbUri,"",None) {
   
