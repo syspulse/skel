@@ -536,23 +536,26 @@ object Flows {
   }
 
   // ===== WebSocket Sink
-  def toWsServer[T <: Ingestable](uri:String,format:String="")(implicit as:ActorSystem,fmt:JsonFormat[T]) = { 
+  def toWsServer[T <: Ingestable](uri:String,format:String="",timeout:Long = 1000L*60*60*24)(implicit as:ActorSystem,fmt:JsonFormat[T]) = { 
     import io.syspulse.skel.service.ws._
     import akka.actor.typed.scaladsl.ActorContext
 
-    class WsProxyServer(idleTimeout:Long = 1000L*60*60*24, uri:String = "ws") extends WebSocket(idleTimeout) {
+    class WsProxyServer(idleTimeout:Long,uri:String = "ws") extends WebSocket(idleTimeout) {
       // ignore incoming messages
       override def process(m:Message,a:ActorRef):Message = m        
 
       val routes: Route =
         pathPrefix(uri) { 
-          pathPrefix(Segment) { topic =>
-            handleWebSocketMessages(this.listen(topic))
-          } ~
-          pathEndOrSingleSlash {
-            //system.log.info(s"Default Websocket")
-            handleWebSocketMessages(this.listen())
-          }
+          extractClientIP { addr => {
+            log.info(s"<-- ws://${addr}")
+            
+            pathPrefix(Segment) { topic =>
+              handleWebSocketMessages(this.listen(topic))
+            } ~
+            pathEndOrSingleSlash {
+              handleWebSocketMessages(this.listen())
+            }
+          }}
       }
       
       def broadcast(msg:String):Try[Unit] = {
@@ -580,7 +583,8 @@ object Flows {
         .actorRef[String](1,OverflowStrategy.dropTail)
         .preMaterialize()   
       
-      val ws = new WsProxyServer()
+      val ws = new WsProxyServer(timeout,uri = suffix)
+      log.info(s"Listen: ws://${host}:${port}/${suffix} ...")      
       val bindingFuture = Http().newServerAt(host, port).bind(ws.routes)      
 
       val sink0 = Flow[T]

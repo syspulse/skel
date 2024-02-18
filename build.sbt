@@ -722,6 +722,21 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
     ),        
   )
 
+lazy val ingest_proxy = (project in file("skel-ingest/ingest-proxy"))
+  .dependsOn(core, serde, ingest)
+  .enablePlugins(JavaAppPackaging)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+
+    appAssemblyConfig("ingest-proxy","io.syspulse.skel.ingest.proxy.App"),    
+
+    libraryDependencies ++= Seq(
+      libCsv,
+      libScalaTest % Test,      
+    ),        
+  )
+
 
 lazy val stream_std = (project in file("skel-stream/stream-std"))
   .dependsOn(core,skel_dsl)
