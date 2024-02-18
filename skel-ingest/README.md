@@ -1,6 +1,7 @@
 # skel-ingest
 
-Data Ingestion Flow: [inges-flow](ingest-flow)
+- Data Ingestion Flow: [inges-flow](ingest-flow)
+- Proxy: [inges-proxy](ingest-proxy)
 
 ----
 

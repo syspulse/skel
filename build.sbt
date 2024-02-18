@@ -725,11 +725,14 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
 lazy val ingest_proxy = (project in file("skel-ingest/ingest-proxy"))
   .dependsOn(core, serde, ingest)
   .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
   .settings (
     sharedConfig,
     sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
 
-    appAssemblyConfig("ingest-proxy","io.syspulse.skel.ingest.proxy.App"),    
+    appDockerConfig("ingest-proxy","io.syspulse.skel.ingest.proxy.App"),    
 
     libraryDependencies ++= Seq(
       libCsv,

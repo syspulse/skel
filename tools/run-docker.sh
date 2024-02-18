@@ -8,7 +8,8 @@ CONF=`echo $APP | awk -F"-" '{print $2}'`
 
 export SITE=${SITE:-$CONF}
 
-DOCKER="syspulse/${APP}:latest"
+VERSION=${VERSION:-latest}
+DOCKER="syspulse/${APP}:${VERSION}"
 
 DATA_DIR=${DATA_DIR:-/mnt/data}
 
