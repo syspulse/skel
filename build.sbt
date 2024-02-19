@@ -370,6 +370,7 @@ lazy val core = (project in file("skel-core"))
         Seq(
           libUUID, 
           libScodecBits,
+          libUpickleLib,
           
           libDirWatcher,
           libDirWatcherScala,

@@ -1,5 +1,6 @@
 package io.syspulse.skel.util
 
+import scala.util.{Try,Success,Failure}
 import java.time._
 import java.time.format._
 import java.time.temporal._
@@ -195,11 +196,10 @@ object Util {
     }.mkString(d)
   }
 
-  import scala.reflect.runtime.universe._ 
-
+  //import scala.reflect.runtime.universe._
   // this does not work and needs type tags information
   def isCaseClass(v: Any): Boolean = {
-     val typeMirror = runtimeMirror(v.getClass.getClassLoader)
+     val typeMirror = scala.reflect.runtime.universe.runtimeMirror(v.getClass.getClassLoader)
      val instanceMirror = typeMirror.reflect(v)
      val symbol = instanceMirror.symbol
      symbol.isCaseClass
@@ -314,7 +314,7 @@ object Util {
   }
   
   import scala.util.Using
-  def loadFile(path:String):scala.util.Try[String] = {
+  def loadFile(path:String):Try[String] = {
     if(path.trim.startsWith("classpath:")) {
       Using( new BufferedReader(new InputStreamReader(this.getClass().getResourceAsStream(path.stripPrefix("classpath:"))))) { reader => 
         reader.lines().toArray.mkString(System.lineSeparator())
@@ -403,5 +403,40 @@ object Util {
   // https://stackoverflow.com/a/29344937
   def lift[T](futures: Seq[Future[T]])(implicit ec:ExecutionContext) = futures.map(_.map { Success(_) }.recover { case t => Failure(t) })
   def waitAll[T](futures: Seq[Future[T]])(implicit ec:ExecutionContext) = Future.sequence(lift(futures))
+
+  // Primitive jq-style Json parser
+  def parseJson(json:String,route:String):Try[Seq[String]] = {
+        
+    def parseRoute(j:ujson.Value,r:String):Seq[String] = {
+      val i = r.indexOf(".")
+      val (v,rest) = if(i == -1) (r,"") else (r.substring(0,i),r.substring(i+1))
+      (v,rest) match {
+        case (expr,"") if(expr.endsWith("[]")) =>
+          j(expr.stripSuffix("[]"))
+            .arr
+            .map(j => j.str)
+            .toSeq
+
+        case (expr,"") => 
+          if(expr == j.str) Seq(expr)
+          else Seq()
+        case (expr,rest) if(expr.endsWith("[]")) =>
+          j(expr.stripSuffix("[]"))
+            .arr
+            .map(j => parseRoute(j,rest))
+            .flatten
+            .toSeq
+        case (expr,rest) =>
+          parseRoute(j.obj(expr),rest)            
+      }
+    }
+
+    try {
+      val j = ujson.read(json)
+      Success(parseRoute(j,route))
+    } catch {
+      case e:Exception => Failure(e)
+    }
+  }
 }
 
