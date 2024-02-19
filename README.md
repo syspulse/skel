@@ -2,7 +2,7 @@
 
 Prototyping Framework for Cloud Products
 
-<img src="doc/Skel-Architecture-ref0.drawio.png" width="1000">
+<img src="doc/Skel-Architecture-ref0.drawio.png">
 
 * [infra](infra) - Infrastructure (docker,kubernetes)
 * [skel-http](skel-http) - HTTP Service (+ Kubernetes)
