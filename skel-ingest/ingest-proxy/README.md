@@ -40,5 +40,14 @@ It is possible to *json-ize* output
 ./run-proxy.sh -f tail://1.log -o server:ws://0.0.0.0:9300/ws to-json
 ```
 
+### Running in docker
+
+```
+../../tools/run-docker.sh -f kafka://broker:9092/topic/group/latest -o server:ws://0.0.0.0:8080/ws
+```
+
+```
+websocat ws://localhost:9300/ws -B 1000000 >output.log
+```
 
 ---
