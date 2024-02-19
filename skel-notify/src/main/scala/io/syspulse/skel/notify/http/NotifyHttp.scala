@@ -1,4 +1,4 @@
-package io.syspulse.skel.notify
+package io.syspulse.skel.notify.http
 
 import scala.util.Random
 
@@ -27,13 +27,16 @@ import akka.util.ByteString
 import akka.actor
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
+import io.syspulse.skel.notify.NotifyReceiver
+import io.syspulse.skel.notify.NotifySeverity
+import io.syspulse.skel.notify.Notify
 
 object NotifyHttp {
   implicit val as:actor.ActorSystem = actor.ActorSystem("NotifyHttp-System")
   implicit val ec = as.getDispatcher
 }
 
-class NotifyHttp(uri:String) extends NotifyReceiver[String] {
+case class NotifyHttp(uri:String,timeout:Long = 3000L) extends NotifyReceiver[String] {
   val log = Logger(s"${this}")
 
   override def toString = s"${this.getClass.getSimpleName}(${request})"
@@ -42,42 +45,59 @@ class NotifyHttp(uri:String) extends NotifyReceiver[String] {
     def getHeaders:Seq[HttpHeader] = headers.map{ case(k,v) => RawHeader(k,v) }.toSeq 
 
     def withUri(subj:String,msg:String) = {
-      this.copy(uri = uri
-        .replaceAll("\\{subj\\}",subj)
-        .replaceAll("\\{msg\\}",msg)
-      )
+      verb.value match {
+        case "GET" | "AGET" =>
+          this.copy(uri = uri.replaceAll("\\{subj\\}",subj).replaceAll("\\{msg\\}",msg))
+        case "POST" | "PUT" | "APOST" | "APUT" =>
+          this.copy(uri = uri.replaceAll("\\{subj\\}",subj), body = Some(msg) )
+      }
+      
     }
   }
 
-  // http://POST/host:port/url{subj}/{msg}
+  // http://host:port/url{subj}/{msg}
+  // http://GET@host:port/url{subj}/{msg}
+  // http://POST@host:port/url{subj}
+  // http://POST@123456789@host:port/url{subj}
+  // http://POST@{VAR}@host:port/url{subj}
   // replace {} with real data
   def parseUri(uri:String) = {
 
-    def buildRequest(proto:String,verb:HttpMethod,rest:List[String],headers:Map[String,String]=Map(),body:Option[String]=None,async:Boolean=false) = {
-      Request(s"${proto}://${rest.mkString("/")}",verb, headers, body)
+    def buildRequest(proto:String,verb:HttpMethod,rest:String,headers:Map[String,String]=Map(),body:Option[String]=None,async:Boolean=false) = {
+      Request(s"${proto}://${rest}",verb, headers, body)
     }
 
-    uri.split("(://|/)").toList match {
-      case proto :: "GET" :: rest => buildRequest(proto,HttpMethods.GET,rest)
-      case proto :: "POST" :: rest => buildRequest(proto,HttpMethods.POST,rest)
-      case proto :: "PUT" :: rest => buildRequest(proto,HttpMethods.PUT,rest)
-      case proto :: "DELETE" :: rest => buildRequest(proto,HttpMethods.DELETE,rest)
+    uri.split("(://|@)").toList match {
+      case proto :: "GET" :: auth :: rest :: Nil => buildRequest(proto,HttpMethods.GET,rest,Map("Authorization" -> s"Bearer ${Util.replaceEnvVar(auth)}"))
+      case proto :: "POST" :: auth  :: rest :: Nil  => buildRequest(proto,HttpMethods.POST,rest,Map("Authorization" -> s"Bearer ${Util.replaceEnvVar(auth)}"))
+      case proto :: "PUT" :: auth  :: rest :: Nil => buildRequest(proto,HttpMethods.PUT,rest,Map("Authorization" -> s"Bearer ${Util.replaceEnvVar(auth)}"))
+      case proto :: "DELETE" :: auth  :: rest :: Nil => buildRequest(proto,HttpMethods.DELETE,rest,Map("Authorization" -> s"Bearer ${Util.replaceEnvVar(auth)}"))
 
-      case proto :: "AGET" :: rest => buildRequest(proto,HttpMethods.GET,rest,async=true)
-      case proto :: "APOST" :: rest => buildRequest(proto,HttpMethods.POST,rest,async=true)
-      case proto :: "APUT" :: rest => buildRequest(proto,HttpMethods.PUT,rest,async=true)
-      case proto :: "ADELETE" :: rest => buildRequest(proto,HttpMethods.DELETE,rest,async=true)
+      case proto :: "GET" :: rest :: Nil => buildRequest(proto,HttpMethods.GET,rest)
+      case proto :: "POST" :: rest :: Nil => buildRequest(proto,HttpMethods.POST,rest)
+      case proto :: "PUT" :: rest :: Nil => buildRequest(proto,HttpMethods.PUT,rest)
+      case proto :: "DELETE" :: rest :: Nil => buildRequest(proto,HttpMethods.DELETE,rest)
 
-      case proto :: rest => buildRequest(proto,HttpMethods.GET,rest)      
+      case proto :: "AGET" :: rest :: Nil => buildRequest(proto,HttpMethods.GET,rest,async=true)
+      case proto :: "APOST" :: rest :: Nil => buildRequest(proto,HttpMethods.POST,rest,async=true)
+      case proto :: "APUT" :: rest :: Nil => buildRequest(proto,HttpMethods.PUT,rest,async=true)
+      case proto :: "ADELETE" :: rest :: Nil => buildRequest(proto,HttpMethods.DELETE,rest,async=true)
+
+      case proto :: rest :: Nil => buildRequest(proto,HttpMethods.GET,rest)
+
+      case u => buildRequest("http",HttpMethods.GET,"localhost:8080")
     }
   }
 
   val request = parseUri(uri)
 
   def ->(r:Request) =  
-    HttpRequest(method = r.verb, uri = r.uri, headers = r.getHeaders
-    //entity = HttpEntity(ContentTypes.`application/json`)
-  )
+    if(r.body.isDefined)
+      HttpRequest(method = r.verb, uri = r.uri, headers = r.getHeaders,
+                  entity = HttpEntity(ContentTypes.`application/json`, r.body.get))
+    else
+      HttpRequest(method = r.verb, uri = r.uri, headers = r.getHeaders)
+  
   
   def send(subj:String,msg:String,severity:Option[NotifySeverity.ID],scopeOver:Option[String]):Try[String] = {
     import NotifyHttp._
@@ -95,7 +115,7 @@ class NotifyHttp(uri:String) extends NotifyReceiver[String] {
     } yield r
 
     if(!request.async)
-      Await.result(f,FiniteDuration(3000L,TimeUnit.MILLISECONDS)).map(_.utf8String)
+      Await.result(f,FiniteDuration(timeout,TimeUnit.MILLISECONDS)).map(_.utf8String)
     else 
       Success(f.toString)    
   }

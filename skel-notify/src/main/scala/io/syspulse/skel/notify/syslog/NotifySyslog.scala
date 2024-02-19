@@ -19,7 +19,7 @@ import io.syspulse.skel.notify._
 
 import io.syspulse.skel.util.Util
 
-class NotifySyslog(channel:Option[String])(implicit config: Config) extends NotifyReceiver[String] with KafkaSink[String] {  
+case class NotifySyslog(channel:Option[String])(implicit config: Config) extends NotifyReceiver[String] with KafkaSink[String] {  
   import spray.json._
   import SyslogEventJson._
 

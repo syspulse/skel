@@ -13,9 +13,9 @@ import io.syspulse.skel.store.Store
 trait PluginStore extends Store[Plugin,Plugin.ID] {
   
   def getKey(plugin: Plugin): Plugin.ID = plugin.name
-  def +(plugin:Plugin):Try[PluginStore]
+  def +(plugin:Plugin):Try[Plugin]
   
-  def del(id:Plugin.ID):Try[PluginStore]
+  def del(id:Plugin.ID):Try[Plugin.ID]
   def ?(id:Plugin.ID):Try[Plugin]  
   def all:Seq[Plugin]
   def size:Long

@@ -23,26 +23,14 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.auth.jwt.AuthJwt
 import io.syspulse.skel.auth.permissions.Permissions
 import io.syspulse.skel.auth.permissions.DefaultPermissions
+import io.syspulse.skel.auth.jwt.VerifiedToken
+import pdi.jwt.Jwt
+import pdi.jwt.JwtOptions
+import pdi.jwt.JwtClaim
 
 trait RouteAuthorizers {
   val log = Logger(s"${this}")
-
-  // case class VerifiedToken(uid:String,roles:Seq[String])
   
-  // protected def verifyAuthToken(token: Option[String],id:String,data:Seq[Any]):Option[VerifiedToken] = token match {
-  //   case Some(t) => {      
-  //     val v = AuthJwt.isValid(t)
-  //     val uid = AuthJwt.getClaim(t,"uid")
-  //     val roles = AuthJwt.getClaim(t,"roles").getOrElse("").split(",").toSeq
-  //     log.info(s"token=${token}: uid=${uid}: roles=${roles}: valid=${v}")
-  //     if(v && !uid.isEmpty) 
-  //       Some(VerifiedToken(uid.get,roles))
-  //     else 
-  //       None
-  //   }
-  //   case _ => None
-  // }
-
   def authenticateAuthHeader(id:String,data:Seq[Any],header:String="X-Auth"): Directive[Tuple1[Option[String]]] =
     optionalHeaderValueByName(header)
       .tflatMap { case Tuple1(v) =>
@@ -53,11 +41,14 @@ trait RouteAuthorizers {
       }
 
   def oauth2Authenticator(credentials: Credentials): Option[AuthenticatedUser] = {
-    log.info(s"credentials: ${credentials}")
+    log.debug(s"credentials: ${credentials}")
     credentials match {
       case p @ Credentials.Provided(accessToken) => 
-        AuthJwt.verifyAuthToken(Some(accessToken),"",Seq.empty)
-          .map(vt => AuthenticatedUser(UUID(vt.uid),vt.roles))
+        AuthJwt
+          .verifyAuthToken(Some(accessToken),"",Seq.empty)
+          .map(vt => {
+            AuthenticatedUser(UUID(vt.uid),vt.roles,Some(vt))
+          })
       case _ => None
     }
   }
@@ -66,30 +57,38 @@ trait RouteAuthorizers {
   def oauth2AuthenticatorGod(credentials: Credentials): Option[AuthenticatedUser] = {
     credentials match {
       case p @ Credentials.Provided(accessToken) => 
-        AuthJwt.getClaim(accessToken,"uid").map(uid => AuthenticatedUser(UUID(uid),Seq("admin")))
+        val au = AuthJwt
+          .getClaim(accessToken,"uid")
+          .map(uid => 
+            AuthenticatedUser(
+              UUID(uid),
+              Seq("admin"),
+              Some(VerifiedToken(uid,Seq("admin"),claim = Jwt.decode(accessToken,JwtOptions(signature = false)).get))
+          ))
+
+        if(!au.isDefined) {
+          log.warn(s"GOD=${Permissions.isGod}: JWT(uid) not found: using: ${DefaultPermissions.USER_1}")
+          val au = AuthenticatedUser(DefaultPermissions.USER_1,roles = Seq("admin"),
+                    Some(VerifiedToken(DefaultPermissions.USER_1.toString,Seq("admin"),claim = Jwt.decode(accessToken,JwtOptions(signature = false)).get)))
+          Some(au)
+        } else
+          au
       case _ => 
-        Some(AuthenticatedUser(DefaultPermissions.USER_ADMIN,roles = Seq("admin")))
+        // attention: JWT claim is empty
+        Some(AuthenticatedUser(DefaultPermissions.USER_ADMIN,roles = Seq("admin"),
+            Some(VerifiedToken(DefaultPermissions.USER_ADMIN.toString,Seq("admin"),claim = JwtClaim()))))
     }
   }
 
-  // def loginRoute(addr: String) = get {
-  //   rejectEmptyResponse {
-  //     extractAuthToken(addr,Seq(addr)) { t => 
-  //       UserAuth.updateUserAccessToken(addr) match {
-  //         case Some((uid,accessToken)) => complete(LoginRes(accessToken,uid,addr))
-  //         case _ => reject(AuthenticationFailedRejection(CredentialsRejected, HttpChallenges.oAuth2("X-Sig")))
-  //       }
-  //     }
-  //   }
-  // }
-
   protected def authenticate(): Directive1[Authenticated] = {
-    log.info(s"GOD=${Permissions.isGod}")
-    if(Permissions.isGod) 
+    //log.debug(s"GOD=${Permissions.isGod}")
+    val a:Directive1[Authenticated] = if(Permissions.isGod) 
       // try to allo and inject correct user UID
       authenticateOAuth2("api",oauth2AuthenticatorGod)
     else
       authenticateOAuth2("api",oauth2Authenticator)
+    log.debug(s"GOD=${Permissions.isGod}: authenticated=${a}")
+    a
   }
 
   protected def authenticateAll[T](): Directive1[Authenticated] = {

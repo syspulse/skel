@@ -82,11 +82,11 @@ class OdoStoreDB(configuration:Configuration,dbConfigRef:String)
 
   val deleteById = (id:String) => table.filter(_.id == lift(id)).delete
 
-  def +(o:Odo):Try[OdoStoreDB] = { 
+  def +(o:Odo):Try[Odo] = { 
     log.info(s"INSERT: ${o}")
     try {
       ctx.run(table.insertValue(o))
-      Success(this)
+      Success(o)
     } catch {
       case e:Exception => Failure(new Exception(s"could not insert: ${e}"))
     }
@@ -138,12 +138,12 @@ class OdoStoreDB(configuration:Configuration,dbConfigRef:String)
       case f => f
   }}
 
-  def del(id:String):Try[OdoStoreDB] = { 
+  def del(id:String):Try[String] = { 
     log.info(s"DELETE: id=${id}")
     try {
       ctx.run(deleteById(id)) match {
         case 0 => Failure(new Exception(s"not found: ${id}"))
-        case _ => Success(this)
+        case _ => Success(id)
       } 
       
     } catch {

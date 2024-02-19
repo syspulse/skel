@@ -369,6 +369,26 @@ object Util {
     expr1
   }
 
+  def replaceEnvVar(expr:String,env:Map[String,String] = sys.env):String = {
+    if(!expr.contains('{'))
+      return expr
+
+    val i0 = expr.indexOf('{')
+    if(i0 == -1)
+      return expr
+    val i1 = expr.indexOf('}')
+    if(i1 == -1)
+      return expr
+    
+    val v = expr.substring(i0+1,i1)
+    val ev = env.get(v)
+    
+    if(!ev.isDefined)
+      return expr
+    
+    expr.take(i0) + ev.get + expr.drop(i0 + 1 + 1 + v.size)
+  }
+
   // more reliable BigInt converter of format is into double
   def toBigInt(v:String):BigInt = {
     if(v.contains(".")) 

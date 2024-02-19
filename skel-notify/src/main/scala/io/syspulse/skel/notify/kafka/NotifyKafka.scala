@@ -28,7 +28,7 @@ import io.syspulse.skel.notify.Notify
 import spray.json._
 import io.syspulse.skel.syslog.{SyslogEvent,SyslogEventJson}
 
-class NotifyKafka(uri:String)(implicit config: Config) extends NotifyReceiver[String] with KafkaSink[String] {  
+case class NotifyKafka(uri:String)(implicit config: Config) extends NotifyReceiver[String] with KafkaSink[String] {  
   import spray.json._
   import SyslogEventJson._
   
@@ -47,17 +47,16 @@ class NotifyKafka(uri:String)(implicit config: Config) extends NotifyReceiver[St
   def send(no:Notify):Try[String] = {
     log.info(s"[${no}]-> Kafka(${kafkaUri})")
 
-    val m = SyslogEvent( 
-      subj = no.subj.getOrElse(""), 
-      msg = no.msg, 
-      severity = no.severity, 
-      scope = no.scope, 
-      from = no.from.map(_.toString), 
-      id = Some(no.id),
-    ).toJson.compactPrint
-    // val r = kafka.offer(
-    //   s"""["title":"${title}","msg":"${msg}","ts":${System.currentTimeMillis()},"severity":${severity.getOrElse(0)},"scope":"${scope.getOrElse("sys.all")}"]"""
-    // )
+    // val m = SyslogEvent( 
+    //   subj = no.subj.getOrElse(""), 
+    //   msg = no.msg, 
+    //   severity = no.severity, 
+    //   scope = no.scope, 
+    //   from = no.from.map(_.toString), 
+    //   id = Some(no.id),
+    // ).toJson.compactPrint
+    val m = no.msg
+    
     val r = kafka.offer(m)        
     Success(s"${r}")
   }

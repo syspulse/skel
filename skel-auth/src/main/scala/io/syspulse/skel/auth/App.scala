@@ -36,6 +36,7 @@ import java.security.cert.CertificateFactory
 import java.io.ByteArrayInputStream
 import pdi.jwt.Jwt
 import pdi.jwt.JwtAlgorithm
+import scala.io.StdIn
 
 case class Config(
   host:String="0.0.0.0",
@@ -382,45 +383,75 @@ object App extends skel.Server {
         System.exit(0)
       }
 
-      case "jwt" => {        
+      case "jwt" => {
+
+        def jwtGenerator(uid:String,role:String,ttl:Option[String],defTTL:Long,attr:List[String] = List()) = {
+          val exp = if(ttl == None) defTTL else ttl.get.toLong
+          val aj = AuthJwt(config.jwtUri)
+          val jwt = aj.generateAccessToken(
+            Map("uid" -> uid,"roles" -> role) ++ 
+              attr.flatMap(a => a.split("=").toList match {
+                case k :: v :: Nil => Some(k -> v)
+                case _ => None
+              }),
+            expire = exp
+          )
+          jwt
+        }
+
         val r = 
           config.params match {
             case "admin" :: ttl => 
               // long living token
-              val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_ADMIN_TTL else ttl.head.toLong
-              val aj = AuthJwt(config.jwtUri)
-              aj.generateAccessToken(
-                Map("uid" -> DefaultPermissions.USER_ADMIN.toString, "roles" -> "admin"),
-                expire = exp                
-              )
+              // val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_ADMIN_TTL else ttl.head.toLong
+              // val aj = AuthJwt(config.jwtUri)
+              // aj.generateAccessToken(
+              //   Map("uid" -> DefaultPermissions.USER_ADMIN.toString, "roles" -> "admin"),
+              //   expire = exp
+              // )
+              jwtGenerator(DefaultPermissions.USER_ADMIN.toString,"admin",ttl.headOption,AuthJwt.DEFAULT_ACCESS_TOKEN_ADMIN_TTL)
             
             case "service" :: ttl => 
               // long living token
-              val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL else ttl.head.toLong
-              val aj = AuthJwt(config.jwtUri)
-              aj.generateAccessToken(
-                Map("uid" -> DefaultPermissions.USER_SERVICE.toString, "roles" -> "service"),
-                expire = exp
-              )
+              // val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL else ttl.head.toLong
+              // val aj = AuthJwt(config.jwtUri)
+              // aj.generateAccessToken(
+              //   Map("uid" -> DefaultPermissions.USER_SERVICE.toString, "roles" -> "service"),
+              //   expire = exp
+              // )
+              jwtGenerator(DefaultPermissions.USER_SERVICE.toString,"service",ttl.headOption,AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL)
 
             case "user" :: Nil => 
-              val uid = DefaultPermissions.USER_1.toString
-              val exp = AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL
-              val aj = AuthJwt(config.jwtUri)
-              val jwt = aj.generateAccessToken(
-                Map("uid" -> uid,"roles" -> "user")                
-              )
-              log.info(s"User: ${uid}")
-              jwt
+              // val uid = DefaultPermissions.USER_1.toString
+              // val exp = AuthJwt.DEFAULT_ACCESS_TOKEN_TTL
+              // val aj = AuthJwt(config.jwtUri)
+              // val jwt = aj.generateAccessToken(
+              //   Map("uid" -> uid,"roles" -> "user")                
+              // )
+              // log.info(s"User: ${uid}")
+              // jwt
+              jwtGenerator(DefaultPermissions.USER_1.toString,"user",None,AuthJwt.DEFAULT_ACCESS_TOKEN_TTL)
 
-            case "user" :: uid :: ttl => 
-              val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL else ttl.head.toLong
-              val aj = AuthJwt(config.jwtUri)
-              val jwt = aj.generateAccessToken(
-                Map("uid" -> uid,"roles" -> "user")                
-              )
-              log.info(s"User: ${uid}")
-              jwt
+            case "user" :: uid :: ttl :: attr => 
+              // val exp = if(ttl == Nil) AuthJwt.DEFAULT_ACCESS_TOKEN_TTL else ttl.head.toLong
+              // val aj = AuthJwt(config.jwtUri)
+              // val jwt = aj.generateAccessToken(
+              //   Map("uid" -> uid,"roles" -> "user")
+              // )
+              // log.info(s"User: ${uid}")
+              // jwt
+              jwtGenerator(uid,"user",Some(ttl),AuthJwt.DEFAULT_ACCESS_TOKEN_TTL,attr)
+
+            case "user" :: attr => 
+              // val uid = DefaultPermissions.USER_1.toString
+              // val exp = AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL
+              // val aj = AuthJwt(config.jwtUri)
+              // val jwt = aj.generateAccessToken(
+              //   Map("uid" -> uid,"roles" -> "user")                
+              // )
+              // log.info(s"User: ${uid}")
+              // jwt
+              jwtGenerator(DefaultPermissions.USER_1.toString,"user",None,AuthJwt.DEFAULT_ACCESS_TOKEN_TTL,attr)
 
             case "encode" :: data => 
               val exp = AuthJwt.DEFAULT_ACCESS_TOKEN_SERVICE_TTL
@@ -431,8 +462,9 @@ object App extends skel.Server {
               )
 
             case "decode" :: token :: Nil => 
+              val accessToken = if(token == "=") StdIn.readLine() else token
               val aj = AuthJwt(config.jwtUri)
-              aj.decodeAll(token) match {
+              aj.decodeAll(accessToken) match {
                 case Success(jwt) => 
                   s"valid = ${jwt._1}\n"+
                   s"header = ${jwt._2.algorithm},${jwt._2.contentType},${jwt._2.keyId},${jwt._2.typ}\n" +
@@ -440,9 +472,11 @@ object App extends skel.Server {
                   s"sig = ${jwt._4}"
                 case f => f
               }
+              
             case ("valid" | "validate") :: token :: Nil => 
+              val accessToken = if(token == "=") StdIn.readLine() else token
               val aj = AuthJwt(config.jwtUri)
-              aj.isValid(token)
+              aj.isValid(accessToken)
 
             case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
           }

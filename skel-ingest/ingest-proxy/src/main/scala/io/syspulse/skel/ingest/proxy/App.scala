@@ -1,4 +1,4 @@
-package io.syspulse.skel.ingest.flow
+package io.syspulse.skel.ingest.proxy
 
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration,FiniteDuration}
@@ -21,11 +21,10 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.ingest._
 import io.syspulse.skel.ingest.store._
 
-
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
-  uri:String = "/api/v1/ingest",
+  uri:String = "/api/v1/proxy",
     
   filter:String = "",
   
@@ -41,9 +40,9 @@ case class Config(
   throttleSource:Long = 100L,
   format:String = "",
 
-  datastore:String = "mem",
-
-  cmd:String = "ingest",
+  apiKey:String = "",
+  
+  cmd:String = "proxy",
   params: Seq[String] = Seq(),
 )
 
@@ -58,7 +57,7 @@ object App extends skel.Server {
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv, 
-      new ConfigurationArgs(args,"ingest-flow","",
+      new ConfigurationArgs(args,"ingest-proxy","",
         ArgString('h', "http.host",s"listen host (def: ${d.host})"),
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
@@ -66,19 +65,18 @@ object App extends skel.Server {
         ArgString('f', "feed",s"Input Feed (stdin://, http://, file://, kafka://) (def=${d.feed})"),
         ArgString('o', "output",s"Output (stdout://, csv://, json://, log://, file://, hive://, elastic://, kafka:// (def=${d.output})"),
 
+        ArgLong('n', s"limit",s"File Limit (def: ${d.limit})"),
+        ArgLong('s', s"size",s"File Size Limit (def: ${d.size})"),
         ArgString('_', "delimiter",s"""Delimiter characteds (def: '${d.delimiter}'). Usage example: --delimiter=`echo -e $"\r\n"` """),
         ArgInt('_', "buffer",s"Frame buffer (Akka Framing) (def: ${d.buffer})"),
         ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
         ArgLong('_', "throttle.source",s"Throttle source (e.g. http, def=${d.throttleSource})"),
         ArgString('_', "format",s"Format output (json,csv,log) (def=${d.format})"),
-
-        ArgLong('n', s"limit",s"File Limit (def: ${d.limit})"),
-        ArgLong('s', s"size",s"File Size Limit (def: ${d.size})"),
-
-        ArgString('d', "datastore",s"Datastore [elastic,mem,stdout] (def: ${d.datastore})"),
         
+        ArgString('_', "api.key",s"API Key (URI path) (def=${d.apiKey})"),
+                
         ArgCmd("server","HTTP Service"),
-        ArgCmd("ingest","Ingest Command"),
+        ArgCmd("proxy","Proxy Command"),
         
         ArgParam("<processors>","List of processors (none/map,print,dedup)"),
         ArgLogging()
@@ -92,16 +90,16 @@ object App extends skel.Server {
       
       feed = c.getString("feed").getOrElse(d.feed),
       output = c.getString("output").getOrElse(d.output),
-      datastore = c.getString("datastore").getOrElse(d.datastore),
 
       limit = c.getLong("limit").getOrElse(d.limit),
-      size = c.getLong("size").getOrElse(d.size),
-      
+      size = c.getLong("size").getOrElse(d.size),      
       delimiter = c.getString("delimiter").getOrElse(d.delimiter),
       buffer = c.getInt("buffer").getOrElse(d.buffer),
       throttle = c.getLong("throttle").getOrElse(d.throttle),
       throttleSource = c.getLong("throttle.source").getOrElse(d.throttleSource),
       format = c.getString("format").getOrElse(d.format),
+
+      apiKey = c.getString("api.key").getOrElse(d.apiKey),
 
       filter = c.getString("filter").getOrElse(d.filter),
       
@@ -109,17 +107,7 @@ object App extends skel.Server {
       params = c.getParams(),
     )
 
-    println(s"Config: ${config}")
-
-    // store is not used
-    val store:IngestStore[_] = config.datastore match {
-      case "mem" => new IngestStoreMem()
-      case "stdout" => new IngestStoreStdout()
-      case _ => {
-        Console.err.println(s"Uknown datastore: '${config.datastore}")
-        sys.exit(1)
-      }
-    }
+    Console.err.println(s"Config: ${config}")
     
     val filter = config.filter + config.params.mkString(" ")
 
@@ -132,13 +120,13 @@ object App extends skel.Server {
         // )
         Console.err.println(s"Not supported")
         sys.exit(1)
-      case "ingest" => {
-        val f1 = new PipelineTextline(config.feed,config.output)
+      case "proxy" => {
+        val f1 = new PipelineProxy(config.feed,config.output)
         f1.run()
       }     
     }
 
-    println(s"r = ${r}")
+    Console.err.println(s"r = ${r}")
     
     //sys.exit(0)
   }

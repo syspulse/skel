@@ -13,6 +13,8 @@ class ConfigurationProp extends ConfigurationLike {
   def getString(path:String):Option[String] = { val e = System.getProperty(path); if(e == null) None else Some(e) }
   def getInt(path:String):Option[Int] = { val e = System.getProperty(path); if(e == null) None else Some(e.toInt) }
   def getLong(path:String):Option[Long] = { val e = System.getProperty(path); if(e == null) None else Some(e.toLong) }
+  
+  def getDouble(path:String):Option[Double] = { val e = System.getProperty(path); if(e == null) None else Some(e.toDouble) }
 
   // supports only millis
   def getDuration(path:String):Option[Duration] = { val e = System.getProperty(path); if(e == null) None else Some(Duration.ofMillis(e.toLong)) }

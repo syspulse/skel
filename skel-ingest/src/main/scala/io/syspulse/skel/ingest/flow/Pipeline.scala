@@ -30,7 +30,7 @@ import com.github.mjakubowski84.parquet4s.ParquetSchemaResolver
 // throttleSource - reduce load on Source (e.g. HttpSource)
 // throttle - delay objects downstream
 abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
-  throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=100L)
+  throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=100L,format:String="")
   (implicit fmt:JsonFormat[O], parqEncoders:ParquetRecordEncoder[O],parsResolver:ParquetSchemaResolver[O])  extends IngestFlow[I,T,O]() {
   
   private val log = Logger(s"${this}")
@@ -67,7 +67,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "https" :: _ => Flows.fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
       
       case "listen" :: uri :: Nil => Flows.fromHttpServer(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
-      case "server" :: uri :: Nil => Flows.fromHttpServer(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
+      case ("server" | "http:server" | "https:server") :: uri :: Nil => Flows.fromHttpServer(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
 
       case "tcp" :: uri :: Nil => Flows.fromTcpClientUri(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
 
@@ -144,7 +144,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "files" :: fileName :: Nil => Flows.toHiveFileSize(fileName)
       case "hive" :: fileName :: Nil => Flows.toHive(fileName)(getRotator())
 
-      case "fs3" :: fileName :: Nil => Flows.toFS3(fileName,getFileLimit(),getFileSize())(getRotator())
+      case "fs3" :: fileName :: Nil => Flows.toFS3(fileName,getFileLimit(),getFileSize())(getRotator(),fmt)
       case "parq" :: fileName :: Nil => Flows.toParq[O](fileName,getFileLimit(),getFileSize())(getRotator(),parqEncoders,parsResolver)
 
       // test to create new file for every object
@@ -165,6 +165,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "jdbc" :: _ => Flows.toJDBC[O](output)(fmt)
       case "postgres" :: _ => Flows.toJDBC[O](output)(fmt)
       case "mysql" :: _ => Flows.toJDBC[O](output)(fmt)
+
+      case "server:ws" :: uri :: Nil => Flows.toWsServer[O](uri,format)
 
       case "" :: Nil => Flows.toStdout()
       case _ => 

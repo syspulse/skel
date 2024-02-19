@@ -22,17 +22,17 @@ class OdoStoreMem extends OdoStore {
 
   def size:Long = odometers.size
 
-  def +(o:Odo):Try[OdoStore] = { 
+  def +(o:Odo):Try[Odo] = { 
     odometers = odometers + (o.id -> o)
     log.debug(s"add: ${o}")
-    Success(this)
+    Success(o)
   }
 
-  def del(id:String):Try[OdoStore] = { 
+  def del(id:String):Try[String] = { 
     val sz = odometers.size
     odometers = odometers - id;
     log.info(s"del: ${id}")
-    if(sz == odometers.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
+    if(sz == odometers.size) Failure(new Exception(s"not found: ${id}")) else Success(id)  
   }
 
   def ?(id:String):Try[Odo] = odometers.get(id) match {

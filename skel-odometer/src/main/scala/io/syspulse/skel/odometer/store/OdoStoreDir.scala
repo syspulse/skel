@@ -23,9 +23,9 @@ class OdoStoreDir(dir:String = "store/") extends StoreDir[Odo,String](dir) with 
   def toKey(id:String):String = id
   def all:Seq[Odo] = store.all
   def size:Long = store.size
-  override def +(u:Odo):Try[OdoStoreDir] = super.+(u).flatMap(_ => store.+(u)).map(_ => this)
+  override def +(u:Odo):Try[Odo] = super.+(u).flatMap(_ => store.+(u))
 
-  override def del(id:String):Try[OdoStoreDir] = super.del(id).flatMap(_ => store.del(id)).map(_ => this)
+  override def del(id:String):Try[String] = super.del(id).flatMap(_ => store.del(id))
   override def ?(id:String):Try[Odo] = store.?(id)
   
   override def update(id:String, counter:Long):Try[Odo] = 

@@ -102,6 +102,10 @@ import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.model.headers.OAuth2BearerToken
 import akka.http.scaladsl.model.HttpResponse
 import io.getquill.context.jdbc.JdbcContext
+import akka.http.scaladsl.model.ws.Message
+import akka.http.scaladsl.model.ws.TextMessage
+import akka.http.scaladsl.model.ws.BinaryMessage
+import akka.http.scaladsl.server.Route
 
 object Flows {
   val log = Logger(this.toString)
@@ -383,13 +387,18 @@ object Flows {
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))
   }
 
-  def fromHttpServer(uri:String,chunk:Int = 0, frameDelimiter:String="\n",frameSize:Int = 8192, retry:RestartSettings=retrySettingsDefault)(implicit sys:ActorSystem,timeout:FiniteDuration) = {
+  def uriToHostPort(uri:String) = {
     val (host,port,suffix) = uri.split("[:/]").toList match {      
-      case h :: p :: Nil => (h,p.toInt,"")
-      case h :: p :: s => (h,p.toInt,s.mkString("/"))
-      case h :: Nil => (h,8080,"")
-      case _ => throw new Exception(s"invalid uri: ${uri}")
-    }
+        case h :: p :: Nil => (h,p.toInt,"")
+        case h :: p :: s => (h,p.toInt,s.mkString("/"))
+        case h :: Nil => (h,8080,"")
+        case _ => throw new Exception(s"invalid uri: ${uri}")
+      }
+    (host,port,suffix)
+  }
+
+  def fromHttpServer(uri:String,chunk:Int = 0, frameDelimiter:String="\n",frameSize:Int = 8192, retry:RestartSettings=retrySettingsDefault)(implicit sys:ActorSystem,timeout:FiniteDuration) = {
+    val (host,port,suffix) = uriToHostPort(uri)
     
     val (a,s0) = Source
       .actorRef[ByteString](32,OverflowStrategy.fail)
@@ -430,15 +439,22 @@ object Flows {
 // Sinks
 // ==================================================================================================  
 
-  def toFile(file:String) = {
+  def toFile[T <: Ingestable](file:String)(implicit fmt:JsonFormat[T]) = {
     import akka.event.Logging
+    import spray.json._
 
     if(file.trim.isEmpty) 
       Sink.ignore 
     else {
       //toSinkRestart({
-        Flow[Ingestable]
-          .map(t => s"${t.toLog}\n")
+        Flow[T]
+          .map(t => if(file.endsWith(".json")) 
+              s"${t.toJson}\n" 
+            else if(file.endsWith(".csv")) 
+              s"${t.toCSV}\n" 
+            else 
+              s"${t.toLog}\n"
+          )
           .map(ByteString(_))          
           .log(s"${this}")
           .withAttributes(Attributes.createLogLevels(Logging.DebugLevel, Logging.InfoLevel, Logging.ErrorLevel))       
@@ -519,6 +535,78 @@ object Flows {
     }
   }
 
+  // ===== WebSocket Sink
+  def toWsServer[T <: Ingestable](uri:String,format:String="",timeout:Long = 1000L*60*60*24)(implicit as:ActorSystem,fmt:JsonFormat[T]) = { 
+    import io.syspulse.skel.service.ws._
+    import akka.actor.typed.scaladsl.ActorContext
+
+    class WsProxyServer(idleTimeout:Long,uri:String = "ws") extends WebSocket(idleTimeout) {
+      // ignore incoming messages
+      override def process(m:Message,a:ActorRef):Message = m        
+
+      val routes: Route =
+        pathPrefix(uri) { 
+          extractClientIP { addr => {
+            log.info(s"<-- ws://${addr}")
+            
+            pathPrefix(Segment) { topic =>
+              handleWebSocketMessages(this.listen(topic))
+            } ~
+            pathEndOrSingleSlash {
+              handleWebSocketMessages(this.listen())
+            }
+          }}
+      }
+      
+      def broadcast(msg:String):Try[Unit] = {
+        Success(this.broadcastText(msg) )        
+      }            
+    }
+    
+    if(uri.trim.isEmpty) {
+      log.warn(s"invalid uri: ${uri}")
+      Sink.ignore 
+    } else {     
+      import spray.json._
+      import akka.http.scaladsl.model.{ HttpResponse, Uri, HttpRequest }
+      import akka.http.scaladsl.model.HttpMethods._
+      import akka.http.scaladsl.model.AttributeKeys
+      import akka.event.Logging
+     
+      def retry_deterministic(as:ActorSystem,timeout:FiniteDuration) = ConnectionPoolSettings(as)
+        .withBaseConnectionBackoff(timeout)
+        .withMaxConnectionBackoff(timeout)
+
+      val (host,port,suffix) = uriToHostPort(uri)
+    
+      val (actor,source0) = Source
+        .actorRef[String](1,OverflowStrategy.dropTail)
+        .preMaterialize()   
+      
+      val ws = new WsProxyServer(timeout,uri = suffix)
+      log.info(s"Listen: ws://${host}:${port}/${suffix} ...")      
+      val bindingFuture = Http().newServerAt(host, port).bind(ws.routes)      
+
+      val sink0 = Flow[T]
+        .map(t => { 
+          val out = format match {
+            case "json" => t.toJson.compactPrint
+            case "csv" => t.toCSV
+            case _ => t.toLog
+          }
+          //log.debug(s"out=${out}")
+          ws.broadcast(out)
+        }) 
+        .toMat(
+          Sink.ignore
+        )(Keep.right)
+
+      val sink = sink0
+      
+      sink
+    }
+  }  
+
   // Hive Rotators
   abstract class Rotator {
     def init(file:String,fileLimit:Long,fileSize:Long):Unit
@@ -568,14 +656,20 @@ object Flows {
   }
 
 
-  def toFileNew[O <: Ingestable](file:String,rotator:(O,String) => String)(implicit mat: Materializer) = {
-      
+  def toFileNew[T <: Ingestable](file:String,rotator:(T,String) => String)(implicit mat: Materializer,fmt:JsonFormat[T]) = {
+    import spray.json._  
     if(file.trim.isEmpty) 
       Sink.ignore 
     else
-      Flow[O].map( t => {
+      Flow[T].map( t => {
+        val out = if(file.endsWith(".json")) 
+              s"${t.toJson}\n" 
+            else if(file.endsWith(".csv")) 
+              s"${t.toCSV}\n" 
+            else 
+              s"${t.toLog}\n"
         Source
-          .single(ByteString(t.toLog))
+          .single(ByteString(out))
           .toMat(FileIO.toPath(
             Paths.get(rotator(t,file)),options =  Set(WRITE, CREATE))
           )(Keep.left).run()
@@ -633,8 +727,8 @@ object Flows {
         .toMat(LogRotatorSink(fileRotateTrigger))(Keep.right)
   }
 
-  def toHiveFileSize(file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue) = {
-
+  def toHiveFileSize[T <: Ingestable](file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue)(implicit fmt:JsonFormat[T]) = {
+    import spray.json._
     val fileRotateTrigger: () => ByteString => Option[Path] = () => {
       var currentFilename: Option[String] = None
       var inited = false
@@ -670,15 +764,22 @@ object Flows {
     if(file.trim.isEmpty) 
       Sink.ignore 
     else
-      Flow[Ingestable]
-        .map(t=>s"${t.toLog}\n")
+      Flow[T]
+        .map(t => if(file.endsWith(".json")) 
+              s"${t.toJson}\n" 
+            else if(file.endsWith(".csv")) 
+              s"${t.toCSV}\n" 
+            else 
+              s"${t.toLog}\n"
+        )
         .map(ByteString(_))
         .toMat(LogRotatorSink(fileRotateTrigger))(Keep.right)
   }
 
   // S3 mounted as FileSystem/Volume
   // Does not support APPEND 
-  def toFS3(file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue)(implicit rotator:Rotator) = {
+  def toFS3[T <: Ingestable](file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue)(implicit rotator:Rotator,fmt:JsonFormat[T]) = {
+    import spray.json._
     val log = Logger(s"${this}")
 
     val fileRotateTrigger: () => ByteString => Option[Path] = () => {
@@ -732,8 +833,14 @@ object Flows {
     if(file.trim.isEmpty) 
       Sink.ignore 
     else
-      Flow[Ingestable]
-        .map(t=>s"${t.toLog}\n")
+      Flow[T]
+        .map(t => if(file.endsWith(".json")) 
+              s"${t.toJson}\n" 
+            else if(file.endsWith(".csv")) 
+              s"${t.toCSV}\n" 
+            else 
+              s"${t.toLog}\n"
+        )
         .map(ByteString(_))
         .toMat(LogRotatorSink(fileRotateTrigger,fileOpenOptions = Set(StandardOpenOption.CREATE,StandardOpenOption.WRITE)))(Keep.right)
   }
@@ -878,17 +985,17 @@ object Flows {
 
   def toStdout[O](flush:Boolean = false): Sink[O, Future[IOResult]] = toPipe(flush,System.out)
   def toStderr[O](flush:Boolean = false): Sink[O, Future[IOResult]] = toPipe(flush,System.err)
-  def toPipe[O](flush:Boolean,pipe:java.io.PrintStream): Sink[O, Future[IOResult]] = 
+  def toPipe[O](flush:Boolean,pipe:java.io.PrintStream): Sink[O, Future[IOResult]] = {
     Flow[O]
       .map(o => if(o!=null) ByteString(o.toString+"\n") else ByteString())
-      .toMat(StreamConverters.fromOutputStream(() => pipe,flush))(Keep.right)
+      .toMat(StreamConverters.fromOutputStream(() => pipe,flush))(Keep.right)  
+  }
+  
   // This sink returns Future[Done] and not possible to wait for completion of the flow
   //def toStdout() = Sink.foreach(println _)
 
-  
   // JDBC
-  def toJDBC[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = { 
-    
+  def toJDBC[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {     
     val jdbc = new ToJDBC[T](uri,None).flow()
     
     Flow[T]
@@ -898,8 +1005,7 @@ object Flows {
   }
 }
 
-// === JDBC ============================================================================================
-
+// === JDBC ============================================================================================  
 class ToJDBC[T <: Ingestable](dbUri:String,configuration:Option[Configuration]=None) 
   extends skel.store.StoreDBCore(dbUri,"",None) {
   

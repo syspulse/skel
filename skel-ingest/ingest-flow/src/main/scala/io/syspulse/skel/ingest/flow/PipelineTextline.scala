@@ -38,9 +38,15 @@ trait TextlineJsonProtocol extends DefaultJsonProtocol {
       if(t.txt.isBlank()) {
         JsObject()
       }
-      else {        
-        val ast = t.txt.parseJson
-        ast
+      else {      
+        try {
+          t.txt.parseJson
+        } catch {
+          case e:Exception =>
+            log.warn(s"failed to convert to json: ${e.getMessage()}")
+            //JsNull
+            JsString(t.txt)            
+        }
       }
     }
 
@@ -60,7 +66,13 @@ import TextlineJson._
 import io.syspulse.skel.serde.Parq._
 
 class PipelineTextline(feed:String,output:String)(implicit config:Config) extends 
-      Pipeline[String,String,Textline](feed,output,config.throttle,config.delimiter,config.buffer,throttleSource = config.throttleSource) {
+      Pipeline[String,String,Textline](
+        feed,output,
+        config.throttle,
+        config.delimiter,
+        config.buffer,
+        throttleSource = config.throttleSource,
+        format = config.format) {
   
   private val log = Logger(s"${this}")
       

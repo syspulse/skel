@@ -61,17 +61,17 @@ class OdoStoreRedis(uri:String,redisTimeout:Long = 3000L) extends OdoStore {
     Await.result(f,timeout)
   }
 
-  def +(o:Odo):Try[OdoStore] = { 
+  def +(o:Odo):Try[Odo] = { 
     val f = redis.set(o.id,o.toJson.compactPrint)
     log.debug(s"add: ${o}")
-    Success(this)
+    Success(o)
   }
 
-  def del(id:String):Try[OdoStore] = { 
+  def del(id:String):Try[String] = { 
     log.info(s"del: ${id}")
     val f = redis.del(id)
     val r = Await.result(f,timeout)
-    if(r == 0) Failure(new Exception(s"not found: ${id}")) else Success(this)  
+    if(r == 0) Failure(new Exception(s"not found: ${id}")) else Success(id)  
   }
 
   def ?(id:String):Try[Odo] = {

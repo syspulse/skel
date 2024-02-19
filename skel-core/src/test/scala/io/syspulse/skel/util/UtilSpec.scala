@@ -293,5 +293,17 @@ class UtilSpec extends AnyWordSpec with Matchers {
       v should === (BigInt("100000000000000000000"))
     }
 
+     """replaceEnvVar should replace 'prefix_{USER}_suffix'""" in {
+      val e1 = """prefix_{USER}_suffix'"""
+      val e2 = Util.replaceEnvVar(e1,Map("USER" -> "1234"))
+      e2 should === ("""prefix_1234_suffix'""")
+    }
+
+    """replaceEnvVar should replace '{USER}'""" in {
+      val e1 = """{USER}'"""
+      val e2 = Util.replaceEnvVar(e1,Map("USER" -> "1234"))
+      e2 should === ("""1234'""")
+    }
+
   }
 }

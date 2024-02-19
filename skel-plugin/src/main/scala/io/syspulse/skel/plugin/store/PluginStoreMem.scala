@@ -22,17 +22,17 @@ class PluginStoreMem extends PluginStore {
 
   def size:Long = plugins.size
 
-  def +(plugin:Plugin):Try[PluginStore] = { 
-    plugins = plugins + (plugin.name -> plugin)
-    log.info(s"add: ${plugin}")
-    Success(this)
+  def +(p:Plugin):Try[Plugin] = { 
+    plugins = plugins + (p.name -> p)
+    log.info(s"add: ${p}")
+    Success(p)
   }
 
-  def del(id:Plugin.ID):Try[PluginStore] = { 
+  def del(id:Plugin.ID):Try[Plugin.ID] = { 
     val sz = plugins.size
     plugins = plugins - id;
     log.info(s"del: ${id}")
-    if(sz == plugins.size) Failure(new Exception(s"not found: ${id}")) else Success(this)  
+    if(sz == plugins.size) Failure(new Exception(s"not found: ${id}")) else Success(id)  
   }
 
   def ?(id:Plugin.ID):Try[Plugin] = plugins.get(id) match {

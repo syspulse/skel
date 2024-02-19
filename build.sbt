@@ -29,6 +29,9 @@ enablePlugins(AshScriptPlugin)
 //enablePlugins(JavaAppPackaging, AshScriptPlugin)
 
 // Huge Credits -> https://softwaremill.com/how-to-build-multi-platform-docker-image-with-sbt-and-docker-buildx
+// Install emulators:
+// docker run -it --rm --privileged tonistiigi/binfmt --install all
+//
 lazy val ensureDockerBuildx = taskKey[Unit]("Ensure that docker buildx configuration exists")
 lazy val dockerBuildWithBuildx = taskKey[Unit]("Build docker images using buildx")
 lazy val dockerBuildxSettings = Seq(
@@ -715,6 +718,24 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
     appAssemblyConfig("ingest-flow","io.syspulse.skel.ingest.flow.App"),    
 
     libraryDependencies ++= Seq(
+      libScalaTest % Test,      
+    ),        
+  )
+
+lazy val ingest_proxy = (project in file("skel-ingest/ingest-proxy"))
+  .dependsOn(core, serde, ingest)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("ingest-proxy","io.syspulse.skel.ingest.proxy.App"),    
+
+    libraryDependencies ++= Seq(
+      libCsv,
       libScalaTest % Test,      
     ),        
   )

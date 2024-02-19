@@ -27,6 +27,9 @@ import java.security.PublicKey
 import java.security.PrivateKey
 import java.security.interfaces.RSAPrivateCrtKey
 import java.math.BigInteger
+import java.security.cert.CertificateFactory
+import java.io.ByteArrayInputStream
+import io.syspulse.skel.auth.permissions.DefaultPermissions
 
 class AuthJwt(uri:String = "") {
   val log = Logger(s"${this.getClass()}")
@@ -129,6 +132,25 @@ class AuthJwt(uri:String = "") {
           .withAlgo(algo.toUpperCase())
           .withPublicKey(pk)
 
+      case algo :: "pk" :: "base64" :: file :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
+        val pk64 = os.read(os.Path(file,os.pwd))
+        val pk = AuthJwt.getPublicKeyFromBase64(pk64)
+        this
+          .withAlgo(algo.toUpperCase())
+          .withPublicKey(pk)
+
+      case algo :: "cer" :: "base64" :: file :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
+        val pk64 = os.read(os.Path(file,os.pwd))
+        val pk = AuthJwt.getPublicKeyFromCert(pk64)
+        this
+          .withAlgo(algo.toUpperCase())
+          .withPublicKey(pk)
+
+      case algo :: "pk" :: publicKey :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
+        this
+          .withAlgo(algo.toUpperCase())
+          .withPublicKey(publicKey)
+
       case ("http" | "https") :: _ =>
         val jwks = requests.get(uri).text()        
         val ppk = AuthJwt.getPublicKeyFromJWKS(jwks)
@@ -137,12 +159,7 @@ class AuthJwt(uri:String = "") {
         this
           .withAlgo(ppk(0)._1.toUpperCase())
           .withPublicKey(ppk(0)._2)
-
-      case algo :: "pk" :: publicKey :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
-        this
-          .withAlgo(algo.toUpperCase())
-          .withPublicKey(publicKey)
-
+      
       case algo :: "sk" :: ("pkcs8"|"file") :: file :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
         val sk = os.read(os.Path(file,os.pwd))
         this
@@ -196,7 +213,7 @@ class AuthJwt(uri:String = "") {
           val json = ujson.read(c.content)
           Some(json.obj(claim).str)
         } catch {
-          case e:Exception => log.warn(s"failed to parse claim: '${claim}'");
+          case e:Exception => log.debug(s"failed to parse claim: '${claim}'");
             None
         }
       }
@@ -259,6 +276,9 @@ class AuthJwt(uri:String = "") {
           case "RS" =>
             try {
               
+              if(!defaultPublicKey.isDefined)
+                throw new Exception(s"${algo.name}: no public key to verify")
+
               val pk = defaultPublicKey.get
               
               //Jwt.decodeAll(token, rsa, Seq(algo.asInstanceOf[JwtAsymmetricAlgorithm]))
@@ -296,17 +316,20 @@ class AuthJwt(uri:String = "") {
     r.isSuccess && r.get._1
   }
     
-  // this is called from HTTP Routes on every call !
+  // this is called from HTTP Routes on every call !!!
   def verifyAuthToken(token: Option[String],id:String,data:Seq[Any]):Option[VerifiedToken] = token match {
     case Some(jwt) => {           
       val v = isValid(jwt)
 
       val uid = getClaim(jwt,"uid")
-      val roles = getClaim(jwt,"roles").map(_.split(",").filter(!_.trim.isEmpty()).toSeq).getOrElse(Seq.empty)
-      log.info(s"token=${jwt}: uid=${uid}: roles=${roles}: valid=${v}")
+      val roles = getClaim(jwt,"roles").map(_.split(",").filter(!_.trim.isEmpty()).toSeq).getOrElse(Seq.empty)      
+      
+      val claim = Jwt.decode(jwt,JwtOptions(signature = false)).get
 
-      if(v && !uid.isEmpty) 
-        Some(VerifiedToken(uid.get,roles))
+      log.debug(s"token=${jwt}: uid=${uid}: roles=${roles}: claim=${claim.content}: valid=${v}")
+      
+      if(v) 
+        Some(VerifiedToken(uid.orElse(Some(DefaultPermissions.USER_NOBODY.toString())).get,roles,claim))
       else 
         None
     }
@@ -317,7 +340,7 @@ class AuthJwt(uri:String = "") {
     withUri(uri)
 }
 
-case class VerifiedToken(uid:String,roles:Seq[String])
+case class VerifiedToken(uid:String,roles:Seq[String],claim:JwtClaim)
 
 object AuthJwt {
   val log = Logger(s"${this.getClass()}")
@@ -358,6 +381,24 @@ object AuthJwt {
     // val publicKey = cert.getPublicKey().asInstanceOf[RSAPublicKey]
     log.debug(s"PK: ${pp}")
     pp.toSeq
+  }
+
+  def getPublicKeyFromBase64(data:String):PublicKey = {
+    log.info(s"PK(base64): '${data}'")
+    val encoded = Base64.getDecoder.decode(data.trim)
+    val pk = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(encoded))
+    log.debug(s"PK: ${pk}")
+    pk
+  }
+
+  def getPublicKeyFromCert(data:String):PublicKey = {    
+    log.info(s"Cert(base64): '${data}'")
+    val factory = CertificateFactory.getInstance("X.509")
+    val x5cData = Base64.getDecoder.decode(data.trim)
+    val cert = factory.generateCertificate(new ByteArrayInputStream(x5cData))              
+    val pk = cert.getPublicKey().asInstanceOf[RSAPublicKey]
+    log.debug(s"PK: ${pk}")
+    pk
   }
 
   def getPrivateKey(privateKey:String) = {
