@@ -131,6 +131,7 @@ d86616d2764f106c959768190d80bd8fb6d1c651dd6e8c24b989f364fa50855a0cf789f9e795a27f
   .replaceAll(System.lineSeparator(), "")
 
   "AuthJWT" should {
+
     "default secret is secure" in {      
       AuthJwt().getSecret() should !== ("")
     }
@@ -246,12 +247,27 @@ d86616d2764f106c959768190d80bd8fb6d1c651dd6e8c24b989f364fa50855a0cf789f9e795a27f
       a1.isValid(j1) should === (true)
     }
 
-    "create AuthJwt with PublicKey from JWKS Google store" in {
-      val a1 = new AuthJwt().withUri(s"https://www.googleapis.com/oauth2/v3/certs")
+    "create AuthJwt with PublicKey from JWKS (Google store)" in {
+      val a1 = new AuthJwt().withUri(s"jwks:https://www.googleapis.com/oauth2/v3/certs")
       
       a1.getAlgo() should (be("RS512") or be("RS256"))
       a1.getPublicKey() should !== ("")
       
+    }
+
+    "create AuthJwt with PublicKey from OpenId Config (Google)" in {
+      val json = os.read(os.Path(testDir + "/google-openid.json",os.pwd))
+      val a1 = AuthJwt.getPublicKeyFromOpenIdConf(json)
+      
+      a1(0)._1 should (be("RS512") or be("RS256"))
+      a1(0)._2 should !== ("")      
+    }
+
+    "create AuthJwt with PublicKey from OpenId Url (Google)" in {
+      val a1 = new AuthJwt().withUri(s"https://accounts.google.com/.well-known/openid-configuration")
+      
+      a1.getAlgo() should (be("RS512") or be("RS256"))
+      a1.getPublicKey() should !== ("")      
     }
     
   }

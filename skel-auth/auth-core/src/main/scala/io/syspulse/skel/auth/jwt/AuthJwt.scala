@@ -151,9 +151,17 @@ class AuthJwt(uri:String = "") {
           .withAlgo(algo.toUpperCase())
           .withPublicKey(publicKey)
 
-      case ("http" | "https") :: _ =>
-        val jwks = requests.get(uri).text()        
+      case "jwks" :: ("http" | "https") :: _ =>
+        val jwks = requests.get(uri.stripPrefix("jwks:")).text()
         val ppk = AuthJwt.getPublicKeyFromJWKS(jwks)
+        // get the first public key
+        log.debug(s"PublicKeys: ${ppk}: applying: ${ppk(0)}")
+        this
+          .withAlgo(ppk(0)._1.toUpperCase())
+          .withPublicKey(ppk(0)._2)
+
+      case ("http" | "https") :: _ =>
+        val ppk = AuthJwt.getPublicKeyFromOpenIdUrl(uri)
         // get the first public key
         log.debug(s"PublicKeys: ${ppk}: applying: ${ppk(0)}")
         this
@@ -354,6 +362,17 @@ object AuthJwt {
 
   // ATTENTION: default token to be compatible with all demos !
   var default = new AuthJwt().withSecret(DEFAULT_SECRET)
+
+  def getPublicKeyFromOpenIdUrl(oidUrl:String):Seq[(String,PublicKey)] = {
+    val rsp = requests.get(oidUrl).text()
+    getPublicKeyFromOpenIdConf(rsp)
+  }
+
+  def getPublicKeyFromOpenIdConf(oidConf:String):Seq[(String,PublicKey)] = {    
+    val jwksUri = ujson.read(oidConf).obj("jwks_uri").str
+    val cert = requests.get(jwksUri).text()
+    getPublicKeyFromJWKS(cert)   
+  }
 
   def getPublicKeyFromJWKS(jwks:String):Seq[(String,PublicKey)] = {
     val json = ujson.read(jwks)
