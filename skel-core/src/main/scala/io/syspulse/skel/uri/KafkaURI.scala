@@ -2,7 +2,7 @@ package io.syspulse.skel.uri
 
 /* 
 kafka://broker:9092/topic/group/offset
-kafka://broker:9092/topic/group/offset?raw
+kafka://broker:9092/topic/group/offset?json - automatically convert to json
 */
 case class KafkaURI(uri:String) {
   val PREFIX = "kafka://"
@@ -26,7 +26,8 @@ case class KafkaURI(uri:String) {
     var raw = false
     ops.toLowerCase.split(",").toList.foreach{ _ match {
       case "raw" => raw = true
-      case _ => //
+      case "json" => raw = false
+      case _ => raw = true // default raw is true
     }}
       
     url.stripPrefix(PREFIX).split("[/]").toList match {

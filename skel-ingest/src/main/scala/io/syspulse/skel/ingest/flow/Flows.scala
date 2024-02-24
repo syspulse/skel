@@ -943,9 +943,16 @@ object Flows {
   }
 
   def toKafka[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
-    val kafka = new ToKafka[T](uri)(fmt)
+    val kafka = new ToKafka[T](uri)(fmt)    
+    
+    val kafkaSink = kafka.sink()
+    val sink = RestartSink.withBackoff[T](retrySettingsDefault) { () =>
+      log.info(s"Restating -> Kafka(${uri})...")
+      kafkaSink
+    }
+    
     Flow[T]
-      .toMat(kafka.sink())(Keep.right)
+      .toMat(sink)(Keep.right)
   }
 
   def fromKafka[T <: Ingestable](uri:String) = {

@@ -43,8 +43,7 @@ trait KafkaSink[T] extends KafkaClient {
     val producerSettings = ProducerSettings(system, new ByteArraySerializer, new ByteArraySerializer)
       .withBootstrapServers(brokerUri)
       .withProperty("reconnect.backoff.ms","3000")
-      .withProperty("reconnect.backoff.max.ms","10000")
-      
+      .withProperty("reconnect.backoff.max.ms","10000")      
 
     log.info(s"Producer: ${producerSettings}")
 
@@ -53,7 +52,8 @@ trait KafkaSink[T] extends KafkaClient {
     val s1 =
       Flow[T]
         .map( t => transform(t) )
-        .map(d => new ProducerRecord[Array[Byte], Array[Byte]](topics.head, null, d.utf8String.getBytes()))
+        //.map(d => new ProducerRecord[Array[Byte], Array[Byte]](topics.head, null, d.utf8String.getBytes()))
+        .map(d => new ProducerRecord[Array[Byte], Array[Byte]](topics.head, null, d.toArray))
         .viaMat(KillSwitches.single)(Keep.right)
         .toMat(s0)(Keep.both)
     s1    

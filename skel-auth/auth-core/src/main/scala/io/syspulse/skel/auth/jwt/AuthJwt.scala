@@ -115,6 +115,36 @@ class AuthJwt(uri:String = "") {
   }
   
   def withUri(uri:String) = {
+
+    def fromOpenId(algo:String,uri:String) = {
+      val ppk = AuthJwt.getPublicKeyFromOpenIdUrl(uri)
+      log.debug(s"PublicKeys: ${ppk}")
+      
+      val ppkFound = ppk.filter(pk => pk._1 == algo)
+      if(ppkFound.size == 0) {
+        throw new Exception(s"Key not found: ${algo}")
+      }
+      
+      this
+        .withAlgo(ppkFound(0)._1.toUpperCase())
+        .withPublicKey(ppkFound(0)._2)
+    }
+
+    def fromJwks(algo:String,jwks:String) = {
+      val ppk = AuthJwt.getPublicKeyFromJWKS(jwks)        
+      log.debug(s"PublicKeys: ${ppk}")
+
+      // filter by default only RS256
+      val ppkFound = ppk.filter(pk => pk._1 == algo)
+      if(ppkFound.size == 0) {
+        throw new Exception(s"Key not found: ${algo}")
+      }
+
+      this
+        .withAlgo(ppkFound(0)._1.toUpperCase())
+        .withPublicKey(ppkFound(0)._2)
+    }
+
     uri.trim.split("://|:").toList match {
       case algo :: Nil if(algo.toLowerCase == "hs256" | algo.toLowerCase == "hs512") =>
         this
@@ -153,20 +183,24 @@ class AuthJwt(uri:String = "") {
 
       case "jwks" :: ("http" | "https") :: _ =>
         val jwks = requests.get(uri.stripPrefix("jwks:")).text()
-        val ppk = AuthJwt.getPublicKeyFromJWKS(jwks)
-        // get the first public key
-        log.debug(s"PublicKeys: ${ppk}: applying: ${ppk(0)}")
-        this
-          .withAlgo(ppk(0)._1.toUpperCase())
-          .withPublicKey(ppk(0)._2)
+        fromJwks(AuthJwt.DEFAULT_RSA_ALGO,jwks)
+
+      case "jwks" :: algo :: "http" :: url =>
+        val jwks = requests.get(s"http://${url.mkString("/")}").text()
+        fromJwks(algo,jwks)
+
+      case "jwks" :: algo :: "https" :: url =>
+        val jwks = requests.get(s"https://${url.mkString("/")}").text()
+        fromJwks(algo,jwks)
 
       case ("http" | "https") :: _ =>
-        val ppk = AuthJwt.getPublicKeyFromOpenIdUrl(uri)
-        // get the first public key
-        log.debug(s"PublicKeys: ${ppk}: applying: ${ppk(0)}")
-        this
-          .withAlgo(ppk(0)._1.toUpperCase())
-          .withPublicKey(ppk(0)._2)
+        fromOpenId(AuthJwt.DEFAULT_RSA_ALGO,uri)        
+
+      case "openid" :: algo :: "http" :: url =>
+        fromOpenId(algo,s"http://${url.mkString("/")}")
+
+      case "openid" :: algo :: "https" :: url =>
+        fromOpenId(algo,s"https://${url.mkString("/")}")
       
       case algo :: "sk" :: ("pkcs8"|"file") :: file :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
         val sk = os.read(os.Path(file,os.pwd))
@@ -358,6 +392,7 @@ object AuthJwt {
   val DEFAULT_ACCESS_TOKEN_SERVICE_TTL = 3600L * 24 * 356 // in seconds
   val DEFAULT_ACCESS_TOKEN_ADMIN_TTL = 3600L * 24 * 30 // in seconds
   val DEFAULT_ALGO = "HS512"
+  val DEFAULT_RSA_ALGO = "RS256"
   val DEFAULT_SECRET = Util.generateRandomToken(seed = Some("0xsecret"))
 
   // ATTENTION: default token to be compatible with all demos !
