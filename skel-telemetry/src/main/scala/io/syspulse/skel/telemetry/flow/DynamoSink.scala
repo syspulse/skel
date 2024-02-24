@@ -43,7 +43,7 @@ trait DynamoFormat[T] {
 
 object FlowsDynamo {
   
-  def toDynamo[T <: Ingestable](uri:String)(fmt:DynamoFormat[T]) = {
+  def toDynamo[T <: Ingestable](uri:String)(fmt:DynamoFormat[T]):Sink[T,_] = {
     val dynamo = new ToDynamo[T](DynamoURI(uri),fmt)
     dynamo.sink()
   }

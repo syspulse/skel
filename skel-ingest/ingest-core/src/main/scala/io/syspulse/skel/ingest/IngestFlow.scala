@@ -65,6 +65,8 @@ trait IngestFlow[I,T,O] {
 
   def transform(t:T):Seq[O]
 
+  //def formatter:Flow[O,Any,_]
+
   def debug = Flow.fromFunction( (data:ByteString) => { log.debug(s"data=${data}"); data})
 
   def counterBytes = Flow[ByteString].map(t => { countBytes.inc(t.size); t})
@@ -93,13 +95,13 @@ trait IngestFlow[I,T,O] {
       f0
 
     val f2 = f1
-      //.via(shaping)
       .via(process)
       .via(shaping)
       .via(counterT)
       .viaMat(KillSwitches.single)(Keep.right)
-      .mapConcat(t => transform(t))
+      .mapConcat(t => transform(t))      
       .via(counterO)
+      //.via(formatter)
       .log(ingestFlowName()).withAttributes(logLevels)
       .alsoTo(sink0())
     

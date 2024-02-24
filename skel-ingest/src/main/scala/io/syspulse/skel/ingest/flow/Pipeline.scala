@@ -9,8 +9,7 @@ import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.headers.Accept
 import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl
-import akka.stream.scaladsl.Source
-import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl.{Sink,Source,Flow}
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
@@ -117,7 +116,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
     src0
   }
 
-  override def sink() = {
+  override def sink():Sink[O,_] = {
     sink(output)
   }
 
@@ -126,7 +125,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
   def getFileLimit():Long = Long.MaxValue
   def getFileSize():Long = Long.MaxValue
   
-  def sink(output:String) = {
+  def sink(output:String):Sink[O,_] = {
     log.info(s"output=${output}")
         
     val sink = output.split("://").toList match {
@@ -137,7 +136,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "csv" :: _ => Flows.toCsv(output)
       case "log" :: _ => Flows.toLog(output)
 
-      case "kafka" :: _ => Flows.toKafka[O](output)(fmt)
+      case "kafka" :: _ => Flows.toKafka[O](output,format)(fmt)
       case "elastic" :: _ => Flows.toElastic[O](output)(fmt)
       
       case "file" :: fileName :: Nil => Flows.toFile(fileName)
@@ -156,8 +155,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "past" :: fileName :: Nil => 
         Flows.toHive(fileName)(new Flows.RotatorTimestamp( () => ZonedDateTime.ofInstant(Instant.now, ZoneId.systemDefault).minusYears(1000).toInstant().toEpochMilli() ))
 
-      case "http" :: uri :: Nil => Flows.toHTTP[O](output,pretty=false)
-      case "https" :: uri :: Nil => Flows.toHTTP[O](output,pretty=false)
+      case "http" :: uri :: Nil => Flows.toHTTP[O](output,format)
+      case "https" :: uri :: Nil => Flows.toHTTP[O](output,format)
 
       case "stdout" :: _ => Flows.toStdout()
       case "stderr" :: _ => Flows.toStderr()

@@ -3,6 +3,7 @@ package io.syspulse.skel.telemetry.flow
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration,FiniteDuration}
 import com.typesafe.scalalogging.Logger
+import java.util.concurrent.TimeUnit
 
 import akka.util.ByteString
 import akka.http.javadsl.Http
@@ -13,7 +14,9 @@ import akka.http.scaladsl
 import akka.stream.scaladsl.Source
 import akka.stream.scaladsl.Flow
 
-import io.syspulse.skel
+import spray.json._
+import DefaultJsonProtocol._
+
 import io.syspulse.skel.config._
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
@@ -22,12 +25,10 @@ import io.syspulse.skel.ingest._
 import io.syspulse.skel.ingest.store._
 import io.syspulse.skel.ingest.flow.Pipeline
 
-import spray.json._
-import DefaultJsonProtocol._
 import io.syspulse.skel.serde.Parq._
 import io.syspulse.skel.serde.ParqAnySerializable._
 
-import java.util.concurrent.TimeUnit
+import io.syspulse.skel.ingest.dynamo.FlowsDynamo
 
 import io.syspulse.skel.telemetry._
 import io.syspulse.skel.telemetry.parser.TelemetryParser
@@ -43,7 +44,8 @@ class PipelineTelemetry(feed:String,output:String)(implicit config:Config,parser
 
   override def sink() = {
     output.split("://").toList match {
-      case "dynamo" :: uri :: _ => skel.ingest.dynamo.FlowsDynamo.toDynamo[Telemetry](uri)(io.syspulse.skel.telemetry.store.TelemetryDynamoFormat)
+      case "dynamo" :: uri :: _ => 
+        FlowsDynamo.toDynamo[Telemetry](uri)(io.syspulse.skel.telemetry.store.TelemetryDynamoFormat)
       case _ => super.sink()
     }
   }

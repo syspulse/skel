@@ -138,6 +138,17 @@ object Flows {
       log.info(s"Restating -> Sink(${s})...")
       s
     }
+
+  def formatter[O <: Ingestable](o:O,format:String)(implicit fmt:JsonFormat[O]):ByteString = {
+    import spray.json._
+    format match {
+      case "raw" => ByteString(o.toRaw)
+      case "jsonp" => ByteString(o.toJson.prettyPrint)
+      case "json" => ByteString(o.toJson.compactPrint)
+      case "csv" => ByteString(o.toCSV)
+      case _ => ByteString(o.toLog)
+    }
+  }
   
   def fromCron(expr:String)(implicit as:ActorSystem):Source[ByteString, NotUsed] = {
     import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension 
@@ -465,7 +476,7 @@ object Flows {
     }
   }
 
-  def toHTTP[T <: Ingestable](uri:String,pretty:Boolean=false)(implicit as:ActorSystem,fmt:JsonFormat[T]) = {
+  def toHTTP[T <: Ingestable](uri:String,format:String = "json")(implicit as:ActorSystem,fmt:JsonFormat[T]) = {
     
     val sink = 
     if(uri.trim.isEmpty) {
@@ -480,8 +491,9 @@ object Flows {
 
       Flow[T]
         .map(t => {
-          val j = t.toJson          
-          if(pretty) j.prettyPrint else j.compactPrint
+          // val j = t.toJson          
+          // if(pretty) j.prettyPrint else j.compactPrint
+          formatter(t,format).utf8String
         })
         .mapAsync(1)(body => {
           log.debug(s"body(${body}) --> ${uri}")
@@ -589,11 +601,13 @@ object Flows {
 
       val sink0 = Flow[T]
         .map(t => { 
-          val out = format match {
-            case "json" => t.toJson.compactPrint
-            case "csv" => t.toCSV
-            case _ => t.toLog
-          }
+          val out = formatter(t,format).utf8String
+          // format match {
+          //   case "json" => t.toJson.compactPrint
+          //   case "csv" => t.toCSV
+          //   case _ => t.toLog
+          // }
+          
           //log.debug(s"out=${out}")
           ws.broadcast(out)
         }) 
@@ -942,8 +956,8 @@ object Flows {
       .toMat(es.sink())(Keep.right)
   }
 
-  def toKafka[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
-    val kafka = new ToKafka[T](uri)(fmt)    
+  def toKafka[T <: Ingestable](uri:String,format:String = "")(fmt:JsonFormat[T]) = {
+    val kafka = new ToKafka[T](uri,format)(fmt)
     
     val kafkaSink = kafka.sink()
     val sink = RestartSink.withBackoff[T](retrySettingsDefault) { () =>
@@ -959,14 +973,7 @@ object Flows {
     val kafka = new FromKafka[T](uri)
     kafka.source()
   }
-
-  // def toJson[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
-  //   val js = new ToJson[T](uri)(fmt)
-  //   Flow[T]
-  //     .mapConcat(t => js.transform(t))
-  //     .to(js.sink())
-  // }
-
+  
   def toJson[T <: Ingestable](uri:String,flush:Boolean = false,pretty:Boolean = false)(implicit fmt:JsonFormat[T]) = {
     import spray.json._
     Flow[T]
@@ -1050,20 +1057,22 @@ class ToJDBC[T <: Ingestable](dbUri:String,configuration:Option[Configuration]=N
 // === Kafka ================================================================================================
 
 // Kafka Client Flows 
-class ToKafka[T <: Ingestable](uri:String)(implicit jf:JsonFormat[T]) extends skel.ingest.kafka.KafkaSink[T] {
+class ToKafka[T <: Ingestable](uri:String,format:String)(implicit jf:JsonFormat[T]) extends skel.ingest.kafka.KafkaSink[T] {
   import spray.json._
   
   val kafkaUri = KafkaURI(uri)
+  val formatOutput = if(!format.isBlank) format else if(kafkaUri.isRaw) "raw" else "json"
   
   val sink0 = sink(kafkaUri.broker,Set(kafkaUri.topic))
 
   def sink():Sink[T,_] = sink0
   
   override def transform(t:T):ByteString = {
-    if(kafkaUri.isRaw)
-      ByteString(t.toString)
-    else
-      ByteString(t.toJson.compactPrint)
+    // val o = if(kafkaUri.isRaw) 
+    //   ByteString(t.toString)
+    // else
+    //   ByteString(t.toJson.compactPrint)
+    Flows.formatter(t,formatOutput)
   }  
 }
 
