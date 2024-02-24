@@ -139,14 +139,17 @@ object Flows {
       s
     }
 
-  def formatter[O <: Ingestable](o:O,format:String)(implicit fmt:JsonFormat[O]):ByteString = {
+  def formatter[O <: Ingestable](o:O,format:String,nl:String="")(implicit fmt:JsonFormat[O]):ByteString = {    
+    
+    if(o == null) return ByteString()
+    
     import spray.json._
     format match {
       case "raw" => ByteString(o.toRaw)
-      case "jsonp" => ByteString(o.toJson.prettyPrint)
-      case "json" => ByteString(o.toJson.compactPrint)
-      case "csv" => ByteString(o.toCSV)
-      case _ => ByteString(o.toLog)
+      case "jsonp" => ByteString(s"${o.toJson.prettyPrint}${nl}")
+      case "json" => ByteString(s"${o.toJson.compactPrint}${nl}")
+      case "csv" => ByteString(s"${o.toCSV}${nl}")
+      case _ => ByteString(s"${o.toLog}${nl}")
     }
   }
   
@@ -997,11 +1000,13 @@ object Flows {
       .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.right)
   }
 
-  def toStdout[O](flush:Boolean = false): Sink[O, Future[IOResult]] = toPipe(flush,System.out)
-  def toStderr[O](flush:Boolean = false): Sink[O, Future[IOResult]] = toPipe(flush,System.err)
-  def toPipe[O](flush:Boolean,pipe:java.io.PrintStream): Sink[O, Future[IOResult]] = {
+  def toStdout[O <: Ingestable](flush:Boolean = false,format:String="")(implicit fmt:JsonFormat[O]): Sink[O, Future[IOResult]] = toPipe(flush,format,System.out)(fmt)
+  def toStderr[O <: Ingestable](flush:Boolean = false,format:String="")(implicit fmt:JsonFormat[O]): Sink[O, Future[IOResult]] = toPipe(flush,format,System.err)(fmt)
+  def toPipe[O <: Ingestable](flush:Boolean,format:String,pipe:java.io.PrintStream)(implicit fmt:JsonFormat[O]): Sink[O, Future[IOResult]] = {
+    import spray.json._
     Flow[O]
-      .map(o => if(o!=null) ByteString(o.toString+"\n") else ByteString())
+      //.map(o => if(o!=null) ByteString(o.toString+"\n") else ByteString())
+      .map(o => Flows.formatter(o,format,"\n"))
       .toMat(StreamConverters.fromOutputStream(() => pipe,flush))(Keep.right)  
   }
   

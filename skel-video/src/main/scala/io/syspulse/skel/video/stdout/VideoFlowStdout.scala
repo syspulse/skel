@@ -12,11 +12,13 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.video.Video
 import io.syspulse.skel.video.VID
 import io.syspulse.skel.video.flow.VideoFlow
+import io.syspulse.skel.video.VideoJson
 
 import io.syspulse.skel.ingest.IngestFlow
 import io.syspulse.skel.ingest.flow.Flows
 
 class VideoFlowStdout extends VideoFlow with IngestFlow[Video,Video,Video]{
+  import VideoJson._
 
   def transform(t: Video): Seq[Video] = Seq(t)
   def shaping:Flow[Video,Video,_] = Flow[Video].map(i => i)

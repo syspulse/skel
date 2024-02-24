@@ -135,7 +135,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "pjson" :: _ => Flows.toJson[O](output,pretty=true)(fmt)
       case "csv" :: _ => Flows.toCsv(output)
       case "log" :: _ => Flows.toLog(output)
-
+      
       case "kafka" :: _ => Flows.toKafka[O](output,format)(fmt)
       case "elastic" :: _ => Flows.toElastic[O](output)(fmt)
       
@@ -157,17 +157,17 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
 
       case "http" :: uri :: Nil => Flows.toHTTP[O](output,format)
       case "https" :: uri :: Nil => Flows.toHTTP[O](output,format)
-
-      case "stdout" :: _ => Flows.toStdout()
-      case "stderr" :: _ => Flows.toStderr()
-
+      
       case "jdbc" :: _ => Flows.toJDBC[O](output)(fmt)
       case "postgres" :: _ => Flows.toJDBC[O](output)(fmt)
       case "mysql" :: _ => Flows.toJDBC[O](output)(fmt)
 
       case "server:ws" :: uri :: Nil => Flows.toWsServer[O](uri,format)
+      case "ws:server" :: uri :: Nil => Flows.toWsServer[O](uri,format)
 
-      case "" :: Nil => Flows.toStdout()
+      case "stdout" :: _ => Flows.toStdout(format=format)
+      case "stderr" :: _ => Flows.toStderr(format=format)
+      case "" :: Nil => Flows.toStdout(format=format)
       case _ => 
         Flows.toFile(output)
     }
