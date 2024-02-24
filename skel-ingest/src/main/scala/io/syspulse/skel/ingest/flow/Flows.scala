@@ -512,7 +512,7 @@ object Flows {
             )          
           
           val f = http.flatMap( r => r match {
-            case response @ HttpResponse(status, _ , entity, _) =>              
+            case response @ HttpResponse(status, _ , entity, _) =>
               status match {
                 case StatusCodes.OK => 
                   val data = entity.dataBytes.runReduce(_ ++ _)
@@ -531,9 +531,9 @@ object Flows {
           
           f
         })
-        .log(s"${this}")
+        .log(s"-> HTTP(${uri})")
         .map(r => {
-          log.debug(s"res: '${r}'")
+          log.debug(s"rsp: '${r}'")
           r
         })
         .toMat(
