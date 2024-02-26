@@ -13,7 +13,7 @@ import scala.util.Random
 class AESSpec extends AnyWordSpec with Matchers with TestData {
   import Util._
 
-  "AESS" should {
+  "AES" should {
     
     "encrypt and decrypt 'text'" in {
       val e1 = (new AES).encrypt("text","pass1")
@@ -45,7 +45,7 @@ class AESSpec extends AnyWordSpec with Matchers with TestData {
       d1 shouldBe a [Failure[_]]
     }
 
-    "fail to decrypt with wrong IV and corrent pass" in {
+    "fail to decrypt with wrong IV and correct pass" in {
       val e1 = (new AES).encrypt("text","pass1",Some("seed-1"))
       val d1 = (new AES).decrypt(e1,"pass1")
       d1 shouldBe a [Failure[_]]
@@ -54,6 +54,12 @@ class AESSpec extends AnyWordSpec with Matchers with TestData {
     "fail to decrypt with random IV and correct pass" in {
       val e1 = (new AES).encrypt("text","pass1",None)
       val d1 = (new AES).decrypt(e1,"pass1")
+      d1 shouldBe a [Failure[_]]
+    }
+
+    "fail to decrypt with different IVs and correct pass" in {
+      val e1 = (new AES).encrypt("text","pass1",Some("seed-1"))
+      val d1 = (new AES).decrypt(e1,"pass1",Some("seed-2"))
       d1 shouldBe a [Failure[_]]
     }
 
