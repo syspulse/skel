@@ -62,10 +62,10 @@ abstract class WebSocket(idleTimeout:Long)(implicit ex:ExecutionContext) {
   
   def process(m:Message,a:ActorRef):Message = ???
 
-  def wsFlow(topic:String)(implicit mat:Materializer): Flow[Message, Message, Any] = {    
+  def wsFlow(topic:String,buffer:Int = 8192)(implicit mat:Materializer): Flow[Message, Message, Any] = {    
     val (wsActor, wsSource) = 
       Source
-        .actorRef[Message](32, OverflowStrategy.dropNew)
+        .actorRef[Message](buffer, OverflowStrategy.dropNew)
         .preMaterialize()
 
     this.+(topic,wsActor)

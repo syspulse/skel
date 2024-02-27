@@ -193,7 +193,8 @@ object Flows {
   }
 
   def fromClock(expr:String) = {
-    val freq = FiniteDuration(Duration.create(expr).toMillis,TimeUnit.MILLISECONDS)
+    val msec = expr.toLong //Duration.create(expr).toMillis
+    val freq = FiniteDuration(msec,TimeUnit.MILLISECONDS)
     Source
       .tick(FiniteDuration(0L,TimeUnit.MILLISECONDS),freq,"")
       .map(_ => ByteString(s"${System.currentTimeMillis()}"))      
@@ -551,7 +552,7 @@ object Flows {
   }
 
   // ===== WebSocket Sink
-  def toWsServer[T <: Ingestable](uri:String,format:String="",timeout:Long = 1000L*60*60*24)(implicit as:ActorSystem,fmt:JsonFormat[T]) = { 
+  def toWsServer[T <: Ingestable](uri:String,format:String="", buffer:Int=10000, timeout:Long = 1000L*60*60*24)(implicit as:ActorSystem,fmt:JsonFormat[T]) = { 
     import io.syspulse.skel.service.ws._
     import akka.actor.typed.scaladsl.ActorContext
 
@@ -573,8 +574,8 @@ object Flows {
           }}
       }
       
-      def broadcast(msg:String):Try[Unit] = {
-        Success(this.broadcastText(msg) )        
+      def broadcast(msg:String) = {
+        broadcastText(msg)
       }            
     }
     
@@ -594,9 +595,9 @@ object Flows {
 
       val (host,port,suffix) = uriToHostPort(uri)
     
-      val (actor,source0) = Source
-        .actorRef[String](1,OverflowStrategy.dropTail)
-        .preMaterialize()   
+      // val (actor,source0) = Source
+      //   .actorRef[String](buffer,OverflowStrategy.fail)
+      //   .preMaterialize()   
       
       val ws = new WsProxyServer(timeout,uri = suffix)
       log.info(s"Listen: ws://${host}:${port}/${suffix} ...")      
