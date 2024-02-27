@@ -34,6 +34,14 @@ import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.kafka.KafkaClient
 
+// TODO: Investigate, wtf !?
+//  [2024-02-24 02:51:33,475] [INFO] [o.a.k.c.p.KafkaProducer KafkaProducer.java:1183] [Producer clientId=producer-1] 
+//  Closing the Kafka producer with timeoutMillis = 0 ms.                                                                              │
+// │ [2024-02-24 02:51:33,476] [INFO] [o.a.k.c.p.KafkaProducer KafkaProducer.java:1209] [Producer clientId=producer-1] 
+// Proceeding to force close the producer since pending requests could not be completed within timeout 0 ms.                          │
+// │ [2024-02-24 02:51:33,484] [INFO] [o.a.k.c.p.KafkaProducer KafkaProducer.java:1183] [Producer clientId=producer-1] 
+// Closing the Kafka producer with timeoutMillis = 60000 ms.
+
 trait KafkaSink[T] extends KafkaClient {
   
   def transform(t:T):ByteString
@@ -58,5 +66,4 @@ trait KafkaSink[T] extends KafkaClient {
         .toMat(s0)(Keep.both)
     s1    
   }
-
 }
