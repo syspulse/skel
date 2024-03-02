@@ -55,8 +55,8 @@ object NotifyUri {
       case "syslog" :: Nil => cacheOrNew(uri,new NotifySyslog(None))
       case "syslog" :: channel :: Nil => cacheOrNew(uri,new NotifySyslog(Some(channel)))
 
-      case "http" :: _ => cacheOrNew(uri,new NotifyHttp(uri))
-      case "https" :: _ => cacheOrNew(uri,new NotifyHttp(uri))
+      case "http" :: _ => cacheOrNew(uri,new NotifyHttp(uri)(config))
+      case "https" :: _ => cacheOrNew(uri,new NotifyHttp(uri)(config))
 
       case "user" :: Nil => cacheOrNew(uri,new NotifyUser())
       case "user" :: user :: Nil => cacheOrNew(uri,new NotifyUser(Some(user)))
