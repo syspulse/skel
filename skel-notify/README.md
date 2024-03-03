@@ -149,3 +149,9 @@ Notify ALL connected clients (via websocket)
 ./run-notify.sh client notify user:// Alarm Attention!!! 100 sys.all
 ./run-notify.sh client notify user://sys.all Alarm Attention!!! 100
 ```
+
+## Emebdded Destination
+
+Examples 
+- Event over http: `event://http://POST:ASYNC@@localhost:8300`
+- Event over Kafka: `event://kafka://localhost:9092/events`
