@@ -121,12 +121,16 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
     sink(output)
   }
 
+  def sink(output:String):Sink[O,_] = {
+    sinking[O](output)
+  }
+
   def getRotator():Flows.Rotator = new Flows.RotatorCurrentTime()
 
   def getFileLimit():Long = Long.MaxValue
   def getFileSize():Long = Long.MaxValue
   
-  def sink(output:String):Sink[O,_] = {
+  def sinking[O <: skel.Ingestable](output:String)(implicit fmt:JsonFormat[O], parqEncoders:ParquetRecordEncoder[O],parsResolver:ParquetSchemaResolver[O]):Sink[O,_] = {
     log.info(s"output=${output}")
         
     val sink = output.split("://").toList match {
