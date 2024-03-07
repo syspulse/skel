@@ -712,11 +712,15 @@ lazy val ingest = (project in file("skel-ingest"))
 lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
   .dependsOn(core, serde, ingest)
   .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
   .settings (
     sharedConfig,
     sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
 
-    appAssemblyConfig("ingest-flow","io.syspulse.skel.ingest.flow.App"),    
+    // appAssemblyConfig("ingest-flow","io.syspulse.skel.ingest.flow.App"),    
+    appDockerConfig("ingest-flow","io.syspulse.skel.ingest.flow.App"),    
 
     libraryDependencies ++= Seq(
       libScalaTest % Test,      
