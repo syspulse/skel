@@ -135,7 +135,7 @@ object Flows {
 
   def toSinkRestart[T <: Ingestable](s:Sink[Ingestable,_],retry:RestartSettings = retrySettingsDefault) = 
     RestartSink.withBackoff[T](retry) { () =>
-      log.info(s"Restating -> Sink(${s})...")
+      log.info(s"Restarting -> Sink(${s})...")
       s
     }
 
@@ -965,7 +965,7 @@ object Flows {
     
     val kafkaSink = kafka.sink()
     val sink = RestartSink.withBackoff[T](retrySettingsDefault) { () =>
-      log.info(s"Restating -> Kafka(${uri})...")
+      log.info(s"Restarting -> Kafka(${uri})...")
       kafkaSink
     }
     

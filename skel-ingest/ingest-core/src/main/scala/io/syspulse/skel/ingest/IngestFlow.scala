@@ -30,12 +30,12 @@ trait IngestFlow[I,T,O] {
 
   def ingestFlowName() = "ingest-flow"
   
-  val retrySettings:Option[RestartSettings] = None
-  // RestartSettings(
-  //   minBackoff = FiniteDuration(3000,TimeUnit.MILLISECONDS),
-  //   maxBackoff = FiniteDuration(10000,TimeUnit.MILLISECONDS),
-  //   randomFactor = 0.2
-  // )
+  val retrySettings:Option[RestartSettings] = 
+  Some(RestartSettings(
+    minBackoff = FiniteDuration(3000,TimeUnit.MILLISECONDS),
+    maxBackoff = FiniteDuration(10000,TimeUnit.MILLISECONDS),
+    randomFactor = 0.2
+  ))
   //.withMaxRestarts(10, 5.minutes)
   
   // used by Flow.log()
@@ -99,7 +99,15 @@ trait IngestFlow[I,T,O] {
       .via(shaping)
       .via(counterT)
       .viaMat(KillSwitches.single)(Keep.right)
-      .mapConcat(t => transform(t))      
+      .mapConcat(t => {
+        try {
+          transform(t)
+        } catch {
+          case e:Exception =>
+            log.warn(s"failed to transform: ${t}",e)
+            Seq[O]()
+        }
+      })
       .via(counterO)
       //.via(formatter)
       .log(ingestFlowName()).withAttributes(logLevels)
@@ -108,6 +116,15 @@ trait IngestFlow[I,T,O] {
     val f3 = f2
 
     val s0 = sink()
+
+    val s1 = if(retrySettings.isDefined) {
+      RestartSink.withBackoff(retrySettings.get) { () =>
+        log.info(s"sink retry: ${retrySettings.get}")
+        s0
+      } 
+    }
+    else
+      s0
 
     // val errorSupervisor: Supervision.Decider = {
     //   case e: java.lang.RuntimeException =>
@@ -122,7 +139,7 @@ trait IngestFlow[I,T,O] {
       // .withAttributes(
       //   ActorAttributes.supervisionStrategy(errorSupervisor)
       // )
-      .runWith(s0)
+      .runWith(s1)
       
 
     log.debug(s"f1=${f1}: f2=${f2}: graph: ${f3}: flow=${mat}")
