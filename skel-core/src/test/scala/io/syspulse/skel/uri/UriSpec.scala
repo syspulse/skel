@@ -69,9 +69,9 @@ class UriSpec extends AnyWordSpec with Matchers {
       s.isRaw should === (false)
     }
 
-    "resovle with default as raw option ('kafka://host:port/topic')" in {
+    "resovle with default as non-raw option ('kafka://host:port/topic')" in {
       val s = KafkaURI("kafka://host:port/topic")
-      s.isRaw should === (true)
+      s.isRaw should === (false)
     }
 
   }
@@ -199,5 +199,24 @@ class UriSpec extends AnyWordSpec with Matchers {
       u.dbConfig should === (Some("db1"))
     }
  
+  }
+
+  "HttpURI" should {
+    "parse 'http://POST@123456789@host:8080/url'" in {
+      val u = HttpURI("http://POST@123456789@host:8080/url")
+      u.rest should === ("host:8080/url")
+      u.verb should === ("POST")
+      u.async should === (false)
+      u.headers should === (Map("Authorization" -> s"Bearer 123456789"))
+    }
+    
+    "parse 'http://POST@host:8080/url' with default Auth" in {
+      val u = HttpURI("http://POST@host:8080/url",Some("123456789"))
+      u.rest should === ("host:8080/url")
+      u.verb should === ("POST")
+      u.async should === (false)
+      u.headers should === (Map("Authorization" -> s"Bearer 123456789"))
+    }
+
   }
 }
