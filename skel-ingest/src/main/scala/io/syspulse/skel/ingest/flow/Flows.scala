@@ -106,6 +106,8 @@ import akka.http.scaladsl.model.ws.Message
 import akka.http.scaladsl.model.ws.TextMessage
 import akka.http.scaladsl.model.ws.BinaryMessage
 import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.HttpMethod
 
 object Flows {
   val log = Logger(this.toString)
@@ -482,17 +484,19 @@ object Flows {
 
   def toHTTP[T <: Ingestable](uri:String,format:String = "json")(implicit as:ActorSystem,fmt:JsonFormat[T]) = {
     
+    val httpUri = skel.uri.HttpURI(uri)
+
     val sink = 
-    if(uri.trim.isEmpty) {
+    if(httpUri.uri.trim.isEmpty) {
       log.warn(s"invalid uri: ${uri}")
       Sink.ignore 
     } else {     
       import spray.json._
      
-     def retry_deterministic(as:ActorSystem,timeout:FiniteDuration) = ConnectionPoolSettings(as)
+      def retry_deterministic(as:ActorSystem,timeout:FiniteDuration) = ConnectionPoolSettings(as)
         .withBaseConnectionBackoff(timeout)
         .withMaxConnectionBackoff(timeout)
-
+    
       Flow[T]
         .map(t => {
           // val j = t.toJson          
@@ -500,16 +504,16 @@ object Flows {
           formatter(t,format).utf8String
         })
         .mapAsync(1)(body => {
-          log.debug(s"body(${body}) --> ${uri}")
+          log.debug(s"body(${body}) --> ${httpUri.uri}")
           
           val http =
             Http()
             .singleRequest(
               HttpRequest(
-                HttpMethods.POST,
-                uri = uri, 
+                HttpMethod.custom(httpUri.verb),
+                uri = httpUri.uri, 
                 entity = HttpEntity(ContentTypes.`application/json`,body),
-                headers = Seq(Authorization(OAuth2BearerToken(sys.env.get("API_KEY").getOrElse(""))))
+                headers = httpUri.headers.map{case (k,v) => RawHeader(k,v)}.toSeq
               ),
               //
               settings = retry_deterministic(as,FiniteDuration(1000L,TimeUnit.MILLISECONDS))
@@ -529,13 +533,13 @@ object Flows {
                   throw new Exception(s"${status}: ${txt}")
               }
             case f   => 
-              log.error(s"failed connection: ${uri}",f)
+              log.error(s"failed connection: ${httpUri.uri}",f)
               throw new Exception(s"${f}")
           })
           
           f
         })
-        .log(s"-> HTTP(${uri})")
+        .log(s"-> HTTP(${httpUri.uri})")
         .map(r => {
           log.debug(s"rsp: '${r}'")
           r
@@ -546,7 +550,7 @@ object Flows {
     }
 
     RestartSink.withBackoff[T](retrySettingsDefault) { () =>
-      log.info(s"Connection --> ${uri}")
+      log.info(s"Connection --> ${httpUri.uri}")
       sink
     }
   }
