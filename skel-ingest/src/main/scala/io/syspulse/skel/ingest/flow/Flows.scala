@@ -151,7 +151,7 @@ object Flows {
       case "jsonp" => ByteString(s"${o.toJson.prettyPrint}${nl}")
       case "json" => ByteString(s"${o.toJson.compactPrint}${nl}")
       case "csv" => ByteString(s"${o.toCSV}${nl}")
-      case _ => ByteString(s"${o.toLog}${nl}")
+      case _ => ByteString(s"${o.toString}${nl}")
     }
   }
   

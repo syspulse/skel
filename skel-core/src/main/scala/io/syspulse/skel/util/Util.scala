@@ -391,12 +391,15 @@ object Util {
 
   // more reliable BigInt converter of format is into double
   def toBigInt(v:String):BigInt = {
+    if(v.startsWith("0x")) 
+      BigInt(v.drop(2),16)
+    else
     if(v.contains(".")) 
       java.math.BigDecimal.valueOf(v.toDouble).toBigInteger
     else
       BigInt(v)
   }
-
+  
   def isUUID(s:String) = s.matches("""\d{8}-\d{4}-\d{4}-\d{4}-\d{12}""")
 
   // Future lifter
