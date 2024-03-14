@@ -98,7 +98,10 @@ trait Server {
         }
         .handleAll[MethodRejection] { methodRejections =>
           val names = methodRejections.map(_.supported.name)
-          complete(HttpResponse(MethodNotAllowed, entity = jsonEntity(s"""{"error": "rejected"}""")))
+          complete(HttpResponse(MethodNotAllowed, entity = jsonEntity(s"""{"error": "${names} rejected"}""")))
+        }
+        .handleAll[Rejection] { rej =>
+          complete(HttpResponse(BadRequest, entity = jsonEntity(s"""{"error": "${rej}"}""")))
         }
         .handleNotFound { extractUnmatchedPath { p =>
           complete(HttpResponse(NotFound, entity = jsonEntity(s"""{"error": "not found: '${p}'"}""")))
@@ -114,6 +117,10 @@ trait Server {
           }
         // case e: Exception => complete(HttpResponse(InternalServerError))
         case e: Exception => {
+          // nice forwarding errors to clients
+          complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""{"error": "${e}"}""")))
+        }
+        case e => {
           // nice forwarding errors to clients
           complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""{"error": "${e}"}""")))
         }
