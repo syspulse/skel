@@ -270,7 +270,7 @@ object Eth {
 
   def strToWei(v:String)(implicit web3:Web3j):Try[BigInt] = {
     v.trim.toLowerCase.split("\\s+").toList match {
-      case "current" :: Nil =>
+      case ("current" | "") :: Nil =>
         getGasPrice()(web3) match {
           case Success(v) => Success(v)
           case f => f
