@@ -441,5 +441,29 @@ object Util {
       case e:Exception => Failure(e)
     }
   }
+
+  // prints Array[_] (Java Array) in a nice scala way
+  private def pprintArray(obj: Any, paramName: Option[String] = None): String = {
+    
+    obj match {
+      case seq: Array[Any] =>
+        val array = seq.map(Util.pprintArray(_)).mkString(",")
+        s"Array(${array})"
+      case seq: Iterable[Any] =>
+        val ii = seq.map(Util.pprintArray(_)).mkString(",")
+        s"${seq.getClass().getSimpleName()}(${ii})"
+      case obj: Product =>
+        val name = obj.getClass().getSimpleName()
+        val data = (obj.productIterator zip obj.productElementNames)
+          .map { case (subObj, paramName) => Util.pprintArray(subObj, Some(paramName)) }
+          .mkString(",")
+        s"${name}(${data})"
+      case _ => obj.toString
+    }
+  }
+
+  def toStringWithArray(obj:Any) = {    
+    pprintArray(obj)
+  }
 }
 
