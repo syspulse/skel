@@ -452,6 +452,7 @@ object Util {
       case seq: Iterable[Any] =>
         val ii = seq.map(Util.pprintArray(_)).mkString(",")
         s"${seq.getClass().getSimpleName()}(${ii})"
+      case None => "None"
       case obj: Product =>
         val name = obj.getClass().getSimpleName()
         val data = (obj.productIterator zip obj.productElementNames)
