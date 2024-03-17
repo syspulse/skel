@@ -15,6 +15,7 @@ import io.syspulse.skel.notify.kafka.NotifyKafka
 import io.syspulse.skel.notify.user.NotifyUser
 import io.syspulse.skel.notify.syslog.NotifySyslog
 import io.syspulse.skel.notify.http.NotifyHttp
+import io.syspulse.skel.notify.slack.NotifySlack
 
 import io.syspulse.skel.util.Util
 
@@ -51,6 +52,10 @@ object NotifyUri {
       case "ws" :: _ => cacheOrNew(uri,new NotifyWebsocket(""))
       case "tel" :: _ => cacheOrNew(uri,new NotifyTelegram(uri)(config))
       case "kafka" :: _ => cacheOrNew(uri,new NotifyKafka(uri))
+
+      case "slack" :: channel :: Nil => cacheOrNew(uri,new NotifySlack(channel,"webhook",config.slackKey,config.slackWebhook))
+      case "slack" :: "webhook" :: channel :: Nil => cacheOrNew(uri,new NotifySlack(channel,"webhook",config.slackKey,config.slackWebhook))
+      case "slack" :: "channel" :: channel :: Nil => cacheOrNew(uri,new NotifySlack(channel,"channel",config.slackKey,config.slackWebhook))      
       
       case "syslog" :: Nil => cacheOrNew(uri,new NotifySyslog(None))
       case "syslog" :: channel :: Nil => cacheOrNew(uri,new NotifySyslog(Some(channel)))
