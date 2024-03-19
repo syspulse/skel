@@ -466,5 +466,15 @@ object Util {
   def toStringWithArray(obj:Any) = {    
     pprintArray(obj)
   }
+
+  def succeed[T](code: => T):Try[T] = {
+    try {
+      Success(
+        code
+      )
+    } catch {
+      case e:Exception => Failure(e)
+    }
+  }
 }
 
