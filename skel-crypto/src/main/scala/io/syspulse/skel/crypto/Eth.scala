@@ -283,6 +283,15 @@ object Eth {
           case Success(v) => Success(v)
           case f => f
         }
+      // percentage based from current
+      case more :: Nil if(more.trim.endsWith("%"))=> 
+        getGasPrice()(web3) match {
+          case Success(v) => 
+            val vd = v.toDouble
+            val gasNew = vd + vd * (more.trim.stripSuffix("%").toDouble / 100.0 )
+            Success(BigDecimal.valueOf(gasNew).toBigInt)
+          case f => f
+        }
       case v :: "eth" :: _ => 
         Success(Convert.toWei(v,Convert.Unit.ETHER).toBigInteger)
       case v :: unit :: _ => 

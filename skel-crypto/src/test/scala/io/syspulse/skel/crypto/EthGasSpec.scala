@@ -15,7 +15,7 @@ class EthGasSpec extends AnyWordSpec with Matchers with TestData {
 
   "EthGasSpec" should {
     "fail to get current gas on invalid RPC" in {
-      val g1 = Eth.getGasPrice("http://localhost:8545")
+      val g1 = Eth.getGasPrice("http://localhost:18545")
       info(s"${g1}")
       g1 shouldBe a [Failure[_]]
     }
@@ -51,6 +51,32 @@ class EthGasSpec extends AnyWordSpec with Matchers with TestData {
       val v1 = Eth.strToWei("current")
       info(s"current price: ${v1}")
       v1 should !== (Success(BigInt(0)))
+    }
+
+    "convert '25.0%' to 25% higher than current" in {
+      val v1 = Eth.strToWei("current")      
+      val v2 = Eth.strToWei("25.0%")
+      v1 shouldBe a [Success[_]]
+      v2 shouldBe a [Success[_]]
+
+      val diff = (v2.get.toDouble / v1.get.toDouble *100.0).ceil
+      info(s"current=${v1}, 25%=${v2}: diff=${diff}")
+
+      v2.get > v1.get should === (true)
+      (diff).toLong should === (100 + 25)
+    }
+
+    "convert '150.0%' to 150% higher than current" in {
+      val v1 = Eth.strToWei("current")      
+      val v2 = Eth.strToWei("150%")
+      v1 shouldBe a [Success[_]]
+      v2 shouldBe a [Success[_]]
+
+      val diff = (v2.get.toDouble / v1.get.toDouble *100.0).ceil
+      info(s"current=${v1}, 150%=${v2}: diff=${diff}")
+
+      v2.get > v1.get should === (true)
+      (diff).toLong should === (100 + 150)
     }
     
   }
