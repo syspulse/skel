@@ -79,5 +79,18 @@ class EthGasSpec extends AnyWordSpec with Matchers with TestData {
       (diff).toLong should === (100 + 150)
     }
     
+    "convert '-25.0%' to lower than current price" in {
+      val v1 = Eth.strToWei("current")   
+      val v2 = Eth.strToWei("-25.0%")
+      v1 shouldBe a [Success[_]]
+      v2 shouldBe a [Success[_]]
+
+      val diff = (v2.get.toDouble / v1.get.toDouble *100.0).ceil
+      info(s"current=${v1}, -25%=${v2}: diff=${diff}")
+
+      v2.get < v1.get should === (true)
+      (diff).toLong should === (100 - 25)
+    }
+
   }
 }

@@ -278,7 +278,7 @@ object Eth {
 
   def strToWei(v:String)(implicit web3:Web3j):Try[BigInt] = {
     v.trim.toLowerCase.split("\\s+").toList match {
-      case ("current" | "") :: Nil =>
+      case ("current" | "market" | "") :: Nil =>
         getGasPrice()(web3) match {
           case Success(v) => Success(v)
           case f => f
@@ -287,8 +287,8 @@ object Eth {
       case more :: Nil if(more.trim.endsWith("%"))=> 
         getGasPrice()(web3) match {
           case Success(v) => 
-            val vd = v.toDouble
-            val gasNew = vd + vd * (more.trim.stripSuffix("%").toDouble / 100.0 )
+            val current = v.toDouble
+            val gasNew = current + current * (more.trim.stripSuffix("%").toDouble / 100.0 )
             Success(BigDecimal.valueOf(gasNew).toBigInt)
           case f => f
         }
@@ -583,7 +583,7 @@ object Eth {
           throw new Exception(r.getError().getMessage())
         } 
         
-        log.info(s"${contractAddress}: ${input}(): cost=${cost}")
+        log.info(s"${contractAddress}: ${input}: cost=${cost}")
         Success(cost)
       }      
     } yield cost

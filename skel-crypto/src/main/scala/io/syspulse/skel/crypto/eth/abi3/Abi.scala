@@ -13,11 +13,11 @@ import io.syspulse.skel.util.Util
 import org.web3j.utils.{Numeric}
 import org.web3j.abi.datatypes.generated.Uint8
 import org.web3j.abi.datatypes
-import org.web3j.abi.datatypes._
 import org.web3j.abi.FunctionEncoder
 import org.web3j.abi.TypeReference
 
 import spray.json._
+import org.scalameta.data.data
 
 case class AbiType(
   name:String,
@@ -46,8 +46,31 @@ class Abi(definitions:Seq[AbiDef]) {
   def parseType(typ:String,v:Any):Option[datatypes.Type[_]] = {    
     typ match {
       case "address" => Some(new datatypes.Address(v.toString))
+      //case "function" => Some(new datatypes.Function(v.toString))
+
+      case "bool" => Some(new datatypes.Bool(v.asInstanceOf[Boolean]))
+      case "string" => Some(new datatypes.Utf8String(v.asInstanceOf[String]))
+      case "bytes" => 
+        val arr = v.asInstanceOf[Array[Byte]]
+        Some(new datatypes.DynamicBytes(arr))
+
       case "uint" => Some(new datatypes.Uint(v.asInstanceOf[BigInteger]))
+      case "uint8" => Some(new datatypes.generated.Uint8(v.asInstanceOf[BigInteger]))
+      case "uint96" => Some(new datatypes.generated.Uint96(v.asInstanceOf[BigInteger]))
+      case "uint160" => Some(new datatypes.generated.Uint160(v.asInstanceOf[BigInteger]))
       case "uint256" => Some(new datatypes.generated.Uint256(v.asInstanceOf[BigInteger]))
+
+      case "int" => Some(new datatypes.Int(v.asInstanceOf[BigInteger]))
+      case "int8" => Some(new datatypes.generated.Int8(v.asInstanceOf[BigInteger]))
+      case "int96" => Some(new datatypes.generated.Int96(v.asInstanceOf[BigInteger]))
+      case "int160" => Some(new datatypes.generated.Int160(v.asInstanceOf[BigInteger]))
+      case "int256" => Some(new datatypes.generated.Int256(v.asInstanceOf[BigInteger]))
+
+      // case t if(t.endsWith("[]")) =>
+      //   val typ2 = t.stripSuffix("[]")
+      //   val str = new datatypes.DynamicArray[] Utf8String(v.asInstanceOf[String])
+      //   Some(new datatypes.DynamicBytes(arr))
+
       case _ => 
         throw new Exception(s"type '${typ}' not supported")
         None
@@ -56,9 +79,23 @@ class Abi(definitions:Seq[AbiDef]) {
 
   def parseTypeRef(typ:String):Option[TypeReference[_]] = {    
     typ match {
-      case "address" => Some(new TypeReference[Address]() {})
+      case "address" => Some(new TypeReference[datatypes.Address]() {}) 
+      case "bool" => Some(new TypeReference[datatypes.Bool]() {})
+      case "string" => Some(new TypeReference[datatypes.Utf8String]() {}) 
+      case "bytes" => Some(new TypeReference[datatypes.Bytes]() {}) 
+
+      case "int" => Some(new TypeReference[datatypes.Int]() {})
+      case "int256" => Some(new TypeReference[datatypes.generated.Int256]() {})
+      case "int8" => Some(new TypeReference[datatypes.generated.Int8]() {})
+      case "int96" => Some(new TypeReference[datatypes.generated.Int96]() {})      
+      case "int160" => Some(new TypeReference[datatypes.generated.Int160]() {})      
+
       case "uint" => Some(new TypeReference[datatypes.Uint]() {})
+      case "uint8" => Some(new TypeReference[datatypes.generated.Uint8]() {})
+      case "uint96" => Some(new TypeReference[datatypes.generated.Uint96]() {})
+      case "uint160" => Some(new TypeReference[datatypes.generated.Uint160]() {})
       case "uint256" => Some(new TypeReference[datatypes.generated.Uint256]() {})
+      
       case _ => 
         throw new Exception(s"type '${typ}' not supported")
         None
