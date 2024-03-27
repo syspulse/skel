@@ -1,5 +1,6 @@
 package io.syspulse.skel.util
 
+import scala.jdk.CollectionConverters._
 import scala.util.{Try,Success,Failure}
 import java.time._
 import java.time.format._
@@ -189,10 +190,16 @@ object Util {
         if(p.isInstanceOf[List[_]]) {
           val s = toCSV(p,dList,dList)
           s.stripSuffix(dList)
-        }
+        } 
           else toCSV(p,d,dList)
       }
-      case pp => pp
+      case pp => 
+        if(pp.isInstanceOf[Array[_]]) {
+          val arr = pp.asInstanceOf[Array[_ <: Product]].toList    
+          val s = toCSV(arr.asInstanceOf[Product],dList,dList)
+          s.stripSuffix(dList)
+        } else
+          pp
     }.mkString(d)
   }
 
