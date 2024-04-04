@@ -328,7 +328,8 @@ lazy val root = (project in file("."))
              skel_job,
              job_core,
              crypto_kms,
-             skel_blockchain,
+             blockchain_core,
+             blockchain_rpc,
              tools)
   .dependsOn(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, crypto, skel_dsl, scrap, cli, db_cli,
              ingest_core,
@@ -345,8 +346,8 @@ lazy val root = (project in file("."))
              skel_telemetry,
              skel_job,
              job_core,
-             crypto_kms,
-             skel_blockchain,
+             blockchain_core,
+             blockchain_rpc,
              )  
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
@@ -1178,21 +1179,27 @@ lazy val skel_plugin_1 = (project in file("skel-plugin/plugin-1"))
     )
   )
 
-lazy val skel_blockchain = (project in file("skel-blockchain"))
-  .dependsOn(core,crypto)
+lazy val blockchain_core = (project in file("skel-blockchain/blockchain-core"))
+  .dependsOn(core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,      
+      name := "blockchain-core",
+      libraryDependencies ++=  libTest
+    )
+
+lazy val blockchain_rpc = (project in file("skel-blockchain/blockchain-rpc"))
+  .dependsOn(core,crypto,blockchain_core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
       sharedConfigAssemblyTeku,
       //sharedConfigAssembly,
       
-      name := "skel-blockchain",
+      name := "blockchain-rpc",
+      libraryDependencies ++=  libTest ++ libWeb3j
 
-      libraryDependencies ++=  libTest ++ libWeb3j ++
-         Seq(
-          libOsLib,
-          libUpickleLib,         
-        ),
       // this is important option to support latest log4j2 
       //assembly / packageOptions += sbt.Package.ManifestAttributes("Multi-Release" -> "true")
     )
