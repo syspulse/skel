@@ -31,6 +31,7 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 12. ```tcp://host:port```                       - Tcp client from remote TCP Server
 13. ```tail://file```                           - Tail file
 14. ```tails://dir```                           - Tail directory for new files
+15. ```ws://host:port/path```                   - Websocket Client to remote Websocket server
 
 ## Output Feeds
 
@@ -49,6 +50,7 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 13. ```parq://{file}```                                      - Parquet Format file (time patterns supported)
 14. ```http://host:port```                                   - HTTP Client to remote HTTP server which accepts `POST`
 15. ```jdbc://db```                                          - Exeperimental JDBC (only flat object)
+16. ```server:ws://host:port/url```                          - Expose Websocket Server
 
 
 ----

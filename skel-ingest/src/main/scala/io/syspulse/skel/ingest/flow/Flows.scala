@@ -108,6 +108,8 @@ import akka.http.scaladsl.model.ws.BinaryMessage
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.HttpMethod
+import akka.util.Timeout
+import akka.http.scaladsl.model.ws.WebSocketRequest
 
 object Flows {
   val log = Logger(this.toString)
@@ -450,6 +452,21 @@ object Flows {
       s
     else
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))    
+  }
+
+  def fromWebsocket(uri:String,frameDelimiter:String="\n",frameSize:Int = 8192, retry:RestartSettings=retrySettingsDefault)(implicit as:ActorSystem,timeout:FiniteDuration) = {    
+    // ATTENTION: Server disconnect is not onFailure and must be treated as upstream completion !
+    val s = RestartSource.withBackoff(retry) { () =>
+      log.info(s"=> ${uri} (${retry})")      
+      val ws = new FromWebsocket(uri)
+      ws.source()
+    }
+      
+    // if(frameDelimiter.isEmpty())
+    //   s
+    // else
+    //   s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))    
+    s
   }
 
 // ==================================================================================================
@@ -1136,11 +1153,38 @@ class ToCsv[T <: Ingestable](uri:String) {
   //def sink():Sink[T,Any] = Sink.foreach(t => {println(t.toCSV); System.out.flush()})
 
   def sink(flush:Boolean = true):Sink[T,Any] =
-  Flow[T]
+    Flow[T]
       .map(o => if(o!=null) ByteString(o.toCSV+"\n") else ByteString())
       .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.both)
 
   def transform(t:T):Seq[T] = {
     Seq(t)
   }
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+
+
+class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024)(implicit as:ActorSystem,timeout:FiniteDuration) {
+  val log = Logger(this.toString)
+
+  val webSocketFlow = Http().webSocketClientFlow(WebSocketRequest(uri))
+  
+  val (a,s0) = Source
+    .actorRef[TextMessage](buffer,OverflowStrategy.fail)
+    .preMaterialize()
+
+  val s1 = s0.viaMat(webSocketFlow)(Keep.right) // keep the materialized Future[WebSocketUpgradeResponse]      
+    
+  def source() = s1.map( m => {
+    log.debug(s"'${m}' <- ${uri}")
+    m match {
+      case txt: TextMessage.Strict => ByteString(txt.text)
+      case bin: BinaryMessage.Strict => ByteString(bin.asTextMessage.getStrictText)        
+      case _ => 
+        // not supported
+        m.asBinaryMessage.getStrictData
+    }
+  })
+
 }
