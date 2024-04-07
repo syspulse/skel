@@ -454,11 +454,13 @@ object Flows {
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))    
   }
 
-  def fromWebsocket(uri:String,frameDelimiter:String="\n",frameSize:Int = 8192, retry:RestartSettings=retrySettingsDefault)(implicit as:ActorSystem,timeout:FiniteDuration) = {    
+  def fromWebsocket(uri:String,frameDelimiter:String="\n",frameSize:Int = 8192, retry:RestartSettings=retrySettingsDefault,helloMsg:Option[String] = None)
+    (implicit as:ActorSystem,timeout:FiniteDuration) = { 
+
     // ATTENTION: Server disconnect is not onFailure and must be treated as upstream completion !
     val s = RestartSource.withBackoff(retry) { () =>
       log.info(s"=> ${uri} (${retry})")      
-      val ws = new FromWebsocket(uri)
+      val ws = new FromWebsocket(uri,helloMsg = helloMsg)
       ws.source()
     }
       
@@ -1165,7 +1167,7 @@ class ToCsv[T <: Ingestable](uri:String) {
 // ------------------------------------------------------------------------------------------------------------------
 
 
-class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024)(implicit as:ActorSystem,timeout:FiniteDuration) {
+class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024,helloMsg:Option[String] = None)(implicit as:ActorSystem,timeout:FiniteDuration) {
   val log = Logger(this.toString)
 
   val webSocketFlow = Http().webSocketClientFlow(WebSocketRequest(uri))
@@ -1174,7 +1176,8 @@ class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024)(implicit as:A
     .actorRef[TextMessage](buffer,OverflowStrategy.fail)
     .preMaterialize()
 
-  val s1 = s0.viaMat(webSocketFlow)(Keep.right) // keep the materialized Future[WebSocketUpgradeResponse]      
+  val s1 = s0
+    .viaMat(webSocketFlow)(Keep.right) // keep the materialized Future[WebSocketUpgradeResponse]      
     
   def source() = s1.map( m => {
     log.debug(s"'${m}' <- ${uri}")
@@ -1187,4 +1190,8 @@ class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024)(implicit as:A
     }
   })
 
+  if(helloMsg.isDefined) {
+    log.info(s"initial message: '${helloMsg.get}'")
+    a ! TextMessage.Strict(helloMsg.get)
+  }
 }

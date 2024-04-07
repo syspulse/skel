@@ -70,7 +70,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case ("server" | "http:server" | "https:server") :: uri :: Nil => Flows.fromHttpServer(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
 
       case "tcp" :: uri :: Nil => Flows.fromTcpClientUri(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
-      case ("ws" | "wss") :: _ => Flows.fromWebsocket(feed,frameDelimiter = delimiter, frameSize = buffer)
+      case ("ws" | "wss") :: _ => Flows.fromWebsocket(feed,frameDelimiter = delimiter, frameSize = buffer, helloMsg = sys.env.get("WS_HELLO_MSG"))
 
       case "file" :: fileName :: Nil => Flows.fromFile(fileName,chunk,frameDelimiter = delimiter, frameSize = buffer)
       
