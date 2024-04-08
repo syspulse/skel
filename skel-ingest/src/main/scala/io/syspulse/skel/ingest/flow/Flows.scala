@@ -454,7 +454,7 @@ object Flows {
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))    
   }
 
-  def fromWebsocket(uri:String,frameDelimiter:String="\n",frameSize:Int = 8192, retry:RestartSettings=retrySettingsDefault,helloMsg:Option[String] = None)
+  def fromWebsocket(uri:String,frameDelimiter:String="\n",frameSize:Int=8192,retry:RestartSettings=retrySettingsDefault,helloMsg:Option[String]=None)
     (implicit as:ActorSystem,timeout:FiniteDuration) = { 
 
     // ATTENTION: Server disconnect is not onFailure and must be treated as upstream completion !
@@ -1165,7 +1165,7 @@ class ToCsv[T <: Ingestable](uri:String) {
 }
 
 // ------------------------------------------------------------------------------------------------------------------
-
+case class AttributeActor(a: ActorRef) extends Attributes.Attribute
 
 class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024,helloMsg:Option[String] = None)(implicit as:ActorSystem,timeout:FiniteDuration) {
   val log = Logger(this.toString)
@@ -1176,9 +1176,11 @@ class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024,helloMsg:Optio
     .actorRef[TextMessage](buffer,OverflowStrategy.fail)
     .preMaterialize()
 
+  log.info(s"[${uri}]: Actor=${a}")
   val s1 = s0
-    .viaMat(webSocketFlow)(Keep.right) // keep the materialized Future[WebSocketUpgradeResponse]      
-    
+    .viaMat(webSocketFlow)(Keep.both) // keep the materialized Future[WebSocketUpgradeResponse]      
+    .addAttributes(Attributes(AttributeActor(a)))
+      
   def source() = s1.map( m => {
     log.debug(s"'${m}' <- ${uri}")
     m match {
@@ -1194,4 +1196,6 @@ class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024,helloMsg:Optio
     log.info(s"initial message: '${helloMsg.get}'")
     a ! TextMessage.Strict(helloMsg.get)
   }
+
+  def actor() = a
 }
