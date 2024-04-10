@@ -79,7 +79,8 @@ object AppKeystore extends {
             val kp = ecdsa.get
 
             val addr = Eth.address(kp.pk)
-            println(s"${kp},${addr}")
+            println(s"${kp})")
+            println(s"addr=${addr}")
             val f = Eth.writeKeystore(kp.sk,kp.pk,config.keystorePass,config.keystoreFile)
             println(s"eth1: ${f}")
           }
