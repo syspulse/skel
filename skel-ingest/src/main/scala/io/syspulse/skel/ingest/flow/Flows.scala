@@ -575,7 +575,7 @@ object Flows {
   }
 
   // ===== WebSocket Sink
-  def toWsServer[T <: Ingestable](uri:String,format:String="", buffer:Int=10000, timeout:Long = 1000L*60*60*24)(implicit as:ActorSystem,fmt:JsonFormat[T]) = { 
+  def toWebsocketServer[T <: Ingestable](uri:String,format:String="", buffer:Int=10000, timeout:Long = 1000L*60*60*24)(implicit as:ActorSystem,fmt:JsonFormat[T]) = { 
     import io.syspulse.skel.service.ws._
     import akka.actor.typed.scaladsl.ActorContext
 

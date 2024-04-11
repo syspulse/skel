@@ -56,17 +56,23 @@ import io.syspulse.skel.odometer.store.OdoRegistry
 import io.syspulse.skel.odometer.store.OdoRegistry._
 import io.syspulse.skel.odometer.server.{Odos, OdoRes, OdoCreateReq, OdoUpdateReq}
 import io.syspulse.skel.service.telemetry.TelemetryRegistry
+import io.syspulse.skel.service.ws.WebSocket
+import scala.concurrent.ExecutionContext
 
 @Path("/")
-class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],config:Config) extends CommonRoutes with Routeable with RouteAuthorizers {
-  //val log = Logger(s"${this}")
-  implicit val system: ActorSystem[_] = context.system
+class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],config:Config,ex:ExecutionContext) 
+  extends WebSocket(config.timeoutIdle)(ex) with CommonRoutes with Routeable with RouteAuthorizers {
+  
+  override val log = Logger(s"${this}")
+
+  implicit val system: ActorSystem[_] = context.system  
   
   implicit val permissions = Permissions()
 
   import io.syspulse.skel.odometer.store.OdoRegistryProto._
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+  import spray.json._
   import OdoJson._
     
   def getOdos(): Future[Odos] = registry.ask(GetOdos)
@@ -121,6 +127,8 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
   def createOdoRoute = post {
     entity(as[OdoCreateReq]) { req =>
       onSuccess(createOdo(req)) { r =>
+        // update subscribers
+        if(r.isSuccess) broadcastText(r.get.toJson.compactPrint)
         complete(StatusCodes.Created, r)
       }
     }
@@ -135,6 +143,7 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
   def updateOdoRoute(id:String) = put {
     entity(as[OdoUpdateReq]) { req =>
       onSuccess(updateOdo(id,req)) { r =>
+        if(r.isSuccess) broadcastText(r.get.toJson.compactPrint)
         complete(StatusCodes.OK, r)
       }
     }
@@ -157,6 +166,18 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
             ),            
           )
         },
+        pathPrefix("ws") { 
+          extractClientIP { addr => {
+            log.info(s"<-- ws://${addr}")
+            
+            pathPrefix(Segment) { group =>
+              handleWebSocketMessages(this.listen(group))
+            } ~
+            pathEndOrSingleSlash {
+              handleWebSocketMessages(this.listen())
+            }
+          }}
+        },
         pathPrefix(Segment) { id => 
           pathEndOrSingleSlash {
             authenticate()(authn =>
@@ -169,7 +190,7 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
               }
             ) 
           }
-        }
+        },        
       )
   }
 }

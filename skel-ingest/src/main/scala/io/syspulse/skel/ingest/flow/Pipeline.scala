@@ -168,8 +168,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "postgres" :: _ => Flows.toJDBC[O](output)(fmt)
       case "mysql" :: _ => Flows.toJDBC[O](output)(fmt)
 
-      case "server:ws" :: uri :: Nil => Flows.toWsServer[O](uri,format,buffer = cap)
-      case "ws:server" :: uri :: Nil => Flows.toWsServer[O](uri,format,buffer = cap)
+      case "server:ws" :: uri :: Nil => Flows.toWebsocketServer[O](uri,format,buffer = cap)
+      case "ws:server" :: uri :: Nil => Flows.toWebsocketServer[O](uri,format,buffer = cap)
 
       case "stdout" :: _ => Flows.toStdout(format=format)
       case "stderr" :: _ => Flows.toStderr(format=format)

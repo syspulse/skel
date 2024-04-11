@@ -17,6 +17,8 @@ import io.jvm.uuid._
 import io.syspulse.skel.FutureAwaitable._
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.ExecutionContext
+import java.util.concurrent.Executors
 
 case class Config(
   host:String="0.0.0.0",
@@ -25,8 +27,11 @@ case class Config(
   datastore:String = "mem://",
 
   timeout:Long = 3000L,
+  timeoutIdle:Long = 30000L,
 
   cacheFlush:Long = 5000L,
+
+  threadPool:Int = 16,
   
   cmd:String = "server",
   params: Seq[String] = Seq(),
@@ -47,10 +52,12 @@ object App extends skel.Server {
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
         
-        ArgString('d', "datastore",s"datastore [mysql,postgres,dir,mem,cache] (def: ${d.datastore})"),
+        ArgString('d', "datastore",s"datastore [mysql,postgres,jdbc,dir,mem,redis] (def: ${d.datastore})"),
         ArgString('_', "timeout",s"Timeouts, msec (def: ${d.timeout})"),
 
         ArgLong('_', "cache.flush",s"Cache flush interval, msec (def: ${d.cacheFlush})"),
+
+        ArgInt('_', "thread.pool",s"Thread pool for Websockets (def: ${d.threadPool})"),
 
         ArgCmd("server","Command"),
         ArgCmd("server-async","Command"),
@@ -69,6 +76,7 @@ object App extends skel.Server {
       timeout = c.getLong("timeout").getOrElse(d.timeout),
 
       cacheFlush = c.getLong("cache.flush").getOrElse(d.cacheFlush),
+      threadPool = c.getInt("thread.pool").getOrElse(d.threadPool),
      
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -101,9 +109,12 @@ object App extends skel.Server {
 
         val reg = OdoRegistry(cache)
 
+        // Execution context
+        implicit val ex: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(config.threadPool))
+
         run( config.host, config.port,config.uri,c,
           Seq(
-            (reg,"OdoRegistry",(r, ac) => new OdoRoutes(r)(ac,config) )
+            (reg,"OdoRegistry",(r, ac) => new OdoRoutes(r)(ac,config,ex) )
           )
         )
       
