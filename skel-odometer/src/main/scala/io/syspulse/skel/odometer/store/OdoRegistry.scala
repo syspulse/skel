@@ -68,7 +68,14 @@ object OdoRegistry {
       case UpdateOdo(id, req, replyTo) =>        
         // ATTENTION: Update is ++ !
         val o = store.++(id,req.delta)
-        replyTo ! o.map(o => Odos(Seq(o),total=Some(1)))
+        val r = o match {
+          case Success(o) => Success(Odos(Seq(o),total=Some(1)))
+          case Failure(e) => 
+            // try to create
+            val o = Odo(req.id, 0L)
+            store.+(o).map(o => Odos(Seq(o),total=Some(1)))
+        }
+        replyTo ! r
 
         Behaviors.same
       

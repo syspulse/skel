@@ -94,6 +94,7 @@ object App extends skel.Server {
           case "jdbc" :: Nil => new OdoStoreDB(c,"mysql://mysql")
 
           case "redis" :: uri :: Nil => new OdoStoreRedis(uri)
+          case "redis" :: Nil => new OdoStoreRedis("redis://localhost:6379/0")
 
           case "dir" :: dir ::  _ => new OdoStoreDir(dir)
           case "mem" :: Nil | "cache" :: Nil => new OdoStoreMem()
