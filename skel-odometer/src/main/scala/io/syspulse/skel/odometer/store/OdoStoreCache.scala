@@ -74,18 +74,6 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
     ????(id)
   }
 
-  override def ??(ids:Seq[String]):Seq[Odo] = {
-    val oo = cache.??(ids) 
-    if(oo.size == 0) {
-      // try to get from store
-      val oo = store.??(ids)
-      for( o <- oo) {
-        cache.+(o)
-      }
-      oo
-    } else oo
-  }
-
   def update(id:String,counter:Long):Try[Odo] = {
     val o = ????(id)
     for {
@@ -111,6 +99,19 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
       _ <- dirty.clear()
     } yield this
   }
+
+  override def ??(ids:Seq[String]):Seq[Odo] = {
+    val oo = cache.??(ids) 
+    if(oo.size == 0) {
+      // try to get from store
+      val oo = store.??(ids)
+      for( o <- oo) {
+        cache.+(o)
+      }
+      oo
+    } else oo
+  }
+
   
   // start cron
   cron.start()

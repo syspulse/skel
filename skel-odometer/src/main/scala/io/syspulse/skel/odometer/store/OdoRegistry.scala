@@ -47,8 +47,10 @@ object OdoRegistry {
         Behaviors.same
 
       case GetOdo(id, replyTo) =>
-        val o = store.?(id)
-        replyTo ! o.map(o => Odos(Seq(o),total=Some(1)))
+        // val o = store.?(id)
+        // replyTo ! o.map(o => Odos(Seq(o),total=Some(1)))
+        val oo = store.??(Seq(id))
+        replyTo ! Success( Odos(oo,total=Some(oo.size)) )
         Behaviors.same      
 
       case CreateOdo(req, replyTo) =>

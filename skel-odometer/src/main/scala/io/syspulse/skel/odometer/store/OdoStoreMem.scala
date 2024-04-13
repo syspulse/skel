@@ -73,7 +73,10 @@ class OdoStoreMem extends OdoStore {
         case ns :: "*" :: Nil => 
           odometers.filter{ case(k,v) => k.startsWith(ns)}.values.toSeq
         case ns :: key :: Nil => 
-          odometers.filter{ case(k,v) => k.startsWith(ns)}.values.toSeq
+          odometers.get(id) match {
+            case Some(o) => Seq(o)
+            case _ => Seq()
+          }
         case key :: Nil =>
           odometers.get(key) match {
             case Some(o) => Seq(o)
