@@ -17,7 +17,7 @@ object OdoJson extends JsonCommon {
 
   implicit val jf_odo = jsonFormat3(Odo)
   
-  implicit val jf_odos = jsonFormat1(Odos)
+  implicit val jf_odos = jsonFormat2(Odos)
   implicit val jf_odo_res = jsonFormat1(OdoRes)
   implicit val jf_odo_CreateReq = jsonFormat2(OdoCreateReq)
   implicit val jf_odo_UpdateReq = jsonFormat2(OdoUpdateReq)

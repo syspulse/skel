@@ -33,5 +33,14 @@ trait OdoStore extends Store[Odo,String] {
       o1 <- Some(o.copy(counter = counter))
     } yield o1).get    
   }
+
+  // this operator supports namespace "namespace:key"
+  // Implementation should overwrite it if support fast version (like Redis)
+  override def ??(ids:Seq[String]):Seq[Odo] = {
+    if(ids.filter(_.contains(":*")).size != 0)
+      throw new Exception(s"no implementation")
+    else
+      super.??(ids)
+  }
 }
 

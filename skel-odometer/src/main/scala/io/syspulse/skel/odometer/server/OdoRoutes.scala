@@ -76,10 +76,10 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
   import OdoJson._
     
   def getOdos(): Future[Odos] = registry.ask(GetOdos)
-  def getOdo(id: String): Future[Try[Odo]] = registry.ask(GetOdo(id, _))
+  def getOdo(id: String): Future[Try[Odos]] = registry.ask(GetOdo(id, _))
   
-  def createOdo(req: OdoCreateReq): Future[Try[Odo]] = registry.ask(CreateOdo(req, _))
-  def updateOdo(id:String,req: OdoUpdateReq): Future[Try[Odo]] = registry.ask(UpdateOdo(id,req, _))
+  def createOdo(req: OdoCreateReq): Future[Try[Odos]] = registry.ask(CreateOdo(req, _))
+  def updateOdo(id:String,req: OdoUpdateReq): Future[Try[Odos]] = registry.ask(UpdateOdo(id,req, _))
   def deleteOdo(id: String): Future[Try[String]] = registry.ask(DeleteOdo(id, _))
   
 

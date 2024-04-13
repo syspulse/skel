@@ -24,6 +24,8 @@ import scala.concurrent.Await
 import spray.json._
 import io.syspulse.skel.odometer.server.OdoJson
 import io.syspulse.skel.uri.RedisURI
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.Future
 
 
 class OdoStoreRedis(uri:String,redisTimeout:Long = 3000L) extends OdoStore {
@@ -107,5 +109,44 @@ class OdoStoreRedis(uri:String,redisTimeout:Long = 3000L) extends OdoStore {
     val f = redis.flushDB()
     Await.result(f,timeout)
     Success(this)
+  }
+
+  override def ??(ids:Seq[String]):Seq[Odo] = {    
+    val oo = ids.flatMap( id => {
+
+      id.split(":").toList match {        
+        case ns :: "*" :: Nil => 
+          val f = for {
+            r1 <- {
+              val keys = ListBuffer[String]()
+              var cursor = 0L
+              do {                
+                val f = redis.scan(cursor,Some(s"${ns}:*"))
+                val (next, set) = Await.result(f,timeout)
+                keys ++= set
+                cursor = next
+              } while (cursor > 0)
+              Future(keys)
+            }
+            r2 <- {
+              if(r1.size == 0)
+                Future(Seq())
+              else
+                redis.mGet(r1.toSeq: _*)
+            }
+          } yield r2
+
+          val r = Await.result(f,timeout)          
+          val oo = r.flatMap(v => v.map(_.parseJson.convertTo[Odo]))
+          oo
+
+        case _ =>
+          ?(id) match {
+            case Success(o) => Seq(o)
+            case _ => Seq()
+          }
+      }      
+    })
+    oo    
   }
 }

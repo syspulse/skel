@@ -52,7 +52,7 @@ object App extends skel.Server {
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
         
-        ArgString('d', "datastore",s"datastore [mysql,postgres,jdbc,dir,mem,redis] (def: ${d.datastore})"),
+        ArgString('d', "datastore",s"datastore [mysql,postgres,jdbc,dir,cache,mem,redis] (def: ${d.datastore})"),
         ArgString('_', "timeout",s"Timeouts, msec (def: ${d.timeout})"),
 
         ArgLong('_', "cache.flush",s"Cache flush interval, msec (def: ${d.cacheFlush})"),

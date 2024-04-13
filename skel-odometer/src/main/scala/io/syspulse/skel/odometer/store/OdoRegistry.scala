@@ -17,10 +17,10 @@ import io.syspulse.skel.odometer.server.{Odos, OdoRes, OdoCreateReq, OdoUpdateRe
 
 object OdoRegistryProto {
   final case class GetOdos(replyTo: ActorRef[Odos]) extends Command
-  final case class GetOdo(id:String,replyTo: ActorRef[Try[Odo]]) extends Command
+  final case class GetOdo(id:String,replyTo: ActorRef[Try[Odos]]) extends Command
   
-  final case class CreateOdo(req: OdoCreateReq, replyTo: ActorRef[Try[Odo]]) extends Command
-  final case class UpdateOdo(id:String, req: OdoUpdateReq, replyTo: ActorRef[Try[Odo]]) extends Command  
+  final case class CreateOdo(req: OdoCreateReq, replyTo: ActorRef[Try[Odos]]) extends Command
+  final case class UpdateOdo(id:String, req: OdoUpdateReq, replyTo: ActorRef[Try[Odos]]) extends Command  
   final case class DeleteOdo(id: String, replyTo: ActorRef[Try[String]]) extends Command
 }
 
@@ -32,21 +32,23 @@ object OdoRegistry {
   // this var reference is unfortunately needed for Metrics access
   var store: OdoStore = null 
 
-  def apply(store: OdoStore = new OdoStoreMem): Behavior[io.syspulse.skel.Command] = {
+  def apply(store: OdoStore = new OdoStoreMem): Behavior[Command] = {
     this.store = store
     registry(store)
   }
 
-  private def registry(store: OdoStore): Behavior[io.syspulse.skel.Command] = {    
+  private def registry(store: OdoStore): Behavior[Command] = {    
     this.store = store
     
     Behaviors.receiveMessage {
       case GetOdos(replyTo) =>
-        replyTo ! Odos(store.all)
+        val all = store.all
+        replyTo ! Odos(all,total=Some(all.size))
         Behaviors.same
 
       case GetOdo(id, replyTo) =>
-        replyTo ! store.?(id)
+        val o = store.?(id)
+        replyTo ! o.map(o => Odos(Seq(o),total=Some(1)))
         Behaviors.same      
 
       case CreateOdo(req, replyTo) =>
@@ -58,7 +60,7 @@ object OdoRegistry {
             case _ =>  
               val o = Odo(req.id, req.counter.getOrElse(0L))
               val store1 = store.+(o)
-              replyTo ! store1.map(_ => o) 
+              replyTo ! store1.map(_ => Odos(Seq(o),total=Some(1))) 
           }
 
         Behaviors.same
@@ -66,7 +68,7 @@ object OdoRegistry {
       case UpdateOdo(id, req, replyTo) =>        
         // ATTENTION: Update is ++ !
         val o = store.++(id,req.delta)
-        replyTo ! o
+        replyTo ! o.map(o => Odos(Seq(o),total=Some(1)))
 
         Behaviors.same
       

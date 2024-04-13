@@ -64,4 +64,23 @@ class OdoStoreMem extends OdoStore {
     odometers = Map()
     Success(this)
   }
+  
+  // support for namespaces
+  // only 1 level namespace is supported
+  override def ??(ids:Seq[String]):Seq[Odo] = {
+    val oo = ids.flatMap( id => {
+      id.split(":").toList match {
+        case ns :: "*" :: Nil => 
+          odometers.filter{ case(k,v) => k.startsWith(ns)}.values.toSeq
+        case ns :: key :: Nil => 
+          odometers.filter{ case(k,v) => k.startsWith(ns)}.values.toSeq
+        case key :: Nil =>
+          odometers.get(key) match {
+            case Some(o) => Seq(o)
+            case _ => Seq()
+          }
+      }
+    })
+    oo    
+  }
 }
