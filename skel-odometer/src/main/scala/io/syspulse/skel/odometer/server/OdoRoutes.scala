@@ -164,7 +164,7 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
   // can trigger update externally directly
   def update(req:OdoUpdateReq) = {
     updateOdo(req).map{ r => {
-      log.info(s"update: ${r}")
+      log.debug(s"update: ${r}")
       if(r.isSuccess && config.freq == 0L) 
         broadcastText(r.get.toJson.compactPrint)
       else
@@ -175,7 +175,7 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
   // run cron
   new CronFreq(
     () => {
-      log.info(s"notify: updated=${updated}")
+      log.debug(s"cron: updated=${updated}")
       if(updated) {
         getOdos().map( oo => {
           broadcastText(oo.toJson.compactPrint)

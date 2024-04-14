@@ -29,8 +29,7 @@ trait OdoStore extends Store[Odo,String] {
 
   protected def modify(o:Odo,v:Long):Odo = {    
     (for {
-      o0 <- Some(o.copy(ts = System.currentTimeMillis))
-      o1 <- Some(o.copy(v = v))
+      o1 <- Some(o.copy(ts = System.currentTimeMillis,v = v))
     } yield o1).get    
   }
 
