@@ -30,7 +30,6 @@ case class Config(
   timeoutIdle:Long = 30000L,
 
   cacheFlush:Long = 5000L,
-
   threadPool:Int = 16,
   
   cmd:String = "server",
@@ -56,7 +55,6 @@ object App extends skel.Server {
         ArgString('_', "timeout",s"Timeouts, msec (def: ${d.timeout})"),
 
         ArgLong('_', "cache.flush",s"Cache flush interval, msec (def: ${d.cacheFlush})"),
-
         ArgInt('_', "thread.pool",s"Thread pool for Websockets (def: ${d.threadPool})"),
 
         ArgCmd("server","Command"),
@@ -100,7 +98,7 @@ object App extends skel.Server {
           case "mem" :: Nil | "cache" :: Nil => new OdoStoreMem()
           
           case _ => {
-            Console.err.println(s"Uknown datastore: '${config.datastore}'")
+            Console.err.println(s"Unknown datastore: '${config.datastore}'")
             sys.exit(1)
           }
         }

@@ -40,10 +40,10 @@ class OdoStoreMem extends OdoStore {
     case None => Failure(new Exception(s"not found: ${id}"))
   }
 
-  def update(id:String,counter:Long):Try[Odo] = {
+  def update(id:String,v:Long):Try[Odo] = {
     this.?(id) match {
       case Success(o) => 
-        val o1 = modify(o,counter)
+        val o1 = modify(o,v)
         this.+(o1)
         Success(o1)
       case f => f
@@ -53,7 +53,7 @@ class OdoStoreMem extends OdoStore {
   def ++(id:String, delta:Long):Try[Odo] = {
     this.?(id) match {
       case Success(o) => 
-        val o1 = o.copy(counter = o.counter + delta, ts = System.currentTimeMillis)
+        val o1 = o.copy(v = o.v + delta, ts = System.currentTimeMillis)
         this.+(o1)        
         Success(o1)
       case f => f

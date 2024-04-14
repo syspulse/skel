@@ -60,7 +60,11 @@ abstract class WebSocket(idleTimeout:Long)(implicit ex:ExecutionContext) {
     log.info(s"clients: ${clients}")
   }
   
-  def process(m:Message,a:ActorRef):Message = ???
+  // default processor is logger
+  def process(m:Message,a:ActorRef):Message = {
+    log.info(s"<- ${a}[${m}]")
+    m
+  }
 
   def wsFlow(topic:String,buffer:Int = 8192)(implicit mat:Materializer): Flow[Message, Message, Any] = {    
     val (wsActor, wsSource) = 

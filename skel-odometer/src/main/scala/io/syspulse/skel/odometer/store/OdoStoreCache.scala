@@ -27,7 +27,7 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
 
       dirty.all.foreach{ o => {
         log.debug(s"Flushing: ${o}")
-        store.update(o.id,o.counter)
+        store.update(o.id,o.v)
       }}
       // clear dirty cache
       dirty.clear()
@@ -74,11 +74,11 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
     ????(id)
   }
 
-  def update(id:String,counter:Long):Try[Odo] = {
+  def update(id:String,v:Long):Try[Odo] = {
     val o = ????(id)
     for {
       o <- o
-      o1 <- cache.update(id,counter)
+      o1 <- cache.update(id,v)
       _ <-  dirty.+(o1)
     } yield o1
   }

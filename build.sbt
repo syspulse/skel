@@ -1128,7 +1128,7 @@ lazy val skel_odometer = (project in file("skel-odometer"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    appDockerConfig(appNameUser,appBootClassUser),
+    appDockerConfig("skel-odometer","io.syspulse.skel.odometer.App"),
 
     libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq( 
       libRedis

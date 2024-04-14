@@ -20,7 +20,7 @@ object OdoRegistryProto {
   final case class GetOdo(id:String,replyTo: ActorRef[Try[Odos]]) extends Command
   
   final case class CreateOdo(req: OdoCreateReq, replyTo: ActorRef[Try[Odos]]) extends Command
-  final case class UpdateOdo(id:String, req: OdoUpdateReq, replyTo: ActorRef[Try[Odos]]) extends Command  
+  final case class UpdateOdo(req: OdoUpdateReq, replyTo: ActorRef[Try[Odos]]) extends Command  
   final case class DeleteOdo(id: String, replyTo: ActorRef[Try[String]]) extends Command
 }
 
@@ -67,9 +67,9 @@ object OdoRegistry {
 
         Behaviors.same
 
-      case UpdateOdo(id, req, replyTo) =>        
+      case UpdateOdo(req, replyTo) =>        
         // ATTENTION: Update is ++ !
-        val o = store.++(id,req.delta)
+        val o = store.++(req.id,req.delta)
         val r = o match {
           case Success(o) => Success(Odos(Seq(o),total=Some(1)))
           case Failure(e) => 

@@ -79,7 +79,7 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
   def getOdo(id: String): Future[Try[Odos]] = registry.ask(GetOdo(id, _))
   
   def createOdo(req: OdoCreateReq): Future[Try[Odos]] = registry.ask(CreateOdo(req, _))
-  def updateOdo(id:String,req: OdoUpdateReq): Future[Try[Odos]] = registry.ask(UpdateOdo(id,req, _))
+  def updateOdo(req: OdoUpdateReq): Future[Try[Odos]] = registry.ask(UpdateOdo(req, _))
   def deleteOdo(id: String): Future[Try[String]] = registry.ask(DeleteOdo(id, _))
   
 
@@ -142,13 +142,21 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
   )
   def updateOdoRoute(id:String) = put {
     entity(as[OdoUpdateReq]) { req =>
-      onSuccess(updateOdo(id,req)) { r =>
+      onSuccess(updateOdo(req.copy(id = id))) { r =>
         if(r.isSuccess) broadcastText(r.get.toJson.compactPrint)
         complete(StatusCodes.OK, r)
       }
     }
   }
 
+  // can trigger update externally directly
+  def update(req:OdoUpdateReq) = {
+    updateOdo(req).map{ r => {
+      log.info(s"update: ${r}")
+      if(r.isSuccess) 
+        broadcastText(r.get.toJson.compactPrint)
+    }}
+  }
     
   val corsAllow = CorsSettings(system.classicSystem)
     .withAllowCredentials(true)
