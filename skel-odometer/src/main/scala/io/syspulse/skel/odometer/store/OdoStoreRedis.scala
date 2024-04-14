@@ -160,6 +160,8 @@ class OdoStoreRedis(uri:String,redisTimeout:Long = 3000L) extends OdoStore {
           val oo = r.flatMap(v => v.map(_.parseJson.convertTo[Odo]))
           oo
 
+        case "*" :: Nil => all
+        
         case _ =>
           ?(id) match {
             case Success(o) => Seq(o)

@@ -77,6 +77,9 @@ class OdoStoreMem extends OdoStore {
             case Some(o) => Seq(o)
             case _ => Seq()
           }
+        
+        case "*" :: Nil => all
+
         case key :: Nil =>
           odometers.get(key) match {
             case Some(o) => Seq(o)

@@ -21,6 +21,7 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
 
   val cache = new OdoStoreMem()
   val dirty = new OdoStoreMem()
+  var cachedAll = false
 
   val cron = new CronFreq(() => {
       if(dirty.size > 0) log.info(s"Flushing cache: ${dirty.size}")
@@ -43,6 +44,7 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
     for( o <- oo ) {
       cache.+(o)
     }
+    cachedAll = true
     oo
   }
 
@@ -108,15 +110,44 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
   }
 
   override def ??(ids:Seq[String]):Seq[Odo] = {
-    val oo = cache.??(ids) 
-    if(oo.size == 0) {
-      // try to get from store
-      val oo = store.??(ids)
-      for( o <- oo) {
-        cache.+(o)
+    // val oo = cache.??(ids) 
+    // if(oo.size == 0) {
+    //   // try to get from store
+    //   val oo = store.??(ids)
+    //   for( o <- oo) {
+    //     cache.+(o)
+    //   }
+    //   oo
+    // } else oo
+
+    val oo = ids.flatMap( id => {
+      id.split(":").toList match {
+        case ns :: "*" :: Nil =>           
+          val oo = cache.??(Seq(id))
+          
+          val oo1 = if(oo.size == 0) {
+            store.??(Seq(id))
+          } else oo
+
+          for( o <- oo1) {
+            cache.+(o)
+          }
+          oo1
+        
+        case "*" :: Nil => 
+          if( !cachedAll )
+            all
+          else
+            cache.all
+
+        case _ => 
+          this.?(id) match {
+            case Success(o) => Seq(o)
+            case _ => Seq()
+          }        
       }
-      oo
-    } else oo
+    })
+    oo
   }
 
   
