@@ -37,7 +37,14 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
     freq
   )
 
-  def all:Seq[Odo] = cache.all
+  // always request everything and cache
+  def all:Seq[Odo] = {
+    val oo = store.all
+    for( o <- oo ) {
+      cache.+(o)
+    }
+    oo
+  }
 
   def size:Long = cache.size
 

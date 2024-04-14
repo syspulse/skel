@@ -62,7 +62,7 @@ abstract class WebSocket(idleTimeout:Long)(implicit ex:ExecutionContext) {
   
   // default processor is logger
   def process(m:Message,a:ActorRef):Message = {
-    log.info(s"<- ${a}[${m}]")
+    log.debug(s"<- ${a}[${m}]")
     m
   }
 

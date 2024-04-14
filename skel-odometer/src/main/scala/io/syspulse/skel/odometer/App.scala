@@ -31,6 +31,7 @@ case class Config(
 
   cacheFlush:Long = 5000L,
   threadPool:Int = 16,
+  freq:Long = 1000L, // Websocket update frequency (if 0L, than updated immediately)
   
   cmd:String = "server",
   params: Seq[String] = Seq(),
@@ -56,6 +57,7 @@ object App extends skel.Server {
 
         ArgLong('_', "cache.flush",s"Cache flush interval, msec (def: ${d.cacheFlush})"),
         ArgInt('_', "thread.pool",s"Thread pool for Websockets (def: ${d.threadPool})"),
+        ArgLong('_', "freq",s"Websocket Update frequency, msec (def: ${d.freq})"),
 
         ArgCmd("server","Command"),
         ArgCmd("server-async","Command"),
@@ -75,6 +77,7 @@ object App extends skel.Server {
 
       cacheFlush = c.getLong("cache.flush").getOrElse(d.cacheFlush),
       threadPool = c.getInt("thread.pool").getOrElse(d.threadPool),
+      freq = c.getLong("freq").getOrElse(d.freq),
      
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),

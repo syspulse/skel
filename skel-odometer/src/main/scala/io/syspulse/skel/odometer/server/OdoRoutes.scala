@@ -58,6 +58,10 @@ import io.syspulse.skel.odometer.server.{Odos, OdoRes, OdoCreateReq, OdoUpdateRe
 import io.syspulse.skel.service.telemetry.TelemetryRegistry
 import io.syspulse.skel.service.ws.WebSocket
 import scala.concurrent.ExecutionContext
+import io.syspulse.skel.cron.CronFreq
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
+import io.syspulse.skel.odometer.store.OdoRegistryProto._
 
 @Path("/")
 class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],config:Config,ex:ExecutionContext) 
@@ -65,15 +69,16 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
   
   override val log = Logger(s"${this}")
 
-  implicit val system: ActorSystem[_] = context.system  
-  
+  implicit val system: ActorSystem[_] = context.system    
   implicit val permissions = Permissions()
 
-  import io.syspulse.skel.odometer.store.OdoRegistryProto._
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import spray.json._
   import OdoJson._
+
+  // quick flag to trigger Websocket update
+  @volatile var updated = false
     
   def getOdos(): Future[Odos] = registry.ask(GetOdos)
   def getOdo(id: String): Future[Try[Odos]] = registry.ask(GetOdo(id, _))
@@ -114,6 +119,7 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
   )
   def deleteOdoRoute(id: String) = delete {
     onSuccess(deleteOdo(id)) { r =>
+      updated = true
       complete(StatusCodes.OK, r)
     }
   }
@@ -128,7 +134,10 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
     entity(as[OdoCreateReq]) { req =>
       onSuccess(createOdo(req)) { r =>
         // update subscribers
-        if(r.isSuccess) broadcastText(r.get.toJson.compactPrint)
+        if(r.isSuccess && config.freq == 0L) 
+          broadcastText(r.get.toJson.compactPrint) 
+        else
+          updated = true
         complete(StatusCodes.Created, r)
       }
     }
@@ -143,7 +152,10 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
   def updateOdoRoute(id:String) = put {
     entity(as[OdoUpdateReq]) { req =>
       onSuccess(updateOdo(req.copy(id = id))) { r =>
-        if(r.isSuccess) broadcastText(r.get.toJson.compactPrint)
+        if(r.isSuccess && config.freq == 0L) 
+          broadcastText(r.get.toJson.compactPrint)
+        else
+          updated = true
         complete(StatusCodes.OK, r)
       }
     }
@@ -153,10 +165,30 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
   def update(req:OdoUpdateReq) = {
     updateOdo(req).map{ r => {
       log.info(s"update: ${r}")
-      if(r.isSuccess) 
+      if(r.isSuccess && config.freq == 0L) 
         broadcastText(r.get.toJson.compactPrint)
+      else
+        updated = true
     }}
   }
+
+  // run cron
+  new CronFreq(
+    () => {
+      log.info(s"notify: updated=${updated}")
+      if(updated) {
+        getOdos().map( oo => {
+          broadcastText(oo.toJson.compactPrint)
+          updated = false
+        })
+      }
+      // always success
+      true
+    },
+    interval = FiniteDuration(config.freq,TimeUnit.MILLISECONDS),
+    delay = config.freq
+  ).start()
+
     
   val corsAllow = CorsSettings(system.classicSystem)
     .withAllowCredentials(true)

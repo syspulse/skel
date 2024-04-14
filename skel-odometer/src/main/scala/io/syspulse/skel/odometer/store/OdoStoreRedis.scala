@@ -53,9 +53,29 @@ class OdoStoreRedis(uri:String,redisTimeout:Long = 3000L) extends OdoStore {
   
 
   def all:Seq[Odo] = {
-    val f = redis.scan(0L,Some("*"))
-    val r = Await.result(f,timeout)
-    r._2.map(v => v.parseJson.convertTo[Odo]).toSeq
+    val f = for {
+      r1 <- {
+        val keys = ListBuffer[String]()
+        var cursor = 0L
+        do {                
+          val f = redis.scan(cursor,Some("*"))
+          val (next, set) = Await.result(f,timeout)
+          keys ++= set
+          cursor = next
+        } while (cursor > 0)
+        Future(keys)
+      }
+      r2 <- {
+        if(r1.size == 0)
+          Future(Seq())
+        else
+          redis.mGet(r1.toSeq: _*)
+      }
+    } yield r2
+
+    val r = Await.result(f,timeout)          
+    val oo = r.flatMap(v => v.map(_.parseJson.convertTo[Odo]))
+    oo      
   }
 
   def size:Long = {
