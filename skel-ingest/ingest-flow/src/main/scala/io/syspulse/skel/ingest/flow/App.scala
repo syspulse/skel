@@ -109,7 +109,7 @@ object App extends skel.Server {
       params = c.getParams(),
     )
 
-    println(s"Config: ${config}")
+    Console.err.println(s"Config: ${config}")
 
     // store is not used
     val store:IngestStore[_] = config.datastore match {
@@ -138,7 +138,7 @@ object App extends skel.Server {
       }     
     }
 
-    println(s"r = ${r}")
+    Console.err.println(s"r = ${r}")
     
     //sys.exit(0)
   }

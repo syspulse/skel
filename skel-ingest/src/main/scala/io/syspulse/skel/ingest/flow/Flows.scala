@@ -454,7 +454,7 @@ object Flows {
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))    
   }
 
-  def fromWebsocket(uri:String,frameDelimiter:String="\n",frameSize:Int=8192,retry:RestartSettings=retrySettingsDefault,helloMsg:Option[String]=None)
+  def fromWebsocket(uri:String,frameDelimiter:String="\n",frameSize:Int=1024 * 1024,retry:RestartSettings=retrySettingsDefault,helloMsg:Option[String]=None)
     (implicit as:ActorSystem,timeout:FiniteDuration) = { 
 
     // ATTENTION: Server disconnect is not onFailure and must be treated as upstream completion !
@@ -1181,19 +1181,32 @@ class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024,helloMsg:Optio
     .viaMat(webSocketFlow)(Keep.both) // keep the materialized Future[WebSocketUpgradeResponse]      
     .addAttributes(Attributes(AttributeActor(a)))
       
-  def source() = s1.map( m => {
-    log.debug(s"'${m}' <- ${uri}")
+  def source() = s1.mapAsync(parallelism = 2)( m => {
+    log.debug(s"<- ${uri} ['${m}']")
     m match {
-      case txt: TextMessage.Strict => ByteString(txt.text)
-      case bin: BinaryMessage.Strict => ByteString(bin.asTextMessage.getStrictText)        
-      case _ => 
-        // not supported
-        m.asBinaryMessage.getStrictData
+      case txt: TextMessage.Strict => 
+        Future.successful(ByteString(txt.text))
+      case bin: BinaryMessage.Strict => 
+        Future.successful(ByteString(bin.asTextMessage.getStrictText))
+      case TextMessage.Streamed(txtStream) => 
+        log.debug(s"${txtStream}")
+        val f = txtStream
+          .completionTimeout(timeout)
+          // .runFold(new StringBuilder())((b, s) => b.append(s))
+          // .map(b => ByteString(b.toString))
+          .runFold(ByteString())((b, s) => {
+            log.debug(s"${txtStream}: chunk:='${s}'")
+            b.++(ByteString(s))
+          })        
+        f
+                
+      case msg => 
+        Future.successful(m.asBinaryMessage.getStrictData)
     }
   })
 
   if(helloMsg.isDefined) {
-    log.info(s"initial message: '${helloMsg.get}'")
+    log.info(s"HELLO: '${helloMsg.get}' -> ${uri}")
     a ! TextMessage.Strict(helloMsg.get)
   }
 
