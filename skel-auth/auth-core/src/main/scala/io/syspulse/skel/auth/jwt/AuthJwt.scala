@@ -362,16 +362,16 @@ class AuthJwt(uri:String = "") {
   def verifyAuthToken(token: Option[String],id:String,data:Seq[Any]):Option[VerifiedToken] = token match {
     case Some(jwt) => {           
       val v = isValid(jwt)
-
+      
       val uid = getClaim(jwt,"uid")
       val roles = getClaim(jwt,"roles").map(_.split(",").filter(!_.trim.isEmpty()).toSeq).getOrElse(Seq.empty)      
       
-      val claim = Jwt.decode(jwt,JwtOptions(signature = false)).get
+      val claim = Jwt.decode(jwt,JwtOptions(signature = false))
 
-      log.debug(s"token=${jwt}: uid=${uid}: roles=${roles}: claim=${claim.content}: valid=${v}")
+      log.debug(s"token=${jwt}: uid=${uid}: roles=${roles}: claim=${claim}: valid=${v}")
       
-      if(v) 
-        Some(VerifiedToken(uid.orElse(Some(DefaultPermissions.USER_NOBODY.toString())).get,roles,claim))
+      if(v && claim.isSuccess) 
+        Some(VerifiedToken(uid.orElse(Some(DefaultPermissions.USER_NOBODY.toString())).get,roles,claim.get))
       else 
         None
     }

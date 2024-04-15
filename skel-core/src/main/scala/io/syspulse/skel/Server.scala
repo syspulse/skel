@@ -94,7 +94,14 @@ trait Server {
             complete(HttpResponse(BadRequest,   entity = jsonEntity(s"""{"error": "missing parameter"}""")))
         }
         .handle { case AuthorizationFailedRejection =>
-          complete(HttpResponse(Forbidden, entity = jsonEntity(s"""{"error": "authorization"}""")))
+          complete(HttpResponse(Forbidden, entity = jsonEntity(s"""{"error": "AuthorizationFailedRejection"}""")))
+        }
+        .handleAll[AuthenticationFailedRejection] { rejections =>
+          // val rejectionMessage = rejections.head.cause match {
+          //   case CredentialsMissing  => "The resource requires authentication, which was not supplied with the request"
+          //   case CredentialsRejected => "The supplied authentication is invalid"
+          // }
+          complete(HttpResponse(Unauthorized, entity = jsonEntity(s"""{"error": "AuthenticationFailedRejection: ${rejections}"}""")))
         }
         .handleAll[MethodRejection] { methodRejections =>
           val names = methodRejections.map(_.supported.name)

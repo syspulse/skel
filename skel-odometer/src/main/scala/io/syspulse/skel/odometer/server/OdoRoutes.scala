@@ -199,36 +199,39 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
         pathEndOrSingleSlash {
           concat(
             authenticate()(authn =>
-              authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
-                getOdosRoute() ~                
-                createOdoRoute  
-              }
+              getOdosRoute()
+              ~
+              createOdoRoute  
             ),            
           )
         },
         pathPrefix("ws") { 
           extractClientIP { addr => {
             log.info(s"<-- ws://${addr}")
-            
-            pathPrefix(Segment) { group =>
-              handleWebSocketMessages(this.listen(group))
-            } ~
-            pathEndOrSingleSlash {
-              handleWebSocketMessages(this.listen())
-            }
+
+            authenticate()(authn => {              
+              // for experiments only
+              extractOfferedWsProtocols { protocols => {
+                log.debug(s"Websocket Protocols: ${protocols}")
+
+                pathPrefix(Segment) { group =>
+                  handleWebSocketMessages(this.listen(group))
+                } ~
+                pathEndOrSingleSlash {
+                  handleWebSocketMessages(this.listen())
+                }
+              }}
+            })
           }}
         },
         pathPrefix(Segment) { id => 
           pathEndOrSingleSlash {
-            authenticate()(authn =>
-              authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
-                updateOdoRoute(id) ~
-                getOdoRoute(id)                 
-              } ~
-              authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
-                deleteOdoRoute(id)
-              }
-            ) 
+            authenticate()(authn => {
+              // authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {}
+              updateOdoRoute(id) ~
+              getOdoRoute(id) ~
+              deleteOdoRoute(id)
+            }) 
           }
         },        
       )
