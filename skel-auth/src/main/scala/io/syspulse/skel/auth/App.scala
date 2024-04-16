@@ -476,7 +476,10 @@ object App extends skel.Server {
             case ("valid" | "validate") :: token :: Nil => 
               val accessToken = if(token == "=") StdIn.readLine() else token
               val aj = AuthJwt(config.jwtUri)
-              aj.isValid(accessToken)
+              //aj.isValid(accessToken)
+              val r = aj.decodeAll(accessToken)
+              Console.err.println(s"$r")
+              r.isSuccess
 
             case _ => Console.err.println(s"unknown operation: ${config.params.mkString("")}")
           }

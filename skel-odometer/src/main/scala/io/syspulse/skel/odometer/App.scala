@@ -7,6 +7,7 @@ import scala.concurrent.Await
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
+import io.syspulse.skel.auth.jwt.AuthJwt
 
 import io.syspulse.skel.odometer._
 import io.syspulse.skel.odometer.store._
@@ -24,6 +25,7 @@ case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
   uri:String = "/api/v1/odometer",
+  jwtUri:String = "hs512://",
   datastore:String = "mem://",
 
   timeout:Long = 3000L,
@@ -59,6 +61,8 @@ object App extends skel.Server {
         ArgInt('_', "thread.pool",s"Thread pool for Websockets (def: ${d.threadPool})"),
         ArgLong('_', "freq",s"Websocket Update frequency, msec (def: ${d.freq})"),
 
+        ArgString('_', "jwt.uri",s"JWT Uri [hs512://secret,rs512://pk/key] (def: ${d.jwtUri})"),
+
         ArgCmd("server","Command"),
         ArgCmd("server-async","Command"),
         ArgCmd("client","Command"),
@@ -71,6 +75,7 @@ object App extends skel.Server {
       host = c.getString("http.host").getOrElse(d.host),
       port = c.getInt("http.port").getOrElse(d.port),
       uri = c.getString("http.uri").getOrElse(d.uri),
+      jwtUri = c.getString("jwt.uri").getOrElse(d.jwtUri),
       
       datastore = c.getString("datastore").getOrElse(d.datastore),
       timeout = c.getLong("timeout").getOrElse(d.timeout),
@@ -84,6 +89,10 @@ object App extends skel.Server {
     )
 
     Console.err.println(s"Config: ${config}")
+    
+    if(! config.jwtUri.isBlank()) {
+      AuthJwt(config.jwtUri)
+    }
     
     config.cmd match {
       case "server" => 

@@ -91,7 +91,7 @@ trait Server {
   def getHandlers():(RejectionHandler,ExceptionHandler) = {
     val rejectionHandler = RejectionHandler.newBuilder()
         .handle { case MissingQueryParamRejection(param) =>
-            complete(HttpResponse(BadRequest,   entity = jsonEntity(s"""{"error": "missing parameter"}""")))
+          complete(HttpResponse(BadRequest,   entity = jsonEntity(s"""{"error": "missing parameter"}""")))
         }
         .handle { case AuthorizationFailedRejection =>
           complete(HttpResponse(Forbidden, entity = jsonEntity(s"""{"error": "AuthorizationFailedRejection"}""")))
