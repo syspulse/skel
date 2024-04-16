@@ -16,7 +16,7 @@ import io.syspulse.skel.odometer._
 import io.syspulse.skel.odometer.server.{Odos, OdoRes, OdoCreateReq, OdoUpdateReq}
 
 object OdoRegistryProto {
-  final case class GetOdos(replyTo: ActorRef[Odos]) extends Command
+  final case class GetOdos(replyTo: ActorRef[Try[Odos]]) extends Command
   final case class GetOdo(id:String,replyTo: ActorRef[Try[Odos]]) extends Command
   
   final case class CreateOdo(req: OdoCreateReq, replyTo: ActorRef[Try[Odos]]) extends Command
@@ -42,15 +42,25 @@ object OdoRegistry {
     
     Behaviors.receiveMessage {
       case GetOdos(replyTo) =>
-        val all = store.all
-        replyTo ! Odos(all,total=Some(all.size))
+        try {
+          val oo = store.all
+          replyTo ! Success(Odos(oo,total=Some(oo.size)))
+        } catch {
+          case e:Exception => 
+            log.error("failed to get all",e)
+            replyTo ! Failure(e)
+        }
         Behaviors.same
 
       case GetOdo(id, replyTo) =>
-        // val o = store.?(id)
-        // replyTo ! o.map(o => Odos(Seq(o),total=Some(1)))
-        val oo = store.??(Seq(id))
-        replyTo ! Success( Odos(oo,total=Some(oo.size)) )
+        try {
+          val oo = store.??(Seq(id))
+          replyTo ! Success( Odos(oo,total=Some(oo.size)) )
+        } catch {
+          case e:Exception =>
+            log.error(s"failed to get: ${id}",e)
+            replyTo ! Failure(e)
+        }
         Behaviors.same      
 
       case CreateOdo(req, replyTo) =>

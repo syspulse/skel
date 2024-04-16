@@ -80,7 +80,7 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
   // quick flag to trigger Websocket update
   @volatile var updated = false
     
-  def getOdos(): Future[Odos] = registry.ask(GetOdos)
+  def getOdos(): Future[Try[Odos]] = registry.ask(GetOdos)
   def getOdo(id: String): Future[Try[Odos]] = registry.ask(GetOdo(id, _))
   
   def createOdo(req: OdoCreateReq): Future[Try[Odos]] = registry.ask(CreateOdo(req, _))
@@ -177,7 +177,7 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
     () => {
       log.debug(s"cron: updated=${updated}")
       if(updated) {
-        getOdos().map( oo => {
+        getOdos().map( _.map{ oo =>
           broadcastText(oo.toJson.compactPrint)
           updated = false
         })

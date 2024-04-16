@@ -135,10 +135,14 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
           oo1
         
         case "*" :: Nil => 
-          if( !cachedAll )
-            all
+          if( !cachedAll ) {
+            val oo = store.??(Seq("*"))
+            if(oo.size != 0)
+              cachedAll = true
+            oo
+          }
           else
-            cache.all
+            cache.??(Seq("*"))
 
         case _ => 
           this.?(id) match {
