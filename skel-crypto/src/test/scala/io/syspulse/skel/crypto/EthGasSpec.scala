@@ -66,6 +66,19 @@ class EthGasSpec extends AnyWordSpec with Matchers with TestData {
       (diff).toLong should === (100 + 25)
     }
 
+    "convert '+25.0%' to +25% higher than current" in {
+      val v1 = Eth.strToWei("current")      
+      val v2 = Eth.strToWei("+25.0%")
+      v1 shouldBe a [Success[_]]
+      v2 shouldBe a [Success[_]]
+
+      val diff = (v2.get.toDouble / v1.get.toDouble *100.0).ceil
+      info(s"current=${v1}, +25%=${v2}: diff=${diff}")
+
+      v2.get > v1.get should === (true)
+      (diff).toLong should === (100 + 25)
+    }
+
     "convert '150.0%' to 150% higher than current" in {
       val v1 = Eth.strToWei("current")      
       val v2 = Eth.strToWei("150%")
@@ -90,6 +103,17 @@ class EthGasSpec extends AnyWordSpec with Matchers with TestData {
 
       v2.get < v1.get should === (true)
       (diff).toLong should === (100 - 25)
+    }
+
+     "'-25.0%' of 1 gwei must be 0" in {
+      val v1 = Eth.percentageToWei(1,"-25.0%")
+      v1 < 1.0 should === (true)
+            
+    }
+
+    "'-10000.0%' of 1 gwei must be > 0" in {
+      val v1 = Eth.percentageToWei(1,"-10000.0%")
+      v1 >= 0.0 should === (true)            
     }
 
   }

@@ -276,6 +276,15 @@ object Eth {
     Web3j.build(new HttpService(rpcUri))
   }
 
+  def percentageToWei(v:BigInt,percentage:String):Double = {
+    val current = v.toDouble
+    val gasNew = current + current * (percentage.trim.stripSuffix("%").toDouble / 100.0 )
+    if(gasNew < 0.0)
+      0.0
+    else
+      gasNew
+  }
+
   def strToWei(v:String)(implicit web3:Web3j):Try[BigInt] = {
     v.trim.toLowerCase.split("\\s+").toList match {
       case "" :: Nil =>
@@ -287,11 +296,10 @@ object Eth {
           case f => f
         }
       // percentage based from current
-      case more :: Nil if(more.trim.endsWith("%"))=> 
+      case percentage :: Nil if(percentage.trim.endsWith("%"))=> 
         getGasPrice()(web3) match {
           case Success(v) => 
-            val current = v.toDouble
-            val gasNew = current + current * (more.trim.stripSuffix("%").toDouble / 100.0 )
+            val gasNew = percentageToWei(v,percentage)
             Success(BigDecimal.valueOf(gasNew).toBigInt)
           case f => f
         }
