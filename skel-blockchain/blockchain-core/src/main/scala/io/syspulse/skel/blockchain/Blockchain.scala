@@ -23,6 +23,7 @@ object Blockchain {
   val OPTIMISM_MAINNET = Blockchain("optimism",Some("10"),Some(18),Some("ETH"))
   val POLYGON_MAINNET = Blockchain("polygon",Some("137"),Some(18),Some("MATIC"))
   val AVALANCHE_MAINNET = Blockchain("avalanche",Some("43114"),Some(18),Some("AVAX"))
+  val FANTOM_MAINNET = Blockchain("fantom",Some("250"),Some(18),Some("FTM"))
 
   val SCROLL_MAINNET = Blockchain("scroll",Some("534352"),Some(18),Some("ETH"))
   val ZKSYNC_MAINNET = Blockchain("zksync",Some("324"),Some(18),Some("ETH"))
@@ -44,6 +45,7 @@ object Blockchain {
     OPTIMISM_MAINNET,
     POLYGON_MAINNET,
     AVALANCHE_MAINNET,
+    FANTOM_MAINNET,
 
     SCROLL_MAINNET,
     ZKSYNC_MAINNET,

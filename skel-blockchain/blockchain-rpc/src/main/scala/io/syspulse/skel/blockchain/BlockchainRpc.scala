@@ -24,7 +24,7 @@ class Blockchains(bb:Seq[String]) {
     // 137L -> BlockchainRpc("polygon",137L,"https://polygon.blockpi.network/v1/rpc/public"),
     // 56L -> BlockchainRpc("bsc",56L,"https://rpc-bsc.48.club"),
     // 100L -> BlockchainRpc("gnosis",100L,"https://rpc.gnosis.gateway.fm"),
-    // 250L -> BlockchainRpc("fantom",100L,"https://rpc.fantom.gateway.fm"),
+    // 250L -> BlockchainRpc("fantom",250L,"https://1rpc.io/ftm"),
     // 43114L -> BlockchainRpc("avalanche",43114L,"https://avax.meowrpc.com"),
     
     // 534352L -> BlockchainRpc("scroll",534352L,"https://rpc.scroll.io"),
@@ -35,7 +35,7 @@ class Blockchains(bb:Seq[String]) {
     // 238L -> BlockchainRpc("blast",238L,"https://rpc.blastblockchain.com"),
     
     31337L -> BlockchainRpc("anvil",31337L,"http://localhost:8545"),
-    11155111L -> BlockchainRpc("sepolia",11155111L,"https://eth-sepolia.public.blastapi.io"),
+    11155111L -> BlockchainRpc("sepolia",11155111L,"https://rpc2.sepolia.org"),
   )
 
   def ++(bb:Seq[String]):Blockchains = {
