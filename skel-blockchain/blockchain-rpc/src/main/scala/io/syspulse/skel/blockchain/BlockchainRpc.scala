@@ -29,6 +29,7 @@ class Blockchains(bb:Seq[String]) {
     
     // 534352L -> BlockchainRpc("scroll",534352L,"https://rpc.scroll.io"),
     // 324L -> BlockchainRpc("zksync",324L,"https://mainnet.era.zksync.io"),
+    // 1101L -> BlockchainRpc("polygon-zkevm",1101L,"https://zkevm-rpc.com"),
 
     // 59144L -> BlockchainRpc("linea",59144L,"https://linea.decubate.com"),
     // 8453L -> BlockchainRpc("base",8453L,"https://rpc.notadegen.com/base"),

@@ -27,6 +27,7 @@ object Blockchain {
 
   val SCROLL_MAINNET = Blockchain("scroll",Some("534352"),Some(18),Some("ETH"))
   val ZKSYNC_MAINNET = Blockchain("zksync",Some("324"),Some(18),Some("ETH"))
+  val POLYGON_ZKEVM_MAINNET = Blockchain("polygon-zkevm",Some("1101"),Some(18),Some("ETH"))
 
   val LINEA_MAINNET = Blockchain("linea",Some("59144"),Some(18),Some("ETH"))
   val BASE_MAINNET = Blockchain("base",Some("8453"),Some(18),Some("ETH"))
@@ -49,6 +50,7 @@ object Blockchain {
 
     SCROLL_MAINNET,
     ZKSYNC_MAINNET,
+    POLYGON_ZKEVM_MAINNET,
 
     LINEA_MAINNET,
     BASE_MAINNET,
