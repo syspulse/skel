@@ -81,10 +81,14 @@ object App extends skel.Server {
     
     config.cmd match {
       case "server" => 
-        val store:UserStore = config.datastore.split("://|/").toList match {
+        val (store:UserStore,reg) = config.datastore.split("://|/").toList match {
 
-          case "dir" :: dir ::  _ => new UserStoreDir(dir)
-          case "mem" :: Nil | "cache" :: Nil => new UserStoreMem()
+          case "dir" :: dir ::  _ => 
+            val store = new UserStoreDir(dir)
+            (store,UserRegistry(store) )
+          case "mem" :: Nil | "cache" :: Nil => 
+            val store = new UserStoreMem()
+            (store,UserRegistry(store))
 
           // case "mysql" :: db :: Nil => (Some(new UserStoreDB(c,s"mysql://${db}")),None)
           // case "postgres" :: db :: Nil => (Some(new UserStoreDB(c,s"postgres://${db}")),None)
@@ -99,17 +103,21 @@ object App extends skel.Server {
           // case "jdbc" :: "async" :: typ:: db :: Nil => (None,Some(new UserStoreDBAsync(c,s"${typ}://${db}")))          
           // case "jdbc" :: typ :: db :: Nil => (Some(new UserStoreDB(c,s"${typ}://${db}")),None)
 
-          case _ => 
-            val uri = new JdbcURI(config.datastore)
-            if(uri.async) new UserStoreDBAsync(c,config.datastore) else new UserStoreDB(c,config.datastore)
+          // case "jdbc" :: _  if(uri.async) => 
+          //   val uri = new JdbcURI(config.datastore)
+          //   val store = new UserStoreDBAsync(c,config.datastore) 
+          //   (store,UserRegistryAsync(store.asInstanceOf[UserStoreDBAsync]))
+
+          case _ =>            
+            val store = new UserStoreDB(c,config.datastore)              
+            (store,UserRegistryAsync(store.asInstanceOf[UserStoreDB]))
                       
           // case _ => {
           //   Console.err.println(s"Uknown datastore: '${config.datastore}'")
           //   sys.exit(1)
           // }
         }
-
-        val reg = if(store.isInstanceOf[UserStoreDB]) UserRegistry(store.asInstanceOf[UserStoreDB]) else UserRegistryAsync(store.asInstanceOf[UserStoreDBAsync])
+        
 
         run( config.host, config.port,config.uri,c,
           Seq(
