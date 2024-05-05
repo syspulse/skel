@@ -209,6 +209,18 @@ object AppKeystore extends {
             val mnemo = words12.mkString(" ")
             Console.err.println(s"Mnemonic: '${mnemo}'")
             Eth.generateFromMnemoMetamask(mnemo)
+
+          case "path" :: "ethereum" :: words12 => 
+            val mnemo = words12.mkString(" ")
+            val path = "m/44'/60'/0'/0"
+            Console.err.println(s"Mnemonic: path=${path}: '${mnemo}'")
+            Eth.generateFromMnemoPath(mnemo,path)
+          
+          case "path" :: "vechain" :: words12 => 
+            val mnemo = words12.mkString(" ")
+            val path = "m/44'/818'/0'/0"
+            Console.err.println(s"Mnemonic: path=${path}: '${mnemo}'")
+            Eth.generateFromMnemoPath(mnemo,path)
           
           case "path" :: path :: words12 => 
             val mnemo = words12.mkString(" ")
