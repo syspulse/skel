@@ -34,6 +34,8 @@ class Blockchains(bb:Seq[String]) {
     // 59144L -> BlockchainRpc("linea",59144L,"https://linea.decubate.com"),
     // 8453L -> BlockchainRpc("base",8453L,"https://rpc.notadegen.com/base"),
     // 238L -> BlockchainRpc("blast",238L,"https://rpc.blastblockchain.com"),
+
+    // 40L -> BlockchainRpc("telos",40L,"https://mainnet-eu.telos.net/evm"),
     
     31337L -> BlockchainRpc("anvil",31337L,"http://localhost:8545"),
     11155111L -> BlockchainRpc("sepolia",11155111L,"https://rpc2.sepolia.org"),
