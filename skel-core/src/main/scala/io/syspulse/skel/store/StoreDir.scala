@@ -97,11 +97,12 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
       .sortBy(_.toIO.lastModified())
       .map(f => {
         log.info(s"Loading file: ${f}")
-        os.read(f)
+        val fileName = f.toIO.getName()
+        (os.read(f),fileName)
       })
-      .map(fileData => 
-        loadData(fileData,hint)
-      )
+      .map{ case(fileData,fileName) => 
+        loadData(fileData,hint,fileName)
+      }
       .flatten // files
 
     loading = true
@@ -112,7 +113,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     loaded()
   }
 
-  def loadData(fileData:String,hint:String):Seq[E] = {    
+  def loadData(fileData:String,hint:String,fileName:String):Seq[E] = {    
     val ee = fileData.split("\n").filter(!_.trim.isEmpty).map { data =>
       if(hint.isEmpty || data.contains(hint)) {
         try {
@@ -144,7 +145,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     val file = os.Path(f,os.pwd)
     log.info(s"Loading file: ${file}")
     val data = os.read(file)
-    val ee = loadData(data,"")
+    val ee = loadData(data,"",file.toIO.getName())
     ee.foreach( e => StoreDir.this.+(e))    
   }
 
