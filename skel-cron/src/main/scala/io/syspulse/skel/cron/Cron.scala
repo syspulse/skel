@@ -21,87 +21,18 @@ import org.quartz.DateBuilder._
 
 import io.syspulse.skel.config.Configuration
 
+trait Cron[T] extends Closeable {
+  def start():Try[T]
+  def stop():Unit
+}
+
 object Cron {
-  val DATA_KEY = "cronjob-data"
-}
-
-case class CronJobData(exec:(Long)=>Boolean,var ts0:Long)
-
-class CronJob extends Job {
-	def execute(context:JobExecutionContext) = {
-    val data: JobDataMap = context.getMergedJobDataMap();
+  def apply(exec:(Long)=>Boolean, expr:String, conf:Option[(String,Configuration)] = None): Cron[_] = {
+    if(expr.contains("*") || expr.contains("_")) {
+      new CronQuartz(exec,expr.replaceAll("_"," "))
+    } else
+      new CronFreq(exec,expr)
+  }
     
-    val cd = data.get(Cron.DATA_KEY).asInstanceOf[CronJobData]
-    val ts0: Long = cd.ts0
-
-    val ts1 = System.currentTimeMillis
-		if(false == cd.exec(ts1 - ts0)) 
-      throw new JobExecutionException
-    cd.ts0 = ts1
-	}
-}
-
-class Cron(exec:(Long)=>Boolean, expr:String, conf:Option[(String,Configuration)] = None, cronName:String="Cron1",jobName:String="job1",groupName:String="group1") extends Closeable {
-  val log = Logger(s"${this}")
-
-  log.info(s"expr='${expr}': ${cronName},${jobName},${groupName}")
-
-  // set default 1 thread
-  if(System.getProperty("org.quartz.threadPool.threadCount") == null) System.setProperty("org.quartz.threadPool.threadCount","1")
-
-  lazy val scheduler = 
-    if(conf.isDefined) {
-      // load config from config branch
-      val (configName,configuration) = conf.get
-
-      val prefix = if(configName.isBlank()) "" else configName.trim + "."
-
-      val pp = new java.util.Properties()
-      configuration.getAll().foreach{ case(k,v) => {
-        if(k.startsWith(s"${prefix}org.quartz.")) {
-          val key = k.stripPrefix(prefix)
-          log.debug(s"setting: ${key}=${v}")
-          pp.put(key,v.toString)
-        }
-      }}
-
-      val sf = new StdSchedulerFactory()
-      log.info(s"initializing Quartz: Properties(${pp})")
-      sf.initialize(pp)
-      sf.getScheduler
-    } else {
-      StdSchedulerFactory.getDefaultScheduler()
-    }
-
-  def start():Try[java.time.LocalDate] = {
-    try {
-      scheduler.start();
-
-      val job:JobDetail = newJob(classOf[CronJob])
-      .withIdentity(jobName, groupName)
-      .usingJobData(new JobDataMap(Map(Cron.DATA_KEY->CronJobData(exec,System.currentTimeMillis)).asJava))
-      .build();
-
-      val trigger = newTrigger()
-        .withIdentity(cronName, groupName)
-        .withSchedule(cronSchedule(expr))
-        .forJob(jobName, groupName)
-        .build()
-
-      val date = scheduler.scheduleJob(job, trigger)
-      Success(date.toInstant.atZone(java.time.ZoneId.systemDefault).toLocalDate)
-
-    } catch {
-      case e: Exception => Failure(e)
-    }
-  }
-
-  def stop() = {
-    scheduler.shutdown()
-  } 
-
-  override def close = {
-    scheduler.shutdown();
-  }
 }
 
