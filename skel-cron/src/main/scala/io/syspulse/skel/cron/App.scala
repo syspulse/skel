@@ -53,7 +53,7 @@ object App  {
             true
           },
           config.params.mkString(" "),//config.expr,
-          conf = if(config.quartz == "default") None else Some((config.quartz,c))
+          settings = Map()
         ).start()
 
       case "quartz" =>         

@@ -86,13 +86,15 @@ class TelemetryStoreDir(dir:String = "store/",parser:TelemetryParser,cron:Option
 
 
   if(cron.isDefined) {
-    val c = new Cron((_) => {
+    val c = Cron((_) => {
         load(dir)
         true
       },
       expr = cron.get,
-      cronName = "TelemetryStoreDir",
-      jobName = "load"
+      Map(
+        "cronName" -> "TelemetryStoreDir",
+        "jobName" -> "load"
+      )
     )
     c.start
   }

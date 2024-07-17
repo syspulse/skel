@@ -27,11 +27,18 @@ trait Cron[T] extends Closeable {
 }
 
 object Cron {
-  def apply(exec:(Long)=>Boolean, expr:String, conf:Option[(String,Configuration)] = None): Cron[_] = {
+  def apply(exec:(Long)=>Boolean, expr:String, settings:Map[String,Any] = Map()): Cron[_] = {
     if(expr.contains("*") || expr.contains("_")) {
-      new CronQuartz(exec,expr.replaceAll("_"," "))
-    } else
-      new CronFreq(exec,expr)
+      val conf = settings.get("conf").asInstanceOf[Option[(String,Configuration)]]
+      val cronName = settings.get("cronName").asInstanceOf[Option[String]].getOrElse("Cron1")
+      val jobName:String=settings.get("jobName").asInstanceOf[Option[String]].getOrElse("job1")
+      val groupName:String=settings.get("groupName").asInstanceOf[Option[String]].getOrElse("group1")      
+      
+      new CronQuartz(exec,expr.replaceAll("_"," "),conf = conf,cronName,jobName,groupName)
+    } else {
+      val delay = settings.get("delay").asInstanceOf[Option[Long]].getOrElse(-1L)
+      new CronFreq(exec,expr,delay)
+    }
   }
     
 }

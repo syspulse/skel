@@ -146,13 +146,13 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
     r
   }
 
-  override def load():Unit = {
+  override def load():String = {
     load(dir)
     watch(dir)
   }
 
   // NOTE: replce with standard StoreDir watcher !
-  override def watch(dir:String) = {
+  override def watch(dir:String):String = {
     import better.files._
     import io.methvin.better.files._
     import io.methvin.watcher.hashing.FileHasher
@@ -201,6 +201,7 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
 
     watcher.start()
     log.info(s"watching: ${dir}")
+    dir
   }
 
   def addAsFile(f:Path) = {
@@ -228,7 +229,7 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
     aa
   }
 
-  override def load(dir:String,hint:String = "") = {
+  override def load(dir:String,hint:String = ""):String = {
     log.info(s"scanning ABI: ${dir}")
     
     loading = true
@@ -243,7 +244,8 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
 
     //store = store ++ abis.map{ case(addr,abi) => addr.toLowerCase -> new ContractAbi(addr,abi)}
 
-    log.info(s"Loaded ABI: ${store.size}")    
+    log.info(s"Loaded ABI: ${store.size}")
+    dir
   }
 
   def resolveFunc(sig:String) = funcStore.first(sig.toLowerCase()).map(_.tex).toOption

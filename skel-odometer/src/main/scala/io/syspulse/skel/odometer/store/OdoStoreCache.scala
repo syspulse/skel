@@ -23,7 +23,7 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
   val dirty = new OdoStoreMem()
   var cachedAll = false
 
-  val cron = new CronFreq(() => {
+  val cron = new CronFreq((_) => {
       if(dirty.size > 0) log.info(s"Flushing cache: ${dirty.size}")
 
       dirty.all.foreach{ o => {
@@ -34,8 +34,8 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
       dirty.clear()
       true
     },
-    FiniteDuration(freq,TimeUnit.MILLISECONDS),
-    freq
+    freq.toString,//FiniteDuration(freq,TimeUnit.MILLISECONDS),
+    //freq
   )
 
   // always request everything and cache

@@ -160,7 +160,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     ee.foreach( e => StoreDir.this.+(e))    
   }
 
-  def watch(dir:String) = {
+  def watch(dir:String):String = {
     import better.files._
     import io.methvin.better.files._
     import io.methvin.watcher.hashing.FileHasher
@@ -211,6 +211,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
 
     watcher.start()
     log.info(s"watching: ${dir}")
+    dir
   }
 
 }

@@ -34,7 +34,7 @@ object App extends skel.Server {
 
   val metricCount: Counter = Counter.build().name("demo_total").help("Demo total requests").register()
   
-  def main(args:Array[String]) = {
+  def main(args:Array[String]):Unit = {
     Console.err.println(s"Args: '${args.mkString(",")}'")
 
     val builder = OParser.builder[Config]
@@ -81,7 +81,7 @@ object App extends skel.Server {
 
         Console.err.println(s"Config: ${config}")
 
-        new Cron((elapsed:Long) => {
+        Cron((elapsed:Long) => {
             //val flow = pipe.run(NppData())
             println(s"${System.currentTimeMillis}: Ping: ${elapsed}")
             metricCount.inc()

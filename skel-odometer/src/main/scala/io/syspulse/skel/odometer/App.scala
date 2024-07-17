@@ -33,7 +33,7 @@ case class Config(
 
   cacheFlush:Long = 5000L,
   threadPool:Int = 16,
-  freq:Long = 1000L, // Websocket update frequency (if 0L, than updated immediately)
+  freq:String = "1000", // Websocket update frequency (if 0L, than updated immediately)
   
   cmd:String = "server",
   params: Seq[String] = Seq(),
@@ -82,7 +82,7 @@ object App extends skel.Server {
 
       cacheFlush = c.getLong("cache.flush").getOrElse(d.cacheFlush),
       threadPool = c.getInt("thread.pool").getOrElse(d.threadPool),
-      freq = c.getLong("freq").getOrElse(d.freq),
+      freq = c.getString("freq").getOrElse(d.freq), //c.getLong("freq").getOrElse(d.freq),
      
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),

@@ -174,7 +174,7 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
 
   // run cron
   new CronFreq(
-    () => {
+    (_) => {
       log.debug(s"cron: updated=${updated}")
       if(updated) {
         getOdos().map( _.map{ oo =>
@@ -185,8 +185,8 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
       // always success
       true
     },
-    interval = FiniteDuration(config.freq,TimeUnit.MILLISECONDS),
-    delay = config.freq
+    config.freq, //FiniteDuration(config.freq,TimeUnit.MILLISECONDS),
+    //delay = config.freq
   ).start()
 
     
