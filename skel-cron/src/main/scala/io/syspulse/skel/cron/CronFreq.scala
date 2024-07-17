@@ -6,7 +6,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.{Try,Success,Failure}
 
 // Simple Frequncy ticker
-class CronFreq(runner: (Long)=>Boolean, freq:String, delay0:Long = 0L, limit:Long = 0L) extends Cron[Unit] {
+class CronFreq(runner: (Long)=>Boolean, freq:String, delay0:Long = -1L, limit:Long = 0L) extends Cron[Unit] {
   
   // def `this`(runner: (Long)=>Boolean, freq:Duration, delay:Long, limit:Long) = {
   //   interval = freq
@@ -18,7 +18,7 @@ class CronFreq(runner: (Long)=>Boolean, freq:String, delay0:Long = 0L, limit:Lon
   @volatile
   protected var cronFuture: Option[ScheduledFuture[_]] = None
 
-  var interval:Duration = {
+  val interval:Duration = {
     val interval = freq.split("\\/").toList match {
       case interval :: delay :: _ => interval     
       //case interval :: delay :: Nil => interval
@@ -31,7 +31,11 @@ class CronFreq(runner: (Long)=>Boolean, freq:String, delay0:Long = 0L, limit:Lon
 
   val delay = if(freq.contains("/")) {
     freq.split("/").last.toLong
-  } else delay0
+  } else 
+  if(delay0 == -1)
+    interval.toMillis
+  else
+    delay0
 
   def start():Try[Unit] = {    
     if(cronFuture.isDefined) cronFuture.get.cancel(true)
