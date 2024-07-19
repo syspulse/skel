@@ -9,6 +9,7 @@ offsets:
    latest - 
    earliest - from last committed (with autocommit it works like latest)
    oldest - reset offset to 0
+   earliest_noauto - no auto
 */
 case class KafkaURI(uri:String) {
   val PREFIX = "kafka://"

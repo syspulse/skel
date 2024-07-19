@@ -39,9 +39,10 @@ trait KafkaSource[T] extends KafkaClient {
   def source(brokerUri:String, topics:Set[String], groupId:String, 
              pollInterval:FiniteDuration = FiniteDuration(100L,TimeUnit.MILLISECONDS), offset:String="earliest", autoCommit:Boolean=true) = {    
     
-    val offsetKafka = offset match {
-      case "oldest" => "earliest"
-      case _ => offset
+    val (offsetKafka,autoKafka) = offset match {
+      case "oldest" => ("earliest",autoCommit)
+      case "earliest_noauto" => ("earliest",false)
+      case _ => (offset,autoCommit)
     }
 
     val consumerSettings = ConsumerSettings(system, new ByteArrayDeserializer, new ByteArrayDeserializer)
@@ -49,7 +50,7 @@ trait KafkaSource[T] extends KafkaClient {
       .withGroupId(groupId)
       .withPollInterval(pollInterval)
       .withProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, offsetKafka)
-      .withProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, autoCommit.toString)
+      .withProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, autoKafka.toString)
       .withProperty("reconnect.backoff.ms","3000")
       .withProperty("reconnect.backoff.max.ms","10000")
 
