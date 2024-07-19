@@ -4,6 +4,11 @@ package io.syspulse.skel.uri
 kafka://broker:9092/topic/group/offset
 kafka://broker:9092/topic/group/offset?raw - automatically convert to raw ByteString
 kafka://broker:9092/topic/group/offset?json - automatically convert to json (default)
+
+offsets:
+   latest - 
+   earliest - from last committed (with autocommit it works like latest)
+   oldest - reset offset to 0
 */
 case class KafkaURI(uri:String) {
   val PREFIX = "kafka://"
