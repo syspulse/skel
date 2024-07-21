@@ -9,27 +9,27 @@ import io.jvm.uuid._
 
 import scala.util.{Try,Success,Failure}
 import java.time._
-import io.syspulse.skel.crypto.Eth
 import scala.util.Random
+
 import io.syspulse.skel.util.Util
-// import io.syspulse.skel.util.Util
 
 class BlockchainSpec extends AnyWordSpec with Matchers {
   
   "BlockchainSpec" should {
 
-    "parse multiline config" in {
-      val bb = Blockchains("""
-      1=eth=https://eth.drpc.org,
-    42161=arb=https://rpc.ankr.com/arbitrum,
-      """)
+    "parse 'ethereum'" in {
+      val b = Blockchain("ethereum")
+      b should ===(Blockchain.ETHEREUM)      
+    }
 
-      info(s"${bb.all()}")
-      
-      bb.all().size should ===(4)
-      bb.get(1L) should !==(None)
-      bb.get(42161L) should !==(None)
-      
+    "parse 1 -> 'ethereum'" in {
+      val b = Blockchain("1")
+      b should ===(Blockchain.ETHEREUM)      
+    }
+
+    "parse 'network:100' -> 'network':'100'" in {
+      val b = Blockchain("network:100")
+      b should ===(new Blockchain("network",Some("100")))
     }
     
   }    

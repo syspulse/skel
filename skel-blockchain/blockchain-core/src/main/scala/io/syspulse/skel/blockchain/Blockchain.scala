@@ -39,32 +39,32 @@ object Blockchain {
   // default EVM
   val EVM = Blockchain("evm",Some("31337"),Some(18),Some("ETH"))
 
-  val ALL = Seq(
-    ETHEREUM,
-    BSC_MAINNET,
-    ARBITRUM_MAINNET,
-    OPTIMISM_MAINNET,
-    POLYGON_MAINNET,
-    AVALANCHE_MAINNET,
-    FANTOM_MAINNET,
+  val ALL = Map(
+    ETHEREUM.id.get -> ETHEREUM,
+    BSC_MAINNET.id.get -> BSC_MAINNET,
+    ARBITRUM_MAINNET.id.get -> ARBITRUM_MAINNET,
+    OPTIMISM_MAINNET.id.get -> OPTIMISM_MAINNET,
+    POLYGON_MAINNET.id.get -> POLYGON_MAINNET,
+    AVALANCHE_MAINNET.id.get -> AVALANCHE_MAINNET,
+    FANTOM_MAINNET.id.get -> FANTOM_MAINNET,
 
-    SCROLL_MAINNET,
-    ZKSYNC_MAINNET,
-    POLYGON_ZKEVM_MAINNET,
+    SCROLL_MAINNET.id.get -> SCROLL_MAINNET,
+    ZKSYNC_MAINNET.id.get -> ZKSYNC_MAINNET,
+    POLYGON_ZKEVM_MAINNET.id.get -> POLYGON_ZKEVM_MAINNET,
 
-    LINEA_MAINNET,
-    BASE_MAINNET,
-    BLAST_MAINNET,
+    LINEA_MAINNET.id.get -> LINEA_MAINNET,
+    BASE_MAINNET.id.get -> BASE_MAINNET,
+    BLAST_MAINNET.id.get -> BLAST_MAINNET,
 
-    SEPOLIA,
-    ANVIL,
-    EVM
+    SEPOLIA.id.get -> SEPOLIA,
+    ANVIL.id.get -> ANVIL,
+    EVM.id.get -> EVM
   )
 
-  def resolve(name:String):Option[Blockchain] = ALL.find(b => b.name == name.trim)
-  def resolveById(id0:String):Option[Blockchain] = {
-    val id = Some(id0)
-    ALL.find(b => b.id == id)  
+  def resolve(name:String):Option[Blockchain] = ALL.values.find(b => b.name.toLowerCase == name.trim.toLowerCase())
+  
+  def resolveById(id:String):Option[Blockchain] = {
+    ALL.get(id)
   }
   
   def resolveChainId(chain:Blockchain):Option[Long] = chain.id match {
@@ -80,5 +80,34 @@ object Blockchain {
   def resolve(chain:Option[Blockchain]):Try[Long] = chain match {
     case None => Failure(new Exception(s"unknown chain: ${chain}"))
     case Some(c) => resolve(c)
+  }
+  
+  // disable temporarily
+  // def apply(chain_id:String,network:String):Blockchain = new Blockchain(
+  //   network.toLowerCase().trim match {
+  //     case n => n
+  //   },
+  //   Some(chain_id)    
+  // )
+
+  // network (can be "ethereum", or "network_name:256" or "256" (will try to map to EVM))
+  def apply(network:String):Blockchain = network.trim.toLowerCase.split("\\:").toList match {
+    case "ethereum" :: Nil => ETHEREUM
+    case "arbitrum"  :: Nil => ARBITRUM_MAINNET
+    case "bsc"  :: Nil => BSC_MAINNET
+    case "optimism" :: Nil => OPTIMISM_MAINNET
+    case "polygon" :: Nil => POLYGON_MAINNET
+    case "zksync" :: Nil => ZKSYNC_MAINNET
+    case "scroll" :: Nil => ZKSYNC_MAINNET
+    case "avalanche"  :: Nil => AVALANCHE_MAINNET
+
+    case "sepolia"  :: Nil => SEPOLIA
+    case "anvil"  :: Nil => ANVIL
+
+    case network :: id :: _ => Blockchain(network,Some(id))
+
+    case id :: Nil => resolveById(id).getOrElse(new Blockchain("",Some(id)))
+
+    case _ => Blockchain(network) 
   }
 }
