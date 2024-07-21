@@ -94,6 +94,10 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "cron" :: Nil => Flows.fromCron("*/1 * * * * ?")
 
       // test clock 
+      case "clock" :: freq :: next :: rest => 
+        val clockSource = Flows.fromClock(freq)
+        val nextSource:Source[ByteString,_] = source(next + "://" + rest.mkString(""))
+        clockSource.flatMapConcat( tick => nextSource)
       case "clock" :: freq :: Nil => Flows.fromClock(freq)
       case "clock" :: Nil => Flows.fromClock("1 sec")
 

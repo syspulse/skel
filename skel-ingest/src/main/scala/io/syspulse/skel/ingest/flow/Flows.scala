@@ -200,7 +200,7 @@ object Flows {
     val msec = expr.toLong //Duration.create(expr).toMillis
     val freq = FiniteDuration(msec,TimeUnit.MILLISECONDS)
     Source
-      .tick(FiniteDuration(0L,TimeUnit.MILLISECONDS),freq,"")
+      .tick(FiniteDuration(150L,TimeUnit.MILLISECONDS),freq,"") // initial small delay (0 does not work)
       .map(_ => ByteString(s"${System.currentTimeMillis()}"))      
   }
 
