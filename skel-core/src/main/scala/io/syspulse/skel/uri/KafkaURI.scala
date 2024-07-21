@@ -6,10 +6,17 @@ kafka://broker:9092/topic/group/offset?raw - automatically convert to raw ByteSt
 kafka://broker:9092/topic/group/offset?json - automatically convert to json (default)
 
 offsets:
-   latest - 
-   earliest - from last committed (with autocommit it works like latest)
-   oldest - reset offset to 0
-   earliest_noauto - no auto
+   latest - from latest committed offset or from the end if no offset is found
+   earliest - from earliest committed offset or from the end if no offset is found
+   
+   oldest - from the beginning by resetting offset to 0. Auto committing!
+   youngest - from the end by resetting offset to 0. Auto committing!
+   
+   earliest_noauto | start - from earliest and no commit (will read from last commit)
+   latest_noauto | end - from earliest and no commit (will read from last commit)
+   
+   START - from the beginning by resetting offset to 0. No autocommit
+   END - from the end by resetting offset to 0. No autocomit
 */
 case class KafkaURI(uri:String) {
   val PREFIX = "kafka://"

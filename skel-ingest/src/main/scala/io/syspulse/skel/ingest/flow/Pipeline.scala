@@ -175,8 +175,12 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "server:ws" :: uri :: Nil => Flows.toWebsocketServer[O](uri,format,buffer = cap)
       case "ws:server" :: uri :: Nil => Flows.toWebsocketServer[O](uri,format,buffer = cap)
 
+      // stderr which do not use StreamConverters (slower but never blocking)
+      case "out" :: _ => Flows.toOut()
+      case "err" :: _ => Flows.toErr()
+
       case "stdout" :: _ => Flows.toStdout(format=format)
-      case "stderr" :: _ => Flows.toStderr(format=format)
+      case "stderr" :: _ => Flows.toStderr(format=format)      
       case "" :: Nil => Flows.toStdout(format=format)
       case _ => 
         Flows.toFile(output)

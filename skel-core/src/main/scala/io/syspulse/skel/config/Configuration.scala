@@ -85,6 +85,12 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
     }
   }
 
+  def getListStringDumb(path:String,d:Seq[String] = Seq()):Seq[String] = {
+    val v = getString(path)
+    val s = if(v.isDefined) v.get else d.mkString(",")    
+    s.split(",").map(_.trim).filter(!_.isEmpty).toSeq    
+  }
+
   def getListLong(path:String):Seq[Long] = getListString(path).flatMap( s => s.toLongOption)
   def getListInt(path:String):Seq[Int] = getListString(path).flatMap( s => s.toIntOption)
 

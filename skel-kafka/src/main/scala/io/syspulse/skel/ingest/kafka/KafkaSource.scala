@@ -32,6 +32,8 @@ import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.kafka.KafkaClient
 import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.clients.admin.AdminClient
 
 //trait KafkaSource[T <: skel.Ingestable ] extends KafkaClient {
 trait KafkaSource[T] extends KafkaClient {
@@ -39,10 +41,17 @@ trait KafkaSource[T] extends KafkaClient {
   def source(brokerUri:String, topics:Set[String], groupId:String, 
              pollInterval:FiniteDuration = FiniteDuration(100L,TimeUnit.MILLISECONDS), offset:String="earliest", autoCommit:Boolean=true) = {    
     
-    val (offsetKafka,autoKafka) = offset match {
-      case "oldest" => ("earliest",autoCommit)
-      case "earliest_noauto" => ("earliest",false)
-      case _ => (offset,autoCommit)
+    val (offsetKafka,autoKafka,reset) = offset match {
+      case "oldest" => ("earliest",autoCommit,true)
+      case "youngest" => ("latest",autoCommit,true)
+
+      case "earliest_noauto" | "start" => ("earliest",false,false)
+      case "latest_noauto"   | "end" => ("latest",false,false)
+
+      case "START" => ("earliest",false,true)
+      case "END"   => ("latest",false,true)
+      
+      case _ => (offset,autoCommit,false)
     }
 
     val consumerSettings = ConsumerSettings(system, new ByteArrayDeserializer, new ByteArrayDeserializer)
@@ -55,22 +64,39 @@ trait KafkaSource[T] extends KafkaClient {
       .withProperty("reconnect.backoff.max.ms","10000")
 
     log.info(s"Consumer: ${consumerSettings}")
+    
+    val s0 = if(reset) {
+      // resetting Offsets
+      // get all partitions         
+      val props = new java.util.Properties()
+      props.put("bootstrap.servers", brokerUri);
+      val client:AdminClient = AdminClient.create(props);        
+      val result = client.describeTopics(topics.toList.asJavaCollection)
+      val topicDescriptions = result.values()
+      val partitions = topicDescriptions.asScala.map{ case(name,desc) =>
+        
+        val topicDescription = topicDescriptions.get(name)
+        val partitions = topicDescription.get().partitions().size()
 
-    val s0 = if(offset == "oldest")
+        (name,partitions)
+      }
+      log.info(s"Partitions: ${partitions}")
+      // close admin client
+      client.close()
+
       Consumer
       .plainSource(consumerSettings, 
-        // Implement Topics Autodiscover !
         Subscriptions.assignmentWithOffset(
-          Range(0,10).map(r => 
-            new TopicPartition(topics.head, r) -> 0L,
-          ).toMap
+          partitions.flatMap{ case(name,size) => {
+            Range(0,size).map(r => new TopicPartition(name, r) -> 0L)
+          }}.toMap
         )        
       )
       .map(record => {
         //if(record.key!=null) new String(record.key) 
         ByteString(record.value)
       })        
-    else
+    } else
       Consumer
       .plainSource(consumerSettings, Subscriptions.topics(topics.asJava))
       .map(record => {

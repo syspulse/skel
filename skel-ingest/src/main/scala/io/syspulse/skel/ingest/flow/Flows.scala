@@ -1035,7 +1035,8 @@ object Flows {
   }
   
   // This sink returns Future[Done] and not possible to wait for completion of the flow
-  //def toStdout() = Sink.foreach(println _)
+  def toOut() = Sink.foreach(println _)
+  def toErr() = Sink.foreach{o:Any => Console.err.println(o)}
 
   // JDBC
   def toJDBC[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {     
