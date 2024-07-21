@@ -358,7 +358,13 @@ object Util {
   def replaceVar(expr0:String,vars:Map[String,Any]):String = {
     // special case for file patterns
     val expr = if(expr0.startsWith("file://") || expr0.startsWith("dir://") || expr0.startsWith("dirs://")) 
-      toFileWithTime(expr0)
+      try {
+        toFileWithTime(expr0)
+      } catch {
+        case e:Exception => 
+          // ignore error since it can be a variable
+          expr0
+      }
     else 
       expr0
 
