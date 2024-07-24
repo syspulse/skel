@@ -89,6 +89,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
         val cronSource = Flows.fromCron(expr)
         val nextSource:Source[ByteString,_] = source(next + "://" + rest.mkString(""))
         cronSource.flatMapConcat( tick => nextSource)
+
+      case "cron" :: expr :: Nil => Flows.fromCron(expr)
         
       // test cron
       case "cron" :: Nil => Flows.fromCron("*/1 * * * * ?")

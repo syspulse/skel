@@ -85,6 +85,7 @@ object Util {
 
   def now:String = tsFormatLongest.format(LocalDateTime.now)
   def now(fmt:String):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(Instant.now.toEpochMilli), ZoneId.systemDefault).format(DateTimeFormatter.ofPattern(fmt))
+  def toZoneDateTime(s:String,fmt:String) = ZonedDateTime.parse(s,DateTimeFormatter.ofPattern(fmt))
   def toZoneDateTime(s:String,fmt:DateTimeFormatter = tsFormatLong) = ZonedDateTime.parse(s,fmt)
   def timestamp(ts:Long,fmt:String,zone:ZoneId = ZoneId.systemDefault):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), zone).format(DateTimeFormatter.ofPattern(fmt))
   //def timestamp(ts:Long,fmt:String):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).format(DateTimeFormatter.ofPattern(fmt))

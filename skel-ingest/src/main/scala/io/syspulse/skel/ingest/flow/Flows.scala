@@ -166,7 +166,8 @@ object Flows {
       overflowStrategy = OverflowStrategy.dropHead //OverflowStrategy.fail // <- convenient for testing
     ).map(t => {
         log.info(s"tick: ${t.utf8String}")
-        ByteString(s"${System.currentTimeMillis()}\n")
+        //ByteString(s"${System.currentTimeMillis()}\n")
+        ByteString(s"${System.currentTimeMillis()}")
     })
 
     val (cronActor,cronSourceMat) = cronSource.preMaterialize() //.to(Sink.foreach(println)).run()
