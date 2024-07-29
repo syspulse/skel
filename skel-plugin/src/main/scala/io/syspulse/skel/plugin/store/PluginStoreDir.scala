@@ -21,11 +21,11 @@ import java.net.URLClassLoader
 import java.net.URL
 
 // Preload from file during start
-class PluginStoreDir(dir:String = "plugins",classMask:Option[String]=None) extends StoreDir[Plugin,Plugin.ID](dir) with PluginStore {
+class PluginStoreDir(dir:String = "plugins",classMask:Option[String]=None) extends StoreDir[PluginDescriptor,PluginDescriptor.ID](dir) with PluginStore {
   val store = new PluginStoreMem
 
-  def toKey(id:String):Plugin.ID = id
-  def all:Seq[Plugin] = {
+  def toKey(id:String):PluginDescriptor.ID = id
+  def all:Seq[PluginDescriptor] = {
     if(store.size == 0) {
       val storeDir = os.Path(dir,os.pwd)
       if(! os.exists(storeDir)) {
@@ -60,9 +60,9 @@ class PluginStoreDir(dir:String = "plugins",classMask:Option[String]=None) exten
   def size:Long = store.size
   
   // all these should not be supported
-  override def +(u:Plugin):Try[Plugin] = super.+(u).flatMap(_ => store.+(u))
-  override def del(id:Plugin.ID):Try[Plugin.ID] = super.del(id).flatMap(_ => store.del(id))
-  override def ?(id:Plugin.ID):Try[Plugin] = store.?(id)
+  override def +(u:PluginDescriptor):Try[PluginDescriptor] = super.+(u).flatMap(_ => store.+(u))
+  override def del(id:PluginDescriptor.ID):Try[PluginDescriptor.ID] = super.del(id).flatMap(_ => store.del(id))
+  override def ?(id:PluginDescriptor.ID):Try[PluginDescriptor] = store.?(id)
 
   // create directory
   os.makeDir.all(os.Path(dir,os.pwd))

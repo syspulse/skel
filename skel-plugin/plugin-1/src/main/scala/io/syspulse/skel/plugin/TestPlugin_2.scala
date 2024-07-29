@@ -7,9 +7,7 @@ import scala.util.{Try,Success,Failure}
 import io.syspulse.skel.plugin.runtime._
 import io.syspulse.skel.plugin._
 
-class TestPlugin_2(p:Plugin) extends Runtime[String]() {
+class TestPlugin_2(p:PluginDescriptor) extends Plugin() {
     
-  def pluginStart():Try[Any] = Success("2")
-  def pluginStop():Try[Any] = Success("2")
-  def pluginId():Try[String] = Success(this.toString)
+  override def pluginId():String = "2"
 }

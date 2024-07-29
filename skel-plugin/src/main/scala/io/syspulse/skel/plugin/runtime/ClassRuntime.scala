@@ -10,7 +10,7 @@ import io.syspulse.skel.plugin._
 class ClassRuntime() extends PluginRuntime {
   val log = Logger(s"${this}")
   
-  def spawn(p:Plugin):Try[Runtime[_]] = {
+  def spawn(p:PluginDescriptor):Try[Plugin] = {
     log.info(s"spawn: ${p}")
     val rr = for {
       
@@ -36,7 +36,7 @@ class ClassRuntime() extends PluginRuntime {
             val instance = ctor.newInstance(args:_*)
             
             log.debug(s"'${c}' => ${instance}")
-            val e = instance.asInstanceOf[Runtime[_]]
+            val e = instance.asInstanceOf[Plugin]
             Success(e)
             
           case None => 

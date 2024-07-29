@@ -17,13 +17,13 @@ import io.syspulse.skel.plugin.store._
 class PluginEngine(store:PluginStore) {
   val log = Logger(s"${this}")
 
-  def spawn():Seq[Try[Runtime[_]]] = {
+  def spawn():Seq[Try[Plugin]] = {
     store.all.map( p => 
       spawn(p)
     )
   }
 
-  def spawn(p:Plugin):Try[Runtime[_]] = {
+  def spawn(p:PluginDescriptor):Try[Plugin] = {
     p.typ match {
       case "class" | "jar" => 
         new ClassRuntime().spawn(p)
@@ -33,7 +33,7 @@ class PluginEngine(store:PluginStore) {
   }
 
   
-  def start(r:Runtime[_]):Try[Runtime[_]] = {
+  def start(r:Plugin):Try[Plugin] = {
     log.info(s"start: ${r}")
     
     // os.makeDir.all(os.Path(wfRuntimeDir,os.pwd))
@@ -44,7 +44,7 @@ class PluginEngine(store:PluginStore) {
     Success(r)
   }
 
-  def stop(r:Runtime[_]):Try[Runtime[_]] = {
+  def stop(r:Plugin):Try[Plugin] = {
     log.info(s"stop: ${r}")
 
     r.pluginStop()

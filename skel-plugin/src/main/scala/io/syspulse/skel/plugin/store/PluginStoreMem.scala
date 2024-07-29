@@ -16,26 +16,26 @@ import io.syspulse.skel.plugin._
 class PluginStoreMem extends PluginStore {
   val log = Logger(s"${this}")
   
-  var plugins: Map[Plugin.ID,Plugin] = Map()
+  var plugins: Map[PluginDescriptor.ID,PluginDescriptor] = Map()
 
-  def all:Seq[Plugin] = plugins.values.toSeq
+  def all:Seq[PluginDescriptor] = plugins.values.toSeq
 
   def size:Long = plugins.size
 
-  def +(p:Plugin):Try[Plugin] = { 
+  def +(p:PluginDescriptor):Try[PluginDescriptor] = { 
     plugins = plugins + (p.name -> p)
     log.info(s"add: ${p}")
     Success(p)
   }
 
-  def del(id:Plugin.ID):Try[Plugin.ID] = { 
+  def del(id:PluginDescriptor.ID):Try[PluginDescriptor.ID] = { 
     val sz = plugins.size
     plugins = plugins - id;
     log.info(s"del: ${id}")
     if(sz == plugins.size) Failure(new Exception(s"not found: ${id}")) else Success(id)  
   }
 
-  def ?(id:Plugin.ID):Try[Plugin] = plugins.get(id) match {
+  def ?(id:PluginDescriptor.ID):Try[PluginDescriptor] = plugins.get(id) match {
     case Some(u) => Success(u)
     case None => Failure(new Exception(s"not found: ${id}"))
   }

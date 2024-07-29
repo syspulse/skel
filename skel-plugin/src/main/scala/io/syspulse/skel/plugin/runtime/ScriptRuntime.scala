@@ -11,14 +11,14 @@ import io.syspulse.skel.plugin._
 import io.syspulse.skel.dsl.ScalaScript
 //import io.syspulse.skel.dsl.ScalaToolbox
 
-class ScriptRuntime(p:Plugin) extends PluginRuntime {
+class ScriptRuntime(p:PluginDescriptor) extends PluginRuntime {
   val log = Logger(s"${this}")
   
-  def spawn(p:Plugin):Try[Runtime[String]] = {
+  def spawn(p:PluginDescriptor):Try[Plugin] = {
     Success(new Running(p.init))
   }
   
-  class Running(script:String) extends Runtime[String] {
+  class Running(script:String) extends Plugin {
     //val engine = new ScalaToolbox()
     val engine = new ScalaScript()
     
@@ -44,9 +44,8 @@ class ScriptRuntime(p:Plugin) extends PluginRuntime {
       r
     }
 
-    def pluginStart():Try[Any] = run(Map())
-    def pluginStop():Try[Any] =  Success(this)
-
-    def pluginId():Try[String] = Success(this.toString)
+    override def pluginStart():Try[Any] = run(Map())
+    override def pluginStop():Try[Any] =  Success(this)
+    override def pluginId():String = this.toString
   }
 }

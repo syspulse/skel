@@ -23,7 +23,7 @@ import java.net.URL
 object PluginStoreJava {
   val log = Logger(s"${this}")
 
-  def loadFromJars(cl:URLClassLoader,classMask:Option[String]):Seq[Plugin] = {
+  def loadFromJars(cl:URLClassLoader,classMask:Option[String]):Seq[PluginDescriptor] = {
     log.info(s"cl=${cl}, mask=${classMask}")
 
     val pp = cl.getURLs().toArray.flatMap( url => {
@@ -49,7 +49,7 @@ object PluginStoreJava {
             val initClass = e.toString.replaceAll("/",".").replace(".class","")
             log.info(s"${e}: name=${name}: class=${initClass}")
         
-            Plugin(name = name,typ = "jar", init = initClass, ver = "")
+            PluginDescriptor(name = name,typ = "jar", init = initClass, ver = "")
           })
                 
       } catch {
@@ -62,7 +62,7 @@ object PluginStoreJava {
     pp
   }
 
-  def loadFromManifest(cl:ClassLoader):Seq[Plugin] = {        
+  def loadFromManifest(cl:ClassLoader):Seq[PluginDescriptor] = {        
     val pp = cl.getResources("META-INF/MANIFEST.MF").asScala.toSeq.flatMap( url => {
       log.debug(s"${url}")
       // try to load file
@@ -84,7 +84,7 @@ object PluginStoreJava {
 
         log.debug(s"${url}: ${title}:${ver}: class=${init}")
         val plugin = if(init != "") 
-          Some(Plugin(name = title,typ = "jar", init = init, ver = ver))
+          Some(PluginDescriptor(name = title,typ = "jar", init = init, ver = ver))
         else
           None
         

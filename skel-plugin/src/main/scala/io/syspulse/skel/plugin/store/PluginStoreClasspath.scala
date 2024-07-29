@@ -22,7 +22,7 @@ import java.net.URL
 
 class PluginStoreClasspath(root: Option[Class[_]] = None,classMask:Option[String] = None) extends PluginStoreMem {
     
-  override def all:Seq[Plugin] = {
+  override def all:Seq[PluginDescriptor] = {
     val cl = root.getOrElse(this).getClass.getClassLoader
     PluginStoreJava.loadFromManifest(cl)
   }
