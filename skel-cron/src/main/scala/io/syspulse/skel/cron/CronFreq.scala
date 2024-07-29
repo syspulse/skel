@@ -37,6 +37,8 @@ class CronFreq(runner: (Long)=>Boolean, freq:String, delay0:Long = -1L, limit:Lo
   else
     delay0
 
+  def getExpr():String = freq
+
   def start():Try[Unit] = {    
     if(cronFuture.isDefined) cronFuture.get.cancel(true)
     val task = new Runnable { 

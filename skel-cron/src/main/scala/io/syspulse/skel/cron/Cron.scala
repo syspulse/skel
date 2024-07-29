@@ -24,6 +24,7 @@ import io.syspulse.skel.config.Configuration
 trait Cron[T] extends Closeable {
   def start():Try[T]
   def stop():Unit
+  def getExpr():String
 }
 
 object Cron {

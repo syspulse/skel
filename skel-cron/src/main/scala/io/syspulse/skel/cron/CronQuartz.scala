@@ -75,6 +75,8 @@ class CronQuartz(exec:(Long)=>Boolean, expr:String, conf:Option[(String,Configur
       StdSchedulerFactory.getDefaultScheduler()
     }
 
+  def getExpr():String = expr
+
   def start():Try[java.time.LocalDate] = {
     try {
       scheduler.start();
