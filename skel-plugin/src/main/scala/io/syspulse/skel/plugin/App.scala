@@ -94,19 +94,26 @@ object App extends skel.Server {
       case "server" => 
       
       case "runtime" => {        
+        //val runtime = new ClassRuntime()
+        val runtime = new PluginEngine(store)
 
-        val pe = new PluginEngine(store)
         config.params match {
-          case "spawn" :: id :: Nil =>
+          case "start" :: id :: Nil =>
             for {
-              plugin <- store.?(id)       
-              r <- pe.spawn(plugin)            
+              plugin <- store.?(id)  
+              r <- runtime.spawn(plugin)       
+            } yield r
+          
+          case "start" :: Nil =>
+            for {
+              plugin <- store.all
+              r <- Seq(runtime.spawn(plugin))
             } yield r
                   
           case _ => 
             for {
-              st <- store.all
-            } yield st
+              pp <- store.all
+            } yield pp
         }}
     }
 

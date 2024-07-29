@@ -24,6 +24,6 @@ class PluginStoreClasspath(root: Option[Class[_]] = None,classMask:Option[String
     
   override def all:Seq[Plugin] = {
     val cl = root.getOrElse(this).getClass.getClassLoader
-    PluginStoreJava.loadMeta(cl)
+    PluginStoreJava.loadFromManifest(cl)
   }
 }

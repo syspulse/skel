@@ -45,8 +45,8 @@ class PluginStoreDir(dir:String = "plugins",classMask:Option[String]=None) exten
           log.debug(s"child=${child}, parent=${parent}")
           
           classMask match {
-            case Some(mask) => PluginStoreJava.loadJars(child,classMask)
-            case None => PluginStoreJava.loadMeta(child)
+            case Some(mask) => PluginStoreJava.loadFromJars(child,classMask)
+            case None => PluginStoreJava.loadFromManifest(child)
           }
           
         })

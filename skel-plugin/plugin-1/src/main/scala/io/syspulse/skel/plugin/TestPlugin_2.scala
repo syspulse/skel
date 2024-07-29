@@ -9,8 +9,7 @@ import io.syspulse.skel.plugin._
 
 class TestPlugin_2(p:Plugin) extends Runtime[String]() {
     
-  def start():Try[Any] = Success("2")
-  def stop():Try[Any] = Success("2")
-
-  def id():Try[String] = Success(this.toString)
+  def pluginStart():Try[Any] = Success("2")
+  def pluginStop():Try[Any] = Success("2")
+  def pluginId():Try[String] = Success(this.toString)
 }

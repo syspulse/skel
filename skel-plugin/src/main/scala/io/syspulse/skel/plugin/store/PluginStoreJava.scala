@@ -23,7 +23,7 @@ import java.net.URL
 object PluginStoreJava {
   val log = Logger(s"${this}")
 
-  def loadJars(cl:URLClassLoader,classMask:Option[String]):Seq[Plugin] = {
+  def loadFromJars(cl:URLClassLoader,classMask:Option[String]):Seq[Plugin] = {
     log.info(s"cl=${cl}, mask=${classMask}")
 
     val pp = cl.getURLs().toArray.flatMap( url => {
@@ -45,10 +45,11 @@ object PluginStoreJava {
             classMask.isDefined && e.getName.matches(classMask.get)
           })
           .map( e => {
-            val initClass = e.toString.split("/").toList.last
-            log.info(s"${e}: class=${initClass}")
+            val name = e.toString.split("/").last.replace(".class","")
+            val initClass = e.toString.replaceAll("/",".").replace(".class","")
+            log.info(s"${e}: name=${name}: class=${initClass}")
         
-            Plugin(name = initClass,typ = "jar", init = initClass, ver = "")
+            Plugin(name = name,typ = "jar", init = initClass, ver = "")
           })
                 
       } catch {
@@ -61,7 +62,7 @@ object PluginStoreJava {
     pp
   }
 
-  def loadMeta(cl:ClassLoader):Seq[Plugin] = {        
+  def loadFromManifest(cl:ClassLoader):Seq[Plugin] = {        
     val pp = cl.getResources("META-INF/MANIFEST.MF").asScala.toSeq.flatMap( url => {
       log.debug(s"${url}")
       // try to load file

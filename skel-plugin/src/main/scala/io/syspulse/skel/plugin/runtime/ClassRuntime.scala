@@ -17,7 +17,7 @@ class ClassRuntime() extends PluginRuntime {
       runtime <- try {
         val c = p.init
 
-        log.debug(s"spawning: class=${c}")
+        log.info(s"spawning: class=${c}")
         val cz = Class.forName(c)
 
         // constructor is always Plugin
