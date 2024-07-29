@@ -20,10 +20,10 @@ import java.net.JarURLConnection
 import java.util.jar.JarFile
 import java.net.URL
 
-class PluginStoreClasspath(root: Option[Class[_]] = None,classMask:Option[String] = None) extends PluginStoreMem {
+class PluginStoreClasspath(className:String,root: Option[Class[_]] = None) extends PluginStoreMem {
     
   override def all:Seq[PluginDescriptor] = {
     val cl = root.getOrElse(this).getClass.getClassLoader
-    PluginStoreJava.loadFromManifest(cl)
+    PluginStoreJava.loadFromClasspath(cl,className.split(",").toSeq)
   }
 }

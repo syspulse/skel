@@ -79,6 +79,7 @@ object App extends skel.Server {
     Console.err.println(s"Config: ${config}")
 
     val store = config.datastore.split("://").toList match {
+      case ("classpath" | "class") :: className :: Nil =>  new PluginStoreClasspath(className)
       case "dir" :: Nil =>  new PluginStoreDir()
       case "dir" :: dir :: Nil => new PluginStoreDir(dir)
       case "jars" :: mask :: Nil => new PluginStoreDir(classMask = Some(mask))

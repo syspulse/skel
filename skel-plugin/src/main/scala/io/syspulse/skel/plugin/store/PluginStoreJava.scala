@@ -98,5 +98,18 @@ object PluginStoreJava {
 
     pp
   }
+
+  // class loader does not support wildcards
+  def loadFromClasspath(cl:ClassLoader,className:Seq[String]):Seq[PluginDescriptor] = {
+    val pp = className.map( cn => {
+      val name = cn.split("\\.").last
+      val initClass = cn.replace(".class","")
+      log.info(s"name=${name}: class=${initClass}")
+  
+      PluginDescriptor(name = name,typ = "jar", init = initClass, ver = "")
+    })
+    
+    pp
+  }
 }
 
