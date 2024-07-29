@@ -20,10 +20,6 @@ import java.net.JarURLConnection
 import java.util.jar.JarFile
 import java.net.URL
 
-class PluginStoreClasspath(root: Option[Class[_]] = None,classMask:Option[String] = None) extends PluginStoreMem {
+class PluginStoreJar(dir:String = "plugins",classMask:String) extends PluginStoreDir(dir,Some(classMask)) {
     
-  override def all:Seq[Plugin] = {
-    val cl = root.getOrElse(this).getClass.getClassLoader
-    PluginStoreJava.loadMeta(cl)
-  }
 }
