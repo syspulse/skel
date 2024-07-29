@@ -33,11 +33,11 @@ class ProcessRuntime(p:Plugin) extends PluginRuntime {
       Success(txt)
     }
 
-    def start():Try[Any] = run(Map())
+    def pluginStart():Try[Any] = run(Map())
 
-    def stop():Try[Any] =  Success(this)
+    def pluginStop():Try[Any] =  Success(this)
 
-    def id():Try[String] = Success(p.init)
+    def pluginId():Try[String] = Success(p.init)
   }
 
 }

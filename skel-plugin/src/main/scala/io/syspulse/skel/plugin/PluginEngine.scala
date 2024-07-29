@@ -39,7 +39,7 @@ class PluginEngine(store:PluginStore) {
     // os.makeDir.all(os.Path(wfRuntimeDir,os.pwd))
     // createDataDir(plugin.getId)
     
-    r.start()
+    r.pluginStart()
 
     Success(r)
   }
@@ -47,7 +47,7 @@ class PluginEngine(store:PluginStore) {
   def stop(r:Runtime[_]):Try[Runtime[_]] = {
     log.info(s"stop: ${r}")
 
-    r.stop()
+    r.pluginStop()
 
     Success(r)
   }

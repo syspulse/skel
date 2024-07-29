@@ -12,11 +12,17 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
-import io.syspulse.skel.plugin._
+import java.net.URLClassLoader
 
-class PluginStoreClasspath(root: Option[Class[_]] = None) extends PluginStoreMem {
+import io.syspulse.skel.plugin._
+import java.util.regex.Pattern
+import java.net.JarURLConnection
+import java.util.jar.JarFile
+import java.net.URL
+
+class PluginStoreClasspath(root: Option[Class[_]] = None,classMask:Option[String] = None) extends PluginStoreMem {
     
-  override def all:Seq[Plugin] = {    
+  override def all:Seq[Plugin] = {
     val cl = root.getOrElse(this).getClass.getClassLoader
     PluginStoreClasspath.load(cl)
   }
@@ -24,6 +30,44 @@ class PluginStoreClasspath(root: Option[Class[_]] = None) extends PluginStoreMem
 
 object PluginStoreClasspath {
   val log = Logger(s"${this}")
+
+  def load(cl:URLClassLoader,classMask:Option[String]):Seq[Plugin] = {
+    log.info(s"cl=${cl}, mask=${classMask}")
+
+    val pp = cl.getURLs().toArray.flatMap( url => {
+      log.info(s"${url}")
+      // try to load jar file
+      //val urlJar:JarURLConnection = url.openConnection().asInstanceOf[JarURLConnection]
+      val urlJar = new URL("jar:" + url.toString() + "!/")      
+      val jarConn:JarURLConnection = urlJar.openConnection().asInstanceOf[JarURLConnection]
+      
+      try {
+        val jar:JarFile = jarConn.getJarFile()
+        
+        val ee = jar.entries().asScala.toList
+        log.info(s"${jar}: ${ee.size}")
+        
+        ee
+          .filter( e => {
+            log.debug(s"${e}")
+            classMask.isDefined && e.getName.matches(classMask.get)
+          })
+          .map( e => {
+            val initClass = e.toString.split("/").toList.last
+            log.info(s"${e}: class=${initClass}")
+        
+            Plugin(name = initClass,typ = "jar", init = initClass, ver = "")
+          })
+                
+      } catch {
+        case e:Exception => 
+          log.warn(s"failed to load resource: ${url}",e)
+          Seq()
+      }
+    })
+
+    pp
+  }
 
   def load(cl:ClassLoader):Seq[Plugin] = {        
     val pp = cl.getResources("META-INF/MANIFEST.MF").asScala.toSeq.flatMap( url => {
@@ -45,7 +89,7 @@ object PluginStoreClasspath {
         val ver = manifest.get("Plugin-Version").getOrElse("")
         val init = manifest.get("Plugin-Class").getOrElse("")
 
-        log.info(s"${url}: ${title}:${ver}: class=${init}")
+        log.debug(s"${url}: ${title}:${ver}: class=${init}")
         val plugin = if(init != "") 
           Some(Plugin(name = title,typ = "jar", init = init, ver = ver))
         else

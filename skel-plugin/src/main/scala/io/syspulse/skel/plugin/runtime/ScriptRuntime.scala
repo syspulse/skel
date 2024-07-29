@@ -44,9 +44,9 @@ class ScriptRuntime(p:Plugin) extends PluginRuntime {
       r
     }
 
-    def start():Try[Any] = run(Map())
-    def stop():Try[Any] =  Success(this)
+    def pluginStart():Try[Any] = run(Map())
+    def pluginStop():Try[Any] =  Success(this)
 
-    def id():Try[String] = Success(this.toString)
+    def pluginId():Try[String] = Success(this.toString)
   }
 }

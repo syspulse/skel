@@ -72,21 +72,23 @@ object App extends skel.Server {
       
       registry = c.getListString("registry",d.registry),
 
-      cmd = c.getCmd().getOrElse("server"),
+      cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
     )
 
     Console.err.println(s"Config: ${config}")
 
     val store = config.datastore.split("://").toList match {
-      case "dir" :: Nil => 
-        new PluginStoreDir()
-      case "dir" :: dir :: Nil =>
-        new PluginStoreDir(dir)
+      case "dir" :: Nil =>  new PluginStoreDir()
+      case "dir" :: dir :: Nil => new PluginStoreDir(dir)
+      case "jars" :: mask :: Nil => new PluginStoreDir(classMask = Some(mask))
+      case "jars" :: dir :: mask :: Nil => new PluginStoreDir(dir,classMask=Some(mask))
       case _ => {
         new PluginStoreMem()
       }
     }
+
+    Console.err.println(s"store: ${store}")
     
     val r = config.cmd match {
       case "server" => 

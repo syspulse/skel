@@ -21,7 +21,7 @@ import java.net.URLClassLoader
 import java.net.URL
 
 // Preload from file during start
-class PluginStoreDir(dir:String = "plugins") extends StoreDir[Plugin,Plugin.ID](dir) with PluginStore {
+class PluginStoreDir(dir:String = "plugins",classMask:Option[String]=None) extends StoreDir[Plugin,Plugin.ID](dir) with PluginStore {
   val store = new PluginStoreMem
 
   def toKey(id:String):Plugin.ID = id
@@ -42,9 +42,9 @@ class PluginStoreDir(dir:String = "plugins") extends StoreDir[Plugin,Plugin.ID](
           log.info(s"Loading file: ${f}")
           val child:URLClassLoader = new URLClassLoader(Array[URL](new URL(s"file://${f}")), parent)
 
-          log.info(s"child=${child}, parent=${parent}")
+          log.debug(s"child=${child}, parent=${parent}")
           
-          PluginStoreClasspath.load(child)
+          PluginStoreClasspath.load(child,classMask)
         })
 
         cc        
