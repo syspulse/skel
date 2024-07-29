@@ -10,6 +10,7 @@ import io.syspulse.skel.plugin._
 class TestPlugin_1(p:Plugin) extends Runtime[String]() {
   
   var err = 0
+  val test = TestClass()
 
   def pluginStart():Try[Any] = Success("1")
   def pluginStop():Try[Any] = Success("1")
