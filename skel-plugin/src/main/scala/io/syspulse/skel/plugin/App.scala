@@ -46,10 +46,8 @@ object App extends skel.Server {
         
         ArgString('r', "registry",s"Extra Registry (def: ${d.registry})"),
         
-        ArgCmd("server",s"Server"),        
-        
-        ArgCmd("registry",s"Show Execs Registry"),
-
+        ArgCmd("run",s"Run Plugins"),                
+        //ArgCmd("registry",s"Show Execs Registry"),
         ArgCmd("runtime",s"Runtime subcommands: " +
           s"spawn <id>          : Spawn + start Plugin"+
           s"run <id>            : Spawn + start + wait Plugin"+
@@ -88,13 +86,15 @@ object App extends skel.Server {
     }
 
     Console.err.println(s"store: ${store}")
-
-    store.loadPlugins()
+    
     
     val r = config.cmd match {
-      case "server" => 
+      case "run" => 
+        PluginEngine.run(config.datastore)
       
-      case "runtime" => {        
+      case "runtime" => {
+        store.loadPlugins()
+
         //val runtime = new ClassRuntime()
         val runtime = new PluginEngine(store)
 
@@ -109,10 +109,6 @@ object App extends skel.Server {
             runtime.start(id)
           
           case "start" :: Nil =>
-            // for {
-            //   plugin <- store.all
-            //   r <- Seq(runtime.spawn(plugin))
-            // } yield r
             runtime.start()
                   
           case _ => 

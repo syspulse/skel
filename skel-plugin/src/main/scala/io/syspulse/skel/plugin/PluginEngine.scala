@@ -14,8 +14,41 @@ import akka.actor.typed.SupervisorStrategy
 import io.syspulse.skel.plugin.runtime._
 import io.syspulse.skel.plugin.store._
 
+object PluginEngine {
+  val log = Logger(s"${this}")
+
+  def apply(uri:String) = {
+    val store = uri.split("://").toList match {
+      case ("classpath" | "class") :: className :: Nil =>  new PluginStoreClasspath(className)
+      case "dir" :: Nil =>  new PluginStoreDir()
+      case "dir" :: dir :: Nil => new PluginStoreDir(dir)
+      case "jars" :: mask :: Nil => new PluginStoreDir(classMask = Some(mask))
+      case "jars" :: dir :: mask :: Nil => new PluginStoreDir(dir,classMask=Some(mask))
+      case _ => new PluginStoreMem()
+    }
+
+    new PluginEngine(store)
+  }
+
+  def run(uri:String) = {
+    val pe = apply(uri)
+    val n = pe.load()
+    pe.start()
+    pe
+  }
+}
+
 class PluginEngine(store:PluginStore) {
   val log = Logger(s"${this}")
+
+  // cache if start()/stop() is used
+  var cache:Seq[Plugin] = Seq()
+
+  def all[T]():Seq[T] = cache.asInstanceOf[Seq[T]]
+  
+  def load() = {
+    store.loadPlugins()
+  }
 
   def spawn():Seq[Try[Plugin]] = {
     store.all.map( p => 
@@ -28,20 +61,30 @@ class PluginEngine(store:PluginStore) {
       case "class" | "jar" => 
         new ClassRuntime().spawn(p)
 
-      case _ => Failure(new Exception(s"unknown type: ${p.typ}"))
+      case _ => Failure(new Exception(s"unknown Plugin type: ${p.typ}"))
     }    
   }
 
   // start all plugns
   def start():Seq[Plugin] = {
-    spawn().flatMap( _ match {
-      case Success(p) => Some(p)
+    spawn().flatMap(plugin => plugin match {
+      case Success(p) => 
+        cache = cache :+ p
+        Some(p)
       case Failure(e) =>
-        log.error(s"failed to start plugin: ${e}")
+        log.error(s"failed to start plugin: ${plugin}",e)
         None
     })
   }
 
+  // stop all plugins
+  def stop():Int = {
+    cache.map( p => stop(p))
+    val sz = cache.size
+    cache = Seq()
+    sz
+  }
+  
   def start(id:String):Try[Plugin] = {
     log.info(s"start: ${id}")
         

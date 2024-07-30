@@ -24,6 +24,8 @@ else
    APP_HOME=${APP_HOME:-`pwd`}
 fi
 
+PLUGINS=${PLUGSIN-`pwd`/plugins}
+
 # fat jar
 JAR_FAT=`ls ${APP_HOME}/target/scala-2.13/*assembly*.jar`
 # classes

@@ -7,7 +7,7 @@ import scala.util.{Try,Success,Failure}
 import io.syspulse.skel.plugin.runtime._
 import io.syspulse.skel.plugin._
 
-class TestPlugin(p:Plugin) extends Runtime[String]() {
+class TestPlugin(p:PluginDescriptor) extends Plugin() {
   
   var err = 0
 
