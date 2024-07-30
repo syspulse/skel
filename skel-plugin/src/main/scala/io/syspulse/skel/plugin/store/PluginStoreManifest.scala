@@ -20,7 +20,7 @@ import java.net.JarURLConnection
 import java.util.jar.JarFile
 import java.net.URL
 
-class PluginStoreJar(dir:String = "plugins",classMask:String) extends PluginStoreDir(dir) {
+class PluginStoreManifest(dir:String = "plugins") extends PluginStoreDir(dir) {
   
   override def scan():Seq[PluginDescriptor] = {
     
@@ -41,7 +41,7 @@ class PluginStoreJar(dir:String = "plugins",classMask:String) extends PluginStor
 
         log.debug(s"child=${child}, parent=${parent}")
         
-        PluginStoreJava.loadFromJars(child,Some(classMask))
+        PluginStoreJava.loadFromManifest(child)        
       })
 
     cc    

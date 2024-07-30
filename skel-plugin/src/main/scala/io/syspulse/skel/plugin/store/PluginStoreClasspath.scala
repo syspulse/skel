@@ -24,7 +24,8 @@ class PluginStoreClasspath(className:String,root: Option[Class[_]] = None) exten
 
   def scan() = {
     val cl = root.getOrElse(this).getClass.getClassLoader
-    PluginStoreJava.loadFromClasspath(cl,className.split(",").toSeq)        
+    val classNames = className.split(",").toSeq
+    PluginStoreJava.loadFromClasspath(cl,classNames)        
   } 
 
   override def loadPlugins():Int = {

@@ -21,7 +21,7 @@ import java.net.URLClassLoader
 import java.net.URL
 
 // Preload from file during start
-class PluginStoreDir(dir:String = "plugins",classMask:Option[String]=None) extends StoreDir[PluginDescriptor,PluginDescriptor.ID](dir) with PluginStore {
+class PluginStoreDir(dir:String = "plugins") extends StoreDir[PluginDescriptor,PluginDescriptor.ID](dir) with PluginStore {
   val store = new PluginStoreMem
 
   def toKey(id:String):PluginDescriptor.ID = id
@@ -29,32 +29,8 @@ class PluginStoreDir(dir:String = "plugins",classMask:Option[String]=None) exten
   def all:Seq[PluginDescriptor] = store.all
 
   def scan():Seq[PluginDescriptor] = {
-    
-    val storeDir = os.Path(dir,os.pwd)
-    if(! os.exists(storeDir)) {
-      os.makeDir.all(storeDir)
-    }
-    
-    log.info(s"Scanning dir: ${storeDir}")
-
-    val parent = this.getClass().getClassLoader()
-    val cc = os.walk(storeDir)
-      .filter(_.toIO.isFile())
-      .sortBy(_.toIO.lastModified())
-      .flatMap(f => {
-        log.info(s"Loading file: ${f}")
-        val child:URLClassLoader = new URLClassLoader(Array[URL](new URL(s"file://${f}")), parent)
-
-        log.debug(s"child=${child}, parent=${parent}")
-        
-        classMask match {
-          case Some(mask) => PluginStoreJava.loadFromJars(child,classMask)
-          case None => PluginStoreJava.loadFromManifest(child)
-        }
-        
-      })
-
-    cc    
+    load()
+    all
   }
 
   def size:Long = store.size
@@ -66,7 +42,6 @@ class PluginStoreDir(dir:String = "plugins",classMask:Option[String]=None) exten
 
   def loadPlugins():Int = {
     val pp = scan()
-    pp.foreach{ p => store.+(p)}
     all.size
   }
 

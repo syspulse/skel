@@ -22,8 +22,14 @@ object PluginEngine {
       case ("classpath" | "class") :: className :: Nil =>  new PluginStoreClasspath(className)
       case "dir" :: Nil =>  new PluginStoreDir()
       case "dir" :: dir :: Nil => new PluginStoreDir(dir)
-      case "jars" :: mask :: Nil => new PluginStoreDir(classMask = Some(mask))
-      case "jars" :: dir :: mask :: Nil => new PluginStoreDir(dir,classMask=Some(mask))
+      
+      case "manifest" :: dir :: Nil => new PluginStoreManifest(dir)
+      case "manifest" :: Nil => new PluginStoreManifest()
+      
+      case ("jars" | "jar") :: mask :: Nil => new PluginStoreJar(classMask = mask)
+      case ("jars" | "jar") :: dir :: mask :: Nil => new PluginStoreJar(dir,classMask = mask)
+
+      case className :: _ => new PluginStoreClasspath(className)
       case _ => new PluginStoreMem()
     }
 
@@ -33,7 +39,8 @@ object PluginEngine {
   def run(uri:String) = {
     val pe = apply(uri)
     val n = pe.load()
-    pe.start()
+    val pp = pe.start()
+    log.info(s"running: ${pp}")
     pe
   }
 }
