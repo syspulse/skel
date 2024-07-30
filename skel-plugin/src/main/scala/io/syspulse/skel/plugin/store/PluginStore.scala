@@ -19,5 +19,7 @@ trait PluginStore extends Store[PluginDescriptor,PluginDescriptor.ID] {
   def ?(id:PluginDescriptor.ID):Try[PluginDescriptor]  
   def all:Seq[PluginDescriptor]
   def size:Long
-  }
+
+  def loadPlugins():Int
+}
 

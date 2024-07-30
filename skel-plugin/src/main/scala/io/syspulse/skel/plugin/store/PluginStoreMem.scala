@@ -39,5 +39,7 @@ class PluginStoreMem extends PluginStore {
     case Some(u) => Success(u)
     case None => Failure(new Exception(s"not found: ${id}"))
   }
+
+  def loadPlugins():Int = 0
  
 }

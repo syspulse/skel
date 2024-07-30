@@ -21,9 +21,15 @@ import java.util.jar.JarFile
 import java.net.URL
 
 class PluginStoreClasspath(className:String,root: Option[Class[_]] = None) extends PluginStoreMem {
-    
-  override def all:Seq[PluginDescriptor] = {
+
+  def scan() = {
     val cl = root.getOrElse(this).getClass.getClassLoader
-    PluginStoreJava.loadFromClasspath(cl,className.split(",").toSeq)
+    PluginStoreJava.loadFromClasspath(cl,className.split(",").toSeq)        
+  } 
+
+  override def loadPlugins():Int = {
+    val pp = scan()
+    pp.foreach{p => this.+(p)}
+    all.size
   }
 }

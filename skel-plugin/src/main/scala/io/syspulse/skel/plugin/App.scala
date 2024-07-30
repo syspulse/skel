@@ -84,12 +84,12 @@ object App extends skel.Server {
       case "dir" :: dir :: Nil => new PluginStoreDir(dir)
       case "jars" :: mask :: Nil => new PluginStoreDir(classMask = Some(mask))
       case "jars" :: dir :: mask :: Nil => new PluginStoreDir(dir,classMask=Some(mask))
-      case _ => {
-        new PluginStoreMem()
-      }
+      case _ => new PluginStoreMem()
     }
 
     Console.err.println(s"store: ${store}")
+
+    store.loadPlugins()
     
     val r = config.cmd match {
       case "server" => 
@@ -99,17 +99,21 @@ object App extends skel.Server {
         val runtime = new PluginEngine(store)
 
         config.params match {
-          case "start" :: id :: Nil =>
+          case "spawn" :: id :: Nil =>
             for {
               plugin <- store.?(id)  
               r <- runtime.spawn(plugin)       
             } yield r
+
+          case "start" :: id :: Nil =>
+            runtime.start(id)
           
           case "start" :: Nil =>
-            for {
-              plugin <- store.all
-              r <- Seq(runtime.spawn(plugin))
-            } yield r
+            // for {
+            //   plugin <- store.all
+            //   r <- Seq(runtime.spawn(plugin))
+            // } yield r
+            runtime.start()
                   
           case _ => 
             for {

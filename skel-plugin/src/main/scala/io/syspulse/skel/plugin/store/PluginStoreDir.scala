@@ -25,36 +25,36 @@ class PluginStoreDir(dir:String = "plugins",classMask:Option[String]=None) exten
   val store = new PluginStoreMem
 
   def toKey(id:String):PluginDescriptor.ID = id
-  def all:Seq[PluginDescriptor] = {
-    if(store.size == 0) {
-      val storeDir = os.Path(dir,os.pwd)
-      if(! os.exists(storeDir)) {
-        os.makeDir.all(storeDir)
-      }
-      
-      log.info(s"Scanning dir: ${storeDir}")
 
-      val parent = this.getClass().getClassLoader()
-      val cc = os.walk(storeDir)
-        .filter(_.toIO.isFile())
-        .sortBy(_.toIO.lastModified())
-        .flatMap(f => {
-          log.info(s"Loading file: ${f}")
-          val child:URLClassLoader = new URLClassLoader(Array[URL](new URL(s"file://${f}")), parent)
+  def all:Seq[PluginDescriptor] = store.all
 
-          log.debug(s"child=${child}, parent=${parent}")
-          
-          classMask match {
-            case Some(mask) => PluginStoreJava.loadFromJars(child,classMask)
-            case None => PluginStoreJava.loadFromManifest(child)
-          }
-          
-        })
+  def scan():Seq[PluginDescriptor] = {
+    
+    val storeDir = os.Path(dir,os.pwd)
+    if(! os.exists(storeDir)) {
+      os.makeDir.all(storeDir)
+    }
+    
+    log.info(s"Scanning dir: ${storeDir}")
 
-        cc        
+    val parent = this.getClass().getClassLoader()
+    val cc = os.walk(storeDir)
+      .filter(_.toIO.isFile())
+      .sortBy(_.toIO.lastModified())
+      .flatMap(f => {
+        log.info(s"Loading file: ${f}")
+        val child:URLClassLoader = new URLClassLoader(Array[URL](new URL(s"file://${f}")), parent)
 
-    } else
-      store.all    
+        log.debug(s"child=${child}, parent=${parent}")
+        
+        classMask match {
+          case Some(mask) => PluginStoreJava.loadFromJars(child,classMask)
+          case None => PluginStoreJava.loadFromManifest(child)
+        }
+        
+      })
+
+    cc    
   }
 
   def size:Long = store.size
@@ -63,6 +63,12 @@ class PluginStoreDir(dir:String = "plugins",classMask:Option[String]=None) exten
   override def +(u:PluginDescriptor):Try[PluginDescriptor] = super.+(u).flatMap(_ => store.+(u))
   override def del(id:PluginDescriptor.ID):Try[PluginDescriptor.ID] = super.del(id).flatMap(_ => store.del(id))
   override def ?(id:PluginDescriptor.ID):Try[PluginDescriptor] = store.?(id)
+
+  def loadPlugins():Int = {
+    val pp = scan()
+    pp.foreach{ p => store.+(p)}
+    all.size
+  }
 
   // create directory
   os.makeDir.all(os.Path(dir,os.pwd))

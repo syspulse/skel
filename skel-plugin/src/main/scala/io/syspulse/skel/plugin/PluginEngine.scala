@@ -32,12 +32,27 @@ class PluginEngine(store:PluginStore) {
     }    
   }
 
+  // start all plugns
+  def start():Seq[Plugin] = {
+    spawn().flatMap( _ match {
+      case Success(p) => Some(p)
+      case Failure(e) =>
+        log.error(s"failed to start plugin: ${e}")
+        None
+    })
+  }
+
+  def start(id:String):Try[Plugin] = {
+    log.info(s"start: ${id}")
+        
+    for {
+      plugin <- store.?(id)  
+      r <- spawn(plugin)       
+    } yield r    
+  }
   
   def start(r:Plugin):Try[Plugin] = {
     log.info(s"start: ${r}")
-    
-    // os.makeDir.all(os.Path(wfRuntimeDir,os.pwd))
-    // createDataDir(plugin.getId)
     
     r.pluginStart()
 
