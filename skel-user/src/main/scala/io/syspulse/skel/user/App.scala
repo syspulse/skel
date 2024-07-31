@@ -59,7 +59,8 @@ object App extends skel.Server {
         ArgCmd("server-async","Command"),
         ArgCmd("client","Command"),
         ArgParam("<params>",""),
-        ArgLogging()
+        ArgLogging(),
+        ArgConfig(),
       ).withExit(1)
     )).withLogging()
 

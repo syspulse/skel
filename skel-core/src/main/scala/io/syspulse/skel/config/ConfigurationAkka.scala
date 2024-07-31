@@ -11,8 +11,7 @@ import com.typesafe.config.ConfigFactory
 // Akka/Typesafe config supports EnvVar with -Dconfig.override_with_env_vars=true
 // Var format: CONFIG_FORCE_{var}. CASE-SENSITIVE !
 // Ignore if application.conf cannot be loaded
-class ConfigurationAkka extends ConfigurationLike {
-  val log = Logger(s"${this}")
+class ConfigurationAkka extends ConfigurationTypesafe {
 
   //withFallback(ConfigFactory.defaultReference(classLoader)
   var akkaConfig:Option[Config] = {
@@ -27,6 +26,17 @@ class ConfigurationAkka extends ConfigurationLike {
       }
     }
   }
+}
+
+class ConfigurationAkkaOverride(config:Config) extends ConfigurationTypesafe {
+  var akkaConfig:Option[Config] = Some(config)
+}
+
+
+trait ConfigurationTypesafe extends ConfigurationLike {
+  val log = Logger(s"${this}")
+
+  var akkaConfig:Option[Config]
 
   def getString(path:String):Option[String] = 
     try {

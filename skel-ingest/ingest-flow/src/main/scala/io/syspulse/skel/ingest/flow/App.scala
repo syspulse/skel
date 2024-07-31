@@ -76,12 +76,13 @@ object App extends skel.Server {
         ArgLong('s', s"size",s"File Size Limit (def: ${d.size})"),
 
         ArgString('d', "datastore",s"Datastore [elastic,mem,stdout] (def: ${d.datastore})"),
-        
+                
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
         
         ArgParam("<processors>","List of processors (none/map,print,dedup)"),
-        ArgLogging()
+        ArgLogging(),
+        ArgConfig(),
       ).withExit(1)
     )).withLogging()
 

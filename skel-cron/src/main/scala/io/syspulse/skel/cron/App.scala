@@ -33,7 +33,8 @@ object App  {
         ArgCmd("cron","Cron command"),
         ArgCmd("freq","Frequency command (use cron.expr=10000)"),
         ArgParam("<params>",""),
-        ArgLogging()
+        ArgLogging(),
+        ArgConfig(),
       ).withExit(1)
     )).withLogging()
 

@@ -46,6 +46,5 @@ class PluginStoreDir(dir:String = "plugins") extends StoreDir[PluginDescriptor,P
   }
 
   // create directory
-  os.makeDir.all(os.Path(dir,os.pwd))
-  
+  // os.makeDir.all(os.Path(dir,os.pwd))
 }

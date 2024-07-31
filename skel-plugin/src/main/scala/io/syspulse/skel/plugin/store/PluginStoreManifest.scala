@@ -25,9 +25,6 @@ class PluginStoreManifest(dir:String = "plugins") extends PluginStoreDir(dir) {
   override def scan():Seq[PluginDescriptor] = {
     
     val storeDir = os.Path(dir,os.pwd)
-    if(! os.exists(storeDir)) {
-      os.makeDir.all(storeDir)
-    }
     
     log.info(s"Scanning dir: ${storeDir}")
 

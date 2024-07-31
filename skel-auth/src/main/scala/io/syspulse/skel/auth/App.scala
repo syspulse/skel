@@ -138,7 +138,8 @@ object App extends skel.Server {
           s"get <uri> : Get JWKS from uri\n"
         ),
         ArgParam("<params>",""),
-        ArgLogging()
+        ArgLogging(),
+        ArgConfig(),
       ).withExit(1)
     )).withLogging()
 
