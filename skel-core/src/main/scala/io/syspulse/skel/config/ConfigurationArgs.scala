@@ -119,38 +119,44 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
   var overrideConfig:Option[ConfigurationAkkaOverride] = None
   val configArgs = parseArgs(args,ops:_*)
   
-  def getString(path:String):Option[String] = 
-    if(overrideConfig.isDefined) overrideConfig.get.getString(path) else 
-    if(!configArgs.isDefined) None else
-    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(v => Configuration.withEnv(v.asInstanceOf[String])) else None
+  def getString(path:String):Option[String] = {    
+    val r = if(overrideConfig.isDefined) overrideConfig.get.getString(path) else None
+    if(!configArgs.isDefined) return r
+    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(v => Configuration.withEnv(v.asInstanceOf[String])) else r
+  }
   
-  def getInt(path:String):Option[Int] = 
-    if(overrideConfig.isDefined) overrideConfig.get.getInt(path) else 
-    if(!configArgs.isDefined) None else
-    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(_.asInstanceOf[Int]) else None
-
-  def getLong(path:String):Option[Long] = 
-    if(overrideConfig.isDefined) overrideConfig.get.getLong(path) else 
-    if(!configArgs.isDefined) None else
-    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(_.asInstanceOf[Long]) else None
-
-  def getDouble(path:String):Option[Double] = 
-    if(overrideConfig.isDefined) overrideConfig.get.getDouble(path) else 
-    if(!configArgs.isDefined) None else
-    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(_.asInstanceOf[Double]) else None
-
-  def getAll():Seq[(String,Any)] = {
-    if(overrideConfig.isDefined) overrideConfig.get.getAll() else 
-    if(!configArgs.isDefined) return Seq()
-
-    configArgs.get.c.toSeq
+  def getInt(path:String):Option[Int] = {    
+    val r = if(overrideConfig.isDefined) overrideConfig.get.getInt(path) else None
+    if(!configArgs.isDefined) return r
+    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(_.asInstanceOf[Int]) else r
   }
 
-  def getDuration(path:String):Option[Duration] = 
-    if(overrideConfig.isDefined) overrideConfig.get.getDuration(path) else 
-    if(!configArgs.isDefined) None else
-    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(v => Duration.ofMillis(v.asInstanceOf[Long])) else None
+  def getLong(path:String):Option[Long] = {    
+    val r = if(overrideConfig.isDefined) overrideConfig.get.getLong(path) else None
+    if(!configArgs.isDefined) return r
+    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(_.asInstanceOf[Long]) else r
+  }
 
+  def getDouble(path:String):Option[Double] = {
+    val r = if(overrideConfig.isDefined) overrideConfig.get.getDouble(path) else None
+    if(!configArgs.isDefined) return r
+    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(_.asInstanceOf[Double]) else r
+  }
+
+  def getDuration(path:String):Option[Duration] = {
+    val r = if(overrideConfig.isDefined) overrideConfig.get.getDuration(path) else None
+    if(!configArgs.isDefined) return r
+    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(v => Duration.ofMillis(v.asInstanceOf[Long])) else r
+  }
+
+  def getAll():Seq[(String,Any)] = {
+    val r = if(overrideConfig.isDefined) overrideConfig.get.getAll() else Seq() 
+
+    val r2 = if(!configArgs.isDefined) return Seq() else configArgs.get.c.toSeq
+
+    // replace old with new
+    (r.toMap ++ r2.toMap).toSeq
+  }
 
 
   def getParams():Seq[String] = {
