@@ -180,7 +180,7 @@ object Dependencies {
 
     val libQuartz =           "org.quartz-scheduler"            % "quartz"              % "2.3.2" exclude("com.zaxxer", "HikariCP-java7")
 
-    val libTwitter4s =        "com.danielasfregola"             %% "twitter4s"          % "7.0"
+    val libTwitter4s =        "com.danielasfregola"             %% "twitter4s"          % "8.0" // deprecated !
     
     val libSeleniumJava =     "org.seleniumhq.selenium"         % "selenium-java"             % "4.0.0-rc-3"
     val libSeleniumFirefox =  "org.seleniumhq.selenium"         % "selenium-firefox-driver"   % "4.0.0-rc-3"

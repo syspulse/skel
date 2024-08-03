@@ -157,7 +157,16 @@ object Flows {
     }
   }
   
-  def fromCron(expr:String)(implicit as:ActorSystem):Source[ByteString, NotUsed] = {
+  def fromCron(expr:String)(implicit as:ActorSystem):Source[ByteString, _] = {
+
+    // if expr is just number treat is as milliseconds and use fromClock
+    try {
+      expr.toLong
+      return fromClock(expr)
+    } catch {
+      case _ =>
+    }
+
     import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension 
     //import akka.stream.typed.scaladsl.ActorSource
 

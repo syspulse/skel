@@ -674,13 +674,30 @@ lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
     
     sharedConfig,
     sharedConfigAssembly,
-    sharedConfigDocker,
-    dockerBuildxSettings,
-
+    
     appDockerConfig("ingest-elastic",appBootClassElastic),
 
     libraryDependencies ++= Seq(
       libAlpakkaElastic
+    ),  
+  )
+
+lazy val ingest_twitter = (project in file("skel-ingest/ingest-twitter"))
+  .dependsOn(core, ingest_core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  // .enablePlugins(AshScriptPlugin)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    
+    appDockerConfig("ingest-twitter",appBootClassElastic),
+
+    libraryDependencies ++= Seq(
+      //libTwitter4s,
+
+      libRequests
     ),  
   )
 
@@ -713,7 +730,7 @@ lazy val ingest = (project in file("skel-ingest"))
   )
 
 lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
-  .dependsOn(core, serde, ingest)
+  .dependsOn(core, serde, ingest, ingest_twitter)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (

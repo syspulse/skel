@@ -90,10 +90,10 @@ object Util {
   def timestamp(ts:Long,fmt:String,zone:ZoneId = ZoneId.systemDefault):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), zone).format(DateTimeFormatter.ofPattern(fmt))
   //def timestamp(ts:Long,fmt:String):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).format(DateTimeFormatter.ofPattern(fmt))
 
-  def tsToString(ts:Long) = ZonedDateTime.ofInstant(
+  def tsToString(ts:Long,fmt:DateTimeFormatter=tsFormatLong) = ZonedDateTime.ofInstant(
       Instant.ofEpochMilli(ts), 
       ZoneId.systemDefault
-    ).format(tsFormatLong)
+    ).format(fmt)
 
   def tsToStringYearMonth(ts:Long = 0L) = ZonedDateTime.ofInstant(
       if(ts==0L) Instant.now else Instant.ofEpochMilli(ts), 
