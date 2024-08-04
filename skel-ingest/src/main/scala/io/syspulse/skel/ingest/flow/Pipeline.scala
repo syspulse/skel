@@ -116,6 +116,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
         val nextSource:Source[ByteString,_] = source(next + "://" + rest.mkString(""))
         cronSource.flatMapConcat( tick => nextSource)
 
+      case "twitter" :: uri :: Nil => Flows.fromTwitter(uri,frameDelimiter = delimiter,frameSize = buffer)
+
       case "" :: Nil => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
       case file :: Nil => Flows.fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)
       case _ =>         

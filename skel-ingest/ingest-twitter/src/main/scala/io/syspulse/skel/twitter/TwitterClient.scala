@@ -6,7 +6,16 @@ import scala.util.{Try,Success,Failure}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
+
 import java.util.concurrent.TimeUnit
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+import java.time.Instant
+import java.time.format.DateTimeFormatter
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
+
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Keep
@@ -15,6 +24,12 @@ import akka.stream.ActorMaterializer
 import akka.stream._
 import akka.stream.scaladsl._
 import akka.util.ByteString
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.HttpRequest
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.HttpMethod
+import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.HttpMethods
 
 import requests._
 
@@ -23,22 +38,7 @@ import spray.json._
 import io.syspulse.skel.Ingestable
 import io.syspulse.skel.uri.TwitterURI
 import io.syspulse.skel.service.JsonCommon
-
-import spray.json._
-import java.time.Instant
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import io.syspulse.skel.util.Util
-import java.util.Base64
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.model.HttpMethod
-import akka.http.scaladsl.model.headers.RawHeader
-import akka.http.scaladsl.model.HttpMethods
-import java.time.format.DateTimeFormatter
-import java.time.OffsetDateTime
-import java.time.ZoneOffset
 
 case class TwitterSearchData(
   author_id:String,
@@ -141,18 +141,20 @@ trait TwitterClient[T <: Ingestable] {
   val tsFormatISO = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.000'Z'")
   val tsFormatISOParse = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSX")
 
-  def source(consumerKey:String,consumerSecret:String,accessKey:String,accessSecret:String,followUsers:Set[String]) = {
+  def source(consumerKey:String,consumerSecret:String,
+             accessKey:String,accessSecret:String,followUsers:Set[String],
+             pastHours:Int,
+             frameDelimiter:String,frameSize:Int) = {
     // try to login
     val accessToken = login(consumerKey,consumerSecret) match {
       case Success(token) => token
       case Failure(e) => throw e
     }    
     
-    val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30).minusHours(1).format(tsFormatISO)
+    // go into the past by speicif time hour
+    val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30).minusHours(pastHours).format(tsFormatISO)
     val ts1 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30).format(tsFormatISO)
 
-    //val followId = followUsers.map(_.toLong)
-    //val users = followId.map(id => (id -> id.toString)).toMap
     val slug = URLEncoder.encode(
       s"(${followUsers.map(u => s"from:${u}").mkString(" OR ")})",
       StandardCharsets.UTF_8.toString()
@@ -203,21 +205,21 @@ trait TwitterClient[T <: Ingestable] {
       //            doing it only for consistency
       .map( t => ByteString(t.toJson.compactPrint))
 
-    // if(frameDelimiter.isEmpty())
-    //   s0
-    // else
-    //   s0.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))   
-
-    s0
+    if(frameDelimiter.isEmpty())
+      s0
+    else
+      s0.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))   
+    
   }
-
 }
 
 class FromTwitter[T <: Ingestable](uri:String) extends TwitterClient[T] {
   val twitterUri = TwitterURI(uri)
     
-  def source():Source[ByteString,_] = 
+  def source(pastHours:Option[Int] = None, frameDelimiter:String="\n",frameSize:Int = 8192):Source[ByteString,_] = 
     source(twitterUri.consumerKey,twitterUri.consumerSecret,
            twitterUri.accessKey,twitterUri.accessSecret,
-           twitterUri.follow.toSet)
+           twitterUri.follow.toSet,
+           pastHours.getOrElse(twitterUri.past),
+           frameDelimiter,frameSize)
 }

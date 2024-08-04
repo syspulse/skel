@@ -695,14 +695,14 @@ lazy val ingest_twitter = (project in file("skel-ingest/ingest-twitter"))
     appDockerConfig("ingest-twitter",appBootClassElastic),
 
     libraryDependencies ++= Seq(
-      //libTwitter4s,
+      //libTwitter4s, // deprecated, not supported any longer
 
       libRequests
     ),  
   )
 
 lazy val ingest = (project in file("skel-ingest"))
-  .dependsOn(core, serde, ingest_core, ingest_elastic, kafka)
+  .dependsOn(core, serde, ingest_core, ingest_elastic, kafka, ingest_twitter)
   //.enablePlugins(JavaAppPackaging)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (

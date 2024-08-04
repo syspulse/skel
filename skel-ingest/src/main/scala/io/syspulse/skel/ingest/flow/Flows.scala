@@ -50,12 +50,14 @@ import io.getquill._
 import io.getquill.context._
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 
-import io.syspulse.skel.Ingestable
 import io.syspulse.skel
+import io.syspulse.skel.Ingestable
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.elastic.ElasticClient
 import io.syspulse.skel.uri.ElasticURI
 import io.syspulse.skel.uri.KafkaURI
+import io.syspulse.skel.uri.TwitterURI
+import io.syspulse.skel.elastic.ElasticClient
+import io.syspulse.skel.twitter.FromTwitter
 
 import spray.json.JsonFormat
 import java.nio.file.StandardOpenOption
@@ -479,6 +481,13 @@ object Flows {
     // else
     //   s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))    
     s
+  }
+
+  def fromTwitter[T <: Ingestable](uri:String, frameDelimiter:String="\n",frameSize:Int=1024 * 1024,retry:RestartSettings=retrySettingsDefault)
+    (implicit as:ActorSystem,timeout:FiniteDuration) = { 
+
+    val twitter = new FromTwitter[T](uri)
+    twitter.source(frameDelimiter,frameSize)
   }
 
 // ==================================================================================================
