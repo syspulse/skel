@@ -143,16 +143,22 @@ trait TwitterClient[T <: Ingestable] {
 
   def source(consumerKey:String,consumerSecret:String,
              accessKey:String,accessSecret:String,followUsers:Set[String],
-             pastHours:Int,
+             past:Long, // how far to check the past on each request (in milliseconds)
+             freq:Long, // how often to check API
              frameDelimiter:String,frameSize:Int) = {
+    
     // try to login
     val accessToken = login(consumerKey,consumerSecret) match {
       case Success(token) => token
       case Failure(e) => throw e
     }    
+
+    // expiration check
+    val freqExpire = freq
     
     // go into the past by speicif time hour
-    val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30).minusHours(pastHours).format(tsFormatISO)
+    //val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30).minusHours(pastHours).format(tsFormatISO)
+    val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30 + past / 1000L).format(tsFormatISO)
     val ts1 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30).format(tsFormatISO)
 
     val slug = URLEncoder.encode(
@@ -166,49 +172,95 @@ trait TwitterClient[T <: Ingestable] {
       method = HttpMethods.GET,
       headers = Seq(RawHeader("Authorization",s"Bearer ${accessToken}"))
     )
-
-    val f = Http()
+    
+    val f = Http()    
     .singleRequest(req)
     .flatMap(res => { 
       res.status match {
         case StatusCodes.OK => 
           val body = res.entity.dataBytes.runReduce(_ ++ _)
-          Future(Source.future(body))
+          //Future(Source.future(body))
+          body
         case _ => 
           val body = Await.result(res.entity.dataBytes.runReduce(_ ++ _),FiniteDuration(1000L,TimeUnit.MILLISECONDS)).utf8String
           log.error(s"${req}: ${res.status}: body=${body}")
           throw new Exception(s"${req}: ${res.status}")
           // not really reachable... But looks extra-nice :-/
-          Future(Source.future(Future(ByteString(body))))
+          //Future(Source.future(Future(ByteString(body))))
       }      
     })    
 
     val s0 = Source
-      .futureSource { f }
+      .tick(FiniteDuration(250,TimeUnit.MILLISECONDS),FiniteDuration(freq,TimeUnit.MILLISECONDS),() => System.currentTimeMillis())
+      .map(fun => {
+        // just for logging HTTP requests
+        val ts = fun()
+        log.info(s"$followUsers --> ${twitterUrlSearch}")
+        ts
+      })  
+      .mapAsync(1)(_ => f)
       .mapConcat(body => {
         val rsp = body.utf8String.parseJson.convertTo[TwitterSearchRecent]
         val users = rsp.includes.users
-        val tweets = rsp.data.flatMap( d => {
-          val userId = users.find(_.id == d.author_id)
+        val tweets = rsp.data.flatMap( td => {
+          val userId = users.find(_.id == td.author_id)
           userId.map(u => Tweet(
-            id = d.id,
-            author_id = d.author_id,
+            id = td.id,
+            author_id = td.author_id,
             author_name = u.name,
-            text = d.text,
-            created_at = OffsetDateTime.parse(d.created_at,tsFormatISOParse).toInstant.toEpochMilli
-          ))          
+            text = td.text,
+            created_at = OffsetDateTime.parse(td.created_at,tsFormatISOParse).toInstant.toEpochMilli
+          ))   
         })
+        .map(t => {
+          log.debug(s"${t}")
+          t
+        })
+        .groupBy(_.author_id)           
+        .map{ case(authorId,tt) => {
+          log.info(s"author=${authorId} (${tt.head.author_name}): tweets=(${tt.size})")
+          // get latest Tweet
+          tt.maxBy(_.created_at)
+        }}
+
         tweets
       })
-      // convert back to String to be Pipeline Compatible
-      // ATTENTION: On previous step it was not needed to json-ize
-      //            doing it only for consistency
-      .map( t => ByteString(t.toJson.compactPrint))
+    
+    // deduplication flow
+    val s1 = s0
+      .groupedWithin(followUsers.size,FiniteDuration(freq,TimeUnit.MILLISECONDS))
+      .statefulMapConcat { () =>
+        var state = List.empty[Tweet]
+        var lastCheckTs = System.currentTimeMillis()
+        (tt) => {
+          val uniq = tt.filter(t => ! state.find(_.id == t.id).isDefined)
+          state =  state.prependedAll( uniq )
+
+          val now = System.currentTimeMillis()
+          val age = now - lastCheckTs
+          if( age >= freqExpire ) {            
+            state = state.takeWhile(t => t.created_at >= (now - past) )
+            lastCheckTs = now
+            //println(s"*********> Expiration check: state=${state.map(_.id)}: uniq=${uniq.map(_.id)}")
+          }
+          
+          //println(s"==========> state=${state.map(_.id)}: uniq=${uniq.map(_.id)}")
+          uniq
+        }
+      }     
+
+    //val s1 = s0
+      
+    // convert back to String to be Pipeline Compatible
+    // ATTENTION: On previous step it was not needed to json-ize
+    //            doing it only for consistency
+    // NOTE: Insert `\n` (newline) for Pipeline compatibility
+    val s2 = s1.map( t => ByteString(s"${t.toJson.compactPrint}\n"))
 
     if(frameDelimiter.isEmpty())
-      s0
+      s2
     else
-      s0.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))   
+      s2.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))   
     
   }
 }
@@ -216,10 +268,12 @@ trait TwitterClient[T <: Ingestable] {
 class FromTwitter[T <: Ingestable](uri:String) extends TwitterClient[T] {
   val twitterUri = TwitterURI(uri)
     
-  def source(pastHours:Option[Int] = None, frameDelimiter:String="\n",frameSize:Int = 8192):Source[ByteString,_] = 
+  def source(frameDelimiter:String="\n",frameSize:Int = 8192):Source[ByteString,_] = 
     source(twitterUri.consumerKey,twitterUri.consumerSecret,
            twitterUri.accessKey,twitterUri.accessSecret,
            twitterUri.follow.toSet,
-           pastHours.getOrElse(twitterUri.past),
-           frameDelimiter,frameSize)
+           twitterUri.past,
+           twitterUri.freq,
+           frameDelimiter,
+           frameSize)
 }
