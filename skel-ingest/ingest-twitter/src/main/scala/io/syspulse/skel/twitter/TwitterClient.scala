@@ -40,11 +40,46 @@ import java.time.format.DateTimeFormatter
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
-object TweetJson extends JsonCommon with DefaultJsonProtocol {
-  // implicit val jf_twit_cont = jsonFormat3(Contributor)
-  // implicit val jf_twit_coords = jsonFormat2(Coordinates)
-  // implicit val jf_twit_coord = jsonFormat2(Coordinate)
-  
+case class TwitterSearchData(
+  author_id:String,
+  text:String,
+  //edit_history_tweet_ids:Seq[String]
+  id:String,
+  created_at:String
+)
+
+case class TwitterSearchUser(
+  created_at:String,
+  name:String,
+  username:String,
+  id:String,  
+)
+
+case class TwitterSearchIncludes(
+  users:Seq[TwitterSearchUser]
+)
+
+
+case class TwitterSearchRecent(
+  data:Seq[TwitterSearchData],
+  includes:TwitterSearchIncludes
+)
+
+case class Tweet(
+  id:String,
+  author_id:String,
+  author_name:String,
+  text:String,
+  created_at:Long
+)
+
+object TweetJson extends JsonCommon {
+  implicit val jf_twit_sea_d = jsonFormat4(TwitterSearchData)
+  implicit val jf_twit_sea_u = jsonFormat4(TwitterSearchUser)
+  implicit val jf_twit_sea_inc = jsonFormat1(TwitterSearchIncludes)
+  implicit val jf_twit_sea_rec = jsonFormat2(TwitterSearchRecent)  
+
+  implicit val jf_twit_tw = jsonFormat5(Tweet)  
 }
 
 trait TwitterClient[T <: Ingestable] {
@@ -104,6 +139,7 @@ trait TwitterClient[T <: Ingestable] {
   //implicit val fmt:JsonFormat[T]  
 
   val tsFormatISO = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.000'Z'")
+  val tsFormatISOParse = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSX")
 
   def source(consumerKey:String,consumerSecret:String,accessKey:String,accessSecret:String,followUsers:Set[String]) = {
     // try to login
@@ -143,9 +179,29 @@ trait TwitterClient[T <: Ingestable] {
           // not really reachable... But looks extra-nice :-/
           Future(Source.future(Future(ByteString(body))))
       }      
-    })
+    })    
 
-    val s0 = Source.futureSource { f }
+    val s0 = Source
+      .futureSource { f }
+      .mapConcat(body => {
+        val rsp = body.utf8String.parseJson.convertTo[TwitterSearchRecent]
+        val users = rsp.includes.users
+        val tweets = rsp.data.flatMap( d => {
+          val userId = users.find(_.id == d.author_id)
+          userId.map(u => Tweet(
+            id = d.id,
+            author_id = d.author_id,
+            author_name = u.name,
+            text = d.text,
+            created_at = OffsetDateTime.parse(d.created_at,tsFormatISOParse).toInstant.toEpochMilli
+          ))          
+        })
+        tweets
+      })
+      // convert back to String to be Pipeline Compatible
+      // ATTENTION: On previous step it was not needed to json-ize
+      //            doing it only for consistency
+      .map( t => ByteString(t.toJson.compactPrint))
 
     // if(frameDelimiter.isEmpty())
     //   s0

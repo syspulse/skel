@@ -34,7 +34,7 @@
 
 // //case class Twit(f1:String,f2:Option[String])
 
-// object TweetJson extends JsonCommon with DefaultJsonProtocol {
+// object TweetJsonV1 extends JsonCommon with DefaultJsonProtocol {
 //   implicit val jf_twit_cont = jsonFormat3(Contributor)
 //   implicit val jf_twit_coords = jsonFormat2(Coordinates)
 //   implicit val jf_twit_coord = jsonFormat2(Coordinate)
@@ -79,7 +79,7 @@
 
 //   //def timeout() = Duration("3 seconds")  
 
-//   import TweetJson._
+//   import TweetJsonV1._
 //   //implicit val fmt:JsonFormat[T]  
 
 //   def source(consumerKey:String,consumerSecret:String,accessKey:String,accessSecret:String,followUsers:Set[String]) = {
