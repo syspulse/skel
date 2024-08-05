@@ -59,10 +59,15 @@ case class TwitterSearchIncludes(
   users:Seq[TwitterSearchUser]
 )
 
+case class TwitterSearchMeta(
+  result_count:Int
+)
+
 
 case class TwitterSearchRecent(
-  data:Seq[TwitterSearchData],
-  includes:TwitterSearchIncludes
+  data:Option[Seq[TwitterSearchData]],
+  includes:Option[TwitterSearchIncludes],
+  meta:TwitterSearchMeta
 )
 
 case class Tweet(
@@ -74,10 +79,11 @@ case class Tweet(
 )
 
 object TweetJson extends JsonCommon {
+  implicit val jf_twit_met_res = jsonFormat1(TwitterSearchMeta)
   implicit val jf_twit_sea_d = jsonFormat4(TwitterSearchData)
   implicit val jf_twit_sea_u = jsonFormat4(TwitterSearchUser)
   implicit val jf_twit_sea_inc = jsonFormat1(TwitterSearchIncludes)
-  implicit val jf_twit_sea_rec = jsonFormat2(TwitterSearchRecent)  
+  implicit val jf_twit_sea_rec = jsonFormat3(TwitterSearchRecent)  
 
   implicit val jf_twit_tw = jsonFormat5(Tweet)  
 }
@@ -205,30 +211,35 @@ trait TwitterClient[T <: Ingestable] {
       })  
       .mapAsync(1)(_ => request())
       .mapConcat(body => {
-        val rsp = body.utf8String.parseJson.convertTo[TwitterSearchRecent]
-        val users = rsp.includes.users
-        val tweets = rsp.data.flatMap( td => {
-          val userId = users.find(_.id == td.author_id)
-          userId.map(u => Tweet(
-            id = td.id,
-            author_id = td.author_id,
-            author_name = u.name,
-            text = td.text,
-            created_at = OffsetDateTime.parse(td.created_at,tsFormatISOParse).toInstant.toEpochMilli
-          ))   
-        })
-        .map(t => {
-          log.debug(s"${t}")
-          t
-        })
-        .groupBy(_.author_id)           
-        .map{ case(authorId,tt) => {
-          log.info(s"author=${authorId} (${tt.head.author_name}): tweets=(${tt.size})")
-          // get latest Tweet
-          tt.maxBy(_.created_at)
-        }}
+        log.debug(s"body='${body.utf8String}'")
 
-        tweets
+        val rsp = body.utf8String.parseJson.convertTo[TwitterSearchRecent]
+        if(rsp.meta.result_count != 0) {
+
+          val users = rsp.includes.get.users
+          val tweets = rsp.data.get.flatMap( td => {
+            val userId = users.find(_.id == td.author_id)
+            userId.map(u => Tweet(
+              id = td.id,
+              author_id = td.author_id,
+              author_name = u.name,
+              text = td.text,
+              created_at = OffsetDateTime.parse(td.created_at,tsFormatISOParse).toInstant.toEpochMilli
+            ))   
+          })
+          .map(t => {
+            log.debug(s"${t}")
+            t
+          })
+          .groupBy(_.author_id)           
+          .map{ case(authorId,tt) => {
+            log.info(s"author=${authorId} (${tt.head.author_name}): tweets=(${tt.size})")
+            // get latest Tweet
+            tt.maxBy(_.created_at)
+          }}
+
+          tweets
+        } else Seq.empty
       })
     
     // deduplication flow
