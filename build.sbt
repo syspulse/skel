@@ -1220,3 +1220,22 @@ lazy val blockchain_rpc = (project in file("skel-blockchain/blockchain-rpc"))
       // this is important option to support latest log4j2 
       //assembly / packageOptions += sbt.Package.ManifestAttributes("Multi-Release" -> "true")
     )
+
+lazy val skel_ai = (project in file("skel-ai"))
+  .dependsOn(core,syslog_core,auth_core,ingest)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  // .enablePlugins(AshScriptPlugin)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("skel-ai","io.syspulse.skel.ai.App"),
+
+    libraryDependencies ++= libSkel ++ libHttp ++ libTest ++ Seq(
+      
+    ),  
+  )
