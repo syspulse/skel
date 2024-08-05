@@ -156,49 +156,54 @@ trait TwitterClient[T <: Ingestable] {
     // expiration check
     val freqExpire = freq
     
-    // go into the past by speicif time hour
-    //val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30).minusHours(pastHours).format(tsFormatISO)
-    val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30 + past / 1000L).format(tsFormatISO)
-    val ts1 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30).format(tsFormatISO)
-
-    val slug = URLEncoder.encode(
-      s"(${followUsers.map(u => s"from:${u}").mkString(" OR ")})",
-      StandardCharsets.UTF_8.toString()
-    )
-
-    val req = HttpRequest(
-      //uri = s"${twitterUrlSearch}/stream?tweet.fields=id,source,text,username&expansions=author_id",
-      uri = s"${twitterUrlSearch}/recent?query=${slug}&tweet.fields=created_at&expansions=author_id&user.fields=created_at&start_time=${ts0}&end_time=${ts1}",
-      method = HttpMethods.GET,
-      headers = Seq(RawHeader("Authorization",s"Bearer ${accessToken}"))
-    )
     
-    val f = Http()    
-    .singleRequest(req)
-    .flatMap(res => { 
-      res.status match {
-        case StatusCodes.OK => 
-          val body = res.entity.dataBytes.runReduce(_ ++ _)
-          //Future(Source.future(body))
-          body
-        case _ => 
-          val body = Await.result(res.entity.dataBytes.runReduce(_ ++ _),FiniteDuration(1000L,TimeUnit.MILLISECONDS)).utf8String
-          log.error(s"${req}: ${res.status}: body=${body}")
-          throw new Exception(s"${req}: ${res.status}")
-          // not really reachable... But looks extra-nice :-/
-          //Future(Source.future(Future(ByteString(body))))
-      }      
-    })    
+    def request() = {
+      // go into the past by speicif time hour
+      //val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30).minusHours(pastHours).format(tsFormatISO)
+      val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30 + past / 1000L).format(tsFormatISO)
+      val ts1 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30).format(tsFormatISO)
+
+      val slug = URLEncoder.encode(
+        s"(${followUsers.map(u => s"from:${u}").mkString(" OR ")})",
+        StandardCharsets.UTF_8.toString()
+      )
+
+      val req = HttpRequest(
+        //uri = s"${twitterUrlSearch}/stream?tweet.fields=id,source,text,username&expansions=author_id",
+        uri = s"${twitterUrlSearch}/recent?query=${slug}&tweet.fields=created_at&expansions=author_id&user.fields=created_at&start_time=${ts0}&end_time=${ts1}",
+        method = HttpMethods.GET,
+        headers = Seq(RawHeader("Authorization",s"Bearer ${accessToken}"))
+      )
+
+      log.info(s"--> ${req.uri}")
+
+      Http() 
+      .singleRequest(req)
+      .flatMap(res => { 
+        res.status match {
+          case StatusCodes.OK => 
+            val body = res.entity.dataBytes.runReduce(_ ++ _)
+            //Future(Source.future(body))
+            body
+          case _ => 
+            val body = Await.result(res.entity.dataBytes.runReduce(_ ++ _),FiniteDuration(1000L,TimeUnit.MILLISECONDS)).utf8String
+            log.error(s"${req}: ${res.status}: body=${body}")
+            throw new Exception(s"${req}: ${res.status}")
+            // not really reachable... But looks extra-nice :-/
+            //Future(Source.future(Future(ByteString(body))))
+        }      
+      })
+    }
 
     val s0 = Source
       .tick(FiniteDuration(250,TimeUnit.MILLISECONDS),FiniteDuration(freq,TimeUnit.MILLISECONDS),() => System.currentTimeMillis())
       .map(fun => {
         // just for logging HTTP requests
         val ts = fun()
-        log.info(s"$followUsers --> ${twitterUrlSearch}")
+        // log.info(s"$followUsers --> ${twitterUrlSearch}")
         ts
       })  
-      .mapAsync(1)(_ => f)
+      .mapAsync(1)(_ => request())
       .mapConcat(body => {
         val rsp = body.utf8String.parseJson.convertTo[TwitterSearchRecent]
         val users = rsp.includes.users

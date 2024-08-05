@@ -34,7 +34,8 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 14. ```tails://dir```                           - Tail directory for new files
 15. ```ws://host:port/path```                   - Websocket Client to remote Websocket server
 16. ```twitter://key:secret/id1,id2```          - Get tweets from a list of twitter handles. It uses TwitterV2 API and needs key:secret to work.
-                                                  It is not streaming and polling, so use `clock://10000://twitter://` or cron
+                                                  It is not streaming and polling, so use `?freq=millis&past=millis` for frequency and past
+                                                  NOTE: using `clock://10000://twitter://` it will not be able to deduplicate
                                                   Twitter streaming requires Pro subscription and not supported due to Elon's attitude to community
 
 ## Output Feeds
