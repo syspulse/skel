@@ -3,9 +3,9 @@ package io.syspulse.skel.uri
 import io.syspulse.skel.util.Util
 
 /* 
-twitter://consumer_key:consumer_secret/access_key:access_secret/id,id,...
-twitter://consumer_key:consumer_secret/id,id,id
-twitter://consumer_key:consumer_secret/id,id?past=3600000&freq=30000
+twitter://consumer_key:consumer_secret/access_key:access_secret@id,id,...
+twitter://consumer_key:consumer_secret@id,id,id
+twitter://consumer_key:consumer_secret@id,id?past=3600000&freq=30000
 */
 case class TwitterURI(uri:String) {
   val PREFIX = "twitter://"
@@ -38,7 +38,7 @@ case class TwitterURI(uri:String) {
         ("",Map())
     }
     
-    url.stripPrefix(PREFIX).split("[:/]").toList match {
+    url.stripPrefix(PREFIX).split("[:/@]").toList match {
       case consumerKey :: consumerSecret :: follow :: Nil => 
         ( Util.replaceEnvVar(consumerKey),Util.replaceEnvVar(consumerSecret),
           "","",
