@@ -63,7 +63,6 @@ object OpenAi_Json extends JsonCommon {
   
   implicit val jf_oai_req_msg = jsonFormat2(OpenAi_ChatReqMsg)
   implicit val jf_oai_req = jsonFormat2(OpenAi_ChatReq)
-  
 }
 
 class OpenAi(uri:String) {
@@ -86,7 +85,7 @@ class OpenAi(uri:String) {
       )
     ).toJson.compactPrint
           
-    log.info(s"asking: ${modelReq}: '${question.take(32)}' -> ${url}")
+    log.info(s"asking: ${modelReq}: '${question.take(32).replaceAll("\n","\\\\n")}...(${question.size})' -> ${url}")
           
     try {
       val r = requests.post(

@@ -31,5 +31,7 @@ trait AiStore extends Store[Ai,String] {
   
   def all:Seq[Ai] = all(None)
   def del(question:String):Try[String] = del(question,None).map(_ => question)  
+
+  def getProviderId():String
 }
 

@@ -9,6 +9,7 @@ import com.typesafe.scalalogging.Logger
 import io.jvm.uuid._
 
 import io.syspulse.ai.{Ai}
+import io.syspulse.skel.util.Util
 
 class AiStoreMem extends AiStore {
   val log = Logger(s"${this}")
@@ -27,14 +28,14 @@ class AiStoreMem extends AiStore {
     ais.values.filter(_.oid == Some(oid)).toSeq
 
   def +++(w:Ai):Try[Ai] = {     
-    ais = ais + (w.question.toLowerCase -> w)
+    ais = ais + (Util.sha256(w.question.toLowerCase) -> w)
     Success(w)
   }
 
   def +(w:Ai):Try[Ai] = +++(w)
 
   def del(question0:String,oid:Option[String]):Try[Ai] = {         
-    val question = question0.toLowerCase
+    val question = Util.sha256(question0.toLowerCase)
     ais.get(question) match {
       case Some(w) if w.oid == oid =>
         ais = ais - question
@@ -44,7 +45,7 @@ class AiStoreMem extends AiStore {
     }
   }
 
-  def ???(question:String,oid:Option[String]):Try[Ai] = ais.get(question.toLowerCase) match {
+  def ???(question:String,oid:Option[String]):Try[Ai] = ais.get(Util.sha256(question.toLowerCase)) match {
     case Some(w) if(!oid.isDefined) => Success(w)
     case Some(w) if(w.oid == oid) => Success(w)
     case _ => Failure(new Exception(s"not found: ${question}"))
@@ -52,4 +53,5 @@ class AiStoreMem extends AiStore {
 
   def ????(question:String,model:Option[String],oid:Option[String]):Try[Ai] =  ???(question,oid)
  
+  def getProviderId():String = "cache"
 }
