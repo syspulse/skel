@@ -108,7 +108,7 @@ trait TwitterClient[T <: Ingestable] {
 
     val basic64 = Base64.getEncoder().encodeToString(basic.getBytes())
     
-    log.info(s"Login -> ${url}... Credentials: '${basic64}' (${basic})")
+    log.info(s"Login -> ${url} ...")
 
     try {      
       val body = s"""grant_type=client_credentials"""
@@ -121,7 +121,7 @@ trait TwitterClient[T <: Ingestable] {
         data = body
       )      
 
-      log.info(s"login: ${r}")
+      log.debug(s"login: ${r}")
 
       try {
         val auth = ujson.read(r.text())
