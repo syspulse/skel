@@ -29,7 +29,7 @@ object PluginEngine {
       case ("jars" | "jar") :: mask :: Nil => new PluginStoreJar(classMask = mask)
       case ("jars" | "jar") :: dir :: mask :: Nil => new PluginStoreJar(dir,classMask = mask)
 
-      case className :: _ => new PluginStoreClasspath(className)
+      case classNames :: _ => new PluginStoreClasspath(classNames)
       case _ => new PluginStoreMem()
     }
 

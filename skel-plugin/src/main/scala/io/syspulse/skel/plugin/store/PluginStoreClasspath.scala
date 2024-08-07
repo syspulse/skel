@@ -20,11 +20,11 @@ import java.net.JarURLConnection
 import java.util.jar.JarFile
 import java.net.URL
 
-class PluginStoreClasspath(className:String,root: Option[Class[_]] = None) extends PluginStoreMem {
+class PluginStoreClasspath(classNames0:String,root: Option[Class[_]] = None) extends PluginStoreMem {
 
   def scan() = {
     val cl = root.getOrElse(this).getClass.getClassLoader
-    val classNames = className.split(",").toSeq
+    val classNames = classNames0.split(",").map(_.trim).filter(! _.isBlank).toSeq
     PluginStoreJava.loadFromClasspath(cl,classNames)        
   } 
 
