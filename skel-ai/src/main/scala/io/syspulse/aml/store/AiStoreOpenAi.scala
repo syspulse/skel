@@ -23,7 +23,7 @@ import io.syspulse.skel.util.Util
 import io.syspulse.ai.source.openai.OpenAi
 
 // Preload from file during start
-class AiStoreOpenAi(uri:String,dir:String) extends StoreDir[Ai,String](dir) with AiStore with JsonCommon {
+class AiStoreOpenAi(uri:String) extends AiStore with JsonCommon {
 
   // TODO: Change !
   val engine = new OpenAi(Util.replaceEnvVar(uri))
@@ -38,7 +38,6 @@ class AiStoreOpenAi(uri:String,dir:String) extends StoreDir[Ai,String](dir) with
   
   override def +++(w:Ai):Try[Ai] = for {
     _ <- store.+(w)
-    _ <- super.+(w)
   } yield w
 
   override def +(w:Ai):Try[Ai] = store.+(w).map(_ => w)
@@ -66,12 +65,7 @@ class AiStoreOpenAi(uri:String,dir:String) extends StoreDir[Ai,String](dir) with
   override def findByOid(oid:String):Seq[Ai] = store.findByOid(oid)
 
   def getProviderId():String = "openai"
-  
-  // preload and watch  
-  watch(
-    load(dir)
-  )
-  
+    
   // add test questioness
   //`+`(Ai("0x0000000000000000000000000000000000000007",Seq("Ai","test"),0L,oid=Some(Sources.GLOBAL_LEDGER))))
   //`+`(Ai("0x0000000000000000000000000000000000001012",Seq("Ai","test"),0L,oid=Some(Sources.GLOBAL_LEDGER))))

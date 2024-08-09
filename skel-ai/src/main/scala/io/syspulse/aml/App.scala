@@ -93,9 +93,8 @@ object App extends skel.Server {
     Console.err.println(s"Config: ${config}")
     
     val store = config.datastore.split("://").toList match {
-      case "openai" :: Nil => new AiStoreOpenAi(config.datastore,"store")
-      case "openai" :: uri :: Nil => new AiStoreOpenAi(uri,"store")
-      case "openai" :: uri :: dir :: _ => new AiStoreOpenAi(uri,dir)
+      case "openai" :: Nil => new AiStoreOpenAi(config.datastore)
+      case "openai" :: uri :: Nil => new AiStoreOpenAi(uri)      
       // case "claude" :: Nil => new AiStoreClaude()
       // case "claude" :: dir :: _ => new AiStoreClaude(dir)
       case "mem" :: _ => new AiStoreMem()
