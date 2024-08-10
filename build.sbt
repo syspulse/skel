@@ -1226,7 +1226,7 @@ lazy val blockchain_rpc = (project in file("skel-blockchain/blockchain-rpc"))
     )
 
 lazy val skel_ai = (project in file("skel-ai"))
-  .dependsOn(core,syslog_core,auth_core,ingest)
+  .dependsOn(core,auth_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -1241,5 +1241,20 @@ lazy val skel_ai = (project in file("skel-ai"))
 
     libraryDependencies ++= libSkel ++ libHttp ++ libTest ++ Seq(
       
+    ),  
+  )
+
+lazy val skel_dns = (project in file("skel-dns"))
+  .dependsOn(core)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,      
+    name := "skel-dns",
+    //appDockerConfig("skel-dns","io.syspulse.skel.dns.App"),
+
+    libraryDependencies ++= libSkel ++ libTest ++ Seq(
+      libApacheCommonsNet,
+      libDnsJava
     ),  
   )

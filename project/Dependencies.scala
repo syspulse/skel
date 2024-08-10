@@ -235,7 +235,11 @@ object Dependencies {
     val libHadoopLZO =        "hadoop-lzo"                    % "hadoop-lzo"                      % "0.4.15"
     val libSparkCore =        "org.apache.spark"              %% "spark-core"                     % sparkVersion
     val libSparkSQL =         "org.apache.spark"              %% "spark-sql"                      % sparkVersion
-  
+
+    val libApacheCommonsNet = "commons-net"                   % "commons-net"                      % "3.11.1"
+    val libDnsJava =          "dnsjava"                       % "dnsjava"                         % "3.6.1"
+
+   // ---------------------------------------------------------------------------------------------------------------------
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)
