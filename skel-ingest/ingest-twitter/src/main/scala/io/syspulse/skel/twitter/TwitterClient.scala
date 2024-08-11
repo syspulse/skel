@@ -70,7 +70,7 @@ case class TwitterSearchRecent(
   meta:TwitterSearchMeta
 )
 
-case class Tweet(
+case class Twit(
   id:String,
   author_id:String,
   author_name:String,
@@ -78,18 +78,20 @@ case class Tweet(
   created_at:Long
 )
 
-object TweetJson extends JsonCommon {
+object TwitJson extends JsonCommon {
   implicit val jf_twit_met_res = jsonFormat1(TwitterSearchMeta)
   implicit val jf_twit_sea_d = jsonFormat4(TwitterSearchData)
   implicit val jf_twit_sea_u = jsonFormat4(TwitterSearchUser)
   implicit val jf_twit_sea_inc = jsonFormat1(TwitterSearchIncludes)
   implicit val jf_twit_sea_rec = jsonFormat3(TwitterSearchRecent)  
 
-  implicit val jf_twit_tw = jsonFormat5(Tweet)  
+  implicit val jf_twit_tw = jsonFormat5(Twit)  
 }
 
 trait TwitterClient[T <: Ingestable] {
   val log = Logger(s"${this}")
+  
+  import TwitJson._
 
   val twitterUrlAuth = "https://api.twitter.com/oauth2"
   val twitterUrlSearch = "https://api.twitter.com/2/tweets/search"
@@ -140,15 +142,15 @@ trait TwitterClient[T <: Ingestable] {
         Failure(e)
     }    
   }
-
-  import TweetJson._
-  //implicit val fmt:JsonFormat[T]  
-
+  
   val tsFormatISO = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.000'Z'")
   val tsFormatISOParse = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSX")
 
+  def getChannels():Set[String]
+
   def source(consumerKey:String,consumerSecret:String,
-             accessKey:String,accessSecret:String,followUsers:Set[String],
+             accessKey:String,accessSecret:String,
+             //followUsers:Set[String],
              past:Long, // how far to check the past on each request (in milliseconds)
              freq:Long, // how often to check API
              frameDelimiter:String,frameSize:Int) = {
@@ -163,7 +165,7 @@ trait TwitterClient[T <: Ingestable] {
     val freqExpire = freq
     
     
-    def request() = {
+    def request(followUsers:Set[String]) = {
       // go into the past by speicif time hour
       //val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30).minusHours(pastHours).format(tsFormatISO)
       val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30 + past / 1000L).format(tsFormatISO)
@@ -202,14 +204,14 @@ trait TwitterClient[T <: Ingestable] {
     }
 
     val s0 = Source
-      .tick(FiniteDuration(250,TimeUnit.MILLISECONDS),FiniteDuration(freq,TimeUnit.MILLISECONDS),() => System.currentTimeMillis())
+      .tick(FiniteDuration(250,TimeUnit.MILLISECONDS),FiniteDuration(freq,TimeUnit.MILLISECONDS),() => getChannels())
       .map(fun => {
-        // just for logging HTTP requests
-        val ts = fun()
-        // log.info(s"$followUsers --> ${twitterUrlSearch}")
-        ts
-      })  
-      .mapAsync(1)(_ => request())
+        val followUsers = fun()
+        log.info(s"${followUsers} --> ${twitterUrlSearch}")
+        followUsers
+      })
+      .filter(followUsers => followUsers.size > 0)
+      .mapAsync(1)(followUsers => request(followUsers))
       .mapConcat(body => {
         log.debug(s"body='${body.utf8String}'")
 
@@ -219,7 +221,7 @@ trait TwitterClient[T <: Ingestable] {
           val users = rsp.includes.get.users
           val tweets = rsp.data.get.flatMap( td => {
             val userId = users.find(_.id == td.author_id)
-            userId.map(u => Tweet(
+            userId.map(u => Twit(
               id = td.id,
               author_id = td.author_id,
               author_name = u.name,
@@ -234,7 +236,7 @@ trait TwitterClient[T <: Ingestable] {
           .groupBy(_.author_id)           
           .map{ case(authorId,tt) => {
             log.info(s"author=${authorId} (${tt.head.author_name}): tweets=(${tt.size})")
-            // get latest Tweet
+            // get latest Twit
             tt.maxBy(_.created_at)
           }}
 
@@ -244,9 +246,9 @@ trait TwitterClient[T <: Ingestable] {
     
     // deduplication flow
     val s1 = s0
-      .groupedWithin(followUsers.size,FiniteDuration(freq,TimeUnit.MILLISECONDS))
+      .groupedWithin(if(getChannels().size > 0) getChannels().size else 1,FiniteDuration(freq,TimeUnit.MILLISECONDS))
       .statefulMapConcat { () =>
-        var state = List.empty[Tweet]
+        var state = List.empty[Twit]
         var lastCheckTs = System.currentTimeMillis()
         (tt) => {
           val uniq = tt.filter(t => ! state.find(_.id == t.id).isDefined)
@@ -264,9 +266,25 @@ trait TwitterClient[T <: Ingestable] {
           uniq
         }
       }     
-
-    //val s1 = s0
       
+    s1
+  }
+}
+
+class FromTwitter[T <: Ingestable](uri:String) extends TwitterClient[T] {
+  val twitterUri = TwitterURI(uri)
+  import TwitJson._
+ 
+  def getChannels() = twitterUri.follow.toSet
+
+  def source(frameDelimiter:String="\n",frameSize:Int = 8192):Source[ByteString,_] = {
+    val s1 = source(twitterUri.consumerKey,twitterUri.consumerSecret,
+           twitterUri.accessKey,twitterUri.accessSecret,
+           //followUsers = twitterUri.follow.toSet,
+           twitterUri.past,
+           twitterUri.freq,
+           frameDelimiter,frameSize)
+
     // convert back to String to be Pipeline Compatible
     // ATTENTION: On previous step it was not needed to json-ize
     //            doing it only for consistency
@@ -277,19 +295,5 @@ trait TwitterClient[T <: Ingestable] {
       s2
     else
       s2.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))   
-    
   }
-}
-
-class FromTwitter[T <: Ingestable](uri:String) extends TwitterClient[T] {
-  val twitterUri = TwitterURI(uri)
-    
-  def source(frameDelimiter:String="\n",frameSize:Int = 8192):Source[ByteString,_] = 
-    source(twitterUri.consumerKey,twitterUri.consumerSecret,
-           twitterUri.accessKey,twitterUri.accessSecret,
-           twitterUri.follow.toSet,
-           twitterUri.past,
-           twitterUri.freq,
-           frameDelimiter,
-           frameSize)
 }

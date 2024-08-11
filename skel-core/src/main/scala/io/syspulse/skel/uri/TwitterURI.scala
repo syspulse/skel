@@ -39,6 +39,16 @@ case class TwitterURI(uri:String) {
     }
     
     url.stripPrefix(PREFIX).split("[:/@]").toList match {
+      // no users
+      case consumerKey :: consumerSecret :: Nil => 
+        ( Util.replaceEnvVar(consumerKey),Util.replaceEnvVar(consumerSecret),
+          "","",
+          Seq.empty,
+          ops.get("past").map(_.toLong).getOrElse(1000L * 60 * 60 * 24),
+          ops.get("freq").map(_.toLong).getOrElse(10000L),
+          ops
+        )
+
       case consumerKey :: consumerSecret :: follow :: Nil => 
         ( Util.replaceEnvVar(consumerKey),Util.replaceEnvVar(consumerSecret),
           "","",

@@ -18,7 +18,7 @@
 // import spray.json._
 
 // import com.danielasfregola.twitter4s.TwitterStreamingClient
-// import com.danielasfregola.twitter4s.entities.Tweet
+// import com.danielasfregola.twitter4s.entities.Twit
 // import com.danielasfregola.twitter4s.entities.ConsumerToken
 // import com.danielasfregola.twitter4s.entities.AccessToken
 // import com.danielasfregola.twitter4s.entities.Contributor
@@ -34,15 +34,15 @@
 
 // //case class Twit(f1:String,f2:Option[String])
 
-// object TweetJsonV1 extends JsonCommon with DefaultJsonProtocol {
+// object TwitJsonV1 extends JsonCommon with DefaultJsonProtocol {
 //   implicit val jf_twit_cont = jsonFormat3(Contributor)
 //   implicit val jf_twit_coords = jsonFormat2(Coordinates)
 //   implicit val jf_twit_coord = jsonFormat2(Coordinate)
 
 //   import DefaultJsonProtocol._
 
-//   implicit object TweetJsonFormat extends RootJsonFormat[Tweet] {
-//     override def write(obj: Tweet): JsValue = {
+//   implicit object TwitJsonFormat extends RootJsonFormat[Twit] {
+//     override def write(obj: Twit): JsValue = {
 //       JsObject( 
 //         // "contributors" -> JsArray(obj.contributors.map(_.toJson).toVector),
 //         // "coordinates" -> obj.coordinates.toJson,
@@ -59,9 +59,9 @@
 //       )
 //     }
 
-//     def read(json: JsValue): Tweet = {
+//     def read(json: JsValue): Twit = {
 //       val fields = json.asJsObject.fields
-//       Tweet(
+//       Twit(
 //         created_at = Instant.ofEpochMilli(fields("created_at").convertTo[Long]),
 //         id = fields("id").convertTo[Long],
 //         id_str = fields("id_str").convertTo[String],
@@ -79,7 +79,7 @@
 
 //   //def timeout() = Duration("3 seconds")  
 
-//   import TweetJsonV1._
+//   import TwitJsonV1._
 //   //implicit val fmt:JsonFormat[T]  
 
 //   def source(consumerKey:String,consumerSecret:String,accessKey:String,accessSecret:String,followUsers:Set[String]) = {
@@ -93,12 +93,12 @@
 //     val users = followId.map(id => (id -> id.toString)).toMap
 
 //     val (s0,mat0) = Source
-//       .queue[Tweet](1000, OverflowStrategy.backpressure)
+//       .queue[Twit](1000, OverflowStrategy.backpressure)
 //       .map(t => ByteString(t.toJson.compactPrint))
 //       .preMaterialize()
 
 //     val futureTwitter = client.filterStatuses(follow = followId.toSeq) {
-//       case tweet: Tweet => {
+//       case tweet: Twit => {
 //         tweet.retweeted_status match {
 //           case None => {
 //             if(followId.contains(tweet.user.get.id)) {
