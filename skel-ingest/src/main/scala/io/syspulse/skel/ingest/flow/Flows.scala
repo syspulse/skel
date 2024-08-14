@@ -487,10 +487,10 @@ object Flows {
     s
   }
 
-  def fromTwitter[T <: Ingestable](uri:String, frameDelimiter:String="\n",frameSize:Int=1024 * 1024,retry:RestartSettings=retrySettingsDefault)
+  def fromTwitter(uri:String, frameDelimiter:String="\n",frameSize:Int=1024 * 1024,retry:RestartSettings=retrySettingsDefault)
     (implicit as:ActorSystem,timeout:FiniteDuration) = { 
 
-    val twitter = new FromTwitter[T](uri)
+    val twitter = new FromTwitter(uri)
     twitter.source(frameDelimiter,frameSize)
   }
 

@@ -88,7 +88,7 @@ object TwitJson extends JsonCommon {
   implicit val jf_twit_tw = jsonFormat5(Twit)  
 }
 
-trait TwitterClient[T <: Ingestable] {
+trait TwitterClient {
   val log = Logger(s"${this}")
   
   import TwitJson._
@@ -153,6 +153,7 @@ trait TwitterClient[T <: Ingestable] {
              //followUsers:Set[String],
              past:Long, // how far to check the past on each request (in milliseconds)
              freq:Long, // how often to check API
+             max:Int,   // max results
              frameDelimiter:String,frameSize:Int) = {
     
     // try to login
@@ -178,7 +179,7 @@ trait TwitterClient[T <: Ingestable] {
 
       val req = HttpRequest(
         //uri = s"${twitterUrlSearch}/stream?tweet.fields=id,source,text,username&expansions=author_id",
-        uri = s"${twitterUrlSearch}/recent?query=${slug}&tweet.fields=created_at&expansions=author_id&user.fields=created_at&start_time=${ts0}&end_time=${ts1}",
+        uri = s"${twitterUrlSearch}/recent?query=${slug}&tweet.fields=created_at&expansions=author_id&user.fields=created_at&start_time=${ts0}&end_time=${ts1}%max_results=${max}",
         method = HttpMethods.GET,
         headers = Seq(RawHeader("Authorization",s"Bearer ${accessToken}"))
       )
@@ -258,11 +259,8 @@ trait TwitterClient[T <: Ingestable] {
           val age = now - lastCheckTs
           if( age >= freqExpire ) {            
             state = state.takeWhile(t => t.created_at >= (now - past) )
-            lastCheckTs = now
-            //println(s"*********> Expiration check: state=${state.map(_.id)}: uniq=${uniq.map(_.id)}")
+            lastCheckTs = now            
           }
-          
-          //println(s"==========> state=${state.map(_.id)}: uniq=${uniq.map(_.id)}")
           uniq
         }
       }     
@@ -271,7 +269,7 @@ trait TwitterClient[T <: Ingestable] {
   }
 }
 
-class FromTwitter[T <: Ingestable](uri:String) extends TwitterClient[T] {
+class FromTwitter(uri:String) extends TwitterClient {
   val twitterUri = TwitterURI(uri)
   import TwitJson._
  
@@ -283,6 +281,7 @@ class FromTwitter[T <: Ingestable](uri:String) extends TwitterClient[T] {
            //followUsers = twitterUri.follow.toSet,
            twitterUri.past,
            twitterUri.freq,
+           twitterUri.max,
            frameDelimiter,frameSize)
 
     // convert back to String to be Pipeline Compatible

@@ -8,8 +8,8 @@ import io.syspulse.skel.uri.TwitterURI
 
 object Twitter {
 
-  def fromTwitter[T <: Ingestable](uri:String) = {
-    val twitter = new FromTwitter[T](uri)
+  def fromTwitter(uri:String) = {
+    val twitter = new FromTwitter(uri)
     twitter.source()
   }
 
