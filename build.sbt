@@ -1254,6 +1254,7 @@ lazy val skel_dns = (project in file("skel-dns"))
     //appDockerConfig("skel-dns","io.syspulse.skel.dns.App"),
 
     libraryDependencies ++= libSkel ++ libTest ++ Seq(
+      libRequests,
       libApacheCommonsNet,
       libDnsJava
     ),  

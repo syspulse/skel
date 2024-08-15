@@ -60,6 +60,8 @@ object TimeUtil {
     if(w.charAt(0).isDigit) w.toLong else wordsMap.get(w.toLowerCase).getOrElse(0L)
   }
 
+  def wordToTs(word:String,default:Long = 0L):Try[Long] = wordToDate(word,default = default).map(_.toInstant().toEpochMilli())
+  
   // guess date from human 
   def wordToDate(word:String,tHour:Int = 0,tMin:Int=0,tSec:Int=0,default:Long = 0L):Try[ZonedDateTime] = {
     val pattern = word.trim.toLowerCase.replaceAll("\\s+","")
@@ -129,9 +131,8 @@ object TimeUtil {
       case Array(ts0,ts1) => (wordToDate(ts0),wordToDate(ts1,23,59,59))
       case Array(ts0,ts1,_) => (wordToDate(ts0),wordToDate(ts1,23,59,59))
     }
-  }
-  
-  def wordToTs(word:String,default:Long = 0L):Try[Long] = wordToDate(word,default = default).map(_.toInstant().toEpochMilli())
+  }    
+
   def wordToTsRage(word:String):(Try[Long],Try[Long]) = {
     val (d0,d1) = wordToDateRange(word)
     (d0.map(_.toInstant.toEpochMilli),d1.map(_.toInstant.toEpochMilli))

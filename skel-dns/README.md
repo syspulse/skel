@@ -1,6 +1,7 @@
 # DNS
 
-## Example
+## Examples
+
 
 ### Query IO zone
 

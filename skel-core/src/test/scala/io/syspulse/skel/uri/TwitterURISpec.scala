@@ -35,14 +35,15 @@ class TwitterURISpec extends AnyWordSpec with Matchers {
       u.past should === (2)
     }
 
-    "parse 'twitter://key1:secret1@1000,2000?past=2&freq=10000&frame=500'" in {
-      val u = TwitterURI("twitter://key1:secret1@1000,2000?past=2&freq=10000&frame=500")
+    "parse 'twitter://key1:secret1@1000,2000?past=2&freq=10000&frame=500&max=100'" in {
+      val u = TwitterURI("twitter://key1:secret1@1000,2000?past=2&freq=10000&frame=500&max=100")
       u.consumerKey should === ("key1")
       u.consumerSecret should === ("secret1")
       u.follow should === (Seq("1000","2000"))
       u.past should === (2)
       u.ops("frame") should === ("500")
       u.freq should === (10000)
+      u.max should === (10000)
     }
 
     "parse 'twitter://key1:secret1@?freq=10000'" in {

@@ -179,7 +179,7 @@ trait TwitterClient {
 
       val req = HttpRequest(
         //uri = s"${twitterUrlSearch}/stream?tweet.fields=id,source,text,username&expansions=author_id",
-        uri = s"${twitterUrlSearch}/recent?query=${slug}&tweet.fields=created_at&expansions=author_id&user.fields=created_at&start_time=${ts0}&end_time=${ts1}%max_results=${max}",
+        uri = s"${twitterUrlSearch}/recent?query=${slug}&tweet.fields=created_at&expansions=author_id&user.fields=created_at&start_time=${ts0}&end_time=${ts1}&max_results=${max}",
         method = HttpMethods.GET,
         headers = Seq(RawHeader("Authorization",s"Bearer ${accessToken}"))
       )
