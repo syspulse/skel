@@ -31,10 +31,10 @@ object Cron {
   def apply(exec:(Long)=>Boolean, expr:String, settings:Map[String,Any] = Map()): Cron[_] = {
     if(expr.contains("*") || expr.contains("_")) {
       val conf = settings.get("conf").asInstanceOf[Option[(String,Configuration)]]
-      val cronName = settings.get("cronName").asInstanceOf[Option[String]].getOrElse("Cron1")
-      val jobName:String=settings.get("jobName").asInstanceOf[Option[String]].getOrElse("job1")
-      val groupName:String=settings.get("groupName").asInstanceOf[Option[String]].getOrElse("group1")      
-      
+      val cronName = settings.get("cronName").asInstanceOf[Option[String]].getOrElse("cron-1")
+      val jobName:String=settings.get("jobName").asInstanceOf[Option[String]].getOrElse("job-1")
+      val groupName:String=settings.get("groupName").asInstanceOf[Option[String]].getOrElse("group-1")
+            
       new CronQuartz(exec,expr.replaceAll("_"," "),conf = conf,cronName,jobName,groupName)
     } else {
       val delay = settings.get("delay").asInstanceOf[Option[Long]].getOrElse(-1L)

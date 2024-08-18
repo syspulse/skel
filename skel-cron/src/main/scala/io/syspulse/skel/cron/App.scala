@@ -7,6 +7,7 @@ import io.syspulse.skel.config._
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 import scala.annotation.meta.param
+import java.time.Instant
 
 case class Config(
   // expr:String = "*/1 * * * * ?", //"0/20 * * * * ?"
@@ -41,25 +42,30 @@ object App  {
     val config = Config(
       // expr = c.getString("cron.expr").getOrElse(d.expr),
       quartz = c.getString("cron.quartz").getOrElse(d.quartz),
+
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
     )
 
     Console.err.println(s"Config: ${config}")
-
+    
     val r = config.cmd match {
-      case "cron" =>         
+      case "cron" =>        
         Cron((elapsed:Long) => {
-            println(s"${System.currentTimeMillis}: ${Thread.currentThread}: Ping: ${elapsed}")
+            println(s"${System.currentTimeMillis}: ${Instant.now}: ${Thread.currentThread}: Ping: ${elapsed}")
             true
           },
           config.params.mkString(" "),//config.expr,
-          settings = Map()
+          settings = Map(
+              "cronName"->s"cron-2",
+              "jobName"->s"job-2",
+              "groupName"->s"group-2"
+            )
         ).start()
 
       case "quartz" =>         
         new CronQuartz((elapsed:Long) => {
-            println(s"${System.currentTimeMillis}: ${Thread.currentThread}: Ping: ${elapsed}")
+            println(s"${System.currentTimeMillis}: ${Instant.now}: ${Thread.currentThread}: Ping: ${elapsed}")
             true
           },
           config.params.mkString(" "), //config.expr.replaceAll("_"," "),

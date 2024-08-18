@@ -20,7 +20,7 @@ class DnsSpec extends AnyWordSpec with Matchers {
 
   val TONIC_RSP_1 = """
   <pre>
-Domain:               across.to
+Domain:               server.to
 Created on:           Tue Oct 19 23:12:27 2021
 Last edited on:       Tue Sep 19 18:33:25 2023
 Expires on:           Sat Oct 19 23:12:27 2024
@@ -36,9 +36,9 @@ END"""
     "parse TonicResolver for TONIC_RSP_1" in {
       val r = new TonicResolver()
       
-      val r1 = r.parseResponse("across.to",TONIC_RSP_1)      
+      val r1 = r.parseResponse("server.to",TONIC_RSP_1)      
       r1 should !== (Failure[DnsInfo](_))
-      r1.get should be (DnsInfo("across.to",Some(1634685147000L),Some(1695148405000L),Some(1729379547000L),"",Seq("raegan.ns.cloudflare.com", "west.ns.cloudflare.com"))) //(DnsInfo("across.to",_,_,_,_,_))
+      r1.get should be (DnsInfo("server.to",Some(1634685147000L),Some(1695148405000L),Some(1729379547000L),"",Seq("raegan.ns.cloudflare.com", "west.ns.cloudflare.com"))) //(DnsInfo("across.to",_,_,_,_,_))
     }
 
 
