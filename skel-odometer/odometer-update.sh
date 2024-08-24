@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ID=${1:-counter.1}
-DELTA=${2:-1}
+DELTA=${2:-2}
 
 ACCESS_TOKEN=${ACCESS_TOKEN-`cat ACCESS_TOKEN`}
 

@@ -293,6 +293,11 @@ class UtilSpec extends AnyWordSpec with Matchers {
       v should === (BigInt("100000000000000000000"))
     }
 
+    "toBigInt convert '0x9cbcf71f24d33e' to positive BigInt" in {
+      val v = Util.toBigInt("0x9cbcf71f24d33e")
+      v should === (BigInt("44117865932313406"))
+    }
+
      """replaceEnvVar should replace 'prefix_{USER}_suffix'""" in {
       val e1 = """prefix_{USER}_suffix'"""
       val e2 = Util.replaceEnvVar(e1,Map("USER" -> "1234"))

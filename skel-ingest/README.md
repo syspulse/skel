@@ -26,11 +26,17 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
                                                   `expr` is either configured scheduler name (applicaion.conf) or cron expression
                                                   __NOTE__: because of bash, use this format: `'cron://*/1_*_*_*_*_?'`
 9. ```null://```                                - No source
-10. ```clock://```                              - Clock ticker (with optional frequency). Similar to `tick` but not source
+10. ```clock://freq`                            - Clock ticker (with optional frequency). Similar to `tick` but not source. 
+                                                  Clock also supports chain:  `clock://1000://source://`
 11. ```server://host:port/path```               - HTTP Server listener (Webhook). Server accepts `POST` and always responds "200" (behaves like webhook)
 12. ```tcp://host:port```                       - Tcp client from remote TCP Server
 13. ```tail://file```                           - Tail file
 14. ```tails://dir```                           - Tail directory for new files
+15. ```ws://host:port/path```                   - Websocket Client to remote Websocket server
+16. ```twitter://key:secret/id1,id2```          - Get tweets from a list of twitter handles. It uses TwitterV2 API and needs key:secret to work.
+                                                  It is not streaming and polling, so use `?freq=millis&past=millis` for frequency and past
+                                                  NOTE: using `clock://10000://twitter://` it will not be able to deduplicate
+                                                  Twitter streaming requires Pro subscription and not supported due to Elon's attitude to community
 
 ## Output Feeds
 
@@ -49,6 +55,7 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 13. ```parq://{file}```                                      - Parquet Format file (time patterns supported)
 14. ```http://host:port```                                   - HTTP Client to remote HTTP server which accepts `POST`
 15. ```jdbc://db```                                          - Exeperimental JDBC (only flat object)
+16. ```server:ws://host:port/url```                          - Expose Websocket Server as Ouput. This is basically relay mode to Websocket
 
 
 ----

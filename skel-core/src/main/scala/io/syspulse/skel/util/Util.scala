@@ -1,5 +1,7 @@
 package io.syspulse.skel.util
 
+import scala.jdk.CollectionConverters._
+import scala.util.{Try,Success,Failure}
 import java.time._
 import java.time.format._
 import java.time.temporal._
@@ -83,14 +85,15 @@ object Util {
 
   def now:String = tsFormatLongest.format(LocalDateTime.now)
   def now(fmt:String):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(Instant.now.toEpochMilli), ZoneId.systemDefault).format(DateTimeFormatter.ofPattern(fmt))
+  def toZoneDateTime(s:String,fmt:String) = ZonedDateTime.parse(s,DateTimeFormatter.ofPattern(fmt))
   def toZoneDateTime(s:String,fmt:DateTimeFormatter = tsFormatLong) = ZonedDateTime.parse(s,fmt)
   def timestamp(ts:Long,fmt:String,zone:ZoneId = ZoneId.systemDefault):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), zone).format(DateTimeFormatter.ofPattern(fmt))
   //def timestamp(ts:Long,fmt:String):String = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault).format(DateTimeFormatter.ofPattern(fmt))
 
-  def tsToString(ts:Long) = ZonedDateTime.ofInstant(
+  def tsToString(ts:Long,fmt:DateTimeFormatter=tsFormatLong) = ZonedDateTime.ofInstant(
       Instant.ofEpochMilli(ts), 
       ZoneId.systemDefault
-    ).format(tsFormatLong)
+    ).format(fmt)
 
   def tsToStringYearMonth(ts:Long = 0L) = ZonedDateTime.ofInstant(
       if(ts==0L) Instant.now else Instant.ofEpochMilli(ts), 
@@ -188,18 +191,23 @@ object Util {
         if(p.isInstanceOf[List[_]]) {
           val s = toCSV(p,dList,dList)
           s.stripSuffix(dList)
-        }
+        } 
           else toCSV(p,d,dList)
       }
-      case pp => pp
+      case pp => 
+        if(pp.isInstanceOf[Array[_]]) {
+          val arr = pp.asInstanceOf[Array[_ <: Product]].toList    
+          val s = toCSV(arr.asInstanceOf[Product],dList,dList)
+          s.stripSuffix(dList)
+        } else
+          pp
     }.mkString(d)
   }
 
-  import scala.reflect.runtime.universe._ 
-
+  //import scala.reflect.runtime.universe._
   // this does not work and needs type tags information
   def isCaseClass(v: Any): Boolean = {
-     val typeMirror = runtimeMirror(v.getClass.getClassLoader)
+     val typeMirror = scala.reflect.runtime.universe.runtimeMirror(v.getClass.getClassLoader)
      val instanceMirror = typeMirror.reflect(v)
      val symbol = instanceMirror.symbol
      symbol.isCaseClass
@@ -314,7 +322,7 @@ object Util {
   }
   
   import scala.util.Using
-  def loadFile(path:String):scala.util.Try[String] = {
+  def loadFile(path:String):Try[String] = {
     if(path.trim.startsWith("classpath:")) {
       Using( new BufferedReader(new InputStreamReader(this.getClass().getResourceAsStream(path.stripPrefix("classpath:"))))) { reader => 
         reader.lines().toArray.mkString(System.lineSeparator())
@@ -351,7 +359,13 @@ object Util {
   def replaceVar(expr0:String,vars:Map[String,Any]):String = {
     // special case for file patterns
     val expr = if(expr0.startsWith("file://") || expr0.startsWith("dir://") || expr0.startsWith("dirs://")) 
-      toFileWithTime(expr0)
+      try {
+        toFileWithTime(expr0)
+      } catch {
+        case e:Exception => 
+          // ignore error since it can be a variable
+          expr0
+      }
     else 
       expr0
 
@@ -391,17 +405,90 @@ object Util {
 
   // more reliable BigInt converter of format is into double
   def toBigInt(v:String):BigInt = {
+    if(v.startsWith("0x")) 
+      BigInt(v.drop(2),16)
+    else
     if(v.contains(".")) 
       java.math.BigDecimal.valueOf(v.toDouble).toBigInteger
     else
       BigInt(v)
   }
-
+  
   def isUUID(s:String) = s.matches("""\d{8}-\d{4}-\d{4}-\d{4}-\d{12}""")
 
   // Future lifter
   // https://stackoverflow.com/a/29344937
   def lift[T](futures: Seq[Future[T]])(implicit ec:ExecutionContext) = futures.map(_.map { Success(_) }.recover { case t => Failure(t) })
   def waitAll[T](futures: Seq[Future[T]])(implicit ec:ExecutionContext) = Future.sequence(lift(futures))
+
+  // Primitive jq-style Json parser
+  def parseJson(json:String,route:String):Try[Seq[String]] = {
+        
+    def parseRoute(j:ujson.Value,r:String):Seq[String] = {
+      val i = r.indexOf(".")
+      val (v,rest) = if(i == -1) (r,"") else (r.substring(0,i),r.substring(i+1))
+      (v,rest) match {
+        case (expr,"") if(expr.endsWith("[]")) =>
+          j(expr.stripSuffix("[]"))
+            .arr
+            .map(j => j.str)
+            .toSeq
+
+        case (expr,"") => 
+          if(expr == j.str) Seq(expr)
+          else Seq()
+        case (expr,rest) if(expr.endsWith("[]")) =>
+          j(expr.stripSuffix("[]"))
+            .arr
+            .map(j => parseRoute(j,rest))
+            .flatten
+            .toSeq
+        case (expr,rest) =>
+          parseRoute(j.obj(expr),rest)            
+      }
+    }
+
+    try {
+      val j = ujson.read(json)
+      Success(parseRoute(j,route))
+    } catch {
+      case e:Exception => Failure(e)
+    }
+  }
+
+  // prints Array[_] (Java Array) in a nice scala way
+  private def pprintArray(obj: Any, paramName: Option[String] = None): String = {
+    
+    obj match {
+      case seq: Array[Any] =>
+        val array = seq.map(Util.pprintArray(_)).mkString(",")
+        s"Array(${array})"
+      case seq: Iterable[Any] =>
+        val ii = seq.map(Util.pprintArray(_)).mkString(",")
+        s"${seq.getClass().getSimpleName()}(${ii})"
+      case None => "None"
+      case obj: Product =>
+        val name = obj.getClass().getSimpleName()
+        val data = (obj.productIterator zip obj.productElementNames)
+          .map { case (subObj, paramName) => Util.pprintArray(subObj, Some(paramName)) }
+          .mkString(",")
+        s"${name}(${data})"
+      case _ => obj.toString
+    }
+  }
+
+  def toStringWithArray(obj:Any) = {    
+    pprintArray(obj)
+  }
+
+  def succeed[T](code: => T):Try[T] = {
+    try {
+      Success(
+        code
+      )
+    } catch {
+      case e:Exception => Failure(e)
+    }
+  }
 }
 

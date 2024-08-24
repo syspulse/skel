@@ -13,62 +13,71 @@ import scala.util.Random
 class AESSpec extends AnyWordSpec with Matchers with TestData {
   import Util._
 
-  "AESS" should {
+  "AES" should {
     
     "encrypt and decrypt 'text'" in {
       val e1 = (new AES).encrypt("text","pass1")
-      e1.size !== (0)
-      new String(e1) !== ("text")
+      e1._1.size !== (0)
+      e1._2.size !== (0)
+      new String(e1._2) !== ("text")
 
-      val d1 = (new AES).decrypt(e1,"pass1")
+      val d1 = (new AES).decrypt(e1._2,"pass1",e1._1)
       d1 shouldBe a [Success[_]]
       d1 should === (Success("text"))
     }
 
-    "encrypt and decrypt 'text' with random seed" in {
+    "encrypt and decrypt 'text' with seed" in {
       val seed = Random.nextString(16)
       val e1 = (new AES).encrypt("text","pass1",Some(seed))
-      e1.size !== (0)
-      new String(e1) !== ("text")
+      e1._1.size !== (0)
+      e1._2.size !== (0)
+      new String(e1._2) !== ("text")
 
-      val d1 = (new AES).decrypt(e1,"pass1",Some(seed))
+      val d1 = (new AES).decrypt(e1._2,"pass1",e1._1)
       d1 shouldBe a [Success[_]]
       d1 should === (Success("text"))
 
-      val d2 = (new AES).decrypt(e1,"pass1")
-      d2 shouldBe a [Failure[_]]
+      val d2 = (new AES).decrypt(e1._2,"pass1",e1._1)
+      d2 shouldBe a [Success[_]]
+      d2 should === (Success("text"))
     }
 
     "fail to decrypt with wrong password" in {
       val e1 = (new AES).encrypt("text","pass1")
-      val d1 = (new AES).decrypt(e1,"pass2")
+      val d1 = (new AES).decrypt(e1._2,"pass2",e1._2)
       d1 shouldBe a [Failure[_]]
     }
 
-    "fail to decrypt with wrong IV and corrent pass" in {
+    "fail to decrypt with wrong IV and correct pass" in {
       val e1 = (new AES).encrypt("text","pass1",Some("seed-1"))
-      val d1 = (new AES).decrypt(e1,"pass1")
+      val d1 = (new AES).decrypt(e1._2,"pass1",Random.nextBytes(16))
       d1 shouldBe a [Failure[_]]
     }
 
     "fail to decrypt with random IV and correct pass" in {
       val e1 = (new AES).encrypt("text","pass1",None)
-      val d1 = (new AES).decrypt(e1,"pass1")
+      val d1 = (new AES).decrypt(e1._2,"pass1",Random.nextBytes(16))
+      d1 shouldBe a [Failure[_]]
+    }
+
+    "fail to decrypt with different IVs and correct pass" in {
+      val e1 = (new AES).encrypt("text","pass1",Some("seed-1"))
+      val d1 = (new AES).decrypt(e1._2,"pass1",Random.nextBytes(16))
       d1 shouldBe a [Failure[_]]
     }
 
     "fail to decrypt with random IV encryption and random IV decryption and  correct pass" in {
       val e1 = (new AES).encrypt("text","pass1",None)
-      val d1 = (new AES).decrypt(e1,"pass1",None)
+      val d1 = (new AES).decrypt(e1._2,"pass1",Random.nextBytes(16))
       d1 shouldBe a [Failure[_]]
     }
 
     "encrypt and decrypt Base64 'text'" in {
       val e1 = (new AES).encryptBase64("text","pass1")
-      e1.size should !== (0)
-      e1 should !== ("text")
+      e1._2.size should !== (0)
+      e1._2 should !== ("text")
 
-      val d1 = (new AES).decryptBase64(e1,"pass1")
+      val d1 = (new AES).decryptBase64(e1._2,"pass1",e1._1)
       d1 shouldBe a [Success[_]]
       d1 should === (Success("text"))
     }
@@ -79,9 +88,9 @@ class AESSpec extends AnyWordSpec with Matchers with TestData {
         data,
         "pass3"
       )
-      e1.size should !== (0)
+      e1._2.size should !== (0)
       
-      val d1 = (new AES).decrypt(e1,"pass3")
+      val d1 = (new AES).decrypt(e1._2,"pass3",e1._1)
       d1 shouldBe a [Success[_]]
       d1 should === (Success(data))
     }

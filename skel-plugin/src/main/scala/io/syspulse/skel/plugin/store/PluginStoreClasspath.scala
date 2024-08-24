@@ -12,54 +12,25 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
+import java.net.URLClassLoader
+
 import io.syspulse.skel.plugin._
+import java.util.regex.Pattern
+import java.net.JarURLConnection
+import java.util.jar.JarFile
+import java.net.URL
 
-class PluginStoreClasspath(root: Option[Class[_]] = None) extends PluginStoreMem {
-    
-  override def all:Seq[Plugin] = {    
+class PluginStoreClasspath(classNames0:String,root: Option[Class[_]] = None) extends PluginStoreMem {
+
+  def scan() = {
     val cl = root.getOrElse(this).getClass.getClassLoader
-    PluginStoreClasspath.load(cl)
+    val classNames = classNames0.split(",").map(_.trim).filter(! _.isBlank).toSeq
+    PluginStoreJava.loadFromClasspath(cl,classNames)        
+  } 
+
+  override def loadPlugins():Int = {
+    val pp = scan()
+    pp.foreach{p => this.+(p)}
+    all.size
   }
 }
-
-object PluginStoreClasspath {
-  val log = Logger(s"${this}")
-
-  def load(cl:ClassLoader):Seq[Plugin] = {        
-    val pp = cl.getResources("META-INF/MANIFEST.MF").asScala.toSeq.flatMap( url => {
-      log.debug(s"${url}")
-      // try to load file
-      try {
-        val manifestFile = new String(url.openStream().readAllBytes())
-        if(url.toString().contains("plugin")) {
-          log.info(s"${url}")
-          log.info(s"${manifestFile}")
-        }
-        val manifest = manifestFile.split("[\n\r]").filter(!_.isBlank).map( s => s.split(":").toList match {
-          case k :: v :: Nil => k -> v.trim
-          case k :: Nil => k -> ""
-          case _ => "" -> ""
-        }).toMap
-        
-        val title = manifest.get("Plugin-Title").getOrElse("")
-        val ver = manifest.get("Plugin-Version").getOrElse("")
-        val init = manifest.get("Plugin-Class").getOrElse("")
-
-        log.info(s"${url}: ${title}:${ver}: class=${init}")
-        val plugin = if(init != "") 
-          Some(Plugin(name = title,typ = "jar", init = init, ver = ver))
-        else
-          None
-        
-        plugin
-      } catch {
-        case e:Exception => 
-          log.warn(s"failed to load resource: ${url}",e)
-          None
-      }      
-    })
-
-    pp
-  }
-}
-

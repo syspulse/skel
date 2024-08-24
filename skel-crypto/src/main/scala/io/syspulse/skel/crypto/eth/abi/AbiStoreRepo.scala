@@ -33,8 +33,9 @@ abstract class AbiStoreRepo extends AbiStore {
     this
   }
 
-  def load():Unit = {
-    repos.foldLeft(Seq[Unit]())( (m,r)  => m :+ r.load() )    
+  def load():String = {
+    repos.foldLeft(Seq[Unit]())( (m,r)  => m :+ r.load() )
+    ""
   }
 
   def decodeInput(contract:String,data:Seq[String],entity:String):Try[AbiResult] = {

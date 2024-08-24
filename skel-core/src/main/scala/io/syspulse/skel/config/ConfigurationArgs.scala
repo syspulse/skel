@@ -9,6 +9,9 @@ import com.typesafe.scalalogging.Logger
 import scopt.OParser
 
 import io.syspulse.skel.util.Util
+import java.io.File
+import com.typesafe.config.Config
+import io.syspulse.skel.config
 
 case class ConfigArgs() {
   var c:Map[String,Any] = Map()
@@ -42,13 +45,13 @@ case class ArgParam(argText:String,desc:String="") extends Arg[String]()
 case class ArgHelp(argStr:String,desc:String="") extends Arg[String]()
 case class ArgCmd(argStr:String,desc:String="") extends Arg[String]()
 case class ArgLogging(argText:String = "logging level (INFO,ERROR,WARN,DEBUG)",default:String="") extends Arg[String]()
+case class ArgConfig(argText:String = "Configuration file",default:String="") extends Arg[String]()
 
 // Use "empty appName/appVersion for automatic inference"
 class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg[_]*) extends ConfigurationLike {
   val log = Logger(s"${this}")
 
-  def parseArgs(args:Array[String],ops: Arg[_]*) = {
-
+  def parseArgs(args:Array[String],ops: Arg[_]*) = {    
     val builder = OParser.builder[ConfigArgs]
     val parser1 = {
       import builder._
@@ -58,7 +61,7 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
 
       val options = List(
         head(app, ver)
-      ) ++ ops.flatMap(a => a match {
+      ) ++ ops.flatMap(a => a match {        
         case ArgCmd(s,t) => Some(cmd(s).action((x, c) => c.command(s)).text(t))
         case ArgHelp(s,t) => Some(help(s).text(t))
         case ArgString(c,s,t,d) => Some( (if(c=='_' || c==0) opt[String](s) else opt[String](c, s)).action((x, c) => c.+(s,x)).text(t))
@@ -67,7 +70,31 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
         case ArgDouble(c,s,t,d) => Some( (if(c=='_' || c==0) opt[Double](s) else opt[Double](c, s)).action((x, c) => c.+(s,x)).text(t))
         case ArgParam(t,d) => Some(arg[String](t).unbounded().optional().action((x, c) => c.param(x)).text(d))
         case ArgLogging(t,d) => Some(opt[String](Configuration.LOGGING_ARG).action((x, c) => c.+(Configuration.LOGGING_ARG,x)).text(t))
-        case _ => None
+        case ArgConfig(t,d) => Some(opt[String](Configuration.CONFIG_ARG).action((x, c) => {
+            import com.typesafe.config.Config
+            import com.typesafe.config.ConfigFactory            
+            
+            try {
+              log.info(s"Loading config: '${x}'...")
+              if(!os.exists(os.Path(x,os.pwd))) throw new Exception(s"file not found: '${x}'")
+
+              //val baseConfig = ConfigFactory.load()
+              //val conf1 = ConfigFactory.parseFile(new File(x)).withFallback(baseConfig)
+              val conf1 = ConfigFactory.parseFile(new File(x))
+              log.info(s"Config: '${x}': ${conf1}")
+              overrideConfig = Some(new ConfigurationAkkaOverride(conf1))
+            } catch {
+              case e: Exception => {
+                log.error(s"failed to load Configuration: '${x}': ",e)
+                throw e
+              }
+            }
+            
+            c.+(Configuration.CONFIG_ARG,x)
+          }).text(t))
+        case _ => 
+          log.warn(s"unknown Arg option: ${a}")
+          None
       }) ++ List(
         version("version"),
         help("help")
@@ -89,34 +116,48 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
     this
   }
 
+  var overrideConfig:Option[ConfigurationAkkaOverride] = None
   val configArgs = parseArgs(args,ops:_*)
   
-
-  def getString(path:String):Option[String] = 
-    if(!configArgs.isDefined) None else
-    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(v => Configuration.withEnv(v.asInstanceOf[String])) else None
+  def getString(path:String):Option[String] = {    
+    val r = if(overrideConfig.isDefined) overrideConfig.get.getString(path) else None
+    if(!configArgs.isDefined) return r
+    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(v => Configuration.withEnv(v.asInstanceOf[String])) else r
+  }
   
-  def getInt(path:String):Option[Int] = 
-    if(!configArgs.isDefined) None else
-    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(_.asInstanceOf[Int]) else None
-
-  def getLong(path:String):Option[Long] = 
-    if(!configArgs.isDefined) None else
-    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(_.asInstanceOf[Long]) else None
-
-  def getDouble(path:String):Option[Double] = 
-    if(!configArgs.isDefined) None else
-    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(_.asInstanceOf[Double]) else None
-
-  def getAll():Seq[(String,Any)] = {
-    if(!configArgs.isDefined) return Seq()
-
-    configArgs.get.c.toSeq
+  def getInt(path:String):Option[Int] = {    
+    val r = if(overrideConfig.isDefined) overrideConfig.get.getInt(path) else None
+    if(!configArgs.isDefined) return r
+    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(_.asInstanceOf[Int]) else r
   }
 
-  def getDuration(path:String):Option[Duration] = 
-    if(!configArgs.isDefined) None else
-    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(v => Duration.ofMillis(v.asInstanceOf[Long])) else None
+  def getLong(path:String):Option[Long] = {    
+    val r = if(overrideConfig.isDefined) overrideConfig.get.getLong(path) else None
+    if(!configArgs.isDefined) return r
+    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(_.asInstanceOf[Long]) else r
+  }
+
+  def getDouble(path:String):Option[Double] = {
+    val r = if(overrideConfig.isDefined) overrideConfig.get.getDouble(path) else None
+    if(!configArgs.isDefined) return r
+    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(_.asInstanceOf[Double]) else r
+  }
+
+  def getDuration(path:String):Option[Duration] = {
+    val r = if(overrideConfig.isDefined) overrideConfig.get.getDuration(path) else None
+    if(!configArgs.isDefined) return r
+    if (configArgs.get.c.contains(path)) configArgs.get.c.get(path).map(v => Duration.ofMillis(v.asInstanceOf[Long])) else r
+  }
+
+  def getAll():Seq[(String,Any)] = {
+    val r = if(overrideConfig.isDefined) overrideConfig.get.getAll() else Seq() 
+
+    val r2 = if(!configArgs.isDefined) return Seq() else configArgs.get.c.toSeq
+
+    // replace old with new
+    (r.toMap ++ r2.toMap).toSeq
+  }
+
 
   def getParams():Seq[String] = {
     if(!configArgs.isDefined) return Seq()

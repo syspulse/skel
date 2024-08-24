@@ -21,17 +21,25 @@ trait OdoStore extends Store[Odo,String] {
   def all:Seq[Odo]
   def size:Long
   
-  def update(id:String, counter:Long):Try[Odo]
+  def update(id:String, v:Long):Try[Odo]
 
   def ++(id:String, delta:Long):Try[Odo]
 
   def clear():Try[OdoStore]
 
-  protected def modify(o:Odo, counter:Long):Odo = {    
+  protected def modify(o:Odo,v:Long):Odo = {    
     (for {
-      o0 <- Some(o.copy(ts = System.currentTimeMillis))
-      o1 <- Some(o.copy(counter = counter))
+      o1 <- Some(o.copy(ts = System.currentTimeMillis,v = v))
     } yield o1).get    
+  }
+
+  // this operator supports namespace "namespace:key"
+  // Implementation should overwrite it if support fast version (like Redis)
+  override def ??(ids:Seq[String]):Seq[Odo] = {
+    if(ids.filter(_.contains(":*")).size != 0)
+      throw new Exception(s"no implementation")
+    else
+      super.??(ids)
   }
 }
 

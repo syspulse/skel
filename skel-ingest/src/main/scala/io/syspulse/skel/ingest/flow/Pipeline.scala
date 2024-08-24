@@ -9,8 +9,7 @@ import akka.http.scaladsl.model.HttpRequest
 import akka.http.scaladsl.model.headers.Accept
 import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl
-import akka.stream.scaladsl.Source
-import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl.{Sink,Source,Flow}
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
@@ -29,8 +28,9 @@ import com.github.mjakubowski84.parquet4s.ParquetSchemaResolver
 
 // throttleSource - reduce load on Source (e.g. HttpSource)
 // throttle - delay objects downstream
+// cap - capacity (internal buffer, like Actor)
 abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
-  throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=100L,format:String="")
+  throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=100L,format:String="",cap:Int=10000)
   (implicit fmt:JsonFormat[O], parqEncoders:ParquetRecordEncoder[O],parsResolver:ParquetSchemaResolver[O])  extends IngestFlow[I,T,O]() {
   
   private val log = Logger(s"${this}")
@@ -70,6 +70,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case ("server" | "http:server" | "https:server") :: uri :: Nil => Flows.fromHttpServer(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
 
       case "tcp" :: uri :: Nil => Flows.fromTcpClientUri(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
+      case ("ws" | "wss") :: _ => Flows.fromWebsocket(feed,frameDelimiter = delimiter, frameSize = buffer, helloMsg = sys.env.get("WS_HELLO_MSG"))
 
       case "file" :: fileName :: Nil => Flows.fromFile(fileName,chunk,frameDelimiter = delimiter, frameSize = buffer)
       
@@ -88,11 +89,17 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
         val cronSource = Flows.fromCron(expr)
         val nextSource:Source[ByteString,_] = source(next + "://" + rest.mkString(""))
         cronSource.flatMapConcat( tick => nextSource)
+
+      case "cron" :: expr :: Nil => Flows.fromCron(expr)
         
       // test cron
       case "cron" :: Nil => Flows.fromCron("*/1 * * * * ?")
 
       // test clock 
+      case "clock" :: freq :: next :: rest => 
+        val clockSource = Flows.fromClock(freq)
+        val nextSource:Source[ByteString,_] = source(next + "://" + rest.mkString(""))
+        clockSource.flatMapConcat( tick => nextSource)
       case "clock" :: freq :: Nil => Flows.fromClock(freq)
       case "clock" :: Nil => Flows.fromClock("1 sec")
 
@@ -109,6 +116,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
         val nextSource:Source[ByteString,_] = source(next + "://" + rest.mkString(""))
         cronSource.flatMapConcat( tick => nextSource)
 
+      case "twitter" :: uri :: Nil => Flows.fromTwitter(uri,frameDelimiter = delimiter,frameSize = buffer)
+
       case "" :: Nil => Flows.fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
       case file :: Nil => Flows.fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)
       case _ =>         
@@ -117,8 +126,12 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
     src0
   }
 
-  override def sink() = {
+  override def sink():Sink[O,_] = {
     sink(output)
+  }
+
+  def sink(output:String):Sink[O,_] = {
+    sinking[O](output)
   }
 
   def getRotator():Flows.Rotator = new Flows.RotatorCurrentTime()
@@ -126,7 +139,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
   def getFileLimit():Long = Long.MaxValue
   def getFileSize():Long = Long.MaxValue
   
-  def sink(output:String) = {
+  def sinking[O <: skel.Ingestable](output:String)(implicit fmt:JsonFormat[O], parqEncoders:ParquetRecordEncoder[O],parsResolver:ParquetSchemaResolver[O]):Sink[O,_] = {
     log.info(s"output=${output}")
         
     val sink = output.split("://").toList match {
@@ -136,8 +149,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "pjson" :: _ => Flows.toJson[O](output,pretty=true)(fmt)
       case "csv" :: _ => Flows.toCsv(output)
       case "log" :: _ => Flows.toLog(output)
-
-      case "kafka" :: _ => Flows.toKafka[O](output)(fmt)
+      
+      case "kafka" :: _ => Flows.toKafka[O](output,format)(fmt)
       case "elastic" :: _ => Flows.toElastic[O](output)(fmt)
       
       case "file" :: fileName :: Nil => Flows.toFile(fileName)
@@ -156,19 +169,23 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "past" :: fileName :: Nil => 
         Flows.toHive(fileName)(new Flows.RotatorTimestamp( () => ZonedDateTime.ofInstant(Instant.now, ZoneId.systemDefault).minusYears(1000).toInstant().toEpochMilli() ))
 
-      case "http" :: uri :: Nil => Flows.toHTTP[O](output,pretty=false)
-      case "https" :: uri :: Nil => Flows.toHTTP[O](output,pretty=false)
-
-      case "stdout" :: _ => Flows.toStdout()
-      case "stderr" :: _ => Flows.toStderr()
-
+      case "http" :: uri :: Nil => Flows.toHTTP[O](output,format)
+      case "https" :: uri :: Nil => Flows.toHTTP[O](output,format)
+      
       case "jdbc" :: _ => Flows.toJDBC[O](output)(fmt)
       case "postgres" :: _ => Flows.toJDBC[O](output)(fmt)
       case "mysql" :: _ => Flows.toJDBC[O](output)(fmt)
 
-      case "server:ws" :: uri :: Nil => Flows.toWsServer[O](uri,format)
+      case "server:ws" :: uri :: Nil => Flows.toWebsocketServer[O](uri,format,buffer = cap)
+      case "ws:server" :: uri :: Nil => Flows.toWebsocketServer[O](uri,format,buffer = cap)
 
-      case "" :: Nil => Flows.toStdout()
+      // stderr which do not use StreamConverters (slower but never blocking)
+      case "out" :: _ => Flows.toOut()
+      case "err" :: _ => Flows.toErr()
+
+      case "stdout" :: _ => Flows.toStdout(format=format)
+      case "stderr" :: _ => Flows.toStderr(format=format)      
+      case "" :: Nil => Flows.toStdout(format=format)
       case _ => 
         Flows.toFile(output)
     }

@@ -43,7 +43,7 @@ class OdoStoreDB(configuration:Configuration,dbConfigRef:String)
     val CREATE_TABLE_MYSQL_SQL = 
       s"""CREATE TABLE IF NOT EXISTS ${tableName} (
         id VARCHAR(36) PRIMARY KEY, 
-        counter BIGINT,
+        v BIGINT,
         ts BIGINT
       );
       """
@@ -51,7 +51,7 @@ class OdoStoreDB(configuration:Configuration,dbConfigRef:String)
     val CREATE_TABLE_POSTGRES_SQL = 
       s"""CREATE TABLE IF NOT EXISTS ${tableName} (
         id VARCHAR(36) PRIMARY KEY,
-        counter BIGINT,
+        v BIGINT,
         ts BIGINT
       );
       """
@@ -92,10 +92,10 @@ class OdoStoreDB(configuration:Configuration,dbConfigRef:String)
     }
   }
 
-  def update(id:String,counter:Long):Try[Odo] = {
+  def update(id:String,v:Long):Try[Odo] = {
     this.?(id) match {
       case Success(o) =>
-        val o1 = modify(o,counter)
+        val o1 = modify(o,v)
 
         log.info(s"UPDATE: ${o1}")
         try {
@@ -103,7 +103,7 @@ class OdoStoreDB(configuration:Configuration,dbConfigRef:String)
             table
               .filter(o => o.id == lift(id))
               .update(
-                set(_.counter, quote(lift(o1.counter))),
+                set(_.v, quote(lift(o1.v))),
               )
           
           ctx.run(q)
@@ -119,7 +119,7 @@ class OdoStoreDB(configuration:Configuration,dbConfigRef:String)
   def ++(id:String,delta:Long):Try[Odo] = {
     this.?(id) match {
       case Success(o) =>
-        val o1 = o.copy(counter = o.counter + delta)
+        val o1 = o.copy(v = o.v + delta)
 
         log.info(s"UPDATE: ${o1}")
         try {
@@ -127,7 +127,7 @@ class OdoStoreDB(configuration:Configuration,dbConfigRef:String)
             table
               .filter(o => o.id == lift(id))
               .update(
-                set(_.counter, quote(lift(o1.counter))),
+                set(_.v, quote(lift(o1.v))),
               )
           
           ctx.run(q)

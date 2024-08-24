@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
 
-    lazy val scala = "2.13.9"
+    lazy val scala = "2.13.13"
     // Versions
     lazy val versionScalaLogging = "3.9.2"
     lazy val akkaVersion    = "2.6.20"
@@ -180,7 +180,7 @@ object Dependencies {
 
     val libQuartz =           "org.quartz-scheduler"            % "quartz"              % "2.3.2" exclude("com.zaxxer", "HikariCP-java7")
 
-    val libTwitter4s =        "com.danielasfregola"             %% "twitter4s"          % "7.0"
+    val libTwitter4s =        "com.danielasfregola"             %% "twitter4s"          % "8.0" // deprecated !
     
     val libSeleniumJava =     "org.seleniumhq.selenium"         % "selenium-java"             % "4.0.0-rc-3"
     val libSeleniumFirefox =  "org.seleniumhq.selenium"         % "selenium-firefox-driver"   % "4.0.0-rc-3"
@@ -235,7 +235,11 @@ object Dependencies {
     val libHadoopLZO =        "hadoop-lzo"                    % "hadoop-lzo"                      % "0.4.15"
     val libSparkCore =        "org.apache.spark"              %% "spark-core"                     % sparkVersion
     val libSparkSQL =         "org.apache.spark"              %% "spark-sql"                      % sparkVersion
-  
+
+    val libApacheCommonsNet = "commons-net"                   % "commons-net"                      % "3.11.1"
+    val libDnsJava =          "dnsjava"                       % "dnsjava"                         % "3.6.1"
+
+   // ---------------------------------------------------------------------------------------------------------------------
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)

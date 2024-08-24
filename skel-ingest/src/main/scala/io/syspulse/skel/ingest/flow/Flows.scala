@@ -50,12 +50,14 @@ import io.getquill._
 import io.getquill.context._
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 
-import io.syspulse.skel.Ingestable
 import io.syspulse.skel
+import io.syspulse.skel.Ingestable
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.elastic.ElasticClient
 import io.syspulse.skel.uri.ElasticURI
 import io.syspulse.skel.uri.KafkaURI
+import io.syspulse.skel.uri.TwitterURI
+import io.syspulse.skel.elastic.ElasticClient
+import io.syspulse.skel.twitter.FromTwitter
 
 import spray.json.JsonFormat
 import java.nio.file.StandardOpenOption
@@ -106,6 +108,10 @@ import akka.http.scaladsl.model.ws.Message
 import akka.http.scaladsl.model.ws.TextMessage
 import akka.http.scaladsl.model.ws.BinaryMessage
 import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.HttpMethod
+import akka.util.Timeout
+import akka.http.scaladsl.model.ws.WebSocketRequest
 
 object Flows {
   val log = Logger(this.toString)
@@ -135,11 +141,38 @@ object Flows {
 
   def toSinkRestart[T <: Ingestable](s:Sink[Ingestable,_],retry:RestartSettings = retrySettingsDefault) = 
     RestartSink.withBackoff[T](retry) { () =>
-      log.info(s"Restating -> Sink(${s})...")
+      log.info(s"Restarting -> Sink(${s})...")
       s
     }
-  
-  def fromCron(expr:String)(implicit as:ActorSystem):Source[ByteString, NotUsed] = {
+
+  def formatter[O <: Ingestable](o:O,format:String,nl:String="")(implicit fmt:JsonFormat[O]):ByteString = {    
+    
+    if(o == null) return ByteString()
+    
+    import spray.json._
+    format match {
+      case "raw" => ByteString(o.toRaw)
+      case "jsonp" => ByteString(s"${o.toJson.prettyPrint}${nl}")
+      case "json" => ByteString(s"${o.toJson.compactPrint}${nl}")
+      case "csv" => ByteString(s"${o.toCSV}${nl}")
+      case _ => ByteString(s"${o.toString}${nl}")
+    }
+  }
+
+// ==================================================================================================
+// Sources
+// ==================================================================================================  
+
+  def fromCron(expr:String)(implicit as:ActorSystem):Source[ByteString, _] = {
+
+    // if expr is just number treat is as milliseconds and use fromClock
+    try {
+      expr.toLong
+      return fromClock(expr)
+    } catch {
+      case _ =>
+    }
+
     import com.typesafe.akka.extension.quartz.QuartzSchedulerExtension 
     //import akka.stream.typed.scaladsl.ActorSource
 
@@ -148,7 +181,8 @@ object Flows {
       overflowStrategy = OverflowStrategy.dropHead //OverflowStrategy.fail // <- convenient for testing
     ).map(t => {
         log.info(s"tick: ${t.utf8String}")
-        ByteString(s"${System.currentTimeMillis()}\n")
+        //ByteString(s"${System.currentTimeMillis()}\n")
+        ByteString(s"${System.currentTimeMillis()}")
     })
 
     val (cronActor,cronSourceMat) = cronSource.preMaterialize() //.to(Sink.foreach(println)).run()
@@ -179,9 +213,10 @@ object Flows {
   }
 
   def fromClock(expr:String) = {
-    val freq = FiniteDuration(Duration.create(expr).toMillis,TimeUnit.MILLISECONDS)
+    val msec = expr.toLong //Duration.create(expr).toMillis
+    val freq = FiniteDuration(msec,TimeUnit.MILLISECONDS)
     Source
-      .tick(FiniteDuration(0L,TimeUnit.MILLISECONDS),freq,"")
+      .tick(FiniteDuration(150L,TimeUnit.MILLISECONDS),freq,"") // initial small delay (0 does not work)
       .map(_ => ByteString(s"${System.currentTimeMillis()}"))      
   }
 
@@ -435,6 +470,30 @@ object Flows {
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))    
   }
 
+  def fromWebsocket(uri:String,frameDelimiter:String="\n",frameSize:Int=1024 * 1024,retry:RestartSettings=retrySettingsDefault,helloMsg:Option[String]=None)
+    (implicit as:ActorSystem,timeout:FiniteDuration) = { 
+
+    // ATTENTION: Server disconnect is not onFailure and must be treated as upstream completion !
+    val s = RestartSource.withBackoff(retry) { () =>
+      log.info(s"=> ${uri} (${retry})")      
+      val ws = new FromWebsocket(uri,helloMsg = helloMsg)
+      ws.source()
+    }
+      
+    // if(frameDelimiter.isEmpty())
+    //   s
+    // else
+    //   s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))    
+    s
+  }
+
+  def fromTwitter(uri:String, frameDelimiter:String="\n",frameSize:Int=1024 * 1024,retry:RestartSettings=retrySettingsDefault)
+    (implicit as:ActorSystem,timeout:FiniteDuration) = { 
+
+    val twitter = new FromTwitter(uri)
+    twitter.source(frameDelimiter,frameSize)
+  }
+
 // ==================================================================================================
 // Sinks
 // ==================================================================================================  
@@ -465,42 +524,45 @@ object Flows {
     }
   }
 
-  def toHTTP[T <: Ingestable](uri:String,pretty:Boolean=false)(implicit as:ActorSystem,fmt:JsonFormat[T]) = {
+  def toHTTP[T <: Ingestable](uri:String,format:String = "json")(implicit as:ActorSystem,fmt:JsonFormat[T]) = {
     
+    val httpUri = skel.uri.HttpURI(uri)
+
     val sink = 
-    if(uri.trim.isEmpty) {
+    if(httpUri.uri.trim.isEmpty) {
       log.warn(s"invalid uri: ${uri}")
       Sink.ignore 
     } else {     
       import spray.json._
      
-     def retry_deterministic(as:ActorSystem,timeout:FiniteDuration) = ConnectionPoolSettings(as)
+      def retry_deterministic(as:ActorSystem,timeout:FiniteDuration) = ConnectionPoolSettings(as)
         .withBaseConnectionBackoff(timeout)
         .withMaxConnectionBackoff(timeout)
-
+    
       Flow[T]
         .map(t => {
-          val j = t.toJson          
-          if(pretty) j.prettyPrint else j.compactPrint
+          // val j = t.toJson          
+          // if(pretty) j.prettyPrint else j.compactPrint
+          formatter(t,format).utf8String
         })
         .mapAsync(1)(body => {
-          log.debug(s"body(${body}) --> ${uri}")
+          log.debug(s"body(${body}) --> ${httpUri.uri}")
           
           val http =
             Http()
             .singleRequest(
               HttpRequest(
-                HttpMethods.POST,
-                uri = uri, 
+                HttpMethod.custom(httpUri.verb),
+                uri = httpUri.uri, 
                 entity = HttpEntity(ContentTypes.`application/json`,body),
-                headers = Seq(Authorization(OAuth2BearerToken(sys.env.get("API_KEY").getOrElse(""))))
+                headers = httpUri.headers.map{case (k,v) => RawHeader(k,v)}.toSeq
               ),
               //
               settings = retry_deterministic(as,FiniteDuration(1000L,TimeUnit.MILLISECONDS))
             )          
           
           val f = http.flatMap( r => r match {
-            case response @ HttpResponse(status, _ , entity, _) =>              
+            case response @ HttpResponse(status, _ , entity, _) =>
               status match {
                 case StatusCodes.OK => 
                   val data = entity.dataBytes.runReduce(_ ++ _)
@@ -513,15 +575,15 @@ object Flows {
                   throw new Exception(s"${status}: ${txt}")
               }
             case f   => 
-              log.error(s"failed connection: ${uri}",f)
+              log.error(s"failed connection: ${httpUri.uri}",f)
               throw new Exception(s"${f}")
           })
           
           f
         })
-        .log(s"${this}")
+        .log(s"-> HTTP(${httpUri.uri})")
         .map(r => {
-          log.debug(s"res: '${r}'")
+          log.debug(s"rsp: '${r}'")
           r
         })
         .toMat(
@@ -530,13 +592,13 @@ object Flows {
     }
 
     RestartSink.withBackoff[T](retrySettingsDefault) { () =>
-      log.info(s"Connection --> ${uri}")
+      log.info(s"Connection --> ${httpUri.uri}")
       sink
     }
   }
 
   // ===== WebSocket Sink
-  def toWsServer[T <: Ingestable](uri:String,format:String="",timeout:Long = 1000L*60*60*24)(implicit as:ActorSystem,fmt:JsonFormat[T]) = { 
+  def toWebsocketServer[T <: Ingestable](uri:String,format:String="", buffer:Int=10000, timeout:Long = 1000L*60*60*24)(implicit as:ActorSystem,fmt:JsonFormat[T]) = { 
     import io.syspulse.skel.service.ws._
     import akka.actor.typed.scaladsl.ActorContext
 
@@ -558,8 +620,8 @@ object Flows {
           }}
       }
       
-      def broadcast(msg:String):Try[Unit] = {
-        Success(this.broadcastText(msg) )        
+      def broadcast(msg:String) = {
+        broadcastText(msg)
       }            
     }
     
@@ -579,9 +641,9 @@ object Flows {
 
       val (host,port,suffix) = uriToHostPort(uri)
     
-      val (actor,source0) = Source
-        .actorRef[String](1,OverflowStrategy.dropTail)
-        .preMaterialize()   
+      // val (actor,source0) = Source
+      //   .actorRef[String](buffer,OverflowStrategy.fail)
+      //   .preMaterialize()   
       
       val ws = new WsProxyServer(timeout,uri = suffix)
       log.info(s"Listen: ws://${host}:${port}/${suffix} ...")      
@@ -589,11 +651,13 @@ object Flows {
 
       val sink0 = Flow[T]
         .map(t => { 
-          val out = format match {
-            case "json" => t.toJson.compactPrint
-            case "csv" => t.toCSV
-            case _ => t.toLog
-          }
+          val out = formatter(t,format).utf8String
+          // format match {
+          //   case "json" => t.toJson.compactPrint
+          //   case "csv" => t.toCSV
+          //   case _ => t.toLog
+          // }
+          
           //log.debug(s"out=${out}")
           ws.broadcast(out)
         }) 
@@ -942,24 +1006,24 @@ object Flows {
       .toMat(es.sink())(Keep.right)
   }
 
-  def toKafka[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
-    val kafka = new ToKafka[T](uri)(fmt)
+  def toKafka[T <: Ingestable](uri:String,format:String = "")(fmt:JsonFormat[T]) = {
+    val kafka = new ToKafka[T](uri,format)(fmt)
+    
+    val kafkaSink = kafka.sink()
+    val sink = RestartSink.withBackoff[T](retrySettingsDefault) { () =>
+      log.info(s"Restarting -> Kafka(${uri})...")
+      kafkaSink
+    }
+    
     Flow[T]
-      .toMat(kafka.sink())(Keep.right)
+      .toMat(sink)(Keep.right)
   }
 
   def fromKafka[T <: Ingestable](uri:String) = {
     val kafka = new FromKafka[T](uri)
     kafka.source()
   }
-
-  // def toJson[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {
-  //   val js = new ToJson[T](uri)(fmt)
-  //   Flow[T]
-  //     .mapConcat(t => js.transform(t))
-  //     .to(js.sink())
-  // }
-
+  
   def toJson[T <: Ingestable](uri:String,flush:Boolean = false,pretty:Boolean = false)(implicit fmt:JsonFormat[T]) = {
     import spray.json._
     Flow[T]
@@ -983,16 +1047,19 @@ object Flows {
       .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.right)
   }
 
-  def toStdout[O](flush:Boolean = false): Sink[O, Future[IOResult]] = toPipe(flush,System.out)
-  def toStderr[O](flush:Boolean = false): Sink[O, Future[IOResult]] = toPipe(flush,System.err)
-  def toPipe[O](flush:Boolean,pipe:java.io.PrintStream): Sink[O, Future[IOResult]] = {
+  def toStdout[O <: Ingestable](flush:Boolean = false,format:String="")(implicit fmt:JsonFormat[O]): Sink[O, Future[IOResult]] = toPipe(flush,format,System.out)(fmt)
+  def toStderr[O <: Ingestable](flush:Boolean = false,format:String="")(implicit fmt:JsonFormat[O]): Sink[O, Future[IOResult]] = toPipe(flush,format,System.err)(fmt)
+  def toPipe[O <: Ingestable](flush:Boolean,format:String,pipe:java.io.PrintStream)(implicit fmt:JsonFormat[O]): Sink[O, Future[IOResult]] = {
+    import spray.json._
     Flow[O]
-      .map(o => if(o!=null) ByteString(o.toString+"\n") else ByteString())
+      //.map(o => if(o!=null) ByteString(o.toString+"\n") else ByteString())
+      .map(o => Flows.formatter(o,format,"\n"))
       .toMat(StreamConverters.fromOutputStream(() => pipe,flush))(Keep.right)  
   }
   
   // This sink returns Future[Done] and not possible to wait for completion of the flow
-  //def toStdout() = Sink.foreach(println _)
+  def toOut() = Sink.foreach(println _)
+  def toErr() = Sink.foreach{o:Any => Console.err.println(o)}
 
   // JDBC
   def toJDBC[T <: Ingestable](uri:String)(fmt:JsonFormat[T]) = {     
@@ -1043,20 +1110,22 @@ class ToJDBC[T <: Ingestable](dbUri:String,configuration:Option[Configuration]=N
 // === Kafka ================================================================================================
 
 // Kafka Client Flows 
-class ToKafka[T <: Ingestable](uri:String)(implicit jf:JsonFormat[T]) extends skel.ingest.kafka.KafkaSink[T] {
+class ToKafka[T <: Ingestable](uri:String,format:String)(implicit jf:JsonFormat[T]) extends skel.ingest.kafka.KafkaSink[T] {
   import spray.json._
   
   val kafkaUri = KafkaURI(uri)
+  val formatOutput = if(!format.isBlank) format else if(kafkaUri.isRaw) "raw" else "json"
   
   val sink0 = sink(kafkaUri.broker,Set(kafkaUri.topic))
 
   def sink():Sink[T,_] = sink0
   
   override def transform(t:T):ByteString = {
-    if(kafkaUri.isRaw)
-      ByteString(t.toString)
-    else
-      ByteString(t.toJson.compactPrint)
+    // val o = if(kafkaUri.isRaw) 
+    //   ByteString(t.toString)
+    // else
+    //   ByteString(t.toJson.compactPrint)
+    Flows.formatter(t,formatOutput)
   }  
 }
 
@@ -1110,11 +1179,60 @@ class ToCsv[T <: Ingestable](uri:String) {
   //def sink():Sink[T,Any] = Sink.foreach(t => {println(t.toCSV); System.out.flush()})
 
   def sink(flush:Boolean = true):Sink[T,Any] =
-  Flow[T]
+    Flow[T]
       .map(o => if(o!=null) ByteString(o.toCSV+"\n") else ByteString())
       .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.both)
 
   def transform(t:T):Seq[T] = {
     Seq(t)
   }
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+case class AttributeActor(a: ActorRef) extends Attributes.Attribute
+
+class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024,helloMsg:Option[String] = None)(implicit as:ActorSystem,timeout:FiniteDuration) {
+  val log = Logger(this.toString)
+
+  val webSocketFlow = Http().webSocketClientFlow(WebSocketRequest(uri))
+  
+  val (a,s0) = Source
+    .actorRef[TextMessage](buffer,OverflowStrategy.fail)
+    .preMaterialize()
+
+  log.info(s"[${uri}]: Actor=${a}")
+  val s1 = s0
+    .viaMat(webSocketFlow)(Keep.both) // keep the materialized Future[WebSocketUpgradeResponse]      
+    .addAttributes(Attributes(AttributeActor(a)))
+      
+  def source() = s1.mapAsync(parallelism = 2)( m => {
+    log.debug(s"<- ${uri} ['${m}']")
+    m match {
+      case txt: TextMessage.Strict => 
+        Future.successful(ByteString(txt.text))
+      case bin: BinaryMessage.Strict => 
+        Future.successful(ByteString(bin.asTextMessage.getStrictText))
+      case TextMessage.Streamed(txtStream) => 
+        log.debug(s"${txtStream}")
+        val f = txtStream
+          .completionTimeout(timeout)
+          // .runFold(new StringBuilder())((b, s) => b.append(s))
+          // .map(b => ByteString(b.toString))
+          .runFold(ByteString())((b, s) => {
+            log.debug(s"${txtStream}: chunk:='${s}'")
+            b.++(ByteString(s))
+          })        
+        f
+                
+      case msg => 
+        Future.successful(m.asBinaryMessage.getStrictData)
+    }
+  })
+
+  if(helloMsg.isDefined) {
+    log.info(s"HELLO: '${helloMsg.get}' -> ${uri}")
+    a ! TextMessage.Strict(helloMsg.get)
+  }
+
+  def actor() = a
 }

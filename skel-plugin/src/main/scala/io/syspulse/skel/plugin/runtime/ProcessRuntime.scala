@@ -9,14 +9,14 @@ import scala.util.{Try,Success,Failure}
 import io.syspulse.skel.plugin.runtime._
 import io.syspulse.skel.plugin._
 
-class ProcessRuntime(p:Plugin) extends PluginRuntime {
+class ProcessRuntime(p:PluginDescriptor) extends PluginRuntime {
   val log = Logger(s"${this}")
   
-  def spawn(p:Plugin):Try[Runtime[String]] = {
+  def spawn(p:PluginDescriptor):Try[Plugin] = {
     Success(new Running(p.init))
   }
 
-  class Running(script:String) extends Runtime[String] {
+  class Running(script:String) extends Plugin {
     
     def run(data:Map[String,Any]):Try[String] = {      
             
@@ -33,11 +33,9 @@ class ProcessRuntime(p:Plugin) extends PluginRuntime {
       Success(txt)
     }
 
-    def start():Try[Any] = run(Map())
-
-    def stop():Try[Any] =  Success(this)
-
-    def id():Try[String] = Success(p.init)
+    override def pluginStart():Try[Any] = run(Map())
+    override def pluginStop():Try[Any] =  Success(this)
+    override def pluginId():String = p.init
   }
 
 }

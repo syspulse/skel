@@ -21,46 +21,30 @@ import java.net.URLClassLoader
 import java.net.URL
 
 // Preload from file during start
-class PluginStoreDir(dir:String = "plugins") extends StoreDir[Plugin,Plugin.ID](dir) with PluginStore {
+class PluginStoreDir(dir:String = "plugins") extends StoreDir[PluginDescriptor,PluginDescriptor.ID](dir) with PluginStore {
   val store = new PluginStoreMem
 
-  def toKey(id:String):Plugin.ID = id
-  def all:Seq[Plugin] = {
-    if(store.size == 0) {
-      val storeDir = os.Path(dir,os.pwd)
-      if(! os.exists(storeDir)) {
-        os.makeDir.all(storeDir)
-      }
-      
-      log.info(s"Scanning dir: ${storeDir}")
+  def toKey(id:String):PluginDescriptor.ID = id
 
-      val parent = this.getClass().getClassLoader()
-      val cc = os.walk(storeDir)
-        .filter(_.toIO.isFile())
-        .sortBy(_.toIO.lastModified())
-        .flatMap(f => {
-          log.info(s"Loading file: ${f}")
-          val child:URLClassLoader = new URLClassLoader(Array[URL](new URL(s"file://${f}")), parent)
+  def all:Seq[PluginDescriptor] = store.all
 
-          log.info(s"child=${child}, parent=${parent}")
-          
-          PluginStoreClasspath.load(child)
-        })
-
-        cc        
-
-    } else
-      store.all    
+  def scan():Seq[PluginDescriptor] = {
+    load()
+    all
   }
 
   def size:Long = store.size
   
   // all these should not be supported
-  override def +(u:Plugin):Try[Plugin] = super.+(u).flatMap(_ => store.+(u))
-  override def del(id:Plugin.ID):Try[Plugin.ID] = super.del(id).flatMap(_ => store.del(id))
-  override def ?(id:Plugin.ID):Try[Plugin] = store.?(id)
+  override def +(u:PluginDescriptor):Try[PluginDescriptor] = super.+(u).flatMap(_ => store.+(u))
+  override def del(id:PluginDescriptor.ID):Try[PluginDescriptor.ID] = super.del(id).flatMap(_ => store.del(id))
+  override def ?(id:PluginDescriptor.ID):Try[PluginDescriptor] = store.?(id)
+
+  def loadPlugins():Int = {
+    val pp = scan()
+    all.size
+  }
 
   // create directory
-  os.makeDir.all(os.Path(dir,os.pwd))
-  
+  // os.makeDir.all(os.Path(dir,os.pwd))
 }

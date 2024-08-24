@@ -3,6 +3,11 @@ package io.syspulse.skel.ingest.flow
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration,FiniteDuration}
 import com.typesafe.scalalogging.Logger
+import java.util.concurrent.TimeUnit
+
+import scala.annotation.tailrec
+
+import spray.json._
 
 import akka.util.ByteString
 import akka.http.javadsl.Http
@@ -17,12 +22,9 @@ import io.syspulse.skel
 import io.syspulse.skel.config._
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
-
 import io.syspulse.skel.ingest._
+import io.syspulse.skel.twitter._
 
-import spray.json._
-import java.util.concurrent.TimeUnit
-import scala.annotation.tailrec
 
 case class Textline(txt:String) extends skel.Ingestable {
   override def getKey: Option[Any] = Some(txt.hashCode())
@@ -141,5 +143,14 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config) extend
     //Seq(Textline(s"[${countBytes},${countInput},${countObj},${countOutput}]: ${t}"))
     val t = Textline(txt)
     Seq(t)
+  }
+
+  override def source(feed:String):Source[ByteString,_] = {
+    feed.split("://").toList match {
+      case "twitter" :: uri :: Nil => 
+        Twitter.fromTwitter(uri)
+      case _ => super.source(feed)
+    }
+    
   }
 }

@@ -14,40 +14,105 @@ import akka.actor.typed.SupervisorStrategy
 import io.syspulse.skel.plugin.runtime._
 import io.syspulse.skel.plugin.store._
 
+object PluginEngine {
+  val log = Logger(s"${this}")
+
+  def apply(uri:String) = {
+    val store = uri.split("://").toList match {
+      case ("classpath" | "class") :: className :: Nil =>  new PluginStoreClasspath(className)
+      case "dir" :: Nil =>  new PluginStoreDir()
+      case "dir" :: dir :: Nil => new PluginStoreDir(dir)
+      
+      case "manifest" :: dir :: Nil => new PluginStoreManifest(dir)
+      case "manifest" :: Nil => new PluginStoreManifest()
+      
+      case ("jars" | "jar") :: mask :: Nil => new PluginStoreJar(classMask = mask)
+      case ("jars" | "jar") :: dir :: mask :: Nil => new PluginStoreJar(dir,classMask = mask)
+
+      case classNames :: _ => new PluginStoreClasspath(classNames)
+      case _ => new PluginStoreMem()
+    }
+
+    new PluginEngine(store)
+  }
+
+  def run(uri:String) = {
+    val pe = apply(uri)
+    val n = pe.load()
+    val pp = pe.start()
+    log.info(s"running: ${pp}")
+    pe
+  }
+}
+
 class PluginEngine(store:PluginStore) {
   val log = Logger(s"${this}")
 
-  def spawn():Seq[Try[Runtime[_]]] = {
+  // cache if start()/stop() is used
+  var cache:Seq[Plugin] = Seq()
+
+  def all[T]():Seq[T] = cache.asInstanceOf[Seq[T]]
+  
+  def load() = {
+    store.loadPlugins()
+  }
+
+  def spawn():Seq[Try[Plugin]] = {
     store.all.map( p => 
       spawn(p)
     )
   }
 
-  def spawn(p:Plugin):Try[Runtime[_]] = {
+  def spawn(p:PluginDescriptor):Try[Plugin] = {
     p.typ match {
       case "class" | "jar" => 
         new ClassRuntime().spawn(p)
 
-      case _ => Failure(new Exception(s"unknown type: ${p.typ}"))
+      case _ => Failure(new Exception(s"unknown Plugin type: ${p.typ}"))
     }    
   }
 
+  // start all plugns
+  def start():Seq[Plugin] = {
+    spawn().flatMap(plugin => plugin match {
+      case Success(p) => 
+        cache = cache :+ p
+        Some(p)
+      case Failure(e) =>
+        log.error(s"failed to start plugin: ${plugin}",e)
+        None
+    })
+  }
+
+  // stop all plugins
+  def stop():Int = {
+    cache.map( p => stop(p))
+    val sz = cache.size
+    cache = Seq()
+    sz
+  }
   
-  def start(r:Runtime[_]):Try[Runtime[_]] = {
+  def start(id:String):Try[Plugin] = {
+    log.info(s"start: ${id}")
+        
+    for {
+      plugin <- store.?(id)  
+      r <- spawn(plugin)       
+    } yield r    
+  }
+  
+  def start(r:Plugin):Try[Plugin] = {
     log.info(s"start: ${r}")
     
-    // os.makeDir.all(os.Path(wfRuntimeDir,os.pwd))
-    // createDataDir(plugin.getId)
-    
-    r.start()
+    r.pluginStart()
 
     Success(r)
   }
 
-  def stop(r:Runtime[_]):Try[Runtime[_]] = {
+  def stop(r:Plugin):Try[Plugin] = {
     log.info(s"stop: ${r}")
 
-    r.stop()
+    r.pluginStop()
 
     Success(r)
   }

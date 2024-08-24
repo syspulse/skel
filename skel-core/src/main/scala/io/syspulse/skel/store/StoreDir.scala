@@ -82,14 +82,24 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
 
   def loaded() = {}
 
-  def load():Unit = load(this.dir,"")
+  def load():String = load(this.dir,"")
 
-  def load(dir:String,hint:String=""):Unit = {
-    val storeDir = os.Path(dir,os.pwd)
+  def load(dir:String,hint:String=""):String = {
+    val dir0 = os.Path(dir,os.pwd)
+    
+    val storeDir = if(os.isFile(dir0)) {
+      // this is a file, try to load a dir from a file as content
+      // e.g. dir://LATEST.txt 
+      // LATEST.txt: /mnt/s3/2024/10/25/
+    
+      os.Path(os.read(dir0).trim(),os.pwd)
+    } else
+      dir0
+    
     if(! os.exists(storeDir)) {
       os.makeDir.all(storeDir)
     }
-    
+        
     log.info(s"Loading dir store: ${storeDir}")
 
     val ee = os.walk(storeDir)
@@ -97,11 +107,12 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
       .sortBy(_.toIO.lastModified())
       .map(f => {
         log.info(s"Loading file: ${f}")
-        os.read(f)
+        val fileName = f.toIO.getName()
+        (os.read(f),fileName)
       })
-      .map(fileData => 
-        loadData(fileData,hint)
-      )
+      .map{ case(fileData,fileName) => 
+        loadData(fileData,hint,fileName)
+      }
       .flatten // files
 
     loading = true
@@ -110,9 +121,10 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
 
     log.info(s"Loaded store: ${size}")
     loaded()
+    storeDir.toString
   }
 
-  def loadData(fileData:String,hint:String):Seq[E] = {    
+  def loadData(fileData:String,hint:String,fileName:String):Seq[E] = {    
     val ee = fileData.split("\n").filter(!_.trim.isEmpty).map { data =>
       if(hint.isEmpty || data.contains(hint)) {
         try {
@@ -144,11 +156,11 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     val file = os.Path(f,os.pwd)
     log.info(s"Loading file: ${file}")
     val data = os.read(file)
-    val ee = loadData(data,"")
+    val ee = loadData(data,"",file.toIO.getName())
     ee.foreach( e => StoreDir.this.+(e))    
   }
 
-  def watch(dir:String) = {
+  def watch(dir:String):String = {
     import better.files._
     import io.methvin.better.files._
     import io.methvin.watcher.hashing.FileHasher
@@ -199,6 +211,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
 
     watcher.start()
     log.info(s"watching: ${dir}")
+    dir
   }
 
 }

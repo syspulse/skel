@@ -85,6 +85,12 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
     }
   }
 
+  def getListStringDumb(path:String,d:Seq[String] = Seq()):Seq[String] = {
+    val v = getString(path)
+    val s = if(v.isDefined) v.get else d.mkString(",")    
+    s.split(",").map(_.trim).filter(!_.isEmpty).toSeq    
+  }
+
   def getListLong(path:String):Seq[Long] = getListString(path).flatMap( s => s.toLongOption)
   def getListInt(path:String):Seq[Int] = getListString(path).flatMap( s => s.toIntOption)
 
@@ -110,6 +116,8 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
 
 object Configuration {
   val LOGGING_ARG = "log"
+  val CONFIG_ARG = "conf"
+  
   // automatically support Akka-stype EnvVar
   System.setProperty("config.override_with_env_vars","true")
   def apply():Configuration = new Configuration(Seq(new ConfigurationAkka))

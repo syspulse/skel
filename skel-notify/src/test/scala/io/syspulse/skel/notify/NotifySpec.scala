@@ -70,6 +70,7 @@ class NotifySpec extends AnyWordSpec with Matchers {
   }
 
   "HttpURI" should {
+    implicit val config = Config()
 
     "parse http ('http://localhost:8300/')" in {
       val n = new NotifyHttp("http://localhost:8300")

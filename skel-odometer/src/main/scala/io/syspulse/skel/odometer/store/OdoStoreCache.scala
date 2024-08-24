@@ -21,23 +21,32 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
 
   val cache = new OdoStoreMem()
   val dirty = new OdoStoreMem()
+  var cachedAll = false
 
-  val cron = new CronFreq(() => {
+  val cron = new CronFreq((_) => {
       if(dirty.size > 0) log.info(s"Flushing cache: ${dirty.size}")
 
       dirty.all.foreach{ o => {
         log.debug(s"Flushing: ${o}")
-        store.update(o.id,o.counter)
+        store.update(o.id,o.v)
       }}
       // clear dirty cache
       dirty.clear()
       true
     },
-    FiniteDuration(freq,TimeUnit.MILLISECONDS),
-    freq
+    freq.toString,//FiniteDuration(freq,TimeUnit.MILLISECONDS),
+    //freq
   )
 
-  def all:Seq[Odo] = cache.all
+  // always request everything and cache
+  def all:Seq[Odo] = {
+    val oo = store.all
+    for( o <- oo ) {
+      cache.+(o)
+    }
+    cachedAll = true
+    oo
+  }
 
   def size:Long = cache.size
 
@@ -74,11 +83,11 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
     ????(id)
   }
 
-  def update(id:String,counter:Long):Try[Odo] = {
+  def update(id:String,v:Long):Try[Odo] = {
     val o = ????(id)
     for {
       o <- o
-      o1 <- cache.update(id,counter)
+      o1 <- cache.update(id,v)
       _ <-  dirty.+(o1)
     } yield o1
   }
@@ -99,6 +108,52 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
       _ <- dirty.clear()
     } yield this
   }
+
+  override def ??(ids:Seq[String]):Seq[Odo] = {
+    // val oo = cache.??(ids) 
+    // if(oo.size == 0) {
+    //   // try to get from store
+    //   val oo = store.??(ids)
+    //   for( o <- oo) {
+    //     cache.+(o)
+    //   }
+    //   oo
+    // } else oo
+
+    val oo = ids.flatMap( id => {
+      id.split(":").toList match {
+        case ns :: "*" :: Nil =>           
+          val oo = cache.??(Seq(id))
+          
+          val oo1 = if(oo.size == 0) {
+            store.??(Seq(id))
+          } else oo
+
+          for( o <- oo1) {
+            cache.+(o)
+          }
+          oo1
+        
+        case "*" :: Nil => 
+          if( !cachedAll ) {
+            val oo = store.??(Seq("*"))
+            if(oo.size != 0)
+              cachedAll = true
+            oo
+          }
+          else
+            cache.??(Seq("*"))
+
+        case _ => 
+          this.?(id) match {
+            case Success(o) => Seq(o)
+            case _ => Seq()
+          }        
+      }
+    })
+    oo
+  }
+
   
   // start cron
   cron.start()

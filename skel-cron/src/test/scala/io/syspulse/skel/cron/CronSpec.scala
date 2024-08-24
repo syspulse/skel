@@ -11,11 +11,11 @@ import java.time._
 
 class CronSpec extends AnyWordSpec with Matchers {
   
-  "Cron" should {
+  "CronQuartz" should {
 
     "NOT schedule events for: '0 0/5 * * * ?'" in {
       var n = 0
-      val c = new Cron((elaped:Long) => {
+      val c = new CronQuartz((elaped:Long) => {
           n = n + 1
           true
         },
@@ -32,7 +32,7 @@ class CronSpec extends AnyWordSpec with Matchers {
 
     "schedule 2 events for: '*/1 * * * * ?'" in {
       var n = 0
-      val c = new Cron((elaped:Long) => {
+      val c = new CronQuartz((elaped:Long) => {
           n = n + 1
           true
         },

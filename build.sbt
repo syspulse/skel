@@ -285,7 +285,7 @@ val sharedConfigAssemblySpark = Seq(
 )
 
 
-def appDockerConfig(appName:String,appMainClass:String) = 
+def appDockerConfig(appName:String,appMainClass:String,appConfigs:Seq[String]=Seq.empty) = {  
   Seq(
     name := appName,
 
@@ -294,11 +294,15 @@ def appDockerConfig(appName:String,appMainClass:String) =
     Compile / mainClass := Some(appMainClass), // <-- This is very important for DockerPlugin generated stage1 script!
     assembly / assemblyJarName := jarPrefix + appName + "-" + "assembly" + "-"+  skelVersion + ".jar",
 
+    Universal / mappings ++= {
+      appConfigs.map(c => (file(baseDirectory.value.getAbsolutePath+"/conf/"+c), "conf/"+c))
+    },
     Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/application.conf") -> "conf/application.conf",
     Universal / mappings += file(baseDirectory.value.getAbsolutePath+"/conf/logback.xml") -> "conf/logback.xml",
     bashScriptExtraDefines += s"""addJava "-Dconfig.file=${appDockerRoot}/conf/application.conf"""",
-    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",   
-  )
+    bashScriptExtraDefines += s"""addJava "-Dlogback.configurationFile=${appDockerRoot}/conf/logback.xml"""",           
+  ) 
+}
 
 def appAssemblyConfig(appName:String,appMainClass:String) = 
   Seq(
@@ -328,6 +332,8 @@ lazy val root = (project in file("."))
              skel_job,
              job_core,
              crypto_kms,
+             blockchain_core,
+             blockchain_rpc,
              tools)
   .dependsOn(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, crypto, skel_dsl, scrap, cli, db_cli,
              ingest_core,
@@ -344,7 +350,8 @@ lazy val root = (project in file("."))
              skel_telemetry,
              skel_job,
              job_core,
-             crypto_kms,
+             blockchain_core,
+             blockchain_rpc,
              )  
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
@@ -370,6 +377,7 @@ lazy val core = (project in file("skel-core"))
         Seq(
           libUUID, 
           libScodecBits,
+          libUpickleLib,
           
           libDirWatcher,
           libDirWatcherScala,
@@ -670,9 +678,7 @@ lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
     
     sharedConfig,
     sharedConfigAssembly,
-    sharedConfigDocker,
-    dockerBuildxSettings,
-
+    
     appDockerConfig("ingest-elastic",appBootClassElastic),
 
     libraryDependencies ++= Seq(
@@ -680,8 +686,27 @@ lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
     ),  
   )
 
+lazy val ingest_twitter = (project in file("skel-ingest/ingest-twitter"))
+  .dependsOn(core, ingest_core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  // .enablePlugins(AshScriptPlugin)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    
+    appDockerConfig("ingest-twitter",appBootClassElastic),
+
+    libraryDependencies ++= Seq(
+      //libTwitter4s, // deprecated, not supported any longer
+
+      libRequests
+    ),  
+  )
+
 lazy val ingest = (project in file("skel-ingest"))
-  .dependsOn(core, serde, ingest_core, ingest_elastic, kafka)
+  .dependsOn(core, serde, ingest_core, ingest_elastic, kafka, ingest_twitter)
   //.enablePlugins(JavaAppPackaging)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
@@ -709,13 +734,17 @@ lazy val ingest = (project in file("skel-ingest"))
   )
 
 lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
-  .dependsOn(core, serde, ingest)
+  .dependsOn(core, serde, ingest, ingest_twitter)
   .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
   .settings (
     sharedConfig,
     sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
 
-    appAssemblyConfig("ingest-flow","io.syspulse.skel.ingest.flow.App"),    
+    // appAssemblyConfig("ingest-flow","io.syspulse.skel.ingest.flow.App"),    
+    appDockerConfig("ingest-flow","io.syspulse.skel.ingest.flow.App"),    
 
     libraryDependencies ++= Seq(
       libScalaTest % Test,      
@@ -1120,7 +1149,7 @@ lazy val skel_odometer = (project in file("skel-odometer"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    appDockerConfig(appNameUser,appBootClassUser),
+    appDockerConfig("skel-odometer","io.syspulse.skel.odometer.App"),
 
     libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq( 
       libRedis
@@ -1169,4 +1198,64 @@ lazy val skel_plugin_1 = (project in file("skel-plugin/plugin-1"))
 
     libraryDependencies ++= Seq(      
     )
+  )
+
+lazy val blockchain_core = (project in file("skel-blockchain/blockchain-core"))
+  .dependsOn(core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,      
+      name := "blockchain-core",
+      libraryDependencies ++=  libTest
+    )
+
+lazy val blockchain_rpc = (project in file("skel-blockchain/blockchain-rpc"))
+  .dependsOn(core,crypto,blockchain_core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssemblyTeku,
+      //sharedConfigAssembly,
+      
+      name := "blockchain-rpc",
+      libraryDependencies ++=  libTest ++ libWeb3j
+
+      // this is important option to support latest log4j2 
+      //assembly / packageOptions += sbt.Package.ManifestAttributes("Multi-Release" -> "true")
+    )
+
+lazy val skel_ai = (project in file("skel-ai"))
+  .dependsOn(core,auth_core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  // .enablePlugins(AshScriptPlugin)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("skel-ai","io.syspulse.skel.ai.App"),
+
+    libraryDependencies ++= libSkel ++ libHttp ++ libTest ++ Seq(
+      
+    ),  
+  )
+
+lazy val skel_dns = (project in file("skel-dns"))
+  .dependsOn(core)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,      
+    name := "skel-dns",
+    //appDockerConfig("skel-dns","io.syspulse.skel.dns.App"),
+
+    libraryDependencies ++= libSkel ++ libTest ++ Seq(
+      libRequests,
+      libApacheCommonsNet,
+      libDnsJava
+    ),  
   )

@@ -46,10 +46,8 @@ object App extends skel.Server {
         
         ArgString('r', "registry",s"Extra Registry (def: ${d.registry})"),
         
-        ArgCmd("server",s"Server"),        
-        
-        ArgCmd("registry",s"Show Execs Registry"),
-
+        ArgCmd("run",s"Run Plugins"),                
+        //ArgCmd("registry",s"Show Execs Registry"),
         ArgCmd("runtime",s"Runtime subcommands: " +
           s"spawn <id>          : Spawn + start Plugin"+
           s"run <id>            : Spawn + start + wait Plugin"+
@@ -72,39 +70,57 @@ object App extends skel.Server {
       
       registry = c.getListString("registry",d.registry),
 
-      cmd = c.getCmd().getOrElse("server"),
+      cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
     )
 
     Console.err.println(s"Config: ${config}")
 
     val store = config.datastore.split("://").toList match {
-      case "dir" :: Nil => 
-        new PluginStoreDir()
-      case "dir" :: dir :: Nil =>
-        new PluginStoreDir(dir)
-      case _ => {
-        new PluginStoreMem()
-      }
+      case ("classpath" | "class") :: className :: Nil =>  new PluginStoreClasspath(className)
+      case "dir" :: Nil =>  new PluginStoreDir()
+      case "dir" :: dir :: Nil => new PluginStoreDir(dir)
+      
+      case "manifest" :: dir :: Nil => new PluginStoreManifest(dir)
+      case "manifest" :: Nil => new PluginStoreManifest()
+      
+      case ("jars" | "jar") :: mask :: Nil => new PluginStoreJar(classMask = mask)
+      case ("jars" | "jar") :: dir :: mask :: Nil => new PluginStoreJar(dir,classMask = mask)
+
+      case className :: _ => new PluginStoreClasspath(className)
+      case _ => new PluginStoreMem()
     }
+
+    Console.err.println(s"store: ${store}")
+    
     
     val r = config.cmd match {
-      case "server" => 
+      case "run" => 
+        PluginEngine.run(config.datastore)
       
-      case "runtime" => {        
+      case "runtime" => {
+        store.loadPlugins()
 
-        val pe = new PluginEngine(store)
+        //val runtime = new ClassRuntime()
+        val runtime = new PluginEngine(store)
+
         config.params match {
           case "spawn" :: id :: Nil =>
             for {
-              plugin <- store.?(id)       
-              r <- pe.spawn(plugin)            
+              plugin <- store.?(id)  
+              r <- runtime.spawn(plugin)       
             } yield r
+
+          case "start" :: id :: Nil =>
+            runtime.start(id)
+          
+          case "start" :: Nil =>
+            runtime.start()
                   
           case _ => 
             for {
-              st <- store.all
-            } yield st
+              pp <- store.all
+            } yield pp
         }}
     }
 

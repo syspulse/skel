@@ -7,5 +7,5 @@ import DefaultJsonProtocol._
 
 object PluginJson extends JsonCommon with NullOptions {
 
-  implicit val jf_pl_pl = jsonFormat5(Plugin.apply _)  
+  implicit val jf_pl_pl = jsonFormat5(PluginDescriptor.apply _)  
 }

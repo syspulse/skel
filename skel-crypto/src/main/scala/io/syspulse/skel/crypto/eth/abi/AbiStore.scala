@@ -45,7 +45,7 @@ trait AbiStore extends Store[AbiContract,AbiStore.ID] with AbiStoreSigFuncResolv
 
   
   def find(contractAddr:String,functionName:String):Try[Seq[AbiDefinition]]
-  def load():Unit
+  def load():String
   def decodeInput(contract:String,data:Seq[String],entity:String):Try[AbiResult]
 }
 

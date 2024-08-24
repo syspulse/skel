@@ -56,24 +56,35 @@ import io.syspulse.skel.odometer.store.OdoRegistry
 import io.syspulse.skel.odometer.store.OdoRegistry._
 import io.syspulse.skel.odometer.server.{Odos, OdoRes, OdoCreateReq, OdoUpdateReq}
 import io.syspulse.skel.service.telemetry.TelemetryRegistry
+import io.syspulse.skel.service.ws.WebSocket
+import scala.concurrent.ExecutionContext
+import io.syspulse.skel.cron.CronFreq
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
+import io.syspulse.skel.odometer.store.OdoRegistryProto._
 
 @Path("/")
-class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],config:Config) extends CommonRoutes with Routeable with RouteAuthorizers {
-  //val log = Logger(s"${this}")
-  implicit val system: ActorSystem[_] = context.system
+class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],config:Config,ex:ExecutionContext) 
+  extends WebSocket(config.timeoutIdle)(ex) with CommonRoutes with Routeable with RouteAuthorizers {
   
+  override val log = Logger(s"${this}")
+
+  implicit val system: ActorSystem[_] = context.system    
   implicit val permissions = Permissions()
 
-  import io.syspulse.skel.odometer.store.OdoRegistryProto._
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+  import spray.json._
   import OdoJson._
+
+  // quick flag to trigger Websocket update
+  @volatile var updated = false
     
-  def getOdos(): Future[Odos] = registry.ask(GetOdos)
-  def getOdo(id: String): Future[Try[Odo]] = registry.ask(GetOdo(id, _))
+  def getOdos(): Future[Try[Odos]] = registry.ask(GetOdos)
+  def getOdo(id: String): Future[Try[Odos]] = registry.ask(GetOdo(id, _))
   
-  def createOdo(req: OdoCreateReq): Future[Try[Odo]] = registry.ask(CreateOdo(req, _))
-  def updateOdo(id:String,req: OdoUpdateReq): Future[Try[Odo]] = registry.ask(UpdateOdo(id,req, _))
+  def createOdo(req: OdoCreateReq): Future[Try[Odos]] = registry.ask(CreateOdo(req, _))
+  def updateOdo(req: OdoUpdateReq): Future[Try[Odos]] = registry.ask(UpdateOdo(req, _))
   def deleteOdo(id: String): Future[Try[String]] = registry.ask(DeleteOdo(id, _))
   
 
@@ -108,6 +119,7 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
   )
   def deleteOdoRoute(id: String) = delete {
     onSuccess(deleteOdo(id)) { r =>
+      updated = true
       complete(StatusCodes.OK, r)
     }
   }
@@ -121,6 +133,11 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
   def createOdoRoute = post {
     entity(as[OdoCreateReq]) { req =>
       onSuccess(createOdo(req)) { r =>
+        // update subscribers
+        if(r.isSuccess && config.freq == 0L) 
+          broadcastText(r.get.toJson.compactPrint) 
+        else
+          updated = true
         complete(StatusCodes.Created, r)
       }
     }
@@ -134,11 +151,43 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
   )
   def updateOdoRoute(id:String) = put {
     entity(as[OdoUpdateReq]) { req =>
-      onSuccess(updateOdo(id,req)) { r =>
+      onSuccess(updateOdo(req.copy(id = id))) { r =>
+        if(r.isSuccess && config.freq == 0L) 
+          broadcastText(r.get.toJson.compactPrint)
+        else
+          updated = true
         complete(StatusCodes.OK, r)
       }
     }
   }
+
+  // can trigger update externally directly
+  def update(req:OdoUpdateReq) = {
+    updateOdo(req).map{ r => {
+      log.debug(s"update: ${r}")
+      if(r.isSuccess && config.freq == 0L) 
+        broadcastText(r.get.toJson.compactPrint)
+      else
+        updated = true
+    }}
+  }
+
+  // run cron
+  new CronFreq(
+    (_) => {
+      log.debug(s"cron: updated=${updated}")
+      if(updated) {
+        getOdos().map( _.map{ oo =>
+          broadcastText(oo.toJson.compactPrint)
+          updated = false
+        })
+      }
+      // always success
+      true
+    },
+    config.freq, //FiniteDuration(config.freq,TimeUnit.MILLISECONDS),
+    //delay = config.freq
+  ).start()
 
     
   val corsAllow = CorsSettings(system.classicSystem)
@@ -150,26 +199,41 @@ class OdoRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],c
         pathEndOrSingleSlash {
           concat(
             authenticate()(authn =>
-              authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
-                getOdosRoute() ~                
-                createOdoRoute  
-              }
+              getOdosRoute()
+              ~
+              createOdoRoute  
             ),            
           )
         },
+        pathPrefix("ws") { 
+          extractClientIP { addr => {
+            log.info(s"<-- ws://${addr}")
+
+            authenticate()(authn => {              
+              // for experiments only
+              extractOfferedWsProtocols { protocols => {
+                log.debug(s"Websocket Protocols: ${protocols}")
+
+                pathPrefix(Segment) { group =>
+                  handleWebSocketMessages(this.listen(group))
+                } ~
+                pathEndOrSingleSlash {
+                  handleWebSocketMessages(this.listen())
+                }
+              }}
+            })
+          }}
+        },
         pathPrefix(Segment) { id => 
           pathEndOrSingleSlash {
-            authenticate()(authn =>
-              authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
-                updateOdoRoute(id) ~
-                getOdoRoute(id)                 
-              } ~
-              authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
-                deleteOdoRoute(id)
-              }
-            ) 
+            authenticate()(authn => {
+              // authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {}
+              updateOdoRoute(id) ~
+              getOdoRoute(id) ~
+              deleteOdoRoute(id)
+            }) 
           }
-        }
+        },        
       )
   }
 }

@@ -76,12 +76,13 @@ object App extends skel.Server {
         ArgLong('s', s"size",s"File Size Limit (def: ${d.size})"),
 
         ArgString('d', "datastore",s"Datastore [elastic,mem,stdout] (def: ${d.datastore})"),
-        
+                
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
         
         ArgParam("<processors>","List of processors (none/map,print,dedup)"),
-        ArgLogging()
+        ArgLogging(),
+        ArgConfig(),
       ).withExit(1)
     )).withLogging()
 
@@ -109,7 +110,7 @@ object App extends skel.Server {
       params = c.getParams(),
     )
 
-    println(s"Config: ${config}")
+    Console.err.println(s"Config: ${config}")
 
     // store is not used
     val store:IngestStore[_] = config.datastore match {
@@ -133,12 +134,14 @@ object App extends skel.Server {
         Console.err.println(s"Not supported")
         sys.exit(1)
       case "ingest" => {
-        val f1 = new PipelineTextline(config.feed,config.output)
-        f1.run()
+        val f1 = new PipelineTextline(config.feed,config.output)        
+        val r = f1.run()
+        
+        r
       }     
     }
 
-    println(s"r = ${r}")
+    Console.err.println(s"r = ${r}")
     
     //sys.exit(0)
   }

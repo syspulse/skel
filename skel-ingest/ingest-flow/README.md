@@ -95,7 +95,7 @@ db1 {
 ./run-ingest.sh -f 5.log -o "jdbc://db1"
 ```
 
-### WS listener sink !
+### WS listener sink
 
 ```
 (while [ 1 ]; do echo `date`; sleep 1;done)| ./run-ingest.sh -o server:ws://0.0.0.0:9300/ws

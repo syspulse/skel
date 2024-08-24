@@ -1,9 +1,12 @@
 #!/bin/bash
 
-TO="${1:-http://localhost:8300/{msg}}"
+#TO="${1:-http://GET:ASYNC@localhost:8300/{msg}}"
+#TO="${1:-http://POST:ASYNC@12345677@localhost:8300}"
+# this will take Auth token from Server --http.auth
+TO="${1:-http://POST:ASYNC@@localhost:8300}"
 SCOPE=${2:-sys.wf}
 SUBJ=${3:-Workflow}
-MSG=${4:-Pipeline-0001}
+MSG=${4:-/api/v1/webhook}
 
 SEVERITY=${SEVERITY:-20}
 

@@ -32,19 +32,30 @@ import java.nio.ByteBuffer
 import com.amazonaws.services.kms.model.DescribeKeyRequest
 import com.amazonaws.services.kms.model.ListAliasesRequest
 
-class AES {
+class AES(uri:String = "") {
   import Util._
-  val kms: AWSKMS = AWSKMSClientBuilder.standard.build
+  //val kms: AWSKMS = AWSKMSClientBuilder.standard.build
+  val kmsClient = new KmsClient(uri)
+  val kms = kmsClient.getAWSKMS()
+
+  def getKmsClient() = kmsClient
 
   def decrypt(input: Array[Byte], keyId:String): Try[String] = {
     try {      
       if(input.size > 4096) {
         
-          // derive the datakey (256 bits)
-          val rawKey = input.take(32)
-          val rawData = input.drop(32)
+          val encryptedKeySize = input.take(1)(0).toInt & 0xff
+          val encryptedKey = input.drop(1).take(encryptedKeySize)
+          val iv = input.drop(1 + encryptedKeySize).take(16)
+          val rawData = input.drop(1 + encryptedKeySize + 16)
           
-          new io.syspulse.skel.crypto.AES().decrypt(rawData,new String(rawKey))
+          // decrypt the dataKey
+          val data: ByteBuffer = ByteBuffer.wrap(encryptedKey)
+          val req: DecryptRequest = new DecryptRequest().withCiphertextBlob(data).withKeyId(keyId)
+          val rawKey: ByteBuffer = kms.decrypt(req).getPlaintext
+          val rawKey64 = Base64.getEncoder.encodeToString(rawKey.array())
+          
+          new io.syspulse.skel.crypto.AES().decrypt(rawData,rawKey64,iv)
 
       } else {
         val data: ByteBuffer = ByteBuffer.wrap(input)
@@ -53,7 +64,7 @@ class AES {
         val raw: ByteBuffer = kms.decrypt(req).getPlaintext
 
         val output = StandardCharsets.UTF_8.decode(raw).toString
-        Success(output)      
+        Success(output)
       }
     } catch {
       case e:Exception => Failure(e)
@@ -65,12 +76,17 @@ class AES {
     if(input.size > 2048) {
         val req: GenerateDataKeyRequest = new GenerateDataKeyRequest().withKeyId(keyId).withKeySpec("AES_256")
         val dataKey = kms.generateDataKey(req)
-        // val reqKey: EncryptRequest = new EncryptRequest().withPlaintext(dataKey.getPlaintext()).withKeyId(keyId)
-        // val rawKey: ByteBuffer = kms.encrypt(reqKey).getCiphertextBlob()
-        val rawKey = dataKey.getPlaintext()
         
-        val rawData = new io.syspulse.skel.crypto.AES().encrypt(input,new String(rawKey.array()))
-        rawKey.array() ++ rawData 
+        val rawKey = dataKey.getPlaintext()
+        val rawKey64 = Base64.getEncoder.encodeToString(rawKey.array())
+        val encryptedKey = dataKey.getCiphertextBlob()
+        val encryptedKeySize = encryptedKey.array().size
+
+        /// ATTENTION: It assumes EncryptedKey is never > 255 bytes size !
+        val encryptedKeySizeByte:Byte = encryptedKeySize.toByte
+                
+        val (iv,rawData) = new io.syspulse.skel.crypto.AES().encrypt(input,rawKey64)
+        Array(encryptedKeySizeByte) ++ encryptedKey.array() ++ iv ++ rawData 
 
     } else {
         val data: ByteBuffer = ByteBuffer.wrap(input.getBytes())
@@ -93,9 +109,9 @@ class AES {
     )
   }
   
-  def getKeyId(alias:String):Try[String] = {    
+  def getKeyId(alias:String,limit:Int=512):Try[String] = {    
     try {
-      val req = new ListAliasesRequest().withLimit(512)
+      val req = new ListAliasesRequest().withLimit(limit)
       val aa = kms.listAliases(req)
       aa.getAliases().asScala.find(_.getAliasName() == s"alias/${alias}") match {
         case Some(k) => Success(k.getAliasName())

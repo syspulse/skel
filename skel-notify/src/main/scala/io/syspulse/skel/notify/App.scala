@@ -48,6 +48,11 @@ case class Config(
   timeout:Long = 10000L,
   timeoutIdle:Long = 1000L*60*10,
 
+  httpAuth:String = "",
+
+  slackWebhook:String = "",
+  slackKey:String = "",
+
   cmd:String = "notify",
   params: Seq[String] = Seq(),
 )
@@ -81,6 +86,11 @@ object App extends skel.Server {
 
         ArgLong('_', "timeout",s"timeout (msec, def: ${d.timeout})"),
         ArgLong('_', "timeout.idle",s"timeout for Idle WS connection (msec, def: ${d.timeoutIdle})"),
+
+        ArgString('_', "http.auth",s"Auth token for HTTP notification (def: ${d.httpAuth})"),
+
+        ArgString('_', "slack.webhook",s"Slack Webhook Url suffix (def: ${d.slackWebhook})"),
+        ArgString('_', "slack.key",s"Slack API key (def: ${d.slackKey})"),
         
         ArgCmd("server",s"Server"),
         ArgCmd("client",s"Command"),
@@ -110,6 +120,11 @@ object App extends skel.Server {
 
       timeout = c.getLong("timeout").getOrElse(d.timeout),
       timeoutIdle = c.getLong("timeout.idle").getOrElse(d.timeoutIdle),
+
+      httpAuth = c.getString("http.auth").getOrElse(d.httpAuth),
+
+      slackWebhook = c.getString("slack.webhook").getOrElse(d.slackWebhook),
+      slackKey = c.getString("slack.key").getOrElse(d.slackKey),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),

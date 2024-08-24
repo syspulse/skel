@@ -91,14 +91,24 @@ trait Server {
   def getHandlers():(RejectionHandler,ExceptionHandler) = {
     val rejectionHandler = RejectionHandler.newBuilder()
         .handle { case MissingQueryParamRejection(param) =>
-            complete(HttpResponse(BadRequest,   entity = jsonEntity(s"""{"error": "missing parameter"}""")))
+          complete(HttpResponse(BadRequest,   entity = jsonEntity(s"""{"error": "missing parameter"}""")))
         }
         .handle { case AuthorizationFailedRejection =>
-          complete(HttpResponse(Forbidden, entity = jsonEntity(s"""{"error": "authorization"}""")))
+          complete(HttpResponse(Forbidden, entity = jsonEntity(s"""{"error": "AuthorizationFailedRejection"}""")))
+        }
+        .handleAll[AuthenticationFailedRejection] { rejections =>
+          // val rejectionMessage = rejections.head.cause match {
+          //   case CredentialsMissing  => "The resource requires authentication, which was not supplied with the request"
+          //   case CredentialsRejected => "The supplied authentication is invalid"
+          // }
+          complete(HttpResponse(Unauthorized, entity = jsonEntity(s"""{"error": "AuthenticationFailedRejection: ${rejections}"}""")))
         }
         .handleAll[MethodRejection] { methodRejections =>
           val names = methodRejections.map(_.supported.name)
-          complete(HttpResponse(MethodNotAllowed, entity = jsonEntity(s"""{"error": "rejected"}""")))
+          complete(HttpResponse(MethodNotAllowed, entity = jsonEntity(s"""{"error": "${names} rejected"}""")))
+        }
+        .handleAll[Rejection] { rej =>
+          complete(HttpResponse(BadRequest, entity = jsonEntity(s"""{"error": "${rej}"}""")))
         }
         .handleNotFound { extractUnmatchedPath { p =>
           complete(HttpResponse(NotFound, entity = jsonEntity(s"""{"error": "not found: '${p}'"}""")))
@@ -114,6 +124,10 @@ trait Server {
           }
         // case e: Exception => complete(HttpResponse(InternalServerError))
         case e: Exception => {
+          // nice forwarding errors to clients
+          complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""{"error": "${e}"}""")))
+        }
+        case e => {
           // nice forwarding errors to clients
           complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""{"error": "${e}"}""")))
         }

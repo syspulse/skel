@@ -16,11 +16,11 @@ import io.syspulse.skel.odometer._
 import io.syspulse.skel.odometer.server.{Odos, OdoRes, OdoCreateReq, OdoUpdateReq}
 
 object OdoRegistryProto {
-  final case class GetOdos(replyTo: ActorRef[Odos]) extends Command
-  final case class GetOdo(id:String,replyTo: ActorRef[Try[Odo]]) extends Command
+  final case class GetOdos(replyTo: ActorRef[Try[Odos]]) extends Command
+  final case class GetOdo(id:String,replyTo: ActorRef[Try[Odos]]) extends Command
   
-  final case class CreateOdo(req: OdoCreateReq, replyTo: ActorRef[Try[Odo]]) extends Command
-  final case class UpdateOdo(id:String, req: OdoUpdateReq, replyTo: ActorRef[Try[Odo]]) extends Command  
+  final case class CreateOdo(req: OdoCreateReq, replyTo: ActorRef[Try[Odos]]) extends Command
+  final case class UpdateOdo(req: OdoUpdateReq, replyTo: ActorRef[Try[Odos]]) extends Command  
   final case class DeleteOdo(id: String, replyTo: ActorRef[Try[String]]) extends Command
 }
 
@@ -32,21 +32,35 @@ object OdoRegistry {
   // this var reference is unfortunately needed for Metrics access
   var store: OdoStore = null 
 
-  def apply(store: OdoStore = new OdoStoreMem): Behavior[io.syspulse.skel.Command] = {
+  def apply(store: OdoStore = new OdoStoreMem): Behavior[Command] = {
     this.store = store
     registry(store)
   }
 
-  private def registry(store: OdoStore): Behavior[io.syspulse.skel.Command] = {    
+  private def registry(store: OdoStore): Behavior[Command] = {    
     this.store = store
     
     Behaviors.receiveMessage {
       case GetOdos(replyTo) =>
-        replyTo ! Odos(store.all)
+        try {
+          val oo = store.all
+          replyTo ! Success(Odos(oo,total=Some(oo.size)))
+        } catch {
+          case e:Exception => 
+            log.error("failed to get all",e)
+            replyTo ! Failure(e)
+        }
         Behaviors.same
 
       case GetOdo(id, replyTo) =>
-        replyTo ! store.?(id)
+        try {
+          val oo = store.??(Seq(id))
+          replyTo ! Success( Odos(oo,total=Some(oo.size)) )
+        } catch {
+          case e:Exception =>
+            log.error(s"failed to get: ${id}",e)
+            replyTo ! Failure(e)
+        }
         Behaviors.same      
 
       case CreateOdo(req, replyTo) =>
@@ -58,15 +72,22 @@ object OdoRegistry {
             case _ =>  
               val o = Odo(req.id, req.counter.getOrElse(0L))
               val store1 = store.+(o)
-              replyTo ! store1.map(_ => o) 
+              replyTo ! store1.map(_ => Odos(Seq(o),total=Some(1))) 
           }
 
         Behaviors.same
 
-      case UpdateOdo(id, req, replyTo) =>        
+      case UpdateOdo(req, replyTo) =>        
         // ATTENTION: Update is ++ !
-        val o = store.++(id,req.delta)
-        replyTo ! o
+        val o = store.++(req.id,req.delta)
+        val r = o match {
+          case Success(o) => Success(Odos(Seq(o),total=Some(1)))
+          case Failure(e) => 
+            // try to create
+            val o = Odo(req.id, 0L)
+            store.+(o).map(o => Odos(Seq(o),total=Some(1)))
+        }
+        replyTo ! r
 
         Behaviors.same
       

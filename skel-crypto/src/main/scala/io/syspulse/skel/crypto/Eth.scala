@@ -1,5 +1,6 @@
 package io.syspulse.skel.crypto
 
+import scala.jdk.CollectionConverters._
 import scala.util.{Try,Success,Failure}
 import scala.concurrent.{Future,ExecutionContext}
 import scala.jdk.FutureConverters._
@@ -13,16 +14,19 @@ import org.bouncycastle.jcajce.provider.digest.SHA3;
 import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey
 
 import java.security.Security
-import org.web3j.crypto.{ECKeyPair,ECDSASignature,Sign,Credentials,WalletUtils,Bip32ECKeyPair,MnemonicUtils,Keys,RawTransaction,TransactionEncoder}
-import org.web3j.utils.{Numeric}
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto.key
+import io.syspulse.skel.crypto.eth.abi3.Abi
 import java.io.File
 import org.apache.tuweni.bytes.Bytes32
+
+import java.nio.charset.StandardCharsets
+
+import org.web3j.crypto.{ECKeyPair,ECDSASignature,Sign,Credentials,WalletUtils,Bip32ECKeyPair,MnemonicUtils,Keys,RawTransaction,TransactionEncoder}
+import org.web3j.utils.{Numeric}
 import org.web3j.abi.datatypes.generated.Uint8
 import org.web3j.crypto
-import java.nio.charset.StandardCharsets
 import org.web3j.utils.Convert
 import org.web3j.tx.gas.DefaultGasProvider
 import org.web3j.protocol.Web3j
@@ -33,6 +37,10 @@ import org.web3j.tx.response.TransactionReceiptProcessor
 import org.web3j.tx.response.PollingTransactionReceiptProcessor
 import org.web3j.protocol.core.methods.response.TransactionReceipt
 import org.web3j.protocol.core.DefaultBlockParameterName
+import org.web3j.protocol.core.methods.request.Transaction
+import org.web3j.abi.datatypes
+import org.web3j.abi.FunctionEncoder
+import org.web3j.abi.TypeReference
 
 object Eth {
   val log = Logger(s"${this}")
@@ -268,11 +276,31 @@ object Eth {
     Web3j.build(new HttpService(rpcUri))
   }
 
+  def percentageToWei(v:BigInt,percentage:String):Double = {
+    val current = v.toDouble
+    val gasNew = current + current * (percentage.trim.stripSuffix("%").toDouble / 100.0 )
+    if(gasNew < 0.0)
+      0.0
+    else
+      gasNew
+  }
+
   def strToWei(v:String)(implicit web3:Web3j):Try[BigInt] = {
     v.trim.toLowerCase.split("\\s+").toList match {
-      case "current" :: Nil =>
+      case "" :: Nil =>
+        Success(0)
+        
+      case ("current" | "market") :: Nil =>
         getGasPrice()(web3) match {
           case Success(v) => Success(v)
+          case f => f
+        }
+      // percentage based from current
+      case percentage :: Nil if(percentage.trim.endsWith("%"))=> 
+        getGasPrice()(web3) match {
+          case Success(v) => 
+            val gasNew = percentageToWei(v,percentage)
+            Success(BigDecimal.valueOf(gasNew).toBigInt)
           case f => f
         }
       case v :: "eth" :: _ => 
@@ -545,6 +573,65 @@ object Eth {
       .ethGetBalance(addr,DefaultBlockParameterName.PENDING).sendAsync()
       .asScala
       .map(r => BigInt(r.getBalance()))
+  }
+
+  // input is calldata and must be already encoded
+  def estimateGas(from:String,contractAddress:String,input:String)(implicit web3:Web3j):Try[BigInt] = {
+    val tx = Transaction.createEthCallTransaction(from, contractAddress, input)
+
+    for {
+      r <- Success(web3.ethEstimateGas(tx).send())
+      
+      cost <- {
+        if(r.hasError()) {
+          throw new Exception(r.getError().getMessage())
+        }
+
+        val cost = r.getAmountUsed()
+
+        if(cost == null) {
+          //log.error(s"Tx[${to},${valueWei},${gasPriceWei}/${gasTipWei}]: ${r.getError().getMessage()}")
+          throw new Exception(r.getError().getMessage())
+        } 
+        
+        log.info(s"${contractAddress}: ${input}: cost=${cost}")
+        Success(cost)
+      }      
+    } yield cost
+  }
+
+  //
+  def estimateFunc(
+    from:String,
+    contractAddress:String,
+    func:String,
+    abiDef:String,
+    inputs:Seq[Any]    
+    )(implicit web3:Web3j):Try[BigInt] = {
+
+    val abi = Abi.parse(abiDef)
+    val inputsParsed:Seq[datatypes.Type[_]] = abi.getInputs(func,inputs)
+    val outputsParsed:Seq[TypeReference[_]] = abi.getOutputs(func)
+
+    estimateFunc(from,contractAddress,func,inputsParsed,outputsParsed)
+  }
+
+  protected def estimateFunc(
+    from:String,
+    contractAddress:String,
+    func:String,
+    inputs:Seq[datatypes.Type[_]],
+    outputs:Seq[TypeReference[_]]
+    )(implicit web3:Web3j):Try[BigInt] = {
+
+    // val inputParameters = List[datatypes.Type[_]]().asJava
+    // val outputParameters = List[TypeReference[_]](new TypeReference[datatypes.generated.Uint256](){}).asJava
+    val inputParameters = inputs.asJava
+    val outputParameters = outputs.asJava
+    val function = new datatypes.Function(func, inputParameters , outputParameters)
+    val encodedFunction = FunctionEncoder.encode(function)
+
+    estimateGas(from,contractAddress,encodedFunction)    
   }
   
 }

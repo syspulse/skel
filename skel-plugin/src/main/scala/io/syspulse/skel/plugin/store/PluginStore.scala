@@ -10,14 +10,16 @@ import io.syspulse.skel.plugin._
 import io.syspulse.skel.store.Store
 
 
-trait PluginStore extends Store[Plugin,Plugin.ID] {
+trait PluginStore extends Store[PluginDescriptor,PluginDescriptor.ID] {
   
-  def getKey(plugin: Plugin): Plugin.ID = plugin.name
-  def +(plugin:Plugin):Try[Plugin]
+  def getKey(plugin: PluginDescriptor): PluginDescriptor.ID = plugin.name
+  def +(plugin:PluginDescriptor):Try[PluginDescriptor]
   
-  def del(id:Plugin.ID):Try[Plugin.ID]
-  def ?(id:Plugin.ID):Try[Plugin]  
-  def all:Seq[Plugin]
+  def del(id:PluginDescriptor.ID):Try[PluginDescriptor.ID]
+  def ?(id:PluginDescriptor.ID):Try[PluginDescriptor]  
+  def all:Seq[PluginDescriptor]
   def size:Long
-  }
+
+  def loadPlugins():Int
+}
 

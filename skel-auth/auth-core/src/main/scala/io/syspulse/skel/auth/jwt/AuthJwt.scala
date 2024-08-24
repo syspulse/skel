@@ -115,6 +115,36 @@ class AuthJwt(uri:String = "") {
   }
   
   def withUri(uri:String) = {
+
+    def fromOpenId(algo:String,uri:String) = {
+      val ppk = AuthJwt.getPublicKeyFromOpenIdUrl(uri)
+      log.debug(s"PublicKeys: ${ppk}")
+      
+      val ppkFound = ppk.filter(pk => pk._1 == algo)
+      if(ppkFound.size == 0) {
+        throw new Exception(s"Key not found: ${algo}")
+      }
+      
+      this
+        .withAlgo(ppkFound(0)._1.toUpperCase())
+        .withPublicKey(ppkFound(0)._2)
+    }
+
+    def fromJwks(algo:String,jwks:String) = {
+      val ppk = AuthJwt.getPublicKeyFromJWKS(jwks)        
+      log.debug(s"PublicKeys: ${ppk}")
+
+      // filter by default only RS256
+      val ppkFound = ppk.filter(pk => pk._1 == algo)
+      if(ppkFound.size == 0) {
+        throw new Exception(s"Key not found: ${algo}")
+      }
+
+      this
+        .withAlgo(ppkFound(0)._1.toUpperCase())
+        .withPublicKey(ppkFound(0)._2)
+    }
+
     uri.trim.split("://|:").toList match {
       case algo :: Nil if(algo.toLowerCase == "hs256" | algo.toLowerCase == "hs512") =>
         this
@@ -151,14 +181,26 @@ class AuthJwt(uri:String = "") {
           .withAlgo(algo.toUpperCase())
           .withPublicKey(publicKey)
 
+      case "jwks" :: ("http" | "https") :: _ =>
+        val jwks = requests.get(uri.stripPrefix("jwks:")).text()
+        fromJwks(AuthJwt.DEFAULT_RSA_ALGO,jwks)
+
+      case "jwks" :: algo :: "http" :: url =>
+        val jwks = requests.get(s"http://${url.mkString("/")}").text()
+        fromJwks(algo,jwks)
+
+      case "jwks" :: algo :: "https" :: url =>
+        val jwks = requests.get(s"https://${url.mkString("/")}").text()
+        fromJwks(algo,jwks)
+
       case ("http" | "https") :: _ =>
-        val jwks = requests.get(uri).text()        
-        val ppk = AuthJwt.getPublicKeyFromJWKS(jwks)
-        // get the first public key
-        log.debug(s"PublicKeys: ${ppk}: applying: ${ppk(0)}")
-        this
-          .withAlgo(ppk(0)._1.toUpperCase())
-          .withPublicKey(ppk(0)._2)
+        fromOpenId(AuthJwt.DEFAULT_RSA_ALGO,uri)        
+
+      case "openid" :: algo :: "http" :: url =>
+        fromOpenId(algo,s"http://${url.mkString("/")}")
+
+      case "openid" :: algo :: "https" :: url =>
+        fromOpenId(algo,s"https://${url.mkString("/")}")
       
       case algo :: "sk" :: ("pkcs8"|"file") :: file :: Nil if(algo.toLowerCase == "rs256" | algo.toLowerCase == "rs512") =>
         val sk = os.read(os.Path(file,os.pwd))
@@ -320,16 +362,16 @@ class AuthJwt(uri:String = "") {
   def verifyAuthToken(token: Option[String],id:String,data:Seq[Any]):Option[VerifiedToken] = token match {
     case Some(jwt) => {           
       val v = isValid(jwt)
-
+      
       val uid = getClaim(jwt,"uid")
       val roles = getClaim(jwt,"roles").map(_.split(",").filter(!_.trim.isEmpty()).toSeq).getOrElse(Seq.empty)      
       
-      val claim = Jwt.decode(jwt,JwtOptions(signature = false)).get
+      val claim = Jwt.decode(jwt,JwtOptions(signature = false))
 
-      log.debug(s"token=${jwt}: uid=${uid}: roles=${roles}: claim=${claim.content}: valid=${v}")
+      log.debug(s"token=${jwt}: uid=${uid}: roles=${roles}: claim=${claim}: valid=${v}")
       
-      if(v) 
-        Some(VerifiedToken(uid.orElse(Some(DefaultPermissions.USER_NOBODY.toString())).get,roles,claim))
+      if(v && claim.isSuccess) 
+        Some(VerifiedToken(uid.orElse(Some(DefaultPermissions.USER_NOBODY.toString())).get,roles,claim.get))
       else 
         None
     }
@@ -350,10 +392,22 @@ object AuthJwt {
   val DEFAULT_ACCESS_TOKEN_SERVICE_TTL = 3600L * 24 * 356 // in seconds
   val DEFAULT_ACCESS_TOKEN_ADMIN_TTL = 3600L * 24 * 30 // in seconds
   val DEFAULT_ALGO = "HS512"
+  val DEFAULT_RSA_ALGO = "RS256"
   val DEFAULT_SECRET = Util.generateRandomToken(seed = Some("0xsecret"))
 
   // ATTENTION: default token to be compatible with all demos !
   var default = new AuthJwt().withSecret(DEFAULT_SECRET)
+
+  def getPublicKeyFromOpenIdUrl(oidUrl:String):Seq[(String,PublicKey)] = {
+    val rsp = requests.get(oidUrl).text()
+    getPublicKeyFromOpenIdConf(rsp)
+  }
+
+  def getPublicKeyFromOpenIdConf(oidConf:String):Seq[(String,PublicKey)] = {    
+    val jwksUri = ujson.read(oidConf).obj("jwks_uri").str
+    val cert = requests.get(jwksUri).text()
+    getPublicKeyFromJWKS(cert)   
+  }
 
   def getPublicKeyFromJWKS(jwks:String):Seq[(String,PublicKey)] = {
     val json = ujson.read(jwks)

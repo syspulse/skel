@@ -6,6 +6,6 @@ import io.jvm.uuid._
 
 final case class Odo(  
   id:String,
-  counter:Long,
+  v:Long,
   ts:Long = System.currentTimeMillis()
 )
