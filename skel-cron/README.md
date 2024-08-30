@@ -53,7 +53,7 @@ quartz-1 {
 - http://www.cronmaker.com/?0
 
 
-Every second: `* * * ? * *`
+Every second: `* * * ? * *` or `*/1_*_*_*_*_?`
 
 Every two minutes: `0 */2 * ? * *`
 

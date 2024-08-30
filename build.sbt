@@ -316,7 +316,7 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 // ======================================================================================================================
 lazy val root = (project in file("."))
-  .aggregate(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, crypto, skel_dsl, scrap, cli, db_cli,
+  .aggregate(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
              ingest_core, 
              ingest_flow,
              ingest_elastic,
@@ -335,7 +335,7 @@ lazy val root = (project in file("."))
              blockchain_core,
              blockchain_rpc,
              tools)
-  .dependsOn(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, crypto, skel_dsl, scrap, cli, db_cli,
+  .dependsOn(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
              ingest_core,
              ingest_flow,
              ingest_elastic,
@@ -475,7 +475,7 @@ lazy val auth_core = (project in file("skel-auth/auth-core"))
   )
 
 lazy val skel_auth = (project in file("skel-auth"))
-  .dependsOn(core,crypto,auth_core,skel_user)
+  .dependsOn(core,skel_crypto,auth_core,skel_user)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -553,7 +553,7 @@ lazy val kafka= (project in file("skel-kafka"))
     ),
   )  
 
-lazy val crypto = (project in file("skel-crypto"))
+lazy val skel_crypto = (project in file("skel-crypto"))
   .dependsOn(core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
@@ -580,7 +580,7 @@ lazy val crypto = (project in file("skel-crypto"))
     )
 
 lazy val crypto_kms = (project in file("skel-crypto/crypto-kms"))
-  .dependsOn(core,crypto)
+  .dependsOn(core,skel_crypto)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -791,7 +791,7 @@ lazy val stream_std = (project in file("skel-stream/stream-std"))
   )
 
 lazy val cli = (project in file("skel-cli"))
-  .dependsOn(core,crypto)
+  .dependsOn(core,skel_crypto)
   .settings (
     sharedConfig,
     sharedConfigAssembly,
@@ -891,7 +891,7 @@ lazy val spark_read = (project in file("skel-spark/spark-read"))
   )
 
 lazy val skel_enroll = (project in file("skel-enroll"))
-  .dependsOn(core,auth_core,crypto,skel_user,skel_notify,skel_test % Test)
+  .dependsOn(core,auth_core,skel_crypto,skel_user,skel_notify,skel_test % Test)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -1207,11 +1207,12 @@ lazy val blockchain_core = (project in file("skel-blockchain/blockchain-core"))
       sharedConfig,
       sharedConfigAssembly,      
       name := "blockchain-core",
-      libraryDependencies ++=  libTest
+      
+      libraryDependencies ++= libTest
     )
 
 lazy val blockchain_rpc = (project in file("skel-blockchain/blockchain-rpc"))
-  .dependsOn(core,crypto,blockchain_core)
+  .dependsOn(core,skel_crypto,blockchain_core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -1219,6 +1220,7 @@ lazy val blockchain_rpc = (project in file("skel-blockchain/blockchain-rpc"))
       //sharedConfigAssembly,
       
       name := "blockchain-rpc",
+      
       libraryDependencies ++=  libTest ++ libWeb3j
 
       // this is important option to support latest log4j2 
