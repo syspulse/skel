@@ -636,8 +636,8 @@ object Eth {
     estimateGas(from,contractAddress,encodedFunction)    
   }
 
-  def call(from:String,contractAddress:String,input:String)(implicit web3:Web3j):Try[String] = {
-    val tx = Transaction.createEthCallTransaction(from, contractAddress, input)
+  def call(from:String,contractAddress:String,inputData:String,outputType:Option[String] = None)(implicit web3:Web3j):Try[String] = {
+    val tx = Transaction.createEthCallTransaction(from, contractAddress, inputData)
 
     for {
       r <- Success(web3.ethCall(tx,DefaultBlockParameter.valueOf("latest")).send())
@@ -655,11 +655,16 @@ object Eth {
 
         if(result == null) {
           //log.error(s"Tx[${to},${valueWei},${gasPriceWei}/${gasTipWei}]: ${r.getError().getMessage()}")
-          throw new Exception(s"${contractAddress}: ${input}: result=${result}")
+          throw new Exception(s"${contractAddress}: data=${inputData}: result=${result}")
         } 
         
-        log.info(s"call: ${contractAddress}: input=${input}: result=${result}")
-        Success(result)
+        log.info(s"call: ${contractAddress}: data=${inputData}: result=${result}")
+        
+        if(outputType.isDefined) {
+          decodeResult(Success(result),outputType.get)
+        } else {
+          Success(result)
+        }
       }      
     } yield result
   }
@@ -678,15 +683,13 @@ object Eth {
     decodedList.get(0).getValue.asInstanceOf[String]
   }
   
-  def call(from:String,contractAddress:String,func:String,input:String)(implicit web3:Web3j):Try[String] = {
-    val (encodedFunction,outputType) = encodeFunction(func,input)
-    val r = call(from,contractAddress,encodedFunction)
-    r match {
+  def decodeResult(result:Try[String],outputType:String):Try[String] = {
+    result match {
       case Success(v) =>
         outputType match {
           case uint if uint.startsWith("uint") => Success(Numeric.toBigInt(v).toString())
           case int if int.startsWith("int") => Success(Numeric.toBigInt(v).toString())
-          
+
           case "address" => Success(v)
           case "bool" => Success((BigInt(v).toInt == 0).toString)
           case "string" => 
@@ -696,6 +699,12 @@ object Eth {
         }
       case Failure(e) => Failure(e)
     }
+  }
+
+  def call(from:String,contractAddress:String,func:String,input:String)(implicit web3:Web3j):Try[String] = {
+    val (encodedFunction,outputType) = encodeFunction(func,input)
+    val r = call(from,contractAddress,encodedFunction)
+    decodeResult(r,outputType)
   }
   
   // Very simple Function call encoder. It only supports simple types, no Tuples !
