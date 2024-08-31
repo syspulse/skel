@@ -684,7 +684,9 @@ object Eth {
     r match {
       case Success(v) =>
         outputType match {
-          case "uint256" => Success(Numeric.toBigInt(v).toString())
+          case uint if uint.startsWith("uint") => Success(Numeric.toBigInt(v).toString())
+          case int if int.startsWith("int") => Success(Numeric.toBigInt(v).toString())
+          
           case "address" => Success(v)
           case "bool" => Success((BigInt(v).toInt == 0).toString)
           case "string" => 
@@ -710,18 +712,34 @@ object Eth {
       case funcName :: inputType1 :: inputType2 :: "" :: outputType :: Nil => (funcName,Seq(inputType1,inputType2),outputType)
     }
         
-    val inputParameters = inputTypes.zipWithIndex.map{case(t,i) => t.toLowerCase match {
-      case "uint256" => new datatypes.Uint(new BigInteger(inputParams(i))){}
+    val inputParameters = inputTypes.zipWithIndex.map{case(t,i) => t.toLowerCase match {      
       case "address" => new datatypes.Address(inputParams(i)){}
       case "bool" => new datatypes.Bool(inputParams(i).toBoolean){}
       //case "bytes" => new datatypes.Bytes(){}
       case "string" => new datatypes.Utf8String(inputParams(i)){}
+
+      case uint if(uint.startsWith("uint")) => new datatypes.Uint(new BigInteger(inputParams(i))){}
+      case int if(int.startsWith("int"))  => new datatypes.Int(new BigInteger(inputParams(i))){}      
+
       case t => throw new Exception(s"unsupported type: ${t}")
     }}.toList.asInstanceOf[List[datatypes.Type[_]]]
       
     // only 1 output parameter is supported
     val outputParameters = Seq(outputType).map(t => t.toLowerCase match {
       case "uint256" => new TypeReference[datatypes.generated.Uint256](){}
+
+      case "int256" => new TypeReference[datatypes.generated.Int256](){}
+      case "uint" => new TypeReference[datatypes.Uint](){}
+      case "int" => new TypeReference[datatypes.Int](){}
+      case "uint128" => new TypeReference[datatypes.generated.Uint128](){}
+      case "int128" => new TypeReference[datatypes.generated.Int128](){}
+      case "uint64" => new TypeReference[datatypes.generated.Uint64](){}
+      case "int64" => new TypeReference[datatypes.generated.Int64](){}
+      case "uint32" => new TypeReference[datatypes.generated.Uint32](){}
+      case "int32" => new TypeReference[datatypes.generated.Int32](){}
+      case "uint8" => new TypeReference[datatypes.generated.Uint8](){}
+      case "int8" => new TypeReference[datatypes.generated.Int8](){}
+
       case "address" => new TypeReference[datatypes.Address](){}
       case "bool" => new TypeReference[datatypes.Bool](){}
       case "bytes" => new TypeReference[datatypes.Bytes](){}
