@@ -58,12 +58,11 @@ object AppEvm extends {
 
     val r =config.cmd match {
       case "call" => 
-        val from = config.params(0)
-        val contractAddress = config.params(1)
-        val funcName = config.params(2)
-        val inputs = config.params.lift(3).getOrElse("")
+        val contractAddress = config.params(0)
+        val funcName = config.params(1)
+        val inputs = config.params.lift(2).getOrElse("")
         
-        Eth.call(from,contractAddress,funcName,inputs)
+        Eth.call("0x0",contractAddress,funcName,inputs)
               
     }
     
