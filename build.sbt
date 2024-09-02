@@ -12,6 +12,13 @@ Test / parallelExecution := true
 // Non-concurrent execution is needed for Server with starting / stopping HttpServer
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
+// Set individual project to use scalapb
+// Compile / PB.targets := Seq(
+//   scalapb.gen() -> (Compile / sourceManaged).value / "scalapb",
+//   scalapb.gen(grpc=false) -> (Compile / sourceManaged).value
+// )
+
+
 licenses := Seq(("ASF2", url("https://www.apache.org/licenses/LICENSE-2.0")))
 
 initialize ~= { _ =>
@@ -316,7 +323,7 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 // ======================================================================================================================
 lazy val root = (project in file("."))
-  .aggregate(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
+  .aggregate(core, skel_serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
              ingest_core, 
              ingest_flow,
              ingest_elastic,
@@ -335,7 +342,7 @@ lazy val root = (project in file("."))
              blockchain_core,
              blockchain_rpc,
              tools)
-  .dependsOn(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
+  .dependsOn(core, skel_serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
              ingest_core,
              ingest_flow,
              ingest_elastic,
@@ -388,7 +395,7 @@ lazy val core = (project in file("skel-core"))
 // serde currently injects log4j-1.7.2 due to old Hadoop dependency !
 // it breaks logging with log4j2 !
 // FIXME !
-lazy val serde = (project in file("skel-serde"))
+lazy val skel_serde = (project in file("skel-serde"))
   .dependsOn(core) // needed only for App application
   // .disablePlugins(sbtassembly.AssemblyPlugin)
   .enablePlugins(JavaAppPackaging)
@@ -399,6 +406,14 @@ lazy val serde = (project in file("skel-serde"))
       appAssemblyConfig("skel-serde","io.syspulse.skel.serde.App"),
       // name := "skel-serde",
 
+      Compile / PB.protoSources := Seq(sourceDirectory.value / "main" / "proto"),
+      Compile / PB.targets := Seq(
+        scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"
+      ),
+      Compile / PB.protocOptions += "-I/usr/include",
+      Compile / unmanagedSourceDirectories += baseDirectory.value / "target" / "scala-2.13" / "src_managed",
+      
+
       libraryDependencies ++= libCommon ++
         libTest ++ 
         Seq(
@@ -406,9 +421,19 @@ lazy val serde = (project in file("skel-serde"))
           libAvro4s,
           libUpickleLib,
           libScodecBits,
-                    
+
           libParq,
-          libHadoop
+          libHadoop,
+
+          // libProtobufProtoc,
+          // libProtobufJava,          
+          "com.google.api.grpc" % "proto-google-common-protos" % "2.43.0",
+
+          "io.grpc" % "grpc-protobuf" % scalapb.compiler.Version.grpcJavaVersion,//"1.66.0",
+          "io.grpc" % "grpc-netty" % scalapb.compiler.Version.grpcJavaVersion,
+          "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
+
+          libScalapbRuntime 
         ),
     )
     
@@ -635,7 +660,7 @@ lazy val scrap = (project in file("skel-scrap"))
   )
 
 lazy val ingest_core = (project in file("skel-ingest/ingest-core"))
-  .dependsOn(core, serde)
+  .dependsOn(core, skel_serde)
   //.enablePlugins(JavaAppPackaging)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
@@ -706,7 +731,7 @@ lazy val ingest_twitter = (project in file("skel-ingest/ingest-twitter"))
   )
 
 lazy val ingest = (project in file("skel-ingest"))
-  .dependsOn(core, serde, ingest_core, ingest_elastic, kafka, ingest_twitter)
+  .dependsOn(core, skel_serde, ingest_core, ingest_elastic, kafka, ingest_twitter)
   //.enablePlugins(JavaAppPackaging)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
@@ -734,7 +759,7 @@ lazy val ingest = (project in file("skel-ingest"))
   )
 
 lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
-  .dependsOn(core, serde, ingest, ingest_twitter)
+  .dependsOn(core, skel_serde, ingest, ingest_twitter)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (
@@ -752,7 +777,7 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
   )
 
 lazy val ingest_proxy = (project in file("skel-ingest/ingest-proxy"))
-  .dependsOn(core, serde, ingest)
+  .dependsOn(core, skel_serde, ingest)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (

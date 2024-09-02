@@ -239,6 +239,11 @@ object Dependencies {
     val libApacheCommonsNet = "commons-net"                   % "commons-net"                      % "3.11.1"
     val libDnsJava =          "dnsjava"                       % "dnsjava"                         % "3.6.1"
 
+    val libScalapbRuntime =   "com.thesamet.scalapb"          %% "scalapb-runtime"                % "0.11.11"
+    val libScalapbJson4s =    "com.thesamet.scalapb"          %% "scalapb-json4s"                 % "0.11.11"
+    val libProtobufJava =     "com.google.protobuf"           % "protobuf-java"                   % "3.19.2"
+    val libProtobufProtoc =   "com.google.protobuf"           % "protoc"                          % "3.19.2"
+
    // ---------------------------------------------------------------------------------------------------------------------
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)

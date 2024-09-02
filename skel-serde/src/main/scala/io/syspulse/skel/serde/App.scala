@@ -1,6 +1,7 @@
 package io.syspulse.skel.serde
 
-import scala.util.Success
+import scala.util.{Try,Success,Failure}
+import java.util.Base64
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
@@ -13,7 +14,7 @@ case class Config(
 
   datastore:String = "mem://",
   
-  cmd:String = "",
+  cmd:String = "proto",
   params: Seq[String] = Seq(),
 )
 
@@ -77,6 +78,17 @@ object App extends skel.Server {
 
         val d = os.read(os.Path(file1,os.pwd))
         log.info(s"data=${Util.hex(d.getBytes())}")
+
+      case "proto" =>
+        import com.google.protobuf.ByteString
+        //import com.thesamet.scalapb.GeneratedMessage
+        //import TxRaw
+
+        Try {
+          val txBytes = Base64.getDecoder.decode(config.params(0))
+          // 
+          cosmos.tx.v1beta1.tx.TxRaw.parseFrom(txBytes)
+        }
     }
 
     println(s"${r}")        
