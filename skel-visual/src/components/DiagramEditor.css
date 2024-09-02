@@ -1,0 +1,110 @@
+.react-flow__edge-path {
+  stroke-width: 2;
+}
+
+.react-flow__arrowhead {
+  fill: #555;
+}
+
+.react-flow__handle {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: transparent;
+}
+
+.target-handle {
+  border: 2px solid #2c292a;
+  /* background-color: #2c292a; */
+  /* top: -6px;
+  left: 25% !important; */
+}
+
+.source-handle {
+  border: 2px solid #434d63;
+  /* top: -6px; */
+}
+
+.react-flow__handle-left.target-handle,
+.react-flow__handle-right.target-handle {
+  /* left: -6px !important;
+  top: 25% !important; */
+}
+
+.react-flow__handle-left.source-handle,
+.react-flow__handle-right.source-handle {
+  /* left: -6px !important; */
+}
+
+.react-flow__handle-bottom.target-handle,
+.react-flow__handle-bottom.source-handle {
+  top: auto !important;
+  /* bottom: -6px; */
+}
+
+.custom-node {
+  padding: 10px;
+  border-radius: 5px;
+  background: white;
+  border: 1px solid #ddd;
+}
+
+.custom-node-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.custom-node-icon {
+  /* font-size: 24px;
+  margin-bottom: 5px; */
+  width: 32px;
+  height: 32px;
+  /* object-fit: cover; */
+  object-fit: contain;
+  margin-right: 10px;
+}
+
+.custom-node-title {
+  font-family: 'Arial', sans-serif;
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.custom-node-description {
+  font-family: 'Helvetica', sans-serif;
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+}
+
+.custom-node-description:hover {
+  text-decoration: underline;
+  color: #1666;
+}
+
+.delete-button {
+  position: absolute;
+  top: -0px;
+  right: -0px;
+  width: 15px;
+  height: 15px;
+  background: #a0a0a0;
+  border: 0px solid #fff;
+  /* border-radius: 50%; */
+  font-size: 15px;
+  line-height: 1;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 10;
+}
+
+.delete-button:hover {
+  background: #666666;
+}

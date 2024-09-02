@@ -1,0 +1,153 @@
+import React, { useState, useCallback } from 'react';
+import ReactFlow, {
+  Node,
+  Edge,
+  addEdge,
+  Connection,
+  MiniMap,
+  Controls,
+  Background,
+  useNodesState,
+  useEdgesState,
+  BackgroundVariant,
+  MarkerType,
+  
+  useReactFlow,
+  NodeMouseHandler,
+} from 'reactflow';
+import 'reactflow/dist/style.css';
+import './DiagramEditor.css'; // Add this line
+
+import CustomNode from './CustomNode';
+import Sidebar from './Sidebar';
+
+const nodeTypes = {
+  custom: CustomNode,
+};
+
+const initialNodes: Node[] = [
+  {
+    id: '1',
+    type: 'custom',
+    position: { x: 0, y: 0 },
+    data: { 
+      title: 'Uniswap Router', 
+      description: '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD', 
+      icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png'
+    },
+  },
+  {
+    id: '2',
+    type: 'custom',
+    position: { x: 250, y: 100 },
+    data: { 
+      title: 'UNI', 
+      description: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', 
+      icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png'
+    },
+  },
+];
+
+
+const initialEdges: Edge[] = [
+  { 
+    id: 'e1-2', 
+    source: '1', 
+    target: '2',
+    markerEnd: { type: MarkerType.ArrowClosed },
+  }
+];
+
+function DiagramEditor() {
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [arrowSize, setArrowSize] = useState({ width: 4, height: 4 });    
+
+  const onConnect = useCallback(
+    (params: Connection) => setEdges((eds) => addEdge({ ...params, markerEnd: { type: MarkerType.ArrowClosed } }, eds)),
+    [setEdges]
+  );
+
+  const onEdgeDoubleClick = useCallback((event: React.MouseEvent, edge: Edge) => {
+    setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+  }, [setEdges]);
+
+  const onAddNode = useCallback(() => {
+    const newNode = {
+      id: `${nodes.length + 1}`,
+      type: 'custom',
+      position: { 
+        x: 0, 
+        y: 0 
+      },
+      data: { 
+        title: `Contract ${nodes.length + 1}`, 
+        description: '0x000000000000000000000000000000001', 
+        icon: '/assets/contract.png'
+      },
+    };
+    setNodes((nds) => nds.concat(newNode));
+  }, [nodes, setNodes]);
+
+  const onNodesDelete = useCallback((deleted: Node[]) => {
+    setEdges((eds) => eds.filter((edge) => 
+      !deleted.some((node) => node.id === edge.source || node.id === edge.target)
+    ));
+  }, [setEdges]);
+
+  const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
+    setNodes((nds) =>
+      nds.map((n) => ({
+        ...n,
+        data: {
+          ...n.data,
+          selected: n.id === node.id ? !n.data.selected : false,
+        },
+      }))
+    );
+  }, [setNodes]);
+
+  const onPaneClick = useCallback(() => {
+    setNodes((nds) =>
+      nds.map((n) => ({
+        ...n,
+        data: { ...n.data, selected: false },
+      }))
+    );
+  }, [setNodes]);
+
+  return (
+    <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>
+      <Sidebar onAddNode={onAddNode} />
+      
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onEdgeDoubleClick={onEdgeDoubleClick}
+        onNodesDelete={onNodesDelete}
+        onNodeClick={onNodeClick}
+        onPaneClick={onPaneClick}
+
+        nodeTypes={nodeTypes}
+        fitView
+        defaultEdgeOptions={{
+          type: 'default',
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: arrowSize.width,
+            height: arrowSize.height,
+          },
+        }}
+      >
+        <Controls />
+        <MiniMap />
+        <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+      </ReactFlow>
+    </div>
+  );
+}
+
+export default DiagramEditor;
