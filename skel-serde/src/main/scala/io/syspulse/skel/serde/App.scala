@@ -79,7 +79,7 @@ object App extends skel.Server {
         val d = os.read(os.Path(file1,os.pwd))
         log.info(s"data=${Util.hex(d.getBytes())}")
 
-      case "proto" =>
+      case "proto" => {
         import com.google.protobuf.ByteString
         //import com.thesamet.scalapb.GeneratedMessage
         //import TxRaw
@@ -89,6 +89,7 @@ object App extends skel.Server {
           // 
           cosmos.tx.v1beta1.tx.TxRaw.parseFrom(txBytes)
         }
+      }
     }
 
     println(s"${r}")        
