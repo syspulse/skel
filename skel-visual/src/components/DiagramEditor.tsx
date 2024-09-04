@@ -14,12 +14,18 @@ import ReactFlow, {
   
   useReactFlow,
   NodeMouseHandler,
+  ConnectionLineType,
+  useOnSelectionChange,
+  OnSelectionChangeParams,
+
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import './DiagramEditor.css'; // Add this line
 
 import CustomNode from './CustomNode';
 import Sidebar from './Sidebar';
+import PropertyPanel from './PropertyPanel';
+import PropertyPanelProvider from './PropertyPanel';
 
 const nodeTypes = {
   custom: CustomNode,
@@ -59,9 +65,9 @@ const initialEdges: Edge[] = [
 ];
 
 function DiagramEditor() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);  
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [arrowSize, setArrowSize] = useState({ width: 4, height: 4 });    
+  const [arrowSize, setArrowSize] = useState({ width: 4, height: 4 });   
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge({ ...params, markerEnd: { type: MarkerType.ArrowClosed } }, eds)),
@@ -95,18 +101,33 @@ function DiagramEditor() {
     ));
   }, [setEdges]);
 
-  const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
+  // const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
+  //   console.log('onNodeClick ---------------------> ', event, node);
+  //   setNodes((nds) =>
+  //     nds.map((n) => ({
+  //       ...n,
+  //       data: {
+  //         ...n.data,
+  //         selected: n.id === node.id ? !n.data.selected : false,
+  //       },
+  //     }))
+  //   );
+  // }, [setNodes]);
+  
+  const onSelectionChange = useCallback(({ nodes, edges }: OnSelectionChangeParams) => {
+    console.log('Selection changed:', nodes, edges);
     setNodes((nds) =>
       nds.map((n) => ({
         ...n,
         data: {
           ...n.data,
-          selected: n.id === node.id ? !n.data.selected : false,
+          selected: nodes.some((selectedNode) => selectedNode.id === n.id),
         },
       }))
     );
   }, [setNodes]);
 
+  
   const onPaneClick = useCallback(() => {
     setNodes((nds) =>
       nds.map((n) => ({
@@ -116,36 +137,51 @@ function DiagramEditor() {
     );
   }, [setNodes]);
 
+  const updateNode = (id: string, data: any) => {
+    setNodes((nds) =>
+      nds.map((node) => (node.id === id ? { ...node, data: { ...node.data, ...data } } : node))
+    );
+  };
+
+
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>
-      <Sidebar onAddNode={onAddNode} />
-      
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onEdgeDoubleClick={onEdgeDoubleClick}
-        onNodesDelete={onNodesDelete}
-        onNodeClick={onNodeClick}
-        onPaneClick={onPaneClick}
+      <Sidebar onAddNode={onAddNode} /> 
+      <div style={{ flex: 1, position: 'relative' }}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          
+          onNodesChange={onNodesChange}
+          onSelectionChange={onSelectionChange}
 
-        nodeTypes={nodeTypes}
-        fitView
-        defaultEdgeOptions={{
-          type: 'default',
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            width: arrowSize.width,
-            height: arrowSize.height,
-          },
-        }}
-      >
-        <Controls />
-        <MiniMap />
-        <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
-      </ReactFlow>
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onEdgeDoubleClick={onEdgeDoubleClick}
+          onNodesDelete={onNodesDelete}
+          // onNodeClick={onNodeClick}
+          onPaneClick={onPaneClick}
+
+          nodeTypes={nodeTypes}
+          fitView
+          connectionRadius={20}
+          // connectionLineType={ConnectionLineType.SmoothStep}          
+
+          defaultEdgeOptions={{
+            type: 'default',
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              width: arrowSize.width,
+              height: arrowSize.height,
+            },
+          }}
+        >          
+          <Controls />
+          <MiniMap />
+          <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+        </ReactFlow>
+      </div>
+      <PropertyPanelProvider selectedNode={nodes.find((node) => node.data.selected) || null} updateNode={updateNode}/>
     </div>
   );
 }

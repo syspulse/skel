@@ -1,19 +1,16 @@
-import React, { memo, useCallback, useEffect } from 'react';
-import { Handle, Position, NodeProps, useReactFlow, useNodes, Node } from 'reactflow';
+import React, { memo, useCallback } from 'react';
+import { Handle, Position, NodeProps, useReactFlow, Node } from 'reactflow';
 
 interface CustomNodeData {
   title: string;
   description: string;
   icon: string;
   selected?: boolean;
-
   extraHandles?: { type: 'source' | 'target',  position: Position}[];
 }
 
-function CustomNode({ data, id }: NodeProps<CustomNodeData>) {
-  const { deleteElements } = useReactFlow();
-  const { setNodes } = useReactFlow();
-  //const [, setNodes] = useNodes();
+function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
+  const { deleteElements, setNodes } = useReactFlow();
 
   const onDelete = () => {
     deleteElements({ nodes: [{ id }] });
@@ -55,10 +52,10 @@ function CustomNode({ data, id }: NodeProps<CustomNodeData>) {
         padding: '10px', 
         border: '1px solid #ddd', 
         borderRadius: '5px', 
-        background: data.selected ? '#ddd' : 'white',
+        background: selected ? '#ddd' : 'white',
         position: 'relative'
       }}
-      onDoubleClick={onDoubleClick}
+      //onDoubleClick={onDoubleClick}
     >
       
       <button className="delete-button" onClick={onDelete}>×</button>
@@ -134,4 +131,4 @@ function CustomNode({ data, id }: NodeProps<CustomNodeData>) {
   );
 }
 
-export default memo(CustomNode);
+export default CustomNode;

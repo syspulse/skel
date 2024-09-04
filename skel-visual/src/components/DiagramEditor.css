@@ -108,3 +108,34 @@
 .delete-button:hover {
   background: #666666;
 }
+
+.panel-title {
+  font-family: 'Arial', sans-serif;
+  font-size: 18px;
+  color: #333;
+  margin-top: 0;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 8px;
+}
+
+.panel-container {
+  width: 250px;
+  border-left: 1px solid #ccc;
+  padding: 16px;
+  background-color: #f8f8f8;
+}
+
+.property-key {
+  font-family: 'Arial', sans-serif;
+  /* font-weight: bold; */
+  display: block;
+  margin-bottom: 4px;
+}
+
+.property-value {
+  font-family: 'Courier New', monospace;
+  width: 100%;
+  padding: 4px;
+  margin-bottom: 12px;
+}
