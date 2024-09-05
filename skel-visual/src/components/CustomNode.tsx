@@ -46,6 +46,11 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
     
   }, [id, setNodes]);
 
+  const truncateAddr = (addr: string) => {
+    if (addr.length <= 16) return addr;
+    return `${addr.slice(0, 10)}...${addr.slice(-10)}`;
+  };
+
   return (
     <div 
       style={{ 
@@ -121,7 +126,7 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
             rel="noopener noreferrer"
             className="custom-node-description"
           >
-            {data.description}
+            {truncateAddr(data.description)}
           </a>
         
         </div>
