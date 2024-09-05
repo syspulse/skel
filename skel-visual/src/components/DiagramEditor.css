@@ -141,3 +141,37 @@
   padding: 4px;
   margin-bottom: 12px;
 }
+
+.sidebar {
+  padding: 10px;
+  border-right: 1px solid #ccc;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar-button {
+  padding: 8px 12px;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.sidebar-button:hover {
+  background-color: #e0e0e0;
+}
+
+.sidebar-button.add {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.file-input {
+  display: none;
+}
+
+.import-label {
+  text-align: center;
+}

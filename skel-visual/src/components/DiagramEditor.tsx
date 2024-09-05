@@ -172,6 +172,33 @@ function DiagramEditor() {
     setNodes([]); // Assuming you're using a state setter to manage nodes
   };
 
+  const onExport = useCallback(() => {
+    const flow = { nodes, edges };
+    const json = JSON.stringify(flow, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'flow-export.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [nodes, edges]);
+  
+  const onImport = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+        setNodes(json.nodes || []);
+        setEdges(json.edges || []);
+      } catch (error) {
+        console.error('Error parsing JSON:', error);
+      }
+    };
+    reader.readAsText(file);
+  }, [setNodes, setEdges]);
+  
+
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>
       <Sidebar 
@@ -179,6 +206,8 @@ function DiagramEditor() {
         onSave={onSave} 
         onRestore={onRestore}
         onClearAll={handleClearAll}
+        onExport={onExport}
+        onImport={onImport}
       /> 
       <div style={{ flex: 1, position: 'relative' }}>
         <ReactFlow
