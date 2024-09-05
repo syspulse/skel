@@ -67,7 +67,8 @@ const initialEdges: Edge[] = [
 function DiagramEditor() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);  
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [arrowSize, setArrowSize] = useState({ width: 4, height: 4 });   
+  const [arrowSize, setArrowSize] = useState({ width: 4, height: 4 });
+  //const { setViewport } = useReactFlow();
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge({ ...params, markerEnd: { type: MarkerType.ArrowClosed } }, eds)),
@@ -143,10 +144,42 @@ function DiagramEditor() {
     );
   };
 
+  const onSave = useCallback(() => {
+    const flow = {
+      nodes,
+      edges,
+      viewport: {
+        x: 0,
+        y: 0,
+        zoom: 1,
+      },
+    };
+    const json = JSON.stringify(flow);
+    localStorage.setItem('flowState', json);
+  }, [nodes, edges]);
+
+  const onRestore = useCallback(() => {
+    const json = localStorage.getItem('flowState');
+    if (json) {
+      const flow = JSON.parse(json);
+      setNodes(flow.nodes || []);
+      setEdges(flow.edges || []);
+      //setViewport(flow.viewport);
+    }
+  }, [setNodes, setEdges]);
+
+  const handleClearAll = () => {
+    setNodes([]); // Assuming you're using a state setter to manage nodes
+  };
 
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>
-      <Sidebar onAddNode={onAddNode} /> 
+      <Sidebar 
+        onAddNode={onAddNode} 
+        onSave={onSave} 
+        onRestore={onRestore}
+        onClearAll={handleClearAll}
+      /> 
       <div style={{ flex: 1, position: 'relative' }}>
         <ReactFlow
           nodes={nodes}
