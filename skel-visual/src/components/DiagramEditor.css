@@ -128,13 +128,15 @@
 
 .property-key {
   font-family: 'Arial', sans-serif;
-  /* font-weight: bold; */
+  font-size: 10px;
+  font-weight: bold;
   display: block;
   margin-bottom: 4px;
 }
 
 .property-value {
   font-family: 'Courier New', monospace;
+  font-size: 10px;
   width: 100%;
   padding: 4px;
   margin-bottom: 12px;

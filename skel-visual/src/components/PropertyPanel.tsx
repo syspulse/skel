@@ -14,12 +14,14 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [icon, setIcon] = useState('');
 
   useEffect(() => {
 
     if (selectedNode) {
       setTitle(selectedNode.data.title || '');
       setDescription(selectedNode.data.description || '');
+      setIcon(selectedNode.data.icon || '');
     }
   }, [selectedNode]);
 
@@ -59,6 +61,15 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
           value = {description}
           // value={selectedNode.data.description || ''}
           onChange={(e) => handleChange('description', e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="property-key">Icon:</label>
+        <input
+          className="property-value"
+          type="text"
+          value={icon}
+          onChange={(e) => handleChange('icon', e.target.value)}
         />
       </div>
     </div>
