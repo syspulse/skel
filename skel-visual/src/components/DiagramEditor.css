@@ -14,14 +14,14 @@
 }
 
 .target-handle {
-  border: 2px solid #2c292a;
+  border: 1px solid #2c292a;
   /* background-color: #2c292a; */
   /* top: -6px;
   left: 25% !important; */
 }
 
 .source-handle {
-  border: 2px solid #434d63;
+  border: 1px solid #434d63;
   /* top: -6px; */
 }
 

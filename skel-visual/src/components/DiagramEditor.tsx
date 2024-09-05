@@ -113,7 +113,7 @@ function DiagramEditor() {
   //     }))
   //   );
   // }, [setNodes]);
-  
+
   const onSelectionChange = useCallback(({ nodes, edges }: OnSelectionChangeParams) => {
     console.log('Selection changed:', nodes, edges);
     setNodes((nds) =>
