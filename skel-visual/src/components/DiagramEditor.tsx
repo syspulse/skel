@@ -33,9 +33,20 @@ const nodeTypes = {
 
 const initialNodes: Node[] = [
   {
-    id: '1',
+    id: '0',
     type: 'custom',
     position: { x: 0, y: 0 },
+    data: { 
+      title: 'Deployer', 
+      description: '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD', 
+      icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
+      tags: 'Uniswap',
+    },
+  },
+  {
+    id: '1',
+    type: 'custom',
+    position: { x: 300, y: 0 },
     data: { 
       title: 'Uniswap Router', 
       description: '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD', 
@@ -59,8 +70,16 @@ const initialNodes: Node[] = [
 
 const initialEdges: Edge[] = [
   { 
-    id: 'e1-2', 
-    source: '1', 
+    id: 'e0-1', 
+    source: '0', 
+    target: '1',
+    sourceHandle: 'right-source',
+    targetHandle: 'left-target',
+    markerEnd: { type: MarkerType.ArrowClosed },
+  },
+  { 
+    id: 'e0-2', 
+    source: '0', 
     target: '2',
     sourceHandle: 'bottom-source',
     targetHandle: 'top-target',
