@@ -46,7 +46,7 @@ const initialNodes: Node[] = [
   {
     id: '2',
     type: 'custom',
-    position: { x: 250, y: 100 },
+    position: { x: 100, y: 150 },
     data: { 
       title: 'UNI', 
       description: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', 
@@ -62,6 +62,8 @@ const initialEdges: Edge[] = [
     id: 'e1-2', 
     source: '1', 
     target: '2',
+    sourceHandle: 'bottom-source',
+    targetHandle: 'top-target',
     markerEnd: { type: MarkerType.ArrowClosed },
   }
 ];
