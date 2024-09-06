@@ -26,6 +26,8 @@ import CustomNode from './CustomNode';
 import Sidebar from './Sidebar';
 import PropertyPanel from './PropertyPanel';
 import PropertyPanelProvider from './PropertyPanel';
+import EdgePropertyPanel from './EdgePropertyPanel';
+import EdgePropertyPanelProvider from './EdgePropertyPanel';
 
 const nodeTypes = {
   custom: CustomNode,
@@ -76,6 +78,8 @@ const initialEdges: Edge[] = [
     sourceHandle: 'right-source',
     targetHandle: 'left-target',
     markerEnd: { type: MarkerType.ArrowClosed },
+    data: { transaction: '0x' },
+    label: '0x',
   },
   { 
     id: 'e0-2', 
@@ -84,6 +88,8 @@ const initialEdges: Edge[] = [
     sourceHandle: 'bottom-source',
     targetHandle: 'top-target',
     markerEnd: { type: MarkerType.ArrowClosed },
+    data: { transaction: '0x' },
+    label: '0x',
   }
 ];
 
@@ -92,9 +98,16 @@ function DiagramEditor() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [arrowSize, setArrowSize] = useState({ width: 4, height: 4 });
   //const { setViewport } = useReactFlow();
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge({ ...params, markerEnd: { type: MarkerType.ArrowClosed } }, eds)),
+    (params: Connection) => setEdges((eds) => addEdge({ 
+      ...params, 
+      // label: '0x',
+      // data: { transaction: '' },
+      markerEnd: { type: MarkerType.ArrowClosed } 
+    }, eds)),
     [setEdges]
   );
 
@@ -125,32 +138,32 @@ function DiagramEditor() {
     ));
   }, [setEdges]);
 
-  // const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
-  //   console.log('onNodeClick ---------------------> ', event, node);
+  
+  // const onSelectionChange = useCallback(({ nodes, edges }: OnSelectionChangeParams) => {
+  //   console.log('Selection changed:', nodes, edges);
   //   setNodes((nds) =>
   //     nds.map((n) => ({
   //       ...n,
   //       data: {
   //         ...n.data,
-  //         selected: n.id === node.id ? !n.data.selected : false,
+  //         selected: nodes.some((selectedNode) => selectedNode.id === n.id),
   //       },
   //     }))
   //   );
   // }, [setNodes]);
 
   const onSelectionChange = useCallback(({ nodes, edges }: OnSelectionChangeParams) => {
-    console.log('Selection changed:', nodes, edges);
-    setNodes((nds) =>
-      nds.map((n) => ({
-        ...n,
-        data: {
-          ...n.data,
-          selected: nodes.some((selectedNode) => selectedNode.id === n.id),
-        },
-      }))
-    );
-  }, [setNodes]);
-
+    if (edges.length === 1) {
+      setSelectedEdge(edges[0]);
+      setSelectedNode(null);
+    } else if (nodes.length === 1) {
+      setSelectedNode(nodes[0]);
+      setSelectedEdge(null);
+    } else {
+      setSelectedNode(null);
+      setSelectedEdge(null);
+    }
+  }, []);
   
   const onPaneClick = useCallback(() => {
     setNodes((nds) =>
@@ -166,6 +179,14 @@ function DiagramEditor() {
       nds.map((node) => (node.id === id ? { ...node, data: { ...node.data, ...data } } : node))
     );
   };
+
+  const updateEdge = useCallback((id: string, data: any) => {
+    setEdges((eds) => eds.map((edge) => (edge.id === id ? { 
+      ...edge, 
+      label: data.transaction,
+      data: { ...edge.data, ...data } 
+    } : edge)));
+  }, [setEdges]);
 
   const onSave = useCallback(() => {
     const flow = {
@@ -232,7 +253,7 @@ function DiagramEditor() {
         onExport={onExport}
         onImport={onImport}
       /> 
-      <div style={{ flex: 1, position: 'relative' }}>
+      <div style={{ flex: 1, position: 'relative' }}>        
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -264,9 +285,11 @@ function DiagramEditor() {
           <Controls />
           <MiniMap />
           <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+          
         </ReactFlow>
       </div>
-      <PropertyPanelProvider selectedNode={nodes.find((node) => node.data.selected) || null} updateNode={updateNode}/>
+      <PropertyPanelProvider selectedNode={selectedNode} updateNode={updateNode}/>
+      <EdgePropertyPanelProvider selectedEdge={selectedEdge} updateEdge={updateEdge}/>
     </div>
   );
 }

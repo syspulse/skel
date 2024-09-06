@@ -2,6 +2,13 @@
   stroke-width: 2;
 }
 
+.react-flow__edge-text {
+  font-family: 'Courier New', monospace;
+  font-size: 8px;
+  /* font-weight: bold; */  
+}
+
+
 .react-flow__arrowhead {
   fill: #555;
 }

@@ -43,7 +43,9 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
     }
   }
   
-  if (!selectedNode) return <div className="panel-container"><h3 className="panel-title">Properties</h3></div>;
+  //if (!selectedNode) return <div className="panel-container"><h3 className="panel-title">Properties</h3></div>;
+  if (!selectedNode) return null;
+
 
   return (
     <div className="panel-container">
@@ -100,3 +102,4 @@ function PropertyPanelProvider(props:PropertyPanelProps) {
 }
 
 export default PropertyPanelProvider;
+//export default PropertyPanel;
