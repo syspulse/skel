@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactFlow, { Node, useNodesState, useEdgesState } from 'reactflow';
 import CustomNode from './components/CustomNode';
-import PropertiesPanel from './components/PropertyPanel';
+import PropertiesPanel from './components/NodePropertyPanel';
 import DiagramEditor from './components/DiagramEditor';
 
 

@@ -24,8 +24,8 @@ import './DiagramEditor.css'; // Add this line
 
 import CustomNode from './CustomNode';
 import Sidebar from './Sidebar';
-import PropertyPanel from './PropertyPanel';
-import PropertyPanelProvider from './PropertyPanel';
+import PropertyPanel from './NodePropertyPanel';
+import PropertyPanelProvider from './NodePropertyPanel';
 import EdgePropertyPanel from './EdgePropertyPanel';
 import EdgePropertyPanelProvider from './EdgePropertyPanel';
 
