@@ -39,7 +39,8 @@ const initialNodes: Node[] = [
     data: { 
       title: 'Uniswap Router', 
       description: '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD', 
-      icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png'
+      icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
+      tags: 'DEX,Uniswap',
     },
   },
   {
@@ -49,7 +50,8 @@ const initialNodes: Node[] = [
     data: { 
       title: 'UNI', 
       description: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', 
-      icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png'
+      icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
+      tags: 'ERC20',
     },
   },
 ];

@@ -15,6 +15,7 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [icon, setIcon] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
 
   useEffect(() => {
 
@@ -22,6 +23,7 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
       setTitle(selectedNode.data.title || '');
       setDescription(selectedNode.data.description || '');
       setIcon(selectedNode.data.icon || '');
+      setTags(selectedNode.data.tags || []);
     }
   }, [selectedNode]);
 
@@ -29,12 +31,15 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
   const handleChange = (key: string, value: string) => {
     // console.log('handleChange', key, value, selectedNode);
     
-    if (selectedNode) {
+    if (selectedNode) {      
       updateNode(selectedNode.id, { [key]: value });
 
       selectedNode.data[key] = value;
+
       if (key === 'title') setTitle(value);
       if (key === 'description') setDescription(value);
+      if (key === 'icon') setIcon(value);
+      if (key === 'tags') setTags(tags);
     }
   }
   
@@ -70,6 +75,16 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
           type="text"
           value={icon}
           onChange={(e) => handleChange('icon', e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="property-key">Tags:</label>
+        <input
+          className="property-value"
+          type="text"
+          value={tags}
+          onChange={(e) => handleChange('tags', e.target.value)}
+          placeholder="Enter tags separated by commas"
         />
       </div>
     </div>

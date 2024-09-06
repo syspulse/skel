@@ -11,6 +11,8 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClearAll, onExport, onImport }) => {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -18,17 +20,27 @@ const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClear
     }
   };
 
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
     <div className="sidebar">
       <button className="sidebar-button add" onClick={onAddNode}>+</button>
       <button className="sidebar-button" onClick={onSave}>Save</button>
       <button className="sidebar-button" onClick={onRestore}>Restore</button>
-      <button className="sidebar-button" onClick={onClearAll}>Clear</button>
-      <button className="sidebar-button" onClick={onExport}>Export...</button>
-      <input type="file" accept=".json" onChange={handleImport} id="import-json" className="file-input" />
-      <label htmlFor="import-json" className="sidebar-button import-label">
-        Import...
-      </label>
+      <button className="sidebar-button" onClick={onClearAll}>Clear All</button>
+      <button className="sidebar-button" onClick={onExport}>Export</button>
+      <button className="sidebar-button" onClick={triggerFileInput}>
+        Import
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          accept=".json"
+          onChange={handleImport}
+        />
+      </button>
     </div>
   );
 };

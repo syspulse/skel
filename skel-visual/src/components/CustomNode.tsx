@@ -7,6 +7,7 @@ interface CustomNodeData {
   icon: string;
   selected?: boolean;
   extraHandles?: { type: 'source' | 'target',  position: Position}[];
+  tags: string;
 }
 
 function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
@@ -116,10 +117,16 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
           className="custom-node-icon"          
         />
 
-        <div>
-                    
+        <div>                    
           {/* <p style={{ margin: '5px 0 0' }}>{data.description}</p> */}
           <div className="custom-node-title">{data.title}</div>
+          {data.tags && (
+            <div className="custom-node-tags">
+              {data.tags.split(',').map((tag, index) => (
+                <span key={index} className="custom-node-tag">{tag}</span>
+              ))}
+            </div>
+          )}
           <a 
             href={`https://etherscan.io/address/${data.description}`} 
             target="_blank" 

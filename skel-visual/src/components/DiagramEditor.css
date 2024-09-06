@@ -7,9 +7,9 @@
 }
 
 .react-flow__handle {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 0%;
   background-color: transparent;
 }
 
@@ -70,7 +70,7 @@
   font-size: 16px;
   font-weight: bold;
   color: #333;
-  margin-bottom: 5px;
+  margin-bottom: -3px;
 }
 
 .custom-node-description {
@@ -83,6 +83,23 @@
 .custom-node-description:hover {
   text-decoration: underline;
   color: #1666;
+}
+
+.custom-node-tags {
+  margin: 0 0 5px 0;
+}
+
+.custom-node-tag {
+  font-family: 'Helvetica', sans-serif;
+  background-color: #f0f0f0;
+  color: #333;
+  border: 1px solid #ccc;
+  padding: 1px 3px;
+  border-radius: 3px;
+  font-size: 0.5em;
+  margin-right: 5px;
+  display: inline-block;
+  margin-bottom: 3px;
 }
 
 .delete-button {
@@ -111,12 +128,13 @@
 
 .panel-title {
   font-family: 'Arial', sans-serif;
-  font-size: 18px;
+  font-weight: lighter;
+  font-size: 12px;
   color: #333;
   margin-top: 0;
   margin-bottom: 16px;
   border-bottom: 1px solid #ccc;
-  padding-bottom: 8px;
+  padding-bottom: 8px;  
 }
 
 .panel-container {
