@@ -237,3 +237,38 @@
 .import-label {
   text-align: center;
 }
+
+.icon-selector-container {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 10px;
+  margin-top: 5px;
+  margin-bottom: 10px;
+}
+
+.icon-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.icon-option {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  cursor: pointer;
+  border: 2px solid transparent;
+  padding: 2px;
+  border-radius: 4px;
+  transition: border-color 0.2s ease;
+}
+
+.icon-option.selected {
+  border-color: #007bff;
+}
+
+.icon-option:hover {
+  border-color: #0056b3;
+}

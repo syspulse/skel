@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useReactFlow, Node, ReactFlowProvider, useNodesState } from 'reactflow';
 import './DiagramEditor.css';
 import CustomNode from './CustomNode';
+import IconSelector from './IconSelector';
 
 interface PropertyPanelProps {
   selectedNode: Node | null;
@@ -44,6 +45,11 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
     }
   }
   
+  const handleIconSelect = (newIcon: string) => {
+    handleChange('icon', newIcon);
+  };
+
+
   //if (!selectedNode) return <div className="panel-container"><h3 className="panel-title">Properties</h3></div>;
   if (!selectedNode) return null;
 
@@ -80,6 +86,12 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
           onChange={(e) => handleChange('icon', e.target.value)}
         />
       </div>
+      
+      <IconSelector
+        selectedIcon={icon}
+        onSelectIcon={handleIconSelect}
+      />
+      
       <div>
         <label className="property-key">Tags:</label>
         <input
@@ -90,6 +102,7 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
           placeholder="Enter tags separated by commas"
         />
       </div>
+      
     </div>
   );
 }
