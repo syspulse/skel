@@ -68,16 +68,7 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
     >
       
       <button className="delete-button" onClick={onDelete}>×</button>
-      
-      {/* <Handle type="target" position={Position.Top} id="top-target" />
-      <Handle type="source" position={Position.Top} id="top-source" />
-      <Handle type="target" position={Position.Left} id="left-target" />
-      <Handle type="source" position={Position.Left} id="left-source" />
-      <Handle type="target" position={Position.Right} id="right-target" />
-      <Handle type="source" position={Position.Right} id="right-source" />
-      <Handle type="target" position={Position.Bottom} id="bottom-target" />
-      <Handle type="source" position={Position.Bottom} id="bottom-source" /> */}
-     
+           
       <Handle type="target" position={Position.Top} id="top-target" className="target-handle" />
       <Handle type="source" position={Position.Top} id="top-source" className="source-handle" />
       
@@ -90,23 +81,7 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
       <Handle type="target" position={Position.Bottom} id="bottom-target" className="target-handle" />
       <Handle type="source" position={Position.Bottom} id="bottom-source" className="source-handle" />
 
-      {/* <Handle type="source" position={Position.Top} id="top-source-10" className="source-handle" style={{transform:'translate(+50%, 0%)'}} />  */}
-      {data.extraHandles?.map((handle, index) => (
-        // <Handle
-        //   key={`${handle.type}-${index}`}
-        //   type={handle.type}
-        //   position={handle.position}
-        //   id={`${handle.type}-${index}`}
-        //   className={`${handle.type}-handle`}
-          
-        //   style={{
-        //     // left: `${handle.x}%`,
-        //     // top: `${handle.y}%`,
-        //     transform: 'translate(+50%, 0%)',
-        //     backgroundColor: "red",
-        //     position: 'absolute'
-        //   }}
-        // />        
+      {data.extraHandles?.map((handle, index) => (        
         <Handle type="source" position={Position.Top} id="top-source-10" className="source-handle" style={{transform:'translate(+50%, 0%)'}} />
       ))}
       
@@ -146,7 +121,7 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
       <div className="custom-node-counts">
         <div className="count-item">
           <span className="count-label">Tx:</span>
-          <span className="count-value">{data.txCount}</span>
+          <span className="count-value blink">{data.txCount}</span>
         </div>
         <div className="count-item">
           <span className="count-label">Alerts:</span>
