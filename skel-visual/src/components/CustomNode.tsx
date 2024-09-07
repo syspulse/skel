@@ -8,9 +8,12 @@ interface CustomNodeData {
   selected?: boolean;
   extraHandles?: { type: 'source' | 'target',  position: Position}[];
   tags: string;
-  txCount: number;
-  alertCount: number;
-  detectorCount: number;
+
+  telemetry?: {
+    txCount?: number;
+    alertCount?: number;
+    detectorCount?: number;
+  };
 }
 
 function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
@@ -21,12 +24,12 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
   var counter = -1;
   useEffect(() => {
     console.log('txCountRef',txCountRef);
-    if (data.txCount !== counter && txCountRef.current) {
+    if (data.telemetry?.txCount !== counter && txCountRef.current) {
       txCountRef.current.classList.add('blink');
       setTimeout(() => txCountRef.current?.classList.remove('blink'), 1000);
-      counter = data.txCount;
+      counter = data.telemetry?.txCount || 0;
     }
-  }, [data.txCount, id]);
+  }, [data.telemetry?.txCount, id]);
   // --------------------------------------------------------------- Visual Effect only
 
   const onDelete = () => {
@@ -130,21 +133,26 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
         </div>
         
       </div>
-      <div className="custom-node-separator"></div>
-      <div className="custom-node-counts">
-        <div className="count-item">
-          <span className="count-label">Tx:</span>
-          <span ref={txCountRef} className="count-value">{data.txCount}</span>
-        </div>
-        <div className="count-item">
-          <span className="count-label">Alerts:</span>
-          <span className="count-value">{data.alertCount}</span>
-        </div>
-        <div className="count-item">
-          <span className="count-label">Detectors:</span>
-          <span className="count-value">{data.detectorCount}</span>
-        </div>
-      </div>
+
+      {data.telemetry && (
+        <>
+          <div className="custom-node-separator"></div>
+          <div className="custom-node-counts">
+            <div className="count-item">
+              <span className="count-label">Tx:</span>
+              <span ref={txCountRef} className="count-value">{data.telemetry?.txCount}</span>
+            </div>
+            <div className="count-item">
+              <span className="count-label">Alerts:</span>
+              <span className="count-value">{data.telemetry?.alertCount}</span>
+            </div>
+            <div className="count-item">
+              <span className="count-label">Detectors:</span>
+              <span className="count-value">{data.telemetry?.detectorCount}</span>
+            </div>
+          </div>
+        </>
+      )}
       
     </div>
   );

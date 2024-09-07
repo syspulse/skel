@@ -43,9 +43,11 @@ const initialNodes: Node[] = [
       description: '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD', 
       icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
       tags: 'Uniswap',
-      txCount: 0, 
-      alertCount: 0,
-      detectorCount: 0,
+      telemetry: {
+        txCount: 0, 
+        alertCount: 0,
+        detectorCount: 0,
+      },
     },
   },
   {
@@ -57,9 +59,11 @@ const initialNodes: Node[] = [
       description: '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD', 
       icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
       tags: 'DEX,Uniswap',
-      txCount: 0, 
-      alertCount: 0, 
-      detectorCount: 0,
+      telemetry: {
+        txCount: 0, 
+        alertCount: 0, 
+        detectorCount: 0,
+      },
     },
   },
   {
@@ -71,6 +75,7 @@ const initialNodes: Node[] = [
       description: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', 
       icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
       tags: 'ERC20',
+      // This node doesn't have telemetry, so counters won't be displayed
     },
   },
 ];
@@ -117,13 +122,16 @@ function DiagramEditor() {
       setNodes((nds) => 
         nds.map((node) => {
           // Randomly decide whether to update this node (1 in 3 chance)
-          if (Math.random() < 0.33) {
-            const newTxCount = (node.data.txCount || 0) + 1;
+          if (node.data.tags && node.data.tags.includes('Uniswap') && Math.random() < 0.33) {
+            const newTxCount = (node.data.telemetry?.txCount || 0) + 1;
             return {
               ...node,
               data: {
                 ...node.data,
-                txCount: newTxCount,
+                telemetry: {
+                  ...node.data.telemetry,
+                  txCount: newTxCount,
+                },
               },
             };
           }
