@@ -4,9 +4,10 @@ import './TopPanel.css'; // Ensure this CSS file is created
 interface TopPanelProps {
   onLogin: () => void;
   onSearch: (searchText: string) => void;  
+  searchInputRef: React.RefObject<HTMLInputElement>;
 }
 
-const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch }) => {
+const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,searchInputRef}) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -52,8 +53,9 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch }) => {
         <div className="logo">Helicopter</div>
       </div>
       <input
+        ref = {searchInputRef}
         type="text"
-        placeholder="Search..."
+        placeholder={`Press \u002F ...`}
         className="search-input"
         value={searchText}
         onChange={handleSearchChange} // Update search text on change

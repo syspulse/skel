@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -113,6 +113,8 @@ function DiagramEditor() {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
 
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
   const simulation = true;
 
   // ------------------------------------------------------------------------------- Simulation  
@@ -146,6 +148,23 @@ function DiagramEditor() {
   }, [setNodes]);
   
   //-----------------------------------------------------------------------------------------------
+
+
+  // ------------------------------------------------------------------------ Keyboard ---
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === '/') {
+        event.preventDefault(); // Prevent default action
+        searchInputRef.current?.focus(); // Focus the search input
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+  // -------------------------------------------------------------------------------------
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge({ 
@@ -309,7 +328,11 @@ function DiagramEditor() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh'}}>
       
-      <TopPanel onLogin={() => console.log('Login clicked')} onSearch={onSearch} />
+      <TopPanel 
+        onLogin={() => console.log('Login clicked')}         
+        onSearch={onSearch} 
+        searchInputRef={searchInputRef}
+      />
       
       <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>        
         <Sidebar 
