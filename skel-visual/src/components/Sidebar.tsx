@@ -1,5 +1,6 @@
 import React from 'react';
 import './DiagramEditor.css';
+import { FiPlus, FiSave, FiRotateCcw, FiTrash2, FiUpload, FiDownload, FiPlay, FiSquare } from 'react-icons/fi';
 
 interface SidebarProps {
   onAddNode: () => void;
@@ -24,15 +25,55 @@ const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClear
     fileInputRef.current?.click();
   };
 
+  const buttonLabels = {
+    addNode: 'Add',
+    save: 'Save',
+    restore: 'Restore',
+    clearAll: 'Clear',
+    export: 'Export...',
+    import: 'Import...',
+    startSimulation: 'Start Sim',
+    stopSimulation: 'Stop Sim'
+  };
+
+
   return (
     <div className="sidebar">
-      <button className="sidebar-button add" onClick={onAddNode}>+</button>
-      <button className="sidebar-button" onClick={onSave}>Save</button>
-      <button className="sidebar-button" onClick={onRestore}>Restore</button>
-      <button className="sidebar-button" onClick={onClearAll}>Clear All</button>
-      <button className="sidebar-button" onClick={onExport}>Export</button>
+      <button className="sidebar-button" onClick={onAddNode}>
+        <div className="button-content">
+          <FiPlus />
+          <span>{buttonLabels.addNode}</span>
+        </div>
+      </button>
+      <button className="sidebar-button" onClick={onSave}>
+        <div className="button-content">
+          <FiSave />
+          <span>{buttonLabels.save}</span>
+        </div>
+      </button>
+      <button className="sidebar-button" onClick={onRestore}>
+        <div className="button-content">
+          <FiRotateCcw />
+          <span>{buttonLabels.restore}</span>
+        </div>
+      </button>
+      <button className="sidebar-button" onClick={onClearAll}>
+        <div className="button-content">
+          <FiTrash2 />
+          <span>{buttonLabels.clearAll}</span>
+        </div>
+      </button>
+      <button className="sidebar-button" onClick={onExport}>
+        <div className="button-content">
+          <FiUpload />
+          <span>{buttonLabels.export}</span>
+        </div>
+      </button>
       <button className="sidebar-button" onClick={triggerFileInput}>
-        Import
+        <div className="button-content">
+          <FiDownload />
+          <span>{buttonLabels.import}</span>
+        </div>
         <input
           type="file"
           ref={fileInputRef}
