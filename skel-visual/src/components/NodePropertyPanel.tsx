@@ -14,7 +14,7 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
   const { setNodes } = useReactFlow();  
 
   const [id, setId] = useState('');
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = useState(false);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -26,7 +26,7 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
 
     if (selectedNode) {
       setId(selectedNode.id || '');
-      setSelected(selectedNode.data.selected || '');
+      setSelected(selectedNode.selected || false);
 
       setTitle(selectedNode.data.title || '');
       setDescription(selectedNode.data.description || '');
@@ -78,7 +78,7 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
         <input
           className="property-value-readonly"
           type="text"
-          value={selected}
+          value={selected ? 'true' : 'false'}
           readOnly
         />
       </div>

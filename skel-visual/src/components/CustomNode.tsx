@@ -5,7 +5,7 @@ interface CustomNodeData {
   title: string;
   description: string;
   icon: string;
-  selected?: boolean;
+  // selected: boolean;
   extraHandles?: { type: 'source' | 'target',  position: Position}[];
   tags: string;
 
@@ -112,7 +112,12 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
 
         <div>                    
           {/* <p style={{ margin: '5px 0 0' }}>{data.description}</p> */}
-          <div className="custom-node-title">{data.title}</div>
+          <div 
+            className="custom-node-title"            
+          >
+            {data.title}
+          </div>
+
           {data.tags && (
             <div className="custom-node-tags">
               {data.tags.split(',').map((tag, index) => (

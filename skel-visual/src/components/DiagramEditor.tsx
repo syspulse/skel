@@ -76,7 +76,7 @@ const initialNodes: Node[] = [
       description: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', 
       icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
       tags: 'ERC20',
-      // This node doesn't have telemetry, so counters won't be displayed
+      // This node doesn't have telemetry, so counters won't be displayed      
     },
   },
 ];
@@ -288,21 +288,28 @@ function DiagramEditor() {
     reader.readAsText(file);
   }, [setNodes, setEdges]);
   
-  const handleSearch = (searchText: string) => {    
+  const onSearch = useCallback((searchText: string) => {    
     const matchedNode = searchText.trim() === "" ? null : nodes.find(node => node.data.title.toLowerCase().startsWith(searchText.toLowerCase()));    
     if (matchedNode) {      
       setSelectedNode(matchedNode);
-      updateNode(matchedNode.id, { selected: true });
+      console.log(">>>",matchedNode)
+      
+      //updateNode(matchedNode.id, { selected: true });
+      matchedNode.selected = true
+      
     } else {    
       setSelectedNode(null);
-      nodes.forEach(node => updateNode(node.id, { selected: false })); 
+      nodes.forEach(node => 
+        node.selected = false
+        //updateNode(node.id, { selected: false })
+      ); 
     }
-  };
+  }, [nodes]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh'}}>
       
-      <TopPanel onLogin={() => console.log('Login clicked')} onSearch={handleSearch} />
+      <TopPanel onLogin={() => console.log('Login clicked')} onSearch={onSearch} />
       
       <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>        
         <Sidebar 

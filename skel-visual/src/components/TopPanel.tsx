@@ -3,7 +3,7 @@ import './TopPanel.css'; // Ensure this CSS file is created
 
 interface TopPanelProps {
   onLogin: () => void;
-  onSearch: (searchText: string) => void; // New prop for search
+  onSearch: (searchText: string) => void;  
 }
 
 const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch }) => {
