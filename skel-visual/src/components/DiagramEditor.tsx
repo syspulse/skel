@@ -359,8 +359,10 @@ function DiagramEditor() {
             onPaneClick={onPaneClick}
 
             nodeTypes={nodeTypes}
+            
             fitView
-            connectionRadius={20}
+            connectionRadius={20}            
+
             // connectionLineType={ConnectionLineType.SmoothStep}          
 
             defaultEdgeOptions={{
@@ -371,10 +373,15 @@ function DiagramEditor() {
                 height: arrowSize.height,
               },
             }}
+
+            snapToGrid={true}
+            snapGrid={[15, 15]} 
           >          
             <Controls />
             <MiniMap />
-            <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+
+            <Background variant={BackgroundVariant.Dots} gap={15} size={1} />
+            
             
           </ReactFlow>
         </div>
