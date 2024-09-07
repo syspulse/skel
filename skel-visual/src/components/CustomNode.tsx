@@ -1,5 +1,6 @@
 import React, { memo, useCallback, useEffect, useRef } from 'react';
 import { Handle, Position, NodeProps, useReactFlow, Node } from 'reactflow';
+//import './DiagramEditor.css';
 
 interface CustomNodeData {
   title: string;
@@ -72,13 +73,15 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
 
   return (
     <div 
-      style={{ 
-        padding: '10px', 
-        border: '1px solid #ddd', 
-        borderRadius: '5px', 
-        background: selected ? '#ddd' : 'white',
-        position: 'relative'
-      }}
+      //className={ selected ? 'custom-node-selected' : 'custom-node'}
+      // className="custom-node"
+      // style={{ 
+      //   padding: '10px', 
+      //   border: '1px solid #ddd', 
+      //   borderRadius: '5px', 
+      //   background: selected ? '#ddd' : 'white',
+      //   position: 'relative'
+      // }}
       //onDoubleClick={onDoubleClick}
     >
       
@@ -112,9 +115,7 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
 
         <div>                    
           {/* <p style={{ margin: '5px 0 0' }}>{data.description}</p> */}
-          <div 
-            className="custom-node-title"            
-          >
+          <div className="custom-node-title">
             {data.title}
           </div>
 
@@ -134,8 +135,7 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
             {truncateAddr(data.description)}
           </a>
         
-        </div>
-        
+        </div>        
       </div>
 
       {data.telemetry && (

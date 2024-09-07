@@ -18,7 +18,7 @@
   height: 7px;
   border-radius: 0%;
   /* background-color: transparent; */  
-  background-color: lightblue
+  background-color: rgb(230, 205, 173)
 }
 
 .target-handle {
@@ -52,8 +52,21 @@
   /* bottom: -6px; */
 }
 
+
+.react-flow__node {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;  
+  /* position: relative; */
+  background-color: white;
+}
+
+.react-flow__node.selected {
+  background-color: lightgrey;
+  border-color: gray
+}
+
 .custom-node-icon {  
-  
   width: 32px;
   height: 32px;
   /* object-fit: cover; */
@@ -100,9 +113,10 @@
 }
 
 .custom-node-separator {
+  margin-left: 0;
   height: 1px;
   background-color: #aaa;
-  margin: 8px 0;  /* Add margin above and below the separator */
+  margin: 7px 0;  /* Add margin above and below the separator */    
 }
 
 .custom-node-counts {
