@@ -43,6 +43,9 @@ const initialNodes: Node[] = [
       description: '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD', 
       icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
       tags: 'Uniswap',
+      txCount: 0, 
+      alertCount: 0,
+      detectorCount: 0,
     },
   },
   {
@@ -54,6 +57,9 @@ const initialNodes: Node[] = [
       description: '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD', 
       icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
       tags: 'DEX,Uniswap',
+      txCount: 0, 
+      alertCount: 0, 
+      detectorCount: 0,
     },
   },
   {

@@ -8,6 +8,9 @@ interface CustomNodeData {
   selected?: boolean;
   extraHandles?: { type: 'source' | 'target',  position: Position}[];
   tags: string;
+  txCount: number;
+  alertCount: number;
+  detectorCount: number;
 }
 
 function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
@@ -136,6 +139,22 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
             {truncateAddr(data.description)}
           </a>
         
+        </div>
+        
+      </div>
+      <div className="custom-node-separator"></div>
+      <div className="custom-node-counts">
+        <div className="count-item">
+          <span className="count-label">Tx:</span>
+          <span className="count-value">{data.txCount}</span>
+        </div>
+        <div className="count-item">
+          <span className="count-label">Alerts:</span>
+          <span className="count-value">{data.alertCount}</span>
+        </div>
+        <div className="count-item">
+          <span className="count-label">Detectors:</span>
+          <span className="count-value">{data.detectorCount}</span>
         </div>
       </div>
       

@@ -112,6 +112,40 @@
   margin-bottom: 3px;
 }
 
+.custom-node-separator {
+  height: 1px;
+  background-color: #aaa;
+  margin: 8px 0;  /* Add margin above and below the separator */
+}
+
+.custom-node-counts {
+  display: flex;
+  flex-direction: column;
+  font-size: 9px;
+  color: #555;
+}
+
+.count-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1px;
+}
+
+.count-label {
+  font-family: 'Helvetica', sans-serif;
+  /* font-weight: bold; */
+  margin-right: 1px;
+}
+
+.count-value {
+  font-family: 'Helvetica', sans-serif;
+  background-color: #949494;
+  color: #fff;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+
 .delete-button {
   position: absolute;
   top: -0px;
