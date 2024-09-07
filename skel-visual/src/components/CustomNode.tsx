@@ -1,4 +1,4 @@
-import React, { memo, useCallback } from 'react';
+import React, { memo, useCallback, useEffect, useRef } from 'react';
 import { Handle, Position, NodeProps, useReactFlow, Node } from 'reactflow';
 
 interface CustomNodeData {
@@ -15,6 +15,19 @@ interface CustomNodeData {
 
 function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
   const { deleteElements, setNodes } = useReactFlow();
+
+  // --------------------------------------------------------------- Visual Effect only
+  const txCountRef = useRef<HTMLSpanElement>(null);
+  var counter = -1;
+  useEffect(() => {
+    console.log('txCountRef',txCountRef);
+    if (data.txCount !== counter && txCountRef.current) {
+      txCountRef.current.classList.add('blink');
+      setTimeout(() => txCountRef.current?.classList.remove('blink'), 1000);
+      counter = data.txCount;
+    }
+  }, [data.txCount, id]);
+  // --------------------------------------------------------------- Visual Effect only
 
   const onDelete = () => {
     deleteElements({ nodes: [{ id }] });
@@ -121,7 +134,7 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
       <div className="custom-node-counts">
         <div className="count-item">
           <span className="count-label">Tx:</span>
-          <span className="count-value blink">{data.txCount}</span>
+          <span ref={txCountRef} className="count-value">{data.txCount}</span>
         </div>
         <div className="count-item">
           <span className="count-label">Alerts:</span>

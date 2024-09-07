@@ -107,9 +107,12 @@ function DiagramEditor() {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
 
+  const simulation = true;
 
-  // ------------------------------------------------------------------------------- Simulation
+  // ------------------------------------------------------------------------------- Simulation  
   useEffect(() => {
+    if(!simulation) return;
+
     const interval = setInterval(() => {
       setNodes((nds) => 
         nds.map((node) => {
@@ -132,6 +135,7 @@ function DiagramEditor() {
     // Cleanup interval on component unmount
     return () => clearInterval(interval);
   }, [setNodes]);
+  
   //-----------------------------------------------------------------------------------------------
 
   const onConnect = useCallback(

@@ -15,7 +15,8 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [icon, setIcon] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
+  // const [tags, setTags] = useState<string[]>([]);
+  const [tags, setTags] = useState('');
 
   useEffect(() => {
 
@@ -23,7 +24,7 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
       setTitle(selectedNode.data.title || '');
       setDescription(selectedNode.data.description || '');
       setIcon(selectedNode.data.icon || '');
-      setTags(selectedNode.data.tags || []);
+      setTags(selectedNode.data.tags || '');
     }
   }, [selectedNode]);
 
@@ -39,7 +40,7 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
       if (key === 'title') setTitle(value);
       if (key === 'description') setDescription(value);
       if (key === 'icon') setIcon(value);
-      if (key === 'tags') setTags(tags);
+      if (key === 'tags') setTags(value);
     }
   }
   
