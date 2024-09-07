@@ -4,7 +4,30 @@ const icons = [
   'https://cryptologos.cc/logos/uniswap-uni-logo.png',
   'https://cryptologos.cc/logos/ethereum-eth-logo.png',
   'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+  
+  '/assets/alert-1.png',
+  '/assets/alert-2.png',
   '/assets/contract.png',
+  '/assets/box.svg',
+  '/assets/cog-1.png',
+  '/assets/cog-2.png',
+  '/assets/contract.png',
+  '/assets/contract-2.svg',
+
+  '/assets/eth.svg',
+  '/assets/key.png',
+  '/assets/key-2.png',
+  '/assets/mm.png',
+
+  '/assets/shield.svg',
+  '/assets/stake.png',
+  '/assets/user-1.png',
+  '/assets/user-2.png',
+  '/assets/user-3.png',
+  '/assets/user-4.png',
+
+  '/assets/vault.png',
+
   // Add more icon URLs as needed
 ];
 
