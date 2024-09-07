@@ -91,7 +91,7 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
         selectedIcon={icon}
         onSelectIcon={handleIconSelect}
       />
-      
+
       <div>
         <label className="property-key">Tags:</label>
         <input
@@ -99,7 +99,7 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
           type="text"
           value={tags}
           onChange={(e) => handleChange('tags', e.target.value)}
-          placeholder="Enter tags separated by commas"
+          placeholder="separated by commas"
         />
       </div>
       
