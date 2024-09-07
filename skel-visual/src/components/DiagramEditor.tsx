@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -65,7 +65,7 @@ const initialNodes: Node[] = [
   {
     id: '2',
     type: 'custom',
-    position: { x: 100, y: 150 },
+    position: { x: 100, y: 200 },
     data: { 
       title: 'UNI', 
       description: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', 
@@ -106,6 +106,33 @@ function DiagramEditor() {
   //const { setViewport } = useReactFlow();
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
+
+
+  // ------------------------------------------------------------------------------- Simulation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNodes((nds) => 
+        nds.map((node) => {
+          // Randomly decide whether to update this node (1 in 3 chance)
+          if (Math.random() < 0.33) {
+            const newTxCount = (node.data.txCount || 0) + 1;
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                txCount: newTxCount,
+              },
+            };
+          }
+          return node;
+        })
+      );
+    }, 500); // Update every 2 seconds
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(interval);
+  }, [setNodes]);
+  //-----------------------------------------------------------------------------------------------
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge({ 
