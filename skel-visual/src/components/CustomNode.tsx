@@ -146,14 +146,19 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
               <span className="count-label">Tx:</span>
               <span ref={txCountRef} className="count-value">{data.telemetry?.txCount}</span>
             </div>
+            
             <div className="count-item">
-              <span className="count-label">Alerts:</span>
-              <span className="count-value">{data.telemetry?.alertCount}</span>
+              <span className="count-label">Mon:</span>
+              <span className="count-value-detector">{data.telemetry?.detectorCount}</span>
             </div>
-            <div className="count-item">
-              <span className="count-label">Detectors:</span>
-              <span className="count-value">{data.telemetry?.detectorCount}</span>
-            </div>
+
+            <div className="count-item-alerts">
+              {/* <span className="count-label">Alert:</span> */}
+              <span className={data.telemetry?.alertCount == 0 ? "count-value-alert" : "count-value-alert-crit" }>{data.telemetry?.alertCount}</span>
+              <span className={data.telemetry?.alertCount == 0 ? "count-value-alert" : "count-value-alert-major" }>{data.telemetry?.alertCount}</span>
+              <span className={data.telemetry?.alertCount == 0 ? "count-value-alert" : "count-value-alert-med" }>{data.telemetry?.alertCount}</span>
+              <span className={data.telemetry?.alertCount == 0 ? "count-value-alert" : "count-value-alert-low" }>{data.telemetry?.alertCount}</span>
+            </div> 
           </div>
         </>
       )}
