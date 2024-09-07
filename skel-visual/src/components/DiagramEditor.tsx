@@ -41,7 +41,7 @@ const initialNodes: Node[] = [
     position: { x: 0, y: 0 },
     data: { 
       title: 'Deployer', 
-      description: '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD', 
+      description: '0x946E9C780F3c79D80e51e68d259d0D7E794F2124', 
       icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
       tags: 'Uniswap',
       telemetry: {
