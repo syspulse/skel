@@ -204,6 +204,17 @@
   margin-bottom: 12px;
 }
 
+.property-value-readonly {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  width: 100%;
+  padding: 4px;
+  margin-bottom: 12px;
+  background-color: lightgrey;
+  border: 0;
+}
+
+
 .sidebar {
   display: flex;
   flex-direction: column;

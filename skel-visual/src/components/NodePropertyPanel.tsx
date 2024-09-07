@@ -13,6 +13,9 @@ interface PropertyPanelProps {
 function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
   const { setNodes } = useReactFlow();  
 
+  const [id, setId] = useState('');
+  const [selected, setSelected] = useState('');
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [icon, setIcon] = useState('');
@@ -22,6 +25,9 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
   useEffect(() => {
 
     if (selectedNode) {
+      setId(selectedNode.id || '');
+      setSelected(selectedNode.data.selected || '');
+
       setTitle(selectedNode.data.title || '');
       setDescription(selectedNode.data.description || '');
       setIcon(selectedNode.data.icon || '');
@@ -57,6 +63,27 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
   return (
     <div className="panel-container">
       <h3 className="panel-title">Properties</h3>
+      
+      <div>
+        <label className="property-key">id:</label>
+        <input
+          className="property-value-readonly"
+          type="text"
+          value={id}
+          readOnly
+        />
+      </div>
+      <div>
+        <label className="property-key">selected:</label>
+        <input
+          className="property-value-readonly"
+          type="text"
+          value={selected}
+          readOnly
+        />
+      </div>
+
+
       <div>
         <label className="property-key">Title:</label>
         <input

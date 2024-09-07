@@ -14,14 +14,10 @@ function App() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
 
-  const handleLogin = () => {
-    // Handle login logic here
-    console.log('Login clicked');
-  };
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh'}}>
-      <TopPanel onLogin={handleLogin} />      
+    // <div style={{ display: 'flex', flexDirection: 'column', height: '100vh'}}>
+    <div>
+      {/* <TopPanel onLogin={handleLogin} />       */}
       <DiagramEditor/>
             
     </div>

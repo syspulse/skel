@@ -3,10 +3,12 @@ import './TopPanel.css'; // Ensure this CSS file is created
 
 interface TopPanelProps {
   onLogin: () => void;
+  onSearch: (searchText: string) => void; // New prop for search
 }
 
-const TopPanel: React.FC<TopPanelProps> = ({ onLogin }) => {
+const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const toggleDropdown = (event: React.MouseEvent) => {
@@ -18,6 +20,13 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin }) => {
     onLogin();
     setDropdownOpen(false);
   };
+
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;    
+    setSearchText(value);
+    onSearch(value); // Call the onSearch prop to filter nodes
+  };
+
 
   const handleClickOutside = (event: MouseEvent) => {
     if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -42,7 +51,13 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin }) => {
         <img src="/assets/logo.svg" alt="" className="logo-image" /> {/* Update the path to your logo image */}
         <div className="logo">Helicopter</div>
       </div>
-      <input type="text" placeholder="Search..." className="search-input" />
+      <input
+        type="text"
+        placeholder="Search..."
+        className="search-input"
+        value={searchText}
+        onChange={handleSearchChange} // Update search text on change
+      />
       <div className="user-profile">
         <div className="user-icon" onClick={toggleDropdown}>
           U

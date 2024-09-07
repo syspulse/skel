@@ -22,8 +22,7 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
   // --------------------------------------------------------------- Visual Effect only
   const txCountRef = useRef<HTMLSpanElement>(null);
   var counter = -1;
-  useEffect(() => {
-    console.log('txCountRef',txCountRef);
+  useEffect(() => {    
     if (data.telemetry?.txCount !== counter && txCountRef.current) {
       txCountRef.current.classList.add('blink');
       setTimeout(() => txCountRef.current?.classList.remove('blink'), 1000);

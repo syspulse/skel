@@ -28,6 +28,7 @@ import PropertyPanel from './NodePropertyPanel';
 import PropertyPanelProvider from './NodePropertyPanel';
 import EdgePropertyPanel from './EdgePropertyPanel';
 import EdgePropertyPanelProvider from './EdgePropertyPanel';
+import TopPanel from './TopPanel';
 
 const nodeTypes = {
   custom: CustomNode,
@@ -201,7 +202,7 @@ function DiagramEditor() {
     if (edges.length === 1) {
       setSelectedEdge(edges[0]);
       setSelectedNode(null);
-    } else if (nodes.length === 1) {
+    } else if (nodes.length === 1) {      
       setSelectedNode(nodes[0]);
       setSelectedEdge(null);
     } else {
@@ -287,54 +288,69 @@ function DiagramEditor() {
     reader.readAsText(file);
   }, [setNodes, setEdges]);
   
+  const handleSearch = (searchText: string) => {    
+    const matchedNode = searchText.trim() === "" ? null : nodes.find(node => node.data.title.toLowerCase().startsWith(searchText.toLowerCase()));    
+    if (matchedNode) {      
+      setSelectedNode(matchedNode);
+      updateNode(matchedNode.id, { selected: true });
+    } else {    
+      setSelectedNode(null);
+      nodes.forEach(node => updateNode(node.id, { selected: false })); 
+    }
+  };
 
   return (
-    <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>
-      <Sidebar 
-        onAddNode={onAddNode} 
-        onSave={onSave} 
-        onRestore={onRestore}
-        onClearAll={handleClearAll}
-        onExport={onExport}
-        onImport={onImport}
-      /> 
-      <div style={{ flex: 1, position: 'relative' }}>        
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          
-          onNodesChange={onNodesChange}
-          onSelectionChange={onSelectionChange}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh'}}>
+      
+      <TopPanel onLogin={() => console.log('Login clicked')} onSearch={handleSearch} />
+      
+      <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>        
+        <Sidebar 
+          onAddNode={onAddNode} 
+          onSave={onSave} 
+          onRestore={onRestore}
+          onClearAll={handleClearAll}
+          onExport={onExport}
+          onImport={onImport}
+        /> 
+        <div style={{ flex: 1, position: 'relative' }}>        
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            
+            onNodesChange={onNodesChange}
+            onSelectionChange={onSelectionChange}
 
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onEdgeDoubleClick={onEdgeDoubleClick}
-          onNodesDelete={onNodesDelete}
-          // onNodeClick={onNodeClick}
-          onPaneClick={onPaneClick}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onEdgeDoubleClick={onEdgeDoubleClick}
+            onNodesDelete={onNodesDelete}
+            // onNodeClick={onNodeClick}
+            onPaneClick={onPaneClick}
 
-          nodeTypes={nodeTypes}
-          fitView
-          connectionRadius={20}
-          // connectionLineType={ConnectionLineType.SmoothStep}          
+            nodeTypes={nodeTypes}
+            fitView
+            connectionRadius={20}
+            // connectionLineType={ConnectionLineType.SmoothStep}          
 
-          defaultEdgeOptions={{
-            type: 'default',
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-              width: arrowSize.width,
-              height: arrowSize.height,
-            },
-          }}
-        >          
-          <Controls />
-          <MiniMap />
-          <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
-          
-        </ReactFlow>
+            defaultEdgeOptions={{
+              type: 'default',
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                width: arrowSize.width,
+                height: arrowSize.height,
+              },
+            }}
+          >          
+            <Controls />
+            <MiniMap />
+            <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+            
+          </ReactFlow>
+        </div>
+        <PropertyPanelProvider selectedNode={selectedNode} updateNode={updateNode}/>
+        <EdgePropertyPanelProvider selectedEdge={selectedEdge} updateEdge={updateEdge}/>
       </div>
-      <PropertyPanelProvider selectedNode={selectedNode} updateNode={updateNode}/>
-      <EdgePropertyPanelProvider selectedEdge={selectedEdge} updateEdge={updateEdge}/>
     </div>
   );
 }
