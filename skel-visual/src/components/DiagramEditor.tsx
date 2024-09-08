@@ -37,7 +37,7 @@ const nodeTypes = {
 
 const initialNodes: Node[] = [
   {
-    id: '0',
+    id: '2134',
     type: 'custom',
     position: { x: 0, y: 0 },
     data: { 
@@ -53,7 +53,7 @@ const initialNodes: Node[] = [
     },
   },
   {
-    id: '1',
+    id: '2135',
     type: 'custom',
     position: { x: 300, y: 0 },
     data: { 
@@ -69,7 +69,7 @@ const initialNodes: Node[] = [
     },
   },
   {
-    id: '2',
+    id: '2136',
     type: 'custom',
     position: { x: 100, y: 200 },
     data: { 
@@ -86,8 +86,8 @@ const initialNodes: Node[] = [
 const initialEdges: Edge[] = [
   { 
     id: 'e0-1', 
-    source: '0', 
-    target: '1',
+    source: '2134', 
+    target: '2135',
     sourceHandle: 'right-source',
     targetHandle: 'left-target',
     markerEnd: { type: MarkerType.ArrowClosed },
@@ -97,8 +97,8 @@ const initialEdges: Edge[] = [
   },
   { 
     id: 'e0-2', 
-    source: '0', 
-    target: '2',
+    source: '2134', 
+    target: '2136',
     sourceHandle: 'bottom-source',
     targetHandle: 'top-target',
     markerEnd: { type: MarkerType.ArrowClosed },
@@ -132,10 +132,10 @@ async function fetchDashboard(tenantId: number): Promise<any> {
     }
 
     const data = await response.json();
-    const contracts = data.data.map((c:any) => ({"id":c.contract.id, "detectors":c.contract.count["SECURITY"] + c.contract.count["trigger"]}) )
+    const contracts = data.data.map((c:any) => ({"id":c.contract.id, "detectorCount":c.contract.count["SECURITY"] + c.contract.count["trigger"]}) )
     const txCount = data.transactions;
 
-    return {"txCount":txCount,"contract":contracts};
+    return {"txCount":txCount,"contracts":contracts};
 
   } catch (error) {
     console.error('Error fetching simulation data:', error);
@@ -153,50 +153,82 @@ function DiagramEditor() {
 
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
-  const simulation = true;
+  const simulation = false;
   
   // ------------------------------------------------------------------------------- Simulation  
   useEffect(() => {
-    const fetchData = async () => {
-      const data = await fetchDashboard(tenantId);      
-    };
-
-    const simulateData = setInterval(() => {
-      setNodes((nds) => 
-        nds.map((node) => {
-          // Randomly decide whether to update this node (1 in 3 chance)
-          if (node.data.tags && node.data.tags.includes('Uniswap') && Math.random() < 0.33) {
-            const newTxCount = (node.data.telemetry?.txCount || 0) + 1;
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                telemetry: {
-                  ...node.data.telemetry,
-                  txCount: newTxCount,
+    
+    const simulateData = setInterval(async () => {      
+      console.log("Timer")
+      if(simulation) {
+        setNodes((nds) => 
+          nds.map((node) => {
+            // Randomly decide whether to update this node (1 in 3 chance)
+            if (node.data.tags && node.data.tags.includes('Uniswap') && Math.random() < 0.33) {
+              const newTxCount = (node.data.telemetry?.txCount || 0) + 1;
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  telemetry: {
+                    ...node.data.telemetry,
+                    txCount: newTxCount,
+                  },
                 },
-              },
-            };
-          }
-          return node;
-        })
-      );
-    }, 500);
+              };
+            }
+            return node;
+          })
+        );
+      } else {
+        udpateConters();        
+      }
+    }, 10000);
 
     // Cleanup interval on component unmount
-    if(simulation)
-      return () => clearInterval(simulateData);
-    else
-      return () => fetchData;
+    return () => clearInterval(simulateData);    
 
   }, [setNodes]);
   
+  async function udpateConters() {
+    const data = await fetchDashboard(tenantId);
+    console.log('Dashboard data:', data);    
+    setNodes((nds) => 
+      nds.map((node) => {
+        // find title match
+        const found = data.contracts.filter((c:any) => c.id == node.id)
+        
+        if (found.length == 1) {          
+          const newTxCount = data.txCount;
+          const newDetectorCount = found[0].detectorCount
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              telemetry: {
+                ...node.data.telemetry,
+                txCount: newTxCount,
+                detectorCount: newDetectorCount
+              },
+            },
+          };
+        }
+        return node;
+      })
+    )
+  }
+
   //-----------------------------------------------------------------------------------------------
+  const onRefresh = useCallback(async () => {
+    udpateConters();
+    
+  }, [setNodes]);
 
   const handleFetchDashboard = async () => {
     const data = await fetchDashboard(tenantId);
     console.log('Dashboard data:', data);    
   };  
+
 
   // ------------------------------------------------------------------------ Keyboard ---
   useEffect(() => {
@@ -410,7 +442,7 @@ function DiagramEditor() {
           onClearAll={handleClearAll}
           onExport={onExport}
           onImport={onImport}
-          onRefresh={handleFetchDashboard}
+          onRefresh={onRefresh}
         /> 
         <div style={{ flex: 1, position: 'relative' }}>        
           <ReactFlow

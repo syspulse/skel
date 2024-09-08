@@ -11,9 +11,9 @@ interface CustomNodeData {
   tags: string;
 
   telemetry?: {
-    txCount?: number;
-    alertCount?: number;
-    detectorCount?: number;
+    txCount: number;
+    alertCount: number;
+    detectorCount: number;
   };
 }
 
