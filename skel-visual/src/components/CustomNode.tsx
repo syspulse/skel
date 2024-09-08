@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useEffect, useRef } from 'react';
 import { Handle, Position, NodeProps, useReactFlow, Node } from 'reactflow';
-//import './DiagramEditor.css';
+import {truncateAddr} from '../util/Util';
 
 interface CustomNodeData {
   title: string;
@@ -62,14 +62,8 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
           : node
       )
     );
-
     
   }, [id, setNodes]);
-
-  const truncateAddr = (addr: string) => {
-    if (addr.length <= 16) return addr;
-    return `${addr.slice(0, 10)}...${addr.slice(-10)}`;
-  };
 
   return (
     <div 

@@ -29,6 +29,7 @@ import PropertyPanelProvider from './NodePropertyPanel';
 import EdgePropertyPanel from './EdgePropertyPanel';
 import EdgePropertyPanelProvider from './EdgePropertyPanel';
 import TopPanel from './TopPanel';
+import {truncateAddr} from '../util/Util';
 
 const nodeTypes = {
   custom: CustomNode,
@@ -92,6 +93,7 @@ const initialEdges: Edge[] = [
     markerEnd: { type: MarkerType.ArrowClosed },
     data: { transaction: '0x' },
     label: '0x',
+    animated: true
   },
   { 
     id: 'e0-2', 
@@ -245,11 +247,30 @@ function DiagramEditor() {
     );
   };
 
-  const updateEdge = useCallback((id: string, data: any) => {
+  const updateEdgeData = useCallback((id: string, key:string, value: any, data: any) => {
+    setEdges((eds) => eds.map((edge) => {        
+      let e;
+      if(edge.id === id) {
+        let e1;
+        if(key || key != '') {
+          e1 = { ... edge, [key]: value};
+        } else 
+          e1 = edge;
+
+        if(data) {
+          e = { ...e1, data: { ...e1.data, ...data } };          
+        } else 
+          e = e1;
+
+      } else e = edge;      
+      return e;
+    }));
+  }, [setEdges]);
+
+  const updateEdge = useCallback((id: string, key:string, value: any) => {
     setEdges((eds) => eds.map((edge) => (edge.id === id ? { 
       ...edge, 
-      label: data.transaction,
-      data: { ...edge.data, ...data } 
+      [key]: value
     } : edge)));
   }, [setEdges]);
 
@@ -386,7 +407,7 @@ function DiagramEditor() {
           </ReactFlow>
         </div>
         <PropertyPanelProvider selectedNode={selectedNode} updateNode={updateNode}/>
-        <EdgePropertyPanelProvider selectedEdge={selectedEdge} updateEdge={updateEdge}/>
+        <EdgePropertyPanelProvider selectedEdge={selectedEdge} updateEdge={updateEdge} updateEdgeData={updateEdgeData}/>
       </div>
     </div>
   );
