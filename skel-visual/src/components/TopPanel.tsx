@@ -18,8 +18,12 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,searchInputRef}) =
   };
 
   const handleLogin = () => {
-    onLogin();
-    setDropdownOpen(false);
+    const token = prompt('JWT token:');
+    if (token) {
+      localStorage.setItem('jwtToken', token);
+      onLogin();
+      setDropdownOpen(false);
+    }
   };
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {

@@ -57,7 +57,7 @@ const initialNodes: Node[] = [
     type: 'custom',
     position: { x: 300, y: 0 },
     data: { 
-      title: 'Uniswap Router', 
+      title: 'Universal Router', 
       description: '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD', 
       icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
       tags: 'DEX,Uniswap',
@@ -107,6 +107,42 @@ const initialEdges: Edge[] = [
   }
 ];
 
+const tenantId = 645;
+
+async function fetchDashboard(tenantId: number): Promise<any> {
+  const url = `https://api.extractor.dev.hacken.cloud/api/v1/project/${tenantId}/dashboard`;
+  const payload = `{"from":1725224400000,"to":1725814266025,"interval":"1d","timezone":"Europe/Kiev","id":${tenantId}}`
+  
+  try {
+    const token = localStorage.getItem('jwtToken');
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: payload//JSON.stringify(payload),      
+    });
+
+    console.log("response:",response);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const contracts = data.data.map((c:any) => ({"id":c.contract.id, "detectors":c.contract.count["SECURITY"] + c.contract.count["trigger"]}) )
+    const txCount = data.transactions;
+
+    return {"txCount":txCount,"contract":contracts};
+
+  } catch (error) {
+    console.error('Error fetching simulation data:', error);
+    return { "txCount": 0, "contracts": [] };
+  }
+}
+
 function DiagramEditor() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);  
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -118,12 +154,14 @@ function DiagramEditor() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const simulation = true;
-
+  
   // ------------------------------------------------------------------------------- Simulation  
   useEffect(() => {
-    if(!simulation) return;
+    const fetchData = async () => {
+      const data = await fetchDashboard(tenantId);      
+    };
 
-    const interval = setInterval(() => {
+    const simulateData = setInterval(() => {
       setNodes((nds) => 
         nds.map((node) => {
           // Randomly decide whether to update this node (1 in 3 chance)
@@ -143,14 +181,22 @@ function DiagramEditor() {
           return node;
         })
       );
-    }, 500); // Update every 2 seconds
+    }, 500);
 
     // Cleanup interval on component unmount
-    return () => clearInterval(interval);
+    if(simulation)
+      return () => clearInterval(simulateData);
+    else
+      return () => fetchData;
+
   }, [setNodes]);
   
   //-----------------------------------------------------------------------------------------------
 
+  const handleFetchDashboard = async () => {
+    const data = await fetchDashboard(tenantId);
+    console.log('Dashboard data:', data);    
+  };  
 
   // ------------------------------------------------------------------------ Keyboard ---
   useEffect(() => {
@@ -334,7 +380,6 @@ function DiagramEditor() {
     const matchedNode = searchText.trim() === "" ? null : nodes.find(node => node.data.title.toLowerCase().startsWith(searchText.toLowerCase()));    
     if (matchedNode) {      
       setSelectedNode(matchedNode);
-      console.log(">>>",matchedNode)
       
       //updateNode(matchedNode.id, { selected: true });
       matchedNode.selected = true
@@ -352,7 +397,7 @@ function DiagramEditor() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh'}}>
       
       <TopPanel 
-        onLogin={() => console.log('Login clicked')}         
+        onLogin={() => console.log('Login')}         
         onSearch={onSearch} 
         searchInputRef={searchInputRef}
       />
@@ -365,6 +410,7 @@ function DiagramEditor() {
           onClearAll={handleClearAll}
           onExport={onExport}
           onImport={onImport}
+          onRefresh={handleFetchDashboard}
         /> 
         <div style={{ flex: 1, position: 'relative' }}>        
           <ReactFlow

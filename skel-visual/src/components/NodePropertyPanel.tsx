@@ -36,8 +36,7 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
   }, [selectedNode]);
 
 
-  const handleChange = (key: string, value: string) => {
-    // console.log('handleChange', key, value, selectedNode);
+  const handleChange = (key: string, value: string) => {    
     
     if (selectedNode) {      
       updateNode(selectedNode.id, { [key]: value });

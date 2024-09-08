@@ -1,6 +1,6 @@
 import React from 'react';
 import './DiagramEditor.css';
-import { FiPlus, FiSave, FiRotateCcw, FiTrash2, FiUpload, FiDownload, FiPlay, FiSquare } from 'react-icons/fi';
+import { FiPlus, FiSave, FiRotateCcw, FiTrash2, FiUpload, FiDownload, FiPlay, FiSquare, FiRefreshCcw } from 'react-icons/fi';
 
 interface SidebarProps {
   onAddNode: () => void;
@@ -9,9 +9,10 @@ interface SidebarProps {
   onClearAll: () => void;
   onExport: (file: File) => void;
   onImport: (file: File) => void;
+  onRefresh: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClearAll, onExport, onImport }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClearAll, onExport, onImport, onRefresh }) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const fileOutputRef = React.useRef<HTMLInputElement>(null);
 
@@ -49,8 +50,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClear
     clearAll: 'Clear',
     export: 'Export...',
     import: 'Import...',
-    startSimulation: 'Start Sim',
-    stopSimulation: 'Stop Sim'
+    
+    refresh: 'Get data...'    
   };
 
 
@@ -105,6 +106,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClear
           accept=".json"
           onChange={handleImport}
         />
+      </button>
+      <button className="sidebar-button" onClick={onRefresh}>
+        <div className="button-content">
+          <FiRefreshCcw />
+          <span>{buttonLabels.refresh}</span>
+        </div>
       </button>
     </div>
   );
