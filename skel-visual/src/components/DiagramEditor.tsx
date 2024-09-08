@@ -302,14 +302,16 @@ function DiagramEditor() {
     setNodes([]); // Assuming you're using a state setter to manage nodes
   };
 
-  const onExport = useCallback(() => {
+  const onExport = useCallback((file: File) => {
+    
     const flow = { nodes, edges };
     const json = JSON.stringify(flow, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'flow-export.json';
+    link.download = file.name;//'flow-export.json';
+    
     link.click();
     URL.revokeObjectURL(url);
   }, [nodes, edges]);

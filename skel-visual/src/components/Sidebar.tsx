@@ -7,12 +7,13 @@ interface SidebarProps {
   onSave: () => void;
   onRestore: () => void;
   onClearAll: () => void;
-  onExport: () => void;
+  onExport: (file: File) => void;
   onImport: (file: File) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClearAll, onExport, onImport }) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const fileOutputRef = React.useRef<HTMLInputElement>(null);
 
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -24,6 +25,22 @@ const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClear
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
+
+  // const handleExport = (event: React.ChangeEvent<HTMLInputElement>) => {
+  //   const file = event.target.files?.[0];
+  //   if (file) {
+  //     onExport(file);
+  //   }
+  // };
+
+  const triggerFileOutput = () => {
+    const fileName = prompt("Enter the file name", "flow.json");
+    if(!fileName) return;
+
+    const file = new File([], fileName, { type: 'application/json' });    
+    onExport(file);
+  };
+
 
   const buttonLabels = {
     addNode: 'Add',
@@ -63,10 +80,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClear
           <span>{buttonLabels.clearAll}</span>
         </div>
       </button>
-      <button className="sidebar-button" onClick={onExport}>
+      <button className="sidebar-button" onClick={triggerFileOutput}>
         <div className="button-content">
           <FiUpload />
           <span>{buttonLabels.export}</span>
+          {/* <input
+            type="file"
+            ref={fileOutputRef}
+            style={{ display: 'none' }}
+            accept=".json"            
+            onChange={handleExport}
+          /> */}
         </div>
       </button>
       <button className="sidebar-button" onClick={triggerFileInput}>
