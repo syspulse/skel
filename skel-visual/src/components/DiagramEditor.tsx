@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, RefObject } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -107,11 +107,9 @@ const initialEdges: Edge[] = [
   }
 ];
 
-const tenantId = 645;
-
-async function fetchDashboard(tenantId: number): Promise<any> {
-  const url = `https://api.extractor.dev.hacken.cloud/api/v1/project/${tenantId}/dashboard`;
-  const payload = `{"from":1725224400000,"to":1725814266025,"interval":"1d","timezone":"Europe/Kiev","id":${tenantId}}`
+async function fetchDashboard(projectId: string): Promise<any> {
+  const url = `https://api.extractor.dev.hacken.cloud/api/v1/project/${projectId}/dashboard`;
+  const payload = `{"from":1725224400000,"to":1725814266025,"interval":"1d","timezone":"Europe/Kiev","id":${projectId}}`
   
   try {
     const token = localStorage.getItem('jwtToken');
@@ -143,23 +141,34 @@ async function fetchDashboard(tenantId: number): Promise<any> {
   }
 }
 
-function DiagramEditor() {
+// =============================================================================================  
+interface DiagramEditorProps {
+  projectId: string;
+  refreshFreq: number;
+  searchText: string;
+  searchInputRef: RefObject<HTMLInputElement>;
+}
+
+//function DiagramEditor() {
+const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, searchText, searchInputRef }) => {
+
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);  
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [arrowSize, setArrowSize] = useState({ width: 4, height: 4 });
   //const { setViewport } = useReactFlow();
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
-
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
-
+  
+  //const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  
   const simulation = false;
   
   // ------------------------------------------------------------------------------- Simulation  
   useEffect(() => {
     
-    const simulateData = setInterval(async () => {      
-      console.log("Timer")
+    const simulateData = async () => {      
+      console.log("Timer =======================================> ",refreshFreq)
       if(simulation) {
         setNodes((nds) => 
           nds.map((node) => {
@@ -183,15 +192,25 @@ function DiagramEditor() {
       } else {
         udpateConters();        
       }
-    }, 60000);
+    };
 
-    // Cleanup interval on component unmount
-    return () => clearInterval(simulateData);    
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
 
-  }, [setNodes]);
+    timerRef.current = setInterval(simulateData, refreshFreq);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+
+  }, [setNodes,projectId, refreshFreq]);
   
-  async function udpateConters() {
-    const data = await fetchDashboard(tenantId);
+  async function udpateConters() {    
+
+    const data = await fetchDashboard(projectId);
     console.log('Dashboard data:', data);    
     setNodes((nds) => 
       nds.map((node) => {
@@ -219,21 +238,20 @@ function DiagramEditor() {
   }
 
   //-----------------------------------------------------------------------------------------------
-  const onRefresh = useCallback(async () => {
+  // const onRefresh = useCallback(async () => {
+  //   udpateConters();
+  // }, [setNodes]);
+
+  const onRefresh = (async () => {
     udpateConters();
     
-  }, [setNodes]);
-
-  const handleFetchDashboard = async () => {
-    const data = await fetchDashboard(tenantId);
-    console.log('Dashboard data:', data);    
-  };  
-
+  });
 
   // ------------------------------------------------------------------------ Keyboard ---
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: KeyboardEvent) => {      
       if (event.key === '/') {
+        console.log("KKKKKKKKKKKKKKKKK",searchInputRef.current);
         event.preventDefault(); // Prevent default action
         searchInputRef.current?.focus(); // Focus the search input
       }
@@ -297,11 +315,32 @@ function DiagramEditor() {
   //   );
   // }, [setNodes]);
 
+  useEffect(() => {
+    const matchedNode = searchText.trim() === '' ? null : nodes.find((node) => node.data.title.toLowerCase().startsWith(searchText.toLowerCase()));
+    if (matchedNode) {
+      setNodes((nds) =>
+        nds.map((node) => ({
+          ...node,
+          selected: node.id === matchedNode.id,
+        }))
+      );
+      setSelectedNode(matchedNode);
+    } else {
+      setNodes((nds) =>
+        nds.map((node) => ({
+          ...node,
+          selected: false,
+        }))
+      );
+      setSelectedNode(null);
+    }
+  }, [searchText, setNodes]);
+
   const onSelectionChange = useCallback(({ nodes, edges }: OnSelectionChangeParams) => {
     if (edges.length === 1) {
       setSelectedEdge(edges[0]);
       setSelectedNode(null);
-    } else if (nodes.length === 1) {      
+    } else if (nodes.length === 1) {
       setSelectedNode(nodes[0]);
       setSelectedEdge(null);
     } else {
@@ -317,6 +356,8 @@ function DiagramEditor() {
         data: { ...n.data, selected: false },
       }))
     );
+    setSelectedNode(null);
+    setSelectedEdge(null);
   }, [setNodes]);
 
   const updateNode = (id: string, key:String, value:any) => {
@@ -428,29 +469,38 @@ function DiagramEditor() {
     reader.readAsText(file);
   }, [setNodes, setEdges]);
   
-  const onSearch = useCallback((searchText: string) => {    
-    const matchedNode = searchText.trim() === "" ? null : nodes.find(node => node.data.title.toLowerCase().startsWith(searchText.toLowerCase()));    
-    if (matchedNode) {      
-      setSelectedNode(matchedNode);
-            
-      matchedNode.selected = true
-      
-    } else {    
-      setSelectedNode(null);
-      nodes.forEach(node => 
-        node.selected = false        
-      ); 
-    }
-  }, [nodes]);
+  // useEffect(() => {
+  //   onSearch(searchText);
+  // }, [searchText]);
 
+  // const onSearch = useCallback((searchText: string) => {
+  //   console.log("SEARCH: >>>>>>",searchText);
+
+  //   const matchedNode = searchText.trim() === "" ? null : nodes.find(node => node.data.title.toLowerCase().startsWith(searchText.toLowerCase()));    
+  //   if (matchedNode) {      
+  //     setSelectedNode(matchedNode);
+            
+  //     matchedNode.selected = true
+      
+  //   } else {
+  //     setSelectedNode(null);
+  //     nodes.forEach(node => 
+  //       node.selected = false        
+  //     ); 
+  //   }
+  // }, [nodes]);
+
+  
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh'}}>
       
-      <TopPanel 
+      {/* <TopPanel 
         onLogin={() => console.log('Login')}         
         onSearch={onSearch} 
         searchInputRef={searchInputRef}
-      />
+        onProjectId={onProjectId}
+        onRefreshFreq={onRefreshFreq}
+      /> */}
       
       <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>        
         <Sidebar 

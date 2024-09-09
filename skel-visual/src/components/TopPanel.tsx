@@ -4,28 +4,17 @@ import TopMenu from './TopMenu';
 
 interface TopPanelProps {
   onLogin: () => void;
-  onSearch: (searchText: string) => void;  
+  onSearch: (searchText: string) => void;    
+  onProjectId: (projectId: string) => void;
+  onRefreshFreq: (refreshFreq: number) => void;  
   searchInputRef: React.RefObject<HTMLInputElement>;
 }
 
-const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,searchInputRef}) => {
+const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,onProjectId,onRefreshFreq,searchInputRef}) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
-  // const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // const toggleDropdown = (event: React.MouseEvent) => {
-  //   event.stopPropagation(); // Prevent event bubbling
-  //   setDropdownOpen(!dropdownOpen);
-  // };
-
-  // const handleLogin = () => {
-  //   const token = prompt('JWT token:');
-  //   if (token) {
-  //     localStorage.setItem('jwtToken', token);
-  //     onLogin();
-  //     setDropdownOpen(false);
-  //   }
-  // };
+  const [projectId, setProjectId] = useState('645');
+  const [refreshFreq, setRefreshFreq] = useState(10000);
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;    
@@ -33,23 +22,16 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,searchInputRef}) =
     onSearch(value); // Call the onSearch prop to filter nodes
   };
 
+  const handleProjectIdChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setProjectId(event.target.value);
+    onProjectId(event.target.value);
+  };
 
-  // const handleClickOutside = (event: MouseEvent) => {
-  //   if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-  //     setDropdownOpen(false);
-  //   }
-  // };
-
-  // useEffect(() => {
-  //   // Add event listener for clicks outside the dropdown
-  //   document.addEventListener('mousedown', handleClickOutside);
-  //   document.addEventListener('click', handleClickOutside); // Add click event listener
-  //   return () => {
-  //     // Cleanup the event listener on component unmount
-  //     document.removeEventListener('mousedown', handleClickOutside);
-  //     document.removeEventListener('click', handleClickOutside); // Cleanup click event listener
-  //   };
-  // }, []);
+  const handleRefreshFreqChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const freq = Number(event.target.value);
+    setRefreshFreq(freq);
+    onRefreshFreq(freq);
+  };
 
   return (
     <div className="top-panel">
@@ -65,19 +47,24 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,searchInputRef}) =
         value={searchText}
         onChange={handleSearchChange} // Update search text on change
       />
-      {/* <div className="user-profile">
-        <div className="user-icon" onClick={toggleDropdown}>
-          U
-        </div>
-        {dropdownOpen && (
-          <div className="dropdown-menu"  ref={dropdownRef}>
-            <button className="dropdown-item" onClick={handleLogin}>Login</button>
-            <hr />
-            <button className="dropdown-item">Settings</button>
-            <button className="dropdown-item">Help</button>
-          </div>
-        )}
-      </div> */}
+      <div className="options-container">
+        <label htmlFor="projectId">Project ID:</label>
+        <input
+          type="text"
+          id="projectId"
+          value={projectId}
+          onChange={handleProjectIdChange}
+          className="option-input-number"
+        />
+        <label htmlFor="refreshFreq">Refresh:</label>
+        <input
+          type="text"
+          id="refreshFreq"
+          value={refreshFreq}
+          onChange={handleRefreshFreqChange}
+          className="option-input-number"
+        />
+      </div>
       <TopMenu onLogin={onLogin} />
     </div>
   );

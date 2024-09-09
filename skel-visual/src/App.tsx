@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import ReactFlow, { Node, useNodesState, useEdgesState } from 'reactflow';
 import CustomNode from './components/CustomNode';
 import PropertiesPanel from './components/NodePropertyPanel';
@@ -10,16 +10,27 @@ const nodeTypes = {
 };
 
 function App() {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [projectId, setProjectId] = useState('645');
+  const [refreshFreq, setRefreshFreq] = useState(10000);
+  const [searchText, setSearchText] = useState('');
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   return (
-    // <div style={{ display: 'flex', flexDirection: 'column', height: '100vh'}}>
-    <div>
-      {/* <TopPanel onLogin={handleLogin} />       */}
-      <DiagramEditor/>
-            
+    <div>      
+      {/* <DiagramEditor/> */}
+      <TopPanel 
+        onLogin={() => {}} 
+        onSearch={setSearchText}         
+        onProjectId={setProjectId} 
+        onRefreshFreq={setRefreshFreq} 
+        searchInputRef={searchInputRef}
+      />
+      <DiagramEditor 
+        projectId={projectId} 
+        refreshFreq={refreshFreq} 
+        searchText={searchText}
+        searchInputRef={searchInputRef}
+      />
     </div>
   );
 }

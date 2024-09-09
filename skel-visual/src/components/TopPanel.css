@@ -85,3 +85,24 @@
   .dropdown-item:hover {
     background-color: #f0f0f0;
   }
+
+  .options-container {
+    display: flex;
+    align-items: center;
+    margin-left: 20px;
+  }
+  
+  .options-container label {
+    margin-left: 7px;
+    margin-right: 3px;
+    font-size: small;
+  }
+  
+  .option-input-number {
+    width: 60px;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+
+  
