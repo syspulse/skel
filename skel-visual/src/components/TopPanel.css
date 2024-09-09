@@ -52,10 +52,13 @@
     justify-content: center;
     cursor: pointer;
     font-weight: bold;
+    border: 3px solid transparent; 
   }
 
   .user-icon.valid {
-    background-color: #4CAF50;
+    border-color: darkolivegreen;
+    background-color: lightgrey;
+    color: darkolivegreen;
   }
   
   
