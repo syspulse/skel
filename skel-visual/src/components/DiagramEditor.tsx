@@ -168,7 +168,7 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
   useEffect(() => {
     
     const simulateData = async () => {      
-      console.log("Timer =======================================> ",refreshFreq)
+      console.log("Timer: ",refreshFreq)
       if(simulation) {
         setNodes((nds) => 
           nds.map((node) => {
@@ -251,7 +251,6 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {      
       if (event.key === '/') {
-        console.log("KKKKKKKKKKKKKKKKK",searchInputRef.current);
         event.preventDefault(); // Prevent default action
         searchInputRef.current?.focus(); // Focus the search input
       }
@@ -302,19 +301,6 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
   }, [setEdges]);
 
   
-  // const onSelectionChange = useCallback(({ nodes, edges }: OnSelectionChangeParams) => {
-  //   console.log('Selection changed:', nodes, edges);
-  //   setNodes((nds) =>
-  //     nds.map((n) => ({
-  //       ...n,
-  //       data: {
-  //         ...n.data,
-  //         selected: nodes.some((selectedNode) => selectedNode.id === n.id),
-  //       },
-  //     }))
-  //   );
-  // }, [setNodes]);
-
   useEffect(() => {
     const matchedNode = searchText.trim() === '' ? null : nodes.find((node) => node.data.title.toLowerCase().startsWith(searchText.toLowerCase()));
     if (matchedNode) {
@@ -469,39 +455,10 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
     reader.readAsText(file);
   }, [setNodes, setEdges]);
   
-  // useEffect(() => {
-  //   onSearch(searchText);
-  // }, [searchText]);
-
-  // const onSearch = useCallback((searchText: string) => {
-  //   console.log("SEARCH: >>>>>>",searchText);
-
-  //   const matchedNode = searchText.trim() === "" ? null : nodes.find(node => node.data.title.toLowerCase().startsWith(searchText.toLowerCase()));    
-  //   if (matchedNode) {      
-  //     setSelectedNode(matchedNode);
-            
-  //     matchedNode.selected = true
-      
-  //   } else {
-  //     setSelectedNode(null);
-  //     nodes.forEach(node => 
-  //       node.selected = false        
-  //     ); 
-  //   }
-  // }, [nodes]);
-
   
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh'}}>
-      
-      {/* <TopPanel 
-        onLogin={() => console.log('Login')}         
-        onSearch={onSearch} 
-        searchInputRef={searchInputRef}
-        onProjectId={onProjectId}
-        onRefreshFreq={onRefreshFreq}
-      /> */}
-      
+          
       <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>        
         <Sidebar 
           onAddNode={onAddNode} 

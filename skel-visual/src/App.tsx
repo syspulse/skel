@@ -17,7 +17,6 @@ function App() {
 
   return (
     <div>      
-      {/* <DiagramEditor/> */}
       <TopPanel 
         onLogin={() => {}} 
         onSearch={setSearchText}         
