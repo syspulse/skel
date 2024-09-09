@@ -43,7 +43,7 @@ const initialNodes: Node[] = [
     data: { 
       title: 'Deployer', 
       description: '0x946E9C780F3c79D80e51e68d259d0D7E794F2124', 
-      icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
+      icon: '/assets/key.png',
       tags: 'Uniswap',
       telemetry: {
         txCount: 0, 
@@ -319,11 +319,31 @@ function DiagramEditor() {
     );
   }, [setNodes]);
 
-  const updateNode = (id: string, data: any) => {
+  const updateNode = (id: string, key:String, value:any) => {
     setNodes((nds) =>
-      nds.map((node) => (node.id === id ? { ...node, data: { ...node.data, ...data } } : node))
+      nds.map((node) => (node.id === id ? { ...node, [key as string]:value } : node))
     );
   };
+
+  const updateNodeData = useCallback((id: string, key:String, value:any, data: any) => {
+    setNodes((nn) => nn.map((node) => {
+      let n;
+      if(node.id === id) {
+        let n1;
+        if(key || key != '') {
+          n1 = { ... node, [key as string]: value};
+        } else 
+          n1 = node;
+
+        if(data) {          
+          n = { ...n1, data: { ...n1.data, ...data } };
+        } else 
+          n = n1;        
+
+      } else n = node;
+      return n;
+    }));
+  },[setNodes]);
 
   const updateEdgeData = useCallback((id: string, key:string, value: any, data: any) => {
     setEdges((eds) => eds.map((edge) => {        
@@ -412,15 +432,13 @@ function DiagramEditor() {
     const matchedNode = searchText.trim() === "" ? null : nodes.find(node => node.data.title.toLowerCase().startsWith(searchText.toLowerCase()));    
     if (matchedNode) {      
       setSelectedNode(matchedNode);
-      
-      //updateNode(matchedNode.id, { selected: true });
+            
       matchedNode.selected = true
       
     } else {    
       setSelectedNode(null);
       nodes.forEach(node => 
-        node.selected = false
-        //updateNode(node.id, { selected: false })
+        node.selected = false        
       ); 
     }
   }, [nodes]);
@@ -486,7 +504,7 @@ function DiagramEditor() {
             
           </ReactFlow>
         </div>
-        <PropertyPanelProvider selectedNode={selectedNode} updateNode={updateNode}/>
+        <PropertyPanelProvider selectedNode={selectedNode} updateNode={updateNode} updateNodeData={updateNodeData} />
         <EdgePropertyPanelProvider selectedEdge={selectedEdge} updateEdge={updateEdge} updateEdgeData={updateEdgeData}/>
       </div>
     </div>

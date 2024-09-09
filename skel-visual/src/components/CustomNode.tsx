@@ -80,6 +80,8 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
     >
       
       <button className="delete-button" onClick={onDelete}>×</button>
+      <span className="custom-node-id-label">{id}</span>
+      
            
       <Handle type="target" position={Position.Top} id="top-target" className="target-handle" />
       <Handle type="source" position={Position.Top} id="top-source" className="source-handle" />
@@ -103,7 +105,7 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
 
         <img 
           src={data.icon} 
-          alt={data.title} 
+          // alt={data.title} 
           className="custom-node-icon"          
         />
 

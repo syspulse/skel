@@ -66,6 +66,7 @@
   border-color: gray
 }
 
+
 .custom-node-icon {  
   width: 32px;
   height: 32px;
@@ -222,16 +223,31 @@
   animation: blink 0.5s ease-in-out;
 }
 
+.custom-node-id-label {
+  position: absolute;
+  top: -0px;
+  right: 11px;
+  /* width: 20px; */
+  /* height: 15px; */
+  text-align: right;
+  font-size: 7px;
+  color: #666;
+  margin-left: 0px;
+  background-color: #f0f0f0;
+  padding: 1px 1px;
+  border-radius: 2px;
+}
+
 .delete-button {
   position: absolute;
   top: -0px;
   right: -0px;
-  width: 15px;
-  height: 15px;
+  width: 9px;
+  height: 9px;
   background: #a0a0a0;
   border: 0px solid #fff;
   /* border-radius: 50%; */
-  font-size: 15px;
+  font-size: 10px;
   line-height: 1;
   color: white;
   cursor: pointer;

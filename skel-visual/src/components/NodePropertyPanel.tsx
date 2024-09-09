@@ -7,10 +7,11 @@ import IconSelector from './IconSelector';
 interface PropertyPanelProps {
   selectedNode: Node | null;
   //nodes: Node[];
-  updateNode: (id: string, data: any) => void;
+  updateNode: (id: string, key:String, value: any) => void;
+  updateNodeData: (id: string, key:String, value:any, data: any) => void;
 }
 
-function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
+function PropertyPanel({ selectedNode,updateNode,updateNodeData }: PropertyPanelProps) {
   const { setNodes } = useReactFlow();  
 
   const [id, setId] = useState('');
@@ -39,14 +40,39 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
   const handleChange = (key: string, value: string) => {    
     
     if (selectedNode) {      
-      updateNode(selectedNode.id, { [key]: value });
-
-      selectedNode.data[key] = value;
-
-      if (key === 'title') setTitle(value);
-      if (key === 'description') setDescription(value);
-      if (key === 'icon') setIcon(value);
-      if (key === 'tags') setTags(value);
+      //updateNode(selectedNode.id, { [key]: value });
+      // updateNode(selectedNode.id, key, value );
+      // selectedNode.data[key] = value;
+      
+      switch (key) {
+        case 'id':
+          updateNode(selectedNode.id, "id", value);      
+          setId(value);
+          break;
+        case 'title':
+          updateNodeData(selectedNode.id, "", null, { [key]: value });
+          selectedNode.data[key] = value;
+          setTitle(value);
+          break;
+        case 'description':
+          updateNodeData(selectedNode.id, "", null, { [key]: value });
+          selectedNode.data[key] = value;
+          setDescription(value);
+          break;
+        case 'icon':
+          updateNodeData(selectedNode.id, "", null, { [key]: value });
+          selectedNode.data[key] = value;
+          setIcon(value);
+          break;
+        case 'tags':
+          updateNodeData(selectedNode.id, "", null, { [key]: value });
+          selectedNode.data[key] = value;
+          setTags(value);
+          break;
+        default:
+          break;
+      }
+            
     }
   }
   
@@ -66,10 +92,11 @@ function PropertyPanel({ selectedNode,updateNode }: PropertyPanelProps) {
       <div>
         <label className="property-key">id:</label>
         <input
-          className="property-value-readonly"
+          className="property-value"
           type="text"
           value={id}
-          readOnly
+          // readOnly
+          onChange={(e) => handleChange('id', e.target.value)}
         />
       </div>
       <div>
