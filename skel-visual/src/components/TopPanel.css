@@ -53,6 +53,11 @@
     cursor: pointer;
     font-weight: bold;
   }
+
+  .user-icon.valid {
+    background-color: #4CAF50;
+  }
+  
   
   .dropdown-menu {
     position: absolute;

@@ -14,9 +14,9 @@
 }
 
 .react-flow__handle {
-  width: 7px;
-  height: 7px;
-  border-radius: 0%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
   /* background-color: transparent; */  
   background-color: rgb(230, 205, 173)
 }

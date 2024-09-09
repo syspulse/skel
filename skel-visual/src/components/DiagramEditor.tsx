@@ -183,7 +183,7 @@ function DiagramEditor() {
       } else {
         udpateConters();        
       }
-    }, 10000);
+    }, 60000);
 
     // Cleanup interval on component unmount
     return () => clearInterval(simulateData);    

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './TopPanel.css'; // Ensure this CSS file is created
+import TopMenu from './TopMenu';
 
 interface TopPanelProps {
   onLogin: () => void;
@@ -10,21 +11,21 @@ interface TopPanelProps {
 const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,searchInputRef}) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  // const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const toggleDropdown = (event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent event bubbling
-    setDropdownOpen(!dropdownOpen);
-  };
+  // const toggleDropdown = (event: React.MouseEvent) => {
+  //   event.stopPropagation(); // Prevent event bubbling
+  //   setDropdownOpen(!dropdownOpen);
+  // };
 
-  const handleLogin = () => {
-    const token = prompt('JWT token:');
-    if (token) {
-      localStorage.setItem('jwtToken', token);
-      onLogin();
-      setDropdownOpen(false);
-    }
-  };
+  // const handleLogin = () => {
+  //   const token = prompt('JWT token:');
+  //   if (token) {
+  //     localStorage.setItem('jwtToken', token);
+  //     onLogin();
+  //     setDropdownOpen(false);
+  //   }
+  // };
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;    
@@ -33,22 +34,22 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,searchInputRef}) =
   };
 
 
-  const handleClickOutside = (event: MouseEvent) => {
-    if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-      setDropdownOpen(false);
-    }
-  };
+  // const handleClickOutside = (event: MouseEvent) => {
+  //   if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+  //     setDropdownOpen(false);
+  //   }
+  // };
 
-  useEffect(() => {
-    // Add event listener for clicks outside the dropdown
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('click', handleClickOutside); // Add click event listener
-    return () => {
-      // Cleanup the event listener on component unmount
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('click', handleClickOutside); // Cleanup click event listener
-    };
-  }, []);
+  // useEffect(() => {
+  //   // Add event listener for clicks outside the dropdown
+  //   document.addEventListener('mousedown', handleClickOutside);
+  //   document.addEventListener('click', handleClickOutside); // Add click event listener
+  //   return () => {
+  //     // Cleanup the event listener on component unmount
+  //     document.removeEventListener('mousedown', handleClickOutside);
+  //     document.removeEventListener('click', handleClickOutside); // Cleanup click event listener
+  //   };
+  // }, []);
 
   return (
     <div className="top-panel">
@@ -64,7 +65,7 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,searchInputRef}) =
         value={searchText}
         onChange={handleSearchChange} // Update search text on change
       />
-      <div className="user-profile">
+      {/* <div className="user-profile">
         <div className="user-icon" onClick={toggleDropdown}>
           U
         </div>
@@ -76,7 +77,8 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,searchInputRef}) =
             <button className="dropdown-item">Help</button>
           </div>
         )}
-      </div>
+      </div> */}
+      <TopMenu onLogin={onLogin} />
     </div>
   );
 };
