@@ -16,7 +16,7 @@ function App() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   return (
-    <div>      
+    <div className="app">      
       <TopPanel 
         onLogin={() => {}} 
         onSearch={setSearchText}         

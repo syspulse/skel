@@ -1,6 +1,7 @@
 import React, { memo, useCallback, useEffect, useRef } from 'react';
 import { Handle, Position, NodeProps, useReactFlow, Node } from 'reactflow';
 import {truncateAddr} from '../util/Util';
+import { networksMap } from '../Network';
 
 interface CustomNodeData {
   title: string;
@@ -9,6 +10,7 @@ interface CustomNodeData {
   // selected: boolean;
   extraHandles?: { type: 'source' | 'target',  position: Position}[];
   tags: string;
+  network: string;
 
   telemetry?: {
     txCount: number;
@@ -65,21 +67,20 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
     
   }, [id, setNodes]);
 
+  const network = networksMap.get(data.network);  
+
   return (
-    <div 
-      //className={ selected ? 'custom-node-selected' : 'custom-node'}
-      // className="custom-node"
-      // style={{ 
-      //   padding: '10px', 
-      //   border: '1px solid #ddd', 
-      //   borderRadius: '5px', 
-      //   background: selected ? '#ddd' : 'white',
-      //   position: 'relative'
-      // }}
-      //onDoubleClick={onDoubleClick}
-    >
+    <div>
       
       <button className="delete-button" onClick={onDelete}>×</button>
+      {network && (
+        <img 
+          src={network.icon} 
+          alt={network.name} 
+          className="custom-node-network-icon"
+          title={network.name}
+        />
+      )}
       <span className="custom-node-id-label">{id}</span>
       
            

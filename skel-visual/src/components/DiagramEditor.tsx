@@ -42,6 +42,7 @@ const initialNodes: Node[] = [
     data: { 
       title: 'Deployer', 
       description: '0x946E9C780F3c79D80e51e68d259d0D7E794F2124', 
+      network: 'ethereum',
       icon: '/assets/key.png',
       tags: 'Uniswap',
       telemetry: {
@@ -58,6 +59,7 @@ const initialNodes: Node[] = [
     data: { 
       title: 'Universal Router', 
       description: '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD', 
+      network: 'ethereum',
       icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
       tags: 'DEX,Uniswap',
       telemetry: {
@@ -74,6 +76,7 @@ const initialNodes: Node[] = [
     data: { 
       title: 'UNI', 
       description: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', 
+      network: 'ethereum',
       icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
       tags: 'ERC20',
       // This node doesn't have telemetry, so counters won't be displayed      
@@ -456,9 +459,8 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
   
   
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh'}}>
-          
-      <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>        
+    <div className="diagram-editor">
+      <div className="diagram-content">
         <Sidebar 
           onAddNode={onAddNode} 
           onSave={onSave} 
