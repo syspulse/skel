@@ -3,6 +3,7 @@ import { useReactFlow, Node, ReactFlowProvider, useNodesState } from 'reactflow'
 import './DiagramEditor.css';
 import CustomNode from './CustomNode';
 import IconSelector from './IconSelector';
+import NetworkDropdown from './NetworkDropdown';
 
 interface PropertyPanelProps {
   selectedNode: Node | null;
@@ -11,7 +12,7 @@ interface PropertyPanelProps {
   updateNodeData: (id: string, key:String, value:any, data: any) => void;
 }
 
-function PropertyPanel({ selectedNode,updateNode,updateNodeData }: PropertyPanelProps) {
+function NodePropertyPanel({ selectedNode,updateNode,updateNodeData }: PropertyPanelProps) {
   const { setNodes } = useReactFlow();  
 
   const [id, setId] = useState('');
@@ -22,6 +23,7 @@ function PropertyPanel({ selectedNode,updateNode,updateNodeData }: PropertyPanel
   const [icon, setIcon] = useState('');
   // const [tags, setTags] = useState<string[]>([]);
   const [tags, setTags] = useState('');
+  const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false);
 
   useEffect(() => {
 
@@ -69,6 +71,9 @@ function PropertyPanel({ selectedNode,updateNode,updateNodeData }: PropertyPanel
           selectedNode.data[key] = value;
           setTags(value);
           break;
+        case 'network':
+          updateNodeData(selectedNode.id, "", null, { [key]: value });
+          break;
         default:
           break;
       }
@@ -80,6 +85,10 @@ function PropertyPanel({ selectedNode,updateNode,updateNodeData }: PropertyPanel
     handleChange('icon', newIcon);
   };
 
+  const handleNetworkSelect = (networkId: string) => {
+    handleChange('network', networkId);
+    setIsNetworkDropdownOpen(false);
+  };
 
   //if (!selectedNode) return <div className="panel-container"><h3 className="panel-title">Properties</h3></div>;
   if (!selectedNode) return null;
@@ -155,18 +164,26 @@ function PropertyPanel({ selectedNode,updateNode,updateNodeData }: PropertyPanel
           placeholder="separated by commas"
         />
       </div>
+
+      <div>
+        <label className="property-key">Network:</label>
+        <NetworkDropdown
+          selectedNetwork={selectedNode.data.network || ''}
+          onNetworkChange={handleNetworkSelect}
+        />
+      </div>      
       
     </div>
   );
 }
 
-function PropertyPanelProvider(props:PropertyPanelProps) {
+function NodePropertyPanelProvider(props:PropertyPanelProps) {
   return (
     <ReactFlowProvider>
-      <PropertyPanel {...props} />
+      <NodePropertyPanel {...props} />
     </ReactFlowProvider>
   );
 }
 
-export default PropertyPanelProvider;
+export default NodePropertyPanelProvider;
 //export default PropertyPanel;

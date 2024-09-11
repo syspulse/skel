@@ -24,8 +24,7 @@ import './DiagramEditor.css'; // Add this line
 
 import CustomNode from './CustomNode';
 import Sidebar from './Sidebar';
-import PropertyPanel from './NodePropertyPanel';
-import PropertyPanelProvider from './NodePropertyPanel';
+import NodePropertyPanelProvider from './NodePropertyPanel';
 import EdgePropertyPanel from './EdgePropertyPanel';
 import EdgePropertyPanelProvider from './EdgePropertyPanel';
 import TopPanel from './TopPanel';
@@ -511,7 +510,7 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
             
           </ReactFlow>
         </div>
-        <PropertyPanelProvider selectedNode={selectedNode} updateNode={updateNode} updateNodeData={updateNodeData} />
+        <NodePropertyPanelProvider selectedNode={selectedNode} updateNode={updateNode} updateNodeData={updateNodeData} />
         <EdgePropertyPanelProvider selectedEdge={selectedEdge} updateEdge={updateEdge} updateEdgeData={updateEdgeData}/>
       </div>
     </div>
