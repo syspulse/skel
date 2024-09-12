@@ -10,16 +10,46 @@ const keycloakConfig = {
   clientId: clientId
 };
 
+let initialized = false;
+
 const keycloak = new Keycloak(keycloakConfig);
 
 console.log('Keycloak:', keycloakConfig, keycloak);
 
-keycloak.init({ onLoad: 'check-sso' });
+export const initKeycloak = async () => {
+  if (!initialized) {
+    try {
+      await keycloak.init({ onLoad: 'check-sso', checkLoginIframe: false });
+      initialized = true;
+      
+      if (keycloak.token) {
+        console.info('Login Success', keycloak.token);
+        localStorage.setItem('jwtToken', keycloak.token);
+        localStorage.setItem('refreshToken', keycloak.refreshToken || '');
+      }
 
+      console.log('Keycloak initialized');
+    } catch (error) {
+      console.error('Failed to initialize Keycloak', error);
+    }
+  }
+};
 
-export const login = () => keycloak.login();
+export const login = async () => {
+  try {
+    await keycloak.login();
+    if (keycloak.token) {
+      console.info('Login Success', keycloak.token);
+      localStorage.setItem('jwtToken', keycloak.token);
+      localStorage.setItem('refreshToken', keycloak.refreshToken || '');
+    }
+  } catch (error) {
+    console.error('Login failed', error);
+  }
+};
+
 export const logout = () => keycloak.logout();
-export const isLoggedIn = () => !!keycloak.token;
+export const isKeycloakLoggedIn = () => !!keycloak.token;
 export const jwtToken = () => keycloak.token;
 
 export default keycloak;

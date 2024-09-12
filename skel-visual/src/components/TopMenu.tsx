@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './TopPanel.css';
 import { GoogleLogin } from '@react-oauth/google';
-import { login, logout, isLoggedIn } from '../keycloak';
+import { login, logout, isKeycloakLoggedIn, initKeycloak } from '../keycloak';
 
 interface TopMenuProps {
   onLogin: () => void;
@@ -17,7 +17,13 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
     setDropdownOpen(!dropdownOpen);
   };
 
-  const handleLogin = () => {
+  useEffect(() => {
+    initKeycloak().then(() => {
+      setIsTokenValid(isKeycloakLoggedIn());
+    });
+  }, []);
+
+  const handleJwtLogin = () => {
     const token = prompt('JWT token:');
     if (token) {
       localStorage.setItem('jwtToken', token);
@@ -34,8 +40,17 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
   };
 
   const handleKeycloakAuth = () => {
-    login();
+    if (isKeycloakLoggedIn()) {
+      logout();
+      setIsTokenValid(false);
+    } else {
+      login();
+    }
   };
+
+  function isLoggedIn() {
+    return isTokenValid;
+  }
 
   async function askMe() {
     const jwtToken = localStorage.getItem('jwtToken') || '';
@@ -112,7 +127,7 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
     };
 
     // Refresh token every 15 minutes (900000 milliseconds)
-    const intervalId = setInterval(askMeRefresh, 10000);
+    const intervalId = setInterval(askMeRefresh, 60000);
 
     // Initial token refresh
     askMeRefresh();
@@ -147,18 +162,18 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
         </div>
         {dropdownOpen && (
           <div className="dropdown-menu" ref={dropdownRef}>
-            <button className="dropdown-item" onClick={handleLogin}>Login</button>
-            <GoogleLogin
+            <button className="dropdown-item" onClick={handleJwtLogin}>Login</button>
+            {/* <GoogleLogin
               onSuccess={credentialResponse => {
                 handleGoogleLoginSuccess(credentialResponse);
               }}
               onError={() => {
                 console.log('Login Failed');
               }}
-            />
+            /> */}
 
             <button className="dropdown-item" onClick={handleKeycloakAuth}>
-              {isLoggedIn() ? 'Logout' : 'Login with Keycloak'}
+              {isKeycloakLoggedIn() ? 'Logout (Keycloak)' : 'Login (Keycloak)'}
             </button>              
           
             <hr />

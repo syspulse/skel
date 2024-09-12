@@ -16,6 +16,11 @@ interface CustomNodeData {
     txCount: number;
     alertCount: number;
     detectorCount: number;
+    severityCritical: number;
+    severityHigh: number;
+    severityMedium: number;
+    severityLow: number;
+    severityInfo: number;
   };
 }
 
@@ -151,10 +156,10 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
 
             <div className="count-item-alerts">
               {/* <span className="count-label">Alert:</span> */}
-              <span className={data.telemetry?.alertCount == 0 ? "count-value-alert" : "count-value-alert-crit" }>{data.telemetry?.alertCount}</span>
-              <span className={data.telemetry?.alertCount == 0 ? "count-value-alert" : "count-value-alert-major" }>{data.telemetry?.alertCount}</span>
-              <span className={data.telemetry?.alertCount == 0 ? "count-value-alert" : "count-value-alert-med" }>{data.telemetry?.alertCount}</span>
-              <span className={data.telemetry?.alertCount == 0 ? "count-value-alert" : "count-value-alert-low" }>{data.telemetry?.alertCount}</span>
+              <span className={data.telemetry.severityCritical && data.telemetry.severityCritical != 0 ? "count-value-alert-crit" : "count-value-alert" }>{data.telemetry?.severityCritical}</span>
+              <span className={data.telemetry.severityHigh && data.telemetry.severityHigh != 0 ? "count-value-alert-major" : "count-value-alert" }>{data.telemetry?.severityHigh}</span>
+              <span className={data.telemetry.severityMedium && data.telemetry.severityMedium != 0 ? "count-value-alert-med" : "count-value-alert" }>{data.telemetry?.severityMedium}</span>
+              <span className={data.telemetry.severityLow && data.telemetry.severityLow != 0 ? "count-value-alert-low" : "count-value-alert" }>{data.telemetry?.severityLow}</span>
             </div> 
           </div>
         </>

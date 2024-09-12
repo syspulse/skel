@@ -14,7 +14,7 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,onProjectId,onRefr
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [projectId, setProjectId] = useState('645');
-  const [refreshFreq, setRefreshFreq] = useState(10000);
+  const [refreshFreq, setRefreshFreq] = useState(60000);
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;    

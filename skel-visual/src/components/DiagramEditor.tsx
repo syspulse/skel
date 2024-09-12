@@ -38,8 +38,10 @@ const nodeTypes = {
 
 
 async function fetchDashboard(projectId: string): Promise<any> {
+  const ts1 = Date.now();
+  const ts0 = ts1 - 1000*60;
   const url = `https://api.extractor.dev.hacken.cloud/api/v1/project/${projectId}/dashboard`;
-  const payload = `{"from":1725224400000,"to":1725814266025,"interval":"1d","timezone":"Europe/Kiev","id":${projectId}}`
+  const payload = `{"from":${ts0},"to":${ts1},"interval":"1d","timezone":"Europe/Kiev","id":${projectId}}`
   
   try {
     const token = localStorage.getItem('jwtToken');
@@ -60,13 +62,30 @@ async function fetchDashboard(projectId: string): Promise<any> {
     }
 
     const data = await response.json();
-    const contracts = data.data.map((c:any) => ({"id":c.contract.id, "detectorCount":c.contract.count["SECURITY"] + c.contract.count["trigger"]}) )
+    console.log("data:",data);
+    const contracts = data.data.map((c:any) => {
+      
+      const severityCritical = c.severity.total["CRITICAL"] || 0;
+      const severityHigh = c.severity.total["HIGH"] || 0;
+      const severityMedium = c.severity.total["MEDIUM"] || 0;
+      const severityLow = c.severity.total["LOW"] || 0;
+      const severityInfo = c.severity.total["INFO"] || 0;
+      return {
+        "id":c.contract.id, 
+        "detectorCount":c.contract.count["SECURITY"] + c.contract.count["trigger"],
+        "severityCritical":severityCritical,
+        "severityHigh":severityHigh,
+        "severityMedium":severityMedium,
+        "severityLow":severityLow,
+        "severityInfo":severityInfo
+      }
+    })
     const txCount = data.transactions;
 
     return {"txCount":txCount,"contracts":contracts};
 
   } catch (error) {
-    console.error('Error fetching simulation data:', error);
+    console.error('Error fetching data:', error);
     return { "txCount": 0, "contracts": [] };
   }
 }
@@ -157,7 +176,12 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
               telemetry: {
                 ...node.data.telemetry,
                 txCount: newTxCount,
-                detectorCount: newDetectorCount
+                detectorCount: newDetectorCount,
+                severityCritical: found[0].severityCritical,
+                severityHigh: found[0].severityHigh,
+                severityMedium: found[0].severityMedium,
+                severityLow: found[0].severityLow,
+                severityInfo: found[0].severityInfo
               },
             },
           };

@@ -5,13 +5,13 @@ import PropertiesPanel from './components/NodePropertyPanel';
 import DiagramEditor from './components/DiagramEditor';
 import TopPanel from './components/TopPanel';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-
+import { initKeycloak } from './keycloak';
 
 const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
 
 function App() {
   const [projectId, setProjectId] = useState('645');
-  const [refreshFreq, setRefreshFreq] = useState(10000);
+  const [refreshFreq, setRefreshFreq] = useState(60000);
   const [searchText, setSearchText] = useState('');
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
