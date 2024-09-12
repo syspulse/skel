@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './TopPanel.css';
+import { GoogleLogin } from '@react-oauth/google';
+import { login, logout, isLoggedIn } from '../keycloak';
 
 interface TopMenuProps {
   onLogin: () => void;
@@ -26,30 +28,44 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
     askMe();
   };
 
+  const handleGoogleLoginSuccess = (userInfo: any) => {
+    console.log(userInfo);
+    // Handle successful login (e.g., store user info, update state)
+  };
+
+  const handleKeycloakAuth = () => {
+    login();
+  };
+
   async function askMe() {
     const jwtToken = localStorage.getItem('jwtToken') || '';
 
-    try {
-      const response = await fetch('https://api.extractor.dev.hacken.cloud/api/v1/user/me', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${jwtToken}`
-        },
-        // body: JSON.stringify(request),
-        // mode: 'no-cors'
-      });
+    if(isLoggedIn()) {
+      try {
+        const response = await fetch('https://api.extractor.dev.hacken.cloud/api/v1/user/me', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${jwtToken}`
+          },
+          // body: JSON.stringify(request),
+          // mode: 'no-cors'
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        setIsTokenValid(true);
+        if (response.ok) {
+          const data = await response.json();
+          setIsTokenValid(true);
 
-      } else {
-        console.error('Failed to refresh');
+        } else {
+          console.error('Failed to refresh');
+          setIsTokenValid(false);
+        }
+      } catch (error) {
+        console.error('Error refreshing:', error);
         setIsTokenValid(false);
       }
-    } catch (error) {
-      console.error('Error refreshing:', error);
+    } else {
+      console.log('Not logged in');
       setIsTokenValid(false);
     }
   }
@@ -132,6 +148,19 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
         {dropdownOpen && (
           <div className="dropdown-menu" ref={dropdownRef}>
             <button className="dropdown-item" onClick={handleLogin}>Login</button>
+            <GoogleLogin
+              onSuccess={credentialResponse => {
+                handleGoogleLoginSuccess(credentialResponse);
+              }}
+              onError={() => {
+                console.log('Login Failed');
+              }}
+            />
+
+            <button className="dropdown-item" onClick={handleKeycloakAuth}>
+              {isLoggedIn() ? 'Logout' : 'Login with Keycloak'}
+            </button>              
+          
             <hr />
             <button className="dropdown-item">Settings</button>
             <button className="dropdown-item">Help</button>
