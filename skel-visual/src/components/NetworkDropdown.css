@@ -1,6 +1,6 @@
 .network-dropdown {
   position: relative;
-  width: 150px;
+  width: 150px;  
 }
 
 .selected-network {
@@ -10,6 +10,7 @@
   border: 1px solid #ccc;
   border-radius: 4px;
   cursor: pointer;
+  font-size: 12px;
 }
 
 .network-icon {
@@ -41,7 +42,7 @@
   display: flex;
   align-items: center;
   padding: 8px;
-  cursor: pointer;
+  cursor: pointer;  
 }
 
 .network-list li:hover {
