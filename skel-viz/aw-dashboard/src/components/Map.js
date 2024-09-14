@@ -40,14 +40,8 @@ function HexagonMap({ onHexagonSelect, hexagons, setHexagons, selectedHexagon, m
     const features = event.features || [];
     if (features.length > 0) {
       const feature = features[0];
-      const center = turf.center(feature);
-      const selectedArea = new Area(
-        feature.properties.id,
-        center.geometry.coordinates,
-        feature.properties.radius
-      );
-      // Copy all properties from the feature to the selectedArea
-      Object.assign(selectedArea, feature.properties);
+      // Directly use the Area object from the clicked hexagon's properties
+      const selectedArea = feature.properties;
       onHexagonSelect(selectedArea);
     } else {
       onHexagonSelect(null);
