@@ -4,12 +4,16 @@ function PropertyPanel({ hexagon, onHexagonUpdate }) {
   const [name, setName] = useState('');
   const [addr, setAddr] = useState('');
   const [radius, setRadius] = useState('');
+  const [longitude, setLongitude] = useState('');
+  const [latitude, setLatitude] = useState('');
 
   useEffect(() => {
     if (hexagon) {
       setName(hexagon.name || '');
       setAddr(hexagon.addr || '');
       setRadius(hexagon.radius ? hexagon.radius.toFixed(4) : '');
+      setLongitude(hexagon.longitude ? hexagon.longitude.toFixed(6) : '');
+      setLatitude(hexagon.latitude ? hexagon.latitude.toFixed(6) : '');
     }
   }, [hexagon]);
 
@@ -17,19 +21,27 @@ function PropertyPanel({ hexagon, onHexagonUpdate }) {
 
   const handleNameChange = (e) => setName(e.target.value);
   const handleAddrChange = (e) => setAddr(e.target.value);
-  const handleRadiusChange = (e) => {
-    const value = e.target.value;
-    setRadius(value);
-  };
+  const handleRadiusChange = (e) => setRadius(e.target.value);
+  const handleLongitudeChange = (e) => setLongitude(e.target.value);
+  const handleLatitudeChange = (e) => setLatitude(e.target.value);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const numRadius = parseFloat(radius);
-    if (!isNaN(numRadius) && numRadius > 0) {
-      onHexagonUpdate({ ...hexagon, name, addr, radius: numRadius });
+    const numLongitude = parseFloat(longitude);
+    const numLatitude = parseFloat(latitude);
+    if (!isNaN(numRadius) && numRadius > 0 &&
+        !isNaN(numLongitude) && !isNaN(numLatitude)) {
+      onHexagonUpdate({
+        ...hexagon,
+        name,
+        addr,
+        radius: numRadius,
+        longitude: numLongitude,
+        latitude: numLatitude
+      });
     } else {
-      // Handle invalid radius (e.g., show an error message)
-      console.error('Invalid radius value');
+      console.error('Invalid input values');
     }
   };
 
@@ -66,6 +78,27 @@ function PropertyPanel({ hexagon, onHexagonUpdate }) {
             min="0"
           />
         </div>
+        <div className="property">
+          <label htmlFor="latitude">Latitude:</label>
+          <input
+            id="latitude"
+            type="number"
+            value={latitude}
+            onChange={handleLatitudeChange}
+            step="0.000001"
+          />
+        </div>
+        <div className="property">
+          <label htmlFor="longitude">Longitude:</label>
+          <input
+            id="longitude"
+            type="number"
+            value={longitude}
+            onChange={handleLongitudeChange}
+            step="0.000001"
+          />
+        </div>
+        
         <button type="submit">Update</button>
       </form>
       

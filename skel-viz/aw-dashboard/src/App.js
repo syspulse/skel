@@ -48,7 +48,7 @@ function App() {
             ...updatedHexagon
           };
           
-          // Recreate the hexagon geometry with the new radius
+          // Recreate the hexagon geometry with the new radius and center
           const center = [updatedProperties.longitude, updatedProperties.latitude];
           const newGeometry = turf.circle(center, updatedProperties.radius, { steps: 6, units: 'kilometers' }).geometry;
           
