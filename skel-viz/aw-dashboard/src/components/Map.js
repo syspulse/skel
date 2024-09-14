@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import Map, { Source, Layer } from 'react-map-gl';
 import * as turf from '@turf/turf';
+import { Area } from '../core/Area.ts';
 
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
 
@@ -19,14 +20,8 @@ function HexagonMap({ onHexagonSelect }) {
     const options = { steps: 6, units: 'kilometers' };
     const hexagon = turf.circle(center, radius, options);
     
-    hexagon.properties = {
-      id: id,
-      name: `Hex ${id}`,
-      population: Math.floor(Math.random() * 10000),
-      area: Math.floor(Math.random() * 100) / 10, // Random area between 0 and 10 km²
-      longitude: center[0],
-      latitude: center[1]
-    };
+    const area = new Area(id, "0x", center);
+    hexagon.properties = area;
 
     return hexagon;
   }, []);
@@ -101,7 +96,7 @@ function HexagonMap({ onHexagonSelect }) {
             'fill-color': [
               'interpolate',
               ['linear'],
-              ['get', 'population'],
+              ['get', 'counter'],
               0, '#F2F12D',
               2500, '#EED322',
               5000, '#E6B71E',
