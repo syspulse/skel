@@ -7,9 +7,9 @@ function PropertyPanel({ hexagon, onHexagonUpdate }) {
 
   useEffect(() => {
     if (hexagon) {
-      setName(hexagon.name);
-      setAddr(hexagon.addr);
-      setRadius(hexagon.radius.toFixed(2));
+      setName(hexagon.name || '');
+      setAddr(hexagon.addr || '');
+      setRadius(hexagon.radius ? hexagon.radius.toFixed(4) : '');
     }
   }, [hexagon]);
 
@@ -18,10 +18,8 @@ function PropertyPanel({ hexagon, onHexagonUpdate }) {
   const handleNameChange = (e) => setName(e.target.value);
   const handleAddrChange = (e) => setAddr(e.target.value);
   const handleRadiusChange = (e) => {
-    const value = parseFloat(e.target.value);
-    if (!isNaN(value) && value > 0) {
-      setRadius(value.toFixed(2));
-    }
+    const value = e.target.value;
+    setRadius(value);
   };
 
   const handleSubmit = (e) => {
@@ -64,8 +62,8 @@ function PropertyPanel({ hexagon, onHexagonUpdate }) {
             type="number"
             value={radius}
             onChange={handleRadiusChange}
-            step="0.1"
-            min="0.1"
+            step="0.0001"
+            min="0"
           />
         </div>
         <button type="submit">Update</button>
@@ -79,7 +77,7 @@ function PropertyPanel({ hexagon, onHexagonUpdate }) {
             <div className="property">
               <span className="key">{key}:</span>
               <span className="value">
-                {typeof value === 'number' ? value.toFixed(6) : value.toString()}
+                {typeof value === 'number' ? value.toFixed(6) : String(value)}
               </span>
             </div>
             <hr />
