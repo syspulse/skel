@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import TopBar from './components/TopBar';
+import TopPanel from './components/TopPanel';
 import PropertyPanel from './components/PropertyPanel';
 import HexagonMap from './components/Map';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -10,7 +10,7 @@ function App() {
 
   return (
     <div className="app">
-      <TopBar />
+      <TopPanel />
       <div className="main-content">
         <HexagonMap onHexagonSelect={setSelectedHexagon} />
         <PropertyPanel hexagon={selectedHexagon} />

@@ -1,7 +1,10 @@
 import React from 'react';
 
 function PropertyPanel({ hexagon }) {
-  if (!hexagon) return <div className="property-panel empty">No hexagon selected</div>;
+  if (!hexagon) 
+    return (
+    <div className="property-panel empty"></div>
+  );
 
   return (
     <div className="property-panel">

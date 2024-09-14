@@ -4,11 +4,12 @@
   height: 100vh;
 }
 
-.top-bar {
+.top-panel {
   display: flex;
   justify-content: space-between;
   padding: 10px;
-  background-color: #f0f0f0;
+  background-color: #dbdbdb;
+  border-bottom: 1px solid #7a7a7a;
 }
 
 .main-content {
@@ -23,7 +24,7 @@
 .property-panel {
   width: 300px;
   padding: 10px;
-  background-color: #f9f9f9;
+  background-color: #dbdbdb;
   overflow-y: auto;
 }
 

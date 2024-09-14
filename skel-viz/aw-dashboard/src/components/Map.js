@@ -20,7 +20,9 @@ function HexagonMap({ onHexagonSelect }) {
       id: id,
       name: `Hex ${id}`,
       population: Math.floor(Math.random() * 10000),
-      area: Math.floor(Math.random() * 100) / 10 // Random area between 0 and 10 km²
+      area: Math.floor(Math.random() * 100) / 10, // Random area between 0 and 10 km²
+      longitude: center[0],
+      latitude: center[1]
     };
 
     return hexagon;
@@ -43,7 +45,11 @@ function HexagonMap({ onHexagonSelect }) {
   const onClick = useCallback((event) => {
     const features = event.features || [];
     if (features.length > 0) {
-      onHexagonSelect(features[0].properties);
+      const properties = features[0].properties;
+      const center = turf.center(features[0]);
+      properties.longitude = center.geometry.coordinates[0];
+      properties.latitude = center.geometry.coordinates[1];
+      onHexagonSelect(properties);
     } else {
       onHexagonSelect(null);
     }
