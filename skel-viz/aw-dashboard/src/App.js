@@ -9,6 +9,7 @@ import './App.css';
 function App() {
   const [hexagons, setHexagons] = useState(null);
   const [selectedHexagon, setSelectedHexagon] = useState(null);
+  const [mapCenter, setMapCenter] = useState(null);
 
   const createInitialHexagons = useCallback(() => {
     const bbox = [-122.5, 37.7, -122.3, 37.9]; // Bounding box for San Francisco
@@ -77,6 +78,10 @@ function App() {
 
     if (matchingHexagon) {
       setSelectedHexagon(matchingHexagon.properties);
+      
+      // Calculate the center of the hexagon
+      const center = turf.center(matchingHexagon);
+      setMapCenter(center.geometry.coordinates);
     }
   }, [hexagons]);
 
@@ -89,6 +94,7 @@ function App() {
           hexagons={hexagons}
           setHexagons={setHexagons}
           selectedHexagon={selectedHexagon}
+          mapCenter={mapCenter}
         />
         <PropertyPanel
           hexagon={selectedHexagon}

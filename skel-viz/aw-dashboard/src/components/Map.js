@@ -1,16 +1,28 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Map, { Source, Layer } from 'react-map-gl';
 import * as turf from '@turf/turf';
 import { Area } from '../core/Area.ts';
 
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
 
-function HexagonMap({ onHexagonSelect, hexagons, setHexagons, selectedHexagon }) {
+function HexagonMap({ onHexagonSelect, hexagons, setHexagons, selectedHexagon, mapCenter }) {
   const [viewState, setViewState] = useState({
     longitude: -122.4,
     latitude: 37.8,
     zoom: 11
   });
+
+  useEffect(() => {
+    if (mapCenter) {
+      setViewState(prevState => ({
+        ...prevState,
+        longitude: mapCenter[0],
+        latitude: mapCenter[1],
+        //zoom: 13, // You can adjust this zoom level as needed
+        transitionDuration: 3000 // Smooth transition in milliseconds
+      }));
+    }
+  }, [mapCenter]);
 
   const [cursor, setCursor] = useState('grab');
 
@@ -68,12 +80,6 @@ function HexagonMap({ onHexagonSelect, hexagons, setHexagons, selectedHexagon })
 
   const onMouseEnter = useCallback(() => setCursor('pointer'), []);
   const onMouseLeave = useCallback(() => setCursor('grab'), []);
-
-  const selectedHexagonFeature = useMemo(() => {
-    if (!selectedHexagon || !hexagons) return null;
-    const feature = hexagons.features.find(f => f.properties.id === selectedHexagon.id);
-    return feature ? turf.feature(feature.geometry, feature.properties) : null;
-  }, [selectedHexagon, hexagons]);
 
   return (
     <Map
@@ -134,8 +140,8 @@ function HexagonMap({ onHexagonSelect, hexagons, setHexagons, selectedHexagon })
           />
         </Source>
       )}
-      {selectedHexagonFeature && (
-        <Source type="geojson" data={selectedHexagonFeature}>
+      {selectedHexagon && (
+        <Source type="geojson" data={selectedHexagon}>
           <Layer
             id="selected-hexagon"
             type="line"
