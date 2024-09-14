@@ -1,11 +1,11 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import Map, { Source, Layer } from 'react-map-gl';
 import * as turf from '@turf/turf';
 import { Area } from '../core/Area.ts';
 
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
 
-function HexagonMap({ onHexagonSelect }) {
+function HexagonMap({ onHexagonSelect, hexagons, setHexagons }) {
   const [viewState, setViewState] = useState({
     longitude: -122.4,
     latitude: 37.8,
@@ -38,7 +38,17 @@ function HexagonMap({ onHexagonSelect }) {
     return turf.featureCollection(hexagonFeatures);
   }, [createHexagon]);
 
-  const [hexagons, setHexagons] = useState(initialHexagons);
+  // Use hexagons state if it exists, otherwise use initialHexagons
+  const [localHexagons, setLocalHexagons] = useState(null);
+
+  useEffect(() => {
+    if (hexagons) {
+      setLocalHexagons(hexagons);
+    } else {
+      setLocalHexagons(initialHexagons);
+      setHexagons(initialHexagons);
+    }
+  }, [hexagons, initialHexagons, setHexagons]);
 
   const onClick = useCallback((event) => {
     const features = event.features || [];
@@ -61,17 +71,19 @@ function HexagonMap({ onHexagonSelect }) {
     const clickedPoint = [lngLat.lng, lngLat.lat];
 
     // Create a new hexagon
-    const newHexagon = createHexagon(clickedPoint, hexagons.features.length);
+    const newHexagon = createHexagon(clickedPoint, localHexagons.features.length);
     setHexagons(prevHexagons => {
       const newFeatures = [...prevHexagons.features, newHexagon];
       return turf.featureCollection(newFeatures);
     });
     setSelectedHexagon(newHexagon);
     onHexagonSelect(newHexagon.properties);
-  }, [createHexagon, hexagons.features.length, onHexagonSelect]);
+  }, [createHexagon, localHexagons, setHexagons, onHexagonSelect]);
 
   const onMouseEnter = useCallback(() => setCursor('pointer'), []);
   const onMouseLeave = useCallback(() => setCursor('grab'), []);
+
+  if (!localHexagons) return null; // or a loading indicator
 
   return (
     <Map
@@ -88,7 +100,7 @@ function HexagonMap({ onHexagonSelect }) {
       cursor={cursor}
       doubleClickZoom={false}
     >
-      <Source type="geojson" data={hexagons}>
+      <Source type="geojson" data={localHexagons}>
         <Layer
           id="hexagon-layer"
           type="fill"

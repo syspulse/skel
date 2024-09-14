@@ -1,38 +1,88 @@
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+}
+
 .app {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  overflow: hidden;
 }
 
 .top-panel {
+  flex: 0 0 auto;
+  height: 60px;
+  background-color: #f0f0f0;
   display: flex;
   justify-content: space-between;
-  padding: 10px;
-  background-color: #dbdbdb;
-  border-bottom: 1px solid #7a7a7a;
+  align-items: center;
+  padding: 0 20px;
 }
 
 .main-content {
-  display: flex;
   flex: 1;
+  display: flex;
+  overflow: hidden;
 }
 
 .main-content > div:first-child {
   flex: 1;
+  overflow: hidden;
 }
 
 .property-panel {
   width: 300px;
   padding: 10px;
-  background-color: #dbdbdb;
+  background-color: #f9f9f9;
   overflow-y: auto;
 }
 
+/* Additional styles for PropertyPanel */
+.property-panel h3 {
+  margin-top: 0;
+}
+
 .property {
+  margin-bottom: 10px;
+}
+
+.property label {
+  display: block;
   margin-bottom: 5px;
 }
 
-.key {
+.property input {
+  width: 90%; /* Changed from 100% to 90% */
+  padding: 5px;
+}
+
+button[type="submit"] {
+  margin-top: 10px;
+  padding: 5px 10px;
+}
+
+.all-properties {
+  margin-top: 20px;
+}
+
+.all-properties .property {
+  display: flex;
+  justify-content: space-between;
+}
+
+.all-properties .key {
   font-weight: bold;
-  margin-right: 5px;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #ddd;
+  margin: 10px 0;
 }
