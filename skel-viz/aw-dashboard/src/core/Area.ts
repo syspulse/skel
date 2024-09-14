@@ -3,16 +3,16 @@ export class Area {
   name: string;
   addr: string;
   counter: number;
-  area: number;
+  radius: number;
   longitude: number;
   latitude: number;
 
-  constructor(id: number, addr: string, center: [number, number]) {
+  constructor(id: number, center: [number, number], radius: number) {
     this.id = id;
-    this.name = `radar-${id}`;
-    this.addr = addr;
+    this.name = `Hex ${id}`;
+    this.addr = `Address ${id}`;
     this.counter = Math.floor(Math.random() * 10000);
-    this.area = Math.floor(Math.random() * 100) / 10; // Random area between 0 and 10 km²
+    this.radius = radius;
     [this.longitude, this.latitude] = center;
   }
 }

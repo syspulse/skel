@@ -3,27 +3,30 @@ import React, { useState, useEffect } from 'react';
 function PropertyPanel({ hexagon, onHexagonUpdate }) {
   const [name, setName] = useState('');
   const [addr, setAddr] = useState('');
+  const [radius, setRadius] = useState('');
 
   useEffect(() => {
     if (hexagon) {
       setName(hexagon.name);
       setAddr(hexagon.addr);
+      setRadius(hexagon.radius.toFixed(2));
     }
   }, [hexagon]);
 
   if (!hexagon) return <div className="property-panel empty">No hexagon selected</div>;
 
-  const handleNameChange = (e) => {
-    setName(e.target.value);
-  };
-
-  const handleAddrChange = (e) => {
-    setAddr(e.target.value);
+  const handleNameChange = (e) => setName(e.target.value);
+  const handleAddrChange = (e) => setAddr(e.target.value);
+  const handleRadiusChange = (e) => {
+    const value = parseFloat(e.target.value);
+    if (!isNaN(value) && value > 0) {
+      setRadius(value.toFixed(2));
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onHexagonUpdate({ ...hexagon, name, addr });
+    onHexagonUpdate({ ...hexagon, name, addr, radius: parseFloat(radius) });
   };
 
   return (
@@ -46,6 +49,17 @@ function PropertyPanel({ hexagon, onHexagonUpdate }) {
             type="text"
             value={addr}
             onChange={handleAddrChange}
+          />
+        </div>
+        <div className="property">
+          <label htmlFor="radius">Radius (km):</label>
+          <input
+            id="radius"
+            type="number"
+            value={radius}
+            onChange={handleRadiusChange}
+            step="0.1"
+            min="0.1"
           />
         </div>
         <button type="submit">Update</button>

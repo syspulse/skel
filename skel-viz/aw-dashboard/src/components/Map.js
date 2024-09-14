@@ -15,12 +15,11 @@ function HexagonMap({ onHexagonSelect, hexagons, setHexagons }) {
   const [selectedHexagon, setSelectedHexagon] = useState(null);
   const [cursor, setCursor] = useState('grab');
 
-  const createHexagon = useCallback((center, id) => {
-    const radius = 0.5; // 0.5 km radius
+  const createHexagon = useCallback((center, id, radius) => {
     const options = { steps: 6, units: 'kilometers' };
     const hexagon = turf.circle(center, radius, options);
     
-    const area = new Area(id, "0x", center);
+    const area = new Area(id, center, radius);
     hexagon.properties = area;
 
     return hexagon;
@@ -32,7 +31,8 @@ function HexagonMap({ onHexagonSelect, hexagons, setHexagons }) {
 
     for (let i = 0; i < 10; i++) {
       const center = turf.randomPosition(bbox);
-      hexagonFeatures.push(createHexagon(center, i));
+      const radius = Math.random() * 1.5 + 0.5; // Random between 0.5 and 10
+      hexagonFeatures.push(createHexagon(center, i, radius));
     }
 
     return turf.featureCollection(hexagonFeatures);
@@ -68,17 +68,26 @@ function HexagonMap({ onHexagonSelect, hexagons, setHexagons }) {
   const onDblClick = useCallback((event) => {
     event.preventDefault();
     const { lngLat } = event;
+    
+    // Ensure lngLat contains valid numbers
+    if (isNaN(lngLat.lng) || isNaN(lngLat.lat)) {
+      console.error('Invalid coordinates:', lngLat);
+      return;
+    }
+
     const clickedPoint = [lngLat.lng, lngLat.lat];
+    const radius = Math.random() * 9.5 + 0.5; // Random between 0.5 and 10
 
     // Create a new hexagon
-    const newHexagon = createHexagon(clickedPoint, localHexagons.features.length);
+    const newHexagon = createHexagon(clickedPoint, hexagons.features.length, radius);
+    
     setHexagons(prevHexagons => {
       const newFeatures = [...prevHexagons.features, newHexagon];
       return turf.featureCollection(newFeatures);
     });
     setSelectedHexagon(newHexagon);
     onHexagonSelect(newHexagon.properties);
-  }, [createHexagon, localHexagons, setHexagons, onHexagonSelect]);
+  }, [createHexagon, hexagons, setHexagons, onHexagonSelect]);
 
   const onMouseEnter = useCallback(() => setCursor('pointer'), []);
   const onMouseLeave = useCallback(() => setCursor('grab'), []);
