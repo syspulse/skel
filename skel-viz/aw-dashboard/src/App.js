@@ -67,9 +67,22 @@ function App() {
     setSelectedHexagon(updatedHexagon);
   }, []);
 
+  const handleSearch = useCallback((searchTerm) => {
+    if (!hexagons) return;
+
+    const lowercaseSearchTerm = searchTerm.toLowerCase();
+    const matchingHexagon = hexagons.features.find(feature => 
+      feature.properties.name.toLowerCase().startsWith(lowercaseSearchTerm)
+    );
+
+    if (matchingHexagon) {
+      setSelectedHexagon(matchingHexagon.properties);
+    }
+  }, [hexagons]);
+
   return (
     <div className="app">
-      <TopPanel />
+      <TopPanel onSearch={handleSearch} />
       <div className="main-content">
         <HexagonMap
           onHexagonSelect={handleHexagonSelect}
