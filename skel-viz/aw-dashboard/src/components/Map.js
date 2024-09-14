@@ -76,7 +76,7 @@ function HexagonMap({ onHexagonSelect, hexagons, setHexagons }) {
     }
 
     const clickedPoint = [lngLat.lng, lngLat.lat];
-    const radius = Math.random() * 9.5 + 0.5; // Random between 0.5 and 10
+    const radius = Math.random() * 1.5 + 0.5; // Random between 0.5 and 10
 
     // Create a new hexagon
     const newHexagon = createHexagon(clickedPoint, hexagons.features.length, radius);

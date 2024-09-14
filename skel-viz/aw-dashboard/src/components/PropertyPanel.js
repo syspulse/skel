@@ -26,7 +26,13 @@ function PropertyPanel({ hexagon, onHexagonUpdate }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onHexagonUpdate({ ...hexagon, name, addr, radius: parseFloat(radius) });
+    const numRadius = parseFloat(radius);
+    if (!isNaN(numRadius) && numRadius > 0) {
+      onHexagonUpdate({ ...hexagon, name, addr, radius: numRadius });
+    } else {
+      // Handle invalid radius (e.g., show an error message)
+      console.error('Invalid radius value');
+    }
   };
 
   return (

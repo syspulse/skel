@@ -1,7 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import TopPanel from './components/TopPanel';
-import PropertyPanel from './components/PropertyPanel';
 import HexagonMap from './components/Map';
+import PropertyPanel from './components/PropertyPanel';
+import * as turf from '@turf/turf';
 import './App.css';
 
 function App() {
@@ -15,14 +16,25 @@ function App() {
   const handleHexagonUpdate = useCallback((updatedHexagon) => {
     setHexagons((prevHexagons) => {
       if (!prevHexagons) return null;
+      
       const updatedFeatures = prevHexagons.features.map((feature) => {
         if (feature.properties.id === updatedHexagon.id) {
-          return { ...feature, properties: updatedHexagon };
+          // Recreate the hexagon geometry with the new radius
+          const center = [updatedHexagon.longitude, updatedHexagon.latitude];
+          const newGeometry = turf.circle(center, updatedHexagon.radius, { steps: 6, units: 'kilometers' }).geometry;
+          
+          return {
+            ...feature,
+            geometry: newGeometry,
+            properties: updatedHexagon
+          };
         }
         return feature;
       });
-      return { ...prevHexagons, features: updatedFeatures };
+
+      return turf.featureCollection(updatedFeatures);
     });
+
     setSelectedHexagon(updatedHexagon);
   }, []);
 
