@@ -83,8 +83,6 @@ function HexagonMap({ onHexagonSelect, hexagons, setHexagons }) {
   const onMouseEnter = useCallback(() => setCursor('pointer'), []);
   const onMouseLeave = useCallback(() => setCursor('grab'), []);
 
-  if (!localHexagons) return null; // or a loading indicator
-
   return (
     <Map
       {...viewState}
@@ -124,6 +122,21 @@ function HexagonMap({ onHexagonSelect, hexagons, setHexagons }) {
           paint={{
             'line-color': '#000000',
             'line-width': 1
+          }}
+        />
+        <Layer
+          id="hexagon-label"
+          type="symbol"
+          layout={{
+            'text-field': ['get', 'name'],
+            'text-anchor': 'center',
+            'text-offset': [0, 2.0],  // Changed to 1.6
+            'text-size': 10
+          }}
+          paint={{
+            'text-color': '#000000',
+            'text-halo-color': '#FFFFFF',
+            'text-halo-width': 1
           }}
         />
       </Source>
