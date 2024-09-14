@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import Map, { Source, Layer } from 'react-map-gl';
 import * as turf from '@turf/turf';
 import { Area } from '../core/Area.ts';
@@ -81,6 +81,12 @@ function HexagonMap({ onHexagonSelect, hexagons, setHexagons, selectedHexagon, m
   const onMouseEnter = useCallback(() => setCursor('pointer'), []);
   const onMouseLeave = useCallback(() => setCursor('grab'), []);
 
+  const selectedHexagonFeature = useMemo(() => {
+    if (!selectedHexagon || !hexagons) return null;
+    const feature = hexagons.features.find(f => f.properties.id === selectedHexagon.id);
+    return feature ? turf.feature(feature.geometry, feature.properties) : null;
+  }, [selectedHexagon, hexagons]);
+
   return (
     <Map
       {...viewState}
@@ -140,8 +146,11 @@ function HexagonMap({ onHexagonSelect, hexagons, setHexagons, selectedHexagon, m
           />
         </Source>
       )}
-      {selectedHexagon && (
-        <Source type="geojson" data={selectedHexagon}>
+
+      {/* {selectedHexagon && (
+        <Source type="geojson" data={selectedHexagon}> */}
+      {selectedHexagonFeature && (
+        <Source type="geojson" data={selectedHexagonFeature}>
           <Layer
             id="selected-hexagon"
             type="line"
