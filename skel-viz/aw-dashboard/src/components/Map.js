@@ -11,6 +11,9 @@ function HexagonMap({ onHexagonSelect }) {
     zoom: 11
   });
 
+  const [selectedHexagon, setSelectedHexagon] = useState(null);
+  const [cursor, setCursor] = useState('grab');
+
   const createHexagon = useCallback((center, id) => {
     const radius = 0.5; // 0.5 km radius
     const options = { steps: 6, units: 'kilometers' };
@@ -49,8 +52,10 @@ function HexagonMap({ onHexagonSelect }) {
       const center = turf.center(features[0]);
       properties.longitude = center.geometry.coordinates[0];
       properties.latitude = center.geometry.coordinates[1];
+      setSelectedHexagon(features[0]);
       onHexagonSelect(properties);
     } else {
+      setSelectedHexagon(null);
       onHexagonSelect(null);
     }
   }, [onHexagonSelect]);
@@ -66,8 +71,12 @@ function HexagonMap({ onHexagonSelect }) {
       const newFeatures = [...prevHexagons.features, newHexagon];
       return turf.featureCollection(newFeatures);
     });
+    setSelectedHexagon(newHexagon);
     onHexagonSelect(newHexagon.properties);
   }, [createHexagon, hexagons.features.length, onHexagonSelect]);
+
+  const onMouseEnter = useCallback(() => setCursor('pointer'), []);
+  const onMouseLeave = useCallback(() => setCursor('grab'), []);
 
   return (
     <Map
@@ -79,6 +88,9 @@ function HexagonMap({ onHexagonSelect }) {
       interactiveLayerIds={['hexagon-layer']}
       onClick={onClick}
       onDblClick={onDblClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      cursor={cursor}
       doubleClickZoom={false}
     >
       <Source type="geojson" data={hexagons}>
@@ -108,6 +120,18 @@ function HexagonMap({ onHexagonSelect }) {
           }}
         />
       </Source>
+      {selectedHexagon && (
+        <Source type="geojson" data={selectedHexagon}>
+          <Layer
+            id="selected-hexagon"
+            type="line"
+            paint={{
+              'line-color': '#4FC3F7',
+              'line-width': 3
+            }}
+          />
+        </Source>
+      )}
     </Map>
   );
 }
