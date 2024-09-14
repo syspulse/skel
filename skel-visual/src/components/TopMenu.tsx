@@ -55,7 +55,7 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
   async function askMe() {
     const jwtToken = localStorage.getItem('jwtToken') || '';
 
-    if(isLoggedIn()) {
+    if(jwtToken == '') {
       try {
         const response = await fetch('https://api.extractor.dev.hacken.cloud/api/v1/user/me', {
           method: 'GET',
@@ -86,54 +86,54 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
   }
 
   useEffect(() => {
-    const refreshToken = async () => {
-      const refreshToken = localStorage.getItem('refreshToken') || '';
+    // const refreshToken = async () => {
+    //   const refreshToken = localStorage.getItem('refreshToken') || '';
 
-      try {
-        const formData = new FormData();
-        formData.append('grant_type', 'refresh_token');
-        formData.append('refresh_token', refreshToken);
-        formData.append('client_id', 'extractor-public');
+    //   try {
+    //     const formData = new FormData();
+    //     formData.append('grant_type', 'refresh_token');
+    //     formData.append('refresh_token', refreshToken);
+    //     formData.append('client_id', 'extractor-public');
 
-        const response = await fetch('https://auth.dev.extractor.live/realms/hacken/protocol/openid-connect/token', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: formData,
-          mode: 'no-cors'
-        });
+    //     const response = await fetch('https://auth.dev.extractor.live/realms/hacken/protocol/openid-connect/token', {
+    //       method: 'POST',
+    //       headers: {
+    //         'Content-Type': 'application/x-www-form-urlencoded'
+    //       },
+    //       body: formData,
+    //       mode: 'no-cors'
+    //     });
 
-        if (response.ok) {
-          const data = await response.json();
-          localStorage.setItem('jwtToken', data.access_token);
-          localStorage.setItem('refreshToken', data.refresh_token);
+    //     if (response.ok) {
+    //       const data = await response.json();
+    //       localStorage.setItem('jwtToken', data.access_token);
+    //       localStorage.setItem('refreshToken', data.refresh_token);
 
-          const expire = data.expires_in * 1000;
-          setIsTokenValid(true);
+    //       const expire = data.expires_in * 1000;
+    //       setIsTokenValid(true);
 
-        } else {
-          console.error('Failed to refresh token');
-          setIsTokenValid(false);
-        }
-      } catch (error) {
-        console.error('Error refreshing token:', error);
-        setIsTokenValid(false);
-      }
-    };
+    //     } else {
+    //       console.error('Failed to refresh token');
+    //       setIsTokenValid(false);
+    //     }
+    //   } catch (error) {
+    //     console.error('Error refreshing token:', error);
+    //     setIsTokenValid(false);
+    //   }
+    // };
 
-    const askMeRefresh = () => {
-      askMe()
-    };
+    // const askMeRefresh = () => {
+    //   askMe()
+    // };
 
-    // Refresh token every 15 minutes (900000 milliseconds)
-    const intervalId = setInterval(askMeRefresh, 60000);
+    // // Refresh token every 15 minutes (900000 milliseconds)
+    // const intervalId = setInterval(askMeRefresh, 60000);
 
-    // Initial token refresh
-    askMeRefresh();
+    // // Initial token refresh
+    // askMeRefresh();
 
-    // Cleanup interval on component unmount
-    return () => clearInterval(intervalId);
+    // // Cleanup interval on component unmount
+    // return () => clearInterval(intervalId);
   }, []);
 
   const handleClickOutside = (event: MouseEvent) => {

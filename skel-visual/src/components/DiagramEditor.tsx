@@ -39,7 +39,7 @@ const nodeTypes = {
 
 async function fetchDashboard(projectId: string): Promise<any> {
   const ts1 = Date.now();
-  const ts0 = ts1 - 1000*60;
+  const ts0 = ts1 - 1000*60*60*24;
   const url = `https://api.extractor.dev.hacken.cloud/api/v1/project/${projectId}/dashboard`;
   const payload = `{"from":${ts0},"to":${ts1},"interval":"1d","timezone":"Europe/Kiev","id":${projectId}}`
   
