@@ -1,15 +1,15 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import Map, { Source, Layer } from 'react-map-gl';
+import Map, { Source, Layer, Marker } from 'react-map-gl';
 import * as turf from '@turf/turf';
 import { Area } from '../core/Area.ts';
 
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
 
-function HexagonMap({ onHexagonSelect, hexagons, setHexagons, selectedHexagon, mapCenter }) {
+function HexagonMap({ onHexagonSelect, hexagons, setHexagons, selectedHexagon, mapCenter, aircraft }) {
   const [viewState, setViewState] = useState({
-    longitude: -122.4,
-    latitude: 37.8,
-    zoom: 11
+    longitude: -122.4194,
+    latitude: 37.7749,
+    zoom: 10
   });
 
   useEffect(() => {
@@ -81,6 +81,24 @@ function HexagonMap({ onHexagonSelect, hexagons, setHexagons, selectedHexagon, m
     return feature ? turf.feature(feature.geometry, feature.properties) : null;
   }, [selectedHexagon, hexagons]);
 
+  const aircraftData = useMemo(() => {    
+    return {
+      type: 'FeatureCollection',
+      features: aircraft.map(plane => {
+        return ({
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [plane.longitude, plane.latitude]
+        },
+        properties: {
+          id: plane.id,
+          angle: plane.bearing //Math.random() * 360,
+        }
+      })})
+    };
+  }, [aircraft]);
+
   return (
     <Map
       {...viewState}
@@ -140,7 +158,7 @@ function HexagonMap({ onHexagonSelect, hexagons, setHexagons, selectedHexagon, m
           />
         </Source>
       )}
-
+        
       {/* {selectedHexagon && (
         <Source type="geojson" data={selectedHexagon}> */}
       {selectedHexagonFeature && (
@@ -155,6 +173,19 @@ function HexagonMap({ onHexagonSelect, hexagons, setHexagons, selectedHexagon, m
           />
         </Source>
       )}
+            
+      <Source type="geojson" data={aircraftData}>
+        <Layer
+          id="aircraft-layer"
+          type="symbol"
+          layout={{
+            'icon-image': 'airport-15',
+            'icon-size': 1.5,
+            'icon-rotate': ['get', 'angle'],
+            'icon-allow-overlap': true
+          }}
+        />
+      </Source>
     </Map>
   );
 }

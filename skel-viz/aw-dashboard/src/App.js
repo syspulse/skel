@@ -4,15 +4,19 @@ import HexagonMap from './components/Map';
 import PropertyPanel from './components/PropertyPanel';
 import * as turf from '@turf/turf';
 import { Area } from './core/Area.ts';
+import { Aircraft,planeMove } from './core/Aircraft.ts';
 import './App.css';
 
 function App() {
   const [hexagons, setHexagons] = useState(null);
   const [selectedHexagon, setSelectedHexagon] = useState(null);
   const [mapCenter, setMapCenter] = useState(null);
+  const [aircraft, setAircraft] = useState([]);
 
   const createInitialHexagons = useCallback(() => {
     const bbox = [-122.5, 37.7, -122.3, 37.9]; // Bounding box for San Francisco
+    // Expanded bounding box for a larger area (roughly covering California)
+    //const bbox = [-124.5, 32.5, -114.0, 42.0];
     const hexagonFeatures = [];
 
     for (let i = 0; i < 10; i++) {
@@ -32,6 +36,35 @@ function App() {
       setHexagons(createInitialHexagons());
     }
   }, [hexagons, createInitialHexagons]);
+
+  const createInitialAircraft = useCallback(() => {
+    const center = [-122.4194, 37.7749]; // San Francisco coordinates
+    const radius = 0.5; // 50 km radius
+    return [
+      new Aircraft(1, 'SFO001', 'A1B2C3', 0.001, center[0], center[1] + radius),
+      new Aircraft(2, 'SFO002', 'D4E5F6', 0.002, center[0] + radius, center[1]),
+      new Aircraft(3, 'SFO003', 'G7H8I9', 0.003, center[0], center[1] - radius),
+    ];
+  }, []);
+
+  useEffect(() => {
+    if (aircraft.length === 0) {
+      setAircraft(createInitialAircraft());
+    }
+  }, [aircraft, createInitialAircraft]);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setAircraft(prevAircraft => prevAircraft.map(plane => {
+        
+        const plane2 = planeMove(plane,-122.4194, 37.7749, 0.5);        
+
+        return { ...plane2 };
+      }));
+    }, 1000); // Update every second
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const handleHexagonSelect = useCallback((hexagon) => {
     setSelectedHexagon(hexagon);
@@ -95,6 +128,7 @@ function App() {
           setHexagons={setHexagons}
           selectedHexagon={selectedHexagon}
           mapCenter={mapCenter}
+          aircraft={aircraft}
         />
         <PropertyPanel
           hexagon={selectedHexagon}
