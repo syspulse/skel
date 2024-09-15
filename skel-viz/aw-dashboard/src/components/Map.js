@@ -5,7 +5,16 @@ import { Area } from '../core/Area.ts';
 
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_ACCESS_TOKEN;
 
-function HexagonMap({ onHexagonSelect, hexagons, setHexagons, selectedHexagon, mapCenter, aircraft }) {
+function HexagonMap({ 
+  onHexagonSelect, 
+  hexagons, 
+  setHexagons, 
+  selectedHexagon, 
+  mapCenter, 
+  aircraft, 
+  selectedAircraft, 
+  onAircraftSelect 
+}) {
   const [viewState, setViewState] = useState({
     longitude: -122.4194,
     latitude: 37.7749,
@@ -36,17 +45,31 @@ function HexagonMap({ onHexagonSelect, hexagons, setHexagons, selectedHexagon, m
     return hexagon;
   }, []);
 
-  const onClick = useCallback((event) => {
+  const onClick = (event) => {
     const features = event.features || [];
+    
     if (features.length > 0) {
       const feature = features[0];
-      // Directly use the Area object from the clicked hexagon's properties
-      const selectedArea = feature.properties;
-      onHexagonSelect(selectedArea);
+      
+      if (feature.layer.id === 'hexagon-layer') {
+        // Hexagon was clicked
+        const selectedArea = feature.properties;
+        onHexagonSelect(selectedArea);
+        onAircraftSelect(null); // Deselect aircraft when hexagon is selected
+      } else if (feature.layer.id === 'aircraft-layer') {
+        // Aircraft was clicked
+        const clickedAircraft = aircraft.find(a => a.id === feature.properties.id);
+        if (clickedAircraft) {
+          onAircraftSelect(clickedAircraft);
+          onHexagonSelect(null); // Deselect hexagon when aircraft is selected
+        }
+      }
     } else {
+      // Clicked on empty space
       onHexagonSelect(null);
+      onAircraftSelect(null);
     }
-  }, [onHexagonSelect]);
+  };
 
   const onDblClick = useCallback((event) => {
     event.preventDefault();
@@ -106,7 +129,7 @@ function HexagonMap({ onHexagonSelect, hexagons, setHexagons, selectedHexagon, m
       style={{width: '100%', height: '100%'}}
       mapStyle="mapbox://styles/mapbox/light-v10"
       mapboxAccessToken={MAPBOX_TOKEN}
-      interactiveLayerIds={['hexagon-layer']}
+      interactiveLayerIds={['hexagon-layer','aircraft-layer']}
       onClick={onClick}
       onDblClick={onDblClick}
       onMouseEnter={onMouseEnter}

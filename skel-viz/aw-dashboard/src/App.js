@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import TopPanel from './components/TopPanel';
 import HexagonMap from './components/Map';
 import PropertyPanel from './components/PropertyPanel';
+import AircraftPropertyPanel from './components/AircraftPropertyPanel';
 import * as turf from '@turf/turf';
 import { Area } from './core/Area.ts';
 import { Aircraft,planeMove } from './core/Aircraft.ts';
@@ -12,6 +13,7 @@ function App() {
   const [selectedHexagon, setSelectedHexagon] = useState(null);
   const [mapCenter, setMapCenter] = useState(null);
   const [aircraft, setAircraft] = useState([]);
+  const [selectedAircraft, setSelectedAircraft] = useState(null);
 
   const createInitialHexagons = useCallback(() => {
     const bbox = [-122.5, 37.7, -122.3, 37.9]; // Bounding box for San Francisco
@@ -61,13 +63,17 @@ function App() {
 
         return { ...plane2 };
       }));
-    }, 1000); // Update every second
+    }, 1000);
 
     return () => clearInterval(intervalId);
   }, []);
 
   const handleHexagonSelect = useCallback((hexagon) => {
-    setSelectedHexagon(hexagon);
+    setSelectedHexagon(hexagon);    
+  }, []);
+
+  const handleAircraftSelect = useCallback((aircraft) => {
+    setSelectedAircraft(aircraft);    
   }, []);
 
   const handleHexagonUpdate = useCallback((updatedHexagon) => {
@@ -101,6 +107,13 @@ function App() {
     setSelectedHexagon(updatedHexagon);
   }, []);
 
+  const handleAircraftUpdate = useCallback((updatedAircraft) => {
+    setAircraft(prevAircraft => 
+      prevAircraft.map(a => a.id === updatedAircraft.id ? updatedAircraft : a)
+    );
+    setSelectedAircraft(updatedAircraft);
+  }, []);
+
   const handleSearch = useCallback((searchTerm) => {
     if (!hexagons) return;
 
@@ -129,11 +142,21 @@ function App() {
           selectedHexagon={selectedHexagon}
           mapCenter={mapCenter}
           aircraft={aircraft}
+          selectedAircraft={selectedAircraft}
+          onAircraftSelect={handleAircraftSelect}
         />
-        <PropertyPanel
-          hexagon={selectedHexagon}
-          onHexagonUpdate={handleHexagonUpdate}
-        />
+        {selectedHexagon && (
+          <PropertyPanel
+            hexagon={selectedHexagon}
+            onHexagonUpdate={handleHexagonUpdate}
+          />
+        )}
+        {selectedAircraft && (
+          <AircraftPropertyPanel
+            aircraft={selectedAircraft}
+            onAircraftUpdate={handleAircraftUpdate}
+          />
+        )}
       </div>
     </div>
   );

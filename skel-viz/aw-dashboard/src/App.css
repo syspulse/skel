@@ -87,6 +87,12 @@ html, body {
   padding: 5px;
 }
 
+.property input.read-only {
+  background-color: #e0e0e0;
+  color: #666;
+  cursor: not-allowed;
+}
+
 button[type="submit"] {
   margin-top: 10px;
   padding: 5px 10px;
