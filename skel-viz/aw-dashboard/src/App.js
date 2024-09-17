@@ -5,7 +5,7 @@ import PropertyPanel from './components/PropertyPanel';
 import AircraftPropertyPanel from './components/AircraftPropertyPanel';
 import * as turf from '@turf/turf';
 import { Area } from './core/Area.ts';
-import { Aircraft,planeMove } from './core/Aircraft.ts';
+import { Aircraft, planeMove } from './core/Aircraft.ts';
 import './App.css';
 
 function App() {
@@ -13,7 +13,7 @@ function App() {
   const [selectedHexagon, setSelectedHexagon] = useState(null);
   const [mapCenter, setMapCenter] = useState(null);
   const [aircraft, setAircraft] = useState([]);
-  const [selectedAircraft, setSelectedAircraft] = useState(null);
+  const [selectedAircraftId, setSelectedAircraftId] = useState(null);
 
   const createInitialHexagons = useCallback(() => {
     const bbox = [-122.5, 37.7, -122.3, 37.9]; // Bounding box for San Francisco
@@ -57,23 +57,21 @@ function App() {
 
   useEffect(() => {
     const intervalId = setInterval(() => {
-      setAircraft(prevAircraft => prevAircraft.map(plane => {
-        
-        const plane2 = planeMove(plane,-122.4194, 37.7749, 0.5);        
-
-        return { ...plane2 };
-      }));
+      setAircraft(prevAircraft => {
+        return prevAircraft.map(plane => planeMove(plane));
+      });
     }, 1000);
 
     return () => clearInterval(intervalId);
   }, []);
 
   const handleHexagonSelect = useCallback((hexagon) => {
-    setSelectedHexagon(hexagon);    
+    setSelectedHexagon(hexagon);
   }, []);
 
   const handleAircraftSelect = useCallback((aircraft) => {
-    setSelectedAircraft(aircraft);    
+    setSelectedAircraftId(aircraft ? aircraft.id : null);
+    
   }, []);
 
   const handleHexagonUpdate = useCallback((updatedHexagon) => {
@@ -111,7 +109,6 @@ function App() {
     setAircraft(prevAircraft => 
       prevAircraft.map(a => a.id === updatedAircraft.id ? updatedAircraft : a)
     );
-    setSelectedAircraft(updatedAircraft);
   }, []);
 
   const handleSearch = useCallback((searchTerm) => {
@@ -130,6 +127,9 @@ function App() {
       setMapCenter(center.geometry.coordinates);
     }
   }, [hexagons]);
+
+  // Derive selectedAircraft from aircraft and selectedAircraftId
+  const selectedAircraft = aircraft.find(a => a.id === selectedAircraftId);
 
   return (
     <div className="app">
