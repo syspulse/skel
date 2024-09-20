@@ -72,11 +72,11 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
           setIsTokenValid(true);
 
         } else {
-          console.error('Failed to refresh');
+          console.error('Failed to ask');
           setIsTokenValid(false);
         }
       } catch (error) {
-        console.error('Error refreshing:', error);
+        console.error('Error asking:', error);
         setIsTokenValid(false);
       }
     } else {
@@ -85,55 +85,58 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
     }
   }
 
+  async function refreshToken() {
+    const refreshToken = localStorage.getItem('refreshToken') || '';
+
+    console.log('Refreshing token', refreshToken);
+
+    try {
+      const formData = new URLSearchParams();
+      formData.append('grant_type', 'refresh_token');
+      formData.append('refresh_token', refreshToken);
+      formData.append('client_id', 'extractor-public');
+
+      const response = await fetch('https://auth.dev.extractor.live/realms/hacken/protocol/openid-connect/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: formData.toString(),
+        // mode: 'no-cors'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem('jwtToken', data.access_token);
+        localStorage.setItem('refreshToken', data.refresh_token);
+
+        const expire = data.expires_in * 1000;
+        setIsTokenValid(true);
+
+      } else {
+        console.error('Failed to refresh token');
+        setIsTokenValid(false);
+      }
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      setIsTokenValid(false);
+    }
+  }
+
   useEffect(() => {
-    // const refreshToken = async () => {
-    //   const refreshToken = localStorage.getItem('refreshToken') || '';
-
-    //   try {
-    //     const formData = new FormData();
-    //     formData.append('grant_type', 'refresh_token');
-    //     formData.append('refresh_token', refreshToken);
-    //     formData.append('client_id', 'extractor-public');
-
-    //     const response = await fetch('https://auth.dev.extractor.live/realms/hacken/protocol/openid-connect/token', {
-    //       method: 'POST',
-    //       headers: {
-    //         'Content-Type': 'application/x-www-form-urlencoded'
-    //       },
-    //       body: formData,
-    //       mode: 'no-cors'
-    //     });
-
-    //     if (response.ok) {
-    //       const data = await response.json();
-    //       localStorage.setItem('jwtToken', data.access_token);
-    //       localStorage.setItem('refreshToken', data.refresh_token);
-
-    //       const expire = data.expires_in * 1000;
-    //       setIsTokenValid(true);
-
-    //     } else {
-    //       console.error('Failed to refresh token');
-    //       setIsTokenValid(false);
-    //     }
-    //   } catch (error) {
-    //     console.error('Error refreshing token:', error);
-    //     setIsTokenValid(false);
-    //   }
-    // };
-
+    // const refreshToken = async () => refreshToken()
     // const askMeRefresh = () => {
     //   askMe()
     // };
 
-    // // Refresh token every 15 minutes (900000 milliseconds)
-    // const intervalId = setInterval(askMeRefresh, 60000);
+    // Refresh token every 15 minutes (900000 milliseconds)
+    const intervalId = setInterval(refreshToken, 60000);
 
     // // Initial token refresh
     // askMeRefresh();
 
-    // // Cleanup interval on component unmount
-    // return () => clearInterval(intervalId);
+    // Cleanup interval on component unmount
+    return () => clearInterval(intervalId);
   }, []);
 
   const handleClickOutside = (event: MouseEvent) => {

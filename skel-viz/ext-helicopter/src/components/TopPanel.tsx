@@ -36,8 +36,8 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,onProjectId,onRefr
   return (
     <div className="top-panel">
       <div className="logo-container">
-        <img src="/assets/logo.svg" alt="" className="logo-image" /> {/* Update the path to your logo image */}
-        <div className="logo">Helicopter</div>
+        <img src="/assets/diagram.png" alt="" className="logo-image" /> {/* Update the path to your logo image */}
+        <div className="logo">blockpulse</div>
       </div>
       <input
         ref = {searchInputRef}

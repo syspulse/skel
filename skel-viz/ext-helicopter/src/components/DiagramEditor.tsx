@@ -116,8 +116,7 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
   // ------------------------------------------------------------------------------- Simulation  
   useEffect(() => {
     
-    const simulateData = async () => {      
-      console.log("Timer: ",refreshFreq)
+    const simulateData = async () => {       
       if(simulation) {
         setNodes((nds) => 
           nds.map((node) => {
