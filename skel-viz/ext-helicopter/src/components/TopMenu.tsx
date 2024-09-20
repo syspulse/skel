@@ -130,7 +130,7 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
     // };
 
     // Refresh token every 15 minutes (900000 milliseconds)
-    const intervalId = setInterval(refreshToken, 60000);
+    const intervalId = setInterval(refreshToken, 900000);
 
     // // Initial token refresh
     // askMeRefresh();

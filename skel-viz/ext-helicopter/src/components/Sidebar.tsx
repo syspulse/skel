@@ -10,9 +10,10 @@ interface SidebarProps {
   onExport: (file: File) => void;
   onImport: (file: File) => void;
   onRefresh: () => void;
+  onPopulate: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClearAll, onExport, onImport, onRefresh }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClearAll, onExport, onImport, onRefresh, onPopulate }) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const fileOutputRef = React.useRef<HTMLInputElement>(null);
 
@@ -35,7 +36,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClear
   // };
 
   const triggerFileOutput = () => {
-    const fileName = prompt("Enter the file name", "flow.json");
+    const fileName = prompt("Enter the file name", "project.json");
     if(!fileName) return;
 
     const file = new File([], fileName, { type: 'application/json' });    
@@ -49,9 +50,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClear
     restore: 'Restore',
     clearAll: 'Clear',
     export: 'Export...',
-    import: 'Import...',
-    
-    refresh: 'Get data...'    
+    import: 'Import...',    
+    refresh: 'Get data',
+    populate: 'Populate'
   };
 
 
@@ -111,6 +112,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClear
         <div className="button-content">
           <FiRefreshCcw />
           <span>{buttonLabels.refresh}</span>
+        </div>
+      </button>
+      <button className="sidebar-button" onClick={onPopulate}>
+        <div className="button-content">
+          <FiRefreshCcw />
+          <span>{buttonLabels.populate}</span>
         </div>
       </button>
     </div>

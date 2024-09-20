@@ -72,6 +72,9 @@ async function fetchDashboard(projectId: string): Promise<any> {
       const severityInfo = c.severity.total["INFO"] || 0;
       return {
         "id":c.contract.id, 
+        "name":c.contract.name,
+        "network":c.contract.chainUid,
+        "address":c.contract.address,
         "detectorCount":c.contract.count["SECURITY"] + c.contract.count["trigger"],
         "severityCritical":severityCritical,
         "severityHigh":severityHigh,
@@ -197,8 +200,63 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
 
   const onRefresh = (async () => {
     udpateConters();
-    
+
   });
+
+  const onPopulate = useCallback(async () => {
+    try {
+      const data = await fetchDashboard(projectId);
+      console.log('Dashboard data for population:', data);
+  
+      if (data.contracts && Array.isArray(data.contracts)) {
+        const centerX = 500; // Adjust these values based on your canvas size
+        const centerY = 300;
+        const radius = 250; // Adjust the radius of the circle
+  
+        const newNodes = data.contracts.map((contract: any, index: number) => {
+          let x, y;
+          if (index === 0) {
+            // Place the first contract in the center
+            x = centerX;
+            y = centerY;
+          } else {
+            // Place other contracts in a circle around the center
+            const angle = ((index - 1) / (data.contracts.length - 1)) * 2 * Math.PI;
+            x = centerX + radius * Math.cos(angle);
+            y = centerY + radius * Math.sin(angle);
+          }
+  
+          return {
+            id: contract.id.toString(),
+            type: 'custom',
+            position: { x, y },
+            data: {
+              title: contract.name,
+              description: truncateAddr(contract.address),
+              icon: '/assets/contract.png',
+              network: contract.network,
+              telemetry: {
+                txCount: data.txCount,
+                detectorCount: contract.detectorCount,
+                severityCritical: contract.severityCritical,
+                severityHigh: contract.severityHigh,
+                severityMedium: contract.severityMedium,
+                severityLow: contract.severityLow,
+                severityInfo: contract.severityInfo
+              },
+            },
+          };
+        });
+  
+        setNodes(newNodes);
+        setEdges([]); // Clear existing edges
+      } else {
+        console.error('Invalid or empty contracts data');
+      }
+    } catch (error) {
+      console.error('Error populating diagram:', error);
+    }
+  }, [projectId, setNodes, setEdges]);
 
   // ------------------------------------------------------------------------ Keyboard ---
   useEffect(() => {
@@ -420,6 +478,7 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
           onExport={onExport}
           onImport={onImport}
           onRefresh={onRefresh}
+          onPopulate={onPopulate}
         /> 
         <div style={{ flex: 1, position: 'relative' }}>        
           <ReactFlow
