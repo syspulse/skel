@@ -31,39 +31,19 @@ import EdgePropertyPanelProvider from './EdgePropertyPanel';
 import TopPanel from './TopPanel';
 import {truncateAddr} from '../util/Util';
 import { initialNodes, initialEdges } from './defaultProject';
+import { getDashboard } from '../extractor';
 
 const nodeTypes = {
   custom: CustomNode,
 };
 
 
-
-async function fetchDashboard(projectId: string): Promise<any> {
+async function loadDashboard(projectId: string): Promise<any> {
   const ts1 = Date.now();
   const ts0 = ts1 - 1000*60*60*24;
-  const url = `https://api.extractor.dev.hacken.cloud/api/v1/project/${projectId}/dashboard`;
-  const payload = `{"from":${ts0},"to":${ts1},"interval":"1d","timezone":"Europe/Kiev","id":${projectId}}`
   
   try {
-    const token = localStorage.getItem('jwtToken');
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: payload//JSON.stringify(payload),      
-    });
-
-    console.log("response:",response);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log("data:",data);
+    const data = await getDashboard(ts0,ts1,projectId);
     const contracts = data.data.map((c:any) => {
       
       const severityCritical = c.severity.total["CRITICAL"] || 0;
@@ -87,7 +67,6 @@ async function fetchDashboard(projectId: string): Promise<any> {
     const txCount = data.transactions;
 
     return {"txCount":txCount,"contracts":contracts};
-
   } catch (error) {
     console.error('Error fetching data:', error);
     return { "txCount": 0, "contracts": [] };
@@ -162,7 +141,7 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
   
   async function udpateConters() {    
 
-    const data = await fetchDashboard(projectId);
+    const data = await loadDashboard(projectId);
     console.log('Dashboard data:', data);    
     setNodes((nds) => 
       nds.map((node) => {
@@ -206,7 +185,7 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
 
   const onPopulate = useCallback(async () => {
     try {
-      const data = await fetchDashboard(projectId);
+      const data = await loadDashboard(projectId);
       console.log('Dashboard data for population:', data);
   
       if (data.contracts && Array.isArray(data.contracts)) {
@@ -439,24 +418,6 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
     setNodes([]); // Assuming you're using a state setter to manage nodes
   };
 
-  // const onExport = useCallback((file: File) => {
-  //   const flow = { 
-  //     projectId, // Include projectId in the exported data
-  //     nodes, 
-  //     edges 
-  //   };
-  //   const json = JSON.stringify(flow, null, 2);
-    
-  //   const blob = new Blob([json], { type: 'application/json' });
-  //   const url = URL.createObjectURL(blob);
-  //   const link = document.createElement('a');
-  //   link.href = url;
-  //   link.download = file.name;
-    
-  //   link.click();
-  //   URL.revokeObjectURL(url);
-  // }, [projectId, nodes, edges]);
-  
   const onImport = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = (event) => {
