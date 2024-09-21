@@ -7,7 +7,6 @@ interface CustomNodeData {
   title: string;
   description: string;
   icon: string;
-  // selected: boolean;
   extraHandles?: { type: 'source' | 'target',  position: Position}[];
   tags: string;
   network: string;
@@ -106,17 +105,13 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
       ))}
       
       <div style={{ display: 'flex', alignItems: 'center' }}>
-        {/* <span style={{ marginRight: '10px', fontSize: '24px' }}>{data.icon}</span> */}
-        {/* <div className="custom-node-icon">{data.icon}</div> */}
-
+        
         <img 
           src={data.icon} 
-          // alt={data.title} 
           className="custom-node-icon"          
         />
 
         <div>                    
-          {/* <p style={{ margin: '5px 0 0' }}>{data.description}</p> */}
           <div className="custom-node-title">
             {data.title}
           </div>

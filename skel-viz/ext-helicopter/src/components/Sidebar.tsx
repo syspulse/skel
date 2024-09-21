@@ -11,9 +11,20 @@ interface SidebarProps {
   onImport: (file: File) => void;
   onRefresh: () => void;
   onPopulate: () => void;
+  projectId: string; // Add this prop
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClearAll, onExport, onImport, onRefresh, onPopulate }) => {
+const Sidebar: React.FC<SidebarProps> = ({ 
+  onAddNode, 
+  onSave, 
+  onRestore, 
+  onClearAll, 
+  onExport, 
+  onImport, 
+  onRefresh, 
+  onPopulate,
+  projectId // Add this prop
+}) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const fileOutputRef = React.useRef<HTMLInputElement>(null);
 
@@ -36,9 +47,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSave, onRestore, onClear
   // };
 
   const triggerFileOutput = () => {
-    const fileName = prompt("Enter the file name", "project.json");
-    if(!fileName) return;
-
+    const fileName = `project_${projectId}.json`;
     const file = new File([], fileName, { type: 'application/json' });    
     onExport(file);
   };

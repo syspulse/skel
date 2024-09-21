@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, RefObject } from 'react';
+import { FileSaverOptions } from 'file-saver';
 import ReactFlow, {
   Node,
   Edge,
@@ -438,19 +439,23 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
     setNodes([]); // Assuming you're using a state setter to manage nodes
   };
 
-  const onExport = useCallback((file: File) => {
+  // const onExport = useCallback((file: File) => {
+  //   const flow = { 
+  //     projectId, // Include projectId in the exported data
+  //     nodes, 
+  //     edges 
+  //   };
+  //   const json = JSON.stringify(flow, null, 2);
     
-    const flow = { nodes, edges };
-    const json = JSON.stringify(flow, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = file.name;//'flow-export.json';
+  //   const blob = new Blob([json], { type: 'application/json' });
+  //   const url = URL.createObjectURL(blob);
+  //   const link = document.createElement('a');
+  //   link.href = url;
+  //   link.download = file.name;
     
-    link.click();
-    URL.revokeObjectURL(url);
-  }, [nodes, edges]);
+  //   link.click();
+  //   URL.revokeObjectURL(url);
+  // }, [projectId, nodes, edges]);
   
   const onImport = useCallback((file: File) => {
     const reader = new FileReader();
@@ -464,8 +469,52 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
       }
     };
     reader.readAsText(file);
-  }, [setNodes, setEdges]);
+  }, [setNodes, setEdges, projectId]);
   
+  const onExport = useCallback(async () => {
+    const flow = { 
+      projectId,
+      nodes, 
+      edges 
+    };
+    const json = JSON.stringify(flow, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+  
+    if ('showSaveFilePicker' in window) {
+      try {
+        const fileHandle = await (window as any).showSaveFilePicker({
+          suggestedName: `project_${projectId}.json`,
+          types: [{
+            description: 'JSON Files',
+            accept: { 'application/json': ['.json'] },
+          }],
+        });
+  
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+  
+        console.log('File saved successfully');
+      } catch (err) {
+        if (err instanceof Error) {
+          if (err.name !== 'AbortError') {
+            console.error('Failed to save file:', err.message);
+          }
+        } else {
+          console.error('An unknown error occurred while saving the file');
+        }
+      }
+    } else {
+      // Fallback for browsers that don't support showSaveFilePicker
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `project_${projectId}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+  }, [projectId, nodes, edges]);
+
   
   return (
     <div className="diagram-editor">
@@ -479,6 +528,7 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
           onImport={onImport}
           onRefresh={onRefresh}
           onPopulate={onPopulate}
+          projectId={projectId}
         /> 
         <div style={{ flex: 1, position: 'relative' }}>        
           <ReactFlow
