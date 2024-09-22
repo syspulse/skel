@@ -12,7 +12,7 @@ interface SidebarProps {
   onExport: (file: File) => void;
   onImport: (file: File) => void;
   onRefresh: () => void;
-  onPopulate: () => void;
+  onTopology: () => void;
   projectId: string; // Add this prop
 }
 
@@ -24,7 +24,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onExport, 
   onImport, 
   onRefresh, 
-  onPopulate,
+  onTopology,
   projectId // Add this prop
 }) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -63,7 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     export: 'Export...',
     import: 'Import...',    
     refresh: 'Telemetry',
-    populate: 'Topology'
+    topology: 'Topology'
   };
 
 
@@ -125,10 +125,10 @@ const Sidebar: React.FC<SidebarProps> = ({
           <span>{buttonLabels.refresh}</span>
         </div>
       </button>
-      <button className="sidebar-button" onClick={onPopulate}>
+      <button className="sidebar-button" onClick={onTopology}>
         <div className="button-content">
           <TbTopologyStar3 />
-          <span>{buttonLabels.populate}</span>
+          <span>{buttonLabels.topology}</span>
         </div>
       </button>
     </div>

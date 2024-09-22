@@ -187,10 +187,10 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
 
   const onRefresh = (async () => {
     udpateConters();
-    setPopup({ title: 'Telemetry', message: `Refreshed...`, level: 'info' });
+    setPopup({ title: 'Telemetry', message: `Refreshed: ${projectId}`, level: 'info' });
   });
 
-  const onPopulate = useCallback(async () => {
+  const onTopology = useCallback(async () => {
     try {
       const data = await loadDashboard(projectId);
       console.log('Dashboard data for population:', data);
@@ -238,7 +238,7 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
         setNodes(newNodes);
         setEdges([]); // Clear existing edges
 
-        setPopup({ title: 'Topoplogy', message: `Populated with contracts: ${data.contracts.length}`, level: 'info' });
+        setPopup({ title: 'Topoplogy', message: `Topology: ${projectId}: contracts=${data.contracts.length}`, level: 'info' });
       } else {
         setPopup({ title: 'Topoplogy', message: `No contracts found`, level: 'error' });
         console.error('Invalid or empty contracts data');
@@ -513,7 +513,7 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
           onExport={onExport}
           onImport={onImport}
           onRefresh={onRefresh}
-          onPopulate={onPopulate}
+          onTopology={onTopology}
           projectId={projectId}
         /> 
         <div style={{ flex: 1, position: 'relative' }}>        

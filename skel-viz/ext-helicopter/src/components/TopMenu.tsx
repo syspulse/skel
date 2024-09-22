@@ -18,13 +18,12 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
     setDropdownOpen(!dropdownOpen);
   };
 
-  const onInit = (authenticated: boolean) => {
-    console.log('TopMenu: >>>> onInit');
+  const onInit = (authenticated: boolean) => {    
     onLogin()
   };
 
   useEffect(() => {
-    console.log('TopMenu: >>>> initKeycloak');
+    console.log('TopMenu: useEffect() --> initKeycloak');
     initKeycloak(onInit).then(() => {
       setIsTokenValid(isKeycloakLoggedIn());
     });
