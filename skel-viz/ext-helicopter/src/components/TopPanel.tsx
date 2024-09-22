@@ -145,6 +145,7 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,onProjectId,onTena
       <div className="options-container">
       <label htmlFor="tenantId">Tenant:</label>        
         <select
+          className="dropdown-select"
           id="tenantId"
           value={selectedTenantId}
           onChange={handleTenantIdChange}
@@ -159,6 +160,7 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,onProjectId,onTena
 
         <label htmlFor="projectId">Project:</label>
         <select 
+        className="dropdown-select"
           value={projectId} 
           onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleProjectIdChange(e)}
           disabled={!tenantIds}

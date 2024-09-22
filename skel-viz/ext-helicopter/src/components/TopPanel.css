@@ -77,14 +77,31 @@
   .dropdown-item {
     padding: 5px 15px;
     width: 100%;
-    text-align: left;
     border: none;
     background: none;
     cursor: pointer;
+    display: flex;
   }
   
   .dropdown-item:hover {
     background-color: #f0f0f0;
+  }
+
+  /* Specific style for React Icons */
+  .dropdown-item svg.menu-icon {
+    font-size: 16px;
+  }
+
+  .dropdown-select {
+    height: 30px;
+    /* width: 200px;  */
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #ffffff;
   }
 
   .options-container {
@@ -113,12 +130,3 @@
     vertical-align: middle;
   }
   
-  .dropdown-item {
-    display: flex;
-    align-items: center;
-  }
-  
-  /* Specific style for React Icons */
-  .dropdown-item svg.menu-icon {
-    font-size: 16px;
-  }
