@@ -56,7 +56,7 @@ const initialNodes: Node[] = [
       title: 'RouterV3', 
       description: '0x7a250d5630b4cf539739df2c5dacb4c659f2488d', 
       network: 'ethereum',
-      icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
+      icon: '',
       tags: 'DEX,Uniswap',
       telemetry: {
         txCount: 0, 

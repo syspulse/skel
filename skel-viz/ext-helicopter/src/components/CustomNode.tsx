@@ -82,12 +82,14 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
       
       <div style={{ display: 'flex', alignItems: 'center' }}>
         
-        <img 
-          src={data.icon} 
-          className="custom-node-icon"
-          onDoubleClick={handleDoubleClick}
-          style={{ cursor: 'pointer' }}
-        />
+        {data.icon && (
+          <img 
+            src={data.icon} 
+            className="custom-node-icon"
+            onDoubleClick={handleDoubleClick}
+            style={{ cursor: 'pointer' }}
+          />
+        )}
 
         <div>                    
           <div className="custom-node-title">
