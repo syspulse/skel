@@ -126,7 +126,7 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,onProjectId,onTena
   return (
     <div className="top-panel">
       <div className="logo-container">
-        <img src="/assets/diagram.png" alt="" className="logo-image" /> {/* Update the path to your logo image */}
+        <img src="/assets/blockpulse-2.png" alt="" className="logo-image" /> {/* Update the path to your logo image */}
         <div className="logo">blockpulse</div>
       </div>
       <input

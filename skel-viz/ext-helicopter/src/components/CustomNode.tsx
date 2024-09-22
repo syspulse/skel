@@ -104,7 +104,7 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
             </div>
           )}
           <a 
-            href={`https://etherscan.io/address/${data.description}`} 
+            href={`${networksMap.get(data.network)?.explorer}/address/${data.description}`}
             target="_blank" 
             rel="noopener noreferrer"
             className="custom-node-description"
@@ -125,7 +125,7 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
             </div>
             
             <div className="count-item">
-              <span className="count-label">Mon:</span>
+              <span className="count-label">Mo:</span>
               <span className="count-value-detector">{data.telemetry?.detectorCount}</span>
             </div>
 

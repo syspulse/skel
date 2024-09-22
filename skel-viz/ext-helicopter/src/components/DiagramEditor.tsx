@@ -28,8 +28,7 @@ import Sidebar from './Sidebar';
 import NodePropertyPanelProvider from './NodePropertyPanel';
 import EdgePropertyPanel from './EdgePropertyPanel';
 import EdgePropertyPanelProvider from './EdgePropertyPanel';
-import TopPanel from './TopPanel';
-import {truncateAddr} from '../util/Util';
+
 import { initialNodes, initialEdges } from './defaultProject';
 import { getDashboard } from '../extractor';
 import Popup, { PopupLevel } from './Popup';
@@ -214,7 +213,7 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
             position: { x, y },
             data: {
               title: contract.name,
-              description: truncateAddr(contract.address),
+              description: contract.address,
               icon: '/assets/contract.png',
               network: contract.network,
               telemetry: {
