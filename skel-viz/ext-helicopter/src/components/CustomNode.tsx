@@ -42,34 +42,10 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
     deleteElements({ nodes: [{ id }] });
   };
 
-  const onDoubleClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * 100;
-    const y = ((event.clientY - rect.top) / rect.height) * 100;
-    console.log('onDoubleClick', x, y);
-
-    setNodes((nds: Node<CustomNodeData>[]) =>
-      nds.map((node) =>
-        node.id === id
-          ? {
-              ...node,
-              data: {
-                ...node.data,
-                extraHandles: [
-                  ...(node.data.extraHandles || []),
-                  { 
-                    type: 'source', 
-                    position: Position.Top,
-                    id: `extra-target-${Date.now()}`
-                  }
-                ]
-              }
-            }
-          : node
-      )
-    );
-    
-  }, [id, setNodes]);
+  const handleDoubleClick = useCallback(() => {
+    const url = `https://app.extractor.dev.hacken.cloud/${id}/overview`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }, [id]);
 
   const network = networksMap.get(data.network);  
 
@@ -108,7 +84,9 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
         
         <img 
           src={data.icon} 
-          className="custom-node-icon"          
+          className="custom-node-icon"
+          onDoubleClick={handleDoubleClick}
+          style={{ cursor: 'pointer' }}
         />
 
         <div>                    
