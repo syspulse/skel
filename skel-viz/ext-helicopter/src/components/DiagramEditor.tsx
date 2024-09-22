@@ -182,7 +182,7 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
 
   const onRefresh = (async () => {
     udpateConters();
-
+    setPopup({ title: 'Telemetry', message: `Refreshed...`, level: 'info' });
   });
 
   const onPopulate = useCallback(async () => {
@@ -232,10 +232,14 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
   
         setNodes(newNodes);
         setEdges([]); // Clear existing edges
+
+        setPopup({ title: 'Topoplogy', message: `Populated with contracts: ${data.contracts.length}`, level: 'info' });
       } else {
+        setPopup({ title: 'Topoplogy', message: `No contracts found`, level: 'error' });
         console.error('Invalid or empty contracts data');
       }
     } catch (error) {
+      setPopup({ title: 'Topoplogy', message: `Error populating diagram: ${error}`, level: 'error' });
       console.error('Error populating diagram:', error);
     }
   }, [projectId, setNodes, setEdges]);
@@ -423,6 +427,7 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
 
   const handleClearAll = () => {
     setNodes([]); // Assuming you're using a state setter to manage nodes
+    setPopup({ title: 'Clear', message: `Cleared: '${projectId}'`, level: 'info' });
   };
 
   const onImport = useCallback((file: File) => {

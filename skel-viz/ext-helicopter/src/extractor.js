@@ -2,7 +2,7 @@
 
 export async function getDashboard(ts0,ts1,projectId) {
 
-  if(!projectId || projectId == ''){
+  if(!projectId || projectId === ''){
       return {};
   }
 
