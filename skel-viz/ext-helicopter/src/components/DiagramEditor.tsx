@@ -32,6 +32,7 @@ import TopPanel from './TopPanel';
 import {truncateAddr} from '../util/Util';
 import { initialNodes, initialEdges } from './defaultProject';
 import { getDashboard } from '../extractor';
+import Popup, { PopupLevel } from './Popup';
 
 const nodeTypes = {
   custom: CustomNode,
@@ -391,6 +392,8 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
     } : edge)));
   }, [setEdges]);
 
+  const [popup, setPopup] = useState<{ title: string; message: string; level: PopupLevel } | null>(null);
+
   const onSave = useCallback(() => {
     const flow = {
       nodes,
@@ -403,15 +406,18 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
     };
     const json = JSON.stringify(flow);
     localStorage.setItem(`flowState_${projectId}`, json);
+    setPopup({ title: 'Save', message: `Topology saved: ${projectId}`, level: 'info' });
   }, [nodes, edges, projectId]);
 
-  const onRestore = useCallback(() => {
+  const onRestore = useCallback(() => {    
     const json = localStorage.getItem(`flowState_${projectId}`);
     if (json) {
       const flow = JSON.parse(json);
       setNodes(flow.nodes || []);
       setEdges(flow.edges || []);
-      //setViewport(flow.viewport);
+      setPopup({ title: 'Load', message: `Topology loaded: ${projectId}`, level: 'info' });
+    } else {
+      setPopup({ title: 'Load', message: `could not load: ${projectId}`, level: 'error' });
     }
   }, [setNodes, setEdges, projectId]);
 
@@ -426,8 +432,11 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
         const json = JSON.parse(event.target?.result as string);
         setNodes(json.nodes || []);
         setEdges(json.edges || []);
+
+        setPopup({ title: 'Import', message: `Imported: ${json.projectId}`, level: 'info' });
       } catch (error) {
-        console.error('Error parsing JSON:', error);
+        setPopup({ title: 'Import', message: `Failed to load: '${file.name}'`, level: 'error' });
+        console.error('Failed to load:', error);
       }
     };
     reader.readAsText(file);
@@ -456,14 +465,18 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
         await writable.write(blob);
         await writable.close();
   
-        console.log('File saved successfully');
+        setPopup({ title: 'Export', message: `exported: '${fileHandle.name}'`, level: 'info' });
+        
       } catch (err) {
         if (err instanceof Error) {
           if (err.name !== 'AbortError') {
+            setPopup({ title: 'Export', message: `Failed to save: '${projectId}': ${err.message}`, level: 'error' });
             console.error('Failed to save file:', err.message);
           }
         } else {
-          console.error('An unknown error occurred while saving the file');
+          const errorMessage = err instanceof Error ? err.toString() : 'An unknown error occurred';
+          setPopup({ title: 'Export', message: `Failed to save: '${projectId}': ${errorMessage}`, level: 'error' });
+          console.error(errorMessage);
         }
       }
     } else {
@@ -474,6 +487,7 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
       link.download = `project_${projectId}.json`;
       link.click();
       URL.revokeObjectURL(url);
+      setPopup({ title: 'Export', message: `exported: '${link.download}'`, level: 'info' });
     }
   }, [projectId, nodes, edges]);
 
@@ -537,6 +551,14 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
         <NodePropertyPanelProvider selectedNode={selectedNode} updateNode={updateNode} updateNodeData={updateNodeData} />
         <EdgePropertyPanelProvider selectedEdge={selectedEdge} updateEdge={updateEdge} updateEdgeData={updateEdgeData}/>
       </div>
+      {popup && (
+        <Popup
+          title={popup.title}
+          message={popup.message}
+          level={popup.level}
+          onClose={() => setPopup(null)}
+        />
+      )}
     </div>
   );
 }
