@@ -20,8 +20,8 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,onProjectId,onTena
   const [projects, setProjects] = useState(['645']);
   const [projectId, setProjectId] = useState<string>('645');
 
-  const [tenantIds, setTenantIds] = useState<string[]>(['490']);
-  const [selectedTenantId, setSelectedTenantId] = useState<string>('');
+  const [tenantIds, setTenantIds] = useState<string[]>([]);
+  const [selectedTenantId, setSelectedTenantId] = useState<string>();
   
   const [refreshFreq, setRefreshFreq] = useState(60000);
 
@@ -36,9 +36,15 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,onProjectId,onTena
       const tenants = await getTenants();
       const tenantsNames = tenants.map((t:any) => `${t.id}-${t.name}`);
       setTenantIds(tenantsNames);
+      
       if (tenantsNames.length > 0) {
-        setSelectedTenantId(tenantsNames[0]);
-        onTenantId(tenantsNames[0]);
+        if(tenantsNames.includes('490-Demo')) {
+          setSelectedTenantId('490-Demo');
+          onTenantId('490-Demo');
+        } else {
+          setSelectedTenantId(tenantsNames[0]);
+          onTenantId(tenantsNames[0]);
+        }
       }
     };
 

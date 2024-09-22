@@ -402,18 +402,18 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
       },
     };
     const json = JSON.stringify(flow);
-    localStorage.setItem('flowState', json);
-  }, [nodes, edges]);
+    localStorage.setItem(`flowState_${projectId}`, json);
+  }, [nodes, edges, projectId]);
 
   const onRestore = useCallback(() => {
-    const json = localStorage.getItem('flowState');
+    const json = localStorage.getItem(`flowState_${projectId}`);
     if (json) {
       const flow = JSON.parse(json);
       setNodes(flow.nodes || []);
       setEdges(flow.edges || []);
       //setViewport(flow.viewport);
     }
-  }, [setNodes, setEdges]);
+  }, [setNodes, setEdges, projectId]);
 
   const handleClearAll = () => {
     setNodes([]); // Assuming you're using a state setter to manage nodes

@@ -11,7 +11,7 @@ const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
 
 function App() {
   const [projectId, setProjectId] = useState('645');
-  const [tenantId, setTenantId] = useState('480');
+  const [tenantId, setTenantId] = useState('490-Demo');
   const [refreshFreq, setRefreshFreq] = useState(60000);
   const [searchText, setSearchText] = useState('');
   const searchInputRef = useRef<HTMLInputElement | null>(null);

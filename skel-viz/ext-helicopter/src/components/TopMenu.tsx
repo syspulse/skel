@@ -2,9 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import './TopPanel.css';
 import { GoogleLogin } from '@react-oauth/google';
 import { login, logout, isKeycloakLoggedIn, initKeycloak } from '../keycloak';
-// Import icons from react-icons
 import { FiHelpCircle, FiSettings, FiLogIn } from 'react-icons/fi';
-// Import Keycloak icon from assets
 
 interface TopMenuProps {
   onLogin: () => void;
