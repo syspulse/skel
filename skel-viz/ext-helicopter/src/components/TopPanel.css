@@ -106,4 +106,19 @@
     border-radius: 4px;
   }
 
+  .menu-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
   
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+  }
+  
+  /* Specific style for React Icons */
+  .dropdown-item svg.menu-icon {
+    font-size: 16px;
+  }

@@ -1,6 +1,8 @@
 import React from 'react';
 import './DiagramEditor.css';
 import { FiPlus, FiSave, FiRotateCcw, FiTrash2, FiUpload, FiDownload, FiPlay, FiSquare, FiRefreshCcw } from 'react-icons/fi';
+import { FcSearch, FcElectricalSensor} from 'react-icons/fc';
+import { TbTopologyStar3 } from "react-icons/tb";
 
 interface SidebarProps {
   onAddNode: () => void;
@@ -60,8 +62,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     clearAll: 'Clear',
     export: 'Export...',
     import: 'Import...',    
-    refresh: 'Get data',
-    populate: 'Populate'
+    refresh: 'Telemetry',
+    populate: 'Topology'
   };
 
 
@@ -119,13 +121,13 @@ const Sidebar: React.FC<SidebarProps> = ({
       </button>
       <button className="sidebar-button" onClick={onRefresh}>
         <div className="button-content">
-          <FiRefreshCcw />
+          <FcElectricalSensor />
           <span>{buttonLabels.refresh}</span>
         </div>
       </button>
       <button className="sidebar-button" onClick={onPopulate}>
         <div className="button-content">
-          <FiRefreshCcw />
+          <TbTopologyStar3 />
           <span>{buttonLabels.populate}</span>
         </div>
       </button>

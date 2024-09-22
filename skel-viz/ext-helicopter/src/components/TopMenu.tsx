@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import './TopPanel.css';
 import { GoogleLogin } from '@react-oauth/google';
 import { login, logout, isKeycloakLoggedIn, initKeycloak } from '../keycloak';
+// Import icons from react-icons
+import { FiHelpCircle, FiSettings, FiLogIn } from 'react-icons/fi';
+// Import Keycloak icon from assets
 
 interface TopMenuProps {
   onLogin: () => void;
@@ -165,7 +168,10 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
         </div>
         {dropdownOpen && (
           <div className="dropdown-menu" ref={dropdownRef}>
-            <button className="dropdown-item" onClick={handleJwtLogin}>Login</button>
+            <button className="dropdown-item" onClick={handleJwtLogin}>
+              <FiLogIn className="menu-icon" />
+              Token...
+            </button>
             {/* <GoogleLogin
               onSuccess={credentialResponse => {
                 handleGoogleLoginSuccess(credentialResponse);
@@ -176,12 +182,19 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
             /> */}
 
             <button className="dropdown-item" onClick={handleKeycloakAuth}>
-              {isKeycloakLoggedIn() ? 'Logout (Keycloak)' : 'Login (Keycloak)'}
+              <img src="../assets/keycloak-icon.png" alt="Keycloak" className="menu-icon" />
+              {isKeycloakLoggedIn() ? 'Logout' : 'Login...'}
             </button>              
           
             <hr />
-            <button className="dropdown-item">Settings</button>
-            <button className="dropdown-item">Help</button>
+            <button className="dropdown-item">
+              <FiSettings className="menu-icon" />
+              Settings
+            </button>
+            <button className="dropdown-item">
+              <FiHelpCircle className="menu-icon" />
+              Help
+            </button>
           </div>
         )}
       </div>
