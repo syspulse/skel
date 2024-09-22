@@ -41,9 +41,10 @@ const nodeTypes = {
 async function loadDashboard(projectId: string): Promise<any> {
   const ts1 = Date.now();
   const ts0 = ts1 - 1000*60*60*24;
+  const pid = projectId.split('-')[0];
   
   try {
-    const data = await getDashboard(ts0,ts1,projectId);
+    const data = await getDashboard(ts0,ts1,pid);
     const contracts = data.data.map((c:any) => {
       
       const severityCritical = c.severity.total["CRITICAL"] || 0;
