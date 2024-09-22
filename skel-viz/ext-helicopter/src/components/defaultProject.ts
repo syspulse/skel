@@ -92,4 +92,7 @@ const initialEdges: Edge[] = [
   }
 ];
 
+export const DEFAULT_TENANT = "490-Demo";
+export const DEFAULT_PROJECT = "645-Uniswap";
+
 export { initialNodes, initialEdges };

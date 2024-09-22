@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './TopPanel.css'; // Ensure this CSS file is created
 import TopMenu from './TopMenu';
 import { getProjects, getTenants } from '../extractor';
+import { DEFAULT_PROJECT, DEFAULT_TENANT } from './defaultProject';
 
 interface TopPanelProps {
   onLogin: () => void;
@@ -31,25 +32,52 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,onProjectId,onTena
     onSearch(value); // Call the onSearch prop to filter nodes
   };
 
+  const loadProjects = useCallback(async (tenantId: string) => {
+    const tid = tenantId.split('-')[0];
+    const fetchedProjects = await getProjects(tid);
+    
+    if (fetchedProjects && fetchedProjects.length > 0) {
+      const projectIds = fetchedProjects.map((p: any) => `${p.id}-${p.name}`);
+      setProjects(projectIds);
+      if (projectIds.length > 0) {
+        if(projectIds.includes(DEFAULT_PROJECT)) {
+          setProjectId(DEFAULT_PROJECT);
+          onProjectId(DEFAULT_PROJECT);
+        } else {
+          setProjectId(projectIds[0]);
+          onProjectId(projectIds[0]);
+        }
+      }
+    } else {
+      setProjects([]);
+      setProjectId('');
+      onProjectId('');
+    }
+  }, [onProjectId]);
+
   useEffect(() => {
     const loadTenantIds = async () => {
       const tenants = await getTenants();
       const tenantsNames = tenants.map((t:any) => `${t.id}-${t.name}`);
       setTenantIds(tenantsNames);
       
+      let defaultTenantId;
       if (tenantsNames.length > 0) {
-        if(tenantsNames.includes('490-Demo')) {
-          setSelectedTenantId('490-Demo');
-          onTenantId('490-Demo');
+        if(tenantsNames.includes(DEFAULT_TENANT)) {
+          defaultTenantId = DEFAULT_TENANT;
         } else {
-          setSelectedTenantId(tenantsNames[0]);
-          onTenantId(tenantsNames[0]);
+          defaultTenantId = tenantsNames[0];
         }
+        setSelectedTenantId(defaultTenantId);
+        onTenantId(defaultTenantId);
+        
+        // Load projects for the default tenant
+        await loadProjects(defaultTenantId);
       }
     };
 
     loadTenantIds();
-  }, [setTenantIds]);
+  }, [setTenantIds, onTenantId, loadProjects]);
 
   const handleProjectIdChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newProjectId = e.target.value;
