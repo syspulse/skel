@@ -48,7 +48,12 @@ export const login = async () => {
   }
 };
 
-export const logout = () => keycloak.logout();
+export const logout = () => {
+  keycloak.logout();
+  localStorage.setItem('jwtToken', '');
+  localStorage.setItem('refreshToken', '');
+}
+
 export const isKeycloakLoggedIn = () => !!keycloak.token;
 export const jwtToken = () => keycloak.token;
 

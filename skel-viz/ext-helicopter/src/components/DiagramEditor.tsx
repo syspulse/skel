@@ -69,8 +69,9 @@ async function loadDashboard(projectId: string): Promise<any> {
 
     return {"txCount":txCount,"contracts":contracts};
   } catch (error) {
-    console.error('Error fetching data:', error);
-    return { "txCount": 0, "contracts": [] };
+    console.error('failed to get dashboard:', error);    
+    // return { "txCount": 0, "contracts": [] };
+    return null;
   }
 }
 
@@ -144,6 +145,11 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
 
     const data = await loadDashboard(projectId);
     console.log('Dashboard data:', data);    
+    if(!data) {
+      setPopup({ title: 'Telemetry', message: `failed to update telemetry`, level: 'error' });
+      return;
+    }
+
     setNodes((nds) => 
       nds.map((node) => {
         // find title match
