@@ -32,6 +32,11 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,onProjectId,onTena
     onSearch(value); // Call the onSearch prop to filter nodes
   };
 
+  const handleLogin = () => {
+    loadTenants();
+    onLogin();
+  };
+
   const loadProjects = useCallback(async (tenantId: string) => {
     const tid = tenantId.split('-')[0];
     const fetchedProjects = await getProjects(tid);
@@ -53,31 +58,31 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,onProjectId,onTena
       setProjectId('');
       onProjectId('');
     }
-  }, [onProjectId]);
+  }, [projectId]);
+
+  const loadTenants = async () => {
+    const tenants = await getTenants();
+    const tenantsNames = tenants.map((t:any) => `${t.id}-${t.name}`);
+    setTenantIds(tenantsNames);
+    
+    let defaultTenantId;
+    if (tenantsNames.length > 0) {
+      if(tenantsNames.includes(DEFAULT_TENANT)) {
+        defaultTenantId = DEFAULT_TENANT;
+      } else {
+        defaultTenantId = tenantsNames[0];
+      }
+      setSelectedTenantId(defaultTenantId);
+      onTenantId(defaultTenantId);
+      
+      // Load projects for the default tenant
+      await loadProjects(defaultTenantId);
+    }
+  };
 
   useEffect(() => {
-    const loadTenantIds = async () => {
-      const tenants = await getTenants();
-      const tenantsNames = tenants.map((t:any) => `${t.id}-${t.name}`);
-      setTenantIds(tenantsNames);
-      
-      let defaultTenantId;
-      if (tenantsNames.length > 0) {
-        if(tenantsNames.includes(DEFAULT_TENANT)) {
-          defaultTenantId = DEFAULT_TENANT;
-        } else {
-          defaultTenantId = tenantsNames[0];
-        }
-        setSelectedTenantId(defaultTenantId);
-        onTenantId(defaultTenantId);
-        
-        // Load projects for the default tenant
-        await loadProjects(defaultTenantId);
-      }
-    };
-
-    loadTenantIds();
-  }, [setTenantIds, onTenantId, loadProjects]);
+    loadTenants();    
+  }, [setTenantIds, onTenantId]);
 
   const handleProjectIdChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newProjectId = e.target.value;
@@ -90,20 +95,7 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,onProjectId,onTena
     setSelectedTenantId(newTenantId);
     onTenantId(newTenantId);
   
-    const loadProjects = async () => {
-      const tid = newTenantId.split('-')[0];
-      const fetchedProjects = await getProjects(tid);
-      
-      if (fetchedProjects && fetchedProjects.length > 0) {
-        const projectIds = fetchedProjects.map((p: any) => `${p.id}-${p.name}`);
-        setProjects(projectIds);
-        // Don't set projectId or call onProjectId here
-      } else {
-        setProjects([]);
-      }
-    };
-  
-    loadProjects();
+    loadProjects(newTenantId);
   }, [onTenantId]);
   
   // Separate useEffect to handle projectId updates when projects change
@@ -181,7 +173,7 @@ const TopPanel: React.FC<TopPanelProps> = ({ onLogin,onSearch,onProjectId,onTena
           className="option-input-number"
         />
       </div>
-      <TopMenu onLogin={onLogin} />
+      <TopMenu onLogin={handleLogin} />
     </div>
   );
 };

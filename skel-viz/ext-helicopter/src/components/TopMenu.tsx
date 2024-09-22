@@ -18,8 +18,14 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
     setDropdownOpen(!dropdownOpen);
   };
 
+  const onInit = (authenticated: boolean) => {
+    console.log('TopMenu: >>>> onInit');
+    onLogin()
+  };
+
   useEffect(() => {
-    initKeycloak().then(() => {
+    console.log('TopMenu: >>>> initKeycloak');
+    initKeycloak(onInit).then(() => {
       setIsTokenValid(isKeycloakLoggedIn());
     });
   }, []);
@@ -32,7 +38,7 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
       setDropdownOpen(false);
     }
 
-    askMe();
+    //askMe();
   };
 
   const handleGoogleLoginSuccess = (userInfo: any) => {
@@ -51,39 +57,6 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
 
   function isLoggedIn() {
     return isTokenValid;
-  }
-
-  async function askMe() {
-    const jwtToken = localStorage.getItem('jwtToken') || '';
-
-    if(jwtToken == '') {
-      try {
-        const response = await fetch('https://api.extractor.dev.hacken.cloud/api/v1/user/me', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${jwtToken}`
-          },
-          // body: JSON.stringify(request),
-          // mode: 'no-cors'
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setIsTokenValid(true);
-
-        } else {
-          console.error('Failed to ask');
-          setIsTokenValid(false);
-        }
-      } catch (error) {
-        console.error('Error asking:', error);
-        setIsTokenValid(false);
-      }
-    } else {
-      console.log('Not logged in');
-      setIsTokenValid(false);
-    }
   }
 
   async function refreshToken() {
@@ -124,17 +97,9 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
     }
   }
 
-  useEffect(() => {
-    // const refreshToken = async () => refreshToken()
-    // const askMeRefresh = () => {
-    //   askMe()
-    // };
-
+  useEffect(() => {    
     // Refresh token every 15 minutes (900000 milliseconds)
     const intervalId = setInterval(refreshToken, 900000);
-
-    // // Initial token refresh
-    // askMeRefresh();
 
     // Cleanup interval on component unmount
     return () => clearInterval(intervalId);

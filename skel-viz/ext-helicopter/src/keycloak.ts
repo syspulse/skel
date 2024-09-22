@@ -10,13 +10,13 @@ const keycloakConfig = {
   clientId: clientId
 };
 
-let initialized = false;
+var initialized = false;
 
 const keycloak = new Keycloak(keycloakConfig);
 
 console.log('Keycloak:', keycloakConfig, keycloak);
 
-export const initKeycloak = async () => {
+export const initKeycloak = async (onInit: (authenticated: boolean) => void) => {
   if (!initialized) {
     try {
       await keycloak.init({ onLoad: 'check-sso', checkLoginIframe: false });
@@ -26,6 +26,8 @@ export const initKeycloak = async () => {
         console.info('Login Success', keycloak.token);
         localStorage.setItem('jwtToken', keycloak.token);
         localStorage.setItem('refreshToken', keycloak.refreshToken || '');
+
+        onInit(true);
       }
 
       console.log('Keycloak initialized');

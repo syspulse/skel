@@ -106,3 +106,36 @@ export async function getProjects(tenantId) {
       return {};
     }
   }
+
+export async function askMe() {
+  const jwtToken = localStorage.getItem('jwtToken') || '';
+
+  if(jwtToken == '') {
+    try {
+      const response = await fetch('https://api.extractor.dev.hacken.cloud/api/v1/user/me', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${jwtToken}`
+        },
+        // body: JSON.stringify(request),
+        // mode: 'no-cors'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return true;
+
+      } else {
+        console.error('Failed to ask');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error asking:', error);
+      return false;
+    }
+  } else {
+    console.log('Not logged in');
+    return false;
+  }
+}
