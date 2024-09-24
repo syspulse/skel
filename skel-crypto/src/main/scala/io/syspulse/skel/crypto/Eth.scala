@@ -756,8 +756,8 @@ object Eth {
       case t => throw new Exception(s"unsupported type: ${t}")
     }).toList.asInstanceOf[List[TypeReference[_]]]
 
-    println(s"inputParameters: ${inputParameters}")
-    println(s"outputParameters: ${outputParameters}")
+    // println(s"inputParameters: ${inputParameters}")
+    // println(s"outputParameters: ${outputParameters}")
 
     val function = new datatypes.Function(
         funcName, 

@@ -27,7 +27,26 @@ const icons = [
   '/assets/user-4.png',
 
   '/assets/vault.png',
+  '/assets/gnosis-safe.png',
+  '/assets/wallet.png',
+  '/assets/bridge.png',
 
+  '/assets/ethereum-icon.png',
+  '/assets/arbitrum-icon.png',
+  '/assets/optimism-icon.png',
+  '/assets/polygon-icon.png',
+  '/assets/bsc-icon.png',
+  '/assets/avalanche-icon.png',
+  '/assets/solana-icon.png',  
+  '/assets/scroll-icon.png',
+  '/assets/zksync-icon.png',
+  '/assets/base-icon.png',
+  '/assets/blast-icon.png',
+  '/assets/vechain-icon.png',
+  '/assets/anvil-icon.png',
+  '/assets/telos-icon.png',
+  '/assets/gnosis-icon.png',
+  
   // Add more icon URLs as needed
 ];
 
