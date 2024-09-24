@@ -1236,6 +1236,17 @@ lazy val blockchain_core = (project in file("skel-blockchain/blockchain-core"))
       libraryDependencies ++= libTest
     )
 
+lazy val blockchain_evm = (project in file("skel-blockchain/blockchain-evm"))
+  .dependsOn(core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,      
+      name := "blockchain-evm",
+      
+      libraryDependencies ++= libTest
+    )
+
 lazy val blockchain_rpc = (project in file("skel-blockchain/blockchain-rpc"))
   .dependsOn(core,skel_crypto,blockchain_core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
