@@ -17,7 +17,8 @@ object AppEvm extends {
 
   case class Config(
     uri:String="http://geth:8545",
-    
+    from:String = "",
+
     cmd:String = "call",
     params:Seq[String] = Seq()
   )
@@ -33,10 +34,11 @@ object AppEvm extends {
       new ConfigurationArgs(args,"eth-evm","",
         
         ArgString('u', "uri",s"RPC uri (def: ${d.uri})"),
+        ArgString('f', "from",s"From address (def: ${d.from})"),
         
         
         ArgCmd("call","eth_call"),
-        
+        ArgCmd("estimate","eth_estimageGas"),
         
         ArgParam("<params>","..."),
 
@@ -47,6 +49,7 @@ object AppEvm extends {
     
     val config = Config(
       uri = c.getString("uri").getOrElse(d.uri),
+      from = c.getString("from").getOrElse(d.from),
       
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams()
@@ -64,6 +67,12 @@ object AppEvm extends {
         
         Eth.call("0x0",contractAddress,funcName,inputs)
               
+      case "estimate" => 
+        val contractAddress = config.params(0)
+        val funcName = config.params(1)
+        val inputs = config.params.lift(2).getOrElse("")
+        Console.err.println(s"intputs=${inputs}")
+        Eth.estimate(config.from,contractAddress,funcName,inputs)
     }
     
     Console.err.println(s"r = ${r}")

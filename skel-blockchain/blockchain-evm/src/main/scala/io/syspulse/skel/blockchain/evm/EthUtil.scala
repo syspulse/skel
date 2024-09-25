@@ -8,9 +8,30 @@ import com.typesafe.scalalogging.Logger
 import io.syspulse.skel.util.Util
 
 object EthUtil {
+
+  val EVENT_SWAP = "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"
+  val EVENT_TRANSFER = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+
+  case class Swap(sender:String,to:String,amount0In:BigInt,amount1In:BigInt,amount0Out:BigInt,amount1Out:BigInt)
+
+  def decodeSwap(data:String,topics:Array[String]) = {
+    if(topics.size > 0 && topics(0) == EVENT_SWAP) {
+      topics.size match {
+        case 3 => 
+          
+          val sender = s"0x${topics(1).drop(24 + 2)}".toLowerCase()
+          val to = s"0x${topics(2).drop(24 + 2)}".toLowerCase()
+          val swapParams = data.drop(2).grouped(64).toSeq.map(v=>BigInt(v,16))
+          Some(Swap(sender,to,swapParams(0),swapParams(1),swapParams(2),swapParams(3)))
+
+        case _ => None
+      }
+    } else 
+      None
+  }
   
   def decodeERC20Transfer(data:String,topics:Array[String]) = {
-    if(topics.size > 0 && topics(0) == "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef") {
+    if(topics.size > 0 && topics(0) == EVENT_TRANSFER) {
       // standard is to have 2 values in topic
       topics.size match {
         case 3 => 

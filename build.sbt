@@ -341,6 +341,7 @@ lazy val root = (project in file("."))
              crypto_kms,
              blockchain_core,
              blockchain_rpc,
+             blockchain_evm,
              tools)
   .dependsOn(core, skel_serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
              ingest_core,
@@ -359,6 +360,7 @@ lazy val root = (project in file("."))
              job_core,
              blockchain_core,
              blockchain_rpc,
+             blockchain_evm,
              )  
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
