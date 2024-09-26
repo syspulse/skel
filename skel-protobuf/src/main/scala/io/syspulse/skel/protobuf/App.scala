@@ -1,4 +1,4 @@
-package io.syspulse.skel.serde
+package io.syspulse.skel.protobuf
 
 import scala.util.{Try,Success,Failure}
 import java.util.Base64
@@ -10,7 +10,7 @@ import io.syspulse.skel.config._
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
-  uri:String = "/api/v1/serde",
+  uri:String = "/api/v1/auth",
 
   datastore:String = "mem://",
   
@@ -28,7 +28,7 @@ object App extends skel.Server {
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv, 
-      new ConfigurationArgs(args,"skel-serde","",
+      new ConfigurationArgs(args,"skel-protobuf","",
         ArgString('h', "http.host",s"listen host (def: ${d.host})"),
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
@@ -36,7 +36,7 @@ object App extends skel.Server {
         
         
         ArgCmd("server",s"Server"),
-        ArgCmd("parq",s"Parquet utils"),
+        ArgCmd("proto",s"Proto utils"),
                 
         ArgParam("<params>",""),
         ArgLogging()
@@ -57,28 +57,18 @@ object App extends skel.Server {
 
     var r = config.cmd match {
       case "server" => 
-        
-      case "parq" =>
-        import com.github.mjakubowski84.parquet4s.{ParquetReader, ParquetWriter, Path}
-        import io.syspulse.skel.serde.Parq._
-        // params.toList match {
-        //   case "encode" :: data =>
-        //     data.map(d => d.split(":").toList match {
+              
+      case "proto" => {
+        import com.google.protobuf.ByteString
+        //import com.thesamet.scalapb.GeneratedMessage
+        //import TxRaw
 
-        //     })
-        // } 
-        val file1 = "file-1.parquet"
-        os.remove(os.Path(file1,os.pwd))
-
-        case class Data(str:String,v:Long)
-        val d1 = Seq(
-          Data("data",1000L)
-        )
-        ParquetWriter.of[Data].writeAndClose(Path(file1), d1)
-
-        val d = os.read(os.Path(file1,os.pwd))
-        log.info(s"data=${Util.hex(d.getBytes())}")
-      
+        Try {
+          val txBytes = Base64.getDecoder.decode(config.params(0))
+          // 
+          cosmos.tx.v1beta1.tx.TxRaw.parseFrom(txBytes)
+        }
+      }
     }
 
     println(s"${r}")        

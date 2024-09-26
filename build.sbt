@@ -406,6 +406,29 @@ lazy val skel_serde = (project in file("skel-serde"))
       sharedConfigAssembly,
       
       appAssemblyConfig("skel-serde","io.syspulse.skel.serde.App"),
+      //name := "skel-serde",
+
+      libraryDependencies ++= libCommon ++
+        libTest ++ 
+        Seq(
+          libUUID, 
+          libAvro4s,
+          libUpickleLib,
+          libScodecBits,
+
+          libParq,
+          libHadoop,          
+        ),
+    )
+    
+lazy val skel_protobuf = (project in file("skel-protobuf"))
+  .dependsOn(core)
+  .enablePlugins(JavaAppPackaging)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,
+      
+      appAssemblyConfig("skel-protobuf","io.syspulse.skel.protobuf.App"),
       // name := "skel-serde",
 
       Compile / PB.protoSources := Seq(sourceDirectory.value / "main" / "proto"),
@@ -420,13 +443,7 @@ lazy val skel_serde = (project in file("skel-serde"))
         libTest ++ 
         Seq(
           libUUID, 
-          libAvro4s,
-          libUpickleLib,
-          libScodecBits,
-
-          libParq,
-          libHadoop,
-
+          
           // libProtobufProtoc,
           // libProtobufJava,          
           "com.google.api.grpc" % "proto-google-common-protos" % "2.43.0",
@@ -438,7 +455,7 @@ lazy val skel_serde = (project in file("skel-serde"))
           libScalapbRuntime 
         ),
     )
-    
+
 lazy val skel_test = (project in file("skel-test"))
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
