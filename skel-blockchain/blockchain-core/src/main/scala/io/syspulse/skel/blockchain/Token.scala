@@ -5,7 +5,7 @@ import scala.jdk.CollectionConverters._
 import io.syspulse.skel.Ingestable
 import io.syspulse.skel.util.Util
 
-case class Token(addr:String,sym:String,dec:Int = 18,bid:String)
+case class Token(addr:String,sym:String,dec:Int = 18,bid:String,icon:Option[String] = None)
 
 object Token {
     
@@ -44,6 +44,7 @@ object Token {
 
           val id = j.obj("id").str
           val symbol = j.obj("symbol").str.toUpperCase()
+          val icon = j.obj("icon").strOpt
 
           val tt = j.obj("detail_platforms").obj
             .flatMap{ case(chain,platform) => {
@@ -52,7 +53,7 @@ object Token {
                 val decimals = platform.obj("decimal_place").num.toInt
                 val addr = platform.obj("contract_address").str.toLowerCase()
 
-                Some(Token(addr,symbol,decimals,chain))
+                Some(Token(addr,symbol,decimals,chain,icon))
 
               } catch {
                 case e:Exception =>
@@ -124,5 +125,5 @@ object Token {
     }    
   }
 
-
+  def find(addr:String) = tokensAddr.get(addr.toLowerCase)
 }

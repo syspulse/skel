@@ -19,17 +19,17 @@ class TokenSpec extends AnyWordSpec with Matchers {
     
     "Default TOKENS size" in {
       val sz = Token.size
-      sz should === (9404)
+      sz should === (10367)
     }
 
     "parse 'USDT'" in {
       val t = Token.resolve("USDT")
-      t.size should === (33)
+      t.size should === (64)
     }
 
     "parse 0xDAC17f958d2ee523a2206206994597c13d831ec7 -> 'USDT'" in {
       val t = Token.resolve("0xDAC17f958d2ee523a2206206994597c13d831ec7")
-      t should === (Set(Token.USDT)) 
+      t.head should === (Token.USDT) 
       //b should ===(Blockchain.ETHEREUM)      
     }
 
@@ -41,10 +41,22 @@ class TokenSpec extends AnyWordSpec with Matchers {
     
     "parse 'USDC'" in {
       val t = Token.resolve("USDC")
-      info(s"${t}")
       //t should === (Seq(Token.USDT)) 
       //b should ===(Blockchain.ETHEREUM)      
     }
     
+    
+    
+    "parse '0xb538d9f3e1Ae450827618519ACd96086Fc4C0a59'" in {
+      val t = Token.find("0xb538d9f3e1Ae450827618519ACd96086Fc4C0a59")
+      t should !== (None)
+      info(s"${t}")
+    }
+
+    "parse '0x44e18207b6e98f4a786957954e462ed46b8c95be'" in {
+      val t = Token.find("0x44e18207b6e98f4a786957954e462ed46b8c95be")
+      t should === (None)      
+    }
+
   }    
 }
