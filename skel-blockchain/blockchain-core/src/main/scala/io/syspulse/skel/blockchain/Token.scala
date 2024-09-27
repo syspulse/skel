@@ -125,5 +125,5 @@ object Token {
     }    
   }
 
-  def find(addr:String) = tokensAddr.get(addr.toLowerCase)
+  def find(addr:String) = tokensAddr.get(addr.toLowerCase).map(_.head)
 }

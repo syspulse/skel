@@ -45,7 +45,12 @@ class TokenSpec extends AnyWordSpec with Matchers {
       //b should ===(Blockchain.ETHEREUM)      
     }
     
-    
+
+    "parse '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'" in {
+      val t = Token.find("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
+      t should !== (None)
+      info(s"${t}")
+    }
     
     "parse '0xb538d9f3e1Ae450827618519ACd96086Fc4C0a59'" in {
       val t = Token.find("0xb538d9f3e1Ae450827618519ACd96086Fc4C0a59")
