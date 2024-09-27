@@ -24,7 +24,19 @@ class WhoisResolver extends RegistryResolver {
 
   def resolve(domain:String):Try[DnsInfo] = getInfo(domain,None)
 
-  val tsFormatISO = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssX")
+  val tsFormatISO = Seq(
+    DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssX"),
+    DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSX")
+  )
+
+  def parseDate(date:String) = {
+    tsFormatISO.map(f => Try(OffsetDateTime.parse(date,f)))
+      .find(_.isSuccess)
+      .map(_.get)
+      .get
+      .toInstant
+      .toEpochMilli
+  }
 
   // extracts root DNS zone and returns whois server
   def getZoneWhois(domain:String)(implicit whois:WhoisClient):Try[String] = {
@@ -99,7 +111,7 @@ class WhoisResolver extends RegistryResolver {
       val created = ss.filter(_.startsWith("Creation Date:")).flatMap(d => {        
         d.split("Creation Date:").toList match {
           case _ :: exp :: Nil =>
-            val ts = OffsetDateTime.parse(exp.trim,tsFormatISO).toInstant.toEpochMilli
+            val ts = parseDate(exp.trim) // DateTime.parse(exp.trim,tsFormatISO).toInstant.toEpochMilli
             Some(ts)
           case v => 
             log.warn(s"failed to parse Creation Date: ${d}")
@@ -110,7 +122,7 @@ class WhoisResolver extends RegistryResolver {
       val updated = ss.filter(_.startsWith("Updated Date:")).flatMap(d => {
         d.split("Updated Date:").toList match {
           case _ :: exp :: Nil => 
-            val ts = OffsetDateTime.parse(exp.trim,tsFormatISO).toInstant.toEpochMilli
+            val ts = parseDate(exp.trim)
             Some(ts)
           case _ => 
             log.warn(s"failed to parse Update Date: ${d}")
@@ -121,7 +133,7 @@ class WhoisResolver extends RegistryResolver {
       val expire = ss.filter(_.startsWith("Registry Expiry Date:")).flatMap(d => {
         d.split("Registry Expiry Date:").toList match {
           case _ :: exp :: Nil => 
-            val ts = OffsetDateTime.parse(exp.trim,tsFormatISO).toInstant.toEpochMilli
+            val ts = parseDate(exp.trim) //OffsetDateTime.parse(exp.trim,tsFormatISO).toInstant.toEpochMilli
             Some(ts)
           case _ => 
             log.warn(s"failed to parse Expiration Date: ${d}")
