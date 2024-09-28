@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import Map, { Source, Layer, Marker } from 'react-map-gl';
 import * as turf from '@turf/turf';
 import { Area } from '../core/Area.ts';
@@ -22,6 +22,9 @@ function HexagonMap({
     latitude: 37.7749,
     zoom: 10
   });
+  const [cursor, setCursor] = useState('grab');
+  const mapRef = useRef();
+  const sourceRef = useRef(null);
 
   useEffect(() => {
     if (mapCenter) {
@@ -34,8 +37,6 @@ function HexagonMap({
       }));
     }
   }, [mapCenter]);
-
-  const [cursor, setCursor] = useState('grab');
 
   const createHexagon = useCallback((center, id, radius) => {
     const options = { steps: 6, units: 'kilometers' };
@@ -141,6 +142,39 @@ function HexagonMap({
     };
   }, [aircraft]);
 
+  useEffect(() => {
+    if (!selectedAircraft) {
+      setPathData(null);
+      return;
+    }
+    
+    const newPathData = {
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: selectedAircraft.recentPositions
+        }
+      }]
+    };
+
+    setPathData(newPathData);
+
+    // Update the existing source if it exists
+    if (sourceRef.current) {
+      sourceRef.current.setData(newPathData);
+    }
+
+  }, [aircraft, selectedAircraft]);
+
+  const onSourceLoad = (e) => {
+    sourceRef.current = e.target.getSource('selected-aircraft-path');
+  };
+
+  const [pathData, setPathData] = useState(null);
+
   return (
     <Map
       {...viewState}
@@ -155,6 +189,7 @@ function HexagonMap({
       onMouseLeave={onMouseLeave}
       cursor={cursor}
       doubleClickZoom={false}
+      ref={mapRef}
     >
       {hexagons && (
         <Source type="geojson" data={hexagons}>
@@ -229,7 +264,7 @@ function HexagonMap({
         />
       </Source>
 
-      {selectedAircraft && selectedAircraftPathData && (
+      {/* {selectedAircraft && selectedAircraftPathData && (
         <Source key={pathKey} type="geojson" data={selectedAircraftPathData}>
           <Layer
             id="selected-aircraft-path"
@@ -241,7 +276,25 @@ function HexagonMap({
             }}
           />
         </Source>
-      )}
+      )} */}
+      
+      <Source 
+        id="selected-aircraft-path"
+        type="geojson" 
+        data={pathData || { type: 'FeatureCollection', features: [] }}
+        onLoad={onSourceLoad}
+      >
+        <Layer
+          id="selected-aircraft-path-layer"
+          type="line"
+          paint={{
+            'line-color': '#FF00FF',  // Bright magenta
+            'line-width': 5,
+            'line-opacity': 1
+          }}
+        />
+      </Source>
+
     </Map>
   );
 }
