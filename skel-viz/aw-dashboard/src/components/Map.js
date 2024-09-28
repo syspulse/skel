@@ -15,6 +15,8 @@ function HexagonMap({
   selectedAircraft, 
   onAircraftSelect 
 }) {
+  const [pathKey, setPathKey] = useState(0);
+
   const [viewState, setViewState] = useState({
     longitude: -122.4194,
     latitude: 37.7749,
@@ -122,6 +124,23 @@ function HexagonMap({
     };
   }, [aircraft]);
 
+  const selectedAircraftPathData = useMemo(() => {
+    if (!selectedAircraft) return null;
+    
+    setPathKey(prevKey => prevKey + 1);
+    return {
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: selectedAircraft.recentPositions
+        }
+      }]
+    };
+  }, [aircraft]);
+
   return (
     <Map
       {...viewState}
@@ -209,6 +228,20 @@ function HexagonMap({
           }}
         />
       </Source>
+
+      {selectedAircraft && selectedAircraftPathData && (
+        <Source key={pathKey} type="geojson" data={selectedAircraftPathData}>
+          <Layer
+            id="selected-aircraft-path"
+            type="line"
+            paint={{
+              'line-color': '#FF0000',  // Red for selected aircraft
+              'line-width': 2,
+              'line-opacity': 0.7
+            }}
+          />
+        </Source>
+      )}
     </Map>
   );
 }

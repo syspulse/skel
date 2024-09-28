@@ -43,9 +43,12 @@ function App() {
     const center = [-122.4194, 37.7749]; // San Francisco coordinates
     const radius = 0.5; // 50 km radius
     return [
-      new Aircraft(1, 'SFO001', 'A1B2C3', 0.001, center[0], center[1] + radius),
-      new Aircraft(2, 'SFO002', 'D4E5F6', 0.002, center[0] + radius, center[1]),
-      new Aircraft(3, 'SFO003', 'G7H8I9', 0.003, center[0], center[1] - radius),
+      // new Aircraft(1, 'SFO001', 'A1B2C3', 0.1, center[0], center[1] + radius),
+      // new Aircraft(2, 'SFO002', 'D4E5F6', 0.5, center[0] + radius, center[1]),
+      // new Aircraft(3, 'SFO003', 'G7H8I9', 3.0, center[0], center[1] - radius),
+      new Aircraft(1, 'SFO001', 'A1B2C3', 0.5, center[0], center[1]),
+      new Aircraft(2, 'SFO002', 'D4E5F6', 1.0, center[0] , center[1]),
+      new Aircraft(3, 'SFO003', 'G7H8I9', 3.0, center[0], center[1]),
     ];
   }, []);
 
@@ -143,7 +146,7 @@ function App() {
           mapCenter={mapCenter}
           aircraft={aircraft}
           selectedAircraft={selectedAircraft}
-          onAircraftSelect={handleAircraftSelect}
+          onAircraftSelect={handleAircraftSelect}          
         />
         {selectedHexagon && (
           <PropertyPanel

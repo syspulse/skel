@@ -9,6 +9,7 @@ export class Aircraft {
   latitude: number;
   angle: number;
   bearing: number;
+  recentPositions: [number, number][]; // Store recent positions
 
   constructor(id: number, callsign: string, icao: string, velocity: number, longitude: number, latitude: number) {
     this.id = id;
@@ -17,13 +18,25 @@ export class Aircraft {
     this.velocity = velocity;
     this.longitude = longitude;
     this.latitude = latitude;
-    this.angle = Math.random() * 360; // Random initial angle
+    this.angle = Math.random() * 360;
+    this.bearing = Math.random() * 360;
+    //this.recentPositions = [[longitude, latitude]];
+    this.recentPositions = [];
   }
 
+  updatePosition(newLongitude: number, newLatitude: number) {
+    this.longitude = newLongitude;
+    this.latitude = newLatitude;
+    this.recentPositions.push([newLongitude, newLatitude]);
+    if (this.recentPositions.length > 50) {
+      this.recentPositions.shift(); // Remove oldest position if we have more than 5
+    }
+  }
 }
 
-const SF_CENTER_LAT = 37.7749;
 const SF_CENTER_LON = -122.4194;
+const SF_CENTER_LAT = 37.7749;
+
 const RADIUS = 0.1; // Adjust this value to change the circle size
 
 export function planeMove(aircraft: Aircraft) {
@@ -32,7 +45,7 @@ export function planeMove(aircraft: Aircraft) {
   const prevLat = aircraft.latitude;
 
   // Increase the angle by a small amount (adjust for speed)
-  aircraft.angle += 1;
+  aircraft.angle += 1 * aircraft.velocity;
   aircraft.angle %= 360;
 
   const angleRad = aircraft.angle * (Math.PI / 180);
@@ -46,8 +59,7 @@ export function planeMove(aircraft: Aircraft) {
   //(Math.atan2(newLon - prevLon, newLat - prevLat) * 180 / Math.PI + 360) % 360;
 
   // Update position
-  aircraft.longitude = newLon;
-  aircraft.latitude = newLat;
+  aircraft.updatePosition(newLon, newLat);
 
   return aircraft;
 }
