@@ -124,41 +124,36 @@ function HexagonMap({
       })})
     };
   }, [aircraft]);
-
-  const selectedAircraftPathData = useMemo(() => {
-    if (!selectedAircraft) return null;
-    
-    setPathKey(prevKey => prevKey + 1);
-    return {
-      type: 'FeatureCollection',
-      features: [{
-        type: 'Feature',
-        properties: {},
-        geometry: {
-          type: 'LineString',
-          coordinates: selectedAircraft.recentPositions
-        }
-      }]
-    };
-  }, [aircraft]);
-
+  
   useEffect(() => {
     if (!selectedAircraft) {
       setPathData(null);
       return;
     }
     
-    const newPathData = {
-      type: 'FeatureCollection',
-      features: [{
+    const features = [];
+    for (let i = 1; i < selectedAircraft.recentPositions.length; i++) {
+      const index = Math.floor(i / (selectedAircraft.recentPositions.length / blueGradient.length));
+      features.push({
         type: 'Feature',
-        properties: {},
+        properties: {
+          segmentIndex: index
+        },
         geometry: {
           type: 'LineString',
-          coordinates: selectedAircraft.recentPositions
+          coordinates: [
+            selectedAircraft.recentPositions[i - 1],
+            selectedAircraft.recentPositions[i]
+          ]
         }
-      }]
+      });
+    }
+
+    const newPathData = {
+      type: 'FeatureCollection',
+      features: features
     };
+
 
     setPathData(newPathData);
 
@@ -169,11 +164,85 @@ function HexagonMap({
 
   }, [aircraft, selectedAircraft]);
 
+  // useEffect(() => {
+  //   if (!selectedAircraft) {
+  //     setPathData(null);
+  //     return;
+  //   }
+    
+  //   const newPathData = {
+  //     type: 'FeatureCollection',
+  //     features: [{
+  //       type: 'Feature',
+  //       properties: {
+  //         segmentIndex: 0
+  //       },
+  //       geometry: {
+  //         type: 'LineString',
+  //         coordinates: selectedAircraft.recentPositions
+  //       }
+  //     }]
+  //   };
+
+  //   setPathData(newPathData);
+
+  //   // Update the existing source if it exists
+  //   if (sourceRef.current) {
+  //     sourceRef.current.setData(newPathData);
+  //   }
+
+  // }, [aircraft, selectedAircraft]);
+
+  // useEffect(() => {
+  //   if (!selectedAircraft || selectedAircraft.recentPositions.length < 2) {
+  //     setPathData(null);
+  //     return;
+  //   }
+
+  //   const features = [];
+  //   for (let i = 1; i < selectedAircraft.recentPositions.length; i++) {
+  //     features.push({
+  //       type: 'Feature',
+  //       properties: {
+  //         segmentIndex: i % blueGradient
+  //       },
+  //       geometry: {
+  //         type: 'LineString',
+  //         coordinates: [
+  //           selectedAircraft.recentPositions[i - 1],
+  //           selectedAircraft.recentPositions[i]
+  //         ]
+  //       }
+  //     });
+  //   }
+
+  //   const newPathData = {
+  //     type: 'FeatureCollection',
+  //     features: features
+  //   };
+
+  //   setPathData(newPathData);
+
+  //   if (sourceRef.current) {
+  //     sourceRef.current.setData(newPathData);
+  //   }
+
+  // }, [selectedAircraft,selectedAircraft]);
+
   const onSourceLoad = (e) => {
     sourceRef.current = e.target.getSource('selected-aircraft-path');
   };
 
   const [pathData, setPathData] = useState(null);
+
+  const blueGradient = [
+    "#0087FF",  // Darkest blue
+    "#339FFF",
+    "#66B7FF",
+    "#99CFFF",
+    "#CCE7FF"   // Lightest blue
+  ];
+
 
   return (
     <Map
@@ -263,20 +332,6 @@ function HexagonMap({
           }}
         />
       </Source>
-
-      {/* {selectedAircraft && selectedAircraftPathData && (
-        <Source key={pathKey} type="geojson" data={selectedAircraftPathData}>
-          <Layer
-            id="selected-aircraft-path"
-            type="line"
-            paint={{
-              'line-color': '#FF0000',  // Red for selected aircraft
-              'line-width': 2,
-              'line-opacity': 0.7
-            }}
-          />
-        </Source>
-      )} */}
       
       <Source 
         id="selected-aircraft-path"
@@ -287,10 +342,21 @@ function HexagonMap({
         <Layer
           id="selected-aircraft-path-layer"
           type="line"
+          layout={{
+            'line-cap': 'round',
+            'line-join': 'round'
+          }}
           paint={{
-            'line-color': '#FF00FF',  // Bright magenta
-            'line-width': 5,
-            'line-opacity': 1
+            'line-width': 3,
+            'line-color': [
+              'match',
+              ['get', 'segmentIndex'],
+              0, blueGradient[0],
+              1, blueGradient[1],
+              2, blueGradient[2],
+              3, blueGradient[3],
+              blueGradient[4]  // default color for any other value
+            ]
           }}
         />
       </Source>
