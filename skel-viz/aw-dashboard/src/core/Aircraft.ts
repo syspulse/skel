@@ -28,7 +28,7 @@ export class Aircraft {
     this.longitude = newLongitude;
     this.latitude = newLatitude;
     this.recentPositions.push([newLongitude, newLatitude]);
-    if (this.recentPositions.length > 50) {
+    if (this.recentPositions.length > 10) {
       this.recentPositions.shift(); // Remove oldest position if we have more than 5
     }
   }

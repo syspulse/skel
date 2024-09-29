@@ -13,15 +13,17 @@ function HexagonMap({
   mapCenter, 
   aircraft, 
   selectedAircraft, 
-  onAircraftSelect 
+  onAircraftSelect,
+  viewState,
+  setViewState
 }) {
   const [pathKey, setPathKey] = useState(0);
 
-  const [viewState, setViewState] = useState({
-    longitude: -122.4194,
-    latitude: 37.7749,
-    zoom: 10
-  });
+  // const [viewState, setViewState] = useState({
+  //   longitude: -122.4194,
+  //   latitude: 37.7749,
+  //   zoom: 10
+  // });
   const [cursor, setCursor] = useState('grab');
   const mapRef = useRef();
   const sourceRef = useRef(null);

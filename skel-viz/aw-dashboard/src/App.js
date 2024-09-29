@@ -7,6 +7,7 @@ import * as turf from '@turf/turf';
 import { Area } from './core/Area.ts';
 import { Aircraft, planeMove } from './core/Aircraft.ts';
 import './App.css';
+import DEFAULT_LOCATIONS from './core/Location.js';
 
 function App() {
   const [hexagons, setHexagons] = useState(null);
@@ -14,6 +15,7 @@ function App() {
   const [mapCenter, setMapCenter] = useState(null);
   const [aircraft, setAircraft] = useState([]);
   const [selectedAircraftId, setSelectedAircraftId] = useState(null);
+  const [mapViewState, setMapViewState] = useState(DEFAULT_LOCATIONS['San Francisco']);
 
   const createInitialHexagons = useCallback(() => {
     const bbox = [-122.5, 37.7, -122.3, 37.9]; // Bounding box for San Francisco
@@ -134,9 +136,16 @@ function App() {
   // Derive selectedAircraft from aircraft and selectedAircraftId
   const selectedAircraft = aircraft.find(a => a.id === selectedAircraftId);
 
+  const handleLocationChange = (newLocation) => {
+    setMapViewState(newLocation);
+  };
+
   return (
     <div className="app">
-      <TopPanel onSearch={handleSearch} />
+      <TopPanel 
+        onSearch={handleSearch} 
+        onLocationChange={handleLocationChange}
+      />
       <div className="main-content">
         <HexagonMap
           onHexagonSelect={handleHexagonSelect}
@@ -147,6 +156,8 @@ function App() {
           aircraft={aircraft}
           selectedAircraft={selectedAircraft}
           onAircraftSelect={handleAircraftSelect}          
+          viewState={mapViewState}          
+          setViewState={setMapViewState}
         />
         {selectedHexagon && (
           <PropertyPanel
