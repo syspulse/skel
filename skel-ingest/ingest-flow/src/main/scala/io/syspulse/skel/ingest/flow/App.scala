@@ -20,6 +20,8 @@ import io.syspulse.skel.config._
 
 import io.syspulse.skel.ingest._
 import io.syspulse.skel.ingest.store._
+import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
 
 
 case class Config(
@@ -79,6 +81,7 @@ object App extends skel.Server {
                 
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
+        ArgCmd("flow","Flow Command"),
         
         ArgParam("<processors>","List of processors (none/map,print,dedup)"),
         ArgLogging(),
@@ -126,19 +129,22 @@ object App extends skel.Server {
 
     val r = config.cmd match {
       case "server" => 
-        // run( config.host, config.port,config.uri,c,
-        //   Seq(
-        //     (VideoRegistry(store),"VideoRegistry",(r, ac) => new server.VideoRoutes(r)(ac) )
-        //   )
-        // )
         Console.err.println(s"Not supported")
         sys.exit(1)
       case "ingest" => {
         val f1 = new PipelineTextline(config.feed,config.output)        
-        val r = f1.run()
+        f1.run()
+      }
+      
+      case "flow" => 
+        // only for testng
+        import TextlineJson._        
+        val source = Flows.fromStdin().map(d => Textline(d.utf8String))
+        val sink =Flows.toStdout[Textline]()
         
-        r
-      }     
+        implicit val system: ActorSystem = ActorSystem("flow")
+        implicit val materializer: ActorMaterializer = ActorMaterializer()(system)
+        source.runWith(sink)
     }
 
     Console.err.println(s"r = ${r}")
