@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import TopPanel from './components/TopPanel';
 import HexagonMap from './components/Map';
 import PropertyPanel from './components/PropertyPanel';
@@ -16,6 +16,86 @@ function App() {
   const [aircraft, setAircraft] = useState([]);
   const [selectedAircraftId, setSelectedAircraftId] = useState(null);
   const [mapViewState, setMapViewState] = useState(DEFAULT_LOCATIONS['San Francisco']);
+  const lastUpdateRef = useRef({});
+
+  const connectWebSocket = useCallback(() => {
+    console.log('Attempting to connect to WebSocket...');
+    const socket = new WebSocket('ws://localhost:9300');
+
+    socket.onopen = (event) => {
+      console.log('WebSocket connection opened:', event);      
+    };
+
+    socket.onmessage = (event) => {
+      //console.log('WebSocket message received:', event.data);
+      try {
+        const data = JSON.parse(event.data);
+        updateAircraft(data);
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+
+    socket.onclose = (event) => {
+      console.log('WebSocket connection closed. Details:', {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean
+      });
+      
+      setTimeout(connectWebSocket, 1000);
+    };
+
+    socket.onerror = (error) => {
+      console.error('WebSocket error:', error);      
+    };
+
+    return socket;
+  }, []);
+
+  const updateAircraft = useCallback((data) => {
+    console.log("updateAircraft ============>",data.addr);
+    
+    const updateKey = `${data.addr.icaoId}-${data.loc.lat}-${data.loc.lon}-${data.loc.alt.alt}`;
+    if (lastUpdateRef.current[updateKey]) {
+      console.log(`>>> Skipping update: ${data.addr.icaoId}`);
+      return;
+    }
+    lastUpdateRef.current[updateKey] = true;
+
+    const updatedAircraft = {
+      id: data.addr.icaoId, // Use icaoId as the unique identifier
+      callsign: data.addr.icaoCallsign,
+      icaoId: data.addr.icaoId,
+      altitude: data.loc.alt.alt,
+      longitude: data.loc.lon,
+      latitude: data.loc.lat,
+    };
+
+    setAircraft(prevAircraft => {
+      const existingIndex = prevAircraft.findIndex(a => a.icaoId === data.addr.icaoId);
+      if (existingIndex !== -1) {
+        // Update existing aircraft
+        return prevAircraft.map((aircraft, index) => 
+          index === existingIndex ? { ...aircraft, ...updatedAircraft } : aircraft
+        );
+      } else {
+        // Add new aircraft
+        return [...prevAircraft, updatedAircraft];
+      }
+    });
+
+    console.log("Aircraft state updated:", updatedAircraft);
+  }, []); // Empty dependency array
+
+  useEffect(() => {
+    const socket = connectWebSocket();
+
+    return () => {
+      console.log('Cleaning up WebSocket connection...');
+      socket.close();
+    };
+  }, [connectWebSocket]);
 
   const createInitialHexagons = useCallback(() => {
     const bbox = [-122.5, 37.7, -122.3, 37.9]; // Bounding box for San Francisco
@@ -60,15 +140,15 @@ function App() {
     }
   }, [aircraft, createInitialAircraft]);
 
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      setAircraft(prevAircraft => {
-        return prevAircraft.map(plane => planeMove(plane));
-      });
-    }, 1000);
+  // useEffect(() => {
+  //   const intervalId = setInterval(() => {
+  //     setAircraft(prevAircraft => {
+  //       return prevAircraft.filter(plane => plane.callsign.startsWith('SF')).map(plane => planeMove(plane));
+  //     });
+  //   }, 1000);
 
-    return () => clearInterval(intervalId);
-  }, []);
+  //   return () => clearInterval(intervalId);
+  // }, []);
 
   const handleHexagonSelect = useCallback((hexagon) => {
     setSelectedHexagon(hexagon);

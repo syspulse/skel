@@ -245,6 +245,7 @@ function HexagonMap({
     "#CCE7FF"   // Lightest blue
   ];
 
+  console.log("aircraft",aircraft.length);
 
   return (
     <Map

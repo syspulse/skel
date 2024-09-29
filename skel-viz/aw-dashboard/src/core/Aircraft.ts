@@ -3,7 +3,7 @@ import * as turf from '@turf/turf';
 export class Aircraft {
   id: number;
   callsign: string;
-  icao: string;
+  icaoId  : string;
   velocity: number;
   longitude: number;
   latitude: number;
@@ -11,10 +11,10 @@ export class Aircraft {
   bearing: number;
   recentPositions: [number, number][]; // Store recent positions
 
-  constructor(id: number, callsign: string, icao: string, velocity: number, longitude: number, latitude: number) {
+  constructor(id: number, callsign: string, icaoId: string, velocity: number, longitude: number, latitude: number) {
     this.id = id;
     this.callsign = callsign;
-    this.icao = icao;
+    this.icaoId = icaoId;
     this.velocity = velocity;
     this.longitude = longitude;
     this.latitude = latitude;
@@ -40,6 +40,9 @@ const SF_CENTER_LAT = 37.7749;
 const RADIUS = 0.1; // Adjust this value to change the circle size
 
 export function planeMove(aircraft: Aircraft) {
+
+  if(!aircraft.callsign.startsWith('SF')) return aircraft;
+
   // Store previous position
   const prevLon = aircraft.longitude;
   const prevLat = aircraft.latitude;
