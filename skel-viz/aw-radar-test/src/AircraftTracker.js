@@ -44,18 +44,18 @@ const AircraftTracker = () => {
     return () => clearInterval(timer2);
   }, [updateAircraftCoordinates]);
 
-  // Timer 3: Updates Aircrafts with ID > 10
-  useEffect(() => {
-    const timer3 = setInterval(() => {
-      aircrafts.forEach((aircraft) => {
-        if (parseInt(aircraft.id) > 10) {
-          updateAircraftCoordinates(aircraft.id);
-        }
-      });
-    }, 250); // Update every 0.5 seconds
+  // // Timer 3: Updates Aircrafts with ID > 10
+  // useEffect(() => {
+  //   const timer3 = setInterval(() => {
+  //     aircrafts.forEach((aircraft) => {
+  //       if (parseInt(aircraft.id) > 10) {
+  //         updateAircraftCoordinates(aircraft.id);
+  //       }
+  //     });
+  //   }, 250); // Update every 0.5 seconds
 
-    return () => clearInterval(timer3);
-  }, [aircrafts, updateAircraftCoordinates]);
+  //   return () => clearInterval(timer3);
+  // }, [aircrafts, updateAircraftCoordinates]);
 
   // Connect to WebSocket server
   useEffect(() => {
@@ -68,13 +68,29 @@ const AircraftTracker = () => {
 
     ws.onmessage = (event) => {
       const message = event.data;
-      setAircrafts(prevAircrafts => {
-        const newAircrafts = new Map(prevAircrafts);
-        if (!newAircrafts.has(message)) {
-          newAircrafts.set(message, { id: message, name: `Aircraft ${message}`, lon: 0, lat: 0 });
-        }
-        return newAircrafts;
-      });
+      const messageNumber = parseInt(message);
+      const id = 10 + messageNumber % 3
+
+      if (!isNaN(messageNumber) && id != 0) {        
+        // Add new aircraft if message is a number divisible by 3
+        setAircrafts(prevAircrafts => {
+          const newAircrafts = new Map(prevAircrafts);
+          newAircrafts.set(id, { id: id, name: `Aircraft ${message}`, lon: 0, lat: 0 });
+          return newAircrafts;
+        });
+        // Immediately update the coordinates of the new aircraft
+        updateAircraftCoordinates(id);
+      } else {
+        // Update a random existing aircraft
+        setAircrafts(prevAircrafts => {
+          const aircraftIds = Array.from(prevAircrafts.keys());
+          if (aircraftIds.length > 0) {
+            const randomId = aircraftIds[Math.floor(Math.random() * aircraftIds.length)];
+            updateAircraftCoordinates(randomId);
+          }
+          return prevAircrafts;
+        });
+      }
     };
 
     ws.onerror = (error) => {
@@ -90,7 +106,7 @@ const AircraftTracker = () => {
         ws.close();
       }
     };
-  }, [setAircrafts]);
+  }, [updateAircraftCoordinates]);
 
   const Row = ({ index, style }) => {
     const aircraft = Array.from(aircrafts.values())[index];
@@ -104,8 +120,9 @@ const AircraftTracker = () => {
   return (
     <div>
       
-      <List
-        height={400}
+      <List 
+        style={{ border: '1px solid #100', backgroundColor: 'gray' }}
+        height={600}
         itemCount={aircrafts.size}
         itemSize={35}
         // width={300}
