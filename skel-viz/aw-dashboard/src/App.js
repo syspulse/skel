@@ -63,14 +63,14 @@ function App() {
     }
     lastUpdateRef.current[updateKey] = true;
 
-    const updatedAircraft = {
-      id: data.addr.icaoId, // Use icaoId as the unique identifier
-      callsign: data.addr.icaoCallsign,
-      icaoId: data.addr.icaoId,
-      altitude: data.loc.alt.alt,
-      longitude: data.loc.lon,
-      latitude: data.loc.lat,
-    };
+    const updatedAircraft = new Aircraft(
+      data.addr.icaoId, // Use icaoId as the unique identifier
+      data.addr.icaoCallsign,
+      data.addr.icaoId,
+      data.loc.vel, // SHOULD BE ALTITUDE !
+      data.loc.lon,
+      data.loc.lat,
+    );
 
     setAircraft(prevAircraft => {
       const existingIndex = prevAircraft.findIndex(a => a.icaoId === data.addr.icaoId);
