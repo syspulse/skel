@@ -27,6 +27,33 @@ const AircraftTracker = () => {
     });
   }, []);
 
+  // Function to handle aircraft updates based on WebSocket messages
+  const handleAircraftUpdate = useCallback((message) => {
+    const messageNumber = parseInt(message);
+    const id = 10 + messageNumber % 3;
+
+    if (!isNaN(messageNumber) && id !== 0) {        
+      // Add new aircraft if message is a number divisible by 3
+      setAircrafts(prevAircrafts => {
+        const newAircrafts = new Map(prevAircrafts);
+        newAircrafts.set(id, { id: id, name: `Aircraft ${message}`, lon: 0, lat: 0 });
+        return newAircrafts;
+      });
+      // Immediately update the coordinates of the new aircraft
+      updateAircraftCoordinates(id);
+    } else {
+      // Update a random existing aircraft
+      setAircrafts(prevAircrafts => {
+        const aircraftIds = Array.from(prevAircrafts.keys());
+        if (aircraftIds.length > 0) {
+          const randomId = aircraftIds[Math.floor(Math.random() * aircraftIds.length)];
+          updateAircraftCoordinates(randomId);
+        }
+        return prevAircrafts;
+      });
+    }
+  }, [updateAircraftCoordinates]);
+
   // Timer 1: Updates AC1 and AC2
   useEffect(() => {
     const timer1 = setInterval(() => {
@@ -73,30 +100,7 @@ const AircraftTracker = () => {
     };
 
     ws.onmessage = (event) => {
-      const message = event.data;
-      const messageNumber = parseInt(message);
-      const id = 10 + messageNumber % 3
-
-      if (!isNaN(messageNumber) && id != 0) {        
-        // Add new aircraft if message is a number divisible by 3
-        setAircrafts(prevAircrafts => {
-          const newAircrafts = new Map(prevAircrafts);
-          newAircrafts.set(id, { id: id, name: `Aircraft ${message}`, lon: 0, lat: 0 });
-          return newAircrafts;
-        });
-        // Immediately update the coordinates of the new aircraft
-        updateAircraftCoordinates(id);
-      } else {
-        // Update a random existing aircraft
-        setAircrafts(prevAircrafts => {
-          const aircraftIds = Array.from(prevAircrafts.keys());
-          if (aircraftIds.length > 0) {
-            const randomId = aircraftIds[Math.floor(Math.random() * aircraftIds.length)];
-            updateAircraftCoordinates(randomId);
-          }
-          return prevAircrafts;
-        });
-      }
+      handleAircraftUpdate(event.data);
     };
 
     ws.onerror = (error) => {
@@ -116,7 +120,7 @@ const AircraftTracker = () => {
     };
 
     return ws;
-  }, [updateAircraftCoordinates]);
+  }, [handleAircraftUpdate]);
 
   // Connect to WebSocket server
   useEffect(() => {
@@ -131,13 +135,21 @@ const AircraftTracker = () => {
         reconnectTimeoutRef.current = null;
       }
     };
-  }, [updateAircraftCoordinates]);
+  }, [connectWebSocket]);
 
   const Row = ({ index, style }) => {
     const aircraft = Array.from(aircrafts.values())[index];
+    let idClass = '';
+    
+    if (aircraft.id === 'AC3') {
+      idClass = 'aircraft-id-ac3';
+    } else if (parseInt(aircraft.id) >= 10) {
+      idClass = 'aircraft-id-new';
+    }
+
     return (
       <div className="aircraft-row" style={style}>
-        {aircraft.id}: {aircraft.name}: ({aircraft.lon.toFixed(2)}, {aircraft.lat.toFixed(2)})
+        <span className={idClass}>{aircraft.id}</span>: {aircraft.name}: ({aircraft.lon.toFixed(2)}, {aircraft.lat.toFixed(2)})
       </div>
     );
   };

@@ -1,7 +1,7 @@
 .aircraft-tracker {
-  width: 450px;
+  width: 500px;
   background-color: gray;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .aircraft-list {
@@ -14,4 +14,16 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.aircraft-row span {
+  font-weight: bold;
+}
+
+.aircraft-id-ac3 {
+  color: darkblue;
+}
+
+.aircraft-id-new {
+  color: darkgreen;
 }
