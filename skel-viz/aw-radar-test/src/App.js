@@ -5,9 +5,9 @@ import AircraftTracker from './AircraftTracker';
 function App() {
   return (
     <div className="App">
-      <header className="App-header">        
+      <div className="tracker-container">
         <AircraftTracker />
-      </header>
+      </div>
     </div>
   );
 }

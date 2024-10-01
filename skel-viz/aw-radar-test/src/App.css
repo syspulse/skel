@@ -1,5 +1,29 @@
 .App {
-  text-align: left;
+  text-align: center;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #131313;
+}
+
+.tracker-container {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  padding: 20px;
+}
+
+/* You may want to adjust or remove some of the existing styles */
+.App-header {
+  background-color: #4573ce;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: rgb(43, 43, 43);
 }
 
 .App-logo {
@@ -11,17 +35,6 @@
   .App-logo {
     animation: App-logo-spin infinite 20s linear;
   }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: left;
-  justify-content: left;
-  font-size: calc(10px + 2vmin);
-  color: white;
 }
 
 .App-link {

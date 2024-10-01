@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FixedSizeList as List } from 'react-window';
+import './AircraftTracker.css';
 
 const AircraftTracker = () => {
   const [aircrafts, setAircrafts] = useState(new Map([
@@ -8,6 +9,7 @@ const AircraftTracker = () => {
     ['AC3', { id: 'AC3', name: 'Aircraft 3', lon: 0, lat: 0 }],
   ]));
   const [socket, setSocket] = useState(null);
+  const reconnectTimeoutRef = useRef(null);
 
   // Function to update aircraft coordinates
   const updateAircraftCoordinates = useCallback((aircraftId) => {
@@ -57,13 +59,17 @@ const AircraftTracker = () => {
   //   return () => clearInterval(timer3);
   // }, [aircrafts, updateAircraftCoordinates]);
 
-  // Connect to WebSocket server
-  useEffect(() => {
+  // WebSocket connection function
+  const connectWebSocket = useCallback(() => {
     const ws = new WebSocket('ws://localhost:9300');
     
     ws.onopen = () => {
       console.log('Connected to WebSocket server');
       setSocket(ws);
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
     };
 
     ws.onmessage = (event) => {
@@ -99,11 +105,30 @@ const AircraftTracker = () => {
 
     ws.onclose = () => {
       console.log('Disconnected from WebSocket server');
+      setSocket(null);
+
+      // Implement reconnection with exponential backoff
+      const reconnectDelay = 1000;
+      console.log(`Attempting to reconnect in ${reconnectDelay}ms`);
+      reconnectTimeoutRef.current = setTimeout(() => {
+        connectWebSocket();
+      }, reconnectDelay);
     };
+
+    return ws;
+  }, [updateAircraftCoordinates]);
+
+  // Connect to WebSocket server
+  useEffect(() => {
+    const ws = connectWebSocket();
 
     return () => {
       if (ws) {
         ws.close();
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
     };
   }, [updateAircraftCoordinates]);
@@ -111,21 +136,19 @@ const AircraftTracker = () => {
   const Row = ({ index, style }) => {
     const aircraft = Array.from(aircrafts.values())[index];
     return (
-      <div style={style}>
+      <div className="aircraft-row" style={style}>
         {aircraft.id}: {aircraft.name}: ({aircraft.lon.toFixed(2)}, {aircraft.lat.toFixed(2)})
       </div>
     );
   };
 
   return (
-    <div>
-      
+    <div className="aircraft-tracker">
       <List 
-        style={{ border: '1px solid #100', backgroundColor: 'gray' }}
+        className="aircraft-list"
         height={600}
         itemCount={aircrafts.size}
-        itemSize={35}
-        // width={300}
+        itemSize={30}
       >
         {Row}
       </List>
