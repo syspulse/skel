@@ -8,9 +8,9 @@ const updateDeleteMax = 3;
 
 const AircraftTracker = () => {
   const [aircrafts, setAircrafts] = useState(new Map([
-    ['AC1', { id: 'AC1', name: 'Aircraft 1', lon: 0, lat: 0, updateCount: 0 }],
-    ['AC2', { id: 'AC2', name: 'Aircraft 2', lon: 0, lat: 0, updateCount: 0 }],
-    ['AC3', { id: 'AC3', name: 'Aircraft 3', lon: 0, lat: 0, updateCount: 0 }],
+    ['AC1', { id: 'AC1', name: 'Aircraft-1', lon: 0, lat: 0, updateCount: 0 }],
+    ['AC2', { id: 'AC2', name: 'Aircraft-2', lon: 0, lat: 0, updateCount: 0 }],
+    ['AC3', { id: 'AC3', name: 'Aircraft-3', lon: 0, lat: 0, updateCount: 0 }],
   ]));
   const [socket, setSocket] = useState(null);
   const reconnectTimeoutRef = useRef(null);
@@ -44,22 +44,16 @@ const AircraftTracker = () => {
 
     setAircrafts(prevAircrafts => {
       
-      if (!isNaN(messageNumber) && id !== 0 && !prevAircrafts.has(id)) { 
-        
+      if (!isNaN(messageNumber) && id !== 0 && !prevAircrafts.has(id)) {         
         const newAircrafts = new Map(prevAircrafts);
-        newAircrafts.set(id, { id: id, name: `Aircraft ${message}`, lon: 0, lat: 0, updateCount: 0 });
-        
-        // Schedule an update for the new aircraft
-        //setTimeout(() => updateAircraftCoordinates(id), 0);
-        
+        newAircrafts.set(id, { id: id, name: `Aircraft-${message}`, lon: 0, lat: 0, updateCount: 0 });
+                
         return newAircrafts;
       } else {
         // Update a random existing aircraft
         const aircraftIds = Array.from(prevAircrafts.keys());
         if (aircraftIds.length > 0) {
           const randomId = aircraftIds[Math.floor(Math.random() * aircraftIds.length)];
-          // Schedule an update for the random aircraft
-          //setTimeout(() => updateAircraftCoordinates(randomId), 0);
           updateAircraftCoordinates(randomId)
         }
         return prevAircrafts;

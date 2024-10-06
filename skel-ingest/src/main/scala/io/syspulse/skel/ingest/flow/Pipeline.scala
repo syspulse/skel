@@ -35,7 +35,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
   extends Flows 
   with IngestFlow[I,T,O]()  {
   
-  //private val log = Logger(s"${this}")
+  private val log = Logger(s"${this}")
   
   implicit def timeout:FiniteDuration = FiniteDuration(5000, TimeUnit.MILLISECONDS)
   

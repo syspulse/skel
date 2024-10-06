@@ -5,7 +5,6 @@ import java.time.ZonedDateTime
 import io.jvm.uuid._
 
 import com.github.mjakubowski84.parquet4s._
-
 import org.apache.parquet.schema._
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY
 
@@ -145,5 +144,33 @@ object ParqCodecTypedSerializable {
   def forClass[T <: Serializable] = {
     val codec = new AbstractClassCodec[T]()
     (codec,codec.abstractTypedClassSchema)
+  }
+}
+
+// ----- Ignore ------------------------------------------------------------------------------------------------
+// usage pattern:
+// object ParqIgnore extends ParqIgnore[Textline]
+// import ParqIgnore._ 
+
+class ParqIgnore[T] {  
+  implicit val anyTypeCodec: OptionalValueCodec[T] = new OptionalValueCodec[T] {
+    override protected def decodeNonNull(value: Value, configuration: ValueCodecConfiguration): T = {
+      value match {
+          case BinaryValue(binary) =>
+            null.asInstanceOf[T]
+        }
+      }
+    override protected def encodeNonNull(data: T, configuration: ValueCodecConfiguration): Value = {
+      BinaryValue(Array.emptyByteArray)
+    }
+  }
+
+  implicit val anySchema: TypedSchemaDef[T] = {
+    SchemaDef
+      .primitive(
+        primitiveType         = PrimitiveType.PrimitiveTypeName.BINARY,
+        logicalTypeAnnotation = Option(LogicalTypeAnnotation.stringType())        
+      )
+      .typed[T]
   }
 }

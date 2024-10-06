@@ -118,7 +118,7 @@ object Flows extends Flows {
 }
 
 trait Flows {
-  val log = Logger(this.toString)
+  private val log = Logger(this.toString)
 
   val retrySettingsDefault = RestartSettings(
     minBackoff = FiniteDuration(1000L,TimeUnit.MILLISECONDS),
