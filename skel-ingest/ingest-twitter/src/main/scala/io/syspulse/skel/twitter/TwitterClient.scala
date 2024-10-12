@@ -225,7 +225,7 @@ trait TwitterClient {
             userId.map(u => Twit(
               id = td.id,
               author_id = td.author_id,
-              author_name = u.name,
+              author_name = u.username,
               text = td.text,
               created_at = OffsetDateTime.parse(td.created_at,tsFormatISOParse).toInstant.toEpochMilli
             ))   
