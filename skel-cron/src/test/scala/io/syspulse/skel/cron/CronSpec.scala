@@ -49,6 +49,13 @@ class CronSpec extends AnyWordSpec with Matchers {
   }    
 
   "CronFreq" should {
+
+    "parse only milliseconds correctly" in {
+      CronFreq.parseHuman("100") shouldBe 100L
+      CronFreq.parseHuman("1") shouldBe 1L
+      CronFreq.parseHuman("500") shouldBe 500L
+    }
+
     "parse milliseconds correctly" in {
       CronFreq.parseHuman("100 ms") shouldBe 100L
       CronFreq.parseHuman("1 millisecond") shouldBe 1L

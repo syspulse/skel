@@ -18,7 +18,8 @@ object CronFreq {
           case "day" => 86400000L
         }
         value.toLong * milliseconds
-      case _ => throw new IllegalArgumentException(s"Invalid frequency format: $freq")
+      case _ => 
+        freq.toLong
     }
   }
 }

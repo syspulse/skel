@@ -33,7 +33,7 @@ Cron expression must be passed as `CRON_EXPR="expression"`
 ### Run every 15 seconds in 5 seconds
 
 ```
-./run-cron.sh "15 sec/5000"
+./run-cron.sh "15sec/5000"
 ```
 
 
