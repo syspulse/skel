@@ -5,47 +5,56 @@ import java.io.Closeable
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Try,Success,Failure}
 
-// Simple Frequncy ticker
-class CronFreq(runner: (Long)=>Boolean, freq:String, delay0:Long = -1L, limit:Long = 0L) extends Cron[Unit] {
-  
-  // def `this`(runner: (Long)=>Boolean, freq:Duration, delay:Long, limit:Long) = {
-  //   interval = freq
-  // }
+object CronFreq {
+  def parseHuman(freq: String): Long = {
+    val pattern = """(\d+)\s*(ms|millisecond|sec|second|min|minute|hour|day)s?""".r
+    freq.toLowerCase match {
+      case pattern(value, unit) => 
+        val milliseconds = unit match {
+          case "ms" | "millisecond" => 1L
+          case "sec" | "second" => 1000L
+          case "min" | "minute" => 60000L
+          case "hour" => 3600000L
+          case "day" => 86400000L
+        }
+        value.toLong * milliseconds
+      case _ => throw new IllegalArgumentException(s"Invalid frequency format: $freq")
+    }
+  }
+}
 
+// Simple Frequncy ticker
+class CronFreq(runner: (Long)=>Boolean, freq:String, delay0:Long = 250L, limit:Long = 0L) extends Cron[Unit] {
+    
   import java.util.concurrent._
   protected val cronScheduler = new ScheduledThreadPoolExecutor(1)
   var count = 0L
   @volatile
   protected var cronFuture: Option[ScheduledFuture[_]] = None
 
-  val interval:Duration = {
-    val interval = freq.split("\\/").toList match {
-      case interval :: delay :: _ => interval     
-      //case interval :: delay :: Nil => interval
-      case interval :: Nil => interval      
+  val (interval:Long,delay:Long) = {
+    freq.split("\\/").toList match {
+      case interval :: delay :: _ => (CronFreq.parseHuman(interval),delay.toLong)
+      case interval :: Nil => (CronFreq.parseHuman(interval),delay0)
+      case _ => (1000L,delay0)
     }
-    
-    //Duration(interval)
-    FiniteDuration(interval.toLong,TimeUnit.MILLISECONDS)
   }
-
-  val delay = if(freq.contains("/")) {
-    freq.split("/").last.toLong
-  } else 
-  if(delay0 == -1)
-    interval.toMillis
-  else
-    delay0
-
+  
   def getExpr():String = freq
 
   def start():Try[Unit] = {    
     if(cronFuture.isDefined) cronFuture.get.cancel(true)
-    val task = new Runnable { 
-      def run() = runner(0L)
+    val task = new Runnable {
+      var ts0 = System.currentTimeMillis()
+      def run() = {
+        val now = System.currentTimeMillis()
+        runner(now - ts0)
+        ts0 = now
+      }
     }
     if(limit == 0L || count < limit) {
-      cronFuture = Some(cronScheduler.scheduleAtFixedRate(task, delay, interval.length, interval.unit))
+      val dur = FiniteDuration(interval,TimeUnit.MILLISECONDS)
+      cronFuture = Some(cronScheduler.scheduleAtFixedRate(task, delay, dur.length, dur.unit))
       count = count + 1
     }
     Success(())
