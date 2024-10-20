@@ -101,7 +101,7 @@ db1 {
 (while [ 1 ]; do echo `date`; sleep 1;done)| ./run-ingest.sh -o server:ws://0.0.0.0:9300/ws
 ```
 
-Connnect with clients (beware of websocat buffering):
+Connnect with 2 clients (beware of websocat buffering):
 
 ```
 websocat ws://localhost:9300/ws -B 1000000

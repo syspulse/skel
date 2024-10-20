@@ -505,7 +505,7 @@ trait Flows {
 // ==================================================================================================  
 
   def fromAkka(uri:String,bufferSize: Int = 1000, overflowStrategy: OverflowStrategy = OverflowStrategy.dropHead)
-                   : Source[ByteString, ActorRef] = {
+              (implicit as:ActorSystem) = {
     
     val akkaUri = AkkaURI(uri)
 
@@ -525,10 +525,13 @@ trait Flows {
       }
     """)
 
-    val system = ActorSystem(akkaUri.system,config)
+    val system = if(akkaUri.port.isDefined) 
+      ActorSystem(akkaUri.system,config)
+    else
+      as
 
     //val actorSelection = system.actorSelection(uri)
-    implicit val timeout: Timeout = FiniteDuration(akkaUri.timeout,TimeUnit.MILLISECONDS)
+    // implicit val timeout: Timeout = FiniteDuration(akkaUri.timeout,TimeUnit.MILLISECONDS)
 
     val sourceActor = system.actorOf(Props(new Actor {
       def receive: Receive = {
@@ -556,7 +559,7 @@ trait Flows {
   }
 
   // ----------------------------------------------------------------------------------------------------------
-  def toAkka[T <: Ingestable](uri:String,format:String)(implicit fmt:JsonFormat[T]) = {
+  def toAkka[T <: Ingestable](uri:String,format:String)(implicit fmt:JsonFormat[T],as:ActorSystem) = {
     import akka.event.Logging
     import spray.json._
 
@@ -579,22 +582,13 @@ trait Flows {
       }
     """)
 
-    val system = ActorSystem(akkaUri.system,config)
-    //val actorSelectionLocal = system.actorSelection(uri)
+    val system = if(akkaUri.port.isDefined) 
+      ActorSystem(akkaUri.system,config)
+    else
+      as
+    
     val actorSelectionRemote = system.actorSelection(uri)
-
-    implicit val timeout: Timeout = FiniteDuration(akkaUri.timeout,TimeUnit.MILLISECONDS)
-    import system.dispatcher
-
-    // val actorRemote: ActorRef = Await.result(
-    //   actorSelectionRemote.resolveOne().recoverWith {
-    //     case _: ActorNotFound =>
-    //       log.info(s"Actor not found: '${uri}'")
-    //       Future.failed(new Exception(s"Actor not found: '${uri}'"))
-    //   },
-    //   timeout.duration
-    // )
-
+    
     log.info(s"-->: ${actorSelectionRemote}")
 
     Flow[T]

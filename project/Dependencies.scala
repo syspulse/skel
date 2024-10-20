@@ -55,7 +55,7 @@ object Dependencies {
     lazy val appNameElastic = "skel-elastic"
     lazy val appBootClassElastic = "io.syspulse.skel.ingest.elastic.App"
 
-    lazy val skelVersion = "0.0.9"
+    lazy val skelVersion = "0.0.10"
     
     lazy val jarPrefix = "server-"
     
