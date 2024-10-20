@@ -56,6 +56,7 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.uri.ElasticURI
 import io.syspulse.skel.uri.KafkaURI
 import io.syspulse.skel.uri.TwitterURI
+import io.syspulse.skel.uri.AkkaURI
 import io.syspulse.skel.elastic.ElasticClient
 import io.syspulse.skel.twitter.FromTwitter
 
@@ -112,6 +113,8 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.HttpMethod
 import akka.util.Timeout
 import akka.http.scaladsl.model.ws.WebSocketRequest
+import akka.actor.ActorNotFound
+import com.typesafe.config.ConfigFactory
 
 object Flows extends Flows {
 
@@ -498,9 +501,111 @@ trait Flows {
   }
 
 // ==================================================================================================
-// Sinks
+// Akka
 // ==================================================================================================  
 
+  def fromAkka(uri:String,bufferSize: Int = 1000, overflowStrategy: OverflowStrategy = OverflowStrategy.dropHead)
+                   : Source[ByteString, ActorRef] = {
+    
+    val akkaUri = AkkaURI(uri)
+
+    val config = ConfigFactory.parseString(s"""
+      akka {
+        actor {
+          provider = remote
+        }
+        remote {
+          artery {
+            enabled = on
+            transport = tcp
+            canonical.hostname = "${akkaUri.host.getOrElse("127.0.0.1")}"
+            canonical.port = ${akkaUri.port.getOrElse(2552)}
+          }
+        }
+      }
+    """)
+
+    val system = ActorSystem(akkaUri.system,config)
+
+    //val actorSelection = system.actorSelection(uri)
+    implicit val timeout: Timeout = FiniteDuration(akkaUri.timeout,TimeUnit.MILLISECONDS)
+
+    val sourceActor = system.actorOf(Props(new Actor {
+      def receive: Receive = {
+        case bs: ByteString => 
+          // Handle incoming ByteString messages
+          log.info(s"msg: ${bs.utf8String}")
+        case msg => 
+          log.warn(s"unexpected message: $msg")
+      }
+    }), akkaUri.actor)
+
+    log.info(s"listening: ${sourceActor}...")
+
+    // Source.queue[ByteString](bufferSize, overflowStrategy)
+    //   .mapMaterializedValue { queue =>
+    //     sourceActor ! queue
+    //     sourceActor
+    //   }
+    
+    Source.actorRef[ByteString](bufferSize, overflowStrategy)
+      .map(t => {
+        log.info(s"t: ${t.utf8String}")
+        t        
+    })
+  }
+
+  // ----------------------------------------------------------------------------------------------------------
+  def toAkka[T <: Ingestable](uri:String,format:String)(implicit fmt:JsonFormat[T]) = {
+    import akka.event.Logging
+    import spray.json._
+
+    val akkaUri = AkkaURI(uri)
+
+    val config = ConfigFactory.parseString(s"""
+      akka {
+        actor {
+          provider = remote
+        }
+        remote {
+          artery {
+            enabled = on
+            transport = tcp
+            canonical.hostname = "${akkaUri.host.getOrElse("127.0.0.1")}"
+            canonical.port = 12552
+          }
+        }
+      }
+    """)
+
+    val system = ActorSystem(akkaUri.system,config)
+    //val actorSelectionLocal = system.actorSelection(uri)
+    val actorSelectionRemote = system.actorSelection(uri)
+
+    implicit val timeout: Timeout = FiniteDuration(akkaUri.timeout,TimeUnit.MILLISECONDS)
+    import system.dispatcher
+
+    // val actorRemote: ActorRef = Await.result(
+    //   actorSelectionRemote.resolveOne().recoverWith {
+    //     case _: ActorNotFound =>
+    //       log.info(s"Actor not found: '${uri}'")
+    //       Future.failed(new Exception(s"Actor not found: '${uri}'"))
+    //   },
+    //   timeout.duration
+    // )
+
+    log.info(s"-->: ${actorSelectionRemote}")
+
+    Flow[T]
+      .map { t =>
+        val message = formatter(t, format)
+        actorSelectionRemote ! message
+        t
+      }
+      .toMat(Sink.ignore)(Keep.right)
+  }
+
+  // ----------------------------------------------------------------------------------------------------------
   def toFile[T <: Ingestable](file:String)(implicit fmt:JsonFormat[T]) = {
     import akka.event.Logging
     import spray.json._

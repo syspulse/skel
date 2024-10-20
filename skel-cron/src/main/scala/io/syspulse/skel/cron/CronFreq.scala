@@ -11,11 +11,11 @@ object CronFreq {
     freq.toLowerCase match {
       case pattern(value, unit) => 
         val milliseconds = unit match {
-          case "ms" | "millisecond" => 1L
-          case "sec" | "second" => 1000L
-          case "min" | "minute" => 60000L
-          case "hour" => 3600000L
-          case "day" => 86400000L
+          case "ms" | "millisecond" | "milliseconds" => 1L
+          case "sec" | "second" | "seconds" => 1000L
+          case "min" | "minute" | "minutes" => 60000L
+          case "hour" | "hours" => 3600000L
+          case "day" | "days" => 86400000L
         }
         value.toLong * milliseconds
       case _ => 

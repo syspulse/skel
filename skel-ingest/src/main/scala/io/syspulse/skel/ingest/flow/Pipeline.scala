@@ -120,6 +120,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
 
       case "twitter" :: uri :: Nil => fromTwitter(uri,frameDelimiter = delimiter,frameSize = buffer)
 
+      case "akka" :: uri :: Nil => fromAkka(feed)
+
       case "" :: Nil => fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
       case file :: Nil => fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)
       case _ =>         
@@ -186,7 +188,10 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "err" :: _ => toErr()
 
       case "stdout" :: _ => toStdout(format=format)
-      case "stderr" :: _ => toStderr(format=format)      
+      case "stderr" :: _ => toStderr(format=format)
+
+      case "akka" :: uri :: Nil => toAkka[O](output,format)      
+
       case "" :: Nil => toStdout(format=format)
       case _ => toFile(output)
     }

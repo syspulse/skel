@@ -699,7 +699,8 @@ lazy val ingest_core = (project in file("skel-ingest/ingest-core"))
     //appAssemblyConfig("skel-ingest",""),
     name := "ingest-core",
 
-    libraryDependencies ++= libAkka ++ Seq(            
+    libraryDependencies ++= libAkka ++ Seq(
+      
       libUpickleLib,
       libScalaTest % Test,
     ),        
@@ -771,6 +772,7 @@ lazy val ingest = (project in file("skel-ingest"))
     name := "skel-ingest",
 
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ libDB ++ Seq(
+      libAkkaRemote,
       
       libAlpakkaFile,
       //libAlpakkaSlick,      

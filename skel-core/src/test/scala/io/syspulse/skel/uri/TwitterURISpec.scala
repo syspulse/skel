@@ -43,7 +43,7 @@ class TwitterURISpec extends AnyWordSpec with Matchers {
       u.past should === (2)
       u.ops("frame") should === ("500")
       u.freq should === (10000)
-      u.max should === (10000)
+      u.max should === (100)
     }
 
     "parse 'twitter://key1:secret1@?freq=10000'" in {
