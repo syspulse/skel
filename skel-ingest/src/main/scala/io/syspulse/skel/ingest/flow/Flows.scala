@@ -560,6 +560,7 @@ trait Flows {
     import akka.event.Logging
     import spray.json._
 
+    val random = new Random()
     val akkaUri = AkkaURI(uri)
 
     val config = ConfigFactory.parseString(s"""
@@ -572,7 +573,7 @@ trait Flows {
             enabled = on
             transport = tcp
             canonical.hostname = "${akkaUri.host.getOrElse("127.0.0.1")}"
-            canonical.port = 12552
+            canonical.port = ${random.nextInt(65000 - 1024 + 1) + 1024}
           }
         }
       }

@@ -120,3 +120,19 @@ tail -F output.log
 ## Akka
 
 https://medium.com/@yuvalshi0/batch-transformation-with-akka-streams-6a9b58b5e29c
+
+### Ingest via Akka Actors
+
+__NOTE__: Pay attention at URI (server side does not have `user/`)
+
+Listen:
+
+```
+./run-ingest.sh -f "akka://sys1@127.0.0.1:3333/actor1"
+```
+
+Client:
+
+```
+./run-ingest.sh -f clock://1000 -o "akka://sys1@127.0.0.1:3333/user/actor1"
+```
