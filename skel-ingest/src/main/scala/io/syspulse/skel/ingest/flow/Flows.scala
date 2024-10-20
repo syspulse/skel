@@ -113,8 +113,12 @@ import akka.http.scaladsl.model.HttpMethod
 import akka.util.Timeout
 import akka.http.scaladsl.model.ws.WebSocketRequest
 
-object Flows {
-  val log = Logger(this.toString)
+object Flows extends Flows {
+
+}
+
+trait Flows {
+  private val log = Logger(this.toString)
 
   val retrySettingsDefault = RestartSettings(
     minBackoff = FiniteDuration(1000L,TimeUnit.MILLISECONDS),
@@ -145,8 +149,7 @@ object Flows {
       s
     }
 
-  def formatter[O <: Ingestable](o:O,format:String,nl:String="")(implicit fmt:JsonFormat[O]):ByteString = {    
-    
+  def formatter[O <: Ingestable](o:O,format:String,nl:String="")(implicit fmt:JsonFormat[O]):ByteString = {
     if(o == null) return ByteString()
     
     import spray.json._
@@ -245,7 +248,7 @@ object Flows {
     val s = RestartSource.onFailuresWithBackoff(retry) { () =>
       log.info(s"${retry}: ==> ${req}")
       Source.futureSource {
-        Flows.fromHttpFuture(req)
+        this.fromHttpFuture(req)
       }
     }
       
@@ -264,7 +267,7 @@ object Flows {
     val s = 
       Source(reqs)
       .throttle(1,FiniteDuration(throttle,TimeUnit.MILLISECONDS))
-      .flatMapConcat(req => Flows.fromHttpRestartable(req,frameDelimiter,frameSize,retry))
+      .flatMapConcat(req => this.fromHttpRestartable(req,frameDelimiter,frameSize,retry))
     
     if(frameDelimiter.isEmpty())
       s
@@ -284,7 +287,7 @@ object Flows {
       .flatMapConcat(req => {
         log.info(s"--> ${req}")
         //Flows.fromHttpFuture(req)(as)
-        Flows.fromHttpRestartable(req, frameDelimiter, frameSize)
+        this.fromHttpRestartable(req, frameDelimiter, frameSize)
       })      
     
     if(frameDelimiter.isEmpty())
@@ -1053,7 +1056,7 @@ object Flows {
     import spray.json._
     Flow[O]
       //.map(o => if(o!=null) ByteString(o.toString+"\n") else ByteString())
-      .map(o => Flows.formatter(o,format,"\n"))
+      .map(o => this.formatter(o,format,"\n"))
       .toMat(StreamConverters.fromOutputStream(() => pipe,flush))(Keep.right)  
   }
   
@@ -1070,9 +1073,11 @@ object Flows {
       .log("jdbc")
       .toMat(Sink.ignore)(Keep.right)
   }
-}
 
-// === JDBC ============================================================================================  
+// ====================================================================================================================================
+// ====================================================================================================================================
+// ====================================================================================================================================
+    // === JDBC ============================================================================================  
 class ToJDBC[T <: Ingestable](dbUri:String,configuration:Option[Configuration]=None) 
   extends skel.store.StoreDBCore(dbUri,"",None) {
   
@@ -1125,7 +1130,7 @@ class ToKafka[T <: Ingestable](uri:String,format:String)(implicit jf:JsonFormat[
     //   ByteString(t.toString)
     // else
     //   ByteString(t.toJson.compactPrint)
-    Flows.formatter(t,formatOutput)
+    formatter(t,formatOutput)
   }  
 }
 
@@ -1236,3 +1241,6 @@ class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024,helloMsg:Optio
 
   def actor() = a
 }
+
+}
+

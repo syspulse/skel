@@ -149,7 +149,6 @@ object TextString {
   def apply(o:Any) = new TextString(o)
 }
 
-
 import OutputStringJson._
 import io.syspulse.skel.serde.Parq._
 
@@ -161,9 +160,7 @@ class PipelineProxy(feed:String,output:String)(implicit config:Config) extends
         config.buffer,
         throttleSource = config.throttleSource,
         format = config.format) {
-  
-  private val log = Logger(s"${this}")
-      
+        
   override def getFileLimit():Long = config.limit
   override def getFileSize():Long = config.size
 

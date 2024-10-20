@@ -1,6 +1,7 @@
 package io.syspulse.skel.serde
 
-import scala.util.Success
+import scala.util.{Try,Success,Failure}
+import java.util.Base64
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
@@ -9,11 +10,11 @@ import io.syspulse.skel.config._
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
-  uri:String = "/api/v1/auth",
+  uri:String = "/api/v1/serde",
 
   datastore:String = "mem://",
   
-  cmd:String = "",
+  cmd:String = "proto",
   params: Seq[String] = Seq(),
 )
 
@@ -77,6 +78,7 @@ object App extends skel.Server {
 
         val d = os.read(os.Path(file1,os.pwd))
         log.info(s"data=${Util.hex(d.getBytes())}")
+      
     }
 
     println(s"${r}")        

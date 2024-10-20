@@ -1,0 +1,123 @@
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+#root {
+  height: 100%;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.top-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: #f0f0f0;
+}
+
+.logo {
+  font-size: 1.2em;
+  flex: 1;
+}
+
+.right-section {
+  display: flex;
+  align-items: center;
+}
+
+.search-container {
+  flex: 2;
+  display: flex;
+  justify-content: center;
+  margin-right: 20px;
+  flex-grow: 1;
+  margin: 0 20px;
+}
+
+.search-container input {
+  width: 300px; /* Adjust this value as needed */
+  padding: 5px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.main-content > div:first-child {
+  flex: 1;
+  overflow: hidden;
+}
+
+.property-panel {
+  width: 300px;
+  padding: 10px;
+  background-color: #f9f9f9;
+  overflow-y: auto;
+}
+
+/* Additional styles for PropertyPanel */
+.property-panel h3 {
+  margin-top: 0;
+}
+
+.property {
+  margin-bottom: 10px;
+}
+
+.property label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.property input {
+  width: 90%; /* Changed from 100% to 90% */
+  padding: 5px;
+}
+
+.property input.read-only {
+  background-color: #e0e0e0;
+  color: #666;
+  cursor: not-allowed;
+}
+
+button[type="submit"] {
+  margin-top: 10px;
+  padding: 5px 10px;
+}
+
+.all-properties {
+  margin-top: 20px;
+}
+
+.all-properties .property {
+  display: flex;
+  justify-content: space-between;
+}
+
+.all-properties .key {
+  font-weight: bold;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #ddd;
+  margin: 10px 0;
+}
+
+.user-info {
+  flex: 1;
+  text-align: right;
+}

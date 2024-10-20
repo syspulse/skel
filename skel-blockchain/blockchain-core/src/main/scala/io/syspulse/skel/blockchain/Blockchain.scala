@@ -6,7 +6,7 @@ import io.syspulse.skel.Ingestable
 import io.syspulse.skel.util.Util
 
 case class Blockchain(
-  name:String,
+  bid:String,
   id:Option[String] = None,  // chain_id 
   dec:Option[Int] = None,    // decimals
   tok:Option[String] = None
@@ -61,14 +61,14 @@ object Blockchain {
     EVM.id.get -> EVM
   )
 
-  def resolve(name:String):Option[Blockchain] = ALL.values.find(b => b.name.toLowerCase == name.trim.toLowerCase())
+  def resolve(name:String):Option[Blockchain] = ALL.values.find(b => b.bid.toLowerCase == name.trim.toLowerCase())
   
   def resolveById(id:String):Option[Blockchain] = {
     ALL.get(id)
   }
   
   def resolveChainId(chain:Blockchain):Option[Long] = chain.id match {
-    case None => resolve(chain.name).map(b => b.id.get.toLong)
+    case None => resolve(chain.bid).map(b => b.id.get.toLong)
     case _ => Some(chain.id.get.toLong)
   }
 

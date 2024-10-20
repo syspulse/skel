@@ -1,0 +1,29 @@
+.aircraft-tracker {
+  width: 500px;
+  background-color: gray;
+  font-size: 18px;
+}
+
+.aircraft-list {
+  border: 1px solid #100;
+}
+
+.aircraft-row {
+  text-align: left;
+  padding-left: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.aircraft-row span {
+  font-weight: bold;
+}
+
+.aircraft-id-ac3 {
+  color: darkblue;
+}
+
+.aircraft-id-new {
+  color: darkgreen;
+}

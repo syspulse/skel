@@ -12,6 +12,13 @@ Test / parallelExecution := true
 // Non-concurrent execution is needed for Server with starting / stopping HttpServer
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
+// Set individual project to use scalapb
+// Compile / PB.targets := Seq(
+//   scalapb.gen() -> (Compile / sourceManaged).value / "scalapb",
+//   scalapb.gen(grpc=false) -> (Compile / sourceManaged).value
+// )
+
+
 licenses := Seq(("ASF2", url("https://www.apache.org/licenses/LICENSE-2.0")))
 
 initialize ~= { _ =>
@@ -316,11 +323,13 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 // ======================================================================================================================
 lazy val root = (project in file("."))
-  .aggregate(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, crypto, skel_dsl, scrap, cli, db_cli,
+  .aggregate(core, skel_serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
+             skel_plugin,
              ingest_core, 
              ingest_flow,
              ingest_elastic,
              ingest_dynamo,
+             ingest_twitter,
              ingest,
              skel_enroll,
              skel_syslog,
@@ -334,12 +343,17 @@ lazy val root = (project in file("."))
              crypto_kms,
              blockchain_core,
              blockchain_rpc,
+             blockchain_evm,
+             skel_dns,
+             skel_ai,
              tools)
-  .dependsOn(core, serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, crypto, skel_dsl, scrap, cli, db_cli,
+  .dependsOn(core, skel_serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
+             skel_plugin,
              ingest_core,
              ingest_flow,
              ingest_elastic,
              ingest_dynamo,
+             ingest_twitter,
              ingest,
              skel_enroll,
              skel_syslog,
@@ -352,6 +366,9 @@ lazy val root = (project in file("."))
              job_core,
              blockchain_core,
              blockchain_rpc,
+             blockchain_evm,
+             skel_dns,
+             skel_ai
              )  
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
@@ -388,7 +405,7 @@ lazy val core = (project in file("skel-core"))
 // serde currently injects log4j-1.7.2 due to old Hadoop dependency !
 // it breaks logging with log4j2 !
 // FIXME !
-lazy val serde = (project in file("skel-serde"))
+lazy val skel_serde = (project in file("skel-serde"))
   .dependsOn(core) // needed only for App application
   // .disablePlugins(sbtassembly.AssemblyPlugin)
   .enablePlugins(JavaAppPackaging)
@@ -397,7 +414,7 @@ lazy val serde = (project in file("skel-serde"))
       sharedConfigAssembly,
       
       appAssemblyConfig("skel-serde","io.syspulse.skel.serde.App"),
-      // name := "skel-serde",
+      //name := "skel-serde",
 
       libraryDependencies ++= libCommon ++
         libTest ++ 
@@ -406,12 +423,47 @@ lazy val serde = (project in file("skel-serde"))
           libAvro4s,
           libUpickleLib,
           libScodecBits,
-                    
+
           libParq,
-          libHadoop
+          libHadoop,          
         ),
     )
     
+lazy val skel_protobuf = (project in file("skel-protobuf"))
+  .dependsOn(core)
+  .enablePlugins(JavaAppPackaging)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,
+      
+      appAssemblyConfig("skel-protobuf","io.syspulse.skel.protobuf.App"),
+      // name := "skel-serde",
+
+      Compile / PB.protoSources := Seq(sourceDirectory.value / "main" / "proto"),
+      Compile / PB.targets := Seq(
+        scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"
+      ),
+      Compile / PB.protocOptions += "-I/usr/include",
+      Compile / unmanagedSourceDirectories += baseDirectory.value / "target" / "scala-2.13" / "src_managed",
+      
+
+      libraryDependencies ++= libCommon ++
+        libTest ++ 
+        Seq(
+          libUUID, 
+          
+          // libProtobufProtoc,
+          // libProtobufJava,          
+          "com.google.api.grpc" % "proto-google-common-protos" % "2.43.0",
+
+          "io.grpc" % "grpc-protobuf" % scalapb.compiler.Version.grpcJavaVersion,//"1.66.0",
+          "io.grpc" % "grpc-netty" % scalapb.compiler.Version.grpcJavaVersion,
+          "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
+
+          libScalapbRuntime 
+        ),
+    )
+
 lazy val skel_test = (project in file("skel-test"))
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
@@ -475,7 +527,7 @@ lazy val auth_core = (project in file("skel-auth/auth-core"))
   )
 
 lazy val skel_auth = (project in file("skel-auth"))
-  .dependsOn(core,crypto,auth_core,skel_user)
+  .dependsOn(core,skel_crypto,auth_core,skel_user)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -553,7 +605,7 @@ lazy val kafka= (project in file("skel-kafka"))
     ),
   )  
 
-lazy val crypto = (project in file("skel-crypto"))
+lazy val skel_crypto = (project in file("skel-crypto"))
   .dependsOn(core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
@@ -580,7 +632,7 @@ lazy val crypto = (project in file("skel-crypto"))
     )
 
 lazy val crypto_kms = (project in file("skel-crypto/crypto-kms"))
-  .dependsOn(core,crypto)
+  .dependsOn(core,skel_crypto)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -635,7 +687,7 @@ lazy val scrap = (project in file("skel-scrap"))
   )
 
 lazy val ingest_core = (project in file("skel-ingest/ingest-core"))
-  .dependsOn(core, serde)
+  .dependsOn(core, skel_serde)
   //.enablePlugins(JavaAppPackaging)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
@@ -706,7 +758,7 @@ lazy val ingest_twitter = (project in file("skel-ingest/ingest-twitter"))
   )
 
 lazy val ingest = (project in file("skel-ingest"))
-  .dependsOn(core, serde, ingest_core, ingest_elastic, kafka, ingest_twitter)
+  .dependsOn(core, skel_serde, ingest_core, ingest_elastic, kafka, ingest_twitter)
   //.enablePlugins(JavaAppPackaging)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
@@ -734,7 +786,7 @@ lazy val ingest = (project in file("skel-ingest"))
   )
 
 lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
-  .dependsOn(core, serde, ingest, ingest_twitter)
+  .dependsOn(core, skel_serde, ingest, ingest_twitter)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (
@@ -752,7 +804,7 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
   )
 
 lazy val ingest_proxy = (project in file("skel-ingest/ingest-proxy"))
-  .dependsOn(core, serde, ingest)
+  .dependsOn(core, skel_serde, ingest)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (
@@ -791,7 +843,7 @@ lazy val stream_std = (project in file("skel-stream/stream-std"))
   )
 
 lazy val cli = (project in file("skel-cli"))
-  .dependsOn(core,crypto)
+  .dependsOn(core,skel_crypto)
   .settings (
     sharedConfig,
     sharedConfigAssembly,
@@ -891,7 +943,7 @@ lazy val spark_read = (project in file("skel-spark/spark-read"))
   )
 
 lazy val skel_enroll = (project in file("skel-enroll"))
-  .dependsOn(core,auth_core,crypto,skel_user,skel_notify,skel_test % Test)
+  .dependsOn(core,auth_core,skel_crypto,skel_user,skel_notify,skel_test % Test)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -1207,11 +1259,23 @@ lazy val blockchain_core = (project in file("skel-blockchain/blockchain-core"))
       sharedConfig,
       sharedConfigAssembly,      
       name := "blockchain-core",
-      libraryDependencies ++=  libTest
+      
+      libraryDependencies ++= libTest
+    )
+
+lazy val blockchain_evm = (project in file("skel-blockchain/blockchain-evm"))
+  .dependsOn(core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,      
+      name := "blockchain-evm",
+      
+      libraryDependencies ++= libTest
     )
 
 lazy val blockchain_rpc = (project in file("skel-blockchain/blockchain-rpc"))
-  .dependsOn(core,crypto,blockchain_core)
+  .dependsOn(core,skel_crypto,blockchain_core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -1219,6 +1283,7 @@ lazy val blockchain_rpc = (project in file("skel-blockchain/blockchain-rpc"))
       //sharedConfigAssembly,
       
       name := "blockchain-rpc",
+      
       libraryDependencies ++=  libTest ++ libWeb3j
 
       // this is important option to support latest log4j2 

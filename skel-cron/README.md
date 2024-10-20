@@ -12,20 +12,44 @@ Bash removes quotes and second script loses the boundary of the quoted expressio
 
 Cron expression must be passed as `CRON_EXPR="expression"`
 
+### Run every 2 seconds immediately
 
-Run every second with default Scheduler
+```
+./run-cron.sh 2000
+```
+
+### Run every 2 seconds with a delay of 1 second
+
+```
+./run-cron.sh 2000/1000
+```
+
+### Run every 3 minutes immediately
+
+```
+./run-cron.sh "3 minutes"
+```
+
+### Run every 15 seconds in 5 seconds
+
+```
+./run-cron.sh "15sec/5000"
+```
+
+
+### Run every second with default Scheduler
 
 ```
 CRON_EXPR="*/1 * * * * ?" ./run-cron.sh
 ```
 
-Run every 14:30 with default Scheduler
+### Run every 14:30 with default Scheduler
 
 ```
 CRON_EXPR="* 30 14 * * *" ./run-cron.sh --cron.quartz=default
 ```
 
-Run with *protected* expression 
+### Run with *protected* expression 
 
 ```
 ./run-cron.sh --cron.quartz=default --cron.expr='*/1_*_*_*_*_?'
@@ -53,7 +77,7 @@ quartz-1 {
 - http://www.cronmaker.com/?0
 
 
-Every second: `* * * ? * *`
+Every second: `* * * ? * *` or `*/1_*_*_*_*_?`
 
 Every two minutes: `0 */2 * ? * *`
 

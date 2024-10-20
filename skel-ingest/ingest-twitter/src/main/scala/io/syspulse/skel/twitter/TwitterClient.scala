@@ -212,11 +212,14 @@ trait TwitterClient {
         followUsers
       })
       .filter(followUsers => followUsers.size > 0)
-      .mapAsync(1)(followUsers => request(followUsers))
-      .mapConcat(body => {
+      .mapAsync(1)(followUsers => request(followUsers).map((followUsers,_)))
+      .map{ case(followUsers,body) => {
         log.debug(s"body='${body.utf8String}'")
 
         val rsp = body.utf8String.parseJson.convertTo[TwitterSearchRecent]
+        
+        log.info(s"${followUsers}: results=${rsp.meta.result_count}")
+        
         if(rsp.meta.result_count != 0) {
 
           val users = rsp.includes.get.users
@@ -225,7 +228,7 @@ trait TwitterClient {
             userId.map(u => Twit(
               id = td.id,
               author_id = td.author_id,
-              author_name = u.name,
+              author_name = u.username,
               text = td.text,
               created_at = OffsetDateTime.parse(td.created_at,tsFormatISOParse).toInstant.toEpochMilli
             ))   
@@ -243,11 +246,11 @@ trait TwitterClient {
 
           tweets
         } else Seq.empty
-      })
+      }}
     
     // deduplication flow
     val s1 = s0
-      .groupedWithin(if(getChannels().size > 0) getChannels().size else 1,FiniteDuration(freq,TimeUnit.MILLISECONDS))
+      //.groupedWithin(if(getChannels().size > 0) getChannels().size else 1,FiniteDuration(freq,TimeUnit.MILLISECONDS))
       .statefulMapConcat { () =>
         var state = List.empty[Twit]
         var lastCheckTs = System.currentTimeMillis()
@@ -261,6 +264,7 @@ trait TwitterClient {
             state = state.takeWhile(t => t.created_at >= (now - past) )
             lastCheckTs = now            
           }
+          log.info(s"uniq: ${uniq}")
           uniq
         }
       }     

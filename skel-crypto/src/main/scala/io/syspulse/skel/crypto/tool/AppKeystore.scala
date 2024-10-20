@@ -26,25 +26,31 @@ object AppKeystore extends {
 
   def main(args:Array[String]) = {
     Console.err.println(s"args: ${args.size}: ${args.toSeq}")
-    
+
+    val d = Config() 
     val c = Configuration.withPriority(Seq(
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv, 
-      new ConfigurationArgs(args,"tool-keystore","",
+      new ConfigurationArgs(args,"eth-keystore","",
         ArgString('w', "keystore.file","Wallet File (def: keystore.json)"),
         ArgString('p', "keystore.pass","Wallet Password (def: test123)"),
         ArgString('k', "keystore.key","Mnemo phase or PrivateKey (starts with 0x)"),
         ArgString('t', "keystore.type","Wallet type (def: eth1)"),
+   
         ArgCmd("read","read command"),
         ArgCmd("write","write command"),
         ArgCmd("sign","sign command"),
         ArgCmd("recover","recover command"),
         ArgCmd("mnemonic","Mnemonic command"),
         ArgCmd("generate","Generate from SK"),
-        ArgParam("<params>","...")
-      )
-    ))
+   
+        ArgParam("<params>","..."),
+
+        ArgLogging(),
+        ArgConfig(),
+      ).withExit(1)
+    )).withLogging()
     
     val config = Config(
       keystoreFile = c.getString("keystore.file").getOrElse("keystore.json"),

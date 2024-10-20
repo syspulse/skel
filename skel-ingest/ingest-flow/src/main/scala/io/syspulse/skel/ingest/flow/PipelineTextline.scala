@@ -25,8 +25,12 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.ingest._
 import io.syspulse.skel.twitter._
 
+import io.syspulse.skel.serde.ParqIgnore
 
-case class Textline(txt:String) extends skel.Ingestable {
+case class Recur(v:Int,recur:Array[Recur])
+
+// recursive type is to test Parquet4s
+case class Textline(txt:String,recur:Option[Array[Recur]] = None) extends skel.Ingestable {
   override def getKey: Option[Any] = Some(txt.hashCode())
   override def toString = txt
 }
@@ -58,14 +62,18 @@ trait TextlineJsonProtocol extends DefaultJsonProtocol {
     }
   }
 
-  implicit val fmt = jsonFormat1(Textline.apply _)
+  implicit val jq_recur:JsonFormat[Recur] = lazyFormat(jsonFormat2(Recur))
+  implicit val fmt = jsonFormat2(Textline.apply _)
 }
 
-object TextlineJson extends TextlineJsonProtocol { 
-}
-
+object TextlineJson extends TextlineJsonProtocol 
 import TextlineJson._
-import io.syspulse.skel.serde.Parq._
+
+object ParqRecur extends ParqIgnore[Recur] 
+import ParqRecur._
+
+// object ParqTextline extends ParqIgnore[Textline] 
+// import ParqTextline._
 
 class PipelineTextline(feed:String,output:String)(implicit config:Config) extends 
       Pipeline[String,String,Textline](
@@ -76,7 +84,7 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config) extend
         throttleSource = config.throttleSource,
         format = config.format) {
   
-  private val log = Logger(s"${this}")
+  //private val log = Logger(s"${this}")
       
   override def getFileLimit():Long = config.limit
   override def getFileSize():Long = config.size

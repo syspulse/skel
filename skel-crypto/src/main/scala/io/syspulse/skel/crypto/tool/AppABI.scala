@@ -13,9 +13,9 @@ import io.syspulse.skel.crypto.eth.abi._
 import codegen.Decoder
 import codegen.AbiDefinition
 import io.syspulse.skel.crypto.Hash
-
+  
 object AppABI extends {  
-
+  
   case class Config(
     abiStore: String = "dir://store/abi",
     eventStore:String = "dir://store/event",
@@ -24,7 +24,7 @@ object AppABI extends {
     cmd:String = "decode",
     params:Seq[String] = Seq()
   )
-  
+
   def main(args:Array[String]) = {
     Console.err.println(s"args: ${args.size}: ${args.toSeq}")
     
@@ -33,7 +33,7 @@ object AppABI extends {
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv, 
-      new ConfigurationArgs(args,"tool-abi","",
+      new ConfigurationArgs(args,"eth-abi","",
         ArgString('_', "store.abi",s"ABI definitions store (def: ${d.abiStore})"),
         ArgString('_', "store.event",s"Event Signatures store (def: ${d.eventStore})"),
         ArgString('_', "store.fun",s"Function signatures store (def: ${d.funStore})"),
@@ -49,7 +49,8 @@ object AppABI extends {
         ArgCmd("watch","Watch store changes (testing AbiStorDir)"),
         
         ArgParam("<params>","..."),
-        ArgLogging()
+        ArgLogging(),
+        ArgConfig(),
       ).withExit(1)
     )).withLogging()
     

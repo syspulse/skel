@@ -17,7 +17,6 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.ingest.IngestFlow
 import io.syspulse.skel.ingest.flow.Flows
 import io.syspulse.skel.video.store._
-import io.syspulse.skel.video.file._
 import io.syspulse.skel.video.elastic._
 
 
