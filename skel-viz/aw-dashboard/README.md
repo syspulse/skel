@@ -1,3 +1,3 @@
-# Aeroware viz
+# Aeroware Dashboard Prototype
 
-![alt text](aw-viz-1.png)
+![alt text](doc/aw-viz-1.png)
