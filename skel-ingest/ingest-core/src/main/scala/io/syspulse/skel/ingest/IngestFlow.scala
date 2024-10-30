@@ -45,7 +45,11 @@ trait IngestFlow[I,T,O] {
   //.withMaxRestarts(10, 5.minutes)
   
   // used by Flow.log()
-  val logLevels = Attributes.createLogLevels(Logging.DebugLevel, Logging.DebugLevel, Logging.ErrorLevel)
+  val logLevels = Attributes.createLogLevels(
+    Logging.DebugLevel, 
+    onFinish = Logging.InfoLevel, //Logging.DebugLevel, 
+    onFailure = Logging.ErrorLevel
+  )
 
   val cr = new CollectorRegistry(true);
   val countBytes: Counter = Counter.build().name("ingest_bytes").help("total bytes").register(cr)

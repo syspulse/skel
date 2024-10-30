@@ -660,7 +660,7 @@ object Eth {
         
         log.info(s"call: ${contractAddress}: data=${inputData}: result=${result}")
         
-        if(outputType.isDefined) {
+        if(outputType.isDefined && ! outputType.get.isEmpty()) {
           decodeResult(Success(result),outputType.get)
         } else {
           Success(result)
@@ -692,10 +692,10 @@ object Eth {
 
           case "address" => Success(v)
           case "bool" => Success((BigInt(v).toInt == 0).toString)
-          case "string" => 
+          case "string" | "" => 
             //Success(new String(Util.fromHexString(v)))            
             Success(hexToUtf8String(v))
-          case t => throw new Exception(s"unsupported type: ${t}")
+          case t => throw new Exception(s"unsupported type: '${t}'")
         }
       case Failure(e) => Failure(e)
     }

@@ -90,6 +90,24 @@ Recover Public Key from Metamask sig
 ```
 
 ----
+
+### Calls
+
+```
+ETH_RPC_URL=http://geth:8545 ./run-evm.sh 0xdAC17F958D2ee523a2206206994597C13D831ec7 "name()(string)"
+```
+
+```
+ETH_RPC_URL=http://geth:8545 ./run-evm.sh 0xdAC17F958D2ee523a2206206994597C13D831ec7 "balanceOf(address)(uint256)" 0xF977814e90dA44bFA03b6295A0616a897441aceC
+```
+
+Encode Function:
+
+```
+ETH_RPC_URL=http://geth:8545 ./run-evm.sh encode "balanceOf(address)(uint256)" 0xF977814e90dA44bFA03b6295A0616a897441aceC
+```
+
+----
 ## Certificates
 
 ### SSL Certificates Architecture
