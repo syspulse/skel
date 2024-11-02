@@ -20,9 +20,21 @@ import org.quartz.CronScheduleBuilder._
 import org.quartz.DateBuilder._
 
 import io.syspulse.skel.config.Configuration
+import org.quartz.CronExpression
+import java.util.Date
 
 object CronQuartz {
   val DATA_KEY = "cronjob-data"
+
+  def toMillis(expr: String): Long = {    
+    val cronExpr = new CronExpression(expr.replaceAll("_"," "))
+    val now = new Date()
+    val next1 = cronExpr.getNextValidTimeAfter(now)
+    val next2 = cronExpr.getNextValidTimeAfter(next1)
+    
+    val interval = next2.getTime - next1.getTime
+    interval
+  }
 }
 
 case class CronQuartzJobData(exec:(Long)=>Boolean,var ts0:Long)
@@ -41,10 +53,12 @@ class CronQuartzJob extends Job {
 	}
 }
 
-class CronQuartz(exec:(Long)=>Boolean, expr:String, conf:Option[(String,Configuration)] = None, cronName:String="Cron1",jobName:String="job1",groupName:String="group1") 
+class CronQuartz(exec:(Long)=>Boolean, expr0:String, conf:Option[(String,Configuration)] = None, cronName:String="Cron1",jobName:String="job1",groupName:String="group1") 
   extends Cron[java.time.LocalDate] {
   
   val log = Logger(s"${this}")
+  
+  val expr = expr0.replaceAll("_"," ")
 
   log.info(s"expr='${expr}': ${cronName},${jobName},${groupName}")
 
@@ -76,6 +90,8 @@ class CronQuartz(exec:(Long)=>Boolean, expr:String, conf:Option[(String,Configur
     }
 
   def getExpr():String = expr
+
+  override def toMillis = CronQuartz.toMillis(expr)
 
   def start():Try[java.time.LocalDate] = {
     try {

@@ -14,7 +14,7 @@ class CronSpec extends AnyWordSpec with Matchers {
   "CronQuartz" should {
 
     "NOT schedule events for: '0 0/5 * * * ?'" in {
-      var n = 0
+      @volatile var n = 0
       val c = new CronQuartz((elaped:Long) => {
           n = n + 1
           true
@@ -31,7 +31,7 @@ class CronSpec extends AnyWordSpec with Matchers {
     }
 
     "schedule 2 events for: '*/1 * * * * ?'" in {
-      var n = 0
+      @volatile var n = 0
       val c = new CronQuartz((elaped:Long) => {
           n = n + 1
           true
@@ -41,13 +41,23 @@ class CronSpec extends AnyWordSpec with Matchers {
       val r = c.start()
       r.getClass should !== (classOf[Failure[_]])
       
-      Thread.sleep(1200L)
+      Thread.sleep(1100L)
       c.stop()
 
       n should === (2)
     }
-  }    
 
+    "interval '*/1 * * * * ?' == 1000" in {
+      val i = CronQuartz.toMillis("*/1 * * * * ?")
+      i should === (1000L)
+    }
+
+    "interval '0 */2 * ? * *' == 120000" in {
+      val i = CronQuartz.toMillis("0 */2 * ? * *")
+      i should === (120000L)
+    }
+  }
+  
   "CronFreq" should {
 
     "parse only milliseconds correctly" in {
@@ -101,6 +111,45 @@ class CronSpec extends AnyWordSpec with Matchers {
       an [IllegalArgumentException] should be thrownBy CronFreq.parseHuman("1.5 hours")
     }
     
+  }
+
+  "Cron" should {
+
+    "limit 100msec to 1sec" in {
+      @volatile var n = 0
+      val c = Cron((elaped:Long) => {
+          n = n + 1
+          true
+        },
+        "100msec",
+        rateLimit = Some(1000L)
+      )
+      val r = c.start()
+      Thread.sleep(1250L)
+      c.stop()
+
+      // should be 2 since it fires extra one immediately
+      n should === (2)      
+    }
+
+    "limit 1sec to 2sec" in {
+      @volatile var n = 0
+      val c = Cron((elaped:Long) => {
+          n = n + 1
+          true
+        },
+        "*/1 * * * * ?",
+        rateLimit = Some(2000L)
+      )
+      val r = c.start()
+      
+      Thread.sleep(1250L)
+      n should === (0)
+      
+      Thread.sleep(1250L)      
+      c.stop()      
+      n should === (1)
+    }
   }
 }
 

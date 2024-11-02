@@ -25,22 +25,32 @@ trait Cron[T] extends Closeable {
   def start():Try[T]
   def stop():Unit
   def getExpr():String
+
+  def toMillis:Long
+  
 }
 
 object Cron {
-  def apply(exec:(Long)=>Boolean, expr:String, settings:Map[String,Any] = Map()): Cron[_] = {
+  def apply(exec:(Long)=>Boolean, expr:String, settings:Map[String,Any] = Map(),rateLimit:Option[Long]=None): Cron[_] = {
     if(expr.contains("*") || expr.contains("_")) {
       val conf = settings.get("conf").asInstanceOf[Option[(String,Configuration)]]
       val cronName = settings.get("cronName").asInstanceOf[Option[String]].getOrElse("cron-1")
       val jobName:String=settings.get("jobName").asInstanceOf[Option[String]].getOrElse("job-1")
       val groupName:String=settings.get("groupName").asInstanceOf[Option[String]].getOrElse("group-1")
-            
-      new CronQuartz(exec,expr.replaceAll("_"," "),conf = conf,cronName,jobName,groupName)
+      
+      if(rateLimit.isDefined && CronQuartz.toMillis(expr) <= rateLimit.get)
+        new CronFreq(exec,rateLimit.get.toString,rateLimit.get)
+      else
+        new CronQuartz(exec,expr,conf = conf,cronName,jobName,groupName)
+      
     } else {
       val delay = settings.get("delay").asInstanceOf[Option[Long]].getOrElse(-1L)
-      new CronFreq(exec,expr,delay)
+      val expression = if(rateLimit.isDefined && CronFreq.toMillis(expr) <= rateLimit.get)
+        rateLimit.get.toString
+      else
+        expr
+      new CronFreq(exec,expression,delay)
     }
-  }
-    
+  }   
 }
 
