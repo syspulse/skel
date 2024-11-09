@@ -1,14 +1,15 @@
-package io.syspulse.dns
+package io.syspulse.skel.tls
 
-import io.syspulse.skel
+import scala.concurrent.duration.Duration
+import scala.concurrent.Future
+import scala.concurrent.Await
+
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
-import io.jvm.uuid._
-
 case class Config(
-            
-  cmd:String = "whois",
+
+  cmd:String = "resolve",
   params: Seq[String] = Seq(),
 )
 
@@ -22,9 +23,9 @@ object App {
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv, 
-      new ConfigurationArgs(args,"skel-dns","",
+      new ConfigurationArgs(args,"skel-tls","",
                                
-        ArgCmd("whois","Whois"),
+        ArgCmd("resolve","Resolve SSL"),
         
         ArgParam("<params>",""),
         ArgLogging(),
@@ -32,27 +33,22 @@ object App {
       ).withExit(1)
     )).withLogging()
     
-    implicit val config = Config(            
+    implicit val config = Config(
+            
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
     )
 
     Console.err.println(s"Config: ${config}")
         
-    val r = config.cmd match {
-    
-      case "whois" => 
+    val r = config.cmd match {    
+      case "resolve" => 
         config.params.toList match {
           case domain :: Nil  =>
-            DnsUtil.getInfo(domain)
-          case domain :: whoisServer :: Nil  =>
-            DnsUtil.getInfo(domain,Some(whoisServer))
+            SslUtil.resolve(domain)
           case _ => 
-            DnsUtil.getInfo("google.com")
+            SslUtil.resolve("google.com")
         }
-        
-        
-        
     }
     Console.err.println(s"r = ${r}")
   }
