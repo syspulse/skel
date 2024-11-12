@@ -1,4 +1,4 @@
-package io.syspulse.dns
+package io.syspulse.skel.dns
 
 import scala.util.{Try,Success,Failure}
 import com.typesafe.scalalogging.Logger

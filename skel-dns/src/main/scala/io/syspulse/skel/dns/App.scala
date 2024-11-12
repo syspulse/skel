@@ -1,4 +1,4 @@
-package io.syspulse.dns
+package io.syspulse.skel.dns
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
