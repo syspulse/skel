@@ -20,6 +20,7 @@ class SslSpec extends AnyWordSpec with Matchers {
       ssl.isFailure === (false)
       ssl.get.valid === (true)
       ssl.get.trusted === (true)
+      ssl.get.expire > (Instant.now().toEpochMilli)
     }
 
     "resolve SSL 'admin-extractor.hacken.dev' as valid and not trusted" in {
@@ -29,7 +30,8 @@ class SslSpec extends AnyWordSpec with Matchers {
 
       ssl.isFailure === (false)
       ssl.get.valid === (true)
-      ssl.get.trusted === (false)      
+      ssl.get.trusted === (false)
+      ssl.get.expire > (Instant.now().toEpochMilli)
     }    
   }
 }

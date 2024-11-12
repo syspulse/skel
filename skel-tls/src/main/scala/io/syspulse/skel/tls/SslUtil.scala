@@ -31,7 +31,7 @@ object SslUtil {
   }
 }
 
-case class SslResult(trusted:Boolean,valid:Boolean,cert:X509Certificate)
+case class SslInfo(trusted:Boolean,valid:Boolean,expire:Long,cert:X509Certificate)
 
 class SslCertificateExtractor(domain:String,verifyCert:Option[String]=None) {
   val log = Logger(s"${this}")
@@ -39,7 +39,7 @@ class SslCertificateExtractor(domain:String,verifyCert:Option[String]=None) {
   val BEGIN_CERT = "-----BEGIN CERTIFICATE-----";
   val END_CERT = "-----END CERTIFICATE-----";
 
-  def resolve():Try[SslResult] = {
+  def resolve():Try[SslInfo] = {
     run()
   }
   
@@ -50,7 +50,7 @@ class SslCertificateExtractor(domain:String,verifyCert:Option[String]=None) {
   protected var certToVerify:X509Certificate = null;
   protected var serverCerts:Int = 0;
   
-  private def run():Try[SslResult] = {
+  private def run():Try[SslInfo] = {
 
       val (host, port) = domain.split(":").toList match {
         case host :: port :: Nil => (host,port.toInt)
@@ -161,7 +161,8 @@ class SslCertificateExtractor(domain:String,verifyCert:Option[String]=None) {
               }
           }
 
-          Success(SslResult(trusted, valid, rootCert))
+          val expire = rootCert.getNotAfter().toInstant().toEpochMilli
+          Success(SslInfo(trusted, valid, expire, rootCert))
 
       } catch {
         case e:Exception => Failure(e)        
