@@ -25,22 +25,23 @@ import java.util.Base64
 //import java.util.Set
 
 object SslUtil {
-  def resolve(domain:String) = {
-    val extractor = new SslCertificateExtractor(domain)
+  def resolve(url:String) = {
+    val extractor = new SslCertificateExtractor(url)
     extractor.resolve()
   }
 }
 
 case class SslInfo(trusted:Boolean,valid:Boolean,expire:Long,cert:X509Certificate)
 
-class SslCertificateExtractor(domain:String,verifyCert:Option[String]=None) {
+class SslCertificateExtractor(url:String,verifyCert:Option[String]=None) {
   val log = Logger(s"${this}")
   
   val BEGIN_CERT = "-----BEGIN CERTIFICATE-----";
   val END_CERT = "-----END CERTIFICATE-----";
 
   def resolve():Try[SslInfo] = {
-    run()
+    val domain = url.toLowerCase.stripPrefix("http://").stripPrefix("https://")
+    run(domain)
   }
   
   protected var lastIssuer: Principal = null;
@@ -50,7 +51,7 @@ class SslCertificateExtractor(domain:String,verifyCert:Option[String]=None) {
   protected var certToVerify:X509Certificate = null;
   protected var serverCerts:Int = 0;
   
-  private def run():Try[SslInfo] = {
+  private def run(domain:String):Try[SslInfo] = {
 
       val (host, port) = domain.split(":").toList match {
         case host :: port :: Nil => (host,port.toInt)

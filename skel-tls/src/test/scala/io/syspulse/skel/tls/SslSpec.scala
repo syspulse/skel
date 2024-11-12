@@ -23,6 +23,16 @@ class SslSpec extends AnyWordSpec with Matchers {
       ssl.get.expire > (Instant.now().toEpochMilli)
     }
 
+    "resolve SSL 'HTTPS://google.com' as valid and trusted" in {
+      //val ssl = new SSLCertificateExtractor("object.ecstestdrive.com:443")
+      val ssl = SslUtil.resolve("HTTPS://google.com")
+      
+      ssl.isFailure === (false)
+      ssl.get.valid === (true)
+      ssl.get.trusted === (true)
+      ssl.get.expire > (Instant.now().toEpochMilli)
+    }
+
     "resolve SSL 'admin-extractor.hacken.dev' as valid and not trusted" in {
       val ssl = SslUtil.resolve("admin-extractor.hacken.dev")      
 
