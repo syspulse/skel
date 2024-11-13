@@ -37,6 +37,7 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
                                                   It is not streaming and polling, so use `?freq=millis&past=millis` for frequency and past
                                                   NOTE: using `clock://10000://twitter://` it will not be able to deduplicate
                                                   Twitter streaming requires Pro subscription and not supported due to Elon's attitude to community
+17. ```akka://sys@host:2552/user/actor```       - Listen on Akka Actror
 
 ## Output Feeds
 
@@ -56,7 +57,7 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 14. ```http://host:port```                                   - HTTP Client to remote HTTP server which accepts `POST`
 15. ```jdbc://db```                                          - Exeperimental JDBC (only flat object)
 16. ```server:ws://host:port/url```                          - Expose Websocket Server as Ouput. This is basically relay mode to Websocket
-
+17. ```akka://sys@host:port/user/actor```                    - Connect to remote Akka Actor. Local Actor port is random
 
 ----
 

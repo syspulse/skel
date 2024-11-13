@@ -346,6 +346,7 @@ lazy val root = (project in file("."))
              blockchain_evm,
              skel_dns,
              skel_ai,
+             skel_tls,
              tools,
              skel_test
              )
@@ -699,7 +700,8 @@ lazy val ingest_core = (project in file("skel-ingest/ingest-core"))
     //appAssemblyConfig("skel-ingest",""),
     name := "ingest-core",
 
-    libraryDependencies ++= libAkka ++ Seq(            
+    libraryDependencies ++= libAkka ++ Seq(
+      
       libUpickleLib,
       libScalaTest % Test,
     ),        
@@ -771,6 +773,7 @@ lazy val ingest = (project in file("skel-ingest"))
     name := "skel-ingest",
 
     libraryDependencies ++= libHttp ++ libAkka ++ libAlpakka ++ libPrometheus ++ libDB ++ Seq(
+      libAkkaRemote,
       
       libAlpakkaFile,
       //libAlpakkaSlick,      
@@ -1314,10 +1317,11 @@ lazy val skel_ai = (project in file("skel-ai"))
 
 lazy val skel_dns = (project in file("skel-dns"))
   .dependsOn(core)
-  .settings (
-    
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (    
     sharedConfig,
-    sharedConfigAssembly,      
+    //sharedConfigAssembly,      
+    
     name := "skel-dns",
     //appDockerConfig("skel-dns","io.syspulse.skel.dns.App"),
 
@@ -1327,3 +1331,21 @@ lazy val skel_dns = (project in file("skel-dns"))
       libDnsJava
     ),  
   )
+
+  lazy val skel_tls = (project in file("skel-tls"))
+  .dependsOn(core)
+  .disablePlugins(sbtassembly.AssemblyPlugin)  
+  .settings (
+      sharedConfig,
+      name := "skel-tls",
+      
+      libraryDependencies ++= 
+        Seq(
+          
+          libScalaLogging,
+          libLogback,
+          libUUID,          
+          libOsLib, 
+          libScalaTest % Test
+        ),
+    )

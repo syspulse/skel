@@ -7,20 +7,24 @@ import scala.util.{Try,Success,Failure}
 
 object CronFreq {
   def parseHuman(freq: String): Long = {
-    val pattern = """(\d+)\s*(ms|millisecond|sec|second|min|minute|hour|day)s?""".r
+    val pattern = """(\d+)\s*(ms|msec|millisecond|sec|second|min|minute|hour|day)s?""".r
     freq.toLowerCase match {
       case pattern(value, unit) => 
         val milliseconds = unit match {
-          case "ms" | "millisecond" => 1L
-          case "sec" | "second" => 1000L
-          case "min" | "minute" => 60000L
-          case "hour" => 3600000L
-          case "day" => 86400000L
+          case "ms" | "msec" | "millisecond" | "milliseconds" => 1L
+          case "sec" | "second" | "seconds" => 1000L
+          case "min" | "minute" | "minutes" => 60000L
+          case "hour" | "hours" => 3600000L
+          case "day" | "days" => 86400000L
         }
         value.toLong * milliseconds
       case _ => 
         freq.toLong
     }
+  }
+
+  def toMillis(expr: String): Long = {
+    CronFreq.parseHuman(expr)
   }
 }
 
@@ -32,6 +36,8 @@ class CronFreq(runner: (Long)=>Boolean, freq:String, delay0:Long = 250L, limit:L
   var count = 0L
   @volatile
   protected var cronFuture: Option[ScheduledFuture[_]] = None
+  
+  override def toMillis: Long = interval
 
   val (interval:Long,delay:Long) = {
     freq.split("\\/").toList match {

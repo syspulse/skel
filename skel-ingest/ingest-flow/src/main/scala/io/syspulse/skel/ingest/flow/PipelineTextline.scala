@@ -27,6 +27,8 @@ import io.syspulse.skel.twitter._
 
 import io.syspulse.skel.serde.ParqIgnore
 
+import akka.actor.ActorSystem
+
 case class Recur(v:Int,recur:Array[Recur])
 
 // recursive type is to test Parquet4s
@@ -75,7 +77,7 @@ import ParqRecur._
 // object ParqTextline extends ParqIgnore[Textline] 
 // import ParqTextline._
 
-class PipelineTextline(feed:String,output:String)(implicit config:Config) extends 
+class PipelineTextline(feed:String,output:String)(implicit config:Config,as:Option[ActorSystem] = None) extends 
       Pipeline[String,String,Textline](
         feed,output,
         config.throttle,

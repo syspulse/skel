@@ -55,7 +55,7 @@ object Dependencies {
     lazy val appNameElastic = "skel-elastic"
     lazy val appBootClassElastic = "io.syspulse.skel.ingest.elastic.App"
 
-    lazy val skelVersion = "0.0.9"
+    lazy val skelVersion = "0.0.10"
     
     lazy val jarPrefix = "server-"
     
@@ -68,6 +68,7 @@ object Dependencies {
     val libAkkaHttp =       "com.typesafe.akka"           %% "akka-http"            % akkaHttpVersion
     val libAkkaHttpSpray =  "com.typesafe.akka"           %% "akka-http-spray-json" % akkaHttpVersion
     val libAkkaStream =     "com.typesafe.akka"           %% "akka-stream"          % akkaVersion
+    val libAkkaRemote =     "com.typesafe.akka"           %% "akka-remote"          % akkaVersion
 
     val libAkkaPersistence ="com.typesafe.akka"           %% "akka-persistence-typed"         % akkaVersion
     val libAkkaPersistenceTest ="com.typesafe.akka"       %% "akka-persistence-testkit"       % akkaVersion % Test

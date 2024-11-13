@@ -33,6 +33,7 @@ import scala.jdk.CollectionConverters._
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.kafka.KafkaClient
+import java.util.concurrent.TimeUnit
 
 // TODO: Investigate, wtf !?
 //  [2024-02-24 02:51:33,475] [INFO] [o.a.k.c.p.KafkaProducer KafkaProducer.java:1183] [Producer clientId=producer-1] 
@@ -41,6 +42,14 @@ import io.syspulse.skel.kafka.KafkaClient
 // Proceeding to force close the producer since pending requests could not be completed within timeout 0 ms.                          │
 // │ [2024-02-24 02:51:33,484] [INFO] [o.a.k.c.p.KafkaProducer KafkaProducer.java:1183] [Producer clientId=producer-1] 
 // Closing the Kafka producer with timeoutMillis = 60000 ms.
+
+
+// [2024-10-28 13:42:01,359] [INFO] [o.a.k.c.p.KafkaProducer KafkaProducer.java:1183] [Producer clientId=producer-1] Closing the Kafka producer with timeoutMillis = 60000 ms.
+// [2024-10-28 13:42:01,360] [DEBUG] [o.a.k.c.p.i.Sender Sender.java:250] [Producer clientId=producer-1] Beginning shutdown of Kafka producer I/O thread, sending remaining records.
+// [2024-10-28 13:42:01,367] [DEBUG] [o.a.k.c.p.i.Sender Sender.java:292] [Producer clientId=producer-1] Shutdown of Kafka producer I/O thread has completed.
+// [2024-10-28 13:42:01,368] [DEBUG] [o.a.k.c.p.KafkaProducer KafkaProducer.java:1235] [Producer clientId=producer-1] Kafka producer has been closed
+
+// https://doc.akka.io/docs/alpakka-kafka/current/producer.html
 
 trait KafkaSink[T] extends KafkaClient {
   
@@ -52,17 +61,18 @@ trait KafkaSink[T] extends KafkaClient {
       .withBootstrapServers(brokerUri)
       .withProperty("reconnect.backoff.ms","3000")
       .withProperty("reconnect.backoff.max.ms","10000")      
+      .withCloseProducerOnStop(true)
+      .withCloseTimeout(FiniteDuration(7000,TimeUnit.MILLISECONDS))
 
-    log.info(s"Producer: ${producerSettings}")
+    log.info(s"Producer: ${producerSettings}")    
 
     val s0 = Producer.plainSink(producerSettings)
 
     val s1 =
       Flow[T]
         .map( t => transform(t) )
-        //.map(d => new ProducerRecord[Array[Byte], Array[Byte]](topics.head, null, d.utf8String.getBytes()))
         .map(d => new ProducerRecord[Array[Byte], Array[Byte]](topics.head, null, d.toArray))
-        .viaMat(KillSwitches.single)(Keep.right)
+        //.viaMat(KillSwitches.single)(Keep.right)
         .toMat(s0)(Keep.both)
     s1    
   }

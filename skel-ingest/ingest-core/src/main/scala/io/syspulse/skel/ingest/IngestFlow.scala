@@ -23,10 +23,16 @@ import io.prometheus.client.Counter
 import io.syspulse.skel.Ingestable
 import io.syspulse.skel.util.Util
 
+trait IngestFlowPipeline[I,T,O] extends IngestFlow[I,T,O] {  
+  implicit val system = ActorSystem("ActorSystem-IngestFlow")
+}
+
 // Source[ByteString] -> [ByteString] InputObject [I] -> [I] Process [T] -> [T] TransformedObject [O] -> Sink[O]
 trait IngestFlow[I,T,O] {
   private val log = Logger(s"${this}")
-  implicit val system = ActorSystem("ActorSystem-IngestFlow")
+  
+  //implicit val system = ActorSystem("ActorSystem-IngestFlow")
+  implicit val system:ActorSystem;//as.getOrElse(ActorSystem("ActorSystem-IngestFlow"))
 
   def ingestFlowName() = "ingest-flow"
   
@@ -39,7 +45,11 @@ trait IngestFlow[I,T,O] {
   //.withMaxRestarts(10, 5.minutes)
   
   // used by Flow.log()
-  val logLevels = Attributes.createLogLevels(Logging.DebugLevel, Logging.DebugLevel, Logging.ErrorLevel)
+  val logLevels = Attributes.createLogLevels(
+    Logging.DebugLevel, 
+    onFinish = Logging.InfoLevel, //Logging.DebugLevel, 
+    onFailure = Logging.ErrorLevel
+  )
 
   val cr = new CollectorRegistry(true);
   val countBytes: Counter = Counter.build().name("ingest_bytes").help("total bytes").register(cr)
@@ -135,7 +145,7 @@ trait IngestFlow[I,T,O] {
     //     Supervision.Resume
     // }
 
-    val mat = f3      
+    val mat = f3
       // .withAttributes(
       //   ActorAttributes.supervisionStrategy(errorSupervisor)
       // )

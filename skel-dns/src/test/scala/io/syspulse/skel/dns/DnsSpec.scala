@@ -9,8 +9,6 @@ import java.time._
 import io.jvm.uuid._
 import io.syspulse.skel.util.Util
 import scala.util.Success
-import io.syspulse.dns.TonicResolver
-import io.syspulse.dns.DnsInfo
 import scala.util.Failure
 import scala.collection.immutable.ArraySeq
 

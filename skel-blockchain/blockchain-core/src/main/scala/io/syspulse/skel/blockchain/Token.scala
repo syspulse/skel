@@ -9,7 +9,7 @@ case class Token(addr:String,sym:String,dec:Int = 18,bid:String,icon:Option[Stri
 
 object Token {
     
-  val USDT = new Token("0xdac17f958d2ee523a2206206994597c13d831ec7","USDT",6,Blockchain.ETHEREUM.bid)
+  val USDT = new Token("0xdac17f958d2ee523a2206206994597c13d831ec7","USDT",6,Blockchain.ETHEREUM.name)
     
   var tokensAddr: Map[String,Set[Token]]= Map(
     USDT.addr -> Set(USDT),
@@ -86,7 +86,7 @@ object Token {
       if(t.isDefined)
         t
       else
-        Some(Set(Token(tokenId.toLowerCase,sym.getOrElse(""),dec.getOrElse(18),chain.map(_.bid).getOrElse(""))))
+        Some(Set(Token(tokenId.toLowerCase,sym.getOrElse(""),dec.getOrElse(18),chain.map(_.name).getOrElse(""))))
     } else {
       // try to resolve by symbol
       tokensSym.get(tokenId.toUpperCase)

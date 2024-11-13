@@ -16,7 +16,7 @@ import org.web3j.abi.TypeReference
 object AppEvm extends {
 
   case class Config(
-    uri:String="http://geth:8545",
+    ethRpcUrl:String="http://geth:8545",
     from:String = "",
 
     cmd:String = "call",
@@ -33,11 +33,12 @@ object AppEvm extends {
       new ConfigurationEnv, 
       new ConfigurationArgs(args,"eth-evm","",
         
-        ArgString('u', "uri",s"RPC uri (def: ${d.uri})"),
+        ArgString('u', "eth.rpc.url",s"RPC uri (def: ${d.ethRpcUrl})"),
         ArgString('f', "from",s"From address (def: ${d.from})"),
         
         
-        ArgCmd("call","eth_call"),
+        ArgCmd("call","eth_call: [address] function(params,...)(return)"),
+        ArgCmd("encode","function(params,...)(return)"),
         ArgCmd("estimate","eth_estimageGas"),
         
         ArgParam("<params>","..."),
@@ -48,7 +49,7 @@ object AppEvm extends {
     )).withLogging()
     
     val config = Config(
-      uri = c.getString("uri").getOrElse(d.uri),
+      ethRpcUrl = c.getString("uri").getOrElse(d.ethRpcUrl),
       from = c.getString("from").getOrElse(d.from),
       
       cmd = c.getCmd().getOrElse(d.cmd),
@@ -57,7 +58,9 @@ object AppEvm extends {
 
     Console.err.println(s"Config: ${config}")
 
-    implicit val web3:Web3j = Web3j.build(new HttpService(config.uri))
+    implicit val web3:Web3j = Web3j.build(new HttpService(config.ethRpcUrl))
+
+    Console.err.println(s"web3j: ${web3}")
 
     val r =config.cmd match {
       case "call" => 
@@ -65,8 +68,14 @@ object AppEvm extends {
         val funcName = config.params(1)
         val inputs = config.params.lift(2).getOrElse("")
         
-        Eth.call("0x0",contractAddress,funcName,inputs)
+        Eth.call("0x"+"0".*(40),contractAddress,funcName,inputs)
               
+      case "encode" => 
+        val funcName = config.params(0)
+        val inputs = config.params.lift(1).getOrElse("")
+        
+        Eth.encodeFunction(funcName,inputs)
+
       case "estimate" => 
         val contractAddress = config.params(0)
         val funcName = config.params(1)

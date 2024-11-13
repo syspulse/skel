@@ -56,6 +56,7 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.uri.ElasticURI
 import io.syspulse.skel.uri.KafkaURI
 import io.syspulse.skel.uri.TwitterURI
+import io.syspulse.skel.uri.AkkaURI
 import io.syspulse.skel.elastic.ElasticClient
 import io.syspulse.skel.twitter.FromTwitter
 
@@ -112,6 +113,8 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.HttpMethod
 import akka.util.Timeout
 import akka.http.scaladsl.model.ws.WebSocketRequest
+import akka.actor.ActorNotFound
+import com.typesafe.config.ConfigFactory
 
 object Flows extends Flows {
 
@@ -498,9 +501,106 @@ trait Flows {
   }
 
 // ==================================================================================================
-// Sinks
+// Akka
 // ==================================================================================================  
 
+  def fromAkka(uri:String,bufferSize: Int = 1000, overflowStrategy: OverflowStrategy = OverflowStrategy.dropHead)
+              (implicit as:ActorSystem) = {
+    
+    val akkaUri = AkkaURI(uri)
+
+    val config = ConfigFactory.parseString(s"""
+      akka {
+        actor {
+          provider = remote
+        }
+        remote {
+          artery {
+            enabled = on
+            transport = tcp
+            canonical.hostname = "${akkaUri.host.getOrElse("127.0.0.1")}"
+            canonical.port = ${akkaUri.port.getOrElse(2552)}
+          }
+        }
+      }
+    """)
+
+    val system = if(akkaUri.port.isDefined) 
+      ActorSystem(akkaUri.system,config)
+    else
+      as
+
+    //val actorSelection = system.actorSelection(uri)
+    // implicit val timeout: Timeout = FiniteDuration(akkaUri.timeout,TimeUnit.MILLISECONDS)
+
+    val sourceActor = system.actorOf(Props(new Actor {
+      def receive: Receive = {
+        case bs: ByteString => 
+          // Handle incoming ByteString messages
+          log.info(s"msg: ${bs.utf8String}")
+        case msg => 
+          log.warn(s"unexpected message: $msg")
+      }
+    }), akkaUri.actor)
+
+    log.info(s"listening: ${sourceActor}...")
+
+    // Source.queue[ByteString](bufferSize, overflowStrategy)
+    //   .mapMaterializedValue { queue =>
+    //     sourceActor ! queue
+    //     sourceActor
+    //   }
+    
+    Source.actorRef[ByteString](bufferSize, overflowStrategy)
+      .map(t => {
+        log.info(s"t: ${t.utf8String}")
+        t        
+    })
+  }
+
+  // ----------------------------------------------------------------------------------------------------------
+  def toAkka[T <: Ingestable](uri:String,format:String)(implicit fmt:JsonFormat[T],as:ActorSystem) = {
+    import akka.event.Logging
+    import spray.json._
+
+    val random = new Random()
+    val akkaUri = AkkaURI(uri)
+
+    val config = ConfigFactory.parseString(s"""
+      akka {
+        actor {
+          provider = remote
+        }
+        remote {
+          artery {
+            enabled = on
+            transport = tcp
+            canonical.hostname = "${akkaUri.host.getOrElse("127.0.0.1")}"
+            canonical.port = ${random.nextInt(65000 - 1024 + 1) + 1024}
+          }
+        }
+      }
+    """)
+
+    val system = if(akkaUri.port.isDefined) 
+      ActorSystem(akkaUri.system,config)
+    else
+      as
+    
+    val actorSelectionRemote = system.actorSelection(uri)
+    
+    log.info(s"-->: ${actorSelectionRemote}")
+
+    Flow[T]
+      .map { t =>
+        val message = formatter(t, format)
+        actorSelectionRemote ! message
+        t
+      }
+      .toMat(Sink.ignore)(Keep.right)
+  }
+
+  // ----------------------------------------------------------------------------------------------------------
   def toFile[T <: Ingestable](file:String)(implicit fmt:JsonFormat[T]) = {
     import akka.event.Logging
     import spray.json._

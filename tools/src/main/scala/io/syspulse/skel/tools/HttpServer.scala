@@ -18,13 +18,14 @@ abstract class HttpServerable extends cask.MainRoutes{
   override def port = sys.env.get("PORT").getOrElse("8300").toInt
   override def host = sys.env.get("HOST").getOrElse("0.0.0.0")
 
+  val url = sys.env.get("HOST").getOrElse("/api/v1/tools")
+
   var requests:Seq[String] = Seq()
   var current = 0
 
   override def main(args0: Array[String]) = {
     if(args0.size>0) println(s"${args0.mkString(",")}")
 
-    // Docker arguments fix
     val args = 
       if(args0.size>0)
         if(args0(0).size==0)
@@ -121,6 +122,30 @@ abstract class HttpServerable extends cask.MainRoutes{
     //cask.Response(rsp,headers=CORS)
     current = current + 1
     rsp
+  }
+
+  @cask.post(url)
+  def url1(req: cask.Request) = {
+    Console.err.println(s"<<< POST")
+    Console.err.println(s"<<< Headers:\n${req.headers}")
+    Console.err.println(s"<<< Body:\n${req.text()}")
+    if(current >= requests.size)
+      current = 0
+
+    val rsp = requests(current)
+    Console.err.println(s"[${rsp}] -> ")
+    
+    current = current + 1
+    cask.Response(rsp,headers=CORS)
+  }
+
+  @cask.route(url, methods = Seq("options"))
+  def cors(req: cask.Request) = {
+    Console.err.println(s"<<< OPTIONS")
+    Console.err.println(s"<<< Headers:\n${req.headers}")
+    Console.err.println(s"<<< Body:\n${req.text()}")
+    
+    cask.Response("",headers=CORS)
   }
 
   @cask.staticFiles("/web",headers = Seq("Cache-Control" -> "max-age=14400"))

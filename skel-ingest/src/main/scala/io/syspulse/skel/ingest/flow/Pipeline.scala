@@ -26,17 +26,21 @@ import java.time.ZoneId
 import com.github.mjakubowski84.parquet4s.ParquetRecordEncoder
 import com.github.mjakubowski84.parquet4s.ParquetSchemaResolver
 
+import akka.actor.ActorSystem
+
 // throttleSource - reduce load on Source (e.g. HttpSource)
 // throttle - delay objects downstream
 // cap - capacity (internal buffer, like Actor)
 abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
   throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=100L,format:String="",cap:Int=10000)
-  (implicit fmt:JsonFormat[O], parqEncoders:ParquetRecordEncoder[O],parsResolver:ParquetSchemaResolver[O]) 
+  (implicit fmt:JsonFormat[O], parqEncoders:ParquetRecordEncoder[O],parsResolver:ParquetSchemaResolver[O],as:Option[ActorSystem] = None) 
   extends Flows 
   with IngestFlow[I,T,O]()  {
   
   private val log = Logger(s"${this}")
-  
+  override implicit val system:ActorSystem = as.getOrElse(ActorSystem("ActorSystem-IngestFlow"))
+  log.info(s"system=${system}")
+
   implicit def timeout:FiniteDuration = FiniteDuration(5000, TimeUnit.MILLISECONDS)
   
   def shaping:Flow[T,T,_] = {
@@ -120,6 +124,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
 
       case "twitter" :: uri :: Nil => fromTwitter(uri,frameDelimiter = delimiter,frameSize = buffer)
 
+      case "akka" :: uri :: Nil => fromAkka(feed)
+
       case "" :: Nil => fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
       case file :: Nil => fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)
       case _ =>         
@@ -186,7 +192,10 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "err" :: _ => toErr()
 
       case "stdout" :: _ => toStdout(format=format)
-      case "stderr" :: _ => toStderr(format=format)      
+      case "stderr" :: _ => toStderr(format=format)
+
+      case "akka" :: uri :: Nil => toAkka[O](output,format)      
+
       case "" :: Nil => toStdout(format=format)
       case _ => toFile(output)
     }

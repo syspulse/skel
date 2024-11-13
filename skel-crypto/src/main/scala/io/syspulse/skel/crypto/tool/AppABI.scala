@@ -103,7 +103,7 @@ object AppABI extends {
         Console.err.println(s"Decoding: ${contract}: ${entity}: ${data}")
         
         abiStore.decodeInput(contract,data,entity)
-      
+
       case "abi" => 
         val (contract,entity,entityName) = 
         config.params.toList match {
@@ -112,7 +112,7 @@ object AppABI extends {
           case contract :: Nil => (contract,None,None)
           case _ => ("",None,None)
         }
-        
+
         def abiToString(abi:Try[Seq[AbiDefinition]]) = abi.map(_.map(ad => 
             s"\nname = ${ad.name.getOrElse("")}\n"+
             s"  type = ${ad.`type`}\n"+
@@ -133,8 +133,7 @@ object AppABI extends {
 
           abiToString(abi)
         }
-          
-              
+
       case "func" =>
         config.params.toList match {
           case sig :: Nil => funcStore.??(sig).map(_.mkString("\n"))

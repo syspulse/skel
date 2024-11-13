@@ -23,10 +23,10 @@ import akka.stream.alpakka.elasticsearch.scaladsl.ElasticsearchSink
 import akka.stream.alpakka.elasticsearch.WriteMessage
 import akka.stream.alpakka.elasticsearch.ElasticsearchParams
 
-import io.syspulse.skel.ingest.IngestFlow
+import io.syspulse.skel.ingest.{IngestFlow,IngestFlowPipeline}
 import io.syspulse.skel.util.Util
 
-trait ElasticFlow[I,T] extends IngestFlow[I,T,WriteMessage[T,NotUsed]] with ElasticClient[T] {
+trait ElasticFlow[I,T] extends IngestFlowPipeline[I,T,WriteMessage[T,NotUsed]] with ElasticClient[T] {
   
   def getIndex(t:T):(String,T)
   

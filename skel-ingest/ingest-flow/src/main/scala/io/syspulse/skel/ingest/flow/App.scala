@@ -82,6 +82,7 @@ object App extends skel.Server {
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
         ArgCmd("flow","Flow Command"),
+        ArgCmd("akka","Flow through Akka (testing)"),
         
         ArgParam("<processors>","List of processors (none/map,print,dedup)"),
         ArgLogging(),
@@ -145,6 +146,18 @@ object App extends skel.Server {
         implicit val system: ActorSystem = ActorSystem("flow")
         implicit val materializer: ActorMaterializer = ActorMaterializer()(system)
         source.runWith(sink)
+
+      case "akka" => {        
+        val f2 = new PipelineTextline("akka://ActorSystem-IngestFlow/flow1",config.output)        
+        f2.run()
+        
+        // special trick to pass system to the next flow
+        implicit val system = Some(f2.system)
+        
+        val f1 = new PipelineTextline(config.feed,"akka://ActorSystem-IngestFlow/user/flow1")
+        f1.run()
+        
+      }
     }
 
     Console.err.println(s"r = ${r}")

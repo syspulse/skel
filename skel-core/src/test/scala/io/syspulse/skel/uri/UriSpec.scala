@@ -217,6 +217,22 @@ class UriSpec extends AnyWordSpec with Matchers {
       u.async should === (false)
       u.headers should === (Map("Authorization" -> s"Bearer 123456789"))
     }
+  }
 
+  "AkkaURI" should {
+    "parse 'akka://system1/actor1'" in {
+      val u = AkkaURI("akka://system1/actor1")
+      u.system should === ("system1")
+      u.actor should === ("actor1")      
+    }
+
+    "parse 'akka://system1@localhost:3333/actor1'" in {
+      val u = AkkaURI("akka://system1@localhost:3333/actor1")
+      u.system should === ("system1")
+      u.actor should === ("actor1")
+      u.host should === (Some("localhost"))
+      u.port should === (Some(3333))
+    }
+    
   }
 }
