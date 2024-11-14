@@ -17,7 +17,6 @@ import scala.util.{ Failure, Success }
 
 import io.jvm.uuid._
 
-
 class FutureAwaitable[T](f:Future[T],timeout:Duration = FutureAwaitable.timeout)  {
   def await[R]() = Await.result(f,timeout)
 }

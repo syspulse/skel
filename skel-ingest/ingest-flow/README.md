@@ -136,3 +136,9 @@ Client:
 ```
 ./run-ingest.sh -f clock://1000 -o "akka://sys1@127.0.0.1:3333/user/actor1"
 ```
+
+## Twitter
+
+```
+./run-ingest.sh -f "twitter://${CONSUMER_KEY}:${CONSUMER_SECRET}@syspusle?freq=60000"
+```
