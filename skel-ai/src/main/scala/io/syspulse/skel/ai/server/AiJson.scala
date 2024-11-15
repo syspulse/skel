@@ -1,4 +1,4 @@
-package io.syspulse.ai.server
+package io.syspulse.skel.ai.server
 
 import io.syspulse.skel.service.JsonCommon
 import spray.json._
@@ -6,8 +6,8 @@ import spray.json._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.Directives
 
-import io.syspulse.ai._
-import io.syspulse.ai.server._
+import io.syspulse.skel.ai._
+import io.syspulse.skel.ai.server._
 
 object AiJson extends JsonCommon {
   

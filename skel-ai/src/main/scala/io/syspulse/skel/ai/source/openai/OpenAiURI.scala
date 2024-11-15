@@ -1,4 +1,4 @@
-package io.syspulse.skel.uri
+package io.syspulse.skel.ai.source.openai
 
 import io.syspulse.skel.util.Util
 

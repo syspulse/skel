@@ -1,4 +1,4 @@
-package io.syspulse.ai
+package io.syspulse.skel.ai
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.Future
@@ -16,10 +16,10 @@ import io.syspulse.skel.FutureAwaitable._
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
-import io.syspulse.ai._
-import io.syspulse.ai.store._
-import io.syspulse.ai.server._
-import io.syspulse.ai.source.Sources
+import io.syspulse.skel.ai._
+import io.syspulse.skel.ai.store._
+import io.syspulse.skel.ai.server._
+import io.syspulse.skel.ai.source.Sources
 
 case class Config(
   host:String="0.0.0.0",

@@ -9,15 +9,12 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 import io.syspulse.skel.twitter.TwitterConnect
 
-
-case class Config(
-  
+case class Config(  
   cmd:String = "connect",
   params: Seq[String] = Seq(),
 )
 
 object App {
-
   def main(args:Array[String]): Unit = {
     Console.err.println(s"args: ${args.size}: ${args.toSeq}")
 
@@ -53,7 +50,6 @@ object App {
     }
 
     Console.err.println(s"r = ${r}")
-    
     //sys.exit(0)
   }
 }

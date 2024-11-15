@@ -1,4 +1,4 @@
-package io.syspulse.ai.store
+package io.syspulse.skel.ai.store
 
 import scala.util.Try
 import scala.util.{Success,Failure}
@@ -14,13 +14,13 @@ import io.syspulse.skel.service.JsonCommon
 
 import io.syspulse.skel.store.StoreDir
 
-import io.syspulse.ai.Ai
-import io.syspulse.ai.server.AiJson._
-import io.syspulse.ai.Config
-import io.syspulse.ai.source.Sources
+import io.syspulse.skel.ai.Ai
+import io.syspulse.skel.ai.server.AiJson._
+import io.syspulse.skel.ai.Config
+import io.syspulse.skel.ai.source.Sources
 
 import io.syspulse.skel.util.Util
-import io.syspulse.ai.source.openai.OpenAi
+import io.syspulse.skel.ai.source.openai.OpenAi
 
 // Preload from file during start
 class AiStoreOpenAi(uri:String) extends AiStore with JsonCommon {

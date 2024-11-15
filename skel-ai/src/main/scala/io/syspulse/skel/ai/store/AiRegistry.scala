@@ -1,4 +1,4 @@
-package io.syspulse.ai.store
+package io.syspulse.skel.ai.store
 
 import scala.util.{Try,Success,Failure}
 
@@ -17,8 +17,8 @@ import scala.concurrent.Await
 
 import io.syspulse.skel.Command
 
-import io.syspulse.ai._
-import io.syspulse.ai.server._
+import io.syspulse.skel.ai._
+import io.syspulse.skel.ai.server._
 import io.syspulse.skel.util.Util
 
 object AiRegistry {

@@ -1,4 +1,4 @@
-package io.syspulse.ai.server
+package io.syspulse.skel.ai.server
 
 import com.typesafe.scalalogging.Logger
 import io.jvm.uuid._
@@ -52,10 +52,10 @@ import io.syspulse.skel.auth._
 import io.syspulse.skel.auth.permissions.Permissions
 import io.syspulse.skel.auth.RouteAuthorizers
 
-import io.syspulse.ai._
-import io.syspulse.ai.store.AiRegistry
-import io.syspulse.ai.store.AiRegistry._
-import io.syspulse.ai.server._
+import io.syspulse.skel.ai._
+import io.syspulse.skel.ai.store.AiRegistry
+import io.syspulse.skel.ai.store.AiRegistry._
+import io.syspulse.skel.ai.server._
 import io.syspulse.skel.service.telemetry.TelemetryRegistry
 import scala.annotation.tailrec
 import io.syspulse.skel.auth.permissions.rbac

@@ -1,10 +1,10 @@
-package io.syspulse.ai.server
+package io.syspulse.skel.ai.server
 
 import scala.collection.immutable
 
 import io.jvm.uuid._
 
-import io.syspulse.ai.Ai
+import io.syspulse.skel.ai.Ai
 
 final case class Ais(data: Seq[Ai],total:Option[Long]=None)
 

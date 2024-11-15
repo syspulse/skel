@@ -29,6 +29,12 @@ class TwitterConnect(uri:String) extends TwitterClient {
     val f = request(followUsers)
     Await.result(f,timeout)
   }
+
+  def ask()(implicit ec: ExecutionContext,timeout:FiniteDuration):String = {
+    val f = request(twitterUri.follow.toSet)
+    Await.result(f,timeout)
+  }
+
 }
 
 object Twitter {

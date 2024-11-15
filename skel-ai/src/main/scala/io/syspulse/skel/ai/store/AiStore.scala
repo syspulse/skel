@@ -1,4 +1,4 @@
-package io.syspulse.ai.store
+package io.syspulse.skel.ai.store
 
 import scala.util.Try
 import scala.concurrent.Future
@@ -6,7 +6,7 @@ import scala.collection.immutable
 import io.jvm.uuid._
 
 import io.syspulse.skel.store.Store
-import io.syspulse.ai.{Ai}
+import io.syspulse.skel.ai.{Ai}
 
 trait AiStore extends Store[Ai,String] {  
   

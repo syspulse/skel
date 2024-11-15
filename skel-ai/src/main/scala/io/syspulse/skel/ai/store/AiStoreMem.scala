@@ -1,4 +1,4 @@
-package io.syspulse.ai.store
+package io.syspulse.skel.ai.store
 
 import scala.util.Try
 import scala.util.{Success,Failure}
@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
-import io.syspulse.ai.{Ai}
+import io.syspulse.skel.ai.{Ai}
 import io.syspulse.skel.util.Util
 
 class AiStoreMem extends AiStore {

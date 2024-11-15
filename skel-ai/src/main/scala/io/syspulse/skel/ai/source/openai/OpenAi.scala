@@ -1,4 +1,4 @@
-package io.syspulse.ai.source.openai
+package io.syspulse.skel.ai.source.openai
 
 import scala.util.Try
 import scala.util.{Success,Failure}
@@ -12,9 +12,8 @@ import io.jvm.uuid._
 import spray.json._
 import DefaultJsonProtocol._
 import io.syspulse.skel.service.JsonCommon
-import io.syspulse.ai.Ai
-import io.syspulse.ai.source.Sources
-import io.syspulse.skel.uri.OpenAiURI
+import io.syspulse.skel.ai.Ai
+import io.syspulse.skel.ai.source.Sources
 
 case class OpenAi_ChatMessage(
   role: String,
