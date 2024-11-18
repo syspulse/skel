@@ -61,6 +61,7 @@ object App extends skel.Server {
       new ConfigurationProp,
       new ConfigurationEnv, 
       new ConfigurationArgs(args,"ingest-flow","",
+        //ArgUnknown(),
         ArgString('h', "http.host",s"listen host (def: ${d.host})"),
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
@@ -115,6 +116,7 @@ object App extends skel.Server {
     )
 
     Console.err.println(s"Config: ${config}")
+    Console.err.println(s"${c.getString("option.key1")}")
 
     // store is not used
     val store:IngestStore[_] = config.datastore match {
