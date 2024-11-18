@@ -63,19 +63,10 @@ case class TwitterSearchMeta(
   result_count:Int
 )
 
-
 case class TwitterSearchRecent(
   data:Option[Seq[TwitterSearchData]],
   includes:Option[TwitterSearchIncludes],
   meta:TwitterSearchMeta
-)
-
-case class Twit(
-  id:String,
-  author_id:String,
-  author_name:String,
-  text:String,
-  created_at:Long
 )
 
 object TwitJson extends JsonCommon {
@@ -230,7 +221,7 @@ trait TwitterClient {
               author_name = u.username,
               text = td.text,
               created_at = OffsetDateTime.parse(td.created_at,tsFormatISOParse).toInstant.toEpochMilli
-            ))   
+            ))
           })
           .map(t => {
             log.debug(s"${t}")

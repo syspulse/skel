@@ -8,6 +8,7 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 import io.syspulse.skel.twitter.TwitterConnect
+import java.util.concurrent.TimeUnit
 
 case class Config(  
   cmd:String = "connect",
@@ -42,11 +43,12 @@ object App {
     Console.err.println(s"Config: ${config}")
         
     implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+    implicit val timeout = FiniteDuration(5000L,TimeUnit.MILLISECONDS)
 
     val r = config.cmd match {
       case "connect" =>         
         val connect = new TwitterConnect(config.params(0))    
-        connect.request(config.params.drop(1).toSet)
+        connect.ask(config.params.drop(1).toSet)
     }
 
     Console.err.println(s"r = ${r}")
