@@ -131,11 +131,25 @@ class SoliditySpec extends AnyWordSpec with Matchers with TestData {
       output should === ("")
     }
 
+    """parse "func(address)(uint256)" - single parameter with output""" in {
+      val (name, inputs, output) = Solidity.parseFunction("func(address)(uint256)")
+      name should === ("func")
+      inputs should === (Vector("address"))
+      output should === ("uint256")
+    }
+
     """parse "func(address,uint256)" - multiple parameters""" in {
       val (name, inputs, output) = Solidity.parseFunction("func(address,uint256)")
       name should === ("func")
       inputs should === (Vector("address", "uint256"))
       output should === ("")
+    }
+
+    """parse "func(address,uint256)(uint256)" - multiple parameters with output""" in {
+      val (name, inputs, output) = Solidity.parseFunction("func(address,uint256)(uint256)")
+      name should === ("func")
+      inputs should === (Vector("address", "uint256"))
+      output should === ("uint256")
     }
 
     """parse "func(address[])" - array parameter""" in {
@@ -176,19 +190,19 @@ class SoliditySpec extends AnyWordSpec with Matchers with TestData {
 
   "Solidity.encodeFunction" should {
     """encode "balanceOf(address)" - single address parameter""" in {
-      val encoded = Solidity.encodeFunction("balanceOf(address)", Array("0x742d35Cc6634C0532925a3b844Bc454e4438f44e"))
+      val encoded = Solidity.encodeFunction("balanceOf(address)", Seq("0x742d35Cc6634C0532925a3b844Bc454e4438f44e"))
       encoded should === ("0x70a08231000000000000000000000000742d35cc6634c0532925a3b844bc454e4438f44e")
     }
 
     """encode "transfer(address,uint256)" - address and amount""" in {
       val encoded = Solidity.encodeFunction("transfer(address,uint256)", 
-        Array("0x742d35Cc6634C0532925a3b844Bc454e4438f44e", "1000000000000000000"))
+        Seq("0x742d35Cc6634C0532925a3b844Bc454e4438f44e", "1000000000000000000"))
       encoded should === ("0xa9059cbb000000000000000000000000742d35cc6634c0532925a3b844bc454e4438f44e0000000000000000000000000000000000000000000000000de0b6b3a7640000")
     }
 
     """encode "approve(address,uint256)" - basic approve""" in {
       val encoded = Solidity.encodeFunction("approve(address,uint256)", 
-        Array("0x742d35Cc6634C0532925a3b844Bc454e4438f44e", "1000000000000000000"))
+        Seq("0x742d35Cc6634C0532925a3b844Bc454e4438f44e", "1000000000000000000"))
       encoded should === ("0x095ea7b3000000000000000000000000742d35cc6634c0532925a3b844bc454e4438f44e0000000000000000000000000000000000000000000000000de0b6b3a7640000")
     }
 
@@ -219,6 +233,66 @@ class SoliditySpec extends AnyWordSpec with Matchers with TestData {
         Solidity.encodeFunction("transfer(address,uint256)", Seq("not_an_address", "1000000000000000000"))
       }
       //exception.getMessage should include("Invalid address")
+    }
+
+    // --------------------------------------------------------------------------------------------
+    """encode "balanceOf(address)(uint256)" - with uint output""" in {
+      val encoded = Solidity.encodeFunction("balanceOf(address)(uint256)", 
+        Seq("0x742d35Cc6634C0532925a3b844Bc454e4438f44e"))
+      encoded should === ("0x70a08231000000000000000000000000742d35cc6634c0532925a3b844bc454e4438f44e")
+    }
+
+    """encode "getData(uint256)(string)" - with string output""" in {
+      val encoded = Solidity.encodeFunction("getData(uint256)(string)", Seq("123"))
+      encoded should === ("0x0178fe3f000000000000000000000000000000000000000000000000000000000000007b")
+    }
+
+    """encode "getPair(address,address)(address)" - common UniswapV2 function""" in {
+      val encoded = Solidity.encodeFunction("getPair(address,address)(address)", 
+        Seq(
+          "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",  // WETH
+          "0x6B175474E89094C44Da98b954EedeAC495271d0F"   // DAI
+        ))
+      encoded should === ("0xe6a43905000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000006b175474e89094c44da98b954eedeac495271d0f")
+    }
+
+    """encode "getAmountsOut(uint256,address[])(uint256[])" - complex types""" in {
+      val encoded = Solidity.encodeFunction("getAmountsOut(uint256,address[])(uint256[])", 
+        Seq(
+          "1000000000000000000",
+          "[0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2,0x6B175474E89094C44Da98b954EedeAC495271d0F]"
+        ))
+      encoded should === ("0xd06ca61f0000000000000000000000000000000000000000000000000de0b6b3a764000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000002000000000000000000000000c02aaa39b223fe8d0a0e5c4f27ead9083c756cc20000000000000000000000006b175474e89094c44da98b954eedeac495271d0f")
+    }
+
+    """encode "getReserves()(uint112,uint112,uint32)" - multiple outputs""" in {
+      val encoded = Solidity.encodeFunction("getReserves()(uint112,uint112,uint32)", Seq.empty)
+      encoded should === ("0x0902f1ac")
+    }
+
+    "throw exception for invalid output type" in {
+      val exception = intercept[Exception] {
+        Solidity.encodeFunction("getData(uint256)(invalid)", Seq("123"))
+      }
+      exception.getMessage should include("Unsupported type")
+    }
+  }
+
+  "Solidity.toTypeReference" should {
+    "convert array types" in {
+      val types = List(
+        "uint256[]" -> classOf[datatypes.DynamicArray[datatypes.generated.Uint256]],
+        "address[]" -> classOf[datatypes.DynamicArray[datatypes.Address]],
+        "bool[]" -> classOf[datatypes.DynamicArray[datatypes.Bool]],
+        "string[]" -> classOf[datatypes.DynamicArray[datatypes.Utf8String]],
+        "bytes32[]" -> classOf[datatypes.DynamicArray[datatypes.generated.Bytes32]],
+        "int256[]" -> classOf[datatypes.DynamicArray[datatypes.generated.Int256]]
+      )
+
+      types.foreach { case (typeStr, expectedClass) =>
+        val ref = Solidity.toTypeReference(typeStr)
+        ref.getClassType should === (expectedClass)
+      }
     }
   }
 }

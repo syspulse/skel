@@ -158,13 +158,85 @@ object Solidity {
     cleaned
   }
 
-  def encodeFunction(func: String, params: Seq[String]) = {
+  def toTypeReference(typeStr: String): TypeReference[_] = {
+    typeStr.toLowerCase match {
+      case t if t.endsWith("[]") =>
+        val baseType = t.dropRight(2)
+        baseType match {
+          case "address" => new TypeReference[datatypes.DynamicArray[datatypes.Address]]() {}
+          case "bool" | "boolean" => new TypeReference[datatypes.DynamicArray[datatypes.Bool]]() {}
+          case "string" => new TypeReference[datatypes.DynamicArray[datatypes.Utf8String]]() {}
+          case "bytes32" => new TypeReference[datatypes.DynamicArray[datatypes.generated.Bytes32]]() {}
+          case "bytes" => new TypeReference[datatypes.DynamicArray[datatypes.DynamicBytes]]() {}
+          
+          case t if t.startsWith("uint") =>
+            val bits = if(t == "uint") 256 else t.substring(4).toInt
+            bits match {
+              case 256 => new TypeReference[datatypes.DynamicArray[datatypes.generated.Uint256]]() {}
+              case 128 => new TypeReference[datatypes.DynamicArray[datatypes.generated.Uint128]]() {}
+              case 64 => new TypeReference[datatypes.DynamicArray[datatypes.generated.Uint64]]() {}
+              case 32 => new TypeReference[datatypes.DynamicArray[datatypes.generated.Uint32]]() {}
+              case 8 => new TypeReference[datatypes.DynamicArray[datatypes.generated.Uint8]]() {}
+              case _ => new TypeReference[datatypes.DynamicArray[datatypes.Uint]]() {}
+            }
+            
+          case t if t.startsWith("int") =>
+            val bits = if(t == "int") 256 else t.substring(3).toInt
+            bits match {
+              case 256 => new TypeReference[datatypes.DynamicArray[datatypes.generated.Int256]]() {}
+              case 128 => new TypeReference[datatypes.DynamicArray[datatypes.generated.Int128]]() {}
+              case 64 => new TypeReference[datatypes.DynamicArray[datatypes.generated.Int64]]() {}
+              case 32 => new TypeReference[datatypes.DynamicArray[datatypes.generated.Int32]]() {}
+              case 8 => new TypeReference[datatypes.DynamicArray[datatypes.generated.Int8]]() {}
+              case _ => new TypeReference[datatypes.DynamicArray[datatypes.Int]]() {}
+            }
+            
+          case t => throw new Exception(s"Unsupported array element type: ${t}")
+        }
+
+      case t if t.startsWith("(") && t.endsWith(")") =>
+        new TypeReference[datatypes.DynamicStruct]() {}
+        
+      case "address" => new TypeReference[datatypes.Address]() {}
+      case "bool" | "boolean" => new TypeReference[datatypes.Bool]() {}
+      case "string" => new TypeReference[datatypes.Utf8String]() {}
+      
+      case t if t.startsWith("uint") => 
+        val bits = if(t == "uint") 256 else t.substring(4).toInt
+        bits match {
+          case 256 => new TypeReference[datatypes.generated.Uint256]() {}
+          case 128 => new TypeReference[datatypes.generated.Uint128]() {}
+          case 64 => new TypeReference[datatypes.generated.Uint64]() {}
+          case 32 => new TypeReference[datatypes.generated.Uint32]() {}
+          case 8 => new TypeReference[datatypes.generated.Uint8]() {}
+          case _ => new TypeReference[datatypes.Uint]() {}
+        }
+        
+      case t if t.startsWith("int") =>
+        val bits = if(t == "int") 256 else t.substring(3).toInt
+        bits match {
+          case 256 => new TypeReference[datatypes.generated.Int256]() {}
+          case 128 => new TypeReference[datatypes.generated.Int128]() {}
+          case 64 => new TypeReference[datatypes.generated.Int64]() {}
+          case 32 => new TypeReference[datatypes.generated.Int32]() {}
+          case 8 => new TypeReference[datatypes.generated.Int8]() {}
+          case _ => new TypeReference[datatypes.Int]() {}
+        }
+
+      case "bytes32" => new TypeReference[datatypes.generated.Bytes32]() {}
+      case "bytes" => new TypeReference[datatypes.DynamicBytes]() {}
+      
+      case t => throw new Exception(s"Unsupported type: ${t}")
+    }
+  }
+
+  def encodeFunctionWithOutputType(func: String, params: Seq[String]) = {
     val (funcName,inputTypes,outputType) = parseFunction(func)
     val inputParameters = inputTypes.zipWithIndex.map { case (paramType, i) => toWeb3Type(paramType, params(i)) }
     val outputParameters = if(outputType.isEmpty) 
       Seq.empty[TypeReference[_]] 
     else 
-      Seq(toWeb3Type(outputType, ""))
+      Seq(toTypeReference(outputType))
         
     val function = new datatypes.Function(
         funcName, 
@@ -172,6 +244,12 @@ object Solidity {
         outputParameters.toList.asInstanceOf[List[TypeReference[_]]].asJava
     )
     val encodedData = FunctionEncoder.encode(function)
+    (encodedData,outputType)
+  }
+
+  def encodeFunction(func: String, params: Seq[String]) = {
+    val (encodedData,outputType) = encodeFunctionWithOutputType(func,params)
     encodedData
   }
+
 }

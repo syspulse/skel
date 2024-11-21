@@ -66,22 +66,24 @@ object AppEvm extends {
       case "call" => 
         val contractAddress = config.params(0)
         val funcName = config.params(1)
-        val inputs = config.params.lift(2).getOrElse("")
+        val params = config.params.drop(2)
         
-        Eth.call("0x"+"0".*(40),contractAddress,funcName,inputs)
+        Eth.call("0x"+"0".*(40),contractAddress,funcName,params)
               
       case "encode" => 
         val funcName = config.params(0)
-        val inputs = config.params.lift(1).getOrElse("")
+        val params = config.params.drop(1)
         
-        Eth.encodeFunction(funcName,inputs)
+        Eth.encodeFunction(funcName,params)
 
       case "estimate" => 
         val contractAddress = config.params(0)
         val funcName = config.params(1)
-        val inputs = config.params.lift(2).getOrElse("")
-        Console.err.println(s"intputs=${inputs}")
-        Eth.estimate(config.from,contractAddress,funcName,inputs)
+        val params = config.params.drop(2)
+        
+        Console.err.println(s"params=${params}")
+        
+        Eth.estimate(config.from,contractAddress,funcName,params)
     }
     
     Console.err.println(s"r = ${r}")

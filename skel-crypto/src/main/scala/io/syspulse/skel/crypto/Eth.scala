@@ -42,6 +42,7 @@ import org.web3j.abi.FunctionEncoder
 import org.web3j.abi.TypeReference
 import org.web3j.protocol.core.DefaultBlockParameter
 import org.web3j.abi.FunctionReturnDecoder
+import io.syspulse.skel.crypto.eth.Solidity
 
 object Eth {
   val log = Logger(s"${this}")
@@ -700,84 +701,19 @@ object Eth {
     }
   }
 
-  def estimate(from:String,contractAddress:String,func:String,input:String)(implicit web3:Web3j):Try[BigInt] = {
-    val (encodedFunction,outputType) = encodeFunction(func,input)
+  def estimate(from:String,contractAddress:String,func:String,params:Seq[String])(implicit web3:Web3j):Try[BigInt] = {
+    val (encodedFunction,outputType) = encodeFunction(func,params)
     estimateGas(from,contractAddress,encodedFunction)
   }
 
-  def call(from:String,contractAddress:String,func:String,input:String)(implicit web3:Web3j):Try[String] = {
-    val (encodedFunction,outputType) = encodeFunction(func,input)
+  def call(from:String,contractAddress:String,func:String,params:Seq[String])(implicit web3:Web3j):Try[String] = {
+    val (encodedFunction,outputType) = encodeFunction(func,params)
     val r = call(from,contractAddress,encodedFunction)
     decodeResult(r,outputType)
   }
-  
-  // Very simple Function call encoder. It only supports simple types, no Tuples !
-  // totalSupply()(uint256)
-  // balanceOf(address)(uint256)
-  // transfer(address,uint256)(bool)
-
-  def encodeFunction(func:String,inputs:String):(String,String) = {
-    val inputParams = inputs.split(",").map(_.trim).toVector
-
-    val (funcName,inputTypes,outputType) = func.trim.split("[()]").toList match {
-      case funcName :: Nil => (funcName,Seq(),"")  // no input, no output
-      case funcName :: "" :: Nil => (funcName,Seq(),"")  // no input, no output
-      case funcName :: inputType1 :: Nil => (funcName,Seq(inputType1),"")  // omitted output
-      case funcName :: "" :: "" :: outputType :: Nil => (funcName,Seq(),outputType)
-      case funcName :: inputType1 :: "" :: outputType :: Nil  => (funcName,Seq(inputType1),outputType)
-      case funcName :: inputType1 :: inputType2 :: "" :: outputType :: Nil => (funcName,Seq(inputType1,inputType2),outputType)
-    }
-        
-    val inputParameters = inputTypes.zipWithIndex.map{case(t,i) => t.toLowerCase match {      
-      case "address" => new datatypes.Address(inputParams(i)){}
-      case "bool" => new datatypes.Bool(inputParams(i).toBoolean){}
-      //case "bytes" => new datatypes.Bytes(){}
-      case "string" => new datatypes.Utf8String(inputParams(i)){}
-
-      case uint if(uint.startsWith("uint")) => new datatypes.Uint(new BigInteger(inputParams(i))){}
-      case int if(int.startsWith("int"))  => new datatypes.Int(new BigInteger(inputParams(i))){}      
-
-      case t => throw new Exception(s"unsupported type: ${t}")
-    }}.toList.asInstanceOf[List[datatypes.Type[_]]]
-      
-    // only 1 output parameter is supported
-    val outputParameters = if(outputType.isEmpty) {
-      Seq.empty[TypeReference[_]]
-    } else {
-      Seq(outputType).map(t => t.toLowerCase match {
-        case "uint256" => new TypeReference[datatypes.generated.Uint256](){}
-
-        case "int256" => new TypeReference[datatypes.generated.Int256](){}
-        case "uint" => new TypeReference[datatypes.Uint](){}
-        case "int" => new TypeReference[datatypes.Int](){}
-        case "uint128" => new TypeReference[datatypes.generated.Uint128](){}
-        case "int128" => new TypeReference[datatypes.generated.Int128](){}
-        case "uint64" => new TypeReference[datatypes.generated.Uint64](){}
-        case "int64" => new TypeReference[datatypes.generated.Int64](){}
-        case "uint32" => new TypeReference[datatypes.generated.Uint32](){}
-        case "int32" => new TypeReference[datatypes.generated.Int32](){}
-        case "uint8" => new TypeReference[datatypes.generated.Uint8](){}
-        case "int8" => new TypeReference[datatypes.generated.Int8](){}
-
-        case "address" => new TypeReference[datatypes.Address](){}
-        case "bool" => new TypeReference[datatypes.Bool](){}
-        case "bytes" => new TypeReference[datatypes.Bytes](){}
-        case "string" => new TypeReference[datatypes.Utf8String](){}
-        
-        case t => throw new Exception(s"unsupported type: '${t}'")
-      }).toList.asInstanceOf[List[TypeReference[_]]]
-    }
-
-    log.debug(s"inputParameters: ${inputParameters}")
-    log.debug(s"outputParameters: ${outputParameters}")    
-
-    val function = new datatypes.Function(
-        funcName, 
-        inputParameters.asJava,
-        outputParameters.asJava
-    )
-
-    val encodedFunction = FunctionEncoder.encode(function)
+    
+  def encodeFunction(func:String,params:Seq[String]):(String,String) = {
+    val (encodedFunction,outputType) = Solidity.encodeFunctionWithOutputType(func,params)    
     (encodedFunction,outputType)
   }
 }
