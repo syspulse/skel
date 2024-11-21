@@ -19,7 +19,6 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto.key
 import io.syspulse.skel.crypto.eth.abi3.Abi
 import java.io.File
-import org.apache.tuweni.bytes.Bytes32
 
 import java.nio.charset.StandardCharsets
 
@@ -721,6 +720,8 @@ object Eth {
     val inputParams = inputs.split(",").map(_.trim).toVector
 
     val (funcName,inputTypes,outputType) = func.trim.split("[()]").toList match {
+      case funcName :: Nil => (funcName,Seq(),"")  // no input, no output
+      case funcName :: "" :: Nil => (funcName,Seq(),"")  // no input, no output
       case funcName :: inputType1 :: Nil => (funcName,Seq(inputType1),"")  // omitted output
       case funcName :: "" :: "" :: outputType :: Nil => (funcName,Seq(),outputType)
       case funcName :: inputType1 :: "" :: outputType :: Nil  => (funcName,Seq(inputType1),outputType)
