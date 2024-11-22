@@ -24,13 +24,31 @@ class BlockchainSpec extends AnyWordSpec with Matchers {
 
     "parse 1 -> 'ethereum'" in {
       val b = Blockchain("1")
-      b should ===(Blockchain.ETHEREUM)      
+      b should ===(Blockchain.ETHEREUM)
     }
 
     "parse 'network:100' -> 'network':'100'" in {
       val b = Blockchain("network:100")
       b should ===(new Blockchain("network",Some("100")))
     }
+
+    "parse 'base' -> 'Base'" in {
+      val b = Blockchain("base")
+      info(s"b=${b}")
+      b should ===(Blockchain.BASE_MAINNET)     
+    }
+
+    "parse 'arbitrum' -> 'Arbitrum'" in {
+      val b = Blockchain("base")
+      info(s"b=${b}")
+      b should ===(Blockchain.BASE_MAINNET)
+      b.name should ===(Blockchain.BASE_MAINNET.name)
+    }
     
+    "parse 'base' as chain_id (Extractor bug)" in {
+      val b = Blockchain("base")
+      info(s"b=${b}")
+      b should ===(Blockchain.BASE_MAINNET)     
+    }
   }    
 }

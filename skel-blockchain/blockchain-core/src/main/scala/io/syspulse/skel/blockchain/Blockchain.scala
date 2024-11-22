@@ -101,6 +101,10 @@ object Blockchain {
     case "scroll" :: Nil => ZKSYNC_MAINNET
     case "avalanche"  :: Nil => AVALANCHE_MAINNET
 
+    case "linea" :: Nil => LINEA_MAINNET
+    case "base" :: Nil => BASE_MAINNET
+    case "blast" :: Nil => BLAST_MAINNET
+
     case "sepolia"  :: Nil => SEPOLIA
     case "anvil"  :: Nil => ANVIL
 
