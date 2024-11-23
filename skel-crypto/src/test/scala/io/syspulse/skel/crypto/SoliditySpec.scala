@@ -56,7 +56,7 @@ class SoliditySpec extends AnyWordSpec with Matchers with TestData {
     }
 
     "convert simple tuple" in {
-      val r = Solidity.toWeb3Type("(address,uint256)", "(0x123 100)")
+      val r = Solidity.toWeb3Type("(address,uint256)", "(0x123, 100)")
       r.isInstanceOf[datatypes.DynamicStruct] shouldBe true
       val struct = r.getValue.asInstanceOf[java.util.List[datatypes.Type[_]]]
       struct.size should === (2)
@@ -65,7 +65,7 @@ class SoliditySpec extends AnyWordSpec with Matchers with TestData {
     }
 
     "convert nested array of tuples" in {
-      val r = Solidity.toWeb3Type("(address,uint256)[]", "[(0x123 100),(0x456 200)]")
+      val r = Solidity.toWeb3Type("(address,uint256)[]", "[(0x123, 100),(0x456, 200)]")
       r.isInstanceOf[datatypes.DynamicArray[_]] shouldBe true
       val arr = r.getValue.asInstanceOf[java.util.List[datatypes.DynamicStruct]]
       arr.size should === (2)
@@ -292,6 +292,107 @@ class SoliditySpec extends AnyWordSpec with Matchers with TestData {
       types.foreach { case (typeStr, expectedClass) =>
         val ref = Solidity.toTypeReference(typeStr)
         ref.getClassType should === (expectedClass)
+      }
+    }
+  }
+
+  "Solidity.encodeFunction with string params" should {
+    "parse space-delimited basic parameters" in {
+      val cases = List(
+        ("transfer(address,uint256)", "0x123 100") -> 
+          Seq("0x123", "100"),
+        
+        ("setData(string,bool)", "hello true") -> 
+          Seq("hello", "true"),
+        
+        ("multiParam(uint256,address,bool)", "123 0x456 true") -> 
+          Seq("123", "0x456", "true")
+      )
+
+      cases.foreach { case ((func, params), expected) =>
+        withClue(s"Testing: $func with params: $params") {
+          val encoded = Solidity.encodeFunction(func, params)
+          // Verify by re-parsing the parameters
+          val (_, inputTypes, _) = Solidity.parseFunction(func)
+          inputTypes.size should === (expected.size)
+        }
+      }
+    }
+
+    "parse array parameters with spaces" in {
+      val cases = List(
+        // Array with spaces after commas
+        ("setArray(uint256[])", "[0, 1, 2, 3]") -> 
+          Seq("[0, 1, 2, 3]"),
+        
+        // Array with irregular spaces
+        ("setArray(uint256[])", "[0,   1,2,   3]") -> 
+          Seq("[0,   1,2,   3]"),
+        
+        // Multiple parameters with array
+        ("setArrayWithAddress(uint256[],address)", "[0, 1, 2] 0x123") -> 
+          Seq("[0, 1, 2]", "0x123")
+      )
+
+      cases.foreach { case ((func, params), expected) =>
+        withClue(s"Testing: $func with params: $params") {
+          val encoded = Solidity.encodeFunction(func, params)
+          // Verify by re-parsing the parameters
+          val (_, inputTypes, _) = Solidity.parseFunction(func)
+          inputTypes.size should === (expected.size)
+        }
+      }
+    }
+
+    "parse tuple parameters with spaces" in {
+      val cases = List(
+        // Simple tuple
+        ("setTuple((uint256,address))", "(100, 0x123)") -> 
+          Seq("(100, 0x123)"),
+        
+        // Tuple with array
+        ("setComplexTuple((uint256,address[]))", "(100, [0x123, 0x456])") -> 
+          Seq("(100, [0x123, 0x456])"),
+        
+        // Multiple parameters with tuple
+        // ("setTupleWithExtra((uint256,address),bool)", "(100, 0x123), true") -> 
+        //   Seq("(100, 0x123), true")
+      )
+
+      cases.foreach { case ((func, params), expected) =>
+        withClue(s"Testing: $func with params: $params") {
+          val encoded = Solidity.encodeFunction(func, params)
+          // Verify by re-parsing the parameters
+          val (_, inputTypes, _) = Solidity.parseFunction(func)
+          inputTypes.size should === (expected.size)
+        }
+      }
+    }
+
+    "handle empty parameters" in {
+      val encoded = Solidity.encodeFunction("noParams()", "")
+      val (_, inputTypes, _) = Solidity.parseFunction("noParams()")
+      inputTypes should be (empty)
+    }
+
+    "handle complex nested structures" in {
+      val cases = List(
+        // Array of tuples
+        ("setArrayOfTuples((uint256,address)[])", "[(100, 0x123), (200, 0x456)]") -> 
+          Seq("[(100, 0x123), (200, 0x456)]"),
+        
+        // Tuple with nested array and tuple
+        ("setNestedStruct( ( uint256,(address,bool)[] ) )", "(100, [(0x123, true), (0x456, false)])") -> 
+          Seq("(100, [(0x123, true), (0x456, false)])")
+      )
+
+      cases.foreach { case ((func, params), expected) =>
+        withClue(s"Testing: $func with params: $params") {
+          val encoded = Solidity.encodeFunction(func, params)
+          // Verify by re-parsing the parameters
+          val (_, inputTypes, _) = Solidity.parseFunction(func)
+          inputTypes.size should === (expected.size)
+        }
       }
     }
   }

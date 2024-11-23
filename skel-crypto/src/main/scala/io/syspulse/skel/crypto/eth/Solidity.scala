@@ -57,8 +57,44 @@ object Solidity {
   }
   
   def toWeb3Type(typeStr: String, value: String): datatypes.Type[_] = {
-    
+    def splitArrayElements(str: String): Array[String] = {
+      var depth = 0
+      var current = new StringBuilder
+      var result = Array.empty[String]
+      
+      str.foreach {
+        case c @ ('(' | '[') => 
+          depth += 1
+          current.append(c)
+        case c @ (')' | ']') => 
+          depth -= 1
+          current.append(c)
+        case ',' if depth == 0 => 
+          if (current.nonEmpty) {
+            result = result :+ current.toString.trim
+            current = new StringBuilder
+          }
+        case c => current.append(c)
+      }
+      
+      if (current.nonEmpty) 
+        result = result :+ current.toString.trim
+        
+      result
+    }
+
     typeStr.toLowerCase match {
+      case t if t.endsWith("[]") =>
+        val baseType = t.dropRight(2)
+        val cleanValue = value.trim
+        if (!cleanValue.startsWith("[") || !cleanValue.endsWith("]"))
+          throw new Exception(s"Invalid array format: ${value}")
+          
+        val arrayValues = splitArrayElements(cleanValue.drop(1).dropRight(1))
+        new datatypes.DynamicArray(
+          arrayValues.map(v => toWeb3Type(baseType, v)).toList.asJava
+        ){}
+
       case "address" => new datatypes.Address(value){}
       case "bool" | "boolean" => new datatypes.Bool(value.toBoolean){}
       case "string" => new datatypes.Utf8String(value){}
@@ -89,17 +125,7 @@ object Solidity {
       case "bytes32" => 
         new datatypes.generated.Bytes32(Util.fromHexString(value)){}
       case "bytes" => new datatypes.DynamicBytes(Util.fromHexString(value)){}
-      
-      // Handle arrays and tuples
-      case t if t.endsWith("[]") =>
-        val baseType = t.dropRight(2)
-        val arrayValues = value.drop(1).dropRight(1).split(",").map(_.trim)
-        new datatypes.DynamicArray(
-          arrayValues.map(v => {
-            toWeb3Type(baseType, v)
-          }).toList.asJava
-        ){}
-        
+              
       case t if t.startsWith("(") && t.endsWith(")") =>
         val tupleTypes = parseTupleTypes(t)
         val tupleValues = parseTupleValues(value)
@@ -114,11 +140,40 @@ object Solidity {
   }
 
   private def parseTupleTypes(t: String): Array[String] = {
-    // Remove outer parentheses and split by comma
-    t.drop(1).dropRight(1).split(",").map(_.trim)
+    def splitTypes(str: String): Array[String] = {
+      var depth = 0
+      var current = new StringBuilder
+      var result = Array.empty[String]
+      
+      str.foreach {
+        case c @ ('(' | '[') => 
+          depth += 1
+          current.append(c)
+        case c @ (')' | ']') => 
+          depth -= 1
+          current.append(c)
+        case ',' if depth == 0 => 
+          if (current.nonEmpty) {
+            result = result :+ current.toString.trim
+            current = new StringBuilder
+          }
+        case c => current.append(c)
+      }
+      
+      if (current.nonEmpty) 
+        result = result :+ current.toString.trim
+        
+      result
+    }
+
+    // Remove outer parentheses and split
+    if (!t.startsWith("(") || !t.endsWith(")")) 
+      throw new Exception(s"Invalid tuple format: ${t}")
+    splitTypes(t.drop(1).dropRight(1))
   }
 
   private def parseTupleValues(v: String): Array[String] = {
+    
     def splitGroups(str: String, delimiter: Char): Array[String] = {
       var depth = 0
       var current = new StringBuilder
@@ -151,10 +206,10 @@ object Solidity {
         splitGroups(s.drop(1).dropRight(1), ',')
       case s if s.startsWith("(") && s.endsWith(")") => 
         // For tuples, split by space
-        splitGroups(s.drop(1).dropRight(1), ' ')
+        splitGroups(s.drop(1).dropRight(1), ',')
       case s => Array(s)
     }
-    
+        
     cleaned
   }
 
@@ -252,4 +307,36 @@ object Solidity {
     encodedData
   }
 
+  def encodeFunction(func: String, params: String): String = {
+    def parseParams(input: String): Seq[String] = {
+      if(input.trim.isEmpty) return Seq.empty
+      
+      var depth = 0
+      var current = new StringBuilder
+      var result = Seq.empty[String]
+      
+      input.foreach {
+        case c @ ('[' | '(') => 
+          depth += 1
+          current.append(c)
+        case c @ (']' | ')') => 
+          depth -= 1
+          current.append(c)
+        case ' ' if depth == 0 => 
+          if (current.nonEmpty) {
+            result = result :+ current.toString.trim
+            current = new StringBuilder
+          }
+        case c => current.append(c)
+      }
+      
+      if (current.nonEmpty) 
+        result = result :+ current.toString.trim
+        
+      result
+    }
+
+    val paramsSeq = parseParams(params)
+    encodeFunction(func, paramsSeq)
+  }
 }
