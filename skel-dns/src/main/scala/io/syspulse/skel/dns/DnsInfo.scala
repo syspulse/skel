@@ -3,7 +3,6 @@ package io.syspulse.skel.dns
 import scala.util.{Try,Success,Failure}
 import com.typesafe.scalalogging.Logger
 
-
 case class DnsInfo(
   domain:String,
   created:Option[Long],

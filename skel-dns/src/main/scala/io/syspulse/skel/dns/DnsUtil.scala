@@ -17,9 +17,10 @@ object DnsUtil {
     getResolver(domain).resolve(domain)
   }
 
-  def getResolver(domain:String):RegistryResolver = {
+  def getResolver(domain:String):DnsResolver = {
     domain.trim.split("\\.").last.toLowerCase match {
       case "to" => new TonicResolver()
+      case "uk" => new UkResolver() // co.uk actually
       case _ => new WhoisResolver()
     }
   }
