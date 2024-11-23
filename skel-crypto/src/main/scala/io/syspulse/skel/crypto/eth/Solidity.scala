@@ -336,7 +336,7 @@ object Solidity {
       result
     }
 
-    val paramsSeq = parseParams(params)
+    val paramsSeq = parseParams(params.replaceAll("\\n", " "))
     encodeFunction(func, paramsSeq)
   }
 }
