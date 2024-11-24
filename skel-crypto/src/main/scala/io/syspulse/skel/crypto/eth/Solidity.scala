@@ -24,7 +24,7 @@ object Solidity {
           (name, parseTypes(params), parseTypes(output)(0))
       case FunctionPatternNoOutput(name, params) => 
         (name, parseTypes(params), "")
-      case _ => throw new Exception(s"Failed to parse function: '${input}'")
+      case _ => throw new Exception(s"failed to parse function: '${input}'")
     }
   }
 
@@ -129,8 +129,8 @@ object Solidity {
       case t if t.startsWith("(") && t.endsWith(")") =>
         val tupleTypes = parseTupleTypes(t)
         val tupleValues = parseTupleValues(value)
-        if(tupleTypes.length != tupleValues.length)
-          throw new Exception(s"Tuple size mismatch: ${tupleTypes.length} types vs ${tupleValues.length} values")
+        if(tupleTypes.size != tupleValues.size)
+          throw new Exception(s"Tuple size mismatch: types=${tupleTypes.size}: values=${tupleValues.size}")
         new datatypes.DynamicStruct(
           tupleTypes.zip(tupleValues).map { case (t, v) => toWeb3Type(t, v) }.toList.asJava
         ){}
@@ -285,8 +285,12 @@ object Solidity {
     }
   }
 
-  def encodeFunctionWithOutputType(func: String, params: Seq[String]) = {
+  def encodeFunctionWithOutputType(func: String, params: Seq[String]): (String, String) = {
     val (funcName,inputTypes,outputType) = parseFunction(func)
+    
+    if(inputTypes.size != params.size)
+      throw new Exception(s"Invalid parameters count: types=${inputTypes.size}: expected=${params.size}")
+
     val inputParameters = inputTypes.zipWithIndex.map { case (paramType, i) => toWeb3Type(paramType, params(i)) }
     val outputParameters = if(outputType.isEmpty) 
       Seq.empty[TypeReference[_]] 
@@ -302,41 +306,41 @@ object Solidity {
     (encodedData,outputType)
   }
 
-  def encodeFunction(func: String, params: Seq[String]) = {
+  def decodeParams(input: String): Seq[String] = {
+    if(input.trim.isEmpty) return Seq.empty
+    
+    var depth = 0
+    var current = new StringBuilder
+    var result = Seq.empty[String]
+    
+    input.foreach {
+      case c @ ('[' | '(') => 
+        depth += 1
+        current.append(c)
+      case c @ (']' | ')') => 
+        depth -= 1
+        current.append(c)
+      case ' ' if depth == 0 => 
+        if (current.nonEmpty) {
+          result = result :+ current.toString.trim
+          current = new StringBuilder
+        }
+      case c => current.append(c)
+    }
+    
+    if (current.nonEmpty) 
+      result = result :+ current.toString.trim
+      
+    result
+  }
+
+  def encodeFunction(func: String, params: Seq[String]):String = {
     val (encodedData,outputType) = encodeFunctionWithOutputType(func,params)
     encodedData
   }
 
-  def encodeFunction(func: String, params: String): String = {
-    def parseParams(input: String): Seq[String] = {
-      if(input.trim.isEmpty) return Seq.empty
-      
-      var depth = 0
-      var current = new StringBuilder
-      var result = Seq.empty[String]
-      
-      input.foreach {
-        case c @ ('[' | '(') => 
-          depth += 1
-          current.append(c)
-        case c @ (']' | ')') => 
-          depth -= 1
-          current.append(c)
-        case ' ' if depth == 0 => 
-          if (current.nonEmpty) {
-            result = result :+ current.toString.trim
-            current = new StringBuilder
-          }
-        case c => current.append(c)
-      }
-      
-      if (current.nonEmpty) 
-        result = result :+ current.toString.trim
-        
-      result
-    }
-
-    val paramsSeq = parseParams(params.replaceAll("\\n", " "))
+  def encodeFunction(func: String, params: String): String = {    
+    val paramsSeq = decodeParams(params.replaceAll("\\n", " "))
     encodeFunction(func, paramsSeq)
   }
 }

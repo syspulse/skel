@@ -91,42 +91,20 @@ val UK_RSP_1 = """
       r1.get should be (DnsInfo("example.co.uk",Some(848966400000L),Some(1668038400000L),None,"",Seq("curt.ns.cloudflare.com", "dee.ns.cloudflare.com")))
     }
 
-    // "handle bare domains" in {
-    //   val r = new WhoisResolver()
+    "resolve google.com" in {                  
+      val r1 = DnsUtil.getInfo("google.com")
+      r1 should !== (Failure[DnsInfo](_))      
+      r1.get.ns should !== (Seq())
+      r1.get.ns.size should === (4)
+    }
 
-    //   val domains = List(
-    //     "example.com" -> "example.com",
-    //     "sub.example.com" -> "example.com",
-    //     "deep.sub.example.com" -> "example.com",        
-    //   )
-
-    //   domains.foreach { case (domain, expected) =>
-    //     r.getDomain(domain) should === (expected)
-    //   }
-    // }
-
-    // "pars INCORRECTLY multi-part TLD !!!" in {
-    //   val r = new WhoisResolver()
-            
-    //   r.getDomain("example.co.uk") should === ("co.uk")
-    //   // Additional verification
-    //   r.getDomain("sub.example.co.uk") should === ("co.uk")
-    // }
-
-    // "resolve google.com" in {      
-    //   val r1 = DnsUtil.getInfo("google.com")
-    //   r1 should !== (Failure[DnsInfo](_))
-    //   r1.get.ns should !== (Seq())
-    //   r1.get.ns.size should === (4)
-    // }
-
-    // "resolve syspulse.io" in {
-    //   val r1 = DnsUtil.getInfo("syspulse.io")
-    //   r1 should !== (Failure[DnsInfo](_))      
-    //   r1.get.ns should !== (Seq())
-    //   r1.get.ns.size should === (2)
-    // }
-
+    "resolve across.to" in {                  
+      val r1 = DnsUtil.getInfo("across.to")
+      r1 should !== (Failure[DnsInfo](_))      
+      r1.get.ns should !== (Seq())
+      r1.get.ns.size should === (2)
+    }
+    
     "resolve example.co.uk" in {                  
       val r1 = DnsUtil.getInfo("example.co.uk")
       r1 should !== (Failure[DnsInfo](_))      
@@ -156,6 +134,14 @@ val UK_RSP_1 = """
           r.parseUkDate(dateStr) should === (expected)
         }
       }
+    }
+
+    "resolve staking.floki.com as no DNS info, but IP address" in {                  
+      val r1 = DnsUtil.getInfo("staking.floki.com")
+      r1 should !== (Failure[DnsInfo](_))      
+      r1.get.ns should === (Seq())
+      r1.get.err should === (Some("not found: staking.floki.com"))
+      r1.get.ip should !== ("")
     }
   }
 }

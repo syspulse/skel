@@ -716,4 +716,8 @@ object Eth {
     val (encodedFunction,outputType) = Solidity.encodeFunctionWithOutputType(func,params)    
     (encodedFunction,outputType)
   }
+
+  def encodeFunction(func:String,params:String):String = {
+    Solidity.encodeFunction(func,params)
+  }
 }

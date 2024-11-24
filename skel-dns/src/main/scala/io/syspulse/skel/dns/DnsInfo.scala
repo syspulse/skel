@@ -9,5 +9,6 @@ case class DnsInfo(
   updated:Option[Long],
   expire:Option[Long],
   ip:String,
-  ns:Seq[String]
+  ns:Seq[String],
+  err:Option[String] = None
 )

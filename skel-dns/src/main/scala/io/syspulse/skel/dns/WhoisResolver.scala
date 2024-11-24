@@ -81,6 +81,7 @@ class WhoisResolver extends DnsResolver {
   }
 
   def parseResponse(domain:String,r:String):Try[DnsInfo] = {
+    
     if(r.startsWith("No match for")) {
       return Failure(new Exception(s"not found: ${domain}"))
     }
@@ -129,15 +130,13 @@ class WhoisResolver extends DnsResolver {
           None
       }
     })
-
-    val addr:InetAddress = Address.getByName(domain)
-
+    
     Success(DnsInfo(
       domain = domain,
       created = created,
       updated = updated,
       expire = expire,
-      ip = addr.getHostAddress(),
+      ip = "",
       ns = ns.toIndexedSeq
     ))
   }
@@ -174,7 +173,25 @@ class WhoisResolver extends DnsResolver {
       
       log.debug(s"${domain}: ${r}")
 
-      parseResponse(domain,r)
+      val dsn = parseResponse(domain,r)
+      val addr:InetAddress = Address.getByName(domain)
+      val ip = addr.getHostAddress()
+
+      dsn match {
+        case Success(dns) => 
+          Success(dns.copy(ip = ip))
+        case Failure(e) => 
+          // treat dns failure as no dns info
+          Success(DnsInfo(
+            domain = domain,
+            created = None,
+            updated = None,
+            expire = None,
+            ip = ip,
+            ns = Seq.empty,
+            err = Some(e.getMessage)
+          ))
+      }
 
     } catch {
       case e:Exception => 
