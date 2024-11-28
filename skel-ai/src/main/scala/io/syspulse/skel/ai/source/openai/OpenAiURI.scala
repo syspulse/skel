@@ -33,7 +33,11 @@ case class OpenAiURI(uri:String) {
     }
     
     url.stripPrefix(PREFIX).split("[:/@]").toList match {
-      case apiKey :: model :: Nil => 
+      case "" :: model :: Nil =>         
+        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),model,ops
+        )
+
+      case apiKey :: model :: Nil =>         
         ( Util.replaceEnvVar(apiKey),model,ops
         )
       

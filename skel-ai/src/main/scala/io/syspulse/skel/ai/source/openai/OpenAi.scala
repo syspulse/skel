@@ -41,7 +41,7 @@ case class OpenAi_ChatRes(
   choices: Seq[OpenAi_ChatChoices],
 
   usage: OpenAi_ChatUsage,
-  system_fingerprint:String
+  system_fingerprint:Option[String]
 )
 
 case class OpenAi_ChatReqMsg(
