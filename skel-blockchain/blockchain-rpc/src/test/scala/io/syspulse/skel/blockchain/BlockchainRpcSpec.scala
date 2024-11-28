@@ -24,13 +24,12 @@ class BlockchainRpcSpec extends AnyWordSpec with Matchers {
     42161=arb=https://rpc.ankr.com/arbitrum,
       """)
 
-      info(s"${bb.all()}")
+      //info(s"${bb.all()}")
       
       bb.all().size should ===(4)
       bb.get(1L) should !==(None)
       bb.get(42161L) should !==(None)
       
-    }
-    
+    }    
   }    
 }

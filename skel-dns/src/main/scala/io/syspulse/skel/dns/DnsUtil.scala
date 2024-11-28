@@ -21,6 +21,7 @@ object DnsUtil {
     domain.trim.split("\\.").last.toLowerCase match {
       case "to" => new TonicResolver()
       case "uk" => new UkResolver() // co.uk actually
+      case "test" => new TestResolver()
       case _ => new WhoisResolver()
     }
   }

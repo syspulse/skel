@@ -83,6 +83,7 @@ class WhoisResolver extends DnsResolver {
   def parseResponse(domain:String,r:String):Try[DnsInfo] = {
     
     if(r.startsWith("No match for")) {
+      log.warn(s"registry not found: '${domain}'")
       return Failure(new Exception(s"not found: ${domain}"))
     }
 
