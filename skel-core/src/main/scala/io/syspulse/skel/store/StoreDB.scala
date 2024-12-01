@@ -25,13 +25,14 @@ import io.syspulse.skel.config.Configuration
 import io.syspulse.skel.uri.JdbcURI
 
 abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Option[Configuration]=None) {
-  val log = Logger(s"${this}")
-
+  private val log = Logger(s"${this}")
+  
   val props = new java.util.Properties
-
   val uri = new JdbcURI(dbUri)
+
+  log.info(s"dbUri=${dbUri},uri=${uri},tableName=${tableName},configuration=${configuration}")
     
-  protected val (dbType,dbConfigName) = (uri.dbType,uri.dbConfig.getOrElse("posgtres"))
+  protected val (dbType,dbConfigName) = (uri.dbType,uri.dbConfig.getOrElse("postgres"))
 
   def getTableName = tableName
   def getDbType = dbType
@@ -126,6 +127,8 @@ abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Opt
   extends StoreDBCore(dbUri,tableName,configuration) 
   //with StoreAsync[E,P] {
   with Store[E,P] {
+
+  private val log = Logger(s"${this}")
 
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
   

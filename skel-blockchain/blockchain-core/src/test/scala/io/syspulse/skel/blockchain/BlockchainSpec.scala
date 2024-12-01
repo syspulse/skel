@@ -54,5 +54,11 @@ class BlockchainSpec extends AnyWordSpec with Matchers {
       b.name should ===("")
       b.id should === (Some("100"))
     }
+
+    "parse '' as no blockchain" in {
+      val b = Blockchain("")
+      b.name should ===("")
+      b.id should === (None)      
+    }
   }    
 }

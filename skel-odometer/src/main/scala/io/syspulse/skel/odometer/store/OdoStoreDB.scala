@@ -21,7 +21,7 @@ import io.syspulse.skel.odometer.Odo
 class OdoStoreDB(configuration:Configuration,dbConfigRef:String) 
   extends StoreDB[Odo,String](dbConfigRef,"odometers",Some(configuration)) 
   with OdoStore {
-
+  private val log = Logger(getClass)
   import ctx._
   
   // Because of Postgres, using dynamic schema to override table name to 'odometers' 

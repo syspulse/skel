@@ -110,7 +110,7 @@ object Blockchain {
 
     case network :: id :: _ => Blockchain(network,Some(id))
 
-    case "" :: Nil => Blockchain("")
+    case "" :: Nil => new Blockchain("",None)
 
     case id :: Nil => resolveById(id).getOrElse({
       if(id(0).isDigit)
