@@ -344,6 +344,7 @@ lazy val root = (project in file("."))
              blockchain_core,
              blockchain_rpc,
              blockchain_evm,
+             blockchain_tron,
              skel_dns,
              skel_ai,
              skel_tls,
@@ -370,6 +371,7 @@ lazy val root = (project in file("."))
              blockchain_core,
              blockchain_rpc,
              blockchain_evm,
+             blockchain_tron,
              skel_dns,
              skel_ai,
              skel_test
@@ -1276,6 +1278,17 @@ lazy val blockchain_evm = (project in file("skel-blockchain/blockchain-evm"))
       sharedConfig,
       sharedConfigAssembly,      
       name := "blockchain-evm",
+      
+      libraryDependencies ++= libTest
+    )
+
+lazy val blockchain_tron = (project in file("skel-blockchain/blockchain-tron"))
+  .dependsOn(core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,      
+      name := "blockchain-tron",
       
       libraryDependencies ++= libTest
     )
