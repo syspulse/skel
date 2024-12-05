@@ -153,6 +153,13 @@ class UriSpec extends AnyWordSpec with Matchers {
       u.dbConfig should === (Some("db1"))
     }
 
+    "parse 'jdbc://postgres'" in {
+      val u = JdbcURI("jdbc://postgres")      
+      u.dbType should === ("postgres")
+      u.db should === (None)
+      u.dbConfig should === (Some("postgres"))
+    }
+
     "parse 'jdbc://postgres://db1'" in {
       val u = JdbcURI("jdbc://postgres://db1")      
       u.dbType should === ("postgres")

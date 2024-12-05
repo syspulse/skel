@@ -8,6 +8,8 @@ import java.security.MessageDigest
 
 import io.syspulse.skel.util.Util
 
+// https://tronscan.org/#/tools/code-converter/tron-ethereum-address
+
 object TronUtil {
   private val Base58Alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
