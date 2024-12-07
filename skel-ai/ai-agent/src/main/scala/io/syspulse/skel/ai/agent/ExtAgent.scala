@@ -27,70 +27,76 @@ class ExtAgent(model:Option[String] = None) extends Agent {
   
   def getInstructions(): String = 
     """
-    You are a Contracts monitoring bot. Use the provided functions (addMonitoring, addContract) to answer questions if question asks to add, delete or set monitoring for contracts.
-    If question was related to adding, deleting or setting monitoring for contracts, provide report about the actions you have taken with contract addresses and contract identifiers in the last message.
-    Otherwise, just answer the question.
+    You are an Extractor Project and Contracts bot. Use the provided functions to answer questions.
+    Always provide report about the actions you have taken with contract addresses and contract identifiers in the last message
     """
 
   def getTools(): Seq[FunctionTool] = Seq(
     FunctionTool(
       name = "addMonitoring",
-      description = Some("Adds new monitoring capabilities to the contract like Security Monitoring, Compliance Monitoring, Financial Monitoring, etc."),
+      description = Some("Add new monitoring capabilities to the existing contract like Security Monitoring, Compliance Monitoring, Financial Monitoring, etc. by Address."),
       parameters = Map(
         "type" -> "object",
         "properties" -> Map(
           "contractId" -> Map(
             "type" -> "string",
-            "description" -> "Contract identifier returned by addContract function"
+            "description" -> "Contract identifier returned by addContract function. User must provide valid contractId in question."
           ),
           "monitoring" -> Map(
             "type" -> "string",
             "enum" -> Seq("Security Monitoring", "Compliance Monitoring"),
-            "description" -> "The type of monitoring to add to the contract"
+            "description" -> "The type of monitoring to add to the contract. Infer type from the question."
           ),          
         ),
-        "required" -> Seq("contractId","monitoring")
-      )
+        "required" -> Seq("contractId","monitoring"),
+        // "additionalProperties" -> false
+      ),
+      // strict = Some(true)
     ),
     FunctionTool(
       name = "deleteContract",
-      description = Some("Delete existing contrac by name or address)"),      
+      description = Some("Delete existing contrac by name or address"),
       parameters = Map(
         "type" -> "object",
         "properties" -> Map(
           "name" -> Map(
             "type" -> "string",
-            "description" -> "Name of the Contract to be deleted"
+            "description" -> "Name of the Contract to be deleted. User must provide Contract Name."
           ),
           "address" -> Map(
             "type" -> "string",
-            "description" -> "Address of the contract to be deleted"
+            "description" -> "Address of the contract to be deleted. User must provide valid address in question."
           ),
-        ),        
-      )
+        ),
+        "required" -> Seq("name","address"),
+        // "additionalProperties" -> false
+      ),
+      // strict = Some(true)
     ), 
     FunctionTool(
       name = "addContract",
-      description = Some("Adds new contract to the project for monitoring and returns contract identifier (contractId)"),
+      description = Some("Add new contract to the project for monitoring and return contract identifier (contractId)"),
       parameters = Map(
         "type" -> "object",
         "properties" -> Map(
           "address" -> Map(
             "type" -> "string",
-            "description" -> "Address of the contract in Ethereum format. For example: 0x742d35Cc6634C0532925a3b844f13573377189aF"
+            "description" -> "Address of the contract in Ethereum format. User must provide valid address."
           ),
           "network" -> Map(
             "type" -> "string",
             "enum" -> Seq("Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BNB Chain", "Solana", "Bitcoin", "Other"),
-            "description" -> "The network where the contract is deployed on"
+            "description" -> "The network where the contract is deployed on. User must provide valid network."
           ),
           "name" -> Map(
             "type" -> "string",
-            "description" -> "Name of the contract. If not provided, the address will be used as the name."
+            "description" -> "Name of the contract. Infer from the question."
           ),
         ),
-        "required" -> Seq("address","network","name")
-      )
+        "required" -> Seq("address","network","name"),
+        // "additionalProperties" -> false
+      ),
+      // strict = Some(true)
     ),
   )
   

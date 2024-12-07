@@ -3,6 +3,7 @@ import Dependencies._
 import com.typesafe.sbt.packager.docker.DockerAlias
 import com.typesafe.sbt.packager.docker._
 
+Global / semanticdbEnabled := true
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 // https://www.scala-sbt.org/1.x/docs/Parallel-Execution.html#Built-in+Tags+and+Rules

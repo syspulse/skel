@@ -91,7 +91,7 @@ object App extends skel.Server {
     implicit val materializer = Materializer(actor.ActorSystem())
 
     val (service,uri) = config.datastore.split("://").toList match {
-      case "openai" :: Nil => 
+      case "openai" :: _ => 
         val uri = OpenAiURI(config.datastore)
         val service = OpenAIServiceFactory.withStreaming(
           apiKey = sys.env.getOrElse("OPENAI_API_KEY",""),

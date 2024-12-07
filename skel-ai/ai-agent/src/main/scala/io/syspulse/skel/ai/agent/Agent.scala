@@ -44,7 +44,7 @@ trait Agent extends PollingHelper {
     adapters.log(
       OpenAIServiceFactory(
         apiKey = sys.env.getOrElse("OPENAI_API_KEY",""),
-        orgId = None
+        orgId = None,        
       ),
       getName(),
       log.info(_) // simple logging
@@ -52,7 +52,7 @@ trait Agent extends PollingHelper {
   
   def getName(): String
 
-  def getModel() = 
+  def getModel(): String = 
     ModelId.gpt_4o
     //ModelId.gpt_3_5_turbo
 
@@ -76,21 +76,32 @@ trait Agent extends PollingHelper {
         messages = Seq(
           ThreadMessage(question)
         ),
-        metadata = Map("user_id" -> userId.getOrElse("ext-user"))
+        metadata = Map("user_id" -> userId.getOrElse("user-???"))
       )
-      _ = println(thread)
+      _ = log.debug(s"thread: ${thread}")
     } yield thread
 
   def getFunctions(): Map[String, AiFunction]
 
   def processRun(run: Run): Future[Run] = {
     log.info(s"processRun: status=${run.status}: required_action=${run.required_action}")
-    if(run.required_action.isEmpty) {
+    
+    if(run.status == RunStatus.InProgress) {
+      // keep polling
+      log.info(s"waiting for state change..")
+      return Future.failed(new IllegalStateException(s"polling"))
+    }
+
+    if(! run.required_action.isDefined) {
+      log.warn(s"Invalid state: ${run.id}: ${run.status}: ${run.required_action}")
+      // this is expected until statu == InProgress
       return Future.failed(new IllegalStateException(s"Run ${run.id}: no required action"))
     }
 
-    val toolCalls = run.required_action.get.submit_tool_outputs.tool_calls    
-    log.debug(s"toolCalls: ${toolCalls}")
+    val toolOutputs = run.required_action.get.submit_tool_outputs
+    val toolCalls = toolOutputs.tool_calls
+    log.info(s"Processing Run: toolCalls=${toolCalls}")
+    //val toolCalls = run.required_action.get.submit_tool_outputs.tool_calls    
 
     val functionCalls = toolCalls.collect {
       case toolCall if toolCall.function.isInstanceOf[FunctionCallSpec] => toolCall
@@ -136,7 +147,7 @@ trait Agent extends PollingHelper {
         eventsThread <- createSpecMessagesThread(question,userId)
 
         _ <- service.listThreadMessages(eventsThread.id).map { messages =>
-          log.debug("messages:" + messages.map(_.content).mkString("\n"))
+          log.info("messages: =============\n" + messages.map(_.content).mkString("\n"))
         }
 
         thread <- service.retrieveThread(eventsThread.id)
@@ -147,7 +158,12 @@ trait Agent extends PollingHelper {
           assistantId = assistantId,
           tools = getTools(),
           responseToolChoice = Some(ToolChoice.Required),
-          settings = CreateRunSettings(),
+          settings = 
+            CreateRunSettings(),
+            // CreateRunSettings(
+            //   model = Some(getModel()),
+            //   temperature = Some(0.5),
+            // ),
           stream = false
         )
 
