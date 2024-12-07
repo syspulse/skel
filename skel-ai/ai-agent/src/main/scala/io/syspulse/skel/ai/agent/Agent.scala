@@ -86,14 +86,20 @@ trait Agent extends PollingHelper {
   def processRun(run: Run): Future[Run] = {
     log.info(s"processRun: status=${run.status}: required_action=${run.required_action}")
     
+    if(run.status == RunStatus.Completed) {
+      // keep polling
+      log.info(s"Completed")
+      return Future.successful(run)
+    }
+
     if(run.status == RunStatus.InProgress) {
       // keep polling
-      log.info(s"waiting for state change..")
+      log.info(s"waiting for state change...")
       return Future.failed(new IllegalStateException(s"polling"))
     }
 
     if(! run.required_action.isDefined) {
-      log.warn(s"Invalid state: ${run.id}: ${run.status}: ${run.required_action}")
+      log.warn(s"Invalid state: ${run.id}: status=${run.status}: ${run.required_action}")
       // this is expected until statu == InProgress
       return Future.failed(new IllegalStateException(s"Run ${run.id}: no required action"))
     }
@@ -156,8 +162,8 @@ trait Agent extends PollingHelper {
         run0 <- service.createRun(
           threadId = eventsThread.id,
           assistantId = assistantId,
-          tools = getTools(),
-          responseToolChoice = Some(ToolChoice.Required),
+          tools = getTools(),          
+          // responseToolChoice = Some(ToolChoice.Required),
           settings = 
             CreateRunSettings(),
             // CreateRunSettings(
