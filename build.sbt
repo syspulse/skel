@@ -1354,11 +1354,30 @@ lazy val skel_dns = (project in file("skel-dns"))
       
       libraryDependencies ++= 
         Seq(
-          
           libScalaLogging,
           libLogback,
-          libUUID,          
-          libOsLib, 
+          libUUID,
+          libOsLib,
           libScalaTest % Test
+        ),
+    )
+
+  lazy val ai_agent = (project in file("skel-ai/ai-agent"))
+  .dependsOn(core)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      name := "ai-agent",
+      
+      libraryDependencies ++= libAkka ++
+        Seq(          
+          libScalaLogging,
+          libLogback,          
+          libOsLib, 
+          
+          //libCequenceOpenAiClient,
+          libCequenceOpenAiStream,
+
+          libScalaTest % Test,
         ),
     )
