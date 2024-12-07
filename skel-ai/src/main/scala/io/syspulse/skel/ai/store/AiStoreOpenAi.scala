@@ -10,17 +10,16 @@ import io.jvm.uuid._
 
 import spray.json._
 import DefaultJsonProtocol._
-import io.syspulse.skel.service.JsonCommon
 
+import io.syspulse.skel.service.JsonCommon
+import io.syspulse.skel.util.Util
 import io.syspulse.skel.store.StoreDir
 
 import io.syspulse.skel.ai.Ai
 import io.syspulse.skel.ai.server.AiJson._
 import io.syspulse.skel.ai.Config
-import io.syspulse.skel.ai.source.Sources
-
-import io.syspulse.skel.util.Util
-import io.syspulse.skel.ai.source.openai.OpenAi
+import io.syspulse.skel.ai.core.Providers
+import io.syspulse.skel.ai.provider.openai.OpenAi
 
 // Preload from file during start
 class AiStoreOpenAi(uri:String) extends AiStore with JsonCommon {

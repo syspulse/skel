@@ -1,4 +1,4 @@
-package io.syspulse.skel.ai.source.openai
+package io.syspulse.skel.ai.core.openai
 
 import io.syspulse.skel.util.Util
 
@@ -10,13 +10,13 @@ openai://<api_key>@<model>
 case class OpenAiURI(uri:String) {
   val PREFIX = "openai://"
 
-  private val (_apiKey:String,_model:String,_ops:Map[String,String]) = parse(uri)
+  private val (_apiKey:String,_model:Option[String],_ops:Map[String,String]) = parse(uri)
 
   def apiKey:String = _apiKey
-  def model:String = _model
+  def model:Option[String] = _model
   def ops:Map[String,String] = _ops
   
-  def parse(uri:String):(String,String,Map[String,String]) = {
+  def parse(uri:String):(String,Option[String],Map[String,String]) = {
     // resolve options
     val (url:String,ops:Map[String,String]) = uri.split("[\\?&]").toList match {
       case url :: Nil => (url,Map())
@@ -34,23 +34,23 @@ case class OpenAiURI(uri:String) {
     
     url.stripPrefix(PREFIX).split("[:/@]").toList match {
       case "" :: model :: Nil =>         
-        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),model,ops
+        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),Some(model),ops
         )
 
       case apiKey :: model :: Nil =>         
-        ( Util.replaceEnvVar(apiKey),model,ops
+        ( Util.replaceEnvVar(apiKey),Some(model),ops
         )
       
       case "" :: Nil =>      
-        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),"gpt-4o-mini",Map()
+        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),Some("gpt-4o-mini"),Map()
         )
 
       case apiKey :: Nil => 
-        ( Util.replaceEnvVar(apiKey),"gpt-4o-mini",ops          
+        ( Util.replaceEnvVar(apiKey),Some("gpt-4o-mini"),ops
         )
       
       case _ =>      
-        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),"gpt-4o-mini",Map()
+        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),Some("gpt-4o-mini"),Map()
         )
     }    
   }

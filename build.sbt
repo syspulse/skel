@@ -1309,8 +1309,42 @@ lazy val blockchain_rpc = (project in file("skel-blockchain/blockchain-rpc"))
       //assembly / packageOptions += sbt.Package.ManifestAttributes("Multi-Release" -> "true")
     )
 
+lazy val ai_core = (project in file("skel-ai/ai-core"))
+  .dependsOn(core)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (    
+    sharedConfig,
+    
+    name := "ai-core",
+
+    libraryDependencies ++= libTest ++ Seq(
+      
+    ),  
+  )
+
+lazy val ai_agent = (project in file("skel-ai/ai-agent"))
+  .dependsOn(core,ai_core)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      name := "ai-agent",
+      
+      libraryDependencies ++= libAkka ++
+        Seq(          
+          libScalaLogging,
+          libLogback,          
+          libOsLib, 
+          
+          //libCequenceOpenAiClient,
+          libCequenceOpenAiStream,
+
+          libScalaTest % Test,
+        ),
+    )
+
+
 lazy val skel_ai = (project in file("skel-ai"))
-  .dependsOn(core,auth_core)
+  .dependsOn(core,auth_core,ai_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -1324,7 +1358,7 @@ lazy val skel_ai = (project in file("skel-ai"))
     appDockerConfig("skel-ai","io.syspulse.skel.ai.App"),
 
     libraryDependencies ++= libSkel ++ libHttp ++ libTest ++ Seq(
-      
+
     ),  
   )
 
@@ -1359,25 +1393,5 @@ lazy val skel_dns = (project in file("skel-dns"))
           libUUID,
           libOsLib,
           libScalaTest % Test
-        ),
-    )
-
-  lazy val ai_agent = (project in file("skel-ai/ai-agent"))
-  .dependsOn(core)
-  .disablePlugins(sbtassembly.AssemblyPlugin)
-  .settings (
-      sharedConfig,
-      name := "ai-agent",
-      
-      libraryDependencies ++= libAkka ++
-        Seq(          
-          libScalaLogging,
-          libLogback,          
-          libOsLib, 
-          
-          //libCequenceOpenAiClient,
-          libCequenceOpenAiStream,
-
-          libScalaTest % Test,
         ),
     )

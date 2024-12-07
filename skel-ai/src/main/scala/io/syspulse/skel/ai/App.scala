@@ -19,7 +19,7 @@ import scala.concurrent.duration.FiniteDuration
 import io.syspulse.skel.ai._
 import io.syspulse.skel.ai.store._
 import io.syspulse.skel.ai.server._
-import io.syspulse.skel.ai.source.Sources
+import io.syspulse.skel.ai.core.Providers
 
 case class Config(
   host:String="0.0.0.0",
@@ -120,9 +120,9 @@ object App extends skel.Server {
         config.params.toList match {
           case file :: _ if(file.startsWith("file://")) =>
             val text = os.read(os.Path(file.stripPrefix("file://"),os.pwd))
-            store.????(text,None,Some(Sources.OPEN_AI))
+            store.????(text,None,Some(Providers.OPEN_AI))
           case _ => 
-            store.????(config.params.mkString(" "),None,Some(Sources.OPEN_AI))
+            store.????(config.params.mkString(" "),None,Some(Providers.OPEN_AI))
         }
         
         
