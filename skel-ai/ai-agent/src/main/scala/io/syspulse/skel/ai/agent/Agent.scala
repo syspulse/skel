@@ -20,9 +20,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import play.api.libs.json.JsValue
 
 import io.cequence.wsclient.service.PollingHelper
-import scala.util.Try
-import scala.util.Success
-import scala.util.Failure
+import scala.util.{Try,Success,Failure}
+import io.syspulse.skel.ai.core.openai.OpenAiURI
 
 trait AiFunction {
   def run(args: JsValue): JsValue
@@ -33,6 +32,7 @@ trait Agent extends PollingHelper {
 
   // polling interval in milliseconds
   override protected val pollingMs = 550
+  def uri:OpenAiURI
 
   implicit val system: ActorSystem = ActorSystem()
   implicit val materializer: Materializer = Materializer(system)
@@ -40,11 +40,13 @@ trait Agent extends PollingHelper {
   implicit val ec: ExecutionContext = ExecutionContext.Implicits.global
 
   protected val adapters = OpenAIServiceAdapters.forFullService
-  protected val service: OpenAIService =
+  protected val service: OpenAIService = createService(uri)
+  
+  def createService(uri:OpenAiURI): OpenAIService =
     adapters.log(
       OpenAIServiceFactory(
-        apiKey = sys.env.getOrElse("OPENAI_API_KEY",""),
-        orgId = None,        
+        apiKey = uri.apiKey,
+        orgId = uri.org,        
       ),
       getName(),
       log.info(_) // simple logging

@@ -16,13 +16,14 @@ import io.cequence.openaiscala.service.{OpenAIService, OpenAIServiceFactory}
 import io.cequence.openaiscala.domain.ModelId
 import scala.concurrent.{ExecutionContext, Future}
 import play.api.libs.json.JsValue
+import io.syspulse.skel.ai.core.openai.OpenAiURI
 
-class ExtAgent(model:Option[String] = None) extends Agent {
+class ExtAgent(val uri:OpenAiURI) extends Agent {
   
   def getName(): String = "ext-agent"
 
   override def getModel() = 
-    model.getOrElse(ModelId.gpt_4o)
+    uri.model.getOrElse(ModelId.gpt_4o)
     //ModelId.gpt_3_5_turbo
   
   def getInstructions(): String = 

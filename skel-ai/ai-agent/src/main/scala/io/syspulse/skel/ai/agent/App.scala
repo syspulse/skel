@@ -90,23 +90,26 @@ object App extends skel.Server {
     implicit val ec = ExecutionContext.global
     implicit val materializer = Materializer(actor.ActorSystem())
 
-    val (service,uri) = config.datastore.split("://").toList match {
+    val (service,uri:OpenAiURI) = config.datastore.split("://").toList match {
       case "openai" :: _ => 
         val uri = OpenAiURI(config.datastore)
         val service = OpenAIServiceFactory.withStreaming(
-          apiKey = sys.env.getOrElse("OPENAI_API_KEY",""),
-          orgId = None
+          apiKey = uri.apiKey,
+          orgId = uri.org
         )
         (service,uri)
 
       case _ => 
         Console.err.println(s"Unknown datastore: '${config.datastore}'")
-        sys.exit(1)      
+        sys.exit(1)
     }
 
     val agent = config.agent.split("://").toList match {
-      case "ext" :: Nil =>         
-        new ExtAgent(uri.model)
+      case "ext-agent" :: Nil =>
+        new ExtAgent(uri)
+      
+      case "help-agent" :: Nil =>
+        new HelpAgent(uri)
       
       case _ => 
         Console.err.println(s"Unknown agent: '${config.agent}'")
@@ -161,7 +164,7 @@ object App extends skel.Server {
         WeatherAgent.run()
 
       case "help-agent" =>
-        new HelpAgent(uri.vdb,uri.model).ask(
+        new HelpAgent(uri).ask(
           "What is Extractor?"
         )
 
@@ -169,7 +172,7 @@ object App extends skel.Server {
         prompt(agent,config.params)
 
       case "ext-agent" =>
-        new ExtAgent().ask(
+        new ExtAgent(uri).ask(
 """
 I want to add Compliance Monitoring to my project Contracts. 
 I have two contracts: 0x742d35Cc6634C0532925a3b844f13573377189aF and 0x1234567890123456789012345678901234567890. 
@@ -191,7 +194,7 @@ Otherwise, just answer the question.
 )
 
       case "ext-agent-2" =>
-        new ExtAgent().ask(
+        new ExtAgent(uri).ask(
 """
 Tell me about Ethereum network in one sentence.
 """,
