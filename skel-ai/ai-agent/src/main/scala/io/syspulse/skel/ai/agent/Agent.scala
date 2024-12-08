@@ -70,7 +70,7 @@ trait Agent extends PollingHelper {
       )
     } yield assistant
 
-  def getTools(): Seq[FunctionTool]
+  def getTools(): Seq[AssistantTool]
   
   def createSpecMessagesThread(question: String,userId: Option[String]): Future[Thread] =
     for {

@@ -110,6 +110,9 @@ object App extends skel.Server {
       
       case "help-agent" :: Nil =>
         new HelpAgent(uri)
+
+      case "prompt-agent" :: Nil =>
+        new PromptAgent(uri)
       
       case _ => 
         Console.err.println(s"Unknown agent: '${config.agent}'")
@@ -168,6 +171,11 @@ object App extends skel.Server {
           "What is Extractor?"
         )
 
+      case "help-agent" =>
+        new HelpAgent(uri).ask(
+          "What is Extractor?"
+        )
+      
       case "prompt" =>
         prompt(agent,config.params)
 
