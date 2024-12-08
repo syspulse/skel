@@ -33,8 +33,13 @@ case class Config(
   port:Int=8080,
   uri:String = "/api/v1/agent",
 
-  datastore:String = "openai://",
-  agent:String = "ext://",
+  datastore:String = "",
+  provider:String = "openai://",
+  agent:String = "agent://ext-agent",
+  meta:Seq[String] = Seq("pid=898"),
+
+  serviceUri:String = "http://localhost:8080/api/v1/ext",
+  serviceToken:Option[String] = None,
           
   cmd:String = "prompt",
   params: Seq[String] = Seq(),
@@ -56,8 +61,13 @@ object App extends skel.Server {
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
 
         ArgString('d', "datastore",s"Datastore [mem://,gl://,ofac://] (def: ${d.datastore})"),
+        ArgString('s', "provider",s"Provider [openai://,ollama://] (def: ${d.provider})"),
         ArgString('a', "agent",s"Agent [ext://,weather://] (def: ${d.agent})"),
-                               
+        ArgString('m', "meta",s"Metadata list (def: ${d.meta.mkString(",")})"),
+
+        ArgString('_', "service.uri",s"Service uri (def: ${d.serviceUri})"),
+        ArgString('_', "service.token",s"Service access token (def: ${d.serviceToken})"),
+
         ArgCmd("server","Server"),
         ArgCmd("ask","Ask question"),
         ArgCmd("models","List models"),
@@ -79,7 +89,12 @@ object App extends skel.Server {
       uri = c.getString("http.uri").getOrElse(d.uri),
       
       datastore = c.getString("datastore").getOrElse(d.datastore),
+      provider = c.getString("provider").getOrElse(d.provider),
       agent = c.getString("agent").getOrElse(d.agent),
+      meta = c.getListString("meta",d.meta),
+
+      serviceUri = c.getString("service.uri").getOrElse(d.serviceUri),
+      serviceToken = c.getString("service.token").orElse(d.serviceToken),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -90,7 +105,7 @@ object App extends skel.Server {
     implicit val ec = ExecutionContext.global
     implicit val materializer = Materializer(actor.ActorSystem())
 
-    val (service,uri:OpenAiURI) = config.datastore.split("://").toList match {
+    val (service,uri:OpenAiURI) = config.provider.split("://").toList match {
       case "openai" :: _ => 
         val uri = OpenAiURI(config.datastore)
         val service = OpenAIServiceFactory.withStreaming(
@@ -104,23 +119,31 @@ object App extends skel.Server {
         sys.exit(1)
     }
 
+    val extClient = new ExtClient(config.serviceUri,config.serviceToken)
+
     val agent = config.agent.split("://").toList match {
-      case "ext-agent" :: Nil =>
-        new ExtAgent(uri)
+      case "agent" :: "ext-agent" :: Nil =>
+        new ExtAgent(uri,extClient)
       
-      case "help-agent" :: Nil =>
+      case "agent" :: "help-agent" :: Nil =>
         new HelpAgent(uri)
 
-      case "prompt-agent" :: Nil =>
+      case ("agent" :: "prompt-agent" :: Nil) | ("prompt" :: Nil) =>
         new PromptAgent(uri)
       
+      
+      // resolve Agent
+      // case "agent" :: uri  =>
+        
       case _ => 
         Console.err.println(s"Unknown agent: '${config.agent}'")
         sys.exit(1)      
     }
 
+    Console.err.println(s"Provider: ${config.provider}")
     Console.err.println(s"Service: ${service}")
     Console.err.println(s"Agent: ${agent}")
+    Console.err.println(s"Service: ${extClient}")
     
     val r = config.cmd match {      
       case "models" =>
@@ -170,17 +193,12 @@ object App extends skel.Server {
         new HelpAgent(uri).ask(
           "What is Extractor?"
         )
-
-      case "help-agent" =>
-        new HelpAgent(uri).ask(
-          "What is Extractor?"
-        )
       
       case "prompt" =>
-        prompt(agent,config.params)
+        prompt(agent,config.params,config.meta.map(m => m.split("=").toList match { case k :: v :: Nil => k -> v }).toMap)
 
       case "ext-agent" =>
-        new ExtAgent(uri).ask(
+        new ExtAgent(uri,extClient).ask(
 """
 I want to add Compliance Monitoring to my project Contracts. 
 I have two contracts: 0x742d35Cc6634C0532925a3b844f13573377189aF and 0x1234567890123456789012345678901234567890. 
@@ -202,7 +220,7 @@ Otherwise, just answer the question.
 )
 
       case "ext-agent-2" =>
-        new ExtAgent(uri).ask(
+        new ExtAgent(uri,extClient).ask(
 """
 Tell me about Ethereum network in one sentence.
 """,
@@ -216,7 +234,7 @@ Otherwise, just answer the question.
     Console.err.println(s"r = ${r}")
   }
 
-  def prompt(agent:Agent, params:Seq[String]):Unit = {
+  def prompt(agent:Agent, params:Seq[String], metadata:Map[String,String]):Unit = {
     import io.syspulse.skel.FutureAwaitable._
 
     val q0 = params.mkString(" ")
@@ -229,9 +247,11 @@ Otherwise, just answer the question.
         sys.exit(0)
       }
       if(!q.isEmpty) {
-        val f = agent.ask(q)
+        val f = agent.ask(q,metadata=Some(metadata))
         val r = await(f)
-        Console.err.println(s"${Console.RED}${agent.getName()}${Console.YELLOW}: ${r}${Console.RESET}")
+        Console.err.println(s"${r}")
+        val txt = r.get.head.content.head.text.get.value
+        Console.err.println(s"${Console.RED}${agent.getName()}${Console.YELLOW}: ${txt}${Console.RESET}")
       }
     }
   }

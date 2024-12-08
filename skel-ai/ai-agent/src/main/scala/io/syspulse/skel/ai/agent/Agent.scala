@@ -22,9 +22,10 @@ import play.api.libs.json.JsValue
 import io.cequence.wsclient.service.PollingHelper
 import scala.util.{Try,Success,Failure}
 import io.syspulse.skel.ai.core.openai.OpenAiURI
+import io.cequence.openaiscala.domain.response.Assistant
 
-trait AiFunction {
-  def run(args: JsValue): JsValue
+trait AgentFunction {
+  def run(args: JsValue, metadata:Map[String,String]): JsValue
 }
 
 trait Agent extends PollingHelper {
@@ -60,32 +61,50 @@ trait Agent extends PollingHelper {
 
   def getInstructions(): String
 
-  protected def createAssistant(instructions: String) =
+  @volatile
+  var assistant:Option[Assistant] = None
+
+  protected def createAssistant(instructions: String): Future[Assistant] = {    
     for {
-      assistant <- service.createAssistant(
+      ass <- service.createAssistant(
         model = getModel(),
         name = Some(getName()),
         instructions = Some(instructions),          
         tools = getTools()
-      )
-    } yield assistant
+      )      
+    } yield ass
+  }
+
+  // create or get existing assistant
+  protected def createOrGetAssistant(instructions: String): Future[Assistant] = {
+    if(assistant.isDefined) {
+      return Future.successful(assistant.get)
+    }
+
+    for {
+      ass <- createAssistant(instructions)
+
+      // memoize 
+      _ = assistant = Some(ass)
+    } yield ass
+  }
 
   def getTools(): Seq[AssistantTool]
   
-  def createSpecMessagesThread(question: String,userId: Option[String]): Future[Thread] =
+  def createSpecMessagesThread(question: String,metadata:Option[Map[String,String]]): Future[Thread] =
     for {
       thread <- service.createThread(
         messages = Seq(
           ThreadMessage(question)
         ),
-        metadata = Map("user_id" -> userId.getOrElse("user-???"))
+        metadata = metadata.getOrElse(Map.empty)
       )
-      _ = log.debug(s"thread: ${thread}")
+      _ = log.info(s"thread: ${thread}")
     } yield thread
 
-  def getFunctions(): Map[String, AiFunction]
+  def getFunctions(): Map[String, AgentFunction]
 
-  def processRun(run: Run): Future[Run] = {
+  def processRun(run: Run, thread: Thread): Future[Run] = {
     log.info(s"processRun: status=${run.status}: required_action=${run.required_action}")
     
     if(run.status == RunStatus.Completed) {
@@ -116,21 +135,33 @@ trait Agent extends PollingHelper {
     }
 
     log.debug(s"functionCalls: --> ${functionCalls}")
-    
-    val available_functions: Map[String, AiFunction] = getFunctions()
-    
+
+    val metadata = thread.metadata
+
+    val available_functions: Map[String, AgentFunction] = getFunctions()
+  
     val toolMessages = functionCalls.map { toolCall =>
       val functionCallSpec = toolCall.function
       val functionName = functionCallSpec.name
       val functionArgsJson = Json.parse(functionCallSpec.arguments)
       val functionResponse = available_functions.get(functionName) match {
         case Some(functionToCall) =>
-          log.info(s"Function call --> $functionName(${functionArgsJson})")
-          functionToCall.run(functionArgsJson)
+          log.info(s"Function call --> $functionName(${functionArgsJson},${metadata})")
+          try {
+            // execute function
+            functionToCall.run(functionArgsJson,metadata)
+          } catch {
+            case e: Throwable =>
+              log.error(s"Function failed: ${functionName}", e)
+              Json.obj(
+                "error" -> "Failed due to Function Call Error",
+                "error_description" -> e.getMessage,
+              )
+          }
 
         case _ =>
           log.error(s"Function call: not found: '$functionName'")
-          Json.obj("error" -> s"Function $functionName not found")
+          Json.obj("error" -> s"Function not found: ${functionName}")
       }
       AssistantToolOutput(
         output = Option(functionResponse.toString),
@@ -146,13 +177,13 @@ trait Agent extends PollingHelper {
     )
   }
   
-  def ask(question:String, instructions:Option[String] = None, userId:Option[String] = None): Future[Try[Seq[ThreadFullMessage]]] = {    
+  def ask(question:String, instructions:Option[String] = None, metadata:Option[Map[String,String]] = None): Future[Try[Seq[ThreadFullMessage]]] = {    
     val ff = for {
-        assistant <- createAssistant(instructions.getOrElse(getInstructions()))
+        assistant <- createOrGetAssistant(instructions.getOrElse(getInstructions()))
         _ = log.info(s"assistant: ${assistant}")
 
         assistantId = assistant.id
-        eventsThread <- createSpecMessagesThread(question,userId)
+        eventsThread <- createSpecMessagesThread(question,metadata)
 
         _ <- service.listThreadMessages(eventsThread.id).map { messages =>
           log.info("messages: =============\n" + messages.map(_.content).mkString("\n"))
@@ -175,8 +206,6 @@ trait Agent extends PollingHelper {
           stream = false
         )
 
-        // _ = java.lang.Thread.sleep(5000)
-
         _ = log.info(s"retrieveRun: -> ${run0.thread_id}/${run0.id}")
 
         run1 <- pollUntilDone((run: Run) => run.isFinished) {
@@ -186,7 +215,7 @@ trait Agent extends PollingHelper {
               //r.getOrElse(throw new IllegalStateException(s"Run with id ${run.id} not found."))
               r match {
                 case Some(run) => 
-                  processRun(run)
+                  processRun(run,eventsThread)
                   run
                 case None => throw new IllegalStateException(s"Run ${run0.id}: not found")
               }

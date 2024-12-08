@@ -18,8 +18,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import play.api.libs.json.JsValue
 import io.syspulse.skel.ai.core.openai.OpenAiURI
 
-class ExtAgent(val uri:OpenAiURI) extends Agent {
-  
+class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
+
   def getName(): String = "ext-agent"
 
   override def getModel() = 
@@ -99,34 +99,52 @@ class ExtAgent(val uri:OpenAiURI) extends Agent {
       ),
       // strict = Some(true)
     ),
+    FunctionTool(
+      name = "getContracts",
+      description = Some("Get all contracts configured in the current Project or user provided Project name"),
+      parameters = Map(
+        "type" -> "object",
+        "properties" -> Map(          
+          "name" -> Map(
+            "type" -> "string",
+            "description" -> "Name of the Project. If not provided, current Project will be used."
+          ),
+        ),        
+      ),      
+    ),
   )
   
-  def getFunctions(): Map[String, AiFunction] = Map(
+  def getFunctions(): Map[String, AgentFunction] = Map(
       "addMonitoringType" -> new AddMonitoringType,
       "addContract" -> new AddContract,
-      "deleteContract" -> new DeleteContract
+      "deleteContract" -> new DeleteContract,
+      "getContracts" -> new GetProjectContracts
     )
-    
 
   // unit is ignored here
-  class AddContract extends AiFunction {
-    def run(functionArgsJson: JsValue): JsValue = {
+  class AddContract extends AgentFunction {
+    def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
+      val projectId = metadata.getOrElse("pid","???")
       val address = (functionArgsJson \ "address").as[String]
       val network = (functionArgsJson \ "network").as[String]
       val name = (functionArgsJson \ "name").asOpt[String]           
       val contractId = scala.util.Random.nextInt(1000)
+
+      log.info(s"ADD CONTRACT: ${address}/${network}/${name} -> Project($projectId)")
+
+      val contract = extClient.addContract(projectId, address, network, name.getOrElse(address))
+
       Json.obj(
         "address" -> address, 
         "network" -> network, 
         "name" -> name, 
-        // "contractId" -> contractId,
-        "error" -> s"Failed to add contract: Error 500 from API"
+        "contractId" -> contract.contractId        
       )
     }
   }
 
-  class AddMonitoringType extends AiFunction {
-    def run(functionArgsJson: JsValue): JsValue = {
+  class AddMonitoringType extends AgentFunction {
+    def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
       val contractAddress = (functionArgsJson \ "address").as[String]
       val monitoringType = (functionArgsJson \ "monitoringType").as[String]
       
@@ -141,13 +159,35 @@ class ExtAgent(val uri:OpenAiURI) extends Agent {
     }
   }
 
-  class DeleteContract extends AiFunction {
-    def run(functionArgsJson: JsValue): JsValue = {
+  class DeleteContract extends AgentFunction {
+    def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
+      val projectId = metadata.getOrElse("pid","???")
       val address = (functionArgsJson \ "address").asOpt[String]
       val name = (functionArgsJson \ "name").asOpt[String]
+      
+      log.info(s"DELETE: ${address}/${name} -> Project($projectId)")
 
-      log.info(s"DELETE: ${address}/${name}")
-      Json.obj("address" -> address, "name" -> name)
+      val contract = extClient.delContract(projectId, address, name)
+
+      Json.obj("address" -> contract.address, "status" -> "deleted")
+    }
+  }
+
+  class GetProjectContracts extends AgentFunction {
+    def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {      
+      val projectId = metadata.getOrElse("pid","???")
+
+      log.info(s"GET PROJECT: -> Project($projectId)")
+
+      val contracts = extClient.getProjectContracts(projectId)
+
+      Json.arr(contracts.map { contract =>
+        Json.obj(
+          "address" -> contract.address, 
+          "network" -> contract.network, 
+          "name" -> contract.name, 
+        )
+      })
     }
   }
 }

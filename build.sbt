@@ -1318,8 +1318,7 @@ lazy val ai_core = (project in file("skel-ai/ai-core"))
     
     name := "ai-core",
 
-    libraryDependencies ++= libTest ++ Seq(
-      
+    libraryDependencies ++= libTest ++ Seq(      
     ),  
   )
 
@@ -1335,6 +1334,8 @@ lazy val ai_agent = (project in file("skel-ai/ai-agent"))
           libScalaLogging,
           libLogback,          
           libOsLib, 
+          libRequests,
+          libUpickleLib,
           
           //libCequenceOpenAiClient,
           libCequenceOpenAiStream,

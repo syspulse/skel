@@ -29,9 +29,9 @@ class PromptAgent(val uri:OpenAiURI) extends AgentFile {
   
   def getInstructions(): String = ""
   def getVectorStoreId(): String = ""  
-  def getFunctions(): Map[String, AiFunction] = Map()
+  def getFunctions(): Map[String, AgentFunction] = Map()
 
-  override def ask(question:String, instructions:Option[String] = None, userId:Option[String] = None): Future[Try[Seq[ThreadFullMessage]]] = {
+  override def ask(question:String, instructions:Option[String] = None, metadata:Option[Map[String,String]] = None): Future[Try[Seq[ThreadFullMessage]]] = {
     val ff = for {
       completion <- service.createChatCompletion(
         messages = Seq(

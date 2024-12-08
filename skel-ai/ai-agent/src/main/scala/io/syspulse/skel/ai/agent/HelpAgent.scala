@@ -37,5 +37,5 @@ class HelpAgent(val uri:OpenAiURI) extends AgentFile {
   def getVectorStoreId(): String = uri.vdb.get
 
   // no functions for FileSearchTool
-  def getFunctions(): Map[String, AiFunction] = Map()
+  def getFunctions(): Map[String, AgentFunction] = Map()
 }

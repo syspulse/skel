@@ -27,6 +27,7 @@ import io.cequence.openaiscala.domain.AssistantTool.FileSearchTool
 trait AgentFile extends Agent {
 
   def getVectorStoreId(): String
+
   override protected def createAssistant(instructions: String) =
     for {
       assistant <- service.createAssistant(
