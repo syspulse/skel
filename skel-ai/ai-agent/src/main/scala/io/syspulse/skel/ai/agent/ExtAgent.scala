@@ -33,22 +33,22 @@ class ExtAgent(model:Option[String] = None) extends Agent {
 
   def getTools(): Seq[FunctionTool] = Seq(
     FunctionTool(
-      name = "addMonitoring",
-      description = Some("Add new monitoring capabilities to the existing contract like Security Monitoring, Compliance Monitoring, Financial Monitoring, etc. by Address."),
+      name = "addMonitoringType",
+      description = Some("Add new monitoring capabilities to the contract like Security Monitoring, Compliance Monitoring, Financial Monitoring, etc. by Address."),
       parameters = Map(
         "type" -> "object",
         "properties" -> Map(
-          "contractId" -> Map(
+          "address" -> Map(
             "type" -> "string",
-            "description" -> "Contract identifier returned by addContract function. User must provide valid contractId in question."
+            "description" -> "Contract Address. Must be provided by user."
           ),
-          "monitoring" -> Map(
+          "monitoringType" -> Map(
             "type" -> "string",
             "enum" -> Seq("Security Monitoring", "Compliance Monitoring"),
             "description" -> "The type of monitoring to add to the contract. Infer type from the question."
           ),          
         ),
-        "required" -> Seq("contractId","monitoring"),
+        "required" -> Seq("address","monitoringType"),
         // "additionalProperties" -> false
       ),
       // strict = Some(true)
@@ -101,7 +101,7 @@ class ExtAgent(model:Option[String] = None) extends Agent {
   )
   
   def getFunctions(): Map[String, AiFunction] = Map(
-      "addMonitoring" -> new AddMonitoring,
+      "addMonitoringType" -> new AddMonitoringType,
       "addContract" -> new AddContract,
       "deleteContract" -> new DeleteContract
     )
@@ -118,18 +118,22 @@ class ExtAgent(model:Option[String] = None) extends Agent {
         "address" -> address, 
         "network" -> network, 
         "name" -> name, 
-        "contractId" -> contractId,
-        //"action" -> s"Contract added: ${address} on ${network} with name ${name}"
+        // "contractId" -> contractId,
+        "error" -> s"Failed to add contract: Error 500 from API"
       )
     }
   }
 
-  class AddMonitoring extends AiFunction {
+  class AddMonitoringType extends AiFunction {
     def run(functionArgsJson: JsValue): JsValue = {
-      val contractId = (functionArgsJson \ "contractId").as[String]
-      val monitoring = (functionArgsJson \ "monitoring").as[String]
+      val contractAddress = (functionArgsJson \ "address").as[String]
+      val monitoringType = (functionArgsJson \ "monitoringType").as[String]
+      
+      // find contractId by address
+      val contractId = contractAddress.hashCode
+
       Json.obj(
-        "monitoring" -> monitoring, 
+        "monitoringType" -> monitoringType, 
         "contractId" -> contractId,
         //"action" -> s"Monitoring type ${monitoring} for contract ${contractId}"
       )

@@ -4,11 +4,13 @@ import io.syspulse.skel.util.Util
 
 /* 
 openai:// - Key is taken from $OPENAI_API_KEY
-openai://<api_key>
+openai://<model>
+openai://<model>?<key1=value1&key2=value2...>
 openai://<api_key>@<model>
 */
 case class OpenAiURI(uri:String) {
   val PREFIX = "openai://"
+  val DEFAULT_MODEL = "gpt-4o-mini"
 
   private val (_apiKey:String,_model:Option[String],_ops:Map[String,String]) = parse(uri)
 
@@ -32,26 +34,29 @@ case class OpenAiURI(uri:String) {
         ("",Map())
     }
     
-    url.stripPrefix(PREFIX).split("[:/@]").toList match {
-      case "" :: model :: Nil =>         
+    val rr = url.stripPrefix(PREFIX).split("[@]").toList match {
+      case "" :: Nil =>      
+        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),Some(DEFAULT_MODEL),ops
+        )
+
+      case model :: Nil =>         
         ( sys.env.get("OPENAI_API_KEY").getOrElse(""),Some(model),ops
         )
 
       case apiKey :: model :: Nil =>         
         ( Util.replaceEnvVar(apiKey),Some(model),ops
-        )
-      
-      case "" :: Nil =>      
-        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),Some("gpt-4o-mini"),Map()
-        )
-
-      case apiKey :: Nil => 
-        ( Util.replaceEnvVar(apiKey),Some("gpt-4o-mini"),ops
-        )
-      
+        )      
+            
       case _ =>      
-        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),Some("gpt-4o-mini"),Map()
+        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),Some(DEFAULT_MODEL),ops
         )
-    }    
+    }
+
+    ops.get("apiKey") match {
+      case Some(apiKey) =>
+        (apiKey,rr._2,rr._3)
+      case None =>
+        rr
+    }
   }
 }

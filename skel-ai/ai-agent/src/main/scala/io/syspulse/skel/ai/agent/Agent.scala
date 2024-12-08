@@ -58,7 +58,7 @@ trait Agent extends PollingHelper {
 
   def getInstructions(): String
 
-  private def createAssistant(instructions: String) =
+  protected def createAssistant(instructions: String) =
     for {
       assistant <- service.createAssistant(
         model = getModel(),

@@ -160,6 +160,11 @@ object App extends skel.Server {
       case "weather-agent" =>
         WeatherAgent.run()
 
+      case "help-agent" =>
+        new HelpAgent(uri.vdb,uri.model).ask(
+          "What is Extractor?"
+        )
+
       case "prompt" =>
         prompt(agent,config.params)
 
