@@ -6,6 +6,8 @@ import io.jvm.uuid._
 import com.typesafe.scalalogging.Logger
 
 case class Contract(contractId:String, address:String, network:String, name:String)
+case class Detector(detectorId:String, name:String, did:String)
+case class DetectorSchema(schemaId:String, did:String)
 
 class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
   protected val log = Logger(getClass)
@@ -99,5 +101,75 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     log.info(s"rsp: ${rsp}")
 
     contracts.head
+  }
+
+// ----------------------------------------------------------------------------------------------------
+  def getDetectorSchemas(did:Option[String] = None):Seq[DetectorSchema] = {
+    val url = s"${baseUrl}/schema/search"
+    val data = 
+      if(did.isDefined) 
+        s"""{"size":10000,"trackTotalCount":10000,"trackTotal":false,"where":"status=ACTIVE"}"""
+      else
+        s"""{"size":10000,"trackTotalCount":10000,"trackTotal":false,"where":"status=ACTIVE"}"""
+    
+    val rsp = requests.post(
+      url,
+      headers = Map(
+        "Content-Type" -> "application/json",
+        "Authorization" -> s"Bearer ${accessToken}"
+      ),
+      data = data,      
+    )
+
+    log.info(s"rsp: ${rsp}")
+    
+    val json = ujson.read(rsp.text())
+    val ss = json("data").arr.map { d =>
+      DetectorSchema(
+        schemaId = d("id").num.toLong.toString,
+        did = d("name").str,        
+      )
+    }.toSeq
+
+    if(did.isDefined)
+      ss.filter(_.did == did.get)
+    else
+      ss
+  }
+
+  def addDetector(pid:String, cid:String, did:String, name:String, tags:String = "COMPLIANCE"):Detector = {
+    val url = s"${baseUrl}/detector"
+    val sev = -1
+    val src = "ATTACK_DETECTOR"
+    val status = "ACTIVE"    
+
+    val schemaId = if(did.head.isDigit)
+      did.toInt
+    else
+      getDetectorSchemas(Option(did)).head.schemaId
+
+    val data = 
+      s"""{"config":{"tags":"","severity":${sev}},"source":"${src}","destinations":[],"name":"${name}","status":"${status}","tags":["${tags}"],"schemaId":${schemaId},"contractId":${cid}}"""
+    
+    val rsp = requests.post(
+      url,
+      headers = Map(
+        "Content-Type" -> "application/json",
+        "Authorization" -> s"Bearer ${accessToken}"
+      ),
+      data = data,      
+    )
+
+    log.info(s"rsp: ${rsp}")
+    
+    val json = ujson.read(rsp.text())
+    val detector = 
+      Detector(
+        json("id").num.toLong.toString,
+        json("name").str,
+        json("did").str
+      )
+
+    detector
   }
 }

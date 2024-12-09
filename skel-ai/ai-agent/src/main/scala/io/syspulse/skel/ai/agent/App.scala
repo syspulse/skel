@@ -76,6 +76,8 @@ object App extends skel.Server {
         ArgCmd("ext-agent-2","Run ext-agent-2"),
         ArgCmd("weather-agent","Run weather-agent"),
         ArgCmd("prompt","Run prompt"),
+
+        ArgCmd("ext","Run Ext client"),
         
         ArgParam("<params>",""),
         ArgLogging(),
@@ -145,7 +147,28 @@ object App extends skel.Server {
     Console.err.println(s"Agent: ${agent}")
     Console.err.println(s"Service: ${extClient}")
     
-    val r = config.cmd match {      
+    val r = config.cmd match {
+      case "ext" =>
+        val ext = new ExtClient(config.serviceUri,config.serviceToken)
+        config.params.head match {
+          case "project-contracts" =>            
+            ext.getProjectContracts(config.params.drop(1).head)
+          case "detector-schema" =>
+            ext.getDetectorSchemas(config.params.drop(1).headOption)
+
+          case "detector-add" =>
+            ext.addDetector(
+              pid = config.params(1),
+              cid = config.params(2),
+              did = config.params(4),
+              name = config.params(4),
+              tags = "COMPLIANCE"
+            )
+          case _ =>
+            Console.err.println(s"Unknown ext command: '${config.params.head}'")
+            sys.exit(1)
+        }
+
       case "models" =>
         service.listModels.map(models =>
           Console.err.println(s"Models: ${models.mkString("\n")}")
