@@ -121,7 +121,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
       data = data,      
     )
 
-    log.info(s"rsp: ${rsp}")
+    log.debug(s"rsp: ${rsp}")
     
     val json = ujson.read(rsp.text())
     val ss = json("data").arr.map { d =>
@@ -137,19 +137,26 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
       ss
   }
 
-  def addDetector(pid:String, cid:String, did:String, name:String, tags:String = "COMPLIANCE"):Detector = {
+  def addDetector(pid:String, cid:String, did:String, name:String, tags:String = "COMPLIANCE",sev:Int = -1, conf:ujson.Obj = Map.empty):Detector = {
     val url = s"${baseUrl}/detector"
-    val sev = -1
     val src = "ATTACK_DETECTOR"
     val status = "ACTIVE"    
 
     val schemaId = if(did.head.isDigit)
       did.toInt
-    else
-      getDetectorSchemas(Option(did)).head.schemaId
+    else {
+      val d = getDetectorSchemas(Option(did))
+      if(d.isEmpty)
+        throw new RuntimeException(s"detector schema not found: '${did}'")
+      else
+        d.head.schemaId
+    }
+    
+    val confData = conf.copy(conf.value += "severity" -> ujson.Num(sev))
+    val confStr = confData.toString()
 
     val data = 
-      s"""{"config":{"tags":"","severity":${sev}},"source":"${src}","destinations":[],"name":"${name}","status":"${status}","tags":["${tags}"],"schemaId":${schemaId},"contractId":${cid}}"""
+      s"""{"config":${confStr},"source":"${src}","destinations":[],"name":"${name}","status":"${status}","tags":["${tags}"],"schemaId":${schemaId},"contractId":${cid}}"""
     
     val rsp = requests.post(
       url,
@@ -167,9 +174,26 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
       Detector(
         json("id").num.toLong.toString,
         json("name").str,
-        json("did").str
+        did
       )
 
     detector
+  }
+
+  def delDetector(detectorId:String, name:Option[String] = None):Detector = {
+    
+    val url = s"${baseUrl}/detector/${detectorId}"
+    
+    val rsp = requests.delete(
+      url,
+      headers = Map(
+        "Content-Type" -> "application/json",
+        "Authorization" -> s"Bearer ${accessToken}"
+      ),
+    )
+
+    log.info(s"rsp: ${rsp}")
+
+    Detector(detectorId,"","")
   }
 }

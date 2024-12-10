@@ -27,6 +27,7 @@ import io.cequence.openaiscala.service.OpenAIStreamedServiceImplicits._
 import io.cequence.openaiscala.domain.settings.CreateChatCompletionSettings
 import io.cequence.openaiscala.domain._
 import scala.io.StdIn
+import play.api.libs.json.Json
 
 case class Config(
   host:String="0.0.0.0",
@@ -72,8 +73,9 @@ object App extends skel.Server {
         ArgCmd("ask","Ask question"),
         ArgCmd("models","List models"),
         ArgCmd("asking","Ask question streamed"),
-        ArgCmd("ext-agent","Run ext-agent"),
-        ArgCmd("ext-agent-2","Run ext-agent-2"),
+        ArgCmd("ext-agent","Call ext-agent functions"),
+        ArgCmd("ext-agent-ask","Run ext-agent-ask"),
+        ArgCmd("ext-agent-ask2","Run ext-agent-ask2"),
         ArgCmd("weather-agent","Run weather-agent"),
         ArgCmd("prompt","Run prompt"),
 
@@ -157,13 +159,63 @@ object App extends skel.Server {
             ext.getDetectorSchemas(config.params.drop(1).headOption)
 
           case "detector-add" =>
+            val conf:ujson.Obj = if(config.params.length > 7)
+              ujson.read(config.params(7)).obj 
+            else 
+              ujson.Obj()
+
             ext.addDetector(
               pid = config.params(1),
               cid = config.params(2),
-              did = config.params(4),
-              name = config.params(4),
-              tags = "COMPLIANCE"
+              did = config.params(3).replaceAll("%20"," "),
+              name = config.params(4),  
+              tags = config.params.drop(5).headOption.getOrElse("COMPLIANCE"),
+              sev = if(config.params.length > 6) config.params.drop(6).head.toInt else -1,
+              conf = conf,
             )
+          case "detector-del" =>            
+            ext.delDetector(
+              detectorId = config.params(1),
+            )
+          case _ =>
+            Console.err.println(s"Unknown ext command: '${config.params.head}'")
+            sys.exit(1)
+        }
+
+      case "ext-agent" =>
+        class TestAgent extends ExtAgent(uri,extClient) {          
+        }
+
+        val agent = new TestAgent()
+
+        config.params.head match {
+          case "addContract" =>
+            agent.getFunctions().get("addContract").get.run(
+              Json.obj(
+                "address" -> config.params(2),
+                "network" -> config.params(3),
+                "name" -> config.params(4),
+              ),
+              metadata = Map("pid" -> config.params(1))
+            )
+          
+          case "addMonitoringType" =>
+            agent.getFunctions().get("addMonitoringType").get.run(
+              Json.obj(
+                "address" -> config.params(2),
+                "monitoringType" -> config.params(3),                
+              ),
+              metadata = Map("pid" -> config.params(1))
+            )
+
+          case "deleteContract" =>
+            agent.getFunctions().get("deleteContract").get.run(
+              Json.obj(
+                "address" -> config.params(2),                
+              ),
+              metadata = Map("pid" -> config.params(1))
+            )
+
           case _ =>
             Console.err.println(s"Unknown ext command: '${config.params.head}'")
             sys.exit(1)
@@ -220,7 +272,7 @@ object App extends skel.Server {
       case "prompt" =>
         prompt(agent,config.params,config.meta.map(m => m.split("=").toList match { case k :: v :: Nil => k -> v }).toMap)
 
-      case "ext-agent" =>
+      case "ext-agent-ask" =>
         new ExtAgent(uri,extClient).ask(
 """
 I want to add Compliance Monitoring to my project Contracts. 
@@ -242,7 +294,7 @@ Otherwise, just answer the question.
 
 )
 
-      case "ext-agent-2" =>
+      case "ext-agent-ask2" =>
         new ExtAgent(uri,extClient).ask(
 """
 Tell me about Ethereum network in one sentence.

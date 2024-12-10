@@ -5,7 +5,6 @@ import io.cequence.openaiscala.domain._
 import io.cequence.openaiscala.domain.settings.CreateRunSettings
 import io.cequence.openaiscala.service.adapter.OpenAIServiceAdapters
 import io.cequence.openaiscala.service.{OpenAIService, OpenAIServiceFactory}
-import play.api.libs.json.Json
 import io.cequence.openaiscala.domain.response.ChatCompletionResponse
 import io.cequence.openaiscala.service.{OpenAIService, OpenAIServiceFactory}
 
@@ -15,11 +14,46 @@ import io.cequence.openaiscala.domain.response.ChatCompletionResponse
 import io.cequence.openaiscala.service.{OpenAIService, OpenAIServiceFactory}
 import io.cequence.openaiscala.domain.ModelId
 import scala.concurrent.{ExecutionContext, Future}
+
 import play.api.libs.json.JsValue
+import play.api.libs.json.Writes
+import play.api.libs.json.Json
+
 import io.syspulse.skel.ai.core.openai.OpenAiURI
+
+object ExtJson {
+  implicit val detectorWrites = new Writes[Detector] {
+    def writes(d: Detector) = Json.obj(
+      "name" -> d.name,
+      "id" -> d.detectorId,
+      "did" -> d.did
+    )
+  }
+
+  implicit val detectorSchemaWrites = new Writes[DetectorSchema] {
+    def writes(d: DetectorSchema) = Json.obj(
+      "id" -> d.schemaId,
+      "did" -> d.did
+    )
+  }
+
+  implicit val contractWrites = new Writes[Contract] {
+    def writes(c: Contract) = Json.obj(
+      "address" -> c.address,
+      "network" -> c.network,
+      "name" -> c.name,
+      "contractId" -> c.contractId
+    )
+  }
+
+  implicit val contractsWrites: Writes[Seq[Contract]] = Writes.seq[Contract]
+  implicit val detectorsWrites: Writes[Seq[Detector]] = Writes.seq[Detector]
+  implicit val detectorSchemasWrites: Writes[Seq[DetectorSchema]] = Writes.seq[DetectorSchema]
+}
 
 class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
 
+  import ExtJson._
   def getName(): String = "ext-agent"
 
   override def getModel() = 
@@ -130,31 +164,63 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
       val name = (functionArgsJson \ "name").asOpt[String]           
       val contractId = scala.util.Random.nextInt(1000)
 
-      log.info(s"ADD CONTRACT: ${address}/${network}/${name} -> Project($projectId)")
+      log.info(s"${address}/${network}/${name} [+] Project($projectId)")
 
       val contract = extClient.addContract(projectId, address, network, name.getOrElse(address))
 
-      Json.obj(
-        "address" -> address, 
-        "network" -> network, 
-        "name" -> name, 
-        "contractId" -> contract.contractId        
-      )
+      // Json.obj(
+      //   "address" -> address, 
+      //   "network" -> network, 
+      //   "name" -> name, 
+      //   "contractId" -> contract.contractId        
+      // )
+      Json.toJson(contract)
     }
   }
 
   class AddMonitoringType extends AgentFunction {
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
+      val projectId = metadata.getOrElse("pid","???")
       val contractAddress = (functionArgsJson \ "address").as[String]
       val monitoringType = (functionArgsJson \ "monitoringType").as[String]
       
       // find contractId by address
-      val contractId = contractAddress.hashCode
+      val contracts = extClient.getProjectContracts(projectId, Some(contractAddress))
+      val contractId = contracts.head.contractId      
+
+      log.info(s"${contractAddress}/${monitoringType} [+] Project($projectId)")
+
+      // add AML detector
+      val d1 = extClient.addDetector(
+        pid = projectId,
+        cid = contractId,
+        did = "DetectorAML",
+        name = "AML Monitor",  
+        tags = "COMPLIANCE",
+        sev = -1,
+        conf = ujson.Obj()
+      )
+
+      log.info(s"${contractId}/${contractAddress}: [+] Detector(${d1.detectorId})")
+
+      // add TVL 
+      val d2 = extClient.addDetector(
+        pid = projectId,
+        cid = contractId,
+        did = "TVL Monitor",
+        name = "TVL Monitor",  
+        tags = "COMPLIANCE",
+        sev = -1,
+        conf = ujson.Obj(
+          "tokens" -> ujson.Arr()
+        )
+      )
+
+      log.info(s"${contractId}/${contractAddress}: [+] Detector(${d2.detectorId})")
 
       Json.obj(
         "monitoringType" -> monitoringType, 
-        "contractId" -> contractId,
-        //"action" -> s"Monitoring type ${monitoring} for contract ${contractId}"
+        "contractId" -> contractId,       
       )
     }
   }
@@ -165,11 +231,12 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
       val address = (functionArgsJson \ "address").asOpt[String]
       val name = (functionArgsJson \ "name").asOpt[String]
       
-      log.info(s"DELETE: ${address}/${name} -> Project($projectId)")
+      log.info(s"${address}/${name} [-] Project($projectId)")
 
       val contract = extClient.delContract(projectId, address, name)
 
-      Json.obj("address" -> contract.address, "status" -> "deleted")
+      // Json.obj("address" -> contract.address, "status" -> "deleted")
+      Json.toJson(contract)
     }
   }
 
@@ -177,17 +244,18 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {      
       val projectId = metadata.getOrElse("pid","???")
 
-      log.info(s"GET PROJECT: -> Project($projectId)")
+      log.info(s"[?] Project($projectId)")
 
       val contracts = extClient.getProjectContracts(projectId)
 
-      Json.arr(contracts.map { contract =>
-        Json.obj(
-          "address" -> contract.address, 
-          "network" -> contract.network, 
-          "name" -> contract.name, 
-        )
-      })
+      // Json.arr(contracts.map { contract =>
+      //   Json.obj(
+      //     "address" -> contract.address, 
+      //     "network" -> contract.network, 
+      //     "name" -> contract.name, 
+      //   )
+      // })
+      Json.toJson(contracts)
     }
   }
 }
