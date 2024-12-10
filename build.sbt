@@ -1319,7 +1319,7 @@ lazy val ai_core = (project in file("skel-ai/ai-core"))
     name := "ai-core",
 
     libraryDependencies ++= libTest ++ Seq(      
-    ),  
+    ), 
   )
 
 lazy val ai_agent = (project in file("skel-ai/ai-agent"))
@@ -1342,7 +1342,11 @@ lazy val ai_agent = (project in file("skel-ai/ai-agent"))
 
           libScalaTest % Test,
         ),
-    )
+
+        // AI library dependency override (it forces to akka 2.7)
+        dependencyOverrides += "com.typesafe.akka" %% "akka-http" % akkaHttpVersion
+    ),
+
 
 
 lazy val skel_ai = (project in file("skel-ai"))
