@@ -13,8 +13,8 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
   protected val log = Logger(getClass)
   
   val accessToken = accessToken0
-    .orElse(sys.env.get("ACCESS_TOKEN"))
-    .orElse(Option(os.read(os.Path("ACCESS_TOKEN",os.pwd))))
+    .orElse(sys.env.get("ACCESS_TOKEN_ADMIN"))
+    .orElse(Option(os.read(os.Path("ACCESS_TOKEN_ADMIN",os.pwd)).trim))
     .orElse(sys.env.get("EXT_PILOT_TOKEN"))
     .getOrElse(throw new RuntimeException("missing accessToken"))
 

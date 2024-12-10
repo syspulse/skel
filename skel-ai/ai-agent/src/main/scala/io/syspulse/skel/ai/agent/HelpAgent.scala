@@ -31,7 +31,7 @@ class HelpAgent(val uri:OpenAiURI) extends AgentFile {
   
   def getInstructions(): String = 
     """
-    You are an expert in Extractor prodcut. Use your knowledge base to answer questions about Extractor capabilities and features.
+    You are an assistant that helps me find Extractor product information and functionality description.
     """
 
   def getVectorStoreId(): String = uri.vdb.get

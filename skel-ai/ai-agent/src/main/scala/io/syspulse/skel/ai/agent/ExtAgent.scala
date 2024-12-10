@@ -66,7 +66,7 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
     Always provide report about the actions you have taken with contract addresses and contract identifiers in the last message
     """
 
-  def getTools(): Seq[FunctionTool] = Seq(
+  override def getTools(): Seq[AssistantTool] = Seq(
     FunctionTool(
       name = "addMonitoringType",
       description = Some("Add new monitoring capabilities to the contract like Security Monitoring, Compliance Monitoring, Financial Monitoring, etc. by Address."),

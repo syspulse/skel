@@ -19,6 +19,8 @@ case class OpenAiURI(uri:String) {
   def ops:Map[String,String] = _ops
   def vdb:Option[String] = _ops.get("vdb")
   def org:Option[String] = _ops.get("org")
+  def aid:Option[String] = _ops.get("aid")
+
   def parse(uri:String):(String,Option[String],Map[String,String]) = {
     // resolve options
     val (url:String,ops:Map[String,String]) = uri.split("[\\?&]").toList match {

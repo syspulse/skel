@@ -39,9 +39,9 @@ case class Config(
   agent:String = "agent://ext-agent",
   meta:Seq[String] = Seq("pid=898"),
 
-  serviceUri:String = "http://localhost:8080/api/v1/ext",
+  serviceUrl:String = "http://localhost:8080/api/v1/ext",
   serviceToken:Option[String] = None,
-          
+
   cmd:String = "prompt",
   params: Seq[String] = Seq(),
 )
@@ -66,7 +66,7 @@ object App extends skel.Server {
         ArgString('a', "agent",s"Agent [ext://,weather://] (def: ${d.agent})"),
         ArgString('m', "meta",s"Metadata list (def: ${d.meta.mkString(",")})"),
 
-        ArgString('_', "service.uri",s"Service uri (def: ${d.serviceUri})"),
+        ArgString('_', "service.url",s"Service uri (def: ${d.serviceUrl})"),
         ArgString('_', "service.token",s"Service access token (def: ${d.serviceToken})"),
 
         ArgCmd("server","Server"),
@@ -97,7 +97,7 @@ object App extends skel.Server {
       agent = c.getString("agent").getOrElse(d.agent),
       meta = c.getListString("meta",d.meta),
 
-      serviceUri = c.getString("service.uri").getOrElse(d.serviceUri),
+      serviceUrl = c.getString("service.url").getOrElse(d.serviceUrl),
       serviceToken = c.getString("service.token").orElse(d.serviceToken),
 
       cmd = c.getCmd().getOrElse(d.cmd),
@@ -111,7 +111,7 @@ object App extends skel.Server {
 
     val (service,uri:OpenAiURI) = config.provider.split("://").toList match {
       case "openai" :: _ => 
-        val uri = OpenAiURI(config.datastore)
+        val uri = OpenAiURI(config.provider)
         val service = OpenAIServiceFactory.withStreaming(
           apiKey = uri.apiKey,
           orgId = uri.org
@@ -119,11 +119,11 @@ object App extends skel.Server {
         (service,uri)
 
       case _ => 
-        Console.err.println(s"Unknown datastore: '${config.datastore}'")
+        Console.err.println(s"Unknown datastore: '${config.provider}'")
         sys.exit(1)
     }
 
-    val extClient = new ExtClient(config.serviceUri,config.serviceToken)
+    val extClient = new ExtClient(config.serviceUrl,config.serviceToken)
 
     val agent = config.agent.split("://").toList match {
       case "agent" :: "ext-agent" :: Nil =>
@@ -151,7 +151,7 @@ object App extends skel.Server {
     
     val r = config.cmd match {
       case "ext" =>
-        val ext = new ExtClient(config.serviceUri,config.serviceToken)
+        val ext = new ExtClient(config.serviceUrl,config.serviceToken)
         config.params.head match {
           case "project-contracts" =>            
             ext.getProjectContracts(config.params.drop(1).head)

@@ -23,28 +23,61 @@ import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
 import io.cequence.openaiscala.domain.AssistantTool.FileSearchTool
+import io.cequence.openaiscala.domain.response.Assistant
 
 trait AgentFile extends Agent {
 
   def getVectorStoreId(): String
 
-  override protected def createAssistant(instructions: String) =
+  override protected def createAssistant(instructions: String):Future[Assistant] = {
+
+    uri.aid match {
+      case Some(aid) =>
+        log.info(s"retrieving assistant: '${aid}'")        
+        service.retrieveAssistant(aid).map(_.get)
+
+      case None => 
+        for {
+          assistant <- service.createAssistant(
+            model = getModel(),
+            name = Some(getName()),
+            instructions = Some(instructions),          
+            tools = Seq(FileSearchTool()),
+            toolResources = Some(
+              AssistantToolResource(
+                AssistantToolResource.FileSearchResources(
+                  vectorStoreIds = Seq(getVectorStoreId())
+                )
+              )
+            )
+          )
+        } yield assistant
+      
+    }
+  }
+
+  override protected def createSpecMessagesThread(question: String,metadata:Option[Map[String,String]]): Future[Thread] =
     for {
-      assistant <- service.createAssistant(
-        model = getModel(),
-        name = Some(getName()),
-        instructions = Some(instructions),          
-        tools = Seq(FileSearchTool()),
-        toolResources = Some(
+      thread <- service.createThread(
+        messages = Seq(
+          ThreadMessage(question)
+        ),
+        toolResources = Seq(
           AssistantToolResource(
             AssistantToolResource.FileSearchResources(
               vectorStoreIds = Seq(getVectorStoreId())
             )
           )
-        )
+        ),
+        metadata = metadata.getOrElse(Map.empty)
       )
-    } yield assistant
+      _ = log.info(s"thread: ${thread}")
+    } yield thread
 
-  def getTools(): Seq[FunctionTool] = Seq()
+  override def getTools(): Seq[AssistantTool] = {
+    //Seq()
+    Seq(FileSearchTool()) 
+  }
 
 }
+

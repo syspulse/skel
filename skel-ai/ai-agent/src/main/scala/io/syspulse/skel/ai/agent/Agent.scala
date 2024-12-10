@@ -64,15 +64,21 @@ trait Agent extends PollingHelper {
   @volatile
   var assistant:Option[Assistant] = None
 
-  protected def createAssistant(instructions: String): Future[Assistant] = {    
-    for {
-      ass <- service.createAssistant(
-        model = getModel(),
-        name = Some(getName()),
-        instructions = Some(instructions),          
-        tools = getTools()
-      )      
-    } yield ass
+  protected def createAssistant(instructions: String): Future[Assistant] = {
+    uri.aid match {
+      case Some(aid) =>
+        log.info(s"retrieving assistant: '${aid}'")        
+        service.retrieveAssistant(aid).map(_.get)
+      case None =>
+        for {
+          ass <- service.createAssistant(
+            model = getModel(),
+            name = Some(getName()),
+            instructions = Some(instructions),          
+            tools = getTools()
+          )      
+        } yield ass
+      }
   }
 
   // create or get existing assistant
@@ -89,9 +95,9 @@ trait Agent extends PollingHelper {
     } yield ass
   }
 
-  def getTools(): Seq[AssistantTool]
+  protected def getTools(): Seq[AssistantTool]
   
-  def createSpecMessagesThread(question: String,metadata:Option[Map[String,String]]): Future[Thread] =
+  protected def createSpecMessagesThread(question: String,metadata:Option[Map[String,String]]): Future[Thread] =
     for {
       thread <- service.createThread(
         messages = Seq(
@@ -189,9 +195,10 @@ trait Agent extends PollingHelper {
           log.info("messages: =============\n" + messages.map(_.content).mkString("\n"))
         }
 
-        thread <- service.retrieveThread(eventsThread.id)
+        //thread <- service.retrieveThread(eventsThread.id)
+        thread <- Future.successful(eventsThread)
         _ = log.info(s"thread: ${thread}")
-
+        
         run0 <- service.createRun(
           threadId = eventsThread.id,
           assistantId = assistantId,
