@@ -20,8 +20,8 @@ class BlockchainRpcSpec extends AnyWordSpec with Matchers {
 
     "parse multiline config" in {
       val bb = Blockchains("""
-      1=eth=https://eth.drpc.org,
-    42161=arb=https://rpc.ankr.com/arbitrum,
+      eth=1=https://eth.drpc.org,
+      arb=42161=https://rpc.ankr.com/arbitrum,
       """)
 
       //info(s"${bb.all()}")

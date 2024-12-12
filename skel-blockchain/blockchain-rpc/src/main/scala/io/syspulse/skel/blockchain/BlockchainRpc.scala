@@ -45,10 +45,10 @@ class Blockchains(bb:Seq[String]) {
   def ++(bb:Seq[String]):Blockchains = {
     val newBlockchains = bb.flatMap(b =>{
       b.replaceAll("\n","").split("=").toList match {
-        case id :: name :: rpc :: _ => 
+        case name :: id :: rpc :: _ => 
           val bid = id.trim.toLong
           Some(( bid ->  BlockchainRpc(name.trim(),bid,rpc), bid -> Eth.web3(rpc.trim()) ))
-        case id :: rpc :: Nil => 
+        case rpc :: id :: Nil => 
           val bid = id.trim.toLong
           Some(( bid ->  BlockchainRpc(bid.toString,bid,rpc), bid -> Eth.web3(rpc.trim()) ))
         case rpc :: Nil => 
