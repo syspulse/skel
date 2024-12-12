@@ -174,7 +174,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
       Detector(
         json("id").num.toLong.toString,
         json("name").str,
-        did
+        did,
       )
 
     detector

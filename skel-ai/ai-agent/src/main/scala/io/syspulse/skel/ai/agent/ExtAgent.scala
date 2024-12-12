@@ -134,7 +134,7 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
       // strict = Some(true)
     ),
     FunctionTool(
-      name = "getContracts",
+      name = "getProjectContracts",
       description = Some("Get all contracts configured in the current Project or user provided Project name"),
       parameters = Map(
         "type" -> "object",
@@ -152,7 +152,7 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
       "addMonitoringType" -> new AddMonitoringType,
       "addContract" -> new AddContract,
       "deleteContract" -> new DeleteContract,
-      "getContracts" -> new GetProjectContracts
+      "getProjectContracts" -> new GetProjectContracts
     )
 
   // unit is ignored here
@@ -186,41 +186,58 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
       
       // find contractId by address
       val contracts = extClient.getProjectContracts(projectId, Some(contractAddress))
-      val contractId = contracts.head.contractId      
+      val contractIds = contracts.map(_.contractId)
 
-      log.info(s"${contractAddress}/${monitoringType} [+] Project($projectId)")
+      log.info(s"${contractAddress}/${monitoringType} [+] Project($projectId)[${contractIds}]")
 
       // add AML detector
-      val d1 = extClient.addDetector(
-        pid = projectId,
-        cid = contractId,
-        did = "DetectorAML",
-        name = "AML Monitor",  
-        tags = "COMPLIANCE",
-        sev = -1,
-        conf = ujson.Obj()
-      )
-
-      log.info(s"${contractId}/${contractAddress}: [+] Detector(${d1.detectorId})")
-
-      // add TVL 
-      val d2 = extClient.addDetector(
-        pid = projectId,
-        cid = contractId,
-        did = "TVL Monitor",
-        name = "TVL Monitor",  
-        tags = "COMPLIANCE",
-        sev = -1,
-        conf = ujson.Obj(
-          "tokens" -> ujson.Arr()
+      val detectors = for(contractId <- contractIds) yield {
+        val d1 = extClient.addDetector(
+          pid = projectId,
+          cid = contractId,
+          did = "DetectorAML",
+          name = "AML Monitor",  
+          tags = "COMPLIANCE",
+          sev = -1,
+          conf = ujson.Obj()
         )
-      )
 
-      log.info(s"${contractId}/${contractAddress}: [+] Detector(${d2.detectorId})")
+        log.info(s"${contractId}/${contractAddress}: [+] Detector(${d1.detectorId})")
+
+        // add TVL 
+        val d2 = extClient.addDetector(
+          pid = projectId,
+          cid = contractId,
+          did = "TVL Monitor",
+          name = "TVL Monitor",  
+          tags = "COMPLIANCE",
+          sev = -1,
+          conf = ujson.Obj(
+            "tokens" -> ujson.Arr()
+          )
+        )        
+        log.info(s"${contractId}/${contractAddress}: [+] Detector(${d2.detectorId})")
+
+        (contractId,Seq(d1,d2))
+      }
 
       Json.obj(
         "monitoringType" -> monitoringType, 
-        "contractId" -> contractId,       
+        "contract" -> Json.arr(
+          contracts.map(c => Json.obj(
+            "address" -> c.address,
+            "network" -> c.network,
+            "name" -> c.name,
+            "contractId" -> c.contractId,
+            "detectors" -> detectors.filter(_._1 == c.contractId).map(d => {
+              Json.arr(d._2.map(d => Json.obj(
+                "id" -> d.detectorId,
+                "name" -> d.name,
+                "did" -> d.did
+              )))
+            })
+          ))
+        )
       )
     }
   }

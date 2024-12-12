@@ -79,7 +79,7 @@ object App extends skel.Server {
         ArgCmd("weather-agent","Run weather-agent"),
         ArgCmd("prompt","Run prompt"),
 
-        ArgCmd("ext","Run Ext client"),
+        ArgCmd("ext","Run Ext client"), //to work with Extractor API
         
         ArgParam("<params>",""),
         ArgLogging(),
@@ -216,6 +216,14 @@ object App extends skel.Server {
               metadata = Map("pid" -> config.params(1))
             )
 
+          case "getProjectContracts" =>
+            agent.getFunctions().get("getProjectContracts").get.run(
+              Json.obj(
+                "address" -> config.params.drop(2).headOption
+              ),
+              metadata = Map("pid" -> config.params(1))
+            )
+
           case _ =>
             Console.err.println(s"Unknown ext command: '${config.params.head}'")
             sys.exit(1)
@@ -306,7 +314,7 @@ Otherwise, just answer the question.
 """),
 )  
     }
-    Console.err.println(s"r = ${r}")
+    Console.err.println(s"${r}")
   }
 
   def prompt(agent:Agent, params:Seq[String], metadata:Map[String,String]):Unit = {

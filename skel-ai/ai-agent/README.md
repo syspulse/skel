@@ -20,7 +20,7 @@ rlwrap ./run-agent.sh --provider="openai://gpt-4o?vdb=$OPENAI_VDB&org=$OPENAI_OR
 __NOTE__: `ACCESS_TOKEN_ADMIN` is used by default
 
 ```
-rlwrap ./run-agent.sh --provider="openai://gpt-4o?vdb=$OPENAI_VDB&org=$OPENAI_ORG" --agent=agent://ext-agent --service.url=https://api.dev.extractor.live/api/v1
+rlwrap ./run-agent.sh --provider="openai://gpt-4o?vdb=$OPENAI_VDB&org=$OPENAI_ORG&aid=OPENAI_AID_EXT" --agent=agent://ext-agent --service.url=https://api.dev.extractor.live/api/v1
 ```
 
 ## HelpAgent
@@ -29,7 +29,7 @@ Re-use Existing Assistant in Playground by ID:
 
 ```
 source ./env.openai
-rlwrap ./run-agent.sh --provider="openai://gpt-4o?vdb=$OPENAI_VDB&org=$OPENAI_ORG&OPENAI_AID_HELP" --agent=agent://help-agent
+rlwrap ./run-agent.sh --provider="openai://gpt-4o?vdb=$OPENAI_VDB&org=$OPENAI_ORG&aid=OPENAI_AID_HELP" --agent=agent://help-agent
 ```
 
 ----
