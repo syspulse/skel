@@ -280,7 +280,11 @@ object Eth {
 
   def percentageToWei(v:BigInt,percentage:String):Double = {
     val current = v.toDouble
-    val gasNew = current + current * (percentage.trim.stripSuffix("%").toDouble / 100.0 )
+    val gasNew = if(percentage.trim.startsWith("+") || percentage.trim.startsWith("-")) {
+      current + current * (percentage.trim.stripSuffix("%").toDouble / 100.0 )
+    } else {
+      current * (percentage.trim.stripSuffix("%").toDouble / 100.0 )
+    }
     if(gasNew < 0.0)
       0.0
     else
