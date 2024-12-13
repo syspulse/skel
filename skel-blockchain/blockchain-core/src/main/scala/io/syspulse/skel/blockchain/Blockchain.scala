@@ -43,7 +43,7 @@ object Blockchain {
   val ANVIL = Blockchain("anvil",Some("31337"),Some(18),Some("ETH"))
 
   // default EVM
-  val EVM = Blockchain("evm",Some("31337"),Some(18),Some("ETH"))
+  val EVM = Blockchain("evm",Some("0"),Some(18),Some("ETH"))
 
   val ALL = Map(
     ETHEREUM.id.get -> ETHEREUM,
@@ -73,15 +73,13 @@ object Blockchain {
 
     EVM.id.get -> EVM
   )
-
-  def resolve(name:String):Option[Blockchain] = ALL.values.find(b => b.name.toLowerCase == name.trim.toLowerCase())
   
   def resolveById(id:String):Option[Blockchain] = {
     ALL.get(id)
   }
   
   def resolveChainId(chain:Blockchain):Option[Long] = chain.id match {
-    case None => resolve(chain.name).map(b => b.id.get.toLong)
+    case None => resolveByName(chain.name).map(b => b.id.get.toLong)
     case _ => Some(chain.id.get.toLong)
   }
 
@@ -102,39 +100,36 @@ object Blockchain {
   //   },
   //   Some(chain_id)    
   // )
+  
+  def resolveByName(name:String):Option[Blockchain] = {
+    ALL.values.find(b => b.name.toLowerCase == name.trim.toLowerCase())
+  }
+
+  def resolve(network:String):Option[Blockchain] = {
+    network.trim.toLowerCase.split("\\:").toList match {
+      case ("sepolia" | "ethereum-sepolia" | "ethereum_sepolia")  :: Nil => Some(ETHEREUM_SEPOLIA)
+      case "anvil"  :: Nil => Some(ANVIL)
+      case ("bsc-testnet" | "bsc_testnet")  :: Nil => Some(BSC_TESTNET)
+      
+      case network :: id :: _ => Some(new Blockchain(network,Some(id)))
+
+      case "" :: Nil => Some(new Blockchain("",None))
+
+      case id :: Nil => 
+        if(id(0).isDigit)
+          resolveById(id).orElse(Some(new Blockchain("",Some(id))))
+        else
+          resolveByName(id).orElse(Some(new Blockchain(id)))
+
+      case _ => None
+    }
+  }
 
   // network (can be "ethereum", or "network_name:256" or "256" (will try to map to EVM))
-  def apply(network:String):Blockchain = network.trim.toLowerCase.split("\\:").toList match {
-    // case "ethereum" :: Nil => ETHEREUM
-    // case "arbitrum"  :: Nil => ARBITRUM_MAINNET
-    // case "bsc"  :: Nil => BSC_MAINNET
-    // case "optimism" :: Nil => OPTIMISM_MAINNET
-    // case "polygon" :: Nil => POLYGON_MAINNET
-    // case "zksync" :: Nil => ZKSYNC_MAINNET
-    // case "scroll" :: Nil => ZKSYNC_MAINNET
-    // case "avalanche"  :: Nil => AVALANCHE_MAINNET
-
-    // case "linea" :: Nil => LINEA_MAINNET
-    // case "base" :: Nil => BASE_MAINNET
-    // case "blast" :: Nil => BLAST_MAINNET
-
-    //case "telos" :: Nil => TELOS_MAINNET
-    //case "tron" :: Nil => TRON_MAINNET
-    
-    case ("sepolia" | "ethereum-sepolia" | "ethereum_sepolia")  :: Nil => ETHEREUM_SEPOLIA
-    case "anvil"  :: Nil => ANVIL
-    case ("bsc-testnet" | "bsc_testnet")  :: Nil => BSC_TESTNET
-    
-    case network :: id :: _ => Blockchain(network,Some(id))
-
-    case "" :: Nil => new Blockchain("",None)
-
-    case id :: Nil => 
-      if(id(0).isDigit)
-        resolveById(id).getOrElse(new Blockchain("",Some(id)))
-      else
-        resolve(id).getOrElse(new Blockchain(id))
-
-    case _ => Blockchain(network) 
-  }
+  def apply(network:String):Blockchain = 
+    resolve(network) match {
+      case Some(b) => b
+      case _ => new Blockchain(network)
+    }
+  
 }

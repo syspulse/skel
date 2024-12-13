@@ -76,5 +76,11 @@ class BlockchainSpec extends AnyWordSpec with Matchers {
       val b = Blockchain("bsc_testnet")
       b should ===(Blockchain.BSC_TESTNET)
     }
+
+    "resolve 'anvil' -> 'Anvil'" in {
+      val b = Blockchain.resolve("anvil")
+      b should ===(Some(Blockchain.ANVIL))
+    }
+    
   }    
 }
