@@ -153,7 +153,7 @@ object App extends skel.Server {
       case "ext" =>
         val ext = new ExtClient(config.serviceUrl,config.serviceToken)
         config.params.head match {
-          case "project-contracts" =>            
+          case "project-contracts" | "contracts" => 
             ext.getProjectContracts(config.params.drop(1).head,config.params.drop(2).headOption)
           
           case "detector-schema" =>
@@ -171,7 +171,7 @@ object App extends skel.Server {
               did = config.params(3).replaceAll("%20"," "),
               name = config.params(4),  
               tags = config.params.drop(5).headOption.getOrElse("COMPLIANCE").split(",").toSeq,
-              sev = if(config.params.length > 6) config.params.drop(6).head.toInt else -1,
+              sev = if(config.params.length > 6) config.params.drop(6).head else "AUTO",
               conf = conf,
             )
           case "detector-del" =>            

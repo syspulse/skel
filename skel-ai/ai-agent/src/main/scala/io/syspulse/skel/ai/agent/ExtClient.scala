@@ -138,7 +138,19 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
       ss
   }
 
-  def addDetector(pid:String, cid:String, did:String, name:String, tags:Seq[String] = Seq("COMPLIANCE"),sev:Int = -1, conf:ujson.Obj = Map.empty):Detector = {
+  def severityToDouble(sev:String):Double = {
+    sev.toUpperCase match {
+      case "CRITICAL" => 0.75
+      case "HIGH" => 0.5
+      case "MEDIUM" => 0.25
+      case "LOW" => 0.1
+      case "INFO" => 0.0
+      case "AUTO" => -1
+      case s => s.toDouble
+    }
+  }
+
+  def addDetector(pid:String, cid:String, did:String, name:String, tags:Seq[String] = Seq("COMPLIANCE"),sev:String = "AUTO", conf:ujson.Obj = Map.empty):Detector = {
     val url = s"${baseUrl}/detector"
     val src = "ATTACK_DETECTOR"
     val status = "ACTIVE"    
@@ -153,7 +165,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
         d.head.schemaId
     }
     
-    val confData = conf.copy(conf.value += "severity" -> ujson.Num(sev))
+    val confData = conf.copy(conf.value += "severity" -> ujson.Num(severityToDouble(sev)))
     val confStr = confData.toString()
 
     val tagsStr = tags.map(t => s""""${t}"""").mkString(",")

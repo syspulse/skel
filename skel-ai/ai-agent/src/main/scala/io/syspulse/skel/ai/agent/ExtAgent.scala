@@ -276,7 +276,7 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
           did = "DetectorAML",
           name = "AML Monitor",  
           tags = Seq("COMPLIANCE"),
-          sev = -1,
+          sev = "AUTO",
           conf = ujson.Obj()
         )
 
@@ -289,7 +289,7 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
           did = "TVL Monitor",
           name = "TVL Monitor",  
           tags = Seq("COMPLIANCE"),
-          sev = -1,
+          sev = "AUTO",
           conf = ujson.Obj(
             "tokens" -> ujson.Arr()
           )
@@ -430,7 +430,7 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
           did = did,
           name = detectorName.getOrElse(detectorType),
           tags = Seq(monitoringType.getOrElse("COMPLIANCE")),
-          sev = -1,
+          sev = "AUTO",
           conf = ujson.Obj()
         )
 
