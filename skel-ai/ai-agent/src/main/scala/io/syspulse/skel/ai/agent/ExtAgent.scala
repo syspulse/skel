@@ -76,8 +76,8 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
     """
 
   val severityLevels = Seq("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "AUTO")
-  val networkTypes = Seq("Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BSC", "Solana", "Bitcoin", "")
-  val monitoringTypes = Seq("Security Monitoring", "Compliance Monitoring")
+  val networkTypes = Seq("", "Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BSC", "Solana", "Bitcoin")
+  val monitoringTypes = Seq("Security Monitoring", "Compliance Monitoring","Financial Monitoring")
   val triggerTypes = Seq("Failed Transaction")
   val detectorTypes = Seq("DetectorAML", "TVL Monitor","Circulation Supply Monitor")
   
@@ -90,15 +90,24 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
         "properties" -> Map(
           "address" -> Map(
             "type" -> "string",
-            "description" -> "Contract Address. Must be provided by user."
+            "description" -> "Address of the contract. Infer from the question, but it must in a valid format. If not, it must be a name"
+          ),
+          "network" -> Map(
+            "type" -> "string",
+            "enum" -> networkTypes,
+            "description" -> "Optional network of the contract. User must provide valid network."
+          ),
+          "name" -> Map(
+            "type" -> "string",
+            "description" -> "Name of the contract. Infer from the question."
           ),
           "monitoringType" -> Map(
             "type" -> "string",
-            "enum" -> Seq("Security Monitoring", "Compliance Monitoring"),
+            "enum" -> monitoringTypes,
             "description" -> "The type of monitoring to add to the contract. Infer type from the question."
           ),          
         ),
-        "required" -> Seq("address","monitoringType"),
+        "required" -> Seq("monitoringType"),
         // "additionalProperties" -> false
       ),
       // strict = Some(true)
@@ -348,45 +357,52 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
   class AddMonitoringType extends AgentFunction {
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
       val projectId = metadata.getOrElse("pid","???")
-      val contractAddress = (functionArgsJson \ "address").as[String]
+      val address = (functionArgsJson \ "address").asOpt[String]
+      val contractName = (functionArgsJson \ "contractName").asOpt[String]
+      val network = (functionArgsJson \ "network").asOpt[String]
       val monitoringType = (functionArgsJson \ "monitoringType").as[String]
       
       // find contractId by address
-      val contracts = extClient.getProjectContracts(projectId, Some(contractAddress))
-      val contractIds = contracts.map(_.contractId)
+      val contracts = extClient.getProjectContracts(projectId, address)
+        .filter(c => address.isEmpty || c.address.toLowerCase == address.get.toLowerCase)
+        .filter(c => network.isEmpty || c.network.toLowerCase == network.get.toLowerCase)
+        .filter(c => contractName.isEmpty || c.name.toLowerCase == contractName.get.toLowerCase)
+      
+      val contractDetectors = contracts        
+        .map(c => {
+          val contractId = c.contractId
 
-      log.info(s"${contractAddress}/${monitoringType} [+] Project($projectId)[${contractIds}]")
+          log.info(s"${address}/${contractName} [+] ${monitoringType} -> Project($projectId)[${contractId}]")
 
-      // add AML detector
-      val detectors = for(contractId <- contractIds) yield {
-        val d1 = extClient.addDetector(
-          pid = projectId,
-          cid = contractId,
-          did = "DetectorAML",
-          name = "AML Monitor",  
-          tags = Seq("COMPLIANCE"),
-          sev = "AUTO",
-          conf = ujson.Obj()
-        )
+          // add AML detector          
+          val d1 = extClient.addDetector(
+            pid = projectId,
+            cid = contractId,
+            did = "DetectorAML",
+            name = "AML Monitor",  
+            tags = Seq("COMPLIANCE"),
+              sev = "AUTO",
+              conf = ujson.Obj()
+            )
 
-        log.info(s"${contractId}/${contractAddress}: [+] Detector(${d1.detectorId})")
+          log.info(s"${contractId}/${address}: [+] Detector(${d1.detectorId})")
 
-        // add TVL 
-        val d2 = extClient.addDetector(
-          pid = projectId,
-          cid = contractId,
-          did = "TVL Monitor",
-          name = "TVL Monitor",  
-          tags = Seq("COMPLIANCE"),
-          sev = "AUTO",
-          conf = ujson.Obj(
-            "tokens" -> ujson.Arr()
-          )
-        )        
-        log.info(s"${contractId}/${contractAddress}: [+] Detector(${d2.detectorId})")
+          // add TVL 
+          val d2 = extClient.addDetector(
+            pid = projectId,
+            cid = contractId,
+            did = "TVL Monitor",
+            name = "TVL Monitor",  
+            tags = Seq("COMPLIANCE"),
+            sev = "AUTO",
+            conf = ujson.Obj(
+              "tokens" -> ujson.Arr()
+            )
+          )        
+          log.info(s"${contractId}/${address}: [+] Detector(${d2.detectorId})")
 
-        (contractId,Seq(d1,d2))
-      }
+          (contractId,Seq(d1,d2))          
+        })      
 
       Json.obj(
         "monitoringType" -> monitoringType, 
@@ -396,7 +412,7 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
             "network" -> c.network,
             "name" -> c.name,
             "contractId" -> c.contractId,
-            "detectors" -> detectors.filter(_._1 == c.contractId).map(d => {
+            "detectors" -> contractDetectors.filter(_._1 == c.contractId).map(d => {
               Json.arr(d._2.map(d => Json.obj(
                 "id" -> d.detectorId,
                 "name" -> d.name,
