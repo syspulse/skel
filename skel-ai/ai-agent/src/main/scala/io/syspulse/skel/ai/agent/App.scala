@@ -154,10 +154,13 @@ object App extends skel.Server {
         val ext = new ExtClient(config.serviceUrl,config.serviceToken)
         config.params.head match {
           case "project-contracts" | "contracts" => 
-            ext.getProjectContracts(config.params.drop(1).head,config.params.drop(2).headOption)
+            ext.getProjectContracts(config.params.drop(1).head,config.params.drop(2).headOption.map(_.replaceAll("%20"," ")))
           
+          case "contract-detectors" | "detectors" => 
+            ext.getContractDetectors(config.params.drop(1).head,config.params.drop(2).headOption.map(_.replaceAll("%20"," ")))
+
           case "detector-schema" =>
-            ext.getDetectorSchemas(config.params.drop(1).headOption)
+            ext.getDetectorSchemas(config.params.drop(1).headOption.map(_.replaceAll("%20"," ")))
 
           case "detector-add" =>
             val conf:ujson.Obj = if(config.params.length > 7)

@@ -75,6 +75,12 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
     Always provide report about the actions you have taken with contract addresses and contract identifiers in the last message
     """
 
+  val severityLevels = Seq("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "AUTO")
+  val networkTypes = Seq("Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BSC", "Solana", "Bitcoin", "")
+  val monitoringTypes = Seq("Security Monitoring", "Compliance Monitoring")
+  val triggerTypes = Seq("Failed Transaction")
+  val detectorTypes = Seq("DetectorAML", "TVL Monitor","Circulation Supply Monitor")
+  
   override def getTools(): Seq[AssistantTool] = Seq(
     FunctionTool(
       name = "addMonitoringType",
@@ -129,7 +135,7 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
           ),
           "network" -> Map(
             "type" -> "string",
-            "enum" -> Seq("Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BNB Chain", "Solana", "Bitcoin", "Other"),
+            "enum" -> networkTypes,
             "description" -> "The network where the contract is deployed on. User must provide valid network."
           ),
           "name" -> Map(
@@ -167,57 +173,140 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
           ),
           "network" -> Map(
             "type" -> "string",
-            "enum" -> Seq("Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BNB Chain", "Solana", "Bitcoin", ""),
+            "enum" -> networkTypes,
             "description" -> "The network where the contract is deployed on. If not provided, empty string will be used."
           ),
-          "name" -> Map(
+          "contractName" -> Map(
+            "type" -> "string",
+            "description" -> "Name of the contract to which trigger/interceptor will be added. Infer from the question."
+          ),
+          "triggerName" -> Map(
             "type" -> "string",
             "description" -> "Name of the Trigger/Interceptor"
           ),
-          "type" -> Map(
+          "triggerType" -> Map(
             "type" -> "string",
-            "enum" -> Seq("Failed Transaction"),
+            "enum" -> triggerTypes,
             "description" -> "Type of the Trigger/Interceptor. Infer from the question."
           ),
           "config" -> Map(
             "type" -> "object",
             "description" -> "Configuration of the Trigger/Interceptor. Infer from the question. If not provided, empty object will be used."
           ),
+          "severity" -> Map(
+            "type" -> "string",
+            "enum" -> severityLevels,
+            "description" -> "Severity of the Trigger/Interceptor. Infer from the question."
+          ),
         ),
-        "required" -> Seq("address","network","name","type"),
+        "required" -> Seq("triggerType"),
         // "additionalProperties" -> false
       ),
       // strict = Some(true)
     ),
     FunctionTool(
       name = "deleteTrigger",
-      description = Some("Delete existing trigger / interceptor by name or address"),
+      description = Some("Delete existing trigger / interceptor by name"),
       parameters = Map(
         "type" -> "object",
         "properties" -> Map(
           "address" -> Map(
             "type" -> "string",
-            "description" -> "Address of the contract to which trigger/interceptor will be added. User must provide valid address."
+            "description" -> "Address of the contract where trigger/interceptor is configured."
           ),
           "network" -> Map(
             "type" -> "string",
-            "enum" -> Seq("Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BNB Chain", "Solana", "Bitcoin", ""),
+            "enum" -> networkTypes,
             "description" -> "The network where the contract is deployed on. If not provided, empty string will be used."
           ),
-          "name" -> Map(
+          "contractName" -> Map(
+            "type" -> "string",
+            "description" -> "Name of the contract on which trigger/interceptor is configured. Infer from the question."
+          ),
+          "triggerName" -> Map(
             "type" -> "string",
             "description" -> "Name of the Trigger/Interceptor"
-          ),
-          "type" -> Map(
-            "type" -> "string",
-            "enum" -> Seq("Failed Transaction"),
-            "description" -> "Type of the Trigger/Interceptor. Infer from the question."
           ),          
         ),
-        "required" -> Seq("address","network","name"),
+        "required" -> Seq("triggerName"),
         // "additionalProperties" -> false
       ),
       // strict = Some(true)
+    ),
+    FunctionTool(
+      name = "addDetector",
+      description = Some("Add new detector to the contract"),
+      parameters = Map(
+        "type" -> "object",
+        "properties" -> Map(
+          "address" -> Map(
+            "type" -> "string",
+            "description" -> "Address of the contract to which detector will be added. User must provide valid address."
+          ),
+          "network" -> Map(
+            "type" -> "string",
+            "enum" -> networkTypes,
+            "description" -> "The network where the contract is deployed on. If not provided, empty string will be used."
+          ),
+          "contractName" -> Map(
+            "type" -> "string",
+            "description" -> "Name of the contract to which detector will be added. Infer from the question."
+          ),
+          "detectorName" -> Map(
+            "type" -> "string",
+            "description" -> "Name of the Detector"
+          ),
+          "detectorType" -> Map(
+            "type" -> "string",
+            "enum" -> detectorTypes,
+            "description" -> "Type of the Detector. Infer from the question."
+          ),
+          "config" -> Map(
+            "type" -> "object",
+            "description" -> "Configuration of the Detector. Infer from the question. If not provided, empty object will be used."
+          ),
+          "severity" -> Map(
+            "type" -> "string",
+            "enum" -> severityLevels,
+            "description" -> "Severity of the Detector. Infer from the question."
+          ),
+        ),
+        "required" -> Seq("detectorType"),
+        // "additionalProperties" -> false
+      ),
+      // strict = Some(true)
+    ),
+    FunctionTool(
+      name = "deleteDetector",
+      description = Some("Delete existing detector by name"),
+      parameters = Map(
+        "type" -> "object",
+        "properties" -> Map(
+          "address" -> Map(
+            "type" -> "string",
+            "description" -> "Address of the contract on which trigger/interceptor is configured."
+          ),
+          "network" -> Map(
+            "type" -> "string",
+            "enum" -> networkTypes,
+            "description" -> "The network where the contract is deployed on. If not provided, empty string will be used."
+          ),
+          "contractName" -> Map(
+            "type" -> "string",
+            "description" -> "Name of the contract on which detector is configured. Infer from the question."
+          ),
+          "detectorName" -> Map(
+            "type" -> "string",
+            "description" -> "Name of the Detector"
+          ),
+          "detectorType" -> Map(
+            "type" -> "string",
+            "enum" -> detectorTypes,
+            "description" -> "Type of the Detector. Infer from the question."
+          ),
+        ),
+        "required" -> Seq() //Seq("detectorName"),        
+      ),      
     ),
   )
   
@@ -228,7 +317,7 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
       "getProjectContracts" -> new GetProjectContracts,
       
       "addDetector" -> new AddDetector,
-      //"deleteDetector" -> new DeleteDetector,
+      "deleteDetector" -> new DeleteDetector,
       
       "addTrigger" -> new AddTrigger,
       "deleteTrigger" -> new DeleteTrigger
@@ -354,12 +443,12 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
       val address = (functionArgsJson \ "address").asOpt[String]
       val contractName = (functionArgsJson \ "contractName").asOpt[String]
       val network = (functionArgsJson \ "network").asOpt[String]
-      val triggerName = (functionArgsJson \ "triggerName").as[String]
-      val typ = (functionArgsJson \ "type").as[String]
+      val triggerName = (functionArgsJson \ "triggerName").asOpt[String]
+      val triggerType = (functionArgsJson \ "triggerType").as[String]
       val config = (functionArgsJson \ "config").asOpt[JsValue]
       val severity = (functionArgsJson \ "severity").asOpt[String]
 
-      log.info(s"${address}/${contractName}/${network} ${projectId}: [+] Trigger(${triggerName}/${typ},${config})")
+      log.info(s"${address}/${contractName}/${network} ${projectId}: [+] Trigger(${triggerName}/${triggerType},${config})")
 
       val contracts = extClient.getProjectContracts(projectId)
 
@@ -370,8 +459,8 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
           extClient.addTrigger(
             projectId, 
             c.contractId, 
-            typ, 
-            triggerName, 
+            triggerType, 
+            triggerName.getOrElse(triggerType), 
             severity.getOrElse("MEDIUM"),
             config.map(js => ujson.read(js.toString())).getOrElse(ujson.Obj())
           )
@@ -405,22 +494,32 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
   class AddDetector extends AgentFunction {
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
       val projectId = metadata.getOrElse("pid","???")
-      val contractAddress = (functionArgsJson \ "address").as[String]
+      val address = (functionArgsJson \ "address").asOpt[String]
+      val network = (functionArgsJson \ "network").asOpt[String]
+      val contractName = (functionArgsJson \ "contractName").asOpt[String]
       val detectorType = (functionArgsJson \ "detectorType").as[String]
       val detectorName = (functionArgsJson \ "detectorName").asOpt[String]
       val monitoringType = (functionArgsJson \ "monitoringType").asOpt[String]
       
       // find contractId by address
-      val contracts = extClient.getProjectContracts(projectId, Some(contractAddress))
+      val contracts = extClient.getProjectContracts(projectId, address)
+        .filter(c => address.isEmpty || c.address.toLowerCase == address.get.toLowerCase)
+        .filter(c => network.isEmpty || c.network.toLowerCase == network.get.toLowerCase)
+        .filter(c => contractName.isEmpty || c.name.toLowerCase == contractName.get.toLowerCase)
+      
       val contractIds = contracts.map(_.contractId)
 
       // get detectorId by name
       val detectorSchemas:Seq[DetectorSchema] = extClient.getDetectorSchemas(Some(detectorType))
-      val detectorDids = detectorSchemas
+      // ATTENTION: take only the latest version
+      val detectorDids = Seq(
+        detectorSchemas
         .filter(d => d.did == detectorType)
         .map(_.schemaId)
+        .head
+      )
       
-      log.info(s"${contractAddress} [+] Detector(${detectorDids}) -> Contracts(${contractIds})")
+      log.info(s"${address}/${contractName} [+] Detector(${detectorDids}) -> Contracts(${contractIds})")
 
       // add AML detector
       val detectors = contractIds.zip(detectorDids).map { case(contractId,did) =>
@@ -434,10 +533,40 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
           conf = ujson.Obj()
         )
 
-        log.info(s"${contractId}/${contractAddress}: [+] Detector(${d1.detectorId})")
+        log.info(s"${contractId}/${address}/${contractName}: [+] Detector(${d1.detectorId})")
 
         d1
       }
+
+      Json.toJson(detectors)
+    }
+  }
+
+  class DeleteDetector extends AgentFunction {
+    def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
+      val projectId = metadata.getOrElse("pid","???")
+      val contractName = (functionArgsJson \ "contractName").asOpt[String]
+      val address = (functionArgsJson \ "address").asOpt[String]
+      val network = (functionArgsJson \ "network").asOpt[String]
+      val detectorName = (functionArgsJson \ "detectorName").asOpt[String]
+      val detectorType = (functionArgsJson \ "detectorType").asOpt[String]
+
+      val detectors = extClient.getProjectContracts(projectId)
+        .filter(c => address.isEmpty || c.address.toLowerCase == address.get.toLowerCase)
+        .filter(c => network.isEmpty || c.network.toLowerCase == network.get.toLowerCase)
+        .flatMap(c => {
+          val detectors = extClient.getContractDetectors(c.contractId)
+          val detector = detectors
+            .filter(d => detectorName.isEmpty || d.name == detectorName.get)
+            .filter(d => detectorType.isEmpty || d.did == detectorType.get)
+            .map(d => 
+              extClient.delDetector( d.detectorId)
+            )
+
+          detectors
+        })
+
+      log.info(s"${projectId}/${contractName} [-] Detectors($detectors)")
 
       Json.toJson(detectors)
     }

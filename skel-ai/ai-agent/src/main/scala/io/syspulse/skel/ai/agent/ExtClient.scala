@@ -7,11 +7,15 @@ import com.typesafe.scalalogging.Logger
 
 case class Contract(contractId:String, address:String, network:String, name:String, addressImpl:Option[String] = None)
 case class Detector(detectorId:String, name:String, did:String)
-case class DetectorSchema(schemaId:String, did:String)
+case class DetectorSchema(schemaId:String, did:String, ver:String)
 case class Trigger(triggerId:String, name:String, typ:String)
 
 class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
   protected val log = Logger(getClass)
+
+  def verToLong(ver:String):Long = {
+    ver.split("\\.").map(_.toLong).zip(Seq(100,10,1)).map{ case(v,m) => v * m}.reduce(_ + _)
+  }
   
   val accessToken = accessToken0
     .orElse(sys.env.get("ACCESS_TOKEN_ADMIN"))
@@ -52,6 +56,36 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
       )
     }
     contracts.toSeq
+  }
+
+  def getContractDetectors(cid:String, name:Option[String] = None):Seq[Detector] = {
+    val url = s"${baseUrl}/detector/search"
+    val data = 
+      if(name.isDefined) 
+        s"""{"from":0,"size":10,"trackTotal":false,"where":"contractId = ${cid} AND name='${name.get}' "}""" 
+      else
+        s"""{"from":0,"size":10,"trackTotal":false,"where":"contractId = ${cid}"}"""
+    
+    val rsp = requests.post(
+      url,
+      headers = Map(
+        "Content-Type" -> "application/json",
+        "Authorization" -> s"Bearer ${accessToken}"
+      ),
+      data = data,      
+    )
+
+    log.info(s"rsp: ${rsp}")
+    
+    val json = ujson.read(rsp.text())
+    val detectors = json("data").arr.map { d =>
+      Detector(
+        d("id").num.toLong.toString,
+        name = d("name").str,
+        did = d("schema").obj("name").str,
+      )
+    }
+    detectors.toSeq
   }
 
   def addContract(pid:String, addr:String, network:String, name:String):Contract = {
@@ -129,8 +163,11 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
       DetectorSchema(
         schemaId = d("id").num.toLong.toString,
         did = d("name").str,        
+        ver = d("version").str,
       )
-    }.toSeq
+    }
+      .sortBy(s => - verToLong(s.ver))
+      .toSeq
 
     if(did.isDefined)
       ss.filter(_.did == did.get)
@@ -194,7 +231,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     detector
   }
 
-  def delDetector(detectorId:String, name:Option[String] = None):Detector = {    
+  def delDetector(detectorId:String):Detector = {    
     val url = s"${baseUrl}/detector/${detectorId}"
     
     val rsp = requests.delete(
