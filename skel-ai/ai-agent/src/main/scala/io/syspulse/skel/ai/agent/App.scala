@@ -154,7 +154,8 @@ object App extends skel.Server {
         val ext = new ExtClient(config.serviceUrl,config.serviceToken)
         config.params.head match {
           case "project-contracts" =>            
-            ext.getProjectContracts(config.params.drop(1).head)
+            ext.getProjectContracts(config.params.drop(1).head,config.params.drop(2).headOption)
+          
           case "detector-schema" =>
             ext.getDetectorSchemas(config.params.drop(1).headOption)
 
@@ -169,7 +170,7 @@ object App extends skel.Server {
               cid = config.params(2),
               did = config.params(3).replaceAll("%20"," "),
               name = config.params(4),  
-              tags = config.params.drop(5).headOption.getOrElse("COMPLIANCE"),
+              tags = config.params.drop(5).headOption.getOrElse("COMPLIANCE").split(",").toSeq,
               sev = if(config.params.length > 6) config.params.drop(6).head.toInt else -1,
               conf = conf,
             )
@@ -314,7 +315,7 @@ Otherwise, just answer the question.
 """),
 )  
     }
-    Console.err.println(s"${r}")
+    Console.out.println(s"${r}")
   }
 
   def prompt(agent:Agent, params:Seq[String], metadata:Map[String,String]):Unit = {

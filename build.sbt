@@ -1185,19 +1185,6 @@ lazy val skel_job = (project in file("skel-job"))
     )
   )
 
-lazy val tools = (project in file("tools"))
-  .enablePlugins(JavaAppPackaging)
-  .settings (
-      sharedConfig,
-      name := "skel-tools",
-      libraryDependencies ++= 
-        Seq(
-          libCask, 
-          libOsLib,
-          libUpickleLib
-        ),
-    )
-
 lazy val skel_odometer = (project in file("skel-odometer"))
   .dependsOn(core,auth_core,skel_cron)
   .enablePlugins(JavaAppPackaging)
@@ -1369,9 +1356,9 @@ lazy val skel_ai = (project in file("skel-ai"))
 lazy val skel_dns = (project in file("skel-dns"))
   .dependsOn(core)
   .disablePlugins(sbtassembly.AssemblyPlugin)
-  .settings (    
+    .settings (    
     sharedConfig,
-    //sharedConfigAssembly,      
+    //sharedConfigAssembly,
     
     name := "skel-dns",
     //appDockerConfig("skel-dns","io.syspulse.skel.dns.App"),
@@ -1383,7 +1370,7 @@ lazy val skel_dns = (project in file("skel-dns"))
     ),  
   )
 
-  lazy val skel_tls = (project in file("skel-tls"))
+lazy val skel_tls = (project in file("skel-tls"))
   .dependsOn(core)
   .disablePlugins(sbtassembly.AssemblyPlugin)  
   .settings (
@@ -1397,5 +1384,25 @@ lazy val skel_dns = (project in file("skel-dns"))
           libUUID,
           libOsLib,
           libScalaTest % Test
+        ),
+    )
+
+lazy val tools = (project in file("tools"))
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,
+      sharedConfigDocker,
+      dockerBuildxSettings,
+
+      appDockerConfig("skel-tools","io.syspulse.skel.tools.HttpServer"),
+      //name := "skel-tools",
+
+      libraryDependencies ++= 
+        Seq(
+          libCask, 
+          libOsLib,
+          libUpickleLib
         ),
     )
