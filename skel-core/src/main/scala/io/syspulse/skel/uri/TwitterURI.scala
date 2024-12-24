@@ -70,7 +70,15 @@ case class TwitterURI(uri:String) {
           ops
         )
       
-      case _ => ("","","","",Seq.empty,0,10000L,10,ops)
+      case _ => 
+        ( sys.env.get("CONSUMER_KEY").getOrElse(""),sys.env.get("CONSUMER_SECRET").getOrElse(""),
+          sys.env.get("ACCESS_KEY").getOrElse(""),sys.env.get("ACCESS_SECRET").getOrElse(""),
+          Seq.empty,
+          ops.get("past").map(_.toLong).getOrElse(1000L * 60 * 60 * 24),
+          ops.get("freq").map(_.toLong).getOrElse(10000L),
+          ops.get("max").map(_.toInt).getOrElse(10),
+          ops
+        )
     }    
   }
 }
