@@ -53,7 +53,12 @@ class EthGasSpec extends AnyWordSpec with Matchers with TestData {
       v1 should !== (Success(BigInt(0)))
     }
 
-    "convert '25.0%' to 25% higher than current" in {
+    "percentage 20% of 100 should be 20" in {
+      val v1 = Eth.percentageToWei(100,"20%")
+      v1 should === (20.0)
+    }
+
+    "convert '25.0%' to 25% of the current" in {
       val v1 = Eth.strToWei("current")      
       val v2 = Eth.strToWei("25.0%")
       v1 shouldBe a [Success[_]]
@@ -62,8 +67,8 @@ class EthGasSpec extends AnyWordSpec with Matchers with TestData {
       val diff = (v2.get.toDouble / v1.get.toDouble *100.0).ceil
       info(s"current=${v1}, 25%=${v2}: diff=${diff}")
 
-      v2.get > v1.get should === (true)
-      (diff).toLong should === (100 + 25)
+      v2.get < v1.get should === (true)
+      (diff).toLong should === (25)
     }
 
     "convert '+25.0%' to +25% higher than current" in {
@@ -79,7 +84,7 @@ class EthGasSpec extends AnyWordSpec with Matchers with TestData {
       (diff).toLong should === (100 + 25)
     }
 
-    "convert '150.0%' to 150% higher than current" in {
+    "convert '150.0%' to 150% of the current" in {
       val v1 = Eth.strToWei("current")      
       val v2 = Eth.strToWei("150%")
       v1 shouldBe a [Success[_]]
@@ -89,7 +94,7 @@ class EthGasSpec extends AnyWordSpec with Matchers with TestData {
       info(s"current=${v1}, 150%=${v2}: diff=${diff}")
 
       v2.get > v1.get should === (true)
-      (diff).toLong should === (100 + 150)
+      (diff).toLong should === (150)
     }
     
     "convert '-25.0%' to lower than current price" in {
@@ -111,9 +116,50 @@ class EthGasSpec extends AnyWordSpec with Matchers with TestData {
             
     }
 
+    "'25.0%' of 1 gwei must be >0 and <1" in {
+      val v1 = Eth.percentageToWei(1,"25.0%")
+      v1 > 0.0 && v1 < 1.0 should === (true)
+    }
+
     "'-10000.0%' of 1 gwei must be > 0" in {
       val v1 = Eth.percentageToWei(1,"-10000.0%")
       v1 >= 0.0 should === (true)            
+    }
+
+    "percentage 0% of 100 should be 0" in {
+      val v1 = Eth.percentageToWei(100,"0%")
+      v1 should === (0.0)
+    }
+
+    "percentage 100% of 100 should be 100" in {
+      val v1 = Eth.percentageToWei(100,"100%")
+      v1 should === (100.0)
+    }
+
+    "percentage 200% of 100 should be 200" in {
+      val v1 = Eth.percentageToWei(100,"200%")
+      v1 should === (200.0)
+    }
+
+    "percentage +50% of 100 should be 150" in {
+      val v1 = Eth.percentageToWei(100,"+50%")
+      v1 should === (150.0)
+    }
+
+    "percentage with decimal 33.33% of 100 should be 33.33" in {
+      val v1 = Eth.percentageToWei(100,"33.33%")
+      v1 should === (33.33)
+    }
+
+    "percentage with spaces ' 50% ' should work" in {
+      val v1 = Eth.percentageToWei(100," 50% ")
+      v1 should === (50.0)
+    }
+    
+    "empty percentage string should fail" in {
+      assertThrows[IllegalArgumentException] {
+        Eth.percentageToWei(100,"")
+      }
     }
 
   }

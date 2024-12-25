@@ -21,7 +21,7 @@ import io.syspulse.skel.otp.Otp
 import io.getquill.context.ExecutionInfo
 
 class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB[Otp,UUID](dbConfigRef,"otp",Some(configuration)) with OtpStore {
-
+  private val log = Logger(getClass)
   import ctx._
 
   def create:Try[Long] = {

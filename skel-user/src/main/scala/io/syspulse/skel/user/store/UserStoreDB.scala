@@ -22,6 +22,7 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String)
   extends StoreDB[User,UUID](dbConfigRef,"users",Some(configuration)) 
   with UserStore {
 
+  private val log = Logger(getClass)
   import ctx._
   
   // Because of Postgres, using dynamic schema to override table name to 'users' 

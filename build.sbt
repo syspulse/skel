@@ -3,6 +3,7 @@ import Dependencies._
 import com.typesafe.sbt.packager.docker.DockerAlias
 import com.typesafe.sbt.packager.docker._
 
+Global / semanticdbEnabled := true
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 // https://www.scala-sbt.org/1.x/docs/Parallel-Execution.html#Built-in+Tags+and+Rules
@@ -344,6 +345,7 @@ lazy val root = (project in file("."))
              blockchain_core,
              blockchain_rpc,
              blockchain_evm,
+             blockchain_tron,
              skel_dns,
              skel_ai,
              skel_tls,
@@ -370,6 +372,7 @@ lazy val root = (project in file("."))
              blockchain_core,
              blockchain_rpc,
              blockchain_evm,
+             blockchain_tron,
              skel_dns,
              skel_ai,
              skel_test
@@ -1182,19 +1185,6 @@ lazy val skel_job = (project in file("skel-job"))
     )
   )
 
-lazy val tools = (project in file("tools"))
-  .enablePlugins(JavaAppPackaging)
-  .settings (
-      sharedConfig,
-      name := "skel-tools",
-      libraryDependencies ++= 
-        Seq(
-          libCask, 
-          libOsLib,
-          libUpickleLib
-        ),
-    )
-
 lazy val skel_odometer = (project in file("skel-odometer"))
   .dependsOn(core,auth_core,skel_cron)
   .enablePlugins(JavaAppPackaging)
@@ -1280,6 +1270,17 @@ lazy val blockchain_evm = (project in file("skel-blockchain/blockchain-evm"))
       libraryDependencies ++= libTest
     )
 
+lazy val blockchain_tron = (project in file("skel-blockchain/blockchain-tron"))
+  .dependsOn(core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,      
+      name := "blockchain-tron",
+      
+      libraryDependencies ++= libTest
+    )
+
 lazy val blockchain_rpc = (project in file("skel-blockchain/blockchain-rpc"))
   .dependsOn(core,skel_crypto,blockchain_core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
@@ -1296,8 +1297,45 @@ lazy val blockchain_rpc = (project in file("skel-blockchain/blockchain-rpc"))
       //assembly / packageOptions += sbt.Package.ManifestAttributes("Multi-Release" -> "true")
     )
 
+lazy val ai_core = (project in file("skel-ai/ai-core"))
+  .dependsOn(core)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (    
+    sharedConfig,
+    
+    name := "ai-core",
+
+    libraryDependencies ++= libTest ++ Seq(      
+    ), 
+  )
+
+lazy val ai_agent = (project in file("skel-ai/ai-agent"))
+  .dependsOn(core,ai_core)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      name := "ai-agent",
+      
+      libraryDependencies ++= libAkka ++
+        Seq(          
+          libScalaLogging,
+          libLogback,          
+          libOsLib, 
+          libRequests,
+          libUpickleLib,
+          
+          //libCequenceOpenAiClient,
+          libCequenceOpenAiStream,
+
+          libScalaTest % Test,
+        ),
+
+      // AI library dependency override (it forces to akka 2.7)
+      dependencyOverrides += "com.typesafe.akka" %% "akka-http" % akkaHttpVersion
+    )
+
 lazy val skel_ai = (project in file("skel-ai"))
-  .dependsOn(core,auth_core)
+  .dependsOn(core,auth_core,ai_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -1311,16 +1349,16 @@ lazy val skel_ai = (project in file("skel-ai"))
     appDockerConfig("skel-ai","io.syspulse.skel.ai.App"),
 
     libraryDependencies ++= libSkel ++ libHttp ++ libTest ++ Seq(
-      
+
     ),  
   )
 
 lazy val skel_dns = (project in file("skel-dns"))
   .dependsOn(core)
   .disablePlugins(sbtassembly.AssemblyPlugin)
-  .settings (    
+    .settings (    
     sharedConfig,
-    //sharedConfigAssembly,      
+    //sharedConfigAssembly,
     
     name := "skel-dns",
     //appDockerConfig("skel-dns","io.syspulse.skel.dns.App"),
@@ -1332,7 +1370,7 @@ lazy val skel_dns = (project in file("skel-dns"))
     ),  
   )
 
-  lazy val skel_tls = (project in file("skel-tls"))
+lazy val skel_tls = (project in file("skel-tls"))
   .dependsOn(core)
   .disablePlugins(sbtassembly.AssemblyPlugin)  
   .settings (
@@ -1341,11 +1379,30 @@ lazy val skel_dns = (project in file("skel-dns"))
       
       libraryDependencies ++= 
         Seq(
-          
           libScalaLogging,
           libLogback,
-          libUUID,          
-          libOsLib, 
+          libUUID,
+          libOsLib,
           libScalaTest % Test
+        ),
+    )
+
+lazy val tools = (project in file("tools"))
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,
+      sharedConfigDocker,
+      dockerBuildxSettings,
+
+      appDockerConfig("skel-tools","io.syspulse.skel.tools.HttpServer"),
+      //name := "skel-tools",
+
+      libraryDependencies ++= 
+        Seq(
+          libCask, 
+          libOsLib,
+          libUpickleLib
         ),
     )

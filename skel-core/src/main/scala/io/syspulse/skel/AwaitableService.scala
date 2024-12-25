@@ -17,14 +17,16 @@ import scala.util.{ Failure, Success }
 
 import io.jvm.uuid._
 
-
 class FutureAwaitable[T](f:Future[T],timeout:Duration = FutureAwaitable.timeout)  {
   def await[R]() = Await.result(f,timeout)
 }
 
 object FutureAwaitable {
   val timeout = FiniteDuration(5,TimeUnit.SECONDS)
-  implicit def ftor[R](f: Future[R]) = new FutureAwaitable[R](f)
+  implicit def ftor[R](f: Future[R]):FutureAwaitable[R] = new FutureAwaitable[R](f)
+  implicit def await[R](f: Future[R],timeout:Duration = Duration.Inf):R = {
+    Await.result(f,timeout)
+  }
 }
 
 

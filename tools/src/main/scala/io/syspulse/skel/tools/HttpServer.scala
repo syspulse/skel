@@ -20,11 +20,11 @@ abstract class HttpServerable extends cask.MainRoutes{
 
   val url = sys.env.get("HOST").getOrElse("/api/v1/tools")
 
-  var requests:Seq[String] = Seq()
+  var requests:Seq[()=>String] = Seq()
   var current = 0
 
   override def main(args0: Array[String]) = {
-    if(args0.size>0) println(s"${args0.mkString(",")}")
+    if(args0.size>0) Console.err.println(s"${args0.mkString(",")}")
 
     val args = 
       if(args0.size>0)
@@ -37,12 +37,12 @@ abstract class HttpServerable extends cask.MainRoutes{
 
     val (reqs) = args.toList match {            
       case Nil => 
-        Seq(s"""{"ts": ${System.currentTimeMillis}, "status": 100}\n""")
+        Seq(() => s"""{"ts": ${System.currentTimeMillis}, "status": 100}\n""")
       case reqs =>         
         reqs.map(f => f.split("://").toList match {
           case "file" :: file :: Nil =>
-            os.read(os.Path(f,os.pwd))
-          case rsp :: Nil => rsp
+            () => os.read(os.Path(f,os.pwd))
+          case rsp :: Nil => () => rsp
         })
     }
 
@@ -100,7 +100,7 @@ abstract class HttpServerable extends cask.MainRoutes{
     if(current >= requests.size)
       current = 0
 
-    val rsp = requests(current)
+    val rsp = requests(current)()
     Console.err.println(s"[${rsp}] -> ")
     
     //cask.Response(rsp,headers=CORS)
@@ -112,11 +112,12 @@ abstract class HttpServerable extends cask.MainRoutes{
   def rootPort(req: cask.Request) = {
     Console.err.println(s"<<< POST")
     Console.err.println(s"<<< Headers:\n${req.headers}")
-    Console.err.println(s"<<< Body:\n${req.text()}")
+    Console.err.println(s"<<< Body:\n")
+    Console.println(req.text())
     if(current >= requests.size)
       current = 0
 
-    val rsp = requests(current)
+    val rsp = requests(current)()
     Console.err.println(s"[${rsp}] -> ")
     
     //cask.Response(rsp,headers=CORS)
@@ -125,14 +126,15 @@ abstract class HttpServerable extends cask.MainRoutes{
   }
 
   @cask.post(url)
-  def url1(req: cask.Request) = {
+  def portCustom(req: cask.Request) = {
     Console.err.println(s"<<< POST")
     Console.err.println(s"<<< Headers:\n${req.headers}")
-    Console.err.println(s"<<< Body:\n${req.text()}")
+    Console.err.println(s"<<< Body:\n")
+    Console.println(req.text())
     if(current >= requests.size)
       current = 0
 
-    val rsp = requests(current)
+    val rsp = requests(current)()
     Console.err.println(s"[${rsp}] -> ")
     
     current = current + 1
@@ -143,7 +145,8 @@ abstract class HttpServerable extends cask.MainRoutes{
   def cors(req: cask.Request) = {
     Console.err.println(s"<<< OPTIONS")
     Console.err.println(s"<<< Headers:\n${req.headers}")
-    Console.err.println(s"<<< Body:\n${req.text()}")
+    Console.err.println(s"<<< Body:\n")
+    Console.println(req.text())
     
     cask.Response("",headers=CORS)
   }
@@ -151,11 +154,8 @@ abstract class HttpServerable extends cask.MainRoutes{
   @cask.staticFiles("/web",headers = Seq("Cache-Control" -> "max-age=14400"))
   def staticFileRoutes() = "web"
 
-  
-  println(
-"""
-""")
-  println(s"Listening on ${host}:${port}...")
+    
+  Console.err.println(s"Listening on ${host}:${port}...")
   initialize()
 
 }

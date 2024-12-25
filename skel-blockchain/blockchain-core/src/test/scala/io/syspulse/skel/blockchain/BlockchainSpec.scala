@@ -24,12 +24,62 @@ class BlockchainSpec extends AnyWordSpec with Matchers {
 
     "parse 1 -> 'ethereum'" in {
       val b = Blockchain("1")
-      b should ===(Blockchain.ETHEREUM)      
+      b should ===(Blockchain.ETHEREUM)
     }
 
     "parse 'network:100' -> 'network':'100'" in {
       val b = Blockchain("network:100")
       b should ===(new Blockchain("network",Some("100")))
+    }
+
+    "parse 'base' -> 'Base'" in {
+      val b = Blockchain("base")
+      b should ===(Blockchain.BASE_MAINNET)     
+    }
+
+    "parse 'arbitrum' -> 'Arbitrum'" in {
+      val b = Blockchain("base")
+      b should ===(Blockchain.BASE_MAINNET)
+      b.name should ===(Blockchain.BASE_MAINNET.name)
+    }
+    
+    "parse 'unknown' as name" in {
+      val b = Blockchain("unknown")      
+      b.name should ===("unknown")
+      b.id should === (None)
+    }
+
+    "parse '100' as chain_id" in {
+      val b = Blockchain("100")      
+      b.name should ===("")
+      b.id should === (Some("100"))
+    }
+
+    "parse '' as no blockchain" in {
+      val b = Blockchain("")
+      b.name should ===("")
+      b.id should === (None)      
+    }
+
+    "parse 'ethereum_sepolia' -> 'Sepolia'" in {
+      val b = Blockchain("ethereum_sepolia")
+      b should ===(Blockchain.SEPOLIA)
+      b should ===(Blockchain.ETHEREUM_SEPOLIA)
+    }
+
+    "parse 'tron' -> 'Tron'" in {
+      val b = Blockchain("tron")
+      b should ===(Blockchain.TRON_MAINNET)      
+    }
+
+    "parse 'bsc_testnet' -> 'BSC_TESTNET'" in {
+      val b = Blockchain("bsc_testnet")
+      b should ===(Blockchain.BSC_TESTNET)
+    }
+
+    "resolve 'anvil' -> 'Anvil'" in {
+      val b = Blockchain.resolve("anvil")
+      b should ===(Some(Blockchain.ANVIL))
     }
     
   }    

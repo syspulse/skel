@@ -11,7 +11,7 @@ import io.syspulse.skel.util.Util
 import org.web3j.protocol.Web3j
 import io.syspulse.skel.crypto.Eth
 
-case class BlockchainRpc(name:String,id:Long,rpcUri:String) 
+case class BlockchainRpc(name:String,id:Long,rpcUri:String,explorer:Option[String]=None) 
 
 class Blockchains(bb:Seq[String]) {
 
@@ -36,6 +36,7 @@ class Blockchains(bb:Seq[String]) {
     // 238L -> BlockchainRpc("blast",238L,"https://rpc.blastblockchain.com"),
 
     // 40L -> BlockchainRpc("telos",40L,"https://mainnet-eu.telos.net/evm"),
+    // 728126428L -> BlockchainRpc("tron",728126428L,"https://api.trongrid.io/jsonrpc",Some("https://tronscan.org/")),
     
     31337L -> BlockchainRpc("anvil",31337L,"http://localhost:8545"),
     11155111L -> BlockchainRpc("sepolia",11155111L,"https://rpc2.sepolia.org"),
@@ -44,10 +45,10 @@ class Blockchains(bb:Seq[String]) {
   def ++(bb:Seq[String]):Blockchains = {
     val newBlockchains = bb.flatMap(b =>{
       b.replaceAll("\n","").split("=").toList match {
-        case id :: name :: rpc :: _ => 
+        case name :: id :: rpc :: _ => 
           val bid = id.trim.toLong
           Some(( bid ->  BlockchainRpc(name.trim(),bid,rpc), bid -> Eth.web3(rpc.trim()) ))
-        case id :: rpc :: Nil => 
+        case rpc :: id :: Nil => 
           val bid = id.trim.toLong
           Some(( bid ->  BlockchainRpc(bid.toString,bid,rpc), bid -> Eth.web3(rpc.trim()) ))
         case rpc :: Nil => 

@@ -245,6 +245,8 @@ object Dependencies {
     val libProtobufJava =     "com.google.protobuf"           % "protobuf-java"                   % "3.19.2"
     val libProtobufProtoc =   "com.google.protobuf"           % "protoc"                          % "3.19.2"
 
+    val libCequenceOpenAiClient = "io.cequence"               %% "openai-scala-client"            % "1.1.1"
+    val libCequenceOpenAiStream = "io.cequence"               %% "openai-scala-client-stream"     % "1.1.1"
    // ---------------------------------------------------------------------------------------------------------------------
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)

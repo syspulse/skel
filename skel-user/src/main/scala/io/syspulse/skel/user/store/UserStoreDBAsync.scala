@@ -28,6 +28,7 @@ class UserStoreDBAsync(configuration:Configuration,dbConfigRef:String)
   //with UserStoreAsync {
   with UserStore {
 
+  private val log = Logger(getClass)
   import ctx._
   
   // Because of Postgres, using dynamic schema to override table name to 'users' 

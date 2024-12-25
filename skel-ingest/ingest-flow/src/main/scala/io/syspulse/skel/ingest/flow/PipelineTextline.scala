@@ -23,7 +23,6 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 import io.syspulse.skel.ingest._
-import io.syspulse.skel.twitter._
 
 import io.syspulse.skel.serde.ParqIgnore
 
@@ -158,7 +157,7 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config,as:Opti
   override def source(feed:String):Source[ByteString,_] = {
     feed.split("://").toList match {
       case "twitter" :: uri :: Nil => 
-        Twitter.fromTwitter(uri)
+        skel.twitter.Twitter.fromTwitter(uri)
       case _ => super.source(feed)
     }
     

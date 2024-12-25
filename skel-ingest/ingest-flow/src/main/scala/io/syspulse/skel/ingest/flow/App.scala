@@ -61,6 +61,7 @@ object App extends skel.Server {
       new ConfigurationProp,
       new ConfigurationEnv, 
       new ConfigurationArgs(args,"ingest-flow","",
+        //ArgUnknown(),
         ArgString('h', "http.host",s"listen host (def: ${d.host})"),
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
@@ -68,7 +69,7 @@ object App extends skel.Server {
         ArgString('f', "feed",s"Input Feed (stdin://, http://, file://, kafka://) (def=${d.feed})"),
         ArgString('o', "output",s"Output (stdout://, csv://, json://, log://, file://, hive://, elastic://, kafka:// (def=${d.output})"),
 
-        ArgString('_', "delimiter",s"""Delimiter characteds (def: '${d.delimiter}'). Usage example: --delimiter=`echo -e $"\r\n"` """),
+        ArgString('_', "delimiter",s"""Delimiter characteds (def: '${Util.hex(d.delimiter.getBytes())}'). Usage example: --delimiter=`echo -e "\\r\\n"` """),
         ArgInt('_', "buffer",s"Frame buffer (Akka Framing) (def: ${d.buffer})"),
         ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
         ArgLong('_', "throttle.source",s"Throttle source (e.g. http, def=${d.throttleSource})"),
@@ -115,6 +116,7 @@ object App extends skel.Server {
     )
 
     Console.err.println(s"Config: ${config}")
+    Console.err.println(s"${c.getString("option.key1")}")
 
     // store is not used
     val store:IngestStore[_] = config.datastore match {

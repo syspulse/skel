@@ -67,7 +67,7 @@ object App extends skel.Server {
 
         ArgLong('n', s"limit",s"File Limit (def: ${d.limit})"),
         ArgLong('s', s"size",s"File Size Limit (def: ${d.size})"),
-        ArgString('_', "delimiter",s"""Delimiter characteds (def: '${d.delimiter}'). Usage example: --delimiter=`echo -e $"\r\n"` """),
+        ArgString('_', "delimiter",s"""Delimiter characteds (def: '${Util.hex(d.delimiter.getBytes())}'). Usage example: --delimiter=`echo -e "\\r\\n"` """),
         ArgInt('_', "buffer",s"Frame buffer (Akka Framing) (def: ${d.buffer})"),
         ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
         ArgLong('_', "throttle.source",s"Throttle source (e.g. http, def=${d.throttleSource})"),

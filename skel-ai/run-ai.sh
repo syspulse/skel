@@ -10,7 +10,7 @@ export SITE=${SITE:-$CONF}
 
 export ACCESS_TOKEN=${ACCESS_TOKEN-`cat ACCESS_TOKEN 2>/dev/null`}
 
-MAIN=io.syspulse.ai.App
+MAIN=io.syspulse.skel.ai.App
 
 >&2 echo "app: $APP"
 >&2 echo "site: $SITE"

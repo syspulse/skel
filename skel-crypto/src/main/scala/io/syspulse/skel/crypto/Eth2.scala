@@ -20,8 +20,8 @@ import tech.pegasys.signers.bls.keystore.model.KeyStoreData;
 import tech.pegasys.signers.bls.keystore.model.Pbkdf2Param;
 import tech.pegasys.signers.bls.keystore.model.Pbkdf2PseudoRandomFunction;
 import tech.pegasys.signers.bls.keystore.model.SCryptParam;
+
 import org.apache.tuweni.bytes._
-import org.apache.tuweni.bytes.Bytes;
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto.key._
