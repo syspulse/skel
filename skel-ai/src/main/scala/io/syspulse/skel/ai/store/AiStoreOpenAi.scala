@@ -56,7 +56,7 @@ class AiStoreOpenAi(uri:String) extends AiStore with JsonCommon {
       case s @ Success(o) => 
         s
       case Failure(e) => 
-        engine.chat(question,model)
+        engine.ask(question,model)
     }
     o    
   }

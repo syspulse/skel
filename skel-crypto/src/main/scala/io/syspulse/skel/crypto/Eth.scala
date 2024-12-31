@@ -696,9 +696,11 @@ object Eth {
 
           case "address" => Success(v)
           case "bool" => Success((BigInt(v).toInt == 0).toString)
-          case "string" | "" => 
+          case "string" => 
             //Success(new String(Util.fromHexString(v)))            
             Success(hexToUtf8String(v))
+          case "" => // default is just byte array
+            Success(v)
           case t => throw new Exception(s"unsupported type: '${t}'")
         }
       case Failure(e) => Failure(e)
