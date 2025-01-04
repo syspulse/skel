@@ -710,7 +710,7 @@ object Eth {
           case int if int.startsWith("int") => Success(Numeric.toBigInt(v).toString())
 
           case "address" => Success(s"0x${v.drop(2 + 24)}")
-          case "bool" => Success((BigInt(v).toInt == 0).toString)
+          case "bool" => Success((BigInt(v.drop(2),16).toInt == 1).toString)
           case "string" => 
             //Success(new String(Util.fromHexString(v)))            
             Success(hexToUtf8String(v))
