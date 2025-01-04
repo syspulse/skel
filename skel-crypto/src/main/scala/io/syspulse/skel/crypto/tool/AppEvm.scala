@@ -17,7 +17,7 @@ object AppEvm extends {
 
   case class Config(
     ethRpcUrl:String="http://geth:8545",
-    from:String = "",
+    from:String = "0x0000000000000000000000000000000000000000",
 
     cmd:String = "call",
     params:Seq[String] = Seq()
@@ -72,8 +72,10 @@ object AppEvm extends {
         val contractAddress = config.params(0)
         val funcName = config.params(1)
         val params = config.params.drop(2)
+        val paramsStr = params.mkString(" ")
           
-        Eth.call("0x"+"0".*(40),contractAddress,funcName,params)
+        //Eth.callWithParams(config.from,contractAddress,funcName,paramsStr)
+        Eth.call(config.from,contractAddress,funcName,params)
               
       case "encode" => 
         if(config.params.size < 1) {

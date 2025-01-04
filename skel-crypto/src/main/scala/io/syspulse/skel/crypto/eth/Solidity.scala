@@ -289,7 +289,7 @@ object Solidity {
     val (funcName,inputTypes,outputType) = parseFunction(func)
         
     if(inputTypes.size != params.size)
-      throw new Exception(s"Invalid parameters count: types=${inputTypes.size}, params=${params.size}")
+      throw new Exception(s"Invalid parameters count: types=${inputTypes.size}, params=${params.size}: ${params}")
 
     val inputParameters = inputTypes.zipWithIndex.map { case (paramType, i) => toWeb3Type(paramType, params(i)) }
     val outputParameters = if(outputType.isEmpty) 

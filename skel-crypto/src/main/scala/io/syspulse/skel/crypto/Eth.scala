@@ -709,7 +709,7 @@ object Eth {
           case uint if uint.startsWith("uint") => Success(Numeric.toBigInt(v).toString())
           case int if int.startsWith("int") => Success(Numeric.toBigInt(v).toString())
 
-          case "address" => Success(v)
+          case "address" => Success(s"0x${v.drop(2 + 24)}")
           case "bool" => Success((BigInt(v).toInt == 0).toString)
           case "string" => 
             //Success(new String(Util.fromHexString(v)))            
@@ -733,8 +733,8 @@ object Eth {
     decodeResult(r,outputType)
   }
 
-  def call(from:String,contractAddress:String,func:String,params:String)(implicit web3:Web3j):Try[String] = {
-    call(from,contractAddress,func,if(params.isEmpty) Seq.empty else Seq(params))
+  def callWithParams(from:String,contractAddress:String,func:String,params:String)(implicit web3:Web3j):Try[String] = {
+    call(from,contractAddress,func,if(params.isEmpty) Seq.empty else params.split("\\s+").toSeq)
   }
     
   def encodeFunction(func:String,params:Seq[String]):(String,String) = {
@@ -742,7 +742,7 @@ object Eth {
     (encodedFunction,outputType)
   }
 
-  def encodeFunction(func:String,params:String):String = {
-    Solidity.encodeFunction(func,params)
+  def encodeFunctionWithParams(func:String,params:String):(String,String) = {
+    encodeFunction(func,if(params.isEmpty) Seq.empty else params.split("\\s+").toSeq)
   }
 }
