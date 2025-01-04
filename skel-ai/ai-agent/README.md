@@ -13,15 +13,18 @@ rlwrap ./run-agent.sh --provider="openai://" --agent=prompt://
 
 ### ExtAgent
 
-```
-rlwrap ./run-agent.sh --provider="openai://gpt-4o?vdb=$OPENAI_VDB&org=$OPENAI_ORG" --agent=agent://ext-agent
-```
-
-__NOTE__: `ACCESS_TOKEN_ADMIN` is used by default
+Create new Assistant:
 
 ```
-rlwrap ./run-agent.sh --provider="openai://gpt-4o?vdb=$OPENAI_VDB&org=$OPENAI_ORG&aid=OPENAI_AID_EXT" --agent=agent://ext-agent --service.url=https://api.dev.extractor.live/api/v1
+rlwrap ./run-agent.sh --provider="openai://gpt-4o?org=$OPENAI_ORG" --agent=agent://ext-agent --service.url=${SERVICE_URL}
 ```
+
+Run with existing Assistant:
+
+```
+rlwrap ./run-agent.sh --provider="openai://gpt-4o?org=${OPENAI_ORG}&aid=${OPENAI_AID_EXT}" --agent=agent://ext-agent --service.url=${SERVICE_URL}
+```
+
 
 ## HelpAgent
 

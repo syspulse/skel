@@ -42,7 +42,7 @@ case class Config(
   serviceUrl:String = "http://localhost:8080/api/v1/ext",
   serviceToken:Option[String] = None,
 
-  cmd:String = "prompt",
+  cmd:String = "memory",
   params: Seq[String] = Seq(),
 )
 
@@ -77,7 +77,9 @@ object App extends skel.Server {
         ArgCmd("ext-agent-ask","Run ext-agent-ask"),
         ArgCmd("ext-agent-ask2","Run ext-agent-ask2"),
         ArgCmd("weather-agent","Run weather-agent"),
+        
         ArgCmd("prompt","Run prompt"),
+        ArgCmd("memory","Run prompt with memory"),
 
         ArgCmd("ext","Run Ext client"), //to work with Extractor API
         
@@ -282,7 +284,18 @@ object App extends skel.Server {
         )
       
       case "prompt" =>
-        prompt(agent,config.params,config.meta.map(m => m.split("=").toList match { case k :: v :: Nil => k -> v }).toMap)
+        prompt(
+          agent,
+          config.params,
+          config.meta.map(m => m.split("=").toList match { case k :: v :: Nil => k -> v }).toMap
+        )
+
+      case "memory" =>
+        promptMemory(
+          agent,
+          config.params,
+          config.meta.map(m => m.split("=").toList match { case k :: v :: Nil => k -> v }).toMap
+        )
 
       case "ext-agent-ask" =>
         new ExtAgent(uri,extClient).ask(
@@ -339,6 +352,37 @@ Otherwise, just answer the question.
         Console.err.println(s"${r}")
         val txt = r.get.head.content.head.text.get.value
         Console.err.println(s"${Console.RED}${agent.getName()}${Console.YELLOW}: ${txt}${Console.RESET}")
+      }
+    }
+  }
+
+  def promptMemory(agent:Agent, params:Seq[String], metadata0:Map[String,String]):Unit = {
+    import io.syspulse.skel.FutureAwaitable._
+
+    var metadata = metadata0
+    var tid = ""
+
+    val q0 = params.mkString(" ")
+    Console.err.println(s"q0 = '${q0}'")    
+    Console.err.println(s"tid = '${tid}'")
+
+    for (i <- 1 to Int.MaxValue) {
+      Console.err.print(s"${tid}/${i}> ")
+      val q = StdIn.readLine()
+      if(q == null || q.trim.toLowerCase() == "exit") {
+        sys.exit(0)
+      }
+      if(!q.isEmpty) {
+        val f = agent.ask(q,metadata=Some(metadata))
+        val r = await(f)
+        Console.err.println(s"${r}")
+        val txt = r.get.head.content.head.text.get.value
+        Console.err.println(s"${Console.GREEN}${agent.getName()}${Console.YELLOW}: ${txt}${Console.RESET}")
+
+        // save thread_id
+        val threadId = r.get.head.thread_id
+        metadata = metadata + ("thread_id" -> threadId)
+        tid = threadId
       }
     }
   }

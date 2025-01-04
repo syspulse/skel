@@ -97,15 +97,28 @@ trait Agent extends PollingHelper {
 
   protected def getTools(): Seq[AssistantTool]
   
-  protected def createSpecMessagesThread(question: String,metadata:Option[Map[String,String]]): Future[Thread] =
-    for {
-      thread <- service.createThread(
-        messages = Seq(
-          ThreadMessage(question)
-        ),
-        metadata = metadata.getOrElse(Map.empty)
-      )
+  protected def createSpecMessagesThread(question: String, metadata:Option[Map[String,String]]): Future[Thread] =
+    for {      
+      thread <- {
+        val tid = metadata.flatMap(_.get("thread_id"))
+        
+        if(tid.isDefined) {
+          service.retrieveThread(tid.get)
+            .map(_.get)            
+        } else {
+          service.createThread(
+            // messages = Seq(
+            //   ThreadMessage(question)
+            // ),
+            metadata = metadata.getOrElse(Map.empty)
+          )
+        }
+      }
+      threadFull <- {
+        service.createThreadMessage(thread.id,question)
+      }
       _ = log.info(s"thread: ${thread}")
+      _ = log.info(s"threadFull: ${threadFull}")
     } yield thread
 
   def getFunctions(): Map[String, AgentFunction]
