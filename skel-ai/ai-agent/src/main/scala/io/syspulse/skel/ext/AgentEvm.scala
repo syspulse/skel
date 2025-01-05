@@ -124,13 +124,20 @@ class AgentEvm(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
                 try {
                   extClient.callContract(c.address, c.network, functionCall.get, params)
                 } catch {
-                  case e:Exception => s"${e.getMessage}"
+                  case e:Exception => 
+                    log.error(s"failed to call contract: ${c.address}: ${functionCall.get}: ${e.getMessage}")
+                    s"${e.getMessage}"
                 }
                 
               } else {
-                s"${functionCall.failed.get.getMessage}"
+                val err = s"${functionCall.failed.get.getMessage}"
+                log.error(s"failed to call contract: ${c.address}: ${err}")
+                err
               }
-            case None => "No ABI"
+            case None => 
+              val err = "No ABI"
+              log.error(s"failed to call contract: ${c.address}: ${err}")
+              err
           }
           
           (result,contractWithAbi)

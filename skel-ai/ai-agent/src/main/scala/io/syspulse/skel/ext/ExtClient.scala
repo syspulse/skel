@@ -349,8 +349,9 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
   def callContract(addr:String, network:String, func:String, params:Seq[String]):String = {
     val pid = "0"
     val url = s"${baseUrl}/tools/common/${pid}/abi/call"
+    val paramsJson = params.map(p => s""""${p}"""").mkString(",")
     val data = 
-      s"""{"addr":"${addr}","chain":"${network}","func":"${func}","params":[${params.mkString(",")}]}"""
+      s"""{"addr":"${addr}","chain":"${network}","func":"${func}","params":[${paramsJson}]}"""
     
     val rsp = requests.post(
       url,
