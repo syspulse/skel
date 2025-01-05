@@ -25,6 +25,8 @@ import io.syspulse.skel.ai.core.openai.OpenAiURI
 import io.cequence.openaiscala.domain.response.Assistant
 
 trait AgentFunction {
+  protected val log = Logger(getClass)
+  
   def run(args: JsValue, metadata:Map[String,String]): JsValue
 }
 

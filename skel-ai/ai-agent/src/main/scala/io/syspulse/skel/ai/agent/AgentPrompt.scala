@@ -21,7 +21,7 @@ import play.api.libs.json.JsValue
 import io.syspulse.skel.ai.core.openai.OpenAiURI
 import io.cequence.openaiscala.domain.settings.CreateChatCompletionSettings
 
-class PromptAgent(val uri:OpenAiURI) extends AgentFile {
+class AgentPrompt(val uri:OpenAiURI) extends AgentFile {
     
   def getName(): String = "prompt-agent"
 

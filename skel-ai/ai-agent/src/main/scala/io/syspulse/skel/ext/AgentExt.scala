@@ -1,4 +1,4 @@
-package io.syspulse.skel.ai.agent
+package io.syspulse.skel.ext
 
 import io.cequence.openaiscala.domain.AssistantTool.FunctionTool
 import io.cequence.openaiscala.domain._
@@ -20,6 +20,9 @@ import play.api.libs.json.Writes
 import play.api.libs.json.Json
 
 import io.syspulse.skel.ai.core.openai.OpenAiURI
+import io.syspulse.skel.ext.{ExtClient, Detector, Contract, DetectorSchema, Trigger}
+import io.syspulse.skel.ai.agent.AgentFunction
+import io.syspulse.skel.ai.agent.Agent
 
 object ExtJson {
   implicit val detectorWrites = new Writes[Detector] {
@@ -60,7 +63,7 @@ object ExtJson {
   implicit val detectorSchemasWrites: Writes[Seq[DetectorSchema]] = Writes.seq[DetectorSchema]
 }
 
-class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
+class AgentExt(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
 
   import ExtJson._
   def getName(): String = "ext-agent"

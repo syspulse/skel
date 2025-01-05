@@ -29,6 +29,8 @@ import io.cequence.openaiscala.domain._
 import scala.io.StdIn
 import play.api.libs.json.Json
 
+import io.syspulse.skel.ext._
+
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
@@ -76,7 +78,7 @@ object App extends skel.Server {
         ArgCmd("ext-agent","Call ext-agent functions"),
         ArgCmd("ext-agent-ask","Run ext-agent-ask"),
         ArgCmd("ext-agent-ask2","Run ext-agent-ask2"),
-        ArgCmd("weather-agent","Run weather-agent"),
+        ArgCmd("evm-agent","Run evm-agent"),
         
         ArgCmd("prompt","Run prompt"),
         ArgCmd("memory","Run prompt with memory"),
@@ -126,16 +128,14 @@ object App extends skel.Server {
     }
 
     val extClient = new ExtClient(config.serviceUrl,config.serviceToken)
-
+    
     val agent = config.agent.split("://").toList match {
-      case "agent" :: "ext-agent" :: Nil =>
-        new ExtAgent(uri,extClient)
-      
-      case "agent" :: "help-agent" :: Nil =>
-        new HelpAgent(uri)
+      case "agent" :: "ext-agent" :: Nil => new AgentExt(uri,extClient)
+      case "agent" :: "help-agent" :: Nil => new AgentHelp(uri)
+      case "agent" :: "evm-agent" :: Nil => new AgentEvm(uri,extClient)
 
       case ("agent" :: "prompt-agent" :: Nil) | ("prompt" :: Nil) =>
-        new PromptAgent(uri)
+        new AgentPrompt(uri)
       
       
       // resolve Agent
@@ -154,45 +154,59 @@ object App extends skel.Server {
     val r = config.cmd match {
       case "ext" =>
         val ext = new ExtClient(config.serviceUrl,config.serviceToken)
+        val params = config.params.drop(1)
+
         config.params.head match {
           case "project-contracts" | "contracts" => 
-            ext.getProjectContracts(config.params.drop(1).head,config.params.drop(2).headOption.map(_.replaceAll("%20"," ")))
+            ext.getProjectContracts(params(0),params.drop(1).headOption.map(_.replaceAll("%20"," ")))
           
           case "contract-detectors" | "detectors" => 
-            ext.getContractDetectors(config.params.drop(1).head,config.params.drop(2).headOption.map(_.replaceAll("%20"," ")))
+            ext.getContractDetectors(params(0),params.drop(1).headOption.map(_.replaceAll("%20"," ")))
 
           case "detector-schema" =>
-            ext.getDetectorSchemas(config.params.drop(1).headOption.map(_.replaceAll("%20"," ")))
+            ext.getDetectorSchemas(params.headOption.map(_.replaceAll("%20"," ")))
 
           case "detector-add" =>
-            val conf:ujson.Obj = if(config.params.length > 7)
-              ujson.read(config.params(7)).obj 
+            val conf:ujson.Obj = if(params.length > 6)
+              ujson.read(params(6)).obj 
             else 
               ujson.Obj()
 
             ext.addDetector(
-              pid = config.params(1),
-              cid = config.params(2),
-              did = config.params(3).replaceAll("%20"," "),
-              name = config.params(4),  
-              tags = config.params.drop(5).headOption.getOrElse("COMPLIANCE").split(",").toSeq,
-              sev = if(config.params.length > 6) config.params.drop(6).head else "AUTO",
+              pid = params(0),
+              cid = params(1),
+              did = params(2).replaceAll("%20"," "),
+              name = params(3),  
+              tags = params.drop(4).headOption.getOrElse("COMPLIANCE").split(",").toSeq,
+              sev = if(params.length > 5) params.drop(5).head else "AUTO",
               conf = conf,
             )
           case "detector-del" =>            
             ext.delDetector(
-              detectorId = config.params(1),
+              detectorId = params(0),
             )
+
+          case "contract" => 
+            ext.getContract(params(0),params(1).toInt)
+
+          case "contract-call" =>
+            ext.callContract(
+              addr = params(0),
+              network = params(1),
+              func = params(2),
+              params = params.drop(3),
+            )
+
           case _ =>
             Console.err.println(s"Unknown ext command: '${config.params.head}'")
             sys.exit(1)
         }
 
       case "ext-agent" =>
-        class TestAgent extends ExtAgent(uri,extClient) {          
+        class AgentExtTest extends AgentExt(uri,extClient) {          
         }
 
-        val agent = new TestAgent()
+        val agent = new AgentExtTest()
 
         config.params.head match {
           case "addContract" =>
@@ -235,6 +249,27 @@ object App extends skel.Server {
             sys.exit(1)
         }
 
+      case "evm-agent" =>
+        class AgentEvmTest extends AgentEvm(uri,extClient) {          
+        }
+        val agent = new AgentEvmTest()        
+
+        config.params.head match {
+          case "callContract" =>
+            val params = config.params.drop(1)
+            agent.getFunctions().get("callContract").get.run(
+              Json.obj(
+                "address" -> params(1),
+                "functionName" -> params(2),
+                "functionParams" -> params.drop(3),
+              ),
+              metadata = Map("pid" -> params(0))
+            )
+          case _ =>
+            Console.err.println(s"Unknown evm command: '${config.params.head}'")
+            sys.exit(1)
+        }
+
       case "models" =>
         service.listModels.map(models =>
           Console.err.println(s"Models: ${models.mkString("\n")}")
@@ -274,12 +309,9 @@ object App extends skel.Server {
       source.map(completion => 
         Console.err.println(completion.choices.head.delta.content)
       ).runWith(Sink.ignore)
-
-      case "weather-agent" =>
-        WeatherAgent.run()
-
+      
       case "help-agent" =>
-        new HelpAgent(uri).ask(
+        new AgentHelp(uri).ask(
           "What is Extractor?"
         )
       
@@ -298,7 +330,7 @@ object App extends skel.Server {
         )
 
       case "ext-agent-ask" =>
-        new ExtAgent(uri,extClient).ask(
+        new AgentExt(uri,extClient).ask(
 """
 I want to add Compliance Monitoring to my project Contracts. 
 I have two contracts: 0x742d35Cc6634C0532925a3b844f13573377189aF and 0x1234567890123456789012345678901234567890. 
@@ -320,7 +352,7 @@ Otherwise, just answer the question.
 )
 
       case "ext-agent-ask2" =>
-        new ExtAgent(uri,extClient).ask(
+        new AgentExt(uri,extClient).ask(
 """
 Tell me about Ethereum network in one sentence.
 """,

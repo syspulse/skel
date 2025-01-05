@@ -1,4 +1,4 @@
-package io.syspulse.skel.ai.agent
+package io.syspulse.skel.ext
 
 import io.cequence.openaiscala.domain.AssistantTool.FunctionTool
 import io.cequence.openaiscala.domain._
@@ -17,8 +17,10 @@ import io.cequence.openaiscala.domain.ModelId
 import scala.concurrent.{ExecutionContext, Future}
 import play.api.libs.json.JsValue
 import io.syspulse.skel.ai.core.openai.OpenAiURI
+import io.syspulse.skel.ai.agent.AgentFunction
+import io.syspulse.skel.ai.agent.AgentFile
 
-class HelpAgent(val uri:OpenAiURI) extends AgentFile {
+class AgentHelp(val uri:OpenAiURI) extends AgentFile {
   
   if(! uri.vdb.isDefined)
     throw new IllegalArgumentException("vectorStoreId is required")
