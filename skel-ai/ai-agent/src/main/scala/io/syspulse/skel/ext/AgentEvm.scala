@@ -60,7 +60,7 @@ class AgentEvm(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
           "network" -> Map(
             "type" -> "string",
             "enum" -> networkTypes,
-            "description" -> "The network where the contract is deployed. Optional."
+            "description" -> "The network where the contract is deployed. Infer from the question and leave empty if not clear."
           ),
           "contractName" -> Map(
             "type" -> "string",

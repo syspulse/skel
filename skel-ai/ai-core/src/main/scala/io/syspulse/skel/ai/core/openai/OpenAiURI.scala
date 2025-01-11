@@ -28,7 +28,10 @@ case class OpenAiURI(uri:String) {
       case url :: ops => 
         
         val vars = ops.flatMap(_.split("=").toList match {
-          case k :: v :: Nil => Some(k -> v)
+          case k :: v :: Nil => 
+            // kubernetes $(ENV) should be parsed here
+            val v1 = Util.replaceEnvVar(v)
+            Some(k -> v1)
           case _ => None
         }).toMap
         

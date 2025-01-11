@@ -116,7 +116,8 @@ trait Server {
           complete(HttpResponse(BadRequest, entity = jsonEntity(s"""{"error": "${rej}"}""")))
         }
         .handleNotFound { extractUnmatchedPath { p =>
-          log.warn(s"not found: ${p}")
+          // TODO: enable to see unmatched paths on Kubernetes
+          log.debug(s"not found: ${p}")
           complete(HttpResponse(NotFound, entity = jsonEntity(s"""{"error": "not found: '${p}'"}""")))
         }}
         .result()
