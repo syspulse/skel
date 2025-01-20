@@ -25,16 +25,15 @@ import io.syspulse.skel.ai.agent.AgentFunction
 import io.syspulse.skel.ai.agent.Agent
 
 object EvmJson {
-
 }
 
-class AgentEvm(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
+class AgentEvm(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Agent with ExtCoreFunctions {
 
   import EvmJson._
   def getName(): String = "evm-agent"
 
   override def getModel() = 
-    uri.model.getOrElse(ModelId.gpt_4o)
+    uri.model.getOrElse(ModelId.gpt_4o_mini)
     //ModelId.gpt_3_5_turbo
   
   def getInstructions(): String = 
@@ -43,8 +42,6 @@ class AgentEvm(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
     Derive correct parameter from the question.
     Always provide report about the actions you have taken with contract addresses and parameters executed.
     """
-
-  val networkTypes = Seq("", "Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BSC", "Solana", "Bitcoin")  
   
   override def getTools(): Seq[AssistantTool] = Seq(
     FunctionTool(
@@ -59,7 +56,7 @@ class AgentEvm(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
           ),
           "network" -> Map(
             "type" -> "string",
-            "enum" -> networkTypes,
+            "enum" -> ExtCoreFunctions.networkTypes,
             "description" -> "The network where the contract is deployed. Infer from the question and leave empty if not clear."
           ),
           "contractName" -> Map(
@@ -79,16 +76,14 @@ class AgentEvm(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
             )
           ),
         ),
-        "required" -> Seq(),
-        // "additionalProperties" -> false
-      ),
-      // strict = Some(true)
+        "required" -> Seq(),        
+      ),      
     ),
-  )
+  ) ++ ExtCoreFunctions.functions
   
   def getFunctions(): Map[String, AgentFunction] = Map(
       "callContract" -> new CallContract,      
-    )
+    ) ++ coreFunctionsMap
   
   class CallContract extends AgentFunction {
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
