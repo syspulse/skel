@@ -33,7 +33,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
         s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid} AND (address='${addr.get}' OR proxyAddress='${addr.get}')"}"""
       else 
       if(name.isDefined) 
-        s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid} AND name='${addr.get}' "}""" 
+        s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid} AND name='${name.get}' "}""" 
       else
         s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid}"}"""
     

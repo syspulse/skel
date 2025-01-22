@@ -133,6 +133,7 @@ object App extends skel.Server {
       case "agent" :: "ext-agent" :: Nil => new AgentExt(uri,extClient)
       case "agent" :: "help-agent" :: Nil => new AgentHelp(uri)
       case "agent" :: "evm-agent" :: Nil => new AgentEvm(uri,extClient)
+      case "agent" :: "token-agent" :: Nil => new AgentToken(uri,extClient)
 
       case ("agent" :: "prompt-agent" :: Nil) | ("prompt" :: Nil) =>
         new AgentPrompt(uri)

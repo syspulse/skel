@@ -165,6 +165,20 @@ object ExtCoreFunctions {
       ),      
     ),
     FunctionTool(
+      name = "findContracts",
+      description = Some("Find Contracts' address and network by Contract's name"),
+      parameters = Map(
+        "type" -> "object",
+        "properties" -> Map(          
+          "name" -> Map(
+            "type" -> "string",
+            "description" -> "Name of the Contract."
+          ),
+        ),
+        "required" -> Seq("name"),
+      ),      
+    ),
+    FunctionTool(
       name = "addTrigger",
       description = Some("Add new trigger / interceptor to the contract"),
       parameters = Map(
@@ -319,17 +333,19 @@ trait ExtCoreFunctions extends ExtClientProvider {
   import ExtJson._
           
   val coreFunctionsMap: Map[String, AgentFunction] = Map(
-      "addMonitoringType" -> new AddMonitoringType,
-      "addContract" -> new AddContract,
-      "deleteContract" -> new DeleteContract,
-      "getProjectContracts" -> new GetProjectContracts,
-      
-      "addDetector" -> new AddDetector,
-      "deleteDetector" -> new DeleteDetector,
-      
-      "addTrigger" -> new AddTrigger,
-      "deleteTrigger" -> new DeleteTrigger
-    )
+    "getProjectContracts" -> new GetProjectContracts,
+    "findContracts" -> new FindContracts,
+
+    "addMonitoringType" -> new AddMonitoringType,
+    "addContract" -> new AddContract,
+    "deleteContract" -> new DeleteContract,
+    
+    "addDetector" -> new AddDetector,
+    "deleteDetector" -> new DeleteDetector,
+
+    "addTrigger" -> new AddTrigger,
+    "deleteTrigger" -> new DeleteTrigger
+  )
   
   class AddContract() extends AgentFunction {
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
@@ -440,6 +456,19 @@ trait ExtCoreFunctions extends ExtClientProvider {
       log.info(s"Project($projectId) [?] [${address}]")
 
       val contracts = extClient.getProjectContracts(projectId,address)
+
+      Json.toJson(contracts)
+    }
+  }
+
+  class FindContracts extends AgentFunction {
+    def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {      
+      val projectId = metadata.getOrElse("pid","???")
+      val name = (functionArgsJson \ "name").as[String]
+
+      log.info(s"Project($projectId) [?] [${name}]")
+
+      val contracts = extClient.getProjectContracts(projectId,addr = None, name = Some(name))
 
       Json.toJson(contracts)
     }

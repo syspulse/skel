@@ -37,10 +37,10 @@ class AgentEvm(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Agent
     //ModelId.gpt_3_5_turbo
   
   def getInstructions(): String = 
-    """
-    You are an EVM Contracts function calls bot. Use the provided functions to execute function calls on EVM contracts and return results.
-    Derive correct parameter from the question.
-    Always provide report about the actions you have taken with contract addresses and parameters executed.
+    """You are an EVM Contracts function calls bot. Use the provided functions to execute calls on EVM contracts and return results.
+    EVM Contracts can be referenced by name. First try to resolve unknown term as a possible Contract name.
+    Derive correct parameters from the question. Multiple Parameters is always a list to be passed to Function.
+    Always provide report about the actions you have taken with contract addresses and parameters executed.    
     """
   
   override def getTools(): Seq[AssistantTool] = Seq(
