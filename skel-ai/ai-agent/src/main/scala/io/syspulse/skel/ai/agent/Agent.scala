@@ -141,7 +141,7 @@ trait Agent extends PollingHelper {
     }
 
     if(! run.required_action.isDefined) {
-      log.warn(s"Invalid state: ${run.id}: status=${run.status}: ${run.required_action}")
+      log.info(s"Invalid state: ${run.id}: status=${run.status}: ${run.required_action}")
       // this is expected until statu == InProgress
       return Future.failed(new IllegalStateException(s"Run ${run.id}: no required action"))
     }

@@ -30,7 +30,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     val url = s"${baseUrl}/contract/search"
     val data = 
       if(addr.isDefined) 
-        s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid} AND (address='${addr.get}' OR proxyAddress='${addr.get}')"}"""
+        s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid} AND (address='${addr.get}' OR implementation='${addr.get}')"}"""
       else 
       if(name.isDefined) 
         s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid} AND name='${name.get}' "}""" 
@@ -54,7 +54,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     val contracts = json("data").arr.map { c =>
       Contract(
         c("id").num.toLong.toString,
-        address = c.obj.get("proxyAddress").map(_.str).getOrElse(c("address").str), 
+        address = c.obj.get("implementation").map(_.str).getOrElse(c("address").str), 
         network = c("chainUid").str, 
         name = c("name").str,
         addressImpl = Some(c("address").str),        
