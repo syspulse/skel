@@ -56,11 +56,24 @@ import io.syspulse.skel.user.store.UserRegistry
 import io.syspulse.skel.user.store.UserRegistry._
 import io.syspulse.skel.user.server.{UserActionRes, Users, UserCreateReq, UserUpdateReq}
 import io.syspulse.skel.service.telemetry.TelemetryRegistry
+import com.typesafe.config.ConfigFactory
+
+import akka.actor.typed.DispatcherSelector
+import scala.concurrent.ExecutionContextExecutor
 
 @Path("/")
 class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],config:Config) extends CommonRoutes with Routeable with RouteAuthorizers {
   //val log = Logger(s"${this}")
   implicit val system: ActorSystem[_] = context.system
+  
+  // val BLOCKING_DISPATCHER = "blocking-dispatcher"
+  // implicit val blockingDispatcher: ExecutionContextExecutor = try {
+  //   system.dispatchers.lookup(DispatcherSelector.fromConfig(BLOCKING_DISPATCHER))  
+  // } catch {
+  //   case _: Exception => 
+  //     log.warn(s"dispatcher not found: ${BLOCKING_DISPATCHER}")
+  //     system.dispatchers.lookup(DispatcherSelector.default())
+  // }
   
   implicit val permissions = Permissions()
 
@@ -85,6 +98,16 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
   def deleteUser(id: UUID): Future[UserActionRes] = registry.ask(DeleteUser(id, _))
   def randomUser(): Future[User] = registry.ask(RandomUser(_))
 
+  def testTimeout(delay: Long): Future[UserActionRes] = registry.ask(TestTimeout(delay, _))
+
+  @GET @Path("/timeout/{delay}") @Produces(Array(MediaType.APPLICATION_JSON))
+  def getTimeoutRoute(delay: String) = get {
+    rejectEmptyResponse {
+      onSuccess(testTimeout(delay.toLong)) { r =>
+        complete(r)
+      }
+    }
+  }
 
   @GET @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("user"),summary = "Return User by id",
@@ -226,6 +249,13 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
           pathPrefix(Segment) { xid => 
             authenticate()(authn =>
               getUserByXidRoute(xid)
+            )
+          }
+        },
+        pathPrefix("timeout") {
+          pathPrefix(Segment) { delay => 
+            authenticate()(authn =>
+              getTimeoutRoute(delay)
             )
           }
         },

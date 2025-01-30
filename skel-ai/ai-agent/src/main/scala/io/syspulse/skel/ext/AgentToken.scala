@@ -59,7 +59,7 @@ class AgentToken(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Age
         "properties" -> Map(
           "tokenAddress" -> Map(
             "type" -> "string",
-            "description" -> "Address of the ERC-20Token contract in Ethereum format. Optional, if not provided then tokenName is used"
+            "description" -> "Address of the ERC-20 Token contract in Ethereum format. Optional, if not provided then tokenName is used"
           ),
           "network" -> Map(
             "type" -> "string",
@@ -89,11 +89,30 @@ class AgentToken(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Age
         "required" -> Seq(),
       ),      
     ),
+    FunctionTool(
+      name = "getTokenPrice",
+      description = Some("Retrieve price for token"),
+      parameters = Map(
+        "type" -> "object",
+        "properties" -> Map(
+          "tokenAddress" -> Map(
+            "type" -> "string",
+            "description" -> "Address of the ERC-20 Token contract in Ethereum format. Optional, if not provided then tokenName is used"
+          ),
+          "tokenName" -> Map(
+            "type" -> "string",
+            "description" -> "Name of the token. Infer name from the question. Optional, if not provided then tokenAddress is used"
+          ),
+        ),
+        "required" -> Seq(),        
+      ),      
+    ),
   ) 
   
   def getFunctions(): Map[String, AgentFunction] = Map(
       "getToken" -> new GetToken,
-      "getAllTokens" -> new GetAllTokens,      
+      "getAllTokens" -> new GetAllTokens,
+      "getTokenPrice" -> new GetTokenPrice,
     ) //++ coreFunctionsMap
   
   class GetToken extends AgentFunction {
@@ -145,5 +164,74 @@ class AgentToken(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Age
       // get all tokens
       Token.tokensSym.values.flatten.toSet
       //throw new IllegalArgumentException("Missing token name or address")
-  }  
+  }
+
+  def getPriceCoingecko(addr:String,blockchain:String = "ethereum",apiKey:String = ""):Try[Double] = {
+    val url = s"https://pro-api.coingecko.com/api/v3/coins/${blockchain}/contract/${addr}"
+    try {
+      log.info(s"--> ${url}")
+
+      val rsp = requests.get(
+        url = url,
+        headers = Seq( ("Content-Type" -> "application/json"), ("x-cg-pro-api-key" -> apiKey) )
+      )
+
+      log.debug(s"rsp = ${rsp}")
+
+      val r = rsp.statusCode match {
+        case 200 => 
+          val json = ujson.read(rsp.text())
+          val ticker = json.obj("symbol").str
+          val price = json.obj("market_data").obj("current_price").obj("usd").num
+          Success(price)
+        case _ => 
+          Failure(new Exception(s"failed request: ${rsp}"))
+      }
+      
+      r
+    } catch {
+      case e:Exception => 
+        Failure(new Exception(s"failed request -> '${url}'",e))
+    }
+  }
+
+  class GetTokenPrice extends AgentFunction {    
+    def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
+      val projectId = metadata.getOrElse("pid","???")
+      val tokenAddress = (functionArgsJson \ "tokenAddress").asOpt[String]
+      val tokenName = (functionArgsJson \ "tokenName").asOpt[String]      
+      
+      val tt = askToken(tokenName,tokenAddress)
+
+      if(tt.size == 0) {
+        return Json.obj(
+          "error" -> "No token found"
+        )
+      }
+
+      // find address for blockchain
+      val (blockchain,addr) = tt.filter(_.bid.equalsIgnoreCase("ethereum")).toList match {
+        case t :: Nil => (t.bid,t.addr)
+        case Nil => 
+          return Json.obj(
+            "error" -> "No token found"
+          )
+        case t :: _ => 
+          // take first if ethereum is not found
+          (t.bid,t.addr)
+      }
+
+      getPriceCoingecko(addr,blockchain = blockchain,apiKey = sys.env.getOrElse("CG_API_KEY","")) match {
+        case Success(price) => 
+          Json.obj(
+            "token" -> addr, 
+            "price" -> price
+          )
+        case Failure(e) => 
+          Json.obj(
+            "error" -> e.getMessage
+          )
+      }
+    }
+  }
 }
