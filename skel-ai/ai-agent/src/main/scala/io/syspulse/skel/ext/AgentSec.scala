@@ -1,6 +1,7 @@
 package io.syspulse.skel.ext
 
 import scala.util.{Try,Success,Failure}
+import io.jvm.uuid._
 
 import io.cequence.openaiscala.domain.AssistantTool.FunctionTool
 import io.cequence.openaiscala.domain._
@@ -28,26 +29,43 @@ import io.syspulse.skel.ai.agent.Agent
 
 import io.syspulse.blockchain.Token
 
-object AgentTokenJson {
+case class SecurityScore(
+  address:String,
+  name:String,  
+
+  label:Option[String],
+  score:Option[Double],
+
+  status:String
+)
+
+case class SecurityScoreJob(
+  jobId:String,
+  address:String,  
+  status:String
+)
+
+object AgentSecJson {
   implicit val tokenWrites: Writes[Token] = Json.writes[Token]
+  implicit val scoreWrites: Writes[SecurityScore] = Json.writes[SecurityScore]
+  implicit val jobWrites: Writes[SecurityScoreJob] = Json.writes[SecurityScoreJob]
 }
 
-class AgentToken(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Agent {
+class AgentSec(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Agent {
 
-  import AgentTokenJson._
-  def getName(): String = "token-agent"
+  import AgentSecJson._
+  def getName(): String = "sec-agent"
 
   override def getModel() = 
-    uri.model.getOrElse(ModelId.gpt_4o_mini)
-    //ModelId.gpt_3_5_turbo
+    uri.model.getOrElse(ModelId.gpt_4o_mini)    
   
   def getInstructions(): String = 
-    """You are an ERC-20 Tokens expert bot. You know everything about ERC-20 Tokens, their functionality.    
+    """You are Crypto Security expert bot. You know everything about Cryptocurrency Tokens, Ethereum Smart Contracts, Blockchain AI Agents in relation to their trust and security.
+    You know to calculate and retrieve security or trust score for Address, Contract, Token, Agent.
     Tokens can be referenced by name or symbol (ticker) usually uppercase.
-    Use the provided functions to retrieve information about ERC-20 Tokens.
-    If user asks about all tokens (for example number of all tokens or list of all tokens), than this is a heavy and expensive operation, 
-    thus call it only once and work with returned results. Do not call getAllTokens multiple times in the same question.
-    Always provide report about the actions you have taken with contract addresses and parameters executed.    
+    Agents can be referenced by name or address.
+    Use the provided functions to retrieve existing security score (trust score). If you do not know the answer, start a calculation process and return job_id to the user.
+    Always provide report about the actions you have taken with blockchain addresses and status.
     """
   
   override def getTools(): Seq[AssistantTool] = Seq(
@@ -90,21 +108,49 @@ class AgentToken(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Age
       ),      
     ),
     FunctionTool(
-      name = "getTokenPrice",
-      description = Some("Retrieve price for token"),
+      name = "getSecurityScore",
+      description = Some("Retrieve existing security score or return instructions to start a job to calculate security score. Score parameter in response contains number between 0.0 and 100.0. The higher, the better. Score below 50.0 means address is suspecious. Score below 25.0 mean adderess is dangerous. Score above 75.0 usually means address is safe and trusted."),
       parameters = Map(
         "type" -> "object",
         "properties" -> Map(
-          "tokenAddress" -> Map(
+          "address" -> Map(
             "type" -> "string",
-            "description" -> "Address of the ERC-20 Token contract in Ethereum format. Optional, if not provided then tokenName is used"
+            "description" -> "Address for which to get security score"
           ),
-          "tokenName" -> Map(
+          "name" -> Map(
             "type" -> "string",
-            "description" -> "Name of the token. Infer name from the question. Optional, if not provided then tokenAddress is used"
+            "description" -> "Name for which to get security score. Optional, if not provided then Address is used"
           ),
         ),
-        "required" -> Seq(),        
+        "required" -> Seq(),
+      ),      
+    ),
+    FunctionTool(
+      name = "startJob",
+      description = Some("Start the job to calculate security score. Return jobId to the user. User should use getSecurityScore to retrieve the result when job is finished."),
+      parameters = Map(
+        "type" -> "object",
+        "properties" -> Map(
+          "address" -> Map(
+            "type" -> "string",
+            "description" -> "Address for which to calculate security score"
+          ),          
+        ),
+        "required" -> Seq("address"),
+      ),      
+    ),
+    FunctionTool(
+      name = "getJob",
+      description = Some("Returns the status for secruity score calculation job."),
+      parameters = Map(
+        "type" -> "object",
+        "properties" -> Map(
+          "jobId" -> Map(
+            "type" -> "string",
+            "description" -> "jobId returned by startJob"
+          ),          
+        ),
+        "required" -> Seq("jobId"),
       ),      
     ),
   ) 
@@ -112,7 +158,9 @@ class AgentToken(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Age
   def getFunctions(): Map[String, AgentFunction] = Map(
       "getToken" -> new GetToken,
       "getAllTokens" -> new GetAllTokens,
-      "getTokenPrice" -> new GetTokenPrice,
+      "getSecurityScore" -> new GetSecurityScore,
+      "startJob" -> new StartJob,
+      "getJob" -> new GetJob,
     ) //++ coreFunctionsMap
   
   class GetToken extends AgentFunction {
@@ -166,42 +214,49 @@ class AgentToken(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Age
       //throw new IllegalArgumentException("Missing token name or address")
   }
 
-  def getPriceCoingecko(addr:String,blockchain:String = "ethereum",apiKey:String = ""):Try[Double] = {
-    val url = s"https://pro-api.coingecko.com/api/v3/coins/${blockchain}/contract/${addr}"
-    try {
-      log.info(s"--> ${url}")
+  def getSecurityScore(addr:String,name:String):Try[SecurityScore] = {
+    // val url = s"https://pro-api.coingecko.com/api/v3/coins/${blockchain}/contract/${addr}"
+    // try {
+    //   log.info(s"--> ${url}")
 
-      val rsp = requests.get(
-        url = url,
-        headers = Seq( ("Content-Type" -> "application/json"), ("x-cg-pro-api-key" -> apiKey) )
-      )
+    //   val rsp = requests.get(
+    //     url = url,
+    //     headers = Seq( ("Content-Type" -> "application/json"), ("x-cg-pro-api-key" -> apiKey) )
+    //   )
 
-      log.debug(s"rsp = ${rsp}")
+    //   log.debug(s"rsp = ${rsp}")
 
-      val r = rsp.statusCode match {
-        case 200 => 
-          val json = ujson.read(rsp.text())
-          val ticker = json.obj("symbol").str
-          val price = json.obj("market_data").obj("current_price").obj("usd").num
-          Success(price)
-        case _ => 
-          Failure(new Exception(s"failed request: ${rsp}"))
-      }
+    //   val r = rsp.statusCode match {
+    //     case 200 => 
+    //       val json = ujson.read(rsp.text())
+    //       val ticker = json.obj("symbol").str
+    //       val price = json.obj("market_data").obj("current_price").obj("usd").num
+    //       Success(price)
+    //     case _ => 
+    //       Failure(new Exception(s"failed request: ${rsp}"))
+    //   }
       
-      r
-    } catch {
-      case e:Exception => 
-        Failure(new Exception(s"failed request -> '${url}'",e))
-    }
+    //   r
+    // } catch {
+    //   case e:Exception => 
+    //     Failure(new Exception(s"failed request -> '${url}'",e))
+    // }
+    Success(SecurityScore(
+      address = addr,
+      name = name,
+      score = Some(17.0),
+      label = Some("exploit"),
+      status = "finished"
+    ))
   }
 
-  class GetTokenPrice extends AgentFunction {    
+  class GetSecurityScore extends AgentFunction {    
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
       val projectId = metadata.getOrElse("pid","???")
-      val tokenAddress = (functionArgsJson \ "tokenAddress").asOpt[String]
-      val tokenName = (functionArgsJson \ "tokenName").asOpt[String]      
+      val address = (functionArgsJson \ "address").asOpt[String]
+      val name = (functionArgsJson \ "name").asOpt[String]      
       
-      val tt = askToken(tokenName,tokenAddress)
+      val tt = askToken(name,address)
 
       if(tt.size == 0) {
         return Json.obj(
@@ -221,17 +276,52 @@ class AgentToken(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Age
           (t.bid,t.addr)
       }
 
-      getPriceCoingecko(addr,blockchain = blockchain,apiKey = sys.env.getOrElse("CG_API_KEY","")) match {
-        case Success(price) => 
-          Json.obj(
-            "token" -> addr, 
-            "price" -> price
-          )
+      getSecurityScore(addr,name.getOrElse(addr)) match {
+        case Success(score) => 
+          Json.toJson(score)
         case Failure(e) => 
           Json.obj(
             "error" -> e.getMessage
           )
       }
+    }
+  }
+
+  var jobs = Map[String,SecurityScoreJob]()
+
+  class StartJob extends AgentFunction {    
+    def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
+      val projectId = metadata.getOrElse("pid","???")
+      val address = (functionArgsJson \ "address").as[String]      
+
+      val job = SecurityScoreJob(
+        jobId = UUID.randomUUID().toString,
+        address = address,
+        status = "started"
+      )
+      
+      val r = Json.toJson(job)
+      
+      jobs = jobs + (job.jobId -> job.copy(status = "running"))
+
+      r
+    }
+  }
+
+  class GetJob extends AgentFunction {    
+    def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
+      val projectId = metadata.getOrElse("pid","???")
+      val jobId = (functionArgsJson \ "jobId").as[String]      
+
+      jobs.get(jobId) match {
+        case Some(job) => 
+          Json.toJson(job)
+        case None => 
+          Json.obj(
+            "error" -> s"Job not found: ${jobId}"
+          )
+      }
+
     }
   }
 }
