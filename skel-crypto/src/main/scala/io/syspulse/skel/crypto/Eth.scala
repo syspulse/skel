@@ -43,10 +43,12 @@ import org.web3j.abi.TypeReference
 import org.web3j.protocol.core.DefaultBlockParameter
 import org.web3j.abi.FunctionReturnDecoder
 import io.syspulse.skel.crypto.eth.Solidity
+import java.security.SecureRandom
 
 object Eth {
   val log = Logger(s"${this}")
 
+  val rnd0 = new SecureRandom()
   import key._
   
   def presig(m:String):Array[Byte] = presig(m.getBytes())
@@ -88,11 +90,15 @@ object Eth {
     }
     (sk,pk) 
   }
-  
-  def generate(sk:String):Try[KeyPair] = { 
-    val kk = ECKeyPair.create(Numeric.hexStringToByteArray(sk))
+
+  def generate(sk:Array[Byte]):Try[KeyPair] = { 
+    val kk = ECKeyPair.create(sk)
     val nkk = normalize(kk)
     Success(KeyECDSA(nkk._1,nkk._2))
+  }
+  
+  def generate(sk:String):Try[KeyPair] = { 
+    generate(Numeric.hexStringToByteArray(sk))    
   }
 
   // generate random
@@ -100,6 +106,12 @@ object Eth {
     val kk = Keys.createEcKeyPair(); 
     val nkk = normalize(kk)
     Success(KeyECDSA(nkk._1,nkk._2))
+  }
+
+  // BouncyCastle has a problem with random keys in tests  
+  def random():Try[KeyPair] = { 
+    val sk = Array.fill(32)(rnd0.nextInt(256).toByte)
+    generate(sk)
   }
 
   // derive new Secure Keys from PrivateKey
@@ -675,6 +687,9 @@ object Eth {
 
   def hexToUtf8String(hex: String): String = {    
     val cleanHex = hex.stripPrefix("0x")
+    // no data
+    if(cleanHex.isEmpty) return ""
+
     val bytes = cleanHex.sliding(2, 2).toArray.map(Integer.parseInt(_, 16).toByte)    
     val ref = Seq(new TypeReference[datatypes.Utf8String]() {})
       .toList
@@ -694,11 +709,13 @@ object Eth {
           case uint if uint.startsWith("uint") => Success(Numeric.toBigInt(v).toString())
           case int if int.startsWith("int") => Success(Numeric.toBigInt(v).toString())
 
-          case "address" => Success(v)
-          case "bool" => Success((BigInt(v).toInt == 0).toString)
-          case "string" | "" => 
+          case "address" => Success(s"0x${v.drop(2 + 24)}")
+          case "bool" => Success((BigInt(v.drop(2),16).toInt == 1).toString)
+          case "string" => 
             //Success(new String(Util.fromHexString(v)))            
             Success(hexToUtf8String(v))
+          case "" => // default is just byte array
+            Success(v)
           case t => throw new Exception(s"unsupported type: '${t}'")
         }
       case Failure(e) => Failure(e)
@@ -715,13 +732,17 @@ object Eth {
     val r = call(from,contractAddress,encodedFunction)
     decodeResult(r,outputType)
   }
+
+  def callWithParams(from:String,contractAddress:String,func:String,params:String)(implicit web3:Web3j):Try[String] = {
+    call(from,contractAddress,func,if(params.isEmpty) Seq.empty else params.split("\\s+").toSeq)
+  }
     
   def encodeFunction(func:String,params:Seq[String]):(String,String) = {
     val (encodedFunction,outputType) = Solidity.encodeFunctionWithOutputType(func,params)    
     (encodedFunction,outputType)
   }
 
-  def encodeFunction(func:String,params:String):String = {
-    Solidity.encodeFunction(func,params)
+  def encodeFunctionWithParams(func:String,params:String):(String,String) = {
+    encodeFunction(func,if(params.isEmpty) Seq.empty else params.split("\\s+").toSeq)
   }
 }

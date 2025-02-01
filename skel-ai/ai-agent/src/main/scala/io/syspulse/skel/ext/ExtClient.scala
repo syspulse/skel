@@ -1,11 +1,14 @@
-package io.syspulse.skel.ai.agent
+package io.syspulse.skel.ext
 
 import java.util.concurrent.TimeUnit
 import io.syspulse.skel.util.Util
 import io.jvm.uuid._
 import com.typesafe.scalalogging.Logger
 
-case class Contract(contractId:String, address:String, network:String, name:String, addressImpl:Option[String] = None)
+import io.syspulse.skel.crypto.eth.abi3.AbiDef
+import io.syspulse.skel.crypto.eth.abi3.Abi
+
+case class Contract(contractId:String, address:String, network:String, name:String, addressImpl:Option[String] = None,abi:Option[Abi] = None)
 case class Detector(detectorId:String, name:String, did:String)
 case class DetectorSchema(schemaId:String, did:String, ver:String)
 case class Trigger(triggerId:String, name:String, typ:String)
@@ -27,13 +30,15 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     val url = s"${baseUrl}/contract/search"
     val data = 
       if(addr.isDefined) 
-        s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid} AND (address='${addr.get}' OR proxyAddress='${addr.get}')"}"""
+        s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid} AND (address='${addr.get}' OR implementation='${addr.get}')"}"""
       else 
       if(name.isDefined) 
-        s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid} AND name='${addr.get}' "}""" 
+        s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid} AND name='${name.get}' "}""" 
       else
         s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid}"}"""
     
+    log.debug(s"data: ${data}")
+
     val rsp = requests.post(
       url,
       headers = Map(
@@ -49,10 +54,10 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     val contracts = json("data").arr.map { c =>
       Contract(
         c("id").num.toLong.toString,
-        address = c.obj.get("proxyAddress").map(_.str).getOrElse(c("address").str), 
+        address = c.obj.get("implementation").map(_.str).getOrElse(c("address").str), 
         network = c("chainUid").str, 
         name = c("name").str,
-        addressImpl = Some(c("address").str)
+        addressImpl = Some(c("address").str),        
       )
     }
     contracts.toSeq
@@ -136,6 +141,39 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
 
     log.info(s"rsp: ${rsp}")
     contracts.head
+  }
+
+  def getContract(pid:String, contractId:Int):Contract = {
+    
+    val url = s"${baseUrl}/contract/${contractId}/withAbi"    
+    val rsp = requests.get(
+      url,
+      headers = Map(
+        "Content-Type" -> "application/json",
+        "Authorization" -> s"Bearer ${accessToken}"
+      ),
+    )
+
+    log.debug(s"rsp: ${rsp}")
+    
+    val json = ujson.read(rsp.text())
+        
+    val abi = try {
+      Some(Abi(json("abi").toString))
+    } catch {
+      case e:Exception => 
+        log.warn(s"failed to parse abi: ${contractId}: ${e.getMessage}")
+        None
+    }
+
+    val contract = Contract(
+      json("id").num.toLong.toString,
+      json("address").str, 
+      json("chainUid").str, 
+      json("name").str,
+      abi = abi,
+    )
+    contract
   }
 
 // ----------------------------------------------------------------------------------------------------
@@ -306,5 +344,27 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
 
     log.info(s"rsp: ${rsp}")
     Trigger(triggerId,"","")
+  }
+
+  def callContract(addr:String, network:String, func:String, params:Seq[String]):String = {
+    val pid = "0"
+    val url = s"${baseUrl}/tools/common/${pid}/abi/call"
+    val paramsJson = params.map(p => s""""${p}"""").mkString(",")
+    val data = 
+      s"""{"addr":"${addr}","chain":"${network}","func":"${func}","params":[${paramsJson}]}"""
+    
+    val rsp = requests.post(
+      url,
+      headers = Map(
+        "Content-Type" -> "application/json",
+        "Authorization" -> s"Bearer ${accessToken}"
+      ),
+      data = data,      
+    )
+
+    log.info(s"rsp: ${rsp}")
+    
+    val json = ujson.read(rsp.text())
+    json("data").str
   }
 }

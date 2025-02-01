@@ -43,23 +43,27 @@ CONFIG="application${SITE}.conf"
 MEM=${MEM:-1G}
 STACK=${STACK:-512M}
 
->&2 echo "=== Class Path ======================================="
-echo $CP | sed "s/\:/\n/g" >&2
->&2 echo "======================================================"
->&2 echo "APP: $APP"
->&2 echo "APP_HOME: $APP_HOME"
->&2 echo "MAIN: $MAIN"
-# to be compatibble with old scripts (to be deprecated)
->&2 echo "OPT: $OPT"
->&2 echo "JAVA_OPTS: $JAVA_OPTS"
->&2 echo "ARGS: $ARGS"
->&2 echo "SITE: ${SITE}"
->&2 echo "CONFIG: ${CONFIG}"
->&2 echo "MEM: ${MEM}"
->&2 echo "STACK: ${STACK}"
+if [ "$DEBUG" != "" ]; then
+   >&2 echo "=== Class Path ======================================="
+   echo $CP | sed "s/\:/\n/g" >&2
+   >&2 echo "======================================================"
 
-#>&2 echo $CP
->&2 pwd
+   >&2 echo "APP: $APP"
+   >&2 echo "APP_HOME: $APP_HOME"
+   >&2 echo "MAIN: $MAIN"
+   # to be compatibble with old scripts (to be deprecated)
+   >&2 echo "OPT: $OPT"
+   >&2 echo "JAVA_OPTS: $JAVA_OPTS"
+   >&2 echo "ARGS: $ARGS"
+   >&2 echo "SITE: ${SITE}"
+   >&2 echo "CONFIG: ${CONFIG}"
+   >&2 echo "MEM: ${MEM}"
+   >&2 echo "STACK: ${STACK}"
+
+   #>&2 echo $CP
+   >&2 echo "pwd: `pwd`"
+
+fi
 
 # command:
 # JAVA_OPTS should be overriden by old script parameters like $OPT

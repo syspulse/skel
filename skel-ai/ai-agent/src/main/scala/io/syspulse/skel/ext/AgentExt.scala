@@ -1,11 +1,10 @@
-package io.syspulse.skel.ai.agent
+package io.syspulse.skel.ext
 
 import io.cequence.openaiscala.domain.AssistantTool.FunctionTool
 import io.cequence.openaiscala.domain._
 import io.cequence.openaiscala.domain.settings.CreateRunSettings
 import io.cequence.openaiscala.service.adapter.OpenAIServiceAdapters
 import io.cequence.openaiscala.service.{OpenAIService, OpenAIServiceFactory}
-import play.api.libs.json.Json
 import io.cequence.openaiscala.domain.response.ChatCompletionResponse
 import io.cequence.openaiscala.service.{OpenAIService, OpenAIServiceFactory}
 
@@ -15,27 +14,33 @@ import io.cequence.openaiscala.domain.response.ChatCompletionResponse
 import io.cequence.openaiscala.service.{OpenAIService, OpenAIServiceFactory}
 import io.cequence.openaiscala.domain.ModelId
 import scala.concurrent.{ExecutionContext, Future}
+
 import play.api.libs.json.JsValue
+import play.api.libs.json.Writes
+import play.api.libs.json.Json
+
 import io.syspulse.skel.ai.core.openai.OpenAiURI
+import io.syspulse.skel.ext.{ExtClient, Detector, Contract, DetectorSchema, Trigger}
+import io.syspulse.skel.ai.agent.AgentFunction
+import io.syspulse.skel.ai.agent.Agent
 
-class HelpAgent(val uri:OpenAiURI) extends AgentFile {
-  
-  if(! uri.vdb.isDefined)
-    throw new IllegalArgumentException("vectorStoreId is required")
+class AgentExt(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Agent with ExtCoreFunctions {
 
-  def getName(): String = "help-agent"
+  import ExtJson._
+  def getName(): String = "ext-agent"
 
   override def getModel() = 
-    uri.model.getOrElse(ModelId.gpt_4o)
+    uri.model.getOrElse(ModelId.gpt_4o_mini)
     //ModelId.gpt_3_5_turbo
   
   def getInstructions(): String = 
     """
-    You are an assistant that helps me find Extractor product information and functionality description.
+    You are an Extractor Project and Contracts bot. Use the provided functions to answer questions.
+    Always provide report about the actions you have taken with contract addresses and contract identifiers in the last message
     """
+  
+  override def getTools(): Seq[AssistantTool] = ExtCoreFunctions.functions
+  
+  def getFunctions(): Map[String, AgentFunction] = coreFunctionsMap
 
-  def getVectorStoreId(): String = uri.vdb.get
-
-  // no functions for FileSearchTool
-  def getFunctions(): Map[String, AgentFunction] = Map()
 }

@@ -131,5 +131,8 @@ object Blockchain {
       case Some(b) => b
       case _ => new Blockchain(network)
     }
+
+  def apply(network:Option[String]):Option[Blockchain] = 
+    network.map(apply)
   
 }

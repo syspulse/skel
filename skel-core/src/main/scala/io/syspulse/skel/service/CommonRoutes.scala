@@ -6,6 +6,8 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.util.Timeout
+import com.typesafe.config.ConfigFactory
+import scala.concurrent.ExecutionContext
 
 import io.syspulse.skel.config.Configuration
 import io.syspulse.skel.service.telemetry.TelemetryRegistry._
@@ -20,5 +22,6 @@ trait CommonRoutes {
   protected implicit val timeout = Timeout.create(
     Configuration.default.getDuration("http.routes.ask-timeout").getOrElse(java.time.Duration.ofMillis(3000L))
   )
+  
 }
 

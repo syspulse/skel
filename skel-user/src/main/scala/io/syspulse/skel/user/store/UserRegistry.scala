@@ -14,6 +14,12 @@ import io.syspulse.skel.Command
 
 import io.syspulse.skel.user._
 import io.syspulse.skel.user.server.{UserActionRes, Users, UserCreateReq, UserUpdateReq}
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContextExecutor
+import akka.actor.typed.DispatcherSelector
+import com.typesafe.config.ConfigFactory
+import java.util.concurrent.Executors
+import scala.concurrent.ExecutionContext
 
 object UserRegistryProto {
   final case class GetUsers(replyTo: ActorRef[Users]) extends Command
@@ -26,6 +32,7 @@ object UserRegistryProto {
 
   final case class DeleteUser(id: UUID, replyTo: ActorRef[UserActionRes]) extends Command
   
+  final case class TestTimeout(timeout:Long,replyTo: ActorRef[UserActionRes]) extends Command
 }
 
 object UserRegistry {  
@@ -36,15 +43,30 @@ object UserRegistry {
   // this var reference is unfortunately needed for Metrics access
   var store: UserStore = null 
 
+  // Create custom ExecutionContext
+  implicit val ec: ExecutionContextExecutor = {
+    ExecutionContext.fromExecutor(Executors.newFixedThreadPool(16))
+  }
+
   def apply(store: UserStore = new UserStoreMem): Behavior[io.syspulse.skel.Command] = {
     this.store = store
     registry(store)
   }
-
+  
   private def registry(store: UserStore): Behavior[io.syspulse.skel.Command] = {
     this.store = store
 
     Behaviors.receiveMessage {
+      case TestTimeout(timeout,replyTo) =>
+        // ATTENTION: Timeout !
+        Future {
+          log.info(s"TestTimeout: ${timeout} <-")
+          Thread.sleep(timeout)
+          log.info(s"TestTimeout: ${timeout} ->")
+          replyTo ! UserActionRes("300",None)
+        }
+        Behaviors.same
+
       case GetUsers(replyTo) =>
         replyTo ! Users(store.all)
         Behaviors.same

@@ -17,7 +17,7 @@ object AppEvm extends {
 
   case class Config(
     ethRpcUrl:String="http://geth:8545",
-    from:String = "",
+    from:String = "0x0000000000000000000000000000000000000000",
 
     cmd:String = "call",
     params:Seq[String] = Seq()
@@ -33,7 +33,7 @@ object AppEvm extends {
       new ConfigurationEnv, 
       new ConfigurationArgs(args,"eth-evm","",
         
-        ArgString('u', "eth.rpc.url",s"RPC uri (def: ${d.ethRpcUrl})"),
+        ArgString('r', "eth.rpc.url",s"RPC uri (def: ${d.ethRpcUrl})"),
         ArgString('f', "from",s"From address (def: ${d.from})"),
         
         
@@ -49,7 +49,7 @@ object AppEvm extends {
     )).withLogging()
     
     val config = Config(
-      ethRpcUrl = c.getString("uri").getOrElse(d.ethRpcUrl),
+      ethRpcUrl = c.getString("eth.rpc.url").getOrElse(d.ethRpcUrl),
       from = c.getString("from").getOrElse(d.from),
       
       cmd = c.getCmd().getOrElse(d.cmd),
@@ -64,19 +64,36 @@ object AppEvm extends {
 
     val r =config.cmd match {
       case "call" => 
+        if(config.params.size < 2) {
+          Console.err.println("call: <contract> <function> [params..]")
+          sys.exit(1)
+        }
+
         val contractAddress = config.params(0)
         val funcName = config.params(1)
         val params = config.params.drop(2)
-        
-        Eth.call("0x"+"0".*(40),contractAddress,funcName,params)
+        val paramsStr = params.mkString(" ")
+          
+        //Eth.callWithParams(config.from,contractAddress,funcName,paramsStr)
+        Eth.call(config.from,contractAddress,funcName,params)
               
       case "encode" => 
+        if(config.params.size < 1) {
+          Console.err.println("encode: <function> [params..]")
+          sys.exit(1)
+        }
+
         val funcName = config.params(0)
         val params = config.params.drop(1)
         
         Eth.encodeFunction(funcName,params)
 
       case "estimate" => 
+        if(config.params.size < 2) {
+          Console.err.println("estimate: <contract> <function> [params..]")
+          sys.exit(1)
+        }
+
         val contractAddress = config.params(0)
         val funcName = config.params(1)
         val params = config.params.drop(2)

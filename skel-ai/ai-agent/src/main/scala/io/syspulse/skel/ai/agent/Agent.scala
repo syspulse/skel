@@ -25,6 +25,8 @@ import io.syspulse.skel.ai.core.openai.OpenAiURI
 import io.cequence.openaiscala.domain.response.Assistant
 
 trait AgentFunction {
+  protected val log = Logger(getClass)
+  
   def run(args: JsValue, metadata:Map[String,String]): JsValue
 }
 
@@ -97,15 +99,28 @@ trait Agent extends PollingHelper {
 
   protected def getTools(): Seq[AssistantTool]
   
-  protected def createSpecMessagesThread(question: String,metadata:Option[Map[String,String]]): Future[Thread] =
-    for {
-      thread <- service.createThread(
-        messages = Seq(
-          ThreadMessage(question)
-        ),
-        metadata = metadata.getOrElse(Map.empty)
-      )
+  protected def createSpecMessagesThread(question: String, metadata:Option[Map[String,String]]): Future[Thread] =
+    for {      
+      thread <- {
+        val tid = metadata.flatMap(_.get("thread_id"))
+        
+        if(tid.isDefined) {
+          service.retrieveThread(tid.get)
+            .map(_.get)            
+        } else {
+          service.createThread(
+            // messages = Seq(
+            //   ThreadMessage(question)
+            // ),
+            metadata = metadata.getOrElse(Map.empty)
+          )
+        }
+      }
+      threadFull <- {
+        service.createThreadMessage(thread.id,question)
+      }
       _ = log.info(s"thread: ${thread}")
+      _ = log.info(s"threadFull: ${threadFull}")
     } yield thread
 
   def getFunctions(): Map[String, AgentFunction]
@@ -126,7 +141,7 @@ trait Agent extends PollingHelper {
     }
 
     if(! run.required_action.isDefined) {
-      log.warn(s"Invalid state: ${run.id}: status=${run.status}: ${run.required_action}")
+      log.info(s"Invalid state: ${run.id}: status=${run.status}: ${run.required_action}")
       // this is expected until statu == InProgress
       return Future.failed(new IllegalStateException(s"Run ${run.id}: no required action"))
     }

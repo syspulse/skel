@@ -63,6 +63,40 @@ class SSSSpec extends AnyWordSpec with Matchers with TestData {
     }
 
     
+    "shares of 3:3 must be unique and prime the same" in {
+      val sss1 = SSS.createShares("secret_1",3,3)
+      sss1 shouldBe a [Success[_]]
+      
+      for (i <- 0 until 3) {
+        info(s"sss1($i): x=${sss1.get(i).x}, y=${sss1.get(i).y}, prime=${sss1.get(i).primeUsed}")      
+      }      
+      sss1.get(0).y !== sss1.get(1).y
+      sss1.get(0).y !== sss1.get(2).y
+      sss1.get(1).y !== sss1.get(2).y
+
+      sss1.get(0).primeUsed === sss1.get(1).primeUsed      
+      sss1.get(0).primeUsed === sss1.get(2).primeUsed      
+      sss1.get(1).primeUsed === sss1.get(2).primeUsed      
+    }
+
+    "different shares of 3:3 for the same secret must be unique" in {
+      val secret = "secret_1"
+      val sss1 = SSS.createShares(secret,3,3)
+      sss1 shouldBe a [Success[_]]
+      val sss2 = SSS.createShares(secret,3,3)
+      sss2 shouldBe a [Success[_]]
+      
+      // for (i <- 0 until 3) {
+      //   info(s"sss1($i): x=${sss1.get(i).x}, y=${sss1.get(i).y}, prime=${sss1.get(i).primeUsed}")
+      //   info(s"sss2($i): x=${sss2.get(i).x}, y=${sss2.get(i).y}, prime=${sss2.get(i).primeUsed}")
+      // }
+      sss1.get(0).y !== sss2.get(0).y
+      sss1.get(1).y !== sss2.get(1).y
+      sss1.get(2).y !== sss2.get(2).y
+
+      sss1.get(0).primeUsed !== sss2.get(0).primeUsed      
+      
+    }
 
   }
 }

@@ -1,4 +1,4 @@
-package io.syspulse.skel.ai.agent
+package io.syspulse.skel.ext
 
 import io.cequence.openaiscala.domain.AssistantTool.FunctionTool
 import io.cequence.openaiscala.domain._
@@ -19,7 +19,9 @@ import play.api.libs.json.JsValue
 import play.api.libs.json.Writes
 import play.api.libs.json.Json
 
-import io.syspulse.skel.ai.core.openai.OpenAiURI
+import io.syspulse.skel.ext.{ExtClient, Detector, Contract, DetectorSchema, Trigger}
+import io.syspulse.skel.ai.agent.AgentFunction
+import io.syspulse.skel.ai.agent.Agent
 
 object ExtJson {
   implicit val detectorWrites = new Writes[Detector] {
@@ -60,28 +62,20 @@ object ExtJson {
   implicit val detectorSchemasWrites: Writes[Seq[DetectorSchema]] = Writes.seq[DetectorSchema]
 }
 
-class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
+trait ExtClientProvider {
+  implicit val extClient: ExtClient
+}
 
-  import ExtJson._
-  def getName(): String = "ext-agent"
-
-  override def getModel() = 
-    uri.model.getOrElse(ModelId.gpt_4o)
-    //ModelId.gpt_3_5_turbo
-  
-  def getInstructions(): String = 
-    """
-    You are an Extractor Project and Contracts bot. Use the provided functions to answer questions.
-    Always provide report about the actions you have taken with contract addresses and contract identifiers in the last message
-    """
+object ExtCoreFunctions {
 
   val severityLevels = Seq("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO", "AUTO")
   val networkTypes = Seq("", "Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BSC", "Solana", "Bitcoin")
   val monitoringTypes = Seq("Security Monitoring", "Compliance Monitoring","Financial Monitoring")
   val triggerTypes = Seq("Failed Transaction")
   val detectorTypes = Seq("DetectorAML", "TVL Monitor","Circulation Supply Monitor")
-  
-  override def getTools(): Seq[AssistantTool] = Seq(
+
+
+  val functions: Seq[AssistantTool] = Seq(
     FunctionTool(
       name = "addMonitoringType",
       description = Some("Add new monitoring capabilities to the contract like Security Monitoring, Compliance Monitoring, Financial Monitoring, etc. by Address."),
@@ -168,6 +162,20 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
             "description" -> "Name of the Project. If not provided, current Project will be used."
           ),
         ),        
+      ),      
+    ),
+    FunctionTool(
+      name = "findContracts",
+      description = Some("Find Contracts' address and network by Contract's name"),
+      parameters = Map(
+        "type" -> "object",
+        "properties" -> Map(          
+          "name" -> Map(
+            "type" -> "string",
+            "description" -> "Name of the Contract."
+          ),
+        ),
+        "required" -> Seq("name"),
       ),      
     ),
     FunctionTool(
@@ -318,21 +326,28 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
       ),      
     ),
   )
+}
+
+trait ExtCoreFunctions extends ExtClientProvider {
+
+  import ExtJson._
+          
+  val coreFunctionsMap: Map[String, AgentFunction] = Map(
+    "getProjectContracts" -> new GetProjectContracts,
+    "findContracts" -> new FindContracts,
+
+    "addMonitoringType" -> new AddMonitoringType,
+    "addContract" -> new AddContract,
+    "deleteContract" -> new DeleteContract,
+    
+    "addDetector" -> new AddDetector,
+    "deleteDetector" -> new DeleteDetector,
+
+    "addTrigger" -> new AddTrigger,
+    "deleteTrigger" -> new DeleteTrigger
+  )
   
-  def getFunctions(): Map[String, AgentFunction] = Map(
-      "addMonitoringType" -> new AddMonitoringType,
-      "addContract" -> new AddContract,
-      "deleteContract" -> new DeleteContract,
-      "getProjectContracts" -> new GetProjectContracts,
-      
-      "addDetector" -> new AddDetector,
-      "deleteDetector" -> new DeleteDetector,
-      
-      "addTrigger" -> new AddTrigger,
-      "deleteTrigger" -> new DeleteTrigger
-    )
-  
-  class AddContract extends AgentFunction {
+  class AddContract() extends AgentFunction {
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
       val projectId = metadata.getOrElse("pid","???")
       val address = (functionArgsJson \ "address").as[String]
@@ -344,12 +359,6 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
 
       val contract = extClient.addContract(projectId, address, network, name.getOrElse(address))
 
-      // Json.obj(
-      //   "address" -> address, 
-      //   "network" -> network, 
-      //   "name" -> name, 
-      //   "contractId" -> contract.contractId        
-      // )
       Json.toJson(contract)
     }
   }
@@ -434,8 +443,7 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
       log.info(s"${address}/${name} [-] Project($projectId)")
 
       val contract = extClient.delContract(projectId, address, name)
-
-      // Json.obj("address" -> contract.address, "status" -> "deleted")
+      
       Json.toJson(contract)
     }
   }
@@ -448,6 +456,19 @@ class ExtAgent(val uri:OpenAiURI,extClient:ExtClient) extends Agent {
       log.info(s"Project($projectId) [?] [${address}]")
 
       val contracts = extClient.getProjectContracts(projectId,address)
+
+      Json.toJson(contracts)
+    }
+  }
+
+  class FindContracts extends AgentFunction {
+    def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {      
+      val projectId = metadata.getOrElse("pid","???")
+      val name = (functionArgsJson \ "name").as[String]
+
+      log.info(s"Project($projectId) [?] [${name}]")
+
+      val contracts = extClient.getProjectContracts(projectId,addr = None, name = Some(name))
 
       Json.toJson(contracts)
     }

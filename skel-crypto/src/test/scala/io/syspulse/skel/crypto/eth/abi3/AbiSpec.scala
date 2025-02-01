@@ -17,50 +17,11 @@ import scala.util.Success
 import io.syspulse.skel.crypto.eth.abi3._
 
 class AbiSpec extends AnyWordSpec with Matchers {
-  val testDir = this.getClass.getClassLoader.getResource(".").getPath + "../../../"
+  val testDir = this.getClass.getClassLoader.getResource(".").getPath 
 
   info(s"testDir=${testDir}")
-  
-  "Abi should parse simple function" in {  
-    val abi1 = """{"name":"decimals","type":"function"}"""
-    val a = Abi.parseDef(abi1)
-    a should === (AbiDef(name="decimals",`type`="function"))
-  }
 
-  "Abi should load ERC20 decimals() function" in {
-    val abi1 = """
-  {
-    "constant": true,
-    "inputs": [],
-    "name": "decimals",
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  }
-  """
-
-    val a = Abi.parseDef(abi1)
-    a should === (AbiDef(
-      name="decimals",
-      `type`="function",
-      constant=Some(true), 
-      inputs=Some(Seq()), 
-      outputs=Some(Seq( AbiType(name="",`type`="uint256") )), 
-      payable=Some(false),
-      stateMutability=Some("view")
-    ))
-  }
-
-  "parse ERC20 Contract" in {
-    val contract = "0x1111111111111111111111111111111111111111"
-
-    val abi1 = """[
+  val ABI_ERC20 = """[
         {
           "anonymous": false,
           "inputs": [
@@ -112,8 +73,63 @@ class AbiSpec extends AnyWordSpec with Matchers {
           "type": "event"
         }    
       ]"""  
+  
+  val ABI_ERC20_1 = Source.fromFile(testDir + "ABI_ERC20_1.json").mkString
 
-    val a = Abi.parse(abi1)
-    info(s"ERC20 = ${a}") 
+  "Abi should parse simple function" in {  
+    val abi1 = """{"name":"decimals","type":"function"}"""
+    val a = Abi.parseDef(abi1)
+    a should === (AbiDef(name=Some("decimals"),`type`="function"))
   }
+
+  "Abi should load ERC20 decimals() function" in {
+    val abi1 = """
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "decimals",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  }
+  """
+
+    val a = Abi.parseDef(abi1)
+    a should === (AbiDef(
+      name=Some("decimals"),
+      `type`="function",
+      constant=Some(true), 
+      inputs=Some(Seq()), 
+      outputs=Some(Seq( AbiType(name="",`type`="uint256") )), 
+      payable=Some(false),
+      stateMutability=Some("view")
+    ))
+  }
+
+  "parse ERC20 Contract" in {
+    val contract = "0x1111111111111111111111111111111111111111"
+    
+    val a = Abi.parse(ABI_ERC20)
+    //
+  }
+
+  "generate trasfer() function" in {    
+    val a = Abi.parse(ABI_ERC20_1)
+    val f = a.getFunctionCall("transfer")
+    f.get should === ("transfer(address,uint256)(bool)")
+  }
+
+  "generate name() function" in {
+    val a = Abi.parse(ABI_ERC20_1)
+    val f = a.getFunctionCall("name")
+    f.get should === ("name()(string)")
+  }
+
+  
 }

@@ -20,12 +20,12 @@ import spray.json._
 import org.scalameta.data.data
 
 case class AbiType(
-  name:String,
+  name:String, // e.g. contstructor
   `type`:String
 )
 
 case class AbiDef(
-  name:String,
+  name:Option[String], // e.g. contstructor
   `type`:String,
   inputs:Option[Seq[AbiType]]=None,
   outputs:Option[Seq[AbiType]]=None,
@@ -40,8 +40,22 @@ class Abi(definitions:Seq[AbiDef]) {
   override def toString = s"Abi(${definitions})"
   
   // build index by names
-  private val functions = definitions.filter(a => a.`type` == "function").map(a => a.name -> a).toMap
-  private val events = definitions.filter(a => a.`type` == "event").map(a => a.name -> a).toMap
+  private val functions = definitions
+    .filter(a => a.`type` == "function")
+    .filter(a => a.name.isDefined)
+    .map(a => a.name.get -> a)    
+    .toMap
+  
+  private val events = definitions
+    .filter(a => a.`type` == "event")
+    .filter(a => a.name.isDefined)
+    .map(a => a.name.get -> a)
+    .toMap
+
+  private val constructors = definitions
+    .filter(a => a.`type` == "constructor")
+    .map(a => "constructor" -> a)
+    .toMap
   
   def parseType(typ:String,v:Any):Option[datatypes.Type[_]] = {    
     typ match {
@@ -102,19 +116,51 @@ class Abi(definitions:Seq[AbiDef]) {
     }
   }
 
-  def getInputs(func:String,params:Seq[Any]):Seq[datatypes.Type[_]] = {
-    functions.get(func.trim) match {      
-      case Some(a) if(!a.inputs.isDefined) => Seq()
-      case Some(a) => a.inputs.get.view.zipWithIndex.flatMap{ case(at,i) => parseType(at.`type`,params(i))}.toSeq
-      case None => Seq()
+  def getInputs(func:String,params:Seq[Any]):Seq[datatypes.Type[_]] = findFunction(func).map(getInputs(_,params)).getOrElse(Seq())
+  def getOutputs(func:String):Seq[TypeReference[_]] = findFunction(func).map(getOutputs(_)).getOrElse(Seq())
+
+  def getInputs(a:AbiDef,params:Seq[Any]):Seq[datatypes.Type[_]] = {
+    if(!a.inputs.isDefined) 
+      Seq()
+    else {
+      a.inputs.get.view.zipWithIndex.flatMap{ case(at,i) => parseType(at.`type`,params(i))}.toSeq
     }
   }
 
-  def getOutputs(func:String):Seq[TypeReference[_]] = {
-    functions.get(func.trim) match {      
-      case Some(a) if(!a.outputs.isDefined) => Seq()
-      case Some(a) => a.outputs.get.view.zipWithIndex.flatMap{ case(at,i) => parseTypeRef(at.`type`)}.toSeq
-      case None => Seq()
+  def getOutputs(a:AbiDef):Seq[TypeReference[_]] = {
+    if(!a.outputs.isDefined) 
+      Seq()
+    else
+      a.outputs.get.view.zipWithIndex.flatMap{ case(at,i) => parseTypeRef(at.`type`)}.toSeq
+  }
+    
+  def getInputsOutputs(abi:AbiDef,params:Seq[Any]) = {
+    (getInputs(abi,params),getOutputs(abi))
+  }
+
+  def findFunction(name0:String):Option[AbiDef] = {
+    // remove any parenthesises
+    val i = name0.indexOf("(")
+    val name = if(i == -1)
+      name0.trim
+    else 
+      name0.substring(0,i).trim
+    functions.get(name)
+  }
+
+  def findEvent(name:String):Option[AbiDef] = {
+    events.get(name.trim)
+  }
+
+  def getFunctionCall(name:String):Try[String] = {
+    findFunction(name) match {
+      case Some(a) => 
+        val inputs = a.inputs.getOrElse(Seq()).map(i => i.`type`)
+        val outputs = a.outputs.getOrElse(Seq()).map(i => i.`type`)
+        val func = s"${a.name.get}(${inputs.mkString(",")})(${outputs.mkString(",")})"
+        Success(func)
+      case None => 
+        Failure(new Exception(s"function not found: '${name}'")) 
     }
   }
 }

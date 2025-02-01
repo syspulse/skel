@@ -384,7 +384,7 @@ object Util {
   }
 
   def replaceEnvVar(expr:String,env:Map[String,String] = sys.env):String = {
-    if(!expr.contains('{'))
+    if(!expr.contains('{') && !expr.contains('$'))
       return expr
 
     val i0 = expr.indexOf('{')
@@ -395,12 +395,14 @@ object Util {
       return expr
     
     val v = expr.substring(i0+1,i1)
-    val ev = env.get(v)
+    val ev0 = env.get(v)
     
-    if(!ev.isDefined)
-      return expr
+    val ev = if(!ev0.isDefined)
+      ""
+    else 
+      ev0.get
     
-    expr.take(i0) + ev.get + expr.drop(i0 + 1 + 1 + v.size)
+    (expr.take(i0) + ev + expr.drop(i0 + 1 + 1 + v.size)).replaceAll("\\$", "")
   }
 
   // more reliable BigInt converter of format is into double

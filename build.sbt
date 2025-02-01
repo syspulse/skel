@@ -1310,7 +1310,7 @@ lazy val ai_core = (project in file("skel-ai/ai-core"))
   )
 
 lazy val ai_agent = (project in file("skel-ai/ai-agent"))
-  .dependsOn(core,ai_core)
+  .dependsOn(core, ai_core, skel_crypto, blockchain_core)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -1325,7 +1325,7 @@ lazy val ai_agent = (project in file("skel-ai/ai-agent"))
           libUpickleLib,
           
           //libCequenceOpenAiClient,
-          libCequenceOpenAiStream,
+          libCequenceOpenAiStream,          
 
           libScalaTest % Test,
         ),

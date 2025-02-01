@@ -15,6 +15,8 @@ import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.ai.Ai
 import io.syspulse.skel.ai.core.Providers
 import io.syspulse.skel.ai.core.openai.OpenAiURI
+import io.syspulse.skel.ai.Prompt
+import io.syspulse.skel.ai.PromptMessage
 
 case class OpenAi_ChatMessage(
   role: String,
@@ -72,28 +74,27 @@ class OpenAi(uri:String) {
 
   val log = Logger(s"${this}")
 
-  def chat(question:String,model:Option[String]):Try[Ai] = {
-    val system = ""
+  def ask(question:String,model:Option[String],system:Option[String] = None):Try[Ai] = {
     
     val url = s"https://api.openai.com/v1/chat/completions"
     val modelReq = model.getOrElse(openAiUri.model.getOrElse("gpt-4o"))
     val body = OpenAi_ChatReq(
       model = modelReq,
       messages = Seq(
-        OpenAi_ChatReqMsg("system",system),
+        OpenAi_ChatReqMsg("system",system.getOrElse("")),
         OpenAi_ChatReqMsg("user",question)
       )
     ).toJson.compactPrint
           
-    log.info(s"asking: ${modelReq}: '${question.take(32).replaceAll("\n","\\\\n")}...(${question.size})' -> ${url}")
-          
-    try {
+    log.info(s"asking: ${modelReq}: '${question.take(32).replaceAll("\n","\\\\n")}...(${question.size})' -> ${url}")    
+      
+    try {      
       val r = requests.post(
         url = url,
         headers = Seq("Content-Type" -> "application/json", "Authorization" -> s"Bearer ${openAiUri.apiKey}"),
         data = body
-      )
-      log.debug(s"${question}: ${r}")
+      )      
+      log.debug(s"${body}: ${r}")
 
       val chatRes = r.text().parseJson.convertTo[OpenAi_ChatRes]
             
@@ -106,6 +107,47 @@ class OpenAi(uri:String) {
     } catch {
       case e:Exception =>
         log.error(s"failed to get answer: '${question}'",e)
+        Failure(e)
+    }
+  }
+
+  def prompt(prompt:Prompt,model:Option[String],system:Option[String] = None):Try[Prompt] = {
+    
+    val url = s"https://api.openai.com/v1/chat/completions"
+    val modelReq = model.getOrElse(openAiUri.model.getOrElse("gpt-4o"))
+    val body = OpenAi_ChatReq(
+      model = modelReq,
+      messages = prompt.messages.map( p => OpenAi_ChatReqMsg(p.role,p.content))
+    ).toJson.compactPrint
+          
+    val promptSize = prompt.messages.map(_.content.size).sum
+    log.info(s"prompt: [${modelReq},${prompt.messages.size},${promptSize}]' -> ${url}")
+
+    try {
+      val r = requests.post(
+        url = url,
+        headers = Seq("Content-Type" -> "application/json", "Authorization" -> s"Bearer ${openAiUri.apiKey}"),
+        data = body
+      )
+      log.debug(s"${body}: ${r}")
+
+      val chatRes = r.text().parseJson.convertTo[OpenAi_ChatRes]
+            
+      Success(Prompt(
+        messages = chatRes.choices.map(c => PromptMessage(role = c.message.role, content = c.message.content)),
+
+        oid = prompt.oid,
+        model = Some(chatRes.model),
+
+        ts = System.currentTimeMillis(),
+        ts0 = prompt.ts0,
+
+        tags = prompt.tags,
+        meta = prompt.meta
+      ))
+    } catch {
+      case e:Exception =>
+        log.error(s"failed to prompt: '${prompt}'",e)
         Failure(e)
     }
   }

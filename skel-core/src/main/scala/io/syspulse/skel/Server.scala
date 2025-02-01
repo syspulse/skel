@@ -91,26 +91,33 @@ trait Server {
   def getHandlers():(RejectionHandler,ExceptionHandler) = {
     val rejectionHandler = RejectionHandler.newBuilder()
         .handle { case MissingQueryParamRejection(param) =>
-          complete(HttpResponse(BadRequest,   entity = jsonEntity(s"""{"error": "missing parameter"}""")))
+          log.warn(s"missing parameter: ${param}")
+          complete(HttpResponse(BadRequest,   entity = jsonEntity(s"""{"error": "Missing parameter: ${param}"}""")))
         }
         .handle { case AuthorizationFailedRejection =>
-          complete(HttpResponse(Forbidden, entity = jsonEntity(s"""{"error": "AuthorizationFailedRejection"}""")))
+          log.warn(s"authorization rejection")
+          complete(HttpResponse(Forbidden, entity = jsonEntity(s"""{"error": "Authorization"}""")))
         }
         .handleAll[AuthenticationFailedRejection] { rejections =>
+          log.warn(s"authorization rejection: ${rejections}")
           // val rejectionMessage = rejections.head.cause match {
           //   case CredentialsMissing  => "The resource requires authentication, which was not supplied with the request"
           //   case CredentialsRejected => "The supplied authentication is invalid"
           // }
-          complete(HttpResponse(Unauthorized, entity = jsonEntity(s"""{"error": "AuthenticationFailedRejection: ${rejections}"}""")))
+          complete(HttpResponse(Unauthorized, entity = jsonEntity(s"""{"error": "Authentication: ${rejections}"}""")))
         }
         .handleAll[MethodRejection] { methodRejections =>
+          log.warn(s"method rejection: ${methodRejections}")
           val names = methodRejections.map(_.supported.name)
           complete(HttpResponse(MethodNotAllowed, entity = jsonEntity(s"""{"error": "${names} rejected"}""")))
         }
         .handleAll[Rejection] { rej =>
+          log.warn(s"rejection: ${rej}")
           complete(HttpResponse(BadRequest, entity = jsonEntity(s"""{"error": "${rej}"}""")))
         }
         .handleNotFound { extractUnmatchedPath { p =>
+          // TODO: enable to see unmatched paths on Kubernetes
+          log.debug(s"not found: ${p}")
           complete(HttpResponse(NotFound, entity = jsonEntity(s"""{"error": "not found: '${p}'"}""")))
         }}
         .result()
@@ -119,7 +126,7 @@ trait Server {
       ExceptionHandler {
         case e: java.lang.IllegalArgumentException =>
           extractUri { uri =>
-            log.error(s"Request '$uri' failed:",e)
+            log.error(s"Request failed: '$uri':",e)
             complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""{"error": "${e}"}""")))
           }
         // case e: Exception => complete(HttpResponse(InternalServerError))
