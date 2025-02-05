@@ -135,6 +135,7 @@ object App extends skel.Server {
       case "agent" :: "evm-agent" :: Nil => new AgentEvm(uri,extClient)
       case "agent" :: "token-agent" :: Nil => new AgentToken(uri,extClient)
       case "agent" :: "sec-agent" :: Nil => new AgentSec(uri,extClient)
+      case "agent" :: "fw-agent" :: Nil => new AgentFirewall(uri,extClient)
 
       case ("agent" :: "prompt-agent" :: Nil) | ("prompt" :: Nil) =>
         new AgentPrompt(uri)
@@ -197,6 +198,13 @@ object App extends skel.Server {
               network = params(1),
               func = params(2),
               params = params.drop(3),
+            )
+
+          case "alert" =>
+            ext.alert(
+              cid = params(0).toInt,
+              did = params(1),
+              typ = params(2),
             )
 
           case _ =>

@@ -33,9 +33,9 @@ class TokenSpec extends AnyWordSpec with Matchers {
       //b should ===(Blockchain.ETHEREUM)      
     }
 
-    "parse 0x1111111111111111111111111111111111111111:TOKEN:12 -> 'TOKEN.12'" in {
+    "parse 0x1111111111111111111111111111111111111111:TOKEN:12 -> None" in {
       val t = Token.resolve("0x1111111111111111111111111111111111111111:TOKEN:12")
-      t should === (Set(Token("0x1111111111111111111111111111111111111111","TOKEN",12,"")))
+      t should === (Set())
     }
 
     

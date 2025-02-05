@@ -86,7 +86,9 @@ object Token {
       if(t.isDefined)
         t
       else
-        Some(Set(Token(tokenId.toLowerCase,sym.getOrElse(""),dec.getOrElse(18),chain.map(_.name).getOrElse(""))))
+        //Some(Set(Token(tokenId.toLowerCase,sym.getOrElse(""),dec.getOrElse(18),chain.map(_.name).getOrElse(""))))
+        // don't resolve token if not found
+        None
     } else {
       // try to resolve by symbol
       tokensSym.get(tokenId.toUpperCase)

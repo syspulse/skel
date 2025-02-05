@@ -33,7 +33,7 @@ case class SecurityScore(
   address:String,
   name:String,  
 
-  label:Option[String],
+  tags:Seq[String],
   score:Option[Double],
 
   status:String
@@ -65,7 +65,7 @@ class AgentSec(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Agent
     Tokens can be referenced by name or symbol (ticker) usually uppercase.
     Agents can be referenced by name or address.
     Use the provided functions to retrieve existing security score (trust score). If you do not know the answer, start a calculation process and return job_id to the user.
-    Always provide report about the actions you have taken with blockchain addresses and status.
+    Always provide report about the actions you have taken with blockchain addresses, status, score and tags.
     """
   
   override def getTools(): Seq[AssistantTool] = Seq(
@@ -214,40 +214,24 @@ class AgentSec(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Agent
       //throw new IllegalArgumentException("Missing token name or address")
   }
 
-  def getSecurityScore(addr:String,name:String):Try[SecurityScore] = {
-    // val url = s"https://pro-api.coingecko.com/api/v3/coins/${blockchain}/contract/${addr}"
-    // try {
-    //   log.info(s"--> ${url}")
-
-    //   val rsp = requests.get(
-    //     url = url,
-    //     headers = Seq( ("Content-Type" -> "application/json"), ("x-cg-pro-api-key" -> apiKey) )
-    //   )
-
-    //   log.debug(s"rsp = ${rsp}")
-
-    //   val r = rsp.statusCode match {
-    //     case 200 => 
-    //       val json = ujson.read(rsp.text())
-    //       val ticker = json.obj("symbol").str
-    //       val price = json.obj("market_data").obj("current_price").obj("usd").num
-    //       Success(price)
-    //     case _ => 
-    //       Failure(new Exception(s"failed request: ${rsp}"))
-    //   }
-      
-    //   r
-    // } catch {
-    //   case e:Exception => 
-    //     Failure(new Exception(s"failed request -> '${url}'",e))
-    // }
-    Success(SecurityScore(
-      address = addr,
-      name = name,
-      score = Some(17.0),
-      label = Some("exploit"),
-      status = "finished"
-    ))
+  def askSecurityScore(addr:String,name:String):Try[SecurityScore] = {    
+    try {
+      log.info(s"-----------------------> AML(${addr})")
+      val amlData = extClient.getAml(addr)
+        Success(
+          SecurityScore(
+            address = addr,
+            name = name,
+            score = amlData.score,
+            tags = amlData.tags,
+            status = "finished"
+          )
+        )
+    } catch {
+      case e:Exception => 
+        log.error(s"failed to get security score: ${addr}:", e)
+        Failure(e)
+    }
   }
 
   class GetSecurityScore extends AgentFunction {    
@@ -257,26 +241,26 @@ class AgentSec(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Agent
       val name = (functionArgsJson \ "name").asOpt[String]      
       
       val tt = askToken(name,address)
+      log.info(s"tokens: ${tt}")
 
-      if(tt.size == 0) {
-        return Json.obj(
-          "error" -> "No token found"
-        )
+      val addr = if(tt.size > 0) {
+        // find address for blockchain
+        val (blockchain,addr) = tt.filter(_.bid.equalsIgnoreCase("ethereum")).toList match {
+          case t :: Nil => (t.bid,t.addr)
+          case Nil => 
+            return Json.obj(
+              "error" -> "No token found"
+            )
+          case t :: _ => 
+            // take first if ethereum is not found
+            (t.bid,t.addr)
+        }
+        addr
+      } else {
+        address.getOrElse(throw new IllegalArgumentException("Missing address"))
       }
-
-      // find address for blockchain
-      val (blockchain,addr) = tt.filter(_.bid.equalsIgnoreCase("ethereum")).toList match {
-        case t :: Nil => (t.bid,t.addr)
-        case Nil => 
-          return Json.obj(
-            "error" -> "No token found"
-          )
-        case t :: _ => 
-          // take first if ethereum is not found
-          (t.bid,t.addr)
-      }
-
-      getSecurityScore(addr,name.getOrElse(addr)) match {
+      
+      askSecurityScore(addr,name.getOrElse(addr)) match {
         case Success(score) => 
           Json.toJson(score)
         case Failure(e) => 

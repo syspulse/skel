@@ -24,6 +24,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     .orElse(sys.env.get("ACCESS_TOKEN_ADMIN"))
     .orElse(Option(os.read(os.Path("ACCESS_TOKEN_ADMIN",os.pwd)).trim))
     .orElse(sys.env.get("EXT_PILOT_TOKEN"))
+    .orElse(sys.env.get("ACCESS_TOKEN"))
     .getOrElse(throw new RuntimeException("missing accessToken"))
 
   def getProjectContracts(pid:String, addr:Option[String] = None, name:Option[String] = None):Seq[Contract] = {
@@ -45,7 +46,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
         "Content-Type" -> "application/json",
         "Authorization" -> s"Bearer ${accessToken}"
       ),
-      data = data,      
+      data = data,
     )
 
     log.info(s"rsp: ${rsp}")
@@ -315,7 +316,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
         "Content-Type" -> "application/json",
         "Authorization" -> s"Bearer ${accessToken}"
       ),
-      data = data,      
+      data = data,
     )
 
     log.info(s"rsp: ${rsp}")
@@ -366,5 +367,100 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     
     val json = ujson.read(rsp.text())
     json("data").str
+  }
+
+  case class AmlData(
+    address:String,
+    chain:String,
+    provider:Option[String],
+    score:Option[Double],
+    source:Option[String],
+    tags:Seq[String]
+  )
+
+  def getAml(addr:String):AmlData = {
+    
+    //val url = s"${baseUrl}/contract/${contractId}/withAbi"
+    val url = s"https://aml.dev.extractor.live/api/v1/aml/gl/${addr}?meta=report"
+    val rsp = requests.get(
+      url,
+      headers = Map(
+        "Content-Type" -> "application/json",
+        "Authorization" -> s"Bearer ${accessToken}"
+      ),
+    )
+
+    log.info(s"rsp: ${rsp}")
+    
+    val json = ujson.read(rsp.text())
+
+    val amlData = AmlData(
+      json("addr").str,
+      json("chain").str,
+      json("oid").strOpt,
+      score = json("score").numOpt,
+      source = json("meta")("owner")("data").strOpt,
+      tags = json("tags").arr.map(_.str).toSeq,
+    )
+    amlData
+  }
+
+  def alert(
+    cid:Int, 
+    did:String,        
+    typ:String,
+    sid:String = "ext", 
+    eid:String = UUID.randomUUID().toString, 
+    cat:String = "ALERT", 
+    sev:Double = 0.1, 
+    addr:Option[String] = None, 
+    network:String = "anvil", 
+    meta:Map[String,String] = Map.empty):String = {
+    
+    val pid = "0"
+    val url = s"${baseUrl}/event"
+    
+    val ts = System.currentTimeMillis()
+    
+    val metaStr = if(meta.size > 0) 
+      ",\n" + meta.map(m => s""""${m._1}": "${m._2}"""").mkString(",")
+    else
+      ""
+
+    val data = s"""
+{
+  "events": [
+    {
+      "ts": ${ts},
+      "cid": ${cid},
+      "did": "${did}",
+      "sid": "${sid}",
+      "eid": "${eid}",
+      "type": "${typ}",
+      "category": "${cat}",
+      "severity": ${sev},
+      "blockchain": {
+        "chain_id": "31337",
+        "network": "${network}"
+      },
+      "metadata": {
+         "monitored_contract": "${addr}"         
+         ${metaStr}
+      }
+    }
+  ]
+}""".replaceAll("\n","")
+    
+    val rsp = requests.post(
+      url,
+      headers = Map(
+        "Content-Type" -> "application/json",
+        "Authorization" -> s"Bearer ${accessToken}"
+      ),
+      data = data,      
+    )
+
+    log.info(s"rsp: ${rsp}")    
+    rsp.text()
   }
 }

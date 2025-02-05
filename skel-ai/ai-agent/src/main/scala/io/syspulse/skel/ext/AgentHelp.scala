@@ -32,8 +32,8 @@ class AgentHelp(val uri:OpenAiURI) extends AgentFile {
     //ModelId.gpt_3_5_turbo
   
   def getInstructions(): String = 
-    """
-    You are an assistant that helps me find Extractor product information and functionality description.
+"""You are an assistant that helps me find Extractor product information and functionality description.
+Extractor Documents contain reference to pictures. Always try to return references to pictures or examples even if user does not specifically asks for it.
     """
 
   def getVectorStoreId(): String = uri.vdb.get
