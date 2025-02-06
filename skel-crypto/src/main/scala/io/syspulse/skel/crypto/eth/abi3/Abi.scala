@@ -38,6 +38,8 @@ case class AbiDef(
 class Abi(definitions:Seq[AbiDef]) {
 
   override def toString = s"Abi(${definitions})"
+
+  def getDefinitions():Seq[AbiDef] = definitions
   
   // build index by names
   private val functions = definitions
@@ -56,6 +58,10 @@ class Abi(definitions:Seq[AbiDef]) {
     .filter(a => a.`type` == "constructor")
     .map(a => "constructor" -> a)
     .toMap
+  
+  def getFunctions():Map[String,AbiDef] = functions
+  def getEvents():Map[String,AbiDef] = events
+  def getConstructors():Map[String,AbiDef] = constructors
   
   def parseType(typ:String,v:Any):Option[datatypes.Type[_]] = {    
     typ match {
@@ -95,14 +101,21 @@ class Abi(definitions:Seq[AbiDef]) {
     typ match {
       case "address" => Some(new TypeReference[datatypes.Address]() {}) 
       case "bool" => Some(new TypeReference[datatypes.Bool]() {})
-      case "string" => Some(new TypeReference[datatypes.Utf8String]() {}) 
-      case "bytes" => Some(new TypeReference[datatypes.Bytes]() {}) 
+      case "string" => Some(new TypeReference[datatypes.Utf8String]() {})
 
-      case "int" => Some(new TypeReference[datatypes.Int]() {})
-      case "int256" => Some(new TypeReference[datatypes.generated.Int256]() {})
+      case "bytes" => Some(new TypeReference[datatypes.Bytes]() {})
+      case "bytes1" => Some(new TypeReference[datatypes.generated.Bytes1]() {})
+      case "bytes2" => Some(new TypeReference[datatypes.generated.Bytes2]() {})
+      case "bytes4" => Some(new TypeReference[datatypes.generated.Bytes4]() {})
+      case "bytes8" => Some(new TypeReference[datatypes.generated.Bytes8]() {})
+      case "bytes16" => Some(new TypeReference[datatypes.generated.Bytes16]() {})
+      case "bytes32" => Some(new TypeReference[datatypes.generated.Bytes32]() {})
+
+      case "int" => Some(new TypeReference[datatypes.Int]() {})      
       case "int8" => Some(new TypeReference[datatypes.generated.Int8]() {})
       case "int96" => Some(new TypeReference[datatypes.generated.Int96]() {})      
       case "int160" => Some(new TypeReference[datatypes.generated.Int160]() {})      
+      case "int256" => Some(new TypeReference[datatypes.generated.Int256]() {})
 
       case "uint" => Some(new TypeReference[datatypes.Uint]() {})
       case "uint8" => Some(new TypeReference[datatypes.generated.Uint8]() {})
@@ -160,9 +173,15 @@ class Abi(definitions:Seq[AbiDef]) {
         val func = s"${a.name.get}(${inputs.mkString(",")})(${outputs.mkString(",")})"
         Success(func)
       case None => 
-        Failure(new Exception(s"function not found: '${name}'")) 
+        Failure(new Exception(s"ABI function not found: '${name}'")) 
     }
   }
+
+  def add(abi:Abi):Abi = {
+    new Abi(definitions ++ abi.getDefinitions())
+  }
+
+  def ++(abi:Abi):Abi = this.add(abi)
 }
 
 object Abi {

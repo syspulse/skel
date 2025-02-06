@@ -12,10 +12,15 @@ import org.web3j.abi.FunctionEncoder
 
 object Solidity {
   def parseFunction(input: String): (String, Vector[String], String) = {
-    val FunctionPatternWithOutput = """(\w+)\((.*?)\)\((.*?)\)""".r
-    val FunctionPatternNoOutput = """(\w+)\((.*?)\)""".r
+    if(input.isBlank())
+      throw new Exception(s"failed to parse function: '${input}'")
+
+    //val FunctionPatternWithOutput = """(\w+)\((.*?)\)\((.*?)\)""".r
+    // val FunctionPatternNoOutput = """(\w+)\((.*?)\)""".r
+    val FunctionPatternWithOutput = """(\w+)\(\s*(.*?)\s*\)\(\s*(.*?)\s*\)""".r
+    val FunctionPatternNoOutput = """(\w+)\(\s*(.*?)\s*\)""".r
     
-    input match {
+    val f = input match {
       case FunctionPatternWithOutput(name, params, output) => 
         val outputType = parseTypes(output)
         if(outputType.isEmpty)
@@ -24,8 +29,14 @@ object Solidity {
           (name, parseTypes(params), parseTypes(output)(0))
       case FunctionPatternNoOutput(name, params) => 
         (name, parseTypes(params), "")
-      case _ => throw new Exception(s"failed to parse function: '${input}'")
+      case _ => 
+        //throw new Exception(s"failed to parse function: '${input}'")
+        // treat it as only funciton name: owner == owner() with unknown output
+        (input, parseTypes(""), "")
     }
+
+    println(s"f: >>> ${f}")
+    f
   }
 
   def parseTypes(input: String): Vector[String] = {
