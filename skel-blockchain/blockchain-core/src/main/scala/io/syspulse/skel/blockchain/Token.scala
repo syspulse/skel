@@ -44,7 +44,7 @@ object Token {
 
           val id = j.obj("id").str
           val symbol = j.obj("symbol").str.toUpperCase()
-          val icon = j.obj("icon").strOpt
+          val icon = j.obj.get("icon").flatMap(_.strOpt)
 
           val tt = j.obj("detail_platforms").obj
             .flatMap{ case(chain,platform) => {
