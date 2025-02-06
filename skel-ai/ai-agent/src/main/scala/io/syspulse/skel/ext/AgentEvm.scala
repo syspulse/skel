@@ -104,15 +104,15 @@ class AgentEvm(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Agent
         .map(c => {
           val contractId = c.contractId
           val addr = c.address
-
-          // get abi
+          
           val contractWithAbi = extClient.getContract(projectId, contractId.toInt)
+          
           val result = contractWithAbi.abi match {
             case Some(abi) => 
               val functionCall = abi.getFunctionCall(functionName)
               val params = functionParams.getOrElse(Seq())
               
-              log.info(s"${address}/${contractName}: ${functionName} ==> Contract(${contractId},${c.name},${c.address}) --> '${functionCall} ${params}'")
+              log.info(s"${address}/${contractName}: func=${functionName} ==> Contract(${contractId},${c.name},${c.address}) --> '${functionCall} ${params}'")
               
               if(functionCall.isSuccess) {
                 // try to call 

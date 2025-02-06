@@ -8,7 +8,16 @@ import com.typesafe.scalalogging.Logger
 import io.syspulse.skel.crypto.eth.abi3.AbiDef
 import io.syspulse.skel.crypto.eth.abi3.Abi
 
-case class Contract(contractId:String, address:String, network:String, name:String, addressImpl:Option[String] = None,abi:Option[Abi] = None)
+case class Contract(
+  contractId:String, 
+  address:String, 
+  network:String, 
+  name:String, 
+  addressImpl:Option[String] = None,
+  abi:Option[Abi] = None,
+  implAbi:Option[Abi] = None,
+)
+
 case class Detector(detectorId:String, name:String, did:String)
 case class DetectorSchema(schemaId:String, did:String, ver:String)
 case class Trigger(triggerId:String, name:String, typ:String)
@@ -31,7 +40,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     val url = s"${baseUrl}/contract/search"
     val data = 
       if(addr.isDefined) 
-        s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid} AND (address='${addr.get}' OR implementation='${addr.get}')"}"""
+        s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid} AND (address='${addr.get.toLowerCase}')"}"""
       else 
       if(name.isDefined) 
         s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid} AND name='${name.get}' "}""" 
@@ -55,10 +64,10 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     val contracts = json("data").arr.map { c =>
       Contract(
         c("id").num.toLong.toString,
-        address = c.obj.get("implementation").map(_.str).getOrElse(c("address").str), 
+        address = c("address").str, 
         network = c("chainUid").str, 
         name = c("name").str,
-        addressImpl = Some(c("address").str),        
+        addressImpl = c.obj.get("implementation").flatMap(_.strOpt)
       )
     }
     contracts.toSeq
@@ -97,7 +106,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
   def addContract(pid:String, addr:String, network:String, name:String):Contract = {
     val url = s"${baseUrl}/contract"
     val data = 
-      s"""{"address":"${addr}","chainUid":"${network}","name":"${name}","projectId":${pid},"addressType":"CONTRACT"}"""
+      s"""{"address":"${addr}","chainUid":"${network.toLowerCase}","name":"${name}","projectId":${pid},"addressType":"CONTRACT"}"""
     
     val rsp = requests.post(
       url,
@@ -163,9 +172,20 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
       Some(Abi(json("abi").toString))
     } catch {
       case e:Exception => 
-        log.warn(s"failed to parse abi: ${contractId}: ${e.getMessage}")
+        log.warn(s"failed to parse ABI: ${contractId}: ${e.getMessage}")
         None
     }
+
+    val implAbi = json.obj.get("implAbi").flatMap(_.strOpt).map(a => Abi(a))
+
+    val addrAbi = (abi,implAbi) match {
+      case (Some(abi),Some(implAbi)) => Some(abi.merge(implAbi))
+      case (Some(abi),None) => Some(abi)
+      case (None,Some(implAbi)) => Some(implAbi)
+      case (None,None) => None
+    }
+
+    // merge abi
 
     val contract = Contract(
       json("id").num.toLong.toString,
@@ -173,6 +193,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
       json("chainUid").str, 
       json("name").str,
       abi = abi,
+      implAbi = implAbi,
     )
     contract
   }
@@ -397,9 +418,9 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     val amlData = AmlData(
       json("addr").str,
       json("chain").str,
-      json("oid").strOpt,
-      score = json("score").numOpt,
-      source = json("meta")("owner")("data").strOpt,
+      json.obj.get("oid").flatMap(_.strOpt),
+      score = json.obj.get("score").flatMap(_.numOpt),
+      source = json("meta")("owner").obj.get("data").flatMap(_.strOpt),
       tags = json("tags").arr.map(_.str).toSeq,
     )
     amlData
