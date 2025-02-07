@@ -38,9 +38,10 @@ class AgentEvm(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Agent
   
   def getInstructions(): String = 
     """You are an EVM Contracts function calls bot. Use the provided functions to execute calls on EVM contracts and return results.
-    EVM Contracts can be referenced by name. First try to resolve unknown term as a possible Contract name.
-    Derive correct parameters from the question. Multiple Parameters is always a list to be passed to Function.
-    Always provide report about the actions you have taken with contract addresses and parameters executed.    
+    EVM Contracts can be referenced by name. First try to infer a possible Contract name from the question.
+    Derive function name from the question. If user uses paranthesis, then it is a function name.
+    Derive correct parameters from the question. Multiple Parameters must be always passed to Function as a list. Follow this rule.
+    Always provide report about the actions you have taken with contract addresses and parameters executed.
     """
   
   override def getTools(): Seq[AssistantTool] = Seq(
@@ -112,7 +113,7 @@ class AgentEvm(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Agent
               val functionCall = abi.getFunctionCall(functionName)
               val params = functionParams.getOrElse(Seq())
               
-              log.info(s"${address}/${contractName}: func=${functionName} ==> Contract(${contractId},${c.name},${c.address}) --> '${functionCall} ${params}'")
+              log.info(s"${address}/${contractName}/${functionName} ==> Contract(${contractId},${c.name},${c.address}) --> '${functionCall} ${params}'")
               
               if(functionCall.isSuccess) {
                 // try to call 

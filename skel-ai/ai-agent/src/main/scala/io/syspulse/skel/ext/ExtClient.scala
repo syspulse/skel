@@ -167,7 +167,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     log.debug(s"rsp: ${rsp}")
     
     val json = ujson.read(rsp.text())
-        
+
     val abi = try {
       Some(Abi(json("abi").toString))
     } catch {
@@ -175,24 +175,34 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
         log.warn(s"failed to parse ABI: ${contractId}: ${e.getMessage}")
         None
     }
-
-    val implAbi = json.obj.get("implAbi").flatMap(_.strOpt).map(a => Abi(a))
-
+    
+    val implAbi = //json.obj.get("implAbi").flatMap(_.arrOpt).map(a => Abi(a))
+      if(json.obj.get("implAbi").isDefined)
+        try {
+          Some(Abi(json("implAbi").toString))
+        } catch {
+          case e:Exception => 
+            log.warn(s"failed to parse ABI: ${contractId}: ${e.getMessage}")
+            None
+        }
+    else
+      None
+    
     val addrAbi = (abi,implAbi) match {
-      case (Some(abi),Some(implAbi)) => Some(abi.merge(implAbi))
+      case (Some(abi),Some(implAbi)) => Some(abi ++ implAbi)
       case (Some(abi),None) => Some(abi)
       case (None,Some(implAbi)) => Some(implAbi)
       case (None,None) => None
     }
-
-    // merge abi
+    
+    log.debug(s"addrAbi: ${addrAbi}")
 
     val contract = Contract(
       json("id").num.toLong.toString,
       json("address").str, 
       json("chainUid").str, 
       json("name").str,
-      abi = abi,
+      abi = addrAbi,
       implAbi = implAbi,
     )
     contract
