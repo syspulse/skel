@@ -45,7 +45,6 @@ case class Config(
   serviceUrl:String = "http://localhost:8080/api/v1/ext",
   serviceToken:Option[String] = None,
 
-
   cmd:String = "memory",
   params: Seq[String] = Seq(),
 )
@@ -87,6 +86,7 @@ object App extends skel.Server {
         ArgCmd("memory","Run prompt with memory"),
 
         ArgCmd("ext","Run Ext client"), //to work with Extractor API
+        ArgUnknown(),
         
         ArgParam("<params>",""),
         ArgLogging(),
