@@ -51,11 +51,13 @@ case class ArgCmd(argStr:String,desc:String="") extends Arg[String]()
 case class ArgLogging(argText:String = "logging level (INFO,ERROR,WARN,DEBUG)",default:String="") extends Arg[String]()
 case class ArgConfig(argText:String = "Configuration file",default:String="") extends Arg[String]()
 case class ArgUnknown() extends Arg[String]() // parameter to memorize unknown args
+case class ArgUnknownCmd() extends Arg[String]() // parameter to memorize unknown command
 
 // Use "empty appName/appVersion for automatic inference"
 class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg[_]*) extends ConfigurationLike {
   val log = Logger(s"${this}")
 
+  var errorOnUnknownCmd = true
   var errorOnUnknown = true
 
   def parseArgs(args:Array[String],ops: Arg[_]*) = {
@@ -105,6 +107,9 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
           }).text(t))
         case ArgUnknown() => 
           errorOnUnknown = false
+          None
+        case ArgUnknownCmd() => 
+          errorOnUnknownCmd = false
           None
         case _ => 
           log.warn(s"unknown Arg option: ${a}")
@@ -262,7 +267,7 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
     
     // ATTENION: if I am asking for command and it is None and there are Params > 0, then command was not found and I can fail here
     configArgs.get.cmd match {      
-      case None if(configArgs.get.params.size > 0 && errorOnUnknown) => 
+      case None if(configArgs.get.params.size > 0 && errorOnUnknownCmd) => 
         Console.err.println(s"Unknown command: ${configArgs.get.params.head}")
         System.exit(1)
         None

@@ -86,7 +86,7 @@ object App extends skel.Server {
         ArgCmd("memory","Run prompt with memory"),
 
         ArgCmd("ext","Run Ext client"), //to work with Extractor API
-        ArgUnknown(),
+        //ArgUnknown(),
         
         ArgParam("<params>",""),
         ArgLogging(),
