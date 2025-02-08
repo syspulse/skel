@@ -33,11 +33,11 @@ import io.syspulse.blockchain.Token
 //   implicit val tokenWrites: Writes[Token] = Json.writes[Token]  
 // }
 
-case class AgentFirewallConfig(
+case class AgentFwConfig(
   instructions:String
 )
 
-class AgentFirewall(val uri:OpenAiURI,val conf:AgentFirewallConfig,implicit val extClient:ExtClient) extends Agent {
+class AgentFw(val uri:OpenAiURI,val conf:AgentFwConfig,implicit val extClient:ExtClient) extends Agent {
 
   import AgentSecJson._
   def getName(): String = "fw-agent"

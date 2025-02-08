@@ -141,7 +141,7 @@ object App extends skel.Server {
       case "agent" :: "sec-agent" :: Nil => new AgentSec(uri,extClient)
 
       case "agent" :: "fw-agent" :: Nil =>         
-        new AgentFirewall(uri,AgentFirewallConfig(config.instructions),extClient)
+        new AgentFw(uri,AgentFwConfig(config.instructions),extClient)
 
       case "agent" :: "jail-agent" :: Nil => 
         new AgentJail(uri,extClient)
