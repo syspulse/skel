@@ -703,23 +703,30 @@ object Eth {
   }
   
   def decodeResult(result:Try[String],outputType:String):Try[String] = {
-    result match {
-      case Success(v) =>
-        outputType match {
-          case uint if uint.startsWith("uint") => Success(Numeric.toBigInt(v).toString())
-          case int if int.startsWith("int") => Success(Numeric.toBigInt(v).toString())
+    // result match {
+    //   case Success(v) =>
+    //     outputType match {
+    //       case uint if uint.startsWith("uint") => Success(Numeric.toBigInt(v).toString())
+    //       case int if int.startsWith("int") => Success(Numeric.toBigInt(v).toString())
 
-          case "address" => Success(s"0x${v.drop(2 + 24)}")
-          case "bool" => Success((BigInt(v.drop(2),16).toInt == 1).toString)
-          case "string" => 
-            //Success(new String(Util.fromHexString(v)))            
-            Success(hexToUtf8String(v))
-          case "" => // default is just byte array
-            Success(v)
-          case t => throw new Exception(s"unsupported type: '${t}'")
-        }
-      case Failure(e) => Failure(e)
-    }
+    //       case "address" => Success(s"0x${v.drop(2 + 24)}")
+    //       case "bool" => Success((BigInt(v.drop(2),16).toInt == 1).toString)
+    //       case "string" => 
+    //         //Success(new String(Util.fromHexString(v)))            
+    //         Success(hexToUtf8String(v))
+    //       case "" => // default is just byte array
+    //         Success(v)
+    //       case t => throw new Exception(s"unsupported type: '${t}'")
+    //     }
+    //   case Failure(e) => Failure(e)
+    // }
+    result.map(r => {
+      val t = Solidity.toWeb3Type(outputType,r)
+      t.getTypeAsString() match {
+        case bb if bb.startsWith("bytes") => Util.hex(t.getValue.asInstanceOf[Array[Byte]])
+        case _ => t.getValue.toString
+      }
+    })
   }
 
   def estimate(from:String,contractAddress:String,func:String,params:Seq[String])(implicit web3:Web3j):Try[BigInt] = {

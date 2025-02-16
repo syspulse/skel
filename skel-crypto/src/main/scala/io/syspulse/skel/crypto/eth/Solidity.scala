@@ -35,7 +35,7 @@ object Solidity {
         (input, parseTypes(""), "")
     }
 
-    println(s"f: >>> ${f}")
+    //println(s"f: >>> ${f}")
     f
   }
 
@@ -135,7 +135,8 @@ object Solidity {
 
       case "bytes32" => 
         new datatypes.generated.Bytes32(Util.fromHexString(value)){}
-      case "bytes" => new datatypes.DynamicBytes(Util.fromHexString(value)){}
+      case "bytes" => 
+        new datatypes.DynamicBytes(Util.fromHexString(value)){}
               
       case t if t.startsWith("(") && t.endsWith(")") =>
         val tupleTypes = parseTupleTypes(t)
