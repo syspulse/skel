@@ -36,6 +36,19 @@ or
 GOD=1 ./run-user.sh --datastore=jdbc://postgres
 ```
 
+or using specific DB in config file (`application-local.conf` by default)
+
+```
+GOD=1 ./run-user.sh --datastore=jdbc://postgres-local
+```
+
+or using specific config file with env variables settings
+
+```
+source ./env.dev
+GOD=1 ./run-user.sh --conf=conf/application-dev.conf
+```
+
 ### MySql
 
 ```

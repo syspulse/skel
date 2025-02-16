@@ -29,7 +29,7 @@ class ConfigurationAkka extends ConfigurationTypesafe {
 }
 
 class ConfigurationAkkaOverride(config:Config) extends ConfigurationTypesafe {
-  var akkaConfig:Option[Config] = Some(config)
+  var akkaConfig:Option[Config] = Some(config.resolve())
 }
 
 
