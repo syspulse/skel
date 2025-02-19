@@ -55,7 +55,7 @@ trait KafkaSink[T] extends KafkaClient {
   
   def transform(t:T):ByteString
 
-  def sink(brokerUri:String, topics:Set[String], autoCommit:Boolean=false) = {
+  def sink(brokerUri:String, topics:Set[String], ops:Map[String,String]=Map.empty) = {
     
     val producerSettings = ProducerSettings(system, new ByteArraySerializer, new ByteArraySerializer)
       .withBootstrapServers(brokerUri)
@@ -63,6 +63,8 @@ trait KafkaSink[T] extends KafkaClient {
       .withProperty("reconnect.backoff.max.ms","10000")      
       .withCloseProducerOnStop(true)
       .withCloseTimeout(FiniteDuration(7000,TimeUnit.MILLISECONDS))
+      // override with user properties
+      .withProperties(ops.asJava)
 
     log.info(s"Producer: ${producerSettings}")    
 

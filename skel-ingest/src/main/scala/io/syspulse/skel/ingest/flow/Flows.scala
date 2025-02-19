@@ -1221,7 +1221,7 @@ class ToKafka[T <: Ingestable](uri:String,format:String)(implicit jf:JsonFormat[
   val kafkaUri = KafkaURI(uri)
   val formatOutput = if(!format.isBlank) format else if(kafkaUri.isRaw) "raw" else "json"
   
-  val sink0 = sink(kafkaUri.broker,Set(kafkaUri.topic))
+  val sink0 = sink(kafkaUri.broker,Set(kafkaUri.topic),ops = kafkaUri.ops)
 
   def sink():Sink[T,_] = sink0
   
@@ -1237,7 +1237,13 @@ class ToKafka[T <: Ingestable](uri:String,format:String)(implicit jf:JsonFormat[
 class FromKafka[T <: Ingestable](uri:String) extends skel.ingest.kafka.KafkaSource[T] {
   val kafkaUri = KafkaURI(uri)
     
-  def source():Source[ByteString,_] = source(kafkaUri.broker,Set(kafkaUri.topic),kafkaUri.group,offset = kafkaUri.offset)
+  def source():Source[ByteString,_] = source(
+    kafkaUri.broker,
+    Set(kafkaUri.topic),
+    kafkaUri.group,
+    offset = kafkaUri.offset,
+    ops = kafkaUri.ops
+  )
 }
  
 // Elastic Client Flow
