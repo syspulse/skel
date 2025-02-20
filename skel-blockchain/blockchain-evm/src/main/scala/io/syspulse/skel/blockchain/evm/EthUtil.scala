@@ -30,10 +30,8 @@ object EthUtil {
       None
   }
   
-  def decodeERC20Transfer(data:String,topics:Array[String]) = {
-    if(topics.size > 0 && topics(0) == EVENT_TRANSFER) {
-      // standard is to have 2 values in topic
-      topics.size match {
+  def decodeTransfer(data:String,topics:Array[String]) = {
+    topics.size match {
         case 3 => 
           // https://etherscan.io/tx/0xe8b8eb76d5a102706045a64e4efee8dc40337badc2763caca074237ac28d825f#eventlog
           val from = s"0x${topics(1).drop(24 + 2)}".toLowerCase()
@@ -44,15 +42,22 @@ object EthUtil {
           // transfer(address,uint256)          
           val from = s"0x${topics(1).drop(24 + 2)}".toLowerCase()
           val to = s"0x${topics(2).drop(24 + 2)}".toLowerCase()
-          val v = EthUtil.toBigInt(s"0x${topics(3).drop(2)}".toLowerCase())
+          val v = EthUtil.toBigInt(s"0x${topics(3).drop(2)}")
           Some((from,to,v))
         case 1 =>
           // CrytpKitty style (https://etherscan.io/tx/0x9514ca69668169270225a1d2d713dee6aa3fc797107d1d710d4d9c622bfcc3bb#eventlog)
           val from = s"0x${data.drop(2 + 24)}".toLowerCase()
           val to = s"0x${data.drop(2 + 32 * 2 + 24 * 2)}".toLowerCase()
-          val v = s"0x${data.drop(2 + 32 * 2 + 32 * 2 + 24 * 2)}" 
+          val v = EthUtil.toBigInt(s"0x${data.drop(2 + 32 * 2 + 32 * 2 + 24 * 2)}")
           Some((from,to,v))
+        case _ => None
       }
+  }
+
+  def decodeERC20Transfer(data:String,topics:Array[String]) = {
+    if(topics.size > 0 && topics(0) == EVENT_TRANSFER) {
+      // standard is to have 2 values in topic
+      decodeTransfer(data,topics)
     } else 
       None
   }
