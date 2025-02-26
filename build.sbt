@@ -1256,7 +1256,9 @@ lazy val blockchain_core = (project in file("skel-blockchain/blockchain-core"))
       sharedConfigAssembly,      
       name := "blockchain-core",
       
-      libraryDependencies ++= libTest
+      libraryDependencies ++= libTest ++ Seq(
+        libRequests
+      )
     )
 
 lazy val blockchain_evm = (project in file("skel-blockchain/blockchain-evm"))

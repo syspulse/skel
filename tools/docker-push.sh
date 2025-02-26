@@ -46,6 +46,9 @@ case "$CMD" in
      aws ecr create-repository --repository-name $APP_NAME
      docker push ${AWS}/$APP
      ;;
+   aws-login)
+     aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin ${AWS}
+     ;;
    deploy)
      # push to ECR
      #docker tag $APP ${AWS}/$APP
