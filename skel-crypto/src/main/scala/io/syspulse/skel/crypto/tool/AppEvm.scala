@@ -24,9 +24,10 @@ object AppEvm extends {
   case class Config(
     ethRpcUrl:String="http://geth:8545",
     from:String = "0x0000000000000000000000000000000000000000",
+    block:Option[Long] = None,
 
     delay:Long = 0L,
-
+    
     cmd:String = "call",
     params:Seq[String] = Seq()
   )
@@ -43,6 +44,8 @@ object AppEvm extends {
         
         ArgString('r', "eth.rpc.url",s"RPC uri (def: ${d.ethRpcUrl})"),
         ArgString('f', "from",s"From address (def: ${d.from})"),
+        ArgString('b', "block",s"Block number (def: ${d.block})"),
+
         ArgLong('_', "delay",s"Delay in ms (def: ${d.delay})"),
         
         ArgCmd("call","eth_call: [address] function(params,...)(return)"),
@@ -63,6 +66,8 @@ object AppEvm extends {
     val config = Config(
       ethRpcUrl = c.getString("eth.rpc.url").getOrElse(d.ethRpcUrl),
       from = c.getString("from").getOrElse(d.from),
+      block = c.getString("block").map(b => b.toLong),
+
       delay = c.getLong("delay").getOrElse(d.delay),
 
       cmd = c.getCmd().getOrElse(d.cmd),
@@ -87,8 +92,8 @@ object AppEvm extends {
         val params = config.params.drop(2)
         val paramsStr = params.mkString(" ")
           
-        //Eth.callWithParams(config.from,contractAddress,funcName,paramsStr)
-        Eth.call(config.from,contractAddress,funcName,params)
+        //Eth.callFunctionWithParams(config.from,contractAddress,funcName,paramsStr)
+        Eth.callFunction(config.from,contractAddress,funcName,params,block=config.block)
               
       case "encode" => 
         if(config.params.size < 1) {
@@ -120,7 +125,7 @@ object AppEvm extends {
           Console.err.println("balance: <address>")
           sys.exit(1)
         }
-        Eth.getBalance(config.params(0))
+        Eth.getBalance(config.params(0),block=config.block)
 
       case "balance-erc20" | "balance-token" =>         
 
@@ -130,7 +135,7 @@ object AppEvm extends {
         }
         //Eth.getBalanceToken(config.params(0),config.params.drop(1))
         
-        Eth.getBalanceTokenAsync(config.params(0),config.params.drop(1),config.delay)
+        Eth.getBalanceTokenAsync(config.params(0),config.params.drop(1),delay=config.delay,block=config.block)
           .map(r => {
             Console.err.println(s"r=${r}")
             r
