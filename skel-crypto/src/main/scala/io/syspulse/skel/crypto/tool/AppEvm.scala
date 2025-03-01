@@ -12,6 +12,7 @@ import org.web3j.protocol.http.HttpService
 import org.web3j.abi.datatypes.generated.Uint256
 import java.util.Arrays
 import org.web3j.abi.TypeReference
+import io.syspulse.skel.crypto.eth.Solidity
 
 object AppEvm extends {
 
@@ -40,7 +41,11 @@ object AppEvm extends {
         ArgCmd("call","eth_call: [address] function(params,...)(return)"),
         ArgCmd("encode","function(params,...)(return)"),
         ArgCmd("estimate","eth_estimageGas"),
-        
+        ArgCmd("balance","eth_getBalance"),
+        ArgCmd("balances","ERC20 balanceOf()"),
+        ArgCmd("encode-data","inputType params..."),
+        ArgCmd("decode-data","inputType params..."),
+
         ArgParam("<params>","..."),
 
         ArgLogging(),
@@ -101,6 +106,42 @@ object AppEvm extends {
         Console.err.println(s"params=${params}")
         
         Eth.estimate(config.from,contractAddress,funcName,params)
+
+      case "balance" => 
+        if(config.params.size < 1) {
+          Console.err.println("balance: <address>")
+          sys.exit(1)
+        }
+        Eth.getBalance(config.params(0))
+
+      case "balances" => 
+        if(config.params.size < 2) {
+          Console.err.println("balance: <address> <token>...")
+          sys.exit(1)
+        }
+        Eth.getBalanceToken(config.params(0),config.params.drop(1))
+
+      case "encode-data" => 
+        if(config.params.size < 1) {
+          Console.err.println("encode-data: type [params..]")
+          sys.exit(1)
+        }
+
+        val typ = config.params(0)
+        val params = config.params.drop(1)
+        
+        Solidity.encodeData(typ,params)
+
+      case "decode-data" => 
+        if(config.params.size < 1) {
+          Console.err.println("decode-data: type [params..]")
+          sys.exit(1)
+        }
+
+        val typ = config.params(0)
+        val params = config.params.last
+        
+        Solidity.decodeData(typ,params)
     }
     
     Console.err.println(s"r = ${r}")

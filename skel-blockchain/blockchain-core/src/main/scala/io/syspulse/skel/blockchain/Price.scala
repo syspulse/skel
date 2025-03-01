@@ -28,7 +28,6 @@ class PriceProviderPriceGecko(apiKey0:Option[String]) extends PriceProvider {
     //json.parseJson.convertTo[Price]
       val j = ujson.read(json) //.asInstanceOf[Price]
       
-      println(s"j: ${j}")
       val (addr,price) = j.obj("data").obj("attributes").obj("token_prices").obj.head
 
       Success(
@@ -106,7 +105,7 @@ class PriceProvidereDefault(tokens0:Set[Price]) extends PriceProvider {
 class Prices(providers:Seq[PriceProvider]) {
   val log = Logger[this.type]
 
-  val priceCache = new CacheExpire[String,Price,String]() {
+  val priceCache = new CacheExpire[String,Price,String](1000L * 60L * 60L * 1L) {
     def key(v:Price):String = v.addr
     def index(v:Price):String = v.sym.getOrElse("")
   }

@@ -151,7 +151,7 @@ class TokenProvidereDefault(tokens0:Set[Coin]) extends TokenProvider {
 class Tokens(providers:Seq[TokenProvider]) {
   val log = Logger[this.type]
 
-  val tokensCache = new CacheExpire[String,Coin,String]() {
+  val tokensCache = new CacheExpire[String,Coin,String](1000L * 60L * 60L * 24L * 30L) {
     def key(v:Coin):String = v.getAddr()
     def index(v:Coin):String = v.sym.toUpperCase  
   }
@@ -261,6 +261,8 @@ class Tokens(providers:Seq[TokenProvider]) {
   }
 
   def find(addr:String) = tokensCache.get(addr.toLowerCase).map(coinToToken(_))
+
+  def findCoin(addr:String) = tokensCache.get(addr.toLowerCase)
 }
 
 object Token {
@@ -279,4 +281,5 @@ object Token {
   def size = default.size
   def resolve(tokenId:String):Set[Token] = default.resolve(tokenId)
   def find(addr:String) = default.find(addr)
+  def findCoin(addr:String) = default.findCoin(addr)
 }

@@ -73,7 +73,11 @@ class Blockchains(bb:Seq[String]) {
   def getByName(name:String) = blockchains.values.find(_.name == name.toLowerCase())
   def getWeb3(id:Long) = rpc.get(id) match {
     case Some(web3) => Success(web3)
-    case None => Failure(new Exception(s"not found: ${id}"))
+    case None => Failure(new Exception(s"RPC not found: ${id}"))
+  }
+  def getWeb3(name:String):Try[Web3j] = getByName(name) match {
+    case Some(b) => getWeb3(b.id)
+    case None => Failure(new Exception(s"RPC not found: '${name}'"))
   }
 
   def all():Seq[BlockchainRpc] = blockchains.values.toSeq

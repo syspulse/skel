@@ -13,3 +13,21 @@ case class Cachable[V](
   var checks:Int = 0
 )
 
+trait CacheThread {
+  def clean():Long
+  def cleanFreq:Long
+
+  private val cleanThr = new Thread(() => {
+    while (true) {
+      try {
+        Thread.sleep(cleanFreq)
+        clean()
+      } catch {
+        case _: InterruptedException => 
+      }
+    }
+  })
+  cleanThr.setDaemon(true)  // Makes thread not prevent JVM shutdown
+  cleanThr.start()
+
+}

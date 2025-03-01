@@ -7,11 +7,11 @@ import scala.util.{Try,Success,Failure}
 
 import io.syspulse.skel.util.Util
 
-abstract class CacheExpire[K,V,I](expiry:Long = 1000L * 60L * 10L) { 
+abstract class CacheExpire[K,V,I](expiry:Long = 1000L * 60L * 10L) extends CacheThread { 
   val log = Logger[this.type]
   var cache = Map[K,Cachable[V]]()
   //var cacheIndex = Map[I,Cachable[V]]()
-
+  
   def key(v:V):K
   def index(v:V):I
   
@@ -83,6 +83,8 @@ abstract class CacheExpire[K,V,I](expiry:Long = 1000L * 60L * 10L) {
   }
 
   def size = cache.size
+
+  def cleanFreq:Long = this.expiry
 
   def clean() = {
     val now = System.currentTimeMillis()

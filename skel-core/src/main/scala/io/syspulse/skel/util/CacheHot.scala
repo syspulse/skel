@@ -8,7 +8,7 @@ import io.syspulse.skel.util.Util
 
 import scala.collection.mutable
 
-abstract class CacheHot[K,V,I](expiry:Long = 1000L * 60L * 10L) { 
+abstract class CacheHot[K,V,I](expiry:Long = 1000L * 60L * 10L) extends CacheThread { 
   val log = Logger[this.type]
   var cache = Map[K,Cachable[V]]()
   var cacheIndex = Map[I,Cachable[V]]()
@@ -77,7 +77,9 @@ abstract class CacheHot[K,V,I](expiry:Long = 1000L * 60L * 10L) {
 
   def size = cache.size
 
-  def clean() = {
+  def cleanFreq:Long = this.expiry
+  
+  def clean():Long = {
     val now = System.currentTimeMillis()
     val n0 = size
     cache = cache.filter(c => (now - c._2.ts) < expiry)
@@ -86,4 +88,6 @@ abstract class CacheHot[K,V,I](expiry:Long = 1000L * 60L * 10L) {
     log.info(s"cache clean: ${n0} -> ${n1}")
     n1
   }
+
+
 }

@@ -674,10 +674,10 @@ object Eth {
           throw new Exception(s"${contractAddress}: data=${inputData}: result=${result}")
         } 
         
-        log.info(s"call: ${contractAddress}: data=${inputData}: result=${result}")
+        log.info(s"call: ${contractAddress}: data=${inputData}: result=${result} (outputType=${outputType})")
         
         if(outputType.isDefined && ! outputType.get.isEmpty()) {
-          decodeResult(Success(result),outputType.get)
+          Solidity.decodeResult(result,outputType.get)
         } else {
           Success(result)
         }
@@ -701,34 +701,7 @@ object Eth {
     // Extract the string value
     decodedList.get(0).getValue.asInstanceOf[String]
   }
-  
-  def decodeResult(result:Try[String],outputType:String):Try[String] = {
-    // result match {
-    //   case Success(v) =>
-    //     outputType match {
-    //       case uint if uint.startsWith("uint") => Success(Numeric.toBigInt(v).toString())
-    //       case int if int.startsWith("int") => Success(Numeric.toBigInt(v).toString())
-
-    //       case "address" => Success(s"0x${v.drop(2 + 24)}")
-    //       case "bool" => Success((BigInt(v.drop(2),16).toInt == 1).toString)
-    //       case "string" => 
-    //         //Success(new String(Util.fromHexString(v)))            
-    //         Success(hexToUtf8String(v))
-    //       case "" => // default is just byte array
-    //         Success(v)
-    //       case t => throw new Exception(s"unsupported type: '${t}'")
-    //     }
-    //   case Failure(e) => Failure(e)
-    // }
-    result.map(r => {
-      val t = Solidity.toWeb3Type(outputType,r)
-      t.getTypeAsString() match {
-        case bb if bb.startsWith("bytes") => Util.hex(t.getValue.asInstanceOf[Array[Byte]])
-        case _ => t.getValue.toString
-      }
-    })
-  }
-
+    
   def estimate(from:String,contractAddress:String,func:String,params:Seq[String])(implicit web3:Web3j):Try[BigInt] = {
     val (encodedFunction,outputType) = encodeFunction(func,params)
     estimateGas(from,contractAddress,encodedFunction)
@@ -736,8 +709,10 @@ object Eth {
 
   def call(from:String,contractAddress:String,func:String,params:Seq[String])(implicit web3:Web3j):Try[String] = {
     val (encodedFunction,outputType) = encodeFunction(func,params)
-    val r = call(from,contractAddress,encodedFunction)
-    decodeResult(r,outputType)
+    for {
+      r <- call(from,contractAddress,encodedFunction,outputType = Some(outputType))
+      //r <- Solidity.decodeResult(r,outputType)
+    } yield r
   }
 
   def callWithParams(from:String,contractAddress:String,func:String,params:String)(implicit web3:Web3j):Try[String] = {
@@ -751,5 +726,20 @@ object Eth {
 
   def encodeFunctionWithParams(func:String,params:String):(String,String) = {
     encodeFunction(func,if(params.isEmpty) Seq.empty else params.split("\\s+").toSeq)
+  }
+
+  def getBalanceToken(addr:String,tokens:Seq[String])(implicit web3:Web3j):Seq[Try[BigInt]] = {
+    val balances = tokens.map(token => {
+      try {
+        val r = call(addr,token,"balanceOf(address)(uint256)",Seq(addr))        
+        r.map(b => {
+          BigInt(b)
+        })        
+      } catch {
+        case e:Exception =>           
+          Failure(e)
+      }
+    })
+    balances
   }
 }

@@ -65,5 +65,11 @@ class TokenSpec extends AnyWordSpec with Matchers {
       t should !== (None)      
     }
 
+    "parse ''" in {
+      val t = Token.find("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
+      t should !== (None)
+      // info(s"${t}")
+    }
+
   }    
 }
