@@ -13,18 +13,25 @@ import org.web3j.abi.datatypes.generated.Uint256
 import java.util.Arrays
 import org.web3j.abi.TypeReference
 import io.syspulse.skel.crypto.eth.Solidity
+import scala.concurrent.Future
+import scala.concurrent.duration.Duration
+import scala.concurrent.Await
 
 object AppEvm extends {
+  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+  import io.syspulse.skel.FutureAwaitable._
 
   case class Config(
     ethRpcUrl:String="http://geth:8545",
     from:String = "0x0000000000000000000000000000000000000000",
 
+    delay:Long = 0L,
+
     cmd:String = "call",
     params:Seq[String] = Seq()
   )
-    
-  def main(args:Array[String]) = {
+  
+  def main(args:Array[String]):Unit = {
     Console.err.println(s"args: ${args.size}: ${args.toSeq}")
     
     val d = Config()
@@ -36,13 +43,13 @@ object AppEvm extends {
         
         ArgString('r', "eth.rpc.url",s"RPC uri (def: ${d.ethRpcUrl})"),
         ArgString('f', "from",s"From address (def: ${d.from})"),
-        
+        ArgLong('_', "delay",s"Delay in ms (def: ${d.delay})"),
         
         ArgCmd("call","eth_call: [address] function(params,...)(return)"),
         ArgCmd("encode","function(params,...)(return)"),
         ArgCmd("estimate","eth_estimageGas"),
         ArgCmd("balance","eth_getBalance"),
-        ArgCmd("balances","ERC20 balanceOf()"),
+        ArgCmd("balance-erc20","ERC20 balanceOf()"),
         ArgCmd("encode-data","inputType params..."),
         ArgCmd("decode-data","inputType params..."),
 
@@ -56,7 +63,8 @@ object AppEvm extends {
     val config = Config(
       ethRpcUrl = c.getString("eth.rpc.url").getOrElse(d.ethRpcUrl),
       from = c.getString("from").getOrElse(d.from),
-      
+      delay = c.getLong("delay").getOrElse(d.delay),
+
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams()
     )
@@ -114,12 +122,20 @@ object AppEvm extends {
         }
         Eth.getBalance(config.params(0))
 
-      case "balances" => 
+      case "balance-erc20" | "balance-token" =>         
+
         if(config.params.size < 2) {
-          Console.err.println("balance: <address> <token>...")
+          Console.err.println("balance-erc20: <address> <token>...")
           sys.exit(1)
         }
-        Eth.getBalanceToken(config.params(0),config.params.drop(1))
+        //Eth.getBalanceToken(config.params(0),config.params.drop(1))
+        
+        Eth.getBalanceTokenAsync(config.params(0),config.params.drop(1),config.delay)
+          .map(r => {
+            Console.err.println(s"r=${r}")
+            r
+          })
+          //.await()
 
       case "encode-data" => 
         if(config.params.size < 1) {
@@ -145,6 +161,10 @@ object AppEvm extends {
     }
     
     Console.err.println(s"r = ${r}")
+
+    if(r.isInstanceOf[Future[_]]) {
+      r.asInstanceOf[Future[_]].await()
+    }
+    
   }
 }
-
