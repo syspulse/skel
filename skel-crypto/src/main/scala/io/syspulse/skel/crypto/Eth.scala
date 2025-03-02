@@ -44,6 +44,7 @@ import org.web3j.protocol.core.DefaultBlockParameter
 import org.web3j.abi.FunctionReturnDecoder
 import io.syspulse.skel.crypto.eth.Solidity
 import java.security.SecureRandom
+import org.web3j.protocol.core.DefaultBlockParameterNumber
 
 object Eth {
   val log = Logger(s"${this}")
@@ -654,8 +655,10 @@ object Eth {
 
   def web3Block(block:Option[Long] = None)(implicit web3:Web3j):DefaultBlockParameter = {
     block match {
-      case Some(b) => DefaultBlockParameter.valueOf(b.toString)
-      case None => DefaultBlockParameter.valueOf("latest")
+      case Some(b) if(b == -2L) => DefaultBlockParameterName.PENDING
+      case Some(b) if(b == -1L) => DefaultBlockParameterName.EARLIEST
+      case Some(b) => new DefaultBlockParameterNumber(b)
+      case None => DefaultBlockParameterName.LATEST
     }
   }
 
@@ -681,7 +684,7 @@ object Eth {
           throw new Exception(s"${contractAddress}: data=${inputData}: result=${result}")
         } 
         
-        log.info(s"call: ${contractAddress}: data=${inputData}: result=${result} (outputType=${outputType})")
+        log.info(s"call: ${block} / ${contractAddress}: data=${inputData}: result=${result} (outputType=${outputType})")
         
         if(outputType.isDefined && ! outputType.get.isEmpty()) {
           Solidity.decodeResult(result,outputType.get)
