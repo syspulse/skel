@@ -45,6 +45,7 @@ import org.web3j.abi.FunctionReturnDecoder
 import io.syspulse.skel.crypto.eth.Solidity
 import java.security.SecureRandom
 import org.web3j.protocol.core.DefaultBlockParameterNumber
+import org.web3j.protocol.core.methods.response.EthBlock.Block
 
 object Eth {
   val log = Logger(s"${this}")
@@ -791,6 +792,30 @@ object Eth {
       }
     })
     balances
+  }
+
+  def getBlock(block:Option[Long] = None,tx:Boolean = false)(implicit web3:Web3j):Try[Block] = {
+    val r = web3.ethGetBlockByNumber(web3Block(block),tx).send()
+    
+    if(! r.hasError()) {
+      Success(r.getBlock())
+      
+    } else {
+      Failure(new Exception(r.getError().getMessage()))
+    }    
+  }
+
+  def getBlockAsync(block:Option[Long] = None,tx:Boolean = false)(implicit web3:Web3j,ec:ExecutionContext):Future[Block] = {
+    web3.ethGetBlockByNumber(web3Block(block),tx)
+      .sendAsync()
+      .asScala
+      .map(r => {
+        if(! r.hasError()) {
+          r.getBlock()
+        } else {
+          throw new Exception(r.getError().getMessage())
+        }
+      })
   }
 
   def getBalanceTokenAsync(addr:String,tokens:Seq[String],block:Option[Long] = None,delay:Long = 0L)(implicit web3:Web3j,ec:ExecutionContext):Future[Seq[Try[BigInt]]] = {

@@ -55,6 +55,7 @@ object AppEvm extends {
         ArgCmd("balance-erc20","ERC20 balanceOf()"),
         ArgCmd("encode-data","inputType params..."),
         ArgCmd("decode-data","inputType params..."),
+        ArgCmd("block","Get block"),
 
         ArgParam("<params>","..."),
 
@@ -163,6 +164,16 @@ object AppEvm extends {
         val params = config.params.last
         
         Solidity.decodeData(typ,params)
+
+      case "block" =>         
+
+        val block = config.params.headOption.map(_.toLong)
+        val withTx = config.params.lastOption
+        
+        Eth.getBlock(block,withTx.isDefined)
+          .map(b => {
+            s"block=${b.getNumber()},timestamp=${b.getTimestamp()},hash=${b.getHash()},tx=${b.getTransactions().size()}"
+          })
     }
     
     Console.err.println(s"r = ${r}")
