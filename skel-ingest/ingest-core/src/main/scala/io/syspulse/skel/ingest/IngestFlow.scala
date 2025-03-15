@@ -77,7 +77,7 @@ trait IngestFlow[I,T,O] {
 
   //def formatter:Flow[O,Any,_]
 
-  def debug = Flow.fromFunction( (data:ByteString) => { log.debug(s"data=${data}"); data})
+  def debug = Flow.fromFunction( (data:ByteString) => { log.trace(s"data=${data}"); data})
 
   def counterBytes = Flow[ByteString].map(t => { countBytes.inc(t.size); t})
   def counterI = Flow[I].map(t => { countInput.inc(); t})
