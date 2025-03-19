@@ -163,6 +163,7 @@ class Tokens(providers:Seq[TokenProvider]) {
   }
 
   def size = tokensCache.size
+  def all():Iterable[Coin] = tokensCache.cache.values.map(_.v)
 
   def load() = {
     providers
@@ -211,30 +212,10 @@ class Tokens(providers:Seq[TokenProvider]) {
       // try to resolve from external source
       Set()
     } else {      
-      coinToToken(c0.get,chain)
+      Token.coinToToken(c0.get,chain)
     }
   }
-
-  def coinToToken(c:Coin,chain:Option[Blockchain] = None):Set[Token] = {
-    if(chain.isDefined) {
-      c.tokens.get(chain.get.name).map(t => Token(
-        t.addr,
-        c.sym,
-        t.dec,
-        t.bid,
-        c.icon
-      )).toSet
-    } else {
-      c.tokens.values.map(t => Token(
-        t.addr,
-        c.sym,
-        t.dec,
-        t.bid,
-        c.icon
-      )).toSet
-    }
-  }
-
+  
   // token can be in any of the formats:  
   // USDT  
   // 0x1234567890abcdef1234567890abcdef1234567890abcdef
@@ -256,11 +237,11 @@ class Tokens(providers:Seq[TokenProvider]) {
       
       case tid :: Nil if(tid.startsWith("0x")) => resolve(tid,None,None,None)
       case tid :: Nil => resolve(tid,None,None,None)
-    
+      case _ => Set()
     }    
   }
 
-  def find(addr:String) = tokensCache.get(addr.toLowerCase).map(coinToToken(_))
+  def find(addr:String) = tokensCache.get(addr.toLowerCase).map(Token.coinToToken(_))
 
   def findCoin(addr:String) = tokensCache.get(addr.toLowerCase)
 }
@@ -282,4 +263,25 @@ object Token {
   def resolve(tokenId:String):Set[Token] = default.resolve(tokenId)
   def find(addr:String) = default.find(addr)
   def findCoin(addr:String) = default.findCoin(addr)
+
+  def coinToToken(c:Coin,chain:Option[Blockchain] = None):Set[Token] = {
+    if(chain.isDefined) {
+      c.tokens.get(chain.get.name).map(t => Token(
+        t.addr,
+        c.sym,
+        t.dec,
+        t.bid,
+        c.icon
+      )).toSet
+    } else {
+      c.tokens.values.map(t => Token(
+        t.addr,
+        c.sym,
+        t.dec,
+        t.bid,
+        c.icon
+      )).toSet
+    }
+  }
+
 }

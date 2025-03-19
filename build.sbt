@@ -1,3 +1,5 @@
+javaOptions ++= Seq("-J-Xms2g -J-Xmx3g")
+
 import scala.sys.process.Process
 import Dependencies._
 import com.typesafe.sbt.packager.docker.DockerAlias
@@ -349,6 +351,8 @@ lazy val root = (project in file("."))
              blockchain_evm,
              blockchain_tron,
              skel_dns,
+             ai_core,
+             ai_agent,
              skel_ai,
              skel_tls,
              tools,
@@ -377,6 +381,8 @@ lazy val root = (project in file("."))
              blockchain_tron,
              skel_dns,
              skel_ai,
+             ai_core,
+             ai_agent,
              skel_tls,
              skel_test
              )  

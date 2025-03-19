@@ -210,7 +210,7 @@ class AgentSec(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Agent
       Token.resolve(token.get)
     else 
       // get all tokens
-      Token.tokensSym.values.flatten.toSet
+      Token.default.all().map(t => Token.coinToToken(t)).flatten.toSet
       //throw new IllegalArgumentException("Missing token name or address")
   }
 
