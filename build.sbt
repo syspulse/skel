@@ -123,7 +123,9 @@ val sharedConfig = Seq(
     version         := skelVersion,
 
     scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:existentials", "-language:implicitConversions", "-language:higherKinds", "-language:reflectiveCalls", "-language:postfixOps"),
-    javacOptions ++= Seq("-target", "1.8", "-source", "1.8"),
+    // javacOptions ++= Seq("-target", "1.8", "-source", "1.8"),
+    javacOptions ++= Seq("-target", "11", "-source", "11"),
+    scalacOptions += "-release:11",
     
     crossVersion := CrossVersion.binary,
     resolvers ++= Seq(
@@ -375,6 +377,7 @@ lazy val root = (project in file("."))
              blockchain_tron,
              skel_dns,
              skel_ai,
+             skel_tls,
              skel_test
              )  
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error

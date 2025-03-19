@@ -451,7 +451,7 @@ class SoliditySpec extends AnyWordSpec with Matchers with TestData {
     }
 
     // ATTENTION: Tuples are not supported because web3j is retarded
-    "decode (uint256,address) tuple result" ignore {
+    "decode (uint256,address) tuple result" in {
       val hex = "0x000000000000000000000000000000000000000000000000000000000000007b000000000000000000000000742d35cc6634c0532925a3b844bc454e4438f44e"
       val result = Solidity.decodeResult(hex, "(uint256,address)")
       result should === (Success("(123, 0x742d35cc6634c0532925a3b844bc454e4438f44e)"))

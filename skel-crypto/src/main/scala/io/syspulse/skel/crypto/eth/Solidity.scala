@@ -12,6 +12,7 @@ import org.web3j.abi.FunctionEncoder
 import org.web3j.abi.TypeDecoder
 import org.web3j.abi.FunctionReturnDecoder
 import scala.collection.mutable.Buffer
+import org.web3j.abi.Utils
 
 object Solidity {
   def parseFunction(input: String): (String, Vector[String], String) = {
@@ -290,7 +291,29 @@ object Solidity {
       case t if t.startsWith("(") && t.endsWith(")") =>
         // ATTENTION! Not working !
 
-        // val tupleTypes = parseTupleTypes(t)
+        val tupleTypes = parseTupleTypes(t)
+        val tupleRefs = tupleTypes.map(t => {
+          
+          val tr = TypeReference.makeTypeReference(t)
+          // println(s"==============> ${t}: ${tr.getType()}")
+          tr
+        })        
+        // val tupleTr: TypeReference[datatypes.DynamicStruct] =
+          // new TypeReference[datatypes.DynamicStruct](
+          //         false,
+          //         tupleRefs.toList.asJava.asInstanceOf[java.util.List[TypeReference[_]]]
+          //         //List(TypeReference.makeTypeReference("uint256"),TypeReference.makeTypeReference("address")).asJava.asInstanceOf[java.util.List[TypeReference[_]]]
+          //         ) {};
+        
+        // ************************************************************************************
+        // ATTENTION: NOT WORKING, need to upgrade web3j to 4.13.0 
+        // ************************************************************************************
+        val tupleTr: TypeReference[datatypes.DynamicStruct] =
+          new TypeReference[datatypes.DynamicStruct](
+                  false
+                  ) {};
+        tupleTr
+
         // val tupleTypesList = tupleTypes.map { t => toTypeReference(t).getType() }
         //   .toList
         //   .asJava
@@ -301,8 +324,8 @@ object Solidity {
         //   override def getType: java.lang.reflect.Type = 
         //     new datatypes.DynamicStruct(tupleTypesList).getClass
         // }
-        throw new Exception(s"Tuples are not supported because web3j is retarded")
-                
+        //throw new Exception(s"Tuples are not supported because web3j is retarded")
+      
         // ATTENTION: Tuples are not supported because web3j is retarded
         // TypeReference.makeTypeReference(t)
 
@@ -406,7 +429,8 @@ object Solidity {
     
     val decoded = FunctionReturnDecoder.decode(
       value, 
-      List(typeReference).asJava.asInstanceOf[java.util.List[TypeReference[datatypes.Type[_]]]]
+      //List(typeReference).asJava.asInstanceOf[java.util.List[TypeReference[datatypes.Type[_]]]]
+      Utils.convert(List(typeReference).asJava.asInstanceOf[java.util.List[TypeReference[_]]])
     )
     
     def processValue(value: datatypes.Type[_]): datatypes.Type[_] = {
