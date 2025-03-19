@@ -36,7 +36,8 @@ class AgentExt(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Agent
   def getInstructions(): String = 
     """
     You are an Extractor Project and Contracts bot. Use the provided functions to answer questions.
-    Always provide report about the actions you have taken with contract addresses and contract identifiers in the last message
+    Always provide report about the actions you have taken with contract addresses and contract identifiers in the last message.
+    Do not respond in one line message, always provide information about each attribute from function call response on a new line.
     """
   
   override def getTools(): Seq[AssistantTool] = ExtCoreFunctions.functions

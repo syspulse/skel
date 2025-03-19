@@ -39,7 +39,7 @@ case class Config(
   datastore:String = "",
   provider:String = "openai://",
   agent:String = "agent://ext-agent",
-  meta:Seq[String] = Seq("pid=898"),
+  meta:Seq[String] = Seq("pid=760"),
   instructions:String = "",
 
   serviceUrl:String = "http://localhost:8080/api/v1/ext",

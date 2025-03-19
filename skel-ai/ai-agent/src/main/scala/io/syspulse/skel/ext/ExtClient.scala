@@ -64,8 +64,8 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     val contracts = json("data").arr.map { c =>
       Contract(
         c("id").num.toLong.toString,
-        address = c("address").str, 
-        network = c("chainUid").str, 
+        address = c.obj.get("address").map(_.str).getOrElse(""),
+        network = c.obj.get("chainUid").map(_.str).getOrElse(""), 
         name = c("name").str,
         addressImpl = c.obj.get("implementation").flatMap(_.strOpt)
       )
@@ -123,11 +123,12 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     val contract = 
       Contract(
         json("id").num.toLong.toString,
-        json("address").str, 
-        json("chainUid").str, 
-        json("name").str
+        address = json.obj.get("address").map(_.str).getOrElse(""),
+        network = json.obj.get("chainUid").map(_.str).getOrElse(""), 
+        name = json("name").str,
+        addressImpl = json.obj.get("implementation").flatMap(_.strOpt)
       )
-
+      
     contract
   }
 
@@ -198,10 +199,11 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     log.debug(s"addrAbi: ${addrAbi}")
 
     val contract = Contract(
-      json("id").num.toLong.toString,
-      json("address").str, 
-      json("chainUid").str, 
-      json("name").str,
+      contractId = json("id").num.toLong.toString,
+      address = json.obj.get("address").map(_.str).getOrElse(""),
+      network = json.obj.get("chainUid").map(_.str).getOrElse(""), 
+      name = json("name").str,
+      addressImpl = json.obj.get("implementation").flatMap(_.strOpt),
       abi = addrAbi,
       implAbi = implAbi,
     )
