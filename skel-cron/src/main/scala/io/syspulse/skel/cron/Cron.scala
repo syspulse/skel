@@ -44,7 +44,12 @@ object Cron {
         new CronQuartz(exec,expr,conf = conf,cronName,jobName,groupName)
       
     } else {
-      val delay = settings.get("delay").asInstanceOf[Option[Long]].getOrElse(-1L)
+      val delay = settings.get("delay")
+        .asInstanceOf[Option[String]]
+        .filter(_.nonEmpty)
+        .map(CronFreq.toMillis(_))
+        .getOrElse(-1L)
+
       val expression = if(rateLimit.isDefined && CronFreq.toMillis(expr) <= rateLimit.get)
         rateLimit.get.toString
       else
