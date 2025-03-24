@@ -159,7 +159,10 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     log.info(s"Loading file: ${file}")
     val data = os.read(file)
     val ee = loadData(data,"",file.toIO.getName())
-    ee.foreach( e => StoreDir.this.+(e))    
+    ee.foreach( e => 
+      //StoreDir.this.+(e)
+      this.+(e)
+    )
   }
 
   def watch(dir:String):String = {
