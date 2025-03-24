@@ -53,6 +53,7 @@ import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import io.syspulse.skel
 import io.syspulse.skel.Ingestable
 import io.syspulse.skel.util.Util
+import io.syspulse.skel.util.TimeUtil
 import io.syspulse.skel.uri.ElasticURI
 import io.syspulse.skel.uri.KafkaURI
 import io.syspulse.skel.uri.TwitterURI
@@ -219,7 +220,7 @@ trait Flows {
   }
 
   def fromClock(expr:String) = {
-    val msec = expr.toLong //Duration.create(expr).toMillis
+    val msec = TimeUtil.humanToMillis(expr) //expr.toLong //Duration.create(expr).toMillis
     val freq = FiniteDuration(msec,TimeUnit.MILLISECONDS)
     Source
       .tick(FiniteDuration(150L,TimeUnit.MILLISECONDS),freq,"") // initial small delay (0 does not work)

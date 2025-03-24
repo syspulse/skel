@@ -3,6 +3,7 @@ package io.syspulse.skel.ingest.flow
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration,FiniteDuration}
 import com.typesafe.scalalogging.Logger
+import com.typesafe.config.ConfigFactory
 
 import akka.util.ByteString
 import akka.http.scaladsl.model.HttpRequest
@@ -38,7 +39,20 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
   with IngestFlow[I,T,O]()  {
   
   private val log = Logger(s"${this}")
-  override implicit val system:ActorSystem = as.getOrElse(ActorSystem("ActorSystem-IngestFlow"))
+  override implicit val system:ActorSystem = {    
+    as.getOrElse({
+      val name = "ActorSystem-IngestFlow"
+      val config = ConfigFactory.load()
+      val as = try {
+        ActorSystem(name, config.getConfig(name).withFallback(config))
+      } catch {
+        case e:Exception => 
+          log.debug(s"failed to find ActorSystem config: '${name}': using default config. (err=${e.getMessage})")
+          ActorSystem(name)
+      }
+      as
+    })
+  }
   log.info(s"system=${system}")
 
   implicit def timeout:FiniteDuration = FiniteDuration(5000, TimeUnit.MILLISECONDS)

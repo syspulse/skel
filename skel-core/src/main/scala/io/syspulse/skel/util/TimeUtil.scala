@@ -174,5 +174,22 @@ object TimeUtil {
       }}
       .filter(_.size > 0)
   }
+
+  def humanToMillis(freq: String): Long = {
+    val pattern = """(\d+)\s*(ms|msec|millisecond|sec|second|min|minute|hour|day)s?""".r
+    freq.toLowerCase match {
+      case pattern(value, unit) => 
+        val milliseconds = unit match {
+          case "ms" | "msec" | "millisecond" | "milliseconds" => 1L
+          case "sec" | "second" | "seconds" => 1000L
+          case "min" | "minute" | "minutes" => 60000L
+          case "hour" | "hours" => 3600000L
+          case "day" | "days" => 86400000L
+        }
+        value.toLong * milliseconds
+      case _ => 
+        freq.toLong
+    }
+  }
 }
 
