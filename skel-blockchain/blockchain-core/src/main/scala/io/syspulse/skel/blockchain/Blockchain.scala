@@ -140,4 +140,19 @@ object Blockchain {
   def apply(network:Option[String]):Option[Blockchain] = 
     network.map(apply)
   
+
+  def getExplorerTx(chain:Option[String],txHash:String):String = {
+    chain match {
+      case Some(c) => Blockchain.resolveByName(c).flatMap(_.exp).map(e => s"${e}/tx/${txHash}").getOrElse(txHash)
+      case None => txHash
+    }
+  }
+
+  def getExplorerBlock(chain:Option[String],block:String):String = {
+    chain match {
+      case Some(c) => Blockchain.resolveByName(c).flatMap(_.exp).map(e => s"${e}/block/${block}").getOrElse(block)
+      case None => block
+    }
+  }
+
 }
