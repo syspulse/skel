@@ -24,6 +24,8 @@ class BlockchainRpcSpec extends AnyWordSpec with Matchers {
       arb=42161=https://rpc.ankr.com/arbitrum,
       """)      
       
+      info(s"bb: ${bb}")
+
       bb.all().size should ===(4)
       bb.get(1L) should !==(None)
       bb.get(42161L) should !==(None)
@@ -66,6 +68,9 @@ class BlockchainRpcSpec extends AnyWordSpec with Matchers {
       bb.getWeb3("test") shouldBe a[Success[_]]
       bb.getWeb3(999L) shouldBe a[Failure[_]]
       bb.getWeb3("nonexistent") shouldBe a[Failure[_]]
+
+      bb.getWeb3("1".toLong) shouldBe a[Success[_]]
+      bb.getWeb3("999".toLong) shouldBe a[Failure[_]]      
     }
 
     "handle multiple RPC URLs for same chain" in {

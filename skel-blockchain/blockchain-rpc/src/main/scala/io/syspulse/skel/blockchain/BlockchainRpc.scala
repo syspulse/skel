@@ -15,7 +15,7 @@ case class BlockchainRpc(name:String,id:String,rpcUri:String,explorer:Option[Str
 
 class Blockchains(bb:Seq[String]) {
 
-  override def toString():String = blockchains.toString
+  override def toString():String = s"Blockchains(${rpc.toString})"
 
   protected var blockchains:Map[String,BlockchainRpc] = Map(
     // Blockchain.ETHEREUM.id.get -> BlockchainRpc(Blockchain.ETHEREUM.name,Blockchain.ETHEREUM.id.get,"https://eth.drpc.org",Blockchain.ETHEREUM.exp),

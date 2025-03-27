@@ -24,7 +24,7 @@ object Blockchain {
   val BSC_MAINNET = Blockchain("bsc",Some("56"),Some(8),Some("BNB"),Some("https://bscscan.com"))
   val ARBITRUM_MAINNET = Blockchain("arbitrum",Some("42161"),Some(18),Some("ETH"),Some("https://arbiscan.io"))
   val OPTIMISM_MAINNET = Blockchain("optimism",Some("10"),Some(18),Some("ETH"),Some("https://optimistic.etherscan.io"))
-  val POLYGON_MAINNET = Blockchain("polygon",Some("137"),Some(18),Some("MATIC"),Some("https://polygonscan.com"))
+  val POLYGON_MAINNET = Blockchain("polygon",Some("137"),Some(18),Some("POL"),Some("https://polygonscan.com"))
   val AVALANCHE_MAINNET = Blockchain("avalanche",Some("43114"),Some(18),Some("AVAX"),Some("https://snowtrace.io"))
   val FANTOM_MAINNET = Blockchain("fantom",Some("250"),Some(18),Some("FTM"),Some("https://ftmscan.com"))
 
@@ -42,10 +42,14 @@ object Blockchain {
   val ZETA_MAINNET = Blockchain("zeta",Some("7000"),Some(18),Some("ZETA"),Some("https://explorer.zetachain.com"))
   
   // test networks
-  val BSC_TESTNET = Blockchain("bsc-testnet",Some("97"),Some(8),Some("BNB"),Some("https://testnet.bscscan.com"))
+  val BSC_TESTNET = Blockchain("bsc_testnet",Some("97"),Some(8),Some("BNB"),Some("https://testnet.bscscan.com"))
   val SEPOLIA = Blockchain("sepolia",Some("11155111"),Some(18),Some("ETH"),Some("https://sepolia.etherscan.io"))
   val ETHEREUM_SEPOLIA = SEPOLIA
   val ANVIL = Blockchain("anvil",Some("31337"),Some(18),Some("ETH"),Some("https://otterscan.dev.hacken.cloud"))
+
+  
+  val ETHEREUM_HOLESKY = Blockchain("ethereum_holesky",Some("17000"),Some(18),Some("ETH"),Some("https://holesky.etherscan.io"))
+  val POLYGON_AMOY = Blockchain("polygon_amoy",Some("80001"),Some(18),Some("POL"),Some("https://amoy.polygonscan.com"))
 
   // default EVM
   val EVM = Blockchain("evm",Some("0"),Some(18),Some("ETH"))
@@ -75,6 +79,9 @@ object Blockchain {
     SEPOLIA.id.get -> SEPOLIA,
     ANVIL.id.get -> ANVIL,
     BSC_TESTNET.id.get -> BSC_TESTNET,
+
+    ETHEREUM_HOLESKY.id.get -> ETHEREUM_HOLESKY,
+    POLYGON_AMOY.id.get -> POLYGON_AMOY,
 
     EVM.id.get -> EVM
   )
@@ -115,6 +122,8 @@ object Blockchain {
       case ("sepolia" | "ethereum-sepolia" | "ethereum_sepolia")  :: Nil => Some(ETHEREUM_SEPOLIA)
       case "anvil"  :: Nil => Some(ANVIL)
       case ("bsc-testnet" | "bsc_testnet")  :: Nil => Some(BSC_TESTNET)
+      case ("holesky" | "ethereum_holesky")  :: Nil => Some(ETHEREUM_HOLESKY)
+      case ("amoy" | "polygon_amoy")  :: Nil => Some(POLYGON_AMOY)
       
       case network :: id :: _ => Some(new Blockchain(network,Some(id)))
 
