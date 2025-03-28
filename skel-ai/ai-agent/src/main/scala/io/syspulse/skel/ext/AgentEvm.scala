@@ -106,7 +106,7 @@ class AgentEvm(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Agent
           val contractId = c.contractId
           val addr = c.address
           
-          val contractWithAbi = extClient.getContract(projectId, contractId.toInt)
+          val contractWithAbi = extClient.getContract(contractId.toInt)
           
           val result = contractWithAbi.abi match {
             case Some(abi) => 

@@ -20,6 +20,10 @@ import io.syspulse.skel.ai._
 import io.syspulse.skel.ai.store._
 import io.syspulse.skel.ai.server._
 import io.syspulse.skel.ai.core.Providers
+import io.syspulse.skel.ai.core.AiURI
+
+import io.syspulse.skel.ai.provider.openai.OpenAi
+import io.syspulse.skel.ai.provider.AiProvider
 
 case class Config(
   host:String="0.0.0.0",
@@ -27,13 +31,15 @@ case class Config(
   uri:String = "/api/v1/ai",
 
   datastore:String = "openai://",
+
+  ai:String = "openai://",
     
-  feed:String = "stdin://",
-  output:String = "stdout://",  
-  delimiter:String = "\n", //""
-  buffer:Int = 8192 * 100,
-  throttle:Long = 0L,
-  throttleSource:Long = 100L,
+  // feed:String = "stdin://",
+  // output:String = "stdout://",  
+  // delimiter:String = "\n", //""
+  // buffer:Int = 8192 * 100,
+  // throttle:Long = 0L,
+  // throttleSource:Long = 100L,
         
   cmd:String = "ask",
   params: Seq[String] = Seq(),
@@ -56,16 +62,19 @@ object App extends skel.Server {
 
         ArgString('d', "datastore",s"Datastore [mem://,gl://,ofac://] (def: ${d.datastore})"),
                
-        ArgString('f', "feed",s"Input Feed (stdin://, http://, file://, kafka://) (def=${d.feed})"),
-        ArgString('o', "output",s"Output (stdout://, csv://, json://, log://, file://, hive://, elastic://, kafka:// (def=${d.output})"),
-        ArgString('_', "delimiter",s"""Delimiter characteds (def: '${Util.hex(d.delimiter.getBytes())}'). Usage example: --delimiter=`echo -e "\\r\\n"` """),
-        ArgInt('_', "buffer",s"Frame buffer (Akka Framing) (def: ${d.buffer})"),
-        ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
-        ArgLong('_', "throttle.source",s"Throttle source (e.g. http, def=${d.throttleSource})"),
+        // ArgString('f', "feed",s"Input Feed (stdin://, http://, file://, kafka://) (def=${d.feed})"),
+        // ArgString('o', "output",s"Output (stdout://, csv://, json://, log://, file://, hive://, elastic://, kafka:// (def=${d.output})"),
+        // ArgString('_', "delimiter",s"""Delimiter characteds (def: '${Util.hex(d.delimiter.getBytes())}'). Usage example: --delimiter=`echo -e "\\r\\n"` """),
+        // ArgInt('_', "buffer",s"Frame buffer (Akka Framing) (def: ${d.buffer})"),
+        // ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
+        // ArgLong('_', "throttle.source",s"Throttle source (e.g. http, def=${d.throttleSource})"),
                 
+        ArgString('a', "ai",s"AI provider (def: ${d.ai})"),
+
         ArgCmd("server","Server"),
         ArgCmd("ask","Ask question"),
-        
+        ArgCmd("prompt","Prompt"),
+
         ArgParam("<params>",""),
         ArgLogging(),
         ArgConfig(),
@@ -78,13 +87,15 @@ object App extends skel.Server {
       uri = c.getString("http.uri").getOrElse(d.uri),
       
       datastore = c.getString("datastore").getOrElse(d.datastore),
+
+      ai = c.getString("ai").getOrElse(d.ai),
       
-      feed = c.getString("feed").getOrElse(d.feed),
-      output = c.getString("output").getOrElse(d.output),      
-      delimiter = c.getString("delimiter").getOrElse(d.delimiter),
-      buffer = c.getInt("buffer").getOrElse(d.buffer),
-      throttle = c.getLong("throttle").getOrElse(d.throttle),
-      throttleSource = c.getLong("throttle.source").getOrElse(d.throttleSource),
+      // feed = c.getString("feed").getOrElse(d.feed),
+      // output = c.getString("output").getOrElse(d.output),      
+      // delimiter = c.getString("delimiter").getOrElse(d.delimiter),
+      // buffer = c.getInt("buffer").getOrElse(d.buffer),
+      // throttle = c.getLong("throttle").getOrElse(d.throttle),
+      // throttleSource = c.getLong("throttle.source").getOrElse(d.throttleSource),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -125,9 +136,40 @@ object App extends skel.Server {
             store.????(config.params.mkString(" "),None,Some(Providers.OPEN_AI))
         }
         
-        
+      case "prompt" => 
+        prompt(config.ai,config.params)(config)
         
     }
     Console.err.println(s"r = ${r}")
+  }
+
+  def prompt(uri:String, params:Seq[String])(config:Config):Unit = {
+    import io.syspulse.skel.FutureAwaitable._
+
+    val ai = AiURI(uri)
+
+    val provider:AiProvider = ai.getProvider() match {
+      case Providers.OPEN_AI => new OpenAi(uri)
+      case _ => 
+        Console.err.println(s"Unknown AI provider: '${ai.getProvider()}'")
+        sys.exit(1)
+    }
+
+    val q0 = params.mkString(" ")
+    Console.err.println(s"q0 = '${q0}'")
+
+    for (i <- 1 to Int.MaxValue) {
+      Console.err.print(s"${i}> ")
+      val q = scala.io.StdIn.readLine()
+      if(q == null || q.trim.toLowerCase() == "exit") {
+        sys.exit(0)
+      }
+      if(!q.isEmpty) {
+        val p = provider.ask(q,ai.getModel(),None,10000,3)
+        Console.err.println(s"${p.get}")
+        val txt = p.get.answer.get
+        Console.err.println(s"${Console.RED}${ai.getModel()}${Console.YELLOW}: ${txt}${Console.RESET}")
+      }
+    }
   }
 }

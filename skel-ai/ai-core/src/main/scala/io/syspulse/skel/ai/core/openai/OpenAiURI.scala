@@ -1,14 +1,15 @@
 package io.syspulse.skel.ai.core.openai
 
 import io.syspulse.skel.util.Util
-
+import io.syspulse.skel.ai.core.AiURI
+import io.syspulse.skel.ai.core.Providers
 /* 
 openai:// - Key is taken from $OPENAI_API_KEY
 openai://<model>
 openai://<model>?<key1=value1&key2=value2...>
 openai://<api_key>@<model>
 */
-case class OpenAiURI(uri:String) {
+case class OpenAiURI(uri:String) extends AiURI {
   val PREFIX = "openai://"
   val DEFAULT_MODEL = "gpt-4o-mini"
 
@@ -20,6 +21,11 @@ case class OpenAiURI(uri:String) {
   def vdb:Option[String] = _ops.get("vdb")
   def org:Option[String] = _ops.get("org")
   def aid:Option[String] = _ops.get("aid")
+  def timeout:Long = _ops.get("timeout").map(_.toLong).getOrElse(30000)
+  def retry:Int = _ops.get("retry").map(_.toInt).getOrElse(3)
+
+  def getModel():Option[String] = _model
+  def getProvider():String = Providers.OPEN_AI
 
   def parse(uri:String):(String,Option[String],Map[String,String]) = {
     // resolve options

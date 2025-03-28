@@ -154,7 +154,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     contracts.head
   }
 
-  def getContract(pid:String, contractId:Int):Contract = {
+  def getContract(contractId:Int):Contract = {
     
     val url = s"${baseUrl}/contract/${contractId}/withAbi"    
     val rsp = requests.get(
@@ -441,13 +441,13 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
   def alert(
     cid:Int, 
     did:String,        
-    typ:String,
+    typ:String = "sentry",
     sid:String = "ext", 
     eid:String = UUID.randomUUID().toString, 
     cat:String = "ALERT", 
     sev:Double = 0.1, 
     addr:Option[String] = None, 
-    network:String = "anvil", 
+    network:Option[String] = Some("anvil"), 
     meta:Map[String,String] = Map.empty):String = {
     
     val pid = "0"
@@ -474,15 +474,16 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
       "severity": ${sev},
       "blockchain": {
         "chain_id": "31337",
-        "network": "${network}"
+        "network": "${network.getOrElse("anvil")}"
       },
       "metadata": {
-         "monitored_contract": "${addr}"         
+        
          ${metaStr}
       }
     }
   ]
 }""".replaceAll("\n","")
+    //"monitored_contract": "${addr.getOrElse("")}"
     
     val rsp = requests.post(
       url,

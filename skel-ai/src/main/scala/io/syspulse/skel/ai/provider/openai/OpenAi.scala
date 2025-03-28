@@ -17,6 +17,7 @@ import io.syspulse.skel.ai.core.Providers
 import io.syspulse.skel.ai.core.openai.OpenAiURI
 import io.syspulse.skel.ai.Prompt
 import io.syspulse.skel.ai.PromptMessage
+import io.syspulse.skel.ai.provider.AiProvider
 
 case class OpenAi_ChatMessage(
   role: String,
@@ -67,15 +68,17 @@ object OpenAi_Json extends JsonCommon {
   implicit val jf_oai_req = jsonFormat2(OpenAi_ChatReq)
 }
 
-class OpenAi(uri:String) {
+class OpenAi(uri:String) extends AiProvider {
   import OpenAi_Json._
 
   val openAiUri = OpenAiURI(uri)
 
-  val log = Logger(s"${this}")
+  override def getTimeout():Long = openAiUri.timeout
+  override def getRetry():Int = openAiUri.retry
+  
+  def ask(question:String,model:Option[String],system:Option[String] = None,
+          timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Ai] = {
 
-  def ask(question:String,model:Option[String],system:Option[String] = None):Try[Ai] = {
-    
     val url = s"https://api.openai.com/v1/chat/completions"
     val modelReq = model.getOrElse(openAiUri.model.getOrElse("gpt-4o"))
     val body = OpenAi_ChatReq(
@@ -85,34 +88,39 @@ class OpenAi(uri:String) {
         OpenAi_ChatReqMsg("user",question)
       )
     ).toJson.compactPrint
-          
+         
     log.info(s"asking: ${modelReq}: '${question.take(32).replaceAll("\n","\\\\n")}...(${question.size})' -> ${url}")    
-      
-    try {      
-      val r = requests.post(
-        url = url,
-        headers = Seq("Content-Type" -> "application/json", "Authorization" -> s"Bearer ${openAiUri.apiKey}"),
-        data = body
-      )      
-      log.debug(s"${body}: ${r}")
 
-      val chatRes = r.text().parseJson.convertTo[OpenAi_ChatRes]
-            
-      Success(Ai(
-        question = question,
-        answer = Some(chatRes.choices.head.message.content),        
-        oid = Some(Providers.OPEN_AI),
-        model = Some(chatRes.model)
-      ))
-    } catch {
-      case e:Exception =>
-        log.error(s"failed to get answer: '${question}'",e)
-        Failure(e)
-    }
+    withRetry(
+      {
+        val r = requests.post(
+          url = url,
+          headers = Seq(
+            "Content-Type" -> "application/json", 
+            "Authorization" -> s"Bearer ${openAiUri.apiKey}"
+          ),
+          data = body,
+          readTimeout = timeout.toInt,
+          connectTimeout = timeout.toInt
+        )      
+        log.debug(s"${body}: ${r}")
+
+        val chatRes = r.text().parseJson.convertTo[OpenAi_ChatRes]
+              
+        Ai(
+          question = question,
+          answer = Some(chatRes.choices.head.message.content),        
+          oid = Some(Providers.OPEN_AI),
+          model = Some(chatRes.model)
+        )
+      }, 
+      s"ask: '${question.take(32)}...'"
+    )(timeout, retry)
   }
 
-  def prompt(prompt:Prompt,model:Option[String],system:Option[String] = None):Try[Prompt] = {
-    
+  def prompt(prompt:Prompt,model:Option[String],system:Option[String] = None,
+            timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Prompt] = {
+
     val url = s"https://api.openai.com/v1/chat/completions"
     val modelReq = model.getOrElse(openAiUri.model.getOrElse("gpt-4o"))
     val body = OpenAi_ChatReq(
@@ -123,32 +131,33 @@ class OpenAi(uri:String) {
     val promptSize = prompt.messages.map(_.content.size).sum
     log.info(s"prompt: [${modelReq},${prompt.messages.size},${promptSize}]' -> ${url}")
 
-    try {
-      val r = requests.post(
-        url = url,
-        headers = Seq("Content-Type" -> "application/json", "Authorization" -> s"Bearer ${openAiUri.apiKey}"),
-        data = body
-      )
-      log.debug(s"${body}: ${r}")
+    withRetry(
+      {
+        val r = requests.post(
+          url = url,
+          headers = Seq(
+            "Content-Type" -> "application/json", 
+            "Authorization" -> s"Bearer ${openAiUri.apiKey}"
+          ),
+          data = body,
+          readTimeout = timeout.toInt,
+          connectTimeout = timeout.toInt
+        )
+        log.debug(s"${body}: ${r}")
 
-      val chatRes = r.text().parseJson.convertTo[OpenAi_ChatRes]
-            
-      Success(Prompt(
-        messages = chatRes.choices.map(c => PromptMessage(role = c.message.role, content = c.message.content)),
-
-        oid = prompt.oid,
-        model = Some(chatRes.model),
-
-        ts = System.currentTimeMillis(),
-        ts0 = prompt.ts0,
-
-        tags = prompt.tags,
-        meta = prompt.meta
-      ))
-    } catch {
-      case e:Exception =>
-        log.error(s"failed to prompt: '${prompt}'",e)
-        Failure(e)
-    }
+        val chatRes = r.text().parseJson.convertTo[OpenAi_ChatRes]
+              
+        Prompt(
+          messages = chatRes.choices.map(c => PromptMessage(role = c.message.role, content = c.message.content)),
+          oid = prompt.oid,
+          model = Some(chatRes.model),
+          ts = System.currentTimeMillis(),
+          ts0 = prompt.ts0,
+          tags = prompt.tags,
+          meta = prompt.meta
+        )
+      }, 
+      s"prompt: [${prompt.messages.size} msgs, ${promptSize} chars]"
+    )(timeout, retry)
   }
 }

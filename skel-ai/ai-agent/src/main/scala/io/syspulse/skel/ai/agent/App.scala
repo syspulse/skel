@@ -199,7 +199,7 @@ object App extends skel.Server {
             )
 
           case "contract" => 
-            ext.getContract(params(0),params(1).toInt)
+            ext.getContract(params(0).toInt)
 
           case "contract-call" =>
             ext.callContract(
@@ -209,11 +209,12 @@ object App extends skel.Server {
               params = params.drop(3),
             )
 
-          case "alert" =>
+          case "alert" | "event" =>
             ext.alert(
               cid = params(0).toInt,
               did = params(1),
-              typ = params(2),
+              addr = params.drop(2).headOption,
+              network = params.drop(3).headOption,
             )
 
           case _ =>
