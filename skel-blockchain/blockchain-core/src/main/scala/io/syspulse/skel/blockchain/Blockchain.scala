@@ -75,10 +75,12 @@ object Blockchain {
     TELOS_MAINNET.id.get -> TELOS_MAINNET,
     TRON_MAINNET.id.get -> TRON_MAINNET,
 
+    ZETA_MAINNET.id.get -> ZETA_MAINNET,
+
     // test networks
-    SEPOLIA.id.get -> SEPOLIA,
-    ANVIL.id.get -> ANVIL,
     BSC_TESTNET.id.get -> BSC_TESTNET,
+    SEPOLIA.id.get -> SEPOLIA,
+    ANVIL.id.get -> ANVIL,    
 
     ETHEREUM_HOLESKY.id.get -> ETHEREUM_HOLESKY,
     POLYGON_AMOY.id.get -> POLYGON_AMOY,

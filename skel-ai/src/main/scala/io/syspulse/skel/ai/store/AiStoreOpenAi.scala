@@ -53,7 +53,7 @@ class AiStoreOpenAi(uri:String) extends AiStore with JsonCommon {
 
   def ????(question:String,model:Option[String],oid:Option[String]):Try[Ai] = {
     val o = ???(question,oid) match {
-      case s @ Success(o) => 
+      case s @ Success(o) =>
         s
       case Failure(e) => 
         engine.ask(question,model)
