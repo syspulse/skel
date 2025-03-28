@@ -8,7 +8,16 @@ import com.typesafe.scalalogging.Logger
 import io.syspulse.skel.crypto.eth.abi3.AbiDef
 import io.syspulse.skel.crypto.eth.abi3.Abi
 
-case class Contract(contractId:String, address:String, network:String, name:String, addressImpl:Option[String] = None,abi:Option[Abi] = None)
+case class Contract(
+  contractId:String, 
+  address:String, 
+  network:String, 
+  name:String, 
+  addressImpl:Option[String] = None,
+  abi:Option[Abi] = None,
+  implAbi:Option[Abi] = None,
+)
+
 case class Detector(detectorId:String, name:String, did:String)
 case class DetectorSchema(schemaId:String, did:String, ver:String)
 case class Trigger(triggerId:String, name:String, typ:String)
@@ -24,13 +33,14 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     .orElse(sys.env.get("ACCESS_TOKEN_ADMIN"))
     .orElse(Option(os.read(os.Path("ACCESS_TOKEN_ADMIN",os.pwd)).trim))
     .orElse(sys.env.get("EXT_PILOT_TOKEN"))
+    .orElse(sys.env.get("ACCESS_TOKEN"))
     .getOrElse(throw new RuntimeException("missing accessToken"))
 
   def getProjectContracts(pid:String, addr:Option[String] = None, name:Option[String] = None):Seq[Contract] = {
     val url = s"${baseUrl}/contract/search"
     val data = 
       if(addr.isDefined) 
-        s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid} AND (address='${addr.get}' OR implementation='${addr.get}')"}"""
+        s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid} AND (address='${addr.get.toLowerCase}')"}"""
       else 
       if(name.isDefined) 
         s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid} AND name='${name.get}' "}""" 
@@ -45,7 +55,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
         "Content-Type" -> "application/json",
         "Authorization" -> s"Bearer ${accessToken}"
       ),
-      data = data,      
+      data = data,
     )
 
     log.info(s"rsp: ${rsp}")
@@ -54,10 +64,10 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     val contracts = json("data").arr.map { c =>
       Contract(
         c("id").num.toLong.toString,
-        address = c.obj.get("implementation").map(_.str).getOrElse(c("address").str), 
-        network = c("chainUid").str, 
+        address = c.obj.get("address").map(_.str).getOrElse(""),
+        network = c.obj.get("chainUid").map(_.str).getOrElse(""), 
         name = c("name").str,
-        addressImpl = Some(c("address").str),        
+        addressImpl = c.obj.get("implementation").flatMap(_.strOpt)
       )
     }
     contracts.toSeq
@@ -96,7 +106,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
   def addContract(pid:String, addr:String, network:String, name:String):Contract = {
     val url = s"${baseUrl}/contract"
     val data = 
-      s"""{"address":"${addr}","chainUid":"${network}","name":"${name}","projectId":${pid},"addressType":"CONTRACT"}"""
+      s"""{"address":"${addr}","chainUid":"${network.toLowerCase}","name":"${name}","projectId":${pid},"addressType":"CONTRACT"}"""
     
     val rsp = requests.post(
       url,
@@ -113,11 +123,12 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     val contract = 
       Contract(
         json("id").num.toLong.toString,
-        json("address").str, 
-        json("chainUid").str, 
-        json("name").str
+        address = json.obj.get("address").map(_.str).getOrElse(""),
+        network = json.obj.get("chainUid").map(_.str).getOrElse(""), 
+        name = json("name").str,
+        addressImpl = json.obj.get("implementation").flatMap(_.strOpt)
       )
-
+      
     contract
   }
 
@@ -157,21 +168,44 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     log.debug(s"rsp: ${rsp}")
     
     val json = ujson.read(rsp.text())
-        
+
     val abi = try {
       Some(Abi(json("abi").toString))
     } catch {
       case e:Exception => 
-        log.warn(s"failed to parse abi: ${contractId}: ${e.getMessage}")
+        log.warn(s"failed to parse ABI: ${contractId}: ${e.getMessage}")
         None
     }
+    
+    val implAbi = //json.obj.get("implAbi").flatMap(_.arrOpt).map(a => Abi(a))
+      if(json.obj.get("implAbi").isDefined)
+        try {
+          Some(Abi(json("implAbi").toString))
+        } catch {
+          case e:Exception => 
+            log.warn(s"failed to parse ABI: ${contractId}: ${e.getMessage}")
+            None
+        }
+    else
+      None
+    
+    val addrAbi = (abi,implAbi) match {
+      case (Some(abi),Some(implAbi)) => Some(abi ++ implAbi)
+      case (Some(abi),None) => Some(abi)
+      case (None,Some(implAbi)) => Some(implAbi)
+      case (None,None) => None
+    }
+    
+    log.debug(s"addrAbi: ${addrAbi}")
 
     val contract = Contract(
-      json("id").num.toLong.toString,
-      json("address").str, 
-      json("chainUid").str, 
-      json("name").str,
-      abi = abi,
+      contractId = json("id").num.toLong.toString,
+      address = json.obj.get("address").map(_.str).getOrElse(""),
+      network = json.obj.get("chainUid").map(_.str).getOrElse(""), 
+      name = json("name").str,
+      addressImpl = json.obj.get("implementation").flatMap(_.strOpt),
+      abi = addrAbi,
+      implAbi = implAbi,
     )
     contract
   }
@@ -315,7 +349,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
         "Content-Type" -> "application/json",
         "Authorization" -> s"Bearer ${accessToken}"
       ),
-      data = data,      
+      data = data,
     )
 
     log.info(s"rsp: ${rsp}")
@@ -366,5 +400,100 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
     
     val json = ujson.read(rsp.text())
     json("data").str
+  }
+
+  case class AmlData(
+    address:String,
+    chain:String,
+    provider:Option[String],
+    score:Option[Double],
+    source:Option[String],
+    tags:Seq[String]
+  )
+
+  def getAml(addr:String):AmlData = {
+    
+    //val url = s"${baseUrl}/contract/${contractId}/withAbi"
+    val url = s"https://aml.dev.extractor.live/api/v1/aml/gl/${addr}?meta=report"
+    val rsp = requests.get(
+      url,
+      headers = Map(
+        "Content-Type" -> "application/json",
+        "Authorization" -> s"Bearer ${accessToken}"
+      ),
+    )
+
+    log.info(s"rsp: ${rsp}")
+    
+    val json = ujson.read(rsp.text())
+
+    val amlData = AmlData(
+      json("addr").str,
+      json("chain").str,
+      json.obj.get("oid").flatMap(_.strOpt),
+      score = json.obj.get("score").flatMap(_.numOpt),
+      source = json("meta")("owner").obj.get("data").flatMap(_.strOpt),
+      tags = json("tags").arr.map(_.str).toSeq,
+    )
+    amlData
+  }
+
+  def alert(
+    cid:Int, 
+    did:String,        
+    typ:String,
+    sid:String = "ext", 
+    eid:String = UUID.randomUUID().toString, 
+    cat:String = "ALERT", 
+    sev:Double = 0.1, 
+    addr:Option[String] = None, 
+    network:String = "anvil", 
+    meta:Map[String,String] = Map.empty):String = {
+    
+    val pid = "0"
+    val url = s"${baseUrl}/event"
+    
+    val ts = System.currentTimeMillis()
+    
+    val metaStr = if(meta.size > 0) 
+      ",\n" + meta.map(m => s""""${m._1}": "${m._2}"""").mkString(",")
+    else
+      ""
+
+    val data = s"""
+{
+  "events": [
+    {
+      "ts": ${ts},
+      "cid": ${cid},
+      "did": "${did}",
+      "sid": "${sid}",
+      "eid": "${eid}",
+      "type": "${typ}",
+      "category": "${cat}",
+      "severity": ${sev},
+      "blockchain": {
+        "chain_id": "31337",
+        "network": "${network}"
+      },
+      "metadata": {
+         "monitored_contract": "${addr}"         
+         ${metaStr}
+      }
+    }
+  ]
+}""".replaceAll("\n","")
+    
+    val rsp = requests.post(
+      url,
+      headers = Map(
+        "Content-Type" -> "application/json",
+        "Authorization" -> s"Bearer ${accessToken}"
+      ),
+      data = data,      
+    )
+
+    log.info(s"rsp: ${rsp}")    
+    rsp.text()
   }
 }

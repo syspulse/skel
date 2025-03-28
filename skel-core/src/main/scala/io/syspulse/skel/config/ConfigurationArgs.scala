@@ -19,6 +19,7 @@ import scopt.DefaultOParserSetup
 case class ConfigArgs() {
   var c:Map[String,Any] = Map()
   var cmd:Option[String] = None
+  var cmds:List[String] = List()
   var params:Seq[String] = Seq()
   
   def +(k:String,v:Any):ConfigArgs = {
@@ -26,7 +27,7 @@ case class ConfigArgs() {
     this
   }
 
-  def command(cmd:String):ConfigArgs = {
+  def command(cmd:String):ConfigArgs = {    
     this.cmd = Some(cmd)
     this
   }
@@ -36,7 +37,7 @@ case class ConfigArgs() {
     this
   }
 
-  override def toString = s"${c}"
+  override def toString = s"ConfigArgs(cmd=${cmd},params=${params},c=${c})"
 }
 
 trait Arg[T]
@@ -50,14 +51,19 @@ case class ArgCmd(argStr:String,desc:String="") extends Arg[String]()
 case class ArgLogging(argText:String = "logging level (INFO,ERROR,WARN,DEBUG)",default:String="") extends Arg[String]()
 case class ArgConfig(argText:String = "Configuration file",default:String="") extends Arg[String]()
 case class ArgUnknown() extends Arg[String]() // parameter to memorize unknown args
+case class ArgUnknownCmd() extends Arg[String]() // parameter to memorize unknown command
 
 // Use "empty appName/appVersion for automatic inference"
 class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg[_]*) extends ConfigurationLike {
   val log = Logger(s"${this}")
 
+  var errorOnUnknownCmd = true
+  var errorOnUnknown = true
+
   def parseArgs(args:Array[String],ops: Arg[_]*) = {
-    var errorOnUnknown = true
+
     val builder = OParser.builder[ConfigArgs]
+    
     val parser1 = {
       import builder._
 
@@ -67,7 +73,9 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
       val options = List(
         head(app, ver)
       ) ++ ops.flatMap(a => a match {        
-        case ArgCmd(s,t) => Some(cmd(s).action((x, c) => c.command(s)).text(t))
+        case ArgCmd(s,t) => 
+          //addCommand(s)
+          Some(cmd(s).action((x, c) => c.command(s)).text(t))
         case ArgHelp(s,t) => Some(help(s).text(t))
         case ArgString(c,s,t,d) => Some( (if(c=='_' || c==0) opt[String](s) else opt[String](c, s)).action((x, c) => c.+(s,x)).text(t))
         case ArgInt(c,s,t,d) => Some( (if(c=='_' || c==0) opt[Int](s) else opt[Int](c, s)).action((x, c) => c.+(s,x)).text(t))
@@ -99,6 +107,9 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
           }).text(t))
         case ArgUnknown() => 
           errorOnUnknown = false
+          None
+        case ArgUnknownCmd() => 
+          errorOnUnknownCmd = false
           None
         case _ => 
           log.warn(s"unknown Arg option: ${a}")
@@ -150,13 +161,14 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
           // ignore terminate
           override def terminate(exitState: Either[String, Unit]): Unit = ()
         })
-
-        result match {
-          case Some(config) =>
-            Some(config)
-          case _ =>      
-            None
-        }
+        
+        // result match {
+        //   case Some(config) =>
+        //     Some(config)
+        //   case _ =>      
+        //     None
+        // }
+        result
     }
 
   }
@@ -249,10 +261,19 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
     //configArgs.get.c.filter(_._2.asInstanceOf[Option[_]] == None).keySet.toSeq
     configArgs.get.params
   }
-
-  // not supported
+  
   def getCmd():Option[String] = {
     if(!configArgs.isDefined) return None
-    configArgs.get.cmd
+    
+    // ATTENION: if I am asking for command and it is None and there are Params > 0, then command was not found and I can fail here
+    configArgs.get.cmd match {      
+      case None if(configArgs.get.params.size > 0 && errorOnUnknownCmd) => 
+        Console.err.println(s"Unknown command: ${configArgs.get.params.head}")
+        System.exit(1)
+        None
+      case None => None
+      case c => c
+    }
+    
   }
 }

@@ -9,38 +9,47 @@ case class Blockchain(
   name:String,
   id:Option[String] = None,  // chain_id 
   dec:Option[Int] = None,    // decimals
-  tok:Option[String] = None
+  tok:Option[String] = None, // native token
+  exp:Option[String] = None  // explorer url
 ) {
   def asLong:Long = id.getOrElse("0").toLong
 }
 
+// NOTE:  chainlist.org
+
 object Blockchain {
   type ID = String
 
-  val ETHEREUM = Blockchain("ethereum",Some("1"),Some(18),Some("ETH"))
-  val BSC_MAINNET = Blockchain("bsc",Some("56"),Some(8),Some("BNB"))
-  val ARBITRUM_MAINNET = Blockchain("arbitrum",Some("42161"),Some(18),Some("ETH"))
-  val OPTIMISM_MAINNET = Blockchain("optimism",Some("10"),Some(18),Some("ETH"))
-  val POLYGON_MAINNET = Blockchain("polygon",Some("137"),Some(18),Some("MATIC"))
-  val AVALANCHE_MAINNET = Blockchain("avalanche",Some("43114"),Some(18),Some("AVAX"))
-  val FANTOM_MAINNET = Blockchain("fantom",Some("250"),Some(18),Some("FTM"))
+  val ETHEREUM = Blockchain("ethereum",Some("1"),Some(18),Some("ETH"),Some("https://etherscan.io"))
+  val BSC_MAINNET = Blockchain("bsc",Some("56"),Some(8),Some("BNB"),Some("https://bscscan.com"))
+  val ARBITRUM_MAINNET = Blockchain("arbitrum",Some("42161"),Some(18),Some("ETH"),Some("https://arbiscan.io"))
+  val OPTIMISM_MAINNET = Blockchain("optimism",Some("10"),Some(18),Some("ETH"),Some("https://optimistic.etherscan.io"))
+  val POLYGON_MAINNET = Blockchain("polygon",Some("137"),Some(18),Some("POL"),Some("https://polygonscan.com"))
+  val AVALANCHE_MAINNET = Blockchain("avalanche",Some("43114"),Some(18),Some("AVAX"),Some("https://snowtrace.io"))
+  val FANTOM_MAINNET = Blockchain("fantom",Some("250"),Some(18),Some("FTM"),Some("https://ftmscan.com"))
 
-  val SCROLL_MAINNET = Blockchain("scroll",Some("534352"),Some(18),Some("ETH"))
-  val ZKSYNC_MAINNET = Blockchain("zksync",Some("324"),Some(18),Some("ETH"))
-  val POLYGON_ZKEVM_MAINNET = Blockchain("polygon-zkevm",Some("1101"),Some(18),Some("ETH"))
+  val SCROLL_MAINNET = Blockchain("scroll",Some("534352"),Some(18),Some("ETH"),Some("https://scrollscan.com"))
+  val ZKSYNC_MAINNET = Blockchain("zksync",Some("324"),Some(18),Some("ETH"),Some("https://explorer.zksync.io"))
+  val POLYGON_ZKEVM_MAINNET = Blockchain("polygon-zkevm",Some("1101"),Some(18),Some("ETH"),Some("https://polygonzkevm.io"))
 
-  val LINEA_MAINNET = Blockchain("linea",Some("59144"),Some(18),Some("ETH"))
-  val BASE_MAINNET = Blockchain("base",Some("8453"),Some(18),Some("ETH"))
-  val BLAST_MAINNET = Blockchain("blast",Some("238"),Some(18),Some("ETH"))
+  val LINEA_MAINNET = Blockchain("linea",Some("59144"),Some(18),Some("ETH"),Some("https://lineaexplorer.io"))
+  val BASE_MAINNET = Blockchain("base",Some("8453"),Some(18),Some("ETH"),Some("https://basescan.org"))
+  val BLAST_MAINNET = Blockchain("blast",Some("238"),Some(18),Some("ETH"),Some("https://blastscan.io"))
 
-  val TELOS_MAINNET = Blockchain("telos",Some("40"),Some(18),Some("TLOS"))
-  val TRON_MAINNET = Blockchain("tron",Some("728126428"),Some(18),Some("TRX"))
+  val TELOS_MAINNET = Blockchain("telos",Some("40"),Some(18),Some("TLOS"),Some("https://teloscan.io"))
+  val TRON_MAINNET = Blockchain("tron",Some("728126428"),Some(18),Some("TRX"),Some("https://tronscan.org"))
+
+  val ZETA_MAINNET = Blockchain("zeta",Some("7000"),Some(18),Some("ZETA"),Some("https://explorer.zetachain.com"))
   
   // test networks
-  val BSC_TESTNET = Blockchain("bsc-testnet",Some("97"),Some(8),Some("BNB"))
-  val SEPOLIA = Blockchain("sepolia",Some("11155111"),Some(18),Some("ETH"))
+  val BSC_TESTNET = Blockchain("bsc_testnet",Some("97"),Some(8),Some("BNB"),Some("https://testnet.bscscan.com"))
+  val SEPOLIA = Blockchain("sepolia",Some("11155111"),Some(18),Some("ETH"),Some("https://sepolia.etherscan.io"))
   val ETHEREUM_SEPOLIA = SEPOLIA
-  val ANVIL = Blockchain("anvil",Some("31337"),Some(18),Some("ETH"))
+  val ANVIL = Blockchain("anvil",Some("31337"),Some(18),Some("ETH"),Some("https://otterscan.dev.hacken.cloud"))
+
+  
+  val ETHEREUM_HOLESKY = Blockchain("ethereum_holesky",Some("17000"),Some(18),Some("ETH"),Some("https://holesky.etherscan.io"))
+  val POLYGON_AMOY = Blockchain("polygon_amoy",Some("80001"),Some(18),Some("POL"),Some("https://amoy.polygonscan.com"))
 
   // default EVM
   val EVM = Blockchain("evm",Some("0"),Some(18),Some("ETH"))
@@ -70,6 +79,9 @@ object Blockchain {
     SEPOLIA.id.get -> SEPOLIA,
     ANVIL.id.get -> ANVIL,
     BSC_TESTNET.id.get -> BSC_TESTNET,
+
+    ETHEREUM_HOLESKY.id.get -> ETHEREUM_HOLESKY,
+    POLYGON_AMOY.id.get -> POLYGON_AMOY,
 
     EVM.id.get -> EVM
   )
@@ -110,6 +122,8 @@ object Blockchain {
       case ("sepolia" | "ethereum-sepolia" | "ethereum_sepolia")  :: Nil => Some(ETHEREUM_SEPOLIA)
       case "anvil"  :: Nil => Some(ANVIL)
       case ("bsc-testnet" | "bsc_testnet")  :: Nil => Some(BSC_TESTNET)
+      case ("holesky" | "ethereum_holesky")  :: Nil => Some(ETHEREUM_HOLESKY)
+      case ("amoy" | "polygon_amoy")  :: Nil => Some(POLYGON_AMOY)
       
       case network :: id :: _ => Some(new Blockchain(network,Some(id)))
 
@@ -135,4 +149,19 @@ object Blockchain {
   def apply(network:Option[String]):Option[Blockchain] = 
     network.map(apply)
   
+
+  def getExplorerTx(chain:Option[String],txHash:String):String = {
+    chain match {
+      case Some(c) => Blockchain.resolveByName(c).flatMap(_.exp).map(e => s"${e}/tx/${txHash}").getOrElse(txHash)
+      case None => txHash
+    }
+  }
+
+  def getExplorerBlock(chain:Option[String],block:String):String = {
+    chain match {
+      case Some(c) => Blockchain.resolveByName(c).flatMap(_.exp).map(e => s"${e}/block/${block}").getOrElse(block)
+      case None => block
+    }
+  }
+
 }

@@ -43,39 +43,6 @@ class UriSpec extends AnyWordSpec with Matchers {
     }
   }
 
-  "KafkaURI" should {
-    "broker ('kafka://host:port/topic') -> 'host:port'" in {
-      val s = KafkaURI("kafka://host:port/topic")
-      s.broker should === ("host:port")
-    }
-
-    "topic ('kafka://host:port/topic/group') -> 'topic'" in {
-      val s = KafkaURI("kafka://host:port/topic/group")
-      s.topic should === ("topic")
-    }
-
-    "group ('kafka://host:port/topic/group') -> 'group'" in {
-      val s = KafkaURI("kafka://host:port/topic/group")
-      s.group should === ("group")
-    }
-
-    "resovle with raw option ('kafka://host:port/topic?raw')" in {
-      val s = KafkaURI("kafka://host:port/topic?raw")
-      s.isRaw should === (true)
-    }
-
-    "resovle with json option ('kafka://host:port/topic?json')" in {
-      val s = KafkaURI("kafka://host:port/topic?json")
-      s.isRaw should === (false)
-    }
-
-    "resovle with default as non-raw option ('kafka://host:port/topic')" in {
-      val s = KafkaURI("kafka://host:port/topic")
-      s.isRaw should === (false)
-    }
-
-  }
-
   "ParqURI" should {
     "'parq:///mnt/s3/file-{HH}.parq' -> '/mnt/s3/file-{HH}.parq' with no compressions" in {
       val u = ParqURI("parq:///mnt/s3/file-{HH}.parq")

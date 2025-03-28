@@ -407,7 +407,9 @@ object Util {
 
   // more reliable BigInt converter of format is into double
   def toBigInt(v:String):BigInt = {
-    if(v.startsWith("0x")) 
+    if(v.isEmpty())
+      BigInt(0)
+    else if(v.startsWith("0x")) 
       BigInt(v.drop(2),16)
     else
     if(v.contains(".")) 

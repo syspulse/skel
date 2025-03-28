@@ -20,6 +20,7 @@ import org.quartz.CronScheduleBuilder._
 import org.quartz.DateBuilder._
 
 import io.syspulse.skel.config.Configuration
+import io.syspulse.skel.util.TimeUtil
 
 trait Cron[T] extends Closeable {
   def start():Try[T]
@@ -44,8 +45,13 @@ object Cron {
         new CronQuartz(exec,expr,conf = conf,cronName,jobName,groupName)
       
     } else {
-      val delay = settings.get("delay").asInstanceOf[Option[Long]].getOrElse(-1L)
-      val expression = if(rateLimit.isDefined && CronFreq.toMillis(expr) <= rateLimit.get)
+      val delay = settings.get("delay")
+        .asInstanceOf[Option[String]]
+        .filter(_.nonEmpty)
+        .map(TimeUtil.humanToMillis(_))
+        .getOrElse(-1L)
+
+      val expression = if(rateLimit.isDefined && TimeUtil.humanToMillis(expr) <= rateLimit.get)
         rateLimit.get.toString
       else
         expr

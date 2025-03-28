@@ -32,8 +32,11 @@ object App  {
         ArgString('q', "cron.quartz",s"quartz config properties (def: default) (def: ${d.quartz})"),
 
         ArgCmd("cron","Cron command"),
+        ArgCmd("quartz","Quartz command"),
         ArgCmd("freq","Frequency command (use cron.expr=10000)"),
+        
         ArgParam("<params>",""),
+
         ArgLogging(),
         ArgConfig(),
       ).withExit(1)
@@ -50,16 +53,21 @@ object App  {
     Console.err.println(s"Config: ${config}")
     
     val r = config.cmd match {
-      case "cron" =>        
+      case "cron" =>
+        val expr = config.params.drop(0).headOption.getOrElse("1000")
+        val delay = config.params.drop(1).headOption.getOrElse("")
+
         Cron((elapsed:Long) => {
             println(s"${System.currentTimeMillis}: ${Instant.now}: ${Thread.currentThread}: Ping: ${elapsed}")
             true
           },
-          config.params.mkString(" "),//config.expr,
+          expr = expr,
           settings = Map(
               "cronName"->s"cron-2",
               "jobName"->s"job-2",
-              "groupName"->s"group-2"
+              "groupName"->s"group-2",
+
+              "delay" -> delay,
             )
         ).start()
 

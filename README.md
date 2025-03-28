@@ -36,6 +36,27 @@ Prototyping Framework for Cloud Products
 ----
 ## Build & Run
 
+### sbt memory
+
+```
+sbt -mem 2000
+```
+
+or 
+
+```
+sbt -J-Xmx2G
+```
+
+or
+
+```
+# Jvm11
+export SBT_OPTS="-XX:+CMSClassUnloadingEnabled -XX:MaxPermSize=2G -Xmx2G -Xms2G"
+# Jvm21
+export SBT_OPTS="-Xmx2G -Xms2G"
+```
+
 Go to [skel-http](skel-http) for Building and Running generic skel component.
 
 Refer to specific demo for running Kubernetes Deployments or Docker-Compose topologies

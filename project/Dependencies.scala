@@ -2,7 +2,9 @@ import sbt._
 
 object Dependencies {
 
-    lazy val scala = "2.13.13"
+    // lazy val scala = "2.13.13"
+    lazy val scala = "2.13.15"
+
     // Versions
     lazy val versionScalaLogging = "3.9.2"
     lazy val akkaVersion    = "2.6.20"
@@ -26,6 +28,9 @@ object Dependencies {
 
     lazy val janinoVersion = "3.0.16" //"3.1.6" //"3.0.16"
     lazy val elastic4sVersion = "7.17.3"
+
+    lazy val web3jVersion = "4.9.2"
+    //lazy val web3jVersion = "4.13.0" // requires JDK 17 !
     
     lazy val appNameHttp = "skel-http"
     lazy val appBootClassHttp = "io.syspulse.skel.service.App"
@@ -55,7 +60,7 @@ object Dependencies {
     lazy val appNameElastic = "skel-elastic"
     lazy val appBootClassElastic = "io.syspulse.skel.ingest.elastic.App"
 
-    lazy val skelVersion = "0.0.10"
+    lazy val skelVersion = "0.13.0"
     
     lazy val jarPrefix = "server-"
     
@@ -164,8 +169,8 @@ object Dependencies {
 
     // val libWeb3jCrypto =    "org.web3j"                     % "crypto"              % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
     // val libWeb3jCore =      "org.web3j"                     % "core"                % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
-    val libWeb3jCrypto =      "org.web3j"                       % "crypto"              % "4.9.2" exclude("org.bouncycastle", "bcprov-jdk15on")
-    val libWeb3jCore =        "org.web3j"                       % "core"                % "4.9.2" exclude("org.bouncycastle", "bcprov-jdk15on")
+    val libWeb3jCrypto =      "org.web3j"                       % "crypto"              % web3jVersion exclude("org.bouncycastle", "bcprov-jdk15on")
+    val libWeb3jCore =        "org.web3j"                       % "core"                % web3jVersion exclude("org.bouncycastle", "bcprov-jdk15on")
     // Refactored: https://github.com/syspulse/eth-abi
     val libEthAbi =           "com.github.lbqds"                %% "ethabi"             % "0.4.1"
     

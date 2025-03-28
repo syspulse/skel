@@ -1,3 +1,5 @@
+javaOptions ++= Seq("-J-Xms2g -J-Xmx3g")
+
 import scala.sys.process.Process
 import Dependencies._
 import com.typesafe.sbt.packager.docker.DockerAlias
@@ -123,7 +125,9 @@ val sharedConfig = Seq(
     version         := skelVersion,
 
     scalacOptions ++= Seq("-unchecked", "-deprecation", "-feature", "-language:existentials", "-language:implicitConversions", "-language:higherKinds", "-language:reflectiveCalls", "-language:postfixOps"),
-    javacOptions ++= Seq("-target", "1.8", "-source", "1.8"),
+    // javacOptions ++= Seq("-target", "1.8", "-source", "1.8"),
+    javacOptions ++= Seq("-target", "11", "-source", "11"),
+    scalacOptions += "-release:11",
     
     crossVersion := CrossVersion.binary,
     resolvers ++= Seq(
@@ -347,6 +351,8 @@ lazy val root = (project in file("."))
              blockchain_evm,
              blockchain_tron,
              skel_dns,
+             ai_core,
+             ai_agent,
              skel_ai,
              skel_tls,
              tools,
@@ -375,6 +381,9 @@ lazy val root = (project in file("."))
              blockchain_tron,
              skel_dns,
              skel_ai,
+             ai_core,
+             ai_agent,
+             skel_tls,
              skel_test
              )  
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
@@ -1256,7 +1265,9 @@ lazy val blockchain_core = (project in file("skel-blockchain/blockchain-core"))
       sharedConfigAssembly,      
       name := "blockchain-core",
       
-      libraryDependencies ++= libTest
+      libraryDependencies ++= libTest ++ Seq(
+        libRequests
+      )
     )
 
 lazy val blockchain_evm = (project in file("skel-blockchain/blockchain-evm"))

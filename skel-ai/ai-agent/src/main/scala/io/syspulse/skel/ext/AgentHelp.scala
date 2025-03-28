@@ -32,8 +32,10 @@ class AgentHelp(val uri:OpenAiURI) extends AgentFile {
     //ModelId.gpt_3_5_turbo
   
   def getInstructions(): String = 
-    """
-    You are an assistant that helps me find Extractor product information and functionality description.
+"""You are an assistant that helps me find Extractor product information and functionality description.
+Extractor Documents often contain reference to images (as <img> tags in Markdown file). 
+Always try to return image references in response as Markdown image  even if user does not specifically asks for it.
+When returning reference replace prefix "../../" with prefix "https://raw.githubusercontent.com/haas-labs/ext-gitbook/main/.gitbook/"
     """
 
   def getVectorStoreId(): String = uri.vdb.get

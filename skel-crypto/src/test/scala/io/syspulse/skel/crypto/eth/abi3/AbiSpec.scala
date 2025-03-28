@@ -119,17 +119,55 @@ class AbiSpec extends AnyWordSpec with Matchers {
     //
   }
 
-  "generate trasfer() function" in {    
+  "parse trasfer() function" in {    
     val a = Abi.parse(ABI_ERC20_1)
     val f = a.getFunctionCall("transfer")
     f.get should === ("transfer(address,uint256)(bool)")
   }
 
-  "generate name() function" in {
+  "parse name() function" in {
+    val a = Abi.parse(ABI_ERC20_1)
+    val f = a.getFunctionCall("name()")
+    f.get should === ("name()(string)")
+  }
+
+  "parse name( ) function" in {
+    val a = Abi.parse(ABI_ERC20_1)
+    val f = a.getFunctionCall("name( )")
+    f.get should === ("name()(string)")
+  }
+
+  "parse 'name  ( )' function" in {
+    val a = Abi.parse(ABI_ERC20_1)
+    val f = a.getFunctionCall("name  ( )")
+    f.get should === ("name()(string)")
+  }
+
+  "parse 'name' function as name()" in {
     val a = Abi.parse(ABI_ERC20_1)
     val f = a.getFunctionCall("name")
     f.get should === ("name()(string)")
   }
 
+  "merge 2 ABIs" in {
+    val abi1 = """
+  [{
+    "constant": true,  "inputs": [], "name": "function1", "outputs": [ { "name": "", "type": "uint256" }], "payable": false,"stateMutability": "view","type": "function" 
+  }] """
+    val abi2 = """
+  [{
+    "constant": true,  "inputs": [], "name": "function2", "outputs": [ { "name": "", "type": "string" }], "payable": false,"stateMutability": "view","type": "function" 
+  }] """
+
+    val a1 = Abi(abi1)
+    val a2 = Abi(abi2)
+    val a3 = a1 ++ a2
+    a3.getDefinitions().size should === (2)
+    a3.getFunctions().size should === (2)
+    a3.getEvents().size should === (0)
+    a3.getConstructors().size should === (0)
+    a3.getFunctionCall("function1").get should === ("function1()(uint256)")
+    a3.getFunctionCall("function2").get should === ("function2()(string)")    
+  }
   
 }

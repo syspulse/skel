@@ -11,51 +11,34 @@ import io.syspulse.skel.util.Util
 import org.web3j.protocol.Web3j
 import io.syspulse.skel.crypto.Eth
 
-case class BlockchainRpc(name:String,id:Long,rpcUri:String,explorer:Option[String]=None) 
+case class BlockchainRpc(name:String,id:String,rpcUri:String,explorer:Option[String]=None) 
 
 class Blockchains(bb:Seq[String]) {
 
-  override def toString():String = blockchains.toString
+  override def toString():String = s"Blockchains(${rpc.toString})"
 
-  protected var blockchains:Map[Long,BlockchainRpc] = Map(
-    // 1L -> BlockchainRpc("ethereum",1L, "https://eth.drpc.org"),
-    // 42161L -> BlockchainRpc("arbitrum",42161L,"https://rpc.ankr.com/arbitrum"),
-    // 10L -> BlockchainRpc("optimism",10L,"https://optimism-mainnet.public.blastapi.io"),
-    // 137L -> BlockchainRpc("polygon",137L,"https://polygon.blockpi.network/v1/rpc/public"),
-    // 56L -> BlockchainRpc("bsc",56L,"https://rpc-bsc.48.club"),
-    // 100L -> BlockchainRpc("gnosis",100L,"https://rpc.gnosis.gateway.fm"),
-    // 250L -> BlockchainRpc("fantom",250L,"https://1rpc.io/ftm"),
-    // 43114L -> BlockchainRpc("avalanche",43114L,"https://avax.meowrpc.com"),
+  protected var blockchains:Map[String,BlockchainRpc] = Map(
+    // Blockchain.ETHEREUM.id.get -> BlockchainRpc(Blockchain.ETHEREUM.name,Blockchain.ETHEREUM.id.get,"https://eth.drpc.org",Blockchain.ETHEREUM.exp),
     
-    // 534352L -> BlockchainRpc("scroll",534352L,"https://rpc.scroll.io"),
-    // 324L -> BlockchainRpc("zksync",324L,"https://mainnet.era.zksync.io"),
-    // 1101L -> BlockchainRpc("polygon-zkevm",1101L,"https://zkevm-rpc.com"),
-
-    // 59144L -> BlockchainRpc("linea",59144L,"https://linea.decubate.com"),
-    // 8453L -> BlockchainRpc("base",8453L,"https://rpc.notadegen.com/base"),
-    // 238L -> BlockchainRpc("blast",238L,"https://rpc.blastblockchain.com"),
-
-    // 40L -> BlockchainRpc("telos",40L,"https://mainnet-eu.telos.net/evm"),
-    // 728126428L -> BlockchainRpc("tron",728126428L,"https://api.trongrid.io/jsonrpc",Some("https://tronscan.org/")),
     
-    31337L -> BlockchainRpc("anvil",31337L,"http://localhost:8545"),
-    11155111L -> BlockchainRpc("sepolia",11155111L,"https://rpc2.sepolia.org"),
+    Blockchain.ANVIL.id.get -> BlockchainRpc(Blockchain.ANVIL.name,Blockchain.ANVIL.id.get,"http://localhost:8545"),
+    Blockchain.SEPOLIA.id.get -> BlockchainRpc(Blockchain.SEPOLIA.name,Blockchain.SEPOLIA.id.get,"https://rpc2.sepolia.org"),
   )
 
   def ++(bb:Seq[String]):Blockchains = {
     val newBlockchains = bb.flatMap(b =>{
       b.replaceAll("\n","").split("=").toList match {
         case name :: id :: rpc :: _ => 
-          val bid = id.trim.toLong
-          Some(( bid ->  BlockchainRpc(name.trim(),bid,rpc), bid -> Eth.web3(rpc.trim()) ))
+          val bid = id.trim
+          Some(( bid ->  BlockchainRpc(name.trim(),bid,rpc.trim()), bid -> Eth.web3(rpc.trim()) ))
         case rpc :: id :: Nil => 
-          val bid = id.trim.toLong
-          Some(( bid ->  BlockchainRpc(bid.toString,bid,rpc), bid -> Eth.web3(rpc.trim()) ))
+          val bid = id.trim
+          Some(( bid ->  BlockchainRpc(bid.toString,bid,rpc.trim()), bid -> Eth.web3(rpc.trim()) ))
         case rpc :: Nil => 
           if(rpc.isBlank())
             None
           else
-            Some(( 1L ->  BlockchainRpc("mainnet",1L,rpc), 1L -> Eth.web3(rpc) ))
+            Some(( Blockchain.ETHEREUM.id.get ->  BlockchainRpc(Blockchain.ETHEREUM.name,Blockchain.ETHEREUM.id.get,rpc.trim()), Blockchain.ETHEREUM.id.get -> Eth.web3(rpc.trim()) ))
         case _ => None
       }
     })
@@ -65,16 +48,22 @@ class Blockchains(bb:Seq[String]) {
   }
 
   // map of connections
-  var rpc:Map[Long,Web3j] = blockchains.values.map( b => {
+  var rpc:Map[String,Web3j] = blockchains.values.map( b => {
     b.id -> Eth.web3(b.rpcUri)
   }).toMap
 
-  def get(id:Long) = blockchains.get(id)
+  def get(id:Long) = blockchains.get(id.toString)
   def getByName(name:String) = blockchains.values.find(_.name == name.toLowerCase())
-  def getWeb3(id:Long) = rpc.get(id) match {
+  def getWeb3(id:Long) = rpc.get(id.toString) match {
     case Some(web3) => Success(web3)
-    case None => Failure(new Exception(s"not found: ${id}"))
+    case None => Failure(new Exception(s"RPC not found: ${id}"))
   }
+  def getWeb3(name:String):Try[Web3j] = 
+    Try(
+      getByName(name)      
+        .flatMap(b => rpc.get(b.id))
+        .getOrElse(throw new Exception(s"RPC not found: '${name}'"))
+    )
 
   def all():Seq[BlockchainRpc] = blockchains.values.toSeq
 

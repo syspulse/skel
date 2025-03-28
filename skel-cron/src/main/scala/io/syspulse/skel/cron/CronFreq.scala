@@ -4,29 +4,8 @@ import scala.concurrent.duration.Duration
 import java.io.Closeable
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Try,Success,Failure}
+import io.syspulse.skel.util.TimeUtil
 
-object CronFreq {
-  def parseHuman(freq: String): Long = {
-    val pattern = """(\d+)\s*(ms|msec|millisecond|sec|second|min|minute|hour|day)s?""".r
-    freq.toLowerCase match {
-      case pattern(value, unit) => 
-        val milliseconds = unit match {
-          case "ms" | "msec" | "millisecond" | "milliseconds" => 1L
-          case "sec" | "second" | "seconds" => 1000L
-          case "min" | "minute" | "minutes" => 60000L
-          case "hour" | "hours" => 3600000L
-          case "day" | "days" => 86400000L
-        }
-        value.toLong * milliseconds
-      case _ => 
-        freq.toLong
-    }
-  }
-
-  def toMillis(expr: String): Long = {
-    CronFreq.parseHuman(expr)
-  }
-}
 
 // Simple Frequncy ticker
 class CronFreq(runner: (Long)=>Boolean, freq:String, delay0:Long = 250L, limit:Long = 0L) extends Cron[Unit] {
@@ -41,8 +20,8 @@ class CronFreq(runner: (Long)=>Boolean, freq:String, delay0:Long = 250L, limit:L
 
   val (interval:Long,delay:Long) = {
     freq.split("\\/").toList match {
-      case interval :: delay :: _ => (CronFreq.parseHuman(interval),delay.toLong)
-      case interval :: Nil => (CronFreq.parseHuman(interval),delay0)
+      case interval :: delay :: _ => (TimeUtil.humanToMillis(interval),TimeUtil.humanToMillis(delay))
+      case interval :: Nil => (TimeUtil.humanToMillis(interval),delay0)
       case _ => (1000L,delay0)
     }
   }

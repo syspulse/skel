@@ -7,16 +7,22 @@ import scala.jdk.CollectionConverters._
 import com.typesafe.scalalogging.Logger
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
+import java.io.File
 
 // Akka/Typesafe config supports EnvVar with -Dconfig.override_with_env_vars=true
 // Var format: CONFIG_FORCE_{var}. CASE-SENSITIVE !
 // Ignore if application.conf cannot be loaded
-class ConfigurationAkka extends ConfigurationTypesafe {
+class ConfigurationAkka(from:Option[String] = None) extends ConfigurationTypesafe {
 
   //withFallback(ConfigFactory.defaultReference(classLoader)
   var akkaConfig:Option[Config] = {
     try {
-      Some(ConfigFactory.load())
+      if(from.isDefined) {
+        log.info(s"Loading config: '${from.get}'")
+        Some(ConfigFactory.load(ConfigFactory.parseFile(new File(from.get)).resolve()))
+      }
+      else
+        Some(ConfigFactory.load())
     } catch {
       case e @ (_ : com.typesafe.config.ConfigException.IO | _ : Exception) => {
         log.error(s"Configuration not loaded: ",e)
@@ -29,7 +35,7 @@ class ConfigurationAkka extends ConfigurationTypesafe {
 }
 
 class ConfigurationAkkaOverride(config:Config) extends ConfigurationTypesafe {
-  var akkaConfig:Option[Config] = Some(config)
+  var akkaConfig:Option[Config] = Some(config.resolve())
 }
 
 

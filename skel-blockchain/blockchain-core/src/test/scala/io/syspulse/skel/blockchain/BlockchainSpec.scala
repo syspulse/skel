@@ -81,6 +81,26 @@ class BlockchainSpec extends AnyWordSpec with Matchers {
       val b = Blockchain.resolve("anvil")
       b should ===(Some(Blockchain.ANVIL))
     }
+
+    "get explorer URL for transaction" in {
+      val txHash = "0x123456789abcdef"
+      Blockchain.getExplorerTx(Some("ethereum"), txHash) should ===("https://etherscan.io/tx/0x123456789abcdef")
+      Blockchain.getExplorerTx(Some("bsc"), txHash) should ===("https://bscscan.com/tx/0x123456789abcdef")
+      Blockchain.getExplorerTx(Some("polygon"), txHash) should ===("https://polygonscan.com/tx/0x123456789abcdef")
+      Blockchain.getExplorerTx(Some("zksync"), txHash) should ===("https://explorer.zksync.io/tx/0x123456789abcdef")
+      Blockchain.getExplorerTx(Some("nonexistent"), txHash) should ===(txHash)
+      Blockchain.getExplorerTx(None, txHash) should ===(txHash)
+    }
+
+    "get explorer URL for block" in {
+      val blockNumber = "12345678"
+      Blockchain.getExplorerBlock(Some("ethereum"), blockNumber) should ===("https://etherscan.io/block/12345678")
+      Blockchain.getExplorerBlock(Some("bsc"), blockNumber) should ===("https://bscscan.com/block/12345678")
+      Blockchain.getExplorerBlock(Some("polygon"), blockNumber) should ===("https://polygonscan.com/block/12345678")
+      Blockchain.getExplorerBlock(Some("zksync"), blockNumber) should ===("https://explorer.zksync.io/block/12345678")
+      Blockchain.getExplorerBlock(Some("nonexistent"), blockNumber) should ===(blockNumber)
+      Blockchain.getExplorerBlock(None, blockNumber) should ===(blockNumber)
+    }
     
   }    
 }

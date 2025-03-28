@@ -91,7 +91,7 @@ object ExtCoreFunctions {
             "enum" -> networkTypes,
             "description" -> "Optional network of the contract. User must provide valid network."
           ),
-          "name" -> Map(
+          "contractName" -> Map(
             "type" -> "string",
             "description" -> "Name of the contract. Infer from the question."
           ),
@@ -143,7 +143,7 @@ object ExtCoreFunctions {
           ),
           "name" -> Map(
             "type" -> "string",
-            "description" -> "Name of the contract. Infer from the question."
+            "description" -> "Name of the contract. Infer from the question. If not possible to infer, use address as a name."
           ),
         ),
         "required" -> Seq("address","network","name"),
@@ -370,9 +370,13 @@ trait ExtCoreFunctions extends ExtClientProvider {
       val contractName = (functionArgsJson \ "contractName").asOpt[String]
       val network = (functionArgsJson \ "network").asOpt[String]
       val monitoringType = (functionArgsJson \ "monitoringType").as[String]
-      
+            
+      val contracts0 = extClient.getProjectContracts(projectId, address)
+
+      log.info(s"${address},${contractName},${network},${monitoringType} == ${contracts0}")
+
       // find contractId by address
-      val contracts = extClient.getProjectContracts(projectId, address)
+      val contracts = contracts0
         .filter(c => address.isEmpty || c.address.toLowerCase == address.get.toLowerCase)
         .filter(c => network.isEmpty || c.network.toLowerCase == network.get.toLowerCase)
         .filter(c => contractName.isEmpty || c.name.toLowerCase == contractName.get.toLowerCase)

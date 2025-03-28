@@ -18,6 +18,8 @@ APP_VER=`echo $APP_FULL | awk -F':' '{print $2}'`
 
 if [ "$VERSION" != "" ]; then
   APP_VER=$VERSION
+else
+  APP_VER=$(basename `ls target/scala-2.13/*.pom | tail -1` .pom | awk -F_ '{print $2}'| awk -F- '{print $2}')
 fi
 
 if [ "$APP_VER" != "" ]; then
@@ -45,6 +47,9 @@ case "$CMD" in
      aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin ${AWS}
      aws ecr create-repository --repository-name $APP_NAME
      docker push ${AWS}/$APP
+     ;;
+   aws-login)
+     aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin ${AWS}
      ;;
    deploy)
      # push to ECR

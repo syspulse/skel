@@ -118,5 +118,17 @@ class ConfigurationSpec extends AnyWordSpec with Matchers {
       val s = c.getSmartString("param.str") 
       s should === (Some("value-10"))
     }
+
+
+    "load config from Akka properties file" in {
+      val c = Configuration.withPriority(Seq(
+        new ConfigurationAkka(Some(s"${testDir}/application-test.conf"))
+      ))
+
+      info(s"c = ${c}")
+      
+      val s = c.getString("skel_test.test1") 
+      s should === (Some("value-1"))
+    }
   }
 }

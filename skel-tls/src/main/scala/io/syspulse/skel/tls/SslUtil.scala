@@ -40,7 +40,11 @@ class SslCertificateExtractor(url:String,verifyCert:Option[String]=None) {
   val END_CERT = "-----END CERTIFICATE-----";
 
   def resolve():Try[SslInfo] = {
-    val domain = url.toLowerCase.stripPrefix("http://").stripPrefix("https://")
+    val domain = url.toLowerCase
+      .stripPrefix("http://")
+      .stripPrefix("https://")
+      .split("/")
+      .head
     run(domain)
   }
   

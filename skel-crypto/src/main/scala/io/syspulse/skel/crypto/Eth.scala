@@ -44,6 +44,8 @@ import org.web3j.protocol.core.DefaultBlockParameter
 import org.web3j.abi.FunctionReturnDecoder
 import io.syspulse.skel.crypto.eth.Solidity
 import java.security.SecureRandom
+import org.web3j.protocol.core.DefaultBlockParameterNumber
+import org.web3j.protocol.core.methods.response.EthBlock.Block
 
 object Eth {
   val log = Logger(s"${this}")
@@ -477,7 +479,7 @@ object Eth {
   }
 
   // -----------------------------------------------------------------------------
-  def cotract(sk:String, contract:String, data:String,  value:String,
+  def contract(sk:String, contract:String, data:String,  value:String,
              gasPrice:String, gasTip:String, gasLimit:Long = 21000,             
              chainId:Long = 11155111, rpcUri:String = "http://localhost:8545") = 
     sendContract(sk,
@@ -564,10 +566,10 @@ object Eth {
     }
   }
 
-  def getNonce(addr:String)(implicit web3:Web3j):Try[Long] = {
+  def getNonce(addr:String,block:Option[Long] = None)(implicit web3:Web3j):Try[Long] = {
     val nonce = try {
       Success(
-        web3.ethGetTransactionCount(addr,DefaultBlockParameterName.PENDING).send().getTransactionCount().longValue()
+        web3.ethGetTransactionCount(addr,web3Block(block)).send().getTransactionCount().longValue()
       )
     } catch {
       case e:Exception => Failure(e)
@@ -575,10 +577,10 @@ object Eth {
     nonce
   }
 
-  def getBalance(addr:String)(implicit web3:Web3j):Try[BigInt] = {
+  def getBalance(addr:String,block:Option[Long] = None)(implicit web3:Web3j):Try[BigInt] = {
     val bal = try {
       Success(
-        BigInt(web3.ethGetBalance(addr,DefaultBlockParameterName.PENDING).send().getBalance())
+        BigInt(web3.ethGetBalance(addr,web3Block(block)).send().getBalance())
       )
     } catch {
       case e:Exception => Failure(e)
@@ -586,9 +588,9 @@ object Eth {
     bal
   }
 
-  def getBalanceAsync(addr:String)(implicit web3:Web3j,ec: ExecutionContext):Future[BigInt] = {
+  def getBalanceAsync(addr:String,block:Option[Long] = None)(implicit web3:Web3j,ec: ExecutionContext):Future[BigInt] = {
     web3
-      .ethGetBalance(addr,DefaultBlockParameterName.PENDING).sendAsync()
+      .ethGetBalance(addr,web3Block(block)).sendAsync()
       .asScala
       .map(r => BigInt(r.getBalance()))
   }
@@ -652,11 +654,20 @@ object Eth {
     estimateGas(from,contractAddress,encodedFunction)    
   }
 
-  def call(from:String,contractAddress:String,inputData:String,outputType:Option[String] = None)(implicit web3:Web3j):Try[String] = {
+  def web3Block(block:Option[Long] = None)(implicit web3:Web3j):DefaultBlockParameter = {
+    block match {
+      case Some(b) if(b == -2L) => DefaultBlockParameterName.PENDING
+      case Some(b) if(b == -1L) => DefaultBlockParameterName.EARLIEST
+      case Some(b) => new DefaultBlockParameterNumber(b)
+      case None => DefaultBlockParameterName.LATEST
+    }
+  }
+
+  def call(from:String, contractAddress:String, inputData:String, outputType:Option[String] = None, block:Option[Long] = None)(implicit web3:Web3j):Try[String] = {
     val tx = Transaction.createEthCallTransaction(from, contractAddress, inputData)
 
     for {
-      r <- Success(web3.ethCall(tx,DefaultBlockParameter.valueOf("latest")).send())
+      r <- Success(web3.ethCall(tx,web3Block(block)).send())
       
       result <- {
         if(r.hasError()) {
@@ -674,12 +685,47 @@ object Eth {
           throw new Exception(s"${contractAddress}: data=${inputData}: result=${result}")
         } 
         
-        log.info(s"call: ${contractAddress}: data=${inputData}: result=${result}")
+        log.info(s"call: ${block} / ${contractAddress}: data=${inputData}: result=${result} (outputType=${outputType})")
         
         if(outputType.isDefined && ! outputType.get.isEmpty()) {
-          decodeResult(Success(result),outputType.get)
+          Solidity.decodeResult(result,outputType.get)
         } else {
           Success(result)
+        }
+      }      
+    } yield result
+  }
+
+  def callAsync(from:String,contractAddress:String,inputData:String,outputType:Option[String] = None, block:Option[Long] = None)(implicit web3:Web3j,ec:ExecutionContext):Future[String] = {
+    val tx = Transaction.createEthCallTransaction(from, contractAddress, inputData)
+
+    for {
+      r <- web3.ethCall(tx,web3Block(block)).sendAsync().asScala
+      
+      result <- {
+        if(r.hasError()) {
+          throw new Exception(r.getError().getMessage())
+        }
+
+        if(r.isReverted()) {
+          throw new Exception(s"reverted: ${r.getRevertReason()}")
+        }
+
+        val result = r.getValue()
+
+        if(result == null) {
+          //log.error(s"Tx[${to},${valueWei},${gasPriceWei}/${gasTipWei}]: ${r.getError().getMessage()}")
+          throw new Exception(s"${contractAddress}: data=${inputData}: result=${result}")
+        } 
+        
+        log.info(s"call: ${contractAddress}: data=${inputData}: result=${result} (outputType=${outputType})")
+        
+        if(outputType.isDefined && ! outputType.get.isEmpty()) {
+          Future(
+            Solidity.decodeResult(result,outputType.get).get
+          )
+        } else {
+          Future.successful(result)
         }
       }      
     } yield result
@@ -701,40 +747,27 @@ object Eth {
     // Extract the string value
     decodedList.get(0).getValue.asInstanceOf[String]
   }
-  
-  def decodeResult(result:Try[String],outputType:String):Try[String] = {
-    result match {
-      case Success(v) =>
-        outputType match {
-          case uint if uint.startsWith("uint") => Success(Numeric.toBigInt(v).toString())
-          case int if int.startsWith("int") => Success(Numeric.toBigInt(v).toString())
-
-          case "address" => Success(s"0x${v.drop(2 + 24)}")
-          case "bool" => Success((BigInt(v.drop(2),16).toInt == 1).toString)
-          case "string" => 
-            //Success(new String(Util.fromHexString(v)))            
-            Success(hexToUtf8String(v))
-          case "" => // default is just byte array
-            Success(v)
-          case t => throw new Exception(s"unsupported type: '${t}'")
-        }
-      case Failure(e) => Failure(e)
-    }
-  }
-
+    
   def estimate(from:String,contractAddress:String,func:String,params:Seq[String])(implicit web3:Web3j):Try[BigInt] = {
     val (encodedFunction,outputType) = encodeFunction(func,params)
     estimateGas(from,contractAddress,encodedFunction)
   }
 
-  def call(from:String,contractAddress:String,func:String,params:Seq[String])(implicit web3:Web3j):Try[String] = {
+  def callFunction(from:String,contractAddress:String,func:String,params:Seq[String],block:Option[Long] = None)(implicit web3:Web3j):Try[String] = {
     val (encodedFunction,outputType) = encodeFunction(func,params)
-    val r = call(from,contractAddress,encodedFunction)
-    decodeResult(r,outputType)
+    for {
+      r <- call(from,contractAddress,encodedFunction,outputType = Some(outputType),block)
+      //r <- Solidity.decodeResult(r,outputType)
+    } yield r
   }
 
-  def callWithParams(from:String,contractAddress:String,func:String,params:String)(implicit web3:Web3j):Try[String] = {
-    call(from,contractAddress,func,if(params.isEmpty) Seq.empty else params.split("\\s+").toSeq)
+  def callFunctionAsync(from:String,contractAddress:String,func:String,params:Seq[String],block:Option[Long] = None)(implicit web3:Web3j,ec:ExecutionContext):Future[String] = {
+    val (encodedFunction,outputType) = encodeFunction(func,params)
+    callAsync(from,contractAddress,encodedFunction,outputType = Some(outputType),block)
+  }
+
+  def callFunctionWithParams(from:String,contractAddress:String,func:String,params:String)(implicit web3:Web3j):Try[String] = {
+    callFunction(from,contractAddress,func,if(params.isEmpty) Seq.empty else params.split("\\s+").toSeq)
   }
     
   def encodeFunction(func:String,params:Seq[String]):(String,String) = {
@@ -744,5 +777,65 @@ object Eth {
 
   def encodeFunctionWithParams(func:String,params:String):(String,String) = {
     encodeFunction(func,if(params.isEmpty) Seq.empty else params.split("\\s+").toSeq)
+  }
+
+  def getBalanceToken(addr:String,tokens:Seq[String],block:Option[Long] = None)(implicit web3:Web3j):Seq[Try[BigInt]] = {
+    val balances = tokens.map(token => {
+      try {
+        val r = callFunction(addr,token,"balanceOf(address)(uint256)",Seq(addr),block=block)
+        r.map(b => {
+          BigInt(b)
+        })        
+      } catch {
+        case e:Exception =>           
+          Failure(e)
+      }
+    })
+    balances
+  }
+
+  def getBlock(block:Option[Long] = None,tx:Boolean = false)(implicit web3:Web3j):Try[Block] = {
+    val r = web3.ethGetBlockByNumber(web3Block(block),tx).send()
+    
+    if(! r.hasError()) {
+      Success(r.getBlock())
+      
+    } else {
+      Failure(new Exception(r.getError().getMessage()))
+    }    
+  }
+
+  def getBlockAsync(block:Option[Long] = None,tx:Boolean = false)(implicit web3:Web3j,ec:ExecutionContext):Future[Block] = {
+    web3.ethGetBlockByNumber(web3Block(block),tx)
+      .sendAsync()
+      .asScala
+      .map(r => {
+        if(! r.hasError()) {
+          r.getBlock()
+        } else {
+          throw new Exception(r.getError().getMessage())
+        }
+      })
+  }
+
+  def getBalanceTokenAsync(addr:String,tokens:Seq[String],block:Option[Long] = None,delay:Long = 0L)(implicit web3:Web3j,ec:ExecutionContext):Future[Seq[Try[BigInt]]] = {
+    if(delay == 0L) {
+      val ff = tokens.map(token => {
+        callFunctionAsync(addr,token,"balanceOf(address)(uint256)",Seq(addr),block=block)
+        .map(b => Try(BigInt(b)))
+      })
+      val fd = Future.sequence(ff)
+      fd
+    } else {
+      val fd = Future {
+        tokens.map(token => {
+          val b = callFunction(addr,token,"balanceOf(address)(uint256)",Seq(addr),block=block)
+          .map(b => BigInt(b))
+          Thread.sleep(delay)
+          b
+        })
+      }
+      fd
+    }
   }
 }

@@ -39,7 +39,8 @@ case class Config(
   datastore:String = "",
   provider:String = "openai://",
   agent:String = "agent://ext-agent",
-  meta:Seq[String] = Seq("pid=898"),
+  meta:Seq[String] = Seq("pid=760"),
+  instructions:String = "",
 
   serviceUrl:String = "http://localhost:8080/api/v1/ext",
   serviceToken:Option[String] = None,
@@ -67,6 +68,7 @@ object App extends skel.Server {
         ArgString('s', "provider",s"Provider [openai://,ollama://] (def: ${d.provider})"),
         ArgString('a', "agent",s"Agent [ext://,weather://] (def: ${d.agent})"),
         ArgString('m', "meta",s"Metadata list (def: ${d.meta.mkString(",")})"),
+        ArgString('_', "agent.instructions",s"Instructions (def: ${d.instructions})"),
 
         ArgString('_', "service.url",s"Service uri (def: ${d.serviceUrl})"),
         ArgString('_', "service.token",s"Service access token (def: ${d.serviceToken})"),
@@ -84,6 +86,7 @@ object App extends skel.Server {
         ArgCmd("memory","Run prompt with memory"),
 
         ArgCmd("ext","Run Ext client"), //to work with Extractor API
+        //ArgUnknown(),
         
         ArgParam("<params>",""),
         ArgLogging(),
@@ -100,7 +103,8 @@ object App extends skel.Server {
       provider = c.getString("provider").getOrElse(d.provider),
       agent = c.getString("agent").getOrElse(d.agent),
       meta = c.getListString("meta",d.meta),
-
+      instructions = c.getString("agent.instructions").getOrElse(d.instructions),
+      
       serviceUrl = c.getString("service.url").getOrElse(d.serviceUrl),
       serviceToken = c.getString("service.token").orElse(d.serviceToken),
 
@@ -135,6 +139,12 @@ object App extends skel.Server {
       case "agent" :: "evm-agent" :: Nil => new AgentEvm(uri,extClient)
       case "agent" :: "token-agent" :: Nil => new AgentToken(uri,extClient)
       case "agent" :: "sec-agent" :: Nil => new AgentSec(uri,extClient)
+
+      case "agent" :: "fw-agent" :: Nil =>         
+        new AgentFw(uri,AgentFwConfig(config.instructions),extClient)
+
+      case "agent" :: "jail-agent" :: Nil => 
+        new AgentJail(uri,extClient)
 
       case ("agent" :: "prompt-agent" :: Nil) | ("prompt" :: Nil) =>
         new AgentPrompt(uri)
@@ -197,6 +207,13 @@ object App extends skel.Server {
               network = params(1),
               func = params(2),
               params = params.drop(3),
+            )
+
+          case "alert" =>
+            ext.alert(
+              cid = params(0).toInt,
+              did = params(1),
+              typ = params(2),
             )
 
           case _ =>

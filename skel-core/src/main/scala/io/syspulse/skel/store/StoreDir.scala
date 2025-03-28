@@ -14,6 +14,8 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
 
   @volatile var loading = false
 
+  def getDir():String = dir
+
   override def +(e:E):Try[E] = { 
     if( ! loading)
       writeFile(e)
@@ -31,7 +33,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
   }
 
   def write(data:String,name:String,subdir:String=""):Try[StoreDir[E,P]] = try {
-    val f = os.Path(dir + subdir,os.pwd) / name
+    val f = os.Path(getDir() + subdir,os.pwd) / name
     os.write.over(f,data)
     Success(this)
   } catch {
@@ -53,7 +55,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
   
   def delFileById(id:String):Try[String] = {
     try {
-      os.remove(os.Path(dir,os.pwd) / s"${id}.json")
+      os.remove(os.Path(getDir(),os.pwd) / s"${id}.json")
       Success(id)
     } catch {
       case e:Exception => 
@@ -82,7 +84,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
 
   def loaded() = {}
 
-  def load():String = load(this.dir,"")
+  def load():String = load(getDir(),"")
 
   def load(dir:String,hint:String=""):String = {
     val dir0 = os.Path(dir,os.pwd)
@@ -157,7 +159,10 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     log.info(s"Loading file: ${file}")
     val data = os.read(file)
     val ee = loadData(data,"",file.toIO.getName())
-    ee.foreach( e => StoreDir.this.+(e))    
+    ee.foreach( e => 
+      //StoreDir.this.+(e)
+      this.+(e)
+    )
   }
 
   def watch(dir:String):String = {

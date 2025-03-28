@@ -28,7 +28,7 @@ rlwrap ./run-agent.sh --provider="openai://gpt-4o?org=${OPENAI_ORG}&aid=${OPENAI
 
 ## HelpAgent
 
-Re-use Existing Assistant in Playground by ID:
+Re-use Existing Assistant in Playground by ID or creae new
 
 ```
 source ./env.openai
@@ -68,3 +68,19 @@ Delete Contract via Agent
 ```
 ./run-agent.sh ext-agent --service.url=https://api.dev.extractor.live/api/v1 deleteContract 898 0x00000000000000000000000000000000000face9
 ```
+
+
+
+### EvmAgent
+
+Create new Assistant or use Existing:
+
+```
+rlwrap ./run-agent.sh --provider="openai://gpt-4o?org=${OPENAI_ORG}&aid=${OPENAI_AID_EXT}" --agent=agent://ext-agent --service.url=${SERVICE_URL}
+```
+
+Run prompt: 
+```
+call EXT-1 function totalSupply
+```
+

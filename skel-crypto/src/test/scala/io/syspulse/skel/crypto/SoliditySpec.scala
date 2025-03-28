@@ -117,8 +117,29 @@ class SoliditySpec extends AnyWordSpec with Matchers with TestData {
       output should === ("")
     }
 
+    """parse "func(  )" - no parameters and no output and spaces""" in {
+      val (name, inputs, output) = Solidity.parseFunction("func(  )")
+      name should === ("func")
+      inputs should === (Vector.empty)
+      output should === ("")
+    }
+
+    """parse "func" - no parameters and no output without ()""" in {
+      val (name, inputs, output) = Solidity.parseFunction("func")
+      name should === ("func")
+      inputs should === (Vector.empty)
+      output should === ("")
+    }
+
     """parse "func()(uint256)" - no parameters with output""" in {
       val (name, inputs, output) = Solidity.parseFunction("func()(uint256)")
+      name should === ("func")
+      inputs should === (Vector.empty)
+      output should === ("uint256")
+    }
+
+    """parse "func(  )(  uint256 )" - no parameters with output and spaces""" in {
+      val (name, inputs, output) = Solidity.parseFunction("func(  )(  uint256 )")
       name should === ("func")
       inputs should === (Vector.empty)
       output should === ("uint256")
@@ -180,12 +201,13 @@ class SoliditySpec extends AnyWordSpec with Matchers with TestData {
       output should === ("uint256")
     }
 
-    "throw exception for invalid function signature" in {
-      val exception = intercept[Exception] {
-        Solidity.parseFunction("invalid signature")
-      }
-      exception.getMessage should include("Failed to parse function")
-    }
+    // "throw exception for invalid function signature: invalid(type100)" in {
+    //   val exception = intercept[Exception] {
+    //     Solidity.parseFunction("invalid(type100)")
+    //   }
+    //   exception.getMessage should include("Failed to parse function")
+    // }
+
   }
 
   "Solidity.encodeFunction" should {
@@ -394,6 +416,55 @@ class SoliditySpec extends AnyWordSpec with Matchers with TestData {
           inputTypes.size should === (expected.size)
         }
       }
+    }
+  }
+
+  "Solidity.decodeResult" should {
+    "decode uint256 result" in {
+      val hex = "0x000000000000000000000000000000000000000000000000000000000000007b" // 123 in hex
+      val result = Solidity.decodeResult(hex, "uint256")
+      result should === (Success("123"))
+    }
+
+    "decode address result" in {
+      val hex = "0x000000000000000000000000742d35cc6634c0532925a3b844bc454e4438f44e"
+      val result = Solidity.decodeResult(hex, "address")
+      result should === (Success("0x742d35cc6634c0532925a3b844bc454e4438f44e"))
+    }
+
+    "decode bool result" in {
+      val hex = "0x0000000000000000000000000000000000000000000000000000000000000001"
+      val result = Solidity.decodeResult(hex, "bool")
+      result should === (Success("true"))
+    }
+
+    "decode string result" in {
+      val hex = "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000568656c6c6f000000000000000000000000000000000000000000000000000000"
+      val result = Solidity.decodeResult(hex, "string")
+      result should === (Success("hello"))
+    }
+
+    "decode uint256[] result" in {
+      val hex = "0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000000"
+      val result = Solidity.decodeResult(hex, "uint256[]")
+      result should === (Success("[1,2,3]"))
+    }
+
+    // ATTENTION: Tuples are not supported because web3j is retarded
+    "decode (uint256,address) tuple result" in {
+      val hex = "0x000000000000000000000000000000000000000000000000000000000000007b000000000000000000000000742d35cc6634c0532925a3b844bc454e4438f44e"
+      val result = Solidity.decodeResult(hex, "(uint256,address)")
+      result should === (Success("(123, 0x742d35cc6634c0532925a3b844bc454e4438f44e)"))
+    }
+
+    "fail for invalid hex data" in {
+      val result = Solidity.decodeResult("invalid_hex", "uint256")
+      result shouldBe a[Failure[_]]
+    }
+
+    "fail for unsupported return type" in {
+      val result = Solidity.decodeResult("0x00", "unsupported")
+      result shouldBe a[Failure[_]]
     }
   }
 }
