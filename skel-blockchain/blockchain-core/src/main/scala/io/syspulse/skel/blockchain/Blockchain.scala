@@ -54,6 +54,9 @@ object Blockchain {
   // default EVM
   val EVM = Blockchain("evm",Some("0"),Some(18),Some("ETH"))
 
+  // ------------------------------------------------------------------------------------
+  val BITCOIN = Blockchain("bitcoin",None,Some(8),Some("BTC"),Some("https://blockstream.info"))
+
   val ALL = Map(
     ETHEREUM.id.get -> ETHEREUM,
     BSC_MAINNET.id.get -> BSC_MAINNET,

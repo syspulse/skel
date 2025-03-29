@@ -49,12 +49,13 @@ object Cron {
         .asInstanceOf[Option[String]]
         .filter(_.nonEmpty)
         .map(TimeUtil.humanToMillis(_))
-        .getOrElse(-1L)
+        .getOrElse(0L)
 
       val expression = if(rateLimit.isDefined && TimeUtil.humanToMillis(expr) <= rateLimit.get)
         rateLimit.get.toString
       else
         expr
+      
       new CronFreq(exec,expression,delay)
     }
   }   

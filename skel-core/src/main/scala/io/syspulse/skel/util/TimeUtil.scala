@@ -28,6 +28,9 @@ object TimeUtil {
     DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HHmmssZ"),    
   )
 
+  // Compiled patterns
+  private val NumberPattern = "^\\d+$".r.pattern
+  
   val formatsLocal = Seq(
     DateTimeFormatter.ofPattern("yyyy-MM-dd_HH:mm:ss"),
     DateTimeFormatter.ofPattern("yyyyMMddHHmmss"),
@@ -176,19 +179,72 @@ object TimeUtil {
   }
 
   def humanToMillis(freq: String): Long = {
-    val pattern = """(\d+)\s*(ms|msec|millisecond|sec|second|min|minute|hour|day)s?""".r
-    freq.toLowerCase match {
-      case pattern(value, unit) => 
-        val milliseconds = unit match {
-          case "ms" | "msec" | "millisecond" | "milliseconds" => 1L
-          case "sec" | "second" | "seconds" => 1000L
-          case "min" | "minute" | "minutes" => 60000L
-          case "hour" | "hours" => 3600000L
-          case "day" | "days" => 86400000L
-        }
-        value.toLong * milliseconds
-      case _ => 
-        freq.toLong
+    if(freq.trim.isEmpty) 
+      throw new IllegalArgumentException("Empty time expression")
+    
+    // Handle plain numbers as milliseconds
+    val trimmed = freq.trim
+    if(trimmed.startsWith("-"))
+      throw new IllegalArgumentException(s"Negative time expression: ${trimmed}")
+      
+    if(NumberPattern.matcher(trimmed).matches) {
+      return trimmed.toLong
+    }
+    
+    val unitMap = Map(
+      "ms" -> 1L,
+      "msec" -> 1L,
+      "millisecond" -> 1L,
+      "s" -> 1000L,
+      "sec" -> 1000L,
+      "second" -> 1000L,
+      "m" -> 60 * 1000L,
+      "min" -> 60 * 1000L,
+      "minute" -> 60 * 1000L,
+      "h" -> 60 * 60 * 1000L,
+      "hour" -> 60 * 60 * 1000L,
+      "d" -> 24 * 60 * 60 * 1000L,
+      "day" -> 24 * 60 * 60 * 1000L,
+      "w" -> 7 * 24 * 60 * 60 * 1000L,
+      "week" -> 7 * 24 * 60 * 60 * 1000L,
+      "month" -> 30L * 24L * 60L * 60L * 1000L,
+      "y" -> 365L * 24L * 60L * 60L * 1000L,
+      "year" -> 365L * 24L * 60L * 60L * 1000L
+    )
+
+    try {
+      // Check if the input contains any non-time parts
+      val validPattern = """^(\d+\s*[a-zA-Z]+\s*)+$""".r
+      if(!validPattern.pattern.matcher(freq.trim.toLowerCase).matches) {
+        throw new IllegalArgumentException(s"Invalid time expression format: ${freq}")
+      }
+      
+      // Split input into groups of number + unit
+      val pattern = """(\d+)\s*([a-zA-Z]+)""".r
+      val matches = pattern.findAllMatchIn(freq.trim.toLowerCase)
+      
+      val result = matches.map { m =>
+        val value = m.group(1).toLong
+
+        // handle plural forms except seconds
+        val unit = if(m.group(2).trim != "ms" && m.group(2).trim != "s") 
+          m.group(2).stripSuffix("s") 
+        else 
+          m.group(2)
+        
+        if(!unitMap.contains(unit))
+          throw new IllegalArgumentException(s"Invalid time unit: ${unit}")
+          
+        value * unitMap(unit)
+      }.sum
+      
+      if(result == 0L)
+        throw new IllegalArgumentException(s"Invalid time expression: ${freq}")
+        
+      result
+    } catch {
+      case e: IllegalArgumentException => throw e
+      case e: Exception => throw new IllegalArgumentException(s"Invalid time expression: ${freq}", e)
     }
   }
 }
