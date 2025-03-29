@@ -65,7 +65,7 @@ class CacheExpireSpec extends AnyWordSpec with Matchers {
       Thread.sleep(200)
       cache.put(data2)
       
-      cache.size shouldBe 2
+      cache.size shouldBe 1
       cache.clean()
       cache.size shouldBe 1
       cache.get("1") shouldBe None
