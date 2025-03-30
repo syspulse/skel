@@ -85,7 +85,7 @@ abstract class CacheHot[K,V,I](expiry:Long = 1000L * 60L * 10L) extends CacheThr
     cache = cache.filter(c => (now - c._2.ts) < expiry)
     cacheIndex = cacheIndex.filter(c => (now - c._2.ts) < expiry)
     val n1 = size
-    log.info(s"cache clean: ${n0} -> ${n1}")
+    log.debug(s"cache clean: ${n0} -> ${n1}")
     n1
   }
 

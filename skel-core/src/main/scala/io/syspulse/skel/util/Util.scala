@@ -494,5 +494,23 @@ object Util {
       case e:Exception => Failure(e)
     }
   }
+
+  def getStringMap(data:Option[String],default:Map[String,String] = Map.empty):Map[String,String] = {
+    if(!data.isDefined)
+      default
+    else {
+      data.get.split(",").flatMap(kv => {
+        kv.split("=").toList match {
+          case k :: v :: Nil =>
+            Some((k.trim -> v))
+          case k :: Nil => 
+            Some((k.trim -> ""))
+          case _ => None
+        }
+      })
+      .toMap
+    }
+    
+  }
 }
 
