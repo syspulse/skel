@@ -384,25 +384,34 @@ object Util {
   }
 
   def replaceEnvVar(expr:String,env:Map[String,String] = sys.env):String = {
-    if(!expr.contains('{') && !expr.contains('$'))
-      return expr
+    def replace(expr:String):String = {
+      if(!expr.contains('{') && !expr.contains("${"))
+        return expr
 
-    val i0 = expr.indexOf('{')
-    if(i0 == -1)
-      return expr
-    val i1 = expr.indexOf('}')
-    if(i1 == -1)
-      return expr
-    
-    val v = expr.substring(i0+1,i1)
-    val ev0 = env.get(v)
-    
-    val ev = if(!ev0.isDefined)
-      ""
-    else 
-      ev0.get
-    
-    (expr.take(i0) + ev + expr.drop(i0 + 1 + 1 + v.size)).replaceAll("\\$", "")
+      val i0 = expr.indexOf('{')
+      if(i0 == -1)
+        return expr
+      val i1 = expr.indexOf('}')
+      if(i1 == -1)
+        return expr
+      
+      val v = expr.substring(i0+1,i1)
+      val ev0 = env.get(v)
+      
+      val ev = if(!ev0.isDefined)
+        ""
+      else 
+        ev0.get
+      
+      val r = {
+        val expr1 = expr.substring(0,i1)
+        (expr1.take(i0) + ev + expr1.drop(i0 + 1 + 1 + v.size)).replace("$", "")
+      }
+      
+      r + replace(expr.substring(i1+1))
+    }
+
+    replace(expr)
   }
 
   // more reliable BigInt converter of format is into double

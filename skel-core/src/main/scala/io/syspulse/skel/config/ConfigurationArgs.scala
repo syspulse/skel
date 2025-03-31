@@ -91,10 +91,17 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
               log.info(s"Loading config: '${x}'...")
               if(!os.exists(os.Path(x,os.pwd))) throw new Exception(s"file not found: '${x}'")
 
-              //val baseConfig = ConfigFactory.load()
-              //val conf1 = ConfigFactory.parseFile(new File(x)).withFallback(baseConfig)
+              // Enable environment variable substitution
+              // System.setProperty("config.override_with_env_vars","true")
+              
+              // Load the config with environment variable resolution
               val conf1 = ConfigFactory.parseFile(new File(x))
+                // .withFallback(ConfigFactory.systemProperties())
+                // .withFallback(ConfigFactory.systemEnvironment())                
+                .resolve()
+                
               log.info(s"Config: '${x}': ${conf1}")
+              
               overrideConfig = Some(new ConfigurationAkkaOverride(conf1))
             } catch {
               case e: Exception => {

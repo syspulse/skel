@@ -298,9 +298,15 @@ class UtilSpec extends AnyWordSpec with Matchers {
     }
 
     """replaceEnvVar should replace '{USER}'""" in {
-      val e1 = """{USER}'"""
+      val e1 = """{USER}"""
       val e2 = Util.replaceEnvVar(e1,Map("USER" -> "1234"))
-      e2 should === ("""1234'""")
+      e2 should === ("""1234""")
+    }
+
+    """replaceEnvVar should replace '${USER}'""" in {
+      val e1 = """${USER}"""
+      val e2 = Util.replaceEnvVar(e1,Map("USER" -> "1234"))
+      e2 should === ("""1234""")
     }
 
     """replaceEnvVar should replace 'prefix_${NOT_FOUND}_suffix'""" in {
@@ -313,6 +319,12 @@ class UtilSpec extends AnyWordSpec with Matchers {
       val e1 = """prefix_$NOT_FOUND_suffix'"""
       val e2 = Util.replaceEnvVar(e1)
       e2 should !== ("""prefix__suffix'""")
+    }
+
+    """replaceEnvVar should replace all envs 'prefix_${USER}_fix_${USER}_suffix'""" in {
+      val e1 = """prefix_${USER}_fix_${USER}_suffix'"""
+      val e2 = Util.replaceEnvVar(e1,Map("USER" -> "1234"))
+      e2 should === ("""prefix_1234_fix_1234_suffix'""")
     }
 
     "toBigInt convert '100000000000000000000000'" in {
