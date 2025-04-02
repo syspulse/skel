@@ -49,7 +49,7 @@ object Blockchain {
 
   
   val ETHEREUM_HOLESKY = Blockchain("ethereum_holesky",Some("17000"),Some(18),Some("ETH"),Some("https://holesky.etherscan.io"))
-  val POLYGON_AMOY = Blockchain("polygon_amoy",Some("80001"),Some(18),Some("POL"),Some("https://amoy.polygonscan.com"))
+  val POLYGON_AMOY = Blockchain("polygon_amoy",Some("80002"),Some(18),Some("POL"),Some("https://amoy.polygonscan.com"))
 
   // default EVM
   val EVM = Blockchain("evm",Some("0"),Some(18),Some("ETH"))
