@@ -505,7 +505,7 @@ object Util {
   }
 
   def getStringMap(data:Option[String],default:Map[String,String] = Map.empty):Map[String,String] = {
-    if(!data.isDefined)
+    if(!data.isDefined || data.get.isEmpty)
       default
     else {
       data.get.split(",").flatMap(kv => {
@@ -522,4 +522,3 @@ object Util {
     
   }
 }
-
