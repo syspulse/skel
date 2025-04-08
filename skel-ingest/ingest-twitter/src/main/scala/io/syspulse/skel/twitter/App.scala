@@ -11,7 +11,8 @@ import io.syspulse.skel.twitter.TwitterConnect
 import java.util.concurrent.TimeUnit
 
 case class Config(  
-  cmd:String = "connect",
+  cmd:String = "ask",
+
   params: Seq[String] = Seq(),
 )
 
@@ -25,10 +26,13 @@ object App {
       new ConfigurationAkka,
       new ConfigurationProp,
       new ConfigurationEnv, 
-      new ConfigurationArgs(args,"twitter","",              
-        ArgCmd("connect","Connect to twitter"),
+      new ConfigurationArgs(args,"ingest-twitter","",        
+        
+        ArgCmd("connect","Connect to twitter via Uri (e.g. twitter://key:secret@channel)"),
+        ArgCmd("ask","Ask channel"),
         
         ArgParam("channels"),
+
         ArgLogging(),
         ArgConfig(),
       ).withExit(1)
@@ -49,6 +53,10 @@ object App {
       case "connect" =>         
         val connect = new TwitterConnect(config.params(0))    
         connect.ask(config.params.drop(1).toSet)
+
+      case "ask" =>         
+        val connect = new TwitterConnect("twitter://${CONSUMER_KEY}:${CONSUMER_SECRET}?freq=6000000")    
+        connect.ask(config.params.toSet)
     }
 
     Console.err.println(s"r = ${r}")

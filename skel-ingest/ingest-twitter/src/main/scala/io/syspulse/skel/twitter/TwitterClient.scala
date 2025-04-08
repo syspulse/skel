@@ -120,6 +120,7 @@ trait TwitterClient {
         val auth = ujson.read(r.text())
         val accessToken = auth.obj("access_token").str
         val refreshToken = ""
+        log.info(s"Login: ${accessToken.takeRight(10)}")
         Success(accessToken)
       } catch {
         case e:Exception => 
@@ -165,12 +166,17 @@ trait TwitterClient {
       res.status match {
         case StatusCodes.OK => 
           val body = res.entity.dataBytes.runReduce(_ ++ _)
+          log.info(s"${res.status}: ${res.headers.filter(_.name.startsWith("x-rate"))}")
           //Future(Source.future(body))
           body
+        case StatusCodes.TooManyRequests => 
+          val body = Await.result(res.entity.dataBytes.runReduce(_ ++ _),FiniteDuration(5000L,TimeUnit.MILLISECONDS)).utf8String
+          log.error(s"${res.status}: ${req}: ${res}")
+          throw new Exception(s"${req.uri}: ${res.status}")
         case _ => 
-          val body = Await.result(res.entity.dataBytes.runReduce(_ ++ _),FiniteDuration(1000L,TimeUnit.MILLISECONDS)).utf8String
-          log.error(s"${req}: ${res.status}: body=${body}")
-          throw new Exception(s"${req}: ${res.status}")
+          val body = Await.result(res.entity.dataBytes.runReduce(_ ++ _),FiniteDuration(5000L,TimeUnit.MILLISECONDS)).utf8String
+          log.error(s"${res.status}: ${req}: ${res}")
+          throw new Exception(s"${req.uri}: ${res.status}")
           // not really reachable... But looks extra-nice :-/
           //Future(Source.future(Future(ByteString(body))))
       }      
