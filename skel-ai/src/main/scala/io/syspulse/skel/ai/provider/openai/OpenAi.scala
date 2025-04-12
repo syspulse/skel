@@ -18,6 +18,8 @@ import io.syspulse.skel.ai.core.openai.OpenAiURI
 import io.syspulse.skel.ai.Chat
 import io.syspulse.skel.ai.ChatMessage
 import io.syspulse.skel.ai.provider.AiProvider
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 case class OpenAi_Msg(
   role:String,
@@ -125,6 +127,15 @@ case class OpenAi_ResponsesReq(
   //reasoning:Option[] = None,
 )
 
+case class OpenAi_StreamEvent(
+  event:String,
+)
+
+case class OpenAi_EventResponseCompleted(
+  `type`:String,
+  response:OpenAi_ResponsesRes
+)
+
 object OpenAi_Json extends JsonCommon {  
   implicit val jf_oai_msg = jsonFormat2(OpenAi_Msg)
   implicit val jf_oai_cho = jsonFormat3(OpenAi_Choices)
@@ -137,6 +148,10 @@ object OpenAi_Json extends JsonCommon {
   implicit val jf_oai_output = jsonFormat5(OpenAi_Output)
   implicit val jf_oai_res = jsonFormat12(OpenAi_ResponsesReq)  
   implicit val jf_oai_res_res = jsonFormat10(OpenAi_ResponsesRes)  
+
+  implicit val jf_oai_stream_event = jsonFormat1(OpenAi_StreamEvent)
+  implicit val jf_oai_event_response_completed = jsonFormat2(OpenAi_EventResponseCompleted)
+
 }
 
 class OpenAi(uri:String) extends AiProvider {
@@ -239,11 +254,11 @@ class OpenAi(uri:String) extends AiProvider {
     )(timeout, retry)
   }
 
-  def prompt(ai:Ai,model:Option[String],system:Option[String] = None,
-          timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Ai] = {
+  def prompt(ai:Ai,system:Option[String] = None,
+            timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Ai] = {
 
     val url = s"https://api.openai.com/v1/responses"
-    val modelReq = model.getOrElse(OpenAiURI.DEFAULT_MODEL)
+    val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
     val body = OpenAi_ResponsesReq(
       model = modelReq,
       input = Seq(
@@ -283,5 +298,81 @@ class OpenAi(uri:String) extends AiProvider {
       }, 
       s"responses: '${ai.question.take(32)}...'"
     )(timeout, retry)
+  }
+
+  def promptStream(ai: Ai, onEvent: (String) => Unit, system: Option[String] = None,
+                  timeout: Long = getTimeout(), retry: Int = getRetry()): Try[Ai] = {
+    
+    val url = s"https://api.openai.com/v1/responses"
+    val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
+    val body = OpenAi_ResponsesReq(
+      model = modelReq,
+      input = Seq(
+        OpenAi_Input("user", ai.question)
+      ),
+      stream = Some(true),
+      instructions = system,
+      previous_response_id = ai.xid,
+      store = aiUri.ops.get("store").map(_.toBoolean).orElse(Some(true)),
+      temperature = aiUri.temperature,
+      top_p = aiUri.topP,
+      max_output_tokens = aiUri.maxTokens,
+    ).toJson.compactPrint
+       
+    log.info(s"responses stream: ${modelReq}: [sys=${system.size}/q=${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")    
+
+    var a:Option[Ai] = None
+
+    val ii = withRetry({
+      val r = requests.post.stream(
+        url = url,
+        headers = Seq(
+          "Content-Type" -> "application/json", 
+          "Authorization" -> s"Bearer ${aiUri.apiKey}",
+          "Accept" -> "text/event-stream"
+        ),
+        data = body,
+        readTimeout = timeout.toInt,
+        connectTimeout = timeout.toInt
+      )
+      
+      r.readBytesThrough(is => {
+        val reader = new BufferedReader(new InputStreamReader(is))
+        Iterator.continually(reader.readLine())
+          .takeWhile(_ != null)
+          .foreach { line =>
+            if(line.nonEmpty) {
+
+              log.info(s"<- ${line}")
+
+              line match {                
+                case s"data: ${data}" =>
+                  // log.info(s"data: ${data}")
+
+                  if(data.startsWith("""{"type":"response.completed"""")) {
+                    val res = data.parseJson.convertTo[OpenAi_EventResponseCompleted]
+                    a = Some(ai.copy(answer = Some(res.response.output.head.content.head.text)))
+                  } else {
+                    onEvent(line)
+                  }
+
+                case s"event: ${event}" => 
+                  
+                case _ => 
+                  log.warn(s"unknown rsp: '${line}'")
+
+              }
+            }
+          }
+          
+      })
+
+    }, s"responses stream: '${ai.question.take(32)}...'")(timeout, retry)
+
+    ii match {
+      case Success(i) if(a.isDefined) => Success(a.get)
+      case Failure(e) => Failure(e)
+      case _ => Failure(new Exception(s"response.completed not received: ${ai.xid}"))
+    }
   }
 }

@@ -79,7 +79,8 @@ object App extends skel.Server {
         ArgCmd("store","Ask question from Store"),
         ArgCmd("ask","Ask question"),
         ArgCmd("chat","Chat"),
-        ArgCmd("prompt","Prompt"),        
+        ArgCmd("prompt","Prompt"),
+        ArgCmd("prompt-stream","Prompt stream"),        
 
         ArgParam("<params>",""),
         ArgLogging(),
@@ -152,6 +153,9 @@ object App extends skel.Server {
         
       case "prompt" => 
         prompt(config.ai,config.params)(config)
+
+      case "prompt-stream" => 
+        promptStream(config.ai,config.params)(config)
     }
     Console.err.println(s"r = ${r}")
   }
@@ -265,9 +269,53 @@ object App extends skel.Server {
         sys.exit(0)
       }
       if(!q.isEmpty) {
-        val a1 = provider.prompt(a.copy(question = q),a.model,Some(config.sys),10000,3)
+        val a1 = provider.prompt(a.copy(question = q),Some(config.sys),10000,3)
         Console.err.println(s"${a1.get}")
         val txt = a1.get.answer.get
+        Console.err.println(s"${Console.GREEN}${a1.get.model}${Console.YELLOW}: ${txt}${Console.RESET}")
+        a = a1.get
+      }
+    }
+  }
+
+  def promptStream(uri:String, params:Seq[String])(config:Config):Unit = {
+    import io.syspulse.skel.FutureAwaitable._
+
+    val u = AiURI(uri)
+
+    val provider:AiProvider = u.getProvider() match {
+      case Providers.OPEN_AI => new OpenAi(uri)
+      case _ => 
+        Console.err.println(s"Unknown AI provider: '${u.getProvider()}'")
+        sys.exit(1)
+    }
+
+    val a0 = Ai(
+      question = params.mkString(" "),
+      model = u.getModel(),
+      xid = u.tid
+    )
+
+    Console.err.println(s"q0 = '${a0.question}'")
+
+    var a = a0
+    for (i <- 1 to Int.MaxValue) {
+      Console.err.print(s"${a.model}: ${a.xid}: ${i}> ")
+      val q = scala.io.StdIn.readLine()
+      if(q == null || q.trim.toLowerCase() == "exit") {
+        sys.exit(0)
+      }
+      if(!q.isEmpty) {
+        
+        val a1 = provider.promptStream(a.copy(question = q),
+          (s:String) => Console.err.println(s"${s}"),
+          Some(config.sys),
+          10000,
+          3
+        )
+
+        Console.err.println(s"${a1.get}")
+        val txt = a1.get.answer.getOrElse("???")
         Console.err.println(s"${Console.GREEN}${a1.get.model}${Console.YELLOW}: ${txt}${Console.RESET}")
         a = a1.get
       }

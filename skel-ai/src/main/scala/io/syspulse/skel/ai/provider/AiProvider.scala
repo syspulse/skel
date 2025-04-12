@@ -41,6 +41,10 @@ trait AiProvider {
   def ask(question:String,model:Option[String],system:Option[String] = None,timeout:Long = 10000,retry:Int = 3):Try[Ai]  
   // chat (with context by Chat)
   def chat(chat:Chat,model:Option[String],system:Option[String] = None,timeout:Long = 10000,retry:Int = 3):Try[Chat]
+  
   // prompt (with context by Provider)
-  def prompt(ai:Ai,model:Option[String],system:Option[String] = None,timeout:Long = 10000,retry:Int = 3):Try[Ai]
+  def prompt(ai:Ai,system:Option[String] = None,timeout:Long = 10000,retry:Int = 3):Try[Ai]
+
+  // prompt (with context by Provider)
+  def promptStream(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = 10000,retry:Int = 3):Try[Ai]
 }
