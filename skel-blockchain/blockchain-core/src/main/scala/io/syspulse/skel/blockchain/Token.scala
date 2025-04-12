@@ -20,7 +20,7 @@ case class Token(
 case class Coin(
   sym:String,
   icon:Option[String] = None,
-  tokens:Map[String,Token] = Map(), // map of network -> addr
+  tokens:Map[String,Token] = Map(), // map of network -> addr  
 
   id:Option[String] = None,  // unique id (coingecko id)
   sid:Option[String] = None, // source id (coingecko)
@@ -28,6 +28,7 @@ case class Coin(
 ) {
   // primary address
   def getAddr():String = tokens.get("ethereum").map(_.addr).getOrElse("")
+  def dec:Int = tokens.get("ethereum").map(_.dec).getOrElse(18)
 }
 
 trait TokenProvider {
