@@ -1,9 +1,11 @@
 package io.syspulse.skel.ai.provider.openai
 
-import scala.util.Try
-import scala.util.{Success,Failure}
+import scala.util.{Try,Success,Failure}
 import scala.collection.immutable
-
+import scala.concurrent.Future
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import java.util.concurrent.TimeUnit
 import com.typesafe.scalalogging.Logger
 
 import os._
@@ -11,6 +13,7 @@ import io.jvm.uuid._
 
 import spray.json._
 import DefaultJsonProtocol._
+
 import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.ai.Ai
 import io.syspulse.skel.ai.core.Providers
@@ -20,6 +23,8 @@ import io.syspulse.skel.ai.ChatMessage
 import io.syspulse.skel.ai.provider.AiProvider
 import java.io.BufferedReader
 import java.io.InputStreamReader
+
+import scala.concurrent.ExecutionContext
 
 case class OpenAi_Msg(
   role:String,
@@ -254,8 +259,17 @@ class OpenAi(uri:String) extends AiProvider {
     )(timeout, retry)
   }
 
+  import io.syspulse.skel.FutureAwaitable
+  //import io.syspulse.skel.FutureAwaitable._
+  
   def prompt(ai:Ai,system:Option[String] = None,
-            timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Ai] = {
+            timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Ai] = {    
+    val f = promptAsync(ai,system,timeout,retry)(scala.concurrent.ExecutionContext.Implicits.global)
+    FutureAwaitable.awaitTry(f)(timeout)
+  }
+  
+  def promptAsync(ai:Ai,system:Option[String] = None,
+            timeout:Long = getTimeout(),retry:Int = getRetry())(implicit ec: ExecutionContext):Future[Ai] = {
 
     val url = s"https://api.openai.com/v1/responses"
     val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
@@ -274,34 +288,41 @@ class OpenAi(uri:String) extends AiProvider {
          
     log.info(s"responses: ${modelReq}: [sys=${system.size}/q=${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")    
 
-    withRetry(
-      {
-        val r = requests.post(
-          url = url,
-          headers = Seq(
-            "Content-Type" -> "application/json", 
-            "Authorization" -> s"Bearer ${aiUri.apiKey}"
-          ),
-          data = body,
-          readTimeout = timeout.toInt,
-          connectTimeout = timeout.toInt
-        )      
-        log.debug(s"${body}: ${r}")
+    Future{ 
+      withRetrying(
+        {
+          val r = requests.post(
+            url = url,
+            headers = Seq(
+              "Content-Type" -> "application/json", 
+              "Authorization" -> s"Bearer ${aiUri.apiKey}"
+            ),
+            data = body,
+            readTimeout = timeout.toInt,
+            connectTimeout = timeout.toInt
+          )      
+          log.debug(s"${body}: ${r}")
 
-        val res = r.text().parseJson.convertTo[OpenAi_ResponsesRes]
-              
-        ai.copy(
-          answer = Some(res.output.head.content.head.text),
-          model = Some(res.model),
-          xid = Some(res.id)
-        )
-      }, 
-      s"responses: '${ai.question.take(32)}...'"
-    )(timeout, retry)
+          val res = r.text().parseJson.convertTo[OpenAi_ResponsesRes]
+                
+          ai.copy(
+            answer = Some(res.output.head.content.head.text),
+            model = Some(res.model),
+            xid = Some(res.id)
+          )
+        }, 
+        s"responses: '${ai.question.take(32)}...'"
+      )(timeout, retry)
+    }
+  }
+  
+
+  def promptStream(ai: Ai, onEvent: (String) => Unit, system: Option[String] = None,timeout: Long = getTimeout(), retry: Int = getRetry()): Try[Ai] = {                    
+    val f = promptStreamAsync(ai,onEvent,system,timeout,retry)(scala.concurrent.ExecutionContext.Implicits.global)
+    FutureAwaitable.awaitTry(f)(timeout)
   }
 
-  def promptStream(ai: Ai, onEvent: (String) => Unit, system: Option[String] = None,
-                  timeout: Long = getTimeout(), retry: Int = getRetry()): Try[Ai] = {
+  def promptStreamAsync(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = 10000,retry:Int = 3)(implicit ec: ExecutionContext):Future[Ai] = {
     
     val url = s"https://api.openai.com/v1/responses"
     val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
@@ -320,59 +341,61 @@ class OpenAi(uri:String) extends AiProvider {
     ).toJson.compactPrint
        
     log.info(s"responses stream: ${modelReq}: [sys=${system.size}/q=${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")    
+    
+    Future {
+      var a:Option[Ai] = None
 
-    var a:Option[Ai] = None
+      withRetrying({
+        val r = requests.post.stream(
+          url = url,
+          headers = Seq(
+            "Content-Type" -> "application/json", 
+            "Authorization" -> s"Bearer ${aiUri.apiKey}",
+            "Accept" -> "text/event-stream"
+          ),
+          data = body,
+          readTimeout = timeout.toInt,
+          connectTimeout = timeout.toInt
+        )
+        
+        r.readBytesThrough(is => {
+          val reader = new BufferedReader(new InputStreamReader(is))
+          Iterator.continually(reader.readLine())
+            .takeWhile(_ != null)
+            .foreach { line =>
+              if(line.nonEmpty) {
 
-    val ii = withRetry({
-      val r = requests.post.stream(
-        url = url,
-        headers = Seq(
-          "Content-Type" -> "application/json", 
-          "Authorization" -> s"Bearer ${aiUri.apiKey}",
-          "Accept" -> "text/event-stream"
-        ),
-        data = body,
-        readTimeout = timeout.toInt,
-        connectTimeout = timeout.toInt
-      )
-      
-      r.readBytesThrough(is => {
-        val reader = new BufferedReader(new InputStreamReader(is))
-        Iterator.continually(reader.readLine())
-          .takeWhile(_ != null)
-          .foreach { line =>
-            if(line.nonEmpty) {
+                log.debug(s"<- ${line}")
 
-              log.info(s"<- ${line}")
+                line match {                
+                  case s"data: ${data}" =>
+                    // log.info(s"data: ${data}")
 
-              line match {                
-                case s"data: ${data}" =>
-                  // log.info(s"data: ${data}")
+                    if(data.startsWith("""{"type":"response.completed"""")) {
+                      val res = data.parseJson.convertTo[OpenAi_EventResponseCompleted]
+                      a = Some(ai.copy(answer = Some(res.response.output.head.content.head.text)))
+                    } else {
+                      onEvent(line)
+                    }
 
-                  if(data.startsWith("""{"type":"response.completed"""")) {
-                    val res = data.parseJson.convertTo[OpenAi_EventResponseCompleted]
-                    a = Some(ai.copy(answer = Some(res.response.output.head.content.head.text)))
-                  } else {
-                    onEvent(line)
-                  }
+                  case s"event: ${event}" => 
+                    
+                  case _ => 
+                    log.warn(s"unknown rsp: '${line}'")
 
-                case s"event: ${event}" => 
-                  
-                case _ => 
-                  log.warn(s"unknown rsp: '${line}'")
-
+                }
               }
             }
-          }
-          
-      })
+            
+        })
 
-    }, s"responses stream: '${ai.question.take(32)}...'")(timeout, retry)
+      }, s"responses stream: '${ai.question.take(32)}...'")(timeout, retry)      
 
-    ii match {
-      case Success(i) if(a.isDefined) => Success(a.get)
-      case Failure(e) => Failure(e)
-      case _ => Failure(new Exception(s"response.completed not received: ${ai.xid}"))
+      a match {
+        case Some(a) => a
+        case None => throw new Exception(s"response.completed not received: ${ai.xid}")
+      }
     }
   }
+  
 }

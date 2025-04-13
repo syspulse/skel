@@ -1,12 +1,10 @@
 package io.syspulse.skel.ai.provider
 
-import scala.util.Try
-import scala.util.{Success,Failure}
+import scala.util.{Try,Success,Failure}
 import scala.collection.immutable
 import com.typesafe.scalalogging.Logger
-
-import os._
-import io.jvm.uuid._
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 
 import io.syspulse.skel.ai.{Ai,Chat}
 import io.syspulse.skel.ai.ChatMessage
@@ -18,9 +16,13 @@ trait AiProvider {
   def getRetry():Int = 3
 
   protected def withRetry[T](operation: => T, desc: String)(timeout: Long = 10000, retry: Int = 3, baseWait: Long = 1000): Try[T] = {
-    def retryWithBackoff(i: Int): Try[T] = {
+    Try{ withRetrying(operation,desc)(timeout,retry,baseWait) }
+  }
+
+  protected def withRetrying[T](operation: => T, desc: String)(timeout: Long = 10000, retry: Int = 3, baseWait: Long = 1000): T = {
+    def retryWithBackoff(i: Int): T = {
       try {
-        Success(operation)
+        operation
       } catch {
         case e: Exception =>
           if (i > 1) {
@@ -30,7 +32,8 @@ trait AiProvider {
             retryWithBackoff(i - 1)
           } else {
             log.error(s"failed after: ${retry}: ${desc}", e)
-            Failure(e)
+            // throw awau
+            throw e
           }
       }
     }
@@ -44,7 +47,9 @@ trait AiProvider {
   
   // prompt (with context by Provider)
   def prompt(ai:Ai,system:Option[String] = None,timeout:Long = 10000,retry:Int = 3):Try[Ai]
+  def promptAsync(ai:Ai,system:Option[String] = None,timeout:Long = 10000,retry:Int = 3)(implicit ec: ExecutionContext):Future[Ai]
 
   // prompt (with context by Provider)
   def promptStream(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = 10000,retry:Int = 3):Try[Ai]
+  def promptStreamAsync(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = 10000,retry:Int = 3)(implicit ec: ExecutionContext):Future[Ai]
 }

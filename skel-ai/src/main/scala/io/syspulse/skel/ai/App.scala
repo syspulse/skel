@@ -26,6 +26,7 @@ import io.syspulse.skel.ai.provider.openai.OpenAi
 import io.syspulse.skel.ai.provider.AiProvider
 import scala.util.Success
 import scala.util.Failure
+import scala.concurrent.ExecutionContext
 
 case class Config(
   host:String="0.0.0.0",
@@ -215,7 +216,7 @@ object App extends skel.Server {
     var p = p0
 
     for (i <- 1 to Int.MaxValue) {
-      Console.err.print(s"${ai.getModel()}: [${p.messages.size}/${p.messages.map(_.content.size).sum}]: ${i}> ")
+      Console.err.print(s"${ai.getModel()}: [${p.messages.size}/${p.messages.map(_.content.size).sum}]:${i} > ")
       val q = scala.io.StdIn.readLine()
       if(q == null || q.trim.toLowerCase() == "exit") {
         sys.exit(0)
@@ -263,7 +264,7 @@ object App extends skel.Server {
 
     var a = a0
     for (i <- 1 to Int.MaxValue) {
-      Console.err.print(s"${a.model}: ${a.xid}: ${i}> ")
+      Console.err.print(s"${a.model}: ${a.xid}:${i} > ")
       val q = scala.io.StdIn.readLine()
       if(q == null || q.trim.toLowerCase() == "exit") {
         sys.exit(0)
@@ -277,6 +278,7 @@ object App extends skel.Server {
       }
     }
   }
+    
 
   def promptStream(uri:String, params:Seq[String])(config:Config):Unit = {
     import io.syspulse.skel.FutureAwaitable._
@@ -300,7 +302,7 @@ object App extends skel.Server {
 
     var a = a0
     for (i <- 1 to Int.MaxValue) {
-      Console.err.print(s"${a.model}: ${a.xid}: ${i}> ")
+      Console.err.print(s"${a.model}: ${a.xid}:${i} > ")
       val q = scala.io.StdIn.readLine()
       if(q == null || q.trim.toLowerCase() == "exit") {
         sys.exit(0)
@@ -308,7 +310,15 @@ object App extends skel.Server {
       if(!q.isEmpty) {
         
         val a1 = provider.promptStream(a.copy(question = q),
-          (s:String) => Console.err.println(s"${s}"),
+          (s:String) => {
+            s match {
+              case s"""data: {"type":"response.output_text.delta","item_id":${id},"output_index":${i},"content_index":${ic},"delta":"${txt}"}""" =>
+                Console.err.print(s"${txt}")
+              case _ => 
+                // ignore
+                //Console.err.println(s"${s}")
+            }
+          },
           Some(config.sys),
           10000,
           3
