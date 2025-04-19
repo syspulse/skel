@@ -140,7 +140,7 @@ trait TwitterClient {
 
   def getChannels():Set[String]
 
-  def request(followUsers:Set[String],past:Long,max:Long,accessToken:String):Future[ByteString] = {
+  def request(followUsers:Set[String],past:Long,max:Long,accessToken:String,latest:Long = 1L):Future[ByteString] = {
     // go into the past by speicif time hour
     //val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30).minusHours(pastHours).format(tsFormatISO)
     val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30 + past / 1000L).format(tsFormatISO)
@@ -189,6 +189,7 @@ trait TwitterClient {
              past:Long, // how far to check the past on each request (in milliseconds)
              freq:Long, // how often to check API
              max:Int,   // max results
+             latest:Int, // how many latest twits to return
              frameDelimiter:String,frameSize:Int) = {
     
     // try to login
@@ -218,7 +219,9 @@ trait TwitterClient {
         log.info(s"${followUsers}: results=${rsp.meta.result_count}")
         
         if(rsp.meta.result_count != 0) {
+          
           val users = rsp.includes.get.users
+          
           val tweets = rsp.data.get.flatMap( td => {
             val userId = users.find(_.id == td.author_id)
             userId.map(u => Twit(
@@ -235,14 +238,16 @@ trait TwitterClient {
           })
           .groupBy(_.author_id)           
           .map{ case(authorId,tt) => {
-            log.info(s"author=${authorId} (${tt.head.author_name}): tweets=(${tt.size})")
-            // get latest Twit
-            tt.maxBy(_.created_at)
+            log.info(s"author=${authorId} (${tt.head.author_name}): tweets=(${latest}/${tt.size})")
+            // get latest Twits 
+            //tt.maxBy(_.created_at)
+            tt.sortBy(- _.created_at).take(latest)
           }}
 
           tweets
         } else Seq.empty
       }}
+      .mapConcat(identity)
     
     // deduplication flow
     val s1 = s0
@@ -260,7 +265,7 @@ trait TwitterClient {
             state = state.takeWhile(t => t.created_at >= (now - past) )
             lastCheckTs = now            
           }
-          log.info(s"uniq: ${uniq}")
+          log.debug(s"Uniq: ${uniq}")
           uniq
         }
       }     
@@ -282,6 +287,7 @@ class FromTwitter(uri:String) extends TwitterClient {
            twitterUri.past,
            twitterUri.freq,
            twitterUri.max,
+           twitterUri.latest,
            frameDelimiter,frameSize)
 
     // convert back to String to be Pipeline Compatible

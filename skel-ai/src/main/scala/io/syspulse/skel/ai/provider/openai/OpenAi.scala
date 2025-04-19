@@ -44,7 +44,7 @@ case class OpenAi_Choices(
 )
 
 case class OpenAi_ChatUsage(
-  chat_tokens: Int,
+  prompt_tokens: Int,
   completion_tokens: Int,
   total_tokens: Int,
 )
@@ -166,7 +166,8 @@ class OpenAi(uri:String) extends AiProvider {
 
   override def getTimeout():Long = aiUri.timeout
   override def getRetry():Int = aiUri.retry
-  
+  override def getModel():Option[String] = aiUri.model
+
   def ask(question:String,model:Option[String],system:Option[String] = None,
           timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Ai] = {
 

@@ -14,6 +14,7 @@ trait AiProvider {
 
   def getTimeout():Long = 10000L
   def getRetry():Int = 3
+  def getModel():Option[String]
 
   protected def withRetry[T](operation: => T, desc: String)(timeout: Long = 10000, retry: Int = 3, baseWait: Long = 1000): Try[T] = {
     Try{ withRetrying(operation,desc)(timeout,retry,baseWait) }

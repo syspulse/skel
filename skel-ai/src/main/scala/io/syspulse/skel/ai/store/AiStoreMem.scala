@@ -48,7 +48,7 @@ class AiStoreMem extends AiStore {
   def ???(question:String,oid:Option[String]):Try[Ai] = ais.get(Util.sha256(question.toLowerCase)) match {
     case Some(w) if(!oid.isDefined) => Success(w)
     case Some(w) if(w.oid == oid) => Success(w)
-    case _ => Failure(new Exception(s"not found: ${question}"))
+    case _ => Failure(new Exception(s"not found: '${question}'"))
   }
 
   def ????(question:String,model:Option[String],oid:Option[String]):Try[Ai] =  ???(question,oid)
