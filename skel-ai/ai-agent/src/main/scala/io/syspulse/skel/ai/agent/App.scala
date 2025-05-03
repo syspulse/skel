@@ -22,14 +22,17 @@ import io.cequence.openaiscala.service.OpenAIServiceFactory
 import io.cequence.openaiscala.service.StreamedServiceTypes.OpenAIStreamedService
 import io.cequence.openaiscala.domain.settings.CreateCompletionSettings
 import io.cequence.openaiscala.domain.ModelId
-import io.cequence.openaiscala.service.StreamedServiceTypes.OpenAIStreamedService
 import io.cequence.openaiscala.service.OpenAIStreamedServiceImplicits._
 import io.cequence.openaiscala.domain.settings.CreateChatCompletionSettings
 import io.cequence.openaiscala.domain._
+
 import scala.io.StdIn
 import play.api.libs.json.Json
 
 import io.syspulse.skel.ext._
+import io.syspulse.skel.ai.agent.blockchain.AgentBlockchain
+
+import io.syspulse.skel.FutureAwaitable._
 
 case class Config(
   host:String="0.0.0.0",
@@ -80,8 +83,10 @@ object App extends skel.Server {
         ArgCmd("ext-agent","Call ext-agent functions"),
         ArgCmd("ext-agent-ask","Run ext-agent-ask"),
         ArgCmd("ext-agent-ask2","Run ext-agent-ask2"),
-        ArgCmd("evm-agent","Run evm-agent"),
-        
+        ArgCmd("evm-agent","Run evm-agent"),        
+
+        ArgCmd("delete","Delete Agent"),
+
         ArgCmd("prompt","Run prompt"),
         ArgCmd("memory","Run prompt with memory"),
 
@@ -145,6 +150,9 @@ object App extends skel.Server {
 
       case "agent" :: "jail-agent" :: Nil => 
         new AgentJail(uri,extClient)
+
+      case "agent" :: "blockchain-agent" :: Nil =>
+        new AgentBlockchain(uri)
 
       case ("agent" :: "prompt-agent" :: Nil) | ("prompt" :: Nil) =>
         new AgentPrompt(uri)
@@ -334,7 +342,10 @@ object App extends skel.Server {
         new AgentHelp(uri).ask(
           "What is Extractor?"
         )
-      
+
+      case "delete" =>
+        agent.delete().await()
+
       case "prompt" =>
         prompt(
           agent,
@@ -413,13 +424,15 @@ Otherwise, just answer the question.
 
     var metadata = metadata0
     var tid = ""
+    var aid = agent.getId().getOrElse("")
 
     val q0 = params.mkString(" ")
     Console.err.println(s"q0 = '${q0}'")    
     Console.err.println(s"tid = '${tid}'")
+    Console.err.println(s"aid = '${aid}'")
 
     for (i <- 1 to Int.MaxValue) {
-      Console.err.print(s"${tid}/${i}> ")
+      Console.err.print(s"${agent.getModel()} / ${aid} / ${tid} / ${i}> ")
       val q = StdIn.readLine()
       if(q == null || q.trim.toLowerCase() == "exit") {
         sys.exit(0)
@@ -427,8 +440,11 @@ Otherwise, just answer the question.
       if(!q.isEmpty) {
         val f = agent.ask(q,metadata=Some(metadata))
         val r = await(f)
+        
         Console.err.println(s"${r}")
-        val txt = r.get.head.content.head.text.get.value
+        val txt = r.get.head.content.last.text
+        aid = agent.getId().getOrElse("")
+        
         Console.err.println(s"${Console.GREEN}${agent.getName()}${Console.YELLOW}: ${txt}${Console.RESET}")
 
         // save thread_id

@@ -57,6 +57,10 @@ object App {
       case "ask" =>         
         val connect = new TwitterConnect("twitter://${CONSUMER_KEY}:${CONSUMER_SECRET}?freq=6000000")    
         connect.ask(config.params.toSet)
+
+      case "pipeline" | "flow" =>         
+        val connect = Flows.
+        connect.ask(config.params.toSet)
     }
 
     Console.err.println(s"r = ${r}")

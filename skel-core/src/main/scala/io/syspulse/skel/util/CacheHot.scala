@@ -8,7 +8,7 @@ import io.syspulse.skel.util.Util
 
 import scala.collection.mutable
 
-abstract class CacheHot[K,V,I](expiry:Long = 1000L * 60L * 10L) extends CacheThread { 
+abstract class CacheHot[K,V,I](expiry:Long) extends CacheThread { 
   val log = Logger[this.type]
   var cache = Map[K,Cachable[V]]()
   var cacheIndex = Map[I,Cachable[V]]()
