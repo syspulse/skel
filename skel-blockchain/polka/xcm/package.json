@@ -1,0 +1,23 @@
+{
+  "name": "polkadot-xcm-tracer",
+  "version": "1.0.0",
+  "description": "A simple application to trace XCM transfers between parachains on Polkadot",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "test-raw": "node index.js --test-raw",
+    "start:polkadot": "NETWORK=polkadot node index.js",
+    "start:bifrost": "NETWORK=bifrost node index.js",
+    "start:hydration": "NETWORK=hydration node index.js",
+    "start:asset-hub": "NETWORK=asset_hub node index.js",
+    "start:moonbeam": "NETWORK=moonbeam node index.js"
+  },
+  "dependencies": {
+    "@polkadot/api": "^15.9.3",
+    "@polkadot/types": "^15.9.3",
+    "@polkadot/util": "^13.4.4",
+    "dotenv": "^16.3.1",
+    "ws": "^8.16.0"
+  }
+} 
