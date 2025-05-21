@@ -3,6 +3,7 @@ import { Handle, Position, NodeProps, useReactFlow, Node } from 'reactflow';
 import {truncateAddr} from '../util/Util';
 import { networksMap } from '../Network';
 import './CustomNode.css';
+import ReactMarkdown from 'react-markdown';
 
 export type NodeType = 'address' | 'service' | 'gpt';
 
@@ -63,16 +64,13 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
             rows={3}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Enter your input here..."            
+            placeholder="Enter your input here..."
           />
         </div>
         <div className="gpt-output-container">
-          <textarea
-            className="gpt-output"
-            rows={5}
-            value={inputText}
-            readOnly
-          />
+          <div className="gpt-output">
+            <ReactMarkdown>{inputText}</ReactMarkdown>
+          </div>
         </div>
       </div>
     );
