@@ -252,6 +252,11 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
   // ------------------------------------------------------------------------ Keyboard ---
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {      
+      // Ignore if typing in a textarea or input
+      if (event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLInputElement) {
+        return;
+      }
+
       if (event.key === '/') {
         event.preventDefault(); // Prevent default action
         searchInputRef.current?.focus(); // Focus the search input
