@@ -5,7 +5,7 @@ import scala.jdk.CollectionConverters._
 import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.util.CacheExpire
+import io.syspulse.skel.util.CacheIndexExpire
 
 // compatible with old Token class
 case class Token(
@@ -152,7 +152,7 @@ class TokenProvidereDefault(tokens0:Set[Coin]) extends TokenProvider {
 class Tokens(providers:Seq[TokenProvider]) {
   val log = Logger[this.type]
 
-  val tokensCache = new CacheExpire[String,Coin,String](1000L * 60L * 60L * 24L * 30L) {
+  val tokensCache = new CacheIndexExpire[String,Coin,String](1000L * 60L * 60L * 24L * 30L) {
     def key(v:Coin):String = v.getAddr()
     def index(v:Coin):String = v.sym.toUpperCase  
   }
