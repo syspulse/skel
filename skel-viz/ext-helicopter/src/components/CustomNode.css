@@ -4,14 +4,24 @@
   border: 1px solid #ddd;
   border-radius: 1px;
   min-width: 150px;
+  min-height: 200px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
-.gpt-node .gpt-input-container,
+.gpt-node .gpt-input-container {
+  margin: 1px;
+  box-sizing: border-box;
+  width: calc(100% - 2px);
+}
+
 .gpt-node .gpt-output-container {
   margin: 1px;
   box-sizing: border-box;
   width: calc(100% - 2px);
+  flex: 1;
+  display: flex;
 }
 
 .gpt-node .gpt-input,
@@ -36,6 +46,8 @@
 .gpt-node .gpt-output {
   background-color: #f0f0f0;
   /* overflow-y: auto; */
+  font-size: 6px !important;
+  flex: 1;
 }
 
 .gpt-node .gpt-input:focus {
