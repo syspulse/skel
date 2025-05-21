@@ -1,0 +1,47 @@
+.gpt-node {
+  /* padding: 1px; */
+  /* background: #ffffff; */
+  border: 1px solid #ddd;
+  border-radius: 1px;
+  min-width: 150px;
+  box-sizing: border-box;
+}
+
+.gpt-node .gpt-input-container,
+.gpt-node .gpt-output-container {
+  margin: 1px;
+  box-sizing: border-box;
+  width: calc(100% - 2px);
+}
+
+.gpt-node .gpt-input,
+.gpt-node .gpt-output {
+  width: 100%;
+  /* padding: 1px; */
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: monospace;
+  resize: vertical;
+  font-size: 8px !important;
+  /* line-height: 1.2; */
+  /* min-height: 40px; */
+}
+
+.gpt-node .gpt-input {
+  background-color: #e0e0e0;
+  /* color: white; */
+}
+
+.gpt-node .gpt-output {
+  background-color: #f0f0f0;
+  /* overflow-y: auto; */
+}
+
+.gpt-node .gpt-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+/* Existing styles ... */ 

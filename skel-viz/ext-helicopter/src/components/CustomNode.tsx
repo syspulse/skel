@@ -1,9 +1,13 @@
-import React, { memo, useCallback, useEffect, useRef } from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Handle, Position, NodeProps, useReactFlow, Node } from 'reactflow';
 import {truncateAddr} from '../util/Util';
 import { networksMap } from '../Network';
+import './CustomNode.css';
+
+export type NodeType = 'address' | 'service' | 'gpt';
 
 interface CustomNodeData {
+  nodeType: NodeType;
   title: string;
   description: string;
   icon: string;
@@ -25,6 +29,7 @@ interface CustomNodeData {
 
 function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
   const { deleteElements, setNodes } = useReactFlow();
+  const [inputText, setInputText] = useState('');
 
   // --------------------------------------------------------------- Visual Effect only
   const txCountRef = useRef<HTMLSpanElement>(null);
@@ -49,9 +54,32 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
 
   const network = networksMap.get(data.network);  
 
+  const renderGPTNode = () => {
+    return (
+      <div className="gpt-node">
+        <div className="gpt-input-container">
+          <textarea
+            className="gpt-input"
+            rows={3}
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder="Enter your input here..."            
+          />
+        </div>
+        <div className="gpt-output-container">
+          <textarea
+            className="gpt-output"
+            rows={5}
+            value={inputText}
+            readOnly
+          />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div>
-      
       <button className="delete-button" onClick={onDelete}>×</button>
       {network && (
         <img 
@@ -63,7 +91,6 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
       )}
       <span className="custom-node-id-label">{id}</span>
       
-           
       <Handle type="target" position={Position.Top} id="top-target" className="target-handle" />
       <Handle type="source" position={Position.Top} id="top-source" className="source-handle" />
       
@@ -80,66 +107,68 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
         <Handle type="source" position={Position.Top} id="top-source-10" className="source-handle" style={{transform:'translate(+50%, 0%)'}} />
       ))}
       
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        
-        {data.icon && (
-          <img 
-            src={data.icon} 
-            className="custom-node-icon"
-            onDoubleClick={handleDoubleClick}
-            style={{ cursor: 'pointer' }}
-          />
-        )}
-
-        <div>                    
-          <div className="custom-node-title">
-            {data.title}
-          </div>
-
-          {data.tags && (
-            <div className="custom-node-tags">
-              {data.tags.split(',').map((tag, index) => (
-                <span key={index} className="custom-node-tag">{tag}</span>
-              ))}
-            </div>
-          )}
-          <a 
-            href={`${networksMap.get(data.network)?.explorer}/address/${data.description}`}
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="custom-node-description"
-          >
-            {truncateAddr(data.description)}
-          </a>
-        
-        </div>        
-      </div>
-
-      {data.telemetry && (
+      {data.nodeType === 'gpt' ? (
+        renderGPTNode()
+      ) : (
         <>
-          <div className="custom-node-separator"></div>
-          <div className="custom-node-counts">
-            <div className="count-item">
-              <span className="count-label">Tx:</span>
-              <span ref={txCountRef} className="count-value">{data.telemetry?.txCount}</span>
-            </div>
-            
-            <div className="count-item">
-              <span className="count-label">Mo:</span>
-              <span className="count-value-detector">{data.telemetry?.detectorCount}</span>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            {data.icon && (
+              <img 
+                src={data.icon} 
+                className="custom-node-icon"
+                onDoubleClick={handleDoubleClick}
+                style={{ cursor: 'pointer' }}
+              />
+            )}
 
-            <div className="count-item-alerts">
-              {/* <span className="count-label">Alert:</span> */}
-              <span className={data.telemetry.severityCritical && data.telemetry.severityCritical != 0 ? "count-value-alert-crit" : "count-value-alert" }>{data.telemetry?.severityCritical}</span>
-              <span className={data.telemetry.severityHigh && data.telemetry.severityHigh != 0 ? "count-value-alert-major" : "count-value-alert" }>{data.telemetry?.severityHigh}</span>
-              <span className={data.telemetry.severityMedium && data.telemetry.severityMedium != 0 ? "count-value-alert-med" : "count-value-alert" }>{data.telemetry?.severityMedium}</span>
-              <span className={data.telemetry.severityLow && data.telemetry.severityLow != 0 ? "count-value-alert-low" : "count-value-alert" }>{data.telemetry?.severityLow}</span>
-            </div> 
+            <div>                    
+              <div className="custom-node-title">
+                {data.title}
+              </div>
+
+              {data.tags && (
+                <div className="custom-node-tags">
+                  {data.tags.split(',').map((tag, index) => (
+                    <span key={index} className="custom-node-tag">{tag}</span>
+                  ))}
+                </div>
+              )}
+              <a 
+                href={`${networksMap.get(data.network)?.explorer}/address/${data.description}`}
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="custom-node-description"
+              >
+                {truncateAddr(data.description)}
+              </a>
+            </div>        
           </div>
+
+          {data.telemetry && (
+            <>
+              <div className="custom-node-separator"></div>
+              <div className="custom-node-counts">
+                <div className="count-item">
+                  <span className="count-label">Tx:</span>
+                  <span ref={txCountRef} className="count-value">{data.telemetry?.txCount}</span>
+                </div>
+                
+                <div className="count-item">
+                  <span className="count-label">Mo:</span>
+                  <span className="count-value-detector">{data.telemetry?.detectorCount}</span>
+                </div>
+
+                <div className="count-item-alerts">
+                  <span className={data.telemetry.severityCritical && data.telemetry.severityCritical != 0 ? "count-value-alert-crit" : "count-value-alert" }>{data.telemetry?.severityCritical}</span>
+                  <span className={data.telemetry.severityHigh && data.telemetry.severityHigh != 0 ? "count-value-alert-major" : "count-value-alert" }>{data.telemetry?.severityHigh}</span>
+                  <span className={data.telemetry.severityMedium && data.telemetry.severityMedium != 0 ? "count-value-alert-med" : "count-value-alert" }>{data.telemetry?.severityMedium}</span>
+                  <span className={data.telemetry.severityLow && data.telemetry.severityLow != 0 ? "count-value-alert-low" : "count-value-alert" }>{data.telemetry?.severityLow}</span>
+                </div> 
+              </div>
+            </>
+          )}
         </>
       )}
-      
     </div>
   );
 }

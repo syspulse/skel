@@ -296,6 +296,23 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
     setNodes((nds) => nds.concat(newNode));
   }, [nodes, setNodes]);
 
+  const onAddGPTNode = useCallback(() => {
+    const newNode = {
+      id: `gpt-${Date.now()}`,
+      type: 'custom',
+      position: { x: 0, y: 0 },
+      data: {
+        nodeType: 'gpt',
+        title: 'GPT Node',
+        description: '',
+        icon: '',
+        tags: '',
+        network: ''
+      }
+    };
+    setNodes((nds) => nds.concat(newNode));
+  }, [setNodes]);
+
   const onNodesDelete = useCallback((deleted: Node[]) => {
     setEdges((eds) => eds.filter((edge) => 
       !deleted.some((node) => node.id === edge.source || node.id === edge.target)
@@ -506,7 +523,8 @@ const DiagramEditor: React.FC<DiagramEditorProps> = ({ projectId, refreshFreq, s
     <div className="diagram-editor">
       <div className="diagram-content">
         <Sidebar 
-          onAddNode={onAddNode} 
+          onAddNode={onAddNode}
+          onAddGPTNode={onAddGPTNode}
           onSave={onSave} 
           onRestore={onRestore}
           onClearAll={handleClearAll}
