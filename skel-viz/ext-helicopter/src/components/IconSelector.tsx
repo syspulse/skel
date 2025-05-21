@@ -1,9 +1,9 @@
 import React from 'react';
 
 const icons = [
-  'https://cryptologos.cc/logos/uniswap-uni-logo.png',
-  'https://cryptologos.cc/logos/ethereum-eth-logo.png',
-  'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+  'https://assets.coingecko.com/coins/images/12504/standard/uniswap-logo.png',
+  '/assets/ethereum-icon.png',
+  'https://assets.coingecko.com/coins/images/1/standard/bitcoin.png',
   
   '/assets/alert-1.png',
   '/assets/alert-2.png',

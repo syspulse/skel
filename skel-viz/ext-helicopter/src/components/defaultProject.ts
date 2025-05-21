@@ -26,7 +26,7 @@ const initialNodes: Node[] = [
       title: 'Universal RouterV2', 
       description: '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD', 
       network: 'ethereum',
-      icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
+      icon: 'https://assets.coingecko.com/coins/images/12504/standard/uniswap-logo.png',
       tags: 'DEX,Uniswap',
       telemetry: {
         txCount: 0, 
@@ -43,7 +43,7 @@ const initialNodes: Node[] = [
       title: 'UNI', 
       description: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', 
       network: 'ethereum',
-      icon: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
+      icon: 'https://assets.coingecko.com/coins/images/12504/standard/uniswap-logo.png',
       tags: 'ERC20',
       // This node doesn't have telemetry, so counters won't be displayed      
     },
