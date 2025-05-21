@@ -78,6 +78,9 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
   const renderGPTNode = () => {
     return (
       <div className="gpt-node">
+        <div className="custom-node-title">
+          {data.title}
+        </div>
         <div className="gpt-input-container">
           <textarea
             className="gpt-input"

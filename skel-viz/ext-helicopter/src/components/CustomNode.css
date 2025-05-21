@@ -1,10 +1,10 @@
 .gpt-node {
   /* padding: 1px; */
   /* background: #ffffff; */
-  border: 1px solid #ddd;
+  border: 0px solid #ddd;
   border-radius: 1px;
   min-width: 150px;
-  min-height: 200px;
+  min-height: 50px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -20,26 +20,12 @@
   margin: 1px;
   box-sizing: border-box;
   width: calc(100% - 2px);
-  flex: 1;
-  display: flex;
-  overflow-y: auto;
+  height: 150px;
+  overflow: hidden;
 }
 
 .gpt-node .gpt-input,
 .gpt-node .gpt-output {
-  width: 100%;
-  /* padding: 1px; */
-  box-sizing: border-box;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-family: monospace;
-  resize: vertical;
-  font-size: 8px !important;
-  /* line-height: 1.2; */
-  /* min-height: 40px; */
-}
-
-.gpt-node .gpt-input {
   width: 100%;
   box-sizing: border-box;
   border: 1px solid #ccc;
@@ -51,46 +37,32 @@
   scrollbar-width: thin;
 }
 
-.gpt-node .gpt-input::-webkit-scrollbar {
+.gpt-node .gpt-input::-webkit-scrollbar,
+.gpt-node .gpt-output::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-.gpt-node .gpt-input::-webkit-scrollbar-thumb {
+.gpt-node .gpt-input::-webkit-scrollbar-thumb,
+.gpt-node .gpt-output::-webkit-scrollbar-thumb {
   background-color: #888;
   border-radius: 4px;
 }
 
-.gpt-node .gpt-input::-webkit-scrollbar-track {
+.gpt-node .gpt-input::-webkit-scrollbar-track,
+.gpt-node .gpt-output::-webkit-scrollbar-track {
   background-color: #f1f1f1;
 }
 
+.gpt-node .gpt-input {
+  background-color: #e0e0e0;
+}
+
 .gpt-node .gpt-output {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 6px !important;
   background-color: #f0f0f0;
-  flex: 1;
+  height: 100%;
   padding: 4px;
   overflow-y: auto;
-}
-
-.gpt-node .gpt-output p {
-  margin: 0 0 4px 0;
-}
-
-.gpt-node .gpt-output pre {
-  background-color: #e8e8e8;
-  padding: 4px;
-  border-radius: 2px;
-  margin: 4px 0;
-}
-
-.gpt-node .gpt-output code {
-  font-family: monospace;
-  font-size: 6px;
 }
 
 .gpt-node .gpt-input:focus {
@@ -120,6 +92,15 @@
 
 .gpt-node .gpt-output tr:nth-child(even) {
   background-color: #f5f5f5;
+}
+
+.gpt-node .custom-node-title {
+  font-size: 10px;
+  font-weight: bold;
+  margin-bottom: 4px;
+  padding: 2px 4px;
+  background-color: #f0f0f0;
+  border-radius: 2px;
 }
 
 /* Existing styles ... */ 
