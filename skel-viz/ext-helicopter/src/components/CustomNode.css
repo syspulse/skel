@@ -108,4 +108,36 @@
   border-radius: 2px;
 }
 
+.chart-container {
+  width: 200px;
+  height: 150px;
+  padding: 0;
+  box-sizing: border-box;
+  background-color: white;
+  border-radius: 4px;
+  margin-top: 4px;
+  position: relative;
+}
+
+.chart-container .recharts-wrapper {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.chart-container .recharts-surface {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.chart-container .recharts-legend-wrapper {
+  font-size: 10px;
+}
+
+.chart-container .recharts-tooltip-wrapper {
+  font-size: 10px;
+}
+
 /* Existing styles ... */ 

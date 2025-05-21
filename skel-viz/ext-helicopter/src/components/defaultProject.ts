@@ -92,6 +92,62 @@ const initialNodes: Node[] = [
       },
     },
   },
+  {
+    id: 'pie-chart-1',
+    type: 'custom',
+    position: { x: 0, y: -150 },
+    data: {
+      nodeType: 'chart',
+      title: 'Balance Distribution',
+      description: '',
+      icon: '',
+      tags: '',
+      network: '',
+      chartData: {
+        style: 'pie',
+        data: [
+          { address: '0x6e850415f94c47f6e9dc5d89c906f7387697f771', current_balance: 14251464.546782 },
+          { address: '0x3fb4fbc8c83acd1b1d5f9d74eeeeef83940c3f1c', current_balance: 8273572 },
+          { address: '0xb0a3a2b60e969afd26561429aa4c1444c57e4411', current_balance: 3222259.3200000003 },
+          { address: '0x7c8aa3dd42fc0c9646552c638af532eb56ccbea8', current_balance: 2029652.7790632173 },
+          { address: '0x89829cb5f2958282ce98d5b7fa7b8da5f22ec7ac', current_balance: 1919002.7702221212 },
+          { address: '0xc5c9da1c2c64ed6eb60d0230c1a3b7e5cace1628', current_balance: 1779618.314404438 },
+          { address: '0xc59a0d903ae08ae9e2f777ef4716eea414c2ccfb', current_balance: 1779618.314404438 },
+          { address: '0x47bf9ceb0515f3213130a34afca6a2d5424d0fa2', current_balance: 1711581.3426184566 },
+          { address: '0x376c7fc57f008e96e338fedcedd8660a7e10e893', current_balance: 1562109.006556454 },
+          { address: '0xf04627785a0a6a9287b03fd5be4671fca9dc1049', current_balance: 1562109.006556454 }
+        ]
+      }
+    }
+  },
+  {
+    id: 'timeseries-1',
+    type: 'custom',
+    position: { x: 250, y: -150 },
+    data: {
+      nodeType: 'chart',
+      title: 'Transaction History',
+      description: '',
+      icon: '',
+      tags: '',
+      network: '',
+      chartData: {
+        style: 'timeseries',
+        data: [
+          { block_date: '2024-08-30', total_transactions: 26189 },
+          { block_date: '2024-08-31', total_transactions: 85719 },
+          { block_date: '2024-09-01', total_transactions: 85717 },
+          { block_date: '2024-09-02', total_transactions: 85712 },
+          { block_date: '2024-09-03', total_transactions: 85714 },
+          { block_date: '2024-09-04', total_transactions: 85708 },
+          { block_date: '2024-09-05', total_transactions: 85715 },
+          { block_date: '2024-09-06', total_transactions: 85340 },
+          { block_date: '2024-09-07', total_transactions: 85707 },
+          { block_date: '2024-09-08', total_transactions: 85712 }
+        ]
+      }
+    }
+  },
 ];
 
 

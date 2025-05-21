@@ -6,8 +6,24 @@ import './CustomNode.css';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-export type NodeType = 'address' | 'service' | 'gpt';
+export type NodeType = 'address' | 'service' | 'gpt' | 'chart';
+
+interface PieChartEntry {
+  address: string;
+  current_balance: number;
+}
+
+interface TimeSeriesEntry {
+  block_date: string;
+  total_transactions: number;
+}
+
+interface ChartData {
+  style: 'pie' | 'timeseries';
+  data: PieChartEntry[] | TimeSeriesEntry[];
+}
 
 interface CustomNodeData {
   nodeType: NodeType;
@@ -18,6 +34,7 @@ interface CustomNodeData {
   tags: string;
   network: string;
   inputText?: string;
+  chartData?: ChartData;
   telemetry?: {
     txCount: number;
     alertCount: number;
@@ -111,6 +128,82 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
     );
   };
 
+  const renderChartNode = (data: CustomNodeData) => {
+    const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#8884d8', '#82ca9d'];
+
+    if (!data.chartData) return null;
+
+    const { style, data: chartData } = data.chartData;
+
+    if (style === 'pie') {
+      return (
+        <div className="chart-container">
+          <ResponsiveContainer>
+            <PieChart>
+              <Pie
+                data={chartData as PieChartEntry[]}
+                dataKey="current_balance"
+                nameKey="address"
+                cx="50%"
+                cy="50%"
+                innerRadius={40}
+                outerRadius={60}
+                label={({ address, percent, x, y }: { address: string; percent: number; x: number; y: number }) => (
+                  <text
+                    x={x}
+                    y={y}
+                    textAnchor="middle"
+                    fill="#666"
+                    style={{ fontSize: '6px' }}
+                  >
+                    {`${truncateAddr(address)} ${(percent * 100).toFixed(0)}%`}
+                  </text>
+                )}
+              >
+                {(chartData as PieChartEntry[]).map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    if (style === 'timeseries') {
+      return (
+        <div className="chart-container">
+          <ResponsiveContainer>
+            <LineChart data={chartData as TimeSeriesEntry[]}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                dataKey="block_date" 
+                tick={{ fontSize: 10 }}
+                angle={-45}
+                textAnchor="end"
+              />
+              <YAxis 
+                tick={{ fontSize: 10 }}
+              />
+              <Tooltip />
+              <Line 
+                type="monotone" 
+                dataKey="total_transactions" 
+                stroke="#8884d8" 
+                strokeWidth={2}
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div>
       <button className="delete-button" onClick={onDelete}>×</button>
@@ -142,6 +235,13 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
       
       {data.nodeType === 'gpt' ? (
         renderGPTNode()
+      ) : data.nodeType === 'chart' ? (
+        <>
+          <div className="custom-node-title">
+            {data.title}
+          </div>
+          {renderChartNode(data)}
+        </>
       ) : (
         <>
           <div style={{ display: 'flex', alignItems: 'center' }}>
