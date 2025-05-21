@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Handle, Position, NodeProps, useReactFlow, Node } from 'reactflow';
-import {truncateAddr} from '../util/Util';
+import {truncateAddr, truncateAddrChart} from '../util/Util';
 import { networksMap } from '../Network';
 import './CustomNode.css';
 import ReactMarkdown from 'react-markdown';
@@ -156,7 +156,7 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
                     fill="#666"
                     style={{ fontSize: '6px' }}
                   >
-                    {`${truncateAddr(address)} ${(percent * 100).toFixed(0)}%`}
+                    {`${truncateAddrChart(address)} ${(percent * 100).toFixed(0)}%`}
                   </text>
                 )}
               >
@@ -175,18 +175,23 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
       return (
         <div className="chart-container">
           <ResponsiveContainer>
-            <LineChart data={chartData as TimeSeriesEntry[]}>
+            <LineChart 
+              data={chartData as TimeSeriesEntry[]}
+              margin={{ top: 5, right: 5, bottom: 5, left: 0 }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
                 dataKey="block_date" 
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 6 }}
                 angle={-45}
                 textAnchor="end"
+                height={30}
               />
               <YAxis 
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 6 }}
+                width={30}
               />
-              <Tooltip />
+              <Tooltip contentStyle={{ fontSize: '6px' }} />
               <Line 
                 type="monotone" 
                 dataKey="total_transactions" 
