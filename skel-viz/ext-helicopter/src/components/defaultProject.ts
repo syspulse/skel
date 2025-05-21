@@ -2,6 +2,33 @@ import { Edge, MarkerType, Node } from 'reactflow';
 
 const initialNodes: Node[] = [
   {
+    id: 'gpt-1',
+    type: 'custom',
+    position: { x: -200, y: 0 },
+    data: { 
+      nodeType: 'gpt',
+      title: 'GPT Node',
+      description: '',
+      network: '',
+      icon: '',
+      tags: '',
+      inputText: `# Example Content
+
+## Table
+| Name | Type | Value |
+|------|------|-------|
+| ETH | Token | 2000 |
+| BTC | Token | 40000 |
+| USDC | Stable | 1 |
+
+## Standard Image
+![Uniswap Logo](https://assets.coingecko.com/coins/images/12504/standard/uniswap-logo.png)
+
+## Resized Image
+<img src="https://assets.coingecko.com/coins/images/12504/standard/uniswap-logo.png" width="32" alt="Uniswap Logo">`
+    },
+  },
+  {
     id: '2134',
     type: 'custom',
     position: { x: 0, y: 0 },

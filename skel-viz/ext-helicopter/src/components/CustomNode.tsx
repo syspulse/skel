@@ -4,6 +4,8 @@ import {truncateAddr} from '../util/Util';
 import { networksMap } from '../Network';
 import './CustomNode.css';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 
 export type NodeType = 'address' | 'service' | 'gpt';
 
@@ -15,7 +17,7 @@ interface CustomNodeData {
   extraHandles?: { type: 'source' | 'target',  position: Position}[];
   tags: string;
   network: string;
-
+  inputText?: string;
   telemetry?: {
     txCount: number;
     alertCount: number;
@@ -30,7 +32,25 @@ interface CustomNodeData {
 
 function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
   const { deleteElements, setNodes } = useReactFlow();
-  const [inputText, setInputText] = useState('');
+  const [inputText, setInputText] = useState(data.inputText || '');
+
+  // Update inputText when data changes
+  useEffect(() => {
+    if (data.inputText !== undefined) {
+      setInputText(data.inputText);
+    }
+  }, [data.inputText]);
+
+  // Update node data when inputText changes
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, inputText } }
+          : node
+      )
+    );
+  }, [inputText, id, setNodes]);
 
   // --------------------------------------------------------------- Visual Effect only
   const txCountRef = useRef<HTMLSpanElement>(null);
@@ -69,7 +89,7 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
         </div>
         <div className="gpt-output-container">
           <div className="gpt-output">
-            <ReactMarkdown>{inputText}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{inputText}</ReactMarkdown>
           </div>
         </div>
       </div>
