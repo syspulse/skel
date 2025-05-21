@@ -76,8 +76,20 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
   const network = networksMap.get(data.network);  
 
   const renderGPTNode = () => {
+    const handleWheelCapture = (e: React.WheelEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('.gpt-input') || target.closest('.gpt-output')) {
+        e.stopPropagation();
+        e.preventDefault();
+        const container = target.closest('.gpt-input') || target.closest('.gpt-output');
+        if (container) {
+          container.scrollTop += e.deltaY;
+        }
+      }
+    };
+
     return (
-      <div className="gpt-node">
+      <div className="gpt-node" onWheelCapture={handleWheelCapture}>
         <div className="custom-node-title">
           {data.title}
         </div>
