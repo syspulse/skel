@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { getGPTResponse } from '../services/openai';
 
 export type NodeType = 'address' | 'service' | 'gpt' | 'chart' | 'info';
 
@@ -45,11 +46,16 @@ interface CustomNodeData {
     severityLow: number;
     severityInfo: number;
   };
+  input?: string;
+  output?: string;
 }
 
 function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
   const { deleteElements, setNodes } = useReactFlow();
   const [inputText, setInputText] = useState(data.inputText || '');
+  const [input, setInput] = useState(data.input || '');
+  const [output, setOutput] = useState(data.output || '');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Update inputText when data changes
   useEffect(() => {
@@ -92,6 +98,28 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
 
   const network = networksMap.get(data.network);  
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    data.input = e.target.value;
+  };
+
+  const handleSubmit = async () => {
+    if (!input.trim()) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await getGPTResponse(input);
+      setOutput(response);
+      data.output = response;
+    } catch (error) {
+      console.error('Error getting GPT response:', error);
+      setOutput('Error: Failed to get response from GPT');
+      data.output = 'Error: Failed to get response from GPT';
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const renderGPTNode = () => {
     const handleWheelCapture = (e: React.WheelEvent) => {
       const target = e.target as HTMLElement;
@@ -113,15 +141,23 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
         <div className="gpt-input-container">
           <textarea
             className="gpt-input"
-            rows={3}
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder="Enter your input here..."
+            value={input}
+            onChange={handleInputChange}
+            placeholder="Enter your prompt..."
           />
         </div>
+        <button 
+          onClick={handleSubmit}
+          disabled={isLoading || !input.trim()}
+          className="submit-button"
+        >
+          {isLoading ? 'Loading...' : 'Submit'}
+        </button>
         <div className="gpt-output-container">
           <div className="gpt-output">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{inputText}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {output}
+            </ReactMarkdown>
           </div>
         </div>
       </div>
