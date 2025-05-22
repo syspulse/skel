@@ -1,10 +1,11 @@
 .gpt-node {
-  padding: 1px;
+  padding: 0px;
   /* background: #ffffff; */
   border: 0px solid #ddd;
   border-radius: 1px;
-  min-width: 150px;
-  min-height: 250px;
+  width: 150px;
+  min-height: 150px;
+  max-width: 150px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -17,14 +18,17 @@
   box-sizing: border-box;
   width: calc(100% - 2px);
   height: 60px;
+  flex-shrink: 0;
 }
 
 .gpt-node .gpt-output-container {
   margin: 1px;
   box-sizing: border-box;
   width: calc(100% - 2px);
-  height: 170px;
+  height: 140px;
   overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
 }
 
 .gpt-node .gpt-input,
@@ -68,6 +72,16 @@
   background-color: #f0f0f0;
   padding: 4px;
   overflow-y: auto;
+  overflow-x: auto;
+  white-space: pre;
+  word-wrap: normal;
+  min-width: 0;
+  max-width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 .gpt-node .gpt-input:focus {
@@ -108,8 +122,11 @@
 }
 
 .gpt-node .submit-button {
-  margin: 4px 10px;
-  padding: 2px 5px;
+  position: absolute;
+  bottom: 1;
+  right: 0;
+  margin: 1px 1px;
+  padding: 1px 5px;
   background-color: #007bff;
   color: white;
   border: none;
@@ -169,7 +186,7 @@
   border: 0px solid #ddd;
   border-radius: 1px;
   min-width: 150px;
-  min-height: 250px;
+  min-height: 200px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -188,7 +205,7 @@
   margin: 1px;
   box-sizing: border-box;
   width: calc(100% - 2px);
-  height: 170px;
+  height: 120px;
   overflow: hidden;
 }
 

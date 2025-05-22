@@ -113,8 +113,9 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
       data.output = response;
     } catch (error) {
       console.error('Error getting GPT response:', error);
-      setOutput('Error: Failed to get response from GPT');
-      data.output = 'Error: Failed to get response from GPT';
+      const errorMessage = '**Error**: Failed to get response from GPT';
+      setOutput(errorMessage);
+      data.output = errorMessage;
     } finally {
       setIsLoading(false);
     }
@@ -133,6 +134,13 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
       }
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        handleSubmit();
+      }
+    };
+
     return (
       <div className="gpt-node" onWheelCapture={handleWheelCapture}>
         <div className="custom-node-title">
@@ -143,7 +151,8 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
             className="gpt-input"
             value={input}
             onChange={handleInputChange}
-            placeholder="Enter your prompt..."
+            onKeyDown={handleKeyDown}
+            placeholder="Enter your prompt... (Ctrl + Enter to submit)"
           />
         </div>
         <button 
