@@ -8,7 +8,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-export type NodeType = 'address' | 'service' | 'gpt' | 'chart';
+export type NodeType = 'address' | 'service' | 'gpt' | 'chart' | 'info';
 
 interface PieChartEntry {
   address: string;
@@ -128,6 +128,42 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
     );
   };
 
+  const renderInfoNode = () => {
+    const handleWheelCapture = (e: React.WheelEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('.info-input') || target.closest('.info-output')) {
+        e.stopPropagation();
+        e.preventDefault();
+        const container = target.closest('.info-input') || target.closest('.info-output');
+        if (container) {
+          container.scrollTop += e.deltaY;
+        }
+      }
+    };
+
+    return (
+      <div className="info-node" onWheelCapture={handleWheelCapture}>
+        <div className="custom-node-title">
+          {data.title}
+        </div>
+        <div className="info-input-container">
+          <textarea
+            className="info-input"
+            rows={3}
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder="Enter your input here..."
+          />
+        </div>
+        <div className="info-output-container">
+          <div className="info-output">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{inputText}</ReactMarkdown>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderChartNode = (data: CustomNodeData) => {
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#8884d8', '#82ca9d'];
 
@@ -238,7 +274,9 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
         <Handle type="source" position={Position.Top} id="top-source-10" className="source-handle" style={{transform:'translate(+50%, 0%)'}} />
       ))}
       
-      {data.nodeType === 'gpt' ? (
+      {data.nodeType === 'info' ? (
+        renderInfoNode()
+      ) : data.nodeType === 'gpt' ? (
         renderGPTNode()
       ) : data.nodeType === 'chart' ? (
         <>

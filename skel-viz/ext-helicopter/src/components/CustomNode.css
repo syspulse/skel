@@ -108,6 +108,7 @@
   border-radius: 2px;
 }
 
+/* ------------------------------------------------------- Chart */
 .chart-container {
   width: 200px;
   height: 150px;
@@ -140,4 +141,113 @@
   font-size: 10px;
 }
 
-/* Existing styles ... */ 
+/* ============================================================================= Info */
+.info-node {
+  /* padding: 1px; */
+  /* background: #ffffff; */
+  border: 0px solid #ddd;
+  border-radius: 1px;
+  min-width: 150px;
+  min-height: 250px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  touch-action: none;
+  pointer-events: auto;
+}
+
+.info-node .info-input-container {
+  margin: 1px;
+  box-sizing: border-box;
+  width: calc(100% - 2px);
+  height: 60px;
+}
+
+.info-node .info-output-container {
+  margin: 1px;
+  box-sizing: border-box;
+  width: calc(100% - 2px);
+  height: 170px;
+  overflow: hidden;
+}
+
+.info-node .info-input,
+.info-node .info-output {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: monospace;
+  resize: none;
+  font-size: 8px !important;
+  background-color: #e0e0e0;
+  scrollbar-width: thin;
+  touch-action: none;
+  pointer-events: auto;
+}
+
+.info-node .info-input::-webkit-scrollbar,
+.info-node .info-output::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.info-node .info-input::-webkit-scrollbar-thumb,
+.info-node .info-output::-webkit-scrollbar-thumb {
+  background-color: #888;
+  border-radius: 4px;
+}
+
+.info-node .info-input::-webkit-scrollbar-track,
+.info-node .info-output::-webkit-scrollbar-track {
+  background-color: #f1f1f1;
+}
+
+.info-node .info-input {
+  background-color: #e0e0e0;
+}
+
+.info-node .info-output {
+  background-color: #f0f0f0;
+  padding: 4px;
+  overflow-y: auto;
+}
+
+.info-node .info-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.info-node .info-output table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 4px 0;
+  font-size: 6px;
+}
+
+.info-node .info-output th,
+.info-node .info-output td {
+  border: 1px solid #ccc;
+  padding: 2px 4px;
+  text-align: left;
+}
+
+.info-node .info-output th {
+  background-color: #e8e8e8;
+  font-weight: bold;
+}
+
+.info-node .info-output tr:nth-child(even) {
+  background-color: #f5f5f5;
+}
+
+.info-node .custom-node-title {
+  font-size: 10px;
+  font-weight: bold;
+  margin-bottom: 4px;
+  padding: 2px 4px;
+  /* background-color: #f0f0f0; */
+  border-radius: 2px;
+}

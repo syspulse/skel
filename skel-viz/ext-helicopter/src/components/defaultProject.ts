@@ -4,10 +4,41 @@ const initialNodes: Node[] = [
   {
     id: 'gpt-1',
     type: 'custom',
-    position: { x: -200, y: 0 },
+    position: { x: -200, y: -230 },
     data: { 
       nodeType: 'gpt',
-      title: 'GPT Node',
+      title: 'GPT-1',
+      description: '',
+      network: '',
+      icon: '',
+      tags: '',
+      inputText: `what model ?`
+    },
+  },
+  {
+    id: '2134',
+    type: 'custom',
+    position: { x: 0, y: 0 },
+    data: { 
+      title: 'Deployer', 
+      description: '0x946E9C780F3c79D80e51e68d259d0D7E794F2124', 
+      network: 'ethereum',
+      icon: '/assets/key.png',
+      tags: 'Uniswap',
+      telemetry: {
+        txCount: 0, 
+        alertCount: 0,
+        detectorCount: 0,
+      },
+    },
+  },
+  {
+    id: 'info-1',
+    type: 'custom',
+    position: { x: -200, y: 50 },
+    data: { 
+      nodeType: 'info',
+      title: 'Info Node',
       description: '',
       network: '',
       icon: '',
@@ -95,7 +126,7 @@ const initialNodes: Node[] = [
   {
     id: 'pie-chart-1',
     type: 'custom',
-    position: { x: 0, y: -150 },
+    position: { x: 0, y: -200 },
     data: {
       nodeType: 'chart',
       title: 'Balance Distribution',
@@ -123,7 +154,7 @@ const initialNodes: Node[] = [
   {
     id: 'timeseries-1',
     type: 'custom',
-    position: { x: 250, y: -150 },
+    position: { x: 250, y: -200 },
     data: {
       nodeType: 'chart',
       title: 'Transaction History',
@@ -135,15 +166,15 @@ const initialNodes: Node[] = [
         style: 'timeseries',
         data: [
           { block_date: '2024-08-30', total_transactions: 26189 },
-          { block_date: '2024-08-31', total_transactions: 85719 },
-          { block_date: '2024-09-01', total_transactions: 85717 },
-          { block_date: '2024-09-02', total_transactions: 85712 },
-          { block_date: '2024-09-03', total_transactions: 85714 },
+          { block_date: '2024-08-31', total_transactions: 35719 },
+          { block_date: '2024-09-01', total_transactions: 45717 },
+          { block_date: '2024-09-02', total_transactions: 25712 },
+          { block_date: '2024-09-03', total_transactions: 35714 },
           { block_date: '2024-09-04', total_transactions: 85708 },
           { block_date: '2024-09-05', total_transactions: 85715 },
-          { block_date: '2024-09-06', total_transactions: 85340 },
-          { block_date: '2024-09-07', total_transactions: 85707 },
-          { block_date: '2024-09-08', total_transactions: 85712 }
+          { block_date: '2024-09-06', total_transactions: 15340 },
+          { block_date: '2024-09-07', total_transactions: 45707 },
+          { block_date: '2024-09-08', total_transactions: 55712 }
         ]
       }
     }
