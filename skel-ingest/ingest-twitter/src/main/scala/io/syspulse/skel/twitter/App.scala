@@ -59,8 +59,7 @@ object App {
         connect.ask(config.params.toSet)
 
       case "pipeline" | "flow" =>         
-        val connect = Flows.
-        connect.ask(config.params.toSet)
+        throw new Exception("Not implemented")
     }
 
     Console.err.println(s"r = ${r}")

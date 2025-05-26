@@ -1,4 +1,4 @@
-package io.syspulse.blockchain
+package io.syspulse.skel.blockchain
 
 import scala.util.{Try,Success,Failure}
 import scala.jdk.CollectionConverters._

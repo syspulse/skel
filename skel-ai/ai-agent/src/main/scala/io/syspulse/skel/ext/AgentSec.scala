@@ -27,7 +27,7 @@ import io.syspulse.skel.ext.{ExtClient, Detector, Contract, DetectorSchema, Trig
 import io.syspulse.skel.ai.agent.AgentFunction
 import io.syspulse.skel.ai.agent.Agent
 
-import io.syspulse.blockchain.Token
+import io.syspulse.skel.blockchain.Token
 
 case class SecurityScore(
   address:String,

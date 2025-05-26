@@ -152,7 +152,7 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="Enter your prompt... (Ctrl + Enter to submit)"
+            placeholder="Ctrl + Enter to submit"
           />
         </div>
         <button 
