@@ -155,7 +155,7 @@ object App extends skel.Server {
       case "prompt" => 
         prompt(config.ai,config.params)(config)
 
-      case "prompt-stream" => 
+      case "prompt-stream" | "stream" => 
         promptStream(config.ai,config.params)(config)
     }
     Console.err.println(s"r = ${r}")
@@ -314,6 +314,10 @@ object App extends skel.Server {
             s match {
               case s"""data: {"type":"response.output_text.delta","item_id":${id},"output_index":${i},"content_index":${ic},"delta":"${txt}"}""" =>
                 Console.err.print(s"${txt}")
+
+              case s"""data: {"type":"response.output_text.delta","sequence_number":${seq},"item_id":"${iid}","output_index":${io},"content_index":${ic},"delta":"${txt}"}""" =>
+                Console.err.print(s"${txt}")                
+
               case _ => 
                 // ignore
                 //Console.err.println(s"${s}")

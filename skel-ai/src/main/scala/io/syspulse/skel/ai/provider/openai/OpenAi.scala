@@ -184,7 +184,7 @@ class OpenAi(uri:String) extends AiProvider {
       max_completion_tokens = aiUri.maxTokens,
     ).toJson.compactPrint
          
-    log.info(s"asking: ${modelReq}: [sys=${system.size}/q=${question.size}]: '${question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")    
+    log.info(s"model=${modelReq},sys=[${system.size}]/q=[${question.size}]: '${question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")    
 
     withRetry(
       {
@@ -228,7 +228,7 @@ class OpenAi(uri:String) extends AiProvider {
     ).toJson.compactPrint
           
     val chatSize = chat.messages.map(_.content.size).sum
-    log.info(s"chat: [${modelReq},${chat.messages.size},${chatSize}]' -> ${url}")
+    log.info(s"model=${modelReq},sys=[${system.size}]/q=[${chat.messages.size}] -> ${url}")    
 
     withRetry(
       {
@@ -287,7 +287,7 @@ class OpenAi(uri:String) extends AiProvider {
       max_output_tokens = aiUri.maxTokens,
     ).toJson.compactPrint
          
-    log.info(s"responses: ${modelReq}: [sys=${system.size}/q=${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")    
+    log.info(s"model=${modelReq},sys=[${system.size}]/q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
 
     Future{ 
       withRetrying(
@@ -341,7 +341,7 @@ class OpenAi(uri:String) extends AiProvider {
       max_output_tokens = aiUri.maxTokens,
     ).toJson.compactPrint
        
-    log.info(s"responses stream: ${modelReq}: [sys=${system.size}/q=${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")    
+    log.info(s"model=${modelReq},sys=[${system.size}]/q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
     
     Future {
       var a:Option[Ai] = None
@@ -366,11 +366,11 @@ class OpenAi(uri:String) extends AiProvider {
             .foreach { line =>
               if(line.nonEmpty) {
 
-                log.debug(s"<- ${line}")
+                log.trace(s"<- ${line}")
 
                 line match {                
                   case s"data: ${data}" =>
-                    // log.info(s"data: ${data}")
+                    log.debug(s"data: ${data}")
 
                     if(data.startsWith("""{"type":"response.completed"""")) {
                       val res = data.parseJson.convertTo[OpenAi_EventResponseCompleted]
@@ -380,7 +380,7 @@ class OpenAi(uri:String) extends AiProvider {
                     }
 
                   case s"event: ${event}" => 
-                    
+                    log.debug(s"event: ${event}")
                   case _ => 
                     log.warn(s"unknown rsp: '${line}'")
 
