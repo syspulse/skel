@@ -861,7 +861,7 @@ object Eth {
     * @param sk The private key as a hex string (with or without 0x)
     * @return The signature as a hex string (0x-prefixed)
     */
-  def signEIP712Structured(
+  def signEIP712(
     domain: Map[String, Any],
     types: Map[String, List[Map[String, String]]],
     value: Map[String, Any],
