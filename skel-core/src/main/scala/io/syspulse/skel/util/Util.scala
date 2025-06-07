@@ -521,4 +521,41 @@ object Util {
     }
     
   }
+
+  def toJsonString(o:Any):String = {
+    if(o == null)
+      return "null"
+    
+    def toJsonObj(o:Any):ujson.Value = {
+      o match {
+        case o:Map[_,_] => 
+          val kv = o.map { case (k,v) => (k.toString, toJsonObj(v)) }
+          ujson.Obj.from(kv)
+        case o:List[_] => ujson.Arr(o.map(toJsonObj(_)).toSeq: _*)
+        case o:String => ujson.Str(o)
+        case o:Int => ujson.Num(o)
+        case o:Long => ujson.Num(o)
+        case o:Double => ujson.Num(o)
+        case o:Float => ujson.Num(o)
+        case o:Boolean => ujson.Bool(o)
+        case o:BigInt => ujson.Num(o.toDouble)
+        case o:BigDecimal => ujson.Num(o.toDouble)        
+        case o:Array[_] => ujson.Arr(o.map(toJsonObj(_)).toSeq: _*)
+        case o:Option[_] => o.map(toJsonObj(_)).getOrElse(ujson.Null)
+
+        case o:Product => 
+          val kv:Seq[(String,ujson.Value)] = for (i <- 0 until o.productArity) yield {
+            val name = o.productElementName(i)
+            val value = toJsonObj(o.productElement(i))            
+            (name,value)
+          }
+          //ujson.Obj(vMap.map { case (k,v) => k.toString -> toJsonObj(v) }.toSeq: _*)
+          ujson.Obj.from(kv)
+
+        case o => ujson.Str(o.toString)
+      }
+    }
+
+    toJsonObj(o).render()
+  }
 }
