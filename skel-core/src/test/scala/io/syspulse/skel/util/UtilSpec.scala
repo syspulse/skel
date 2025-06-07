@@ -403,5 +403,29 @@ class UtilSpec extends AnyWordSpec with Matchers {
       
       Util.toJsonString(data) should === (expected)
     }
+
+    "toJsonString should handle EIP-712 types structure" in {
+      val types = Map(
+        "EIP712Domain" -> List(
+          Map("name" -> "name", "type" -> "string"),
+          Map("name" -> "version", "type" -> "string"),
+          Map("name" -> "chainId", "type" -> "uint256"),
+          Map("name" -> "verifyingContract", "type" -> "address")
+        ),
+        "Person" -> List(
+          Map("name" -> "name", "type" -> "string"),
+          Map("name" -> "wallet", "type" -> "address")
+        ),
+        "Mail" -> List(
+          Map("name" -> "from", "type" -> "Person"),
+          Map("name" -> "to", "type" -> "Person"),
+          Map("name" -> "contents", "type" -> "string")
+        )
+      )
+
+      val expected = """{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]}"""
+      
+      Util.toJsonString(types) should === (expected)
+    }
   }
 }

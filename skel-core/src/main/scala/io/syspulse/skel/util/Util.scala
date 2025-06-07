@@ -522,7 +522,7 @@ object Util {
     
   }
 
-  def toJsonString(o:Any):String = {
+  def toJsonString(o:Any,compact:Boolean=true):String = {
     if(o == null)
       return "null"
     
@@ -556,6 +556,9 @@ object Util {
       }
     }
 
-    toJsonObj(o).render()
+    if(compact)
+      toJsonObj(o).render()
+    else
+      toJsonObj(o).render(2)
   }
 }
