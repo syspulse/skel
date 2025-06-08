@@ -839,38 +839,35 @@ object Eth {
     }
   }
 
-  /**
-    * Generates an EIP-712 signature for the given typed data JSON using the provided private key.
-    * @param typedDataJson The EIP-712 typed data as a JSON string.
-    * @param privateKey The private key as a hex string (with or without 0x).
-    * @return The signature as a hex string (0x-prefixed).
-    */
-  def signEIP712(typedDataJson: String, privateKey: String): String = {
-    val encoder = new crypto.StructuredDataEncoder(typedDataJson)
+  def signEIP712(message: String, sk: String): String = {
+    log.debug(s"message: '${message}'")
+    val encoder = new crypto.StructuredDataEncoder(message)
     val hash = encoder.hashStructuredData()
-    val keyPair = ECKeyPair.create(Numeric.hexStringToByteArray(privateKey))
+    val keyPair = ECKeyPair.create(Numeric.hexStringToByteArray(sk))
     val signatureData = Sign.signMessage(hash, keyPair, false)
     Numeric.toHexString(signatureData.getR ++ signatureData.getS ++ signatureData.getV)
   }
 
-  /**
-    * Generates an EIP-712 signature using structured domain, types and value parameters.
-    * @param domain The domain parameters as a Map[String, Any]
-    * @param types The type definitions as a Map[String, List[Map[String, String]]]
-    * @param value The message value as a Map[String, Any]
-    * @param sk The private key as a hex string (with or without 0x)
-    * @return The signature as a hex string (0x-prefixed)
-    */
-  def signEIP712(
-    domain: Map[String, Any],
+  def toEIP712Message(
+    name: String,
+    version: String,
+    chainId: Long,
+    verifyingContract: String,    
+    salt: Option[String] = None,
     types: Map[String, List[Map[String, String]]],
-    value: Map[String, Any],
-    primaryType: String,
-    sk: String
+    values: Map[String, Any],
+    primaryType: String
   ): String = {
     
-    // Create the structured data JSON
-    val json = Util.toJsonString(Map(
+    val domain = Map(
+      "name" -> name,
+      "version" -> version,
+      "chainId" -> chainId,
+      "verifyingContract" -> verifyingContract,
+      "salt" -> salt
+    )
+
+    Util.toJsonString(Map(
       "types" -> {
         Map (
           "EIP712Domain" -> List(
@@ -882,17 +879,34 @@ object Eth {
         ) ++ types},
       "primaryType" -> primaryType,
       "domain" -> domain,
-      "message" -> value
+      "message" -> values
     ),compact = true )
     
+  }
+
+  def signEIP712(
+    name: String,
+    version: String,
+    chainId: Long,
+    verifyingContract: String,    
+    salt: Option[String] = None,
+
+    types: Map[String, List[Map[String, String]]],
+    values: Map[String, Any],
+    primaryType: String,
+    sk: String
+  ): String = {
+    
+    // Create the structured data JSON
+    val json = toEIP712Message(name,version,chainId,verifyingContract,salt,types,values,primaryType)    
+    log.debug(s"message: '${json}'")
+        
     val encoder = new crypto.StructuredDataEncoder(json)
     val hash = encoder.hashStructuredData()
 
-    // Sign the hash
     val keyPair = ECKeyPair.create(Numeric.hexStringToByteArray(sk))
     val signatureData = Sign.signMessage(hash, keyPair, false)
 
-    // Return concatenated signature
     Numeric.toHexString(signatureData.getR ++ signatureData.getS ++ signatureData.getV)
   }
 }
