@@ -96,7 +96,7 @@ object Blockchain {
   }
   
   def resolveChainId(chain:Blockchain):Option[Long] = chain.id match {
-    case None => resolveByName(chain.name).map(b => b.id.get.toLong)
+    case Some("") | None => resolveByName(chain.name).map(b => b.id.get.toLong)    
     case _ => Some(chain.id.get.toLong)
   }
 

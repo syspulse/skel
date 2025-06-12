@@ -26,7 +26,7 @@ class BlockchainSpec extends AnyWordSpec with Matchers {
       val b = Blockchain("1")
       b should ===(Blockchain.ETHEREUM)
     }
-
+    
     "parse 'network:100' -> 'network':'100'" in {
       val b = Blockchain("network:100")
       b should ===(new Blockchain("network",Some("100")))
@@ -103,6 +103,10 @@ class BlockchainSpec extends AnyWordSpec with Matchers {
       Blockchain.getExplorerBlock(Some("nonexistent"), blockNumber) should ===(blockNumber)
       Blockchain.getExplorerBlock(None, blockNumber) should ===(blockNumber)
     }
-    
+    "resolve 'ethereum' when id = ''" in {
+      val b = Blockchain.resolve(Blockchain("ethereum",Some("")))
+      b should ===(Success(Blockchain.ETHEREUM.id.get.toLong))
+    }
+
   }    
 }
