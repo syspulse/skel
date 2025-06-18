@@ -5,6 +5,7 @@ import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import scala.collection.immutable
 import scala.jdk.CollectionConverters._
+import io.syspulse.skel.Server
 
 final case class Info(name:String, version:String, jvm:Jvm, environment:Environment,health:Health)
 final case class Health(status:String)
@@ -41,7 +42,7 @@ object InfoRegistry {
         }
 
         // for security reasons, expose only for `SITE=local`
-        val insecure = sys.env.get("SITE") == Some("local") || sys.env.get("SKEL_ENV") == Some("dev")
+        val insecure = Server.insecure
         
         val jvmProperties = if(insecure)
             System.getProperties.entrySet.asScala.map(es => 
