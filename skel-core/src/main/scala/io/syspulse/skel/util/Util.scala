@@ -414,6 +414,14 @@ object Util {
     replace(expr)
   }
 
+  // this allows to bypass env exposure (it is resolved via {} syntax)
+  def resolveEnvVar(expr:String,env:Map[String,String] = sys.env):Option[String] = {
+    replaceEnvVar(expr,env) match {
+      case "" => None
+      case v => Some(v)
+    }
+  }  
+
   // more reliable BigInt converter of format is into double
   def toBigInt(v:String):BigInt = {
     if(v.isEmpty())

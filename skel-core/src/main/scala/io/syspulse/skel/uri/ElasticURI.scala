@@ -45,12 +45,12 @@ case class ElasticURI(uri:String) {
     val (user,pass,url2) = url1.split("@").toList match {
       case userPass :: url :: Nil => 
         val (user,pass) = userPass.split(":").toList match {
-          case user :: pass :: Nil => (Some(user),Some(pass))          
+          case user :: pass :: Nil => (Util.resolveEnvVar(user),Util.resolveEnvVar(pass))
           case _ => (None,None)
         }
         (user,pass,url)
-      case url :: Nil => (sys.env.get("ELASTIC_USER"),sys.env.get("ELASTIC_PASS"),url)
-      case _ => (sys.env.get("ELASTIC_USER"),sys.env.get("ELASTIC_PASS"),"localhost:9200")
+      case url :: Nil => (Util.resolveEnvVar("{ELASTIC_USER}"),Util.resolveEnvVar("{ELASTIC_PASS}"),url)
+      case _ => (Util.resolveEnvVar("{ELASTIC_USER}"),Util.resolveEnvVar("{ELASTIC_PASS}"),"localhost:9200")
     }
     
     url2.split("/").toList match {

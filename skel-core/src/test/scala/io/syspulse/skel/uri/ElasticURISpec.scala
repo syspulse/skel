@@ -61,5 +61,14 @@ class ElasticURISpec extends AnyWordSpec with Matchers {
       uri.user should === (Some("user"))
       uri.pass should === (Some("pass"))      
     }
+
+    "parse URI with no env missing credentials and query parameters" in {
+      val uri = ElasticURI("ess://:@host-2/index?key1=value1&key2=value2")
+      uri.url should === ("https://host-2")
+      uri.index should === ("index")
+      uri.user should === (None)
+      uri.pass should === (None)
+      uri.ops should === (Map("key1" -> "value1", "key2" -> "value2"))
+    }
   }
 } 

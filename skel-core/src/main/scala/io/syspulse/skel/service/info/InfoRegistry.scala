@@ -40,11 +40,21 @@ object InfoRegistry {
             sys.props.get("java.version").getOrElse("unknown")
         }
 
-        val jvmProperties = System.getProperties.entrySet.asScala.map(es => 
-          Var(es.getKey.toString,es.getValue.toString)
-        ).toSet
+        // for security reasons, expose only for `SITE=local`
+        val insecure = sys.env.get("SITE") == Some("local") || sys.env.get("SKEL_ENV") == Some("dev")
+        
+        val jvmProperties = if(insecure)
+            System.getProperties.entrySet.asScala.map(es => 
+              Var(es.getKey.toString,es.getValue.toString)
+            ).toSet
+          else 
+            Set.empty[Var]
+        
 
-        val envs = System.getenv.entrySet.asScala.map(es => Var(es.getKey,es.getValue)).toSet
+        val envs = if(insecure)
+            System.getenv.entrySet.asScala.map(es => Var(es.getKey,es.getValue)).toSet
+          else 
+            Set.empty[Var]
 
         replyTo ! Info(name,version,Jvm(jvmVersion,jvmProperties),Environment(envs),health)
         Behaviors.same
