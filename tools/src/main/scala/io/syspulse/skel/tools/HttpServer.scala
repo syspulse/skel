@@ -156,91 +156,7 @@ abstract class HttpServerable extends cask.MainRoutes{
   def staticFileRoutes() = "web"
 
   @cask.get("/sse")
-  def streamGet() = {
-    Console.err.println(s"<- GET STREAM")
-    
-    val streamId = s"stream-${System.currentTimeMillis()}"
-    val model = "gpt-4-streaming"
-    val created = System.currentTimeMillis() / 1000
-    
-    val steps = Seq(
-      ("initializing", "Stream started"),
-      ("processing", "Processing step 1"),
-      ("processing", "Processing step 2"), 
-      ("processing", "Processing step 3"),
-      ("completed", "Stream completed")
-    )
-    
-    // Create a streaming response that sends chunks immediately
-    val streamResponse = new cask.Response(
-      new java.io.InputStream {
-        private var currentStep = 0
-        private var currentChunk = ""
-        private var chunkIndex = 0
-        private var sentDone = false
-        
-        private def createChunk(state: String, message: String, isLast: Boolean = false): String = {
-          val json = if (isLast) {
-            s"""{"id":"$streamId","object":"stream.chunk","created":$created,"model":"$model","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}"""
-          } else {
-            s"""{"id":"$streamId","object":"stream.chunk","created":$created,"model":"$model","choices":[{"index":0,"delta":{"content":"$state: $message"},"finish_reason":null}]}"""
-          }
-          s"data: $json\n\n"
-        }
-        
-        private def createDoneChunk(): String = "data: [DONE]\n\n"
-        
-        override def read(): Int = {
-          if (currentChunk.isEmpty) {
-            if (currentStep >= steps.length) {
-              if (!sentDone) {
-                // Send [DONE] chunk
-                currentChunk = createDoneChunk()
-                chunkIndex = 0
-                sentDone = true
-                Console.err.println("<- GET STREAM: Sending [DONE]")
-              } else {
-                // Already sent [DONE], close connection
-                Console.err.println("<- GET STREAM: Closing connection after [DONE]")
-                return -1
-              }
-            } else {
-              val (state, message) = steps(currentStep)
-              val isLast = currentStep == steps.length - 1
-              
-              Console.err.println(s"<- GET STREAM: ${currentStep + 1}/${steps.length} - $state: $message")
-              
-              currentChunk = createChunk(state, message, isLast)
-              chunkIndex = 0
-              currentStep += 1
-              
-              // Simulate delay between chunks (like OpenAI's token generation)
-              Thread.sleep(delay)
-            }
-          }
-          
-          if (chunkIndex >= currentChunk.length) {
-            currentChunk = ""
-            return -1
-          }
-          
-          val byte = currentChunk.charAt(chunkIndex).toByte
-          chunkIndex += 1
-          byte
-        }
-      },
-      statusCode = 200,
-      headers = CORS ++ Seq(
-        "Content-Type" -> "text/event-stream",
-        "Cache-Control" -> "no-cache",
-        "Connection" -> "keep-alive",
-        "Transfer-Encoding" -> "chunked"
-      ),
-      cookies = Seq()
-    )
-    
-    streamResponse
-  }
+  def streamGet() = streamSse(None)
 
   @cask.post("/sse")
   def streamPost(req: cask.Request) = {
@@ -248,19 +164,36 @@ abstract class HttpServerable extends cask.MainRoutes{
     Console.err.println(s"<<< Headers:\n${req.headers}")
     Console.err.println(s"<<< Body:\n")
     Console.println(req.text())
+    streamSse(Some(req.text()))
+  }
+
+  private def streamSse(requestData: Option[String]) = {
+    val isPost = requestData.isDefined
+    val method = if (isPost) "POST" else "GET"
+    Console.err.println(s"<- $method STREAM")
     
-    val requestData = req.text()
     val streamId = s"stream-${System.currentTimeMillis()}"
     val model = "gpt-4-streaming"
     val created = System.currentTimeMillis() / 1000
     
-    val steps = Seq(
-      ("received", s"Request received: $requestData"),
-      ("validating", "Validating request"),
-      ("processing", "Processing request"),
-      ("finalizing", "Finalizing response"),
-      ("completed", "Request completed successfully")
-    )
+    val steps = if (isPost) {
+      val data = requestData.get
+      Seq(
+        ("received", s"Request received: $data"),
+        ("validating", "Validating request"),
+        ("processing", "Processing request"),
+        ("finalizing", "Finalizing response"),
+        ("completed", "Request completed successfully")
+      )
+    } else {
+      Seq(
+        ("initializing", "Stream started"),
+        ("processing", "Processing step 1"),
+        ("processing", "Processing step 2"), 
+        ("processing", "Processing step 3"),
+        ("completed", "Stream completed")
+      )
+    }
     
     // Create a streaming response that sends chunks immediately
     val streamResponse = new cask.Response(
@@ -289,17 +222,17 @@ abstract class HttpServerable extends cask.MainRoutes{
                 currentChunk = createDoneChunk()
                 chunkIndex = 0
                 sentDone = true
-                Console.err.println("<<< POST STREAM: Sending [DONE]")
+                Console.err.println(s"<- $method STREAM: Sending [DONE]")
               } else {
                 // Already sent [DONE], close connection
-                Console.err.println("<<< POST STREAM: Closing connection after [DONE]")
+                Console.err.println(s"<- $method STREAM: Closing connection after [DONE]")
                 return -1
               }
             } else {
               val (state, message) = steps(currentStep)
               val isLast = currentStep == steps.length - 1
               
-              Console.err.println(s"<<< POST STREAM: ${currentStep + 1}/${steps.length} - $state: $message")
+              Console.err.println(s"<- $method STREAM: ${currentStep + 1}/${steps.length} - $state: $message")
               
               currentChunk = createChunk(state, message, isLast)
               chunkIndex = 0
@@ -335,7 +268,6 @@ abstract class HttpServerable extends cask.MainRoutes{
 
   Console.err.println(s"Listening on ${host}:${port}...")
   initialize()
-
 }
 
 object HttpServer extends HttpServerable {
