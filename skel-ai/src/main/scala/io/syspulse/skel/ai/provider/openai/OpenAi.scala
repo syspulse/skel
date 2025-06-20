@@ -14,6 +14,7 @@ import io.jvm.uuid._
 import spray.json._
 import DefaultJsonProtocol._
 
+import io.syspulse.skel.util.Retry
 import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.ai.Ai
 import io.syspulse.skel.ai.core.Providers
@@ -25,6 +26,17 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 
 import scala.concurrent.ExecutionContext
+import io.syspulse.skel.ai.provider.AiTool
+
+import akka.stream.scaladsl.Source
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.sse.ServerSentEvent
+import akka.http.scaladsl.model.{HttpRequest,HttpResponse,HttpEntity,ContentTypes}
+import akka.http.scaladsl.model.{HttpMethods,StatusCodes}
+import akka.http.scaladsl.model.{StatusCodes,HttpEntity,ContentTypes}
+import akka.actor.ActorSystem
+import akka.util.ByteString
+import akka.http.scaladsl.model.headers.RawHeader
 
 case class OpenAi_Msg(
   role:String,
@@ -128,6 +140,8 @@ case class OpenAi_ResponsesReq(
 
   user:Option[String] = None,
 
+  tools:Option[Seq[AiTool]] = None,
+
   //text:Option[] = None,
   //reasoning:Option[] = None,
 )
@@ -141,7 +155,9 @@ case class OpenAi_EventResponseCompleted(
   response:OpenAi_ResponsesRes
 )
 
-object OpenAi_Json extends JsonCommon {  
+object OpenAi_Json extends JsonCommon { 
+  implicit val jf_oai_tool = jsonFormat4(AiTool)
+
   implicit val jf_oai_msg = jsonFormat2(OpenAi_Msg)
   implicit val jf_oai_cho = jsonFormat3(OpenAi_Choices)
   implicit val jf_oai_usg = jsonFormat3(OpenAi_ChatUsage)
@@ -151,7 +167,7 @@ object OpenAi_Json extends JsonCommon {
   implicit val jf_oai_input = jsonFormat3(OpenAi_Input)
   implicit val jf_oai_output_content = jsonFormat3(OpenAi_OutputContent)
   implicit val jf_oai_output = jsonFormat5(OpenAi_Output)
-  implicit val jf_oai_res = jsonFormat12(OpenAi_ResponsesReq)  
+  implicit val jf_oai_res = jsonFormat13(OpenAi_ResponsesReq)  
   implicit val jf_oai_res_res = jsonFormat10(OpenAi_ResponsesRes)  
 
   implicit val jf_oai_stream_event = jsonFormat1(OpenAi_StreamEvent)
@@ -186,7 +202,7 @@ class OpenAi(uri:String) extends AiProvider {
          
     log.info(s"model=${modelReq},sys=[${system.size}]/q=[${question.size}]: '${question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")    
 
-    withRetry(
+    Retry.withRetry(
       {
         val r = requests.post(
           url = url,
@@ -210,7 +226,7 @@ class OpenAi(uri:String) extends AiProvider {
         )
       }, 
       s"ask: '${question.take(32)}...'"
-    )(timeout, retry)
+    )(timeout, retry)(log)
   }
 
   def chat(chat:Chat,model:Option[String],system:Option[String] = None,
@@ -230,7 +246,7 @@ class OpenAi(uri:String) extends AiProvider {
     val chatSize = chat.messages.map(_.content.size).sum
     log.info(s"model=${modelReq},sys=[${system.size}]/q=[${chat.messages.size}] -> ${url}")    
 
-    withRetry(
+    Retry.withRetry(
       {
         val r = requests.post(
           url = url,
@@ -257,7 +273,7 @@ class OpenAi(uri:String) extends AiProvider {
         )
       }, 
       s"chat: [${chat.messages.size} msgs, ${chatSize} chars]"
-    )(timeout, retry)
+    )(timeout, retry)(log)
   }
 
   import io.syspulse.skel.FutureAwaitable
@@ -290,7 +306,7 @@ class OpenAi(uri:String) extends AiProvider {
     log.info(s"model=${modelReq},sys=[${system.size}]/q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
 
     Future{ 
-      withRetrying(
+      Retry.withRetrying(
         {
           val r = requests.post(
             url = url,
@@ -313,17 +329,17 @@ class OpenAi(uri:String) extends AiProvider {
           )
         }, 
         s"responses: '${ai.question.take(32)}...'"
-      )(timeout, retry)
+      )(timeout, retry)(log)
     }
   }
   
 
-  def promptStream(ai: Ai, onEvent: (String) => Unit, system: Option[String] = None,timeout: Long = getTimeout(), retry: Int = getRetry()): Try[Ai] = {                    
-    val f = promptStreamAsync(ai,onEvent,system,timeout,retry)(scala.concurrent.ExecutionContext.Implicits.global)
+  def promptStream(ai: Ai, onEvent: (String) => Unit, instructions: Option[String] = None,timeout: Long = getTimeout(), retry: Int = getRetry()): Try[Ai] = {                    
+    val f = promptStreamAsync(ai,onEvent,instructions,timeout,retry)(scala.concurrent.ExecutionContext.Implicits.global)
     FutureAwaitable.awaitTry(f)(timeout)
   }
 
-  def promptStreamAsync(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = 10000,retry:Int = 3)(implicit ec: ExecutionContext):Future[Ai] = {
+  def promptStreamAsync(ai:Ai,onEvent: (String) => Unit,instructions:Option[String] = None,timeout:Long = 10000,retry:Int = 3,tools:Seq[AiTool] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai] = {
     
     val url = s"https://api.openai.com/v1/responses"
     val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
@@ -333,20 +349,21 @@ class OpenAi(uri:String) extends AiProvider {
         OpenAi_Input("user", ai.question)
       ),
       stream = Some(true),
-      instructions = system,
+      instructions = if( ! ai.xid.isDefined) instructions else None,
       previous_response_id = ai.xid,
       store = aiUri.ops.get("store").map(_.toBoolean).orElse(Some(true)),
       temperature = aiUri.temperature,
       top_p = aiUri.topP,
       max_output_tokens = aiUri.maxTokens,
+      tools = if(tools.nonEmpty) Some(tools) else None
     ).toJson.compactPrint
        
-    log.info(s"model=${modelReq},sys=[${system.size}]/q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
+    log.info(s"model=${modelReq},sys=[${instructions.size}]/q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
     
     Future {
       var a:Option[Ai] = None
 
-      withRetrying({
+      Retry.withRetrying({
         val r = requests.post.stream(
           url = url,
           headers = Seq(
@@ -374,7 +391,10 @@ class OpenAi(uri:String) extends AiProvider {
 
                     if(data.startsWith("""{"type":"response.completed"""")) {
                       val res = data.parseJson.convertTo[OpenAi_EventResponseCompleted]
-                      a = Some(ai.copy(answer = Some(res.response.output.head.content.head.text)))
+                      a = Some(ai.copy(
+                        answer = Some(res.response.output.head.content.head.text),
+                        xid = Some(res.response.id)
+                      ))
                     } else {
                       onEvent(line)
                     }
@@ -390,13 +410,114 @@ class OpenAi(uri:String) extends AiProvider {
             
         })
 
-      }, s"responses stream: '${ai.question.take(32)}...'")(timeout, retry)      
+      }, s"responses stream: '${ai.question.take(32)}...'")(timeout, retry)(log)      
 
       a match {
         case Some(a) => a
         case None => throw new Exception(s"response.completed not received: ${ai.xid}")
       }
     }
+  }
+
+  def askStream(ai:Ai,
+    instructions:Option[String] = None,
+    onEvent: (String) => Unit = (s) => {},
+    onData: (String) => Unit = (s) => {},
+    onError: (String) => Unit = (s) => {},
+    onDone: () => Unit = () => {},
+    timeout:Long = 10000,retry:Int = 3,tools:Seq[AiTool] = Seq.empty)
+    (implicit ec: ExecutionContext,sys: ActorSystem): Source[ServerSentEvent, Any] = {
+    
+    val url = s"https://api.openai.com/v1/responses"
+    // val url = s"http://localhost:8081/"
+    val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
+    val body = OpenAi_ResponsesReq(
+      model = modelReq,
+      input = Seq(
+        OpenAi_Input("user", ai.question)
+      ),
+      stream = Some(true),
+      instructions = if( ! ai.xid.isDefined) instructions else None,
+      previous_response_id = ai.xid,
+      store = aiUri.ops.get("store").map(_.toBoolean).orElse(Some(true)),
+      temperature = aiUri.temperature,
+      top_p = aiUri.topP,
+      max_output_tokens = aiUri.maxTokens,
+      tools = if(tools.nonEmpty) Some(tools) else None
+    ).toJson.compactPrint
+       
+    log.info(s"model=${modelReq},sys=[${instructions.size}]/q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
+    
+    val httpRequest = HttpRequest(
+          method = HttpMethods.POST,
+          uri = url,
+          entity = HttpEntity(ContentTypes.`application/json`, body),
+          headers = Seq(
+            RawHeader("Authorization", s"Bearer ${aiUri.apiKey}"),
+            RawHeader("Accept", "text/event-stream")
+          )
+        )
+      
+    // Create a source that makes the HTTP request and parses SSE events directly
+    // This ensures that when the HTTP connection to HttpServerAkka ends, the stream to client also ends
+    val r = Source.future(
+      Http()(sys).singleRequest(httpRequest)
+        .recover {
+          case e: Exception =>
+            log.error(s"request failed -> '${url}': ${e.getMessage}")
+            onError(s"HTTP error: ${e.getMessage}")
+            HttpResponse(
+              status = StatusCodes.InternalServerError,
+              entity = HttpEntity(s"Error: ${e.getMessage}")
+            )
+        }
+    )
+    .flatMapConcat { response =>
+      if (response.status == StatusCodes.OK) {
+        response.entity.dataBytes
+          .via(akka.stream.scaladsl.Framing.delimiter(ByteString("\n"), maximumFrameLength = 8192))
+          .map(_.utf8String.trim)
+          .filter(_.nonEmpty)
+          .map { line =>
+            // Parse SSE format: data: <json>
+            if (line.startsWith("data: ")) {
+              val data = line.substring(6)
+              if (data.nonEmpty) {
+                onData(data)
+                ServerSentEvent(data = data)
+              } else {
+                onDone()
+                ServerSentEvent("", eventType = Some("done"))
+              }
+            } else if (line.startsWith("event: ")) {
+              // Handle event type
+              val eventType = line.substring(7)
+              onEvent(eventType)
+              ServerSentEvent("", eventType = Some(eventType))
+            } else if (line.startsWith("id: ")) {
+              // Handle event id
+              val id = line.substring(4)
+              onEvent(id)
+              ServerSentEvent("", id = Some(id))
+            } else {
+              // Forward other lines as-is
+              onData(line)
+              ServerSentEvent(data = line)
+            }
+          }
+          .recover {
+            case e: Exception =>
+              log.error(s"Stream parsing failed: ${e.getMessage}")
+              onError(s"parsing failed: ${e.getMessage}")
+              ServerSentEvent(s"${e.getMessage}", eventType = Some("error"))
+          }
+      } else {
+        val err = s"${response.status}"
+        onError(err)
+        Source.single(ServerSentEvent(err, eventType = Some("error")))
+      }
+    }
+    r    
   }
   
 }

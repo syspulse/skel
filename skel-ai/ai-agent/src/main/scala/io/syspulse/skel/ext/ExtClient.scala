@@ -47,7 +47,7 @@ class ExtClient(baseUrl:String, accessToken0:Option[String] = None) {
       else
         s"""{"from":0,"size":10,"trackTotal":false,"where":"projectId = ${pid}"}"""
     
-    log.debug(s"data: ${data}")
+    log.info(s"${pid}/${addr}/${name}: data=${data}")
 
     val rsp = requests.post(
       url,

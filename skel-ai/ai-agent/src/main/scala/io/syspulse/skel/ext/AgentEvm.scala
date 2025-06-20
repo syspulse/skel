@@ -22,12 +22,13 @@ import play.api.libs.json.Json
 import io.syspulse.skel.ai.core.openai.OpenAiURI
 import io.syspulse.skel.ext.{ExtClient, Detector, Contract, DetectorSchema, Trigger}
 import io.syspulse.skel.ai.agent.AgentFunction
-import io.syspulse.skel.ai.agent.Agent
+
+import io.syspulse.skel.ai.agent.AgentAssistant
 
 object EvmJson {
 }
 
-class AgentEvm(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Agent with ExtCoreFunctions {
+class AgentEvm(val uri:OpenAiURI,implicit val extClient:ExtClient) extends AgentAssistant with ExtCoreFunctions {
 
   import EvmJson._
   def getName(): String = "evm-agent"

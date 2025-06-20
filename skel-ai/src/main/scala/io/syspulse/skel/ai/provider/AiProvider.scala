@@ -6,8 +6,20 @@ import com.typesafe.scalalogging.Logger
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 
+import akka.actor.ActorSystem
+import akka.stream.scaladsl.Source
+import akka.http.scaladsl.model.sse.ServerSentEvent
+
 import io.syspulse.skel.ai.{Ai,Chat}
 import io.syspulse.skel.ai.ChatMessage
+
+case class AiTool(
+  name: String,
+  description: Option[String] = None,
+  parameters: Map[String, Any] = Map.empty,
+  strict: Option[Boolean] = None
+)
+
 
 trait AiProvider {  
   val log = Logger(s"${this}")
@@ -15,31 +27,6 @@ trait AiProvider {
   def getTimeout():Long = 10000L
   def getRetry():Int = 3
   def getModel():Option[String]
-
-  protected def withRetry[T](operation: => T, desc: String)(timeout: Long = 10000, retry: Int = 3, baseWait: Long = 1000): Try[T] = {
-    Try{ withRetrying(operation,desc)(timeout,retry,baseWait) }
-  }
-
-  protected def withRetrying[T](operation: => T, desc: String)(timeout: Long = 10000, retry: Int = 3, baseWait: Long = 1000): T = {
-    def retryWithBackoff(i: Int): T = {
-      try {
-        operation
-      } catch {
-        case e: Exception =>
-          if (i > 1) {
-            val waitTime = baseWait * math.pow(2, retry - i).toLong
-            log.warn(s"Request failed: ${desc}: ${i}: retrying in ${waitTime}: ${e.getMessage}")
-            Thread.sleep(waitTime)
-            retryWithBackoff(i - 1)
-          } else {
-            log.error(s"failed after: ${retry}: ${desc}", e)
-            // throw awau
-            throw e
-          }
-      }
-    }
-    retryWithBackoff(retry)
-  }
 
   // single question (no context)
   def ask(question:String,model:Option[String],system:Option[String] = None,timeout:Long = 10000,retry:Int = 3):Try[Ai]  
@@ -52,5 +39,16 @@ trait AiProvider {
 
   // prompt (with context by Provider)
   def promptStream(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = 10000,retry:Int = 3):Try[Ai]
-  def promptStreamAsync(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = 10000,retry:Int = 3)(implicit ec: ExecutionContext):Future[Ai]
+  def promptStreamAsync(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = 10000,retry:Int = 3,tools:Seq[AiTool] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai]
+
+  //def toolsStreamAsync(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = 10000,retry:Int = 3)(implicit ec: ExecutionContext):Future[Ai]
+  def askStream(ai:Ai,
+    instructions:Option[String] = None,
+    onEvent: (String) => Unit = (s) => {},
+    onData: (String) => Unit = (s) => {},
+    onError: (String) => Unit = (s) => {},
+    onDone: () => Unit = () => {},
+    timeout:Long = 10000,retry:Int = 3,tools:Seq[AiTool] = Seq.empty)
+    (implicit ec: ExecutionContext,sys: ActorSystem): Source[ServerSentEvent, Any]
 }
+

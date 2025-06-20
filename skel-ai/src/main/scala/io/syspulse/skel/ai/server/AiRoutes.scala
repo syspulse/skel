@@ -8,7 +8,7 @@ import java.nio.file.Paths
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
-import akka.stream.scaladsl.FileIO
+import akka.http.scaladsl.marshalling.sse.EventStreamMarshalling._
 
 import scala.concurrent.Future
 import scala.concurrent.Await
@@ -60,6 +60,8 @@ import io.syspulse.skel.service.telemetry.TelemetryRegistry
 import scala.annotation.tailrec
 import io.syspulse.skel.auth.permissions.rbac
 import io.syspulse.skel.util.Util
+import akka.stream.scaladsl.Source
+import akka.http.scaladsl.model.sse.ServerSentEvent
 
 @Path("/")
 class AiRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],config:Config) extends CommonRoutes with Routeable 
@@ -71,14 +73,7 @@ class AiRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],co
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import AiJson._
-  
-  val metricGetCount: Counter = Counter.build().name("ai_get_total").help("ai gets").register(TelemetryRegistry.registry)
-  val metricCreateCount: Counter = Counter.build().name("ai_create_total").help("ai creats and random creates").register(TelemetryRegistry.registry)
-  val metricDeleteCount: Counter = Counter.build().name("ai_delete_total").help("ai deletes").register(TelemetryRegistry.registry)
-  val metricSignCount: Counter = Counter.build().name("ai_sign_total").help("ai signs").register(TelemetryRegistry.registry)
-  val metricTxCount: Counter = Counter.build().name("ai_tx_total").help("ai transactions").register(TelemetryRegistry.registry)
-  val metricBalanceCount: Counter = Counter.build().name("ai_balance_total").help("ai balances").register(TelemetryRegistry.registry)
-        
+          
   def getAis(oid:Option[String]): Future[Ais] = registry.ask(GetAis(oid, _))
   def getAi(addr: String,oid:Option[String]): Future[Try[Ai]] = registry.ask(GetAi(addr, oid, _))
   
@@ -140,8 +135,25 @@ class AiRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],co
   def createAiRoute(oid:Option[String]) = post {
     entity(as[AiCreateReq]) { req =>
       onSuccess(createAi(oid,req)) { r =>
-        metricCreateCount.inc()
         complete(StatusCodes.Created, r)
+      }
+    }
+  }
+
+
+  private def createAiStream(oid:Option[String],req: AiCreateReq): Future[Source[ServerSentEvent, Any]] = registry.ask(CreateAiStream(oid,req, _))
+
+  @POST @Path("/ai/{oid}/prompt") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("Ai"),summary = "Prompt Stream",
+    parameters = Array(new Parameter(name = "oid", in = ParameterIn.PATH, description = "Provider id")),
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[AiCreateReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "AML",content = Array(new Content(schema = new Schema(implementation = classOf[Ai])))))
+  )
+  def createAiStreamRoute(oid:Option[String]) = post {
+    entity(as[AiCreateReq]) { req =>
+      onSuccess(createAiStream(oid,req)) { r =>
+        complete(r)
       }
     }
   }
@@ -166,8 +178,7 @@ class AiRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],co
             // }
           })   
         )
-      },
-            
+      },      
       pathPrefix(Segment) { oid => concat(
         // pathPrefix(Segment) { addr =>             
         //   pathEndOrSingleSlash {            
@@ -177,6 +188,13 @@ class AiRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],co
         //     }) 
         //   }
         // },
+        pathPrefix("prompt") {
+          pathEndOrSingleSlash {
+            // authenticate()(authn => authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
+              createAiStreamRoute(Some(oid))
+            // })
+          }
+        },
         pathEndOrSingleSlash {            
           authenticate()(authn => authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
             createAiRoute(Some(oid))

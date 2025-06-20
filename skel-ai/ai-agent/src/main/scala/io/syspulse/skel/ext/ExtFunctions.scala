@@ -346,10 +346,14 @@ trait ExtCoreFunctions extends ExtClientProvider {
     "addTrigger" -> new AddTrigger,
     "deleteTrigger" -> new DeleteTrigger
   )
+
+  def getProjectId(metadata:Map[String,String]):String = {
+    metadata.getOrElse("pid","???")
+  }
   
   class AddContract() extends AgentFunction {
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
-      val projectId = metadata.getOrElse("pid","???")
+      val projectId = getProjectId(metadata)
       val address = (functionArgsJson \ "address").as[String]
       val network = (functionArgsJson \ "network").as[String]
       val name = (functionArgsJson \ "name").asOpt[String]           
@@ -365,7 +369,7 @@ trait ExtCoreFunctions extends ExtClientProvider {
 
   class AddMonitoringType extends AgentFunction {
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
-      val projectId = metadata.getOrElse("pid","???")
+      val projectId = getProjectId(metadata)
       val address = (functionArgsJson \ "address").asOpt[String]
       val contractName = (functionArgsJson \ "contractName").asOpt[String]
       val network = (functionArgsJson \ "network").asOpt[String]
@@ -440,7 +444,7 @@ trait ExtCoreFunctions extends ExtClientProvider {
 
   class DeleteContract extends AgentFunction {
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
-      val projectId = metadata.getOrElse("pid","???")
+      val projectId = getProjectId(metadata)
       val address = (functionArgsJson \ "address").asOpt[String]
       val name = (functionArgsJson \ "name").asOpt[String]
       
@@ -454,7 +458,7 @@ trait ExtCoreFunctions extends ExtClientProvider {
 
   class GetProjectContracts extends AgentFunction {
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {      
-      val projectId = metadata.getOrElse("pid","???")
+      val projectId = getProjectId(metadata)
       val address = (functionArgsJson \ "address").asOpt[String]
 
       log.info(s"Project($projectId) [?] [${address}]")
@@ -467,7 +471,7 @@ trait ExtCoreFunctions extends ExtClientProvider {
 
   class FindContracts extends AgentFunction {
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {      
-      val projectId = metadata.getOrElse("pid","???")
+      val projectId = getProjectId(metadata)
       val name = (functionArgsJson \ "name").as[String]
 
       log.info(s"Project($projectId) [?] [${name}]")
@@ -480,7 +484,7 @@ trait ExtCoreFunctions extends ExtClientProvider {
 
   class AddTrigger extends AgentFunction {
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
-      val projectId = metadata.getOrElse("pid","???")
+      val projectId = getProjectId(metadata)
       val address = (functionArgsJson \ "address").asOpt[String]
       val contractName = (functionArgsJson \ "contractName").asOpt[String]
       val network = (functionArgsJson \ "network").asOpt[String]
@@ -513,7 +517,7 @@ trait ExtCoreFunctions extends ExtClientProvider {
 
   class DeleteTrigger extends AgentFunction {
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
-      val projectId = metadata.getOrElse("pid","???")
+      val projectId = getProjectId(metadata)
       val contractName = (functionArgsJson \ "contractName").asOpt[String]
       val address = (functionArgsJson \ "address").asOpt[String]
       val network = (functionArgsJson \ "network").asOpt[String]
@@ -534,7 +538,7 @@ trait ExtCoreFunctions extends ExtClientProvider {
 
   class AddDetector extends AgentFunction {
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
-      val projectId = metadata.getOrElse("pid","???")
+      val projectId = getProjectId(metadata)
       val address = (functionArgsJson \ "address").asOpt[String]
       val network = (functionArgsJson \ "network").asOpt[String]
       val contractName = (functionArgsJson \ "contractName").asOpt[String]
@@ -585,7 +589,7 @@ trait ExtCoreFunctions extends ExtClientProvider {
 
   class DeleteDetector extends AgentFunction {
     def run(functionArgsJson: JsValue, metadata:Map[String,String]): JsValue = {
-      val projectId = metadata.getOrElse("pid","???")
+      val projectId = getProjectId(metadata)
       val contractName = (functionArgsJson \ "contractName").asOpt[String]
       val address = (functionArgsJson \ "address").asOpt[String]
       val network = (functionArgsJson \ "network").asOpt[String]

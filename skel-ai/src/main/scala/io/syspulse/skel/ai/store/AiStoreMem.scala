@@ -8,8 +8,10 @@ import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
-import io.syspulse.skel.ai.{Ai}
 import io.syspulse.skel.util.Util
+
+import io.syspulse.skel.ai.{Ai}
+import io.syspulse.skel.ai.provider.AiProvider
 
 class AiStoreMem extends AiStore {
   val log = Logger(s"${this}")
@@ -54,4 +56,6 @@ class AiStoreMem extends AiStore {
   def ????(question:String,model:Option[String],oid:Option[String]):Try[Ai] =  ???(question,oid)
  
   def getProviderId():String = "cache"
+
+  def getProvider(oid:Option[String]):Option[AiProvider] = None
 }

@@ -1425,9 +1425,8 @@ lazy val tools = (project in file("tools"))
       appDockerConfig("skel-tools","io.syspulse.skel.tools.HttpServer"),
       //name := "skel-tools",
 
-      libraryDependencies ++= 
-        Seq(
-          libCask, 
+      libraryDependencies ++= libAkka ++ libHttp ++ Seq(
+          libCask,           
           libOsLib,
           libUpickleLib
         ),

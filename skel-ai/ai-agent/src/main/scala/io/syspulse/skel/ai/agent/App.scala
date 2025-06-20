@@ -144,18 +144,11 @@ object App extends skel.Server {
       case "agent" :: "evm-agent" :: Nil => new AgentEvm(uri,extClient)
       case "agent" :: "token-agent" :: Nil => new AgentToken(uri,extClient)
       case "agent" :: "sec-agent" :: Nil => new AgentSec(uri,extClient)
-
-      case "agent" :: "fw-agent" :: Nil =>         
-        new AgentFw(uri,AgentFwConfig(config.instructions),extClient)
-
-      case "agent" :: "jail-agent" :: Nil => 
-        new AgentJail(uri,extClient)
-
-      case "agent" :: "blockchain-agent" :: Nil =>
-        new AgentBlockchain(uri)
-
-      case ("agent" :: "prompt-agent" :: Nil) | ("prompt" :: Nil) =>
-        new AgentPrompt(uri)
+      case "agent" :: "fw-agent" :: Nil =>  new AgentFw(uri,AgentFwConfig(config.instructions),extClient)
+      case "agent" :: "jail-agent" :: Nil => new AgentJail(uri,extClient)
+      case "agent" :: "blockchain-agent" :: Nil => new AgentBlockchain(uri)
+      case ("agent" :: "prompt-agent" :: Nil) | ("prompt" :: Nil) => new AgentPrompt(uri)
+      case "agent" :: "test-agent" :: Nil => new AgentTest(uri)
       
       
       // resolve Agent
@@ -359,6 +352,7 @@ object App extends skel.Server {
           config.params,
           config.meta.map(m => m.split("=").toList match { case k :: v :: Nil => k -> v }).toMap
         )
+      
 
       case "ext-agent-ask" =>
         new AgentExt(uri,extClient).ask(
@@ -423,16 +417,16 @@ Otherwise, just answer the question.
     import io.syspulse.skel.FutureAwaitable._
 
     var metadata = metadata0
-    var tid = ""
+    var thid = ""
     var aid = agent.getId().getOrElse("")
 
     val q0 = params.mkString(" ")
     Console.err.println(s"q0 = '${q0}'")    
-    Console.err.println(s"tid = '${tid}'")
+    Console.err.println(s"thread_id = '${thid}'")
     Console.err.println(s"aid = '${aid}'")
 
     for (i <- 1 to Int.MaxValue) {
-      Console.err.print(s"${agent.getModel()} / ${aid} / ${tid} / ${i}> ")
+      Console.err.print(s"${agent.getModel()} / ${aid} / ${thid} / ${i}> ")
       val q = StdIn.readLine()
       if(q == null || q.trim.toLowerCase() == "exit") {
         sys.exit(0)
@@ -450,8 +444,9 @@ Otherwise, just answer the question.
         // save thread_id
         val threadId = r.get.head.thread_id
         metadata = metadata + ("thread_id" -> threadId)
-        tid = threadId
+        thid = threadId
       }
     }
   }
+  
 }

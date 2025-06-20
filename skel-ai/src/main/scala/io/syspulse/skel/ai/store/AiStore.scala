@@ -7,6 +7,7 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.store.Store
 import io.syspulse.skel.ai.{Ai}
+import io.syspulse.skel.ai.provider.AiProvider
 
 trait AiStore extends Store[Ai,String] {  
   
@@ -33,5 +34,7 @@ trait AiStore extends Store[Ai,String] {
   def del(question:String):Try[String] = del(question,None).map(_ => question)  
 
   def getProviderId():String
+
+  def getProvider(oid:Option[String]):Option[AiProvider]
 }
 

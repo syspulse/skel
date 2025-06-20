@@ -45,7 +45,7 @@ case class Config(
   // throttle:Long = 0L,
   // throttleSource:Long = 100L,
         
-  cmd:String = "ask",
+  cmd:String = "prompt-stream",
   params: Seq[String] = Seq(),
 )
 
@@ -302,7 +302,7 @@ object App extends skel.Server {
 
     var a = a0
     for (i <- 1 to Int.MaxValue) {
-      Console.err.print(s"${a.model}: ${a.xid}:${i} > ")
+      Console.err.print(s"${a.model}/${a.xid}:${i} > ")
       val q = scala.io.StdIn.readLine()
       if(q == null || q.trim.toLowerCase() == "exit") {
         sys.exit(0)
@@ -313,10 +313,10 @@ object App extends skel.Server {
           (s:String) => {
             s match {
               case s"""data: {"type":"response.output_text.delta","item_id":${id},"output_index":${i},"content_index":${ic},"delta":"${txt}"}""" =>
-                Console.err.print(s"${txt}")
+                Console.err.print(s"${Console.BLUE}${txt}${Console.RESET}")
 
               case s"""data: {"type":"response.output_text.delta","sequence_number":${seq},"item_id":"${iid}","output_index":${io},"content_index":${ic},"delta":"${txt}"}""" =>
-                Console.err.print(s"${txt}")                
+                Console.err.print(s"${Console.BLUE}${txt}${Console.RESET}")                
 
               case _ => 
                 // ignore
@@ -330,7 +330,7 @@ object App extends skel.Server {
 
         Console.err.println(s"${a1.get}")
         val txt = a1.get.answer.getOrElse("???")
-        Console.err.println(s"${Console.GREEN}${a1.get.model}${Console.YELLOW}: ${txt}${Console.RESET}")
+        Console.err.println(s"${Console.GREEN}${a1.get.model}${Console.YELLOW}/${a1.get.xid}: ${txt}${Console.RESET}")
         a = a1.get
       }
     }
