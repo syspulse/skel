@@ -163,7 +163,7 @@ abstract class HttpServerAkka {
     }
   }
 
-  private def createSseStream(requestData: Option[String]): Source[ServerSentEvent, Any] = {
+  def createSseStream(requestData: Option[String]): Source[ServerSentEvent, Any] = {
     val isPost = requestData.isDefined
     val method = if (isPost) "POST" else "GET"
     Console.err.println(s"<- $method SSE STREAM")
