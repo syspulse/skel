@@ -10,6 +10,7 @@ import akka.actor.ActorSystem
 import akka.stream.OverflowStrategy
 import java.util.concurrent.TimeUnit
 import akka.stream.Attributes
+import akka.util.ByteString
 
 case class Cursor(last: Long)
 
@@ -44,6 +45,7 @@ class CursorBasedProcessor(
   
   private val cursor = new AtomicReference[Cursor](Cursor(0L))
   
+  // RACE !
   def createSource1(): Source[Long, NotUsed] = {
     Source
       .tick(Duration.Zero, pollInterval, ())
@@ -67,7 +69,7 @@ class CursorBasedProcessor(
         Console.err.println(s"Batch = ${batch}")
         batch
       })
-
+      .map(b => b)
       
   }
 
@@ -90,7 +92,8 @@ class CursorBasedProcessor(
       .mapConcat(range => {
         Console.err.println(s"Range = ${range}")
         range
-      })      
+      })
+      .map(b => b)
   }
 
   // RACE !
@@ -115,6 +118,7 @@ class CursorBasedProcessor(
         Console.err.println(s"Range = ${range}")
         range
       })
+      .map(b => b)
   }
 
   // WORKING !
@@ -140,6 +144,7 @@ class CursorBasedProcessor(
         range
       })
       .throttle(1, FiniteDuration(throttle,TimeUnit.MILLISECONDS))
+      .map(b => b)
   }
 
   // RACE !
@@ -167,9 +172,10 @@ class CursorBasedProcessor(
         range
       })
       .throttle(1, FiniteDuration(throttle,TimeUnit.MILLISECONDS))
+      .map(b => b)
   }
 
-  // RACE !
+  // WORKING !
   def createSource6(blockMax: Long): Source[Long, NotUsed] = {
     Console.err.println(s"createSource6(${blockMax})")
 
@@ -193,6 +199,66 @@ class CursorBasedProcessor(
       })
       .takeWhile(b => b < blockMax)
       .throttle(1, FiniteDuration(throttle,TimeUnit.MILLISECONDS))
+      .map(b => b)
+  }
+
+  // RACE !
+  def createSource7(blockMax: Long): Source[Long, NotUsed] = {
+    Console.err.println(s"createSource7(${blockMax})")
+
+    Source
+      .tick(Duration.Zero, pollInterval, ())
+      .mapMaterializedValue(_ => NotUsed)
+            
+      .map { _ =>
+        val latest = externalService.getLatest()
+        val last = cursor.get().last
+        val current = last + 1
+        
+        val range0 = current to latest
+        val range = range0.take(maxBatchSize)
+        Console.err.println(s"Cursor: last=${last}, current=${current}, latest=$latest, range = ${range}")
+        range
+      }
+      // WARNING: Rece is only because of this filter !
+      .filter { range => range.size > 0 }
+      .mapConcat(range => {
+        Console.err.println(s"Range = ${range}")
+        range
+      })      
+      .takeWhile(b => b < blockMax)
+      .throttle(1, FiniteDuration(throttle,TimeUnit.MILLISECONDS))      
+      .map(b => b)      
+  }
+
+  // RACE !
+  def createSource8(blockMax: Long): Source[Long, NotUsed] = {
+    Console.err.println(s"createSource8(${blockMax})")
+
+    Source
+      .tick(Duration.Zero, pollInterval, ())
+      
+      .mapMaterializedValue(_ => NotUsed)
+      
+      .mapConcat { _ =>
+        val latest = externalService.getLatest()
+        val last = cursor.get().last
+        val current = last + 1
+        
+        val range0:List[Long] = Seq.range(current,latest).toList
+        val range = range0.take(maxBatchSize)
+        Console.err.println(s"Cursor: last=${last}, current=${current}, latest=$latest, range = ${range}")
+        range
+      }      
+      // WARNING: Race is only because of this filter !
+      .filter { b => b > 0 }
+      // .mapConcat{ range:List[Long] => {
+      //   Console.err.println(s"Range = ${range}")
+      //   range
+      // }}
+      .takeWhile(b => b < blockMax)
+      .throttle(1, FiniteDuration(throttle,TimeUnit.MILLISECONDS))      
+      .map(b => b)      
   }
   
   // =========================================================================================================================
@@ -267,6 +333,8 @@ object AppTest1 extends App {
     case "4" => processor.createSource4()
     case "5" => processor.createSource5()
     case "6" => processor.createSource6(blockMax)
+    case "7" => processor.createSource7(blockMax)
+    case "8" => processor.createSource8(blockMax)
     case _ => processor.createSource1()
   }
   
