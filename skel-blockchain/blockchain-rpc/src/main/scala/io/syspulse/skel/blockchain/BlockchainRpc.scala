@@ -22,7 +22,7 @@ class Blockchains(bb:Seq[String]) {
     
     
     Blockchain.ANVIL.id.get -> BlockchainRpc(Blockchain.ANVIL.name,Blockchain.ANVIL.id.get,"http://localhost:8545"),
-    Blockchain.SEPOLIA.id.get -> BlockchainRpc(Blockchain.SEPOLIA.name,Blockchain.SEPOLIA.id.get,"https://rpc2.sepolia.org"),
+    Blockchain.ETHEREUM_SEPOLIA.id.get -> BlockchainRpc(Blockchain.ETHEREUM_SEPOLIA.name,Blockchain.ETHEREUM_SEPOLIA.id.get,"https://rpc2.sepolia.org"),
   )
 
   def ++(bb:Seq[String]):Blockchains = {

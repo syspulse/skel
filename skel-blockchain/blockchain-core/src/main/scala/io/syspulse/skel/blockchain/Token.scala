@@ -44,6 +44,15 @@ class TokenProviderCoinGecko(apiKey0:Option[String]) extends TokenProvider {
   def load():Try[Set[Coin]] = {
     Success(loadFromResources())
   }
+
+  def resovleChain(cgChain:String):String = {
+    cgChain match {
+      case "binance-smart-chain" => Blockchain.BSC_MAINNET.name
+      // case "polygon" => Blockchain.POLYGON_MAINNET.name
+      case "arbitrum-one" => Blockchain.ARBITRUM_MAINNET.name
+      case _ => cgChain
+    }
+  }
   
   def decodeCoin(json:String):Try[Coin] = {
     try {
@@ -61,12 +70,13 @@ class TokenProviderCoinGecko(apiKey0:Option[String]) extends TokenProvider {
             val decimals = platform.obj("decimal_place").num.toInt
             val addr = platform.obj("contract_address").str.toLowerCase()
 
+            val chainResolved = resovleChain(chain)
             Some(
-              chain -> Token(
+              chainResolved -> Token(
                 addr,
                 "",
                 decimals,
-                chain
+                chainResolved
               )
             )
 
@@ -106,7 +116,7 @@ class TokenProviderCoinGecko(apiKey0:Option[String]) extends TokenProvider {
       tt
     } catch {
       case e:Exception =>
-        //log.error(s"could not load: ${file}",e)
+        log.debug(s"could not load tokens: ${file}",e)
         Set.empty[Coin]
     }
   }
@@ -242,9 +252,28 @@ class Tokens(providers:Seq[TokenProvider]) {
     }    
   }
 
-  def find(addr:String) = tokensCache.get(addr.toLowerCase).map(Token.coinToToken(_))
+  def find(addr:String, chain:Option[Blockchain] = None):Option[Set[Token]] = {
+    if(addr.isEmpty) return None
+    
+    tokensCache.get(addr.toLowerCase).map(c => Token.coinToToken(c,chain))
+  }
 
-  def findCoin(addr:String) = tokensCache.get(addr.toLowerCase)
+  def findCoin(addr:String, chain:Option[Blockchain] = None):Option[Coin] = {
+    if(addr.isEmpty) return None
+
+    tokensCache.get(addr.toLowerCase) match {
+      case Some(c) if(chain.isDefined) => 
+        c.tokens.get(chain.get.name) match {
+          case Some(t) =>             
+            //Some(c.copy(tokens = Map(chain.get -> t)))
+            Some(c)
+
+          case None => None
+        }
+      case c => c
+    }    
+  }
+
 }
 
 object Token {
@@ -262,8 +291,8 @@ object Token {
 
   def size = default.size
   def resolve(tokenId:String):Set[Token] = default.resolve(tokenId)
-  def find(addr:String) = default.find(addr)
-  def findCoin(addr:String) = default.findCoin(addr)
+  def find(addr:String, chain:Option[Blockchain] = None) = default.find(addr,chain)
+  def findCoin(addr:String, chain:Option[Blockchain] = None) = default.findCoin(addr,chain)
 
   def coinToToken(c:Coin,chain:Option[Blockchain] = None):Set[Token] = {
     if(chain.isDefined) {

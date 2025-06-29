@@ -66,9 +66,27 @@ class TokenSpec extends AnyWordSpec with Matchers {
     }
 
     "parse ''" in {
-      val t = Token.find("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2")
-      t should !== (None)
+      val t = Token.find("")
+      t should === (None)
       // info(s"${t}")
+    }
+
+    "parse PEPE on different chains" in {
+      val t = Token.find("0x6982508145454Ce325dDbE47a25d4ec3d2311933")
+      t should !== (None)
+      info(s"PEPE: Tokens = ${t}")
+      
+      val c = Token.findCoin("0x6982508145454Ce325dDbE47a25d4ec3d2311933")
+      info(s"PEPE: Coin = ${c}")
+
+      c should !== (None)
+      c.get.tokens.size should === (3)
+      c.get.tokens.get("ethereum") should !== (None)
+      c.get.tokens.get("bsc") should !== (None)
+
+      c.get.tokens.get("bsc").get.addr should === ("0x25d887ce7a35172c62febfd67a1856f20faebb00")
+      c.get.tokens.get("ethereum").get.addr should === ("0x6982508145454ce325ddbe47a25d4ec3d2311933")
+      c.get.tokens.get("arbitrum").get.addr should === ("0x25d887ce7a35172c62febfd67a1856f20faebb00")
     }
 
   }    
