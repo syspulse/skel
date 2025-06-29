@@ -228,7 +228,15 @@ trait Flows {
       .map(_ => ByteString(s"${System.currentTimeMillis()}"))      
   }
 
-  def toNull = Sink.ignore
+  def toNull[T <: Ingestable](delay:Long = 0L)(implicit fmt:JsonFormat[T]) = {
+    if(delay > 0L)
+      Flow[T]
+        .throttle(1,FiniteDuration(delay,TimeUnit.MILLISECONDS))
+        .toMat(Sink.foreach(println))(Keep.right)
+    else
+      Sink.ignore
+  }
+
   def fromNull = Source.future(Future({Thread.sleep(Long.MaxValue);ByteString("")})) //Source.never
 
   def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem,timeout:FiniteDuration) = 
