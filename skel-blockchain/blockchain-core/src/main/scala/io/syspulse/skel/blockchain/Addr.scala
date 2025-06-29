@@ -28,4 +28,12 @@ object Addr {
       (addr,None)
     }
   }
+
+  def shorten(addr:String):String = {
+    if(addr.length > 12) {
+      addr.substring(0,6) + "..." + addr.substring(addr.length - 6)
+    } else {
+      addr
+    }
+  }
 }

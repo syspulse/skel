@@ -328,7 +328,7 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 // ======================================================================================================================
 lazy val root = (project in file("."))
-  .aggregate(core, skel_serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
+  .aggregate(core, skel_serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, skel_kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
              skel_plugin,
              ingest_core, 
              ingest_flow,
@@ -359,7 +359,7 @@ lazy val root = (project in file("."))
              tools,
              skel_test
              )
-  .dependsOn(core, skel_serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
+  .dependsOn(core, skel_serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, skel_kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
              skel_plugin,
              ingest_core,
              ingest_flow,
@@ -609,7 +609,7 @@ lazy val skel_user = (project in file("skel-user"))
     ),    
   )
 
-lazy val kafka= (project in file("skel-kafka"))
+lazy val skel_kafka= (project in file("skel-kafka"))
   .dependsOn(core)
   .settings (
     sharedConfig,
@@ -777,7 +777,7 @@ lazy val ingest_twitter = (project in file("skel-ingest/ingest-twitter"))
   )
 
 lazy val ingest = (project in file("skel-ingest"))
-  .dependsOn(core, skel_serde, ingest_core, ingest_elastic, kafka, ingest_twitter)
+  .dependsOn(core, skel_serde, ingest_core, ingest_elastic, skel_kafka, ingest_twitter)
   //.enablePlugins(JavaAppPackaging)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
@@ -1016,7 +1016,7 @@ lazy val pdf = (project in file("skel-pdf"))
   )
 
 lazy val syslog_core = (project in file("skel-syslog/syslog-core"))
-  .dependsOn(core,auth_core,kafka)
+  .dependsOn(core,auth_core,skel_kafka)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
     sharedConfig,
@@ -1071,7 +1071,7 @@ lazy val skel_video = (project in file("skel-video"))
   )
 
 lazy val notify_core = (project in file("skel-notify/notify-core"))
-  .dependsOn(core,auth_core,kafka)
+  .dependsOn(core,auth_core,skel_kafka)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
     sharedConfig,
@@ -1163,7 +1163,7 @@ lazy val skel_wf = (project in file("skel-wf"))
   )
 
 lazy val job_core = (project in file("skel-job/job-core"))
-  .dependsOn(core,auth_core,kafka)
+  .dependsOn(core,auth_core,skel_kafka)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
     sharedConfig,

@@ -478,7 +478,9 @@ class OpenAi(uri:String) extends AiProvider {
           .via(akka.stream.scaladsl.Framing.delimiter(ByteString("\n"), maximumFrameLength = 8192))
           .map(_.utf8String.trim)
           .filter(_.nonEmpty)
-          .map { line =>
+          .map { line => {
+            log.info(s"LINE >>>>>>>>'${line}'")
+
             // Parse SSE format: data: <json>
             if (line.startsWith("data: ")) {
               val data = line.substring(6)
@@ -501,10 +503,11 @@ class OpenAi(uri:String) extends AiProvider {
               ServerSentEvent("", id = Some(id))
             } else {
               // Forward other lines as-is
+              println(s"---------------------------->'${line}'")
               onData(line)
               ServerSentEvent(data = line)
             }
-          }
+          }}
           .recover {
             case e: Exception =>
               log.error(s"Stream parsing failed: ${e.getMessage}")
