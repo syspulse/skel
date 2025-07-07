@@ -13,6 +13,7 @@ import org.web3j.abi.datatypes.generated.Uint256
 import java.util.Arrays
 import org.web3j.abi.TypeReference
 import io.syspulse.skel.crypto.eth.Solidity
+import io.syspulse.skel.crypto.eth.SolidityTuple
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.Await
@@ -163,7 +164,8 @@ object AppEvm extends {
         val typ = config.params(0)
         val params = config.params.last
         
-        Solidity.decodeData(typ,params)
+        //Solidity.decodeData(typ,params)
+        SolidityTuple.decodeData(typ,params)
 
       case "block" =>         
 

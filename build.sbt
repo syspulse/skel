@@ -640,7 +640,9 @@ lazy val skel_crypto = (project in file("skel-crypto"))
           libBLS,
           libBLSKeystore,
           libSSSS,
+
           libEthAbi,
+          libOssLabzEvmAbi,
 
           libDirWatcher,
           libDirWatcherScala,
