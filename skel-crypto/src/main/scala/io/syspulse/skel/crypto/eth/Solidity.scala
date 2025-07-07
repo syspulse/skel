@@ -489,5 +489,6 @@ object Solidity {
       encodeFunction(s"FUN(${input})",params)//.drop(10)
     )
   }
+  
 
 }
