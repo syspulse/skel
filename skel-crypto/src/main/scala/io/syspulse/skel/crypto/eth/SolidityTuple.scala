@@ -31,10 +31,10 @@ object SolidityTuple {
       case null => "null"
       
       // address is a string interanlly
-      case v if t == "address" => v.asInstanceOf[String]
+      // case v if t == "address" => v.asInstanceOf[String]
       
       // this is when outisde of tuple (primitive)
-      case v if t == "string" => s""""${v.asInstanceOf[String]}""""      
+      // case v if t == "string" => s""""${v.asInstanceOf[String]}""""      
 
       case _ if value.isInstanceOf[DecodedFunctionCall.Param] =>         
         val p = value.asInstanceOf[DecodedFunctionCall.Param]
@@ -63,13 +63,15 @@ object SolidityTuple {
       case v if t.startsWith("bytes") => v.asInstanceOf[String]
 
       // this is when inside tuple
-      case v if v.isInstanceOf[String] => s""""${v.asInstanceOf[String]}""""
+      // case v if v.isInstanceOf[String] => s""""${v.asInstanceOf[String]}""""
 
       case _ => value.toString()
     }
   }
 
   def decodeTupleResult(hexData: String, tupleType: String): String = {
+    if(hexData.isEmpty || hexData == "0x") return ""
+
     val funcName = "func";
     
     // do not try to calculate signature - uint == unt256. Just take the first signature from AbiDecoder
