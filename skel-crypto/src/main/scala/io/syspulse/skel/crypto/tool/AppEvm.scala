@@ -54,8 +54,8 @@ object AppEvm extends {
         ArgCmd("estimate","eth_estimageGas"),
         ArgCmd("balance","eth_getBalance"),
         ArgCmd("balance-erc20","ERC20 balanceOf()"),
-        ArgCmd("encode-data","inputType params..."),
-        ArgCmd("decode-data","inputType params..."),
+        ArgCmd("abi-encode","inputType params..."),
+        ArgCmd("abi-decode","inputType params..."),
         ArgCmd("block","Get block"),
 
         ArgParam("<params>","..."),
@@ -144,9 +144,9 @@ object AppEvm extends {
           })
           //.await()
 
-      case "encode-data" => 
+      case "abi-encode" => 
         if(config.params.size < 1) {
-          Console.err.println("encode-data: type [params..]")
+          Console.err.println("abi-encode: type [params..]")
           sys.exit(1)
         }
 
@@ -155,9 +155,9 @@ object AppEvm extends {
         
         Solidity.encodeData(typ,params)
 
-      case "decode-data" => 
+      case "abi-decode" => 
         if(config.params.size < 1) {
-          Console.err.println("decode-data: type [params..]")
+          Console.err.println("abi-decode: type [params..]")
           sys.exit(1)
         }
 

@@ -16,13 +16,8 @@ import net.osslabz.evm.abi.definition.SolidityType.TupleType
 
 object SolidityTuple {
   
-  def valueToString(value: Any, t: String): String = {
-    // if (value == null) "null" 
-    // else 
-    // if (value.getClass.isArray) s"[${value.asInstanceOf[Array[Any]].map(v => valueToString(v,t)).mkString(",")}]"
-    // else value.toString()
-
-    println(s"${t} -----> value: ${value}")
+  def valueToString(value: Any, t: String): String = {    
+    // println(s"${t} -----> value: ${value}")
 
     var w1 = if(t == "tuple") '(' else '['
     var w2 = if(t == "tuple") ')' else ']'
@@ -47,7 +42,6 @@ object SolidityTuple {
         s"${w1}${value.asInstanceOf[Array[DecodedFunctionCall.Param]].map(v => valueToString(v,v.getType())).mkString(",")}${w2}"
            
       case _ if value.isInstanceOf[Array[Any]] => 
-        println(s"++++++++++ ${value.asInstanceOf[Array[Any]].size}")
         val s = value.asInstanceOf[Array[Any]].map(v => {
           //val tNoArray = t.replaceAll("\\[\\d+\\]", "")
           val a = t.indexOf("[")
@@ -69,6 +63,12 @@ object SolidityTuple {
     }
   }
 
+  def decodeResult(hexData: String, tupleType: String): Try[String] = {
+    Try {
+      decodeTupleResult(hexData,tupleType)
+    }
+  }
+
   def decodeTupleResult(hexData: String, tupleType: String): String = {
     if(hexData.isEmpty || hexData == "0x") return ""
 
@@ -78,17 +78,17 @@ object SolidityTuple {
     // val funcNameTypes = s"${funcName}(${tupleType})"
     // val funcSig = Util.hex(Hash.keccak256(funcNameTypes).take(4))
     
-    val abiJson = abiJsonFromTypes(List(tupleType), funcName)
-    // println(s">>>> '${funcNameTypes}': ${funcSig}: abiJson: ${abiJson}")
+    val abiJson = abiJsonFromTypes(List(tupleType), funcName)    
+    println(s"====================> abiJson: \n${abiJson}")
 
     val decoder = new AbiDecoder(new StringBufferInputStream(abiJson));        
-    println(s"====================> AbiDecoder: ${decoder.getMethodSignatures}")
+    //  println(s"====================> AbiDecoder: ${decoder.getMethodSignatures}")
     val funcSig = decoder.getMethodSignatures.asScala.keys.head
     
     val decode = decoder.decodeFunctionCall( funcSig + hexData.stripPrefix("0x"))
         
     val param = decode.getParams().stream().findFirst().orElse(null);
-    println(s">>>> param: ${param}")    
+    // println(s">>>> param: ${param}")    
                 
     val r = for (p <- decode.getParams().asScala)
         yield valueToString(p.getValue(),p.getType())
@@ -105,12 +105,43 @@ object SolidityTuple {
   def abiJsonFromTypes(types: List[String], funcName: String = "func"): String = {
     def parseType(t: String, idx: Int = 0): Value = {
       val trimmed = t.trim
-      if (trimmed.startsWith("(") && trimmed.endsWith(")")) {
+      
+      // Check if it's an array of tuples (e.g., "(uint256,string)[]")
+      if (trimmed.matches("\\(.*\\)\\[\\]")) {
+        val tupleContent = trimmed.substring(1, trimmed.lastIndexOf(")"))
+        val components = splitTypes(tupleContent).zipWithIndex.map { case (sub, i) => parseType(sub, i) }
+        val tupleType = Obj("type" -> "tuple", "components" -> Arr(components: _*))
+        Obj("name" -> s"_value$idx", "type" -> "tuple[]", "components" -> Arr(tupleType))
+      }
+      // Check if it's a static array of tuples (e.g., "(uint256,string)[2]")
+      else if (trimmed.matches("\\(.*\\)\\[\\d+\\]")) {
+        val tupleContent = trimmed.substring(1, trimmed.lastIndexOf(")"))
+        val arraySize = trimmed.replaceAll(".*\\[(\\d+)\\]$", "$1").toInt
+        val components = splitTypes(tupleContent).zipWithIndex.map { case (sub, i) => parseType(sub, i) }
+        val tupleType = Obj("type" -> "tuple", "components" -> Arr(components: _*))
+        Obj("name" -> s"_value$idx", "type" -> s"tuple[$arraySize]", "components" -> Arr(tupleType))
+      }
+      // Check if it's a dynamic array (ends with [])
+      else if (trimmed.endsWith("[]")) {
+        val baseType = trimmed.substring(0, trimmed.length - 2)
+        val baseTypeObj = parseType(baseType, idx)
+        Obj("name" -> s"_value$idx", "type" -> s"${baseTypeObj.obj("type").str}[]")
+      }
+      // Check if it's a static array (ends with [n])
+      else if (trimmed.matches(".*\\[\\d+\\]$")) {
+        val baseType = trimmed.replaceAll("\\[\\d+\\]$", "")
+        val arraySize = trimmed.replaceAll(".*\\[(\\d+)\\]$", "$1").toInt
+        val baseTypeObj = parseType(baseType, idx)
+        Obj("name" -> s"_value$idx", "type" -> s"${baseTypeObj.obj("type").str}[$arraySize]")
+      }
+      // Check if it's a tuple
+      else if (trimmed.startsWith("(") && trimmed.endsWith(")")) {
         // Tuple: recursively parse components
         val inner = trimmed.substring(1, trimmed.length - 1)
         val components = splitTypes(inner).zipWithIndex.map { case (sub, i) => parseType(sub, i) }
         Obj("name" -> s"_value$idx", "type" -> "tuple", "components" -> Arr(components: _*))
-      } else {
+      } 
+      else {
         // Simple type
         Obj("name" -> s"_value$idx", "type" -> trimmed)
       }

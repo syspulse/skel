@@ -363,14 +363,22 @@ object Solidity {
     }
   }
 
+  def encodeFunctionWithoutOutputType(func: String, params: Seq[String]): (String,String) = { 
+    encodeFunc(func,params,output = false)
+  }
+
   def encodeFunctionWithOutputType(func: String, params: Seq[String]): (String, String) = {    
+    encodeFunc(func,params,output = true)
+  }
+
+  def encodeFunc(func: String, params: Seq[String], output:Boolean = true): (String, String) = {    
     val (funcName,inputTypes,outputType) = parseFunction(func)
         
     if(inputTypes.size != params.size)
       throw new Exception(s"Invalid parameters count: types=${inputTypes.size}, params=${params.size}: ${params}")
 
     val inputParameters = inputTypes.zipWithIndex.map { case (paramType, i) => toWeb3Type(paramType, params(i)) }
-    val outputParameters = if(outputType.isEmpty) 
+    val outputParameters = if(!output || outputType.isEmpty) 
       Seq.empty[TypeReference[_]] 
     else 
       Seq(toTypeReference(outputType))
@@ -457,6 +465,7 @@ object Solidity {
   def decodeData(dataType: String, data: String): Try[String] = {    
     Try {
       if(data.isEmpty || data == "0x") return Success("")
+      if(dataType.isEmpty || dataType == "()") return Success(data)
 
       def typeToString(t: datatypes.Type[_]): String = t match {
         case struct: datatypes.DynamicStruct =>

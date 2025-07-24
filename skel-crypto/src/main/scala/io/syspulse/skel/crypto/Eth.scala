@@ -46,6 +46,7 @@ import io.syspulse.skel.crypto.eth.Solidity
 import java.security.SecureRandom
 import org.web3j.protocol.core.DefaultBlockParameterNumber
 import org.web3j.protocol.core.methods.response.EthBlock.Block
+import io.syspulse.skel.crypto.eth.SolidityTuple
 
 object Eth {
   val log = Logger(s"${this}")
@@ -754,11 +755,15 @@ object Eth {
   }
 
   def callFunction(from:String,contractAddress:String,func:String,params:Seq[String],block:Option[Long] = None)(implicit web3:Web3j):Try[String] = {
-    val (encodedFunction,outputType) = encodeFunction(func,params)
+    val (encodedFunction,outputType) = Solidity.encodeFunctionWithoutOutputType(func,params)    
+
     for {
-      r <- call(from,contractAddress,encodedFunction,outputType = Some(outputType),block)
+      //r <- call(from,contractAddress,encodedFunction,outputType = Some(outputType),block)
+      rEncoded <- call(from,contractAddress,encodedFunction,outputType = None,block)
+
       //r <- Solidity.decodeResult(r,outputType)
-    } yield r
+      rDecoded <- SolidityTuple.decodeResult(rEncoded,outputType)
+    } yield rDecoded
   }
 
   def callFunctionAsync(from:String,contractAddress:String,func:String,params:Seq[String],block:Option[Long] = None)(implicit web3:Web3j,ec:ExecutionContext):Future[String] = {
