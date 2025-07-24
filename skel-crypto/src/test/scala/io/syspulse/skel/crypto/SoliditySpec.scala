@@ -208,6 +208,13 @@ class SoliditySpec extends AnyWordSpec with Matchers with TestData {
     //   exception.getMessage should include("Failed to parse function")
     // }
 
+    """parse "getReservesData(address)((address,string,uint256,bool)[],(uint256,int256,int256,uint8))"""" in {
+      val (name, inputs, output) = Solidity.parseFunction("getReservesData(address)((address,string,uint256,bool)[],(uint256,int256,int256,uint8))")
+      name should === ("getReservesData")
+      inputs should === (Vector("address"))
+      output should === ("(address,string,uint256,bool)[],(uint256,int256,int256,uint8)")
+    }
+
   }
 
   "Solidity.encodeFunction" should {

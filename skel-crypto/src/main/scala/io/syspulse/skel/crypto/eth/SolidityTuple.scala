@@ -63,13 +63,46 @@ object SolidityTuple {
     }
   }
 
-  def decodeResult(hexData: String, tupleType: String): Try[String] = {
-    Try {
-      decodeTupleResult(hexData,tupleType)
+  def decodeTupleResult(hexData: String, tupleType: String): String = {
+    println(s"====================> tupleType: '${tupleType}'")
+
+    if(hexData.isEmpty || hexData == "0x") return ""
+
+    // Split the tupleType at top level (outside of tuples/arrays)
+    val types = splitTypesAtTopLevel(tupleType)
+    
+    if (types.length == 1) {
+      // Single type - treat as before
+      decode(hexData, List(tupleType))
+    } else {
+      // Multiple types - decode each separately
+      decode(hexData, types)
     }
   }
 
-  def decodeTupleResult(hexData: String, tupleType: String): String = {
+  // Splits a comma-separated type list only at top level (not inside tuples or arrays)
+  def splitTypesAtTopLevel(s: String): List[String] = {
+    val buf = new StringBuilder
+    var depth = 0
+    var bracketDepth = 0
+    val out = collection.mutable.ListBuffer[String]()
+    
+    for (c <- s) {
+      c match {
+        case '(' => depth += 1; buf += c
+        case ')' => depth -= 1; buf += c
+        case '[' => bracketDepth += 1; buf += c
+        case ']' => bracketDepth -= 1; buf += c
+        case ',' if depth == 0 && bracketDepth == 0 => 
+          out += buf.toString.trim; buf.clear()
+        case _ => buf += c
+      }
+    }
+    if (buf.nonEmpty) out += buf.toString.trim
+    out.toList
+  }
+  
+  def decode(hexData: String, tupleType: List[String]): String = {
     if(hexData.isEmpty || hexData == "0x") return ""
 
     val funcName = "func";
@@ -78,7 +111,7 @@ object SolidityTuple {
     // val funcNameTypes = s"${funcName}(${tupleType})"
     // val funcSig = Util.hex(Hash.keccak256(funcNameTypes).take(4))
     
-    val abiJson = abiJsonFromTypes(List(tupleType), funcName)    
+    val abiJson = abiJsonFromTypes(tupleType, funcName)
     println(s"====================> abiJson: \n${abiJson}")
 
     val decoder = new AbiDecoder(new StringBufferInputStream(abiJson));        
@@ -94,6 +127,12 @@ object SolidityTuple {
         yield valueToString(p.getValue(),p.getType())
     
     r.mkString(",")
+  }
+
+  def decodeResult(hexData: String, tupleType: String): Try[String] = {
+    Try {
+      decodeTupleResult(hexData,tupleType)
+    }
   }
 
   def decodeData(dataType: String, data: String): Try[String] = {    
