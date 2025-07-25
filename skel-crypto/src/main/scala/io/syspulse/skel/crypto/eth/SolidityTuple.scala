@@ -18,7 +18,7 @@ import net.osslabz.evm.abi.definition.SolObject
 object SolidityTuple {
   
   def valueToString(d:Int,name: String, value: SolObject, t: String): String = {    
-    println(s"${d}: ${name}: t=${t}, type=${value.getTypeName()}: value=${value.getValue()}")
+    //println(s"${d}: ${name}: t=${t}, type=${value.getTypeName()}: value=${value.getValue()}")
     
     value.getTypeName() match {
       case null => "null"
