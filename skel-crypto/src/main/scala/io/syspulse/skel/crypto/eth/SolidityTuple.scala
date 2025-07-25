@@ -110,7 +110,7 @@ object SolidityTuple {
     // val funcSig = Util.hex(Hash.keccak256(funcNameTypes).take(4))
     
     val abiJson = abiJsonFromTypes(tupleType, funcName)
-    println(s"====================> abiJson: \n${abiJson}")
+    //println(s"====================> abiJson: \n${abiJson}")
 
     val decoder = new AbiDecoder(new StringBufferInputStream(abiJson));        
     //  println(s"====================> AbiDecoder: ${decoder.getMethodSignatures}")
@@ -122,10 +122,10 @@ object SolidityTuple {
     // println(s">>>> param: ${param}")    
 
     val params = decode.getParams().asScala
-    println(s">>>> params[${params.size}]: ${params}")
+    //println(s">>>> params[${params.size}]: ${params}")
                 
     val r = for (p <- params)
-        yield valueToString(0,p.getName(),p.getValue(),p.getType())
+      yield valueToString(0,p.getName(),p.getValue(),p.getType())
     
     r.mkString(",")
   }

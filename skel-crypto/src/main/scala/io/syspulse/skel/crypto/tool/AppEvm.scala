@@ -50,6 +50,7 @@ object AppEvm extends {
         ArgLong('_', "delay",s"Delay in ms (def: ${d.delay})"),
         
         ArgCmd("call","eth_call: [address] function(params,...)(return)"),
+        ArgCmd("call-async","eth_call: [address] function(params,...)(return)"),
         ArgCmd("encode","function(params,...)(return)"),
         ArgCmd("estimate","eth_estimageGas"),
         ArgCmd("balance","eth_getBalance"),
@@ -82,8 +83,8 @@ object AppEvm extends {
 
     Console.err.println(s"web3j: ${web3}")
 
-    val r =config.cmd match {
-      case "call" => 
+    val r = config.cmd match {
+      case "call" |  "call-async" => 
         if(config.params.size < 2) {
           Console.err.println("call: <contract> <function> [params..]")
           sys.exit(1)
@@ -95,7 +96,11 @@ object AppEvm extends {
         val paramsStr = params.mkString(" ")
           
         //Eth.callFunctionWithParams(config.from,contractAddress,funcName,paramsStr)
-        Eth.callFunction(config.from,contractAddress,funcName,params,block=config.block)
+        if(config.cmd == "call-async") {
+          Eth.callFunctionAsync(config.from,contractAddress,funcName,params,block=config.block)
+        } else {
+          Eth.callFunction(config.from,contractAddress,funcName,params,block=config.block)
+        }
               
       case "encode" => 
         if(config.params.size < 1) {
@@ -178,10 +183,11 @@ object AppEvm extends {
           })
     }
     
-    Console.err.println(s"r = ${r}")
+    Console.err.println(s"r = ${r} future=${r.isInstanceOf[Future[_]]}")
 
     if(r.isInstanceOf[Future[_]]) {
-      r.asInstanceOf[Future[_]].await()
+      var rf = r.asInstanceOf[Future[_]].await()
+      Console.err.println(s"rf = ${rf}")
     }
     
   }

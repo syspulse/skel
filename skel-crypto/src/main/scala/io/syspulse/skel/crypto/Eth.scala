@@ -689,7 +689,7 @@ object Eth {
         log.info(s"call: ${block} / ${contractAddress}: data=${inputData}: result=${result} (outputType=${outputType})")
         
         if(outputType.isDefined && ! outputType.get.isEmpty()) {
-          Solidity.decodeResult(result,outputType.get)
+          SolidityTuple.decodeResult(result,outputType.get)
         } else {
           Success(result)
         }
@@ -723,7 +723,7 @@ object Eth {
         
         if(outputType.isDefined && ! outputType.get.isEmpty()) {
           Future(
-            Solidity.decodeResult(result,outputType.get).get
+            SolidityTuple.decodeResult(result,outputType.get).get
           )
         } else {
           Future.successful(result)
@@ -755,7 +755,7 @@ object Eth {
   }
 
   def callFunction(from:String,contractAddress:String,func:String,params:Seq[String],block:Option[Long] = None)(implicit web3:Web3j):Try[String] = {
-    val (encodedFunction,outputType) = Solidity.encodeFunctionWithoutOutputType(func,params)    
+    val (encodedFunction,outputType) = Solidity.encodeFunctionWithoutOutputType(func,params)
 
     for {
       //r <- call(from,contractAddress,encodedFunction,outputType = Some(outputType),block)
@@ -767,8 +767,12 @@ object Eth {
   }
 
   def callFunctionAsync(from:String,contractAddress:String,func:String,params:Seq[String],block:Option[Long] = None)(implicit web3:Web3j,ec:ExecutionContext):Future[String] = {
-    val (encodedFunction,outputType) = encodeFunction(func,params)
-    callAsync(from,contractAddress,encodedFunction,outputType = Some(outputType),block)
+    val (encodedFunction,outputType) = Solidity.encodeFunctionWithoutOutputType(func,params)
+    
+    for {
+      rEncoded <- callAsync(from,contractAddress,encodedFunction,outputType = None,block)
+      rDecoded <- Future.fromTry(SolidityTuple.decodeResult(rEncoded,outputType))
+    } yield rDecoded
   }
 
   def callFunctionWithParams(from:String,contractAddress:String,func:String,params:String)(implicit web3:Web3j):Try[String] = {
