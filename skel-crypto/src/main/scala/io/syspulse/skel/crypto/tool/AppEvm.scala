@@ -183,11 +183,11 @@ object AppEvm extends {
           })
     }
     
-    Console.err.println(s"r = ${r} future=${r.isInstanceOf[Future[_]]}")
+    Console.println(s"${r}")
 
     if(r.isInstanceOf[Future[_]]) {
       var rf = r.asInstanceOf[Future[_]].await()
-      Console.err.println(s"rf = ${rf}")
+      Console.println(s"${rf}")
     }
     
   }

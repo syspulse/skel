@@ -17,9 +17,7 @@ https://sepolia-faucet.pk910.de/
 
 ----
 
-## Tools
-
-### ABI
+## ABI
 
 Show ABI for Contract `json`:
 
@@ -60,7 +58,7 @@ Search for signature
 
 ----
 
-### Keystore
+## Keystore
 
 Generate Eth1 keystore.json with SK = 0x01
 ```
@@ -91,21 +89,91 @@ Recover Public Key from Metamask sig
 
 ----
 
-### Calls
+## EVM
+
+
+### Function calls
+
+set RPC or pass it with `--eth.rpc.url=`
 
 ```
-ETH_RPC_URL=http://geth:8545 ./run-evm.sh 0xdAC17F958D2ee523a2206206994597C13D831ec7 "name()(string)"
+export ETH_RPC_URL=http://geth:8545
 ```
 
 ```
-ETH_RPC_URL=http://geth:8545 ./run-evm.sh 0xdAC17F958D2ee523a2206206994597C13D831ec7 "balanceOf(address)(uint256)" 0xF977814e90dA44bFA03b6295A0616a897441aceC
+ ./run-evm.sh call 0xdAC17F958D2ee523a2206206994597C13D831ec7 "name()(string)"
 ```
 
-Encode Function:
+```
+./run-evm.sh call 0xdAC17F958D2ee523a2206206994597C13D831ec7 "balanceOf(address)(uint256)" 0xF977814e90dA44bFA03b6295A0616a897441aceC
+```
+
+Complex call to get AAVE pool health which returns tuple:
 
 ```
-ETH_RPC_URL=http://geth:8545 ./run-evm.sh encode "balanceOf(address)(uint256)" 0xF977814e90dA44bFA03b6295A0616a897441aceC
+./run-evm.sh call 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2 "getUserAccountData(address)((uint256,uint256,uint256,uint256,uint256,uint256))" 0xf0bb20865277abd641a307ece5ee04e79073416c
 ```
+
+Very complex call to AAVE UI Stats: returns tuple with tuple[] inside:
+
+```
+export PARAM_1='(address,string,string,uint256,uint256,uint256,uint256,uint256,bool,bool,bool,bool,uint256,uint256,uint256,uint256,uint256,address,address,address,uint256,uint256,uint256,address,uint256,uint256,uint256,uint256,bool,bool,uint256,uint256,uint256,bool,uint256,uint256,uint256,uint256,bool,bool,uint8)'
+
+./run-evm.sh call-async 0x3f78bbd206e4d3c504eb854232eda7e47e9fd8fc "getReservesData(address)($PARAM_1[],(uint256,int256,int256,uint8))" 0x2f39d218133AFaB8F2B819B1066c7E434Ad94E9e
+```
+
+### Function Encode
+
+Encoding function call (before it is submitted to the Blockchain)
+
+```
+./run-evm.sh encode "balanceOf(address)(uint256)" 0xF977814e90dA44bFA03b6295A0616a897441aceC
+```
+
+### ABI Encode
+
+ABI Encoding Parameters. It is used internall by __Function encode__
+
+__NOTE__: Pay attention, that parameters is just a list:
+
+`address,int256` - encoding two parameter
+`(address,int256)` - encoding 1 tuple parameter
+
+Encoding 2 params:
+
+```
+./run-evm.sh abi-encode "address,int256" 0xF977814e90dA44bFA03b6295A0616a897441aceC 100
+
+0x7bf8e6a9000000000000000000000000f977814e90da44bfa03b6295a0616a897441acec0000000000000000000000000000000000000000000000000000000000000064
+```
+
+
+Encoding Tuple:
+
+```
+./run-evm.sh abi-encode "(address,int256)" "(0xF977814e90dA44bFA03b6295A0616a897441aceC,100)"
+
+0x90c97bc20000000000000000000000000000000000000000000000000000000000000020000000000000000000000000f977814e90da44bfa03b6295a0616a897441acec0000000000000000000000000000000000000000000000000000000000000064
+```
+
+### ABI Decode
+
+ABI Decode is very useful to decode function call results or Events
+
+Call without result decoding:
+
+```
+./run-evm.sh call 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2 "getUserAccountData(address)" 0xf0bb20865277abd641a307ece5ee04e79073416c
+```
+
+Now decode result (pay attention to how type parameter is passed):
+
+```
+./run-evm.sh abi-decode "(uint256,uint256,uint256,uint256,uint256,uint256)" 0x000000000000000000000000000000000000000000000000034e90c4b32f955c00000000000000000000000000000000000000000000000002fa8632f8c19fc70000000000000000000000000000000000000000000000000018c81d8f2aa0e3000000000000000000000000000000000000000000000000000000000000251c00000000000000000000000000000000000000000000000000000000000024540000000000000000000000000000000000000000000000000ea30f907ee9943c
+
+r = Success((238287004791444828,214631485733445575,6975428722598115,9500,9300,1054703851013772348))
+```
+
 
 ----
 ## Certificates

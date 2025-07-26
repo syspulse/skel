@@ -131,6 +131,7 @@ val sharedConfig = Seq(
     
     crossVersion := CrossVersion.binary,
     resolvers ++= Seq(
+      Resolver.mavenLocal,
       Opts.resolver.sonatypeSnapshots, 
       Opts.resolver.sonatypeReleases,
       "spray repo"         at "https://repo.spray.io/",

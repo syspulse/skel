@@ -686,7 +686,7 @@ object Eth {
           throw new Exception(s"${contractAddress}: data=${inputData}: result=${result}")
         } 
         
-        log.info(s"call: ${block} / ${contractAddress}: data=${inputData}: result=${result} (outputType=${outputType})")
+        log.info(s"call: ${block} / ${contractAddress}: data=${inputData}: result=${Util.trunc(result,256)} (outputType=${outputType})")
         
         if(outputType.isDefined && ! outputType.get.isEmpty()) {
           SolidityTuple.decodeResult(result,outputType.get)
@@ -719,7 +719,7 @@ object Eth {
           throw new Exception(s"${contractAddress}: data=${inputData}: result=${result}")
         } 
         
-        log.info(s"call: ${contractAddress}: data=${inputData}: result=${result} (outputType=${outputType})")
+        log.info(s"call-async: ${contractAddress}: data=${inputData}: result=${Util.trunc(result,256)} (outputType=${outputType})")
         
         if(outputType.isDefined && ! outputType.get.isEmpty()) {
           Future(
