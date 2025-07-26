@@ -569,4 +569,11 @@ object Util {
     else
       toJsonObj(o).render(2)
   }
+
+  def trunc(s:String,n:Int):String = {
+    if(s.length <= n)
+      s
+    else
+      s.substring(0,n / 2) + "..." + s.substring(s.length - n / 2)
+  }
 }

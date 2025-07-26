@@ -48,8 +48,10 @@ case class ElasticURI(uri:String) {
           case user :: pass :: Nil => (Util.resolveEnvVar(user),Util.resolveEnvVar(pass))
           case _ => (None,None)
         }
-        (user,pass,url)
-      case url :: Nil => (Util.resolveEnvVar("{ELASTIC_USER}"),Util.resolveEnvVar("{ELASTIC_PASS}"),url)
+        (user,pass,Util.replaceEnvVar(url))
+      
+      case url :: Nil => (Util.resolveEnvVar("{ELASTIC_USER}"),Util.resolveEnvVar("{ELASTIC_PASS}"),Util.replaceEnvVar(url))
+      
       case _ => (Util.resolveEnvVar("{ELASTIC_USER}"),Util.resolveEnvVar("{ELASTIC_PASS}"),"localhost:9200")
     }
     

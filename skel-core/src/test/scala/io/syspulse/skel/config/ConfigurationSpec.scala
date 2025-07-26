@@ -42,9 +42,13 @@ class ConfigurationSpec extends AnyWordSpec with Matchers {
         )
       ))
       
-      val s = c.getListString("param.list") 
-      s.size should === (3)
-      s should === (Seq("str1","2","1000"))
+      val s1 = c.getListString("param.list",trim = false) 
+      s1.size should === (3)
+      s1 should === (Seq("str1","  2"," 1000 "))
+
+      val s2 = c.getListString("param.list") 
+      s2.size should === (3)
+      s2 should === (Seq("str1","2","1000"))
     }
 
     "get List from default " in {
@@ -82,7 +86,7 @@ class ConfigurationSpec extends AnyWordSpec with Matchers {
       ))
       
       val s = c.getListString("param.list") 
-      info(s"s = ${s}")
+      
       s.size should === (3)
       s should === (Seq("str1","2","1000"))
     }
@@ -123,12 +127,22 @@ class ConfigurationSpec extends AnyWordSpec with Matchers {
     "load config from Akka properties file" in {
       val c = Configuration.withPriority(Seq(
         new ConfigurationAkka(Some(s"${testDir}/application-test.conf"))
-      ))
-
-      info(s"c = ${c}")
+      ))      
       
       val s = c.getString("skel_test.test1") 
       s should === (Some("value-1"))
+    }
+
+    
+    "get List from multiline string with spaces and newlines" in {
+      val c = Configuration.withPriority(Seq(
+        new ConfigurationAkka(Some(s"${testDir}/application-test.conf"))
+      ))
+      
+      val s = c.getListString("multiline",comment = Some("#")) 
+            
+      s.size should === (3)      
+      s should === (Seq("pool-1","pool-2","pool-3"))
     }
   }
 }
