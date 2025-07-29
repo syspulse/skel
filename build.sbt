@@ -628,10 +628,11 @@ lazy val skel_crypto = (project in file("skel-crypto"))
   .dependsOn(core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
-      sharedConfig,
-      sharedConfigAssemblyTeku,
-      //sharedConfigAssembly,
-      name := "skel-crypto",
+          sharedConfig,
+    sharedConfigAssemblyTeku,
+    //sharedConfigAssembly,
+    name := "skel-crypto",
+
       libraryDependencies ++= Seq() ++ //Seq(libLog4j2Api, libLog4j2Core) ++ 
         libTest ++ libWeb3j ++ Seq(
           libOsLib,

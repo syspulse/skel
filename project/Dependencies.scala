@@ -96,7 +96,8 @@ object Dependencies {
 
     val libScalaLogging =   "com.typesafe.scala-logging"      %% "scala-logging"        % "3.9.2"
     val libLogback =        "ch.qos.logback"                  % "logback-classic"      % "1.3.5" //"1.2.8"
-    val libJanino =         "org.codehaus.janino"             % "janino"               % janinoVersion
+    val libJanino =         "org.codehaus.janino"             % "janino"               % janinoVersion    
+
     // I need this rubbish slf4j to deal with old jboss dependecny which generates exception in loading logback.xml
     //val libSlf4jApi =       "org.slf4j"                   %  "slf4j-api"            % "1.8.0-beta4"
     // Supports only old XML Config file format
@@ -151,6 +152,7 @@ object Dependencies {
     val libScalaTags =      "com.lihaoyi"                     %% "scalatags"            % "0.9.4"
     val libCask =           "com.lihaoyi"                     %% "cask"                 % "0.7.11" // "0.7.8"
     val libRequests =       "com.lihaoyi"                     %% "requests"             % "0.6.9"
+    val libFastParse =      "com.lihaoyi"                     %% "fastparse"            % "2.3.9"
 
     // lightweight, no deps
     val libCsv =              "com.github.tototoshi"            %% "scala-csv"            % "1.3.7"

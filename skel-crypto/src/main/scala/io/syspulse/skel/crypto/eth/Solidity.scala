@@ -15,6 +15,70 @@ import scala.collection.mutable.Buffer
 import org.web3j.abi.Utils
 
 object Solidity {
+  // unwrap parameters into Seq if multiple parameters are delimited by spaces or newlines (shell cast call style)
+  def unrwapParams(s:String):Seq[String] = {
+    if(s.trim.isEmpty) {
+      return Seq.empty
+    }
+
+    // Parse parameters respecting quoted strings, arrays, and structures
+    val result = scala.collection.mutable.ArrayBuffer[String]()
+    val current = new StringBuilder()
+    var i = 0
+    var inQuotes = false
+    var bracketDepth = 0
+    var parenDepth = 0
+    
+    while (i < s.length) {
+      val char = s(i)
+      
+      char match {
+        case '"' if !inQuotes && (i == 0 || s(i-1) != '\\') =>
+          inQuotes = true
+          current.append(char)
+          
+        case '"' if inQuotes && (i == 0 || s(i-1) != '\\') =>
+          inQuotes = false
+          current.append(char)
+          
+        case '[' if !inQuotes =>
+          bracketDepth += 1
+          current.append(char)
+          
+        case ']' if !inQuotes =>
+          bracketDepth -= 1
+          current.append(char)
+          
+        case '(' if !inQuotes =>
+          parenDepth += 1
+          current.append(char)
+          
+        case ')' if !inQuotes =>
+          parenDepth -= 1
+          current.append(char)
+          
+        case ' ' | '\n' | '\t' if !inQuotes && bracketDepth == 0 && parenDepth == 0 =>
+          // Only split on whitespace if we're not in quotes, arrays, or structures
+          if (current.nonEmpty) {
+            result += current.toString().trim
+            current.clear()
+          }
+          
+        case _ =>
+          current.append(char)
+      }
+      
+      i += 1
+    }
+    
+    // Add the last parameter if there is one
+    if (current.nonEmpty) {
+      result += current.toString().trim
+    }
+    
+    result.toSeq.filter(_.nonEmpty)
+  }
+
   def parseFunction(input: String): (String, Vector[String], String) = {
     if(input.isBlank())
       throw new Exception(s"failed to parse function: '${input}'")
