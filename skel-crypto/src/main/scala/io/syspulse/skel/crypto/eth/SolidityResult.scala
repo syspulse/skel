@@ -3,30 +3,54 @@ package io.syspulse.skel.crypto.eth
 import scala.util.{Try, Success, Failure}
 import fastparse._
 
-sealed trait Val extends Any {
+sealed trait Val {
   def value: Any
   def apply(i: Int): Val = this.asInstanceOf[Arr].value(i)
-  // def apply(s: java.lang.String): Val =
+  def index(i: Int): Val = {    
+    this match {
+      case Arr(value @ _*) => 
+        value(i)
+      case Obj(value @ _*) =>        
+        value(i)
+      case RootVal(value) => 
+        value.index(i)
+      case _ => 
+        this
+    }
+  }
+  // def apply(s: String): Val =
   //   this.asInstanceOf[Obj].value.find(_._1 == s).get._2
+
+  def extract(path: Seq[Path],depth: Int = 0): Val = {
+    println(s"extract >>>>> d=${depth}: ${path.size}: ${this}: path=$path")    
+    val v = index(path.head.value.head)
+    if(path.size == 1 ) 
+      return v
+    // rucurse        
+    v.extract(path.tail,depth+1)
+  }
+  
 }
-case class Value(value: java.lang.String) extends AnyVal with Val {
+
+case class Value(value: String) extends Val {
   override def toString = s"$value".trim
 }
-case class RootVal(value: Val) extends AnyVal with Val {
+case class RootVal(value: Val) extends Val {
   override def toString = value.toString.stripPrefix("(").stripSuffix(")")
 }
-case class Str(value: java.lang.String) extends AnyVal with Val {
+case class Str(value: String) extends Val {
   override def toString = s"\"$value\""
 }
 
-// case class ObjNamed(value: (java.lang.String, Val)*) extends AnyVal with Val
-case class Obj(value: Val*) extends AnyVal with Val {
+// case class ObjNamed(value: (String, Val)*) extends AnyVal with Val
+case class Obj(value: Val*) extends Val {
   override def toString = s"(${value.mkString(",")})"
 }
-case class Arr(value: Val*) extends AnyVal with Val {
+case class Arr(value: Val*) extends Val {
   override def toString = s"[${value.mkString(",")}]"
 }
-case class Num(value: Double) extends AnyVal with Val
+case class Num(value: Double) extends Val
+
 case object False extends Val{
   def value = false
 }
@@ -37,6 +61,24 @@ case object Null extends Val{
   def value = null
 }
 
+
+// -----------------------------------------------------------------------------------
+sealed trait Path {
+  def value: Seq[Int]
+    
+}
+// case class IndexPath(value: Int) extends Path {
+//   override def toString = s"Index($value)"
+// }
+case class ArrPath(value: Int*) extends Path {
+  override def toString = s"Array[${value.mkString(",")}]"
+}
+case class ObjPath(value: Int*) extends Path {
+  override def toString = s"List(${value.mkString(",")})"
+}
+
+
+// =============================================================================================================
 class SolidityResult {
   import fastparse._
   import fastparse._, NoWhitespace._
@@ -52,6 +94,10 @@ class SolidityResult {
     x => Num(x.toDouble)
   )
 
+  def integer[$: P] = P( integral ).!.map(
+    x => x.toInt
+  )
+  
   // def `null`[$: P]        = P( "null" ).map(_ => Null)
   // def `false`[$: P]       = P( "false" ).map(_ => False)
   // def `true`[$: P]        = P( "true" ).map(_ => True)
@@ -70,15 +116,13 @@ class SolidityResult {
   // def values[$: P] =
   //   P( expr.rep(sep=","./) ).map(Obj(_:_*))
 
-  def array[$: P] =
-    P( "[" ~/ expr.rep(sep=","./) ~ space ~ "]").map(Arr(_:_*))
+  def array[$: P] = P( "[" ~/ expr.rep(sep=","./) ~ space ~ "]").map(Arr(_:_*))
 
   // def pair[$: P] = P( string.map(_.value) ~/ ":" ~/ expr )
 
   // def obj[$: P] =
   //   P( "{" ~/ pair.rep(sep=","./) ~ space ~ "}").map(Obj(_:_*))
-  def obj[$: P] =
-     P( "(" ~/ expr.rep(sep=","./) ~ space ~ ")").map(Obj(_:_*))
+  def obj[$: P] = P( "(" ~/ expr.rep(sep=","./) ~ space ~ ")").map(Obj(_:_*))
 
   // def expr[$: P]: P[Val] = P(
   //   space ~ (obj | array | string | `true` | `false` | `null` | number) ~ space
@@ -87,27 +131,52 @@ class SolidityResult {
   def expr[$: P]: P[Val] = P(
     space ~ (obj | array | string | value) ~ space    
   )
+
+  // def index[$: P] = P(  CharIn("+\\-").? ~ integral).!.map(
+  //   x => IndexPath(x.toInt)
+  // )
+  def arrayPath[$: P] = P( "[" ~/ integer.rep(sep=","./) ~ space ~ "]").map(ArrPath(_:_*))
+  def objPath[$: P] = P( "(" ~/ integer.rep(sep=","./) ~ space ~ ")").map(ObjPath(_:_*))
+  def exprPath[$: P]: P[Seq[Path]] = P(
+    space ~ (objPath | arrayPath ).rep(sep="."./) ~ space    
+  )
+  
+  def parsePath(input: String): Try[Seq[Path]] = Try {
+    val result = fastparse.parse(input, exprPath(_))
+    result match {
+      case fastparse.Parsed.Success(value, _) => value
+      case fastparse.Parsed.Failure(_, _, _) => throw new IllegalArgumentException(s"Failed to parse path: $input")
+    }
+  }
   
   // Main extraction method
   def parse(input0: String): Try[Val] = Try {
     val input1 = input0.trim
-    val simple = input1.startsWith("(")
+    val simple = input1.startsWith("(") || input1.startsWith("[")
     val input = if(simple) input1 else s"(${input1})"
     val result = fastparse.parse(input, expr(_))
     result match {
       case fastparse.Parsed.Success(value0, _) => 
         val value = if(simple) value0 else RootVal(value0)
         value
-      case fastparse.Parsed.Failure(_, _, _) => throw new IllegalArgumentException(s"Failed to parse input: $input")
+      case fastparse.Parsed.Failure(_, _, _) => throw new IllegalArgumentException(s"Failed to parse: $input")
     }
   }
+  
+  def extract(input: String, path: String): Try[Val] = {
+    if(path.isEmpty) return parse(input)
 
-  // def extractValue(input: String, path: String): Try[String] = {
-  //   for {
-  //     parsed <- parse(input)
-      
-  //   } yield r
-  // }
+    for {
+      parsed <- parse(input)
+      path <- parsePath(path)
+    } yield parsed.extract(path)
+  }
+
+  def extractString(input: String, path: String): Try[String] = {
+    if(path.isEmpty) return Success(input)
+
+    extract(input, path).map(_.toString)
+  }
 }
 
 object SolidityResult {
