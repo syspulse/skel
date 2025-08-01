@@ -5,7 +5,6 @@ import org.scalatest.wordspec.{ AnyWordSpec}
 import org.scalatest.matchers.should.{ Matchers}
 import org.scalatest.flatspec.AnyFlatSpec
 
-import io.syspulse.skel.lake.job._
 import io.syspulse.skel.service.JsonCommon
 
 import spray.json._

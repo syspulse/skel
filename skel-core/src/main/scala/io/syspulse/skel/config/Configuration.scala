@@ -99,6 +99,16 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
       .toSeq
   }
 
+  def getMap(path:String,d:Map[String,String] = Map()):Map[String,String] = {
+    val v = getString(path)
+    if(!v.isDefined) return d
+    
+    v.get.split(",").map(s => s.split("=").toList match {
+      case key :: value :: Nil => (key.trim,value)
+      case _ => (s,s)
+    }).toMap    
+  }
+
   def getListStringDumb(path:String,d:Seq[String] = Seq()):Seq[String] = {
     val v = getString(path)
     val s = if(v.isDefined) v.get else d.mkString(",")    

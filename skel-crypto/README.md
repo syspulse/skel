@@ -174,6 +174,19 @@ Now decode result (pay attention to how type parameter is passed):
 r = Success((238287004791444828,214631485733445575,6975428722598115,9500,9300,1054703851013772348))
 ```
 
+## Call Trace
+
+`callTracer`
+
+```
+./run-evm.sh call-trace --from 0xfC011860c9E4B840AB97c2c3936611c88fcE3673 0xe76C6c83af64e4C60245D8C7dE953DF673a7A33D "transferFrom(address,address,uint256)" 0xfC011860c9E4B840AB97c2c3936611c88fcE3673 0x0000000000000000000000000000000000000000 1 --tracer=callTracer
+```
+
+`prestateTracer` diff mode:
+
+```
+./run-evm.sh call-trace --from 0xfC011860c9E4B840AB97c2c3936611c88fcE3673 0xe76C6c83af64e4C60245D8C7dE953DF673a7A33D "transfer(address,uint256)" 0x0000000000000000000000000000000000000001 1 --tracer=prestateTracer --tracerConfig="diffMode=true" --format=json
+```
 
 ----
 ## Certificates

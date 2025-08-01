@@ -34,7 +34,7 @@ object AppEvm extends {
 
     delay:Long = 0L,
 
-    unwrap:String = "unrwap",
+    format:String = "unrwap",
     
     cmd:String = "call",
     params:Seq[String] = Seq()
@@ -58,7 +58,7 @@ object AppEvm extends {
         ArgString('_', "tracerConfig",s"Tracer config callTracer: [onlyTopCall=true, withLog=false], prestateTracer: [diffMode=true,disableStorage=true,disableCode=true,enableCode=false] (def: ${d.tracerConfig})"),
 
         ArgLong('_', "delay",s"Delay in ms (def: ${d.delay})"),
-        ArgString('_', "unwrap",s"Unwrap result (def: ${d.unwrap})"),
+        ArgString('_', "format",s"Format result (def: ${d.format})"),
         
         ArgCmd("call","eth_call: [address] function(params,...)(return)"),
         ArgCmd("call-async","eth_call: [address] function(params,...)(return)"),
@@ -87,7 +87,7 @@ object AppEvm extends {
       tracerConfig = c.getMap("tracerConfig",d.tracerConfig),
 
       delay = c.getLong("delay").getOrElse(d.delay),
-      unwrap = c.getString("unwrap").getOrElse(d.unwrap),
+      format = c.getString("format").getOrElse(d.format),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams()
@@ -230,20 +230,20 @@ object AppEvm extends {
           })
     }
     
-    Console.println(result(r,config.unwrap))
+    Console.println(result(r,config.format))
 
     if(r.isInstanceOf[Future[_]]) {
       var rf = r.asInstanceOf[Future[_]].await()
-      Console.println(result(r,config.unwrap))
+      Console.println(result(r,config.format))
     }
     
   }
 
-  def result(r:Any,unwrap:String):String = {
+  def result(r:Any,format:String):String = {
     r match {
-      case Success(r) if(unwrap == "unwrap") =>       
+      case Success(r) if(format == "unwrap") =>       
         r.toString
-      case Success(r) if(unwrap == "json") => 
+      case Success(r) if(format == "json") => 
         val j = ujson.read(r.toString)
         j.render(indent = 2)      
       
