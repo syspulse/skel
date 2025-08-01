@@ -22,7 +22,6 @@ sealed trait Val {
   //   this.asInstanceOf[Obj].value.find(_._1 == s).get._2
 
   def extract(path: Seq[Path],depth: Int = 0): Val = {
-    println(s"extract >>>>> d=${depth}: ${path.size}: ${this}: path=$path")    
     val v = index(path.head.value.head)
     if(path.size == 1 ) 
       return v
@@ -179,6 +178,6 @@ class SolidityResult {
   }
 }
 
-object SolidityResult {
+object SolidityResult extends SolidityResult {
   def apply(): SolidityResult = new SolidityResult()
 }
