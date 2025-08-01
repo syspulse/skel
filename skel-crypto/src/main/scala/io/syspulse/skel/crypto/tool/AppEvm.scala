@@ -52,8 +52,8 @@ object AppEvm extends {
         ArgString('f', "from",s"From address (def: ${d.from})"),
         ArgString('b', "block",s"Block number (def: ${d.block})"),
         
-        ArgString('t', "tracer",s"Tracer (def: ${d.tracer})"),
-        ArgString('c', "tracerConfig",s"Tracer config (def: ${d.tracerConfig})"),
+        ArgString('_', "tracer",s"Tracer ([callTracer,prestateTracer] def: ${d.tracer})"),
+        ArgString('_', "tracerConfig",s"Tracer config callTracer: [onlyTopCall=true, withLog=false], prestateTracer: [diffMode=true,disableStorage=true,disableCode=true,enableCode=false] (def: ${d.tracerConfig})"),
 
         ArgLong('_', "delay",s"Delay in ms (def: ${d.delay})"),
         
@@ -115,7 +115,7 @@ object AppEvm extends {
           (data,_) <- Try { Eth.encodeFunction(funcName,params) }
           r <- {
             Try{ 
-              web3.traceCall(config.from,to,data,tracer,tracerConfig.asInstanceOf[Map[String,Object]].asJava)
+              web3.traceCall(config.from,to,data,tracer,tracerConfig.map{ case (k,v) => (k,v.toBoolean) }.asInstanceOf[Map[String,Object]].asJava)
             }
           }
           r <- Try{ r.send() }
