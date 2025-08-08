@@ -70,6 +70,7 @@ object AppEvm extends {
         ArgCmd("abi-decode","inputType params..."),
         ArgCmd("block","Get block"),
         ArgCmd("call-trace","debug_traceCall"),
+        ArgCmd("call-trace-async","debug_traceCall"),
 
         ArgParam("<params>","..."),
 
@@ -103,33 +104,49 @@ object AppEvm extends {
     val r = config.cmd match {
       case "call-trace" => 
         if(config.params.size < 3) {
-          Console.err.println("trace-call: <from> <to> function(params,...)(return) [params...]")
+          Console.err.println("call-trace: <from> <to> function(params,...)(return) [params...]")
           sys.exit(1)
         }
 
         val to = config.params(0)
         val funcName = config.params(1)
-        val params = config.params.drop(2)
-        //val paramsStr = params.mkString(" ")
+        val params = config.params.drop(2)        
 
         val tracer = config.tracer
         val tracerConfig = config.tracerConfig
 
-        for {
-          (data,_) <- Try { Eth.encodeFunction(funcName,params) }
-          r <- {
-            Try{ 
-              web3.traceCall(config.from,to,data,tracer,tracerConfig.map{ case (k,v) => (k,v.toBoolean) }.asInstanceOf[Map[String,Object]].asJava)
-            }
-          }
-          r <- Try{ r.send() }
-          r <- Try{ 
-            if(r.hasError())
-              throw new Exception(s"Error: ${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
-            else
-              r.getResult() 
-          }
-        } yield r.toString()
+        // for {
+        //   (data,_) <- Try { Eth.encodeFunction(funcName,params) }
+        //   r <- {
+        //     Try{ 
+        //       web3.traceCall(config.from,to,data,tracer,tracerConfig.map{ case (k,v) => (k,v.toBoolean) }.asInstanceOf[Map[String,Object]].asJava)
+        //     }
+        //   }
+        //   r <- Try{ r.send() }
+        //   r <- Try{ 
+        //     if(r.hasError())
+        //       throw new Exception(s"Error: ${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
+        //     else
+        //       r.getResult() 
+        //   }
+        // } yield r.toString()
+
+        Eth.traceCall(config.from,to,funcName,params,tracer,tracerConfig.map{ case (k,v) => (k,v.toBoolean) })
+
+      case "call-trace-async" => 
+        if(config.params.size < 3) {
+          Console.err.println("call-trace-async: <from> <to> function(params,...)(return) [params...]")
+          sys.exit(1)
+        }
+
+        val to = config.params(0)
+        val funcName = config.params(1)
+        val params = config.params.drop(2)        
+
+        val tracer = config.tracer
+        val tracerConfig = config.tracerConfig
+        
+        Eth.traceCallAsync(config.from,to,funcName,params,tracer,tracerConfig.map{ case (k,v) => (k,v.toBoolean) })
 
       case "call" |  "call-async" => 
         if(config.params.size < 2) {
@@ -232,14 +249,19 @@ object AppEvm extends {
     
     Console.println(result(r,config.format))
 
-    if(r.isInstanceOf[Future[_]]) {
-      var rf = r.asInstanceOf[Future[_]].await()
+    if(r.isInstanceOf[Future[_]] 
+      // && r.asInstanceOf[Future[_]].isSuccess
+    ) {
+      val rf = r.asInstanceOf[Future[_]].await()
       Console.println(result(r,config.format))
+      sys.exit(0)
     }
     
   }
 
   def result(r:Any,format:String):String = {
+    // println(s">>>>>>>> r: ${r.getClass}")
+    
     r match {
       case Success(r) if(format == "unwrap") =>       
         r.toString
@@ -247,7 +269,9 @@ object AppEvm extends {
         val j = ujson.read(r.toString)
         j.render(indent = 2)      
       
-      case _ => r.toString()
+      case Failure(e) => e.getMessage()
+      case _ => 
+        r.toString()
     }
   }
 }

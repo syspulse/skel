@@ -45,7 +45,6 @@ public class DebugTraceCall extends JsonRpc2_0Web3j implements Web3jTrace {
 
         // tracers:
         // callTracer
-        // stateDiffTracer
         // prestateTracer        
 
         // Build options with optional tracerConfig
