@@ -131,6 +131,7 @@ val sharedConfig = Seq(
     
     crossVersion := CrossVersion.binary,
     resolvers ++= Seq(
+      Resolver.mavenLocal,
       Opts.resolver.sonatypeSnapshots, 
       Opts.resolver.sonatypeReleases,
       "spray repo"         at "https://repo.spray.io/",
@@ -328,7 +329,7 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 // ======================================================================================================================
 lazy val root = (project in file("."))
-  .aggregate(core, skel_serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
+  .aggregate(core, skel_serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, skel_kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
              skel_plugin,
              ingest_core, 
              ingest_flow,
@@ -350,6 +351,7 @@ lazy val root = (project in file("."))
              blockchain_rpc,
              blockchain_evm,
              blockchain_tron,
+             blockchain_label,
              skel_dns,
              ai_core,
              ai_agent,
@@ -358,7 +360,7 @@ lazy val root = (project in file("."))
              tools,
              skel_test
              )
-  .dependsOn(core, skel_serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
+  .dependsOn(core, skel_serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, skel_kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
              skel_plugin,
              ingest_core,
              ingest_flow,
@@ -379,6 +381,7 @@ lazy val root = (project in file("."))
              blockchain_rpc,
              blockchain_evm,
              blockchain_tron,
+             blockchain_label,
              skel_dns,
              skel_ai,
              ai_core,
@@ -607,7 +610,7 @@ lazy val skel_user = (project in file("skel-user"))
     ),    
   )
 
-lazy val kafka= (project in file("skel-kafka"))
+lazy val skel_kafka= (project in file("skel-kafka"))
   .dependsOn(core)
   .settings (
     sharedConfig,
@@ -625,10 +628,11 @@ lazy val skel_crypto = (project in file("skel-crypto"))
   .dependsOn(core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
-      sharedConfig,
-      sharedConfigAssemblyTeku,
-      //sharedConfigAssembly,
-      name := "skel-crypto",
+          sharedConfig,
+    sharedConfigAssemblyTeku,
+    //sharedConfigAssembly,
+    name := "skel-crypto",
+
       libraryDependencies ++= Seq() ++ //Seq(libLog4j2Api, libLog4j2Core) ++ 
         libTest ++ libWeb3j ++ Seq(
           libOsLib,
@@ -638,7 +642,9 @@ lazy val skel_crypto = (project in file("skel-crypto"))
           libBLS,
           libBLSKeystore,
           libSSSS,
+
           libEthAbi,
+          libOssLabzEvmAbi,
 
           libDirWatcher,
           libDirWatcherScala,
@@ -775,7 +781,7 @@ lazy val ingest_twitter = (project in file("skel-ingest/ingest-twitter"))
   )
 
 lazy val ingest = (project in file("skel-ingest"))
-  .dependsOn(core, skel_serde, ingest_core, ingest_elastic, kafka, ingest_twitter)
+  .dependsOn(core, skel_serde, ingest_core, ingest_elastic, skel_kafka, ingest_twitter)
   //.enablePlugins(JavaAppPackaging)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
@@ -1014,7 +1020,7 @@ lazy val pdf = (project in file("skel-pdf"))
   )
 
 lazy val syslog_core = (project in file("skel-syslog/syslog-core"))
-  .dependsOn(core,auth_core,kafka)
+  .dependsOn(core,auth_core,skel_kafka)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
     sharedConfig,
@@ -1069,7 +1075,7 @@ lazy val skel_video = (project in file("skel-video"))
   )
 
 lazy val notify_core = (project in file("skel-notify/notify-core"))
-  .dependsOn(core,auth_core,kafka)
+  .dependsOn(core,auth_core,skel_kafka)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
     sharedConfig,
@@ -1161,7 +1167,7 @@ lazy val skel_wf = (project in file("skel-wf"))
   )
 
 lazy val job_core = (project in file("skel-job/job-core"))
-  .dependsOn(core,auth_core,kafka)
+  .dependsOn(core,auth_core,skel_cron)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
     sharedConfig,
@@ -1267,6 +1273,19 @@ lazy val blockchain_core = (project in file("skel-blockchain/blockchain-core"))
       
       libraryDependencies ++= libTest ++ Seq(
         libRequests
+      )
+    )
+
+lazy val blockchain_label = (project in file("skel-blockchain/blockchain-label"))
+  .dependsOn(core, skel_test % Test)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,      
+      name := "blockchain-label",
+      
+      libraryDependencies ++= libTest ++ Seq(
+        // libRequests
       )
     )
 
@@ -1410,9 +1429,8 @@ lazy val tools = (project in file("tools"))
       appDockerConfig("skel-tools","io.syspulse.skel.tools.HttpServer"),
       //name := "skel-tools",
 
-      libraryDependencies ++= 
-        Seq(
-          libCask, 
+      libraryDependencies ++= libAkka ++ libHttp ++ Seq(
+          libCask,           
           libOsLib,
           libUpickleLib
         ),

@@ -96,7 +96,8 @@ object Dependencies {
 
     val libScalaLogging =   "com.typesafe.scala-logging"      %% "scala-logging"        % "3.9.2"
     val libLogback =        "ch.qos.logback"                  % "logback-classic"      % "1.3.5" //"1.2.8"
-    val libJanino =         "org.codehaus.janino"             % "janino"               % janinoVersion
+    val libJanino =         "org.codehaus.janino"             % "janino"               % janinoVersion    
+
     // I need this rubbish slf4j to deal with old jboss dependecny which generates exception in loading logback.xml
     //val libSlf4jApi =       "org.slf4j"                   %  "slf4j-api"            % "1.8.0-beta4"
     // Supports only old XML Config file format
@@ -151,6 +152,7 @@ object Dependencies {
     val libScalaTags =      "com.lihaoyi"                     %% "scalatags"            % "0.9.4"
     val libCask =           "com.lihaoyi"                     %% "cask"                 % "0.7.11" // "0.7.8"
     val libRequests =       "com.lihaoyi"                     %% "requests"             % "0.6.9"
+    val libFastParse =      "com.lihaoyi"                     %% "fastparse"            % "2.3.9"
 
     // lightweight, no deps
     val libCsv =              "com.github.tototoshi"            %% "scala-csv"            % "1.3.7"
@@ -173,6 +175,8 @@ object Dependencies {
     val libWeb3jCore =        "org.web3j"                       % "core"                % web3jVersion exclude("org.bouncycastle", "bcprov-jdk15on")
     // Refactored: https://github.com/syspulse/eth-abi
     val libEthAbi =           "com.github.lbqds"                %% "ethabi"             % "0.4.1"
+    //val libOssLabzEvmAbi =    "net.osslabz"                     % "evm-abi-decoder"     % "0.1.0" exclude("org.bouncycastle", "bcprov-jdk15on")
+    val libOssLabzEvmAbi =    "net.osslabz"                     % "evm-abi-decoder"     % "0.1.2" exclude("org.bouncycastle", "bcprov-jdk15on")
     
     //web3j depends on "1.65"
     val libBouncyCastle =     "org.bouncycastle"                % "bcprov-jdk15on"      % "1.70" //"1.69" 
@@ -250,8 +254,8 @@ object Dependencies {
     val libProtobufJava =     "com.google.protobuf"           % "protobuf-java"                   % "3.19.2"
     val libProtobufProtoc =   "com.google.protobuf"           % "protoc"                          % "3.19.2"
 
-    val libCequenceOpenAiClient = "io.cequence"               %% "openai-scala-client"            % "1.1.1"
-    val libCequenceOpenAiStream = "io.cequence"               %% "openai-scala-client-stream"     % "1.1.1"
+    val libCequenceOpenAiClient = "io.cequence"               %% "openai-scala-client"            %  "1.2.0" //"1.1.1"
+    val libCequenceOpenAiStream = "io.cequence"               %% "openai-scala-client-stream"     %  "1.2.0" //"1.1.1"
    // ---------------------------------------------------------------------------------------------------------------------
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)

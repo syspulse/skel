@@ -22,14 +22,17 @@ import io.cequence.openaiscala.service.OpenAIServiceFactory
 import io.cequence.openaiscala.service.StreamedServiceTypes.OpenAIStreamedService
 import io.cequence.openaiscala.domain.settings.CreateCompletionSettings
 import io.cequence.openaiscala.domain.ModelId
-import io.cequence.openaiscala.service.StreamedServiceTypes.OpenAIStreamedService
 import io.cequence.openaiscala.service.OpenAIStreamedServiceImplicits._
 import io.cequence.openaiscala.domain.settings.CreateChatCompletionSettings
 import io.cequence.openaiscala.domain._
+
 import scala.io.StdIn
 import play.api.libs.json.Json
 
 import io.syspulse.skel.ext._
+import io.syspulse.skel.ai.agent.blockchain.AgentBlockchain
+
+import io.syspulse.skel.FutureAwaitable._
 
 case class Config(
   host:String="0.0.0.0",
@@ -80,8 +83,10 @@ object App extends skel.Server {
         ArgCmd("ext-agent","Call ext-agent functions"),
         ArgCmd("ext-agent-ask","Run ext-agent-ask"),
         ArgCmd("ext-agent-ask2","Run ext-agent-ask2"),
-        ArgCmd("evm-agent","Run evm-agent"),
-        
+        ArgCmd("evm-agent","Run evm-agent"),        
+
+        ArgCmd("delete","Delete Agent"),
+
         ArgCmd("prompt","Run prompt"),
         ArgCmd("memory","Run prompt with memory"),
 
@@ -139,15 +144,11 @@ object App extends skel.Server {
       case "agent" :: "evm-agent" :: Nil => new AgentEvm(uri,extClient)
       case "agent" :: "token-agent" :: Nil => new AgentToken(uri,extClient)
       case "agent" :: "sec-agent" :: Nil => new AgentSec(uri,extClient)
-
-      case "agent" :: "fw-agent" :: Nil =>         
-        new AgentFw(uri,AgentFwConfig(config.instructions),extClient)
-
-      case "agent" :: "jail-agent" :: Nil => 
-        new AgentJail(uri,extClient)
-
-      case ("agent" :: "prompt-agent" :: Nil) | ("prompt" :: Nil) =>
-        new AgentPrompt(uri)
+      case "agent" :: "fw-agent" :: Nil =>  new AgentFw(uri,AgentFwConfig(config.instructions),extClient)
+      case "agent" :: "jail-agent" :: Nil => new AgentJail(uri,extClient)
+      case "agent" :: "blockchain-agent" :: Nil => new AgentBlockchain(uri)
+      case ("agent" :: "prompt-agent" :: Nil) | ("prompt" :: Nil) => new AgentPrompt(uri)
+      case "agent" :: "test-agent" :: Nil => new AgentTest(uri)
       
       
       // resolve Agent
@@ -199,7 +200,7 @@ object App extends skel.Server {
             )
 
           case "contract" => 
-            ext.getContract(params(0),params(1).toInt)
+            ext.getContract(params(0).toInt)
 
           case "contract-call" =>
             ext.callContract(
@@ -209,11 +210,12 @@ object App extends skel.Server {
               params = params.drop(3),
             )
 
-          case "alert" =>
+          case "alert" | "event" =>
             ext.alert(
               cid = params(0).toInt,
               did = params(1),
-              typ = params(2),
+              addr = params.drop(2).headOption,
+              network = params.drop(3).headOption,
             )
 
           case _ =>
@@ -333,7 +335,10 @@ object App extends skel.Server {
         new AgentHelp(uri).ask(
           "What is Extractor?"
         )
-      
+
+      case "delete" =>
+        agent.delete().await()
+
       case "prompt" =>
         prompt(
           agent,
@@ -347,6 +352,7 @@ object App extends skel.Server {
           config.params,
           config.meta.map(m => m.split("=").toList match { case k :: v :: Nil => k -> v }).toMap
         )
+      
 
       case "ext-agent-ask" =>
         new AgentExt(uri,extClient).ask(
@@ -411,14 +417,16 @@ Otherwise, just answer the question.
     import io.syspulse.skel.FutureAwaitable._
 
     var metadata = metadata0
-    var tid = ""
+    var thid = ""
+    var aid = agent.getId().getOrElse("")
 
     val q0 = params.mkString(" ")
     Console.err.println(s"q0 = '${q0}'")    
-    Console.err.println(s"tid = '${tid}'")
+    Console.err.println(s"thread_id = '${thid}'")
+    Console.err.println(s"aid = '${aid}'")
 
     for (i <- 1 to Int.MaxValue) {
-      Console.err.print(s"${tid}/${i}> ")
+      Console.err.print(s"${agent.getModel()} / ${aid} / ${thid} / ${i}> ")
       val q = StdIn.readLine()
       if(q == null || q.trim.toLowerCase() == "exit") {
         sys.exit(0)
@@ -426,15 +434,19 @@ Otherwise, just answer the question.
       if(!q.isEmpty) {
         val f = agent.ask(q,metadata=Some(metadata))
         val r = await(f)
+        
         Console.err.println(s"${r}")
-        val txt = r.get.head.content.head.text.get.value
+        val txt = r.get.head.content.last.text
+        aid = agent.getId().getOrElse("")
+        
         Console.err.println(s"${Console.GREEN}${agent.getName()}${Console.YELLOW}: ${txt}${Console.RESET}")
 
         // save thread_id
         val threadId = r.get.head.thread_id
         metadata = metadata + ("thread_id" -> threadId)
-        tid = threadId
+        thid = threadId
       }
     }
   }
+  
 }

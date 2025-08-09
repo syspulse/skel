@@ -25,15 +25,15 @@ import play.api.libs.json.Json
 import io.syspulse.skel.ai.core.openai.OpenAiURI
 import io.syspulse.skel.ext.{ExtClient, Detector, Contract, DetectorSchema, Trigger}
 import io.syspulse.skel.ai.agent.AgentFunction
-import io.syspulse.skel.ai.agent.Agent
+import io.syspulse.skel.ai.agent.AgentAssistant
 
-import io.syspulse.blockchain.Token
+import io.syspulse.skel.blockchain.Token
 
 // object AgentFirewallJson {
 //   implicit val tokenWrites: Writes[Token] = Json.writes[Token]  
 // }
 
-class AgentJail(val uri:OpenAiURI,implicit val extClient:ExtClient) extends Agent {
+class AgentJail(val uri:OpenAiURI,implicit val extClient:ExtClient) extends AgentAssistant {
 
   import AgentSecJson._
   def getName(): String = "jail-agent"

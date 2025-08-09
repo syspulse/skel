@@ -1,4 +1,4 @@
-package io.syspulse.blockchain
+package io.syspulse.skel.blockchain
 
 import scala.util.{Try,Success,Failure}
 import scala.jdk.CollectionConverters._
@@ -26,6 +26,14 @@ object Addr {
       (addr.substring(i+1),Some(addr.substring(0,i)))
     } else {
       (addr,None)
+    }
+  }
+
+  def shorten(addr:String):String = {
+    if(addr.length > 12) {
+      addr.substring(0,6) + "..." + addr.substring(addr.length - 6)
+    } else {
+      addr
     }
   }
 }

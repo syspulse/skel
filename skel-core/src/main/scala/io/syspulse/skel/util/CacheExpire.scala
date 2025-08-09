@@ -7,13 +7,12 @@ import scala.util.{Try,Success,Failure}
 
 import io.syspulse.skel.util.Util
 
-abstract class CacheExpire[K,V,I](expiry:Long = 1000L * 60L * 10L) extends CacheThread { 
+abstract class CacheExpire[K,V](expiry:Long) extends CacheThread { 
   val log = Logger[this.type]
-  var cache = Map[K,Cachable[V]]()
-  //var cacheIndex = Map[I,Cachable[V]]()
+  val empty = Map[K,Cachable[V]]()
+  var cache = empty
   
   def key(v:V):K
-  def index(v:V):I
   
   def get(k:K):Option[V] = {
     cache
@@ -67,18 +66,16 @@ abstract class CacheExpire[K,V,I](expiry:Long = 1000L * 60L * 10L) extends Cache
   }
 
   // ATTENTION: Only for testing, fix for fast performance
-  def findByIndex(i:I):Option[V] = {
-    cache
-      .values
-      .filter(_.ts + expiry > System.currentTimeMillis())
-      .find(v => index(v.v) == i)
-      .map(_.v)
-  }
   
   def put(v:V):V = {
     val c = new Cachable(v,System.currentTimeMillis())
-    cache = cache + (key(v) -> c)
-    //cacheIndex = cacheIndex + (index(v) -> c)
+    cache = cache + (key(v) -> c)  
+    v
+  }
+
+  def put(k:K,v:V):V = {
+    val c = new Cachable(v,System.currentTimeMillis())
+    cache = cache + (k -> c)  
     v
   }
 
@@ -89,10 +86,22 @@ abstract class CacheExpire[K,V,I](expiry:Long = 1000L * 60L * 10L) extends Cache
   def clean() = {
     val now = System.currentTimeMillis()
     val n0 = size
-    cache = cache.filter(c => (now - c._2.ts) < expiry)
-    //cacheIndex = cacheIndex.filter(c => (now - c._2.ts) < expiry)
+    cache = cache.filter(c => (now - c._2.ts) < expiry)    
     val n1 = size
-    log.info(s"cache clean: ${n0} -> ${n1}")
+    //log.trace(s"cache clean: ${n0} -> ${n1}")
     n1
+  }
+
+  def sweep() = {
+    cache = empty
+    0
+  }
+}
+
+object CacheExpire {
+  def apply[K,V](expiry:Long):CacheExpire[K,V] = {
+    new CacheExpire[K,V](expiry) {
+      override def key(v:V):K = throw new Exception("key not implemented")
+    }
   }
 }

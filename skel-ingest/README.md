@@ -75,3 +75,11 @@ Grafana is the primary visualization dashboard
 
 <img src="doc/scr-prometheus-grafana.png" width="850">
 
+
+----
+
+Batch polling stream test
+
+```
+./run-test.sh --batch.size 10 --speed rand:2 --source 6 --throttle 50 --work 100 --block.max 50 2>&1 | grep Block
+```

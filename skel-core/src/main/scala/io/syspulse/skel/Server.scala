@@ -316,5 +316,7 @@ trait Server {
   }
 }
 
-
+object Server {
+  val insecure = sys.env.get("SITE") == Some("local") || sys.env.get("SKEL_ENV") == Some("dev")
+}
 

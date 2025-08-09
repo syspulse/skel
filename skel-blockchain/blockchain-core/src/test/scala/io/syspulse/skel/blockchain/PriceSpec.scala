@@ -1,4 +1,4 @@
-package io.syspulse.blockchain
+package io.syspulse.skel.blockchain
 
 import org.scalatest.{Ignore}
 import org.scalatest.wordspec.{ AnyWordSpec}
@@ -51,7 +51,7 @@ class PriceSpec extends AnyWordSpec with Matchers {
       t.get.price should === (2424.41)
     }  
 
-    "resolve price '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984' (UNI) not in cache " in {
+    "resolve price '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984' (UNI) not in cache (via Coingecko)" in {      
       val t = Price.resolve("0x1f9840a85d5af5bf1d1762f925bdaddc4201f984")
       info(s"${t}")
       t should !== (None)

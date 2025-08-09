@@ -7,6 +7,15 @@ Docker and Docker Compose
 
 ----
 
+## Multi-platform build
+
+Qemu
+
+```
+docker run --privileged --rm tonistiigi/binfmt --install all
+```
+
+
 ## Docker log limit
 
 `/etc/docker/daemon.json`:

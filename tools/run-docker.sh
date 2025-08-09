@@ -3,13 +3,24 @@
 #cd $CWD
 
 t=`pwd`;
-APP=`basename "$t"`
-CONF=`echo $APP | awk -F"-" '{print $2}'`
+if [ "$APP" == "" ]; then
+   APP_NAME=`basename "$t"`
+   APP="syspulse/${APP_NAME}"
+else   
+   APP_NAME=`basename "$APP"`
+fi
+
+if [ "$VERSION" == "" ]; then
+   VERSION="latest"
+fi
+
+if [ "$CONF" == "" ]; then
+   CONF=`echo $APP | awk -F"-" '{print $2}'`
+fi
 
 export SITE=${SITE:-$CONF}
 
-VERSION=${VERSION:-latest}
-DOCKER="syspulse/${APP}:${VERSION}"
+DOCKER="${APP}:${VERSION}"
 
 DATA_DIR=${DATA_DIR:-/mnt/data}
 
@@ -17,13 +28,27 @@ if [ "$S3_BUCKET" != "" ]; then
    PRIVILEGED="--privileged"
 fi
 
-echo "APP: $APP"
-echo "SITE: $SITE"
-echo "DOCKER: $DOCKER"
-echo "DATA_DIR: $DATA_DIR"
-echo "ARGS: $@"
-echo "OPT: $OPT"
-echo "DATASTORE: $DATASTORE"
+if [ -v MOUNT ]; then
+   #
+   MOUNT_OPTS=$MOUNT
+else
+   MOUNT_OPTS="-v `pwd`/conf:/app/conf -v $DATA_DIR:/data"
+fi
+
+>&2 echo "APP: $APP"
+>&2 echo "SITE: $SITE"
+>&2 echo "DOCKER: $DOCKER"
+>&2 echo "DATA_DIR: $DATA_DIR"
+>&2 echo "ARGS: $@"
+>&2 echo "OPT: $OPT"
+>&2 echo "DATASTORE: $DATASTORE"
+>&2 echo "DNS: $DNS"
+>&2 echo "DOCKER_OPTS: $DOCKER_OPTS"
+>&2 echo "MOUNT_OPTS: $MOUNT_OPTS"
+
+if [ "$DNS" != "" ]; then
+   DNS_OPT="--dns $DNS"
+fi
 
 # ATTENTION: /app/bin/skel-app overrides arguments !
 #
@@ -37,17 +62,15 @@ echo "DATASTORE: $DATASTORE"
 #       -d|-debug) debug=1 && shift ;;
 #     -no-version-check) no_version_check=1 && shift ;;
 
-docker run --rm --name $APP -p 8080:8080 -v `pwd`/conf:/app/conf -v $DATA_DIR:/data \
+docker run --rm --name $APP_NAME -p 8080:8080 \
+   $MOUNT_OPTS \
    -e JAVA_OPTS=$OPT \
-   -e DATASTORE=$DATASTORE \
    -e DB_HOST=$DB_HOST \
-   -e SMTP_HOST=$SMTP_HOST \
-   -e SMTP_USER=$SMTP_USER \
-   -e SMTP_PASS=$SMTP_PASS \
-   -e SMTP_FROM=$SMTP_FROM \
    -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
    -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
    -e AWS_REGION=$AWS_REGION \
    -e S3_BUCKET=$S3_BUCKET \
+   $DNS_OPT \
    $PRIVILEGED \
+   $DOCKER_OPTS \
    $DOCKER $@

@@ -298,9 +298,15 @@ class UtilSpec extends AnyWordSpec with Matchers {
     }
 
     """replaceEnvVar should replace '{USER}'""" in {
-      val e1 = """{USER}'"""
+      val e1 = """{USER}"""
       val e2 = Util.replaceEnvVar(e1,Map("USER" -> "1234"))
-      e2 should === ("""1234'""")
+      e2 should === ("""1234""")
+    }
+
+    """replaceEnvVar should replace '${USER}'""" in {
+      val e1 = """${USER}"""
+      val e2 = Util.replaceEnvVar(e1,Map("USER" -> "1234"))
+      e2 should === ("""1234""")
     }
 
     """replaceEnvVar should replace 'prefix_${NOT_FOUND}_suffix'""" in {
@@ -313,6 +319,12 @@ class UtilSpec extends AnyWordSpec with Matchers {
       val e1 = """prefix_$NOT_FOUND_suffix'"""
       val e2 = Util.replaceEnvVar(e1)
       e2 should !== ("""prefix__suffix'""")
+    }
+
+    """replaceEnvVar should replace all envs 'prefix_${USER}_fix_${USER}_suffix'""" in {
+      val e1 = """prefix_${USER}_fix_${USER}_suffix'"""
+      val e2 = Util.replaceEnvVar(e1,Map("USER" -> "1234"))
+      e2 should === ("""prefix_1234_fix_1234_suffix'""")
     }
 
     "toBigInt convert '100000000000000000000000'" in {
@@ -329,6 +341,91 @@ class UtilSpec extends AnyWordSpec with Matchers {
       val v = Util.toBigInt("0x9cbcf71f24d33e")
       v should === (BigInt("44117865932313406"))
     }
-    
+
+    "toJsonString should handle basic types" in {
+      Util.toJsonString("text") should === (""""text"""")
+      Util.toJsonString(123) should === ("123")
+      Util.toJsonString(123L) should === ("123")
+      Util.toJsonString(123.45) should === ("123.45")
+      Util.toJsonString(true) should === ("true")
+      Util.toJsonString(null) should === ("null")
+    }
+
+    "toJsonString should handle collections" in {
+      Util.toJsonString(List(1, 2, 3)) should === ("[1,2,3]")
+      Util.toJsonString(Array("a", "b")) should === ("""["a","b"]""")
+      Util.toJsonString(Map("a" -> 1, "b" -> 2)) should === ("""{"a":1,"b":2}""")
+    }
+
+    "toJsonString should handle nested structures" in {
+      val data = Map(
+        "name" -> "test",
+        "values" -> List(
+          Map("x" -> 1, "y" -> 2),
+          Map("x" -> 3, "y" -> 4)
+        )
+      )
+      Util.toJsonString(data) should === ("""{"name":"test","values":[{"x":1,"y":2},{"x":3,"y":4}]}""")
+    }
+
+    "toJsonString should handle case classes" in {
+      case class Person(name: String, age: Int)
+      val person = Person("John", 30)
+      Util.toJsonString(person) should === ("""{"name":"John","age":30}""")
+    }
+
+    "toJsonString should handle complex nested case classes" in {
+      case class Address(street: String, city: String, zip: String)
+      case class Contact(phone: String, email: String)
+      case class Person(name: String, age: Int, address: Address, contacts: List[Contact])
+      
+      val data = List(
+        Person(
+          "John", 
+          30,
+          Address("123 Main St", "Boston", "02108"),
+          List(
+            Contact("555-0101", "john@email.com"),
+            Contact("555-0102", "john.work@email.com")
+          )
+        ),
+        Person(
+          "Jane",
+          28,
+          Address("456 Oak Ave", "New York", "10001"),
+          List(
+            Contact("555-0201", "jane@email.com")
+          )
+        )
+      )
+      
+      val expected = """[{"name":"John","age":30,"address":{"street":"123 Main St","city":"Boston","zip":"02108"},"contacts":[{"phone":"555-0101","email":"john@email.com"},{"phone":"555-0102","email":"john.work@email.com"}]},{"name":"Jane","age":28,"address":{"street":"456 Oak Ave","city":"New York","zip":"10001"},"contacts":[{"phone":"555-0201","email":"jane@email.com"}]}]"""
+      
+      Util.toJsonString(data) should === (expected)
+    }
+
+    "toJsonString should handle EIP-712 types structure" in {
+      val types = Map(
+        "EIP712Domain" -> List(
+          Map("name" -> "name", "type" -> "string"),
+          Map("name" -> "version", "type" -> "string"),
+          Map("name" -> "chainId", "type" -> "uint256"),
+          Map("name" -> "verifyingContract", "type" -> "address")
+        ),
+        "Person" -> List(
+          Map("name" -> "name", "type" -> "string"),
+          Map("name" -> "wallet", "type" -> "address")
+        ),
+        "Mail" -> List(
+          Map("name" -> "from", "type" -> "Person"),
+          Map("name" -> "to", "type" -> "Person"),
+          Map("name" -> "contents", "type" -> "string")
+        )
+      )
+
+      val expected = """{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]}"""
+      
+      Util.toJsonString(types) should === (expected)
+    }
   }
 }

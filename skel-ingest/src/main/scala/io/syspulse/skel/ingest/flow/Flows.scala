@@ -116,6 +116,7 @@ import akka.util.Timeout
 import akka.http.scaladsl.model.ws.WebSocketRequest
 import akka.actor.ActorNotFound
 import com.typesafe.config.ConfigFactory
+import akka.http.scaladsl.model.HttpHeader
 
 object Flows extends Flows {
 
@@ -227,7 +228,15 @@ trait Flows {
       .map(_ => ByteString(s"${System.currentTimeMillis()}"))      
   }
 
-  def toNull = Sink.ignore
+  def toNull[T <: Ingestable](delay:Long = 0L)(implicit fmt:JsonFormat[T]) = {
+    if(delay > 0L)
+      Flow[T]
+        .throttle(1,FiniteDuration(delay,TimeUnit.MILLISECONDS))
+        .toMat(Sink.foreach(println))(Keep.right)
+    else
+      Sink.ignore
+  }
+
   def fromNull = Source.future(Future({Thread.sleep(Long.MaxValue);ByteString("")})) //Source.never
 
   def fromHttpFuture(req: HttpRequest)(implicit as:ActorSystem,timeout:FiniteDuration) = 
@@ -477,16 +486,27 @@ trait Flows {
       s.via(Framing.delimiter(ByteString(frameDelimiter), maximumFrameLength = frameSize, allowTruncation = true))    
   }
 
-  def fromWebsocket(uri:String,frameDelimiter:String="\n",frameSize:Int=1024 * 1024,retry:RestartSettings=retrySettingsDefault,helloMsg:Option[String]=None)
+  def fromWebsocket(uri:String,
+    frameDelimiter:String="\n",frameSize:Int=1024 * 1024,retry:RestartSettings=retrySettingsDefault,
+    helloMsg:Option[String]=None,headers0:Seq[HttpHeader] = Seq())
     (implicit as:ActorSystem,timeout:FiniteDuration) = { 
 
+    // try to parse headers
+    val uriWs = skel.uri.WsURI(uri)
+    val headers = headers0 ++ uriWs.ops.map{case (k,v) => 
+      if(k.equalsIgnoreCase("auth"))
+        RawHeader("Authorization",s"Bearer $v")
+      else
+        RawHeader(k,v)
+    }.toSeq
+    
     // ATTENTION: Server disconnect is not onFailure and must be treated as upstream completion !
     val s = RestartSource.withBackoff(retry) { () =>
-      log.info(s"=> ${uri} (${retry})")      
-      val ws = new FromWebsocket(uri,helloMsg = helloMsg)
+      log.info(s"=> ${uriWs.url} (${retry})")      
+      val ws = new FromWebsocket(uriWs.url,helloMsg = helloMsg,headers = headers)
       ws.source()
     }
-      
+
     // if(frameDelimiter.isEmpty())
     //   s
     // else
@@ -1303,10 +1323,17 @@ class ToCsv[T <: Ingestable](uri:String) {
 // ------------------------------------------------------------------------------------------------------------------
 case class AttributeActor(a: ActorRef) extends Attributes.Attribute
 
-class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024,helloMsg:Option[String] = None)(implicit as:ActorSystem,timeout:FiniteDuration) {
+class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024,helloMsg:Option[String] = None,headers:Seq[HttpHeader] = Seq())
+  (implicit as:ActorSystem,timeout:FiniteDuration) {
+  
   val log = Logger(this.toString)
 
-  val webSocketFlow = Http().webSocketClientFlow(WebSocketRequest(uri))
+  val webSocketFlow = Http()
+    .webSocketClientFlow(
+      WebSocketRequest(
+        uri,
+        extraHeaders = headers
+    ))
   
   val (a,s0) = Source
     .actorRef[TextMessage](buffer,OverflowStrategy.fail)

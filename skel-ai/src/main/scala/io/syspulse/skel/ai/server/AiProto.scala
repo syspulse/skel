@@ -10,8 +10,10 @@ final case class Ais(data: Seq[Ai],total:Option[Long]=None)
 
 final case class AiCreateReq(
     question:String,
+    instructions:Option[String] = None,
     oid:Option[String],
-    model:Option[String] = None
+    model:Option[String] = None,
+    id:Option[String] = None // thread_id / responses_id
 )
 
 final case class AiRes(status:String,Ai: Option[Ai])

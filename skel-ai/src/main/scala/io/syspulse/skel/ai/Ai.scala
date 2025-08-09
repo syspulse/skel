@@ -8,13 +8,15 @@ import io.syspulse.skel.Ingestable
 
 case class Ai(
   question:String,  
-  answer:Option[String],
+  answer:Option[String] = None,
 
-  oid:Option[String],
+  oid:Option[String] = None,
   model:Option[String] = None,
 
   ts:Long = System.currentTimeMillis(),
   
   tags:Seq[String] = Seq(),  
-  meta: Map[String,Map[String,Any]] = Map()
+  meta: Map[String,Map[String,Any]] = Map(),
+
+  xid:Option[String] = None, // conversation id 
 ) extends Ingestable

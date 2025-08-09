@@ -6,6 +6,9 @@ kafka://broker:9092/topic/group/offset?raw - automatically convert to raw ByteSt
 kafka://broker:9092/topic/group/offset?json - automatically convert to json (default)
 kafka://broker:9092/topic/group/offset?past=3600000&freq=30000&max=10
 
+Connet with large message:
+  kafka://broker:9092/topic/group?max.request.size=2000000
+
 offsets:
    latest - from latest committed offset or from the end if no offset is found
    earliest - from earliest committed offset or from the end if no offset is found

@@ -28,7 +28,7 @@ import org.web3j.abi.datatypes.generated.Uint8
 import org.web3j.crypto
 import org.web3j.utils.Convert
 import org.web3j.tx.gas.DefaultGasProvider
-import org.web3j.protocol.Web3j
+
 import org.web3j.protocol.http.HttpService
 import org.web3j.tx.TransactionManager
 import org.web3j.tx.RawTransactionManager
@@ -46,6 +46,11 @@ import io.syspulse.skel.crypto.eth.Solidity
 import java.security.SecureRandom
 import org.web3j.protocol.core.DefaultBlockParameterNumber
 import org.web3j.protocol.core.methods.response.EthBlock.Block
+import io.syspulse.skel.crypto.eth.SolidityTuple
+
+// Use Web3jTrace instead of Web3j
+//import org.web3j.protocol.Web3j
+import io.syspulse.skel.crypto.eth.Web3jTrace
 
 object Eth {
   val log = Logger(s"${this}")
@@ -288,8 +293,8 @@ object Eth {
 
   // =============================================================================== Wallet ========
 
-  def web3(rpcUri:String = "http://localhost:8545") = {
-    Web3j.build(new HttpService(rpcUri))
+  def web3(rpcUri:String = "http://localhost:8545"):Web3jTrace = {
+    Web3jTrace.build(new HttpService(rpcUri))
   }
 
   def percentageToWei(v:BigInt,percentage:String):Double = {
@@ -305,7 +310,7 @@ object Eth {
       gasNew
   }
 
-  def strToWei(v:String)(implicit web3:Web3j):Try[BigInt] = {
+  def strToWei(v:String)(implicit web3:Web3jTrace):Try[BigInt] = {
     v.trim.toLowerCase.split("\\s+").toList match {
       case "" :: Nil =>
         Success(0)
@@ -342,7 +347,7 @@ object Eth {
   def signTx(sk:String, to:String, value:String, nonce:Long = 0, 
              gasPrice:String = "20.0", gasTip:String = "5.0", gasLimit:Long = 21000,
              data:Option[String] = None,
-             chainId:Long = 11155111)(implicit web3:Web3j):Try[String] = 
+             chainId:Long = 11155111)(implicit web3:Web3jTrace):Try[String] = 
     for {
       nonceTx <- if(nonce == -1 ) getNonce(Credentials.create(sk).getAddress()) else Success(nonce)
       value <- strToWei(value)
@@ -398,7 +403,7 @@ object Eth {
   def transaction(sk:String, to:String, value:String, 
              gasPrice:String = "20.0", gasTip:String = "5.0", gasLimit:Long = 21000,
              data:Option[String] = None, nonce:Long = -1,
-             chainId:Long = 11155111)(implicit web3:Web3j):Try[TransactionReceipt] = {
+             chainId:Long = 11155111)(implicit web3:Web3jTrace):Try[TransactionReceipt] = {
     
     val cred: Credentials = Credentials.create(sk)
 
@@ -421,7 +426,7 @@ object Eth {
   }
 
   // Raw transaction (Blocking until hash is returned !)
-  def transaction(sig:String)(implicit web3:Web3j):Try[TransactionReceipt] = {
+  def transaction(sig:String)(implicit web3:Web3jTrace):Try[TransactionReceipt] = {
     // val ver = web3.web3ClientVersion().send()
     // val id = web3.netVersion().send().getNetVersion()
     // log.info(s"web3: ${ver.getWeb3ClientVersion()}/${id}")    
@@ -460,7 +465,7 @@ object Eth {
     
   }
 
-  def send(sig:String)(implicit web3:Web3j):Try[String] = {
+  def send(sig:String)(implicit web3:Web3jTrace):Try[String] = {
     for {
       r <- Success(web3.ethSendRawTransaction(sig).send())
       
@@ -547,7 +552,7 @@ object Eth {
     getGasPrice()(Eth.web3(rpcUri))
   }
 
-  def getGasPrice()(implicit web3:Web3j):Try[BigInt] = {     
+  def getGasPrice()(implicit web3:Web3jTrace):Try[BigInt] = {     
     // val ver = web3.web3ClientVersion().send()
     // val id = web3.netVersion().send().getNetVersion();
     // log.info(s"web3: ${ver}/${id}")
@@ -566,7 +571,7 @@ object Eth {
     }
   }
 
-  def getNonce(addr:String,block:Option[Long] = None)(implicit web3:Web3j):Try[Long] = {
+  def getNonce(addr:String,block:Option[Long] = None)(implicit web3:Web3jTrace):Try[Long] = {
     val nonce = try {
       Success(
         web3.ethGetTransactionCount(addr,web3Block(block)).send().getTransactionCount().longValue()
@@ -577,7 +582,7 @@ object Eth {
     nonce
   }
 
-  def getBalance(addr:String,block:Option[Long] = None)(implicit web3:Web3j):Try[BigInt] = {
+  def getBalance(addr:String,block:Option[Long] = None)(implicit web3:Web3jTrace):Try[BigInt] = {
     val bal = try {
       Success(
         BigInt(web3.ethGetBalance(addr,web3Block(block)).send().getBalance())
@@ -588,7 +593,7 @@ object Eth {
     bal
   }
 
-  def getBalanceAsync(addr:String,block:Option[Long] = None)(implicit web3:Web3j,ec: ExecutionContext):Future[BigInt] = {
+  def getBalanceAsync(addr:String,block:Option[Long] = None)(implicit web3:Web3jTrace,ec: ExecutionContext):Future[BigInt] = {
     web3
       .ethGetBalance(addr,web3Block(block)).sendAsync()
       .asScala
@@ -596,7 +601,7 @@ object Eth {
   }
 
   // input is calldata and must be already encoded
-  def estimateGas(from:String,contractAddress:String,input:String)(implicit web3:Web3j):Try[BigInt] = {
+  def estimateGas(from:String,contractAddress:String,input:String)(implicit web3:Web3jTrace):Try[BigInt] = {
     val tx = Transaction.createEthCallTransaction(from, contractAddress, input)
 
     for {
@@ -627,7 +632,7 @@ object Eth {
     func:String,
     abiDef:String,
     inputs:Seq[Any]    
-    )(implicit web3:Web3j):Try[BigInt] = {
+    )(implicit web3:Web3jTrace):Try[BigInt] = {
 
     val abi = Abi.parse(abiDef)
     val inputsParsed:Seq[datatypes.Type[_]] = abi.getInputs(func,inputs)
@@ -642,7 +647,7 @@ object Eth {
     func:String,
     inputs:Seq[datatypes.Type[_]],
     outputs:Seq[TypeReference[_]]
-    )(implicit web3:Web3j):Try[BigInt] = {
+    )(implicit web3:Web3jTrace):Try[BigInt] = {
 
     // val inputParameters = List[datatypes.Type[_]]().asJava
     // val outputParameters = List[TypeReference[_]](new TypeReference[datatypes.generated.Uint256](){}).asJava
@@ -654,7 +659,7 @@ object Eth {
     estimateGas(from,contractAddress,encodedFunction)    
   }
 
-  def web3Block(block:Option[Long] = None)(implicit web3:Web3j):DefaultBlockParameter = {
+  def web3Block(block:Option[Long] = None)(implicit web3:Web3jTrace):DefaultBlockParameter = {
     block match {
       case Some(b) if(b == -2L) => DefaultBlockParameterName.PENDING
       case Some(b) if(b == -1L) => DefaultBlockParameterName.EARLIEST
@@ -663,7 +668,7 @@ object Eth {
     }
   }
 
-  def call(from:String, contractAddress:String, inputData:String, outputType:Option[String] = None, block:Option[Long] = None)(implicit web3:Web3j):Try[String] = {
+  def call(from:String, contractAddress:String, inputData:String, outputType:Option[String] = None, block:Option[Long] = None)(implicit web3:Web3jTrace):Try[String] = {
     val tx = Transaction.createEthCallTransaction(from, contractAddress, inputData)
 
     for {
@@ -685,10 +690,10 @@ object Eth {
           throw new Exception(s"${contractAddress}: data=${inputData}: result=${result}")
         } 
         
-        log.info(s"call: ${block} / ${contractAddress}: data=${inputData}: result=${result} (outputType=${outputType})")
+        log.info(s"call: ${block} / ${contractAddress}: data=${inputData}: result=${Util.trunc(result,256)} (outputType=${outputType})")
         
         if(outputType.isDefined && ! outputType.get.isEmpty()) {
-          Solidity.decodeResult(result,outputType.get)
+          SolidityTuple.decodeResult(result,outputType.get)
         } else {
           Success(result)
         }
@@ -696,7 +701,7 @@ object Eth {
     } yield result
   }
 
-  def callAsync(from:String,contractAddress:String,inputData:String,outputType:Option[String] = None, block:Option[Long] = None)(implicit web3:Web3j,ec:ExecutionContext):Future[String] = {
+  def callAsync(from:String,contractAddress:String,inputData:String,outputType:Option[String] = None, block:Option[Long] = None)(implicit web3:Web3jTrace,ec:ExecutionContext):Future[String] = {
     val tx = Transaction.createEthCallTransaction(from, contractAddress, inputData)
 
     for {
@@ -718,11 +723,11 @@ object Eth {
           throw new Exception(s"${contractAddress}: data=${inputData}: result=${result}")
         } 
         
-        log.info(s"call: ${contractAddress}: data=${inputData}: result=${result} (outputType=${outputType})")
+        log.info(s"call-async: ${contractAddress}: data=${inputData}: result=${Util.trunc(result,256)} (outputType=${outputType})")
         
         if(outputType.isDefined && ! outputType.get.isEmpty()) {
           Future(
-            Solidity.decodeResult(result,outputType.get).get
+            SolidityTuple.decodeResult(result,outputType.get).get
           )
         } else {
           Future.successful(result)
@@ -748,25 +753,39 @@ object Eth {
     decodedList.get(0).getValue.asInstanceOf[String]
   }
     
-  def estimate(from:String,contractAddress:String,func:String,params:Seq[String])(implicit web3:Web3j):Try[BigInt] = {
+  def estimate(from:String,contractAddress:String,func:String,params:Seq[String])(implicit web3:Web3jTrace):Try[BigInt] = {
     val (encodedFunction,outputType) = encodeFunction(func,params)
     estimateGas(from,contractAddress,encodedFunction)
   }
 
-  def callFunction(from:String,contractAddress:String,func:String,params:Seq[String],block:Option[Long] = None)(implicit web3:Web3j):Try[String] = {
-    val (encodedFunction,outputType) = encodeFunction(func,params)
+  def callFunction(from:String,contractAddress:String,func:String,params:Seq[String],block:Option[Long] = None)(implicit web3:Web3jTrace):Try[String] = {
+    val (encodedFunction,outputType) = Solidity.encodeFunctionWithoutOutputType(func,params)
+
     for {
-      r <- call(from,contractAddress,encodedFunction,outputType = Some(outputType),block)
+      //r <- call(from,contractAddress,encodedFunction,outputType = Some(outputType),block)
+      rEncoded <- call(from,contractAddress,encodedFunction,outputType = None,block)
+
       //r <- Solidity.decodeResult(r,outputType)
-    } yield r
+      rDecoded <- SolidityTuple.decodeResult(rEncoded,outputType)
+    } yield rDecoded
   }
 
-  def callFunctionAsync(from:String,contractAddress:String,func:String,params:Seq[String],block:Option[Long] = None)(implicit web3:Web3j,ec:ExecutionContext):Future[String] = {
-    val (encodedFunction,outputType) = encodeFunction(func,params)
-    callAsync(from,contractAddress,encodedFunction,outputType = Some(outputType),block)
+  def callFunctionAsync(from:String,contractAddress:String,func:String,params:Seq[String],block:Option[Long] = None)(implicit web3:Web3jTrace,ec:ExecutionContext):Future[String] = {    
+    for {
+      (encodedFunction,outputType) <- {
+        try {
+          Future.successful(Solidity.encodeFunctionWithoutOutputType(func,params))
+        } catch {
+          case e:Exception => Future.failed(e)
+        }
+      }
+      
+      rEncoded <- callAsync(from,contractAddress,encodedFunction,outputType = None,block)
+      rDecoded <- Future.fromTry(SolidityTuple.decodeResult(rEncoded,outputType))
+    } yield rDecoded
   }
 
-  def callFunctionWithParams(from:String,contractAddress:String,func:String,params:String)(implicit web3:Web3j):Try[String] = {
+  def callFunctionWithParams(from:String,contractAddress:String,func:String,params:String)(implicit web3:Web3jTrace):Try[String] = {
     callFunction(from,contractAddress,func,if(params.isEmpty) Seq.empty else params.split("\\s+").toSeq)
   }
     
@@ -779,7 +798,37 @@ object Eth {
     encodeFunction(func,if(params.isEmpty) Seq.empty else params.split("\\s+").toSeq)
   }
 
-  def getBalanceToken(addr:String,tokens:Seq[String],block:Option[Long] = None)(implicit web3:Web3j):Seq[Try[BigInt]] = {
+  def traceCall(from:String,to:String,func:String,params:Seq[String],tracer:String,tracerConfig:Map[String,Any])(implicit web3:Web3jTrace):Try[String] = {
+    for {
+      (data,_) <- Try { Eth.encodeFunction(func,params) }
+      
+      r <- Try{ 
+          web3.traceCall(from,to,data,tracer,tracerConfig.asJava)
+        }
+      r <- Try{ r.send() }
+      r <- Try{ 
+        if(r.hasError())
+          throw new Exception(s"${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
+        else
+          r.getResult() 
+      }
+    } yield r.toString()
+  }
+
+  def traceCallAsync(from:String,to:String,func:String,params:Seq[String],tracer:String,tracerConfig:Map[String,Any])(implicit web3:Web3jTrace,ec:ExecutionContext):Future[String] = {
+    for {
+      (data,_) <- Future { Eth.encodeFunction(func,params) }      
+      r <-  web3.traceCall(from,to,data,tracer,tracerConfig.asJava).sendAsync().asScala
+      r <- {
+        if(r.hasError())
+          throw new Exception(s"${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
+        else
+          Future.successful(r.getResult())
+      }
+    } yield r.toString()
+  }
+
+  def getBalanceToken(addr:String,tokens:Seq[String],block:Option[Long] = None)(implicit web3:Web3jTrace):Seq[Try[BigInt]] = {
     val balances = tokens.map(token => {
       try {
         val r = callFunction(addr,token,"balanceOf(address)(uint256)",Seq(addr),block=block)
@@ -794,7 +843,7 @@ object Eth {
     balances
   }
 
-  def getBlock(block:Option[Long] = None,tx:Boolean = false)(implicit web3:Web3j):Try[Block] = {
+  def getBlock(block:Option[Long] = None,tx:Boolean = false)(implicit web3:Web3jTrace):Try[Block] = {
     val r = web3.ethGetBlockByNumber(web3Block(block),tx).send()
     
     if(! r.hasError()) {
@@ -805,7 +854,7 @@ object Eth {
     }    
   }
 
-  def getBlockAsync(block:Option[Long] = None,tx:Boolean = false)(implicit web3:Web3j,ec:ExecutionContext):Future[Block] = {
+  def getBlockAsync(block:Option[Long] = None,tx:Boolean = false)(implicit web3:Web3jTrace,ec:ExecutionContext):Future[Block] = {
     web3.ethGetBlockByNumber(web3Block(block),tx)
       .sendAsync()
       .asScala
@@ -818,7 +867,7 @@ object Eth {
       })
   }
 
-  def getBalanceTokenAsync(addr:String,tokens:Seq[String],block:Option[Long] = None,delay:Long = 0L)(implicit web3:Web3j,ec:ExecutionContext):Future[Seq[Try[BigInt]]] = {
+  def getBalanceTokenAsync(addr:String,tokens:Seq[String],block:Option[Long] = None,delay:Long = 0L)(implicit web3:Web3jTrace,ec:ExecutionContext):Future[Seq[Try[BigInt]]] = {
     if(delay == 0L) {
       val ff = tokens.map(token => {
         callFunctionAsync(addr,token,"balanceOf(address)(uint256)",Seq(addr),block=block)
@@ -837,5 +886,76 @@ object Eth {
       }
       fd
     }
+  }
+
+  def signEIP712(message: String, sk: String): String = {
+    log.debug(s"message: '${message}'")
+    val encoder = new crypto.StructuredDataEncoder(message)
+    val hash = encoder.hashStructuredData()
+    val keyPair = ECKeyPair.create(Numeric.hexStringToByteArray(sk))
+    val signatureData = Sign.signMessage(hash, keyPair, false)
+    Numeric.toHexString(signatureData.getR ++ signatureData.getS ++ signatureData.getV)
+  }
+
+  def toEIP712Message(
+    name: String,
+    version: String,
+    chainId: Long,
+    verifyingContract: String,    
+    salt: Option[String] = None,
+    types: Map[String, List[Map[String, String]]],
+    values: Map[String, Any],
+    primaryType: String
+  ): String = {
+    
+    val domain = Map(
+      "name" -> name,
+      "version" -> version,
+      "chainId" -> chainId,
+      "verifyingContract" -> verifyingContract,
+      "salt" -> salt
+    )
+
+    Util.toJsonString(Map(
+      "types" -> {
+        Map (
+          "EIP712Domain" -> List(
+            Map("name" -> "name", "type" -> "string"),
+            Map("name" -> "version", "type" -> "string"),
+            Map("name" -> "chainId", "type" -> "uint256"),
+            Map("name" -> "verifyingContract", "type" -> "address")
+          )
+        ) ++ types},
+      "primaryType" -> primaryType,
+      "domain" -> domain,
+      "message" -> values
+    ),compact = true )
+    
+  }
+
+  def signEIP712(
+    name: String,
+    version: String,
+    chainId: Long,
+    verifyingContract: String,    
+    salt: Option[String] = None,
+
+    types: Map[String, List[Map[String, String]]],
+    values: Map[String, Any],
+    primaryType: String,
+    sk: String
+  ): String = {
+    
+    // Create the structured data JSON
+    val json = toEIP712Message(name,version,chainId,verifyingContract,salt,types,values,primaryType)    
+    log.debug(s"message: '${json}'")
+        
+    val encoder = new crypto.StructuredDataEncoder(json)
+    val hash = encoder.hashStructuredData()
+
+    val keyPair = ECKeyPair.create(Numeric.hexStringToByteArray(sk))
+    val signatureData = Sign.signMessage(hash, keyPair, false)
+
+    Numeric.toHexString(signatureData.getR ++ signatureData.getS ++ signatureData.getV)
   }
 }

@@ -1,16 +1,22 @@
 package io.syspulse.skel.ai.core.openai
 
 import io.syspulse.skel.util.Util
-
+import io.syspulse.skel.ai.core.AiURI
+import io.syspulse.skel.ai.core.Providers
 /* 
 openai:// - Key is taken from $OPENAI_API_KEY
 openai://<model>
 openai://<model>?<key1=value1&key2=value2...>
 openai://<api_key>@<model>
 */
-case class OpenAiURI(uri:String) {
+object OpenAiURI {
   val PREFIX = "openai://"
   val DEFAULT_MODEL = "gpt-4o-mini"
+  val DEFAULT_TEMPERATURE = 0.7
+  val DEFAULT_TOP_P = 1.0
+}
+
+case class OpenAiURI(uri:String) extends AiURI {
 
   private val (_apiKey:String,_model:Option[String],_ops:Map[String,String]) = parse(uri)
 
@@ -19,7 +25,11 @@ case class OpenAiURI(uri:String) {
   def ops:Map[String,String] = _ops
   def vdb:Option[String] = _ops.get("vdb")
   def org:Option[String] = _ops.get("org")
-  def aid:Option[String] = _ops.get("aid")
+  def aid:Option[String] = _ops.get("aid")  
+  def getModel():Option[String] = _model
+  def getProvider():String = Providers.OPEN_AI
+
+  def getOptions():Map[String,String] = _ops
 
   def parse(uri:String):(String,Option[String],Map[String,String]) = {
     // resolve options
@@ -40,9 +50,9 @@ case class OpenAiURI(uri:String) {
         ("",Map())
     }
     
-    val rr = url.stripPrefix(PREFIX).split("[@]").toList match {
+    val rr = url.stripPrefix(OpenAiURI.PREFIX).split("[@]").toList match {
       case "" :: Nil =>      
-        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),Some(DEFAULT_MODEL),ops
+        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),Some(OpenAiURI.DEFAULT_MODEL),ops
         )
 
       case model :: Nil =>         
@@ -54,7 +64,7 @@ case class OpenAiURI(uri:String) {
         )      
             
       case _ =>      
-        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),Some(DEFAULT_MODEL),ops
+        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),Some(OpenAiURI.DEFAULT_MODEL),ops
         )
     }
 

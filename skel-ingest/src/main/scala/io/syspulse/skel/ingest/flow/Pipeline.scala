@@ -90,6 +90,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case ("server" | "http:server" | "https:server") :: uri :: Nil => fromHttpServer(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
 
       case "tcp" :: uri :: Nil => fromTcpClientUri(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
+      
       case ("ws" | "wss") :: _ => fromWebsocket(feed,frameDelimiter = delimiter, frameSize = buffer, helloMsg = sys.env.get("WS_HELLO_MSG"))
 
       case "file" :: fileName :: Nil => fromFile(fileName,chunk,frameDelimiter = delimiter, frameSize = buffer)
@@ -165,7 +166,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
     log.info(s"output=${output}")
         
     val sink = output.split("://").toList match {
-      case "null" :: _ => toNull
+      case "null" :: Nil => toNull[O]()(fmt)
+      case "null" :: delay :: Nil => toNull[O](delay.toLong)(fmt)
       
       case "json" :: _ => toJson[O](output,pretty=false)(fmt)
       case "pjson" :: _ => toJson[O](output,pretty=true)(fmt)

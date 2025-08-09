@@ -7,3 +7,4 @@
 .scalafmt.conf
 *.log
 target/
+.env

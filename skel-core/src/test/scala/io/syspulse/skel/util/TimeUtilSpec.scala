@@ -92,5 +92,107 @@ class TimeUtilSpec extends AnyWordSpec with Matchers {
       info(s"result = ${ss.toList}")
       ss.size should === (2)
     }
+
+    "convert human time to milliseconds" in {
+      // Plain numbers as milliseconds
+      TimeUtil.humanToMillis("1") should === (1L)
+      TimeUtil.humanToMillis("1000") should === (1000L)
+      TimeUtil.humanToMillis("60000") should === (60000L)
+      TimeUtil.humanToMillis(" 500 ") should === (500L)  // with spaces
+
+      TimeUtil.humanToMillis("888123000000123") should === (888123000000123L)
+
+      TimeUtil.humanToMillis("1ms") should === (1L)
+      TimeUtil.humanToMillis("1msec") should === (1L)
+      TimeUtil.humanToMillis("1millisecond") should === (1L)
+      TimeUtil.humanToMillis("1milliseconds") should === (1L)
+      TimeUtil.humanToMillis("1 ms") should === (1L)
+      TimeUtil.humanToMillis("1  msec") should === (1L)
+      TimeUtil.humanToMillis("1  millisecond") should === (1L)
+      TimeUtil.humanToMillis("1 milliseconds") should === (1L)
+      
+      // Regular time units
+      TimeUtil.humanToMillis("1s") should === (1000L)
+      TimeUtil.humanToMillis("1m") should === (60 * 1000L)
+      TimeUtil.humanToMillis("1h") should === (60 * 60 * 1000L)
+      TimeUtil.humanToMillis("1d") should === (24 * 60 * 60 * 1000L)
+      TimeUtil.humanToMillis("1w") should === (7 * 24 * 60 * 60 * 1000L)
+      // not supported not to mix with minutes
+      // TimeUtil.humanToMillis("1M") should === (30 * 24 * 60 * 60 * 1000L)
+      TimeUtil.humanToMillis("1y") should === (365 * 24 * 60 * 60 * 1000L)
+      
+      // Full word units
+      TimeUtil.humanToMillis("1sec") should === (1000L)
+      TimeUtil.humanToMillis("1min") should === (60 * 1000L)
+      TimeUtil.humanToMillis("1hour") should === (60 * 60 * 1000L)
+      TimeUtil.humanToMillis("1day") should === (24 * 60 * 60 * 1000L)
+      TimeUtil.humanToMillis("1week") should === (7 * 24 * 60 * 60 * 1000L)
+      TimeUtil.humanToMillis("1month") should === (30 * 24 * 60 * 60 * 1000L)
+      TimeUtil.humanToMillis("1year") should === (365 * 24 * 60 * 60 * 1000L)
+    }
+
+    "convert complex human time expressions to milliseconds" in {
+      TimeUtil.humanToMillis("1h30m") should === ((90 * 60 * 1000L))
+      TimeUtil.humanToMillis("2d12h") should === ((60 * 60 * 1000L) * (48 + 12))
+      TimeUtil.humanToMillis("1w2d") should === ((9 * 24 * 60 * 60 * 1000L))
+      TimeUtil.humanToMillis("1y6months") should === ((365 + 180) * 24 * 60 * 60 * 1000L)
+      
+      // Full word combinations
+      TimeUtil.humanToMillis("1hour30min") should === ((90 * 60 * 1000L))
+      TimeUtil.humanToMillis("1minute30seconds") should === ((90 * 1000L))
+      TimeUtil.humanToMillis("2days12hours") should === ((60 * 60 * 1000L) * (48 + 12))
+      TimeUtil.humanToMillis("1week2days") should === ((9 * 24 * 60 * 60 * 1000L))
+      
+      // Mixed formats
+      TimeUtil.humanToMillis("1hour30m") should === ((90 * 60 * 1000L))
+      TimeUtil.humanToMillis("1h30min") should === ((90 * 60 * 1000L))
+      TimeUtil.humanToMillis("1minute30s") should === ((90 * 1000L))
+    }
+
+    "handle invalid human time formats" in {
+      an [IllegalArgumentException] should be thrownBy TimeUtil.humanToMillis("")
+      an [IllegalArgumentException] should be thrownBy TimeUtil.humanToMillis("invalid")
+      an [IllegalArgumentException] should be thrownBy TimeUtil.humanToMillis("-123")
+      an [IllegalArgumentException] should be thrownBy TimeUtil.humanToMillis("ms")
+      an [IllegalArgumentException] should be thrownBy TimeUtil.humanToMillis("1invalid")
+      
+      // Invalid parts in expressions should throw
+      an [IllegalArgumentException] should be thrownBy TimeUtil.humanToMillis("1h30invalid")
+      an [IllegalArgumentException] should be thrownBy TimeUtil.humanToMillis("1h 30m invalid")
+      an [IllegalArgumentException] should be thrownBy TimeUtil.humanToMillis("1h invalid 30m")
+      an [IllegalArgumentException] should be thrownBy TimeUtil.humanToMillis("invalid 1h 30m")
+    }
+
+    "handle whitespace in human time expressions" in {
+      TimeUtil.humanToMillis("1h 30m") should === (TimeUtil.humanToMillis("1h30m"))
+      TimeUtil.humanToMillis(" 1d ") should === (TimeUtil.humanToMillis("1d"))
+      TimeUtil.humanToMillis("2h  30m") should === (TimeUtil.humanToMillis("2h30m"))
+      TimeUtil.humanToMillis("1 hour 30 minutes") should === (TimeUtil.humanToMillis("1h30m"))
+      TimeUtil.humanToMillis("1 day  12 hours") should === (TimeUtil.humanToMillis("1d12h"))
+      
+      // Additional space-related test cases
+      TimeUtil.humanToMillis("1 hour") should === (TimeUtil.humanToMillis("1h"))
+      TimeUtil.humanToMillis("2 hours") should === (TimeUtil.humanToMillis("2h"))
+      TimeUtil.humanToMillis("1 minute") should === (TimeUtil.humanToMillis("1m"))
+      TimeUtil.humanToMillis("5 minutes") should === (TimeUtil.humanToMillis("5m"))
+      TimeUtil.humanToMillis("1 second") should === (TimeUtil.humanToMillis("1s"))
+      TimeUtil.humanToMillis("30 seconds") should === (TimeUtil.humanToMillis("30s"))
+      TimeUtil.humanToMillis("1 day") should === (TimeUtil.humanToMillis("1d"))
+      TimeUtil.humanToMillis("7 days") should === (TimeUtil.humanToMillis("7d"))
+      TimeUtil.humanToMillis("1 week") should === (TimeUtil.humanToMillis("1w"))
+      TimeUtil.humanToMillis("2 weeks") should === (TimeUtil.humanToMillis("2w"))
+      TimeUtil.humanToMillis("1 month") should === (TimeUtil.humanToMillis("1month"))
+      TimeUtil.humanToMillis("6 months") should === (TimeUtil.humanToMillis("6month"))
+      TimeUtil.humanToMillis("1 year") should === (TimeUtil.humanToMillis("1y"))
+      TimeUtil.humanToMillis("2 years") should === (TimeUtil.humanToMillis("2y"))
+      
+      // Mixed spaces and plural forms
+      TimeUtil.humanToMillis("2 hours 30 minutes") should === (TimeUtil.humanToMillis("2h30m"))
+      TimeUtil.humanToMillis("1 day 6 hours 30 minutes") should === (TimeUtil.humanToMillis("1d6h30m"))
+      TimeUtil.humanToMillis("1 week 2 days") should === (TimeUtil.humanToMillis("1w2d"))
+      TimeUtil.humanToMillis("1 year 6 months") should === (TimeUtil.humanToMillis("1y6month"))
+    }
+
   }
+  
 }

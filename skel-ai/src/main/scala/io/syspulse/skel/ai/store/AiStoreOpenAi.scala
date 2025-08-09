@@ -20,9 +20,10 @@ import io.syspulse.skel.ai.server.AiJson._
 import io.syspulse.skel.ai.Config
 import io.syspulse.skel.ai.core.Providers
 import io.syspulse.skel.ai.provider.openai.OpenAi
+import io.syspulse.skel.ai.provider.AiProvider
 
 // Preload from file during start
-class AiStoreOpenAi(uri:String) extends AiStore with JsonCommon {
+class AiStoreOpenAi(uri:String) extends AiStore {
 
   // TODO: Change !
   val engine = new OpenAi(Util.replaceEnvVar(uri))
@@ -53,7 +54,7 @@ class AiStoreOpenAi(uri:String) extends AiStore with JsonCommon {
 
   def ????(question:String,model:Option[String],oid:Option[String]):Try[Ai] = {
     val o = ???(question,oid) match {
-      case s @ Success(o) => 
+      case s @ Success(o) =>
         s
       case Failure(e) => 
         engine.ask(question,model)
@@ -64,8 +65,12 @@ class AiStoreOpenAi(uri:String) extends AiStore with JsonCommon {
   override def findByOid(oid:String):Seq[Ai] = store.findByOid(oid)
 
   def getProviderId():String = "openai"
+
+  def getProvider(oid:Option[String]):Option[AiProvider] = Some(engine)
     
   // add test questioness
   //`+`(Ai("0x0000000000000000000000000000000000000007",Seq("Ai","test"),0L,oid=Some(Sources.GLOBAL_LEDGER))))
   //`+`(Ai("0x0000000000000000000000000000000000001012",Seq("Ai","test"),0L,oid=Some(Sources.GLOBAL_LEDGER))))
+
+
 }

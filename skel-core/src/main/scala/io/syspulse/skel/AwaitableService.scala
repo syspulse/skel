@@ -24,11 +24,17 @@ class FutureAwaitable[T](f:Future[T],timeout:Duration = FutureAwaitable.defaultA
 object FutureAwaitable {
   val defaultAwaitabletimeout = FiniteDuration(5,TimeUnit.SECONDS)
   implicit def ftor[R](f: Future[R]):FutureAwaitable[R] = new FutureAwaitable[R](f)
-  implicit def await[R](f: Future[R],timeout:Duration = Duration.Inf):R = {
+  
+  implicit def await[R](f: Future[R])(implicit timeout:Duration = Duration.Inf):R = {
     Await.result(f,timeout)
   }
-  implicit def awaitTimeout[R](f: Future[R],timeout:Long):R = {
+
+  implicit def awaitTimeout[R](f: Future[R])(implicit timeout:Long):R = {
     Await.result(f,FiniteDuration(timeout,TimeUnit.MILLISECONDS))
+  }
+
+  implicit def awaitTry[R](f: Future[R])(implicit timeout:Long = 5000):Try[R] = {
+    Try(Await.result(f,FiniteDuration(timeout,TimeUnit.MILLISECONDS)))
   }
 }
 

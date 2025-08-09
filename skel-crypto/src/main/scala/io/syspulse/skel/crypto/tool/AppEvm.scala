@@ -2,6 +2,7 @@ package io.syspulse.skel.crypto.tool
 
 import scala.util.{Try,Success,Failure}
 import com.typesafe.scalalogging.Logger
+import scala.jdk.CollectionConverters._
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
@@ -13,9 +14,11 @@ import org.web3j.abi.datatypes.generated.Uint256
 import java.util.Arrays
 import org.web3j.abi.TypeReference
 import io.syspulse.skel.crypto.eth.Solidity
+import io.syspulse.skel.crypto.eth.SolidityTuple
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.Await
+import io.syspulse.skel.crypto.eth.Web3jTrace
 
 object AppEvm extends {
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
@@ -25,8 +28,13 @@ object AppEvm extends {
     ethRpcUrl:String="http://geth:8545",
     from:String = "0x0000000000000000000000000000000000000000",
     block:Option[Long] = None,
+    
+    tracer:String = "callTracer",
+    tracerConfig:Map[String,String] = Map(),
 
     delay:Long = 0L,
+
+    format:String = "unrwap",
     
     cmd:String = "call",
     params:Seq[String] = Seq()
@@ -45,17 +53,24 @@ object AppEvm extends {
         ArgString('r', "eth.rpc.url",s"RPC uri (def: ${d.ethRpcUrl})"),
         ArgString('f', "from",s"From address (def: ${d.from})"),
         ArgString('b', "block",s"Block number (def: ${d.block})"),
+        
+        ArgString('_', "tracer",s"Tracer ([callTracer,prestateTracer] def: ${d.tracer})"),
+        ArgString('_', "tracerConfig",s"Tracer config callTracer: [onlyTopCall=true, withLog=false], prestateTracer: [diffMode=true,disableStorage=true,disableCode=true,enableCode=false] (def: ${d.tracerConfig})"),
 
         ArgLong('_', "delay",s"Delay in ms (def: ${d.delay})"),
+        ArgString('_', "format",s"Format result (def: ${d.format})"),
         
         ArgCmd("call","eth_call: [address] function(params,...)(return)"),
+        ArgCmd("call-async","eth_call: [address] function(params,...)(return)"),
         ArgCmd("encode","function(params,...)(return)"),
         ArgCmd("estimate","eth_estimageGas"),
         ArgCmd("balance","eth_getBalance"),
         ArgCmd("balance-erc20","ERC20 balanceOf()"),
-        ArgCmd("encode-data","inputType params..."),
-        ArgCmd("decode-data","inputType params..."),
+        ArgCmd("abi-encode","inputType params..."),
+        ArgCmd("abi-decode","inputType params..."),
         ArgCmd("block","Get block"),
+        ArgCmd("call-trace","debug_traceCall"),
+        ArgCmd("call-trace-async","debug_traceCall"),
 
         ArgParam("<params>","..."),
 
@@ -69,7 +84,11 @@ object AppEvm extends {
       from = c.getString("from").getOrElse(d.from),
       block = c.getString("block").map(b => b.toLong),
 
+      tracer = c.getString("tracer").getOrElse(d.tracer),
+      tracerConfig = c.getMap("tracerConfig",d.tracerConfig),
+
       delay = c.getLong("delay").getOrElse(d.delay),
+      format = c.getString("format").getOrElse(d.format),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams()
@@ -77,12 +96,59 @@ object AppEvm extends {
 
     Console.err.println(s"Config: ${config}")
 
-    implicit val web3:Web3j = Web3j.build(new HttpService(config.ethRpcUrl))
+    // implicit val web3:Web3j = Web3j.build(new HttpService(config.ethRpcUrl))
+    implicit val web3:Web3jTrace = Web3jTrace.build(new HttpService(config.ethRpcUrl))
 
     Console.err.println(s"web3j: ${web3}")
 
-    val r =config.cmd match {
-      case "call" => 
+    val r = config.cmd match {
+      case "call-trace" => 
+        if(config.params.size < 3) {
+          Console.err.println("call-trace: <from> <to> function(params,...)(return) [params...]")
+          sys.exit(1)
+        }
+
+        val to = config.params(0)
+        val funcName = config.params(1)
+        val params = config.params.drop(2)        
+
+        val tracer = config.tracer
+        val tracerConfig = config.tracerConfig
+
+        // for {
+        //   (data,_) <- Try { Eth.encodeFunction(funcName,params) }
+        //   r <- {
+        //     Try{ 
+        //       web3.traceCall(config.from,to,data,tracer,tracerConfig.map{ case (k,v) => (k,v.toBoolean) }.asInstanceOf[Map[String,Object]].asJava)
+        //     }
+        //   }
+        //   r <- Try{ r.send() }
+        //   r <- Try{ 
+        //     if(r.hasError())
+        //       throw new Exception(s"Error: ${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
+        //     else
+        //       r.getResult() 
+        //   }
+        // } yield r.toString()
+
+        Eth.traceCall(config.from,to,funcName,params,tracer,tracerConfig.map{ case (k,v) => (k,v.toBoolean) })
+
+      case "call-trace-async" => 
+        if(config.params.size < 3) {
+          Console.err.println("call-trace-async: <from> <to> function(params,...)(return) [params...]")
+          sys.exit(1)
+        }
+
+        val to = config.params(0)
+        val funcName = config.params(1)
+        val params = config.params.drop(2)        
+
+        val tracer = config.tracer
+        val tracerConfig = config.tracerConfig
+        
+        Eth.traceCallAsync(config.from,to,funcName,params,tracer,tracerConfig.map{ case (k,v) => (k,v.toBoolean) })
+
+      case "call" |  "call-async" => 
         if(config.params.size < 2) {
           Console.err.println("call: <contract> <function> [params..]")
           sys.exit(1)
@@ -94,7 +160,11 @@ object AppEvm extends {
         val paramsStr = params.mkString(" ")
           
         //Eth.callFunctionWithParams(config.from,contractAddress,funcName,paramsStr)
-        Eth.callFunction(config.from,contractAddress,funcName,params,block=config.block)
+        if(config.cmd == "call-async") {
+          Eth.callFunctionAsync(config.from,contractAddress,funcName,params,block=config.block)
+        } else {
+          Eth.callFunction(config.from,contractAddress,funcName,params,block=config.block)
+        }
               
       case "encode" => 
         if(config.params.size < 1) {
@@ -143,9 +213,9 @@ object AppEvm extends {
           })
           //.await()
 
-      case "encode-data" => 
+      case "abi-encode" => 
         if(config.params.size < 1) {
-          Console.err.println("encode-data: type [params..]")
+          Console.err.println("abi-encode: type [params..]")
           sys.exit(1)
         }
 
@@ -154,16 +224,17 @@ object AppEvm extends {
         
         Solidity.encodeData(typ,params)
 
-      case "decode-data" => 
+      case "abi-decode" => 
         if(config.params.size < 1) {
-          Console.err.println("decode-data: type [params..]")
+          Console.err.println("abi-decode: type [params..]")
           sys.exit(1)
         }
 
         val typ = config.params(0)
         val params = config.params.last
         
-        Solidity.decodeData(typ,params)
+        //Solidity.decodeData(typ,params)
+        SolidityTuple.decodeData(typ,params)
 
       case "block" =>         
 
@@ -176,11 +247,31 @@ object AppEvm extends {
           })
     }
     
-    Console.err.println(s"r = ${r}")
+    Console.println(result(r,config.format))
 
-    if(r.isInstanceOf[Future[_]]) {
-      r.asInstanceOf[Future[_]].await()
+    if(r.isInstanceOf[Future[_]] 
+      // && r.asInstanceOf[Future[_]].isSuccess
+    ) {
+      val rf = r.asInstanceOf[Future[_]].await()
+      Console.println(result(r,config.format))
+      sys.exit(0)
     }
     
+  }
+
+  def result(r:Any,format:String):String = {
+    // println(s">>>>>>>> r: ${r.getClass}")
+    
+    r match {
+      case Success(r) if(format == "unwrap") =>       
+        r.toString
+      case Success(r) if(format == "json") => 
+        val j = ujson.read(r.toString)
+        j.render(indent = 2)      
+      
+      case Failure(e) => e.getMessage()
+      case _ => 
+        r.toString()
+    }
   }
 }

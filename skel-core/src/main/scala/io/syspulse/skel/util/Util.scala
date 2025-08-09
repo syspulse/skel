@@ -384,26 +384,43 @@ object Util {
   }
 
   def replaceEnvVar(expr:String,env:Map[String,String] = sys.env):String = {
-    if(!expr.contains('{') && !expr.contains('$'))
-      return expr
+    def replace(expr:String):String = {
+      if(!expr.contains('{') && !expr.contains("${"))
+        return expr
 
-    val i0 = expr.indexOf('{')
-    if(i0 == -1)
-      return expr
-    val i1 = expr.indexOf('}')
-    if(i1 == -1)
-      return expr
-    
-    val v = expr.substring(i0+1,i1)
-    val ev0 = env.get(v)
-    
-    val ev = if(!ev0.isDefined)
-      ""
-    else 
-      ev0.get
-    
-    (expr.take(i0) + ev + expr.drop(i0 + 1 + 1 + v.size)).replaceAll("\\$", "")
+      val i0 = expr.indexOf('{')
+      if(i0 == -1)
+        return expr
+      val i1 = expr.indexOf('}')
+      if(i1 == -1)
+        return expr
+      
+      val v = expr.substring(i0+1,i1)
+      val ev0 = env.get(v)
+      
+      val ev = if(!ev0.isDefined)
+        ""
+      else 
+        ev0.get
+      
+      val r = {
+        val expr1 = expr.substring(0,i1)
+        (expr1.take(i0) + ev + expr1.drop(i0 + 1 + 1 + v.size)).replace("$", "")
+      }
+      
+      r + replace(expr.substring(i1+1))
+    }
+
+    replace(expr)
   }
+
+  // this allows to bypass env exposure (it is resolved via {} syntax)
+  def resolveEnvVar(expr:String,env:Map[String,String] = sys.env):Option[String] = {
+    replaceEnvVar(expr,env) match {
+      case "" => None
+      case v => Some(v)
+    }
+  }  
 
   // more reliable BigInt converter of format is into double
   def toBigInt(v:String):BigInt = {
@@ -494,5 +511,69 @@ object Util {
       case e:Exception => Failure(e)
     }
   }
-}
 
+  def getStringMap(data:Option[String],default:Map[String,String] = Map.empty):Map[String,String] = {
+    if(!data.isDefined || data.get.isEmpty)
+      default
+    else {
+      data.get.split(",").flatMap(kv => {
+        kv.split("=").toList match {
+          case k :: v :: Nil =>
+            Some((k.trim -> v))
+          case k :: Nil => 
+            Some((k.trim -> ""))
+          case _ => None
+        }
+      })
+      .toMap
+    }
+    
+  }
+
+  def toJsonString(o:Any,compact:Boolean=true):String = {
+    if(o == null)
+      return "null"
+    
+    def toJsonObj(o:Any):ujson.Value = {
+      o match {
+        case o:Map[_,_] => 
+          val kv = o.map { case (k,v) => (k.toString, toJsonObj(v)) }
+          ujson.Obj.from(kv)
+        case o:List[_] => ujson.Arr(o.map(toJsonObj(_)).toSeq: _*)
+        case o:String => ujson.Str(o)
+        case o:Int => ujson.Num(o)
+        case o:Long => ujson.Num(o)
+        case o:Double => ujson.Num(o)
+        case o:Float => ujson.Num(o)
+        case o:Boolean => ujson.Bool(o)
+        case o:BigInt => ujson.Num(o.toDouble)
+        case o:BigDecimal => ujson.Num(o.toDouble)        
+        case o:Array[_] => ujson.Arr(o.map(toJsonObj(_)).toSeq: _*)
+        case o:Option[_] => o.map(toJsonObj(_)).getOrElse(ujson.Null)
+
+        case o:Product => 
+          val kv:Seq[(String,ujson.Value)] = for (i <- 0 until o.productArity) yield {
+            val name = o.productElementName(i)
+            val value = toJsonObj(o.productElement(i))            
+            (name,value)
+          }
+          //ujson.Obj(vMap.map { case (k,v) => k.toString -> toJsonObj(v) }.toSeq: _*)
+          ujson.Obj.from(kv)
+
+        case o => ujson.Str(o.toString)
+      }
+    }
+
+    if(compact)
+      toJsonObj(o).render()
+    else
+      toJsonObj(o).render(2)
+  }
+
+  def trunc(s:String,n:Int):String = {
+    if(s.length <= n)
+      s
+    else
+      s.substring(0,n / 2) + "..." + s.substring(s.length - n / 2)
+  }
+}

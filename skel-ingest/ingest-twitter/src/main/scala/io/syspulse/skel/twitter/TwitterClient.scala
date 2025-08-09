@@ -120,6 +120,7 @@ trait TwitterClient {
         val auth = ujson.read(r.text())
         val accessToken = auth.obj("access_token").str
         val refreshToken = ""
+        log.info(s"Login: ${accessToken.takeRight(10)}")
         Success(accessToken)
       } catch {
         case e:Exception => 
@@ -139,7 +140,7 @@ trait TwitterClient {
 
   def getChannels():Set[String]
 
-  def request(followUsers:Set[String],past:Long,max:Long,accessToken:String):Future[ByteString] = {
+  def request(followUsers:Set[String],past:Long,max:Long,accessToken:String,latest:Long = 1L):Future[ByteString] = {
     // go into the past by speicif time hour
     //val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30).minusHours(pastHours).format(tsFormatISO)
     val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30 + past / 1000L).format(tsFormatISO)
@@ -165,12 +166,17 @@ trait TwitterClient {
       res.status match {
         case StatusCodes.OK => 
           val body = res.entity.dataBytes.runReduce(_ ++ _)
+          log.info(s"${res.status}: ${res.headers.filter(_.name.startsWith("x-rate"))}")
           //Future(Source.future(body))
           body
+        case StatusCodes.TooManyRequests => 
+          val body = Await.result(res.entity.dataBytes.runReduce(_ ++ _),FiniteDuration(5000L,TimeUnit.MILLISECONDS)).utf8String
+          log.error(s"${res.status}: ${req}: ${res}")
+          throw new Exception(s"${req.uri}: ${res.status}")
         case _ => 
-          val body = Await.result(res.entity.dataBytes.runReduce(_ ++ _),FiniteDuration(1000L,TimeUnit.MILLISECONDS)).utf8String
-          log.error(s"${req}: ${res.status}: body=${body}")
-          throw new Exception(s"${req}: ${res.status}")
+          val body = Await.result(res.entity.dataBytes.runReduce(_ ++ _),FiniteDuration(5000L,TimeUnit.MILLISECONDS)).utf8String
+          log.error(s"${res.status}: ${req}: ${res}")
+          throw new Exception(s"${req.uri}: ${res.status}")
           // not really reachable... But looks extra-nice :-/
           //Future(Source.future(Future(ByteString(body))))
       }      
@@ -183,6 +189,7 @@ trait TwitterClient {
              past:Long, // how far to check the past on each request (in milliseconds)
              freq:Long, // how often to check API
              max:Int,   // max results
+             latest:Int, // how many latest twits to return
              frameDelimiter:String,frameSize:Int) = {
     
     // try to login
@@ -212,7 +219,9 @@ trait TwitterClient {
         log.info(s"${followUsers}: results=${rsp.meta.result_count}")
         
         if(rsp.meta.result_count != 0) {
+          
           val users = rsp.includes.get.users
+          
           val tweets = rsp.data.get.flatMap( td => {
             val userId = users.find(_.id == td.author_id)
             userId.map(u => Twit(
@@ -229,14 +238,16 @@ trait TwitterClient {
           })
           .groupBy(_.author_id)           
           .map{ case(authorId,tt) => {
-            log.info(s"author=${authorId} (${tt.head.author_name}): tweets=(${tt.size})")
-            // get latest Twit
-            tt.maxBy(_.created_at)
+            log.info(s"author=${authorId} (${tt.head.author_name}): tweets=(${latest}/${tt.size})")
+            // get latest Twits 
+            //tt.maxBy(_.created_at)
+            tt.sortBy(- _.created_at).take(latest)
           }}
 
           tweets
         } else Seq.empty
       }}
+      .mapConcat(identity)
     
     // deduplication flow
     val s1 = s0
@@ -254,7 +265,7 @@ trait TwitterClient {
             state = state.takeWhile(t => t.created_at >= (now - past) )
             lastCheckTs = now            
           }
-          log.info(s"uniq: ${uniq}")
+          log.debug(s"Uniq: ${uniq}")
           uniq
         }
       }     
@@ -276,6 +287,7 @@ class FromTwitter(uri:String) extends TwitterClient {
            twitterUri.past,
            twitterUri.freq,
            twitterUri.max,
+           twitterUri.latest,
            frameDelimiter,frameSize)
 
     // convert back to String to be Pipeline Compatible

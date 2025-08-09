@@ -1,11 +1,11 @@
-package io.syspulse.blockchain
+package io.syspulse.skel.blockchain
 
 import scala.util.{Try,Success,Failure}
 import scala.jdk.CollectionConverters._
 import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.util.CacheExpire
+import io.syspulse.skel.util.CacheIndexExpire
 
 case class Price(addr:String,price:Double,sym:Option[String] = None)
 
@@ -105,7 +105,7 @@ class PriceProvidereDefault(tokens0:Set[Price]) extends PriceProvider {
 class Prices(providers:Seq[PriceProvider]) {
   val log = Logger[this.type]
 
-  val priceCache = new CacheExpire[String,Price,String](1000L * 60L * 60L * 1L) {
+  val priceCache = new CacheIndexExpire[String,Price,String](1000L * 60L * 60L * 1L) {
     def key(v:Price):String = v.addr
     def index(v:Price):String = v.sym.getOrElse("")
   }

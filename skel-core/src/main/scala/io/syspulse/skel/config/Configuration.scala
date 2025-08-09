@@ -73,16 +73,40 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
     configurations.foldLeft[Option[String]](None)((r,c) => if(r.isDefined) r else c.getCmd())
   }
 
-  def getListString(path:String,d:Seq[String] = Seq()):Seq[String] = {
+  def getListString(path:String,d:Seq[String] = Seq(),empty:Boolean = false, trim:Boolean = true,comment:Option[String] = None):Seq[String] = {
     val v = getString(path)
     val s = if(v.isDefined) v.get else d.mkString(",")
     
-    if(s.trim.startsWith("file://")) {
-      val data = scala.io.Source.fromFile(s.drop("file://".size)).getLines().mkString(",")
-      data.split(",").map(_.trim).filter(!_.isEmpty).toSeq
+    val data = if(s.trim.startsWith("file://")) {
+      scala.io.Source.fromFile(s.drop("file://".size)).getLines().mkString(",")      
     } else {
-      s.split(",").map(_.trim).filter(!_.isEmpty).toSeq
+      s
     }
+
+    // if comments are supported, need to find lines regardless of delimiter
+    val data1 = if(comment.isDefined) {
+      data.split("\n")
+         .filter(s => ! s.trim.startsWith(comment.get))
+         .mkString("\n")
+    }
+    else 
+      data
+
+    data1.split(",")
+      .map(s => if(trim) s.trim else s)
+      .filter(empty || !_.isEmpty)
+      .filter(s => !comment.isDefined || !s.trim.startsWith(comment.get))
+      .toSeq
+  }
+
+  def getMap(path:String,d:Map[String,String] = Map()):Map[String,String] = {
+    val v = getString(path)
+    if(!v.isDefined) return d
+    
+    v.get.split(",").map(s => s.split("=").toList match {
+      case key :: value :: Nil => (key.trim,value)
+      case _ => (s,s)
+    }).toMap    
   }
 
   def getListStringDumb(path:String,d:Seq[String] = Seq()):Seq[String] = {

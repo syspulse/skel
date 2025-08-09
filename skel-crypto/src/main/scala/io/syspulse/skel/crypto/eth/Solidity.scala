@@ -15,32 +15,133 @@ import scala.collection.mutable.Buffer
 import org.web3j.abi.Utils
 
 object Solidity {
+  // unwrap parameters into Seq if multiple parameters are delimited by spaces or newlines (shell cast call style)
+  def unrwapParams(s:String):Seq[String] = {
+    if(s.trim.isEmpty) {
+      return Seq.empty
+    }
+
+    // Parse parameters respecting quoted strings, arrays, and structures
+    val result = scala.collection.mutable.ArrayBuffer[String]()
+    val current = new StringBuilder()
+    var i = 0
+    var inQuotes = false
+    var bracketDepth = 0
+    var parenDepth = 0
+    
+    while (i < s.length) {
+      val char = s(i)
+      
+      char match {
+        case '"' if !inQuotes && (i == 0 || s(i-1) != '\\') =>
+          inQuotes = true
+          current.append(char)
+          
+        case '"' if inQuotes && (i == 0 || s(i-1) != '\\') =>
+          inQuotes = false
+          current.append(char)
+          
+        case '[' if !inQuotes =>
+          bracketDepth += 1
+          current.append(char)
+          
+        case ']' if !inQuotes =>
+          bracketDepth -= 1
+          current.append(char)
+          
+        case '(' if !inQuotes =>
+          parenDepth += 1
+          current.append(char)
+          
+        case ')' if !inQuotes =>
+          parenDepth -= 1
+          current.append(char)
+          
+        case ' ' | '\n' | '\t' if !inQuotes && bracketDepth == 0 && parenDepth == 0 =>
+          // Only split on whitespace if we're not in quotes, arrays, or structures
+          if (current.nonEmpty) {
+            result += current.toString().trim
+            current.clear()
+          }
+          
+        case _ =>
+          current.append(char)
+      }
+      
+      i += 1
+    }
+    
+    // Add the last parameter if there is one
+    if (current.nonEmpty) {
+      result += current.toString().trim
+    }
+    
+    result.toSeq.filter(_.nonEmpty)
+  }
+
   def parseFunction(input: String): (String, Vector[String], String) = {
     if(input.isBlank())
       throw new Exception(s"failed to parse function: '${input}'")
 
-    //val FunctionPatternWithOutput = """(\w+)\((.*?)\)\((.*?)\)""".r
-    // val FunctionPatternNoOutput = """(\w+)\((.*?)\)""".r
-    val FunctionPatternWithOutput = """(\w+)\(\s*(.*?)\s*\)\(\s*(.*?)\s*\)""".r
-    val FunctionPatternNoOutput = """(\w+)\(\s*(.*?)\s*\)""".r
-    
-    val f = input match {
-      case FunctionPatternWithOutput(name, params, output) => 
-        val outputType = parseTypes(output)
-        if(outputType.isEmpty)
-          (name, parseTypes(params), "")
-        else
-          (name, parseTypes(params), parseTypes(output)(0))
-      case FunctionPatternNoOutput(name, params) => 
-        (name, parseTypes(params), "")
-      case _ => 
-        //throw new Exception(s"failed to parse function: '${input}'")
-        // treat it as only funciton name: owner == owner() with unknown output
-        (input, parseTypes(""), "")
+    // Find the function name and parameters by looking for the first '('
+    val firstParenIndex = input.indexOf('(')
+    if (firstParenIndex == -1) {
+      // No parentheses - treat as function name only
+      return (input, parseTypes(""), "")
     }
 
-    //println(s"f: >>> ${f}")
-    f
+    val funcName = input.substring(0, firstParenIndex).trim
+    
+    // Find the matching closing parenthesis for the input parameters
+    val (inputParams, remainingAfterInput) = extractBalancedParentheses(input, firstParenIndex)
+    
+    // Check if there's an output type (another set of parentheses)
+    if (remainingAfterInput.trim.startsWith("(")) {
+      val (outputParams, _) = extractBalancedParentheses(remainingAfterInput, 0)
+      (funcName, parseTypes(inputParams), outputParams)
+    } else {
+      (funcName, parseTypes(inputParams), "")
+    }
+  }
+
+  // Helper function to extract balanced parentheses content
+  private def extractBalancedParentheses(input: String, startIndex: Int): (String, String) = {
+    var depth = 0
+    var i = startIndex
+    var content = new StringBuilder
+    var foundOpening = false
+    
+    while (i < input.length) {
+      val char = input.charAt(i)
+      
+      if (char == '(') {
+        if (!foundOpening) {
+          foundOpening = true
+        } else {
+          content.append(char)
+        }
+        depth += 1
+      } else if (char == ')') {
+        depth -= 1
+        if (depth == 0) {
+          // Found the closing parenthesis for the opening one
+          return (content.toString, input.substring(i + 1))
+        } else {
+          content.append(char)
+        }
+      } 
+      else if(char == ' ' || char == '\n') {
+        //
+      }
+      else if (foundOpening) {
+        content.append(char)
+      }
+      
+      i += 1
+    }
+    
+    // If we get here, parentheses are not balanced
+    throw new Exception(s"Unbalanced parentheses in function: '${input}'")
   }
 
   def parseTypes(input: String): Vector[String] = {
@@ -68,7 +169,7 @@ object Solidity {
     if (current.nonEmpty) 
       result = result :+ current.toString.trim
       
-    result    
+    result
   }
 
   private def parseTupleTypes(t: String): Array[String] = {
@@ -363,17 +464,27 @@ object Solidity {
     }
   }
 
+  def encodeFunctionWithoutOutputType(func: String, params: Seq[String]): (String,String) = { 
+    encodeFunc(func,params,output = false)
+  }
+
   def encodeFunctionWithOutputType(func: String, params: Seq[String]): (String, String) = {    
+    encodeFunc(func,params,output = true)
+  }
+
+  def encodeFunc(func: String, params: Seq[String], output:Boolean = true): (String, String) = {    
     val (funcName,inputTypes,outputType) = parseFunction(func)
         
     if(inputTypes.size != params.size)
       throw new Exception(s"Invalid parameters count: types=${inputTypes.size}, params=${params.size}: ${params}")
 
     val inputParameters = inputTypes.zipWithIndex.map { case (paramType, i) => toWeb3Type(paramType, params(i)) }
-    val outputParameters = if(outputType.isEmpty) 
-      Seq.empty[TypeReference[_]] 
-    else 
-      Seq(toTypeReference(outputType))
+    
+    // val outputParameters = if(!output || outputType.isEmpty) 
+    //   Seq.empty[TypeReference[_]] 
+    // else 
+    //   Seq(toTypeReference(outputType))
+    val outputParameters = Seq.empty[TypeReference[_]] 
         
     val function = new datatypes.Function(
         funcName, 
@@ -457,6 +568,7 @@ object Solidity {
   def decodeData(dataType: String, data: String): Try[String] = {    
     Try {
       if(data.isEmpty || data == "0x") return Success("")
+      if(dataType.isEmpty || dataType == "()") return Success(data)
 
       def typeToString(t: datatypes.Type[_]): String = t match {
         case struct: datatypes.DynamicStruct =>
@@ -489,5 +601,6 @@ object Solidity {
       encodeFunction(s"FUN(${input})",params)//.drop(10)
     )
   }
+  
 
 }

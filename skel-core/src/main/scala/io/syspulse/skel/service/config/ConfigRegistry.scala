@@ -8,6 +8,7 @@ import scala.jdk.CollectionConverters._
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config.Configuration
+import io.syspulse.skel.Server
 
 
 final case class Config(k:String,v:String)
@@ -25,7 +26,13 @@ object ConfigRegistry {
     Behaviors.receiveMessage {
       
       case GetConfigAll(replyTo) =>
-        replyTo ! Configs(configuration.getAll().map(kv => Config(kv._1,if(kv._2==null) "" else kv._2.toString)))
+        val insecure = Server.insecure
+        val data = if(insecure)
+           configuration.getAll().map(kv => Config(kv._1,if(kv._2==null) "" else kv._2.toString))
+        else
+          Seq.empty[Config]
+        
+        replyTo ! Configs(data)
         Behaviors.same
     }
 }

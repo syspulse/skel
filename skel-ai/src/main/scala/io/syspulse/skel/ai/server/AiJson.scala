@@ -11,10 +11,10 @@ import io.syspulse.skel.ai.server._
 
 object AiJson extends JsonCommon {
   
-  implicit val jf_ai = jsonFormat7(Ai)
+  implicit val jf_ai = jsonFormat8(Ai)
   implicit val jf_ais = jsonFormat2(Ais)
   
-  implicit val jf_ai_cr = jsonFormat3(AiCreateReq)
+  implicit val jf_ai_cr = jsonFormat5(AiCreateReq)
   implicit val jf_ai_res = jsonFormat2(AiRes)    
     
 }

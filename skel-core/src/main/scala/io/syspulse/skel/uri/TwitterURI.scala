@@ -21,6 +21,7 @@ case class TwitterURI(uri:String) {
   def past:Long = _past
   def freq:Long = _freq
   def max:Int = _max
+  def latest:Int = _ops.get("latest").map(_.toInt).getOrElse(1)
   def ops:Map[String,String] = _ops
   
   def parse(uri:String):(String,String,String,String,Seq[String],Long,Long,Int,Map[String,String]) = {
@@ -70,6 +71,16 @@ case class TwitterURI(uri:String) {
           ops
         )
       
+      case follow :: Nil if(!follow.isEmpty()) => 
+        ( sys.env.get("CONSUMER_KEY").getOrElse(""),sys.env.get("CONSUMER_SECRET").getOrElse(""),
+          sys.env.get("ACCESS_KEY").getOrElse(""),sys.env.get("ACCESS_SECRET").getOrElse(""),
+          Seq(follow),
+          ops.get("past").map(_.toLong).getOrElse(1000L * 60 * 60 * 24),
+          ops.get("freq").map(_.toLong).getOrElse(10000L),
+          ops.get("max").map(_.toInt).getOrElse(10),
+          ops
+        )
+
       case _ => 
         ( sys.env.get("CONSUMER_KEY").getOrElse(""),sys.env.get("CONSUMER_SECRET").getOrElse(""),
           sys.env.get("ACCESS_KEY").getOrElse(""),sys.env.get("ACCESS_SECRET").getOrElse(""),

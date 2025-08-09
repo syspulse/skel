@@ -26,7 +26,11 @@ object JsonCommon extends DefaultJsonProtocol with CollectionFormats {
   implicit def sortedSetFormat[T :JsonFormat](implicit ordering: Ordering[T]) = viaSeq[SortedSet[T], T](seq => SortedSet(seq :_*))
 }
 
-trait JsonCommon extends DefaultJsonProtocol with CollectionFormats with NullOptions { 
+trait JsonCommon extends DefaultJsonProtocol 
+  with CollectionFormats 
+  // with NullOptions 
+  { 
+  
   //import DefaultJsonProtocol._
 
   // implicit def sortedSetFormat[T :JsonFormat] = new RootJsonFormat[SortedSet[T]] {

@@ -25,7 +25,7 @@ import scala.util.Failure
 import io.cequence.openaiscala.domain.AssistantTool.FileSearchTool
 import io.cequence.openaiscala.domain.response.Assistant
 
-trait AgentFile extends Agent {
+trait AgentFile extends AgentAssistant {
 
   def getVectorStoreId(): String
 

@@ -5,6 +5,7 @@ import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import scala.collection.immutable
 import scala.jdk.CollectionConverters._
+import io.syspulse.skel.Server
 
 final case class Info(name:String, version:String, jvm:Jvm, environment:Environment,health:Health)
 final case class Health(status:String)
@@ -40,11 +41,21 @@ object InfoRegistry {
             sys.props.get("java.version").getOrElse("unknown")
         }
 
-        val jvmProperties = System.getProperties.entrySet.asScala.map(es => 
-          Var(es.getKey.toString,es.getValue.toString)
-        ).toSet
+        // for security reasons, expose only for `SITE=local`
+        val insecure = Server.insecure
+        
+        val jvmProperties = if(insecure)
+            System.getProperties.entrySet.asScala.map(es => 
+              Var(es.getKey.toString,es.getValue.toString)
+            ).toSet
+          else 
+            Set.empty[Var]
+        
 
-        val envs = System.getenv.entrySet.asScala.map(es => Var(es.getKey,es.getValue)).toSet
+        val envs = if(insecure)
+            System.getenv.entrySet.asScala.map(es => Var(es.getKey,es.getValue)).toSet
+          else 
+            Set.empty[Var]
 
         replyTo ! Info(name,version,Jvm(jvmVersion,jvmProperties),Environment(envs),health)
         Behaviors.same

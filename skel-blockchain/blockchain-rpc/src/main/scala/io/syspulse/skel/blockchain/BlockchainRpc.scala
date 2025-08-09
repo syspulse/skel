@@ -1,4 +1,4 @@
-package io.syspulse.blockchain
+package io.syspulse.skel.blockchain
 
 import scala.util.{Try,Success,Failure}
 import scala.concurrent.Future
@@ -8,7 +8,8 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.util.Util
 
-import org.web3j.protocol.Web3j
+// import org.web3j.protocol.Web3j
+import io.syspulse.skel.crypto.eth.Web3jTrace
 import io.syspulse.skel.crypto.Eth
 
 case class BlockchainRpc(name:String,id:String,rpcUri:String,explorer:Option[String]=None) 
@@ -22,7 +23,7 @@ class Blockchains(bb:Seq[String]) {
     
     
     Blockchain.ANVIL.id.get -> BlockchainRpc(Blockchain.ANVIL.name,Blockchain.ANVIL.id.get,"http://localhost:8545"),
-    Blockchain.SEPOLIA.id.get -> BlockchainRpc(Blockchain.SEPOLIA.name,Blockchain.SEPOLIA.id.get,"https://rpc2.sepolia.org"),
+    Blockchain.ETHEREUM_SEPOLIA.id.get -> BlockchainRpc(Blockchain.ETHEREUM_SEPOLIA.name,Blockchain.ETHEREUM_SEPOLIA.id.get,"https://rpc2.sepolia.org"),
   )
 
   def ++(bb:Seq[String]):Blockchains = {
@@ -48,7 +49,7 @@ class Blockchains(bb:Seq[String]) {
   }
 
   // map of connections
-  var rpc:Map[String,Web3j] = blockchains.values.map( b => {
+  var rpc:Map[String,Web3jTrace] = blockchains.values.map( b => {
     b.id -> Eth.web3(b.rpcUri)
   }).toMap
 
@@ -58,7 +59,7 @@ class Blockchains(bb:Seq[String]) {
     case Some(web3) => Success(web3)
     case None => Failure(new Exception(s"RPC not found: ${id}"))
   }
-  def getWeb3(name:String):Try[Web3j] = 
+  def getWeb3(name:String):Try[Web3jTrace] = 
     Try(
       getByName(name)      
         .flatMap(b => rpc.get(b.id))

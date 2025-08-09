@@ -1,4 +1,4 @@
-package io.syspulse.blockchain
+package io.syspulse.skel.blockchain
 
 import org.scalatest.{Ignore}
 import org.scalatest.wordspec.{ AnyWordSpec}

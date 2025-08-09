@@ -3,9 +3,11 @@ import './DiagramEditor.css';
 import { FiPlus, FiSave, FiRotateCcw, FiTrash2, FiUpload, FiDownload, FiPlay, FiSquare, FiRefreshCcw } from 'react-icons/fi';
 import { FcSearch, FcElectricalSensor} from 'react-icons/fc';
 import { TbTopologyStar3 } from "react-icons/tb";
+import { BsRobot } from "react-icons/bs";
 
 interface SidebarProps {
   onAddNode: () => void;
+  onAddGPTNode: () => void;
   onSave: () => void;
   onRestore: () => void;
   onClearAll: () => void;
@@ -18,6 +20,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ 
   onAddNode, 
+  onAddGPTNode,
   onSave, 
   onRestore, 
   onClearAll, 
@@ -57,6 +60,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const buttonLabels = {
     addNode: 'Add',
+    addGPTNode: 'Add GPT',
     save: 'Save',
     restore: 'Restore',
     clearAll: 'Clear',
@@ -73,6 +77,12 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="button-content">
           <FiPlus />
           <span>{buttonLabels.addNode}</span>
+        </div>
+      </button>
+      <button className="sidebar-button" onClick={onAddGPTNode}>
+        <div className="button-content">
+          <BsRobot />
+          <span>{buttonLabels.addGPTNode}</span>
         </div>
       </button>
       <button className="sidebar-button" onClick={onSave}>
