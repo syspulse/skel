@@ -4,6 +4,12 @@
 
 ### Build image
 
+Prepare for multiplatform build:
+
+```
+docker run --privileged --rm tonistiigi/binfmt --install all   
+```
+
 ```
 docker build -t s3-mount .
 docker tag s3-mount openjdk-s3fs:11-slim

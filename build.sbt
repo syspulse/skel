@@ -1167,7 +1167,7 @@ lazy val skel_wf = (project in file("skel-wf"))
   )
 
 lazy val job_core = (project in file("skel-job/job-core"))
-  .dependsOn(core,auth_core,skel_kafka)
+  .dependsOn(core,auth_core,skel_cron)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
     sharedConfig,
