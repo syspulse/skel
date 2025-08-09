@@ -771,7 +771,7 @@ lazy val ingest_twitter = (project in file("skel-ingest/ingest-twitter"))
     sharedConfig,
     sharedConfigAssembly,
     
-    appDockerConfig("ingest-twitter",appBootClassElastic),
+    appDockerConfig("ingest-twitter","io.syspulse.skel.ingest.twitter.App"),
 
     libraryDependencies ++= Seq(
       //libTwitter4s, // deprecated, not supported any longer
@@ -810,7 +810,7 @@ lazy val ingest = (project in file("skel-ingest"))
   )
 
 lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
-  .dependsOn(core, skel_serde, ingest, ingest_twitter)
+  .dependsOn(core, skel_serde, ingest, ingest_twitter, ingest_coingecko)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (
@@ -1435,3 +1435,20 @@ lazy val tools = (project in file("tools"))
           libUpickleLib
         ),
     )
+
+lazy val ingest_coingecko = (project in file("skel-ingest/ingest-coingecko"))
+  .dependsOn(core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  // .enablePlugins(AshScriptPlugin)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    
+    appDockerConfig("ingest-coingecko","io.syspulse.skel.ingest.coingecko.App"),
+
+    libraryDependencies ++= Seq(      
+
+    ),  
+  )

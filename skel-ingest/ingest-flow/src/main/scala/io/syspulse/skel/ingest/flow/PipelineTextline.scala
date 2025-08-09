@@ -4,6 +4,7 @@ import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration,FiniteDuration}
 import com.typesafe.scalalogging.Logger
 import java.util.concurrent.TimeUnit
+import scala.concurrent.{ExecutionContext}
 
 import scala.annotation.tailrec
 
@@ -86,6 +87,7 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config,as:Opti
         format = config.format) {
   
   //private val log = Logger(s"${this}")
+  implicit val ex:ExecutionContext = ExecutionContext.global
       
   override def getFileLimit():Long = config.limit
   override def getFileSize():Long = config.size
@@ -154,11 +156,14 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config,as:Opti
     Seq(t)
   }
 
-  override def source(feed:String):Source[ByteString,_] = {
+  override def source(feed:String):Source[ByteString,_] = {    
     feed.split("://").toList match {
-      case "twitter" :: uri :: Nil => 
-        skel.twitter.Twitter.fromTwitter(uri)
-      case _ => super.source(feed)
+      case "twitter" :: _ => 
+        skel.twitter.Twitter.fromTwitter(feed)
+      case "coingecko" :: _ => 
+        skel.coingecko.Coingecko.fromCoingecko(feed)
+      case _ => 
+        super.source(feed)
     }
     
   }
