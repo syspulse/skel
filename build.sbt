@@ -1437,7 +1437,7 @@ lazy val tools = (project in file("tools"))
     )
 
 lazy val ingest_coingecko = (project in file("skel-ingest/ingest-coingecko"))
-  .dependsOn(core)
+  .dependsOn(core,blockchain_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)

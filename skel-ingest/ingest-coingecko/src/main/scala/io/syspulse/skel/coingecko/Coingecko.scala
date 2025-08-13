@@ -9,17 +9,32 @@ import akka.stream.scaladsl.Source
 import akka.stream.scaladsl.Flow
 import akka.util.ByteString
 
-import io.syspulse.skel.Ingestable
-import io.syspulse.skel.coingecko.CoingeckoURI
-
 import spray.json._
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
-class Coingecko(uri:String) extends CoingeckoClient {
-  
+import io.syspulse.skel.Ingestable
+import io.syspulse.skel.uri.CoingeckoURI
+import io.syspulse.skel.blockchain.{Token,Coin,TokenProviderCoinGecko}
+
+case class Coingecko_Coin(id:String,symbol:String,name:String)
+case class Coingecko_CoinsList(coins:Seq[Coingecko_Coin])
+
+object CoingeckoJson extends DefaultJsonProtocol {
+  implicit val js_Token = jsonFormat5(Token)
+  implicit val js_Coin = jsonFormat6(Coin)
+  implicit val js_cg_Coin = jsonFormat3(Coingecko_Coin)
+  implicit val js_cg_CoinsList = jsonFormat1(Coingecko_CoinsList)
+}
+
+class Coingecko(uri:String)(implicit ec: ExecutionContext) extends CoingeckoClient {
+  import CoingeckoJson._
+
   val cgUri = CoingeckoURI(uri)
+  val tokenProvider = new TokenProviderCoinGecko(Some(cgUri.apiKey))
   
+  def getUri() = cgUri
+
   def coins(ids:Set[String])(implicit ec: ExecutionContext):Future[Seq[JsValue]] = {
     val req = requestCoins(ids,cgUri.apiKey)
 
@@ -41,16 +56,30 @@ class Coingecko(uri:String) extends CoingeckoClient {
     Await.result(f,cgUri.timeout)
   }
 
-  def flow = Flow[ByteString]
+  def flowCoin = Flow[ByteString]
     .map{ case(body) => {
       log.debug(s"body='${body}'")
-      body
+      tokenProvider.decodeCoin(body.utf8String)      
     }}
+    .collect{ case Success(c) => c.toJson }
   
+  def flowCoinList = Flow[ByteString]
+    .map{ case(body) => {
+      log.debug(s"body='${body}'")
+      // extract ids
+      val cc = body.utf8String.parseJson.convertTo[Coingecko_CoinsList]
+      cc.coins.map(_.id)
+    }}
+    .mapConcat(identity)
+    .throttle(1,FiniteDuration(cgUri.throttle,TimeUnit.MILLISECONDS))
+    .mapAsync(1)(id => {
+      requestCoins(Set(id),cgUri.apiKey)
+    })    
+    .via(flowCoin)
 
   def source(ids:Set[String],
              freq:Long = 10000L,  
-             frameDelimiter:String = "\n",frameSize:Int = 1024 * 1024)(implicit ec: ExecutionContext):Source[ByteString,_] = {
+             frameDelimiter:String = "\n",frameSize:Int = 1024 * 1024):Source[ByteString,_] = {
 
     // Frequency source
     val s0 = Source
@@ -59,7 +88,8 @@ class Coingecko(uri:String) extends CoingeckoClient {
         val ids = fun()
         requestCoins(ids,cgUri.apiKey)
       })
-      .via(flow)
+      .via(flowCoin)
+      .map(json => ByteString(json.toString))
 
     s0    
   }
@@ -68,13 +98,13 @@ class Coingecko(uri:String) extends CoingeckoClient {
 object Coingecko {
 
   def fromCoingecko(uri:String)(implicit ec: ExecutionContext) = {
-    val cg = new Coingecko(uri)
+    val cg = new Coingecko(uri)(ec)
     cg.source(cg.cgUri.ops.get("ids").map(_.split(",").toSet).getOrElse(Set()))
   }
 
-  def apply(uri:String):Try[Coingecko] = {
+  def apply(uri:String)(implicit ec: ExecutionContext):Try[Coingecko] = {
     try {
-      val client = new Coingecko(uri)
+      val client = new Coingecko(uri)(ec)
       Success(client)
 
     } catch {

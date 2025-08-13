@@ -1,4 +1,4 @@
-package io.syspulse.skel.coingecko
+package io.syspulse.skel.uri
 
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
@@ -19,6 +19,7 @@ case class CoingeckoURI(uri:String) {
   def max:Int = _max
   // def latest:Int = _ops.get("latest").map(_.toInt).getOrElse(1)
   def ops:Map[String,String] = _ops
+  def throttle:Long = _ops.get("throttle").map(_.toLong).getOrElse(30000L)
   def timeout:FiniteDuration = _ops.get("timeout").map(_.toLong).map(FiniteDuration(_,TimeUnit.MILLISECONDS)).getOrElse(FiniteDuration(10000L,TimeUnit.MILLISECONDS))
   
   def parse(uri:String):(String,Int,Map[String,String]) = {
@@ -46,7 +47,7 @@ case class CoingeckoURI(uri:String) {
         )
       case _ =>
         (
-          sys.env.get("COINGECKO_API_KEY").getOrElse(""),
+          sys.env.get("COINGECKO_API_KEY").orElse(sys.env.get("CG_API_KEY")).getOrElse(""),
           ops.get("max").map(_.toInt).getOrElse(10),
           ops
         )

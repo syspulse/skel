@@ -20,7 +20,9 @@ trait CoingeckoClient {
 
   implicit val as: akka.actor.ActorSystem = ActorSystem("ActorSystem-CoingeckoClient")
   
-  val COINGECKO_API_URL = "https://api.coingecko.com/api/v3"
+  val COINGECKO_API_URL = "https://pro-api.coingecko.com/api/v3"
+
+  def getBaseUri() = COINGECKO_API_URL
 
   // Perform a GET request to CoinGecko with API key header and return body as UTF-8 string
   def request(uri: String, apiKey: String)(implicit ec: ExecutionContext): Future[ByteString] = {
