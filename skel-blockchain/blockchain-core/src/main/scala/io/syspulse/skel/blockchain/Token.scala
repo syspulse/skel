@@ -14,6 +14,7 @@ case class Token(
   dec:Int = 18,
   bid:String,
   icon:Option[String] = None,
+  supply:Option[BigInt] = None,
 )
 
 // container
@@ -25,6 +26,8 @@ case class Coin(
   id:Option[String] = None,  // unique id (coingecko id)
   sid:Option[String] = None, // source id (coingecko)
   xid:Option[String] = None, // external id (e.g. co)  
+
+  supply:Option[BigInt] = None,
 ) {
   // primary address
   def getAddr():String = tokens.get("ethereum").map(_.addr).getOrElse("")

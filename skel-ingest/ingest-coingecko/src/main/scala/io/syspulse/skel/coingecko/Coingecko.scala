@@ -21,8 +21,8 @@ case class Coingecko_Coin(id:String,symbol:String,name:String)
 case class Coingecko_CoinsList(coins:Seq[Coingecko_Coin])
 
 object CoingeckoJson extends DefaultJsonProtocol {
-  implicit val js_Token = jsonFormat5(Token)
-  implicit val js_Coin = jsonFormat6(Coin)
+  implicit val js_Token = jsonFormat6(Token)
+  implicit val js_Coin = jsonFormat7(Coin)
   implicit val js_cg_Coin = jsonFormat3(Coingecko_Coin)
   implicit val js_cg_CoinsList = jsonFormat1(Coingecko_CoinsList)
 }
