@@ -8,6 +8,9 @@ import com.typesafe.sbt.packager.docker._
 Global / semanticdbEnabled := true
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
+// Allow unsafe Scala library upgrades to resolve version conflicts
+Global / allowUnsafeScalaLibUpgrade := true
+
 // https://www.scala-sbt.org/1.x/docs/Parallel-Execution.html#Built-in+Tags+and+Rules
 Test / parallelExecution := true
 //test / parallelExecution := false
@@ -82,7 +85,10 @@ val sharedConfigDocker = Seq(
 
   //dockerBaseImage := "openjdk:8-jre-alpine",
   // dockerBaseImage := "openjdk:18-slim",
-  dockerBaseImage := "openjdk-s3fs:11-slim",  // WARNING: this image is needed for JavaScript Nashorn !
+  //dockerBaseImage := "openjdk-s3fs:11-slim",  // WARNING: this image is needed for JavaScript Nashorn !
+  // dockerBaseImage := "openjdk:21-slim",
+  dockerBaseImage := "openjdk-s3fs:21-slim",
+  
   // Add S3 mount options
   // Requires running docker: 
   // --privileged -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY -e S3_BUCKET=haas-data-dev
@@ -336,6 +342,7 @@ lazy val root = (project in file("."))
              ingest_elastic,
              ingest_dynamo,
              ingest_twitter,
+             ingest_coingecko,
              ingest,
              skel_enroll,
              skel_syslog,
@@ -367,6 +374,7 @@ lazy val root = (project in file("."))
              ingest_elastic,
              ingest_dynamo,
              ingest_twitter,
+             ingest_coingecko,
              ingest,
              skel_enroll,
              skel_syslog,
@@ -920,8 +928,13 @@ lazy val skel_dsl = (project in file("skel-dsl"))
 
       libraryDependencies ++= libCommon ++ libTest ++
         Seq(
-          libUpickleLib,
           "org.scala-lang" % "scala-compiler" % scalaVersion.value,
+
+          libUpickleLib,
+
+          libGraalPolyglot,
+          libGraalPolyglotJS,
+          libGraalJSScriptEngine,
         ),
     )
 
@@ -1191,7 +1204,7 @@ lazy val skel_job = (project in file("skel-job"))
     sharedConfigAssembly,
     sharedConfigDocker,
     dockerBuildxSettings,
-    
+
     appDockerConfig("skel-job","io.syspulse.skel.job.App"),
 
     libraryDependencies ++= libTest ++ Seq(

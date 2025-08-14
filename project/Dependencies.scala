@@ -3,7 +3,8 @@ import sbt._
 object Dependencies {
 
     // lazy val scala = "2.13.13"
-    lazy val scala = "2.13.15"
+    // lazy val scala = "2.13.15"
+    lazy val scala = "2.13.16"
 
     // Versions
     lazy val versionScalaLogging = "3.9.2"
@@ -31,6 +32,11 @@ object Dependencies {
 
     lazy val web3jVersion = "4.9.2"
     //lazy val web3jVersion = "4.13.0" // requires JDK 17 !
+    
+    // GraalJS for JavaScript execution (replaces Nashorn)
+    //lazy val graalJsVersion = "23.0.0" // (for non-polyglot)
+    lazy val graalJsVersion = "24.1.0" // (for non-polyglot)
+    lazy val graalPolyglotVersion = "24.1.0"
     
     lazy val appNameHttp = "skel-http"
     lazy val appBootClassHttp = "io.syspulse.skel.service.App"
@@ -93,6 +99,12 @@ object Dependencies {
     val libAkkaKafka=       "com.typesafe.akka"               %% "akka-stream-kafka"    % akkaKafkaVersion
 
     val libAkkaHttpCors =   "ch.megard"                       %% "akka-http-cors"       % "1.1.3"
+
+    // GraalJS libraries
+    // val libGraalJS =         "org.graalvm.js"                 % "js"                   % graalJsVersion
+    val libGraalJSScriptEngine = "org.graalvm.js"             % "js-scriptengine"          % graalJsVersion
+    val libGraalPolyglot =      "org.graalvm.polyglot"       % "polyglot"                 % graalPolyglotVersion
+    val libGraalPolyglotJS =   "org.graalvm.polyglot"       % "js"                       % graalPolyglotVersion
 
     val libScalaLogging =   "com.typesafe.scala-logging"      %% "scala-logging"        % "3.9.2"
     val libLogback =        "ch.qos.logback"                  % "logback-classic"      % "1.3.5" //"1.2.8"

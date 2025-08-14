@@ -1,3 +1,3 @@
 package io.syspulse.skel.dsl
 
-class SCALA() extends ScriptEngine("scala")
+class SCALA() extends ScriptEngineLegacy("scala")
