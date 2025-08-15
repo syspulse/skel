@@ -83,9 +83,9 @@ val sharedConfigDocker = Seq(
   // openjdk:8-jre-alpine - NOT WORKING ON RP4+ (arm64). Crashes JVM in kubernetes
   // dockerBaseImage := "openjdk:8u212-jre-alpine3.9", //"openjdk:8-jre-alpine",
 
-  //dockerBaseImage := "openjdk:8-jre-alpine",
+  // dockerBaseImage := "openjdk:8-jre-alpine",
   // dockerBaseImage := "openjdk:18-slim",
-  //dockerBaseImage := "openjdk-s3fs:11-slim",  // WARNING: this image is needed for JavaScript Nashorn !
+  // dockerBaseImage := "openjdk-s3fs:11-slim",  // WARNING: this image is needed for JavaScript Nashorn !
   // dockerBaseImage := "openjdk:21-slim",
   dockerBaseImage := "openjdk-s3fs:21-slim",
   
