@@ -9,7 +9,23 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
+import io.syspulse.skel.coingecko.flow._
+
 case class Config(  
+  
+  filter:String = "",  
+  limit:Long = Long.MaxValue,
+  size:Long = Long.MaxValue,
+
+  feed:String = "stdin://",
+  output:String = "stdout://",
+  
+  delimiter:String = "\n",
+  buffer:Int = 8192 * 100,
+  throttle:Long = 0L,
+  throttleSource:Long = 100L,
+  format:String = "",
+
   cmd:String = "coins",
 
   params: Seq[String] = Seq(),
@@ -26,9 +42,21 @@ object App {
       new ConfigurationProp,
       new ConfigurationEnv, 
       new ConfigurationArgs(args,"ingest-coingecko","",        
-        
+        ArgString('f', "feed",s"Input Feed (stdin://, http://, file://, kafka://) (def=${d.feed})"),
+        ArgString('o', "output",s"Output (stdout://, csv://, json://, log://, file://, hive://, elastic://, kafka:// (def=${d.output})"),
+
+        ArgString('_', "delimiter",s"""Delimiter characteds (def: '${Util.hex(d.delimiter.getBytes())}'). Usage example: --delimiter=`echo -e "\\r\\n"` """),
+        ArgInt('_', "buffer",s"Frame buffer (Akka Framing) (def: ${d.buffer})"),
+        ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
+        ArgLong('_', "throttle.source",s"Throttle source (e.g. http, def=${d.throttleSource})"),
+        ArgString('_', "format",s"Format output (json,csv,log) (def=${d.format})"),
+
+        ArgLong('n', s"limit",s"File Limit (def: ${d.limit})"),
+        ArgLong('s', s"size",s"File Size Limit (def: ${d.size})"),
+
         ArgCmd("pipeline","Create pipeline"),
-        ArgCmd("coins","Ask Coins"),
+        ArgCmd("coins","Ask All Coin ID"),
+        ArgCmd("coin","Ask Coin by ID"),
         
         ArgParam("<params>",""),
 
@@ -38,6 +66,17 @@ object App {
     )).withLogging()
 
     implicit val config = Config(
+      feed = c.getString("feed").getOrElse(d.feed),
+      output = c.getString("output").getOrElse(d.output),      
+
+      limit = c.getLong("limit").getOrElse(d.limit),
+      size = c.getLong("size").getOrElse(d.size),
+      
+      delimiter = c.getString("delimiter").getOrElse(d.delimiter),
+      buffer = c.getInt("buffer").getOrElse(d.buffer),
+      throttle = c.getLong("throttle").getOrElse(d.throttle),
+      throttleSource = c.getLong("throttle.source").getOrElse(d.throttleSource),
+      format = c.getString("format").getOrElse(d.format),
             
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -51,16 +90,29 @@ object App {
       case "coins" =>   
         val uri = config.params.headOption.getOrElse("cg://")
         val ids = config.params.drop(1).toSet
-        
         val cg = Coingecko(uri)    
         cg.get.askCoins(ids)
+
+      case "coin" =>   
+        val uri = config.params.headOption.getOrElse("cg://")
+        val ids = config.params.drop(1)
+        val cg = Coingecko(uri)
+        cg.get.askCoins(ids.toSet)
       
-      case "pipeline" | "flow" =>         
+      case "source" =>         
         val uri = config.params.headOption.getOrElse("cg://")
         val ids = config.params.drop(1).toSet
         
         val cg = Coingecko(uri)    
-        cg.get.source(ids)
+        val src = cg.get.source(ids)
+
+      case "pipeline" =>         
+        val uri = config.params.headOption.getOrElse("cg://")
+        val ids = config.params.drop(1).toSet
+        
+        val p = new PipelineCoins(uri,uri) 
+        p.run()
+        
     }
 
     Console.err.println(s"r = ${r}")

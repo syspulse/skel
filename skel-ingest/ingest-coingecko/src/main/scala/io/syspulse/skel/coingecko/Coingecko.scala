@@ -35,23 +35,31 @@ class Coingecko(uri:String)(implicit ec: ExecutionContext) extends CoingeckoClie
   
   def getUri() = cgUri
 
-  def coins(ids:Set[String])(implicit ec: ExecutionContext):Future[Seq[JsValue]] = {
+  def coins(ids:Set[String])(implicit ec: ExecutionContext):Future[JsValue] = {
     val req = requestCoins(getUri(),ids,cgUri.apiKey)
 
     req.map(body => {
       val json = body.utf8String.parseJson
       log.debug(s"${ids}: results=${json}")
-      
-      Seq(json)
+
+      json
     })
   }
 
-  def askCoins(ids:Set[String])(implicit ec: ExecutionContext):Seq[JsValue] = {
+  def askCoinsAsync(ids:Set[String])(implicit ec: ExecutionContext):Future[JsValue] = {
+    coins(ids)
+  }
+
+  def askCoinsAsync()(implicit ec: ExecutionContext):Future[JsValue] = {
+    coins(Set())
+  }
+
+  def askCoins(ids:Set[String])(implicit ec: ExecutionContext):JsValue = {
     val f = coins(ids)
     Await.result(f,cgUri.timeout)
   }
 
-  def askCoins()(implicit ec: ExecutionContext):Seq[JsValue] = {
+  def askCoins()(implicit ec: ExecutionContext):JsValue = {
     val f = coins(Set())
     Await.result(f,cgUri.timeout)
   }
@@ -59,7 +67,7 @@ class Coingecko(uri:String)(implicit ec: ExecutionContext) extends CoingeckoClie
   def flowCoin = Flow[ByteString]
     .map{ case(body) => {
       log.debug(s"body='${body}'")
-      tokenProvider.decodeCoin(body.utf8String)      
+      tokenProvider.decodeCoin(body.utf8String)
     }}
     .collect{ case Success(c) => c.toJson }
   
@@ -97,9 +105,9 @@ class Coingecko(uri:String)(implicit ec: ExecutionContext) extends CoingeckoClie
 
 object Coingecko {
 
-  def fromCoingecko(uri:String)(implicit ec: ExecutionContext) = {
+  def fromCoingecko(uri:String)(implicit ec: ExecutionContext):(Coingecko,Source[ByteString,_]) = {
     val cg = new Coingecko(uri)(ec)
-    cg.source(cg.cgUri.ops.get("ids").map(_.split(",").toSet).getOrElse(Set()))
+    (cg,cg.source(cg.cgUri.ops.get("ids").map(_.split(",").toSet).getOrElse(Set())))
   }
 
   def apply(uri:String)(implicit ec: ExecutionContext):Try[Coingecko] = {

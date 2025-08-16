@@ -4,6 +4,7 @@ import scala.util.{Try,Success,Failure}
 import scala.jdk.CollectionConverters._
 import com.typesafe.scalalogging.Logger
 
+import io.syspulse.skel.Ingestable
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.util.CacheIndexExpire
 
@@ -28,7 +29,7 @@ case class Coin(
   xid:Option[String] = None, // external id (e.g. co)  
 
   supply:Option[BigInt] = None,
-) {
+) extends Ingestable {
   // primary address
   def getAddr():String = tokens.get("ethereum").map(_.addr).getOrElse("")
   def dec:Int = tokens.get("ethereum").map(_.dec).getOrElse(18)

@@ -818,7 +818,7 @@ lazy val ingest = (project in file("skel-ingest"))
   )
 
 lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
-  .dependsOn(core, skel_serde, ingest, ingest_twitter, ingest_coingecko)
+  .dependsOn(core, ingest, ingest_twitter, ingest_coingecko)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (
@@ -836,7 +836,7 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
   )
 
 lazy val ingest_proxy = (project in file("skel-ingest/ingest-proxy"))
-  .dependsOn(core, skel_serde, ingest)
+  .dependsOn(core, ingest)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (
@@ -1450,7 +1450,7 @@ lazy val tools = (project in file("tools"))
     )
 
 lazy val ingest_coingecko = (project in file("skel-ingest/ingest-coingecko"))
-  .dependsOn(core,blockchain_core)
+  .dependsOn(core,ingest,blockchain_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)

@@ -26,7 +26,6 @@ import java.time.Instant
 import java.time.ZoneId
 import com.github.mjakubowski84.parquet4s.ParquetRecordEncoder
 import com.github.mjakubowski84.parquet4s.ParquetSchemaResolver
-
 import akka.actor.ActorSystem
 
 // throttleSource - reduce load on Source (e.g. HttpSource)
