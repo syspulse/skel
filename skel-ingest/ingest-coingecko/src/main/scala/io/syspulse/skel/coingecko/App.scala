@@ -12,7 +12,7 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.coingecko.flow._
 
 case class Config(  
-  entity:String = "coin",
+  entity:String = "coins",
   
   filter:Seq[String] = Seq(),  
   limit:Long = Long.MaxValue,
@@ -64,7 +64,7 @@ object App {
         ArgLong('_', "retry.delay",s"Retry delay (msec) (def: ${d.retryDelay})"),
         ArgInt('_', "retry.count",s"Retry count (def: ${d.retryCount})"),
 
-        ArgString('e', "entity",s"Entity (coin, raw) (def=${d.entity})"),
+        ArgString('e', "entity",s"Entity (coins, coin, raw) (def=${d.entity})"),
 
         ArgCmd("pipeline","Create pipeline"),
         ArgCmd("coins","Ask All Coin ID"),
@@ -125,9 +125,14 @@ object App {
         val cg = Coingecko(uri)    
         val src = cg.get.source(ids)
 
-      case "pipeline" if config.entity == "coin" =>         
+      case "pipeline" if config.entity == "coins" =>
         val ids = config.params.drop(1).toSet        
         val p = new PipelineCoins(config.feed,config.output) 
+        p.run()
+
+      case "pipeline" if config.entity == "coin" =>         
+        val ids = config.params.drop(1).toSet        
+        val p = new PipelineCoin(config.feed,config.output) 
         p.run()
 
       case "pipeline" if config.entity == "raw" =>
