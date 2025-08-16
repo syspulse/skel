@@ -20,7 +20,7 @@ case class CoingeckoURI(uri:String) {
   def max:Int = _max
   // def latest:Int = _ops.get("latest").map(_.toInt).getOrElse(1)
   def ops:Map[String,String] = _ops
-  def throttle:Long = _ops.get("throttle").map(_.toLong).getOrElse(30000L)
+  def throttle:Long = _ops.get("throttle").map(_.toLong).getOrElse(1000L)
   def timeout:FiniteDuration = _ops.get("timeout").map(_.toLong).map(FiniteDuration(_,TimeUnit.MILLISECONDS)).getOrElse(FiniteDuration(10000L,TimeUnit.MILLISECONDS))
   
   def getBaseUrl():String = prefix match {

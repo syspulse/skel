@@ -26,6 +26,9 @@ case class Config(
   throttleSource:Long = 100L,
   format:String = "",
 
+  retryDelay:Long = 5000L,
+  retryCount:Int = 3,
+
   cmd:String = "coins",
 
   params: Seq[String] = Seq(),
@@ -55,6 +58,9 @@ object App {
         ArgLong('n', s"limit",s"File Limit (def: ${d.limit})"),
         ArgLong('s', s"size",s"File Size Limit (def: ${d.size})"),
 
+        ArgLong('_', "retry.delay",s"Retry delay (msec) (def: ${d.retryDelay})"),
+        ArgInt('_', "retry.count",s"Retry count (def: ${d.retryCount})"),
+
         ArgCmd("pipeline","Create pipeline"),
         ArgCmd("coins","Ask All Coin ID"),
         ArgCmd("coin","Ask Coin by ID"),
@@ -80,6 +86,9 @@ object App {
       format = c.getString("format").getOrElse(d.format),
 
       filter = c.getListString("filter",d.filter),
+
+      retryDelay = c.getLong("retry.delay").getOrElse(d.retryDelay),
+      retryCount = c.getInt("retry.count").getOrElse(d.retryCount),
             
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
