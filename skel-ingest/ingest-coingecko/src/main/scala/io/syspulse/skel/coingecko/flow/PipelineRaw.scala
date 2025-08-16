@@ -36,7 +36,8 @@ case class StringableJson(js:String,name:String) extends Ingestable {
   override def toLog:String = js  
 
   // because it is a wrapped json, it must be printed as json
-  override def toString = js
+  // need to add new line
+  override def toString = s"${js}\n"
 }
 
 object StringableJson extends DefaultJsonProtocol {
@@ -73,6 +74,7 @@ class PipelineRawCoins(feed:String,output:String)(implicit config:Config) extend
       .filter( id => {
         config.filter.isEmpty || config.filter.contains(id)
       })
+      .throttle(1,FiniteDuration(config.throttle,TimeUnit.MILLISECONDS))
       .mapAsync(1)(id  => {
         coingecko.get.askCoinsAsync(Set(id))
         // Future.successful(JsObject(
@@ -89,7 +91,7 @@ class PipelineRawCoins(feed:String,output:String)(implicit config:Config) extend
               Future.failed(e)
             }
         }
-      })            
+      })      
   }
   
   override def transform(js: JsValue): Seq[StringableJson] = { 

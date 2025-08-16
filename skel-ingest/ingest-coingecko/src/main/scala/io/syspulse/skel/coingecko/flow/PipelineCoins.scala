@@ -57,6 +57,7 @@ class PipelineCoins(feed:String,output:String)(implicit config:Config) extends
       .filter( id => {
         config.filter.isEmpty || config.filter.contains(id)
       })
+      .throttle(1,FiniteDuration(config.throttle,TimeUnit.MILLISECONDS))
       .mapAsync(1)(id  => {
         coingecko.get.askCoinsAsync(Set(id))
         // Future.successful(JsObject(
@@ -67,7 +68,7 @@ class PipelineCoins(feed:String,output:String)(implicit config:Config) extends
         .recoverWith {
           case e: Exception =>
             // Log the error
-            log.warn(s"Failed: id=${id}: ${e.getMessage}")
+            log.warn(s"Failed to get coin: id=${id}: ${e.getMessage}")
             // Return a failed future to trigger restart
             akka.pattern.after(FiniteDuration(config.retryDelay,TimeUnit.MILLISECONDS), system.scheduler) {
               Future.failed(e)
@@ -104,7 +105,7 @@ class PipelineCoins(feed:String,output:String)(implicit config:Config) extends
           sid = Some("cg"),
           xid = Some(c.id),
         )
-      })
+      })      
   }
   
   override def transform(coin: Coin): Seq[Coin] = {    

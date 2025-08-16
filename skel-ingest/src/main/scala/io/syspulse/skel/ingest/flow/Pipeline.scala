@@ -176,7 +176,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "kafka" :: _ => toKafka[O](output,format)(fmt)
       case "elastic" :: _ => toElastic[O](output)(fmt)
       
-      case "file" :: fileName :: Nil => toFile(fileName)
+      case "file" :: fileName :: Nil => toFile(fileName,format)
       // create new file for every object
       case "files" :: fileName :: Nil => toFileNew(fileName,(o:O,file) => Util.toFileWithTime( Util.replaceVar(file, Map("ID" -> o.getId.getOrElse(""))) ),format)
 
@@ -211,7 +211,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "akka" :: uri :: Nil => toAkka[O](output,format)      
 
       case "" :: Nil => toStdout(format=format)
-      case _ => toFile(output)
+      case _ => toFile(output,format)
     }
     sink
   }

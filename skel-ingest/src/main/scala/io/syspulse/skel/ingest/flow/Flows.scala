@@ -622,7 +622,7 @@ trait Flows {
   }
 
   // ----------------------------------------------------------------------------------------------------------
-  def toFile[T <: Ingestable](file:String)(implicit fmt:JsonFormat[T]) = {
+  def toFile[T <: Ingestable](file:String,format:String)(implicit fmt:JsonFormat[T]) = {
     import akka.event.Logging
     import spray.json._
 
@@ -631,13 +631,14 @@ trait Flows {
     else {
       //toSinkRestart({
         Flow[T]
-          .map(t => if(file.endsWith(".json")) 
-              s"${t.toJson}\n" 
-            else if(file.endsWith(".csv")) 
-              s"${t.toCSV}\n" 
-            else 
-              s"${t.toLog}\n"
-          )
+          // .map(t => if(file.endsWith(".json")) 
+          //     s"${t.toJson}\n" 
+          //   else if(file.endsWith(".csv")) 
+          //     s"${t.toCSV}\n" 
+          //   else 
+          //     s"${t.toLog}\n"
+          // )
+          .map(t => formatter(t,format))
           .map(ByteString(_))          
           .log(s"${this}")
           .withAttributes(Attributes.createLogLevels(Logging.DebugLevel, Logging.InfoLevel, Logging.ErrorLevel))       
