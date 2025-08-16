@@ -18,13 +18,11 @@ import io.syspulse.skel.uri.CoingeckoURI
 import io.syspulse.skel.blockchain.{Token,Coin,TokenProviderCoinGecko}
 
 case class Coingecko_Coin(id:String,symbol:String,name:String)
-case class Coingecko_CoinsList(coins:Seq[Coingecko_Coin])
 
 object CoingeckoJson extends DefaultJsonProtocol {
   implicit val js_Token = jsonFormat6(Token)
   implicit val js_Coin = jsonFormat7(Coin)
   implicit val js_cg_Coin = jsonFormat3(Coingecko_Coin)
-  implicit val js_cg_CoinsList = jsonFormat1(Coingecko_CoinsList)
 }
 
 class Coingecko(uri:String)(implicit ec: ExecutionContext) extends CoingeckoClient {
@@ -75,8 +73,8 @@ class Coingecko(uri:String)(implicit ec: ExecutionContext) extends CoingeckoClie
     .map{ case(body) => {
       log.debug(s"body='${body}'")
       // extract ids
-      val cc = body.utf8String.parseJson.convertTo[Coingecko_CoinsList]
-      cc.coins.map(_.id)
+      val cc = body.utf8String.parseJson.convertTo[Seq[Coingecko_Coin]]
+      cc.map(_.id)
     }}
     .mapConcat(identity)
     .throttle(1,FiniteDuration(cgUri.throttle,TimeUnit.MILLISECONDS))

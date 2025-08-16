@@ -13,7 +13,7 @@ import io.syspulse.skel.coingecko.flow._
 
 case class Config(  
   
-  filter:String = "",  
+  filter:Seq[String] = Seq(),  
   limit:Long = Long.MaxValue,
   size:Long = Long.MaxValue,
 
@@ -21,7 +21,7 @@ case class Config(
   output:String = "stdout://",
   
   delimiter:String = "\n",
-  buffer:Int = 8192 * 100,
+  buffer:Int = 1024 * 1000 * 10, // 10MB
   throttle:Long = 0L,
   throttleSource:Long = 100L,
   format:String = "",
@@ -51,6 +51,7 @@ object App {
         ArgLong('_', "throttle.source",s"Throttle source (e.g. http, def=${d.throttleSource})"),
         ArgString('_', "format",s"Format output (json,csv,log) (def=${d.format})"),
 
+        ArgString('_', "filter",s"Filter coins (def: ${d.filter.mkString(",")})"),
         ArgLong('n', s"limit",s"File Limit (def: ${d.limit})"),
         ArgLong('s', s"size",s"File Size Limit (def: ${d.size})"),
 
@@ -77,6 +78,8 @@ object App {
       throttle = c.getLong("throttle").getOrElse(d.throttle),
       throttleSource = c.getLong("throttle.source").getOrElse(d.throttleSource),
       format = c.getString("format").getOrElse(d.format),
+
+      filter = c.getListString("filter",d.filter),
             
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -107,10 +110,9 @@ object App {
         val src = cg.get.source(ids)
 
       case "pipeline" =>         
-        val uri = config.params.headOption.getOrElse("cg://")
         val ids = config.params.drop(1).toSet
         
-        val p = new PipelineCoins(uri,uri) 
+        val p = new PipelineCoins(config.feed,config.output) 
         p.run()
         
     }
