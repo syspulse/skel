@@ -131,13 +131,15 @@ object App {
         p.run()
 
       case "pipeline" if config.entity == "coin" =>         
-        val ids = config.params.drop(1).toSet        
         val p = new PipelineCoin(config.feed,config.output) 
         p.run()
 
-      case "pipeline" if config.entity == "raw" =>
-        val ids = config.params.drop(1).toSet        
-        val p = new PipelineRaw(config.feed,config.output) 
+      case "pipeline" if config.entity == "raw.coins" =>
+        val p = new PipelineRawCoins(config.feed,config.output) 
+        p.run()
+
+      case "pipeline" if config.entity == "raw.coin" =>
+        val p = new PipelineRawCoin(config.feed,config.output) 
         p.run()
         
     }

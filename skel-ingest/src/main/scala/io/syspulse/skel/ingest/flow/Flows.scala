@@ -858,10 +858,27 @@ trait Flows {
         //       s"${t.toLog}\n"
         val out = formatter(t,format)
         Source
-          .single(ByteString(out))
+          .single(ByteString(out))          
           .toMat(FileIO.toPath(
-            Paths.get(rotator(t,file)),options =  Set(WRITE, CREATE))
+              { 
+                val path = rotator(t,file)
+                val p = Paths.get(path)
+                val dir = p.getParent()
+                if(!Files.exists(dir)) {
+                  try {
+                    Files.createDirectories(dir)
+                  } catch {
+                    case e:Exception => {
+                      log.warn(s"Failed to create dir: '${path}': ${e.getMessage}")                
+                    }
+                  }
+                }
+                p
+              },
+              options =  Set(WRITE, CREATE)
+            )
           )(Keep.left).run()
+
       })
       .toMat(Sink.seq)(Keep.both)
   }
@@ -902,7 +919,7 @@ trait Flows {
 
           } catch {
             case e:Exception => None
-          }                    
+          }
         }
       }
     }
