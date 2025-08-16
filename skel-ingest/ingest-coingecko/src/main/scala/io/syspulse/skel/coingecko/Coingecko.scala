@@ -36,7 +36,7 @@ class Coingecko(uri:String)(implicit ec: ExecutionContext) extends CoingeckoClie
   def getUri() = cgUri
 
   def coins(ids:Set[String])(implicit ec: ExecutionContext):Future[Seq[JsValue]] = {
-    val req = requestCoins(ids,cgUri.apiKey)
+    val req = requestCoins(getUri(),ids,cgUri.apiKey)
 
     req.map(body => {
       val json = body.utf8String.parseJson
@@ -73,7 +73,7 @@ class Coingecko(uri:String)(implicit ec: ExecutionContext) extends CoingeckoClie
     .mapConcat(identity)
     .throttle(1,FiniteDuration(cgUri.throttle,TimeUnit.MILLISECONDS))
     .mapAsync(1)(id => {
-      requestCoins(Set(id),cgUri.apiKey)
+      requestCoins(getUri(),Set(id),cgUri.apiKey)
     })    
     .via(flowCoin)
 
@@ -86,7 +86,7 @@ class Coingecko(uri:String)(implicit ec: ExecutionContext) extends CoingeckoClie
       .tick(FiniteDuration(250L,TimeUnit.MILLISECONDS),FiniteDuration(freq,TimeUnit.MILLISECONDS),() => ids)
       .mapAsync(1)(fun => {
         val ids = fun()
-        requestCoins(ids,cgUri.apiKey)
+        requestCoins(getUri(),ids,cgUri.apiKey)
       })
       .via(flowCoin)
       .map(json => ByteString(json.toString))

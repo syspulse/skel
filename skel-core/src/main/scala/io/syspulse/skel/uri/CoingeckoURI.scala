@@ -10,9 +10,10 @@ coingecko://apiKey@id,id,...
 */
 
 case class CoingeckoURI(uri:String) {
-  val PREFIX = "coingecko://"
+  val PREFIX_PRO = "coingecko"
+  val PREFIX_FREE = "cg"
 
-  private val (_apiKey:String,_max:Int,_ops:Map[String,String]) = parse(uri)
+  private val (_apiKey:String,_max:Int,_ops:Map[String,String],prefix:String) = parse(uri)
   
 
   def apiKey:String = _apiKey
@@ -22,9 +23,24 @@ case class CoingeckoURI(uri:String) {
   def throttle:Long = _ops.get("throttle").map(_.toLong).getOrElse(30000L)
   def timeout:FiniteDuration = _ops.get("timeout").map(_.toLong).map(FiniteDuration(_,TimeUnit.MILLISECONDS)).getOrElse(FiniteDuration(10000L,TimeUnit.MILLISECONDS))
   
-  def parse(uri:String):(String,Int,Map[String,String]) = {
+  def getBaseUrl():String = prefix match {
+    case PREFIX_PRO => "https://pro-api.coingecko.com/api/v3"
+    case PREFIX_FREE => "https://api.coingecko.com/api/v3"
+    case "" => "https://api.coingecko.com/api/v3"
+    case _ => prefix
+  }
+  
+  def parse(uri:String):(String,Int,Map[String,String],String) = {
+    
+    var (prefix,url1) = uri.split("://").toList match {
+      case PREFIX_PRO :: url =>  (PREFIX_PRO,url.headOption.getOrElse(""))
+      case PREFIX_FREE :: url => (PREFIX_FREE,url.headOption.getOrElse(""))
+      case prefix :: url => ("", uri)
+      case _ => (PREFIX_FREE,"")
+    }
+    
     // resolve options
-    val (url:String,ops:Map[String,String]) = uri.split("[\\?&]").toList match {
+    val (url:String,ops:Map[String,String]) = url1.split("[\\?&]").toList match {
       case url :: Nil => (url,Map())
       case url :: ops => 
         
@@ -38,7 +54,15 @@ case class CoingeckoURI(uri:String) {
         ("",Map())
     }
     
-    url.stripPrefix(PREFIX).split("[:/@]").toList match {
+    val (apiKey, max, ops1) = url.split("[:/@]").toList match {
+      case _ if prefix == "" => 
+        // speical case for http:// style uri (apiKey is not supported in URL, only as ops
+        prefix = url
+        (
+          ops.get("apiKey").getOrElse(sys.env.get("COINGECKO_API_KEY").orElse(sys.env.get("CG_API_KEY")).getOrElse("")),
+          ops.get("max").map(_.toInt).getOrElse(10),
+          ops
+        )
       case apiKey :: _ =>
         (
           Util.replaceEnvVar(apiKey),
@@ -52,5 +76,7 @@ case class CoingeckoURI(uri:String) {
           ops
         )
     }
+
+    (apiKey,max,ops1,prefix)
   }
 }

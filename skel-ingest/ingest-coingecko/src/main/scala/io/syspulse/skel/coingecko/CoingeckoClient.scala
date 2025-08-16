@@ -14,15 +14,15 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.HttpMethods
 import akka.util.ByteString
 
+import io.syspulse.skel.uri.CoingeckoURI
 
 trait CoingeckoClient {
   val log = Logger(s"${this}")
 
   implicit val as: akka.actor.ActorSystem = ActorSystem("ActorSystem-CoingeckoClient")
   
-  val COINGECKO_API_URL = "https://pro-api.coingecko.com/api/v3"
-
-  def getBaseUri() = COINGECKO_API_URL
+  // val COINGECKO_API_URL = "https://pro-api.coingecko.com/api/v3"
+  // def getBaseUri(cgUri:CoingeckoURI) = cgUri.getBaseUrl()
 
   // Perform a GET request to CoinGecko with API key header and return body as UTF-8 string
   def request(uri: String, apiKey: String)(implicit ec: ExecutionContext): Future[ByteString] = {
@@ -59,12 +59,12 @@ trait CoingeckoClient {
       })      
   }
 
-  def requestCoins(ids:Set[String],apiKey: String)(implicit ec: ExecutionContext): Future[ByteString] = {
+  def requestCoins(cgUri:CoingeckoURI,ids:Set[String],apiKey: String)(implicit ec: ExecutionContext): Future[ByteString] = {
     if(ids.size > 0) {
       val list = ids.mkString(",")
-      request(s"${COINGECKO_API_URL}/coins/${list}",apiKey)
+      request(s"${cgUri.getBaseUrl()}/coins/${list}",apiKey)
     } else {
-      request(s"${COINGECKO_API_URL}/coins/list",apiKey)
+      request(s"${cgUri.getBaseUrl()}/coins/list",apiKey)
     }
   }
   

@@ -49,14 +49,14 @@ object App {
 
     val r = config.cmd match {
       case "coins" =>   
-        val uri = config.params.headOption.getOrElse("coingecko://")
+        val uri = config.params.headOption.getOrElse("cg://")
         val ids = config.params.drop(1).toSet
         
         val cg = Coingecko(uri)    
         cg.get.askCoins(ids)
       
       case "pipeline" | "flow" =>         
-        val uri = config.params.headOption.getOrElse("coingecko://")
+        val uri = config.params.headOption.getOrElse("cg://")
         val ids = config.params.drop(1).toSet
         
         val cg = Coingecko(uri)    
