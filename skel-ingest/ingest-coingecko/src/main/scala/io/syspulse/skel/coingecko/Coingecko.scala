@@ -476,6 +476,12 @@ object CoingeckoJson extends DefaultJsonProtocol {
   implicit val js_Coin = jsonFormat7(Coin)
   implicit val js_cg_Coin = jsonFormat3(Coingecko_Coin)
 
+  // Simple pass-through format for JsValue (when you already have JSON)
+  implicit val js_JsValue: JsonFormat[JsValue] = new JsonFormat[JsValue] {
+    def write(obj: JsValue): JsValue = obj  // Return as-is
+    def read(json: JsValue): JsValue = json // Return as-is
+  }
+
 // JSON formats for the new case classes
   implicit val js_cg_Roi = jsonFormat3(Coingecko_Roi)  
   implicit val js_cg_Image = jsonFormat3(Coingecko_Image)

@@ -10,12 +10,6 @@ import com.typesafe.scalalogging.Logger
 import spray.json._
 
 import akka.util.ByteString
-import akka.http.javadsl.Http
-import akka.http.scaladsl.model.HttpRequest
-import akka.http.scaladsl.model.headers.Accept
-import akka.http.scaladsl.model.MediaTypes
-import akka.http.scaladsl
-import akka.stream.scaladsl.Source
 import akka.stream.scaladsl.Flow
 
 import io.syspulse.skel.util.Util
@@ -41,37 +35,6 @@ object CoinsJson extends DefaultJsonProtocol {
   implicit val js_Coin = jsonFormat7(Coin)
 }
 import CoinsJson._
-
-abstract class PipelineCoingecko[I,T,O <: Ingestable](feed:String,output:String,config:Config)
-  (implicit fmt:JsonFormat[O],parqEncoders:ParquetRecordEncoder[O],parsResolver:ParquetSchemaResolver[O],as:Option[ActorSystem] = None) extends 
-      Pipeline[I,T,O](
-        feed, 
-        output,
-        config.throttle,
-        config.delimiter,
-        config.buffer,
-        throttleSource = config.throttleSource,
-        format = config.format) {
-
-  val log = Logger(s"${this}")  
-  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
-
-  @volatile
-  var coingecko:Option[Coingecko] = None
-
-  def sid() = "coingecko"
-
-  override def source(feed:String):Source[ByteString,_] = {    
-    feed.split("://").toList match {
-      case ("coingecko" | "cg") :: _ => 
-        val (cg,src) = Coingecko.fromCoingecko(feed)
-        coingecko = Some(cg)
-        src
-      case _ => 
-        super.source(feed)
-    }    
-  }
-}
 
 class PipelineCoins(feed:String,output:String)(implicit config:Config) extends 
       PipelineCoingecko[String,Coin,Coin](feed, output,config) {

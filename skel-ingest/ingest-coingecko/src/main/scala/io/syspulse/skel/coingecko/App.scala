@@ -12,6 +12,7 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.coingecko.flow._
 
 case class Config(  
+  entity:String = "coin",
   
   filter:Seq[String] = Seq(),  
   limit:Long = Long.MaxValue,
@@ -45,6 +46,8 @@ object App {
       new ConfigurationProp,
       new ConfigurationEnv, 
       new ConfigurationArgs(args,"ingest-coingecko","",        
+        ArgString('e', "entity",s"Entity (coin, raw) (def=${d.entity})"),
+
         ArgString('f', "feed",s"Input Feed (stdin://, http://, file://, kafka://) (def=${d.feed})"),
         ArgString('o', "output",s"Output (stdout://, csv://, json://, log://, file://, hive://, elastic://, kafka:// (def=${d.output})"),
 
@@ -60,6 +63,8 @@ object App {
 
         ArgLong('_', "retry.delay",s"Retry delay (msec) (def: ${d.retryDelay})"),
         ArgInt('_', "retry.count",s"Retry count (def: ${d.retryCount})"),
+
+        ArgString('e', "entity",s"Entity (coin, raw) (def=${d.entity})"),
 
         ArgCmd("pipeline","Create pipeline"),
         ArgCmd("coins","Ask All Coin ID"),
@@ -89,6 +94,8 @@ object App {
 
       retryDelay = c.getLong("retry.delay").getOrElse(d.retryDelay),
       retryCount = c.getInt("retry.count").getOrElse(d.retryCount),
+
+      entity = c.getString("entity").getOrElse(d.entity),
             
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -118,10 +125,14 @@ object App {
         val cg = Coingecko(uri)    
         val src = cg.get.source(ids)
 
-      case "pipeline" =>         
-        val ids = config.params.drop(1).toSet
-        
+      case "pipeline" if config.entity == "coin" =>         
+        val ids = config.params.drop(1).toSet        
         val p = new PipelineCoins(config.feed,config.output) 
+        p.run()
+
+      case "pipeline" if config.entity == "raw" =>
+        val ids = config.params.drop(1).toSet        
+        val p = new PipelineRaw(config.feed,config.output) 
         p.run()
         
     }
