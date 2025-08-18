@@ -442,39 +442,72 @@ object Util {
   def lift[T](futures: Seq[Future[T]])(implicit ec:ExecutionContext) = futures.map(_.map { Success(_) }.recover { case t => Failure(t) })
   def waitAll[T](futures: Seq[Future[T]])(implicit ec:ExecutionContext) = Future.sequence(lift(futures))
 
-  // Primitive jq-style Json parser
-  def parseJson(json:String,route:String):Try[Seq[String]] = {
+  // jq-style Json parser
+  def walkJson(json:String,route:String,asString:Boolean=true):Try[Seq[Any]] = {
         
-    def parseRoute(j:ujson.Value,r:String):Seq[String] = {
-      val i = r.indexOf(".")
-      val (v,rest) = if(i == -1) (r,"") else (r.substring(0,i),r.substring(i+1))
-      (v,rest) match {
-        case (expr,"") if(expr.endsWith("[]")) =>
-          j(expr.stripSuffix("[]"))
-            .arr
-            .map(j => j.str)
-            .toSeq
+    def parseRoute(j:ujson.Value,r:String):Seq[Any] = {
 
-        case (expr,"") => 
-          if(expr == j.str) Seq(expr)
-          else Seq()
-        case (expr,rest) if(expr.endsWith("[]")) =>
-          j(expr.stripSuffix("[]"))
+      val r1 = r.trim
+
+      if(r1.isBlank)
+        return Seq(if(asString) j.toString else j)
+
+      if(j.isNull)
+        return Seq(if(asString) j.toString else j)
+
+      // find the end of attribute name search. it is either "." or none
+      val i1 = r1.indexOf(".")
+      val (a,rest) = if(i1 == -1) (r1,"") else (r1.substring(0,i1),r1.substring(i1+1))
+      
+      (a,rest) match {
+        case (a,rest) if(a.endsWith("[]")) =>
+          val r = a.stripSuffix("[]")
+          j(r)
             .arr
             .map(j => parseRoute(j,rest))
             .flatten
             .toSeq
-        case (expr,rest) =>
-          parseRoute(j.obj(expr),rest)            
+
+        case (a,"") =>
+          val v = j.obj(a)
+          if(asString)
+            Seq(v.toString)
+          else
+            Seq(v)
+
+        case (a,rest) =>
+          val aNext = j.obj(a)
+          parseRoute(aNext,rest)
       }
     }
 
     try {
+      val r = route.trim.stripPrefix(".")
       val j = ujson.read(json)
-      Success(parseRoute(j,route))
+      Success(parseRoute(j,r))
     } catch {
       case e:Exception => Failure(e)
     }
+  }
+
+  // old syntax. DOT not use it, only for compatibility with old code
+  def parseJson(json:String,route:String):Try[Seq[String]] = {
+    val route1 = route.split("\\.",0)
+    val lastValue = route1.last
+    // last element is final match
+    val route2 = route.stripSuffix("." + lastValue)
+    val route3 = if(route2.startsWith(".")) route2 else "." + route2
+    
+    val r = walkJson(json,route3,false)
+
+    r.map(_.map(a => {
+      a match {
+        case ujson.Value.Str(s) => s
+        case v => v.toString
+      }
+    })
+    .filter(a => a == lastValue)
+    )    
   }
 
   // prints Array[_] (Java Array) in a nice scala way
@@ -542,7 +575,7 @@ object Util {
         case o:List[_] => ujson.Arr(o.map(toJsonObj(_)).toSeq: _*)
         case o:String => ujson.Str(o)
         case o:Int => ujson.Num(o)
-        case o:Long => ujson.Num(o)
+        case o:Long => ujson.Num(o.toDouble)
         case o:Double => ujson.Num(o)
         case o:Float => ujson.Num(o)
         case o:Boolean => ujson.Bool(o)
