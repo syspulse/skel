@@ -37,7 +37,7 @@ case class StringableJson(js:String,name:String) extends Ingestable {
 
   // because it is a wrapped json, it must be printed as json
   // need to add new line
-  override def toString = s"${js}\n"
+  override def toString = if(js.endsWith("\n")) js else js + "\n"
 }
 
 object StringableJson extends DefaultJsonProtocol {
@@ -53,6 +53,7 @@ object StringableJson extends DefaultJsonProtocol {
 import StringableJson._
 
 
+// --- Raw Coins ------------------------------------------------------------------------------------
 class PipelineRawCoins(feed:String,output:String)(implicit config:Config) extends 
       PipelineCoingecko[String,JsValue,StringableJson](feed, output,config) {
   
@@ -102,6 +103,7 @@ class PipelineRawCoins(feed:String,output:String)(implicit config:Config) extend
   }
 }
 
+// --- Raw Coin ------------------------------------------------------------------------------------
 class PipelineRawCoin(feed:String,output:String)(implicit config:Config) extends 
       PipelineCoingecko[String,(String,String),StringableJson](feed, output,config) {
   
@@ -115,9 +117,17 @@ class PipelineRawCoin(feed:String,output:String)(implicit config:Config) extends
   // process every coin
   override def process:Flow[String,(String,String),_] = {
     Flow[String]      
-      .map(data  => {  
-        data.parseJson.convertTo[Coingecko_CoinData]
+      .map(data => {
+        try {
+          Some(data.parseJson.convertTo[Coingecko_CoinData])
+        } catch {
+          case e: Exception =>
+            log.warn(s"[${sid()}] failed to parse: id=${getRawId(data)}: '${Util.trunc(data,64)}': ${e.getMessage}")
+            None
+        }
       })
+      .filter( c => c.isDefined)
+      .map( c => c.get )
       .filter( c => 
         config.filter.isEmpty || config.filter.contains(c.id)
       )

@@ -30,6 +30,8 @@ case class Config(
   retryDelay:Long = 5000L,
   retryCount:Int = 3,
 
+  parser:String = "ujson",
+
   cmd:String = "coins",
 
   params: Seq[String] = Seq(),
@@ -65,6 +67,7 @@ object App {
         ArgInt('_', "retry.count",s"Retry count (def: ${d.retryCount})"),
 
         ArgString('e', "entity",s"Entity (coins, coin, raw) (def=${d.entity})"),
+        ArgString('p', "parser",s"Parser (ujson, json) (def=${d.parser})"),
 
         ArgCmd("pipeline","Create pipeline"),
         ArgCmd("coins","Ask All Coin ID"),
@@ -96,7 +99,8 @@ object App {
       retryCount = c.getInt("retry.count").getOrElse(d.retryCount),
 
       entity = c.getString("entity").getOrElse(d.entity),
-            
+      parser = c.getString("parser").getOrElse(d.parser),
+      
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
     )

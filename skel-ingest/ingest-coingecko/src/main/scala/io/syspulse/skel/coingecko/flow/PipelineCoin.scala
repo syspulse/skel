@@ -47,7 +47,11 @@ class PipelineCoin(feed:String,output:String)(implicit config:Config) extends
   // process every coin
   override def process:Flow[String,Coin,_] = {    
     Flow[String]
-      .map(data => data.parseJson.convertTo[Coingecko_CoinData])
+      .map(data => {
+        parseCoinData(data)
+      })
+      .filter( c => c.isDefined)
+      .map( c => c.get )
       .filter( c => {
         config.filter.isEmpty || config.filter.contains(c.id)
       })      
