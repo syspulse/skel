@@ -30,32 +30,11 @@ import scala.concurrent.Future
 import io.syspulse.skel.coingecko.CoingeckoJson
 import io.syspulse.skel.coingecko.{Coingecko_Coin,Coingecko_CoinData}
 
-case class StringableJson(js:String,name:String) extends Ingestable {
-  // for new file name
-  override def getId:Option[String] = Some(name)  
-  override def toLog:String = js  
-
-  // because it is a wrapped json, it must be printed as json
-  // need to add new line
-  override def toString = if(js.endsWith("\n")) js else js + "\n"
-}
-
-object StringableJson extends DefaultJsonProtocol {
-  implicit object StringableJsonFormat extends RootJsonFormat[StringableJson] {
-    def write(s: StringableJson) = JsString(s.js)
-    def read(value: JsValue) = value match {
-      case JsString(str) => StringableJson(str,"")
-      case _ => deserializationError("plain text expected")
-    }
-  }
-  implicit val fmt = jsonFormat2(StringableJson.apply _)
-}
-import StringableJson._
-
+import StringWrap._
 
 // --- Raw Coins ------------------------------------------------------------------------------------
 class PipelineRawCoins(feed:String,output:String)(implicit config:Config) extends 
-      PipelineCoingecko[String,JsValue,StringableJson](feed, output,config) {
+      PipelineCoingecko[String,String,StringWrap](feed, output,config) {
   
   import CoingeckoJson._
 
@@ -70,14 +49,14 @@ class PipelineRawCoins(feed:String,output:String)(implicit config:Config) extend
   }
 
   // process every coin
-  override def process:Flow[String,JsValue,_] = {    
+  override def process:Flow[String,String,_] = {    
     Flow[String]
       .filter( id => {
         config.filter.isEmpty || config.filter.contains(id)
       })
-      .throttle(1,FiniteDuration(config.throttle,TimeUnit.MILLISECONDS))
+      .throttled(1,FiniteDuration(config.throttle,TimeUnit.MILLISECONDS))
       .mapAsync(1)(id  => {
-        coingecko.get.askCoinsAsync(Set(id))
+        coingecko.get.requestCoins(Set(id))
         // Future.successful(JsObject(
         //   "id" -> JsString(id),
         //   "symbol" -> JsString(id),
@@ -95,17 +74,16 @@ class PipelineRawCoins(feed:String,output:String)(implicit config:Config) extend
       })      
   }
   
-  override def transform(js: JsValue): Seq[StringableJson] = { 
-    val oid = js.asJsObject.fields.get("id").getOrElse("").toString.stripPrefix("\"").stripSuffix("\"")
-    val output = js.compactPrint
+  override def transform(js: String): Seq[StringWrap] = { 
+    val oid = Coingecko.getRawId(js)    
     log.info(s"=> ${oid} (${output.size} bytes)")
-    Seq(StringableJson(output,oid))
+    Seq(StringWrap(output,oid.getOrElse("")))
   }
 }
 
 // --- Raw Coin ------------------------------------------------------------------------------------
 class PipelineRawCoin(feed:String,output:String)(implicit config:Config) extends 
-      PipelineCoingecko[String,(String,String),StringableJson](feed, output,config) {
+      PipelineCoingecko[String,(String,String),StringWrap](feed, output,config) {
   
   import CoingeckoJson._
 
@@ -114,8 +92,18 @@ class PipelineRawCoin(feed:String,output:String)(implicit config:Config) extends
     data.split("\n").filter(!_.isBlank()).toSeq
   }
 
-  // process every coin
-  override def process:Flow[String,(String,String),_] = {
+  // process Raw
+  def processRaw:Flow[String,(String,String),_] = {
+    Flow[String]
+      .map(data => {
+        (Coingecko.getRawId(data),data)        
+      }) 
+      .filter(c => config.filter.isEmpty || c._1.isDefined)
+      .map(c => (c._1.getOrElse(""), c._2))
+  }
+
+  // process with Json parser
+  def processJson:Flow[String,(String,String),_] = {
     Flow[String]      
       .map(data => {
         Coingecko.parseCoinData(data,config.parser)
@@ -127,10 +115,17 @@ class PipelineRawCoin(feed:String,output:String)(implicit config:Config) extends
       )
       .map(c => (c.id,c.toJson.compactPrint))
   }
+
+  override def process:Flow[String,(String,String),_] = {
+    if(config.parser == "none")
+      processRaw
+    else
+      processJson
+  }
   
-  override def transform(o: (String,String)): Seq[StringableJson] = { 
+  override def transform(o: (String,String)): Seq[StringWrap] = { 
     val (oid,output) = o
     log.info(s"=> ${oid} (${output.size} bytes)")
-    Seq(StringableJson(output,oid))
+    Seq(StringWrap(output,oid))
   }
 }

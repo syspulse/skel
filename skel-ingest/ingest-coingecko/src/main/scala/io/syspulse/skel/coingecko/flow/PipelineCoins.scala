@@ -57,9 +57,12 @@ class PipelineCoins(feed:String,output:String)(implicit config:Config) extends
       .filter( id => {
         config.filter.isEmpty || config.filter.contains(id)
       })
-      .throttle(1,FiniteDuration(config.throttle,TimeUnit.MILLISECONDS))
+      .throttled(1,FiniteDuration(config.throttle,TimeUnit.MILLISECONDS))
       .mapAsync(1)(id  => {
-        coingecko.get.askCoinsAsync(Set(id))
+        
+        //coingecko.get.askCoinsAsync(Set(id))
+        coingecko.get.requestCoins(Set(id))
+        
         // Future.successful(JsObject(
         //   "id" -> JsString(id),
         //   "symbol" -> JsString(id),
@@ -75,36 +78,13 @@ class PipelineCoins(feed:String,output:String)(implicit config:Config) extends
             }
         }
       })      
-      .map(js => js.convertTo[Coingecko_CoinData])
       .map(c => {
-        
-        val tokens:Map[String,Token] = if(! c.platforms.isDefined) 
-          Map.empty 
-        else {
-          c.platforms.get.flatMap{ case(bid,addr) => 
-            if(addr.isBlank()) 
-              None 
-            else {
-              val dec = c.detail_platforms(bid).decimal_place.getOrElse(18)
-              Some(Token(
-                bid = bid,
-                sym = c.symbol,
-                addr = addr,              
-                dec = dec,              
-              ))
-            }
-          }
-          .map(t => t.bid -> t)
-          .toMap
-        }
-
-        Coin(
-          sym = c.symbol,         
-          tokens = tokens, 
-          icon = Some(c.image.large),
-          sid = Some("cg"),
-          xid = Some(c.id),
-        )
+        Coingecko.parseCoinData(c,config.parser)
+      })
+      .filter(c => c.isDefined)
+      .map(c => c.get)
+      .map(c => {
+        Coingecko.toCoin(c)
       })      
   }
   

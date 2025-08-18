@@ -30,7 +30,7 @@ case class Config(
   retryDelay:Long = 5000L,
   retryCount:Int = 3,
 
-  parser:String = "ujson",
+  parser:String = "json",
 
   cmd:String = "coins",
 
@@ -66,7 +66,7 @@ object App {
         ArgLong('_', "retry.delay",s"Retry delay (msec) (def: ${d.retryDelay})"),
         ArgInt('_', "retry.count",s"Retry count (def: ${d.retryCount})"),
 
-        ArgString('e', "entity",s"Entity (coins, coin, raw) (def=${d.entity})"),
+        ArgString('e', "entity",s"Entity (coins, coin, raw.coin, raw.coins ) (def=${d.entity})"),
         ArgString('p', "parser",s"Parser (ujson, json) (def=${d.parser})"),
 
         ArgCmd("pipeline","Create pipeline"),
@@ -100,7 +100,7 @@ object App {
 
       entity = c.getString("entity").getOrElse(d.entity),
       parser = c.getString("parser").getOrElse(d.parser),
-      
+
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
     )
@@ -142,8 +142,16 @@ object App {
         val p = new PipelineRawCoins(config.feed,config.output) 
         p.run()
 
+      case "pipeline" if config.entity == "raw.coin" && config.parser == "none" =>
+        val p = new PipelineRawCoin(config.feed,config.output) 
+        p.run()
+
       case "pipeline" if config.entity == "raw.coin" =>
         val p = new PipelineRawCoin(config.feed,config.output) 
+        p.run()
+
+      case "pipeline" if config.entity == "raw.coins" =>
+        val p = new PipelineRawCoinsJson(config.feed,config.output) 
         p.run()
         
     }

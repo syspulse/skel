@@ -41,6 +41,15 @@ abstract class PipelineCoingecko[I,T,O <: Ingestable](feed:String,output:String,
   val log = Logger(s"${this}")  
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
 
+  implicit class FlowOps[T, U, M](flow: Flow[T, U, M]) {
+    def throttled(rate: Int, per: FiniteDuration): Flow[T, U, M] = {
+      if (per.toMillis > 0) 
+        flow.throttle(rate, per) 
+      else 
+        flow      
+    }
+  }
+
   import CoingeckoJson._
 
   @volatile
@@ -57,10 +66,6 @@ abstract class PipelineCoingecko[I,T,O <: Ingestable](feed:String,output:String,
       case _ => 
         super.source(feed)
     }    
-  }
-
-  def getRawId(json:String):String = {
-    Util.walkJson(json,".id").getOrElse(Seq()).headOption.map(_.toString).getOrElse("not found")
   }
   
 }

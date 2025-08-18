@@ -667,6 +667,11 @@ class Coingecko(uri:String)(implicit ec: ExecutionContext) extends CoingeckoClie
   
   def getUri() = cgUri
 
+  def requestCoins(ids:Set[String])(implicit ec: ExecutionContext):Future[String] = {
+    requestCoins(getUri(),ids,cgUri.apiKey)
+    .map(_.utf8String)
+  }
+
   def coins(ids:Set[String])(implicit ec: ExecutionContext):Future[JsValue] = {
     val req = requestCoins(getUri(),ids,cgUri.apiKey)
 
@@ -768,6 +773,8 @@ object Coingecko {
   def parseCoinData(json:String,parser:String)(implicit fmt:JsonFormat[Coingecko_CoinData]):Option[Coingecko_CoinData] = {
     try {
       parser match {
+        case "none" => 
+          None
         case "ujson" =>
           val u = ujson.read(json)
           
@@ -839,8 +846,8 @@ object Coingecko {
     }
   }
 
-  def getRawId(json:String):String = {
-    Util.walkJson(json,".id").getOrElse(Seq()).headOption.map(_.toString).getOrElse("not found")
+  def getRawId(json:String):Option[String] = {
+    Util.walkJson(json,".id").getOrElse(Seq()).headOption.map(_.toString)
   }
 
   def toBlockchain(chain:String):String = {
