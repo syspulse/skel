@@ -48,7 +48,7 @@ class PipelineCoin(feed:String,output:String)(implicit config:Config) extends
   override def process:Flow[String,Coin,_] = {    
     Flow[String]
       .map(data => {
-        parseCoinData(data)
+        Coingecko.parseCoinData(data,config.parser)
       })
       .filter( c => c.isDefined)
       .map( c => c.get )
@@ -56,33 +56,7 @@ class PipelineCoin(feed:String,output:String)(implicit config:Config) extends
         config.filter.isEmpty || config.filter.contains(c.id)
       })      
       .map(c => {
-        val tokens:Map[String,Token] = if(! c.platforms.isDefined) 
-          Map.empty 
-        else {
-          c.platforms.get.flatMap{ case(bid,addr) => 
-            if(addr.isBlank()) 
-              None 
-            else {
-              val dec = c.detail_platforms(bid).decimal_place.getOrElse(18)
-              Some(Token(
-                bid = bid,
-                sym = c.symbol,
-                addr = addr,              
-                dec = dec,              
-              ))
-            }
-          }
-          .map(t => t.bid -> t)
-          .toMap
-        }
-
-        Coin(
-          sym = c.symbol,         
-          tokens = tokens, 
-          icon = Some(c.image.large),
-          sid = Some("cg"),
-          xid = Some(c.id),
-        )
+        Coingecko.toCoin(c)
       })
   }
   

@@ -118,7 +118,7 @@ class PipelineRawCoin(feed:String,output:String)(implicit config:Config) extends
   override def process:Flow[String,(String,String),_] = {
     Flow[String]      
       .map(data => {
-        parseCoinData(data)
+        Coingecko.parseCoinData(data,config.parser)
       })
       .filter( c => c.isDefined)
       .map( c => c.get )
