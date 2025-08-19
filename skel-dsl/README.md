@@ -20,13 +20,31 @@ __Most of scala evals/interpreters do not work in sbt ScalaTests !__
 
 ----
 
-## Run
+## DSL
 
-Scala 
+### Scala 
+
+Since Scala types are not dynamic in scripts, must be cast:
+
 ```
 ./run-dsl.sh scala 'i.asInstanceOf[Int] + 200'
+./run-dsl.sh scala-script 'i.asInstanceOf[Int] + 200'
+./run-dsl.sh scala-interpreter 'i.asInstanceOf[Int] + 200'
 ```
+
+### JavaScript
+
+By default `js` uses GraalVM polyglot engine
 
 ```
 ./run-dsl.sh js 'i + 200'
 ```
+
+Run with `nashorn`
+
+```
+./run-dsl.sh nashorn "i + 20"
+```
+
+
+

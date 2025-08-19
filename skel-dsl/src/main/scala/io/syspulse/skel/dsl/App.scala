@@ -26,12 +26,14 @@ object App  {
         
         ArgCmd("js","JavaScript ScriptEngine script"),
         ArgCmd("scala","Scala ScriptEngine script"),
-        ArgCmd("scala-script","Scala ScriptEngine"),
+        ArgCmd("scala-script","Scala ScriptEngine (same as `scala` with cast `-Dscala.usejavacp=true`)"),
         ArgCmd("scala-interpreter","Scala interpreter script"),
         ArgCmd("scala-toolbox","Scala Toolbox script"),
 
         ArgCmd("polyglot-js","GraalJS Polyglot ScriptEngine"),
-        
+        ArgCmd("nashorn","Nashorn ScriptEngine"),
+        ArgCmd("js-nashorn","Nashorn ScriptEngine"),
+
         ArgParam("<params>",""),
         ArgLogging()
       ).withExit(1)
@@ -49,13 +51,16 @@ object App  {
       case "js" =>
         new JS().run(config.params.mkString(" "),defParasm)
 
+      case "nashorn" | "js-nashorn" =>
+        new NASHORN().run(config.params.mkString(" "),defParasm)
+
       case "polyglot-js" =>
         new Polyglot("js").run(config.params.mkString(" "),defParasm)
 
-      case "scala-script" =>
+      case "scala" =>
         new SCALA().run(config.params.mkString(" "),defParasm)
 
-      case "scala" =>
+      case "scala-script" =>
         new ScalaScript().run(config.params.mkString(" "),defParasm)
 
       case "scala-toolbox" =>
