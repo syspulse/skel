@@ -784,7 +784,7 @@ object Coingecko {
           val symbol = u.obj.get("symbol").map(_.str).getOrElse("")
           
           // Extract optional fields with defaults          
-          val assetPlatformId = u.obj.get("asset_platform_id").map(_.str)
+          val assetPlatformId = u.obj("asset_platform_id").strOpt
           val platforms = u.obj.get("platforms").map(_.obj.map { case (k, v) => k -> v.str }.toMap)
           
           val lastUpdated = u.obj.get("last_updated").map(_.str).getOrElse("")
@@ -798,7 +798,7 @@ object Coingecko {
           // Create detail platforms map
           val detailPlatforms = u.obj.get("detail_platforms").map(_.obj.map { case (k, v) =>
             k -> Coingecko_Platform(
-              decimal_place = v.obj.get("decimal_place").map(_.num.toInt),
+              decimal_place = v.obj.get("decimal_place").numOpt.map(_.toInt),
               contract_address = v.obj.get("contract_address").map(_.str).getOrElse("")
             )
           }.toMap).getOrElse(Map.empty)
@@ -841,7 +841,7 @@ object Coingecko {
       }
     } catch {
       case e: Exception =>
-        log.warn(s"failed to parse: id=${Coingecko.getRawId(json)}: '${Util.trunc(json,64)}': ${e.getMessage}")
+        log.warn(s"failed to parse: id=${Coingecko.getRawId(json)}: '${Util.trunc(json,64)}': ${e.getMessage}",e)
         None
     }
   }
@@ -883,6 +883,7 @@ object Coingecko {
       sym = c.symbol,         
       tokens = tokens, 
       icon = Some(c.image.large),
+      id = Some(c.id),
       sid = Some("cg"),
       xid = Some(c.id),
     )

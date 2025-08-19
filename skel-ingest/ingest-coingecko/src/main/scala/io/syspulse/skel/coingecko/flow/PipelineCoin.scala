@@ -60,7 +60,8 @@ class PipelineCoin(feed:String,output:String)(implicit config:Config) extends
       })
   }
   
-  override def transform(coin: Coin): Seq[Coin] = {    
+  override def transform(coin: Coin): Seq[Coin] = {
+    log.info(s"=> ${coin.id}")
     Seq(coin)
   }
 }
