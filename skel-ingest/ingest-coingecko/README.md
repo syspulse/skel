@@ -46,8 +46,20 @@ Parsers:
 ./run-coingecko.sh pipeline -e raw.coins -f cg:// -o "file://./data/ALL-1.json" --throttle=10000
 ```
 
-### Ingest RAW data from Coingecko PRO and add intelligent parsing to avoid unsupported fields
+### Ingest specific coin json from coingecko:
 
+```
+./run-coingecko.sh pipeline -e raw.coins -f cg:// --filter=weth
+```
+
+
+### Ingest specific mulitple coins jsons from coingecko:
+
+```
+./run-coingecko.sh pipeline -e raw.coins -f cg:// --filter=weth,steth --throttle=5000
+```
+
+### Ingest RAW data from Coingecko PRO and add intelligent parsing to avoid unsupported fields
 
 ```
 ./run-coingecko.sh pipeline -e raw.coin -f "coingecko://$CG_API_KEY" -o null:// --parser=ujson

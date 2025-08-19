@@ -75,7 +75,8 @@ class PipelineRawCoins(feed:String,output:String)(implicit config:Config) extend
   }
   
   override def transform(js: String): Seq[StringWrap] = { 
-    val oid = Coingecko.getRawId(js)    
+    val oid = Coingecko.getRawId(js) 
+    val output = js
     log.info(s"=> ${oid} (${output.size} bytes)")
     Seq(StringWrap(output,oid.getOrElse("")))
   }
