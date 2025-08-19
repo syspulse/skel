@@ -1462,6 +1462,6 @@ lazy val ingest_coingecko = (project in file("skel-ingest/ingest-coingecko"))
     appDockerConfig("ingest-coingecko","io.syspulse.skel.ingest.coingecko.App"),
 
     libraryDependencies ++= Seq(      
-
+       libScalaTest % Test
     ),  
   )

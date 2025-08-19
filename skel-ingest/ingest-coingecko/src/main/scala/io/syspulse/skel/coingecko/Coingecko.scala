@@ -584,7 +584,51 @@ object CoingeckoJson extends DefaultJsonProtocol {
   }
   
   implicit val js_cg_CommunityData = jsonFormat6(Coingecko_CommunityData)
-  implicit val js_cg_DeveloperData = jsonFormat10(Coingecko_DeveloperData)
+  // Custom format for DeveloperData to handle null values in code_additions_deletions_4_weeks map
+  implicit val js_cg_DeveloperData: RootJsonFormat[Coingecko_DeveloperData] = new RootJsonFormat[Coingecko_DeveloperData] {
+    def write(obj: Coingecko_DeveloperData): JsValue = JsObject(
+      "forks" -> JsNumber(obj.forks),
+      "stars" -> JsNumber(obj.stars),
+      "subscribers" -> JsNumber(obj.subscribers),
+      "total_issues" -> JsNumber(obj.total_issues),
+      "closed_issues" -> JsNumber(obj.closed_issues),
+      "pull_requests_merged" -> JsNumber(obj.pull_requests_merged),
+      "pull_request_contributors" -> JsNumber(obj.pull_request_contributors),
+      "code_additions_deletions_4_weeks" -> obj.code_additions_deletions_4_weeks.toJson,
+      "commit_count_4_weeks" -> JsNumber(obj.commit_count_4_weeks),
+      "last_4_weeks_commit_activity_series" -> obj.last_4_weeks_commit_activity_series.toJson
+    )
+    
+    def read(json: JsValue): Coingecko_DeveloperData = {
+      val obj = json.asJsObject.fields
+      Coingecko_DeveloperData(
+        forks = obj("forks").convertTo[Int],
+        stars = obj("stars").convertTo[Int],
+        subscribers = obj("subscribers").convertTo[Int],
+        total_issues = obj("total_issues").convertTo[Int],
+        closed_issues = obj("closed_issues").convertTo[Int],
+        pull_requests_merged = obj("pull_requests_merged").convertTo[Int],
+        pull_request_contributors = obj("pull_request_contributors").convertTo[Int],
+        code_additions_deletions_4_weeks = obj.get("code_additions_deletions_4_weeks").flatMap { jsValue =>
+          if (jsValue == JsNull) None
+          else {
+            // Handle the case where the map values might be null
+            try {
+              val mapObj = jsValue.asJsObject.fields
+              val filteredMap = mapObj.collect {
+                case (k, v) if v != JsNull => k -> v.convertTo[Int]
+              }
+              if (filteredMap.nonEmpty) Some(filteredMap) else None
+            } catch {
+              case _: Exception => None
+            }
+          }
+        },
+        commit_count_4_weeks = obj("commit_count_4_weeks").convertTo[Int],
+        last_4_weeks_commit_activity_series = obj("last_4_weeks_commit_activity_series").convertTo[Seq[Int]]
+      )
+    }
+  }
   implicit val js_cg_Market = jsonFormat3(Coingecko_Market)
   implicit val js_cg_Ticker = jsonFormat18(Coingecko_Ticker)
   
