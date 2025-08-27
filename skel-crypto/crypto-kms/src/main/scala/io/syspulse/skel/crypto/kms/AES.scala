@@ -114,7 +114,9 @@ class AES(uri:String = "") {
       val req = new ListAliasesRequest().withLimit(limit)
       val aa = kms.listAliases(req)
       aa.getAliases().asScala.find(_.getAliasName() == s"alias/${alias}") match {
-        case Some(k) => Success(k.getAliasName())
+        case Some(k) => 
+          //Success(k.getAliasName())
+          Success(k.getTargetKeyId())
         case _ => Failure(new Exception(s"keyId not found: ${alias}"))
       }      
     } catch {

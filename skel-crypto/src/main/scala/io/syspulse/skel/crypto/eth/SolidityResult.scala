@@ -155,7 +155,7 @@ class SolidityResult {
     val input = if(simple) input1 else s"(${input1})"
     val result = fastparse.parse(input, expr(_))
     result match {
-      case fastparse.Parsed.Success(value0, _) => 
+      case fastparse.Parsed.Success(value0, _) =>
         val value = if(simple) value0 else RootVal(value0)
         value
       case fastparse.Parsed.Failure(_, _, _) => throw new IllegalArgumentException(s"Failed to parse: $input")
