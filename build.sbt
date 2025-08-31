@@ -680,6 +680,21 @@ lazy val crypto_kms = (project in file("skel-crypto/crypto-kms"))
       assembly / packageOptions += sbt.Package.ManifestAttributes("Multi-Release" -> "true")
     )
 
+lazy val eth_protocols = (project in file("skel-crypto/eth-protocols"))
+  .dependsOn(core,skel_crypto,blockchain_core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssemblyTeku,
+      //sharedConfigAssembly,
+      name := "eth-protocols",
+      libraryDependencies ++= Seq() ++ //Seq(libLog4j2Api, libLog4j2Core) ++ 
+        libTest ++ libWeb3j ++ Seq(
+          libOsLib,
+          libUpickleLib,
+        ),      
+    )
+
 lazy val flow = (project in file("skel-flow"))
   .dependsOn(core)
   .disablePlugins(sbtassembly.AssemblyPlugin)
@@ -932,6 +947,7 @@ lazy val skel_dsl = (project in file("skel-dsl"))
 
           libUpickleLib,
 
+          libNashorn,
           libGraalPolyglot,
           libGraalPolyglotJS,
           libGraalJSScriptEngine,

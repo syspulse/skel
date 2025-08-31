@@ -33,6 +33,7 @@ object Dependencies {
     lazy val web3jVersion = "4.9.2"
     //lazy val web3jVersion = "4.13.0" // requires JDK 17 !
     
+    lazy val nashornVersion = "15.6"
     // GraalJS for JavaScript execution (replaces Nashorn)
     //lazy val graalJsVersion = "23.0.0" // (for non-polyglot)
     lazy val graalJsVersion = "24.1.0" // (for non-polyglot)
@@ -99,6 +100,9 @@ object Dependencies {
     val libAkkaKafka=       "com.typesafe.akka"               %% "akka-stream-kafka"    % akkaKafkaVersion
 
     val libAkkaHttpCors =   "ch.megard"                       %% "akka-http-cors"       % "1.1.3"
+
+    // Nashorn Legacy Support
+    val libNashorn =        "org.openjdk.nashorn"             % "nashorn-core"          % nashornVersion
 
     // GraalJS libraries
     // val libGraalJS =         "org.graalvm.js"                 % "js"                   % graalJsVersion
@@ -183,12 +187,20 @@ object Dependencies {
 
     // val libWeb3jCrypto =    "org.web3j"                     % "crypto"              % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
     // val libWeb3jCore =      "org.web3j"                     % "core"                % "4.8.7" exclude("org.bouncycastle", "bcprov-jdk15on")
-    val libWeb3jCrypto =      "org.web3j"                       % "crypto"              % web3jVersion exclude("org.bouncycastle", "bcprov-jdk15on")
-    val libWeb3jCore =        "org.web3j"                       % "core"                % web3jVersion exclude("org.bouncycastle", "bcprov-jdk15on")
+    val libWeb3jCrypto =      "org.web3j"                       % "crypto"              % web3jVersion excludeAll(
+      ExclusionRule("org.bouncycastle", "bcprov-jdk15on")      
+    )
+    val libWeb3jCore =        "org.web3j"                       % "core"                % web3jVersion excludeAll(
+      ExclusionRule("org.bouncycastle", "bcprov-jdk15on")      
+    )
     // Refactored: https://github.com/syspulse/eth-abi
-    val libEthAbi =           "com.github.lbqds"                %% "ethabi"             % "0.4.1"
+    val libEthAbi =           "com.github.lbqds"                %% "ethabi"             % "0.4.1" 
+    
     //val libOssLabzEvmAbi =    "net.osslabz"                     % "evm-abi-decoder"     % "0.1.0" exclude("org.bouncycastle", "bcprov-jdk15on")
-    val libOssLabzEvmAbi =    "net.osslabz"                     % "evm-abi-decoder"     % "0.1.2" exclude("org.bouncycastle", "bcprov-jdk15on")
+    val libOssLabzEvmAbi =    "net.osslabz"                     % "evm-abi-decoder"     % "0.1.2" excludeAll(
+      ExclusionRule("org.bouncycastle", "bcprov-jdk15on"),
+      ExclusionRule("com.fasterxml.jackson.core"),
+    )
     
     //web3j depends on "1.65"
     val libBouncyCastle =     "org.bouncycastle"                % "bcprov-jdk15on"      % "1.70" //"1.69" 
