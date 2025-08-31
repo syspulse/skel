@@ -31,11 +31,22 @@ import akka.actor.ActorSystem
 // throttleSource - reduce load on Source (e.g. HttpSource)
 // throttle - delay objects downstream
 // cap - capacity (internal buffer, like Actor)
-abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
-  throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=100L,format:String="",cap:Int=10000)
-  (implicit fmt:JsonFormat[O], parqEncoders:ParquetRecordEncoder[O],parsResolver:ParquetSchemaResolver[O],as:Option[ActorSystem] = None) 
-  extends Flows 
-  with IngestFlow[I,T,O]()  {
+abstract class Pipeline[I,T,O <: skel.Ingestable](
+  feed:String,
+  output:String,
+  throttle:Long = 0, 
+  delimiter:String = "\n", 
+  buffer:Int = 8192, 
+  chunk:Int = 1024 * 1024,
+  throttleSource:Long=100L,
+  format:String="",
+  cap:Int=10000)
+  (implicit 
+     fmt:JsonFormat[O], 
+     parqEncoders:ParquetRecordEncoder[O],
+     parsResolver:ParquetSchemaResolver[O],
+     as:Option[ActorSystem] = None
+  ) extends Flows with IngestFlow[I,T,O]()  {
   
   private val log = Logger(s"${this}")
   override implicit val system:ActorSystem = {    
@@ -52,6 +63,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       as
     })
   }
+
   log.info(s"system=${system}")
 
   implicit def timeout:FiniteDuration = FiniteDuration(5000, TimeUnit.MILLISECONDS)
@@ -80,10 +92,11 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
         }
         else
           // ATTENTION!
-          fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
+          fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer, retry = retrySettings)
           //Flows.fromHttpRestartable(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
       }
-      case "https" :: _ => fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
+      case "https" :: _ => 
+        fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer, retry = retrySettings)
       
       case "listen" :: uri :: Nil => fromHttpServer(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
       case ("server" | "http:server" | "https:server") :: uri :: Nil => fromHttpServer(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)

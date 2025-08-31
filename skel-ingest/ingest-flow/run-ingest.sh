@@ -1,9 +1,10 @@
 #!/bin/bash                                                                                                                                                                                            
-CWD=`echo $(dirname $(readlink -f $0))`
-cd $CWD
-export APP_HOME=`pwd`
+export CWD=`echo $(dirname $(readlink -f $0))`
+#cd $CWD
+#export APP_HOME=`pwd`
 
-t=`pwd`;
+#t=`pwd`;
+t=$CWD
 APP=`basename "$t"`
 CONF=`echo $APP | awk -F"-" '{print $2}'`
 

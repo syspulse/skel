@@ -26,6 +26,7 @@ import io.syspulse.skel.Ingestable
 import io.syspulse.skel.coingecko.Config
 import io.syspulse.skel.coingecko._
 import io.syspulse.skel.coingecko.CoingeckoJson
+import akka.stream.RestartSettings
 
 abstract class PipelineCoingecko[I,T,O <: Ingestable](feed:String,output:String,config:Config)
   (implicit fmt:JsonFormat[O],parqEncoders:ParquetRecordEncoder[O],parsResolver:ParquetSchemaResolver[O],as:Option[ActorSystem] = None) extends 
@@ -38,8 +39,14 @@ abstract class PipelineCoingecko[I,T,O <: Ingestable](feed:String,output:String,
         throttleSource = config.throttleSource,
         format = config.format) {
 
-  val log = Logger(s"${this}")  
+  val log = Logger(s"${this}")
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+
+  override def retrySettings:Option[RestartSettings] = 
+    if(config.retryCount > 0)
+       super.retrySettings.map(r => r.withMaxRestarts(config.retryCount, FiniteDuration(config.retryDelay,TimeUnit.MILLISECONDS)))
+    else
+      None    
 
   implicit class FlowOps[T, U, M](flow: Flow[T, U, M]) {
     def throttled(rate: Int, per: FiniteDuration): Flow[T, U, M] = {
@@ -60,7 +67,7 @@ abstract class PipelineCoingecko[I,T,O <: Ingestable](feed:String,output:String,
   override def source(feed:String):Source[ByteString,_] = {    
     feed.split("://").toList match {
       case ("coingecko" | "cg") :: _ => 
-        val (cg,src) = Coingecko.fromCoingecko(feed)
+        val (cg,src) = Coingecko.from(feed)
         coingecko = Some(cg)
         src
       case _ => 

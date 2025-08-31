@@ -799,9 +799,13 @@ class Coingecko(uri:String)(implicit ec: ExecutionContext) extends CoingeckoClie
 object Coingecko {
   val log = Logger[Coingecko]
 
-  def fromCoingecko(uri:String)(implicit ec: ExecutionContext):(Coingecko,Source[ByteString,_]) = {
+  def from(uri:String)(implicit ec: ExecutionContext):(Coingecko,Source[ByteString,_]) = {
     val cg = new Coingecko(uri)(ec)
     (cg,cg.source(cg.cgUri.ops.get("ids").map(_.split(",").toSet).getOrElse(Set())))
+  }
+
+  def fromCoingecko(uri:String)(implicit ec: ExecutionContext):Source[ByteString,_] = {
+    from(uri)._2
   }
 
   def apply(uri:String)(implicit ec: ExecutionContext):Try[Coingecko] = {

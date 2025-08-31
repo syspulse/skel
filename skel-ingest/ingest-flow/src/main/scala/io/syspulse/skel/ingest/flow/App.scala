@@ -134,6 +134,7 @@ object App extends skel.Server {
       case "server" => 
         Console.err.println(s"Not supported")
         sys.exit(1)
+        
       case "ingest" => {
         val f1 = new PipelineTextline(config.feed,config.output)        
         f1.run()

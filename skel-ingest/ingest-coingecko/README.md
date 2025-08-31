@@ -81,3 +81,17 @@ Parsers:
 ./run-coingecko.sh pipeline -e raw.coins -f cg:// -o "file://./data/SELECTED-1.json" --filter=bitcoin,ethereum --throttle=10000
 ```
 
+
+## Testing
+
+Start local server with Coingecko `raw` response:
+
+```
+../../tools/run-http.sh file://./data/cg-bitcoin.json
+```
+
+Run pipline:
+
+```
+./run-coingecko.sh pipeline -e coin -f http://localhost:8300 --parser=json
+```

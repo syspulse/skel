@@ -256,14 +256,19 @@ trait Flows {
       }      
     })
       
-  def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192, retry:RestartSettings=retrySettingsDefault)(implicit as:ActorSystem,timeout:FiniteDuration) = {
+  def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192, retry:Option[RestartSettings]=Some(retrySettingsDefault))(implicit as:ActorSystem,timeout:FiniteDuration) = {
     //val s = Source.future(fromHttpFuture(req))
-    val s = RestartSource.onFailuresWithBackoff(retry) { () =>
-      log.info(s"${retry}: ==> ${req}")
+    val s = if(retry.isDefined)
+      RestartSource.onFailuresWithBackoff(retry.get) { () =>
+        log.info(s"${retry.get}: ==> ${req}")
+        Source.futureSource {
+          this.fromHttpFuture(req)
+        }
+      }
+    else
       Source.futureSource {
         this.fromHttpFuture(req)
       }
-    }
       
     if(frameDelimiter.isEmpty())
       s
@@ -272,7 +277,7 @@ trait Flows {
   }
 
   def fromHttpRestartable(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192,retry:RestartSettings=retrySettingsDefault)(implicit as:ActorSystem,timeout:FiniteDuration) = {
-    fromHttp(req,frameDelimiter,frameSize,retry)
+    fromHttp(req,frameDelimiter,frameSize,Some(retry))
   }
 
   def fromHttpList(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L,retry:RestartSettings=retrySettingsDefault)(implicit as:ActorSystem,timeout:FiniteDuration) = {

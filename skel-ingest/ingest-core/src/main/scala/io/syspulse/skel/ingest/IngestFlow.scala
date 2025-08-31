@@ -22,6 +22,8 @@ import io.prometheus.client.Counter
 
 import io.syspulse.skel.Ingestable
 import io.syspulse.skel.util.Util
+import scala.util.Success
+import scala.util.Failure
 
 trait IngestFlowPipeline[I,T,O] extends IngestFlow[I,T,O] {  
   implicit val system = ActorSystem("ActorSystem-IngestFlow")
@@ -36,16 +38,16 @@ trait IngestFlow[I,T,O] {
 
   def ingestFlowName() = "ingest-flow"
   
-  val retrySettings:Option[RestartSettings] = 
-  Some(RestartSettings(
-    minBackoff = FiniteDuration(3000,TimeUnit.MILLISECONDS),
-    maxBackoff = FiniteDuration(10000,TimeUnit.MILLISECONDS),
-    randomFactor = 0.2
-  ))
-  //.withMaxRestarts(10, 5.minutes)
+  def retrySettings:Option[RestartSettings] = 
+    Some(RestartSettings(
+      minBackoff = FiniteDuration(3000,TimeUnit.MILLISECONDS),
+      maxBackoff = FiniteDuration(10000,TimeUnit.MILLISECONDS),
+      randomFactor = 0.2
+    ))
+    //.withMaxRestarts(10, 5.minutes)
   
   // used by Flow.log()
-  val logLevels = Attributes.createLogLevels(
+  def logLevels = Attributes.createLogLevels(
     Logging.DebugLevel, 
     onFinish = Logging.InfoLevel, //Logging.DebugLevel, 
     onFailure = Logging.ErrorLevel
@@ -86,7 +88,7 @@ trait IngestFlow[I,T,O] {
 
   def run() = {
     val f0 = source()
-      .log(ingestFlowName()).withAttributes(logLevels)
+      // .log(ingestFlowName()).withAttributes(logLevels)
       .via(debug)
       .via(counterBytes)      
       .mapConcat(txt => {
@@ -108,7 +110,7 @@ trait IngestFlow[I,T,O] {
       .via(process)
       .via(shaping)
       .via(counterT)
-      .viaMat(KillSwitches.single)(Keep.right)
+      .viaMat(KillSwitches.single)(Keep.both)
       .mapConcat(t => {
         try {
           transform(t)
@@ -148,10 +150,19 @@ trait IngestFlow[I,T,O] {
     val mat = f3
       // .withAttributes(
       //   ActorAttributes.supervisionStrategy(errorSupervisor)
-      // )
-      .runWith(s1)
-      
+      // )      
+      //.runWith(s1)
+      .watchTermination()((_, termination) => termination)
+      .to(s1)
+      .run()        
 
+    // mat.onComplete { 
+    //   case Success(_) => 
+    //     log.debug("")        
+    //   case Failure(ex) => 
+    //     log.debug("", ex)
+    //   }
+      
     log.debug(s"f1=${f1}: f2=${f2}: graph: ${f3}: flow=${mat}")
     mat
   }

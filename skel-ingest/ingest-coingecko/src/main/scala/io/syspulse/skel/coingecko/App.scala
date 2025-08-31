@@ -10,6 +10,11 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 
 import io.syspulse.skel.coingecko.flow._
+import scala.concurrent.Awaitable
+import scala.concurrent.Await
+import scala.concurrent.Future
+import scala.util.Success
+import scala.util.Failure
 
 case class Config(  
   entity:String = "coins",
@@ -109,7 +114,7 @@ object App {
         
     implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global    
 
-    val r = config.cmd match {
+    val f = config.cmd match {
       case "coins" =>   
         val uri = config.params.headOption.getOrElse("cg://")
         val ids = config.params.drop(1).toSet
@@ -156,7 +161,17 @@ object App {
         
     }
 
-    Console.err.println(s"r = ${r}")
+    Console.err.println(s"f = ${f}")
+
+    if(f.isInstanceOf[Future[_]]) {
+      f.asInstanceOf[Future[_]].onComplete { 
+        case Success(r) => 
+          Console.err.println(s"FINISHED: ${r}")
+        case Failure(ex) => 
+          Console.err.println(s"FAILED: ============================================> ${ex}")
+          sys.exit(2)
+      }      
+    }
     //sys.exit(0)
   }
 }
