@@ -174,6 +174,19 @@ Now decode result (pay attention to how type parameter is passed):
 r = Success((238287004791444828,214631485733445575,6975428722598115,9500,9300,1054703851013772348))
 ```
 
+USDT totalSupply:
+
+```
+ETH_RPC_URL=http://geth:8545 ./run-evm.sh call 0xdAC17F958D2ee523a2206206994597C13D831ec7 "totalSupply()(uint256)"
+```
+
+USDT balanceOf:
+
+```
+ETH_RPC_URL=http://geth:8545 ./run-evm.sh call 0xdAC17F958D2ee523a2206206994597C13D831ec7 "balanceOf(address)(uint256)" 0xdAC17F958D2ee523a2206206994597C13D831ec7
+```
+
+
 Complex tuple array result:
 
 ```

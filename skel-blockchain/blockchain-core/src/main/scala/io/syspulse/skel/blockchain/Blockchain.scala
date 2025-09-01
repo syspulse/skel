@@ -48,6 +48,8 @@ object Blockchain {
   val ETHEREUM_HOLESKY = Blockchain("ethereum_holesky",Some("17000"),Some(18),Some("ETH"),Some("https://holesky.etherscan.io"))
   val POLYGON_AMOY = Blockchain("polygon_amoy",Some("80002"),Some(18),Some("POL"),Some("https://amoy.polygonscan.com"))
 
+  val SOMNIA_MAINNET = Blockchain("somnia",Some("50312"),Some(18),Some("STT"),Some("https://shannon-explorer.somnia.network"))  
+
   // default EVM
   val EVM = Blockchain("evm",Some("0"),Some(18),Some("ETH"))
 
@@ -84,6 +86,8 @@ object Blockchain {
 
     ETHEREUM_HOLESKY.id.get -> ETHEREUM_HOLESKY,
     POLYGON_AMOY.id.get -> POLYGON_AMOY,
+
+    SOMNIA_MAINNET.id.get -> SOMNIA_MAINNET,
 
     EVM.id.get -> EVM
   )
