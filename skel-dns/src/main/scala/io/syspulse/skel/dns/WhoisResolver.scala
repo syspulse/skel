@@ -14,10 +14,10 @@ import java.time.ZoneOffset
 import java.util.Locale
 
 // --- WHOIS -----------------------------------------------------------------------
-class WhoisResolver extends DnsResolver {
+class WhoisResolver() extends DnsResolver {
   val log = Logger(s"${this}")
 
-  def resolve(domain:String):Try[DnsInfo] = getInfo(domain,None)
+  def resolve(domain:String):Try[DnsInfo] = getInfo(domain,None)  
 
   val tsFormatISO = Seq(
     DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssX"),
@@ -41,8 +41,9 @@ class WhoisResolver extends DnsResolver {
         return Failure(new Exception(s"could not get zone: '${domain}'"))
 
       log.debug(s"${domain}: zone=${zone.get}")
+      val root = "whois.iana.org"
 
-      whois.connect("whois.iana.org")
+      whois.connect(root)
       val r = whois.query(s"${zone.get}")
       
       log.debug(s"${zone.get}: '${r}'")
@@ -56,8 +57,11 @@ class WhoisResolver extends DnsResolver {
         s.split("whois:").toList match {
           case _ :: whois :: Nil =>
             Success(whois.trim)
+          case List() =>
+            log.warn(s"whois server missing, using root: '${root}'")
+            Success(root)
           case v =>             
-            Failure(new Exception(s"failed to parse whois server: ${s}"))
+            Failure(new Exception(s"failed to parse whois server: '${s}': '${v}'"))
         }
       }).head
 
@@ -90,8 +94,8 @@ class WhoisResolver extends DnsResolver {
     // parse
     val ss = r.split("\n").map(_.trim).filter(! _.isBlank)
 
-    val created = ss.filter(_.startsWith("Creation Date:")).flatMap(d => {        
-      d.split("Creation Date:").toList match {
+    val created = ss.filter(_.startsWith(createdName)).flatMap(d => {        
+      d.split(createdName).toList match {
         case _ :: exp :: Nil =>
           val ts = parseDate(exp.trim) // DateTime.parse(exp.trim,tsFormatISO).toInstant.toEpochMilli
           Some(ts)
@@ -101,8 +105,8 @@ class WhoisResolver extends DnsResolver {
       }
     }).headOption
 
-    val updated = ss.filter(_.startsWith("Updated Date:")).flatMap(d => {
-      d.split("Updated Date:").toList match {
+    val updated = ss.filter(_.startsWith(updatedName)).flatMap(d => {
+      d.split(updatedName).toList match {
         case _ :: exp :: Nil => 
           val ts = parseDate(exp.trim)
           Some(ts)
@@ -112,8 +116,8 @@ class WhoisResolver extends DnsResolver {
       }
     }).headOption
 
-    val expire = ss.filter(_.startsWith("Registry Expiry Date:")).flatMap(d => {
-      d.split("Registry Expiry Date:").toList match {
+    val expire = ss.filter(_.startsWith(expireName)).flatMap(d => {
+      d.split(expireName).toList match {
         case _ :: exp :: Nil => 
           val ts = parseDate(exp.trim) //OffsetDateTime.parse(exp.trim,tsFormatISO).toInstant.toEpochMilli
           Some(ts)
@@ -123,9 +127,11 @@ class WhoisResolver extends DnsResolver {
       }
     }).headOption
     
-    val ns = ss.filter(_.startsWith("Name Server:")).flatMap(ns => {
+    val ns = ss.filter(_.startsWith(nsName)).flatMap(ns => {
       ns.split(":").toList match {
         case _ :: server :: Nil => Some(server.trim)
+        // can be extra info
+        case _ :: server :: _ => Some(server.trim)
         case _ => 
           log.warn(s"failed to parse NS: ${ns}")
           None

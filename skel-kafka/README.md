@@ -14,7 +14,7 @@ https://forum.confluent.io/t/kafka-where-can-i-set-max-request-size-parameter/32
 https://repost.aws/articles/ARfShOOzvBSra6UwgWOz9GXg/handling-large-messages-in-amazon-managed-streaming-for-apache-kafka-msk
 
 ```
- kafka-configs.sh --bootstrap-server broker:9092 --alter --entity-type topics --entity-name topic-1 --add-config max.message.bytes=3000000
+kafka-configs.sh --bootstrap-server broker:9092 --alter --entity-type topics --entity-name topic-1 --add-config max.message.bytes=3000000
 ```
 
 Producer:

@@ -10,14 +10,14 @@
 whois -h whois.iana.org io
 ```
 
-2. use this server to quere domain.io:
+2. use this server to query domain.io:
 
 ```
-whois.nic.io
+whois -h whois.nic.io domain.io
 ```
 
 3. In skel:
 
 ```
-./run-dns.sh syspulse.io whois.nic.io
+./run-dns.sh domain.io whois.nic.io
 ```

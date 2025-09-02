@@ -15,5 +15,10 @@ import java.util.Locale
 
 
 abstract class DnsResolver {
+  def nsName:String = "Name Server:"
+  def createdName:String = "Creation Date:"
+  def updatedName:String = "Updated Date:"
+  def expireName:String = "Registry Expiry Date:"
+
   def resolve(domain:String):Try[DnsInfo]
 }
