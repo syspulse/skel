@@ -58,7 +58,7 @@ class WhoisResolver() extends DnsResolver {
           case _ :: whois :: Nil =>
             Success(whois.trim)
           case List() =>
-            log.warn(s"whois server missing, using root: '${root}'")
+            log.debug(s"whois server missing, using root: '${root}'")
             Success(root)
           case v =>             
             Failure(new Exception(s"failed to parse whois server: '${s}': '${v}'"))
@@ -87,7 +87,7 @@ class WhoisResolver() extends DnsResolver {
   def parseResponse(domain:String,r:String):Try[DnsInfo] = {
     
     if(r.startsWith("No match for")) {
-      log.warn(s"registry not found: '${domain}'")
+      log.debug(s"registry not found: '${domain}'")
       return Failure(new Exception(s"not found: ${domain}"))
     }
 
