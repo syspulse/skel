@@ -251,11 +251,11 @@ class BlockchainSpec extends AnyWordSpec with Matchers {
 
     "parse 'somnia'" in {
       val b = Blockchain("somnia")
-      b should ===(Blockchain.SOMNIA_MAINNET)      
-      b.id should ===(Some("50312"))
-      b.tok should ===(Some("STT"))
+      b should ===(Blockchain.SOMNIA_MAINNET)
+      b.id should ===(Some("5031"))
+      b.tok should ===(Some("SOMI"))
       b.dec should ===(Some(18))
-      b.exp should ===(Some("https://shannon-explorer.somnia.network"))
+      b.exp should ===(Some("https://explorer.somnia.network"))
     }
   }    
 }

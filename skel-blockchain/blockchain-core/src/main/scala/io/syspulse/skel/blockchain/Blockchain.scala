@@ -47,8 +47,9 @@ object Blockchain {
   val ANVIL = Blockchain("anvil",Some("31337"),Some(18),Some("ETH"),Some("https://otterscan.dev.hacken.cloud"))  
   val ETHEREUM_HOLESKY = Blockchain("ethereum_holesky",Some("17000"),Some(18),Some("ETH"),Some("https://holesky.etherscan.io"))
   val POLYGON_AMOY = Blockchain("polygon_amoy",Some("80002"),Some(18),Some("POL"),Some("https://amoy.polygonscan.com"))
-
-  val SOMNIA_MAINNET = Blockchain("somnia",Some("50312"),Some(18),Some("STT"),Some("https://shannon-explorer.somnia.network"))  
+  
+  val SOMNIA_TESTNET = Blockchain("somnia_testnet",Some("50312"),Some(18),Some("STT"),Some("https://shannon-explorer.somnia.network"))  
+  val SOMNIA_MAINNET = Blockchain("somnia",Some("5031"),Some(18),Some("SOMI"),Some("https://explorer.somnia.network"))  
 
   // default EVM
   val EVM = Blockchain("evm",Some("0"),Some(18),Some("ETH"))
