@@ -356,6 +356,8 @@ object Util {
     log.info(s"Elapsed: ${Duration.ofNanos(ts1 - ts0).toMillis()} msec")    
   }
 
+  // replace pattern: "{var1} text {var2}"
+  // replace pattern: "{var1:32} text {var2:100}"
   def replaceVar(expr0:String,vars:Map[String,Any]):String = {
     // special case for file patterns
     val expr = if(expr0.startsWith("file://") || expr0.startsWith("dir://") || expr0.startsWith("dirs://")) 
@@ -369,16 +371,34 @@ object Util {
     else 
       expr0
 
-    val rexpr = """(\{[a-zA-Z_\.-]+\})""".r
-    val pairs = rexpr.findAllIn(expr).flatMap( v =>{
-      val variable = v.substring(1,v.size-1)      
+    val rexpr = """(\{[a-zA-Z0-9:_\.-]+\})""".r
+
+    val pairs = rexpr.findAllIn(expr).flatMap( v => {
+      
+      val (variable,interpol,sz) = if(v.contains(':'))
+        v.substring(1,v.size-1).split(":").toList match {
+          case variable :: sz :: Nil => (variable,v,Some(sz))
+          case variable :: Nil => (variable,v,None)
+        }
+      else {
+        (v.substring(1,v.size-1),v,None)
+      }
+
       val vv = vars.collect{ case(n,value) if(n == variable) => value}
-      vv.headOption.map(value => (variable,value))
+      
+      vv.headOption.map(value => {
+        if(sz.isDefined)
+          (interpol,value.toString.take(sz.get.toInt))
+        else
+          (interpol,value)
+      })
 
     })
     val expr1 = pairs.foldLeft(expr)((e,p) => {
-      val r = "\\{"+p._1+"\\}"
-      e.replaceAll(r,p._2.toString)
+      //val r = "\\{"+p._1+"\\}"      
+      //e.replaceAll(r,p._2.toString)
+      val r = p._1      
+      e.replace(r,p._2.toString)
     })
     expr1
   }

@@ -74,6 +74,11 @@ class UtilJsonSpec extends AnyWordSpec with Matchers {
       r.get.contains("service-role") should ===(true)      
     }
     
+    "parse JWT groups role" in {
+      val j1 = """{"groups": ["user","service"] }"""
+      val r = Util.parseJson(j1,"groups[]."+"service")
+      r.get should ===(Seq("service"))
+    }
 
   }    
 }
