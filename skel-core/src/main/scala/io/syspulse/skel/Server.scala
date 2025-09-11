@@ -54,6 +54,7 @@ import akka.stream.scaladsl.StreamConverters
 import akka.util.ByteString
 import java.io.DataInputStream
 import java.io.FileInputStream
+import akka.routing.Router
 
 trait Server {
   val log = Logger(s"${this}")
@@ -167,25 +168,30 @@ trait Server {
   def getRoutes(rejectionHandler:RejectionHandler,exceptionHandler:ExceptionHandler,
                 uri:String,
                 systemRoutes:Seq[Route],
-                appRoutes:Seq[Route]) = {
+                appRoutes:Seq[Route],
+                logHttp:Option[String]=None) = {
     val (apiUri,apiVersion,serviceUri) = parseUriPath(uri)
     val routes: Route =
       handleRejections(rejectionHandler) {
         handleExceptions(exceptionHandler) {
-          rawPathPrefix(apiUri) {
-            rawPathPrefix(apiVersion) {
-              rawPathPrefix(serviceUri) {
-                concat(
-                  systemRoutes:_*
-                ) ~
-                concat(
-                  appRoutes:_*
-                ) 
-              } 
+          extractRequest { request =>
+            if(logHttp.isDefined) log.info(s"[HTTP]: ${request.method} ${request.uri}")
+            rawPathPrefix(apiUri) {
+              rawPathPrefix(apiVersion) {
+                rawPathPrefix(serviceUri) {
+                  concat(
+                    systemRoutes:_*
+                  ) ~
+                  concat(
+                    appRoutes:_*
+                  ) 
+                } 
+              }
             }
           }
         }
       }
+    
     routes
   }
 
@@ -249,6 +255,8 @@ trait Server {
       context.watch(configRegistryActor)
       context.watch(metricsRegistryActor)
 
+      val logHttp = configuration.getString("log.http")
+
       val (rejectionHandler:RejectionHandler,exceptionHandler:ExceptionHandler) = getHandlers() //(context)
 
       val appServices:Seq[Routeable] = app.map { 
@@ -285,7 +293,8 @@ trait Server {
           rejectionHandler,exceptionHandler,
           uri,
           Seq(telemetryRoutes.routes, infoRoutes.routes, healthRoutes.routes, configRoutes.routes, metricsRoutes.routes, swaggerRoutes, swaggerUI),
-          appRoutes
+          appRoutes,
+          logHttp
         )
             
       postInit(context,routes)

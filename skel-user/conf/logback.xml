@@ -27,6 +27,9 @@
     <appender-ref ref="NOCOLOR" />
   </appender>
 
+  <logger name="akka.http.scaladsl.server.directives.LoggingDirectives" level="INFO"/>
+  <logger name="akka.http.scaladsl.server.directives" level="INFO"/>
+  
   <root level="info">
     <!-- <appender-ref ref="NOCOLOR" /> -->
   </root>

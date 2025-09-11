@@ -13,11 +13,14 @@ import java.time._
 import scala.util.Try
 
 import io.getquill._
+import io.getquill.context._
 import io.getquill.context.jdbc._
 import io.getquill.MysqlJdbcContext
 import io.getquill.PostgresJdbcContext
 import io.getquill.PostgresJAsyncContext
 import io.getquill.MysqlJAsyncContext
+
+
 //import io.getquill.{Literal, MySQLDialect}
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 
@@ -117,6 +120,15 @@ abstract class StoreDB[E,P](dbUri:String,tableName:String,configuration:Option[C
   def truncate():Long = ctx.run(truncateSQL())
   def size:Long = ctx.run(totalSQL())
 
+  implicit val vectorStringDecoder: Decoder[Vector[String]] = 
+    decoder((row: ResultRow) => (index: Index) => {
+      val str = row.getString(index)
+      if (str == null || str.isEmpty) Vector.empty[String] else str.split(",").toVector
+    })
+
+  implicit val vectorStringEncoding: MappedEncoding[Vector[String], String] = 
+    MappedEncoding[Vector[String], String](_.mkString(","))
+
   // create Store
   create
 }
@@ -157,7 +169,7 @@ abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Opt
   def truncate():Future[Long] = ctx.run(truncateSQL())
 
   override def sizeAsync:Future[Long] = ctx.run(totalSQL())
-
+  
   // create Store
   create
 }
