@@ -253,7 +253,8 @@ class AuthJwt(uri:String = "") {
       case Success(c) => {
         try {
           val json = ujson.read(c.content)
-          Some(json.obj(claim).str)
+          //Some(json.obj(claim).str)
+          json.obj.get(claim).map(_.str)
         } catch {
           case e:Exception => log.debug(s"failed to parse claim: '${claim}'");
             None

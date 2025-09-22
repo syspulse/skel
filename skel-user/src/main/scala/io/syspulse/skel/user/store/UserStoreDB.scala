@@ -16,6 +16,7 @@ import io.syspulse.skel.config.{Configuration}
 import io.syspulse.skel.store.{Store,StoreDB}
 
 import io.syspulse.skel.user.User
+import io.syspulse.skel.ErrNotFound
 
 // Postgres does not support table name 'user' !
 class UserStoreDB(configuration:Configuration,dbConfigRef:String) 
@@ -172,7 +173,7 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String)
     try {
       //ctx.run(deleteById(lift(id)))
       ctx.run(deleteById(id)) match {
-        case 0 => Failure(new Exception(s"not found: ${id}"))
+        case 0 => Failure(new ErrNotFound(s"${id}"))
         case _ => Success(id)
       } 
       
@@ -189,7 +190,7 @@ class UserStoreDB(configuration:Configuration,dbConfigRef:String)
     try { 
       ctx.run(table.filter(o => o.id == lift(id))) match {      
         case h :: _ => Success(h)
-        case Nil => Failure(new Exception(s"not found: ${id}"))
+        case Nil => Failure(new ErrNotFound(s"not found: ${id}"))
       }
     } catch {
       case e:Exception => Failure(e)

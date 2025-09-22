@@ -92,34 +92,34 @@ trait Server {
   def getHandlers():(RejectionHandler,ExceptionHandler) = {
     val rejectionHandler = RejectionHandler.newBuilder()
         .handle { case MissingQueryParamRejection(param) =>
-          log.warn(s"missing parameter: ${param}")
-          complete(HttpResponse(BadRequest,   entity = jsonEntity(s"""{"error": "Missing parameter: ${param}"}""")))
+          log.warn(s"Missing parameter: ${param}")
+          complete(HttpResponse(BadRequest,   entity = jsonEntity(s"""{"error": "Missing parameter: ${param}","code":${Err.MISSING_PARAMETER}}""")))
         }
         .handle { case AuthorizationFailedRejection =>
-          log.warn(s"authorization rejection")
-          complete(HttpResponse(Forbidden, entity = jsonEntity(s"""{"error": "Authorization"}""")))
+          log.warn(s"Authorization rejection")
+          complete(HttpResponse(Forbidden, entity = jsonEntity(s"""{"error": "Authorization","code":${Err.AUTHORIZATION}}""")))
         }
         .handleAll[AuthenticationFailedRejection] { rejections =>
-          log.warn(s"authorization rejection: ${rejections}")
+          log.warn(s"Authentication rejection: ${rejections}")
           // val rejectionMessage = rejections.head.cause match {
           //   case CredentialsMissing  => "The resource requires authentication, which was not supplied with the request"
           //   case CredentialsRejected => "The supplied authentication is invalid"
           // }
-          complete(HttpResponse(Unauthorized, entity = jsonEntity(s"""{"error": "Authentication: ${rejections}"}""")))
+          complete(HttpResponse(Unauthorized, entity = jsonEntity(s"""{"error": "${rejections.map(_.toString).mkString(",")}","code":${Err.AUTHENTICATION}}""")))
         }
         .handleAll[MethodRejection] { methodRejections =>
-          log.warn(s"method rejection: ${methodRejections}")
+          log.warn(s"Method rejection: ${methodRejections}")
           val names = methodRejections.map(_.supported.name)
-          complete(HttpResponse(MethodNotAllowed, entity = jsonEntity(s"""{"error": "${names} rejected"}""")))
+          complete(HttpResponse(MethodNotAllowed, entity = jsonEntity(s"""{"error": "${names} rejected","code":${Err.METHOD_NOT_ALLOWED}}""")))
         }
         .handleAll[Rejection] { rej =>
-          log.warn(s"rejection: ${rej}")
-          complete(HttpResponse(BadRequest, entity = jsonEntity(s"""{"error": "${rej}"}""")))
+          log.warn(s"Rejection: ${rej}")
+          complete(HttpResponse(BadRequest, entity = jsonEntity(s"""{"error": "${rej}","code":${Err.REJECTION}}""")))
         }
         .handleNotFound { extractUnmatchedPath { p =>
           // TODO: enable to see unmatched paths on Kubernetes
-          log.debug(s"not found: ${p}")
-          complete(HttpResponse(NotFound, entity = jsonEntity(s"""{"error": "not found: '${p}'"}""")))
+          log.debug(s"Not found: ${p}")
+          complete(HttpResponse(NotFound, entity = jsonEntity(s"""{"error": "not found: '${p}'","code":${Err.NOT_FOUND}}""")))
         }}
         .result()
     
@@ -128,9 +128,13 @@ trait Server {
         case e: java.lang.IllegalArgumentException =>
           extractUri { uri =>
             log.error(s"Request failed: '$uri':",e)
-            complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""{"error": "${e}"}""")))
+            complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""{"error": "${e}"},"code":${Err.REQUEST_FAILED}}""")))
           }
         // case e: Exception => complete(HttpResponse(InternalServerError))
+        case e: Err => {
+          // nice forwarding errors to clients
+          complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""{"error": "${e}","code":${e.getCode()}}""")))
+        }
         case e: Exception => {
           // nice forwarding errors to clients
           complete(HttpResponse(InternalServerError, entity = jsonEntity(s"""{"error": "${e}"}""")))
