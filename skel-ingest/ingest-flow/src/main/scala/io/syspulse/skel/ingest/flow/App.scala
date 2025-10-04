@@ -46,6 +46,7 @@ case class Config(
   datastore:String = "mem",
 
   actorSystem:String = "ActorSystem-IngestFlow",
+  pipelineFlow:String = "stdin:// -> stdout://",
 
   cmd:String = "ingest",
   params: Seq[String] = Seq(),
@@ -83,10 +84,13 @@ object App extends skel.Server {
         ArgString('d', "datastore",s"Datastore [elastic,mem,stdout] (def: ${d.datastore})"),
 
         ArgString('a', "actor.system",s"Actor System (def: ${d.actorSystem})"),
+        ArgString('p', "pipeline.flow",s"Pipeline Flow (def: ${d.pipelineFlow})"),
         
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
-        ArgCmd("flow","Flow Command"),
+        //ArgCmd("flow","Flow Command"),
+        ArgCmd("pipeline","Pipeline Command"),
+        ArgCmd("test","Test Command"),        
         ArgCmd("akka","Flow through Akka (testing)"),
         
         ArgParam("<processors>","List of processors (none/map,print,dedup)"),
@@ -116,6 +120,7 @@ object App extends skel.Server {
       filter = c.getString("filter").getOrElse(d.filter),
 
       actorSystem = c.getString("actor.system").getOrElse(d.actorSystem),
+      pipelineFlow = c.getString("pipeline.flow").getOrElse(d.pipelineFlow),
       
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -146,7 +151,7 @@ object App extends skel.Server {
         f1.run()
       }
       
-      case "flow" => 
+      case "test" => 
         // only for testng
         import TextlineJson._        
         val source = Flows.fromStdin().map(d => Textline(d.utf8String))
@@ -156,7 +161,7 @@ object App extends skel.Server {
         implicit val materializer: ActorMaterializer = ActorMaterializer()(system)
         source.runWith(sink)
 
-      case "akka" => {
+      case "akka" => 
         implicit val system: Option[ActorSystem] = Some(ActorSystem(config.actorSystem))
         
         val pipe1 = "pipe1"
@@ -169,14 +174,14 @@ object App extends skel.Server {
         val f3 = new PipelineTextline(
           s"akka://${config.actorSystem}/${pipe2}",
           config.output)
-          // (config,Some(system))
+          // (config,system)
 
         f3.run()
 
         val f2 = new PipelineTextline(
           s"akka://${config.actorSystem}/${pipe1}",
           s"akka://${config.actorSystem}/user/${pipe2}")
-          // (config,Some(system))
+          // (config,system)
         
         f2.run()
         
@@ -184,11 +189,27 @@ object App extends skel.Server {
         val f1 = new PipelineTextline(
           config.feed,
           s"akka://${config.actorSystem}/user/${pipe1}")
-          // (config,Some(system))
+          // (config,system)
         
-        f1.run()
-        
-      }
+        f1.run()              
+
+      case "pipeline" => 
+        import TextlineJson._
+
+        implicit val system: Option[ActorSystem] = Some(ActorSystem(config.actorSystem))
+
+        // input:// -> output://, input:// -> output://
+        val pp = config.pipelineFlow.split(",").map(_.trim).filter(!_.isBlank).map( p => {
+          p.split("=>").map(_.trim).toList match {
+            case feed :: output :: Nil => 
+              new PipelineTextline(feed,output)(config,system)
+            case _ => 
+              throw new Exception(s"Invalid pipeline flow: ${p}")
+          }
+        })     
+
+        pp.foreach(f => f.run())
+
     }
 
     Console.err.println(s"r = ${r}")
