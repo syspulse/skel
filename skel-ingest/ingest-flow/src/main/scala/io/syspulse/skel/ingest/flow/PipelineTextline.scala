@@ -77,14 +77,15 @@ import ParqRecur._
 // object ParqTextline extends ParqIgnore[Textline] 
 // import ParqTextline._
 
-class PipelineTextline(feed:String,output:String)(implicit config:Config,as:Option[ActorSystem] = None) extends 
+class PipelineTextline(feed:String,output:String)(implicit config:Config, as:Option[ActorSystem] = None) extends 
       Pipeline[String,String,Textline](
         feed,output,
         config.throttle,
         config.delimiter,
         config.buffer,
         throttleSource = config.throttleSource,
-        format = config.format) {
+        format = config.format,
+        as = as) {
   
   //private val log = Logger(s"${this}")
   implicit val ex:ExecutionContext = ExecutionContext.global

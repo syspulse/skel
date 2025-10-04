@@ -530,7 +530,7 @@ trait Flows {
 // Akka
 // ==================================================================================================  
 
-  def fromAkka(uri:String,bufferSize: Int = 1000, overflowStrategy: OverflowStrategy = OverflowStrategy.dropHead)
+  def fromAkka(uri:String,bufferSize: Int = 1000, overflowStrategy: OverflowStrategy = OverflowStrategy.backpressure)
               (implicit as:ActorSystem) = {
     
     val akkaUri = AkkaURI(uri)
@@ -558,12 +558,16 @@ trait Flows {
 
     //val actorSelection = system.actorSelection(uri)
     // implicit val timeout: Timeout = FiniteDuration(akkaUri.timeout,TimeUnit.MILLISECONDS)
+    val (queue, source) = Source
+      .queue[ByteString](bufferSize, overflowStrategy)
+      .preMaterialize()
 
     val sourceActor = system.actorOf(Props(new Actor {
       def receive: Receive = {
         case bs: ByteString => 
           // Handle incoming ByteString messages
-          log.info(s"msg: ${bs.utf8String}")
+          log.info(s"${self.path} <= ${bs}")
+          queue.offer(bs)
         case msg => 
           log.warn(s"unexpected message: $msg")
       }
@@ -577,11 +581,14 @@ trait Flows {
     //     sourceActor
     //   }
     
-    Source.actorRef[ByteString](bufferSize, overflowStrategy)
-      .map(t => {
-        log.info(s"t: ${t.utf8String}")
-        t        
-    })
+    // Source.actorRef[ByteString](
+    //   bufferSize = bufferSize,
+    //   overflowStrategy = overflowStrategy
+    // )
+    // .mapMaterializedValue { actorRef =>
+    //   actorRef
+    // }
+    source
   }
 
   // ----------------------------------------------------------------------------------------------------------
@@ -615,11 +622,12 @@ trait Flows {
     
     val actorSelectionRemote = system.actorSelection(uri)
     
-    log.info(s"-->: ${actorSelectionRemote}")
+    log.info(s"--> ${actorSelectionRemote}")
 
     Flow[T]
       .map { t =>
         val message = formatter(t, format)
+        log.info(s"${message} => ${actorSelectionRemote.anchorPath}${actorSelectionRemote.pathString}")
         actorSelectionRemote ! message
         t
       }

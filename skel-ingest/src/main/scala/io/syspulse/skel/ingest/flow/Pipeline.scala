@@ -40,16 +40,18 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](
   chunk:Int = 1024 * 1024,
   throttleSource:Long=100L,
   format:String="",
-  cap:Int=10000)
+  cap:Int=10000,
+  as:Option[ActorSystem] = None
+  )
   (implicit 
-     fmt:JsonFormat[O], 
+     fmt:JsonFormat[O],
      parqEncoders:ParquetRecordEncoder[O],
      parsResolver:ParquetSchemaResolver[O],
-     as:Option[ActorSystem] = None
+     //as:Option[ActorSystem] = None
   ) extends Flows with IngestFlow[I,T,O]()  {
   
   private val log = Logger(s"${this}")
-  override implicit val system:ActorSystem = {    
+  override implicit val system:ActorSystem = {
     as.getOrElse({
       val name = "ActorSystem-IngestFlow"
       val config = ConfigFactory.load()
