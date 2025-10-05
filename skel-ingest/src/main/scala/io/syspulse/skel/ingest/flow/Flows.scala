@@ -519,7 +519,7 @@ trait Flows {
     s
   }
 
-  def fromTwitter(uri:String, frameDelimiter:String="\n",frameSize:Int=1024 * 1024,retry:RestartSettings=retrySettingsDefault)
+  def fromTwitter(uri:String, frameDelimiter:String="\n",frameSize:Int=1024 * 1024, retry:RestartSettings=retrySettingsDefault)
     (implicit as:ActorSystem,timeout:FiniteDuration) = { 
 
     val twitter = new FromTwitter(uri)
@@ -811,17 +811,16 @@ trait Flows {
 
   // ===== WebSocket Client Sink =========================================================================
 
-  def toWebsocket[T <: Ingestable](uri: String, format: String = "", buffer: Int = 10000, timeout: Long = 1000L * 60 * 60 * 24)(implicit as: ActorSystem, fmt: JsonFormat[T]) = {
-    
+  def toWebsocket[T <: Ingestable](uri: String, format: String = "", buffer: Int = 10000, timeout: Long = 1000L * 60 * 60 * 24, retrySettings: RestartSettings = retrySettingsDefault)
+                                  (implicit as: ActorSystem, fmt: JsonFormat[T]) = {
+
     if(uri.trim.isEmpty) {
       log.warn(s"invalid uri: ${uri}")
       Sink.ignore 
     } else {     
+            
+      val webSocketActor = as.actorOf(WebSocketActor.props(uri, format, buffer, timeout, retrySettings))
       
-      // Create a WebSocket actor that handles connection and reconnection
-      val webSocketActor = as.actorOf(WebSocketActor.props(uri, format, buffer, timeout))
-      
-      // Return a sink that sends messages to the actor
       Sink.foreach[T] { message =>
         webSocketActor ! WebSocketActor.SendMessage(message)
       }
@@ -841,14 +840,14 @@ trait Flows {
       Props(new WebSocketActor(uri, format, buffer, timeout))
   }
   
-  class WebSocketActor[T <: Ingestable](uri: String, format: String, buffer: Int, timeout: Long)(implicit fmt: JsonFormat[T]) extends Actor {
+  class WebSocketActor[T <: Ingestable](uri: String, format: String, buffer: Int, timeout: Long, retrySettings: RestartSettings)(implicit fmt: JsonFormat[T]) extends Actor {
     import WebSocketActor._
     import context.dispatcher
     import akka.stream.Materializer
     
     implicit val materializer: Materializer = Materializer(context.system)
     
-    val log = Logger(s"${this.getClass.getSimpleName}")
+    val log = Logger(this.getClass)
     
     private var messageQueue: Vector[T] = Vector.empty
     private var isConnected = false
@@ -869,8 +868,8 @@ trait Flows {
             } else {
               messageQueue = messageQueue :+ msg
               if (messageQueue.length > buffer) {
-                messageQueue = messageQueue.drop(1) // Drop oldest message
-                log.warn(s"Message queue full, dropped message: ${uri}")
+                messageQueue = messageQueue.drop(1)
+                log.warn(s"Message queue full: ${uri}")
               }
             }
           case _ =>
@@ -878,28 +877,27 @@ trait Flows {
         }
         
       case Connect =>
-        log.info(s"Connecting to WebSocket: ${uri}")
+        log.info(s"Connecting --> ${uri}")
         connect()
         
       case Reconnect =>
-        log.info(s"Reconnecting to WebSocket: ${uri}")
+        log.info(s"Reconnecting --> ${uri}")
         connect()
         
       case ConnectionEstablished =>
-        log.info(s"WebSocket connected: ${uri}")
-        isConnected = true
-        // Send queued messages
+        log.info(s"Connected: ${uri}")
+        isConnected = true        
         messageQueue.foreach(msg => sendMessageToQueue(msg, messageQueueActor.get))
         messageQueue = Vector.empty
         
       case ConnectionFailed(reason) =>
-        log.error(s"WebSocket connection failed: ${uri}: ${reason.getMessage}")
+        //log.debug(s"Connection failed: ${uri}: ${reason.getMessage}")
         isConnected = false
         messageQueueActor = None
         scheduleReconnect()
         
       case ConnectionClosed =>
-        log.warn(s"WebSocket connection closed: ${uri}")
+        //log.debug(s"Connection closed: ${uri}")
         isConnected = false
         messageQueueActor = None
         scheduleReconnect()
@@ -927,31 +925,33 @@ trait Flows {
         upgradeResponse.onComplete {
           case Success(upgrade) =>
             if (upgrade.response.status == StatusCodes.SwitchingProtocols) {
-              log.info(s"WebSocket connected: ${uri}")
+              log.info(s"Connected: ${uri}: ${upgrade.response.status}")
               isConnected = true
               messageQueueActor = Some(queue)
               // Send queued messages
               messageQueue.foreach(msg => sendMessageToQueue(msg, queue))
               messageQueue = Vector.empty
             } else {
-              self ! ConnectionFailed(new Exception(s"WebSocket connection failed: ${upgrade.response.status}"))
+              self ! ConnectionFailed(new Exception(s"Connection failed: ${uri}: ${upgrade.response.status}"))
             }
-          case Failure(ex) =>
-            self ! ConnectionFailed(ex)
+          case Failure(e) =>
+            //log.debug(s"Connection failed: ${uri}: ${e.getMessage}: ${if(e.getCause != null) e.getCause.getMessage else ""}")
+            self ! ConnectionFailed(e)
         }
         
         // Connection closure will be detected by health check and queue failures
         connectionClosed.onComplete {
           case Success(_) =>
-            log.info(s"WebSocket connection closed: ${uri}")
+            log.info(s"Connection closed: ${uri}")
             self ! ConnectionClosed
-          case Failure(ex) =>
-            log.error(s"WebSocket connection closed: ${uri}", ex)
+          case Failure(e) =>
+            log.error(s"Connection failed: ${uri}: ${e.getMessage}: ${if(e.getCause != null) e.getCause.getMessage else ""}")
             self ! ConnectionClosed
         }
         
       } catch {
         case e: Exception =>
+          log.error(s"Connection failed: ${uri}: ${e.getMessage}: ${if(e.getCause != null) e.getCause.getMessage else ""}")
           self ! ConnectionFailed(e)
       }
     }
@@ -979,8 +979,8 @@ trait Flows {
         
       } catch {
         case e: Exception =>
-          log.error(s"Failed to format message: ${uri}", e)
-          self ! ConnectionFailed(e)
+          log.warn(s"Failed to format message: ${uri}", e)
+          // self ! ConnectionFailed(e)
       }
     }
     
@@ -988,7 +988,7 @@ trait Flows {
       reconnectTimer.foreach(_.cancel())
       reconnectTimer = Some(
         context.system.scheduler.scheduleOnce(
-          retrySettingsDefault.minBackoff,
+          retrySettings.minBackoff,
           self,
           Reconnect
         )
