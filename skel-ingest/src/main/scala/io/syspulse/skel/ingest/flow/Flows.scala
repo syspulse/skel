@@ -911,13 +911,17 @@ trait Flows {
         val (queue, source) = Source.queue[Message](buffer, akka.stream.OverflowStrategy.backpressure)
           .preMaterialize()
         
+        val flow: Flow[Message, Message, Future[Done]] =
+          Flow.fromSinkAndSourceMat(Sink.ignore, source)(Keep.left)
+
         val (upgradeResponse, connectionClosed) = Http(context.system)
           .singleWebSocketRequest(
             WebSocketRequest(uri),
-            Flow.fromSinkAndSource(
-              Sink.ignore, // Ignore incoming messages
-              source       // Send messages from the queue
-            )
+            flow
+            // Flow.fromSinkAndSource(
+            //   Sink.ignore,
+            //   source       // Send messages from the queue
+            // )
           )
         
         upgradeResponse.onComplete {
@@ -936,7 +940,15 @@ trait Flows {
             self ! ConnectionFailed(ex)
         }
         
-        // Connection closure will be detected by message send failures
+        // Connection closure will be detected by health check and queue failures
+        connectionClosed.onComplete {
+          case Success(_) =>
+            log.info(s"WebSocket connection closed: ${uri}")
+            self ! ConnectionClosed
+          case Failure(ex) =>
+            log.error(s"WebSocket connection closed: ${uri}", ex)
+            self ! ConnectionClosed
+        }
         
       } catch {
         case e: Exception =>
