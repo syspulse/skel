@@ -213,6 +213,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](
       case "postgres" :: _ => toJDBC[O](output)(fmt)
       case "mysql" :: _ => toJDBC[O](output)(fmt)
 
+      case "ws" :: _ => toWebsocket[O](output,format,buffer = cap)
+      case "wss" :: _ => toWebsocket[O](output,format,buffer = cap)
       case "server:ws" :: uri :: Nil => toWebsocketServer[O](uri,format,buffer = cap)
       case "ws:server" :: uri :: Nil => toWebsocketServer[O](uri,format,buffer = cap)
 

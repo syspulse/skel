@@ -735,7 +735,7 @@ trait Flows {
     }
   }
 
-  // ===== WebSocket Sink
+  // ===== WebSocket Server Sink =========================================================================
   def toWebsocketServer[T <: Ingestable](uri:String,format:String="", buffer:Int=10000, timeout:Long = 1000L*60*60*24)(implicit as:ActorSystem,fmt:JsonFormat[T]) = { 
     import io.syspulse.skel.service.ws._
     import akka.actor.typed.scaladsl.ActorContext
@@ -808,6 +808,186 @@ trait Flows {
       sink
     }
   }  
+
+  // ===== WebSocket Client Sink =========================================================================
+
+  def toWebsocket[T <: Ingestable](uri: String, format: String = "", buffer: Int = 10000, timeout: Long = 1000L * 60 * 60 * 24)(implicit as: ActorSystem, fmt: JsonFormat[T]) = {
+    
+    if(uri.trim.isEmpty) {
+      log.warn(s"invalid uri: ${uri}")
+      Sink.ignore 
+    } else {     
+      
+      // Create a WebSocket actor that handles connection and reconnection
+      val webSocketActor = as.actorOf(WebSocketActor.props(uri, format, buffer, timeout))
+      
+      // Return a sink that sends messages to the actor
+      Sink.foreach[T] { message =>
+        webSocketActor ! WebSocketActor.SendMessage(message)
+      }
+    }
+  }
+  
+  // WebSocket Actor that handles connection and reconnection
+  object WebSocketActor {
+    case class SendMessage[T <: Ingestable](message: T)
+    case object Connect
+    case object Reconnect
+    case object ConnectionEstablished
+    case class ConnectionFailed(reason: Throwable)
+    case object ConnectionClosed
+    
+    def props[T <: Ingestable](uri: String, format: String, buffer: Int, timeout: Long)(implicit fmt: JsonFormat[T]): Props = 
+      Props(new WebSocketActor(uri, format, buffer, timeout))
+  }
+  
+  class WebSocketActor[T <: Ingestable](uri: String, format: String, buffer: Int, timeout: Long)(implicit fmt: JsonFormat[T]) extends Actor {
+    import WebSocketActor._
+    import context.dispatcher
+    import akka.stream.Materializer
+    
+    implicit val materializer: Materializer = Materializer(context.system)
+    
+    val log = Logger(s"${this.getClass.getSimpleName}")
+    
+    private var messageQueue: Vector[T] = Vector.empty
+    private var isConnected = false
+    private var reconnectTimer: Option[Cancellable] = None
+    private var messageQueueActor: Option[SourceQueueWithComplete[Message]] = None
+    
+    override def preStart(): Unit = {
+      log.info(s"WebSocket Actor starting for: ${uri}")
+      self ! Connect
+    }
+    
+    override def receive: Receive = {
+      case SendMessage(message) =>
+        message match {
+          case msg: T =>
+            if (isConnected && messageQueueActor.isDefined) {
+              sendMessageToQueue(msg, messageQueueActor.get)
+            } else {
+              messageQueue = messageQueue :+ msg
+              if (messageQueue.length > buffer) {
+                messageQueue = messageQueue.drop(1) // Drop oldest message
+                log.warn(s"Message queue full, dropped message: ${uri}")
+              }
+            }
+          case _ =>
+            log.error(s"Invalid message type received: ${uri}")
+        }
+        
+      case Connect =>
+        log.info(s"Connecting to WebSocket: ${uri}")
+        connect()
+        
+      case Reconnect =>
+        log.info(s"Reconnecting to WebSocket: ${uri}")
+        connect()
+        
+      case ConnectionEstablished =>
+        log.info(s"WebSocket connected: ${uri}")
+        isConnected = true
+        // Send queued messages
+        messageQueue.foreach(msg => sendMessageToQueue(msg, messageQueueActor.get))
+        messageQueue = Vector.empty
+        
+      case ConnectionFailed(reason) =>
+        log.error(s"WebSocket connection failed: ${uri}: ${reason.getMessage}")
+        isConnected = false
+        messageQueueActor = None
+        scheduleReconnect()
+        
+      case ConnectionClosed =>
+        log.warn(s"WebSocket connection closed: ${uri}")
+        isConnected = false
+        messageQueueActor = None
+        scheduleReconnect()
+    }
+    
+    private def connect(): Unit = {
+      try {
+        // Create a queue for outgoing messages
+        val (queue, source) = Source.queue[Message](buffer, akka.stream.OverflowStrategy.backpressure)
+          .preMaterialize()
+        
+        val (upgradeResponse, connectionClosed) = Http(context.system)
+          .singleWebSocketRequest(
+            WebSocketRequest(uri),
+            Flow.fromSinkAndSource(
+              Sink.ignore, // Ignore incoming messages
+              source       // Send messages from the queue
+            )
+          )
+        
+        upgradeResponse.onComplete {
+          case Success(upgrade) =>
+            if (upgrade.response.status == StatusCodes.SwitchingProtocols) {
+              log.info(s"WebSocket connected: ${uri}")
+              isConnected = true
+              messageQueueActor = Some(queue)
+              // Send queued messages
+              messageQueue.foreach(msg => sendMessageToQueue(msg, queue))
+              messageQueue = Vector.empty
+            } else {
+              self ! ConnectionFailed(new Exception(s"WebSocket connection failed: ${upgrade.response.status}"))
+            }
+          case Failure(ex) =>
+            self ! ConnectionFailed(ex)
+        }
+        
+        // Connection closure will be detected by message send failures
+        
+      } catch {
+        case e: Exception =>
+          self ! ConnectionFailed(e)
+      }
+    }
+    
+    private def sendMessageToQueue(message: T, queue: SourceQueueWithComplete[Message]): Unit = {
+      try {
+        val body = formatter(message, format).utf8String
+        val wsMessage = TextMessage(body)
+        
+        queue.offer(wsMessage).onComplete {
+          case Success(QueueOfferResult.Enqueued) =>
+            log.debug(s"Message queued: ${body.take(50)}...")
+          case Success(QueueOfferResult.Dropped) =>
+            log.warn(s"Message dropped: ${uri}")
+          case Success(QueueOfferResult.Failure(ex)) =>
+            log.error(s"Failed to queue message: ${uri}", ex)
+            self ! ConnectionFailed(ex)
+          case Success(QueueOfferResult.QueueClosed) =>
+            log.error(s"Queue closed: ${uri}")
+            self ! ConnectionClosed
+          case Failure(ex) =>
+            log.error(s"Failed to queue message: ${uri}", ex)
+            self ! ConnectionFailed(ex)
+        }
+        
+      } catch {
+        case e: Exception =>
+          log.error(s"Failed to format message: ${uri}", e)
+          self ! ConnectionFailed(e)
+      }
+    }
+    
+    private def scheduleReconnect(): Unit = {
+      reconnectTimer.foreach(_.cancel())
+      reconnectTimer = Some(
+        context.system.scheduler.scheduleOnce(
+          retrySettingsDefault.minBackoff,
+          self,
+          Reconnect
+        )
+      )
+    }
+    
+    override def postStop(): Unit = {
+      reconnectTimer.foreach(_.cancel())
+      messageQueueActor.foreach(_.complete())
+    }
+  }
 
   // Hive Rotators
   abstract class Rotator {
@@ -1413,4 +1593,5 @@ class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024,helloMsg:Optio
 }
 
 }
+
 
