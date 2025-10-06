@@ -798,12 +798,12 @@ object Eth {
     encodeFunction(func,if(params.isEmpty) Seq.empty else params.split("\\s+").toSeq)
   }
 
-  def traceCall(from:String,to:String,func:String,params:Seq[String],tracer:String,tracerConfig:Map[String,Any])(implicit web3:Web3jTrace):Try[String] = {
+  def traceCall(from:String,to:String,func:String,params:Seq[String],tracer:String,tracerConfig:Map[String,Any],block:Option[String] = None)(implicit web3:Web3jTrace):Try[String] = {
     for {
       (data,_) <- Try { Eth.encodeFunction(func,params) }
       
       r <- Try{ 
-          web3.traceCall(from,to,data,tracer,tracerConfig.asJava)
+          web3.traceCall(from,to,data,tracer,tracerConfig.asJava,block.getOrElse("latest"))
         }
       r <- Try{ r.send() }
       r <- Try{ 
@@ -815,11 +815,38 @@ object Eth {
     } yield r.toString()
   }
 
-  def traceCallAsync(from:String,to:String,func:String,params:Seq[String],tracer:String,tracerConfig:Map[String,Any])(implicit web3:Web3jTrace,ec:ExecutionContext):Future[String] = {
+  def traceCallAsync(from:String,to:String,func:String,params:Seq[String],tracer:String,tracerConfig:Map[String,Any],block:Option[String] = None)(implicit web3:Web3jTrace,ec:ExecutionContext):Future[String] = {
     for {
       (data,_) <- Future { Eth.encodeFunction(func,params) }      
-      r <-  web3.traceCall(from,to,data,tracer,tracerConfig.asJava).sendAsync().asScala
+      r <-  web3.traceCall(from,to,data,tracer,tracerConfig.asJava,block.getOrElse("latest")).sendAsync().asScala
       r <- {
+        if(r.hasError())
+          throw new Exception(s"${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
+        else
+          Future.successful(r.getResult())
+      }
+    } yield r.toString()
+  }
+
+  def traceTx(tx:String,tracer:String = "callTracer",tracerConfig:Map[String,Any] = Map())(implicit web3:Web3jTrace):Try[String] = {
+    for {      
+      r <- Try{ 
+          web3.traceTransaction(tx,tracer,tracerConfig.asJava)
+        }
+      r <- Try{ r.send() }
+      r <- Try{ 
+        if(r.hasError())
+          throw new Exception(s"${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
+        else
+          r.getResult() 
+      }
+    } yield r.toString()
+  }
+
+  def traceTxAsync(tx:String,tracer:String = "callTracer",tracerConfig:Map[String,Any] = Map())(implicit web3:Web3jTrace,ec:ExecutionContext):Future[String] = {
+    for {      
+      r <- web3.traceTransaction(tx,tracer,tracerConfig.asJava).sendAsync().asScala
+      r <- { 
         if(r.hasError())
           throw new Exception(s"${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
         else

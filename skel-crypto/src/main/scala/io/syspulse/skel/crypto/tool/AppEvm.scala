@@ -69,8 +69,12 @@ object AppEvm extends {
         ArgCmd("abi-encode","inputType params..."),
         ArgCmd("abi-decode","inputType params..."),
         ArgCmd("block","Get block"),
-        ArgCmd("call-trace","debug_traceCall"),
-        ArgCmd("call-trace-async","debug_traceCall"),
+
+        ArgCmd("trace-call","debug_traceCall"),
+        ArgCmd("trace-call-async","debug_traceCall"),
+
+        ArgCmd("trace-tx","debug_traceTransaction"),
+        ArgCmd("trace-tx-async","debug_traceTransaction"),
 
         ArgParam("<params>","..."),
 
@@ -102,9 +106,34 @@ object AppEvm extends {
     Console.err.println(s"web3j: ${web3}")
 
     val r = config.cmd match {
-      case "call-trace" => 
+
+      case "trace-tx" => 
+        if(config.params.size < 1) {
+          Console.err.println("trace-tx: <tx>")
+          sys.exit(1)
+        }
+
+        val tx = config.params(0)        
+        val tracer = config.tracer
+        val tracerConfig = config.tracerConfig
+
+        Eth.traceTx(tx,tracer,tracerConfig.map{ case (k,v) => (k,v.toBoolean) })
+
+      case "trace-tx-async" => 
+        if(config.params.size < 1) {
+          Console.err.println("trace-tx-async: <tx>")
+          sys.exit(1)
+        }
+
+        val tx = config.params(0)        
+        val tracer = config.tracer
+        val tracerConfig = config.tracerConfig
+
+        Eth.traceTxAsync(tx,tracer,tracerConfig.map{ case (k,v) => (k,v.toBoolean) })
+
+      case "trace-call" => 
         if(config.params.size < 3) {
-          Console.err.println("call-trace: <from> <to> function(params,...)(return) [params...]")
+          Console.err.println("trace-call: <from> <to> function(params,...)(return) [params...]")
           sys.exit(1)
         }
 
@@ -115,27 +144,11 @@ object AppEvm extends {
         val tracer = config.tracer
         val tracerConfig = config.tracerConfig
 
-        // for {
-        //   (data,_) <- Try { Eth.encodeFunction(funcName,params) }
-        //   r <- {
-        //     Try{ 
-        //       web3.traceCall(config.from,to,data,tracer,tracerConfig.map{ case (k,v) => (k,v.toBoolean) }.asInstanceOf[Map[String,Object]].asJava)
-        //     }
-        //   }
-        //   r <- Try{ r.send() }
-        //   r <- Try{ 
-        //     if(r.hasError())
-        //       throw new Exception(s"Error: ${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
-        //     else
-        //       r.getResult() 
-        //   }
-        // } yield r.toString()
-
         Eth.traceCall(config.from,to,funcName,params,tracer,tracerConfig.map{ case (k,v) => (k,v.toBoolean) })
 
-      case "call-trace-async" => 
+      case "trace-call-async" => 
         if(config.params.size < 3) {
-          Console.err.println("call-trace-async: <from> <to> function(params,...)(return) [params...]")
+          Console.err.println("trace-call-async: <from> <to> function(params,...)(return) [params...]")
           sys.exit(1)
         }
 

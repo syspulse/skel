@@ -18,25 +18,29 @@ import java.util.Arrays;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class DebugTraceCall extends JsonRpc2_0Web3j implements Web3jTrace {
+public class DebugTrace extends JsonRpc2_0Web3j implements Web3jTrace {
 
-    public DebugTraceCall(Web3jService web3jService) {
+    public DebugTrace(Web3jService web3jService) {
         super(web3jService, DEFAULT_BLOCK_TIME, Async.defaultExecutorService());
     }
 
-    public static DebugTraceCall build(Web3jService web3jService) {
-        return new DebugTraceCall(web3jService);
+    public static DebugTrace build(Web3jService web3jService) {
+        return new DebugTrace(web3jService);
     }
 
     public Request<?, DebugTraceCallResponse> traceCall(String from, String to, String data) {
-        return traceCall(from, to, data, "callTracer", null);
+        return traceCall(from, to, data, "callTracer", null,"latest");
     }
 
     public Request<?, DebugTraceCallResponse> traceCall(String from, String to, String data, String tracer) {
-        return traceCall(from, to, data, tracer, null);
+        return traceCall(from, to, data, tracer, null,"latest");
     }
 
     public Request<?, DebugTraceCallResponse> traceCall(String from, String to, String data, String tracer, Map<String, Object> tracerConfig) {
+        return traceCall(from, to, data, tracer, tracerConfig,"latest");
+    }
+
+    public Request<?, DebugTraceCallResponse> traceCall(String from, String to, String data, String tracer, Map<String, Object> tracerConfig,String blockNumber) {
         // Build the transaction object (eth_call params)
         Map<String, String> callObject = new HashMap<>();
         callObject.put("from", from);
@@ -57,7 +61,7 @@ public class DebugTraceCall extends JsonRpc2_0Web3j implements Web3jTrace {
         // Parameters: [callObject, blockNumber, options]
         Object[] params = new Object[]{
                 callObject,
-                "latest",
+                blockNumber,
                 options
         };
 
@@ -66,6 +70,46 @@ public class DebugTraceCall extends JsonRpc2_0Web3j implements Web3jTrace {
                 Arrays.asList(params),
                 this.web3jService,
                 DebugTraceCallResponse.class
+
+
+        );
+
+        return request;
+    }
+
+    /// ==========================================================================================================================
+    public Request<?, DebugTraceTransactionResponse> traceTransaction(String tx) {
+        return traceTransaction(tx, "callTracer", null);
+    }
+
+    public Request<?, DebugTraceTransactionResponse> traceTransaction(String tx, String tracer) {
+        return traceTransaction(tx, tracer, null);
+    }
+    
+    public Request<?, DebugTraceTransactionResponse> traceTransaction(String tx, String tracer, Map<String, Object> tracerConfig) {
+        
+        // tracers:
+        // callTracer
+        // prestateTracer        
+
+        // Build options with optional tracerConfig
+        Map<String, Object> options = new HashMap<>();
+        options.put("tracer", tracer);
+        if (tracerConfig != null) {
+            options.put("tracerConfig", tracerConfig);
+        }
+
+        // Parameters: [callObject, blockNumber, options]
+        Object[] params = new Object[]{
+                tx,
+                options
+        };
+
+        Request<?, DebugTraceTransactionResponse> request = new Request<>(
+                "debug_traceTransaction",
+                Arrays.asList(params),
+                this.web3jService,
+                DebugTraceTransactionResponse.class
 
 
         );

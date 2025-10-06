@@ -836,14 +836,15 @@ trait Flows {
     case class ConnectionFailed(reason: Throwable)
     case object ConnectionClosed
     
-    def props[T <: Ingestable](uri: String, format: String, buffer: Int, timeout: Long)(implicit fmt: JsonFormat[T]): Props = 
-      Props(new WebSocketActor(uri, format, buffer, timeout))
+    def props[T <: Ingestable](uri: String, format: String, buffer: Int, timeout: Long, retrySettings: RestartSettings)(implicit fmt: JsonFormat[T]): Props = 
+      Props(new WebSocketActor(uri, format, buffer, timeout, retrySettings))
   }
   
   class WebSocketActor[T <: Ingestable](uri: String, format: String, buffer: Int, timeout: Long, retrySettings: RestartSettings)(implicit fmt: JsonFormat[T]) extends Actor {
     import WebSocketActor._
     import context.dispatcher
     import akka.stream.Materializer
+    import akka.pattern.after
     
     implicit val materializer: Materializer = Materializer(context.system)
     
@@ -852,7 +853,9 @@ trait Flows {
     private var messageQueue: Vector[T] = Vector.empty
     private var isConnected = false
     private var reconnectTimer: Option[Cancellable] = None
+    private var healthCheckTimer: Option[Cancellable] = None
     private var messageQueueActor: Option[SourceQueueWithComplete[Message]] = None
+    private var reconnectAttempts = 0
     
     override def preStart(): Unit = {
       log.info(s"WebSocket Actor starting for: ${uri}")
@@ -886,7 +889,8 @@ trait Flows {
         
       case ConnectionEstablished =>
         log.info(s"Connected: ${uri}")
-        isConnected = true        
+        isConnected = true
+        resetReconnectAttempts() // Reset backoff counter on successful connection
         messageQueue.foreach(msg => sendMessageToQueue(msg, messageQueueActor.get))
         messageQueue = Vector.empty
         
@@ -986,13 +990,41 @@ trait Flows {
     
     private def scheduleReconnect(): Unit = {
       reconnectTimer.foreach(_.cancel())
+      
+      reconnectAttempts += 1
+      
+      // Calculate exponential backoff with jitter
+      val backoff = calculateBackoff(reconnectAttempts)
+      
+      log.debug(s"Scheduling Reconnect [${reconnectAttempts},${backoff}]: ${uri}")
+      
       reconnectTimer = Some(
         context.system.scheduler.scheduleOnce(
-          retrySettings.minBackoff,
+          backoff,
           self,
           Reconnect
         )
       )
+    }
+    
+    private def calculateBackoff(attempt: Int): FiniteDuration = {
+      import scala.util.Random
+      
+      // Exponential backoff: minBackoff * (2 ^ attempt)
+      val exponentialDelay = retrySettings.minBackoff.toMillis * math.pow(2, attempt - 1)
+      
+      // Cap at maxBackoff
+      val cappedDelay = math.min(exponentialDelay, retrySettings.maxBackoff.toMillis)
+      
+      // Add jitter (±25% random variation)
+      val jitter = Random.nextDouble() * 0.5 + 0.75 // 0.75 to 1.25 multiplier
+      val jitteredDelay = cappedDelay * jitter
+      
+      FiniteDuration(jitteredDelay.toLong, java.util.concurrent.TimeUnit.MILLISECONDS)
+    }
+    
+    private def resetReconnectAttempts(): Unit = {
+      reconnectAttempts = 0
     }
     
     override def postStop(): Unit = {
