@@ -985,4 +985,28 @@ object Eth {
 
     Numeric.toHexString(signatureData.getR ++ signatureData.getS ++ signatureData.getV)
   }
+
+  // Ethereum: 0x093b60563c805dbceb0ca7b06165a6975434bfe4cd33ac940c9255da83436549
+  // "output": "0x08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000164d696e2072657475726e206e6f74207265616368656400000000000000000000",                                          
+  // "error": "execution reverted",                                                                                                 
+  // "revertReason": "Min return not reached",
+
+  // Sepolia: 0x98b7c63c41a3baef261076b3006690980487a26907ae922313135bb9ecbd8820
+  // "error": "execution reverted",
+  // "output": "0x1e55042ba9059cbb00000000000000000000000000000000000000000000000000000000000000000000000000000000ee8031f530845d8f72a54d8cc58f56dc86e9a56f",
+
+  def getTxError(txHash:String)(web3:Web3jTrace):Try[(Option[String],Option[String],Option[String])] = {
+    for {
+      r <- Eth.traceTx(txHash,"callTracer",Map.empty)(web3)
+      reason <- {
+        val json = ujson.read(r)
+        Try{
+          val error = json.obj.get("error").map(_.str)
+          val output = json.obj.get("output").map(_.str)          
+          val revertReason = json.obj.get("revertReason").map(_.str)
+          (error,output,revertReason)
+        }
+      }
+    } yield reason  
+  }
 }

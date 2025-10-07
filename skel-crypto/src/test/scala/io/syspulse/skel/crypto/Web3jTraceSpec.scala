@@ -9,7 +9,7 @@ import scala.jdk.CollectionConverters._
 import scala.util.{Try, Success, Failure}
 
 import org.web3j.protocol.http.HttpService
-import io.syspulse.skel.crypto.eth.DebugTraceCall
+import io.syspulse.skel.crypto.eth.DebugTrace
 
 class Web3jTraceSpec extends AnyWordSpec with Matchers with BeforeAndAfterEach {
   
@@ -20,11 +20,11 @@ class Web3jTraceSpec extends AnyWordSpec with Matchers with BeforeAndAfterEach {
   val testTo = "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6"
   val testData = "0xa9059cbb000000000000000000000000742d35cc6634c0532925a3b8d4c9db96c4b4d8b60000000000000000000000000000000000000000000000000000000000000001"
   
-  var web3jTrace: DebugTraceCall = _
+  var web3jTrace: DebugTrace = _
   
   override def beforeEach(): Unit = {
     val httpService = new HttpService(testRpcUrl)
-    web3jTrace = DebugTraceCall.build(httpService)
+    web3jTrace = DebugTrace.build(httpService)
   }
   
   override def afterEach(): Unit = {
@@ -37,7 +37,7 @@ class Web3jTraceSpec extends AnyWordSpec with Matchers with BeforeAndAfterEach {
     
     "be created with HttpService using build method" in {
       val httpService = new HttpService(testRpcUrl)
-      val trace = DebugTraceCall.build(httpService)
+      val trace = DebugTrace.build(httpService)
       
       trace should not be null
       trace.shutdown()

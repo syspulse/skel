@@ -239,15 +239,15 @@ object AppEvm extends {
 
       case "abi-decode" => 
         if(config.params.size < 1) {
-          Console.err.println("abi-decode: type [params..]")
+          Console.err.println("abi-decode: type [data]")
           sys.exit(1)
         }
 
         val typ = config.params(0)
-        val params = config.params.last
+        val data = config.params.last
         
-        //Solidity.decodeData(typ,params)
-        SolidityTuple.decodeData(typ,params)
+        //Solidity.decodeData(typ,data)
+        SolidityTuple.decodeData(typ,data)
 
       case "block" =>         
 

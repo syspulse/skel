@@ -558,6 +558,7 @@ object Solidity {
         
         case bytes: datatypes.DynamicBytes => bytes
         case bytes32: datatypes.generated.Bytes32 => bytes32
+        case bytes4: datatypes.generated.Bytes4 => bytes4
         case other => other
       }
     }
@@ -583,6 +584,8 @@ object Solidity {
           Util.hex(bytes.getValue)
         case bytes32: datatypes.generated.Bytes32 => 
           Util.hex(bytes32.getValue)
+        case bytes4: datatypes.generated.Bytes4 => 
+          Util.hex(bytes4.getValue)
         case other => 
           other.getValue.toString
       }
@@ -601,6 +604,4 @@ object Solidity {
       encodeFunction(s"FUN(${input})",params)//.drop(10)
     )
   }
-  
-
 }
