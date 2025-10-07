@@ -76,6 +76,8 @@ object AppEvm extends {
         ArgCmd("trace-tx","debug_traceTransaction"),
         ArgCmd("trace-tx-async","debug_traceTransaction"),
 
+        ArgCmd("error","Decode Transactionerror"),
+
         ArgParam("<params>","..."),
 
         ArgLogging(),
@@ -106,6 +108,15 @@ object AppEvm extends {
     Console.err.println(s"web3j: ${web3}")
 
     val r = config.cmd match {
+      case "error" => 
+        if(config.params.size < 1) {
+          Console.err.println("error: <tx>")
+          sys.exit(1)
+        }
+
+        val tx = config.params(0)        
+
+        Eth.getTxError(tx)(web3)
 
       case "trace-tx" => 
         if(config.params.size < 1) {

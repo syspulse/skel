@@ -11,7 +11,9 @@ import io.syspulse.skel.crypto.Hash
 trait SolidityEntity {
   def sigHex:String
   def sig:String
-    
+
+  def name:String
+  def types:String    
 }
 
 abstract class SolidityEntityNamed(sig:String) extends SolidityEntity {  
@@ -48,7 +50,7 @@ object SolidityError {
     errors.find(e => e.sigHex == sigHex) match {
       case Some(e) => 
         SolidityTuple.decodeData(e.types,output)
-          .map(data => s"${e.name},${data}")
+          .map(data => s"${e.name}(${data})")
 
       case None => Failure(new Exception(s"SolidityError not found: ${sigHex}"))
     }

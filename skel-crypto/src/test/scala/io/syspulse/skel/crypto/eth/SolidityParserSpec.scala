@@ -337,6 +337,66 @@ event Transfer(address, address, uint256)
     e3.sigHex shouldBe "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
   }
 
+  "SolidityEvent name and types" should "extract name correctly" in {
+    val event = new SolidityEvent("Transfer(address,address,uint256)")
+    event.name shouldBe "Transfer"
+  }
+
+  it should "extract types correctly" in {
+    val event = new SolidityEvent("Transfer(address,address,uint256)")
+    event.types shouldBe "address,address,uint256"
+  }
+
+  it should "extract name from complex event" in {
+    val event = new SolidityEvent("IdentityRegistered(bytes32,address)")
+    event.name shouldBe "IdentityRegistered"
+  }
+
+  it should "extract types from complex event" in {
+    val event = new SolidityEvent("IdentityRegistered(bytes32,address)")
+    event.types shouldBe "bytes32,address"
+  }
+
+  it should "extract name from event with arrays" in {
+    val event = new SolidityEvent("CredentialRequirementAdded(bytes32,bytes32[],uint256)")
+    event.name shouldBe "CredentialRequirementAdded"
+  }
+
+  it should "extract types from event with arrays" in {
+    val event = new SolidityEvent("CredentialRequirementAdded(bytes32,bytes32[],uint256)")
+    event.types shouldBe "bytes32,bytes32[],uint256"
+  }
+
+  it should "extract name from event with custom types" in {
+    val event = new SolidityEvent("IdentityRegistered(address,IIdentity)")
+    event.name shouldBe "IdentityRegistered"
+  }
+
+  it should "extract types from event with custom types" in {
+    val event = new SolidityEvent("IdentityRegistered(address,IIdentity)")
+    event.types shouldBe "address,IIdentity"
+  }
+
+  it should "extract name from event with no parameters" in {
+    val event = new SolidityEvent("SimpleEvent()")
+    event.name shouldBe "SimpleEvent"
+  }
+
+  it should "extract types from event with no parameters" in {
+    val event = new SolidityEvent("SimpleEvent()")
+    event.types shouldBe ""
+  }
+
+  it should "extract name from event with complex nested types" in {
+    val event = new SolidityEvent("ComplexEvent(bytes32[],address[2],uint256[][3])")
+    event.name shouldBe "ComplexEvent"
+  }
+
+  it should "extract types from event with complex nested types" in {
+    val event = new SolidityEvent("ComplexEvent(bytes32[],address[2],uint256[][3])")
+    event.types shouldBe "bytes32[],address[2],uint256[][3]"
+  }
+
   
 }
 
@@ -570,8 +630,89 @@ error AnotherComplexError(mapping(address => uint256) balances, struct User user
 
     val d1 = SolidityError.decodeErrorData(errors,output)
     info(s"d1: ${d1}")
-    d1 should be a 'Success
-    d1.get shouldBe "0x1e55042b,0x00000000ee8031f530845d8f72a54d8cc58f56dc"
+    d1 should be a Symbol("Success")
+    d1.get shouldBe "PolicyRunRejected,0x1e55042b,0x00000000ee8031f530845d8f72a54d8cc58f56dc"
   }
 
+  "SolidityError name and types" should "extract name correctly" in {
+    val error = new SolidityError("Unauthorized()")
+    error.name shouldBe "Unauthorized"
+  }
+
+  it should "extract types correctly" in {
+    val error = new SolidityError("Unauthorized()")
+    error.types shouldBe ""
+  }
+
+  it should "extract name from error with parameters" in {
+    val error = new SolidityError("IdentityAlreadyRegistered(bytes32,address)")
+    error.name shouldBe "IdentityAlreadyRegistered"
+  }
+
+  it should "extract types from error with parameters" in {
+    val error = new SolidityError("IdentityAlreadyRegistered(bytes32,address)")
+    error.types shouldBe "bytes32,address"
+  }
+
+  it should "extract name from error with arrays" in {
+    val error = new SolidityError("InvalidConfiguration(bytes[])")
+    error.name shouldBe "InvalidConfiguration"
+  }
+
+  it should "extract types from error with arrays" in {
+    val error = new SolidityError("InvalidConfiguration(bytes[])")
+    error.types shouldBe "bytes[]"
+  }
+
+  it should "extract name from error with complex types" in {
+    val error = new SolidityError("PolicyRunError(bytes4,address,bytes)")
+    error.name shouldBe "PolicyRunError"
+  }
+
+  it should "extract types from error with complex types" in {
+    val error = new SolidityError("PolicyRunError(bytes4,address,bytes)")
+    error.types shouldBe "bytes4,address,bytes"
+  }
+
+  it should "extract name from error with custom types" in {
+    val error = new SolidityError("PolicyMapperError(address,bytes)")
+    error.name shouldBe "PolicyMapperError"
+  }
+
+  it should "extract types from error with custom types" in {
+    val error = new SolidityError("PolicyMapperError(address,bytes)")
+    error.types shouldBe "address,bytes"
+  }
+
+  it should "extract name from error with string parameters" in {
+    val error = new SolidityError("InvalidConfiguration(string)")
+    error.name shouldBe "InvalidConfiguration"
+  }
+
+  it should "extract types from error with string parameters" in {
+    val error = new SolidityError("InvalidConfiguration(string)")
+    error.types shouldBe "string"
+  }
+
+  it should "extract name from error with multiple parameters" in {
+    val error = new SolidityError("SourceExists(bytes32,address,address)")
+    error.name shouldBe "SourceExists"
+  }
+
+  it should "extract types from error with multiple parameters" in {
+    val error = new SolidityError("SourceExists(bytes32,address,address)")
+    error.types shouldBe "bytes32,address,address"
+  }
+
+  it should "extract name from error with complex nested types" in {
+    val error = new SolidityError("ComplexError(bytes32[],address[2],uint256[][3])")
+    error.name shouldBe "ComplexError"
+  }
+
+  it should "extract types from error with complex nested types" in {
+    val error = new SolidityError("ComplexError(bytes32[],address[2],uint256[][3])")
+    error.types shouldBe "bytes32[],address[2],uint256[][3]"
+  }
+
+   
 }
