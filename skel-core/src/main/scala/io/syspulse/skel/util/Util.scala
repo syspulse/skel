@@ -358,6 +358,7 @@ object Util {
 
   // replace pattern: "{var1} text {var2}"
   // replace pattern: "{var1:32} text {var2:100}"
+  // If not found, replace with ""
   def replaceVar(expr0:String,vars:Map[String,Any]):String = {
     // special case for file patterns
     val expr = if(expr0.startsWith("file://") || expr0.startsWith("dir://") || expr0.startsWith("dirs://")) 
@@ -384,20 +385,26 @@ object Util {
         (v.substring(1,v.size-1),v,None)
       }
 
-      val vv = vars.collect{ case(n,value) if(n == variable) => value}
+      val vv = vars.collect{ 
+        case(key,value) if(key == variable) => value        
+      }
       
-      vv.headOption.map(value => {
-        if(sz.isDefined)
-          (interpol,value.toString.take(sz.get.toInt))
-        else
-          (interpol,value)
-      })
+      if(vv.isEmpty) {
+        Seq((interpol,""))
+      } else {
+        vv.headOption.map(value => {
+          if(sz.isDefined)
+            (interpol,value.toString.take(sz.get.toInt))
+          else
+            (interpol,value)
+        })
+      }
 
     })
     val expr1 = pairs.foldLeft(expr)((e,p) => {
       //val r = "\\{"+p._1+"\\}"      
       //e.replaceAll(r,p._2.toString)
-      val r = p._1      
+      val r = p._1
       e.replace(r,p._2.toString)
     })
     expr1
