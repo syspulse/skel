@@ -830,14 +830,16 @@ object Eth {
 
   def traceTx(tx:String,tracer:String = "callTracer",tracerConfig:Map[String,Any] = Map())(implicit web3:Web3jTrace):Try[String] = {
     for {      
-      r <- Try{ 
+      r <- Try{
+          log.info(s"traceTx: ${tx}: ${tracer}: ${tracerConfig} -> ${web3}")
           web3.traceTransaction(tx,tracer,tracerConfig.asJava)
         }
       r <- Try{ r.send() }
       r <- Try{ 
-        if(r.hasError())
+        if(r.hasError()) {
+          log.warn(s"${tx}: ${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
           throw new Exception(s"${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
-        else
+        }else
           r.getResult() 
       }
     } yield r.toString()

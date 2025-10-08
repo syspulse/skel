@@ -28,6 +28,15 @@ public class DebugTrace extends JsonRpc2_0Web3j implements Web3jTrace {
         return new DebugTrace(web3jService);
     }
 
+    @Override
+    public String toString() {
+        return this.getClass().getSimpleName() + "(" + this.getWeb3jService() + ")";
+    }
+    
+    public Web3jService getWeb3jService() {
+        return this.web3jService;
+    }
+
     public Request<?, DebugTraceCallResponse> traceCall(String from, String to, String data) {
         return traceCall(from, to, data, "callTracer", null,"latest");
     }
