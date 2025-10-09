@@ -716,3 +716,209 @@ error AnotherComplexError(mapping(address => uint256) balances, struct User user
 
    
 }
+
+// Test for SolidityParser.parseFunctionsFromAbi
+class SolidityFuncSpec extends AnyFlatSpec with Matchers {
+  
+  "SolidityParser.parseFunctionsFromAbi" should "parse functions from ERC20 ABI" in {
+    val abi = scala.io.Source.fromResource("ABI_ERC20_1.json").mkString
+    val funcs = SolidityParser.parseFunctionsFromAbi(abi)
+    
+    funcs should not be empty
+    info(s"Found ${funcs.size} functions")
+    
+    // Debug: print first few functions
+    funcs.take(3).foreach(f => info(s"Function: name='${f.name}', types='${f.types}', sig='${f.sig}'"))
+    
+    // Test specific ERC20 functions by name
+    val transferFunc = funcs.find(_.name == "transfer")
+    transferFunc shouldBe defined
+    transferFunc.get.name shouldBe "transfer"
+    transferFunc.get.types shouldBe "address,uint256"
+    transferFunc.get.sig shouldBe "transfer(address,uint256)"
+    
+    val allowanceFunc = funcs.find(_.name == "allowance")
+    allowanceFunc shouldBe defined
+    allowanceFunc.get.name shouldBe "allowance"
+    allowanceFunc.get.types shouldBe "address,address"
+    allowanceFunc.get.sig shouldBe "allowance(address,address)"
+    
+    val balanceOfFunc = funcs.find(_.name == "balanceOf")
+    balanceOfFunc shouldBe defined
+    balanceOfFunc.get.name shouldBe "balanceOf"
+    balanceOfFunc.get.types shouldBe "address"
+    balanceOfFunc.get.sig shouldBe "balanceOf(address)"
+  }
+
+  it should "parse functions with no parameters" in {
+    val abi = scala.io.Source.fromResource("ABI_ERC20_1.json").mkString
+    val funcs = SolidityParser.parseFunctionsFromAbi(abi)
+    
+    val decimalsFunc = funcs.find(_.name == "decimals")
+    decimalsFunc shouldBe defined
+    decimalsFunc.get.name shouldBe "decimals"
+    decimalsFunc.get.types shouldBe ""
+    decimalsFunc.get.sig shouldBe "decimals()"
+    
+    val nameFunc = funcs.find(_.name == "name")
+    nameFunc shouldBe defined
+    nameFunc.get.name shouldBe "name"
+    nameFunc.get.types shouldBe ""
+    nameFunc.get.sig shouldBe "name()"
+    
+    val symbolFunc = funcs.find(_.name == "symbol")
+    symbolFunc shouldBe defined
+    symbolFunc.get.name shouldBe "symbol"
+    symbolFunc.get.types shouldBe ""
+    symbolFunc.get.sig shouldBe "symbol()"
+    
+    val totalSupplyFunc = funcs.find(_.name == "totalSupply")
+    totalSupplyFunc shouldBe defined
+    totalSupplyFunc.get.name shouldBe "totalSupply"
+    totalSupplyFunc.get.types shouldBe ""
+    totalSupplyFunc.get.sig shouldBe "totalSupply()"
+  }
+
+  it should "parse functions with single parameters" in {
+    val abi = scala.io.Source.fromResource("ABI_ERC20_1.json").mkString
+    val funcs = SolidityParser.parseFunctionsFromAbi(abi)
+    
+    val balanceOfFunc = funcs.find(_.name == "balanceOf")
+    balanceOfFunc shouldBe defined
+    balanceOfFunc.get.name shouldBe "balanceOf"
+    balanceOfFunc.get.types shouldBe "address"
+    balanceOfFunc.get.sig shouldBe "balanceOf(address)"
+    
+    val ownerFunc = funcs.find(_.name == "owner")
+    ownerFunc shouldBe defined
+    ownerFunc.get.name shouldBe "owner"
+    ownerFunc.get.types shouldBe ""
+    ownerFunc.get.sig shouldBe "owner()"
+    
+    val versionFunc = funcs.find(_.name == "version")
+    versionFunc shouldBe defined
+    versionFunc.get.name shouldBe "version"
+    versionFunc.get.types shouldBe ""
+    versionFunc.get.sig shouldBe "version()"
+  }
+
+  it should "parse functions with multiple parameters" in {
+    val abi = scala.io.Source.fromResource("ABI_ERC20_1.json").mkString
+    val funcs = SolidityParser.parseFunctionsFromAbi(abi)
+    
+    val approveFunc = funcs.find(_.name == "approve")
+    approveFunc shouldBe defined
+    approveFunc.get.name shouldBe "approve"
+    approveFunc.get.types shouldBe "address,uint256"
+    approveFunc.get.sig shouldBe "approve(address,uint256)"
+    
+    val mintFunc = funcs.find(_.name == "mint")
+    mintFunc shouldBe defined
+    mintFunc.get.name shouldBe "mint"
+    mintFunc.get.types shouldBe "address,uint256"
+    mintFunc.get.sig shouldBe "mint(address,uint256)"
+    
+    val transferOwnershipFunc = funcs.find(_.name == "transferOwnership")
+    transferOwnershipFunc shouldBe defined
+    transferOwnershipFunc.get.name shouldBe "transferOwnership"
+    transferOwnershipFunc.get.types shouldBe "address"
+    transferOwnershipFunc.get.sig shouldBe "transferOwnership(address)"
+  }
+
+  it should "generate correct function signatures" in {
+    val abi = scala.io.Source.fromResource("ABI_ERC20_1.json").mkString
+    val funcs = SolidityParser.parseFunctionsFromAbi(abi)
+    
+    val transferFunc = funcs.find(_.name == "transfer")
+    transferFunc shouldBe defined
+    transferFunc.get.sig shouldBe "transfer(address,uint256)"
+    
+    val allowanceFunc = funcs.find(_.name == "allowance")
+    allowanceFunc shouldBe defined
+    allowanceFunc.get.sig shouldBe "allowance(address,address)"
+    
+    val decimalsFunc = funcs.find(_.name == "decimals")
+    decimalsFunc shouldBe defined
+    decimalsFunc.get.sig shouldBe "decimals()"
+  }
+
+  it should "generate correct function signature hashes" in {
+    val abi = scala.io.Source.fromResource("ABI_ERC20_1.json").mkString
+    val funcs = SolidityParser.parseFunctionsFromAbi(abi)
+    
+    val transferFunc = funcs.find(_.name == "transfer")
+    transferFunc shouldBe defined
+    transferFunc.get.sigHex shouldBe "0xa9059cbb" // Known ERC20 transfer function selector
+    
+    val allowanceFunc = funcs.find(_.name == "allowance")
+    allowanceFunc shouldBe defined
+    allowanceFunc.get.sigHex shouldBe "0xdd62ed3e" // Known ERC20 allowance function selector
+    
+    val balanceOfFunc = funcs.find(_.name == "balanceOf")
+    balanceOfFunc shouldBe defined
+    balanceOfFunc.get.sigHex shouldBe "0x70a08231" // Known ERC20 balanceOf function selector
+  }
+
+  it should "handle empty ABI gracefully" in {
+    val emptyAbi = "[]"
+    val funcs = SolidityParser.parseFunctionsFromAbi(emptyAbi)
+    
+    funcs shouldBe empty
+  }
+
+  it should "handle malformed ABI gracefully" in {
+    val malformedAbi = """[{"type": "function", "name": "test"}]"""
+    val funcs = SolidityParser.parseFunctionsFromAbi(malformedAbi)
+    
+    // Should not throw exception, but may return empty or partial results
+    funcs should not be null
+  }
+
+  it should "parse all function types correctly" in {
+    val abi = scala.io.Source.fromResource("ABI_ERC20_1.json").mkString
+    val funcs = SolidityParser.parseFunctionsFromAbi(abi)
+ 
+    info(s"funcs: ${funcs}")
+    
+    // Verify we have the expected function names (not events or errors)
+    val functionNames = funcs.map(_.name).toSet
+    val expectedNames = Set(
+      "allowance", "approve", "balanceOf", "decimals", "mint", 
+      "name", "owner", "renounceOwnership", "symbol", "totalSupply", 
+      "transfer", "transferFrom", "transferOwnership", "version"
+    )
+    
+    // Check that we have the expected ERC20 function names
+    functionNames should contain("transfer")
+    functionNames should contain("allowance")
+    functionNames should contain("balanceOf")
+    functionNames should contain("approve")
+    functionNames should contain("transferFrom")
+    functionNames should contain("decimals")
+    functionNames should contain("name")
+    functionNames should contain("symbol")
+    functionNames should contain("totalSupply")
+    
+    // Verify we don't have events (which should be filtered out)
+    functionNames should not contain "Transfer"
+    functionNames should not contain "Approval"
+    functionNames should not contain "OwnershipTransferred"
+  }
+
+  // it should "maintain function signature consistency" in {
+  //   val abi = scala.io.Source.fromResource("ABI_ERC20_1.json").mkString
+  //   val funcs1 = SolidityParser.parseFunctionsFromAbi(abi)
+  //   val funcs2 = SolidityParser.parseFunctionsFromAbi(abi)
+    
+  //   // Same ABI should produce identical results
+  //   funcs1 should have size funcs2.size
+    
+  //   funcs1.zip(funcs2).foreach { case (f1, f2) =>
+  //     f1.name shouldBe f2.name
+  //     f1.types shouldBe f2.types
+  //     f1.sig shouldBe f2.sig
+  //     f1.sigHex shouldBe f2.sigHex
+  //   }
+  // }
+
+}

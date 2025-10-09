@@ -17,7 +17,10 @@ trait SolidityEntity {
 }
 
 abstract class SolidityEntityNamed(sig:String) extends SolidityEntity {  
-  val name:String = sig.substring(0, sig.indexOf('('))
+  val name:String = {
+    val parenIndex = sig.indexOf('(')
+    if (parenIndex == -1) sig else sig.substring(0, parenIndex)
+  }
 
   val types:String = {
     val parenIndex = sig.indexOf('(')
@@ -25,6 +28,7 @@ abstract class SolidityEntityNamed(sig:String) extends SolidityEntity {
   }
 }
 
+// --- Event --------------------------------------------------------------------
 class SolidityEvent(eventDef:String) extends SolidityEntityNamed(eventDef) {
   private val _sigHex = Util.hex(Hash.keccak256(eventDef.getBytes()))
 
@@ -34,6 +38,7 @@ class SolidityEvent(eventDef:String) extends SolidityEntityNamed(eventDef) {
   def sig:String = eventDef
 }
 
+// --- Error --------------------------------------------------------------------
 class SolidityError(eventDef:String) extends SolidityEntityNamed(eventDef) {
   private val _sigHex = Util.hex(Hash.keccak256(eventDef.getBytes())).take(2 + 8)
 
@@ -55,4 +60,14 @@ object SolidityError {
       case None => Failure(new Exception(s"SolidityError not found: ${sigHex}"))
     }
   }
+}
+
+// --- Function --------------------------------------------------------------------
+class SolidityFunc(funcDef:String,sigHex0:Option[String] = None) extends SolidityEntityNamed(funcDef) {
+  private val _sigHex = sigHex0.getOrElse(Util.hex(Hash.keccak256(funcDef.getBytes())).take(2 + 8))
+
+  override def toString:String = s"SolidityFunc(${funcDef},${_sigHex})"
+
+  def sigHex:String = _sigHex
+  def sig:String = funcDef
 }

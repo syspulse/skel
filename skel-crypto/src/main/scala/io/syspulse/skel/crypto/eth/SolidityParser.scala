@@ -7,9 +7,13 @@ import scala.collection.mutable
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto.Hash
+import net.osslabz.evm.abi.decoder.AbiDecoder
+import java.io.StringBufferInputStream
+import net.osslabz.evm.abi.definition.AbiDefinition
+import org.web3j.abi.datatypes.Type
 
 object SolidityParser {
-  val EVENTS_DEFAULT = """
+  val DEFAULT = """
 
 event Transfer(address indexed from, address indexed to, uint256 value);
 error Unauthorized();
@@ -28,8 +32,8 @@ error Unauthorized();
       .toSeq
   }
 
-  def parseErrors(events:String):Seq[SolidityError] = {
-    events.split("\n")
+  def parseErrors(errors:String):Seq[SolidityError] = {
+    errors.split("\n")
       .filter(s => s.trim().nonEmpty && s.trim().startsWith(ERROR_NAME))
       .map(s => {
         val sig = parseSignature(s)
@@ -123,5 +127,32 @@ error Unauthorized();
     // Everything before it is the type
     // But only if there are multiple parts (more than just the type)
     allParts.length > 1 && allParts.last == part
+  }
+
+  // --- Functions ---------------------------------------------------------------------
+  def parseFunctionsFromAbi(abi:String):Seq[SolidityFunc] = {
+    val decoder = new AbiDecoder(new StringBufferInputStream(abi))
+    
+    // Get all method signatures and examine the func parameter
+    val methodSignatures = decoder.getMethodSignatures.asScala
+    
+    methodSignatures
+      .filter { case(sig, func) =>
+        func.getType().name() == "function"
+      }
+      .map { case(sig, func) =>
+        Try {
+          val name = func.getName()
+          val inputTypes = func.getInputs.asScala.map(_.getType)
+          // Build clean signature
+          val signature = func.formatSignature()
+          val sigHex = Util.hex(func.encodeSignature())
+
+          new SolidityFunc(signature, Some(sigHex))
+        }
+      }
+      .filter(_.isSuccess)
+      .map(_.get)
+      .toSeq
   }
 }
