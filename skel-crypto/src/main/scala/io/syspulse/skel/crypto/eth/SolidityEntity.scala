@@ -7,6 +7,7 @@ import scala.collection.mutable
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.crypto.Hash
+import net.osslabz.evm.abi.decoder.AbiDecoder
 
 trait SolidityEntity {
   def sigHex:String
@@ -63,11 +64,28 @@ object SolidityError {
 }
 
 // --- Function --------------------------------------------------------------------
-class SolidityFunc(funcDef:String,sigHex0:Option[String] = None) extends SolidityEntityNamed(funcDef) {
+class SolidityFunc(funcDef:String,decoder:AbiDecoder,sigHex0:Option[String] = None) extends SolidityEntityNamed(funcDef) {
   private val _sigHex = sigHex0.getOrElse(Util.hex(Hash.keccak256(funcDef.getBytes())).take(2 + 8))
 
   override def toString:String = s"SolidityFunc(${funcDef},${_sigHex})"
 
   def sigHex:String = _sigHex
   def sig:String = funcDef
+
+  def decode(data:String):Try[String] = {    
+    Try {
+      val decode = decoder.decodeFunctionCall(data)
+          
+      // val param = decode.getParams().stream().findFirst().orElse(null);    
+      // println(s">>>> param: ${param}")    
+
+      val params = decode.getParams().asScala
+      //println(s">>>> params[${params.size}]: ${params}")
+                  
+      val r = for (p <- params)
+        yield SolidityTuple.valueToString(0,p.getName(),p.getValue(),p.getType())
+      
+      r.mkString(",")
+    }
+  }
 }

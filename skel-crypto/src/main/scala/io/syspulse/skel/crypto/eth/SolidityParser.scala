@@ -148,7 +148,7 @@ error Unauthorized();
           val signature = func.formatSignature()
           val sigHex = Util.hex(func.encodeSignature())
 
-          new SolidityFunc(signature, Some(sigHex))
+          new SolidityFunc(signature, decoder, Some(sigHex))
         }
       }
       .filter(_.isSuccess)

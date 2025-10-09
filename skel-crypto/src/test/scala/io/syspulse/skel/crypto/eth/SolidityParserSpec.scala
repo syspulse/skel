@@ -2,6 +2,7 @@ package io.syspulse.skel.crypto.eth
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import scala.util.Success
 
 object TestEvents {
   val EVENTS_DEFAULT = """
@@ -920,5 +921,14 @@ class SolidityFuncSpec extends AnyFlatSpec with Matchers {
   //     f1.sigHex shouldBe f2.sigHex
   //   }
   // }
+  it should "decode function data correctly" in {
+    val abi = scala.io.Source.fromResource("ABI_ERC20_1.json").mkString
+    val funcs = SolidityParser.parseFunctionsFromAbi(abi)
+    
+    val transferFunc = funcs.find(_.name == "transfer")
+    transferFunc shouldBe defined
+    val input = "0xa9059cbb000000000000000000000000f756ae7f20e291a132774e042cc5114ccf15426a0000000000000000000000000000000000000000000000056bc75e2d63100000"
+    transferFunc.get.decode(input) shouldBe Success("0xf756ae7f20e291a132774e042cc5114ccf15426a,100000000000000000000")
+  }
 
 }
