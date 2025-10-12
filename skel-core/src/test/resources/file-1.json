@@ -1,0 +1,14 @@
+[{
+  "inputs": [{
+    "internalType": "bytes",
+    "name": "errorReason",
+    "type": "bytes"
+  }],
+  "name": "InvalidDataSourceConfiguration",
+  "type": "error"
+}, {
+  "inputs": [],
+  "name": "InvalidInitialization",
+  "type": "error"
+}
+]

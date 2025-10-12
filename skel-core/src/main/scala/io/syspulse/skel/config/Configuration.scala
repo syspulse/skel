@@ -75,35 +75,44 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
     configurations.foldLeft[Option[String]](None)((r,c) => if(r.isDefined) r else c.getCmd())
   }
 
-  def getFromSplit(b:BufferedSource):Iterator[String] = {
-    b.getLines().map(s => s.split(",")).flatten.iterator
+  def getFromSplit(b:BufferedSource,expand:Boolean,splitter:String = ","):Iterator[String] = {
+    if(expand) {
+      b.getLines().map(s => s.split(splitter)).flatten.iterator
+    } else {
+      Iterator(b.mkString)
+    }  
   }
 
-  def getFromUrl(s:String):Iterator[String] = {
+  def getFromUrl(s:String,expand:Boolean,splitter:String = ","):Iterator[String] = {
     if(s.trim.startsWith("file://")) {
-      getFromSplit(scala.io.Source.fromFile(s.trim.drop("file://".size)))
+      getFromSplit(scala.io.Source.fromFile(s.trim.drop("file://".size)),expand,splitter)
     } else 
     if(s.trim.startsWith("resource://")) {
-      getFromSplit(scala.io.Source.fromResource(s.trim.drop("resource://".size)))
+      getFromSplit(scala.io.Source.fromResource(s.trim.drop("resource://".size)),expand,splitter)
     } else 
     if(s.trim.startsWith("https://")) {
-      getFromSplit(scala.io.Source.fromURL(new URL(s)))
+      getFromSplit(scala.io.Source.fromURL(new URL(s)),expand,splitter)
     } else 
     if(s.trim.startsWith("http://")) {
-      getFromSplit(scala.io.Source.fromURL(new URL(s)))
+      getFromSplit(scala.io.Source.fromURL(new URL(s)),expand,splitter)
     } else
     {
       Iterator(s)
     }
   }
 
-  def getListString(path:String,d:Seq[String] = Seq(),empty:Boolean = false, trim:Boolean = true,comment:Option[String] = None):Seq[String] = {
+  def getListString(path:String,d:Seq[String] = Seq(),
+                    empty:Boolean = false, 
+                    trim:Boolean = true,
+                    comment:Option[String] = None,
+                    splitter:String = ",",
+                    expand:Boolean = true):Seq[String] = {
     val v = getString(path)
-    val s = if(v.isDefined) v.get else d.mkString(",")
+    val s = if(v.isDefined) v.get else d.mkString(splitter)
     
-    s.split(",")      
+    s.split(splitter)      
       .flatMap(s => {
-        getFromUrl(s)
+        getFromUrl(s,expand,splitter)
       })
       .map(s => {
         
