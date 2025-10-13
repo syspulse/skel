@@ -26,7 +26,7 @@ error Unauthorized();
     events.split("\n")
       .filter(s => s.trim().nonEmpty && s.trim().startsWith(EVENT_NAME))
       .map(s => {
-        val sig = parseSignature(s)
+        val sig = parseSignature(s,EVENT_NAME)
         new SolidityEvent(sig)
       })
       .toSeq
@@ -35,30 +35,30 @@ error Unauthorized();
   def parseErrors(errors:String):Seq[SolidityError] = {
     errors.split("\n")
       .filter(s => s.trim().nonEmpty && s.trim().startsWith(ERROR_NAME))
-      .map(s => {
-        val sig = parseSignature(s)
+      .map(s => {        
+        val sig = parseSignature(s,ERROR_NAME)
         new SolidityError(sig)
       })
       .toSeq
   }
   
-  private def parseSignature(eventLine: String): String = {
-    // Remove "event " prefix
-    val withoutEvent = eventLine.trim().substring(EVENT_NAME.size).trim()
+  private def parseSignature(line: String,prefix:String): String = {
+    // Remove prefix
+    val without = line.trim().substring(prefix.size).trim()
     
     // Find the opening parenthesis
-    val parenIndex = withoutEvent.indexOf('(')
+    val parenIndex = without.indexOf('(')
     if (parenIndex == -1) {
       // No parameters, just return the event name with empty parentheses
-      return withoutEvent.replace(";", "").trim() + "()"
+      return without.replace(";", "").trim() + "()"
     }
     
-    val eventName = withoutEvent.substring(0, parenIndex).trim()
-    val paramsPart = withoutEvent.substring(parenIndex + 1, withoutEvent.lastIndexOf(')'))
+    val name = without.substring(0, parenIndex).trim()
+    val paramsPart = without.substring(parenIndex + 1, without.lastIndexOf(')'))
     
     if (paramsPart.trim().isEmpty) {
       // No parameters
-      return eventName + "()"
+      return name + "()"
     }
     
     // Parse parameters
@@ -66,9 +66,9 @@ error Unauthorized();
     val paramTypes = params.map(cleanParameter).filter(_.nonEmpty)
     
     if (paramTypes.isEmpty) {
-      eventName + "()"
+      name + "()"
     } else {
-      s"$eventName(${paramTypes.mkString(",")})"
+      s"$name(${paramTypes.mkString(",")})"
     }
   }
   

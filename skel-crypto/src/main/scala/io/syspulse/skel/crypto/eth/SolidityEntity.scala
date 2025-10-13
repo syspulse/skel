@@ -52,10 +52,12 @@ class SolidityError(eventDef:String) extends SolidityEntityNamed(eventDef) {
 object SolidityError {
   
   def decodeErrorData(errors:Seq[SolidityError],output:String):Try[String] = {
-    val sigHex = output.take(2 + 8)
+    val sigSz = 2 + 8
+    val sigHex = output.take(sigSz)
     errors.find(e => e.sigHex == sigHex) match {
       case Some(e) => 
-        SolidityTuple.decodeData(e.types,output)
+        val data = output.drop(sigSz)
+        SolidityTuple.decodeData(e.types,data)
           .map(data => s"${e.name}(${data})")
 
       case None => Failure(new Exception(s"SolidityError not found: ${sigHex}"))
@@ -75,12 +77,7 @@ class SolidityFunc(funcDef:String,decoder:AbiDecoder,sigHex0:Option[String] = No
   def decode(data:String):Try[String] = {    
     Try {
       val decode = decoder.decodeFunctionCall(data)
-          
-      // val param = decode.getParams().stream().findFirst().orElse(null);    
-      // println(s">>>> param: ${param}")    
-
-      val params = decode.getParams().asScala
-      //println(s">>>> params[${params.size}]: ${params}")
+      val params = decode.getParams().asScala      
                   
       val r = for (p <- params)
         yield SolidityTuple.valueToString(0,p.getName(),p.getValue(),p.getType())

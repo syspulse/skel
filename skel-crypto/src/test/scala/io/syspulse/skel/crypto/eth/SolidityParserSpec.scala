@@ -172,10 +172,23 @@ event RemovedFromSanctionsList(address indexed account);
     parsed(1).sig shouldBe "RemovedFromSanctionsList(address)"
   }
 
+
   it should "parse events with multiple parameters" in {
     val events = """
 event IdentityRegistered(bytes32 indexed ccid, address indexed account);
 event CredentialRegistered(bytes32 indexed ccid, bytes32 indexed credentialTypeId, uint40 expiresAt, bytes credentialData);
+"""
+    
+    val parsed = SolidityParser.parseEvents(events)
+    parsed should have size 2
+    parsed(0).sig shouldBe "IdentityRegistered(bytes32,address)"
+    parsed(1).sig shouldBe "CredentialRegistered(bytes32,bytes32,uint40,bytes)"
+  }
+
+  it should "parse events with multiple parameters with only types" in {
+    val events = """
+event IdentityRegistered(bytes32 , address );
+event CredentialRegistered(bytes32 , bytes32 , uint40 , bytes );
 """
     
     val parsed = SolidityParser.parseEvents(events)
@@ -442,6 +455,20 @@ error PolicyRunRejected(bytes4 selector, address policy);
     parsed(2).sig shouldBe "PolicyRunRejected(bytes4,address)"
   }
 
+  it should "parse errors with multiple parameters with only types" in {
+    val errors = """
+error InvalidConfiguration(bytes );
+error CredentialAlreadyRegistered(bytes32 , bytes32 );
+error PolicyRunRejected(bytes4 , address );
+"""
+    
+    val parsed = SolidityParser.parseErrors(errors)
+    parsed should have size 3
+    parsed(0).sig shouldBe "InvalidConfiguration(bytes)"
+    parsed(1).sig shouldBe "CredentialAlreadyRegistered(bytes32,bytes32)"
+    parsed(2).sig shouldBe "PolicyRunRejected(bytes4,address)"
+  }
+
   it should "parse errors with array parameters" in {
     val errors = """
 error InvalidConfiguration(bytes[] errorReasons);
@@ -632,7 +659,8 @@ error AnotherComplexError(mapping(address => uint256) balances, struct User user
     val d1 = SolidityError.decodeErrorData(errors,output)
     info(s"d1: ${d1}")
     d1 should be a Symbol("Success")
-    d1.get shouldBe "PolicyRunRejected,0x1e55042b,0x00000000ee8031f530845d8f72a54d8cc58f56dc"
+    // d1.get shouldBe "PolicyRunRejected(0x1e55042b,0x00000000ee8031f530845d8f72a54d8cc58f56dc)"
+    d1.get shouldBe "PolicyRunRejected(0xa9059cbb,0xee8031f530845d8f72a54d8cc58f56dc86e9a56f)"
   }
 
   "SolidityError name and types" should "extract name correctly" in {

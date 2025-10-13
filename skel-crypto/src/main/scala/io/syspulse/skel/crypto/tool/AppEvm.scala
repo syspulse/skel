@@ -19,6 +19,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.concurrent.Await
 import io.syspulse.skel.crypto.eth.Web3jTrace
+import io.syspulse.skel.crypto.eth.{SolidityEvent,SolidityError,SolidityFunc,SolidityParser}
 
 object AppEvm extends {
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
@@ -35,7 +36,11 @@ object AppEvm extends {
     delay:Long = 0L,
 
     format:String = "unrwap",
-    
+
+    errors:Seq[String] = Seq(),
+    events:Seq[String] = Seq(),
+    abis:Seq[String] = Seq(),
+
     cmd:String = "call",
     params:Seq[String] = Seq()
   )
@@ -59,7 +64,11 @@ object AppEvm extends {
 
         ArgLong('_', "delay",s"Delay in ms (def: ${d.delay})"),
         ArgString('_', "format",s"Format result (def: ${d.format})"),
-        
+
+        ArgString('_', "errors",s"Errors (def: ${d.errors})"),
+        ArgString('_', "events",s"Events (def: ${d.events})"),
+        ArgString('_', "abis",s"ABIs (def: ${d.abis})"),
+
         ArgCmd("call","eth_call: [address] function(params,...)(return)"),
         ArgCmd("call-async","eth_call: [address] function(params,...)(return)"),
         ArgCmd("encode","function(params,...)(return)"),
@@ -90,6 +99,10 @@ object AppEvm extends {
       from = c.getString("from").getOrElse(d.from),
       block = c.getString("block").map(b => b.toLong),
 
+      errors = c.getListString("errors",d.errors,expand=false),
+      events = c.getListString("events",d.events,expand=false),
+      abis = c.getListString("abis",d.abis,expand=false),
+
       tracer = c.getString("tracer").getOrElse(d.tracer),
       tracerConfig = c.getMap("tracerConfig",d.tracerConfig),
 
@@ -101,11 +114,19 @@ object AppEvm extends {
     )
 
     Console.err.println(s"Config: ${config}")
-
+    
     // implicit val web3:Web3j = Web3j.build(new HttpService(config.ethRpcUrl))
     implicit val web3:Web3jTrace = Web3jTrace.build(new HttpService(config.ethRpcUrl))
 
     Console.err.println(s"web3j: ${web3}")
+
+    val EVENTS = config.events.foldLeft(Map.empty[String,SolidityEvent])((acc,e) => acc ++ SolidityParser.parseEvents(e).map(ee => ee.sigHex -> ee))
+    val ERRORS = config.errors.foldLeft(Map.empty[String,SolidityError])((acc,e) => acc ++ SolidityParser.parseErrors(e).map(ee => ee.sigHex -> ee))
+    val FUNCTIONS = config.abis.foldLeft(Map.empty[String,SolidityFunc])((acc,a) => acc ++ SolidityParser.parseFunctionsFromAbi(a).map(e => e.sigHex -> e))
+
+    Console.err.println(s"EVENTS: ${EVENTS}")
+    Console.err.println(s"ERRORS: ${ERRORS}")
+    Console.err.println(s"FUNCTIONS: ${FUNCTIONS}")
 
     val r = config.cmd match {
       case "error" => 
@@ -116,7 +137,22 @@ object AppEvm extends {
 
         val tx = config.params(0)        
 
-        Eth.getTxError(tx)(web3)
+        //Eth.getTxError(tx)(web3)
+        for {
+          r <- Eth.getTxError(tx)(web3)
+          reason <- {
+            if(r._3.isDefined)
+              Success(None)
+            else 
+            if(r._2.isDefined) {
+              // parse output
+              val reason = SolidityError.decodeErrorData(ERRORS.values.toSeq,r._2.get)
+              Success(reason.toOption)
+            } else {
+              Success(None)
+            }
+          }
+        } yield (r,reason)
 
       case "trace-tx" => 
         if(config.params.size < 1) {
