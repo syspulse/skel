@@ -26,20 +26,32 @@ import java.time.Instant
 import java.time.ZoneId
 import com.github.mjakubowski84.parquet4s.ParquetRecordEncoder
 import com.github.mjakubowski84.parquet4s.ParquetSchemaResolver
-
 import akka.actor.ActorSystem
 
 // throttleSource - reduce load on Source (e.g. HttpSource)
 // throttle - delay objects downstream
 // cap - capacity (internal buffer, like Actor)
-abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
-  throttle:Long = 0, delimiter:String = "\n", buffer:Int = 8192, chunk:Int = 1024 * 1024,throttleSource:Long=100L,format:String="",cap:Int=10000)
-  (implicit fmt:JsonFormat[O], parqEncoders:ParquetRecordEncoder[O],parsResolver:ParquetSchemaResolver[O],as:Option[ActorSystem] = None) 
-  extends Flows 
-  with IngestFlow[I,T,O]()  {
+abstract class Pipeline[I,T,O <: skel.Ingestable](
+  feed:String,
+  output:String,
+  throttle:Long = 0, 
+  delimiter:String = "\n", 
+  buffer:Int = 8192, 
+  chunk:Int = 1024 * 1024,
+  throttleSource:Long=100L,
+  format:String="",
+  cap:Int=10000,
+  as:Option[ActorSystem] = None
+  )
+  (implicit 
+     fmt:JsonFormat[O],
+     parqEncoders:ParquetRecordEncoder[O],
+     parsResolver:ParquetSchemaResolver[O],
+     //as:Option[ActorSystem] = None
+  ) extends Flows with IngestFlow[I,T,O]()  {
   
   private val log = Logger(s"${this}")
-  override implicit val system:ActorSystem = {    
+  override implicit val system:ActorSystem = {
     as.getOrElse({
       val name = "ActorSystem-IngestFlow"
       val config = ConfigFactory.load()
@@ -53,6 +65,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       as
     })
   }
+
   log.info(s"system=${system}")
 
   implicit def timeout:FiniteDuration = FiniteDuration(5000, TimeUnit.MILLISECONDS)
@@ -81,10 +94,11 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
         }
         else
           // ATTENTION!
-          fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
+          fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer, retry = retrySettings)
           //Flows.fromHttpRestartable(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
       }
-      case "https" :: _ => fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer)
+      case "https" :: _ => 
+        fromHttp(HttpRequest(uri = feed).withHeaders(Accept(MediaTypes.`application/json`)),frameDelimiter = delimiter,frameSize = buffer, retry = retrySettings)
       
       case "listen" :: uri :: Nil => fromHttpServer(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
       case ("server" | "http:server" | "https:server") :: uri :: Nil => fromHttpServer(uri,chunk,frameDelimiter = delimiter, frameSize = buffer)
@@ -177,16 +191,15 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "kafka" :: _ => toKafka[O](output,format)(fmt)
       case "elastic" :: _ => toElastic[O](output)(fmt)
       
-      case "file" :: fileName :: Nil => toFile(fileName)
-      case "files" :: fileName :: Nil => toHiveFileSize(fileName)
+      case "file" :: fileName :: Nil => toFile(fileName,format)
+      // create new file for every object
+      case "files" :: fileName :: Nil => toFileNew(fileName,(o:O,file) => Util.toFileWithTime( Util.replaceVar(file, Map("ID" -> o.getId.getOrElse(""))) ),format)
+
+      case "hives" :: fileName :: Nil => toHiveFileSize(fileName,format)
       case "hive" :: fileName :: Nil => toHive(fileName)(getRotator())
 
-      case "fs3" :: fileName :: Nil => toFS3(fileName,getFileLimit(),getFileSize())(getRotator(),fmt)
+      case "fs3" :: fileName :: Nil => toFS3(fileName,format,getFileLimit(),getFileSize())(getRotator(),fmt)
       case "parq" :: fileName :: Nil => toParq[O](fileName,getFileLimit(),getFileSize())(getRotator(),parqEncoders,parsResolver)
-
-      // test to create new file for every object
-      // TODO: remove it
-      case "filenew" :: fileName :: Nil => toFileNew(fileName,(o:O,file) => file + o.getId.getOrElse("").toString)
       
       // funny test implementation for custom timestamp into the past 1000 years
       // TODO: remove it !
@@ -200,6 +213,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "postgres" :: _ => toJDBC[O](output)(fmt)
       case "mysql" :: _ => toJDBC[O](output)(fmt)
 
+      case "ws" :: _ => toWebsocket[O](output,format,buffer = cap)
+      case "wss" :: _ => toWebsocket[O](output,format,buffer = cap)
       case "server:ws" :: uri :: Nil => toWebsocketServer[O](uri,format,buffer = cap)
       case "ws:server" :: uri :: Nil => toWebsocketServer[O](uri,format,buffer = cap)
 
@@ -213,7 +228,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](feed:String,output:String,
       case "akka" :: uri :: Nil => toAkka[O](output,format)      
 
       case "" :: Nil => toStdout(format=format)
-      case _ => toFile(output)
+      case _ => toFile(output,format)
     }
     sink
   }

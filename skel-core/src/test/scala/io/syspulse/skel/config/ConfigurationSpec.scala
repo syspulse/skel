@@ -144,5 +144,66 @@ class ConfigurationSpec extends AnyWordSpec with Matchers {
       s.size should === (3)      
       s should === (Seq("pool-1","pool-2","pool-3"))
     }
+
+    "get List from resource:// 'str1,  2, 1000 ' " in {
+      val args = Array("-s",s" resource://resource-2.conf")
+      val c = Configuration.withPriority(Seq(
+        new ConfigurationArgs(args,"test-1","",
+          ArgString('s', "param.list","")          
+        )
+      ))      
+      val s = c.getListString("param.list")       
+      s.size should === (3)
+      s should === (Seq("str1","2","1000"))
+    }
+
+    "get List from resource:// and file://" in {
+      val args = Array("-s",s" resource://resource-2.conf, file://${testDir}/resource-1.conf")
+      val c = Configuration.withPriority(Seq(
+        new ConfigurationArgs(args,"test-1","",
+          ArgString('s', "param.list","")          
+        )
+      ))      
+      val s = c.getListString("param.list",comment = Some("#"))
+      s.size should === (4)
+      s should === (Seq("str1","2","1000","data"))
+    }
+
+    "get List from resource:// and file:// and data" in {
+      val args = Array("-s",s" resource://resource-2.conf, file://${testDir}/resource-1.conf,456, end-1")
+      val c = Configuration.withPriority(Seq(
+        new ConfigurationArgs(args,"test-1","",
+          ArgString('s', "param.list","")          
+        )
+      ))      
+      val s = c.getListString("param.list",comment = Some("#"))
+      s.size should === (6)
+      s should === (Seq("str1","2","1000","data","456","end-1"))
+    }
+
+    "get List from resource:// and file:// and data without expand" in {
+      val args = Array("-s",s" resource://resource-2.conf, file://${testDir}/resource-1.conf,456, end-1")
+      val c = Configuration.withPriority(Seq(
+        new ConfigurationArgs(args,"test-1","",
+          ArgString('s', "param.list","")          
+        )
+      ))      
+      val s = c.getListString("param.list",comment = Some("#"),expand = false)
+      s.size should === (4)
+      s should === (Seq("str1,  \n2 ,1000 ,", "data", "456", "end-1"))
+    }
+
+    "get List from json resource:// without expand" in {
+      val args = Array("-s",s" resource://file-1.json")
+      val c = Configuration.withPriority(Seq(
+        new ConfigurationArgs(args,"test-1","",
+          ArgString('s', "param.list","")          
+        )
+      ))      
+      val s = c.getListString("param.list",expand = false,trim = false)
+      info(s"s='${s}'")
+      s.size should === (1)
+      
+    }
   }
 }

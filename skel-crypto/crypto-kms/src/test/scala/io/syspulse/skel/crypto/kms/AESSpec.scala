@@ -23,9 +23,10 @@ class AESSpec extends AnyWordSpec with Matchers with TestData {
     
     "get ARN by alias" in {
       val a1 = new AES("http://localhost:4599")
-      val keyId = a1.getKmsClient().createKeyAES("key0",Some("service/key"))
+      val r1 = math.abs(Random.nextInt(1000))
+      val keyId = a1.getKmsClient().createKeyAES("key0",Some(s"service/key-${r1}"))
 
-      val kid = (new AES("http://localhost:4599")).getKeyId("service/key",100)
+      val kid = (new AES("http://localhost:4599")).getKeyId(s"service/key-${r1}",100)
       kid shouldBe a [Success[_]]
       kid should === (Success(keyId))
     }

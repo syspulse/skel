@@ -16,3 +16,39 @@ __Most of scala evals/interpreters do not work in sbt ScalaTests !__
 [https://www.evrete.org/](https://www.evrete.org/)
 [https://www.eclipse.org/Xtext](https://www.eclipse.org/Xtext)
 [https://github.com/TypeFox/theia-xtext-sprotty-example](https://github.com/TypeFox/theia-xtext-sprotty-example)
+
+
+----
+
+## DSL
+
+### Scala 
+
+Since Scala types are not dynamic in scripts, must be cast:
+
+```
+./run-dsl.sh scala 'i.asInstanceOf[Int] + 200'
+./run-dsl.sh scala-script 'i.asInstanceOf[Int] + 200'
+./run-dsl.sh scala-interpreter 'i.asInstanceOf[Int] + 200'
+```
+
+### JavaScript
+
+By default `js` uses GraalVM polyglot engine
+
+Polyglot custom cache location: `-Dpolyglot.engine.userResourceCache=/tmp"`
+
+```
+./run-dsl.sh js 'i + 200'
+```
+
+Run with `nashorn`
+
+```
+./run-dsl.sh nashorn "i + 20"
+```
+
+
+
+
+

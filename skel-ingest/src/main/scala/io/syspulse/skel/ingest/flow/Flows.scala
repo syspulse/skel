@@ -256,14 +256,19 @@ trait Flows {
       }      
     })
       
-  def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192, retry:RestartSettings=retrySettingsDefault)(implicit as:ActorSystem,timeout:FiniteDuration) = {
+  def fromHttp(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192, retry:Option[RestartSettings]=Some(retrySettingsDefault))(implicit as:ActorSystem,timeout:FiniteDuration) = {
     //val s = Source.future(fromHttpFuture(req))
-    val s = RestartSource.onFailuresWithBackoff(retry) { () =>
-      log.info(s"${retry}: ==> ${req}")
+    val s = if(retry.isDefined)
+      RestartSource.onFailuresWithBackoff(retry.get) { () =>
+        log.info(s"${retry.get}: ==> ${req}")
+        Source.futureSource {
+          this.fromHttpFuture(req)
+        }
+      }
+    else
       Source.futureSource {
         this.fromHttpFuture(req)
       }
-    }
       
     if(frameDelimiter.isEmpty())
       s
@@ -272,7 +277,7 @@ trait Flows {
   }
 
   def fromHttpRestartable(req: HttpRequest,frameDelimiter:String="\n",frameSize:Int = 8192,retry:RestartSettings=retrySettingsDefault)(implicit as:ActorSystem,timeout:FiniteDuration) = {
-    fromHttp(req,frameDelimiter,frameSize,retry)
+    fromHttp(req,frameDelimiter,frameSize,Some(retry))
   }
 
   def fromHttpList(reqs: Seq[HttpRequest],par:Int = 1, frameDelimiter:String="\n",frameSize:Int = 8192,throttle:Long = 10L,retry:RestartSettings=retrySettingsDefault)(implicit as:ActorSystem,timeout:FiniteDuration) = {
@@ -514,7 +519,7 @@ trait Flows {
     s
   }
 
-  def fromTwitter(uri:String, frameDelimiter:String="\n",frameSize:Int=1024 * 1024,retry:RestartSettings=retrySettingsDefault)
+  def fromTwitter(uri:String, frameDelimiter:String="\n",frameSize:Int=1024 * 1024, retry:RestartSettings=retrySettingsDefault)
     (implicit as:ActorSystem,timeout:FiniteDuration) = { 
 
     val twitter = new FromTwitter(uri)
@@ -525,7 +530,7 @@ trait Flows {
 // Akka
 // ==================================================================================================  
 
-  def fromAkka(uri:String,bufferSize: Int = 1000, overflowStrategy: OverflowStrategy = OverflowStrategy.dropHead)
+  def fromAkka(uri:String,bufferSize: Int = 1000, overflowStrategy: OverflowStrategy = OverflowStrategy.backpressure)
               (implicit as:ActorSystem) = {
     
     val akkaUri = AkkaURI(uri)
@@ -553,12 +558,16 @@ trait Flows {
 
     //val actorSelection = system.actorSelection(uri)
     // implicit val timeout: Timeout = FiniteDuration(akkaUri.timeout,TimeUnit.MILLISECONDS)
+    val (queue, source) = Source
+      .queue[ByteString](bufferSize, overflowStrategy)
+      .preMaterialize()
 
     val sourceActor = system.actorOf(Props(new Actor {
       def receive: Receive = {
         case bs: ByteString => 
           // Handle incoming ByteString messages
-          log.info(s"msg: ${bs.utf8String}")
+          log.info(s"${self.path} <= ${bs}")
+          queue.offer(bs)
         case msg => 
           log.warn(s"unexpected message: $msg")
       }
@@ -572,11 +581,14 @@ trait Flows {
     //     sourceActor
     //   }
     
-    Source.actorRef[ByteString](bufferSize, overflowStrategy)
-      .map(t => {
-        log.info(s"t: ${t.utf8String}")
-        t        
-    })
+    // Source.actorRef[ByteString](
+    //   bufferSize = bufferSize,
+    //   overflowStrategy = overflowStrategy
+    // )
+    // .mapMaterializedValue { actorRef =>
+    //   actorRef
+    // }
+    source
   }
 
   // ----------------------------------------------------------------------------------------------------------
@@ -610,11 +622,12 @@ trait Flows {
     
     val actorSelectionRemote = system.actorSelection(uri)
     
-    log.info(s"-->: ${actorSelectionRemote}")
+    log.info(s"--> ${actorSelectionRemote}")
 
     Flow[T]
       .map { t =>
         val message = formatter(t, format)
+        log.info(s"${message} => ${actorSelectionRemote.anchorPath}${actorSelectionRemote.pathString}")
         actorSelectionRemote ! message
         t
       }
@@ -622,7 +635,7 @@ trait Flows {
   }
 
   // ----------------------------------------------------------------------------------------------------------
-  def toFile[T <: Ingestable](file:String)(implicit fmt:JsonFormat[T]) = {
+  def toFile[T <: Ingestable](file:String,format:String)(implicit fmt:JsonFormat[T]) = {
     import akka.event.Logging
     import spray.json._
 
@@ -631,13 +644,14 @@ trait Flows {
     else {
       //toSinkRestart({
         Flow[T]
-          .map(t => if(file.endsWith(".json")) 
-              s"${t.toJson}\n" 
-            else if(file.endsWith(".csv")) 
-              s"${t.toCSV}\n" 
-            else 
-              s"${t.toLog}\n"
-          )
+          // .map(t => if(file.endsWith(".json")) 
+          //     s"${t.toJson}\n" 
+          //   else if(file.endsWith(".csv")) 
+          //     s"${t.toCSV}\n" 
+          //   else 
+          //     s"${t.toLog}\n"
+          // )
+          .map(t => formatter(t,format))
           .map(ByteString(_))          
           .log(s"${this}")
           .withAttributes(Attributes.createLogLevels(Logging.DebugLevel, Logging.InfoLevel, Logging.ErrorLevel))       
@@ -721,7 +735,7 @@ trait Flows {
     }
   }
 
-  // ===== WebSocket Sink
+  // ===== WebSocket Server Sink =========================================================================
   def toWebsocketServer[T <: Ingestable](uri:String,format:String="", buffer:Int=10000, timeout:Long = 1000L*60*60*24)(implicit as:ActorSystem,fmt:JsonFormat[T]) = { 
     import io.syspulse.skel.service.ws._
     import akka.actor.typed.scaladsl.ActorContext
@@ -795,6 +809,230 @@ trait Flows {
     }
   }  
 
+  // ===== WebSocket Client Sink =========================================================================
+
+  def toWebsocket[T <: Ingestable](uri: String, format: String = "", buffer: Int = 10000, timeout: Long = 1000L * 60 * 60 * 24, retrySettings: RestartSettings = retrySettingsDefault)
+                                  (implicit as: ActorSystem, fmt: JsonFormat[T]) = {
+
+    if(uri.trim.isEmpty) {
+      log.warn(s"invalid uri: ${uri}")
+      Sink.ignore 
+    } else {     
+            
+      val webSocketActor = as.actorOf(WebSocketActor.props(uri, format, buffer, timeout, retrySettings))
+      
+      Sink.foreach[T] { message =>
+        webSocketActor ! WebSocketActor.SendMessage(message)
+      }
+    }
+  }
+  
+  // WebSocket Actor that handles connection and reconnection
+  object WebSocketActor {
+    case class SendMessage[T <: Ingestable](message: T)
+    case object Connect
+    case object Reconnect
+    case object ConnectionEstablished
+    case class ConnectionFailed(reason: Throwable)
+    case object ConnectionClosed
+    
+    def props[T <: Ingestable](uri: String, format: String, buffer: Int, timeout: Long, retrySettings: RestartSettings)(implicit fmt: JsonFormat[T]): Props = 
+      Props(new WebSocketActor(uri, format, buffer, timeout, retrySettings))
+  }
+  
+  class WebSocketActor[T <: Ingestable](uri: String, format: String, buffer: Int, timeout: Long, retrySettings: RestartSettings)(implicit fmt: JsonFormat[T]) extends Actor {
+    import WebSocketActor._
+    import context.dispatcher
+    import akka.stream.Materializer
+    import akka.pattern.after
+    
+    implicit val materializer: Materializer = Materializer(context.system)
+    
+    val log = Logger(this.getClass)
+    
+    private var messageQueue: Vector[T] = Vector.empty
+    private var isConnected = false
+    private var reconnectTimer: Option[Cancellable] = None
+    private var healthCheckTimer: Option[Cancellable] = None
+    private var messageQueueActor: Option[SourceQueueWithComplete[Message]] = None
+    private var reconnectAttempts = 0
+    
+    override def preStart(): Unit = {
+      log.info(s"WebSocket Actor starting for: ${uri}")
+      self ! Connect
+    }
+    
+    override def receive: Receive = {
+      case SendMessage(message) =>
+        message match {
+          case msg: T =>
+            if (isConnected && messageQueueActor.isDefined) {
+              sendMessageToQueue(msg, messageQueueActor.get)
+            } else {
+              messageQueue = messageQueue :+ msg
+              if (messageQueue.length > buffer) {
+                messageQueue = messageQueue.drop(1)
+                log.warn(s"Message queue full: ${uri}")
+              }
+            }
+          case _ =>
+            log.error(s"Invalid message type received: ${uri}")
+        }
+        
+      case Connect =>
+        log.info(s"Connecting --> ${uri}")
+        connect()
+        
+      case Reconnect =>
+        log.info(s"Reconnecting --> ${uri}")
+        connect()
+        
+      case ConnectionEstablished =>
+        log.info(s"Connected: ${uri}")
+        isConnected = true
+        resetReconnectAttempts() // Reset backoff counter on successful connection
+        messageQueue.foreach(msg => sendMessageToQueue(msg, messageQueueActor.get))
+        messageQueue = Vector.empty
+        
+      case ConnectionFailed(reason) =>
+        //log.debug(s"Connection failed: ${uri}: ${reason.getMessage}")
+        isConnected = false
+        messageQueueActor = None
+        scheduleReconnect()
+        
+      case ConnectionClosed =>
+        //log.debug(s"Connection closed: ${uri}")
+        isConnected = false
+        messageQueueActor = None
+        scheduleReconnect()
+    }
+    
+    private def connect(): Unit = {
+      try {
+        // Create a queue for outgoing messages
+        val (queue, source) = Source.queue[Message](buffer, akka.stream.OverflowStrategy.backpressure)
+          .preMaterialize()
+        
+        val flow: Flow[Message, Message, Future[Done]] =
+          Flow.fromSinkAndSourceMat(Sink.ignore, source)(Keep.left)
+
+        val (upgradeResponse, connectionClosed) = Http(context.system)
+          .singleWebSocketRequest(
+            WebSocketRequest(uri),
+            flow
+            // Flow.fromSinkAndSource(
+            //   Sink.ignore,
+            //   source       // Send messages from the queue
+            // )
+          )
+        
+        upgradeResponse.onComplete {
+          case Success(upgrade) =>
+            if (upgrade.response.status == StatusCodes.SwitchingProtocols) {
+              log.info(s"Connected: ${uri}: ${upgrade.response.status}")
+              isConnected = true
+              messageQueueActor = Some(queue)
+              // Send queued messages
+              messageQueue.foreach(msg => sendMessageToQueue(msg, queue))
+              messageQueue = Vector.empty
+            } else {
+              self ! ConnectionFailed(new Exception(s"Connection failed: ${uri}: ${upgrade.response.status}"))
+            }
+          case Failure(e) =>
+            //log.debug(s"Connection failed: ${uri}: ${e.getMessage}: ${if(e.getCause != null) e.getCause.getMessage else ""}")
+            self ! ConnectionFailed(e)
+        }
+        
+        // Connection closure will be detected by health check and queue failures
+        connectionClosed.onComplete {
+          case Success(_) =>
+            log.info(s"Connection closed: ${uri}")
+            self ! ConnectionClosed
+          case Failure(e) =>
+            log.error(s"Connection failed: ${uri}: ${e.getMessage}: ${if(e.getCause != null) e.getCause.getMessage else ""}")
+            self ! ConnectionClosed
+        }
+        
+      } catch {
+        case e: Exception =>
+          log.error(s"Connection failed: ${uri}: ${e.getMessage}: ${if(e.getCause != null) e.getCause.getMessage else ""}")
+          self ! ConnectionFailed(e)
+      }
+    }
+    
+    private def sendMessageToQueue(message: T, queue: SourceQueueWithComplete[Message]): Unit = {
+      try {
+        val body = formatter(message, format).utf8String
+        val wsMessage = TextMessage(body)
+        
+        queue.offer(wsMessage).onComplete {
+          case Success(QueueOfferResult.Enqueued) =>
+            log.debug(s"Message queued: ${body.take(50)}...")
+          case Success(QueueOfferResult.Dropped) =>
+            log.warn(s"Message dropped: ${uri}")
+          case Success(QueueOfferResult.Failure(ex)) =>
+            log.error(s"Failed to queue message: ${uri}", ex)
+            self ! ConnectionFailed(ex)
+          case Success(QueueOfferResult.QueueClosed) =>
+            log.error(s"Queue closed: ${uri}")
+            self ! ConnectionClosed
+          case Failure(ex) =>
+            log.error(s"Failed to queue message: ${uri}", ex)
+            self ! ConnectionFailed(ex)
+        }
+        
+      } catch {
+        case e: Exception =>
+          log.warn(s"Failed to format message: ${uri}", e)
+          // self ! ConnectionFailed(e)
+      }
+    }
+    
+    private def scheduleReconnect(): Unit = {
+      reconnectTimer.foreach(_.cancel())
+      
+      reconnectAttempts += 1
+      
+      // Calculate exponential backoff with jitter
+      val backoff = calculateBackoff(reconnectAttempts)
+      
+      log.debug(s"Scheduling Reconnect [${reconnectAttempts},${backoff}]: ${uri}")
+      
+      reconnectTimer = Some(
+        context.system.scheduler.scheduleOnce(
+          backoff,
+          self,
+          Reconnect
+        )
+      )
+    }
+    
+    private def calculateBackoff(attempt: Int): FiniteDuration = {
+      import scala.util.Random
+      
+      // Exponential backoff: minBackoff * (2 ^ attempt)
+      val exponentialDelay = retrySettings.minBackoff.toMillis * math.pow(2, attempt - 1)
+      
+      // Cap at maxBackoff
+      val cappedDelay = math.min(exponentialDelay, retrySettings.maxBackoff.toMillis)
+      
+      // Add jitter (±25% random variation)
+      val jitter = Random.nextDouble() * 0.5 + 0.75 // 0.75 to 1.25 multiplier
+      val jitteredDelay = cappedDelay * jitter
+      
+      FiniteDuration(jitteredDelay.toLong, java.util.concurrent.TimeUnit.MILLISECONDS)
+    }
+    
+    private def resetReconnectAttempts(): Unit = {
+      reconnectAttempts = 0
+    }
+    
+    override def postStop(): Unit = {
+      reconnectTimer.foreach(_.cancel())
+      messageQueueActor.foreach(_.complete())
+    }
+  }
+
   // Hive Rotators
   abstract class Rotator {
     def init(file:String,fileLimit:Long,fileSize:Long):Unit
@@ -844,23 +1082,41 @@ trait Flows {
   }
 
 
-  def toFileNew[T <: Ingestable](file:String,rotator:(T,String) => String)(implicit mat: Materializer,fmt:JsonFormat[T]) = {
+  def toFileNew[T <: Ingestable](file:String,rotator:(T,String) => String,format:String)(implicit mat: Materializer,fmt:JsonFormat[T]) = {
     import spray.json._  
     if(file.trim.isEmpty) 
       Sink.ignore 
     else
       Flow[T].map( t => {
-        val out = if(file.endsWith(".json")) 
-              s"${t.toJson}\n" 
-            else if(file.endsWith(".csv")) 
-              s"${t.toCSV}\n" 
-            else 
-              s"${t.toLog}\n"
+        // val out = if(file.endsWith(".json")) 
+        //       s"${t.toJson}\n" 
+        //     else if(file.endsWith(".csv")) 
+        //       s"${t.toCSV}\n" 
+        //     else 
+        //       s"${t.toLog}\n"
+        val out = formatter(t,format)
         Source
-          .single(ByteString(out))
+          .single(ByteString(out))          
           .toMat(FileIO.toPath(
-            Paths.get(rotator(t,file)),options =  Set(WRITE, CREATE))
+              { 
+                val path = rotator(t,file)
+                val p = Paths.get(path)
+                val dir = p.getParent()
+                if(!Files.exists(dir)) {
+                  try {
+                    Files.createDirectories(dir)
+                  } catch {
+                    case e:Exception => {
+                      log.warn(s"Failed to create dir: '${path}': ${e.getMessage}")                
+                    }
+                  }
+                }
+                p
+              },
+              options =  Set(WRITE, CREATE)
+            )
           )(Keep.left).run()
+
       })
       .toMat(Sink.seq)(Keep.both)
   }
@@ -901,7 +1157,7 @@ trait Flows {
 
           } catch {
             case e:Exception => None
-          }                    
+          }
         }
       }
     }
@@ -915,7 +1171,7 @@ trait Flows {
         .toMat(LogRotatorSink(fileRotateTrigger))(Keep.right)
   }
 
-  def toHiveFileSize[T <: Ingestable](file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue)(implicit fmt:JsonFormat[T]) = {
+  def toHiveFileSize[T <: Ingestable](file:String,format:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue)(implicit fmt:JsonFormat[T]) = {
     import spray.json._
     val fileRotateTrigger: () => ByteString => Option[Path] = () => {
       var currentFilename: Option[String] = None
@@ -953,20 +1209,22 @@ trait Flows {
       Sink.ignore 
     else
       Flow[T]
-        .map(t => if(file.endsWith(".json")) 
-              s"${t.toJson}\n" 
-            else if(file.endsWith(".csv")) 
-              s"${t.toCSV}\n" 
-            else 
-              s"${t.toLog}\n"
-        )
+        .map(t => {
+          // if(file.endsWith(".json")) 
+          //     s"${t.toJson}\n" 
+          //   else if(file.endsWith(".csv")) 
+          //     s"${t.toCSV}\n" 
+          //   else 
+          //     s"${t.toLog}\n"
+          formatter(t,format)
+        })
         .map(ByteString(_))
         .toMat(LogRotatorSink(fileRotateTrigger))(Keep.right)
   }
 
   // S3 mounted as FileSystem/Volume
   // Does not support APPEND 
-  def toFS3[T <: Ingestable](file:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue)(implicit rotator:Rotator,fmt:JsonFormat[T]) = {
+  def toFS3[T <: Ingestable](file:String,format:String,fileLimit:Long = Long.MaxValue, fileSize:Long = Long.MaxValue)(implicit rotator:Rotator,fmt:JsonFormat[T]) = {
     import spray.json._
     val log = Logger(s"${this}")
 
@@ -991,7 +1249,7 @@ trait Flows {
           size = size + element.size
           
           None
-        } else {          
+        } else {
           currentFilename = rotator.rotate(file,count,size)
           
           log.info(s"count=${count},size=${size},limits=(${fileLimit},${fileSize}) => ${currentFilename}")
@@ -1022,13 +1280,15 @@ trait Flows {
       Sink.ignore 
     else
       Flow[T]
-        .map(t => if(file.endsWith(".json")) 
-              s"${t.toJson}\n" 
-            else if(file.endsWith(".csv")) 
-              s"${t.toCSV}\n" 
-            else 
-              s"${t.toLog}\n"
-        )
+        .map(t => {
+          // if(file.endsWith(".json")) 
+          //     s"${t.toJson}\n" 
+          //   else if(file.endsWith(".csv")) 
+          //     s"${t.toCSV}\n" 
+          //   else 
+          //     s"${t.toLog}\n"
+          formatter(t,format)
+        })
         .map(ByteString(_))
         .toMat(LogRotatorSink(fileRotateTrigger,fileOpenOptions = Set(StandardOpenOption.CREATE,StandardOpenOption.WRITE)))(Keep.right)
   }
@@ -1377,4 +1637,5 @@ class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024,helloMsg:Optio
 }
 
 }
+
 

@@ -102,6 +102,7 @@ class BlockchainSpec extends AnyWordSpec with Matchers {
       Blockchain.getExplorerBlock(Some("nonexistent"), blockNumber) should ===(blockNumber)
       Blockchain.getExplorerBlock(None, blockNumber) should ===(blockNumber)
     }
+
     "resolve 'ethereum' when id = ''" in {
       val b = Blockchain.resolve(Blockchain("ethereum",Some("")))
       b should ===(Success(Blockchain.ETHEREUM.id.get.toLong))
@@ -248,5 +249,13 @@ class BlockchainSpec extends AnyWordSpec with Matchers {
       Blockchain.POLYGON_AMOY.id should ===(Some("80002"))
     }
 
+    "parse 'somnia'" in {
+      val b = Blockchain("somnia")
+      b should ===(Blockchain.SOMNIA_MAINNET)
+      b.id should ===(Some("5031"))
+      b.tok should ===(Some("SOMI"))
+      b.dec should ===(Some(18))
+      b.exp should ===(Some("https://explorer.somnia.network"))
+    }
   }    
 }

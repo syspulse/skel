@@ -1,3 +1,3 @@
 package io.syspulse.skel.dsl
 
-class JS() extends ScriptEngine("nashorn")
+class JS() extends ScriptEngineLegacy("graal.js")

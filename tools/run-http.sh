@@ -2,7 +2,7 @@
 export CWD=`echo $(dirname $(readlink -f $0))`
 
 t=`pwd`;
-APP=`basename "$t"`
+APP=`basename "$CWD"`
 CONF=`echo $APP | awk -F"-" '{print $2}'`
 
 export SITE=${SITE:-$CONF}

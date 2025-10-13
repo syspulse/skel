@@ -143,5 +143,14 @@ val UK_RSP_1 = """
       r1.get.err should === (Some("not found: staking.floki.com"))
       r1.get.ip should !== ("")
     }
+
+    "resolve safe.global" in {                  
+      val r1 = DnsUtil.getInfo("safe.global")
+      info(s"safe: ${r1}")
+      r1 should !== (Failure[DnsInfo](_))      
+      r1.get.ns should !== (Seq())
+      r1.get.ns.size should === (4)
+      r1.get.ip should !== ("")
+    }
   }
 }

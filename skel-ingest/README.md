@@ -51,8 +51,8 @@ __feed__ -> [source] -> [decode] -> [transform] -> [sink] -> __output__
 8. ```json://```                                             - Json to stdout (uses Spray to convert to AST and prettyprint)
 9. ```csv://```                                              - CSV to stdout
 10. ```log://```                                             - Calls toLog on Ingestable
-11. ```filenew://```                                         - Generate new file for every event (use time formatters)
-12. ```files://```                                           - Limit file by size
+11. ```files://```                                           - Write output object to a new file (use time formatters)
+12. ```hives://```                                           - Limit file by size
 13. ```parq://{file}```                                      - Parquet Format file (time patterns supported)
 14. ```http://host:port```                                   - HTTP Client to remote HTTP server which accepts `POST`
 15. ```jdbc://db```                                          - Exeperimental JDBC (only flat object)

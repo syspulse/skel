@@ -8,6 +8,9 @@ import com.typesafe.sbt.packager.docker._
 Global / semanticdbEnabled := true
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
+// Allow unsafe Scala library upgrades to resolve version conflicts
+Global / allowUnsafeScalaLibUpgrade := true
+
 // https://www.scala-sbt.org/1.x/docs/Parallel-Execution.html#Built-in+Tags+and+Rules
 Test / parallelExecution := true
 //test / parallelExecution := false
@@ -80,9 +83,12 @@ val sharedConfigDocker = Seq(
   // openjdk:8-jre-alpine - NOT WORKING ON RP4+ (arm64). Crashes JVM in kubernetes
   // dockerBaseImage := "openjdk:8u212-jre-alpine3.9", //"openjdk:8-jre-alpine",
 
-  //dockerBaseImage := "openjdk:8-jre-alpine",
+  // dockerBaseImage := "openjdk:8-jre-alpine",
   // dockerBaseImage := "openjdk:18-slim",
-  dockerBaseImage := "openjdk-s3fs:11-slim",  // WARNING: this image is needed for JavaScript Nashorn !
+  // dockerBaseImage := "openjdk-s3fs:11-slim",  // WARNING: this image is needed for JavaScript Nashorn !
+  // dockerBaseImage := "openjdk:21-slim",
+  dockerBaseImage := "openjdk-s3fs:21-slim",
+  
   // Add S3 mount options
   // Requires running docker: 
   // --privileged -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY -e S3_BUCKET=haas-data-dev
@@ -336,6 +342,7 @@ lazy val root = (project in file("."))
              ingest_elastic,
              ingest_dynamo,
              ingest_twitter,
+             ingest_coingecko,
              ingest,
              skel_enroll,
              skel_syslog,
@@ -352,6 +359,7 @@ lazy val root = (project in file("."))
              blockchain_evm,
              blockchain_tron,
              blockchain_label,
+             eth_protocols,
              skel_dns,
              ai_core,
              ai_agent,
@@ -367,6 +375,7 @@ lazy val root = (project in file("."))
              ingest_elastic,
              ingest_dynamo,
              ingest_twitter,
+             ingest_coingecko,
              ingest,
              skel_enroll,
              skel_syslog,
@@ -382,6 +391,7 @@ lazy val root = (project in file("."))
              blockchain_evm,
              blockchain_tron,
              blockchain_label,
+             eth_protocols,
              skel_dns,
              skel_ai,
              ai_core,
@@ -672,6 +682,21 @@ lazy val crypto_kms = (project in file("skel-crypto/crypto-kms"))
       assembly / packageOptions += sbt.Package.ManifestAttributes("Multi-Release" -> "true")
     )
 
+lazy val eth_protocols = (project in file("skel-crypto/eth-protocols"))
+  .dependsOn(core,skel_crypto,blockchain_core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssemblyTeku,
+      //sharedConfigAssembly,
+      name := "eth-protocols",
+      libraryDependencies ++= Seq() ++ //Seq(libLog4j2Api, libLog4j2Core) ++ 
+        libTest ++ libWeb3j ++ Seq(
+          libOsLib,
+          libUpickleLib,
+        ),      
+    )
+
 lazy val flow = (project in file("skel-flow"))
   .dependsOn(core)
   .disablePlugins(sbtassembly.AssemblyPlugin)
@@ -771,7 +796,7 @@ lazy val ingest_twitter = (project in file("skel-ingest/ingest-twitter"))
     sharedConfig,
     sharedConfigAssembly,
     
-    appDockerConfig("ingest-twitter",appBootClassElastic),
+    appDockerConfig("ingest-twitter","io.syspulse.skel.ingest.twitter.App"),
 
     libraryDependencies ++= Seq(
       //libTwitter4s, // deprecated, not supported any longer
@@ -810,7 +835,7 @@ lazy val ingest = (project in file("skel-ingest"))
   )
 
 lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
-  .dependsOn(core, skel_serde, ingest, ingest_twitter)
+  .dependsOn(core, ingest, ingest_twitter, ingest_coingecko)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (
@@ -828,7 +853,7 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
   )
 
 lazy val ingest_proxy = (project in file("skel-ingest/ingest-proxy"))
-  .dependsOn(core, skel_serde, ingest)
+  .dependsOn(core, ingest)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (
@@ -920,8 +945,14 @@ lazy val skel_dsl = (project in file("skel-dsl"))
 
       libraryDependencies ++= libCommon ++ libTest ++
         Seq(
-          libUpickleLib,
           "org.scala-lang" % "scala-compiler" % scalaVersion.value,
+
+          libUpickleLib,
+
+          libNashorn,
+          libGraalPolyglot,
+          libGraalPolyglotJS,
+          libGraalJSScriptEngine,
         ),
     )
 
@@ -1191,7 +1222,7 @@ lazy val skel_job = (project in file("skel-job"))
     sharedConfigAssembly,
     sharedConfigDocker,
     dockerBuildxSettings,
-    
+
     appDockerConfig("skel-job","io.syspulse.skel.job.App"),
 
     libraryDependencies ++= libTest ++ Seq(
@@ -1435,3 +1466,20 @@ lazy val tools = (project in file("tools"))
           libUpickleLib
         ),
     )
+
+lazy val ingest_coingecko = (project in file("skel-ingest/ingest-coingecko"))
+  .dependsOn(core,ingest,blockchain_core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  // .enablePlugins(AshScriptPlugin)
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    
+    appDockerConfig("ingest-coingecko","io.syspulse.skel.ingest.coingecko.App"),
+
+    libraryDependencies ++= Seq(      
+       libScalaTest % Test
+    ),  
+  )

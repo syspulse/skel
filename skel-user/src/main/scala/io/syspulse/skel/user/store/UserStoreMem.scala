@@ -12,6 +12,7 @@ import com.typesafe.scalalogging.Logger
 import io.jvm.uuid._
 
 import io.syspulse.skel.user.User
+import io.syspulse.skel.ErrNotFound
 
 class UserStoreMem extends UserStore {
   val log = Logger(s"${this}")
@@ -32,7 +33,7 @@ class UserStoreMem extends UserStore {
     val sz = users.size
     users = users - id;
     log.info(s"del: ${id}")
-    if(sz == users.size) Failure(new Exception(s"not found: ${id}")) else Success(id)  
+    if(sz == users.size) Failure(new ErrNotFound(s"${id}")) else Success(id)  
   }
 
   // def -(user:User):Try[UserStore] = {     
@@ -41,7 +42,7 @@ class UserStoreMem extends UserStore {
 
   def ?(id:UUID):Try[User] = users.get(id) match {
     case Some(u) => Success(u)
-    case None => Failure(new Exception(s"not found: ${id}"))
+    case None => Failure(new ErrNotFound(s"${id}"))
   }
 
   def findByXid(xid:String):Option[User] = {

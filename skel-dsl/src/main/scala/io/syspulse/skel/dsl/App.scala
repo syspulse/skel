@@ -26,10 +26,14 @@ object App  {
         
         ArgCmd("js","JavaScript ScriptEngine script"),
         ArgCmd("scala","Scala ScriptEngine script"),
-        ArgCmd("scala-script","Scala ScriptEngine"),
+        ArgCmd("scala-script","Scala ScriptEngine (same as `scala` with cast `-Dscala.usejavacp=true`)"),
         ArgCmd("scala-interpreter","Scala interpreter script"),
         ArgCmd("scala-toolbox","Scala Toolbox script"),
-        
+
+        ArgCmd("polyglot-js","GraalJS Polyglot ScriptEngine"),
+        ArgCmd("nashorn","Nashorn ScriptEngine"),
+        ArgCmd("js-nashorn","Nashorn ScriptEngine"),
+
         ArgParam("<params>",""),
         ArgLogging()
       ).withExit(1)
@@ -42,26 +46,34 @@ object App  {
 
     Console.err.println(s"Config: ${config}")
 
+    val defParasm = Map("i"->100,"s"->Util.generateRandomToken(None,sz=64))
     val r = config.cmd match {
       case "js" =>
-        new JS().run(config.params.mkString(" "))
+        new JS().run(config.params.mkString(" "),defParasm)
 
-      case "scala-script" =>
-        new SCALA().run(config.params.mkString(" "))
+      case "nashorn" | "js-nashorn" =>
+        new NASHORN().run(config.params.mkString(" "),defParasm)
+
+      case "polyglot-js" =>
+        new Polyglot("js").run(config.params.mkString(" "),defParasm)
 
       case "scala" =>
-        new ScalaScript().run(config.params.mkString(" "),Map("i"->Util.generateRandomToken(None,sz=64)))
+        new SCALA().run(config.params.mkString(" "),defParasm)
+
+      case "scala-script" =>
+        new ScalaScript().run(config.params.mkString(" "),defParasm)
 
       case "scala-toolbox" =>
-        new ScalaToolbox().run(config.params.mkString(" "))
+        new ScalaToolbox().run(config.params.mkString(" "),defParasm)
 
       case "scala-interpreter" =>
         //scala.tools.nsc.interpreter.shell.Scripted().eval(config.params.mkString(" "))
-        new ScalaInterpreter().run(config.params.mkString(" "))
+        new ScalaInterpreter().run(config.params.mkString(" "),defParasm)
 
       case "scala-imain" =>
-        new ScalaIMain().run(config.params.mkString(" "))
+        new ScalaIMain().run(config.params.mkString(" "),defParasm)
       
+
       case _ => 
         Console.err.println(s"unknown Script Enginer: ${config.cmd}")
         sys.exit(1)

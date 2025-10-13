@@ -267,6 +267,49 @@ class UtilSpec extends AnyWordSpec with Matchers {
       csv should === ("data,,10")
     }
 
+    """should replace '{var1}'""" in {
+      val e1 = """{var1}"""
+      val e2 = Util.replaceVar(e1,Map("var1"->"100"))
+      e2 should === ("""100""")
+    }
+
+    """should replace '{var1:3}'""" in {
+      val e1 = """{var1:3}"""
+      val e2 = Util.replaceVar(e1,Map("var1"->"1234567"))
+      e2 should === ("""123""")
+    }
+
+    """should replace '{var1:3} - {var1} - {var1:4}'""" in {
+      val e1 = """{var1:3} - {var1} - {var1:4}"""
+      val e2 = Util.replaceVar(e1,Map("var1"->"1234567"))
+      e2 should === ("""123 - 1234567 - 1234""")
+    }
+
+    """should replace '{var1:3} - {var2} - {var3:4}'""" in {
+      val e1 = """{var1:3} - {var2} - {var3:4}"""
+      val e2 = Util.replaceVar(e1,Map("var1"->"1234567","var2"->"abcd","var3"->"User-1"))
+      e2 should === ("""123 - abcd - User""")
+    }
+
+    """should replace non found vars with empty string '{var1:3} - {var2} - {var3:4}'""" in {
+      val e1 = """{var1:3} - {var2} - {var3:4}"""
+      
+      val e2 = Util.replaceVar(e1,Map("var1"->"1234567"))
+      e2 should === ("""123 -  - """)
+
+      val e3 = Util.replaceVar(e1,Map("var2"->"abcd","var3"->"User-1"))
+      e3 should === (""" - abcd - User""")
+
+      val e4 = Util.replaceVar(e1,Map("var3"->"User-1"))
+      e4 should === (""" -  - User""")
+
+      val e5 = Util.replaceVar(e1,Map())
+      e5 should === (""" -  - """)
+
+      val e6 = """{var1:3}{var1}{var1:4}"""
+      Util.replaceVar(e6,Map("var2"-> "123")) should === ("""""")
+    }
+
     """replaceVar should replace '{"name" = "{name}"}'""" in {
       val e1 = """{"name" = "{name}"}"""
       val e2 = Util.replaceVar(e1,Map("name"->"User-1"))

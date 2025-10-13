@@ -45,6 +45,9 @@ case class Config(
 
   datastore:String = "mem",
 
+  actorSystem:String = "ActorSystem-IngestFlow",
+  pipelineFlow:String = "stdin:// -> stdout://",
+
   cmd:String = "ingest",
   params: Seq[String] = Seq(),
 )
@@ -79,10 +82,15 @@ object App extends skel.Server {
         ArgLong('s', s"size",s"File Size Limit (def: ${d.size})"),
 
         ArgString('d', "datastore",s"Datastore [elastic,mem,stdout] (def: ${d.datastore})"),
-                
+
+        ArgString('a', "actor.system",s"Actor System (def: ${d.actorSystem})"),
+        ArgString('p', "pipeline.flow",s"Pipeline Flow (def: ${d.pipelineFlow})"),
+        
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
-        ArgCmd("flow","Flow Command"),
+        //ArgCmd("flow","Flow Command"),
+        ArgCmd("pipeline","Pipeline Command"),
+        ArgCmd("test","Test Command"),        
         ArgCmd("akka","Flow through Akka (testing)"),
         
         ArgParam("<processors>","List of processors (none/map,print,dedup)"),
@@ -110,6 +118,9 @@ object App extends skel.Server {
       format = c.getString("format").getOrElse(d.format),
 
       filter = c.getString("filter").getOrElse(d.filter),
+
+      actorSystem = c.getString("actor.system").getOrElse(d.actorSystem),
+      pipelineFlow = c.getString("pipeline.flow").getOrElse(d.pipelineFlow),
       
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -134,32 +145,71 @@ object App extends skel.Server {
       case "server" => 
         Console.err.println(s"Not supported")
         sys.exit(1)
+        
       case "ingest" => {
         val f1 = new PipelineTextline(config.feed,config.output)        
         f1.run()
       }
       
-      case "flow" => 
+      case "test" => 
         // only for testng
         import TextlineJson._        
         val source = Flows.fromStdin().map(d => Textline(d.utf8String))
         val sink =Flows.toStdout[Textline]()
         
-        implicit val system: ActorSystem = ActorSystem("flow")
+        implicit val system: ActorSystem = ActorSystem(config.actorSystem)
         implicit val materializer: ActorMaterializer = ActorMaterializer()(system)
         source.runWith(sink)
 
-      case "akka" => {        
-        val f2 = new PipelineTextline("akka://ActorSystem-IngestFlow/flow1",config.output)        
+      case "akka" => 
+        implicit val system: Option[ActorSystem] = Some(ActorSystem(config.actorSystem))
+        
+        val pipe1 = "pipe1"
+        val pipe2 = "pipe2"
+        /* 
+           Pipeline:
+           f1(feed,"akka://1") -> f2("akka://1","akka://2") -> f3("akka://2",output)
+        */
+
+        val f3 = new PipelineTextline(
+          s"akka://${config.actorSystem}/${pipe2}",
+          config.output)
+          // (config,system)
+
+        f3.run()
+
+        val f2 = new PipelineTextline(
+          s"akka://${config.actorSystem}/${pipe1}",
+          s"akka://${config.actorSystem}/user/${pipe2}")
+          // (config,system)
+        
         f2.run()
         
-        // special trick to pass system to the next flow
-        implicit val system = Some(f2.system)
+        //implicit val system = Some(f2.system)        
+        val f1 = new PipelineTextline(
+          config.feed,
+          s"akka://${config.actorSystem}/user/${pipe1}")
+          // (config,system)
         
-        val f1 = new PipelineTextline(config.feed,"akka://ActorSystem-IngestFlow/user/flow1")
-        f1.run()
-        
-      }
+        f1.run()              
+
+      case "pipeline" => 
+        import TextlineJson._
+
+        implicit val system: Option[ActorSystem] = Some(ActorSystem(config.actorSystem))
+
+        // input:// -> output://, input:// -> output://
+        val pp = config.pipelineFlow.split(",").map(_.trim).filter(!_.isBlank).map( p => {
+          p.split("=>").map(_.trim).toList match {
+            case feed :: output :: Nil => 
+              new PipelineTextline(feed,output)(config,system)
+            case _ => 
+              throw new Exception(s"Invalid pipeline flow: ${p}")
+          }
+        })     
+
+        pp.foreach(f => f.run())
+
     }
 
     Console.err.println(s"r = ${r}")

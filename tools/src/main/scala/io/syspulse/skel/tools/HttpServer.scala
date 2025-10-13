@@ -42,7 +42,7 @@ abstract class HttpServerable extends cask.MainRoutes{
       case reqs =>         
         reqs.map(f => f.split("://").toList match {
           case "file" :: file :: Nil =>
-            () => os.read(os.Path(f,os.pwd))
+            () => os.read(os.Path(file,os.pwd))
           case rsp :: Nil => () => rsp
         })
     }

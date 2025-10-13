@@ -24,7 +24,9 @@ else
    APP_HOME=${APP_HOME:-`pwd`}
 fi
 
-PLUGINS=${PLUGSIN-`pwd`/plugins}
+PLUGINS=${PLUGSIN:-${CWD}/plugins}
+
+>&2 echo "APP_HOME: $APP_HOME"
 
 # fat jar
 JAR_FAT=`ls ${APP_HOME}/target/scala-2.13/*assembly*.jar`
@@ -34,7 +36,7 @@ CLASSES=${APP_HOME}/target/scala-2.13/classes
 JAR_UNFAT=`ls ${APP_HOME}/lib/*.jar`
 # list of jar. Generated with command:
 # sbt -error ";project module; export dependencyClasspath" >CLASSPATH
-JAR_FILES=`cat CLASSPATH`
+JAR_FILES=`cat ${CWD}/CLASSPATH`
 PLUGIN_JARS="${PLUGINS}/*"
 CP="${APP_HOME}/conf/:$JAR_FAT:$JAR_UNFAT:$JAR_FILES:$CLASSES:$PLUGIN_JARS"
 

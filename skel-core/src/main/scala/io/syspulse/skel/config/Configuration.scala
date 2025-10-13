@@ -5,6 +5,8 @@ import java.time.Duration
 import scala.jdk.CollectionConverters._
 
 import com.typesafe.scalalogging.Logger
+import java.net.URL
+import scala.io.BufferedSource
 
 trait ConfigurationLike {
 
@@ -73,26 +75,56 @@ class Configuration(configurations: Seq[ConfigurationLike]) extends Configuratio
     configurations.foldLeft[Option[String]](None)((r,c) => if(r.isDefined) r else c.getCmd())
   }
 
-  def getListString(path:String,d:Seq[String] = Seq(),empty:Boolean = false, trim:Boolean = true,comment:Option[String] = None):Seq[String] = {
-    val v = getString(path)
-    val s = if(v.isDefined) v.get else d.mkString(",")
-    
-    val data = if(s.trim.startsWith("file://")) {
-      scala.io.Source.fromFile(s.drop("file://".size)).getLines().mkString(",")      
+  def getFromSplit(b:BufferedSource,expand:Boolean,splitter:String = ","):Iterator[String] = {
+    if(expand) {
+      b.getLines().map(s => s.split(splitter)).flatten.iterator
     } else {
-      s
-    }
+      Iterator(b.mkString)
+    }  
+  }
 
-    // if comments are supported, need to find lines regardless of delimiter
-    val data1 = if(comment.isDefined) {
-      data.split("\n")
-         .filter(s => ! s.trim.startsWith(comment.get))
-         .mkString("\n")
+  def getFromUrl(s:String,expand:Boolean,splitter:String = ","):Iterator[String] = {
+    if(s.trim.startsWith("file://")) {
+      getFromSplit(scala.io.Source.fromFile(s.trim.drop("file://".size)),expand,splitter)
+    } else 
+    if(s.trim.startsWith("resource://")) {
+      getFromSplit(scala.io.Source.fromResource(s.trim.drop("resource://".size)),expand,splitter)
+    } else 
+    if(s.trim.startsWith("https://")) {
+      getFromSplit(scala.io.Source.fromURL(new URL(s)),expand,splitter)
+    } else 
+    if(s.trim.startsWith("http://")) {
+      getFromSplit(scala.io.Source.fromURL(new URL(s)),expand,splitter)
+    } else
+    {
+      Iterator(s)
     }
-    else 
-      data
+  }
 
-    data1.split(",")
+  def getListString(path:String,d:Seq[String] = Seq(),
+                    empty:Boolean = false, 
+                    trim:Boolean = true,
+                    comment:Option[String] = None,
+                    splitter:String = ",",
+                    expand:Boolean = true):Seq[String] = {
+    val v = getString(path)
+    val s = if(v.isDefined) v.get else d.mkString(splitter)
+    
+    s.split(splitter)      
+      .flatMap(s => {
+        getFromUrl(s,expand,splitter)
+      })
+      .map(s => {
+        
+        // if comments are supported, need to find lines regardless of delimiter
+        if(comment.isDefined) {
+          s.split("\n")
+            .filter(s => ! s.trim.startsWith(comment.get))
+            .mkString("\n")
+        }
+        else 
+          s
+      })
       .map(s => if(trim) s.trim else s)
       .filter(empty || !_.isEmpty)
       .filter(s => !comment.isDefined || !s.trim.startsWith(comment.get))

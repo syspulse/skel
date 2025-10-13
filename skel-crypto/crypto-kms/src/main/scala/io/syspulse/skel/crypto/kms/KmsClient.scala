@@ -27,7 +27,7 @@ class KmsClient(uri:String) {
         Success(k0)
     }
     k2 <- {
-      if(kmsUri.region.isDefined)
+      if(kmsUri.region.isDefined && ! kmsUri.host.isDefined)
         Success(k1.withRegion(kmsUri.region.get))
       else
         Success(k1)

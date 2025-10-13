@@ -798,12 +798,12 @@ object Eth {
     encodeFunction(func,if(params.isEmpty) Seq.empty else params.split("\\s+").toSeq)
   }
 
-  def traceCall(from:String,to:String,func:String,params:Seq[String],tracer:String,tracerConfig:Map[String,Any])(implicit web3:Web3jTrace):Try[String] = {
+  def traceCall(from:String,to:String,func:String,params:Seq[String],tracer:String,tracerConfig:Map[String,Any],block:Option[String] = None)(implicit web3:Web3jTrace):Try[String] = {
     for {
       (data,_) <- Try { Eth.encodeFunction(func,params) }
       
       r <- Try{ 
-          web3.traceCall(from,to,data,tracer,tracerConfig.asJava)
+          web3.traceCall(from,to,data,tracer,tracerConfig.asJava,block.getOrElse("latest"))
         }
       r <- Try{ r.send() }
       r <- Try{ 
@@ -815,11 +815,40 @@ object Eth {
     } yield r.toString()
   }
 
-  def traceCallAsync(from:String,to:String,func:String,params:Seq[String],tracer:String,tracerConfig:Map[String,Any])(implicit web3:Web3jTrace,ec:ExecutionContext):Future[String] = {
+  def traceCallAsync(from:String,to:String,func:String,params:Seq[String],tracer:String,tracerConfig:Map[String,Any],block:Option[String] = None)(implicit web3:Web3jTrace,ec:ExecutionContext):Future[String] = {
     for {
       (data,_) <- Future { Eth.encodeFunction(func,params) }      
-      r <-  web3.traceCall(from,to,data,tracer,tracerConfig.asJava).sendAsync().asScala
+      r <-  web3.traceCall(from,to,data,tracer,tracerConfig.asJava,block.getOrElse("latest")).sendAsync().asScala
       r <- {
+        if(r.hasError())
+          throw new Exception(s"${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
+        else
+          Future.successful(r.getResult())
+      }
+    } yield r.toString()
+  }
+
+  def traceTx(tx:String,tracer:String = "callTracer",tracerConfig:Map[String,Any] = Map())(implicit web3:Web3jTrace):Try[String] = {
+    for {      
+      r <- Try{
+          log.info(s"traceTx: ${tx}: ${tracer}: ${tracerConfig} -> ${web3}")
+          web3.traceTransaction(tx,tracer,tracerConfig.asJava)
+        }
+      r <- Try{ r.send() }
+      r <- Try{ 
+        if(r.hasError()) {
+          log.warn(s"${tx}: ${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
+          throw new Exception(s"${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
+        }else
+          r.getResult() 
+      }
+    } yield r.toString()
+  }
+
+  def traceTxAsync(tx:String,tracer:String = "callTracer",tracerConfig:Map[String,Any] = Map())(implicit web3:Web3jTrace,ec:ExecutionContext):Future[String] = {
+    for {      
+      r <- web3.traceTransaction(tx,tracer,tracerConfig.asJava).sendAsync().asScala
+      r <- { 
         if(r.hasError())
           throw new Exception(s"${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
         else
@@ -957,5 +986,29 @@ object Eth {
     val signatureData = Sign.signMessage(hash, keyPair, false)
 
     Numeric.toHexString(signatureData.getR ++ signatureData.getS ++ signatureData.getV)
+  }
+
+  // Ethereum: 0x093b60563c805dbceb0ca7b06165a6975434bfe4cd33ac940c9255da83436549
+  // "output": "0x08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000164d696e2072657475726e206e6f74207265616368656400000000000000000000",                                          
+  // "error": "execution reverted",                                                                                                 
+  // "revertReason": "Min return not reached",
+
+  // Sepolia: 0x98b7c63c41a3baef261076b3006690980487a26907ae922313135bb9ecbd8820
+  // "error": "execution reverted",
+  // "output": "0x1e55042ba9059cbb00000000000000000000000000000000000000000000000000000000000000000000000000000000ee8031f530845d8f72a54d8cc58f56dc86e9a56f",
+
+  def getTxError(txHash:String)(web3:Web3jTrace):Try[(Option[String],Option[String],Option[String])] = {
+    for {
+      r <- Eth.traceTx(txHash,"callTracer",Map.empty)(web3)
+      reason <- {
+        val json = ujson.read(r)
+        Try{
+          val error = json.obj.get("error").map(_.str)
+          val output = json.obj.get("output").map(_.str)          
+          val revertReason = json.obj.get("revertReason").map(_.str)
+          (error,output,revertReason)
+        }
+      }
+    } yield reason  
   }
 }

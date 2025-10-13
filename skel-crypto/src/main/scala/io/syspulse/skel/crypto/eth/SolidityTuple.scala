@@ -18,7 +18,7 @@ import net.osslabz.evm.abi.definition.SolObject
 object SolidityTuple {
   
   def valueToString(d:Int,name: String, value: SolObject, t: String): String = {    
-    //println(s"${d}: ${name}: t=${t}, type=${value.getTypeName()}: value=${value.getValue()}")
+    // println(s"${d}: ${name}: t=${t}, type=${value.getTypeName()}: value=${value.getValue()}")
     
     value.getTypeName() match {
       case null => "null"
@@ -49,9 +49,18 @@ object SolidityTuple {
 
         s"(${s})"
 
-      case _ if value.getTypeName().startsWith("bytes") => 
-        Util.hex(value.getValue().asInstanceOf[Array[Byte]])
-      
+      case _ if value.getTypeName().startsWith("bytes") =>
+        val bytesNum = {
+          val s = value.getTypeName().substring(5)
+          if(s.isEmpty) -1 else s.toInt
+        }
+        // println(s">>>>>>>>>>>>>>>> bytesNum: -1, value: ${value.getValue().asInstanceOf[Array[Byte]].size}")
+        if(bytesNum == -1) {          
+          Util.hex(value.getValue().asInstanceOf[Array[Byte]])
+        } else {
+          Util.hex(value.getValue().asInstanceOf[Array[Byte]].take(bytesNum))
+        }
+        // Util.hex(value.getValue().asInstanceOf[Array[Byte]])      
       
       // this is when inside tuple
       // case v if v.isInstanceOf[String] => s""""${v.asInstanceOf[String]}""""
@@ -216,6 +225,7 @@ object SolidityTuple {
         "type" -> "function"
       )
     )
+
     ujson.write(abi, indent = 2)
   }
 
