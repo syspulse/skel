@@ -11,8 +11,37 @@ import io.syspulse.skel.util.Util
 
 class ConditionSpec extends AnyWordSpec with Matchers {
 
+  "Test ETH transfer conditions" should {
+    "transfer 1.5 ETH" in {
+      {
+        val d = new ConditionBigInt(BigInt(0),"= 1.5",18)
+        d.set(BigInt("1500000000000000000")) should  === (true)
+        d.set(BigInt("1600000000000000000")) should  === (false)
+        d.set(BigInt("15")) should  === (false)
+      }
+      {
+        val d = new ConditionBigInt(BigInt(0),"> 1.53",18)
+        d.set(BigInt("1500000000000000000")) should  === (false)
+        d.set(BigInt("1600000000000000000")) should  === (true)
+        d.set(BigInt("1540000000000000000")) should  === (true)
+        d.set(BigInt("1520000000000000000")) should  === (false)
+        d.set(BigInt("1530000000000000000")) should  === (false)
+        d.set(BigInt("15")) should  === (false)
+      }
+      {
+        val d = new ConditionBigInt(BigInt(0),">= 1.53",18)
+        d.set(BigInt("1500000000000000000")) should  === (false)
+        d.set(BigInt("1600000000000000000")) should  === (true)
+        d.set(BigInt("1540000000000000000")) should  === (true)
+        d.set(BigInt("1520000000000000000")) should  === (false)
+        d.set(BigInt("1530000000000000000")) should  === (true)
+        d.set(BigInt("15")) should  === (false)
+      }
+    }    
+  }
+
   "Test totalSupply" should {
-    "change 1004465.0 -> 1004465.0" in {      
+    "change 1004465.0 -> 1009465.0" in {      
       {
         val d = new ConditionDouble(1004465.0,"> 0.1%")
         d.set(1009465.0) should  === (true)        
@@ -31,6 +60,28 @@ class ConditionSpec extends AnyWordSpec with Matchers {
       {
         val d = new ConditionDouble(1004465.0," < 0.7%")
         d.set(1009465.0) should  === (true)
+      }
+    }    
+
+    "change 1004465.0 -> 1009465.0 with BigInt and dec = 18" in {      
+      {
+        val d = new ConditionBigInt(BigInt(1004465),"> 0.1%",18)
+        d.set(BigInt(1009465)) should  === (true)        
+      }
+
+      {
+        val d = new ConditionBigInt(BigInt(1004465),"> 0.2%",18)
+        d.set(BigInt(1009465)) should  === (true)        
+      }
+
+      {
+        val d = new ConditionBigInt(BigInt(1004465),"> 0.5%",18)
+        d.set(BigInt(1009465)) should  === (false)        
+      }
+
+      {
+        val d = new ConditionBigInt(BigInt(1004465)," < 0.7%",18)
+        d.set(BigInt(1009465)) should  === (true)
       }
     }    
   }

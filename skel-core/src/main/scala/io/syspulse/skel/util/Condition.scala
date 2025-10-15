@@ -343,7 +343,7 @@ case class OpEmpty() extends Op {
 }
 
 object Op {
-  def compile(expr:String):Op = {
+  def compile(expr:String,dec:Int = 0):Op = {
     val exrp1 = expr.replaceAll("\\s+","")
 
     if(exrp1.isEmpty)
@@ -369,26 +369,38 @@ object Op {
       case "+" => false
       case _ => true
     }
+
+    val v = 
+      if(perc)
+        // percentage is supported
+        BigDecimal(value)
+      else
+        // no decimal, treat is as is
+      if(dec == 0) 
+        BigDecimal(value)
+      else
+        // use decimal to convert to integer
+        BigDecimal(value) * BigDecimal(10).pow(dec)
     
     val op = opExpr match {
-      case "=" => OpEq(BigDecimal(value),perc,delta,abs)
-      case ">" => OpMore(BigDecimal(value),perc,delta,abs)
-      case "<" => OpLess(BigDecimal(value),perc,delta,abs)
-      case ">=" => OpMoreEq(BigDecimal(value),perc,delta,abs)
-      case "<=" => OpLessEq(BigDecimal(value),perc,delta,abs)
-      case "!=" => OpEqNot(BigDecimal(value),perc,delta,abs)
+      case "=" => OpEq(v,perc,delta,abs)
+      case ">" => OpMore(v,perc,delta,abs)
+      case "<" => OpLess(v,perc,delta,abs)
+      case ">=" => OpMoreEq(v,perc,delta,abs)
+      case "<=" => OpLessEq(v,perc,delta,abs)
+      case "!=" => OpEqNot(v,perc,delta,abs)
 
-      case ">>" => OpMoreOnce(BigDecimal(value),perc,delta,abs)
-      case "<<" => OpLessOnce(BigDecimal(value),perc,delta,abs)
+      case ">>" => OpMoreOnce(v,perc,delta,abs)
+      case "<<" => OpLessOnce(v,perc,delta,abs)
 
       case "" => {
         // Handle case where no operator is specified (default to equality)
         if (delta != 0) {
           // For delta operations without explicit operator, use appropriate default
-          if (delta > 0) OpMore(BigDecimal(value), perc, delta,abs)
-          else OpLess(BigDecimal(value), perc, delta,abs)
+          if (delta > 0) OpMore(v, perc, delta,abs)
+          else OpLess(v, perc, delta,abs)
         } else {
-          OpEq(BigDecimal(value), perc, delta,abs)
+          OpEq(v, perc, delta,abs)
         }
       }
       case _ => OpEmpty()
@@ -398,19 +410,30 @@ object Op {
 }
 
 // =======================================================================================================
-abstract class Condition[T](v0:BigDecimal,expr:String="") {
+/* 
+ We must support BigInt with double condition like this: 
+  > 1.39 
+  < 10000.578
+
+  THis is only supported if decimal is passed as parameter. 
+  When decimal is passed, all BigDecimal operations are performed with the dec mulitplication for correct comparison.
+  It is obviously applied only to non-percentage conditions.
+*/
+abstract class Condition[T](v0:BigDecimal,expr:String,dec0:Int = 0) {
   var ts:Long = -1L
   var last:BigDecimal = v0
   var lastChanged:Boolean = false
-  var Condition = expr
-  var op = Op.compile(expr)
+  var condition = expr
+  var dec = dec0
+  var op = Op.compile(expr,dec)
 
-  override def toString = s"${this.getClass.getSimpleName}(${ts},${last},${Condition})"
+  override def toString = s"${this.getClass.getSimpleName}(${ts},${last},${condition},${dec0})"
 
-  def getCondition = this.Condition
-  def setCondition(expr:String) = { 
-    Condition = expr 
-    op = Op.compile(expr)
+  def getCondition = this.condition
+  def setCondition(expr:String,dec:Int = 0) = { 
+    this.dec = dec
+    condition = expr 
+    op = Op.compile(expr,dec)
   }
   
   def value():T
@@ -434,10 +457,10 @@ class ConditionDouble(v0:Double,Condition0:String="") extends Condition[Double](
   def value():Double = last.toDouble
 }
 
-class ConditionBigInt(v0:BigInt,Condition0:String="",dec:Int = 0) extends Condition[BigInt](BigDecimal(v0),Condition0) {
+class ConditionBigInt(v0:BigInt,expr:String="",dec:Int = 0) extends Condition[BigInt](BigDecimal(v0),expr,dec) {
   def value():BigInt = last.toBigInt
 }
 
-class ConditionLong(v0:Long,Condition0:String="") extends Condition[Long](v0,Condition0) {
+class ConditionLong(v0:Long,expr:String="") extends Condition[Long](v0,expr) {
   def value():Long = last.toLong
 }
