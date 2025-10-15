@@ -209,6 +209,14 @@ ETH_RPC_URL=https://eth-sepolia.public.blastapi.io ./run-evm.sh call-async 0x695
 ./run-evm.sh call-trace --from 0xfC011860c9E4B840AB97c2c3936611c88fcE3673 0xe76C6c83af64e4C60245D8C7dE953DF673a7A33D "transfer(address,uint256)" 0x0000000000000000000000000000000000000001 1 --tracer=prestateTracer --tracerConfig="diffMode=true" --format=json
 ```
 
+## Errors
+
+Parse custom error
+
+```
+ETH_RPC_URL=  ./run-evm.sh error 0xcf9c8aa94bbd8c1f37dc329e5c10ab7cbd96e629c0fb3eb9b7fb0db699c59919 '--errors=file://ERRORS.sol'
+```
+
 ----
 ## Certificates
 
