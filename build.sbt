@@ -635,10 +635,10 @@ lazy val skel_kafka= (project in file("skel-kafka"))
   )  
 
 lazy val skel_crypto = (project in file("skel-crypto"))
-  .dependsOn(core)
+  .dependsOn(core,blockchain_core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
-          sharedConfig,
+    sharedConfig,
     sharedConfigAssemblyTeku,
     //sharedConfigAssembly,
     name := "skel-crypto",
@@ -1483,3 +1483,18 @@ lazy val ingest_coingecko = (project in file("skel-ingest/ingest-coingecko"))
        libScalaTest % Test
     ),  
   )
+
+lazy val skel_risk = (project in file("skel-risk"))
+  .dependsOn(core,blockchain_core)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      name := "skel-risk",
+      libraryDependencies ++= 
+        
+        libTest ++
+        Seq(
+          libUUID, 
+          libUpickleLib,
+        ),
+    )
