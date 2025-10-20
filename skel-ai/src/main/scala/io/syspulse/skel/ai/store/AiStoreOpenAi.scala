@@ -21,12 +21,13 @@ import io.syspulse.skel.ai.Config
 import io.syspulse.skel.ai.core.Providers
 import io.syspulse.skel.ai.provider.openai.OpenAi
 import io.syspulse.skel.ai.provider.AiProvider
+import io.syspulse.skel.ai.core.openai.OpenAiURI
 
 // Preload from file during start
 class AiStoreOpenAi(uri:String) extends AiStore {
 
   // TODO: Change !
-  val engine = new OpenAi(Util.replaceEnvVar(uri))
+  val engine = new OpenAi(OpenAiURI(Util.replaceEnvVar(uri)))
 
   val store = new AiStoreMem()
       

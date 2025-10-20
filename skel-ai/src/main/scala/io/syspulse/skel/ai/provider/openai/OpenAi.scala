@@ -37,6 +37,8 @@ import akka.http.scaladsl.model.{StatusCodes,HttpEntity,ContentTypes}
 import akka.actor.ActorSystem
 import akka.util.ByteString
 import akka.http.scaladsl.model.headers.RawHeader
+import io.syspulse.skel.ai.core.AiURI
+
 
 case class OpenAi_Msg(
   role:String,
@@ -175,24 +177,27 @@ object OpenAi_Json extends JsonCommon {
 
 }
 
-class OpenAi(uri:String) extends AiProvider {
+abstract class OpenAiLike(uri:AiURI) extends AiProvider {
   import OpenAi_Json._
 
-  val aiUri = OpenAiURI(uri)
+  val aiUri:AiURI = uri
 
+  def getUri():AiURI = aiUri
   override def getTimeout():Long = aiUri.timeout
   override def getRetry():Int = aiUri.retry
-  override def getModel():Option[String] = aiUri.model
+  override def getModel():Option[String] = aiUri.getModel()
 
   def ask(question:String,model:Option[String],system:Option[String] = None,
           timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Ai] = {
 
-    val url = s"https://api.openai.com/v1/chat/completions"
+    val url = s"${aiUri.apiUrl}/v1/chat/completions"
     val modelReq = model.getOrElse(OpenAiURI.DEFAULT_MODEL)
+    val systemPrompt = system.orElse(aiUri.system).getOrElse("")
+
     val body = OpenAi_CompletionReq(
       model = modelReq,
       messages = Seq(
-        OpenAi_Msg("system",system.getOrElse("")),
+        OpenAi_Msg("system",systemPrompt),
         OpenAi_Msg("user",question)
       ),
       temperature = aiUri.temperature,
@@ -200,8 +205,10 @@ class OpenAi(uri:String) extends AiProvider {
       max_completion_tokens = aiUri.maxTokens,
     ).toJson.compactPrint
          
-    log.info(s"model=${modelReq},sys=[${system.size}]/q=[${question.size}]: '${question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")    
+    log.info(s"model=${modelReq},sys=[${systemPrompt.size}]/q=[${question.size}]: '${question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")  
 
+    println(s"============================> ${timeout}")
+    
     Retry.withRetry(
       {
         val r = requests.post(
@@ -232,19 +239,30 @@ class OpenAi(uri:String) extends AiProvider {
   def chat(chat:Chat,model:Option[String],system:Option[String] = None,
             timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Chat] = {
 
-    val url = s"https://api.openai.com/v1/chat/completions"
+    val url = s"${aiUri.apiUrl}/v1/chat/completions"
     val modelReq = model.getOrElse(OpenAiURI.DEFAULT_MODEL)
+    val systemPrompt = system.orElse(aiUri.system)
+
+    val messages = chat.messages.map( p => {
+      p.role.trim match {
+        case "system" if(systemPrompt.isDefined) => 
+          // overwrite system prompt if needed
+          OpenAi_Msg("system",systemPrompt.get)
+        case _ => 
+          OpenAi_Msg(p.role,p.content)
+      }
+    })
     
     val body = OpenAi_CompletionReq(
       model = modelReq,
-      messages = chat.messages.map( p => OpenAi_Msg(p.role,p.content)),
+      messages = messages,
       temperature = aiUri.temperature,
       top_p = aiUri.topP,
       max_completion_tokens = aiUri.maxTokens,
     ).toJson.compactPrint
           
-    val chatSize = chat.messages.map(_.content.size).sum
-    log.info(s"model=${modelReq},sys=[${system.size}]/q=[${chat.messages.size}] -> ${url}")    
+    val chatSize = messages.map(_.content.size).sum
+    log.info(s"model=${modelReq},sys=[${systemPrompt.map(_.size).getOrElse(-1)}]/q=[${messages.size}] -> ${url}")    
 
     Retry.withRetry(
       {
@@ -288,22 +306,24 @@ class OpenAi(uri:String) extends AiProvider {
   def promptAsync(ai:Ai,system:Option[String] = None,
             timeout:Long = getTimeout(),retry:Int = getRetry())(implicit ec: ExecutionContext):Future[Ai] = {
 
-    val url = s"https://api.openai.com/v1/responses"
+    val url = s"${aiUri.apiUrl}/v1/responses"
     val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
+    val systemPrompt = system.orElse(aiUri.system)
+    
     val body = OpenAi_ResponsesReq(
       model = modelReq,
       input = Seq(
         OpenAi_Input("user",ai.question)
       ),
-      instructions = system,
+      instructions = systemPrompt,
       previous_response_id = ai.xid,
-      store = aiUri.ops.get("store").map(_.toBoolean).orElse(Some(true)),
+      store = aiUri.getOptions().get("store").map(_.toBoolean).orElse(Some(true)),
       temperature = aiUri.temperature,
       top_p = aiUri.topP,
       max_output_tokens = aiUri.maxTokens,
     ).toJson.compactPrint
          
-    log.info(s"model=${modelReq},sys=[${system.size}]/q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
+    log.info(s"model=${modelReq},sys=[${systemPrompt.map(_.size).getOrElse(-1)}]/q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
 
     Future{ 
       Retry.withRetrying(
@@ -339,26 +359,28 @@ class OpenAi(uri:String) extends AiProvider {
     FutureAwaitable.awaitTry(f)(timeout)
   }
 
-  def promptStreamAsync(ai:Ai,onEvent: (String) => Unit,instructions:Option[String] = None,timeout:Long = 10000,retry:Int = 3,tools:Seq[AiTool] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai] = {
+  def promptStreamAsync(ai:Ai,onEvent: (String) => Unit,instructions:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai] = {
     
-    val url = s"https://api.openai.com/v1/responses"
+    val url = s"${aiUri.apiUrl}/v1/responses"
     val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
+    val systemPrompt = if( ! ai.xid.isDefined) instructions.orElse(aiUri.system) else None
+
     val body = OpenAi_ResponsesReq(
       model = modelReq,
       input = Seq(
         OpenAi_Input("user", ai.question)
       ),
       stream = Some(true),
-      instructions = if( ! ai.xid.isDefined) instructions else None,
+      instructions = systemPrompt,
       previous_response_id = ai.xid,
-      store = aiUri.ops.get("store").map(_.toBoolean).orElse(Some(true)),
+      store = aiUri.getOptions().get("store").map(_.toBoolean).orElse(Some(true)),
       temperature = aiUri.temperature,
       top_p = aiUri.topP,
       max_output_tokens = aiUri.maxTokens,
       tools = if(tools.nonEmpty) Some(tools) else None
     ).toJson.compactPrint
        
-    log.info(s"model=${modelReq},sys=[${instructions.size}]/q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
+    log.info(s"model=${modelReq},sys=[${systemPrompt.map(_.size).getOrElse(-1)}]/q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
     
     Future {
       var a:Option[Ai] = None
@@ -425,28 +447,30 @@ class OpenAi(uri:String) extends AiProvider {
     onData: (String) => Unit = (s) => {},
     onError: (String) => Unit = (s) => {},
     onDone: () => Unit = () => {},
-    timeout:Long = 10000,retry:Int = 3,tools:Seq[AiTool] = Seq.empty)
+    timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty)
     (implicit ec: ExecutionContext,sys: ActorSystem): Source[ServerSentEvent, Any] = {
     
-    val url = s"https://api.openai.com/v1/responses"
+    val url = s"${aiUri.apiUrl}/v1/responses"
     // val url = s"http://localhost:8081/"
     val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
+    val systemPrompt = if( ! ai.xid.isDefined) instructions.orElse(aiUri.system) else None
+
     val body = OpenAi_ResponsesReq(
       model = modelReq,
       input = Seq(
         OpenAi_Input("user", ai.question)
       ),
       stream = Some(true),
-      instructions = if( ! ai.xid.isDefined) instructions else None,
+      instructions = systemPrompt,
       previous_response_id = ai.xid,
-      store = aiUri.ops.get("store").map(_.toBoolean).orElse(Some(true)),
+      store = aiUri.getOptions().get("store").map(_.toBoolean).orElse(Some(true)),
       temperature = aiUri.temperature,
       top_p = aiUri.topP,
       max_output_tokens = aiUri.maxTokens,
       tools = if(tools.nonEmpty) Some(tools) else None
     ).toJson.compactPrint
        
-    log.info(s"model=${modelReq},sys=[${instructions.size}]/q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
+    log.info(s"model=${modelReq},sys=[${systemPrompt.map(_.size).getOrElse(-1)}]/q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
     
     val httpRequest = HttpRequest(
           method = HttpMethods.POST,
@@ -521,6 +545,7 @@ class OpenAi(uri:String) extends AiProvider {
       }
     }
     r    
-  }
-  
+  } 
 }
+
+class OpenAi(uri:OpenAiURI) extends OpenAiLike(uri)

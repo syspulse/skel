@@ -25,3 +25,10 @@ Use model and organization:
 ./run-ai.sh --datastore=openai://gpt-4o?org=$OPENAI_ORG "How are you ?"
 ```
 
+## URI eaxmples
+
+Ask question with system prompt
+
+```
+rlwrap ./run-ai.sh ask '--ai=openai://gpt-4o-mini?system=file://SYS-3.txt&prompt=file://PROMPT-1.txt'
+```

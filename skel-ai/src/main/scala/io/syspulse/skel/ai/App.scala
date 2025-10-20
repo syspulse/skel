@@ -28,12 +28,13 @@ import scala.util.Success
 import scala.util.Failure
 import scala.concurrent.ExecutionContext
 
+
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
   uri:String = "/api/v1/ai",
 
-  datastore:String = "openai://",
+  datastore:String = "mem://",
 
   ai:String = "openai://",
   sys:String = "",
@@ -164,29 +165,37 @@ object App extends skel.Server {
   def ask(uri:String, params:Seq[String])(config:Config):Unit = {
     import io.syspulse.skel.FutureAwaitable._
 
-    val ai = AiURI(uri)
+    val aiUri = AiURI(uri)
 
-    val provider:AiProvider = ai.getProvider() match {
-      case Providers.OPEN_AI => new OpenAi(uri)
-      case _ => 
-        Console.err.println(s"Unknown AI provider: '${ai.getProvider()}'")
-        sys.exit(1)
-    }
+    val provider:AiProvider = AiProvider(aiUri)    
 
-    val q0 = params.mkString(" ")
+    val (q0,max) = if(! params.isEmpty) {
+      (params.mkString(" "),Int.MaxValue)
+    } else 
+      (aiUri.prompt.getOrElse(""),1)
+
+    val system = if(! config.sys.isEmpty)
+      Some(config.sys)
+    else
+      aiUri.system
+
     Console.err.println(s"q0 = '${q0}'")
 
-    for (i <- 1 to Int.MaxValue) {
-      Console.err.print(s"${ai.getModel()}: ${i}> ")
-      val q = scala.io.StdIn.readLine()
+    for (i <- 1 to max) {
+      Console.err.print(s"${aiUri.getModel()}: ${i}> ")
+      val q = if(i < max)
+         scala.io.StdIn.readLine()
+      else
+         q0
+
       if(q == null || q.trim.toLowerCase() == "exit") {
         sys.exit(0)
       }
       if(!q.isEmpty) {
-        val p = provider.ask(q,ai.getModel(),Some(config.sys),10000,3)
+        val p = provider.ask(q,aiUri.getModel(),system)
         Console.err.println(s"${p.get}")
         val txt = p.get.answer.get
-        Console.err.println(s"${Console.RED}${ai.getModel()}${Console.YELLOW}: ${txt}${Console.RESET}")
+        Console.err.println(s"${Console.RED}${aiUri.getModel()}${Console.YELLOW}: ${txt}${Console.RESET}")
       }
     }
   }
@@ -194,14 +203,14 @@ object App extends skel.Server {
   def chat(uri:String, params:Seq[String])(config:Config):Unit = {
     import io.syspulse.skel.FutureAwaitable._
 
-    val ai = AiURI(uri)
+    val aiUri = AiURI(uri)
 
-    val provider:AiProvider = ai.getProvider() match {
-      case Providers.OPEN_AI => new OpenAi(uri)
-      case _ => 
-        Console.err.println(s"Unknown AI provider: '${ai.getProvider()}'")
-        sys.exit(1)
-    }
+    val provider:AiProvider = AiProvider(aiUri)
+    
+    val system = if(! config.sys.isEmpty)
+      Some(config.sys)
+    else
+      aiUri.system
 
     val q0 = params.mkString(" ")
     Console.err.println(s"q0 = '${q0}'")
@@ -216,7 +225,7 @@ object App extends skel.Server {
     var p = p0
 
     for (i <- 1 to Int.MaxValue) {
-      Console.err.print(s"${ai.getModel()}: [${p.messages.size}/${p.messages.map(_.content.size).sum}]:${i} > ")
+      Console.err.print(s"${aiUri.getModel()}: [${p.messages.size}/${p.messages.map(_.content.size).sum}]:${i} > ")
       val q = scala.io.StdIn.readLine()
       if(q == null || q.trim.toLowerCase() == "exit") {
         sys.exit(0)
@@ -225,7 +234,7 @@ object App extends skel.Server {
         
         val r = provider.chat(
           p.+(q),
-          ai.getModel(),Some(config.sys),10000,3
+          aiUri.getModel(),system
         ) 
         
         r match {
@@ -237,7 +246,7 @@ object App extends skel.Server {
 
         Console.err.println(s"${r}")
         val txt = r.get.last.content
-        Console.err.println(s"${Console.BLUE}${ai.getModel()}${Console.YELLOW}: ${txt}${Console.RESET}")
+        Console.err.println(s"${Console.BLUE}${aiUri.getModel()}${Console.YELLOW}: ${txt}${Console.RESET}")
       }
     }
   }
@@ -245,19 +254,19 @@ object App extends skel.Server {
   def prompt(uri:String, params:Seq[String])(config:Config):Unit = {
     import io.syspulse.skel.FutureAwaitable._
 
-    val u = AiURI(uri)
+    val aiUri = AiURI(uri)
 
-    val provider:AiProvider = u.getProvider() match {
-      case Providers.OPEN_AI => new OpenAi(uri)
-      case _ => 
-        Console.err.println(s"Unknown AI provider: '${u.getProvider()}'")
-        sys.exit(1)
-    }
+    val provider:AiProvider = AiProvider(aiUri)
+    
+    val system = if(! config.sys.isEmpty)
+      Some(config.sys)
+    else
+      aiUri.system
 
     val a0 = Ai(
       question = params.mkString(" "),
-      model = u.getModel(),
-      xid = u.tid
+      model = aiUri.getModel(),
+      xid = aiUri.tid
     )
 
     Console.err.println(s"q0 = '${a0.question}'")
@@ -270,7 +279,7 @@ object App extends skel.Server {
         sys.exit(0)
       }
       if(!q.isEmpty) {
-        val a1 = provider.prompt(a.copy(question = q),Some(config.sys),10000,3)
+        val a1 = provider.prompt(a.copy(question = q),system)
         Console.err.println(s"${a1.get}")
         val txt = a1.get.answer.get
         Console.err.println(s"${Console.GREEN}${a1.get.model}${Console.YELLOW}: ${txt}${Console.RESET}")
@@ -283,19 +292,19 @@ object App extends skel.Server {
   def promptStream(uri:String, params:Seq[String])(config:Config):Unit = {
     import io.syspulse.skel.FutureAwaitable._
 
-    val u = AiURI(uri)
+    val aiUri = AiURI(uri)
 
-    val provider:AiProvider = u.getProvider() match {
-      case Providers.OPEN_AI => new OpenAi(uri)
-      case _ => 
-        Console.err.println(s"Unknown AI provider: '${u.getProvider()}'")
-        sys.exit(1)
-    }
+    val provider:AiProvider = AiProvider(aiUri)
+    
+    val system = if(! config.sys.isEmpty)
+      Some(config.sys)
+    else
+      aiUri.system
 
     val a0 = Ai(
       question = params.mkString(" "),
-      model = u.getModel(),
-      xid = u.tid
+      model = aiUri.getModel(),
+      xid = aiUri.tid
     )
 
     Console.err.println(s"q0 = '${a0.question}'")
@@ -323,9 +332,7 @@ object App extends skel.Server {
                 //Console.err.println(s"${s}")
             }
           },
-          Some(config.sys),
-          10000,
-          3
+          system          
         )
 
         Console.err.println(s"${a1.get}")

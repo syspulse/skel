@@ -10,69 +10,31 @@ openai://<model>?<key1=value1&key2=value2...>
 openai://<api_key>@<model>
 */
 object OpenAiURI {
-  val PREFIX = "openai://"
+  val ID = "openai"
   val DEFAULT_MODEL = "gpt-4o-mini"
   val DEFAULT_TEMPERATURE = 0.7
   val DEFAULT_TOP_P = 1.0
+  val ENV_KEY_NAME = "OPENAI_API_KEY"
 }
 
 case class OpenAiURI(uri:String) extends AiURI {
+  val apiUrl = "https://api.openai.com"
 
-  private val (_apiKey:String,_model:Option[String],_ops:Map[String,String]) = parse(uri)
+  private val (_apiKey:String,_model:Option[String],_ops:Map[String,String]) = parse(uri,OpenAiURI.ENV_KEY_NAME)
 
-  def apiKey:String = _apiKey
-  def model:Option[String] = _model
+  override def apiKey:String = _apiKey
+  override def model:Option[String] = _model
   def ops:Map[String,String] = _ops
   def vdb:Option[String] = _ops.get("vdb")
-  def org:Option[String] = _ops.get("org")
-  def aid:Option[String] = _ops.get("aid")  
+  def org:Option[String] = _ops.get("org")  // org
+  def aid:Option[String] = _ops.get("aid")  // agent ID
+  
   def getModel():Option[String] = _model
-  def getProvider():String = Providers.OPEN_AI
+  def getProvider():String = OpenAiURI.ID
 
   def getOptions():Map[String,String] = _ops
 
-  def parse(uri:String):(String,Option[String],Map[String,String]) = {
-    // resolve options
-    val (url:String,ops:Map[String,String]) = uri.split("[\\?&]").toList match {
-      case url :: Nil => (url,Map())
-      case url :: ops => 
-        
-        val vars = ops.flatMap(_.split("=").toList match {
-          case k :: v :: Nil => 
-            // kubernetes $(ENV) should be parsed here
-            val v1 = Util.replaceEnvVar(v)
-            Some(k -> v1)
-          case _ => None
-        }).toMap
-        
-        (url,vars)
-      case _ => 
-        ("",Map())
-    }
-    
-    val rr = url.stripPrefix(OpenAiURI.PREFIX).split("[@]").toList match {
-      case "" :: Nil =>      
-        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),Some(OpenAiURI.DEFAULT_MODEL),ops
-        )
+  def getPrefix():String = OpenAiURI.ID + "://"
+  def DEFAULT_MODEL:String = OpenAiURI.DEFAULT_MODEL
 
-      case model :: Nil =>         
-        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),Some(model),ops
-        )
-
-      case apiKey :: model :: Nil =>         
-        ( Util.replaceEnvVar(apiKey),Some(model),ops
-        )      
-            
-      case _ =>      
-        ( sys.env.get("OPENAI_API_KEY").getOrElse(""),Some(OpenAiURI.DEFAULT_MODEL),ops
-        )
-    }
-
-    ops.get("apiKey") match {
-      case Some(apiKey) =>
-        (apiKey,rr._2,rr._3)
-      case None =>
-        rr
-    }
-  }
 }
