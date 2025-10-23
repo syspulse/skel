@@ -242,8 +242,7 @@ class BlockchainSpec extends AnyWordSpec with Matchers {
 
     "should have correct chain IDs for test networks" in {
       Blockchain.BSC_TESTNET.id should ===(Some("97"))
-      Blockchain.ETHEREUM_SEPOLIA.id should ===(Some("11155111"))
-      Blockchain.ETHEREUM_SEPOLIA.id should ===(Some("11155111"))
+      Blockchain.ETHEREUM_SEPOLIA.id should ===(Some("11155111"))      
       Blockchain.ANVIL.id should ===(Some("31337"))
       Blockchain.ETHEREUM_HOLESKY.id should ===(Some("17000"))
       Blockchain.POLYGON_AMOY.id should ===(Some("80002"))
@@ -256,6 +255,15 @@ class BlockchainSpec extends AnyWordSpec with Matchers {
       b.tok should ===(Some("SOMI"))
       b.dec should ===(Some(18))
       b.exp should ===(Some("https://explorer.somnia.network"))
+    }
+
+    "parse 'avalanche_fuji' -> 'Avalanche Fuji'" in {
+      val b = Blockchain("avalanche_fuji")
+      b should ===(Blockchain.AVALANCHE_FUJU)
+      b.id should ===(Some("43113"))
+      b.tok should ===(Some("AVAX"))
+      b.dec should ===(Some(18))
+      b.exp should ===(Some("https://subnets-test.avax.network/c-chain"))
     }
   }    
 }
