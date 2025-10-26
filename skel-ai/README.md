@@ -29,6 +29,8 @@ Use model and organization:
 
 Ask question with system prompt
 
+Use `timeout` parameter for slow models
+
 ```
-rlwrap ./run-ai.sh ask '--ai=openai://gpt-4o-mini?system=file://SYS-3.txt&prompt=file://PROMPT-1.txt'
+rlwrap ./run-ai.sh ask '--ai=openai://gpt-4o-mini?system=file://SYS-3.txt&prompt=file://PROMPT-1.txt&timeout=60000'
 ```

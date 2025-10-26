@@ -4,6 +4,13 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.ai.core.AiURI
 import io.syspulse.skel.ai.core.Providers
 
+// Models:
+// venice-uncensored
+// mistral-31-24b
+// qwen3-235b
+// qwen3-4b
+// venice-sd35
+
 object VeniceAiURI {
   val ID = "venice"
   val DEFAULT_MODEL = "venice-uncensored"
