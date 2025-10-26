@@ -42,6 +42,11 @@ object TokenUtil {
   val tokenFormat3US = new DecimalFormat("#,##0.0000", new java.text.DecimalFormatSymbols(Locale.US))
   tokenFormat3US.setRoundingMode(RoundingMode.DOWN)
 
+  val tokenFormatSmall = new DecimalFormat("#.##################")
+  tokenFormatSmall.setRoundingMode(RoundingMode.DOWN)
+  val tokenFormatSmallUS = new DecimalFormat("#.##################",new java.text.DecimalFormatSymbols(Locale.US))
+  tokenFormatSmallUS.setRoundingMode(RoundingMode.DOWN)
+
   val THOUSAND = 1000.0
   val MILLION = THOUSAND * 1000.0
   val BILLION = MILLION * 1000.0
@@ -59,9 +64,13 @@ object TokenUtil {
   val QUATTUORDECILLION = TREDECILLION * 1000.0
 
   def toHumanWithThresh(v0:BigDecimal,dec:Option[Int] = None,thresh:Option[Double] = None):String = {
+    if(v0 == 0.0) return "0.00"
+
     if(!thresh.isDefined) return TokenUtil.tokenFormatUS.format(v0)
     
     val v = if(dec.isDefined) v0 / BigDecimal(10).pow(dec.get) else v0
+
+    if(v.abs < 1e-18) return v.toString
 
     val (v1,suffix,us) = 
     if(thresh.get >= QUATTUORDECILLION && v.abs >= QUATTUORDECILLION) {
@@ -98,18 +107,32 @@ object TokenUtil {
       (v / TRILLION, "T",true)
     } else 
     if(thresh.get >= BILLION && v.abs >= BILLION) {
-      (v / BigDecimal(thresh.get), "B",true)
-    } else if(thresh.get >= MILLION && v.abs >= MILLION) {
+      (v / BILLION, "B",true)
+    } else 
+    if(thresh.get >= MILLION && v.abs >= MILLION) {
       (v / MILLION, "M",true)
-    } else if(thresh.get >= THOUSAND && v.abs >= THOUSAND) {
+    } else 
+    if(thresh.get >= THOUSAND && v.abs >= THOUSAND) {
       (v / THOUSAND, "K",true)
-    } else {
+    } else 
+    // if(thresh.get < 0.009) {
+
+    // } else
+    {
       (v, "", if(dec.isDefined) true else true)
     }
-    if(us) 
-      s"${TokenUtil.tokenFormatUS.format(v1)}${suffix}"
-    else 
-      s"${TokenUtil.tokenFormat.format(v1)}${suffix}"
+    if(us) {
+      if(v.abs < 0.009)
+        s"${TokenUtil.tokenFormatSmallUS.format(v1)}"
+      else
+        s"${TokenUtil.tokenFormatUS.format(v1)}${suffix}"
+    }
+    else {
+      if(v.abs < 0.009)
+        s"${TokenUtil.tokenFormatSmall.format(v1)}"
+      else
+        s"${TokenUtil.tokenFormat.format(v1)}${suffix}"
+    }
   }
 
   def toHuman(v:Double):String = toHumanWithThresh(BigDecimal(v),None,Some(TREDECILLION))

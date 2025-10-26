@@ -48,6 +48,7 @@ object Blockchain {
   val ETHEREUM_HOLESKY = Blockchain("ethereum_holesky",Some("17000"),Some(18),Some("ETH"),Some("https://holesky.etherscan.io"))
   val POLYGON_AMOY = Blockchain("polygon_amoy",Some("80002"),Some(18),Some("POL"),Some("https://amoy.polygonscan.com"))
   val AVALANCHE_FUJU = Blockchain("avalanche_fuji",Some("43113"),Some(18),Some("AVAX"),Some("https://subnets-test.avax.network/c-chain"))
+  val BASE_SEPOLIA = Blockchain("base_sepolia",Some("84532"),Some(18),Some("ETH"),Some("https://sepolia.basescan.org"))
   
   val SOMNIA_TESTNET = Blockchain("somnia_testnet",Some("50312"),Some(18),Some("STT"),Some("https://shannon-explorer.somnia.network"))  
   val SOMNIA_MAINNET = Blockchain("somnia",Some("5031"),Some(18),Some("SOMI"),Some("https://explorer.somnia.network"))  
@@ -89,6 +90,7 @@ object Blockchain {
     ETHEREUM_SEPOLIA.id.get -> ETHEREUM_SEPOLIA,
     POLYGON_AMOY.id.get -> POLYGON_AMOY,
     AVALANCHE_FUJU.id.get -> AVALANCHE_FUJU,
+    BASE_SEPOLIA.id.get -> BASE_SEPOLIA,
 
     SOMNIA_MAINNET.id.get -> SOMNIA_MAINNET,
 
@@ -136,7 +138,8 @@ object Blockchain {
       case ("bsc-testnet" | "bsc_testnet")  :: Nil => Some(BSC_TESTNET)
       case ("holesky" | "ethereum_holesky")  :: Nil => Some(ETHEREUM_HOLESKY)
       case ("amoy" | "polygon_amoy")  :: Nil => Some(POLYGON_AMOY)
-      case "avalanche_fuji" :: Nil => Some(AVALANCHE_FUJU)
+      case "avalanche_testnet" :: Nil => Some(AVALANCHE_FUJU)
+      case "base_testnet" :: Nil => Some(BASE_SEPOLIA)
 
       case network :: id :: _ => Some(new Blockchain(network,Some(id)))
 

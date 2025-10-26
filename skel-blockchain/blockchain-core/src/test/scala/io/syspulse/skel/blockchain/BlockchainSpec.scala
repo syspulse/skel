@@ -258,12 +258,35 @@ class BlockchainSpec extends AnyWordSpec with Matchers {
     }
 
     "parse 'avalanche_fuji' -> 'Avalanche Fuji'" in {
-      val b = Blockchain("avalanche_fuji")
-      b should ===(Blockchain.AVALANCHE_FUJU)
-      b.id should ===(Some("43113"))
-      b.tok should ===(Some("AVAX"))
-      b.dec should ===(Some(18))
-      b.exp should ===(Some("https://subnets-test.avax.network/c-chain"))
+      val b1 = Blockchain("avalanche_fuji")
+      b1 should ===(Blockchain.AVALANCHE_FUJU)
+      b1.id should ===(Some("43113"))
+      b1.tok should ===(Some("AVAX"))
+      b1.dec should ===(Some(18))
+      b1.exp should ===(Some("https://subnets-test.avax.network/c-chain"))
+
+      val b2 = Blockchain("avalanche_testnet")
+      b2 should ===(Blockchain.AVALANCHE_FUJU)
+      b2.id should ===(Some("43113"))
+      b2.tok should ===(Some("AVAX"))
+      b2.dec should ===(Some(18))
+      b2.exp should ===(Some("https://subnets-test.avax.network/c-chain"))
+    }
+
+    "parse 'base_sepolia' -> 'Base Sepolia'" in {
+      val b1 = Blockchain("base_sepolia")
+      b1 should ===(Blockchain.BASE_SEPOLIA)
+      b1.id should ===(Some("84532"))
+      b1.tok should ===(Some("ETH"))
+      b1.dec should ===(Some(18))
+      b1.exp should ===(Some("https://sepolia.basescan.org"))
+
+      val b2 = Blockchain("base_testnet")
+      b2 should ===(Blockchain.BASE_SEPOLIA)
+      b2.id should ===(Some("84532"))
+      b2.tok should ===(Some("ETH"))
+      b2.dec should ===(Some(18))
+      b2.exp should ===(Some("https://sepolia.basescan.org"))
     }
   }    
 }

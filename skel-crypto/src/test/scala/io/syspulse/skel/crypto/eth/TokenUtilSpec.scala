@@ -17,7 +17,7 @@ class TokenUtilSpec extends AnyWordSpec with Matchers {
       // Test small values
       TokenUtil.toHuman(123.45) shouldBe "123.45"
       TokenUtil.toHuman(1.23) shouldBe "1.23"
-      TokenUtil.toHuman(0.001) shouldBe "0.00"
+      TokenUtil.toHuman(0.001) shouldBe "0.001"
       
       // Test zero
       TokenUtil.toHuman(0.0) shouldBe "0.00"
@@ -42,7 +42,7 @@ class TokenUtilSpec extends AnyWordSpec with Matchers {
       
       // Test large values
       TokenUtil.toHuman(BigInt("5000000000")) shouldBe "5.00B"
-      TokenUtil.toHuman(BigInt("1234567890123456789")) shouldBe "1,234,567,890.12B"
+      TokenUtil.toHuman(BigInt("1234567890123456789")) shouldBe "1.23QT"
     }
 
     "format BigInt with decimals correctly" in {
@@ -70,11 +70,11 @@ class TokenUtilSpec extends AnyWordSpec with Matchers {
       // does not work: 9999999999999999
       // works 999999999999999
       //TokenUtil.toHuman(BigInt("999999999999999999999999999999")) shouldBe "1,000,000.00B"
-      TokenUtil.toHuman(BigInt("999999999999999")) shouldBe "999,999.99B"
+      TokenUtil.toHuman(BigInt("999999999999999")) shouldBe "999.99T"
       
       // Test very small numbers
       TokenUtil.toHuman(BigInt(1)) shouldBe "1.00"
-      TokenUtil.toHuman(BigInt(1), 18) shouldBe "0.00"
+      TokenUtil.toHuman(BigInt(1), 18) shouldBe "0.000000000000000001"
       
       // Test negative numbers (should handle gracefully)
       TokenUtil.toHuman(-1234.56) shouldBe "-1.23K"
@@ -149,8 +149,8 @@ class TokenUtilSpec extends AnyWordSpec with Matchers {
       TokenUtil.toHumanWithThresh(BigDecimal(-1234567), None, Some(1000000.0)) shouldBe "-1.23M"
       
       // Test very small values
-      TokenUtil.toHumanWithThresh(BigDecimal("0.001"), None, Some(1000000000.0)) shouldBe "0.00"
-      TokenUtil.toHumanWithThresh(BigDecimal("0.001"), Some(18), Some(1000000000.0)) shouldBe "0.00"
+      TokenUtil.toHumanWithThresh(BigDecimal("0.001"), None, Some(1000000000.0)) shouldBe "0.001"
+      TokenUtil.toHumanWithThresh(BigDecimal("0.001"), Some(18), Some(1000000000.0)) shouldBe "1E-21"
     }
   }
 
