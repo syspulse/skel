@@ -33,7 +33,7 @@ import io.cequence.wsclient.service.PollingHelper
 import io.cequence.openaiscala.domain.ThreadFullMessage
 import io.cequence.openaiscala.domain.ModelId
 
-import io.syspulse.skel.ai.core.openai.OpenAiURI
+import io.syspulse.skel.ai.core.OpenAiURI
 import io.cequence.openaiscala.domain.ThreadMessageContent
 import io.cequence.openaiscala.domain.ChatRole
 import io.cequence.openaiscala.domain.ThreadMessageContentType

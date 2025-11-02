@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
-import io.syspulse.skel.ai.core.openai.OpenAiURI
+import io.syspulse.skel.ai.core.OpenAiURI
 
 import io.jvm.uuid._
 

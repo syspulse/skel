@@ -1,4 +1,4 @@
-package io.syspulse.skel.ai.provider.venice
+package io.syspulse.skel.ai.provider.grok
 
 import scala.util.{Try,Success,Failure}
 import scala.collection.immutable
@@ -14,8 +14,8 @@ import io.jvm.uuid._
 import spray.json._
 import DefaultJsonProtocol._
 
-import io.syspulse.skel.ai.core.VeniceURI
+import io.syspulse.skel.ai.core.GrokURI
 import io.syspulse.skel.ai.provider.openai.OpenAiLike
 import io.syspulse.skel.ai.core.AiURI
 
-class VeniceAi(uri:VeniceURI) extends OpenAiLike(uri)
+class GrokAi(uri:GrokURI) extends OpenAiLike(uri)

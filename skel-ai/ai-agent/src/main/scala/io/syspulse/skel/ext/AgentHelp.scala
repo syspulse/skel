@@ -16,7 +16,7 @@ import io.cequence.openaiscala.service.{OpenAIService, OpenAIServiceFactory}
 import io.cequence.openaiscala.domain.ModelId
 import scala.concurrent.{ExecutionContext, Future}
 import play.api.libs.json.JsValue
-import io.syspulse.skel.ai.core.openai.OpenAiURI
+import io.syspulse.skel.ai.core.OpenAiURI
 import io.syspulse.skel.ai.agent.AgentFunction
 import io.syspulse.skel.ai.agent.AgentFile
 

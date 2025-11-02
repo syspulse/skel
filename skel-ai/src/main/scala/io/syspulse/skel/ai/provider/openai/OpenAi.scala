@@ -18,7 +18,7 @@ import io.syspulse.skel.util.Retry
 import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.ai.Ai
 import io.syspulse.skel.ai.core.Providers
-import io.syspulse.skel.ai.core.openai.OpenAiURI
+import io.syspulse.skel.ai.core.OpenAiURI
 import io.syspulse.skel.ai.Chat
 import io.syspulse.skel.ai.ChatMessage
 import io.syspulse.skel.ai.provider.AiProvider
@@ -206,8 +206,6 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
     ).toJson.compactPrint
          
     log.info(s"model=${modelReq},sys=[${systemPrompt.size}]/q=[${question.size}]: '${question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")  
-
-    println(s"============================> ${timeout}")
     
     Retry.withRetry(
       {

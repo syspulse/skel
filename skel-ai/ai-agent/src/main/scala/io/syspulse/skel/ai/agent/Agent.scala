@@ -21,7 +21,7 @@ import play.api.libs.json.JsValue
 
 import io.cequence.wsclient.service.PollingHelper
 import scala.util.{Try,Success,Failure}
-import io.syspulse.skel.ai.core.openai.OpenAiURI
+import io.syspulse.skel.ai.core.OpenAiURI
 import io.cequence.openaiscala.domain.response.Assistant
 import io.cequence.openaiscala.domain.response.DeleteResponse
 

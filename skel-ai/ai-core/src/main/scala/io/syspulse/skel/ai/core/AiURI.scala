@@ -1,12 +1,13 @@
 package io.syspulse.skel.ai.core
 
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.ai.core.openai.{OpenAiURI,VeniceAiURI}
+import io.syspulse.skel.ai.core.{OpenAiURI,VeniceURI,GrokURI}
 import io.syspulse.skel.ai.core.{AiURI => _model}
-
 
 trait AiURI {
   val apiUrl:String
+
+  override def toString():String = s"${this.getClass.getSimpleName}(${getProvider()},${model.getOrElse("")},${Util.trunc(apiKey,8)},${getOptions().mkString(",")})"
 
   def getModel():Option[String]
   def getProvider():String
@@ -46,6 +47,7 @@ trait AiURI {
     })
     
   def parse(uri:String,envKeyName:String):(String,Option[String],Map[String,String]) = {
+
     // resolve options
     val (url:String,ops:Map[String,String]) = uri.split("[\\?&]").toList match {
       case url :: Nil => (url,Map())
@@ -65,7 +67,7 @@ trait AiURI {
     }
     
     val rr = url.stripPrefix(getPrefix()).split("[@]").toList match {
-      case "" :: Nil =>      
+      case "" :: Nil =>
         ( sys.env.get(envKeyName).getOrElse(""),Some(DEFAULT_MODEL),ops
         )
 
@@ -73,11 +75,11 @@ trait AiURI {
         ( sys.env.get(envKeyName).getOrElse(""),Some(model),ops
         )
 
-      case apiKey :: model :: Nil =>         
+      case apiKey :: model :: Nil => 
         ( Util.replaceEnvVar(apiKey),Some(model),ops
         )      
             
-      case _ =>      
+      case _ =>
         ( sys.env.get(envKeyName).getOrElse(""),Some(DEFAULT_MODEL),ops
         )
     }
@@ -98,7 +100,8 @@ object AiURI {
   def apply(uri:String):AiURI = {
     uri.split("://").toList match {
       case OpenAiURI.ID :: _ => OpenAiURI(uri)
-      case VeniceAiURI.ID :: _ => VeniceAiURI(uri)
+      case VeniceURI.ID :: _ => VeniceURI(uri)
+      case GrokURI.ID :: _ => GrokURI(uri)
       case _ => throw new IllegalArgumentException(s"Unknown AI provider: '${uri}'")
     }
   }

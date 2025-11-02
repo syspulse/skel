@@ -7,6 +7,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import io.syspulse.skel.util.Util
 import scala.util.Success
+import io.syspulse.skel.ai.core.OpenAiURI
 
 class OpenAiURISpec extends AnyWordSpec with Matchers {
   

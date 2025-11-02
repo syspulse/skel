@@ -21,7 +21,7 @@ import play.api.libs.json.Json
 import play.api.libs.json.JsArray
 
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.ai.core.openai.OpenAiURI
+import io.syspulse.skel.ai.core.OpenAiURI
 import io.syspulse.skel.ext.{ExtClient, Detector, Contract, DetectorSchema, Trigger}
 import io.syspulse.skel.ai.agent.AgentFunction
 import io.syspulse.skel.ai.agent.AgentAssistant

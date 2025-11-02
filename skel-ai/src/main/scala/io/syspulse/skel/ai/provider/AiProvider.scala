@@ -13,10 +13,10 @@ import akka.http.scaladsl.model.sse.ServerSentEvent
 import io.syspulse.skel.ai.{Ai,Chat}
 import io.syspulse.skel.ai.ChatMessage
 import io.syspulse.skel.ai.core.AiURI
-import io.syspulse.skel.ai.core.openai.OpenAiURI
-import io.syspulse.skel.ai.core.openai.VeniceAiURI
+import io.syspulse.skel.ai.core.{OpenAiURI,VeniceURI,GrokURI}
 import io.syspulse.skel.ai.provider.openai.OpenAi
-import io.syspulse.skel.ai.provider.openai.VeniceAi
+import io.syspulse.skel.ai.provider.venice.VeniceAi
+import io.syspulse.skel.ai.provider.grok.GrokAi
 
 case class AiTool(
   name: String,
@@ -67,7 +67,8 @@ object AiProvider {
   def apply(uri:AiURI):AiProvider = {
     uri match {
       case uri:OpenAiURI => new OpenAi(uri)
-      case uri:VeniceAiURI => new VeniceAi(uri)
+      case uri:VeniceURI => new VeniceAi(uri)
+      case uri:GrokURI => new GrokAi(uri)
       case p => 
         Console.err.println(s"Unknown AI provider: '${p}'")
         sys.exit(1)

@@ -424,6 +424,7 @@ lazy val core = (project in file("skel-core"))
           libUUID, 
           libScodecBits,
           libUpickleLib,
+          libRequests,
           
           libDirWatcher,
           libDirWatcherScala,

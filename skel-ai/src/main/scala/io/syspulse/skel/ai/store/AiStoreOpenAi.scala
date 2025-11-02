@@ -21,7 +21,7 @@ import io.syspulse.skel.ai.Config
 import io.syspulse.skel.ai.core.Providers
 import io.syspulse.skel.ai.provider.openai.OpenAi
 import io.syspulse.skel.ai.provider.AiProvider
-import io.syspulse.skel.ai.core.openai.OpenAiURI
+import io.syspulse.skel.ai.core.OpenAiURI
 
 // Preload from file during start
 class AiStoreOpenAi(uri:String) extends AiStore {

@@ -205,6 +205,8 @@ object App extends skel.Server {
 
     val aiUri = AiURI(uri)
 
+    Console.err.println(s"uri = ${aiUri}")
+
     val provider:AiProvider = AiProvider(aiUri)
     
     val system = if(! config.sys.isEmpty)
