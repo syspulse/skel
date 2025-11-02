@@ -102,6 +102,9 @@ object AiURI {
       case OpenAiURI.ID :: _ => OpenAiURI(uri)
       case VeniceURI.ID :: _ => VeniceURI(uri)
       case GrokURI.ID :: _ => GrokURI(uri)
+      case ClaudeURI.ID :: _ => ClaudeURI(uri)
+      case DeepseekURI.ID :: _ => DeepseekURI(uri)
+      case OpenRouterURI.ID :: _ => OpenRouterURI(uri)
       case _ => throw new IllegalArgumentException(s"Unknown AI provider: '${uri}'")
     }
   }

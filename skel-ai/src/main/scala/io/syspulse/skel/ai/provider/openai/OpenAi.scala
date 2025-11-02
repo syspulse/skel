@@ -235,7 +235,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
   }
 
   def chat(chat:Chat,model:Option[String],system:Option[String] = None,
-            timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Chat] = {
+           timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Chat] = {
 
     val url = s"${aiUri.apiUrl}/v1/chat/completions"
     val modelReq = model.getOrElse(OpenAiURI.DEFAULT_MODEL)
@@ -260,7 +260,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
     ).toJson.compactPrint
           
     val chatSize = messages.map(_.content.size).sum
-    log.info(s"model=${modelReq},sys=[${systemPrompt.map(_.size).getOrElse(-1)}]/q=[${messages.size}] -> ${url}")    
+    log.info(s"model=${modelReq},sys=[${systemPrompt.map(_.size).getOrElse(-1)}]/q=[${messages.size}] -> ${url}")
 
     Retry.withRetry(
       {
