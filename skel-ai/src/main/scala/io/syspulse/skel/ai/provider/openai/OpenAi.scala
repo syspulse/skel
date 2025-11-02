@@ -104,7 +104,7 @@ case class OpenAi_OutputContent(
 case class OpenAi_Output (
   `type`:String,
   id:String,
-  status:String,
+  status:Option[String],
   role:String,
   content:Seq[OpenAi_OutputContent]
 )
@@ -114,7 +114,7 @@ case class OpenAi_ResponsesRes(
   id:String,
   `object`:String,
   created_at: Long,
-  status:String,
+  status:Option[String], // OpenRouter may not have status
   error:Option[String],
   incomplete_details: Option[String],
   instructions: Option[String],

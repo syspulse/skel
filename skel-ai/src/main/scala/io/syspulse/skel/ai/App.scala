@@ -170,9 +170,11 @@ object App extends skel.Server {
     val provider:AiProvider = AiProvider(aiUri)    
 
     val (q0,max) = if(! params.isEmpty) {
-      (params.mkString(" "),Int.MaxValue)
-    } else 
-      (aiUri.prompt.getOrElse(""),1)
+      (params.mkString(" "),1)
+    } else {
+      val q0 = aiUri.prompt.getOrElse("")
+      (q0,if(q0.isEmpty) Int.MaxValue else 1) 
+    }
 
     val system = if(! config.sys.isEmpty)
       Some(config.sys)
@@ -183,7 +185,7 @@ object App extends skel.Server {
 
     for (i <- 1 to max) {
       Console.err.print(s"${aiUri.getModel()}: ${i}> ")
-      val q = if(i < max)
+      val q = if(q0.isEmpty && i < max)
          scala.io.StdIn.readLine()
       else
          q0
@@ -214,7 +216,13 @@ object App extends skel.Server {
     else
       aiUri.system
 
-    val q0 = params.mkString(" ")
+    val (q0,max) = if(! params.isEmpty) {
+      (params.mkString(" "),1)
+    } else {
+      val q0 = aiUri.prompt.getOrElse("")
+      (q0,if(q0.isEmpty) Int.MaxValue else 1) 
+    }
+
     Console.err.println(s"q0 = '${q0}'")
 
     val p0 = Chat(
@@ -226,18 +234,21 @@ object App extends skel.Server {
 
     var p = p0
 
-    for (i <- 1 to Int.MaxValue) {
+    for (i <- 1 to max) {
       Console.err.print(s"${aiUri.getModel()}: [${p.messages.size}/${p.messages.map(_.content.size).sum}]:${i} > ")
-      val q = scala.io.StdIn.readLine()
+      
+      val q = if(q0.isEmpty && i < max)
+         scala.io.StdIn.readLine()
+      else
+         q0
+
       if(q == null || q.trim.toLowerCase() == "exit") {
         sys.exit(0)
       }
+
       if(!q.isEmpty) {
         
-        val r = provider.chat(
-          p.+(q),
-          aiUri.getModel(),system
-        ) 
+        val r = provider.chat(p.+(q), aiUri.getModel(),system) 
         
         r match {
           case Success(p1) => 
