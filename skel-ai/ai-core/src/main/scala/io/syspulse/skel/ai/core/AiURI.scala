@@ -1,7 +1,7 @@
 package io.syspulse.skel.ai.core
 
 import io.syspulse.skel.util.Util
-import io.syspulse.skel.ai.core.{OpenAiURI,VeniceURI,GrokURI}
+import io.syspulse.skel.ai.core.{OpenAiURI,VeniceURI,GrokURI,GeminiURI}
 import io.syspulse.skel.ai.core.{AiURI => _model}
 
 trait AiURI {
@@ -10,7 +10,11 @@ trait AiURI {
   override def toString():String = s"${this.getClass.getSimpleName}(${getProvider()},${model.getOrElse("")},${Util.trunc(apiKey,8)},${getOptions().mkString(",")})"
 
   def getModel():Option[String]
+  def getModel(model:String):String = model
   def getProvider():String
+
+  // enrich request from URI param
+  def getTools():Seq[AiTool] = Seq.empty
 
   def getOptions():Map[String,String]
 
@@ -24,6 +28,9 @@ trait AiURI {
   def temperature:Option[Double] = getOptions().get("temperature").map(_.toDouble)
   def topP:Option[Double] = getOptions().get("top_p").map(_.toDouble)
   def maxTokens:Option[Int] = getOptions().get("max_tokens").map(_.toInt)
+  // ext is plugin extension in model name (e.g. "gpt-4o:web")
+  // it is needed since API respnse may remove it from model name
+  def ext:Option[String] = getModel().flatMap(_.split(":").drop(1).headOption)
 
   def DEFAULT_MODEL:String
   protected def getPrefix():String
@@ -91,6 +98,7 @@ trait AiURI {
         rr
     }    
   }
+  
 }
 
 /* 
@@ -102,10 +110,11 @@ object AiURI {
       case OpenAiURI.ID :: _ => OpenAiURI(uri)
       case VeniceURI.ID :: _ => VeniceURI(uri)
       case GrokURI.ID :: _ => GrokURI(uri)
+      case GeminiURI.ID :: _ => GeminiURI(uri)
       case ClaudeURI.ID :: _ => ClaudeURI(uri)
       case DeepseekURI.ID :: _ => DeepseekURI(uri)
       case OpenRouterURI.ID :: _ => OpenRouterURI(uri)
       case _ => throw new IllegalArgumentException(s"Unknown AI provider: '${uri}'")
     }
-  }
+  }  
 }

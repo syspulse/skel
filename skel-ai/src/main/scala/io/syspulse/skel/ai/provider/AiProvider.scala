@@ -12,22 +12,15 @@ import akka.http.scaladsl.model.sse.ServerSentEvent
 
 import io.syspulse.skel.ai.{Ai,Chat}
 import io.syspulse.skel.ai.ChatMessage
-import io.syspulse.skel.ai.core.AiURI
-import io.syspulse.skel.ai.core.{OpenAiURI,VeniceURI,GrokURI,ClaudeURI,DeepseekURI,OpenRouterURI}
+import io.syspulse.skel.ai.core.{AiURI,AiTool}
+import io.syspulse.skel.ai.core.{OpenAiURI,VeniceURI,GrokURI,GeminiURI,ClaudeURI,DeepseekURI,OpenRouterURI}
 import io.syspulse.skel.ai.provider.openai.OpenAi
 import io.syspulse.skel.ai.provider.venice.VeniceAi
 import io.syspulse.skel.ai.provider.grok.GrokAi
+import io.syspulse.skel.ai.provider.gemini.GeminiAi
 import io.syspulse.skel.ai.provider.claude.ClaudeAi
 import io.syspulse.skel.ai.provider.deepseek.DeepseekAi
 import io.syspulse.skel.ai.provider.openrouter.OpenRouterAi
-
-case class AiTool(
-  name: String,
-  description: Option[String] = None,
-  parameters: Map[String, Any] = Map.empty,
-  strict: Option[Boolean] = None
-)
-
 
 trait AiProvider {  
   val log = Logger(s"${this}")
@@ -43,11 +36,11 @@ trait AiProvider {
   def chat(chat:Chat,model:Option[String],system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Chat]
   
   // prompt (with context by Provider)
-  def prompt(ai:Ai,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Ai]
-  def promptAsync(ai:Ai,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry())(implicit ec: ExecutionContext):Future[Ai]
+  def prompt(ai:Ai,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty):Try[Ai]
+  def promptAsync(ai:Ai,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai]
 
   // prompt (with context by Provider)
-  def promptStream(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Ai]
+  def promptStream(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty):Try[Ai]
   def promptStreamAsync(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai]
 
   //def toolsStreamAsync(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = 10000,retry:Int = 3)(implicit ec: ExecutionContext):Future[Ai]
@@ -72,6 +65,7 @@ object AiProvider {
       case uri:OpenAiURI => new OpenAi(uri)
       case uri:VeniceURI => new VeniceAi(uri)
       case uri:GrokURI => new GrokAi(uri)
+      case uri:GeminiURI => new GeminiAi(uri)
       case uri:ClaudeURI => new ClaudeAi(uri)
       case uri:DeepseekURI => new DeepseekAi(uri)
       case uri:OpenRouterURI => new OpenRouterAi(uri)

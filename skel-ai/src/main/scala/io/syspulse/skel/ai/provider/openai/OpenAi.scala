@@ -5,8 +5,22 @@ import scala.collection.immutable
 import scala.concurrent.Future
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext
 import java.util.concurrent.TimeUnit
 import com.typesafe.scalalogging.Logger
+
+import java.io.BufferedReader
+import java.io.InputStreamReader
+
+import akka.stream.scaladsl.Source
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.sse.ServerSentEvent
+import akka.http.scaladsl.model.{HttpRequest,HttpResponse,HttpEntity,ContentTypes}
+import akka.http.scaladsl.model.{HttpMethods,StatusCodes}
+import akka.http.scaladsl.model.{StatusCodes,HttpEntity,ContentTypes}
+import akka.actor.ActorSystem
+import akka.util.ByteString
+import akka.http.scaladsl.model.headers.RawHeader
 
 import os._
 import io.jvm.uuid._
@@ -22,21 +36,7 @@ import io.syspulse.skel.ai.core.OpenAiURI
 import io.syspulse.skel.ai.Chat
 import io.syspulse.skel.ai.ChatMessage
 import io.syspulse.skel.ai.provider.AiProvider
-import java.io.BufferedReader
-import java.io.InputStreamReader
-
-import scala.concurrent.ExecutionContext
-import io.syspulse.skel.ai.provider.AiTool
-
-import akka.stream.scaladsl.Source
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.sse.ServerSentEvent
-import akka.http.scaladsl.model.{HttpRequest,HttpResponse,HttpEntity,ContentTypes}
-import akka.http.scaladsl.model.{HttpMethods,StatusCodes}
-import akka.http.scaladsl.model.{StatusCodes,HttpEntity,ContentTypes}
-import akka.actor.ActorSystem
-import akka.util.ByteString
-import akka.http.scaladsl.model.headers.RawHeader
+import io.syspulse.skel.ai.core.AiTool
 import io.syspulse.skel.ai.core.AiURI
 
 
@@ -98,15 +98,15 @@ case class OpenAi_CompletionReq(
 case class OpenAi_OutputContent(
   `type`:String,
   text:String,
-  annotations:Seq[String]
+  annotations:Seq[JsValue]
 )
 
 case class OpenAi_Output (
   `type`:String,
   id:String,
   status:Option[String],
-  role:String,
-  content:Seq[OpenAi_OutputContent]
+  role:Option[String],
+  content:Option[Seq[OpenAi_OutputContent]]
 )
 
 
@@ -154,11 +154,12 @@ case class OpenAi_StreamEvent(
 
 case class OpenAi_EventResponseCompleted(
   `type`:String,
+  sequence_number:Option[Int] = None,
   response:OpenAi_ResponsesRes
 )
 
 object OpenAi_Json extends JsonCommon { 
-  implicit val jf_oai_tool = jsonFormat4(AiTool)
+  implicit val jf_oai_tool = jsonFormat5(AiTool)
 
   implicit val jf_oai_msg = jsonFormat2(OpenAi_Msg)
   implicit val jf_oai_cho = jsonFormat3(OpenAi_Choices)
@@ -173,7 +174,7 @@ object OpenAi_Json extends JsonCommon {
   implicit val jf_oai_res_res = jsonFormat10(OpenAi_ResponsesRes)  
 
   implicit val jf_oai_stream_event = jsonFormat1(OpenAi_StreamEvent)
-  implicit val jf_oai_event_response_completed = jsonFormat2(OpenAi_EventResponseCompleted)
+  implicit val jf_oai_event_response_completed = jsonFormat3(OpenAi_EventResponseCompleted)
 
 }
 
@@ -204,7 +205,8 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       top_p = aiUri.topP,
       max_completion_tokens = aiUri.maxTokens,
     ).toJson.compactPrint
-         
+  
+    log.debug(s"body=${body} -> ${url}")
     log.info(s"model=${modelReq},sys=[${systemPrompt.size}]/q=[${question.size}]: '${question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")  
     
     Retry.withRetry(
@@ -227,7 +229,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
           question = question,
           answer = Some(chatRes.choices.head.message.content),        
           oid = Some(Providers.OPEN_AI),
-          model = Some(chatRes.model)
+          model = Some(aiUri.getModel(chatRes.model))
         )
       }, 
       s"ask: '${question.take(32)}...'"
@@ -259,6 +261,8 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       max_completion_tokens = aiUri.maxTokens,
     ).toJson.compactPrint
           
+    log.debug(s"body=${body}")
+
     val chatSize = messages.map(_.content.size).sum
     log.info(s"model=${modelReq},sys=[${systemPrompt.map(_.size).getOrElse(-1)}]/q=[${messages.size}] -> ${url}")
 
@@ -281,7 +285,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
         Chat(
           messages = chat.messages ++ chatRes.choices.map(c => ChatMessage(role = c.message.role, content = c.message.content)),
           oid = chat.oid,
-          model = Some(chatRes.model),
+          model = Some(aiUri.getModel(chatRes.model)),
           ts = System.currentTimeMillis(),
           ts0 = chat.ts0,
           tags = chat.tags,
@@ -296,17 +300,18 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
   //import io.syspulse.skel.FutureAwaitable._
   
   def prompt(ai:Ai,system:Option[String] = None,
-            timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Ai] = {    
-    val f = promptAsync(ai,system,timeout,retry)(scala.concurrent.ExecutionContext.Implicits.global)
+            timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty):Try[Ai] = {    
+    val f = promptAsync(ai,system,timeout,retry,tools)(scala.concurrent.ExecutionContext.Implicits.global)
     FutureAwaitable.awaitTry(f)(timeout)
   }
   
   def promptAsync(ai:Ai,system:Option[String] = None,
-            timeout:Long = getTimeout(),retry:Int = getRetry())(implicit ec: ExecutionContext):Future[Ai] = {
+            timeout:Long = getTimeout(),retry:Int = getRetry(),tools0:Seq[AiTool] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai] = {
 
     val url = s"${aiUri.apiUrl}/v1/responses"
     val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
     val systemPrompt = system.orElse(aiUri.system)
+    val tools = aiUri.getTools() ++ tools0
     
     val body = OpenAi_ResponsesReq(
       model = modelReq,
@@ -319,8 +324,10 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       temperature = aiUri.temperature,
       top_p = aiUri.topP,
       max_output_tokens = aiUri.maxTokens,
+      tools = if(tools.nonEmpty) Some(tools) else None
     ).toJson.compactPrint
-         
+
+    log.debug(s"body=${body}")         
     log.info(s"model=${modelReq},sys=[${systemPrompt.map(_.size).getOrElse(-1)}]/q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
 
     Future{ 
@@ -339,10 +346,11 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
           log.debug(s"${body}: ${r}")
 
           val res = r.text().parseJson.convertTo[OpenAi_ResponsesRes]
-                
+
+          val answer = getResponseAnswer(res)
           ai.copy(
-            answer = Some(res.output.head.content.head.text),
-            model = Some(res.model),
+            answer = answer,
+            model = Some(aiUri.getModel(res.model)),
             xid = Some(res.id)
           )
         }, 
@@ -352,16 +360,30 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
   }
   
 
-  def promptStream(ai: Ai, onEvent: (String) => Unit, instructions: Option[String] = None,timeout: Long = getTimeout(), retry: Int = getRetry()): Try[Ai] = {                    
-    val f = promptStreamAsync(ai,onEvent,instructions,timeout,retry)(scala.concurrent.ExecutionContext.Implicits.global)
+  def promptStream(ai: Ai, onEvent: (String) => Unit, instructions: Option[String] = None,timeout: Long = getTimeout(), retry: Int = getRetry(),tools:Seq[AiTool] = Seq.empty): Try[Ai] = {                    
+    val f = promptStreamAsync(ai,onEvent,instructions,timeout,retry,tools)(scala.concurrent.ExecutionContext.Implicits.global)
     FutureAwaitable.awaitTry(f)(timeout)
   }
 
-  def promptStreamAsync(ai:Ai,onEvent: (String) => Unit,instructions:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai] = {
+  def getResponseAnswer(response:OpenAi_ResponsesRes):Option[String] = {
+    response.output.flatMap(o => {
+      o.`type` match {
+        case "message" => o.content.flatMap(_.headOption.map(_.text))
+        case _ => None
+      }
+    }) match {
+      case aa:Seq[String] => Some(aa.mkString("\n"))
+      case _ => None
+    }
+  }
+
+  def promptStreamAsync(ai:Ai,onEvent: (String) => Unit,instructions:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools0:Seq[AiTool] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai] = {
     
     val url = s"${aiUri.apiUrl}/v1/responses"
     val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
     val systemPrompt = if( ! ai.xid.isDefined) instructions.orElse(aiUri.system) else None
+
+    val tools = aiUri.getTools() ++ tools0
 
     val body = OpenAi_ResponsesReq(
       model = modelReq,
@@ -378,7 +400,8 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       tools = if(tools.nonEmpty) Some(tools) else None
     ).toJson.compactPrint
        
-    log.info(s"model=${modelReq},sys=[${systemPrompt.map(_.size).getOrElse(-1)}]/q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
+    log.debug(s"body=${body} -> ${url}")
+    log.info(s"model=${modelReq},sys=${systemPrompt.map(_.size).getOrElse(-1)},tools=${tools}],q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
     
     Future {
       var a:Option[Ai] = None
@@ -411,8 +434,12 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
 
                     if(data.startsWith("""{"type":"response.completed"""")) {
                       val res = data.parseJson.convertTo[OpenAi_EventResponseCompleted]
+                      
+                      val answer = getResponseAnswer(res.response)
+
                       a = Some(ai.copy(
-                        answer = Some(res.response.output.head.content.head.text),
+                        answer = answer,
+                        model = Some(aiUri.getModel(res.response.model)),
                         xid = Some(res.response.id)
                       ))
                     } else {
@@ -445,13 +472,16 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
     onData: (String) => Unit = (s) => {},
     onError: (String) => Unit = (s) => {},
     onDone: () => Unit = () => {},
-    timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty)
-    (implicit ec: ExecutionContext,sys: ActorSystem): Source[ServerSentEvent, Any] = {
+    timeout:Long = getTimeout(),
+    retry:Int = getRetry(),
+    tools0:Seq[AiTool] = Seq.empty)(implicit ec: ExecutionContext,sys: ActorSystem): Source[ServerSentEvent, Any] = {
     
     val url = s"${aiUri.apiUrl}/v1/responses"
     // val url = s"http://localhost:8081/"
     val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
     val systemPrompt = if( ! ai.xid.isDefined) instructions.orElse(aiUri.system) else None
+
+    val tools = aiUri.getTools() ++ tools0
 
     val body = OpenAi_ResponsesReq(
       model = modelReq,
@@ -468,7 +498,8 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       tools = if(tools.nonEmpty) Some(tools) else None
     ).toJson.compactPrint
        
-    log.info(s"model=${modelReq},sys=[${systemPrompt.map(_.size).getOrElse(-1)}]/q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
+    log.debug(s"body=${body} -> ${url}")
+    log.info(s"model=${modelReq},sys=${systemPrompt.map(_.size).getOrElse(-1)},tools=${tools},q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
     
     val httpRequest = HttpRequest(
           method = HttpMethods.POST,
@@ -525,7 +556,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
               ServerSentEvent("", id = Some(id))
             } else {
               // Forward other lines as-is
-              println(s"---------------------------->'${line}'")
+              log.info(s"---------------------------->'${line}'")
               onData(line)
               ServerSentEvent(data = line)
             }

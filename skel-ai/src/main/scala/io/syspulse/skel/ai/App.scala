@@ -82,7 +82,9 @@ object App extends skel.Server {
         ArgCmd("ask","Ask question"),
         ArgCmd("chat","Chat"),
         ArgCmd("prompt","Prompt"),
-        ArgCmd("prompt-stream","Prompt stream"),        
+        ArgCmd("prompt-stream","Prompt stream"),
+        ArgCmd("stream","Prompt stream"),
+        ArgCmd("responses","Responses"), // same as prompt-stream
 
         ArgParam("<params>",""),
         ArgLogging(),
@@ -153,7 +155,7 @@ object App extends skel.Server {
       case "chat" => 
         chat(config.ai,config.params)(config)
         
-      case "prompt" => 
+      case "prompt" | "responses" => 
         prompt(config.ai,config.params)(config)
 
       case "prompt-stream" | "stream" => 
@@ -276,25 +278,37 @@ object App extends skel.Server {
     else
       aiUri.system
 
+    val (q0,max) = if(! params.isEmpty) {
+      (params.mkString(" "),1)
+    } else {
+      val q0 = aiUri.prompt.getOrElse("")
+      (q0,if(q0.isEmpty) Int.MaxValue else 1) 
+    }
+    
     val a0 = Ai(
-      question = params.mkString(" "),
+      question = q0,
       model = aiUri.getModel(),
       xid = aiUri.tid
     )
-
-    Console.err.println(s"q0 = '${a0.question}'")
+    
+    Console.err.println(s"q0 = '${q0}'")
 
     var a = a0
     for (i <- 1 to Int.MaxValue) {
       Console.err.print(s"${a.model}: ${a.xid}:${i} > ")
-      val q = scala.io.StdIn.readLine()
+      
+      val q = if(q0.isEmpty && i < max)
+         scala.io.StdIn.readLine()
+      else
+         q0
+
       if(q == null || q.trim.toLowerCase() == "exit") {
         sys.exit(0)
       }
       if(!q.isEmpty) {
         val a1 = provider.prompt(a.copy(question = q),system)
         Console.err.println(s"${a1.get}")
-        val txt = a1.get.answer.get
+        val txt = a1.get.answer.getOrElse("")
         Console.err.println(s"${Console.GREEN}${a1.get.model}${Console.YELLOW}: ${txt}${Console.RESET}")
         a = a1.get
       }
@@ -314,18 +328,30 @@ object App extends skel.Server {
     else
       aiUri.system
 
+    val (q0,max) = if(! params.isEmpty) {
+      (params.mkString(" "),1)
+    } else {
+      val q0 = aiUri.prompt.getOrElse("")
+      (q0,if(q0.isEmpty) Int.MaxValue else 1) 
+    }
+
     val a0 = Ai(
-      question = params.mkString(" "),
+      question = q0,
       model = aiUri.getModel(),
       xid = aiUri.tid
     )
 
-    Console.err.println(s"q0 = '${a0.question}'")
+    Console.err.println(s"q0 = '${q0}'")
 
     var a = a0
     for (i <- 1 to Int.MaxValue) {
       Console.err.print(s"${a.model}/${a.xid}:${i} > ")
-      val q = scala.io.StdIn.readLine()
+      
+      val q = if(q0.isEmpty && i < max)
+         scala.io.StdIn.readLine()
+      else
+         q0
+
       if(q == null || q.trim.toLowerCase() == "exit") {
         sys.exit(0)
       }
@@ -345,7 +371,7 @@ object App extends skel.Server {
                 //Console.err.println(s"${s}")
             }
           },
-          system          
+          system
         )
 
         Console.err.println(s"${a1.get}")
