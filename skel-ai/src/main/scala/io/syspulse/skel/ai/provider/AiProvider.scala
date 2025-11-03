@@ -31,9 +31,9 @@ trait AiProvider {
   def getModel():Option[String]
 
   // single question (no context)
-  def ask(question:String,model:Option[String],system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Ai]  
+  def ask(question:String,model:Option[String],system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty):Try[Ai]  
   // chat (with context by Chat)
-  def chat(chat:Chat,model:Option[String],system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Chat]
+  def chat(chat:Chat,model:Option[String],system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty):Try[Chat]
   
   // prompt (with context by Provider)
   def prompt(ai:Ai,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty):Try[Ai]

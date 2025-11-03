@@ -93,6 +93,8 @@ case class OpenAi_CompletionReq(
 
   user:Option[String] = None,
   response_format:Option[String] = None,
+
+  tools:Option[Seq[AiTool]] = None,
 )
 
 case class OpenAi_OutputContent(
@@ -165,7 +167,7 @@ object OpenAi_Json extends JsonCommon {
   implicit val jf_oai_cho = jsonFormat3(OpenAi_Choices)
   implicit val jf_oai_usg = jsonFormat3(OpenAi_ChatUsage)
   implicit val jf_oai_chat_res = jsonFormat7(OpenAi_ChatRes)  
-  implicit val jf_oai_req = jsonFormat14(OpenAi_CompletionReq)
+  implicit val jf_oai_req = jsonFormat15(OpenAi_CompletionReq)
 
   implicit val jf_oai_input = jsonFormat3(OpenAi_Input)
   implicit val jf_oai_output_content = jsonFormat3(OpenAi_OutputContent)
@@ -188,12 +190,20 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
   override def getRetry():Int = aiUri.retry
   override def getModel():Option[String] = aiUri.getModel()
 
+  def getResponseAnswer(response:OpenAi_ChatRes):Option[String] = {
+    if(response.choices.isEmpty) 
+      None 
+    else 
+      Some(response.choices.head.message.content)    
+  }
+
   def ask(question:String,model:Option[String],system:Option[String] = None,
-          timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Ai] = {
+          timeout:Long = getTimeout(),retry:Int = getRetry(),tools0:Seq[AiTool] = Seq.empty):Try[Ai] = {
 
     val url = s"${aiUri.apiUrl}/v1/chat/completions"
     val modelReq = model.getOrElse(OpenAiURI.DEFAULT_MODEL)
     val systemPrompt = system.orElse(aiUri.system).getOrElse("")
+    val tools = aiUri.getTools() ++ tools0
 
     val body = OpenAi_CompletionReq(
       model = modelReq,
@@ -204,6 +214,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       temperature = aiUri.temperature,
       top_p = aiUri.topP,
       max_completion_tokens = aiUri.maxTokens,
+      tools = if(tools.nonEmpty) Some(tools) else None
     ).toJson.compactPrint
   
     log.debug(s"body=${body} -> ${url}")
@@ -224,10 +235,11 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
         log.debug(s"${body}: ${r}")
 
         val chatRes = r.text().parseJson.convertTo[OpenAi_ChatRes]
+        val answer = getResponseAnswer(chatRes)
               
         Ai(
           question = question,
-          answer = Some(chatRes.choices.head.message.content),        
+          answer = answer,
           oid = Some(Providers.OPEN_AI),
           model = Some(aiUri.getModel(chatRes.model))
         )
@@ -237,11 +249,12 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
   }
 
   def chat(chat:Chat,model:Option[String],system:Option[String] = None,
-           timeout:Long = getTimeout(),retry:Int = getRetry()):Try[Chat] = {
+           timeout:Long = getTimeout(),retry:Int = getRetry(),tools0:Seq[AiTool] = Seq.empty):Try[Chat] = {
 
     val url = s"${aiUri.apiUrl}/v1/chat/completions"
     val modelReq = model.getOrElse(OpenAiURI.DEFAULT_MODEL)
     val systemPrompt = system.orElse(aiUri.system)
+    val tools = aiUri.getTools() ++ tools0
 
     val messages = chat.messages.map( p => {
       p.role.trim match {
@@ -259,6 +272,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       temperature = aiUri.temperature,
       top_p = aiUri.topP,
       max_completion_tokens = aiUri.maxTokens,
+      tools = if(tools.nonEmpty) Some(tools) else None
     ).toJson.compactPrint
           
     log.debug(s"body=${body}")
@@ -280,7 +294,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
         )
         log.debug(s"${body}: ${r}")
 
-        val chatRes = r.text().parseJson.convertTo[OpenAi_ChatRes]
+        val chatRes = r.text().parseJson.convertTo[OpenAi_ChatRes]        
               
         Chat(
           messages = chat.messages ++ chatRes.choices.map(c => ChatMessage(role = c.message.role, content = c.message.content)),

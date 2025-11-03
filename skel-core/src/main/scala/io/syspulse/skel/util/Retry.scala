@@ -15,7 +15,7 @@ object Retry {
     def err(e: Exception, i: Int, r: Option[String] = None): T = {
       if (i > 1) {
         val waitTime = baseWait * math.pow(2, retry - i).toLong
-        log.warn(s"Request failed: ${desc}: ${i}: retrying in ${waitTime}: ${e}: '${r.getOrElse("")}'")
+        log.warn(s"Request failed: ${desc}: ${i}: ${e}: body='${r.getOrElse("")}': retrying in ${waitTime}")
         Thread.sleep(waitTime)
         retryWithBackoff(i - 1)
       } else {
