@@ -30,7 +30,8 @@ trait Permissions {
 object Permissions {
   val log = Logger(s"${this}")
 
-  val isGod = sys.props.contains("god") || sys.props.contains("GOD") || sys.env.contains("god") || sys.env.contains("GOD")
+  val isGod = sys.env.contains("GOD") || sys.env.contains("god") || sys.props.contains("GOD") || sys.props.contains("god")
+  val isZues = sys.env.get("GOD").orElse(sys.props.get("GOD")).orElse(sys.env.get("god").orElse(sys.props.get("god"))).map(_.toLowerCase == "zeus").getOrElse(false)
 
   def apply(permissionsModel:String,permissionsPolicy:String):Permissions = apply("casbin",Map(
     "modelFile" -> permissionsModel,

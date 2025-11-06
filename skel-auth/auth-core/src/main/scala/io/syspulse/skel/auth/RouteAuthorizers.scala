@@ -81,12 +81,20 @@ trait RouteAuthorizers {
   }
 
   protected def authenticate(): Directive1[Authenticated] = {
-    val a:Directive1[Authenticated] = if(Permissions.isGod) 
-      // try to allo and inject correct user UID
-      authenticateOAuth2("api",oauth2AuthenticatorGod)
-    else
-      authenticateOAuth2("api",oauth2Authenticator)
-    //log.debug(s"GOD=${Permissions.isGod}: authentication=${a}")
+    val a:Directive1[Authenticated] = 
+      if(Permissions.isGod) {
+        log.warn(s"GOD: [*:Allow]")
+        // try to allo and inject correct user UID
+        //authenticateOAuth2("api",oauth2AuthenticatorGod)
+        provide(AuthenticatedUser(DefaultPermissions.USER_ADMIN,roles = Seq("admin")))
+      } 
+      else if(Permissions.isZues) {        
+        // try to allo and inject correct user UID
+        authenticateOAuth2("api",oauth2AuthenticatorGod)
+      }
+      else {
+        authenticateOAuth2("api",oauth2Authenticator)
+      }
     a
   }
 
