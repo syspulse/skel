@@ -4,6 +4,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.Future
 import scala.concurrent.Await
 import akka.actor.typed.ActorSystem
+import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
@@ -51,10 +52,9 @@ case class Config(
 )
 
 object App extends skel.Server {
-  
-  def main(args:Array[String]):Unit = {
-    Console.err.println(s"args: '${args.mkString(",")}'")
 
+  def main(args:Array[String]):Unit = {
+    
     val d = Config()
     val c = Configuration.withPriority(Seq(
       new ConfigurationAkka,
@@ -113,7 +113,7 @@ object App extends skel.Server {
       params = c.getParams(),
     )
 
-    Console.err.println(s"Config: ${config}")
+    log.info(s"Config: ${config}")
     
     val store = config.datastore.split("://").toList match {
       case "openai" :: Nil => new AiStoreOpenAi(config.datastore)
@@ -126,8 +126,8 @@ object App extends skel.Server {
         sys.exit(1)      
     }
 
-    Console.err.println(s"Store: ${store}")
-    Console.err.println(s"System prompt: ${config.sys}")
+    log.info(s"Store: ${store}")
+    log.info(s"System prompt: ${config.sys}")
     
     val r = config.cmd match {
       case "server" =>
@@ -161,7 +161,7 @@ object App extends skel.Server {
       case "prompt-stream" | "stream" => 
         promptStream(config.ai,config.params)(config)
     }
-    Console.err.println(s"r = ${r}")
+    Console.err.println(s"${r}")
   }
 
   def ask(uri:String, params:Seq[String])(config:Config):Unit = {
@@ -183,7 +183,7 @@ object App extends skel.Server {
     else
       aiUri.system
 
-    Console.err.println(s"q0 = '${q0}'")
+    log.info(s"q0 = '${q0}'")
 
     for (i <- 1 to max) {
       Console.err.print(s"${aiUri.getModel()}: ${i}> ")
@@ -197,7 +197,7 @@ object App extends skel.Server {
       }
       if(!q.isEmpty) {
         val p = provider.ask(q,aiUri.getModel(),system)
-        Console.err.println(s"${p.get}")
+        log.info(s"${p.get}")
         val txt = p.get.answer.get
         Console.err.println(s"${Console.RED}${aiUri.getModel()}${Console.YELLOW}: ${txt}${Console.RESET}")
       }
@@ -209,7 +209,7 @@ object App extends skel.Server {
 
     val aiUri = AiURI(uri)
 
-    Console.err.println(s"uri = ${aiUri}")
+    log.info(s"uri = ${aiUri}")
 
     val provider:AiProvider = AiProvider(aiUri)
     
@@ -225,7 +225,7 @@ object App extends skel.Server {
       (q0,if(q0.isEmpty) Int.MaxValue else 1) 
     }
 
-    Console.err.println(s"q0 = '${q0}'")
+    log.info(s"q0 = '${q0}'")
 
     val p0 = Chat(
       messages = Seq(
@@ -259,7 +259,7 @@ object App extends skel.Server {
             Console.err.println(s"Error: ${e}")            
         }
 
-        Console.err.println(s"${r}")
+        log.info(s"${r}")
         val txt = r.get.last.content
         Console.err.println(s"${Console.BLUE}${aiUri.getModel()}${Console.YELLOW}: ${txt}${Console.RESET}")
       }
@@ -291,10 +291,10 @@ object App extends skel.Server {
       xid = aiUri.tid
     )
     
-    Console.err.println(s"q0 = '${q0}'")
+    log.info(s"q0 = '${q0}'")
 
     var a = a0
-    for (i <- 1 to Int.MaxValue) {
+    for (i <- 1 to max) {
       Console.err.print(s"${a.model}: ${a.xid}:${i} > ")
       
       val q = if(q0.isEmpty && i < max)
@@ -307,7 +307,7 @@ object App extends skel.Server {
       }
       if(!q.isEmpty) {
         val a1 = provider.prompt(a.copy(question = q),system)
-        Console.err.println(s"${a1.get}")
+        log.info(s"${a1.get}")
         val txt = a1.get.answer.getOrElse("")
         Console.err.println(s"${Console.GREEN}${a1.get.model}${Console.YELLOW}: ${txt}${Console.RESET}")
         a = a1.get
@@ -341,10 +341,11 @@ object App extends skel.Server {
       xid = aiUri.tid
     )
 
-    Console.err.println(s"q0 = '${q0}'")
+    log.info(s"q0 = '${q0}'")
 
     var a = a0
-    for (i <- 1 to Int.MaxValue) {
+
+    for (i <- 1 to max) {
       Console.err.print(s"${a.model}/${a.xid}:${i} > ")
       
       val q = if(q0.isEmpty && i < max)
@@ -355,16 +356,25 @@ object App extends skel.Server {
       if(q == null || q.trim.toLowerCase() == "exit") {
         sys.exit(0)
       }
+
       if(!q.isEmpty) {
         
         val a1 = provider.promptStream(a.copy(question = q),
           (s:String) => {
             s match {
-              case s"""data: {"type":"response.output_text.delta","item_id":${id},"output_index":${i},"content_index":${ic},"delta":"${txt}"}""" =>
-                Console.err.print(s"${Console.BLUE}${txt}${Console.RESET}")
+              // Pattern with item_id as number (allows optional trailing fields)
+              case s"""data: {"type":"response.output_text.delta","item_id":${id},"output_index":${i},"content_index":${ic},"delta":"${txt}"""" =>
+                log.info(s"${Console.BLUE}${txt}${Console.RESET}")
 
-              case s"""data: {"type":"response.output_text.delta","sequence_number":${seq},"item_id":"${iid}","output_index":${io},"content_index":${ic},"delta":"${txt}"}""" =>
-                Console.err.print(s"${Console.BLUE}${txt}${Console.RESET}")                
+              // Flexible pattern using regex to extract delta from JSON with optional trailing fields
+              case s if s.startsWith("""data: {"type":"response.output_text.delta"""") =>
+                // Extract delta value using regex, allowing for optional trailing fields
+                // Pattern matches: "delta":"<value>" where value can contain escaped quotes
+                val deltaPattern = """"delta":"((?:[^"\\]|\\.)*)"""".r
+                deltaPattern.findFirstMatchIn(s).foreach { m =>
+                  val txt = m.group(1).replace("\\\"", "\"").replace("\\\\", "\\")
+                  log.info(s"${Console.BLUE}${txt}${Console.RESET}")
+                }
 
               case _ => 
                 // ignore
@@ -374,7 +384,7 @@ object App extends skel.Server {
           system
         )
 
-        Console.err.println(s"${a1.get}")
+        log.info(s"${a1.get}")
         val txt = a1.get.answer.getOrElse("???")
         Console.err.println(s"${Console.GREEN}${a1.get.model}${Console.YELLOW}/${a1.get.xid}: ${txt}${Console.RESET}")
         a = a1.get

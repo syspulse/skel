@@ -18,4 +18,4 @@ MAIN=io.syspulse.skel.user.App
 >&2 echo "main: $MAIN"
 >&2 echo "ACCESS_TOKEN: $ACCESS_TOKEN"
 
-exec ../run-app.sh $APP $MAIN "$@"
+exec ${CWD}/../run-app.sh $APP $MAIN $@

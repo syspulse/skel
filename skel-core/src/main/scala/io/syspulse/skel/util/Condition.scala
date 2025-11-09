@@ -25,6 +25,18 @@ import scala.util.{Try,Success,Failure}
  *    < +30        -> v < 30 (exact value, no absolute handling)
  *    < -20        -> v < -20 (exact value, no absolute handling)
  * 
+ * 3.5. ONCE OPERATORS (edge detection - trigger only when condition transitions from false to true):
+ *    >> 10        -> v > 10 (triggers only once when condition becomes true, then false on subsequent evaluations)
+ *    << 25        -> v < 25 (triggers only once when condition becomes true, then false on subsequent evaluations)
+ *    >> ++100     -> increase > 100 (triggers only once when the increase condition becomes true)
+ *    << --50      -> decrease > 50 (triggers only once when the decrease condition becomes true)
+ *    >> 25%       -> percentage change > 25% (triggers only once when the percentage condition becomes true)
+ *    << 10%       -> percentage change < 10% (triggers only once when the percentage condition becomes true)
+ *    
+ *    Note: These operators return true only when the condition transitions from false to true (edge detection).
+ *          Once the condition becomes true, subsequent evaluations return false even if the condition remains true.
+ *          This is useful for detecting threshold crossings or one-time events.
+ * 
  * 4. PERCENTAGE OPERATIONS:
  *    > 25%        -> percentage change > 25% (absolute value handling)
  *    < 10%        -> percentage change < 10% (absolute value handling)
@@ -64,8 +76,9 @@ import scala.util.{Try,Success,Failure}
  * NOTES:
  * - Equality (=) and not equality (!=) always use exact value matching
  * - Comparison operators (>, <, >=, <=) respect absolute value handling
- * - Delta operations (++, --) work with all comparison operators
- * - Percentage operations work with all comparison operators
+ * - Once operators (>>, <<) trigger only when condition transitions from false to true (edge detection)
+ * - Delta operations (++, --) work with all comparison operators including once operators
+ * - Percentage operations work with all comparison operators including once operators
  * - Spaces are automatically removed during parsing
  * - The abs parameter is automatically detected based on value prefix: + / - will not use absolute value handling
  */

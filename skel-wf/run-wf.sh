@@ -1,8 +1,9 @@
 #!/bin/bash                                                                                                                                                                                            
-CWD=`echo $(dirname $(readlink -f $0))`
-cd $CWD
+export CWD=`echo $(dirname $(readlink -f $0))`
+#cd $CWD
 
-t=`pwd`;
+#t=`pwd`;
+t=$CWD
 APP=`basename "$t"`
 CONF=`echo $APP | awk -F"-" '{print $2}'`
 
@@ -17,4 +18,4 @@ MAIN=io.syspulse.skel.wf.App
 >&2 echo "main: $MAIN"
 >&2 echo "ACCESS_TOKEN: $ACCESS_TOKEN"
 
-exec ../run-app.sh $APP $MAIN "$@"
+exec ${CWD}/../run-app.sh $APP $MAIN $@

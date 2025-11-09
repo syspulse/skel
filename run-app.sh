@@ -26,8 +26,6 @@ fi
 
 PLUGINS=${PLUGSIN:-${CWD}/plugins}
 
->&2 echo "APP_HOME: $APP_HOME"
-
 # fat jar
 JAR_FAT=`ls ${APP_HOME}/target/scala-2.13/*assembly*.jar`
 # classes

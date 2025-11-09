@@ -16,4 +16,4 @@ MAIN=io.syspulse.skel.ingest.flow.App
 >&2 echo "site: $SITE"
 >&2 echo "main: $MAIN"
 
-exec ../../run-app.sh $APP $MAIN $@
+exec ${CWD}/../../run-app.sh $APP $MAIN $@
