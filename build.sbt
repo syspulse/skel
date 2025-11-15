@@ -919,6 +919,17 @@ lazy val skel_db = (project in file("skel-db"))
 
       ),
   )
+
+lazy val db_guard = (project in file("skel-db/db-guard"))
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      name := "db-guard",
+      libraryDependencies ++= libCommon ++  libTest ++ Seq(
+        libUUID
+      )
+    )
+
   
 lazy val db_cli = (project in file("skel-db/db-cli"))
   .dependsOn(core,cli)
