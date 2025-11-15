@@ -31,6 +31,7 @@ object App  {
         ArgCmd("scala-toolbox","Scala Toolbox script"),
 
         ArgCmd("polyglot-js","GraalJS Polyglot ScriptEngine"),
+        ArgCmd("polyglot-js-sandbox","GraalJS Polyglot ScriptEngine with sandbox"),
         ArgCmd("nashorn","Nashorn ScriptEngine"),
         ArgCmd("js-nashorn","Nashorn ScriptEngine"),
 
@@ -44,34 +45,46 @@ object App  {
       params = c.getParams(),
     )
 
+    val script = config.params.foldLeft("")((r,s) => r + {
+      s.split("://").toList match {
+        case "file" :: file :: Nil => os.read(os.Path(file,os.pwd)) + "\n"
+        case _ => s + "\n"
+      }      
+    })
+
     Console.err.println(s"Config: ${config}")
 
     val defParasm = Map("i"->100,"s"->Util.generateRandomToken(None,sz=64))
+
     val r = config.cmd match {
       case "js" =>
-        new JS().run(config.params.mkString(" "),defParasm)
+        new JS().run(script,defParasm)
 
       case "nashorn" | "js-nashorn" =>
-        new NASHORN().run(config.params.mkString(" "),defParasm)
+        new NASHORN().run(script,defParasm)
 
       case "polyglot-js" =>
-        new Polyglot("js").run(config.params.mkString(" "),defParasm)
+        new Polyglot("js").run(script,defParasm)
+
+      case "polyglot-js-sandbox" =>
+        new PolyglotSandbox("js")
+          .run(script,defParasm)
 
       case "scala" =>
-        new SCALA().run(config.params.mkString(" "),defParasm)
+        new SCALA().run(script,defParasm)
 
       case "scala-script" =>
-        new ScalaScript().run(config.params.mkString(" "),defParasm)
+        new ScalaScript().run(script,defParasm)
 
       case "scala-toolbox" =>
-        new ScalaToolbox().run(config.params.mkString(" "),defParasm)
+        new ScalaToolbox().run(script,defParasm)
 
       case "scala-interpreter" =>
         //scala.tools.nsc.interpreter.shell.Scripted().eval(config.params.mkString(" "))
-        new ScalaInterpreter().run(config.params.mkString(" "),defParasm)
+        new ScalaInterpreter().run(script,defParasm)
 
       case "scala-imain" =>
-        new ScalaIMain().run(config.params.mkString(" "),defParasm)
+        new ScalaIMain().run(script,defParasm)
       
 
       case _ => 
