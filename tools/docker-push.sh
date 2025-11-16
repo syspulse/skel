@@ -1,5 +1,6 @@
 #!/bin/bash
 CWD=`echo $(dirname $(readlink -f $0))`
+REPO=${REPO:-syspulse}
 
 t=`pwd`;
 APP_DEF=`basename "$t"`
@@ -9,7 +10,7 @@ CMD=${1:-deploy}
 if [ "$2" != "" ]; then
    APP_FULL=$2
 else
-   APP_FULL=syspulse/${APP_DEF}:latest
+   APP_FULL=${REPO}/${APP_DEF}:latest
 fi
 
 
