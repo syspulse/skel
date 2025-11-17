@@ -282,17 +282,18 @@ class Chainlink(loaders:Seq[ChainlinkLoader],warnings:Boolean = false) {
     
   // Instance methods
   def findOracle(chain:String,tokenAddr:String,quoteAsset:Option[String] = Some("USD")):Option[ChainlinkContract] = {
-    // contracts
-    //   .get(chain)
-    //   .flatMap(_.find(c => 
-    //     (c.typ == Some(Chainlink.ORACLE_TYPE_ID)) && 
-    //     c.coin0 == Some(tokenAddr.toLowerCase.trim) &&
-    //     (quoteAsset.isEmpty || c.asset1 == quoteAsset)
-    //   ))
     tokens
       .get(tokenAddr.toLowerCase.trim)
       .filter(c => c.chain == chain)
+      .filter(c => c.typ.exists(t => t == Chainlink.ORACLE_TYPE_ID ))
       .filter(c => quoteAsset.isEmpty || c.asset1 == quoteAsset)
+  }
+
+  def findPoR(chain:String,tokenAddr:String):Option[ChainlinkContract] = {
+    tokens
+      .get(tokenAddr.toLowerCase.trim)
+      .filter(c => c.chain == chain)
+      .filter(c => c.typ.exists(t => t == Chainlink.POR_TYPE_ID ))      
   }
 
   def findContract(chain:String,name:Option[String],typ:Option[String] = None):Option[ChainlinkContract] = {
@@ -317,8 +318,8 @@ class Chainlink(loaders:Seq[ChainlinkLoader],warnings:Boolean = false) {
         contracts += (chain -> (contractSet ++ existingContracts))
         
         tokens = tokens ++ contractSet
-           .filter(_.typ == Some(Chainlink.ORACLE_TYPE_ID))
-           .filter(_.coin0.isDefined)
+           .filter(c => c.coin0.isDefined)
+           .filter(c => c.typ.exists(t => t == Chainlink.ORACLE_TYPE_ID || t == Chainlink.POR_TYPE_ID))
            .map(c => c.coin0.get -> c)
       }
     })
@@ -343,8 +344,40 @@ class Chainlink(loaders:Seq[ChainlinkLoader],warnings:Boolean = false) {
 
     if(! contract.isDefined) {
       // pool not found
-      log.warn(s"${tokenAddr}: oracle not found")
-      return Failure(new Exception(s"${tokenAddr}: oracle not found"))
+      log.warn(s"${tokenAddr}: Oracle not found")
+      return Failure(new Exception(s"${tokenAddr}: Oracle not found"))
+    }
+
+    log.info(s"${tokenAddr}: -> ${contract.get.addr}: ${funcName} ${params}")
+    val r = Eth.callFunction(tokenAddr, contract.get.addr, funcName, params)(web3)
+    log.info(s"${tokenAddr}: <- ${contract.get.addr}:  result=${r}")
+
+    val price = r match {
+      case Success(r) => 
+        val dec = contract.get.dec.getOrElse(8)
+        val price = r.toDouble / math.pow(10.0,dec.toDouble)
+        Success(price)
+      case Failure(e) => 
+        log.warn(s"failed to get price: ${e.getMessage()}")
+        Failure(new Exception(s"failed to get price: ${e.getMessage()}"))
+    }
+
+    price
+  }
+  
+  def getPoR(chain:String,tokenAddr:String)(implicit web3:Web3jTrace):Try[Double] = {
+    if(contracts.size == 0) {      
+      return Failure(new Exception("Protocol not initialized"))
+    }
+
+    val contract = findPoR(chain,tokenAddr)
+    val funcName = "latestAnswer()(int256)"
+    val params = Seq()
+
+    if(! contract.isDefined) {
+      // pool not found
+      log.warn(s"${tokenAddr}: Oracle not found")
+      return Failure(new Exception(s"${tokenAddr}: Oracle not found"))
     }
 
     log.info(s"${tokenAddr}: -> ${contract.get.addr}: ${funcName} ${params}")
