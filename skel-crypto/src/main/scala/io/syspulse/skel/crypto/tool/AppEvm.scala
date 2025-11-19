@@ -20,10 +20,12 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.Await
 import io.syspulse.skel.crypto.eth.Web3jTrace
 import io.syspulse.skel.crypto.eth.{SolidityEvent,SolidityError,SolidityFunc,SolidityParser}
+import io.syspulse.skel.crypto.eth.TokenUtil
 
 object AppEvm extends {
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
   import io.syspulse.skel.FutureAwaitable._
+  val log = Logger(this.getClass)
 
   case class Config(
     ethRpcUrl:String="http://geth:8545",
@@ -74,7 +76,10 @@ object AppEvm extends {
         ArgCmd("encode","function(params,...)(return)"),
         ArgCmd("estimate","eth_estimageGas"),
         ArgCmd("balance","eth_getBalance"),
-        ArgCmd("balance-erc20","ERC20 balanceOf()"),
+        
+        ArgCmd("token-balance","Token balanceOf()"),
+        ArgCmd("erc20-balance","ERC20 balanceOf()"),
+        
         ArgCmd("abi-encode","inputType params..."),
         ArgCmd("abi-decode","inputType params..."),
         ArgCmd("block","Get block"),
@@ -258,10 +263,10 @@ object AppEvm extends {
         }
         Eth.getBalance(config.params(0),block=config.block)
 
-      case "balance-erc20" | "balance-token" =>         
+      case "token-balance" =>         
 
         if(config.params.size < 2) {
-          Console.err.println("balance-erc20: <address> <token>...")
+          Console.err.println("token-balance: <address> <token>...")
           sys.exit(1)
         }
         //Eth.getBalanceToken(config.params(0),config.params.drop(1))
@@ -272,6 +277,20 @@ object AppEvm extends {
             r
           })
           //.await()
+
+      case "erc20-balance" =>
+
+        if(config.params.size < 2) {
+          Console.err.println("erc20-balance: <address> <token>...")
+          sys.exit(1)
+        }        
+        
+        val tokenAddr = config.params(0)
+        val userAddr = config.params(1)
+        val dec0 = config.params.drop(2).headOption.map(_.toInt)
+        val block = config.block
+
+        TokenUtil.askErc20Balance(tokenAddr,userAddr,dec0=dec0,block=block)(web3)
 
       case "abi-encode" => 
         if(config.params.size < 1) {
@@ -329,7 +348,9 @@ object AppEvm extends {
         val j = ujson.read(r.toString)
         j.render(indent = 2)      
       
-      case Failure(e) => e.getMessage()
+      case Failure(e) => 
+        log.error(s"${e.getMessage()}",e)
+        e.getMessage()
       case _ => 
         r.toString()
     }

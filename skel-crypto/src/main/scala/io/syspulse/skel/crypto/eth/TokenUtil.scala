@@ -161,4 +161,27 @@ object TokenUtil {
 
     t
   }
+
+  def askErc20Balance(tokenAddr:String,userAddr:String,dec0:Option[Int] = None,block:Option[Long] = None)(web3:Web3jTrace):Try[BigInt] = {
+    val balance = for {
+       v <- 
+        //Eth.callFunction(userAddr, tokenAddr, "balanceOf(address)(uint256)", Seq(userAddr))(web3)
+        Eth.getBalanceToken(userAddr,Seq(tokenAddr),block=block)(web3).head
+      //  v <- Success(BigInt(r))
+       dec <- dec0 match {
+        case Some(dec) if(dec == -1) => 
+          Eth.callFunction(userAddr, tokenAddr, "decimals()(uint)", Seq.empty,block=block)(web3).map(r => r.toInt)          
+        case Some(dec) => Success(dec)        
+        case None => Success(0)
+       }
+       r <- {
+        if(dec != 0)
+          Success(v / BigInt(10).pow(dec))
+        else
+          Success(v)
+       }
+    } yield r
+
+    balance
+  }
 }
