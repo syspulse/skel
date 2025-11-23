@@ -11,6 +11,8 @@ import os._
 import scala.util.Failure
 import io.syspulse.skel.store.StoreDir
 
+import io.methvin.better.files.RecursiveFileMonitor
+
 import spray.json._
 import DefaultJsonProtocol._
 import AbiContractJson._
@@ -147,12 +149,13 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
   }
 
   override def load():String = {
-    load(dir)
+    val d = load(dir)
     watch(dir)
+    d
   }
 
   // NOTE: replce with standard StoreDir watcher !
-  override def watch(dir:String):String = {
+  override def watch(dir:String):RecursiveFileMonitor = {
     import better.files._
     import io.methvin.better.files._
     import io.methvin.watcher.hashing.FileHasher
@@ -201,7 +204,7 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
 
     watcher.start()
     log.info(s"watching: ${dir}")
-    dir
+    watcher
   }
 
   def addAsFile(f:Path) = {

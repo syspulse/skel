@@ -3,8 +3,15 @@ package io.syspulse.skel.store
 import scala.util.{Try,Success,Failure}
 import scala.collection.immutable
 import io.jvm.uuid._
+import java.util.concurrent.atomic.AtomicBoolean
 
 import com.typesafe.scalalogging.Logger
+
+import better.files._
+import io.methvin.better.files._
+import io.methvin.watcher.hashing.FileHasher
+import java.nio.file.{Path, StandardWatchEventKinds => EventType, WatchEvent}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import spray.json._
 import DefaultJsonProtocol._
@@ -13,6 +20,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
   val log = Logger(s"${this}")
 
   @volatile var loading = false
+  val writing = new AtomicBoolean(false)
 
   def getDir():String = dir
 
@@ -38,11 +46,13 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     Success(this)
   } catch {
     case e:Exception =>
-      log.error(s"failed to write: ${e}")
+      log.error(s"failed to write: '${name}'",e)
       Failure(e)
   }
 
-  def writeFile(e:E):Try[E] = write(e.toJson.compactPrint,s"${getKey(e)}.json","").map(_ => e)
+  def writeFile(e:E):Try[E] = 
+    write(e.toJson.compactPrint,s"${getKey(e)}.json","")
+      .map(_ => e)
   // try {
   //   val f = os.Path(dir,os.pwd) / s"${getKey(e)}.json"    
   //   os.write.over(f,e.toJson.compactPrint)
@@ -165,12 +175,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     )
   }
 
-  def watch(dir:String):String = {
-    import better.files._
-    import io.methvin.better.files._
-    import io.methvin.watcher.hashing.FileHasher
-    import java.nio.file.{Path, StandardWatchEventKinds => EventType, WatchEvent}
-    import scala.concurrent.ExecutionContext.Implicits.global
+  def watch(dir:String):RecursiveFileMonitor = {    
 
     @volatile
     var modifying:Option[File] = None
@@ -180,8 +185,8 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
       File(dir),
       fileHasher = Some(FileHasher.LAST_MODIFIED_TIME)) {
       override def onCreate(file: File, count: Int) = {
-        if(!file.isDirectory && (!modifying.isDefined || modifying.get != file)) {
-          log.info(s"${file}: added")
+        if(!writing.get() && !file.isDirectory && (!modifying.isDefined || modifying.get != file)) {
+          log.info(s"${file}: added (writing=${writing.get()},modifying=${modifying})")
           modifying = Some(file)
 
           // this will not load on ext4 !
@@ -191,8 +196,8 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
         }
       }
       override def onModify(file: File, count: Int) = {
-        if(!file.isDirectory) {
-          log.info(s"${file}: modified")
+        if(!writing.get() && !file.isDirectory) {
+          log.info(s"${file}: modified (writing=${writing.get()})")
           
           modifying = Some(file)
 
@@ -206,9 +211,9 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
       }
 
       override def onDelete(file: File, count: Int) = {        
-        if(!file.isDirectory) {
+        if(!writing.get() && !file.isDirectory) {
           val id = file.nameWithoutExtension
-          log.info(s"${file}: deleted")
+          log.info(s"${file}: deleted (wrtiing=${writing.get()})")
           StoreDir.this.del(toKey(id))
         }
       }
@@ -216,7 +221,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
 
     watcher.start()
     log.info(s"watching: ${dir}")
-    dir
+    watcher
   }
 
 }
