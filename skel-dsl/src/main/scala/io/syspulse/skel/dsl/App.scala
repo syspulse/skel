@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit
 
 case class Config(  
   cmd:String = "scala",
+  loop:Int = 1,
   params: Seq[String] = Seq(),
 )
 
@@ -23,7 +24,9 @@ object App  {
       new ConfigurationProp,
       new ConfigurationEnv, 
       new ConfigurationArgs(args,"skel-dsl","",
-        
+
+        ArgInt('l', "loop",s"Loop count (def: ${d.loop})"),
+
         ArgCmd("js","JavaScript ScriptEngine script"),
         ArgCmd("scala","Scala ScriptEngine script"),
         ArgCmd("scala-script","Scala ScriptEngine (same as `scala` with cast `-Dscala.usejavacp=true`)"),
@@ -41,6 +44,8 @@ object App  {
     )).withLogging()
 
     val config = Config(
+      loop = c.getInt("loop").getOrElse(d.loop),
+
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
     )
@@ -56,37 +61,57 @@ object App  {
 
     val defParasm = Map("i"->100,"s"->Util.generateRandomToken(None,sz=64))
 
+    def run(e:ScriptEngine):Unit = {
+      for(i <- 0 until config.loop) {
+        val r = e.run(script,defParasm)
+        Console.err.println(s"r[${i}] = ${r}")
+      }
+    }
+
     val r = config.cmd match {
       case "js" =>
-        new JS().run(script,defParasm)
+        val e = new JS()
+        run(e)
 
       case "nashorn" | "js-nashorn" =>
-        new NASHORN().run(script,defParasm)
+        run(new NASHORN())
 
       case "polyglot-js" =>
-        new Polyglot("js").run(script,defParasm)
+        run(new Polyglot("js"))
 
       case "polyglot-js-sandbox" =>
-        new PolyglotSandbox("js")
-          .run(script,defParasm)
+        run(new PolyglotSandbox("js"))
 
       case "scala" =>
-        new SCALA().run(script,defParasm)
+        run(new SCALA())
 
       case "scala-script" =>
-        new ScalaScript().run(script,defParasm)
+        for(i <- 0 until config.loop) {
+          new ScalaScript().run(script,defParasm)
+        }
 
       case "scala-toolbox" =>
-        new ScalaToolbox().run(script,defParasm)
+        val e = new ScalaToolbox()
+        for(i <- 0 until config.loop) {
+          val r = e.run(script,defParasm)
+          Console.err.println(s"r[${i}] = ${r}")
+        }
 
       case "scala-interpreter" =>
-        //scala.tools.nsc.interpreter.shell.Scripted().eval(config.params.mkString(" "))
-        new ScalaInterpreter().run(script,defParasm)
+        val e = new ScalaInterpreter()
+        for(i <- 0 until config.loop) {
+          //scala.tools.nsc.interpreter.shell.Scripted().eval(config.params.mkString(" "))
+          val r = e.run(script,defParasm)
+          Console.err.println(s"r[${i}] = ${r}")
+        }
 
       case "scala-imain" =>
-        new ScalaIMain().run(script,defParasm)
+        val e = new ScalaIMain()
+        for(i <- 0 until config.loop) {
+          val r = e.run(script,defParasm)
+          Console.err.println(s"r[${i}] = ${r}")
+        }
       
-
       case _ => 
         Console.err.println(s"unknown Script Enginer: ${config.cmd}")
         sys.exit(1)

@@ -6,24 +6,129 @@ import org.graalvm.polyglot.Context
 import org.graalvm.polyglot._
 import org.graalvm.polyglot.proxy._
 import java.util.function.Predicate
+import java.io.ByteArrayOutputStream
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Await
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.TimeoutException
 
-class PolyglotSandbox(lang:String) extends Polyglot(lang,
-  opt = Map(
+// ATTENTION: with 
+// Multi threaded access requested by thread Thread[#162,pool-58-thread-1,5,main] but is not allowed for language(s) js.
+
+/*
+allowHostAccess
+
+EXPLICIT - Java host methods or fields, must be public and be annotated with @Export to make them accessible to the guest language.
+SCOPED - Java host methods or fields, must be public and be annotated with @Export to make them accessible to the guest language. Guest-to-host callback parameter validity is scoped to the duration of the callback by default.
+NONE - Does not allow any access to methods or fields of host objects. Java host objects may still be passed into a context, but they cannot be accessed.
+ALL - Does allow full unrestricted access to public methods or fields of host objects. Note that this policy allows unrestricted access to reflection. It is highly discouraged from using this policy in environments where the guest application is not fully trusted.
+CONSTRAINED host access policy suitable for a context with CONSTRAINED sandbox policy.
+ISOLATED host access policy suitable for a context with ISOLATED sandbox policy.
+UNTRUSTED host access policy suitable for a context with UNTRUSTED sandbox policy.
+
+*/
+
+/*
+sandbox
+
+TRUSTED - The sandbox allows full access to all Java APIs.
+CONSTRAINED - The sandbox allows access to most Java APIs, but restricts some APIs that are potentially dangerous or have a high risk of abuse.
+ISOLATED - The sandbox isolates the guest language from the host environment, allowing only limited access to Java APIs.
+UNTRUSTED - The sandbox does not allow any access to Java APIs.
+*/
+
+/* 
+current Truffle runtime only supports the TRUSTED or CONSTRAINED sandbox policies. 
+This typically occurs when a non-Oracle GraalVM Java runtime is used, the org.graalvm.truffle:truffle-enterprise dependency is missing, 
+or the fallback runtime was forced. The Truffle fallback runtime may be forced using the truffle.UseFallbackRuntime or 
+truffle.TruffleRuntime system property. To resolve this make sure Oracle GraalVM is used, the truffle-enterprise dependency is on 
+the class or module path and the fallback runtime is not forced. Alternatively, you can switch to a less strict sandbox policy 
+using Builder.sandbox(SandboxPolicy).
+ */
+
+object PolyglotSandbox {
+  
+  val RESTRICTED = Map(
+    "allowAllAccess"->false,
+    "allowPolyglotAccess" -> "NONE",
+    "allowIO" -> false,
+    "allowCreateProcess" -> false,
+    "allowCreateThread" -> false,
+    "allowEnvironmentAccess"->"NONE",
+    "allowHostAccess"-> "CONSTRAINED",
+    "allowHostClassLoading" -> false,
+    "allowHostClassLookup"->"java.lang.,java.math.,java.util.",
+
+    "sandbox"->"CONSTRAINED",
+    "out" -> 1024 * 10,
+    "err" -> 1024 * 10,
+    "option"-> Seq(               
+               "engine.SpawnIsolate:true",
+               "engine.MaxIsolateMemory:100m",
+               "sandbox.MaxHeapMemory:100MB",
+               "sandbox.MaxCPUTime:5s",
+               "sandbox.MaxStatements:10000",
+               "sandbox.MaxASTDepth:100",
+               "sandbox.MaxStackFrames:10",
+               "sandbox.MaxThreads:1",
+               "sandbox.MaxOutputStreamSize:10KB",
+               "sandbox.MaxErrorStreamSize:10KB")
+               .mkString("|")
+  )
+
+  val RESTRICTED_1 = Map(
+    "allowAllAccess"->false,
+    "allowPolyglotAccess" -> "NONE",
+    "allowIO" -> false,
+    "allowCreateProcess" -> false,
+    "allowCreateThread" -> false,
+    "allowEnvironmentAccess"->"NONE",
+    "allowHostAccess"-> "UNTRUSTED",
+    "allowHostClassLoading" -> false,
+    "allowHostClassLookup"->"java.lang.,java.math.,java.util.",
+
+    "sandbox"->"UNTRUSTED",
+    "option"-> Seq(
+               "engine.SpawnIsolate:true",
+               "engine.MaxIsolateMemory:100m",
+               "sandbox.MaxHeapMemory:100MB",
+               "sandbox.MaxCPUTime:5s",
+               "sandbox.MaxASTDepth:100",
+               "sandbox.MaxStackFrames:10",
+               "sandbox.MaxThreads:1",
+               "sandbox.MaxOutputStreamSize:10KB",
+               "sandbox.MaxErrorStreamSize:10KB")
+               .mkString("|")
+  )
+
+  val RESTRICTED_THREADED = Map(
     "allowAllAccess"->false,
     "allowPolyglotAccess"->"NONE",
     "allowIO"->false,
     "allowCreateProcess"->false,
-    "allowCreateThread"->false,
+    "allowCreateThread"-> true,
     "allowEnvironmentAccess"->"NONE",
-    "allowHostAccess"->"ALL",
+    "allowHostAccess"-> "UNTRUSTED",
     "allowHostClassLoading"->true,
     "allowHostClassLookup"->"java.lang.,java.math.,java.util."
-  ))
+  )
+}
+
+class PolyglotSandbox(lang:String) extends Polyglot(lang, opt = PolyglotSandbox.RESTRICTED)
 {}
 
+object Polyglot {
+  val DEF_TIMEOUT = 5000L
+  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
+}
 
 class Polyglot(lang:String,opt:Map[String,Any] = Map()) extends ScriptEngine(lang) {
   log.info(s"[${lang}] opt=${opt}")
+
+  val timeout = opt.get("timeout").map(_.asInstanceOf[Long]).getOrElse(Polyglot.DEF_TIMEOUT)
 
   def mapHostAccess(v:String):HostAccess = {
     v.trim.toUpperCase match {
@@ -77,9 +182,37 @@ class Polyglot(lang:String,opt:Map[String,Any] = Map()) extends ScriptEngine(lan
     }
   }
 
+  def mapSandbox(v:String):SandboxPolicy = {
+    v.trim.toUpperCase match {
+      case "TRUSTED" => SandboxPolicy.TRUSTED
+      case "CONSTRAINED" => SandboxPolicy.CONSTRAINED
+      case "ISOLATED" => SandboxPolicy.ISOLATED
+      case "UNTRUSTED" => SandboxPolicy.UNTRUSTED      
+    }
+  }
+
+  def mapOption(ctx:Context#Builder,v:String):Context#Builder = {
+    v.split("|").map(_.trim).filter(_.nonEmpty).flatMap { entry =>
+      entry.split(":", 2).toList match {
+        case key :: value :: Nil if key.nonEmpty => Some(key -> value)
+        case _ => None
+      }
+    }.foldLeft(ctx) { case (ctx, (key,value)) =>
+      ctx.option(key,value.asInstanceOf[String])
+    }    
+  }
+
   val ctx = {
     val ctx = for {
       ctx <- Try( Context.newBuilder(lang) )
+
+      ctx <- Try(opt.get("sandbox").map(v => ctx.sandbox(mapSandbox(v.asInstanceOf[String]))).getOrElse(ctx))
+
+      ctx <- Try(opt.get("option").map(v => mapOption(ctx,v.asInstanceOf[String])).getOrElse(ctx))
+
+      ctx <- Try(opt.get("out").map(v => ctx.out(new ByteArrayOutputStream(v.asInstanceOf[Int]))).getOrElse(ctx))      
+      ctx <- Try(opt.get("err").map(v => ctx.err(new ByteArrayOutputStream(v.asInstanceOf[Int]))).getOrElse(ctx))      
+
       ctx <- Try(opt.get("allowAllAccess").map(v => ctx.allowAllAccess(v.asInstanceOf[Boolean])).getOrElse(ctx))
       ctx <- Try(opt.get("allowNativeAccess").map(v => ctx.allowNativeAccess(v.asInstanceOf[Boolean])).getOrElse(ctx))
       ctx <- Try(opt.get("allowHostAccess").map(v => ctx.allowHostAccess(mapHostAccess(v.asInstanceOf[String]))).getOrElse(ctx))
@@ -90,8 +223,9 @@ class Polyglot(lang:String,opt:Map[String,Any] = Map()) extends ScriptEngine(lan
       ctx <- Try(opt.get("allowCreateThread").map(v => ctx.allowCreateThread(v.asInstanceOf[Boolean])).getOrElse(ctx))
 
       ctx <- Try(opt.get("allowEnvironmentAccess").map(v => v match {
-        case Some("none") => ctx.allowEnvironmentAccess(EnvironmentAccess.NONE)
-        case _ => ctx.allowEnvironmentAccess(EnvironmentAccess.INHERIT)      
+        case Some("NONE") => ctx.allowEnvironmentAccess(EnvironmentAccess.NONE)
+        case Some("INHERIT") => ctx.allowEnvironmentAccess(EnvironmentAccess.INHERIT)      
+        case _ => ctx.allowEnvironmentAccess(EnvironmentAccess.NONE)      
       }).getOrElse(ctx))      
       
       ctx <- Try(opt.get("allowHostClassLoading").map(v => ctx.allowHostClassLoading(v.asInstanceOf[Boolean])).getOrElse(ctx))
@@ -109,7 +243,8 @@ class Polyglot(lang:String,opt:Map[String,Any] = Map()) extends ScriptEngine(lan
     ctx.get
   }
 
-  def run(script:String,args:Map[String,Any] = Map()):Any = {
+  def run(script:String,args:Map[String,Any] = Map()):Any = {    
+
     log.info(s"[${lang}] ${ctx}: args=${args}, script=${script}")
 
     // clear previous bindings - only remove ones we can safely remove
@@ -133,13 +268,39 @@ class Polyglot(lang:String,opt:Map[String,Any] = Map()) extends ScriptEngine(lan
       ctx.getBindings(lang).putMember(k, proxyValue)
     }
 
-    val func = ctx.eval(lang, script)
 
-    val result = if(func.canExecute()) {
-      func.execute(args)
-    } else {
-      func
+    import Polyglot.ec
+    val executionFuture = Future {
+      val func = ctx.eval(lang, script)
+      val result = if(func.canExecute()) {
+        func.execute(args)
+      } else {
+        func
+      }
+      result
     }
+
+    val result = try {
+      Await.result(executionFuture, FiniteDuration(timeout, TimeUnit.MILLISECONDS))      
+    } catch {
+      case e: TimeoutException =>
+        log.warn(s"Execution timed out: ${timeout}ms: ctx=${ctx}",e)
+        //ctx.close(true)
+        ctx.interrupt(java.time.Duration.ofMillis(timeout))        
+        e
+      case e: PolyglotException =>
+        log.warn(s"Execution failed",e)
+        e
+    } finally {
+      //Try(ctx.close())
+    }
+
+    // val func = ctx.eval(lang, script)
+    // val result = if(func.canExecute()) {
+    //   func.execute(args)
+    // } else {
+    //   func
+    // }
     result
   }
 
