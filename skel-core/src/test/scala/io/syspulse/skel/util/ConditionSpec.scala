@@ -105,7 +105,7 @@ class ConditionSpec extends AnyWordSpec with Matchers {
       d.value() should  === (4800.0)
       
     }
-    
+        
     "test various percentage change scenarios" in {
       val d = new ConditionDouble(4700.0,"> 0.99%")
       
@@ -664,6 +664,50 @@ class OpSpec extends AnyWordSpec with Matchers {
       
       // v0=100, v=160 -> percentage change = (160-100)/100*100 = 60%, so 60% != 50.0% -> true
       op.eval(BigDecimal(100), BigDecimal(160)) shouldBe true
+    }
+  }
+
+  "Op Logica Expressions" should {
+    "should support logical OR expressions" in {
+      val op = Op.compile(">10 || < -5")
+      op shouldBe a[OpOr]
+      op.eval(BigDecimal(0), BigDecimal(15)) shouldBe true
+      op.eval(BigDecimal(0), BigDecimal(-6)) shouldBe true
+      op.eval(BigDecimal(0), BigDecimal(0)) shouldBe false
+
+      val opWord = Op.compile(">10 OR < -5")
+      opWord.eval(BigDecimal(0), BigDecimal(12)) shouldBe true
+      opWord.eval(BigDecimal(0), BigDecimal(-10)) shouldBe true
+      opWord.eval(BigDecimal(0), BigDecimal(5)) shouldBe false
+    }
+
+    "should support logical AND expressions" in {
+      val op = Op.compile(">10 && <20")
+      op shouldBe a[OpAnd]
+      op.eval(BigDecimal(0), BigDecimal(15)) shouldBe true
+      op.eval(BigDecimal(0), BigDecimal(25)) shouldBe false
+      op.eval(BigDecimal(0), BigDecimal(9)) shouldBe false
+
+      val opWord = Op.compile(">10 AND <20")
+      opWord.eval(BigDecimal(0), BigDecimal(12)) shouldBe true
+      opWord.eval(BigDecimal(0), BigDecimal(21)) shouldBe false
+      opWord.eval(BigDecimal(0), BigDecimal(5)) shouldBe false
+    }
+
+    "should support combined OR and AND expressions" in {
+      val op = Op.compile(">10 && <20 || >=50 && <=60")
+      op shouldBe a[OpOr]
+      
+      op.eval(BigDecimal(0), BigDecimal(15)) shouldBe true   // satisfies first AND branch
+      op.eval(BigDecimal(0), BigDecimal(55)) shouldBe true   // satisfies second AND branch
+      op.eval(BigDecimal(0), BigDecimal(25)) shouldBe false  // matches neither branch
+      op.eval(BigDecimal(0), BigDecimal(65)) shouldBe false  // matches neither branch
+
+      val opWord = Op.compile(">10 AND <20 OR >=50 AND <=60 OR <=-5")
+      opWord.eval(BigDecimal(0), BigDecimal(12)) shouldBe true   // first AND branch
+      opWord.eval(BigDecimal(0), BigDecimal(58)) shouldBe true   // second AND branch
+      opWord.eval(BigDecimal(0), BigDecimal(-10)) shouldBe true  // third condition (<= -5)
+      opWord.eval(BigDecimal(0), BigDecimal(30)) shouldBe false  // no condition satisfied
     }
   }
 

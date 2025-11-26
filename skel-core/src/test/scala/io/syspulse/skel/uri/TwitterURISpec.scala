@@ -46,6 +46,22 @@ class TwitterURISpec extends AnyWordSpec with Matchers {
       u.max should === (100)
     }
 
+    "support 'past=1hour' human readable format" in {
+      val u = TwitterURI("twitter://key1:secret1@1000,2000?past=1hour")
+      u.consumerKey should === ("key1")
+      u.consumerSecret should === ("secret1")
+      u.follow should === (Seq("1000","2000"))
+      u.past should === (60L * 60L * 1000L)
+    }
+
+    "support 'past=2days' human readable format" in {
+      val u = TwitterURI("twitter://key1:secret1@1000,2000?past=2days")
+      u.consumerKey should === ("key1")
+      u.consumerSecret should === ("secret1")
+      u.follow should === (Seq("1000","2000"))
+      u.past should === (2L * 24L * 60L * 60L * 1000L)
+    }
+
     "parse 'twitter://key1:secret1@?freq=10000'" in {
       val u = TwitterURI("twitter://key1:secret1@?freq=10000")
       u.consumerKey should === ("key1")

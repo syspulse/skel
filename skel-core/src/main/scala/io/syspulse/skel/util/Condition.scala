@@ -351,16 +351,31 @@ case class OpOr(op:Seq[Op]) extends Op {
   def eval(v0:BigDecimal,v:BigDecimal):Boolean = op.foldLeft(false)((a,o) => a || o.eval(v0,v))
 }
 
+case class OpAnd(op:Seq[Op]) extends Op {
+  def eval(v0:BigDecimal,v:BigDecimal):Boolean = op.foldLeft(true)((a,o) => a && o.eval(v0,v))
+}
+
 case class OpEmpty() extends Op {
   def eval(v0:BigDecimal,v:BigDecimal):Boolean = true
 }
 
 object Op {
   def compile(expr:String,dec:Int = 0):Op = {
-    val exrp1 = expr.replaceAll("\\s+","")
-
-    if(exrp1.isEmpty)
+    val trimmed = expr.trim
+    if(trimmed.isEmpty)
       return OpEmpty()
+
+    splitByPatterns(trimmed, Seq("\\|\\|","(?i)\\bOR\\b")) match {
+      case Some(parts) => return OpOr(parts.map(p => compile(p,dec)))
+      case None => ()
+    }
+
+    splitByPatterns(trimmed, Seq("\\&\\&","(?i)\\bAND\\b")) match {
+      case Some(parts) => return OpAnd(parts.map(p => compile(p,dec)))
+      case None => ()
+    }
+
+    val exrp1 = trimmed.replaceAll("\\s+","")
 
     val perc = exrp1.endsWith("%")
     val expr2 = if(perc) exrp1.dropRight(1) else exrp1
@@ -419,6 +434,12 @@ object Op {
       case _ => OpEmpty()
     }
     op
+  }
+
+  private def splitByPatterns(expr:String, patterns:Seq[String]):Option[Seq[String]] = {
+    patterns.iterator.map { pattern =>
+      expr.split(pattern).toSeq.map(_.trim).filter(_.nonEmpty)
+    }.find(_.size > 1)
   }
 }
 
