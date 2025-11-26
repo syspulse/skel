@@ -25,7 +25,7 @@ class TwitterConnect(uri:String) extends TwitterClient {
   }
 
   def request(followUsers:Set[String])(implicit ec: ExecutionContext):Future[Seq[Twit]] = {
-    request(followUsers,twitterUri.past,twitterUri.max,accessToken)
+    request(followUsers,twitterUri.query,twitterUri.past,twitterUri.max,accessToken)
       .map(_.utf8String)      
       .map(body => {
         val rsp = body.parseJson.convertTo[TwitterSearchRecent]        

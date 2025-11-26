@@ -16,6 +16,7 @@ case class Config(
   params: Seq[String] = Seq(),
 )
 
+@deprecated("Use ingest-flow !")
 object App {
   def main(args:Array[String]): Unit = {
     Console.err.println(s"args: ${args.size}: ${args.toSeq}")

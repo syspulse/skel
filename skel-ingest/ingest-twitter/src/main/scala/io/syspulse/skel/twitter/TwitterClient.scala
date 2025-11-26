@@ -140,14 +140,15 @@ trait TwitterClient {
 
   def getChannels():Set[String]
 
-  def request(followUsers:Set[String],past:Long,max:Long,accessToken:String,latest:Long = 1L):Future[ByteString] = {
+  def request(followUsers:Set[String],query:Option[String],past:Long,max:Long,accessToken:String,latest:Long = 1L):Future[ByteString] = {
     // go into the past by speicif time hour
     //val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30).minusHours(pastHours).format(tsFormatISO)
     val ts0 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30 + past / 1000L).format(tsFormatISO)
     val ts1 = OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(30).format(tsFormatISO)
 
+    val querySuffix = query.map(q => q.replace("|"," ")).getOrElse("")
     val slug = URLEncoder.encode(
-      s"(${followUsers.map(u => s"from:${u}").mkString(" OR ")})",
+      s"(${followUsers.map(u => s"from:${u}").mkString(" OR ")}) ${querySuffix}",
       StandardCharsets.UTF_8.toString()
     )
 
@@ -186,6 +187,7 @@ trait TwitterClient {
   def source(consumerKey:String,consumerSecret:String,
              accessKey:String,accessSecret:String,
              //followUsers:Set[String],
+             query:Option[String],
              past:Long, // how far to check the past on each request (in milliseconds)
              freq:Long, // how often to check API
              max:Int,   // max results
@@ -210,7 +212,7 @@ trait TwitterClient {
         followUsers
       })
       .filter(followUsers => followUsers.size > 0)
-      .mapAsync(1)(followUsers => request(followUsers,past,max,accessToken).map((followUsers,_)))
+      .mapAsync(1)(followUsers => request(followUsers,query,past,max,accessToken).map((followUsers,_)))
       .map{ case(followUsers,body) => {
         log.debug(s"body='${body.utf8String}'")
 
@@ -284,6 +286,7 @@ class FromTwitter(uri:String) extends TwitterClient {
     val s1 = source(twitterUri.consumerKey,twitterUri.consumerSecret,
            twitterUri.accessKey,twitterUri.accessSecret,
            //followUsers = twitterUri.follow.toSet,
+           twitterUri.query,
            twitterUri.past,
            twitterUri.freq,
            twitterUri.max,
