@@ -672,30 +672,35 @@ object Eth {
     val tx = Transaction.createEthCallTransaction(from, contractAddress, inputData)
 
     for {
-      r <- Success(web3.ethCall(tx,web3Block(block)).send())
+      r <- Try(web3.ethCall(tx,web3Block(block)).send())
       
       result <- {
         if(r.hasError()) {
-          throw new Exception(r.getError().getMessage())
-        }
-
-        if(r.isReverted()) {
-          throw new Exception(s"reverted: ${r.getRevertReason()}")
-        }
-
-        val result = r.getValue()
-
-        if(result == null) {
-          //log.error(s"Tx[${to},${valueWei},${gasPriceWei}/${gasTipWei}]: ${r.getError().getMessage()}")
-          throw new Exception(s"${contractAddress}: data=${inputData}: result=${result}")
+          //throw new Exception(r.getError().getMessage())
+          Failure(new Exception(r.getError().getMessage()))
         } 
-        
-        log.info(s"call: ${block} / ${contractAddress}: data=${inputData}: result=${Util.trunc(result,256)} (outputType=${outputType})")
-        
-        if(outputType.isDefined && ! outputType.get.isEmpty()) {
-          SolidityTuple.decodeResult(result,outputType.get)
-        } else {
-          Success(result)
+        else
+        if(r.isReverted()) {
+          //throw new Exception(s"reverted: ${r.getRevertReason()}")
+          Failure(new Exception(s"reverted: ${r.getRevertReason()}"))
+        }
+        else {
+          val result = r.getValue()
+
+          if(result == null) {
+            //log.error(s"Tx[${to},${valueWei},${gasPriceWei}/${gasTipWei}]: ${r.getError().getMessage()}")
+            // throw new Exception(s"${contractAddress}: data=${inputData}: result=${result}")
+            Failure(new Exception(s"${contractAddress}: data=${inputData}: result=${result}"))
+          } else {
+          
+            log.info(s"call: ${block} / ${contractAddress}: data=${inputData}: result=${Util.trunc(result,256)} (outputType=${outputType})")
+            
+            if(outputType.isDefined && ! outputType.get.isEmpty()) {
+              SolidityTuple.decodeResult(result,outputType.get)
+            } else {
+              Success(result)
+            }
+          }
         }
       }      
     } yield result
@@ -709,28 +714,33 @@ object Eth {
       
       result <- {
         if(r.hasError()) {
-          throw new Exception(r.getError().getMessage())
+          //throw new Exception(r.getError().getMessage())
+          Future.failed(new Exception(r.getError().getMessage()))
         }
-
+        else
         if(r.isReverted()) {
-          throw new Exception(s"reverted: ${r.getRevertReason()}")
+          //throw new Exception(s"reverted: ${r.getRevertReason()}")
+          Future.failed(new Exception(s"reverted: ${r.getRevertReason()}"))
         }
+        else {
+          val result = r.getValue()
 
-        val result = r.getValue()
-
-        if(result == null) {
-          //log.error(s"Tx[${to},${valueWei},${gasPriceWei}/${gasTipWei}]: ${r.getError().getMessage()}")
-          throw new Exception(s"${contractAddress}: data=${inputData}: result=${result}")
-        } 
-        
-        log.info(s"call-async: ${contractAddress}: data=${inputData}: result=${Util.trunc(result,256)} (outputType=${outputType})")
-        
-        if(outputType.isDefined && ! outputType.get.isEmpty()) {
-          Future(
-            SolidityTuple.decodeResult(result,outputType.get).get
-          )
-        } else {
-          Future.successful(result)
+          if(result == null) {
+            //log.error(s"Tx[${to},${valueWei},${gasPriceWei}/${gasTipWei}]: ${r.getError().getMessage()}")
+            //throw new Exception(s"${contractAddress}: data=${inputData}: result=${result}")
+            Future.failed(new Exception(s"${contractAddress}: data=${inputData}: result=${result}"))
+          } else {
+          
+            log.info(s"call-async: ${contractAddress}: data=${inputData}: result=${Util.trunc(result,256)} (outputType=${outputType})")
+            
+            if(outputType.isDefined && ! outputType.get.isEmpty()) {
+              Future(
+                SolidityTuple.decodeResult(result,outputType.get).get
+              )
+            } else {
+              Future.successful(result)
+            }
+          }
         }
       }      
     } yield result

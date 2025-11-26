@@ -349,9 +349,10 @@ object AppEvm extends {
         j.render(indent = 2)      
       
       case Failure(e) => 
-        log.error(s"${e.getMessage()}",e)
+        log.error(s"r=${r.getClass}: ${e.getMessage()}",e)
         e.getMessage()
       case _ => 
+        log.info(s"r=${r.getClass}")
         r.toString()
     }
   }
