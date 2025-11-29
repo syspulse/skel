@@ -50,6 +50,12 @@ import io.getquill._
 import io.getquill.context._
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 
+// Redis
+import scredis.Redis
+import scredis.Client
+import scredis.protocol.AuthConfig
+import io.syspulse.skel.uri.RedisURI
+
 import io.syspulse.skel
 import io.syspulse.skel.Ingestable
 import io.syspulse.skel.util.Util
@@ -1455,186 +1461,238 @@ trait Flows {
       .toMat(Sink.ignore)(Keep.right)
   }
 
-// ====================================================================================================================================
-// ====================================================================================================================================
-// ====================================================================================================================================
-    // === JDBC ============================================================================================  
-class ToJDBC[T <: Ingestable](dbUri:String,configuration:Option[Configuration]=None) 
-  extends skel.store.StoreDBCore(dbUri,"",None) {
-  
-  val ctx = dbType match {
-    case "mysql" => 
-      new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig)) //with Queries
-    case "postgres" => 
-      new PostgresJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig)) //with Queries      
-    case _ => 
-      new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig)) //with Queries
-  }
-
-  import ctx._
-        
-  def flow() = Flow[T].map( t => {
-    log.debug(s"INSERT: ${t}")
-
-    val SQL_DATA = Util.traverseAnySQL(t).map( kv => kv._2).mkString(",")
-
-    val SQL = s"INSERT INTO ${t.getClass().getSimpleName()} VALUES(${SQL_DATA})"
-
-    log.debug(s"SQL='${SQL}'")
-
-    try {
-      //ctx.insertOnly(t)
-      val r = ctx.executeAction(SQL)(ExecutionInfo.unknown, ())
-      t
-    } catch {
-      case e:Exception => 
-        throw new Exception(s"could not insert: ${e}")
-    }
-  })
-}
-
-// === Kafka ================================================================================================
-
-// Kafka Client Flows 
-class ToKafka[T <: Ingestable](uri:String,format:String)(implicit jf:JsonFormat[T]) extends skel.ingest.kafka.KafkaSink[T] {
-  import spray.json._
-  
-  val kafkaUri = KafkaURI(uri)
-  val formatOutput = if(!format.isBlank) format else if(kafkaUri.isRaw) "raw" else "json"
-  
-  val sink0 = sink(kafkaUri.broker,Set(kafkaUri.topic),ops = kafkaUri.ops)
-
-  def sink():Sink[T,_] = sink0
-  
-  override def transform(t:T):ByteString = {
-    // val o = if(kafkaUri.isRaw) 
-    //   ByteString(t.toString)
-    // else
-    //   ByteString(t.toJson.compactPrint)
-    formatter(t,formatOutput)
-  }  
-}
-
-class FromKafka[T <: Ingestable](uri:String) extends skel.ingest.kafka.KafkaSource[T] {
-  val kafkaUri = KafkaURI(uri)
+  def toRedis[T <: Ingestable](uri:String,format:String = "")(fmt:JsonFormat[T]) = {
+    val redis = new ToRedis[T](uri,format)(fmt)
     
-  def source():Source[ByteString,_] = source(
-    kafkaUri.broker,
-    Set(kafkaUri.topic),
-    kafkaUri.group,
-    offset = kafkaUri.offset,
-    ops = kafkaUri.ops
-  )
-}
- 
-// Elastic Client Flow
-class ToElastic[T <: Ingestable](uri:String)(jf:JsonFormat[T]) extends ElasticClient[T] {
-  val elasticUri = ElasticURI(uri)
-  connect(elasticUri.url,elasticUri.index)
-
-  override implicit val fmt:JsonFormat[T] = jf
-
-  def sink():Sink[WriteMessage[T,NotUsed],Future[Done]] = 
-    ElasticsearchSink.create[T](
-      ElasticsearchParams.V7(getIndexName()), settings = getSinkSettings()
-    )(jf)
-
-  def transform(t:T):Seq[WriteMessage[T,NotUsed]] = {
-    // Key must be uqique to time series (it will be ID+Timestamp)
-    // For non-timestamp based it will be
-    val id = t.getKey
-    if(id.isDefined)
-      // Upsert with a new ID. 
-      // It will update if ID already exists
-      Seq(WriteMessage.createUpsertMessage(id.get.toString, t))
-    else {
-      // Insert always new record with automatically generated key
-      // DUPLICATES !
-      Seq(WriteMessage.createIndexMessage(t))
+    val sink = RestartSink.withBackoff[T](retrySettingsDefault) { () =>
+      log.info(s"Restarting -> Redis(${uri})...")
+      Sink.ignore
     }
-  }
-}
-
-// JsonWriter Tester
-class ToJson[T <: Ingestable](uri:String)(implicit fmt:JsonFormat[T]) {
-  import spray.json._
-
-  def sink():Sink[T,Any] = Sink.foreach(t => { println(s"${t.toJson.prettyPrint}"); System.out.flush })
     
-  def transform(t:T):Seq[T] = {
-    Seq(t)
-  }
-}
-
-// Csv Tester
-class ToCsv[T <: Ingestable](uri:String) {
-  //def sink():Sink[T,Any] = Sink.foreach(t => {println(t.toCSV); System.out.flush()})
-
-  def sink(flush:Boolean = true):Sink[T,Any] =
     Flow[T]
-      .map(o => if(o!=null) ByteString(o.toCSV+"\n") else ByteString())
-      .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.both)
-
-  def transform(t:T):Seq[T] = {
-    Seq(t)
-  }
-}
-
-// ------------------------------------------------------------------------------------------------------------------
-case class AttributeActor(a: ActorRef) extends Attributes.Attribute
-
-class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024,helloMsg:Option[String] = None,headers:Seq[HttpHeader] = Seq())
-  (implicit as:ActorSystem,timeout:FiniteDuration) {
-  
-  val log = Logger(this.toString)
-
-  val webSocketFlow = Http()
-    .webSocketClientFlow(
-      WebSocketRequest(
-        uri,
-        extraHeaders = headers
-    ))
-  
-  val (a,s0) = Source
-    .actorRef[TextMessage](buffer,OverflowStrategy.fail)
-    .preMaterialize()
-
-  log.info(s"[${uri}]: Actor=${a}")
-  val s1 = s0
-    .viaMat(webSocketFlow)(Keep.both) // keep the materialized Future[WebSocketUpgradeResponse]      
-    .addAttributes(Attributes(AttributeActor(a)))
-      
-  def source() = s1.mapAsync(parallelism = 2)( m => {
-    log.debug(s"<- ${uri} ['${m}']")
-    m match {
-      case txt: TextMessage.Strict => 
-        Future.successful(ByteString(txt.text))
-      case bin: BinaryMessage.Strict => 
-        Future.successful(ByteString(bin.asTextMessage.getStrictText))
-      case TextMessage.Streamed(txtStream) => 
-        log.debug(s"${txtStream}")
-        val f = txtStream
-          .completionTimeout(timeout)
-          // .runFold(new StringBuilder())((b, s) => b.append(s))
-          // .map(b => ByteString(b.toString))
-          .runFold(ByteString())((b, s) => {
-            log.debug(s"${txtStream}: chunk:='${s}'")
-            b.++(ByteString(s))
-          })        
+      .mapAsync(1)(t => {
+        // if(o!=null) ByteString(o.toLog+"\n") else ByteString()
+        val key = t.getKey.map(_.toString).getOrElse(t.hashCode().toString)
+        val o = redis.transform(t).utf8String
+        val f = redis.client().set(key,o).map(_ => t)
         f
-                
-      case msg => 
-        Future.successful(m.asBinaryMessage.getStrictData)
-    }
-  })
-
-  if(helloMsg.isDefined) {
-    log.info(s"HELLO: '${helloMsg.get}' -> ${uri}")
-    a ! TextMessage.Strict(helloMsg.get)
+      })
+      .log("redis")
+      .toMat(sink)(Keep.right)
   }
 
-  def actor() = a
-}
+// ====================================================================================================================================
+// ====================================================================================================================================
+// ====================================================================================================================================
+  class RedisClient(uri:String) {
+    
+    val redisUri = RedisURI(uri)
+    val timeout = FiniteDuration(redisUri.timeout,TimeUnit.MILLISECONDS)
+      
+    val redis = Redis(
+      host = redisUri.host,
+      port = redisUri.port,
+      authOpt = redisUri.pass match {
+        case None => None
+        case Some(u) => Some(AuthConfig(username = redisUri.user, password = redisUri.pass.getOrElse("")))
+      },
+      database = redisUri.db,
+      connectTimeout = timeout
+    )
+
+    // Import internal ActorSystem's dispatcher (execution context) to register callbacks
+    import redis.dispatcher
+
+    def client() = redis
+  }
+
+  class ToRedis[T <: Ingestable](uri:String,format:String)(implicit jf:JsonFormat[T]) extends RedisClient(uri) {
+    import spray.json._
+    
+    val formatOutput = if(!format.isBlank) format else "json"
+
+    def transform(t:T):ByteString = {
+      formatter(t,formatOutput)
+    }  
+  }
+
+  // === JDBC ============================================================================================  
+  class ToJDBC[T <: Ingestable](dbUri:String,configuration:Option[Configuration]=None) 
+    extends skel.store.StoreDBCore(dbUri,"",None) {
+    
+    val ctx = dbType match {
+      case "mysql" => 
+        new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig)) //with Queries
+      case "postgres" => 
+        new PostgresJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig)) //with Queries      
+      case _ => 
+        new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig)) //with Queries
+    }
+
+    import ctx._
+          
+    def flow() = Flow[T].map( t => {
+      log.debug(s"INSERT: ${t}")
+
+      val SQL_DATA = Util.traverseAnySQL(t).map( kv => kv._2).mkString(",")
+
+      val SQL = s"INSERT INTO ${t.getClass().getSimpleName()} VALUES(${SQL_DATA})"
+
+      log.debug(s"SQL='${SQL}'")
+
+      try {
+        //ctx.insertOnly(t)
+        val r = ctx.executeAction(SQL)(ExecutionInfo.unknown, ())
+        t
+      } catch {
+        case e:Exception => 
+          throw new Exception(s"could not insert: ${e}")
+      }
+    })
+  }
+
+  // === Kafka ================================================================================================
+
+  // Kafka Client Flows 
+  class ToKafka[T <: Ingestable](uri:String,format:String)(implicit jf:JsonFormat[T]) extends skel.ingest.kafka.KafkaSink[T] {
+    import spray.json._
+    
+    val kafkaUri = KafkaURI(uri)
+    val formatOutput = if(!format.isBlank) format else if(kafkaUri.isRaw) "raw" else "json"
+    
+    val sink0 = sink(kafkaUri.broker,Set(kafkaUri.topic),ops = kafkaUri.ops)
+
+    def sink():Sink[T,_] = sink0
+    
+    override def transform(t:T):ByteString = {
+      // val o = if(kafkaUri.isRaw) 
+      //   ByteString(t.toString)
+      // else
+      //   ByteString(t.toJson.compactPrint)
+      formatter(t,formatOutput)
+    }  
+  }
+
+  class FromKafka[T <: Ingestable](uri:String) extends skel.ingest.kafka.KafkaSource[T] {
+    val kafkaUri = KafkaURI(uri)
+      
+    def source():Source[ByteString,_] = source(
+      kafkaUri.broker,
+      Set(kafkaUri.topic),
+      kafkaUri.group,
+      offset = kafkaUri.offset,
+      ops = kafkaUri.ops
+    )
+  }
+  
+  // Elastic Client Flow
+  class ToElastic[T <: Ingestable](uri:String)(jf:JsonFormat[T]) extends ElasticClient[T] {
+    val elasticUri = ElasticURI(uri)
+    connect(elasticUri.url,elasticUri.index)
+
+    override implicit val fmt:JsonFormat[T] = jf
+
+    def sink():Sink[WriteMessage[T,NotUsed],Future[Done]] = 
+      ElasticsearchSink.create[T](
+        ElasticsearchParams.V7(getIndexName()), settings = getSinkSettings()
+      )(jf)
+
+    def transform(t:T):Seq[WriteMessage[T,NotUsed]] = {
+      // Key must be uqique to time series (it will be ID+Timestamp)
+      // For non-timestamp based it will be
+      val id = t.getKey
+      if(id.isDefined)
+        // Upsert with a new ID. 
+        // It will update if ID already exists
+        Seq(WriteMessage.createUpsertMessage(id.get.toString, t))
+      else {
+        // Insert always new record with automatically generated key
+        // DUPLICATES !
+        Seq(WriteMessage.createIndexMessage(t))
+      }
+    }
+  }
+
+  // JsonWriter Tester
+  class ToJson[T <: Ingestable](uri:String)(implicit fmt:JsonFormat[T]) {
+    import spray.json._
+
+    def sink():Sink[T,Any] = Sink.foreach(t => { println(s"${t.toJson.prettyPrint}"); System.out.flush })
+      
+    def transform(t:T):Seq[T] = {
+      Seq(t)
+    }
+  }
+
+  // Csv Tester
+  class ToCsv[T <: Ingestable](uri:String) {
+    //def sink():Sink[T,Any] = Sink.foreach(t => {println(t.toCSV); System.out.flush()})
+
+    def sink(flush:Boolean = true):Sink[T,Any] =
+      Flow[T]
+        .map(o => if(o!=null) ByteString(o.toCSV+"\n") else ByteString())
+        .toMat(StreamConverters.fromOutputStream(() => System.out,flush))(Keep.both)
+
+    def transform(t:T):Seq[T] = {
+      Seq(t)
+    }
+  }
+
+  // ------------------------------------------------------------------------------------------------------------------
+  case class AttributeActor(a: ActorRef) extends Attributes.Attribute
+
+  class FromWebsocket[T <: Ingestable](uri:String,buffer:Int = 1024,helloMsg:Option[String] = None,headers:Seq[HttpHeader] = Seq())
+    (implicit as:ActorSystem,timeout:FiniteDuration) {
+    
+    val log = Logger(this.toString)
+
+    val webSocketFlow = Http()
+      .webSocketClientFlow(
+        WebSocketRequest(
+          uri,
+          extraHeaders = headers
+      ))
+    
+    val (a,s0) = Source
+      .actorRef[TextMessage](buffer,OverflowStrategy.fail)
+      .preMaterialize()
+
+    log.info(s"[${uri}]: Actor=${a}")
+    val s1 = s0
+      .viaMat(webSocketFlow)(Keep.both) // keep the materialized Future[WebSocketUpgradeResponse]      
+      .addAttributes(Attributes(AttributeActor(a)))
+        
+    def source() = s1.mapAsync(parallelism = 2)( m => {
+      log.debug(s"<- ${uri} ['${m}']")
+      m match {
+        case txt: TextMessage.Strict => 
+          Future.successful(ByteString(txt.text))
+        case bin: BinaryMessage.Strict => 
+          Future.successful(ByteString(bin.asTextMessage.getStrictText))
+        case TextMessage.Streamed(txtStream) => 
+          log.debug(s"${txtStream}")
+          val f = txtStream
+            .completionTimeout(timeout)
+            // .runFold(new StringBuilder())((b, s) => b.append(s))
+            // .map(b => ByteString(b.toString))
+            .runFold(ByteString())((b, s) => {
+              log.debug(s"${txtStream}: chunk:='${s}'")
+              b.++(ByteString(s))
+            })        
+          f
+                  
+        case msg => 
+          Future.successful(m.asBinaryMessage.getStrictData)
+      }
+    })
+
+    if(helloMsg.isDefined) {
+      log.info(s"HELLO: '${helloMsg.get}' -> ${uri}")
+      a ! TextMessage.Strict(helloMsg.get)
+    }
+
+    def actor() = a
+  }
 
 }
 

@@ -829,6 +829,8 @@ lazy val ingest = (project in file("skel-ingest"))
       libParqAkka,
       libHadoop,
 
+      libRedis,
+
       libUpickleLib,
 
       libScalaTest % Test,

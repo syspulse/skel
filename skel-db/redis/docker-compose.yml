@@ -6,10 +6,12 @@ networks:
 
 services:
   redis:
-    image: 'bitnami/redis:6.2.14'
+    # image: 'bitnami/redis:6.2.14'
+    # image: 'redis:latest'
+    image: 'bitnami/redis:latest'
     restart: always    
     ports:
-      - 16379:6379
+      - 6379:6379
     networks:
       - redis
     volumes:

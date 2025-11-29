@@ -1,37 +1,99 @@
 package io.syspulse.skel.uri
 
+import io.syspulse.skel.util.Util
+
 /* 
-redis://user:pass@host:port/db
+redis://user:pass@host:port/db    
+redis://user:pass@host:port/db/channel  - PubSub subscription
 */
+object RedisURI {
+  val DEF_TIMEOUT = 10000L
+  val DEF_HOST = "localhost"
+  val DEF_PORT = 6379
+  val DEF_URL = s"${DEF_HOST}:${DEF_PORT}"  
+  val DEF_DB = 0
+  val DEF_INDEX = 0
+}
+
 case class RedisURI(uri:String) {
   val PREFIX = "redis://"
+  
+  private val (_user:Option[String],_pass:Option[String],_host:String,_port:Int,_index:Int,_ops:Map[String,String]) = parse(uri)
 
-  private val ((ruser:Option[String],rpass:Option[String]),(rhost:String,rport:Int),rdb:Int) = parse(uri)
-
-  def db:Int = rdb
-  def user:Option[String] = ruser
-  def pass:Option[String] = rpass
-  def host:String = rhost
-  def port:Int = rport
-
-
-  def parseCred(userPass:String) = userPass.split(":").toList match {
-    case u :: p :: _ => (Some(u),Some(p))
-    case u :: Nil => (Some(u),None)
-  }
-
-  def parseHost(hostPort:String) = hostPort.split(":").toList match {
-    case h :: p :: _ => (h,p.toInt)
-    case h :: Nil => (h,6379)
-  }
-
-  def parse(uri:String):((Option[String],Option[String]),(String,Int),Int) = {
-
-    uri.stripPrefix(PREFIX).split("[@/]").toList match {
-      case userPass :: hostPort :: db :: _ => (parseCred(userPass),parseHost(hostPort),db.toInt)
-      case hostPort :: db :: Nil => ((None,None),parseHost(hostPort),db.toInt)
-      case hostPort :: Nil => ((None,None),parseHost(hostPort),0)
-      case _ => ((None,None),("localhost",6379),0)
+  def host:String = _host
+  def port:Int = _port
+  def user:Option[String] = _user
+  def pass:Option[String] = _pass
+  def db:Int = _index
+  def timeout:Long = ops.get("timeout").map(_.toLong).getOrElse(RedisURI.DEF_TIMEOUT)
+  def ops:Map[String,String] = _ops
+  
+  def parse(uri:String):(Option[String],Option[String],String,Int,Int,Map[String,String]) = {
+    def urlToHostPort(url:String):(String,Int) = {
+      url.split(":").toList match {
+        case host :: port :: Nil => (host,port.toInt)
+        case host :: Nil => (host,RedisURI.DEF_PORT)
+        case _ => (RedisURI.DEF_HOST,RedisURI.DEF_PORT)
+      }
     }
+
+    // resolve options
+    val (url0:String,ops:Map[String,String]) = uri.split("[\\?&]").toList match {
+      case url :: Nil => (url,Map())
+      case url :: ops => 
+        
+        val vars = ops.flatMap(_.split("=").toList match {
+          case k :: v :: Nil => Some(k -> v)
+          case _ => None
+        }).toMap
+        
+        (url,vars)
+      case _ => 
+        ("",Map())
+    }
+
+    val (urlPrefix,url1) = url0.split("://").toList match {
+      case "redis" :: url :: Nil => ("",url)
+      case "redis" :: Nil => ("",RedisURI.DEF_URL)
+      case _ => ("",RedisURI.DEF_URL)
+    }
+
+    val (user,pass,url2) = url1.split("@").toList match {
+      case userPass :: url :: Nil => 
+        val (user,pass) = userPass.split(":").toList match {
+          case user :: pass :: Nil => (Util.resolveEnvVar(user),Util.resolveEnvVar(pass))
+          case _ => (None,None)
+        }
+        (user,pass,Util.replaceEnvVar(url))
+      
+      case url :: Nil => (Util.resolveEnvVar("{REDIS_USER}"),Util.resolveEnvVar("{REDIS_PASS}"),Util.replaceEnvVar(url))
+      
+      case _ => (Util.resolveEnvVar("{REDIS_USER}"),Util.resolveEnvVar("{REDIS_PASS}"),RedisURI.DEF_URL)
+    }
+    
+    url2.split("/").toList match {
+      case url :: index :: Nil => 
+        val (host,port) = urlToHostPort(url)
+        ( 
+          user,
+          pass,
+          host,
+          port,
+          index.toInt,
+          ops
+        )
+      
+
+      case _ => 
+        val (host,port) = urlToHostPort(url2)
+        ( 
+          user,
+          pass,
+          host,
+          port,
+          RedisURI.DEF_INDEX,
+          ops
+        )
+    }    
   }
 }

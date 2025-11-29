@@ -16,6 +16,7 @@ import io.syspulse.skel.odometer.Odo
 import scredis.Redis
 import scredis.Client
 import scredis.protocol.AuthConfig
+import io.syspulse.skel.uri.RedisURI
 
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
@@ -23,7 +24,7 @@ import scala.concurrent.Await
 
 import spray.json._
 import io.syspulse.skel.odometer.server.OdoJson
-import io.syspulse.skel.uri.RedisURI
+
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
@@ -70,12 +71,14 @@ class OdoStoreRedis(uri:String,redisTimeout:Long = 3000L) extends OdoStore {
       r1 <- {
         val keys = ListBuffer[String]()
         var cursor = 0L
-        do {                
+        var done = false
+        while (!done) {
           val f = redis.scan(cursor,Some(pattern))
           val (next, set) = Await.result(f,timeout)
           keys ++= set
           cursor = next
-        } while (cursor > 0)
+          done = (cursor == 0)
+        }
         Future(keys)
       }
       r2 <- {

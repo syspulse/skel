@@ -225,7 +225,10 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](
       case "stdout" :: _ => toStdout(format=format)
       case "stderr" :: _ => toStderr(format=format)
 
-      case "akka" :: uri :: Nil => toAkka[O](output,format)      
+      case "akka" :: uri :: Nil => toAkka[O](output,format)
+
+      case "redis" :: uri :: Nil => toRedis[O](output,format)(fmt)
+      case "redis" :: Nil => toRedis[O](output,format)(fmt)
 
       case "" :: Nil => toStdout(format=format)
       case _ => toFile(output,format)
