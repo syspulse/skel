@@ -32,9 +32,12 @@ JAR_FAT=`ls ${APP_HOME}/target/scala-2.13/*assembly*.jar`
 CLASSES=${APP_HOME}/target/scala-2.13/classes
 # additional libs
 JAR_UNFAT=`ls ${APP_HOME}/lib/*.jar`
+
 # list of jar. Generated with command:
 # sbt -error ";project module; export dependencyClasspath" >CLASSPATH
-JAR_FILES=`cat ${CWD}/CLASSPATH`
+#JAR_FILES=`cat ${CWD}/CLASSPATH`
+JAR_FILES=`cat ${APP_HOME}/CLASSPATH`
+
 PLUGIN_JARS="${PLUGINS}/*"
 CP="${APP_HOME}/conf/:$JAR_FAT:$JAR_UNFAT:$JAR_FILES:$CLASSES:$PLUGIN_JARS"
 
