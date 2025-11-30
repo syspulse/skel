@@ -1636,6 +1636,10 @@ trait Flows {
         log.error(s"PubSub error: ${e} - failing source to trigger restart")
         // Connection error - fail the queue to trigger RestartSource
         messageQueue.fail(new Exception(s"Redis PubSub error: ${e}"))
+
+      case e =>
+        log.error(s"Unexpected PubSub message",e)
+        messageQueue.fail(new Exception(s"Redis PubSub error: ${e}"))
     }
 
     def transform(t:T):ByteString = {
@@ -1647,16 +1651,30 @@ trait Flows {
         throw new Exception(s"Channel undefined: ${uri}")
       }
 
-      Source.futureSource(
-        redis.subscriber.subscribe(redisUri.channel.get).map { _ =>
+      // Source.futureSource(
+      //   redis.subscriber.subscribe(redisUri.channel.get).map { _ =>
+      //     log.info(s"Subscribed to: ${redisUri.channel.get}")
+      //     messageSource            
+      //   }.recover {
+      //     case e: Exception =>
+      //       log.error(s"Failed to subscribe to Redis: ${e.getMessage}")
+      //       Source.failed(e)
+      //   }
+      // )
+      
+      // Subscribe asynchronously - if it fails, the source will fail
+      redis.subscriber.subscribe(redisUri.channel.get).onComplete {
+        case Success(_) => 
           log.info(s"Subscribed to: ${redisUri.channel.get}")
-          messageSource            
-        }.recover {
-          case e: Exception =>
-            log.error(s"Failed to subscribe to Redis: ${e.getMessage}")
-            Source.failed(e)
-        }
-      )
+        case Failure(e) => 
+          log.error(s"Failed to subscribe to Redis: ${e.getMessage}")
+          // Fail the queue to trigger source failure and restart
+          messageQueue.fail(new Exception(s"Failed to subscribe: ${e.getMessage}", e))
+      }
+
+      // Return the message source - it will fail if the queue fails
+      messageSource
+        .log("redis")
     }
       
   }
