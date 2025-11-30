@@ -18,17 +18,24 @@ object RedisURI {
 case class RedisURI(uri:String) {
   val PREFIX = "redis://"
   
-  private val (_user:Option[String],_pass:Option[String],_host:String,_port:Int,_index:Int,_ops:Map[String,String]) = parse(uri)
+  private val (_user:Option[String],
+              _pass:Option[String],
+              _host:String,
+              _port:Int,
+              _index:Int,
+              _subscription:Option[String],
+              _ops:Map[String,String]) = parse(uri)
 
   def host:String = _host
   def port:Int = _port
   def user:Option[String] = _user
   def pass:Option[String] = _pass
   def db:Int = _index
+  def subscription:Option[String] = _subscription
   def timeout:Long = ops.get("timeout").map(_.toLong).getOrElse(RedisURI.DEF_TIMEOUT)
   def ops:Map[String,String] = _ops
   
-  def parse(uri:String):(Option[String],Option[String],String,Int,Int,Map[String,String]) = {
+  def parse(uri:String):(Option[String],Option[String],String,Int,Int,Option[String],Map[String,String]) = {
     def urlToHostPort(url:String):(String,Int) = {
       url.split(":").toList match {
         case host :: port :: Nil => (host,port.toInt)
@@ -72,6 +79,18 @@ case class RedisURI(uri:String) {
     }
     
     url2.split("/").toList match {
+      case url :: index :: channel :: Nil => 
+        val (host,port) = urlToHostPort(url)
+        ( 
+          user,
+          pass,
+          host,
+          port,
+          index.toInt,
+          Some(channel),
+          ops
+        )
+
       case url :: index :: Nil => 
         val (host,port) = urlToHostPort(url)
         ( 
@@ -80,10 +99,10 @@ case class RedisURI(uri:String) {
           host,
           port,
           index.toInt,
+          None,
           ops
         )
       
-
       case _ => 
         val (host,port) = urlToHostPort(url2)
         ( 
@@ -92,6 +111,7 @@ case class RedisURI(uri:String) {
           host,
           port,
           RedisURI.DEF_INDEX,
+          None,
           ops
         )
     }    
