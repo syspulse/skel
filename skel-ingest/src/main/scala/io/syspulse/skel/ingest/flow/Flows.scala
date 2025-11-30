@@ -1538,6 +1538,9 @@ trait Flows {
       case e: PubSubMessage.Error => log.warn(s"${e}")
     }
       
+    // Generate unique name for this Redis client instance to avoid conflicts during reconnection
+    val clientName = s"redis-${redisUri.host}-${redisUri.port}-${System.currentTimeMillis()}-${java.util.UUID.randomUUID().toString.take(8)}"
+    
     val redis = if(redisUri.channel.isDefined) {
       val redis = Redis.withActorSystem(
         host = redisUri.host,
@@ -1548,6 +1551,7 @@ trait Flows {
         },
         database = redisUri.db,
         connectTimeout = timeout,
+        nameOpt = Some(clientName),
         subscription = subscriptionHandler//RedisConfigDefaults.LoggingSubscription
       )(as)      
       redis
@@ -1560,7 +1564,8 @@ trait Flows {
           case Some(u) => Some(AuthConfig(username = redisUri.user, password = redisUri.pass.getOrElse("")))
         },
         database = redisUri.db,
-        connectTimeout = timeout,      
+        connectTimeout = timeout,
+        nameOpt = Some(clientName)
      )
     }
 
@@ -1672,8 +1677,23 @@ trait Flows {
           messageQueue.fail(new Exception(s"Failed to subscribe: ${e.getMessage}", e))
       }
 
-      // Return the message source - it will fail if the queue fails
-      messageSource
+      // Add health check - periodically ping Redis to detect connection loss
+      // Merge health check failures with message source
+      val healthCheckInterval = FiniteDuration(redisUri.ops.get("healthCheck").map(_.toLong).getOrElse(5000L), TimeUnit.MILLISECONDS)
+      val healthCheckSource = Source
+        .tick(healthCheckInterval, healthCheckInterval, ())
+        .mapAsync(1) { _ =>
+          redis.ping().map(_ => ByteString.empty).recover {
+            case e: Exception =>
+              log.error(s"Redis health check failed: ${e.getMessage} - failing source to trigger restart")
+              messageQueue.fail(new Exception(s"Redis connection lost: ${e.getMessage}", e))
+              throw e
+          }
+        }
+        .filter(_.nonEmpty) // Filter out empty health check messages
+
+      // Merge message source with health check - if health check fails, source fails
+      Source.combine(messageSource, healthCheckSource)(Merge(_))
         .log("redis")
     }
       
