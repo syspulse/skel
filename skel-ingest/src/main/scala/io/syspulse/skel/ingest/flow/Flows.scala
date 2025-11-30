@@ -126,6 +126,7 @@ import akka.actor.ActorNotFound
 import com.typesafe.config.ConfigFactory
 import akka.http.scaladsl.model.HttpHeader
 import scredis.RedisConfigDefaults
+import java.util.Base64
 
 object Flows extends Flows {
 
@@ -227,6 +228,38 @@ trait Flows {
     //Future { for( i <- Range(0,1000)) { Thread.sleep(1000); cronActor ! ByteString(s"${i}\n") } }
 
     cronSourceMat
+  }
+
+  def fromRand(expr:String) = {
+    def randHex(n:Int) = ByteString(Util.hex(Random.nextBytes(n),false))
+    def randBase64(n:Int) = ByteString(Base64.getEncoder.encodeToString(Random.nextBytes(n)))
+    def randStr(n:Int) = ByteString(Random.nextString(n))
+    
+    // Base58 alphabet (excludes 0, O, I, l to avoid confusion)
+    val base58Chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz_"
+    def randBase58(n:Int) = {
+      val sb = new StringBuilder(n)
+      for (_ <- 0 until n) {
+        sb.append(base58Chars.charAt(Random.nextInt(base58Chars.length)))
+      }
+      ByteString(sb.toString)
+    }
+        
+    // Use lazy evaluation - generate random value on materialization
+    Source.fromIterator(() => Iterator.single(
+      expr.split(":").toList match {        
+        case "hex" :: n :: Nil => randHex(n.toInt)        
+        case "hex" :: Nil => randHex(32)
+        case "base64" :: n :: Nil => randBase64(n.toInt)
+        case "base64" :: Nil => randBase64(32)
+        case ("base58" | "txt") :: n :: Nil => randBase58(n.toInt)
+        case ("base58" | "txt") :: Nil => randBase58(58)
+        case "str" :: n :: Nil => randStr(n.toInt)
+        case "str" :: Nil => randStr(32)
+        case n :: Nil => randHex(n.toInt)        
+        case _ => randHex(32)
+      }
+    ))
   }
 
   def fromClock(expr:String) = {
@@ -1561,7 +1594,7 @@ trait Flows {
 
     // Create a queue-based source for receiving messages from subscription
     val (messageQueue, messageSource) = Source
-      .queue[ByteString](bufferSize = 1000, OverflowStrategy.backpressure)
+      .queue[ByteString](bufferSize = redisUri.ops.get("buffer").map(_.toInt).getOrElse(1000), OverflowStrategy.backpressure)
       .preMaterialize()
 
     override protected def subscriptionHandler: scredis.Subscription = {

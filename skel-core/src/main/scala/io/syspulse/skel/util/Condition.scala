@@ -361,21 +361,10 @@ case class OpEmpty() extends Op {
 
 object Op {
   def compile(expr:String,dec:Int = 0):Op = {
-    val trimmed = expr.trim
-    if(trimmed.isEmpty)
+    val exrp1 = expr.replaceAll("\\s+","")
+
+    if(exrp1.isEmpty)
       return OpEmpty()
-
-    splitByPatterns(trimmed, Seq("\\|\\|","(?i)\\bOR\\b")) match {
-      case Some(parts) => return OpOr(parts.map(p => compile(p,dec)))
-      case None => ()
-    }
-
-    splitByPatterns(trimmed, Seq("\\&\\&","(?i)\\bAND\\b")) match {
-      case Some(parts) => return OpAnd(parts.map(p => compile(p,dec)))
-      case None => ()
-    }
-
-    val exrp1 = trimmed.replaceAll("\\s+","")
 
     val perc = exrp1.endsWith("%")
     val expr2 = if(perc) exrp1.dropRight(1) else exrp1
@@ -434,12 +423,6 @@ object Op {
       case _ => OpEmpty()
     }
     op
-  }
-
-  private def splitByPatterns(expr:String, patterns:Seq[String]):Option[Seq[String]] = {
-    patterns.iterator.map { pattern =>
-      expr.split(pattern).toSeq.map(_.trim).filter(_.nonEmpty)
-    }.find(_.size > 1)
   }
 }
 
