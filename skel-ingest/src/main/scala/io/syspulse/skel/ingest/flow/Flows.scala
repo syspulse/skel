@@ -1508,10 +1508,16 @@ trait Flows {
       .toMat(sink)(Keep.right)
   }
 
-  def fromRedis[T <: Ingestable](uri:String,format:String = "")(fmt:JsonFormat[T],as:ActorSystem) = {
-    val redis = new FromRedis[T](uri,format)(fmt,as)    
+  def fromRedis[T <: Ingestable](uri:String,format:String = "")(fmt:JsonFormat[T],as:ActorSystem) = {    
+    //val redis = new FromRedis[T](uri,format)(fmt,as)
 
-    redis.source
+    val source = RestartSource.withBackoff[ByteString](retrySettingsDefault) { () =>
+      log.info(s"Restarting -> Redis(${uri})...")
+      val redis = new FromRedis[T](uri,format)(fmt,as)      
+      redis.source      
+    }
+
+    source
   }
 
 // ====================================================================================================================================
@@ -1604,22 +1610,32 @@ trait Flows {
         val data = ByteString(m.readAs[String]())
         messageQueue.offer(data).onComplete {
           case Success(_) => log.debug(s"${data} -> ${m.channel}")
-          case Failure(e) => log.error(s"Failed to publish: ${m.channel}: ${e.getMessage}")
+          case Failure(e) => 
+            log.error(s"Failed to publish: ${m.channel}: ${e.getMessage}")
+            // Queue failure indicates source is closed, fail it to trigger restart
+            messageQueue.fail(new Exception(s"Queue offer failed: ${e.getMessage}", e))
         }
       case m: PubSubMessage.Unsubscribe => 
-        log.info(s"Unsubscribed: ${m.channelOpt}")
+        log.warn(s"Unexpected unsubscribe: ${m.channelOpt} - connection may be lost")
+        // Unexpected unsubscribe indicates connection loss, fail queue to trigger restart
+        messageQueue.fail(new Exception(s"Unexpected unsubscribe from channel: ${m.channelOpt}"))
       case m: PubSubMessage.PSubscribe => 
         log.debug(s"Subscribed: ${m.pattern}")
       case m: PubSubMessage.PMessage => 
         val data = ByteString(m.readAs[String]())
         messageQueue.offer(data).onComplete {
           case Success(_) => log.debug(s"${data} -> ${m.channel} (${m.pattern})")
-          case Failure(e) => log.error(s"Failed to publish: ${m.channel}: ${e.getMessage}")
+          case Failure(e) => 
+            log.error(s"Failed to publish: ${m.channel}: ${e.getMessage}")
+            messageQueue.fail(new Exception(s"Queue offer failed: ${e.getMessage}", e))
         }
       case m: PubSubMessage.PUnsubscribe => 
-        log.debug(s"Unsubscribed: ${m.patternOpt}")
+        log.warn(s"Unexpected unsubscribe: ${m.patternOpt} - connection may be lost")
+        messageQueue.fail(new Exception(s"Unexpected unsubscribe from pattern: ${m.patternOpt}"))
       case e: PubSubMessage.Error => 
-        log.error(s"PubSub error:",e)
+        log.error(s"PubSub error: ${e} - failing source to trigger restart")
+        // Connection error - fail the queue to trigger RestartSource
+        messageQueue.fail(new Exception(s"Redis PubSub error: ${e}"))
     }
 
     def transform(t:T):ByteString = {
@@ -1631,13 +1647,16 @@ trait Flows {
         throw new Exception(s"Channel undefined: ${uri}")
       }
 
-      redis.subscriber.subscribe(redisUri.channel.get).onComplete {
-        case Success(_) => log.info(s"Subscribed to: ${redisUri.channel.get}")
-        case Failure(e) => log.error(s"Failed to subscribe: ${redisUri.channel.get}: ${e.getMessage}")
-      }
-
-      messageSource
-        .log("redis")
+      Source.futureSource(
+        redis.subscriber.subscribe(redisUri.channel.get).map { _ =>
+          log.info(s"Subscribed to: ${redisUri.channel.get}")
+          messageSource            
+        }.recover {
+          case e: Exception =>
+            log.error(s"Failed to subscribe to Redis: ${e.getMessage}")
+            Source.failed(e)
+        }
+      )
     }
       
   }
