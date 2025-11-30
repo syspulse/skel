@@ -54,6 +54,8 @@ import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 import scredis.Redis
 import scredis.Client
 import scredis.protocol.AuthConfig
+import scredis.RedisConfig
+import scredis.PubSubMessage
 import io.syspulse.skel.uri.RedisURI
 
 import io.syspulse.skel
@@ -123,6 +125,7 @@ import akka.http.scaladsl.model.ws.WebSocketRequest
 import akka.actor.ActorNotFound
 import com.typesafe.config.ConfigFactory
 import akka.http.scaladsl.model.HttpHeader
+import scredis.RedisConfigDefaults
 
 object Flows extends Flows {
 
@@ -1461,59 +1464,149 @@ trait Flows {
       .toMat(Sink.ignore)(Keep.right)
   }
 
-  def toRedis[T <: Ingestable](uri:String,format:String = "")(fmt:JsonFormat[T]) = {
-    val redis = new ToRedis[T](uri,format)(fmt)
-    
+  def toRedis[T <: Ingestable](uri:String,format:String = "")(fmt:JsonFormat[T],as:ActorSystem) = {
+    val redis = new ToRedis[T](uri,format)(fmt,as)    
     val sink = RestartSink.withBackoff[T](retrySettingsDefault) { () =>
       log.info(s"Restarting -> Redis(${uri})...")
       Sink.ignore
     }
     
-    Flow[T]
-      .mapAsync(1)(t => {
-        // if(o!=null) ByteString(o.toLog+"\n") else ByteString()
-        val key = t.getKey.map(_.toString).getOrElse(t.hashCode().toString)
-        val o = redis.transform(t).utf8String
-        val f = redis.client().set(key,o).map(_ => t)
-        f
-      })
-      .log("redis")
+    redis.sink
       .toMat(sink)(Keep.right)
+  }
+
+  def fromRedis[T <: Ingestable](uri:String,format:String = "")(fmt:JsonFormat[T],as:ActorSystem) = {
+    val redis = new FromRedis[T](uri,format)(fmt,as)    
+
+    redis.source
   }
 
 // ====================================================================================================================================
 // ====================================================================================================================================
 // ====================================================================================================================================
-  class RedisClient(uri:String) {
-    
+  class RedisClient(uri:String)(implicit as:ActorSystem) {    
     val redisUri = RedisURI(uri)
     val timeout = FiniteDuration(redisUri.timeout,TimeUnit.MILLISECONDS)
-      
-    val redis = Redis(
-      host = redisUri.host,
-      port = redisUri.port,
-      authOpt = redisUri.pass match {
-        case None => None
-        case Some(u) => Some(AuthConfig(username = redisUri.user, password = redisUri.pass.getOrElse("")))
-      },
-      database = redisUri.db,
-      connectTimeout = timeout
-    )
 
+    // import scredis.PubSubMessage
+    protected def subscriptionHandler: scredis.Subscription = {
+      case m: PubSubMessage.Subscribe => log.debug(s"Subscribed: ${m.channel}")
+      case m: PubSubMessage.Message => log.debug(s"Received: ${m.channel}: ${m.readAs[String]()}")
+      case m: PubSubMessage.Unsubscribe => log.debug(s"Unsubscribed: ${m.channelOpt}")
+      case m: PubSubMessage.PSubscribe => log.debug(s"Subscribed: ${m.pattern}")
+      case m: PubSubMessage.PMessage => log.debug(s"Received: ${m.channel}: ${m.pattern}: ${m.readAs[String]()}")
+      case m: PubSubMessage.PUnsubscribe => log.debug(s"Unsubscribed: ${m.patternOpt}")
+      case e: PubSubMessage.Error => log.warn(s"${e}")
+    }
+      
+    val redis = if(redisUri.channel.isDefined) {
+      val redis = Redis.withActorSystem(
+        host = redisUri.host,
+        port = redisUri.port,
+        authOpt = redisUri.pass match {
+          case None => None
+          case Some(u) => Some(AuthConfig(username = redisUri.user, password = redisUri.pass.getOrElse("")))
+        },
+        database = redisUri.db,
+        connectTimeout = timeout,
+        subscription = subscriptionHandler//RedisConfigDefaults.LoggingSubscription
+      )(as)      
+      redis
+    } else {
+      Redis(
+        host = redisUri.host,
+        port = redisUri.port,
+        authOpt = redisUri.pass match {
+          case None => None
+          case Some(u) => Some(AuthConfig(username = redisUri.user, password = redisUri.pass.getOrElse("")))
+        },
+        database = redisUri.db,
+        connectTimeout = timeout,      
+     )
+    }
+
+    def push(key:String,value:ByteString):Future[Boolean] = {
+      redisUri.channel match {
+        case Some(channel) => redis.publish(channel,value.utf8String).map(_ => true)
+        case None => redis.set(key,value.utf8String)
+      }
+    }
+    
     // Import internal ActorSystem's dispatcher (execution context) to register callbacks
-    import redis.dispatcher
+    //import redis.dispatcher
 
     def client() = redis
   }
 
-  class ToRedis[T <: Ingestable](uri:String,format:String)(implicit jf:JsonFormat[T]) extends RedisClient(uri) {
-    import spray.json._
-    
+  class ToRedis[T <: Ingestable](uri:String,format:String)(implicit jf:JsonFormat[T],as:ActorSystem) extends RedisClient(uri)(as) {    
     val formatOutput = if(!format.isBlank) format else "json"
+    
+    def transform(t:T):ByteString = {
+      formatter(t,formatOutput)
+    }
+
+    def sink = Flow[T]
+      .mapAsync(1)(t => {
+        val key = t.getKey.map(_.toString).getOrElse(t.hashCode().toString)
+        val o = this.transform(t)
+        val f = this.push(key,o).map(_ => t)        
+        f
+      })
+      .log("redis")
+  }
+
+  // from Redis supports only PubSub subscription
+  class FromRedis[T <: Ingestable](uri:String,format:String)(implicit jf:JsonFormat[T],as:ActorSystem) extends RedisClient(uri)(as) {        
+    val formatOutput = if(!format.isBlank) format else "json"
+
+    // Create a queue-based source for receiving messages from subscription
+    val (messageQueue, messageSource) = Source
+      .queue[ByteString](bufferSize = 1000, OverflowStrategy.backpressure)
+      .preMaterialize()
+
+    override protected def subscriptionHandler: scredis.Subscription = {
+      case m: PubSubMessage.Subscribe => 
+        log.info(s"Subscribed: ${m.channel}")
+      case m: PubSubMessage.Message => 
+        val data = ByteString(m.readAs[String]())
+        messageQueue.offer(data).onComplete {
+          case Success(_) => log.debug(s"${data} -> ${m.channel}")
+          case Failure(e) => log.error(s"Failed to publish: ${m.channel}: ${e.getMessage}")
+        }
+      case m: PubSubMessage.Unsubscribe => 
+        log.info(s"Unsubscribed: ${m.channelOpt}")
+      case m: PubSubMessage.PSubscribe => 
+        log.debug(s"Subscribed: ${m.pattern}")
+      case m: PubSubMessage.PMessage => 
+        val data = ByteString(m.readAs[String]())
+        messageQueue.offer(data).onComplete {
+          case Success(_) => log.debug(s"${data} -> ${m.channel} (${m.pattern})")
+          case Failure(e) => log.error(s"Failed to publish: ${m.channel}: ${e.getMessage}")
+        }
+      case m: PubSubMessage.PUnsubscribe => 
+        log.debug(s"Unsubscribed: ${m.patternOpt}")
+      case e: PubSubMessage.Error => 
+        log.error(s"PubSub error:",e)
+    }
 
     def transform(t:T):ByteString = {
       formatter(t,formatOutput)
-    }  
+    }
+
+    def source: Source[ByteString, _] = {
+      if(!redisUri.channel.isDefined) {
+        throw new Exception(s"Channel undefined: ${uri}")
+      }
+
+      redis.subscriber.subscribe(redisUri.channel.get).onComplete {
+        case Success(_) => log.info(s"Subscribed to: ${redisUri.channel.get}")
+        case Failure(e) => log.error(s"Failed to subscribe: ${redisUri.channel.get}: ${e.getMessage}")
+      }
+
+      messageSource
+        .log("redis")
+    }
+      
   }
 
   // === JDBC ============================================================================================  

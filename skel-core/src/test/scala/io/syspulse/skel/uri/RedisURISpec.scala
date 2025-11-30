@@ -14,7 +14,7 @@ class RedisURISpec extends AnyWordSpec with Matchers {
       uri.db should === (0)
       uri.user should === (None)
       uri.pass should === (None)
-      uri.subscription should === (None)
+      uri.channel should === (None)
       uri.ops should === (Map())
     }
 
@@ -39,7 +39,7 @@ class RedisURISpec extends AnyWordSpec with Matchers {
       uri.host should === ("localhost")
       uri.port should === (6379)
       uri.db should === (1)
-      uri.subscription should === (None)
+      uri.channel should === (None)
     }
 
     "parse URI with database index and subscription channel" in {
@@ -47,7 +47,7 @@ class RedisURISpec extends AnyWordSpec with Matchers {
       uri.host should === ("localhost")
       uri.port should === (6379)
       uri.db should === (1)
-      uri.subscription should === (Some("mychannel"))
+      uri.channel should === (Some("mychannel"))
     }
 
     "parse URI with query parameters" in {
@@ -76,7 +76,7 @@ class RedisURISpec extends AnyWordSpec with Matchers {
       uri.user should === (Some("user"))
       uri.pass should === (Some("pass"))
       uri.db should === (2)
-      uri.subscription should === (Some("mychannel"))
+      uri.channel should === (Some("mychannel"))
       uri.timeout should === (5000L)
     }
 

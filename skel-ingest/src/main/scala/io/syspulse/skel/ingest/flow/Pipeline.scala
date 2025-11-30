@@ -155,6 +155,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](
 
       case "akka" :: uri :: Nil => fromAkka(feed)
 
+      case "redis" :: uri :: Nil => fromRedis[O](feed,format)(fmt,system)      
+
       case "" :: Nil => fromStdin(frameDelimiter = delimiter, frameSize = buffer) 
       case file :: Nil => fromFile(file,chunk,frameDelimiter = delimiter,frameSize = buffer)
       case _ =>         
@@ -227,8 +229,8 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](
 
       case "akka" :: uri :: Nil => toAkka[O](output,format)
 
-      case "redis" :: uri :: Nil => toRedis[O](output,format)(fmt)
-      case "redis" :: Nil => toRedis[O](output,format)(fmt)
+      case "redis" :: uri :: Nil => toRedis[O](output,format)(fmt,system)
+      case "redis" :: Nil => toRedis[O](output,format)(fmt,system)
 
       case "" :: Nil => toStdout(format=format)
       case _ => toFile(output,format)

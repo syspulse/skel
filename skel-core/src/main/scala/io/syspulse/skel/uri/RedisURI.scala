@@ -23,7 +23,7 @@ case class RedisURI(uri:String) {
               _host:String,
               _port:Int,
               _index:Int,
-              _subscription:Option[String],
+              _channel:Option[String],
               _ops:Map[String,String]) = parse(uri)
 
   def host:String = _host
@@ -31,7 +31,7 @@ case class RedisURI(uri:String) {
   def user:Option[String] = _user
   def pass:Option[String] = _pass
   def db:Int = _index
-  def subscription:Option[String] = _subscription
+  def channel:Option[String] = _channel
   def timeout:Long = ops.get("timeout").map(_.toLong).getOrElse(RedisURI.DEF_TIMEOUT)
   def ops:Map[String,String] = _ops
   
