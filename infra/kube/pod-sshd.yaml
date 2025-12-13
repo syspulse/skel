@@ -19,12 +19,14 @@ spec:
         sed -i 's/^[^#]*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
         sed -i 's/^[^#]*AllowTcpForwarding.*/AllowTcpForwarding yes/' /etc/ssh/sshd_config
         sed -i 's/^[^#]*GatewayPorts.*/GatewayPorts yes/' /etc/ssh/sshd_config
+        sed -i 's/^[^#]*LogLevel.*/LogLevel ERROR/' /etc/ssh/sshd_config
         echo "" >> /etc/ssh/sshd_config
         echo "# Custom configuration for SOCKS proxy" >> /etc/ssh/sshd_config
         echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
         echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config
         echo "AllowTcpForwarding yes" >> /etc/ssh/sshd_config
         echo "GatewayPorts yes" >> /etc/ssh/sshd_config
+        echo "LogLevel ERROR" >> /etc/ssh/sshd_config
         PASSWORD=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 20)
         echo "root:${PASSWORD}" | chpasswd
         echo "=== SSH Configuration ==="

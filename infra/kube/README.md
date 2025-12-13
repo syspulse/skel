@@ -26,7 +26,38 @@ Wait for the LoadBalancer to be created (may take 1-2 minutes):
 kubectl get svc -n ingest sshd-proxy-service-lb
 ```
 
-### Get DNS Name
+### Get LoadBalancer IP Address
+
+Get the IP address of the LoadBalancer (no DNS wait required):
+
+```bash
+kubectl get svc -n ingest sshd-proxy-service-lb -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+```
+
+If the IP field is empty (NLB may only provide hostname), resolve the hostname to get the IP:
+
+```bash
+# Get hostname first
+HOSTNAME=$(kubectl get svc -n ingest sshd-proxy-service-lb -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+# Resolve to IP
+dig +short $HOSTNAME | head -1
+```
+
+Or use a one-liner:
+
+```bash
+dig +short $(kubectl get svc -n ingest sshd-proxy-service-lb -o jsonpath='{.status.loadBalancer.ingress[0].hostname}') | head -1
+```
+
+You can also check the full service status:
+
+```bash
+kubectl get svc -n ingest sshd-proxy-service-lb
+```
+
+**Note:** You can use the IP address directly to connect without waiting for DNS propagation.
+
+### Get DNS Name (Optional)
 
 Get the AWS NLB hostname:
 
@@ -46,13 +77,19 @@ kubectl logs -n ingest sshd-proxy | grep "Root password"
 
 ### Start SOCKS Tunnel
 
-Connect and start the SOCKS proxy tunnel:
+Connect and start the SOCKS proxy tunnel using the IP address:
 
 ```bash
-ssh -D 127.0.0.1:1090 -N -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@<nlb-hostname>
+ssh -D 127.0.0.1:1090 root@<lb-ip>
 ```
 
-Replace `<nlb-hostname>` with the hostname from the "Get DNS Name" step.
+Replace `<lb-ip>` with the IP address from the "Get LoadBalancer IP Address" step.
+
+Alternatively, you can use the hostname if DNS is available:
+
+```bash
+ssh -D 127.0.0.1:1090 root@<nlb-hostname>
+```
 
 The tunnel will run in the foreground. To run in background, add `-f` flag:
 

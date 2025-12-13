@@ -100,7 +100,7 @@ case class OpenAi_CompletionReq(
 case class OpenAi_OutputContent(
   `type`:String,
   text:String,
-  annotations:Seq[JsValue]
+  annotations:Option[Seq[JsValue]]
 )
 
 case class OpenAi_Output (
@@ -131,7 +131,7 @@ case class OpenAi_ResponsesReq(
   input:Seq[OpenAi_Input],
   previous_response_id:Option[String] = None, // link conversation
   instructions:Option[String] = None, // system prompt
-  store:Option[Boolean] = None, // True by default 
+  store:Option[Boolean] = None, // Whether to store the generated model response for later retrieval via API.
   
   stream:Option[Boolean] = None,
 
@@ -334,7 +334,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       ),
       instructions = systemPrompt,
       previous_response_id = ai.xid,
-      store = aiUri.getOptions().get("store").map(_.toBoolean).orElse(Some(true)),
+      store = aiUri.getOptions().get("store").map(_.toBoolean),
       temperature = aiUri.temperature,
       top_p = aiUri.topP,
       max_output_tokens = aiUri.maxTokens,
@@ -407,7 +407,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       stream = Some(true),
       instructions = systemPrompt,
       previous_response_id = ai.xid,
-      store = aiUri.getOptions().get("store").map(_.toBoolean).orElse(Some(true)),
+      store = aiUri.getOptions().get("store").map(_.toBoolean),
       temperature = aiUri.temperature,
       top_p = aiUri.topP,
       max_output_tokens = aiUri.maxTokens,
@@ -505,7 +505,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       stream = Some(true),
       instructions = systemPrompt,
       previous_response_id = ai.xid,
-      store = aiUri.getOptions().get("store").map(_.toBoolean).orElse(Some(true)),
+      store = aiUri.getOptions().get("store").map(_.toBoolean),
       temperature = aiUri.temperature,
       top_p = aiUri.topP,
       max_output_tokens = aiUri.maxTokens,
