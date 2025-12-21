@@ -33,14 +33,26 @@ class TwitterConnect(uri:String) extends TwitterClient {
         
         if(rsp.meta.result_count != 0) {
           val users = rsp.includes.get.users
+          val mediaMap = rsp.includes.flatMap(_.media).getOrElse(Seq.empty)
+            .filter(_.`type` == "photo")
+            .flatMap(m => m.url.map(url => (m.media_key, url)))
+            .toMap
+          
           rsp.data.get.flatMap( td => {
             val userId = users.find(_.id == td.author_id)
+            val mediaUrls = td.attachments
+              .flatMap(_.media_keys)
+              .getOrElse(Seq.empty)
+              .flatMap(key => mediaMap.get(key))
+              .toSeq
+            
             userId.map(u => Twit(
               id = td.id,
               author_id = td.author_id,
               author_name = u.username,
               text = td.text,
-              created_at = OffsetDateTime.parse(td.created_at,tsFormatISOParse).toInstant.toEpochMilli
+              created_at = OffsetDateTime.parse(td.created_at,tsFormatISOParse).toInstant.toEpochMilli,
+              media = mediaUrls
             ))
           })
         } else Seq()

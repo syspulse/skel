@@ -7,5 +7,6 @@ case class Twit(
   author_id:String,
   author_name:String,
   text:String,
-  created_at:Long
+  created_at:Long,
+  media:Seq[String]
 )

@@ -40,12 +40,17 @@ import io.syspulse.skel.uri.TwitterURI
 import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.util.Util
 
+case class TwitterSearchAttachments(
+  media_keys:Option[Seq[String]]
+)
+
 case class TwitterSearchData(
   author_id:String,
   text:String,
   //edit_history_tweet_ids:Seq[String]
   id:String,
-  created_at:String
+  created_at:String,
+  attachments:Option[TwitterSearchAttachments]
 )
 
 case class TwitterSearchUser(
@@ -55,8 +60,15 @@ case class TwitterSearchUser(
   id:String,  
 )
 
+case class TwitterSearchMedia(
+  media_key:String,
+  `type`:String,
+  url:Option[String]
+)
+
 case class TwitterSearchIncludes(
-  users:Seq[TwitterSearchUser]
+  users:Seq[TwitterSearchUser],
+  media:Option[Seq[TwitterSearchMedia]]
 )
 
 case class TwitterSearchMeta(
@@ -71,12 +83,14 @@ case class TwitterSearchRecent(
 
 object TwitJson extends JsonCommon {
   implicit val jf_twit_met_res = jsonFormat1(TwitterSearchMeta)
-  implicit val jf_twit_sea_d = jsonFormat4(TwitterSearchData)
+  implicit val jf_twit_sea_att = jsonFormat1(TwitterSearchAttachments)
+  implicit val jf_twit_sea_d = jsonFormat5(TwitterSearchData)
   implicit val jf_twit_sea_u = jsonFormat4(TwitterSearchUser)
-  implicit val jf_twit_sea_inc = jsonFormat1(TwitterSearchIncludes)
+  implicit val jf_twit_sea_med = jsonFormat3(TwitterSearchMedia)
+  implicit val jf_twit_sea_inc = jsonFormat2(TwitterSearchIncludes)
   implicit val jf_twit_sea_rec = jsonFormat3(TwitterSearchRecent)  
 
-  implicit val jf_twit_tw = jsonFormat5(Twit)  
+  implicit val jf_twit_tw = jsonFormat6(Twit)  
 }
 
 trait TwitterClient {
@@ -154,7 +168,7 @@ trait TwitterClient {
 
     val req = HttpRequest(
       //uri = s"${twitterUrlSearch}/stream?tweet.fields=id,source,text,username&expansions=author_id",
-      uri = s"${twitterUrlSearch}/recent?query=${slug}&tweet.fields=created_at&expansions=author_id&user.fields=created_at&start_time=${ts0}&end_time=${ts1}&max_results=${max}",
+      uri = s"${twitterUrlSearch}/recent?query=${slug}&tweet.fields=created_at&expansions=attachments.media_keys,author_id&user.fields=created_at,username&media.fields=url,type&start_time=${ts0}&end_time=${ts1}&max_results=${max}",
       method = HttpMethods.GET,
       headers = Seq(RawHeader("Authorization",s"Bearer ${accessToken}"))
     )
@@ -223,33 +237,47 @@ trait TwitterClient {
         if(rsp.meta.result_count != 0) {
           
           val users = rsp.includes.get.users
+          val mediaMap = rsp.includes.flatMap(_.media).getOrElse(Seq.empty)
+            .filter(_.`type` == "photo")
+            .flatMap(m => m.url.map(url => (m.media_key, url)))
+            .toMap
           
           val tweets = rsp.data.get.flatMap( td => {
             val userId = users.find(_.id == td.author_id)
+            val mediaUrls = td.attachments
+              .flatMap(_.media_keys)
+              .getOrElse(Seq.empty)
+              .flatMap(key => mediaMap.get(key))
+              .toSeq
+            
             userId.map(u => Twit(
               id = td.id,
               author_id = td.author_id,
               author_name = u.username,
               text = td.text,
-              created_at = OffsetDateTime.parse(td.created_at,tsFormatISOParse).toInstant.toEpochMilli
+              created_at = OffsetDateTime.parse(td.created_at,tsFormatISOParse).toInstant.toEpochMilli,
+              media = mediaUrls
             ))
           })
           .map(t => {
             log.debug(s"${t}")
             t
           })
-          .groupBy(_.author_id)           
-          .map{ case(authorId,tt) => {
-            log.info(s"author=${authorId} (${tt.head.author_name}): tweets=(${latest}/${tt.size})")
+          .groupBy(_.author_id)
+          .values
+          .map{ (tt: Seq[Twit]) => {
+            log.info(s"author=${tt.head.author_id} (${tt.head.author_name}): tweets=(${latest}/${tt.size})")
             // get latest Twits 
             //tt.maxBy(_.created_at)
             tt.sortBy(- _.created_at).take(latest)
           }}
+          .flatten
+          .toSeq
 
           tweets
         } else Seq.empty
       }}
-      .mapConcat(identity)
+      .mapConcat((tweets: Seq[Twit]) => tweets)
     
     // deduplication flow
     val s1 = s0
@@ -257,9 +285,13 @@ trait TwitterClient {
       .statefulMapConcat { () =>
         var state = List.empty[Twit]
         var lastCheckTs = System.currentTimeMillis()
-        (tt) => {
-          val uniq = tt.filter(t => ! state.find(_.id == t.id).isDefined)
-          state =  state.prependedAll( uniq )
+        (t: Twit) => {
+          val uniq = if (!state.find(_.id == t.id).isDefined) {
+            state = state.prepended(t)
+            Seq(t)
+          } else {
+            Seq.empty[Twit]
+          }
 
           val now = System.currentTimeMillis()
           val age = now - lastCheckTs
@@ -270,7 +302,8 @@ trait TwitterClient {
           log.debug(s"Uniq: ${uniq}")
           uniq
         }
-      }     
+      }
+      .mapMaterializedValue(_ => NotUsed)
       
     s1
   }
