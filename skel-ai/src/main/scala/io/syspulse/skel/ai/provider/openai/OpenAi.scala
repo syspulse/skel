@@ -26,6 +26,7 @@ import os._
 import io.jvm.uuid._
 
 import spray.json._
+import spray.json.RootJsonFormat
 import DefaultJsonProtocol._
 
 import io.syspulse.skel.util.Retry
@@ -39,10 +40,35 @@ import io.syspulse.skel.ai.provider.AiProvider
 import io.syspulse.skel.ai.core.AiTool
 import io.syspulse.skel.ai.core.AiURI
 
+// {
+//         "role": "user",
+//         "content": [
+//           {
+//             "type": "text",
+//             "text": "Parse the data from this image and create a markdown table with statistics"
+//           },
+//           {
+//             "type": "image_url",
+//             "image_url": {
+//               "url": "https://pbs.twimg.com/media/ABC123.jpg:orig"
+//             }
+//           }
+//         ]
+//       }
+
+case class OpenAi_ImageUrl(
+  url:String
+)
+
+case class OpenAi_ContentItem(
+  `type`:String,
+  text:Option[String] = None,
+  image_url:Option[OpenAi_ImageUrl] = None
+)
 
 case class OpenAi_Msg(
   role:String,
-  content:String
+  content:Either[String, Seq[OpenAi_ContentItem]]
 )
 
 case class OpenAi_Input(
@@ -94,7 +120,7 @@ case class OpenAi_CompletionReq(
   user:Option[String] = None,
   response_format:Option[String] = None,
 
-  tools:Option[Seq[AiTool]] = None,
+  tools:Option[Seq[AiTool]] = None  
 )
 
 case class OpenAi_OutputContent(
@@ -161,9 +187,36 @@ case class OpenAi_EventResponseCompleted(
 )
 
 object OpenAi_Json extends JsonCommon { 
+  import spray.json.{JsString, JsArray, JsValue, JsonFormat, DeserializationException, deserializationError}
+  
   implicit val jf_oai_tool = jsonFormat5(AiTool)
 
-  implicit val jf_oai_msg = jsonFormat2(OpenAi_Msg)
+  implicit val jf_oai_image_url = jsonFormat1(OpenAi_ImageUrl)
+  implicit val jf_oai_content_item = jsonFormat3(OpenAi_ContentItem)
+  
+  implicit object OpenAi_MsgFormat extends RootJsonFormat[OpenAi_Msg] {
+    def write(msg: OpenAi_Msg) = {
+      val roleField = "role" -> JsString(msg.role)
+      val contentField = msg.content match {
+        case Left(str) => "content" -> JsString(str)
+        case Right(items) => "content" -> JsArray(items.map(_.toJson).toVector)
+      }
+      JsObject(roleField, contentField)
+    }
+    
+    def read(value: JsValue) = {
+      value.asJsObject.getFields("role", "content") match {
+        case Seq(JsString(role), JsString(content)) =>
+          OpenAi_Msg(role, Left(content))
+        case Seq(JsString(role), JsArray(contentItems)) =>
+          val items = contentItems.map(_.convertTo[OpenAi_ContentItem])
+          OpenAi_Msg(role, Right(items))
+        case _ =>
+          deserializationError("OpenAi_Msg expected")
+      }
+    }
+  }
+  
   implicit val jf_oai_cho = jsonFormat3(OpenAi_Choices)
   implicit val jf_oai_usg = jsonFormat3(OpenAi_ChatUsage)
   implicit val jf_oai_chat_res = jsonFormat7(OpenAi_ChatRes)  
@@ -193,23 +246,48 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
   def getResponseAnswer(response:OpenAi_ChatRes):Option[String] = {
     if(response.choices.isEmpty) 
       None 
-    else 
-      Some(response.choices.head.message.content)    
+    else {
+      val content = response.choices.head.message.content
+      Some(content match {
+        case Left(str) => str
+        case Right(items) => items.flatMap(_.text).mkString("\n")
+      })
+    }
   }
 
-  def ask(question:String,model:Option[String],system:Option[String] = None,
-          timeout:Long = getTimeout(),retry:Int = getRetry(),tools0:Seq[AiTool] = Seq.empty):Try[Ai] = {
+  override def ask(question:String,model:Option[String],system:Option[String] = None,
+          timeout:Long = getTimeout(),retry:Int = getRetry(),
+          tools0:Seq[AiTool] = Seq.empty
+      ):Try[Ai] = {
+    askWithImages(question, model, system, timeout, retry, tools0, Seq.empty)
+  }
+  
+  def askWithImages(question:String,model:Option[String],system:Option[String],
+          timeout:Long,retry:Int,
+          tools0:Seq[AiTool],
+          images0:Seq[String]
+      ):Try[Ai] = {
 
     val url = s"${aiUri.apiUrl}/v1/chat/completions"
     val modelReq = model.getOrElse(OpenAiURI.DEFAULT_MODEL)
     val systemPrompt = system.orElse(aiUri.system).getOrElse("")
     val tools = aiUri.getTools() ++ tools0
 
+    val userContent = if(images0.nonEmpty) {
+      Right(Seq(
+        OpenAi_ContentItem("text", Some(question), None)
+      ) ++ images0.map(url => 
+        OpenAi_ContentItem("image_url", None, Some(OpenAi_ImageUrl(url)))
+      ))
+    } else {
+      Left(question)
+    }
+    
     val body = OpenAi_CompletionReq(
       model = modelReq,
       messages = Seq(
-        OpenAi_Msg("system",systemPrompt),
-        OpenAi_Msg("user",question)
+        OpenAi_Msg("system", Left(systemPrompt)),
+        OpenAi_Msg("user", userContent)
       ),
       temperature = aiUri.temperature,
       top_p = aiUri.topP,
@@ -260,9 +338,9 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       p.role.trim match {
         case "system" if(systemPrompt.isDefined) => 
           // overwrite system prompt if needed
-          OpenAi_Msg("system",systemPrompt.get)
+          OpenAi_Msg("system", Left(systemPrompt.get))
         case _ => 
-          OpenAi_Msg(p.role,p.content)
+          OpenAi_Msg(p.role, Left(p.content))
       }
     })
     
@@ -277,7 +355,10 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
           
     log.debug(s"body=${body}")
 
-    val chatSize = messages.map(_.content.size).sum
+    val chatSize = messages.map(_.content match {
+      case Left(str) => str.size
+      case Right(items) => items.flatMap(_.text).map(_.size).sum
+    }).sum
     log.info(s"model=${modelReq},sys=[${systemPrompt.map(_.size).getOrElse(-1)}]/q=[${messages.size}] -> ${url}")
 
     Retry.withRetry(
@@ -297,7 +378,13 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
         val chatRes = r.text().parseJson.convertTo[OpenAi_ChatRes]        
               
         Chat(
-          messages = chat.messages ++ chatRes.choices.map(c => ChatMessage(role = c.message.role, content = c.message.content)),
+          messages = chat.messages ++ chatRes.choices.map(c => {
+            val content = c.message.content match {
+              case Left(str) => str
+              case Right(items) => items.flatMap(_.text).mkString("\n")
+            }
+            ChatMessage(role = c.message.role, content = content)
+          }),
           oid = chat.oid,
           model = Some(aiUri.getModel(chatRes.model)),
           ts = System.currentTimeMillis(),
