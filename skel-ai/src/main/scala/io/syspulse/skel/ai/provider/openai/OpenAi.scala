@@ -73,7 +73,7 @@ case class OpenAi_Msg(
 
 case class OpenAi_Input(
   role:String,
-  content:String,
+  content:Seq[OpenAi_ContentItem],
   `type`:Option[String] = None
 )
 
@@ -222,7 +222,60 @@ object OpenAi_Json extends JsonCommon {
   implicit val jf_oai_chat_res = jsonFormat7(OpenAi_ChatRes)  
   implicit val jf_oai_req = jsonFormat15(OpenAi_CompletionReq)
 
-  implicit val jf_oai_input = jsonFormat3(OpenAi_Input)
+  implicit object OpenAi_InputFormat extends RootJsonFormat[OpenAi_Input] {
+    def write(input: OpenAi_Input) = {
+      // For responses API, input_image items need image_url as string, not object
+      val contentJson = input.content.map { item =>
+        item.`type` match {
+          case "input_image" if item.image_url.isDefined =>
+            // For responses API: image_url should be a string
+            JsObject(
+              "type" -> JsString(item.`type`),
+              "image_url" -> JsString(item.image_url.get.url)
+            )
+          case _ =>
+            // For other types, use standard serialization
+            item.toJson
+        }
+      }
+      val fields = Seq(
+        "role" -> JsString(input.role),
+        "content" -> JsArray(contentJson.toVector)
+      ) ++ input.`type`.map(t => "type" -> JsString(t))
+      JsObject(fields: _*)
+    }
+    
+    def read(value: JsValue) = {
+      val obj = value.asJsObject
+      val role = obj.fields("role").convertTo[String]
+      val content = obj.fields("content") match {
+        case JsString(str) =>
+          // Handle legacy string format
+          Seq(OpenAi_ContentItem("text", Some(str), None))
+        case JsArray(items) =>
+          items.map { item =>
+            val itemObj = item.asJsObject
+            val itemType = itemObj.fields("type").convertTo[String]
+            itemType match {
+              case "input_image" =>
+                // For responses API: image_url is a string
+                val imageUrl = itemObj.fields("image_url") match {
+                  case JsString(url) => url
+                  case _ => deserializationError("input_image.image_url must be a string")
+                }
+                OpenAi_ContentItem(itemType, None, Some(OpenAi_ImageUrl(imageUrl)))
+              case _ =>
+                // For other types, use standard deserialization
+                item.convertTo[OpenAi_ContentItem]
+            }
+          }
+        case _ =>
+          deserializationError("OpenAi_Input content must be string or array")
+      }
+      val `type` = obj.fields.get("type").map(_.convertTo[String])
+      OpenAi_Input(role, content, `type`)
+    }
+  }
   implicit val jf_oai_output_content = jsonFormat3(OpenAi_OutputContent)
   implicit val jf_oai_output = jsonFormat5(OpenAi_Output)
   implicit val jf_oai_res = jsonFormat13(OpenAi_ResponsesReq)  
@@ -320,23 +373,33 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
     )(timeout, retry)(log)
   }
 
-  def chat(chat:Chat,model:Option[String],system:Option[String] = None,
-           timeout:Long = getTimeout(),retry:Int = getRetry(),tools0:Seq[AiTool] = Seq.empty):Try[Chat] = {
+  override def chat(chat:Chat,model:Option[String],system:Option[String] = None,
+           timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty):Try[Chat] = {
+    chatWithImages(chat, model, system, timeout, retry, tools, images)
+  }
+  
+  def chatWithImages(chat:Chat,model:Option[String],system:Option[String],timeout:Long,retry:Int,tools:Seq[AiTool],
+           images:Seq[String]):Try[Chat] = {
 
     val url = s"${aiUri.apiUrl}/v1/chat/completions"
     val modelReq = model.getOrElse(OpenAiURI.DEFAULT_MODEL)
     val systemPrompt = system.orElse(aiUri.system)
-    val tools = aiUri.getTools() ++ tools0
+    val toolsCombined = aiUri.getTools() ++ tools
 
-    val messages = chat.messages.map( p => {
+    val messages = chat.messages.zipWithIndex.map { case (p, idx) =>
       p.role.trim match {
         case "system" if(systemPrompt.isDefined) => 
           // overwrite system prompt if needed
           OpenAi_Msg("system", Seq(OpenAi_ContentItem("text", Some(systemPrompt.get), None)))
+        case "user" if(idx == chat.messages.size - 1 && images.nonEmpty) =>
+          // Add images to the last user message
+          val contentItems = Seq(OpenAi_ContentItem("text", Some(p.content), None)) ++
+            images.map(url => OpenAi_ContentItem("image_url", None, Some(OpenAi_ImageUrl(url))))
+          OpenAi_Msg(p.role, contentItems)
         case _ => 
           OpenAi_Msg(p.role, Seq(OpenAi_ContentItem("text", Some(p.content), None)))
       }
-    })
+    }
     
     val body = OpenAi_CompletionReq(
       model = modelReq,
@@ -388,24 +451,40 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
   import io.syspulse.skel.FutureAwaitable
   //import io.syspulse.skel.FutureAwaitable._
   
-  def prompt(ai:Ai,system:Option[String] = None,
-            timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty):Try[Ai] = {    
-    val f = promptAsync(ai,system,timeout,retry,tools)(scala.concurrent.ExecutionContext.Implicits.global)
+  override def prompt(ai:Ai,system:Option[String] = None,
+            timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty):Try[Ai] = {
+    promptWithImages(ai, system, timeout, retry, tools, images)
+  }
+  
+  def promptWithImages(ai:Ai,system:Option[String],timeout:Long,retry:Int,tools:Seq[AiTool],
+            images:Seq[String]):Try[Ai] = {    
+    val f = promptAsyncWithImages(ai,system,timeout,retry,tools,images)(scala.concurrent.ExecutionContext.Implicits.global)
     FutureAwaitable.awaitTry(f)(timeout)
   }
   
-  def promptAsync(ai:Ai,system:Option[String] = None,
-            timeout:Long = getTimeout(),retry:Int = getRetry(),tools0:Seq[AiTool] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai] = {
+  override def promptAsync(ai:Ai,system:Option[String] = None,
+            timeout:Long = getTimeout(),retry:Int = getRetry(),tools0:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai] = {
+    promptAsyncWithImages(ai, system, timeout, retry, tools0, images)
+  }
+  
+  def promptAsyncWithImages(ai:Ai,system:Option[String],timeout:Long,retry:Int,tools0:Seq[AiTool],
+            images:Seq[String])(implicit ec: ExecutionContext):Future[Ai] = {
 
     val url = s"${aiUri.apiUrl}/v1/responses"
     val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
     val systemPrompt = system.orElse(aiUri.system)
     val tools = aiUri.getTools() ++ tools0
     
+    val inputContent = Seq(
+      OpenAi_ContentItem("input_text", Some(ai.question), None)
+    ) ++ images.map(url => 
+      OpenAi_ContentItem("input_image", None, Some(OpenAi_ImageUrl(url)))
+    )
+    
     val body = OpenAi_ResponsesReq(
       model = modelReq,
       input = Seq(
-        OpenAi_Input("user",ai.question)
+        OpenAi_Input("user", inputContent)
       ),
       instructions = systemPrompt,
       previous_response_id = ai.xid,
@@ -449,8 +528,13 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
   }
   
 
-  def promptStream(ai: Ai, onEvent: (String) => Unit, instructions: Option[String] = None,timeout: Long = getTimeout(), retry: Int = getRetry(),tools:Seq[AiTool] = Seq.empty): Try[Ai] = {                    
-    val f = promptStreamAsync(ai,onEvent,instructions,timeout,retry,tools)(scala.concurrent.ExecutionContext.Implicits.global)
+  override def promptStream(ai: Ai, onEvent: (String) => Unit, instructions: Option[String] = None,timeout: Long = getTimeout(), retry: Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty): Try[Ai] = {
+    promptStreamWithImages(ai, onEvent, instructions, timeout, retry, tools, images)
+  }
+  
+  def promptStreamWithImages(ai: Ai, onEvent: (String) => Unit, instructions: Option[String],timeout: Long, retry: Int,tools:Seq[AiTool],
+                   images:Seq[String]): Try[Ai] = {                    
+    val f = promptStreamAsyncWithImages(ai,onEvent,instructions,timeout,retry,tools,images)(scala.concurrent.ExecutionContext.Implicits.global)
     FutureAwaitable.awaitTry(f)(timeout)
   }
 
@@ -466,7 +550,12 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
     }
   }
 
-  def promptStreamAsync(ai:Ai,onEvent: (String) => Unit,instructions:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools0:Seq[AiTool] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai] = {
+  override def promptStreamAsync(ai:Ai,onEvent: (String) => Unit,instructions:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools0:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai] = {
+    promptStreamAsyncWithImages(ai, onEvent, instructions, timeout, retry, tools0, images)
+  }
+  
+  def promptStreamAsyncWithImages(ai:Ai,onEvent: (String) => Unit,instructions:Option[String],timeout:Long,retry:Int,tools0:Seq[AiTool],
+                        images:Seq[String])(implicit ec: ExecutionContext):Future[Ai] = {
     
     val url = s"${aiUri.apiUrl}/v1/responses"
     val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
@@ -474,10 +563,16 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
 
     val tools = aiUri.getTools() ++ tools0
 
+    val inputContent = Seq(
+      OpenAi_ContentItem("input_text", Some(ai.question), None)
+    ) ++ images.map(url => 
+      OpenAi_ContentItem("input_image", None, Some(OpenAi_ImageUrl(url)))
+    )
+
     val body = OpenAi_ResponsesReq(
       model = modelReq,
       input = Seq(
-        OpenAi_Input("user", ai.question)
+        OpenAi_Input("user", inputContent)
       ),
       stream = Some(true),
       instructions = systemPrompt,
@@ -572,10 +667,12 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
 
     val tools = aiUri.getTools() ++ tools0
 
+    val inputContent = Seq(OpenAi_ContentItem("input_text", Some(ai.question), None))
+    
     val body = OpenAi_ResponsesReq(
       model = modelReq,
       input = Seq(
-        OpenAi_Input("user", ai.question)
+        OpenAi_Input("user", inputContent)
       ),
       stream = Some(true),
       instructions = systemPrompt,

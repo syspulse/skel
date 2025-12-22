@@ -309,7 +309,7 @@ object App extends skel.Server {
         sys.exit(0)
       }
       if(!q.isEmpty) {
-        val a1 = provider.prompt(a.copy(question = q),system)
+        val a1 = provider.prompt(a.copy(question = q),system,images = config.images)
         log.info(s"${a1.get}")
         val txt = a1.get.answer.getOrElse("")
         Console.err.println(s"${Console.GREEN}${a1.get.model}${Console.YELLOW}: ${txt}${Console.RESET}")

@@ -33,15 +33,15 @@ trait AiProvider {
   // single question (no context)
   def ask(question:String,model:Option[String],system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty):Try[Ai]  
   // chat (with context by Chat)
-  def chat(chat:Chat,model:Option[String],system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty):Try[Chat]
+  def chat(chat:Chat,model:Option[String],system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty):Try[Chat]
   
   // prompt (with context by Provider)
-  def prompt(ai:Ai,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty):Try[Ai]
-  def promptAsync(ai:Ai,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai]
+  def prompt(ai:Ai,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty):Try[Ai]
+  def promptAsync(ai:Ai,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai]
 
   // prompt (with context by Provider)
-  def promptStream(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty):Try[Ai]
-  def promptStreamAsync(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai]
+  def promptStream(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty):Try[Ai]
+  def promptStreamAsync(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty)(implicit ec: ExecutionContext):Future[Ai]
 
   //def toolsStreamAsync(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = 10000,retry:Int = 3)(implicit ec: ExecutionContext):Future[Ai]
   def askStream(ai:Ai,
