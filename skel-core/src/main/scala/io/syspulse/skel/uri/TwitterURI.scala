@@ -15,6 +15,7 @@ case class TwitterURI(uri:String) {
   val DEF_PAST = 1000L * 60 * 60 * 24
   val DEF_FREQ = 10000L
   val DEF_MAX = 10
+  val DEF_LATEST = 3
 
   private val (_consumerKey:String,_consumerSecret:String,_accessKey:String,_accessSecret:String,
                _follow:Seq[String],_past:Long,_freq:Long,_max:Int,_ops:Map[String,String]) = parse(uri)
@@ -27,7 +28,7 @@ case class TwitterURI(uri:String) {
   def past:Long = _past
   def freq:Long = _freq
   def max:Int = _max
-  def latest:Int = _ops.get("latest").map(_.toInt).getOrElse(1)
+  def latest:Int = _ops.get("latest").map(_.toInt).getOrElse(DEF_LATEST)
 
 // Query is added to search query (delimit by space, but can use '|')
 // Query Examples:
