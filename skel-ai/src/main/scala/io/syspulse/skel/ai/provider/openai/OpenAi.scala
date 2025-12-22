@@ -68,7 +68,7 @@ case class OpenAi_ContentItem(
 
 case class OpenAi_Msg(
   role:String,
-  content:Either[String, Seq[OpenAi_ContentItem]]
+  content:Seq[OpenAi_ContentItem]
 )
 
 case class OpenAi_Input(
@@ -196,23 +196,23 @@ object OpenAi_Json extends JsonCommon {
   
   implicit object OpenAi_MsgFormat extends RootJsonFormat[OpenAi_Msg] {
     def write(msg: OpenAi_Msg) = {
-      val roleField = "role" -> JsString(msg.role)
-      val contentField = msg.content match {
-        case Left(str) => "content" -> JsString(str)
-        case Right(items) => "content" -> JsArray(items.map(_.toJson).toVector)
-      }
-      JsObject(roleField, contentField)
+      JsObject(
+        "role" -> JsString(msg.role),
+        "content" -> JsArray(msg.content.map(_.toJson).toVector)
+      )
     }
     
     def read(value: JsValue) = {
       value.asJsObject.getFields("role", "content") match {
         case Seq(JsString(role), JsString(content)) =>
-          OpenAi_Msg(role, Left(content))
+          // Handle legacy string format in responses
+          OpenAi_Msg(role, Seq(OpenAi_ContentItem("text", Some(content), None)))
         case Seq(JsString(role), JsArray(contentItems)) =>
+          // Handle array format
           val items = contentItems.map(_.convertTo[OpenAi_ContentItem])
-          OpenAi_Msg(role, Right(items))
+          OpenAi_Msg(role, items)
         case _ =>
-          deserializationError("OpenAi_Msg expected")
+          deserializationError("OpenAi_Msg expected with 'role' and 'content' fields")
       }
     }
   }
@@ -248,18 +248,16 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       None 
     else {
       val content = response.choices.head.message.content
-      Some(content match {
-        case Left(str) => str
-        case Right(items) => items.flatMap(_.text).mkString("\n")
-      })
+      Some(content.flatMap(_.text).mkString("\n"))
     }
   }
 
   override def ask(question:String,model:Option[String],system:Option[String] = None,
           timeout:Long = getTimeout(),retry:Int = getRetry(),
-          tools0:Seq[AiTool] = Seq.empty
+          tools:Seq[AiTool] = Seq.empty,
+          images:Seq[String] = Seq.empty
       ):Try[Ai] = {
-    askWithImages(question, model, system, timeout, retry, tools0, Seq.empty)
+    askWithImages(question, model, system, timeout, retry, tools, images)
   }
   
   def askWithImages(question:String,model:Option[String],system:Option[String],
@@ -273,20 +271,16 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
     val systemPrompt = system.orElse(aiUri.system).getOrElse("")
     val tools = aiUri.getTools() ++ tools0
 
-    val userContent = if(images0.nonEmpty) {
-      Right(Seq(
-        OpenAi_ContentItem("text", Some(question), None)
-      ) ++ images0.map(url => 
-        OpenAi_ContentItem("image_url", None, Some(OpenAi_ImageUrl(url)))
-      ))
-    } else {
-      Left(question)
-    }
+    val userContent = Seq(
+      OpenAi_ContentItem("text", Some(question), None)
+    ) ++ images0.map(url => 
+      OpenAi_ContentItem("image_url", None, Some(OpenAi_ImageUrl(url)))
+    )
     
     val body = OpenAi_CompletionReq(
       model = modelReq,
       messages = Seq(
-        OpenAi_Msg("system", Left(systemPrompt)),
+        OpenAi_Msg("system", Seq(OpenAi_ContentItem("text", Some(systemPrompt), None))),
         OpenAi_Msg("user", userContent)
       ),
       temperature = aiUri.temperature,
@@ -310,7 +304,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
           readTimeout = timeout.toInt,
           connectTimeout = timeout.toInt
         )      
-        log.debug(s"${body}: ${r}")
+        log.debug(s"res: ${body}: ${r}")
 
         val chatRes = r.text().parseJson.convertTo[OpenAi_ChatRes]
         val answer = getResponseAnswer(chatRes)
@@ -338,9 +332,9 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       p.role.trim match {
         case "system" if(systemPrompt.isDefined) => 
           // overwrite system prompt if needed
-          OpenAi_Msg("system", Left(systemPrompt.get))
+          OpenAi_Msg("system", Seq(OpenAi_ContentItem("text", Some(systemPrompt.get), None)))
         case _ => 
-          OpenAi_Msg(p.role, Left(p.content))
+          OpenAi_Msg(p.role, Seq(OpenAi_ContentItem("text", Some(p.content), None)))
       }
     })
     
@@ -355,10 +349,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
           
     log.debug(s"body=${body}")
 
-    val chatSize = messages.map(_.content match {
-      case Left(str) => str.size
-      case Right(items) => items.flatMap(_.text).map(_.size).sum
-    }).sum
+    val chatSize = messages.map(_.content.flatMap(_.text).map(_.size).sum).sum
     log.info(s"model=${modelReq},sys=[${systemPrompt.map(_.size).getOrElse(-1)}]/q=[${messages.size}] -> ${url}")
 
     Retry.withRetry(
@@ -379,10 +370,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
               
         Chat(
           messages = chat.messages ++ chatRes.choices.map(c => {
-            val content = c.message.content match {
-              case Left(str) => str
-              case Right(items) => items.flatMap(_.text).mkString("\n")
-            }
+            val content = c.message.content.flatMap(_.text).mkString("\n")
             ChatMessage(role = c.message.role, content = content)
           }),
           oid = chat.oid,

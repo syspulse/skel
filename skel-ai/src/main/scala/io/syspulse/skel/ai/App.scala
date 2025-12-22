@@ -39,6 +39,7 @@ case class Config(
 
   ai:String = "openai://",
   sys:String = "",
+  images:Seq[String] = Seq(),
 
   // feed:String = "stdin://",
   // output:String = "stdout://",  
@@ -76,6 +77,7 @@ object App extends skel.Server {
                 
         ArgString('a', "ai",s"AI provider (def: ${d.ai})"),
         ArgString('s', "sys",s"System prompt (can reference file://) (def=${d.sys})"),
+        ArgString('i', "images",s"Images (def=${d.images})"),
 
         ArgCmd("server","Server"),
         ArgCmd("store","Ask question from Store"),
@@ -101,6 +103,7 @@ object App extends skel.Server {
 
       ai = c.getString("ai").getOrElse(d.ai),
       sys = c.getSmartString("sys").getOrElse(d.sys),
+      images = c.getListStringDumb("images",d.images),
 
       // feed = c.getString("feed").getOrElse(d.feed),
       // output = c.getString("output").getOrElse(d.output),      
@@ -196,7 +199,7 @@ object App extends skel.Server {
         sys.exit(0)
       }
       if(!q.isEmpty) {
-        val p = provider.ask(q,aiUri.getModel(),system)
+        val p = provider.ask(q,aiUri.getModel(),system,images = config.images)
         log.info(s"${p.get}")
         val txt = p.get.answer.get
         Console.err.println(s"${Console.RED}${aiUri.getModel()}${Console.YELLOW}: ${txt}${Console.RESET}")

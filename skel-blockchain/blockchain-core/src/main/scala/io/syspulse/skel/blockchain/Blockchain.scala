@@ -40,6 +40,10 @@ object Blockchain {
   val TRON_MAINNET = Blockchain("tron",Some("728126428"),Some(18),Some("TRX"),Some("https://tronscan.org"))
 
   val ZETA_MAINNET = Blockchain("zeta",Some("7000"),Some(18),Some("ZETA"),Some("https://explorer.zetachain.com"))
+
+  // https://rpc.adifoundation.ai
+  // https://explorer-bls.adifoundation.ai
+  val ADI_MAINNET = Blockchain("adi",Some("36900"),Some(18),Some("ADI"),Some("https://explorer.adifoundation.ai"))
   
   // test networks
   val BSC_TESTNET = Blockchain("bsc_testnet",Some("97"),Some(18),Some("BNB"),Some("https://testnet.bscscan.com"))    
@@ -52,7 +56,11 @@ object Blockchain {
   
   val SOMNIA_TESTNET = Blockchain("somnia_testnet",Some("50312"),Some(18),Some("STT"),Some("https://shannon-explorer.somnia.network"))  
   val SOMNIA_MAINNET = Blockchain("somnia",Some("5031"),Some(18),Some("SOMI"),Some("https://explorer.somnia.network"))  
-
+  
+  // https://rpc.ab.testnet.adifoundation.ai/
+  // https://explorer.ab.testnet.adifoundation.ai/
+  val ADI_TESTNET = Blockchain("adi_testnet",Some("99999"),Some(18),Some("ADI"),Some("https://explorer.ab.testnet.adifoundation.ai/"))
+  
   // default EVM
   val EVM = Blockchain("evm",Some("0"),Some(18),Some("ETH"))
 

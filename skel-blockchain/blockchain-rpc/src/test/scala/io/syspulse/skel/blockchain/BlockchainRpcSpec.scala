@@ -91,5 +91,76 @@ class BlockchainRpcSpec extends AnyWordSpec with Matchers {
       bb.get(324L) should !==(None)
       bb.getByName("zksync") should !==(None)
     }
+
+    "ignore commented lines with #" in {
+      val bb = Blockchains("""
+      # This is a comment
+      eth=1=https://eth.drpc.org,
+      # Another comment
+      arb=42161=https://rpc.ankr.com/arbitrum,
+      """)
+      
+      bb.all().size should ===(4)
+      bb.get(1L) should !==(None)
+      bb.get(42161L) should !==(None)
+    }
+
+    "ignore commented lines with //" in {
+      val bb = Blockchains("""
+      // This is a comment
+      eth=1=https://eth.drpc.org,
+      // Another comment
+      arb=42161=https://rpc.ankr.com/arbitrum,
+      """)
+      
+      bb.all().size should ===(4)
+      bb.get(1L) should !==(None)
+      bb.get(42161L) should !==(None)
+    }
+
+    "ignore empty lines" in {
+      val bb = Blockchains("""
+      eth=1=https://eth.drpc.org,
+      
+      arb=42161=https://rpc.ankr.com/arbitrum,
+      
+      """)
+      
+      bb.all().size should ===(4)
+      bb.get(1L) should !==(None)
+      bb.get(42161L) should !==(None)
+    }
+
+    "handle mixed comments and empty lines" in {
+      val bb = Blockchains("""
+      # Mainnet RPCs
+      eth=1=https://eth.drpc.org,
+      
+      // Testnet RPCs
+      arb=42161=https://rpc.ankr.com/arbitrum,
+      
+      # Production RPC
+      base=8453=https://mainnet.base.org,
+      """)
+      
+      bb.all().size should ===(5)
+      bb.get(1L) should !==(None)
+      bb.get(42161L) should !==(None)
+      bb.get(8453L) should !==(None)
+      bb.getByName("eth") should !==(None)
+      bb.getByName("arb") should !==(None)
+      bb.getByName("base") should !==(None)
+    }
+
+    "ignore inline comments" in {
+      val bb = Blockchains("""
+      eth=1=https://eth.drpc.org, # Mainnet
+      arb=42161=https://rpc.ankr.com/arbitrum, // Arbitrum
+      """)
+      
+      bb.all().size should ===(4)
+      bb.get(1L) should !==(None)
+      bb.get(42161L) should !==(None)
+    }
   }    
 }

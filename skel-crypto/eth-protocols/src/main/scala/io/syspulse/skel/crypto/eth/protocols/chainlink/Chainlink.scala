@@ -285,7 +285,7 @@ class Chainlink(loaders:Seq[ChainlinkLoader],warnings:Boolean = false) {
     tokens
       .get(tokenAddr.toLowerCase.trim)
       .filter(c => c.chain == chain)
-      .filter(c => c.typ.exists(t => t == Chainlink.ORACLE_TYPE_ID ))
+      .filter(c => c.typ.exists(t => t == Chainlink.ORACLE_TYPE_ID || t == "oracle" ))
       .filter(c => quoteAsset.isEmpty || c.asset1 == quoteAsset)
   }
 

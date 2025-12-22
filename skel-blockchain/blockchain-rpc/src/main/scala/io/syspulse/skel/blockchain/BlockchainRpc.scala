@@ -27,21 +27,35 @@ class Blockchains(bb:Seq[String]) {
   )
 
   def ++(bb:Seq[String]):Blockchains = {
-    val newBlockchains = bb.flatMap(b =>{
-      b.replaceAll("\n","").split("=").toList match {
-        case name :: id :: rpc :: _ => 
-          val bid = id.trim
-          Some(( bid ->  BlockchainRpc(name.trim(),bid,rpc.trim()), bid -> Eth.web3(rpc.trim()) ))
-        case rpc :: id :: Nil => 
-          val bid = id.trim
-          Some(( bid ->  BlockchainRpc(bid.toString,bid,rpc.trim()), bid -> Eth.web3(rpc.trim()) ))
-        case rpc :: Nil => 
-          if(rpc.isBlank())
-            None
-          else
-            Some(( Blockchain.ETHEREUM.id.get ->  BlockchainRpc(Blockchain.ETHEREUM.name,Blockchain.ETHEREUM.id.get,rpc.trim()), Blockchain.ETHEREUM.id.get -> Eth.web3(rpc.trim()) ))
-        case _ => None
-      }
+    val newBlockchains = bb.flatMap(b => {
+      // Split by comma (primary delimiter), then by newline (convenience)
+      val entries = b.split(",").flatMap(_.split("\n")).map(_.trim).filter(_.nonEmpty)
+      
+      // Filter out comment lines (comments only at beginning of line)
+      val configLines = entries.filter(line => 
+        !line.startsWith("#") && !line.startsWith("//")
+      )
+      
+      // Process each entry
+      configLines.flatMap(line => {
+        if(line.isEmpty) None
+        else {
+          line.split("=").toList match {
+            case name :: id :: rpc :: _ => 
+              val bid = id.trim
+              Some(( bid ->  BlockchainRpc(name.trim(),bid,rpc.trim()), bid -> Eth.web3(rpc.trim()) ))
+            case rpc :: id :: Nil => 
+              val bid = id.trim
+              Some(( bid ->  BlockchainRpc(bid.toString,bid,rpc.trim()), bid -> Eth.web3(rpc.trim()) ))
+            case rpc :: Nil => 
+              if(rpc.isBlank())
+                None
+              else
+                Some(( Blockchain.ETHEREUM.id.get ->  BlockchainRpc(Blockchain.ETHEREUM.name,Blockchain.ETHEREUM.id.get,rpc.trim()), Blockchain.ETHEREUM.id.get -> Eth.web3(rpc.trim()) ))
+            case _ => None
+          }
+        }
+      })
     })
     blockchains = blockchains ++ newBlockchains.map(_._1).toMap
     rpc = rpc ++ newBlockchains.map(_._2).toMap
