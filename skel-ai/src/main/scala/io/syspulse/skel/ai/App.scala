@@ -199,7 +199,7 @@ object App extends skel.Server {
         sys.exit(0)
       }
       if(!q.isEmpty) {
-        val p = provider.ask(q,aiUri.getModel(),system,images = config.images)
+        val p = provider.ask(q,aiUri.getModel(),system,images = config.images,outputType = aiUri.output)
         log.info(s"${p.get}")
         val txt = p.get.answer.get
         Console.err.println(s"${Console.RED}${aiUri.getModel()}${Console.YELLOW}: ${txt}${Console.RESET}")
@@ -253,7 +253,7 @@ object App extends skel.Server {
 
       if(!q.isEmpty) {
         
-        val r = provider.chat(p.+(q), aiUri.getModel(),system,images = config.images) 
+        val r = provider.chat(p.+(q), aiUri.getModel(),system,images = config.images,outputType = aiUri.output) 
         
         r match {
           case Success(p1) => 
@@ -309,7 +309,7 @@ object App extends skel.Server {
         sys.exit(0)
       }
       if(!q.isEmpty) {
-        val a1 = provider.prompt(a.copy(question = q),system,images = config.images)
+        val a1 = provider.prompt(a.copy(question = q),system,images = config.images,outputType = aiUri.output)
         log.info(s"${a1.get}")
         val txt = a1.get.answer.getOrElse("")
         Console.err.println(s"${Console.GREEN}${a1.get.model}${Console.YELLOW}: ${txt}${Console.RESET}")
@@ -385,7 +385,8 @@ object App extends skel.Server {
             }
           },
           system,
-          images = config.images
+          images = config.images,
+          outputType = aiUri.output
         )
 
         log.info(s"${a1.get}")

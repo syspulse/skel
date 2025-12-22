@@ -31,6 +31,7 @@ trait AiURI {
   // ext is plugin extension in model name (e.g. "gpt-4o:web")
   // it is needed since API respnse may remove it from model name
   def ext:Option[String] = getModel().flatMap(_.split(":").drop(1).headOption)
+  def output:Option[String] = getOptions().get("output")
 
   def DEFAULT_MODEL:String
   protected def getPrefix():String
