@@ -36,4 +36,20 @@ object Retry {
     }
     retryWithBackoff(retry)
   }
+
+  def withRetryFuture[T](operation: => Future[T], desc: String)(retry: Int = 3, baseWait: Long = 3000)(implicit log: Logger, ec: ExecutionContext): Future[T] = {
+    def retryWithBackoff(remaining: Int): Future[T] = {
+      operation.recoverWith {
+        case e: Exception if remaining > 1 =>
+          val waitTime = baseWait * math.pow(2, retry - remaining).toLong
+          log.warn(s"Request failed: ${desc}: ${remaining}: ${e.getMessage}: retrying in ${waitTime}ms")
+          Thread.sleep(waitTime)
+          retryWithBackoff(remaining - 1)
+        case e: Exception =>
+          log.error(s"Request failed after ${retry} retries: ${desc}: ${e.getMessage}", e)
+          Future.failed(e)
+      }
+    }
+    retryWithBackoff(retry)
+  }
 }

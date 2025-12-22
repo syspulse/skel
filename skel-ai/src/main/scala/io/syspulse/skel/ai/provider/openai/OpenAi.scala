@@ -13,6 +13,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 
 import akka.stream.scaladsl.Source
+import akka.stream.SystemMaterializer
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.sse.ServerSentEvent
 import akka.http.scaladsl.model.{HttpRequest,HttpResponse,HttpEntity,ContentTypes}
@@ -301,6 +302,32 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
   import OpenAi_Json._
 
   val aiUri:AiURI = uri
+  
+  // Lazy ActorSystem - created once and reused
+  private lazy val httpSystem = ActorSystem("OpenAiHttp")
+  private implicit lazy val httpEc = httpSystem.dispatcher
+  private implicit lazy val httpMat = SystemMaterializer(httpSystem).materializer
+  
+  // Helper method for HTTP requests using Akka HTTP
+  private def httpRequest(url: String, body: String, headers: Seq[(String, String)], timeout: Long): Future[HttpResponse] = {
+    // Filter out Content-Type as it's set via HttpEntity
+    val filteredHeaders = headers.filterNot { case (k, _) => k.equalsIgnoreCase("Content-Type") }
+    val httpRequest = HttpRequest(
+      method = HttpMethods.POST,
+      uri = url,
+      entity = HttpEntity(ContentTypes.`application/json`, body),
+      headers = filteredHeaders.map { case (k, v) => RawHeader(k, v) }
+    )
+    Http()(httpSystem).singleRequest(httpRequest)
+  }
+  
+  // Helper to read response body as string
+  private def readResponseBody(response: HttpResponse): Future[String] = {
+    import akka.stream.scaladsl.Sink
+    response.entity.dataBytes
+      .runWith(Sink.fold(ByteString.empty)(_ ++ _))
+      .map(_.utf8String)
+  }
 
   def getUri():AiURI = aiUri
   override def getTimeout():Long = aiUri.timeout
@@ -361,19 +388,29 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
     
     Retry.withRetry(
       {
-        val r = requests.post(
-          url = url,
-          headers = Seq(
-            "Content-Type" -> "application/json", 
-            "Authorization" -> s"Bearer ${aiUri.apiKey}"
-          ),
-          data = body,
-          readTimeout = timeout.toInt,
-          connectTimeout = timeout.toInt
-        )      
-        log.debug(s"res: ${body}: ${r}")
+        val response = Await.result(
+          httpRequest(
+            url = url,
+            body = body,
+              headers = Seq(
+                "Authorization" -> s"Bearer ${aiUri.apiKey}"
+              ),
+            timeout = timeout
+          ).flatMap { resp =>
+            if (resp.status == StatusCodes.OK) {
+              readResponseBody(resp)
+            } else {
+              readResponseBody(resp).flatMap { errorBody =>
+                Future.failed(new Exception(s"HTTP ${resp.status}: ${errorBody}"))
+              }
+            }
+          },
+          Duration(timeout, TimeUnit.MILLISECONDS)
+        )
+        
+        log.debug(s"res: ${body}: ${response}")
 
-        val chatRes = r.text().parseJson.convertTo[OpenAi_ChatRes]
+        val chatRes = response.parseJson.convertTo[OpenAi_ChatRes]
         val answer = getResponseAnswer(chatRes)
               
         Ai(
@@ -433,19 +470,28 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
 
     Retry.withRetry(
       {
-        val r = requests.post(
-          url = url,
-          headers = Seq(
-            "Content-Type" -> "application/json", 
-            "Authorization" -> s"Bearer ${aiUri.apiKey}"
-          ),
-          data = body,
-          readTimeout = timeout.toInt,
-          connectTimeout = timeout.toInt
+        val response = Await.result(
+          httpRequest(
+            url = url,
+            body = body,
+              headers = Seq(
+                "Authorization" -> s"Bearer ${aiUri.apiKey}"
+              ),
+            timeout = timeout
+          ).flatMap { resp =>
+            if (resp.status == StatusCodes.OK) {
+              readResponseBody(resp)
+            } else {
+              readResponseBody(resp).flatMap { errorBody =>
+                Future.failed(new Exception(s"HTTP ${resp.status}: ${errorBody}"))
+              }
+            }
+          },
+          Duration(timeout, TimeUnit.MILLISECONDS)
         )
-        log.debug(s"${body}: ${r}")
+        log.debug(s"${body}: ${response}")
 
-        val chatRes = r.text().parseJson.convertTo[OpenAi_ChatRes]        
+        val chatRes = response.parseJson.convertTo[OpenAi_ChatRes]        
               
         Chat(
           messages = chat.messages ++ chatRes.choices.map(c => {
@@ -517,33 +563,36 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
     log.debug(s"body=${body}")         
     log.info(s"model=${modelReq},sys=[${systemPrompt.map(_.size).getOrElse(-1)}]/q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
 
-    Future{ 
-      Retry.withRetrying(
-        {
-          val r = requests.post(
-            url = url,
-            headers = Seq(
-              "Content-Type" -> "application/json", 
-              "Authorization" -> s"Bearer ${aiUri.apiKey}"
-            ),
-            data = body,
-            readTimeout = timeout.toInt,
-            connectTimeout = timeout.toInt
-          )      
-          log.debug(s"${body}: ${r}")
-
-          val res = r.text().parseJson.convertTo[OpenAi_ResponsesRes]
-
-          val answer = getResponseAnswer(res)
-          ai.copy(
-            answer = answer,
-            model = Some(aiUri.getModel(res.model)),
-            xid = Some(res.id)
-          )
-        }, 
-        s"responses: '${ai.question.take(32)}...'"
-      )(timeout, retry)(log)
+    def attemptRequest(): Future[Ai] = {
+      httpRequest(
+        url = url,
+        body = body,
+        headers = Seq(
+          "Authorization" -> s"Bearer ${aiUri.apiKey}"
+        ),
+        timeout = timeout
+      ).flatMap { resp =>
+        if (resp.status == StatusCodes.OK) {
+          readResponseBody(resp).map { responseBody =>
+            log.debug(s"${body}: ${responseBody}")
+            val res = responseBody.parseJson.convertTo[OpenAi_ResponsesRes]
+            val answer = getResponseAnswer(res)
+            ai.copy(
+              answer = answer,
+              model = Some(aiUri.getModel(res.model)),
+              xid = Some(res.id)
+            )
+          }
+        } else {
+          readResponseBody(resp).flatMap { errorBody =>
+            Future.failed(new Exception(s"HTTP ${resp.status}: ${errorBody}"))
+          }
+        }
+      }
     }
+    
+    import io.syspulse.skel.util.Retry
+    Retry.withRetryFuture(attemptRequest(), s"responses: '${ai.question.take(32)}...'")(retry, 3000)(log, ec)
   }
   
 
@@ -609,67 +658,68 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
     log.debug(s"body=${body} -> ${url}")
     log.info(s"model=${modelReq},sys=${systemPrompt.map(_.size).getOrElse(-1)},tools=${tools}],q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
     
-    Future {
-      var a:Option[Ai] = None
-
-      Retry.withRetrying({
-        val r = requests.post.stream(
-          url = url,
-          headers = Seq(
-            "Content-Type" -> "application/json", 
-            "Authorization" -> s"Bearer ${aiUri.apiKey}",
-            "Accept" -> "text/event-stream"
-          ),
-          data = body,
-          readTimeout = timeout.toInt,
-          connectTimeout = timeout.toInt
-        )
-        
-        r.readBytesThrough(is => {
-          val reader = new BufferedReader(new InputStreamReader(is))
-          Iterator.continually(reader.readLine())
-            .takeWhile(_ != null)
-            .foreach { line =>
-              if(line.nonEmpty) {
-
-                log.trace(s"<- ${line}")
-
-                line match {                
-                  case s"data: ${data}" =>
-                    log.debug(s"data: ${data}")
-
-                    if(data.startsWith("""{"type":"response.completed"""")) {
-                      val res = data.parseJson.convertTo[OpenAi_EventResponseCompleted]
-                      
-                      val answer = getResponseAnswer(res.response)
-
-                      a = Some(ai.copy(
-                        answer = answer,
-                        model = Some(aiUri.getModel(res.response.model)),
-                        xid = Some(res.response.id)
-                      ))
-                    } else {
-                      onEvent(line)
-                    }
-
-                  case s"event: ${event}" => 
-                    log.debug(s"event: ${event}")
-                  case _ => 
-                    log.warn(s"unknown rsp: '${line}'")
-
-                }
+    val httpReq = HttpRequest(
+      method = HttpMethods.POST,
+      uri = url,
+      entity = HttpEntity(ContentTypes.`application/json`, body),
+      headers = Seq(
+        RawHeader("Authorization", s"Bearer ${aiUri.apiKey}"),
+        RawHeader("Accept", "text/event-stream")
+      )
+    )
+    
+    def attemptStream(): Future[Ai] = {
+      Http()(httpSystem).singleRequest(httpReq).flatMap { response =>
+        if (response.status == StatusCodes.OK) {
+          import akka.stream.scaladsl.Sink
+          import java.util.concurrent.LinkedBlockingQueue
+          val resultQueue = new LinkedBlockingQueue[Option[Ai]](1)
+          
+          response.entity.dataBytes
+            .via(akka.stream.scaladsl.Framing.delimiter(ByteString("\n"), maximumFrameLength = 8192))
+            .map(_.utf8String.trim)
+            .filter(_.nonEmpty)
+            .runWith(Sink.foreach { line =>
+              log.trace(s"<- ${line}")
+              
+              line match {
+                case s"data: ${data}" =>
+                  log.debug(s"data: ${data}")
+                  
+                  if (data.startsWith("""{"type":"response.completed"""")) {
+                    val res = data.parseJson.convertTo[OpenAi_EventResponseCompleted]
+                    val answer = getResponseAnswer(res.response)
+                    resultQueue.put(Some(ai.copy(
+                      answer = answer,
+                      model = Some(aiUri.getModel(res.response.model)),
+                      xid = Some(res.response.id)
+                    )))
+                  } else {
+                    onEvent(line)
+                  }
+                  
+                case s"event: ${event}" =>
+                  log.debug(s"event: ${event}")
+                case _ =>
+                  log.warn(s"unknown rsp: '${line}'")
+              }
+            })
+            .map { _ =>
+              Option(resultQueue.poll(timeout, TimeUnit.MILLISECONDS)) match {
+                case Some(Some(a)) => a
+                case _ => throw new Exception(s"response.completed not received: ${ai.xid}")
               }
             }
-            
-        })
-
-      }, s"responses stream: '${ai.question.take(32)}...'")(timeout, retry)(log)      
-
-      a match {
-        case Some(a) => a
-        case None => throw new Exception(s"response.completed not received: ${ai.xid}")
+        } else {
+          readResponseBody(response).flatMap { errorBody =>
+            Future.failed(new Exception(s"HTTP ${response.status}: ${errorBody}"))
+          }
+        }
       }
     }
+    
+    import io.syspulse.skel.util.Retry
+    Retry.withRetryFuture(attemptStream(), s"responses stream: '${ai.question.take(32)}...'")(retry, 3000)(log, ec)
   }
 
   override def askStream(ai:Ai,
