@@ -253,7 +253,7 @@ object App extends skel.Server {
 
       if(!q.isEmpty) {
         
-        val r = provider.chat(p.+(q), aiUri.getModel(),system) 
+        val r = provider.chat(p.+(q), aiUri.getModel(),system,images = config.images) 
         
         r match {
           case Success(p1) => 
@@ -384,7 +384,8 @@ object App extends skel.Server {
                 //Console.err.println(s"${s}")
             }
           },
-          system
+          system,
+          images = config.images
         )
 
         log.info(s"${a1.get}")
