@@ -1,4 +1,4 @@
-javaOptions ++= Seq("-J-Xms4g -J-Xmx4g")
+javaOptions ++= Seq("-J-Xms2g -J-Xmx2g -J-XX:+UseG1GC")
 
 import scala.sys.process.Process
 import Dependencies._
@@ -497,41 +497,44 @@ lazy val skel_serde = (project in file("skel-serde"))
           libHadoop,          
         ),
     )
-    
-lazy val skel_protobuf = (project in file("skel-protobuf"))
-  .dependsOn(skel_core)
-  .enablePlugins(JavaAppPackaging)
-  .settings (
-      sharedConfig,
-      sharedConfigAssembly,
-      
-      appAssemblyConfig("skel-protobuf","io.syspulse.skel.protobuf.App"),
-      // name := "skel-serde",
 
-      Compile / PB.protoSources := Seq(sourceDirectory.value / "main" / "proto"),
-      Compile / PB.targets := Seq(
-        scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"
-      ),
-      Compile / PB.protocOptions += "-I/usr/include",
-      Compile / unmanagedSourceDirectories += baseDirectory.value / "target" / "scala-2.13" / "src_managed",
+// =============================================================================
+// Disabled because of Bloop errors
+// =============================================================================    
+// lazy val skel_protobuf = (project in file("skel-protobuf"))
+//   .dependsOn(skel_core)
+//   .enablePlugins(JavaAppPackaging)
+//   .settings (
+//       sharedConfig,
+//       sharedConfigAssembly,
+      
+//       appAssemblyConfig("skel-protobuf","io.syspulse.skel.protobuf.App"),
+//       // name := "skel-serde",
+
+//       Compile / PB.protoSources := Seq(sourceDirectory.value / "main" / "proto"),
+//       Compile / PB.targets := Seq(
+//         scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"
+//       ),
+//       Compile / PB.protocOptions += "-I/usr/include",
+//       Compile / unmanagedSourceDirectories += baseDirectory.value / "target" / "scala-2.13" / "src_managed",
       
 
-      libraryDependencies ++= libCommon ++
-        libTest ++ 
-        Seq(
-          libUUID, 
+//       libraryDependencies ++= libCommon ++
+//         libTest ++ 
+//         Seq(
+//           libUUID, 
           
-          // libProtobufProtoc,
-          // libProtobufJava,          
-          "com.google.api.grpc" % "proto-google-common-protos" % "2.43.0",
+//           // libProtobufProtoc,
+//           // libProtobufJava,          
+//           "com.google.api.grpc" % "proto-google-common-protos" % "2.43.0",
 
-          "io.grpc" % "grpc-protobuf" % scalapb.compiler.Version.grpcJavaVersion,//"1.66.0",
-          "io.grpc" % "grpc-netty" % scalapb.compiler.Version.grpcJavaVersion,
-          "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
+//           "io.grpc" % "grpc-protobuf" % scalapb.compiler.Version.grpcJavaVersion,//"1.66.0",
+//           "io.grpc" % "grpc-netty" % scalapb.compiler.Version.grpcJavaVersion,
+//           "com.thesamet.scalapb" %% "scalapb-runtime-grpc" % scalapb.compiler.Version.scalapbVersion,
 
-          libScalapbRuntime 
-        ),
-    )
+//           libScalapbRuntime 
+//         ),
+//     )
 
 lazy val skel_test = (project in file("skel-test"))
   .disablePlugins(sbtassembly.AssemblyPlugin)

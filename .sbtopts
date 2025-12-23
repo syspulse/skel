@@ -1,0 +1,7 @@
+-J-Xmx2g
+-J-Xms2g
+-J-XX:+UseG1GC
+-J-XX:MaxGCPauseMillis=200
+-J-XX:ParallelGCThreads=4
+-J-XX:ConcGCThreads=2
+-J-XX:InitiatingHeapOccupancyPercent=45
