@@ -263,7 +263,7 @@ trait TwitterClient {
             log.debug(s"${t}")
             t
           })
-          .groupBy(_.author_id)
+          .groupBy(_.author_id)           
           .values
           .map{ (tt: Seq[Twit]) => {
             log.info(s"author=${tt.head.author_id} (${tt.head.author_name}): tweets=(${latest}/${tt.size})")
@@ -302,7 +302,7 @@ trait TwitterClient {
           log.debug(s"Uniq: ${uniq}")
           uniq
         }
-      }
+      }     
       .mapMaterializedValue(_ => NotUsed)
       
     s1

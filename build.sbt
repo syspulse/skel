@@ -1,4 +1,4 @@
-javaOptions ++= Seq("-J-Xms2g -J-Xmx3g")
+javaOptions ++= Seq("-J-Xms4g -J-Xmx4g")
 
 import scala.sys.process.Process
 import Dependencies._
@@ -24,17 +24,20 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 //   scalapb.gen(grpc=false) -> (Compile / sourceManaged).value
 // )
 
-
 licenses := Seq(("ASF2", url("https://www.apache.org/licenses/LICENSE-2.0")))
 
 initialize ~= { _ =>
   System.setProperty("config.file", "conf/application.conf")
+  // println(s"envVars >>>>>: ${sys.env.toMap}")
 }
 
 //fork := true
 test / fork := true
 run / fork := true
 run / connectInput := true
+
+// inject envs into tests
+Test / envVars := sys.env.toMap
 
 enablePlugins(JavaAppPackaging)
 enablePlugins(DockerPlugin)
@@ -335,70 +338,106 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
 
 // ======================================================================================================================
 lazy val root = (project in file("."))
-  .aggregate(core, skel_serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, skel_kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
-             skel_plugin,
-             ingest_core, 
-             ingest_flow,
-             ingest_elastic,
-             ingest_dynamo,
-             ingest_twitter,
-             ingest_coingecko,
-             ingest,
-             skel_enroll,
-             skel_syslog,
-             syslog_core,
-             skel_notify,
-             notify_core,
-             skel_tag, 
-             skel_telemetry,
-             skel_job,
-             job_core,
-             crypto_kms,
-             blockchain_core,
-             blockchain_rpc,
-             blockchain_evm,
-             blockchain_tron,
-             blockchain_label,
-             eth_protocols,
-             skel_dns,
-             ai_core,
-             ai_agent,
-             skel_ai,
-             skel_tls,
-             tools,
-             skel_test
-             )
-  .dependsOn(core, skel_serde, skel_cron, skel_video, skel_test, http, auth_core, skel_auth, skel_user, skel_kafka, skel_otp, skel_crypto, skel_dsl, scrap, cli, db_cli,
-             skel_plugin,
-             ingest_core,
-             ingest_flow,
-             ingest_elastic,
-             ingest_dynamo,
-             ingest_twitter,
-             ingest_coingecko,
-             ingest,
-             skel_enroll,
-             skel_syslog,
-             syslog_core,
-             skel_notify,
-             notify_core,
-             skel_tag, 
-             skel_telemetry,
-             skel_job,
-             job_core,
-             blockchain_core,
-             blockchain_rpc,
-             blockchain_evm,
-             blockchain_tron,
-             blockchain_label,
-             eth_protocols,
-             skel_dns,
-             skel_ai,
-             ai_core,
-             ai_agent,
-             skel_tls,
-             skel_test
-             )  
+  .aggregate(skel_core, 
+            skel_serde, 
+            skel_cron, 
+            skel_video, 
+            skel_test, 
+            skel_http, 
+            auth_core, 
+            skel_auth, 
+            skel_user, 
+            skel_kafka, 
+            skel_otp, 
+            skel_crypto, 
+            skel_dsl, 
+            skel_scrap, 
+            skel_cli, 
+            db_cli,
+            skel_plugin,
+            ingest_core, 
+            ingest_flow,
+            ingest_elastic,
+            ingest_dynamo,
+            ingest_twitter,
+            ingest_coingecko,
+            skel_ingest,
+            skel_enroll,
+            skel_syslog,
+            syslog_core,
+            skel_notify,
+            notify_core,
+            skel_tag, 
+            skel_telemetry,
+            skel_job,
+            job_core,            
+            crypto_kms,
+            blockchain_core,
+            blockchain_rpc,
+            blockchain_evm,
+            blockchain_tron,
+            blockchain_label,
+            eth_core,
+            eth_protocols,
+            skel_dns,
+            ai_core,
+            ai_agent,
+            skel_ai,
+            skel_tls,
+            skel_tools,
+            skel_test,
+            skel_script
+  )
+  .dependsOn(
+            skel_core, 
+            skel_serde, 
+            skel_cron, 
+            skel_video, 
+            skel_test, 
+            skel_http, 
+            auth_core, 
+            skel_auth, 
+            skel_user, 
+            skel_kafka, 
+            skel_otp, 
+            skel_crypto, 
+            skel_dsl, 
+            skel_scrap, 
+            skel_cli, 
+            db_cli,
+
+            skel_plugin,
+            ingest_core,
+            ingest_flow,
+            ingest_elastic,
+            ingest_dynamo,
+            ingest_twitter,
+            ingest_coingecko,
+            skel_ingest,
+            skel_enroll,
+            skel_syslog,
+            syslog_core,
+            skel_notify,
+            notify_core,
+            skel_tag, 
+            skel_telemetry,
+            skel_job,
+            job_core,
+            blockchain_core,
+            blockchain_rpc,
+            blockchain_evm,
+            blockchain_tron,
+            blockchain_label,
+            eth_protocols,
+            eth_core,
+            skel_dns,
+            skel_ai,
+            ai_core,
+            ai_agent,
+            skel_tls,
+            skel_test,
+            skel_script
+  )  
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -407,7 +446,7 @@ lazy val root = (project in file("."))
     dockerBuildxSettings
   )
 
-lazy val core = (project in file("skel-core"))
+lazy val skel_core = (project in file("skel-core"))
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -436,7 +475,7 @@ lazy val core = (project in file("skel-core"))
 // it breaks logging with log4j2 !
 // FIXME !
 lazy val skel_serde = (project in file("skel-serde"))
-  .dependsOn(core) // needed only for App application
+  .dependsOn(skel_core) // needed only for App application
   // .disablePlugins(sbtassembly.AssemblyPlugin)
   .enablePlugins(JavaAppPackaging)
   .settings (
@@ -460,7 +499,7 @@ lazy val skel_serde = (project in file("skel-serde"))
     )
     
 lazy val skel_protobuf = (project in file("skel-protobuf"))
-  .dependsOn(core)
+  .dependsOn(skel_core)
   .enablePlugins(JavaAppPackaging)
   .settings (
       sharedConfig,
@@ -510,7 +549,7 @@ lazy val skel_test = (project in file("skel-test"))
     )
 
 lazy val skel_cron = (project in file("skel-cron"))
-  .dependsOn(core)
+  .dependsOn(skel_core)
   .enablePlugins(JavaAppPackaging)
   // .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
@@ -526,8 +565,8 @@ lazy val skel_cron = (project in file("skel-cron"))
     )
 
 
-lazy val http = (project in file("skel-http"))
-  .dependsOn(core)
+lazy val skel_http = (project in file("skel-http"))
+  .dependsOn(skel_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -544,7 +583,7 @@ lazy val http = (project in file("skel-http"))
   )
 
 lazy val auth_core = (project in file("skel-auth/auth-core"))
-  .dependsOn(core, skel_test % Test)
+  .dependsOn(skel_core, skel_test % Test)
   .settings (
     sharedConfig,
     name := "skel-auth-core",
@@ -557,7 +596,7 @@ lazy val auth_core = (project in file("skel-auth/auth-core"))
   )
 
 lazy val skel_auth = (project in file("skel-auth"))
-  .dependsOn(core,skel_crypto,auth_core,skel_user)
+  .dependsOn(skel_core,skel_crypto,auth_core,skel_user)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -583,7 +622,7 @@ lazy val skel_auth = (project in file("skel-auth"))
   )
 
 lazy val skel_otp = (project in file("skel-otp"))
-  .dependsOn(core, auth_core, skel_test % Test)
+  .dependsOn(skel_core, auth_core, skel_test % Test)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -604,7 +643,7 @@ lazy val skel_otp = (project in file("skel-otp"))
 
 
 lazy val skel_user = (project in file("skel-user"))
-  .dependsOn(core,auth_core)
+  .dependsOn(skel_core,auth_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -622,7 +661,7 @@ lazy val skel_user = (project in file("skel-user"))
   )
 
 lazy val skel_kafka= (project in file("skel-kafka"))
-  .dependsOn(core)
+  .dependsOn(skel_core)
   .settings (
     sharedConfig,
     sharedConfigAssembly,
@@ -634,9 +673,39 @@ lazy val skel_kafka= (project in file("skel-kafka"))
       libKafkaAvroSer
     ),
   )  
+lazy val crypto_core = (project in file("skel-crypto/crypto-core"))
+  .dependsOn(skel_core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,      
+      name := "crypto-core",
+      
+      libraryDependencies ++= libTest ++ Seq(        
+        libBouncyCastle,
+      )
+    )
+
+lazy val eth_core = (project in file("skel-crypto/eth-core"))
+  .dependsOn(skel_core,blockchain_core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (
+      sharedConfig,
+      sharedConfigAssembly,      
+      name := "eth-core",
+      
+      libraryDependencies ++= libTest ++ libWeb3j ++ Seq(
+        libBLS,
+        libBLSKeystore,
+        libHKDF,
+
+        libEthAbi,
+        libOssLabzEvmAbi,
+      )
+    )
 
 lazy val skel_crypto = (project in file("skel-crypto"))
-  .dependsOn(core,blockchain_core)
+  .dependsOn(skel_core,eth_core,blockchain_core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
     sharedConfig,
@@ -649,13 +718,13 @@ lazy val skel_crypto = (project in file("skel-crypto"))
           libOsLib,
           libUpickleLib,
           libScodecBits,
-          libHKDF,
-          libBLS,
-          libBLSKeystore,
+          // libHKDF,
+          // libBLS,
+          // libBLSKeystore,
           libSSSS,
 
-          libEthAbi,
-          libOssLabzEvmAbi,
+          // libEthAbi,
+          // libOssLabzEvmAbi,
 
           libDirWatcher,
           libDirWatcherScala,
@@ -665,7 +734,7 @@ lazy val skel_crypto = (project in file("skel-crypto"))
     )
 
 lazy val crypto_kms = (project in file("skel-crypto/crypto-kms"))
-  .dependsOn(core,skel_crypto)
+  .dependsOn(skel_core,skel_crypto)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -684,7 +753,7 @@ lazy val crypto_kms = (project in file("skel-crypto/crypto-kms"))
     )
 
 lazy val eth_protocols = (project in file("skel-crypto/eth-protocols"))
-  .dependsOn(core,skel_crypto,blockchain_core,blockchain_rpc)
+  .dependsOn(skel_core,skel_crypto,blockchain_core,blockchain_rpc)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -698,8 +767,8 @@ lazy val eth_protocols = (project in file("skel-crypto/eth-protocols"))
         ),      
     )
 
-lazy val flow = (project in file("skel-flow"))
-  .dependsOn(core)
+lazy val skel_flow = (project in file("skel-flow"))
+  .dependsOn(skel_core)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -710,8 +779,8 @@ lazy val flow = (project in file("skel-flow"))
       )
     )
 
-lazy val scrap = (project in file("skel-scrap"))
-  .dependsOn(core,skel_cron,flow)
+lazy val skel_scrap = (project in file("skel-scrap"))
+  .dependsOn(skel_core,skel_cron,skel_flow)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -735,7 +804,7 @@ lazy val scrap = (project in file("skel-scrap"))
   )
 
 lazy val ingest_core = (project in file("skel-ingest/ingest-core"))
-  .dependsOn(core, skel_serde)
+  .dependsOn(skel_core, skel_serde)
   //.enablePlugins(JavaAppPackaging)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
@@ -752,7 +821,7 @@ lazy val ingest_core = (project in file("skel-ingest/ingest-core"))
   )
 
 lazy val ingest_dynamo = (project in file("skel-ingest/ingest-dynamo"))
-  .dependsOn(core,skel_video,ingest_core)
+  .dependsOn(skel_core,skel_video,ingest_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -771,7 +840,7 @@ lazy val ingest_dynamo = (project in file("skel-ingest/ingest-dynamo"))
   )
  
 lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
-  .dependsOn(core, ingest_core)
+  .dependsOn(skel_core, ingest_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -788,7 +857,7 @@ lazy val ingest_elastic = (project in file("skel-ingest/ingest-elastic"))
   )
 
 lazy val ingest_twitter = (project in file("skel-ingest/ingest-twitter"))
-  .dependsOn(core, ingest_core)
+  .dependsOn(skel_core, ingest_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -806,8 +875,8 @@ lazy val ingest_twitter = (project in file("skel-ingest/ingest-twitter"))
     ),  
   )
 
-lazy val ingest = (project in file("skel-ingest"))
-  .dependsOn(core, skel_serde, ingest_core, ingest_elastic, skel_kafka, ingest_twitter)
+lazy val skel_ingest = (project in file("skel-ingest"))
+  .dependsOn(skel_core, skel_serde, ingest_core, ingest_elastic, skel_kafka, ingest_twitter)
   //.enablePlugins(JavaAppPackaging)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
@@ -838,7 +907,7 @@ lazy val ingest = (project in file("skel-ingest"))
   )
 
 lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
-  .dependsOn(core, ingest, ingest_twitter, ingest_coingecko)
+  .dependsOn(skel_core, skel_ingest, ingest_twitter, ingest_coingecko)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (
@@ -856,7 +925,7 @@ lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
   )
 
 lazy val ingest_proxy = (project in file("skel-ingest/ingest-proxy"))
-  .dependsOn(core, ingest)
+  .dependsOn(skel_core, skel_ingest)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (
@@ -875,7 +944,7 @@ lazy val ingest_proxy = (project in file("skel-ingest/ingest-proxy"))
 
 
 lazy val stream_std = (project in file("skel-stream/stream-std"))
-  .dependsOn(core,skel_dsl)
+  .dependsOn(skel_core,skel_dsl)
   .enablePlugins(JavaAppPackaging)
   //.enablePlugins(DockerPlugin)
   //.enablePlugins(AshScriptPlugin)
@@ -894,8 +963,8 @@ lazy val stream_std = (project in file("skel-stream/stream-std"))
 
   )
 
-lazy val cli = (project in file("skel-cli"))
-  .dependsOn(core,skel_crypto)
+lazy val skel_cli = (project in file("skel-cli"))
+  .dependsOn(skel_core,skel_crypto)
   .settings (
     sharedConfig,
     sharedConfigAssembly,
@@ -934,7 +1003,7 @@ lazy val db_guard = (project in file("skel-db/db-guard"))
 
   
 lazy val db_cli = (project in file("skel-db/db-cli"))
-  .dependsOn(core,cli)
+  .dependsOn(skel_core,skel_cli)
   .settings (
       sharedConfig,
       sharedConfigAssembly,      
@@ -947,7 +1016,7 @@ lazy val db_cli = (project in file("skel-db/db-cli"))
     )
 
 lazy val skel_dsl = (project in file("skel-dsl"))
-  .dependsOn(core)
+  .dependsOn(skel_core)
   .enablePlugins(JavaAppPackaging) // for experiments
   .settings (
       sharedConfig,
@@ -972,7 +1041,7 @@ lazy val skel_dsl = (project in file("skel-dsl"))
 
 
 lazy val spark_convert = (project in file("skel-spark/spark-convert"))
-  .dependsOn(core)
+  .dependsOn(skel_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -993,7 +1062,7 @@ lazy val spark_convert = (project in file("skel-spark/spark-convert"))
   )
 
 lazy val spark_read = (project in file("skel-spark/spark-read"))
-  .dependsOn(core)
+  .dependsOn(skel_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -1012,7 +1081,7 @@ lazy val spark_read = (project in file("skel-spark/spark-read"))
   )
 
 lazy val skel_enroll = (project in file("skel-enroll"))
-  .dependsOn(core,auth_core,skel_crypto,skel_user,skel_notify,skel_test % Test)
+  .dependsOn(skel_core,auth_core,skel_crypto,skel_user,skel_notify,skel_test % Test)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -1040,7 +1109,7 @@ lazy val skel_enroll = (project in file("skel-enroll"))
   )
 
 lazy val pdf = (project in file("skel-pdf"))
-  .dependsOn(core)
+  .dependsOn(skel_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -1065,7 +1134,7 @@ lazy val pdf = (project in file("skel-pdf"))
   )
 
 lazy val syslog_core = (project in file("skel-syslog/syslog-core"))
-  .dependsOn(core,auth_core,skel_kafka)
+  .dependsOn(skel_core,auth_core,skel_kafka)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
     sharedConfig,
@@ -1079,7 +1148,7 @@ lazy val syslog_core = (project in file("skel-syslog/syslog-core"))
 
 
 lazy val skel_syslog = (project in file("skel-syslog"))
-  .dependsOn(core,syslog_core,auth_core,ingest)
+  .dependsOn(skel_core,syslog_core,auth_core,skel_ingest)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -1099,7 +1168,7 @@ lazy val skel_syslog = (project in file("skel-syslog"))
   )
 
 lazy val skel_video = (project in file("skel-video"))
-  .dependsOn(core,auth_core,ingest,ingest_elastic)
+  .dependsOn(skel_core,auth_core,skel_ingest,ingest_elastic)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (
@@ -1120,7 +1189,7 @@ lazy val skel_video = (project in file("skel-video"))
   )
 
 lazy val notify_core = (project in file("skel-notify/notify-core"))
-  .dependsOn(core,auth_core,skel_kafka)
+  .dependsOn(skel_core,auth_core,skel_kafka)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
     sharedConfig,
@@ -1133,7 +1202,7 @@ lazy val notify_core = (project in file("skel-notify/notify-core"))
   )
 
 lazy val skel_notify = (project in file("skel-notify"))
-  .dependsOn(core,notify_core,auth_core,syslog_core,skel_dsl)
+  .dependsOn(skel_core,notify_core,auth_core,syslog_core,skel_dsl)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -1153,7 +1222,7 @@ lazy val skel_notify = (project in file("skel-notify"))
   )
 
 lazy val skel_tag = (project in file("skel-tag"))
-  .dependsOn(core,auth_core,ingest,skel_cron)
+  .dependsOn(skel_core,auth_core,skel_ingest,skel_cron)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -1172,7 +1241,7 @@ lazy val skel_tag = (project in file("skel-tag"))
   )
 
 lazy val skel_telemetry = (project in file("skel-telemetry"))
-  .dependsOn(core,auth_core,ingest,cli,skel_cron)
+  .dependsOn(skel_core,auth_core,skel_ingest,skel_cli,skel_cron)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -1192,7 +1261,7 @@ lazy val skel_telemetry = (project in file("skel-telemetry"))
   )
 
 lazy val skel_wf = (project in file("skel-wf"))
-  .dependsOn(core,notify_core,skel_dsl)
+  .dependsOn(skel_core,notify_core,skel_dsl)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
@@ -1212,7 +1281,7 @@ lazy val skel_wf = (project in file("skel-wf"))
   )
 
 lazy val job_core = (project in file("skel-job/job-core"))
-  .dependsOn(core,auth_core,skel_cron)
+  .dependsOn(skel_core,auth_core,skel_cron)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
     sharedConfig,
@@ -1226,7 +1295,7 @@ lazy val job_core = (project in file("skel-job/job-core"))
 
 
 lazy val skel_job = (project in file("skel-job"))
-  .dependsOn(core,job_core,notify_core)
+  .dependsOn(skel_core,job_core,notify_core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
@@ -1246,7 +1315,7 @@ lazy val skel_job = (project in file("skel-job"))
   )
 
 lazy val skel_odometer = (project in file("skel-odometer"))
-  .dependsOn(core,auth_core,skel_cron)
+  .dependsOn(skel_core,auth_core,skel_cron)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -1265,7 +1334,7 @@ lazy val skel_odometer = (project in file("skel-odometer"))
   )
 
 lazy val skel_plugin = (project in file("skel-plugin"))
-  .dependsOn(core,skel_dsl)
+  .dependsOn(skel_core,skel_dsl)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
@@ -1309,7 +1378,7 @@ lazy val skel_plugin_1 = (project in file("skel-plugin/plugin-1"))
   )
 
 lazy val blockchain_core = (project in file("skel-blockchain/blockchain-core"))
-  .dependsOn(core)
+  .dependsOn(skel_core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -1322,7 +1391,7 @@ lazy val blockchain_core = (project in file("skel-blockchain/blockchain-core"))
     )
 
 lazy val blockchain_label = (project in file("skel-blockchain/blockchain-label"))
-  .dependsOn(core, skel_test % Test)
+  .dependsOn(skel_core, skel_test % Test)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -1335,7 +1404,7 @@ lazy val blockchain_label = (project in file("skel-blockchain/blockchain-label")
     )
 
 lazy val blockchain_evm = (project in file("skel-blockchain/blockchain-evm"))
-  .dependsOn(core)
+  .dependsOn(skel_core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -1345,8 +1414,9 @@ lazy val blockchain_evm = (project in file("skel-blockchain/blockchain-evm"))
       libraryDependencies ++= libTest
     )
 
+
 lazy val blockchain_tron = (project in file("skel-blockchain/blockchain-tron"))
-  .dependsOn(core)
+  .dependsOn(skel_core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -1357,7 +1427,7 @@ lazy val blockchain_tron = (project in file("skel-blockchain/blockchain-tron"))
     )
 
 lazy val blockchain_rpc = (project in file("skel-blockchain/blockchain-rpc"))
-  .dependsOn(core,skel_crypto,blockchain_core)
+  .dependsOn(skel_core,skel_crypto,blockchain_core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -1373,7 +1443,7 @@ lazy val blockchain_rpc = (project in file("skel-blockchain/blockchain-rpc"))
     )
 
 lazy val ai_core = (project in file("skel-ai/ai-core"))
-  .dependsOn(core)
+  .dependsOn(skel_core)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (    
     sharedConfig,
@@ -1385,7 +1455,7 @@ lazy val ai_core = (project in file("skel-ai/ai-core"))
   )
 
 lazy val ai_agent = (project in file("skel-ai/ai-agent"))
-  .dependsOn(core, ai_core, skel_crypto, blockchain_core)
+  .dependsOn(skel_core, ai_core, skel_crypto, blockchain_core)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -1410,7 +1480,7 @@ lazy val ai_agent = (project in file("skel-ai/ai-agent"))
     )
 
 lazy val skel_ai = (project in file("skel-ai"))
-  .dependsOn(core,auth_core,ai_core)
+  .dependsOn(skel_core,auth_core,ai_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -1429,7 +1499,7 @@ lazy val skel_ai = (project in file("skel-ai"))
   )
 
 lazy val skel_dns = (project in file("skel-dns"))
-  .dependsOn(core)
+  .dependsOn(skel_core)
   .disablePlugins(sbtassembly.AssemblyPlugin)
     .settings (    
     sharedConfig,
@@ -1446,7 +1516,7 @@ lazy val skel_dns = (project in file("skel-dns"))
   )
 
 lazy val skel_tls = (project in file("skel-tls"))
-  .dependsOn(core)
+  .dependsOn(skel_core)
   .disablePlugins(sbtassembly.AssemblyPlugin)  
   .settings (
       sharedConfig,
@@ -1462,7 +1532,7 @@ lazy val skel_tls = (project in file("skel-tls"))
         ),
     )
 
-lazy val tools = (project in file("tools"))
+lazy val skel_tools = (project in file("tools"))
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (
@@ -1482,7 +1552,7 @@ lazy val tools = (project in file("tools"))
     )
 
 lazy val ingest_coingecko = (project in file("skel-ingest/ingest-coingecko"))
-  .dependsOn(core,ingest,blockchain_core)
+  .dependsOn(skel_core,skel_ingest,blockchain_core)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
@@ -1499,7 +1569,7 @@ lazy val ingest_coingecko = (project in file("skel-ingest/ingest-coingecko"))
   )
 
 lazy val skel_risk = (project in file("skel-risk"))
-  .dependsOn(core,blockchain_core)
+  .dependsOn(skel_core,blockchain_core)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,
@@ -1512,3 +1582,15 @@ lazy val skel_risk = (project in file("skel-risk"))
           libUpickleLib,
         ),
     )
+
+lazy val skel_script = (project in file("skel-script"))
+  .dependsOn(skel_core,ai_core,skel_ai,eth_core,skel_dsl)
+  .disablePlugins(sbtassembly.AssemblyPlugin)
+  .settings (    
+    sharedConfig,
+    
+    name := "skel-script",
+
+    libraryDependencies ++= libTest ++ Seq(      
+    ), 
+  )

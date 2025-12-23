@@ -40,7 +40,7 @@ class BlockchainRpcSpec extends AnyWordSpec with Matchers {
     }
 
     "parse single line config" in {
-      val bb = Blockchains("optimism=10=https://optimism-mainnet.public.blastapi.io")
+      val bb = Blockchains("optimism=10=https://public-op-mainnet.fastnode.io")
       bb.all().size should ===(3) // default + optimism
       bb.get(10L) should !==(None)
       bb.getByName("optimism") should !==(None)
@@ -63,7 +63,7 @@ class BlockchainRpcSpec extends AnyWordSpec with Matchers {
     }
 
     "get Web3j instance" in {
-      val bb = Blockchains("test=1=http://localhost:8545")
+      val bb = Blockchains("test=1=https://eth.llamarpc.com")
       bb.getWeb3(1L) shouldBe a[Success[_]]
       bb.getWeb3("test") shouldBe a[Success[_]]
       bb.getWeb3(999L) shouldBe a[Failure[_]]

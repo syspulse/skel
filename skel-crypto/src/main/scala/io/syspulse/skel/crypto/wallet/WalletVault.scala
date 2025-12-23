@@ -108,20 +108,36 @@ trait VaultKeyfiles extends WalletVaultable {
       val pass = passwordQuestion(fileName.last.toString)
       
       if(pass.isDefined) {
-        // keystore file must contain UUID next to address 
-        // if not filename is expected to be UUID like
-        val json = ujson.read(scala.io.Source.fromFile(fileName.toString).getLines().mkString)
-        val uid = json.obj.getOrElse("id","") match {
-          case ""   => UNKNOWN_USER
-          case Str(str)  => UUID(str)
-        }
+        try {
+          // keystore file must contain UUID next to address 
+          // if not filename is expected to be UUID like
+          val json = ujson.read(scala.io.Source.fromFile(fileName.toString).getLines().mkString)
+          
+          // Skip files that are not JSON objects (e.g., arrays like ABI files)
+          if (!json.objOpt.isDefined) {
+            log.debug(s"Skipping ${fileName}: not a JSON object (likely ABI or other array data)")
+            None
+          } else {
+            val uid = json.obj.getOrElse("id","") match {
+              case ""   => UNKNOWN_USER
+              case Str(str)  => UUID(str)
+            }
 
-        val kk = Eth.readKeystore(pass.get,fileName.toString)
-        val ss = kk match {
-          case Success(s) => log.info(s"${fileName}: ${uid}: ${Eth.address(s.pk)}"); Success(uid -> Signer(uid,s.sk,s.pk))
-          case Failure(e) => log.warn(s"${fileName}: ${uid}: ${kk}"); Failure(e)
+            val kk = Eth.readKeystore(pass.get,fileName.toString)
+            val ss = kk match {
+              case Success(s) => log.info(s"${fileName}: ${uid}: ${Eth.address(s.pk)}"); Success(uid -> Signer(uid,s.sk,s.pk))
+              case Failure(e) => log.warn(s"${fileName}: ${uid}: ${kk}"); Failure(e)
+            }
+            ss.toOption
+          }
+        } catch {
+          case e: ujson.Value.InvalidData => 
+            log.debug(s"Skipping ${fileName}: invalid keystore format (${e.getMessage})")
+            None
+          case e: Exception => 
+            log.warn(s"Skipping ${fileName}: error reading file (${e.getMessage})")
+            None
         }
-        ss.toOption
       } else 
         None
 

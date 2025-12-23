@@ -369,7 +369,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
     ) ++ images0.map(url => 
       OpenAi_ContentItem("image_url", None, Some(OpenAi_ImageUrl(url)))
     )
-    
+
     val body = OpenAi_CompletionReq(
       model = modelReq,
       messages = Seq(
@@ -390,11 +390,11 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       {
         val response = Await.result(
           httpRequest(
-            url = url,
+          url = url,
             body = body,
-              headers = Seq(
-                "Authorization" -> s"Bearer ${aiUri.apiKey}"
-              ),
+          headers = Seq(
+            "Authorization" -> s"Bearer ${aiUri.apiKey}"
+          ),
             timeout = timeout
           ).flatMap { resp =>
             if (resp.status == StatusCodes.OK) {
@@ -472,11 +472,11 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       {
         val response = Await.result(
           httpRequest(
-            url = url,
+          url = url,
             body = body,
-              headers = Seq(
-                "Authorization" -> s"Bearer ${aiUri.apiKey}"
-              ),
+          headers = Seq(
+            "Authorization" -> s"Bearer ${aiUri.apiKey}"
+          ),
             timeout = timeout
           ).flatMap { resp =>
             if (resp.status == StatusCodes.OK) {
@@ -565,23 +565,23 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
 
     def attemptRequest(): Future[Ai] = {
       httpRequest(
-        url = url,
+            url = url,
         body = body,
-        headers = Seq(
-          "Authorization" -> s"Bearer ${aiUri.apiKey}"
-        ),
+            headers = Seq(
+              "Authorization" -> s"Bearer ${aiUri.apiKey}"
+            ),
         timeout = timeout
       ).flatMap { resp =>
         if (resp.status == StatusCodes.OK) {
           readResponseBody(resp).map { responseBody =>
             log.debug(s"${body}: ${responseBody}")
             val res = responseBody.parseJson.convertTo[OpenAi_ResponsesRes]
-            val answer = getResponseAnswer(res)
-            ai.copy(
-              answer = answer,
-              model = Some(aiUri.getModel(res.model)),
-              xid = Some(res.id)
-            )
+          val answer = getResponseAnswer(res)
+          ai.copy(
+            answer = answer,
+            model = Some(aiUri.getModel(res.model)),
+            xid = Some(res.id)
+          )
           }
         } else {
           readResponseBody(resp).flatMap { errorBody =>
@@ -593,7 +593,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
     
     import io.syspulse.skel.util.Retry
     Retry.withRetryFuture(attemptRequest(), s"responses: '${ai.question.take(32)}...'")(retry, 3000)(log, ec)
-  }
+    }
   
 
   override def promptStream(ai: Ai, onEvent: (String) => Unit, system: Option[String] = None,timeout: Long = getTimeout(), retry: Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty,
@@ -662,7 +662,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       method = HttpMethods.POST,
       uri = url,
       entity = HttpEntity(ContentTypes.`application/json`, body),
-      headers = Seq(
+          headers = Seq(
         RawHeader("Authorization", s"Bearer ${aiUri.apiKey}"),
         RawHeader("Accept", "text/event-stream")
       )
@@ -680,36 +680,36 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
             .map(_.utf8String.trim)
             .filter(_.nonEmpty)
             .runWith(Sink.foreach { line =>
-              log.trace(s"<- ${line}")
-              
-              line match {
-                case s"data: ${data}" =>
-                  log.debug(s"data: ${data}")
-                  
+                log.trace(s"<- ${line}")
+
+                line match {                
+                  case s"data: ${data}" =>
+                    log.debug(s"data: ${data}")
+
                   if (data.startsWith("""{"type":"response.completed"""")) {
-                    val res = data.parseJson.convertTo[OpenAi_EventResponseCompleted]
-                    val answer = getResponseAnswer(res.response)
+                      val res = data.parseJson.convertTo[OpenAi_EventResponseCompleted]
+                      val answer = getResponseAnswer(res.response)
                     resultQueue.put(Some(ai.copy(
-                      answer = answer,
-                      model = Some(aiUri.getModel(res.response.model)),
-                      xid = Some(res.response.id)
+                        answer = answer,
+                        model = Some(aiUri.getModel(res.response.model)),
+                        xid = Some(res.response.id)
                     )))
-                  } else {
-                    onEvent(line)
-                  }
-                  
-                case s"event: ${event}" =>
-                  log.debug(s"event: ${event}")
-                case _ =>
-                  log.warn(s"unknown rsp: '${line}'")
+                    } else {
+                      onEvent(line)
+                    }
+
+                  case s"event: ${event}" => 
+                    log.debug(s"event: ${event}")
+                  case _ => 
+                    log.warn(s"unknown rsp: '${line}'")
               }
             })
             .map { _ =>
               Option(resultQueue.poll(timeout, TimeUnit.MILLISECONDS)) match {
                 case Some(Some(a)) => a
                 case _ => throw new Exception(s"response.completed not received: ${ai.xid}")
-              }
-            }
+      }
+    }
         } else {
           readResponseBody(response).flatMap { errorBody =>
             Future.failed(new Exception(s"HTTP ${response.status}: ${errorBody}"))
@@ -754,7 +754,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
     val toolsCombined = aiUri.getTools() ++ tools
 
     val inputContent = Seq(OpenAi_ContentItem("input_text", Some(ai.question), None))
-    
+
     val body = OpenAi_ResponsesReq(
       model = modelReq,
       input = Seq(
