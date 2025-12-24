@@ -153,7 +153,11 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config, as:Opt
 
   override def transform(txt: String): Seq[Textline] = {
     //Seq(Textline(s"[${countBytes},${countInput},${countObj},${countOutput}]: ${t}"))
-    val t = Textline(txt)
+    val t = if(config.endline.isEmpty)
+      Textline(txt)
+    else 
+      Textline(txt + config.endline)
+
     Seq(t)
   }
 

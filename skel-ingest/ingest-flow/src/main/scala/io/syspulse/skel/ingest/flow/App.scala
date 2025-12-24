@@ -1,5 +1,27 @@
 package io.syspulse.skel.ingest.flow
 
+/**
+ * Ingest Flow Application
+ * 
+ * Commands:
+ *   - ingest: Single pipeline (feed -> output)
+ *   - pipeline: Multiple independent pipelines (feed1 -> output1, feed2 -> output2)
+ *   - flow: Chained flows using connectTo() (feed1 -> output1 => feed2 -> output2 => feed3 -> output3)
+ * 
+ * Flow Command Usage Examples:
+ *   # Chain 2 flows: stdin -> file1 => file1 -> stdout
+ *   --pipeline.flow "stdin:// => /tmp/intermediate.json => stdout://"
+ *   
+ *   # Chain 3 flows: file1 -> file2 => file2 -> file3 => file3 -> stdout
+ *   --pipeline.flow "file:///tmp/input.json => file:///tmp/middle.json => file:///tmp/output.json => stdout://"
+ *   
+ *   # Chain flows with different sources/sinks
+ *   --pipeline.flow "http://example.com/data => kafka://broker/topic => file:///tmp/output.json => stdout://"
+ * 
+ * Note: The "flow" command uses connectTo() which automatically starts upstream flows via BroadcastHub.
+ * Only the last flow in the chain needs to be run explicitly.
+ */
+
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.{Duration,FiniteDuration}
 import com.typesafe.scalalogging.Logger
@@ -46,7 +68,9 @@ case class Config(
   datastore:String = "mem",
 
   actorSystem:String = "ActorSystem-IngestFlow",
-  pipelineFlow:String = "stdin:// -> stdout://",
+  pipelineFlow:String = "stdin:// => stdout://",
+
+  endline:String = "\n",
 
   cmd:String = "ingest",
   params: Seq[String] = Seq(),
@@ -86,9 +110,11 @@ object App extends skel.Server {
         ArgString('a', "actor.system",s"Actor System (def: ${d.actorSystem})"),
         ArgString('p', "pipeline.flow",s"Pipeline Flow (def: ${d.pipelineFlow})"),
         
+        ArgString('_', "endline",s"Endline (def: ${d.endline})"),
+        
         ArgCmd("server","HTTP Service"),
         ArgCmd("ingest","Ingest Command"),
-        //ArgCmd("flow","Flow Command"),
+        ArgCmd("flow","Flow Command (chains multiple flows using connectTo)"),
         ArgCmd("pipeline","Pipeline Command"),
         ArgCmd("test","Test Command"),        
         ArgCmd("akka","Flow through Akka (testing)"),
@@ -121,6 +147,8 @@ object App extends skel.Server {
 
       actorSystem = c.getString("actor.system").getOrElse(d.actorSystem),
       pipelineFlow = c.getString("pipeline.flow").getOrElse(d.pipelineFlow),
+
+      endline = c.getString("endline").getOrElse(d.endline),
       
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -209,6 +237,31 @@ object App extends skel.Server {
         })     
 
         pp.foreach(f => f.run())
+
+      case "flow" => 
+        import TextlineJson._
+
+        implicit val system: Option[ActorSystem] = Some(ActorSystem(config.actorSystem))
+
+         val pp = config.pipelineFlow.split(",").map(_.trim).filter(!_.isBlank).map( p => {
+          p.split("=>").map(_.trim).toList match {
+            case feed :: output :: Nil => 
+              new PipelineTextline(feed,output)(config,system)
+            case _ => 
+              throw new Exception(s"Invalid pipeline flow: ${p}")
+          }
+        }) 
+                
+        // Chain flows using connectTo()
+        // flow1.connectTo(flow2).connectTo(flow3)...
+        // connectTo returns IngestFlow[_, _, Textline], so we need to handle the type properly
+        val chainedFlow: IngestFlow[_, _, Textline] = pp.tail.foldLeft[IngestFlow[_, _, Textline]](pp.head) { (prev, next) =>
+          prev.connectTo(next)
+        }
+        
+        // Only run the last flow - upstream flows are already running via BroadcastHub
+        Console.err.println(s"Chaining ${pp.size} flows: ${pp.grouped(2).map(_.mkString(" -> ")).mkString(" => ")}")
+        chainedFlow.run()        
 
     }
 
