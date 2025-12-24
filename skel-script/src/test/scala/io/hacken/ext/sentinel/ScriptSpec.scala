@@ -7,6 +7,7 @@ import scala.util.{Success, Failure, Try}
 import scala.concurrent.{Future, Await}
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Random
 
 class ScriptSpec extends AnyWordSpec with Matchers {
 

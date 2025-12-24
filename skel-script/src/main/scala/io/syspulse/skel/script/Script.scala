@@ -118,7 +118,31 @@ object ScriptNone extends ScriptBuilder {
   def build(src:Option[String]):Script = NONE
 }
 
+// --- Sleep Test --------------------------------------------------------------------------
+class ScriptSleepTest(sleepTime:Int) extends Script("sleep-test","sleep-test") {
+  def this() = this(0) // Default constructor for ScriptBuilder
+  
+  override def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
+    Try {
+      val msec = if(sleepTime > 0) sleepTime else input.toInt
+      Thread.sleep(msec)
+      input
+    }
+  }
 
+  override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = {
+    Future {
+      val msec = if(sleepTime > 0) sleepTime else input.toInt
+      Thread.sleep(msec)
+      input
+    }(Script.blockingEc)
+  }
+}
+
+object ScriptSleepTest extends ScriptBuilder {
+  val SLEEP_TEST = new ScriptSleepTest()
+  def build(src:Option[String]):Script = SLEEP_TEST
+}
 
 // --- Regexp --------------------------------------------------------------------------
 class ScriptRegexp(src0:Option[String]) extends Script("regexp","regexp-jvm") {
