@@ -6,15 +6,20 @@ import com.typesafe.scalalogging.Logger
 import scala.util.{Success,Failure,Try}
 import scala.util.matching.Regex
 import scala.util.matching.Regex
+import scala.concurrent.{Future,ExecutionContext}
+import java.util.concurrent.Executors
+
+import io.syspulse.skel.FutureAwaitable
 
 import io.syspulse.skel.dsl.{Polyglot,PolyglotSandbox}
 import io.syspulse.skel.crypto.eth.SolidityResult
 import io.syspulse.skel.util.Util
 
 import io.syspulse.skel.ai.core.Providers
-import io.syspulse.skel.ai.core.AiURI
+import io.syspulse.skel.ai.core.{AiURI,AiTool}
 import io.syspulse.skel.ai.provider.AiProvider
 import io.syspulse.skel.ai.Ai
+import io.syspulse.skel.FutureAwaitable
 
 
 abstract class Script(id:Script.ID,name:String) {
@@ -22,6 +27,16 @@ abstract class Script(id:Script.ID,name:String) {
 
   def getId():Script.ID = this.id
   def run(src:String,input:String,data:Map[String,Any]):Try[String]
+  
+  // Async version of run() - returns Future[String]
+  // For blocking scripts, uses a dedicated thread pool
+  // For ScriptAI, uses promptAsync with tools and images from data Map
+  def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = {
+    // Default implementation: wrap blocking run() in Future using blocking pool
+    Future {
+      run(src, input, data).get
+    }(Script.blockingEc)
+  }
 }
 
 trait ScriptBuilder {
@@ -172,24 +187,76 @@ object ScriptRegexp extends ScriptBuilder {
 class ScriptAI(src0:Option[String]) extends Script("ai","ai-llm") {
   val aiUri = AiURI(src0.getOrElse(ScriptAI.DEF_AI_URI))
   val provider:AiProvider = AiProvider(aiUri)
+  
+  // Dedicated execution context for AI operations - created once per instance
+  implicit val aiEc: ExecutionContext = ScriptAI.aiExecutionContext
       
   def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
+    val timeout = data.get("timeout").map(_.asInstanceOf[Long]).getOrElse(aiUri.timeout)
+    FutureAwaitable.awaitTry(exec(src,input,data))(timeout)
+  }
+
+  override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = {
+    // Use the dedicated execution context for AI operations (ignore parameter)
     if(input.isBlank) 
-      return Success(input)
+      return Future.successful(input)
+    
+    // Extract tools from data Map
+    val tools: Seq[AiTool] = data.get("tools") match {
+      case Some(t: Seq[AiTool] @unchecked) if t.nonEmpty && t.head.isInstanceOf[AiTool] => 
+        t.asInstanceOf[Seq[AiTool]]
+      case Some(t: Seq[_]) => 
+        t.collect { 
+          case tool: AiTool => tool
+          case m: Map[_, _] @unchecked => 
+            // Try to convert Map to AiTool
+            try {
+              val map = m.asInstanceOf[Map[String, Any]]
+              AiTool(
+                `type` = map.getOrElse("type", "").toString,
+                name = map.get("name").map(_.toString),
+                description = map.get("description").map(_.toString),
+                parameters = map.get("parameters").map(_.asInstanceOf[Map[String, Any]]),
+                strict = map.get("strict").map(_.asInstanceOf[Boolean])
+              )
+            } catch {
+              case _: Exception => null
+            }
+        }.filter(_ != null)
+      case _ => Seq.empty
+    }
+    
+    // Extract images from data Map
+    val images: Seq[String] = data.get("images") match {
+      case Some(img: Seq[String] @unchecked) if img.nonEmpty && img.head.isInstanceOf[String] => 
+        img.asInstanceOf[Seq[String]]
+      case Some(img: Seq[_]) => 
+        img.collect { case s: String => s }
+      case Some(img: String) => Seq(img)
+      case _ => Seq.empty
+    }
+
+    val outputType: Option[String] = data.get("output").map(_.toString)
     
     val a0 = Ai(
       question = input,
       model = aiUri.getModel(),
       xid = aiUri.tid
     )
-    val a1 = provider.prompt(a0,aiUri.system)
-  
-    a1.map(_.answer.getOrElse(""))
+    
+    provider.promptAsync(a0, aiUri.system, aiUri.timeout, aiUri.retry, tools, images, outputType)(aiEc)
+      .map(_.answer.getOrElse(""))(aiEc)
   }
 }
 
 object ScriptAI extends ScriptBuilder {
   val DEF_AI_URI = "openrouter://arcee-ai/trinity-mini:free"
+  
+  // Dedicated execution context for AI operations using standard thread pool
+  val aiExecutionContext: ExecutionContext = ExecutionContext.fromExecutorService(
+    Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors() * 2)
+  )
+  
   def build(src:Option[String]):Script = new ScriptAI(src)
 }
 
@@ -198,6 +265,12 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
   def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
     flow.foldLeft[Try[String]](Success(input)) { (result,engine) =>
       result.flatMap(r => engine.run(src,r,data))
+    }
+  }
+
+  override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = {
+    flow.foldLeft[Future[String]](Future.successful(input)) { (result,engine) =>
+      result.flatMap(r => engine.exec(src, r, data))
     }
   }
 }
@@ -239,6 +312,11 @@ object Script {
   type ID = String //UUID
 
   val SCRIPT_STR = new ScriptStr()
+
+  // Dedicated thread pool for blocking Futures using standard executor
+  val blockingEc: ExecutionContext = ExecutionContext.fromExecutorService(
+    Executors.newCachedThreadPool()
+  )
 
   private var engines:Map[ID,ScriptBuilder] = Map(
     "" -> ScriptNone,
