@@ -22,6 +22,11 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 import io.syspulse.skel.ingest._
+import io.syspulse.skel.FutureAwaitable
+import io.syspulse.skel.ai.core.{AiURI, AiTool}
+import io.syspulse.skel.ai.provider.AiProvider
+import io.syspulse.skel.ai.Ai
+import scala.concurrent.Future
 
 object FlowProcessors {
   private val log = Logger(s"${this}")
@@ -31,6 +36,7 @@ object FlowProcessors {
     FlowProcessorPrint.name -> FlowProcessorPrint,
     FlowProcessorDedup.name -> FlowProcessorDedup,
     FlowProcessorThrottle.name -> FlowProcessorThrottle,
+    FlowProcessorAI.name -> FlowProcessorAI,
   )
 
   def find(name:String):Option[FlowProcessor[String]] = processors.get(name)
@@ -146,4 +152,59 @@ class FlowProcessorThrottleRun(uri:String) extends FlowProcessorRun[String] {
       mode = ThrottleMode.Shaping // Apply backpressure
     )
     .buffer(elements, OverflowStrategy.dropHead) // Buffer Seq[String] elements, drop oldest if full
+}
+
+object FlowProcessorAI extends FlowProcessor[String]("ai") {
+  def create(uri:String):FlowProcessorRun[String] = new FlowProcessorAIRun(uri)
+}
+
+class FlowProcessorAIRun(uri:String) extends FlowProcessorRun[String] {
+  private val log = Logger(s"${this}")
+    
+  val aiUri: AiURI = AiURI(uri)
+  val provider: AiProvider = AiProvider(aiUri)
+  
+  // Dedicated execution context for AI operations
+  implicit val aiEc: ExecutionContext = ExecutionContext.global
+
+  def name:String = FlowProcessorAI.name
+  val id:String = UUID.randomUUID().toString
+  
+  def process:Flow[String,Seq[String],_] = Flow[String]
+    .mapAsync(1) { input =>
+      if (input.isBlank) {
+        Future.successful(Seq(input))
+      } else {
+        // Extract image URLs after "image://" prefix until dot or blank (space/newline)
+        val imageUrlPattern = """image://([^\s.]+)""".r
+        val images = imageUrlPattern.findAllMatchIn(input).map(m => m.group(1)).toSeq
+        
+        // Remove image:// references from input text
+        val textWithoutImages = imageUrlPattern.replaceAllIn(input, "")
+        
+        // Combine aiUri.prompt (beginning) + textWithoutImages (suffix)
+        val basePrompt = aiUri.prompt.getOrElse("")
+        val fullPrompt = if (basePrompt.isEmpty) {
+          textWithoutImages.trim
+        } else {
+          s"${basePrompt} ${textWithoutImages.trim}"
+        }
+        
+        val a0 = Ai(
+          question = fullPrompt,
+          model = aiUri.getModel(),
+          xid = aiUri.tid
+        )
+        
+        provider.promptAsync(a0, aiUri.system, aiUri.timeout, aiUri.retry, Seq.empty, images, aiUri.output)(aiEc)
+          .map { ai =>
+            val answer = ai.answer.getOrElse("")
+            Seq(answer)
+          }(aiEc)
+          .recover { case e: Exception =>
+            log.error(s"AI processing failed for input: '${Util.trunc(input,50)}'", e)
+            Seq(input) // Return original input on error
+          }(aiEc)
+      }
+    }
 }
