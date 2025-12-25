@@ -142,3 +142,25 @@ Client:
 ```
 ./run-ingest.sh -f "twitter://${CONSUMER_KEY}:${CONSUMER_SECRET}@syspusle?freq=60000"
 ```
+
+## Pipe
+
+Create mulitple Pipelines from `--pipeline.flow`.
+
+There is no internal connection between Pipelines
+
+
+## Flow
+
+Create mulitple Pipelines as a single Flow from `--pipeline.flow`.
+
+All Pipeines are connected: Pipeline1(Sink) -> Pipeline2(Source)
+
+Flow supports __FlowProcessor__
+
+FlowProcessor is a simple `Flow[T]` which excepts `T` and produces `Seq[T]`
+
+Example shows a mix of random elements generation, deduplication, thottling and prininting at differente stages of the Flow:
+```
+APP_EXEC=bloop ./run-ingest.sh ingest -f clock://100://rand://3 "print://>" dedup://500 throttle://2000 "print://======>" -o null://
+```
