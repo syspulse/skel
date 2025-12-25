@@ -25,7 +25,12 @@ else
    APP_HOME=${APP_HOME:-`pwd`}
 fi
 
+CONFIG="application${SITE}.conf"
 PLUGINS=${PLUGSIN:-${CWD}/plugins}
+
+if [ "RUN" == "bloop" ]; then
+  exec bloop run ingest_flow -c $SBT_ROOT/.bloop -m ${MAIN} -- -J-Dconfig.resource=$CONFIG
+fi
 
 # fat jar
 JAR_FAT=`ls ${APP_HOME}/target/scala-2.13/*assembly*.jar`
@@ -33,10 +38,10 @@ JAR_FAT=`ls ${APP_HOME}/target/scala-2.13/*assembly*.jar`
 CLASSES=${APP_HOME}/target/scala-2.13/classes
 
 # Bloop classes
-APP_PROJECT=${APP//-/_}
-BLOOP_PATH=${SBT_ROOT}/.bloop/${APP_PROJECT}/bloop-internal-classes
-CLASSES_BLOOP_RANDOM=`ls ${BLOOP_PATH}/ | xargs echo`
-CLASSES_BLOOP=${BLOOP_PATH}/${CLASSES_BLOOP_RANDOM}
+# APP_PROJECT=${APP//-/_}
+# BLOOP_PATH=${SBT_ROOT}/.bloop/${APP_PROJECT}/bloop-internal-classes
+# CLASSES_BLOOP_RANDOM=`ls -d ${BLOOP_PATH}/classes* 2>/dev/null | xargs -n1 basename | xargs echo`
+# CLASSES_BLOOP=${BLOOP_PATH}/${CLASSES_BLOOP_RANDOM}
 
 # additional libs
 JAR_UNFAT=`ls ${APP_HOME}/lib/*.jar`
@@ -48,8 +53,6 @@ JAR_FILES=`cat ${APP_HOME}/CLASSPATH`
 
 PLUGIN_JARS="${PLUGINS}/*"
 CP="${APP_HOME}/conf/:${JAR_FAT}:${JAR_UNFAT}:${JAR_FILES}:${CLASSES}:${CLASSES_BLOOP}:${PLUGIN_JARS}"
-
-CONFIG="application${SITE}.conf"
 
 MEM=${MEM:-1G}
 STACK=${STACK:-512M}
