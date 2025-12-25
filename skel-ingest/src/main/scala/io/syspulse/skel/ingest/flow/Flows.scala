@@ -234,6 +234,7 @@ trait Flows {
     def randHex(n:Int) = ByteString(Util.hex(Random.nextBytes(n),false))
     def randBase64(n:Int) = ByteString(Base64.getEncoder.encodeToString(Random.nextBytes(n)))
     def randStr(n:Int) = ByteString(Random.nextString(n))
+    def randInt(n:Int) = ByteString(Random.nextInt(n).toString)
     
     // Base58 alphabet (excludes 0, O, I, l to avoid confusion)
     val base58Chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz_"
@@ -256,7 +257,7 @@ trait Flows {
         case ("base58" | "txt") :: Nil => randBase58(58)
         case "str" :: n :: Nil => randStr(n.toInt)
         case "str" :: Nil => randStr(32)
-        case n :: Nil => randHex(n.toInt)        
+        case n :: Nil => randInt(n.toInt)        
         case _ => randHex(32)
       }
     ))

@@ -5,7 +5,8 @@ import scala.concurrent.duration.{Duration,FiniteDuration}
 import com.typesafe.scalalogging.Logger
 import java.util.concurrent.TimeUnit
 import scala.concurrent.{ExecutionContext}
-
+import io.jvm.uuid._
+import scala.util.{Try,Failure,Success}
 import scala.annotation.tailrec
 
 import spray.json._
@@ -28,6 +29,7 @@ import io.syspulse.skel.ingest._
 import io.syspulse.skel.serde.ParqIgnore
 
 import akka.actor.ActorSystem
+
 
 case class Recur(v:Int,recur:Array[Recur])
 
@@ -77,8 +79,9 @@ import ParqRecur._
 // object ParqTextline extends ParqIgnore[Textline] 
 // import ParqTextline._
 
+
 class PipelineTextline(feed:String,output:String)(implicit config:Config, as:Option[ActorSystem] = None) extends 
-      Pipeline[String,String,Textline](
+      Pipeline[String,Seq[String],Textline](
         feed,output,
         config.throttle,
         config.delimiter,
@@ -94,55 +97,71 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config, as:Opt
   override def getFileSize():Long = config.size
 
   // deduplication
-  def processDedup:Flow[String,String,_] = Flow[String]
-    .map(s => s)
-    .groupedWithin(Int.MaxValue,FiniteDuration(2000L,TimeUnit.MILLISECONDS))
-    .statefulMapConcat { () =>
-      // Create a function to maintain a set of seen message IDs for each key
-      var state = List.empty[String]
-      var lastTs = System.currentTimeMillis()
-      (mm) => {
-        //val currentWindowStart = eventTime - windowDuration.toMillis
-        val uniq = mm.filter(m => ! state.find(_ == m).isDefined)
-        state =  state.prependedAll( uniq )
-        val now = System.currentTimeMillis()
-        if( (now - lastTs) > 2000L * 3 ) {
-          state = state.take(2)
-          lastTs = now
-        }
+  // def processDedup:Flow[String,String,_] = Flow[String]
+  //   .map(s => s)
+  //   .groupedWithin(Int.MaxValue,FiniteDuration(2000L,TimeUnit.MILLISECONDS))
+  //   .statefulMapConcat { () =>
+  //     // Create a function to maintain a set of seen message IDs for each key
+  //     var state = List.empty[String]
+  //     var lastTs = System.currentTimeMillis()
+  //     (mm) => {
+  //       //val currentWindowStart = eventTime - windowDuration.toMillis
+  //       val uniq = mm.filter(m => ! state.find(_ == m).isDefined)
+  //       state =  state.prependedAll( uniq )
+  //       val now = System.currentTimeMillis()
+  //       if( (now - lastTs) > 2000L * 3 ) {
+  //         state = state.take(2)
+  //         lastTs = now
+  //       }
 
-        Console.err.println(s"Group: ${uniq} (state=${state})")
-        uniq
+  //       Console.err.println(s"Group: ${uniq} (state=${state})")
+  //       uniq
+  //     }
+  //   }
+
+  // def processNone:Flow[String,String,_] = Flow[String]
+  //   .map(s => s)
+
+  // def processPrint:Flow[String,String,_] = Flow[String]
+  //   .map(s => {
+  //     println(s"print: ${s}")
+  //     s
+  //   })
+    
+  // override def process:Flow[String,String,_] = {
+  //   val ff = config.params.map(_.toLowerCase match {
+  //     case "dedup" => processDedup
+  //     case "none" | "map" => processNone
+  //     case "print" => processPrint
+  //     case _ => processNone
+  //   })
+    
+  //   def pipe(ff:List[Flow[String,String,_]]):Flow[String,String,_] = {
+  //     ff match {
+  //       case Nil => processNone
+  //       case f :: Nil => f
+  //       case f :: ff => f.via(pipe(ff))        
+  //     }
+  //   }
+
+  //   pipe(ff.toList).log("textline")
+  // }
+
+  val processors = config.params.map(p => FlowProcessors.create(p) match {
+    case Success(fp) => fp
+    case Failure(e) => throw new Exception(s"Failed to create flow processor: ${e.getMessage()}")
+  })
+
+  override def process:Flow[String,Seq[String],_] = {
+    if(processors.isEmpty) {
+      Flow[String].map(s => Seq(s))
+    } else {
+      processors.map(p => p.process).reduce { (f1, f2) =>
+        f1.mapConcat(identity).via(f2)
       }
     }
-
-  def processNone:Flow[String,String,_] = Flow[String]
-    .map(s => s)
-
-  def processPrint:Flow[String,String,_] = Flow[String]
-    .map(s => {
-      println(s"print: ${s}")
-      s
-    })
-    
-  override def process:Flow[String,String,_] = {
-    val ff = config.params.map(_.toLowerCase match {
-      case "dedup" => processDedup
-      case "none" | "map" => processNone
-      case "print" => processPrint
-      case _ => processNone
-    })
-    
-    def pipe(ff:List[Flow[String,String,_]]):Flow[String,String,_] = {
-      ff match {
-        case Nil => processNone
-        case f :: Nil => f
-        case f :: ff => f.via(pipe(ff))        
-      }
-    }
-
-    pipe(ff.toList).log("textline")
   }
+
     
   override def parse(data: String): Seq[String] = {
     if(config.delimiter.isEmpty())
@@ -151,14 +170,15 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config, as:Opt
       data.split(config.delimiter).toSeq
   }
 
-  override def transform(txt: String): Seq[Textline] = {
+  override def transform(txts: Seq[String]): Seq[Textline] = {
     //Seq(Textline(s"[${countBytes},${countInput},${countObj},${countOutput}]: ${t}"))
-    val t = if(config.endline.isEmpty)
-      Textline(txt)
-    else 
-      Textline(txt + config.endline)
-
-    Seq(t)
+    txts.map(txt => {
+      val t = if(config.endline.isEmpty)
+        Textline(txt)
+      else 
+        Textline(txt + config.endline)
+      t
+    })
   }
 
   override def source(feed:String):Source[ByteString,_] = {    
