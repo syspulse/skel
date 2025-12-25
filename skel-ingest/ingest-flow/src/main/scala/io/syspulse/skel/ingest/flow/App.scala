@@ -113,11 +113,13 @@ object App extends skel.Server {
         ArgString('_', "endline",s"Endline (def: ${d.endline})"),
         
         ArgCmd("server","HTTP Service"),
-        ArgCmd("ingest","Ingest Command"),
-        ArgCmd("flow","Flow Command (chains multiple flows using connectTo)"),
-        ArgCmd("pipeline","Pipeline Command"),
+        ArgCmd("ingest","Ingest Command"),        
         ArgCmd("test","Test Command"),        
-        ArgCmd("akka","Flow through Akka (testing)"),
+        
+        ArgCmd("akka-test","Akka Pipeline Command"),
+
+        ArgCmd("pipe","Create Pipelines (Connection is opaque)"),
+        ArgCmd("flow","Create Flow (Conection is transparently chained via connectTo)"),
         
         ArgParam("<processors>","List of processors (none/map,print,dedup)"),
         ArgLogging(),
@@ -189,7 +191,7 @@ object App extends skel.Server {
         implicit val materializer: ActorMaterializer = ActorMaterializer()(system)
         source.runWith(sink)
 
-      case "akka" => 
+      case "akka-test" => 
         implicit val system: Option[ActorSystem] = Some(ActorSystem(config.actorSystem))
         
         val pipe1 = "pipe1"
@@ -221,7 +223,7 @@ object App extends skel.Server {
         
         f1.run()              
 
-      case "pipeline" => 
+      case "pipe" => 
         import TextlineJson._
 
         implicit val system: Option[ActorSystem] = Some(ActorSystem(config.actorSystem))
@@ -232,7 +234,7 @@ object App extends skel.Server {
             case feed :: output :: Nil => 
               new PipelineTextline(feed,output)(config,system)
             case _ => 
-              throw new Exception(s"Invalid pipeline flow: ${p}")
+              throw new Exception(s"Invalid pipe: ${p}")
           }
         })     
 
@@ -248,7 +250,7 @@ object App extends skel.Server {
             case feed :: output :: Nil => 
               new PipelineTextline(feed,output)(config,system)
             case _ => 
-              throw new Exception(s"Invalid pipeline flow: ${p}")
+              throw new Exception(s"Invalid flow: ${p}")
           }
         }) 
                 
