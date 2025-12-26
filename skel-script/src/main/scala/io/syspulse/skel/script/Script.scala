@@ -49,9 +49,12 @@ trait ScriptBuilder {
 // --- Json Query ---------------------------------------------------------------
 class ScriptJQ(src0:Option[String]) extends Script("jq","json-query") {
   def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
+    val expr = if(src.isBlank) src0.getOrElse("") else src
+
     Util
-      .walkJson(input,src,true)
-      .map(r => r.toString)
+      .walkJson(input,expr,true)
+      .map(r => r.map(e => e.toString).mkString(","))
+
   }
 }
 

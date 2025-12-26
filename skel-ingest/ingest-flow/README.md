@@ -164,3 +164,16 @@ Example shows a mix of random elements generation, deduplication, thottling and 
 ```
 APP_EXEC=bloop ./run-ingest.sh ingest -f clock://100://rand://3 "print://>" dedup://500 throttle://2000 "print://======>" -o null://
 ```
+
+
+### Example of Complex data feed parsing
+
+1. Fee data from Twitter Channel
+2. Catch only twits with ALERT keyword
+3. Extract media files http references from Twits
+4. fix-http.js does this: `"image://" + input.replace(/"/g, '');`
+5. PROMPT-3.txt asks to process images to json
+
+```
+./run-ingest.sh ingest -f twitters://hacks 'script://regexp://.*ALERT.*' 'script://jq://.media[]' 'script://js://file://fix-http.js' 'ai://openai://?prompt=file://PROMPT-3.txt&output=json_object&timeout=60000'
+```

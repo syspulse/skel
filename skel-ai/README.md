@@ -42,6 +42,17 @@ Use `timeout` parameter for slow models
 rlwrap ./run-ai.sh ask '--ai=openai://gpt-4o-mini?system=file://SYS-3.txt&prompt=file://PROMPT-1.txt&timeout=60000'
 ```
 
+Ask to process images with prompt file `PROMPT-2.txt` and return results as `json`:
+
+```
+Extract information from provided image and present results as json
+```
+
+```
+./run-ai.sh ask --images=https://i.redd.it/ak8mw9ovom161.jpg '--ai=openai://gpt-4o-mini?prompt=file://PROMPT-2.txt&output=json_object?timeout=120000
+```
+
+
 ### Use Openrouter
 
 ```

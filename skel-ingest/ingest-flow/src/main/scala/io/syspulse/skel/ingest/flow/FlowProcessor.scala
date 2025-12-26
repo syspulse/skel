@@ -167,7 +167,7 @@ object FlowProcessorAI extends FlowProcessor[String]("ai") {
 class FlowProcessorAIRun(uri:String) extends FlowProcessorRun[String] {
   private val log = Logger(s"${this}")
     
-  val aiUri: AiURI = AiURI(uri)
+  val aiUri: AiURI = AiURI(uri.stripPrefix(FlowProcessorAI.name + "://"))
   val provider: AiProvider = AiProvider(aiUri)
   
   // Dedicated execution context for AI operations
@@ -182,7 +182,7 @@ class FlowProcessorAIRun(uri:String) extends FlowProcessorRun[String] {
         Future.successful(Seq(input))
       } else {
         // Extract image URLs after "image://" prefix until dot or blank (space/newline)
-        val imageUrlPattern = """image://([^\s.]+)""".r
+        val imageUrlPattern = """image://([^\s]+)""".r
         val images = imageUrlPattern.findAllMatchIn(input).map(m => m.group(1)).toSeq
         
         // Remove image:// references from input text
