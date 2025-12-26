@@ -2,7 +2,7 @@ package io.syspulse.skel.dsl
 
 import scala.tools.nsc.interpreter._
 import scala.tools.nsc.interpreter.shell.Scripted
-
+import scala.util.Try
 import scala.reflect.runtime.universe._
 import scala.reflect.runtime.currentMirror
 import scala.tools.reflect.ToolBox
@@ -17,19 +17,21 @@ class ScalaInterpreter() {
    
   val engine = scala.tools.nsc.interpreter.shell.Scripted()
 
-  def run(script:String,args:Map[String,Any] = Map()):Any = {
+  def run(script:String,args:Map[String,Any] = Map()):Try[Any] = {
     log.info(s"args=${args}, script=${script}, engine=${engine}")
 
-    // Create a proper ScriptContext
-    val ctx = new SimpleScriptContext()
-    
-    // Set context variables that can be accessed in the script
-    args.foreach { case (name, value) =>
-      ctx.setAttribute(name, value, ScriptContext.ENGINE_SCOPE)
-    }
+    Try {
+      // Create a proper ScriptContext
+      val ctx = new SimpleScriptContext()
+      
+      // Set context variables that can be accessed in the script
+      args.foreach { case (name, value) =>
+        ctx.setAttribute(name, value, ScriptContext.ENGINE_SCOPE)
+      }
 
-    val r = engine.eval(script, ctx)    
-    log.debug(s"r=${r}")
-    r
+      val r = engine.eval(script, ctx)      
+      log.debug(s"r=${r}")
+      r
+    }
   }
 }

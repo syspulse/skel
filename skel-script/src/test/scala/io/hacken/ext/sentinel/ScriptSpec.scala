@@ -25,7 +25,7 @@ class ScriptSpec extends AnyWordSpec with Matchers {
     "build ScriptRegexp from builder" in {
       val script = ScriptRegexp.build(Some(".*foo.*"))
       script.getId() shouldBe "regexp"
-      script.run("", "foobar", Map.empty) shouldBe Success("true")
+      script.run("", "foobar", Map.empty) shouldBe Success("foobar")
     }
 
     "build ScriptJQ from builder" in {
@@ -36,6 +36,15 @@ class ScriptSpec extends AnyWordSpec with Matchers {
     "build ScriptJS from builder" in {
       val script = ScriptJS.build(None)
       script.getId() shouldBe "js"
+    }
+
+    "build ScriptJS from builder with src0" in {
+      val script = ScriptJS.build(Some("input.toUpperCase()"))
+      script.getId() shouldBe "js"
+      // Test that src0 is used when run("") is called
+      val result = script.run("", "hello", Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "HELLO"
     }
 
     "build ScriptAI from builder" in {
@@ -59,7 +68,7 @@ class ScriptSpec extends AnyWordSpec with Matchers {
       val result = Script("regexp", Some(".*foo.*"))
       result.isSuccess shouldBe true
       result.get.getId() shouldBe "regexp"
-      result.get.run("", "foobar", Map.empty) shouldBe Success("true")
+      result.get.run("", "foobar", Map.empty) shouldBe Success("foobar")
     }
 
     "find and build ScriptJQ by ID" in {
@@ -72,6 +81,16 @@ class ScriptSpec extends AnyWordSpec with Matchers {
       val result = Script("js", None)
       result.isSuccess shouldBe true
       result.get.getId() shouldBe "js"
+    }
+
+    "find and build ScriptJS by ID with src0" in {
+      val result = Script("js", Some("input.length"))
+      result.isSuccess shouldBe true
+      result.get.getId() shouldBe "js"
+      // Test that src0 is used when run("") is called
+      val runResult = result.get.run("", "hello", Map.empty)
+      runResult.isSuccess shouldBe true
+      runResult.get shouldBe "5"
     }
 
     "find and build ScriptAI by ID" in {
@@ -146,6 +165,71 @@ class ScriptSpec extends AnyWordSpec with Matchers {
       val script = Script("custom", None)
       script.isSuccess shouldBe true
       script.get.getId() shouldBe "str"
+    }
+  }
+
+  "ScriptJS with src0" should {
+    "use src0 script when run(\"\") is called with empty src" in {
+      val script = new ScriptJS(src0 = Some("input.toUpperCase()"))
+      val result1 = script.run("", "hello", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "HELLO"
+      
+      val result2 = script.run("", "world", Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get shouldBe "WORLD"
+    }
+
+    "use src parameter when provided, ignoring src0" in {
+      val script = new ScriptJS(src0 = Some("input.toUpperCase()"))
+      // When src is provided, it should be used instead of src0
+      val result = script.run("input.toLowerCase()", "HELLO", Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "hello"
+    }
+
+    "handle different input types with src0" in {
+      val script = new ScriptJS(src0 = Some("input * 2"))
+      val result1 = script.run("", "5", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "10"
+      
+      val script2 = new ScriptJS(src0 = Some("input + '_suffix'"))
+      val result2 = script2.run("", "test", Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get shouldBe "test_suffix"
+    }
+
+    "handle complex transformations with src0" in {
+      val script = new ScriptJS(src0 = Some("input.split('').reverse().join('')"))
+      val result = script.run("", "hello", Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "olleh"
+    }
+
+    "handle numeric operations with src0" in {
+      val script = new ScriptJS(src0 = Some("parseInt(input) + 10"))
+      val result1 = script.run("", "5", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "15"
+      
+      val result2 = script.run("", "20", Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get shouldBe "30"
+    }
+
+    "handle string concatenation with src0" in {
+      val script = new ScriptJS(src0 = Some("'prefix_' + input + '_suffix'"))
+      val result = script.run("", "middle", Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "prefix_middle_suffix"
+    }
+
+    "work with empty input and src0" in {
+      val script = new ScriptJS(src0 = Some("input || 'default'"))
+      val result = script.run("", "", Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "default"
     }
   }
 }

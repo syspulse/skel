@@ -64,7 +64,10 @@ object App  {
     def run(e:ScriptEngine):Unit = {
       for(i <- 0 until config.loop) {
         val r = e.run(script,defParasm)
-        Console.err.println(s"r[${i}] = ${r}")
+        r match {
+          case scala.util.Success(result) => Console.err.println(s"r[${i}] = ${result}")
+          case scala.util.Failure(e) => Console.err.println(s"r[${i}] = ERROR: ${e.getMessage}")
+        }
       }
     }
 

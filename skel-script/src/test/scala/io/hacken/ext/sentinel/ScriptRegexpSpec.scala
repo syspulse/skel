@@ -8,23 +8,23 @@ import scala.util.Success
 class ScriptRegexpSpec extends AnyWordSpec with Matchers {
 
   "ScriptRegexp" should {
-    "return true when inline pattern matches input" in {
+    "return input when inline pattern matches input" in {
       val engine = new ScriptRegexp(None)
 
-      engine.run(".*foo.*", "foobar", Map.empty) shouldBe Success("true")
+      engine.run(".*foo.*", "foobar", Map.empty) shouldBe Success("foobar")
     }
 
-    "return false when inline pattern does not match input" in {
+    "return empty string when inline pattern does not match input" in {
       val engine = new ScriptRegexp(None)
 
-      engine.run(".*foo.*", "barbaz", Map.empty) shouldBe Success("false")
+      engine.run(".*foo.*", "barbaz", Map.empty) shouldBe Success("")
     }
 
     "support negated inline patterns prefixed with '!'" in {
       val engine = new ScriptRegexp(None)
 
-      engine.run("!.*foo.*", "barbaz", Map.empty) shouldBe Success("true")
-      engine.run("!.*foo.*", "foobar", Map.empty) shouldBe Success("false")
+      engine.run("!.*foo.*", "barbaz", Map.empty) shouldBe Success("barbaz")
+      engine.run("!.*foo.*", "foobar", Map.empty) shouldBe Success("")
     }
     
     "extract value when inline regexp has capturing group" in {
@@ -36,8 +36,8 @@ class ScriptRegexpSpec extends AnyWordSpec with Matchers {
     "use constructor pattern when inline src is blank" in {
       val engine = new ScriptRegexp(Some(".*foo.*"))
 
-      engine.run("", "foobar", Map.empty) shouldBe Success("true")
-      engine.run("", "barbaz", Map.empty) shouldBe Success("false")
+      engine.run("", "foobar", Map.empty) shouldBe Success("foobar")
+      engine.run("", "barbaz", Map.empty) shouldBe Success("")
     }
     
     "extract value when constructor regexp has capturing group" in {
@@ -61,8 +61,8 @@ class ScriptRegexpSpec extends AnyWordSpec with Matchers {
     "honour negated constructor pattern" in {
       val engine = new ScriptRegexp(Some("!.*foo.*"))
       
-      engine.run("", "foobar", Map.empty) shouldBe Success("false")
-      engine.run("", "barbaz", Map.empty) shouldBe Success("true")
+      engine.run("", "foobar", Map.empty) shouldBe Success("")
+      engine.run("", "barbaz", Map.empty) shouldBe Success("barbaz")
     }
   }
 }

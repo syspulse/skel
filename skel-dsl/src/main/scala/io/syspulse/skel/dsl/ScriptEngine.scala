@@ -1,11 +1,11 @@
-
 package io.syspulse.skel.dsl
 
+import scala.util.Try
 import com.typesafe.scalalogging.Logger
 import javax.script.ScriptEngineManager
 
 abstract class ScriptEngine(lang:String) {
   val log = Logger(s"${this}")
       
-  def run(script:String,args:Map[String,Any] = Map()):Any
+  def run(script:String,args:Map[String,Any] = Map()):Try[Any]
 }

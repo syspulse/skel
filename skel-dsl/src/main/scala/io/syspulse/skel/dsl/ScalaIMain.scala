@@ -5,6 +5,7 @@ import scala.tools.nsc.interpreter._
 import scala.reflect.runtime.universe._
 import scala.reflect.runtime.currentMirror
 import scala.tools.reflect.ToolBox
+import scala.util.Try
 
 import com.typesafe.scalalogging.Logger
 import scala.tools.nsc.Settings
@@ -18,14 +19,16 @@ class ScalaIMain() {
 
   val engine = new IMain(settings,reporter)
 
-  def run(script:String,args:Map[String,Any] = Map()):Any = {
+  def run(script:String,args:Map[String,Any] = Map()):Try[Any] = {
     log.info(s"args=${args}, script=${script}, engine=${engine}")
 
     // val param1 = "str"
     // val param2 = 10    
     // val r = engine.interpret(s"val param1 = $param1; val param2 = $param2; $script")    
     
-    val r = engine.interpretSynthetic(script)
+    val r = Try {
+      engine.interpretSynthetic(script)
+    }
     log.debug(s"r=${r}")
     r
   }

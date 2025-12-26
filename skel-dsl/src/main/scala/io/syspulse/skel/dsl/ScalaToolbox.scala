@@ -3,6 +3,7 @@ package io.syspulse.skel.dsl
 import scala.reflect.runtime.universe._
 import scala.reflect.runtime.currentMirror
 import scala.tools.reflect.ToolBox
+import scala.util.Try
 
 import com.typesafe.scalalogging.Logger
 
@@ -23,17 +24,19 @@ class ScalaToolbox(src:Option[String]=None) {
     compiled.map(c => c())
   }
 
-  def run(script:String,args:Map[String,Any] = Map()):Any = {
-    // log.info(s"args=${args}, script=${script}")
-    val src = args.foldLeft(script.toString){ case(s,(name,v)) => {
-      //s.replaceAll(s"\\{${name}\\}",v.toString)
-      s.replace(s"{${name}}",v.toString)
-    }}
-    log.info(s"args=${args}, script=${script}, src=${src}")
-    val q = engine.parse(src)
-    log.info(s"q=${q}")
-    val r = engine.compile(q)()
-    log.info(s"r=${r}")
-    r
+  def run(script:String,args:Map[String,Any] = Map()):Try[Any] = {
+    Try {
+      // log.info(s"args=${args}, script=${script}")
+      val src = args.foldLeft(script.toString){ case(s,(name,v)) => {
+        //s.replaceAll(s"\\{${name}\\}",v.toString)
+        s.replace(s"{${name}}",v.toString)
+      }}
+      log.info(s"args=${args}, script=${script}, src=${src}")
+      val q = engine.parse(src)
+      log.info(s"q=${q}")
+      val r = engine.compile(q)()
+      log.info(s"r=${r}")
+      r
+    }
   }
 }

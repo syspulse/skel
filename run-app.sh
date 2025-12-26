@@ -29,7 +29,7 @@ CONFIG="application${SITE}.conf"
 PLUGINS=${PLUGSIN:-${CWD}/plugins}
 
 if [ "$APP_EXEC" == "bloop" ]; then
-  exec bloop run ingest_flow -c $SBT_ROOT/.bloop -m ${MAIN} -- -J-Dconfig.resource=$CONFIG $ARGS
+  exec bloop run ingest_flow -c $SBT_ROOT/.bloop -m ${MAIN} -- -J-Dconfig.resource=$CONFIG -J-Dcolor $ARGS
 fi
 
 # fat jar

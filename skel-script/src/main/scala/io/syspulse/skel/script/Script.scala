@@ -20,6 +20,7 @@ import io.syspulse.skel.ai.core.{AiURI,AiTool}
 import io.syspulse.skel.ai.provider.AiProvider
 import io.syspulse.skel.ai.Ai
 import io.syspulse.skel.FutureAwaitable
+import os.{read => engines}
 
 
 abstract class Script(id:Script.ID,name:String) {
@@ -72,28 +73,37 @@ object ScriptSQ extends ScriptBuilder {
 }
 
 // --- Js --------------------------------------------------------------------------
-class ScriptJS(inputVarName:String = "input") extends Script("js","javascript") {
-  private lazy val engine = new Polyglot("js",PolyglotSandbox.RESTRICTED_THREADED)
+class ScriptJS(src0:Option[String] = None,inputVarName:String = "input") extends Script("js","javascript") {  
+  // src0 is either a script or a reference to a file with a script
+  private val script0 = src0.map(s => if(s.startsWith("file://")) os.read(os.Path(s.stripPrefix("file://"),os.pwd)) else s)
+
+  private lazy val engine = new Polyglot("js",PolyglotSandbox.RESTRICTED_THREADED,script0)
   
   override def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
-    try {
-      val dataInput = data + (inputVarName -> input)
-      val r = engine.run(src,dataInput)
-      r match {
-        case null => Failure(new Exception("result: null"))
-        case r => Success(r.toString)
-      }
-    } catch {
-      // case e:jdk.nashorn.internal.runtime.ECMAException => Failure(e)
-      // case e:javax.script.ScriptException => Failure(e)
-      // case e:Exception => Failure(e)
-      case e:Throwable => Failure(e)
+    // try {
+    //   val dataInput = data + (inputVarName -> input)
+    //   val r = engine.run(src,dataInput)
+    //   r match {
+    //     case null => Failure(new Exception("result: null"))
+    //     case r => Success(r.toString)
+    //   }
+    // } catch {
+    //   // case e:jdk.nashorn.internal.runtime.ECMAException => Failure(e)
+    //   // case e:javax.script.ScriptException => Failure(e)
+    //   // case e:Exception => Failure(e)
+    //   case e:Throwable => Failure(e)
+    // }
+    val dataInput = data + (inputVarName -> input)
+    engine.run(src,dataInput) match {
+      case Success(null) => Failure(new Exception("result: null"))
+      case Success(r) => Success(r.toString)
+      case Failure(e) => Failure(e)      
     }
   }
 }
 
 object ScriptJS extends ScriptBuilder {
-  def build(src:Option[String]):Script = new ScriptJS()
+  def build(src0:Option[String]):Script = new ScriptJS(src0 = src0)
 }
 
 // --- String --------------------------------------------------------------------------
@@ -163,7 +173,7 @@ class ScriptRegexp(src0:Option[String]) extends Script("regexp","regexp-jvm") {
     val pattern:Regex = expr.r
     def run(input:String,data:Map[String,Any]):Try[String] = {
       Try {
-        pattern.matches(input).toString()
+        if (pattern.matches(input)) input else ""
       }
     }
   }
@@ -171,7 +181,7 @@ class ScriptRegexp(src0:Option[String]) extends Script("regexp","regexp-jvm") {
   class ExprNotMatch(expr:String) extends ExprMatch(expr) {
     override def run(input:String,data:Map[String,Any]):Try[String] = {
       Try {
-        (! pattern.matches(input)).toString()
+        if (! pattern.matches(input)) input else ""
       }
     }
   }
@@ -305,31 +315,47 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
 }
 
 object ScriptFlow extends ScriptBuilder {
+  private val log = Logger(s"${this.getClass()}")
+
   def build(flow:Seq[Script]):Script = new ScriptFlow(flow)
 
-  def parseUri(uri:String):Option[Script] = {
-    if(uri.isBlank()) return None
+  def parseUri(uri:String):Try[Script] = {    
+    if(uri.isBlank()) return Failure(new Exception(s"Invalid script URI: '${uri}'"))
+    
     uri.split("://").toList match {
-      case "jq" :: src :: Nil => Some(new ScriptJQ(Some(src)))
-      case "sq" :: src :: Nil => Some(new ScriptSQ(Some(src)))
-      case "regexp" :: src :: Nil => Some(new ScriptRegexp(Some(src)))
-      case "ai" :: src :: Nil => Some(new ScriptAI(Some(src)))
-      case "js" :: src :: Nil => Some(new ScriptJS(src))
-      case "str" :: _ => Some(new ScriptStr())
-      case src => Some(new ScriptStr())
+      case "jq" :: src :: Nil => Try(new ScriptJQ(Some(src)))
+      case "sq" :: src :: Nil => Try(new ScriptSQ(Some(src)))
+      case "regexp" :: src :: Nil => Try(new ScriptRegexp(Some(src)))
+      case "ai" :: src :: Nil => Try(new ScriptAI(Some(src)))
+      
+      case "js" :: Nil => 
+        //log.warn(s"js:// not supported without script")
+        Failure(new Exception("js:// not supported without script"))
+      case "js" :: rest =>                
+        Try(new ScriptJS(Some(uri.stripPrefix("js://"))))
+      case "str" :: _ => Success(new ScriptStr())
+      case src =>         
+        Failure(new Exception(s"Unknown script URI: '${uri}'"))
     }      
   }
 
-  def build(flow:Option[String]):Script = {
+  def build(flow:Option[String]):Script = {    
     if(flow.isEmpty) return new ScriptFlow(Seq.empty)
 
     val engines = flow
       .get
       .split(",")
       .filter(! _.isBlank())      
-      .flatMap(e => parseUri(e.trim))
+      .flatMap(e => {
+        parseUri(e.trim) match {
+          case Success(s) => Some(s)
+          case Failure(e) => 
+            log.warn(s"Failed to parse script URI: '${e}': '${e.getMessage()}'")
+            None
+        }
+       })
       .toSeq
-
+    
     new ScriptFlow(engines)
   }
 }

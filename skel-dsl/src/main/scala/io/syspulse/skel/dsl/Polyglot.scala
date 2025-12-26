@@ -125,7 +125,7 @@ object Polyglot {
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
 }
 
-class Polyglot(lang:String,opt:Map[String,Any] = Map()) extends ScriptEngine(lang) {
+class Polyglot(lang:String,opt:Map[String,Any] = Map(),src0:Option[String] = None) extends ScriptEngine(lang) {
   log.info(s"[${lang}] opt=${opt}")
 
   val timeout = opt.get("timeout").map(_.asInstanceOf[Long]).getOrElse(Polyglot.DEF_TIMEOUT)
@@ -243,65 +243,101 @@ class Polyglot(lang:String,opt:Map[String,Any] = Map()) extends ScriptEngine(lan
     ctx.get
   }
 
-  def run(script:String,args:Map[String,Any] = Map()):Any = {    
+  // Try to precompile src0 if it's a function, otherwise store as string
+  // If precompilation fails (e.g., references undefined variables), store as string for runtime evaluation
+  val (func0: Option[Value], src0Script: Option[String]) = src0 match {
+    case Some(src) =>
+      Try(ctx.eval(lang, src)) match {
+        case Success(v) if v.canExecute() => 
+          // It's a function that can be executed - precompile it
+          (Some(v), None)
+        case Success(v) => 
+          // It's a value (not a function) - precompile it
+          (Some(v), None)
+        case Failure(_) => 
+          // Can't precompile (likely references undefined variables) - store as string for runtime evaluation
+          (None, Some(src))
+      }
+    case None => (None, None)
+  }
 
-    log.info(s"[${lang}] ${ctx}: args=${args}, script=${script}")
+  def run(script:String,args:Map[String,Any] = Map()):Try[Any] = {    
 
-    // clear previous bindings - only remove ones we can safely remove
-    val bindings = ctx.getBindings(lang)
-    if (bindings.hasMembers) {
-      bindings.getMemberKeys.asScala.foreach { key =>
-        try {
-          bindings.removeMember(key)
-        } catch {
-          case _: Exception => // Ignore errors when removing bindings
+    log.info(s"[${lang}] ${ctx}: args=${args}, script=${script} (src0=${src0})")
+
+    if(script.isBlank && func0.isEmpty && src0Script.isEmpty) {
+      log.warn(s"No Script specified")
+      return Failure(new Exception("No Script specified"))
+    }
+
+    Try {
+      // clear previous bindings - only remove ones we can safely remove
+      val bindings = ctx.getBindings(lang)
+      if (bindings.hasMembers) {
+        bindings.getMemberKeys.asScala.foreach { key =>
+          try {
+            bindings.removeMember(key)
+          } catch {
+            case _: Exception => // Ignore errors when removing bindings
+          }
         }
       }
-    }
 
-    // set new bindings with proper proxy handling for case classes
-    args.foreach { case (k,v) =>
-      val proxyValue = v match {
-        case cc: Product => createCaseClassProxy(cc)
-        case other => other
+      // set new bindings with proper proxy handling for case classes
+      args.foreach { case (k,v) =>
+        val proxyValue = v match {
+          case cc: Product => createCaseClassProxy(cc)
+          case other => other
+        }
+        ctx.getBindings(lang).putMember(k, proxyValue)
       }
-      ctx.getBindings(lang).putMember(k, proxyValue)
-    }
 
-
-    import Polyglot.ec
-    val executionFuture = Future {
-      val func = ctx.eval(lang, script)
-      val result = if(func.canExecute()) {
-        func.execute(args)
+      import Polyglot.ec
+      // Determine which script is being used for logging/error messages
+      val scriptForLogging = if(!script.isBlank) {
+        script
+      } else if(func0.isDefined) {
+        s"<precompiled:${src0.getOrElse("")}>"
       } else {
-        func
+        src0Script.getOrElse("")
       }
-      result
-    }
+      
+      val executionFuture = Future {
+        val func = {
+          if(!script.isBlank) {
+            // Use provided script
+            ctx.eval(lang, script)
+          } else if(func0.isDefined) {
+            // Use precompiled function/value
+            func0.get
+          } else {
+            // Evaluate src0Script with current bindings
+            ctx.eval(lang, src0Script.get)
+          }
+        }
+        val result = if(func.canExecute()) {
+          func.execute(args)
+        } else {
+          func
+        }
+        result
+      }
 
-    val result = try {
-      Await.result(executionFuture, FiniteDuration(timeout, TimeUnit.MILLISECONDS))      
-    } catch {
-      case e: TimeoutException =>
-        log.warn(s"Execution timed out: ${timeout}ms: ctx=${ctx}",e)
-        //ctx.close(true)
-        ctx.interrupt(java.time.Duration.ofMillis(timeout))        
-        e
-      case e: PolyglotException =>
-        log.warn(s"Execution failed",e)
-        e
-    } finally {
-      //Try(ctx.close())
+      try {
+        Await.result(executionFuture, FiniteDuration(timeout, TimeUnit.MILLISECONDS))      
+      } catch {
+        case e: TimeoutException =>
+          log.warn(s"Execution timed out: '${scriptForLogging}': ${timeout}ms: ctx=${ctx}",e)
+          //ctx.close(true)
+          ctx.interrupt(java.time.Duration.ofMillis(timeout))        
+          throw e
+        case e: PolyglotException =>
+          log.warn(s"Execution failed: '${scriptForLogging}'",e)
+          throw e
+      } finally {
+        //Try(ctx.close())
+      }
     }
-
-    // val func = ctx.eval(lang, script)
-    // val result = if(func.canExecute()) {
-    //   func.execute(args)
-    // } else {
-    //   func
-    // }
-    result
   }
 
   private def createCaseClassProxy(cc: Product): ProxyObject = {

@@ -45,9 +45,12 @@ object FlowProcessors {
   def find(name:String):Option[FlowProcessor[String]] = processors.get(name)
   def create(uri:String):Try[FlowProcessorRun[String]] = {
     uri.split("://").toList match {
-      case name :: Nil => find(name).map(fp => Try(fp.create(uri))).getOrElse(Failure(new Exception(s"Flow processor not found: '${name}'")))
-      case name :: params => find(name).map(fp => Try(fp.create(uri))).getOrElse(Failure(new Exception(s"Flow processor not found: '${name}'")))
-      case _ => Failure(new Exception(s"Invalid flow processor URI: '${uri}'"))
+      case name :: Nil =>         
+        find(name).map(fp => Try(fp.create(uri))).getOrElse(Failure(new Exception(s"Flow processor not found: '${name}'")))
+      case name :: params =>         
+        find(name).map(fp => Try(fp.create(uri))).getOrElse(Failure(new Exception(s"Flow processor not found: '${name}'")))
+      case _ => 
+        Failure(new Exception(s"Invalid flow processor URI: '${uri}'"))
     }
   }
   
