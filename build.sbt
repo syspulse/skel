@@ -910,7 +910,7 @@ lazy val skel_ingest = (project in file("skel-ingest"))
   )
 
 lazy val ingest_flow = (project in file("skel-ingest/ingest-flow"))
-  .dependsOn(skel_core, skel_ingest, ingest_twitter, ingest_coingecko, skel_ai)
+  .dependsOn(skel_core, skel_ingest, ingest_twitter, ingest_coingecko, skel_ai, skel_script)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (

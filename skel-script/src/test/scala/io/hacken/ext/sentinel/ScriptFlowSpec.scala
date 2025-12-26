@@ -164,13 +164,29 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val result = flow.run("", json, Map.empty)
       
       result.isSuccess shouldBe true
-      // The parseUri might have issues with the format, but the flow should still execute
-      // If parseUri works correctly: JQ extracts ".name" -> "List(\"John\")", then regexp matches ".*John.*" -> "true"
-      // If parseUri falls back to ScriptStr: both pass through -> original JSON
-      // Let's just verify the flow executes successfully
-      result.isSuccess shouldBe true
-      // Check if the result contains "John" (either from JQ extraction or passthrough)
-      result.get should include("John")
+      // JQ extracts ".name" -> "John" (or List("John")), then regexp matches ".*John.*" -> "true"
+      result.get shouldBe "true"
+    }
+
+    "build from string format: regexp://.B" in {
+      val flow = ScriptFlow.build(Some("regexp://.B"))
+      
+      // Pattern ".B" matches any character followed by 'B'
+      val result1 = flow.run("", "AB", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "true" // "AB" matches ".B"
+      
+      val result2 = flow.run("", "XB", Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get shouldBe "true" // "XB" matches ".B"
+      
+      val result3 = flow.run("", "A", Map.empty)
+      result3.isSuccess shouldBe true
+      result3.get shouldBe "false" // "A" doesn't match ".B"
+      
+      val result4 = flow.run("", "test", Map.empty)
+      result4.isSuccess shouldBe true
+      result4.get shouldBe "false" // "test" doesn't match ".B"
     }
   }
 

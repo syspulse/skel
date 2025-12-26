@@ -26,6 +26,8 @@ import io.syspulse.skel.FutureAwaitable
 import io.syspulse.skel.ai.core.{AiURI, AiTool}
 import io.syspulse.skel.ai.provider.AiProvider
 import io.syspulse.skel.ai.Ai
+import io.syspulse.skel.script.Script
+import io.syspulse.skel.script.ScriptFlow
 import scala.concurrent.Future
 
 object FlowProcessors {
@@ -37,6 +39,7 @@ object FlowProcessors {
     FlowProcessorDedup.name -> FlowProcessorDedup,
     FlowProcessorThrottle.name -> FlowProcessorThrottle,
     FlowProcessorAI.name -> FlowProcessorAI,
+    FlowProcessorScript.name -> FlowProcessorScript,
   )
 
   def find(name:String):Option[FlowProcessor[String]] = processors.get(name)
@@ -205,6 +208,44 @@ class FlowProcessorAIRun(uri:String) extends FlowProcessorRun[String] {
             log.error(s"AI processing failed for input: '${Util.trunc(input,50)}'", e)
             Seq(input) // Return original input on error
           }(aiEc)
+      }
+    }
+}
+
+object FlowProcessorScript extends FlowProcessor[String]("script") {
+  def create(uri:String):FlowProcessorRun[String] = new FlowProcessorScriptRun(uri)
+}
+
+class FlowProcessorScriptRun(uri:String) extends FlowProcessorRun[String] {
+  private val log = Logger(s"${this}")
+
+  override def toString: String = s"${this.getClass().getSimpleName()}(${script}})"
+  
+  // Extract script URI from "script://jq://,regexp://.*" format
+  val scriptUri = uri.replaceFirst(s"^${FlowProcessorScript.name}://", "")
+    
+  // Build ScriptFlow from the script URI
+  val script: Script = ScriptFlow.build(Some(scriptUri))
+  
+  // Dedicated execution context for script operations
+  implicit val scriptEc: ExecutionContext = ExecutionContext.global
+
+  def name:String = FlowProcessorScript.name
+  val id:String = UUID.randomUUID().toString
+  
+  def process:Flow[String,Seq[String],_] = Flow[String]
+    .mapAsync(1) { input =>
+      if (input.isBlank) {
+        Future.successful(Seq(input))
+      } else {
+        script.exec("", input, Map.empty)(scriptEc)
+          .map { result =>
+            Seq(result)
+          }(scriptEc)
+          .recover { case e: Exception =>
+            log.error(s"Script processing failed for input: '${Util.trunc(input,50)}'", e)
+            Seq(input) // Return original input on error
+          }(scriptEc)
       }
     }
 }

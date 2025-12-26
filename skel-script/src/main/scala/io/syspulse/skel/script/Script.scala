@@ -25,6 +25,8 @@ import io.syspulse.skel.FutureAwaitable
 abstract class Script(id:Script.ID,name:String) {
   protected val log = Logger(s"${this.getClass()}")
 
+  override def toString: String = s"${this.getClass().getSimpleName()}"
+
   def getId():Script.ID = this.id
   def run(src:String,input:String,data:Map[String,Any]):Try[String]
   
@@ -286,6 +288,9 @@ object ScriptAI extends ScriptBuilder {
 
 // --- Flow ---------------------------------------------------------------
 class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
+
+  override def toString: String = s"${this.getClass().getSimpleName()}(${flow.map(_.toString).mkString(",")})"
+
   def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
     flow.foldLeft[Try[String]](Success(input)) { (result,engine) =>
       result.flatMap(r => engine.run(src,r,data))
@@ -305,12 +310,12 @@ object ScriptFlow extends ScriptBuilder {
   def parseUri(uri:String):Option[Script] = {
     if(uri.isBlank()) return None
     uri.split("://").toList match {
-      case "jq://" :: src :: Nil => Some(new ScriptJQ(Some(src)))
-      case "sq://" :: src :: Nil => Some(new ScriptSQ(Some(src)))
-      case "regexp://" :: src :: Nil => Some(new ScriptRegexp(Some(src)))
-      case "ai://" :: src :: Nil => Some(new ScriptAI(Some(src)))
-      case "js://" :: src :: Nil => Some(new ScriptJS(src))
-      case "str://" :: _ => Some(new ScriptStr())
+      case "jq" :: src :: Nil => Some(new ScriptJQ(Some(src)))
+      case "sq" :: src :: Nil => Some(new ScriptSQ(Some(src)))
+      case "regexp" :: src :: Nil => Some(new ScriptRegexp(Some(src)))
+      case "ai" :: src :: Nil => Some(new ScriptAI(Some(src)))
+      case "js" :: src :: Nil => Some(new ScriptJS(src))
+      case "str" :: _ => Some(new ScriptStr())
       case src => Some(new ScriptStr())
     }      
   }

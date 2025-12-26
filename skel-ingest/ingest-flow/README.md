@@ -156,7 +156,7 @@ Create mulitple Pipelines as a single Flow from `--pipeline.flow`.
 
 All Pipeines are connected: Pipeline1(Sink) -> Pipeline2(Source)
 
-Flow supports __FlowProcessor__
+Flow and Ingest support __FlowProcessor__
 
 FlowProcessor is a simple `Flow[T]` which excepts `T` and produces `Seq[T]`
 

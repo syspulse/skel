@@ -90,7 +90,7 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config, as:Opt
         format = config.format,
         as = as) {
   
-  //private val log = Logger(s"${this}")
+  private val log = Logger(s"${this}")
   implicit val ex:ExecutionContext = ExecutionContext.global
       
   override def getFileLimit():Long = config.limit
@@ -151,6 +151,8 @@ class PipelineTextline(feed:String,output:String)(implicit config:Config, as:Opt
     case Success(fp) => fp
     case Failure(e) => throw new Exception(s"Failed to create flow processor: ${e.getMessage()}")
   })
+
+  log.info(s"processors = ${processors}")
 
   override def process:Flow[String,Seq[String],_] = {
     if(processors.isEmpty) {
