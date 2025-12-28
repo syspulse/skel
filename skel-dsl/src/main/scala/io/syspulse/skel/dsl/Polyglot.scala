@@ -125,8 +125,12 @@ object Polyglot {
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
 }
 
-class Polyglot(lang:String,opt:Map[String,Any] = Map(),src0:Option[String] = None) extends ScriptEngine(lang) {
+class Polyglot(lang:String,opt:Map[String,Any] = Map(),src0:Option[String] = None, polyLogs:Boolean = false) extends ScriptEngine(lang) {
   log.info(s"[${lang}] opt=${opt}")
+
+  if(!polyLogs) {
+    sys.props("polyglot.engine.WarnInterpreterOnly") = "false"
+  }
 
   val timeout = opt.get("timeout").map(_.asInstanceOf[Long]).getOrElse(Polyglot.DEF_TIMEOUT)
 

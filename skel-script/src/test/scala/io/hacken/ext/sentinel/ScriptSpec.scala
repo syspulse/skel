@@ -61,6 +61,27 @@ class ScriptSpec extends AnyWordSpec with Matchers {
       val script = ScriptNone.build(None)
       script.getId() shouldBe "none"
     }
+
+    "build ScriptRegexpScore from builder" in {
+      val script = ScriptRegexpScore.build(Some(".*foo.*"))
+      script.getId() shouldBe "regexp_score"
+      script.run("", "foobar", Map.empty) shouldBe Success("1.0")
+      script.run("", "barbaz", Map.empty) shouldBe Success("0.0")
+    }
+
+    "build ScriptRegexpScore from builder with extraction pattern" in {
+      val script = ScriptRegexpScore.build(Some("?([0-9]+)"))
+      script.getId() shouldBe "regexp_score"
+      script.run("", "The number is 42", Map.empty) shouldBe Success("1.0")
+      script.run("", "No numbers here", Map.empty) shouldBe Success("0.0")
+    }
+
+    "build ScriptRegexpScore from builder with negation pattern" in {
+      val script = ScriptRegexpScore.build(Some("!.*foo.*"))
+      script.getId() shouldBe "regexp_score"
+      script.run("", "barbaz", Map.empty) shouldBe Success("1.0")
+      script.run("", "foobar", Map.empty) shouldBe Success("0.0")
+    }
   }
 
   "Script.apply" should {
@@ -111,6 +132,22 @@ class ScriptSpec extends AnyWordSpec with Matchers {
       result.get.getId() shouldBe "none"
     }
 
+    "find and build ScriptRegexpScore by regexp_score ID" in {
+      val result = Script("regexp_score", Some(".*foo.*"))
+      result.isSuccess shouldBe true
+      result.get.getId() shouldBe "regexp_score"
+      result.get.run("", "foobar", Map.empty) shouldBe Success("1.0")
+      result.get.run("", "barbaz", Map.empty) shouldBe Success("0.0")
+    }
+
+    "find and build ScriptRegexpScore by regex_score ID" in {
+      val result = Script("regex_score", Some(".*bar.*"))
+      result.isSuccess shouldBe true
+      result.get.getId() shouldBe "regexp_score"
+      result.get.run("", "foobar", Map.empty) shouldBe Success("1.0")
+      result.get.run("", "foobaz", Map.empty) shouldBe Success("0.0")
+    }
+
     "return Failure for unknown script ID" in {
       val result = Script("unknown", None)
       result.isFailure shouldBe true
@@ -144,6 +181,18 @@ class ScriptSpec extends AnyWordSpec with Matchers {
     "find ScriptAI builder" in {
       val builder = Script.find("ai")
       builder.isDefined shouldBe true
+    }
+
+    "find ScriptRegexpScore builder by regexp_score ID" in {
+      val builder = Script.find("regexp_score")
+      builder.isDefined shouldBe true
+      builder.get.build(Some(".*foo.*")).getId() shouldBe "regexp_score"
+    }
+
+    "find ScriptRegexpScore builder by regex_score ID" in {
+      val builder = Script.find("regex_score")
+      builder.isDefined shouldBe true
+      builder.get.build(Some(".*bar.*")).getId() shouldBe "regexp_score"
     }
 
     "return None for unknown script ID" in {

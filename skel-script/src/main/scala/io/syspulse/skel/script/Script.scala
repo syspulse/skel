@@ -23,7 +23,7 @@ import io.syspulse.skel.FutureAwaitable
 import os.{read => engines}
 
 
-abstract class Script(id:Script.ID,name:String) {
+abstract class Script(val id:Script.ID,val name:String) {
   protected val log = Logger(s"${this.getClass()}")
 
   override def toString: String = s"${this.getClass().getSimpleName()}"
@@ -222,6 +222,24 @@ object ScriptRegexp extends ScriptBuilder {
   def build(src:Option[String]):Script = new ScriptRegexp(src)
 }
 
+// --- Regexp Score ---------------------------------------------------------------
+class ScriptRegexpScore(src0:Option[String]) extends ScriptRegexp(src0) {
+  override val id:String = "regexp_score"
+  override val name:String = "regexp-jvm-score"
+  override def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
+
+    super.run(src,input,data) match {
+      case Success(r) if(r.isBlank) => Success("0.0")
+      case Success(r) => Success("1.0")
+      case Failure(e) => Failure(e)
+    }
+  }
+}
+
+object ScriptRegexpScore extends ScriptBuilder {
+  def build(src:Option[String]):Script = new ScriptRegexpScore(src)
+}
+
 // --- AI Query ---------------------------------------------------------------
 class ScriptAI(src0:Option[String]) extends Script("ai","ai-llm") {
   val aiUri = AiURI(src0.getOrElse(ScriptAI.DEF_AI_URI))
@@ -382,6 +400,9 @@ object Script {
     "js" -> ScriptJS,
     "sq" -> ScriptSQ,
     "regexp" -> ScriptRegexp,
+    "regex" -> ScriptRegexp,
+    "regex_score" -> ScriptRegexpScore,
+    "regexp_score" -> ScriptRegexpScore,
     "jq" -> ScriptJQ,
     "ai" -> ScriptAI,
     "flow" -> ScriptFlow
@@ -404,17 +425,4 @@ object Script {
     }
   }
 
-  // resulst as score
-  def score(result:Try[String]):Double = {
-    result.flatMap( r => {
-      Try(r.toDouble)
-        .map( s => {
-          if(s > 1.0) 1.0
-          else 
-          if(s < 0.0) 0.0
-          else s
-        })
-    })
-    .getOrElse(0.0)
-  }
 }

@@ -29,7 +29,8 @@ CONFIG="application${SITE}.conf"
 PLUGINS=${PLUGSIN:-${CWD}/plugins}
 
 if [ "$APP_EXEC" == "bloop" ]; then
-  exec bloop run ingest_flow -c $SBT_ROOT/.bloop -m ${MAIN} -- -J-Dconfig.resource=$CONFIG -J-Dcolor $ARGS
+  APP_PROJECT=${APP//-/_}
+  exec bloop run ${APP_PROJECT} -c $SBT_ROOT/.bloop -m ${MAIN} -- -J-Dconfig.resource=$CONFIG -J-Dcolor $ARGS
 fi
 
 # fat jar
@@ -52,7 +53,7 @@ JAR_UNFAT=`ls ${APP_HOME}/lib/*.jar`
 JAR_FILES=`cat ${APP_HOME}/CLASSPATH`
 
 PLUGIN_JARS="${PLUGINS}/*"
-CP="${APP_HOME}/conf/:${JAR_FAT}:${JAR_UNFAT}:${JAR_FILES}:${CLASSES}:${CLASSES_BLOOP}:${PLUGIN_JARS}"
+CP="${APP_HOME}/conf/:${JAR_FAT}:${JAR_UNFAT}:${CLASSES}:${JAR_FILES}:${CLASSES_BLOOP}:${PLUGIN_JARS}"
 
 MEM=${MEM:-1G}
 STACK=${STACK:-512M}

@@ -354,6 +354,7 @@ lazy val root = (project in file("."))
             skel_scrap, 
             skel_cli, 
             db_cli,
+            db_guard,
             skel_plugin,
             ingest_core, 
             ingest_flow,
@@ -405,7 +406,7 @@ lazy val root = (project in file("."))
             skel_scrap, 
             skel_cli, 
             db_cli,
-
+            db_guard,
             skel_plugin,
             ingest_core,
             ingest_flow,
