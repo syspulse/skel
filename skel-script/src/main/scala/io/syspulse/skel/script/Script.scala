@@ -62,6 +62,22 @@ object ScriptJQ extends ScriptBuilder {
   def build(src:Option[String]):Script = new ScriptSQ()
 }
 
+class ScriptJQScore(src0:Option[String]) extends ScriptJQ(src0) {
+  override val id:String = "jq_score"
+  override val name:String = "json-query-score"
+  override def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
+    super.run(src,input,data) match {
+      case Success(r) if(r.isBlank) => Success("0.0")
+      case Success(r) => Success("1.0")
+      case Failure(e) => Failure(e)
+    }
+  }
+}
+
+object ScriptJQScore extends ScriptBuilder {
+  def build(src:Option[String]):Script = new ScriptJQScore(src)
+}
+
 // --- Solidity Query ---------------------------------------------------------------
 class ScriptSQ(src0:Option[String] = None) extends Script("sq","solidity-query") {
   def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
@@ -73,6 +89,22 @@ class ScriptSQ(src0:Option[String] = None) extends Script("sq","solidity-query")
 
 object ScriptSQ extends ScriptBuilder {
   def build(src:Option[String]):Script = new ScriptSQ()
+}
+
+class ScriptSQScore(src0:Option[String]) extends ScriptSQ(src0) {
+  override val id:String = "sq_score"
+  override val name:String = "solidity-query-score"
+  override def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
+    super.run(src,input,data) match {
+      case Success(r) if(r.isBlank) => Success("0.0")
+      case Success(r) => Success("1.0")
+      case Failure(e) => Failure(e)
+    }
+  }
+}
+
+object ScriptSQScore extends ScriptBuilder {
+  def build(src:Option[String]):Script = new ScriptSQScore(src)
 }
 
 // --- Js --------------------------------------------------------------------------
@@ -399,11 +431,13 @@ object Script {
     "str" -> ScriptStr,
     "js" -> ScriptJS,
     "sq" -> ScriptSQ,
+    "sq_score" -> ScriptSQScore,
     "regexp" -> ScriptRegexp,
     "regex" -> ScriptRegexp,
     "regex_score" -> ScriptRegexpScore,
     "regexp_score" -> ScriptRegexpScore,
     "jq" -> ScriptJQ,
+    "jq_score" -> ScriptJQScore,
     "ai" -> ScriptAI,
     "flow" -> ScriptFlow
   )

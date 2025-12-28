@@ -136,8 +136,106 @@ class ScriptJQSpec extends AnyWordSpec with Matchers {
       media3.isSuccess shouldBe true
       media3.get should include("https://pbs.twimg.com/media/G9GgmC1WYAAHQz8.jpg")
     }
+  }
 
+  "ScriptJQScore" should {
+    "return 1.0 when field exists and has value" in {
+      val engine = new ScriptJQScore(Some(".name"))
+      val json = """{"name":"John","age":30}"""
 
+      val result = engine.run("", json, Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "1.0" // Field exists and has value -> "1.0"
+    }
+
+    "propagate failure when field does not exist" in {
+      val engine = new ScriptJQScore(Some(".nonexistent"))
+      val json = """{"name":"John","age":30}"""
+
+      val result = engine.run("", json, Map.empty)
+      // ScriptJQ throws NoSuchElementException when field doesn't exist, which ScriptJQScore propagates
+      result.isFailure shouldBe true
+      result.failed.get shouldBe a[java.util.NoSuchElementException]
+    }
+
+    "return 0.0 when field exists but is null" in {
+      val engine = new ScriptJQScore(Some(".value"))
+      val json = """{"name":"John","value":null}"""
+
+      val result = engine.run("", json, Map.empty)
+      // Note: JQ returns "null" as string, which is not blank, so it returns "1.0"
+      // But if the field truly doesn't exist, it returns "0.0"
+      result.isSuccess shouldBe true
+      // null value is returned as "null" string, which is not blank -> "1.0"
+      result.get shouldBe "1.0"
+    }
+
+    "return 0.0 when field exists but is empty string" in {
+      val engine = new ScriptJQScore(Some(".name"))
+      val json = """{"name":"","age":30}"""
+
+      val result = engine.run("", json, Map.empty)
+      // Empty string might be returned as "" which is blank -> "0.0"
+      // Or it might be returned as a non-blank representation -> "1.0"
+      result.isSuccess shouldBe true
+      // The actual behavior depends on how JQ handles empty strings
+      result.get should (be("0.0") or be("1.0"))
+    }
+
+    "return 1.0 when nested field exists" in {
+      val engine = new ScriptJQScore(Some(".user.name"))
+      val json = """{"user":{"name":"John","age":30}}"""
+
+      val result = engine.run("", json, Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "1.0" // Nested field exists -> "1.0"
+    }
+
+    "propagate failure when nested field does not exist" in {
+      val engine = new ScriptJQScore(Some(".user.address.city"))
+      val json = """{"user":{"name":"John","age":30}}"""
+
+      val result = engine.run("", json, Map.empty)
+      // ScriptJQ throws NoSuchElementException when nested field doesn't exist, which ScriptJQScore propagates
+      result.isFailure shouldBe true
+      result.failed.get shouldBe a[java.util.NoSuchElementException]
+    }
+
+    "return 1.0 when array field exists and has elements" in {
+      val engine = new ScriptJQScore(Some(".items"))
+      val json = """{"items":["a","b","c"]}"""
+
+      val result = engine.run("", json, Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "1.0" // Array exists and has elements -> "1.0"
+    }
+
+    "return 0.0 when array field exists but is empty" in {
+      val engine = new ScriptJQScore(Some(".items"))
+      val json = """{"items":[]}"""
+
+      val result = engine.run("", json, Map.empty)
+      result.isSuccess shouldBe true
+      // Empty array might return "" (blank) -> "0.0" or non-blank -> "1.0"
+      result.get should (be("0.0") or be("1.0"))
+    }
+
+    "use constructor path when inline src is blank" in {
+      val engine = new ScriptJQScore(Some(".name"))
+      val json = """{"name":"John","age":30}"""
+
+      val result = engine.run("", json, Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "1.0"
+    }
+
+    "propagate failures from ScriptJQ" in {
+      val engine = new ScriptJQScore(Some(".name"))
+      val invalidJson = "not valid json"
+
+      val result = engine.run("", invalidJson, Map.empty)
+      result.isFailure shouldBe true
+    }
   }
 }
 

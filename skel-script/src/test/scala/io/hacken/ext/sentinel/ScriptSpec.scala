@@ -82,6 +82,24 @@ class ScriptSpec extends AnyWordSpec with Matchers {
       script.run("", "barbaz", Map.empty) shouldBe Success("1.0")
       script.run("", "foobar", Map.empty) shouldBe Success("0.0")
     }
+
+    "build ScriptJQScore from builder" in {
+      val script = ScriptJQScore.build(Some(".name"))
+      script.getId() shouldBe "jq_score"
+      script.run("", """{"name":"John","age":30}""", Map.empty) shouldBe Success("1.0")
+      // ScriptJQ throws exception when field doesn't exist, which ScriptJQScore propagates
+      val result = script.run("", """{"age":30}""", Map.empty)
+      result.isFailure shouldBe true
+      result.failed.get shouldBe a[java.util.NoSuchElementException]
+    }
+
+    "build ScriptSQScore from builder" in {
+      val script = ScriptSQScore.build(Some("result"))
+      script.getId() shouldBe "sq_score"
+      // Note: ScriptSQ extracts Solidity result values, so we need valid Solidity output format
+      // For testing, we'll verify the builder works
+      script.getId() shouldBe "sq_score"
+    }
   }
 
   "Script.apply" should {
@@ -148,6 +166,23 @@ class ScriptSpec extends AnyWordSpec with Matchers {
       result.get.run("", "foobaz", Map.empty) shouldBe Success("0.0")
     }
 
+    "find and build ScriptJQScore by jq_score ID" in {
+      val result = Script("jq_score", Some(".name"))
+      result.isSuccess shouldBe true
+      result.get.getId() shouldBe "jq_score"
+      result.get.run("", """{"name":"John","age":30}""", Map.empty) shouldBe Success("1.0")
+      // ScriptJQ throws exception when field doesn't exist, which ScriptJQScore propagates
+      val runResult = result.get.run("", """{"age":30}""", Map.empty)
+      runResult.isFailure shouldBe true
+      runResult.failed.get shouldBe a[java.util.NoSuchElementException]
+    }
+
+    "find and build ScriptSQScore by sq_score ID" in {
+      val result = Script("sq_score", Some("result"))
+      result.isSuccess shouldBe true
+      result.get.getId() shouldBe "sq_score"
+    }
+
     "return Failure for unknown script ID" in {
       val result = Script("unknown", None)
       result.isFailure shouldBe true
@@ -193,6 +228,18 @@ class ScriptSpec extends AnyWordSpec with Matchers {
       val builder = Script.find("regex_score")
       builder.isDefined shouldBe true
       builder.get.build(Some(".*bar.*")).getId() shouldBe "regexp_score"
+    }
+
+    "find ScriptJQScore builder by jq_score ID" in {
+      val builder = Script.find("jq_score")
+      builder.isDefined shouldBe true
+      builder.get.build(Some(".name")).getId() shouldBe "jq_score"
+    }
+
+    "find ScriptSQScore builder by sq_score ID" in {
+      val builder = Script.find("sq_score")
+      builder.isDefined shouldBe true
+      builder.get.build(Some("result")).getId() shouldBe "sq_score"
     }
 
     "return None for unknown script ID" in {
