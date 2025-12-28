@@ -12,7 +12,7 @@ import scala.concurrent.duration.FiniteDuration
 import spray.json._
 import java.time.OffsetDateTime
 
-class TwitterConnect(uri:String) extends TwitterClient {
+class TwitterConnect(uri:String,past:Option[Long]=None,max:Option[Long]=None) extends TwitterClient {
   import TwitJson._
   
   val twitterUri = TwitterURI(uri)
@@ -25,7 +25,7 @@ class TwitterConnect(uri:String) extends TwitterClient {
   }
 
   def request(followUsers:Set[String])(implicit ec: ExecutionContext):Future[Seq[Twit]] = {
-    request(followUsers,twitterUri.query,twitterUri.past,twitterUri.max,accessToken)
+    request(followUsers,twitterUri.query,past.getOrElse(twitterUri.past),max.getOrElse(twitterUri.max),accessToken)
       .map(_.utf8String)      
       .map(body => {
         val rsp = body.parseJson.convertTo[TwitterSearchRecent]        

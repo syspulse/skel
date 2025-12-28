@@ -154,7 +154,22 @@ val sharedConfig = Seq(
 
     // needed to fix error with quill-jasync
     // org.scala-lang.modules:scala-java8-compat_2.13:1.0.2 (early-semver) is selected over {1.0.0, 0.9.1}
-    libraryDependencySchemes += "org.scala-lang.modules" %% "scala-java8-compat" % VersionScheme.Always
+    libraryDependencySchemes += "org.scala-lang.modules" %% "scala-java8-compat" % VersionScheme.Always,
+
+    // ----------------------- Bloop specific settings -------------------------------------------
+    // Add conf/ directory to classpath for running (NOT packaged in JAR)
+    Compile / unmanagedClasspath += Attributed.blank(baseDirectory.value / "conf"),
+    Runtime / unmanagedClasspath += Attributed.blank(baseDirectory.value / "conf"),
+
+    // Set working directory to project directory (not workspace root) for Bloop
+    run / javaOptions := {
+      val base = baseDirectory.value
+      Seq(s"-Duser.dir=$base")
+    },
+    Compile / javaOptions := {
+      val base = baseDirectory.value
+      Seq(s"-Duser.dir=$base")
+    }, 
   )
 
 // assemblyMergeStrategy in assembly := {

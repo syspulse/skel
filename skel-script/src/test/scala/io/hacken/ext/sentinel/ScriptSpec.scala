@@ -9,6 +9,7 @@ import scala.util.{Success, Failure}
 // Other tests have been split into separate spec files:
 // - ScriptRegexpSpec.scala
 // - ScriptJQSpec.scala
+// - ScriptJSSpec.scala
 // - ScriptAISpec.scala
 // - ScriptFlowSpec.scala
 // - ScriptScoreSpec.scala
@@ -17,6 +18,7 @@ import scala.util.{Success, Failure}
 // Run individual specs for faster test execution:
 //   sbt "project skel_script" "testOnly io.syspulse.skel.script.ScriptRegexpSpec"
 //   sbt "project skel_script" "testOnly io.syspulse.skel.script.ScriptJQSpec"
+//   sbt "project skel_script" "testOnly io.syspulse.skel.script.ScriptJSSpec"
 //   etc.
 
 class ScriptSpec extends AnyWordSpec with Matchers {
@@ -46,6 +48,8 @@ class ScriptSpec extends AnyWordSpec with Matchers {
       result.isSuccess shouldBe true
       result.get shouldBe "HELLO"
     }
+    
+    // Note: More comprehensive ScriptJS tests are in ScriptJSSpec.scala
 
     "build ScriptAI from builder" in {
       val script = ScriptAI.build(Some("openrouter://model"))
@@ -110,68 +114,5 @@ class ScriptSpec extends AnyWordSpec with Matchers {
     }
   }
 
-  "ScriptJS with src0" should {
-    "use src0 script when run(\"\") is called with empty src" in {
-      val script = new ScriptJS(src0 = Some("input.toUpperCase()"))
-      val result1 = script.run("", "hello", Map.empty)
-      result1.isSuccess shouldBe true
-      result1.get shouldBe "HELLO"
-      
-      val result2 = script.run("", "world", Map.empty)
-      result2.isSuccess shouldBe true
-      result2.get shouldBe "WORLD"
-    }
-
-    "use src parameter when provided, ignoring src0" in {
-      val script = new ScriptJS(src0 = Some("input.toUpperCase()"))
-      // When src is provided, it should be used instead of src0
-      val result = script.run("input.toLowerCase()", "HELLO", Map.empty)
-      result.isSuccess shouldBe true
-      result.get shouldBe "hello"
-    }
-
-    "handle different input types with src0" in {
-      val script = new ScriptJS(src0 = Some("input * 2"))
-      val result1 = script.run("", "5", Map.empty)
-      result1.isSuccess shouldBe true
-      result1.get shouldBe "10"
-      
-      val script2 = new ScriptJS(src0 = Some("input + '_suffix'"))
-      val result2 = script2.run("", "test", Map.empty)
-      result2.isSuccess shouldBe true
-      result2.get shouldBe "test_suffix"
-    }
-
-    "handle complex transformations with src0" in {
-      val script = new ScriptJS(src0 = Some("input.split('').reverse().join('')"))
-      val result = script.run("", "hello", Map.empty)
-      result.isSuccess shouldBe true
-      result.get shouldBe "olleh"
-    }
-
-    "handle numeric operations with src0" in {
-      val script = new ScriptJS(src0 = Some("parseInt(input) + 10"))
-      val result1 = script.run("", "5", Map.empty)
-      result1.isSuccess shouldBe true
-      result1.get shouldBe "15"
-      
-      val result2 = script.run("", "20", Map.empty)
-      result2.isSuccess shouldBe true
-      result2.get shouldBe "30"
-    }
-
-    "handle string concatenation with src0" in {
-      val script = new ScriptJS(src0 = Some("'prefix_' + input + '_suffix'"))
-      val result = script.run("", "middle", Map.empty)
-      result.isSuccess shouldBe true
-      result.get shouldBe "prefix_middle_suffix"
-    }
-
-    "work with empty input and src0" in {
-      val script = new ScriptJS(src0 = Some("input || 'default'"))
-      val result = script.run("", "", Map.empty)
-      result.isSuccess shouldBe true
-      result.get shouldBe "default"
-    }
-  }
+  // Note: Comprehensive ScriptJS tests have been moved to ScriptJSSpec.scala
 }

@@ -195,6 +195,151 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       result4.get shouldBe "" // "test" doesn't match ".B" -> returns ""
     }
 
+    "build from string format: js://script" in {
+      val flow = ScriptFlow.build(Some("js://input.toUpperCase()"))
+      
+      val result1 = flow.run("", "hello", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "HELLO"
+      
+      val result2 = flow.run("", "world", Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get shouldBe "WORLD"
+    }
+
+    "build from string format: js:// with complex transformation" in {
+      val flow = ScriptFlow.build(Some("js://input.split('').reverse().join('')"))
+      
+      val result = flow.run("", "hello", Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "olleh"
+    }
+
+    "build from string format: js:// with numeric operations" in {
+      val flow = ScriptFlow.build(Some("js://parseInt(input) * 2"))
+      
+      val result1 = flow.run("", "5", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "10"
+      
+      val result2 = flow.run("", "21", Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get shouldBe "42"
+    }
+
+    "build from string format: js:// -> regexp://" in {
+      val flow = ScriptFlow.build(Some("js://input.toUpperCase(), regexp://.*HELLO.*"))
+      
+      val result1 = flow.run("", "hello", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "HELLO" // JS transforms to "HELLO", regexp matches
+      
+      val result2 = flow.run("", "world", Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get shouldBe "" // JS transforms to "WORLD", regexp doesn't match
+    }
+
+    "build from string format: regexp:// -> js://" in {
+      val flow = ScriptFlow.build(Some("regexp://?value=([^&]+), js://input.toUpperCase()"))
+      
+      val input = "value=hello&other=data"
+      val result = flow.run("", input, Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "HELLO" // Regexp extracts "hello", JS transforms to "HELLO"
+    }
+
+    "build from string format: jq:// -> js://" in {
+      val flow = ScriptFlow.build(Some("jq://.name, js://input.toUpperCase()"))
+      
+      val json = """{"name":"john","age":30}"""
+      val result = flow.run("", json, Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "\"JOHN\"" // JQ extracts "john", JS transforms to "JOHN"
+    }
+
+    "build from string format: js:// -> jq://" in {
+      val flow = ScriptFlow.build(Some("js://JSON.stringify({name: input}), jq://.name"))
+      
+      val input = "test"
+      val result = flow.run("", input, Map.empty)
+      result.isSuccess shouldBe true
+      result.get should include("test") // JS creates JSON, JQ extracts name
+    }
+
+    "build from string format: js:// -> regexp_score://" in {
+      val flow = ScriptFlow.build(Some("js://input.length > 5 ? 'long' : 'short', regexp_score://.*long.*"))
+      
+      val result1 = flow.run("", "hello world", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "1.0" // JS returns "long", score matches
+      
+      val result2 = flow.run("", "hi", Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get shouldBe "0.0" // JS returns "short", score doesn't match
+    }
+
+    "build from string format: multiple js:// scripts" in {
+      val flow = ScriptFlow.build(Some("js://input.toUpperCase(), js://input + '_SUFFIX'"))
+      
+      val result = flow.run("", "test", Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "TEST_SUFFIX" // First JS: "test" -> "TEST", Second JS: "TEST" -> "TEST_SUFFIX"
+    }
+
+    "chain ScriptJS alone" in {
+      val jsEngine = new ScriptJS(Some("input.toUpperCase()"))
+      val flow = new ScriptFlow(Seq(jsEngine))
+      
+      val result = flow.run("", "hello", Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "HELLO"
+    }
+
+    "chain ScriptJS -> ScriptRegexp" in {
+      val jsEngine = new ScriptJS(Some("input.toUpperCase()"))
+      val regexpEngine = new ScriptRegexp(Some(".*HELLO.*"))
+      val flow = new ScriptFlow(Seq(jsEngine, regexpEngine))
+      
+      val result1 = flow.run("", "hello", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "HELLO" // JS transforms, regexp matches
+      
+      val result2 = flow.run("", "world", Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get shouldBe "" // JS transforms, regexp doesn't match
+    }
+
+    "chain ScriptRegexp -> ScriptJS" in {
+      val extractEngine = new ScriptRegexp(Some("?id=([0-9]+)"))
+      val jsEngine = new ScriptJS(Some("parseInt(input) * 2"))
+      val flow = new ScriptFlow(Seq(extractEngine, jsEngine))
+      
+      val result = flow.run("", "id=42&other=data", Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "84" // Regexp extracts "42", JS multiplies by 2
+    }
+
+    "chain ScriptJQ -> ScriptJS" in {
+      val jqEngine = new ScriptJQ(Some(".name"))
+      val jsEngine = new ScriptJS(Some("input.toUpperCase()"))
+      val flow = new ScriptFlow(Seq(jqEngine, jsEngine))
+      
+      val json = """{"name":"john","age":30}"""
+      val result = flow.run("", json, Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "\"JOHN\"" // JQ extracts "john", JS transforms to "JOHN"
+    }
+
+    "chain ScriptJS -> ScriptJQ" in {
+      val jsEngine = new ScriptJS(Some("JSON.stringify({name: input})"))
+      val jqEngine = new ScriptJQ(Some(".name"))
+      val flow = new ScriptFlow(Seq(jsEngine, jqEngine))
+      
+      val result = flow.run("", "test", Map.empty)
+      result.isSuccess shouldBe true
+      result.get should include("test") // JS creates JSON, JQ extracts name
+    }
+
     "chain ScriptRegexpScore alone to return score value" in {
       val scoreEngine = new ScriptRegexpScore(Some(".*foo.*"))
       val flow = new ScriptFlow(Seq(scoreEngine))
