@@ -237,10 +237,12 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val scoreEngine2 = new ScriptRegexpScore(Some(".*bar.*"))
       val flow = new ScriptFlow(Seq(scoreEngine1, scoreEngine2))
       
-      // First score matches "foobar" -> "1.0", second score matches "1.0" against ".*bar.*" -> "1.0" (because "1.0" contains "bar" - wait, no it doesn't)
-      // Actually: "1.0" doesn't match ".*bar.*" -> "0.0"
+      // Important: scoreEngine1 returns "1.0" or "0.0", which becomes the input to scoreEngine2
+      // scoreEngine2 matches against "1.0" or "0.0", NOT the original input
+      
+      // First score matches "foobar" -> "1.0", second score matches "1.0" against ".*bar.*" -> "0.0" (because "1.0" doesn't contain "bar")
       val result1 = flow.run("", "foobar", Map.empty)
-      result1 shouldBe Success("0.0") // "1.0" doesn't contain "bar"
+      result1 shouldBe Success("0.0") // "1.0" doesn't match ".*bar.*"
       
       // First score matches "foobaz" -> "1.0", second score doesn't match "1.0" against ".*bar.*" -> "0.0"
       val result2 = flow.run("", "foobaz", Map.empty)
@@ -250,11 +252,21 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val result3 = flow.run("", "barbaz", Map.empty)
       result3 shouldBe Success("0.0")
       
-      // Test with pattern that matches score values
-      val scoreEngine3 = new ScriptRegexpScore(Some(".*[0-9].*"))
+      // To make chaining work meaningfully, the second pattern must match against score value format
+      // Pattern that matches score values (contains a digit and a dot)
+      val scoreEngine3 = new ScriptRegexpScore(Some(".*[0-9]\\..*"))
       val flow2 = new ScriptFlow(Seq(scoreEngine1, scoreEngine3))
       val result4 = flow2.run("", "foobar", Map.empty)
-      result4 shouldBe Success("1.0") // "1.0" matches ".*[0-9].*"
+      result4 shouldBe Success("1.0") // "1.0" matches ".*[0-9]\\..*"
+      
+      // Pattern that matches "1.0" specifically
+      val scoreEngine4 = new ScriptRegexpScore(Some("^1\\.0$"))
+      val flow3 = new ScriptFlow(Seq(scoreEngine1, scoreEngine4))
+      val result5 = flow3.run("", "foobar", Map.empty)
+      result5 shouldBe Success("1.0") // "1.0" matches "^1\\.0$"
+      
+      val result6 = flow3.run("", "barbaz", Map.empty)
+      result6 shouldBe Success("0.0") // "0.0" doesn't match "^1\\.0$"
     }
 
     "chain ScriptRegexpScore with extraction pattern" in {
@@ -557,20 +569,35 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val scoreEngine2 = new ScriptRegexpScore(Some(".*bar.*"))
       val flow = new ScriptFlow(Seq(scoreEngine1, scoreEngine2))
       
+      // Important: scoreEngine1 returns "1.0" or "0.0", which becomes the input to scoreEngine2
+      // scoreEngine2 matches against "1.0" or "0.0", NOT the original input
+      
       val futureResult1 = flow.exec("", "foobar", Map.empty)
       val result1 = Await.result(futureResult1, 5.seconds)
       result1 shouldBe "0.0" // First matches -> "1.0", second doesn't match "1.0" against ".*bar.*" -> "0.0" (because "1.0" doesn't contain "bar")
       
-      val futureResult2 = flow.exec("", "foobaz", Map.empty)
+      val futureResult2 = flow.exec("", "foobar", Map.empty)
       val result2 = Await.result(futureResult2, 5.seconds)
       result2 shouldBe "0.0" // First matches -> "1.0", second doesn't match "1.0" -> "0.0"
       
-      // Test with pattern that matches score values
-      val scoreEngine3 = new ScriptRegexpScore(Some(".*[0-9].*"))
+      // To make chaining work meaningfully, the second pattern must match against score value format
+      // Pattern that matches score values (contains a digit and a dot)
+      val scoreEngine3 = new ScriptRegexpScore(Some(".*[0-9]\\..*"))
       val flow2 = new ScriptFlow(Seq(scoreEngine1, scoreEngine3))
       val futureResult3 = flow2.exec("", "foobar", Map.empty)
       val result3 = Await.result(futureResult3, 5.seconds)
-      result3 shouldBe "1.0" // "1.0" matches ".*[0-9].*"
+      result3 shouldBe "1.0" // "1.0" matches ".*[0-9]\\..*"
+      
+      // Pattern that matches "1.0" specifically
+      val scoreEngine4 = new ScriptRegexpScore(Some("^1\\.0$"))
+      val flow3 = new ScriptFlow(Seq(scoreEngine1, scoreEngine4))
+      val futureResult4 = flow3.exec("", "foobar", Map.empty)
+      val result4 = Await.result(futureResult4, 5.seconds)
+      result4 shouldBe "1.0" // "1.0" matches "^1\\.0$"
+      
+      val futureResult5 = flow3.exec("", "barbaz", Map.empty)
+      val result5 = Await.result(futureResult5, 5.seconds)
+      result5 shouldBe "0.0" // "0.0" doesn't match "^1\\.0$"
     }
 
     "chain ScriptRegexpScore with extraction pattern using Future composition" in {
