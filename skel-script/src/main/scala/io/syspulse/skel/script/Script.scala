@@ -376,12 +376,7 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
           // Short-circuit: ScriptFilter detected empty input, stop processing remaining scripts
           result
         case Success(r) => 
-          engine.run(src, r, data) match {
-            case Failure(e: ScriptFilter.ScriptFilterBypass) => 
-              // Short-circuit: ScriptFilter detected empty input, stop processing remaining scripts
-              Failure(e)
-            case other => other
-          }
+          engine.run(src, r, data)
         case Failure(e) => 
           // Other failures propagate
           result
@@ -397,12 +392,10 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
     flow.foldLeft[Future[String]](Future.successful(input)) { (result,engine) =>
       result.flatMap { r =>
         engine.exec(src, r, data)
-      }.recoverWith {
-        case e: ScriptFilter.ScriptFilterBypass => 
-          // Short-circuit: ScriptFilter detected empty input, stop processing remaining scripts
-          Future.failed(e)
-        case e => Future.failed(e)
       }
+      // Note: Short-circuiting happens naturally - when engine.exec returns a failed Future,
+      // flatMap doesn't execute the function, so foldLeft stops processing remaining engines.
+      // The final .recover handles converting ScriptFilter.ScriptFilterBypass to empty string.
     }.recover { 
       case e: ScriptFilter.ScriptFilterBypass => ""
       case e: Exception => throw e
