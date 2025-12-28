@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.util.{Success, Failure}
 
-// This file contains tests for ScriptBuilder and Script factory methods.
+// This file contains tests for Script object build methods.
 // Other tests have been split into separate spec files:
 // - ScriptRegexpSpec.scala
 // - ScriptJQSpec.scala
@@ -21,7 +21,7 @@ import scala.util.{Success, Failure}
 
 class ScriptSpec extends AnyWordSpec with Matchers {
 
-  "ScriptBuilder" should {
+  "Script object build methods" should {
     "build ScriptRegexp from builder" in {
       val script = ScriptRegexp.build(Some(".*foo.*"))
       script.getId() shouldBe "regexp"
@@ -30,7 +30,7 @@ class ScriptSpec extends AnyWordSpec with Matchers {
 
     "build ScriptJQ from builder" in {
       val script = ScriptJQ.build(Some(".name"))
-      script.getId() shouldBe "sq" // Note: ScriptJQ.build returns ScriptSQ
+      script.getId() shouldBe "jq"
     }
 
     "build ScriptJS from builder" in {
@@ -87,180 +87,26 @@ class ScriptSpec extends AnyWordSpec with Matchers {
       val script = ScriptJQScore.build(Some(".name"))
       script.getId() shouldBe "jq_score"
       script.run("", """{"name":"John","age":30}""", Map.empty) shouldBe Success("1.0")
-      // ScriptJQ throws exception when field doesn't exist, which ScriptJQScore propagates
-      val result = script.run("", """{"age":30}""", Map.empty)
-      result.isFailure shouldBe true
-      result.failed.get shouldBe a[java.util.NoSuchElementException]
+    }
+
+    "build ScriptJQScore from builder (negative - field not found)" in {
+      val script = ScriptJQScore.build(Some(".nonexistent"))
+      script.getId() shouldBe "jq_score"
+      val runResult = script.run("", """{"name":"John"}""", Map.empty)
+      runResult.isFailure shouldBe true
+      runResult.failed.get shouldBe a[java.util.NoSuchElementException]
     }
 
     "build ScriptSQScore from builder" in {
       val script = ScriptSQScore.build(Some("result"))
       script.getId() shouldBe "sq_score"
-      // Note: ScriptSQ extracts Solidity result values, so we need valid Solidity output format
-      // For testing, we'll verify the builder works
+      script.name shouldBe "solidity-query-score"
+    }
+
+    "build ScriptSQScore from builder (empty pattern)" in {
+      val script = ScriptSQScore.build(Some(""))
       script.getId() shouldBe "sq_score"
-    }
-  }
-
-  "Script.apply" should {
-    "find and build ScriptRegexp by ID" in {
-      val result = Script("regexp", Some(".*foo.*"))
-      result.isSuccess shouldBe true
-      result.get.getId() shouldBe "regexp"
-      result.get.run("", "foobar", Map.empty) shouldBe Success("foobar")
-    }
-
-    "find and build ScriptJQ by ID" in {
-      val result = Script("jq", Some(".name"))
-      result.isSuccess shouldBe true
-      result.get.getId() shouldBe "sq" // Note: ScriptJQ.build returns ScriptSQ
-    }
-
-    "find and build ScriptJS by ID" in {
-      val result = Script("js", None)
-      result.isSuccess shouldBe true
-      result.get.getId() shouldBe "js"
-    }
-
-    "find and build ScriptJS by ID with src0" in {
-      val result = Script("js", Some("input.length"))
-      result.isSuccess shouldBe true
-      result.get.getId() shouldBe "js"
-      // Test that src0 is used when run("") is called
-      val runResult = result.get.run("", "hello", Map.empty)
-      runResult.isSuccess shouldBe true
-      runResult.get shouldBe "5"
-    }
-
-    "find and build ScriptAI by ID" in {
-      val result = Script("ai", Some("openrouter://model"))
-      result.isSuccess shouldBe true
-      result.get.getId() shouldBe "ai"
-    }
-
-    "find and build ScriptStr by ID" in {
-      val result = Script("str", None)
-      result.isSuccess shouldBe true
-      result.get.getId() shouldBe "str"
-    }
-
-    "find and build ScriptNone by empty ID" in {
-      val result = Script("", None)
-      result.isSuccess shouldBe true
-      result.get.getId() shouldBe "none"
-    }
-
-    "find and build ScriptRegexpScore by regexp_score ID" in {
-      val result = Script("regexp_score", Some(".*foo.*"))
-      result.isSuccess shouldBe true
-      result.get.getId() shouldBe "regexp_score"
-      result.get.run("", "foobar", Map.empty) shouldBe Success("1.0")
-      result.get.run("", "barbaz", Map.empty) shouldBe Success("0.0")
-    }
-
-    "find and build ScriptRegexpScore by regex_score ID" in {
-      val result = Script("regex_score", Some(".*bar.*"))
-      result.isSuccess shouldBe true
-      result.get.getId() shouldBe "regexp_score"
-      result.get.run("", "foobar", Map.empty) shouldBe Success("1.0")
-      result.get.run("", "foobaz", Map.empty) shouldBe Success("0.0")
-    }
-
-    "find and build ScriptJQScore by jq_score ID" in {
-      val result = Script("jq_score", Some(".name"))
-      result.isSuccess shouldBe true
-      result.get.getId() shouldBe "jq_score"
-      result.get.run("", """{"name":"John","age":30}""", Map.empty) shouldBe Success("1.0")
-      // ScriptJQ throws exception when field doesn't exist, which ScriptJQScore propagates
-      val runResult = result.get.run("", """{"age":30}""", Map.empty)
-      runResult.isFailure shouldBe true
-      runResult.failed.get shouldBe a[java.util.NoSuchElementException]
-    }
-
-    "find and build ScriptSQScore by sq_score ID" in {
-      val result = Script("sq_score", Some("result"))
-      result.isSuccess shouldBe true
-      result.get.getId() shouldBe "sq_score"
-    }
-
-    "return Failure for unknown script ID" in {
-      val result = Script("unknown", None)
-      result.isFailure shouldBe true
-      result.failed.get.getMessage should include("Script not found")
-    }
-
-    "handle whitespace in script ID" in {
-      val result = Script("  regexp  ", Some(".*foo.*"))
-      result.isSuccess shouldBe true
-      result.get.getId() shouldBe "regexp"
-    }
-  }
-
-  "Script.find" should {
-    "find ScriptRegexp builder" in {
-      val builder = Script.find("regexp")
-      builder.isDefined shouldBe true
-      builder.get.build(Some(".*foo.*")).getId() shouldBe "regexp"
-    }
-
-    "find ScriptJQ builder" in {
-      val builder = Script.find("jq")
-      builder.isDefined shouldBe true
-    }
-
-    "find ScriptJS builder" in {
-      val builder = Script.find("js")
-      builder.isDefined shouldBe true
-    }
-
-    "find ScriptAI builder" in {
-      val builder = Script.find("ai")
-      builder.isDefined shouldBe true
-    }
-
-    "find ScriptRegexpScore builder by regexp_score ID" in {
-      val builder = Script.find("regexp_score")
-      builder.isDefined shouldBe true
-      builder.get.build(Some(".*foo.*")).getId() shouldBe "regexp_score"
-    }
-
-    "find ScriptRegexpScore builder by regex_score ID" in {
-      val builder = Script.find("regex_score")
-      builder.isDefined shouldBe true
-      builder.get.build(Some(".*bar.*")).getId() shouldBe "regexp_score"
-    }
-
-    "find ScriptJQScore builder by jq_score ID" in {
-      val builder = Script.find("jq_score")
-      builder.isDefined shouldBe true
-      builder.get.build(Some(".name")).getId() shouldBe "jq_score"
-    }
-
-    "find ScriptSQScore builder by sq_score ID" in {
-      val builder = Script.find("sq_score")
-      builder.isDefined shouldBe true
-      builder.get.build(Some("result")).getId() shouldBe "sq_score"
-    }
-
-    "return None for unknown script ID" in {
-      val builder = Script.find("unknown")
-      builder.isEmpty shouldBe true
-    }
-  }
-
-  "Script.add" should {
-    "add custom script builder and find it" in {
-      val customBuilder = new ScriptBuilder {
-        def build(src: Option[String]): Script = new ScriptStr()
-      }
-      
-      Script.add("custom", customBuilder)
-      val builder = Script.find("custom")
-      builder.isDefined shouldBe true
-      
-      val script = Script("custom", None)
-      script.isSuccess shouldBe true
-      script.get.getId() shouldBe "str"
+      script.name shouldBe "solidity-query-score"
     }
   }
 

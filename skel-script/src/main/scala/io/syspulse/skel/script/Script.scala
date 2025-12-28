@@ -42,9 +42,6 @@ abstract class Script(val id:Script.ID,val name:String) {
   }
 }
 
-trait ScriptBuilder {
-  def build(src:Option[String]):Script
-}
 
 // --- Json Query ---------------------------------------------------------------
 class ScriptJQ(src0:Option[String]) extends Script("jq","json-query") {
@@ -58,8 +55,8 @@ class ScriptJQ(src0:Option[String]) extends Script("jq","json-query") {
   }
 }
 
-object ScriptJQ extends ScriptBuilder {
-  def build(src:Option[String]):Script = new ScriptSQ()
+object ScriptJQ {
+  def build(src:Option[String]):Script = new ScriptJQ(src)
 }
 
 class ScriptJQScore(src0:Option[String]) extends ScriptJQ(src0) {
@@ -74,7 +71,7 @@ class ScriptJQScore(src0:Option[String]) extends ScriptJQ(src0) {
   }
 }
 
-object ScriptJQScore extends ScriptBuilder {
+object ScriptJQScore {
   def build(src:Option[String]):Script = new ScriptJQScore(src)
 }
 
@@ -87,8 +84,8 @@ class ScriptSQ(src0:Option[String] = None) extends Script("sq","solidity-query")
   }
 }
 
-object ScriptSQ extends ScriptBuilder {
-  def build(src:Option[String]):Script = new ScriptSQ()
+object ScriptSQ {
+  def build(src:Option[String]):Script = new ScriptSQ(src)
 }
 
 class ScriptSQScore(src0:Option[String]) extends ScriptSQ(src0) {
@@ -103,7 +100,7 @@ class ScriptSQScore(src0:Option[String]) extends ScriptSQ(src0) {
   }
 }
 
-object ScriptSQScore extends ScriptBuilder {
+object ScriptSQScore {
   def build(src:Option[String]):Script = new ScriptSQScore(src)
 }
 
@@ -137,7 +134,7 @@ class ScriptJS(src0:Option[String] = None,inputVarName:String = "input") extends
   }
 }
 
-object ScriptJS extends ScriptBuilder {
+object ScriptJS {
   def build(src0:Option[String]):Script = new ScriptJS(src0 = src0)
 }
 
@@ -148,7 +145,7 @@ class ScriptStr extends Script("str","string") {
   }
 }
 
-object ScriptStr extends ScriptBuilder {
+object ScriptStr {
   val STR = new ScriptStr()
   def build(src:Option[String]):Script = STR
 }
@@ -160,7 +157,7 @@ class ScriptNone extends Script("none","") {
   }
 }
 
-object ScriptNone extends ScriptBuilder {
+object ScriptNone {
   val NONE = new ScriptNone()
   def build(src:Option[String]):Script = NONE
 }
@@ -186,7 +183,7 @@ class ScriptSleepTest(sleepTime:Int) extends Script("sleep-test","sleep-test") {
   }
 }
 
-object ScriptSleepTest extends ScriptBuilder {
+object ScriptSleepTest {
   val SLEEP_TEST = new ScriptSleepTest()
   def build(src:Option[String]):Script = SLEEP_TEST
 }
@@ -250,7 +247,7 @@ class ScriptRegexp(src0:Option[String]) extends Script("regexp","regexp-jvm") {
   }
 }
 
-object ScriptRegexp extends ScriptBuilder {
+object ScriptRegexp {
   def build(src:Option[String]):Script = new ScriptRegexp(src)
 }
 
@@ -268,7 +265,7 @@ class ScriptRegexpScore(src0:Option[String]) extends ScriptRegexp(src0) {
   }
 }
 
-object ScriptRegexpScore extends ScriptBuilder {
+object ScriptRegexpScore {
   def build(src:Option[String]):Script = new ScriptRegexpScore(src)
 }
 
@@ -338,7 +335,7 @@ class ScriptAI(src0:Option[String]) extends Script("ai","ai-llm") {
   }
 }
 
-object ScriptAI extends ScriptBuilder {
+object ScriptAI {
   val DEF_AI_URI = "openrouter://arcee-ai/trinity-mini:free"
   
   // Dedicated execution context for AI operations using standard thread pool
@@ -367,7 +364,7 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
   }
 }
 
-object ScriptFlow extends ScriptBuilder {
+object ScriptFlow {
   private val log = Logger(s"${this.getClass()}")
 
   def build(flow:Seq[Script]):Script = new ScriptFlow(flow)
@@ -376,8 +373,12 @@ object ScriptFlow extends ScriptBuilder {
     if(uri.isBlank()) return Failure(new Exception(s"Invalid script URI: '${uri}'"))
     
     uri.split("://").toList match {
+      case "jq_score" :: src :: Nil => Try(new ScriptJQScore(Some(src)))
       case "jq" :: src :: Nil => Try(new ScriptJQ(Some(src)))
+      case "sq_score" :: src :: Nil => Try(new ScriptSQScore(Some(src)))
       case "sq" :: src :: Nil => Try(new ScriptSQ(Some(src)))
+      case "regexp_score" :: src :: Nil => Try(new ScriptRegexpScore(Some(src)))
+      case "regex_score" :: src :: Nil => Try(new ScriptRegexpScore(Some(src)))
       case "regexp" :: src :: Nil => Try(new ScriptRegexp(Some(src)))
       case "ai" :: src :: Nil => Try(new ScriptAI(Some(src)))
       
@@ -426,37 +427,5 @@ object Script {
     Executors.newCachedThreadPool()
   )
 
-  private var engines:Map[ID,ScriptBuilder] = Map(
-    "" -> ScriptNone,
-    "str" -> ScriptStr,
-    "js" -> ScriptJS,
-    "sq" -> ScriptSQ,
-    "sq_score" -> ScriptSQScore,
-    "regexp" -> ScriptRegexp,
-    "regex" -> ScriptRegexp,
-    "regex_score" -> ScriptRegexpScore,
-    "regexp_score" -> ScriptRegexpScore,
-    "jq" -> ScriptJQ,
-    "jq_score" -> ScriptJQScore,
-    "ai" -> ScriptAI,
-    "flow" -> ScriptFlow
-  )
-
-  def add(id:ID,se:ScriptBuilder):Script.type = {
-    engines = engines + (id -> se)
-    
-    this
-  }
-  
-  def find(id:ID):Option[ScriptBuilder] = {
-    engines.get(id)
-  }
-
-  def apply(id:ID,src:Option[String]):Try[Script] = {
-    find(id.trim) match {
-      case Some(builder) => Success(builder.build(src))
-      case None => Failure(new Exception(s"Script not found: '${id}'"))
-    }
-  }
 
 }

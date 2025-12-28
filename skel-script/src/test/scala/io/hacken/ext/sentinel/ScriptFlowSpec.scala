@@ -343,10 +343,57 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
     "build from string format with regexp_score" in {
       val flow = ScriptFlow.build(Some("regexp_score://.*foo.*"))
       
+      // Verify ScriptRegexpScore is created and works correctly
       val result1 = flow.run("", "foobar", Map.empty)
-      result1.isSuccess shouldBe true
-      // Note: ScriptFlow.parseUri doesn't support regexp_score:// yet, so this might fail
-      // But if it's added, it should work
+      result1 shouldBe Success("1.0")
+      
+      val result2 = flow.run("", "barbaz", Map.empty)
+      result2 shouldBe Success("0.0")
+    }
+
+    "build from string format with jq_score" in {
+      val flow = ScriptFlow.build(Some("jq_score://.name"))
+      
+      // Verify ScriptJQScore is created and works correctly
+      val result1 = flow.run("", """{"name":"John","age":30}""", Map.empty)
+      result1 shouldBe Success("1.0")
+    }
+
+    "build from string format with sq_score" in {
+      val flow = ScriptFlow.build(Some("sq_score://result"))
+      
+      // Verify ScriptSQScore is created (behavior test)
+      val result = flow.run("", "some solidity output", Map.empty)
+      result.isSuccess shouldBe true
+      result.get should (be("0.0") or be("1.0"))
+    }
+
+    "build from string format with multiple score types" in {
+      val flow = ScriptFlow.build(Some("jq_score://.name, regexp_score://.*[0-9]\\..*"))
+      
+      // Verify both score engines work correctly in sequence
+      // First: jq_score extracts .name -> "1.0" (field exists)
+      // Second: regexp_score matches ".*[0-9]\\..*" against "1.0" -> "1.0" (matches score format)
+      val json = """{"name":"John","age":30}"""
+      val result = flow.run("", json, Map.empty)
+      result shouldBe Success("1.0")
+      
+      // Test with field that doesn't exist - ScriptJQScore throws exception
+      val json2 = """{"age":30}"""
+      val result2 = flow.run("", json2, Map.empty)
+      result2.isFailure shouldBe true
+      result2.failed.get shouldBe a[java.util.NoSuchElementException]
+    }
+
+    "build from string format with regex_score alias" in {
+      val flow = ScriptFlow.build(Some("regex_score://.*foo.*"))
+      
+      // Verify regex_score alias works (same as regexp_score)
+      val result1 = flow.run("", "foobar", Map.empty)
+      result1 shouldBe Success("1.0")
+      
+      val result2 = flow.run("", "barbaz", Map.empty)
+      result2 shouldBe Success("0.0")
     }
 
     "chain ScriptJQScore alone to return score value" in {
