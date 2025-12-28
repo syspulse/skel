@@ -207,6 +207,18 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       result2.get shouldBe "WORLD"
     }
 
+    "build simple score script: js://" in {
+      val flow = ScriptFlow.build(Some("js://1.0"))
+      
+      val result1 = flow.run("", "News", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "1"
+      
+      val result2 = flow.run("", "", Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get shouldBe "1"
+    }
+
     "build from string format: js:// with complex transformation" in {
       val flow = ScriptFlow.build(Some("js://input.split('').reverse().join('')"))
       
