@@ -129,9 +129,9 @@ class PolyglotSpec extends AnyWordSpec with Matchers {
       result2.isSuccess shouldBe true
       result2.get.toString shouldBe "30"
       
-      // Third run with no arguments - should fail since x and y are not defined
+      // Third run with no arguments - should preserve previous bindings
       val result3 = polyglot.run("x + y", emptyArgs)
-      result3.isFailure shouldBe true
+      result3.isFailure shouldBe false
     }
     
     "handle binding updates correctly" in {
@@ -216,7 +216,7 @@ class PolyglotSpec extends AnyWordSpec with Matchers {
       val result = polyglot.run(invalidScript)
       // The result might be a Failure for syntax errors, or GraalVM might handle it differently
       // Just verify we get a Try result (either Success or Failure)
-      result shouldBe a[Try[Any]]
+      result shouldBe a[Try[_]]
     }
     
     "handle runtime errors gracefully" in {
@@ -265,6 +265,42 @@ class PolyglotSpec extends AnyWordSpec with Matchers {
       // The result should indicate that counter is undefined, but GraalVM might handle this differently
       // So we'll just verify it's not the previous value
       result2.get.toString should not be "1"
+    }
+
+    "preserve var declarations between runs while args map bindings are cleared" in {
+      val polyglot = new Polyglot("js")
+      
+      // Script that declares a 'var' variable and uses args map variable
+      // The 'var' declaration creates a global variable that persists
+      // The args map bindings are cleared between runs, but 'var' variables persist
+      val script = "var globalCounter = (typeof globalCounter === 'undefined' ? initial : globalCounter); globalCounter = globalCounter + increment; globalCounter"
+      
+      // First run - initializes globalCounter from args map, then increments
+      val result1 = polyglot.run(script, Map("initial" -> 0, "increment" -> 1))
+      result1.isSuccess shouldBe true
+      result1.get.toString shouldBe "1"
+      
+      // Second run - args map bindings are cleared, but 'var globalCounter' persists
+      // So globalCounter should be 1 (from first run), then incremented to 2
+      val result2 = polyglot.run(script, Map("initial" -> 0, "increment" -> 1))
+      result2.isSuccess shouldBe true
+      result2.get.toString shouldBe "2" // globalCounter persisted (was 1, now 2)
+      
+      // Third run - globalCounter persists, continues incrementing
+      val result3 = polyglot.run(script, Map("initial" -> 0, "increment" -> 1))
+      result3.isSuccess shouldBe true
+      result3.get.toString shouldBe "3" // globalCounter persisted (was 2, now 3)
+      
+      // Fourth run with different increment value - globalCounter persists, uses new increment
+      val result4 = polyglot.run(script, Map("initial" -> 0, "increment" -> 5))
+      result4.isSuccess shouldBe true
+      result4.get.toString shouldBe "8" // globalCounter persisted (was 3, now 3+5=8)
+      
+      // Fifth run - verify that args map bindings are cleared (initial is not used)
+      // but globalCounter still persists
+      val result5 = polyglot.run(script, Map("initial" -> 100, "increment" -> 1))
+      result5.isSuccess shouldBe true
+      result5.get.toString shouldBe "9" // globalCounter persisted (was 8, now 9), initial=100 ignored
     }
     
     "should access Scala case class fields from JavaScript" in {

@@ -270,7 +270,6 @@ class Polyglot(lang:String,opt:Map[String,Any] = Map(),src0:Option[String] = Non
     log.info(s"[${lang}] ${ctx}: args=${args}, script=${script} (src0=${src0})")
 
     if(script.isBlank && func0.isEmpty && src0Script.isEmpty) {
-      log.warn(s"No Script specified")
       return Failure(new Exception("No Script specified"))
     }
 
@@ -278,7 +277,9 @@ class Polyglot(lang:String,opt:Map[String,Any] = Map(),src0:Option[String] = Non
       // clear previous bindings - only remove ones we can safely remove
       val bindings = ctx.getBindings(lang)
       if (bindings.hasMembers) {
-        bindings.getMemberKeys.asScala.foreach { key =>
+        bindings.getMemberKeys.asScala
+        .filter(key => args.contains(key))
+        .foreach { key =>
           try {
             bindings.removeMember(key)
           } catch {
