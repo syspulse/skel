@@ -21,6 +21,7 @@ import io.syspulse.skel.ai.provider.AiProvider
 import io.syspulse.skel.ai.Ai
 import io.syspulse.skel.FutureAwaitable
 import os.{read => engines}
+import scala.concurrent.Await
 
 
 abstract class Script(val id:Script.ID,val name:String) {
@@ -150,7 +151,7 @@ object ScriptStr {
   def build(src:Option[String]):Script = STR
 }
 
-// --- String --------------------------------------------------------------------------
+// --- None --------------------------------------------------------------------------
 class ScriptNone extends Script("none","") {
   def run(src:String,input:String,data:Map[String,Any]):Try[String] = {    
     Success("")
@@ -346,6 +347,23 @@ object ScriptAI {
   def build(src:Option[String]):Script = new ScriptAI(src)
 }
 
+// --- Filter --------------------------------------------------------------------------
+class ScriptFilter extends Script("filter","filter") {  
+  def run(src:String,input:String,data:Map[String,Any]):Try[String] = {    
+    if(!input.isBlank) 
+      Success(input)
+    else
+      Failure(ScriptFilter.BYPASS)
+  }
+}
+
+object ScriptFilter {
+  class ScriptFilterBypass extends Exception
+  val BYPASS = new ScriptFilterBypass()
+  val FILTER = new ScriptFilter()
+  def build(src:Option[String]):Script = FILTER
+}
+
 // --- Flow ---------------------------------------------------------------
 class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
 
@@ -353,13 +371,41 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
 
   def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
     flow.foldLeft[Try[String]](Success(input)) { (result,engine) =>
-      result.flatMap(r => engine.run(src,r,data))
+      result match {
+        case Failure(e: ScriptFilter.ScriptFilterBypass) => 
+          // Short-circuit: ScriptFilter detected empty input, stop processing remaining scripts
+          result
+        case Success(r) => 
+          engine.run(src, r, data) match {
+            case Failure(e: ScriptFilter.ScriptFilterBypass) => 
+              // Short-circuit: ScriptFilter detected empty input, stop processing remaining scripts
+              Failure(e)
+            case other => other
+          }
+        case Failure(e) => 
+          // Other failures propagate
+          result
+      }
+    } match {
+      case Failure(e: ScriptFilter.ScriptFilterBypass) => Success("")
+      case Success(r) => Success(r)
+      case Failure(e) => Failure(e)
     }
   }
 
   override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = {
     flow.foldLeft[Future[String]](Future.successful(input)) { (result,engine) =>
-      result.flatMap(r => engine.exec(src, r, data))
+      result.flatMap { r =>
+        engine.exec(src, r, data)
+      }.recoverWith {
+        case e: ScriptFilter.ScriptFilterBypass => 
+          // Short-circuit: ScriptFilter detected empty input, stop processing remaining scripts
+          Future.failed(e)
+        case e => Future.failed(e)
+      }
+    }.recover { 
+      case e: ScriptFilter.ScriptFilterBypass => ""
+      case e: Exception => throw e
     }
   }
 }
@@ -381,6 +427,7 @@ object ScriptFlow {
       case "regex_score" :: src :: Nil => Try(new ScriptRegexpScore(Some(src)))
       case "regexp" :: src :: Nil => Try(new ScriptRegexp(Some(src)))
       case "ai" :: src :: Nil => Try(new ScriptAI(Some(src)))
+      case "filter" :: _ => Success(new ScriptFilter())
       
       case "js" :: Nil => 
         //log.warn(s"js:// not supported without script")

@@ -1041,5 +1041,141 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       result shouldBe "1.0"
     }
   }
+
+  "ScriptFlow with ScriptFilter" should {
+    "short-circuit when ScriptFilter detects empty input" in {
+      val filterEngine = new ScriptFilter()
+      val jqEngine = new ScriptJQ(Some(".name"))
+      val regexpEngine = new ScriptRegexp(Some(".*John.*"))
+      val flow = new ScriptFlow(Seq(filterEngine, jqEngine, regexpEngine))
+      
+      // Empty input - ScriptFilter should short-circuit, return empty string
+      val result1 = flow.run("", "", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "" // ScriptFilter detected empty input, short-circuited
+      
+      // Non-empty input - should process normally
+      val json = """{"name":"John","age":30}"""
+      val result2 = flow.run("", json, Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get should include("John") // Filter passes, JQ extracts, regexp matches
+    }
+
+    "short-circuit when ScriptFilter detects empty input in middle of flow" in {
+      // Use ScriptRegexp extract which returns empty string when no match, not an exception
+      val extractEngine = new ScriptRegexp(Some("?name=(.+)"))
+      val filterEngine = new ScriptFilter()
+      val regexpEngine = new ScriptRegexp(Some(".*John.*"))
+      val flow = new ScriptFlow(Seq(extractEngine, filterEngine, regexpEngine))
+      
+      // Regexp extraction returns empty string (no match), ScriptFilter detects it and short-circuits
+      val input1 = "age=30" // No "name=" pattern
+      val result1 = flow.run("", input1, Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "" // ScriptFilter detected empty input from regexp, short-circuited
+      
+      // Positive case: Regexp extraction succeeds, filter passes non-empty forward, regexp matches it
+      val input2 = "name=John" // Has "name=" pattern
+      val result2 = flow.run("", input2, Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get shouldBe "John" // Filter passed "John" forward, regexp matched ".*John.*"
+    }
+
+    "short-circuit when ScriptFilter detects empty input after regexp extraction" in {
+      val extractEngine = new ScriptRegexp(Some("?hash=(0x[0-9a-f]+)"))
+      val filterEngine = new ScriptFilter()
+      val regexpEngine = new ScriptRegexp(Some("0x[0-9a-f]+"))
+      val flow = new ScriptFlow(Seq(extractEngine, filterEngine, regexpEngine))
+      
+      // Regexp extraction fails (no match), ScriptFilter detects empty and short-circuits
+      val result1 = flow.run("", "no hash here", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "" // ScriptFilter detected empty input from regexp, short-circuited
+      
+      // Positive case: Regexp extraction succeeds, filter passes hash forward, regexp validates it
+      val result2 = flow.run("", "hash=0xabc123", Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get shouldBe "0xabc123" // Filter passed "0xabc123" forward, regexp matched it
+    }
+
+    "not short-circuit when ScriptFilter receives non-empty input" in {
+      val filterEngine = new ScriptFilter()
+      val jqEngine = new ScriptJQ(Some(".name"))
+      val flow = new ScriptFlow(Seq(filterEngine, jqEngine))
+      
+      val json = """{"name":"John","age":30}"""
+      val result = flow.run("", json, Map.empty)
+      result.isSuccess shouldBe true
+      result.get should include("John") // Filter passes, JQ processes
+    }
+
+    "short-circuit with filter:// URI format" in {
+      val flow = ScriptFlow.build(Some("filter://, jq://.name"))
+      
+      // Empty input - should short-circuit
+      val result1 = flow.run("", "", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe ""
+      
+      // Non-empty input - should process
+      val json = """{"name":"John","age":30}"""
+      val result2 = flow.run("", json, Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get should include("John")
+    }
+
+    "short-circuit with filter:// in middle of flow" in {
+      val flow = ScriptFlow.build(Some("regexp://?name=(.+), filter://, regexp://.*John.*"))
+      
+      // Regexp extraction returns empty string (no match), filter short-circuits
+      val input1 = "age=30" // No "name=" pattern
+      val result1 = flow.run("", input1, Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe ""
+      
+      // Positive case: Regexp extraction succeeds, filter passes name forward, regexp matches it
+      val input2 = "name=John" // Has "name=" pattern
+      val result2 = flow.run("", input2, Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get shouldBe "John" // Filter passed "John" forward, regexp matched ".*John.*"
+    }
+
+    "short-circuit with ScriptFilter using Future composition" in {
+      val filterEngine = new ScriptFilter()
+      val jqEngine = new ScriptJQ(Some(".name"))
+      val flow = new ScriptFlow(Seq(filterEngine, jqEngine))
+      
+      // Empty input - ScriptFilter short-circuits
+      val futureResult1 = flow.exec("", "", Map.empty)
+      val result1 = Await.result(futureResult1, 5.seconds)
+      result1 shouldBe "" // ScriptFilter detected empty input, short-circuited
+      
+      // Positive case: Non-empty input, filter passes it forward, JQ processes it
+      val json = """{"name":"John","age":30}"""
+      val futureResult2 = flow.exec("", json, Map.empty)
+      val result2 = Await.result(futureResult2, 5.seconds)
+      result2 should include("John") // Filter passed JSON forward, JQ extracted name
+    }
+
+    "not process remaining scripts after ScriptFilter short-circuits" in {
+      // Use a script that would fail if executed to verify it's not called
+      val filterEngine = new ScriptFilter()
+      val jqEngine = new ScriptJQ(Some(".nonexistent")) // This would fail if executed
+      val flow = new ScriptFlow(Seq(filterEngine, jqEngine))
+      
+      // Empty input - ScriptFilter short-circuits, jqEngine should not be called
+      val result1 = flow.run("", "", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "" // Short-circuited, jqEngine not executed
+      
+      // Positive case: Non-empty input, filter passes it forward, JQ processes it (even if field doesn't exist)
+      // This verifies that when filter passes input, the flow continues normally
+      val json = """{"name":"John","age":30}"""
+      val result2 = flow.run("", json, Map.empty)
+      // JQ will try to extract .nonexistent, which will fail, but filter did pass the input forward
+      result2.isFailure shouldBe true // JQ failed as expected when field doesn't exist
+      result2.failed.get shouldBe a[java.util.NoSuchElementException] // But filter did pass input forward
+    }
+  }
 }
 
