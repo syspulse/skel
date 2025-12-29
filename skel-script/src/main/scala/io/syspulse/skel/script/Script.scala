@@ -305,12 +305,15 @@ class ScriptAI(prompt0:Option[String],uri0:Option[String] = None) extends Script
 
     val prompt1 = if(prompt0.isDefined && !prompt0.get.isBlank) prompt0.get else src
     
-    // if input contain 'image:// ' extract it from input    
+    // Extract image:// and output:// from prompt itself
+    val (imagesInPrompt,prompt2) = extractImages(prompt1)
+    val (outputInPrompt,prompt3) = extractOutput(prompt2)
+    
+    // Extract image:// and output:// from input    
     val (imagesInInput,input1) = extractImages(input)
-
     val (outputInInput,input2) = extractOutput(input1)
 
-    val prompt = Util.replaceVar(prompt1,Map("input" -> input2) ++ data)
+    val prompt = Util.replaceVar(prompt3,Map("input" -> input2) ++ data)
 
     if(prompt.isBlank) {
       log.warn(s"Prompt is empty: input='${input}'")
@@ -352,7 +355,7 @@ class ScriptAI(prompt0:Option[String],uri0:Option[String] = None) extends Script
       case _ => Seq.empty
     }
 
-    val outputType: Option[String] = data.get("output").map(_.toString).orElse(outputInInput)
+    val outputType: Option[String] = data.get("output").map(_.toString).orElse(outputInPrompt).orElse(outputInInput)
 
     log.info(s"prompt='${prompt}'")
     
@@ -362,7 +365,7 @@ class ScriptAI(prompt0:Option[String],uri0:Option[String] = None) extends Script
       xid = aiUri.tid
     )
 
-    val images = imagesInInput ++ imagesInData
+    val images = imagesInPrompt ++ imagesInInput ++ imagesInData
     
     provider
       .promptAsync(a0, aiUri.system, aiUri.timeout, aiUri.retry, tools, images, outputType)(aiEc)

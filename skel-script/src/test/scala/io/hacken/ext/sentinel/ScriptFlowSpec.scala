@@ -1342,5 +1342,38 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       result.get shouldBe customSrc // Filter uses src from run() since URI has no value
     }
   }
+
+  "ScriptFlow.resolve with AI script" should {
+    "extract output:// from input and remove it from result" in {
+      val script = ScriptFlow.resolve(
+        typ = "ai",
+        src = "Extract text from provided image and return result as json. output://json_object. User request: {input}",
+        opts = Some("mirror://")
+      )
+      
+      script.isSuccess shouldBe true
+      val flow = new ScriptFlow(Seq(script.get))
+      
+      // Run with input containing image and output://
+      // Both output:// and image:// should be extracted from input and removed from the result
+      val input = "Analyze this image://https://example.com/image.jpg and format output://json_schema"
+      val result = flow.run("", input, Map.empty)
+      
+      result.isSuccess shouldBe true
+      val resultText = result.get
+      
+      // Verify result never contains output:// or image:// anywhere
+      // The prompt contains "output://json_object" but it should also be extracted from the prompt
+      // before being sent to the AI provider, so the result should not contain it
+      resultText should not include "output://"
+      resultText should not include "image://"
+      
+      // Verify the result contains the cleaned prompt and cleaned input
+      resultText should include("Extract text from provided image and return result as json")
+      resultText should include("User request:")
+      resultText should include("Analyze this")
+      resultText should include("and format")
+    }
+  }
 }
 
