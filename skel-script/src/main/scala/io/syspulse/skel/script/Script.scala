@@ -272,7 +272,7 @@ object ScriptRegexpScore {
 
 // --- AI Query ---------------------------------------------------------------
 // src0 - Prompt !
-class ScriptAI(src0:Option[String],uri0:Option[String] = None) extends Script("ai","ai-llm") {
+class ScriptAI(prompt0:Option[String],uri0:Option[String] = None) extends Script("ai","ai-llm") {
   val aiUri = AiURI(uri0.getOrElse(ScriptAI.DEF_AI_URI))
   val provider:AiProvider = AiProvider(aiUri)
   
@@ -300,17 +300,17 @@ class ScriptAI(src0:Option[String],uri0:Option[String] = None) extends Script("a
 
   override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = {
     // Use the dedicated execution context for AI operations (ignore parameter)
-    if(input.isBlank && src0.isEmpty && src.isBlank) 
+    if(input.isBlank && prompt0.isEmpty && src.isBlank) 
       return Future.successful(input)
 
-    val prompt0 = if(src0.isDefined && !src0.get.isBlank) src0.get else src
+    val prompt1 = if(prompt0.isDefined && !prompt0.get.isBlank) prompt0.get else src
     
     // if input contain 'image:// ' extract it from input    
     val (imagesInInput,input1) = extractImages(input)
 
     val (outputInInput,input2) = extractOutput(input1)
 
-    val prompt = Util.replaceVar(prompt0,Map("input" -> input2) ++ data)
+    val prompt = Util.replaceVar(prompt1,Map("input" -> input2) ++ data)
 
     if(prompt.isBlank) {
       log.warn(s"Prompt is empty: input='${input}'")
@@ -353,6 +353,8 @@ class ScriptAI(src0:Option[String],uri0:Option[String] = None) extends Script("a
     }
 
     val outputType: Option[String] = data.get("output").map(_.toString).orElse(outputInInput)
+
+    log.info(s"prompt='${prompt}'")
     
     val a0 = Ai(
       question = prompt,
@@ -369,7 +371,8 @@ class ScriptAI(src0:Option[String],uri0:Option[String] = None) extends Script("a
 }
 
 object ScriptAI {
-  val DEF_AI_URI = "openrouter://arcee-ai/trinity-mini:free"
+  // val DEF_AI_URI = "openrouter://arcee-ai/trinity-mini:free"
+  val DEF_AI_URI = "mirror://hash"
   
   // Dedicated execution context for AI operations using standard thread pool
   val aiExecutionContext: ExecutionContext = ExecutionContext.fromExecutorService(
@@ -453,7 +456,7 @@ object ScriptFlow {
       case "regexp_score" :: src :: Nil => Try(new ScriptRegexpScore(Some(src)))
       case "regex_score" :: src :: Nil => Try(new ScriptRegexpScore(Some(src)))
       case "regexp" :: src :: Nil => Try(new ScriptRegexp(Some(src)))
-      case "ai" :: src :: Nil => Try(new ScriptAI(Some(src)))
+      case "ai" :: prompt :: Nil => Try(new ScriptAI(Some(prompt)))
       case "filter" :: src :: Nil => Try(new ScriptFilter(Some(src)))
       case "filter" :: Nil => Success(new ScriptFilter(None))
       
@@ -465,6 +468,25 @@ object ScriptFlow {
       case "str" :: _ => Success(new ScriptStr())
       case src =>         
         Failure(new Exception(s"Unknown script URI: '${uri}'"))
+    }      
+  }
+
+  def resolve(typ:String,src:String,opts:Option[String]):Try[Script] = {    
+    if(typ.isBlank()) return Failure(new Exception(s"Invalid script URI: '${typ}'"))
+    
+    typ.trim match {
+      case "jq_score" => Try(new ScriptJQScore(Some(src)))
+      case "jq" => Try(new ScriptJQ(Some(src)))
+      case "sq_score" => Try(new ScriptSQScore(Some(src)))
+      case "sq" => Try(new ScriptSQ(Some(src)))
+      case "regexp_score" => Try(new ScriptRegexpScore(Some(src)))
+      case "regex_score" => Try(new ScriptRegexpScore(Some(src)))
+      case "regexp" => Try(new ScriptRegexp(Some(src)))
+      case "ai" => Try(new ScriptAI(prompt0 = Some(src),uri0 = opts))
+      case "filter" => Try(new ScriptFilter(Some(src)))
+      case "js" =>  Try(new ScriptJS(Some(src)))
+      case "str"  => Success(new ScriptStr())
+      case _ => Failure(new Exception(s"Unknown script type: '${typ}'"))
     }      
   }
 

@@ -350,5 +350,55 @@ class ScriptAISpec extends AnyWordSpec with Matchers {
       cleanedInput shouldBe "Format as "
     }
   }
+
+  "ScriptAI prompt processing" should {
+    "replace {input} pattern in prompt with cleaned input" in {
+      // Use mirror:// provider which returns the prompt as answer
+      val engine = new ScriptAI(Some("Analyze this text: {input}"), Some("mirror://"))
+      val input = "Hello world"
+      
+      val result = engine.run("", input, Map.empty)
+      
+      result.isSuccess shouldBe true
+      // MirrorAi returns the prompt as answer, so it should be "Analyze this text: Hello world"
+      result.get shouldBe "Analyze this text: Hello world"
+    }
+
+    "extract image:// from input and clean prompt with {input}" in {
+      // Use mirror:// provider which returns the prompt as answer
+      val engine = new ScriptAI(Some("Describe the image and analyze: {input}"), Some("mirror://"))
+      val input = "Look at this image://https://example.com/photo.jpg and tell me what you see"
+      
+      val result = engine.run("", input, Map.empty)
+      
+      result.isSuccess shouldBe true
+      // MirrorAi returns the prompt with {input} replaced by cleaned input (image:// removed)
+      result.get shouldBe "Describe the image and analyze: Look at this  and tell me what you see"
+    }
+
+    "extract output:// from input and clean prompt with {input}" in {
+      // Use mirror:// provider which returns the prompt as answer
+      val engine = new ScriptAI(Some("Process this request: {input}"), Some("mirror://"))
+      val input = "Format the response as output://json_object"
+      
+      val result = engine.run("", input, Map.empty)
+      
+      result.isSuccess shouldBe true
+      // MirrorAi returns the prompt with {input} replaced by cleaned input (output:// removed)
+      result.get shouldBe "Process this request: Format the response as "
+    }
+
+    "extract both image:// and output:// from input with {input} replacement" in {
+      // Use mirror:// provider which returns the prompt as answer
+      val engine = new ScriptAI(Some("Analyze image and format response: {input}"), Some("mirror://"))
+      val input = "Check image://https://example.com/img.jpg and return output://json"
+      
+      val result = engine.run("", input, Map.empty)
+      
+      result.isSuccess shouldBe true
+      // MirrorAi returns the prompt with {input} replaced by cleaned input (both image:// and output:// removed)
+      result.get shouldBe "Analyze image and format response: Check  and return "
+    }
+  }
 }
 
