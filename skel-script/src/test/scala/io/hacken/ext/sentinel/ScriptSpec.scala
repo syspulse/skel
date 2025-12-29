@@ -112,6 +112,55 @@ class ScriptSpec extends AnyWordSpec with Matchers {
       script.getId() shouldBe "sq_score"
       script.name shouldBe "solidity-query-score"
     }
+
+    "build ScriptFilter from builder" in {
+      val script = ScriptFilter.build(None)
+      script.getId() shouldBe "filter"
+      script.name shouldBe "filter"
+    }
+
+    "build ScriptFilter from builder with src" in {
+      val script = ScriptFilter.build(Some("CUSTOM_SRC"))
+      script.getId() shouldBe "filter"
+      // ScriptFilter.build now returns a new instance with src0
+      script shouldBe a[ScriptFilter]
+    }
+
+    "ScriptFilter propagates src value when short-circuiting" in {
+      val script = ScriptFilter.build(None)
+      
+      // Non-empty input - should pass through
+      val result1 = script.run("", "test", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "test"
+      
+      // Empty input with custom src - should propagate src value
+      val customSrc = "NO_DATA"
+      val result2 = script.run(customSrc, "", Map.empty)
+      result2.isFailure shouldBe true
+      result2.failed.get shouldBe a[ScriptFilter.ScriptFilterException]
+      result2.failed.get.asInstanceOf[ScriptFilter.ScriptFilterException].src shouldBe customSrc
+    }
+
+    "ScriptFilter propagates empty src when short-circuiting with empty src" in {
+      val script = ScriptFilter.build(None)
+      
+      // Empty input with empty src - should propagate empty string
+      val result = script.run("", "", Map.empty)
+      result.isFailure shouldBe true
+      result.failed.get shouldBe a[ScriptFilter.ScriptFilterException]
+      result.failed.get.asInstanceOf[ScriptFilter.ScriptFilterException].src shouldBe ""
+    }
+
+    "ScriptFilter passes non-empty input through regardless of src" in {
+      val script = ScriptFilter.build(None)
+      
+      // Non-empty input should pass through even with custom src
+      val customSrc = "CUSTOM_SRC"
+      val result = script.run(customSrc, "test", Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "test" // Input is passed through, src is ignored when input is non-empty
+    }
   }
 
   // Note: Comprehensive ScriptJS tests have been moved to ScriptJSSpec.scala

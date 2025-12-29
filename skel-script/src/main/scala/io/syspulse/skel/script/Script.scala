@@ -271,23 +271,52 @@ object ScriptRegexpScore {
 }
 
 // --- AI Query ---------------------------------------------------------------
-class ScriptAI(src0:Option[String]) extends Script("ai","ai-llm") {
-  val aiUri = AiURI(src0.getOrElse(ScriptAI.DEF_AI_URI))
+// src0 - Prompt !
+class ScriptAI(src0:Option[String],uri0:Option[String] = None) extends Script("ai","ai-llm") {
+  val aiUri = AiURI(uri0.getOrElse(ScriptAI.DEF_AI_URI))
   val provider:AiProvider = AiProvider(aiUri)
   
   // Dedicated execution context for AI operations - created once per instance
   implicit val aiEc: ExecutionContext = ScriptAI.aiExecutionContext
       
   def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
-    val timeout = data.get("timeout").map(_.asInstanceOf[Long]).getOrElse(aiUri.timeout)
+    val timeout = data.get("timeout").map(_.asInstanceOf[Long]).getOrElse(aiUri.timeout)    
     FutureAwaitable.awaitTry(exec(src,input,data))(timeout)
+  }
+
+  def extractImages(input:String):(Seq[String],String) = {
+    val imageUrlPattern = """image://([^\s]+)""".r
+    val imagesInInput = imageUrlPattern.findAllMatchIn(input).map(m => m.group(1)).toSeq
+    val inputWithoutImages = imageUrlPattern.replaceAllIn(input, "")
+    (imagesInInput,inputWithoutImages)
+  }
+
+  def extractOutput(input:String):(Option[String],String) = {
+    val outputUrlPattern = """output://([^\s]+)""".r
+    val outputInInput = outputUrlPattern.findAllMatchIn(input).map(m => m.group(1)).toSeq.headOption
+    val inputWithoutOutput = outputUrlPattern.replaceAllIn(input, "")
+    (outputInInput,inputWithoutOutput)
   }
 
   override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = {
     // Use the dedicated execution context for AI operations (ignore parameter)
-    if(input.isBlank) 
+    if(input.isBlank && src0.isEmpty && src.isBlank) 
       return Future.successful(input)
+
+    val prompt0 = if(src0.isDefined && !src0.get.isBlank) src0.get else src
     
+    // if input contain 'image:// ' extract it from input    
+    val (imagesInInput,input1) = extractImages(input)
+
+    val (outputInInput,input2) = extractOutput(input1)
+
+    val prompt = Util.replaceVar(prompt0,Map("input" -> input2) ++ data)
+
+    if(prompt.isBlank) {
+      log.warn(s"Prompt is empty: input='${input}'")
+      return Future.successful(input)
+    }    
+        
     // Extract tools from data Map
     val tools: Seq[AiTool] = data.get("tools") match {
       case Some(t: Seq[AiTool] @unchecked) if t.nonEmpty && t.head.isInstanceOf[AiTool] => 
@@ -314,7 +343,7 @@ class ScriptAI(src0:Option[String]) extends Script("ai","ai-llm") {
     }
     
     // Extract images from data Map
-    val images: Seq[String] = data.get("images") match {
+    val imagesInData: Seq[String] = data.get("images") match {
       case Some(img: Seq[String] @unchecked) if img.nonEmpty && img.head.isInstanceOf[String] => 
         img.asInstanceOf[Seq[String]]
       case Some(img: Seq[_]) => 
@@ -323,15 +352,18 @@ class ScriptAI(src0:Option[String]) extends Script("ai","ai-llm") {
       case _ => Seq.empty
     }
 
-    val outputType: Option[String] = data.get("output").map(_.toString)
+    val outputType: Option[String] = data.get("output").map(_.toString).orElse(outputInInput)
     
     val a0 = Ai(
-      question = input,
+      question = prompt,
       model = aiUri.getModel(),
       xid = aiUri.tid
     )
+
+    val images = imagesInInput ++ imagesInData
     
-    provider.promptAsync(a0, aiUri.system, aiUri.timeout, aiUri.retry, tools, images, outputType)(aiEc)
+    provider
+      .promptAsync(a0, aiUri.system, aiUri.timeout, aiUri.retry, tools, images, outputType)(aiEc)
       .map(_.answer.getOrElse(""))(aiEc)
   }
 }
@@ -348,20 +380,22 @@ object ScriptAI {
 }
 
 // --- Filter --------------------------------------------------------------------------
-class ScriptFilter extends Script("filter","filter") {  
+class ScriptFilter(src0:Option[String] = None) extends Script("filter","filter") {  
   def run(src:String,input:String,data:Map[String,Any]):Try[String] = {    
     if(!input.isBlank) 
       Success(input)
-    else
-      Failure(ScriptFilter.BYPASS)
+    else {
+      // Use src0 from URI if provided, otherwise use src parameter from run()
+      val srcValue = if(src0.isDefined && !src0.get.isBlank) src0.get else src
+      Failure(new ScriptFilter.ScriptFilterException(srcValue))
+    }
   }
 }
 
 object ScriptFilter {
-  class ScriptFilterBypass extends Exception
-  val BYPASS = new ScriptFilterBypass()
+  class ScriptFilterException(val src:String) extends Exception  
   val FILTER = new ScriptFilter()
-  def build(src:Option[String]):Script = FILTER
+  def build(src:Option[String]):Script = new ScriptFilter(src)
 }
 
 // --- Flow ---------------------------------------------------------------
@@ -372,7 +406,7 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
   def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
     flow.foldLeft[Try[String]](Success(input)) { (result,engine) =>
       result match {
-        case Failure(e: ScriptFilter.ScriptFilterBypass) => 
+        case Failure(e: ScriptFilter.ScriptFilterException) => 
           // Short-circuit: ScriptFilter detected empty input, stop processing remaining scripts
           result
         case Success(r) => 
@@ -382,7 +416,7 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
           result
       }
     } match {
-      case Failure(e: ScriptFilter.ScriptFilterBypass) => Success("")
+      case Failure(e: ScriptFilter.ScriptFilterException) => Success(e.src)
       case Success(r) => Success(r)
       case Failure(e) => Failure(e)
     }
@@ -397,7 +431,7 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
       // flatMap doesn't execute the function, so foldLeft stops processing remaining engines.
       // The final .recover handles converting ScriptFilter.ScriptFilterBypass to empty string.
     }.recover { 
-      case e: ScriptFilter.ScriptFilterBypass => ""
+      case e: ScriptFilter.ScriptFilterException => e.src
       case e: Exception => throw e
     }
   }
@@ -420,7 +454,8 @@ object ScriptFlow {
       case "regex_score" :: src :: Nil => Try(new ScriptRegexpScore(Some(src)))
       case "regexp" :: src :: Nil => Try(new ScriptRegexp(Some(src)))
       case "ai" :: src :: Nil => Try(new ScriptAI(Some(src)))
-      case "filter" :: _ => Success(new ScriptFilter())
+      case "filter" :: src :: Nil => Try(new ScriptFilter(Some(src)))
+      case "filter" :: Nil => Success(new ScriptFilter(None))
       
       case "js" :: Nil => 
         //log.warn(s"js:// not supported without script")

@@ -1176,6 +1176,171 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       result2.isFailure shouldBe true // JQ failed as expected when field doesn't exist
       result2.failed.get shouldBe a[java.util.NoSuchElementException] // But filter did pass input forward
     }
+
+    "propagate custom src value when ScriptFilter short-circuits" in {
+      val filterEngine = new ScriptFilter()
+      val jqEngine = new ScriptJQ(Some(".name"))
+      val flow = new ScriptFlow(Seq(filterEngine, jqEngine))
+      
+      // Empty input with custom src - ScriptFilter should short-circuit and return the src value
+      val customSrc = "NO_DATA"
+      val result = flow.run(customSrc, "", Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe customSrc // ScriptFilter propagated the src value when short-circuiting
+    }
+
+    "propagate different src values in different filter instances" in {
+      val filterEngine1 = new ScriptFilter()
+      val filterEngine2 = new ScriptFilter()
+      val flow = new ScriptFlow(Seq(filterEngine1, filterEngine2))
+      
+      // First filter short-circuits with src1, second filter should not be called
+      val src1 = "EMPTY_INPUT"
+      val result = flow.run(src1, "", Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe src1 // First filter's src value is propagated
+    }
+
+    "propagate src value when ScriptFilter short-circuits in middle of flow" in {
+      val extractEngine = new ScriptRegexp(Some("?name=(.+)"))
+      val filterEngine = new ScriptFilter()
+      val jqEngine = new ScriptJQ(Some(".name"))
+      val flow = new ScriptFlow(Seq(extractEngine, filterEngine, jqEngine))
+      
+      // Regexp extraction returns empty string, ScriptFilter short-circuits with custom src
+      val customSrc = "EXTRACTION_FAILED"
+      val input = "age=30" // No "name=" pattern
+      val result = flow.run(customSrc, input, Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe customSrc // ScriptFilter propagated the src value
+    }
+
+    "propagate src value through async exec when ScriptFilter short-circuits" in {
+      val filterEngine = new ScriptFilter()
+      val jqEngine = new ScriptJQ(Some(".name"))
+      val flow = new ScriptFlow(Seq(filterEngine, jqEngine))
+      
+      // Empty input with custom src - ScriptFilter short-circuits and propagates src
+      val customSrc = "ASYNC_NO_DATA"
+      val futureResult = flow.exec(customSrc, "", Map.empty)
+      val result = Await.result(futureResult, 5.seconds)
+      result shouldBe customSrc // ScriptFilter propagated the src value through async execution
+    }
+
+    "propagate empty src when ScriptFilter short-circuits with empty src" in {
+      val filterEngine = new ScriptFilter()
+      val jqEngine = new ScriptJQ(Some(".name"))
+      val flow = new ScriptFlow(Seq(filterEngine, jqEngine))
+      
+      // Empty input with empty src - ScriptFilter should propagate empty string
+      val result = flow.run("", "", Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "" // Empty src is propagated
+    }
+
+    "propagate src value with filter:// URI format" in {
+      val flow = ScriptFlow.build(Some("filter://, jq://.name"))
+      
+      // Empty input with custom src - filter should propagate src value
+      val customSrc = "URI_FILTER_NO_DATA"
+      val result = flow.run(customSrc, "", Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe customSrc // Filter propagated the src value
+      
+      // Non-empty input - should process normally (use empty src so JQ uses .name from URI)
+      val json = """{"name":"John","age":30}"""
+      val result2 = flow.run("", json, Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get should include("John") // Filter passes, JQ processes with .name from URI
+    }
+
+    "short-circuit with filter://value URI format (src in URI)" in {
+      val flow = ScriptFlow.build(Some("filter://NO_DATA, jq://.name"))
+      
+      // Empty input - filter should use src from URI (NO_DATA), not from run() call
+      val customSrc = "CUSTOM_SRC"
+      val result1 = flow.run(customSrc, "", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "NO_DATA" // Filter uses src from URI, not from run() call
+      
+      // Empty input with empty src - filter should use src from URI
+      val result2 = flow.run("", "", Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get shouldBe "NO_DATA" // Filter uses src from URI
+      
+      // Non-empty input - should process normally
+      val json = """{"name":"John","age":30}"""
+      val result3 = flow.run("", json, Map.empty)
+      result3.isSuccess shouldBe true
+      result3.get should include("John") // Filter passes, JQ processes
+    }
+
+    "short-circuit with filter://value in middle of flow" in {
+      val flow = ScriptFlow.build(Some("regexp://?name=(.+), filter://EXTRACTION_FAILED, regexp://.*John.*"))
+      
+      // Regexp extraction returns empty string, filter short-circuits with src from URI
+      val customSrc = "CUSTOM_ERROR"
+      val input1 = "age=30" // No "name=" pattern
+      val result1 = flow.run(customSrc, input1, Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "EXTRACTION_FAILED" // Filter uses src from URI, not from run() call
+      
+      // Positive case: Regexp extraction succeeds, filter passes name forward, regexp matches it
+      val input2 = "name=John" // Has "name=" pattern
+      val result2 = flow.run("", input2, Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get shouldBe "John" // Filter passed "John" forward, regexp matched ".*John.*"
+    }
+
+    "short-circuit with filter://value and multiple filters" in {
+      val flow = ScriptFlow.build(Some("filter://FIRST_FILTER, filter://SECOND_FILTER, jq://.name"))
+      
+      // Empty input - first filter short-circuits with src from URI
+      val customSrc = "CUSTOM_SRC"
+      val result = flow.run(customSrc, "", Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe "FIRST_FILTER" // First filter uses src from URI, not from run() call
+    }
+
+    "short-circuit with filter://value using async exec" in {
+      val flow = ScriptFlow.build(Some("filter://ASYNC_NO_DATA, jq://.name"))
+      
+      // Empty input with custom src - ScriptFilter short-circuits and uses src from URI
+      val customSrc = "ASYNC_CUSTOM_SRC"
+      val futureResult = flow.exec(customSrc, "", Map.empty)
+      val result = Await.result(futureResult, 5.seconds)
+      result shouldBe "ASYNC_NO_DATA" // Filter uses src from URI, not from exec() call
+    }
+
+    "filter://value format parsing" in {
+      // Test that filter://value format can be parsed and uses value from URI
+      val flow1 = ScriptFlow.build(Some("filter://TEST_VALUE"))
+      flow1 should not be null
+      
+      val flow2 = ScriptFlow.build(Some("filter://, filter://ANOTHER_VALUE"))
+      flow2 should not be null
+      
+      // Verify both flows work - filter://value uses value from URI
+      val result1 = flow1.run("CUSTOM", "", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "TEST_VALUE" // Uses src from URI
+      
+      // First filter has no value (empty), second has ANOTHER_VALUE
+      // First filter will use src from run() since URI has no value
+      val result2 = flow2.run("CUSTOM2", "", Map.empty)
+      result2.isSuccess shouldBe true
+      result2.get shouldBe "CUSTOM2" // First filter uses src from run() since filter:// has no value
+    }
+
+    "filter:// without value falls back to src parameter" in {
+      val flow = ScriptFlow.build(Some("filter://, jq://.name"))
+      
+      // Empty input - filter:// has no value, so it uses src from run()
+      val customSrc = "FALLBACK_SRC"
+      val result = flow.run(customSrc, "", Map.empty)
+      result.isSuccess shouldBe true
+      result.get shouldBe customSrc // Filter uses src from run() since URI has no value
+    }
   }
 }
 
