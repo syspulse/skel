@@ -14,4 +14,5 @@ object Providers {
   val DEEPSEEK = DeepseekURI.ID
   val CLAUDE = ClaudeURI.ID
   val VENICE = VeniceURI.ID
+  val MIRROR = MirrorURI.ID
 }

@@ -13,7 +13,7 @@ import akka.http.scaladsl.model.sse.ServerSentEvent
 import io.syspulse.skel.ai.{Ai,Chat}
 import io.syspulse.skel.ai.ChatMessage
 import io.syspulse.skel.ai.core.{AiURI,AiTool}
-import io.syspulse.skel.ai.core.{OpenAiURI,VeniceURI,GrokURI,GeminiURI,ClaudeURI,DeepseekURI,OpenRouterURI}
+import io.syspulse.skel.ai.core.{OpenAiURI,VeniceURI,GrokURI,GeminiURI,ClaudeURI,DeepseekURI,OpenRouterURI,MirrorURI}
 import io.syspulse.skel.ai.provider.openai.OpenAi
 import io.syspulse.skel.ai.provider.venice.VeniceAi
 import io.syspulse.skel.ai.provider.grok.GrokAi
@@ -21,6 +21,7 @@ import io.syspulse.skel.ai.provider.gemini.GeminiAi
 import io.syspulse.skel.ai.provider.claude.ClaudeAi
 import io.syspulse.skel.ai.provider.deepseek.DeepseekAi
 import io.syspulse.skel.ai.provider.openrouter.OpenRouterAi
+import io.syspulse.skel.ai.provider.mirror.MirrorAi
 
 trait AiProvider {  
   val log = Logger(s"${this}")
@@ -69,6 +70,7 @@ object AiProvider {
       case uri:ClaudeURI => new ClaudeAi(uri)
       case uri:DeepseekURI => new DeepseekAi(uri)
       case uri:OpenRouterURI => new OpenRouterAi(uri)
+      case uri:MirrorURI => new MirrorAi(uri)
       case p => 
         Console.err.println(s"Unknown AI provider: '${p}'")
         sys.exit(1)
