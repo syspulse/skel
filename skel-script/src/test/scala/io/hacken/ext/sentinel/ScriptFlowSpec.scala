@@ -1363,16 +1363,14 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val resultText = result.get
       
       // Verify result never contains output:// or image:// anywhere
-      // The prompt contains "output://json_object" but it should also be extracted from the prompt
-      // before being sent to the AI provider, so the result should not contain it
       resultText should not include "output://"
       resultText should not include "image://"
       
-      // Verify the result contains the cleaned prompt and cleaned input
-      resultText should include("Extract text from provided image and return result as json")
-      resultText should include("User request:")
-      resultText should include("Analyze this")
-      resultText should include("and format")
+      // Verify the exact result text
+      // The prompt "output://json_object" and input's "output://json_schema" and "image://..." are extracted
+      // The cleaned prompt and cleaned input are combined with {input} replacement
+      val expectedResult = "Extract text from provided image and return result as json.  User request: Analyze this  and format "
+      resultText shouldBe expectedResult
     }
   }
 }
