@@ -19,6 +19,7 @@ object TelegramJson extends JsonCommon {
   implicit val jf_telegram_update: RootJsonFormat[TelegramUpdate] = jsonFormat4(TelegramUpdate)
   implicit val jf_telegram_get_updates_response: RootJsonFormat[TelegramGetUpdatesResponse] = jsonFormat2(TelegramGetUpdatesResponse)
   implicit val jf_telegram_get_chat_response: RootJsonFormat[TelegramGetChatResponse] = jsonFormat3(TelegramGetChatResponse)
+  implicit val jf_telegram_send_message_response: RootJsonFormat[TelegramSendMessageResponse] = jsonFormat4(TelegramSendMessageResponse)
 
   // Output model (20 fields)
   implicit val jf_telegram_message: RootJsonFormat[TelegramMessage] = jsonFormat20(TelegramMessage)

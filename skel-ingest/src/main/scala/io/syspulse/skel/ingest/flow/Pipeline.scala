@@ -237,6 +237,9 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](
       case "redis" :: uri :: Nil => toRedis[O](output,format)(fmt,system)
       case "redis" :: Nil => toRedis[O](output,format)(fmt,system)
 
+      case "telegram" :: uri :: Nil => toTelegram[O](output)(fmt,system)
+      case "telegram" :: Nil => toTelegram[O]("telegram://skel-telegram")(fmt,system)
+
       case "" :: Nil => toStdout(format=format)
       case _ => toFile(output,format)
     }

@@ -126,3 +126,11 @@ case class TelegramGetChatResponse(
   result: Option[TelegramChat],
   description: Option[String] = None
 )
+
+// Response for sendMessage API call
+case class TelegramSendMessageResponse(
+  ok: Boolean,
+  result: Option[TelegramApiMessage],
+  description: Option[String] = None,
+  error_code: Option[Int] = None
+)

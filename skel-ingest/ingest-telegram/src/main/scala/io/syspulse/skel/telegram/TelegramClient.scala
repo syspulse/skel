@@ -19,7 +19,7 @@ import com.typesafe.scalalogging.Logger
 import io.syspulse.skel.uri.TelegramURI
 
 trait TelegramClient {
-  val log = Logger(s"${this}")
+  private val log = Logger(s"${this}")
 
   import TelegramJson._
 
@@ -41,12 +41,35 @@ trait TelegramClient {
     channel.matches("-?\\d+")
   }
 
+  // Resolve a single channel identifier to a usable chat ID
+  // Handles: numeric IDs, @usernames, and chat titles
+  def resolveChannel( botToken: String,channel: String)(implicit timeout_req: FiniteDuration): String = {
+    if (isNumericId(channel)) {
+      // Already a numeric ID - use directly
+      log.debug(s"Using numeric chat ID: ${channel}")
+      channel
+    } else if (channel.startsWith("@")) {
+      // Username with @ - Telegram API accepts this
+      log.debug(s"Using username: ${channel}")
+      channel
+    } else {
+      // Plain title - resolve using getUpdates (ONLY method available)
+      log.info(s"Resolving chat title '${channel}' to numeric ID via getUpdates...")
+      val resolved = resolveChannelNames(botToken, Set(channel))
+      resolved.get(channel) match {
+        case Some(chatId) =>
+          log.info(s"Resolved '${channel}' -> ${chatId}")
+          chatId
+        case None =>
+          log.error(s"Failed to resolve '${channel}'")          
+          throw new IllegalArgumentException(s"Failed to resolve: '${channel}'")
+      }
+    }
+  }
+
   // Resolve channel names to chat IDs by calling getUpdates
   // Returns a map of name -> chat_id for names that were found
-  def resolveChannelNames(
-    botToken: String,
-    channels: Set[String]
-  )(implicit timeout_req: FiniteDuration): Map[String, String] = {
+  def resolveChannelNames( botToken: String, channels: Set[String])(implicit timeout_req: FiniteDuration): Map[String, String] = {
     // Separate numeric IDs from names
     val (ids, names) = channels.partition(isNumericId)
 
@@ -54,7 +77,7 @@ trait TelegramClient {
       return Map.empty
     }
 
-    log.info(s"Resolving channel names to IDs: ${names}")    
+    log.info(s"[resolve] channels: ${names}")
 
     try {
       // Use long polling with offset=-1 to get only the latest updates
@@ -63,16 +86,16 @@ trait TelegramClient {
       val body = Await.result(futureResponse, FiniteDuration(35000L, MILLISECONDS))
 
       val response = body.utf8String.parseJson.convertTo[TelegramGetUpdatesResponse]
-
-      log.debug(s"Resolver response: ${body.utf8String}")
+      
+      log.debug(s"[resovle] rsp='${body.utf8String}'")
 
       if (!response.ok) {
-        log.warn(s"Failed to resolve channel names: API response not ok")
+        log.warn(s"Failed to resolve channels: ${channels}: ${body.utf8String}")
         return Map.empty
       }
 
       if (response.result.isEmpty) {
-        log.warn(s"No updates received for name resolution: ${names}")        
+        log.warn(s"Failed to resolve channels: ${names}")        
         return Map.empty
       }
 
@@ -93,28 +116,25 @@ trait TelegramClient {
 
       // Log results
       resolved.foreach { case (name, id) =>
-        log.info(s"✓ Resolved '$name' → chat_id=$id")
+        log.info(s"[resolve] '$name' = $id")
       }
 
       val unresolved = names -- resolved.keySet
       if (unresolved.nonEmpty) {
-        log.warn(s"Failed to resolve channel names: ${unresolved}")        
+        log.warn(s"Failed to resolve channels: ${unresolved}")        
       }
 
       resolved
     } catch {
       case e: Exception =>
-        log.error(s"Failed to resolve channel names: ${e.getMessage}", e)
+        log.error(s"Failed to resolve channels: ${e.getMessage}", e)
         Map.empty
     }
   }
 
   // Make HTTP request to Telegram Bot API getChat
   // Returns information about a chat (type, title, username, etc.)
-  def getChat(
-    botToken: String,
-    chatId: String
-  )(implicit timeout_req: FiniteDuration): Future[ByteString] = {
+  def getChat( botToken: String, chatId: String)(implicit timeout_req: FiniteDuration): Future[ByteString] = {
     val url = s"${telegramUrlBase}${botToken}/getChat?chat_id=${chatId}"
 
     log.debug(s"[chat]: chat_id=${chatId}")
@@ -130,7 +150,7 @@ trait TelegramClient {
               res.entity.dataBytes.runReduce(_ ++ _),
               FiniteDuration(3000L, TimeUnit.MILLISECONDS)
             ).utf8String
-            log.warn(s"failed to get chat: ${chatId}: ${res.status}: body=${body}")
+            log.warn(s"Failed to get chat: ${chatId}: ${res.status}: body=${body}")
             // Return error response instead of throwing
             Future.successful(ByteString(s"""{"ok":false,"description":"${body}"}"""))
         }
@@ -172,6 +192,54 @@ trait TelegramClient {
           None
       }
     }.toMap
+  }
+
+  // Make HTTP request to Telegram Bot API sendMessage
+  // Sends a text message to a specified chat
+  def sendMessage(
+    botToken: String,
+    chatId: String,
+    text: String,
+    parseMode: Option[String] = None,
+    disableNotification: Boolean = false
+  )(implicit timeout_req: FiniteDuration): Future[ByteString] = {
+    import spray.json._
+
+    // Build JSON payload
+    val payload = Map(
+      "chat_id" -> JsString(chatId),
+      "text" -> JsString(text)
+    ) ++
+    parseMode.map(pm => Map("parse_mode" -> JsString(pm))).getOrElse(Map.empty) ++
+    (if (disableNotification) Map("disable_notification" -> JsBoolean(true)) else Map.empty)
+
+    val jsonPayload = JsObject(payload).compactPrint
+    val url = s"${telegramUrlBase}${botToken}/sendMessage"
+
+    log.debug(s"sendMessage: chat_id=${chatId}, text_length=${text.length}, parse_mode=${parseMode}")
+
+    Http()
+      .singleRequest(
+        HttpRequest(
+          method = HttpMethods.POST,
+          uri = url,
+          entity = HttpEntity(ContentTypes.`application/json`, jsonPayload)
+        )
+      )
+      .flatMap { res =>
+        res.status match {
+          case StatusCodes.OK =>
+            res.entity.dataBytes.runReduce(_ ++ _)
+          case _ =>
+            val body = Await.result(
+              res.entity.dataBytes.runReduce(_ ++ _),
+              FiniteDuration(3000L, TimeUnit.MILLISECONDS)
+            ).utf8String
+            log.error(s"sendMessage failed for chat_id=${chatId}: ${res.status}: body=${body}")
+            // Return error response instead of throwing
+            Future.successful(ByteString(s"""{"ok":false,"description":"${body}","error_code":${res.status.intValue}}"""))
+        }
+      }
   }
 
   // Make HTTP request to Telegram Bot API getUpdates
@@ -337,7 +405,7 @@ trait TelegramClient {
       }
 
       if (allowedUpdates != recommendedUpdates && (hasChannels || hasGroups)) {
-        log.debug(s"allowed_updates: ${recommendedUpdates.mkString(", ")} (currently: ${allowedUpdates.mkString(", ")})")
+        log.debug(s"[updates] allowed_updates: ${recommendedUpdates.mkString(", ")} (currently: ${allowedUpdates.mkString(", ")})")
       }
       
     }
@@ -403,43 +471,5 @@ trait TelegramClient {
     }
 
     s0
-  }
-}
-
-class FromTelegram(uri: String) extends TelegramClient {
-  val telegramUri = TelegramURI(uri)
-  import TelegramJson._
-
-  def getChannels() = telegramUri.channels.toSet
-
-  def source(
-    frameDelimiter: String = DEF_FRAME_DELIMITER,
-    frameSize: Int = DEF_FRAME_SIZE
-  ): Source[ByteString, _] = {
-    val s1 = source(
-      telegramUri.botToken,
-      telegramUri.channels.toSet,
-      telegramUri.freq,
-      telegramUri.timeout,
-      telegramUri.max,
-      telegramUri.allowedUpdates,
-      telegramUri.buffer,
-      frameDelimiter,
-      frameSize
-    )
-
-    // Convert to ByteString JSON with newline
-    val s2 = s1.map(msg =>
-      ByteString(s"${msg.toJson.compactPrint}\n")
-    )
-
-    if (frameDelimiter.isEmpty)
-      s2
-    else
-      s2.via(Framing.delimiter(
-        ByteString(frameDelimiter),
-        maximumFrameLength = frameSize,
-        allowTruncation = true
-      ))
   }
 }
