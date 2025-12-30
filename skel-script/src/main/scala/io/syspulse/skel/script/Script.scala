@@ -113,19 +113,6 @@ class ScriptJS(src0:Option[String] = None,inputVarName:String = "input") extends
   private lazy val engine = new Polyglot("js",PolyglotSandbox.RESTRICTED_THREADED,script0)
   
   override def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
-    // try {
-    //   val dataInput = data + (inputVarName -> input)
-    //   val r = engine.run(src,dataInput)
-    //   r match {
-    //     case null => Failure(new Exception("result: null"))
-    //     case r => Success(r.toString)
-    //   }
-    // } catch {
-    //   // case e:jdk.nashorn.internal.runtime.ECMAException => Failure(e)
-    //   // case e:javax.script.ScriptException => Failure(e)
-    //   // case e:Exception => Failure(e)
-    //   case e:Throwable => Failure(e)
-    // }
     val dataInput = data + (inputVarName -> input)
     engine.run(src,dataInput) match {
       case Success(null) => Failure(new Exception("result: null"))
@@ -310,10 +297,6 @@ class ScriptAI(prompt0:Option[String],uri0:Option[String] = None) extends Script
     val (imagesInPrompt,prompt3) = extractImages(prompt2)
     val (outputInPrompt,prompt) = extractOutput(prompt3)
     
-    // // Extract image:// and output:// from input    
-    // val (imagesInInput,input1) = extractImages(input)
-    // val (outputInInput,input2) = extractOutput(input1)    
-
     if(prompt.isBlank) {
       log.warn(s"Prompt is empty: input='${input}'")
       return Future.successful(input)
@@ -355,7 +338,7 @@ class ScriptAI(prompt0:Option[String],uri0:Option[String] = None) extends Script
     }
 
     val outputType: Option[String] = data.get("output").map(_.toString).orElse(outputInPrompt)
-    val images = imagesInPrompt //++ imagesInInput ++ imagesInData
+    val images = imagesInPrompt
 
     val a0 = Ai(
       question = prompt,

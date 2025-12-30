@@ -143,6 +143,16 @@ Client:
 ./run-ingest.sh -f "twitter://${CONSUMER_KEY}:${CONSUMER_SECRET}@syspusle?freq=60000"
 ```
 
+## Telegram
+
+Listen to Groups and Channels. Both ID and Names can be used
+
+__NOTE__: Receiving messages in Group for Bot requires disabling privay mode in @BotFather (Settings -> Group Privacy)
+
+```
+./run-ingest.sh -f "telegram://${TELEGRAM_BOT_TOKEN}@-1003611976348,-5111202365?freq=3000"
+```
+
 ## Pipe
 
 Create mulitple Pipelines from `--pipeline.flow`.

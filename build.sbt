@@ -881,21 +881,37 @@ lazy val ingest_twitter = (project in file("skel-ingest/ingest-twitter"))
   .enablePlugins(DockerPlugin)
   // .enablePlugins(AshScriptPlugin)
   .settings (
-    
+
     sharedConfig,
     sharedConfigAssembly,
-    
+
     appDockerConfig("ingest-twitter","io.syspulse.skel.ingest.twitter.App"),
 
     libraryDependencies ++= Seq(
       //libTwitter4s, // deprecated, not supported any longer
 
       libRequests
-    ),  
+    ),
+  )
+
+lazy val ingest_telegram = (project in file("skel-ingest/ingest-telegram"))
+  .dependsOn(skel_core, ingest_core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+
+    appDockerConfig("ingest-telegram","io.syspulse.skel.telegram.App"),
+
+    libraryDependencies ++= Seq(
+      // No additional dependencies needed - uses existing akka-http and spray-json
+    ),
   )
 
 lazy val skel_ingest = (project in file("skel-ingest"))
-  .dependsOn(skel_core, skel_serde, ingest_core, ingest_elastic, skel_kafka, ingest_twitter)
+  .dependsOn(skel_core, skel_serde, ingest_core, ingest_elastic, skel_kafka, ingest_twitter, ingest_telegram)
   //.enablePlugins(JavaAppPackaging)
   .disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
