@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <!-- Silence TDLight verbose logging -->
+  <logger name="it.tdlight" level="WARN"/>
+  <logger name="it.tdlight.TDLight" level="WARN"/>
+  <logger name="it.tdlight.client" level="WARN"/>
+  <logger name="it.tdlight.jni" level="WARN"/>
+  <logger name="it.tdlight.util" level="WARN"/>
+
+  <!-- Silence Akka logging -->
+  <logger name="akka" level="WARN"/>
+
+  <!-- Keep application logs at INFO -->
+  <logger name="io.syspulse.skel.telegram" level="INFO"/>
+
+  <root level="WARN">
+    <appender-ref ref="STDOUT"/>
+  </root>
+</configuration>

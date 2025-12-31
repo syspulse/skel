@@ -43,7 +43,7 @@ trait TelegramClient {
 
   // Resolve a single channel identifier to a usable chat ID
   // Handles: numeric IDs, @usernames, and chat titles
-  def resolveChannel( botToken: String,channel: String)(implicit timeout_req: FiniteDuration): String = {
+  def resolveChannel( botToken: String,channel: String)(implicit timeoutReq: FiniteDuration): String = {
     if (isNumericId(channel)) {
       // Already a numeric ID - use directly
       log.debug(s"Using numeric chat ID: ${channel}")
@@ -69,7 +69,7 @@ trait TelegramClient {
 
   // Resolve channel names to chat IDs by calling getUpdates
   // Returns a map of name -> chat_id for names that were found
-  def resolveChannelNames( botToken: String, channels: Set[String])(implicit timeout_req: FiniteDuration): Map[String, String] = {
+  def resolveChannelNames( botToken: String, channels: Set[String])(implicit timeoutReq: FiniteDuration): Map[String, String] = {
     // Separate numeric IDs from names
     val (ids, names) = channels.partition(isNumericId)
 
@@ -134,7 +134,7 @@ trait TelegramClient {
 
   // Make HTTP request to Telegram Bot API getChat
   // Returns information about a chat (type, title, username, etc.)
-  def getChat( botToken: String, chatId: String)(implicit timeout_req: FiniteDuration): Future[ByteString] = {
+  def getChat( botToken: String, chatId: String)(implicit timeoutReq: FiniteDuration): Future[ByteString] = {
     val url = s"${telegramUrlBase}${botToken}/getChat?chat_id=${chatId}"
 
     log.debug(s"[chat]: chat_id=${chatId}")
@@ -159,7 +159,7 @@ trait TelegramClient {
 
   // Detect chat types for given chat IDs
   // Returns a map of chat_id -> (chat_type, chat_title)
-  def detectChatTypes( botToken: String, chatIds: Set[String])(implicit timeout_req: FiniteDuration): Map[String, (String, String)] = {
+  def detectChatTypes( botToken: String, chatIds: Set[String])(implicit timeoutReq: FiniteDuration): Map[String, (String, String)] = {
     if (chatIds.isEmpty) {
       return Map.empty
     }
@@ -169,7 +169,7 @@ trait TelegramClient {
     chatIds.flatMap { chatId =>
       try {
         val futureResponse = getChat(botToken, chatId)
-        val body = Await.result(futureResponse, timeout_req)
+        val body = Await.result(futureResponse, timeoutReq)
         val response = body.utf8String.parseJson.convertTo[TelegramGetChatResponse]
 
         if (response.ok && response.result.isDefined) {
@@ -194,7 +194,7 @@ trait TelegramClient {
   // Make HTTP request to Telegram Bot API sendMessage
   // Sends a text message to a specified chat
   def sendMessage( botToken: String,chatId: String,text: String,parseMode: Option[String] = None, disableNotification: Boolean = false
-  )(implicit timeout_req: FiniteDuration): Future[ByteString] = {
+  )(implicit timeoutReq: FiniteDuration): Future[ByteString] = {
     import spray.json._
 
     // Build JSON payload
@@ -242,7 +242,7 @@ trait TelegramClient {
     timeout: Long = DEF_TIMEOUT,
     limit: Int = DEF_MAX,
     allowedUpdates: Seq[String] = Seq("message", "channel_post")
-  )(implicit timeout_req: FiniteDuration): Future[ByteString] = {
+  )(implicit timeoutReq: FiniteDuration): Future[ByteString] = {
     // Convert milliseconds to seconds for Telegram API (max 90 seconds)
     val timeoutSeconds = Math.min(timeout / 1000, 90)
     val allowedUpdatesJson = allowedUpdates.map(u => s""""$u"""").mkString("[", ",", "]")
@@ -377,7 +377,7 @@ trait TelegramClient {
     log.info(s"Telegram: channels=${channels}, freq=${freq}, timeout=${timeout}")
     
     // Add extra time for HTTP request timeout (API timeout + 5 seconds)
-    implicit val timeout_req = FiniteDuration(timeout + 5000L, MILLISECONDS)
+    implicit val timeoutReq = FiniteDuration(timeout + 5000L, MILLISECONDS)
 
     // Detect chat types for numeric IDs
     val numericIds = channels.filter(isNumericId)

@@ -141,7 +141,7 @@ val sharedConfig = Seq(
     crossVersion := CrossVersion.binary,
     resolvers ++= Seq(
       Resolver.mavenLocal,
-      Opts.resolver.sonatypeSnapshots, 
+      Opts.resolver.sonatypeSnapshots,
       Opts.resolver.sonatypeReleases,
       "spray repo"         at "https://repo.spray.io/",
       "sonatype releases"  at "https://oss.sonatype.org/content/repositories/releases/",
@@ -149,7 +149,8 @@ val sharedConfig = Seq(
       "typesafe repo"      at "https://repo.typesafe.com/typesafe/releases/",
       "confluent repo"     at "https://packages.confluent.io/maven/",
       "consensys repo"     at "https://artifacts.consensys.net/public/maven/maven/",
-      "consensys teku"     at "https://artifacts.consensys.net/public/teku/maven/"
+      "consensys teku"     at "https://artifacts.consensys.net/public/teku/maven/",
+      "mchv"               at "https://mvn.mchv.eu/repository/mchv/"
     ),
 
     // needed to fix error with quill-jasync
@@ -906,7 +907,10 @@ lazy val ingest_telegram = (project in file("skel-ingest/ingest-telegram"))
     appDockerConfig("ingest-telegram","io.syspulse.skel.telegram.App"),
 
     libraryDependencies ++= Seq(
-      // No additional dependencies needed - uses existing akka-http and spray-json
+      // TDLight Java - TDLib-based MTProto user API implementation
+      "it.tdlight" % "tdlight-java" % "3.4.4+td.1.8.52",
+      // Native libraries for Linux amd64 with OpenSSL 3.x (version managed by tdlight-java POM)
+      "it.tdlight" % "tdlight-natives" % "4.0.558" classifier "linux_amd64_gnu_ssl3"
     ),
   )
 
