@@ -330,8 +330,14 @@ trait TelegramClient {
         }
       }
 
+      // Only warn if we're accepting all channels but got no messages
+      // If channels is non-empty, it's normal to receive updates for unsubscribed chats
       if (messages.isEmpty && response.result.nonEmpty) {
-        log.warn(s"[updates] not parsed: '${response}'")
+        if (channels.isEmpty) {
+          log.warn(s"[updates] received ${response.result.size} updates but parsed 0 messages: '${response}'")
+        } else {
+          log.debug(s"[updates] received ${response.result.size} updates for unsubscribed chats, filtered to 0 messages")
+        }
       } else {
         log.info(s"[updates] messages: ${messages.size} / ${response.result.size}")
       }
