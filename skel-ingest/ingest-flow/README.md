@@ -153,6 +153,13 @@ __NOTE__: Receiving messages in Group for Bot requires disabling privay mode in 
 ./run-ingest.sh -f "telegram://${TELEGRAM_BOT_TOKEN}@-1003611976348,-5111202365?freq=3000"
 ```
 
+Send to Group (not channel). Only chat_id is supported:
+
+```
+./run-ingest.sh -o "telegram://${TELEGRAM_BOT_TOKEN}@-1003611976348"
+```
+
+
 ## Pipe
 
 Create mulitple Pipelines from `--pipeline.flow`.

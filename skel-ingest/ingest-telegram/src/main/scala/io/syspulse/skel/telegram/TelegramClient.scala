@@ -159,10 +159,7 @@ trait TelegramClient {
 
   // Detect chat types for given chat IDs
   // Returns a map of chat_id -> (chat_type, chat_title)
-  def detectChatTypes(
-    botToken: String,
-    chatIds: Set[String]
-  )(implicit timeout_req: FiniteDuration): Map[String, (String, String)] = {
+  def detectChatTypes( botToken: String, chatIds: Set[String])(implicit timeout_req: FiniteDuration): Map[String, (String, String)] = {
     if (chatIds.isEmpty) {
       return Map.empty
     }
@@ -196,12 +193,7 @@ trait TelegramClient {
 
   // Make HTTP request to Telegram Bot API sendMessage
   // Sends a text message to a specified chat
-  def sendMessage(
-    botToken: String,
-    chatId: String,
-    text: String,
-    parseMode: Option[String] = None,
-    disableNotification: Boolean = false
+  def sendMessage( botToken: String,chatId: String,text: String,parseMode: Option[String] = None, disableNotification: Boolean = false
   )(implicit timeout_req: FiniteDuration): Future[ByteString] = {
     import spray.json._
 
@@ -339,7 +331,7 @@ trait TelegramClient {
       }
 
       if (messages.isEmpty && response.result.nonEmpty) {
-        log.warn(s"[updates] not parsed: size=(${response.result.size})")
+        log.warn(s"[updates] not parsed: '${response}'")
       } else {
         log.info(s"[updates] messages: ${messages.size} / ${response.result.size}")
       }
@@ -411,6 +403,9 @@ trait TelegramClient {
     }
 
     // 1. Create ticking source and process updates with stateful offset tracking
+    // Use a shared mutable variable to maintain offset across async operations
+    var sharedOffset = 0L
+    
     val s0 = Source.tick(
       FiniteDuration(250, TimeUnit.MILLISECONDS),
       FiniteDuration(freq, TimeUnit.MILLISECONDS),
@@ -420,35 +415,33 @@ trait TelegramClient {
       log.debug(s"Tick: channels=${channels}")
       channels
     })
-    .statefulMapConcat { () =>
-      var offset = 0L
-      (channels: Set[String]) => {
-        log.debug(s"State: offset=${offset}, channels=${channels}")
-
-        // Make API request (blocking for simplicity in stateful context)
-        val futureResponse = getUpdates(botToken, offset, timeout, max, allowedUpdates)
-          .recover {
-            case e: Exception =>
-              log.error(s"[updates] failed: ${e.getMessage}")
-              ByteString.empty
-          }
-
-        val body = Await.result(futureResponse, timeout_req)
-
-        if (body.isEmpty) {
-          Seq.empty
-        } else {
-          val messages = parseUpdates(body, channels)
-
-          if (messages.nonEmpty) {
-            offset = messages.map(_.update_id).max + 1
-            log.info(s"[updates] messages=${messages.size}, offset=${offset}")
-          }
-
-          messages
+    .mapAsync(1) { channels =>
+      log.debug(s"State: offset=${sharedOffset}, channels=${channels}")
+      // Make API request asynchronously using current offset
+      getUpdates(botToken, sharedOffset, timeout, max, allowedUpdates)
+        .recover {
+          case e: Exception =>
+            log.error(s"[updates] failed: ${e.getMessage}")
+            ByteString.empty
         }
+        .map(body => (channels, body))
+    }
+    .map { case (channels, body) =>
+      if (body.isEmpty) {
+        Seq.empty[TelegramMessage]
+      } else {
+        val messages = parseUpdates(body, channels)
+        
+        // Update shared offset based on messages
+        if (messages.nonEmpty) {
+          sharedOffset = messages.map(_.update_id).max + 1
+          log.info(s"[updates] messages=${messages.size}, offset=${sharedOffset}")
+        }
+        
+        messages
       }
     }
+    .mapConcat(identity)
 
     // 2. Deduplicate by update_id
     .statefulMapConcat { () =>
