@@ -36,18 +36,30 @@ class DataSourceSQLSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    // Set JVM timezone to UTC to avoid PostgreSQL timezone issues
-    java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"))
+    // Set user.timezone system property to UTC before creating datasource
+    // This ensures PostgreSQL JDBC driver sends UTC during connection handshake
+    System.setProperty("user.timezone", "UTC")
 
-    // Initialize datasource
+    // Clear TimeZone cache to force re-reading the system property
+    java.util.TimeZone.setDefault(null)
+
+    // Initialize datasource (HikariCP will handle timezone initialization)
     dataSource = new DataSourceSQL(jdbcUri)
 
     // Get connection for test setup using proper PostgreSQL JDBC URL
-    val postgresJdbcUrl = s"jdbc:postgresql://${dbHost}/${dbName}?TimeZone=UTC"
+    val postgresJdbcUrl = s"jdbc:postgresql://${dbHost}/${dbName}"
     val props = new java.util.Properties()
     props.setProperty("user", dbUser)
     props.setProperty("password", dbPass)
     connection = DriverManager.getConnection(postgresJdbcUrl, props)
+
+    // Set timezone for test connection
+    val tzStmt = connection.createStatement()
+    try {
+      tzStmt.execute("SET TIME ZONE 'UTC'")
+    } finally {
+      tzStmt.close()
+    }
 
     // Create test table
     val createTableSQL = """

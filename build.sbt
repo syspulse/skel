@@ -1652,17 +1652,18 @@ lazy val skel_script = (project in file("skel-script"))
 lazy val skel_dash = (project in file("skel-dash"))
   .dependsOn(skel_core,auth_ext,ingest_coingecko,db_guard)
   .enablePlugins(JavaAppPackaging)
-  .enablePlugins(DockerPlugin)  
+  .enablePlugins(DockerPlugin)
   .settings (
-    
+
     sharedConfig,
     sharedConfigAssembly,
-    
+
     appDockerConfig("skel-dash","io.syspulse.skel.dash.App"),
 
-    libraryDependencies ++= Seq(      
+    libraryDependencies ++= Seq(
        libScalaTest % Test,
        libAkkaTestkit % Test,
-       libAkkaTestkitType % Test
-    ),  
+       libAkkaTestkitType % Test,
+       libSlickHikari
+    ),
   )

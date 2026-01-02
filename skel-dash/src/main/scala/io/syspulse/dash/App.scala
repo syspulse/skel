@@ -3,6 +3,7 @@ package io.syspulse.dash
 import scala.concurrent.duration.Duration
 import scala.concurrent.Future
 import scala.concurrent.Await
+import scala.util.{Failure,Success,Try}
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
@@ -18,11 +19,14 @@ import scala.concurrent.duration.FiniteDuration
 import io.syspulse.dash._
 import io.syspulse.dash.store._
 import io.syspulse.dash.server._
+import source.DataSource
 import source.DataSourceCoingecko
 import source.DataSourceDune
 import source.DataSourceElastic
 import source.DataSourceMany
 import source.DataSourceTest
+import source.DataSourceSQL
+
 
 case class Config(
   host:String="0.0.0.0",
@@ -138,15 +142,23 @@ object App extends skel.Server {
         sys.exit(1)      
     }
 
-    val ds = config.datasource.split("://").toList match {
-      
-      case "dune" :: _ => new DataSourceDune(config.datasource)
-      case "test" :: _ => new DataSourceTest(config.datasource)
-      case ("es" | "ess" ) :: _ => new DataSourceElastic(config.datasource)
-      case ("cg" | "coingecko" ) :: _ => new DataSourceCoingecko(config.datasource)
-      case _ => new DataSourceMany(config.datasource)
-        // Console.err.println(s"Unknown datasource: '${config.datasource}'")
-        // sys.exit(2)
+    // val ds = config.datasource.split("://").toList match {
+    //   case "dune" :: _ => new DataSourceDune(config.datasource)
+    //   case "test" :: _ => new DataSourceTest(config.datasource)
+    //   case ("es" | "ess" ) :: _ => new DataSourceElastic(config.datasource)
+    //   case ("cg" | "coingecko" ) :: _ => new DataSourceCoingecko(config.datasource)
+    //   case ("sql" | "jdbc" | "postgres" ) :: _ => new DataSourceSQL(config.datasource)
+
+    //   case _ => new DataSourceMany(config.datasource)
+    //     // Console.err.println(s"Unknown datasource: '${config.datasource}'")
+    //     // sys.exit(2)
+    // }
+    val ds = DataSource.resolve(config.datasource) match {
+      case Success(ds) => ds
+      case Failure(e) => {
+        Console.err.println(e)
+        sys.exit(2)
+      }
     }
 
     Console.err.println(s"Store: ${store}")

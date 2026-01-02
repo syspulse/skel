@@ -15,6 +15,32 @@ import io.syspulse.dash.source.DataSourceDune
 import io.syspulse.dash.source.DataSourceElastic
 import io.syspulse.dash.source.DataSourceTest
 
+object DataSourceMany {
+  private val log = Logger(this.getClass)
+
+  def resolve(uri:String):Seq[DataSource] = {
+    val stores = uri.stripPrefix("many://").split(",").flatMap(u => {
+      // val store = u.split("://").toList match {
+      //   case "test" :: _ => new DataSourceTest(u)
+      //   case "dune" :: _ => new DataSourceDune(u)
+      //   case ("es" | "ess" ) :: _ => new DataSourceElastic(u)
+      //   case ("cg" | "coingecko" ) :: _ => new DataSourceCoingecko(u)
+      //   case ("sql" | "jdbc" | "postgres" ) :: _ => new DataSourceSQL(u)
+      //   case _ => throw new Exception(s"unknown datasource: '${u}'")
+      // }
+      // store
+      DataSource.resolve(u) match {
+        case Success(ds) => Some(ds)
+        case Failure(e) => {
+          log.warn(s"Failed to create datasource: '${u}': ${e.getMessage}")
+          None
+        }
+      }
+    })
+    stores.toSeq
+  }
+}
+
 class DataSourceMany(uri:String) extends DataSource {
   private val log = Logger(this.getClass)
 
@@ -22,16 +48,7 @@ class DataSourceMany(uri:String) extends DataSource {
 
   def src:String = "many"
 
-  val stores = uri.stripPrefix("many://").split(",").map(u => {
-    val store = u.split("://").toList match {
-      case "test" :: _ => new DataSourceTest(u)
-      case "dune" :: _ => new DataSourceDune(u)
-      case ("es" | "ess" ) :: _ => new DataSourceElastic(u)
-      case ("cg" | "coingecko" ) :: _ => new DataSourceCoingecko(u)
-      case _ => throw new Exception(s"unknown datasource: '${u}'")
-    }
-    store
-  }).toList
+  val stores = DataSourceMany.resolve(uri)
 
   def ask(req:DashDataReq, tid:Option[String] = None):Future[DashData] = {
     stores

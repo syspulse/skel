@@ -1,5 +1,7 @@
 package io.syspulse.skel.uri
 
+import io.syspulse.skel.util.Util
+
 /* 
 
 If host is specified, it must contain Database !
@@ -50,18 +52,21 @@ case class JdbcURI(uri:String) {
       case "postgres" => "postgresql"
       case other => other
     }
-    db match {
+    val url = db match {
       case Some(database) => s"jdbc:${driverName}://${host}:${port}/${database}"
       case None => dbConfig match {
         case Some(config) => s"jdbc:${driverName}://${host}:${port}/${config}"
         case None => s"jdbc:${driverName}://${host}:${port}"
       }
     }
+    
+    Util.replaceEnvVar(url)
   }
 
+
   def parseCred(userPass:String) = userPass.split(":").toList match {
-    case u :: p :: _ => (Some(u),Some(p))
-    case u :: Nil => (Some(u),None)
+    case u :: p :: _ => (Util.resolveEnvVar(u),Util.resolveEnvVar(p))
+    case u :: Nil => (Util.resolveEnvVar(u),None)
   }
 
   def parseHost(hostPort:String) = hostPort.split(":").toList match {

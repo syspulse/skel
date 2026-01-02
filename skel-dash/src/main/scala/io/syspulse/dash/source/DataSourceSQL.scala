@@ -16,23 +16,50 @@ import io.syspulse.dash.source.DataSource
 import java.sql.{Connection, DriverManager, ResultSet, ResultSetMetaData}
 import java.util.Properties
 import scala.concurrent.blocking
+import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 
 class DataSourceSQL(uri0:String) extends DataSource {
   private val log = Logger(this.getClass)
 
   val dbUri = JdbcURI(uri0)
 
-  // Use JdbcURI's jdbcUrl method and add timezone parameter
-  val jdbcUrl = s"${dbUri.jdbcUrl}?TimeZone=UTC"
+  // Use JdbcURI's jdbcUrl method and append timezone parameter
+  val jdbcUrl = dbUri.jdbcUrl
 
-  // Build JDBC connection properties
-  private val connectionProperties = {
-    val props = new Properties()
-    if (dbUri.user.isDefined) props.setProperty("user", dbUri.user.get)
-    if (dbUri.pass.isDefined) props.setProperty("password", dbUri.pass.get)
-    props.setProperty("TimeZone", "UTC")
-    props
+  // Configure HikariCP with connection initialization SQL
+  private val hikariConfig = {
+    val config = new HikariConfig()
+    config.setJdbcUrl(jdbcUrl)
+    if (dbUri.user.isDefined) config.setUsername(dbUri.user.get)
+    if (dbUri.pass.isDefined) config.setPassword(dbUri.pass.get)
+
+    // // Set datasource properties to configure timezone during connection establishment
+    // // This sends TimeZone=UTC to PostgreSQL during the initial handshake
+    config.addDataSourceProperty("TimeZone", "UTC")
+
+    // // Set connection initialization SQL as backup
+    // config.setConnectionInitSql("SET TIME ZONE 'UTC'")
+
+    // Connection pool settings
+    config.setMaximumPoolSize(4)
+    config.setMinimumIdle(1)
+    config.setConnectionTimeout(30000)
+
+    config
   }
+
+  val tz = System.getProperty("user.timezone")
+  System.setProperty("user.timezone", "UTC")
+  java.util.TimeZone.setDefault(null)
+  private val dataSource = new HikariDataSource(hikariConfig)
+  System.setProperty("user.timezone", tz)
+
+  // Helper method to get connection from pool
+  private def getConnection(): Connection = {
+    dataSource.getConnection()    
+  }
+
+  log.info(s"DataSourceSQL: '${uri0}' -> ${jdbcUrl}")
 
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 
@@ -69,12 +96,12 @@ class DataSourceSQL(uri0:String) extends DataSource {
       case _ => return Future.failed(new Exception("SQL query not provided in request.query"))
     }
 
-    log.info(s"Executing SQL query: ${sqlQuery.take(100)}...")
+    log.info(s"Executing SQL query: '${sqlQuery.take(100)}' (${jdbcUrl})")
 
     // Execute query and format as table
     Future {
       blocking {
-        val connection = DriverManager.getConnection(jdbcUrl, connectionProperties)
+        val connection = getConnection()
         try {
           val statement = connection.createStatement()
           try {

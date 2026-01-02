@@ -15,3 +15,17 @@ trait DataSource {
   def src:String
   def ask(req: DashDataReq, tid:Option[String] = None):Future[DashData]
 }
+
+object DataSource {
+  def resolve(uri:String):Try[DataSource] = {
+    uri.split("://").toList match {
+      case "test" :: _ => Try(new DataSourceTest(uri))
+      case "dune" :: _ => Try(new DataSourceDune(uri))
+      case ("es" | "ess" ) :: _ => Try(new DataSourceElastic(uri))
+      case ("cg" | "coingecko" ) :: _ => Try(new DataSourceCoingecko(uri))
+      case ("sql" | "jdbc" | "postgres" ) :: _ => Try(new DataSourceSQL(uri))
+      case "many" :: _ => Try(new DataSourceMany(uri))
+      case _ => Failure(new Exception(s"unknown datasource: '${uri}'"))
+    }
+  }
+}
