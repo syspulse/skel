@@ -22,13 +22,8 @@ class DataSourceSQL(uri0:String) extends DataSource {
 
   val dbUri = JdbcURI(uri0)
 
-  // Construct proper JDBC URL from parsed components
-  // Map generic dbType to JDBC driver name (postgres -> postgresql, mysql -> mysql)
-  val jdbcDriverName = dbUri.dbType match {
-    case "postgres" => "postgresql"
-    case other => other
-  }
-  val jdbcUrl = s"jdbc:${jdbcDriverName}://${dbUri.host}:${dbUri.port}/${dbUri.db.getOrElse("")}?TimeZone=UTC"
+  // Use JdbcURI's jdbcUrl method and add timezone parameter
+  val jdbcUrl = s"${dbUri.jdbcUrl}?TimeZone=UTC"
 
   // Build JDBC connection properties
   private val connectionProperties = {

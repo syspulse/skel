@@ -32,7 +32,7 @@ case class JdbcURI(uri:String) {
   private val (rdbType:String,(ruser:Option[String],rpass:Option[String]),(rhost:String,rport:Int),rdb:Option[String],rdbConfig:Option[String],rasync:Boolean) = 
     parse(uri)
 
-  def dbType:String = rdbType     
+  def dbType:String = rdbType
   // if db is defined, then dbCondfig is not valid
   def db:Option[String] = rdb
   // defined dbConfig contains everything (user/pass/type/url/database)
@@ -42,6 +42,22 @@ case class JdbcURI(uri:String) {
   def host:String = rhost
   def port:Int = rport
   def async:Boolean = rasync
+
+  // Construct proper JDBC URL for DriverManager
+  // Maps generic dbType to actual JDBC driver name (postgres -> postgresql)
+  def jdbcUrl: String = {
+    val driverName = dbType match {
+      case "postgres" => "postgresql"
+      case other => other
+    }
+    db match {
+      case Some(database) => s"jdbc:${driverName}://${host}:${port}/${database}"
+      case None => dbConfig match {
+        case Some(config) => s"jdbc:${driverName}://${host}:${port}/${config}"
+        case None => s"jdbc:${driverName}://${host}:${port}"
+      }
+    }
+  }
 
   def parseCred(userPass:String) = userPass.split(":").toList match {
     case u :: p :: _ => (Some(u),Some(p))
