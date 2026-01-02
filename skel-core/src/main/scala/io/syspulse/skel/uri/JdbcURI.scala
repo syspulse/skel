@@ -31,8 +31,21 @@ jdbc:postgres:async//db1
 case class JdbcURI(uri:String) {
   val PREFIX = "jdbc://"
 
-  private val (rdbType:String,(ruser:Option[String],rpass:Option[String]),(rhost:String,rport:Int),rdb:Option[String],rdbConfig:Option[String],rasync:Boolean) = 
-    parse(uri)
+  // Parse URI and extract query parameters
+  private val (baseUri, queryParams) = uri.split("\\?", 2) match {
+    case Array(base, query) =>
+      val params = query.split("&").map { param =>
+        param.split("=", 2) match {
+          case Array(key, value) => (key, value)
+          case Array(key) => (key, "")
+        }
+      }.toMap
+      (base, params)
+    case Array(base) => (base, Map.empty[String, String])
+  }
+
+  private val (rdbType:String,(ruser:Option[String],rpass:Option[String]),(rhost:String,rport:Int),rdb:Option[String],rdbConfig:Option[String],rasync:Boolean) =
+    parse(baseUri)
 
   def dbType:String = rdbType
   // if db is defined, then dbCondfig is not valid
@@ -45,6 +58,9 @@ case class JdbcURI(uri:String) {
   def port:Int = rport
   def async:Boolean = rasync
 
+  // Extract timezone from query parameters
+  def timezone:Option[String] = queryParams.get("TimeZone").orElse(queryParams.get("timezone"))
+
   // Construct proper JDBC URL for DriverManager
   // Maps generic dbType to actual JDBC driver name (postgres -> postgresql)
   def jdbcUrl: String = {
@@ -52,14 +68,22 @@ case class JdbcURI(uri:String) {
       case "postgres" => "postgresql"
       case other => other
     }
-    val url = db match {
+    val baseUrl = db match {
       case Some(database) => s"jdbc:${driverName}://${host}:${port}/${database}"
       case None => dbConfig match {
         case Some(config) => s"jdbc:${driverName}://${host}:${port}/${config}"
         case None => s"jdbc:${driverName}://${host}:${port}"
       }
     }
-    
+
+    // Append query parameters if present
+    val url = if (queryParams.nonEmpty) {
+      val queryString = queryParams.map { case (k, v) => s"${k}=${v}" }.mkString("&")
+      s"${baseUrl}?${queryString}"
+    } else {
+      baseUrl
+    }
+
     Util.replaceEnvVar(url)
   }
 

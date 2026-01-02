@@ -27,8 +27,8 @@ class DataSourceSQLSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll
   val dbHost = "localhost:5432"
   val dbName = "dash_db"
 
-  // Use simpler jdbc:// format (matches line 91 pattern in JdbcURI.scala)
-  val jdbcUri = s"jdbc://${dbUser}:${dbPass}@${dbHost}/${dbName}"
+  // Use simpler jdbc:// format with TimeZone parameter
+  val jdbcUri = s"jdbc://${dbUser}:${dbPass}@${dbHost}/${dbName}?TimeZone=UTC"
 
   var dataSource: DataSourceSQL = _
   var connection: Connection = _
@@ -36,14 +36,7 @@ class DataSourceSQLSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll
   override def beforeAll(): Unit = {
     super.beforeAll()
 
-    // Set user.timezone system property to UTC before creating datasource
-    // This ensures PostgreSQL JDBC driver sends UTC during connection handshake
-    System.setProperty("user.timezone", "UTC")
-
-    // Clear TimeZone cache to force re-reading the system property
-    java.util.TimeZone.setDefault(null)
-
-    // Initialize datasource (HikariCP will handle timezone initialization)
+    // Initialize datasource (timezone from URI will be used)
     dataSource = new DataSourceSQL(jdbcUri)
 
     // Get connection for test setup using proper PostgreSQL JDBC URL

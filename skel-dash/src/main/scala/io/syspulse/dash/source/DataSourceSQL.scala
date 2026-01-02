@@ -23,8 +23,11 @@ class DataSourceSQL(uri0:String) extends DataSource {
 
   val dbUri = JdbcURI(uri0)
 
-  // Use JdbcURI's jdbcUrl method and append timezone parameter
+  // Use JdbcURI's jdbcUrl method (includes query parameters like ?TimeZone=UTC)
   val jdbcUrl = dbUri.jdbcUrl
+
+  // Get timezone from URI, default to UTC
+  private val targetTimezone = dbUri.timezone.getOrElse("UTC")
 
   // Configure HikariCP with connection initialization SQL
   private val hikariConfig = {
@@ -33,12 +36,8 @@ class DataSourceSQL(uri0:String) extends DataSource {
     if (dbUri.user.isDefined) config.setUsername(dbUri.user.get)
     if (dbUri.pass.isDefined) config.setPassword(dbUri.pass.get)
 
-    // // Set datasource properties to configure timezone during connection establishment
-    // // This sends TimeZone=UTC to PostgreSQL during the initial handshake
-    config.addDataSourceProperty("TimeZone", "UTC")
-
-    // // Set connection initialization SQL as backup
-    // config.setConnectionInitSql("SET TIME ZONE 'UTC'")
+    // Set datasource properties to configure timezone during connection establishment
+    config.addDataSourceProperty("TimeZone", targetTimezone)
 
     // Connection pool settings
     config.setMaximumPoolSize(4)
@@ -48,8 +47,9 @@ class DataSourceSQL(uri0:String) extends DataSource {
     config
   }
 
+  // Temporarily set timezone for HikariCP initialization to avoid PostgreSQL timezone errors
   val tz = System.getProperty("user.timezone")
-  System.setProperty("user.timezone", "UTC")
+  System.setProperty("user.timezone", targetTimezone)
   java.util.TimeZone.setDefault(null)
   private val dataSource = new HikariDataSource(hikariConfig)
   System.setProperty("user.timezone", tz)
