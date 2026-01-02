@@ -1,0 +1,4 @@
+CREATE DATABASE dash_db;
+CREATE USER dash_user WITH PASSWORD 'dash_pass';
+GRANT CONNECT ON DATABASE dash_db TO dash_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO dash_user;

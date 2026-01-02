@@ -1,0 +1,4 @@
+CREATE DATABASE IF NOT EXISTS dash_db;
+CREATE USER IF NOT EXISTS 'dash_user'@'%' IDENTIFIED BY 'dash_pass';
+GRANT ALL PRIVILEGES ON dash_db.* TO 'dash_user'@'%' WITH GRANT OPTION;
+

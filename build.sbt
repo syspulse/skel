@@ -360,7 +360,8 @@ lazy val root = (project in file("."))
             skel_video, 
             skel_test, 
             skel_http, 
-            auth_core, 
+            auth_core,
+            auth_ext, 
             skel_auth, 
             skel_user, 
             skel_kafka, 
@@ -403,7 +404,8 @@ lazy val root = (project in file("."))
             skel_tls,
             skel_tools,
             skel_test,
-            skel_script
+            skel_script,
+            skel_dash
   )
   .dependsOn(
             skel_core, 
@@ -413,6 +415,7 @@ lazy val root = (project in file("."))
             skel_test, 
             skel_http, 
             auth_core, 
+            auth_ext, 
             skel_auth, 
             skel_user, 
             skel_kafka, 
@@ -453,7 +456,8 @@ lazy val root = (project in file("."))
             ai_agent,
             skel_tls,
             skel_test,
-            skel_script
+            skel_script,
+            skel_dash
   )  
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
@@ -612,6 +616,17 @@ lazy val auth_core = (project in file("skel-auth/auth-core"))
       libRequests,  // for JWKS http request
       libUpickleLib,
       libCasbin
+    ),    
+  )
+
+lazy val auth_ext = (project in file("skel-auth/auth-ext"))
+  .dependsOn(skel_core, auth_core, skel_test % Test)
+  .settings (
+    sharedConfig,
+    name := "skel-auth-ext",
+    
+    libraryDependencies ++= libJwt ++ Seq(
+      libUpickleLib      
     ),    
   )
 
@@ -1632,4 +1647,22 @@ lazy val skel_script = (project in file("skel-script"))
 
     libraryDependencies ++= libTest ++ Seq(      
     ), 
+  )
+
+lazy val skel_dash = (project in file("skel-dash"))
+  .dependsOn(skel_core,auth_ext,ingest_coingecko,db_guard)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)  
+  .settings (
+    
+    sharedConfig,
+    sharedConfigAssembly,
+    
+    appDockerConfig("skel-dash","io.syspulse.skel.dash.App"),
+
+    libraryDependencies ++= Seq(      
+       libScalaTest % Test,
+       libAkkaTestkit % Test,
+       libAkkaTestkitType % Test
+    ),  
   )
