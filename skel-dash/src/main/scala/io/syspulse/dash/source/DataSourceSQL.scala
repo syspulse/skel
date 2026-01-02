@@ -18,20 +18,29 @@ import java.util.Properties
 import scala.concurrent.blocking
 
 class DataSourceSQL(uri0:String) extends DataSource {
-  private val log = Logger(this.getClass)  
+  private val log = Logger(this.getClass)
 
   val dbUri = JdbcURI(uri0)
-  
+
+  // Construct proper JDBC URL from parsed components
+  // Map generic dbType to JDBC driver name (postgres -> postgresql, mysql -> mysql)
+  val jdbcDriverName = dbUri.dbType match {
+    case "postgres" => "postgresql"
+    case other => other
+  }
+  val jdbcUrl = s"jdbc:${jdbcDriverName}://${dbUri.host}:${dbUri.port}/${dbUri.db.getOrElse("")}?TimeZone=UTC"
+
   // Build JDBC connection properties
   private val connectionProperties = {
     val props = new Properties()
     if (dbUri.user.isDefined) props.setProperty("user", dbUri.user.get)
     if (dbUri.pass.isDefined) props.setProperty("password", dbUri.pass.get)
+    props.setProperty("TimeZone", "UTC")
     props
   }
-  
+
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
-  
+
   def src: String = "sql"  
 
   def ask(req:DashDataReq, tid:Option[String] = None): Future[DashData] = {
@@ -44,10 +53,18 @@ class DataSourceSQL(uri0:String) extends DataSource {
     // Extract SQL query from req.query
     val sqlQuery = req.query match {
       case Some(JsString(q)) => q
-      case Some(JsObject(fields)) => 
+      case Some(JsObject(fields)) =>
+        // Try "query" field first
         fields.get("query") match {
           case Some(JsString(q)) => q
-          case Some(JsObject(_)) => 
+          case Some(JsObject(_)) =>
+            // If "query" is an object, try "sql" inside it
+            fields.get("sql") match {
+              case Some(JsString(q)) => q
+              case _ => return Future.failed(new Exception("SQL query not found in request.query"))
+            }
+          case None =>
+            // If "query" doesn't exist, try "sql" at top level
             fields.get("sql") match {
               case Some(JsString(q)) => q
               case _ => return Future.failed(new Exception("SQL query not found in request.query"))
@@ -62,7 +79,7 @@ class DataSourceSQL(uri0:String) extends DataSource {
     // Execute query and format as table
     Future {
       blocking {
-        val connection = DriverManager.getConnection(dbUri.uri, connectionProperties)
+        val connection = DriverManager.getConnection(jdbcUrl, connectionProperties)
         try {
           val statement = connection.createStatement()
           try {
