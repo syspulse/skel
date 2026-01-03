@@ -144,23 +144,22 @@ class DataSourceSQL(uri0:String) extends DataSource {
   private val dataSource = new HikariDataSource(hikariConfig)
   System.setProperty("user.timezone", tz)
 
-  // Configure async connection pool (jasync-sql)
-  // Uses JdbcURI.getJdbcUrl(async=true) which returns jasync-sql format
+  // Async connection pool
   private val asyncConnectionPool = {
-    val connectionStr = dbUri.getJdbcUrl(async = true)
+    val asyncJdbcUrl = dbUri.getJdbcUrl(async = true)
     
     // Create appropriate connection pool based on database type
     dbUri.dbType match {
       case "postgres" | "postgresql" =>
-        PostgreSQLConnectionBuilder.createConnectionPool(connectionStr)
+        PostgreSQLConnectionBuilder.createConnectionPool(asyncJdbcUrl)
       case "mysql" =>
-        MySQLConnectionBuilder.createConnectionPool(connectionStr)
+        MySQLConnectionBuilder.createConnectionPool(asyncJdbcUrl)
       case other =>
         throw new IllegalArgumentException(s"Unsupported database type for async execution: ${other}. Supported types: postgres, mysql")
     }
   }
 
-  // Helper method to get connection from pool
+  // Sync connection pool
   private def getConnection(): Connection = {
     dataSource.getConnection()
   }
@@ -208,9 +207,9 @@ class DataSourceSQL(uri0:String) extends DataSource {
     val outputFormat = formatFromQuery.orElse(req.fmt).getOrElse("json")
 
     // Determine execution type (sync/async) from req.typ
-    val executionType = req.typ.getOrElse("sync")
+    val executionType = req.typ.filter(!_.isBlank).getOrElse("sync")
 
-    log.info(s"Executing SQL query (${executionType}): '${sqlQuery}' -> ${jdbcUrl} (format: ${outputFormat}, type: ${executionType})")
+    log.info(s"Executing SQL (${executionType},${outputFormat}): '${sqlQuery}' -> ${jdbcUrl}")
 
     // Execute query based on type
     executionType match {
