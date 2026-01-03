@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DID=${1:-1000000}
+DID=${1}
 
 TID=${TID:-490}
 OID=${OID:-100}

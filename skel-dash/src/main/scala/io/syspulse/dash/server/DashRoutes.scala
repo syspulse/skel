@@ -271,7 +271,20 @@ class DashRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
               }
             })
           }
-        }         
+        } ~ 
+        // get all Dashes for Tenant
+        pathEndOrSingleSlash {
+          authenticate()(authn => {              
+            authorize(Permissions.isAdmin(authn) || Permissions.isService(authn) || ExtAuth.getOwner(authn) == Some(tid)) {
+              val tidRequester = if(permissions.isAdmin(authn) || permissions.isService(authn))
+                  None
+                else
+                  Some(tid)
+              
+              routeDashes(tidRequester,None)
+            }
+          })
+        }
       }
     )
   }

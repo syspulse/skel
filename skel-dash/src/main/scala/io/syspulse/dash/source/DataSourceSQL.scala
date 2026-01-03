@@ -2,8 +2,8 @@ package io.syspulse.dash.source
 
 import scala.concurrent.{Future, ExecutionContext}
 import com.typesafe.scalalogging.Logger
-
 import java.util.concurrent.Executors
+
 import spray.json._
 import spray.json.JsObject
 import spray.json.JsString
@@ -102,9 +102,12 @@ class DataSourceSQL(uri0:String) extends DataSource {
       case _ => return Future.failed(new Exception("SQL query not provided in request.query"))
     }
 
-    log.info(s"Executing SQL query: '${sqlQuery.take(100)}' (${jdbcUrl})")
+    // Determine output format from query or use default (json)
+    val outputFormat = req.fmt.getOrElse("json")
 
-    // Execute query and format as table
+    log.info(s"Executing SQL query: '${sqlQuery}' -> ${jdbcUrl} (format: ${outputFormat})")
+
+    // Execute query and format result
     Future {
       blocking {
         val connection = getConnection()
@@ -113,17 +116,21 @@ class DataSourceSQL(uri0:String) extends DataSource {
           try {
             val resultSet = statement.executeQuery(sqlQuery)
             try {
-              val (tableStr, rowCount) = formatResultSetAsTable(resultSet)
+              val (resultData, rowCount, format) = outputFormat match {
+                case "csv" => formatResultSetAsCSV(resultSet)
+                case _ => formatResultSetAsJSON(resultSet)
+              }
+
               val json = JsObject(
                 "query" -> JsString(sqlQuery),
-                "result" -> JsString(tableStr),
+                "result" -> resultData,
                 "rows" -> JsNumber(rowCount)
               )
-              
+
               DashData(
                 id = req.id,
                 src = src,
-                fmt = "table",
+                fmt = format,
                 data = json,
                 ts0 = ts0,
                 ts = System.currentTimeMillis()
@@ -141,57 +148,69 @@ class DataSourceSQL(uri0:String) extends DataSource {
     }
   }
 
-  private def formatResultSetAsTable(rs: ResultSet): (String, Int) = {
+  private def formatResultSetAsCSV(rs: ResultSet): (JsValue, Int, String) = {
     val metaData = rs.getMetaData
     val columnCount = metaData.getColumnCount
-    
+
     // Get column names
     val columnNames = (1 to columnCount).map(i => metaData.getColumnName(i))
-    
-    // Get all rows
-    val rows = scala.collection.mutable.ListBuffer[Vector[String]]()
+
+    // Build CSV
+    val sb = new StringBuilder
+
+    // Header row
+    sb.append(columnNames.mkString(",")).append("\n")
+
+    // Data rows
+    var rowCount = 0
     while (rs.next()) {
       val row = (1 to columnCount).map { i =>
         val value = rs.getObject(i)
-        if (value == null) "NULL" else value.toString
-      }.toVector
-      rows += row
-    }
-    
-    val rowCount = rows.length
-    
-    // Calculate column widths
-    val columnWidths = columnNames.zipWithIndex.map { case (name, idx) =>
-      val nameWidth = name.length
-      val maxDataWidth = if (rows.nonEmpty) rows.map(_(idx).length).foldLeft(0)(Math.max) else 0
-      Math.max(nameWidth, maxDataWidth).max(3) // Minimum width of 3
-    }
-    
-    // Build table string
-    val sb = new StringBuilder
-    
-    // Header
-    val headerRow = columnNames.zipWithIndex.map { case (name, idx) =>
-      name.padTo(columnWidths(idx), ' ')
-    }.mkString(" | ")
-    sb.append(headerRow).append("\n")
-    
-    // Separator
-    val separator = columnWidths.map("-" * _).mkString("-+-")
-    sb.append(separator).append("\n")
-    
-    // Data rows
-    if (rows.isEmpty) {
-      sb.append("(no rows)").append("\n")
-    } else {
-      rows.foreach { row =>
-        val rowStr = row.zipWithIndex.map { case (value, idx) =>
-          value.padTo(columnWidths(idx), ' ')
-        }.mkString(" | ")
-        sb.append(rowStr).append("\n")
+        val str = if (value == null) "" else value.toString
+        // Escape CSV values that contain comma, quote, or newline
+        if (str.contains(",") || str.contains("\"") || str.contains("\n")) {
+          "\"" + str.replace("\"", "\"\"") + "\""
+        } else {
+          str
+        }
       }
+      sb.append(row.mkString(",")).append("\n")
+      rowCount += 1
     }
-    
-    (sb.toString(), rowCount)
+
+    (JsString(sb.toString()), rowCount, "csv")
+  }
+
+  private def formatResultSetAsJSON(rs: ResultSet): (JsValue, Int, String) = {
+    val metaData = rs.getMetaData
+    val columnCount = metaData.getColumnCount
+
+    // Get column names
+    val columnNames = (1 to columnCount).map(i => metaData.getColumnName(i))
+
+    // Build array of JSON objects
+    val rows = scala.collection.mutable.ListBuffer[JsObject]()
+    while (rs.next()) {
+      val fields = columnNames.zipWithIndex.map { case (colName, idx) =>
+        val value = rs.getObject(idx + 1)
+        val jsValue = if (value == null) {
+          JsNull
+        } else {
+          value match {
+            case v: java.lang.Integer => JsNumber(v.intValue())
+            case v: java.lang.Long => JsNumber(v.longValue())
+            case v: java.lang.Double => JsNumber(v.doubleValue())
+            case v: java.lang.Float => JsNumber(v.doubleValue())
+            case v: java.math.BigDecimal => JsNumber(v)
+            case v: Boolean => JsBoolean(v)
+            case v => JsString(v.toString)
+          }
+        }
+        (colName, jsValue)
+      }.toMap
+      rows += JsObject(fields)
+    }
+
+    (JsArray(rows.toVector), rows.length, "json")
   }
 }

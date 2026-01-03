@@ -36,10 +36,13 @@ abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Optio
   log.info(s"dbUri=${dbUri},uri=${uri},tableName=${tableName},configuration=${configuration}")
     
   protected val (dbType,dbConfigName) = (uri.dbType,uri.dbConfig.getOrElse("postgres"))
+  protected val dbTimezone = uri.timezone.getOrElse("UTC")
 
   def getTableName = tableName
   def getDbType = dbType
   def getDbConfigName = dbConfigName
+
+  
 
   log.info(s"StoreDB: database=${dbType},config=${dbConfigName},table=${tableName}")
 
@@ -97,6 +100,10 @@ abstract class StoreDB[E,P](dbUri:String,tableName:String,configuration:Option[C
   extends StoreDBCore(dbUri,tableName,configuration) 
   with Store[E,P] {
   
+  val tz = System.getProperty("user.timezone")
+  System.setProperty("user.timezone", dbTimezone)
+  java.util.TimeZone.setDefault(null)  
+
   val ctx = dbType match {
     case "mysql" => 
       new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
@@ -108,6 +115,8 @@ abstract class StoreDB[E,P](dbUri:String,tableName:String,configuration:Option[C
     case _ => 
       new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
   }
+
+  System.setProperty("user.timezone", tz)
 
   import ctx._
   

@@ -11,23 +11,44 @@
 | test | For testing only |
 
 
-### Running with Dune Datasource
+### Dune Datasource
 
 ```
 GOD=1 ./run-dash.sh --ds='dune://?compress=true'
 ```
 
-### Running with Elastic Datasource
+### Elastic Datasource
 
 ```
 GOD=1 ./run-dash.sh --ds="ess://{ES_USER}:{ES_PASS}@localhost:9200"
 ```
 
-### Many Engines simultaneously
+### SQL Datastource
+
+SQL is a standard JDBC connector
 
 ```
-GOD=1 ./run-dash.sh --datastore=mem:// --ds=many://test://,es://,dune://
+GOD=1 ./run-dash.sh --ds="jdbc:postgres://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}?TimeZone=UTC"
 ```
+
+### Many Engines (flexible selection in Request)
+
+`application-1.conf`:
+```
+ds = """many://
+  test://,
+  ess://{ES_USER}:{ES_PASS}@{ES_HOST}?compress=true,
+  dune://{DUNE_API_KEY},
+  coingecko://{CG_API_KEY},
+  postgres://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}?TimeZone=UTC
+"""
+```
+
+```
+GOD=1 ./run-dash.sh --conf=conf/application-1.conf
+```
+
+
 
 ## Rqeuests
 
@@ -71,8 +92,6 @@ ${SKEL_HOME}/skel-db/postgres/db-create.sh
 
 Apply env:
 
-
-
 ```
 source ./env.local
 ```
@@ -85,7 +104,7 @@ Run with DB datastore:
 
 `postgres` config is defined in Application config (e.g. `conf/application.conf`)
 
-If timezone is set incorrectly and Postgres does not understand it, run:
+If timezone is set incorrectly and Postgres does not understand it, run with env or supply in uri (`postgres://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}?TimeZone=UTC`)
 
 ```
 TZ=UTC ./run-dash.sh --datastore=jdbc://postgres

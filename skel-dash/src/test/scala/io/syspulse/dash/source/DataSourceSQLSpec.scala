@@ -112,14 +112,19 @@ class DataSourceSQLSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll
 
       result.id shouldBe "test-query-1"
       result.src shouldBe "sql"
-      result.fmt shouldBe "table"
+      result.fmt shouldBe "json"
       result.data.fields("rows").convertTo[Int] shouldBe 2
 
-      val resultStr = result.data.fields("result").convertTo[String]
-      resultStr should include("test1")
-      resultStr should include("test2")
-      resultStr should include("100")
-      resultStr should include("200")
+      val resultArray = result.data.fields("result").asInstanceOf[JsArray]
+      resultArray.elements.length shouldBe 2
+
+      val row1 = resultArray.elements(0).asJsObject
+      row1.fields("name").convertTo[String] shouldBe "test1"
+      row1.fields("value").convertTo[Int] shouldBe 100
+
+      val row2 = resultArray.elements(1).asJsObject
+      row2.fields("name").convertTo[String] shouldBe "test2"
+      row2.fields("value").convertTo[Int] shouldBe 200
     }
 
     "execute SELECT query with JsObject query format (query field)" in {
@@ -140,9 +145,10 @@ class DataSourceSQLSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll
       val result = Await.result(future, 5.seconds)
 
       result.data.fields("rows").convertTo[Int] shouldBe 1
-      val resultStr = result.data.fields("result").convertTo[String]
-      resultStr should include("foo")
-      resultStr should include("42")
+      val resultArray = result.data.fields("result").asInstanceOf[JsArray]
+      val row = resultArray.elements(0).asJsObject
+      row.fields("name").convertTo[String] shouldBe "foo"
+      row.fields("value").convertTo[Int] shouldBe 42
     }
 
     "execute SELECT query with JsObject query format (sql field)" in {
@@ -163,11 +169,12 @@ class DataSourceSQLSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll
       val result = Await.result(future, 5.seconds)
 
       result.data.fields("rows").convertTo[Int] shouldBe 1
-      val resultStr = result.data.fields("result").convertTo[String]
-      resultStr should include("bar")
+      val resultArray = result.data.fields("result").asInstanceOf[JsArray]
+      val row = resultArray.elements(0).asJsObject
+      row.fields("name").convertTo[String] shouldBe "bar"
     }
 
-    "return formatted table with correct structure" in {
+    "return formatted JSON with correct structure" in {
       // Insert test data with various types
       val stmt = connection.createStatement()
       stmt.execute("INSERT INTO test_sql_datasource (name, value) VALUES ('alpha', 1)")
@@ -176,7 +183,7 @@ class DataSourceSQLSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll
       stmt.close()
 
       val req = DashDataReq(
-        id = "test-table-format",
+        id = "test-json-format",
         src = "sql",
         query = Some(JsString("SELECT name, value FROM test_sql_datasource ORDER BY value"))
       )
@@ -184,24 +191,22 @@ class DataSourceSQLSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll
       val future = dataSource.ask(req)
       val result = Await.result(future, 5.seconds)
 
-      val resultStr = result.data.fields("result").convertTo[String]
-
-      // Should have header row
-      resultStr should include("name")
-      resultStr should include("value")
-
-      // Should have separator line with dashes
-      resultStr should include("---")
-      resultStr should include("-+-")
-
-      // Should have data rows
-      resultStr should include("alpha")
-      resultStr should include("beta")
-      resultStr should include("gamma")
+      result.fmt shouldBe "json"
+      val resultArray = result.data.fields("result").asInstanceOf[JsArray]
+      resultArray.elements.length shouldBe 3
 
       // Check rows are in correct order
-      val lines = resultStr.split("\n")
-      lines.length should be > 3  // header + separator + at least 1 data row
+      val row1 = resultArray.elements(0).asJsObject
+      row1.fields("name").convertTo[String] shouldBe "alpha"
+      row1.fields("value").convertTo[Int] shouldBe 1
+
+      val row2 = resultArray.elements(1).asJsObject
+      row2.fields("name").convertTo[String] shouldBe "beta"
+      row2.fields("value").convertTo[Int] shouldBe 2
+
+      val row3 = resultArray.elements(2).asJsObject
+      row3.fields("name").convertTo[String] shouldBe "gamma"
+      row3.fields("value").convertTo[Int] shouldBe 3
     }
 
     "handle empty result set" in {
@@ -215,8 +220,8 @@ class DataSourceSQLSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll
       val result = Await.result(future, 5.seconds)
 
       result.data.fields("rows").convertTo[Int] shouldBe 0
-      val resultStr = result.data.fields("result").convertTo[String]
-      resultStr should include("(no rows)")
+      val resultArray = result.data.fields("result").asInstanceOf[JsArray]
+      resultArray.elements.length shouldBe 0
     }
 
     "handle NULL values in results" in {
@@ -229,15 +234,53 @@ class DataSourceSQLSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll
       val req = DashDataReq(
         id = "test-nulls",
         src = "sql",
-        query = Some(JsString("SELECT name, value FROM test_sql_datasource ORDER BY name"))
+        query = Some(JsString("SELECT name, value FROM test_sql_datasource ORDER BY name NULLS FIRST"))
       )
 
       val future = dataSource.ask(req)
       val result = Await.result(future, 5.seconds)
 
-      val resultStr = result.data.fields("result").convertTo[String]
-      resultStr should include("NULL")
       result.data.fields("rows").convertTo[Int] shouldBe 2
+      val resultArray = result.data.fields("result").asInstanceOf[JsArray]
+
+      // Check for JsNull values (NULL name comes first with NULLS FIRST)
+      val row1 = resultArray.elements(0).asJsObject
+      row1.fields("name") shouldBe JsNull
+      row1.fields("value").convertTo[Int] shouldBe 123
+
+      val row2 = resultArray.elements(1).asJsObject
+      row2.fields("name").convertTo[String] shouldBe "notNull"
+      row2.fields("value") shouldBe JsNull
+    }
+
+    "return CSV format when requested" in {
+      // Insert test data
+      val stmt = connection.createStatement()
+      stmt.execute("INSERT INTO test_sql_datasource (name, value) VALUES ('csv1', 10)")
+      stmt.execute("INSERT INTO test_sql_datasource (name, value) VALUES ('csv2', 20)")
+      stmt.close()
+
+      val req = DashDataReq(
+        id = "test-csv",
+        src = "sql",
+        query = Some(JsObject(
+          "query" -> JsString("SELECT name, value FROM test_sql_datasource ORDER BY name"),
+          "format" -> JsString("csv")
+        ))
+      )
+
+      val future = dataSource.ask(req)
+      val result = Await.result(future, 5.seconds)
+
+      result.fmt shouldBe "csv"
+      result.data.fields("rows").convertTo[Int] shouldBe 2
+
+      val csvStr = result.data.fields("result").convertTo[String]
+      // Check header
+      csvStr should include("name,value")
+      // Check data rows
+      csvStr should include("csv1,10")
+      csvStr should include("csv2,20")
     }
 
     "reject query with wrong datasource type" in {
