@@ -18,6 +18,12 @@ import java.util.Properties
 import scala.concurrent.blocking
 import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 
+object DataSourceSQL {
+  val DEFAULT_MAX_POOL_SIZE = 4
+  val DEFAULT_MIN_IDLE = 1
+  val DEFAULT_CONNECTION_TIMEOUT = 30000L
+}
+
 class DataSourceSQL(uri0:String) extends DataSource {
   private val log = Logger(this.getClass)
 
@@ -40,9 +46,9 @@ class DataSourceSQL(uri0:String) extends DataSource {
     config.addDataSourceProperty("TimeZone", targetTimezone)
 
     // Connection pool settings
-    config.setMaximumPoolSize(4)
-    config.setMinimumIdle(1)
-    config.setConnectionTimeout(30000)
+    config.setMaximumPoolSize(dbUri.opts.get("MaxPoolSize").map(_.toInt).getOrElse(DataSourceSQL.DEFAULT_MAX_POOL_SIZE))
+    config.setMinimumIdle(dbUri.opts.get("MinIdle").map(_.toInt).getOrElse(DataSourceSQL.DEFAULT_MIN_IDLE))
+    config.setConnectionTimeout(dbUri.opts.get("ConnectionTimeout").map(_.toLong).getOrElse(DataSourceSQL.DEFAULT_CONNECTION_TIMEOUT))
 
     config
   }

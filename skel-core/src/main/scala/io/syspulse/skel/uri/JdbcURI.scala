@@ -32,7 +32,7 @@ case class JdbcURI(uri:String) {
   val PREFIX = "jdbc://"
 
   // Parse URI and extract query parameters
-  private val (baseUri, queryParams) = uri.split("\\?", 2) match {
+  private val (baseUri, params) = uri.split("\\?", 2) match {
     case Array(base, query) =>
       val params = query.split("&").map { param =>
         param.split("=", 2) match {
@@ -59,7 +59,8 @@ case class JdbcURI(uri:String) {
   def async:Boolean = rasync
 
   // Extract timezone from query parameters
-  def timezone:Option[String] = queryParams.get("TimeZone").orElse(queryParams.get("timezone"))
+  def timezone:Option[String] = params.get("TimeZone").orElse(params.get("timezone"))
+  def opts:Map[String,String] = params
 
   // Construct proper JDBC URL for DriverManager
   // Maps generic dbType to actual JDBC driver name (postgres -> postgresql)
@@ -77,8 +78,8 @@ case class JdbcURI(uri:String) {
     }
 
     // Append query parameters if present
-    val url = if (queryParams.nonEmpty) {
-      val queryString = queryParams.map { case (k, v) => s"${k}=${v}" }.mkString("&")
+    val url = if (params.nonEmpty) {
+      val queryString = params.map { case (k, v) => s"${k}=${v}" }.mkString("&")
       s"${baseUrl}?${queryString}"
     } else {
       baseUrl
