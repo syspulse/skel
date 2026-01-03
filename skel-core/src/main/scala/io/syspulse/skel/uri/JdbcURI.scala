@@ -62,32 +62,54 @@ case class JdbcURI(uri:String) {
   def timezone:Option[String] = params.get("TimeZone").orElse(params.get("timezone"))
   def opts:Map[String,String] = params
 
-  // Construct proper JDBC URL for DriverManager
+  // Construct proper JDBC URL for DriverManager or jasync-sql
   // Maps generic dbType to actual JDBC driver name (postgres -> postgresql)
-  def jdbcUrl: String = {
+  // If async=true, returns jasync-sql format (without jdbc: prefix and query parameters)
+  // If async=false, returns standard JDBC URL format
+  def getJdbcUrl(async: Boolean = false): String = {
     val driverName = dbType match {
       case "postgres" => "postgresql"
       case other => other
     }
+    
+    // Build user:pass@ part if credentials are available (only for async jasync-sql format)
+    val credentials = if (async) {
+      (user, pass) match {
+        case (Some(u), Some(p)) => s"${u}:${p}@"
+        case (Some(u), None) => s"${u}@"
+        case _ => ""
+      }
+    } else {
+      "" // JDBC URLs don't include credentials in the URL string
+    }
+    
     val baseUrl = db match {
-      case Some(database) => s"jdbc:${driverName}://${host}:${port}/${database}"
+      case Some(database) => s"jdbc:${driverName}://${credentials}${host}:${port}/${database}"
       case None => dbConfig match {
-        case Some(config) => s"jdbc:${driverName}://${host}:${port}/${config}"
-        case None => s"jdbc:${driverName}://${host}:${port}"
+        case Some(config) => s"jdbc:${driverName}://${credentials}${host}:${port}/${config}"
+        case None => s"jdbc:${driverName}://${credentials}${host}:${port}"
       }
     }
 
-    // Append query parameters if present
-    val url = if (params.nonEmpty) {
+    // Append query parameters if present (only for sync JDBC URLs)
+    val url = if (params.nonEmpty && !async) {
       val queryString = params.map { case (k, v) => s"${k}=${v}" }.mkString("&")
       s"${baseUrl}?${queryString}"
     } else {
       baseUrl
     }
 
-    Util.replaceEnvVar(url)
+    val finalUrl = Util.replaceEnvVar(url)
+    
+    // Convert to jasync-sql format if async=true
+    if (async) {
+      // Remove jdbc: prefix and query parameters for jasync-sql
+      finalUrl.replaceFirst("^jdbc:", "").split("\\?")(0)
+    } else {
+      finalUrl
+    }
   }
-
+  
 
   def parseCred(userPass:String) = userPass.split(":").toList match {
     case u :: p :: _ => (Util.resolveEnvVar(u),Util.resolveEnvVar(p))

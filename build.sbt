@@ -1664,6 +1664,7 @@ lazy val skel_dash = (project in file("skel-dash"))
        libScalaTest % Test,
        libAkkaTestkit % Test,
        libAkkaTestkitType % Test,
-       libSlickHikari
+       libSlickHikari,
+       libQuillAsyncPostgres
     ),
   )
