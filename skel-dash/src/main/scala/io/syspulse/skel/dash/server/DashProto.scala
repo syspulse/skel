@@ -1,4 +1,4 @@
-package io.syspulse.dash.server
+package io.syspulse.skel.dash.server
 
 import scala.collection.immutable
 import io.jvm.uuid._
@@ -7,7 +7,7 @@ import spray.json.JsValue
 import io.syspulse.skel.util.Util
 import spray.json._
 
-import io.syspulse.dash.Dash
+import io.syspulse.skel.dash.Dash
 import spray.json.JsObject
 
 

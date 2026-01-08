@@ -1,13 +1,12 @@
-package io.syspulse.dash.store
+package io.syspulse.skel.dash.store
 
 import scala.util.{Failure,Success,Try}
 import scala.collection.immutable
 import io.jvm.uuid.UUID
 import com.typesafe.scalalogging.Logger
 
-import io.syspulse.dash.server._
 import java.time.LocalDateTime
-import io.syspulse.dash.Dash
+import io.syspulse.skel.dash.Dash
 
 class DashStoreMem() extends DashStore {
 

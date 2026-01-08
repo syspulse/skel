@@ -10,4 +10,4 @@ source db-endpoint.sh
 aws dynamodb query --table-name $TABLE \
    --key-condition-expression "VID = :vid" \
    --expression-attribute-values  "{\":vid\":{\"S\":\"${ID}\"}}" \
-   $DB_URI
+   $DB_URL

@@ -1,4 +1,4 @@
-package io.syspulse.dash.source
+package io.syspulse.skel.dash.source
 
 import scala.util.{Failure,Success,Try}
 import scala.concurrent.{Future, ExecutionContext}
@@ -17,37 +17,39 @@ import akka.http.scaladsl.model.headers.{RawHeader, `Content-Encoding`}
 import akka.http.scaladsl.settings.{ConnectionPoolSettings, ClientConnectionSettings}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import spray.json._
-import akka.stream.scaladsl.Compression
-
-import io.syspulse.dash.server.DashData
 import spray.json.JsObject
 import spray.json.JsString
-import io.syspulse.dash.server.DashDataReq
+import akka.stream.scaladsl.Compression
 
-import io.syspulse.skel.uri.CoingeckoURI
-import io.syspulse.skel.coingecko.Coingecko
-import io.syspulse.dash.source.DataSource
+import io.syspulse.skel.dash.server.DashData
+import io.syspulse.skel.dash.source.DuneURI
+import io.syspulse.skel.dash.server.DashDataReq
+import io.syspulse.skel.dash.source.DataSource
 
-class DataSourceCoingecko(uri:String,threads:Int=16) extends DataSource {
+class DataSourceDune(uri:String) extends DataSource {
   private val log = Logger(this.getClass)
+  private val baseUrl = "https://api.dune.com/api/v1"
 
-  implicit val sys: ActorSystem = ActorSystem("DataSourceCoingecko")
-  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(threads))
-
-  val coingecko = Coingecko(uri)
-  val compress = coingecko.get.getUri().ops.get("compress").map(_.toBoolean).getOrElse(true)
-  val baseUrl = coingecko.get.getUri().getBaseUrl()
-  val timeout = coingecko.get.getUri().timeout
-  val apiKey = coingecko.get.getUri().apiKey
+  val duneUri = DuneURI(uri)
+  val (apiKey,limit,timeout,threads,compress) = (
+    duneUri.apiKey,
+    duneUri.limit,
+    duneUri.timeout,
+    duneUri.ops.get("threads").map(_.toInt).getOrElse(8),
+    duneUri.ops.get("compress").map(_.toBoolean).getOrElse(true)
+  )
     
+  implicit val sys: ActorSystem = ActorSystem("DataSourceDune")
+  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(threads))
+  
   // Configure longer timeouts
   private val poolSettings = ConnectionPoolSettings(sys)
     .withMaxConnections(32)
     .withMaxOpenRequests(64)
     .withPipeliningLimit(1)
-    .withIdleTimeout(timeout)
+    .withIdleTimeout(FiniteDuration(timeout, TimeUnit.MILLISECONDS))
   
-  def src: String = "coingecko"
+  def src: String = "dune"  
   
   def ask(req:DashDataReq, tid:Option[String] = None): Future[DashData] = {
     if(req.src != this.src) {
@@ -56,19 +58,11 @@ class DataSourceCoingecko(uri:String,threads:Int=16) extends DataSource {
 
     val ts0 = System.currentTimeMillis()
 
-    val urlSuffix = req.query match {
-      case Some(JsString(q)) => q
-        
-      case _ => 
-        log.error(s"id(${req.id}): invalid params: query=${req.query},typ=${req.typ}")
-        throw new Exception(s"invalid params")
-    }
-
     val request = HttpRequest(
       method = HttpMethods.GET,
-      uri = s"${baseUrl}/${urlSuffix}",
+      uri = s"$baseUrl/query/${req.id}/results?limit=${req.limit.getOrElse(DEF_LIMIT)}",
       headers = List(
-        RawHeader("x-cg-pro-api-key", apiKey),
+        RawHeader("x-dune-api-key", apiKey),
         // RawHeader("Accept-Encoding", "gzip, deflate")
       ) ++ (if(compress) List(RawHeader("Accept-Encoding", "gzip, deflate")) else List())
     )
@@ -91,33 +85,16 @@ class DataSourceCoingecko(uri:String,threads:Int=16) extends DataSource {
             DashData(
               id = req.id,
               src = src,
-              fmt = "coingecko",
+              fmt = "dune",
               data = json,
               ts0 = ts0,
               ts = System.currentTimeMillis()
             )
           }
-        case StatusCodes.UnprocessableEntity =>
-          // 422 with chunked response means we need to process the chunks
-          Unmarshal(entity).to[String].flatMap { j =>
-            val json = JsonParser(j).asJsObject
-            log.warn(s"id(${req.id}): ${r.status}: ${json}")
-            Future.failed(new Exception(json.toString()))
-          }
-        // case StatusCodes.TooManyRequests =>
-        //   // Handle rate limiting
-        //   log.warn(s"id(${req.id}): ${r.status}: ${r.entity}")
-        //   Future.failed(new Exception(s"${r.entity}"))
-        // case StatusCodes.BadRequest =>
-        //   // Handle 400 Bad Request
-        //   Unmarshal(entity).to[String].flatMap { err =>
-        //     log.warn(s"id(${req.id}): ${r.status}: ${err}")
-        //     Future.failed(new Exception(err))
-        //   }
         case _ =>          
           Unmarshal(entity).to[String].flatMap { err =>
-            log.warn(s"id(${req.id}): ${r.status}: ${err}")
-            Future.failed(new Exception(s"Coingecko API failed: ${r.status}: ${err}"))
+            log.warn(s"id(${req.id}): request failed: ${r.status}: ${err}")
+            Future.failed(new Exception(s"failed to call Dune: ${r.status}: ${err}"))
           }
       }
     }

@@ -379,6 +379,7 @@ lazy val root = (project in file("."))
             ingest_dynamo,
             ingest_twitter,
             ingest_coingecko,
+            ingest_telegram,
             skel_ingest,
             skel_enroll,
             skel_syslog,
@@ -405,7 +406,8 @@ lazy val root = (project in file("."))
             skel_tools,
             skel_test,
             skel_script,
-            skel_dash
+            skel_dash,
+            skel_odometer
   )
   .dependsOn(
             skel_core, 
@@ -433,6 +435,7 @@ lazy val root = (project in file("."))
             ingest_dynamo,
             ingest_twitter,
             ingest_coingecko,
+            ingest_telegram,
             skel_ingest,
             skel_enroll,
             skel_syslog,
@@ -457,7 +460,8 @@ lazy val root = (project in file("."))
             skel_tls,
             skel_test,
             skel_script,
-            skel_dash
+            skel_dash,
+            skel_odometer
   )  
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
@@ -921,11 +925,8 @@ lazy val ingest_telegram = (project in file("skel-ingest/ingest-telegram"))
 
     appDockerConfig("ingest-telegram","io.syspulse.skel.telegram.App"),
 
-    libraryDependencies ++= Seq(
-      // TDLight Java - TDLib-based MTProto user API implementation
-      "it.tdlight" % "tdlight-java" % "3.4.4+td.1.8.52",
-      // Native libraries for Linux amd64 with OpenSSL 3.x (version managed by tdlight-java POM)
-      "it.tdlight" % "tdlight-natives" % "4.0.558" classifier "linux_amd64_gnu_ssl3"
+    libraryDependencies ++= libTelegram ++ Seq(
+      
     ),
   )
 
@@ -1653,18 +1654,23 @@ lazy val skel_dash = (project in file("skel-dash"))
   .dependsOn(skel_core,auth_ext,ingest_coingecko,db_guard)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
   .settings (
-
     sharedConfig,
     sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
 
-    appDockerConfig("skel-dash","io.syspulse.skel.dash.App"),
+    appDockerConfig("skel-dash","io.syspulse.skel.dash.App",Seq("application-dev.conf")),
 
-    libraryDependencies ++= Seq(
+    libraryDependencies ++= Seq(       
+       libSlickHikari,
+       libQuillAsyncPostgres,
+      //  "com.github.jasync-sql" % "jasync-r2dbc-postgresql" % "2.2.4",
+      //  "io.r2dbc" % "r2dbc-spi" % "1.1.0.RELEASE",
+
        libScalaTest % Test,
        libAkkaTestkit % Test,
        libAkkaTestkitType % Test,
-       libSlickHikari,
-       libQuillAsyncPostgres
     ),
   )

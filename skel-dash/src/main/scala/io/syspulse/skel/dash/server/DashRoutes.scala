@@ -1,9 +1,10 @@
-package io.syspulse.dash.server
+package io.syspulse.skel.dash.server
 
 import com.typesafe.scalalogging.Logger
 import io.jvm.uuid._
 import scala.util.{Try,Success,Failure}
 import java.nio.file.Paths
+import scala.annotation.tailrec
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.StatusCodes
@@ -52,12 +53,12 @@ import io.syspulse.skel.auth._
 import io.syspulse.skel.auth.permissions.Permissions
 import io.syspulse.skel.auth.RouteAuthorizers
 
-import io.syspulse.dash._
-import io.syspulse.dash.store.DashRegistry
-import io.syspulse.dash.store.DashRegistry._
-import io.syspulse.dash.server._
+import io.syspulse.skel.dash._
+import io.syspulse.skel.dash.store.DashRegistry
+import io.syspulse.skel.dash.store.DashRegistry._
+import io.syspulse.skel.dash.server._
 import io.syspulse.skel.service.telemetry.TelemetryRegistry
-import scala.annotation.tailrec
+
 import io.syspulse.skel.util.Util
 
 import io.syspulse.skel.auth.permissions.rbac

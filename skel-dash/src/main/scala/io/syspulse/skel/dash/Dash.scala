@@ -1,4 +1,4 @@
-package io.syspulse.dash
+package io.syspulse.skel.dash
 
 import scala.util.Try
 

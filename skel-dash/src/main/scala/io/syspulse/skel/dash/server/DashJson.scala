@@ -1,10 +1,10 @@
-package io.syspulse.dash.server
+package io.syspulse.skel.dash.server
 
 import io.syspulse.skel.service.JsonCommon
 import spray.json._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 
-import io.syspulse.dash.Dash
+import io.syspulse.skel.dash.Dash
 
 object DashJson extends JsonCommon {
   implicit val jf_dash_data = jsonFormat6(DashData)

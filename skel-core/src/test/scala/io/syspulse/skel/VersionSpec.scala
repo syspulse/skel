@@ -60,8 +60,50 @@ class VersionSpec extends AnyWordSpec with Matchers {
       v1.compare(v2) shouldBe 0
       (v1 >= v2) shouldBe true
       (v1 <= v2) shouldBe true
-      // Note: == checks all fields including build/stage, so they are not equal
-      // But comparison (>, <, >=, <=) ignores build/stage
+      // === compares only major.minor.patch, ignoring build/stage
+      (v1 === v2) shouldBe true
+      // == compares all fields including build/stage, so they are not equal
+      (v1 == v2) shouldBe false
+      // Comparison operators (>, <, >=, <=) also ignore build/stage
+      (v1 > v2) shouldBe false
+      (v1 < v2) shouldBe false
+    }
+
+    "use === operator to compare versions ignoring build/stage" in {
+      val v1 = Version("1.2.3")
+      val v2 = Version(1, 2, 3, Some("build1"), Some("alpha"))
+      val v3 = Version(1, 2, 3, Some("build2"), Some("beta"))
+      
+      (v1 === v2) shouldBe true
+      (v2 === v3) shouldBe true
+      (v1 === v3) shouldBe true
+      // == checks all fields, so they are not equal
+      (v1 == v2) shouldBe false
+      (v2 == v3) shouldBe false
+    }
+
+    "use > operator to compare versions" in {
+      val v1 = Version("1.2.3")
+      val v2 = Version("1.2.2")
+      val v3 = Version("1.1.9")
+      val v4 = Version("0.9.9")
+      
+      (v1 > v2) shouldBe true
+      (v1 > v3) shouldBe true
+      (v1 > v4) shouldBe true
+      (v2 > v3) shouldBe true
+    }
+
+    "use < operator to compare versions" in {
+      val v1 = Version("1.2.2")
+      val v2 = Version("1.2.3")
+      val v3 = Version("1.3.0")
+      val v4 = Version("2.0.0")
+      
+      (v1 < v2) shouldBe true
+      (v1 < v3) shouldBe true
+      (v1 < v4) shouldBe true
+      (v2 < v3) shouldBe true
     }
 
     "sort versions correctly" in {
@@ -256,6 +298,69 @@ class VersionSpec extends AnyWordSpec with Matchers {
       
       (v2.toInt > v1.toInt) shouldBe true
       (v3.toInt > v2.toInt) shouldBe true
+    }
+
+    "increment version by adding to patch only" in {
+      val v1 = Version("1.0.0")
+      val v2 = v1 + 5
+      
+      v2 shouldBe Version("1.0.5")
+      v2.major shouldBe 1
+      v2.minor shouldBe 0
+      v2.patch shouldBe 5
+    }
+
+    "increment version by adding to major, minor, and patch" in {
+      val v1 = Version("1.2.3")
+      val v2 = v1.+(1, 2, 3)
+      
+      v2 shouldBe Version("2.4.6")
+      v2.major shouldBe 2
+      v2.minor shouldBe 4
+      v2.patch shouldBe 6
+    }
+
+    "preserve build and stage metadata when incrementing patch" in {
+      val v1 = Version(1, 0, 0, Some("build1"), Some("alpha"))
+      val v2 = v1 + 1
+      
+      v2.major shouldBe 1
+      v2.minor shouldBe 0
+      v2.patch shouldBe 1
+      v2.build shouldBe Some("build1")
+      v2.stage shouldBe Some("alpha")
+    }
+
+    "preserve build and stage metadata when incrementing all components" in {
+      val v1 = Version(1, 0, 0, Some("build1"), Some("alpha"))
+      val v2 = v1.+(1, 1, 1)
+      
+      v2.major shouldBe 2
+      v2.minor shouldBe 1
+      v2.patch shouldBe 1
+      v2.build shouldBe Some("build1")
+      v2.stage shouldBe Some("alpha")
+    }
+
+    "handle negative increments" in {
+      val v1 = Version("2.4.6")
+      val v2 = v1.+(0, 0, -3)
+      
+      v2 shouldBe Version("2.4.3")
+    }
+
+    "increment patch with large values" in {
+      val v1 = Version("0.1.100")
+      val v2 = v1 + 50
+      
+      v2 shouldBe Version("0.1.150")
+    }
+
+    "increment with minor > 100" in {
+      val v1 = Version("0.200.0")
+      val v2 = v1.+(0, 100, 0)
+      
+      v2 shouldBe Version("0.300.0")
     }
   }
 }

@@ -1,4 +1,4 @@
-package io.syspulse.dash
+package io.syspulse.skel.dash
 
 import org.scalatest.{BeforeAndAfterAll}
 import org.scalatest.wordspec.AnyWordSpec
@@ -24,14 +24,15 @@ import pdi.jwt.{Jwt, JwtAlgorithm, JwtHeader, JwtClaim, JwtOptions}
 import pdi.jwt.algorithms.JwtHmacAlgorithm
 import pdi.jwt.algorithms.JwtAsymmetricAlgorithm
 
-import io.syspulse.dash.server._
-import io.syspulse.dash.store._
-import io.syspulse.dash.server.DashJson._
+import io.syspulse.skel.dash.server._
+import io.syspulse.skel.dash.store._
+import io.syspulse.skel.dash.server.DashJson._
 import scala.concurrent.Promise
 import io.syspulse.skel.auth.jwt.AuthJwt
 import akka.http.scaladsl.server.AuthorizationFailedRejection
 import akka.http.scaladsl.server.AuthenticationFailedRejection
-import source.DataSourceTest
+import io.syspulse.skel.dash.source.DataSourceTest
+import io.syspulse.skel.dash.Config
 
 class DashRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll { 
   

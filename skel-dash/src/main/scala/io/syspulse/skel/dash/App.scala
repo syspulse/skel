@@ -1,4 +1,4 @@
-package io.syspulse.dash
+package io.syspulse.skel.dash
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.Future
@@ -16,9 +16,9 @@ import io.syspulse.skel.FutureAwaitable._
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
-import io.syspulse.dash._
-import io.syspulse.dash.store._
-import io.syspulse.dash.server._
+import io.syspulse.skel.dash._
+import io.syspulse.skel.dash.store._
+import io.syspulse.skel.dash.server._
 import source.DataSource
 import source.DataSourceCoingecko
 import source.DataSourceDune

@@ -22,13 +22,13 @@ class ConfigurationAkka(from:Option[String] = None) extends ConfigurationTypesaf
         Some(ConfigFactory.load(ConfigFactory.parseFile(new File(from.get)).resolve()))
       }
       else
-        Some(ConfigFactory.load())
+        Some(ConfigFactory.load().resolve())
     } catch {
       case e @ (_ : com.typesafe.config.ConfigException.IO | _ : Exception) => {
         log.error(s"Configuration not loaded: ",e)
         // try to load default ?!
         System.setProperty("config.resource","application.conf")
-        Some(ConfigFactory.defaultReference(this.getClass.getClassLoader))
+        Some(ConfigFactory.defaultReference(this.getClass.getClassLoader).resolve())
       }
     }
   }

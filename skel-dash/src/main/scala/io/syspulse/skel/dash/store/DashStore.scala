@@ -1,16 +1,13 @@
-package io.syspulse.dash.store
+package io.syspulse.skel.dash.store
 
 import scala.util.{Failure,Success,Try}
 import scala.collection.immutable
 import com.typesafe.scalalogging.Logger
 import io.jvm.uuid.UUID
+import java.time.LocalDateTime
 
 import io.syspulse.skel.store.Store
-
-import io.syspulse.dash.server._
-
-import io.syspulse.dash.Dash
-import java.time.LocalDateTime
+import io.syspulse.skel.dash.Dash
 
 trait DashStore extends Store[Dash,String] {
   private val log = Logger(getClass)

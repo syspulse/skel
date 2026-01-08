@@ -1,4 +1,4 @@
-package io.syspulse.dash.source
+package io.syspulse.skel.dash.source
 
 import scala.util.{Failure,Success,Try}
 import scala.concurrent.{Future, ExecutionContext}
@@ -7,19 +7,21 @@ import java.util.concurrent.Executors
 import com.typesafe.scalalogging.Logger
 import io.jvm.uuid.UUID
 
-import akka.actor.ActorSystem
-
-import io.syspulse.dash.server.DashData
-import spray.json.JsObject
-import spray.json.JsString
-import spray.json.JsonParser
 import scala.concurrent.Promise
 import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
-import io.syspulse.dash.source.TestURI
-import io.syspulse.dash.server.DashDataReq
-import io.syspulse.dash.source.DataSource
+
+import akka.actor.ActorSystem
+
+import spray.json.JsObject
+import spray.json.JsString
+import spray.json.JsonParser
+
+import io.syspulse.skel.dash.server.DashData
+import io.syspulse.skel.dash.source.TestURI
+import io.syspulse.skel.dash.server.DashDataReq
+import io.syspulse.skel.dash.source.DataSource
 
 class DataSourceTest(uri:String) extends DataSource {
   private val log = Logger(this.getClass)

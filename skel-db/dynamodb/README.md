@@ -22,11 +22,11 @@ AWS_REGION=localhost
 ```
 
 
-All commands for local acceept DB_URI enviroment variable to override default (http://localhost:8100):
+All commands for local acceept DB_URL enviroment variable to override default (http://localhost:8100):
 
 Example:
 ```
-DB_URI=http://dynamodb-host:8100 db-scan.sh
+DB_URL=http://dynamodb-host:8100 db-scan.sh
 
 ```
 

@@ -1,4 +1,4 @@
-package io.syspulse.dash.source
+package io.syspulse.skel.dash.source
 
 import scala.util.{Failure,Success,Try}
 import scala.concurrent.Future
@@ -6,8 +6,8 @@ import scala.collection.immutable
 import com.typesafe.scalalogging.Logger
 import io.jvm.uuid.UUID
 
-import io.syspulse.dash.server.DashData
-import io.syspulse.dash.server.DashDataReq
+import io.syspulse.skel.dash.server.DashData
+import io.syspulse.skel.dash.server.DashDataReq
 
 trait DataSource {
   val DEF_LIMIT = 100

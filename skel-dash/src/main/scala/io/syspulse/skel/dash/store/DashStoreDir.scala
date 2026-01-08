@@ -1,14 +1,12 @@
-package io.syspulse.dash.store
+package io.syspulse.skel.dash.store
 
 import scala.util.{Failure,Success,Try}
 import scala.collection.immutable
 import com.typesafe.scalalogging.Logger
 
-import io.syspulse.dash.server._
 import io.syspulse.skel.store.StoreDir
-
-import io.syspulse.dash.server.DashJson._
-import io.syspulse.dash.Dash
+import io.syspulse.skel.dash.server.DashJson._
+import io.syspulse.skel.dash.Dash
 
 class DashStoreDir(dir:String = "store") extends StoreDir[Dash,String](dir) with DashStore {
   override val log = Logger(getClass)

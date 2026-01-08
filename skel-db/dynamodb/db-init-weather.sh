@@ -10,6 +10,6 @@ aws dynamodb create-table \
         AttributeName=Date,AttributeType=S \
     --key-schema AttributeName=City,KeyType=HASH AttributeName=Date,KeyType=RANGE \
     --provisioned-throughput ReadCapacityUnits=1,WriteCapacityUnits=1 \
-    $DB_URI
+    $DB_URL
 
-aws dynamodb list-tables $DB_URI
+aws dynamodb list-tables $DB_URL

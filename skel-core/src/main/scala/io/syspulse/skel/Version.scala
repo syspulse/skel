@@ -26,6 +26,63 @@ case class Version(major:Int,minor:Int,patch:Int,build:Option[String]=None,stage
     
     this.patch.compareTo(that.patch)
   }
+
+  /**
+   * Check if this version equals another version based on major.minor.patch only.
+   * Build and stage are not considered in equality check.
+   * This is different from == which compares all fields including build/stage.
+   */
+  def ===(that: Version): Boolean = {
+    this.major == that.major &&
+    this.minor == that.minor &&
+    this.patch == that.patch
+  }
+
+  /**
+   * Check if this version is greater than another version.
+   * Comparison is based on major, minor, and patch versions only.
+   * Build and stage are not considered.
+   */
+  override def >(that: Version): Boolean = {
+    this.compare(that) > 0
+  }
+
+  /**
+   * Check if this version is less than another version.
+   * Comparison is based on major, minor, and patch versions only.
+   * Build and stage are not considered.
+   */
+  override def <(that: Version): Boolean = {
+    this.compare(that) < 0
+  }
+
+  /**
+   * Increment version by adding to major, minor, and patch components.
+   * Preserves build and stage metadata.
+   */
+  def +(major: Int, minor: Int, patch: Int): Version = {
+    Version(
+      this.major + major,
+      this.minor + minor,
+      this.patch + patch,
+      this.build,
+      this.stage
+    )
+  }
+
+  /**
+   * Increment version by adding to patch component only.
+   * Preserves build and stage metadata.
+   */
+  def +(patch: Int): Version = {
+    Version(
+      this.major,
+      this.minor,
+      this.patch + patch,
+      this.build,
+      this.stage
+    )
+  }
 }
 
 object Version {

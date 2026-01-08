@@ -280,6 +280,12 @@ object Dependencies {
 
     val libCequenceOpenAiClient = "io.cequence"               %% "openai-scala-client"            %  "1.2.0" //"1.1.1"
     val libCequenceOpenAiStream = "io.cequence"               %% "openai-scala-client-stream"     %  "1.2.0" //"1.1.1"
+
+    // TDLight Java - TDLib-based MTProto user API implementation
+    val libTdLightJava =     "it.tdlight" % "tdlight-java" % "3.4.4+td.1.8.52"
+    // Native libraries for Linux amd64 with OpenSSL 3.x (version managed by tdlight-java POM)
+    val libTdLightNatives =  "it.tdlight" % "tdlight-natives" % "4.0.558" classifier "linux_amd64_gnu_ssl3"
+
    // ---------------------------------------------------------------------------------------------------------------------
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
@@ -306,5 +312,7 @@ object Dependencies {
     val libSparkAWS = libSpark ++ Seq(libHadoopAWS,libAWSJavaSDK)
 
     val libPdfGen = Seq(libFlyingSaucer,libThymeleaf,libNekoHtml,libJSoup)
+
+    val libTelegram = Seq(libTdLightJava,libTdLightNatives)
   }
   

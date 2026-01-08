@@ -1,4 +1,4 @@
-package io.syspulse.dash.store
+package io.syspulse.skel.dash.store
 
 import scala.util.{Try,Success,Failure}
 
@@ -20,9 +20,9 @@ import java.util.concurrent.Executors
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.Command
 
-import io.syspulse.dash._
-import io.syspulse.dash.server._
-import io.syspulse.dash.source.DataSource
+import io.syspulse.skel.dash._
+import io.syspulse.skel.dash.server._
+import io.syspulse.skel.dash.source.DataSource
 
 
 object DashRegistry {

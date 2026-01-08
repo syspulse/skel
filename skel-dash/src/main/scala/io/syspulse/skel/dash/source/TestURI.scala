@@ -1,4 +1,4 @@
-package io.syspulse.dash.source
+package io.syspulse.skel.dash.source
 
 import io.syspulse.skel.util.Util
 

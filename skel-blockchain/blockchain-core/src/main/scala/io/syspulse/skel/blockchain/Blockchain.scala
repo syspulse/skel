@@ -65,7 +65,10 @@ object Blockchain {
   val EVM = Blockchain("evm",Some("0"),Some(18),Some("ETH"))
 
   // ------------------------------------------------------------------------------------
-  val BITCOIN = Blockchain("bitcoin",None,Some(8),Some("BTC"),Some("https://blockstream.info"))
+  val BITCOIN = Blockchain("bitcoin",Some("bitcoin"),Some(8),Some("BTC"),Some("https://blockstream.info"))
+  
+  val SOLANA = Blockchain("solana",Some("solana"),Some(9),Some("SOL"),Some("https://solscan.io"))
+  val SOLANA_TESTNET = Blockchain("solana_testnet",Some("solana_testnet"),Some(9),Some("SOL"),Some("https://solscan.io/?cluster=testnet"))
 
   val ALL = Map(
     ETHEREUM.id.get -> ETHEREUM,
@@ -102,7 +105,12 @@ object Blockchain {
 
     SOMNIA_MAINNET.id.get -> SOMNIA_MAINNET,
 
-    EVM.id.get -> EVM
+    EVM.id.get -> EVM,
+
+    BITCOIN.id.get -> BITCOIN,
+
+    SOLANA.id.get -> SOLANA,
+    SOLANA_TESTNET.id.get -> SOLANA_TESTNET,
   )
 
   val ALL_NAMES = ALL.values.map(b => b.name.toLowerCase -> b).toMap

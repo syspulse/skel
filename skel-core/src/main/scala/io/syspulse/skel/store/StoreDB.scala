@@ -26,6 +26,7 @@ import com.zaxxer.hikari.{HikariConfig, HikariDataSource}
 
 import io.syspulse.skel.config.Configuration
 import io.syspulse.skel.uri.JdbcURI
+import io.syspulse.skel.util.Util
 
 abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Option[Configuration]=None) {
   private val log = Logger(s"${this}")
@@ -65,7 +66,10 @@ abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Optio
       case(k,v) => if(v!=null) props.setProperty(k,v)
     }
   }
-  log.info(s"HikariProperties: ${props}")
+  
+  // ATTENTION: do not log password !
+  log.info(s"HikariProperties: ${props.asScala.map{case (k,v) => if(k == "dataSource.password") s"${k}=${Util.trunc(v,6)}" else s"${k}=${v}"}.mkString(",")}")
+  
   val hikariConfig = new HikariConfig(props)
   //val ctx = new MysqlJdbcContext(NamingStrategy(SnakeCase, UpperCase),new HikariDataSource(hikariConfig))
   

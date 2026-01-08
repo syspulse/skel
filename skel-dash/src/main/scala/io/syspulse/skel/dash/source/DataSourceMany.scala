@@ -1,4 +1,4 @@
-package io.syspulse.dash.source
+package io.syspulse.skel.dash.source
 
 import scala.util.{Failure,Success,Try}
 import scala.concurrent.{Future, ExecutionContext}
@@ -7,13 +7,13 @@ import java.util.concurrent.Executors
 import com.typesafe.scalalogging.Logger
 import io.jvm.uuid.UUID
 
-import io.syspulse.dash.server.DashData
-import io.syspulse.dash.server.DashDataReq
-import io.syspulse.dash.source.DataSource
-import io.syspulse.dash.source.DataSourceCoingecko
-import io.syspulse.dash.source.DataSourceDune
-import io.syspulse.dash.source.DataSourceElastic
-import io.syspulse.dash.source.DataSourceTest
+import io.syspulse.skel.dash.server.DashData
+import io.syspulse.skel.dash.server.DashDataReq
+import io.syspulse.skel.dash.source.DataSource
+import io.syspulse.skel.dash.source.DataSourceCoingecko
+import io.syspulse.skel.dash.source.DataSourceDune
+import io.syspulse.skel.dash.source.DataSourceElastic
+import io.syspulse.skel.dash.source.DataSourceTest
 
 object DataSourceMany {
   private val log = Logger(this.getClass)

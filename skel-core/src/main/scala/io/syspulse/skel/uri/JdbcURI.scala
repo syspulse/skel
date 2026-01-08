@@ -31,6 +31,9 @@ jdbc:postgres:async//db1
 case class JdbcURI(uri:String) {
   val PREFIX = "jdbc://"
 
+  override def toString:String = 
+    s"JdbcURI(host=${host},port=${port},dbType=${dbType},db=${db},dbConfig=${dbConfig},user=${user},pass=${pass.map(Util.trunc(_,6))},async=${async},params=${params})"
+
   // Parse URI and extract query parameters
   private val (baseUri, params) = uri.split("\\?", 2) match {
     case Array(base, query) =>
@@ -116,9 +119,13 @@ case class JdbcURI(uri:String) {
     case u :: Nil => (Util.resolveEnvVar(u),None)
   }
 
-  def parseHost(hostPort:String) = hostPort.split(":").toList match {
-    case h :: p :: _ => (h,p.toInt)
-    case h :: Nil => (h,5432)
+  def parseHost(hostPort:String) = {
+    // Resolve environment variables first, then split on colon
+    val resolved = Util.replaceEnvVar(hostPort)
+    resolved.split(":").toList match {
+      case h :: p :: _ => (h, p.toInt)
+      case h :: Nil => (h, 5432)
+    }
   }
 
   def parseDbType(dbType:String) = dbType.split(":").toList match {
@@ -165,10 +172,10 @@ case class JdbcURI(uri:String) {
       // style postgres:// or mysql://
       case dbType :: userPass :: hostPort :: db :: Nil => 
         val (dbt,async) = parseDbType(dbType)
-        (dbt,parseCred(userPass),parseHost(hostPort),Some(db),None,async)
+        (dbt,parseCred(userPass),parseHost(hostPort),Util.resolveEnvVar(db),None,async)
       case dbType :: hostPort :: db :: Nil =>
         val (dbt,async) = parseDbType(dbType) 
-        (dbt,(None,None),parseHost(hostPort),Some(db),None,async)
+        (dbt,(None,None),parseHost(hostPort),Util.resolveEnvVar(db),None,async)
       case dbType :: dbConfig :: Nil => 
         val (dbt,async) = parseDbType(dbType)
         (dbt,(None,None),("localhost",5432),None,Some(dbConfig),async)

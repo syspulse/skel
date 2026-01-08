@@ -1,4 +1,4 @@
-package io.syspulse.dash.source
+package io.syspulse.skel.dash.source
 
 import scala.util.{Failure,Success,Try}
 import scala.concurrent.{Future, ExecutionContext}
@@ -21,13 +21,13 @@ import akka.stream.scaladsl.Compression
 import java.util.Base64
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 
-import io.syspulse.dash.server.DashData
+import io.syspulse.skel.dash.server.DashData
 import io.syspulse.skel.uri.ElasticURI
-import io.syspulse.dash.server.DashDataReq
+import io.syspulse.skel.dash.server.DashDataReq
 
 import io.syspulse.skel.db.guard.QueryGuard
 import io.syspulse.skel.db.guard.PassGuard
-import io.syspulse.dash.source.DataSource
+import io.syspulse.skel.dash.source.DataSource
 
 class DataSourceElastic(uri0:String,fw:QueryGuard = PassGuard) extends DataSource {
   private val log = Logger(this.getClass)  

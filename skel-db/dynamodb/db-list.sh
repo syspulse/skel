@@ -3,4 +3,4 @@
 source db-cred.sh
 source db-endpoint.sh
 
-aws dynamodb list-tables $DB_URI
+aws dynamodb list-tables $DB_URL

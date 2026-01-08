@@ -1,4 +1,4 @@
-package io.syspulse.dash.store
+package io.syspulse.skel.dash.store
 
 import scala.util.{Failure,Success,Try}
 import scala.collection.immutable
@@ -6,17 +6,17 @@ import com.typesafe.scalalogging.Logger
 import io.jvm.uuid.UUID
 import java.time.LocalDateTime
 
+import spray.json._
+
 import io.getquill._
 import io.getquill.context._
 
 import io.syspulse.skel.config.{Configuration}
 import io.syspulse.skel.store.{Store,StoreDB}
 
-import io.syspulse.dash.server._
-import io.syspulse.dash.Dash
-
-import spray.json._
-import io.syspulse.dash.server.DashJson._
+import io.syspulse.skel.dash.server._
+import io.syspulse.skel.dash.Dash
+import io.syspulse.skel.dash.server.DashJson._
 
 class DashStoreDB(configuration:Configuration,dbConfigRef:String) 
   extends StoreDB[Dash,String](dbConfigRef,"dash",Some(configuration)) 

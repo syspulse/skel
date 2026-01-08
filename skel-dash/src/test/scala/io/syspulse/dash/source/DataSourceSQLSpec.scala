@@ -1,4 +1,4 @@
-package io.syspulse.dash.source
+package io.syspulse.skel.dash.source
 
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
 import org.scalatest.wordspec.AnyWordSpec
@@ -12,11 +12,12 @@ import scala.concurrent.duration._
 import spray.json._
 import spray.json.DefaultJsonProtocol._
 
-import io.syspulse.dash.server.DashData
-import io.syspulse.dash.server.DashDataReq
+import io.syspulse.skel.dash.server.DashData
+import io.syspulse.skel.dash.server.DashDataReq
 import io.syspulse.skel.util.Util
 
 import java.sql.{Connection, DriverManager}
+import io.syspulse.skel.dash.source.DataSourceSQL
 
 // Base trait with shared setup for both sync and async tests
 trait DataSourceSQLTestBase extends Suite with BeforeAndAfterAll with BeforeAndAfterEach {
