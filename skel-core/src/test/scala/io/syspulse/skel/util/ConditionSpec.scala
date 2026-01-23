@@ -461,13 +461,13 @@ class OpSpec extends AnyWordSpec with Matchers {
     "handle empty expressions" in {
       val op = Op.compile("")
       op shouldBe a[OpEmpty]
-      op.eval(BigDecimal(100), BigDecimal(200)) shouldBe true
+      op.eval(BigDecimal(100), BigDecimal(200)) shouldBe false
     }
     
     "handle whitespace-only expressions" in {
       val op = Op.compile("   ")
       op shouldBe a[OpEmpty]
-      op.eval(BigDecimal(100), BigDecimal(200)) shouldBe true
+      op.eval(BigDecimal(100), BigDecimal(200)) shouldBe false
     }
   }
 
@@ -1650,6 +1650,60 @@ class OpSpec extends AnyWordSpec with Matchers {
       
       // change = 33% < 50% = true
       op.eval(BigDecimal(30), BigDecimal(20)) shouldBe true
+    }
+  }
+
+  "Empty condition" should {
+    "always return false in set for ConditionDouble" in {
+      val cond = new ConditionDouble(100.0, "")
+      
+      cond.set(100.0) shouldBe false
+      cond.set(200.0) shouldBe false
+      cond.set(0.0) shouldBe false
+      cond.set(-100.0) shouldBe false
+      cond.set(50.0) shouldBe false
+    }
+    
+    "always return false in set for ConditionBigInt" in {
+      val cond = new ConditionBigInt(BigInt(100), "", 0)
+      
+      cond.set(BigInt(100)) shouldBe false
+      cond.set(BigInt(200)) shouldBe false
+      cond.set(BigInt(0)) shouldBe false
+      cond.set(BigInt(-100)) shouldBe false
+      cond.set(BigInt(50)) shouldBe false
+    }
+    
+    "always return false in set for ConditionLong" in {
+      val cond = new ConditionLong(100L, "")
+      
+      cond.set(100L) shouldBe false
+      cond.set(200L) shouldBe false
+      cond.set(0L) shouldBe false
+      cond.set(-100L) shouldBe false
+      cond.set(50L) shouldBe false
+    }
+    
+    "always return false in set with whitespace-only condition" in {
+      val cond1 = new ConditionDouble(100.0, "   ")
+      val cond2 = new ConditionBigInt(BigInt(100), "  ", 0)
+      val cond3 = new ConditionLong(100L, "\t")
+      
+      cond1.set(200.0) shouldBe false
+      cond2.set(BigInt(200)) shouldBe false
+      cond3.set(200L) shouldBe false
+    }
+    
+    "always return false regardless of value changes" in {
+      val cond = new ConditionDouble(100.0, "")
+      
+      // Test with various value changes
+      cond.set(100.0) shouldBe false  // same value
+      cond.set(200.0) shouldBe false  // increased
+      cond.set(50.0) shouldBe false   // decreased
+      cond.set(0.0) shouldBe false    // zero
+      cond.set(-100.0) shouldBe false // negative
+      cond.set(1000.0) shouldBe false // large increase
     }
   }
 }

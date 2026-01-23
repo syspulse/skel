@@ -356,7 +356,7 @@ case class OpAnd(op:Seq[Op]) extends Op {
 }
 
 case class OpEmpty() extends Op {
-  def eval(v0:BigDecimal,v:BigDecimal):Boolean = true
+  def eval(v0:BigDecimal,v:BigDecimal):Boolean = false
 }
 
 object Op {
