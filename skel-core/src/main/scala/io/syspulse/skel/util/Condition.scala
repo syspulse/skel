@@ -28,6 +28,8 @@ import scala.util.{Try,Success,Failure}
  * 3.5. ONCE OPERATORS (edge detection - trigger only when condition transitions from false to true):
  *    >> 10        -> v > 10 (triggers only once when condition becomes true, then false on subsequent evaluations)
  *    << 25        -> v < 25 (triggers only once when condition becomes true, then false on subsequent evaluations)
+ *    >>= 10       -> v >= 10 (triggers only once when condition becomes true, then false on subsequent evaluations)
+ *    <<= 25       -> v <= 25 (triggers only once when condition becomes true, then false on subsequent evaluations)
  *    >> ++100     -> increase > 100 (triggers only once when the increase condition becomes true)
  *    << --50      -> decrease > 50 (triggers only once when the decrease condition becomes true)
  *    >> 25%       -> percentage change > 25% (triggers only once when the percentage condition becomes true)
@@ -36,6 +38,28 @@ import scala.util.{Try,Success,Failure}
  *    Note: These operators return true only when the condition transitions from false to true (edge detection).
  *          Once the condition becomes true, subsequent evaluations return false even if the condition remains true.
  *          This is useful for detecting threshold crossings or one-time events.
+ * 
+ * 3.6. MAX/MIN OPERATORS (trigger only on new maximum/minimum):
+ *    >>> 100      -> v > 100 AND v > previous max (triggers only when a new maximum is reached)
+ *    <<< 50       -> v < 50 AND v < previous min (triggers only when a new minimum is reached)
+ *    >>>= 100     -> v >= 100 AND v >= previous max (triggers only when a new maximum is reached, including equality)
+ *    <<<= 50      -> v <= 50 AND v <= previous min (triggers only when a new minimum is reached, including equality)
+ *    
+ *    Note: These operators track the maximum (>>>/>>>=) or minimum (<<</<<<=) value seen so far.
+ *          They return true only when:
+ *          - The value exceeds/meets (>>>/>>>=) or is below/meets (<<</<<<=) the threshold, AND
+ *          - The value is greater than/equal (>>>/>>>=) or less than/equal (<<</<<<=) all previously seen values that met the threshold.
+ *          Example for ">>> 100":
+ *          - v=90 -> false (90 < 100)
+ *          - v=200 -> true (200 > 100, and it's the first value exceeding threshold)
+ *          - v=150 -> false (150 > 100, but 150 < 200, so not a new max)
+ *          - v=300 -> true (300 > 100 AND 300 > 200, so new max)
+ *          - v=200 -> false (200 > 100, but 200 < 300, so not a new max)
+ *          Example for ">>>= 100":
+ *          - v=100 -> true (100 >= 100, and it's the first value meeting threshold)
+ *          - v=200 -> true (200 >= 100 AND 200 >= 100, so new max)
+ *          - v=150 -> false (150 >= 100, but 150 < 200, so not a new max)
+ *          - v=200 -> false (200 >= 100, but 200 <= 200, so not a new max)
  * 
  * 4. PERCENTAGE OPERATIONS:
  *    > 25%        -> percentage change > 25% (absolute value handling)
@@ -237,6 +261,224 @@ case class OpLessOnce(expr:BigDecimal,perc:Boolean=false,delta:Int=0,abs:Boolean
   }
 }
 
+class OpMoreEqOnce(expr:BigDecimal,perc:Boolean=false,delta:Int=0,abs:Boolean=true) extends Op {
+  var history = false
+  
+  def eval(v0:BigDecimal,v:BigDecimal):Boolean = {
+    // Check if v >= expr (threshold) using OpMoreEq logic
+    val r = {
+      if(delta == 0) {
+        (perc,abs) match {
+          case (true,true) => perc(v0,v).abs >= expr
+          case (true,false) => perc(v0,v) >= expr
+          case (false,true) => v.abs >= expr
+          case (false,false) => v >= expr
+        }
+      } else {
+        val change = v - v0
+        if(perc) {
+          if (delta > 0) {
+            val percentageChange = if(v0 != BigDecimal(0)) 100.0.*(change / v0) else BigDecimal(Double.MaxValue)
+            percentageChange >= expr
+          } else {
+            val percentageChange = if(v0 != BigDecimal(0)) 100.0.*((v0 - v) / v0) else BigDecimal(Double.MaxValue)
+            percentageChange >= expr
+          }
+        } else {
+          if (delta > 0) {
+            change >= expr
+          } else {
+            change.abs >= expr
+          }
+        }
+      }
+    }
+    // Return true only when the result changes from false to true
+    val output = r && !history
+    history = r
+    output
+  }
+}
+
+class OpLessEqOnce(expr:BigDecimal,perc:Boolean=false,delta:Int=0,abs:Boolean=true) extends Op {
+  var history = false
+  
+  def eval(v0:BigDecimal,v:BigDecimal):Boolean = {
+    // Check if v <= expr (threshold) using OpLessEq logic
+    val r = {
+      if(delta == 0) {
+        (perc,abs) match {
+          case (true,true) => perc(v0,v).abs <= expr
+          case (true,false) => perc(v0,v) <= expr
+          case (false,true) => v.abs <= expr
+          case (false,false) => v <= expr
+        }
+      } else {
+        if(perc) {
+          if (delta > 0) {
+            val change = v - v0
+            val percentageChange = if(v0 != BigDecimal(0)) 100.0.*(change / v0) else BigDecimal(Double.MaxValue)
+            percentageChange <= expr
+          } else {
+            val change = v0 - v
+            val percentageChange = if(v0 != BigDecimal(0)) 100.0.*(change / v0) else BigDecimal(Double.MaxValue)
+            percentageChange <= expr
+          }
+        } else {
+          (v0 - v).abs <= expr
+        }
+      }
+    }
+    // Return true only when the result changes from false to true
+    val output = r && !history
+    history = r
+    output
+  }
+}
+
+case class OpMoreMax(expr:BigDecimal,perc:Boolean=false,delta:Int=0,abs:Boolean=true) extends OpMoreLike(expr,perc,delta,abs) {
+  var maxSeen: Option[BigDecimal] = None
+  override def eval(v0:BigDecimal,v:BigDecimal):Boolean = {
+    val r = super.eval(v0,v)  // Check if v > expr (threshold)
+    if (r) {
+      // Check if this is a new maximum
+      val isNewMax = maxSeen match {
+        case None => true  // First value that exceeds threshold
+        case Some(max) => v > max  // Check if v exceeds previous max
+      }
+      if (isNewMax) {
+        maxSeen = Some(v)
+        true
+      } else {
+        false
+      }
+    } else {
+      false
+    }
+  }
+}
+
+case class OpLessMin(expr:BigDecimal,perc:Boolean=false,delta:Int=0,abs:Boolean=true) extends OpLessLike(expr,perc,delta,abs) {
+  var minSeen: Option[BigDecimal] = None
+  override def eval(v0:BigDecimal,v:BigDecimal):Boolean = {
+    val r = super.eval(v0,v)  // Check if v < expr (threshold)
+    if (r) {
+      // Check if this is a new minimum
+      val isNewMin = minSeen match {
+        case None => true  // First value that is below threshold
+        case Some(min) => v < min  // Check if v is below previous min
+      }
+      if (isNewMin) {
+        minSeen = Some(v)
+        true
+      } else {
+        false
+      }
+    } else {
+      false
+    }
+  }
+}
+
+class OpMoreEqMax(expr:BigDecimal,perc:Boolean=false,delta:Int=0,abs:Boolean=true) extends Op {
+  var maxSeen: Option[BigDecimal] = None
+  
+  def eval(v0:BigDecimal,v:BigDecimal):Boolean = {
+    // Check if v >= expr (threshold) using OpMoreEq logic
+    val r = {
+      if(delta == 0) {
+        (perc,abs) match {
+          case (true,true) => perc(v0,v).abs >= expr
+          case (true,false) => perc(v0,v) >= expr
+          case (false,true) => v.abs >= expr
+          case (false,false) => v >= expr
+        }
+      } else {
+        val change = v - v0
+        if(perc) {
+          if (delta > 0) {
+            val percentageChange = if(v0 != BigDecimal(0)) 100.0.*(change / v0) else BigDecimal(Double.MaxValue)
+            percentageChange >= expr
+          } else {
+            val percentageChange = if(v0 != BigDecimal(0)) 100.0.*((v0 - v) / v0) else BigDecimal(Double.MaxValue)
+            percentageChange >= expr
+          }
+        } else {
+          if (delta > 0) {
+            change >= expr
+          } else {
+            change.abs >= expr
+          }
+        }
+      }
+    }
+    
+    if (r) {
+      // Check if this is a new maximum
+      val isNewMax = maxSeen match {
+        case None => true  // First value that meets or exceeds threshold
+        case Some(max) => v >= max  // Check if v meets or exceeds previous max
+      }
+      if (isNewMax) {
+        maxSeen = Some(v)
+        true
+      } else {
+        false
+      }
+    } else {
+      false
+    }
+  }
+}
+
+class OpLessEqMin(expr:BigDecimal,perc:Boolean=false,delta:Int=0,abs:Boolean=true) extends Op {
+  var minSeen: Option[BigDecimal] = None
+  
+  def eval(v0:BigDecimal,v:BigDecimal):Boolean = {
+    // Check if v <= expr (threshold) using OpLessEq logic
+    val r = {
+      if(delta == 0) {
+        (perc,abs) match {
+          case (true,true) => perc(v0,v).abs <= expr
+          case (true,false) => perc(v0,v) <= expr
+          case (false,true) => v.abs <= expr
+          case (false,false) => v <= expr
+        }
+      } else {
+        if(perc) {
+          if (delta > 0) {
+            val change = v - v0
+            val percentageChange = if(v0 != BigDecimal(0)) 100.0.*(change / v0) else BigDecimal(Double.MaxValue)
+            percentageChange <= expr
+          } else {
+            val change = v0 - v
+            val percentageChange = if(v0 != BigDecimal(0)) 100.0.*(change / v0) else BigDecimal(Double.MaxValue)
+            percentageChange <= expr
+          }
+        } else {
+          (v0 - v).abs <= expr
+        }
+      }
+    }
+    
+    if (r) {
+      // Check if this is a new minimum
+      val isNewMin = minSeen match {
+        case None => true  // First value that meets or is below threshold
+        case Some(min) => v <= min  // Check if v meets or is below previous min
+      }
+      if (isNewMin) {
+        minSeen = Some(v)
+        true
+      } else {
+        false
+      }
+    } else {
+      false
+    }
+  }
+}
+
 case class OpMore(expr:BigDecimal,perc:Boolean=false,delta:Int=0,abs:Boolean=true) extends OpMoreLike(expr,perc,delta,abs) {
   
 }
@@ -369,9 +611,24 @@ object Op {
     val perc = exrp1.endsWith("%")
     val expr2 = if(perc) exrp1.dropRight(1) else exrp1
 
-    // Parse operator first, then check for delta operations
-    val opExpr = expr2.takeWhile(c => c == '=' || c == '>' || c == '<' || c == '!')
-    val remaining = expr2.drop(opExpr.size)
+    // Check for operators in order: triple with equals (>>>=, <<<=), double with equals (>>=, <<=), triple (>>>, <<<), double (>>, <<)
+    val (opExpr, remaining) = if (expr2.startsWith(">>>=")) {
+      (">>>=", expr2.drop(4))
+    } else if (expr2.startsWith("<<<=")) {
+      ("<<<=", expr2.drop(4))
+    } else if (expr2.startsWith(">>=")) {
+      (">>=", expr2.drop(3))
+    } else if (expr2.startsWith("<<=")) {
+      ("<<=", expr2.drop(3))
+    } else if (expr2.startsWith(">>>")) {
+      (">>>", expr2.drop(3))
+    } else if (expr2.startsWith("<<<")) {
+      ("<<<", expr2.drop(3))
+    } else {
+      // Parse operator first, then check for delta operations
+      val op = expr2.takeWhile(c => c == '=' || c == '>' || c == '<' || c == '!')
+      (op, expr2.drop(op.size))
+    }
     
     // Check for delta operations after the operator
     val (delta, value) = remaining.take(2) match {
@@ -409,6 +666,12 @@ object Op {
 
       case ">>" => OpMoreOnce(v,perc,delta,abs)
       case "<<" => OpLessOnce(v,perc,delta,abs)
+      case ">>=" => new OpMoreEqOnce(v,perc,delta,abs)
+      case "<<=" => new OpLessEqOnce(v,perc,delta,abs)
+      case ">>>" => OpMoreMax(v,perc,delta,abs)
+      case "<<<" => OpLessMin(v,perc,delta,abs)
+      case ">>>=" => new OpMoreEqMax(v,perc,delta,abs)
+      case "<<<=" => new OpLessEqMin(v,perc,delta,abs)
 
       case "" => {
         // Handle case where no operator is specified (default to equality)

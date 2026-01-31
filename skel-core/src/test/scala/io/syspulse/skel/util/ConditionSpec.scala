@@ -1653,6 +1653,86 @@ class OpSpec extends AnyWordSpec with Matchers {
     }
   }
 
+  "OpMoreEqOnce" should {
+    "handle basic once logic with >= comparison" in {
+      val d = new ConditionDouble(0, ">>= 10")
+      
+      // v0=0, v=9: 9 >= 10 = false
+      d.set(9) shouldBe false
+      
+      // v0=9, v=10: 10 >= 10 = true (first true)
+      d.set(10) shouldBe true
+      
+      // v0=10, v=10: 10 >= 10 = true, but not first true
+      d.set(10) shouldBe false
+      
+      // v0=10, v=15: 15 >= 10 = true, but not first true
+      d.set(15) shouldBe false
+      
+      // v0=15, v=5: 5 >= 10 = false
+      d.set(5) shouldBe false
+      
+      // v0=5, v=10: 10 >= 10 = true (first true again)
+      d.set(10) shouldBe true
+    }
+    
+    "handle once logic with percentage" in {
+      val d = new ConditionDouble(100, ">>= 25%")
+      
+      // v0=100, v=100: percentage change = 0% >= 25% = false
+      d.set(100) shouldBe false
+      
+      // v0=100, v=120: percentage change = 20% >= 25% = false
+      d.set(120) shouldBe false
+      
+      // v0=120, v=150: percentage change = 25% >= 25% = true (first true)
+      d.set(150) shouldBe true
+      
+      // v0=150, v=200: percentage change = 33.33% >= 25% = true, but not first true
+      d.set(200) shouldBe false
+    }
+  }
+
+  "OpLessEqOnce" should {
+    "handle basic once logic with <= comparison" in {
+      val d = new ConditionDouble(0, "<<= 10")
+      
+      // v0=0, v=15: 15 <= 10 = false
+      d.set(15) shouldBe false
+      
+      // v0=15, v=10: 10 <= 10 = true (first true)
+      d.set(10) shouldBe true
+      
+      // v0=10, v=10: 10 <= 10 = true, but not first true
+      d.set(10) shouldBe false
+      
+      // v0=10, v=5: 5 <= 10 = true, but not first true
+      d.set(5) shouldBe false
+      
+      // v0=5, v=15: 15 <= 10 = false
+      d.set(15) shouldBe false
+      
+      // v0=15, v=10: 10 <= 10 = true (first true again)
+      d.set(10) shouldBe true
+    }
+    
+    "handle once logic with percentage" in {
+      val d = new ConditionDouble(100, "<<= 25%")
+      
+      // v0=100, v=100: percentage change = 0% <= 25% = true (first true)
+      d.set(100) shouldBe true
+      
+      // v0=100, v=80: percentage change = -20% <= 25% = true, but not first true
+      d.set(80) shouldBe false
+      
+      // v0=80, v=50: percentage change = -37.5% <= 25% = false (abs > 25%)
+      d.set(50) shouldBe false
+      
+      // v0=50, v=60: percentage change = 20% <= 25% = true (first true again)
+      d.set(60) shouldBe true
+    }
+  }
+
   "Empty condition" should {
     "always return false in set for ConditionDouble" in {
       val cond = new ConditionDouble(100.0, "")
@@ -1704,6 +1784,209 @@ class OpSpec extends AnyWordSpec with Matchers {
       cond.set(0.0) shouldBe false    // zero
       cond.set(-100.0) shouldBe false // negative
       cond.set(1000.0) shouldBe false // large increase
+    }
+  }
+
+  "OpMoreMax (>>>)" should {
+    "trigger only on new maximum values above threshold" in {
+      val d = new ConditionDouble(0, ">>> 100")
+      
+      // v=90 -> false (90 < 100, threshold not met)
+      d.set(90) shouldBe false
+      
+      // v=10 -> false (10 < 100, threshold not met)
+      d.set(10) shouldBe false
+      
+      // v=-10 -> false (-10 < 100, threshold not met)
+      d.set(-10) shouldBe false
+      
+      // v=200 -> true (200 > 100, and it's the first value exceeding threshold)
+      d.set(200) shouldBe true
+      
+      // v=150 -> false (150 > 100, but 150 < 200, so not a new max)
+      d.set(150) shouldBe false
+      
+      // v=300 -> true (300 > 100 AND 300 > 200, so new max)
+      d.set(300) shouldBe true
+      
+      // v=200 -> false (200 > 100, but 200 < 300, so not a new max)
+      d.set(200) shouldBe false
+    }
+    
+    "handle values that don't exceed threshold" in {
+      val d = new ConditionDouble(0, ">>> 100")
+      
+      d.set(50) shouldBe false
+      d.set(99) shouldBe false
+      d.set(100) shouldBe false  // exactly 100, not > 100
+      d.set(50) shouldBe false
+    }
+    
+    "handle multiple new maximums" in {
+      val d = new ConditionDouble(0, ">>> 50")
+      
+      d.set(40) shouldBe false  // below threshold
+      d.set(60) shouldBe true    // first value above threshold
+      d.set(80) shouldBe true    // new max
+      d.set(70) shouldBe false   // not a new max
+      d.set(100) shouldBe true   // new max
+      d.set(90) shouldBe false   // not a new max
+      d.set(120) shouldBe true   // new max
+    }
+  }
+
+  "OpLessMin (<<<)" should {
+    "trigger only on new minimum values below threshold" in {
+      val d = new ConditionDouble(0, "<<< 100")
+      
+      // v=150 -> false (150 > 100, threshold not met)
+      d.set(150) shouldBe false
+      
+      // v=120 -> false (120 > 100, threshold not met)
+      d.set(120) shouldBe false
+      
+      // v=50 -> true (50 < 100, and it's the first value below threshold)
+      d.set(50) shouldBe true
+      
+      // v=80 -> false (80 < 100, but 80 > 50, so not a new min)
+      d.set(80) shouldBe false
+      
+      // v=20 -> true (20 < 100 AND 20 < 50, so new min)
+      d.set(20) shouldBe true
+      
+      // v=40 -> false (40 < 100, but 40 > 20, so not a new min)
+      d.set(40) shouldBe false
+    }
+    
+    "handle values that don't go below threshold" in {
+      val d = new ConditionDouble(0, "<<< 100")
+      
+      d.set(150) shouldBe false
+      d.set(101) shouldBe false
+      d.set(100) shouldBe false  // exactly 100, not < 100
+      d.set(150) shouldBe false
+    }
+    
+    "handle multiple new minimums" in {
+      val d = new ConditionDouble(0, "<<< 150")
+      
+      d.set(160) shouldBe false  // above threshold
+      d.set(140) shouldBe true    // first value below threshold
+      d.set(120) shouldBe true    // new min
+      d.set(130) shouldBe false   // not a new min
+      d.set(100) shouldBe true    // new min
+      d.set(110) shouldBe false   // not a new min
+      d.set(80) shouldBe true     // new min
+    }
+    
+    "handle negative values" in {
+      val d = new ConditionDouble(0, "<<< -50")
+      
+      d.set(-30) shouldBe false  // -30 > -50, threshold not met
+      d.set(-60) shouldBe true    // -60 < -50, first value below threshold
+      d.set(-70) shouldBe true    // -70 < -50 AND -70 < -60, new min
+      d.set(-65) shouldBe false   // -65 < -50, but -65 > -70, not a new min
+      d.set(-80) shouldBe true    // -80 < -50 AND -80 < -70, new min
+    }
+  }
+
+  "OpMoreEqMax (>>>=)" should {
+    "trigger only on new maximum values at or above threshold" in {
+      val d = new ConditionDouble(0, ">>>= 100")
+      
+      // v=90 -> false (90 < 100, threshold not met)
+      d.set(90) shouldBe false
+      
+      // v=100 -> true (100 >= 100, and it's the first value meeting threshold)
+      d.set(100) shouldBe true
+      
+      // v=150 -> false (150 >= 100, but 150 < 100 is false, so check: 150 >= 100? yes, but 150 >= 100? yes, so it's a new max)
+      // Actually wait, let me think: 150 >= 100 is true, and 150 >= 100 (previous max) is true, so it should be true
+      d.set(150) shouldBe true  // 150 >= 100 AND 150 >= 100, so new max
+      
+      // v=120 -> false (120 >= 100, but 120 < 150, so not a new max)
+      d.set(120) shouldBe false
+      
+      // v=200 -> true (200 >= 100 AND 200 >= 150, so new max)
+      d.set(200) shouldBe true
+      
+      // v=200 -> false (200 >= 100, but 200 <= 200, so not a new max)
+      d.set(200) shouldBe false
+    }
+    
+    "handle values that don't meet threshold" in {
+      val d = new ConditionDouble(0, ">>>= 100")
+      
+      d.set(50) shouldBe false
+      d.set(99) shouldBe false
+      d.set(99.9) shouldBe false
+    }
+    
+    "handle multiple new maximums with equality" in {
+      val d = new ConditionDouble(0, ">>>= 50")
+      
+      d.set(40) shouldBe false  // below threshold
+      d.set(50) shouldBe true    // first value meeting threshold
+      d.set(60) shouldBe true    // new max
+      d.set(55) shouldBe false   // not a new max
+      d.set(60) shouldBe false   // same as previous max, not a new max
+      d.set(70) shouldBe true    // new max
+      d.set(70) shouldBe false   // same as previous max, not a new max
+    }
+  }
+
+  "OpLessEqMin (<<<=)" should {
+    "trigger only on new minimum values at or below threshold" in {
+      val d = new ConditionDouble(0, "<<<= 100")
+      
+      // v=150 -> false (150 > 100, threshold not met)
+      d.set(150) shouldBe false
+      
+      // v=100 -> true (100 <= 100, and it's the first value meeting threshold)
+      d.set(100) shouldBe true
+      
+      // v=80 -> true (80 <= 100 AND 80 <= 100, so new min)
+      d.set(80) shouldBe true
+      
+      // v=90 -> false (90 <= 100, but 90 > 80, so not a new min)
+      d.set(90) shouldBe false
+      
+      // v=50 -> true (50 <= 100 AND 50 <= 80, so new min)
+      d.set(50) shouldBe true
+      
+      // v=50 -> false (50 <= 100, but 50 <= 50, so not a new min)
+      d.set(50) shouldBe false
+    }
+    
+    "handle values that don't meet threshold" in {
+      val d = new ConditionDouble(0, "<<<= 100")
+      
+      d.set(150) shouldBe false
+      d.set(101) shouldBe false
+      d.set(100.1) shouldBe false
+    }
+    
+    "handle multiple new minimums with equality" in {
+      val d = new ConditionDouble(0, "<<<= 150")
+      
+      d.set(160) shouldBe false  // above threshold
+      d.set(150) shouldBe true    // first value meeting threshold
+      d.set(140) shouldBe true    // new min
+      d.set(145) shouldBe false   // not a new min
+      d.set(140) shouldBe false   // same as previous min, not a new min
+      d.set(120) shouldBe true    // new min
+      d.set(120) shouldBe false   // same as previous min, not a new min
+    }
+    
+    "handle negative values" in {
+      val d = new ConditionDouble(0, "<<<= -50")
+      
+      d.set(-30) shouldBe false  // -30 > -50, threshold not met
+      d.set(-50) shouldBe true    // -50 <= -50, first value meeting threshold
+      d.set(-60) shouldBe true    // -60 <= -50 AND -60 <= -50, new min
+      d.set(-55) shouldBe false   // -55 <= -50, but -55 > -60, not a new min
+      d.set(-70) shouldBe true    // -70 <= -50 AND -70 <= -60, new min
+      d.set(-70) shouldBe false   // same as previous min, not a new min
     }
   }
 }
