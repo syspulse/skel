@@ -361,7 +361,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
 
     val url = s"${aiUri.apiUrl}/v1/chat/completions"
     val modelReq = model.getOrElse(OpenAiURI.DEFAULT_MODEL)
-    val systemPrompt = system.orElse(aiUri.system).getOrElse("")
+    val systemPrompt = system.orElse(aiUri.system)
     val tools = aiUri.getTools() ++ tools0
 
     val userContent = Seq(
@@ -372,10 +372,16 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
 
     val body = OpenAi_CompletionReq(
       model = modelReq,
-      messages = Seq(
-        OpenAi_Msg("system", Seq(OpenAi_ContentItem("text", Some(systemPrompt), None))),
+      
+      messages = Seq(        
         OpenAi_Msg("user", userContent)
-      ),
+      ) ++ {
+        if(systemPrompt.isDefined)
+          Seq(OpenAi_Msg("system", Seq(OpenAi_ContentItem("text", systemPrompt, None))))
+        else
+          Seq.empty
+      },
+
       temperature = aiUri.temperature,
       top_p = aiUri.topP,
       max_completion_tokens = aiUri.maxTokens,
@@ -438,18 +444,22 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
     val systemPrompt = system.orElse(aiUri.system)
     val toolsCombined = aiUri.getTools() ++ tools
 
-    val messages = chat.messages.zipWithIndex.map { case (p, idx) =>
+    val messages = chat.messages.zipWithIndex.flatMap { case (p, idx) =>
       p.role.trim match {
         case "system" if(systemPrompt.isDefined) => 
           // overwrite system prompt if needed
-          OpenAi_Msg("system", Seq(OpenAi_ContentItem("text", Some(systemPrompt.get), None)))
+          Some(OpenAi_Msg("system", Seq(OpenAi_ContentItem("text", systemPrompt, None))))
         case "user" if(idx == chat.messages.size - 1 && images.nonEmpty) =>
           // Add images to the last user message
           val contentItems = Seq(OpenAi_ContentItem("text", Some(p.content), None)) ++
             images.map(url => OpenAi_ContentItem("image_url", None, Some(OpenAi_ImageUrl(url))))
-          OpenAi_Msg(p.role, contentItems)
+          Some(OpenAi_Msg(p.role, contentItems))
+        case m if(!p.content.isBlank) =>
+          Some(OpenAi_Msg(p.role, Seq(OpenAi_ContentItem("text", Some(p.content), None))))
         case _ => 
-          OpenAi_Msg(p.role, Seq(OpenAi_ContentItem("text", Some(p.content), None)))
+          // empty message, skip
+          //OpenAi_Msg(p.role, Seq(OpenAi_ContentItem("text", Some(p.content), None)))
+          None
       }
     }
     
@@ -655,7 +665,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       text = outputType.map(t => OpenAi_TextFormat(Some(OpenAi_ResponseFormat(t))))
     ).toJson.compactPrint
        
-    log.debug(s"body=${body} -> ${url}")
+    log.debug(s"body=${body}")
     log.info(s"model=${modelReq},sys=${systemPrompt.map(_.size).getOrElse(-1)},tools=${tools}],q=[${ai.question.size}]: '${ai.question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")
     
     val httpReq = HttpRequest(
