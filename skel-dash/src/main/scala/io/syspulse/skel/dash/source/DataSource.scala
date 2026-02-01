@@ -8,6 +8,7 @@ import io.jvm.uuid.UUID
 
 import io.syspulse.skel.dash.server.DashData
 import io.syspulse.skel.dash.server.DashDataReq
+import io.syspulse.skel.db.guard.QueryGuard
 
 trait DataSource {
   val DEF_LIMIT = 100
@@ -17,14 +18,14 @@ trait DataSource {
 }
 
 object DataSource {
-  def resolve(uri:String):Try[DataSource] = {
+  def resolve(uri:String,guard:QueryGuard):Try[DataSource] = {
     uri.split("://").toList match {
       case "test" :: _ => Try(new DataSourceTest(uri))
       case "dune" :: _ => Try(new DataSourceDune(uri))
-      case ("es" | "ess" ) :: _ => Try(new DataSourceElastic(uri))
+      case ("es" | "ess" ) :: _ => Try(new DataSourceElastic(uri,guard))
       case ("cg" | "coingecko" ) :: _ => Try(new DataSourceCoingecko(uri))
-      case ("sql" | "jdbc" | "postgres" ) :: _ => Try(new DataSourceSQL(uri))
-      case "many" :: _ => Try(new DataSourceMany(uri))
+      case ("sql" | "jdbc" | "postgres" ) :: _ => Try(new DataSourceSQL(uri,guard))
+      case "many" :: _ => Try(new DataSourceMany(uri,guard))
       case _ => Failure(new Exception(s"unknown datasource: '${uri}'"))
     }
   }

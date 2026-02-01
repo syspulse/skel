@@ -14,11 +14,12 @@ import io.syspulse.skel.dash.source.DataSourceCoingecko
 import io.syspulse.skel.dash.source.DataSourceDune
 import io.syspulse.skel.dash.source.DataSourceElastic
 import io.syspulse.skel.dash.source.DataSourceTest
+import io.syspulse.skel.db.guard.QueryGuard
 
 object DataSourceMany {
   private val log = Logger(this.getClass)
 
-  def resolve(uri:String):Seq[DataSource] = {
+  def resolve(uri:String,guard:QueryGuard):Seq[DataSource] = {
     val stores = uri.stripPrefix("many://").split(",").flatMap(u => {
       // val store = u.split("://").toList match {
       //   case "test" :: _ => new DataSourceTest(u)
@@ -29,7 +30,7 @@ object DataSourceMany {
       //   case _ => throw new Exception(s"unknown datasource: '${u}'")
       // }
       // store
-      DataSource.resolve(u) match {
+      DataSource.resolve(u,guard) match {
         case Success(ds) => Some(ds)
         case Failure(e) => {
           log.warn(s"Failed to create datasource: '${u}': ${e.getMessage}")
@@ -41,14 +42,14 @@ object DataSourceMany {
   }
 }
 
-class DataSourceMany(uri:String) extends DataSource {
+class DataSourceMany(uri:String,guard:QueryGuard) extends DataSource {
   private val log = Logger(this.getClass)
 
   override def toString:String = s"DataSourceMany(${stores})"
 
   def src:String = "many"
 
-  val stores = DataSourceMany.resolve(uri)
+  val stores = DataSourceMany.resolve(uri,guard)
 
   def ask(req:DashDataReq, tid:Option[String] = None):Future[DashData] = {
     stores

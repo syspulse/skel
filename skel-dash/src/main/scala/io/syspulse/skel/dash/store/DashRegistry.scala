@@ -122,7 +122,7 @@ object DashRegistry {
         }
         Behaviors.same
 
-      // ================================= Data ====================================================================================
+      
       case AskData(id,tid,pid,req, replyTo) =>
         // check there is a dash and dash belongs to us        
         val d = store
@@ -133,11 +133,18 @@ object DashRegistry {
           case Success(d) =>
             // log.info(s"AskData($id,$tid,$pid,${req.limit}): ==>")
             ds.ask(req,tid)
-              .map(Success(_))
-              .recover { case e => Failure(e) }
+              .map(d => {
+                log.debug(s"${tid}/${pid}/${id}: ${d}")
+                Success(d)
+              })
+              .recover { case e => {
+                log.warn(s"${tid}/${pid}/${id}: ${e.getMessage}")
+                Failure(e) 
+              }}
               .foreach(replyTo ! _)
 
           case Failure(e) =>
+            log.warn(s"${tid}/${pid}/${id}: ${e.getMessage}")
             replyTo ! Failure(e)
         }
                         

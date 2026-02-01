@@ -340,14 +340,14 @@ class DataSourceSQL(uri0:String,fw:QueryGuard = QueryGuardAllow) extends DataSou
       case "async" => executeAsync(req, sqlQuery, outputFormat, ts0)
       case _ => executeSync(req, sqlQuery, outputFormat, ts0)
     }
-
-    // Log failures
-    f.onComplete {
-      case Failure(e) => 
-        log.warn(s"${tid}/${req.id}: ${e.getMessage}")
-      case Success(r) =>
-        log.debug(s"${tid}/${req.id}: ${r}")
-    }
+    
+    // !!! DashRegistry will log the failure
+    // f.onComplete {
+    //   case Failure(e) => 
+    //     log.warn(s"${tid}/${req.id}: ${e.getMessage}")
+    //   case Success(r) =>
+    //     log.debug(s"${tid}/${req.id}: ${r}")
+    // }
 
     f
   }

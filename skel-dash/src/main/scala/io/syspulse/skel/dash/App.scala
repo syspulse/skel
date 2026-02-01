@@ -48,6 +48,8 @@ case class Config(
   env:String = "prod", // environment specific config
   serviceUrl: String = "",
   serviceToken: String = "",  
+
+  guard:String = "allow",
     
   cmd:String = "server",
   params: Seq[String] = Seq(),  
@@ -84,6 +86,7 @@ object App extends skel.Server {
         ArgString('_', "service.url",s"Service URL (def: ${d.serviceUrl})"),
         ArgString('_', "service.token",s"Service JWT (def: ${d.serviceToken})"),
        
+        ArgString('g', "guard",s"Guard mode [allow,GuardName] (def: ${d.guard})"),
         
         ArgCmd("server","Server only"),
         ArgCmd("encode","Encode function"),
@@ -116,15 +119,21 @@ object App extends skel.Server {
       serviceUrl = c.getString("service.url").getOrElse(""),
       serviceToken = c.getString("service.token").getOrElse(""),
 
+      guard = c.getString("guard").getOrElse(d.guard),
+
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),      
     )
 
     Console.err.println(s"Config: ${config}")
 
-
     if(! config.jwtUri.isBlank()) {
       AuthJwt(config.jwtUri)
+    }
+
+    val guard = config.guard match {
+      case "allow" => skel.db.guard.QueryGuardAllow
+      case _ => skel.db.guard.QueryGuard.resolve(config.guard)
     }
 
     val store = config.datastore.split("://").toList match {
@@ -140,20 +149,9 @@ object App extends skel.Server {
       case _ => 
         Console.err.println(s"Unknown DataSource: '${config.datastore}'")
         sys.exit(1)      
-    }
-
-    // val ds = config.datasource.split("://").toList match {
-    //   case "dune" :: _ => new DataSourceDune(config.datasource)
-    //   case "test" :: _ => new DataSourceTest(config.datasource)
-    //   case ("es" | "ess" ) :: _ => new DataSourceElastic(config.datasource)
-    //   case ("cg" | "coingecko" ) :: _ => new DataSourceCoingecko(config.datasource)
-    //   case ("sql" | "jdbc" | "postgres" ) :: _ => new DataSourceSQL(config.datasource)
-
-    //   case _ => new DataSourceMany(config.datasource)
-    //     // Console.err.println(s"Unknown datasource: '${config.datasource}'")
-    //     // sys.exit(2)
-    // }
-    val ds = DataSource.resolve(config.datasource) match {
+    }    
+    
+    val ds = DataSource.resolve(config.datasource,guard) match {
       case Success(ds) => ds
       case Failure(e) => {
         Console.err.println(e)
@@ -161,6 +159,7 @@ object App extends skel.Server {
       }
     }
 
+    Console.err.println(s"Guard: ${guard}")
     Console.err.println(s"Store: ${store}")
     Console.err.println(s"DataSource: ${ds}")
     
