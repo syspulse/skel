@@ -27,9 +27,13 @@ import com.github.jasync.sql.db.postgresql.PostgreSQLConnectionBuilder
 import com.github.jasync.sql.db.mysql.MySQLConnectionBuilder
 import com.github.jasync.sql.db.pool.ConnectionPool
 
+import io.syspulse.skel.db.guard.QueryGuard
+import io.syspulse.skel.db.guard.QueryGuardAllow
 //import io.r2dbc.spi.{Connection, Result, Row}
 
 import io.syspulse.skel.util.Util
+import scala.util.Failure
+import scala.util.Success
 
 object DataSourceSQL {
   val DEFAULT_MAX_POOL_SIZE = 4
@@ -219,7 +223,7 @@ object DataSourceSQL {
   }
 }
 
-class DataSourceSQL(uri0:String) extends DataSource {
+class DataSourceSQL(uri0:String,fw:QueryGuard = QueryGuardAllow) extends DataSource {
   private val log = Logger(this.getClass)
   
   val dbUri = JdbcURI(uri0)
@@ -315,6 +319,14 @@ class DataSourceSQL(uri0:String) extends DataSource {
       case _ => return Future.failed(new Exception("SQL query not provided in request.query"))
     }
 
+    fw.isAllowed(sqlQuery, Map("lang" -> "sql")) match {
+      case Success(true) => // Continue processing
+      case Success(false) => 
+        return Future.failed(new Exception("Query Rejected"))
+      case Failure(e) => 
+        return Future.failed(new Exception(s"Query validation failed: ${e.getMessage}"))
+    }
+
     // Determine output format: prefer formatFromQuery, then req.fmt, then default to json
     val outputFormat = formatFromQuery.orElse(req.fmt).getOrElse("json")
 
@@ -324,10 +336,20 @@ class DataSourceSQL(uri0:String) extends DataSource {
     log.info(s"${tid}/${req.id}: Executing SQL (${executionType},${outputFormat}): '${sqlQuery}' -> ${jdbcUrl}")
 
     // Execute query based on type
-    executionType match {
+    val f = executionType match {
       case "async" => executeAsync(req, sqlQuery, outputFormat, ts0)
       case _ => executeSync(req, sqlQuery, outputFormat, ts0)
     }
+
+    // Log failures
+    f.onComplete {
+      case Failure(e) => 
+        log.warn(s"${tid}/${req.id}: ${e.getMessage}")
+      case Success(r) =>
+        log.debug(s"${tid}/${req.id}: ${r}")
+    }
+
+    f
   }
 
   private def executeSync(req: DashDataReq, sqlQuery: String, outputFormat: String, ts0: Long): Future[DashData] = {
