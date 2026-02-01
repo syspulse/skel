@@ -26,10 +26,10 @@ import io.syspulse.skel.uri.ElasticURI
 import io.syspulse.skel.dash.server.DashDataReq
 
 import io.syspulse.skel.db.guard.QueryGuard
-import io.syspulse.skel.db.guard.PassGuard
+import io.syspulse.skel.db.guard.QueryGuardAllow
 import io.syspulse.skel.dash.source.DataSource
 
-class DataSourceElastic(uri0:String,fw:QueryGuard = PassGuard) extends DataSource {
+class DataSourceElastic(uri0:String,fw:QueryGuard = QueryGuardAllow) extends DataSource {
   private val log = Logger(this.getClass)  
 
   val elasticUri = ElasticURI(uri0)
@@ -71,11 +71,18 @@ class DataSourceElastic(uri0:String,fw:QueryGuard = PassGuard) extends DataSourc
     } 
 
     // Validate query 
-    val opts = if(tid.isDefined) Map("tenantId" -> tid) else Map[String,Any]()
+    val opts0: Map[String, Any] =
+      if(tid.isDefined) Map("tenantId" -> tid.get) else Map[String,Any]()
+
+    // Tell QueryGuard which language to parse (SQL vs Elastic DSL)
+    val opts = opts0 ++ (req.typ match {
+      case Some("sql") => Map("lang" -> "sql")
+      case _ => Map("lang" -> "elastic")
+    })
     fw.isAllowed(queryStr, opts) match {
       case Success(true) => // Continue processing
       case Success(false) => 
-        return Future.failed(new Exception("Query blocked"))
+        return Future.failed(new Exception("Query Rejected"))
       case Failure(e) => 
         return Future.failed(new Exception(s"Query validation failed: ${e.getMessage}"))
     }

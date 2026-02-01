@@ -27,7 +27,7 @@ import com.github.jasync.sql.db.postgresql.PostgreSQLConnectionBuilder
 import com.github.jasync.sql.db.mysql.MySQLConnectionBuilder
 import com.github.jasync.sql.db.pool.ConnectionPool
 
-import io.r2dbc.spi.{Connection, Result, Row}
+//import io.r2dbc.spi.{Connection, Result, Row}
 
 import io.syspulse.skel.util.Util
 
@@ -583,39 +583,24 @@ class DataSourceSQL(uri0:String) extends DataSource {
     val columnNames = queryResult.getRows.columnNames().asScala.toSeq
     
     // Infer column types from data (since jasync doesn't expose metadata)
-    // val columnTypes = if (rows.isEmpty) {
-    //   Seq.fill(columnCount)("text")
-    // } else {
-    //   (0 until columnCount).map { idx =>
-    //     val sampleValue = rows.head.get(idx)
-    //     sampleValue match {
-    //       case _: java.lang.Integer => "integer"
-    //       case _: java.lang.Long => "bigint"
-    //       case _: java.lang.Double => "double"
-    //       case _: java.lang.Float => "real"
-    //       case _: java.math.BigDecimal => "decimal"
-    //       case _: Boolean => "boolean"
-    //       case _: String => "text"
-    //       case null => "text"
-    //       case _ => "text"
-    //     }
-    //   }
-    // }
-    val columnTypes = (1 to columnCount).map { i =>
-      val sqlType = metaData.getColumnType(i)
-      val typeName = metaData.getColumnTypeName(i)
-      val precision = metaData.getPrecision(i)
-      val scale = metaData.getScale(i)
-      
-      // Format type name similar to Dune format
-      if (scale > 0 && precision > 0) {
-        s"$typeName($precision, $scale)"
-      } else if (precision > 0) {
-        s"$typeName($precision)"
-      } else {
-        typeName.toLowerCase
+    val columnTypes = if (rows.isEmpty) {
+      Seq.fill(columnCount)("text")
+    } else {
+      (0 until columnCount).map { idx =>
+        val sampleValue = rows.head.get(idx)
+        sampleValue match {
+          case _: java.lang.Integer => "integer"
+          case _: java.lang.Long => "bigint"
+          case _: java.lang.Double => "double"
+          case _: java.lang.Float => "real"
+          case _: java.math.BigDecimal => "decimal"
+          case _: Boolean => "boolean"
+          case _: String => "text"
+          case null => "text"
+          case _ => "text"
+        }
       }
-    }
+    }    
 
     // Convert RowData to Seq[Seq[Any]]
     val rowsData = rows.map { row =>
