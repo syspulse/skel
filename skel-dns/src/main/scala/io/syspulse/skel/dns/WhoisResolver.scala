@@ -14,6 +14,64 @@ import java.time.ZoneOffset
 import java.util.Locale
 
 // --- WHOIS -----------------------------------------------------------------------
+// Second-level domains (2LD): multi-part public suffixes where the registrable domain
+// is "label.2LD" (e.g. example.co.uk). See https://en.wikipedia.org/wiki/Second-level_domain
+object WhoisResolver {
+  val log = Logger(s"${this}")
+
+  /** Known two-part (country-code) second-level domains. When present, registrable domain = last 3 parts. */
+  private val secondLevelDomains: Set[String] = Set(
+    // UK
+    "co.uk", "ac.uk", "org.uk", "me.uk", "net.uk", "ltd.uk", "plc.uk", "gov.uk", "sch.uk", "mod.uk",
+    // Japan
+    "co.jp", "ac.jp", "ne.jp", "or.jp", "go.jp",
+    // Australia
+    "com.au", "net.au", "org.au", "edu.au", "gov.au", "asn.au", "id.au",
+    // Austria, Bangladesh, Brazil, etc.
+    "co.at", "or.at",
+    "com.bd", "net.bd", "org.bd", "edu.bd", "ac.bd", "gov.bd",
+    "com.br", "net.br", "org.br", "gov.br", "edu.br",
+    // India
+    "co.in", "com.in", "net.in", "org.in", "ac.in", "edu.in", "gov.in", "res.in",
+    // New Zealand, Nigeria, Pakistan, South Africa, South Korea, etc.
+    "co.nz", "net.nz", "org.nz", "ac.nz", "gov.nz",
+    "com.ng", "org.ng", "gov.ng", "edu.ng", "net.ng", "sch.ng",
+    "com.pk", "net.pk", "org.pk", "edu.pk", "gov.pk",
+    "co.za", "org.za", "web.za", "net.za", "gov.za", "ac.za",
+    "co.kr", "or.kr", "go.kr", "ac.kr", "ne.kr",
+    // Sri Lanka, Thailand, Turkey, Ukraine, Spain, Russia, France
+    "com.lk", "org.lk", "edu.lk", "gov.lk", "net.lk",
+    "co.th", "ac.th", "go.th", "or.th", "in.th",
+    "com.tr", "org.tr", "net.tr", "edu.tr", "gov.tr", "web.tr", "gen.tr",
+    "com.ua", "org.ua", "net.ua", "edu.ua", "gov.ua", "in.ua", "co.ua",
+    "com.es", "org.es", "nom.es", "gob.es", "edu.es",
+    "ru", "com.ru", "org.ru", "net.ru", "edu.ru", "gov.ru",
+    "com.fr", "asso.fr", "gouv.fr", "avocat.fr", "aeroport.fr",
+    // Trinidad, Israel, Hungary, Netherlands
+    "co.tt", "com.tt", "org.tt", "net.tt", "gov.tt", "edu.tt",
+    "co.il", "org.il", "net.il", "gov.il", "ac.il",
+    "co.hu", "org.hu", "gov.hu", "edu.hu",
+    "co.nl", "nl"
+  ).filter(_.contains(".")) // only multi-part (e.g. co.uk), exclude single TLDs like "ru"
+
+  /** Extract registrable domain (for WHOIS): handles 2LDs like co.uk, ac.uk, co.jp. */
+  def getDomain(userDomain: String): String = {
+    val parts = userDomain.split("\\.").toList
+    parts match {
+      case dom :: Nil => dom
+      case dom :: tld :: Nil => s"${dom}.${tld}"
+      case dd if dd.size >= 3 =>
+        val lastTwo = dd.takeRight(2).mkString(".")
+        if (secondLevelDomains.contains(lastTwo))
+          dd.takeRight(3).mkString(".")
+        else
+          dd.takeRight(2).mkString(".")
+      case _ => userDomain
+    }
+  }
+
+}
+
 class WhoisResolver() extends DnsResolver {
   val log = Logger(s"${this}")
 
@@ -70,18 +128,6 @@ class WhoisResolver() extends DnsResolver {
     } catch {
       case e:Exception => Failure(e)
     }
-  }
-
-  // this is not going to work for '.co.uk', so better not to use it
-  def getDomain(userDomain:String):String = {
-    // extract top level domain
-    userDomain.split("\\.").toList match {
-      case dom :: tld :: Nil => s"${dom}.${tld}"
-      case dom :: Nil=> dom
-      case dd => 
-        // subdomain
-        dd.takeRight(2).mkString(".")
-    }    
   }
 
   def parseResponse(domain:String,r:String):Try[DnsInfo] = {
@@ -159,7 +205,7 @@ class WhoisResolver() extends DnsResolver {
 
     // this is not going to work for '.co.uk', so better 
     // allow to fail on subdomains
-    val domain = userDomain //getDomain(userDomain)
+    val domain = WhoisResolver.getDomain(userDomain)
     
     try {
       // WhoisClient.DEFAULT_HOST

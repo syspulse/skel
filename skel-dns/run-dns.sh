@@ -19,4 +19,4 @@ MAIN=io.syspulse.skel.dns.App
 >&2 echo "ACCESS_TOKEN: $ACCESS_TOKEN"
 >&2 echo $@
 
-exec ${CWD}../run-app.sh $APP $MAIN $@
+exec ${CWD}/../run-app.sh $APP $MAIN $@

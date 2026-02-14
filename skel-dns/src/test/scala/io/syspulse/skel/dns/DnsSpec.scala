@@ -1,20 +1,16 @@
 package io.syspulse.skel.dns
 
-import org.scalatest.{Ignore}
-import org.scalatest.wordspec.{ AnyWordSpec}
-import org.scalatest.matchers.should.{ Matchers}
-import org.scalatest.flatspec.AnyFlatSpec
+// Run with bloop (from repo root): bloop test skel_dns-test
+
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
 import java.time._
 import io.jvm.uuid._
-import io.syspulse.skel.util.Util
-import scala.util.Success
 import scala.util.Failure
 import scala.collection.immutable.ArraySeq
 
 class DnsSpec extends AnyWordSpec with Matchers {
-  
-  val DST = ZonedDateTime.now.getZone().getRules.isDaylightSavings(ZonedDateTime.now.toInstant)
 
   val TONIC_RSP_1 = """
   <pre>
