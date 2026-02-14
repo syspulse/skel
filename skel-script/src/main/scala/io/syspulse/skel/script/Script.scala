@@ -110,7 +110,8 @@ class ScriptJS(src0:Option[String] = None,inputVarName:String = "input") extends
   // src0 is either a script or a reference to a file with a script
   private val script0 = src0.map(s => if(s.startsWith("file://")) os.read(os.Path(s.stripPrefix("file://"),os.pwd)) else s)
 
-  private lazy val engine = new Polyglot("js",PolyglotSandbox.RESTRICTED_THREADED,script0)
+  //private lazy val engine = new Polyglot("js",PolyglotSandbox.RESTRICTED_THREADED,script0,true)
+  private lazy val engine = new Polyglot("js",PolyglotSandbox.RESTRICTED,script0,true)
   
   override def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
     val dataInput = data + (inputVarName -> input)

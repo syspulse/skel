@@ -19,6 +19,7 @@ import javax.mail.internet.InternetAddress
 import java.util.concurrent.TimeoutException
 import io.syspulse.skel.notify.NotifySeverity
 import io.syspulse.skel.notify.Notify
+import io.syspulse.skel.util.Util
 
 class SMTP(host:String,port:Int,smtpUser:String,smtpPass:String,tls:Boolean,starttls:Boolean) {
   val m0 = Mailer(host,port)
@@ -29,7 +30,7 @@ class SMTP(host:String,port:Int,smtpUser:String,smtpPass:String,tls:Boolean,star
   val m2 = if(starttls) m1.startTls(starttls) else m1
                
   val mailer = m2()   
-  override def toString() = s"SMTP(${host}:${port}/$smtpUser/****,tls=${tls},starttls=${starttls})"
+  override def toString() = s"SMTP(${host}:${port}/$smtpUser/${Util.trunc(smtpPass,8)},tls=${tls},starttls=${starttls})"
 }
 
 object SMTP {
@@ -56,27 +57,27 @@ case class NotifyEmail(smtpName:String,to:String)(implicit config: Config) exten
     val smtp = SMTP.get(smtpName)(config)
 
     log.info(s"[${to}]-> ${smtp}")
-    
-    val mailer  = smtp.mailer
-    
-    val f = mailer(Envelope.from(new InternetAddress(from))
-        .to(new InternetAddress(to))
-        .subject(title)
-        .content(Multipart()
-           .html(msg))
-          )
-    
-    // f.onComplete {
-    //       case Success(_) => println("message delivered")
-    //       case Failure(_) => println("delivery failed")
-    //     }
 
-    try {
+    Try {
+    
+      val mailer  = smtp.mailer
+      
+      val f = mailer(Envelope.from(new InternetAddress(from))
+          .to(new InternetAddress(to))
+          .subject(title)
+          .content(Multipart()
+            .html(msg))
+            )
+      
+      // f.onComplete {
+      //       case Success(_) => println("message delivered")
+      //       case Failure(_) => println("delivery failed")
+      //     }
+
+      
       val r = Await.result(f,FiniteDuration(timeout,TimeUnit.MILLISECONDS))
-      Success(s"${to}: sent")
-    } catch {
-      case e: TimeoutException => Failure(e)
-    }    
+      s"${to}: OK"      
+    }
   }
 
   def send(no:Notify):Try[String] = {

@@ -65,7 +65,7 @@ class NotifyStoreMem(implicit config:Config) extends NotifyBroadcast()(config) w
     // this should always resolve correctly here
     val uid = (n.uid.orElse(Some(DefaultPermissions.USER_ADMIN)).get)
     
-    log.info(s"add: ${n} -> ${uid}")
+    log.debug(s"add: ${n} -> ${uid}")
 
     val nq = notifys.get(uid) match {
       case Some(nq) => 
@@ -90,7 +90,7 @@ class NotifyStoreMem(implicit config:Config) extends NotifyBroadcast()(config) w
   }
 
   def ??(uid:UUID,fresh:Boolean):Seq[Notify] = {
-    log.info(s"uid=${uid},fresh=${fresh}")
+    log.debug(s"uid=${uid},fresh=${fresh}")
     val nn = notifys.get(uid) match {
       case Some(nq) => 
         if(fresh) 
@@ -113,7 +113,7 @@ class NotifyStoreMem(implicit config:Config) extends NotifyBroadcast()(config) w
   }
   
   def ack(id:UUID):Try[Notify] = {
-    log.info(s"ack: ${id}")
+    log.debug(s"ack: ${id}")
     
     val nqn = notifys.values.flatMap(nq =>{
       val f = nq.fresh.find(_.id == id)
