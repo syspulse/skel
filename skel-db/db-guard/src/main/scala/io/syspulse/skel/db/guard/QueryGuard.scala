@@ -11,6 +11,8 @@ import scala.jdk.CollectionConverters._
  * All rules must pass for the query to be allowed.
  */
 trait QueryGuard {
+  private val log = Logger(this.getClass)
+  
   /**
    * Parse query into structured representation.
    * Language can be selected via opts("lang") = "sql" | "elastic" | "elasticsearch".
@@ -29,13 +31,35 @@ trait QueryGuard {
    * Internally delegates to `validate`.
    */
   def isAllowed(q: String, opts: Map[String, Any] = Map()): Try[Boolean] =
-    validate(q, opts).map(_.isPassed)
+    validate(q, opts).map(r => {
+      log.debug(s"query='${q}': ${r}")
+      r.isPassed
+    })
 }
 
 /**
  * QueryGuard companion object containing Rule types and implementations.
  */
 object QueryGuard {
+  
+  def resolve(uri: String): QueryGuard = uri.split("://").toList match {
+    case "allow" :: _ => QueryGuardAllow    
+    case "deny" :: _ => QueryGuardDeny
+    case "rules" :: r => 
+      val rules = r.map(r => {
+        r.split(";").toList match {
+          case "ddl" :: Nil => RuleKeyword.forDDL()
+          case "dangerous" :: Nil => RuleKeyword.forDangerousFunctions()
+          case "pattern" :: p :: Nil => RulePattern(p.split(","))
+          case "tenant" :: t :: Nil => RuleTenant(t.split(",").toSet)
+          case "tenant" :: t :: table :: Nil => RuleTenant(t.split(",").toSet)
+          case _ => throw new Exception(s"Unknown rule: '${r}'")
+        }
+      })
+      new QueryGuardRules(rules)
+    case _ => throw new Exception(s"Unknown guard: '${uri}'")
+  }
+
   // -----------------------------
   // Parsed representation
   // -----------------------------
@@ -332,6 +356,19 @@ object QueryGuard {
     val REJECT: String = "REJECT"
   }
 
+  class RuleAllow extends Rule {
+    def name: String = "RuleAllow"
+    def validate(parsed: QueryParsed, opts: Map[String, Any]): Try[RuleResult] =
+      Success(RuleResult(rule = Some(this), reason = Some(Rule.ALLOW), desc = Some("[*ALLOW*]")))
+  }
+  
+  class RuleReject extends Rule {
+    def name: String = "RuleReject"
+    def validate(parsed: QueryParsed, opts: Map[String, Any]): Try[RuleResult] =
+      Success(RuleResult(rule = Some(this), reason = Some(Rule.REJECT), desc = Some("[*REJECT*]")))
+  }
+
+
   /**
    * Result of validation.
    *
@@ -544,12 +581,22 @@ class QueryGuardRules(rules: Seq[QueryGuard.Rule]) extends QueryGuard {
 /**
  * PassGuard - allows all queries (no validation)
  */
-class QueryGuardPass extends QueryGuard {
-  def validate(q: String, opts: Map[String, Any] = Map()): Try[QueryGuard.RuleResult] =
-    Success(QueryGuard.RuleResult(None, Some(QueryGuard.Rule.ALLOW),Some("always allow")))
+class QueryGuardAllow extends QueryGuardRules(Seq(new QueryGuard.RuleAllow())) {
+  // def validate(q: String, opts: Map[String, Any] = Map()): Try[QueryGuard.RuleResult] =
+  //   Success(QueryGuard.RuleResult(None, Some(QueryGuard.Rule.ALLOW),Some("[ALLOW]")))
 }
 
-object QueryGuardPass extends QueryGuardPass
+object QueryGuardAllow extends QueryGuardAllow
+
+/**
+ * DenyGuard - denies all queries (no validation)
+ */
+class QueryGuardDeny extends QueryGuardRules(Seq(new QueryGuard.RuleReject())) {
+  // def validate(q: String, opts: Map[String, Any] = Map()): Try[QueryGuard.RuleResult] =
+  //   Success(QueryGuard.RuleResult(None, Some(QueryGuard.Rule.REJECT),Some("[DENY]")))
+}
+
+object QueryGuardDeny extends QueryGuardDeny
 
 /**
  * ElasticGuard - maintains backward compatibility with the original ElasticGuard behavior.

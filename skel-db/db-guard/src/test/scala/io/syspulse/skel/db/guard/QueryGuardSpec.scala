@@ -151,7 +151,7 @@ class QueryGuardSpec extends AnyWordSpec with Matchers {
 
   "PassGuard" should {
     "allow everything" in {
-      val rv = QueryGuardPass.validate("DROP TABLE x").get
+      val rv = QueryGuardAllow.validate("DROP TABLE x").get
       rv.isPassed shouldBe true
     }
   }
