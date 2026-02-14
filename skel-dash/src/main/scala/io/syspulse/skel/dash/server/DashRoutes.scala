@@ -215,7 +215,7 @@ class DashRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
 // =======================================================================================================================================================
   val corsAllow = CorsSettings(system.classicSystem)
     //.withAllowGenericHttpRequests(true)
-    .withAllowCredentials(true)
+    .withAllowCredentials(true)    
     .withAllowedMethods(Seq(HttpMethods.OPTIONS,HttpMethods.GET,HttpMethods.POST,HttpMethods.PUT,HttpMethods.DELETE,HttpMethods.HEAD))
 
   override def routes: Route = cors(corsAllow) {

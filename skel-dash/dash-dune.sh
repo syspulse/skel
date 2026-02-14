@@ -35,8 +35,10 @@ fi
 >&2 echo "$DATA_JSON"
 
 curl -S -s -D /dev/stderr \
+   -v \
    -X POST \
    -H 'Content-Type: application/json' \
    -H "Authorization: Bearer $ACCESS_TOKEN" \
+   -H "Origin: http://localhost:3000" \
    --data "$DATA_JSON" \
    $SERVICE_URI/${TID}/${OID}/${DID}/data

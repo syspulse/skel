@@ -90,6 +90,7 @@ object App extends skel.Server {
         
         ArgCmd("server","Server only"),
         ArgCmd("encode","Encode function"),
+        ArgCmd("migrate","Migrate database"),
 
         ArgParam("<params>",""),
         ArgLogging(),
@@ -136,20 +137,24 @@ object App extends skel.Server {
       case _ => skel.db.guard.QueryGuard.resolve(config.guard)
     }
 
-    val store = config.datastore.split("://").toList match {
-      case "mem" :: Nil => new DashStoreMem()
-      case "dir" :: Nil => new DashStoreDir()
-      case "dir" :: dir :: Nil => new DashStoreDir(dir)
+    def getStore(uri:String):DashStore = {
+      uri.split("://").toList match {
+        case "mem" :: Nil => new DashStoreMem()
+        case "dir" :: Nil => new DashStoreDir()
+        case "dir" :: dir :: Nil => new DashStoreDir(dir)
 
-      case "postgres" :: Nil => new DashStoreDB(c,s"postgres://postgres")
-      case "postgres" :: db :: Nil => new DashStoreDB(c,s"postgres://${db}")
-      case "jdbc" :: db :: Nil => new DashStoreDB(c,config.datastore)
-      case "jdbc" :: typ :: db :: Nil => new DashStoreDB(c,config.datastore)
+        case "postgres" :: Nil => new DashStoreDB(c,s"postgres://postgres")
+        case "postgres" :: db :: Nil => new DashStoreDB(c,s"postgres://${db}")
+        case "jdbc" :: db :: Nil => new DashStoreDB(c,uri)
+        case "jdbc" :: typ :: db :: Nil => new DashStoreDB(c,uri)
 
-      case _ => 
-        Console.err.println(s"Unknown DataSource: '${config.datastore}'")
-        sys.exit(1)      
-    }    
+        case _ => 
+          Console.err.println(s"Unknown DataSource: '${uri}'")
+          sys.exit(1)      
+      }
+    }
+
+    val store = getStore(config.datastore)
     
     val ds = DataSource.resolve(config.datasource,guard) match {
       case Success(ds) => ds
@@ -172,6 +177,28 @@ object App extends skel.Server {
             })
           )
         )       
+      case "migrate" => 
+        // migrate from one data store to another
+        // read All and iterate add all to another
+        val storeTo = getStore(config.params.headOption.getOrElse("mem://"))
+
+        val all = store.all
+        var i = 0
+        var f = 0
+        all.foreach { d =>
+          storeTo.+(d) match {
+            case Success(d) => 
+              i += 1
+              if(i % 1 == 0) {
+                Console.err.println(s"Migrated: ${d.id}: ${i}/${all.size}")
+              }
+            case Failure(e) => {
+              Console.err.println(s"Failed to migrate: ${e}")              
+              f += 1
+            }
+          }
+        }
+        s"Migrated: ${i}/${f}/${all.size}"
     }
     
     Console.err.println(s"r = ${r}")

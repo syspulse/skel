@@ -6,7 +6,7 @@ TID=${1:-490}
 SERVICE_URI=${SERVICE_URI:-http://127.0.0.1:8080/api/v1/dash}
 ACCESS_TOKEN=${ACCESS_TOKEN-`cat ACCESS_TOKEN`}
 
->&2 echo "DID=$DID"
+>&2 echo "TID=$TID"
 
 curl -S -s -D /dev/stderr \
    -X GET \

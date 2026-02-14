@@ -79,6 +79,7 @@ class DataSourceElastic(uri0:String,fw:QueryGuard = QueryGuardAllow) extends Dat
       case Some("sql") => Map("lang" -> "sql")
       case _ => Map("lang" -> "elastic")
     })
+    
     fw.isAllowed(queryStr, opts) match {
       case Success(true) => // Continue processing
       case Success(false) => 

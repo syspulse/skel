@@ -20,7 +20,7 @@ trait DataSource {
 object DataSource {
   def resolve(uri:String,guard:QueryGuard):Try[DataSource] = {
     uri.split("://").toList match {
-      case "test" :: _ => Try(new DataSourceTest(uri))
+      case "test" :: _ => Try(new DataSourceTest(uri,guard))
       case "dune" :: _ => Try(new DataSourceDune(uri))
       case ("es" | "ess" ) :: _ => Try(new DataSourceElastic(uri,guard))
       case ("cg" | "coingecko" ) :: _ => Try(new DataSourceCoingecko(uri))
