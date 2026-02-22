@@ -425,7 +425,9 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
           result
       }
     } match {
-      case Failure(e: Script.ScriptBreakException) => Success(e.src)
+      case f @ Failure(e: Script.ScriptBreakException) => 
+        //Success(e.src)
+        f
       case Success(r) => Success(r)
       case Failure(e) => Failure(e)
     }
@@ -440,7 +442,9 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
       // flatMap doesn't execute the function, so foldLeft stops processing remaining engines.
       // The final .recover handles converting ScriptFilter.ScriptFilterBypass to empty string.
     }.recover { 
-      case e: Script.ScriptBreakException => e.src
+      case e: Script.ScriptBreakException => 
+        //e.src
+        throw e
       case e: Exception => throw e
     }
   }

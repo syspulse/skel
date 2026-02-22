@@ -14,6 +14,8 @@ import scala.util.{Success, Failure}
 // - ScriptFlowSpec.scala
 // - ScriptScoreSpec.scala
 // - ScriptFlowConcurrencySpec.scala
+// - ScriptConditionSpec.scala
+// - ScriptFilterSpec.scala
 //
 // Run individual specs for faster test execution:
 //   sbt "project skel_script" "testOnly io.syspulse.skel.script.ScriptRegexpSpec"
@@ -161,7 +163,27 @@ class ScriptSpec extends AnyWordSpec with Matchers {
       result.isSuccess shouldBe true
       result.get shouldBe "test" // Input is passed through, src is ignored when input is non-empty
     }
+
+    "build ScriptCondition from builder" in {
+      val script = ScriptCondition.build(Some("> 0"))
+      script.getId() shouldBe "condition"
+      script.name shouldBe "condition"
+    }
+
+    "ScriptCondition passes when condition is satisfied" in {
+      val script = ScriptCondition.build(Some("> 10"))
+      script.run("", "15", Map.empty) shouldBe Success("15")
+    }
+
+    "ScriptCondition fails with ScriptBreakException when condition not satisfied" in {
+      val script = ScriptCondition.build(Some("> 10"))
+      val result = script.run("", "5", Map.empty)
+      result.isFailure shouldBe true
+      result.failed.get shouldBe a[Script.ScriptBreakException]
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "> 10"
+    }
   }
 
   // Note: Comprehensive ScriptJS tests have been moved to ScriptJSSpec.scala
+  // Note: Comprehensive ScriptCondition tests are in ScriptConditionSpec.scala
 }

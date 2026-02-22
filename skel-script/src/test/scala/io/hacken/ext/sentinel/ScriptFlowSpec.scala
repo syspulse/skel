@@ -140,6 +140,38 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       result.get should include("Alice")
     }
 
+    "chain ScriptJQ -> ScriptCondition -> ScriptRegexp for threshold check" in {
+      val jqEngine = new ScriptJQ(Some(".value"))
+      val conditionEngine = new ScriptCondition(Some("> 50"))
+      val regexpEngine = new ScriptRegexp(Some("[0-9]+"))
+      val flow = new ScriptFlow(Seq(jqEngine, conditionEngine, regexpEngine))
+      
+      // Value above threshold: JQ extracts "60", condition passes, regexp matches
+      val json1 = """{"value":60,"label":"high"}"""
+      val result1 = flow.run("", json1, Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "60"
+      
+      // Value below threshold: condition fails, flow returns Failure(ScriptBreakException)
+      val json2 = """{"value":40,"label":"low"}"""
+      val result2 = flow.run("", json2, Map.empty)
+      result2.isFailure shouldBe true
+      result2.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "> 50"
+    }
+
+    "chain ScriptRegexp extract -> ScriptCondition for numeric gate" in {
+      val extractEngine = new ScriptRegexp(Some("?score=([0-9]+)"))
+      val conditionEngine = new ScriptCondition(Some(">= 100"))
+      val flow = new ScriptFlow(Seq(extractEngine, conditionEngine))
+      
+      val result1 = flow.run("", "score=150", Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "150"
+      val result2 = flow.run("", "score=50", Map.empty)
+      result2.isFailure shouldBe true
+      result2.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ">= 100"
+    }
+
     "build from string format: regexp://, jq://" in {
       val flow = ScriptFlow.build(Some("regexp://, jq://"))
       
@@ -172,6 +204,18 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       result.isSuccess shouldBe true
       // JQ extracts ".name" -> "John", then regexp matches ".*John.*" -> returns "John"
       result.get should include("John")
+    }
+
+    "build from string format: jq://.value, condition://> 50" in {
+      val flow = ScriptFlow.build(Some("jq://.value, condition://> 50"))
+      val json1 = """{"value":60}"""
+      val result1 = flow.run("", json1, Map.empty)
+      result1.isSuccess shouldBe true
+      result1.get shouldBe "60"
+      val json2 = """{"value":30}"""
+      val result2 = flow.run("", json2, Map.empty)
+      result2.isFailure shouldBe true
+      result2.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "> 50"
     }
 
     "build from string format: regexp://.B" in {
@@ -1049,10 +1093,11 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val regexpEngine = new ScriptRegexp(Some(".*John.*"))
       val flow = new ScriptFlow(Seq(filterEngine, jqEngine, regexpEngine))
       
-      // Empty input - ScriptFilter should short-circuit, return empty string
+      // Empty input - ScriptFilter short-circuits, run returns Failure(ScriptBreakException)
       val result1 = flow.run("", "", Map.empty)
-      result1.isSuccess shouldBe true
-      result1.get shouldBe "" // ScriptFilter detected empty input, short-circuited
+      result1.isFailure shouldBe true
+      result1.failed.get shouldBe a[Script.ScriptBreakException]
+      result1.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
       
       // Non-empty input - should process normally
       val json = """{"name":"John","age":30}"""
@@ -1068,11 +1113,11 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val regexpEngine = new ScriptRegexp(Some(".*John.*"))
       val flow = new ScriptFlow(Seq(extractEngine, filterEngine, regexpEngine))
       
-      // Regexp extraction returns empty string (no match), ScriptFilter detects it and short-circuits
+      // Regexp extraction returns empty string (no match), ScriptFilter short-circuits
       val input1 = "age=30" // No "name=" pattern
       val result1 = flow.run("", input1, Map.empty)
-      result1.isSuccess shouldBe true
-      result1.get shouldBe "" // ScriptFilter detected empty input from regexp, short-circuited
+      result1.isFailure shouldBe true
+      result1.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
       
       // Positive case: Regexp extraction succeeds, filter passes non-empty forward, regexp matches it
       val input2 = "name=John" // Has "name=" pattern
@@ -1087,10 +1132,10 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val regexpEngine = new ScriptRegexp(Some("0x[0-9a-f]+"))
       val flow = new ScriptFlow(Seq(extractEngine, filterEngine, regexpEngine))
       
-      // Regexp extraction fails (no match), ScriptFilter detects empty and short-circuits
+      // Regexp extraction fails (no match), ScriptFilter short-circuits
       val result1 = flow.run("", "no hash here", Map.empty)
-      result1.isSuccess shouldBe true
-      result1.get shouldBe "" // ScriptFilter detected empty input from regexp, short-circuited
+      result1.isFailure shouldBe true
+      result1.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
       
       // Positive case: Regexp extraction succeeds, filter passes hash forward, regexp validates it
       val result2 = flow.run("", "hash=0xabc123", Map.empty)
@@ -1112,10 +1157,10 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
     "short-circuit with filter:// URI format" in {
       val flow = ScriptFlow.build(Some("filter://, jq://.name"))
       
-      // Empty input - should short-circuit
+      // Empty input - ScriptFilter short-circuits
       val result1 = flow.run("", "", Map.empty)
-      result1.isSuccess shouldBe true
-      result1.get shouldBe ""
+      result1.isFailure shouldBe true
+      result1.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
       
       // Non-empty input - should process
       val json = """{"name":"John","age":30}"""
@@ -1130,8 +1175,8 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       // Regexp extraction returns empty string (no match), filter short-circuits
       val input1 = "age=30" // No "name=" pattern
       val result1 = flow.run("", input1, Map.empty)
-      result1.isSuccess shouldBe true
-      result1.get shouldBe ""
+      result1.isFailure shouldBe true
+      result1.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
       
       // Positive case: Regexp extraction succeeds, filter passes name forward, regexp matches it
       val input2 = "name=John" // Has "name=" pattern
@@ -1145,10 +1190,11 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val jqEngine = new ScriptJQ(Some(".name"))
       val flow = new ScriptFlow(Seq(filterEngine, jqEngine))
       
-      // Empty input - ScriptFilter short-circuits
+      // Empty input - ScriptFilter short-circuits, exec throws ScriptBreakException
       val futureResult1 = flow.exec("", "", Map.empty)
-      val result1 = Await.result(futureResult1, 5.seconds)
-      result1 shouldBe "" // ScriptFilter detected empty input, short-circuited
+      val failure1 = Await.result(futureResult1.failed, 5.seconds)
+      failure1 shouldBe a[Script.ScriptBreakException]
+      failure1.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
       
       // Positive case: Non-empty input, filter passes it forward, JQ processes it
       val json = """{"name":"John","age":30}"""
@@ -1165,8 +1211,8 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       
       // Empty input - ScriptFilter short-circuits, jqEngine should not be called
       val result1 = flow.run("", "", Map.empty)
-      result1.isSuccess shouldBe true
-      result1.get shouldBe "" // Short-circuited, jqEngine not executed
+      result1.isFailure shouldBe true
+      result1.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
       
       // Positive case: Non-empty input, filter passes it forward, JQ processes it (even if field doesn't exist)
       // This verifies that when filter passes input, the flow continues normally
@@ -1182,11 +1228,11 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val jqEngine = new ScriptJQ(Some(".name"))
       val flow = new ScriptFlow(Seq(filterEngine, jqEngine))
       
-      // Empty input with custom src - ScriptFilter should short-circuit and return the src value
+      // Empty input with custom src - ScriptFilter short-circuits with ScriptBreakException.src
       val customSrc = "NO_DATA"
       val result = flow.run(customSrc, "", Map.empty)
-      result.isSuccess shouldBe true
-      result.get shouldBe customSrc // ScriptFilter propagated the src value when short-circuiting
+      result.isFailure shouldBe true
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe customSrc
     }
 
     "propagate different src values in different filter instances" in {
@@ -1197,8 +1243,8 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       // First filter short-circuits with src1, second filter should not be called
       val src1 = "EMPTY_INPUT"
       val result = flow.run(src1, "", Map.empty)
-      result.isSuccess shouldBe true
-      result.get shouldBe src1 // First filter's src value is propagated
+      result.isFailure shouldBe true
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe src1
     }
 
     "propagate src value when ScriptFilter short-circuits in middle of flow" in {
@@ -1211,8 +1257,8 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val customSrc = "EXTRACTION_FAILED"
       val input = "age=30" // No "name=" pattern
       val result = flow.run(customSrc, input, Map.empty)
-      result.isSuccess shouldBe true
-      result.get shouldBe customSrc // ScriptFilter propagated the src value
+      result.isFailure shouldBe true
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe customSrc
     }
 
     "propagate src value through async exec when ScriptFilter short-circuits" in {
@@ -1220,11 +1266,12 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val jqEngine = new ScriptJQ(Some(".name"))
       val flow = new ScriptFlow(Seq(filterEngine, jqEngine))
       
-      // Empty input with custom src - ScriptFilter short-circuits and propagates src
+      // Empty input with custom src - ScriptFilter short-circuits, exec throws ScriptBreakException with src
       val customSrc = "ASYNC_NO_DATA"
       val futureResult = flow.exec(customSrc, "", Map.empty)
-      val result = Await.result(futureResult, 5.seconds)
-      result shouldBe customSrc // ScriptFilter propagated the src value through async execution
+      val failure = Await.result(futureResult.failed, 5.seconds)
+      failure shouldBe a[Script.ScriptBreakException]
+      failure.asInstanceOf[Script.ScriptBreakException].src shouldBe customSrc
     }
 
     "propagate empty src when ScriptFilter short-circuits with empty src" in {
@@ -1232,20 +1279,20 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val jqEngine = new ScriptJQ(Some(".name"))
       val flow = new ScriptFlow(Seq(filterEngine, jqEngine))
       
-      // Empty input with empty src - ScriptFilter should propagate empty string
+      // Empty input with empty src - ScriptFilter short-circuits
       val result = flow.run("", "", Map.empty)
-      result.isSuccess shouldBe true
-      result.get shouldBe "" // Empty src is propagated
+      result.isFailure shouldBe true
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
     }
 
     "propagate src value with filter:// URI format" in {
       val flow = ScriptFlow.build(Some("filter://, jq://.name"))
       
-      // Empty input with custom src - filter should propagate src value
+      // Empty input with custom src - filter short-circuits
       val customSrc = "URI_FILTER_NO_DATA"
       val result = flow.run(customSrc, "", Map.empty)
-      result.isSuccess shouldBe true
-      result.get shouldBe customSrc // Filter propagated the src value
+      result.isFailure shouldBe true
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe customSrc
       
       // Non-empty input - should process normally (use empty src so JQ uses .name from URI)
       val json = """{"name":"John","age":30}"""
@@ -1257,16 +1304,15 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
     "short-circuit with filter://value URI format (src in URI)" in {
       val flow = ScriptFlow.build(Some("filter://NO_DATA, jq://.name"))
       
-      // Empty input - filter should use src from URI (NO_DATA), not from run() call
-      val customSrc = "CUSTOM_SRC"
-      val result1 = flow.run(customSrc, "", Map.empty)
-      result1.isSuccess shouldBe true
-      result1.get shouldBe "NO_DATA" // Filter uses src from URI, not from run() call
+      // Empty input - filter short-circuits with src from URI
+      val result1 = flow.run("CUSTOM_SRC", "", Map.empty)
+      result1.isFailure shouldBe true
+      result1.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "NO_DATA"
       
-      // Empty input with empty src - filter should use src from URI
+      // Empty input with empty src - filter short-circuits with src from URI
       val result2 = flow.run("", "", Map.empty)
-      result2.isSuccess shouldBe true
-      result2.get shouldBe "NO_DATA" // Filter uses src from URI
+      result2.isFailure shouldBe true
+      result2.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "NO_DATA"
       
       // Non-empty input - should process normally
       val json = """{"name":"John","age":30}"""
@@ -1279,11 +1325,10 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val flow = ScriptFlow.build(Some("regexp://?name=(.+), filter://EXTRACTION_FAILED, regexp://.*John.*"))
       
       // Regexp extraction returns empty string, filter short-circuits with src from URI
-      val customSrc = "CUSTOM_ERROR"
       val input1 = "age=30" // No "name=" pattern
-      val result1 = flow.run(customSrc, input1, Map.empty)
-      result1.isSuccess shouldBe true
-      result1.get shouldBe "EXTRACTION_FAILED" // Filter uses src from URI, not from run() call
+      val result1 = flow.run("CUSTOM_ERROR", input1, Map.empty)
+      result1.isFailure shouldBe true
+      result1.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "EXTRACTION_FAILED"
       
       // Positive case: Regexp extraction succeeds, filter passes name forward, regexp matches it
       val input2 = "name=John" // Has "name=" pattern
@@ -1296,20 +1341,19 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val flow = ScriptFlow.build(Some("filter://FIRST_FILTER, filter://SECOND_FILTER, jq://.name"))
       
       // Empty input - first filter short-circuits with src from URI
-      val customSrc = "CUSTOM_SRC"
-      val result = flow.run(customSrc, "", Map.empty)
-      result.isSuccess shouldBe true
-      result.get shouldBe "FIRST_FILTER" // First filter uses src from URI, not from run() call
+      val result = flow.run("CUSTOM_SRC", "", Map.empty)
+      result.isFailure shouldBe true
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "FIRST_FILTER"
     }
 
     "short-circuit with filter://value using async exec" in {
       val flow = ScriptFlow.build(Some("filter://ASYNC_NO_DATA, jq://.name"))
       
-      // Empty input with custom src - ScriptFilter short-circuits and uses src from URI
-      val customSrc = "ASYNC_CUSTOM_SRC"
-      val futureResult = flow.exec(customSrc, "", Map.empty)
-      val result = Await.result(futureResult, 5.seconds)
-      result shouldBe "ASYNC_NO_DATA" // Filter uses src from URI, not from exec() call
+      // Empty input - ScriptFilter short-circuits, exec throws ScriptBreakException with src from URI
+      val futureResult = flow.exec("", "", Map.empty)
+      val failure = Await.result(futureResult.failed, 5.seconds)
+      failure shouldBe a[Script.ScriptBreakException]
+      failure.asInstanceOf[Script.ScriptBreakException].src shouldBe "ASYNC_NO_DATA"
     }
 
     "filter://value format parsing" in {
@@ -1320,26 +1364,96 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val flow2 = ScriptFlow.build(Some("filter://, filter://ANOTHER_VALUE"))
       flow2 should not be null
       
-      // Verify both flows work - filter://value uses value from URI
+      // filter://value short-circuits with src from URI
       val result1 = flow1.run("CUSTOM", "", Map.empty)
-      result1.isSuccess shouldBe true
-      result1.get shouldBe "TEST_VALUE" // Uses src from URI
+      result1.isFailure shouldBe true
+      result1.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "TEST_VALUE"
       
-      // First filter has no value (empty), second has ANOTHER_VALUE
-      // First filter will use src from run() since URI has no value
+      // First filter has no value (empty), short-circuits with src from run()
       val result2 = flow2.run("CUSTOM2", "", Map.empty)
-      result2.isSuccess shouldBe true
-      result2.get shouldBe "CUSTOM2" // First filter uses src from run() since filter:// has no value
+      result2.isFailure shouldBe true
+      result2.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "CUSTOM2"
     }
 
     "filter:// without value falls back to src parameter" in {
       val flow = ScriptFlow.build(Some("filter://, jq://.name"))
       
-      // Empty input - filter:// has no value, so it uses src from run()
+      // Empty input - filter:// has no value, short-circuits with src from run()
       val customSrc = "FALLBACK_SRC"
       val result = flow.run(customSrc, "", Map.empty)
+      result.isFailure shouldBe true
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe customSrc
+    }
+  }
+
+  "ScriptFlow with ScriptCondition" should {
+    "short-circuit when ScriptCondition fails and return Failure with condition string" in {
+      val conditionEngine = new ScriptCondition(Some("> 100"))
+      val jqEngine = new ScriptJQ(Some(".name"))
+      val flow = new ScriptFlow(Seq(conditionEngine, jqEngine))
+      
+      val result = flow.run("", "50", Map.empty)
+      result.isFailure shouldBe true
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "> 100"
+    }
+
+    "pass through when ScriptCondition is satisfied" in {
+      val conditionEngine = new ScriptCondition(Some("> 10"))
+      val regexpEngine = new ScriptRegexp(Some("[0-9]+"))
+      val flow = new ScriptFlow(Seq(conditionEngine, regexpEngine))
+      
+      val result = flow.run("", "42", Map.empty)
       result.isSuccess shouldBe true
-      result.get shouldBe customSrc // Filter uses src from run() since URI has no value
+      result.get shouldBe "42"
+    }
+
+    "short-circuit with condition:// in flow string" in {
+      val flow = ScriptFlow.build(Some("condition://> 50, jq://.name"))
+      val result = flow.run("", "30", Map.empty)
+      result.isFailure shouldBe true
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "> 50"
+    }
+
+    "build Condition via ScriptFlow.resolve and use in flow" in {
+      val conditionScript = ScriptFlow.resolve("condition", ">= 100", None)
+      conditionScript.isSuccess shouldBe true
+      val flow = new ScriptFlow(Seq(conditionScript.get, new ScriptRegexp(Some("[0-9]+"))))
+      flow.run("", "100", Map.empty).get shouldBe "100"
+      val failResult = flow.run("", "99", Map.empty)
+      failResult.isFailure shouldBe true
+      failResult.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ">= 100"
+    }
+
+    "short-circuit when Condition fails using exec (async)" in {
+      val conditionEngine = new ScriptCondition(Some("< 10"))
+      val jqEngine = new ScriptJQ(Some(".name"))
+      val flow = new ScriptFlow(Seq(conditionEngine, jqEngine))
+      val futureResult = flow.exec("", "50", Map.empty)
+      val failure = Await.result(futureResult.failed, 5.seconds)
+      failure shouldBe a[Script.ScriptBreakException]
+      failure.asInstanceOf[Script.ScriptBreakException].src shouldBe "< 10"
+    }
+
+    "pass through when Condition is satisfied using exec (async)" in {
+      val conditionEngine = new ScriptCondition(Some("= 42"))
+      val regexpEngine = new ScriptRegexp(Some("[0-9]+"))
+      val flow = new ScriptFlow(Seq(conditionEngine, regexpEngine))
+      val futureResult = flow.exec("", "42", Map.empty)
+      val result = Await.result(futureResult, 5.seconds)
+      result shouldBe "42"
+    }
+
+    "Condition with = and < operators in flow" in {
+      val flowEq = ScriptFlow.build(Some("condition://= 7, regexp://[0-9]+"))
+      flowEq.run("", "7", Map.empty).get shouldBe "7"
+      val failEq = flowEq.run("", "8", Map.empty)
+      failEq.isFailure shouldBe true
+      failEq.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "= 7"
+      val flowLt = ScriptFlow.build(Some("condition://< 5, regexp://[0-9]+"))
+      flowLt.run("", "3", Map.empty).get shouldBe "3"
+      val failLt = flowLt.run("", "10", Map.empty)
+      failLt.isFailure shouldBe true
+      failLt.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "< 5"
     }
   }
 
