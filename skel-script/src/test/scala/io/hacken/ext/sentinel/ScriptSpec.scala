@@ -138,8 +138,8 @@ class ScriptSpec extends AnyWordSpec with Matchers {
       val customSrc = "NO_DATA"
       val result2 = script.run(customSrc, "", Map.empty)
       result2.isFailure shouldBe true
-      result2.failed.get shouldBe a[ScriptFilter.ScriptFilterException]
-      result2.failed.get.asInstanceOf[ScriptFilter.ScriptFilterException].src shouldBe customSrc
+      result2.failed.get shouldBe a[Script.ScriptBreakException]
+      result2.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe customSrc
     }
 
     "ScriptFilter propagates empty src when short-circuiting with empty src" in {
@@ -148,8 +148,8 @@ class ScriptSpec extends AnyWordSpec with Matchers {
       // Empty input with empty src - should propagate empty string
       val result = script.run("", "", Map.empty)
       result.isFailure shouldBe true
-      result.failed.get shouldBe a[ScriptFilter.ScriptFilterException]
-      result.failed.get.asInstanceOf[ScriptFilter.ScriptFilterException].src shouldBe ""
+      result.failed.get shouldBe a[Script.ScriptBreakException]
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
     }
 
     "ScriptFilter passes non-empty input through regardless of src" in {

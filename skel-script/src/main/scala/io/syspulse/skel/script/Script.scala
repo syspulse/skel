@@ -22,6 +22,7 @@ import io.syspulse.skel.ai.Ai
 import io.syspulse.skel.FutureAwaitable
 import os.{read => engines}
 import scala.concurrent.Await
+import io.syspulse.skel.util.ConditionDouble
 
 
 abstract class Script(val id:Script.ID,val name:String) {
@@ -375,16 +376,36 @@ class ScriptFilter(src0:Option[String] = None) extends Script("filter","filter")
     else {
       // Use src0 from URI if provided, otherwise use src parameter from run()
       val srcValue = if(src0.isDefined && !src0.get.isBlank) src0.get else src
-      Failure(new ScriptFilter.ScriptFilterException(srcValue))
+      Failure(new Script.ScriptBreakException(srcValue))
     }
   }
 }
 
 object ScriptFilter {
-  class ScriptFilterException(val src:String) extends Exception  
-  val FILTER = new ScriptFilter()
+  //class ScriptFilterException(val src:String) extends Exception  
   def build(src:Option[String]):Script = new ScriptFilter(src)
 }
+
+// --- Condition --------------------------------------------------------------------------
+class ScriptCondition(src0:Option[String] = None) extends Script("condition","condition") {  
+  val c = new ConditionDouble(0.0,src0.getOrElse(""))
+
+  def run(src:String,input:String,data:Map[String,Any]):Try[String] = {    
+    if(input.isBlank) 
+      Failure(new Script.ScriptBreakException(c.condition))
+    else {
+      c.set(input.toDouble) match {
+        case true => Success(input)
+        case false => Failure(new Script.ScriptBreakException(c.condition))
+      }      
+    }
+  }
+}
+
+object ScriptCondition {  
+  def build(src:Option[String]):Script = new ScriptCondition(src)
+}
+
 
 // --- Flow ---------------------------------------------------------------
 class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
@@ -394,8 +415,8 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
   def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
     flow.foldLeft[Try[String]](Success(input)) { (result,engine) =>
       result match {
-        case Failure(e: ScriptFilter.ScriptFilterException) => 
-          // Short-circuit: ScriptFilter detected empty input, stop processing remaining scripts
+        case Failure(e: Script.ScriptBreakException) => 
+          // Short-circuit: stop processing remaining scripts
           result
         case Success(r) => 
           engine.run(src, r, data)
@@ -404,7 +425,7 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
           result
       }
     } match {
-      case Failure(e: ScriptFilter.ScriptFilterException) => Success(e.src)
+      case Failure(e: Script.ScriptBreakException) => Success(e.src)
       case Success(r) => Success(r)
       case Failure(e) => Failure(e)
     }
@@ -419,7 +440,7 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
       // flatMap doesn't execute the function, so foldLeft stops processing remaining engines.
       // The final .recover handles converting ScriptFilter.ScriptFilterBypass to empty string.
     }.recover { 
-      case e: ScriptFilter.ScriptFilterException => e.src
+      case e: Script.ScriptBreakException => e.src
       case e: Exception => throw e
     }
   }
@@ -444,6 +465,8 @@ object ScriptFlow {
       case "ai" :: prompt :: Nil => Try(new ScriptAI(Some(prompt)))
       case "filter" :: src :: Nil => Try(new ScriptFilter(Some(src)))
       case "filter" :: Nil => Success(new ScriptFilter(None))
+
+      case "condition" :: src :: Nil => Try(new ScriptCondition(Some(src)))      
       
       case "js" :: Nil => 
         //log.warn(s"js:// not supported without script")
@@ -470,6 +493,7 @@ object ScriptFlow {
       case "ai" => Try(new ScriptAI(prompt0 = Some(src),uri0 = opts))
       case "filter" => Try(new ScriptFilter(Some(src)))
       case "js" =>  Try(new ScriptJS(Some(src)))
+      case "condition" => Try(new ScriptCondition(Some(src)))
       case "str"  => Success(new ScriptStr())
       case _ => Failure(new Exception(s"Unknown script type: '${typ}'"))
     }      
@@ -499,6 +523,9 @@ object ScriptFlow {
 // === Engine ====================================================================================
 object Script {
   val log = Logger(s"${this.getClass()}")
+
+  // skip script flow with who initiated
+  class ScriptBreakException(val src:String) extends Exception
 
   type ID = String //UUID
 
