@@ -340,7 +340,11 @@ class Polyglot(lang:String,opt:Map[String,Any] = Map(),src0:Option[String] = Non
       }
 
       try {
-        Await.result(executionFuture, FiniteDuration(timeout, TimeUnit.MILLISECONDS))      
+        val raw = Await.result(executionFuture, FiniteDuration(timeout, TimeUnit.MILLISECONDS))
+        raw match {
+          case v: Value if v.isNull => null
+          case other => other
+        }
       } catch {
         case e: TimeoutException =>
           log.warn(s"Execution timed out: '${scriptForLogging}': ${timeout}ms: ctx=${ctx}",e)

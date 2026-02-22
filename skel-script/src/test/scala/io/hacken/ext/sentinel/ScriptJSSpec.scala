@@ -289,19 +289,12 @@ class ScriptJSSpec extends AnyWordSpec with Matchers {
       result.get shouldBe "2,4,6"
     }
 
-    "handle null result gracefully" in {
+    "handle null result by breaking script flow with ScriptBreakException" in {
       val script = new ScriptJS(src0 = Some("null"))
-      val result = script.run("", "test", Map.empty)
-      // ScriptJS.run checks for null result and converts to Failure
-      // However, Polyglot may evaluate "null" as a valid value (the null value)
-      // So we check if it fails OR if it returns "null" as string
-      if (result.isSuccess) {
-        // If it succeeds, it should return "null" as string representation
-        result.get shouldBe "null"
-      } else {
-        // If it fails, it should be because of null result
-        result.failed.get.getMessage should include("null")
+      val caught = intercept[Script.ScriptBreakException] {
+        script.run("", "test", Map.empty)
       }
+      caught.src shouldBe "null"
     }
 
     "handle error propagation from JavaScript errors" in {
@@ -462,6 +455,23 @@ class ScriptJSSpec extends AnyWordSpec with Matchers {
       val result3 = script.run("", "ignored", Map("initial" -> 0))
       result3.isSuccess shouldBe true
       result3.get shouldBe "3" // Expected if var state persists
+    }
+
+    "break script flow with ScriptBreakException when script returns null" in {
+      val script = new ScriptJS(src0 = Some("null"))
+      val caught = intercept[Script.ScriptBreakException] {
+        script.run("", "any", Map.empty)
+      }
+      caught.src shouldBe "null"
+    }
+
+    "break script flow when script conditionally returns null" in {
+      val script = new ScriptJS(src0 = Some("input === 'empty' ? null : input"))
+      script.run("", "hello", Map.empty).get shouldBe "hello"
+      val caught = intercept[Script.ScriptBreakException] {
+        script.run("", "empty", Map.empty)
+      }
+      caught.src shouldBe "null"
     }
   }
 }

@@ -342,6 +342,23 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       result.get shouldBe "TEST_SUFFIX" // First JS: "test" -> "TEST", Second JS: "TEST" -> "TEST_SUFFIX"
     }
 
+    "break flow with ScriptBreakException when js:// returns null" in {
+      val flow = ScriptFlow.build(Some("js://null"))
+      val caught = intercept[Script.ScriptBreakException] {
+        flow.run("", "any", Map.empty)
+      }
+      caught.src shouldBe "null"
+    }
+
+    "break flow when js:// conditionally returns null and subsequent scripts do not run" in {
+      val flow = ScriptFlow.build(Some("js://input === 'skip' ? null : input, regexp://.*"))
+      flow.run("", "hello", Map.empty).get shouldBe "hello"
+      val caught = intercept[Script.ScriptBreakException] {
+        flow.run("", "skip", Map.empty)
+      }
+      caught.src shouldBe "null"
+    }
+
     "chain ScriptJS alone" in {
       val jsEngine = new ScriptJS(Some("input.toUpperCase()"))
       val flow = new ScriptFlow(Seq(jsEngine))
@@ -349,6 +366,16 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val result = flow.run("", "hello", Map.empty)
       result.isSuccess shouldBe true
       result.get shouldBe "HELLO"
+    }
+
+    "chain ScriptJS returning null breaks flow with ScriptBreakException" in {
+      val jsEngine = new ScriptJS(Some("null"))
+      val regexpEngine = new ScriptRegexp(Some(".*"))
+      val flow = new ScriptFlow(Seq(jsEngine, regexpEngine))
+      val caught = intercept[Script.ScriptBreakException] {
+        flow.run("", "any", Map.empty)
+      }
+      caught.src shouldBe "null"
     }
 
     "chain ScriptJS -> ScriptRegexp" in {

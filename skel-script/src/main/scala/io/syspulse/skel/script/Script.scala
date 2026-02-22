@@ -117,7 +117,9 @@ class ScriptJS(src0:Option[String] = None,inputVarName:String = "input") extends
   override def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
     val dataInput = data + (inputVarName -> input)
     engine.run(src,dataInput) match {
-      case Success(null) => Failure(new Exception("result: null"))
+      case Success(null) => 
+        //Failure(new Exception("result: null"))
+        throw new Script.ScriptBreakException("null")
       case Success(r) => Success(r.toString)
       case Failure(e) => Failure(e)      
     }
