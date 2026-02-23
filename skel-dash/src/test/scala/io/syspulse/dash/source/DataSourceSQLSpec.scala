@@ -19,36 +19,35 @@ import io.syspulse.skel.util.Util
 import java.sql.{Connection, DriverManager}
 import io.syspulse.skel.dash.source.DataSourceSQL
 
-// Base trait with shared setup for both sync and async tests
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
+
+// Base trait with shared setup for both sync and async tests.
+// Uses embedded PostgreSQL (zonky) so no external Postgres or Docker is required.
 trait DataSourceSQLTestBase extends Suite with BeforeAndAfterAll with BeforeAndAfterEach {
   implicit val ec: ExecutionContext = ExecutionContext.global
 
-  // Load DB credentials from environment variables (sourced from env.local)
-  val dbUser = sys.env.getOrElse("DB_USER", "dash_user")
-  val dbPass = sys.env.getOrElse("DB_PASS", "dash_pass")
-  val dbHost = "localhost:5432"
-  val dbName = "dash_db"
-
-  // Use simpler jdbc:// format with TimeZone parameter
-  val jdbcUri = s"jdbc://${dbUser}:${dbPass}@${dbHost}/${dbName}?TimeZone=UTC"
-
+  var embeddedPg: EmbeddedPostgres = _
   var dataSource: DataSourceSQL = _
   var connection: Connection = _
+  var dbHost: String = _
+  var dbUser: String = _
+  var dbPass: String = _
+  var dbName: String = _
+  var jdbcUri: String = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-
-    // Initialize datasource (timezone from URI will be used)
+    embeddedPg = EmbeddedPostgres.builder().start()
+    val ds = embeddedPg.getPostgresDatabase()
+    dbUser = "postgres"
+    dbPass = "postgres"
+    dbName = "postgres"
+    val port = embeddedPg.getPort()
+    dbHost = s"localhost:${port}"
+    jdbcUri = s"jdbc://${dbUser}:${dbPass}@${dbHost}/${dbName}?TimeZone=UTC"
     dataSource = new DataSourceSQL(jdbcUri)
+    connection = ds.getConnection()
 
-    // Get connection for test setup using proper PostgreSQL JDBC URL
-    val postgresJdbcUrl = s"jdbc:postgresql://${dbHost}/${dbName}"
-    val props = new java.util.Properties()
-    props.setProperty("user", dbUser)
-    props.setProperty("password", dbPass)
-    connection = DriverManager.getConnection(postgresJdbcUrl, props)
-
-    // Set timezone for test connection
     val tzStmt = connection.createStatement()
     try {
       tzStmt.execute("SET TIME ZONE 'UTC'")
@@ -56,7 +55,6 @@ trait DataSourceSQLTestBase extends Suite with BeforeAndAfterAll with BeforeAndA
       tzStmt.close()
     }
 
-    // Create test table
     val createTableSQL = """
       CREATE TABLE IF NOT EXISTS test_sql_datasource (
         id SERIAL PRIMARY KEY,
@@ -71,23 +69,30 @@ trait DataSourceSQLTestBase extends Suite with BeforeAndAfterAll with BeforeAndA
   }
 
   override def afterAll(): Unit = {
-    // Clean up test table
     try {
-      val stmt = connection.createStatement()
-      stmt.execute("DROP TABLE IF EXISTS test_sql_datasource")
-      stmt.close()
-      connection.close()
+      if (connection != null && !connection.isClosed) {
+        val stmt = connection.createStatement()
+        stmt.execute("DROP TABLE IF EXISTS test_sql_datasource")
+        stmt.close()
+        connection.close()
+      }
     } catch {
       case e: Exception => // Ignore cleanup errors
+    }
+    try {
+      if (embeddedPg != null) embeddedPg.close()
+    } catch {
+      case e: Exception => // Ignore
     }
     super.afterAll()
   }
 
   override def beforeEach(): Unit = {
-    // Clear test data before each test
-    val stmt = connection.createStatement()
-    stmt.execute("DELETE FROM test_sql_datasource")
-    stmt.close()
+    if (connection != null && !connection.isClosed) {
+      val stmt = connection.createStatement()
+      stmt.execute("DELETE FROM test_sql_datasource")
+      stmt.close()
+    }
   }
 }
 
@@ -439,14 +444,14 @@ class DataSourceSQLAsyncSpec extends AnyWordSpec with Matchers with ScalaFutures
       val resultArray = result.data.fields("result").asInstanceOf[JsArray]
       resultArray.elements.length shouldBe 2
 
-      // Async results use generic column names (col_0, col_1, etc.) since jasync doesn't provide column metadata
+      // Async results use column names from query (name, value)
       val row1 = resultArray.elements(0).asJsObject
-      row1.fields("col_0").convertTo[String] shouldBe "test1"  // name column
-      row1.fields("col_1").convertTo[Int] shouldBe 100        // value column
+      row1.fields("name").convertTo[String] shouldBe "test1"
+      row1.fields("value").convertTo[Int] shouldBe 100
 
       val row2 = resultArray.elements(1).asJsObject
-      row2.fields("col_0").convertTo[String] shouldBe "test2"  // name column
-      row2.fields("col_1").convertTo[Int] shouldBe 200         // value column
+      row2.fields("name").convertTo[String] shouldBe "test2"
+      row2.fields("value").convertTo[Int] shouldBe 200
     }
 
     "execute SELECT query with JsObject query format (query field)" in {
@@ -470,9 +475,8 @@ class DataSourceSQLAsyncSpec extends AnyWordSpec with Matchers with ScalaFutures
       result.data.fields("rows").convertTo[Int] shouldBe 1
       val resultArray = result.data.fields("result").asInstanceOf[JsArray]
       val row = resultArray.elements(0).asJsObject
-      // Async results use generic column names: col_0=id, col_1=name, col_2=value, col_3=created_at
-      row.fields("col_1").convertTo[String] shouldBe "foo"  // name column
-      row.fields("col_2").convertTo[Int] shouldBe 42        // value column
+      row.fields("name").convertTo[String] shouldBe "foo"
+      row.fields("value").convertTo[Int] shouldBe 42
     }
 
     "execute SELECT query with JsObject query format (sql field)" in {
@@ -496,8 +500,7 @@ class DataSourceSQLAsyncSpec extends AnyWordSpec with Matchers with ScalaFutures
       result.data.fields("rows").convertTo[Int] shouldBe 1
       val resultArray = result.data.fields("result").asInstanceOf[JsArray]
       val row = resultArray.elements(0).asJsObject
-      // Async results use generic column names: col_0=name, col_1=value
-      row.fields("col_0").convertTo[String] shouldBe "bar"
+      row.fields("name").convertTo[String] shouldBe "bar"
     }
 
     "return formatted JSON with correct structure" in {
@@ -522,18 +525,17 @@ class DataSourceSQLAsyncSpec extends AnyWordSpec with Matchers with ScalaFutures
       val resultArray = result.data.fields("result").asInstanceOf[JsArray]
       resultArray.elements.length shouldBe 3
 
-      // Check rows are in correct order (async uses generic column names)
       val row1 = resultArray.elements(0).asJsObject
-      row1.fields("col_0").convertTo[String] shouldBe "alpha"
-      row1.fields("col_1").convertTo[Int] shouldBe 1
+      row1.fields("name").convertTo[String] shouldBe "alpha"
+      row1.fields("value").convertTo[Int] shouldBe 1
 
       val row2 = resultArray.elements(1).asJsObject
-      row2.fields("col_0").convertTo[String] shouldBe "beta"
-      row2.fields("col_1").convertTo[Int] shouldBe 2
+      row2.fields("name").convertTo[String] shouldBe "beta"
+      row2.fields("value").convertTo[Int] shouldBe 2
 
       val row3 = resultArray.elements(2).asJsObject
-      row3.fields("col_0").convertTo[String] shouldBe "gamma"
-      row3.fields("col_1").convertTo[Int] shouldBe 3
+      row3.fields("name").convertTo[String] shouldBe "gamma"
+      row3.fields("value").convertTo[Int] shouldBe 3
     }
 
     "handle empty result set" in {
@@ -572,15 +574,13 @@ class DataSourceSQLAsyncSpec extends AnyWordSpec with Matchers with ScalaFutures
       result.data.fields("rows").convertTo[Int] shouldBe 2
       val resultArray = result.data.fields("result").asInstanceOf[JsArray]
 
-      // Check for JsNull values (NULL name comes first with NULLS FIRST)
-      // Async uses generic column names: col_0=name, col_1=value
       val row1 = resultArray.elements(0).asJsObject
-      row1.fields("col_0") shouldBe JsNull
-      row1.fields("col_1").convertTo[Int] shouldBe 123
+      row1.fields("name") shouldBe JsNull
+      row1.fields("value").convertTo[Int] shouldBe 123
 
       val row2 = resultArray.elements(1).asJsObject
-      row2.fields("col_0").convertTo[String] shouldBe "notNull"
-      row2.fields("col_1") shouldBe JsNull
+      row2.fields("name").convertTo[String] shouldBe "notNull"
+      row2.fields("value") shouldBe JsNull
     }
 
     "return CSV format when requested" in {
@@ -607,8 +607,7 @@ class DataSourceSQLAsyncSpec extends AnyWordSpec with Matchers with ScalaFutures
       result.data.fields("rows").convertTo[Int] shouldBe 2
 
       val csvStr = result.data.fields("result").convertTo[String]
-      // Check header (async uses generic column names)
-      csvStr should include("col_0,col_1")
+      csvStr should include("name,value")
       // Check data rows
       csvStr should include("csv1,10")
       csvStr should include("csv2,20")

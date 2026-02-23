@@ -155,6 +155,8 @@ object Dependencies {
 
     val libKafkaAvroSer =   "io.confluent"                    % "kafka-avro-serializer" % kafkaAvroSerVersion
 
+    val libEmbeddedPostgres = "io.zonky.test" % "embedded-postgres" % "2.0.7" % Test
+
     val libScalaTest =      "org.scalatest"                   %% "scalatest"            % "3.2.17" //"3.1.2"// % Test
     //val libSpecs2core =     "org.specs2"                    %% "specs2-core"          % "2.4.17"
     val libAkkaTestkit =    "com.typesafe.akka"               %% "akka-http-testkit"        % akkaHttpVersion// % Test

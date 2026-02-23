@@ -1663,9 +1663,10 @@ lazy val skel_dash = (project in file("skel-dash"))
 
     appDockerConfig("skel-dash","io.syspulse.skel.dash.App",Seq("application-dev.conf")),
 
-    libraryDependencies ++= Seq(       
+    libraryDependencies ++= Seq(
        libSlickHikari,
        libQuillAsyncPostgres,
+       libEmbeddedPostgres,
       //  "com.github.jasync-sql" % "jasync-r2dbc-postgresql" % "2.2.4",
       //  "io.r2dbc" % "r2dbc-spi" % "1.1.0.RELEASE",
 

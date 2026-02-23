@@ -33,6 +33,7 @@ import akka.http.scaladsl.server.AuthorizationFailedRejection
 import akka.http.scaladsl.server.AuthenticationFailedRejection
 import io.syspulse.skel.dash.source.DataSourceTest
 import io.syspulse.skel.dash.Config
+import io.syspulse.skel.db.guard.QueryGuardAllow
 
 class DashRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll { 
   
@@ -45,7 +46,7 @@ class DashRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest w
   )
 
   val store = new DashStoreMem()
-  val ds = new DataSourceTest("test://")  
+  val ds = new DataSourceTest("test://", QueryGuardAllow)  
   val typedSystem = akka.actor.typed.ActorSystem(Behaviors.empty, "DashTestSystem")
   val registry = typedSystem.systemActorOf(DashRegistry(store, ds), "DashRegistry")
   
