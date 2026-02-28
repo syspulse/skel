@@ -32,50 +32,55 @@ class ScriptFilterSpec extends AnyWordSpec with Matchers {
       val result = script.run("", "", Map.empty)
       result.isFailure shouldBe true
       result.failed.get shouldBe a[Script.ScriptBreakException]
-      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
+      val ex = result.failed.get.asInstanceOf[Script.ScriptBreakException]
+      ex.src shouldBe ""
+      ex.getMessage shouldBe "Break: ''"
     }
 
     "return Failure(ScriptBreakException) for blank (whitespace) input" in {
       val script = ScriptFilter.build(None)
       val result = script.run("", "   ", Map.empty)
       result.isFailure shouldBe true
-      result.failed.get shouldBe a[Script.ScriptBreakException]
+      val ex = result.failed.get.asInstanceOf[Script.ScriptBreakException]
+      ex.src shouldBe "   "  // Filter uses input as exception message
+      ex.getMessage shouldBe "Break: '   '"
     }
 
-    "propagate run() src when empty input and build(None)" in {
+    "ScriptBreakException carries input (not run src) when empty input" in {
       val script = ScriptFilter.build(None)
-      val customSrc = "NO_DATA"
-      val result = script.run(customSrc, "", Map.empty)
+      val result = script.run("NO_DATA", "", Map.empty)
       result.isFailure shouldBe true
-      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe customSrc
+      val ex = result.failed.get.asInstanceOf[Script.ScriptBreakException]
+      ex.src shouldBe ""  // Filter uses input as message
+      ex.getMessage shouldBe "Break: ''"
     }
 
-    "propagate empty src when empty input and empty run() src" in {
+    "propagate empty input as exception src when empty run() src" in {
       val script = ScriptFilter.build(None)
       val result = script.run("", "", Map.empty)
       result.isFailure shouldBe true
       result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
     }
 
-    "use src0 from URI when empty input and build(Some(uriSrc))" in {
+    "ScriptBreakException carries input when empty and build(Some(uriSrc))" in {
       val script = ScriptFilter.build(Some("URI_NO_DATA"))
       val result = script.run("", "", Map.empty)
       result.isFailure shouldBe true
-      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "URI_NO_DATA"
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""  // input, not URI
     }
 
-    "prefer src0 from URI over run() src when both set and input empty" in {
+    "ScriptBreakException carries input when empty and both URI and run src set" in {
       val script = ScriptFilter.build(Some("FROM_URI"))
       val result = script.run("FROM_RUN", "", Map.empty)
       result.isFailure shouldBe true
-      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "FROM_URI"
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""  // input
     }
 
-    "use run() src when build(Some(\"\")) and input empty" in {
+    "ScriptBreakException carries input when empty and build(Some(\"\"))" in {
       val script = ScriptFilter.build(Some(""))
       val result = script.run("FALLBACK_SRC", "", Map.empty)
       result.isFailure shouldBe true
-      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "FALLBACK_SRC"
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""  // input
     }
 
     "pass through non-empty input regardless of src parameter" in {

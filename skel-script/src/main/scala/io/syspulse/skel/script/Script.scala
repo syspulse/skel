@@ -377,8 +377,8 @@ class ScriptFilter(src0:Option[String] = None) extends Script("filter","filter")
       Success(input)
     else {
       // Use src0 from URI if provided, otherwise use src parameter from run()
-      val srcValue = if(src0.isDefined && !src0.get.isBlank) src0.get else src
-      Failure(new Script.ScriptBreakException(srcValue))
+      //val srcValue = if(src0.isDefined && !src0.get.isBlank) src0.get else src
+      Failure(new Script.ScriptBreakException(input))
     }
   }
 }
@@ -531,7 +531,9 @@ object Script {
   val log = Logger(s"${this.getClass()}")
 
   // skip script flow with who initiated
-  class ScriptBreakException(val src:String) extends Exception
+  class ScriptBreakException(val src:String) extends Exception {
+    override def getMessage():String = s"Break: '${src}'"
+  }
 
   type ID = String //UUID
 

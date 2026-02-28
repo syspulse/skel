@@ -128,7 +128,7 @@ class ScriptSpec extends AnyWordSpec with Matchers {
       script shouldBe a[ScriptFilter]
     }
 
-    "ScriptFilter propagates src value when short-circuiting" in {
+    "ScriptFilter uses input as ScriptBreakException message when short-circuiting" in {
       val script = ScriptFilter.build(None)
       
       // Non-empty input - should pass through
@@ -136,12 +136,11 @@ class ScriptSpec extends AnyWordSpec with Matchers {
       result1.isSuccess shouldBe true
       result1.get shouldBe "test"
       
-      // Empty input with custom src - should propagate src value
-      val customSrc = "NO_DATA"
-      val result2 = script.run(customSrc, "", Map.empty)
+      // Empty input - Filter uses input (not run src) as exception message
+      val result2 = script.run("NO_DATA", "", Map.empty)
       result2.isFailure shouldBe true
       result2.failed.get shouldBe a[Script.ScriptBreakException]
-      result2.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe customSrc
+      result2.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
     }
 
     "ScriptFilter propagates empty src when short-circuiting with empty src" in {

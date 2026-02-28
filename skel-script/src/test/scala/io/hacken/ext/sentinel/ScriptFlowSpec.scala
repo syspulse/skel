@@ -1250,55 +1250,49 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       result2.failed.get shouldBe a[java.util.NoSuchElementException] // But filter did pass input forward
     }
 
-    "propagate custom src value when ScriptFilter short-circuits" in {
+    "propagate input as ScriptBreakException message when ScriptFilter short-circuits" in {
       val filterEngine = new ScriptFilter()
       val jqEngine = new ScriptJQ(Some(".name"))
       val flow = new ScriptFlow(Seq(filterEngine, jqEngine))
       
-      // Empty input with custom src - ScriptFilter short-circuits with ScriptBreakException.src
-      val customSrc = "NO_DATA"
-      val result = flow.run(customSrc, "", Map.empty)
+      // Empty input - Filter uses input as exception message
+      val result = flow.run("NO_DATA", "", Map.empty)
       result.isFailure shouldBe true
-      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe customSrc
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
     }
 
-    "propagate different src values in different filter instances" in {
+    "ScriptBreakException carries input when first filter short-circuits" in {
       val filterEngine1 = new ScriptFilter()
       val filterEngine2 = new ScriptFilter()
       val flow = new ScriptFlow(Seq(filterEngine1, filterEngine2))
       
-      // First filter short-circuits with src1, second filter should not be called
-      val src1 = "EMPTY_INPUT"
-      val result = flow.run(src1, "", Map.empty)
+      val result = flow.run("EMPTY_INPUT", "", Map.empty)
       result.isFailure shouldBe true
-      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe src1
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
     }
 
-    "propagate src value when ScriptFilter short-circuits in middle of flow" in {
+    "ScriptBreakException carries (empty) input when ScriptFilter short-circuits in middle of flow" in {
       val extractEngine = new ScriptRegexp(Some("?name=(.+)"))
       val filterEngine = new ScriptFilter()
       val jqEngine = new ScriptJQ(Some(".name"))
       val flow = new ScriptFlow(Seq(extractEngine, filterEngine, jqEngine))
       
-      // Regexp extraction returns empty string, ScriptFilter short-circuits with custom src
-      val customSrc = "EXTRACTION_FAILED"
+      // Regexp extraction returns empty string, Filter short-circuits with that empty input
       val input = "age=30" // No "name=" pattern
-      val result = flow.run(customSrc, input, Map.empty)
+      val result = flow.run("EXTRACTION_FAILED", input, Map.empty)
       result.isFailure shouldBe true
-      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe customSrc
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
     }
 
-    "propagate src value through async exec when ScriptFilter short-circuits" in {
+    "ScriptBreakException carries input through async exec when ScriptFilter short-circuits" in {
       val filterEngine = new ScriptFilter()
       val jqEngine = new ScriptJQ(Some(".name"))
       val flow = new ScriptFlow(Seq(filterEngine, jqEngine))
       
-      // Empty input with custom src - ScriptFilter short-circuits, exec throws ScriptBreakException with src
-      val customSrc = "ASYNC_NO_DATA"
-      val futureResult = flow.exec(customSrc, "", Map.empty)
+      val futureResult = flow.exec("ASYNC_NO_DATA", "", Map.empty)
       val failure = Await.result(futureResult.failed, 5.seconds)
       failure shouldBe a[Script.ScriptBreakException]
-      failure.asInstanceOf[Script.ScriptBreakException].src shouldBe customSrc
+      failure.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
     }
 
     "propagate empty src when ScriptFilter short-circuits with empty src" in {
@@ -1312,104 +1306,89 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
     }
 
-    "propagate src value with filter:// URI format" in {
+    "propagate input as message with filter:// URI format" in {
       val flow = ScriptFlow.build(Some("filter://, jq://.name"))
       
-      // Empty input with custom src - filter short-circuits
-      val customSrc = "URI_FILTER_NO_DATA"
-      val result = flow.run(customSrc, "", Map.empty)
+      val result = flow.run("URI_FILTER_NO_DATA", "", Map.empty)
       result.isFailure shouldBe true
-      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe customSrc
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
       
-      // Non-empty input - should process normally (use empty src so JQ uses .name from URI)
       val json = """{"name":"John","age":30}"""
       val result2 = flow.run("", json, Map.empty)
       result2.isSuccess shouldBe true
-      result2.get should include("John") // Filter passes, JQ processes with .name from URI
+      result2.get should include("John")
     }
 
-    "short-circuit with filter://value URI format (src in URI)" in {
+    "short-circuit with filter://value URI format (Filter uses input as message)" in {
       val flow = ScriptFlow.build(Some("filter://NO_DATA, jq://.name"))
       
-      // Empty input - filter short-circuits with src from URI
       val result1 = flow.run("CUSTOM_SRC", "", Map.empty)
       result1.isFailure shouldBe true
-      result1.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "NO_DATA"
+      result1.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
       
-      // Empty input with empty src - filter short-circuits with src from URI
       val result2 = flow.run("", "", Map.empty)
       result2.isFailure shouldBe true
-      result2.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "NO_DATA"
+      result2.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
       
-      // Non-empty input - should process normally
       val json = """{"name":"John","age":30}"""
       val result3 = flow.run("", json, Map.empty)
       result3.isSuccess shouldBe true
-      result3.get should include("John") // Filter passes, JQ processes
+      result3.get should include("John")
     }
 
     "short-circuit with filter://value in middle of flow" in {
       val flow = ScriptFlow.build(Some("regexp://?name=(.+), filter://EXTRACTION_FAILED, regexp://.*John.*"))
       
-      // Regexp extraction returns empty string, filter short-circuits with src from URI
-      val input1 = "age=30" // No "name=" pattern
+      val input1 = "age=30" // No "name=" pattern, regexp returns "", Filter gets "" and short-circuits
       val result1 = flow.run("CUSTOM_ERROR", input1, Map.empty)
       result1.isFailure shouldBe true
-      result1.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "EXTRACTION_FAILED"
+      result1.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
       
-      // Positive case: Regexp extraction succeeds, filter passes name forward, regexp matches it
-      val input2 = "name=John" // Has "name=" pattern
+      val input2 = "name=John"
       val result2 = flow.run("", input2, Map.empty)
       result2.isSuccess shouldBe true
-      result2.get shouldBe "John" // Filter passed "John" forward, regexp matched ".*John.*"
+      result2.get shouldBe "John"
     }
 
     "short-circuit with filter://value and multiple filters" in {
       val flow = ScriptFlow.build(Some("filter://FIRST_FILTER, filter://SECOND_FILTER, jq://.name"))
       
-      // Empty input - first filter short-circuits with src from URI
       val result = flow.run("CUSTOM_SRC", "", Map.empty)
       result.isFailure shouldBe true
-      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "FIRST_FILTER"
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
     }
 
     "short-circuit with filter://value using async exec" in {
       val flow = ScriptFlow.build(Some("filter://ASYNC_NO_DATA, jq://.name"))
       
-      // Empty input - ScriptFilter short-circuits, exec throws ScriptBreakException with src from URI
       val futureResult = flow.exec("", "", Map.empty)
       val failure = Await.result(futureResult.failed, 5.seconds)
       failure shouldBe a[Script.ScriptBreakException]
-      failure.asInstanceOf[Script.ScriptBreakException].src shouldBe "ASYNC_NO_DATA"
+      failure.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
     }
 
     "filter://value format parsing" in {
-      // Test that filter://value format can be parsed and uses value from URI
       val flow1 = ScriptFlow.build(Some("filter://TEST_VALUE"))
       flow1 should not be null
       
       val flow2 = ScriptFlow.build(Some("filter://, filter://ANOTHER_VALUE"))
       flow2 should not be null
       
-      // filter://value short-circuits with src from URI
       val result1 = flow1.run("CUSTOM", "", Map.empty)
       result1.isFailure shouldBe true
-      result1.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "TEST_VALUE"
+      result1.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
       
-      // First filter has no value (empty), short-circuits with src from run()
       val result2 = flow2.run("CUSTOM2", "", Map.empty)
       result2.isFailure shouldBe true
-      result2.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "CUSTOM2"
+      result2.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
     }
 
-    "filter:// without value falls back to src parameter" in {
+    "filter:// without value uses input as message" in {
       val flow = ScriptFlow.build(Some("filter://, jq://.name"))
       
-      // Empty input - filter:// has no value, short-circuits with src from run()
-      val customSrc = "FALLBACK_SRC"
-      val result = flow.run(customSrc, "", Map.empty)
+      val result = flow.run("FALLBACK_SRC", "", Map.empty)
       result.isFailure shouldBe true
-      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe customSrc
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe ""
     }
   }
 
