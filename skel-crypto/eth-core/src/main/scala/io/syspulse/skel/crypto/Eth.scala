@@ -693,7 +693,7 @@ object Eth {
             Failure(new Exception(s"${contractAddress}: data=${inputData}: result=${result}"))
           } else {
           
-            log.info(s"call: ${block} / ${contractAddress}: data=${inputData}: result=${Util.trunc(result,256)} (outputType=${outputType})")
+            log.info(s"call: ${block}: ${from} -> ${contractAddress}: data=${inputData}: result=${Util.trunc(result,256)} (outputType=${outputType})")
             
             if(outputType.isDefined && ! outputType.get.isEmpty()) {
               SolidityTuple.decodeResult(result,outputType.get)
@@ -731,7 +731,7 @@ object Eth {
             Future.failed(new Exception(s"${contractAddress}: data=${inputData}: result=${result}"))
           } else {
           
-            log.info(s"call-async: ${contractAddress}: data=${inputData}: result=${Util.trunc(result,256)} (outputType=${outputType})")
+            log.info(s"call-async: ${block}: ${from} -> ${contractAddress}: data=${inputData}: result=${Util.trunc(result,256)} (outputType=${outputType})")
             
             if(outputType.isDefined && ! outputType.get.isEmpty()) {
               Future(
@@ -1007,18 +1007,49 @@ object Eth {
   // "error": "execution reverted",
   // "output": "0x1e55042ba9059cbb00000000000000000000000000000000000000000000000000000000000000000000000000000000ee8031f530845d8f72a54d8cc58f56dc86e9a56f",
 
+  /** Traverse call-tracer tree and collect (depth, error, output, revertReason) from each frame. */
+  private def collectFrames(obj: ujson.Value, depth: Int): Seq[(Int, Option[String], Option[String], Option[String])] = {
+    val error = obj.obj.get("error").map(_.str)
+    val output = obj.obj.get("output").map(_.str)
+    val revertReason = obj.obj.get("revertReason").map(_.str)
+    val self = Seq((depth, error, output, revertReason))
+    val calls = obj.obj.get("calls") match {
+      case Some(arr: ujson.Arr) => arr.arr.flatMap(c => collectFrames(c, depth + 1))
+      case _ => Nil
+    }
+    self ++ calls
+  }
+
+  /** Pick error from the deepest frame that has error or revertReason; else root. */
+  private def getDeepestError(frames: Seq[(Int, Option[String], Option[String], Option[String])]): Option[String] = {
+    if (frames.isEmpty) return None
+    val withError = frames.filter { case (_, e, _, r) => e.isDefined || r.isDefined }
+    val chosen = if (withError.nonEmpty) withError.maxBy(_._1) else frames.minBy(_._1)
+    chosen._2
+  }
+
+  /** Parse callTracer trace JSON. Returns (error, output, revertReason). Error from root; output only from root "output"; revertReason from root, or deepest frame error when root has no revertReason. */
+  def parseTxErrorFromTraceJson(traceJson: String): Try[(Option[String], Option[String], Option[String])] = Try {
+    val raw = ujson.read(traceJson)
+    val root = raw match {
+      case arr: ujson.Arr if arr.arr.nonEmpty => arr.arr.head
+      case obj => obj
+    }
+    val rootOutput = root.obj.get("output").map(_.str)
+    val rootRevertReason = root.obj.get("revertReason").map(_.str)
+    val rootError = root.obj.get("error").map(_.str)
+    val frames = collectFrames(root, 0)
+    val deepestError = getDeepestError(frames)
+    val error = rootError
+    val output = rootOutput
+    val revertReason = rootRevertReason.orElse(deepestError)
+    (error, output, revertReason)
+  }
+
   def getTxError(txHash:String)(web3:Web3jTrace):Try[(Option[String],Option[String],Option[String])] = {
     for {
       r <- Eth.traceTx(txHash,"callTracer",Map.empty)(web3)
-      reason <- {
-        val json = ujson.read(r)
-        Try{
-          val error = json.obj.get("error").map(_.str)
-          val output = json.obj.get("output").map(_.str)          
-          val revertReason = json.obj.get("revertReason").map(_.str)
-          (error,output,revertReason)
-        }
-      }
-    } yield reason  
+      reason <- parseTxErrorFromTraceJson(r)
+    } yield reason
   }
 }
