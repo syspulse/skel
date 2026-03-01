@@ -30,8 +30,10 @@ class DataSourceDune(uri:String) extends DataSource {
   private val log = Logger(this.getClass)
   private val baseUrl = "https://api.dune.com/api/v1"
 
+  override def toString = s"${this.getClass.getSimpleName}($duneUri)"
+
   val duneUri = DuneURI(uri)
-  val (apiKey,limit,timeout,threads,compress) = (
+  val (apiKey0,limit,timeout,threads,compress) = (
     duneUri.apiKey,
     duneUri.limit,
     duneUri.timeout,
@@ -51,10 +53,12 @@ class DataSourceDune(uri:String) extends DataSource {
   
   def src: String = "dune"  
   
-  def ask(req:DashDataReq, tid:Option[String] = None): Future[DashData] = {
+  def ask(req:DashDataReq, id:Option[String] = None): Future[DashData] = {
     if(req.src != this.src) {
       return Future.failed(new Exception(s"unsupported datasource: '${req.src}'"))
     } 
+
+    val apiKey = req.opts.flatMap(opts => opts.get("apiKey").orElse(opts.get("api_key")).map(_.toString)).getOrElse(apiKey0)
 
     val ts0 = System.currentTimeMillis()
 

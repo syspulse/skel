@@ -1,11 +1,14 @@
 #!/bin/bash
 
-ID=${1:-5178037}
+# 5178037
+# 6754448
+ID=${1:-6754448}
 SRC=${2:-dune}
 
 DID=${DID:-11111-11111-11111-11111}
 TID=${TID:-490}
 OID=${OID:-100}
+LIMIT=${LIMIT:-100}
 
 QUERY=${QUERY:-null}
 
@@ -18,6 +21,13 @@ ACCESS_TOKEN=${ACCESS_TOKEN-`cat ACCESS_TOKEN`}
 >&2 echo "OID=$OID"
 >&2 echo "DID=$DID"
 >&2 echo "QUERY=$QUERY"
+>&2 echo "OPTS=$OPTS"
+>&2 echo "LIMIT=$LIMIT"
+
+
+if [ "$OPTS" != "" ]; then
+  Q_OPTS="\"opts\": { $OPTS },"
+fi
 
 if [ "$DATA_JSON" == "" ]; then
   read -r -d '' DATA_JSON << EOM
@@ -25,14 +35,15 @@ if [ "$DATA_JSON" == "" ]; then
     "id": "${ID}",
     "src": "${SRC}",
     "query": ${QUERY},
-    "limit": 100
+    ${Q_OPTS}
+    "limit": ${LIMIT} 
   }
 EOM
 
   #
 fi
 
->&2 echo "$DATA_JSON"
+>&2 echo "DATA_JSON=$DATA_JSON"
 
 curl -S -s -D /dev/stderr \
    -v \

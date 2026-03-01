@@ -27,7 +27,9 @@ import io.syspulse.skel.db.guard.QueryGuard
 class DataSourceTest(uri:String,guard:QueryGuard) extends DataSource {
   private val log = Logger(this.getClass)
 
-  def src:String = "test"  
+  override def toString = s"${this.getClass.getSimpleName}($test)"
+
+  def src:String = "test"
 
   val test = TestURI(uri)
   val (delay,threads,async) = (test.delay,test.threads,test.async)

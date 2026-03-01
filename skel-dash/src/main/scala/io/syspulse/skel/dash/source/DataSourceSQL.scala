@@ -225,6 +225,8 @@ object DataSourceSQL {
 
 class DataSourceSQL(uri0:String,fw:QueryGuard = QueryGuardAllow) extends DataSource {
   private val log = Logger(this.getClass)
+
+  override def toString = s"${this.getClass.getSimpleName}($dbUri)"
   
   val dbUri = JdbcURI(uri0)
   

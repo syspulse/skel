@@ -31,6 +31,8 @@ import io.syspulse.skel.dash.source.DataSource
 class DataSourceCoingecko(uri:String,threads:Int=16) extends DataSource {
   private val log = Logger(this.getClass)
 
+  override def toString = s"${this.getClass.getSimpleName}(${coingecko.map(_.getUri())})"
+
   implicit val sys: ActorSystem = ActorSystem("DataSourceCoingecko")
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(threads))
 
@@ -38,7 +40,7 @@ class DataSourceCoingecko(uri:String,threads:Int=16) extends DataSource {
   val compress = coingecko.get.getUri().ops.get("compress").map(_.toBoolean).getOrElse(true)
   val baseUrl = coingecko.get.getUri().getBaseUrl()
   val timeout = coingecko.get.getUri().timeout
-  val apiKey = coingecko.get.getUri().apiKey
+  val apiKey0 = coingecko.get.getUri().apiKey
     
   // Configure longer timeouts
   private val poolSettings = ConnectionPoolSettings(sys)
@@ -52,7 +54,9 @@ class DataSourceCoingecko(uri:String,threads:Int=16) extends DataSource {
   def ask(req:DashDataReq, tid:Option[String] = None): Future[DashData] = {
     if(req.src != this.src) {
       return Future.failed(new Exception(s"unsupported datasource: '${req.src}'"))
-    } 
+    }
+
+    val apiKey = req.opts.flatMap(opts => opts.get("apiKey").orElse(opts.get("api_key")).map(_.toString)).getOrElse(apiKey0)
 
     val ts0 = System.currentTimeMillis()
 

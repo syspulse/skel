@@ -32,6 +32,8 @@ import io.syspulse.skel.dash.source.DataSource
 class DataSourceElastic(uri0:String,fw:QueryGuard = QueryGuardAllow) extends DataSource {
   private val log = Logger(this.getClass)  
 
+  override def toString = s"${this.getClass.getSimpleName}($elasticUri)"
+
   val elasticUri = ElasticURI(uri0)
   
   val (uri,user,pass,limit,timeout,threads,compress) = (
