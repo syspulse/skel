@@ -4,13 +4,16 @@ import scala.concurrent.{ExecutionContext, Promise, Future}
 import scala.concurrent.duration._
 import scala.util.{Try, Success, Failure}
 import scala.jdk.CollectionConverters._
-import java.nio.file.{Path, Paths}
+import java.nio.file.{Files, Path, Paths}
 import java.util.concurrent.CompletableFuture
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Source
 import com.typesafe.scalalogging.Logger
 
+import it.tdlight.Init
+import it.tdlight.Log
+import it.tdlight.Slf4JLogMessageHandler
 import it.tdlight.client._
 import it.tdlight.jni.TdApi
 import it.tdlight.jni.TdApi._
@@ -56,16 +59,24 @@ trait TelegramUserClient {
    * Create and authenticate Telegram client
    */
   def createClient(): Try[SimpleTelegramClient] = Try {
-    log.info(s"Creating TDLight client with session: ${getSessionPath()}")
+    log.info(s"Creating TDLight client with session path: ${getSessionPath()}")
+
+    // Route TDLib native logs through SLF4J (so logback level applies). Verbosity: 0=Fatal, 1=Error, 2=Warning, 3=Info, 4=Debug, 5=Verbose.
+    Init.init()
+    val verbosity = sys.env.get("TDLIGHT_LOG_VERBOSITY").fold(2)(_.toInt)
+    Log.setLogMessageHandler(verbosity, new Slf4JLogMessageHandler())
 
     // Create API token
     val apiToken = new APIToken(getApiId(), getApiHash())
 
-    // Create TDLib settings
+    // Create TDLib settings. Resolve session path to absolute so the same directory is used every run. Default: relative paths are resolved against current directory.
     val settings = TDLibSettings.create(apiToken)
-    val sessionPath = Paths.get(getSessionPath())
-    settings.setDatabaseDirectoryPath(sessionPath.resolve("data"))
-    settings.setDownloadedFilesDirectoryPath(sessionPath.resolve("downloads"))
+    val sessionPathRaw = Paths.get(getSessionPath())
+    val sessionPathAbs = sessionPathRaw.toAbsolutePath.normalize
+    Files.createDirectories(sessionPathAbs)
+    log.info(s"Session directory (absolute): $sessionPathAbs")
+    settings.setDatabaseDirectoryPath(sessionPathAbs.resolve("data"))
+    settings.setDownloadedFilesDirectoryPath(sessionPathAbs.resolve("downloads"))
 
     // Create client factory (singleton)
     val clientFactory = new SimpleTelegramClientFactory()
