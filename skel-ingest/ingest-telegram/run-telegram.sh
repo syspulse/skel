@@ -1,5 +1,5 @@
 #!/bin/bash
-CWD=`echo $(dirname $(readlink -f $0))`
+export CWD=`echo $(dirname $(readlink -f $0))`
 
 # Run TDLight test application
 #
@@ -14,20 +14,35 @@ CWD=`echo $(dirname $(readlink -f $0))`
 # export TELEGRAM_PASSWORD="secret"  # If 2FA is enabled
 
 # Load environment if env.telegram exists
-if [ -f "$(dirname $0)/env.telegram" ]; then
-  source "$(dirname $0)/env.telegram"
-  echo "Loaded env.telegram"
-fi
+# if [ -f "$(dirname $0)/env.telegram" ]; then
+#   source "$(dirname $0)/env.telegram"
+#   echo "Loaded env.telegram"
+# fi
 
-# Session file location (will be created on first run)
-export TELEGRAM_SESSION="${TELEGRAM_SESSION:-./tdlight-session}"
+# # Session file location (will be created on first run)
+# export TELEGRAM_SESSION="${TELEGRAM_SESSION:-./tdlight-session}"
 
-echo "Running TDLight test..."
-echo ""
-echo "NOTE: Bloop doesn't support stdin properly for interactive input."
-echo "If authentication prompts don't work, use: ./run-telegram-sbt.sh"
-echo ""
+# echo "Running TDLight test..."
+# echo ""
+# echo "NOTE: Bloop doesn't support stdin properly for interactive input."
+# echo "If authentication prompts don't work, use: ./run-telegram-sbt.sh"
+# echo ""
 
-# Run with bloop
-cd $CWD/../../
-bloop run ingest_telegram --main io.syspulse.skel.telegram.App
+# # Run with bloop
+# cd $CWD/../../
+# bloop run ingest_telegram --main io.syspulse.skel.telegram.App
+
+#t=`pwd`;
+t=$CWD
+APP=`basename "$t"`
+CONF=`echo $APP | awk -F"-" '{print $2}'`
+
+export SITE=${SITE:-$CONF}
+
+MAIN=io.syspulse.skel.telegram.App
+
+>&2 echo "app: $APP"
+>&2 echo "site: $SITE"
+>&2 echo "main: $MAIN"
+
+exec ${CWD}/../../run-app.sh $APP $MAIN $@
