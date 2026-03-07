@@ -34,11 +34,17 @@ object PorWorker {
 
     val client = WorkflowClient.newInstance(service, clientOptions)
 
-    // Create worker factory
-    val factory = WorkerFactory.newInstance(client)
+    // Create worker factory (inherits DataConverter from client)
+    val workerFactoryOptions = io.temporal.worker.WorkerFactoryOptions.newBuilder()
+      .build()
 
-    // Create worker for the task queue
-    val worker = factory.newWorker(TASK_QUEUE)
+    val factory = WorkerFactory.newInstance(client, workerFactoryOptions)
+
+    // Create worker for the task queue with explicit DataConverter
+    val workerOptions = io.temporal.worker.WorkerOptions.newBuilder()
+      .build()
+
+    val worker = factory.newWorker(TASK_QUEUE, workerOptions)
 
     // Register workflow implementation
     worker.registerWorkflowImplementationTypes(classOf[PorWorkflowImpl])
