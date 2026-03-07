@@ -68,7 +68,7 @@ import io.syspulse.skel.uri.TwitterURI
 import io.syspulse.skel.uri.AkkaURI
 import io.syspulse.skel.elastic.ElasticClient
 import io.syspulse.skel.twitter.FromTwitter
-import io.syspulse.skel.telegram.{FromTelegram, ToTelegram}
+import io.syspulse.skel.telegram.{FromTelegram, FromTelegramUser, ToTelegram}
 
 import spray.json.JsonFormat
 import java.nio.file.StandardOpenOption
@@ -575,6 +575,12 @@ trait Flows {
 
     val telegram = new FromTelegram(uri)
     telegram.source(frameDelimiter,frameSize)
+  }
+
+  def fromTelegramUser(uri:String, frameDelimiter:String="\n", frameSize:Int=1024 * 1024)
+    (implicit as:ActorSystem) = {
+    val from = new FromTelegramUser(uri)
+    from.byteSource(frameDelimiter, frameSize)
   }
 
   def toTelegram[T <: Ingestable](uri:String)(implicit fmt:JsonFormat[T],as:ActorSystem) = {

@@ -5,6 +5,8 @@ import scala.concurrent.duration._
 import scala.util.{Try, Success, Failure}
 import scala.jdk.CollectionConverters._
 import java.nio.file.{Files, Path, Paths}
+
+import os._
 import java.util.concurrent.CompletableFuture
 
 import akka.actor.ActorSystem
@@ -28,7 +30,7 @@ import it.tdlight.jni.TdApi._
  * 3. Session is saved and reused for subsequent runs
  */
 trait TelegramUserClient {
-  private val log = Logger(s"${this}")
+  protected val log = Logger(s"${this}")
 
   implicit val as: ActorSystem = ActorSystem("ActorSystem-TelegramUserClient")
   implicit val ec: ExecutionContext = as.dispatcher
@@ -369,7 +371,9 @@ class TelegramUserSession(
   apiId: Int,
   apiHash: String,
   phone: String,
-  sessionPath: String = "./tdlight-session"
+  sessionPath: String = "./tdlight-session",
+  authTimeoutSec: Long = 300L,
+  loopIntervalMs: Long = 1000L
 ) extends TelegramUserClient {
 
   override def getApiId(): Int = apiId
@@ -377,185 +381,157 @@ class TelegramUserSession(
   override def getPhoneNumber(): String = phone
   override def getSessionPath(): String = sessionPath
 
-  /**
-   * Run the session: authenticate and listen for messages
-   */
-  def run(): Unit = {
-    println("="*60)
-    println("Telegram User API (TDLight)")
-    println("="*60)
-    println()
-    println(s"API ID:    ${getApiId()}")
-    println(s"API Hash:  ${getApiHash().take(8)}...")
-    println(s"Phone:     ${getPhoneNumber()}")
-    println(s"Session:   ${getSessionPath()}")
-    println()
-    println("="*60)
-    println()
+  /** Poll interval (ms) for reading code/password from session path files. */
+  private val CODE_POLL_INTERVAL_MS = 5000L
 
-    // Latch to wait for authentication
+  /**
+   * Poll file under session path until it contains a non-empty first line.
+   * Each attempt: read with os.read. On exception or empty: log (exception is logged clearly), sleep, try again.
+   */
+  private def pollFileForLine(fileName: String): String = {
+    val file = os.Path(getSessionPath(), os.pwd) / fileName
+    var result = ""
+    var attempt = 0
+    while (result.isBlank) {
+      attempt += 1
+      result = Try(os.read(file)) match {        
+        case Success(r) if(r.isBlank) =>
+          log.info(s"$file [${attempt}]: empty. Retrying in ${CODE_POLL_INTERVAL_MS}ms")
+          Thread.sleep(CODE_POLL_INTERVAL_MS)
+          ""
+        case Success(r) => r.linesIterator.map(_.trim).find(_.nonEmpty).getOrElse("")
+
+        case Failure(e) =>
+          log.warn(s"$file [${attempt}]: failed: ${e.getClass.getSimpleName}: ${e.getMessage}. Retrying in ${CODE_POLL_INTERVAL_MS}ms")
+          Thread.sleep(CODE_POLL_INTERVAL_MS)
+          ""
+      }
+    }
+    result
+  }
+
+  /**
+   * Run the session: authenticate and listen for messages.
+   * Returns Success(()) when shut down (e.g. Ctrl+C), Failure on error.
+   * Uses authTimeoutSec for auth latch wait and loopIntervalMs for the idle loop sleep.
+   */
+  def run(): Try[Unit] = {
     val authLatch = new java.util.concurrent.CountDownLatch(1)
     @volatile var authError: Option[Throwable] = None
     @volatile var isAuthenticated = false
 
-    // Create client
-    println("Step 1: Creating Telegram client...")
     createClient() match {
       case Failure(e) =>
-        println(s"✗ Failed to create client: ${e.getMessage}")
-        e.printStackTrace()
-        sys.exit(1)
+        log.error(s"Failed to create client: ${e.getMessage}", e)
+        Failure(e)
 
       case Success(client) =>
-        println("✓ Successfully created client!")
-        println()
+        log.info("Telegram client created successfully")
 
-        // Add authentication state handler
         client.addUpdateHandler(classOf[UpdateAuthorizationState], new GenericUpdateHandler[UpdateAuthorizationState] {
           override def onUpdate(update: UpdateAuthorizationState): Unit = {
             update.authorizationState match {
               case _: AuthorizationStateReady =>
-                println()
-                println("✓ Authentication successful!")
+                log.info("Authentication successful")
                 isAuthenticated = true
                 authLatch.countDown()
 
               case waitCode: AuthorizationStateWaitCode =>
-                println()
-                println("="*60)
-                println("VERIFICATION CODE REQUIRED")
-                println("="*60)
-                println(s"Phone: ${waitCode.codeInfo.phoneNumber}")
-                println("Check your Telegram app for the verification code")
-                print("Enter code: ")
-
+                log.warn(s"Verification code required for phone: ${waitCode.codeInfo.phoneNumber}. Write code to ${Paths.get(getSessionPath()).resolve("code")}")
                 try {
-                  val code = scala.io.StdIn.readLine().trim
-                  client.send(new CheckAuthenticationCode(code)).whenCompleteAsync((result, error) => {
+                  val code = pollFileForLine("code")
+                  client.send(new CheckAuthenticationCode(code)).whenCompleteAsync((_, error) => {
                     if (error != null) {
-                      println(s"✗ Error submitting code: ${error.getMessage}")
+                      log.error(s"Error submitting code: ${error.getMessage}", error)
                       authError = Some(error)
                       authLatch.countDown()
                     }
                   })
                 } catch {
                   case e: Exception =>
-                    println(s"✗ Error reading code: ${e.getMessage}")
+                    log.error(s"Error reading code: ${e.getMessage}", e)
                     authError = Some(e)
                     authLatch.countDown()
                 }
 
               case waitPassword: AuthorizationStateWaitPassword =>
-                println()
-                println("="*60)
-                println("2FA PASSWORD REQUIRED")
-                println("="*60)
-                if (waitPassword.passwordHint != null && waitPassword.passwordHint.nonEmpty) {
-                  println(s"Hint: ${waitPassword.passwordHint}")
-                }
-                print("Enter 2FA password: ")
-
+                log.warn("2FA password required" + (if (waitPassword.passwordHint != null && waitPassword.passwordHint.nonEmpty) s" (hint: ${waitPassword.passwordHint})" else "") + s". Write password to ${Paths.get(getSessionPath()).resolve("password")}")
                 try {
-                  val password = scala.io.StdIn.readLine().trim
-                  client.send(new CheckAuthenticationPassword(password)).whenCompleteAsync((result, error) => {
+                  val password = pollFileForLine("password")
+                  client.send(new CheckAuthenticationPassword(password)).whenCompleteAsync((_, error) => {
                     if (error != null) {
-                      println(s"✗ Error submitting password: ${error.getMessage}")
+                      log.error(s"Error submitting password: ${error.getMessage}", error)
                       authError = Some(error)
                       authLatch.countDown()
                     }
                   })
                 } catch {
                   case e: Exception =>
-                    println(s"✗ Error reading password: ${e.getMessage}")
+                    log.error(s"Error reading password: ${e.getMessage}", e)
                     authError = Some(e)
                     authLatch.countDown()
                 }
 
               case _: AuthorizationStateWaitPhoneNumber =>
-                println("Waiting for phone number...")
+                log.info("Waiting for phone number...")
 
               case _: AuthorizationStateWaitTdlibParameters =>
-                println("Initializing TDLib...")
+                log.info("Initializing TDLib...")
 
-              case closed: AuthorizationStateClosed =>
-                println("✗ Client closed")
+              case _: AuthorizationStateClosed =>
+                log.warn("Client closed during authentication")
                 authError = Some(new Exception("Client closed during authentication"))
                 authLatch.countDown()
 
               case _: AuthorizationStateClosing =>
-                println("Client closing...")
+                log.info("Client closing...")
 
               case _: AuthorizationStateLoggingOut =>
-                println("Logging out...")
+                log.info("Logging out...")
 
               case _ =>
-                // Other states
             }
           }
         })
 
-        try {
-          // Wait for authentication to complete (max 5 minutes)
-          println("Waiting for authentication...")
-          val authenticated = authLatch.await(5, java.util.concurrent.TimeUnit.MINUTES)
+        val result = try {
+          log.info(s"Waiting for authentication (max ${authTimeoutSec}s)...")
+          val authenticated = authLatch.await(authTimeoutSec, java.util.concurrent.TimeUnit.SECONDS)
 
           if (!authenticated) {
-            println("✗ Authentication timeout after 5 minutes")
-            client.close()
-            Thread.sleep(1000)
-            sys.exit(1)
-          }
-
-          authError match {
+            log.error(s"Authentication timeout after ${authTimeoutSec}s")
+            client.close()            
+            Failure(new Exception(s"Authentication timeout: ${authTimeoutSec}s"))
+          } else authError match {
             case Some(error) =>
-              println(s"✗ Authentication failed: ${error.getMessage}")
-              error.printStackTrace()
-              client.close()
-              Thread.sleep(1000)
-              sys.exit(1)
+              log.error(s"Authentication failed: ${error.getMessage}", error)
+              client.close()              
+              Failure(error)
 
             case None if !isAuthenticated =>
-              println("✗ Authentication failed for unknown reason")
-              client.close()
-              Thread.sleep(1000)
-              sys.exit(1)
+              log.error("Authentication failed for unknown reason")
+              client.close()              
+              Failure(new Exception("Authentication failed"))
 
             case None =>
-              // Authentication successful, start listening for messages
-              println()
-              println("="*60)
-              println("✓ Ready!")
-              println("="*60)
-              println()
-              println("Listening for new messages...")
-              println("Press Ctrl+C to stop")
-              println()
+              log.info(s"Session: ${getSessionPath()}")
 
-              // Add handler for new messages
               client.addUpdateHandler(classOf[UpdateNewMessage], new GenericUpdateHandler[UpdateNewMessage] {
                 override def onUpdate(update: UpdateNewMessage): Unit = {
                   val msg = update.message
                   val chatId = msg.chatId
-
-                  // Get chat info
                   client.send(new GetChat(chatId)).whenCompleteAsync((chat, error) => {
                     if (error != null) {
-                      println(s"[ERROR] Failed to get chat info: ${error.getMessage}")
+                      log.warn(s"Failed to get chat info for $chatId: ${error.getMessage}")
                     } else {
                       val chatTitle = chat.title
                       val chatType = getChatType(chat.`type`)
-
-                      // Format timestamp
                       val timestamp = new java.util.Date(msg.date * 1000L)
-
-                      // Get sender info
                       val senderId = msg.senderId match {
                         case user: TdApi.MessageSenderUser => s"User ${user.userId}"
-                        case chat: TdApi.MessageSenderChat => s"Chat ${chat.chatId}"
+                        case c: TdApi.MessageSenderChat => s"Chat ${c.chatId}"
                         case _ => "Unknown"
                       }
-
-                      // Extract message content
                       val messageText = msg.content match {
                         case text: TdApi.MessageText => text.text.text
                         case photo: TdApi.MessagePhoto =>
@@ -565,46 +541,41 @@ class TelegramUserSession(
                           val caption = if (video.caption.text.nonEmpty) s" - ${video.caption.text}" else ""
                           s"[Video]$caption"
                         case doc: TdApi.MessageDocument => s"[Document: ${doc.document.fileName}]"
-                        case audio: TdApi.MessageAudio => "[Audio]"
-                        case voice: TdApi.MessageVoiceNote => "[Voice message]"
+                        case _: TdApi.MessageAudio => "[Audio]"
+                        case _: TdApi.MessageVoiceNote => "[Voice message]"
                         case sticker: TdApi.MessageSticker => s"[Sticker: ${sticker.sticker.emoji}]"
-                        case location: TdApi.MessageLocation => "[Location]"
-                        case contact: TdApi.MessageContact => "[Contact]"
+                        case _: TdApi.MessageLocation => "[Location]"
+                        case _: TdApi.MessageContact => "[Contact]"
                         case poll: TdApi.MessagePoll => s"[Poll: ${poll.poll.question}]"
                         case _ => s"[${msg.content.getClass.getSimpleName}]"
                       }
-
-                      // Display message
-                      println(s"[$chatTitle] [$chatType] [${timestamp}] $senderId: $messageText")
+                      log.info(s"[$chatTitle] [$chatType] [${timestamp}] $senderId: $messageText")
                     }
                   })
                 }
               })
 
-              println(s"Session saved to: ${getSessionPath()}/")
-              println("Monitoring all chats for new messages...")
-              println()
-
-              // Keep running indefinitely
-              while (true) {
-                Thread.sleep(1000)
+              try {
+                while (true) Thread.sleep(loopIntervalMs)
+              } catch {
+                case e: InterruptedException =>
+                  log.warn(s"Shutting down: ${client}: ${e.getMessage}")
+                  client.close()                  
               }
+              Success(())
           }
         } catch {
-          case e: InterruptedException =>
-            println()
-            println("Shutting down...")
-            client.close()
-            Thread.sleep(500)
-            sys.exit(0)
+          case e1: InterruptedException =>
+            log.warn(s"Shutting down: ${client}: ${e1.getMessage}")
+            client.close()            
+            Success(())
 
           case e: Exception =>
-            println(s"✗ Error: ${e.getMessage}")
-            e.printStackTrace()
-            client.close()
-            Thread.sleep(500)
-            sys.exit(1)
+            log.error(s"Failed to run session: ${e.getMessage}", e)
+            client.close()            
+            Failure(e)
         }
+        result
     }
   }
 }

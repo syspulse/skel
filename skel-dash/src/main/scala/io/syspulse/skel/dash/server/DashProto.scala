@@ -28,7 +28,7 @@ final case class DashDataReq(
   query:Option[JsValue] = None,  
   
   typ:Option[String] = None, // reserved for data type
-  opts:Option[Map[String,String]] = None, // options for data source
+  opts:Option[Map[String,Any]] = None, // options for data source 
 
   limit:Option[Int] = Some(100)
 ) 

@@ -157,6 +157,7 @@ abstract class Pipeline[I,T,O <: skel.Ingestable](
 
       case "telegram" :: uri :: Nil => fromTelegram(feed,frameDelimiter = delimiter,frameSize = buffer)
       case "telegram" :: Nil => fromTelegram("telegram://skel-telegram",frameDelimiter = delimiter,frameSize = buffer)
+      case "tel" :: uri :: Nil => fromTelegramUser(feed, frameDelimiter = delimiter, frameSize = buffer)
 
       case "akka" :: uri :: Nil => fromAkka(feed)
 
