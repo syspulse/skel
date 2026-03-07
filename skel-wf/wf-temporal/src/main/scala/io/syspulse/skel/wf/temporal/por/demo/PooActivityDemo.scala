@@ -15,8 +15,8 @@ class PooActivityDemo {
 
   def execute(input: PooInput): PooOutput = {
     val activityInfo = Activity.getExecutionContext.getInfo
-    val workflowId = activityInfo.getWorkflowId
-    log.info(s"[proof_of_ownership][wf:$workflowId] Starting PoO with ${input.wallets.size} wallets, proof type: ${input.proofType}")
+    val wid = activityInfo.getWorkflowId
+    log.info(s"[$wid] Starting PoO with ${input.wallets.size} wallets, proof type: ${input.proofType}")
 
     simulateWork(1, 3)
 
@@ -35,7 +35,7 @@ class PooActivityDemo {
       proofs = proofs
     )
 
-    log.info(s"[proof_of_ownership][wf:$workflowId] Completed PoO with ${proofs.size} proofs")
+    log.info(s"[$wid] Completed PoO with ${proofs.size} proofs")
     output
   }
 }

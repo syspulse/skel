@@ -15,8 +15,8 @@ class SolvencyActivityDemo {
 
   def execute(porOutput: PorOutput, polOutput: PolOutput): SolvencyOutput = {
     val activityInfo = Activity.getExecutionContext.getInfo
-    val workflowId = activityInfo.getWorkflowId
-    log.info(s"[solvency][wf:$workflowId] Starting Solvency calculation")
+    val wid = activityInfo.getWorkflowId
+    log.info(s"[$wid] Starting Solvency calculation")
 
     simulateWork(1, 2)
 
@@ -53,7 +53,7 @@ class SolvencyActivityDemo {
       solvencyRatio = solvencyRatio
     )
 
-    log.info(s"[solvency][wf:$workflowId] Completed Solvency: Reserves=$$$porTotalUsd, Liabilities=$$$polTotalUsd, Ratio=${solvencyRatio}")
+    log.info(s"[wf:$wid] Completed Solvency: Reserves=$$$porTotalUsd, Liabilities=$$$polTotalUsd, Ratio=${solvencyRatio}")
     output
   }
 }

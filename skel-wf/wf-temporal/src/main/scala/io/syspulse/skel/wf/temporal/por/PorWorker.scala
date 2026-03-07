@@ -1,9 +1,11 @@
 package io.syspulse.skel.wf.temporal.por
 
+import scala.util.Try
+
 import io.temporal.client.WorkflowClient
 import io.temporal.serviceclient.WorkflowServiceStubs
 import io.temporal.worker.{Worker, WorkerFactory}
-import io.syspulse.skel.wf.temporal.ScalaDataConverter
+import io.syspulse.skel.wf.temporal.{ScalaDataConverter, TemporalURI}
 import com.typesafe.scalalogging.Logger
 
 object PorWorker {
@@ -11,62 +13,50 @@ object PorWorker {
 
   val TASK_QUEUE = "por-task-queue"
 
-  def main(args: Array[String]): Unit = {
-    // Get Temporal service address from environment or use default
-    val temporalServiceAddress = sys.env.getOrElse("TEMPORAL_SERVICE_ADDRESS", "127.0.0.1:7233")
+  def run(uri: String, impl: PorActivities): Try[Unit] = Try {
+    val t = TemporalURI(uri)
+    log.info(s"Connecting to Temporal at ${t.target} namespace=${t.namespace}")
 
-    log.info(s"Connecting to Temporal service at: $temporalServiceAddress")
-
-    // Create service stub - use local service stubs for development
     val serviceOptions = io.temporal.serviceclient.WorkflowServiceStubsOptions.newBuilder()
-      .setTarget(temporalServiceAddress)
-      .setEnableKeepAlive(true)
-      .setKeepAliveTime(java.time.Duration.ofSeconds(30))
-      .setKeepAliveTimeout(java.time.Duration.ofSeconds(15))
-      .setRpcTimeout(java.time.Duration.ofSeconds(10))
+      .setTarget(t.target)
+      .setEnableKeepAlive(t.enableKeepAlive)
+      .setKeepAliveTime(java.time.Duration.ofSeconds(t.keepAliveTimeSec))
+      .setKeepAliveTimeout(java.time.Duration.ofSeconds(t.keepAliveTimeoutSec))
+      .setRpcTimeout(java.time.Duration.ofSeconds(t.rpcTimeoutSec))
       .build()
 
     val service = WorkflowServiceStubs.newServiceStubs(serviceOptions)
 
-    // Create client with options (including Scala DataConverter)
     val clientOptions = io.temporal.client.WorkflowClientOptions.newBuilder()
-      .setNamespace("default")
+      .setNamespace(t.namespace)
       .setDataConverter(ScalaDataConverter.create())
       .build()
 
     val client = WorkflowClient.newInstance(service, clientOptions)
 
-    // Create worker factory (inherits DataConverter from client)
     val workerFactoryOptions = io.temporal.worker.WorkerFactoryOptions.newBuilder()
       .build()
 
     val factory = WorkerFactory.newInstance(client, workerFactoryOptions)
 
-    // Create worker for the task queue with explicit DataConverter
     val workerOptions = io.temporal.worker.WorkerOptions.newBuilder()
       .build()
 
     val worker = factory.newWorker(TASK_QUEUE, workerOptions)
 
-    // Register workflow implementation
     worker.registerWorkflowImplementationTypes(classOf[PorWorkflowImpl])
+    worker.registerActivitiesImplementations(impl)
 
-    // Register activities implementation
-    worker.registerActivitiesImplementations(new PorActivitiesImpl())
-
-    // Start all workers
     factory.start()
 
     log.info(s"PoR Worker started and listening on task queue: $TASK_QUEUE")
 
-    // Keep the worker running
     sys.addShutdownHook {
       log.info("Shutting down worker...")
       factory.shutdown()
       service.shutdown()
     }
 
-    // Wait indefinitely
     Thread.currentThread().join()
   }
 }

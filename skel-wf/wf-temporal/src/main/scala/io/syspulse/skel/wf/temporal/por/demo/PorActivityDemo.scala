@@ -15,8 +15,8 @@ class PorActivityDemo {
 
   def execute(input: PorInput): PorOutput = {
     val activityInfo = Activity.getExecutionContext.getInfo
-    val workflowId = activityInfo.getWorkflowId
-    log.info(s"[proof_of_reserves][wf:$workflowId] Starting PoR with ${input.wallets.size} wallets and ${input.assets.size} assets")
+    val wid = activityInfo.getWorkflowId
+    log.info(s"[$wid] Starting PoR with ${input.wallets.size} wallets and ${input.assets.size} assets")
 
     simulateWork(1, 3)
 
@@ -39,7 +39,7 @@ class PorActivityDemo {
       balances = balances.toList
     )
 
-    log.info(s"[proof_of_reserves][wf:$workflowId] Completed PoR with ${balances.size} balance entries")
+    log.info(s"[$wid] Completed PoR with ${balances.size} balance entries")
     output
   }
 }

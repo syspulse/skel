@@ -1,9 +1,10 @@
-package io.syspulse.skel.wf.temporal.por
+package io.syspulse.skel.wf.temporal.por.demo
 
 import com.typesafe.scalalogging.Logger
-import io.syspulse.skel.wf.temporal.por.demo._
 
-class PorActivitiesImpl extends PorActivities {
+import io.syspulse.skel.wf.temporal.por._
+
+class PorActivitiesDemo extends PorActivities {
   private val log = Logger(getClass.getName)
 
   // Instantiate demo activity implementations

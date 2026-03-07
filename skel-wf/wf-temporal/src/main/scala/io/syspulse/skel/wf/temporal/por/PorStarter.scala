@@ -1,42 +1,38 @@
 package io.syspulse.skel.wf.temporal.por
 
+import scala.util.Try
+
 import io.temporal.client.{WorkflowClient, WorkflowOptions}
 import io.temporal.serviceclient.WorkflowServiceStubs
-import io.syspulse.skel.wf.temporal.ScalaDataConverter
+import io.syspulse.skel.wf.temporal.{ScalaDataConverter, TemporalURI}
 import com.typesafe.scalalogging.Logger
 
 object PorStarter {
   private val log = Logger(getClass.getName)
 
-  def main(args: Array[String]): Unit = {
-    // Parse command line arguments
+  def run(uri: String, args: Array[String]): Try[Unit] = Try {
     val config = parseArgs(args)
 
-    // Get Temporal service address from environment or use default
-    val temporalServiceAddress = sys.env.getOrElse("TEMPORAL_SERVICE_ADDRESS", "127.0.0.1:7233")
+    val t = TemporalURI(uri)
+    log.info(s"Connecting to Temporal at ${t.target} namespace=${t.namespace}")
 
-    log.info(s"Connecting to Temporal service at: $temporalServiceAddress")
-
-    // Create service stub with proper timeouts
     val serviceOptions = io.temporal.serviceclient.WorkflowServiceStubsOptions.newBuilder()
-      .setTarget(temporalServiceAddress)
-      .setEnableKeepAlive(true)
-      .setKeepAliveTime(java.time.Duration.ofSeconds(30))
-      .setKeepAliveTimeout(java.time.Duration.ofSeconds(15))
-      .setRpcTimeout(java.time.Duration.ofSeconds(10))
+      .setTarget(t.target)
+      .setEnableKeepAlive(t.enableKeepAlive)
+      .setKeepAliveTime(java.time.Duration.ofSeconds(t.keepAliveTimeSec))
+      .setKeepAliveTimeout(java.time.Duration.ofSeconds(t.keepAliveTimeoutSec))
+      .setRpcTimeout(java.time.Duration.ofSeconds(t.rpcTimeoutSec))
       .build()
 
     val service = WorkflowServiceStubs.newServiceStubs(serviceOptions)
 
-    // Create client with options (including Scala DataConverter)
     val clientOptions = io.temporal.client.WorkflowClientOptions.newBuilder()
-      .setNamespace("default")
+      .setNamespace(t.namespace)
       .setDataConverter(ScalaDataConverter.create())
       .build()
 
     val client = WorkflowClient.newInstance(service, clientOptions)
 
-    // Create workflow input
     val input = PorWorkflowInput(
       cexName = config.cexName,
       timestamp = System.currentTimeMillis(),
@@ -46,33 +42,20 @@ object PorStarter {
       reportRequired = config.reportRequired
     )
 
-    // Create workflow options
-    val workflowId = s"por-workflow-${config.cexName}-${System.currentTimeMillis()}"
+    val wid = s"por-workflow-${config.cexName}-${System.currentTimeMillis()}"
     val options = WorkflowOptions.newBuilder()
-      .setWorkflowId(workflowId)
+      .setWorkflowId(wid)
       .setTaskQueue(PorWorker.TASK_QUEUE)
       .build()
 
-    // Create workflow stub
     val workflow = client.newWorkflowStub(classOf[PorWorkflow], options)
 
-    log.info(s"Starting PoR Workflow:")
-    log.info(s"  Workflow ID: $workflowId")
-    log.info(s"  CEX Name: ${config.cexName}")
-    log.info(s"  Flow: ${config.flow}")
-    log.info(s"  PoO Required: ${config.pooRequired}")
-    log.info(s"  PoR Required: ${config.porRequired}")
-    log.info(s"  PoL Required: ${config.polRequired}")
-    log.info(s"  Report Required: ${config.reportRequired}")
+    log.info(s"Starting PoR Workflow: $wid: cexName=${config.cexName} flow=${config.flow} poo=${config.pooRequired} por=${config.porRequired} pol=${config.polRequired} report=${config.reportRequired}")
 
-    // Execute workflow
     val result = workflow.execute(input)
 
-    log.info(s"Workflow completed successfully!")
-    log.info(s"Report generated: ${result.reportFilePath}")
-    log.info(s"Report link: ${result.reportLink}")
+    log.info(s"$wid: Report=${result.reportFilePath}, link=${result.reportLink}")    
 
-    // Cleanup
     service.shutdown()
   }
 

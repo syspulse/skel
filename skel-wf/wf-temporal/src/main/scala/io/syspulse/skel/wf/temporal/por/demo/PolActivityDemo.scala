@@ -16,9 +16,9 @@ class PolActivityDemo {
 
   def execute(input: PolInput): PolOutput = {
     val activityInfo = Activity.getExecutionContext.getInfo
-    val workflowId = activityInfo.getWorkflowId
-    log.info(s"[proof_of_liability][wf:$workflowId] Starting PoL - waiting for human input")
-    log.info(s"[proof_of_liability][wf:$workflowId] Timer is waiting for human input")
+    val wid = activityInfo.getWorkflowId
+    log.info(s"[$wid] Starting PoL - waiting for human input")
+    log.info(s"[$wid] Timer is waiting for human input")
 
     // Generate demo file
     val demoFilePath = os.temp.dir() / s"liabilities_${System.currentTimeMillis()}.json"
@@ -36,12 +36,12 @@ ${demoData.liabilities.map(l => s"""    {"userId": "${l.userId}", "asset": "${l.
 }"""
 
     os.write(demoFilePath, jsonContent)
-    log.info(s"[proof_of_liability][wf:$workflowId] Demo file generated: $demoFilePath")
+    log.info(s"[$wid] Demo file generated: $demoFilePath")
 
     // Simulate waiting for confirmation
     if (input.waitForConfirmation) {
-      log.info(s"[proof_of_liability][wf:$workflowId] Please confirm to use file: $demoFilePath")
-      log.info(s"[proof_of_liability][wf:$workflowId] Press Enter to continue...")
+      log.info(s"[$wid] Please confirm to use file: $demoFilePath")
+      log.info(s"[$wid] Press Enter to continue...")
       // In real implementation, this would wait for user input
       // For simulation, we just add a delay
       simulateWork(2, 4)
@@ -55,7 +55,7 @@ ${demoData.liabilities.map(l => s"""    {"userId": "${l.userId}", "asset": "${l.
       publicKey = demoData.publicKey
     )
 
-    log.info(s"[proof_of_liability][wf:$workflowId] Completed PoL with ${output.liabilities.size} liability entries")
+    log.info(s"[$wid] Completed PoL with ${output.liabilities.size} liability entries")
     output
   }
 
