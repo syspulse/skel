@@ -49,7 +49,7 @@ class PorWorkflowImpl extends PorWorkflow {
 
       // Step 3: Proof of Liabilities
       polOutput = Some(activities.executeProofOfLiability(
-        PolInput(fileLink = "/tmp/liabilities.json", waitForConfirmation = true)
+        PolInput(fileLink = "/tmp/liabilities.json", waitForConfirmation = true, signalMode = input.polSignalMode)
       ))
 
       // Step 4: Solvency
@@ -74,7 +74,7 @@ class PorWorkflowImpl extends PorWorkflow {
 
       // Step 2: Proof of Liabilities
       polOutput = Some(activities.executeProofOfLiability(
-        PolInput(fileLink = "/tmp/liabilities.json", waitForConfirmation = true)
+        PolInput(fileLink = "/tmp/liabilities.json", waitForConfirmation = true, signalMode = input.polSignalMode)
       ))
 
       // Step 3: Solvency
@@ -123,22 +123,38 @@ class PorWorkflowImpl extends PorWorkflow {
       activities.executeReport(input, pooOutput, porOutput, polOutput, solvencyOutput)
     }
 
+    def executeFlow5(input: PorWorkflowInput): ReportOutput = {
+      // Flow 5: [PoL]
+
+      val wallets = generateMockWallets()
+
+      // Step 1: Proof of Liabilities
+      polOutput = Some(activities.executeProofOfLiability(
+        PolInput(fileLink = "/tmp/liabilities.json", waitForConfirmation = true, signalMode = input.polSignalMode)
+      ))
+
+      // Step 2: Report
+      activities.executeReport(input, pooOutput, porOutput, polOutput, solvencyOutput)
+    }
+
     // Execute the appropriate flow based on pattern
     flowPattern match {
-      case "Flow-1" => executeFlow1(input)
-      case "Flow-2" => executeFlow2(input)
-      case "Flow-3" => executeFlow3(input)
-      case "Flow-4" => executeFlow4(input)
+      case "flow-1" => executeFlow1(input)
+      case "flow-2" => executeFlow2(input)
+      case "flow-3" => executeFlow3(input)
+      case "flow-4" => executeFlow4(input)
+      case "flow-5" => executeFlow5(input)
       case _ => throw new IllegalArgumentException(s"Unknown flow pattern: $flowPattern")
     }
   }
 
   private def determineFlowPattern(input: PorWorkflowInput): String = {
     (input.pooRequired, input.porRequired, input.polRequired, input.reportRequired) match {
-      case (true, true, true, true) => "Flow-1" // PoO -> PoR -> PoL -> Solvency -> Report
-      case (false, true, true, true) => "Flow-2" // PoR -> PoL -> Solvency -> Report
-      case (false, true, false, true) => "Flow-3" // PoR -> Report
-      case (true, true, false, true) => "Flow-4" // PoO -> PoR -> Report
+      case (true, true, true, true) => "flow-1" // PoO -> PoR -> PoL -> Solvency -> Report
+      case (false, true, true, true) => "flow-2" // PoR -> PoL -> Solvency -> Report
+      case (false, true, false, true) => "flow-3" // PoR -> Report
+      case (true, true, false, true) => "flow-4" // PoO -> PoR -> Report
+      case (false, false, true, false) => "flow-5" // PoL
       case _ => throw new IllegalArgumentException(
         s"Invalid flow configuration: pooRequired=${input.pooRequired}, porRequired=${input.porRequired}, " +
         s"polRequired=${input.polRequired}, reportRequired=${input.reportRequired}"

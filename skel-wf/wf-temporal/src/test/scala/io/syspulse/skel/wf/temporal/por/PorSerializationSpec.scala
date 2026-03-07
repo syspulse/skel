@@ -61,7 +61,8 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
     "serialize and deserialize PolInput" in {
       val polInput = PolInput(
         fileLink = "s3://bucket/liabilities.json",
-        waitForConfirmation = true
+        waitForConfirmation = true,
+        signalMode = "file"
       )
 
       val payload = dataConverter.toPayload(polInput).get()
@@ -69,6 +70,7 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
 
       deserialized should === (polInput)
       deserialized.waitForConfirmation should be (true)
+      deserialized.signalMode should === ("file")
     }
 
     "serialize and deserialize PorWorkflowInput" in {
@@ -78,7 +80,8 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
         pooRequired = true,
         porRequired = true,
         polRequired = true,
-        reportRequired = true
+        reportRequired = true,
+        polSignalMode = "rest"
       )
 
       val payload = dataConverter.toPayload(workflowInput).get()
@@ -86,6 +89,7 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
 
       deserialized.cexName should === ("TestExchange")
       deserialized.pooRequired should be (true)
+      deserialized.polSignalMode should === ("rest")
     }
 
     "serialize and deserialize WalletWithAsset" in {

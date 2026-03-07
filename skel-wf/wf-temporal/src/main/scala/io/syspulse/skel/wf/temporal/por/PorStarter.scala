@@ -39,7 +39,8 @@ object PorStarter {
       pooRequired = config.pooRequired,
       porRequired = config.porRequired,
       polRequired = config.polRequired,
-      reportRequired = config.reportRequired
+      reportRequired = config.reportRequired,
+      polSignalMode = config.polSignalMode
     )
 
     val wid = s"por-workflow-${config.cexName}-${System.currentTimeMillis()}"
@@ -50,7 +51,7 @@ object PorStarter {
 
     val workflow = client.newWorkflowStub(classOf[PorWorkflow], options)
 
-    log.info(s"Starting PoR Workflow: $wid: cexName=${config.cexName} flow=${config.flow} poo=${config.pooRequired} por=${config.porRequired} pol=${config.polRequired} report=${config.reportRequired}")
+    log.info(s"Starting PoR Workflow: $wid: cexName=${config.cexName} flow=${config.flow} polSignalMode=${config.polSignalMode} poo=${config.pooRequired} por=${config.porRequired} pol=${config.polRequired} report=${config.reportRequired}")
 
     val result = workflow.execute(input)
 
@@ -65,7 +66,9 @@ object PorStarter {
     pooRequired: Boolean = true,
     porRequired: Boolean = true,
     polRequired: Boolean = true,
-    reportRequired: Boolean = true
+    reportRequired: Boolean = true,
+    /** PoL user signal: file | rest | simulate (default) */
+    polSignalMode: String = "simulate"
   )
 
   private def parseArgs(args: Array[String]): StarterConfig = {
@@ -81,12 +84,14 @@ object PorStarter {
       case "flow-2" => (false, true, true, true)  // PoR -> PoL -> Solvency -> Report
       case "flow-3" => (false, true, false, true) // PoR -> Report
       case "flow-4" => (true, true, false, true)  // PoO -> PoR -> Report
+      case "flow-5" => (false, false, true, false)  // PoL
       case _ =>
         log.warn(s"Unknown flow: $flow, using default flow-1")
         (true, true, true, true)
     }
 
     val cexName = if (args.length > 1) args(1) else "DefaultCEX"
+    val polSignalMode = if (args.length > 2) args(2).toLowerCase else "simulate"
 
     StarterConfig(
       cexName = cexName,
@@ -94,13 +99,14 @@ object PorStarter {
       pooRequired = pooRequired,
       porRequired = porRequired,
       polRequired = polRequired,
-      reportRequired = reportRequired
+      reportRequired = reportRequired,
+      polSignalMode = polSignalMode
     )
   }
 
   private def printUsage(): Unit = {
     log.info("""
-Usage: PorStarter <flow> [cex-name]
+Usage: PorStarter <flow> [cex-name] [pol-signal-mode]
 
 Flows:
   flow-1  : PoO -> PoR -> PoL -> Solvency -> Report (default)
@@ -108,11 +114,12 @@ Flows:
   flow-3  : PoR -> Report
   flow-4  : PoO -> PoR -> Report
 
+PoL signal mode (default: simulate): file | rest | simulate
+
 Examples:
   PorStarter flow-1 Binance
-  PorStarter flow-2 Coinbase
-  PorStarter flow-3 Kraken
-  PorStarter flow-4 Gemini
+  PorStarter flow-1 Binance file
+  PorStarter flow-2 Coinbase rest
 """)
   }
 }

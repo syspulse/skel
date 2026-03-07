@@ -31,7 +31,9 @@ case class PorWorkflowInput(
   pooRequired: Boolean,
   porRequired: Boolean,
   polRequired: Boolean,
-  reportRequired: Boolean
+  reportRequired: Boolean,
+  /** PoL user signal: "file" | "rest" | "simulate" (default). Passed to PolInput. */
+  polSignalMode: String = "simulate"
 )
 
 case class PooInput(
@@ -46,7 +48,9 @@ case class PorInput(
 
 case class PolInput(
   fileLink: String,
-  waitForConfirmation: Boolean = true
+  waitForConfirmation: Boolean = true,
+  /** User signal mode: "file" (poll /tmp), "rest" (POST), "simulate" (delay, default). */
+  signalMode: String = "simulate"
 )
 
 case class PolFileData(
