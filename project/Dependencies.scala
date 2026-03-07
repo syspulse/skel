@@ -38,7 +38,10 @@ object Dependencies {
     //lazy val graalJsVersion = "23.0.0" // (for non-polyglot)
     lazy val graalJsVersion = "24.1.0" // (for non-polyglot)
     lazy val graalPolyglotVersion = "24.1.0"
-    
+
+    lazy val temporalVersion = "1.32.1"
+    lazy val grpcVersion = "1.58.1"  // Must match Temporal SDK version
+
     lazy val appNameHttp = "skel-http"
     lazy val appBootClassHttp = "io.syspulse.skel.service.App"
     
@@ -68,6 +71,7 @@ object Dependencies {
     lazy val appBootClassElastic = "io.syspulse.skel.ingest.elastic.App"
 
     lazy val skelVersion = "0.18.0"
+    
     
     lazy val jarPrefix = "server-"
     
@@ -288,7 +292,22 @@ object Dependencies {
     // Native libraries for Linux amd64 with OpenSSL 3.x (version managed by tdlight-java POM)
     val libTdLightNatives =  "it.tdlight" % "tdlight-natives" % "4.0.558" classifier "linux_amd64_gnu_ssl3"
 
-   // ---------------------------------------------------------------------------------------------------------------------
+    val libTemporalJavaSDK = "io.temporal" % "temporal-sdk" % temporalVersion
+
+    // Jackson dependencies for Temporal (Scala support)
+    val libJacksonScala =   "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.15.4"
+    val libJacksonCore =    "com.fasterxml.jackson.core"    % "jackson-databind"     % "2.15.4"
+
+    // gRPC dependencies - must match Temporal SDK requirements
+    val libGrpcApi =        "io.grpc" % "grpc-api"           % grpcVersion
+    val libGrpcNettyShaded ="io.grpc" % "grpc-netty-shaded"  % grpcVersion
+    val libGrpcProtobuf =   "io.grpc" % "grpc-protobuf"      % grpcVersion
+    val libGrpcStub =       "io.grpc" % "grpc-stub"          % grpcVersion
+
+    // ---------------------------------------------------------------------------------------------------------------------
+    
+    // ---------------------------------------------------------------------------------------------------------------------
+
     // Projects
     val libAkka = Seq(libAkkaActor,libAkkaActorTyped,libAkkaStream)
     val libAlpakka = Seq(libAlpakkaInfluxDB)
@@ -316,5 +335,7 @@ object Dependencies {
     val libPdfGen = Seq(libFlyingSaucer,libThymeleaf,libNekoHtml,libJSoup)
 
     val libTelegram = Seq(libTdLightJava,libTdLightNatives)
+
+    val libTemporal = Seq(libTemporalJavaSDK,libJacksonScala,libJacksonCore,libGrpcApi,libGrpcNettyShaded,libGrpcProtobuf,libGrpcStub)
   }
   

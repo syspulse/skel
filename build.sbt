@@ -1335,6 +1335,37 @@ lazy val skel_wf = (project in file("skel-wf"))
     )
   )
 
+lazy val wf_temporal = (project in file("skel-wf/wf-temporal"))
+  .dependsOn(skel_core)
+  //.disablePlugins(sbtassembly.AssemblyPlugin)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("wf-temporal","io.syspulse.skel.wf.temporal.App"),
+
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ libTemporal ++ Seq(
+      libOsLib,
+      libUpickleLib,
+    ),
+
+    // Force gRPC version to match Temporal SDK requirements
+    dependencyOverrides ++= Seq(
+      "io.grpc" % "grpc-api" % grpcVersion,
+      "io.grpc" % "grpc-netty-shaded" % grpcVersion,
+      "io.grpc" % "grpc-protobuf" % grpcVersion,
+      "io.grpc" % "grpc-stub" % grpcVersion,
+      "io.grpc" % "grpc-core" % grpcVersion,
+      "io.grpc" % "grpc-context" % grpcVersion
+    )
+  )
+
+
 lazy val job_core = (project in file("skel-job/job-core"))
   .dependsOn(skel_core,auth_core,skel_cron)
   .disablePlugins(sbtassembly.AssemblyPlugin)

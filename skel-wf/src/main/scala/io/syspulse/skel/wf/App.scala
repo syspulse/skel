@@ -89,7 +89,7 @@ object App extends skel.Server {
 
       registry = c.getListString("registry",d.registry),
 
-      cmd = c.getCmd().getOrElse("server"),
+      cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
     )
 

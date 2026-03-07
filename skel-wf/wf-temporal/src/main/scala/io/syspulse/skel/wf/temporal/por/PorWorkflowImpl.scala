@@ -1,0 +1,160 @@
+package io.syspulse.skel.wf.temporal.por
+
+import io.temporal.workflow.Workflow
+import io.temporal.activity.ActivityOptions
+import java.time.Duration
+
+/**
+ * Main PoR Workflow Implementation
+ * Supports all 4 flow patterns based on input configuration
+ */
+class PorWorkflowImpl extends PorWorkflow {
+
+  private val logger = Workflow.getLogger(classOf[PorWorkflowImpl])
+
+  private val activityOptions = ActivityOptions.newBuilder()
+    .setStartToCloseTimeout(Duration.ofMinutes(10))
+    .build()
+
+  private val activities = Workflow.newActivityStub(classOf[PorActivities], activityOptions)
+
+  override def execute(input: PorWorkflowInput): ReportOutput = {
+    logger.info(s"Starting PoR Workflow for CEX: ${input.cexName}")
+
+    var pooOutput: Option[PooOutput] = None
+    var porOutput: Option[PorOutput] = None
+    var polOutput: Option[PolOutput] = None
+    var solvencyOutput: Option[SolvencyOutput] = None
+
+    // Determine which flow pattern to execute based on input
+    val flowPattern = determineFlowPattern(input)
+    logger.info(s"Executing flow pattern: $flowPattern")
+
+    def executeFlow1(input: PorWorkflowInput): ReportOutput = {
+      // Flow 1: [PoO] -> [PoR] -> [PoL] -> [Solvency] -> [Report]
+
+      // Step 1: Proof of Ownership
+      val wallets = generateMockWallets()
+      pooOutput = Some(activities.executeProofOfOwnership(
+        PooInput(wallets = wallets, proofType = "signature")
+      ))
+
+      // Step 2: Proof of Reserves
+      porOutput = Some(activities.executeProofOfReserves(
+        PorInput(
+          wallets = wallets,
+          assets = List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX")
+        )
+      ))
+
+      // Step 3: Proof of Liabilities
+      polOutput = Some(activities.executeProofOfLiability(
+        PolInput(fileLink = "/tmp/liabilities.json", waitForConfirmation = true)
+      ))
+
+      // Step 4: Solvency
+      solvencyOutput = Some(activities.executeSolvency(porOutput.get, polOutput.get))
+
+      // Step 5: Report
+      activities.executeReport(input, pooOutput, porOutput, polOutput, solvencyOutput)
+    }
+
+    def executeFlow2(input: PorWorkflowInput): ReportOutput = {
+      // Flow 2: [PoR] -> [PoL] -> [Solvency] -> [Report]
+
+      val wallets = generateMockWallets()
+
+      // Step 1: Proof of Reserves
+      porOutput = Some(activities.executeProofOfReserves(
+        PorInput(
+          wallets = wallets,
+          assets = List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX")
+        )
+      ))
+
+      // Step 2: Proof of Liabilities
+      polOutput = Some(activities.executeProofOfLiability(
+        PolInput(fileLink = "/tmp/liabilities.json", waitForConfirmation = true)
+      ))
+
+      // Step 3: Solvency
+      solvencyOutput = Some(activities.executeSolvency(porOutput.get, polOutput.get))
+
+      // Step 4: Report
+      activities.executeReport(input, pooOutput, porOutput, polOutput, solvencyOutput)
+    }
+
+    def executeFlow3(input: PorWorkflowInput): ReportOutput = {
+      // Flow 3: [PoR] -> [Report]
+
+      val wallets = generateMockWallets()
+
+      // Step 1: Proof of Reserves
+      porOutput = Some(activities.executeProofOfReserves(
+        PorInput(
+          wallets = wallets,
+          assets = List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX")
+        )
+      ))
+
+      // Step 2: Report
+      activities.executeReport(input, pooOutput, porOutput, polOutput, solvencyOutput)
+    }
+
+    def executeFlow4(input: PorWorkflowInput): ReportOutput = {
+      // Flow 4: [PoO] -> [PoR] -> [Report]
+
+      val wallets = generateMockWallets()
+
+      // Step 1: Proof of Ownership
+      pooOutput = Some(activities.executeProofOfOwnership(
+        PooInput(wallets = wallets, proofType = "signature")
+      ))
+
+      // Step 2: Proof of Reserves
+      porOutput = Some(activities.executeProofOfReserves(
+        PorInput(
+          wallets = wallets,
+          assets = List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX")
+        )
+      ))
+
+      // Step 3: Report
+      activities.executeReport(input, pooOutput, porOutput, polOutput, solvencyOutput)
+    }
+
+    // Execute the appropriate flow based on pattern
+    flowPattern match {
+      case "Flow-1" => executeFlow1(input)
+      case "Flow-2" => executeFlow2(input)
+      case "Flow-3" => executeFlow3(input)
+      case "Flow-4" => executeFlow4(input)
+      case _ => throw new IllegalArgumentException(s"Unknown flow pattern: $flowPattern")
+    }
+  }
+
+  private def determineFlowPattern(input: PorWorkflowInput): String = {
+    (input.pooRequired, input.porRequired, input.polRequired, input.reportRequired) match {
+      case (true, true, true, true) => "Flow-1" // PoO -> PoR -> PoL -> Solvency -> Report
+      case (false, true, true, true) => "Flow-2" // PoR -> PoL -> Solvency -> Report
+      case (false, true, false, true) => "Flow-3" // PoR -> Report
+      case (true, true, false, true) => "Flow-4" // PoO -> PoR -> Report
+      case _ => throw new IllegalArgumentException(
+        s"Invalid flow configuration: pooRequired=${input.pooRequired}, porRequired=${input.porRequired}, " +
+        s"polRequired=${input.polRequired}, reportRequired=${input.reportRequired}"
+      )
+    }
+  }
+
+  private def generateMockWallets(): List[Wallet] = {
+    import scala.util.Random
+
+    List(
+      Wallet("0x1234567890abcdef1234567890abcdef12345678", "Ethereum", BigInt(Random.nextInt(1000)) * BigInt(10).pow(18)),
+      Wallet("bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh", "Bitcoin", BigInt(Random.nextInt(100)) * BigInt(10).pow(8)),
+      Wallet("0xabcdef1234567890abcdef1234567890abcdef12", "Arbitrum", BigInt(Random.nextInt(500)) * BigInt(10).pow(18)),
+      Wallet("9n4NBfQSKMbPDf6xJzewJ5V1Z9v5KnPBkJKHTgV7aoqd", "Solana", BigInt(Random.nextInt(2000)) * BigInt(10).pow(9)),
+      Wallet("TXYZupQdGeRgKaFwNTjJFiJNdMdnXBx3K4", "Tron", BigInt(Random.nextInt(10000)) * BigInt(10).pow(6))
+    )
+  }
+}
