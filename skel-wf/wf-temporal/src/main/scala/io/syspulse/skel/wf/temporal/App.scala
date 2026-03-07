@@ -16,6 +16,10 @@ case class Config(
   engine:String = "temporal://",
   wf:String = "demo://",
 
+  porCexName: String = "DefaultCEX",
+  porFlow: String = "flow-1",
+  porPolSignalMode: String = "simulate",
+
   cmd:String = "wf",
   params: Seq[String] = Seq(),
 )
@@ -39,10 +43,14 @@ object App extends skel.Server {
         ArgString('e', "engine",s"Engine URI [temporal://] (def: ${d.engine})"),
         ArgString('w', "wf",s"Workflow implementation [demo://] (def: ${d.wf})"),
 
-        ArgCmd("wf",s"Server"),        
+        ArgString('_', "por.cex-name",s"PoR CEX name (def: ${d.porCexName})"),
+        ArgString('_', "por.flow",s"PoR flow: flow-1|flow-2|flow-3|flow-4|flow-5 (def: ${d.porFlow})"),
+        ArgString('_', "por.pol-signal-mode",s"PoL signal mode: file|rest|simulate (def: ${d.porPolSignalMode})"),
+
+        ArgCmd("wf",s"Server"),
         ArgCmd("temporal",s"Temporal subcommands"),
         ArgCmd("por-worker",s"Start PoR Temporal Worker"),
-        ArgCmd("por-start",s"Start PoR Workflow - Usage: por-start <flow> [cex-name]"),
+        ArgCmd("por-start",s"Start PoR Workflow"),
 
         ArgCmd("wf",s"Workflow subcommands: " +
           s"assemble name 'dsl'  : create Workflow with dsl commands, ex: 'F-1(LogExec(sys=1,log.level=WARN))->F-2(LogExec(sys=2))->F-3(TerminateExec())'" +
@@ -64,6 +72,10 @@ object App extends skel.Server {
       // datastore = c.getString("datastore").getOrElse(d.datastore),
       engine = c.getString("engine").getOrElse(d.engine),
       wf = c.getString("wf").getOrElse(d.wf),
+
+      porCexName = c.getString("por.cex-name").getOrElse(d.porCexName),
+      porFlow = c.getString("por.flow").getOrElse(d.porFlow),
+      porPolSignalMode = c.getString("por.pol-signal-mode").getOrElse(d.porPolSignalMode),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -94,7 +106,29 @@ object App extends skel.Server {
         PorWorker.run(config.engine, impl)        
 
       case "por-start" =>
-        PorStarter.run(config.engine, config.params.toArray)        
+        // Parse flow to determine required steps if not explicitly set
+        val (pooRequired, porRequired, polRequired, reportRequired) = config.porFlow.toLowerCase match {
+          case "flow-1" => (true, true, true, true)   // PoO -> PoR -> PoL -> Solvency -> Report
+          case "flow-2" => (false, true, true, true)  // PoR -> PoL -> Solvency -> Report
+          case "flow-3" => (false, true, false, true) // PoR -> Report
+          case "flow-4" => (true, true, false, true)  // PoO -> PoR -> Report
+          case "flow-5" => (false, false, true, false)  // PoL
+          case _ =>
+            log.warn(s"Unknown flow: ${config.porFlow}, using default flow-1")
+            (true, true, true, true)
+        }
+
+        val porConfig = PorConfig(
+          cexName = config.porCexName,
+          flow = config.porFlow,
+          pooRequired = pooRequired,
+          porRequired = porRequired,
+          polRequired = polRequired,
+          reportRequired = reportRequired,
+          polSignalMode = config.porPolSignalMode
+        )
+
+        PorStarter.run(config.engine, porConfig)        
 
       case _ =>
         s"Unknown command: ${config.cmd}"

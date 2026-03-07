@@ -7,11 +7,21 @@ import io.temporal.serviceclient.WorkflowServiceStubs
 import io.syspulse.skel.wf.temporal.{ScalaDataConverter, TemporalURI}
 import com.typesafe.scalalogging.Logger
 
+case class PorConfig(
+  cexName: String = "DefaultCEX",
+  flow: String = "flow-1",
+  pooRequired: Boolean = true,
+  porRequired: Boolean = true,
+  polRequired: Boolean = true,
+  reportRequired: Boolean = true,
+  /** PoL user signal: file | rest | simulate (default) */
+  polSignalMode: String = "simulate"
+)
+
 object PorStarter {
   private val log = Logger(getClass.getName)
 
-  def run(uri: String, args: Array[String]): Try[Unit] = Try {
-    val config = parseArgs(args)
+  def run(uri: String, config: PorConfig): Try[Unit] = Try {
 
     val t = TemporalURI(uri)
     log.info(s"Connecting to Temporal at ${t.target} namespace=${t.namespace}")
@@ -58,68 +68,5 @@ object PorStarter {
     log.info(s"$wid: Report=${result.reportFilePath}, link=${result.reportLink}")    
 
     service.shutdown()
-  }
-
-  private case class StarterConfig(
-    cexName: String = "DefaultCEX",
-    flow: String = "flow-1",
-    pooRequired: Boolean = true,
-    porRequired: Boolean = true,
-    polRequired: Boolean = true,
-    reportRequired: Boolean = true,
-    /** PoL user signal: file | rest | simulate (default) */
-    polSignalMode: String = "simulate"
-  )
-
-  private def parseArgs(args: Array[String]): StarterConfig = {
-    if (args.isEmpty) {
-      printUsage()
-      return StarterConfig()
-    }
-
-    val flow = args(0).toLowerCase
-
-    val (pooRequired, porRequired, polRequired, reportRequired) = flow match {
-      case "flow-1" => (true, true, true, true)   // PoO -> PoR -> PoL -> Solvency -> Report
-      case "flow-2" => (false, true, true, true)  // PoR -> PoL -> Solvency -> Report
-      case "flow-3" => (false, true, false, true) // PoR -> Report
-      case "flow-4" => (true, true, false, true)  // PoO -> PoR -> Report
-      case "flow-5" => (false, false, true, false)  // PoL
-      case _ =>
-        log.warn(s"Unknown flow: $flow, using default flow-1")
-        (true, true, true, true)
-    }
-
-    val cexName = if (args.length > 1) args(1) else "DefaultCEX"
-    val polSignalMode = if (args.length > 2) args(2).toLowerCase else "simulate"
-
-    StarterConfig(
-      cexName = cexName,
-      flow = flow,
-      pooRequired = pooRequired,
-      porRequired = porRequired,
-      polRequired = polRequired,
-      reportRequired = reportRequired,
-      polSignalMode = polSignalMode
-    )
-  }
-
-  private def printUsage(): Unit = {
-    log.info("""
-Usage: PorStarter <flow> [cex-name] [pol-signal-mode]
-
-Flows:
-  flow-1  : PoO -> PoR -> PoL -> Solvency -> Report (default)
-  flow-2  : PoR -> PoL -> Solvency -> Report
-  flow-3  : PoR -> Report
-  flow-4  : PoO -> PoR -> Report
-
-PoL signal mode (default: simulate): file | rest | simulate
-
-Examples:
-  PorStarter flow-1 Binance
-  PorStarter flow-1 Binance file
-  PorStarter flow-2 Coinbase rest
-""")
   }
 }
