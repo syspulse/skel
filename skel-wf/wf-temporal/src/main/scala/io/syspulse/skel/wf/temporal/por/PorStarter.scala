@@ -3,8 +3,10 @@ package io.syspulse.skel.wf.temporal.por
 import io.temporal.client.{WorkflowClient, WorkflowOptions}
 import io.temporal.serviceclient.WorkflowServiceStubs
 import io.syspulse.skel.wf.temporal.ScalaDataConverter
+import com.typesafe.scalalogging.Logger
 
 object PorStarter {
+  private val log = Logger(getClass.getName)
 
   def main(args: Array[String]): Unit = {
     // Parse command line arguments
@@ -13,7 +15,7 @@ object PorStarter {
     // Get Temporal service address from environment or use default
     val temporalServiceAddress = sys.env.getOrElse("TEMPORAL_SERVICE_ADDRESS", "127.0.0.1:7233")
 
-    println(s"Connecting to Temporal service at: $temporalServiceAddress")
+    log.info(s"Connecting to Temporal service at: $temporalServiceAddress")
 
     // Create service stub with proper timeouts
     val serviceOptions = io.temporal.serviceclient.WorkflowServiceStubsOptions.newBuilder()
@@ -54,21 +56,21 @@ object PorStarter {
     // Create workflow stub
     val workflow = client.newWorkflowStub(classOf[PorWorkflow], options)
 
-    println(s"Starting PoR Workflow:")
-    println(s"  Workflow ID: $workflowId")
-    println(s"  CEX Name: ${config.cexName}")
-    println(s"  Flow: ${config.flow}")
-    println(s"  PoO Required: ${config.pooRequired}")
-    println(s"  PoR Required: ${config.porRequired}")
-    println(s"  PoL Required: ${config.polRequired}")
-    println(s"  Report Required: ${config.reportRequired}")
+    log.info(s"Starting PoR Workflow:")
+    log.info(s"  Workflow ID: $workflowId")
+    log.info(s"  CEX Name: ${config.cexName}")
+    log.info(s"  Flow: ${config.flow}")
+    log.info(s"  PoO Required: ${config.pooRequired}")
+    log.info(s"  PoR Required: ${config.porRequired}")
+    log.info(s"  PoL Required: ${config.polRequired}")
+    log.info(s"  Report Required: ${config.reportRequired}")
 
     // Execute workflow
     val result = workflow.execute(input)
 
-    println(s"\nWorkflow completed successfully!")
-    println(s"Report generated: ${result.reportFilePath}")
-    println(s"Report link: ${result.reportLink}")
+    log.info(s"Workflow completed successfully!")
+    log.info(s"Report generated: ${result.reportFilePath}")
+    log.info(s"Report link: ${result.reportLink}")
 
     // Cleanup
     service.shutdown()
@@ -97,7 +99,7 @@ object PorStarter {
       case "flow-3" => (false, true, false, true) // PoR -> Report
       case "flow-4" => (true, true, false, true)  // PoO -> PoR -> Report
       case _ =>
-        println(s"Unknown flow: $flow, using default flow-1")
+        log.warn(s"Unknown flow: $flow, using default flow-1")
         (true, true, true, true)
     }
 
@@ -114,7 +116,7 @@ object PorStarter {
   }
 
   private def printUsage(): Unit = {
-    println("""
+    log.info("""
 Usage: PorStarter <flow> [cex-name]
 
 Flows:

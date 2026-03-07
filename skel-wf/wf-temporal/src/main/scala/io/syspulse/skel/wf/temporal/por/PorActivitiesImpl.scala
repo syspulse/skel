@@ -1,11 +1,12 @@
 package io.syspulse.skel.wf.temporal.por
 
 import scala.util.Random
-import java.nio.file.{Files, Paths}
 import java.util.UUID
 import io.temporal.activity.Activity
+import com.typesafe.scalalogging.Logger
 
 class PorActivitiesImpl extends PorActivities {
+  private val log = Logger(getClass.getName)
 
   private def simulateWork(minSeconds: Int = 1, maxSeconds: Int = 3): Unit = {
     val delay = (Random.nextInt(maxSeconds - minSeconds + 1) + minSeconds) * 1000
@@ -14,7 +15,8 @@ class PorActivitiesImpl extends PorActivities {
 
   override def executeProofOfOwnership(input: PooInput): PooOutput = {
     val activityInfo = Activity.getExecutionContext.getInfo
-    println(s"[proof_of_ownership] Starting PoO with ${input.wallets.size} wallets, proof type: ${input.proofType}")
+    val workflowId = activityInfo.getWorkflowId
+    log.info(s"[proof_of_ownership][wf:$workflowId] Starting PoO with ${input.wallets.size} wallets, proof type: ${input.proofType}")
 
     simulateWork(1, 3)
 
@@ -33,13 +35,14 @@ class PorActivitiesImpl extends PorActivities {
       proofs = proofs
     )
 
-    println(s"[proof_of_ownership] Completed PoO with ${proofs.size} proofs")
+    log.info(s"[proof_of_ownership][wf:$workflowId] Completed PoO with ${proofs.size} proofs")
     output
   }
 
   override def executeProofOfReserves(input: PorInput): PorOutput = {
     val activityInfo = Activity.getExecutionContext.getInfo
-    println(s"[proof_of_reserves] Starting PoR with ${input.wallets.size} wallets and ${input.assets.size} assets")
+    val workflowId = activityInfo.getWorkflowId
+    log.info(s"[proof_of_reserves][wf:$workflowId] Starting PoR with ${input.wallets.size} wallets and ${input.assets.size} assets")
 
     simulateWork(1, 3)
 
@@ -62,17 +65,18 @@ class PorActivitiesImpl extends PorActivities {
       balances = balances.toList
     )
 
-    println(s"[proof_of_reserves] Completed PoR with ${balances.size} balance entries")
+    log.info(s"[proof_of_reserves][wf:$workflowId] Completed PoR with ${balances.size} balance entries")
     output
   }
 
   override def executeProofOfLiability(input: PolInput): PolOutput = {
     val activityInfo = Activity.getExecutionContext.getInfo
-    println(s"[proof_of_liability] Starting PoL - waiting for human input")
-    println(s"[proof_of_liability] Timer is waiting for human input")
+    val workflowId = activityInfo.getWorkflowId
+    log.info(s"[proof_of_liability][wf:$workflowId] Starting PoL - waiting for human input")
+    log.info(s"[proof_of_liability][wf:$workflowId] Timer is waiting for human input")
 
     // Generate demo file
-    val demoFilePath = s"/tmp/liabilities_${System.currentTimeMillis()}.json"
+    val demoFilePath = os.temp.dir() / s"liabilities_${System.currentTimeMillis()}.json"
     val demoData = generateDemoLiabilitiesFile()
 
     // Write demo file
@@ -86,13 +90,13 @@ ${demoData.liabilities.map(l => s"""    {"userId": "${l.userId}", "asset": "${l.
   "publicKey": "${demoData.publicKey}"
 }"""
 
-    Files.write(Paths.get(demoFilePath), jsonContent.getBytes)
-    println(s"[proof_of_liability] Demo file generated: $demoFilePath")
+    os.write(demoFilePath, jsonContent)
+    log.info(s"[proof_of_liability][wf:$workflowId] Demo file generated: $demoFilePath")
 
     // Simulate waiting for confirmation
     if (input.waitForConfirmation) {
-      println(s"[proof_of_liability] Please confirm to use file: $demoFilePath")
-      println(s"[proof_of_liability] Press Enter to continue...")
+      log.info(s"[proof_of_liability][wf:$workflowId] Please confirm to use file: $demoFilePath")
+      log.info(s"[proof_of_liability][wf:$workflowId] Press Enter to continue...")
       // In real implementation, this would wait for user input
       // For simulation, we just add a delay
       simulateWork(2, 4)
@@ -106,13 +110,14 @@ ${demoData.liabilities.map(l => s"""    {"userId": "${l.userId}", "asset": "${l.
       publicKey = demoData.publicKey
     )
 
-    println(s"[proof_of_liability] Completed PoL with ${output.liabilities.size} liability entries")
+    log.info(s"[proof_of_liability][wf:$workflowId] Completed PoL with ${output.liabilities.size} liability entries")
     output
   }
 
   override def executeSolvency(porOutput: PorOutput, polOutput: PolOutput): SolvencyOutput = {
     val activityInfo = Activity.getExecutionContext.getInfo
-    println(s"[solvency] Starting Solvency calculation")
+    val workflowId = activityInfo.getWorkflowId
+    log.info(s"[solvency][wf:$workflowId] Starting Solvency calculation")
 
     simulateWork(1, 2)
 
@@ -149,7 +154,7 @@ ${demoData.liabilities.map(l => s"""    {"userId": "${l.userId}", "asset": "${l.
       solvencyRatio = solvencyRatio
     )
 
-    println(s"[solvency] Completed Solvency: Reserves=$$$porTotalUsd, Liabilities=$$$polTotalUsd, Ratio=${solvencyRatio}")
+    log.info(s"[solvency][wf:$workflowId] Completed Solvency: Reserves=$$$porTotalUsd, Liabilities=$$$polTotalUsd, Ratio=${solvencyRatio}")
     output
   }
 
@@ -161,22 +166,23 @@ ${demoData.liabilities.map(l => s"""    {"userId": "${l.userId}", "asset": "${l.
     solvencyOutput: Option[SolvencyOutput]
   ): ReportOutput = {
     val activityInfo = Activity.getExecutionContext.getInfo
-    println(s"[report] Starting Report generation")
+    val workflowId = activityInfo.getWorkflowId
+    log.info(s"[report][wf:$workflowId] Starting Report generation")
 
     simulateWork(1, 3)
 
     // Generate report
-    val reportFilePath = s"/tmp/por_report_${System.currentTimeMillis()}.md"
+    val reportFilePath = os.temp.dir() / s"por_report_${System.currentTimeMillis()}.md"
     val reportContent = generateReportMarkdown(workflowInput, pooOutput, porOutput, polOutput, solvencyOutput)
 
-    Files.write(Paths.get(reportFilePath), reportContent.getBytes)
+    os.write(reportFilePath, reportContent)
 
     val output = ReportOutput(
-      reportFilePath = reportFilePath,
+      reportFilePath = reportFilePath.toString,
       reportLink = s"file://$reportFilePath"
     )
 
-    println(s"[report] Completed Report generation: $reportFilePath")
+    log.info(s"[report][wf:$workflowId] Completed Report generation: $reportFilePath")
     output
   }
 

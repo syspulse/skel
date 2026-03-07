@@ -4,8 +4,10 @@ import io.temporal.client.WorkflowClient
 import io.temporal.serviceclient.WorkflowServiceStubs
 import io.temporal.worker.{Worker, WorkerFactory}
 import io.syspulse.skel.wf.temporal.ScalaDataConverter
+import com.typesafe.scalalogging.Logger
 
 object PorWorker {
+  private val log = Logger(getClass.getName)
 
   val TASK_QUEUE = "por-task-queue"
 
@@ -13,7 +15,7 @@ object PorWorker {
     // Get Temporal service address from environment or use default
     val temporalServiceAddress = sys.env.getOrElse("TEMPORAL_SERVICE_ADDRESS", "127.0.0.1:7233")
 
-    println(s"Connecting to Temporal service at: $temporalServiceAddress")
+    log.info(s"Connecting to Temporal service at: $temporalServiceAddress")
 
     // Create service stub - use local service stubs for development
     val serviceOptions = io.temporal.serviceclient.WorkflowServiceStubsOptions.newBuilder()
@@ -55,12 +57,11 @@ object PorWorker {
     // Start all workers
     factory.start()
 
-    println(s"PoR Worker started and listening on task queue: $TASK_QUEUE")
-    println("Press Ctrl+C to stop...")
+    log.info(s"PoR Worker started and listening on task queue: $TASK_QUEUE")
 
     // Keep the worker running
     sys.addShutdownHook {
-      println("\nShutting down worker...")
+      log.info("Shutting down worker...")
       factory.shutdown()
       service.shutdown()
     }

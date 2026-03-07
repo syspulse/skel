@@ -21,7 +21,7 @@ case class Config(
 object App extends skel.Server {
 
   def main(args:Array[String]):Unit = {
-    Console.err.println(s"args: '${args.mkString(",")}'")
+    log.info(s"args: '${args.mkString(",")}'")
 
     val d = Config()
     val c = Configuration.withPriority(Seq(
@@ -63,7 +63,7 @@ object App extends skel.Server {
       params = c.getParams(),
     )
 
-    Console.err.println(s"Config: ${config}")
+    log.info(s"Config: ${config}")
 
 
     val r = config.cmd match {
@@ -89,7 +89,7 @@ object App extends skel.Server {
         s"Unknown command: ${config.cmd}"
     }
 
-    Console.err.println(s"${r}")
+    log.info(s"${r}")
   }
 }
 
