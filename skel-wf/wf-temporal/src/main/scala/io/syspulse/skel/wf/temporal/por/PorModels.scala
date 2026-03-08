@@ -26,7 +26,7 @@ case class Liability(
 // Step Inputs
 
 case class PorWorkflowInput(
-  cexName: String,
+  ownerName: String,
   timestamp: Long,
   pooRequired: Boolean,
   porRequired: Boolean,

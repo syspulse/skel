@@ -19,7 +19,7 @@ class PorWorkflowImpl extends PorWorkflow {
   private val activities = Workflow.newActivityStub(classOf[PorActivities], activityOptions)
 
   override def execute(input: PorWorkflowInput): ReportOutput = {
-    logger.info(s"Starting PoR Workflow for CEX: ${input.cexName}")
+    logger.info(s"Starting PoR Workflow for owner: ${input.ownerName}")
 
     var pooOutput: Option[PooOutput] = None
     var porOutput: Option[PorOutput] = None

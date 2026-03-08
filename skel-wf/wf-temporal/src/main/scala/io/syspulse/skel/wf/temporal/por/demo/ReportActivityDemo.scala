@@ -51,8 +51,8 @@ class ReportActivityDemo {
     val sb = new StringBuilder
 
     sb.append(s"# Proof of Reserves Report\n\n")
-    sb.append(s"## CEX Information\n\n")
-    sb.append(s"- **CEX Name**: ${workflowInput.cexName}\n")
+    sb.append(s"## Owner Information\n\n")
+    sb.append(s"- **Owner Name**: ${workflowInput.ownerName}\n")
     sb.append(s"- **Timestamp**: ${workflowInput.timestamp}\n")
     sb.append(s"- **Date**: ${new java.util.Date(workflowInput.timestamp)}\n\n")
 

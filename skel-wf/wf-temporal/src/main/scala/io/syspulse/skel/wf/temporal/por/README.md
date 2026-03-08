@@ -203,7 +203,7 @@ sbt "wf-temporal/runMain io.syspulse.skel.wf.temporal.App por-start flow-1 MyExc
 2. **PoR Report** (final step):
    - Location: `/tmp/por_report_<timestamp>.md`
    - Comprehensive markdown report with:
-     - CEX information
+     - Owner information
      - Proof of Ownership summary (if applicable)
      - Reserves by asset
      - Liabilities by asset (if applicable)
@@ -214,8 +214,8 @@ sbt "wf-temporal/runMain io.syspulse.skel.wf.temporal.App por-start flow-1 MyExc
 ```markdown
 # Proof of Reserves Report
 
-## CEX Information
-- **CEX Name**: Binance
+## Owner Information
+- **Owner Name**: Binance
 - **Timestamp**: 1234567890
 - **Date**: 2024-03-07
 

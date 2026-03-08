@@ -16,9 +16,11 @@ case class Config(
   engine:String = "temporal://",
   wf:String = "demo://",
 
-  porCexName: String = "DefaultCEX",
+  porOwnerName: String = "DefaultOwner",
   porFlow: String = "flow-1",
   porPolSignalMode: String = "simulate",
+  porTags: Seq[String] = Seq(),
+  porMemo: Map[String,String] = Map("region" -> "US", "env" -> "test"),
 
   cmd:String = "wf",
   params: Seq[String] = Seq(),
@@ -43,9 +45,11 @@ object App extends skel.Server {
         ArgString('e', "engine",s"Engine URI [temporal://] (def: ${d.engine})"),
         ArgString('w', "wf",s"Workflow implementation [demo://] (def: ${d.wf})"),
 
-        ArgString('_', "por.cex-name",s"PoR CEX name (def: ${d.porCexName})"),
+        ArgString('_', "por.owner.name",s"PoR owner name (def: ${d.porOwnerName})"),
         ArgString('_', "por.flow",s"PoR flow: flow-1|flow-2|flow-3|flow-4|flow-5 (def: ${d.porFlow})"),
-        ArgString('_', "por.pol-signal-mode",s"PoL signal mode: file|rest|simulate (def: ${d.porPolSignalMode})"),
+        ArgString('_', "por.pol.signal-mode",s"PoL signal mode: file|rest|simulate (def: ${d.porPolSignalMode})"),
+        ArgString('_', "por.tags",s"PoR workflow tags (comma-separated, e.g., CEX,Bybit) (def: ${d.porTags.mkString(",")})"),
+        ArgString('_', "por.memo",s"PoR workflow memo (key=value pairs, comma-separated, e.g., region=US,env=prod) (def: ${d.porMemo.mkString(",")})"),
 
         ArgCmd("wf",s"Server"),
         ArgCmd("temporal",s"Temporal subcommands"),
@@ -73,9 +77,11 @@ object App extends skel.Server {
       engine = c.getString("engine").getOrElse(d.engine),
       wf = c.getString("wf").getOrElse(d.wf),
 
-      porCexName = c.getString("por.cex-name").getOrElse(d.porCexName),
+      porOwnerName = c.getString("por.owner.name").getOrElse(d.porOwnerName),
       porFlow = c.getString("por.flow").getOrElse(d.porFlow),
-      porPolSignalMode = c.getString("por.pol-signal-mode").getOrElse(d.porPolSignalMode),
+      porPolSignalMode = c.getString("por.pol.signal-mode").getOrElse(d.porPolSignalMode),
+      porTags = c.getListString("por.tags",d.porTags),
+      porMemo = c.getMap("por.memo",d.porMemo),
 
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -118,14 +124,18 @@ object App extends skel.Server {
             (true, true, true, true)
         }
 
+        // Parse memo from key=value pairs
+        
         val porConfig = PorConfig(
-          cexName = config.porCexName,
+          ownerName = config.porOwnerName,
           flow = config.porFlow,
           pooRequired = pooRequired,
           porRequired = porRequired,
           polRequired = polRequired,
           reportRequired = reportRequired,
-          polSignalMode = config.porPolSignalMode
+          polSignalMode = config.porPolSignalMode,
+          tags = config.porTags,
+          memo = config.porMemo
         )
 
         PorStarter.run(config.engine, porConfig)        

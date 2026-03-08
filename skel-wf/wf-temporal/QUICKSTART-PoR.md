@@ -91,7 +91,7 @@ You'll see:
 ```
 Starting PoR Workflow:
   Workflow ID: por-workflow-TestExchange-1234567890
-  CEX Name: TestExchange
+  Owner Name: TestExchange
   Flow: flow-1
   ...
 

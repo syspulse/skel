@@ -75,7 +75,7 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
 
     "serialize and deserialize PorWorkflowInput" in {
       val workflowInput = PorWorkflowInput(
-        cexName = "TestExchange",
+        ownerName = "TestExchange",
         timestamp = System.currentTimeMillis(),
         pooRequired = true,
         porRequired = true,
@@ -87,7 +87,7 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
       val payload = dataConverter.toPayload(workflowInput).get()
       val deserialized = dataConverter.fromPayload(payload, classOf[PorWorkflowInput], classOf[PorWorkflowInput])
 
-      deserialized.cexName should === ("TestExchange")
+      deserialized.ownerName should === ("TestExchange")
       deserialized.pooRequired should be (true)
       deserialized.polSignalMode should === ("rest")
     }
