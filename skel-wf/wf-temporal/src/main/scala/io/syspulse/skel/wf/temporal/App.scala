@@ -7,6 +7,13 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 import io.syspulse.skel.wf.temporal.por._
 
+// Examples:
+//   temporal query "ExecutionStatus = 'Running'"
+//   temporal query "WorkflowType = 'PorWorkflow' AND ExecutionStatus = 'Running'" 50
+//   temporal describe por-workflow-Binance-1234567890
+//   temporal list --status Running
+//   temporal list --type PorWorkflow 25
+
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
@@ -27,6 +34,79 @@ case class Config(
 )
 
 object App extends skel.Server {
+
+  def formatWorkflowInfo(info: WorkflowExecutionInfo): String = {
+    val result = new StringBuilder
+    result.append(s"Workflow Details:\n\n")
+    result.append(s"Workflow ID: ${info.workflowId}\n")
+    result.append(s"Run ID: ${info.runId}\n")
+    result.append(s"Type: ${info.workflowType}\n")
+    result.append(s"Status: ${info.status}\n")
+
+    info.startTime.foreach { ts =>
+      result.append(s"Start Time: ${new java.util.Date(ts)}\n")
+    }
+
+    info.closeTime.foreach { ts =>
+      result.append(s"Close Time: ${new java.util.Date(ts)}\n")
+    }
+
+    if (info.memo.nonEmpty) {
+      result.append(s"\nMemo:\n")
+      info.memo.foreach { case (key, values) =>
+        result.append(s"  $key: ${values.mkString(", ")}\n")
+      }
+    }
+
+    if (info.searchAttributes.nonEmpty) {
+      result.append(s"\nSearch Attributes:\n")
+      info.searchAttributes.foreach { case (key, values) =>
+        result.append(s"  $key: ${values.mkString(", ")}\n")
+      }
+    }
+
+    result.toString
+  }
+
+  def formatQueryResult(result: QueryResult): String = {
+    if (result.executions.isEmpty) {
+      return "No workflows found"
+    }
+
+    val output = new StringBuilder
+    output.append(s"Found ${result.executions.size} workflow(s):\n\n")
+
+    result.executions.zipWithIndex.foreach { case (info, idx) =>
+      output.append(s"${idx + 1}. Workflow ID: ${info.workflowId}\n")
+      output.append(s"   Run ID: ${info.runId}\n")
+      output.append(s"   Type: ${info.workflowType}\n")
+      output.append(s"   Status: ${info.status}\n")
+
+      info.startTime.foreach { ts =>
+        output.append(s"   Start Time: ${new java.util.Date(ts)}\n")
+      }
+
+      info.closeTime.foreach { ts =>
+        output.append(s"   Close Time: ${new java.util.Date(ts)}\n")
+      }
+
+      if (info.memo.nonEmpty) {
+        output.append(s"   Memo: ${info.memo.keys.mkString(", ")}\n")
+      }
+
+      if (info.searchAttributes.nonEmpty) {
+        output.append(s"   Search Attributes: ${info.searchAttributes.keys.mkString(", ")}\n")
+      }
+
+      output.append("\n")
+    }
+
+    if (result.hasMoreResults) {
+      output.append("(More results available - use next page token)\n")
+    }
+
+    output.toString
+  }
 
   def main(args:Array[String]):Unit = {
     log.info(s"args: '${args.mkString(",")}'")
@@ -120,36 +200,18 @@ object App extends skel.Server {
 
           case "list" :: Nil =>
             Temporal.list(config.engine)
-
-          case "list" :: ("--status" | "-s") :: status :: tail =>
-            val pageSize = tail.headOption.map(_.toInt).getOrElse(10)
-            Temporal.list(config.engine, status = Some(status), pageSize = pageSize)
-
-          case "list" :: ("--type" | "-t") :: workflowType :: tail =>
+          
+          case "list" :: workflowType :: tail =>
             val pageSize = tail.headOption.map(_.toInt).getOrElse(10)
             Temporal.list(config.engine, workflowType = Some(workflowType), pageSize = pageSize)
 
+          case "status" :: status :: tail =>
+            val pageSize = tail.headOption.map(_.toInt).getOrElse(10)
+            Temporal.list(config.engine, status = Some(status), pageSize = pageSize)
+
           case _ =>
-            """Usage: temporal <command> [options]
-
-Commands:
-  query <query> [pageSize]              - Query workflows using Temporal query syntax
-                                          Example: query "WorkflowId = 'por-workflow-*'" 20
-
-  describe <workflowId> [runId]         - Get detailed information about a workflow
-                                          Example: describe por-workflow-Binance-123456
-
-  list [--status|-s <status>]           - List workflows with optional filters
-       [--type|-t <type>]                 Status: Running, Completed, Failed, Canceled, etc.
-       [pageSize]                         Example: list --status Running 20
-
-Examples:
-  temporal query "ExecutionStatus = 'Running'"
-  temporal query "WorkflowType = 'PorWorkflow' AND ExecutionStatus = 'Running'" 50
-  temporal describe por-workflow-Binance-1234567890
-  temporal list --status Running
-  temporal list --type PorWorkflow 25
-"""
+            Temporal.list(config.engine)
+     
         }
 
       case "por-worker" =>

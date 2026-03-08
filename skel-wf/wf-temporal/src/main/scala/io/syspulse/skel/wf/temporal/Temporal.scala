@@ -9,6 +9,22 @@ import io.temporal.api.workflowservice.v1.ListWorkflowExecutionsRequest
 import io.temporal.api.enums.v1.WorkflowExecutionStatus
 import com.typesafe.scalalogging.Logger
 
+case class WorkflowExecutionInfo(
+  workflowId: String,
+  runId: String,
+  workflowType: String,
+  status: String,
+  startTime: Option[Long],
+  closeTime: Option[Long],
+  memo: Map[String, Seq[String]],
+  searchAttributes: Map[String, Seq[String]]
+)
+
+case class QueryResult(
+  executions: Seq[WorkflowExecutionInfo],
+  hasMoreResults: Boolean
+)
+
 object Temporal {
   private val log = Logger(getClass.getName)
 
@@ -18,9 +34,9 @@ object Temporal {
    * @param uri Temporal server URI
    * @param query Search query (e.g., "WorkflowId = 'por-workflow-*'" or "ExecutionStatus = 'Running'")
    * @param pageSize Number of results per page (default: 10)
-   * @return Formatted string with workflow information
+   * @return QueryResult with workflow execution information
    */
-  def query(uri: String, query: String = "", pageSize: Int = 10): Try[String] = {
+  def query(uri: String, query: String = "", pageSize: Int = 10): Try[QueryResult] = {
     try {
       val t = TemporalURI(uri)
       log.info(s"Connecting to Temporal at ${t.target} namespace=${t.namespace}")
@@ -59,58 +75,57 @@ object Temporal {
       val response = service.blockingStub().listWorkflowExecutions(request)
       val executions = response.getExecutionsList.asScala
 
-      if (executions.isEmpty) {
-        service.shutdown()
-        return Success("No workflows found")
-      }
-
-      // Format results
-      val result = new StringBuilder
-      result.append(s"Found ${executions.size} workflow(s):\n\n")
-
-      executions.zipWithIndex.foreach { case (exec, idx) =>
+      // Convert to structured data
+      val workflowInfos = executions.map { exec =>
         val workflowId = exec.getExecution.getWorkflowId
         val runId = exec.getExecution.getRunId
         val workflowType = exec.getType.getName
         val status = exec.getStatus.name()
         val startTime = if (exec.hasStartTime) {
-          new java.util.Date(exec.getStartTime.getSeconds * 1000).toString
+          Some(exec.getStartTime.getSeconds * 1000)
         } else {
-          "N/A"
+          None
         }
         val closeTime = if (exec.hasCloseTime) {
-          new java.util.Date(exec.getCloseTime.getSeconds * 1000).toString
+          Some(exec.getCloseTime.getSeconds * 1000)
         } else {
-          "N/A"
+          None
         }
 
-        result.append(s"${idx + 1}. Workflow ID: $workflowId\n")
-        result.append(s"   Run ID: $runId\n")
-        result.append(s"   Type: $workflowType\n")
-        result.append(s"   Status: $status\n")
-        result.append(s"   Start Time: $startTime\n")
-        result.append(s"   Close Time: $closeTime\n")
-
-        // Show memo if present
-        if (exec.hasMemo && exec.getMemo.getFieldsMap.size() > 0) {
-          result.append(s"   Memo: ${exec.getMemo.getFieldsMap.asScala.keys.mkString(", ")}\n")
+        // Extract memo
+        val memo = if (exec.hasMemo && exec.getMemo.getFieldsMap.size() > 0) {
+          exec.getMemo.getFieldsMap.asScala.map { case (key, _) =>
+            key -> Seq(key) // Simplified: just return keys for now
+          }.toMap
+        } else {
+          Map.empty[String, Seq[String]]
         }
 
-        // Show search attributes if present
-        if (exec.hasSearchAttributes && exec.getSearchAttributes.getIndexedFieldsMap.size() > 0) {
-          result.append(s"   Search Attributes: ${exec.getSearchAttributes.getIndexedFieldsMap.asScala.keys.mkString(", ")}\n")
+        // Extract search attributes
+        val searchAttributes = if (exec.hasSearchAttributes && exec.getSearchAttributes.getIndexedFieldsMap.size() > 0) {
+          exec.getSearchAttributes.getIndexedFieldsMap.asScala.map { case (key, _) =>
+            key -> Seq(key) // Simplified: just return keys for now
+          }.toMap
+        } else {
+          Map.empty[String, Seq[String]]
         }
 
-        result.append("\n")
-      }
+        WorkflowExecutionInfo(
+          workflowId = workflowId,
+          runId = runId,
+          workflowType = workflowType,
+          status = status,
+          startTime = startTime,
+          closeTime = closeTime,
+          memo = memo,
+          searchAttributes = searchAttributes
+        )
+      }.toSeq
 
-      // Show next page token if available
-      if (!response.getNextPageToken.isEmpty) {
-        result.append("(More results available - use next page token)\n")
-      }
+      val hasMoreResults = !response.getNextPageToken.isEmpty
 
       service.shutdown()
-      Success(result.toString)
+      Success(QueryResult(workflowInfos, hasMoreResults))
 
     } catch {
       case e: Exception =>
@@ -122,7 +137,7 @@ object Temporal {
   /**
    * Get detailed information about a specific workflow by ID
    */
-  def describe(uri: String, workflowId: String, runId: Option[String] = None): Try[String] = {
+  def describe(uri: String, workflowId: String, runId: Option[String] = None): Try[WorkflowExecutionInfo] = {
     try {
       val t = TemporalURI(uri)
       log.info(s"Connecting to Temporal at ${t.target} namespace=${t.namespace}")
@@ -155,36 +170,36 @@ object Temporal {
       // Get workflow description
       val description = stub.describe()
 
-      val result = new StringBuilder
-      result.append(s"Workflow Details:\n\n")
-      result.append(s"Workflow ID: ${description.getExecution.getWorkflowId}\n")
-      result.append(s"Run ID: ${description.getExecution.getRunId}\n")
-      result.append(s"Type: ${description.getWorkflowType}\n")
-      result.append(s"Status: ${description.getStatus.name()}\n")
+      val wfId = description.getExecution.getWorkflowId
+      val wfRunId = description.getExecution.getRunId
+      val wfType = description.getWorkflowType
+      val wfStatus = description.getStatus.name()
 
-      val startTime = description.getStartTime
-      if (startTime != null) {
-        result.append(s"Start Time: ${java.util.Date.from(startTime)}\n")
-      }
-
-      val closeTime = description.getCloseTime
-      if (closeTime != null) {
-        result.append(s"Close Time: ${java.util.Date.from(closeTime)}\n")
-      }
+      val startTime = Option(description.getStartTime).map(_.toEpochMilli)
+      val closeTime = Option(description.getCloseTime).map(_.toEpochMilli)
 
       // Search attributes
-      val searchAttrs = description.getSearchAttributes
-      if (searchAttrs != null && !searchAttrs.isEmpty) {
-        result.append(s"\nSearch Attributes:\n")
-        searchAttrs.asScala.foreach { case (key, values) =>
-          result.append(s"  $key: ${values.asScala.mkString(", ")}\n")
-        }
-      }
+      val searchAttrs = Option(description.getSearchAttributes)
+        .filter(!_.isEmpty)
+        .map { attrs =>
+          attrs.asScala.map { case (key, values) =>
+            key -> values.asScala.toSeq.map(_.toString)
+          }.toMap
+        }.getOrElse(Map.empty[String, Seq[String]])
 
-      result.append("\n(Note: For full workflow details including memo, use 'temporal query' command)\n")
+      val info = WorkflowExecutionInfo(
+        workflowId = wfId,
+        runId = wfRunId,
+        workflowType = wfType,
+        status = wfStatus,
+        startTime = startTime,
+        closeTime = closeTime,
+        memo = Map.empty, // Memo not available in describe()
+        searchAttributes = searchAttrs
+      )
 
       service.shutdown()
-      Success(result.toString)
+      Success(info)
 
     } catch {
       case e: Exception =>
@@ -196,7 +211,7 @@ object Temporal {
   /**
    * List workflows with optional filters
    */
-  def list(uri: String, status: Option[String] = None, workflowType: Option[String] = None, pageSize: Int = 10): Try[String] = {
+  def list(uri: String, status: Option[String] = None, workflowType: Option[String] = None, pageSize: Int = 10): Try[QueryResult] = {
     val queryParts = scala.collection.mutable.ArrayBuffer[String]()
 
     status.foreach { s =>
