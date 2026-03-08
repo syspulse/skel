@@ -75,24 +75,20 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
 
     "serialize and deserialize PorWorkflowInput" in {
       val workflowInput = PorWorkflowInput(
-        ownerName = "TestExchange",
-        timestamp = System.currentTimeMillis(),
-        pooInput = Some(PooInput(List.empty, "signature")),
-        pooOutput = None,
-        porInput = Some(PorInput(List.empty, List("BTC", "ETH"))),
-        porOutput = None,
-        polInput = Some(PolInput("/tmp/test.json", waitForConfirmation = true, signalMode = "rest")),
-        polOutput = None,
-        reportRequired = true,
-        polSignalMode = "rest"
+        poo = StepDef(input = Some(PooInput(List.empty, "signature"))),
+        por = StepDef(input = Some(PorInput(List.empty, List("BTC", "ETH")))),
+        pol = StepDef(input = Some(PolInput("/tmp/test.json", waitForConfirmation = true, signalMode = "rest"))),
+        solvency = StepDef(),
+        report = StepDef(),
+        commit = StepDef()
       )
 
       val payload = dataConverter.toPayload(workflowInput).get()
       val deserialized = dataConverter.fromPayload(payload, classOf[PorWorkflowInput], classOf[PorWorkflowInput])
 
-      deserialized.ownerName should === ("TestExchange")
-      deserialized.pooInput.isDefined should be (true)
-      deserialized.polSignalMode should === ("rest")
+      deserialized.poo.input.isDefined should be (true)
+      deserialized.por.input.isDefined should be (true)
+      deserialized.pol.input.isDefined should be (true)
     }
 
     "serialize and deserialize WalletWithAsset" in {
@@ -126,15 +122,15 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
     }
 
     "serialize and deserialize PooOutput with Map" in {
-      val pooOutput = PooOutput(
-        timestamp = System.currentTimeMillis(),
+      val poo = PooOutput(
+        ts = System.currentTimeMillis(),
         proofs = Map(
           "0x1234567890abcdef1234567890abcdef12345678" -> "0xabcdef1234567890",
           "0xabcdef1234567890abcdef1234567890abcdef12" -> "0x1234567890abcdef"
         )
       )
 
-      val payload = dataConverter.toPayload(pooOutput).get()
+      val payload = dataConverter.toPayload(poo).get()
       val deserialized = dataConverter.fromPayload(payload, classOf[PooOutput], classOf[PooOutput])
 
       deserialized.proofs should have size 2
@@ -142,15 +138,15 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
     }
 
     "serialize and deserialize PorOutput with nested case classes" in {
-      val porOutput = PorOutput(
-        timestamp = System.currentTimeMillis(),
+      val por = PorOutput(
+        ts = System.currentTimeMillis(),
         balances = List(
           WalletWithAsset("0x1234", "Ethereum", "ETH", BigInt("100000000000000000000")),
           WalletWithAsset("0x5678", "Ethereum", "BTC", BigInt("200000000000000000000"))
         )
       )
 
-      val payload = dataConverter.toPayload(porOutput).get()
+      val payload = dataConverter.toPayload(por).get()
       val deserialized = dataConverter.fromPayload(payload, classOf[PorOutput], classOf[PorOutput])
 
       deserialized.balances should have size 2
@@ -159,8 +155,8 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
     }
 
     "serialize and deserialize PolOutput" in {
-      val polOutput = PolOutput(
-        timestamp = System.currentTimeMillis(),
+      val pol = PolOutput(
+        ts = System.currentTimeMillis(),
         liabilities = List(
           Liability(UUID.randomUUID(), "ETH", BigInt("100000000000000000000")),
           Liability(UUID.randomUUID(), "BTC", BigInt("200000000000000000000"))
@@ -170,7 +166,7 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
         publicKey = "0xdef456"
       )
 
-      val payload = dataConverter.toPayload(polOutput).get()
+      val payload = dataConverter.toPayload(pol).get()
       val deserialized = dataConverter.fromPayload(payload, classOf[PolOutput], classOf[PolOutput])
 
       deserialized.liabilities should have size 2
@@ -178,13 +174,13 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
     }
 
     "serialize and deserialize SolvencyOutput with BigDecimal" in {
-      val solvencyOutput = SolvencyOutput(
+      val solvency = SolvencyOutput(
         porTotalUsd = BigDecimal("1000000.50"),
         polTotalUsd = BigDecimal("800000.25"),
         solvencyRatio = BigDecimal("0.80")
       )
 
-      val payload = dataConverter.toPayload(solvencyOutput).get()
+      val payload = dataConverter.toPayload(solvency).get()
       val deserialized = dataConverter.fromPayload(payload, classOf[SolvencyOutput], classOf[SolvencyOutput])
 
       deserialized.porTotalUsd should === (BigDecimal("1000000.50"))
@@ -193,93 +189,93 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
     }
 
     "serialize and deserialize ReportOutput" in {
-      val reportOutput = ReportOutput(
+      val report = ReportOutput(
         reportFilePath = "/tmp/report.md",
         reportLink = "https://example.com/report.md"
       )
 
-      val payload = dataConverter.toPayload(reportOutput).get()
+      val payload = dataConverter.toPayload(report).get()
       val deserialized = dataConverter.fromPayload(payload, classOf[ReportOutput], classOf[ReportOutput])
 
-      deserialized should === (reportOutput)
+      deserialized should === (report)
     }
 
     "serialize and deserialize PorWorkflowOutput with all outputs" in {
-      val pooOutput = Some(PooOutput(
-        timestamp = System.currentTimeMillis(),
+      val poo = Some(PooOutput(
+        ts = System.currentTimeMillis(),
         proofs = Map("0x1234" -> "0xabcd")
       ))
 
-      val porOutput = Some(PorOutput(
-        timestamp = System.currentTimeMillis(),
+      val por = Some(PorOutput(
+        ts = System.currentTimeMillis(),
         balances = List(WalletWithAsset("0x1234", "Ethereum", "ETH", BigInt("100000000000000000000")))
       ))
 
-      val polOutput = Some(PolOutput(
-        timestamp = System.currentTimeMillis(),
+      val pol = Some(PolOutput(
+        ts = System.currentTimeMillis(),
         liabilities = List(Liability(UUID.randomUUID(), "ETH", BigInt("100000000000000000000"))),
         signature = "0xabc123",
         signatureType = "public_key",
         publicKey = "0xdef456"
       ))
 
-      val solvencyOutput = Some(SolvencyOutput(
+      val solvency = Some(SolvencyOutput(
         porTotalUsd = BigDecimal("1000000.50"),
         polTotalUsd = BigDecimal("800000.25"),
         solvencyRatio = BigDecimal("0.80")
       ))
 
-      val reportOutput = Some(ReportOutput(
+      val report = Some(ReportOutput(
         reportFilePath = "/tmp/report.md",
         reportLink = "https://example.com/report.md"
       ))
 
       val workflowOutput = PorWorkflowOutput(
-        pooOutput = pooOutput,
-        porOutput = porOutput,
-        polOutput = polOutput,
-        solvencyOutput = solvencyOutput,
-        reportOutput = reportOutput
+        poo = poo,
+        por = por,
+        pol = pol,
+        solvency = solvency,
+        report = report
       )
 
       val payload = dataConverter.toPayload(workflowOutput).get()
       val deserialized = dataConverter.fromPayload(payload, classOf[PorWorkflowOutput], classOf[PorWorkflowOutput])
 
-      deserialized.pooOutput.isDefined should be (true)
-      deserialized.porOutput.isDefined should be (true)
-      deserialized.polOutput.isDefined should be (true)
-      deserialized.solvencyOutput.isDefined should be (true)
-      deserialized.reportOutput.isDefined should be (true)
-      deserialized.reportOutput.get.reportFilePath should === ("/tmp/report.md")
+      deserialized.poo.isDefined should be (true)
+      deserialized.por.isDefined should be (true)
+      deserialized.pol.isDefined should be (true)
+      deserialized.solvency.isDefined should be (true)
+      deserialized.report.isDefined should be (true)
+      deserialized.report.get.reportFilePath should === ("/tmp/report.md")
     }
 
     "serialize and deserialize PorWorkflowOutput with partial outputs" in {
-      val porOutput = Some(PorOutput(
-        timestamp = System.currentTimeMillis(),
+      val por = Some(PorOutput(
+        ts = System.currentTimeMillis(),
         balances = List(WalletWithAsset("0x1234", "Ethereum", "ETH", BigInt("100000000000000000000")))
       ))
 
-      val reportOutput = Some(ReportOutput(
+      val report = Some(ReportOutput(
         reportFilePath = "/tmp/report.md",
         reportLink = "https://example.com/report.md"
       ))
 
       val workflowOutput = PorWorkflowOutput(
-        pooOutput = None,
-        porOutput = porOutput,
-        polOutput = None,
-        solvencyOutput = None,
-        reportOutput = reportOutput
+        poo = None,
+        por = por,
+        pol = None,
+        solvency = None,
+        report = report
       )
 
       val payload = dataConverter.toPayload(workflowOutput).get()
       val deserialized = dataConverter.fromPayload(payload, classOf[PorWorkflowOutput], classOf[PorWorkflowOutput])
 
-      deserialized.pooOutput.isDefined should be (false)
-      deserialized.porOutput.isDefined should be (true)
-      deserialized.polOutput.isDefined should be (false)
-      deserialized.solvencyOutput.isDefined should be (false)
-      deserialized.reportOutput.isDefined should be (true)
+      deserialized.poo.isDefined should be (false)
+      deserialized.por.isDefined should be (true)
+      deserialized.pol.isDefined should be (false)
+      deserialized.solvency.isDefined should be (false)
+      deserialized.report.isDefined should be (true)
     }
   }
 }

@@ -7,26 +7,20 @@ import io.temporal.activity.ActivityMethod
 trait PorActivities {
 
   @ActivityMethod
-  def executeProofOfOwnership(input: PooInput): PooOutput
+  def executeProofOfOwnership(run: PorWorkflowRun): PorWorkflowRun
 
   @ActivityMethod
-  def executeProofOfReserves(input: PorInput): PorOutput
+  def executeProofOfReserves(run: PorWorkflowRun): PorWorkflowRun
 
   @ActivityMethod
-  def executeProofOfLiability(input: PolInput): PolOutput
+  def executeProofOfLiability(run: PorWorkflowRun): PorWorkflowRun
 
   @ActivityMethod
-  def executeSolvency(porOutput: PorOutput, polOutput: PolOutput): SolvencyOutput
+  def executeSolvency(run: PorWorkflowRun): PorWorkflowRun
 
   @ActivityMethod
-  def executeCommit(output: PorWorkflowOutput): CommitOutput
+  def executeCommit(run: PorWorkflowRun): PorWorkflowRun
 
   @ActivityMethod
-  def executeReport(
-    workflowInput: PorWorkflowInput,
-    pooOutput: Option[PooOutput],
-    porOutput: Option[PorOutput],
-    polOutput: Option[PolOutput],
-    solvencyOutput: Option[SolvencyOutput]
-  ): ReportOutput
+  def executeReport(run: PorWorkflowRun): PorWorkflowRun
 }

@@ -17,81 +17,79 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
 
     "support new run with only inputs" in {
       val input = PorWorkflowInput(
-        ownerName = "Exchange1",
-        timestamp = System.currentTimeMillis(),
-        pooInput = Some(PooInput(List.empty, "signature")),
-        pooOutput = None,
-        porInput = Some(PorInput(List.empty, List("BTC", "ETH"))),
-        porOutput = None,
-        polInput = Some(PolInput("/tmp/test.json", true, "simulate")),
-        polOutput = None,
-        reportRequired = true,
-        polSignalMode = "simulate"
+        poo = StepDef(input = Some(PooInput(List.empty, "signature"))),
+        por = StepDef(input = Some(PorInput(List.empty, List("BTC", "ETH")))),
+        pol = StepDef(input = Some(PolInput("/tmp/test.json", true, "simulate"))),
+        solvency = StepDef(),
+        report = StepDef(),
+        commit = StepDef()
       )
 
-      // All inputs defined, no outputs
-      input.pooInput.isDefined should be (true)
-      input.pooOutput.isDefined should be (false)
-      input.porInput.isDefined should be (true)
-      input.porOutput.isDefined should be (false)
-      input.polInput.isDefined should be (true)
-      input.polOutput.isDefined should be (false)
+      // All inputs defined
+      input.poo.input.isDefined should be (true)
+      input.por.input.isDefined should be (true)
+      input.pol.input.isDefined should be (true)
     }
 
     "support incremental run with mixed inputs and outputs" in {
       val previousPooOutput = PooOutput(
-        timestamp = 1234567890L,
+        ts = 1234567890L,
         proofs = Map("0x1234" -> "0xabcd", "0x5678" -> "0xef01")
       )
 
       val previousPorOutput = PorOutput(
-        timestamp = 1234567890L,
+        ts = 1234567890L,
         balances = List(
           WalletWithAsset("0x1234", "Ethereum", "ETH", BigInt("100000000000000000000"))
         )
       )
 
-      val input = PorWorkflowInput(
+      // Create run with previous outputs and new PoL input
+      val run = PorWorkflowRun(
         ownerName = "Exchange1",
-        timestamp = System.currentTimeMillis(),
-        pooInput = None,
-        pooOutput = Some(previousPooOutput), // Reuse previous PoO
-        porInput = None,
-        porOutput = Some(previousPorOutput), // Reuse previous PoR
-        polInput = Some(PolInput("/tmp/updated-liabilities.json", true, "simulate")), // New PoL
-        polOutput = None,
-        reportRequired = true,
-        polSignalMode = "simulate"
+        ts = System.currentTimeMillis(),
+        input = PorWorkflowInput(
+          poo = StepDef(),  // No new PoO input
+          por = StepDef(),  // No new PoR input
+          pol = StepDef(input = Some(PolInput("/tmp/updated-liabilities.json", true, "simulate"))), // New PoL
+          solvency = StepDef(),
+          report = StepDef(),
+          commit = StepDef()
+        ),
+        output = PorWorkflowOutput(
+          poo = Some(previousPooOutput), // Reuse previous PoO
+          por = Some(previousPorOutput)  // Reuse previous PoR
+        )
       )
 
       // PoO and PoR have outputs (reused), PoL has input (executed)
-      input.pooInput.isDefined should be (false)
-      input.pooOutput.isDefined should be (true)
-      input.porInput.isDefined should be (false)
-      input.porOutput.isDefined should be (true)
-      input.polInput.isDefined should be (true)
-      input.polOutput.isDefined should be (false)
+      run.input.poo.input.isDefined should be (false)
+      run.output.poo.isDefined should be (true)
+      run.input.por.input.isDefined should be (false)
+      run.output.por.isDefined should be (true)
+      run.input.pol.input.isDefined should be (true)
+      run.output.pol.isDefined should be (false)
 
       // Verify reused outputs have correct data
-      input.pooOutput.get.proofs should have size 2
-      input.porOutput.get.balances should have size 1
+      run.output.poo.get.proofs should have size 2
+      run.output.por.get.balances should have size 1
     }
 
     "support pure reuse with only outputs" in {
       val previousPooOutput = PooOutput(
-        timestamp = 1234567890L,
+        ts = 1234567890L,
         proofs = Map("0x1234" -> "0xabcd")
       )
 
       val previousPorOutput = PorOutput(
-        timestamp = 1234567890L,
+        ts = 1234567890L,
         balances = List(
           WalletWithAsset("0x1234", "Ethereum", "ETH", BigInt("100000000000000000000"))
         )
       )
 
       val previousPolOutput = PolOutput(
-        timestamp = 1234567890L,
+        ts = 1234567890L,
         liabilities = List(
           Liability(UUID.randomUUID(), "ETH", BigInt("50000000000000000000"))
         ),
@@ -100,61 +98,69 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
         publicKey = "0xcafebabe"
       )
 
-      val input = PorWorkflowInput(
+      // Create run with only previous outputs (no inputs)
+      val run = PorWorkflowRun(
         ownerName = "Exchange1",
-        timestamp = System.currentTimeMillis(),
-        pooInput = None,
-        pooOutput = Some(previousPooOutput), // Reuse
-        porInput = None,
-        porOutput = Some(previousPorOutput), // Reuse
-        polInput = None,
-        polOutput = Some(previousPolOutput), // Reuse
-        reportRequired = true,
-        polSignalMode = "simulate"
+        ts = System.currentTimeMillis(),
+        input = PorWorkflowInput(
+          poo = StepDef(),  // No input
+          por = StepDef(),  // No input
+          pol = StepDef(),  // No input
+          solvency = StepDef(),
+          report = StepDef(),
+          commit = StepDef()
+        ),
+        output = PorWorkflowOutput(
+          poo = Some(previousPooOutput), // Reuse
+          por = Some(previousPorOutput), // Reuse
+          pol = Some(previousPolOutput)  // Reuse
+        )
       )
 
       // All steps have outputs (reused), no inputs
-      input.pooInput.isDefined should be (false)
-      input.pooOutput.isDefined should be (true)
-      input.porInput.isDefined should be (false)
-      input.porOutput.isDefined should be (true)
-      input.polInput.isDefined should be (false)
-      input.polOutput.isDefined should be (true)
+      run.input.poo.input.isDefined should be (false)
+      run.output.poo.isDefined should be (true)
+      run.input.por.input.isDefined should be (false)
+      run.output.por.isDefined should be (true)
+      run.input.pol.input.isDefined should be (false)
+      run.output.pol.isDefined should be (true)
 
       // Verify all outputs are present
-      input.pooOutput.get.proofs should have size 1
-      input.porOutput.get.balances should have size 1
-      input.polOutput.get.liabilities should have size 1
+      run.output.poo.get.proofs should have size 1
+      run.output.por.get.balances should have size 1
+      run.output.pol.get.liabilities should have size 1
     }
 
-    "serialize and deserialize incremental workflow input" in {
+    "serialize and deserialize incremental workflow run" in {
       val previousPorOutput = PorOutput(
-        timestamp = 1234567890L,
+        ts = 1234567890L,
         balances = List(
           WalletWithAsset("0x1234", "Ethereum", "ETH", BigInt("100000000000000000000"))
         )
       )
 
-      val input = PorWorkflowInput(
+      val run = PorWorkflowRun(
         ownerName = "Exchange1",
-        timestamp = System.currentTimeMillis(),
-        pooInput = Some(PooInput(List.empty, "signature")),
-        pooOutput = None,
-        porInput = None,
-        porOutput = Some(previousPorOutput),
-        polInput = Some(PolInput("/tmp/test.json", true, "simulate")),
-        polOutput = None,
-        reportRequired = true,
-        polSignalMode = "simulate"
+        ts = System.currentTimeMillis(),
+        input = PorWorkflowInput(
+          poo = StepDef(input = Some(PooInput(List.empty, "signature"))),
+          por = StepDef(),  // No input, will use previous output
+          pol = StepDef(input = Some(PolInput("/tmp/test.json", true, "simulate"))),
+          solvency = StepDef(),
+          report = StepDef(),
+          commit = StepDef()
+        ),
+        output = PorWorkflowOutput(
+          por = Some(previousPorOutput) // Previous output for reuse
+        )
       )
 
-      val payload = dataConverter.toPayload(input).get()
-      val deserialized = dataConverter.fromPayload(payload, classOf[PorWorkflowInput], classOf[PorWorkflowInput])
+      val payload = dataConverter.toPayload(run).get()
+      val deserialized = dataConverter.fromPayload(payload, classOf[PorWorkflowRun], classOf[PorWorkflowRun])
 
-      deserialized.ownerName should === ("Exchange1")
-      deserialized.pooInput.isDefined should be (true)
-      deserialized.porOutput.isDefined should be (true)
-      deserialized.porOutput.get.balances should have size 1
+      deserialized.input.poo.input.isDefined should be (true)
+      deserialized.output.por.isDefined should be (true)
+      deserialized.output.por.get.balances should have size 1
     }
   }
 
@@ -162,101 +168,106 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
 
     "represent full execution output" in {
       val output = PorWorkflowOutput(
-        pooOutput = Some(PooOutput(System.currentTimeMillis(), Map("0x1" -> "0xa"))),
-        porOutput = Some(PorOutput(System.currentTimeMillis(), List.empty)),
-        polOutput = Some(PolOutput(System.currentTimeMillis(), List.empty, "0x", "public_key", "0x")),
-        solvencyOutput = Some(SolvencyOutput(BigDecimal(1000), BigDecimal(900), BigDecimal(0.9))),
-        reportOutput = Some(ReportOutput("/tmp/report.md", "https://example.com/report"))
+        poo = Some(PooOutput(System.currentTimeMillis(), Map("0x1" -> "0xa"))),
+        por = Some(PorOutput(System.currentTimeMillis(), List.empty)),
+        pol = Some(PolOutput(System.currentTimeMillis(), List.empty, "0x", "public_key", "0x")),
+        solvency = Some(SolvencyOutput(BigDecimal(1000), BigDecimal(900), BigDecimal(0.9))),
+        report = Some(ReportOutput("/tmp/report.md", "https://example.com/report"))
       )
 
       // All steps completed
-      output.pooOutput.isDefined should be (true)
-      output.porOutput.isDefined should be (true)
-      output.polOutput.isDefined should be (true)
-      output.solvencyOutput.isDefined should be (true)
-      output.reportOutput.isDefined should be (true)
+      output.poo.isDefined should be (true)
+      output.por.isDefined should be (true)
+      output.pol.isDefined should be (true)
+      output.solvency.isDefined should be (true)
+      output.report.isDefined should be (true)
     }
 
     "represent partial execution output" in {
       val output = PorWorkflowOutput(
-        pooOutput = None, // Skipped
-        porOutput = Some(PorOutput(System.currentTimeMillis(), List.empty)),
-        polOutput = Some(PolOutput(System.currentTimeMillis(), List.empty, "0x", "public_key", "0x")),
-        solvencyOutput = Some(SolvencyOutput(BigDecimal(1000), BigDecimal(900), BigDecimal(0.9))),
-        reportOutput = Some(ReportOutput("/tmp/report.md", "https://example.com/report"))
+        poo = None, // Skipped
+        por = Some(PorOutput(System.currentTimeMillis(), List.empty)),
+        pol = Some(PolOutput(System.currentTimeMillis(), List.empty, "0x", "public_key", "0x")),
+        solvency = Some(SolvencyOutput(BigDecimal(1000), BigDecimal(900), BigDecimal(0.9))),
+        report = Some(ReportOutput("/tmp/report.md", "https://example.com/report"))
       )
 
       // PoO skipped, others completed
-      output.pooOutput.isDefined should be (false)
-      output.porOutput.isDefined should be (true)
-      output.polOutput.isDefined should be (true)
-      output.solvencyOutput.isDefined should be (true)
-      output.reportOutput.isDefined should be (true)
+      output.poo.isDefined should be (false)
+      output.por.isDefined should be (true)
+      output.pol.isDefined should be (true)
+      output.solvency.isDefined should be (true)
+      output.report.isDefined should be (true)
     }
 
     "be reusable as input for next run" in {
       // Simulate first run output
       val firstRunOutput = PorWorkflowOutput(
-        pooOutput = Some(PooOutput(1234567890L, Map("0x1" -> "0xa"))),
-        porOutput = Some(PorOutput(1234567890L, List(
+        poo = Some(PooOutput(1234567890L, Map("0x1" -> "0xa"))),
+        por = Some(PorOutput(1234567890L, List(
           WalletWithAsset("0x1", "Ethereum", "ETH", BigInt("100000000000000000000"))
         ))),
-        polOutput = Some(PolOutput(1234567890L, List(
+        pol = Some(PolOutput(1234567890L, List(
           Liability(UUID.randomUUID(), "ETH", BigInt("50000000000000000000"))
         ), "0xsig", "public_key", "0xkey")),
-        solvencyOutput = Some(SolvencyOutput(BigDecimal(1000), BigDecimal(900), BigDecimal(0.9))),
-        reportOutput = Some(ReportOutput("/tmp/report1.md", "https://example.com/report1"))
+        solvency = Some(SolvencyOutput(BigDecimal(1000), BigDecimal(900), BigDecimal(0.9))),
+        report = Some(ReportOutput("/tmp/report1.md", "https://example.com/report1")),
+        commit = None
       )
 
-      // Create second run input reusing first run outputs
-      val secondRunInput = PorWorkflowInput(
+      // Create second run reusing first run outputs
+      val secondRun = PorWorkflowRun(
         ownerName = "Exchange1",
-        timestamp = System.currentTimeMillis(),
-        pooInput = None,
-        pooOutput = firstRunOutput.pooOutput, // Reuse PoO
-        porInput = None,
-        porOutput = firstRunOutput.porOutput, // Reuse PoR
-        polInput = Some(PolInput("/tmp/updated-liabilities.json", true, "simulate")), // New PoL
-        polOutput = None,
-        reportRequired = true,
-        polSignalMode = "simulate"
+        ts = System.currentTimeMillis(),
+        input = PorWorkflowInput(
+          poo = StepDef(),  // No new PoO input, will use previous output
+          por = StepDef(),  // No new PoR input, will use previous output
+          pol = StepDef(input = Some(PolInput("/tmp/updated-liabilities.json", true, "simulate"))), // New PoL
+          solvency = StepDef(),
+          report = StepDef(),
+          commit = StepDef()
+        ),
+        output = PorWorkflowOutput(
+          poo = firstRunOutput.poo, // Reuse PoO
+          por = firstRunOutput.por  // Reuse PoR
+        )
       )
 
       // Verify outputs are reused
-      secondRunInput.pooOutput.isDefined should be (true)
-      secondRunInput.porOutput.isDefined should be (true)
-      secondRunInput.pooOutput.get.proofs should have size 1
-      secondRunInput.porOutput.get.balances should have size 1
+      secondRun.output.poo.isDefined should be (true)
+      secondRun.output.por.isDefined should be (true)
+      secondRun.output.poo.get.proofs should have size 1
+      secondRun.output.por.get.balances should have size 1
 
       // New PoL will be executed
-      secondRunInput.polInput.isDefined should be (true)
-      secondRunInput.polOutput.isDefined should be (false)
+      secondRun.input.pol.input.isDefined should be (true)
+      secondRun.output.pol.isDefined should be (false)
     }
 
     "serialize complete workflow output for persistence" in {
       val output = PorWorkflowOutput(
-        pooOutput = Some(PooOutput(1234567890L, Map("0x1" -> "0xa", "0x2" -> "0xb"))),
-        porOutput = Some(PorOutput(1234567890L, List(
+        poo = Some(PooOutput(1234567890L, Map("0x1" -> "0xa", "0x2" -> "0xb"))),
+        por = Some(PorOutput(1234567890L, List(
           WalletWithAsset("0x1", "Ethereum", "ETH", BigInt("100000000000000000000")),
           WalletWithAsset("0x2", "Bitcoin", "BTC", BigInt("200000000"))
         ))),
-        polOutput = Some(PolOutput(1234567890L, List(
+        pol = Some(PolOutput(1234567890L, List(
           Liability(UUID.randomUUID(), "ETH", BigInt("50000000000000000000")),
           Liability(UUID.randomUUID(), "BTC", BigInt("100000000"))
         ), "0xsig", "public_key", "0xkey")),
-        solvencyOutput = Some(SolvencyOutput(BigDecimal(1500000), BigDecimal(1200000), BigDecimal(0.8))),
-        reportOutput = Some(ReportOutput("/tmp/report.md", "https://example.com/report"))
+        solvency = Some(SolvencyOutput(BigDecimal(1500000), BigDecimal(1200000), BigDecimal(0.8))),
+        report = Some(ReportOutput("/tmp/report.md", "https://example.com/report"))
       )
 
       val payload = dataConverter.toPayload(output).get()
       val deserialized = dataConverter.fromPayload(payload, classOf[PorWorkflowOutput], classOf[PorWorkflowOutput])
 
       // Verify all data is preserved
-      deserialized.pooOutput.get.proofs should have size 2
-      deserialized.porOutput.get.balances should have size 2
-      deserialized.polOutput.get.liabilities should have size 2
-      deserialized.solvencyOutput.get.solvencyRatio should === (BigDecimal(0.8))
-      deserialized.reportOutput.get.reportFilePath should === ("/tmp/report.md")
+      deserialized.poo.get.proofs should have size 2
+      deserialized.por.get.balances should have size 2
+      deserialized.pol.get.liabilities should have size 2
+      deserialized.solvency.get.solvencyRatio should === (BigDecimal(0.8))
+      deserialized.report.get.reportFilePath should === ("/tmp/report.md")
     }
   }
 }

@@ -14,7 +14,7 @@ import io.syspulse.skel.wf.temporal.por._
 class CommitActivityDemo {
   private val log = Logger(getClass.getName)
 
-  def execute(output: PorWorkflowOutput): CommitOutput = {
+  def execute(run: PorWorkflowRun): PorWorkflowRun = {
     val activityInfo = Activity.getExecutionContext.getInfo
     val wid = activityInfo.getWorkflowId
 
@@ -28,13 +28,14 @@ class CommitActivityDemo {
     val filePath = os.temp.dir() / fileName
 
     try {
-      val json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(output)
+      val json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(run.output)
       os.write(filePath, json)
 
       log.info(s"[$wid] Successfully wrote PorWorkflowOutput to: $filePath")
-      log.info(s"[$wid] Output contains: PoO=${output.pooOutput.isDefined}, PoR=${output.porOutput.isDefined}, PoL=${output.polOutput.isDefined}, Solvency=${output.solvencyOutput.isDefined}, Report=${output.reportOutput.isDefined}")
+      log.info(s"[$wid] Output contains: PoO=${run.output.poo.isDefined}, PoR=${run.output.por.isDefined}, PoL=${run.output.pol.isDefined}, Solvency=${run.output.solvency.isDefined}, Report=${run.output.report.isDefined}")
 
-      CommitOutput(filePath.toString)
+      val commit = CommitOutput(filePath.toString)
+      run.copy(output = run.output.copy(commit = Some(commit)))
     } catch {
       case e: Exception =>
         log.error(s"[$wid] Failed to write PorWorkflowOutput: ${e.getMessage}", e)

@@ -12,12 +12,7 @@ import io.syspulse.skel.wf.temporal.por._
 class PolActivityDemo {
   private val log = Logger(getClass.getName)
   private val SignalPollIntervalMs = 5000L
-
-  private def simulateWork(minSeconds: Int = 1, maxSeconds: Int = 3): Unit = {
-    val delay = (Random.nextInt(maxSeconds - minSeconds + 1) + minSeconds) * 1000
-    Thread.sleep(delay)
-  }
-
+  
   /** Wait for user signal: file (poll /tmp), rest (POST to local server), or simulate (delay). Mode from PolInput.signalMode. */
   private def waitForUserSignal(workflowId: String, wid: String, signalMode: String): Unit = {
     signalMode.toLowerCase match {
@@ -76,23 +71,30 @@ class PolActivityDemo {
   }
 
   private def waitForSimulateSignal(): Unit = {
-    simulateWork(2, 4)
+    PorActivitiesDemo.simulateWork(2, 4)
   }
 
-  def execute(input: PolInput): PolOutput = {
+  def execute(run: PorWorkflowRun): PorWorkflowRun = {
     val activityInfo = Activity.getExecutionContext.getInfo
     val workflowId = activityInfo.getWorkflowId
     val wid = s"[$workflowId / ${activityInfo.getRunId}]"
-    log.info(s"$wid Starting PoL - waiting for human input")
-    log.info(s"$wid Timer is waiting for human input")
 
-    // Generate demo file
-    val demoFilePath = os.temp.dir() / s"liabilities_${System.currentTimeMillis()}.json"
-    val demoData = generateDemoLiabilitiesFile()
+    run.input.pol.input match {
+      case None =>
+        log.warn(s"$wid PoL: No input provided, returning run unchanged")
+        run
 
-    // Write demo file
-    val jsonContent = s"""{
-  "timestamp": ${demoData.timestamp},
+      case Some(input) =>
+        log.info(s"$wid Starting PoL - waiting for human input")
+        log.info(s"$wid Timer is waiting for human input")
+
+        // Generate demo file
+        val demoFilePath = os.temp.dir() / s"liabilities_${System.currentTimeMillis()}.json"
+        val demoData = generateDemoLiabilitiesFile()
+
+        // Write demo file
+        val jsonContent = s"""{
+  "ts": ${demoData.ts},
   "liabilities": [
 ${demoData.liabilities.map(l => s"""    {"userId": "${l.userId}", "asset": "${l.asset}", "balance": "${l.balance}"}""").mkString(",\n")}
   ],
@@ -100,24 +102,30 @@ ${demoData.liabilities.map(l => s"""    {"userId": "${l.userId}", "asset": "${l.
   "signatureType": "${demoData.signatureType}",
   "publicKey": "${demoData.publicKey}"
 }"""
-    os.write(demoFilePath, jsonContent)
-    log.info(s"$wid Demo file generated: $demoFilePath")
+        os.write(demoFilePath, jsonContent)
+        log.info(s"$wid Demo file generated: $demoFilePath")
 
-    if (input.waitForConfirmation) {
-      log.info(s"$wid Please confirm to use file: $demoFilePath (signalMode=${input.signalMode})")
-      waitForUserSignal(workflowId, wid, input.signalMode)
+        if (input.waitForConfirmation) {
+          log.info(s"$wid Please confirm to use file: $demoFilePath (signalMode=${input.signalMode})")
+          waitForUserSignal(workflowId, wid, input.signalMode)
+        }
+
+        // PoL MERGE STRATEGY: Never trust previous output, always override with fresh input
+        run.output.pol.foreach { previousOutput =>
+          log.info(s"$wid PoL: Ignoring previous output (${previousOutput.liabilities.size} entries), using fresh data")
+        }
+
+        val output = PolOutput(
+          ts = demoData.ts,
+          liabilities = demoData.liabilities,
+          signature = demoData.signature,
+          signatureType = demoData.signatureType,
+          publicKey = demoData.publicKey
+        )
+
+        log.info(s"$wid Completed PoL with ${output.liabilities.size} liability entries")
+        run.copy(output = run.output.copy(pol = Some(output)))
     }
-
-    val output = PolOutput(
-      timestamp = demoData.timestamp,
-      liabilities = demoData.liabilities,
-      signature = demoData.signature,
-      signatureType = demoData.signatureType,
-      publicKey = demoData.publicKey
-    )
-
-    log.info(s"$wid Completed PoL with ${output.liabilities.size} liability entries")
-    output
   }
 
   private def generateDemoLiabilitiesFile(): PolFileData = {
@@ -130,7 +138,7 @@ ${demoData.liabilities.map(l => s"""    {"userId": "${l.userId}", "asset": "${l.
     }.toList
 
     PolFileData(
-      timestamp = System.currentTimeMillis(),
+      ts = System.currentTimeMillis(),
       liabilities = liabilities,
       signature = s"0x${Random.alphanumeric.take(128).mkString}",
       signatureType = "public_key",

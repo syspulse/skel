@@ -23,29 +23,22 @@ case class Liability(
   balance: BigInt
 )
 
-// Step Inputs
+// Step Definition - contains config and input data for each step
+
+case class StepDef[I](
+  config: Map[String, String] = Map.empty,
+  input: Option[I] = None
+)
+
+// Workflow Input - defines all steps (merged from PorRunConfig)
 
 case class PorWorkflowInput(
-  ownerName: String,
-  timestamp: Long,
-
-  // PoO step - provide either input (to execute) or output (to reuse)
-  pooInput: Option[PooInput],
-  pooOutput: Option[PooOutput],
-
-  // PoR step - provide either input (to execute) or output (to reuse)
-  porInput: Option[PorInput],
-  porOutput: Option[PorOutput],
-
-  // PoL step - provide either input (to execute) or output (to reuse)
-  polInput: Option[PolInput],
-  polOutput: Option[PolOutput],
-
-  // Report generation
-  reportRequired: Boolean,
-
-  /** PoL user signal: "file" | "rest" | "simulate" (default). Passed to PolInput. */
-  polSignalMode: String = "simulate"
+  poo: StepDef[PooInput] = StepDef(),
+  por: StepDef[PorInput] = StepDef(),
+  pol: StepDef[PolInput] = StepDef(),
+  solvency: StepDef[Unit] = StepDef(),
+  report: StepDef[Unit] = StepDef(),
+  commit: StepDef[Unit] = StepDef()
 )
 
 case class PooInput(
@@ -66,7 +59,7 @@ case class PolInput(
 )
 
 case class PolFileData(
-  timestamp: Long,
+  ts: Long,
   liabilities: List[Liability],
   signature: String,
   signatureType: String, // "certificate" or "public_key"
@@ -76,17 +69,17 @@ case class PolFileData(
 // Step Outputs
 
 case class PooOutput(
-  timestamp: Long,
+  ts: Long,
   proofs: Map[String, String] // wallet address -> signature or transaction_hash
 )
 
 case class PorOutput(
-  timestamp: Long,
+  ts: Long,
   balances: List[WalletWithAsset]
 )
 
 case class PolOutput(
-  timestamp: Long,
+  ts: Long,
   liabilities: List[Liability],
   signature: String,
   signatureType: String,
@@ -111,10 +104,21 @@ case class CommitOutput(
 // Workflow Output - contains all step outputs
 
 case class PorWorkflowOutput(
-  pooOutput: Option[PooOutput],
-  porOutput: Option[PorOutput],
-  polOutput: Option[PolOutput],
-  solvencyOutput: Option[SolvencyOutput],
-  reportOutput: Option[ReportOutput],
-  commitOutput: Option[CommitOutput]
+  poo: Option[PooOutput] = None,
+  por: Option[PorOutput] = None,
+  pol: Option[PolOutput] = None,
+  solvency: Option[SolvencyOutput] = None,
+  report: Option[ReportOutput] = None,
+  commit: Option[CommitOutput] = None
+)
+
+// Workflow Run - context propagated through all steps (becomes workflow output)
+
+case class PorWorkflowRun(
+  ownerName: String,
+  ts: Long,
+  tags: Seq[String] = Seq.empty,
+  memo: Map[String, String] = Map.empty,
+  input: PorWorkflowInput,
+  output: PorWorkflowOutput = PorWorkflowOutput()
 )

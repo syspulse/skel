@@ -3,6 +3,7 @@ package io.syspulse.skel.wf.temporal.por.demo
 import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skel.wf.temporal.por._
+import scala.util.Random
 
 class PorActivitiesDemo extends PorActivities {
   private val log = Logger(getClass.getName)
@@ -15,33 +16,34 @@ class PorActivitiesDemo extends PorActivities {
   private val commitActivity = new CommitActivityDemo()
   private val reportActivity = new ReportActivityDemo()
 
-  override def executeProofOfOwnership(input: PooInput): PooOutput = {
-    pooActivity.execute(input)
+  override def executeProofOfOwnership(run: PorWorkflowRun): PorWorkflowRun = {
+    pooActivity.execute(run)
   }
 
-  override def executeProofOfReserves(input: PorInput): PorOutput = {
-    porActivity.execute(input)
+  override def executeProofOfReserves(run: PorWorkflowRun): PorWorkflowRun = {
+    porActivity.execute(run)
   }
 
-  override def executeProofOfLiability(input: PolInput): PolOutput = {
-    polActivity.execute(input)
+  override def executeProofOfLiability(run: PorWorkflowRun): PorWorkflowRun = {
+    polActivity.execute(run)
   }
 
-  override def executeSolvency(porOutput: PorOutput, polOutput: PolOutput): SolvencyOutput = {
-    solvencyActivity.execute(porOutput, polOutput)
+  override def executeSolvency(run: PorWorkflowRun): PorWorkflowRun = {
+    solvencyActivity.execute(run)
   }
 
-  override def executeCommit(output: PorWorkflowOutput): CommitOutput = {
-    commitActivity.execute(output)
+  override def executeCommit(run: PorWorkflowRun): PorWorkflowRun = {
+    commitActivity.execute(run)
   }
 
-  override def executeReport(
-    workflowInput: PorWorkflowInput,
-    pooOutput: Option[PooOutput],
-    porOutput: Option[PorOutput],
-    polOutput: Option[PolOutput],
-    solvencyOutput: Option[SolvencyOutput]
-  ): ReportOutput = {
-    reportActivity.execute(workflowInput, pooOutput, porOutput, polOutput, solvencyOutput)
+  override def executeReport(run: PorWorkflowRun): PorWorkflowRun = {
+    reportActivity.execute(run)
+  }
+}
+
+object PorActivitiesDemo {
+  def simulateWork(minSeconds: Int = 1, maxSeconds: Int = 3): Unit = {
+    val delay = (Random.nextInt(maxSeconds - minSeconds + 1) + minSeconds) * 1000
+    Thread.sleep(delay)
   }
 }

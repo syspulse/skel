@@ -7,5 +7,5 @@ import io.temporal.workflow.WorkflowMethod
 trait PorWorkflow {
 
   @WorkflowMethod
-  def execute(input: PorWorkflowInput): PorWorkflowOutput
+  def execute(run: PorWorkflowRun): PorWorkflowRun
 }

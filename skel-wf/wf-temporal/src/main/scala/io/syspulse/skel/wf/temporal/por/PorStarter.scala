@@ -9,43 +9,10 @@ import io.syspulse.skel.wf.temporal.{ScalaDataConverter, TemporalURI}
 import com.typesafe.scalalogging.Logger
 import scala.jdk.CollectionConverters._
 
-/**
- * Configuration for running a PoR workflow
- * Supports incremental runs by providing previous outputs and new inputs
- */
-case class PorRunConfig(
-  ownerName: String = "DefaultOwner",
-  flow: String = "flow-1",
-
-  // PoO step - provide either input (to execute) or output (to reuse)
-  pooInput: Option[PooInput] = None,
-  pooOutput: Option[PooOutput] = None,
-
-  // PoR step - provide either input (to execute) or output (to reuse)
-  porInput: Option[PorInput] = None,
-  porOutput: Option[PorOutput] = None,
-
-  // PoL step - provide either input (to execute) or output (to reuse)
-  polInput: Option[PolInput] = None,
-  polOutput: Option[PolOutput] = None,
-
-  // Report generation
-  reportRequired: Boolean = true,
-
-  /** PoL user signal: file | rest | simulate (default) */
-  polSignalMode: String = "simulate",
-
-  /** Tags for workflow metadata and search attributes (e.g., ["CEX", "Bybit"]) */
-  tags: Seq[String] = Seq.empty,
-
-  /** Additional memo data for workflow (key=value pairs, e.g., ["region=US", "env=prod"]) */
-  memo: Map[String, String] = Map.empty
-)
-
 object PorStarter {
   private val log = Logger(getClass.getName)
 
-  def run(uri: String, config: PorRunConfig): Try[String] = {
+  def run(uri: String, run: PorWorkflowRun): Try[String] = {
     try {
 
       val t = TemporalURI(uri)
@@ -68,20 +35,7 @@ object PorStarter {
 
       val client = WorkflowClient.newInstance(service, clientOptions)
 
-      val input = PorWorkflowInput(
-        ownerName = config.ownerName,
-        timestamp = System.currentTimeMillis(),
-        pooInput = config.pooInput,
-        pooOutput = config.pooOutput,
-        porInput = config.porInput,
-        porOutput = config.porOutput,
-        polInput = config.polInput,
-        polOutput = config.polOutput,
-        reportRequired = config.reportRequired,
-        polSignalMode = config.polSignalMode
-      )
-
-      val wid = s"por-workflow-${config.ownerName}-${System.currentTimeMillis()}"
+      val wid = s"por-workflow-${run.ownerName}-${run.ts}"
 
       // Build workflow options
       val optionsBuilder = WorkflowOptions.newBuilder()
@@ -89,21 +43,21 @@ object PorStarter {
         .setTaskQueue(PorWorker.TASK_QUEUE)
 
       // Add memo if tags or custom memo are present
-      if (config.tags.nonEmpty || config.memo.nonEmpty) {
+      if (run.tags.nonEmpty || run.memo.nonEmpty) {
         val memoMap = scala.collection.mutable.Map.empty[String, Object]
 
         // Add tags to memo
-        if (config.tags.nonEmpty) {
-          memoMap += ("tags" -> config.tags.asJava.asInstanceOf[Object])
-          log.info(s"$wid: Adding tags to memo: ${config.tags.mkString("[", ", ", "]")}")
+        if (run.tags.nonEmpty) {
+          memoMap += ("tags" -> run.tags.asJava.asInstanceOf[Object])
+          log.info(s"$wid: Adding tags to memo: ${run.tags.mkString("[", ", ", "]")}")
         }
 
         // Add custom memo entries
-        if (config.memo.nonEmpty) {
-          config.memo.foreach { case (key, value) =>
+        if (run.memo.nonEmpty) {
+          run.memo.foreach { case (key, value) =>
             memoMap += (key -> value.asInstanceOf[Object])
           }
-          log.info(s"$wid: Adding custom memo: ${config.memo.map { case (k, v) => s"$k=$v" }.mkString(", ")}")
+          log.info(s"$wid: Adding custom memo: ${run.memo.map { case (k, v) => s"$k=$v" }.mkString(", ")}")
         }
 
         optionsBuilder.setMemo(memoMap.asJava)
@@ -111,38 +65,42 @@ object PorStarter {
 
       // Add search attributes if tags are present
       // Note: CustomKeywordField search attribute must be registered in Temporal
-      if (config.tags.nonEmpty) {
+      if (run.tags.nonEmpty) {
         val searchAttrKey = SearchAttributeKey.forKeywordList("CustomKeywordField")
         val searchAttributes = SearchAttributes.newBuilder()
-          .set(searchAttrKey, config.tags.asJava)
+          .set(searchAttrKey, run.tags.asJava)
           .build()
         optionsBuilder.setTypedSearchAttributes(searchAttributes)
-        log.info(s"$wid: Adding tags to search attributes: ${config.tags.mkString("[", ", ", "]")}")
+        log.info(s"$wid: Adding tags to search attributes: ${run.tags.mkString("[", ", ", "]")}")
       }
 
       val options = optionsBuilder.build()
 
       val workflow = client.newWorkflowStub(classOf[PorWorkflow], options)
 
-      log.info(s"Starting PoR Workflow: $wid: ownerName=${config.ownerName} flow=${config.flow} polSignalMode=${config.polSignalMode} pooIn=${config.pooInput.isDefined} pooOut=${config.pooOutput.isDefined} porIn=${config.porInput.isDefined} porOut=${config.porOutput.isDefined} polIn=${config.polInput.isDefined} polOut=${config.polOutput.isDefined} report=${config.reportRequired}")
+      log.info(s"Starting PoR Workflow: $wid: ownerName=${run.ownerName} pooIn=${run.input.poo.input.isDefined} pooOut=${run.output.poo.isDefined} porIn=${run.input.por.input.isDefined} porOut=${run.output.por.isDefined} polIn=${run.input.pol.input.isDefined} polOut=${run.output.pol.isDefined}")
 
-      val result = workflow.execute(input)
+      val result = workflow.execute(run)
 
-      result.reportOutput match {
+      result.output.report match {
         case Some(report) =>
           log.info(s"$wid: Report=${report.reportFilePath}, link=${report.reportLink}")
         case None =>
           log.info(s"$wid: Workflow completed without report output")
       }
 
-      log.info(s"$wid: Completed - PoO=${result.pooOutput.isDefined}, PoR=${result.porOutput.isDefined}, PoL=${result.polOutput.isDefined}, Solvency=${result.solvencyOutput.isDefined}, Report=${result.reportOutput.isDefined}")
+      result.output.commit.foreach { commit =>
+        log.info(s"$wid: Output committed to: ${commit.filePath}")
+      }
+
+      log.info(s"$wid: Completed - PoO=${result.output.poo.isDefined}, PoR=${result.output.por.isDefined}, PoL=${result.output.pol.isDefined}, Solvency=${result.output.solvency.isDefined}, Report=${result.output.report.isDefined}, Commit=${result.output.commit.isDefined}")
 
       service.shutdown()
       Success(wid)
     }
     catch {
       case e: Exception =>
-        log.error(s"Failed to start Workflow: ${config}: ${e.getMessage}", e)
+        log.error(s"Failed to start Workflow: ${run.ownerName}: ${e.getMessage}", e)
         Failure(e)
     }
   }

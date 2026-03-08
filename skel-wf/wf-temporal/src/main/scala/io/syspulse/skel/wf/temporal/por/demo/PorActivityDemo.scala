@@ -7,39 +7,47 @@ import io.syspulse.skel.wf.temporal.por._
 
 class PorActivityDemo {
   private val log = Logger(getClass.getName)
-
-  private def simulateWork(minSeconds: Int = 1, maxSeconds: Int = 3): Unit = {
-    val delay = (Random.nextInt(maxSeconds - minSeconds + 1) + minSeconds) * 1000
-    Thread.sleep(delay)
-  }
-
-  def execute(input: PorInput): PorOutput = {
+  
+  def execute(run: PorWorkflowRun): PorWorkflowRun = {
     val activityInfo = Activity.getExecutionContext.getInfo
     val wid = s"[${activityInfo.getWorkflowId} / ${activityInfo.getRunId}]"
-    log.info(s"$wid Starting PoR with ${input.wallets.size} wallets and ${input.assets.size} assets")
 
-    simulateWork(1, 3)
+    run.input.por.input match {
+      case None =>
+        log.warn(s"$wid PoR: No input provided, returning run unchanged")
+        run
 
-    // Generate mock balances for each wallet and asset
-    val balances = for {
-      wallet <- input.wallets
-      asset <- input.assets
-    } yield {
-      val balance = BigInt(Random.nextInt(1000000)) * BigInt(10).pow(18) // Mock balance
-      WalletWithAsset(
-        address = wallet.address,
-        network = wallet.network,
-        asset = asset,
-        balance = balance
-      )
+      case Some(input) =>
+        log.info(s"$wid Starting PoR with ${input.wallets.size} wallets and ${input.assets.size} assets")
+
+        PorActivitiesDemo.simulateWork(1, 3)
+
+        // Generate mock balances for each wallet and asset
+        val balances = for {
+          wallet <- input.wallets
+          asset <- input.assets
+        } yield {
+          val balance = BigInt(Random.nextInt(1000000)) * BigInt(10).pow(18) // Mock balance
+          WalletWithAsset(
+            address = wallet.address,
+            network = wallet.network,
+            asset = asset,
+            balance = balance
+          )
+        }
+
+        // PoR MERGE STRATEGY: Never trust previous outputs, always use fresh input as output
+        run.output.por.foreach { previousOutput =>
+          log.info(s"$wid PoR: Ignoring previous output (${previousOutput.balances.size} entries), using fresh data")
+        }
+
+        val output = PorOutput(
+          ts = System.currentTimeMillis(),
+          balances = balances.toList
+        )
+
+        log.info(s"$wid Completed PoR with ${balances.size} balance entries")
+        run.copy(output = run.output.copy(por = Some(output)))
     }
-
-    val output = PorOutput(
-      timestamp = System.currentTimeMillis(),
-      balances = balances.toList
-    )
-
-    log.info(s"$wid Completed PoR with ${balances.size} balance entries")
-    output
   }
 }

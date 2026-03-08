@@ -66,18 +66,18 @@ class ScalaDataConverterSpec extends AnyWordSpec with Matchers {
     "serialize and deserialize case class with Map" in {
       val dataConverter = ScalaDataConverter.create()
 
-      val pooOutput = PooOutput(
-        timestamp = System.currentTimeMillis(),
+      val poo = PooOutput(
+        ts = System.currentTimeMillis(),
         proofs = Map(
           "0x1234567890abcdef1234567890abcdef12345678" -> "0xabcdef1234567890",
           "0xabcdef1234567890abcdef1234567890abcdef12" -> "0x1234567890abcdef"
         )
       )
 
-      val payload = dataConverter.toPayload(pooOutput).get()
+      val payload = dataConverter.toPayload(poo).get()
       val deserialized = dataConverter.fromPayload(payload, classOf[PooOutput], classOf[PooOutput])
 
-      deserialized.timestamp should === (pooOutput.timestamp)
+      deserialized.ts should === (poo.ts)
       deserialized.proofs should have size 2
       deserialized.proofs("0x1234567890abcdef1234567890abcdef12345678") should === ("0xabcdef1234567890")
     }

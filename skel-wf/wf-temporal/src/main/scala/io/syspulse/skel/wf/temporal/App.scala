@@ -222,68 +222,67 @@ object App extends skel.Server {
 
       case "por-start" =>
         // Parse flow to determine required steps and create appropriate inputs
-        val (pooInput, porInput, polInput, reportRequired) = config.porFlow.toLowerCase match {
+        val (pooInput, porInput, polInput) = config.porFlow.toLowerCase match {
           case "flow-1" => // PoO -> PoR -> PoL -> Solvency -> Report
             (
               Some(PooInput(List.empty, "signature")), // Will be populated by workflow
               Some(PorInput(List.empty, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
-              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode)),
-              true
+              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
             )
           case "flow-2" => // PoR -> PoL -> Solvency -> Report
             (
               None,
               Some(PorInput(List.empty, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
-              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode)),
-              true
+              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
             )
           case "flow-3" => // PoR -> Report
             (
               None,
               Some(PorInput(List.empty, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
-              None,
-              true
+              None
             )
           case "flow-4" => // PoO -> PoR -> Report
             (
               Some(PooInput(List.empty, "signature")),
               Some(PorInput(List.empty, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
-              None,
-              true
+              None
             )
           case "flow-5" => // PoL only
             (
               None,
               None,
-              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode)),
-              false
+              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
             )
           case _ =>
             log.warn(s"Unknown flow: ${config.porFlow}, using default flow-1")
             (
               Some(PooInput(List.empty, "signature")),
               Some(PorInput(List.empty, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
-              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode)),
-              true
+              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
             )
         }
 
-        val porConfig = PorRunConfig(
-          ownerName = config.porOwnerName,
-          flow = config.porFlow,
-          pooInput = pooInput,
-          pooOutput = None, // Will be set if reusing previous run
-          porInput = porInput,
-          porOutput = None, // Will be set if reusing previous run
-          polInput = polInput,
-          polOutput = None, // Will be set if reusing previous run
-          reportRequired = reportRequired,
-          polSignalMode = config.porPolSignalMode,
-          tags = config.porTags,
-          memo = config.porMemo
+        // Create workflow input with step definitions
+        val workflowInput = PorWorkflowInput(
+          poo = StepDef(input = pooInput),
+          por = StepDef(input = porInput),
+          pol = StepDef(input = polInput),
+          solvency = StepDef(),
+          report = StepDef(),
+          commit = StepDef()
         )
 
-        PorStarter.run(config.engine, porConfig)        
+        // Create workflow run context
+        val workflowRun = PorWorkflowRun(
+          ownerName = config.porOwnerName,
+          ts = System.currentTimeMillis(),
+          tags = config.porTags,
+          memo = config.porMemo,
+          input = workflowInput,
+          output = PorWorkflowOutput()
+        )
+
+        PorStarter.run(config.engine, workflowRun)        
 
       case _ =>
         s"Unknown command: ${config.cmd}"

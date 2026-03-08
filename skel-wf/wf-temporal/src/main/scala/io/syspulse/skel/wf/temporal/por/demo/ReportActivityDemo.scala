@@ -8,27 +8,16 @@ import io.syspulse.skel.wf.temporal.por._
 class ReportActivityDemo {
   private val log = Logger(getClass.getName)
 
-  private def simulateWork(minSeconds: Int = 1, maxSeconds: Int = 3): Unit = {
-    val delay = (Random.nextInt(maxSeconds - minSeconds + 1) + minSeconds) * 1000
-    Thread.sleep(delay)
-  }
-
-  def execute(
-    workflowInput: PorWorkflowInput,
-    pooOutput: Option[PooOutput],
-    porOutput: Option[PorOutput],
-    polOutput: Option[PolOutput],
-    solvencyOutput: Option[SolvencyOutput]
-  ): ReportOutput = {
+  def execute(run: PorWorkflowRun): PorWorkflowRun = {
     val activityInfo = Activity.getExecutionContext.getInfo
     val wid = s"[${activityInfo.getWorkflowId} / ${activityInfo.getRunId}]"
     log.info(s"$wid Starting Report generation")
 
-    simulateWork(1, 3)
+    //simulateWork(1, 3)
 
     // Generate report
     val reportFilePath = os.temp.dir() / s"por_report_${System.currentTimeMillis()}.md"
-    val reportContent = generateReportMarkdown(workflowInput, pooOutput, porOutput, polOutput, solvencyOutput)
+    val reportContent = generateReportMarkdown(run)
 
     os.write(reportFilePath, reportContent)
 
@@ -38,36 +27,30 @@ class ReportActivityDemo {
     )
 
     log.info(s"$wid Completed Report generation: $reportFilePath")
-    output
+    run.copy(output = run.output.copy(report = Some(output)))
   }
 
-  private def generateReportMarkdown(
-    workflowInput: PorWorkflowInput,
-    pooOutput: Option[PooOutput],
-    porOutput: Option[PorOutput],
-    polOutput: Option[PolOutput],
-    solvencyOutput: Option[SolvencyOutput]
-  ): String = {
+  private def generateReportMarkdown(run: PorWorkflowRun): String = {
     val sb = new StringBuilder
 
     sb.append(s"# Proof of Reserves Report\n\n")
     sb.append(s"## Owner Information\n\n")
-    sb.append(s"- **Owner Name**: ${workflowInput.ownerName}\n")
-    sb.append(s"- **Timestamp**: ${workflowInput.timestamp}\n")
-    sb.append(s"- **Date**: ${new java.util.Date(workflowInput.timestamp)}\n\n")
+    sb.append(s"- **Owner Name**: ${run.ownerName}\n")
+    sb.append(s"- **Timestamp**: ${run.ts}\n")
+    sb.append(s"- **Date**: ${new java.util.Date(run.ts)}\n\n")
 
-    if (pooOutput.isDefined) {
+    if (run.output.poo.isDefined) {
       sb.append(s"## Proof of Ownership\n\n")
-      sb.append(s"- **Timestamp**: ${pooOutput.get.timestamp}\n")
-      sb.append(s"- **Proofs Count**: ${pooOutput.get.proofs.size}\n\n")
+      sb.append(s"- **Timestamp**: ${run.output.poo.get.ts}\n")
+      sb.append(s"- **Proofs Count**: ${run.output.poo.get.proofs.size}\n\n")
     }
 
-    if (porOutput.isDefined) {
+    if (run.output.por.isDefined) {
       sb.append(s"## Proof of Reserves\n\n")
-      sb.append(s"- **Timestamp**: ${porOutput.get.timestamp}\n")
-      sb.append(s"- **Balance Entries**: ${porOutput.get.balances.size}\n\n")
+      sb.append(s"- **Timestamp**: ${run.output.por.get.ts}\n")
+      sb.append(s"- **Balance Entries**: ${run.output.por.get.balances.size}\n\n")
 
-      val assetSummary = porOutput.get.balances.groupBy(_.asset).map { case (asset, balances) =>
+      val assetSummary = run.output.por.get.balances.groupBy(_.asset).map { case (asset, balances) =>
         val total = balances.map(_.balance).sum
         (asset, total)
       }
@@ -79,13 +62,13 @@ class ReportActivityDemo {
       sb.append("\n")
     }
 
-    if (polOutput.isDefined) {
+    if (run.output.pol.isDefined) {
       sb.append(s"## Proof of Liabilities\n\n")
-      sb.append(s"- **Timestamp**: ${polOutput.get.timestamp}\n")
-      sb.append(s"- **Liability Entries**: ${polOutput.get.liabilities.size}\n")
-      sb.append(s"- **Signature Type**: ${polOutput.get.signatureType}\n\n")
+      sb.append(s"- **Timestamp**: ${run.output.pol.get.ts}\n")
+      sb.append(s"- **Liability Entries**: ${run.output.pol.get.liabilities.size}\n")
+      sb.append(s"- **Signature Type**: ${run.output.pol.get.signatureType}\n\n")
 
-      val assetSummary = polOutput.get.liabilities.groupBy(_.asset).map { case (asset, liabilities) =>
+      val assetSummary = run.output.pol.get.liabilities.groupBy(_.asset).map { case (asset, liabilities) =>
         val total = liabilities.map(_.balance).sum
         (asset, total)
       }
@@ -97,8 +80,8 @@ class ReportActivityDemo {
       sb.append("\n")
     }
 
-    if (solvencyOutput.isDefined) {
-      val solvency = solvencyOutput.get
+    if (run.output.solvency.isDefined) {
+      val solvency = run.output.solvency.get
       sb.append(s"## Solvency Analysis\n\n")
       sb.append(s"- **Total Reserves (USD)**: $$${solvency.porTotalUsd}\n")
       sb.append(s"- **Total Liabilities (USD)**: $$${solvency.polTotalUsd}\n")
