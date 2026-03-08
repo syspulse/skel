@@ -7,20 +7,20 @@ import io.syspulse.skel.util.Util
 /*
 temporal://host:port/namespace?options
 
-Defaults (aligned with PorStarter/PorWorker):
+All time options in milliseconds. Defaults (aligned with PorStarter/PorWorker):
   host: 127.0.0.1
   port: 7233
   namespace: default
   enable_keep_alive: true
-  keep_alive_time_sec: 30
-  keep_alive_timeout_sec: 15
-  rpc_timeout_sec: 10
+  keep_alive_time: 30000
+  keep_alive_timeout: 15000
+  rpc_timeout: 10000
 
 Examples:
   temporal://
   temporal://127.0.0.1:7233/default
   temporal://my-host:7233/my-namespace
-  temporal://?namespace=prod&rpc_timeout_sec=30
+  temporal://?namespace=prod&rpc_timeout=30000
 */
 case class TemporalURI(uri: String) {
   val PREFIX = "temporal://"
@@ -29,9 +29,9 @@ case class TemporalURI(uri: String) {
   val DEF_PORT = 7233
   val DEF_NAMESPACE = "default"
   val DEF_ENABLE_KEEP_ALIVE = true
-  val DEF_KEEP_ALIVE_TIME_SEC = 30L
-  val DEF_KEEP_ALIVE_TIMEOUT_SEC = 15L
-  val DEF_RPC_TIMEOUT_SEC = 10L
+  val DEF_KEEP_ALIVE_TIME = 30000L
+  val DEF_KEEP_ALIVE_TIMEOUT = 15000L
+  val DEF_RPC_TIMEOUT = 10000L
 
   private val (_host: String, _port: Int, _namespace: String, _ops: Map[String, String]) = parse(uri)
 
@@ -44,9 +44,12 @@ case class TemporalURI(uri: String) {
   def target: String = s"$host:$port"
 
   def enableKeepAlive: Boolean = _ops.get("enable_keep_alive").map(v => v.isEmpty || v.toBoolean).getOrElse(DEF_ENABLE_KEEP_ALIVE)
-  def keepAliveTimeSec: Long = _ops.get("keep_alive_time_sec").map(_.toLong).getOrElse(DEF_KEEP_ALIVE_TIME_SEC)
-  def keepAliveTimeoutSec: Long = _ops.get("keep_alive_timeout_sec").map(_.toLong).getOrElse(DEF_KEEP_ALIVE_TIMEOUT_SEC)
-  def rpcTimeoutSec: Long = _ops.get("rpc_timeout_sec").map(_.toLong).getOrElse(DEF_RPC_TIMEOUT_SEC)
+  /** Keep-alive time in milliseconds. */
+  def keepAliveTime: Long = _ops.get("keep_alive_time").map(_.toLong).getOrElse(DEF_KEEP_ALIVE_TIME)
+  /** Keep-alive timeout in milliseconds. */
+  def keepAliveTimeout: Long = _ops.get("keep_alive_timeout").map(_.toLong).getOrElse(DEF_KEEP_ALIVE_TIMEOUT)
+  /** RPC timeout in milliseconds. */
+  def rpcTimeout: Long = _ops.get("rpc_timeout").map(_.toLong).getOrElse(DEF_RPC_TIMEOUT)
 
   def parse(uri: String): (String, Int, String, Map[String, String]) = {
     val (url: String, ops: Map[String, String]) = uri.split("[\\?&]").toList match {

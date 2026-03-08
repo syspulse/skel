@@ -91,3 +91,13 @@ case class ReportOutput(
   reportFilePath: String,
   reportLink: String
 )
+
+// Workflow Output - contains all step outputs
+
+case class PorWorkflowOutput(
+  pooOutput: Option[PooOutput],
+  porOutput: Option[PorOutput],
+  polOutput: Option[PolOutput],
+  solvencyOutput: Option[SolvencyOutput],
+  reportOutput: Option[ReportOutput]
+)

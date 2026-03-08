@@ -19,29 +19,29 @@ class PolActivityDemo {
   }
 
   /** Wait for user signal: file (poll /tmp), rest (POST to local server), or simulate (delay). Mode from PolInput.signalMode. */
-  private def waitForUserSignal(wid: String, signalMode: String): Unit = {
+  private def waitForUserSignal(workflowId: String, wid: String, signalMode: String): Unit = {
     signalMode.toLowerCase match {
-      case "file" => waitForFileSignal(wid)
+      case "file" => waitForFileSignal(workflowId, wid)
       case "rest" => waitForRestSignal(wid)
       case _ => waitForSimulateSignal()
     }
   }
 
   /** Poll /tmp/por-pol-{workflowId}.signal until file exists with non-empty content. */
-  private def waitForFileSignal(wid: String): Unit = {
-    val safeWid = wid.replaceAll("[^a-zA-Z0-9_.-]", "_")
+  private def waitForFileSignal(workflowId: String, wid: String): Unit = {
+    val safeWid = workflowId.replaceAll("[^a-zA-Z0-9_.-]", "_")
     val path = os.Path(s"/tmp/por-pol-${safeWid}.signal", os.pwd)
-    log.info(s"[$wid] Waiting for signal file: $path (poll every ${SignalPollIntervalMs}ms)")
+    log.info(s"$wid Waiting for signal file: $path (poll every ${SignalPollIntervalMs}ms)")
     var attempt = 0
     var done = false
     while (!done) {
       attempt += 1
       val content = scala.util.Try(os.read(path)).toOption.flatMap(s => Some(s.trim)).find(_.nonEmpty)
       if (content.isDefined) {
-        log.info(s"[$wid] Signal file received (attempt $attempt)")
+        log.info(s"$wid Signal file received (attempt $attempt)")
         done = true
       } else {
-        log.info(s"[$wid] Poll attempt $attempt: signal file missing or empty, retrying in ${SignalPollIntervalMs}ms")
+        log.info(s"$wid Poll attempt $attempt: signal file missing or empty, retrying in ${SignalPollIntervalMs}ms")
         Thread.sleep(SignalPollIntervalMs)
       }
     }
@@ -69,10 +69,10 @@ class PolActivityDemo {
     })
     server.start()
     val actualPort = server.getAddress.getPort
-    log.info(s"[$wid] REST signal: POST http://<host>:${actualPort}/pol-signal with body to continue")
+    log.info(s"$wid REST signal: POST http://<host>:${actualPort}/pol-signal with body to continue")
     latch.await(24, TimeUnit.HOURS)
     server.stop(0)
-    log.info(s"[$wid] REST signal received")
+    log.info(s"$wid REST signal received")
   }
 
   private def waitForSimulateSignal(): Unit = {
@@ -81,9 +81,10 @@ class PolActivityDemo {
 
   def execute(input: PolInput): PolOutput = {
     val activityInfo = Activity.getExecutionContext.getInfo
-    val wid = activityInfo.getWorkflowId
-    log.info(s"[$wid] Starting PoL - waiting for human input")
-    log.info(s"[$wid] Timer is waiting for human input")
+    val workflowId = activityInfo.getWorkflowId
+    val wid = s"[$workflowId / ${activityInfo.getRunId}]"
+    log.info(s"$wid Starting PoL - waiting for human input")
+    log.info(s"$wid Timer is waiting for human input")
 
     // Generate demo file
     val demoFilePath = os.temp.dir() / s"liabilities_${System.currentTimeMillis()}.json"
@@ -99,13 +100,12 @@ ${demoData.liabilities.map(l => s"""    {"userId": "${l.userId}", "asset": "${l.
   "signatureType": "${demoData.signatureType}",
   "publicKey": "${demoData.publicKey}"
 }"""
-
     os.write(demoFilePath, jsonContent)
-    log.info(s"[$wid] Demo file generated: $demoFilePath")
+    log.info(s"$wid Demo file generated: $demoFilePath")
 
     if (input.waitForConfirmation) {
-      log.info(s"[$wid] Please confirm to use file: $demoFilePath (signalMode=${input.signalMode})")
-      waitForUserSignal(wid, input.signalMode)
+      log.info(s"$wid Please confirm to use file: $demoFilePath (signalMode=${input.signalMode})")
+      waitForUserSignal(workflowId, wid, input.signalMode)
     }
 
     val output = PolOutput(
@@ -116,7 +116,7 @@ ${demoData.liabilities.map(l => s"""    {"userId": "${l.userId}", "asset": "${l.
       publicKey = demoData.publicKey
     )
 
-    log.info(s"[$wid] Completed PoL with ${output.liabilities.size} liability entries")
+    log.info(s"$wid Completed PoL with ${output.liabilities.size} liability entries")
     output
   }
 

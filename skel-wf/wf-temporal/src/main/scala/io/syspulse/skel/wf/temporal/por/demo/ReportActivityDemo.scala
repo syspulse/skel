@@ -21,8 +21,8 @@ class ReportActivityDemo {
     solvencyOutput: Option[SolvencyOutput]
   ): ReportOutput = {
     val activityInfo = Activity.getExecutionContext.getInfo
-    val wid = activityInfo.getWorkflowId
-    log.info(s"[$wid] Starting Report generation")
+    val wid = s"[${activityInfo.getWorkflowId} / ${activityInfo.getRunId}]"
+    log.info(s"$wid Starting Report generation")
 
     simulateWork(1, 3)
 
@@ -37,7 +37,7 @@ class ReportActivityDemo {
       reportLink = s"file://$reportFilePath"
     )
 
-    log.info(s"[$wid] Completed Report generation: $reportFilePath")
+    log.info(s"$wid Completed Report generation: $reportFilePath")
     output
   }
 

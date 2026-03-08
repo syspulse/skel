@@ -18,7 +18,7 @@ class PorWorkflowImpl extends PorWorkflow {
 
   private val activities = Workflow.newActivityStub(classOf[PorActivities], activityOptions)
 
-  override def execute(input: PorWorkflowInput): ReportOutput = {
+  override def execute(input: PorWorkflowInput): PorWorkflowOutput = {
     logger.info(s"Starting PoR Workflow for owner: ${input.ownerName}")
 
     var pooOutput: Option[PooOutput] = None
@@ -30,7 +30,7 @@ class PorWorkflowImpl extends PorWorkflow {
     val flowPattern = determineFlowPattern(input)
     logger.info(s"Executing flow pattern: $flowPattern")
 
-    def executeFlow1(input: PorWorkflowInput): ReportOutput = {
+    def executeFlow1(input: PorWorkflowInput): PorWorkflowOutput = {
       // Flow 1: [PoO] -> [PoR] -> [PoL] -> [Solvency] -> [Report]
 
       // Step 1: Proof of Ownership
@@ -56,10 +56,12 @@ class PorWorkflowImpl extends PorWorkflow {
       solvencyOutput = Some(activities.executeSolvency(porOutput.get, polOutput.get))
 
       // Step 5: Report
-      activities.executeReport(input, pooOutput, porOutput, polOutput, solvencyOutput)
+      val reportOutput = Some(activities.executeReport(input, pooOutput, porOutput, polOutput, solvencyOutput))
+
+      PorWorkflowOutput(pooOutput, porOutput, polOutput, solvencyOutput, reportOutput)
     }
 
-    def executeFlow2(input: PorWorkflowInput): ReportOutput = {
+    def executeFlow2(input: PorWorkflowInput): PorWorkflowOutput = {
       // Flow 2: [PoR] -> [PoL] -> [Solvency] -> [Report]
 
       val wallets = generateMockWallets()
@@ -81,10 +83,12 @@ class PorWorkflowImpl extends PorWorkflow {
       solvencyOutput = Some(activities.executeSolvency(porOutput.get, polOutput.get))
 
       // Step 4: Report
-      activities.executeReport(input, pooOutput, porOutput, polOutput, solvencyOutput)
+      val reportOutput = Some(activities.executeReport(input, pooOutput, porOutput, polOutput, solvencyOutput))
+
+      PorWorkflowOutput(pooOutput, porOutput, polOutput, solvencyOutput, reportOutput)
     }
 
-    def executeFlow3(input: PorWorkflowInput): ReportOutput = {
+    def executeFlow3(input: PorWorkflowInput): PorWorkflowOutput = {
       // Flow 3: [PoR] -> [Report]
 
       val wallets = generateMockWallets()
@@ -98,10 +102,12 @@ class PorWorkflowImpl extends PorWorkflow {
       ))
 
       // Step 2: Report
-      activities.executeReport(input, pooOutput, porOutput, polOutput, solvencyOutput)
+      val reportOutput = Some(activities.executeReport(input, pooOutput, porOutput, polOutput, solvencyOutput))
+
+      PorWorkflowOutput(pooOutput, porOutput, polOutput, solvencyOutput, reportOutput)
     }
 
-    def executeFlow4(input: PorWorkflowInput): ReportOutput = {
+    def executeFlow4(input: PorWorkflowInput): PorWorkflowOutput = {
       // Flow 4: [PoO] -> [PoR] -> [Report]
 
       val wallets = generateMockWallets()
@@ -120,10 +126,12 @@ class PorWorkflowImpl extends PorWorkflow {
       ))
 
       // Step 3: Report
-      activities.executeReport(input, pooOutput, porOutput, polOutput, solvencyOutput)
+      val reportOutput = Some(activities.executeReport(input, pooOutput, porOutput, polOutput, solvencyOutput))
+
+      PorWorkflowOutput(pooOutput, porOutput, polOutput, solvencyOutput, reportOutput)
     }
 
-    def executeFlow5(input: PorWorkflowInput): ReportOutput = {
+    def executeFlow5(input: PorWorkflowInput): PorWorkflowOutput = {
       // Flow 5: [PoL]
 
       val wallets = generateMockWallets()
@@ -134,7 +142,9 @@ class PorWorkflowImpl extends PorWorkflow {
       ))
 
       // Step 2: Report
-      activities.executeReport(input, pooOutput, porOutput, polOutput, solvencyOutput)
+      val reportOutput = Some(activities.executeReport(input, pooOutput, porOutput, polOutput, solvencyOutput))
+
+      PorWorkflowOutput(pooOutput, porOutput, polOutput, solvencyOutput, reportOutput)
     }
 
     // Execute the appropriate flow based on pattern

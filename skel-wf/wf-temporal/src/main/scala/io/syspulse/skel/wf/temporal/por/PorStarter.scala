@@ -31,14 +31,14 @@ object PorStarter {
     try {
 
       val t = TemporalURI(uri)
-      log.info(s"Connecting to Temporal at ${t.target} namespace=${t.namespace}")
+      log.info(s"Connecting to Temporal -> ${t.target} (namespace=${t.namespace})")
 
       val serviceOptions = io.temporal.serviceclient.WorkflowServiceStubsOptions.newBuilder()
         .setTarget(t.target)
         .setEnableKeepAlive(t.enableKeepAlive)
-        .setKeepAliveTime(java.time.Duration.ofSeconds(t.keepAliveTimeSec))
-        .setKeepAliveTimeout(java.time.Duration.ofSeconds(t.keepAliveTimeoutSec))
-        .setRpcTimeout(java.time.Duration.ofSeconds(t.rpcTimeoutSec))
+      .setKeepAliveTime(java.time.Duration.ofMillis(t.keepAliveTime))
+      .setKeepAliveTimeout(java.time.Duration.ofMillis(t.keepAliveTimeout))
+      .setRpcTimeout(java.time.Duration.ofMillis(t.rpcTimeout))
         .build()
 
       val service = WorkflowServiceStubs.newServiceStubs(serviceOptions)
@@ -107,7 +107,14 @@ object PorStarter {
 
       val result = workflow.execute(input)
 
-      log.info(s"$wid: Report=${result.reportFilePath}, link=${result.reportLink}")    
+      result.reportOutput match {
+        case Some(report) =>
+          log.info(s"$wid: Report=${report.reportFilePath}, link=${report.reportLink}")
+        case None =>
+          log.info(s"$wid: Workflow completed without report output")
+      }
+
+      log.info(s"$wid: Completed - PoO=${result.pooOutput.isDefined}, PoR=${result.porOutput.isDefined}, PoL=${result.polOutput.isDefined}, Solvency=${result.solvencyOutput.isDefined}, Report=${result.reportOutput.isDefined}")
 
       service.shutdown()
       Success(wid)

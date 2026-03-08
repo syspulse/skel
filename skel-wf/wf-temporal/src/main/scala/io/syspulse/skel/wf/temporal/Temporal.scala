@@ -38,9 +38,9 @@ class Temporal(uri: String) {
   private val serviceOptions = io.temporal.serviceclient.WorkflowServiceStubsOptions.newBuilder()
     .setTarget(t.target)
     .setEnableKeepAlive(t.enableKeepAlive)
-    .setKeepAliveTime(java.time.Duration.ofSeconds(t.keepAliveTimeSec))
-    .setKeepAliveTimeout(java.time.Duration.ofSeconds(t.keepAliveTimeoutSec))
-    .setRpcTimeout(java.time.Duration.ofSeconds(t.rpcTimeoutSec))
+    .setKeepAliveTime(java.time.Duration.ofMillis(t.keepAliveTime))
+    .setKeepAliveTimeout(java.time.Duration.ofMillis(t.keepAliveTimeout))
+    .setRpcTimeout(java.time.Duration.ofMillis(t.rpcTimeout))
     .build()
 
   private val service = WorkflowServiceStubs.newServiceStubs(serviceOptions)

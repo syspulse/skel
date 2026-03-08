@@ -15,14 +15,14 @@ object PorWorker {
 
   def run(uri: String, impl: PorActivities): Try[Unit] = Try {
     val t = TemporalURI(uri)
-    log.info(s"Connecting to Temporal at ${t.target} namespace=${t.namespace}")
+    log.info(s"Connecting to Temporal -> ${t.target} (namespace=${t.namespace})")
 
     val serviceOptions = io.temporal.serviceclient.WorkflowServiceStubsOptions.newBuilder()
       .setTarget(t.target)
       .setEnableKeepAlive(t.enableKeepAlive)
-      .setKeepAliveTime(java.time.Duration.ofSeconds(t.keepAliveTimeSec))
-      .setKeepAliveTimeout(java.time.Duration.ofSeconds(t.keepAliveTimeoutSec))
-      .setRpcTimeout(java.time.Duration.ofSeconds(t.rpcTimeoutSec))
+      .setKeepAliveTime(java.time.Duration.ofMillis(t.keepAliveTime))
+      .setKeepAliveTimeout(java.time.Duration.ofMillis(t.keepAliveTimeout))
+      .setRpcTimeout(java.time.Duration.ofMillis(t.rpcTimeout))
       .build()
 
     val service = WorkflowServiceStubs.newServiceStubs(serviceOptions)
@@ -49,7 +49,7 @@ object PorWorker {
 
     factory.start()
 
-    log.info(s"PoR Worker started and listening on task queue: $TASK_QUEUE")
+    log.info(s"PoR Worker started: namespace=${t.namespace}, task_queue=${TASK_QUEUE}")
 
     sys.addShutdownHook {
       log.info("Shutting down worker...")

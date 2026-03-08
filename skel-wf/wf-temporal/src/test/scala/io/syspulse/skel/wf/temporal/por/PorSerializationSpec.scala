@@ -200,5 +200,83 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
 
       deserialized should === (reportOutput)
     }
+
+    "serialize and deserialize PorWorkflowOutput with all outputs" in {
+      val pooOutput = Some(PooOutput(
+        timestamp = System.currentTimeMillis(),
+        proofs = Map("0x1234" -> "0xabcd")
+      ))
+
+      val porOutput = Some(PorOutput(
+        timestamp = System.currentTimeMillis(),
+        balances = List(WalletWithAsset("0x1234", "Ethereum", "ETH", BigInt("100000000000000000000")))
+      ))
+
+      val polOutput = Some(PolOutput(
+        timestamp = System.currentTimeMillis(),
+        liabilities = List(Liability(UUID.randomUUID(), "ETH", BigInt("100000000000000000000"))),
+        signature = "0xabc123",
+        signatureType = "public_key",
+        publicKey = "0xdef456"
+      ))
+
+      val solvencyOutput = Some(SolvencyOutput(
+        porTotalUsd = BigDecimal("1000000.50"),
+        polTotalUsd = BigDecimal("800000.25"),
+        solvencyRatio = BigDecimal("0.80")
+      ))
+
+      val reportOutput = Some(ReportOutput(
+        reportFilePath = "/tmp/report.md",
+        reportLink = "https://example.com/report.md"
+      ))
+
+      val workflowOutput = PorWorkflowOutput(
+        pooOutput = pooOutput,
+        porOutput = porOutput,
+        polOutput = polOutput,
+        solvencyOutput = solvencyOutput,
+        reportOutput = reportOutput
+      )
+
+      val payload = dataConverter.toPayload(workflowOutput).get()
+      val deserialized = dataConverter.fromPayload(payload, classOf[PorWorkflowOutput], classOf[PorWorkflowOutput])
+
+      deserialized.pooOutput.isDefined should be (true)
+      deserialized.porOutput.isDefined should be (true)
+      deserialized.polOutput.isDefined should be (true)
+      deserialized.solvencyOutput.isDefined should be (true)
+      deserialized.reportOutput.isDefined should be (true)
+      deserialized.reportOutput.get.reportFilePath should === ("/tmp/report.md")
+    }
+
+    "serialize and deserialize PorWorkflowOutput with partial outputs" in {
+      val porOutput = Some(PorOutput(
+        timestamp = System.currentTimeMillis(),
+        balances = List(WalletWithAsset("0x1234", "Ethereum", "ETH", BigInt("100000000000000000000")))
+      ))
+
+      val reportOutput = Some(ReportOutput(
+        reportFilePath = "/tmp/report.md",
+        reportLink = "https://example.com/report.md"
+      ))
+
+      val workflowOutput = PorWorkflowOutput(
+        pooOutput = None,
+        porOutput = porOutput,
+        polOutput = None,
+        solvencyOutput = None,
+        reportOutput = reportOutput
+      )
+
+      val payload = dataConverter.toPayload(workflowOutput).get()
+      val deserialized = dataConverter.fromPayload(payload, classOf[PorWorkflowOutput], classOf[PorWorkflowOutput])
+
+      deserialized.pooOutput.isDefined should be (false)
+      deserialized.porOutput.isDefined should be (true)
+      deserialized.polOutput.isDefined should be (false)
+      deserialized.solvencyOutput.isDefined should be (false)
+      deserialized.reportOutput.isDefined should be (true)
+    }
   }
 }
