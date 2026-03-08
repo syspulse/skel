@@ -30,7 +30,7 @@ class CommitActivityDemo {
       val commit = CommitOutput(filePath.toString)
       val run1 = run.copy(output = run.output.copy(commit = Some(commit)))
 
-      val json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(run1.output)
+      val json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(run1)
       os.write(filePath, json)
 
       log.info(s"[$wid] Committed: $filePath")

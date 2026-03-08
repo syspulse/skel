@@ -51,13 +51,7 @@ class PorWorkflowImpl extends PorWorkflow {
     currentRun
   }
 
-  /**
-   * Process Proof of Ownership step
-   * If step is None -> skip
-   * If input exists -> execute activity (activity will merge with existing output)
-   */
-  private def processPoOStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
-    println(s"$wid PoO: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ${run.input.poo}")
+  private def processPoOStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {    
     run.input.poo match {
       case None =>
         logger.info(s"$wid PoO: Skipped (step not defined)")
@@ -82,11 +76,6 @@ class PorWorkflowImpl extends PorWorkflow {
     }
   }
 
-  /**
-   * Process Proof of Reserves step
-   * If step is None -> skip
-   * If input exists -> execute activity (activity will merge with existing output)
-   */
   private def processPoRStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
     run.input.por match {
       case None =>
@@ -96,13 +85,6 @@ class PorWorkflowImpl extends PorWorkflow {
       case Some(step) =>
         step.input match {
           case Some(porInput) =>            
-            // Merge with mock wallets if empty
-            // val finalInput = if (porInput.wallets.isEmpty) {
-            //   porInput.copy(wallets = DemoUtil.generateMockWallets())
-            // } else {
-            //   porInput
-            // }
-            // val updatedRun = run.copy(input = run.input.copy(por = Some(step.copy(input = Some(finalInput)))))
             activities.executeProofOfReserves(run)
 
           case None =>
@@ -112,11 +94,6 @@ class PorWorkflowImpl extends PorWorkflow {
     }
   }
 
-  /**
-   * Process Proof of Liabilities step
-   * If step is None -> skip
-   * If input exists -> execute activity (activity will merge with existing output)
-   */
   private def processPoLStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
     run.input.pol match {
       case None =>
@@ -135,11 +112,6 @@ class PorWorkflowImpl extends PorWorkflow {
     }
   }
 
-  /**
-   * Process Solvency step
-   * If step is None -> skip
-   * Only executes if both PoR and PoL outputs exist
-   */
   private def processSolvencyStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
     run.input.solvency match {
       case None =>
