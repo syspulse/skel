@@ -192,6 +192,9 @@ object App extends skel.Server {
           case "query" :: query :: pageSize :: Nil =>
             Temporal.query(config.engine, query, pageSize.toInt)
 
+          case "get" :: runId :: Nil =>
+            Temporal.get(config.engine, runId)
+
           case "describe" :: workflowId :: Nil =>
             Temporal.describe(config.engine, workflowId)
 
@@ -200,7 +203,7 @@ object App extends skel.Server {
 
           case "list" :: Nil =>
             Temporal.list(config.engine)
-          
+
           case "list" :: workflowType :: tail =>
             val pageSize = tail.headOption.map(_.toInt).getOrElse(10)
             Temporal.list(config.engine, workflowType = Some(workflowType), pageSize = pageSize)
@@ -211,7 +214,7 @@ object App extends skel.Server {
 
           case _ =>
             Temporal.list(config.engine)
-     
+
         }
 
       case "por-worker" =>

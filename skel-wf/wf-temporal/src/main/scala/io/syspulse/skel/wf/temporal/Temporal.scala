@@ -226,4 +226,22 @@ object Temporal {
 
     this.query(uri, query, pageSize)
   }
+
+  /**
+   * Get workflow by run ID
+   *
+   * @param uri Temporal server URI
+   * @param runId The run ID to search for
+   * @return WorkflowExecutionInfo if found, or failure if not found or error
+   */
+  def get(uri: String, runId: String): Try[WorkflowExecutionInfo] = {
+    val queryStr = s"RunId = '$runId'"
+
+    query(uri, queryStr, pageSize = 1).flatMap { result =>
+      result.executions.headOption match {
+        case Some(info) => Success(info)
+        case None => Failure(new NoSuchElementException(s"Workflow with RunId '$runId' not found"))
+      }
+    }
+  }
 }
