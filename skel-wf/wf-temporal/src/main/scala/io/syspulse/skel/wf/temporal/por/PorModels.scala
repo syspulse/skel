@@ -28,10 +28,22 @@ case class Liability(
 case class PorWorkflowInput(
   ownerName: String,
   timestamp: Long,
-  pooRequired: Boolean,
-  porRequired: Boolean,
-  polRequired: Boolean,
+
+  // PoO step - provide either input (to execute) or output (to reuse)
+  pooInput: Option[PooInput],
+  pooOutput: Option[PooOutput],
+
+  // PoR step - provide either input (to execute) or output (to reuse)
+  porInput: Option[PorInput],
+  porOutput: Option[PorOutput],
+
+  // PoL step - provide either input (to execute) or output (to reuse)
+  polInput: Option[PolInput],
+  polOutput: Option[PolOutput],
+
+  // Report generation
   reportRequired: Boolean,
+
   /** PoL user signal: "file" | "rest" | "simulate" (default). Passed to PolInput. */
   polSignalMode: String = "simulate"
 )
@@ -92,6 +104,10 @@ case class ReportOutput(
   reportLink: String
 )
 
+case class CommitOutput(
+  filePath: String
+)
+
 // Workflow Output - contains all step outputs
 
 case class PorWorkflowOutput(
@@ -99,5 +115,6 @@ case class PorWorkflowOutput(
   porOutput: Option[PorOutput],
   polOutput: Option[PolOutput],
   solvencyOutput: Option[SolvencyOutput],
-  reportOutput: Option[ReportOutput]
+  reportOutput: Option[ReportOutput],
+  commitOutput: Option[CommitOutput]
 )

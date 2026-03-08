@@ -221,26 +221,62 @@ object App extends skel.Server {
         PorWorker.run(config.engine, impl)        
 
       case "por-start" =>
-        // Parse flow to determine required steps if not explicitly set
-        val (pooRequired, porRequired, polRequired, reportRequired) = config.porFlow.toLowerCase match {
-          case "flow-1" => (true, true, true, true)   // PoO -> PoR -> PoL -> Solvency -> Report
-          case "flow-2" => (false, true, true, true)  // PoR -> PoL -> Solvency -> Report
-          case "flow-3" => (false, true, false, true) // PoR -> Report
-          case "flow-4" => (true, true, false, true)  // PoO -> PoR -> Report
-          case "flow-5" => (false, false, true, false)  // PoL
+        // Parse flow to determine required steps and create appropriate inputs
+        val (pooInput, porInput, polInput, reportRequired) = config.porFlow.toLowerCase match {
+          case "flow-1" => // PoO -> PoR -> PoL -> Solvency -> Report
+            (
+              Some(PooInput(List.empty, "signature")), // Will be populated by workflow
+              Some(PorInput(List.empty, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
+              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode)),
+              true
+            )
+          case "flow-2" => // PoR -> PoL -> Solvency -> Report
+            (
+              None,
+              Some(PorInput(List.empty, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
+              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode)),
+              true
+            )
+          case "flow-3" => // PoR -> Report
+            (
+              None,
+              Some(PorInput(List.empty, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
+              None,
+              true
+            )
+          case "flow-4" => // PoO -> PoR -> Report
+            (
+              Some(PooInput(List.empty, "signature")),
+              Some(PorInput(List.empty, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
+              None,
+              true
+            )
+          case "flow-5" => // PoL only
+            (
+              None,
+              None,
+              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode)),
+              false
+            )
           case _ =>
             log.warn(s"Unknown flow: ${config.porFlow}, using default flow-1")
-            (true, true, true, true)
+            (
+              Some(PooInput(List.empty, "signature")),
+              Some(PorInput(List.empty, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
+              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode)),
+              true
+            )
         }
 
-        // Parse memo from key=value pairs
-        
-        val porConfig = PorConfig(
+        val porConfig = PorRunConfig(
           ownerName = config.porOwnerName,
           flow = config.porFlow,
-          pooRequired = pooRequired,
-          porRequired = porRequired,
-          polRequired = polRequired,
+          pooInput = pooInput,
+          pooOutput = None, // Will be set if reusing previous run
+          porInput = porInput,
+          porOutput = None, // Will be set if reusing previous run
+          polInput = polInput,
+          polOutput = None, // Will be set if reusing previous run
           reportRequired = reportRequired,
           polSignalMode = config.porPolSignalMode,
           tags = config.porTags,

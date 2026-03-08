@@ -19,6 +19,9 @@ trait PorActivities {
   def executeSolvency(porOutput: PorOutput, polOutput: PolOutput): SolvencyOutput
 
   @ActivityMethod
+  def executeCommit(output: PorWorkflowOutput): CommitOutput
+
+  @ActivityMethod
   def executeReport(
     workflowInput: PorWorkflowInput,
     pooOutput: Option[PooOutput],

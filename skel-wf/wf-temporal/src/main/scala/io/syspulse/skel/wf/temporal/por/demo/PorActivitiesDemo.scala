@@ -12,6 +12,7 @@ class PorActivitiesDemo extends PorActivities {
   private val porActivity = new PorActivityDemo()
   private val polActivity = new PolActivityDemo()
   private val solvencyActivity = new SolvencyActivityDemo()
+  private val commitActivity = new CommitActivityDemo()
   private val reportActivity = new ReportActivityDemo()
 
   override def executeProofOfOwnership(input: PooInput): PooOutput = {
@@ -28,6 +29,10 @@ class PorActivitiesDemo extends PorActivities {
 
   override def executeSolvency(porOutput: PorOutput, polOutput: PolOutput): SolvencyOutput = {
     solvencyActivity.execute(porOutput, polOutput)
+  }
+
+  override def executeCommit(output: PorWorkflowOutput): CommitOutput = {
+    commitActivity.execute(output)
   }
 
   override def executeReport(

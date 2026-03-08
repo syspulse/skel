@@ -77,9 +77,12 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
       val workflowInput = PorWorkflowInput(
         ownerName = "TestExchange",
         timestamp = System.currentTimeMillis(),
-        pooRequired = true,
-        porRequired = true,
-        polRequired = true,
+        pooInput = Some(PooInput(List.empty, "signature")),
+        pooOutput = None,
+        porInput = Some(PorInput(List.empty, List("BTC", "ETH"))),
+        porOutput = None,
+        polInput = Some(PolInput("/tmp/test.json", waitForConfirmation = true, signalMode = "rest")),
+        polOutput = None,
         reportRequired = true,
         polSignalMode = "rest"
       )
@@ -88,7 +91,7 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
       val deserialized = dataConverter.fromPayload(payload, classOf[PorWorkflowInput], classOf[PorWorkflowInput])
 
       deserialized.ownerName should === ("TestExchange")
-      deserialized.pooRequired should be (true)
+      deserialized.pooInput.isDefined should be (true)
       deserialized.polSignalMode should === ("rest")
     }
 

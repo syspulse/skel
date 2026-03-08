@@ -9,17 +9,35 @@ import io.syspulse.skel.wf.temporal.{ScalaDataConverter, TemporalURI}
 import com.typesafe.scalalogging.Logger
 import scala.jdk.CollectionConverters._
 
-case class PorConfig(
+/**
+ * Configuration for running a PoR workflow
+ * Supports incremental runs by providing previous outputs and new inputs
+ */
+case class PorRunConfig(
   ownerName: String = "DefaultOwner",
   flow: String = "flow-1",
-  pooRequired: Boolean = true,
-  porRequired: Boolean = true,
-  polRequired: Boolean = true,
+
+  // PoO step - provide either input (to execute) or output (to reuse)
+  pooInput: Option[PooInput] = None,
+  pooOutput: Option[PooOutput] = None,
+
+  // PoR step - provide either input (to execute) or output (to reuse)
+  porInput: Option[PorInput] = None,
+  porOutput: Option[PorOutput] = None,
+
+  // PoL step - provide either input (to execute) or output (to reuse)
+  polInput: Option[PolInput] = None,
+  polOutput: Option[PolOutput] = None,
+
+  // Report generation
   reportRequired: Boolean = true,
+
   /** PoL user signal: file | rest | simulate (default) */
   polSignalMode: String = "simulate",
+
   /** Tags for workflow metadata and search attributes (e.g., ["CEX", "Bybit"]) */
   tags: Seq[String] = Seq.empty,
+
   /** Additional memo data for workflow (key=value pairs, e.g., ["region=US", "env=prod"]) */
   memo: Map[String, String] = Map.empty
 )
@@ -27,7 +45,7 @@ case class PorConfig(
 object PorStarter {
   private val log = Logger(getClass.getName)
 
-  def run(uri: String, config: PorConfig): Try[String] = {
+  def run(uri: String, config: PorRunConfig): Try[String] = {
     try {
 
       val t = TemporalURI(uri)
@@ -53,9 +71,12 @@ object PorStarter {
       val input = PorWorkflowInput(
         ownerName = config.ownerName,
         timestamp = System.currentTimeMillis(),
-        pooRequired = config.pooRequired,
-        porRequired = config.porRequired,
-        polRequired = config.polRequired,
+        pooInput = config.pooInput,
+        pooOutput = config.pooOutput,
+        porInput = config.porInput,
+        porOutput = config.porOutput,
+        polInput = config.polInput,
+        polOutput = config.polOutput,
         reportRequired = config.reportRequired,
         polSignalMode = config.polSignalMode
       )
@@ -103,7 +124,7 @@ object PorStarter {
 
       val workflow = client.newWorkflowStub(classOf[PorWorkflow], options)
 
-      log.info(s"Starting PoR Workflow: $wid: ownerName=${config.ownerName} flow=${config.flow} polSignalMode=${config.polSignalMode} poo=${config.pooRequired} por=${config.porRequired} pol=${config.polRequired} report=${config.reportRequired}")
+      log.info(s"Starting PoR Workflow: $wid: ownerName=${config.ownerName} flow=${config.flow} polSignalMode=${config.polSignalMode} pooIn=${config.pooInput.isDefined} pooOut=${config.pooOutput.isDefined} porIn=${config.porInput.isDefined} porOut=${config.porOutput.isDefined} polIn=${config.polInput.isDefined} polOut=${config.polOutput.isDefined} report=${config.reportRequired}")
 
       val result = workflow.execute(input)
 
