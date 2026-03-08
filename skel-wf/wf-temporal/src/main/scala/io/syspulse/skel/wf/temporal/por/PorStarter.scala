@@ -78,7 +78,7 @@ object PorStarter {
 
       val workflow = client.newWorkflowStub(classOf[PorWorkflow], options)
 
-      log.info(s"Starting PoR Workflow: $wid: ownerName=${run.ownerName} pooIn=${run.input.poo.flatMap(_.input).isDefined} pooOut=${run.output.poo.isDefined} porIn=${run.input.por.flatMap(_.input).isDefined} porOut=${run.output.por.isDefined} polIn=${run.input.pol.flatMap(_.input).isDefined} polOut=${run.output.pol.isDefined}")
+      log.info(s"Starting PoR Workflow: $wid: ownerName=${run.ownerName}: input=${run.input}")
 
       val result = workflow.execute(run)
 

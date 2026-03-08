@@ -226,32 +226,32 @@ object App extends skel.Server {
         val mockWallets = DemoUtil.generateMockWallets()
 
         // Parse flow to determine required steps and create appropriate inputs
-        val (pooInput, porInput, polInput) = config.porFlow.toLowerCase match {
-          case "flow-1" => // PoO -> PoR -> PoL -> Solvency -> Report
+        val (pooInput, porInput, polInput) = config.params.toList match {
+          case "flow-1" :: pp => // PoO -> PoR -> PoL -> Solvency -> Report
             (
               Some(PooInput(mockWallets, "signature")),
               Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
               Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
             )
-          case "flow-2" => // PoR -> PoL -> Solvency -> Report
+          case "flow-2" :: pp => // PoR -> PoL -> Solvency -> Report
             (
               None,
               Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
               Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
             )
-          case "flow-3" => // PoR -> Report
+          case "flow-3" :: pp => // PoR -> Report
             (
               None,
               Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
               None
             )
-          case "flow-4" => // PoO -> PoR -> Report
+          case "flow-4" :: pp => // PoO -> PoR -> Report
             (
               Some(PooInput(mockWallets, "signature")),
               Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
               None
             )
-          case "flow-5" => // PoL only
+          case "flow-5" :: pp => // PoL only
             (
               None,
               None,

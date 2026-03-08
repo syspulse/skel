@@ -57,6 +57,7 @@ class PorWorkflowImpl extends PorWorkflow {
    * If input exists -> execute activity (activity will merge with existing output)
    */
   private def processPoOStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
+    println(s"$wid PoO: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ${run.input.poo}")
     run.input.poo match {
       case None =>
         logger.info(s"$wid PoO: Skipped (step not defined)")
