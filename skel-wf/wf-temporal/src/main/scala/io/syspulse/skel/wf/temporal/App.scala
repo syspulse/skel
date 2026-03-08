@@ -135,7 +135,7 @@ object App extends skel.Server {
         ArgCmd("wf",s"Server"),
         ArgCmd("temporal",s"Temporal subcommands"),
         ArgCmd("por-worker",s"Start PoR Temporal Worker"),
-        ArgCmd("por-start",s"Start PoR Workflow"),
+        ArgCmd("por-start",s"Start PoR Workflow: por-start [flow-N] [commit-file.json]"),
 
         ArgCmd("wf",s"Workflow subcommands: " +
           s"assemble name 'dsl'  : create Workflow with dsl commands, ex: 'F-1(LogExec(sys=1,log.level=WARN))->F-2(LogExec(sys=2))->F-3(TerminateExec())'" +
@@ -222,69 +222,97 @@ object App extends skel.Server {
         PorWorker.run(config.engine, impl)        
 
       case "por-start" =>
+        
+        // Load previous commit file if provided
+        def load(commitFile:String):PorWorkflowRun = { 
+          try {
+              val json = os.read(os.Path(commitFile, os.pwd))
+              val mapper = new com.fasterxml.jackson.databind.ObjectMapper()
+              mapper.registerModule(com.fasterxml.jackson.module.scala.DefaultScalaModule)
+              val run = mapper.readValue(json, classOf[PorWorkflowRun])
+              log.info(s"Loaded: $commitFile")
+              run
+            } catch {
+              case e: Exception =>
+                Console.err.println(s"Failed to load commit file: ${commitFile}: ${e.getMessage}")
+                sys.exit(1)
+            }
+        }
+
+        def generate(pooInput:Option[PooInput], porInput:Option[PorInput], polInput:Option[PolInput]):PorWorkflowRun = {
+          // Create workflow input with step definitions
+          val workflowInput = PorWorkflowInput(
+            poo = pooInput.map(input => StepDef(input = Some(input))),
+            por = porInput.map(input => StepDef(input = Some(input))),
+            pol = polInput.map(input => StepDef(input = Some(input))),
+            solvency = Some(StepDef()),
+            report = Some(StepDef()),
+            commit = Some(StepDef())
+          )
+
+          // Create workflow run context
+          val workflowRun = PorWorkflowRun(
+            ownerName = config.porOwnerName,
+            ts0 = System.currentTimeMillis(),
+            ts1 = System.currentTimeMillis(),
+            tags = config.porTags,
+            memo = config.porMemo,
+            input = workflowInput,
+            output = PorWorkflowOutput()
+          )
+          workflowRun
+        }
+
         // Generate mock wallets for demo
         val mockWallets = DemoUtil.generateMockWallets()
 
         // Parse flow to determine required steps and create appropriate inputs
-        val (pooInput, porInput, polInput) = config.params.toList match {
-          case "flow-1" :: pp => // PoO -> PoR -> PoL -> Solvency -> Report
-            (
-              Some(PooInput(mockWallets, "signature")),
-              Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
-              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
-            )
-          case "flow-2" :: pp => // PoR -> PoL -> Solvency -> Report
-            (
+        val workflowRun = config.params.toList match {
+          case "flow-1" :: f => // PoO -> PoR -> PoL -> Solvency -> Report
+            if(f.size == 1) load(f.head)
+            else 
+              generate(
+                Some(PooInput(mockWallets, "signature")),
+                Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
+                Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
+              )
+
+          case "flow-2" :: f => // PoR -> PoL -> Solvency -> Report
+            if(f.size == 1) load(f.head)
+            else 
+            generate(
               None,
               Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
               Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
             )
-          case "flow-3" :: pp => // PoR -> Report
-            (
+          case "flow-3" :: f => // PoR -> Report
+            if(f.size == 1) load(f.head)
+            else 
+            generate(
               None,
               Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
               None
             )
-          case "flow-4" :: pp => // PoO -> PoR -> Report
-            (
+          case "flow-4" :: f => // PoO -> PoR -> Report
+            if(f.size == 1) load(f.head)
+            else 
+            generate(
               Some(PooInput(mockWallets, "signature")),
               Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
               None
             )
-          case "flow-5" :: pp => // PoL only
-            (
+          case "flow-5" :: f => // PoL only
+            if(f.size == 1) load(f.head)
+            else 
+            generate(
               None,
               None,
               Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
             )
-          case _ =>
-            log.warn(s"Unknown flow: ${config.porFlow}, using default flow-1")
-            (
-              Some(PooInput(mockWallets, "signature")),
-              Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
-              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
-            )
+          case f :: Nil =>
+            load(f)
         }
-
-        // Create workflow input with step definitions
-        val workflowInput = PorWorkflowInput(
-          poo = pooInput.map(input => StepDef(input = Some(input))),
-          por = porInput.map(input => StepDef(input = Some(input))),
-          pol = polInput.map(input => StepDef(input = Some(input))),
-          solvency = Some(StepDef()),
-          report = Some(StepDef()),
-          commit = Some(StepDef())
-        )
-
-        // Create workflow run context
-        val workflowRun = PorWorkflowRun(
-          ownerName = config.porOwnerName,
-          ts = System.currentTimeMillis(),
-          tags = config.porTags,
-          memo = config.porMemo,
-          input = workflowInput,
-          output = PorWorkflowOutput()
-        )
+        
 
         PorStarter.run(config.engine, workflowRun)        
 

@@ -12,10 +12,10 @@ class SolvencyActivityDemo {
     val activityInfo = Activity.getExecutionContext.getInfo
     val wid = s"[${activityInfo.getWorkflowId} / ${activityInfo.getRunId}]"
 
+    log.info(s"$wid Solvency: ${run.input.solvency}")
+
     (run.output.por, run.output.pol) match {
       case (Some(por), Some(pol)) =>
-        log.info(s"$wid Starting Solvency calculation")
-
         //simulateWork(1, 2)
 
         // Mock USD conversion rates

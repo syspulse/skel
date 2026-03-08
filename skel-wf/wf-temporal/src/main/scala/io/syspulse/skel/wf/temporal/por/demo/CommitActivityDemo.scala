@@ -16,7 +16,8 @@ class CommitActivityDemo {
 
   def execute(run: PorWorkflowRun): PorWorkflowRun = {
     val activityInfo = Activity.getExecutionContext.getInfo
-    val wid = activityInfo.getWorkflowId
+    val workflowId = activityInfo.getWorkflowId
+    val wid = s"[$workflowId / ${activityInfo.getRunId}]"
     
     val mapper = new ObjectMapper()
     mapper.registerModule(DefaultScalaModule)
@@ -24,21 +25,24 @@ class CommitActivityDemo {
     //val ts = System.currentTimeMillis()
     
     val filePath = run.input.commit.flatMap(_.config.get("file").map(f => os.Path(f, os.pwd)))
-      .getOrElse(os.temp.dir() / s"por-workflow-output-${wid}.json")
+      .getOrElse(os.temp.dir() / s"por-workflow-output-${workflowId}.json")
 
     try {
       val commit = CommitOutput(filePath.toString)
-      val run1 = run.copy(output = run.output.copy(commit = Some(commit)))
+      val run1 = run.copy(
+        ts1 = System.currentTimeMillis(),
+        output = run.output.copy(commit = Some(commit))        
+      )
 
       val json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(run1)
       os.write(filePath, json)
 
-      log.info(s"[$wid] Committed: $filePath")
+      log.info(s"$wid Committed: $filePath")
       run1
       
     } catch {
       case e: Exception =>
-        log.error(s"[$wid] Failed to commit: ${filePath}: ${e.getMessage}", e)
+        log.error(s"$wid Failed to commit: ${filePath}: ${e.getMessage}", e)
         throw e
     }
   }

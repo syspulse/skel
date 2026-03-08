@@ -79,14 +79,15 @@ class PolActivityDemo {
     val workflowId = activityInfo.getWorkflowId
     val wid = s"[$workflowId / ${activityInfo.getRunId}]"
 
+    log.info(s"$wid PoL: ${run.input.pol}")
+
     run.input.pol.flatMap(_.input) match {
       case None =>
         log.warn(s"$wid PoL: No input provided, returning run unchanged")
         run
 
       case Some(input) =>
-        log.info(s"$wid Starting PoL - waiting for human input")
-        log.info(s"$wid Timer is waiting for human input")
+        log.info(s"$wid Starting PoL - waiting for human input")        
 
         // Generate demo file
         val demoFilePath = os.temp.dir() / s"liabilities_${System.currentTimeMillis()}.json"

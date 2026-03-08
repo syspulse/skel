@@ -35,7 +35,7 @@ object PorStarter {
 
       val client = WorkflowClient.newInstance(service, clientOptions)
 
-      val wid = s"por-workflow-${run.ownerName}-${run.ts}"
+      val wid = s"por-workflow-${run.ownerName}-${run.ts0}"
 
       // Build workflow options
       val optionsBuilder = WorkflowOptions.newBuilder()

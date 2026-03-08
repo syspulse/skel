@@ -11,7 +11,8 @@ class ReportActivityDemo {
   def execute(run: PorWorkflowRun): PorWorkflowRun = {
     val activityInfo = Activity.getExecutionContext.getInfo
     val wid = s"[${activityInfo.getWorkflowId} / ${activityInfo.getRunId}]"
-    log.info(s"$wid Starting Report generation")
+
+    log.info(s"$wid Report: ${run.input.report}")
 
     //simulateWork(1, 3)
 
@@ -36,8 +37,8 @@ class ReportActivityDemo {
     sb.append(s"# Proof of Reserves Report\n\n")
     sb.append(s"## Owner Information\n\n")
     sb.append(s"- **Owner Name**: ${run.ownerName}\n")
-    sb.append(s"- **Timestamp**: ${run.ts}\n")
-    sb.append(s"- **Date**: ${new java.util.Date(run.ts)}\n\n")
+    sb.append(s"- **Start**: ${run.ts0}\n")
+    sb.append(s"- **End**: ${run.ts1}\n")    
 
     if (run.output.poo.isDefined) {
       sb.append(s"## Proof of Ownership\n\n")

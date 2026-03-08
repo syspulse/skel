@@ -95,6 +95,7 @@ class PorWorkflowImpl extends PorWorkflow {
   }
 
   private def processPoLStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
+    
     run.input.pol match {
       case None =>
         logger.info(s"$wid PoL: Skipped (step not defined)")
