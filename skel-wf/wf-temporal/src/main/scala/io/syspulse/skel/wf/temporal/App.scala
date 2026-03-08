@@ -105,8 +105,52 @@ object App extends skel.Server {
         "Server mode not implemented yet"
 
       case "temporal" =>
-        // Generic temporal commands (future implementation)
-        "Temporal commands not implemented yet"
+        config.params.toList match {
+          case "query" :: query :: Nil =>
+            Temporal.query(config.engine, query)
+
+          case "query" :: query :: pageSize :: Nil =>
+            Temporal.query(config.engine, query, pageSize.toInt)
+
+          case "describe" :: workflowId :: Nil =>
+            Temporal.describe(config.engine, workflowId)
+
+          case "describe" :: workflowId :: runId :: Nil =>
+            Temporal.describe(config.engine, workflowId, Some(runId))
+
+          case "list" :: Nil =>
+            Temporal.list(config.engine)
+
+          case "list" :: ("--status" | "-s") :: status :: tail =>
+            val pageSize = tail.headOption.map(_.toInt).getOrElse(10)
+            Temporal.list(config.engine, status = Some(status), pageSize = pageSize)
+
+          case "list" :: ("--type" | "-t") :: workflowType :: tail =>
+            val pageSize = tail.headOption.map(_.toInt).getOrElse(10)
+            Temporal.list(config.engine, workflowType = Some(workflowType), pageSize = pageSize)
+
+          case _ =>
+            """Usage: temporal <command> [options]
+
+Commands:
+  query <query> [pageSize]              - Query workflows using Temporal query syntax
+                                          Example: query "WorkflowId = 'por-workflow-*'" 20
+
+  describe <workflowId> [runId]         - Get detailed information about a workflow
+                                          Example: describe por-workflow-Binance-123456
+
+  list [--status|-s <status>]           - List workflows with optional filters
+       [--type|-t <type>]                 Status: Running, Completed, Failed, Canceled, etc.
+       [pageSize]                         Example: list --status Running 20
+
+Examples:
+  temporal query "ExecutionStatus = 'Running'"
+  temporal query "WorkflowType = 'PorWorkflow' AND ExecutionStatus = 'Running'" 50
+  temporal describe por-workflow-Binance-1234567890
+  temporal list --status Running
+  temporal list --type PorWorkflow 25
+"""
+        }
 
       case "por-worker" =>
         PorWorker.run(config.engine, impl)        
