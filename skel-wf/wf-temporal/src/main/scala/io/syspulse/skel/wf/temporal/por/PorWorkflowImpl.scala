@@ -3,6 +3,8 @@ package io.syspulse.skel.wf.temporal.por
 import io.temporal.workflow.Workflow
 import io.temporal.activity.ActivityOptions
 import java.time.Duration
+import io.temporal.activity.Activity
+import io.syspulse.skel.wf.temporal.por.demo.DemoUtil
 
 /**
  * Main PoR Workflow Implementation
@@ -19,10 +21,13 @@ class PorWorkflowImpl extends PorWorkflow {
   private val activities = Workflow.newActivityStub(classOf[PorActivities], activityOptions)
 
   override def execute(run: PorWorkflowRun): PorWorkflowRun = {
-    logger.info(s"Starting PoR Workflow for owner: ${run.ownerName}")
+    val info = Workflow.getInfo()
+    implicit val wid = s"[${info.getWorkflowId} / ${info.getRunId}]"    
+
+    logger.info(s"[$wid] Starting Workflow: ${run}")
 
     // Process each step using workflow run context
-    var currentRun = run
+    var currentRun = run.copy(wid = Some(info.getWorkflowId), rid = Some(info.getRunId))
 
     // PoO Step
     currentRun = processPoOStep(currentRun)
@@ -35,134 +40,162 @@ class PorWorkflowImpl extends PorWorkflow {
 
     // Solvency Step
     currentRun = processSolvencyStep(currentRun)
+    
+    // Report Step
+    currentRun = processReportStep(currentRun)
 
     // Commit Step
     currentRun = processCommitStep(currentRun)
 
-    // Report Step
-    currentRun = processReportStep(currentRun)
-
-    logger.info(s"Completed PoR Workflow for owner: ${currentRun.ownerName}")
+    logger.info(s"[$wid] Finished Workflow: ${currentRun}")
     currentRun
   }
 
   /**
    * Process Proof of Ownership step
+   * If step is None -> skip
    * If input exists -> execute activity (activity will merge with existing output)
    */
-  private def processPoOStep(run: PorWorkflowRun): PorWorkflowRun = {
-    run.input.poo.input match {
-      case Some(pooInput) =>
-        logger.info("PoO: Executing with provided input")
-        // Merge with mock wallets if empty
-        val finalInput = if (pooInput.wallets.isEmpty) {
-          pooInput.copy(wallets = generateMockWallets())
-        } else {
-          pooInput
-        }
-        val updatedRun = run.copy(input = run.input.copy(poo = run.input.poo.copy(input = Some(finalInput))))
-        activities.executeProofOfOwnership(updatedRun)
-
+  private def processPoOStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
+    run.input.poo match {
       case None =>
-        logger.info("PoO: Skipped (no input provided)")
+        logger.info(s"$wid PoO: Skipped (step not defined)")
         run
+
+      case Some(step) =>
+        step.input match {
+          case Some(pooInput) =>
+            // Merge with mock wallets if empty
+            val finalInput = if (pooInput.wallets.isEmpty) {
+              pooInput.copy(wallets = DemoUtil.generateMockWallets())
+            } else {
+              pooInput
+            }
+            val updatedRun = run.copy(input = run.input.copy(poo = Some(step.copy(input = Some(finalInput)))))
+            activities.executeProofOfOwnership(updatedRun)
+
+          case None =>
+            logger.info(s"$wid PoO: Skipped (no input provided)")
+            run
+        }
     }
   }
 
   /**
    * Process Proof of Reserves step
+   * If step is None -> skip
    * If input exists -> execute activity (activity will merge with existing output)
    */
-  private def processPoRStep(run: PorWorkflowRun): PorWorkflowRun = {
-    run.input.por.input match {
-      case Some(porInput) =>
-        logger.info("PoR: Executing with provided input")
-        // Merge with mock wallets if empty
-        val finalInput = if (porInput.wallets.isEmpty) {
-          porInput.copy(wallets = generateMockWallets())
-        } else {
-          porInput
-        }
-        val updatedRun = run.copy(input = run.input.copy(por = run.input.por.copy(input = Some(finalInput))))
-        activities.executeProofOfReserves(updatedRun)
-
+  private def processPoRStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
+    run.input.por match {
       case None =>
-        logger.info("PoR: Skipped (no input provided)")
+        logger.info(s"$wid PoR: Skipped (step not defined)")
         run
+
+      case Some(step) =>
+        step.input match {
+          case Some(porInput) =>            
+            // Merge with mock wallets if empty
+            // val finalInput = if (porInput.wallets.isEmpty) {
+            //   porInput.copy(wallets = DemoUtil.generateMockWallets())
+            // } else {
+            //   porInput
+            // }
+            // val updatedRun = run.copy(input = run.input.copy(por = Some(step.copy(input = Some(finalInput)))))
+            activities.executeProofOfReserves(run)
+
+          case None =>
+            logger.info(s"$wid PoR: Skipped (no input provided)")
+            run
+        }
     }
   }
 
   /**
    * Process Proof of Liabilities step
+   * If step is None -> skip
    * If input exists -> execute activity (activity will merge with existing output)
    */
-  private def processPoLStep(run: PorWorkflowRun): PorWorkflowRun = {
-    run.input.pol.input match {
-      case Some(polInput) =>
-        logger.info("PoL: Executing with provided input")
-        activities.executeProofOfLiability(run)
-
+  private def processPoLStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
+    run.input.pol match {
       case None =>
-        logger.info("PoL: Skipped (no input provided)")
+        logger.info(s"$wid PoL: Skipped (step not defined)")
         run
+
+      case Some(step) =>
+        step.input match {
+          case Some(polInput) =>            
+            activities.executeProofOfLiability(run)
+
+          case None =>
+            logger.info(s"$wid PoL: Skipped (no input provided)")
+            run
+        }
     }
   }
 
   /**
    * Process Solvency step
+   * If step is None -> skip
    * Only executes if both PoR and PoL outputs exist
    */
-  private def processSolvencyStep(run: PorWorkflowRun): PorWorkflowRun = {
-    (run.output.por, run.output.pol) match {
-      case (Some(por), Some(pol)) =>
-        logger.info("Solvency: Calculating from PoR and PoL outputs")
-        activities.executeSolvency(run)
-
-      case _ =>
-        logger.info("Solvency: Skipped (requires both PoR and PoL outputs)")
+  private def processSolvencyStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
+    run.input.solvency match {
+      case None =>
+        logger.info(s"$wid Solvency: Skipped (step not defined)")
         run
+
+      case Some(step) =>
+        (run.output.por, run.output.pol) match {
+          case (Some(por), Some(pol)) =>
+            activities.executeSolvency(run)
+
+          case _ =>
+            logger.info(s"$wid Solvency: Skipped (requires both PoR and PoL outputs)")
+            run
+        }
     }
   }
 
   /**
    * Process Commit step
+   * If step is None -> skip
    * Writes workflow output to storage
    */
-  private def processCommitStep(run: PorWorkflowRun): PorWorkflowRun = {
-    logger.info("Commit: Writing workflow output to storage")
-    val updatedRun = activities.executeCommit(run)
-    updatedRun.output.commit.foreach(output =>
-      logger.info(s"Commit: Output written to: ${output.filePath}")
-    )
-    updatedRun
+  private def processCommitStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
+    run.input.commit match {
+      case None =>
+        logger.info(s"$wid Commit: Skipped (step not defined)")
+        run
+
+      case Some(step) =>        
+        val updatedRun = activities.executeCommit(run)        
+        updatedRun
+    }
   }
 
   /**
    * Process Report step
+   * If step is None -> skip
    * Generates report if required
    */
-  private def processReportStep(run: PorWorkflowRun): PorWorkflowRun = {
-    // Check if report is configured (we use empty config Map to indicate enabled)
-    val reportEnabled = run.input.report.config.isEmpty || run.input.report.config.getOrElse("enabled", "true") == "true"
+  private def processReportStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
+    run.input.report match {
+      case None =>
+        logger.info(s"${wid} Report: Skipped (step not defined)")
+        run
 
-    if (reportEnabled) {
-      logger.info("Report: Generating report")
-      activities.executeReport(run)
-    } else {
-      logger.info("Report: Skipped (not enabled)")
-      run
+      case Some(step) =>
+        // Check if report is configured (we use empty config Map to indicate enabled)
+        val reportEnabled = step.config.isEmpty || step.config.getOrElse("enabled", "true") == "true"
+
+        if (reportEnabled) {          
+          activities.executeReport(run)
+        } else {
+          logger.info(s"${wid} Report: Skipped (not enabled)")
+          run
+        }
     }
   }
 
-  private def generateMockWallets(): List[Wallet] = {
-    import scala.util.Random
-
-    List(
-      Wallet("0x1234567890abcdef1234567890abcdef12345678", "Ethereum", BigInt(Random.nextInt(1000)) * BigInt(10).pow(18)),
-      Wallet("bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh", "Bitcoin", BigInt(Random.nextInt(100)) * BigInt(10).pow(8)),
-      Wallet("0xabcdef1234567890abcdef1234567890abcdef12", "Arbitrum", BigInt(Random.nextInt(500)) * BigInt(10).pow(18)),
-      Wallet("9n4NBfQSKMbPDf6xJzewJ5V1Z9v5KnPBkJKHTgV7aoqd", "Solana", BigInt(Random.nextInt(2000)) * BigInt(10).pow(9)),
-      Wallet("TXYZupQdGeRgKaFwNTjJFiJNdMdnXBx3K4", "Tron", BigInt(Random.nextInt(10000)) * BigInt(10).pow(6))
-    )
-  }
 }

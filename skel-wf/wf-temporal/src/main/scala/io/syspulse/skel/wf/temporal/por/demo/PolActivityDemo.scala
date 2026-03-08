@@ -79,7 +79,7 @@ class PolActivityDemo {
     val workflowId = activityInfo.getWorkflowId
     val wid = s"[$workflowId / ${activityInfo.getRunId}]"
 
-    run.input.pol.input match {
+    run.input.pol.flatMap(_.input) match {
       case None =>
         log.warn(s"$wid PoL: No input provided, returning run unchanged")
         run

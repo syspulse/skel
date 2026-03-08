@@ -12,7 +12,7 @@ class PorActivityDemo {
     val activityInfo = Activity.getExecutionContext.getInfo
     val wid = s"[${activityInfo.getWorkflowId} / ${activityInfo.getRunId}]"
 
-    run.input.por.input match {
+    run.input.por.flatMap(_.input) match {
       case None =>
         log.warn(s"$wid PoR: No input provided, returning run unchanged")
         run

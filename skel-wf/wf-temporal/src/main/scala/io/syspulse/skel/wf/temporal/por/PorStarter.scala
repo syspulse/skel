@@ -21,9 +21,9 @@ object PorStarter {
       val serviceOptions = io.temporal.serviceclient.WorkflowServiceStubsOptions.newBuilder()
         .setTarget(t.target)
         .setEnableKeepAlive(t.enableKeepAlive)
-      .setKeepAliveTime(java.time.Duration.ofMillis(t.keepAliveTime))
-      .setKeepAliveTimeout(java.time.Duration.ofMillis(t.keepAliveTimeout))
-      .setRpcTimeout(java.time.Duration.ofMillis(t.rpcTimeout))
+        .setKeepAliveTime(java.time.Duration.ofMillis(t.keepAliveTime))
+        .setKeepAliveTimeout(java.time.Duration.ofMillis(t.keepAliveTimeout))
+        .setRpcTimeout(java.time.Duration.ofMillis(t.rpcTimeout))
         .build()
 
       val service = WorkflowServiceStubs.newServiceStubs(serviceOptions)
@@ -78,7 +78,7 @@ object PorStarter {
 
       val workflow = client.newWorkflowStub(classOf[PorWorkflow], options)
 
-      log.info(s"Starting PoR Workflow: $wid: ownerName=${run.ownerName} pooIn=${run.input.poo.input.isDefined} pooOut=${run.output.poo.isDefined} porIn=${run.input.por.input.isDefined} porOut=${run.output.por.isDefined} polIn=${run.input.pol.input.isDefined} polOut=${run.output.pol.isDefined}")
+      log.info(s"Starting PoR Workflow: $wid: ownerName=${run.ownerName} pooIn=${run.input.poo.flatMap(_.input).isDefined} pooOut=${run.output.poo.isDefined} porIn=${run.input.por.flatMap(_.input).isDefined} porOut=${run.output.por.isDefined} polIn=${run.input.pol.flatMap(_.input).isDefined} polOut=${run.output.pol.isDefined}")
 
       val result = workflow.execute(run)
 

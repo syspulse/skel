@@ -31,14 +31,15 @@ case class StepDef[I](
 )
 
 // Workflow Input - defines all steps (merged from PorRunConfig)
+// If a step is None, it will be skipped
 
 case class PorWorkflowInput(
-  poo: StepDef[PooInput] = StepDef(),
-  por: StepDef[PorInput] = StepDef(),
-  pol: StepDef[PolInput] = StepDef(),
-  solvency: StepDef[Unit] = StepDef(),
-  report: StepDef[Unit] = StepDef(),
-  commit: StepDef[Unit] = StepDef()
+  poo: Option[StepDef[PooInput]] = None,
+  por: Option[StepDef[PorInput]] = None,
+  pol: Option[StepDef[PolInput]] = None,
+  solvency: Option[StepDef[Unit]] = None,
+  report: Option[StepDef[Unit]] = None,
+  commit: Option[StepDef[Unit]] = None
 )
 
 case class PooInput(
@@ -115,6 +116,8 @@ case class PorWorkflowOutput(
 // Workflow Run - context propagated through all steps (becomes workflow output)
 
 case class PorWorkflowRun(
+  wid: Option[String] = None,
+  rid: Option[String] = None,
   ownerName: String,
   ts: Long,
   tags: Seq[String] = Seq.empty,

@@ -17,28 +17,28 @@ class CommitActivityDemo {
   def execute(run: PorWorkflowRun): PorWorkflowRun = {
     val activityInfo = Activity.getExecutionContext.getInfo
     val wid = activityInfo.getWorkflowId
-
-    log.info(s"[$wid] Committing PorWorkflowOutput to file")
-
+    
     val mapper = new ObjectMapper()
     mapper.registerModule(DefaultScalaModule)
 
-    val timestamp = System.currentTimeMillis()
-    val fileName = s"por-workflow-output-${timestamp}.json"
-    val filePath = os.temp.dir() / fileName
+    //val ts = System.currentTimeMillis()
+    
+    val filePath = run.input.commit.flatMap(_.config.get("file").map(f => os.Path(f, os.pwd)))
+      .getOrElse(os.temp.dir() / s"por-workflow-output-${wid}.json")
 
     try {
-      val json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(run.output)
+      val commit = CommitOutput(filePath.toString)
+      val run1 = run.copy(output = run.output.copy(commit = Some(commit)))
+
+      val json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(run1.output)
       os.write(filePath, json)
 
-      log.info(s"[$wid] Successfully wrote PorWorkflowOutput to: $filePath")
-      log.info(s"[$wid] Output contains: PoO=${run.output.poo.isDefined}, PoR=${run.output.por.isDefined}, PoL=${run.output.pol.isDefined}, Solvency=${run.output.solvency.isDefined}, Report=${run.output.report.isDefined}")
-
-      val commit = CommitOutput(filePath.toString)
-      run.copy(output = run.output.copy(commit = Some(commit)))
+      log.info(s"[$wid] Committed: $filePath")
+      run1
+      
     } catch {
       case e: Exception =>
-        log.error(s"[$wid] Failed to write PorWorkflowOutput: ${e.getMessage}", e)
+        log.error(s"[$wid] Failed to commit: ${filePath}: ${e.getMessage}", e)
         throw e
     }
   }

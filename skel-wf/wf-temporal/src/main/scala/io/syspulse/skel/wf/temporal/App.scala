@@ -6,6 +6,7 @@ import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 import io.syspulse.skel.wf.temporal.por._
+import io.syspulse.skel.wf.temporal.por.demo.DemoUtil
 
 // Examples:
 //   temporal query "ExecutionStatus = 'Running'"
@@ -221,30 +222,33 @@ object App extends skel.Server {
         PorWorker.run(config.engine, impl)        
 
       case "por-start" =>
+        // Generate mock wallets for demo
+        val mockWallets = DemoUtil.generateMockWallets()
+
         // Parse flow to determine required steps and create appropriate inputs
         val (pooInput, porInput, polInput) = config.porFlow.toLowerCase match {
           case "flow-1" => // PoO -> PoR -> PoL -> Solvency -> Report
             (
-              Some(PooInput(List.empty, "signature")), // Will be populated by workflow
-              Some(PorInput(List.empty, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
+              Some(PooInput(mockWallets, "signature")),
+              Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
               Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
             )
           case "flow-2" => // PoR -> PoL -> Solvency -> Report
             (
               None,
-              Some(PorInput(List.empty, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
+              Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
               Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
             )
           case "flow-3" => // PoR -> Report
             (
               None,
-              Some(PorInput(List.empty, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
+              Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
               None
             )
           case "flow-4" => // PoO -> PoR -> Report
             (
-              Some(PooInput(List.empty, "signature")),
-              Some(PorInput(List.empty, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
+              Some(PooInput(mockWallets, "signature")),
+              Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
               None
             )
           case "flow-5" => // PoL only
@@ -256,20 +260,20 @@ object App extends skel.Server {
           case _ =>
             log.warn(s"Unknown flow: ${config.porFlow}, using default flow-1")
             (
-              Some(PooInput(List.empty, "signature")),
-              Some(PorInput(List.empty, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
+              Some(PooInput(mockWallets, "signature")),
+              Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
               Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
             )
         }
 
         // Create workflow input with step definitions
         val workflowInput = PorWorkflowInput(
-          poo = StepDef(input = pooInput),
-          por = StepDef(input = porInput),
-          pol = StepDef(input = polInput),
-          solvency = StepDef(),
-          report = StepDef(),
-          commit = StepDef()
+          poo = pooInput.map(input => StepDef(input = Some(input))),
+          por = porInput.map(input => StepDef(input = Some(input))),
+          pol = polInput.map(input => StepDef(input = Some(input))),
+          solvency = Some(StepDef()),
+          report = Some(StepDef()),
+          commit = Some(StepDef())
         )
 
         // Create workflow run context

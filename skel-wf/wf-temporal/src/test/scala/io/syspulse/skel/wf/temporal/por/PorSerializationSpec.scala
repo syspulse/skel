@@ -75,20 +75,20 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
 
     "serialize and deserialize PorWorkflowInput" in {
       val workflowInput = PorWorkflowInput(
-        poo = StepDef(input = Some(PooInput(List.empty, "signature"))),
-        por = StepDef(input = Some(PorInput(List.empty, List("BTC", "ETH")))),
-        pol = StepDef(input = Some(PolInput("/tmp/test.json", waitForConfirmation = true, signalMode = "rest"))),
-        solvency = StepDef(),
-        report = StepDef(),
-        commit = StepDef()
+        poo = Some(StepDef(input = Some(PooInput(List.empty, "signature")))),
+        por = Some(StepDef(input = Some(PorInput(List.empty, List("BTC", "ETH"))))),
+        pol = Some(StepDef(input = Some(PolInput("/tmp/test.json", waitForConfirmation = true, signalMode = "rest")))),
+        solvency = Some(StepDef()),
+        report = Some(StepDef()),
+        commit = Some(StepDef())
       )
 
       val payload = dataConverter.toPayload(workflowInput).get()
       val deserialized = dataConverter.fromPayload(payload, classOf[PorWorkflowInput], classOf[PorWorkflowInput])
 
-      deserialized.poo.input.isDefined should be (true)
-      deserialized.por.input.isDefined should be (true)
-      deserialized.pol.input.isDefined should be (true)
+      deserialized.poo.flatMap(_.input).isDefined should be (true)
+      deserialized.por.flatMap(_.input).isDefined should be (true)
+      deserialized.pol.flatMap(_.input).isDefined should be (true)
     }
 
     "serialize and deserialize WalletWithAsset" in {

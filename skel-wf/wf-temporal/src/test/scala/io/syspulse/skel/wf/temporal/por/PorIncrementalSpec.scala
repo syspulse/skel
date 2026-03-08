@@ -17,18 +17,18 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
 
     "support new run with only inputs" in {
       val input = PorWorkflowInput(
-        poo = StepDef(input = Some(PooInput(List.empty, "signature"))),
-        por = StepDef(input = Some(PorInput(List.empty, List("BTC", "ETH")))),
-        pol = StepDef(input = Some(PolInput("/tmp/test.json", true, "simulate"))),
-        solvency = StepDef(),
-        report = StepDef(),
-        commit = StepDef()
+        poo = Some(StepDef(input = Some(PooInput(List.empty, "signature")))),
+        por = Some(StepDef(input = Some(PorInput(List.empty, List("BTC", "ETH"))))),
+        pol = Some(StepDef(input = Some(PolInput("/tmp/test.json", true, "simulate")))),
+        solvency = Some(StepDef()),
+        report = Some(StepDef()),
+        commit = Some(StepDef())
       )
 
       // All inputs defined
-      input.poo.input.isDefined should be (true)
-      input.por.input.isDefined should be (true)
-      input.pol.input.isDefined should be (true)
+      input.poo.flatMap(_.input).isDefined should be (true)
+      input.por.flatMap(_.input).isDefined should be (true)
+      input.pol.flatMap(_.input).isDefined should be (true)
     }
 
     "support incremental run with mixed inputs and outputs" in {
@@ -49,12 +49,12 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
         ownerName = "Exchange1",
         ts = System.currentTimeMillis(),
         input = PorWorkflowInput(
-          poo = StepDef(),  // No new PoO input
-          por = StepDef(),  // No new PoR input
-          pol = StepDef(input = Some(PolInput("/tmp/updated-liabilities.json", true, "simulate"))), // New PoL
-          solvency = StepDef(),
-          report = StepDef(),
-          commit = StepDef()
+          poo = Some(StepDef()),  // No new PoO input
+          por = Some(StepDef()),  // No new PoR input
+          pol = Some(StepDef(input = Some(PolInput("/tmp/updated-liabilities.json", true, "simulate")))), // New PoL
+          solvency = Some(StepDef()),
+          report = Some(StepDef()),
+          commit = Some(StepDef())
         ),
         output = PorWorkflowOutput(
           poo = Some(previousPooOutput), // Reuse previous PoO
@@ -63,11 +63,11 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
       )
 
       // PoO and PoR have outputs (reused), PoL has input (executed)
-      run.input.poo.input.isDefined should be (false)
+      run.input.poo.flatMap(_.input).isDefined should be (false)
       run.output.poo.isDefined should be (true)
-      run.input.por.input.isDefined should be (false)
+      run.input.por.flatMap(_.input).isDefined should be (false)
       run.output.por.isDefined should be (true)
-      run.input.pol.input.isDefined should be (true)
+      run.input.pol.flatMap(_.input).isDefined should be (true)
       run.output.pol.isDefined should be (false)
 
       // Verify reused outputs have correct data
@@ -103,12 +103,12 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
         ownerName = "Exchange1",
         ts = System.currentTimeMillis(),
         input = PorWorkflowInput(
-          poo = StepDef(),  // No input
-          por = StepDef(),  // No input
-          pol = StepDef(),  // No input
-          solvency = StepDef(),
-          report = StepDef(),
-          commit = StepDef()
+          poo = Some(StepDef()),  // No input
+          por = Some(StepDef()),  // No input
+          pol = Some(StepDef()),  // No input
+          solvency = Some(StepDef()),
+          report = Some(StepDef()),
+          commit = Some(StepDef())
         ),
         output = PorWorkflowOutput(
           poo = Some(previousPooOutput), // Reuse
@@ -118,11 +118,11 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
       )
 
       // All steps have outputs (reused), no inputs
-      run.input.poo.input.isDefined should be (false)
+      run.input.poo.flatMap(_.input).isDefined should be (false)
       run.output.poo.isDefined should be (true)
-      run.input.por.input.isDefined should be (false)
+      run.input.por.flatMap(_.input).isDefined should be (false)
       run.output.por.isDefined should be (true)
-      run.input.pol.input.isDefined should be (false)
+      run.input.pol.flatMap(_.input).isDefined should be (false)
       run.output.pol.isDefined should be (true)
 
       // Verify all outputs are present
@@ -143,12 +143,12 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
         ownerName = "Exchange1",
         ts = System.currentTimeMillis(),
         input = PorWorkflowInput(
-          poo = StepDef(input = Some(PooInput(List.empty, "signature"))),
-          por = StepDef(),  // No input, will use previous output
-          pol = StepDef(input = Some(PolInput("/tmp/test.json", true, "simulate"))),
-          solvency = StepDef(),
-          report = StepDef(),
-          commit = StepDef()
+          poo = Some(StepDef(input = Some(PooInput(List.empty, "signature")))),
+          por = Some(StepDef()),  // No input, will use previous output
+          pol = Some(StepDef(input = Some(PolInput("/tmp/test.json", true, "simulate")))),
+          solvency = Some(StepDef()),
+          report = Some(StepDef()),
+          commit = Some(StepDef())
         ),
         output = PorWorkflowOutput(
           por = Some(previousPorOutput) // Previous output for reuse
@@ -158,7 +158,7 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
       val payload = dataConverter.toPayload(run).get()
       val deserialized = dataConverter.fromPayload(payload, classOf[PorWorkflowRun], classOf[PorWorkflowRun])
 
-      deserialized.input.poo.input.isDefined should be (true)
+      deserialized.input.poo.flatMap(_.input).isDefined should be (true)
       deserialized.output.por.isDefined should be (true)
       deserialized.output.por.get.balances should have size 1
     }
@@ -220,12 +220,12 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
         ownerName = "Exchange1",
         ts = System.currentTimeMillis(),
         input = PorWorkflowInput(
-          poo = StepDef(),  // No new PoO input, will use previous output
-          por = StepDef(),  // No new PoR input, will use previous output
-          pol = StepDef(input = Some(PolInput("/tmp/updated-liabilities.json", true, "simulate"))), // New PoL
-          solvency = StepDef(),
-          report = StepDef(),
-          commit = StepDef()
+          poo = Some(StepDef()),  // No new PoO input, will use previous output
+          por = Some(StepDef()),  // No new PoR input, will use previous output
+          pol = Some(StepDef(input = Some(PolInput("/tmp/updated-liabilities.json", true, "simulate")))), // New PoL
+          solvency = Some(StepDef()),
+          report = Some(StepDef()),
+          commit = Some(StepDef())
         ),
         output = PorWorkflowOutput(
           poo = firstRunOutput.poo, // Reuse PoO
@@ -240,7 +240,7 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
       secondRun.output.por.get.balances should have size 1
 
       // New PoL will be executed
-      secondRun.input.pol.input.isDefined should be (true)
+      secondRun.input.pol.flatMap(_.input).isDefined should be (true)
       secondRun.output.pol.isDefined should be (false)
     }
 

@@ -12,7 +12,7 @@ class PooActivityDemo {
     val activityInfo = Activity.getExecutionContext.getInfo
     val wid = s"[${activityInfo.getWorkflowId} / ${activityInfo.getRunId}]"
 
-    run.input.poo.input match {
+    run.input.poo.flatMap(_.input) match {
       case None =>
         log.warn(s"$wid PoO: No input provided, returning run unchanged")
         run
