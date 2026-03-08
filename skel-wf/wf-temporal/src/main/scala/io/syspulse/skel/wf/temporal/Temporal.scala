@@ -25,39 +25,44 @@ case class QueryResult(
   hasMoreResults: Boolean
 )
 
-object Temporal {
+/**
+ * Temporal client class for reusable connections
+ *
+ * @param uri Temporal server URI (e.g., "temporal://localhost:7233?namespace=default")
+ */
+class Temporal(uri: String) {
   private val log = Logger(getClass.getName)
+
+  private val t = TemporalURI(uri)
+
+  private val serviceOptions = io.temporal.serviceclient.WorkflowServiceStubsOptions.newBuilder()
+    .setTarget(t.target)
+    .setEnableKeepAlive(t.enableKeepAlive)
+    .setKeepAliveTime(java.time.Duration.ofSeconds(t.keepAliveTimeSec))
+    .setKeepAliveTimeout(java.time.Duration.ofSeconds(t.keepAliveTimeoutSec))
+    .setRpcTimeout(java.time.Duration.ofSeconds(t.rpcTimeoutSec))
+    .build()
+
+  private val service = WorkflowServiceStubs.newServiceStubs(serviceOptions)
+
+  private val clientOptions = io.temporal.client.WorkflowClientOptions.newBuilder()
+    .setNamespace(t.namespace)
+    .setDataConverter(ScalaDataConverter.create())
+    .build()
+
+  private val client = WorkflowClient.newInstance(service, clientOptions)
+
+  log.info(s"Connected: ${t.target} (namespace=${t.namespace})")
 
   /**
    * Query workflows from Temporal server
    *
-   * @param uri Temporal server URI
    * @param query Search query (e.g., "WorkflowId = 'por-workflow-*'" or "ExecutionStatus = 'Running'")
    * @param pageSize Number of results per page (default: 10)
    * @return QueryResult with workflow execution information
    */
-  def query(uri: String, query: String = "", pageSize: Int = 10): Try[QueryResult] = {
+  def query(query: String = "", pageSize: Int = 10): Try[QueryResult] = {
     try {
-      val t = TemporalURI(uri)
-      log.info(s"Connecting to Temporal at ${t.target} namespace=${t.namespace}")
-
-      val serviceOptions = io.temporal.serviceclient.WorkflowServiceStubsOptions.newBuilder()
-        .setTarget(t.target)
-        .setEnableKeepAlive(t.enableKeepAlive)
-        .setKeepAliveTime(java.time.Duration.ofSeconds(t.keepAliveTimeSec))
-        .setKeepAliveTimeout(java.time.Duration.ofSeconds(t.keepAliveTimeoutSec))
-        .setRpcTimeout(java.time.Duration.ofSeconds(t.rpcTimeoutSec))
-        .build()
-
-      val service = WorkflowServiceStubs.newServiceStubs(serviceOptions)
-
-      val clientOptions = io.temporal.client.WorkflowClientOptions.newBuilder()
-        .setNamespace(t.namespace)
-        .setDataConverter(ScalaDataConverter.create())
-        .build()
-
-      val client = WorkflowClient.newInstance(service, clientOptions)
-
       // Build list request
       val requestBuilder = ListWorkflowExecutionsRequest.newBuilder()
         .setNamespace(t.namespace)
@@ -124,7 +129,6 @@ object Temporal {
 
       val hasMoreResults = !response.getNextPageToken.isEmpty
 
-      service.shutdown()
       Success(QueryResult(workflowInfos, hasMoreResults))
 
     } catch {
@@ -137,28 +141,8 @@ object Temporal {
   /**
    * Get detailed information about a specific workflow by ID
    */
-  def describe(uri: String, workflowId: String, runId: Option[String] = None): Try[WorkflowExecutionInfo] = {
+  def describe(workflowId: String, runId: Option[String] = None): Try[WorkflowExecutionInfo] = {
     try {
-      val t = TemporalURI(uri)
-      log.info(s"Connecting to Temporal at ${t.target} namespace=${t.namespace}")
-
-      val serviceOptions = io.temporal.serviceclient.WorkflowServiceStubsOptions.newBuilder()
-        .setTarget(t.target)
-        .setEnableKeepAlive(t.enableKeepAlive)
-        .setKeepAliveTime(java.time.Duration.ofSeconds(t.keepAliveTimeSec))
-        .setKeepAliveTimeout(java.time.Duration.ofSeconds(t.keepAliveTimeoutSec))
-        .setRpcTimeout(java.time.Duration.ofSeconds(t.rpcTimeoutSec))
-        .build()
-
-      val service = WorkflowServiceStubs.newServiceStubs(serviceOptions)
-
-      val clientOptions = io.temporal.client.WorkflowClientOptions.newBuilder()
-        .setNamespace(t.namespace)
-        .setDataConverter(ScalaDataConverter.create())
-        .build()
-
-      val client = WorkflowClient.newInstance(service, clientOptions)
-
       // Get workflow stub
       val stub = runId match {
         case Some(rid) =>
@@ -198,7 +182,6 @@ object Temporal {
         searchAttributes = searchAttrs
       )
 
-      service.shutdown()
       Success(info)
 
     } catch {
@@ -211,7 +194,7 @@ object Temporal {
   /**
    * List workflows with optional filters
    */
-  def list(uri: String, status: Option[String] = None, workflowType: Option[String] = None, pageSize: Int = 10): Try[QueryResult] = {
+  def list(status: Option[String] = None, workflowType: Option[String] = None, pageSize: Int = 10): Try[QueryResult] = {
     val queryParts = scala.collection.mutable.ArrayBuffer[String]()
 
     status.foreach { s =>
@@ -222,26 +205,102 @@ object Temporal {
       queryParts += s"WorkflowType = '$wt'"
     }
 
-    val query = queryParts.mkString(" AND ")
+    val queryStr = queryParts.mkString(" AND ")
 
-    this.query(uri, query, pageSize)
+    this.query(queryStr, pageSize)
   }
 
   /**
    * Get workflow by run ID
    *
-   * @param uri Temporal server URI
    * @param runId The run ID to search for
    * @return WorkflowExecutionInfo if found, or failure if not found or error
    */
-  def get(uri: String, runId: String): Try[WorkflowExecutionInfo] = {
+  def get(runId: String): Try[WorkflowExecutionInfo] = {
     val queryStr = s"RunId = '$runId'"
 
-    query(uri, queryStr, pageSize = 1).flatMap { result =>
+    query(queryStr, pageSize = 1).flatMap { result =>
       result.executions.headOption match {
         case Some(info) => Success(info)
         case None => Failure(new NoSuchElementException(s"Workflow with RunId '$runId' not found"))
       }
     }
   }
+
+  /**
+   * Shutdown the Temporal connection
+   */
+  def shutdown(): Unit = {
+    log.info(s"Shutting down: ${t.target}")
+    service.shutdown()
+  }
+}
+
+/**
+ * Companion object with static methods for backward compatibility
+ */
+object Temporal {
+  private val log = Logger(getClass.getName)
+
+  /**
+   * Query workflows from Temporal server (static method)
+   *
+   * @param uri Temporal server URI
+   * @param query Search query (e.g., "WorkflowId = 'por-workflow-*'" or "ExecutionStatus = 'Running'")
+   * @param pageSize Number of results per page (default: 10)
+   * @return QueryResult with workflow execution information
+   */
+  def query(uri: String, query: String = "", pageSize: Int = 10): Try[QueryResult] = {
+    val temporal = new Temporal(uri)
+    try {
+      temporal.query(query, pageSize)
+    } finally {
+      temporal.shutdown()
+    }
+  }
+
+  /**
+   * Get detailed information about a specific workflow by ID (static method)
+   */
+  def describe(uri: String, workflowId: String, runId: Option[String] = None): Try[WorkflowExecutionInfo] = {
+    val temporal = new Temporal(uri)
+    try {
+      temporal.describe(workflowId, runId)
+    } finally {
+      temporal.shutdown()
+    }
+  }
+
+  /**
+   * List workflows with optional filters (static method)
+   */
+  def list(uri: String, status: Option[String] = None, workflowType: Option[String] = None, pageSize: Int = 10): Try[QueryResult] = {
+    val temporal = new Temporal(uri)
+    try {
+      temporal.list(status, workflowType, pageSize)
+    } finally {
+      temporal.shutdown()
+    }
+  }
+
+  /**
+   * Get workflow by run ID (static method)
+   *
+   * @param uri Temporal server URI
+   * @param runId The run ID to search for
+   * @return WorkflowExecutionInfo if found, or failure if not found or error
+   */
+  def get(uri: String, runId: String): Try[WorkflowExecutionInfo] = {
+    val temporal = new Temporal(uri)
+    try {
+      temporal.get(runId)
+    } finally {
+      temporal.shutdown()
+    }
+  }
+
+  /**
+   * Create a new Temporal instance
+   */
+  def apply(uri: String): Temporal = new Temporal(uri)
 }
