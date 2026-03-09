@@ -34,7 +34,7 @@ object DemoUtil {
         PorWorkflowInput(
           poo = Some(StepDef(input = Some(PooInput(mockWallets, "signature")))),
           por = Some(StepDef(input = Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))))),
-          pol = Some(StepDef(input = Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, config = Map("signalMode" -> polSignalMode))))),
+          pol = Some(StepDef(input = Some(PolInput(fileLink = Some("/tmp/liabilities.json"), waitForConfirmation = true, config = Map("signalMode" -> polSignalMode))))),
           solvency = Some(StepDef()),
           report = Some(StepDef()),
           commit = Some(StepDef())
@@ -44,7 +44,7 @@ object DemoUtil {
         PorWorkflowInput(
           poo = None,
           por = Some(StepDef(input = Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))))),
-          pol = Some(StepDef(input = Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, config = Map("signalMode" -> polSignalMode))))),
+          pol = Some(StepDef(input = Some(PolInput(fileLink = Some("/tmp/liabilities.json"), waitForConfirmation = true, config = Map("signalMode" -> polSignalMode))))),
           solvency = Some(StepDef()),
           report = Some(StepDef()),
           commit = Some(StepDef())
@@ -74,7 +74,7 @@ object DemoUtil {
         PorWorkflowInput(
           poo = None,
           por = None,
-          pol = Some(StepDef(input = Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, config = Map("signalMode" -> polSignalMode))))),
+          pol = Some(StepDef(input = Some(PolInput(fileLink = Some("/tmp/liabilities.json"), waitForConfirmation = true, config = Map("signalMode" -> polSignalMode))))),
           solvency = None,
           report = None,
           commit = None

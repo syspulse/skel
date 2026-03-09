@@ -1,7 +1,6 @@
 package io.syspulse.skel.wf.temporal.por
 
 import io.temporal.workflow.{WorkflowInterface, WorkflowMethod, SignalMethod, QueryMethod}
-import spray.json.JsObject
 
 @WorkflowInterface
 trait PorWorkflow {
@@ -10,8 +9,8 @@ trait PorWorkflow {
   def execute(run: PorWorkflowRun): PorWorkflowRun
 
   @SignalMethod
-  def receivePolSignal(data: JsObject): Unit
+  def signalPol(data: PolFileData): Unit
 
   @QueryMethod
-  def getPolSignalData(): Option[JsObject]
+  def getPolSignalData(): Option[PolFileData]
 }

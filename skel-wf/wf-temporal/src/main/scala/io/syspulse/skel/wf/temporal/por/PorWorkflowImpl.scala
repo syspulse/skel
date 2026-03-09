@@ -7,7 +7,6 @@ import io.temporal.activity.ActivityOptions
 import java.time.Duration
 import io.temporal.activity.Activity
 import io.syspulse.skel.wf.temporal.por.demo.DemoUtil
-import spray.json.JsObject
 
 /**
  * Main PoR Workflow Implementation
@@ -25,14 +24,16 @@ class PorWorkflowImpl extends PorWorkflow {
 
   // Signal data storage (survives worker restarts - managed by Temporal)
   @volatile
-  private var polSignalData: Option[JsObject] = None
+  private var polSignalData: Option[PolFileData] = None
 
-  override def receivePolSignal(data: JsObject): Unit = {
-    log.info(s"Received PoL signal: ${data.compactPrint}")
+  override def signalPol(data: PolFileData): Unit = {
+    val info = Workflow.getInfo()
+    val wid = s"[${info.getWorkflowId} / ${info.getRunId}]"
+    log.info(s"${wid} Received PoL signal with ${data.liabilities.size} liabilities")
     polSignalData = Some(data)
   }
 
-  override def getPolSignalData(): Option[JsObject] = {
+  override def getPolSignalData(): Option[PolFileData] = {
     polSignalData
   }
 
@@ -129,12 +130,7 @@ class PorWorkflowImpl extends PorWorkflow {
             val polFileData = signalMode.toLowerCase match {
               case "api" if polInput.waitForConfirmation =>
                 log.info(s"$wid PoL: Processing in API mode")
-                PolSignalProcessors.processApiMode(
-                  polSignalData,
-                  data => polSignalData = data,
-                  signalTimeout,
-                  wid
-                )
+                PolSignalProcessors.processApiMode(polSignalData, signalTimeout, wid)
 
               case "file" if polInput.waitForConfirmation =>
                 log.info(s"$wid PoL: Processing in file mode")

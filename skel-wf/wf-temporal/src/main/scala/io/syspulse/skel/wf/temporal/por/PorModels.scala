@@ -53,14 +53,14 @@ case class PorInput(
 )
 
 case class PolInput(
-  fileLink: String,
+  fileLink: Option[String] = None,
   waitForConfirmation: Boolean = true,
   config: Map[String, Any] = Map.empty,
-  data: Option[PolFileData] = None  // Prepared data (injected by PolSignalProcessors)
+  data: Option[PolFileData] = None  // Data in raw format. If file is present it is populated from the file
 )
 
 case class PolFileData(
-  ts: Long,
+  timestamp: Long,
   liabilities: List[Liability],
   signature: String,
   signatureType: String, // "certificate" or "public_key"

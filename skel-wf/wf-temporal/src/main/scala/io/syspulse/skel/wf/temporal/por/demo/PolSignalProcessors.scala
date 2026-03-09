@@ -93,18 +93,8 @@ object PolApiSignalProcessor extends PolSignalProcessor {
 
           if (data.isDefined) {
             ctx.log.info(s"${ctx.wid} Signal data received from workflow (attempt $attempt)")
-
-            // Parse signal data to PolFileData
-            try {
-              import spray.json.DefaultJsonProtocol._
-              import PolJsonProtocol._
-              signalData = Some(data.get.convertTo[PolFileData])
-              ctx.log.info(s"${ctx.wid} Using API signal data with ${signalData.get.liabilities.size} liabilities")
-            } catch {
-              case e: Exception =>
-                ctx.log.error(s"${ctx.wid} Failed to parse signal data: ${e.getMessage}, using fallback")
-                signalData = Some(fallback)
-            }
+            signalData = data
+            ctx.log.info(s"${ctx.wid} Using API signal data with ${signalData.get.liabilities.size} liabilities")
           } else {
             if (attempt % 12 == 0) { // Log every minute (if polling every 5s)
               ctx.log.info(s"${ctx.wid} Waiting for signal (attempt $attempt/$maxAttempts)")
@@ -153,7 +143,7 @@ object PolSignalProcessors {
     }.toList
 
     PolFileData(
-      ts = System.currentTimeMillis(),
+      timestamp = System.currentTimeMillis(),
       liabilities = liabilities,
       signature = s"0x${Random.alphanumeric.take(128).mkString}",
       signatureType = "public_key",
@@ -166,49 +156,31 @@ object PolSignalProcessors {
    * Called directly from workflow (uses Workflow.await)
    *
    * @param polSignalDataGetter Get current signal data from workflow variable
-   * @param polSignalDataSetter Set signal data in workflow variable
    * @param timeout Timeout in milliseconds
    * @param wid Workflow ID for logging
-   * @return Valid PolFileData
+   * @return PolFileData from signal
    */
   def processApiMode(
-    polSignalDataGetter: => Option[JsObject],
-    polSignalDataSetter: Option[JsObject] => Unit,
+    polSignalDataGetter: => Option[PolFileData],
     timeout: Long,
     wid: String
   ): PolFileData = {
     log.info(s"$wid PoL API mode: Waiting for signal")
 
-    var validData: Option[PolFileData] = None
-    var attempts = 0
+    // Wait for signal using Temporal's await
+    val signalReceived = Workflow.await(
+      java.time.Duration.ofMillis(timeout),
+      () => polSignalDataGetter.isDefined
+    )
 
-    while (validData.isEmpty) {
-      attempts += 1
-
-      // Wait for signal using Temporal's await
-      val signalReceived = Workflow.await(
-        java.time.Duration.ofMillis(timeout),
-        () => polSignalDataGetter.isDefined
-      )
-
-      if (!signalReceived) {
-        log.error(s"$wid PoL: Signal timeout (${timeout}ms)")
-        throw new RuntimeException(s"PoL signal timeout: No signal received within ${timeout}ms")
-      }
-
-      log.info(s"$wid PoL: Signal received (attempt $attempts), validating")
-
-      // Validate and parse using validator
-      validData = PolSignalValidator.validateAndParse(polSignalDataGetter.get, wid)
-
-      if (validData.isEmpty) {
-        // Invalid data - clear and wait for next signal
-        polSignalDataSetter(None)
-      }
+    if (!signalReceived) {
+      log.error(s"$wid PoL: Signal timeout (${timeout}ms)")
+      throw new RuntimeException(s"PoL signal timeout: No signal received within ${timeout}ms")
     }
 
-    log.info(s"$wid PoL: Validated signal data with ${validData.get.liabilities.size} liabilities")
-    validData.get
+    val data = polSignalDataGetter.get
+    log.info(s"$wid PoL: Signal received with ${data.liabilities.size} liabilities")
+    data
   }
 
   /**

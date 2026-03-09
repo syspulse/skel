@@ -215,7 +215,7 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
    *
    * @param workflowId Workflow ID
    * @param runId Optional run ID (if not provided, signals latest run)
-   * @param signalName Signal name (e.g., "receivePolSignal")
+   * @param signalName Signal name (e.g., "signalPol")
    * @param data Signal data as JsObject
    * @return Success message or error
    */
@@ -229,9 +229,19 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
 
     // Send signal based on signal name
     signalName match {
-      case "receivePolSignal" =>
-        workflowStub.receivePolSignal(data)
-        s"Signal '$signalName' sent to workflow $workflowId${runId.map(r => s" (run $r)").getOrElse("")}"
+      case "signalPol" =>
+        // Parse and validate signal data
+        import io.syspulse.skel.wf.temporal.por.{PolSignalValidator, PolFileData}
+
+        val polFileData = PolSignalValidator.validateAndParse(data, workflowId) match {
+          case Some(validData) =>
+            validData
+          case None =>
+            throw new IllegalArgumentException(s"Invalid PoL signal data: failed validation")
+        }
+
+        workflowStub.signalPol(polFileData)
+        s"Signal '$signalName' sent to workflow $workflowId${runId.map(r => s" (run $r)").getOrElse("")} with ${polFileData.liabilities.size} liabilities"
 
       case _ =>
         throw new IllegalArgumentException(s"Unknown signal name: $signalName")

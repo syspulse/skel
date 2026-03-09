@@ -254,7 +254,8 @@ object App extends skel.Server {
             val pageSize = tail.headOption.map(_.toInt).getOrElse(10)
             Temporal.list(config.engine, status = Some(status), pageSize = pageSize)
 
-          case "signal" :: runId :: signalName :: dataJson :: Nil =>
+          case "signal" :: runId :: signalName :: fileJson :: Nil =>
+            val dataJson = os.read(os.Path(fileJson, os.pwd))
             // First get workflow info by run ID to extract workflow ID
             import spray.json._
             val data = dataJson.parseJson.asJsObject
@@ -262,7 +263,8 @@ object App extends skel.Server {
               Temporal.signal(config.engine, info.workflowId, Some(runId), signalName, data)
             }
 
-          case "signal" :: workflowId :: runId :: signalName :: dataJson :: Nil =>
+          case "signal" :: workflowId :: runId :: signalName :: fileJson :: Nil =>
+            val dataJson = os.read(os.Path(fileJson, os.pwd))
             // Signal with explicit workflow ID and run ID
             import spray.json._
             val data = dataJson.parseJson.asJsObject
