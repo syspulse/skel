@@ -49,6 +49,6 @@ case class WorkflowStartReq(
 )
 
 case class WorkflowStartRes(
-  workflowId: String,
-  runId: String
+  wid: String,
+  rid: String
 )
