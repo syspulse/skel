@@ -186,7 +186,7 @@ object WorkflowRegistry {
       case WorkflowStart(req, replyTo) =>
         log.info(s"WorkflowStart(src=${req.src}, data=${req.data})")
         context.pipeToSelf(startWorkflow(engineUri, req)) {
-          case Success(wid) => WorkflowStartResponse(Success(WorkflowStartRes(wid)), replyTo)
+          case Success(result) => WorkflowStartResponse(Success(WorkflowStartRes(result.workflowId, result.runId)), replyTo)
           case Failure(e) => WorkflowStartResponse(Failure(e), replyTo)
         }
         Behaviors.same
@@ -197,7 +197,7 @@ object WorkflowRegistry {
     }
   }
 
-  private def startWorkflow(engineUri: String, req: WorkflowStartReq)(implicit ec: ExecutionContext): Future[String] = Future {
+  private def startWorkflow(engineUri: String, req: WorkflowStartReq)(implicit ec: ExecutionContext): Future[PorStartResult] = {
     val run = req.src match {
       case "demo" =>
         // Generate demo flow using DemoUtil
@@ -235,10 +235,7 @@ object WorkflowRegistry {
         throw new IllegalArgumentException(s"Unknown source type: ${req.src}")
     }
 
-    // Start the workflow
-    PorStarter.run(engineUri, run) match {
-      case Success(wid) => wid
-      case Failure(e) => throw e
-    }
+    // Start the workflow (returns Future)
+    PorStarter.run(engineUri, run)
   }
 }

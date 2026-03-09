@@ -1,6 +1,7 @@
 package io.syspulse.skel.wf.temporal.por
 
 import scala.util.{Try,Success,Failure}
+import scala.concurrent.{Future, ExecutionContext}
 
 import io.temporal.client.{WorkflowClient, WorkflowOptions}
 import io.temporal.serviceclient.WorkflowServiceStubs
@@ -9,11 +10,12 @@ import io.syspulse.skel.wf.temporal.{ScalaDataConverter, TemporalURI}
 import com.typesafe.scalalogging.Logger
 import scala.jdk.CollectionConverters._
 
+case class PorStartResult(workflowId: String, runId: String)
+
 object PorStarter {
   private val log = Logger(getClass.getName)
 
-  def run(uri: String, run: PorWorkflowRun): Try[String] = {
-    try {
+  def run(uri: String, run: PorWorkflowRun)(implicit ec: ExecutionContext): Future[PorStartResult] = Future {
 
       val t = TemporalURI(uri)
       log.info(s"Connecting to Temporal -> ${t.target} (namespace=${t.namespace})")
@@ -80,28 +82,14 @@ object PorStarter {
 
       log.info(s"Starting PoR Workflow: $wid: project=${run.proj}: input=${run.input}")
 
-      val result = workflow.execute(run)
+      // Start workflow asynchronously
+      val execution = WorkflowClient.start(workflow.execute _, run)
+      val runId = execution.getRunId
 
-      result.output.report match {
-        case Some(report) =>
-          log.info(s"$wid: Report=${report.reportFilePath}, link=${report.reportLink}")
-        case None =>
-          log.info(s"$wid: Workflow completed without report output")
-      }
-
-      result.output.commit.foreach { commit =>
-        log.info(s"$wid: Output committed to: ${commit.filePath}")
-      }
-
-      log.info(s"$wid: Completed - PoO=${result.output.poo.isDefined}, PoR=${result.output.por.isDefined}, PoL=${result.output.pol.isDefined}, Solvency=${result.output.solvency.isDefined}, Report=${result.output.report.isDefined}, Commit=${result.output.commit.isDefined}")
+      log.info(s"Workflow started: workflowId=$wid, runId=$runId")
 
       service.shutdown()
-      Success(wid)
-    }
-    catch {
-      case e: Exception =>
-        log.error(s"Failed to start Workflow: ${run.tid}/${run.pid}/${run.proj}: ${e.getMessage}", e)
-        Failure(e)
-    }
+
+      PorStartResult(wid, runId)
   }
 }
