@@ -46,7 +46,7 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
 
       // Create run with previous outputs and new PoL input
       val run = PorWorkflowRun(
-        ownerName = "Exchange1",
+        proj = "Exchange1",
         ts0 = System.currentTimeMillis(),
         ts1 = System.currentTimeMillis(),
         input = PorWorkflowInput(
@@ -101,7 +101,7 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
 
       // Create run with only previous outputs (no inputs)
       val run = PorWorkflowRun(
-        ownerName = "Exchange1",
+        proj = "Exchange1",
         ts0 = System.currentTimeMillis(),
         input = PorWorkflowInput(
           poo = Some(StepDef()),  // No input
@@ -141,7 +141,7 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
       )
 
       val run = PorWorkflowRun(
-        ownerName = "Exchange1",
+        proj = "Exchange1",
         ts0 = System.currentTimeMillis(),
         input = PorWorkflowInput(
           poo = Some(StepDef(input = Some(PooInput(List.empty, "signature")))),
@@ -218,7 +218,7 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
 
       // Create second run reusing first run outputs
       val secondRun = PorWorkflowRun(
-        ownerName = "Exchange1",
+        proj = "Exchange1",
         ts0 = System.currentTimeMillis(),
         input = PorWorkflowInput(
           poo = Some(StepDef()),  // No new PoO input, will use previous output
