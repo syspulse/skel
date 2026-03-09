@@ -2,11 +2,13 @@ package io.syspulse.skel.wf.temporal.workflow.store
 
 import scala.util.{Try,Success,Failure}
 import scala.collection.immutable
+import scala.concurrent.{Future, ExecutionContext}
 import com.typesafe.scalalogging.Logger
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.ActorContext
 
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.Command
@@ -30,11 +32,20 @@ object WorkflowRegistry {
   final case class TemporalDescribe(workflowId:String, runId:Option[String], replyTo: ActorRef[Try[WorkflowExecutionInfo]]) extends Command
   final case class TemporalGet(runId:String, replyTo: ActorRef[Try[WorkflowExecutionInfo]]) extends Command
 
+  // Internal response messages for async operations
+  private final case class TemporalQueryResponse(result: Try[QueryResult], replyTo: ActorRef[Try[QueryResult]]) extends Command
+  private final case class TemporalListResponse(result: Try[QueryResult], replyTo: ActorRef[Try[QueryResult]]) extends Command
+  private final case class TemporalDescribeResponse(result: Try[WorkflowExecutionInfo], replyTo: ActorRef[Try[WorkflowExecutionInfo]]) extends Command
+  private final case class TemporalGetResponse(result: Try[WorkflowExecutionInfo], replyTo: ActorRef[Try[WorkflowExecutionInfo]]) extends Command
+
   def apply(store: WorkflowStore, engineUri: String): Behavior[io.syspulse.skel.Command] = {
-    registry(store, engineUri)
+    Behaviors.setup { context =>
+      implicit val ec: ExecutionContext = context.executionContext
+      registry(store, engineUri, context)
+    }
   }
 
-  private def registry(store: WorkflowStore, engineUri: String): Behavior[io.syspulse.skel.Command] = {
+  private def registry(store: WorkflowStore, engineUri: String, context: ActorContext[io.syspulse.skel.Command])(implicit ec: ExecutionContext): Behavior[io.syspulse.skel.Command] = {
     Behaviors.receiveMessage {
 
       case GetWorkflow(id, replyTo) =>
@@ -122,26 +133,50 @@ object WorkflowRegistry {
 
       case TemporalQuery(req, replyTo) =>
         log.info(s"TemporalQuery(${req.query}, pageSize=${req.pageSize})")
-        val r = Temporal.query(engineUri, req.query, req.pageSize)
-        replyTo ! r
+        context.pipeToSelf(Temporal.query(engineUri, req.query, req.pageSize)) {
+          case Success(result) => TemporalQueryResponse(result, replyTo)
+          case Failure(e) => TemporalQueryResponse(Failure(e), replyTo)
+        }
+        Behaviors.same
+
+      case TemporalQueryResponse(result, replyTo) =>
+        replyTo ! result
         Behaviors.same
 
       case TemporalList(req, replyTo) =>
         log.info(s"TemporalList(status=${req.status}, workflowType=${req.workflowType}, pageSize=${req.pageSize})")
-        val r = Temporal.list(engineUri, req.status, req.workflowType, req.pageSize)
-        replyTo ! r
+        context.pipeToSelf(Temporal.list(engineUri, req.status, req.workflowType, req.pageSize)) {
+          case Success(result) => TemporalListResponse(result, replyTo)
+          case Failure(e) => TemporalListResponse(Failure(e), replyTo)
+        }
+        Behaviors.same
+
+      case TemporalListResponse(result, replyTo) =>
+        replyTo ! result
         Behaviors.same
 
       case TemporalDescribe(workflowId, runId, replyTo) =>
         log.info(s"TemporalDescribe(workflowId=$workflowId, runId=$runId)")
-        val r = Temporal.describe(engineUri, workflowId, runId)
-        replyTo ! r
+        context.pipeToSelf(Temporal.describe(engineUri, workflowId, runId)) {
+          case Success(result) => TemporalDescribeResponse(result, replyTo)
+          case Failure(e) => TemporalDescribeResponse(Failure(e), replyTo)
+        }
+        Behaviors.same
+
+      case TemporalDescribeResponse(result, replyTo) =>
+        replyTo ! result
         Behaviors.same
 
       case TemporalGet(runId, replyTo) =>
         log.info(s"TemporalGet(runId=$runId)")
-        val r = Temporal.get(engineUri, runId)
-        replyTo ! r
+        context.pipeToSelf(Temporal.get(engineUri, runId)) {
+          case Success(result) => TemporalGetResponse(result, replyTo)
+          case Failure(e) => TemporalGetResponse(Failure(e), replyTo)
+        }
+        Behaviors.same
+
+      case TemporalGetResponse(result, replyTo) =>
+        replyTo ! result
         Behaviors.same
     }
   }

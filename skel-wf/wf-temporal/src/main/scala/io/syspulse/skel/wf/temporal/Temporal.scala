@@ -2,6 +2,7 @@ package io.syspulse.skel.wf.temporal
 
 import scala.util.{Try, Success, Failure}
 import scala.jdk.CollectionConverters._
+import scala.concurrent.{Future, ExecutionContext}
 
 import io.temporal.client.{WorkflowClient, WorkflowStub}
 import io.temporal.serviceclient.WorkflowServiceStubs
@@ -30,7 +31,7 @@ case class QueryResult(
  *
  * @param uri Temporal server URI (e.g., "temporal://localhost:7233?namespace=default")
  */
-class Temporal(uri: String) {
+class Temporal(uri: String)(implicit ec: ExecutionContext) {
   private val log = Logger(getClass.getName)
 
   private val t = TemporalURI(uri)
@@ -60,7 +61,7 @@ class Temporal(uri: String) {
    * @param pageSize Number of results per page (default: 10)
    * @return QueryResult with workflow execution information
    */
-  def query(query: String = "", pageSize: Int = 10): Try[QueryResult] = {
+  def query(query: String = "", pageSize: Int = 10): Future[Try[QueryResult]] = Future {
     try {
       // Build list request
       val requestBuilder = ListWorkflowExecutionsRequest.newBuilder()
@@ -140,7 +141,7 @@ class Temporal(uri: String) {
   /**
    * Get detailed information about a specific workflow by ID
    */
-  def describe(workflowId: String, runId: Option[String] = None): Try[WorkflowExecutionInfo] = {
+  def describe(workflowId: String, runId: Option[String] = None): Future[Try[WorkflowExecutionInfo]] = Future {
     try {
       // Get workflow stub
       val stub = runId match {
@@ -193,7 +194,7 @@ class Temporal(uri: String) {
   /**
    * List workflows with optional filters
    */
-  def list(status: Option[String] = None, workflowType: Option[String] = None, pageSize: Int = 10): Try[QueryResult] = {
+  def list(status: Option[String] = None, workflowType: Option[String] = None, pageSize: Int = 10): Future[Try[QueryResult]] = {
     val queryParts = scala.collection.mutable.ArrayBuffer[String]()
 
     status.foreach { s =>
@@ -215,13 +216,15 @@ class Temporal(uri: String) {
    * @param runId The run ID to search for
    * @return WorkflowExecutionInfo if found, or failure if not found or error
    */
-  def get(runId: String): Try[WorkflowExecutionInfo] = {
+  def get(runId: String): Future[Try[WorkflowExecutionInfo]] = {
     val queryStr = s"RunId = '$runId'"
 
-    query(queryStr, pageSize = 1).flatMap { result =>
-      result.executions.headOption match {
-        case Some(info) => Success(info)
-        case None => Failure(new NoSuchElementException(s"Workflow with RunId '$runId' not found"))
+    query(queryStr, pageSize = 1).map { tryResult =>
+      tryResult.flatMap { result =>
+        result.executions.headOption match {
+          case Some(info) => Success(info)
+          case None => Failure(new NoSuchElementException(s"Workflow with RunId '$runId' not found"))
+        }
       }
     }
   }
@@ -249,11 +252,9 @@ object Temporal {
    * @param pageSize Number of results per page (default: 10)
    * @return QueryResult with workflow execution information
    */
-  def query(uri: String, query: String = "", pageSize: Int = 10): Try[QueryResult] = {
+  def query(uri: String, query: String = "", pageSize: Int = 10)(implicit ec: ExecutionContext): Future[Try[QueryResult]] = {
     val temporal = new Temporal(uri)
-    try {
-      temporal.query(query, pageSize)
-    } finally {
+    temporal.query(query, pageSize).andThen { case _ =>
       temporal.shutdown()
     }
   }
@@ -261,11 +262,9 @@ object Temporal {
   /**
    * Get detailed information about a specific workflow by ID (static method)
    */
-  def describe(uri: String, workflowId: String, runId: Option[String] = None): Try[WorkflowExecutionInfo] = {
+  def describe(uri: String, workflowId: String, runId: Option[String] = None)(implicit ec: ExecutionContext): Future[Try[WorkflowExecutionInfo]] = {
     val temporal = new Temporal(uri)
-    try {
-      temporal.describe(workflowId, runId)
-    } finally {
+    temporal.describe(workflowId, runId).andThen { case _ =>
       temporal.shutdown()
     }
   }
@@ -273,11 +272,9 @@ object Temporal {
   /**
    * List workflows with optional filters (static method)
    */
-  def list(uri: String, status: Option[String] = None, workflowType: Option[String] = None, pageSize: Int = 10): Try[QueryResult] = {
+  def list(uri: String, status: Option[String] = None, workflowType: Option[String] = None, pageSize: Int = 10)(implicit ec: ExecutionContext): Future[Try[QueryResult]] = {
     val temporal = new Temporal(uri)
-    try {
-      temporal.list(status, workflowType, pageSize)
-    } finally {
+    temporal.list(status, workflowType, pageSize).andThen { case _ =>
       temporal.shutdown()
     }
   }
@@ -289,11 +286,9 @@ object Temporal {
    * @param runId The run ID to search for
    * @return WorkflowExecutionInfo if found, or failure if not found or error
    */
-  def get(uri: String, runId: String): Try[WorkflowExecutionInfo] = {
+  def get(uri: String, runId: String)(implicit ec: ExecutionContext): Future[Try[WorkflowExecutionInfo]] = {
     val temporal = new Temporal(uri)
-    try {
-      temporal.get(runId)
-    } finally {
+    temporal.get(runId).andThen { case _ =>
       temporal.shutdown()
     }
   }
@@ -301,5 +296,5 @@ object Temporal {
   /**
    * Create a new Temporal instance
    */
-  def apply(uri: String): Temporal = new Temporal(uri)
+  def apply(uri: String)(implicit ec: ExecutionContext): Temporal = new Temporal(uri)
 }

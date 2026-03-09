@@ -1,6 +1,8 @@
 package io.syspulse.skel.wf.temporal
 
-import scala.util.Success
+import scala.util.{Success, Try}
+import scala.concurrent.{Future, Await, ExecutionContext}
+import scala.concurrent.duration._
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
@@ -114,6 +116,8 @@ object App extends skel.Server {
   def main(args:Array[String]):Unit = {
     log.info(s"args: '${args.mkString(",")}'")
 
+    implicit val ec: ExecutionContext = ExecutionContext.global
+
     val d = Config()
     val c = Configuration.withPriority(Seq(
       new ConfigurationAkka,
@@ -211,7 +215,7 @@ object App extends skel.Server {
         "Server mode not implemented yet"
 
       case "temporal" =>
-        config.params.toList match {
+        val futureResult = config.params.toList match {
           case "query" :: query :: Nil =>
             Temporal.query(config.engine, query)
 
@@ -240,8 +244,9 @@ object App extends skel.Server {
 
           case _ =>
             Temporal.list(config.engine)
-
         }
+
+        Await.result(futureResult, 30.seconds)
 
       case "por-worker" =>
         PorWorker.run(config.engine, impl)        
