@@ -7,6 +7,8 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 import io.syspulse.skel.wf.temporal.por._
 import io.syspulse.skel.wf.temporal.por.demo.DemoUtil
+import io.syspulse.skel.wf.temporal.workflow.store._
+import io.syspulse.skel.wf.temporal.workflow.server._
 
 // Examples:
 //   temporal query "ExecutionStatus = 'Running'"
@@ -18,9 +20,9 @@ import io.syspulse.skel.wf.temporal.por.demo.DemoUtil
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
-  uri:String = "/api/v1/wf/temporal",
+  uri:String = "/api/v1/wf",
 
-  //datastore:String = "",
+  datastore:String = "mem://",
   engine:String = "temporal://",
   wf:String = "demo://",
 
@@ -30,7 +32,7 @@ case class Config(
   porTags: Seq[String] = Seq(),
   porMemo: Map[String,String] = Map("region" -> "US", "env" -> "test"),
 
-  cmd:String = "wf",
+  cmd:String = "server",
   params: Seq[String] = Seq(),
 )
 
@@ -122,7 +124,7 @@ object App extends skel.Server {
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
         ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
 
-        // ArgString('d', "datastore",s"Datastore [temporal://] (def: ${d.datastore})"),
+        ArgString('d', "datastore",s"Datastore [mem://,dir://] (def: ${d.datastore})"),
         ArgString('e', "engine",s"Engine URI [temporal://] (def: ${d.engine})"),
         ArgString('w', "wf",s"Workflow implementation [demo://] (def: ${d.wf})"),
 
@@ -132,7 +134,7 @@ object App extends skel.Server {
         ArgString('_', "por.tags",s"PoR workflow tags (comma-separated, e.g., CEX,Bybit) (def: ${d.porTags.mkString(",")})"),
         ArgString('_', "por.memo",s"PoR workflow memo (key=value pairs, comma-separated, e.g., region=US,env=prod) (def: ${d.porMemo.mkString(",")})"),
 
-        ArgCmd("wf",s"Server"),
+        ArgCmd("server",s"Start Workflow Schema REST server"),
         ArgCmd("temporal",s"Temporal subcommands"),
         ArgCmd("por-worker",s"Start PoR Temporal Worker"),
         ArgCmd("por-start",s"Start PoR Workflow: por-start [flow-N] [commit-file.json]"),
@@ -154,7 +156,7 @@ object App extends skel.Server {
       port = c.getInt("http.port").getOrElse(d.port),
       uri = c.getString("http.uri").getOrElse(d.uri),
 
-      // datastore = c.getString("datastore").getOrElse(d.datastore),
+      datastore = c.getString("datastore").getOrElse(d.datastore),
       engine = c.getString("engine").getOrElse(d.engine),
       wf = c.getString("wf").getOrElse(d.wf),
 
@@ -170,6 +172,17 @@ object App extends skel.Server {
 
     log.info(s"Config: ${config}")
 
+    def getStore(uri:String):WorkflowStore = {
+      uri.split("://").toList match {
+        case "mem" :: Nil => new WorkflowStoreMem()
+        case "dir" :: Nil => new WorkflowStoreDir()
+        case "dir" :: dir :: Nil => new WorkflowStoreDir(dir)
+        case _ =>
+          Console.err.println(s"Unknown DataStore: '${uri}'")
+          sys.exit(1)
+      }
+    }
+
     val impl = config.wf.split("://").toList match {
       case "demo" :: Nil => new skel.wf.temporal.por.demo.PorActivitiesDemo()
       case _ => {
@@ -177,10 +190,22 @@ object App extends skel.Server {
         sys.exit(1)
       }
     }
-    
+
     log.info(s"Workflow: ${impl}")
 
     val r = config.cmd match {
+      case "server" =>
+        val store = getStore(config.datastore)
+        Console.err.println(s"Store: ${store}")
+
+        run(config.host, config.port, config.uri, c,
+          Seq(
+            (WorkflowRegistry(store), "WorkflowRegistry", (reg, ac) => {
+              new WorkflowRoutes(reg)(ac)
+            })
+          )
+        )
+
       case "wf" =>
         // Server mode (future implementation)
         "Server mode not implemented yet"
@@ -274,7 +299,7 @@ object App extends skel.Server {
               generate(
                 Some(PooInput(mockWallets, "signature")),
                 Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
-                Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
+                Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, config = Map("signalMode" -> config.porPolSignalMode)))
               )
 
           case "flow-2" :: f => // PoR -> PoL -> Solvency -> Report
@@ -283,7 +308,7 @@ object App extends skel.Server {
             generate(
               None,
               Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
-              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
+              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, config = Map("signalMode" -> config.porPolSignalMode)))
             )
           case "flow-3" :: f => // PoR -> Report
             if(f.size == 1) load(f.head)
@@ -307,7 +332,7 @@ object App extends skel.Server {
             generate(
               None,
               None,
-              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, signalMode = config.porPolSignalMode))
+              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, config = Map("signalMode" -> config.porPolSignalMode)))
             )
           case f :: Nil =>
             load(f)

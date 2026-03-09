@@ -26,7 +26,7 @@ case class Liability(
 // Step Definition - contains config and input data for each step
 
 case class StepDef[I](
-  config: Map[String, String] = Map.empty,
+  config: Map[String, Any] = Map.empty,
   input: Option[I] = None
 )
 
@@ -55,8 +55,7 @@ case class PorInput(
 case class PolInput(
   fileLink: String,
   waitForConfirmation: Boolean = true,
-  /** User signal mode: "file" (poll /tmp), "rest" (POST), "simulate" (delay, default). */
-  signalMode: String = "simulate"
+  config: Map[String, Any] = Map.empty
 )
 
 case class PolFileData(

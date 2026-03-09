@@ -19,7 +19,7 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
       val input = PorWorkflowInput(
         poo = Some(StepDef(input = Some(PooInput(List.empty, "signature")))),
         por = Some(StepDef(input = Some(PorInput(List.empty, List("BTC", "ETH"))))),
-        pol = Some(StepDef(input = Some(PolInput("/tmp/test.json", true, "simulate")))),
+        pol = Some(StepDef(input = Some(PolInput("/tmp/test.json", true, Map[String, Any]("signalMode" -> "simulate"))))),
         solvency = Some(StepDef()),
         report = Some(StepDef()),
         commit = Some(StepDef())
@@ -52,7 +52,7 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
         input = PorWorkflowInput(
           poo = Some(StepDef()),  // No new PoO input
           por = Some(StepDef()),  // No new PoR input
-          pol = Some(StepDef(input = Some(PolInput("/tmp/updated-liabilities.json", true, "simulate")))), // New PoL
+          pol = Some(StepDef(input = Some(PolInput("/tmp/updated-liabilities.json", true, Map[String, Any]("signalMode" -> "simulate"))))), // New PoL
           solvency = Some(StepDef()),
           report = Some(StepDef()),
           commit = Some(StepDef())
@@ -146,7 +146,7 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
         input = PorWorkflowInput(
           poo = Some(StepDef(input = Some(PooInput(List.empty, "signature")))),
           por = Some(StepDef()),  // No input, will use previous output
-          pol = Some(StepDef(input = Some(PolInput("/tmp/test.json", true, "simulate")))),
+          pol = Some(StepDef(input = Some(PolInput("/tmp/test.json", true, Map[String, Any]("signalMode" -> "simulate"))))),
           solvency = Some(StepDef()),
           report = Some(StepDef()),
           commit = Some(StepDef())
@@ -223,7 +223,7 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
         input = PorWorkflowInput(
           poo = Some(StepDef()),  // No new PoO input, will use previous output
           por = Some(StepDef()),  // No new PoR input, will use previous output
-          pol = Some(StepDef(input = Some(PolInput("/tmp/updated-liabilities.json", true, "simulate")))), // New PoL
+          pol = Some(StepDef(input = Some(PolInput("/tmp/updated-liabilities.json", true, Map[String, Any]("signalMode" -> "simulate"))))), // New PoL
           solvency = Some(StepDef()),
           report = Some(StepDef()),
           commit = Some(StepDef())

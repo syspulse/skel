@@ -7,6 +7,7 @@ import com.typesafe.scalalogging.Logger
 
 import java.time.LocalDateTime
 import io.syspulse.skel.dash.Dash
+import io.syspulse.skel.ErrNotFound
 
 class DashStoreMem() extends DashStore {
 
@@ -30,7 +31,9 @@ class DashStoreMem() extends DashStore {
       case Some(data) if(pid.isDefined && data.pid == pid) => Success(data)
       case Some(data) if(tid.isDefined && data.tid == tid) => Success(data)
       case Some(data) => Success(data)
-      case None => Failure(new Exception(s"dash not found: ${tid}/${pid}/${id}"))
+      case None => 
+        Failure(new ErrNotFound(s"Dash: ${tid}/${pid}/${id}"))
+        //Failure(new Exception(s"dash not found: ${tid}/${pid}/${id}"))
     }
   }
 

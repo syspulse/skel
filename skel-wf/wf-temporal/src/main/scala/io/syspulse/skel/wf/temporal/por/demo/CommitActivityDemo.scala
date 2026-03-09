@@ -24,7 +24,7 @@ class CommitActivityDemo {
 
     //val ts = System.currentTimeMillis()
     
-    val filePath = run.input.commit.flatMap(_.config.get("file").map(f => os.Path(f, os.pwd)))
+    val filePath = run.input.commit.flatMap(_.config.get("file").map(f => os.Path(f.toString, os.pwd)))
       .getOrElse(os.temp.dir() / s"por-workflow-output-${workflowId}.json")
 
     try {

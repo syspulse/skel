@@ -13,7 +13,7 @@ class PolActivityDemo {
   private val log = Logger(getClass.getName)
   private val SignalPollIntervalMs = 5000L
   
-  /** Wait for user signal: file (poll /tmp), rest (POST to local server), or simulate (delay). Mode from PolInput.signalMode. */
+  /** Wait for user signal: file (poll /tmp), rest (POST to local server), or simulate (delay). Mode from PolInput.config("signalMode"). */
   private def waitForUserSignal(workflowId: String, wid: String, signalMode: String): Unit = {
     signalMode.toLowerCase match {
       case "file" => waitForFileSignal(workflowId, wid)
@@ -107,8 +107,9 @@ ${demoData.liabilities.map(l => s"""    {"userId": "${l.userId}", "asset": "${l.
         log.info(s"$wid Demo file generated: $demoFilePath")
 
         if (input.waitForConfirmation) {
-          log.info(s"$wid Please confirm to use file: $demoFilePath (signalMode=${input.signalMode})")
-          waitForUserSignal(workflowId, wid, input.signalMode)
+          val signalMode = input.config.get("signalMode").fold("simulate")(_.toString)
+          log.info(s"$wid Please confirm to use file: $demoFilePath (signalMode=$signalMode)")
+          waitForUserSignal(workflowId, wid, signalMode)
         }
 
         // PoL MERGE STRATEGY: Never trust previous output, always override with fresh input
