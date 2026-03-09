@@ -53,7 +53,7 @@ object WorkflowRegistry {
             version = if(req.version.isDefined) req.version.get else w.version,
             tags = if(req.tags.isDefined) req.tags.get else w.tags,
             nodes = if(req.nodes.isDefined) req.nodes.get else w.nodes,
-            conns = if(req.conns.isDefined) req.conns.get else w.conns
+            connections = if(req.connections.isDefined) req.connections.get else w.connections
           ))
           .flatMap(w => store.+(w))
 
@@ -88,7 +88,7 @@ object WorkflowRegistry {
             faq = req.faq,
             tags = req.tags.getOrElse(Seq.empty),
             nodes = req.nodes.getOrElse(Seq.empty),
-            conns = req.conns.getOrElse(Seq.empty)
+            connections = req.connections.getOrElse(Seq.empty)
           )
         )
 

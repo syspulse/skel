@@ -20,22 +20,22 @@ case class WorkflowSchemaFaq(
 )
 
 case class WorkflowSchemaNode(
-  id: Int,      // internal uniqu id
+  id: Int,      // internal uniq id
   name: String, // name of the node (by default it is detector title, but can be changed by user)   
-  nid: String,  // Unique Node (Action) id (used to map to action inside detector). one detector can implement mulitple nodes / Actions. 
+  aid: String,  // Unique Node (Activity) id (used to map to action inside detector). Example: "por","PorActivity" 
   typ: Option[String], // type of the node (`detector`, reserved for future use, default is `detector`)
   detector: Option[DetectorSchema]  // detector schema for this node
 )
 
 case class WorkflowSchemaConnection(
-  id: Int,
+  id: Int,      // internal uniq id
   from: Int,
   to: Int,
   typ: String
 )
 
 case class WorkflowSchema(
-  id: Int,
+  id: Int,      // internal unique id
   createdAt: Long,
   updatedAt: Long,
   status: String, //"ACTIVE, DISABLED, DELETED",
@@ -49,7 +49,7 @@ case class WorkflowSchema(
   tags: Seq[String],  
   
   nodes: Seq[WorkflowSchemaNode],
-  conns: Seq[WorkflowSchemaConnection],
+  connections: Seq[WorkflowSchemaConnection],
 )
 
 object WorkflowSchemaJson extends JsonCommon {

@@ -16,7 +16,7 @@ case class WorkflowCreateReq(
   faq: Option[Seq[WorkflowSchemaFaq]] = None,
   tags: Option[Seq[String]] = None,
   nodes: Option[Seq[WorkflowSchemaNode]] = None,
-  conns: Option[Seq[WorkflowSchemaConnection]] = None
+  connections: Option[Seq[WorkflowSchemaConnection]] = None
 )
 
 case class WorkflowUpdateReq(
@@ -26,5 +26,5 @@ case class WorkflowUpdateReq(
   description: Option[String] = None,
   tags: Option[Seq[String]] = None,
   nodes: Option[Seq[WorkflowSchemaNode]] = None,
-  conns: Option[Seq[WorkflowSchemaConnection]] = None
+  connections: Option[Seq[WorkflowSchemaConnection]] = None
 )

@@ -26,17 +26,17 @@ read -r -d '' DATA_JSON << EOM
     {
       "id": 1,
       "name": "Start Node",
-      "nid": "node-start",
+      "aid": "node-start",
       "typ": "detector"
     },
     {
       "id": 2,
       "name": "End Node",
-      "nid": "node-end",
+      "aid": "node-end",
       "typ": "detector"
     }
   ],
-  "conns": [
+  "connections": [
     {
       "id": 1,
       "from": 1,
