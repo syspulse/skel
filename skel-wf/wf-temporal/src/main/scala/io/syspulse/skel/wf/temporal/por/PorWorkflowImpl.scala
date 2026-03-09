@@ -1,5 +1,7 @@
 package io.syspulse.skel.wf.temporal.por
 
+import com.typesafe.scalalogging.Logger
+
 import io.temporal.workflow.Workflow
 import io.temporal.activity.ActivityOptions
 import java.time.Duration
@@ -13,7 +15,7 @@ import spray.json.JsObject
  */
 class PorWorkflowImpl extends PorWorkflow {
 
-  private val logger = Workflow.getLogger(classOf[PorWorkflowImpl])
+  private val log = Logger(getClass.getName) //Workflow.getLogger(classOf[PorWorkflowImpl])
 
   private val activityOptions = ActivityOptions.newBuilder()
     .setStartToCloseTimeout(Duration.ofMinutes(10))
@@ -26,7 +28,7 @@ class PorWorkflowImpl extends PorWorkflow {
   private var polSignalData: Option[JsObject] = None
 
   override def receivePolSignal(data: JsObject): Unit = {
-    logger.info(s"Received PoL signal: ${data.compactPrint}")
+    log.info(s"Received PoL signal: ${data.compactPrint}")
     polSignalData = Some(data)
   }
 
@@ -34,48 +36,11 @@ class PorWorkflowImpl extends PorWorkflow {
     polSignalData
   }
 
-  /**
-   * Wait for valid PoL signal data (with retry on invalid data)
-   * @param timeoutMs Timeout in milliseconds
-   * @param wid Workflow ID for logging
-   * @return Valid PolFileData
-   * @throws RuntimeException if timeout occurs
-   */
-  private def waitForValidPolSignal(timeoutMs: Long, wid: String): PolFileData = {
-    var validData: Option[PolFileData] = None
-    var attempts = 0
-
-    while (validData.isEmpty) {
-      attempts += 1
-
-      // Wait for signal using Temporal's await (blocks workflow until signal arrives)
-      val signalReceived = Workflow.await(java.time.Duration.ofMillis(timeoutMs), () => polSignalData.isDefined)
-
-      if (!signalReceived) {
-        // Timeout - fail the workflow!
-        logger.error(s"$wid PoL: Signal timeout (${timeoutMs}ms) - failing workflow")
-        throw new RuntimeException(s"PoL signal timeout: No signal received within ${timeoutMs}ms")
-      }
-
-      logger.info(s"$wid PoL: Signal received (attempt $attempts), validating data")
-
-      // Validate and parse signal data using validator
-      validData = PolSignalValidator.validateAndParse(polSignalData.get, wid)
-
-      if (validData.isEmpty) {
-        // Invalid data - clear and wait for next signal
-        polSignalData = None
-      }
-    }
-
-    validData.get
-  }
-
   override def execute(run: PorWorkflowRun): PorWorkflowRun = {
     val info = Workflow.getInfo()
     implicit val wid = s"[${info.getWorkflowId} / ${info.getRunId}]"    
 
-    logger.info(s"[$wid] Starting Workflow: ${run}")
+    log.info(s"[$wid] Starting Workflow: ${run}")
 
     // Process each step using workflow run context
     var currentRun = run.copy(wid = Some(info.getWorkflowId), rid = Some(info.getRunId))
@@ -98,14 +63,14 @@ class PorWorkflowImpl extends PorWorkflow {
     // Commit Step
     currentRun = processCommitStep(currentRun)
 
-    logger.info(s"[$wid] Finished Workflow: ${currentRun}")
+    log.info(s"[$wid] Finished Workflow: ${currentRun}")
     currentRun
   }
 
   private def processPoOStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {    
     run.input.poo match {
       case None =>
-        logger.info(s"$wid PoO: Skipped (step not defined)")
+        log.info(s"$wid PoO: Skipped (step not defined)")
         run
 
       case Some(step) =>
@@ -121,7 +86,7 @@ class PorWorkflowImpl extends PorWorkflow {
             activities.executeProofOfOwnership(updatedRun)
 
           case None =>
-            logger.info(s"$wid PoO: Skipped (no input provided)")
+            log.info(s"$wid PoO: Skipped (no input provided)")
             run
         }
     }
@@ -130,7 +95,7 @@ class PorWorkflowImpl extends PorWorkflow {
   private def processPoRStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
     run.input.por match {
       case None =>
-        logger.info(s"$wid PoR: Skipped (step not defined)")
+        log.info(s"$wid PoR: Skipped (step not defined)")
         run
 
       case Some(step) =>
@@ -139,7 +104,7 @@ class PorWorkflowImpl extends PorWorkflow {
             activities.executeProofOfReserves(run)
 
           case None =>
-            logger.info(s"$wid PoR: Skipped (no input provided)")
+            log.info(s"$wid PoR: Skipped (no input provided)")
             run
         }
     }
@@ -149,35 +114,51 @@ class PorWorkflowImpl extends PorWorkflow {
 
     run.input.pol match {
       case None =>
-        logger.info(s"$wid PoL: Skipped (step not defined)")
+        log.info(s"$wid PoL: Skipped (step not defined)")
         run
 
       case Some(step) =>
         step.input match {
           case Some(polInput) =>
-            // Check if we should wait for signal
+            import io.syspulse.skel.wf.temporal.por.demo.{PolSignalProcessors, PolSignalContext}
+
             val signalMode = polInput.config.get("signalMode").fold("simulate")(_.toString)
             val signalTimeout = polInput.config.get("signalTimeout").fold(24 * 60 * 60 * 1000L)(_.toString.toLong)
 
-            if (signalMode.toLowerCase == "api" && polInput.waitForConfirmation) {
-              logger.info(s"$wid PoL: Waiting for signal (POST to /api/v1/wf/run/${run.rid.getOrElse("?")}/signal)")
+            // Use PolSignalProcessors to prepare data based on mode
+            val polFileData = signalMode.toLowerCase match {
+              case "api" if polInput.waitForConfirmation =>
+                log.info(s"$wid PoL: Processing in API mode")
+                PolSignalProcessors.processApiMode(
+                  polSignalData,
+                  data => polSignalData = data,
+                  signalTimeout,
+                  wid
+                )
 
-              // Wait for valid signal data (loop until valid or timeout)
-              val validData = waitForValidPolSignal(signalTimeout, wid)
+              case "file" if polInput.waitForConfirmation =>
+                log.info(s"$wid PoL: Processing in file mode")
+                val ctx = PolSignalContext(
+                  workflowId = run.wid.getOrElse("unknown"),
+                  runId = run.rid.getOrElse("unknown"),
+                  wid = wid,
+                  log = log,
+                  signalPollIntervalMs = 5000L
+                )
+                PolSignalProcessors.processFileMode(ctx)
 
-              // Create output from validated signal data
-              val output = PolSignalValidator.createOutput(validData)
-
-              logger.info(s"$wid PoL: Completed with signal data (${output.liabilities.size} liabilities)")
-              run.copy(output = run.output.copy(pol = Some(output)))
-
-            } else {
-              // No signal needed or different signal mode - call activity
-              activities.executeProofOfLiability(run)
+              case "simulate" | _ =>
+                log.info(s"$wid PoL: Processing in simulate mode")
+                PolSignalProcessors.processSimulateMode(wid)
             }
 
+            // Inject prepared data into run and pass to activity
+            log.info(s"$wid PoL: Data prepared (${polFileData.liabilities.size} liabilities), passing to activity")
+            val runWithData = PolSignalProcessors.injectDataIntoRun(run, polFileData)
+            activities.executeProofOfLiability(runWithData)
+
           case None =>
-            logger.info(s"$wid PoL: Skipped (no input provided)")
+            log.info(s"$wid PoL: Skipped (no input provided)")
             run
         }
     }
@@ -186,7 +167,7 @@ class PorWorkflowImpl extends PorWorkflow {
   private def processSolvencyStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
     run.input.solvency match {
       case None =>
-        logger.info(s"$wid Solvency: Skipped (step not defined)")
+        log.info(s"$wid Solvency: Skipped (step not defined)")
         run
 
       case Some(step) =>
@@ -195,7 +176,7 @@ class PorWorkflowImpl extends PorWorkflow {
             activities.executeSolvency(run)
 
           case _ =>
-            logger.info(s"$wid Solvency: Skipped (requires both PoR and PoL outputs)")
+            log.info(s"$wid Solvency: Skipped (requires both PoR and PoL outputs)")
             run
         }
     }
@@ -209,7 +190,7 @@ class PorWorkflowImpl extends PorWorkflow {
   private def processCommitStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
     run.input.commit match {
       case None =>
-        logger.info(s"$wid Commit: Skipped (step not defined)")
+        log.info(s"$wid Commit: Skipped (step not defined)")
         run
 
       case Some(step) =>        
@@ -226,7 +207,7 @@ class PorWorkflowImpl extends PorWorkflow {
   private def processReportStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
     run.input.report match {
       case None =>
-        logger.info(s"${wid} Report: Skipped (step not defined)")
+        log.info(s"${wid} Report: Skipped (step not defined)")
         run
 
       case Some(step) =>
@@ -236,7 +217,7 @@ class PorWorkflowImpl extends PorWorkflow {
         if (reportEnabled) {          
           activities.executeReport(run)
         } else {
-          logger.info(s"${wid} Report: Skipped (not enabled)")
+          log.info(s"${wid} Report: Skipped (not enabled)")
           run
         }
     }

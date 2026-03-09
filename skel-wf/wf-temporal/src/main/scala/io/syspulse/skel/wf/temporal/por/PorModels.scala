@@ -55,7 +55,8 @@ case class PorInput(
 case class PolInput(
   fileLink: String,
   waitForConfirmation: Boolean = true,
-  config: Map[String, Any] = Map.empty
+  config: Map[String, Any] = Map.empty,
+  data: Option[PolFileData] = None  // Prepared data (injected by PolSignalProcessors)
 )
 
 case class PolFileData(

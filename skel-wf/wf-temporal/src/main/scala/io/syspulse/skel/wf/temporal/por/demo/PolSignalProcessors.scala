@@ -2,8 +2,11 @@ package io.syspulse.skel.wf.temporal.por.demo
 
 import com.typesafe.scalalogging.Logger
 import spray.json._
+import scala.util.Random
+import java.util.UUID
 
 import io.syspulse.skel.wf.temporal.por._
+import io.temporal.workflow.Workflow
 
 /** Context passed to PoL signal processors. */
 case class PolSignalContext(
@@ -127,15 +130,128 @@ object PolApiSignalProcessor extends PolSignalProcessor {
   }
 }
 
-/** Simulate signal: delay only; always returns fallback. */
+/** Simulate signal: delay and generate demo data. */
 object PolSimulateSignalProcessor extends PolSignalProcessor {
-  override def waitAndResolve(ctx: PolSignalContext, fallback: PolFileData): PolFileData = {
-    PorActivitiesDemo.simulateWork(2, 4)
-    fallback
+  override def waitAndResolve(ctx: PolSignalContext, fallback: PolFileData): PolFileData = {    
+    PolSignalProcessors.generateDemoData()
   }
 }
 
 object PolSignalProcessors {
+  private val log = Logger(getClass.getName)
+
+  /**
+   * Generate demo liability data
+   */
+  def generateDemoData(): PolFileData = {
+    val liabilities = (1 to 10).map { i =>
+      Liability(
+        userId = UUID.randomUUID(),
+        asset = Seq("BTC", "ETH", "LINK", "AAVE", "SOL")(Random.nextInt(5)),
+        balance = BigInt(Random.nextInt(500000)) * BigInt(10).pow(18)
+      )
+    }.toList
+
+    PolFileData(
+      ts = System.currentTimeMillis(),
+      liabilities = liabilities,
+      signature = s"0x${Random.alphanumeric.take(128).mkString}",
+      signatureType = "public_key",
+      publicKey = s"0x${Random.alphanumeric.take(64).mkString}"
+    )
+  }
+
+  /**
+   * Process API mode signal in workflow context
+   * Called directly from workflow (uses Workflow.await)
+   *
+   * @param polSignalDataGetter Get current signal data from workflow variable
+   * @param polSignalDataSetter Set signal data in workflow variable
+   * @param timeout Timeout in milliseconds
+   * @param wid Workflow ID for logging
+   * @return Valid PolFileData
+   */
+  def processApiMode(
+    polSignalDataGetter: => Option[JsObject],
+    polSignalDataSetter: Option[JsObject] => Unit,
+    timeout: Long,
+    wid: String
+  ): PolFileData = {
+    log.info(s"$wid PoL API mode: Waiting for signal")
+
+    var validData: Option[PolFileData] = None
+    var attempts = 0
+
+    while (validData.isEmpty) {
+      attempts += 1
+
+      // Wait for signal using Temporal's await
+      val signalReceived = Workflow.await(
+        java.time.Duration.ofMillis(timeout),
+        () => polSignalDataGetter.isDefined
+      )
+
+      if (!signalReceived) {
+        log.error(s"$wid PoL: Signal timeout (${timeout}ms)")
+        throw new RuntimeException(s"PoL signal timeout: No signal received within ${timeout}ms")
+      }
+
+      log.info(s"$wid PoL: Signal received (attempt $attempts), validating")
+
+      // Validate and parse using validator
+      validData = PolSignalValidator.validateAndParse(polSignalDataGetter.get, wid)
+
+      if (validData.isEmpty) {
+        // Invalid data - clear and wait for next signal
+        polSignalDataSetter(None)
+      }
+    }
+
+    log.info(s"$wid PoL: Validated signal data with ${validData.get.liabilities.size} liabilities")
+    validData.get
+  }
+
+  /**
+   * Process simulate mode - generates demo data
+   */
+  def processSimulateMode(wid: String): PolFileData = {
+    log.info(s"$wid PoL simulate mode: Generating demo data")    
+    generateDemoData()
+  }
+
+  /**
+   * Process file mode - waits for file signal
+   */
+  def processFileMode(ctx: PolSignalContext): PolFileData = {
+    ctx.log.info(s"${ctx.wid} PoL file mode: Waiting for file signal")
+    PolFileSignalProcessor.waitAndResolve(ctx, generateDemoData())
+  }
+
+  /**
+   * Inject PolFileData into PorWorkflowRun.input.pol
+   * Returns updated run with data injected
+   */
+  def injectDataIntoRun(run: PorWorkflowRun, data: PolFileData): PorWorkflowRun = {
+    run.input.pol match {
+      case Some(polStep) =>
+        polStep.input match {
+          case Some(polInput) =>
+            val updatedInput = polInput.copy(data = Some(data))
+            val updatedStep = polStep.copy(input = Some(updatedInput))
+            run.copy(input = run.input.copy(pol = Some(updatedStep)))
+          case None =>
+            log.warn(s"No PolInput in run, cannot inject data")
+            run
+        }
+      case None =>
+        log.warn(s"No PoL step in run, cannot inject data")
+        run
+    }
+  }
+
+  /**
+   * Get processor for activity-level processing (legacy)
+   */
   def get(mode: String): PolSignalProcessor = mode.toLowerCase match {
     case "file"   => PolFileSignalProcessor
     case "api"    => PolApiSignalProcessor
