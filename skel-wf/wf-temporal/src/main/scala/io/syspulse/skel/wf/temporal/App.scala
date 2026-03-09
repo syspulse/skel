@@ -11,6 +11,7 @@ import io.syspulse.skel.wf.temporal.por._
 import io.syspulse.skel.wf.temporal.por.demo.DemoUtil
 import io.syspulse.skel.wf.temporal.workflow.store._
 import io.syspulse.skel.wf.temporal.workflow.server._
+import io.syspulse.skel.wf.temporal.por.nul.PorActivitiesNull
 
 // Examples:
 //   temporal query "ExecutionStatus = 'Running'"
@@ -134,7 +135,7 @@ object App extends skel.Server {
 
         ArgString('_', "por.project",s"PoR project (def: ${d.porProject})"),
         ArgString('_', "por.flow",s"PoR flow: flow-1|flow-2|flow-3|flow-4|flow-5 (def: ${d.porFlow})"),
-        ArgString('_', "por.pol.signal-mode",s"PoL signal mode: file|rest|simulate (def: ${d.porPolSignalMode})"),
+        ArgString('_', "por.pol.signal",s"PoL signal mode: file|api|simulate (def: ${d.porPolSignalMode})"),
         ArgString('_', "por.tags",s"PoR workflow tags (comma-separated, e.g., CEX,Bybit) (def: ${d.porTags.mkString(",")})"),
         ArgString('_', "por.memo",s"PoR workflow memo (key=value pairs, comma-separated, e.g., region=US,env=prod) (def: ${d.porMemo.mkString(",")})"),
 
@@ -166,7 +167,7 @@ object App extends skel.Server {
 
       porProject = c.getString("por.project").getOrElse(d.porProject),
       porFlow = c.getString("por.flow").getOrElse(d.porFlow),
-      porPolSignalMode = c.getString("por.pol.signal-mode").getOrElse(d.porPolSignalMode),
+      porPolSignalMode = c.getString("por.pol.signal").getOrElse(d.porPolSignalMode),
       porTags = c.getListString("por.tags",d.porTags),
       porMemo = c.getMap("por.memo",d.porMemo),
 
@@ -203,8 +204,7 @@ object App extends skel.Server {
         val store = getStore(config.datastore)
         Console.err.println(s"Store: ${store}")
 
-        // Start Temporal worker
-        Console.err.println(s"Starting Temporal Worker...")
+        // Start Temporal worker        
         PorWorker.run(config.engine, impl) match {
           case Success(worker) =>
             Console.err.println(s"Worker started: ${worker}")
@@ -254,8 +254,21 @@ object App extends skel.Server {
             val pageSize = tail.headOption.map(_.toInt).getOrElse(10)
             Temporal.list(config.engine, status = Some(status), pageSize = pageSize)
 
+          case "signal" :: runId :: signalName :: dataJson :: Nil =>
+            // Parse JSON data
+            import spray.json._
+            val data = dataJson.parseJson.asJsObject
+            Temporal.signalByRunId(config.engine, runId, signalName, data)
+
+          case "signal" :: workflowId :: runId :: signalName :: dataJson :: Nil =>
+            // Signal with explicit workflow ID and run ID
+            import spray.json._
+            val data = dataJson.parseJson.asJsObject
+            Temporal.signal(config.engine, workflowId, Some(runId), signalName, data)
+
           case _ =>
-            Temporal.list(config.engine)
+            Console.err.println(s"Unknown temporal command: ${config.params.toList}")
+            sys.exit(1)
         }
 
         Try(Await.result(futureResult, 30.seconds))

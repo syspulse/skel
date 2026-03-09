@@ -5,6 +5,7 @@ import io.temporal.activity.ActivityOptions
 import java.time.Duration
 import io.temporal.activity.Activity
 import io.syspulse.skel.wf.temporal.por.demo.DemoUtil
+import spray.json.JsObject
 
 /**
  * Main PoR Workflow Implementation
@@ -19,6 +20,18 @@ class PorWorkflowImpl extends PorWorkflow {
     .build()
 
   private val activities = Workflow.newActivityStub(classOf[PorActivities], activityOptions)
+
+  // Signal data storage (survives worker restarts - managed by Temporal)
+  private var polSignalData: Option[JsObject] = None
+
+  override def receivePolSignal(data: JsObject): Unit = {
+    logger.info(s"Received PoL signal: ${data.compactPrint}")
+    polSignalData = Some(data)
+  }
+
+  override def getPolSignalData(): Option[JsObject] = {
+    polSignalData
+  }
 
   override def execute(run: PorWorkflowRun): PorWorkflowRun = {
     val info = Workflow.getInfo()

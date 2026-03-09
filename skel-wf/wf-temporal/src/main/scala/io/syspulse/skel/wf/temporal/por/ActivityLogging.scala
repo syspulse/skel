@@ -11,9 +11,10 @@ import io.temporal.activity.Activity
  */
 trait ActivityLogging {
 
-  private lazy val _activityInfo = Activity.getExecutionContext.getInfo
-  protected lazy val workflowId: String = _activityInfo.getWorkflowId
+  protected lazy val activityInfo = Activity.getExecutionContext.getInfo
+  protected lazy val workflowId: String = activityInfo.getWorkflowId
+  protected lazy val runId: String = activityInfo.getRunId
   /** Log tag: "[workflowId / runId]" */
-  protected lazy val wid: String = s"[$workflowId / ${_activityInfo.getRunId}]"
+  protected lazy val wid: String = s"[$workflowId / ${runId}]"
 }
 

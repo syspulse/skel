@@ -34,6 +34,7 @@ object WorkflowRegistry {
   final case class TemporalDescribe(workflowId:String, runId:Option[String], replyTo: ActorRef[Try[WorkflowExecutionInfo]]) extends Command
   final case class TemporalGet(runId:String, replyTo: ActorRef[Try[WorkflowExecutionInfo]]) extends Command
   final case class WorkflowStart(req:WorkflowStartReq, replyTo: ActorRef[Try[WorkflowStartRes]]) extends Command
+  final case class WorkflowSignal(runId:String, req:WorkflowSignalReq, replyTo: ActorRef[Try[WorkflowSignalRes]]) extends Command
 
   // Internal response messages for async operations
   private final case class TemporalQueryResponse(result: Try[QueryResult], replyTo: ActorRef[Try[QueryResult]]) extends Command
@@ -41,6 +42,7 @@ object WorkflowRegistry {
   private final case class TemporalDescribeResponse(result: Try[WorkflowExecutionInfo], replyTo: ActorRef[Try[WorkflowExecutionInfo]]) extends Command
   private final case class TemporalGetResponse(result: Try[WorkflowExecutionInfo], replyTo: ActorRef[Try[WorkflowExecutionInfo]]) extends Command
   private final case class WorkflowStartResponse(result: Try[WorkflowStartRes], replyTo: ActorRef[Try[WorkflowStartRes]]) extends Command
+  private final case class WorkflowSignalResponse(result: Try[WorkflowSignalRes], replyTo: ActorRef[Try[WorkflowSignalRes]]) extends Command
 
   def apply(store: WorkflowStore, engineUri: String): Behavior[io.syspulse.skel.Command] = {
     Behaviors.setup { context =>
@@ -194,6 +196,19 @@ object WorkflowRegistry {
       case WorkflowStartResponse(result, replyTo) =>
         replyTo ! result
         Behaviors.same
+
+      case WorkflowSignal(runId, req, replyTo) =>
+        log.info(s"WorkflowSignal(runId=$runId, aid=${req.aid})")
+        // Send Temporal signal to workflow
+        context.pipeToSelf(signalWorkflow(engineUri, runId, req)) {
+          case Success(result) => WorkflowSignalResponse(Success(result), replyTo)
+          case Failure(e) => WorkflowSignalResponse(Failure(e), replyTo)
+        }
+        Behaviors.same
+
+      case WorkflowSignalResponse(result, replyTo) =>
+        replyTo ! result
+        Behaviors.same
     }
   }
 
@@ -237,5 +252,23 @@ object WorkflowRegistry {
 
     // Start the workflow (returns Future)
     PorStarter.run(engineUri, run)
+  }
+
+  private def signalWorkflow(engineUri: String, runId: String, req: WorkflowSignalReq)(implicit ec: ExecutionContext): Future[WorkflowSignalRes] = {
+    // Map activity ID to signal name
+    val signalName = req.aid.toLowerCase match {
+      case "pol" => "receivePolSignal"
+      case _ =>
+        return Future.successful(WorkflowSignalRes(success = false, message = s"Unknown activity: ${req.aid}"))
+    }
+
+    // Use Temporal client to send signal
+    Temporal.signalByRunId(engineUri, runId, signalName, req.data).map { message =>
+      WorkflowSignalRes(success = true, message = message)
+    }.recover {
+      case e: Exception =>
+        log.error(s"Failed to signal workflow runId=$runId: ${e.getMessage}", e)
+        WorkflowSignalRes(success = false, message = s"Failed to signal workflow: ${e.getMessage}")
+    }
   }
 }

@@ -65,6 +65,9 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
   // Workflow start method
   def workflowStart(req:WorkflowStartReq): Future[Try[WorkflowStartRes]] = registry.ask(WorkflowStart(req, _))
 
+  // Workflow signal method
+  def workflowSignal(runId:String, req:WorkflowSignalReq): Future[Try[WorkflowSignalRes]] = registry.ask(WorkflowSignal(runId, req, _))
+
   @GET @Path("/schema") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("workflow"), summary = "Return all Workflow Schemas",
     responses = Array(
@@ -223,6 +226,24 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
     }
   }
 
+  @POST @Path("/run/{runId}/signal") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("workflow"),summary = "Signal workflow run",
+    parameters = Array(new Parameter(name = "runId", in = ParameterIn.PATH, description = "Run ID")),
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSignalReq])))),
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "Signal delivered",
+        content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSignalRes]))))
+    )
+  )
+  def workflowSignalRoute() = post {
+    path(Segment / "signal") { runId =>
+      entity(as[WorkflowSignalReq]) { req =>
+        complete(workflowSignal(runId, req))
+      }
+    }
+  }
+
   val corsAllow = CorsSettings(system.classicSystem)
     //.withAllowGenericHttpRequests(true)
     .withAllowCredentials(true)
@@ -248,7 +269,10 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
         temporalDescribeRoute()
       },
       pathPrefix("run") {
-        temporalGetRoute()
+        concat(
+          workflowSignalRoute(),
+          temporalGetRoute()
+        )
       },
       pathPrefix("start") {
         workflowStartRoute()

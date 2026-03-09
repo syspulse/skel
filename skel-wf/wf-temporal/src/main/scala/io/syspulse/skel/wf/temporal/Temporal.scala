@@ -211,6 +211,49 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
   }
 
   /**
+   * Send signal to workflow
+   *
+   * @param workflowId Workflow ID
+   * @param runId Optional run ID (if not provided, signals latest run)
+   * @param signalName Signal name (e.g., "receivePolSignal")
+   * @param data Signal data as JsObject
+   * @return Success message or error
+   */
+  def signal(workflowId: String, runId: Option[String], signalName: String, data: spray.json.JsObject): Future[String] = Future {
+    log.info(s"Sending signal to workflow: workflowId=$workflowId, runId=$runId, signal=$signalName")
+
+    // Get workflow stub
+    val workflowStub = client.newWorkflowStub(classOf[io.syspulse.skel.wf.temporal.por.PorWorkflow],
+      workflowId,
+      runId.map(java.util.Optional.of(_)).getOrElse(java.util.Optional.empty()))
+
+    // Send signal based on signal name
+    signalName match {
+      case "receivePolSignal" =>
+        workflowStub.receivePolSignal(data)
+        s"Signal '$signalName' sent to workflow $workflowId${runId.map(r => s" (run $r)").getOrElse("")}"
+
+      case _ =>
+        throw new IllegalArgumentException(s"Unknown signal name: $signalName")
+    }
+  }
+
+  /**
+   * Send signal to workflow by run ID (looks up workflow ID first)
+   *
+   * @param runId Run ID
+   * @param signalName Signal name
+   * @param data Signal data
+   * @return Success message or error
+   */
+  def signalByRunId(runId: String, signalName: String, data: spray.json.JsObject): Future[String] = {
+    // First, get workflow info by run ID to find workflow ID
+    get(runId).flatMap { info =>
+      signal(info.workflowId, Some(runId), signalName, data)
+    }
+  }
+
+  /**
    * Shutdown the Temporal connection
    */
   def shutdown(): Unit = {
@@ -270,6 +313,37 @@ object Temporal {
   def get(uri: String, runId: String)(implicit ec: ExecutionContext): Future[WorkflowExecutionInfo] = {
     val temporal = new Temporal(uri)
     temporal.get(runId).andThen { case _ =>
+      temporal.shutdown()
+    }
+  }
+
+  /**
+   * Send signal to workflow (static method)
+   *
+   * @param uri Temporal server URI
+   * @param workflowId Workflow ID
+   * @param runId Optional run ID
+   * @param signalName Signal name
+   * @param data Signal data
+   */
+  def signal(uri: String, workflowId: String, runId: Option[String], signalName: String, data: spray.json.JsObject)(implicit ec: ExecutionContext): Future[String] = {
+    val temporal = new Temporal(uri)
+    temporal.signal(workflowId, runId, signalName, data).andThen { case _ =>
+      temporal.shutdown()
+    }
+  }
+
+  /**
+   * Send signal to workflow by run ID (static method)
+   *
+   * @param uri Temporal server URI
+   * @param runId Run ID
+   * @param signalName Signal name
+   * @param data Signal data
+   */
+  def signalByRunId(uri: String, runId: String, signalName: String, data: spray.json.JsObject)(implicit ec: ExecutionContext): Future[String] = {
+    val temporal = new Temporal(uri)
+    temporal.signalByRunId(runId, signalName, data).andThen { case _ =>
       temporal.shutdown()
     }
   }

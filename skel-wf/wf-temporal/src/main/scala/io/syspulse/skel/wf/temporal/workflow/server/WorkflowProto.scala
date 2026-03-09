@@ -52,3 +52,14 @@ case class WorkflowStartRes(
   wid: String,
   rid: String
 )
+
+// Workflow signal DTOs
+case class WorkflowSignalReq(
+  aid: String,      // Activity ID/name (e.g., "pol")
+  data: spray.json.JsObject  // Activity-specific data
+)
+
+case class WorkflowSignalRes(
+  success: Boolean,
+  message: String
+)
