@@ -31,7 +31,7 @@ case class WorkflowSchemaConnection(
   id: Int,      // internal uniq id
   from: Int,
   to: Int,
-  typ: String
+  typ: Option[String] = None  // connection type (reserved for future use)
 )
 
 case class WorkflowSchema(

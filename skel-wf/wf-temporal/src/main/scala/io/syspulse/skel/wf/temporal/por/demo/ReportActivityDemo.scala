@@ -1,17 +1,13 @@
 package io.syspulse.skel.wf.temporal.por.demo
 
 import scala.util.Random
-import io.temporal.activity.Activity
 import com.typesafe.scalalogging.Logger
 import io.syspulse.skel.wf.temporal.por._
 
-class ReportActivityDemo {
+class ReportActivityDemo extends ActivityLogging {
   private val log = Logger(getClass.getName)
 
   def execute(run: PorWorkflowRun): PorWorkflowRun = {
-    val activityInfo = Activity.getExecutionContext.getInfo
-    val wid = s"[${activityInfo.getWorkflowId} / ${activityInfo.getRunId}]"
-
     log.info(s"$wid Report: ${run.input.report}")
 
     //simulateWork(1, 3)

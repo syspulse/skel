@@ -1,17 +1,13 @@
 package io.syspulse.skel.wf.temporal.por.demo
 
 import scala.util.Random
-import io.temporal.activity.Activity
 import com.typesafe.scalalogging.Logger
 import io.syspulse.skel.wf.temporal.por._
 
-class PooActivityDemo {
+class PooActivityDemo extends ActivityLogging {
   private val log = Logger(getClass.getName)
 
   def execute(run: PorWorkflowRun): PorWorkflowRun = {
-    val activityInfo = Activity.getExecutionContext.getInfo
-    val wid = s"[${activityInfo.getWorkflowId} / ${activityInfo.getRunId}]"
-
     log.info(s"$wid PoO: ${run.input.poo}")
 
     run.input.poo.flatMap(_.input) match {

@@ -5,11 +5,10 @@ import java.util.UUID
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.net.InetSocketAddress
 import com.sun.net.httpserver.{HttpServer, HttpExchange, HttpHandler}
-import io.temporal.activity.Activity
 import com.typesafe.scalalogging.Logger
 import io.syspulse.skel.wf.temporal.por._
 
-class PolActivityDemo {
+class PolActivityDemo extends ActivityLogging {
   private val log = Logger(getClass.getName)
   private val SignalPollIntervalMs = 5000L
   
@@ -75,10 +74,6 @@ class PolActivityDemo {
   }
 
   def execute(run: PorWorkflowRun): PorWorkflowRun = {
-    val activityInfo = Activity.getExecutionContext.getInfo
-    val workflowId = activityInfo.getWorkflowId
-    val wid = s"[$workflowId / ${activityInfo.getRunId}]"
-
     log.info(s"$wid PoL: ${run.input.pol}")
 
     run.input.pol.flatMap(_.input) match {

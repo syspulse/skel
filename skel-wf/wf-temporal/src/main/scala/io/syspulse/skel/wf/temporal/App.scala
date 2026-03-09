@@ -130,7 +130,7 @@ object App extends skel.Server {
 
         ArgString('d', "datastore",s"Datastore [mem://,dir://] (def: ${d.datastore})"),
         ArgString('e', "engine",s"Engine URI [temporal://] (def: ${d.engine})"),
-        ArgString('w', "wf",s"Workflow implementation [demo://] (def: ${d.wf})"),
+        ArgString('w', "wf",s"Workflow implementation [demo://,null://] (def: ${d.wf})"),
 
         ArgString('_', "por.project",s"PoR project (def: ${d.porProject})"),
         ArgString('_', "por.flow",s"PoR flow: flow-1|flow-2|flow-3|flow-4|flow-5 (def: ${d.porFlow})"),
@@ -189,6 +189,7 @@ object App extends skel.Server {
 
     val impl = config.wf.split("://").toList match {
       case "demo" :: Nil => new skel.wf.temporal.por.demo.PorActivitiesDemo()
+      case "null" :: Nil => new skel.wf.temporal.por.nul.PorActivitiesNull()
       case _ => {
         Console.err.println(s"Unknown workflow implementation: '${config.wf}")
         sys.exit(1)

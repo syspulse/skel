@@ -40,8 +40,7 @@ read -r -d '' DATA_JSON << EOM
     {
       "id": 1,
       "from": 1,
-      "to": 2,
-      "typ": "success"
+      "to": 2,      
     }
   ]
 }
