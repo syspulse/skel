@@ -255,10 +255,12 @@ object App extends skel.Server {
             Temporal.list(config.engine, status = Some(status), pageSize = pageSize)
 
           case "signal" :: runId :: signalName :: dataJson :: Nil =>
-            // Parse JSON data
+            // First get workflow info by run ID to extract workflow ID
             import spray.json._
             val data = dataJson.parseJson.asJsObject
-            Temporal.signalByRunId(config.engine, runId, signalName, data)
+            Temporal.get(config.engine, runId).flatMap { info =>
+              Temporal.signal(config.engine, info.workflowId, Some(runId), signalName, data)
+            }
 
           case "signal" :: workflowId :: runId :: signalName :: dataJson :: Nil =>
             // Signal with explicit workflow ID and run ID
