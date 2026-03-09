@@ -34,6 +34,43 @@ class PorWorkflowImpl extends PorWorkflow {
     polSignalData
   }
 
+  /**
+   * Wait for valid PoL signal data (with retry on invalid data)
+   * @param timeoutMs Timeout in milliseconds
+   * @param wid Workflow ID for logging
+   * @return Valid PolFileData
+   * @throws RuntimeException if timeout occurs
+   */
+  private def waitForValidPolSignal(timeoutMs: Long, wid: String): PolFileData = {
+    var validData: Option[PolFileData] = None
+    var attempts = 0
+
+    while (validData.isEmpty) {
+      attempts += 1
+
+      // Wait for signal using Temporal's await (blocks workflow until signal arrives)
+      val signalReceived = Workflow.await(java.time.Duration.ofMillis(timeoutMs), () => polSignalData.isDefined)
+
+      if (!signalReceived) {
+        // Timeout - fail the workflow!
+        logger.error(s"$wid PoL: Signal timeout (${timeoutMs}ms) - failing workflow")
+        throw new RuntimeException(s"PoL signal timeout: No signal received within ${timeoutMs}ms")
+      }
+
+      logger.info(s"$wid PoL: Signal received (attempt $attempts), validating data")
+
+      // Validate and parse signal data using validator
+      validData = PolSignalValidator.validateAndParse(polSignalData.get, wid)
+
+      if (validData.isEmpty) {
+        // Invalid data - clear and wait for next signal
+        polSignalData = None
+      }
+    }
+
+    validData.get
+  }
+
   override def execute(run: PorWorkflowRun): PorWorkflowRun = {
     val info = Workflow.getInfo()
     implicit val wid = s"[${info.getWorkflowId} / ${info.getRunId}]"    
@@ -125,59 +162,11 @@ class PorWorkflowImpl extends PorWorkflow {
             if (signalMode.toLowerCase == "api" && polInput.waitForConfirmation) {
               logger.info(s"$wid PoL: Waiting for signal (POST to /api/v1/wf/run/${run.rid.getOrElse("?")}/signal)")
 
-              // Loop until we get valid signal data or timeout
-              var validData: Option[PolFileData] = None
-              var attempts = 0
-
-              while (validData.isEmpty) {
-                attempts += 1
-
-                // Wait for signal using Temporal's await (blocks workflow until signal arrives)
-                val signalReceived = Workflow.await(java.time.Duration.ofMillis(signalTimeout), () => polSignalData.isDefined)
-
-                if (!signalReceived) {
-                  // Timeout - fail the workflow!
-                  logger.error(s"$wid PoL: Signal timeout (${signalTimeout}) - failing workflow")
-                  throw new RuntimeException(s"PoL signal timeout: No signal received (${signalTimeout})")
-                }
-
-                logger.info(s"$wid PoL: Signal received (attempt $attempts), validating data")
-
-                // Parse and validate signal data
-                try {
-                  import spray.json._
-                  import io.syspulse.skel.wf.temporal.por.PolJsonProtocol._
-
-                  val polFileData = polSignalData.get.convertTo[PolFileData]
-
-                  // Validate data (must have liabilities, signature, etc.)
-                  if (polFileData.liabilities.isEmpty) {
-                    logger.error(s"$wid PoL: Invalid signal data - no liabilities, waiting for new signal")
-                    polSignalData = None  // Clear invalid data, wait for next signal
-                  } else if (polFileData.signature.isEmpty || polFileData.publicKey.isEmpty) {
-                    logger.error(s"$wid PoL: Invalid signal data - missing signature/publicKey, waiting for new signal")
-                    polSignalData = None  // Clear invalid data, wait for next signal
-                  } else {
-                    // Valid data!
-                    logger.info(s"$wid PoL: Valid signal data with ${polFileData.liabilities.size} liabilities")
-                    validData = Some(polFileData)
-                  }
-                } catch {
-                  case e: Exception =>
-                    logger.error(s"$wid PoL: Failed to parse signal data: '${polSignalData}': ${e.getMessage}, waiting for new signal")
-                    polSignalData = None  // Clear invalid data, wait for next signal
-                }
-              }
+              // Wait for valid signal data (loop until valid or timeout)
+              val validData = waitForValidPolSignal(signalTimeout, wid)
 
               // Create output from validated signal data
-              val polFileData = validData.get
-              val output = PolOutput(
-                ts = polFileData.ts,
-                liabilities = polFileData.liabilities,
-                signature = polFileData.signature,
-                signatureType = polFileData.signatureType,
-                publicKey = polFileData.publicKey
-              )
+              val output = PolSignalValidator.createOutput(validData)
 
               logger.info(s"$wid PoL: Completed with signal data (${output.liabilities.size} liabilities)")
               run.copy(output = run.output.copy(pol = Some(output)))
