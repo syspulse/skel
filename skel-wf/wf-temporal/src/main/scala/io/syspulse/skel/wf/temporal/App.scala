@@ -28,7 +28,7 @@ case class Config(
   engine:String = "temporal://",
   wf:String = "demo://",
 
-  porOwnerName: String = "DefaultOwner",
+  porProject: String = "DefaultProject",
   porFlow: String = "flow-1",
   porPolSignalMode: String = "simulate",
   porTags: Seq[String] = Seq(),
@@ -132,7 +132,7 @@ object App extends skel.Server {
         ArgString('e', "engine",s"Engine URI [temporal://] (def: ${d.engine})"),
         ArgString('w', "wf",s"Workflow implementation [demo://] (def: ${d.wf})"),
 
-        ArgString('_', "por.owner.name",s"PoR owner name (def: ${d.porOwnerName})"),
+        ArgString('_', "por.project",s"PoR project (def: ${d.porProject})"),
         ArgString('_', "por.flow",s"PoR flow: flow-1|flow-2|flow-3|flow-4|flow-5 (def: ${d.porFlow})"),
         ArgString('_', "por.pol.signal-mode",s"PoL signal mode: file|rest|simulate (def: ${d.porPolSignalMode})"),
         ArgString('_', "por.tags",s"PoR workflow tags (comma-separated, e.g., CEX,Bybit) (def: ${d.porTags.mkString(",")})"),
@@ -164,7 +164,7 @@ object App extends skel.Server {
       engine = c.getString("engine").getOrElse(d.engine),
       wf = c.getString("wf").getOrElse(d.wf),
 
-      porOwnerName = c.getString("por.owner.name").getOrElse(d.porOwnerName),
+      porProject = c.getString("por.project").getOrElse(d.porProject),
       porFlow = c.getString("por.flow").getOrElse(d.porFlow),
       porPolSignalMode = c.getString("por.pol.signal-mode").getOrElse(d.porPolSignalMode),
       porTags = c.getListString("por.tags",d.porTags),
@@ -202,6 +202,17 @@ object App extends skel.Server {
         val store = getStore(config.datastore)
         Console.err.println(s"Store: ${store}")
 
+        // Start Temporal worker
+        Console.err.println(s"Starting Temporal Worker...")
+        PorWorker.run(config.engine, impl) match {
+          case Success(worker) =>
+            Console.err.println(s"Worker started: ${worker}")
+          case scala.util.Failure(e) =>
+            Console.err.println(s"Failed to start worker: ${e.getMessage}")
+            sys.exit(1)
+        }
+
+        // Start HTTP server
         run(config.host, config.port, config.uri, c,
           Seq(
             (WorkflowRegistry(store, config.engine), "WorkflowRegistry", (reg, ac) => {
@@ -269,78 +280,32 @@ object App extends skel.Server {
             }
         }
 
-        def generate(pooInput:Option[PooInput], porInput:Option[PorInput], polInput:Option[PolInput]):PorWorkflowRun = {
-          // Create workflow input with step definitions
-          val workflowInput = PorWorkflowInput(
-            poo = pooInput.map(input => StepDef(input = Some(input))),
-            por = porInput.map(input => StepDef(input = Some(input))),
-            pol = polInput.map(input => StepDef(input = Some(input))),
-            solvency = Some(StepDef()),
-            report = Some(StepDef()),
-            commit = Some(StepDef())
-          )
-
-          // Create workflow run context
-          val workflowRun = PorWorkflowRun(
-            ownerName = config.porOwnerName,
-            ts0 = System.currentTimeMillis(),
-            ts1 = System.currentTimeMillis(),
-            tags = config.porTags,
-            memo = config.porMemo,
-            input = workflowInput,
-            output = PorWorkflowOutput()
-          )
-          workflowRun
-        }
-
-        // Generate mock wallets for demo
-        val mockWallets = DemoUtil.generateMockWallets()
-
         // Parse flow to determine required steps and create appropriate inputs
         val workflowRun = config.params.toList match {
           case "flow-1" :: f => // PoO -> PoR -> PoL -> Solvency -> Report
             if(f.size == 1) load(f.head)
-            else 
-              generate(
-                Some(PooInput(mockWallets, "signature")),
-                Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
-                Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, config = Map("signalMode" -> config.porPolSignalMode)))
-              )
+            else DemoUtil.generateFlowRun("flow-1", config.porProject, config.porTags, config.porMemo, config.porPolSignalMode)
 
           case "flow-2" :: f => // PoR -> PoL -> Solvency -> Report
             if(f.size == 1) load(f.head)
-            else 
-            generate(
-              None,
-              Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
-              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, config = Map("signalMode" -> config.porPolSignalMode)))
-            )
+            else DemoUtil.generateFlowRun("flow-2", config.porProject, config.porTags, config.porMemo, config.porPolSignalMode)
+
           case "flow-3" :: f => // PoR -> Report
             if(f.size == 1) load(f.head)
-            else 
-            generate(
-              None,
-              Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
-              None
-            )
+            else DemoUtil.generateFlowRun("flow-3", config.porProject, config.porTags, config.porMemo, config.porPolSignalMode)
+
           case "flow-4" :: f => // PoO -> PoR -> Report
             if(f.size == 1) load(f.head)
-            else 
-            generate(
-              Some(PooInput(mockWallets, "signature")),
-              Some(PorInput(mockWallets, List("BTC", "ETH", "LINK", "AAVE", "SOL", "TRX"))),
-              None
-            )
+            else DemoUtil.generateFlowRun("flow-4", config.porProject, config.porTags, config.porMemo, config.porPolSignalMode)
+
           case "flow-5" :: f => // PoL only
             if(f.size == 1) load(f.head)
-            else 
-            generate(
-              None,
-              None,
-              Some(PolInput("/tmp/liabilities.json", waitForConfirmation = true, config = Map("signalMode" -> config.porPolSignalMode)))
-            )
+            else DemoUtil.generateFlowRun("flow-5", config.porProject, config.porTags, config.porMemo, config.porPolSignalMode)
+
           case f :: Nil =>
             load(f)
+
+          case _ => throw new IllegalArgumentException(s"Unknown flow: ${config.params.toList}")
         }
         
 

@@ -41,3 +41,13 @@ case class TemporalListReq(
   workflowType: Option[String] = None,
   pageSize: Int = 10
 )
+
+// Workflow start DTOs
+case class WorkflowStartReq(
+  src: String,      // "data", "file", "url", "flow-1", "flow-2", etc.
+  data: String      // PorWorkflowRun JSON, file path, URL, or empty for flow-*
+)
+
+case class WorkflowStartRes(
+  workflowId: String
+)

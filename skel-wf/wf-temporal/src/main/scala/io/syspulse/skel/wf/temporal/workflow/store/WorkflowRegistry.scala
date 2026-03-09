@@ -16,6 +16,8 @@ import io.syspulse.skel.Command
 import io.hacken.ext.wf.WorkflowSchema
 import io.syspulse.skel.wf.temporal.workflow.server._
 import io.syspulse.skel.wf.temporal._
+import io.syspulse.skel.wf.temporal.por._
+import io.syspulse.skel.wf.temporal.por.demo.DemoUtil
 
 object WorkflowRegistry {
   val log = Logger(s"${this}")
@@ -31,12 +33,14 @@ object WorkflowRegistry {
   final case class TemporalList(req:TemporalListReq, replyTo: ActorRef[Try[QueryResult]]) extends Command
   final case class TemporalDescribe(workflowId:String, runId:Option[String], replyTo: ActorRef[Try[WorkflowExecutionInfo]]) extends Command
   final case class TemporalGet(runId:String, replyTo: ActorRef[Try[WorkflowExecutionInfo]]) extends Command
+  final case class WorkflowStart(req:WorkflowStartReq, replyTo: ActorRef[Try[WorkflowStartRes]]) extends Command
 
   // Internal response messages for async operations
   private final case class TemporalQueryResponse(result: Try[QueryResult], replyTo: ActorRef[Try[QueryResult]]) extends Command
   private final case class TemporalListResponse(result: Try[QueryResult], replyTo: ActorRef[Try[QueryResult]]) extends Command
   private final case class TemporalDescribeResponse(result: Try[WorkflowExecutionInfo], replyTo: ActorRef[Try[WorkflowExecutionInfo]]) extends Command
   private final case class TemporalGetResponse(result: Try[WorkflowExecutionInfo], replyTo: ActorRef[Try[WorkflowExecutionInfo]]) extends Command
+  private final case class WorkflowStartResponse(result: Try[WorkflowStartRes], replyTo: ActorRef[Try[WorkflowStartRes]]) extends Command
 
   def apply(store: WorkflowStore, engineUri: String): Behavior[io.syspulse.skel.Command] = {
     Behaviors.setup { context =>
@@ -178,6 +182,63 @@ object WorkflowRegistry {
       case TemporalGetResponse(result, replyTo) =>
         replyTo ! result
         Behaviors.same
+
+      case WorkflowStart(req, replyTo) =>
+        log.info(s"WorkflowStart(src=${req.src}, data=${req.data})")
+        context.pipeToSelf(startWorkflow(engineUri, req)) {
+          case Success(wid) => WorkflowStartResponse(Success(WorkflowStartRes(wid)), replyTo)
+          case Failure(e) => WorkflowStartResponse(Failure(e), replyTo)
+        }
+        Behaviors.same
+
+      case WorkflowStartResponse(result, replyTo) =>
+        replyTo ! result
+        Behaviors.same
+    }
+  }
+
+  private def startWorkflow(engineUri: String, req: WorkflowStartReq)(implicit ec: ExecutionContext): Future[String] = Future {
+    val run = req.src match {
+      case "demo" =>
+        // Generate demo flow using DemoUtil
+        // data field contains flow name (flow-1, flow-2, etc.)
+        DemoUtil.generateFlowRun(
+          flow = req.data,
+          proj = "demo",
+          tags = Seq.empty,
+          memo = Map.empty,
+          polSignalMode = "simulate"
+        )
+
+      case "data" =>
+        // Parse JSON from data field
+        val mapper = new com.fasterxml.jackson.databind.ObjectMapper()
+        mapper.registerModule(com.fasterxml.jackson.module.scala.DefaultScalaModule)
+        mapper.readValue(req.data, classOf[PorWorkflowRun])
+
+      case "file" =>
+        // Load from file path
+        val json = os.read(os.Path(req.data, os.pwd))
+        val mapper = new com.fasterxml.jackson.databind.ObjectMapper()
+        mapper.registerModule(com.fasterxml.jackson.module.scala.DefaultScalaModule)
+        mapper.readValue(json, classOf[PorWorkflowRun])
+
+      case "url" =>
+        // Download from URL
+        val response = requests.get(req.data)
+        val json = response.text()
+        val mapper = new com.fasterxml.jackson.databind.ObjectMapper()
+        mapper.registerModule(com.fasterxml.jackson.module.scala.DefaultScalaModule)
+        mapper.readValue(json, classOf[PorWorkflowRun])
+
+      case _ =>
+        throw new IllegalArgumentException(s"Unknown source type: ${req.src}")
+    }
+
+    // Start the workflow
+    PorStarter.run(engineUri, run) match {
+      case Success(wid) => wid
+      case Failure(e) => throw e
     }
   }
 }

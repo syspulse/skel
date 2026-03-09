@@ -35,7 +35,7 @@ object PorStarter {
 
       val client = WorkflowClient.newInstance(service, clientOptions)
 
-      val wid = s"por-workflow-${run.ownerName}-${run.ts0}"
+      val wid = s"por-workflow-${run.proj}-${run.ts0}"
 
       // Build workflow options
       val optionsBuilder = WorkflowOptions.newBuilder()
@@ -78,7 +78,7 @@ object PorStarter {
 
       val workflow = client.newWorkflowStub(classOf[PorWorkflow], options)
 
-      log.info(s"Starting PoR Workflow: $wid: ownerName=${run.ownerName}: input=${run.input}")
+      log.info(s"Starting PoR Workflow: $wid: project=${run.proj}: input=${run.input}")
 
       val result = workflow.execute(run)
 
@@ -100,7 +100,7 @@ object PorStarter {
     }
     catch {
       case e: Exception =>
-        log.error(s"Failed to start Workflow: ${run.ownerName}: ${e.getMessage}", e)
+        log.error(s"Failed to start Workflow: ${run.tid}/${run.pid}/${run.proj}: ${e.getMessage}", e)
         Failure(e)
     }
   }

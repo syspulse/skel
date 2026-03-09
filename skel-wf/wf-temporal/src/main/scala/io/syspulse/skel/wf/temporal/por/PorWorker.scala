@@ -7,15 +7,16 @@ import io.temporal.serviceclient.WorkflowServiceStubs
 import io.temporal.worker.{Worker, WorkerFactory}
 import io.syspulse.skel.wf.temporal.{ScalaDataConverter, TemporalURI}
 import com.typesafe.scalalogging.Logger
+import scala.util.Success
 
 object PorWorker {
   private val log = Logger(getClass.getName)
 
   val TASK_QUEUE = "por-task-queue"
 
-  def run(uri: String, impl: PorActivities): Try[Unit] = Try {
+  def run(uri: String, impl: PorActivities): Try[Worker] = Try {
     val t = TemporalURI(uri)
-    log.info(s"Connecting to Temporal -> ${t.target} (namespace=${t.namespace})")
+    log.info(s"Connecting -> ${t.target} (namespace=${t.namespace})")
 
     val serviceOptions = io.temporal.serviceclient.WorkflowServiceStubsOptions.newBuilder()
       .setTarget(t.target)
@@ -49,14 +50,14 @@ object PorWorker {
 
     factory.start()
 
-    log.info(s"PoR Worker started: namespace=${t.namespace}, task_queue=${TASK_QUEUE}")
+    log.info(s"Worker: namespace=${t.namespace}, task_queue=${TASK_QUEUE} (${worker})")
 
     sys.addShutdownHook {
-      log.info("Shutting down worker...")
+      log.info(s"Shutdown: ${factory}, ${service}")
       factory.shutdown()
       service.shutdown()
     }
-
-    Thread.currentThread().join()
+    
+    worker
   }
 }

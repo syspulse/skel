@@ -36,7 +36,7 @@ class ReportActivityDemo {
 
     sb.append(s"# Proof of Reserves Report\n\n")
     sb.append(s"## Owner Information\n\n")
-    sb.append(s"- **Owner Name**: ${run.ownerName}\n")
+    sb.append(s"- **Project**: ${run.proj}\n")
     sb.append(s"- **Start**: ${run.ts0}\n")
     sb.append(s"- **End**: ${run.ts1}\n")    
 

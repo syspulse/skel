@@ -115,9 +115,13 @@ case class PorWorkflowOutput(
 // Workflow Run - context propagated through all steps (becomes workflow output)
 
 case class PorWorkflowRun(
-  wid: Option[String] = None,
-  rid: Option[String] = None,
-  ownerName: String,
+  wid: Option[String] = None,   // Workflow ID
+  rid: Option[String] = None,   // Run ID
+
+  tid: Option[Int] = None,     // Tenant ID
+  pid: Option[Int] = None,     // Project ID  
+  proj: String,                // Project 
+
   ts0: Long = System.currentTimeMillis(),
   ts1: Long = 0L,
   tags: Seq[String] = Seq.empty,

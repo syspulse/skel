@@ -62,6 +62,9 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
   def temporalDescribe(workflowId:String, runId:Option[String]): Future[Try[WorkflowExecutionInfo]] = registry.ask(TemporalDescribe(workflowId, runId, _))
   def temporalGet(runId:String): Future[Try[WorkflowExecutionInfo]] = registry.ask(TemporalGet(runId, _))
 
+  // Workflow start method
+  def workflowStart(req:WorkflowStartReq): Future[Try[WorkflowStartRes]] = registry.ask(WorkflowStart(req, _))
+
   @GET @Path("/schema") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("workflow"), summary = "Return all Workflow Schemas",
     responses = Array(
@@ -205,6 +208,21 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
     }
   }
 
+  @POST @Path("/start") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("workflow"),summary = "Start PoR Workflow",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowStartReq])))),
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "Workflow started",
+        content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowStartRes]))))
+    )
+  )
+  def workflowStartRoute() = post {
+    entity(as[WorkflowStartReq]) { req =>
+      complete(workflowStart(req))
+    }
+  }
+
   val corsAllow = CorsSettings(system.classicSystem)
     //.withAllowGenericHttpRequests(true)
     .withAllowCredentials(true)
@@ -231,6 +249,9 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
       },
       pathPrefix("run") {
         temporalGetRoute()
+      },
+      pathPrefix("start") {
+        workflowStartRoute()
       }
     )
   }
