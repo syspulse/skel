@@ -246,7 +246,7 @@ object App extends skel.Server {
             Temporal.list(config.engine)
         }
 
-        Await.result(futureResult, 30.seconds)
+        Try(Await.result(futureResult, 30.seconds))
 
       case "por-worker" =>
         PorWorker.run(config.engine, impl)        

@@ -61,140 +61,124 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
    * @param pageSize Number of results per page (default: 10)
    * @return QueryResult with workflow execution information
    */
-  def query(query: String = "", pageSize: Int = 10): Future[Try[QueryResult]] = Future {
-    try {
-      // Build list request
-      val requestBuilder = ListWorkflowExecutionsRequest.newBuilder()
-        .setNamespace(t.namespace)
-        .setPageSize(pageSize)
+  def query(query: String = "", pageSize: Int = 10): Future[QueryResult] = Future {
+    // Build list request
+    val requestBuilder = ListWorkflowExecutionsRequest.newBuilder()
+      .setNamespace(t.namespace)
+      .setPageSize(pageSize)
 
-      if (query.nonEmpty) {
-        requestBuilder.setQuery(query)
+    if (query.nonEmpty) {
+      requestBuilder.setQuery(query)
+    }
+
+    val request = requestBuilder.build()
+
+    log.info(s"Querying workflows: query='$query', pageSize=$pageSize")
+
+    // Execute query
+    val response = service.blockingStub().listWorkflowExecutions(request)
+    val executions = response.getExecutionsList.asScala
+
+    // Convert to structured data
+    val workflowInfos = executions.map { exec =>
+      val workflowId = exec.getExecution.getWorkflowId
+      val runId = exec.getExecution.getRunId
+      val workflowType = exec.getType.getName
+      val status = exec.getStatus.name()
+      val startTime = if (exec.hasStartTime) {
+        Some(exec.getStartTime.getSeconds * 1000)
+      } else {
+        None
+      }
+      val closeTime = if (exec.hasCloseTime) {
+        Some(exec.getCloseTime.getSeconds * 1000)
+      } else {
+        None
       }
 
-      val request = requestBuilder.build()
+      // Extract memo
+      val memo = if (exec.hasMemo && exec.getMemo.getFieldsMap.size() > 0) {
+        exec.getMemo.getFieldsMap.asScala.map { case (key, _) =>
+          key -> Seq(key) // Simplified: just return keys for now
+        }.toMap
+      } else {
+        Map.empty[String, Seq[String]]
+      }
 
-      log.info(s"Querying workflows: query='$query', pageSize=$pageSize")
+      // Extract search attributes
+      val searchAttributes = if (exec.hasSearchAttributes && exec.getSearchAttributes.getIndexedFieldsMap.size() > 0) {
+        exec.getSearchAttributes.getIndexedFieldsMap.asScala.map { case (key, _) =>
+          key -> Seq(key) // Simplified: just return keys for now
+        }.toMap
+      } else {
+        Map.empty[String, Seq[String]]
+      }
 
-      // Execute query
-      val response = service.blockingStub().listWorkflowExecutions(request)
-      val executions = response.getExecutionsList.asScala
+      WorkflowExecutionInfo(
+        workflowId = workflowId,
+        runId = runId,
+        workflowType = workflowType,
+        status = status,
+        startTime = startTime,
+        closeTime = closeTime,
+        memo = memo,
+        searchAttributes = searchAttributes
+      )
+    }.toSeq
 
-      // Convert to structured data
-      val workflowInfos = executions.map { exec =>
-        val workflowId = exec.getExecution.getWorkflowId
-        val runId = exec.getExecution.getRunId
-        val workflowType = exec.getType.getName
-        val status = exec.getStatus.name()
-        val startTime = if (exec.hasStartTime) {
-          Some(exec.getStartTime.getSeconds * 1000)
-        } else {
-          None
-        }
-        val closeTime = if (exec.hasCloseTime) {
-          Some(exec.getCloseTime.getSeconds * 1000)
-        } else {
-          None
-        }
+    val hasMoreResults = !response.getNextPageToken.isEmpty
 
-        // Extract memo
-        val memo = if (exec.hasMemo && exec.getMemo.getFieldsMap.size() > 0) {
-          exec.getMemo.getFieldsMap.asScala.map { case (key, _) =>
-            key -> Seq(key) // Simplified: just return keys for now
-          }.toMap
-        } else {
-          Map.empty[String, Seq[String]]
-        }
-
-        // Extract search attributes
-        val searchAttributes = if (exec.hasSearchAttributes && exec.getSearchAttributes.getIndexedFieldsMap.size() > 0) {
-          exec.getSearchAttributes.getIndexedFieldsMap.asScala.map { case (key, _) =>
-            key -> Seq(key) // Simplified: just return keys for now
-          }.toMap
-        } else {
-          Map.empty[String, Seq[String]]
-        }
-
-        WorkflowExecutionInfo(
-          workflowId = workflowId,
-          runId = runId,
-          workflowType = workflowType,
-          status = status,
-          startTime = startTime,
-          closeTime = closeTime,
-          memo = memo,
-          searchAttributes = searchAttributes
-        )
-      }.toSeq
-
-      val hasMoreResults = !response.getNextPageToken.isEmpty
-
-      Success(QueryResult(workflowInfos, hasMoreResults))
-
-    } catch {
-      case e: Exception =>
-        log.error(s"Failed to query workflows: ${e.getMessage}", e)
-        Failure(e)
-    }
+    QueryResult(workflowInfos, hasMoreResults)
   }
 
   /**
    * Get detailed information about a specific workflow by ID
    */
-  def describe(workflowId: String, runId: Option[String] = None): Future[Try[WorkflowExecutionInfo]] = Future {
-    try {
-      // Get workflow stub
-      val stub = runId match {
-        case Some(rid) =>
-          client.newUntypedWorkflowStub(workflowId, java.util.Optional.of(rid), java.util.Optional.empty())
-        case None =>
-          client.newUntypedWorkflowStub(workflowId, java.util.Optional.empty(), java.util.Optional.empty())
-      }
-
-      // Get workflow description
-      val description = stub.describe()
-
-      val wfId = description.getExecution.getWorkflowId
-      val wfRunId = description.getExecution.getRunId
-      val wfType = description.getWorkflowType
-      val wfStatus = description.getStatus.name()
-
-      val startTime = Option(description.getStartTime).map(_.toEpochMilli)
-      val closeTime = Option(description.getCloseTime).map(_.toEpochMilli)
-
-      // Search attributes
-      val searchAttrs = Option(description.getSearchAttributes)
-        .filter(!_.isEmpty)
-        .map { attrs =>
-          attrs.asScala.map { case (key, values) =>
-            key -> values.asScala.toSeq.map(_.toString)
-          }.toMap
-        }.getOrElse(Map.empty[String, Seq[String]])
-
-      val info = WorkflowExecutionInfo(
-        workflowId = wfId,
-        runId = wfRunId,
-        workflowType = wfType,
-        status = wfStatus,
-        startTime = startTime,
-        closeTime = closeTime,
-        memo = Map.empty, // Memo not available in describe()
-        searchAttributes = searchAttrs
-      )
-
-      Success(info)
-
-    } catch {
-      case e: Exception =>
-        log.error(s"Failed to describe workflow $workflowId: ${e.getMessage}", e)
-        Failure(e)
+  def describe(workflowId: String, runId: Option[String] = None): Future[WorkflowExecutionInfo] = Future {
+    // Get workflow stub
+    val stub = runId match {
+      case Some(rid) =>
+        client.newUntypedWorkflowStub(workflowId, java.util.Optional.of(rid), java.util.Optional.empty())
+      case None =>
+        client.newUntypedWorkflowStub(workflowId, java.util.Optional.empty(), java.util.Optional.empty())
     }
+
+    // Get workflow description
+    val description = stub.describe()
+
+    val wfId = description.getExecution.getWorkflowId
+    val wfRunId = description.getExecution.getRunId
+    val wfType = description.getWorkflowType
+    val wfStatus = description.getStatus.name()
+
+    val startTime = Option(description.getStartTime).map(_.toEpochMilli)
+    val closeTime = Option(description.getCloseTime).map(_.toEpochMilli)
+
+    // Search attributes
+    val searchAttrs = Option(description.getSearchAttributes)
+      .filter(!_.isEmpty)
+      .map { attrs =>
+        attrs.asScala.map { case (key, values) =>
+          key -> values.asScala.toSeq.map(_.toString)
+        }.toMap
+      }.getOrElse(Map.empty[String, Seq[String]])
+
+    WorkflowExecutionInfo(
+      workflowId = wfId,
+      runId = wfRunId,
+      workflowType = wfType,
+      status = wfStatus,
+      startTime = startTime,
+      closeTime = closeTime,
+      memo = Map.empty, // Memo not available in describe()
+      searchAttributes = searchAttrs
+    )
   }
 
   /**
    * List workflows with optional filters
    */
-  def list(status: Option[String] = None, workflowType: Option[String] = None, pageSize: Int = 10): Future[Try[QueryResult]] = {
+  def list(status: Option[String] = None, workflowType: Option[String] = None, pageSize: Int = 10): Future[QueryResult] = {
     val queryParts = scala.collection.mutable.ArrayBuffer[String]()
 
     status.foreach { s =>
@@ -216,16 +200,13 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
    * @param runId The run ID to search for
    * @return WorkflowExecutionInfo if found, or failure if not found or error
    */
-  def get(runId: String): Future[Try[WorkflowExecutionInfo]] = {
+  def get(runId: String): Future[WorkflowExecutionInfo] = {
     val queryStr = s"RunId = '$runId'"
 
-    query(queryStr, pageSize = 1).map { tryResult =>
-      tryResult.flatMap { result =>
-        result.executions.headOption match {
-          case Some(info) => Success(info)
-          case None => Failure(new NoSuchElementException(s"Workflow with RunId '$runId' not found"))
-        }
-      }
+    query(queryStr, pageSize = 1).map { result =>
+      result.executions.headOption.getOrElse(
+        throw new NoSuchElementException(s"Workflow with RunId '$runId' not found")
+      )
     }
   }
 
@@ -252,7 +233,7 @@ object Temporal {
    * @param pageSize Number of results per page (default: 10)
    * @return QueryResult with workflow execution information
    */
-  def query(uri: String, query: String = "", pageSize: Int = 10)(implicit ec: ExecutionContext): Future[Try[QueryResult]] = {
+  def query(uri: String, query: String = "", pageSize: Int = 10)(implicit ec: ExecutionContext): Future[QueryResult] = {
     val temporal = new Temporal(uri)
     temporal.query(query, pageSize).andThen { case _ =>
       temporal.shutdown()
@@ -262,7 +243,7 @@ object Temporal {
   /**
    * Get detailed information about a specific workflow by ID (static method)
    */
-  def describe(uri: String, workflowId: String, runId: Option[String] = None)(implicit ec: ExecutionContext): Future[Try[WorkflowExecutionInfo]] = {
+  def describe(uri: String, workflowId: String, runId: Option[String] = None)(implicit ec: ExecutionContext): Future[WorkflowExecutionInfo] = {
     val temporal = new Temporal(uri)
     temporal.describe(workflowId, runId).andThen { case _ =>
       temporal.shutdown()
@@ -272,7 +253,7 @@ object Temporal {
   /**
    * List workflows with optional filters (static method)
    */
-  def list(uri: String, status: Option[String] = None, workflowType: Option[String] = None, pageSize: Int = 10)(implicit ec: ExecutionContext): Future[Try[QueryResult]] = {
+  def list(uri: String, status: Option[String] = None, workflowType: Option[String] = None, pageSize: Int = 10)(implicit ec: ExecutionContext): Future[QueryResult] = {
     val temporal = new Temporal(uri)
     temporal.list(status, workflowType, pageSize).andThen { case _ =>
       temporal.shutdown()
@@ -286,7 +267,7 @@ object Temporal {
    * @param runId The run ID to search for
    * @return WorkflowExecutionInfo if found, or failure if not found or error
    */
-  def get(uri: String, runId: String)(implicit ec: ExecutionContext): Future[Try[WorkflowExecutionInfo]] = {
+  def get(uri: String, runId: String)(implicit ec: ExecutionContext): Future[WorkflowExecutionInfo] = {
     val temporal = new Temporal(uri)
     temporal.get(runId).andThen { case _ =>
       temporal.shutdown()

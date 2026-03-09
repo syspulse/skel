@@ -134,7 +134,7 @@ object WorkflowRegistry {
       case TemporalQuery(req, replyTo) =>
         log.info(s"TemporalQuery(${req.query}, pageSize=${req.pageSize})")
         context.pipeToSelf(Temporal.query(engineUri, req.query, req.pageSize)) {
-          case Success(result) => TemporalQueryResponse(result, replyTo)
+          case Success(result) => TemporalQueryResponse(Success(result), replyTo)
           case Failure(e) => TemporalQueryResponse(Failure(e), replyTo)
         }
         Behaviors.same
@@ -146,7 +146,7 @@ object WorkflowRegistry {
       case TemporalList(req, replyTo) =>
         log.info(s"TemporalList(status=${req.status}, workflowType=${req.workflowType}, pageSize=${req.pageSize})")
         context.pipeToSelf(Temporal.list(engineUri, req.status, req.workflowType, req.pageSize)) {
-          case Success(result) => TemporalListResponse(result, replyTo)
+          case Success(result) => TemporalListResponse(Success(result), replyTo)
           case Failure(e) => TemporalListResponse(Failure(e), replyTo)
         }
         Behaviors.same
@@ -158,7 +158,7 @@ object WorkflowRegistry {
       case TemporalDescribe(workflowId, runId, replyTo) =>
         log.info(s"TemporalDescribe(workflowId=$workflowId, runId=$runId)")
         context.pipeToSelf(Temporal.describe(engineUri, workflowId, runId)) {
-          case Success(result) => TemporalDescribeResponse(result, replyTo)
+          case Success(result) => TemporalDescribeResponse(Success(result), replyTo)
           case Failure(e) => TemporalDescribeResponse(Failure(e), replyTo)
         }
         Behaviors.same
@@ -170,7 +170,7 @@ object WorkflowRegistry {
       case TemporalGet(runId, replyTo) =>
         log.info(s"TemporalGet(runId=$runId)")
         context.pipeToSelf(Temporal.get(engineUri, runId)) {
-          case Success(result) => TemporalGetResponse(result, replyTo)
+          case Success(result) => TemporalGetResponse(Success(result), replyTo)
           case Failure(e) => TemporalGetResponse(Failure(e), replyTo)
         }
         Behaviors.same
