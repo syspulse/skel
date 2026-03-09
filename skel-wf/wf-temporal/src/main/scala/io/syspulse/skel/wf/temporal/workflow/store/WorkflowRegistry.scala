@@ -13,6 +13,7 @@ import io.syspulse.skel.Command
 
 import io.hacken.ext.wf.WorkflowSchema
 import io.syspulse.skel.wf.temporal.workflow.server._
+import io.syspulse.skel.wf.temporal._
 
 object WorkflowRegistry {
   val log = Logger(s"${this}")
@@ -23,11 +24,17 @@ object WorkflowRegistry {
   final case class UpdateWorkflow(id:Int, req:WorkflowUpdateReq, replyTo: ActorRef[Try[WorkflowRes]]) extends Command
   final case class DeleteWorkflow(id:Int, replyTo: ActorRef[Try[WorkflowRes]]) extends Command
 
-  def apply(store: WorkflowStore): Behavior[io.syspulse.skel.Command] = {
-    registry(store)
+  // Temporal workflow management commands
+  final case class TemporalQuery(req:TemporalQueryReq, replyTo: ActorRef[Try[QueryResult]]) extends Command
+  final case class TemporalList(req:TemporalListReq, replyTo: ActorRef[Try[QueryResult]]) extends Command
+  final case class TemporalDescribe(workflowId:String, runId:Option[String], replyTo: ActorRef[Try[WorkflowExecutionInfo]]) extends Command
+  final case class TemporalGet(runId:String, replyTo: ActorRef[Try[WorkflowExecutionInfo]]) extends Command
+
+  def apply(store: WorkflowStore, engineUri: String): Behavior[io.syspulse.skel.Command] = {
+    registry(store, engineUri)
   }
 
-  private def registry(store: WorkflowStore): Behavior[io.syspulse.skel.Command] = {
+  private def registry(store: WorkflowStore, engineUri: String): Behavior[io.syspulse.skel.Command] = {
     Behaviors.receiveMessage {
 
       case GetWorkflow(id, replyTo) =>
@@ -111,6 +118,30 @@ object WorkflowRegistry {
             log.error(s"failed to delete workflow: ${id}", e)
             replyTo ! Failure(e)
         }
+        Behaviors.same
+
+      case TemporalQuery(req, replyTo) =>
+        log.info(s"TemporalQuery(${req.query}, pageSize=${req.pageSize})")
+        val r = Temporal.query(engineUri, req.query, req.pageSize)
+        replyTo ! r
+        Behaviors.same
+
+      case TemporalList(req, replyTo) =>
+        log.info(s"TemporalList(status=${req.status}, workflowType=${req.workflowType}, pageSize=${req.pageSize})")
+        val r = Temporal.list(engineUri, req.status, req.workflowType, req.pageSize)
+        replyTo ! r
+        Behaviors.same
+
+      case TemporalDescribe(workflowId, runId, replyTo) =>
+        log.info(s"TemporalDescribe(workflowId=$workflowId, runId=$runId)")
+        val r = Temporal.describe(engineUri, workflowId, runId)
+        replyTo ! r
+        Behaviors.same
+
+      case TemporalGet(runId, replyTo) =>
+        log.info(s"TemporalGet(runId=$runId)")
+        val r = Temporal.get(engineUri, runId)
+        replyTo ! r
         Behaviors.same
     }
   }

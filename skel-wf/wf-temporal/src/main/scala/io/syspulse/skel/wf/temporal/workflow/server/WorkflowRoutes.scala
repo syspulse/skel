@@ -38,6 +38,7 @@ import io.syspulse.skel.Command
 import io.syspulse.skel.wf.temporal.workflow.store.WorkflowRegistry
 import io.syspulse.skel.wf.temporal.workflow.store.WorkflowRegistry._
 import io.hacken.ext.wf.WorkflowSchema
+import io.syspulse.skel.wf.temporal._
 
 @Path("/")
 class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {
@@ -47,12 +48,19 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import WorkflowJson._
   import io.hacken.ext.wf.WorkflowSchemaJson._
+  import io.syspulse.skel.wf.temporal.TemporalJson._
   
   def getWorkflow(id:Int): Future[Try[WorkflowSchema]] = registry.ask(GetWorkflow(id, _))
   def getWorkflows(): Future[Try[Workflows]] = registry.ask(GetWorkflows(_))
   def createWorkflow(req:WorkflowCreateReq): Future[Try[WorkflowRes]] = registry.ask(CreateWorkflow(req, _))
   def updateWorkflow(id:Int, req:WorkflowUpdateReq): Future[Try[WorkflowRes]] = registry.ask(UpdateWorkflow(id, req, _))
   def deleteWorkflow(id:Int): Future[Try[WorkflowRes]] = registry.ask(DeleteWorkflow(id, _))
+
+  // Temporal workflow management methods
+  def temporalQuery(req:TemporalQueryReq): Future[Try[QueryResult]] = registry.ask(TemporalQuery(req, _))
+  def temporalList(req:TemporalListReq): Future[Try[QueryResult]] = registry.ask(TemporalList(req, _))
+  def temporalDescribe(workflowId:String, runId:Option[String]): Future[Try[WorkflowExecutionInfo]] = registry.ask(TemporalDescribe(workflowId, runId, _))
+  def temporalGet(runId:String): Future[Try[WorkflowExecutionInfo]] = registry.ask(TemporalGet(runId, _))
 
   @GET @Path("/schema") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("workflow"), summary = "Return all Workflow Schemas",
@@ -131,21 +139,99 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
     }
   }
 
+  // Temporal workflow management routes
+  @POST @Path("/query") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("temporal"),summary = "Query Temporal workflows",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[TemporalQueryReq])))),
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "Query results",
+        content = Array(new Content(schema = new Schema(implementation = classOf[QueryResult]))))
+    )
+  )
+  def temporalQueryRoute() = post {
+    entity(as[TemporalQueryReq]) { req =>
+      complete(temporalQuery(req))
+    }
+  }
+
+  @POST @Path("/list") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("temporal"),summary = "List Temporal workflows",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[TemporalListReq])))),
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "List results",
+        content = Array(new Content(schema = new Schema(implementation = classOf[QueryResult]))))
+    )
+  )
+  def temporalListRoute() = post {
+    entity(as[TemporalListReq]) { req =>
+      complete(temporalList(req))
+    }
+  }
+
+  @GET @Path("/describe/{workflowId}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("temporal"), summary = "Describe Temporal workflow",
+    parameters = Array(
+      new Parameter(name = "workflowId", in = ParameterIn.PATH, description = "Workflow ID"),
+      new Parameter(name = "runId", in = ParameterIn.QUERY, description = "Run ID (optional)")
+    ),
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "Workflow execution info",
+        content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowExecutionInfo])))),
+      new ApiResponse(responseCode = "404", description = "Workflow not found")
+    )
+  )
+  def temporalDescribeRoute() = get {
+    path(Segment) { workflowId =>
+      parameter("runId".optional) { runId =>
+        complete(temporalDescribe(workflowId, runId))
+      }
+    }
+  }
+
+  @GET @Path("/run/{runId}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("temporal"), summary = "Get Temporal workflow by run ID",
+    parameters = Array(new Parameter(name = "runId", in = ParameterIn.PATH, description = "Run ID")),
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "Workflow execution info",
+        content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowExecutionInfo])))),
+      new ApiResponse(responseCode = "404", description = "Workflow not found")
+    )
+  )
+  def temporalGetRoute() = get {
+    path(Segment) { runId =>
+      complete(temporalGet(runId))
+    }
+  }
+
   val corsAllow = CorsSettings(system.classicSystem)
     //.withAllowGenericHttpRequests(true)
-    .withAllowCredentials(true)    
+    .withAllowCredentials(true)
     .withAllowedMethods(Seq(HttpMethods.OPTIONS,HttpMethods.GET,HttpMethods.POST,HttpMethods.PUT,HttpMethods.DELETE,HttpMethods.HEAD))
   override def routes: Route = cors(corsAllow) {
     concat(
       pathPrefix("schema") {
-        concat(          
+        concat(
           getWorkflowRoute(),
           createWorkflowRoute(),
           updateWorkflowRoute(),
           deleteWorkflowRoute(),
           getWorkflowsRoute(),
         )
-      }      
+      },
+      pathPrefix("query") {
+        temporalQueryRoute()
+      },
+      pathPrefix("list") {
+        temporalListRoute()
+      },
+      pathPrefix("describe") {
+        temporalDescribeRoute()
+      },
+      pathPrefix("run") {
+        temporalGetRoute()
+      }
     )
   }
 }

@@ -200,7 +200,7 @@ object App extends skel.Server {
 
         run(config.host, config.port, config.uri, c,
           Seq(
-            (WorkflowRegistry(store), "WorkflowRegistry", (reg, ac) => {
+            (WorkflowRegistry(store, config.engine), "WorkflowRegistry", (reg, ac) => {
               new WorkflowRoutes(reg)(ac)
             })
           )

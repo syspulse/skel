@@ -50,10 +50,9 @@ class Temporal(uri: String) {
     .setDataConverter(ScalaDataConverter.create())
     .build()
 
+  log.info(s"Connecting -> ${t.target} (namespace=${t.namespace})")
   private val client = WorkflowClient.newInstance(service, clientOptions)
-
-  log.info(s"Connected: ${t.target} (namespace=${t.namespace})")
-
+  
   /**
    * Query workflows from Temporal server
    *
@@ -231,7 +230,7 @@ class Temporal(uri: String) {
    * Shutdown the Temporal connection
    */
   def shutdown(): Unit = {
-    log.info(s"Shutting down: ${t.target}")
+    log.debug(s"Shutdown: ${t.target}")
     service.shutdown()
   }
 }
