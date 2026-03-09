@@ -22,6 +22,7 @@ class PorWorkflowImpl extends PorWorkflow {
   private val activities = Workflow.newActivityStub(classOf[PorActivities], activityOptions)
 
   // Signal data storage (survives worker restarts - managed by Temporal)
+  @volatile
   private var polSignalData: Option[JsObject] = None
 
   override def receivePolSignal(data: JsObject): Unit = {
@@ -108,7 +109,7 @@ class PorWorkflowImpl extends PorWorkflow {
   }
 
   private def processPoLStep(run: PorWorkflowRun)(implicit wid:String): PorWorkflowRun = {
-    
+
     run.input.pol match {
       case None =>
         logger.info(s"$wid PoL: Skipped (step not defined)")
@@ -116,8 +117,75 @@ class PorWorkflowImpl extends PorWorkflow {
 
       case Some(step) =>
         step.input match {
-          case Some(polInput) =>            
-            activities.executeProofOfLiability(run)
+          case Some(polInput) =>
+            // Check if we should wait for signal
+            val signalMode = polInput.config.get("signalMode").fold("simulate")(_.toString)
+            val signalTimeout = polInput.config.get("signalTimeout").fold(24 * 60 * 60 * 1000L)(_.toString.toLong)
+
+            if (signalMode.toLowerCase == "api" && polInput.waitForConfirmation) {
+              logger.info(s"$wid PoL: Waiting for signal (POST to /api/v1/wf/run/${run.rid.getOrElse("?")}/signal)")
+
+              // Loop until we get valid signal data or timeout
+              var validData: Option[PolFileData] = None
+              var attempts = 0
+
+              while (validData.isEmpty) {
+                attempts += 1
+
+                // Wait for signal using Temporal's await (blocks workflow until signal arrives)
+                val signalReceived = Workflow.await(java.time.Duration.ofMillis(signalTimeout), () => polSignalData.isDefined)
+
+                if (!signalReceived) {
+                  // Timeout - fail the workflow!
+                  logger.error(s"$wid PoL: Signal timeout (${signalTimeout}) - failing workflow")
+                  throw new RuntimeException(s"PoL signal timeout: No signal received (${signalTimeout})")
+                }
+
+                logger.info(s"$wid PoL: Signal received (attempt $attempts), validating data")
+
+                // Parse and validate signal data
+                try {
+                  import spray.json._
+                  import io.syspulse.skel.wf.temporal.por.PolJsonProtocol._
+
+                  val polFileData = polSignalData.get.convertTo[PolFileData]
+
+                  // Validate data (must have liabilities, signature, etc.)
+                  if (polFileData.liabilities.isEmpty) {
+                    logger.error(s"$wid PoL: Invalid signal data - no liabilities, waiting for new signal")
+                    polSignalData = None  // Clear invalid data, wait for next signal
+                  } else if (polFileData.signature.isEmpty || polFileData.publicKey.isEmpty) {
+                    logger.error(s"$wid PoL: Invalid signal data - missing signature/publicKey, waiting for new signal")
+                    polSignalData = None  // Clear invalid data, wait for next signal
+                  } else {
+                    // Valid data!
+                    logger.info(s"$wid PoL: Valid signal data with ${polFileData.liabilities.size} liabilities")
+                    validData = Some(polFileData)
+                  }
+                } catch {
+                  case e: Exception =>
+                    logger.error(s"$wid PoL: Failed to parse signal data: '${polSignalData}': ${e.getMessage}, waiting for new signal")
+                    polSignalData = None  // Clear invalid data, wait for next signal
+                }
+              }
+
+              // Create output from validated signal data
+              val polFileData = validData.get
+              val output = PolOutput(
+                ts = polFileData.ts,
+                liabilities = polFileData.liabilities,
+                signature = polFileData.signature,
+                signatureType = polFileData.signatureType,
+                publicKey = polFileData.publicKey
+              )
+
+              logger.info(s"$wid PoL: Completed with signal data (${output.liabilities.size} liabilities)")
+              run.copy(output = run.output.copy(pol = Some(output)))
+
+            } else {
+              // No signal needed or different signal mode - call activity
+              activities.executeProofOfLiability(run)
+            }
 
           case None =>
             logger.info(s"$wid PoL: Skipped (no input provided)")

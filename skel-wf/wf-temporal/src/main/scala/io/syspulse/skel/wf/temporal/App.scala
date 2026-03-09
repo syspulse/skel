@@ -327,7 +327,7 @@ object App extends skel.Server {
 
         val futureResult = PorStarter.run(config.engine, workflowRun)
         Try(Await.result(futureResult, 30.seconds)) match {
-          case Success(result) => s"Workflow started: workflowId=${result.workflowId}, runId=${result.runId}"
+          case Success(result) => s"Workflow started: workflowId = ${result.workflowId}, runId = ${result.runId}"
           case scala.util.Failure(e) => s"Failed to start workflow: ${e.getMessage}"
         }        
 

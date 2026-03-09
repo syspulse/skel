@@ -86,7 +86,7 @@ object PorStarter {
       val execution = WorkflowClient.start(workflow.execute _, run)
       val runId = execution.getRunId
 
-      log.info(s"Workflow started: workflowId=$wid, runId=$runId")
+      log.info(s"Workflow: [$wid / $runId]")
 
       service.shutdown()
 

@@ -39,14 +39,17 @@ ${demoData.liabilities.map(l => s"""    {"userId": "${l.userId}", "asset": "${l.
           log.info(s"$wid Demo file generated: $demoFilePath")
         }
 
-        val finalData =
-          if (input.waitForConfirmation) {
-            log.info(s"$wid Waiting for confirmation (signalMode=$signalMode)")
-            val ctx = PolSignalContext(workflowId, runId, wid, log, SignalPollIntervalMs)
-            PolSignalProcessors.get(signalMode).waitAndResolve(ctx, demoData)
-          } else {
-            demoData
-          }
+        // For API mode, workflow handles signal and creates output directly
+        // Activity only called for file/simulate modes or when signal fails
+        val finalData = if (input.waitForConfirmation && signalMode.toLowerCase != "api") {
+          log.info(s"$wid Waiting for confirmation (signalMode=$signalMode)")
+          val ctx = PolSignalContext(workflowId, runId, wid, log, SignalPollIntervalMs)
+          PolSignalProcessors.get(signalMode).waitAndResolve(ctx, demoData)
+        } else {
+          // API mode shouldn't reach here (workflow handles it)
+          // But if it does, use demo data
+          demoData
+        }
 
         // PoL MERGE STRATEGY: Never trust previous output, always override with fresh input
         run.output.pol.foreach { previousOutput =>
