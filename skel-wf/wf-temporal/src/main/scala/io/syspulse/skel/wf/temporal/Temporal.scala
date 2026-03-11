@@ -39,8 +39,7 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
 
   /** Configure JWT auth for a WorkflowServiceStubsOptions builder if TemporalURI has auth=. */
   private def configureJwtAuth(builder: io.temporal.serviceclient.WorkflowServiceStubsOptions.Builder, label: String): Unit = {
-    t.auth.foreach { token =>
-      log.info(s"Configuring JWT authentication for $label")
+    t.auth.foreach { token =>      
       val tokenSupplier = new io.temporal.authorization.AuthorizationTokenSupplier {
         override def supply(): String = s"Bearer $token"
       }
@@ -52,14 +51,26 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
 
   /** Configure JWT auth for an OperatorServiceStubsOptions builder if TemporalURI has auth=. */
   private def configureJwtAuth(builder: io.temporal.serviceclient.OperatorServiceStubsOptions.Builder, label: String): Unit = {
-    t.auth.foreach { token =>
-      log.info(s"Configuring JWT authentication for $label")
+    t.auth.foreach { token =>    
       val tokenSupplier = new io.temporal.authorization.AuthorizationTokenSupplier {
         override def supply(): String = s"Bearer $token"
       }
       builder.addGrpcMetadataProvider(
         new io.temporal.authorization.AuthorizationGrpcMetadataProvider(tokenSupplier)
       )
+    }
+  }
+
+  /** Create insecure SSL context if tls_insecure=true. WARNING: Development only! */
+  private def createInsecureSslContext(): Option[io.grpc.netty.shaded.io.netty.handler.ssl.SslContext] = {
+    if (t.tlsInsecure) {
+      val sslContext = io.temporal.serviceclient.SimpleSslContextBuilder
+        .newBuilder(null, null)
+        .setUseInsecureTrustManager(true)
+        .build()
+      Some(sslContext)
+    } else {
+      None
     }
   }
 
@@ -70,6 +81,9 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
       .setKeepAliveTime(java.time.Duration.ofMillis(t.keepAliveTime))
       .setKeepAliveTimeout(java.time.Duration.ofMillis(t.keepAliveTimeout))
       .setRpcTimeout(java.time.Duration.ofMillis(t.rpcTimeout))
+
+    // Configure insecure TLS if requested (DEV ONLY)
+    createInsecureSslContext().foreach(builder.setSslContext)
 
     configureJwtAuth(builder, "WorkflowServiceStubs")
 
@@ -87,6 +101,9 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
       .setRpcTimeout(java.time.Duration.ofMillis(t.rpcTimeout))
       .setMetricsScope(new com.uber.m3.tally.NoopScope())
       .setHeaders(new io.grpc.Metadata())
+
+    // Configure insecure TLS if requested (DEV ONLY)
+    createInsecureSslContext().foreach(builder.setSslContext)
 
     configureJwtAuth(builder, "OperatorServiceStubs")
 

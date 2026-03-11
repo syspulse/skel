@@ -90,6 +90,17 @@ class TemporalURISpec extends AnyWordSpec with Matchers {
       t.namespace shouldBe "prod"
       t.rpcTimeout shouldBe 30000L
     }
+
+    "parse tls=ignore parameter" in {
+      val t = TemporalURI("temporal://localhost:7233?tls=ignore")
+      t.tlsInsecure shouldBe true
+    }
+
+    "default tls to false" in {
+      val t = TemporalURI("temporal://localhost:7233")
+      t.tlsInsecure shouldBe false
+    }
+    
   }
 }
 

@@ -16,6 +16,7 @@ All time options in milliseconds. Defaults (aligned with PorStarter/PorWorker):
   keep_alive_timeout: 15000
   rpc_timeout: 10000
   auth: (none) - JWT token for Authorization: Bearer <token>
+  tls: ignore - Disable TLS certificate validation (DEV ONLY!)
 
 Examples:
   temporal://
@@ -24,6 +25,7 @@ Examples:
   temporal://?namespace=prod&rpc_timeout=30000
   temporal://localhost:7233?auth=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   temporal://?auth=${JWT_TOKEN}&namespace=prod
+  temporal://dev-server:7233?tls=ignore  # DEV ONLY: skip cert validation  
 */
 case class TemporalURI(uri: String) {
   val PREFIX = "temporal://"
@@ -56,6 +58,9 @@ case class TemporalURI(uri: String) {
 
   /** Optional JWT auth token, used as Authorization: Bearer <token> on gRPC metadata. */
   def auth: Option[String] = _ops.get("auth").filter(_.nonEmpty)
+
+  /** Whether to use insecure TLS trust manager (disable certificate validation). */
+  def tlsInsecure: Boolean = _ops.get("tls").map(v => v == "ignore").getOrElse(false)
 
   def parse(uri: String): (String, Int, String, Map[String, String]) = {
     val (url: String, ops: Map[String, String]) = uri.split("[\\?&]").toList match {
