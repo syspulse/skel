@@ -14,7 +14,7 @@ import io.syspulse.skel.wf.temporal.workflow.server._
 import io.syspulse.skel.wf.temporal.por.nul.PorActivitiesNull
 
 // Examples:
-//   temporal init tid:Int pid:Int sys:Keyword
+//   temporal init tid:Int pid:Int sys:Keyword proj:Keyword
 //   temporal query "ExecutionStatus = 'Running'"
 //   temporal query "WorkflowType = 'PorWorkflow' AND ExecutionStatus = 'Running'" 50
 //   temporal describe por-workflow-Binance-1234567890

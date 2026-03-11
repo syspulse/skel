@@ -415,8 +415,8 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
    * @param attributeType Search attribute type (e.g., "Int", "Long", "Keyword", "Text", "Bool", "Datetime", "Double", "KeywordList")
    * @return Success message or error
    */
-  def registerSearchAttribute(name: String, attributeType: String): Future[String] = Future {
-    log.info(s"Registering search attribute: $name ($attributeType) in namespace ${t.namespace}")
+  def registerSearchAttribute(name: String, attributeType: String): Future[Int] = Future {
+    log.debug(s"Registering search attribute: $name ($attributeType) in namespace ${t.namespace}")
 
     // Validate and map string type to IndexedValueType
     val indexedType = Temporal.validateSearchAttributeType(attributeType)
@@ -432,18 +432,18 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
 
     try {
       operatorService.blockingStub().addSearchAttributes(request)
-      log.info(s"Successfully registered search attribute: $name ($attributeType)")
-      s"Search attribute '$name' ($attributeType) registered successfully in namespace ${t.namespace}"
+      log.info(s"${t.namespace}: $name:($attributeType): registered")
+      1
     } catch {
       case e: io.grpc.StatusRuntimeException if e.getStatus.getCode == io.grpc.Status.Code.ALREADY_EXISTS =>
-        log.warn(s"Search attribute '$name' already exists in namespace ${t.namespace}")
-        s"Search attribute '$name' already exists (skipped)"
+        log.warn(s"${t.namespace}: $name:($attributeType): already exists: ${e.getMessage}")
+        throw e
       case e: io.grpc.StatusRuntimeException if e.getMessage.contains("cannot have more than") =>
-        log.warn(s"Search attribute limit reached for type $attributeType: ${e.getMessage}")
-        s"Search attribute '$name' limit reached (${e.getMessage})"
+        log.warn(s"${t.namespace}: $name:($attributeType): limit: ${e.getMessage}")
+        throw e
       case e: Exception =>
-        log.error(s"Failed to register search attribute '$name': ${e.getMessage}", e)
-        throw new RuntimeException(s"Failed to register search attribute '$name': ${e.getMessage}", e)
+        log.error(s"${t.namespace}: $name:($attributeType): failed: ${e.getMessage}",e)
+        throw e
     }
   }
 
@@ -453,7 +453,7 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
    * @param attributes Map of attribute name -> type
    * @return Success messages for each attribute
    */
-  def registerSearchAttributes(attributes: Map[String, String]): Future[Seq[String]] = {
+  def registerSearchAttributes(attributes: Map[String, String]): Future[Seq[Int]] = {
     Future.sequence(
       attributes.map { case (name, attrType) =>
         registerSearchAttribute(name, attrType)
@@ -554,7 +554,7 @@ object Temporal {
    * @param name Search attribute name
    * @param attributeType Search attribute type (Int, Long, Keyword, Text, Bool, Datetime, Double, KeywordList)
    */
-  def registerSearchAttribute(uri: String, name: String, attributeType: String)(implicit ec: ExecutionContext): Future[String] = {
+  def registerSearchAttribute(uri: String, name: String, attributeType: String)(implicit ec: ExecutionContext): Future[Int] = {
     val temporal = new Temporal(uri)
     temporal.registerSearchAttribute(name, attributeType).andThen { case _ =>
       temporal.shutdown()
@@ -567,7 +567,7 @@ object Temporal {
    * @param uri Temporal server URI
    * @param attributes Map of attribute name -> type
    */
-  def registerSearchAttributes(uri: String, attributes: Map[String, String])(implicit ec: ExecutionContext): Future[Seq[String]] = {
+  def registerSearchAttributes(uri: String, attributes: Map[String, String])(implicit ec: ExecutionContext): Future[Seq[Int]] = {
     val temporal = new Temporal(uri)
     temporal.registerSearchAttributes(attributes).andThen { case _ =>
       temporal.shutdown()
