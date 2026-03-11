@@ -37,6 +37,32 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
 
   private val t = TemporalURI(uri)
 
+  /** Configure JWT auth for a WorkflowServiceStubsOptions builder if TemporalURI has auth=. */
+  private def configureJwtAuth(builder: io.temporal.serviceclient.WorkflowServiceStubsOptions.Builder, label: String): Unit = {
+    t.auth.foreach { token =>
+      log.info(s"Configuring JWT authentication for $label")
+      val tokenSupplier = new io.temporal.authorization.AuthorizationTokenSupplier {
+        override def supply(): String = s"Bearer $token"
+      }
+      builder.addGrpcMetadataProvider(
+        new io.temporal.authorization.AuthorizationGrpcMetadataProvider(tokenSupplier)
+      )
+    }
+  }
+
+  /** Configure JWT auth for an OperatorServiceStubsOptions builder if TemporalURI has auth=. */
+  private def configureJwtAuth(builder: io.temporal.serviceclient.OperatorServiceStubsOptions.Builder, label: String): Unit = {
+    t.auth.foreach { token =>
+      log.info(s"Configuring JWT authentication for $label")
+      val tokenSupplier = new io.temporal.authorization.AuthorizationTokenSupplier {
+        override def supply(): String = s"Bearer $token"
+      }
+      builder.addGrpcMetadataProvider(
+        new io.temporal.authorization.AuthorizationGrpcMetadataProvider(tokenSupplier)
+      )
+    }
+  }
+
   private val serviceOptions = {
     val builder = io.temporal.serviceclient.WorkflowServiceStubsOptions.newBuilder()
       .setTarget(t.target)
@@ -45,14 +71,7 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
       .setKeepAliveTimeout(java.time.Duration.ofMillis(t.keepAliveTimeout))
       .setRpcTimeout(java.time.Duration.ofMillis(t.rpcTimeout))
 
-    // Add JWT authentication if auth token is present
-    t.auth.foreach { token =>
-      log.info(s"Configuring JWT authentication for WorkflowServiceStubs")
-      val tokenSupplier = new io.temporal.authorization.AuthorizationTokenSupplier {
-        override def supply(): String = s"Bearer $token"
-      }
-      builder.addGrpcMetadataProvider(new io.temporal.authorization.AuthorizationGrpcMetadataProvider(tokenSupplier))
-    }
+    configureJwtAuth(builder, "WorkflowServiceStubs")
 
     builder.build()
   }
@@ -69,14 +88,7 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
       .setMetricsScope(new com.uber.m3.tally.NoopScope())
       .setHeaders(new io.grpc.Metadata())
 
-    // Add JWT authentication if auth token is present
-    t.auth.foreach { token =>
-      log.info(s"Configuring JWT authentication for OperatorServiceStubs")
-      val tokenSupplier = new io.temporal.authorization.AuthorizationTokenSupplier {
-        override def supply(): String = s"Bearer $token"
-      }
-      builder.addGrpcMetadataProvider(new io.temporal.authorization.AuthorizationGrpcMetadataProvider(tokenSupplier))
-    }
+    configureJwtAuth(builder, "OperatorServiceStubs")
 
     builder.build()
   }
