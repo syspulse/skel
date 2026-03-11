@@ -103,7 +103,8 @@ object DemoUtil {
     polSignalMode: String = "simulate"
   ): PorWorkflowRun = {
     PorWorkflowRun(
-      proj = proj,
+      proj = Some(proj),
+      sys = Some("PoR-Audit"),
       ts0 = System.currentTimeMillis(),
       ts1 = System.currentTimeMillis(),
       tags = tags,

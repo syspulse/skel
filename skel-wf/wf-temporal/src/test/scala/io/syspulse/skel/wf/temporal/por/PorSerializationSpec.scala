@@ -60,7 +60,7 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
 
     "serialize and deserialize PolInput" in {
       val polInput = PolInput(
-        fileLink = "s3://bucket/liabilities.json",
+        fileLink = Some("s3://bucket/liabilities.json"),
         waitForConfirmation = true,
         config = Map("signalMode" -> "file")
       )
@@ -77,7 +77,7 @@ class PorSerializationSpec extends AnyWordSpec with Matchers {
       val workflowInput = PorWorkflowInput(
         poo = Some(StepDef(input = Some(PooInput(List.empty, "signature")))),
         por = Some(StepDef(input = Some(PorInput(List.empty, List("BTC", "ETH"))))),
-        pol = Some(StepDef(input = Some(PolInput("/tmp/test.json", waitForConfirmation = true, config = Map("signalMode" -> "rest"))))),
+        pol = Some(StepDef(input = Some(PolInput(Some("/tmp/test.json"), waitForConfirmation = true, config = Map("signalMode" -> "api"))))),
         solvency = Some(StepDef()),
         report = Some(StepDef()),
         commit = Some(StepDef())

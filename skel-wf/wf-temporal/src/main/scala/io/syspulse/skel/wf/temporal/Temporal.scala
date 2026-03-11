@@ -6,8 +6,9 @@ import scala.concurrent.{Future, ExecutionContext}
 
 import io.temporal.client.{WorkflowClient, WorkflowStub}
 import io.temporal.serviceclient.WorkflowServiceStubs
-import io.temporal.api.workflowservice.v1.ListWorkflowExecutionsRequest
-import io.temporal.api.enums.v1.WorkflowExecutionStatus
+import io.temporal.api.workflowservice.v1.{ListWorkflowExecutionsRequest, RegisterNamespaceRequest}
+import io.temporal.api.enums.v1.{WorkflowExecutionStatus, IndexedValueType}
+import io.temporal.api.operatorservice.v1.AddSearchAttributesRequest
 import com.typesafe.scalalogging.Logger
 
 case class WorkflowExecutionInfo(
@@ -45,6 +46,18 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
     .build()
 
   private val service = WorkflowServiceStubs.newServiceStubs(serviceOptions)
+
+  private val operatorServiceOptions = io.temporal.serviceclient.OperatorServiceStubsOptions.newBuilder()
+    .setTarget(t.target)
+    .setEnableKeepAlive(t.enableKeepAlive)
+    .setKeepAliveTime(java.time.Duration.ofMillis(t.keepAliveTime))
+    .setKeepAliveTimeout(java.time.Duration.ofMillis(t.keepAliveTimeout))
+    .setRpcTimeout(java.time.Duration.ofMillis(t.rpcTimeout))
+    .setMetricsScope(new com.uber.m3.tally.NoopScope())  // Use noop scope for metrics
+    .setHeaders(new io.grpc.Metadata())  // Initialize empty metadata
+    .build()
+
+  private val operatorService = io.temporal.serviceclient.OperatorServiceStubs.newServiceStubs(operatorServiceOptions)
 
   private val clientOptions = io.temporal.client.WorkflowClientOptions.newBuilder()
     .setNamespace(t.namespace)
@@ -264,10 +277,132 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
   }
 
   /**
+   * Query workflows by tenant ID
+   *
+   * @param tid Tenant ID
+   * @param pageSize Number of results per page
+   * @return QueryResult with workflow execution information
+   */
+  def queryByTenant(tid: Int, pageSize: Int = 100): Future[QueryResult] = {
+    query(s"tid = $tid", pageSize)
+  }
+
+  /**
+   * Query workflows by project ID
+   *
+   * @param pid Project ID
+   * @param pageSize Number of results per page
+   * @return QueryResult with workflow execution information
+   */
+  def queryByProject(pid: Int, pageSize: Int = 100): Future[QueryResult] = {
+    query(s"pid = $pid", pageSize)
+  }
+
+  /**
+   * Query workflows by system name
+   *
+   * @param sys System/project name
+   * @param pageSize Number of results per page
+   * @return QueryResult with workflow execution information
+   */
+  def queryBySystem(sys: String, pageSize: Int = 100): Future[QueryResult] = {
+    query(s"sys = '$sys'", pageSize)
+  }
+
+  /**
+   * Query workflows by tenant and project
+   *
+   * @param tid Tenant ID
+   * @param pid Project ID
+   * @param pageSize Number of results per page
+   * @return QueryResult with workflow execution information
+   */
+  def queryByTenantAndProject(tid: Int, pid: Int, pageSize: Int = 100): Future[QueryResult] = {
+    query(s"tid = $tid AND pid = $pid", pageSize)
+  }
+
+  /**
+   * Query running workflows by tenant
+   *
+   * @param tid Tenant ID
+   * @param pageSize Number of results per page
+   * @return QueryResult with workflow execution information
+   */
+  def queryRunningByTenant(tid: Int, pageSize: Int = 100): Future[QueryResult] = {
+    query(s"tid = $tid AND ExecutionStatus = 'Running'", pageSize)
+  }
+
+  /**
+   * Query failed workflows by tenant and project
+   *
+   * @param tid Tenant ID
+   * @param pid Project ID
+   * @param pageSize Number of results per page
+   * @return QueryResult with workflow execution information
+   */
+  def queryFailedByTenantAndProject(tid: Int, pid: Int, pageSize: Int = 100): Future[QueryResult] = {
+    query(s"tid = $tid AND pid = $pid AND ExecutionStatus = 'Failed'", pageSize)
+  }
+
+  /**
+   * Register a search attribute in Temporal namespace
+   *
+   * @param name Search attribute name (e.g., "tid", "pid", "sys")
+   * @param attributeType Search attribute type (e.g., "Int", "Long", "Keyword", "Text", "Bool", "Datetime", "Double", "KeywordList")
+   * @return Success message or error
+   */
+  def registerSearchAttribute(name: String, attributeType: String): Future[String] = Future {
+    log.info(s"Registering search attribute: $name ($attributeType) in namespace ${t.namespace}")
+
+    // Validate and map string type to IndexedValueType
+    val indexedType = Temporal.validateSearchAttributeType(attributeType)
+
+    // Create search attributes map
+    val searchAttributes = Map(name -> indexedType).asJava
+
+    // Build request
+    val request = AddSearchAttributesRequest.newBuilder()
+      .setNamespace(t.namespace)
+      .putAllSearchAttributes(searchAttributes)
+      .build()
+
+    try {
+      operatorService.blockingStub().addSearchAttributes(request)
+      log.info(s"Successfully registered search attribute: $name ($attributeType)")
+      s"Search attribute '$name' ($attributeType) registered successfully in namespace ${t.namespace}"
+    } catch {
+      case e: io.grpc.StatusRuntimeException if e.getStatus.getCode == io.grpc.Status.Code.ALREADY_EXISTS =>
+        log.warn(s"Search attribute '$name' already exists in namespace ${t.namespace}")
+        s"Search attribute '$name' already exists (skipped)"
+      case e: io.grpc.StatusRuntimeException if e.getMessage.contains("cannot have more than") =>
+        log.warn(s"Search attribute limit reached for type $attributeType: ${e.getMessage}")
+        s"Search attribute '$name' limit reached (${e.getMessage})"
+      case e: Exception =>
+        log.error(s"Failed to register search attribute '$name': ${e.getMessage}", e)
+        throw new RuntimeException(s"Failed to register search attribute '$name': ${e.getMessage}", e)
+    }
+  }
+
+  /**
+   * Register multiple search attributes
+   *
+   * @param attributes Map of attribute name -> type
+   * @return Success messages for each attribute
+   */
+  def registerSearchAttributes(attributes: Map[String, String]): Future[Seq[String]] = {
+    Future.sequence(
+      attributes.map { case (name, attrType) =>
+        registerSearchAttribute(name, attrType)
+      }.toSeq
+    )
+  }
+
+  /**
    * Shutdown the Temporal connection
    */
   def shutdown(): Unit = {
     log.debug(s"Shutdown: ${t.target}")
+    operatorService.shutdown()
     service.shutdown()
   }
 }
@@ -277,6 +412,31 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
  */
 object Temporal {
   private val log = Logger(getClass.getName)
+
+  /**
+   * Validate search attribute type (for testing and validation)
+   *
+   * @param attributeType Search attribute type string
+   * @return IndexedValueType if valid
+   * @throws IllegalArgumentException if invalid
+   */
+  def validateSearchAttributeType(attributeType: String): IndexedValueType = {
+    import io.temporal.api.enums.v1.IndexedValueType
+
+    attributeType.toLowerCase match {
+      case "int" | "long" => IndexedValueType.INDEXED_VALUE_TYPE_INT
+      case "keyword" => IndexedValueType.INDEXED_VALUE_TYPE_KEYWORD
+      case "text" => IndexedValueType.INDEXED_VALUE_TYPE_TEXT
+      case "bool" | "boolean" => IndexedValueType.INDEXED_VALUE_TYPE_BOOL
+      case "datetime" | "timestamp" => IndexedValueType.INDEXED_VALUE_TYPE_DATETIME
+      case "double" => IndexedValueType.INDEXED_VALUE_TYPE_DOUBLE
+      case "keywordlist" => IndexedValueType.INDEXED_VALUE_TYPE_KEYWORD_LIST
+      case _ =>
+        throw new IllegalArgumentException(
+          s"Unknown attribute type: $attributeType. Valid types: Int, Long, Keyword, Text, Bool, Datetime, Double, KeywordList"
+        )
+    }
+  }
 
   /**
    * Query workflows from Temporal server (static method)
@@ -289,6 +449,63 @@ object Temporal {
   def query(uri: String, query: String = "", pageSize: Int = 10)(implicit ec: ExecutionContext): Future[QueryResult] = {
     val temporal = new Temporal(uri)
     temporal.query(query, pageSize).andThen { case _ =>
+      temporal.shutdown()
+    }
+  }
+
+  /**
+   * Query workflows by tenant ID (static method)
+   */
+  def queryByTenant(uri: String, tid: Int, pageSize: Int = 100)(implicit ec: ExecutionContext): Future[QueryResult] = {
+    val temporal = new Temporal(uri)
+    temporal.queryByTenant(tid, pageSize).andThen { case _ =>
+      temporal.shutdown()
+    }
+  }
+
+  /**
+   * Query workflows by project ID (static method)
+   */
+  def queryByProject(uri: String, pid: Int, pageSize: Int = 100)(implicit ec: ExecutionContext): Future[QueryResult] = {
+    val temporal = new Temporal(uri)
+    temporal.queryByProject(pid, pageSize).andThen { case _ =>
+      temporal.shutdown()
+    }
+  }
+
+  /**
+   * Query workflows by system name (static method)
+   */
+  def queryBySystem(uri: String, sys: String, pageSize: Int = 100)(implicit ec: ExecutionContext): Future[QueryResult] = {
+    val temporal = new Temporal(uri)
+    temporal.queryBySystem(sys, pageSize).andThen { case _ =>
+      temporal.shutdown()
+    }
+  }
+
+  /**
+   * Register a search attribute (static method)
+   *
+   * @param uri Temporal server URI
+   * @param name Search attribute name
+   * @param attributeType Search attribute type (Int, Long, Keyword, Text, Bool, Datetime, Double, KeywordList)
+   */
+  def registerSearchAttribute(uri: String, name: String, attributeType: String)(implicit ec: ExecutionContext): Future[String] = {
+    val temporal = new Temporal(uri)
+    temporal.registerSearchAttribute(name, attributeType).andThen { case _ =>
+      temporal.shutdown()
+    }
+  }
+
+  /**
+   * Register multiple search attributes (static method)
+   *
+   * @param uri Temporal server URI
+   * @param attributes Map of attribute name -> type
+   */
+  def registerSearchAttributes(uri: String, attributes: Map[String, String])(implicit ec: ExecutionContext): Future[Seq[String]] = {
+    val temporal = new Temporal(uri)
+    temporal.registerSearchAttributes(attributes).andThen { case _ =>
       temporal.shutdown()
     }
   }

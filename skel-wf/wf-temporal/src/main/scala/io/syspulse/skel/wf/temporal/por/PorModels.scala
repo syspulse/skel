@@ -121,7 +121,8 @@ case class PorWorkflowRun(
 
   tid: Option[Int] = None,     // Tenant ID
   pid: Option[Int] = None,     // Project ID  
-  proj: String,                // Project 
+  proj: Option[String] = None,    // Project (Exchange-1)
+  sys: Option[String] = None,     // System (PoR-Audit)
 
   ts0: Long = System.currentTimeMillis(),
   ts1: Long = 0L,

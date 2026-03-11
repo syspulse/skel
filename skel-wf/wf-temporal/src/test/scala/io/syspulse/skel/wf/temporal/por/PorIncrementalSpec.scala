@@ -19,7 +19,7 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
       val input = PorWorkflowInput(
         poo = Some(StepDef(input = Some(PooInput(List.empty, "signature")))),
         por = Some(StepDef(input = Some(PorInput(List.empty, List("BTC", "ETH"))))),
-        pol = Some(StepDef(input = Some(PolInput("/tmp/test.json", true, Map[String, Any]("signalMode" -> "simulate"))))),
+        pol = Some(StepDef(input = Some(PolInput(Some("/tmp/test.json"), true, Map[String, Any]("signalMode" -> "simulate"))))),
         solvency = Some(StepDef()),
         report = Some(StepDef()),
         commit = Some(StepDef())
@@ -46,13 +46,13 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
 
       // Create run with previous outputs and new PoL input
       val run = PorWorkflowRun(
-        proj = "Exchange1",
+        proj = Some("Exchange1"),
         ts0 = System.currentTimeMillis(),
         ts1 = System.currentTimeMillis(),
         input = PorWorkflowInput(
           poo = Some(StepDef()),  // No new PoO input
           por = Some(StepDef()),  // No new PoR input
-          pol = Some(StepDef(input = Some(PolInput("/tmp/updated-liabilities.json", true, Map[String, Any]("signalMode" -> "simulate"))))), // New PoL
+          pol = Some(StepDef(input = Some(PolInput(Some("/tmp/updated-liabilities.json"), true, Map[String, Any]("signalMode" -> "simulate"))))), // New PoL
           solvency = Some(StepDef()),
           report = Some(StepDef()),
           commit = Some(StepDef())
@@ -101,7 +101,7 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
 
       // Create run with only previous outputs (no inputs)
       val run = PorWorkflowRun(
-        proj = "Exchange1",
+        proj = Some("Exchange1"),
         ts0 = System.currentTimeMillis(),
         input = PorWorkflowInput(
           poo = Some(StepDef()),  // No input
@@ -141,12 +141,12 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
       )
 
       val run = PorWorkflowRun(
-        proj = "Exchange1",
+        proj = Some("Exchange1"),
         ts0 = System.currentTimeMillis(),
         input = PorWorkflowInput(
           poo = Some(StepDef(input = Some(PooInput(List.empty, "signature")))),
           por = Some(StepDef()),  // No input, will use previous output
-          pol = Some(StepDef(input = Some(PolInput("/tmp/test.json", true, Map[String, Any]("signalMode" -> "simulate"))))),
+          pol = Some(StepDef(input = Some(PolInput(Some("/tmp/test.json"), true, Map[String, Any]("signalMode" -> "simulate"))))),
           solvency = Some(StepDef()),
           report = Some(StepDef()),
           commit = Some(StepDef())
@@ -218,12 +218,12 @@ class PorIncrementalSpec extends AnyWordSpec with Matchers {
 
       // Create second run reusing first run outputs
       val secondRun = PorWorkflowRun(
-        proj = "Exchange1",
+        proj = Some("Exchange1"),
         ts0 = System.currentTimeMillis(),
         input = PorWorkflowInput(
           poo = Some(StepDef()),  // No new PoO input, will use previous output
           por = Some(StepDef()),  // No new PoR input, will use previous output
-          pol = Some(StepDef(input = Some(PolInput("/tmp/updated-liabilities.json", true, Map[String, Any]("signalMode" -> "simulate"))))), // New PoL
+          pol = Some(StepDef(input = Some(PolInput(Some("/tmp/updated-liabilities.json"), true, Map[String, Any]("signalMode" -> "simulate"))))), // New PoL
           solvency = Some(StepDef()),
           report = Some(StepDef()),
           commit = Some(StepDef())

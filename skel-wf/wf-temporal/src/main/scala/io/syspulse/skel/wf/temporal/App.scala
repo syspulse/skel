@@ -14,6 +14,7 @@ import io.syspulse.skel.wf.temporal.workflow.server._
 import io.syspulse.skel.wf.temporal.por.nul.PorActivitiesNull
 
 // Examples:
+//   temporal init tid:Int pid:Int sys:Keyword
 //   temporal query "ExecutionStatus = 'Running'"
 //   temporal query "WorkflowType = 'PorWorkflow' AND ExecutionStatus = 'Running'" 50
 //   temporal describe por-workflow-Binance-1234567890
@@ -269,6 +270,21 @@ object App extends skel.Server {
             import spray.json._
             val data = dataJson.parseJson.asJsObject
             Temporal.signal(config.engine, workflowId, Some(runId), signalName, data)
+
+          case "init" :: attributeSpecs if attributeSpecs.nonEmpty =>
+            // Parse attribute specs as name:type pairs
+            // Example: temporal init tid:Int pid:Int sys:Keyword
+            val attributes = attributeSpecs.map { spec =>
+              spec.split(":") match {
+                case Array(name, attrType) => name -> attrType
+                case _ =>
+                  Console.err.println(s"Invalid attribute spec: $spec (expected format: name:type)")
+                  Console.err.println(s"Valid types: Int, Long, Keyword, Text, Bool, Datetime, Double, KeywordList")
+                  sys.exit(1)
+              }
+            }.toMap
+            
+            Temporal.registerSearchAttributes(config.engine, attributes)
 
           case _ =>
             Console.err.println(s"Unknown temporal command: ${config.params.toList}")

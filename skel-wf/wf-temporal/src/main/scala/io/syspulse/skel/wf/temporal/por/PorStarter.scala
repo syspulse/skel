@@ -15,6 +15,11 @@ case class PorStartResult(workflowId: String, runId: String)
 object PorStarter {
   private val log = Logger(getClass.getName)
 
+  val SYS_KEY = "sys"
+  val PROJ_KEY = "proj"
+  val TID_KEY = "tid"
+  val PID_KEY = "pid"
+
   def run(uri: String, run: PorWorkflowRun)(implicit ec: ExecutionContext): Future[PorStartResult] = Future {
 
       val t = TemporalURI(uri)
@@ -37,11 +42,11 @@ object PorStarter {
 
       val client = WorkflowClient.newInstance(service, clientOptions)
 
-      val wid = s"por-workflow-${run.proj}-${run.ts0}"
+      val wid0 = s"por-workflow-${run.proj}-${run.ts0}"
 
       // Build workflow options
       val optionsBuilder = WorkflowOptions.newBuilder()
-        .setWorkflowId(wid)
+        .setWorkflowId(wid0)
         .setTaskQueue(PorWorker.TASK_QUEUE)
 
       // Add memo if tags or custom memo are present
@@ -51,7 +56,7 @@ object PorStarter {
         // Add tags to memo
         if (run.tags.nonEmpty) {
           memoMap += ("tags" -> run.tags.asJava.asInstanceOf[Object])
-          log.info(s"$wid: Adding tags to memo: ${run.tags.mkString("[", ", ", "]")}")
+          log.info(s"$wid0: Adding tags to memo: ${run.tags.mkString("[", ", ", "]")}")
         }
 
         // Add custom memo entries
@@ -59,37 +64,74 @@ object PorStarter {
           run.memo.foreach { case (key, value) =>
             memoMap += (key -> value.asInstanceOf[Object])
           }
-          log.info(s"$wid: Adding custom memo: ${run.memo.map { case (k, v) => s"$k=$v" }.mkString(", ")}")
+          log.info(s"$wid0: Adding custom memo: ${run.memo.map { case (k, v) => s"$k=$v" }.mkString(", ")}")
         }
 
         optionsBuilder.setMemo(memoMap.asJava)
       }
 
-      // Add search attributes if tags are present
-      // Note: CustomKeywordField search attribute must be registered in Temporal
+      // Build search attributes (indexed fields for efficient querying)
+      val searchAttrsBuilder = SearchAttributes.newBuilder()
+      var hasSearchAttrs = false
+
+      // Add tid (Tenant ID) if present
+      run.tid.foreach { tid =>
+        val tidKey = SearchAttributeKey.forLong(TID_KEY).asInstanceOf[SearchAttributeKey[Any]]
+        searchAttrsBuilder.set(tidKey, tid.toLong.asInstanceOf[Any])
+        hasSearchAttrs = true
+        log.info(s"$wid0: tid=$tid")
+      }
+
+      // Add pid (Project ID) if present
+      run.pid.foreach { pid =>
+        val pidKey = SearchAttributeKey.forLong(PID_KEY).asInstanceOf[SearchAttributeKey[Any]]
+        searchAttrsBuilder.set(pidKey, pid.toLong.asInstanceOf[Any])
+        hasSearchAttrs = true
+        log.info(s"$wid0: pid=$pid")
+      }
+
+      // Add proj (Project/System name)
+      if (run.sys.nonEmpty) {
+        val sysKey = SearchAttributeKey.forKeyword(SYS_KEY)
+        searchAttrsBuilder.set(sysKey, run.sys.get)
+        hasSearchAttrs = true
+        log.info(s"$wid0: sys=${run.sys}")
+      }
+
+      if (run.proj.nonEmpty) {
+        val projKey = SearchAttributeKey.forKeyword(PROJ_KEY)
+        searchAttrsBuilder.set(projKey, run.proj.get)
+        hasSearchAttrs = true
+        log.info(s"$wid0: proj=${run.proj}")
+      }
+
+      // Add tags if present (using CustomKeywordField)
       if (run.tags.nonEmpty) {
-        val searchAttrKey = SearchAttributeKey.forKeywordList("CustomKeywordField")
-        val searchAttributes = SearchAttributes.newBuilder()
-          .set(searchAttrKey, run.tags.asJava)
-          .build()
-        optionsBuilder.setTypedSearchAttributes(searchAttributes)
-        log.info(s"$wid: Adding tags to search attributes: ${run.tags.mkString("[", ", ", "]")}")
+        val tagsKey = SearchAttributeKey.forKeywordList("CustomKeywordField")
+        searchAttrsBuilder.set(tagsKey, run.tags.asJava)
+        hasSearchAttrs = true
+        log.info(s"$wid0: Stags=${run.tags.mkString("[", ", ", "]")}")
+      }
+
+      // Set search attributes if any were added
+      if (hasSearchAttrs) {
+        optionsBuilder.setTypedSearchAttributes(searchAttrsBuilder.build())
       }
 
       val options = optionsBuilder.build()
 
       val workflow = client.newWorkflowStub(classOf[PorWorkflow], options)
 
-      log.info(s"Starting PoR Workflow: $wid: project=${run.proj}: input=${run.input}")
+      log.info(s"Starting Workflow: $wid0: sys=${run.sys}, proj=${run.proj}, tags=${run.tags}, input=${run.input}")
 
       // Start workflow asynchronously
       val execution = WorkflowClient.start(workflow.execute _, run)
       val runId = execution.getRunId
 
-      log.info(s"Workflow: [$wid / $runId]")
+      log.info(s"Workflow: [$wid0 / $runId]")
 
       service.shutdown()
 
-      PorStartResult(wid, runId)
+      PorStartResult(wid0, runId)
   }
 }
