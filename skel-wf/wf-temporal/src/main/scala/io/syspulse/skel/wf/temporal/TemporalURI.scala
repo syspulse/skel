@@ -15,12 +15,15 @@ All time options in milliseconds. Defaults (aligned with PorStarter/PorWorker):
   keep_alive_time: 30000
   keep_alive_timeout: 15000
   rpc_timeout: 10000
+  auth: (none) - JWT token for Authorization: Bearer <token>
 
 Examples:
   temporal://
   temporal://127.0.0.1:7233/default
   temporal://my-host:7233/my-namespace
   temporal://?namespace=prod&rpc_timeout=30000
+  temporal://localhost:7233?auth=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  temporal://?auth=${JWT_TOKEN}&namespace=prod
 */
 case class TemporalURI(uri: String) {
   val PREFIX = "temporal://"
@@ -50,6 +53,9 @@ case class TemporalURI(uri: String) {
   def keepAliveTimeout: Long = _ops.get("keep_alive_timeout").map(_.toLong).getOrElse(DEF_KEEP_ALIVE_TIMEOUT)
   /** RPC timeout in milliseconds. */
   def rpcTimeout: Long = _ops.get("rpc_timeout").map(_.toLong).getOrElse(DEF_RPC_TIMEOUT)
+
+  /** Optional JWT auth token, used as Authorization: Bearer <token> on gRPC metadata. */
+  def auth: Option[String] = _ops.get("auth").filter(_.nonEmpty)
 
   def parse(uri: String): (String, Int, String, Map[String, String]) = {
     val (url: String, ops: Map[String, String]) = uri.split("[\\?&]").toList match {

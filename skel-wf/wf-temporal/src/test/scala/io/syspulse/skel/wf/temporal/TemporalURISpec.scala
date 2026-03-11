@@ -66,6 +66,30 @@ class TemporalURISpec extends AnyWordSpec with Matchers {
       val t = TemporalURI("temporal://127.0.0.1:7233/default?enable_keep_alive")
       t.enableKeepAlive shouldBe true
     }
+
+    "parse JWT auth token from query parameter" in {
+      val token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0In0.sig"
+      val t = TemporalURI(s"temporal://localhost:7233?auth=$token")
+      t.auth shouldBe Some(token)
+    }
+
+    "return None for auth when not specified" in {
+      val t = TemporalURI("temporal://localhost:7233")
+      t.auth shouldBe None
+    }
+
+    "return None for auth when empty" in {
+      val t = TemporalURI("temporal://localhost:7233?auth=")
+      t.auth shouldBe None
+    }
+
+    "parse auth token with other parameters" in {
+      val token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0In0.sig"
+      val t = TemporalURI(s"temporal://my-host:7233/prod?auth=$token&rpc_timeout=30000")
+      t.auth shouldBe Some(token)
+      t.namespace shouldBe "prod"
+      t.rpcTimeout shouldBe 30000L
+    }
   }
 }
 

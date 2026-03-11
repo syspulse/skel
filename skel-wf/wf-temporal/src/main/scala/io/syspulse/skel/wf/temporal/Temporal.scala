@@ -37,25 +37,49 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
 
   private val t = TemporalURI(uri)
 
-  private val serviceOptions = io.temporal.serviceclient.WorkflowServiceStubsOptions.newBuilder()
-    .setTarget(t.target)
-    .setEnableKeepAlive(t.enableKeepAlive)
-    .setKeepAliveTime(java.time.Duration.ofMillis(t.keepAliveTime))
-    .setKeepAliveTimeout(java.time.Duration.ofMillis(t.keepAliveTimeout))
-    .setRpcTimeout(java.time.Duration.ofMillis(t.rpcTimeout))
-    .build()
+  private val serviceOptions = {
+    val builder = io.temporal.serviceclient.WorkflowServiceStubsOptions.newBuilder()
+      .setTarget(t.target)
+      .setEnableKeepAlive(t.enableKeepAlive)
+      .setKeepAliveTime(java.time.Duration.ofMillis(t.keepAliveTime))
+      .setKeepAliveTimeout(java.time.Duration.ofMillis(t.keepAliveTimeout))
+      .setRpcTimeout(java.time.Duration.ofMillis(t.rpcTimeout))
+
+    // Add JWT authentication if auth token is present
+    t.auth.foreach { token =>
+      log.info(s"Configuring JWT authentication for WorkflowServiceStubs")
+      val tokenSupplier = new io.temporal.authorization.AuthorizationTokenSupplier {
+        override def supply(): String = s"Bearer $token"
+      }
+      builder.addGrpcMetadataProvider(new io.temporal.authorization.AuthorizationGrpcMetadataProvider(tokenSupplier))
+    }
+
+    builder.build()
+  }
 
   private val service = WorkflowServiceStubs.newServiceStubs(serviceOptions)
 
-  private val operatorServiceOptions = io.temporal.serviceclient.OperatorServiceStubsOptions.newBuilder()
-    .setTarget(t.target)
-    .setEnableKeepAlive(t.enableKeepAlive)
-    .setKeepAliveTime(java.time.Duration.ofMillis(t.keepAliveTime))
-    .setKeepAliveTimeout(java.time.Duration.ofMillis(t.keepAliveTimeout))
-    .setRpcTimeout(java.time.Duration.ofMillis(t.rpcTimeout))
-    .setMetricsScope(new com.uber.m3.tally.NoopScope())  // Use noop scope for metrics
-    .setHeaders(new io.grpc.Metadata())  // Initialize empty metadata
-    .build()
+  private val operatorServiceOptions = {
+    val builder = io.temporal.serviceclient.OperatorServiceStubsOptions.newBuilder()
+      .setTarget(t.target)
+      .setEnableKeepAlive(t.enableKeepAlive)
+      .setKeepAliveTime(java.time.Duration.ofMillis(t.keepAliveTime))
+      .setKeepAliveTimeout(java.time.Duration.ofMillis(t.keepAliveTimeout))
+      .setRpcTimeout(java.time.Duration.ofMillis(t.rpcTimeout))
+      .setMetricsScope(new com.uber.m3.tally.NoopScope())
+      .setHeaders(new io.grpc.Metadata())
+
+    // Add JWT authentication if auth token is present
+    t.auth.foreach { token =>
+      log.info(s"Configuring JWT authentication for OperatorServiceStubs")
+      val tokenSupplier = new io.temporal.authorization.AuthorizationTokenSupplier {
+        override def supply(): String = s"Bearer $token"
+      }
+      builder.addGrpcMetadataProvider(new io.temporal.authorization.AuthorizationGrpcMetadataProvider(tokenSupplier))
+    }
+
+    builder.build()
+  }
 
   private val operatorService = io.temporal.serviceclient.OperatorServiceStubs.newServiceStubs(operatorServiceOptions)
 
