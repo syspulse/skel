@@ -62,15 +62,26 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
   }
 
   /** Create insecure SSL context if tls_insecure=true. WARNING: Development only! */
-  private def createInsecureSslContext(): Option[io.grpc.netty.shaded.io.netty.handler.ssl.SslContext] = {
-    if (t.tlsInsecure) {
-      val sslContext = io.temporal.serviceclient.SimpleSslContextBuilder
-        .newBuilder(null, null)
-        .setUseInsecureTrustManager(true)
-        .build()
-      Some(sslContext)
-    } else {
-      None
+  private def createSslContext(): Option[io.grpc.netty.shaded.io.netty.handler.ssl.SslContext] = {
+    t.tls match {
+      case Some("ignore") =>
+        log.warn("⚠️  TLS certificate validation DISABLED (tls=ignore)")
+        val sslContext = io.temporal.serviceclient.SimpleSslContextBuilder
+          .newBuilder(null, null)
+          .setUseInsecureTrustManager(true)
+          .build()
+        Some(sslContext)
+
+      case Some("cert") =>
+        log.info("Using secure TLS with certificate validation (tls=cert)")
+        val sslContext = io.temporal.serviceclient.SimpleSslContextBuilder
+          .newBuilder(null, null)
+          .build()
+        Some(sslContext)
+
+      case _ =>
+        // No TLS - plaintext gRPC
+        None
     }
   }
 
@@ -82,8 +93,8 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
       .setKeepAliveTimeout(java.time.Duration.ofMillis(t.keepAliveTimeout))
       .setRpcTimeout(java.time.Duration.ofMillis(t.rpcTimeout))
 
-    // Configure insecure TLS if requested (DEV ONLY)
-    createInsecureSslContext().foreach(builder.setSslContext)
+    // Configure TLS if requested
+    createSslContext().foreach(builder.setSslContext)
 
     configureJwtAuth(builder, "WorkflowServiceStubs")
 
@@ -102,8 +113,8 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
       .setMetricsScope(new com.uber.m3.tally.NoopScope())
       .setHeaders(new io.grpc.Metadata())
 
-    // Configure insecure TLS if requested (DEV ONLY)
-    createInsecureSslContext().foreach(builder.setSslContext)
+    // Configure TLS if requested
+    createSslContext().foreach(builder.setSslContext)
 
     configureJwtAuth(builder, "OperatorServiceStubs")
 

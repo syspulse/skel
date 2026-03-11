@@ -94,13 +94,31 @@ class TemporalURISpec extends AnyWordSpec with Matchers {
     "parse tls=ignore parameter" in {
       val t = TemporalURI("temporal://localhost:7233?tls=ignore")
       t.tlsInsecure shouldBe true
+      t.tlsSecure shouldBe false
+      t.tls shouldBe Some("ignore")
     }
 
-    "default tls to false" in {
+    "parse tls=cert parameter" in {
+      val t = TemporalURI("temporal://localhost:7233?tls=cert")
+      t.tlsSecure shouldBe true
+      t.tlsInsecure shouldBe false
+      t.tls shouldBe Some("cert")
+    }
+
+    "default tls to None (plaintext)" in {
       val t = TemporalURI("temporal://localhost:7233")
       t.tlsInsecure shouldBe false
+      t.tlsSecure shouldBe false
+      t.tls shouldBe None
     }
-    
+
+    "parse tls=cert with auth token" in {
+      val token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test"
+      val t = TemporalURI(s"temporal://secure.temporal.io:7233?tls=cert&auth=$token")
+      t.tlsSecure shouldBe true
+      t.auth shouldBe Some(token)
+    }
+
   }
 }
 
