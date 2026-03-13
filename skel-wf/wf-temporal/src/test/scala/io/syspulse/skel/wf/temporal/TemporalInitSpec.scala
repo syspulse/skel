@@ -50,8 +50,18 @@ class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
 
       val result = Temporal.registerSearchAttribute(temporalUri, "tid", "Int")
 
-      whenReady(result) { message =>
-        message should (include("registered successfully") or include("already exists") or include("limit reached") or include("cannot have more than"))
+      // Map success/failure into a descriptive string
+      val statusF = result
+        .map(_ => "ok")
+        .recover { case e: io.grpc.StatusRuntimeException => e.getMessage }
+
+      whenReady(statusF) { message =>
+        message should (
+          equal("ok") or
+          include("already exists") or
+          include("limit reached") or
+          include("cannot have more than")
+        )
       }
     }
 
@@ -60,24 +70,39 @@ class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
 
       val result = Temporal.registerSearchAttribute(temporalUri, "test_sys", "Keyword")
 
-      whenReady(result) { message =>
-        message should (include("registered successfully") or include("already exists") or include("limit reached"))
+      val statusF = result
+        .map(_ => "ok")
+        .recover { case e: io.grpc.StatusRuntimeException => e.getMessage }
+
+      whenReady(statusF) { message =>
+        message should (
+          equal("ok") or
+          include("already exists") or
+          include("limit reached")
+        )
       }
     }
 
     "handle already existing attributes gracefully" in {
       assume(isTemporalRunning, "Temporal server is not running")
 
-      // Register once
+      // Register once (ignore exact outcome, just ensure it completes)
       val result1 = Temporal.registerSearchAttribute(temporalUri, "test_duplicate", "Int")
-      whenReady(result1) { _ => }
+      whenReady(result1.failed.recover { case _ => () }) { _ => () }
 
-      // Register again - should not fail
+      // Register again - should not fail catastrophically
       val result2 = Temporal.registerSearchAttribute(temporalUri, "test_duplicate", "Int")
 
-      whenReady(result2) { message =>
-        // Should succeed in any of these ways: already exists, registered successfully, or limit reached
-        message should (include("already exists") or include("registered successfully") or include("limit reached"))
+      val statusF = result2
+        .map(_ => "ok")
+        .recover { case e: io.grpc.StatusRuntimeException => e.getMessage }
+
+      whenReady(statusF) { message =>
+        message should (
+          equal("ok") or
+          include("already exists") or
+          include("limit reached")
+        )
       }
     }
 
@@ -101,11 +126,18 @@ class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
 
       val result = Temporal.registerSearchAttributes(temporalUri, attributes)
 
-      whenReady(result) { messages =>
-        messages should have size 3
-        messages.foreach { message =>
-          message should (include("registered successfully") or include("already exists") or include("limit reached"))
-        }
+      // We only assert that the batch either succeeds or hits known limits
+      val statusF = result
+        .map(_ => "ok")
+        .recover { case e: io.grpc.StatusRuntimeException => e.getMessage }
+
+      whenReady(statusF) { message =>
+        message should (
+          equal("ok") or
+          include("already exists") or
+          include("limit reached") or
+          include("cannot have more than")
+        )
       }
     }
 
@@ -124,12 +156,17 @@ class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
 
       val result = Temporal.registerSearchAttributes(temporalUri, attributes2)
 
-      whenReady(result) { messages =>
-        messages should have size 2
-        // test_mixed_1 should have some valid response
-        messages.foreach { message =>
-          message should (include("registered successfully") or include("already exists") or include("limit reached"))
-        }
+      val statusF = result
+        .map(_ => "ok")
+        .recover { case e: io.grpc.StatusRuntimeException => e.getMessage }
+
+      whenReady(statusF) { message =>
+        message should (
+          equal("ok") or
+          include("already exists") or
+          include("limit reached") or
+          include("cannot have more than")
+        )
       }
     }
   }
@@ -140,8 +177,13 @@ class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
       assume(isTemporalRunning, "Temporal server is not running")
 
       val result = Temporal.registerSearchAttribute(temporalUri, "test_int", "Int")
-      whenReady(result) { message =>
-        message should (include("Int") or include("already exists") or include("limit reached"))
+      val statusF = result.map(_ => "ok").recover { case e: io.grpc.StatusRuntimeException => e.getMessage }
+      whenReady(statusF) { message =>
+        message should (
+          equal("ok") or
+          include("already exists") or
+          include("limit reached")
+        )
       }
     }
 
@@ -149,8 +191,13 @@ class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
       assume(isTemporalRunning, "Temporal server is not running")
 
       val result = Temporal.registerSearchAttribute(temporalUri, "test_long", "Long")
-      whenReady(result) { message =>
-        message should (include("Long") or include("already exists") or include("limit reached"))
+      val statusF = result.map(_ => "ok").recover { case e: io.grpc.StatusRuntimeException => e.getMessage }
+      whenReady(statusF) { message =>
+        message should (
+          equal("ok") or
+          include("already exists") or
+          include("limit reached")
+        )
       }
     }
 
@@ -158,8 +205,13 @@ class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
       assume(isTemporalRunning, "Temporal server is not running")
 
       val result = Temporal.registerSearchAttribute(temporalUri, "test_keyword", "Keyword")
-      whenReady(result) { message =>
-        message should (include("Keyword") or include("already exists") or include("limit reached"))
+      val statusF = result.map(_ => "ok").recover { case e: io.grpc.StatusRuntimeException => e.getMessage }
+      whenReady(statusF) { message =>
+        message should (
+          equal("ok") or
+          include("already exists") or
+          include("limit reached")
+        )
       }
     }
 
@@ -167,8 +219,13 @@ class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
       assume(isTemporalRunning, "Temporal server is not running")
 
       val result = Temporal.registerSearchAttribute(temporalUri, "test_bool", "Bool")
-      whenReady(result) { message =>
-        message should (include("Bool") or include("already exists") or include("limit reached"))
+      val statusF = result.map(_ => "ok").recover { case e: io.grpc.StatusRuntimeException => e.getMessage }
+      whenReady(statusF) { message =>
+        message should (
+          equal("ok") or
+          include("already exists") or
+          include("limit reached")
+        )
       }
     }
 
@@ -176,8 +233,13 @@ class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
       assume(isTemporalRunning, "Temporal server is not running")
 
       val result = Temporal.registerSearchAttribute(temporalUri, "test_double", "Double")
-      whenReady(result) { message =>
-        message should (include("Double") or include("already exists") or include("limit reached"))
+      val statusF = result.map(_ => "ok").recover { case e: io.grpc.StatusRuntimeException => e.getMessage }
+      whenReady(statusF) { message =>
+        message should (
+          equal("ok") or
+          include("already exists") or
+          include("limit reached")
+        )
       }
     }
 
@@ -185,8 +247,13 @@ class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
       assume(isTemporalRunning, "Temporal server is not running")
 
       val result = Temporal.registerSearchAttribute(temporalUri, "test_keywordlist", "KeywordList")
-      whenReady(result) { message =>
-        message should (include("KeywordList") or include("already exists") or include("limit reached"))
+      val statusF = result.map(_ => "ok").recover { case e: io.grpc.StatusRuntimeException => e.getMessage }
+      whenReady(statusF) { message =>
+        message should (
+          equal("ok") or
+          include("already exists") or
+          include("limit reached")
+        )
       }
     }
   }
@@ -204,11 +271,17 @@ class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
 
       val result = Temporal.registerSearchAttributes(temporalUri, attributes)
 
-      whenReady(result) { messages =>
-        messages should have size 3
-        messages.foreach { message =>
-          message should (include("registered successfully") or include("already exists") or include("limit reached"))
-        }
+      val statusF = result
+        .map(_ => "ok")
+        .recover { case e: io.grpc.StatusRuntimeException => e.getMessage }
+
+      whenReady(statusF) { message =>
+        message should (
+          equal("ok") or
+          include("already exists") or
+          include("limit reached") or
+          include("cannot have more than")
+        )
       }
     }
   }

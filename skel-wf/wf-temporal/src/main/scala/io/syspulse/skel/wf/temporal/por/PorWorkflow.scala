@@ -13,4 +13,16 @@ trait PorWorkflow {
 
   @QueryMethod
   def getPolSignalData(): Option[PolFileData]
+
+  /** Generic step input signal - allows updating inputs for any workflow step */
+  @SignalMethod
+  def updateStepInput(input: StepInput): Unit
+
+  /** Get all step inputs */
+  @QueryMethod
+  def getStepInputs(): WorkflowInputs
+
+  /** Get specific step input by stepId */
+  @QueryMethod
+  def getStepInput(stepId: String): Option[StepInput]
 }

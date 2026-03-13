@@ -63,3 +63,14 @@ case class WorkflowSignalRes(
   success: Boolean,
   message: String
 )
+
+// Workflow step input DTOs
+case class StepInputReq(
+  stepId: String,
+  data: spray.json.JsValue  // Step-specific data as JSON
+)
+
+case class StepInputRes(
+  success: Boolean,
+  message: String
+)

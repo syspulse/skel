@@ -22,16 +22,18 @@ case class WorkflowSchemaFaq(
 case class WorkflowSchemaNode(
   id: Int,      // internal uniq id
   name: String, // name of the node (by default it is detector title, but can be changed by user)   
-  aid: String,  // Unique Node (Activity) id (used to map to action inside detector). Example: "por","PorActivity" 
-  typ: Option[String], // type of the node (`detector`, reserved for future use, default is `detector`)
-  detector: Option[DetectorSchema]  // detector schema for this node
+  aid: String,  // Workflow Activity (Agent) id (used to map to action inside detector). Example: "por","vulnarabiliy" 
+  config: Option[DetectorSchema],  // configuration schema for this node (detector schema for this node)
+
+  typ: Option[String] = None, // type of the node (`detector` -> DetectorSchema, reserved for future use, default is `detector`)
+  icon: Option[String] = None, // optional icon for this node  
 )
 
 case class WorkflowSchemaConnection(
   id: Int,      // internal uniq id
   from: Int,
   to: Int,
-  typ: Option[String] = None  // connection type (reserved for future use)
+  typ: Option[String] = None  // connection type (reserved for future use,e.g. -> or <->)
 )
 
 case class WorkflowSchema(
@@ -39,9 +41,9 @@ case class WorkflowSchema(
   createdAt: Long,
   updatedAt: Long,
   status: String, //"ACTIVE, DISABLED, DELETED",
-  name: String, // Uniqie Workflow Name Id (e.g. WorkflowAudit). Same as for DetectorSchema.name
+  name: String, // corresponds to workflowType (e.g. `WorkflowAudit`, `WorkflowPoR`) 
   version: String, //"0.2.7",
-  title: String,  // UI title
+  title: String,  // UI title (user title)
   description: String,
   author: String,
   icon: Option[String],
@@ -55,7 +57,7 @@ case class WorkflowSchema(
 object WorkflowSchemaJson extends JsonCommon {
   import io.hacken.ext.detector.DetectorSchemaJson._
   implicit val jf_wf_faq_item: RootJsonFormat[WorkflowSchemaFaq] = jsonFormat2(WorkflowSchemaFaq)
-  implicit val jf_wf_ws_node: RootJsonFormat[WorkflowSchemaNode] = jsonFormat5(WorkflowSchemaNode)
+  implicit val jf_wf_ws_node: RootJsonFormat[WorkflowSchemaNode] = jsonFormat6(WorkflowSchemaNode)
   implicit val jf_wf_ws_conn: RootJsonFormat[WorkflowSchemaConnection] = jsonFormat4(WorkflowSchemaConnection)
   implicit val jf_wf_ws: RootJsonFormat[WorkflowSchema] = jsonFormat14(WorkflowSchema.apply _)
 }

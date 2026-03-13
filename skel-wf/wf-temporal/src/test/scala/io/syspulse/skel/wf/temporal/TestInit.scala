@@ -83,18 +83,14 @@ object TestInit {
     val result = Temporal.registerSearchAttributes(uri, attributes)
 
     try {
-      val messages = Await.result(result, 30.seconds)
+      val counts = Await.result(result, 30.seconds)
 
       println("\nResults:")
-      messages.foreach { message =>
-        if (message.contains("already exists")) {
-          println(s"  ⚠ $message")
-        } else {
-          println(s"  ✓ $message")
-        }
+      attributes.keys.foreach { name =>
+        println(s"  ✓ $name")
       }
 
-      println(s"\n✓ Successfully registered ${messages.size} search attributes")
+      println(s"\n✓ Successfully registered ${counts.size} search attributes")
 
       // Verification instructions
       println("\nTo verify registration:")

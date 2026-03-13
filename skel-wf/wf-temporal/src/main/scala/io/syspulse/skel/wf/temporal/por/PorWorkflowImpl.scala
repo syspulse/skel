@@ -26,6 +26,9 @@ class PorWorkflowImpl extends PorWorkflow {
   @volatile
   private var polSignalData: Option[PolFileData] = None
 
+  @volatile
+  private var stepInputs: WorkflowInputs = WorkflowInputs()
+
   override def signalPol(data: PolFileData): Unit = {
     val info = Workflow.getInfo()
     val wid = s"[${info.getWorkflowId} / ${info.getRunId}]"
@@ -35,6 +38,21 @@ class PorWorkflowImpl extends PorWorkflow {
 
   override def getPolSignalData(): Option[PolFileData] = {
     polSignalData
+  }
+
+  override def updateStepInput(input: StepInput): Unit = {
+    val info = Workflow.getInfo()
+    val wid = s"[${info.getWorkflowId} / ${info.getRunId}]"
+    log.info(s"${wid} Updating step input: ${input.stepId}")
+    stepInputs = stepInputs.update(input)
+  }
+
+  override def getStepInputs(): WorkflowInputs = {
+    stepInputs
+  }
+
+  override def getStepInput(stepId: String): Option[StepInput] = {
+    stepInputs.get(stepId)
   }
 
   override def execute(run: PorWorkflowRun): PorWorkflowRun = {

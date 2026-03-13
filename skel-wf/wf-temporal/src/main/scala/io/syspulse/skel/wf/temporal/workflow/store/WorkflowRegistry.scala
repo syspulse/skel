@@ -35,6 +35,7 @@ object WorkflowRegistry {
   final case class TemporalGet(runId:String, replyTo: ActorRef[Try[WorkflowExecutionInfo]]) extends Command
   final case class WorkflowStart(req:WorkflowStartReq, replyTo: ActorRef[Try[WorkflowStartRes]]) extends Command
   final case class WorkflowSignal(runId:String, req:WorkflowSignalReq, replyTo: ActorRef[Try[WorkflowSignalRes]]) extends Command
+  final case class UpdateStepInput(runId:String, req:StepInputReq, replyTo: ActorRef[Try[StepInputRes]]) extends Command
 
   // Internal response messages for async operations
   private final case class TemporalQueryResponse(result: Try[QueryResult], replyTo: ActorRef[Try[QueryResult]]) extends Command
@@ -43,6 +44,7 @@ object WorkflowRegistry {
   private final case class TemporalGetResponse(result: Try[WorkflowExecutionInfo], replyTo: ActorRef[Try[WorkflowExecutionInfo]]) extends Command
   private final case class WorkflowStartResponse(result: Try[WorkflowStartRes], replyTo: ActorRef[Try[WorkflowStartRes]]) extends Command
   private final case class WorkflowSignalResponse(result: Try[WorkflowSignalRes], replyTo: ActorRef[Try[WorkflowSignalRes]]) extends Command
+  private final case class UpdateStepInputResponse(result: Try[StepInputRes], replyTo: ActorRef[Try[StepInputRes]]) extends Command
 
   def apply(store: WorkflowStore, engineUri: String): Behavior[io.syspulse.skel.Command] = {
     Behaviors.setup { context =>
@@ -209,6 +211,19 @@ object WorkflowRegistry {
       case WorkflowSignalResponse(result, replyTo) =>
         replyTo ! result
         Behaviors.same
+
+      case UpdateStepInput(runId, req, replyTo) =>
+        log.info(s"UpdateStepInput(runId=$runId, stepId=${req.stepId})")
+        // Update step input in workflow
+        context.pipeToSelf(updateStepInput(engineUri, runId, req)) {
+          case Success(result) => UpdateStepInputResponse(Success(result), replyTo)
+          case Failure(e) => UpdateStepInputResponse(Failure(e), replyTo)
+        }
+        Behaviors.same
+
+      case UpdateStepInputResponse(result, replyTo) =>
+        replyTo ! result
+        Behaviors.same
     }
   }
 
@@ -269,6 +284,28 @@ object WorkflowRegistry {
       case e: Exception =>
         log.error(s"Failed to signal workflow runId=$runId: ${e.getMessage}", e)
         WorkflowSignalRes(success = false, message = s"Failed to signal workflow: ${e.getMessage}")
+    }
+  }
+
+  private def updateStepInput(engineUri: String, runId: String, req: StepInputReq)(implicit ec: ExecutionContext): Future[StepInputRes] = {
+    import spray.json._
+
+    // Create StepInput object from request
+    val stepInput = StepInput(
+      stepId = req.stepId,
+      data = req.data
+    )
+
+    // Convert to JsObject for Temporal signal
+    val signalData = stepInput.toJson.asJsObject
+
+    // Use Temporal client to send updateStepInput signal
+    Temporal.signalByRunId(engineUri, runId, "updateStepInput", signalData).map { message =>
+      StepInputRes(success = true, message = message)
+    }.recover {
+      case e: Exception =>
+        log.error(s"Failed to update step input runId=$runId, stepId=${req.stepId}: ${e.getMessage}", e)
+        StepInputRes(success = false, message = s"Failed to update step input: ${e.getMessage}")
     }
   }
 }

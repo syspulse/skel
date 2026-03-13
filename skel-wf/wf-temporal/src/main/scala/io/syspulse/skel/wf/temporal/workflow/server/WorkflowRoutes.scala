@@ -68,6 +68,9 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
   // Workflow signal method
   def workflowSignal(runId:String, req:WorkflowSignalReq): Future[Try[WorkflowSignalRes]] = registry.ask(WorkflowSignal(runId, req, _))
 
+  // Step input update method
+  def updateStepInput(runId:String, req:StepInputReq): Future[Try[StepInputRes]] = registry.ask(UpdateStepInput(runId, req, _))
+
   @GET @Path("/schema") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("workflow"), summary = "Return all Workflow Schemas",
     responses = Array(
@@ -244,6 +247,24 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
     }
   }
 
+  @POST @Path("/run/{runId}/input") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("workflow"),summary = "Update workflow step input",
+    parameters = Array(new Parameter(name = "runId", in = ParameterIn.PATH, description = "Run ID")),
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[StepInputReq])))),
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "Step input updated",
+        content = Array(new Content(schema = new Schema(implementation = classOf[StepInputRes]))))
+    )
+  )
+  def updateStepInputRoute() = post {
+    path(Segment / "input") { runId =>
+      entity(as[StepInputReq]) { req =>
+        complete(updateStepInput(runId, req))
+      }
+    }
+  }
+
   val corsAllow = CorsSettings(system.classicSystem)
     //.withAllowGenericHttpRequests(true)
     .withAllowCredentials(true)
@@ -271,6 +292,7 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
       pathPrefix("run") {
         concat(
           workflowSignalRoute(),
+          updateStepInputRoute(),
           temporalGetRoute()
         )
       },

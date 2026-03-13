@@ -4,6 +4,7 @@ import spray.json._
 import io.syspulse.skel.service.JsonCommon
 import io.hacken.ext.wf.WorkflowSchemaJson._
 import io.syspulse.skel.wf.temporal.TemporalJson._
+import io.syspulse.skel.wf.temporal.por.{StepInput, WorkflowInputs}
 
 object WorkflowJson extends JsonCommon {
   implicit val jf_workflow_res = jsonFormat1(WorkflowRes)
@@ -16,4 +17,10 @@ object WorkflowJson extends JsonCommon {
   implicit val jf_workflow_start_res = jsonFormat2(WorkflowStartRes)
   implicit val jf_workflow_signal_req = jsonFormat2(WorkflowSignalReq)
   implicit val jf_workflow_signal_res = jsonFormat2(WorkflowSignalRes)
+
+  // Step input formats
+  implicit val jf_step_input = StepInput.format
+  implicit val jf_workflow_inputs = WorkflowInputs.format
+  implicit val jf_step_input_req = jsonFormat2(StepInputReq)
+  implicit val jf_step_input_res = jsonFormat2(StepInputRes)
 }
