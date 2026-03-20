@@ -74,3 +74,28 @@ case class StepInputRes(
   success: Boolean,
   message: String
 )
+
+// Workflow Run DTOs
+case class WorkflowRunCreateReq(
+  schemaId: Int,            // WorkflowSchema ID
+  steps: Seq[Int]           // DetectorConfig IDs for each step
+)
+
+case class WorkflowRunCreateRes(
+  wid: String,              // Workflow ID
+  rid: String               // Run ID
+)
+
+case class WorkflowRunContinueReq(
+  configId: Int             // DetectorConfig ID to continue from
+)
+
+case class WorkflowRunContinueRes(
+  success: Boolean,
+  message: String
+)
+
+case class WorkflowRuns(
+  runs: Seq[io.hacken.ext.wf.WorkflowRun],
+  total: Option[Int] = None
+)

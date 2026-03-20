@@ -13,6 +13,7 @@ import io.syspulse.skel.Ingestable
 import io.syspulse.skel.util.Util
 
 import io.hacken.ext.detector.DetectorSchema
+import io.hacken.ext.detector.DetectorConfig
 
 case class WorkflowSchemaFaq(
   name: String,
@@ -21,37 +22,38 @@ case class WorkflowSchemaFaq(
 
 case class WorkflowSchemaNode(
   id: Int,      // internal uniq id
-  name: String, // name of the node (by default it is detector title, but can be changed by user)   
-  aid: String,  // Workflow Activity (Agent) id (used to map to action inside detector). Example: "por","vulnarabiliy" 
-  config: Option[DetectorSchema],  // configuration schema for this node (detector schema for this node)
+  name: String, // name of the node (by default it is detector title, but can be changed by user)  
+  
+  sid: Int,     // DetectorSchema ID reference to map detector schema for this node
 
   typ: Option[String] = None, // type of the node (`detector` -> DetectorSchema, reserved for future use, default is `detector`)
-  icon: Option[String] = None, // optional icon for this node  
+  icon: Option[String] = None, // optional icon for this node 
+
+  schema: DetectorSchema, // Schema of the node
 )
 
 case class WorkflowSchemaConnection(
   id: Int,      // internal uniq id
-  from: Int,
-  to: Int,
+  from: Int,    // from node id
+  to: Int,      // to node id
   typ: Option[String] = None  // connection type (reserved for future use,e.g. -> or <->)
 )
 
 case class WorkflowSchema(
   id: Int,      // internal unique id
-  createdAt: Long,
-  updatedAt: Long,
+  createdAt: Long, // timestamp of creation
+  updatedAt: Long, // timestamp of last update
   status: String, //"ACTIVE, DISABLED, DELETED",
   name: String, // corresponds to workflowType (e.g. `WorkflowAudit`, `WorkflowPoR`) 
   version: String, //"0.2.7",
-  title: String,  // UI title (user title)
-  description: String,
-  author: String,
-  icon: Option[String],
-  faq: Option[Seq[WorkflowSchemaFaq]],
-  tags: Seq[String],  
-  
-  nodes: Seq[WorkflowSchemaNode],
-  connections: Seq[WorkflowSchemaConnection],
+  title: String,  // UI title (user title)  
+  description: String, // description of the workflow
+  author: String, // author of the workflow 
+  icon: Option[String], // icon of the workflow
+  faq: Option[Seq[WorkflowSchemaFaq]], // FAQ of the workflow (list of FAQ items)
+  tags: Seq[String], // tags of the workflow
+  nodes: Seq[WorkflowSchemaNode], // list of nodes in the workflow
+  connections: Seq[WorkflowSchemaConnection], // list of connections between nodes
 )
 
 object WorkflowSchemaJson extends JsonCommon {

@@ -7,7 +7,7 @@ import com.typesafe.scalalogging.Logger
 import io.hacken.ext.wf.WorkflowSchema
 import io.syspulse.skel.ErrNotFound
 
-class WorkflowStoreMem() extends WorkflowStore {
+class WorkflowSchemaStoreMem() extends WorkflowSchemaStore {
   private val log = Logger(getClass)
 
   var workflows:Map[Int,WorkflowSchema] = Map()
@@ -27,8 +27,8 @@ class WorkflowStoreMem() extends WorkflowStore {
   def ???(id:Int): Try[WorkflowSchema] = {
     workflows.get(id) match {
       case Some(data) => Success(data)
-      case None => 
-        Failure(new ErrNotFound(s"workflow: ${id}"))        
+      case None =>
+        Failure(new ErrNotFound(s"workflow: ${id}"))
     }
   }
 

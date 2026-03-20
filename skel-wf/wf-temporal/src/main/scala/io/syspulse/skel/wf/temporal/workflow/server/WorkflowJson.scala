@@ -5,6 +5,7 @@ import io.syspulse.skel.service.JsonCommon
 import io.hacken.ext.wf.WorkflowSchemaJson._
 import io.syspulse.skel.wf.temporal.TemporalJson._
 import io.syspulse.skel.wf.temporal.por.{StepInput, WorkflowInputs}
+import io.hacken.ext.wf.WorkflowRunJson._
 
 object WorkflowJson extends JsonCommon {
   implicit val jf_workflow_res = jsonFormat1(WorkflowRes)
@@ -23,4 +24,11 @@ object WorkflowJson extends JsonCommon {
   implicit val jf_workflow_inputs = WorkflowInputs.format
   implicit val jf_step_input_req = jsonFormat2(StepInputReq)
   implicit val jf_step_input_res = jsonFormat2(StepInputRes)
+
+  // Workflow Run formats
+  implicit val jf_workflow_run_create_req = jsonFormat2(WorkflowRunCreateReq)
+  implicit val jf_workflow_run_create_res = jsonFormat2(WorkflowRunCreateRes)
+  implicit val jf_workflow_run_continue_req = jsonFormat1(WorkflowRunContinueReq)
+  implicit val jf_workflow_run_continue_res = jsonFormat2(WorkflowRunContinueRes)
+  implicit val jf_workflow_runs = jsonFormat2(WorkflowRuns)
 }

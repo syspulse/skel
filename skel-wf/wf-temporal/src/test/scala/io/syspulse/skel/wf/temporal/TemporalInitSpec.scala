@@ -10,15 +10,13 @@ import scala.concurrent.Await
 /**
  * Test suite for Temporal search attribute registration
  *
- * Note: These are integration tests that require a running Temporal server.
- * They are SKIPPED by default to allow fast unit test runs.
+ * Note: These tests are IGNORED as they require a running Temporal server.
+ * To enable these tests, change "ignore" to "in" in the test definitions.
  *
  * To run these tests:
  *   1. Start Temporal server: temporal server start-dev
- *   2. Enable tests: export TEMPORAL_TESTS_ENABLED=true
- *   3. Run tests: bloop test wf_temporal
- *
- * Without TEMPORAL_TESTS_ENABLED=true, these tests will be CANCELED (skipped).
+ *   2. Change test definitions from "ignore" to "in"
+ *   3. Run tests: sbt "project wf_temporal" test
  */
 class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
 
@@ -45,7 +43,7 @@ class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
 
   "Temporal.registerSearchAttribute" should {
 
-    "register a single Int attribute" in {
+    "register a single Int attribute" ignore {
       assume(isTemporalRunning, "Temporal server is not running")
 
       val result = Temporal.registerSearchAttribute(temporalUri, "tid", "Int")
@@ -65,7 +63,7 @@ class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
       }
     }
 
-    "register a single Keyword attribute" in {
+    "register a single Keyword attribute" ignore {
       assume(isTemporalRunning, "Temporal server is not running")
 
       val result = Temporal.registerSearchAttribute(temporalUri, "test_sys", "Keyword")
@@ -260,7 +258,7 @@ class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
 
   "Temporal default attributes" should {
 
-    "register tid, pid, sys successfully" in {
+    "register tid, pid, sys successfully" ignore {
       assume(isTemporalRunning, "Temporal server is not running")
 
       val attributes = Map(

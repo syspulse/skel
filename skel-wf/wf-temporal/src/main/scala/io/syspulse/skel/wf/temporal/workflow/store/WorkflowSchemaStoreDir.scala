@@ -8,10 +8,10 @@ import io.syspulse.skel.store.StoreDir
 import io.hacken.ext.wf.WorkflowSchema
 import io.hacken.ext.wf.WorkflowSchemaJson._
 
-class WorkflowStoreDir(dir:String = "store/") extends StoreDir[WorkflowSchema,Int](dir) with WorkflowStore {
+class WorkflowSchemaStoreDir(dir:String = "store/") extends StoreDir[WorkflowSchema,Int](dir) with WorkflowSchemaStore {
   override val log = Logger(getClass)
 
-  val store = new WorkflowStoreMem()
+  val store = new WorkflowSchemaStoreMem()
 
   // Convert String filename to Int ID
   def toKey(id:String):Int = id.toInt

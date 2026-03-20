@@ -9,9 +9,12 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
 import io.syspulse.skel.wf.temporal.por._
 import io.syspulse.skel.wf.temporal.por.demo.DemoUtil
+import io.syspulse.skel.wf.temporal.por2.Por2Schema
 import io.syspulse.skel.wf.temporal.workflow.store._
 import io.syspulse.skel.wf.temporal.workflow.server._
 import io.syspulse.skel.wf.temporal.por.nul.PorActivitiesNull
+import io.hacken.ext.wf.WorkflowRun
+import io.syspulse.skel.wf.temporal.workflow.GenericStarter
 
 // Examples:
 //   temporal init tid:Int pid:Int sys:Keyword proj:Keyword
@@ -144,6 +147,7 @@ object App extends skel.Server {
         ArgCmd("temporal",s"Temporal subcommands"),
         ArgCmd("por-worker",s"Start PoR Temporal Worker"),
         ArgCmd("por-start",s"Start PoR Workflow: por-start [flow-N] [commit-file.json]"),
+        ArgCmd("por2-start",s"Start PoR2 Generic Workflow: por2-start [tenant-id] [project-id]"),
 
         ArgCmd("wf",s"Workflow subcommands: " +
           s"assemble name 'dsl'  : create Workflow with dsl commands, ex: 'F-1(LogExec(sys=1,log.level=WARN))->F-2(LogExec(sys=2))->F-3(TerminateExec())'" +
@@ -178,13 +182,24 @@ object App extends skel.Server {
 
     log.info(s"Config: ${config}")
 
-    def getStore(uri:String):WorkflowStore = {
+    def getStore(uri:String):WorkflowSchemaStore = {
       uri.split("://").toList match {
-        case "mem" :: Nil => new WorkflowStoreMem()
-        case "dir" :: Nil => new WorkflowStoreDir()
-        case "dir" :: dir :: Nil => new WorkflowStoreDir(dir)
+        case "mem" :: Nil => new WorkflowSchemaStoreMem()
+        case "dir" :: Nil => new WorkflowSchemaStoreDir()
+        case "dir" :: dir :: Nil => new WorkflowSchemaStoreDir(dir)
         case _ =>
           Console.err.println(s"Unknown DataStore: '${uri}'")
+          sys.exit(1)
+      }
+    }
+
+    def getRunStore(uri:String):WorkflowRunStore = {
+      uri.split("://").toList match {
+        case "mem" :: Nil => new WorkflowRunStoreMem()
+        case "dir" :: Nil => new WorkflowRunStoreDir("store/runs/")
+        case "dir" :: dir :: Nil => new WorkflowRunStoreDir(dir)
+        case _ =>
+          Console.err.println(s"Unknown RunStore: '${uri}'")
           sys.exit(1)
       }
     }
@@ -203,21 +218,52 @@ object App extends skel.Server {
     val r = config.cmd match {
       case "server" =>
         val store = getStore(config.datastore)
+        val runStore = getRunStore(config.datastore)
+        val configStore = new WorkflowConfigStoreMem()  // Use memory store for configs
         Console.err.println(s"Store: ${store}")
+        Console.err.println(s"RunStore: ${runStore}")
+        Console.err.println(s"ConfigStore: ${configStore}")
 
-        // Start Temporal worker        
+        // Initialize Por2 schemas and configs
+        Console.err.println(s"Initializing PoR2 schemas and configs...")
+        val por2Schema = Por2Schema.buildSchema(schemaId = 1, tenantId = 1, projectId = 1)
+        val por2Configs = Por2Schema.buildStepConfigs(tenantId = 1, projectId = 1)
+
+        store.+(por2Schema) match {
+          case Success(_) => Console.err.println(s"Initialized PoR2 schema: ${por2Schema.name}")
+          case scala.util.Failure(e) => Console.err.println(s"Warning: Failed to initialize PoR2 schema: ${e.getMessage}")
+        }
+
+        por2Configs.foreach { config =>
+          configStore.+(config) match {
+            case Success(_) => Console.err.println(s"Initialized PoR2 config: ${config.name} (id=${config.id})")
+            case scala.util.Failure(e) => Console.err.println(s"Warning: Failed to initialize config ${config.name}: ${e.getMessage}")
+          }
+        }
+
+        // Start PorWorker (legacy)
         PorWorker.run(config.engine, impl) match {
           case Success(worker) =>
-            Console.err.println(s"Worker started: ${worker}")
+            Console.err.println(s"PorWorker started: ${worker}")
           case scala.util.Failure(e) =>
-            Console.err.println(s"Failed to start worker: ${e.getMessage}")
+            Console.err.println(s"Failed to start PorWorker: ${e.getMessage}")
+            sys.exit(1)
+        }
+
+        // Start Generic Worker (new)
+        import io.syspulse.skel.wf.temporal.workflow.GenericWorker
+        GenericWorker.run(config.engine, store, runStore, configStore) match {
+          case Success(worker) =>
+            Console.err.println(s"GenericWorker started: ${worker}")
+          case scala.util.Failure(e) =>
+            Console.err.println(s"Failed to start GenericWorker: ${e.getMessage}")
             sys.exit(1)
         }
 
         // Start HTTP server
         run(config.host, config.port, config.uri, c,
           Seq(
-            (WorkflowRegistry(store, config.engine), "WorkflowRegistry", (reg, ac) => {
+            (WorkflowRegistry(store, runStore, config.engine), "WorkflowRegistry", (reg, ac) => {
               new WorkflowRoutes(reg)(ac)
             })
           )
@@ -347,7 +393,76 @@ object App extends skel.Server {
         Try(Await.result(futureResult, 30.seconds)) match {
           case Success(result) => s"Workflow started: workflowId = ${result.workflowId}, runId = ${result.runId}"
           case scala.util.Failure(e) => s"Failed to start workflow: ${e.getMessage}"
-        }        
+        }
+
+      case "por2-start" =>
+        // Parse tenant and project IDs
+        val (tenantId, projectId) = config.params.toList match {
+          case tid :: pid :: Nil => (tid.toInt, pid.toInt)
+          case tid :: Nil => (tid.toInt, 1)
+          case Nil => (1, 1)
+          case _ =>
+            Console.err.println(s"Invalid arguments: ${config.params.toList}")
+            Console.err.println(s"Usage: por2-start [tenant-id] [project-id]")
+            sys.exit(1)
+        }
+
+        log.info(s"Starting PoR2 Generic Workflow: tenantId=$tenantId, projectId=$projectId")
+
+        // Initialize stores
+        val schemaStore = getStore(config.datastore)
+        val runStore = getRunStore(config.datastore)
+        val configStore = new WorkflowConfigStoreMem()
+
+        // Create schema and configs
+        val schema = Por2Schema.buildSchema(schemaId = 1, tenantId = tenantId, projectId = projectId)
+        val configs = Por2Schema.buildStepConfigs(tenantId = tenantId, projectId = projectId)
+
+        // Store schema
+        schemaStore.+(schema) match {
+          case Success(_) => log.info(s"Stored schema: ${schema.name}")
+          case scala.util.Failure(e) =>
+            Console.err.println(s"Failed to store schema: ${e.getMessage}")
+            sys.exit(1)
+        }
+
+        // Store configs
+        configs.foreach { config =>
+          configStore.+(config) match {
+            case Success(_) => log.info(s"Stored config: ${config.name} (id=${config.id})")
+            case scala.util.Failure(e) =>
+              Console.err.println(s"Failed to store config: ${e.getMessage}")
+              sys.exit(1)
+          }
+        }
+
+        // Create WorkflowRun
+        val workflowId = s"por2-${config.porProject}-${System.currentTimeMillis()}"
+        val runId = Some(java.util.UUID.randomUUID().toString)
+
+        val workflowRun = WorkflowRun(
+          wid = workflowId,
+          rid = runId,
+          status = "NEW",
+          cursor = -1,
+          schema = schema.id,
+          steps = configs.map(_.id)
+        )
+
+        log.info(s"Created WorkflowRun: wid=${workflowRun.wid}, steps=${workflowRun.steps.mkString(",")}")
+
+        // Start workflow
+        val futureResult = GenericStarter.run(config.engine, workflowRun)
+        Try(Await.result(futureResult, 30.seconds)) match {
+          case Success(result) =>
+            s"PoR2 Workflow started:\n" +
+            s"  Workflow ID: ${result.workflowId}\n" +
+            s"  Run ID: ${result.runId}\n" +
+            s"  Steps: ${configs.map(_.name).mkString(" → ")}\n" +
+            s"  Query: temporal workflow show -w ${result.workflowId}"
+          case scala.util.Failure(e) =>
+            s"Failed to start PoR2 workflow: ${e.getMessage}"
+        }
 
       case _ =>
         s"Unknown command: ${config.cmd}"

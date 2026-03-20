@@ -47,7 +47,9 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import WorkflowJson._
-  import io.hacken.ext.wf.WorkflowSchemaJson._
+  import io.hacken.ext.wf.{WorkflowSchemaJson, WorkflowRunJson}
+  import WorkflowSchemaJson._
+  import WorkflowRunJson._
   import io.syspulse.skel.wf.temporal.TemporalJson._
   
   def getWorkflow(id:Int): Future[Try[WorkflowSchema]] = registry.ask(GetWorkflow(id, _))
@@ -70,6 +72,12 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
 
   // Step input update method
   def updateStepInput(runId:String, req:StepInputReq): Future[Try[StepInputRes]] = registry.ask(UpdateStepInput(runId, req, _))
+
+  // Workflow Run methods
+  def getWorkflowRun(rid:String): Future[Try[io.hacken.ext.wf.WorkflowRun]] = registry.ask(GetWorkflowRun(rid, _))
+  def getWorkflowRuns(): Future[Try[WorkflowRuns]] = registry.ask(GetWorkflowRuns(_))
+  def createWorkflowRun(req:WorkflowRunCreateReq): Future[Try[WorkflowRunCreateRes]] = registry.ask(CreateWorkflowRun(req, _))
+  def continueWorkflowRun(rid:String, req:WorkflowRunContinueReq): Future[Try[WorkflowRunContinueRes]] = registry.ask(ContinueWorkflowRun(rid, req, _))
 
   @GET @Path("/schema") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("workflow"), summary = "Return all Workflow Schemas",
@@ -265,6 +273,67 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
     }
   }
 
+  @GET @Path("/run") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("workflow"), summary = "Return all Workflow Runs",
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "List of Workflow Runs",
+        content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowRuns]))))
+    )
+  )
+  def getWorkflowRunsRoute() = get {
+    complete(getWorkflowRuns())
+  }
+
+  @GET @Path("/run/{rid}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("workflow"), summary = "Return Workflow Run by rid",
+    parameters = Array(new Parameter(name = "rid", in = ParameterIn.PATH, description = "Run ID")),
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "Workflow Run",
+        content = Array(new Content(schema = new Schema(implementation = classOf[io.hacken.ext.wf.WorkflowRun])))),
+      new ApiResponse(responseCode = "404", description = "Workflow Run not found")
+    )
+  )
+  def getWorkflowRunRoute() = get {
+    path(Segment) { (rid) =>
+      rejectEmptyResponse {
+        complete(getWorkflowRun(rid))
+      }
+    }
+  }
+
+  @POST @Path("/run") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("workflow"),summary = "Create Workflow Run",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowRunCreateReq])))),
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "Workflow Run created",
+        content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowRunCreateRes]))))
+    )
+  )
+  def createWorkflowRunRoute() = post {
+    entity(as[WorkflowRunCreateReq]) { req =>
+      complete(createWorkflowRun(req))
+    }
+  }
+
+  @PUT @Path("/run/{rid}/{configId}") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("workflow"),summary = "Continue Workflow Run from step",
+    parameters = Array(
+      new Parameter(name = "rid", in = ParameterIn.PATH, description = "Run ID"),
+      new Parameter(name = "configId", in = ParameterIn.PATH, description = "DetectorConfig ID")
+    ),
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "Workflow continued",
+        content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowRunContinueRes]))))
+    )
+  )
+  def continueWorkflowRunRoute() = put {
+    path(Segment / IntNumber) { (rid, configId) =>
+      complete(continueWorkflowRun(rid, WorkflowRunContinueReq(configId)))
+    }
+  }
+
   val corsAllow = CorsSettings(system.classicSystem)
     //.withAllowGenericHttpRequests(true)
     .withAllowCredentials(true)
@@ -291,8 +360,16 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
       },
       pathPrefix("run") {
         concat(
+          pathEnd {
+            concat(
+              getWorkflowRunsRoute(),
+              createWorkflowRunRoute()
+            )
+          },
           workflowSignalRoute(),
           updateStepInputRoute(),
+          continueWorkflowRunRoute(),
+          getWorkflowRunRoute(),
           temporalGetRoute()
         )
       },

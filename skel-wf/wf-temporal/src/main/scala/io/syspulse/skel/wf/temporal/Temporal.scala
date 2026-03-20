@@ -130,7 +130,11 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
 
   log.info(s"Connecting -> ${t.target} (namespace=${t.namespace})")
   private val client = WorkflowClient.newInstance(service, clientOptions)
-  
+
+  // Public accessors for service and client
+  def getService: WorkflowServiceStubs = service
+  def getClient: WorkflowClient = client
+
   /**
    * Query workflows from Temporal server
    *
@@ -299,14 +303,14 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
   def signal(workflowId: String, runId: Option[String], signalName: String, data: spray.json.JsObject): Future[String] = Future {
     log.info(s"Sending signal to workflow: workflowId=$workflowId, runId=$runId, signal=$signalName")
 
-    // Get workflow stub
-    val workflowStub = client.newWorkflowStub(classOf[io.syspulse.skel.wf.temporal.por.PorWorkflow],
-      workflowId,
-      runId.map(java.util.Optional.of(_)).getOrElse(java.util.Optional.empty()))
-
     // Send signal based on signal name
     signalName match {
       case "signalPol" =>
+        // Get PorWorkflow stub
+        val workflowStub = client.newWorkflowStub(classOf[io.syspulse.skel.wf.temporal.por.PorWorkflow],
+          workflowId,
+          runId.map(java.util.Optional.of(_)).getOrElse(java.util.Optional.empty()))
+
         // Parse and validate signal data
         import io.syspulse.skel.wf.temporal.por.{PolSignalValidator, PolFileData}
 
@@ -319,6 +323,21 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
 
         workflowStub.signalPol(polFileData)
         s"Signal '$signalName' sent to workflow $workflowId${runId.map(r => s" (run $r)").getOrElse("")} with ${polFileData.liabilities.size} liabilities"
+
+      case "continueWorkflow" =>
+        // Get GenericWorkflow stub
+        val workflowStub = client.newWorkflowStub(classOf[io.syspulse.skel.wf.temporal.workflow.GenericWorkflow],
+          workflowId,
+          runId.map(java.util.Optional.of(_)).getOrElse(java.util.Optional.empty()))
+
+        // Extract configId from data
+        val configId = data.fields.get("configId").map {
+          case spray.json.JsNumber(n) => n.toInt
+          case _ => throw new IllegalArgumentException("configId must be a number")
+        }.getOrElse(throw new IllegalArgumentException("configId is required"))
+
+        workflowStub.continueWorkflow(configId)
+        s"Signal '$signalName' sent to workflow $workflowId${runId.map(r => s" (run $r)").getOrElse("")} with configId=$configId"
 
       case _ =>
         throw new IllegalArgumentException(s"Unknown signal name: $signalName")
@@ -337,6 +356,38 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
     // First, get workflow info by run ID to find workflow ID
     get(runId).flatMap { info =>
       signal(info.workflowId, Some(runId), signalName, data)
+    }
+  }
+
+  /**
+   * Query WorkflowRun state from a running GenericWorkflow
+   *
+   * @param workflowId Workflow ID
+   * @param runId Optional run ID
+   * @return WorkflowRun state
+   */
+  def queryWorkflowRun(workflowId: String, runId: Option[String] = None): Future[io.hacken.ext.wf.WorkflowRun] = Future {
+    log.info(s"Querying WorkflowRun state: workflowId=$workflowId, runId=$runId")
+
+    // Get GenericWorkflow stub
+    val workflowStub = client.newWorkflowStub(classOf[io.syspulse.skel.wf.temporal.workflow.GenericWorkflow],
+      workflowId,
+      runId.map(java.util.Optional.of(_)).getOrElse(java.util.Optional.empty()))
+
+    // Query workflow run state
+    workflowStub.getWorkflowRun()
+  }
+
+  /**
+   * Query WorkflowRun state by run ID (looks up workflow ID first)
+   *
+   * @param runId Run ID
+   * @return WorkflowRun state
+   */
+  def queryWorkflowRunByRunId(runId: String): Future[io.hacken.ext.wf.WorkflowRun] = {
+    // First, get workflow info by run ID to find workflow ID
+    get(runId).flatMap { info =>
+      queryWorkflowRun(info.workflowId, Some(runId))
     }
   }
 
@@ -635,6 +686,35 @@ object Temporal {
   def signalByRunId(uri: String, runId: String, signalName: String, data: spray.json.JsObject)(implicit ec: ExecutionContext): Future[String] = {
     val temporal = new Temporal(uri)
     temporal.signalByRunId(runId, signalName, data).andThen { case _ =>
+      temporal.shutdown()
+    }
+  }
+
+  /**
+   * Query WorkflowRun state from a running GenericWorkflow (static method)
+   *
+   * @param uri Temporal server URI
+   * @param workflowId Workflow ID
+   * @param runId Optional run ID
+   * @return WorkflowRun state
+   */
+  def queryWorkflowRun(uri: String, workflowId: String, runId: Option[String] = None)(implicit ec: ExecutionContext): Future[io.hacken.ext.wf.WorkflowRun] = {
+    val temporal = new Temporal(uri)
+    temporal.queryWorkflowRun(workflowId, runId).andThen { case _ =>
+      temporal.shutdown()
+    }
+  }
+
+  /**
+   * Query WorkflowRun state by run ID (static method)
+   *
+   * @param uri Temporal server URI
+   * @param runId Run ID
+   * @return WorkflowRun state
+   */
+  def queryWorkflowRunByRunId(uri: String, runId: String)(implicit ec: ExecutionContext): Future[io.hacken.ext.wf.WorkflowRun] = {
+    val temporal = new Temporal(uri)
+    temporal.queryWorkflowRunByRunId(runId).andThen { case _ =>
       temporal.shutdown()
     }
   }
