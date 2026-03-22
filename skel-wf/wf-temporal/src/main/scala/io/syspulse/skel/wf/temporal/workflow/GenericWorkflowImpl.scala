@@ -19,12 +19,22 @@ class GenericWorkflowImpl extends GenericWorkflow {
 
   private val log = Logger(getClass.getName)
 
+  // Activity options for business activities (visible in UI)
   private val activityOptions = ActivityOptions.newBuilder()
     .setStartToCloseTimeout(Duration.ofMinutes(30))
     .setScheduleToCloseTimeout(Duration.ofHours(2))
     .build()
 
+  // Local activity options for infrastructure activities (hidden from UI)
+  private val localActivityOptions = io.temporal.activity.LocalActivityOptions.newBuilder()
+    .setStartToCloseTimeout(Duration.ofSeconds(10))
+    .build()
+
+  // Regular activities for business operations (visible in Temporal UI)
   private val activities = Workflow.newActivityStub(classOf[GenericActivities], activityOptions)
+
+  // Local activities for infrastructure operations (NOT visible in Temporal UI)
+  private val localActivities = Workflow.newLocalActivityStub(classOf[GenericActivities], localActivityOptions)
 
   // Workflow state (survives worker restarts - managed by Temporal)
   @volatile
@@ -71,8 +81,8 @@ class GenericWorkflowImpl extends GenericWorkflow {
     )
 
     try {
-      // Get workflow schema
-      val schema = activities.getWorkflowSchema(run.schema)
+      // Get workflow schema (using local activity - hidden from UI)
+      val schema = localActivities.getWorkflowSchema(run.schema)
       log.info(s"${wid} Loaded schema: ${schema.name} v${schema.version}")
 
       // Execute steps based on connections
@@ -174,12 +184,12 @@ class GenericWorkflowImpl extends GenericWorkflow {
     currentRun = run.copy(cursor = configId)
     log.info(s"${wid} Step cursor set to ${configId}")
 
-    // Verify config exists
-    val verifiedConfigId = activities.getDetectorConfig(configId)
+    // Verify config exists (using local activity - hidden from UI)
+    val verifiedConfigId = localActivities.getDetectorConfig(configId)
     log.info(s"${wid} Verified config: ${verifiedConfigId}")
 
-    // Get step type
-    val stepType = activities.getStepType(configId)
+    // Get step type (using local activity - hidden from UI)
+    val stepType = localActivities.getStepType(configId)
     log.info(s"${wid} Step type: ${stepType}")
 
     stepType match {
@@ -188,8 +198,8 @@ class GenericWorkflowImpl extends GenericWorkflow {
         log.info(s"${wid} Step is WAIT - pausing for user input")
         currentRun = currentRun.copy(status = "WAITING")
 
-        // Store run state
-        activities.updateWorkflowRun(currentRun)
+        // Store run state (using local activity - hidden from UI)
+        localActivities.updateWorkflowRun(currentRun)
 
         // Wait for continue signal
         expectedConfigId = configId
@@ -206,14 +216,14 @@ class GenericWorkflowImpl extends GenericWorkflow {
         log.info(s"${wid} Step is AUTO - executing activity")
 
         try {
-          // Get business name for activity (e.g., "ProofOfOwnership", "ProofOfReserve")
-          val activityName = activities.getDetectorConfigName(configId)
-          log.info(s"${wid} Executing activity: ${activityName}")
+          // Get business name for activity (using local activity - hidden from UI)
+          val activityName = localActivities.getDetectorConfigName(configId)
+          log.info(s"${wid} Executing business activity: ${activityName}")
 
-          // Execute activity with business name using untyped stub
+          // Execute BUSINESS activity with business name (VISIBLE in Temporal UI)
           val untypedStub = Workflow.newUntypedActivityStub(activityOptions)
           val executedConfigId = untypedStub.execute(activityName, classOf[Int], Int.box(configId)).asInstanceOf[Int]
-          log.info(s"${wid} Activity '${activityName}' executed successfully for config: ${executedConfigId}")
+          log.info(s"${wid} Business activity '${activityName}' completed: ${executedConfigId}")
 
           // Update run with output
           currentRun = currentRun.copy(status = "RUNNING")
@@ -225,8 +235,8 @@ class GenericWorkflowImpl extends GenericWorkflow {
         }
     }
 
-    // Store updated run state
-    activities.updateWorkflowRun(currentRun)
+    // Store updated run state (using local activity - hidden from UI)
+    localActivities.updateWorkflowRun(currentRun)
 
     currentRun
   }
