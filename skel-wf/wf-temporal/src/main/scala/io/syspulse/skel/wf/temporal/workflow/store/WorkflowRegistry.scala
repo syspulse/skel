@@ -55,14 +55,14 @@ object WorkflowRegistry {
   private final case class CreateWorkflowRunResponse(result: Try[WorkflowRunCreateRes], replyTo: ActorRef[Try[WorkflowRunCreateRes]]) extends Command
   private final case class ContinueWorkflowRunResponse(result: Try[WorkflowRunContinueRes], replyTo: ActorRef[Try[WorkflowRunContinueRes]]) extends Command
 
-  def apply(store: WorkflowSchemaStore, runStore: WorkflowRunStore, engineUri: String): Behavior[io.syspulse.skel.Command] = {
+  def apply(store: WorkflowSchemaStore, runStore: WorkflowRunStore, configStore: WorkflowConfigStore, engineUri: String): Behavior[io.syspulse.skel.Command] = {
     Behaviors.setup { context =>
       implicit val ec: ExecutionContext = context.executionContext
-      registry(store, runStore, engineUri, context)
+      registry(store, runStore, configStore, engineUri, context)
     }
   }
 
-  private def registry(store: WorkflowSchemaStore, runStore: WorkflowRunStore, engineUri: String, context: ActorContext[io.syspulse.skel.Command])(implicit ec: ExecutionContext): Behavior[io.syspulse.skel.Command] = {
+  private def registry(store: WorkflowSchemaStore, runStore: WorkflowRunStore, configStore: WorkflowConfigStore, engineUri: String, context: ActorContext[io.syspulse.skel.Command])(implicit ec: ExecutionContext): Behavior[io.syspulse.skel.Command] = {
     Behaviors.receiveMessage {
 
       case GetWorkflow(id, replyTo) =>
@@ -253,7 +253,7 @@ object WorkflowRegistry {
 
       case CreateWorkflowRun(req, replyTo) =>
         log.info(s"CreateWorkflowRun(schemaId=${req.schemaId}, steps=${req.steps})")
-        context.pipeToSelf(createWorkflowRun(engineUri, runStore, req)) {
+        context.pipeToSelf(createWorkflowRun(engineUri, runStore, configStore, req)) {
           case Success(result) => CreateWorkflowRunResponse(Success(result), replyTo)
           case Failure(e) => CreateWorkflowRunResponse(Failure(e), replyTo)
         }
@@ -359,8 +359,9 @@ object WorkflowRegistry {
     }
   }
 
-  private def createWorkflowRun(engineUri: String, runStore: WorkflowRunStore, req: WorkflowRunCreateReq)(implicit ec: ExecutionContext): Future[WorkflowRunCreateRes] = {
+  private def createWorkflowRun(engineUri: String, runStore: WorkflowRunStore, configStore: WorkflowConfigStore, req: WorkflowRunCreateReq)(implicit ec: ExecutionContext): Future[WorkflowRunCreateRes] = {
     import io.syspulse.skel.wf.temporal.workflow.GenericStarter
+    import io.hacken.ext.detector.DetectorConfig
 
     // Generate workflow ID
     val wid = s"workflow-${req.schemaId}-${System.currentTimeMillis()}"
@@ -375,13 +376,22 @@ object WorkflowRegistry {
       steps = req.steps
     )
 
+    // Build step metadata from config store
+    val stepNames: Map[Int, String] = req.steps.flatMap { configId =>
+      configStore.???(configId).toOption.map(c => configId -> c.name)
+    }.toMap
+
+    val stepTypes: Map[Int, String] = req.steps.flatMap { configId =>
+      configStore.???(configId).toOption.map(c => configId -> DetectorConfig.getString(c, "type", "AUTO"))
+    }.toMap
+
     // Store the workflow run
     runStore.+(workflowRun) match {
       case Success(_) =>
         log.info(s"WorkflowRun stored: ${wid}")
 
-        // Start Temporal workflow
-        GenericStarter.run(engineUri, workflowRun).map { result =>
+        // Start Temporal workflow with step metadata
+        GenericStarter.run(engineUri, workflowRun, stepNames, stepTypes).map { result =>
           log.info(s"Temporal workflow started: workflowId=${result.workflowId}, runId=${result.runId}")
 
           // Update WorkflowRun with rid and status

@@ -41,6 +41,9 @@ class GenericWorkflowImpl extends GenericWorkflow {
   private var currentRun: WorkflowRun = _
 
   @volatile
+  private var executionContext: WorkflowExecutionContext = _
+
+  @volatile
   private var continueSignal: Boolean = false
 
   @volatile
@@ -66,7 +69,7 @@ class GenericWorkflowImpl extends GenericWorkflow {
 
   override def getCursor(): Int = if (currentRun != null) currentRun.cursor else -1
 
-  override def execute(run: WorkflowRun): WorkflowRun = {
+  override def execute(run: WorkflowRun, stepNames: java.util.Map[Integer, String], stepTypes: java.util.Map[Integer, String]): WorkflowRun = {
     val info = Workflow.getInfo()
     implicit val wid = s"[${info.getWorkflowId} / ${info.getRunId}]"
 
@@ -81,12 +84,40 @@ class GenericWorkflowImpl extends GenericWorkflow {
     )
 
     try {
-      // Get workflow schema (using local activity - hidden from UI)
-      val schema = localActivities.getWorkflowSchema(run.schema)
-      log.info(s"${wid} Loaded schema: ${schema.name} v${schema.version}")
+      // Build execution context from workflow input parameters (passed as Java Maps for serialization)
+      import scala.jdk.CollectionConverters._
+      val stepMetadataMap: Map[Int, StepMetadata] = run.steps.map { configId =>
+        val name = stepNames.get(configId: Integer)
+        val stepType = stepTypes.get(configId: Integer)
+        log.info(s"${wid} Step ${configId}: name=${name}, type=${stepType}")
+        configId -> StepMetadata(configId, name, stepType)
+      }.toMap
 
-      // Execute steps based on connections
-      currentRun = executeStepsInOrder(currentRun, schema)
+      log.info(s"${wid} Built ${stepMetadataMap.size} step metadata entries")
+
+      // Create minimal schema (we don't actually need the full schema for sequential execution)
+      val dummySchema = io.hacken.ext.wf.WorkflowSchema(
+        id = run.schema,
+        createdAt = 0L,
+        updatedAt = 0L,
+        status = "ACTIVE",
+        name = "GenericWorkflow",
+        version = "1.0",
+        title = "Generic Workflow",
+        description = "",
+        author = "",
+        icon = None,
+        faq = None,
+        tags = Seq(),
+        nodes = Seq(),
+        connections = Seq()
+      )
+
+      executionContext = WorkflowExecutionContext(dummySchema, stepMetadataMap)
+      log.info(s"${wid} Built execution context with ${executionContext.stepMetadata.size} steps")
+
+      // Execute steps in sequential order
+      currentRun = executeStepsInOrder(currentRun, dummySchema)
 
       // Mark as finished
       currentRun = currentRun.copy(status = "FINISHED")
@@ -102,78 +133,29 @@ class GenericWorkflowImpl extends GenericWorkflow {
   }
 
   /**
-   * Execute workflow steps in order based on connections
+   * Execute workflow steps in order
+   *
+   * Steps are executed in the order specified by run.steps array
    */
   private def executeStepsInOrder(run: WorkflowRun, schema: WorkflowSchema)(implicit wid: String): WorkflowRun = {
-    // Build connection map: node_id -> next_node_id
-    val connectionMap = schema.connections.map(c => c.from -> c.to).toMap
+    log.info(s"${wid} Executing ${run.steps.size} steps in order")
 
-    // Find starting node (node with no incoming connection)
-    val allTargets = schema.connections.map(_.to).toSet
-    val startingNodes = schema.nodes.filterNot(n => allTargets.contains(n.id))
+    // Execute steps in order from the steps array
+    for (configId <- run.steps) {
+      log.info(s"${wid} Executing step: configId=${configId}")
 
-    if (startingNodes.isEmpty) {
-      log.error(s"${wid} No starting node found in workflow")
-      currentRun = currentRun.copy(status = "FAILED")
-      return currentRun
-    }
+      // Execute step and update instance variable
+      currentRun = executeStep(currentRun, configId)
 
-    // Start from first node
-    var currentNodeId: Option[Int] = Some(startingNodes.head.id)
-    val nodeMap = schema.nodes.map(n => n.id -> n).toMap
-
-    while (currentNodeId.isDefined) {
-      val nodeId = currentNodeId.get
-      val node = nodeMap.get(nodeId)
-
-      node match {
-        case Some(n) =>
-          // Find corresponding DetectorConfig
-          val configIdOpt = findConfigForNode(currentRun, n)
-
-          configIdOpt match {
-            case Some(configId) =>
-              log.info(s"${wid} Executing node ${n.id}: ${n.name} (configId=${configId})")
-
-              // Execute step and update instance variable
-              currentRun = executeStep(currentRun, configId)
-
-              // Check if workflow was stopped or failed
-              if (currentRun.status == "STOPPED" || currentRun.status == "FAILED") {
-                return currentRun
-              }
-
-              // Move to next node
-              currentNodeId = connectionMap.get(nodeId)
-
-            case None =>
-              log.error(s"${wid} No DetectorConfig found for node ${n.id}")
-              currentRun = currentRun.copy(status = "FAILED")
-              return currentRun
-          }
-
-        case None =>
-          log.error(s"${wid} Node ${nodeId} not found in schema")
-          currentRun = currentRun.copy(status = "FAILED")
-          return currentRun
+      // Check if workflow was stopped or failed
+      if (currentRun.status == "STOPPED" || currentRun.status == "FAILED") {
+        log.warn(s"${wid} Workflow stopped at step ${configId}: status=${currentRun.status}")
+        return currentRun
       }
     }
 
+    log.info(s"${wid} All steps executed successfully")
     currentRun
-  }
-
-  /**
-   * Find DetectorConfig ID for given node
-   */
-  private def findConfigForNode(run: WorkflowRun, node: io.hacken.ext.wf.WorkflowSchemaNode): Option[Int] = {
-    // For now, assume steps are in order matching nodes
-    // TODO: Implement proper mapping based on node.sid (DetectorSchema ID)
-    val nodeIndex = run.steps.indexOf(node.id)
-    if (nodeIndex >= 0 && nodeIndex < run.steps.size) {
-      Some(run.steps(nodeIndex))
-    } else {
-      None
-    }
   }
 
   /**
@@ -184,59 +166,54 @@ class GenericWorkflowImpl extends GenericWorkflow {
     currentRun = run.copy(cursor = configId)
     log.info(s"${wid} Step cursor set to ${configId}")
 
-    // Verify config exists (using local activity - hidden from UI)
-    val verifiedConfigId = localActivities.getDetectorConfig(configId)
-    log.info(s"${wid} Verified config: ${verifiedConfigId}")
+    // Debug: log execution context state
+    log.info(s"${wid} ExecutionContext available keys: ${executionContext.stepMetadata.keys.mkString(",")}")
+    log.info(s"${wid} Looking for configId=${configId}")
 
-    // Get step type (using local activity - hidden from UI)
-    val stepType = localActivities.getStepType(configId)
-    log.info(s"${wid} Step type: ${stepType}")
+    // Get step metadata from execution context (deterministic - no I/O)
+    val stepMeta = executionContext.stepMetadata.getOrElse(configId, {
+      log.error(s"${wid} Step metadata not found for configId=${configId}")
+      log.error(s"${wid} Available metadata keys: ${executionContext.stepMetadata.keys.mkString(",")}")
+      throw new IllegalStateException(s"Step metadata not found for configId=${configId}. Available: ${executionContext.stepMetadata.keys.mkString(",")}")
+    })
 
-    stepType match {
+    log.info(s"${wid} Step: ${stepMeta.name}, type: ${stepMeta.stepType}")
+
+    stepMeta.stepType match {
       case "WAIT" =>
         // Manual step - wait for signal
-        log.info(s"${wid} Step is WAIT - pausing for user input")
+        log.info(s"${wid} Step '${stepMeta.name}' is WAIT - pausing for user input")
         currentRun = currentRun.copy(status = "WAITING")
-
-        // Store run state (using local activity - hidden from UI)
-        localActivities.updateWorkflowRun(currentRun)
 
         // Wait for continue signal
         expectedConfigId = configId
         continueSignal = false
 
-        log.info(s"${wid} Waiting for continue signal for configId=${configId}")
+        log.info(s"${wid} Waiting for continue signal for '${stepMeta.name}' (configId=${configId})")
         Workflow.await(() => continueSignal)
 
-        log.info(s"${wid} Continue signal received, resuming execution")
+        log.info(s"${wid} Continue signal received for '${stepMeta.name}', resuming execution")
         currentRun = currentRun.copy(status = "RUNNING")
 
       case "AUTO" | _ =>
         // Automatic step - execute immediately
-        log.info(s"${wid} Step is AUTO - executing activity")
+        log.info(s"${wid} Step '${stepMeta.name}' is AUTO - executing business activity")
 
         try {
-          // Get business name for activity (using local activity - hidden from UI)
-          val activityName = localActivities.getDetectorConfigName(configId)
-          log.info(s"${wid} Executing business activity: ${activityName}")
-
           // Execute BUSINESS activity with business name (VISIBLE in Temporal UI)
           val untypedStub = Workflow.newUntypedActivityStub(activityOptions)
-          val executedConfigId = untypedStub.execute(activityName, classOf[Int], Int.box(configId)).asInstanceOf[Int]
-          log.info(s"${wid} Business activity '${activityName}' completed: ${executedConfigId}")
+          val executedConfigId = untypedStub.execute(stepMeta.name, classOf[Int], Int.box(configId)).asInstanceOf[Int]
+          log.info(s"${wid} Business activity '${stepMeta.name}' completed: ${executedConfigId}")
 
           // Update run with output
           currentRun = currentRun.copy(status = "RUNNING")
 
         } catch {
           case e: Exception =>
-            log.error(s"${wid} Activity execution failed: ${e.getMessage}", e)
+            log.error(s"${wid} Business activity '${stepMeta.name}' failed: ${e.getMessage}", e)
             currentRun = currentRun.copy(status = "FAILED")
         }
     }
-
-    // Store updated run state (using local activity - hidden from UI)
-    localActivities.updateWorkflowRun(currentRun)
 
     currentRun
   }

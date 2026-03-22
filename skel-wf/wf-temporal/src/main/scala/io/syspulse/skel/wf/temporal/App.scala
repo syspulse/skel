@@ -14,7 +14,8 @@ import io.syspulse.skel.wf.temporal.workflow.store._
 import io.syspulse.skel.wf.temporal.workflow.server._
 import io.syspulse.skel.wf.temporal.por.nul.PorActivitiesNull
 import io.hacken.ext.wf.WorkflowRun
-import io.syspulse.skel.wf.temporal.workflow.GenericStarter
+import io.hacken.ext.detector.DetectorConfig
+import io.syspulse.skel.wf.temporal.workflow.{GenericStarter, GenericStartResult}
 
 // Examples:
 //   temporal init tid:Int pid:Int sys:Keyword proj:Keyword
@@ -263,7 +264,7 @@ object App extends skel.Server {
         // Start HTTP server
         run(config.host, config.port, config.uri, c,
           Seq(
-            (WorkflowRegistry(store, runStore, config.engine), "WorkflowRegistry", (reg, ac) => {
+            (WorkflowRegistry(store, runStore, configStore, config.engine), "WorkflowRegistry", (reg, ac) => {
               new WorkflowRoutes(reg)(ac)
             })
           )
@@ -451,8 +452,15 @@ object App extends skel.Server {
 
         log.info(s"Created WorkflowRun: wid=${workflowRun.wid}, steps=${workflowRun.steps.mkString(",")}")
 
-        // Start workflow
-        val futureResult = GenericStarter.run(config.engine, workflowRun)
+        // Build step metadata maps for workflow input
+        val stepNames: Map[Int, String] = configs.map(c => c.id -> c.name).toMap
+        val stepTypes: Map[Int, String] = configs.map(c => c.id -> DetectorConfig.getString(c, "type", "AUTO")).toMap
+
+        log.info(s"Step names: ${stepNames.mkString(", ")}")
+        log.info(s"Step types: ${stepTypes.mkString(", ")}")
+
+        // Start workflow with step metadata
+        val futureResult: Future[GenericStartResult] = GenericStarter.run(config.engine, workflowRun, stepNames, stepTypes)
         Try(Await.result(futureResult, 30.seconds)) match {
           case Success(result) =>
             s"PoR2 Workflow started:\n" +

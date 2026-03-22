@@ -16,67 +16,33 @@ import scala.util.{Success, Failure}
  * Uses stores to manage workflow data
  */
 class GenericActivitiesImpl(
-  schemaStore: WorkflowSchemaStore,
-  runStore: WorkflowRunStore,
-  configStore: WorkflowConfigStore
+  val schemaStore: WorkflowSchemaStore,
+  val runStore: WorkflowRunStore,
+  val configStore: WorkflowConfigStore
 ) extends GenericActivities {
 
   private val log = Logger(getClass)
 
-  override def getWorkflowSchema(schemaId: Int): WorkflowSchema = {
-    log.info(s"Getting workflow schema: ${schemaId}")
-    schemaStore.???(schemaId) match {
-      case Success(schema) => schema
-      case Failure(e) =>
-        log.error(s"Failed to get workflow schema ${schemaId}: ${e.getMessage}")
-        throw e
-    }
-  }
+  override def loadExecutionContext(schemaId: Int, stepConfigIds: Seq[Int]): io.syspulse.skel.wf.temporal.workflow.WorkflowExecutionContext = {
+    log.info(s"Loading execution context: schemaId=${schemaId}, stepConfigIds=${stepConfigIds.mkString(",")}")
 
-  override def getDetectorConfig(configId: Int): Int = {
-    log.info(s"Getting detector config: ${configId}")
-    configStore.???(configId) match {
-      case Success(config) => config.id
-      case Failure(e) =>
-        log.error(s"Failed to get detector config ${configId}: ${e.getMessage}")
-        throw e
-    }
-  }
+    // Load schema
+    val schema = GenericActivities.getWorkflowSchema(schemaStore, schemaId)
+    log.info(s"Loaded schema: ${schema.name}")
 
-  override def getDetectorConfigName(configId: Int): String = {
-    log.info(s"Getting detector config name: ${configId}")
-    configStore.???(configId) match {
-      case Success(config) =>
-        log.info(s"Config name for ${configId}: ${config.name}")
-        config.name
-      case Failure(e) =>
-        log.error(s"Failed to get detector config ${configId}: ${e.getMessage}")
-        throw e
-    }
-  }
+    // Load step metadata for all steps
+    val stepMetadata = stepConfigIds.map { configId =>
+      log.info(s"Loading metadata for configId=${configId}")
+      val name = GenericActivities.getDetectorConfigName(configStore, configId)
+      val stepType = GenericActivities.getStepType(configStore, configId)
+      log.info(s"  configId=${configId}, name=${name}, stepType=${stepType}")
+      configId -> io.syspulse.skel.wf.temporal.workflow.StepMetadata(configId, name, stepType)
+    }.toMap
 
-  override def updateWorkflowRun(run: WorkflowRun): WorkflowRun = {
-    log.info(s"Updating workflow run: ${run.rid.getOrElse(run.wid)}, status=${run.status}, cursor=${run.cursor}")
-    runStore.+(run) match {
-      case Success(updated) => updated
-      case Failure(e) =>
-        log.error(s"Failed to update workflow run: ${e.getMessage}")
-        throw e
-    }
-  }
-
-  override def getStepType(configId: Int): String = {
-    log.info(s"Getting step type for config: ${configId}")
-    val config = configStore.???(configId) match {
-      case Success(c) => c
-      case Failure(e) =>
-        log.error(s"Failed to get detector config ${configId}: ${e.getMessage}")
-        throw e
-    }
-
-    val stepType = DetectorConfig.getString(config, "type", "AUTO")
-    log.info(s"Step type for ${config.name}: ${stepType}")
-    stepType
+    log.info(s"Loaded execution context with ${stepMetadata.size} steps: keys=${stepMetadata.keys.mkString(",")}")
+    val context = io.syspulse.skel.wf.temporal.workflow.WorkflowExecutionContext(schema, stepMetadata)
+    log.info(s"Returning context with stepMetadata map containing: ${context.stepMetadata.keys.mkString(",")}")
+    context
   }
 
   override def executeActivity(configId: Int): Int = {
