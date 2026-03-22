@@ -251,13 +251,13 @@ object App extends skel.Server {
             sys.exit(1)
         }
 
-        // Start Generic Worker (new)
-        import io.syspulse.skel.wf.temporal.workflow.GenericWorker
-        GenericWorker.run(config.engine, store, runStore, configStore) match {
+        // Start PoR2 Worker (uses Por2ActivitiesImpl for PoR-specific logic)
+        import io.syspulse.skel.wf.temporal.por2.Por2Worker
+        Por2Worker.run(config.engine, store, runStore, configStore) match {
           case Success(worker) =>
-            Console.err.println(s"GenericWorker started: ${worker}")
+            Console.err.println(s"Por2Worker started: ${worker}")
           case scala.util.Failure(e) =>
-            Console.err.println(s"Failed to start GenericWorker: ${e.getMessage}")
+            Console.err.println(s"Failed to start Por2Worker: ${e.getMessage}")
             sys.exit(1)
         }
 
@@ -444,9 +444,9 @@ object App extends skel.Server {
         // Build workflow steps with metadata
         val workflowSteps = configs.map { c =>
           io.hacken.ext.wf.WorkflowStep(
-            configId = c.id,
+            id = c.id,
             name = c.name,
-            stepType = DetectorConfig.getString(c, "type", "AUTO")
+            typ = DetectorConfig.getString(c, "type", "AUTO")
           )
         }
 
@@ -459,7 +459,7 @@ object App extends skel.Server {
           steps = workflowSteps
         )
 
-        log.info(s"Created WorkflowRun: wid=${workflowRun.wid}, steps=${workflowRun.steps.map(s => s"${s.configId}:${s.name}").mkString(",")}")
+        log.info(s"Created WorkflowRun: wid=${workflowRun.wid}, steps=${workflowRun.steps.map(s => s"${s.id}:${s.name}").mkString(",")}")
 
         // Start workflow
         val futureResult: Future[GenericStartResult] = GenericStarter.run(config.engine, workflowRun)

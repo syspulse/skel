@@ -71,7 +71,7 @@ object GenericStarter {
         // Get run ID
         val runId = WorkflowStub.fromTyped(workflow).getExecution.getRunId
 
-        log.info(s"Generic Workflow started: workflowId=${workflowId}, runId=${runId}")
+        log.info(s"Generic Workflow started: workflow = ${workflowId} / ${runId}")
 
         // Shutdown client
         temporal.shutdown()

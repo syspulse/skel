@@ -8,7 +8,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs
 import io.temporal.worker.{Worker, WorkerFactory}
 
 import io.syspulse.skel.wf.temporal.Temporal
-import io.syspulse.skel.wf.temporal.workflow.activity.GenericActivitiesImpl
+import io.syspulse.skel.wf.temporal.workflow.activity.{GenericActivities, GenericActivitiesImpl}
 import io.syspulse.skel.wf.temporal.workflow.store.{WorkflowSchemaStore, WorkflowRunStore, WorkflowConfigStore}
 
 /**
@@ -22,19 +22,15 @@ object GenericWorker {
   val TASK_QUEUE = "GENERIC_WORKFLOW_QUEUE"
 
   /**
-   * Start Generic Worker
+   * Start Generic Worker with custom activities implementation
    *
    * @param temporalUri Temporal server URI
-   * @param schemaStore WorkflowSchema store
-   * @param runStore WorkflowRun store
-   * @param configStore DetectorConfig store
+   * @param activities GenericActivities implementation (can be GenericActivitiesImpl or Por2ActivitiesImpl)
    * @return Worker instance
    */
   def run(
     temporalUri: String,
-    schemaStore: WorkflowSchemaStore,
-    runStore: WorkflowRunStore,
-    configStore: WorkflowConfigStore
+    activities: GenericActivities
   ): Try[Worker] = {
     try {
       log.info(s"Starting Generic Worker: ${temporalUri}")
@@ -56,9 +52,8 @@ object GenericWorker {
       log.info(s"Registered GenericWorkflow")
 
       // Register activities implementation
-      val activities = new GenericActivitiesImpl(schemaStore, runStore, configStore)
       worker.registerActivitiesImplementations(activities)
-      log.info(s"Registered GenericActivities")
+      log.info(s"Registered activities: ${activities.getClass.getSimpleName}")
 
       // Register dynamic activity handler (for business names)
       val dynamicActivityHandler = new activity.DynamicActivityHandler(activities)
@@ -76,5 +71,24 @@ object GenericWorker {
         log.error(s"Failed to start Generic Worker: ${e.getMessage}", e)
         Failure(e)
     }
+  }
+
+  /**
+   * Start Generic Worker with default GenericActivitiesImpl
+   *
+   * @param temporalUri Temporal server URI
+   * @param schemaStore WorkflowSchema store
+   * @param runStore WorkflowRun store
+   * @param configStore DetectorConfig store
+   * @return Worker instance
+   */
+  def run(
+    temporalUri: String,
+    schemaStore: WorkflowSchemaStore,
+    runStore: WorkflowRunStore,
+    configStore: WorkflowConfigStore
+  ): Try[Worker] = {
+    val activities = new GenericActivitiesImpl(schemaStore, runStore, configStore)
+    run(temporalUri, activities)
   }
 }

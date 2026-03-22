@@ -10,10 +10,10 @@ import io.syspulse.skel.wf.temporal.workflow.store.WorkflowConfigStore
  * Dynamic Activity Handler
  *
  * Handles activities with dynamic names (business names from DetectorConfig.name)
- * Routes all activity invocations to GenericActivitiesImpl.executeActivity()
+ * Routes all activity invocations to GenericActivities.executeActivity()
  */
 class DynamicActivityHandler(
-  activities: GenericActivitiesImpl
+  activities: GenericActivities
 ) extends DynamicActivity {
 
   private val log = Logger(getClass)
@@ -33,7 +33,7 @@ class DynamicActivityHandler(
     val configId = args.get(0, classOf[Int])
     log.info(s"Activity ${activityName} called with configId: ${configId}")
 
-    // Execute via GenericActivitiesImpl
+    // Execute via GenericActivities implementation (GenericActivitiesImpl or Por2ActivitiesImpl)
     val result = activities.executeActivity(configId)
     log.info(s"Activity ${activityName} completed: ${result}")
 

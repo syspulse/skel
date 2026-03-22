@@ -371,9 +371,9 @@ object WorkflowRegistry {
     val workflowSteps: Seq[WorkflowStep] = req.steps.flatMap { configId =>
       configStore.???(configId).toOption.map { config =>
         WorkflowStep(
-          configId = configId,
+          id = configId,
           name = config.name,
-          stepType = DetectorConfig.getString(config, "type", "AUTO")
+          typ = DetectorConfig.getString(config, "type", "AUTO")
         )
       }
     }

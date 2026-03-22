@@ -6,14 +6,17 @@ import spray.json._
 import io.hacken.ext.wf.{WorkflowRun, WorkflowSchema}
 import io.hacken.ext.detector.{DetectorConfig, DetectorConfigJson}
 import io.syspulse.skel.wf.temporal.workflow.store.{WorkflowSchemaStore, WorkflowRunStore, WorkflowConfigStore}
-import io.syspulse.skel.wf.temporal.por2.Por2Activities
 
 import scala.util.{Success, Failure}
 
 /**
  * Generic Activities Implementation
  *
- * Uses stores to manage workflow data
+ * This is a truly generic implementation that handles any activity by
+ * executing it as a pass-through with generic output.
+ *
+ * For domain-specific workflows (e.g., PoR), extend this class and
+ * override executeActivity to provide custom implementations.
  */
 class GenericActivitiesImpl(
   val schemaStore: WorkflowSchemaStore,
@@ -21,7 +24,7 @@ class GenericActivitiesImpl(
   val configStore: WorkflowConfigStore
 ) extends GenericActivities {
 
-  private val log = Logger(getClass)
+  protected val log = Logger(getClass)
 
   override def loadExecutionContext(schemaId: Int, stepConfigIds: Seq[Int]): io.syspulse.skel.wf.temporal.workflow.WorkflowExecutionContext = {
     log.info(s"Loading execution context: schemaId=${schemaId}, stepConfigIds=${stepConfigIds.mkString(",")}")
@@ -46,7 +49,7 @@ class GenericActivitiesImpl(
   }
 
   override def executeActivity(configId: Int): Int = {
-    log.info(s"Executing activity for config: ${configId}")
+    log.info(s"Executing generic activity for config: ${configId}")
 
     // Fetch config from store
     val config = configStore.???(configId) match {
@@ -59,30 +62,8 @@ class GenericActivitiesImpl(
     log.info(s"Executing activity: ${config.name}")
 
     try {
-      // Map activity name to implementation
-      val result = config.name.toLowerCase match {
-        case "proofofownership" | "poo" =>
-          executeProofOfOwnership(config)
-
-        case "proofofreserve" | "por" =>
-          executeProofOfReserve(config)
-
-        case "proofofliability" | "pol" =>
-          executeProofOfLiability(config)
-
-        case "solvency" =>
-          executeSolvency(config)
-
-        case "report" =>
-          executeReport(config)
-
-        case "commit" =>
-          executeCommit(config)
-
-        case _ =>
-          log.warn(s"Unknown activity: ${config.name}, executing as generic")
-          executeGenericActivity(config)
-      }
+      // Execute as generic activity (pass-through with generic output)
+      val result = executeGenericActivity(config)
 
       // Store updated config
       configStore.+(result) match {
@@ -102,161 +83,12 @@ class GenericActivitiesImpl(
   }
 
   /**
-   * Execute Proof of Ownership activity
+   * Execute generic activity
+   *
+   * This is a pass-through implementation that adds generic output metadata.
+   * Domain-specific implementations should override executeActivity to provide custom logic.
    */
-  private def executeProofOfOwnership(config: DetectorConfig): DetectorConfig = {
-    log.info(s"Executing Proof of Ownership")
-
-    // Delegate to PoR2 activities for better implementation
-    if (config.source == "POR2") {
-      Por2Activities.executeProofOfOwnership(config)
-    } else {
-      // Get wallets from config
-      val wallets = DetectorConfig.getArrayMap(config, "wallets", Vector.empty)
-      log.info(s"Processing ${wallets.size} wallets")
-
-      // Simulate ownership verification
-      val verified = wallets.map { wallet =>
-        Map(
-          "address" -> wallet.getOrElse("address", "unknown"),
-          "verified" -> true,
-          "timestamp" -> System.currentTimeMillis()
-        )
-      }
-
-      // Store output
-      val output = JsObject(
-        "verified" -> JsArray(verified.map(w => JsString(w("address").toString))),
-        "total" -> JsNumber(verified.size),
-        "timestamp" -> JsNumber(System.currentTimeMillis())
-      )
-
-      addOutput(config, output)
-    }
-  }
-
-  /**
-   * Execute Proof of Reserve activity
-   */
-  private def executeProofOfReserve(config: DetectorConfig): DetectorConfig = {
-    log.info(s"Executing Proof of Reserve")
-
-    // Delegate to PoR2 activities for better implementation
-    if (config.source == "POR2") {
-      Por2Activities.executeProofOfReserve(config)
-    } else {
-      // Simulate reserve calculation
-      val reserves = 1000000.0 // Example value
-
-      val output = JsObject(
-        "reserves" -> JsNumber(reserves),
-        "currency" -> JsString("USD"),
-        "timestamp" -> JsNumber(System.currentTimeMillis())
-      )
-
-      addOutput(config, output)
-    }
-  }
-
-  /**
-   * Execute Proof of Liability activity
-   */
-  private def executeProofOfLiability(config: DetectorConfig): DetectorConfig = {
-    log.info(s"Executing Proof of Liability")
-
-    // Delegate to PoR2 activities for better implementation
-    if (config.source == "POR2") {
-      Por2Activities.executeProofOfLiability(config)
-    } else {
-      // Get liabilities from config
-      val liabilities = DetectorConfig.getArrayMap(config, "liabilities", Vector.empty)
-      log.info(s"Processing ${liabilities.size} liabilities")
-
-      val totalLiability = liabilities.map { l =>
-        l.get("amount").map(_.toString.toDouble).getOrElse(0.0)
-      }.sum
-
-      val output = JsObject(
-        "liabilities" -> JsNumber(totalLiability),
-        "count" -> JsNumber(liabilities.size),
-        "timestamp" -> JsNumber(System.currentTimeMillis())
-      )
-
-      addOutput(config, output)
-    }
-  }
-
-  /**
-   * Execute Solvency activity
-   */
-  private def executeSolvency(config: DetectorConfig): DetectorConfig = {
-    log.info(s"Executing Solvency")
-
-    // Delegate to PoR2 activities for better implementation
-    if (config.source == "POR2") {
-      Por2Activities.executeSolvency(config)
-    } else {
-      // TODO: Get reserves and liabilities from previous steps
-      val reserves = 1000000.0
-      val liabilities = 800000.0
-      val solvencyRatio = reserves / liabilities
-
-      val output = JsObject(
-        "reserves" -> JsNumber(reserves),
-        "liabilities" -> JsNumber(liabilities),
-        "solvency_ratio" -> JsNumber(solvencyRatio),
-        "solvent" -> JsBoolean(solvencyRatio >= 1.0),
-        "timestamp" -> JsNumber(System.currentTimeMillis())
-      )
-
-      addOutput(config, output)
-    }
-  }
-
-  /**
-   * Execute Report activity
-   */
-  private def executeReport(config: DetectorConfig): DetectorConfig = {
-    log.info(s"Executing Report")
-
-    // Delegate to PoR2 activities for better implementation
-    if (config.source == "POR2") {
-      Por2Activities.executeReport(config)
-    } else {
-      val output = JsObject(
-        "report_generated" -> JsBoolean(true),
-        "report_id" -> JsString(s"report-${System.currentTimeMillis()}"),
-        "timestamp" -> JsNumber(System.currentTimeMillis())
-      )
-
-      addOutput(config, output)
-    }
-  }
-
-  /**
-   * Execute Commit activity
-   */
-  private def executeCommit(config: DetectorConfig): DetectorConfig = {
-    log.info(s"Executing Commit")
-
-    // Delegate to PoR2 activities for better implementation
-    if (config.source == "POR2") {
-      Por2Activities.executeCommit(config)
-    } else {
-      val output = JsObject(
-        "committed" -> JsBoolean(true),
-        "commit_id" -> JsString(s"commit-${System.currentTimeMillis()}"),
-        "timestamp" -> JsNumber(System.currentTimeMillis())
-      )
-
-      addOutput(config, output)
-    }
-  }
-
-  /**
-   * Execute generic activity (unknown activities)
-   */
-  private def executeGenericActivity(config: DetectorConfig): DetectorConfig = {
+  protected def executeGenericActivity(config: DetectorConfig): DetectorConfig = {
     log.info(s"Executing generic activity: ${config.name}")
 
     val output = JsObject(
@@ -270,8 +102,10 @@ class GenericActivitiesImpl(
 
   /**
    * Add output to DetectorConfig
+   *
+   * Helper method for subclasses to add output data to config
    */
-  private def addOutput(config: DetectorConfig, output: JsObject): DetectorConfig = {
+  protected def addOutput(config: DetectorConfig, output: JsObject): DetectorConfig = {
     val currentConfig = config.config.getOrElse(JsObject())
     val updatedConfig = JsObject(
       currentConfig.fields + ("output" -> output)

@@ -86,8 +86,8 @@ class GenericWorkflowImpl extends GenericWorkflow {
     try {
       // Build execution context from workflow steps
       val stepMetadataMap: Map[Int, StepMetadata] = run.steps.map { step =>
-        log.info(s"${wid} Step ${step.configId}: name=${step.name}, type=${step.stepType}")
-        step.configId -> StepMetadata(step.configId, step.name, step.stepType)
+        log.info(s"${wid} Step ${step.id}: name=${step.name}, type=${step.typ}")
+        step.id -> StepMetadata(step.id, step.name, step.typ)
       }.toMap
 
       log.info(s"${wid} Built ${stepMetadataMap.size} step metadata entries")
@@ -139,14 +139,14 @@ class GenericWorkflowImpl extends GenericWorkflow {
 
     // Execute steps in order from the steps array
     for (step <- run.steps) {
-      log.info(s"${wid} Executing step: configId=${step.configId}, name=${step.name}")
+      log.info(s"${wid} Executing step: configId=${step.id}, name=${step.name}")
 
       // Execute step and update instance variable
-      currentRun = executeStep(currentRun, step.configId)
+      currentRun = executeStep(currentRun, step.id)
 
       // Check if workflow was stopped or failed
       if (currentRun.status == "STOPPED" || currentRun.status == "FAILED") {
-        log.warn(s"${wid} Workflow stopped at step ${step.configId}: status=${currentRun.status}")
+        log.warn(s"${wid} Workflow stopped at step ${step.id}: status=${currentRun.status}")
         return currentRun
       }
     }

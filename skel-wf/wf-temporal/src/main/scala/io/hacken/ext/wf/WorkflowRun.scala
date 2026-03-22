@@ -16,9 +16,9 @@ import io.syspulse.skel.util.Util
  * Workflow Step - metadata for a single step in the workflow
  */
 case class WorkflowStep(
-  configId: Int,      // DetectorConfig ID
+  id: Int,      // DetectorConfig ID
   name: String,       // Business name for the activity (from DetectorConfig.name)
-  stepType: String    // "AUTO" or "WAIT"
+  typ: String    // "AUTO" or "WAIT"
 ) extends Serializable
 
 // Workflow Run - context defining workflow instance execution propagated through all steps and activities

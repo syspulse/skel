@@ -18,7 +18,7 @@ class GenericWorkflowSpec extends AnyWordSpec with Matchers {
 
   "GenericActivitiesImpl" should {
 
-    "execute activity successfully" in {
+    "execute generic activity successfully" in {
       val schemaStore = new WorkflowSchemaStoreMem()
       val runStore = new WorkflowRunStoreMem()
       val configStore = new WorkflowConfigStoreMem()
@@ -34,15 +34,12 @@ class GenericWorkflowSpec extends AnyWordSpec with Matchers {
         status = "ACTIVE",
         contract = contract,
         schema = None,
-        name = "ProofOfOwnership",
+        name = "GenericActivity",
         source = "TEST",
         tags = Seq(),
         config = Some(JsObject(
           "type" -> JsString("AUTO"),
-          "wallets" -> JsArray(
-            JsObject("address" -> JsString("0x123")),
-            JsObject("address" -> JsString("0x456"))
-          )
+          "data" -> JsObject("key" -> JsString("value"))
         )),
         destinations = Seq()
       )
@@ -59,12 +56,13 @@ class GenericWorkflowSpec extends AnyWordSpec with Matchers {
       output should not be None
 
       val outputObj = output.get.asJsObject
-      outputObj.fields should contain key "verified"
-      outputObj.fields should contain key "total"
-      outputObj.fields("total") shouldBe JsNumber(2)
+      outputObj.fields should contain key "activity"
+      outputObj.fields should contain key "executed"
+      outputObj.fields("activity") shouldBe JsString("GenericActivity")
+      outputObj.fields("executed") shouldBe JsBoolean(true)
     }
 
-    "execute generic activity for unknown names" in {
+    "execute any activity as generic" in {
       val schemaStore = new WorkflowSchemaStoreMem()
       val runStore = new WorkflowRunStoreMem()
       val configStore = new WorkflowConfigStoreMem()
@@ -80,7 +78,7 @@ class GenericWorkflowSpec extends AnyWordSpec with Matchers {
         status = "ACTIVE",
         contract = contract,
         schema = None,
-        name = "UnknownActivity",
+        name = "SomeCustomActivity",
         source = "TEST",
         tags = Seq(),
         config = Some(JsObject("type" -> JsString("AUTO"))),
@@ -101,7 +99,7 @@ class GenericWorkflowSpec extends AnyWordSpec with Matchers {
       val outputObj = output.get.asJsObject
       outputObj.fields should contain key "activity"
       outputObj.fields should contain key "executed"
-      outputObj.fields("activity") shouldBe JsString("UnknownActivity")
+      outputObj.fields("activity") shouldBe JsString("SomeCustomActivity")
       outputObj.fields("executed") shouldBe JsBoolean(true)
     }
   }
