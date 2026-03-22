@@ -461,8 +461,8 @@ object App extends skel.Server {
 
         log.info(s"Created WorkflowRun: wid=${workflowRun.wid}, steps=${workflowRun.steps.map(s => s"${s.id}:${s.name}").mkString(",")}")
 
-        // Start workflow
-        val futureResult: Future[GenericStartResult] = GenericStarter.run(config.engine, workflowRun)
+        // Start workflow with schema name as workflow type (shows in Temporal UI)
+        val futureResult: Future[GenericStartResult] = GenericStarter.run(config.engine, workflowRun, schema.name)
         Try(Await.result(futureResult, 30.seconds)) match {
           case Success(result) =>
             s"PoR2 Workflow started:\n" +

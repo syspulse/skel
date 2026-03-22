@@ -253,7 +253,7 @@ object WorkflowRegistry {
 
       case CreateWorkflowRun(req, replyTo) =>
         log.info(s"CreateWorkflowRun(schemaId=${req.schemaId}, steps=${req.steps})")
-        context.pipeToSelf(createWorkflowRun(engineUri, runStore, configStore, req)) {
+        context.pipeToSelf(createWorkflowRun(engineUri, store, runStore, configStore, req)) {
           case Success(result) => CreateWorkflowRunResponse(Success(result), replyTo)
           case Failure(e) => CreateWorkflowRunResponse(Failure(e), replyTo)
         }
@@ -359,13 +359,21 @@ object WorkflowRegistry {
     }
   }
 
-  private def createWorkflowRun(engineUri: String, runStore: WorkflowRunStore, configStore: WorkflowConfigStore, req: WorkflowRunCreateReq)(implicit ec: ExecutionContext): Future[WorkflowRunCreateRes] = {
+  private def createWorkflowRun(engineUri: String, schemaStore: WorkflowSchemaStore, runStore: WorkflowRunStore, configStore: WorkflowConfigStore, req: WorkflowRunCreateReq)(implicit ec: ExecutionContext): Future[WorkflowRunCreateRes] = {
     import io.syspulse.skel.wf.temporal.workflow.GenericStarter
     import io.hacken.ext.detector.DetectorConfig
     import io.hacken.ext.wf.WorkflowStep
 
     // Generate workflow ID
     val wid = s"workflow-${req.schemaId}-${System.currentTimeMillis()}"
+
+    // Get workflow schema name for Temporal workflow type
+    val workflowTypeName = schemaStore.??(req.schemaId) match {
+      case Some(schema) => schema.name
+      case None =>
+        log.warn(s"Schema ${req.schemaId} not found, using default workflow type")
+        "GenericWorkflow"
+    }
 
     // Build workflow steps with metadata from config store
     val workflowSteps: Seq[WorkflowStep] = req.steps.flatMap { configId =>
@@ -391,10 +399,10 @@ object WorkflowRegistry {
     // Store the workflow run
     runStore.+(workflowRun) match {
       case Success(_) =>
-        log.info(s"WorkflowRun stored: ${wid}")
+        log.info(s"WorkflowRun stored: ${wid}, workflow type: ${workflowTypeName}")
 
-        // Start Temporal workflow
-        GenericStarter.run(engineUri, workflowRun).map { result =>
+        // Start Temporal workflow with schema name as workflow type
+        GenericStarter.run(engineUri, workflowRun, workflowTypeName).map { result =>
           log.info(s"Temporal workflow started: workflowId=${result.workflowId}, runId=${result.runId}")
 
           // Update WorkflowRun with rid and status

@@ -47,9 +47,9 @@ object GenericWorker {
       // Create worker for task queue
       val worker = factory.newWorker(TASK_QUEUE)
 
-      // Register workflow implementation
-      worker.registerWorkflowImplementationTypes(classOf[GenericWorkflowImpl])
-      log.info(s"Registered GenericWorkflow")
+      // Register dynamic workflow implementation (handles any workflow type name)
+      worker.registerWorkflowImplementationTypes(classOf[DynamicWorkflowImpl])
+      log.info(s"Registered DynamicWorkflow (handles custom workflow type names)")
 
       // Register activities implementation
       worker.registerActivitiesImplementations(activities)

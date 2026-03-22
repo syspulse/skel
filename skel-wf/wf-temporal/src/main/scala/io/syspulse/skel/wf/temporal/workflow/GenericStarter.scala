@@ -27,18 +27,20 @@ object GenericStarter {
   val log = Logger(getClass)
 
   /**
-   * Start Generic Workflow
+   * Start Workflow with custom workflow type name
    *
    * @param temporalUri Temporal server URI
    * @param run WorkflowRun to execute (with steps including metadata)
+   * @param workflowTypeName Workflow type name to display in Temporal UI (from WorkflowSchema.name)
    * @return Future with start result (wid, rid)
    */
   def run(
     temporalUri: String,
-    run: WorkflowRun
+    run: WorkflowRun,
+    workflowTypeName: String
   )(implicit ec: ExecutionContext): Future[GenericStartResult] = {
     Future {
-      log.info(s"Starting Generic Workflow: wid=${run.wid}, schema=${run.schema}, steps=${run.steps.size}")
+      log.info(s"Starting Workflow: type=${workflowTypeName}, wid=${run.wid}, schema=${run.schema}, steps=${run.steps.size}")
 
       try {
         // Create Temporal client
@@ -62,16 +64,17 @@ object GenericStarter {
           .setTypedSearchAttributes(SearchAttributes.newBuilder().build()) // Use default for now
           .build()
 
-        // Create workflow stub
-        val workflow = client.newWorkflowStub(classOf[GenericWorkflow], options)
+        // Create untyped workflow stub with custom workflow type name
+        // This allows the workflow type in Temporal UI to show the business name (e.g., "PoR2 Workflow")
+        val workflow = client.newUntypedWorkflowStub(workflowTypeName, options)
 
         // Start workflow asynchronously
-        val execution = WorkflowStub.fromTyped(workflow).start(run)
+        workflow.start(run)
 
         // Get run ID
-        val runId = WorkflowStub.fromTyped(workflow).getExecution.getRunId
+        val runId = workflow.getExecution.getRunId
 
-        log.info(s"Generic Workflow started: workflow = ${workflowId} / ${runId}")
+        log.info(s"Workflow started: type=${workflowTypeName}, workflowId=${workflowId}, runId=${runId}")
 
         // Shutdown client
         temporal.shutdown()
@@ -87,18 +90,23 @@ object GenericStarter {
   }
 
   /**
-   * Get workflow stub for signaling/querying
+   * Get untyped workflow stub for signaling/querying
+   *
+   * @param temporalUri Temporal server URI
+   * @param workflowId Workflow ID
+   * @param runId Optional Run ID
+   * @return WorkflowStub for signaling/querying
    */
-  def getWorkflowStub(temporalUri: String, workflowId: String, runId: Option[String] = None): GenericWorkflow = {
+  def getWorkflowStub(temporalUri: String, workflowId: String, runId: Option[String] = None): WorkflowStub = {
     import scala.concurrent.ExecutionContext.Implicits.global
     val temporal = new Temporal(temporalUri)
     val client = temporal.getClient
 
     runId match {
       case Some(rid) =>
-        client.newWorkflowStub(classOf[GenericWorkflow], workflowId, java.util.Optional.of(rid))
+        client.newUntypedWorkflowStub(workflowId, java.util.Optional.of(rid), java.util.Optional.empty())
       case None =>
-        client.newWorkflowStub(classOf[GenericWorkflow], workflowId)
+        client.newUntypedWorkflowStub(workflowId, java.util.Optional.empty(), java.util.Optional.empty())
     }
   }
 }
