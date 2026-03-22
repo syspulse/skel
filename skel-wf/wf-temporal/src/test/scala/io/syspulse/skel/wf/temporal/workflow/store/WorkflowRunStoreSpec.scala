@@ -4,12 +4,17 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import scala.util.{Success, Failure}
 
-import io.hacken.ext.wf.WorkflowRun
+import io.hacken.ext.wf.{WorkflowRun, WorkflowStep}
 
 /**
  * Test suite for WorkflowRunStore
  */
 class WorkflowRunStoreSpec extends AnyWordSpec with Matchers {
+
+  // Helper to create test steps
+  def testSteps(ids: Int*): Seq[WorkflowStep] = ids.map { id =>
+    WorkflowStep(id, s"Step$id", "AUTO")
+  }
 
   "WorkflowRunStoreMem" should {
 
@@ -22,7 +27,7 @@ class WorkflowRunStoreSpec extends AnyWordSpec with Matchers {
         status = "NEW",
         cursor = -1,
         schema = 1,
-        steps = Seq(1, 2, 3)
+        steps = testSteps(1, 2, 3)
       )
 
       // Add run
@@ -44,7 +49,7 @@ class WorkflowRunStoreSpec extends AnyWordSpec with Matchers {
         status = "NEW",
         cursor = -1,
         schema = 1,
-        steps = Seq(1, 2, 3)
+        steps = testSteps(1, 2, 3)
       )
 
       store.+(run)
@@ -68,7 +73,7 @@ class WorkflowRunStoreSpec extends AnyWordSpec with Matchers {
         status = "NEW",
         cursor = -1,
         schema = 1,
-        steps = Seq(1, 2, 3)
+        steps = testSteps(1, 2, 3)
       )
 
       store.+(run)
@@ -82,9 +87,9 @@ class WorkflowRunStoreSpec extends AnyWordSpec with Matchers {
     "return all workflow runs" in {
       val store = new WorkflowRunStoreMem()
 
-      val run1 = WorkflowRun("workflow-1", Some("run-1"), "NEW", -1, 1, Seq(1, 2, 3))
-      val run2 = WorkflowRun("workflow-2", Some("run-2"), "RUNNING", 1, 2, Seq(4, 5, 6))
-      val run3 = WorkflowRun("workflow-3", Some("run-3"), "FINISHED", 3, 3, Seq(7, 8, 9))
+      val run1 = WorkflowRun("workflow-1", Some("run-1"), "NEW", -1, 1, testSteps(1, 2, 3))
+      val run2 = WorkflowRun("workflow-2", Some("run-2"), "RUNNING", 1, 2, testSteps(4, 5, 6))
+      val run3 = WorkflowRun("workflow-3", Some("run-3"), "FINISHED", 3, 3, testSteps(7, 8, 9))
 
       store.+(run1)
       store.+(run2)
@@ -100,10 +105,10 @@ class WorkflowRunStoreSpec extends AnyWordSpec with Matchers {
 
       store.size shouldBe 0
 
-      store.+(WorkflowRun("w1", Some("r1"), "NEW", -1, 1, Seq(1)))
+      store.+(WorkflowRun("w1", Some("r1"), "NEW", -1, 1, testSteps(1)))
       store.size shouldBe 1
 
-      store.+(WorkflowRun("w2", Some("r2"), "NEW", -1, 1, Seq(1)))
+      store.+(WorkflowRun("w2", Some("r2"), "NEW", -1, 1, testSteps(1)))
       store.size shouldBe 2
 
       store.del("r1")
@@ -119,7 +124,7 @@ class WorkflowRunStoreSpec extends AnyWordSpec with Matchers {
         status = "NEW",
         cursor = -1,
         schema = 1,
-        steps = Seq(1, 2, 3)
+        steps = testSteps(1, 2, 3)
       )
 
       // Add run (will use wid as key)
@@ -156,7 +161,7 @@ class WorkflowRunStoreSpec extends AnyWordSpec with Matchers {
           status = "NEW",
           cursor = -1,
           schema = 1,
-          steps = Seq(1, 2, 3)
+          steps = testSteps(1, 2, 3)
         )
 
         // Add run

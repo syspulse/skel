@@ -12,6 +12,15 @@ import java.util.concurrent.TimeUnit
 import io.syspulse.skel.Ingestable
 import io.syspulse.skel.util.Util
 
+/**
+ * Workflow Step - metadata for a single step in the workflow
+ */
+case class WorkflowStep(
+  configId: Int,      // DetectorConfig ID
+  name: String,       // Business name for the activity (from DetectorConfig.name)
+  stepType: String    // "AUTO" or "WAIT"
+) extends Serializable
+
 // Workflow Run - context defining workflow instance execution propagated through all steps and activities
 case class WorkflowRun(
   wid: String,   // Workflow ID as in Temporal Workflow ID
@@ -22,9 +31,10 @@ case class WorkflowRun(
 
   schema: Int, // WorkflowSchema ID reference to map to WorkflowSchema
 
-  steps: Seq[Int], // References to DetectorConfig runtime instance IDs
+  steps: Seq[WorkflowStep], // Workflow steps with metadata
 )
 
 object WorkflowRunJson extends JsonCommon {
+  implicit val jf_wf_step: RootJsonFormat[WorkflowStep] = jsonFormat3(WorkflowStep)
   implicit val jf_wf_run: RootJsonFormat[WorkflowRun] = jsonFormat6(WorkflowRun)
 }

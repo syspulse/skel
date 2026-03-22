@@ -4,7 +4,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import spray.json._
 
-import io.hacken.ext.wf.{WorkflowRun, WorkflowSchema, WorkflowSchemaNode, WorkflowSchemaConnection}
+import io.hacken.ext.wf.{WorkflowRun, WorkflowStep, WorkflowSchema, WorkflowSchemaNode, WorkflowSchemaConnection}
 import io.hacken.ext.detector.{DetectorConfig, DetectorConfigContract, DetectorConfigSchema}
 import io.syspulse.skel.wf.temporal.workflow.activity.GenericActivitiesImpl
 import io.syspulse.skel.wf.temporal.workflow.store._
@@ -108,6 +108,12 @@ class GenericWorkflowSpec extends AnyWordSpec with Matchers {
 
   "WorkflowRun status lifecycle" should {
 
+    val testSteps = Seq(
+      WorkflowStep(1, "Step1", "AUTO"),
+      WorkflowStep(2, "Step2", "AUTO"),
+      WorkflowStep(3, "Step3", "WAIT")
+    )
+
     "transition from NEW to RUNNING to FINISHED" in {
       var run = WorkflowRun(
         wid = "workflow-1",
@@ -115,7 +121,7 @@ class GenericWorkflowSpec extends AnyWordSpec with Matchers {
         status = "NEW",
         cursor = -1,
         schema = 1,
-        steps = Seq(1, 2, 3)
+        steps = testSteps
       )
 
       run.status shouldBe "NEW"
@@ -142,7 +148,7 @@ class GenericWorkflowSpec extends AnyWordSpec with Matchers {
         status = "RUNNING",
         cursor = 2,
         schema = 1,
-        steps = Seq(1, 2, 3)
+        steps = testSteps
       )
 
       // Step requires waiting
@@ -162,7 +168,7 @@ class GenericWorkflowSpec extends AnyWordSpec with Matchers {
         status = "RUNNING",
         cursor = 2,
         schema = 1,
-        steps = Seq(1, 2, 3)
+        steps = testSteps
       )
 
       // Activity failed
@@ -177,7 +183,7 @@ class GenericWorkflowSpec extends AnyWordSpec with Matchers {
         status = "RUNNING",
         cursor = 2,
         schema = 1,
-        steps = Seq(1, 2, 3)
+        steps = testSteps
       )
 
       // User stopped workflow

@@ -362,9 +362,21 @@ object WorkflowRegistry {
   private def createWorkflowRun(engineUri: String, runStore: WorkflowRunStore, configStore: WorkflowConfigStore, req: WorkflowRunCreateReq)(implicit ec: ExecutionContext): Future[WorkflowRunCreateRes] = {
     import io.syspulse.skel.wf.temporal.workflow.GenericStarter
     import io.hacken.ext.detector.DetectorConfig
+    import io.hacken.ext.wf.WorkflowStep
 
     // Generate workflow ID
     val wid = s"workflow-${req.schemaId}-${System.currentTimeMillis()}"
+
+    // Build workflow steps with metadata from config store
+    val workflowSteps: Seq[WorkflowStep] = req.steps.flatMap { configId =>
+      configStore.???(configId).toOption.map { config =>
+        WorkflowStep(
+          configId = configId,
+          name = config.name,
+          stepType = DetectorConfig.getString(config, "type", "AUTO")
+        )
+      }
+    }
 
     // Create WorkflowRun with NEW status (no rid yet)
     val workflowRun = io.hacken.ext.wf.WorkflowRun(
@@ -373,25 +385,16 @@ object WorkflowRegistry {
       status = "NEW",
       cursor = -1,  // Not started yet
       schema = req.schemaId,
-      steps = req.steps
+      steps = workflowSteps
     )
-
-    // Build step metadata from config store
-    val stepNames: Map[Int, String] = req.steps.flatMap { configId =>
-      configStore.???(configId).toOption.map(c => configId -> c.name)
-    }.toMap
-
-    val stepTypes: Map[Int, String] = req.steps.flatMap { configId =>
-      configStore.???(configId).toOption.map(c => configId -> DetectorConfig.getString(c, "type", "AUTO"))
-    }.toMap
 
     // Store the workflow run
     runStore.+(workflowRun) match {
       case Success(_) =>
         log.info(s"WorkflowRun stored: ${wid}")
 
-        // Start Temporal workflow with step metadata
-        GenericStarter.run(engineUri, workflowRun, stepNames, stepTypes).map { result =>
+        // Start Temporal workflow
+        GenericStarter.run(engineUri, workflowRun).map { result =>
           log.info(s"Temporal workflow started: workflowId=${result.workflowId}, runId=${result.runId}")
 
           // Update WorkflowRun with rid and status

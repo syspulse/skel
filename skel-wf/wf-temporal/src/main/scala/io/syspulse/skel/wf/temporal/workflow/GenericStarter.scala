@@ -30,19 +30,15 @@ object GenericStarter {
    * Start Generic Workflow
    *
    * @param temporalUri Temporal server URI
-   * @param run WorkflowRun to execute
-   * @param stepNames Map of configId -> business name
-   * @param stepTypes Map of configId -> step type (AUTO/WAIT)
+   * @param run WorkflowRun to execute (with steps including metadata)
    * @return Future with start result (wid, rid)
    */
   def run(
     temporalUri: String,
-    run: WorkflowRun,
-    stepNames: Map[Int, String],
-    stepTypes: Map[Int, String]
+    run: WorkflowRun
   )(implicit ec: ExecutionContext): Future[GenericStartResult] = {
     Future {
-      log.info(s"Starting Generic Workflow: wid=${run.wid}, schema=${run.schema}, steps=${run.steps}")
+      log.info(s"Starting Generic Workflow: wid=${run.wid}, schema=${run.schema}, steps=${run.steps.size}")
 
       try {
         // Create Temporal client
@@ -69,15 +65,8 @@ object GenericStarter {
         // Create workflow stub
         val workflow = client.newWorkflowStub(classOf[GenericWorkflow], options)
 
-        // Convert Scala Maps to Java Maps for Temporal serialization
-        val javaStepNames = new java.util.HashMap[Integer, String]()
-        stepNames.foreach { case (k, v) => javaStepNames.put(k: Integer, v) }
-
-        val javaStepTypes = new java.util.HashMap[Integer, String]()
-        stepTypes.foreach { case (k, v) => javaStepTypes.put(k: Integer, v) }
-
-        // Start workflow asynchronously with step metadata
-        val execution = WorkflowStub.fromTyped(workflow).start(run, javaStepNames, javaStepTypes)
+        // Start workflow asynchronously
+        val execution = WorkflowStub.fromTyped(workflow).start(run)
 
         // Get run ID
         val runId = WorkflowStub.fromTyped(workflow).getExecution.getRunId

@@ -16,9 +16,7 @@ class GenericWorkflowImplTest extends AnyWordSpec with Matchers {
       // Verify the execute method exists with correct signature
       // Note: Cannot instantiate GenericWorkflowImpl outside of Temporal runtime
       val executeMethod = classOf[GenericWorkflowImpl].getMethod("execute",
-        classOf[WorkflowRun],
-        classOf[java.util.Map[_, _]],
-        classOf[java.util.Map[_, _]]
+        classOf[WorkflowRun]
       )
       executeMethod should not be null
       executeMethod.getReturnType shouldBe classOf[WorkflowRun]

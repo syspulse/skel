@@ -441,26 +441,28 @@ object App extends skel.Server {
         val workflowId = s"por2-${config.porProject}-${System.currentTimeMillis()}"
         val runId = Some(java.util.UUID.randomUUID().toString)
 
+        // Build workflow steps with metadata
+        val workflowSteps = configs.map { c =>
+          io.hacken.ext.wf.WorkflowStep(
+            configId = c.id,
+            name = c.name,
+            stepType = DetectorConfig.getString(c, "type", "AUTO")
+          )
+        }
+
         val workflowRun = WorkflowRun(
           wid = workflowId,
           rid = runId,
           status = "NEW",
           cursor = -1,
           schema = schema.id,
-          steps = configs.map(_.id)
+          steps = workflowSteps
         )
 
-        log.info(s"Created WorkflowRun: wid=${workflowRun.wid}, steps=${workflowRun.steps.mkString(",")}")
+        log.info(s"Created WorkflowRun: wid=${workflowRun.wid}, steps=${workflowRun.steps.map(s => s"${s.configId}:${s.name}").mkString(",")}")
 
-        // Build step metadata maps for workflow input
-        val stepNames: Map[Int, String] = configs.map(c => c.id -> c.name).toMap
-        val stepTypes: Map[Int, String] = configs.map(c => c.id -> DetectorConfig.getString(c, "type", "AUTO")).toMap
-
-        log.info(s"Step names: ${stepNames.mkString(", ")}")
-        log.info(s"Step types: ${stepTypes.mkString(", ")}")
-
-        // Start workflow with step metadata
-        val futureResult: Future[GenericStartResult] = GenericStarter.run(config.engine, workflowRun, stepNames, stepTypes)
+        // Start workflow
+        val futureResult: Future[GenericStartResult] = GenericStarter.run(config.engine, workflowRun)
         Try(Await.result(futureResult, 30.seconds)) match {
           case Success(result) =>
             s"PoR2 Workflow started:\n" +

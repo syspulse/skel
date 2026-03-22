@@ -14,13 +14,11 @@ trait GenericWorkflow {
   /**
    * Execute workflow from WorkflowRun definition
    *
-   * @param run WorkflowRun with schema, steps, and cursor
-   * @param stepNames Map of configId -> business name (e.g., 1 -> "ProofOfOwnership")
-   * @param stepTypes Map of configId -> step type (e.g., 1 -> "AUTO", 3 -> "WAIT")
+   * @param run WorkflowRun with schema, steps (including metadata), and cursor
    * @return Updated WorkflowRun with final status
    */
   @WorkflowMethod
-  def execute(run: WorkflowRun, stepNames: java.util.Map[Integer, String], stepTypes: java.util.Map[Integer, String]): WorkflowRun
+  def execute(run: WorkflowRun): WorkflowRun
 
   /**
    * Signal to continue workflow from WAITING state

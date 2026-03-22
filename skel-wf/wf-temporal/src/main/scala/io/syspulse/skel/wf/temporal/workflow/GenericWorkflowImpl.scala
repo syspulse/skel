@@ -69,11 +69,11 @@ class GenericWorkflowImpl extends GenericWorkflow {
 
   override def getCursor(): Int = if (currentRun != null) currentRun.cursor else -1
 
-  override def execute(run: WorkflowRun, stepNames: java.util.Map[Integer, String], stepTypes: java.util.Map[Integer, String]): WorkflowRun = {
+  override def execute(run: WorkflowRun): WorkflowRun = {
     val info = Workflow.getInfo()
     implicit val wid = s"[${info.getWorkflowId} / ${info.getRunId}]"
 
-    log.info(s"${wid} Starting Generic Workflow: schema=${run.schema}, steps=${run.steps}")
+    log.info(s"${wid} Starting Generic Workflow: schema=${run.schema}, steps=${run.steps.size}")
 
     // Initialize current run
     currentRun = run.copy(
@@ -84,13 +84,10 @@ class GenericWorkflowImpl extends GenericWorkflow {
     )
 
     try {
-      // Build execution context from workflow input parameters (passed as Java Maps for serialization)
-      import scala.jdk.CollectionConverters._
-      val stepMetadataMap: Map[Int, StepMetadata] = run.steps.map { configId =>
-        val name = stepNames.get(configId: Integer)
-        val stepType = stepTypes.get(configId: Integer)
-        log.info(s"${wid} Step ${configId}: name=${name}, type=${stepType}")
-        configId -> StepMetadata(configId, name, stepType)
+      // Build execution context from workflow steps
+      val stepMetadataMap: Map[Int, StepMetadata] = run.steps.map { step =>
+        log.info(s"${wid} Step ${step.configId}: name=${step.name}, type=${step.stepType}")
+        step.configId -> StepMetadata(step.configId, step.name, step.stepType)
       }.toMap
 
       log.info(s"${wid} Built ${stepMetadataMap.size} step metadata entries")
@@ -141,15 +138,15 @@ class GenericWorkflowImpl extends GenericWorkflow {
     log.info(s"${wid} Executing ${run.steps.size} steps in order")
 
     // Execute steps in order from the steps array
-    for (configId <- run.steps) {
-      log.info(s"${wid} Executing step: configId=${configId}")
+    for (step <- run.steps) {
+      log.info(s"${wid} Executing step: configId=${step.configId}, name=${step.name}")
 
       // Execute step and update instance variable
-      currentRun = executeStep(currentRun, configId)
+      currentRun = executeStep(currentRun, step.configId)
 
       // Check if workflow was stopped or failed
       if (currentRun.status == "STOPPED" || currentRun.status == "FAILED") {
-        log.warn(s"${wid} Workflow stopped at step ${configId}: status=${currentRun.status}")
+        log.warn(s"${wid} Workflow stopped at step ${step.configId}: status=${currentRun.status}")
         return currentRun
       }
     }
