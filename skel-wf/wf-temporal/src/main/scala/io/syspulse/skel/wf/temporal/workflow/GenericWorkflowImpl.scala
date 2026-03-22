@@ -206,9 +206,14 @@ class GenericWorkflowImpl extends GenericWorkflow {
         log.info(s"${wid} Step is AUTO - executing activity")
 
         try {
-          // Execute activity (returns config ID after execution)
-          val executedConfigId = activities.executeActivity(configId)
-          log.info(s"${wid} Activity executed successfully for config: ${executedConfigId}")
+          // Get business name for activity (e.g., "ProofOfOwnership", "ProofOfReserve")
+          val activityName = activities.getDetectorConfigName(configId)
+          log.info(s"${wid} Executing activity: ${activityName}")
+
+          // Execute activity with business name using untyped stub
+          val untypedStub = Workflow.newUntypedActivityStub(activityOptions)
+          val executedConfigId = untypedStub.execute(activityName, classOf[Int], Int.box(configId)).asInstanceOf[Int]
+          log.info(s"${wid} Activity '${activityName}' executed successfully for config: ${executedConfigId}")
 
           // Update run with output
           currentRun = currentRun.copy(status = "RUNNING")

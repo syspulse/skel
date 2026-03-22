@@ -23,6 +23,14 @@ trait GenericActivities {
   def getDetectorConfig(configId: Int): Int
 
   /**
+   * Get DetectorConfig name (business name for activity display)
+   *
+   * @param configId DetectorConfig ID
+   * @return Config name (e.g., "ProofOfOwnership", "ProofOfReserve")
+   */
+  def getDetectorConfigName(configId: Int): String
+
+  /**
    * Update WorkflowRun state
    */
   def updateWorkflowRun(run: WorkflowRun): WorkflowRun

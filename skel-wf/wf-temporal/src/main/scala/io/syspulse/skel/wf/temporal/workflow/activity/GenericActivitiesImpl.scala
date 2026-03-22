@@ -43,6 +43,18 @@ class GenericActivitiesImpl(
     }
   }
 
+  override def getDetectorConfigName(configId: Int): String = {
+    log.info(s"Getting detector config name: ${configId}")
+    configStore.???(configId) match {
+      case Success(config) =>
+        log.info(s"Config name for ${configId}: ${config.name}")
+        config.name
+      case Failure(e) =>
+        log.error(s"Failed to get detector config ${configId}: ${e.getMessage}")
+        throw e
+    }
+  }
+
   override def updateWorkflowRun(run: WorkflowRun): WorkflowRun = {
     log.info(s"Updating workflow run: ${run.rid.getOrElse(run.wid)}, status=${run.status}, cursor=${run.cursor}")
     runStore.+(run) match {

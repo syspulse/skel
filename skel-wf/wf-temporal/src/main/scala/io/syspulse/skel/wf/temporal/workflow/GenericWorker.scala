@@ -60,6 +60,11 @@ object GenericWorker {
       worker.registerActivitiesImplementations(activities)
       log.info(s"Registered GenericActivities")
 
+      // Register dynamic activity handler (for business names)
+      val dynamicActivityHandler = new activity.DynamicActivityHandler(activities)
+      worker.registerActivitiesImplementations(dynamicActivityHandler)
+      log.info(s"Registered DynamicActivityHandler for business activity names")
+
       // Start worker
       factory.start()
       log.info(s"Generic Worker started on queue: ${TASK_QUEUE}")
