@@ -148,7 +148,8 @@ object App extends skel.Server {
         ArgCmd("temporal",s"Temporal subcommands"),
         ArgCmd("por-worker",s"Start PoR Temporal Worker"),
         ArgCmd("por-start",s"Start PoR Workflow: por-start [flow-N] [commit-file.json]"),
-        ArgCmd("por2-start",s"Start PoR2 Generic Workflow: por2-start [tenant-id] [project-id]"),
+        ArgCmd("por2-start",s"Start PoR2 Generic Workflow: por2-start [tenant-id] [project-id] [title]"),
+        ArgCmd("demo-start",s"Start Demo Generic Workflow: demo-start [flow] [title]"),
 
         ArgCmd("wf",s"Workflow subcommands: " +
           s"assemble name 'dsl'  : create Workflow with dsl commands, ex: 'F-1(LogExec(sys=1,log.level=WARN))->F-2(LogExec(sys=2))->F-3(TerminateExec())'" +
@@ -258,6 +259,16 @@ object App extends skel.Server {
             Console.err.println(s"Por2Worker started: ${worker}")
           case scala.util.Failure(e) =>
             Console.err.println(s"Failed to start Por2Worker: ${e.getMessage}")
+            sys.exit(1)
+        }
+
+        // Start Demo Worker (uses DemoActivitiesImpl for demo workflows)
+        import io.syspulse.skel.wf.temporal.demo.DemoWorker
+        DemoWorker.run(config.engine, store, runStore, configStore) match {
+          case Success(worker) =>
+            Console.err.println(s"DemoWorker started: ${worker}")
+          case scala.util.Failure(e) =>
+            Console.err.println(s"Failed to start DemoWorker: ${e.getMessage}")
             sys.exit(1)
         }
 
@@ -499,6 +510,94 @@ object App extends skel.Server {
             s"  Query: temporal workflow show -w ${result.workflowId}"
           case scala.util.Failure(e) =>
             s"Failed to start PoR2 workflow: ${e.getMessage}"
+        }
+
+      case "demo-start" =>
+        // Parse flow string and optional title from parameters
+        val (flowStr, title) = config.params.toList match {
+          case flow :: titleParam :: Nil => (flow, titleParam)
+          case flow :: Nil => (flow, "demo-{ts}")  // Default title with timestamp          
+          case _ =>
+            Console.err.println(s"Invalid arguments: ${config.params.toList}")            
+            sys.exit(1)
+        }
+
+        log.info(s"Starting Demo Workflow: flow='$flowStr', title='$title'")
+
+        // Initialize stores
+        val schemaStore = getStore(config.datastore)
+        val runStore = getRunStore(config.datastore)
+        val configStore = new WorkflowConfigStoreMem()
+
+        // Parse flow string and create schema
+        val stepNames = flowStr.split("->").map(_.trim).toSeq
+        val schema = io.syspulse.skel.wf.temporal.demo.DemoSchema.buildSchemaFromFlow(
+          flowStr = flowStr,
+          schemaId = 1,
+          title = title
+        )
+        val configs = io.syspulse.skel.wf.temporal.demo.DemoSchema.buildStepConfigs(stepNames)
+
+        log.info(s"Demo workflow: ${configs.map(_.name).mkString(" -> ")}")
+
+        // Store schema
+        schemaStore.+(schema) match {
+          case Success(_) => log.info(s"Stored schema: ${schema.name}")
+          case scala.util.Failure(e) =>
+            Console.err.println(s"Failed to store schema: ${e.getMessage}")
+            sys.exit(1)
+        }
+
+        // Store configs
+        configs.foreach { config =>
+          configStore.+(config) match {
+            case Success(_) => log.debug(s"Stored config: ${config.name} (id=${config.id})")
+            case scala.util.Failure(e) =>
+              Console.err.println(s"Failed to store config: ${e.getMessage}")
+              sys.exit(1)
+          }
+        }
+
+        // Generate workflow ID
+        val context = Map.empty[String, String]
+        val workflowId = io.hacken.ext.wf.WorkflowIdGenerator.generateFromSchema(
+          schema = schema,
+          context = context
+        )
+        val runId = Some(java.util.UUID.randomUUID().toString)
+
+        // Build workflow steps
+        val workflowSteps = configs.map { c =>
+          io.hacken.ext.wf.WorkflowStep(
+            id = c.id,
+            name = c.name,
+            typ = DetectorConfig.getString(c, "type", "AUTO")
+          )
+        }
+
+        val workflowRun = WorkflowRun(
+          wid = workflowId,
+          rid = runId,
+          status = "NEW",
+          cursor = -1,
+          schema = schema.id,
+          steps = workflowSteps
+        )
+
+        log.info(s"Created WorkflowRun: wid=${workflowRun.wid}, steps=${workflowRun.steps.map(s => s"${s.id}:${s.name}").mkString(",")}")
+
+        // Start workflow
+        val futureResult: Future[GenericStartResult] = GenericStarter.run(config.engine, workflowRun, schema.name)
+        Try(Await.result(futureResult, 30.seconds)) match {
+          case Success(result) =>
+            s"Demo Workflow started:\n" +
+            s"  Workflow ID: ${result.workflowId}\n" +
+            s"  Run ID: ${result.runId}\n" +
+            s"  Flow: $flowStr\n" +
+            s"  Steps: ${configs.map(_.name).mkString(" → ")}\n" +
+            s"  Query: temporal workflow show -w ${result.workflowId}"
+          case scala.util.Failure(e) =>
+            s"Failed to start Demo workflow: ${e.getMessage}"
         }
 
       case _ =>
