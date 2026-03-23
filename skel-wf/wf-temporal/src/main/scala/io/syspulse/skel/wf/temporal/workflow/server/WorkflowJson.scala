@@ -26,7 +26,7 @@ object WorkflowJson extends JsonCommon {
   implicit val jf_step_input_res = jsonFormat2(StepInputRes)
 
   // Workflow Run formats
-  implicit val jf_workflow_run_create_req = jsonFormat2(WorkflowRunCreateReq)
+  implicit val jf_workflow_run_create_req = jsonFormat5(WorkflowRunCreateReq)
   implicit val jf_workflow_run_create_res = jsonFormat2(WorkflowRunCreateRes)
   implicit val jf_workflow_run_continue_req = jsonFormat1(WorkflowRunContinueReq)
   implicit val jf_workflow_run_continue_res = jsonFormat2(WorkflowRunContinueRes)

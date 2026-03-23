@@ -78,7 +78,10 @@ case class StepInputRes(
 // Workflow Run DTOs
 case class WorkflowRunCreateReq(
   schemaId: Int,            // WorkflowSchema ID
-  steps: Seq[Int]           // DetectorConfig IDs for each step
+  steps: Seq[Int],          // DetectorConfig IDs for each step
+  tid: Option[String] = None,      // Transaction/Task ID for {tid} placeholder
+  pid: Option[String] = None,      // Process/Project ID for {pid} placeholder
+  project: Option[String] = None   // Project name for {project} placeholder
 )
 
 case class WorkflowRunCreateRes(

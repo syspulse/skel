@@ -44,11 +44,11 @@ case class WorkflowSchema(
   createdAt: Long, // timestamp of creation
   updatedAt: Long, // timestamp of last update
   status: String, //"ACTIVE, DISABLED, DELETED",
-  name: String, // corresponds to workflowType (e.g. `WorkflowAudit`, `WorkflowPoR`) 
+  name: String, // corresponds to workflowType (e.g. `WorkflowAudit`, `WorkflowPoR`)
   version: String, //"0.2.7",
-  title: String,  // UI title (user title)  
+  title: String,  // UI title - used for workflow ID generation (supports placeholder syntax like {name}, {ts}, etc.)
   description: String, // description of the workflow
-  author: String, // author of the workflow 
+  author: String, // author of the workflow
   icon: Option[String], // icon of the workflow
   faq: Option[Seq[WorkflowSchemaFaq]], // FAQ of the workflow (list of FAQ items)
   tags: Seq[String], // tags of the workflow

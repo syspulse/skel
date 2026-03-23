@@ -135,7 +135,8 @@ object Por2Schema {
   def buildSchema(
     schemaId: Int = 1,
     tenantId: Int = 1,
-    projectId: Int = 1
+    projectId: Int = 1,
+    title: String = "Proof of Reserve Workflow"
   ): WorkflowSchema = {
 
     val ts = System.currentTimeMillis()
@@ -169,7 +170,7 @@ object Por2Schema {
       status = "ACTIVE",
       name = "PoR-Flow",
       version = "2.0.0",
-      title = "Proof of Reserve Workflow",
+      title = title,
       description = "Complete PoR workflow: PoO → PoR → PoL → Solvency → Report → Commit",
       author = "Syspulse",
       icon = Some("shield-check"),
@@ -178,6 +179,23 @@ object Por2Schema {
       nodes = nodes,
       connections = connections
     )
+  }
+
+  /**
+   * Get step IDs for a specific flow type
+   *
+   * @param flow Flow name (flow-1 through flow-5)
+   * @return Sequence of step IDs to include in the flow
+   */
+  def getFlowSteps(flow: String): Seq[Int] = {
+    flow match {
+      case "flow-1" => Seq(1, 2, 3, 4, 5, 6)  // PoO -> PoR -> PoL -> Solvency -> Report -> Commit
+      case "flow-2" => Seq(2, 3, 4, 5, 6)     // PoR -> PoL -> Solvency -> Report -> Commit
+      case "flow-3" => Seq(2, 5, 6)           // PoR -> Report -> Commit
+      case "flow-4" => Seq(1, 2, 5, 6)        // PoO -> PoR -> Report -> Commit
+      case "flow-5" => Seq(3)                 // PoL only
+      case _ => throw new IllegalArgumentException(s"Unknown flow: $flow. Valid flows: flow-1, flow-2, flow-3, flow-4, flow-5")
+    }
   }
 
   /**

@@ -362,17 +362,31 @@ object WorkflowRegistry {
   private def createWorkflowRun(engineUri: String, schemaStore: WorkflowSchemaStore, runStore: WorkflowRunStore, configStore: WorkflowConfigStore, req: WorkflowRunCreateReq)(implicit ec: ExecutionContext): Future[WorkflowRunCreateRes] = {
     import io.syspulse.skel.wf.temporal.workflow.GenericStarter
     import io.hacken.ext.detector.DetectorConfig
-    import io.hacken.ext.wf.WorkflowStep
+    import io.hacken.ext.wf.{WorkflowStep, WorkflowIdGenerator}
 
-    // Generate workflow ID
-    val wid = s"workflow-${req.schemaId}-${System.currentTimeMillis()}"
+    // Get workflow schema for workflow type and ID generation
+    val (workflowTypeName, wid) = schemaStore.??(req.schemaId) match {
+      case Some(schema) =>
+        // Build context for placeholder replacement
+        val context = Map(
+          "tid" -> req.tid.getOrElse(""),
+          "pid" -> req.pid.getOrElse(""),
+          "project" -> req.project.getOrElse("")
+        ).filter(_._2.nonEmpty)  // Filter out empty values
 
-    // Get workflow schema name for Temporal workflow type
-    val workflowTypeName = schemaStore.??(req.schemaId) match {
-      case Some(schema) => schema.name
+        // Generate workflow ID from template or default
+        val generatedWid = WorkflowIdGenerator.generateFromSchema(
+          schema = schema,
+          context = context,
+          defaultTemplate = s"workflow-${req.schemaId}-{ts}"
+        )
+
+        (schema.name, generatedWid)
+
       case None =>
-        log.warn(s"Schema ${req.schemaId} not found, using default workflow type")
-        "GenericWorkflow"
+        log.warn(s"Schema ${req.schemaId} not found, using default workflow type and ID")
+        val defaultWid = s"workflow-${req.schemaId}-${System.currentTimeMillis()}"
+        ("GenericWorkflow", defaultWid)
     }
 
     // Build workflow steps with metadata from config store

@@ -397,27 +397,45 @@ object App extends skel.Server {
         }
 
       case "por2-start" =>
-        // Parse tenant and project IDs
-        val (tenantId, projectId) = config.params.toList match {
-          case tid :: pid :: Nil => (tid.toInt, pid.toInt)
-          case tid :: Nil => (tid.toInt, 1)
-          case Nil => (1, 1)
+        // Parse flow type, tenant ID, project ID, and optional title
+        val (flow, tenantId, projectId, title) = config.params.toList match {
+          case f :: tid :: pid :: titleParam :: Nil if f.startsWith("flow-") => (f, tid.toInt, pid.toInt, titleParam)
+          case f :: tid :: pid :: Nil if f.startsWith("flow-") => (f, tid.toInt, pid.toInt, "Proof of Reserve Workflow")
+          case f :: tid :: Nil if f.startsWith("flow-") => (f, tid.toInt, 1, "Proof of Reserve Workflow")
+          case f :: Nil if f.startsWith("flow-") => (f, 1, 1, "Proof of Reserve Workflow")
+          case tid :: pid :: titleParam :: Nil => ("flow-1", tid.toInt, pid.toInt, titleParam)
+          case tid :: pid :: Nil => ("flow-1", tid.toInt, pid.toInt, "Proof of Reserve Workflow")
+          case tid :: Nil => ("flow-1", tid.toInt, 1, "Proof of Reserve Workflow")
+          case Nil => ("flow-1", 1, 1, "Proof of Reserve Workflow")
           case _ =>
             Console.err.println(s"Invalid arguments: ${config.params.toList}")
-            Console.err.println(s"Usage: por2-start [tenant-id] [project-id]")
+            Console.err.println(s"Usage: por2-start [flow-type] [tenant-id] [project-id] [title]")
+            Console.err.println(s"  flow-type: flow-1, flow-2, flow-3, flow-4, flow-5 (default: flow-1)")
+            Console.err.println(s"    flow-1: PoO -> PoR -> PoL -> Solvency -> Report -> Commit")
+            Console.err.println(s"    flow-2: PoR -> PoL -> Solvency -> Report -> Commit")
+            Console.err.println(s"    flow-3: PoR -> Report -> Commit")
+            Console.err.println(s"    flow-4: PoO -> PoR -> Report -> Commit")
+            Console.err.println(s"    flow-5: PoL only")
+            Console.err.println(s"  title can contain placeholders: {name}, {project}, {tid}, {pid}, {ts}")
             sys.exit(1)
         }
 
-        log.info(s"Starting PoR2 Generic Workflow: tenantId=$tenantId, projectId=$projectId")
+        log.info(s"Starting PoR2 Generic Workflow: flow=$flow, tenantId=$tenantId, projectId=$projectId, title='$title'")
 
         // Initialize stores
         val schemaStore = getStore(config.datastore)
         val runStore = getRunStore(config.datastore)
         val configStore = new WorkflowConfigStoreMem()
 
-        // Create schema and configs
-        val schema = Por2Schema.buildSchema(schemaId = 1, tenantId = tenantId, projectId = projectId)
-        val configs = Por2Schema.buildStepConfigs(tenantId = tenantId, projectId = projectId)
+        // Create schema and configs with custom title (can be used as workflow ID template)
+        val schema = Por2Schema.buildSchema(schemaId = 1, tenantId = tenantId, projectId = projectId, title = title)
+        val allConfigs = Por2Schema.buildStepConfigs(tenantId = tenantId, projectId = projectId)
+
+        // Get step IDs for the selected flow
+        val flowStepIds = Por2Schema.getFlowSteps(flow)
+        val configs = allConfigs.filter(c => flowStepIds.contains(c.id))
+
+        log.info(s"Flow $flow includes steps: ${configs.map(_.name).mkString(" -> ")}")
 
         // Store schema
         schemaStore.+(schema) match {
@@ -427,21 +445,30 @@ object App extends skel.Server {
             sys.exit(1)
         }
 
-        // Store configs
-        configs.foreach { config =>
+        // Store ALL configs (not just flow-filtered ones) so they can be referenced
+        allConfigs.foreach { config =>
           configStore.+(config) match {
-            case Success(_) => log.info(s"Stored config: ${config.name} (id=${config.id})")
+            case Success(_) => log.debug(s"Stored config: ${config.name} (id=${config.id})")
             case scala.util.Failure(e) =>
               Console.err.println(s"Failed to store config: ${e.getMessage}")
               sys.exit(1)
           }
         }
 
-        // Create WorkflowRun
-        val workflowId = s"por2-${config.porProject}-${System.currentTimeMillis()}"
+        // Create WorkflowRun with dynamic ID from template
+        val context = Map(
+          "tid" -> tenantId.toString,
+          "pid" -> projectId.toString,
+          "project" -> config.porProject
+        )
+        val workflowId = io.hacken.ext.wf.WorkflowIdGenerator.generateFromSchema(
+          schema = schema,
+          context = context,
+          defaultTemplate = "por2-{project}-{ts}"
+        )
         val runId = Some(java.util.UUID.randomUUID().toString)
 
-        // Build workflow steps with metadata
+        // Build workflow steps with metadata (only for selected flow)
         val workflowSteps = configs.map { c =>
           io.hacken.ext.wf.WorkflowStep(
             id = c.id,
