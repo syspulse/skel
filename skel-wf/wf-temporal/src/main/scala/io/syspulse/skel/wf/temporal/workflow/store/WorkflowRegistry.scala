@@ -417,16 +417,15 @@ object WorkflowRegistry {
 
         // Start Temporal workflow with schema name as workflow type
         GenericStarter.run(engineUri, workflowRun, workflowTypeName).map { result =>
-          log.info(s"Temporal workflow started: workflowId=${result.workflowId}, runId=${result.runId}")
+          log.info(s"Temporal workflow started: workflowId=${result.wid}, runId=${result.rid}")
 
           // Update WorkflowRun with rid and status
-          val updatedRun = workflowRun.copy(
-            rid = Some(result.runId),
+          val updatedRun = result.copy(
             status = "RUNNING"
           )
           runStore.+(updatedRun)
 
-          WorkflowRunCreateRes(wid = result.workflowId, rid = result.runId)
+          WorkflowRunCreateRes(wid = result.wid, rid = result.rid.get)
 
         }.recover {
           case e: Exception =>

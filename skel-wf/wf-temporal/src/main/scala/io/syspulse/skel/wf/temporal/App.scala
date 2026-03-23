@@ -15,7 +15,7 @@ import io.syspulse.skel.wf.temporal.workflow.server._
 import io.syspulse.skel.wf.temporal.por.nul.PorActivitiesNull
 import io.hacken.ext.wf.WorkflowRun
 import io.hacken.ext.detector.DetectorConfig
-import io.syspulse.skel.wf.temporal.workflow.{GenericStarter, GenericStartResult}
+import io.syspulse.skel.wf.temporal.workflow.{GenericStarter}
 
 // Examples:
 //   temporal init tid:Int pid:Int sys:Keyword proj:Keyword
@@ -422,16 +422,17 @@ object App extends skel.Server {
         }
 
       case "por2-start" =>
+        val DEF_TITLE = "PoR-{project}-{ts}"
         // Parse flow type, tenant ID, project ID, and optional title
         val (flow, tenantId, projectId, title) = config.params.toList match {
           case f :: tid :: pid :: titleParam :: Nil if f.startsWith("flow-") => (f, tid.toInt, pid.toInt, titleParam)
-          case f :: tid :: pid :: Nil if f.startsWith("flow-") => (f, tid.toInt, pid.toInt, "Proof of Reserve Workflow")
-          case f :: tid :: Nil if f.startsWith("flow-") => (f, tid.toInt, 1, "Proof of Reserve Workflow")
-          case f :: Nil if f.startsWith("flow-") => (f, 1, 1, "Proof of Reserve Workflow")
+          case f :: tid :: pid :: Nil if f.startsWith("flow-") => (f, tid.toInt, pid.toInt, DEF_TITLE)
+          case f :: tid :: Nil if f.startsWith("flow-") => (f, tid.toInt, 1, DEF_TITLE)
+          case f :: Nil if f.startsWith("flow-") => (f, 1, 1, DEF_TITLE)
           case tid :: pid :: titleParam :: Nil => ("flow-1", tid.toInt, pid.toInt, titleParam)
-          case tid :: pid :: Nil => ("flow-1", tid.toInt, pid.toInt, "Proof of Reserve Workflow")
-          case tid :: Nil => ("flow-1", tid.toInt, 1, "Proof of Reserve Workflow")
-          case Nil => ("flow-1", 1, 1, "Proof of Reserve Workflow")
+          case tid :: pid :: Nil => ("flow-1", tid.toInt, pid.toInt, DEF_TITLE)
+          case tid :: Nil => ("flow-1", tid.toInt, 1, DEF_TITLE)
+          case Nil => ("flow-1", 1, 1, DEF_TITLE)
           case _ =>
             Console.err.println(s"Invalid arguments: ${config.params.toList}")
             Console.err.println(s"Usage: por2-start [flow-type] [tenant-id] [project-id] [title]")
@@ -440,8 +441,7 @@ object App extends skel.Server {
             Console.err.println(s"    flow-2: PoR -> PoL -> Solvency -> Report -> Commit")
             Console.err.println(s"    flow-3: PoR -> Report -> Commit")
             Console.err.println(s"    flow-4: PoO -> PoR -> Report -> Commit")
-            Console.err.println(s"    flow-5: PoL only")
-            Console.err.println(s"  title can contain placeholders: {name}, {project}, {tid}, {pid}, {ts}")
+            Console.err.println(s"    flow-5: PoL only")            
             sys.exit(1)
         }
 
@@ -490,8 +490,7 @@ object App extends skel.Server {
           schema = schema,
           context = context,
           defaultTemplate = "por2-{project}-{ts}"
-        )
-        val runId = Some(java.util.UUID.randomUUID().toString)
+        )        
 
         // Build workflow steps with metadata (only for selected flow)
         val workflowSteps = configs.map { c =>
@@ -504,7 +503,7 @@ object App extends skel.Server {
 
         val workflowRun = WorkflowRun(
           wid = workflowId,
-          rid = runId,
+          rid = None,
           status = "NEW",
           cursor = -1,
           schema = schema.id,
@@ -515,15 +514,15 @@ object App extends skel.Server {
 
         // Start workflow with schema name as workflow type on POR2_QUEUE
         import io.syspulse.skel.wf.temporal.por2.Por2Worker
-        val futureResult: Future[GenericStartResult] = GenericStarter.run(config.engine, workflowRun, schema.name, Por2Worker.TASK_QUEUE)
+        val futureResult: Future[WorkflowRun] = GenericStarter.run(config.engine, workflowRun, schema.name, Por2Worker.TASK_QUEUE)
         Try(Await.result(futureResult, 30.seconds)) match {
           case Success(result) =>
             s"PoR2 Workflow started:\n" +
-            s"  Workflow ID: ${result.workflowId}\n" +
-            s"  Run ID: ${result.runId}\n" +
+            s"  Workflow ID: ${result.wid}\n" +
+            s"  Run ID: ${result.rid}\n" +
             s"  Task Queue: ${Por2Worker.TASK_QUEUE}\n" +
             s"  Steps: ${configs.map(_.name).mkString(" → ")}\n" +
-            s"  Query: temporal workflow show -w ${result.workflowId}"
+            s"  Query: temporal workflow show -w ${result.wid}"
           case scala.util.Failure(e) =>
             s"Failed to start PoR2 workflow: ${e.getMessage}"
         }
@@ -579,8 +578,7 @@ object App extends skel.Server {
         val workflowId = io.hacken.ext.wf.WorkflowIdGenerator.generateFromSchema(
           schema = schema,
           context = context
-        )
-        val runId = Some(java.util.UUID.randomUUID().toString)
+        )        
 
         // Build workflow steps
         val workflowSteps = configs.map { c =>
@@ -593,7 +591,7 @@ object App extends skel.Server {
 
         val workflowRun = WorkflowRun(
           wid = workflowId,
-          rid = runId,
+          rid = None,
           status = "NEW",
           cursor = -1,
           schema = schema.id,
@@ -604,16 +602,16 @@ object App extends skel.Server {
 
         // Start workflow on DEMO_QUEUE
         import io.syspulse.skel.wf.temporal.demo.DemoWorker
-        val futureResult: Future[GenericStartResult] = GenericStarter.run(config.engine, workflowRun, schema.name, DemoWorker.TASK_QUEUE)
+        val futureResult: Future[WorkflowRun] = GenericStarter.run(config.engine, workflowRun, schema.name, DemoWorker.TASK_QUEUE)
         Try(Await.result(futureResult, 30.seconds)) match {
           case Success(result) =>
             s"Demo Workflow started:\n" +
-            s"  Workflow ID: ${result.workflowId}\n" +
-            s"  Run ID: ${result.runId}\n" +
+            s"  Workflow ID: ${result.wid}\n" +
+            s"  Run ID: ${result.rid}\n" +
             s"  Task Queue: ${DemoWorker.TASK_QUEUE}\n" +
             s"  Flow: $flowStr\n" +
             s"  Steps: ${configs.map(_.name).mkString(" → ")}\n" +
-            s"  Query: temporal workflow show -w ${result.workflowId}"
+            s"  Query: temporal workflow show -w ${result.wid}"
           case scala.util.Failure(e) =>
             s"Failed to start Demo workflow: ${e.getMessage}"
         }

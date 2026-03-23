@@ -10,13 +10,6 @@ import io.temporal.common.SearchAttributes
 import io.syspulse.skel.wf.temporal.Temporal
 import io.hacken.ext.wf.WorkflowRun
 
-/**
- * Result of starting a Generic Workflow
- */
-case class GenericStartResult(
-  workflowId: String,
-  runId: String
-)
 
 /**
  * Generic Starter for Workflow Framework
@@ -40,7 +33,7 @@ object GenericStarter {
     run: WorkflowRun,
     workflowTypeName: String,
     taskQueue: String = GenericWorker.DEFAULT_TASK_QUEUE
-  )(implicit ec: ExecutionContext): Future[GenericStartResult] = {
+  )(implicit ec: ExecutionContext): Future[WorkflowRun] = {
     Future {
       log.info(s"Starting Workflow: type=${workflowTypeName}, wid=${run.wid}, schema=${run.schema}, steps=${run.steps.size}")
 
@@ -54,10 +47,7 @@ object GenericStarter {
 
         // Build search attributes
         val searchAttributes = new java.util.HashMap[String, Object]()
-        searchAttributes.put("schema", Integer.valueOf(run.schema))
-        if (run.rid.isDefined) {
-          searchAttributes.put("rid", run.rid.get)
-        }
+        searchAttributes.put("schema", Integer.valueOf(run.schema))        
 
         val options = WorkflowOptions.newBuilder()
           .setWorkflowId(workflowId)
@@ -80,7 +70,7 @@ object GenericStarter {
         // Shutdown client
         temporal.shutdown()
 
-        GenericStartResult(workflowId = workflowId, runId = runId)
+        run.copy(rid = Some(runId))
 
       } catch {
         case e: Exception =>
