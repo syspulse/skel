@@ -17,7 +17,9 @@ class DemoActivitiesImpl(
   configStore: WorkflowConfigStore
 ) extends GenericActivitiesImpl(schemaStore, runStore, configStore) {
 
-  override def executeActivity(configId: Int): Int = {
+  override def executeActivity(configId: Int): io.syspulse.skel.wf.temporal.workflow.activity.ActivityResult = {
+    import spray.json._
+
     val config = configStore.???(configId).get
 
     log.info(s"DemoActivitiesImpl.executeActivity: configId=$configId, name=${config.name}")
@@ -32,6 +34,15 @@ class DemoActivitiesImpl(
     }
 
     // Store updated config
-    configStore.+(result).get.id
+    val updated = configStore.+(result).get
+
+    // Extract output JsObject if present
+    val output = updated.config
+      .flatMap(_.asJsObject.fields.get("output"))
+      .collect { case obj: JsObject => obj }
+      .getOrElse(JsObject())
+
+    // Build ActivityResult
+    io.syspulse.skel.wf.temporal.workflow.activity.ActivityResult.success(updated.id, updated.name, output)
   }
 }

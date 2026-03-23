@@ -32,12 +32,14 @@ object GenericStarter {
    * @param temporalUri Temporal server URI
    * @param run WorkflowRun to execute (with steps including metadata)
    * @param workflowTypeName Workflow type name to display in Temporal UI (from WorkflowSchema.name)
+   * @param taskQueue Task queue name (default: GenericWorker.DEFAULT_TASK_QUEUE)
    * @return Future with start result (wid, rid)
    */
   def run(
     temporalUri: String,
     run: WorkflowRun,
-    workflowTypeName: String
+    workflowTypeName: String,
+    taskQueue: String = GenericWorker.DEFAULT_TASK_QUEUE
   )(implicit ec: ExecutionContext): Future[GenericStartResult] = {
     Future {
       log.info(s"Starting Workflow: type=${workflowTypeName}, wid=${run.wid}, schema=${run.schema}, steps=${run.steps.size}")
@@ -49,7 +51,6 @@ object GenericStarter {
 
         // Build workflow options
         val workflowId = run.wid
-        val taskQueue = GenericWorker.TASK_QUEUE
 
         // Build search attributes
         val searchAttributes = new java.util.HashMap[String, Object]()

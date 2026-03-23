@@ -199,8 +199,14 @@ class GenericWorkflowImpl extends GenericWorkflow {
         try {
           // Execute BUSINESS activity with business name (VISIBLE in Temporal UI)
           val untypedStub = Workflow.newUntypedActivityStub(activityOptions)
-          val executedConfigId = untypedStub.execute(stepMeta.name, classOf[Int], Int.box(configId)).asInstanceOf[Int]
-          log.info(s"${wid} Business activity '${stepMeta.name}' completed: ${executedConfigId}")
+          val result = untypedStub.execute(
+            stepMeta.name,
+            classOf[io.syspulse.skel.wf.temporal.workflow.activity.ActivityResult],
+            Int.box(configId)
+          ).asInstanceOf[io.syspulse.skel.wf.temporal.workflow.activity.ActivityResult]
+
+          log.info(s"${wid} Business activity '${stepMeta.name}' completed: " +
+            s"configId=${result.configId}, status=${result.status}, output=${result.output}")
 
           // Update run with output
           currentRun = currentRun.copy(status = "RUNNING")

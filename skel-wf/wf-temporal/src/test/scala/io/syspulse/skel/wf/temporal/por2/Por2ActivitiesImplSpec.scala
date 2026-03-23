@@ -7,6 +7,7 @@ import spray.json._
 import io.hacken.ext.wf.{WorkflowRun, WorkflowStep}
 import io.hacken.ext.detector.{DetectorConfig, DetectorConfigContract}
 import io.syspulse.skel.wf.temporal.workflow.store._
+import io.syspulse.skel.wf.temporal.workflow.activity.ActivityResult
 
 /**
  * Test suite for PoR2-specific Activities Implementation
@@ -49,8 +50,10 @@ class Por2ActivitiesImplSpec extends AnyWordSpec with Matchers {
 
       configStore.+(config)
 
-      val resultId = activities.executeActivity(1)
-      resultId shouldBe 1
+      val result = activities.executeActivity(1)
+      result.configId shouldBe 1
+      result.activityName shouldBe "ProofOfOwnership"
+      result.status shouldBe "SUCCESS"
 
       // Verify output added by fetching from store
       val updatedConfig = configStore.??(1).get
@@ -92,8 +95,10 @@ class Por2ActivitiesImplSpec extends AnyWordSpec with Matchers {
 
       configStore.+(config)
 
-      val resultId = activities.executeActivity(2)
-      resultId shouldBe 2
+      val result = activities.executeActivity(2)
+      result.configId shouldBe 2
+      result.activityName shouldBe "ProofOfReserve"
+      result.status shouldBe "SUCCESS"
 
       // Verify output added
       val updatedConfig = configStore.??(2).get
@@ -128,8 +133,10 @@ class Por2ActivitiesImplSpec extends AnyWordSpec with Matchers {
 
       configStore.+(config)
 
-      val resultId = activities.executeActivity(3)
-      resultId shouldBe 3
+      val result = activities.executeActivity(3)
+      result.configId shouldBe 3
+      result.activityName shouldBe "Solvency"
+      result.status shouldBe "SUCCESS"
 
       // Verify output added
       val updatedConfig = configStore.??(3).get
@@ -165,8 +172,10 @@ class Por2ActivitiesImplSpec extends AnyWordSpec with Matchers {
 
       configStore.+(config)
 
-      val resultId = activities.executeActivity(4)
-      resultId shouldBe 4
+      val result = activities.executeActivity(4)
+      result.configId shouldBe 4
+      result.activityName shouldBe "UnknownPorActivity"
+      result.status shouldBe "SUCCESS"
 
       // Verify generic output
       val updatedConfig = configStore.??(4).get

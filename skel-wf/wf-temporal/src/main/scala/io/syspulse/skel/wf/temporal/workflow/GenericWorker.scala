@@ -19,18 +19,20 @@ import io.syspulse.skel.wf.temporal.workflow.store.{WorkflowSchemaStore, Workflo
 object GenericWorker {
   val log = Logger(getClass)
 
-  val TASK_QUEUE = "GENERIC_WORKFLOW_QUEUE"
+  val DEFAULT_TASK_QUEUE = "GENERIC_WORKFLOW_QUEUE"
 
   /**
    * Start Generic Worker with custom activities implementation
    *
    * @param temporalUri Temporal server URI
    * @param activities GenericActivities implementation (can be GenericActivitiesImpl or Por2ActivitiesImpl)
+   * @param taskQueue Task queue name (default: GENERIC_WORKFLOW_QUEUE)
    * @return Worker instance
    */
   def run(
     temporalUri: String,
-    activities: GenericActivities
+    activities: GenericActivities,
+    taskQueue: String = DEFAULT_TASK_QUEUE
   ): Try[Worker] = {
     try {
       log.info(s"Starting Generic Worker: ${temporalUri}")
@@ -45,7 +47,7 @@ object GenericWorker {
       val factory = WorkerFactory.newInstance(client)
 
       // Create worker for task queue
-      val worker = factory.newWorker(TASK_QUEUE)
+      val worker = factory.newWorker(taskQueue)
 
       // Register dynamic workflow implementation (handles any workflow type name)
       worker.registerWorkflowImplementationTypes(classOf[DynamicWorkflowImpl])
@@ -62,7 +64,7 @@ object GenericWorker {
 
       // Start worker
       factory.start()
-      log.info(s"Generic Worker started on queue: ${TASK_QUEUE}")
+      log.info(s"Generic Worker started on queue: ${taskQueue}")
 
       Success(worker)
 

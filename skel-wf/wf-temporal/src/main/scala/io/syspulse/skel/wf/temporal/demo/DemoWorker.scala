@@ -10,8 +10,10 @@ import io.syspulse.skel.wf.temporal.workflow.store.{WorkflowSchemaStore, Workflo
  * Demo Worker
  *
  * Starts a worker with DemoActivitiesImpl
+ * Registers on DEMO_QUEUE task queue
  */
 object DemoWorker {
+  val TASK_QUEUE = "DEMO_QUEUE"
 
   /**
    * Start Demo Worker
@@ -31,6 +33,6 @@ object DemoWorker {
 
     val activities = new DemoActivitiesImpl(schemaStore, runStore, configStore)
 
-    GenericWorker.run(temporalUri, activities)
+    GenericWorker.run(temporalUri, activities, TASK_QUEUE)
   }
 }

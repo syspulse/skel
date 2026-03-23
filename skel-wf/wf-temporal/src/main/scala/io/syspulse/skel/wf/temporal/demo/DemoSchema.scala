@@ -8,8 +8,16 @@ import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigCon
  * Demo Workflow Schema Builder
  *
  * Creates simple workflows with auto and human steps
+ *
+ * ID Offsets:
+ * - DetectorSchema IDs: 2000, 2001, 2002, ...
+ * - DetectorConfig IDs: 200, 201, 202, ...
  */
 object DemoSchema {
+
+  // ID offsets for real-world scenario (non-sequential IDs)
+  private val SCHEMA_ID_OFFSET = 2000
+  private val CONFIG_ID_OFFSET = 200
 
   /**
    * Parse flow string and build workflow schema
@@ -32,7 +40,7 @@ object DemoSchema {
 
     // Build detector schemas for each step
     val detectorSchemas = stepNames.zipWithIndex.map { case (stepName, index) =>
-      val stepId = index + 1
+      val stepId = SCHEMA_ID_OFFSET + index
       val (name, stepTitle, stepType) = stepName.toLowerCase match {
         case "auto" => ("StepAuto", "Auto Step", "AUTO")
         case "human" => ("StepHuman", "Human Step", "WAIT")
@@ -46,7 +54,7 @@ object DemoSchema {
         status = "ACTIVE",
         name = name,
         version = "1.0.0",
-        title = s"$stepTitle $stepId",
+        title = s"$stepTitle ${index + 1}",
         description = s"Demo $stepName step",
         author = "Demo",
         icon = None,
@@ -73,12 +81,12 @@ object DemoSchema {
       )
     }
 
-    // Build connections (sequential chain)
-    val connections = (1 until detectorSchemas.size).map { i =>
+    // Build connections (sequential chain) - using actual schema IDs
+    val connections = (0 until detectorSchemas.size - 1).map { i =>
       WorkflowSchemaConnection(
-        id = i,
-        from = i,
-        to = i + 1
+        id = i + 1,
+        from = SCHEMA_ID_OFFSET + i,
+        to = SCHEMA_ID_OFFSET + i + 1
       )
     }
 
@@ -124,7 +132,7 @@ object DemoSchema {
     )
 
     stepNames.zipWithIndex.map { case (stepName, index) =>
-      val stepId = index + 1
+      val stepId = CONFIG_ID_OFFSET + index
       val (name, stepType) = stepName.toLowerCase match {
         case "auto" => ("StepAuto", "AUTO")
         case "human" => ("StepHuman", "WAIT")

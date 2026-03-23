@@ -26,7 +26,7 @@ class Por2ActivitiesImpl(
   /**
    * Override executeActivity to provide PoR-specific implementations
    */
-  override def executeActivity(configId: Int): Int = {
+  override def executeActivity(configId: Int): io.syspulse.skel.wf.temporal.workflow.activity.ActivityResult = {
     por2Log.info(s"Executing PoR2 activity for config: ${configId}")
 
     // Fetch config from store
@@ -70,7 +70,15 @@ class Por2ActivitiesImpl(
       configStore.+(result) match {
         case Success(updated) =>
           por2Log.info(s"PoR2 activity ${config.name} completed successfully")
-          updated.id
+
+          // Extract output JsObject if present
+          val output = updated.config
+            .flatMap(_.asJsObject.fields.get("output"))
+            .collect { case obj: JsObject => obj }
+            .getOrElse(JsObject())
+
+          // Build ActivityResult
+          io.syspulse.skel.wf.temporal.workflow.activity.ActivityResult.success(updated.id, updated.name, output)
         case Failure(e) =>
           log.error(s"Failed to store config: ${e.getMessage}")
           throw e

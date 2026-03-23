@@ -30,7 +30,7 @@ case class Config(
   port:Int=8080,
   uri:String = "/api/v1/wf",
 
-  datastore:String = "mem://",
+  datastore:String = "test://",  // Pre-populated test store with Por2 and Demo configs
   engine:String = "temporal://",
   wf:String = "demo://",
 
@@ -187,6 +187,7 @@ object App extends skel.Server {
     def getStore(uri:String):WorkflowSchemaStore = {
       uri.split("://").toList match {
         case "mem" :: Nil => new WorkflowSchemaStoreMem()
+        case "test" :: Nil => new WorkflowSchemaStoreTest()  // Pre-populated with Por2 and Demo schemas
         case "dir" :: Nil => new WorkflowSchemaStoreDir()
         case "dir" :: dir :: Nil => new WorkflowSchemaStoreDir(dir)
         case _ =>
@@ -198,10 +199,23 @@ object App extends skel.Server {
     def getRunStore(uri:String):WorkflowRunStore = {
       uri.split("://").toList match {
         case "mem" :: Nil => new WorkflowRunStoreMem()
+        case "test" :: Nil => new WorkflowRunStoreMem()
         case "dir" :: Nil => new WorkflowRunStoreDir("store/runs/")
         case "dir" :: dir :: Nil => new WorkflowRunStoreDir(dir)
         case _ =>
           Console.err.println(s"Unknown RunStore: '${uri}'")
+          sys.exit(1)
+      }
+    }
+
+    def getConfigStore(uri:String):WorkflowConfigStore = {
+      uri.split("://").toList match {
+        case "mem" :: Nil => new WorkflowConfigStoreMem()
+        case "test" :: Nil => new WorkflowConfigStoreTest()  // Pre-populated with all Por2 and Demo configs
+        case "dir" :: Nil => new WorkflowConfigStoreDir("store/configs/")
+        case "dir" :: dir :: Nil => new WorkflowConfigStoreDir(dir)
+        case _ =>
+          Console.err.println(s"Unknown ConfigStore: '${uri}'")
           sys.exit(1)
       }
     }
@@ -221,7 +235,7 @@ object App extends skel.Server {
       case "server" =>
         val store = getStore(config.datastore)
         val runStore = getRunStore(config.datastore)
-        val configStore = new WorkflowConfigStoreMem()  // Use memory store for configs
+        val configStore = getConfigStore(config.datastore)  // Use shared/persistent config store
         Console.err.println(s"Store: ${store}")
         Console.err.println(s"RunStore: ${runStore}")
         Console.err.println(s"ConfigStore: ${configStore}")
@@ -252,21 +266,21 @@ object App extends skel.Server {
             sys.exit(1)
         }
 
-        // Start PoR2 Worker (uses Por2ActivitiesImpl for PoR-specific logic)
+        // Start PoR2 Worker on POR2_QUEUE
         import io.syspulse.skel.wf.temporal.por2.Por2Worker
         Por2Worker.run(config.engine, store, runStore, configStore) match {
           case Success(worker) =>
-            Console.err.println(s"Por2Worker started: ${worker}")
+            Console.err.println(s"Por2Worker started on queue: ${Por2Worker.TASK_QUEUE}")
           case scala.util.Failure(e) =>
             Console.err.println(s"Failed to start Por2Worker: ${e.getMessage}")
             sys.exit(1)
         }
 
-        // Start Demo Worker (uses DemoActivitiesImpl for demo workflows)
+        // Start Demo Worker on DEMO_QUEUE
         import io.syspulse.skel.wf.temporal.demo.DemoWorker
         DemoWorker.run(config.engine, store, runStore, configStore) match {
           case Success(worker) =>
-            Console.err.println(s"DemoWorker started: ${worker}")
+            Console.err.println(s"DemoWorker started on queue: ${DemoWorker.TASK_QUEUE}")
           case scala.util.Failure(e) =>
             Console.err.println(s"Failed to start DemoWorker: ${e.getMessage}")
             sys.exit(1)
@@ -433,10 +447,10 @@ object App extends skel.Server {
 
         log.info(s"Starting PoR2 Generic Workflow: flow=$flow, tenantId=$tenantId, projectId=$projectId, title='$title'")
 
-        // Initialize stores
+        // Initialize stores - use same stores as server
         val schemaStore = getStore(config.datastore)
         val runStore = getRunStore(config.datastore)
-        val configStore = new WorkflowConfigStoreMem()
+        val configStore = getConfigStore(config.datastore)
 
         // Create schema and configs with custom title (can be used as workflow ID template)
         val schema = Por2Schema.buildSchema(schemaId = 1, tenantId = tenantId, projectId = projectId, title = title)
@@ -499,13 +513,15 @@ object App extends skel.Server {
 
         log.info(s"Created WorkflowRun: wid=${workflowRun.wid}, steps=${workflowRun.steps.map(s => s"${s.id}:${s.name}").mkString(",")}")
 
-        // Start workflow with schema name as workflow type (shows in Temporal UI)
-        val futureResult: Future[GenericStartResult] = GenericStarter.run(config.engine, workflowRun, schema.name)
+        // Start workflow with schema name as workflow type on POR2_QUEUE
+        import io.syspulse.skel.wf.temporal.por2.Por2Worker
+        val futureResult: Future[GenericStartResult] = GenericStarter.run(config.engine, workflowRun, schema.name, Por2Worker.TASK_QUEUE)
         Try(Await.result(futureResult, 30.seconds)) match {
           case Success(result) =>
             s"PoR2 Workflow started:\n" +
             s"  Workflow ID: ${result.workflowId}\n" +
             s"  Run ID: ${result.runId}\n" +
+            s"  Task Queue: ${Por2Worker.TASK_QUEUE}\n" +
             s"  Steps: ${configs.map(_.name).mkString(" → ")}\n" +
             s"  Query: temporal workflow show -w ${result.workflowId}"
           case scala.util.Failure(e) =>
@@ -524,10 +540,10 @@ object App extends skel.Server {
 
         log.info(s"Starting Demo Workflow: flow='$flowStr', title='$title'")
 
-        // Initialize stores
+        // Initialize stores - use same stores as server
         val schemaStore = getStore(config.datastore)
         val runStore = getRunStore(config.datastore)
-        val configStore = new WorkflowConfigStoreMem()
+        val configStore = getConfigStore(config.datastore)
 
         // Parse flow string and create schema
         val stepNames = flowStr.split("->").map(_.trim).toSeq
@@ -586,13 +602,15 @@ object App extends skel.Server {
 
         log.info(s"Created WorkflowRun: wid=${workflowRun.wid}, steps=${workflowRun.steps.map(s => s"${s.id}:${s.name}").mkString(",")}")
 
-        // Start workflow
-        val futureResult: Future[GenericStartResult] = GenericStarter.run(config.engine, workflowRun, schema.name)
+        // Start workflow on DEMO_QUEUE
+        import io.syspulse.skel.wf.temporal.demo.DemoWorker
+        val futureResult: Future[GenericStartResult] = GenericStarter.run(config.engine, workflowRun, schema.name, DemoWorker.TASK_QUEUE)
         Try(Await.result(futureResult, 30.seconds)) match {
           case Success(result) =>
             s"Demo Workflow started:\n" +
             s"  Workflow ID: ${result.workflowId}\n" +
             s"  Run ID: ${result.runId}\n" +
+            s"  Task Queue: ${DemoWorker.TASK_QUEUE}\n" +
             s"  Flow: $flowStr\n" +
             s"  Steps: ${configs.map(_.name).mkString(" → ")}\n" +
             s"  Query: temporal workflow show -w ${result.workflowId}"

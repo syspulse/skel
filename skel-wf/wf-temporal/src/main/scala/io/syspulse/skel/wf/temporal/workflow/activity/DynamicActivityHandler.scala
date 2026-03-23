@@ -22,7 +22,7 @@ class DynamicActivityHandler(
    * Execute activity with dynamic name
    *
    * @param args Encoded activity arguments (configId: Int)
-   * @return Encoded result (configId: Int)
+   * @return Encoded result (ActivityResult, serialized to JSON by Temporal)
    */
   override def execute(args: EncodedValues): Object = {
     // Get activity name from execution context
@@ -35,9 +35,9 @@ class DynamicActivityHandler(
 
     // Execute via GenericActivities implementation (GenericActivitiesImpl or Por2ActivitiesImpl)
     val result = activities.executeActivity(configId)
-    log.info(s"Activity ${activityName} completed: ${result}")
+    log.info(s"Activity ${activityName} completed: configId=${result.configId}, status=${result.status}")
 
-    // Return result as Integer (boxed for Java compatibility)
-    Int.box(result)
+    // Return ActivityResult (Temporal will serialize it to JSON)
+    result
   }
 }

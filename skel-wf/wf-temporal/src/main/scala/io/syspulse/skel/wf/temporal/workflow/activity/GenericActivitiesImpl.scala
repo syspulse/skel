@@ -48,7 +48,7 @@ class GenericActivitiesImpl(
     context
   }
 
-  override def executeActivity(configId: Int): Int = {
+  override def executeActivity(configId: Int): ActivityResult = {
     log.info(s"Executing generic activity for config: ${configId}")
 
     // Fetch config from store
@@ -69,7 +69,15 @@ class GenericActivitiesImpl(
       configStore.+(result) match {
         case Success(updated) =>
           log.info(s"Activity ${config.name} completed successfully")
-          updated.id
+
+          // Extract output JsObject if present
+          val output = updated.config
+            .flatMap(_.asJsObject.fields.get("output"))
+            .collect { case obj: JsObject => obj }
+            .getOrElse(JsObject())
+
+          // Build ActivityResult
+          ActivityResult.success(updated.id, updated.name, output)
         case Failure(e) =>
           log.error(s"Failed to store config: ${e.getMessage}")
           throw e

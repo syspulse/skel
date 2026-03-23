@@ -30,9 +30,9 @@ trait GenericActivities {
    * This is the ONLY activity that appears in Temporal UI.
    * It uses the business name from DetectorConfig.name
    *
-   * @return Config ID after execution
+   * @return ActivityResult with execution details (rendered as JSON in Events History)
    */
-  def executeActivity(configId: Int): Int
+  def executeActivity(configId: Int): ActivityResult
 }
 
 /**

@@ -12,9 +12,11 @@ import io.syspulse.skel.wf.temporal.workflow.store.{WorkflowSchemaStore, Workflo
  * PoR2 Worker
  *
  * Specialized worker that uses Por2ActivitiesImpl for PoR-specific activity implementations
+ * Registers on POR2_QUEUE task queue
  */
 object Por2Worker {
   val log = Logger(getClass)
+  val TASK_QUEUE = "POR2_QUEUE"
 
   /**
    * Start PoR2 Worker with Por2ActivitiesImpl
@@ -37,8 +39,8 @@ object Por2Worker {
       // Create PoR2-specific activities implementation
       val activities = new Por2ActivitiesImpl(schemaStore, runStore, configStore)
 
-      // Use GenericWorker with PoR2 activities
-      val result = GenericWorker.run(temporalUri, activities)
+      // Use GenericWorker with PoR2 activities on POR2_QUEUE
+      val result = GenericWorker.run(temporalUri, activities, TASK_QUEUE)
 
       result match {
         case Success(worker) =>
