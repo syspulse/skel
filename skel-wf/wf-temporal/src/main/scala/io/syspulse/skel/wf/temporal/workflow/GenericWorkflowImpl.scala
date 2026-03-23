@@ -202,7 +202,7 @@ class GenericWorkflowImpl extends GenericWorkflow {
           val result = untypedStub.execute(
             stepMeta.name,
             classOf[io.syspulse.skel.wf.temporal.workflow.activity.ActivityResult],
-            Int.box(configId)
+            currentRun
           ).asInstanceOf[io.syspulse.skel.wf.temporal.workflow.activity.ActivityResult]
 
           log.info(s"${wid} Business activity '${stepMeta.name}' completed: " +

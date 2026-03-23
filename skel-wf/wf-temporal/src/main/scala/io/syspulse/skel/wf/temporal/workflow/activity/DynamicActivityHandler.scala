@@ -21,7 +21,7 @@ class DynamicActivityHandler(
   /**
    * Execute activity with dynamic name
    *
-   * @param args Encoded activity arguments (configId: Int)
+   * @param args Encoded activity arguments (run: WorkflowRun)
    * @return Encoded result (ActivityResult, serialized to JSON by Temporal)
    */
   override def execute(args: EncodedValues): Object = {
@@ -29,12 +29,12 @@ class DynamicActivityHandler(
     val activityName = Activity.getExecutionContext.getInfo.getActivityType
     log.info(s"Executing dynamic activity: ${activityName}")
 
-    // Decode arguments (expecting single Int parameter: configId)
-    val configId = args.get(0, classOf[Int])
-    log.info(s"Activity ${activityName} called with configId: ${configId}")
+    // Decode arguments (expecting single WorkflowRun parameter)
+    val run = args.get(0, classOf[io.hacken.ext.wf.WorkflowRun])
+    log.info(s"Activity ${activityName} called with cursor: ${run.cursor}")
 
     // Execute via GenericActivities implementation (GenericActivitiesImpl or Por2ActivitiesImpl)
-    val result = activities.executeActivity(configId)
+    val result = activities.executeActivity(run)
     log.info(s"Activity ${activityName} completed: configId=${result.configId}, status=${result.status}")
 
     // Return ActivityResult (Temporal will serialize it to JSON)

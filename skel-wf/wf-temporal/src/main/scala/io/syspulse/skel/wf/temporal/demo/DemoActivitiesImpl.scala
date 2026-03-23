@@ -17,9 +17,10 @@ class DemoActivitiesImpl(
   configStore: WorkflowConfigStore
 ) extends GenericActivitiesImpl(schemaStore, runStore, configStore) {
 
-  override def executeActivity(configId: Int): io.syspulse.skel.wf.temporal.workflow.activity.ActivityResult = {
+  override def executeActivity(run: io.hacken.ext.wf.WorkflowRun): io.syspulse.skel.wf.temporal.workflow.activity.ActivityResult = {
     import spray.json._
 
+    val configId = run.cursor
     val config = configStore.???(configId).get
 
     log.info(s"DemoActivitiesImpl.executeActivity: configId=$configId, name=${config.name}")

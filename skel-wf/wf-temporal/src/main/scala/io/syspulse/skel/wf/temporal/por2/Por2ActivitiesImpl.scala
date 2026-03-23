@@ -26,7 +26,8 @@ class Por2ActivitiesImpl(
   /**
    * Override executeActivity to provide PoR-specific implementations
    */
-  override def executeActivity(configId: Int): io.syspulse.skel.wf.temporal.workflow.activity.ActivityResult = {
+  override def executeActivity(run: io.hacken.ext.wf.WorkflowRun): io.syspulse.skel.wf.temporal.workflow.activity.ActivityResult = {
+    val configId = run.cursor
     por2Log.info(s"Executing PoR2 activity for config: ${configId}")
 
     // Fetch config from store

@@ -50,7 +50,16 @@ class Por2ActivitiesImplSpec extends AnyWordSpec with Matchers {
 
       configStore.+(config)
 
-      val result = activities.executeActivity(1)
+      val run = WorkflowRun(
+        wid = "test-1",
+        rid = None,
+        schema = 1,
+        cursor = 1,
+        status = "RUNNING",
+        steps = Seq()
+      )
+
+      val result = activities.executeActivity(run)
       result.configId shouldBe 1
       result.activityName shouldBe "ProofOfOwnership"
       result.status shouldBe "SUCCESS"
@@ -95,7 +104,16 @@ class Por2ActivitiesImplSpec extends AnyWordSpec with Matchers {
 
       configStore.+(config)
 
-      val result = activities.executeActivity(2)
+      val run = WorkflowRun(
+        wid = "test-2",
+        rid = None,
+        schema = 1,
+        cursor = 2,
+        status = "RUNNING",
+        steps = Seq()
+      )
+
+      val result = activities.executeActivity(run)
       result.configId shouldBe 2
       result.activityName shouldBe "ProofOfReserve"
       result.status shouldBe "SUCCESS"
@@ -133,7 +151,16 @@ class Por2ActivitiesImplSpec extends AnyWordSpec with Matchers {
 
       configStore.+(config)
 
-      val result = activities.executeActivity(3)
+      val run = WorkflowRun(
+        wid = "test-3",
+        rid = None,
+        schema = 1,
+        cursor = 3,
+        status = "RUNNING",
+        steps = Seq()
+      )
+
+      val result = activities.executeActivity(run)
       result.configId shouldBe 3
       result.activityName shouldBe "Solvency"
       result.status shouldBe "SUCCESS"
@@ -172,7 +199,16 @@ class Por2ActivitiesImplSpec extends AnyWordSpec with Matchers {
 
       configStore.+(config)
 
-      val result = activities.executeActivity(4)
+      val run = WorkflowRun(
+        wid = "test-4",
+        rid = None,
+        schema = 1,
+        cursor = 4,
+        status = "RUNNING",
+        steps = Seq()
+      )
+
+      val result = activities.executeActivity(run)
       result.configId shouldBe 4
       result.activityName shouldBe "UnknownPorActivity"
       result.status shouldBe "SUCCESS"

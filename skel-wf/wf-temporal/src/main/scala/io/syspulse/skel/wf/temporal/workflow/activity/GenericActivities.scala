@@ -25,14 +25,15 @@ trait GenericActivities {
   def loadExecutionContext(schemaId: Int, stepConfigIds: Seq[Int]): io.syspulse.skel.wf.temporal.workflow.WorkflowExecutionContext
 
   /**
-   * Execute activity for DetectorConfig by ID
+   * Execute activity for WorkflowRun
    *
    * This is the ONLY activity that appears in Temporal UI.
    * It uses the business name from DetectorConfig.name
    *
+   * @param run WorkflowRun with cursor set to the config ID to execute
    * @return ActivityResult with execution details (rendered as JSON in Events History)
    */
-  def executeActivity(configId: Int): ActivityResult
+  def executeActivity(run: WorkflowRun): ActivityResult
 }
 
 /**

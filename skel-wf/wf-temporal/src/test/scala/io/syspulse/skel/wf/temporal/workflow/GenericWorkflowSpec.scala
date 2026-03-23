@@ -46,8 +46,19 @@ class GenericWorkflowSpec extends AnyWordSpec with Matchers {
 
       configStore.+(config)
 
-      val resultId = activities.executeActivity(1)
-      resultId shouldBe 1
+      val run = WorkflowRun(
+        wid = "test-1",
+        rid = None,
+        schema = 1,
+        cursor = 1,
+        status = "RUNNING",
+        steps = Seq()
+      )
+
+      val result = activities.executeActivity(run)
+      result.configId shouldBe 1
+      result.activityName shouldBe "GenericActivity"
+      result.status shouldBe "SUCCESS"
 
       // Verify output added by fetching from store
       val updatedConfig = configStore.??(1).get
@@ -87,8 +98,19 @@ class GenericWorkflowSpec extends AnyWordSpec with Matchers {
 
       configStore.+(config)
 
-      val resultId = activities.executeActivity(1)
-      resultId shouldBe 1
+      val run = WorkflowRun(
+        wid = "test-2",
+        rid = None,
+        schema = 1,
+        cursor = 1,
+        status = "RUNNING",
+        steps = Seq()
+      )
+
+      val result = activities.executeActivity(run)
+      result.configId shouldBe 1
+      result.activityName shouldBe "SomeCustomActivity"
+      result.status shouldBe "SUCCESS"
 
       // Verify output added by fetching from store
       val updatedConfig = configStore.??(1).get

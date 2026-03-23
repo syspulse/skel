@@ -48,7 +48,8 @@ class GenericActivitiesImpl(
     context
   }
 
-  override def executeActivity(configId: Int): ActivityResult = {
+  override def executeActivity(run: WorkflowRun): ActivityResult = {
+    val configId = run.cursor
     log.info(s"Executing generic activity for config: ${configId}")
 
     // Fetch config from store
