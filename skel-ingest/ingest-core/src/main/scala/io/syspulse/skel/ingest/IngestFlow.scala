@@ -282,3 +282,11 @@ trait IngestFlow[I,T,O] {
     broadcastSource
   }
 }
+
+
+object IngestFlow {
+  implicit final class FlowThrottled[T, Mat](private val flow: Flow[T, T, Mat]) extends AnyVal {
+    def throttled(elements: Int, interval: FiniteDuration): Flow[T, T, Mat] =
+      if (interval.toMillis == 0) flow else flow.throttle(elements, interval)
+  }
+}
