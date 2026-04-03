@@ -44,8 +44,11 @@ case class TemporalListReq(
 
 // Workflow start DTOs
 case class WorkflowStartReq(
-  src: String,      // "demo", "data", "file", "url"
-  data: String      // flow name, PorWorkflowRun JSON, file path, or URL
+  id: Int,                    // WorkflowSchema ID to use
+  tid: Int,                   // Tenant ID
+  pid: Int,                   // Project ID
+  title: String,              // Workflow title (may contain placeholders like {name}-{tid}-{pid}-{ts})
+  workflow: Option[String] = None  // Optional: workflow definition (e.g., "auto->human" for Demo)
 )
 
 case class WorkflowStartRes(

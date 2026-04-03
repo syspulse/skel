@@ -197,9 +197,9 @@ object WorkflowRegistry {
         Behaviors.same
 
       case WorkflowStart(req, replyTo) =>
-        log.info(s"WorkflowStart(src=${req.src}, data=${req.data})")
-        context.pipeToSelf(startWorkflow(engineUri, req)) {
-          case Success(result) => WorkflowStartResponse(Success(WorkflowStartRes(result.workflowId, result.runId)), replyTo)
+        log.info(s"WorkflowStart(id=${req.id}, tid=${req.tid}, pid=${req.pid}, workflow=${req.workflow})")
+        context.pipeToSelf(startWorkflow(engineUri, req, store, configStore)) {
+          case Success(result: PorStartResult) => WorkflowStartResponse(Success(WorkflowStartRes(result.workflowId, result.runId)), replyTo)
           case Failure(e) => WorkflowStartResponse(Failure(e), replyTo)
         }
         Behaviors.same
@@ -277,46 +277,105 @@ object WorkflowRegistry {
     }
   }
 
-  private def startWorkflow(engineUri: String, req: WorkflowStartReq)(implicit ec: ExecutionContext): Future[PorStartResult] = {
-    val run = req.src match {
-      case "demo" =>
-        // Generate demo flow using DemoUtil
-        // data field contains flow name (flow-1, flow-2, etc.)
-        DemoUtil.generateFlowRun(
-          flow = req.data,
-          proj = "demo",
-          tags = Seq.empty,
-          memo = Map.empty,
-          polSignalMode = "simulate"
-        )
+  private def startWorkflow(
+    engineUri: String,
+    req: WorkflowStartReq,
+    schemaStore: WorkflowSchemaStore,
+    configStore: WorkflowConfigStore
+  )(implicit ec: ExecutionContext): Future[PorStartResult] = {
+    import spray.json.{JsString, JsObject}
 
-      case "data" =>
-        // Parse JSON from data field
-        val mapper = new com.fasterxml.jackson.databind.ObjectMapper()
-        mapper.registerModule(com.fasterxml.jackson.module.scala.DefaultScalaModule)
-        mapper.readValue(req.data, classOf[PorWorkflowRun])
+    // Get WorkflowSchema from store
+    val schemaTry = schemaStore.???(req.id)
+    schemaTry match {
+      case Failure(e) =>
+        return Future.failed(new IllegalArgumentException(s"WorkflowSchema not found: id=${req.id}", e))
+      case Success(schema) => processWorkflowStart(engineUri, req, schema, configStore)
+    }
+  }
 
-      case "file" =>
-        // Load from file path
-        val json = os.read(os.Path(req.data, os.pwd))
-        val mapper = new com.fasterxml.jackson.databind.ObjectMapper()
-        mapper.registerModule(com.fasterxml.jackson.module.scala.DefaultScalaModule)
-        mapper.readValue(json, classOf[PorWorkflowRun])
+  private def processWorkflowStart(
+    engineUri: String,
+    req: WorkflowStartReq,
+    schema: WorkflowSchema,
+    configStore: WorkflowConfigStore
+  )(implicit ec: ExecutionContext): Future[PorStartResult] = {
+    import spray.json.{JsString, JsObject}
 
-      case "url" =>
-        // Download from URL
-        val response = requests.get(req.data)
-        val json = response.text()
-        val mapper = new com.fasterxml.jackson.databind.ObjectMapper()
-        mapper.registerModule(com.fasterxml.jackson.module.scala.DefaultScalaModule)
-        mapper.readValue(json, classOf[PorWorkflowRun])
+    // Generate workflow ID from title with placeholders
+    val context = Map(
+      "tid" -> req.tid.toString,
+      "pid" -> req.pid.toString
+    )
+    val workflowId = io.hacken.ext.wf.WorkflowIdGenerator.generate(req.title, schema, context)
 
-      case _ =>
-        throw new IllegalArgumentException(s"Unknown source type: ${req.src}")
+    // Build WorkflowStep sequence from schema nodes
+    val steps = schema.nodes.map { node =>
+      val stepType = node.schema.schema
+        .flatMap(_.asJsObject.fields.get("type"))
+        .collect { case JsString(t) => t }
+        .getOrElse("AUTO")
+
+      io.hacken.ext.wf.WorkflowStep(
+        id = node.schema.id,
+        name = node.schema.name,
+        typ = stepType
+      )
     }
 
-    // Start the workflow (returns Future)
-    PorStarter.run(engineUri, run)
+    // If workflow parameter is provided, override with custom Demo flow
+    val finalSteps = req.workflow match {
+      case Some(flowDef) =>
+        // Parse custom workflow definition (e.g., "auto->human->auto")
+        val stepNames = flowDef.split("->").map(_.trim)
+        val demoConfigs = io.syspulse.skel.wf.temporal.demo.DemoSchema.buildStepConfigs(stepNames)
+        demoConfigs.zipWithIndex.map { case (config, idx) =>
+          // Store config in configStore
+          configStore.+(config)
+          io.hacken.ext.wf.WorkflowStep(
+            id = config.id,
+            name = config.name,
+            typ = config.config.flatMap(_.asJsObject.fields.get("type")).collect { case JsString(t) => t }.getOrElse("AUTO")
+          )
+        }
+      case None =>
+        steps
+    }
+
+    // Create WorkflowRun
+    val run = io.hacken.ext.wf.WorkflowRun(
+      wid = workflowId,
+      rid = None,
+      schema = req.id,
+      cursor = -1,
+      status = "NEW",
+      steps = finalSteps
+    )
+
+    log.info(s"Starting workflow: id=${req.id}, wid=$workflowId, steps=${finalSteps.size}")
+
+    // Determine task queue based on schema
+    val taskQueue = schema.name match {
+      case name if name.contains("PoR") || name.contains("Por2") =>
+        io.syspulse.skel.wf.temporal.por2.Por2Worker.TASK_QUEUE
+      case name if name.contains("Demo") =>
+        io.syspulse.skel.wf.temporal.demo.DemoWorker.TASK_QUEUE
+      case _ =>
+        io.syspulse.skel.wf.temporal.workflow.GenericWorker.DEFAULT_TASK_QUEUE
+    }
+
+    // Start workflow using GenericStarter
+    io.syspulse.skel.wf.temporal.workflow.GenericStarter.run(
+      temporalUri = engineUri,
+      run = run,
+      workflowTypeName = schema.name,
+      taskQueue = taskQueue
+    ).map { runWithRid =>
+      PorStartResult(
+        workflowId = runWithRid.wid,
+        runId = runWithRid.rid.getOrElse("")
+      )
+    }
   }
 
   private def signalWorkflow(engineUri: String, runId: String, req: WorkflowSignalReq)(implicit ec: ExecutionContext): Future[WorkflowSignalRes] = {

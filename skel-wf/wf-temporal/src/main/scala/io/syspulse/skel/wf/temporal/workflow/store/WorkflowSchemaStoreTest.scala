@@ -19,22 +19,46 @@ class WorkflowSchemaStoreTest extends WorkflowSchemaStoreMem {
   this.+(por2Schema)
   log.info(s"Pre-populated Por2 schema: ${por2Schema.name} (id=${por2Schema.id})")
 
-  // Pre-populate with Demo schemas (sample flows)
-  val demoSchema2Step = DemoSchema.buildSchemaFromFlow(
-    flowStr = "auto -> human",
+  // Pre-populate with Demo schemas (flow-1 through flow-5, matching Por2Schema style)
+  val demoFlow1 = DemoSchema.buildSchemaFromFlow(
+    flowStr = "auto",
     schemaId = 2,
-    title = "Demo 2-Step Flow"
+    title = "{name}-{tid}-{pid}-{ts}"  // Placeholder title like Por2
   )
-  this.+(demoSchema2Step)
-  log.info(s"Pre-populated Demo schema: ${demoSchema2Step.name} (id=${demoSchema2Step.id})")
+  this.+(demoFlow1)
+  log.info(s"Pre-populated Demo schema: flow-1 (id=${demoFlow1.id})")
 
-  val demoSchema3Step = DemoSchema.buildSchemaFromFlow(
-    flowStr = "auto -> human -> auto",
+  val demoFlow2 = DemoSchema.buildSchemaFromFlow(
+    flowStr = "auto -> human",
     schemaId = 3,
-    title = "Demo 3-Step Flow"
+    title = "{name}-{tid}-{pid}-{ts}"
   )
-  this.+(demoSchema3Step)
-  log.info(s"Pre-populated Demo schema: ${demoSchema3Step.name} (id=${demoSchema3Step.id})")
+  this.+(demoFlow2)
+  log.info(s"Pre-populated Demo schema: flow-2 (id=${demoFlow2.id})")
 
-  log.info(s"WorkflowSchemaStoreTest initialized with ${this.all.size} schemas")
+  val demoFlow3 = DemoSchema.buildSchemaFromFlow(
+    flowStr = "auto -> human -> auto",
+    schemaId = 4,
+    title = "{name}-{tid}-{pid}-{ts}"
+  )
+  this.+(demoFlow3)
+  log.info(s"Pre-populated Demo schema: flow-3 (id=${demoFlow3.id})")
+
+  val demoFlow4 = DemoSchema.buildSchemaFromFlow(
+    flowStr = "human -> auto",
+    schemaId = 5,
+    title = "{name}-{tid}-{pid}-{ts}"
+  )
+  this.+(demoFlow4)
+  log.info(s"Pre-populated Demo schema: flow-4 (id=${demoFlow4.id})")
+
+  val demoFlow5 = DemoSchema.buildSchemaFromFlow(
+    flowStr = "auto -> auto -> human",
+    schemaId = 6,
+    title = "{name}-{tid}-{pid}-{ts}"
+  )
+  this.+(demoFlow5)
+  log.info(s"Pre-populated Demo schema: flow-5 (id=${demoFlow5.id})")
+
+  log.info(s"WorkflowSchemaStoreTest initialized with ${this.all.size} schemas (1 Por2 + 5 Demo)")
 }

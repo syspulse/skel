@@ -14,7 +14,7 @@ object WorkflowJson extends JsonCommon {
   implicit val jf_workflow_update_req = jsonFormat7(WorkflowUpdateReq)
   implicit val jf_temporal_query_req = jsonFormat2(TemporalQueryReq)
   implicit val jf_temporal_list_req = jsonFormat3(TemporalListReq)
-  implicit val jf_workflow_start_req = jsonFormat2(WorkflowStartReq)
+  implicit val jf_workflow_start_req = jsonFormat5(WorkflowStartReq)
   implicit val jf_workflow_start_res = jsonFormat2(WorkflowStartRes)
   implicit val jf_workflow_signal_req = jsonFormat2(WorkflowSignalReq)
   implicit val jf_workflow_signal_res = jsonFormat2(WorkflowSignalRes)
