@@ -69,6 +69,13 @@ class TwitterConnect(uri:String,past:Option[Long]=None,max:Option[Long]=None) ex
     Await.result(f,timeout)
   }
 
+  def askAsync(followUsers:Set[String])(implicit ec: ExecutionContext,timeout:FiniteDuration):Future[Seq[Twit]] = {
+    request(followUsers)
+  }
+
+  def askAsync()(implicit ec: ExecutionContext,timeout:FiniteDuration):Future[Seq[Twit]] = {
+    request(twitterUri.follow.toSet)
+  }
 }
 
 object Twitter {

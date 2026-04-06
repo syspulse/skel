@@ -4,6 +4,11 @@ Temporal
 
 NOTE: Current implementation doe not allow flexible generic workflow step configuration during the run.
 
+## Run temporal dev server
+
+[README-temporal.md](README-temporal.md)
+
+
 ## Run worker
 
 ```

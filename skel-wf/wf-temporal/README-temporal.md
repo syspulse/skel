@@ -1,3 +1,10 @@
+# Temporal Notes and Snippets
+
+## Dev Server
+
+```
+temporal server start-dev
+```
 
 
 ## Retention
