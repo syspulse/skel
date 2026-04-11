@@ -41,6 +41,17 @@ abstract class HttpServerAkka {
 
   def initialize(): Unit = {}
 
+  private def formatHeaders(req: HttpRequest): String =
+    req.headers
+      .map(h => s"${h.name()}: ${h.value()}")
+      .mkString("\n")
+
+  private def logRequest(tag: String, req: HttpRequest): Unit = {
+    Console.err.println(s"$tag ${req.method.value} ${req.uri}")
+    val hs = formatHeaders(req)
+    if (hs.nonEmpty) Console.err.println(s"$tag Headers:\n$hs")
+  }
+
   def run(args0: Array[String]): Unit = {
     if (args0.size > 0) Console.err.println(s"${args0.mkString(",")}")
 
@@ -93,23 +104,27 @@ abstract class HttpServerAkka {
         pathEndOrSingleSlash {
           concat(
             get {
-              Console.err.println(s"<- GET")
-              if (current >= requests.size) current = 0
-              val rsp = requests(current)()
-              Console.err.println(s"[${rsp}] -> ")
-              current = current + 1
-              complete(HttpEntity(ContentTypes.`application/json`, rsp))
-            },
-            post {
-              entity(as[String]) { body =>
-                Console.err.println(s"<<< POST")
-                Console.err.println(s"<<< Body:\n")
-                Console.println(body)
+              extractRequest { req =>
+                logRequest("<-", req)
                 if (current >= requests.size) current = 0
                 val rsp = requests(current)()
                 Console.err.println(s"[${rsp}] -> ")
                 current = current + 1
                 complete(HttpEntity(ContentTypes.`application/json`, rsp))
+              }
+            },
+            post {
+              extractRequest { req =>
+                entity(as[String]) { body =>
+                  logRequest("<<<", req)
+                  Console.err.println(s"<<< Body:\n")
+                  Console.println(body)
+                  if (current >= requests.size) current = 0
+                  val rsp = requests(current)()
+                  Console.err.println(s"[${rsp}] -> ")
+                  current = current + 1
+                  complete(HttpEntity(ContentTypes.`application/json`, rsp))
+                }
               }
             }
           )
@@ -119,15 +134,17 @@ abstract class HttpServerAkka {
         path(url.stripPrefix("/")) {
           concat(
             post {
-              entity(as[String]) { body =>
-                Console.err.println(s"<<< POST")
-                Console.err.println(s"<<< Body:\n")
-                Console.println(body)
-                if (current >= requests.size) current = 0
-                val rsp = requests(current)()
-                Console.err.println(s"[${rsp}] -> ")
-                current = current + 1
-                complete(HttpEntity(ContentTypes.`application/json`, rsp))
+              extractRequest { req =>
+                entity(as[String]) { body =>
+                  logRequest("<<<", req)
+                  Console.err.println(s"<<< Body:\n")
+                  Console.println(body)
+                  if (current >= requests.size) current = 0
+                  val rsp = requests(current)()
+                  Console.err.println(s"[${rsp}] -> ")
+                  current = current + 1
+                  complete(HttpEntity(ContentTypes.`application/json`, rsp))
+                }
               }
             },
             options {
@@ -141,15 +158,19 @@ abstract class HttpServerAkka {
         path("sse") {
           concat(
             get {
-              Console.err.println(s"<- GET SSE")
-              complete(createSseStream(None))
+              extractRequest { req =>
+                logRequest("<-", req)
+                complete(createSseStream(None))
+              }
             },
             post {
-              entity(as[String]) { requestData =>
-                Console.err.println(s"<<< POST SSE")
-                Console.err.println(s"<<< Body:\n")
-                Console.println(requestData)
-                complete(createSseStream(Some(requestData)))
+              extractRequest { req =>
+                entity(as[String]) { requestData =>
+                  logRequest("<<<", req)
+                  Console.err.println(s"<<< Body:\n")
+                  Console.println(requestData)
+                  complete(createSseStream(Some(requestData)))
+                }
               }
             }
           )

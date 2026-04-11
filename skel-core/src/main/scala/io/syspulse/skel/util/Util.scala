@@ -28,9 +28,16 @@ import java.io.InputStreamReader
 import java.io.FileReader
 import scala.util.Success
 import com.typesafe.scalalogging.Logger
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.{Duration,FiniteDuration}
+
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.concurrent.ExecutionContext
+
+import akka.pattern.after
+import akka.actor.ActorSystem
 
 object Util {
   
@@ -342,7 +349,7 @@ object Util {
     val ts0 = System.nanoTime
     val r = code
     val ts1 = System.nanoTime
-    log.info(s"Elapsed: ${Duration.ofNanos(ts1 - ts0).toMillis()} msec")
+    log.info(s"Elapsed: ${java.time.Duration.ofNanos(ts1 - ts0).toMillis()} msec")
     r
   }
 
@@ -353,7 +360,7 @@ object Util {
       code      
     }
     val ts1 = System.nanoTime      
-    log.info(s"Elapsed: ${Duration.ofNanos(ts1 - ts0).toMillis()} msec")    
+    log.info(s"Elapsed: ${java.time.Duration.ofNanos(ts1 - ts0).toMillis()} msec")    
   }
 
   // replace pattern: "{var1} text {var2}"
@@ -636,4 +643,5 @@ object Util {
     else
       s.substring(0,n / 2) + "..." + s.substring(s.length - n / 2)
   }
+  
 }

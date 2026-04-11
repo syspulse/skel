@@ -403,7 +403,7 @@ lazy val root = (project in file("."))
             ai_agent,
             skel_ai,
             skel_tls,
-            skel_tools,
+            tools,
             skel_test,
             skel_script,
             skel_dash,
@@ -1618,7 +1618,7 @@ lazy val skel_tls = (project in file("skel-tls"))
         ),
     )
 
-lazy val skel_tools = (project in file("tools"))
+lazy val tools = (project in file("tools"))
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .settings (
