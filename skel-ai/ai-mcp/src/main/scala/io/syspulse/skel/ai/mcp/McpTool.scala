@@ -1,5 +1,6 @@
 package io.syspulse.skel.ai.mcp
 
+import com.typesafe.scalalogging.Logger
 import spray.json._
 
 case class JsonRpcError(code: Int, message: String)
@@ -38,6 +39,7 @@ object McpTool {
 
 /** Echoes the `message` string argument. */
 final case class EchoMcpTool() extends McpTool {
+  val log = Logger(this.getClass)
 
   override def name: String = "echo"
 
@@ -54,7 +56,8 @@ final case class EchoMcpTool() extends McpTool {
     "required" -> JsArray(JsString("message"))
   )
 
-  override def call(arguments: JsValue): Either[JsonRpcError, JsValue] =
+  override def call(arguments: JsValue): Either[JsonRpcError, JsValue] = {
+    log.info(s"[TOOL]: ${arguments}")
     arguments.asJsObject.fields.get("message") match {
       case Some(JsString(msg)) =>
         Right(JsObject("content" -> JsArray(
@@ -62,10 +65,12 @@ final case class EchoMcpTool() extends McpTool {
         )))
       case _ => Left(JsonRpcError(-32602, "Missing or invalid 'message' argument"))
     }
+  }
 }
 
 /** Adds two numbers `a` and `b`. */
 final case class AddMcpTool() extends McpTool {
+  val log = Logger(this.getClass)
 
   override def name: String = "add"
 
@@ -81,6 +86,8 @@ final case class AddMcpTool() extends McpTool {
   )
 
   override def call(arguments: JsValue): Either[JsonRpcError, JsValue] = {
+    log.info(s"[TOOL]: ${arguments}")
+
     val fields = arguments.asJsObject.fields
     (fields.get("a"), fields.get("b")) match {
       case (Some(JsNumber(a)), Some(JsNumber(b))) =>

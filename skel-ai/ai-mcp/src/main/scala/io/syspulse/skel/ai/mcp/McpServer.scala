@@ -1,6 +1,12 @@
 package io.syspulse.skel.ai.mcp
 
+import scala.concurrent.{ExecutionContext, Future}
+import com.typesafe.scalalogging.Logger
+
+import io.jvm.uuid.UUID
+
 import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.scaladsl.Behaviors
 import akka.Done
 import akka.http.scaladsl.Http
@@ -11,13 +17,14 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.stream.Materializer
-import akka.stream.scaladsl.{Source, SourceQueueWithComplete}
 import akka.stream.OverflowStrategy
+import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.SourceQueueWithComplete
 import spray.json._
 
-import scala.concurrent.{ExecutionContext, Future}
 import java.util.concurrent.ConcurrentHashMap
-import java.util.UUID
+
+import io.syspulse.skel.service.{CommonRoutes, Routeable}
 
 // ── JSON models ────────────────────────────────────────────────────────────────
 case class JsonRpcRequest(
@@ -96,13 +103,75 @@ private class McpRpcHandler(config: Config, tools: Seq[McpTool]) {
     }
 }
 
-// ── HTTP Server ────────────────────────────────────────────────────────────────
+// ── HTTP routes (mounted by [[io.syspulse.skel.Server.run]]) ────────────────────
 
+class McpRoutes(config: Config, tools: Seq[McpTool])(implicit context: ActorContext[_])
+  extends CommonRoutes with Routeable {
+  val log = Logger(this.getClass)
+
+  private val sessions = new ConcurrentHashMap[String, SourceQueueWithComplete[ServerSentEvent]]()
+  private val handler  = new McpRpcHandler(config, tools)
+
+  implicit val system: akka.actor.typed.ActorSystem[_] = context.system
+  implicit val mat: Materializer                     = Materializer(system)
+
+  import akka.http.scaladsl.marshalling.sse.EventStreamMarshalling._
+
+  private def messagePath: String = {
+    val base = config.uri.stripSuffix("/")
+    s"$base/message"
+  }
+
+  override def routes: Route =
+    concat(
+      path("sse") {
+        get {
+          val sessionId = UUID.randomUUID().toString
+          val (queue, source) =
+            Source.queue[ServerSentEvent](bufferSize = 64, OverflowStrategy.dropHead)
+              .preMaterialize()
+
+          sessions.put(sessionId, queue)
+
+          val endpointEvent = ServerSentEvent(
+            data      = s"""$messagePath?sessionId=$sessionId""",
+            eventType = Some("endpoint")
+          )
+          queue.offer(endpointEvent)
+
+          complete(source)
+        }
+      },
+      path("message") {
+        post {
+          parameter("sessionId") { sessionId =>
+            entity(as[JsonRpcRequest]) { req =>
+              val response     = handler.handle(req)
+              val responseJson = response.toJson.compactPrint
+
+              Option(sessions.get(sessionId)) match {
+                case Some(queue) =>
+                  queue.offer(ServerSentEvent(data = responseJson, eventType = Some("message")))
+                case None =>
+                  log.warn(s"SSE session not found: ${sessionId}")
+              }
+
+              complete(StatusCodes.Accepted)
+            }
+          }
+        }
+      }
+    )
+}
+
+/**
+ * Standalone HTTP server for tests and quick experiments: binds its own ActorSystem and listens on
+ * [[Config.host]] / [[Config.port]] with routes at the URL root — `GET /mcp/sse`, `POST /mcp/message`,
+ * `GET /health`. Production apps should use [[McpRoutes]] with [[io.syspulse.skel.Server.run]] instead.
+ */
 class McpServer(val config: Config, val tools: Seq[McpTool]) {
 
-  type SseQueue = SourceQueueWithComplete[ServerSentEvent]
-
-  private val sessions  = new ConcurrentHashMap[String, SseQueue]()
+  private val sessions  = new ConcurrentHashMap[String, SourceQueueWithComplete[ServerSentEvent]]()
   private val handler   = new McpRpcHandler(config, tools)
   private var systemOpt: Option[ActorSystem[Nothing]] = None
   private var bindingOpt: Option[ServerBinding]       = None
@@ -186,7 +255,7 @@ class McpServer(val config: Config, val tools: Seq[McpTool]) {
       }
       .map { binding =>
         bindingOpt = Some(binding)
-        println(s"MCP server running at http://${binding.localAddress.getHostString}:${binding.localAddress.getPort}")
+        println(s"MCP standalone server at http://${binding.localAddress.getHostString}:${binding.localAddress.getPort}")
         println("Endpoints:")
         println("  GET  /mcp/sse            – open SSE stream")
         println("  POST /mcp/message        – send JSON-RPC messages")
@@ -239,4 +308,8 @@ object McpServer {
   /** Default tool set used by the CLI. */
   def defaultTools: Seq[McpTool] =
     Seq(EchoMcpTool(), AddMcpTool())
+
+  /** Standalone HTTP server (see [[McpServer]] class): `McpServer(config).start()`. */
+  def apply(config: Config, tools: Seq[McpTool] = defaultTools): McpServer =
+    new McpServer(config, tools)
 }

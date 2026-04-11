@@ -3,16 +3,16 @@
 ```
 Client                        Server
   │                              │
-  │── GET /mcp/sse ─────────────>│   Opens SSE stream, gets session ID
+  │── GET /api/v1/mcp/sse ──────>│   Opens SSE stream, gets session ID
   │<── event: endpoint ──────────│   Server sends endpoint URL
   │                              │
-  │── POST /mcp/message ────────>│   Client sends initialize
+  │── POST /api/v1/mcp/message ─>│   Client sends initialize
   │<── event: message (SSE) ─────│   Server replies over SSE
   │                              │
-  │── POST /mcp/message ────────>│   tools/list
+  │── POST /api/v1/mcp/message ─>│   tools/list
   │<── event: message (SSE) ─────│   [ echo, add ]
   │                              │
-  │── POST /mcp/message ────────>│   tools/call echo
+  │── POST /api/v1/mcp/message ─>│   tools/call echo
   │<── event: message (SSE) ─────│   "Echo: hello"
 ```
 
@@ -20,25 +20,25 @@ Client                        Server
 
 ```bash
 # 1. Open SSE stream (keep this running in one terminal)
-curl -N http://localhost:8080/mcp/sse
+curl -N http://localhost:8080/api/v1/mcp/sse
 
 # 2. In another terminal – initialize
-curl -X POST "http://localhost:8080/mcp/message?sessionId=<ID_FROM_SSE>" \
+curl -X POST "http://localhost:8080/api/v1/mcp/message?sessionId=<ID_FROM_SSE>" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
 
 # 3. List tools
-curl -X POST "http://localhost:8080/mcp/message?sessionId=<ID>" \
+curl -X POST "http://localhost:8080/api/v1/mcp/message?sessionId=<ID>" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
 
 # 4. Call the echo tool
-curl -X POST "http://localhost:8080/mcp/message?sessionId=<ID>" \
+curl -X POST "http://localhost:8080/api/v1/mcp/message?sessionId=<ID>" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"echo","arguments":{"message":"hello world"}}}'
 
 # 5. Call the add tool
-curl -X POST "http://localhost:8080/mcp/message?sessionId=<ID>" \
+curl -X POST "http://localhost:8080/api/v1/mcp/message?sessionId=<ID>" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"add","arguments":{"a":3,"b":7}}}'
 
@@ -55,7 +55,7 @@ Claude Code reads MCP servers from ~/.claude/claude_mcp_servers.json (global) or
   "mcpServers": {
     "skel-mcp": {
       "type": "url",
-      "url": "http://localhost:8080/mcp/sse"
+      "url": "http://localhost:8080/api/v1/mcp/sse"
     }
   }
 }
@@ -64,13 +64,13 @@ Claude Code reads MCP servers from ~/.claude/claude_mcp_servers.json (global) or
 Alternatively, you can add it via the CLI:
 
 ```bash
-claude mcp add --transport sse skel-mcp http://localhost:8080/mcp/sse
+claude mcp add --transport sse skel-mcp http://localhost:8080/api/v1/mcp/sse
 ```
 
 For project-local scope (checked into your repo):
 
 ```bash
-claude mcp add --transport sse --scope project skel-mcp http://localhost:8080/mcp/sse
+claude mcp add --transport sse --scope project skel-mcp http://localhost:8080/api/v1/mcp/sse
 ```
 
 Verify Claude Code sees it:

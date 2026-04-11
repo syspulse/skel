@@ -1,9 +1,10 @@
 package io.syspulse.skel.ai.mcp
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
+import akka.actor.typed.ActorRef
+import akka.actor.typed.scaladsl.Behaviors
 
 import io.syspulse.skel
+import io.syspulse.skel.Command
 import io.syspulse.skel.config._
 import io.syspulse.skel.util.Util
 
@@ -29,8 +30,7 @@ case class Config(
   
   delimiter:String = "\n",
   buffer:Int = 8192 * 100,
-  throttle:Long = 0L,
-  throttleSource:Long = 100L,
+  throttle:Long = 0L,  
   format:String = "",
 
   apiKey:String = "",
@@ -63,7 +63,6 @@ object App extends skel.Server {
         ArgString('_', "delimiter",s"""Delimiter characteds (def: '${Util.hex(d.delimiter.getBytes())}'). Usage example: --delimiter=`echo -e "\\r\\n"` """),
         ArgInt('_', "buffer",s"Frame buffer (Akka Framing) (def: ${d.buffer})"),
         ArgLong('_', "throttle",s"Throttle messages in msec (def: ${d.throttle})"),
-        ArgLong('_', "throttle.source",s"Throttle source (e.g. http, def=${d.throttleSource})"),
         ArgString('_', "format",s"Format output (json,csv,log) (def=${d.format})"),
         
         ArgString('_', "api.key",s"API Key (URI path) (def=${d.apiKey})"),
@@ -92,8 +91,7 @@ object App extends skel.Server {
       size = c.getLong("size").getOrElse(d.size),      
       delimiter = c.getString("delimiter").getOrElse(d.delimiter),
       buffer = c.getInt("buffer").getOrElse(d.buffer),
-      throttle = c.getLong("throttle").getOrElse(d.throttle),
-      throttleSource = c.getLong("throttle.source").getOrElse(d.throttleSource),
+      throttle = c.getLong("throttle").getOrElse(d.throttle),      
       format = c.getString("format").getOrElse(d.format),
 
       apiKey = c.getString("api.key").getOrElse(d.apiKey),
@@ -114,9 +112,19 @@ object App extends skel.Server {
 
     val r = config.cmd match {
       case "server" =>
-        val server = new McpServer(config, McpServer.defaultTools)
-        Await.result(server.start(), Duration.Inf)
-        server.runUntilShutdown()
+        run(
+          config.host,
+          config.port,
+          config.uri,
+          c,
+          Seq(
+            (
+              Behaviors.ignore[Command],
+              "McpRegistry",
+              (_: ActorRef[Command], ac) => new McpRoutes(config, McpServer.defaultTools)(ac)
+            )
+          )
+        )
       case _ =>
         Console.err.println(s"Unknown cmd: ${config.cmd}")
     }

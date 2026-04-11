@@ -5,10 +5,10 @@ SESSION_ID=${1:?session_id_required__see_mcp-sse.sh}
 MESSAGE=${MESSAGE:-${*:2}}
 MESSAGE=${MESSAGE:-hello world}
 
-MCP_URI=${MCP_URI:-http://127.0.0.1:8080}
+MCP_BASE=${MCP_BASE:-http://127.0.0.1:8080/api/v1/mcp}
 JSONRPC_ID=${JSONRPC_ID:-3}
 
->&2 echo "MCP_URI=$MCP_URI"
+>&2 echo "MCP_BASE=$MCP_BASE"
 >&2 echo "SESSION_ID=$SESSION_ID"
 >&2 echo "JSONRPC_ID=$JSONRPC_ID"
 >&2 echo "MESSAGE=$MESSAGE"
@@ -23,4 +23,4 @@ curl -S -s -D /dev/stderr \
    -X POST \
    -H 'Content-Type: application/json' \
    --data "$DATA_JSON" \
-   "${MCP_URI}/mcp/message?sessionId=${SESSION_ID}"
+   "${MCP_BASE}/message?sessionId=${SESSION_ID}"
