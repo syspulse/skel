@@ -11,7 +11,8 @@ import io.syspulse.skel.util.Util
 case class Config(
   host:String="0.0.0.0",
   port:Int=8080,
-  uri:String = "/api/v1/mcp",
+  /** Base path for `io.syspulse.skel.Server.run`; default depends on command (`/api/v1/server` vs `/api/v1/mcp`). */
+  uri:String = "/api/v1/server",
 
   /** Advertised in MCP `initialize` as `serverInfo.name`. */
   serverName: String = "skel-mcp",
@@ -53,7 +54,7 @@ object App extends skel.Server {
       new ConfigurationArgs(args,"skel-mcp","",
         ArgString('h', "http.host",s"listen host (def: ${d.host})"),
         ArgInt('p', "http.port",s"listern port (def: ${d.port})"),
-        ArgString('u', "http.uri",s"api uri (def: ${d.uri})"),
+        ArgString('u', "http.uri",s"api uri (def: server→/api/v1/server, mcp→/api/v1/mcp)"),
         
         ArgString('f', "feed",s"Input Feed (stdin://, http://, file://, kafka://) (def=${d.feed})"),
         ArgString('o', "output",s"Output (stdout://, csv://, json://, log://, file://, hive://, elastic://, kafka:// (def=${d.output})"),
@@ -71,7 +72,8 @@ object App extends skel.Server {
         ArgString('_', "mcp.server.version", s"MCP server version (def: ${d.serverVersion})"),
         ArgString('_', "mcp.protocol.version", s"MCP protocol version (def: ${d.protocolVersion})"),
                 
-        ArgCmd("server","HTTP Service"),
+        ArgCmd("server","HTTP: AppServer + MCP under …/mcp"),
+        ArgCmd("mcp","HTTP: MCP-only at http.uri (e.g. /api/v1/mcp)"),
         ArgCmd("proxy","Proxy Command"),
         
         ArgParam("<processors>","List of processors (none/map,print,dedup)"),
@@ -79,10 +81,16 @@ object App extends skel.Server {
       ).withExit(1)
     )).withLogging()
 
+    val cmd = c.getCmd().getOrElse(d.cmd)
+    val defaultUri = cmd match {
+      case "mcp" => "/api/v1/mcp"
+      case _     => "/api/v1/server"
+    }
+
     implicit val config = Config(
       host = c.getString("http.host").getOrElse(d.host),
       port = c.getInt("http.port").getOrElse(d.port),
-      uri = c.getString("http.uri").getOrElse(d.uri),
+      uri = c.getString("http.uri").getOrElse(defaultUri),
       
       feed = c.getString("feed").getOrElse(d.feed),
       output = c.getString("output").getOrElse(d.output),
@@ -102,7 +110,7 @@ object App extends skel.Server {
 
       filter = c.getString("filter").getOrElse(d.filter),
       
-      cmd = c.getCmd().getOrElse(d.cmd),
+      cmd = cmd,
       params = c.getParams(),
     )
 
@@ -120,7 +128,21 @@ object App extends skel.Server {
           Seq(
             (
               Behaviors.ignore[Command],
-              "McpRegistry",
+              "AppServer",
+              (_: ActorRef[Command], ac) => new AppServer(config, McpServer.defaultTools)(ac)
+            )
+          )
+        )
+      case "mcp" =>
+        run(
+          config.host,
+          config.port,
+          config.uri,
+          c,
+          Seq(
+            (
+              Behaviors.ignore[Command],
+              "McpServer",
               (_: ActorRef[Command], ac) => new McpRoutes(config, McpServer.defaultTools)(ac)
             )
           )

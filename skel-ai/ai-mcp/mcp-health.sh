@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Same service prefix as MCP (shared skel Server health under http.uri)
-MCP_BASE=${MCP_BASE:-http://127.0.0.1:8080/api/v1/mcp}
+MCP_BASE=${MCP_BASE:-http://127.0.0.1:8080/api/v1/server}
 
 >&2 echo "MCP_BASE=$MCP_BASE"
 

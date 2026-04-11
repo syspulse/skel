@@ -103,26 +103,29 @@ private class McpRpcHandler(config: Config, tools: Seq[McpTool]) {
     }
 }
 
-// ── HTTP routes (mounted by [[io.syspulse.skel.Server.run]]) ────────────────────
+// ── Shared SSE + JSON-RPC segment (used by [[McpRoutes]] and [[AppServer]]) ─
 
-class McpRoutes(config: Config, tools: Seq[McpTool])(implicit context: ActorContext[_])
-  extends CommonRoutes with Routeable {
-  val log = Logger(this.getClass)
+/** MCP streams at `…/{mcpBaseUri}/sse` and `…/message`. Used by [[McpRoutes]] and [[AppServer]]. */
+private[mcp] class McpSseMessageRoutes(
+  config: Config,
+  tools: Seq[McpTool],
+  /** Full path prefix for this MCP mount (no trailing slash), e.g. `/api/v1/mcp` or `/api/v1/server/mcp`. */
+  mcpBaseUri: String
+)(implicit context: ActorContext[_]) {
+
+  private val log = Logger(getClass)
 
   private val sessions = new ConcurrentHashMap[String, SourceQueueWithComplete[ServerSentEvent]]()
   private val handler  = new McpRpcHandler(config, tools)
 
   implicit val system: akka.actor.typed.ActorSystem[_] = context.system
-  implicit val mat: Materializer                     = Materializer(system)
+  implicit val mat: Materializer                       = Materializer(system)
 
   import akka.http.scaladsl.marshalling.sse.EventStreamMarshalling._
 
-  private def messagePath: String = {
-    val base = config.uri.stripSuffix("/")
-    s"$base/message"
-  }
+  private def messagePath: String = mcpBaseUri.stripSuffix("/") + "/message"
 
-  override def routes: Route =
+  def routes: Route =
     concat(
       path("sse") {
         get {
@@ -162,6 +165,16 @@ class McpRoutes(config: Config, tools: Seq[McpTool])(implicit context: ActorCont
         }
       }
     )
+}
+
+/** MCP only at [[Config.uri]] (e.g. `/api/v1/mcp/sse`, `/api/v1/mcp/message`) — `mcp` command. */
+class McpRoutes(config: Config, tools: Seq[McpTool])(implicit context: ActorContext[_])
+  extends CommonRoutes with Routeable {
+
+  private val inner =
+    new McpSseMessageRoutes(config, tools, config.uri.stripSuffix("/"))
+
+  override def routes: Route = inner.routes
 }
 
 /**

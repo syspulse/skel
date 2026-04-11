@@ -4,7 +4,7 @@
 # sessionId=... in the data — use that value as SESSION_ID for other mcp-*.sh scripts.
 
 # Service base (matches --http.uri / http.uri, default /api/v1/mcp)
-MCP_BASE=${MCP_BASE:-http://127.0.0.1:8080/api/v1/mcp}
+MCP_BASE=${MCP_BASE:-http://127.0.0.1:8080/api/v1/server/mcp}
 
 >&2 echo "MCP_BASE=$MCP_BASE"
 >&2 echo "Streaming SSE (Ctrl+C to stop). Copy sessionId from the endpoint event data."

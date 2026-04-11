@@ -2,7 +2,7 @@
 
 SESSION_ID=${1:?session_id_required__see_mcp-sse.sh}
 
-MCP_BASE=${MCP_BASE:-http://127.0.0.1:8080/api/v1/mcp}
+MCP_BASE=${MCP_BASE:-http://127.0.0.1:8080/api/v1/server/mcp}
 JSONRPC_ID=${JSONRPC_ID:-2}
 
 >&2 echo "MCP_BASE=$MCP_BASE"
