@@ -407,7 +407,8 @@ lazy val root = (project in file("."))
             skel_test,
             skel_script,
             skel_dash,
-            skel_odometer
+            skel_odometer,
+            ai_mcp
   )
   .dependsOn(
             skel_core, 
@@ -461,7 +462,8 @@ lazy val root = (project in file("."))
             skel_test,
             skel_script,
             skel_dash,
-            skel_odometer
+            skel_odometer,
+            ai_mcp
   )  
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
@@ -1704,5 +1706,23 @@ lazy val skel_dash = (project in file("skel-dash"))
        libScalaTest % Test,
        libAkkaTestkit % Test,
        libAkkaTestkitType % Test,
+    ),
+  )
+
+lazy val ai_mcp = (project in file("skel-ai/ai-mcp"))
+  .dependsOn(skel_core,auth_ext)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("ai-mcp","io.syspulse.skel.ai.mcp.App",Seq("application-dev.conf")),
+
+    libraryDependencies ++= Seq(
+       
     ),
   )

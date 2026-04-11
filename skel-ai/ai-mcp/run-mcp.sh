@@ -11,7 +11,7 @@ export SITE=${SITE:-$CONF}
 
 export ACCESS_TOKEN=${ACCESS_TOKEN-`cat ACCESS_TOKEN 2>/dev/null`}
 
-MAIN=io.syspulse.skel.ingest.proxy.App
+MAIN=io.syspulse.skel.ai.mcp.App
 
 >&2 echo "app: $APP"
 >&2 echo "site: $SITE"
@@ -19,4 +19,3 @@ MAIN=io.syspulse.skel.ingest.proxy.App
 >&2 echo "ACCESS_TOKEN: $ACCESS_TOKEN"
 
 exec ${CWD}/../../run-app.sh $APP $MAIN $@
-
