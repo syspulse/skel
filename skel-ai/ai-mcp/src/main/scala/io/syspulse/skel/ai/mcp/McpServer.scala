@@ -26,6 +26,15 @@ import java.util.concurrent.ConcurrentHashMap
 
 import io.syspulse.skel.service.{CommonRoutes, Routeable}
 
+trait ConfigMcp {
+  def host: String
+  def port: Int
+
+  def serverName: String
+  def serverVersion: String
+  def protocolVersion: String
+}
+
 // ── JSON models ────────────────────────────────────────────────────────────────
 case class JsonRpcRequest(
   jsonrpc: String,
@@ -53,13 +62,13 @@ import McpJsonProtocol._
 
 // ── MCP Request handler ────────────────────────────────────────────────────────
 
-private class McpRpcHandler(config: Config, tools: Seq[McpTool]) {
+private class McpRpcHandler(mcp: ConfigMcp, tools: Seq[McpTool]) {
 
   private val serverInfo: JsValue = JsObject(
-    "protocolVersion" -> JsString(config.protocolVersion),
+    "protocolVersion" -> JsString(mcp.protocolVersion),
     "serverInfo"      -> JsObject(
-      "name"    -> JsString(config.serverName),
-      "version" -> JsString(config.serverVersion)
+      "name"    -> JsString(mcp.serverName),
+      "version" -> JsString(mcp.serverVersion)
     ),
     "capabilities" -> JsObject(
       "tools" -> JsObject()
@@ -107,7 +116,7 @@ private class McpRpcHandler(config: Config, tools: Seq[McpTool]) {
 
 /** MCP streams at `…/{mcpBaseUri}/sse` and `…/message`. Used by [[McpRoutes]] and [[AppServer]]. */
 private[mcp] class McpSseMessageRoutes(
-  config: Config,
+  mcp: ConfigMcp,
   tools: Seq[McpTool],
   /** Full path prefix for this MCP mount (no trailing slash), e.g. `/api/v1/mcp` or `/api/v1/server/mcp`. */
   mcpBaseUri: String
@@ -116,7 +125,7 @@ private[mcp] class McpSseMessageRoutes(
   private val log = Logger(getClass)
 
   private val sessions = new ConcurrentHashMap[String, SourceQueueWithComplete[ServerSentEvent]]()
-  private val handler  = new McpRpcHandler(config, tools)
+  private val handler  = new McpRpcHandler(mcp, tools)
 
   implicit val system: akka.actor.typed.ActorSystem[_] = context.system
   implicit val mat: Materializer                       = Materializer(system)
@@ -167,22 +176,22 @@ private[mcp] class McpSseMessageRoutes(
     )
 }
 
-/** MCP only at [[Config.uri]] (e.g. `/api/v1/mcp/sse`, `/api/v1/mcp/message`) — `mcp` command. */
-class McpRoutes(config: Config, tools: Seq[McpTool])(implicit context: ActorContext[_])
+/** MCP only under `serviceBaseUri` (e.g. `/api/v1/mcp/sse`, `/api/v1/mcp/message`) — `mcp` command. */
+class McpRoutes(mcp: ConfigMcp, serviceBaseUri: String, tools: Seq[McpTool])(implicit context: ActorContext[_])
   extends CommonRoutes with Routeable {
 
   private val inner =
-    new McpSseMessageRoutes(config, tools, config.uri.stripSuffix("/"))
+    new McpSseMessageRoutes(mcp, tools, serviceBaseUri.stripSuffix("/"))
 
   override def routes: Route = inner.routes
 }
 
 /**
  * Standalone HTTP server for tests and quick experiments: binds its own ActorSystem and listens on
- * [[Config.host]] / [[Config.port]] with routes at the URL root — `GET /mcp/sse`, `POST /mcp/message`,
+ * [[ConfigMcpListen.host]] / [[ConfigMcpListen.port]] with routes at the URL root — `GET /mcp/sse`, `POST /mcp/message`,
  * `GET /health`. Production apps should use [[McpRoutes]] with [[io.syspulse.skel.Server.run]] instead.
  */
-class McpServer(val config: Config, val tools: Seq[McpTool]) {
+class McpServer(val config: ConfigMcp, val tools: Seq[McpTool]) {
 
   private val sessions  = new ConcurrentHashMap[String, SourceQueueWithComplete[ServerSentEvent]]()
   private val handler   = new McpRpcHandler(config, tools)
@@ -317,12 +326,12 @@ class McpServer(val config: Config, val tools: Seq[McpTool]) {
 }
 
 object McpServer {
-
-  /** Default tool set used by the CLI. */
+  
+  /** Default tool set used by tests and standalone runs. */
   def defaultTools: Seq[McpTool] =
     Seq(EchoMcpTool(), AddMcpTool())
 
   /** Standalone HTTP server (see [[McpServer]] class): `McpServer(config).start()`. */
-  def apply(config: Config, tools: Seq[McpTool] = defaultTools): McpServer =
+  def apply(config: ConfigMcp, tools: Seq[McpTool] = defaultTools): McpServer =
     new McpServer(config, tools)
 }

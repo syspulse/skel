@@ -10,13 +10,13 @@ import io.syspulse.skel.service.{CommonRoutes, Routeable}
 
 /**
  * HTTP routes for the default `server` command: MCP under `/…/mcp` and REST
- * `GET`/`POST` `/…/{id}` (relative to `http.uri`, default `/api/v1/server` → `/api/v1/server/{id}`).
+ * `GET`/`POST` `/…/{id}` (relative to `serviceUri`, default `/api/v1/server` → `/api/v1/server/{id}`).
  */
-class AppServer(config: Config, tools: Seq[McpTool])(implicit context: ActorContext[_])
+class AppServer(mcp: ConfigMcp, serviceUri: String, tools: Seq[McpTool])(implicit context: ActorContext[_])
   extends CommonRoutes with Routeable {
 
-  private val mcpBaseUri: String = config.uri.stripSuffix("/") + "/mcp"
-  private val mcpInner = new McpSseMessageRoutes(config, tools, mcpBaseUri)
+  private val mcpBaseUri: String = serviceUri.stripSuffix("/") + "/mcp"
+  private val mcpInner = new McpSseMessageRoutes(mcp, tools, mcpBaseUri)
 
   override def routes: Route =
     concat(

@@ -14,11 +14,9 @@ case class Config(
   /** Base path for `io.syspulse.skel.Server.run`; default depends on command (`/api/v1/server` vs `/api/v1/mcp`). */
   uri:String = "/api/v1/server",
 
-  /** Advertised in MCP `initialize` as `serverInfo.name`. */
+  // —— ConfigMcp ——
   serverName: String = "skel-mcp",
-  /** Advertised in MCP `initialize` as `serverInfo.version`. */
   serverVersion: String = "1.0.0",
-  /** MCP `protocolVersion` string in `initialize`. */
   protocolVersion: String = "2024-11-05",
     
   filter:String = "",
@@ -38,7 +36,8 @@ case class Config(
   
   cmd:String = "server",
   params: Seq[String] = Seq(),
-)
+  
+) extends ConfigMcp
 
 object App extends skel.Server {
 
@@ -118,6 +117,9 @@ object App extends skel.Server {
     
     val filter = config.filter + config.params.mkString(" ")
 
+    /** Default tool set used by the CLI. */
+    def defaultTools: Seq[McpTool] = Seq(EchoMcpTool(), AddMcpTool())
+
     val r = config.cmd match {
       case "server" =>
         run(
@@ -129,7 +131,7 @@ object App extends skel.Server {
             (
               Behaviors.ignore[Command],
               "AppServer",
-              (_: ActorRef[Command], ac) => new AppServer(config, McpServer.defaultTools)(ac)
+              (_: ActorRef[Command], ac) => new AppServer(config, config.uri, McpServer.defaultTools)(ac)
             )
           )
         )
@@ -143,7 +145,8 @@ object App extends skel.Server {
             (
               Behaviors.ignore[Command],
               "McpServer",
-              (_: ActorRef[Command], ac) => new McpRoutes(config, McpServer.defaultTools)(ac)
+              (_: ActorRef[Command], ac) =>
+                new McpRoutes(config, config.uri.stripSuffix("/"), McpServer.defaultTools)(ac)
             )
           )
         )
