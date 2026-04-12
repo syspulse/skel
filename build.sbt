@@ -351,14 +351,14 @@ def appAssemblyConfig(appName:String,appMainClass:String) =
     assembly / assemblyJarName := jarPrefix + appName + "-" + "assembly" + "-"+  skelVersion + ".jar",
   )
 
-def appVersion() {
+def appVersionConfig(ver: Option[String] = None) = Seq(
   // Classpath root `version.properties` for [[io.syspulse.skel.config.ConfigurationArgs]] (same as adding under src/main/resources)
   Compile / resourceGenerators += Def.task {
     val out = (Compile / resourceManaged).value / "version.properties"
-    IO.write(out, s"version=${skelVersion}\n")
+    IO.write(out, s"version=${ver.getOrElse(version.value)}\n")
     Seq(out)
   }.taskValue
-}
+)
 
 // ======================================================================================================================
 lazy val root = (project in file("."))
@@ -1729,7 +1729,7 @@ lazy val ai_mcp = (project in file("skel-ai/ai-mcp"))
     dockerBuildxSettings,
 
     appDockerConfig("ai-mcp","io.syspulse.skel.ai.mcp.App",Seq("application-dev.conf")),
-    appVersion(),    
+    appVersionConfig(),    
 
     libraryDependencies ++= Seq(
        
