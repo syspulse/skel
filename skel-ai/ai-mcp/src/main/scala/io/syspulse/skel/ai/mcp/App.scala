@@ -36,7 +36,7 @@ case class Config(
   
   cmd:String = "server",
   params: Seq[String] = Seq(),
-  
+
 ) extends ConfigMcp
 
 object App extends skel.Server {
@@ -72,11 +72,10 @@ object App extends skel.Server {
         ArgString('_', "mcp.protocol.version", s"MCP protocol version (def: ${d.protocolVersion})"),
                 
         ArgCmd("server","HTTP: AppServer + MCP under …/mcp"),
-        ArgCmd("mcp","HTTP: MCP-only at http.uri (e.g. /api/v1/mcp)"),
-        ArgCmd("proxy","Proxy Command"),
+        ArgCmd("mcp","HTTP: MCP-only at http.uri (e.g. /api/v1/mcp)"),        
         
-        ArgParam("<processors>","List of processors (none/map,print,dedup)"),
-        ArgLogging()
+        ArgLogging(),
+        // ArgHelp(),
       ).withExit(1)
     )).withLogging()
 

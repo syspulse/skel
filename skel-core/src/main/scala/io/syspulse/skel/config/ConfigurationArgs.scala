@@ -1,20 +1,20 @@
 package io.syspulse.skel.config
 
-import java.time.Duration
-
 import scala.jdk.CollectionConverters._
+import java.time.Duration
+import java.io.File
+import java.util.Properties
 
 import com.typesafe.scalalogging.Logger
+import com.typesafe.config.Config
 
 import scopt.OParser
-
-import io.syspulse.skel.util.Util
-import java.io.File
-import com.typesafe.config.Config
-import io.syspulse.skel.config
 import scopt.DefaultOEffectSetup
 import scopt.OParserSetup
 import scopt.DefaultOParserSetup
+
+import io.syspulse.skel.util.Util
+import io.syspulse.skel.config
 
 case class ConfigArgs() {
   var c:Map[String,Any] = Map()
@@ -46,12 +46,36 @@ case class ArgInt(argChar:Char,argStr:String,argText:String,default:Int=0) exten
 case class ArgLong(argChar:Char,argStr:String,argText:String,default:Long=0) extends Arg[Long]()
 case class ArgDouble(argChar:Char,argStr:String,argText:String,default:Double=0.0) extends Arg[Double]()
 case class ArgParam(argText:String,desc:String="") extends Arg[String]()
-case class ArgHelp(argStr:String,desc:String="") extends Arg[String]()
+case class ArgHelp(argStr:String = "help",desc:String="Application help") extends Arg[String]()
+case class ArgVersion(argStr:String = "version",desc:String="Application version") extends Arg[String]()
 case class ArgCmd(argStr:String,desc:String="") extends Arg[String]()
 case class ArgLogging(argText:String = "logging level (INFO,ERROR,WARN,DEBUG)",default:String="") extends Arg[String]()
 case class ArgConfig(argText:String = "Configuration file",default:String="") extends Arg[String]()
 case class ArgUnknown() extends Arg[String]() // parameter to memorize unknown args
 case class ArgUnknownCmd() extends Arg[String]() // parameter to memorize unknown command
+
+object ConfigurationArgs {
+
+  private val VersionResource = "version.properties"
+
+  /** `version` key from generated classpath resource (see `skel-core` `Compile / resourceGenerators` in build.sbt). */
+  def versionFromResource: Option[String] = {
+    val cl =
+      Option(Thread.currentThread().getContextClassLoader).getOrElse(classOf[ConfigurationArgs].getClassLoader)
+    Option(cl.getResourceAsStream(VersionResource)).flatMap { is =>
+      try {
+        val p = new Properties()
+        p.load(is)
+        Option(p.getProperty("version")).map(_.trim).filter(_.nonEmpty)
+      } catch {
+        case _: Exception => None
+      } finally {
+        try is.close()
+        catch { case _: Exception => () }
+      }
+    }
+  }
+}
 
 // Use "empty appName/appVersion for automatic inference"
 class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg[_]*) extends ConfigurationLike {
@@ -59,24 +83,68 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
 
   var errorOnUnknownCmd = true
   var errorOnUnknown = true
+  var exit = false
 
-  def parseArgs(args:Array[String],ops: Arg[_]*) = {
+  def isEmpty(s:String):Boolean = s == null || s.isEmpty
+
+  def parseArgs(args:Array[String],ops0: Arg[_]*) = {
 
     val builder = OParser.builder[ConfigArgs]
     
     val parser1 = {
       import builder._
+      
+      // extract Name and Version
+      val app = {
+        if(isEmpty(appName)) 
+          if(isEmpty(Util.info._1)) 
+            Configuration.UNKNOWN_APP 
+          else Util.info._1 
+        else appName
+      }
 
-      val ver = if(appVer.isEmpty) Util.info._2 else appVer
-      val app = if(appName.isEmpty) Util.info._1 else appName
+      val ver = {
+        if (!isEmpty(appVer)) appVer
+        else
+          ConfigurationArgs.versionFromResource
+            .orElse(Option(Util.info._2).filter(!isEmpty(_)))
+            .getOrElse(Configuration.UNKNOWN_VER)
+      }
 
+      // add Help and Version avoiding duplicates
+      val opsHelp = ops0.find(_ match {
+        case ArgHelp(_,_) => true        
+        case _ => false
+      })
+
+      val opsVersion = ops0.find(_ match {
+        case ArgVersion(_,_) => true        
+        case _ => false
+      })
+            
+      val ops =
+        (if (!opsHelp.isDefined) List(ArgHelp()) else Nil) ++
+          (if (!opsVersion.isDefined) List(ArgVersion()) else Nil) ++
+          ops0
+      
+      // buils SCopt Options
       val options = List(
-        head(app, ver)
+        head(app, ver),
+        // version("version"),
+        // help("help")
       ) ++ ops.flatMap(a => a match {        
         case ArgCmd(s,t) => 
           //addCommand(s)
           Some(cmd(s).action((x, c) => c.command(s)).text(t))
-        case ArgHelp(s,t) => Some(help(s).text(t))
+
+        case ArgHelp(s,t) =>
+          exit = true
+          Some(help(s).text(t))
+
+        case ArgVersion(s,t) =>
+          exit = true
+          Some(version(s).text(t))
+        
         case ArgString(c,s,t,d) => Some( (if(c=='_' || c==0) opt[String](s) else opt[String](c, s)).action((x, c) => c.+(s,x)).text(t))
         case ArgInt(c,s,t,d) => Some( (if(c=='_' || c==0) opt[Int](s) else opt[Int](c, s)).action((x, c) => c.+(s,x)).text(t))
         case ArgLong(c,s,t,d) => Some( (if(c=='_' || c==0) opt[Long](s) else opt[Long](c, s)).action((x, c) => c.+(s,x)).text(t))
@@ -121,10 +189,7 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
         case _ => 
           log.warn(s"unknown Arg option: ${a}")
           None
-      }) ++ List(
-        version("version"),
-        help("help")
-      )
+      })
 
       OParser.sequence(
         programName(app),
@@ -166,7 +231,9 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
           override def reportError(msg: String): Unit = displayToErr("Error: " + msg)
           
           // ignore terminate
-          override def terminate(exitState: Either[String, Unit]): Unit = ()
+          override def terminate(exitState: Either[String, Unit]): Unit = {
+            if(exit) super.terminate(exitState) else ()            
+          }
         })
         
         // result match {
@@ -186,7 +253,7 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
     }
     this
   }
-
+  
   // fallback memory
   var memory = new ConfigurationMap()
   var overrideConfig:Option[ConfigurationAkkaOverride] = None
