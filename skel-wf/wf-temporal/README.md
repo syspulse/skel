@@ -16,15 +16,33 @@ Demo Worker and Engine
 APP_EXEC=bloop ./run-temporal.sh por-worker --engine=demo://
 ```
 
-PoR Worker with Temproal Engine
+PoR Worker with local Temproal Engine
 ```
 APP_EXEC=bloop ./run-temporal.sh por-worker --engine=temporal://
 ```
 
-## Query Engine
+## Operations with Engine
 
+
+List default namespace
 ```
 APP_EXEC=bloop ./run-temporal.sh temporal list
+```
+
+List all namespaces:
+
+```
+APP_EXEC=bloop ./run-temporal.sh temporal list --engine='temporal:///*'
+```
+
+Query specific namespace for attribute `tid`:
+```
+APP_EXEC=bloop ./run-temporal.sh temporal query 'tid=1' --engine='temporal:///default'
+```
+
+List from remote server ignoring TLS and using Auth token:
+```
+APP_EXEC=bloop ./run-temporal.sh temporal list --engine="temporal://$TEMPORAL_GRPC?tls=ignore&auth=${ACCESS_TOKEN_TEMPORAL}"
 ```
 
 
@@ -61,6 +79,4 @@ temporal operator search-attribute list --namespace default
 ```
 ./run-temporal.sh temporal query 'tid=1'
 ```
-
-
 
