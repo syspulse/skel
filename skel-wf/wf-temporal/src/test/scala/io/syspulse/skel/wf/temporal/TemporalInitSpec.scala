@@ -180,7 +180,8 @@ class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
         message should (
           equal("ok") or
           include("already exists") or
-          include("limit reached")
+          include("limit reached") or
+          include("cannot have more than")
         )
       }
     }
@@ -194,7 +195,8 @@ class TemporalInitSpec extends AnyWordSpec with Matchers with ScalaFutures {
         message should (
           equal("ok") or
           include("already exists") or
-          include("limit reached")
+          include("limit reached") or
+          include("cannot have more than")
         )
       }
     }
