@@ -19,7 +19,8 @@ case class WorkflowExecutionInfo(
   startTime: Option[Long],
   closeTime: Option[Long],
   memo: Map[String, Seq[String]],
-  searchAttributes: Map[String, Seq[String]]
+  searchAttributes: Map[String, Seq[String]],
+  namespace: String
 )
 
 case class QueryResult(
@@ -65,7 +66,7 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
   private def createSslContext(): Option[io.grpc.netty.shaded.io.netty.handler.ssl.SslContext] = {
     t.tls match {
       case Some("ignore") =>
-        log.warn("⚠️  TLS certificate validation DISABLED (tls=ignore)")
+        log.warn("TLS certificate validation DISABLED (tls=ignore)")
         val sslContext = io.temporal.serviceclient.SimpleSslContextBuilder
           .newBuilder(null, null)
           .setUseInsecureTrustManager(true)
@@ -128,7 +129,7 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
     .setDataConverter(ScalaDataConverter.create())
     .build()
 
-  log.info(s"Connecting -> ${t.target} (namespace=${t.namespace})")
+  log.info(s"Connecting -> ${t.target}/${t.namespace}")
   private val client = WorkflowClient.newInstance(service, clientOptions)
 
   // Public accessors for service and client
@@ -154,7 +155,7 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
 
     val request = requestBuilder.build()
 
-    log.info(s"Querying workflows: query='$query', pageSize=$pageSize")
+    log.info(s"query='$query', ns=${t.namespace}, page=$pageSize")
 
     // Execute query
     val response = service.blockingStub().listWorkflowExecutions(request)
@@ -203,7 +204,8 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
         startTime = startTime,
         closeTime = closeTime,
         memo = memo,
-        searchAttributes = searchAttributes
+        searchAttributes = searchAttributes,
+        namespace = t.namespace
       )
     }.toSeq
 
@@ -252,7 +254,8 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
       startTime = startTime,
       closeTime = closeTime,
       memo = Map.empty, // Memo not available in describe()
-      searchAttributes = searchAttrs
+      searchAttributes = searchAttrs,
+      namespace = t.namespace
     )
   }
 
@@ -374,8 +377,9 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
       workflowId,
       runId.map(java.util.Optional.of(_)).getOrElse(java.util.Optional.empty()))
 
-    // Query workflow run state
-    workflowStub.getWorkflowRun()
+    // Query workflow run state and update namespace
+    val workflowRun = workflowStub.getWorkflowRun()
+    workflowRun.copy(ns = Some(t.namespace))
   }
 
   /**
@@ -528,6 +532,9 @@ class Temporal(uri: String)(implicit ec: ExecutionContext) {
 object Temporal {
   private val log = Logger(getClass.getName)
 
+  // Thread-safe cache for namespace connections
+  private val namespaceCache = scala.collection.concurrent.TrieMap[String, Temporal]()
+
   /**
    * Validate search attribute type (for testing and validation)
    *
@@ -554,17 +561,153 @@ object Temporal {
   }
 
   /**
-   * Query workflows from Temporal server (static method)
+   * Build a namespace-specific URI from base URI
+   *
+   * @param baseUri Base Temporal URI (with pattern or single namespace)
+   * @param namespace Target namespace to use
+   * @return URI string for specific namespace
+   */
+  private def buildNamespaceUri(baseUri: String, namespace: String): String = {
+    val t = TemporalURI(baseUri)
+    val opsQuery = if (t.ops.nonEmpty) {
+      "?" + t.ops.filter { case (k, _) => k != "namespace" }.map { case (k, v) => s"$k=$v" }.mkString("&")
+    } else ""
+
+    s"temporal://${t.host}:${t.port}/$namespace$opsQuery"
+  }
+
+  /**
+   * Get or create a Temporal connection for a specific namespace
+   *
+   * @param baseUri Base Temporal URI (connection info)
+   * @param namespace Target namespace
+   * @return Temporal instance for the specified namespace
+   */
+  private def getOrCreateConnection(baseUri: String, namespace: String)(implicit ec: ExecutionContext): Temporal = {
+    // Build the actual URI for this namespace
+    val namespaceUri = buildNamespaceUri(baseUri, namespace)
+
+    // Parse it to extract all connection parameters
+    val t = TemporalURI(namespaceUri)
+
+    // Create cache key from connection params + namespace
+    val cacheKey = s"${t.target}|${t.namespace}|${t.auth.getOrElse("")}|${t.tls.getOrElse("")}"
+
+    namespaceCache.getOrElseUpdate(cacheKey, {
+      log.info(s"Connection: ${t.target}/${t.namespace}")
+      new Temporal(namespaceUri)
+    })
+  }
+
+  /**
+   * List all namespaces from Temporal server
    *
    * @param uri Temporal server URI
+   * @return List of namespace names
+   */
+  def listNamespaces(uri: String)(implicit ec: ExecutionContext): Future[Seq[String]] = Future {
+    val temporal = new Temporal(uri)
+    try {
+      val request = io.temporal.api.workflowservice.v1.ListNamespacesRequest.newBuilder()
+        .setPageSize(100)
+        .build()
+
+      val response = temporal.getService.blockingStub().listNamespaces(request)
+      val namespaces = response.getNamespacesList.asScala.map(_.getNamespaceInfo.getName).toSeq
+
+      log.info(s"${uri}: ns=${namespaces.mkString(", ")}")
+      namespaces
+    } finally {
+      temporal.shutdown()
+    }
+  }
+
+  /**
+   * Parse namespace pattern from URI
+   * Returns either:
+   * - None if no pattern (single namespace from URI)
+   * - Some(Seq("*")) if wildcard
+   * - Some(Seq("ns1", "ns2")) if comma-separated list
+   *
+   * @param uri Temporal URI
+   * @return Namespace pattern or None
+   */
+  private def parseNamespacePattern(uri: String): Option[Seq[String]] = {
+    val t = TemporalURI(uri)
+
+    if (t.namespace == "*") {
+      Some(Seq("*"))
+    } else if (t.namespace.contains(",")) {
+      Some(t.namespace.split(",").map(_.trim).toSeq)
+    } else {
+      None
+    }
+  }
+
+  /**
+   * Resolve namespace pattern to actual namespaces
+   *
+   * @param uri Temporal URI with potential pattern
+   * @return List of actual namespace names
+   */
+  private def resolveNamespaces(uri: String)(implicit ec: ExecutionContext): Future[Seq[String]] = {
+    parseNamespacePattern(uri) match {
+      case Some(Seq("*")) =>
+        // Wildcard: list all namespaces
+        listNamespaces(uri)
+
+      case Some(namespaces) =>
+        // Explicit list
+        Future.successful(namespaces)
+
+      case None =>
+        // Single namespace
+        val t = TemporalURI(uri)
+        Future.successful(Seq(t.namespace))
+    }
+  }
+
+  /**
+   * Query workflows from Temporal server (static method)
+   * Supports multi-namespace queries using '*' or 'ns1,ns2' patterns
+   *
+   * @param uri Temporal server URI (namespace can be '*' or 'ns1,ns2')
    * @param query Search query (e.g., "WorkflowId = 'por-workflow-*'" or "ExecutionStatus = 'Running'")
    * @param pageSize Number of results per page (default: 10)
-   * @return QueryResult with workflow execution information
+   * @return QueryResult with workflow execution information from all matching namespaces
    */
   def query(uri: String, query: String = "", pageSize: Int = 10)(implicit ec: ExecutionContext): Future[QueryResult] = {
-    val temporal = new Temporal(uri)
-    temporal.query(query, pageSize).andThen { case _ =>
-      temporal.shutdown()
+    parseNamespacePattern(uri) match {
+      case Some(_) =>
+        // Multi-namespace query
+        resolveNamespaces(uri).flatMap { namespaces =>
+          log.info(s"Query: ns=${namespaces.mkString(",")}: ${query}")
+
+          // Query all namespaces in parallel
+          val futures = namespaces.map { ns =>
+            val temporal = getOrCreateConnection(uri, ns)
+            temporal.query(query, pageSize).map(result => (ns, result))
+          }
+
+          // Aggregate results
+          Future.sequence(futures).map { results =>
+            val allExecutions = results.flatMap { case (ns, result) =>
+              // Optionally, you could add namespace info to WorkflowExecutionInfo
+              result.executions
+            }
+
+            val hasMore = results.exists(_._2.hasMoreResults)
+
+            QueryResult(allExecutions, hasMore)
+          }
+        }
+
+      case None =>
+        // Single namespace query (original behavior)
+        val temporal = new Temporal(uri)
+        temporal.query(query, pageSize).andThen { case _ =>
+          temporal.shutdown()
+        }
     }
   }
 
@@ -637,11 +780,39 @@ object Temporal {
 
   /**
    * List workflows with optional filters (static method)
+   * Supports multi-namespace queries using '*' or 'ns1,ns2' patterns
    */
   def list(uri: String, status: Option[String] = None, workflowType: Option[String] = None, pageSize: Int = 10)(implicit ec: ExecutionContext): Future[QueryResult] = {
-    val temporal = new Temporal(uri)
-    temporal.list(status, workflowType, pageSize).andThen { case _ =>
-      temporal.shutdown()
+    parseNamespacePattern(uri) match {
+      case Some(_) =>
+        // Multi-namespace list
+        resolveNamespaces(uri).flatMap { namespaces =>
+          log.info(s"Listing workflows in ${namespaces.size} namespaces: ${namespaces.mkString(", ")}")
+
+          // List from all namespaces in parallel
+          val futures = namespaces.map { ns =>
+            val temporal = getOrCreateConnection(uri, ns)
+            temporal.list(status, workflowType, pageSize).map(result => (ns, result))
+          }
+
+          // Aggregate results
+          Future.sequence(futures).map { results =>
+            val allExecutions = results.flatMap { case (ns, result) =>
+              result.executions
+            }
+
+            val hasMore = results.exists(_._2.hasMoreResults)
+
+            QueryResult(allExecutions, hasMore)
+          }
+        }
+
+      case None =>
+        // Single namespace list (original behavior)
+        val temporal = new Temporal(uri)
+        temporal.list(status, workflowType, pageSize).andThen { case _ =>
+          temporal.shutdown()
+        }
     }
   }
 
@@ -723,4 +894,63 @@ object Temporal {
    * Create a new Temporal instance
    */
   def apply(uri: String)(implicit ec: ExecutionContext): Temporal = new Temporal(uri)
+
+  /**
+   * Clear the namespace connection cache
+   * Shuts down all cached connections
+   */
+  def clearCache(): Unit = {
+    log.info(s"Clear connections: ${namespaceCache}")
+    namespaceCache.foreach { case (_, temporal) =>
+      try {
+        temporal.shutdown()
+      } catch {
+        case e: Exception =>
+          log.warn(s"Failed to shutdown connection ${temporal}: ${e.getMessage}")
+      }
+    }
+    namespaceCache.clear()
+  }
+
+  /**
+   * Get cache statistics
+   *
+   * @return Map of cache key -> connection info
+   */
+  def getCacheStats(): Map[String, String] = {
+    namespaceCache.keys.map { key =>
+      // Cache key format: target|namespace|auth|tls
+      val parts = key.split("\\|")
+      val info = parts match {
+        case Array(target, namespace, auth, tls) =>
+          val authInfo = if (auth.nonEmpty) s", auth=present" else ""
+          val tlsInfo = if (tls.nonEmpty) s", tls=$tls" else ""
+          s"$target/$namespace$authInfo$tlsInfo"
+        case _ => key
+      }
+      key -> info
+    }.toMap
+  }
+
+  /**
+   * Remove a specific namespace connection from cache
+   *
+   * @param baseUri Base URI
+   * @param namespace Namespace to remove
+   */
+  def removeCachedConnection(baseUri: String, namespace: String): Unit = {
+    val namespaceUri = buildNamespaceUri(baseUri, namespace)
+    val t = TemporalURI(namespaceUri)
+    val cacheKey = s"${t.target}|${t.namespace}|${t.auth.getOrElse("")}|${t.tls.getOrElse("")}"
+
+    namespaceCache.remove(cacheKey).foreach { temporal =>
+      log.info(s"Removing cache connection: ${t.target}/${t.namespace}")
+      try {
+        temporal.shutdown()
+      } catch {
+        case e: Exception =>
+          log.warn(s"Failed to shutdown connection: ${t}, ns=$namespace: ${e.getMessage}")
+      }
+    }
+  }
 }

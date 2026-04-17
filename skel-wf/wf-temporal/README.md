@@ -9,11 +9,24 @@ NOTE: Current implementation doe not allow flexible generic workflow step config
 [README-temporal.md](README-temporal.md)
 
 
-## Run worker
+## Run workers
 
+Demo Worker and Engine
 ```
 APP_EXEC=bloop ./run-temporal.sh por-worker --engine=demo://
 ```
+
+PoR Worker with Temproal Engine
+```
+APP_EXEC=bloop ./run-temporal.sh por-worker --engine=temporal://
+```
+
+## Query Engine
+
+```
+APP_EXEC=bloop ./run-temporal.sh temporal list
+```
+
 
 ## Signals
 

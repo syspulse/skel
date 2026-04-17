@@ -32,9 +32,11 @@ case class WorkflowRun(
   schema: Int, // WorkflowSchema ID reference to map to WorkflowSchema
 
   steps: Seq[WorkflowStep], // Workflow steps with metadata
+
+  ns: Option[String] = None // Temporal namespace where workflow is running
 )
 
 object WorkflowRunJson extends JsonCommon {
   implicit val jf_wf_step: RootJsonFormat[WorkflowStep] = jsonFormat3(WorkflowStep)
-  implicit val jf_wf_run: RootJsonFormat[WorkflowRun] = jsonFormat6(WorkflowRun)
+  implicit val jf_wf_run: RootJsonFormat[WorkflowRun] = jsonFormat7(WorkflowRun)
 }
