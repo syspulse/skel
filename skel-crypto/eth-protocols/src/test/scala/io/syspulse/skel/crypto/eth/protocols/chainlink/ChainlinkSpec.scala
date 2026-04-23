@@ -6,7 +6,7 @@ import scala.util.{Try, Success, Failure}
 import io.syspulse.skel.config.Configuration
 import io.syspulse.skel.config.ConfigurationAkka
 import io.syspulse.skel.crypto.eth.Web3jTrace
-import io.syspulse.skel.blockchain.Blockchains
+import io.syspulse.skel.blockchain.evm.EvmBlockchains
 
 class ChainlinkSpec extends AnyWordSpec with Matchers {
   val CHAINLINK_FEED_ENTRY = 151
@@ -15,7 +15,7 @@ class ChainlinkSpec extends AnyWordSpec with Matchers {
     new ConfigurationAkka(from = Some(chainlinkConfigPath))
   ))
   lazy val sharedRpcConfig: String = sharedConfig.getString("blockchains").getOrElse("")
-  lazy val sharedBlockchains: Blockchains = Blockchains(sharedRpcConfig)
+  lazy val sharedBlockchains: EvmBlockchains = EvmBlockchains(sharedRpcConfig)
 
   "ChainlinkLoaderDefault" should {
     "load default contracts" in {
