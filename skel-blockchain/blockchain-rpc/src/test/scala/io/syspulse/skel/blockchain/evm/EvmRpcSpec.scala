@@ -1,25 +1,15 @@
-package io.syspulse.skel.blockchain
+package io.syspulse.skel.blockchain.evm
 
-import org.scalatest.{Ignore}
-import org.scalatest.wordspec.{ AnyWordSpec}
-import org.scalatest.matchers.should.{ Matchers}
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
+import scala.util.{Success,Failure}
 
-import io.jvm.uuid._
-
-import scala.util.{Try,Success,Failure}
-import java.time._
-import io.syspulse.skel.crypto.Eth
-import scala.util.Random
-import io.syspulse.skel.util.Util
-// import io.syspulse.skel.util.Util
-
-class BlockchainRpcSpec extends AnyWordSpec with Matchers {
+class EvmRpcSpec extends AnyWordSpec with Matchers {
   
-  "BlockchainRpcSpec" should {
+  "EvmRpcSpec" should {
 
     "parse multiline config" in {
-      val bb = Blockchains("""
+      val bb = EvmBlockchains("""
       eth=1=https://eth.drpc.org,
       arb=42161=https://rpc.ankr.com/arbitrum,
       """)      
@@ -33,26 +23,28 @@ class BlockchainRpcSpec extends AnyWordSpec with Matchers {
     }    
 
     "parse empty config" in {
-      val bb = Blockchains("")
-      bb.all().size should ===(2) // default blockchains (ethereum and sepolia)
+      val bb = EvmBlockchains("")
+      bb.all().size should ===(2) // default blockchains (anvil and sepolia)
       bb.get(1L) should ===(None)
       bb.get(11155111L) should !==(None) // sepolia
     }
 
     "parse single line config" in {
-      val bb = Blockchains("optimism=10=https://public-op-mainnet.fastnode.io")
+      val bb = EvmBlockchains("optimism=10=https://public-op-mainnet.fastnode.io")
       bb.all().size should ===(3) // default + optimism
       bb.get(10L) should !==(None)
       bb.getByName("optimism") should !==(None)
     }
 
     "handle unknown blockchain config gracefully" in {
-      val bb = Blockchains("malformed=config")
-      bb.all().size should ===(3) 
+      val bb = EvmBlockchains("malformed=config")
+      // Current parser treats `rpc=id` as a valid entry (id becomes "config")
+      bb.all().size should ===(3)
+      bb.getByName("config") should !==(None)
     }
 
     "get blockchain by name" in {
-      val bb = Blockchains("""
+      val bb = EvmBlockchains("""
       eth=1=https://eth.drpc.org,
       arb=42161=https://rpc.ankr.com/arbitrum,
       """)
@@ -63,7 +55,7 @@ class BlockchainRpcSpec extends AnyWordSpec with Matchers {
     }
 
     "get Web3j instance" in {
-      val bb = Blockchains("test=1=https://eth.llamarpc.com")
+      val bb = EvmBlockchains("test=1=https://eth.llamarpc.com")
       bb.getWeb3(1L) shouldBe a[Success[_]]
       bb.getWeb3("test") shouldBe a[Success[_]]
       bb.getWeb3(999L) shouldBe a[Failure[_]]
@@ -74,7 +66,7 @@ class BlockchainRpcSpec extends AnyWordSpec with Matchers {
     }
 
     "handle multiple RPC URLs for same chain" in {
-      val bb = Blockchains("""
+      val bb = EvmBlockchains("""
       eth=1=https://eth1.test.com,
       eth=1=https://eth2.test.com
       """)
@@ -84,7 +76,7 @@ class BlockchainRpcSpec extends AnyWordSpec with Matchers {
     }
 
     "support adding new blockchains" in {
-      val bb = Blockchains()
+      val bb = EvmBlockchains()
       bb.++(Seq("zksync=324=https://mainnet.era.zksync.io"))
       
       bb.all().size should ===(3)
@@ -93,7 +85,7 @@ class BlockchainRpcSpec extends AnyWordSpec with Matchers {
     }
 
     "ignore commented lines with #" in {
-      val bb = Blockchains("""
+      val bb = EvmBlockchains("""
       # This is a comment
       eth=1=https://eth.drpc.org,
       # Another comment
@@ -106,7 +98,7 @@ class BlockchainRpcSpec extends AnyWordSpec with Matchers {
     }
 
     "ignore commented lines with //" in {
-      val bb = Blockchains("""
+      val bb = EvmBlockchains("""
       // This is a comment
       eth=1=https://eth.drpc.org,
       // Another comment
@@ -119,7 +111,7 @@ class BlockchainRpcSpec extends AnyWordSpec with Matchers {
     }
 
     "ignore empty lines" in {
-      val bb = Blockchains("""
+      val bb = EvmBlockchains("""
       eth=1=https://eth.drpc.org,
       
       arb=42161=https://rpc.ankr.com/arbitrum,
@@ -132,7 +124,7 @@ class BlockchainRpcSpec extends AnyWordSpec with Matchers {
     }
 
     "handle mixed comments and empty lines" in {
-      val bb = Blockchains("""
+      val bb = EvmBlockchains("""
       # Mainnet RPCs
       eth=1=https://eth.drpc.org,
       
@@ -152,15 +144,17 @@ class BlockchainRpcSpec extends AnyWordSpec with Matchers {
       bb.getByName("base") should !==(None)
     }
 
-    "ignore inline comments" in {
-      val bb = Blockchains("""
+    "drop inline comments that appear after a comma" in {
+      val bb = EvmBlockchains("""
       eth=1=https://eth.drpc.org, # Mainnet
       arb=42161=https://rpc.ankr.com/arbitrum, // Arbitrum
       """)
       
       bb.all().size should ===(4)
-      bb.get(1L) should !==(None)
-      bb.get(42161L) should !==(None)
+      // Because we split by comma first, "# Mainnet" and "// Arbitrum" become separate entries
+      // and are filtered out as comment-only lines.
+      bb.get(1L).map(_.rpcUri.contains("# Mainnet")) should ===(Some(false))
+      bb.get(42161L).map(_.rpcUri.contains("// Arbitrum")) should ===(Some(false))
     }
   }    
 }
