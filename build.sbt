@@ -1525,7 +1525,7 @@ lazy val blockchain_tron = (project in file("skel-blockchain/blockchain-tron"))
     )
 
 lazy val blockchain_solana = (project in file("skel-blockchain/blockchain-solana"))
-  .dependsOn(skel_core)
+  .dependsOn(skel_core,blockchain_core)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .settings (
       sharedConfig,

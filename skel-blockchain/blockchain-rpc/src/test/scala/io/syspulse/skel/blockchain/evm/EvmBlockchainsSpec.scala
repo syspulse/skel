@@ -4,9 +4,9 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import scala.util.{Success,Failure}
 
-class EvmRpcSpec extends AnyWordSpec with Matchers {
+class EvmBlockchainsSpec extends AnyWordSpec with Matchers {
   
-  "EvmRpcSpec" should {
+  "EvmBlockchainsSpec" should {
 
     "parse multiline config" in {
       val bb = EvmBlockchains("""
