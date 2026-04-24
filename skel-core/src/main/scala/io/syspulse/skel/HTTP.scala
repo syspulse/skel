@@ -2,6 +2,7 @@ package io.syspulse.skel
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.Await
 import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
@@ -17,6 +18,7 @@ import com.typesafe.config.ConfigFactory
 
 import io.syspulse.skel.util.Util
 
+
 trait Actorable {
   // A small, self-contained runtime for async HTTP in feeds.
   // Detectors already run inside Akka, but feeds are also used in unit tests.
@@ -26,7 +28,7 @@ trait Actorable {
   protected val ec: ExecutionContext = as.dispatcher
   protected implicit val mat: Materializer = SystemMaterializer(as).materializer
   
-   def withTimeout[A](f: Future[A], timeout: Long): Future[A] = {
+  def withTimeout[A](f: Future[A], timeout: Long): Future[A] = {
     if (timeout <= 0) return f
     
     val timeoutF = after(FiniteDuration(timeout, TimeUnit.MILLISECONDS), as.scheduler) {
@@ -38,15 +40,52 @@ trait Actorable {
 }
 
 object HTTP extends Actorable {
+
+  def await(f: Future[String], timeout: Long = 0): String = {
+    Await.result(f, FiniteDuration(timeout, TimeUnit.MILLISECONDS))
+  }
   
-  def req(url: String, meth: HttpMethod, body: Option[String] = None, timeout: Long = 0, headers: Seq[(String, String)] = Seq.empty): Future[String] = {
+  def req(url: String, meth: HttpMethod, body: Option[String] = None, headers0: Seq[(String, String)] = Seq.empty,timeout: Long = 0): Future[String] = {    
+    // ATTENTION:
+    // Whoever created this stupidity with Content-Type is a fucking retarted moron.
+    // 
+    val (ctHeaders, otherHeaders) =
+      headers0.partition { case (k, _) => k.equalsIgnoreCase("Content-Type") }
+
+    val contentType0: Option[ContentType] =
+      ctHeaders.lastOption.flatMap { case (_, v0) =>
+        val v = v0.trim
+
+        // 1) Prefer Akka's built-in parser (covers common + many custom types)
+        ContentType.parse(v).toOption.orElse {
+          // 2) Fallback: parse media-type and wrap into ContentType (binary/custom types)
+          MediaType.parse(v).toOption.flatMap {
+            case mt: MediaType.Binary           => Some(ContentType(mt))
+            case mt: MediaType.WithFixedCharset => Some(ContentType(mt))
+            case _                              => None
+          }
+        }
+      }
+
+    val headers: Seq[HttpHeader] =
+      otherHeaders.flatMap { case (k, v) =>
+        HttpHeader.parse(k, v) match {
+          case HttpHeader.ParsingResult.Ok(h, _) => Some(h)
+          case _                                 => Some(RawHeader(k, v)) // best-effort fallback
+        }
+      }
+
+    val entity: RequestEntity =
+      body match {
+        case Some(b) => HttpEntity(contentType0.getOrElse(ContentTypes.NoContentType), ByteString(b))
+        case None    => HttpEntity.Empty
+      }
+
     val req = HttpRequest(
       uri = Uri(url), 
       method = meth, 
-      headers = headers.map(h => RawHeader(h._1, h._2)),
-      // Headers and body are independent; do not default body to application/json.
-      // If a caller wants a Content-Type, they should set it explicitly via headers.
-      entity = body.map(b => HttpEntity(ContentTypes.NoContentType, ByteString(b))).getOrElse(HttpEntity.Empty),
+      headers = headers,      
+      entity = entity,
     )
 
     val f = Http()(as)
@@ -76,20 +115,20 @@ object HTTP extends Actorable {
     if(timeout <= 0) f else withTimeout(f, timeout)
   }
 
-  def get(url: String, body: Option[String] = None, timeout: Long = 0, headers: Seq[(String, String)] = Seq.empty): Future[String] = {
-    req(url, HttpMethods.GET, body, timeout, headers)
+  def get(url: String, body: Option[String] = None, headers: Seq[(String, String)] = Seq.empty, timeout: Long = 0): Future[String] = {
+    req(url, HttpMethods.GET, body, headers, timeout)
   }
 
-  def post(url: String, body: Option[String] = None, timeout: Long = 0, headers: Seq[(String, String)] = Seq.empty): Future[String] = {
-    req(url, HttpMethods.POST, body, timeout, headers)
+  def post(url: String, body: Option[String] = None, headers: Seq[(String, String)] = Seq.empty, timeout: Long = 0): Future[String] = {
+    req(url, HttpMethods.POST, body, headers, timeout)
   }
 
-  def put(url: String, body: Option[String] = None, timeout: Long = 0, headers: Seq[(String, String)] = Seq.empty): Future[String] = {
-    req(url, HttpMethods.PUT, body, timeout, headers)
+  def put(url: String, body: Option[String] = None, headers: Seq[(String, String)] = Seq.empty, timeout: Long = 0): Future[String] = {
+    req(url, HttpMethods.PUT, body, headers, timeout)
   }
 
-  def delete(url: String, body: Option[String] = None, timeout: Long = 0, headers: Seq[(String, String)] = Seq.empty): Future[String] = {
-    req(url, HttpMethods.DELETE, body, timeout, headers)
+  def delete(url: String, body: Option[String] = None, headers: Seq[(String, String)] = Seq.empty, timeout: Long = 0): Future[String] = {
+    req(url, HttpMethods.DELETE, body, headers, timeout)
   }
     
 }
