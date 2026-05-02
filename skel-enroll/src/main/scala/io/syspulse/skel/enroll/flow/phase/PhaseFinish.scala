@@ -31,7 +31,7 @@ import scala.util.Success
 import io.syspulse.skel.enroll.Config
 
 class PhaseFinish(config:Config) extends Phase {
-  import io.syspulse.skel.FutureAwaitable._
+  import io.syspulse.skel.FutureUtil._
 
   def notify(to:String,subj:String,msg:String) = {
     val toUri = s"stdout://${to} email://${to} syslog://enroll"

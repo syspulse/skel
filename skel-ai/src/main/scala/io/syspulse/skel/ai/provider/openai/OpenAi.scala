@@ -40,6 +40,7 @@ import io.syspulse.skel.ai.ChatMessage
 import io.syspulse.skel.ai.provider.AiProvider
 import io.syspulse.skel.ai.core.AiTool
 import io.syspulse.skel.ai.core.AiURI
+import io.syspulse.skel.FutureUtil
 
 // {
 //         "role": "user",
@@ -532,7 +533,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
   def promptWithImages(ai:Ai,system:Option[String],timeout:Long,retry:Int,tools:Seq[AiTool],
             images:Seq[String],outputType:Option[String]):Try[Ai] = {    
     val f = promptAsyncWithImages(ai,system,timeout,retry,tools,images,outputType)(scala.concurrent.ExecutionContext.Implicits.global)
-    FutureAwaitable.awaitTry(f)(timeout)
+    FutureUtil.sync(f)(timeout)
   }
   
   override def promptAsync(ai:Ai,system:Option[String] = None,
@@ -614,7 +615,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
   def promptStreamWithImages(ai: Ai, onEvent: (String) => Unit, instructions: Option[String],timeout: Long, retry: Int,tools:Seq[AiTool],
                    images:Seq[String],outputType:Option[String]): Try[Ai] = {                    
     val f = promptStreamAsyncWithImages(ai,onEvent,instructions,timeout,retry,tools,images,outputType)(scala.concurrent.ExecutionContext.Implicits.global)
-    FutureAwaitable.awaitTry(f)(timeout)
+    FutureUtil.sync(f)(timeout)
   }
 
   def getResponseAnswer(response:OpenAi_ResponsesRes):Option[String] = {

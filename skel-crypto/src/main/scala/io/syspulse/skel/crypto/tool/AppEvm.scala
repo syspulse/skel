@@ -24,7 +24,7 @@ import io.syspulse.skel.crypto.eth.TokenUtil
 
 object AppEvm extends {
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
-  import io.syspulse.skel.FutureAwaitable._
+  import io.syspulse.skel.FutureUtil._
   val log = Logger(this.getClass)
 
   case class Config(

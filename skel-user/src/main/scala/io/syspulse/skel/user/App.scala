@@ -16,7 +16,7 @@ import io.syspulse.skel.uri.JdbcURI
 
 import io.jvm.uuid._
 
-import io.syspulse.skel.FutureAwaitable._
+import io.syspulse.skel.FutureUtil._
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 

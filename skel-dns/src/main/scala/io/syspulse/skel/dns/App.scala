@@ -1,13 +1,14 @@
 package io.syspulse.skel.dns
 
+import io.jvm.uuid._
+
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.config._
-
-import io.jvm.uuid._
+import io.syspulse.skel.FutureUtil._
+import scala.concurrent.ExecutionContext
 
 case class Config(
-            
   cmd:String = "whois",
   params: Seq[String] = Seq(),
 )
@@ -25,6 +26,7 @@ object App {
       new ConfigurationArgs(args,"skel-dns","",
                                
         ArgCmd("whois","Whois"),
+        ArgCmd("rdap","RDAP"),
         
         ArgParam("<params>",""),
         ArgLogging(),
@@ -39,21 +41,30 @@ object App {
 
     Console.err.println(s"Config: ${config}")
         
-    val r = config.cmd match {
-    
+    val f = config.cmd match {
+      case "rdap" =>
+        implicit val ec:ExecutionContext = scala.concurrent.ExecutionContext.global
+        config.params.toList match {
+          case domain :: Nil  =>
+            new RdapResolver(None).resolve(domain)
+          case domain :: server :: Nil  =>
+            new RdapResolver(Some(server)).resolve(domain)
+          case _ => 
+            new RdapResolver(None).resolve("google.com")
+        }
       case "whois" => 
         config.params.toList match {
           case domain :: Nil  =>
             DnsUtil.getInfo(domain)
-          case domain :: whoisServer :: Nil  =>
-            DnsUtil.getInfo(domain,Some(whoisServer))
+          case domain :: server :: Nil  =>
+            DnsUtil.getInfo(domain,Some(server))
           case _ => 
             DnsUtil.getInfo("google.com")
         }
-        
-        
-        
     }
+    
+    val r = sync(f)
+
     Console.err.println(s"r = ${r}")
   }
 }

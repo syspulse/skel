@@ -19,7 +19,7 @@ import io.syspulse.skel.ai.core.Providers
 import io.syspulse.skel.ai.core.{AiURI,AiTool}
 import io.syspulse.skel.ai.provider.AiProvider
 import io.syspulse.skel.ai.Ai
-import io.syspulse.skel.FutureAwaitable
+import io.syspulse.skel.FutureUtil
 import os.{read => engines}
 import scala.concurrent.Await
 import io.syspulse.skel.util.ConditionDouble
@@ -272,7 +272,7 @@ class ScriptAI(prompt0:Option[String],uri0:Option[String] = None) extends Script
       
   def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
     val timeout = data.get("timeout").map(_.asInstanceOf[Long]).getOrElse(aiUri.timeout)    
-    FutureAwaitable.awaitTry(exec(src,input,data))(timeout)
+    FutureUtil.sync(exec(src,input,data))(timeout)
   }
 
   def extractImages(input:String):(Seq[String],String) = {

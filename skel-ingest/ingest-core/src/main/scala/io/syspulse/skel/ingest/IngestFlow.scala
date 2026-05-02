@@ -289,4 +289,11 @@ object IngestFlow {
     def throttled(elements: Int, interval: FiniteDuration): Flow[T, T, Mat] =
       if (interval.toMillis == 0) flow else flow.throttle(elements, interval)
   }
+
+  implicit final class SubFlowThrottled[Out, Mat, FlowRepr[+_], SinkRepr](
+      private val flow: SubFlow[Out, Mat, FlowRepr, SinkRepr]
+  ) extends AnyVal {
+    def throttled(e: Int, dur: FiniteDuration): SubFlow[Out, Mat, FlowRepr, SinkRepr] =
+      if (dur.toMillis == 0) flow else flow.throttle(e, dur)
+  }
 }

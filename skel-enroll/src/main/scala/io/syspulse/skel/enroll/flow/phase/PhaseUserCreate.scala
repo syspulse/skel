@@ -24,7 +24,7 @@ import io.syspulse.skel.user.User
 import io.syspulse.skel.enroll.Config
 
 class PhaseUserCreate(config:Config) extends Phase {
-  import io.syspulse.skel.FutureAwaitable._
+  import io.syspulse.skel.FutureUtil._
 
   def create(email:String,name:String,xid:String,avatar:String):Try[UUID] = {
         

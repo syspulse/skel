@@ -49,7 +49,7 @@ case class TokenAmount(
 case class SolTransferInfo(
   source: String,
   destination: String,
-  lamports: Option[Long],
+  lamports: Option[BigInt],
   
   tokenAmount: Option[TokenAmount],
   multisigAuthority: Option[String],
@@ -68,7 +68,7 @@ object SolTransferInfo {
 case class SolTransfer(
   from: String, // address (token account for SPL transfers; wallet for native SOL)
   to: String,   // address (token account for SPL transfers; wallet for native SOL)
-  value: Long,  // raw amount (token base units or lamports)
+  value: BigInt,  // raw amount (token base units or lamports)
   programId: String, // program id (Tokenkeg.., SystemProgramId, ...)
   program: String,   // token address for SPL transfers; NativeSolMint for native SOL
   fromOwner: Option[String] = None, // wallet owner for SPL token accounts (when known)
@@ -89,7 +89,7 @@ case class SolTransfer(
 case class SolBalance(
   accountIndex: Int,
   address: String,
-  lamports: Long,
+  lamports: BigInt,
   mint: Option[String] = None,
   owner: Option[String] = None,
   programId: Option[String] = None,

@@ -29,7 +29,7 @@ import scala.util.Failure
 import scala.util.Success
 
 class PhaseSNSSend() extends Phase {
-  import io.syspulse.skel.FutureAwaitable._
+  import io.syspulse.skel.FutureUtil._
 
   def send(to:String,subj:String,msg:String) = {
     val toUri = s"sns://"

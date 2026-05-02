@@ -2,6 +2,7 @@ package io.syspulse.skel.dns
 
 import scala.util.{Try,Success,Failure}
 import com.typesafe.scalalogging.Logger
+import scala.concurrent.{ExecutionContext,Future}
 
 import java.time.format.DateTimeFormatter
 import java.time.OffsetDateTime
@@ -70,12 +71,28 @@ object WhoisResolver {
     }
   }
 
+  /** Domain used for WHOIS query: keep subdomain for gTLD, but normalize multi-part public suffixes (e.g. co.uk). */
+  def getWhoisDomain(userDomain: String): String = {
+    val parts = userDomain.split("\\.").toList
+    parts match {
+      case dd if dd.size >= 3 =>
+        val lastTwo = dd.takeRight(2).mkString(".")
+        if (secondLevelDomains.contains(lastTwo))
+          dd.takeRight(3).mkString(".")
+        else
+          userDomain
+      case _ =>
+        userDomain
+    }
+  }
+
 }
 
 class WhoisResolver() extends DnsResolver {
   val log = Logger(s"${this}")
 
-  def resolve(domain:String):Try[DnsInfo] = getInfo(domain,None)  
+  def resolve(domain:String)(implicit ec:ExecutionContext):Future[DnsInfo] =
+    Future.fromTry(getInfo(domain,None))
 
   val tsFormatISO = Seq(
     DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssX"),
@@ -111,19 +128,26 @@ class WhoisResolver() extends DnsResolver {
       }
 
       val ss = r.split("\n").map(_.trim).filter(! _.isBlank)
-      val whoisZone = ss.filter(_.startsWith("whois:")).map(s => {
-        s.split("whois:").toList match {
-          case _ :: whois :: Nil =>
-            Success(whois.trim)
-          case List() =>
-            log.debug(s"whois server missing, using root: '${root}'")
-            Success(root)
-          case v =>             
-            Failure(new Exception(s"failed to parse whois server: '${s}': '${v}'"))
-        }
-      }).head
+      ss.find(_.startsWith("whois:")) match {
+        case None =>
+          // IANA response without explicit "whois:" field: fall back to IANA itself (avoid head-of-empty).
+          log.debug(s"whois server missing for zone='${zone.get}', using root: '${root}'")
+          Success(root)
 
-      whoisZone
+        case Some(s) =>
+          val parts = s.split("whois:", 2).toList
+          parts match {
+            case _ :: whoisSrv :: Nil =>
+              val ws = whoisSrv.trim
+              if(ws.isEmpty) {
+                log.debug(s"whois server empty for zone='${zone.get}', using root: '${root}'")
+                Success(root)
+              } else
+                Success(ws)
+            case v =>
+              Failure(new Exception(s"failed to parse whois server for zone='${zone.get}': '${s}': '${v}'"))
+          }
+      }
 
     } catch {
       case e:Exception => Failure(e)
@@ -205,7 +229,7 @@ class WhoisResolver() extends DnsResolver {
 
     // this is not going to work for '.co.uk', so better 
     // allow to fail on subdomains
-    val domain = WhoisResolver.getDomain(userDomain)
+    val domain = WhoisResolver.getWhoisDomain(userDomain)
     
     try {
       // WhoisClient.DEFAULT_HOST

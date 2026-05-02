@@ -2,6 +2,7 @@ package io.syspulse.skel.dns
 
 import scala.util.{Try,Success,Failure}
 import com.typesafe.scalalogging.Logger
+import scala.concurrent.{ExecutionContext,Future}
 
 import java.time.format.DateTimeFormatter
 import java.time.OffsetDateTime
@@ -17,8 +18,8 @@ import scala.util.Random
 
 class TestResolver extends WhoisResolver {
 
-  override def resolve(domain:String):Try[DnsInfo] = {
-    Success(DnsInfo(
+  override def resolve(domain:String)(implicit ec:ExecutionContext):Future[DnsInfo] =
+    Future.successful(DnsInfo(
       domain = domain,
       created = Some(0L),
       updated = Some(0L),
@@ -26,5 +27,4 @@ class TestResolver extends WhoisResolver {
       ip = s"10.0.0.${Random.nextInt(2)+1}",
       ns = Seq("ns1.server.test","ns2.server.test")
     ))
-  }
 }

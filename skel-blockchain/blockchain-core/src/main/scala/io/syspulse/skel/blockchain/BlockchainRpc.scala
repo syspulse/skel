@@ -15,7 +15,12 @@ object BlockchainRpc {
   def apply(bb:String) = from(bb.split(",").toSeq)
   def apply() = from(Seq())
 
-  def from(bb:Seq[String]):Map[String,BlockchainRpc] = {
+  private def rrr(r:Boolean,rpcUri:String):String = {
+    (if(r) Util.resolveEnvVar(rpcUri).getOrElse(rpcUri) else rpcUri).trim
+  }
+
+  // resovle - resolve from Envs
+  def from(bb:Seq[String],resolve:Boolean=true):Map[String,BlockchainRpc] = {
     bb.flatMap(b => {
       // Split by comma (primary delimiter), then by newline (convenience)
       val entries = b.split(",").flatMap(_.split("\n")).map(_.trim).filter(_.nonEmpty)
@@ -32,20 +37,20 @@ object BlockchainRpc {
           line.split("=").toList match {
             case name :: id :: rpc :: _ => 
               val bid = id.trim
-              Some(( bid ->  BlockchainRpc(name.trim(),bid,rpc.trim()) ))
+              Some(( bid ->  BlockchainRpc(name.trim(),bid,rrr(resolve,rpc.trim()) )))
             case rpc :: id :: Nil => 
               val bid = id.trim
-              Some(( bid ->  BlockchainRpc(bid.toString,bid,rpc.trim())))
+              Some(( bid ->  BlockchainRpc(bid.toString,bid,rrr(resolve,rpc.trim()))))
             case rpc :: Nil => 
               if(rpc.isBlank())
                 None
               else
-                Some(( Blockchain.ETHEREUM.id.get ->  BlockchainRpc(Blockchain.ETHEREUM.name,Blockchain.ETHEREUM.id.get,rpc.trim())))
+                Some(( Blockchain.ETHEREUM.id.get ->  BlockchainRpc(Blockchain.ETHEREUM.name,Blockchain.ETHEREUM.id.get,rrr(resolve,rpc.trim()))))
             case _ => None
           }
         }
       })
-    })
+    })    
     .toMap
   }
 }

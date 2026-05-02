@@ -181,7 +181,7 @@ object App extends skel.Server {
         }
       
       case "client" => {        
-        import io.syspulse.skel.FutureAwaitable._
+        import io.syspulse.skel.FutureUtil._
         
         val host = if(config.host == "0.0.0.0") "localhost" else config.host
         val uri = s"http://${host}:${config.port}${config.uri}"

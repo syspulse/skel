@@ -2,6 +2,8 @@ package io.syspulse.skel.dns
 
 import scala.util.{Try,Success,Failure}
 import com.typesafe.scalalogging.Logger
+import scala.concurrent.{ExecutionContext,Future}
+import scala.collection.immutable.ArraySeq
 
 import java.time.format.DateTimeFormatter
 import java.time.OffsetDateTime
@@ -12,6 +14,7 @@ import java.net.InetAddress
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.Locale
+import _root_.io.syspulse.skel.HTTP
 
 // --- .to Resover -----------------------------------------------------------------------
 class TonicResolver extends DnsResolver {
@@ -31,7 +34,7 @@ class TonicResolver extends DnsResolver {
 
 // END  
 
-  def parseResponse(domain:String,body:String) = {
+  def parseResponse(domain:String,body:String):Try[DnsInfo] = {
     // parse
       val ss = body.split("\n").map(_.trim).filter(! _.isBlank)
 
@@ -83,38 +86,31 @@ class TonicResolver extends DnsResolver {
         updated = updated,
         expire = expire,
         ip = "",
-        ns = ns
+        ns = ArraySeq.unsafeWrapArray(ns)
       ))
   }
 
-  def resolve(domain:String):Try[DnsInfo] = {
+  def resolve(domain:String)(implicit ec:ExecutionContext):Future[DnsInfo] = {
     if(domain.isBlank()) {
-      return Failure(new Exception(s"invalid domain: '${domain}'"))
+      Future.failed(new Exception(s"invalid domain: '${domain}'"))
     }
 
-    try {    
-      val r = requests.get(s"https://www.tonic.to/whois?${domain}")      
-      log.debug(s"${domain}: ${r}")
+    HTTP
+      .get(s"https://www.tonic.to/whois?${domain}")
+      .map(r => {
+        log.debug(s"${domain}: ${r}")
 
-      r.statusCode match {
-        case 200 =>
-          parseResponse(domain,r.text())
-            .map(di => {
-              val addr:InetAddress = Address.getByName(domain)
+        parseResponse(domain,r)
+          .map(di => {
+            val addr:InetAddress = Address.getByName(domain)
 
-              di.copy(
-                ip = addr.getHostAddress()                
-              )
-            })
-
-        case c => 
-          //log.warn(s"failed to query: ${r}")
-          Failure(new Exception(s"failed to query: ${r}"))
-      }
-      
-    } catch {
-      case e:Exception => 
-        Failure(e)
-    }
+            di.copy(
+              ip = addr.getHostAddress()
+            )
+          })
+          // extract
+          .get
+      })
   }
+  
 }

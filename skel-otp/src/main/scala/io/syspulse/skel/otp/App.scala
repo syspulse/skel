@@ -13,7 +13,7 @@ import scala.concurrent.Await
 
 import io.jvm.uuid._
 
-import io.syspulse.skel.FutureAwaitable._
+import io.syspulse.skel.FutureUtil._
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 

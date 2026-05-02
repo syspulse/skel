@@ -31,7 +31,7 @@ import scala.util.Success
 import io.syspulse.skel.enroll.Config
 
 class PhaseEmailSend(config:Config) extends Phase {
-  import io.syspulse.skel.FutureAwaitable._
+  import io.syspulse.skel.FutureUtil._
 
   def emailTemplate(eid:UUID,code:String)=s"""<html><body>
 <h2>Confirm your email with code:</h2>
