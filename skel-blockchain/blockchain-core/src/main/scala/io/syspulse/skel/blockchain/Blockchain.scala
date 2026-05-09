@@ -70,6 +70,8 @@ object Blockchain {
   val SOLANA = Blockchain("solana",Some("solana"),Some(9),Some("SOL"),Some("https://solscan.io"))
   val SOLANA_TESTNET = Blockchain("solana_testnet",Some("solana_testnet"),Some(9),Some("SOL"),Some("https://solscan.io/?cluster=testnet"))
 
+  val STELLAR = Blockchain("stellar",Some("stellar"),Some(9),Some("XLM"),Some("https://stellar.expert"))
+
   val ALL = Map(
     ETHEREUM.id.get -> ETHEREUM,
     BSC_MAINNET.id.get -> BSC_MAINNET,
@@ -111,6 +113,8 @@ object Blockchain {
 
     SOLANA.id.get -> SOLANA,
     SOLANA_TESTNET.id.get -> SOLANA_TESTNET,
+
+    STELLAR.id.get -> STELLAR,
   )
 
   val ALL_NAMES = ALL.values.map(b => b.name.toLowerCase -> b).toMap

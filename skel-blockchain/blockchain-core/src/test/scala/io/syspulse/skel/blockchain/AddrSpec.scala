@@ -9,61 +9,61 @@ class AddrSpec extends AnyWordSpec with Matchers {
   
   "AddrSpec" should {
     "create Addr with chain" in {
-      val addr = Addr("0x123", Some("ethereum"))
-      addr.addr should ===("0x123")
-      addr.chain should ===(Some("ethereum"))
-      addr.toString should ===("ethereum:0x123")
+      val addr = Addr("0x52908400098527886E0F7030069857D2E4169EE7", Some("ethereum"))
+      addr.addr should ===("0x52908400098527886e0f7030069857d2e4169ee7")
+      addr.chain should ===(Some("evm"))
+      addr.toString should ===("evm:0x52908400098527886e0f7030069857d2e4169ee7")
     }
 
     "create Addr without chain" in {
-      val addr = Addr("0x123", None)
-      addr.addr should ===("0x123")
+      val addr = Addr("0x52908400098527886E0F7030069857D2E4169EE7", None)
+      addr.addr should ===("0x52908400098527886e0f7030069857d2e4169ee7")
       addr.chain should ===(None)
-      addr.toString should ===("0x123")
+      addr.toString should ===("0x52908400098527886e0f7030069857d2e4169ee7")
     }
 
     "normalize address with chain" in {
-      val (addr, chain) = Addr.normalize("ethereum:0x123")
-      addr should ===("0x123")
-      chain should ===(Some("ethereum"))
+      val (addr, chain) = Addr.normalize("ethereum:0x52908400098527886E0F7030069857D2E4169EE7")
+      addr should ===("0x52908400098527886e0f7030069857d2e4169ee7")
+      chain should ===(Some("evm"))
     }
 
     "normalize address without chain" in {
-      val (addr, chain) = Addr.normalize("0x123")
-      addr should ===("0x123")
+      val (addr, chain) = Addr.normalize("0x52908400098527886E0F7030069857D2E4169EE7")
+      addr should ===("0x52908400098527886e0f7030069857d2e4169ee7")
       chain should ===(None)
     }
 
     "create Addr from string with chain" in {
-      val addr = Addr("ethereum:0x123")
-      addr.addr should ===("0x123")
-      addr.chain should ===(Some("ethereum"))
-      addr.toString should ===("ethereum:0x123")
+      val addr = Addr("ethereum:0x52908400098527886E0F7030069857D2E4169EE7")
+      addr.addr should ===("0x52908400098527886e0f7030069857d2e4169ee7")
+      addr.chain should ===(Some("evm"))
+      addr.toString should ===("evm:0x52908400098527886e0f7030069857d2e4169ee7")
     }
 
     "handle whitespace in address" in {
-      val addr = Addr("  ethereum:0x123  ")
-      addr.addr should ===("0x123")
-      addr.chain should ===(Some("ethereum"))
-      addr.toString should ===("ethereum:0x123")
+      val addr = Addr("  ethereum:0x52908400098527886E0F7030069857D2E4169EE7  ")
+      addr.addr should ===("0x52908400098527886e0f7030069857d2e4169ee7")
+      addr.chain should ===(Some("evm"))
+      addr.toString should ===("evm:0x52908400098527886e0f7030069857d2e4169ee7")
     }
 
     "convert address to lowercase" in {
-      val addr = Addr("ETHEREUM:0xABCDEF")
-      addr.addr should ===("0xabcdef")
-      addr.chain should ===(Some("ethereum"))
-      addr.toString should ===("ethereum:0xabcdef")
+      val addr = Addr("ETHEREUM:0x52908400098527886E0F7030069857D2E4169EE7")
+      addr.addr should ===("0x52908400098527886e0f7030069857d2e4169ee7")
+      addr.chain should ===(Some("evm"))
+      addr.toString should ===("evm:0x52908400098527886e0f7030069857d2e4169ee7")
     }
 
     "handle empty chain" in {
-      val addr = Addr(":0x123")
-      addr.addr should ===("0x123")
+      val addr = Addr(":0x52908400098527886E0F7030069857D2E4169EE7")
+      addr.addr should ===("0x52908400098527886e0f7030069857d2e4169ee7")
       addr.chain should ===(Some(""))
     }
 
     "handle multiple colons" in {
-      val addr = Addr("ethereum:bsc:0x123")
-      addr.addr should ===("bsc:0x123")
+      val addr = Addr("ethereum:bsc:0x52908400098527886E0F7030069857D2E4169EE7")
+      addr.addr should ===("bsc:0x52908400098527886E0F7030069857D2E4169EE7")
       addr.chain should ===(Some("ethereum"))
     }
 
@@ -140,9 +140,41 @@ class AddrSpec extends AnyWordSpec with Matchers {
 
     // EVM addresses still get lowercased via normalize
     "still lowercase EVM 0x address via normalize" in {
-      val addr = Addr("ethereum:0xABCDEF123")
-      addr.addr should ===("0xabcdef123")
-      addr.chain should ===(Some("ethereum"))
+      val addr = Addr("ethereum:0x52908400098527886E0F7030069857D2E4169EE7")
+      addr.addr should ===("0x52908400098527886e0f7030069857d2e4169ee7")
+      addr.chain should ===(Some("evm"))
+    }
+
+    "compare EVM addresses case-insensitively and treat EVM chains identical" in {
+      val a = Addr("base:0x52908400098527886E0F7030069857D2E4169EE7")
+      val b = Addr("ethereum:0x52908400098527886e0f7030069857d2e4169ee7")
+      a.==(b) should ===(true)
+    }
+
+    "compare EVM mixed-case addresses as equal" in {
+      Addr.==(
+        "ethereum:0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF",
+        "ethereum:0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+      ) should ===(true)
+    }
+
+    "compare Solana addresses case-sensitively" in {
+      val raw = "7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV"
+      val raw2 = raw.toLowerCase
+      Addr.==(s"solana:$raw", s"solana:$raw2") should ===(false)
+    }
+
+    "compare Stellar addresses case-insensitively" in {
+      val raw = "GCM5WPR4DDR24FSAX5LIEM4J7AI3KOWJYANSXEPKYXCSZOTAYXE75AFN"
+      val raw2 = raw.toLowerCase
+      Addr.==(s"stellar:$raw", s"stellar:$raw2") should ===(true)
+    }
+
+    "compare Starknet addresses case-insensitively but keep chain distinct from EVM" in {
+      val raw = "0x02DdfB499765c064eaC5039E3841AA5f382E73B598097a40073BD8B48170Ab57"
+      val raw2 = raw.toLowerCase
+      Addr.==(s"starknet:$raw", s"starknet:$raw2") should ===(true)
+      Addr.==(s"starknet:$raw", s"ethereum:$raw2") should ===(false)
     }
 
     "preserve case for bare Solana address (no chain, no prefix)" in {

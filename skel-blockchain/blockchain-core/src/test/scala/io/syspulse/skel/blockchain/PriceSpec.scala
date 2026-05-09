@@ -52,6 +52,9 @@ class PriceSpec extends AnyWordSpec with Matchers {
     }  
 
     "resolve price '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984' (UNI) not in cache (via Coingecko)" in {      
+      if (sys.env.get("COINGECKO_API_KEY").isEmpty) {
+        cancel("COINGECKO_API_KEY is not set; skipping live Coingecko lookup test")
+      }
       val t = Price.resolve("0x1f9840a85d5af5bf1d1762f925bdaddc4201f984")
       info(s"${t}")
       t should !== (None)
