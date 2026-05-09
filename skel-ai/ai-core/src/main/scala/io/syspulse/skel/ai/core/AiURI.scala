@@ -32,6 +32,7 @@ trait AiURI {
   // it is needed since API respnse may remove it from model name
   def ext:Option[String] = getModel().flatMap(_.split(":").drop(1).headOption)
   def output:Option[String] = getOptions().get("output")
+  def version:Option[String] = None
 
   def DEFAULT_MODEL:String
   protected def getPrefix():String
@@ -116,6 +117,7 @@ object AiURI {
       case DeepseekURI.ID :: _ => DeepseekURI(uri)
       case OpenRouterURI.ID :: _ => OpenRouterURI(uri)
       case MirrorURI.ID :: _ => MirrorURI(uri)
+      case IkaURI.ID :: _ => IkaURI(uri)
       case _ => throw new IllegalArgumentException(s"Unknown AI provider: '${uri}'")
     }
   }  

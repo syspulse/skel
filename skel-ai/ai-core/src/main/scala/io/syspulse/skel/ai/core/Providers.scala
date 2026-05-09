@@ -3,7 +3,7 @@ package io.syspulse.skel.ai.core
 import scala.util.{Try,Success,Failure}
 import scala.collection.immutable
 
-import io.syspulse.skel.ai.core.{OpenAiURI,GrokURI,GeminiURI,OpenRouterURI,DeepseekURI,ClaudeURI,VeniceURI}
+import io.syspulse.skel.ai.core.{OpenAiURI,GrokURI,GeminiURI,OpenRouterURI,DeepseekURI,ClaudeURI,VeniceURI,IkaURI}
 
 object Providers {
   val OPEN_AI = OpenAiURI.ID
@@ -15,4 +15,5 @@ object Providers {
   val CLAUDE = ClaudeURI.ID
   val VENICE = VeniceURI.ID
   val MIRROR = MirrorURI.ID
+  val IKA = IkaURI.ID
 }

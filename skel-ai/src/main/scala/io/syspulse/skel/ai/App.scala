@@ -85,6 +85,8 @@ object App extends skel.Server {
         ArgCmd("chat","Chat"),
         ArgCmd("prompt","Prompt"),
         ArgCmd("prompt-stream","Prompt stream"),
+        ArgCmd("messages","Anthropic Messages API (non-streaming)"),
+        ArgCmd("messages-stream","Anthropic Messages API (streaming)"),
         ArgCmd("stream","Prompt stream"),
         ArgCmd("responses","Responses"), // same as prompt-stream
 
@@ -163,6 +165,12 @@ object App extends skel.Server {
 
       case "prompt-stream" | "stream" => 
         promptStream(config.ai,config.params)(config)
+
+      case "messages" =>
+        messages(config.ai, config.params)(config)
+
+      case "messages-stream" =>
+        messagesStream(config.ai, config.params)(config)
     }
     Console.err.println(s"${r}")
   }
@@ -389,6 +397,113 @@ object App extends skel.Server {
           outputType = aiUri.output
         )
 
+        log.info(s"${a1.get}")
+        val txt = a1.get.answer.getOrElse("???")
+        Console.err.println(s"${Console.GREEN}${a1.get.model}${Console.YELLOW}/${a1.get.xid}: ${txt}${Console.RESET}")
+        a = a1.get
+      }
+    }
+  }
+
+  def messages(uri: String, params: Seq[String])(config: Config): Unit = {
+    val aiUri = AiURI(uri)
+    val provider: AiProvider = AiProvider(aiUri)
+    val system =
+      if (!config.sys.isEmpty) Some(config.sys)
+      else aiUri.system
+    val (q0, max) =
+      if (!params.isEmpty) (params.mkString(" "), 1)
+      else {
+        val q0 = aiUri.prompt.getOrElse("")
+        (q0, if (q0.isEmpty) Int.MaxValue else 1)
+      }
+    val a0 = Ai(
+      question = q0,
+      model = aiUri.getModel(),
+      xid = aiUri.tid
+    )
+    log.info(s"q0 = '${q0}'")
+    var a = a0
+    for (i <- 1 to max) {
+      Console.err.print(s"${a.model}: ${a.xid}:${i} (messages) > ")
+      val q =
+        if (q0.isEmpty && i < max) scala.io.StdIn.readLine()
+        else q0
+      if (q == null || q.trim.toLowerCase() == "exit") {
+        sys.exit(0)
+      }
+      if (!q.isEmpty) {
+        val a1 = provider.messages(a.copy(question = q), system, images = config.images, outputType = aiUri.output)
+        log.info(s"${a1.get}")
+        val txt = a1.get.answer.getOrElse("")
+        Console.err.println(s"${Console.GREEN}${a1.get.model}${Console.YELLOW}: ${txt}${Console.RESET}")
+        a = a1.get
+      }
+    }
+  }
+
+  def messagesStream(uri: String, params: Seq[String])(config: Config): Unit = {
+    val aiUri = AiURI(uri)
+    val provider: AiProvider = AiProvider(aiUri)
+    val system =
+      if (!config.sys.isEmpty) Some(config.sys)
+      else aiUri.system
+    val (q0, max) =
+      if (!params.isEmpty) (params.mkString(" "), 1)
+      else {
+        val q0 = aiUri.prompt.getOrElse("")
+        (q0, if (q0.isEmpty) Int.MaxValue else 1)
+      }
+    val a0 = Ai(
+      question = q0,
+      model = aiUri.getModel(),
+      xid = aiUri.tid
+    )
+    log.info(s"q0 = '${q0}'")
+    var a = a0
+    for (i <- 1 to max) {
+      Console.err.print(s"${a.model}/${a.xid}:${i} (messages-stream) > ")
+      val q =
+        if (q0.isEmpty && i < max) scala.io.StdIn.readLine()
+        else q0
+      if (q == null || q.trim.toLowerCase() == "exit") {
+        sys.exit(0)
+      }
+      if (!q.isEmpty) {
+        val a1 = provider.messagesStream(
+          a.copy(question = q),
+          (s: String) => {
+            s match {
+              case s if s.startsWith("data:") =>
+                val data = s.stripPrefix("data:").trim
+                scala.util.Try(spray.json.JsonParser(data)) match {
+                  case scala.util.Success(js: spray.json.JsObject) =>
+                    js.fields.get("type") match {
+                      case Some(spray.json.JsString("content_block_delta")) =>
+                        js.fields.get("delta").foreach {
+                          case d: spray.json.JsObject =>
+                            d.fields.get("type") match {
+                              case Some(spray.json.JsString("text_delta")) =>
+                                d.fields.get("text") match {
+                                  case Some(spray.json.JsString(chunk)) =>
+                                    log.info(s"${Console.BLUE}${chunk}${Console.RESET}")
+                                  case _ =>
+                                }
+                              case _ =>
+                            }
+                          case _ =>
+                        }
+                      case _ =>
+                    }
+                  case _ =>
+                }
+              case _ =>
+            }
+          },
+          system,
+          images = config.images,
+          outputType = aiUri.output
+        )
         log.info(s"${a1.get}")
         val txt = a1.get.answer.getOrElse("???")
         Console.err.println(s"${Console.GREEN}${a1.get.model}${Console.YELLOW}/${a1.get.xid}: ${txt}${Console.RESET}")

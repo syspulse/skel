@@ -299,41 +299,8 @@ object OpenAi_Json extends JsonCommon {
 
 }
 
-abstract class OpenAiLike(uri:AiURI) extends AiProvider {
+trait OpenAiLike extends AiProvider {
   import OpenAi_Json._
-
-  val aiUri:AiURI = uri
-  
-  // Lazy ActorSystem - created once and reused
-  private lazy val httpSystem = ActorSystem("OpenAiHttp")
-  private implicit lazy val httpEc = httpSystem.dispatcher
-  private implicit lazy val httpMat = SystemMaterializer(httpSystem).materializer
-  
-  // Helper method for HTTP requests using Akka HTTP
-  private def httpRequest(url: String, body: String, headers: Seq[(String, String)], timeout: Long): Future[HttpResponse] = {
-    // Filter out Content-Type as it's set via HttpEntity
-    val filteredHeaders = headers.filterNot { case (k, _) => k.equalsIgnoreCase("Content-Type") }
-    val httpRequest = HttpRequest(
-      method = HttpMethods.POST,
-      uri = url,
-      entity = HttpEntity(ContentTypes.`application/json`, body),
-      headers = filteredHeaders.map { case (k, v) => RawHeader(k, v) }
-    )
-    Http()(httpSystem).singleRequest(httpRequest)
-  }
-  
-  // Helper to read response body as string
-  private def readResponseBody(response: HttpResponse): Future[String] = {
-    import akka.stream.scaladsl.Sink
-    response.entity.dataBytes
-      .runWith(Sink.fold(ByteString.empty)(_ ++ _))
-      .map(_.utf8String)
-  }
-
-  def getUri():AiURI = aiUri
-  override def getTimeout():Long = aiUri.timeout
-  override def getRetry():Int = aiUri.retry
-  override def getModel():Option[String] = aiUri.getModel()
 
   def getResponseAnswer(response:OpenAi_ChatRes):Option[String] = {
     if(response.choices.isEmpty) 
@@ -360,10 +327,10 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
           outputType:Option[String]
       ):Try[Ai] = {
 
-    val url = s"${aiUri.apiUrl}/v1/chat/completions"
+    val url = s"${getUri().apiUrl}/v1/chat/completions"
     val modelReq = model.getOrElse(OpenAiURI.DEFAULT_MODEL)
-    val systemPrompt = system.orElse(aiUri.system)
-    val tools = aiUri.getTools() ++ tools0
+    val systemPrompt = system.orElse(getUri().system)
+    val tools = getUri().getTools() ++ tools0
 
     val userContent = Seq(
       OpenAi_ContentItem("text", Some(question), None)
@@ -383,9 +350,9 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
           Seq.empty
       },
 
-      temperature = aiUri.temperature,
-      top_p = aiUri.topP,
-      max_completion_tokens = aiUri.maxTokens,
+      temperature = getUri().temperature,
+      top_p = getUri().topP,
+      max_completion_tokens = getUri().maxTokens,
       tools = if(tools.nonEmpty) Some(tools) else None,
       response_format = outputType.map(t => OpenAi_ResponseFormat(t))
     ).toJson.compactPrint
@@ -400,7 +367,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
           url = url,
             body = body,
           headers = Seq(
-            "Authorization" -> s"Bearer ${aiUri.apiKey}"
+            "Authorization" -> s"Bearer ${getUri().apiKey}"
           ),
             timeout = timeout
           ).flatMap { resp =>
@@ -424,7 +391,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
           question = question,
           answer = answer,
           oid = Some(Providers.OPEN_AI),
-          model = Some(aiUri.getModel(chatRes.model))
+          model = Some(getUri().getModel(chatRes.model))
         )
       }, 
       s"ask: '${question.take(32)}...'"
@@ -440,10 +407,10 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
   def chatWithImages(chat:Chat,model:Option[String],system:Option[String],timeout:Long,retry:Int,tools:Seq[AiTool],
            images:Seq[String],outputType:Option[String]):Try[Chat] = {
 
-    val url = s"${aiUri.apiUrl}/v1/chat/completions"
+    val url = s"${getUri().apiUrl}/v1/chat/completions"
     val modelReq = model.getOrElse(OpenAiURI.DEFAULT_MODEL)
-    val systemPrompt = system.orElse(aiUri.system)
-    val toolsCombined = aiUri.getTools() ++ tools
+    val systemPrompt = system.orElse(getUri().system)
+    val toolsCombined = getUri().getTools() ++ tools
 
     val messages = chat.messages.zipWithIndex.flatMap { case (p, idx) =>
       p.role.trim match {
@@ -467,9 +434,9 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
     val body = OpenAi_CompletionReq(
       model = modelReq,
       messages = messages,
-      temperature = aiUri.temperature,
-      top_p = aiUri.topP,
-      max_completion_tokens = aiUri.maxTokens,
+      temperature = getUri().temperature,
+      top_p = getUri().topP,
+      max_completion_tokens = getUri().maxTokens,
       tools = if(tools.nonEmpty) Some(tools) else None,
       response_format = outputType.map(t => OpenAi_ResponseFormat(t))
     ).toJson.compactPrint
@@ -486,7 +453,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
           url = url,
             body = body,
           headers = Seq(
-            "Authorization" -> s"Bearer ${aiUri.apiKey}"
+            "Authorization" -> s"Bearer ${getUri().apiKey}"
           ),
             timeout = timeout
           ).flatMap { resp =>
@@ -510,7 +477,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
             ChatMessage(role = c.message.role, content = content)
           }),
           oid = chat.oid,
-          model = Some(aiUri.getModel(chatRes.model)),
+          model = Some(getUri().getModel(chatRes.model)),
           ts = System.currentTimeMillis(),
           ts0 = chat.ts0,
           tags = chat.tags,
@@ -545,10 +512,10 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
   def promptAsyncWithImages(ai:Ai,system:Option[String],timeout:Long,retry:Int,tools0:Seq[AiTool],
             images:Seq[String],outputType:Option[String])(implicit ec: ExecutionContext):Future[Ai] = {
 
-    val url = s"${aiUri.apiUrl}/v1/responses"
+    val url = s"${getUri().apiUrl}/v1/responses"
     val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
-    val systemPrompt = system.orElse(aiUri.system)
-    val tools = aiUri.getTools() ++ tools0
+    val systemPrompt = system.orElse(getUri().system)
+    val tools = getUri().getTools() ++ tools0
     
     val inputContent = Seq(
       OpenAi_ContentItem("input_text", Some(ai.question), None)
@@ -563,10 +530,10 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       ),
       instructions = systemPrompt,
       previous_response_id = ai.xid,
-      store = aiUri.getOptions().get("store").map(_.toBoolean),
-      temperature = aiUri.temperature,
-      top_p = aiUri.topP,
-      max_output_tokens = aiUri.maxTokens,
+      store = getUri().getOptions().get("store").map(_.toBoolean),
+      temperature = getUri().temperature,
+      top_p = getUri().topP,
+      max_output_tokens = getUri().maxTokens,
       tools = if(tools.nonEmpty) Some(tools) else None,
       text = outputType.map(t => OpenAi_TextFormat(Some(OpenAi_ResponseFormat(t))))
     ).toJson.compactPrint
@@ -579,7 +546,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
             url = url,
         body = body,
             headers = Seq(
-              "Authorization" -> s"Bearer ${aiUri.apiKey}"
+              "Authorization" -> s"Bearer ${getUri().apiKey}"
             ),
         timeout = timeout
       ).flatMap { resp =>
@@ -590,7 +557,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
           val answer = getResponseAnswer(res)
           ai.copy(
             answer = answer,
-            model = Some(aiUri.getModel(res.model)),
+            model = Some(getUri().getModel(res.model)),
             xid = Some(res.id)
           )
           }
@@ -638,11 +605,11 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
   def promptStreamAsyncWithImages(ai:Ai,onEvent: (String) => Unit,instructions:Option[String],timeout:Long,retry:Int,tools0:Seq[AiTool],
                         images:Seq[String],outputType:Option[String])(implicit ec: ExecutionContext):Future[Ai] = {
     
-    val url = s"${aiUri.apiUrl}/v1/responses"
+    val url = s"${getUri().apiUrl}/v1/responses"
     val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
-    val systemPrompt = if( ! ai.xid.isDefined) instructions.orElse(aiUri.system) else None
+    val systemPrompt = if( ! ai.xid.isDefined) instructions.orElse(getUri().system) else None
 
-    val tools = aiUri.getTools() ++ tools0
+    val tools = getUri().getTools() ++ tools0
 
     val inputContent = Seq(
       OpenAi_ContentItem("input_text", Some(ai.question), None)
@@ -658,10 +625,10 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       stream = Some(true),
       instructions = systemPrompt,
       previous_response_id = ai.xid,
-      store = aiUri.getOptions().get("store").map(_.toBoolean),
-      temperature = aiUri.temperature,
-      top_p = aiUri.topP,
-      max_output_tokens = aiUri.maxTokens,
+      store = getUri().getOptions().get("store").map(_.toBoolean),
+      temperature = getUri().temperature,
+      top_p = getUri().topP,
+      max_output_tokens = getUri().maxTokens,
       tools = if(tools.nonEmpty) Some(tools) else None,
       text = outputType.map(t => OpenAi_TextFormat(Some(OpenAi_ResponseFormat(t))))
     ).toJson.compactPrint
@@ -674,7 +641,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       uri = url,
       entity = HttpEntity(ContentTypes.`application/json`, body),
           headers = Seq(
-        RawHeader("Authorization", s"Bearer ${aiUri.apiKey}"),
+        RawHeader("Authorization", s"Bearer ${getUri().apiKey}"),
         RawHeader("Accept", "text/event-stream")
       )
     )
@@ -702,7 +669,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
                       val answer = getResponseAnswer(res.response)
                     resultQueue.put(Some(ai.copy(
                         answer = answer,
-                        model = Some(aiUri.getModel(res.response.model)),
+                        model = Some(getUri().getModel(res.response.model)),
                         xid = Some(res.response.id)
                     )))
                     } else {
@@ -757,12 +724,12 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
     tools:Seq[AiTool],
     outputType:Option[String])(implicit ec: ExecutionContext,sys: ActorSystem): Source[ServerSentEvent, Any] = {
     
-    val url = s"${aiUri.apiUrl}/v1/responses"
+    val url = s"${getUri().apiUrl}/v1/responses"
     // val url = s"http://localhost:8081/"
     val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
-    val systemPrompt = if( ! ai.xid.isDefined) instructions.orElse(aiUri.system) else None
+    val systemPrompt = if( ! ai.xid.isDefined) instructions.orElse(getUri().system) else None
 
-    val toolsCombined = aiUri.getTools() ++ tools
+    val toolsCombined = getUri().getTools() ++ tools
 
     val inputContent = Seq(OpenAi_ContentItem("input_text", Some(ai.question), None))
 
@@ -774,10 +741,10 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
       stream = Some(true),
       instructions = systemPrompt,
       previous_response_id = ai.xid,
-      store = aiUri.getOptions().get("store").map(_.toBoolean),
-      temperature = aiUri.temperature,
-      top_p = aiUri.topP,
-      max_output_tokens = aiUri.maxTokens,
+      store = getUri().getOptions().get("store").map(_.toBoolean),
+      temperature = getUri().temperature,
+      top_p = getUri().topP,
+      max_output_tokens = getUri().maxTokens,
       tools = if(toolsCombined.nonEmpty) Some(toolsCombined) else None,
       text = outputType.map(t => OpenAi_TextFormat(Some(OpenAi_ResponseFormat(t))))
     ).toJson.compactPrint
@@ -790,7 +757,7 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
           uri = url,
           entity = HttpEntity(ContentTypes.`application/json`, body),
           headers = Seq(
-            RawHeader("Authorization", s"Bearer ${aiUri.apiKey}"),
+            RawHeader("Authorization", s"Bearer ${getUri().apiKey}"),
             RawHeader("Accept", "text/event-stream")
           )
         )
@@ -861,4 +828,6 @@ abstract class OpenAiLike(uri:AiURI) extends AiProvider {
   } 
 }
 
-class OpenAi(uri:OpenAiURI) extends OpenAiLike(uri)
+class OpenAi(uri:OpenAiURI) extends OpenAiLike {
+  override def getUri():AiURI = uri
+}

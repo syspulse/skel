@@ -2,6 +2,9 @@
 export CWD=`echo $(dirname $(readlink -f $0))`
 # cd $CWD
 
+# bloop does not support stdin properly for interactive input
+export APP_EXEC=${APP_EXEC:-sbt}
+
 # t=`pwd`;
 t=$CWD
 APP=`basename "$t"`

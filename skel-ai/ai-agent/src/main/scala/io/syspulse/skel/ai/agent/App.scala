@@ -32,7 +32,7 @@ import play.api.libs.json.Json
 import io.syspulse.skel.ext._
 import io.syspulse.skel.ai.agent.blockchain.AgentBlockchain
 
-import io.syspulse.skel.FutureAwaitable._
+import io.syspulse.skel.FutureUtil._
 
 case class Config(
   host:String="0.0.0.0",
