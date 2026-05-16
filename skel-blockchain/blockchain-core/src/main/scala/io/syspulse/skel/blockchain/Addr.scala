@@ -49,10 +49,7 @@ object Addr {
   def shorten(addr:String):String = Util.trunc(addr,12)
 
   private val blockchains = Blockchain.ALL_NAMES
-
-  private def isHex(c: Char): Boolean =
-    (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')
-
+  
   private def isEvm(addr: String): Boolean = {
     addr.length == 42 && (addr.startsWith("0x") || addr.startsWith("0X"))
   }
