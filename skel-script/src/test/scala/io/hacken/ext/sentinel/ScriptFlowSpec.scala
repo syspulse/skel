@@ -322,6 +322,24 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       result.get should include("test") // JS creates JSON, JQ extracts name
     }
 
+    "build from string format: js:// handles deep JSON input structure" in {
+      val flow = ScriptFlow.build(Some("js://(() => { const json = JSON.parse(input); return json.op.desc + (json.args[0] + json.args[1]); })()"))
+
+      val input =
+        """{
+          |  "args": [10,20],
+          |  "op": {
+          |      "type": "+",
+          |      "desc": "Add: "
+          |   }
+          |}""".stripMargin
+
+      val result = flow.run("", input, Map.empty)
+
+      result.isSuccess shouldBe true
+      result.get shouldBe "Add: 30"
+    }
+
     "build from string format: js:// -> regexp_score://" in {
       val flow = ScriptFlow.build(Some("js://input.length > 5 ? 'long' : 'short', regexp_score://.*long.*"))
       
@@ -344,19 +362,17 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
 
     "break flow with ScriptBreakException when js:// returns null" in {
       val flow = ScriptFlow.build(Some("js://null"))
-      val caught = intercept[Script.ScriptBreakException] {
-        flow.run("", "any", Map.empty)
-      }
-      caught.src shouldBe "null"
+      val result = flow.run("", "any", Map.empty)
+      result.isFailure shouldBe true
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "null"
     }
 
     "break flow when js:// conditionally returns null and subsequent scripts do not run" in {
       val flow = ScriptFlow.build(Some("js://input === 'skip' ? null : input, regexp://.*"))
       flow.run("", "hello", Map.empty).get shouldBe "hello"
-      val caught = intercept[Script.ScriptBreakException] {
-        flow.run("", "skip", Map.empty)
-      }
-      caught.src shouldBe "null"
+      val result = flow.run("", "skip", Map.empty)
+      result.isFailure shouldBe true
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "null"
     }
 
     "chain ScriptJS alone" in {
@@ -372,10 +388,114 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val jsEngine = new ScriptJS(Some("null"))
       val regexpEngine = new ScriptRegexp(Some(".*"))
       val flow = new ScriptFlow(Seq(jsEngine, regexpEngine))
-      val caught = intercept[Script.ScriptBreakException] {
-        flow.run("", "any", Map.empty)
+      val result = flow.run("", "any", Map.empty)
+      result.isFailure shouldBe true
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "null"
+    }
+
+    "exec short-circuits failed Future and does not run subsequent scripts" in {
+      var secondExecuted = false
+      val breaker = new Script("test-break", "test-break") {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] =
+          Future.failed(new Script.ScriptBreakException("stop"))
       }
-      caught.src shouldBe "null"
+      val second = new Script("test-second", "test-second") {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = {
+          secondExecuted = true
+          Future.successful(input)
+        }
+      }
+
+      val flow = new ScriptFlow(Seq(breaker, second))
+      val caught = intercept[Script.ScriptBreakException] {
+        Await.result(flow.exec("", "input", Map.empty), 1.second)
+      }
+      caught.src shouldBe "stop"
+      secondExecuted shouldBe false
+    }
+
+    "run short-circuits ScriptBreakException in middle of multiple scripts" in {
+      var firstExecuted = 0
+      var breakerInput = ""
+      var thirdExecuted = 0
+      var fourthExecuted = 0
+
+      val first = new Script("test-first", "test-first") {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = {
+          firstExecuted += 1
+          Future.successful(s"${input}:first")
+        }
+      }
+      val breaker = new Script("test-break", "test-break") {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = {
+          breakerInput = input
+          Future.failed(new Script.ScriptBreakException(input))
+        }
+      }
+      val third = new Script("test-third", "test-third") {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = {
+          thirdExecuted += 1
+          Future.successful(s"${input}:third")
+        }
+      }
+      val fourth = new Script("test-fourth", "test-fourth") {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = {
+          fourthExecuted += 1
+          Future.successful(s"${input}:fourth")
+        }
+      }
+
+      val result = new ScriptFlow(Seq(first, breaker, third, fourth)).run("", "input", Map.empty)
+
+      result.isFailure shouldBe true
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "input:first"
+      breakerInput shouldBe "input:first"
+      firstExecuted shouldBe 1
+      thirdExecuted shouldBe 0
+      fourthExecuted shouldBe 0
+    }
+
+    "exec short-circuits ScriptBreakException after prior Future scripts complete" in {
+      var firstExecuted = 0
+      var secondExecuted = 0
+      var breakerInput = ""
+      var afterBreakExecuted = 0
+
+      val first = new Script("test-first", "test-first") {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = Future {
+          firstExecuted += 1
+          s"${input}:first"
+        }(ec)
+      }
+      val second = new Script("test-second", "test-second") {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = Future {
+          secondExecuted += 1
+          s"${input}:second"
+        }(ec)
+      }
+      val breaker = new Script("test-break", "test-break") {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = {
+          breakerInput = input
+          Future.failed(new Script.ScriptBreakException("break-after-second"))
+        }
+      }
+      val afterBreak = new Script("test-after-break", "test-after-break") {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = {
+          afterBreakExecuted += 1
+          Future.successful(s"${input}:after")
+        }
+      }
+
+      val flow = new ScriptFlow(Seq(first, second, breaker, afterBreak))
+      val caught = intercept[Script.ScriptBreakException] {
+        Await.result(flow.exec("", "input", Map.empty), 1.second)
+      }
+
+      caught.src shouldBe "break-after-second"
+      breakerInput shouldBe "input:first:second"
+      firstExecuted shouldBe 1
+      secondExecuted shouldBe 1
+      afterBreakExecuted shouldBe 0
     }
 
     "chain ScriptJS -> ScriptRegexp" in {

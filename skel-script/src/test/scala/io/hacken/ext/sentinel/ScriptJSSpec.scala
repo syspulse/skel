@@ -291,10 +291,9 @@ class ScriptJSSpec extends AnyWordSpec with Matchers {
 
     "handle null result by breaking script flow with ScriptBreakException" in {
       val script = new ScriptJS(src0 = Some("null"))
-      val caught = intercept[Script.ScriptBreakException] {
-        script.run("", "test", Map.empty)
-      }
-      caught.src shouldBe "null"
+      val result = script.run("", "test", Map.empty)
+      result.isFailure shouldBe true
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "null"
     }
 
     "handle error propagation from JavaScript errors" in {
@@ -459,19 +458,17 @@ class ScriptJSSpec extends AnyWordSpec with Matchers {
 
     "break script flow with ScriptBreakException when script returns null" in {
       val script = new ScriptJS(src0 = Some("null"))
-      val caught = intercept[Script.ScriptBreakException] {
-        script.run("", "any", Map.empty)
-      }
-      caught.src shouldBe "null"
+      val result = script.run("", "any", Map.empty)
+      result.isFailure shouldBe true
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "null"
     }
 
     "break script flow when script conditionally returns null" in {
       val script = new ScriptJS(src0 = Some("input === 'empty' ? null : input"))
       script.run("", "hello", Map.empty).get shouldBe "hello"
-      val caught = intercept[Script.ScriptBreakException] {
-        script.run("", "empty", Map.empty)
-      }
-      caught.src shouldBe "null"
+      val result = script.run("", "empty", Map.empty)
+      result.isFailure shouldBe true
+      result.failed.get.asInstanceOf[Script.ScriptBreakException].src shouldBe "null"
     }
   }
 }

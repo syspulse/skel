@@ -31,29 +31,23 @@ abstract class Script(val id:Script.ID,val name:String) {
   override def toString: String = s"${this.getClass().getSimpleName()}"
 
   def getId():Script.ID = this.id
-  def run(src:String,input:String,data:Map[String,Any]):Try[String]
-  
-  // Async version of run() - returns Future[String]
-  // For blocking scripts, uses a dedicated thread pool
-  // For ScriptAI, uses promptAsync with tools and images from data Map
-  def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = {
-    // Default implementation: wrap blocking run() in Future using blocking pool
-    Future {
-      run(src, input, data).get
-    }(Script.blockingEc)
+
+  def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String]
+
+  def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
+    FutureUtil.sync(exec(src,input,data)(Script.blockingEc))(Script.timeout(data))
   }
 }
 
 
 // --- Json Query ---------------------------------------------------------------
 class ScriptJQ(src0:Option[String]) extends Script("jq","json-query") {
-  def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
+  def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = Future.fromTry {
     val expr = if(src.isBlank) src0.getOrElse("") else src
 
     Util
       .walkJson(input,expr,true)
       .map(r => r.map(e => e.toString).mkString(","))
-
   }
 }
 
@@ -64,11 +58,10 @@ object ScriptJQ {
 class ScriptJQScore(src0:Option[String]) extends ScriptJQ(src0) {
   override val id:String = "jq_score"
   override val name:String = "json-query-score"
-  override def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
-    super.run(src,input,data) match {
-      case Success(r) if(r.isBlank) => Success("0.0")
-      case Success(r) => Success("1.0")
-      case Failure(e) => Failure(e)
+  override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = {
+    super.exec(src,input,data).map {
+      case r if r.isBlank => "0.0"
+      case _ => "1.0"
     }
   }
 }
@@ -79,7 +72,7 @@ object ScriptJQScore {
 
 // --- Solidity Query ---------------------------------------------------------------
 class ScriptSQ(src0:Option[String] = None) extends Script("sq","solidity-query") {
-  def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
+  def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = Future.fromTry {
     SolidityResult
       .extractString(input,src)
       .map(r => r.toString)
@@ -93,11 +86,10 @@ object ScriptSQ {
 class ScriptSQScore(src0:Option[String]) extends ScriptSQ(src0) {
   override val id:String = "sq_score"
   override val name:String = "solidity-query-score"
-  override def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
-    super.run(src,input,data) match {
-      case Success(r) if(r.isBlank) => Success("0.0")
-      case Success(r) => Success("1.0")
-      case Failure(e) => Failure(e)
+  override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = {
+    super.exec(src,input,data).map {
+      case r if r.isBlank => "0.0"
+      case _ => "1.0"
     }
   }
 }
@@ -114,12 +106,12 @@ class ScriptJS(src0:Option[String] = None,inputVarName:String = "input") extends
   //private lazy val engine = new Polyglot("js",PolyglotSandbox.RESTRICTED_THREADED,script0,true)
   private lazy val engine = new Polyglot("js",PolyglotSandbox.RESTRICTED,script0,true)
   
-  override def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
+  override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = Future.fromTry {
     val dataInput = data + (inputVarName -> input)
     engine.run(src,dataInput) match {
       case Success(null) => 
         //Failure(new Exception("result: null"))
-        throw new Script.ScriptBreakException("null")
+        Failure(new Script.ScriptBreakException("null"))
       case Success(r) => Success(r.toString)
       case Failure(e) => Failure(e)      
     }
@@ -132,9 +124,8 @@ object ScriptJS {
 
 // --- String --------------------------------------------------------------------------
 class ScriptStr extends Script("str","string") {
-  def run(src:String,input:String,data:Map[String,Any]):Try[String] = {    
-    Success(input)
-  }
+  def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] =
+    Future.successful(input)
 }
 
 object ScriptStr {
@@ -144,9 +135,8 @@ object ScriptStr {
 
 // --- None --------------------------------------------------------------------------
 class ScriptNone extends Script("none","") {
-  def run(src:String,input:String,data:Map[String,Any]):Try[String] = {    
-    Success("")
-  }
+  def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] =
+    Future.successful("")
 }
 
 object ScriptNone {
@@ -157,14 +147,6 @@ object ScriptNone {
 // --- Sleep Test --------------------------------------------------------------------------
 class ScriptSleepTest(sleepTime:Int) extends Script("sleep-test","sleep-test") {
   def this() = this(0) // Default constructor for ScriptBuilder
-  
-  override def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
-    Try {
-      val msec = if(sleepTime > 0) sleepTime else input.toInt
-      Thread.sleep(msec)
-      input
-    }
-  }
 
   override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = {
     Future {
@@ -230,12 +212,14 @@ class ScriptRegexp(src0:Option[String]) extends Script("regexp","regexp-jvm") {
 
   val expr0:Option[Expr] = src0.map(parse)
 
-  def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
-    if(input.isBlank) return Success(input)
-    if(src.isBlank && expr0.isEmpty) return Success(input)
+  def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = Future.fromTry {
+    if(input.isBlank) Success(input)
+    else if(src.isBlank && expr0.isEmpty) Success(input)
+    else {
     
-    val expr:Expr = if(src.isBlank && expr0.isDefined) expr0.get else parse(src)
-    expr.run(input,data)
+      val expr:Expr = if(src.isBlank && expr0.isDefined) expr0.get else parse(src)
+      expr.run(input,data)
+    }
   }
 }
 
@@ -247,12 +231,10 @@ object ScriptRegexp {
 class ScriptRegexpScore(src0:Option[String]) extends ScriptRegexp(src0) {
   override val id:String = "regexp_score"
   override val name:String = "regexp-jvm-score"
-  override def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
-
-    super.run(src,input,data) match {
-      case Success(r) if(r.isBlank) => Success("0.0")
-      case Success(r) => Success("1.0")
-      case Failure(e) => Failure(e)
+  override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = {
+    super.exec(src,input,data).map {
+      case r if r.isBlank => "0.0"
+      case _ => "1.0"
     }
   }
 }
@@ -270,7 +252,7 @@ class ScriptAI(prompt0:Option[String],uri0:Option[String] = None) extends Script
   // Dedicated execution context for AI operations - created once per instance
   implicit val aiEc: ExecutionContext = ScriptAI.aiExecutionContext
       
-  def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
+  override def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
     val timeout = data.get("timeout").map(_.asInstanceOf[Long]).getOrElse(aiUri.timeout)    
     FutureUtil.sync(exec(src,input,data))(timeout)
   }
@@ -372,7 +354,7 @@ object ScriptAI {
 
 // --- Filter --------------------------------------------------------------------------
 class ScriptFilter(src0:Option[String] = None) extends Script("filter","filter") {  
-  def run(src:String,input:String,data:Map[String,Any]):Try[String] = {    
+  def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = Future.fromTry {    
     if(!input.isBlank) 
       Success(input)
     else {
@@ -392,7 +374,7 @@ object ScriptFilter {
 class ScriptCondition(src0:Option[String] = None) extends Script("condition","condition") {  
   val c = new ConditionDouble(0.0,src0.getOrElse(""))
 
-  def run(src:String,input:String,data:Map[String,Any]):Try[String] = {    
+  def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = Future.fromTry {    
     if(input.isBlank) 
       Failure(new Script.ScriptBreakException(c.condition))
     else {
@@ -414,41 +396,22 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
 
   override def toString: String = s"${this.getClass().getSimpleName()}(${flow.map(_.toString).mkString(",")})"
 
-  def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
-    flow.foldLeft[Try[String]](Success(input)) { (result,engine) =>
-      result match {
-        case Failure(e: Script.ScriptBreakException) => 
-          // Short-circuit: stop processing remaining scripts
-          result
-        case Success(r) => 
-          engine.run(src, r, data)
-        case Failure(e) => 
-          // Other failures propagate
-          result
-      }
-    } match {
-      case f @ Failure(e: Script.ScriptBreakException) => 
-        //Success(e.src)
-        f
-      case Success(r) => Success(r)
-      case Failure(e) => Failure(e)
-    }
-  }
-
   override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = {
     flow.foldLeft[Future[String]](Future.successful(input)) { (result,engine) =>
       result.flatMap { r =>
         engine.exec(src, r, data)
       }
-      // Note: Short-circuiting happens naturally - when engine.exec returns a failed Future,
-      // flatMap doesn't execute the function, so foldLeft stops processing remaining engines.
-      // The final .recover handles converting ScriptFilter.ScriptFilterBypass to empty string.
-    }.recover { 
-      case e: Script.ScriptBreakException => 
-        //e.src
-        throw e
-      case e: Exception => throw e
     }
+
+    //   // Note: Short-circuiting happens naturally - when engine.exec returns a failed Future,
+    //   // flatMap doesn't execute the function, so foldLeft stops processing remaining engines.
+    //   // The final .recover handles converting ScriptFilter.ScriptFilterBypass to empty string.
+    // }.recover { 
+    //   case e: Script.ScriptBreakException => 
+    //     //e.src
+    //     throw e
+    //   case e: Exception => throw e
+    // }
   }
 }
 
@@ -529,6 +492,18 @@ object ScriptFlow {
 // === Engine ====================================================================================
 object Script {
   val log = Logger(s"${this.getClass()}")
+
+  val DEFAULT_TIMEOUT:Long = 10000L
+
+  def timeout(data:Map[String,Any]):Long = {
+    data.get("timeout") match {
+      case Some(t: Long) => t
+      case Some(t: Int) => t.toLong
+      case Some(t: String) => t.toLong
+      case Some(t) => t.toString.toLong
+      case None => DEFAULT_TIMEOUT
+    }
+  }
 
   // skip script flow with who initiated
   class ScriptBreakException(val src:String) extends Exception {
