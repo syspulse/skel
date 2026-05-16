@@ -1,0 +1,7 @@
+{
+  "name": "DetectorWallet Chained",
+  "scripts": [
+    "js://JSON.parse(input).metadata.balance.toString()",
+    "js://'Balance is: ' + input"
+  ]
+}

@@ -416,6 +416,7 @@ lazy val root = (project in file("."))
             skel_test,
             skel_script,
             skel_dash,
+            skel_explain,
             skel_odometer,
             ai_mcp
   )
@@ -472,9 +473,10 @@ lazy val root = (project in file("."))
             skel_test,
             skel_script,
             skel_dash,
+            skel_explain,
             skel_odometer,
             ai_mcp
-  )  
+  )
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
     
@@ -1723,6 +1725,30 @@ lazy val skel_dash = (project in file("skel-dash"))
        libEmbeddedPostgres,
       //  "com.github.jasync-sql" % "jasync-r2dbc-postgresql" % "2.2.4",
       //  "io.r2dbc" % "r2dbc-spi" % "1.1.0.RELEASE",
+
+       libScalaTest % Test,
+       libAkkaTestkit % Test,
+       libAkkaTestkitType % Test,
+    ),
+  )
+
+lazy val skel_explain = (project in file("skel-explain"))
+  .dependsOn(skel_core,auth_ext,skel_script,db_guard)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("skel-explain","io.syspulse.skel.explain.App",Seq("application-dev.conf")),
+
+    libraryDependencies ++= Seq(
+       libSlickHikari,
+       libQuillAsyncPostgres,
+       libEmbeddedPostgres,
 
        libScalaTest % Test,
        libAkkaTestkit % Test,

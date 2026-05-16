@@ -1,0 +1,6 @@
+{
+  "name": "DetectorWallet Updated",
+  "scripts": [
+    "js://var d=JSON.parse(input); var m=d.metadata; '[UPDATED] Sender ['+m.tx_from+'] balance: '+m.balance+', threshold: '+m.threshold"
+  ]
+}
