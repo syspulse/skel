@@ -99,7 +99,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
       val jwtAdmin = createJwtToken("999", Seq(adminRole))
 
       val req = ExplainRuleCreateReq(
-        scripts = Seq("js://input.toUpperCase()"),
+        scripts = Seq(ScriptDef("js", "input.toUpperCase()")),
         name = Some("DefaultDetectorWallet")
       )
 
@@ -125,14 +125,14 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
           val r = responseAs[ExplainRule]
           r.oid shouldBe ""
           r.rid shouldBe "DetectorWallet"
-          r.scripts shouldBe Seq("js://input.toUpperCase()")
+          r.scripts shouldBe Seq(ScriptDef("js", "input.toUpperCase()"))
         }
     }
 
     "[user] reject non-admin access to default rule CRUD" in {
       val jwtUser = createJwtToken("490", Seq(userRole))
 
-      val req = ExplainRuleCreateReq(scripts = Seq("str://"), name = None)
+      val req = ExplainRuleCreateReq(scripts = Seq(ScriptDef("str", "")), name = None)
 
       val r = Post("/rule/SomeRule", req) ~>
         addHeader(Authorization(OAuth2BearerToken(jwtUser))) ~>
@@ -145,7 +145,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
       val jwtAdmin = createJwtToken("999", Seq(adminRole))
 
       val req = ExplainRuleCreateReq(
-        scripts = Seq("js://\"Custom-OID-490: \" + input"),
+        scripts = Seq(ScriptDef("js", "\"Custom-OID-490: \" + input")),
         name = Some("Custom490Rule")
       )
 
@@ -164,7 +164,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
       val jwt490 = createJwtToken("490", Seq(userRole))
 
       val req = ExplainRuleCreateReq(
-        scripts = Seq("js://input.length.toString()"),
+        scripts = Seq(ScriptDef("js", "input.length.toString()")),
         name = Some("User490Rule")
       )
 
@@ -182,7 +182,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
     "[user 490] reject creating rule for different oid" in {
       val jwt490 = createJwtToken("490", Seq(userRole))
 
-      val req = ExplainRuleCreateReq(scripts = Seq("str://"), name = None)
+      val req = ExplainRuleCreateReq(scripts = Seq(ScriptDef("str", "")), name = None)
 
       val r = Post("/999/SomeRule", req) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
@@ -195,7 +195,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
       val jwt490 = createJwtToken("490", Seq(userRole))
 
       val updateReq = ExplainRuleUpdateReq(
-        scripts = Some(Seq("js://input.toLowerCase()")),
+        scripts = Some(Seq(ScriptDef("js", "input.toLowerCase()"))),
         name = Some("Updated490Rule")
       )
 
@@ -216,7 +216,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
         check {
           status shouldBe StatusCodes.OK
           val r = responseAs[ExplainRule]
-          r.scripts shouldBe Seq("js://input.toLowerCase()")
+          r.scripts shouldBe Seq(ScriptDef("js", "input.toLowerCase()"))
         }
     }
 
@@ -235,7 +235,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
     }
 
     "[unauthenticated] reject rule CRUD without JWT" in {
-      val req = ExplainRuleCreateReq(scripts = Seq("str://"), name = None)
+      val req = ExplainRuleCreateReq(scripts = Seq(ScriptDef("str", "")), name = None)
 
       val r = Post("/rule/SomeRule", req) ~>
         routes.routes
@@ -312,8 +312,9 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
     "[explain] ScriptJS processes wallet data" in {
       val jwtAdmin = createJwtToken("999", Seq(adminRole))
 
-      // JS script that generates human-readable explanation from wallet data
-      val jsScript = "js://var d=JSON.parse(input); var m=d.metadata; 'Sender ['+m.tx_from+'] triggered balance change. Balance: '+m.balance+' threshold: '+m.threshold"
+      val jsScript = ScriptDef("js",
+        "var d=JSON.parse(input); var m=d.metadata; 'Sender ['+m.tx_from+'] triggered balance change. Balance: '+m.balance+' threshold: '+m.threshold"
+      )
 
       Post("/rule/WalletExplain", ExplainRuleCreateReq(scripts = Seq(jsScript), name = Some("WalletJS"))) ~>
         addHeader(Authorization(OAuth2BearerToken(jwtAdmin))) ~>
@@ -336,12 +337,12 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
     "[explain] different rules produce different results" in {
       val jwtAdmin = createJwtToken("999", Seq(adminRole))
 
-      Post("/rule/Rule-A", ExplainRuleCreateReq(scripts = Seq("js://\"RULE-A: \" + input"), name = None)) ~>
+      Post("/rule/Rule-A", ExplainRuleCreateReq(scripts = Seq(ScriptDef("js", "\"RULE-A: \" + input")), name = None)) ~>
         addHeader(Authorization(OAuth2BearerToken(jwtAdmin))) ~>
         routes.routes ~>
         check { status shouldBe StatusCodes.OK }
 
-      Post("/rule/Rule-B", ExplainRuleCreateReq(scripts = Seq("js://\"RULE-B: \" + input"), name = None)) ~>
+      Post("/rule/Rule-B", ExplainRuleCreateReq(scripts = Seq(ScriptDef("js", "\"RULE-B: \" + input")), name = None)) ~>
         addHeader(Authorization(OAuth2BearerToken(jwtAdmin))) ~>
         routes.routes ~>
         check { status shouldBe StatusCodes.OK }
@@ -371,10 +372,9 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
     "[explain] ScriptFlow with multiple scripts (ScriptJS chain)" in {
       val jwtAdmin = createJwtToken("999", Seq(adminRole))
 
-      // Chain: extract balance then format it - two separate JS scripts in Seq
       val scripts = Seq(
-        "js://JSON.parse(input).metadata.balance.toString()",
-        "js://\"Balance is: \" + input"
+        ScriptDef("js", "JSON.parse(input).metadata.balance.toString()"),
+        ScriptDef("js", "\"Balance is: \" + input")
       )
 
       Post("/rule/ChainRule", ExplainRuleCreateReq(scripts = scripts, name = Some("ChainedFlow"))) ~>
@@ -397,11 +397,11 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
     "[explain] OID 490 custom rule with ScriptJS for wallet explanation (like Test-1.md)" in {
       val jwtAdmin = createJwtToken("999", Seq(adminRole))
 
-      // Script matching the Test-1.md expected output pattern
-      val jsExplainScript =
-        "js://var d=JSON.parse(input); var m=d.metadata; " +
+      val jsExplainScript = ScriptDef("js",
+        "var d=JSON.parse(input); var m=d.metadata; " +
         "'Sender ['+m.tx_from+'](https://etherscan.io/address/'+m.tx_from.toLowerCase()+') " +
         "triggered balance change on ['+m.wallet+']'"
+      )
 
       Post("/490/WalletFullExplain", ExplainRuleCreateReq(scripts = Seq(jsExplainScript), name = Some("WalletFull"))) ~>
         addHeader(Authorization(OAuth2BearerToken(jwtAdmin))) ~>
@@ -424,11 +424,9 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
     "[explain] ScriptAI in ScriptFlow chain (uses ScriptJS as substitute)" in {
       val jwtAdmin = createJwtToken("999", Seq(adminRole))
 
-      // Simulate a ScriptJS -> ScriptJS chain similar to ScriptJS -> ScriptAI
-      // (ScriptAI needs an actual LLM endpoint; we test the flow with two ScriptJS steps)
       val scripts = Seq(
-        "js://JSON.parse(input).name",  // extract name field
-        "js://\"The wallet name is: \" + input"  // format with description
+        ScriptDef("js", "JSON.parse(input).name"),
+        ScriptDef("js", "\"The wallet name is: \" + input")
       )
 
       Post("/rule/AiSimulate", ExplainRuleCreateReq(scripts = scripts, name = Some("AiSimulate"))) ~>
@@ -452,7 +450,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
     "[service] service account can manage any oid rule" in {
       val jwtService = createJwtToken("svc-account", Seq(serviceRole))
 
-      val req = ExplainRuleCreateReq(scripts = Seq("js://\"svc-rule: \" + input"), name = None)
+      val req = ExplainRuleCreateReq(scripts = Seq(ScriptDef("js", "\"svc-rule: \" + input")), name = None)
 
       Post("/490/ServiceRule", req) ~>
         addHeader(Authorization(OAuth2BearerToken(jwtService))) ~>

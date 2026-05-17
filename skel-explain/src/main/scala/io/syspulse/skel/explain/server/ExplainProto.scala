@@ -2,12 +2,12 @@ package io.syspulse.skel.explain.server
 
 import spray.json.JsValue
 import spray.json.JsObject
-import io.syspulse.skel.explain.ExplainRule
+import io.syspulse.skel.explain.{ExplainRule, ScriptDef}
 
 // Input request for the explain endpoint
 final case class ExplainReq(
-  oid: Option[String] = None,   // Optional owner id, uses default rule if absent
-  rid: Option[String] = None,   // Optional rule id (can come from URL path)
+  oid: Option[String] = None,
+  rid: Option[String] = None,
   schema: Option[JsValue] = None,
   data: JsObject = JsObject.empty
 )
@@ -16,7 +16,7 @@ final case class ExplainReq(
 final case class ExplainRes(
   explanation: String,
   ts: Long = System.currentTimeMillis(),
-  scripts: Seq[String] = Seq.empty,
+  scripts: Seq[String] = Seq.empty,   // engine type names, e.g. ["js", "ai"]
   oid: Option[String] = None
 )
 
@@ -28,13 +28,13 @@ final case class ExplainRules(
 
 // Request to create a rule
 final case class ExplainRuleCreateReq(
-  scripts: Seq[String],
+  scripts: Seq[ScriptDef],
   name: Option[String] = None
 )
 
-// Request to update a rule
+// Request to update a rule (partial — only provided fields are changed)
 final case class ExplainRuleUpdateReq(
-  scripts: Option[Seq[String]] = None,
+  scripts: Option[Seq[ScriptDef]] = None,
   name: Option[String] = None
 )
 

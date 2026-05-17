@@ -104,9 +104,9 @@ object ExplainRegistry {
             replyTo ! Failure(new Exception(s"ScriptFlow not found: oid='$oid', rid='$rid'"))
 
           case Some(rule) =>
-            val engines = rule.scripts.flatMap(uri => ScriptFlow.parseUri(uri.trim).toOption)
+            val engines = rule.scripts.flatMap(s => ScriptFlow.resolve(s.typ, s.src, s.opts).toOption)
             val scriptFlow = ScriptFlow.build(engines)
-            val scriptNames = rule.scripts.map(uri => uri.split("://")(0)).filter(_.nonEmpty)
+            val scriptNames = rule.scripts.map(_.typ)
 
             val input = req.data.compactPrint
             val dataMap: Map[String, Any] = Map(

@@ -1,7 +1,13 @@
 {
   "name": "DetectorWallet Chained",
   "scripts": [
-    "js://JSON.parse(input).metadata.balance.toString()",
-    "js://'Balance is: ' + input"
+    {
+      "typ": "js",
+      "src": "JSON.parse(input).metadata.balance.toString()"
+    },
+    {
+      "typ": "js",
+      "src": "'Balance is: ' + input"
+    }
   ]
 }

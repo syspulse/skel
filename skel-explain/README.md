@@ -95,48 +95,59 @@ Base path: `/api/v1/explain`
 
 ## Scripts
 
-Each element of `scripts` is a URI. Scripts are chained — output of each step is `input` for the next.
+Each element of `scripts` is a `ScriptDef` object. Scripts are chained — output of each step is `input` for the next.
 
-| URI prefix | Engine | Description |
-|---|---|---|
-| `js://` | JavaScript (GraalVM) | Full JS; input is available as `input` variable |
-| `ai://` | LLM (ScriptAI) | Prompt template; `${input}` substituted |
-| `jq://` | jq | JSON query expression |
-| `regexp://` | Regex | Match / extract |
-| `str://` | Passthrough | Returns input unchanged |
+```json
+{ "typ": "<engine>", "src": "<source or prompt>", "opts": "<optional, e.g. AI model URI>" }
+```
+
+| `typ` | Engine | `src` | `opts` |
+|---|---|---|---|
+| `js` | JavaScript (GraalVM) | JS expression; `input` is the incoming string | — |
+| `ai` | LLM (ScriptAI) | Prompt template; `${input}` substituted | AI model URI, e.g. `openai://gpt-4o` |
+| `jq` | jq | JSON query expression | — |
+| `regexp` | Regex | Match / extract pattern | — |
+| `str` | Passthrough | ignored | — |
 
 **Single script:**
 ```json
-["js://var d=JSON.parse(input); var m=d.metadata; 'Sender ['+m.tx_from+'] balance: '+m.balance"]
+{
+  "scripts": [
+    {"typ": "js", "src": "var d=JSON.parse(input); var m=d.metadata; 'Sender ['+m.tx_from+'] balance: '+m.balance"}
+  ]
+}
 ```
 
 **Chained ScriptFlow (js → js):**
 ```json
-[
-  "js://JSON.parse(input).metadata.balance.toString()",
-  "js://\"Balance is: \" + input"
-]
+{
+  "scripts": [
+    {"typ": "js", "src": "JSON.parse(input).metadata.balance.toString()"},
+    {"typ": "js", "src": "'Balance is: ' + input"}
+  ]
+}
 ```
 
-**With ScriptAI:**
+**With ScriptAI (js → ai):**
 ```json
-[
-  "js://JSON.parse(input).metadata",
-  "ai://openai://gpt-4o",
-  "js://input"
-]
+{
+  "scripts": [
+    {"typ": "js", "src": "var d=JSON.parse(input); var m=d.metadata; JSON.stringify({wallet:m.wallet,balance:m.balance,threshold:m.threshold})"},
+    {"typ": "ai", "src": "Explain this wallet alert concisely: ${input}", "opts": "openai://gpt-4o"}
+  ]
+}
 ```
 
 ## Rule Files
 
-Rules are stored as JSON files in the `rules/` directory. Each file contains the `scripts` array and an optional `name`:
+Rules are stored as JSON files in the `rules/` directory. Each file is a valid `ExplainRuleCreateReq`:
 
 ```json
 {
   "name": "My Rule",
   "scripts": [
-    "js://var d=JSON.parse(input); var m=d.metadata; 'Balance: ' + m.balance",
-    "js://'Result: ' + input"
+    {"typ": "js", "src": "var d=JSON.parse(input); var m=d.metadata; 'Balance: ' + m.balance"},
+    {"typ": "js", "src": "'Result: ' + input"}
   ]
 }
 ```
@@ -145,10 +156,11 @@ Bundled examples:
 
 | File | Description |
 |---|---|
-| `rules/DetectorWallet.json` | Default wallet balance explanation |
-| `rules/DetectorWallet-oid490.json` | OID-490 override |
+| `rules/DetectorWallet.json` | Default wallet balance explanation (JS) |
+| `rules/DetectorWallet-oid490.json` | OID-490 override (JS) |
 | `rules/DetectorWallet-chain.json` | Two-step chained JS flow |
 | `rules/DetectorWallet-updated.json` | Updated variant (used in demo) |
+| `rules/DetectorWallet-ai.json` | JS pre-processing + GPT-4o explanation (Test-1.md) |
 
 ## Shell Scripts
 

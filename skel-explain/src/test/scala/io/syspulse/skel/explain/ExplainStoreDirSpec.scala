@@ -26,23 +26,23 @@ class ExplainStoreDirSpec extends AnyWordSpec with Matchers with BeforeAndAfterE
   "ExplainStoreDir" should {
 
     "persist and reload a default rule" in {
-      val rule = ExplainRule(oid = "", rid = "DetectorWallet", scripts = Seq("str://"), name = Some("Default"))
+      val rule = ExplainRule(oid = "", rid = "DetectorWallet", scripts = Seq(ScriptDef("str", "")), name = Some("Default"))
       store.+(rule) shouldBe a[Success[_]]
 
       store.get("", "DetectorWallet") shouldBe Success(rule)
     }
 
     "persist and reload a custom oid rule" in {
-      val rule = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq("js://input.toUpperCase()"))
+      val rule = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq(ScriptDef("js", "input.toUpperCase()")))
       store.+(rule) shouldBe a[Success[_]]
 
       store.get("490", "DetectorWallet") shouldBe Success(rule)
     }
 
     "persist multiple rules and retrieve them all" in {
-      val r1 = ExplainRule(oid = "", rid = "Rule1", scripts = Seq("str://"))
-      val r2 = ExplainRule(oid = "490", rid = "Rule1", scripts = Seq("str://"))
-      val r3 = ExplainRule(oid = "490", rid = "Rule2", scripts = Seq("str://"))
+      val r1 = ExplainRule(oid = "", rid = "Rule1", scripts = Seq(ScriptDef("str", "")))
+      val r2 = ExplainRule(oid = "490", rid = "Rule1", scripts = Seq(ScriptDef("str", "")))
+      val r3 = ExplainRule(oid = "490", rid = "Rule2", scripts = Seq(ScriptDef("str", "")))
 
       store.+(r1); store.+(r2); store.+(r3)
 
@@ -51,7 +51,7 @@ class ExplainStoreDirSpec extends AnyWordSpec with Matchers with BeforeAndAfterE
     }
 
     "delete a rule and verify it is gone" in {
-      val rule = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq("str://"))
+      val rule = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq(ScriptDef("str", "")))
       store.+(rule)
 
       store.del("490", "DetectorWallet") shouldBe a[Success[_]]
@@ -60,8 +60,8 @@ class ExplainStoreDirSpec extends AnyWordSpec with Matchers with BeforeAndAfterE
     }
 
     "reload rules from directory on new store instance" in {
-      val rule1 = ExplainRule(oid = "", rid = "DetectorWallet", scripts = Seq("js://\"default\""))
-      val rule2 = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq("js://\"custom\""))
+      val rule1 = ExplainRule(oid = "", rid = "DetectorWallet", scripts = Seq(ScriptDef("js", "\"default\"")))
+      val rule2 = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq(ScriptDef("js", "\"custom\"")))
       store.+(rule1)
       store.+(rule2)
 
@@ -72,9 +72,9 @@ class ExplainStoreDirSpec extends AnyWordSpec with Matchers with BeforeAndAfterE
     }
 
     "find rules by oid" in {
-      store.+(ExplainRule(oid = "490", rid = "Rule1", scripts = Seq("str://")))
-      store.+(ExplainRule(oid = "490", rid = "Rule2", scripts = Seq("str://")))
-      store.+(ExplainRule(oid = "", rid = "Rule1", scripts = Seq("str://")))
+      store.+(ExplainRule(oid = "490", rid = "Rule1", scripts = Seq(ScriptDef("str", ""))))
+      store.+(ExplainRule(oid = "490", rid = "Rule2", scripts = Seq(ScriptDef("str", ""))))
+      store.+(ExplainRule(oid = "", rid = "Rule1", scripts = Seq(ScriptDef("str", ""))))
 
       store.findByOid("490").size shouldBe 2
       store.findByOid("").size shouldBe 1
@@ -84,7 +84,10 @@ class ExplainStoreDirSpec extends AnyWordSpec with Matchers with BeforeAndAfterE
       val rule = ExplainRule(
         oid = "",
         rid = "MultiScript",
-        scripts = Seq("js://JSON.parse(input).balance.toString()", "js://\"Balance: \" + input")
+        scripts = Seq(
+          ScriptDef("js", "JSON.parse(input).balance.toString()"),
+          ScriptDef("js", "\"Balance: \" + input")
+        )
       )
       store.+(rule)
 

@@ -19,14 +19,14 @@ class ExplainStoreMemSpec extends AnyWordSpec with Matchers with BeforeAndAfterE
   "ExplainStoreMem" should {
 
     "store and retrieve a default rule (oid='')" in {
-      val rule = ExplainRule(oid = "", rid = "DetectorWallet", scripts = Seq("js://input"))
+      val rule = ExplainRule(oid = "", rid = "DetectorWallet", scripts = Seq(ScriptDef("js", "input")))
       store.+(rule) shouldBe a[Success[_]]
 
       store.get("", "DetectorWallet") shouldBe Success(rule)
     }
 
     "store and retrieve a custom oid rule" in {
-      val rule = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq("js://input.toUpperCase()"))
+      val rule = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq(ScriptDef("js", "input.toUpperCase()")))
       store.+(rule) shouldBe a[Success[_]]
 
       store.get("490", "DetectorWallet") shouldBe Success(rule)
@@ -37,8 +37,8 @@ class ExplainStoreMemSpec extends AnyWordSpec with Matchers with BeforeAndAfterE
     }
 
     "store both default and custom oid rules for same rid independently" in {
-      val defaultRule = ExplainRule(oid = "", rid = "DetectorWallet", scripts = Seq("str://"))
-      val customRule = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq("js://input.toUpperCase()"))
+      val defaultRule = ExplainRule(oid = "", rid = "DetectorWallet", scripts = Seq(ScriptDef("str", "")))
+      val customRule = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq(ScriptDef("js", "input.toUpperCase()")))
 
       store.+(defaultRule)
       store.+(customRule)
@@ -48,8 +48,8 @@ class ExplainStoreMemSpec extends AnyWordSpec with Matchers with BeforeAndAfterE
     }
 
     "update a rule by storing with same oid/rid" in {
-      val rule1 = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq("js://\"v1\""))
-      val rule2 = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq("js://\"v2\""))
+      val rule1 = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq(ScriptDef("js", "\"v1\"")))
+      val rule2 = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq(ScriptDef("js", "\"v2\"")))
 
       store.+(rule1)
       store.+(rule2)
@@ -59,7 +59,7 @@ class ExplainStoreMemSpec extends AnyWordSpec with Matchers with BeforeAndAfterE
     }
 
     "delete a rule" in {
-      val rule = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq("str://"))
+      val rule = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq(ScriptDef("str", "")))
       store.+(rule)
 
       store.del("490", "DetectorWallet") shouldBe a[Success[_]]
@@ -72,10 +72,10 @@ class ExplainStoreMemSpec extends AnyWordSpec with Matchers with BeforeAndAfterE
     }
 
     "find all rules for a given oid" in {
-      store.+(ExplainRule(oid = "490", rid = "Rule1", scripts = Seq("str://")))
-      store.+(ExplainRule(oid = "490", rid = "Rule2", scripts = Seq("str://")))
-      store.+(ExplainRule(oid = "999", rid = "Rule1", scripts = Seq("str://")))
-      store.+(ExplainRule(oid = "", rid = "Rule1", scripts = Seq("str://")))
+      store.+(ExplainRule(oid = "490", rid = "Rule1", scripts = Seq(ScriptDef("str", ""))))
+      store.+(ExplainRule(oid = "490", rid = "Rule2", scripts = Seq(ScriptDef("str", ""))))
+      store.+(ExplainRule(oid = "999", rid = "Rule1", scripts = Seq(ScriptDef("str", ""))))
+      store.+(ExplainRule(oid = "", rid = "Rule1", scripts = Seq(ScriptDef("str", ""))))
 
       val rules490 = store.findByOid("490")
       rules490.size shouldBe 2
@@ -86,23 +86,23 @@ class ExplainStoreMemSpec extends AnyWordSpec with Matchers with BeforeAndAfterE
     }
 
     "return all rules" in {
-      store.+(ExplainRule(oid = "", rid = "Rule1", scripts = Seq("str://")))
-      store.+(ExplainRule(oid = "490", rid = "Rule1", scripts = Seq("str://")))
-      store.+(ExplainRule(oid = "490", rid = "Rule2", scripts = Seq("str://")))
+      store.+(ExplainRule(oid = "", rid = "Rule1", scripts = Seq(ScriptDef("str", ""))))
+      store.+(ExplainRule(oid = "490", rid = "Rule1", scripts = Seq(ScriptDef("str", ""))))
+      store.+(ExplainRule(oid = "490", rid = "Rule2", scripts = Seq(ScriptDef("str", ""))))
 
       store.all.size shouldBe 3
       store.size shouldBe 3
     }
 
     "support ? lookup by composite key" in {
-      val rule = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq("str://"))
+      val rule = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq(ScriptDef("str", "")))
       store.+(rule)
 
       store.?("490__DetectorWallet") shouldBe Success(rule)
     }
 
     "support del by composite key" in {
-      val rule = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq("str://"))
+      val rule = ExplainRule(oid = "490", rid = "DetectorWallet", scripts = Seq(ScriptDef("str", "")))
       store.+(rule)
 
       store.del("490__DetectorWallet") shouldBe a[Success[_]]

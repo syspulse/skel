@@ -12,13 +12,13 @@ import io.getquill.context._
 import io.syspulse.skel.config.Configuration
 import io.syspulse.skel.store.{Store, StoreDB}
 
-import io.syspulse.skel.explain.ExplainRule
+import io.syspulse.skel.explain.{ExplainRule, ScriptDef}
 
 // DB-friendly representation: scripts stored as JSON array string
 case class DBExplainRule(
   oid: String,
   rid: String,
-  scripts: String,   // JSON array string: ["js://...", "ai://..."]
+  scripts: String,   // JSON array string: [{"typ":"js","src":"..."},...]
   name: Option[String],
   ts: Long
 )
@@ -34,11 +34,15 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
   import ctx._
   lazy protected val table = dynamicQuerySchema[DBExplainRule](tableName)
 
-  private def toDb(r: ExplainRule): DBExplainRule =
+  private def toDb(r: ExplainRule): DBExplainRule = {
+    implicit val fmt = ScriptDef.jsonFormat
     DBExplainRule(r.oid, r.rid, r.scripts.toJson.compactPrint, r.name, r.ts)
+  }
 
-  private def fromDb(r: DBExplainRule): ExplainRule =
-    ExplainRule(r.oid, r.rid, r.scripts.parseJson.convertTo[Seq[String]], r.name, r.ts)
+  private def fromDb(r: DBExplainRule): ExplainRule = {
+    implicit val fmt = ScriptDef.jsonFormat
+    ExplainRule(r.oid, r.rid, r.scripts.parseJson.convertTo[Seq[ScriptDef]], r.name, r.ts)
+  }
 
   def create: Try[Long] = {
     val CREATE_TABLE_MYSQL_SQL =
