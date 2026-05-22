@@ -1,9 +1,0 @@
-{
-  "name": "DetectorWallet Default",
-  "scripts": [
-    {
-      "typ": "js",
-      "src": "var d=JSON.parse(input); var m=d.metadata; 'Sender ['+m.tx_from+'](https://etherscan.io/address/'+m.tx_from.toLowerCase()+') triggered balance drop on ['+m.wallet+'], balance: '+m.balance+', threshold: '+m.threshold"
-    }
-  ]
-}

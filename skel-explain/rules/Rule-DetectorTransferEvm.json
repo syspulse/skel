@@ -1,0 +1,9 @@
+{
+  "name": "DetectorTransfer-Evm Default",
+  "scripts": [
+    {
+      "typ": "js",
+      "src": "var root=JSON.parse(input); var alerts=(root.data&&Array.isArray(root.data))?root.data:((root.meta||root.txHash)?[root]:[root]); var n=alerts.length; var totalAmt=0,totalVal=0n,sym='',net='ethereum',token='',sevRank={LOW:1,MEDIUM:2,HIGH:3,CRITICAL:4},maxSev='LOW',maxRank=1; var seen={},addrs=[]; function addAddr(a){if(!a)return;var k=String(a).toLowerCase();if(!seen[k]){seen[k]=1;addrs.push(String(a));}} function rankSev(s){var u=String(s||'LOW').toUpperCase();return sevRank[u]||1;} alerts.forEach(function(d){var m=d.meta||{}; totalAmt+=parseFloat(m.amount)||0; try{if(m.value!=null&&m.value!=='')totalVal+=BigInt(String(m.value).split('.')[0]);}catch(e){} sym=m.sym||sym; net=d.network||net; token=m.token||m.sym||token; var r=rankSev(d.severity); if(r>maxRank){maxRank=r;maxSev=String(d.severity||'LOW').toUpperCase();} addAddr(m.from); addAddr(m.to);}); var esBase='https://etherscan.io/'; var addrLines=addrs.map(function(a){return '- ['+a.substring(0,10)+'...]('+esBase+'address/'+a.toLowerCase()+')';}).join('\\n'); var title=n>1?'## Transfers ('+n+' alerts aggregated)':'## Transfer'; title+': **'+totalAmt.toFixed(2)+' '+sym+'**\\n\\n| Metric | Value |\\n|---|---|\\n| Alerts | '+n+' |\\n| Total amount | '+totalAmt.toFixed(2)+' '+sym+' |\\n| Total value (wei) | '+totalVal.toString()+' |\\n| Network | '+net+' |\\n| Max severity | '+maxSev+' |\\n| Token | `'+(token||sym)+'` |\\n\\n### Addresses ('+addrs.length+' unique)\\n'+addrLines"
+    }
+  ]
+}

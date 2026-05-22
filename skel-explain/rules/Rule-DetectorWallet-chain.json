@@ -1,0 +1,13 @@
+{
+  "name": "DetectorWallet Chained",
+  "scripts": [
+    {
+      "typ": "js",
+      "src": "var d=JSON.parse(input); var m=d.meta; var net=d.network||'unknown'; var tokens=[]; Object.keys(m).forEach(function(k){var t=k.match(/^balance\\[(.+)\\]$/);if(t)tokens.push(t[1]);}); JSON.stringify({net:net,wallet:d.txHash||'',severity:d.severity,tokens:tokens.map(function(tok){return {sym:tok,amount:m['amount['+tok+']']||'?',change:m['change['+tok+']']||'',condition:m['condition['+tok+']']||''}})})"
+    },
+    {
+      "typ": "js",
+      "src": "var p=JSON.parse(input); var tList=p.tokens.map(function(t){return t.sym+' '+t.amount+' ('+t.change+') cond: '+t.condition}).join(' | '); 'Wallet ['+p.wallet.substring(0,10)+'...] on '+p.net+' | '+p.severity+': '+tList"
+    }
+  ]
+}

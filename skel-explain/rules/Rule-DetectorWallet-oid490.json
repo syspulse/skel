@@ -1,0 +1,9 @@
+{
+  "name": "DetectorWallet OID-490 Override",
+  "scripts": [
+    {
+      "typ": "js",
+      "src": "var d=JSON.parse(input); var m=d.meta; var R='\\x1b[0m',RED='\\x1b[31m',GRN='\\x1b[32m',YEL='\\x1b[33m',CYN='\\x1b[36m',MAG='\\x1b[35m',BLD='\\x1b[1m'; var net=d.network||'?'; var sev=(d.severity||'?').toUpperCase(); var sevCol=sev.indexOf('HIGH')>=0||sev.indexOf('CRIT')>=0?RED:sev.indexOf('MED')>=0?YEL:GRN; var addr=(d.txHash||d.name||'?').substring(0,18); var tokens=[]; Object.keys(m).forEach(function(k){var t=k.match(/^balance\\[(.+)\\]$/);if(t)tokens.push(t[1]);}); var banner=CYN+'╔══════════════════════════════════════════════════════╗\\n'+CYN+'║'+BLD+MAG+'   ████  OID-490 TENANT OVERRIDE  ████   '+MAG+BLD+CYN+'║\\n'+CYN+'║'+YEL+'      (custom explain — not default table)      '+YEL+CYN+'║\\n'+CYN+'╚══════════════════════════════════════════════════════╝'+R; var meta=BLD+CYN+'▸ NETWORK  '+R+net+'\\n'+sevCol+'▸ SEVERITY '+R+sev+'\\n'+YEL+'▸ WALLET   '+R+addr+'...\\n'; var blocks=tokens.map(function(tok,i){var amt=m['amount['+tok+']']||'?'; var chg=m['change['+tok+']']||'?'; var diff=m['diff['+tok+']']||'—'; var cond=m['condition['+tok+']']||''; var meter=''; var n=Math.min(24,Math.max(0,Math.round(Math.abs(parseFloat(String(chg).replace(/[^0-9.\\-]/g,''))||0)))); for(var j=0;j<n;j++)meter+='█'; var condCol=cond.indexOf('threshold')>=0||cond.indexOf('>')>=0?RED:CYN; return MAG+'╭─── TOKEN '+(i+1)+': '+tok+' '+MAG+'───╮\\n'+R+GRN+'│ amount  │ '+amt+'\\n'+YEL+'│ change  │ '+chg+'  '+meter+'\\n'+CYN+'│ diff    │ '+diff+'\\n'+condCol+'│ rule    │ '+cond+'\\n'+MAG+'╰────────────────────────────╯'+R;}); var footer=BLD+RED+'\\n>>> OID-490 policy view — escalate to tenant ops if severity is HIGH <<<'+R; banner+'\\n\\n'+meta+'\\n'+blocks.join('\\n\\n')+footer"
+    }
+  ]
+}

@@ -1,9 +1,0 @@
-{
-  "name": "DetectorWallet OID-490 Override",
-  "scripts": [
-    {
-      "typ": "js",
-      "src": "var d=JSON.parse(input); var m=d.metadata; '[Tenant-490] '+m.tx_from+' => balance '+m.balance+' (threshold: '+m.threshold+')'"
-    }
-  ]
-}

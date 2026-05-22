@@ -1,0 +1,9 @@
+{
+  "name": "DetectorCall Default",
+  "scripts": [
+    {
+      "typ": "js",
+      "src": "var d=JSON.parse(input); var m=d.meta; var net=d.network||''; var esBase=net.indexOf('solana')>=0?'https://solscan.io/account/':'https://etherscan.io/address/'; var sender=m.sender||''; var senderShort=sender?sender.substring(0,10)+'...':'?'; var senderLink=sender?'['+senderShort+']('+esBase+sender.toLowerCase()+')':'?'; '## Contract Call: `'+m.func+'`\\n\\n**Result:** `'+m.result+'`\\n**Sender:** '+senderLink+'\\n**Network:** '+net+' | **Severity:** '+d.severity+'\\n\\n*'+(m.desc||d.message)+'*'"
+    }
+  ]
+}

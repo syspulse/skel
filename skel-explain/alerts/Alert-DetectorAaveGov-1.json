@@ -1,0 +1,50 @@
+{
+    "data": [
+        {
+            "uid": "25142:91125612cd1a9740b24ba7fb44d97f323016c3ec16e1e276a9411cf8f403603b",
+            "timestamp": 1778788007000,
+            "eid": "91125612cd1a9740b24ba7fb44d97f323016c3ec16e1e276a9411cf8f403603b",
+            "txHash": "485",
+            "meta": {
+                "_ts_detect": "1778920127299, 2026-05-16T08:28:47.299Z",
+                "_ts_src": "1778788007000, 2026-05-14T19:46:47Z",
+                "reason": "ACTIVE - voting in progress",
+                "vote_chains": "Avalanche",
+                "author": "0x57ab7ee15ce5ecacb1ab84ee42d5a9d0d8112922",
+                "quorum": "true",
+                "link": "https://vote.onaave.com/proposal/?proposalId=485",
+                "vote_source": "individual votes (not bridged)",
+                "title": "Offboarding Plan for Chaos Labs part 3: Cancel stream 100073",
+                "vote_no": "1.985654051370698",
+                "vote_quorum": "3.2E-13",
+                "name": "Aave Governance",
+                "vote_total": "75.73491514506792",
+                "vote_diff": "71.76360704232651",
+                "state": "Active",
+                "id": "485",
+                "vote_yes_percentage": "97.38",
+                "state_code": "2",
+                "vote_count": "4",
+                "vote_yes": "73.74926109369721",
+                "desc": "Active: Offboarding Plan for Chaos Labs part 3: Cancel stream 100073"
+            },
+            "tenantId": 490,
+            "projectId": 474,
+            "contractId": 11507,
+            "sourceId": "Sentinel Detector",
+            "network": "",
+            "detectorId": 25142,
+            "tags": [
+                "COMPLIANCE"
+            ],
+            "detectorSchemaId": 626,
+            "detectorSchemaName": "DetectorAaveGov",
+            "sentryName": "DetectorAaveGov",
+            "numericSeverity": 0.1,
+            "severity": "INFO",
+            "name": "Aave Governance",
+            "message": "Active: Offboarding Plan for Chaos Labs part 3: Cancel stream 100073"
+        }
+    ],
+    "total": 1
+}

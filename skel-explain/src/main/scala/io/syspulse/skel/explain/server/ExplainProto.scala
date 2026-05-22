@@ -2,44 +2,55 @@ package io.syspulse.skel.explain.server
 
 import spray.json.JsValue
 import spray.json.JsObject
-import io.syspulse.skel.explain.{ExplainRule, ScriptDef}
+import io.syspulse.skel.explain.{Explain, ExplainScript}
 
-// Input request for the explain endpoint
+// Input for the explain endpoint (body is optional on GET /{rid}/explain)
 final case class ExplainReq(
   oid: Option[String] = None,
   rid: Option[String] = None,
-  schema: Option[JsValue] = None,
   data: JsObject = JsObject.empty
 )
 
-// Output response from explain
+// Output from explain
 final case class ExplainRes(
   explanation: String,
   ts: Long = System.currentTimeMillis(),
-  scripts: Seq[String] = Seq.empty,   // engine type names, e.g. ["js", "ai"]
+  scripts: Seq[String] = Seq.empty,
+  fmt: Option[String] = Some("markdown"),
+  style: Option[String] = None,
+  
+  rid: String,
   oid: Option[String] = None
 )
 
 // Collection of rules
-final case class ExplainRules(
-  data: Seq[ExplainRule],
+final case class Explains(
+  data: Seq[Explain],
   total: Option[Long] = None
 )
 
 // Request to create a rule
-final case class ExplainRuleCreateReq(
-  scripts: Seq[ScriptDef],
-  name: Option[String] = None
+final case class ExplainCreateReq(
+  oid: Option[String] = None,
+  rid: Option[String] = None,
+  scripts: Seq[ExplainScript],
+  name: Option[String] = None,
+  desc: Option[String] = None,
+  sid: Option[String] = None
 )
 
-// Request to update a rule (partial — only provided fields are changed)
-final case class ExplainRuleUpdateReq(
-  scripts: Option[Seq[ScriptDef]] = None,
-  name: Option[String] = None
+// Request to update a rule (only provided fields are changed)
+final case class ExplainUpdateReq(
+  oid: Option[String] = None,
+  rid: Option[String] = None,
+  scripts: Option[Seq[ExplainScript]] = None,
+  name: Option[String] = None,
+  desc: Option[String] = None,
+  sid: Option[String] = None
 )
 
 // Response for rule CRUD operations
-final case class ExplainRuleRes(
-  oid: String,
-  rid: String
+final case class ExplaineActionRes(
+  oid: Option[String],
+  rid: String,  
 )

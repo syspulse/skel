@@ -1,0 +1,41 @@
+{
+    "data": [
+        {
+            "uid": "25503:2VyQfsyz3NadVbGp7aSV9PArZdDVseVGzqxfRdX147ZFkzhQXgHgX4Sxt19qSNUJbob4h2aq1FczosphqYj7Me6p-25503",
+            "timestamp": 1779063664964,
+            "eid": "2VyQfsyz3NadVbGp7aSV9PArZdDVseVGzqxfRdX147ZFkzhQXgHgX4Sxt19qSNUJbob4h2aq1FczosphqYj7Me6p-25503",
+            "txHash": "2VyQfsyz3NadVbGp7aSV9PArZdDVseVGzqxfRdX147ZFkzhQXgHgX4Sxt19qSNUJbob4h2aq1FczosphqYj7Me6p",
+            "meta": {
+                "_ts_detect": "1779063679932, 2026-05-18T00:21:19.932Z",
+                "_ts_src": "1779063664964, 2026-05-18T00:21:04.964Z",
+                "amount": "11.34K",
+                "sym": "HNT",
+                "program_id": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+                "dir": "<->",
+                "token": "hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux",
+                "name": "Transfers",
+                "from": "47BQHRAZhV9SG94sU1VzqKk4kTSBvtg2E8QuQZokRnzw",
+                "to": "6LY1JzAFVZsP2a2xKrtU6znQMQ5h4i7tocWdgrkZzkzF",
+                "value": "1134591736942",
+                "desc": " <-> 11.34K HNT"
+            },
+            "tenantId": 490,
+            "projectId": 474,
+            "contractId": 11640,
+            "sourceId": "Sentinel Detector",
+            "network": "solana",
+            "detectorId": 25503,
+            "tags": [
+                "FINANCIAL"
+            ],
+            "detectorSchemaId": 743,
+            "detectorSchemaName": "DetectorTransfer",
+            "sentryName": "DetectorTransfer",
+            "numericSeverity": 0.25,
+            "severity": "MEDIUM",
+            "name": "Transfers",
+            "message": " <-> 11.34K HNT"
+        }
+    ],
+    "total": 1
+}

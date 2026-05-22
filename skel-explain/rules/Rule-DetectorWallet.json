@@ -1,0 +1,9 @@
+{
+  "name": "DetectorWallet Default",
+  "scripts": [
+    {
+      "typ": "js",
+      "src": "var d=JSON.parse(input); var m=d.meta; var net=d.network||'unknown'; var isSol=net==='solana'; var base=isSol?'https://solscan.io/account/':'https://etherscan.io/address/'; var addr=d.txHash||''; var addrLink=addr?'['+addr.substring(0,10)+'...]('+base+addr+')':d.name||'?'; var tokens=[]; Object.keys(m).forEach(function(k){var t=k.match(/^balance\\[(.+)\\]$/);if(t)tokens.push(t[1]);}); var rows=tokens.map(function(tok){var amt=m['amount['+tok+']']||'?'; var chg=m['change['+tok+']']||''; var diff=m['diff['+tok+']']||''; var cond=m['condition['+tok+']']||''; return '| '+tok+' | '+amt+' | '+chg+' | '+(diff||'—')+' | '+cond+' |';}); '## Wallet Alert: '+d.severity+'\\n\\n**Wallet:** '+addrLink+' | **Network:** '+net+'\\n\\n| Token | Balance | Change | Diff | Condition |\\n|---|---|---|---|---|\\n'+rows.join('\\n')"
+    }
+  ]
+}

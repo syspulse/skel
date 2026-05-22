@@ -1,0 +1,75 @@
+{
+    "data": [
+        {
+            "uid": "25232:0xe428bb6464197c52e05b4c09f61e51fa84d53c90ded27913f53a51ebf03be53c-25232",
+            "timestamp": 1779096851085,
+            "eid": "0xe428bb6464197c52e05b4c09f61e51fa84d53c90ded27913f53a51ebf03be53c-25232",
+            "txHash": "0xe428bb6464197c52e05b4c09f61e51fa84d53c90ded27913f53a51ebf03be53c",
+            "meta": {
+                "_ts_detect": "1779096857936, 2026-05-18T09:34:17.936Z",
+                "_ts_src": "1779096851085, 2026-05-18T09:34:11.085Z",
+                "amount": "1.99",
+                "sym": "ETH",
+                "dir": "->",
+                "token": "ethereum",
+                "name": "Transfers",
+                "action": "Transfer",
+                "from": "0xdfd5293d8e347dfe59e90efd55b2956a1343963d",
+                "to": "0xf8e1688fab50a1614b5ce1d65fd9dab4ec735e56",
+                "value": "1999850000000000000",
+                "desc": "Transfer -> 1.99 ETH"
+            },
+            "tenantId": 490,
+            "projectId": 474,
+            "contractId": 11532,
+            "sourceId": "Sentinel Detector",
+            "network": "ethereum",
+            "detectorId": 25232,
+            "tags": [
+                "FINANCIAL"
+            ],
+            "detectorSchemaId": 416,
+            "detectorSchemaName": "DetectorWhales",
+            "sentryName": "DetectorWhales",
+            "numericSeverity": 0.25,
+            "severity": "MEDIUM",
+            "name": "Transfers",
+            "message": "Transfer -> 1.99 ETH"
+        },
+        {
+            "uid": "15232:0xe528bb6464197c52e05b4c09f61e51fa84d53c90ded27913f53a51ebf03be53c-15232",
+            "timestamp": 1779096851085,
+            "eid": "0x5428bb6464197c52e05b4c09f61e51fa84d53c90ded27913f53a51ebf03be53c-15232",
+            "txHash": "0x5428bb6464197c52e05b4c09f61e51fa84d53c90ded27913f53a51ebf03be53c",
+            "meta": {
+                "amount": "5.99",
+                "sym": "ETH",
+                "dir": "->",
+                "token": "ethereum",
+                "name": "Transfers",
+                "action": "Transfer",
+                "from": "0xdfd5293d8e347dfe59e90efd55b2956a1343963d",
+                "to": "0xf8e1688fab50a1614b5ce1d65fd9dab4ec735e56",
+                "value": "5999850000000000000",
+                "desc": "Transfer -> 5.99 ETH"
+            },
+            "tenantId": 490,
+            "projectId": 474,
+            "contractId": 11532,
+            "sourceId": "Sentinel Detector",
+            "network": "ethereum",
+            "detectorId": 25232,
+            "tags": [
+                "FINANCIAL"
+            ],
+            "detectorSchemaId": 416,
+            "detectorSchemaName": "DetectorWhales",
+            "sentryName": "DetectorWhales",
+            "numericSeverity": 0.25,
+            "severity": "MEDIUM",
+            "name": "Transfers",
+            "message": "Transfer -> 5.99 ETH"
+        }
+    ],
+    "total": 2
+}

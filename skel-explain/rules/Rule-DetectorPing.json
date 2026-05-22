@@ -1,0 +1,9 @@
+{
+  "name": "DetectorPing Default",
+  "scripts": [
+    {
+      "typ": "js",
+      "src": "var d=JSON.parse(input); var m=d.meta; var status=m.status||'?'; var statusOk=status==='200'||status==='201'||status==='204'; var badge=statusOk?'OK':'ERROR'; var url=m.url||m.name||'?'; '## HTTP Ping: '+badge+' ('+status+')\\n\\n**URL:** ['+url+']('+url+')\\n**Method:** `'+(m.type||'GET')+'` | **Status:** `'+status+'` | **Severity:** '+d.severity+'\\n\\n*'+(m.desc||d.message)+'*'"
+    }
+  ]
+}

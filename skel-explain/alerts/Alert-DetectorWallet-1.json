@@ -1,0 +1,50 @@
+{
+    "data": [
+        {
+            "uid": "25508:2jsM42Ynb3a5ABXRtiUtKJLAaWMdMpqTS1pfyZY8fEK6XYvUK37gkZdJ5W1UitJSiPPR1FN2PV5JEsb9fzzRFKNv-25508",
+            "timestamp": 1779093161061,
+            "eid": "2jsM42Ynb3a5ABXRtiUtKJLAaWMdMpqTS1pfyZY8fEK6XYvUK37gkZdJ5W1UitJSiPPR1FN2PV5JEsb9fzzRFKNv-25508",
+            "txHash": "2jsM42Ynb3a5ABXRtiUtKJLAaWMdMpqTS1pfyZY8fEK6XYvUK37gkZdJ5W1UitJSiPPR1FN2PV5JEsb9fzzRFKNv",
+            "meta": {
+                "_ts_detect": "1779093176234, 2026-05-18T08:32:56.234Z",
+                "_ts_src": "1779093161061, 2026-05-18T08:32:41.061Z",
+                "balance[USDT]": "27446606512",
+                "condition[USDT]": "> 10000",
+                "change[USDT]": "-2.12%",
+                "diff[EURAU]": "510.74",
+                "change[EURAU]": "2.78%",
+                "diff[USDT]": "-594.81",
+                "token[EURAU]": "9pCWprxbZMW2rYSMhPTeoyLMV2sN2WJqshdT7DQVt6hS",
+                "old[USDT]": "28041421878",
+                "amount[USDT]": "27.44K",
+                "balance[EURAU]": "18872208500",
+                "old[EURAU]": "18361464000",
+                "delta[EURAU]": "510744500",
+                "amount[EURAU]": "18.87K",
+                "token[USDT]": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+                "name": "Wallet",
+                "action": "27.44K USDT; 18.87K EURAU",
+                "condition[EURAU]": "> 100",
+                "delta[USDT]": "-594815366",
+                "desc": "27.44K USDT; 18.87K EURAU"
+            },
+            "tenantId": 490,
+            "projectId": 474,
+            "contractId": 11642,
+            "sourceId": "Sentinel Detector",
+            "network": "solana",
+            "detectorId": 25508,
+            "tags": [
+                "FINANCIAL"
+            ],
+            "detectorSchemaId": 746,
+            "detectorSchemaName": "DetectorWallet",
+            "sentryName": "DetectorWallet",
+            "numericSeverity": 0.15,
+            "severity": "LOW",
+            "name": "Wallet",
+            "message": "27.44K USDT; 18.87K EURAU"
+        }
+    ],
+    "total": 1
+}

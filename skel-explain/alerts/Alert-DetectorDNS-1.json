@@ -1,0 +1,35 @@
+{
+    "data": [
+        {
+            "uid": "25136:269a7848-45cb-4561-a03a-eb9d7a2a4e3c",
+            "timestamp": 1778950007615,
+            "eid": "269a7848-45cb-4561-a03a-eb9d7a2a4e3c",
+            "meta": {
+                "_ts_detect": "1778950008568, 2026-05-16T16:46:48.568Z",
+                "_ts_src": "1778950007615, 2026-05-16T16:46:47.615Z",
+                "domain": "aave.com",
+                "name": "aave.com",
+                "ip_new": "104.18.21.145",
+                "ip_old": "104.18.20.145",
+                "desc": "'aave.com' DNS IP change: '104.18.21.145'"
+            },
+            "tenantId": 490,
+            "projectId": 474,
+            "contractId": 1969,
+            "sourceId": "Sentinel Detector",
+            "network": "ethereum",
+            "detectorId": 25136,
+            "tags": [
+                "SECURITY"
+            ],
+            "detectorSchemaId": 617,
+            "detectorSchemaName": "DetectorDNS",
+            "sentryName": "DetectorDNS",
+            "numericSeverity": 0.75,
+            "severity": "CRITICAL",
+            "name": "aave.com",
+            "message": "'aave.com' DNS IP change: '104.18.21.145'"
+        }
+    ],
+    "total": 1
+}

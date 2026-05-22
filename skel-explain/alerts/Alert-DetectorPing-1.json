@@ -1,0 +1,37 @@
+{
+    "data": [
+        {
+            "uid": "25400:23994d55-ca46-45df-86d6-6154d81a19c0",
+            "timestamp": 1779036407833,
+            "eid": "23994d55-ca46-45df-86d6-6154d81a19c0",
+            "meta": {
+                "result": "{\"id\":1965,\"createdAt\":1755772208040,\"updatedAt\":1755772208313,\"projectId\":209,\"chainUid\":\"ethereum\",\"name\":\"Ethereum\",\"tags\":[\"not_verified\"],\"addressType\":\"CONTRACT\",\"amlRequired\":false,\"icon\":\"\"}",
+                "_ts_detect": "1779036408567, 2026-05-17T16:46:48.567Z",
+                "_ts_src": "1779036407833, 2026-05-17T16:46:47.833Z",
+                "name": "https://api.extractor.live/api/v1/contract/1965",
+                "type": "GET",
+                "body": "{\"id\":1965,\"createdAt\":1755772208040,\"updatedAt\":1755772208313,\"projectId\":209,\"chainUid\":\"ethereum\",\"name\":\"Ethereum\",\"tags\":[\"not_verified\"],\"addressType\":\"CONTRACT\",\"amlRequired\":false,\"icon\":\"\"}",
+                "url": "https://api.extractor.live/api/v1/contract/1965",
+                "status": "200",
+                "desc": "200 "
+            },
+            "tenantId": 490,
+            "projectId": 474,
+            "contractId": 11513,
+            "sourceId": "Sentinel Detector",
+            "network": "",
+            "detectorId": 25400,
+            "tags": [
+                "SECURITY"
+            ],
+            "detectorSchemaId": 660,
+            "detectorSchemaName": "DetectorPing",
+            "sentryName": "DetectorPing",
+            "numericSeverity": 0.1,
+            "severity": "INFO",
+            "name": "https://api.extractor.live/api/v1/contract/1965",
+            "message": "200 "
+        }
+    ],
+    "total": 1
+}

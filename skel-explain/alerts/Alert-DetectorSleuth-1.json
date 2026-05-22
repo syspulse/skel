@@ -1,0 +1,42 @@
+{
+    "data": [
+        {
+            "uid": "22594:288493d8-2a1e-3e41-8311-0ec6cbf0fcef",
+            "timestamp": 1779076723000,
+            "eid": "288493d8-2a1e-3e41-8311-0ec6cbf0fcef",
+            "txHash": "2056222926840500384",
+            "meta": {
+                "_ts_detect": "1779076942409, 2026-05-18T04:02:22.409Z",
+                "_ts_src": "1779076723000, 2026-05-18T03:58:43Z",
+                "_question": "\uD83D\uDEA8TenArmor Security Alert\uD83D\uDEA8\n\nOur system has detected multiple suspicious attacks involving #SEA on #Arbitrum, resulting in an approximately loss of $153K.\n\nonef of Attack transactions: https://t.co/KepIPrukZz\n\nWith TenArmor’s TenMonitor, you get early detection and automated https://t.co/wCCjxeusrp\n\nWhat is the probablity text above describes one particular exploit in web3 protocol or web3 project. \n    Look for specific words (for example: exploit, scam, hack, vulnerability, security alert, scammer). \n    Pay attetion that it must be a text describing the event happening now or today. \n    Ignore if text describes events from the past (for example last week, last month, last year, etc).\n    Disregard marketing analysis or overall analytics.\n    Give the answer only as a single number from 0 to 1 as a probability without any other text. \n    Do not reply with any text or comments, only a probability number.\n    \n\n",
+                "src": "TenArmorAlert",
+                "_answer": "1",
+                "link": "https://x.com/TenArmorAlert/status/2056222926840500384",
+                "threshold": "0.9",
+                "sid": "twitter",
+                "score": "1.0",
+                "name": "Sleuth-0",
+                "model": "gpt-4o-mini-2024-07-18",
+                "text": "\uD83D\uDEA8TenArmor Security Alert\uD83D\uDEA8\n\nOur system has detected multiple suspicious attacks involving #SEA on #Arbitrum, resulting in an approximately loss of $153K.\n\nonef of Attack transactions: https://t.co/KepIPrukZz\n\nWith TenArmor’s TenMonitor, you get early detection and automated https://t.co/wCCjxeusrp",
+                "desc": "TenArmorAlert: \uD83D\uDEA8TenArmor Security Alert\uD83D\uDEA8\n\nOur system has detected multiple su"
+            },
+            "tenantId": 490,
+            "projectId": 474,
+            "contractId": 9570,
+            "sourceId": "Sentinel Detector",
+            "network": "",
+            "detectorId": 22594,
+            "tags": [
+                "SECURITY"
+            ],
+            "detectorSchemaId": 241,
+            "detectorSchemaName": "DetectorSleuth",
+            "sentryName": "DetectorSleuth",
+            "numericSeverity": 1.0,
+            "severity": "CRITICAL",
+            "name": "Sleuth-0",
+            "message": "TenArmorAlert: \uD83D\uDEA8TenArmor Security Alert\uD83D\uDEA8\n\nOur system has detected multiple su"
+        }
+    ],
+    "total": 1
+}

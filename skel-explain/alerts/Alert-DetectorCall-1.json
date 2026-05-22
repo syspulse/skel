@@ -1,0 +1,37 @@
+{
+    "data": [
+        {
+            "uid": "25139:a5d83ad5-ba06-41da-84b4-949b8147a510",
+            "timestamp": 1779055955038,
+            "eid": "a5d83ad5-ba06-41da-84b4-949b8147a510",
+            "meta": {
+                "result": "2000000.12345678",
+                "call": "200000012345678",
+                "_ts_detect": "1779055955919, 2026-05-17T22:12:35.919Z",
+                "_ts_src": "1779055955038, 2026-05-17T22:12:35.038Z",
+                "func": "latestAnswer()(uint256)",
+                "sender": "0xbdbe9cfe6f3d182df882bb99d8392024c714ac04",
+                "name": "latestAnswer()",
+                "params": "",
+                "desc": "latestAnswer()(uint256): 200000012345678 -> 2000000.12345678"
+            },
+            "tenantId": 490,
+            "projectId": 474,
+            "contractId": 9571,
+            "sourceId": "Sentinel Detector",
+            "network": "ethereum_sepolia",
+            "detectorId": 25139,
+            "tags": [
+                "SECURITY"
+            ],
+            "detectorSchemaId": 624,
+            "detectorSchemaName": "DetectorCall",
+            "sentryName": "DetectorCall",
+            "numericSeverity": 0.1,
+            "severity": "INFO",
+            "name": "latestAnswer()",
+            "message": "latestAnswer()(uint256): 200000012345678 -> 2000000.12345678"
+        }
+    ],
+    "total": 1
+}

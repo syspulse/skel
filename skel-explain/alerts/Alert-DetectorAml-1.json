@@ -1,0 +1,42 @@
+{
+    "data": [
+        {
+            "uid": "25605:0xe6adcb8baa954150297c59bdc5867894b1b84dfc193fba6e70fb2dca47ff8d96-25605",
+            "timestamp": 1778240087171,
+            "eid": "0xe6adcb8baa954150297c59bdc5867894b1b84dfc193fba6e70fb2dca47ff8d96-25605",
+            "txHash": "0xe6adcb8baa954150297c59bdc5867894b1b84dfc193fba6e70fb2dca47ff8d96",
+            "meta": {
+                "_ts_detect": "1778240097234, 2026-05-08T11:34:57.234Z",
+                "_ts_src": "1778240087171, 2026-05-08T11:34:47.171Z",
+                "src": "gl",
+                "dir": "->",
+                "tags": "cybercrime",
+                "score": "",
+                "name": "AML Detector (Eth)",
+                "action": "Tx",
+                "from": "0x4c9af439b1a6761b8e549d8d226a468a6b2803a8",
+                "to": "0x9bfbf98b50574e13a6a1b43f66dc8b1e44bdd53c",
+                "addr": "0x4c9af439b1a6761b8e549d8d226a468a6b2803a8",
+                "desc": "0x4c9af439b1a6761b8e549d8d226a468a6b2803a8 ",
+                "ext_provider": "https://api.dev.extractor.live/api/v1/aml/gl/ethereum/0x4c9af439b1a6761b8e549d8d226a468a6b2803a8?meta=ext,uncached"
+            },
+            "tenantId": 490,
+            "projectId": 474,
+            "contractId": 2365,
+            "sourceId": "Sentinel Detector",
+            "network": "ethereum",
+            "detectorId": 25605,
+            "tags": [
+                "COMPLIANCE"
+            ],
+            "detectorSchemaId": 759,
+            "detectorSchemaName": "DetectorAmlEth",
+            "sentryName": "DetectorAmlEth",
+            "numericSeverity": 0.25,
+            "severity": "MEDIUM",
+            "name": "AML Detector (Eth)",
+            "message": "0x4c9af439b1a6761b8e549d8d226a468a6b2803a8 "
+        }
+    ],
+    "total": 1
+}

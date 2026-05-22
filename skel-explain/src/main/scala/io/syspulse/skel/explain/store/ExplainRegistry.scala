@@ -22,13 +22,14 @@ import io.syspulse.skel.script.ScriptFlow
 object ExplainRegistry {
   val log = Logger(s"${this}")
 
-  final case class GetRule(oid: String, rid: String, replyTo: ActorRef[Try[ExplainRule]]) extends Command
-  final case class GetRules(oid: Option[String], replyTo: ActorRef[Try[ExplainRules]]) extends Command
-  final case class CreateRule(oid: String, rid: String, req: ExplainRuleCreateReq, replyTo: ActorRef[Try[ExplainRuleRes]]) extends Command
-  final case class UpdateRule(oid: String, rid: String, req: ExplainRuleUpdateReq, replyTo: ActorRef[Try[ExplainRuleRes]]) extends Command
-  final case class DeleteRule(oid: String, rid: String, replyTo: ActorRef[Try[ExplainRuleRes]]) extends Command
-  final case class Explain(rid: String, req: ExplainReq, replyTo: ActorRef[Try[ExplainRes]]) extends Command
-
+  final case class GetRule(oid: Option[String], rid: String, replyTo: ActorRef[Try[Explain]]) extends Command
+  final case class GetRules(oid: Option[String], replyTo: ActorRef[Try[Explains]]) extends Command
+  final case class CreateRule(oid: String, rid: String, req: ExplainCreateReq, replyTo: ActorRef[Try[ExplaineActionRes]]) extends Command
+  final case class UpdateRule(oid: String, rid: String, req: ExplainUpdateReq, replyTo: ActorRef[Try[ExplaineActionRes]]) extends Command
+  final case class DeleteRule(oid: String, rid: String, replyTo: ActorRef[Try[ExplaineActionRes]]) extends Command
+  final case class DeleteRules(oid: String, replyTo: ActorRef[Try[Explains]]) extends Command
+  final case class RunExplain(req: ExplainReq, style: String, replyTo: ActorRef[Try[ExplainRes]]) extends Command
+  
   def apply(store: ExplainStore)(implicit config: Config): Behavior[io.syspulse.skel.Command] =
     registry(store)(config)
 
@@ -43,18 +44,18 @@ object ExplainRegistry {
 
       case GetRules(oid, replyTo) =>
         val rules = oid match {
-          case Some(o) => store.findByOid(o)
+          case Some(o) => store.findByOid(Option(o).filter(_.nonEmpty))
           case None    => store.all
         }
-        replyTo ! Success(ExplainRules(rules, Some(rules.size)))
+        replyTo ! Success(Explains(rules, Some(rules.size)))
         Behaviors.same
 
       case CreateRule(oid, rid, req, replyTo) =>
-        log.info(s"CreateRule($oid,$rid): scripts='${req.scripts}', name=${req.name}")
-        val rule = ExplainRule(oid = oid, rid = rid, scripts = req.scripts, name = req.name)
+        log.info(s"CreateRule($oid,$rid): scripts='${req.scripts}', name=${req.name}, desc=${req.desc}, sid=${req.sid}")
+        val rule = io.syspulse.skel.explain.Explain(oid = Option(oid).filter(_.nonEmpty), rid = rid, scripts = req.scripts, name = req.name, desc = req.desc, sid = req.sid)
         store.+(rule) match {
           case Success(_) =>
-            replyTo ! Success(ExplainRuleRes(oid, rid))
+            replyTo ! Success(ExplaineActionRes(Option(oid).filter(_.nonEmpty), rid))
           case Failure(e) =>
             log.error(s"failed to create rule: $oid/$rid", e)
             replyTo ! Failure(e)
@@ -62,16 +63,18 @@ object ExplainRegistry {
         Behaviors.same
 
       case UpdateRule(oid, rid, req, replyTo) =>
-        log.info(s"UpdateRule($oid,$rid): scripts=${req.scripts}, name=${req.name}")
-        store.get(oid, rid) match {
+        log.info(s"UpdateRule($oid,$rid): scripts=${req.scripts}, name=${req.name}, desc=${req.desc}, sid=${req.sid}")
+        store.get(Option(oid).filter(_.nonEmpty), rid) match {
           case Success(existing) =>
             val updated = existing.copy(
               scripts = req.scripts.getOrElse(existing.scripts),
               name = req.name.orElse(existing.name),
+              desc = req.desc.orElse(existing.desc),
+              sid = req.sid.orElse(existing.sid),
               ts = System.currentTimeMillis()
             )
             store.+(updated) match {
-              case Success(_)  => replyTo ! Success(ExplainRuleRes(oid, rid))
+              case Success(_)  => replyTo ! Success(ExplaineActionRes(Option(oid).filter(_.nonEmpty), rid))
               case Failure(e)  =>
                 log.error(s"failed to update rule: $oid/$rid", e)
                 replyTo ! Failure(e)
@@ -82,26 +85,39 @@ object ExplainRegistry {
         Behaviors.same
 
       case DeleteRule(oid, rid, replyTo) =>
-        store.del(oid, rid) match {
+        log.info(s"DeleteRule($oid,$rid)")
+        store.del(Option(oid).filter(_.nonEmpty), rid) match {
           case Success(_) =>
-            replyTo ! Success(ExplainRuleRes(oid, rid))
+            replyTo ! Success(ExplaineActionRes(Option(oid).filter(_.nonEmpty), rid))
           case Failure(e) =>
             log.error(s"failed to delete rule: $oid/$rid", e)
             replyTo ! Failure(e)
         }
         Behaviors.same
 
-      case Explain(rid, req, replyTo) =>
-        val oid = req.oid.getOrElse(ExplainRule.DEF_OID)
+      case DeleteRules(oid, replyTo) =>
+        log.info(s"DeleteRules($oid)")
+        store.delByOid(Option(oid).filter(_.nonEmpty)) match {
+          case Success(deleted) =>
+            replyTo ! Success(Explains(deleted, Some(deleted.size)))
+          case Failure(e) =>
+            log.error(s"failed to delete rules for oid: $oid", e)
+            replyTo ! Failure(e)
+        }
+        Behaviors.same
 
-        // Step 1: find rule by oid/rid; Step 2: fallback to default oid; Step 3: error
-        val ruleOpt: Option[ExplainRule] =
+      case RunExplain(req, style, replyTo) =>
+        log.info(s"RunExplain(${req.oid},${req.rid},$style)")
+        val oid = req.oid
+        val rid = req.rid.getOrElse("")
+
+        val ruleOpt: Option[io.syspulse.skel.explain.Explain] =
           store.get(oid, rid).toOption
-            .orElse(if (oid != ExplainRule.DEF_OID) store.get(ExplainRule.DEF_OID, rid).toOption else None)
+            .orElse(if (oid.nonEmpty) store.get(Explain.DEF_OID, rid).toOption else None)
 
         ruleOpt match {
           case None =>
-            replyTo ! Failure(new Exception(s"ScriptFlow not found: oid='$oid', rid='$rid'"))
+            replyTo ! Failure(new Exception(s"ScriptFlow not found: oid='${oid}', rid='$rid'"))
 
           case Some(rule) =>
             val engines = rule.scripts.flatMap(s => ScriptFlow.resolve(s.typ, s.src, s.opts).toOption)
@@ -110,9 +126,10 @@ object ExplainRegistry {
 
             val input = req.data.compactPrint
             val dataMap: Map[String, Any] = Map(
-              "oid" -> rule.oid,
-              "rid" -> rid,
-              "schema" -> req.schema.map(_.compactPrint).getOrElse("")
+              "oid"   -> oid.getOrElse(""),
+              "rid"   -> rid,
+              "sid"   -> rule.sid.getOrElse(""),
+              "style" -> style
             )
 
             scriptFlow.run("", input, dataMap) match {
@@ -120,11 +137,13 @@ object ExplainRegistry {
                 replyTo ! Success(ExplainRes(
                   explanation = explanation,
                   ts = System.currentTimeMillis(),
-                  scripts = scriptNames,
-                  oid = Some(rule.oid)  // return the actual rule's oid (not requested oid)
+                  scripts = scriptNames,                  
+                  style = Option(style).filter(_.nonEmpty),
+                  rid = rule.rid,
+                  oid = rule.oid
                 ))
               case Failure(e) =>
-                log.error(s"ScriptFlow failed: oid='$oid', rid='$rid'", e)
+                log.error(s"ScriptFlow failed: oid='${oid}', rid='$rid'", e)
                 replyTo ! Failure(e)
             }
         }

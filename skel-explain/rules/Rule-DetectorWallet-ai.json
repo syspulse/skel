@@ -1,0 +1,14 @@
+{
+  "name": "DetectorWallet AI (openai://gpt-4o)",
+  "scripts": [
+    {
+      "typ": "js",
+      "src": "var d=JSON.parse(input); var m=d.meta; var net=d.network||'unknown'; var tokens=[]; Object.keys(m).forEach(function(k){var t=k.match(/^balance\\[(.+)\\]$/);if(t)tokens.push(t[1]);}); var tokenData={}; tokens.forEach(function(tok){tokenData[tok]={balance:m['balance['+tok+']'],amount:m['amount['+tok+']'],change:m['change['+tok+']'],diff:m['diff['+tok+']'],condition:m['condition['+tok+']'],old:m['old['+tok+']']};}); JSON.stringify({network:net,wallet:d.txHash||'',severity:d.severity,timestamp:d.timestamp,action:m.action||m.desc||'',tokens:tokenData})"
+    },
+    {
+      "typ": "ai",
+      "src": "You are a blockchain security analyst. Generate a concise Markdown explanation for this wallet alert. Include the wallet address, network, and for each token: current balance/amount, change percentage, diff, and triggered condition. Format Solana addresses as Markdown links to Solscan (https://solscan.io/account/<addr>) and Ethereum addresses to Etherscan (https://etherscan.io/address/<lowercase_addr>). Alert data: ${input}",
+      "opts": "openai://gpt-4o"
+    }
+  ]
+}

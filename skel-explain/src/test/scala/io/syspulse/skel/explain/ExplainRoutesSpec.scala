@@ -30,7 +30,6 @@ import akka.http.scaladsl.server.AuthenticationFailedRejection
 
 class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll {
 
-  // disable GraalVM polyglot interpreter warning
   sys.props("polyglot.engine.WarnInterpreterOnly") = "false"
 
   implicit val config: Config = Config(
@@ -77,7 +76,6 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
     Jwt.encode(claims, jwtSecret, jwtAlgo)
   }
 
-  // Shared test wallet data (as in Test-1.md)
   val walletData = JsObject(
     "address" -> JsString("0x9000000000000000000000000000000000000000"),
     "network" -> JsString("ethereum"),
@@ -95,235 +93,292 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
 
     // ====================== Rule CRUD tests ======================
 
-    "[admin] create a default rule (no oid)" in {
-      val jwtAdmin = createJwtToken("999", Seq(adminRole))
+    "[admin oid=''] create a default rule via POST /{rid}" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
 
-      val req = ExplainRuleCreateReq(
-        scripts = Seq(ScriptDef("js", "input.toUpperCase()")),
+      val req = ExplainCreateReq(
+        scripts = Seq(ExplainScript("js", "input.toUpperCase()")),
         name = Some("DefaultDetectorWallet")
       )
 
-      Post("/rule/DetectorWallet", req) ~>
-        addHeader(Authorization(OAuth2BearerToken(jwtAdmin))) ~>
+      Post("/DetectorWallet", req) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
-          val r = responseAs[ExplainRuleRes]
-          r.oid shouldBe ""
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe None
           r.rid shouldBe "DetectorWallet"
         }
     }
 
-    "[admin] get the default rule" in {
-      val jwtAdmin = createJwtToken("999", Seq(adminRole))
+    "[admin oid=''] get the default rule via GET /{rid}" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
 
-      Get("/rule/DetectorWallet") ~>
-        addHeader(Authorization(OAuth2BearerToken(jwtAdmin))) ~>
+      Get("/DetectorWallet") ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
-          val r = responseAs[ExplainRule]
-          r.oid shouldBe ""
+          val r = responseAs[Explain]
+          r.oid shouldBe None
           r.rid shouldBe "DetectorWallet"
-          r.scripts shouldBe Seq(ScriptDef("js", "input.toUpperCase()"))
+          r.scripts shouldBe Seq(ExplainScript("js", "input.toUpperCase()"))
         }
     }
 
-    "[user] reject non-admin access to default rule CRUD" in {
-      val jwtUser = createJwtToken("490", Seq(userRole))
+    "[admin] create a rule for a specific oid via POST /{rid}?oid=" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
+      val jwt530 = createJwtToken("530", Seq(userRole))
 
-      val req = ExplainRuleCreateReq(scripts = Seq(ScriptDef("str", "")), name = None)
+      val req = ExplainCreateReq(
+        scripts = Seq(ExplainScript("js", "\"admin-created oid 530\"")),
+        name = Some("AdminOid530Rule")
+      )
 
-      val r = Post("/rule/SomeRule", req) ~>
-        addHeader(Authorization(OAuth2BearerToken(jwtUser))) ~>
-        routes.routes
+      Post("/AdminOidCreate?oid=530", req) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe Some("530")
+          r.rid shouldBe "AdminOidCreate"
+        }
 
-      r.rejections should contain(AuthorizationFailedRejection)
+      Get("/AdminOidCreate") ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt530))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[Explain]
+          r.oid shouldBe Some("530")
+          r.rid shouldBe "AdminOidCreate"
+          r.scripts shouldBe Seq(ExplainScript("js", "\"admin-created oid 530\""))
+        }
     }
 
-    "[admin] create OID-specific rule" in {
-      val jwtAdmin = createJwtToken("999", Seq(adminRole))
+    "[user 490] create own rule via POST /{rid}" in {
+      val jwt490 = createJwtToken("490", Seq(userRole))
 
-      val req = ExplainRuleCreateReq(
-        scripts = Seq(ScriptDef("js", "\"Custom-OID-490: \" + input")),
+      val req = ExplainCreateReq(
+        scripts = Seq(ExplainScript("js", "\"Custom-OID-490: \" + input")),
         name = Some("Custom490Rule")
       )
 
-      Post("/490/DetectorWallet", req) ~>
-        addHeader(Authorization(OAuth2BearerToken(jwtAdmin))) ~>
-        routes.routes ~>
-        check {
-          status shouldBe StatusCodes.OK
-          val r = responseAs[ExplainRuleRes]
-          r.oid shouldBe "490"
-          r.rid shouldBe "DetectorWallet"
-        }
-    }
-
-    "[user 490] create own OID rule" in {
-      val jwt490 = createJwtToken("490", Seq(userRole))
-
-      val req = ExplainRuleCreateReq(
-        scripts = Seq(ScriptDef("js", "input.length.toString()")),
-        name = Some("User490Rule")
-      )
-
-      Post("/490/LengthRule", req) ~>
+      Post("/DetectorWallet", req) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
-          val r = responseAs[ExplainRuleRes]
-          r.oid shouldBe "490"
-          r.rid shouldBe "LengthRule"
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe Some("490")
+          r.rid shouldBe "DetectorWallet"
         }
     }
 
-    "[user 490] reject creating rule for different oid" in {
+    "[user 490] reject creating a rule for a different oid via POST /{rid}?oid=" in {
       val jwt490 = createJwtToken("490", Seq(userRole))
+      val req = ExplainCreateReq(scripts = Seq(ExplainScript("str", "")), name = None)
 
-      val req = ExplainRuleCreateReq(scripts = Seq(ScriptDef("str", "")), name = None)
-
-      val r = Post("/999/SomeRule", req) ~>
+      val r = Post("/OtherOidRule?oid=530", req) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
         routes.routes
 
       r.rejections should contain(AuthorizationFailedRejection)
     }
 
-    "[user 490] update own OID rule" in {
-      val jwt490 = createJwtToken("490", Seq(userRole))
-
-      val updateReq = ExplainRuleUpdateReq(
-        scripts = Some(Seq(ScriptDef("js", "input.toLowerCase()"))),
-        name = Some("Updated490Rule")
+    "[admin] create rule from body rid and URL oid overrides body oid" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
+      val jwt530 = createJwtToken("530", Seq(userRole))
+      val req = ExplainCreateReq(
+        oid = Some("490"),
+        rid = Some("BodyRidCreate"),
+        scripts = Seq(ExplainScript("js", "\"created from body rid\"")),
+        name = Some("BodyRidCreateRule")
       )
 
-      Put("/490/LengthRule", updateReq) ~>
-        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+      Post("/?oid=530", req) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
-          val r = responseAs[ExplainRuleRes]
-          r.oid shouldBe "490"
-          r.rid shouldBe "LengthRule"
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe Some("530")
+          r.rid shouldBe "BodyRidCreate"
         }
 
-      // Verify the rule was updated
-      Get("/490/LengthRule") ~>
-        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+      Get("/BodyRidCreate") ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt530))) ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
-          val r = responseAs[ExplainRule]
-          r.scripts shouldBe Seq(ScriptDef("js", "input.toLowerCase()"))
+          val r = responseAs[Explain]
+          r.oid shouldBe Some("530")
+          r.rid shouldBe "BodyRidCreate"
         }
     }
 
-    "[user 490] delete own OID rule" in {
+    "[user 490] create second own rule" in {
       val jwt490 = createJwtToken("490", Seq(userRole))
 
-      Delete("/490/LengthRule") ~>
+      val req = ExplainCreateReq(
+        scripts = Seq(ExplainScript("js", "input.length.toString()")),
+        name = Some("User490LengthRule")
+      )
+
+      Post("/LengthRule", req) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
-          val r = responseAs[ExplainRuleRes]
-          r.oid shouldBe "490"
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe Some("490")
+          r.rid shouldBe "LengthRule"
+        }
+    }
+
+    "[user 490] update own rule via PUT /{rid}" in {
+      val jwt490 = createJwtToken("490", Seq(userRole))
+
+      val updateReq = ExplainUpdateReq(
+        scripts = Some(Seq(ExplainScript("js", "input.toLowerCase()"))),
+        name = Some("Updated490Rule")
+      )
+
+      Put("/LengthRule", updateReq) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe Some("490")
+          r.rid shouldBe "LengthRule"
+        }
+
+      Get("/LengthRule") ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[Explain]
+          r.scripts shouldBe Seq(ExplainScript("js", "input.toLowerCase()"))
+        }
+    }
+
+    "[user 490] delete own rule via DELETE /{rid}" in {
+      val jwt490 = createJwtToken("490", Seq(userRole))
+
+      Delete("/LengthRule") ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe Some("490")
           r.rid shouldBe "LengthRule"
         }
     }
 
     "[unauthenticated] reject rule CRUD without JWT" in {
-      val req = ExplainRuleCreateReq(scripts = Seq(ScriptDef("str", "")), name = None)
+      val req = ExplainCreateReq(scripts = Seq(ExplainScript("str", "")), name = None)
 
-      val r = Post("/rule/SomeRule", req) ~>
-        routes.routes
+      val r = Post("/SomeRule", req) ~> routes.routes
 
       r.rejections should not be empty
     }
 
     // ====================== Explain endpoint tests ======================
 
-    "[explain] use default rule when no oid provided" in {
-      // Default rule "DetectorWallet" was created above: input.toUpperCase()
-      val req = ExplainReq(
-        oid = None,
-        data = JsObject("address" -> JsString("0xabc"))
-      )
-
-      Post("/DetectorWallet", req) ~>
+    "[explain] GET /{rid}/explain uses default rule when no oid in body" in {
+      // Default rule "DetectorWallet" (oid="") created above: input.toUpperCase()
+      Get("/DetectorWallet/explain") ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
           val r = responseAs[ExplainRes]
           r.explanation should not be empty
-          r.oid shouldBe Some("")
+          r.rid shouldBe "DetectorWallet"
+          r.oid shouldBe None
+          r.fmt shouldBe Some("markdown")
         }
     }
 
-    "[explain] custom oid rule overrides default rule" in {
-      // OID 490 has js://"Custom-OID-490: " + input
-      val req = ExplainReq(
-        oid = Some("490"),
-        data = JsObject("address" -> JsString("0xabc"))
-      )
+    "[explain] GET /{rid}/explain with oid=490 in body uses custom rule" in {
+      val req = ExplainReq(oid = Some("490"))
 
-      Post("/DetectorWallet", req) ~>
+      Get("/DetectorWallet/explain", req) ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
           val r = responseAs[ExplainRes]
           r.explanation should include("Custom-OID-490")
+          r.rid shouldBe "DetectorWallet"
           r.oid shouldBe Some("490")
         }
     }
 
-    "[explain] fallback to default rule when oid rule not found" in {
-      // oid=999 has no DetectorWallet rule - falls back to default oid=""
-      val req = ExplainReq(
-        oid = Some("999"),
-        data = JsObject("text" -> JsString("fallback"))
-      )
+    "[explain] GET /{rid}/explain falls back to default when oid rule not found" in {
+      val req = ExplainReq(oid = Some("999"))
 
-      Post("/DetectorWallet", req) ~>
+      Get("/DetectorWallet/explain", req) ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
           val r = responseAs[ExplainRes]
           r.explanation should not be empty
-          r.oid shouldBe Some("")  // returns the actual rule's oid (default)
+          r.oid shouldBe None
         }
     }
 
-    "[explain] return error when no rule found at all" in {
-      val req = ExplainReq(
-        oid = None,
-        data = JsObject("text" -> JsString("no rule"))
-      )
-
-      Post("/NonExistentRule", req) ~>
+    "[explain] GET /{rid}/explain returns error when no rule found" in {
+      Get("/NonExistentRule/explain") ~>
         routes.routes ~>
         check {
           status should not be StatusCodes.OK
         }
     }
 
-    "[explain] ScriptJS processes wallet data" in {
-      val jwtAdmin = createJwtToken("999", Seq(adminRole))
+    "[explain] style param is passed to scripts via dataMap" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
 
-      val jsScript = ScriptDef("js",
-        "var d=JSON.parse(input); var m=d.metadata; 'Sender ['+m.tx_from+'] triggered balance change. Balance: '+m.balance+' threshold: '+m.threshold"
-      )
-
-      Post("/rule/WalletExplain", ExplainRuleCreateReq(scripts = Seq(jsScript), name = Some("WalletJS"))) ~>
-        addHeader(Authorization(OAuth2BearerToken(jwtAdmin))) ~>
+      Post("/StyleRule", ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"fixed\"")), name = None)) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
         routes.routes ~>
         check { status shouldBe StatusCodes.OK }
 
-      val req = ExplainReq(oid = None, data = walletData)
+      Get("/StyleRule/explain?style=short") ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplainRes]
+          r.explanation shouldBe "fixed"
+        }
 
-      Post("/WalletExplain", req) ~>
+      Get("/StyleRule/explain?style=narrative") ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplainRes]
+          r.explanation shouldBe "fixed"
+        }
+    }
+
+    "[explain] ScriptJS processes wallet data passed in body" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
+
+      val jsScript = ExplainScript("js",
+        "var d=JSON.parse(input); var m=d.metadata; 'Sender ['+m.tx_from+'] triggered balance change. Balance: '+m.balance+' threshold: '+m.threshold"
+      )
+
+      Post("/WalletExplain", ExplainCreateReq(scripts = Seq(jsScript), name = Some("WalletJS"))) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check { status shouldBe StatusCodes.OK }
+
+      val req = ExplainReq(data = walletData)
+
+      Get("/WalletExplain/explain", req) ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
@@ -335,29 +390,29 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
     }
 
     "[explain] different rules produce different results" in {
-      val jwtAdmin = createJwtToken("999", Seq(adminRole))
+      val jwtDef = createJwtToken("", Seq(adminRole))
 
-      Post("/rule/Rule-A", ExplainRuleCreateReq(scripts = Seq(ScriptDef("js", "\"RULE-A: \" + input")), name = None)) ~>
-        addHeader(Authorization(OAuth2BearerToken(jwtAdmin))) ~>
+      Post("/Rule-A", ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"RULE-A: \" + input")), name = None)) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
         routes.routes ~>
         check { status shouldBe StatusCodes.OK }
 
-      Post("/rule/Rule-B", ExplainRuleCreateReq(scripts = Seq(ScriptDef("js", "\"RULE-B: \" + input")), name = None)) ~>
-        addHeader(Authorization(OAuth2BearerToken(jwtAdmin))) ~>
+      Post("/Rule-B", ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"RULE-B: \" + input")), name = None)) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
         routes.routes ~>
         check { status shouldBe StatusCodes.OK }
 
       var resultA = ""
       var resultB = ""
 
-      Post("/Rule-A", ExplainReq(oid = None, data = JsObject("v" -> JsString("test")))) ~>
+      Get("/Rule-A/explain") ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
           resultA = responseAs[ExplainRes].explanation
         }
 
-      Post("/Rule-B", ExplainReq(oid = None, data = JsObject("v" -> JsString("test")))) ~>
+      Get("/Rule-B/explain") ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
@@ -369,22 +424,22 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
       resultA should not equal resultB
     }
 
-    "[explain] ScriptFlow with multiple scripts (ScriptJS chain)" in {
-      val jwtAdmin = createJwtToken("999", Seq(adminRole))
+    "[explain] ScriptFlow with multiple scripts (chain)" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
 
       val scripts = Seq(
-        ScriptDef("js", "JSON.parse(input).metadata.balance.toString()"),
-        ScriptDef("js", "\"Balance is: \" + input")
+        ExplainScript("js", "JSON.parse(input).metadata.balance.toString()"),
+        ExplainScript("js", "\"Balance is: \" + input")
       )
 
-      Post("/rule/ChainRule", ExplainRuleCreateReq(scripts = scripts, name = Some("ChainedFlow"))) ~>
-        addHeader(Authorization(OAuth2BearerToken(jwtAdmin))) ~>
+      Post("/ChainRule", ExplainCreateReq(scripts = scripts, name = Some("ChainedFlow"))) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
         routes.routes ~>
         check { status shouldBe StatusCodes.OK }
 
-      val req = ExplainReq(oid = None, data = walletData)
+      val req = ExplainReq(data = walletData)
 
-      Post("/ChainRule", req) ~>
+      Get("/ChainRule/explain", req) ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
@@ -394,23 +449,23 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
         }
     }
 
-    "[explain] OID 490 custom rule with ScriptJS for wallet explanation (like Test-1.md)" in {
-      val jwtAdmin = createJwtToken("999", Seq(adminRole))
+    "[explain] oid=490 custom rule with ScriptJS for wallet explanation" in {
+      val jwt490 = createJwtToken("490", Seq(userRole))
 
-      val jsExplainScript = ScriptDef("js",
+      val jsExplainScript = ExplainScript("js",
         "var d=JSON.parse(input); var m=d.metadata; " +
         "'Sender ['+m.tx_from+'](https://etherscan.io/address/'+m.tx_from.toLowerCase()+') " +
         "triggered balance change on ['+m.wallet+']'"
       )
 
-      Post("/490/WalletFullExplain", ExplainRuleCreateReq(scripts = Seq(jsExplainScript), name = Some("WalletFull"))) ~>
-        addHeader(Authorization(OAuth2BearerToken(jwtAdmin))) ~>
+      Post("/WalletFullExplain", ExplainCreateReq(scripts = Seq(jsExplainScript), name = Some("WalletFull"))) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
         routes.routes ~>
         check { status shouldBe StatusCodes.OK }
 
       val req = ExplainReq(oid = Some("490"), data = walletData)
 
-      Post("/WalletFullExplain", req) ~>
+      Get("/WalletFullExplain/explain", req) ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
@@ -421,22 +476,22 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
         }
     }
 
-    "[explain] ScriptAI in ScriptFlow chain (uses ScriptJS as substitute)" in {
-      val jwtAdmin = createJwtToken("999", Seq(adminRole))
+    "[explain] ScriptFlow chain (two JS steps)" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
 
       val scripts = Seq(
-        ScriptDef("js", "JSON.parse(input).name"),
-        ScriptDef("js", "\"The wallet name is: \" + input")
+        ExplainScript("js", "JSON.parse(input).name"),
+        ExplainScript("js", "\"The wallet name is: \" + input")
       )
 
-      Post("/rule/AiSimulate", ExplainRuleCreateReq(scripts = scripts, name = Some("AiSimulate"))) ~>
-        addHeader(Authorization(OAuth2BearerToken(jwtAdmin))) ~>
+      Post("/AiSimulate", ExplainCreateReq(scripts = scripts, name = Some("AiSimulate"))) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
         routes.routes ~>
         check { status shouldBe StatusCodes.OK }
 
-      val req = ExplainReq(oid = None, data = walletData)
+      val req = ExplainReq(data = walletData)
 
-      Post("/AiSimulate", req) ~>
+      Get("/AiSimulate/explain", req) ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
@@ -447,19 +502,347 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
         }
     }
 
-    "[service] service account can manage any oid rule" in {
+    "[service] service account can create and explain rules" in {
       val jwtService = createJwtToken("svc-account", Seq(serviceRole))
 
-      val req = ExplainRuleCreateReq(scripts = Seq(ScriptDef("js", "\"svc-rule: \" + input")), name = None)
+      val req = ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"svc-rule: \" + input")), name = None)
 
-      Post("/490/ServiceRule", req) ~>
+      Post("/ServiceRule", req) ~>
         addHeader(Authorization(OAuth2BearerToken(jwtService))) ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
-          val r = responseAs[ExplainRuleRes]
-          r.oid shouldBe "490"
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe Some("svc-account")
           r.rid shouldBe "ServiceRule"
+        }
+    }
+
+    "[explain] Rule_1 resolves to oid-specific explanations for oid 490 and 530 only" in {
+      val jwt490 = createJwtToken("490", Seq(userRole))
+      val jwt530 = createJwtToken("530", Seq(userRole))
+
+      Post("/Rule_1", ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"specific explanation for 490\"")), name = None)) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe Some("490")
+          r.rid shouldBe "Rule_1"
+        }
+
+      Post("/Rule_1", ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"specific explanation for 530\"")), name = None)) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt530))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe Some("530")
+          r.rid shouldBe "Rule_1"
+        }
+
+      Get("/Rule_1") ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[Explain]
+          r.oid shouldBe Some("490")
+          r.rid shouldBe "Rule_1"
+          r.scripts.head.src shouldBe "\"specific explanation for 490\""
+        }
+
+      Get("/Rule_1") ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt530))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[Explain]
+          r.oid shouldBe Some("530")
+          r.rid shouldBe "Rule_1"
+          r.scripts.head.src shouldBe "\"specific explanation for 530\""
+        }
+
+      Get("/Rule_1/explain") ~>
+        routes.routes ~>
+        check {
+          status should not be StatusCodes.OK
+        }
+
+      Get("/Rule_1/explain", ExplainReq(oid = Some("490"))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplainRes]
+          r.explanation shouldBe "specific explanation for 490"
+          r.oid shouldBe Some("490")
+        }
+
+      Get("/Rule_1/explain", ExplainReq(oid = Some("530"))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplainRes]
+          r.explanation shouldBe "specific explanation for 530"
+          r.oid shouldBe Some("530")
+        }
+    }
+
+    "[explain] Rule_1 uses default explanation except for oid 490 and 530 overrides" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
+      val jwt490 = createJwtToken("490", Seq(userRole))
+      val jwt530 = createJwtToken("530", Seq(userRole))
+
+      Post("/Rule_1", ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"default explanation\"")), name = None)) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe None
+          r.rid shouldBe "Rule_1"
+        }
+
+      Post("/Rule_1", ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"specific explanation for 490\"")), name = None)) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe Some("490")
+          r.rid shouldBe "Rule_1"
+        }
+
+      Post("/Rule_1", ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"specific explanation for 530\"")), name = None)) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt530))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe Some("530")
+          r.rid shouldBe "Rule_1"
+        }
+
+      Get("/Rule_1/explain") ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplainRes]
+          r.explanation shouldBe "default explanation"
+          r.oid shouldBe None
+        }
+
+      Get("/Rule_1/explain", ExplainReq(oid = Some("490"))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplainRes]
+          r.explanation shouldBe "specific explanation for 490"
+          r.explanation should not be "default explanation"
+          r.oid shouldBe Some("490")
+        }
+
+      Get("/Rule_1/explain", ExplainReq(oid = Some("530"))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplainRes]
+          r.explanation shouldBe "specific explanation for 530"
+          r.explanation should not be "default explanation"
+          r.oid shouldBe Some("530")
+        }
+
+      Get("/Rule_1/explain?oid=530", ExplainReq(oid = Some("490"))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplainRes]
+          r.explanation shouldBe "specific explanation for 530"
+          r.oid shouldBe Some("530")
+        }
+
+      Get("/Rule_1/explain", ExplainReq(oid = Some("490"), rid = Some("NotRule_1"))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplainRes]
+          r.explanation shouldBe "specific explanation for 490"
+          r.oid shouldBe Some("490")
+        }
+
+      Get("/", ExplainReq(oid = Some("530"), rid = Some("Rule_1"))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplainRes]
+          r.explanation shouldBe "specific explanation for 530"
+          r.oid shouldBe Some("530")
+        }
+
+      Get("/Rule_1/explain", ExplainReq(oid = Some("999"))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplainRes]
+          r.explanation shouldBe "default explanation"
+          r.oid shouldBe None
+        }
+    }
+
+    // ====================== Bulk delete (DELETE /?oid=) ======================
+
+    "[bulk-delete] DELETE / with no oid deletes all default-oid rules" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
+
+      // seed two default rules
+      Post("/BulkDel-A", ExplainCreateReq(scripts = Seq(ExplainScript("str", "a")), name = None)) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~> routes.routes ~> check { status shouldBe StatusCodes.OK }
+      Post("/BulkDel-B", ExplainCreateReq(scripts = Seq(ExplainScript("str", "b")), name = None)) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~> routes.routes ~> check { status shouldBe StatusCodes.OK }
+
+      Delete("/") ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[Explains]
+          r.data.map(_.rid).toSet should contain allOf ("BulkDel-A", "BulkDel-B")
+          r.total.getOrElse(0L) should be >= 2L
+        }
+
+      // rules must be gone
+      Get("/BulkDel-A") ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check { status should not be StatusCodes.OK }
+    }
+
+    "[bulk-delete] DELETE /?oid=490 deletes all rules for oid 490" in {
+      val jwt490 = createJwtToken("490", Seq(userRole))
+
+      Post("/BulkOid-X", ExplainCreateReq(scripts = Seq(ExplainScript("str", "x")), name = None)) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~> routes.routes ~> check { status shouldBe StatusCodes.OK }
+      Post("/BulkOid-Y", ExplainCreateReq(scripts = Seq(ExplainScript("str", "y")), name = None)) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~> routes.routes ~> check { status shouldBe StatusCodes.OK }
+
+      Delete("/?oid=490") ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[Explains]
+          r.data.map(_.oid).forall(_ == Some("490")) shouldBe true
+          r.data.map(_.rid).toSet should contain allOf ("BulkOid-X", "BulkOid-Y")
+        }
+
+      Get("/BulkOid-X") ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+        routes.routes ~>
+        check { status should not be StatusCodes.OK }
+    }
+
+    "[bulk-delete] user cannot DELETE /?oid= of a different oid" in {
+      val jwt490 = createJwtToken("490", Seq(userRole))
+
+      val r = Delete("/?oid=999") ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+        routes.routes
+
+      r.rejections should contain(AuthorizationFailedRejection)
+    }
+
+    "[bulk-delete] unauthenticated DELETE / is rejected" in {
+      val r = Delete("/") ~> routes.routes
+      r.rejections should not be empty
+    }
+
+    "[bulk-delete] DELETE /?oid= returns empty list when oid has no rules" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
+
+      Delete("/?oid=no-such-oid") ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[Explains]
+          r.data shouldBe empty
+          r.total shouldBe Some(0)
+        }
+    }
+
+    // ====================== Quote handling in src ======================
+
+    "[quotes] src with embedded quotes survives HTTP round-trip" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
+      // src contains literal double-quote characters: This is "quoted" text
+      val src = """This is "quoted" text"""
+
+      val req = ExplainCreateReq(scripts = Seq(ExplainScript("str", src)), name = None)
+
+      Post("/QuoteRoundTrip", req) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check { status shouldBe StatusCodes.OK }
+
+      Get("/QuoteRoundTrip") ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[Explain]
+          r.scripts.head.src shouldBe src
+        }
+    }
+
+    "[quotes] JS src with string literal quotes executes correctly" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
+      // JS: "Hello \"World\"" evaluates to: Hello "World"
+      val src = "\"Hello \\\"World\\\"\""
+
+      val req = ExplainCreateReq(scripts = Seq(ExplainScript("js", src)), name = None)
+
+      Post("/QuoteJsExec", req) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check { status shouldBe StatusCodes.OK }
+
+      Get("/QuoteJsExec/explain") ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplainRes]
+          r.explanation shouldBe """Hello "World""""
+        }
+    }
+
+    "[quotes] JS src building result string with quotes survives round-trip and executes" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
+      // src: var d=JSON.parse(input); "Address: \"" + d.address + "\""
+      val src = "var d=JSON.parse(input); \"Address: \\\"\" + d.address + \"\\\"\""
+      val data = JsObject("address" -> JsString("0xABC"))
+
+      Post("/QuoteJsComplex", ExplainCreateReq(scripts = Seq(ExplainScript("js", src)), name = None)) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check { status shouldBe StatusCodes.OK }
+
+      // Verify src was persisted correctly
+      Get("/QuoteJsComplex") ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          responseAs[Explain].scripts.head.src shouldBe src
+        }
+
+      // Verify execution produces expected output
+      Get("/QuoteJsComplex/explain", ExplainReq(data = data)) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplainRes]
+          r.explanation shouldBe """Address: "0xABC""""
         }
     }
   }
