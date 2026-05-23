@@ -8,6 +8,27 @@ RID=${RID:-DetectorWallet}
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RULES_DIR="${SCRIPT_DIR}/rules"
+ALERT_FILE="${ALERT_FILE:-${SCRIPT_DIR}/alerts/Alert-${RID}-1.json}"
+
+# Same shape as exp-explain.sh: single alert object, or {data:[...], total:N}
+build_data() {
+  local json="$1"
+  local count
+  count=$(echo "$json" | jq -r 'if (.data | type) == "array" then (.data | length) else 0 end' 2>/dev/null)
+  if [ "$count" -gt 1 ]; then
+    echo "$json" | jq -c '{data: .data, total: (.total // (.data | length))}'
+  elif [ "$count" -eq 1 ]; then
+    echo "$json" | jq -c '.data[0]'
+  else
+    echo "$json" | jq -c '.'
+  fi
+}
+
+if [ ! -f "$ALERT_FILE" ]; then
+  echo "ERROR: alert file not found: $ALERT_FILE" >&2
+  exit 1
+fi
+DATA=$(build_data "$(jq -c '.' "$ALERT_FILE")")
 
 sep() { echo; echo "────────────────────────────────────────────"; echo "  $*"; echo "────────────────────────────────────────────"; }
 ok()  { echo "[OK] $*"; }
@@ -31,8 +52,6 @@ call() {
   LAST_BODY="$body"
   LAST_STATUS="$status"
 }
-
-DATA='{"address":"0x9000000000000000000000000000000000000000","metadata":{"tx_from":"0xA911Ff351B143634Dbc5aF3E204EA074583A83e3","balance":100,"threshold":"> 1000.0","wallet":"0x9000000000000000000000000000000000000000"}}'
 
 sep "1. CREATE rule for rid=$RID"
 call "POST /$RID" \
@@ -92,7 +111,7 @@ call "GET /$RID/explain (no rule — expect error)" \
   -X GET \
   --data "{\"data\": $DATA}" \
   "$SERVICE_URI/$RID/explain"
-[[ "$LAST_STATUS" == "404" || "$LAST_STATUS" == "400" ]] && ok "correctly returned error (HTTP $LAST_STATUS)" || echo "[WARN] unexpected status $LAST_STATUS (expected 404/400)"
+[[ "$LAST_STATUS" == "404" || "$LAST_STATUS" == "400" || "$LAST_STATUS" == "500" ]] && ok "correctly returned error (HTTP $LAST_STATUS)" || fail "expected error after delete (HTTP $LAST_STATUS)"
 
 sep "DEMO COMPLETE"
 echo

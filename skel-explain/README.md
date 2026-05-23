@@ -229,8 +229,11 @@ OID=490 ./exp-ext-clean.sh
 Runs the full lifecycle (create → get → update → explain with styles → delete):
 
 ```bash
+# start server (GOD=1 skips JWT for CRUD in local dev)
+GOD=1 ./run-explain.sh server
+
 ./exp-demo.sh
-# custom rid:
+# custom rid (uses alerts/Alert-<rid>-1.json):
 RID=MyDetector ./exp-demo.sh
 ```
 
