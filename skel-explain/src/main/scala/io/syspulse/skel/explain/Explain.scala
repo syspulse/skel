@@ -13,6 +13,8 @@ case class Explain(
   name: Option[String] = None,
   desc: Option[String] = None,
   sid: Option[String] = None,   // optional schema id; multiple rules may reference the same schema
+  
+  meta: Option[Map[String, Any]] = None, // arbitrary metadata (e.g. icon, color, etc.)
   ts0: Long = System.currentTimeMillis(),
   ts: Long = System.currentTimeMillis()
 )

@@ -13,16 +13,17 @@ import io.syspulse.skel.config.Configuration
 import io.syspulse.skel.store.{Store, StoreDB}
 
 import io.syspulse.skel.explain.{Explain, ExplainScript}
-import io.syspulse.skel.explain.server.ExplainScriptJson
+import io.syspulse.skel.explain.server.{ExplainMetaJson, ExplainScriptJson}
 
-// DB-friendly representation: scripts stored as JSON array string
+// DB-friendly representation: scripts and meta stored as JSON strings
 case class Explanation(
   oid: String,
   rid: String,
   scripts: String,   // JSON array string: [{"typ":"js","src":"..."},...]
   name: Option[String],
-  describe: Option[String],
+  description: Option[String],
   sid: Option[String],
+  meta: Option[String], // JSON object string or null
   ts0: Long,
   ts: Long
 )
@@ -40,7 +41,11 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
 
   private def toDb(r: Explain): Explanation = {
     implicit val fmt = ExplainScriptJson.jsonFormat
-    Explanation(oidKey(r.oid), r.rid, r.scripts.toJson.compactPrint, r.name, r.desc, r.sid, r.ts0, r.ts)
+    Explanation(
+      oidKey(r.oid), r.rid, r.scripts.toJson.compactPrint, r.name, r.desc, r.sid,
+      r.meta.map(m => m.toJson(ExplainMetaJson.mapFormat).compactPrint),
+      r.ts0, r.ts
+    )
   }
 
   private def fromDb(r: Explanation): Explain = {
@@ -50,8 +55,9 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
       rid = r.rid,
       scripts = r.scripts.parseJson.convertTo[Seq[ExplainScript]],
       name = r.name,
-      desc = r.describe,
+      desc = r.description,
       sid = r.sid,
+      meta = r.meta.filter(_.nonEmpty).map(_.parseJson.convertTo[Map[String, Any]](ExplainMetaJson.mapFormat)),
       ts0 = r.ts0,
       ts = r.ts
     )
@@ -73,10 +79,13 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
         rid VARCHAR(128) NOT NULL,
         scripts TEXT,
         name VARCHAR(255),
-        describe TEXT,
+        description TEXT,
         sid VARCHAR(128),
+
+        meta TEXT,
         ts0 BIGINT,
         ts BIGINT,
+        
         PRIMARY KEY (oid, rid)
       );"""
 
@@ -86,10 +95,13 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
         rid VARCHAR(128) NOT NULL,
         scripts TEXT,
         name VARCHAR(255),
-        describe TEXT,
+        description TEXT,
         sid VARCHAR(128),
+
+        meta TEXT,
         ts0 BIGINT,
         ts BIGINT,
+
         PRIMARY KEY (oid, rid)
       );"""
 
@@ -154,8 +166,9 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
         query[Explanation].insertValue(lift(dbRule)).onConflictUpdate(_.oid, _.rid)(
           (t, e) => t.scripts -> e.scripts,
           (t, e) => t.name -> e.name,
-          (t, e) => t.describe -> e.describe,
+          (t, e) => t.description -> e.description,
           (t, e) => t.sid -> e.sid,
+          (t, e) => t.meta -> e.meta,
           (t, e) => t.ts -> e.ts
         )
       }

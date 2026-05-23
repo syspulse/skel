@@ -26,22 +26,165 @@ object ExplainScriptJson {
   }
 }
 
+/** JSON for arbitrary rule metadata: `Map[String, Any]` (nested objects/arrays supported). */
+object ExplainMetaJson {
+  private def anyToJs(x: Any): JsValue = x match {
+    case null         => JsNull
+    case v: JsValue   => v
+    case b: Boolean   => JsBoolean(b)
+    case n: Int       => JsNumber(n)
+    case n: Long      => JsNumber(n)
+    case n: Double    => JsNumber(n)
+    case n: Float     => JsNumber(n.toDouble)
+    case s: String    => JsString(s)
+    case m: Map[_, _] => mapToJs(m.asInstanceOf[Map[String, Any]])
+    case seq: Seq[_]  => JsArray(seq.asInstanceOf[Seq[Any]].map(anyToJs).toVector)
+    case other        => JsString(other.toString)
+  }
+
+  private def jsToAny(json: JsValue): Any = json match {
+    case JsNull           => null
+    case JsTrue           => true
+    case JsFalse          => false
+    case JsNumber(n)      => if (n.isValidInt) n.toIntExact else if (n.isValidLong) n.toLongExact else n.toDouble
+    case JsString(s)      => s
+    case JsArray(elems)   => elems.map(jsToAny).toList
+    case JsObject(fields) => fields.map { case (k, v) => k -> jsToAny(v) }.toMap
+  }
+
+  private def mapToJs(m: Map[String, Any]): JsObject =
+    JsObject(m.map { case (k, v) => k -> anyToJs(v) })
+
+  implicit val mapFormat: RootJsonFormat[Map[String, Any]] = new RootJsonFormat[Map[String, Any]] {
+    def write(m: Map[String, Any]): JsValue = mapToJs(m)
+    def read(json: JsValue): Map[String, Any] = json match {
+      case JsObject(fields) => fields.map { case (k, v) => k -> jsToAny(v) }.toMap
+      case JsNull           => Map.empty
+      case other            => deserializationError(s"Expected meta object, got $other")
+    }
+  }
+
+  implicit val optMapFormat: RootJsonFormat[Option[Map[String, Any]]] = new RootJsonFormat[Option[Map[String, Any]]] {
+    def write(o: Option[Map[String, Any]]): JsValue = o match {
+      case Some(m) => mapToJs(m)
+      case None    => JsNull
+    }
+    def read(json: JsValue): Option[Map[String, Any]] = json match {
+      case JsNull  => None
+      case _       => Some(mapFormat.read(json))
+    }
+  }
+}
+
 
 object ExplainJson extends JsonCommon {
 
   implicit val jf_script_def: RootJsonFormat[ExplainScript] = ExplainScriptJson.jsonFormat
+  implicit val jf_meta: JsonFormat[Option[Map[String, Any]]] = ExplainMetaJson.optMapFormat
 
-  implicit val jf_explain: RootJsonFormat[Explain] = jsonFormat8(Explain.apply)
+  private def optString(fields: Map[String, JsValue], key: String): Option[String] =
+    fields.get(key).filter(_ != JsNull).map {
+      case JsString(s) => s
+      case JsNumber(n) => n.toString
+      case other       => other.convertTo[String]
+    }
+
+  private def optMeta(fields: Map[String, JsValue]): Option[Map[String, Any]] =
+    fields.get("meta").filter(_ != JsNull).map(_.convertTo[Map[String, Any]](ExplainMetaJson.mapFormat))
+
+  implicit val jf_explain: RootJsonFormat[Explain] = new RootJsonFormat[Explain] {
+    def write(r: Explain): JsValue = {
+      val fields = scala.collection.mutable.LinkedHashMap[String, JsValue](
+        "rid"     -> r.rid.toJson,
+        "scripts" -> r.scripts.toJson
+      )
+      r.oid.foreach(o => fields += "oid" -> o.toJson)
+      r.name.foreach(v => fields += "name" -> v.toJson)
+      r.desc.foreach(v => fields += "desc" -> v.toJson)
+      r.sid.foreach(v => fields += "sid" -> v.toJson)
+      r.meta.foreach(m => fields += "meta" -> m.toJson(ExplainMetaJson.mapFormat))
+      fields += "ts0" -> r.ts0.toJson
+      fields += "ts"  -> r.ts.toJson
+      JsObject(fields.toMap)
+    }
+    def read(json: JsValue): Explain = {
+      val f = json.asJsObject.fields
+      Explain(
+        oid     = optString(f, "oid"),
+        rid     = f.get("rid").map(_.convertTo[String]).getOrElse(deserializationError("missing rid")),
+        scripts = f.get("scripts").map(_.convertTo[Seq[ExplainScript]]).getOrElse(deserializationError("missing scripts")),
+        name    = optString(f, "name"),
+        desc    = optString(f, "desc"),
+        sid     = optString(f, "sid"),
+        meta    = optMeta(f),
+        ts0     = f.get("ts0").map(_.convertTo[Long]).getOrElse(System.currentTimeMillis()),
+        ts      = f.get("ts").map(_.convertTo[Long]).getOrElse(System.currentTimeMillis())
+      )
+    }
+  }
+
   implicit val jf_explains: RootJsonFormat[Explains] = jsonFormat2(Explains)
-  implicit val jf_explain_create: RootJsonFormat[ExplainCreateReq] = jsonFormat6(ExplainCreateReq)
-  implicit val jf_explain_update: RootJsonFormat[ExplainUpdateReq] = jsonFormat6(ExplainUpdateReq)
+
+  implicit val jf_explain_create: RootJsonFormat[ExplainCreateReq] = new RootJsonFormat[ExplainCreateReq] {
+    def write(r: ExplainCreateReq): JsValue = {
+      val fields = scala.collection.mutable.LinkedHashMap[String, JsValue](
+        "scripts" -> r.scripts.toJson
+      )
+      r.oid.foreach(v => fields += "oid" -> v.toJson)
+      r.rid.foreach(v => fields += "rid" -> v.toJson)
+      r.name.foreach(v => fields += "name" -> v.toJson)
+      r.desc.foreach(v => fields += "desc" -> v.toJson)
+      r.sid.foreach(v => fields += "sid" -> v.toJson)
+      r.meta.foreach(m => fields += "meta" -> m.toJson(ExplainMetaJson.mapFormat))
+      JsObject(fields.toMap)
+    }
+    def read(json: JsValue): ExplainCreateReq = {
+      val f = json.asJsObject.fields
+      ExplainCreateReq(
+        oid     = optString(f, "oid"),
+        rid     = optString(f, "rid"),
+        scripts = f.get("scripts").map(_.convertTo[Seq[ExplainScript]]).getOrElse(deserializationError("missing scripts")),
+        name    = optString(f, "name"),
+        desc    = optString(f, "desc"),
+        sid     = optString(f, "sid"),
+        meta    = optMeta(f)
+      )
+    }
+  }
+
+  implicit val jf_explain_update: RootJsonFormat[ExplainUpdateReq] = new RootJsonFormat[ExplainUpdateReq] {
+    def write(r: ExplainUpdateReq): JsValue = {
+      val fields = scala.collection.mutable.LinkedHashMap[String, JsValue]()
+      r.oid.foreach(v => fields += "oid" -> v.toJson)
+      r.rid.foreach(v => fields += "rid" -> v.toJson)
+      r.scripts.foreach(v => fields += "scripts" -> v.toJson)
+      r.name.foreach(v => fields += "name" -> v.toJson)
+      r.desc.foreach(v => fields += "desc" -> v.toJson)
+      r.sid.foreach(v => fields += "sid" -> v.toJson)
+      r.meta.foreach(m => fields += "meta" -> m.toJson(ExplainMetaJson.mapFormat))
+      JsObject(fields.toMap)
+    }
+    def read(json: JsValue): ExplainUpdateReq = {
+      val f = json.asJsObject.fields
+      ExplainUpdateReq(
+        oid     = optString(f, "oid"),
+        rid     = optString(f, "rid"),
+        scripts = f.get("scripts").filter(_ != JsNull).map(_.convertTo[Seq[ExplainScript]]),
+        name    = optString(f, "name"),
+        desc    = optString(f, "desc"),
+        sid     = optString(f, "sid"),
+        meta    = optMeta(f)
+      )
+    }
+  }
+
   implicit val jf_explain_action_res: RootJsonFormat[ExplaineActionRes] = jsonFormat2(ExplaineActionRes)
 
   implicit val jf_explain_req: RootJsonFormat[ExplainReq] = new RootJsonFormat[ExplainReq] {
     def write(r: ExplainReq): JsValue = JsObject(
       "oid"  -> r.oid.toJson,
       "rid"  -> r.rid.toJson,
-      "data" -> r.data.toJson
+      "data" -> r.data
     )
     def read(json: JsValue): ExplainReq = {
       val fields = json.asJsObject.fields

@@ -26,10 +26,10 @@ build_data() {
 if [ -f "$DATA_ARG" ]; then
   FILE_JSON=$(jq -c '.' "$DATA_ARG")
   DATA=$(build_data "$FILE_JSON")
-  if [ -z "$OID" ]; then
-    OID=$(echo "$FILE_JSON" | jq -r '.data[0].tenantId // empty' 2>/dev/null)
-    [ "$OID" = "null" ] && OID=""
-  fi
+  # if [ -z "$OID" ]; then
+  #   OID=$(echo "$FILE_JSON" | jq -r '.data[0].tenantId // empty' 2>/dev/null)
+  #   [ "$OID" = "null" ] && OID=""
+  # fi
 else
   # Inline JSON: alert file shape, multi-alert wrapper, or single alert object
   if echo "$DATA_ARG" | jq -e . >/dev/null 2>&1; then

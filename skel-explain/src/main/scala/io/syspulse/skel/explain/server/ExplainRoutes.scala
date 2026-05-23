@@ -72,8 +72,8 @@ class ExplainRoutes(registry: ActorRef[Command])(implicit context: ActorContext[
   def getRule(oid: String, rid: String): Future[Try[Explain]] =
     registry.ask(GetRule(oidOpt(oid), rid, _))
 
-  def getRules(oid: Option[String]): Future[Try[Explains]] =
-    registry.ask(GetRules(oid, _))
+  def getRules(oid: Option[String], rid: Option[String] = None): Future[Try[Explains]] =
+    registry.ask(GetRules(oid, rid, _))
 
   def createRule(oid: String, rid: String, req: ExplainCreateReq): Future[Try[ExplaineActionRes]] =
     registry.ask(CreateRule(oid, rid, req, _))
@@ -195,10 +195,10 @@ class ExplainRoutes(registry: ActorRef[Command])(implicit context: ActorContext[
               complete(explain(req.copy(oid = oidQuery.orElse(req.oid)), styleOpt.getOrElse("")))
             }
           } ~
-          parameters("oid".?) { oidQuery =>
+          parameters("oid".?, "rid".?) { (oidQuery, ridQuery) =>
             authenticate()(authn => {
               authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
-                complete(getRules(oidQuery))
+                complete(getRules(oidQuery, ridQuery))
               }
             })
           }

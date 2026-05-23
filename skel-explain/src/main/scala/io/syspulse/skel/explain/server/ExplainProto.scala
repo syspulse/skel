@@ -1,6 +1,5 @@
 package io.syspulse.skel.explain.server
 
-import spray.json.JsValue
 import spray.json.JsObject
 import io.syspulse.skel.explain.{Explain, ExplainScript}
 
@@ -8,7 +7,9 @@ import io.syspulse.skel.explain.{Explain, ExplainScript}
 final case class ExplainReq(
   oid: Option[String] = None,
   rid: Option[String] = None,
-  data: JsObject = JsObject.empty
+  data: JsObject = JsObject.empty,
+
+  fmt: Option[String] = None, // format of data, default is derived by Explain
 )
 
 // Output from explain
@@ -36,7 +37,8 @@ final case class ExplainCreateReq(
   scripts: Seq[ExplainScript],
   name: Option[String] = None,
   desc: Option[String] = None,
-  sid: Option[String] = None
+  sid: Option[String] = None,
+  meta: Option[Map[String, Any]] = None
 )
 
 // Request to update a rule (only provided fields are changed)
@@ -46,7 +48,8 @@ final case class ExplainUpdateReq(
   scripts: Option[Seq[ExplainScript]] = None,
   name: Option[String] = None,
   desc: Option[String] = None,
-  sid: Option[String] = None
+  sid: Option[String] = None,
+  meta: Option[Map[String, Any]] = None
 )
 
 // Response for rule CRUD operations

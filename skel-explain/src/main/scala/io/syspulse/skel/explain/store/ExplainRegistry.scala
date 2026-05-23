@@ -23,7 +23,7 @@ object ExplainRegistry {
   val log = Logger(s"${this}")
 
   final case class GetRule(oid: Option[String], rid: String, replyTo: ActorRef[Try[Explain]]) extends Command
-  final case class GetRules(oid: Option[String], replyTo: ActorRef[Try[Explains]]) extends Command
+  final case class GetRules(oid: Option[String], rid: Option[String] = None, replyTo: ActorRef[Try[Explains]]) extends Command
   final case class CreateRule(oid: String, rid: String, req: ExplainCreateReq, replyTo: ActorRef[Try[ExplaineActionRes]]) extends Command
   final case class UpdateRule(oid: String, rid: String, req: ExplainUpdateReq, replyTo: ActorRef[Try[ExplaineActionRes]]) extends Command
   final case class DeleteRule(oid: String, rid: String, replyTo: ActorRef[Try[ExplaineActionRes]]) extends Command
@@ -42,17 +42,18 @@ object ExplainRegistry {
         replyTo ! store.get(oid, rid)
         Behaviors.same
 
-      case GetRules(oid, replyTo) =>
+      case GetRules(oid, rid, replyTo) =>
         val rules = oid match {
           case Some(o) => store.findByOid(Option(o).filter(_.nonEmpty))
           case None    => store.all
         }
-        replyTo ! Success(Explains(rules, Some(rules.size)))
+        val filtered = rid.map(r => rules.filter(_.rid == r)).getOrElse(rules)
+        replyTo ! Success(Explains(filtered, Some(filtered.size)))
         Behaviors.same
 
       case CreateRule(oid, rid, req, replyTo) =>
         log.info(s"CreateRule($oid,$rid): scripts='${req.scripts}', name=${req.name}, desc=${req.desc}, sid=${req.sid}")
-        val rule = io.syspulse.skel.explain.Explain(oid = Option(oid).filter(_.nonEmpty), rid = rid, scripts = req.scripts, name = req.name, desc = req.desc, sid = req.sid)
+        val rule = io.syspulse.skel.explain.Explain(oid = Option(oid).filter(_.nonEmpty), rid = rid, scripts = req.scripts, name = req.name, desc = req.desc, sid = req.sid, meta = req.meta)
         store.+(rule) match {
           case Success(_) =>
             replyTo ! Success(ExplaineActionRes(Option(oid).filter(_.nonEmpty), rid))
@@ -71,6 +72,7 @@ object ExplainRegistry {
               name = req.name.orElse(existing.name),
               desc = req.desc.orElse(existing.desc),
               sid = req.sid.orElse(existing.sid),
+              meta = req.meta.orElse(existing.meta),
               ts = System.currentTimeMillis()
             )
             store.+(updated) match {
