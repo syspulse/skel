@@ -38,6 +38,16 @@ export interface ExplainUpdateReq {
   meta?: Record<string, unknown>;
 }
 
+export interface ExplainRes {
+  explanation: string;
+  ts: number;
+  scripts: string[];
+  fmt?: string;
+  style?: string;
+  rid: string;
+  oid?: string;
+}
+
 export interface ActionRes {
   oid?: string;
   rid: string;

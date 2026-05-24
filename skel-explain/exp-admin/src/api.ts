@@ -1,4 +1,4 @@
-import type { ActionRes, Explain, ExplainCreateReq, Explains, ExplainUpdateReq } from './types';
+import type { ActionRes, Explain, ExplainCreateReq, Explains, ExplainUpdateReq, ExplainRes } from './types';
 
 function getBaseUrl(): string {
   // Allow runtime override from localStorage (for SettingsPage)
@@ -122,4 +122,26 @@ export async function deleteRules(
     headers: authHeaders(token),
   });
   return handleResponse<Explains>(res);
+}
+
+export async function runExplain(
+  token: string | null,
+  rid: string,
+  data: unknown,
+  oid?: string,
+  style?: string,
+): Promise<ExplainRes> {
+  const base = getBaseUrl();
+  const params = new URLSearchParams();
+  if (style && style.trim()) params.set('style', style.trim());
+  if (oid && oid.trim()) params.set('oid', oid.trim());
+  const query = params.toString();
+  const url = `${base}/${encodeURIComponent(rid)}/explain${query ? `?${query}` : ''}`;
+  const body: Record<string, unknown> = { rid, data };
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
+  return handleResponse<ExplainRes>(res);
 }

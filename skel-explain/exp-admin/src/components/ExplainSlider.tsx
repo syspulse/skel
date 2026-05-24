@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import type { Explain, ExplainCreateReq, ExplainScript, ExplainUpdateReq } from '../types';
+import React, { useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import type { Explain, ExplainCreateReq, ExplainRes, ExplainScript, ExplainUpdateReq } from '../types';
+import { runExplain } from '../api';
+import { useAuth } from '../auth/useAuth';
 import { MetaEditor } from './MetaEditor';
 import { ScriptEditor } from './ScriptEditor';
-import { IconClose, IconPlus, IconMinus, IconSave, IconTrash, IconEdit } from './Icons';
+import { IconClose, IconPlay, IconPlus, IconMinus, IconSave, IconTrash, IconUpload } from './Icons';
 
 interface ExplainSliderProps {
   open: boolean;
@@ -60,6 +63,15 @@ export function ExplainSlider({
   // Incremented together with setForm so MetaEditor always remounts with the correct value.
   // React 18 batches both updates → single render with fresh form.meta and new key.
   const [formKey, setFormKey] = useState(0);
+
+  const { token } = useAuth();
+  const [testData, setTestData]         = useState('');
+  const [testStyle, setTestStyle]       = useState('');
+  const [testResult, setTestResult]     = useState<ExplainRes | null>(null);
+  const [testError, setTestError]       = useState<string | null>(null);
+  const [explaining, setExplaining]     = useState(false);
+  const fileInputRef                    = useRef<HTMLInputElement>(null);
+  const testSectionRef                  = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setError(null);
@@ -146,6 +158,38 @@ export function ExplainSlider({
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleExplain = async () => {
+    if (!rule) return;
+    setExplaining(true);
+    setTestError(null);
+    setTestResult(null);
+    testSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    try {
+      let parsed: unknown;
+      try {
+        parsed = testData.trim() ? JSON.parse(testData) : {};
+      } catch {
+        setTestError('Invalid JSON in input data');
+        return;
+      }
+      const res = await runExplain(token, rule.rid, parsed, form.oid || undefined, testStyle || undefined);
+      setTestResult(res);
+    } catch (e) {
+      setTestError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExplaining(false);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setTestData(ev.target?.result as string ?? '');
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   return (
@@ -359,6 +403,88 @@ export function ExplainSlider({
               onChange={(meta) => setForm((f) => ({ ...f, meta }))}
             />
           </div>
+
+          {/* Test Explain — edit mode only */}
+          {!addMode && (
+            <div ref={testSectionRef} className="border border-gray-200 rounded bg-gray-50">
+              {/* Section header */}
+              <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200">
+                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  Test Explain
+                </span>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={testStyle}
+                    onChange={(e) => setTestStyle(e.target.value)}
+                    className="text-xs border border-gray-300 rounded px-2 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    title="Explanation style"
+                  >
+                    <option value="">default</option>
+                    <option value="short">short</option>
+                    <option value="narrative">narrative</option>
+                    <option value="detailed">detailed</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border border-gray-400 text-gray-600 hover:bg-gray-100 transition-colors"
+                    title="Load Alert JSON file"
+                  >
+                    <IconUpload size={12} /> Load JSON
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".json,application/json"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleExplain}
+                    disabled={explaining}
+                    className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border border-green-500 text-green-700 hover:bg-green-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <IconPlay size={12} />
+                    {explaining ? 'Running…' : 'Run'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Input textarea */}
+              <div className="p-3 space-y-2">
+                <textarea
+                  value={testData}
+                  onChange={(e) => setTestData(e.target.value)}
+                  rows={6}
+                  placeholder={'{\n  "address": "0x...",\n  "meta": { "balance[ETH]": "1.23" }\n}'}
+                  spellCheck={false}
+                  className="w-full text-xs font-mono border border-gray-300 rounded px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 resize-y"
+                />
+
+                {/* Error */}
+                {testError && (
+                  <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5">
+                    {testError}
+                  </div>
+                )}
+
+                {/* Result */}
+                {testResult && (
+                  <div className="border border-gray-200 rounded bg-white">
+                    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-100 bg-gray-50 text-xs text-gray-500">
+                      <span>scripts: [{testResult.scripts.join(', ')}]</span>
+                      {testResult.style && <span>· style: {testResult.style}</span>}
+                      {testResult.oid && <span>· oid: {testResult.oid}</span>}
+                    </div>
+                    <div className="px-4 py-3 prose prose-sm max-w-none">
+                      <ReactMarkdown>{testResult.explanation}</ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer buttons */}
@@ -407,6 +533,18 @@ export function ExplainSlider({
               >
                 <IconClose size={13} />
                 Cancel
+              </button>
+              <div className="flex-1" />
+              <button
+                onClick={() => {
+                  testSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                  handleExplain();
+                }}
+                disabled={explaining || saving}
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-green-500 text-green-700 hover:bg-green-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <IconPlay size={13} />
+                {explaining ? 'Running…' : 'Explain'}
               </button>
             </>
           )}
