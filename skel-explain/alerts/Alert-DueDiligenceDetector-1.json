@@ -1,0 +1,41 @@
+{
+    "data": [
+        {
+            "uid": "25560:9c7782ff1abd5690e9db5953376dfedf80d8f3bfdc554c8d6002c844c6830655",
+            "timestamp": 1778158105912,
+            "eid": "9c7782ff1abd5690e9db5953376dfedf80d8f3bfdc554c8d6002c844c6830655",
+            "txHash": "dd-report-benqi-05061431-42c8",
+            "meta": {
+                "_ts_detect": "1778158105936, 2026-05-07T12:48:25.936Z",
+                "_ts_src": "1778158105912, 2026-05-07T12:48:25.912Z",
+                "workflow_id": "dd-report-benqi-05061431-42c8",
+                "finding_counts": "{\"high\": 4, \"medium\": 6, \"moderate\": 8}",
+                "run_url": "https://dd-reports.rnd.dev/ui/runs/dd-report-benqi-05061431-42c8",
+                "json_url": "https://dd-reports.rnd.dev/api/runs/dd-report-benqi-05061431-42c8/report-json",
+                "report_id": "a960f43c-1f68-466e-8047-da1de303ebf7",
+                "workflow_url": "https://temporal.dev.rnd.cloud/namespaces/dd_reports/workflows/dd-report-benqi-05061431-42c8",
+                "md_url": "https://dd-reports.rnd.dev/api/runs/dd-report-benqi-05061431-42c8/report",
+                "pdf_url": "https://reports.dev.rnd.live/api/v1/reports/a960f43c-1f68-466e-8047-da1de303ebf7/pdf",
+                "desc": "DD report complete for Benqi — 4 high, 6 medium, 8 moderate. PDF: https://reports.dev.rnd.live/api/v1/reports/a960f43c-1f68-466e-8047-da1de303ebf7/pdf"
+            },
+            "tenantId": 490,
+            "projectId": 3846,
+            "contractId": 11645,
+            "sourceId": "Attack Detector",
+            "monitorId": "afa64ff8d4aececb08495e8d709b7d6b58c6bbdfb1a1af858ba148d6204d02a6",
+            "network": "ethereum",
+            "detectorId": 25560,
+            "tags": [
+                "SECURITY"
+            ],
+            "detectorSchemaId": 750,
+            "detectorSchemaName": "DueDiligenceDetector",
+            "sentryName": "DueDiligenceDetector",
+            "numericSeverity": 0.7,
+            "severity": "HIGH",
+            "name": "BENQI Protocol",
+            "message": "DD report complete for Benqi — 4 high, 6 medium, 8 moderate. PDF: https://reports.dev.rnd.live/api/v1/reports/a960f43c-1f68-466e-8047-da1de303ebf7/pdf"
+        }
+    ],
+    "total": 1
+}

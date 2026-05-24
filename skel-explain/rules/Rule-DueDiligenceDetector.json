@@ -1,0 +1,9 @@
+{
+  "name": "Due Diligence Report",
+  "scripts": [
+    {
+      "typ": "js",
+      "src": "var d=JSON.parse(input); var m=d.meta; '## Report:\\n\\n @(' + m.pdf_url + ')'"
+    }
+  ]
+}
