@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import type { Explain, ExplainCreateReq, ExplainScript, ExplainUpdateReq } from '../types';
 import { MetaEditor } from './MetaEditor';
 import { ScriptEditor } from './ScriptEditor';
-import { IconClose, IconPlus, IconMinus } from './Icons';
+import { IconClose, IconPlus, IconMinus, IconSave, IconTrash, IconEdit } from './Icons';
 
 interface ExplainSliderProps {
   open: boolean;
@@ -292,16 +292,15 @@ export function ExplainSlider({
                     <span className="text-xs font-medium text-gray-500">
                       Script #{idx + 1}
                     </span>
-                    {form.scripts.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveScript(idx)}
-                        className="text-gray-400 hover:text-red-500 p-0.5 rounded transition-colors"
-                        title="Remove script"
-                      >
-                        <IconMinus size={14} />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveScript(idx)}
+                      disabled={form.scripts.length <= 1}
+                      className="p-0.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 hover:text-red-500 hover:enabled:bg-red-50"
+                      title={form.scripts.length <= 1 ? 'Cannot remove the only script' : 'Remove script'}
+                    >
+                      <IconMinus size={14} />
+                    </button>
                   </div>
 
                   {/* Type */}
@@ -363,21 +362,23 @@ export function ExplainSlider({
         </div>
 
         {/* Footer buttons */}
-        <div className="flex items-center gap-2 px-5 py-3 border-t border-gray-200 bg-slate-50">
+        <div className="flex items-center gap-2 px-5 py-2.5 border-t border-gray-200 bg-slate-50">
           {addMode ? (
             <>
               <button
                 onClick={handleCreate}
                 disabled={saving}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium py-1.5 rounded transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
+                <IconSave size={13} />
                 {saving ? 'Creating…' : 'Create'}
               </button>
               <button
                 onClick={onClose}
                 disabled={saving}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-700 text-sm font-medium py-1.5 rounded transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-gray-400 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
+                <IconClose size={13} />
                 Cancel
               </button>
             </>
@@ -386,22 +387,25 @@ export function ExplainSlider({
               <button
                 onClick={handleUpdate}
                 disabled={saving}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium py-1.5 rounded transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
+                <IconSave size={13} />
                 {saving ? 'Saving…' : 'Update'}
               </button>
               <button
                 onClick={handleDelete}
                 disabled={saving}
-                className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-medium py-1.5 rounded transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
+                <IconTrash size={13} />
                 Delete
               </button>
               <button
                 onClick={onClose}
                 disabled={saving}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-700 text-sm font-medium py-1.5 rounded transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-gray-400 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
+                <IconClose size={13} />
                 Cancel
               </button>
             </>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
+import { IconSave, IconReset } from '../components/Icons';
 
 const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED !== 'false';
 
@@ -185,18 +186,18 @@ export function SettingsPage() {
       <div className="flex items-center gap-3 mt-5">
         <button
           onClick={handleSave}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-5 py-2 rounded transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors"
         >
-          Save to localStorage
+          <IconSave size={13} /> Save to localStorage
         </button>
         <button
           onClick={handleReset}
-          className="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium px-5 py-2 rounded transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-gray-400 text-gray-600 hover:bg-gray-100 transition-colors"
         >
-          Reset to defaults
+          <IconReset size={13} /> Reset to defaults
         </button>
         {saved && (
-          <span className="text-green-600 text-sm font-medium">
+          <span className="text-green-600 text-xs font-medium">
             ✓ Saved! Reload the page for Keycloak changes to take effect.
           </span>
         )}

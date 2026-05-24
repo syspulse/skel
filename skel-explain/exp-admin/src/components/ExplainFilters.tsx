@@ -96,17 +96,17 @@ export function ExplainFilters({
       {showDeleteSelected && (
         <button
           onClick={onDeleteSelected}
-          className="inline-flex items-center gap-1.5 text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded transition-colors font-medium"
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 transition-colors"
         >
-          <IconTrash size={14} /> Delete Selected ({selectedCount})
+          <IconTrash size={13} /> Delete Selected ({selectedCount})
         </button>
       )}
       {showAdd && (
         <button
           onClick={onAdd}
-          className="inline-flex items-center gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors font-medium"
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors"
         >
-          <IconPlus size={14} /> Add
+          <IconPlus size={13} /> Add
         </button>
       )}
     </div>
