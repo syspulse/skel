@@ -3,7 +3,7 @@
   "scripts": [
     {
       "typ": "js",
-      "src": "var d=JSON.parse(input); var m=d.meta; var ssBase='https://solscan.io/'; var from=m.from||''; var to=m.to||''; var fromLink='['+from.substring(0,8)+'...]('+ssBase+'account/'+from+')'; var toLink='['+to.substring(0,8)+'...]('+ssBase+'account/'+to+')'; var txHash=d.txHash||''; var txLine=txHash?'\\n**Tx:** ['+txHash.substring(0,12)+'...]('+ssBase+'tx/'+txHash+')':''; '## Transfer: '+m.amount+' '+m.sym+'\\n\\n'+fromLink+' `'+m.dir+'` '+toLink+txLine+'\\n**Network:** Solana | **Severity:** '+d.severity+' | **Token:** `'+(m.token||m.sym)+'`'"
+      "src": "var root=JSON.parse(input); var d=(root.data&&root.data[0])||root; var m=d.meta; var ssBase='https://solscan.io/'; var from=m.from||''; var to=m.to||''; var fromLink='['+from.substring(0,8)+'...]('+ssBase+'account/'+from+')'; var toLink='['+to.substring(0,8)+'...]('+ssBase+'account/'+to+')'; var txHash=d.txHash||''; var txLine=txHash?'\\n**Tx:** ['+txHash.substring(0,12)+'...]('+ssBase+'tx/'+txHash+')':''; '## Transfer: '+m.amount+' '+m.sym+'\\n\\n'+fromLink+' `'+m.dir+'` '+toLink+txLine+'\\n**Network:** Solana | **Severity:** '+d.severity+' | **Token:** `'+(m.token||m.sym)+'`'"
     }
   ]
 }

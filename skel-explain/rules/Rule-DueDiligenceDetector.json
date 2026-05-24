@@ -3,7 +3,7 @@
   "scripts": [
     {
       "typ": "js",
-      "src": "var d=JSON.parse(input); var m=d.meta; '## Report:\\n\\n @(' + m.pdf_url + ')'"
+      "src": "var root=JSON.parse(input); var d=(root.data&&root.data[0])||root; var m=d.meta; '## Report:\\n\\n @(' + m.pdf_url + ')'"
     }
   ]
 }

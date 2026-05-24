@@ -3,7 +3,7 @@
   "scripts": [
     {
       "typ": "js",
-      "src": "var d=JSON.parse(input); var m=d.meta; var net=d.network||'unknown'; var addr=d.txHash||''; var tokens=[]; Object.keys(m).forEach(function(k){var t=k.match(/^balance\\[(.+)\\]$/);if(t)tokens.push(t[1]);}); var rows=tokens.map(function(tok){return '| '+tok+' | '+(m['amount['+tok+']']||'?')+' | '+(m['change['+tok+']']||'')+' | '+(m['condition['+tok+']']||'')+' |';}); '[UPDATED] ## Wallet Alert: '+d.severity+'\\n\\n**Wallet:** `'+addr.substring(0,10)+'...` | **Network:** '+net+'\\n\\n| Token | Amount | Change | Condition |\\n|---|---|---|---|\\n'+rows.join('\\n')"
+      "src": "var root=JSON.parse(input); var d=(root.data&&root.data[0])||root; var m=d.meta; var net=d.network||'unknown'; var addr=d.txHash||''; var tokens=[]; Object.keys(m).forEach(function(k){var t=k.match(/^balance\\[(.+)\\]$/);if(t)tokens.push(t[1]);}); var rows=tokens.map(function(tok){return '| '+tok+' | '+(m['amount['+tok+']']||'?')+' | '+(m['change['+tok+']']||'')+' | '+(m['condition['+tok+']']||'')+' |';}); '[UPDATED] ## Wallet Alert: '+d.severity+'\\n\\n**Wallet:** `'+addr.substring(0,10)+'...` | **Network:** '+net+'\\n\\n| Token | Amount | Change | Condition |\\n|---|---|---|---|\\n'+rows.join('\\n')"
     }
   ]
 }

@@ -3,7 +3,7 @@
   "scripts": [
     {
       "typ": "js",
-      "src": "var d=JSON.parse(input); var m=d.meta; '## DNS Change Detected: `'+m.domain+'`\\n\\n**Severity:** '+d.severity+'\\n\\n| Field | Value |\\n|---|---|\\n| **Domain** | `'+m.domain+'` |\\n| **Old IP** | `'+m.ip_old+'` |\\n| **New IP** | `**'+m.ip_new+'**` |\\n\\n> DNS IP change on `'+m.domain+'` may indicate infrastructure update or DNS hijacking.'"
+      "src": "var root=JSON.parse(input); var d=(root.data&&root.data[0])||root; var m=d.meta; '## DNS Change Detected: `'+m.domain+'`\\n\\n**Severity:** '+d.severity+'\\n\\n| Field | Value |\\n|---|---|\\n| **Domain** | `'+m.domain+'` |\\n| **Old IP** | `'+m.ip_old+'` |\\n| **New IP** | `**'+m.ip_new+'**` |\\n\\n> DNS IP change on `'+m.domain+'` may indicate infrastructure update or DNS hijacking.'"
     }
   ]
 }

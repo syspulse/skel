@@ -3,7 +3,7 @@
   "scripts": [
     {
       "typ": "js",
-      "src": "var d=JSON.parse(input); var m=d.meta; var score=Math.round(parseFloat(m.score||0)*100); var threshold=Math.round(parseFloat(m.threshold||0)*100); var text=(m.text||'').replace(/[\\u{1F000}-\\u{1FFFF}]/gu,'').replace(/\\n/g,' ').trim().substring(0,300); var link=m.link||''; '## Threat Intelligence Alert: '+d.severity+'\\n\\n**Source:** `'+m.src+'` | **Score:** '+score+'% (threshold: '+threshold+'%) | **Model:** `'+(m.model||'?')+'`\\n\\n> '+(text.length>=300?text+'...':text)+'\\n\\n[Original Post]('+link+')'"
+      "src": "var root=JSON.parse(input); var d=(root.data&&root.data[0])||root; var m=d.meta; var score=Math.round(parseFloat(m.score||0)*100); var threshold=Math.round(parseFloat(m.threshold||0)*100); var text=(m.text||'').replace(/[\\u{1F000}-\\u{1FFFF}]/gu,'').replace(/\\n/g,' ').trim().substring(0,300); var link=m.link||''; '## Threat Intelligence Alert: '+d.severity+'\\n\\n**Source:** `'+m.src+'` | **Score:** '+score+'% (threshold: '+threshold+'%) | **Model:** `'+(m.model||'?')+'`\\n\\n> '+(text.length>=300?text+'...':text)+'\\n\\n[Original Post]('+link+')'"
     }
   ]
 }

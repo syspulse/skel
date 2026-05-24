@@ -3,7 +3,7 @@
   "scripts": [
     {
       "typ": "js",
-      "src": "var d=JSON.parse(input); var m=d.meta; var yesP=parseFloat(m.vote_yes_percentage||0).toFixed(2); var total=parseFloat(m.vote_total||0).toFixed(2); var diff=parseFloat(m.vote_diff||0).toFixed(2); var quorum=m.quorum==='true'?'yes':'no'; var link=m.link||''; var author=(m.author||'').substring(0,10)+'...'; '## Aave Governance: Proposal #'+m.id+' ['+m.state+']\\n\\n**'+m.title+'**\\nChain: '+m.vote_chains+' | Author: `'+author+'`\\n\\n| Yes % | Total | Diff | Quorum | Votes |\\n|---|---|---|---|---|\\n| **'+yesP+'%** | '+total+'M | '+diff+'M | '+quorum+' | '+(m.vote_count||'?')+' |\\n\\n*'+(m.reason||d.message)+'*\\n\\n[View Proposal]('+link+')'"
+      "src": "var root=JSON.parse(input); var d=(root.data&&root.data[0])||root; var m=d.meta; var yesP=parseFloat(m.vote_yes_percentage||0).toFixed(2); var total=parseFloat(m.vote_total||0).toFixed(2); var diff=parseFloat(m.vote_diff||0).toFixed(2); var quorum=m.quorum==='true'?'yes':'no'; var link=m.link||''; var author=(m.author||'').substring(0,10)+'...'; '## Aave Governance: Proposal #'+m.id+' ['+m.state+']\\n\\n**'+m.title+'**\\nChain: '+m.vote_chains+' | Author: `'+author+'`\\n\\n| Yes % | Total | Diff | Quorum | Votes |\\n|---|---|---|---|---|\\n| **'+yesP+'%** | '+total+'M | '+diff+'M | '+quorum+' | '+(m.vote_count||'?')+' |\\n\\n*'+(m.reason||d.message)+'*\\n\\n[View Proposal]('+link+')'"
     }
   ]
 }

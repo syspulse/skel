@@ -3,7 +3,7 @@
   "scripts": [
     {
       "typ": "js",
-      "src": "var d=JSON.parse(input); var m=d.meta; var net=d.network||'ethereum'; var esBase='https://etherscan.io/address/'; var from=m.from||m.addr||''; var to=m.to||''; var tags=m.tags||'unknown'; var fromShort=from.substring(0,10)+'...'; var toShort=to?to.substring(0,10)+'...':''; var fromLink='['+fromShort+']('+esBase+from.toLowerCase()+')'; var toLine=to?'\\n**To:** ['+toShort+']('+esBase+to.toLowerCase()+')':''; '## AML Alert: '+d.severity+' ('+tags+')\\n\\n**From:** '+fromLink+toLine+'\\n**Direction:** `'+m.dir+'` | **Action:** '+(m.action||'Transaction')+'\\n**Network:** '+net+' | **Source:** '+(m.src||'?')+'\\n\\n[AML Provider]('+m.ext_provider+')'"
+      "src": "var root=JSON.parse(input); var d=(root.data&&root.data[0])||root; var m=d.meta; var net=d.network||'ethereum'; var esBase='https://etherscan.io/address/'; var from=m.from||m.addr||''; var to=m.to||''; var tags=m.tags||'unknown'; var fromShort=from.substring(0,10)+'...'; var toShort=to?to.substring(0,10)+'...':''; var fromLink='['+fromShort+']('+esBase+from.toLowerCase()+')'; var toLine=to?'\\n**To:** ['+toShort+']('+esBase+to.toLowerCase()+')':''; '## AML Alert: '+d.severity+' ('+tags+')\\n\\n**From:** '+fromLink+toLine+'\\n**Direction:** `'+m.dir+'` | **Action:** '+(m.action||'Transaction')+'\\n**Network:** '+net+' | **Source:** '+(m.src||'?')+'\\n\\n[AML Provider]('+m.ext_provider+')'"
     }
   ]
 }
