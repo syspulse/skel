@@ -609,7 +609,7 @@ object Eth {
       
       cost <- {
         if(r.hasError()) {
-          throw new Exception(r.getError().getMessage())
+          throw new Exception(s"RPC error: [${contractAddress}]: ${r.getError().getCode()}: ${r.getError().getMessage()}")
         }
 
         val cost = r.getAmountUsed()
@@ -675,14 +675,12 @@ object Eth {
       r <- Try(web3.ethCall(tx,web3Block(block)).send())
       
       result <- {
-        if(r.hasError()) {
-          //throw new Exception(r.getError().getMessage())
-          Failure(new Exception(r.getError().getMessage()))
+        if(r.hasError()) {          
+          Failure(new Exception(s"RPC error: [${block}]: ${r.getError().getCode()}: ${r.getError().getMessage()}"))
         } 
         else
-        if(r.isReverted()) {
-          //throw new Exception(s"reverted: ${r.getRevertReason()}")
-          Failure(new Exception(s"reverted: ${r.getRevertReason()}"))
+        if(r.isReverted()) {          
+          Failure(new Exception(s"RPC reverted: [${block}]: ${r.getRevertReason()}"))
         }
         else {
           val result = r.getValue()
@@ -715,12 +713,12 @@ object Eth {
       result <- {
         if(r.hasError()) {
           //throw new Exception(r.getError().getMessage())
-          Future.failed(new Exception(r.getError().getMessage()))
+          Future.failed(new Exception(s"RPC error: [${block}]: ${r.getError().getCode()}: ${r.getError().getMessage()}"))
         }
         else
         if(r.isReverted()) {
           //throw new Exception(s"reverted: ${r.getRevertReason()}")
-          Future.failed(new Exception(s"reverted: ${r.getRevertReason()}"))
+          Future.failed(new Exception(s"RPC reverted: [${block}]: ${r.getRevertReason()}"))
         }
         else {
           val result = r.getValue()
@@ -728,7 +726,7 @@ object Eth {
           if(result == null) {
             //log.error(s"Tx[${to},${valueWei},${gasPriceWei}/${gasTipWei}]: ${r.getError().getMessage()}")
             //throw new Exception(s"${contractAddress}: data=${inputData}: result=${result}")
-            Future.failed(new Exception(s"${contractAddress}: data=${inputData}: result=${result}"))
+            Future.failed(new Exception(s"${contractAddress}: [${block}]: data=${inputData}: result=${result}"))
           } else {
           
             log.info(s"call-async: ${block}: ${from} -> ${contractAddress}: data=${inputData}: result=${Util.trunc(result,256)} (outputType=${outputType})")
@@ -818,7 +816,7 @@ object Eth {
       r <- Try{ r.send() }
       r <- Try{ 
         if(r.hasError())
-          throw new Exception(s"${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
+          throw new Exception(s"RPC error: [${block}]: ${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
         else
           r.getResult() 
       }
@@ -831,7 +829,7 @@ object Eth {
       r <-  web3.traceCall(from,to,data,tracer,tracerConfig.asJava,block.getOrElse("latest")).sendAsync().asScala
       r <- {
         if(r.hasError())
-          throw new Exception(s"${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
+          throw new Exception(s"RPC error: [${block}]: ${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
         else
           Future.successful(r.getResult())
       }
@@ -848,7 +846,7 @@ object Eth {
       r <- Try{ 
         if(r.hasError()) {
           log.warn(s"${tx}: ${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
-          throw new Exception(s"${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
+          throw new Exception(s"RPC error: [${tx}]: ${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
         }else
           r.getResult() 
       }
@@ -860,7 +858,7 @@ object Eth {
       r <- web3.traceTransaction(tx,tracer,tracerConfig.asJava).sendAsync().asScala
       r <- { 
         if(r.hasError())
-          throw new Exception(s"${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
+          throw new Exception(s"RPC error: [${tx}]: ${r.getError().getCode()}: ${r.getError().getMessage()}: ${r.getError().getData()}")
         else
           Future.successful(r.getResult())
       }

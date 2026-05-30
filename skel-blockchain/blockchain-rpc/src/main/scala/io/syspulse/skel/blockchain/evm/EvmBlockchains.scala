@@ -59,5 +59,5 @@ class EvmBlockchains(bb:Seq[String]) {
 object EvmBlockchains {
   def apply(bb:Seq[String]) = new EvmBlockchains(bb)
   def apply(bb:String) = new EvmBlockchains(bb.split(",").toSeq)
-  def apply() = new EvmBlockchains(Seq())
+  def apply() = new EvmBlockchains(Seq())  
 }
