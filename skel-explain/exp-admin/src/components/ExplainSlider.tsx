@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
 import type { Explain, ExplainCreateReq, ExplainRes, ExplainScript, ExplainUpdateReq } from '../types';
 import { runExplain } from '../api';
 import { useAuth } from '../auth/useAuth';
 import { MetaEditor } from './MetaEditor';
 import { ScriptEditor } from './ScriptEditor';
+import { ExplainResultSlider } from './ExplainResultSlider';
 import { IconClose, IconPlay, IconPlus, IconMinus, IconSave, IconTrash, IconUpload } from './Icons';
 
 interface ExplainSliderProps {
@@ -70,11 +70,15 @@ export function ExplainSlider({
   const [testResult, setTestResult]     = useState<ExplainRes | null>(null);
   const [testError, setTestError]       = useState<string | null>(null);
   const [explaining, setExplaining]     = useState(false);
+  const [resultOpen, setResultOpen]     = useState(false);
   const fileInputRef                    = useRef<HTMLInputElement>(null);
   const testSectionRef                  = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setError(null);
+    if (!open) {
+      setResultOpen(false);
+    }
     if (addMode) {
       setForm(emptyForm());
     } else if (rule) {
@@ -176,6 +180,7 @@ export function ExplainSlider({
       }
       const res = await runExplain(token, rule.rid, parsed, form.oid || undefined, testStyle || undefined);
       setTestResult(res);
+      setResultOpen(true);
     } catch (e) {
       setTestError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -202,6 +207,14 @@ export function ExplainSlider({
         />
       )}
 
+      {/* Explanation result panel — slides in to the left of Properties */}
+      <ExplainResultSlider
+        open={resultOpen}
+        result={testResult}
+        propertiesWidth={880}
+        onClose={() => setResultOpen(false)}
+      />
+
       {/* Slider panel */}
       <div
         className={`fixed top-14 right-0 bottom-0 w-[880px] max-w-[92vw] bg-white shadow-2xl border-l border-gray-200 z-50 flex flex-col
@@ -223,7 +236,7 @@ export function ExplainSlider({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
           {/* Error */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2">
@@ -231,84 +244,81 @@ export function ExplainSlider({
             </div>
           )}
 
-          {/* OID — first field, always visible */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">OID</label>
-            {addMode ? (
+          {/* Inline fields: OID / RID / Name / Description / SID */}
+          <div className="space-y-1.5">
+            {/* OID */}
+            <div className="flex items-center gap-2">
+              <label className="w-24 shrink-0 text-xs font-semibold text-gray-600">OID</label>
+              {addMode ? (
+                <input
+                  type="text"
+                  value={form.oid}
+                  onChange={(e) => setForm((f) => ({ ...f, oid: e.target.value }))}
+                  placeholder="owner id (leave blank for default)"
+                  className="flex-1 text-sm border border-gray-300 rounded px-3 py-1 font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+              ) : (
+                <div className="flex-1 text-sm font-mono text-gray-600 bg-gray-50 border border-gray-200 rounded px-3 py-1 select-text">
+                  {form.oid || <span className="text-gray-400 italic">default (empty)</span>}
+                </div>
+              )}
+            </div>
+
+            {/* RID */}
+            <div className="flex items-center gap-2">
+              <label className="w-24 shrink-0 text-xs font-semibold text-gray-600">
+                RID {addMode && <span className="text-red-500">*</span>}
+              </label>
+              {addMode ? (
+                <input
+                  type="text"
+                  value={form.rid}
+                  onChange={(e) => setForm((f) => ({ ...f, rid: e.target.value }))}
+                  placeholder="rule identifier"
+                  className="flex-1 text-sm border border-gray-300 rounded px-3 py-1 font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+              ) : (
+                <div className="flex-1 text-sm font-mono text-gray-700 bg-gray-50 border border-gray-200 rounded px-3 py-1 select-text">
+                  {form.rid}
+                </div>
+              )}
+            </div>
+
+            {/* Name */}
+            <div className="flex items-center gap-2">
+              <label className="w-24 shrink-0 text-xs font-semibold text-gray-600">Name</label>
               <input
                 type="text"
-                value={form.oid}
-                onChange={(e) => setForm((f) => ({ ...f, oid: e.target.value }))}
-                placeholder="owner id (leave blank for default)"
-                className="w-full text-sm border border-gray-300 rounded px-3 py-1.5 font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="rule name"
+                className="flex-1 text-sm border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
-            ) : (
-              <div className="text-sm font-mono text-gray-600 bg-gray-50 border border-gray-200 rounded px-3 py-1.5 select-text">
-                {form.oid || <span className="text-gray-400 italic">default (empty)</span>}
-              </div>
-            )}
-          </div>
+            </div>
 
-          {/* RID */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              RID {addMode && <span className="text-red-500">*</span>}
-            </label>
-            {addMode ? (
+            {/* Description */}
+            <div className="flex items-center gap-2">
+              <label className="w-24 shrink-0 text-xs font-semibold text-gray-600">Description</label>
               <input
                 type="text"
-                value={form.rid}
-                onChange={(e) => setForm((f) => ({ ...f, rid: e.target.value }))}
-                placeholder="rule identifier"
-                className="w-full text-sm border border-gray-300 rounded px-3 py-1.5 font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
+                value={form.desc}
+                onChange={(e) => setForm((f) => ({ ...f, desc: e.target.value }))}
+                placeholder="description"
+                className="flex-1 text-sm border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
-            ) : (
-              <div className="text-sm font-mono text-gray-700 bg-gray-50 border border-gray-200 rounded px-3 py-1.5 select-text">
-                {form.rid}
-              </div>
-            )}
-          </div>
+            </div>
 
-          {/* Name */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              Name
-            </label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="rule name"
-              className="w-full text-sm border border-gray-300 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              Description
-            </label>
-            <input
-              type="text"
-              value={form.desc}
-              onChange={(e) => setForm((f) => ({ ...f, desc: e.target.value }))}
-              placeholder="description"
-              className="w-full text-sm border border-gray-300 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
-            />
-          </div>
-
-          {/* SID */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">
-              SID
-            </label>
-            <input
-              type="text"
-              value={form.sid}
-              onChange={(e) => setForm((f) => ({ ...f, sid: e.target.value }))}
-              placeholder="source / session id"
-              className="w-full text-sm border border-gray-300 rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
-            />
+            {/* SID */}
+            <div className="flex items-center gap-2">
+              <label className="w-24 shrink-0 text-xs font-semibold text-gray-600">SID</label>
+              <input
+                type="text"
+                value={form.sid}
+                onChange={(e) => setForm((f) => ({ ...f, sid: e.target.value }))}
+                placeholder="source / session id"
+                className="flex-1 text-sm border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+            </div>
           </div>
 
           {/* Scripts */}
@@ -466,20 +476,6 @@ export function ExplainSlider({
                 {testError && (
                   <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5">
                     {testError}
-                  </div>
-                )}
-
-                {/* Result */}
-                {testResult && (
-                  <div className="border border-gray-200 rounded bg-white">
-                    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-100 bg-gray-50 text-xs text-gray-500">
-                      <span>scripts: [{testResult.scripts.join(', ')}]</span>
-                      {testResult.style && <span>· style: {testResult.style}</span>}
-                      {testResult.oid && <span>· oid: {testResult.oid}</span>}
-                    </div>
-                    <div className="px-4 py-3 prose prose-sm max-w-none">
-                      <ReactMarkdown>{testResult.explanation}</ReactMarkdown>
-                    </div>
                   </div>
                 )}
               </div>

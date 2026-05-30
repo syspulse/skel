@@ -126,9 +126,10 @@ object ExplainRegistry {
             val scriptFlow = ScriptFlow.build(engines)
             val scriptNames = rule.scripts.map(_.typ)
 
-            val input = req.data.compactPrint
+            val input = ExplainJson.buildInput(req)
+
             val dataMap: Map[String, Any] = Map(
-              "oid"   -> oid.getOrElse(""),
+              "oid"   -> oid.getOrElse(""), 
               "rid"   -> rid,
               "sid"   -> rule.sid.getOrElse(""),
               "style" -> style
@@ -142,7 +143,9 @@ object ExplainRegistry {
                   scripts = scriptNames,                  
                   style = Option(style).filter(_.nonEmpty),
                   rid = rule.rid,
-                  oid = rule.oid
+                  oid = rule.oid,
+
+                  meta = rule.meta
                 ))
               case Failure(e) =>
                 log.error(s"ScriptFlow failed: oid='${oid}', rid='$rid'", e)

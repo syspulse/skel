@@ -5,5 +5,8 @@
       "typ": "js",
       "src": "var root=JSON.parse(input); var d=(root.data&&root.data[0])||root; var m=d.meta; '## Report:\\n\\n @(' + m.pdf_url + ')'"
     }
-  ]
+  ],
+  "meta": {
+    "width": 500
+  }
 }

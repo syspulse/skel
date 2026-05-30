@@ -46,6 +46,8 @@ export interface ExplainRes {
   style?: string;
   rid: string;
   oid?: string;
+  sid?: string;
+  meta?: Record<string, unknown>;
 }
 
 export interface ActionRes {

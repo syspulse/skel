@@ -10,6 +10,9 @@ final case class ExplainReq(
   data: JsObject = JsObject.empty,
 
   fmt: Option[String] = None, // format of data, default is derived by Explain
+
+  schema: Option[Seq[JsObject]] = None, // optional schemas for data
+  config: Option[Seq[JsObject]] = None, // optional configs for data
 )
 
 // Output from explain
@@ -21,7 +24,9 @@ final case class ExplainRes(
   style: Option[String] = None,
   
   rid: String,
-  oid: Option[String] = None
+  oid: Option[String] = None,
+
+  meta: Option[Map[String, Any]] = None,
 )
 
 // Collection of rules

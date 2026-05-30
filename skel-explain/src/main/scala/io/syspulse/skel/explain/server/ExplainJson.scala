@@ -79,6 +79,37 @@ object ExplainMetaJson {
 
 object ExplainJson extends JsonCommon {
 
+  /** Merge request `data` with indexed `schema` / `config` maps for ScriptFlow `input`. */
+  def buildInput(req: ExplainReq): String = {
+    val extra = scala.collection.mutable.LinkedHashMap[String, JsValue]()
+    req.schema.filter(_.nonEmpty).foreach(s => extra += "schema" -> indexById(s, "schema_id"))
+    req.config.filter(_.nonEmpty).foreach(c => extra += "config" -> indexById(c, "config_id"))
+    JsObject(req.data.fields ++ extra.toMap).compactPrint
+  }
+
+  private def indexById(items: Seq[JsObject], idField: String): JsObject = {
+    JsObject(
+      items.flatMap { obj =>
+        idFromField(obj, idField).map(id => id -> obj)
+      }.toMap
+    )
+  }
+
+  private def idFromField(obj: JsObject, idField: String): Option[String] =
+    obj.fields.get(idField).flatMap {
+      case JsString(s) if s.nonEmpty => Some(s)
+      case JsNumber(n)               => Some(n.toString)
+      case _                         => None
+    }
+
+  private def readJsObjectSeq(json: JsValue): Option[Seq[JsObject]] = json match {
+    case JsArray(elems) =>
+      val objs = elems.collect { case o: JsObject => o }
+      if (objs.isEmpty) None else Some(objs)
+    case o: JsObject => Some(Seq(o))
+    case _           => None
+  }
+
   implicit val jf_script_def: RootJsonFormat[ExplainScript] = ExplainScriptJson.jsonFormat
   implicit val jf_metaMap: JsonFormat[Map[String, Any]] = ExplainMetaJson.mapFormat  
 
@@ -89,11 +120,17 @@ object ExplainJson extends JsonCommon {
   implicit val jf_explain_action_res: RootJsonFormat[ExplaineActionRes] = jsonFormat2(ExplaineActionRes)
 
   implicit val jf_explain_req: RootJsonFormat[ExplainReq] = new RootJsonFormat[ExplainReq] {
-    def write(r: ExplainReq): JsValue = JsObject(
-      "oid"  -> r.oid.toJson,
-      "rid"  -> r.rid.toJson,
-      "data" -> r.data
-    )
+    def write(r: ExplainReq): JsValue = {
+      val m = scala.collection.mutable.LinkedHashMap[String, JsValue](
+        "oid"  -> r.oid.toJson,
+        "rid"  -> r.rid.toJson,
+        "data" -> r.data,
+      )
+      r.fmt.foreach(f => m += "fmt" -> f.toJson)
+      r.schema.foreach(s => m += "schema" -> JsArray(s.toVector))
+      r.config.foreach(c => m += "config" -> JsArray(c.toVector))
+      JsObject(m.toMap)
+    }
     def read(json: JsValue): ExplainReq = {
       val fields = json.asJsObject.fields
       ExplainReq(
@@ -107,10 +144,13 @@ object ExplainJson extends JsonCommon {
           case JsNumber(n) => n.toString
           case other       => other.convertTo[String]
         }),
-        data = fields.get("data").filter(_ != JsNull).map(_.asJsObject).getOrElse(JsObject.empty)
+        data = fields.get("data").filter(_ != JsNull).map(_.asJsObject).getOrElse(JsObject.empty),
+        fmt = fields.get("fmt").filter(_ != JsNull).map(_.convertTo[String]),
+        schema = fields.get("schema").filter(_ != JsNull).flatMap(readJsObjectSeq),
+        config = fields.get("config").filter(_ != JsNull).flatMap(readJsObjectSeq),
       )
     }
   }
 
-  implicit val jf_explain_res: RootJsonFormat[ExplainRes] = jsonFormat7(ExplainRes)
+  implicit val jf_explain_res: RootJsonFormat[ExplainRes] = jsonFormat8(ExplainRes)
 }
