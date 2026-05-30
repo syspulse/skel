@@ -11,6 +11,7 @@ import akka.stream.Materializer
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.headers.Location
 import akka.util.ByteString
 import akka.pattern.after
 
@@ -24,7 +25,7 @@ trait Actorable {
   // Detectors already run inside Akka, but feeds are also used in unit tests.
   // Important: build/test environment may set `-Dconfig.file=conf/application.conf`,
   // which is not present for unit tests. Use empty config to avoid FileNotFound.
-  protected val as: ActorSystem = ActorSystem("ActorSystem-FeedHttp", ConfigFactory.empty())
+  protected val as: ActorSystem = ActorSystem("ActorSystem-HttpClient", ConfigFactory.empty())
   protected val ec: ExecutionContext = as.dispatcher
   protected implicit val mat: Materializer = SystemMaterializer(as).materializer
   
@@ -45,7 +46,53 @@ object HTTP extends Actorable {
     Await.result(f, FiniteDuration(timeout, TimeUnit.MILLISECONDS))
   }
   
-  def req(url: String, meth: HttpMethod, body: Option[String] = None, headers0: Seq[(String, String)] = Seq.empty,timeout: Long = 0): Future[String] = {    
+  private def redirectToUri(location: Uri, base: Uri): Uri = {
+    // If Location is relative, resolve it against the original request URI.
+    // If it is already absolute, resolvedAgainst() is a no-op.
+    location.resolvedAgainst(base)
+  }
+
+  private def shouldRedirect(status: StatusCode): Boolean = status match {
+    case StatusCodes.MovedPermanently |
+        StatusCodes.Found |
+        StatusCodes.SeeOther |
+        StatusCodes.TemporaryRedirect |
+        StatusCodes.PermanentRedirect => true
+    case _ => false
+  }
+
+  private def nextRequestForRedirect(
+    status: StatusCode,
+    originalMethod: HttpMethod,
+    originalBody: Option[String],
+    target: Uri,
+  ): (HttpMethod, Option[String], Uri) = {
+    // RFC-ish behavior:
+    // - 303: always switch to GET and drop body
+    // - 301/302: commonly switch POST to GET (legacy browser behavior); keep others
+    // - 307/308: preserve method + body
+    status match {
+      case StatusCodes.SeeOther =>
+        (HttpMethods.GET, None, target)
+      case StatusCodes.MovedPermanently | StatusCodes.Found =>
+        if (originalMethod == HttpMethods.POST) (HttpMethods.GET, None, target)
+        else (originalMethod, originalBody, target)
+      case StatusCodes.TemporaryRedirect | StatusCodes.PermanentRedirect =>
+        (originalMethod, originalBody, target)
+      case _ =>
+        (originalMethod, originalBody, target)
+    }
+  }
+
+  private def req0(
+    url: String,
+    meth: HttpMethod,
+    body: Option[String],
+    headers0: Seq[(String, String)],
+    timeout: Long,
+    followRedirects: Boolean,
+    redirectsLeft: Int,
+  ): Future[String] = {
     // ATTENTION:
     // Whoever created this stupidity with Content-Type is a fucking retarted moron.
     // 
@@ -91,6 +138,27 @@ object HTTP extends Actorable {
     val f = Http()(as)
       .singleRequest(req)
       .flatMap { res =>
+        val isRedirect = followRedirects && redirectsLeft > 0 && shouldRedirect(res.status)
+        val locationOpt = res.header[Location].map(_.uri)
+
+        if (isRedirect && locationOpt.isDefined) {
+          val base = req.uri
+          val target = redirectToUri(locationOpt.get, base)
+          val (meth2, body2, uri2) = nextRequestForRedirect(res.status, meth, body, target)
+
+          // Ensure connection can be released back to pool.
+          res.discardEntityBytes()(mat)
+
+          req0(
+            url = uri2.toString(),
+            meth = meth2,
+            body = body2,
+            headers0 = headers0,
+            timeout = timeout,
+            followRedirects = followRedirects,
+            redirectsLeft = redirectsLeft - 1,
+          )
+        } else {
         val bodyF: Future[String] =
           if (timeout <= 0) {
             res.entity.dataBytes
@@ -108,11 +176,32 @@ object HTTP extends Actorable {
           if (res.status.isSuccess()) 
             Future.successful(body)
           else 
-            Future.failed(new Exception(s"HTTP GET failed: ${res.status.intValue()}: ${url}: body=${body.take(512)}"))
+            Future.failed(new Exception(s"HTTP request failed: ${res.status.intValue()}: ${req.method.value} ${url}: body=${body.take(512)}"))
         }(ec)
+        }
       }(ec)
 
     if(timeout <= 0) f else withTimeout(f, timeout)
+  }
+
+  def req(
+    url: String,
+    meth: HttpMethod,
+    body: Option[String] = None,
+    headers0: Seq[(String, String)] = Seq.empty,
+    timeout: Long = 0,
+    followRedirects: Boolean = true,
+    maxRedirects: Int = 5,
+  ): Future[String] = {    
+    req0(
+      url = url,
+      meth = meth,
+      body = body,
+      headers0 = headers0,
+      timeout = timeout,
+      followRedirects = followRedirects,
+      redirectsLeft = if (maxRedirects < 0) 0 else maxRedirects,
+    )
   }
 
   def get(url: String, body: Option[String] = None, headers: Seq[(String, String)] = Seq.empty, timeout: Long = 0): Future[String] = {

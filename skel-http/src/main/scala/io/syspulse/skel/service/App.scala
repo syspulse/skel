@@ -101,14 +101,14 @@ object App extends skel.Server {
 
       case "http" => 
         val f = config.params.toList match {
-          case "get" :: url :: Nil => HTTP.get(url, None, config.headers.toSeq, config.timeout)
-          case "get" :: url :: body :: Nil => HTTP.get(url, Some(body.mkString("\n")), config.headers.toSeq, config.timeout)
-          case "post" :: url :: Nil => HTTP.post(url, None, config.headers.toSeq, config.timeout)
-          case "post" :: url :: body => HTTP.post(url, Some(body.mkString("\n")), config.headers.toSeq, config.timeout)
-          case "put" :: url :: Nil => HTTP.put(url, None, config.headers.toSeq, config.timeout)
-          case "put" :: url :: body :: Nil => HTTP.put(url, Some(body.mkString("\n")), config.headers.toSeq, config.timeout)
-          case "delete" :: url :: Nil => HTTP.delete(url, None, config.headers.toSeq, config.timeout)
-          case "delete" :: url :: body :: Nil => HTTP.delete(url, Some(body.mkString("\n")), config.headers.toSeq, config.timeout)
+          case ("get" | "GET") :: url :: Nil => HTTP.get(url, None, config.headers.toSeq, config.timeout)
+          case ("get" | "GET") :: url :: body :: Nil => HTTP.get(url, Some(body.mkString("\n")), config.headers.toSeq, config.timeout)
+          case ("post" | "POST") :: url :: Nil => HTTP.post(url, None, config.headers.toSeq, config.timeout)
+          case ("post" | "POST") :: url :: body => HTTP.post(url, Some(body.mkString("\n")), config.headers.toSeq, config.timeout)
+          case ("put" | "PUT") :: url :: Nil => HTTP.put(url, None, config.headers.toSeq, config.timeout)
+          case ("put" | "PUT") :: url :: body :: Nil => HTTP.put(url, Some(body.mkString("\n")), config.headers.toSeq, config.timeout)
+          case ("delete" | "DELETE") :: url :: Nil => HTTP.delete(url, None, config.headers.toSeq, config.timeout)
+          case ("delete" | "DELETE") :: url :: body :: Nil => HTTP.delete(url, Some(body.mkString("\n")), config.headers.toSeq, config.timeout)
           case _ => 
             Console.err.println(s"Unknown verb: ${config.params.mkString(",")}")
             sys.exit(1)
