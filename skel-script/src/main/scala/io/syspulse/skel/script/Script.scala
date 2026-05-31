@@ -23,6 +23,9 @@ import io.syspulse.skel.FutureUtil
 import os.{read => engines}
 import scala.concurrent.Await
 import io.syspulse.skel.util.ConditionDouble
+import io.syspulse.skel.uri.HttpURI
+import io.syspulse.skel.HTTP
+import akka.http.scaladsl.model.HttpMethods
 
 
 abstract class Script(val id:Script.ID,val name:String) {
@@ -390,6 +393,61 @@ object ScriptCondition {
   def build(src:Option[String]):Script = new ScriptCondition(src)
 }
 
+// --- Script API call ---------------------------------------------------- 
+// src - body with "{placeholders}"
+// 
+class ScriptApi(body0:Option[String],uri0:Option[String] = None) extends Script("api","ai-llm") {
+  val uri = HttpURI(uri0.getOrElse(""))
+    
+  // Dedicated execution context for AI operations - created once per instance
+  implicit val ec: ExecutionContext = ScriptApi.ec
+      
+  override def run(src:String,input:String,data:Map[String,Any]):Try[String] = {
+    val timeout = data.get("timeout").map(_.asInstanceOf[Long]).getOrElse(ScriptApi.DEF_TIMEOUT)    
+    FutureUtil.sync(exec(src,input,data))(timeout)
+  }
+  
+  override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = {
+
+    val body1 = if(body0.isDefined && !body0.get.isBlank) body0.get else src
+    val body2 = Util.replaceVar(body1,Map("input" -> input) ++ data.filter{ case(k,v) => ! k.startsWith(ScriptApi.HEADER_PREFIX)})
+
+    val body = if(body2.isBlank) None else Some(body2)
+    val headers = uri.headers.toSeq ++ data.collect{
+      case (k, v) if k.startsWith(ScriptApi.HEADER_PREFIX) =>
+        Some((k.stripPrefix(ScriptApi.HEADER_PREFIX), v.toString))
+      case _ => None
+    }.flatten
+
+    val timeout = data.get("timeout").map(_.asInstanceOf[Long]).getOrElse(ScriptApi.DEF_TIMEOUT)
+
+    val verb = uri.verb match {
+      case "GET" => HttpMethods.GET
+      case "POST" => HttpMethods.POST
+      case "PUT" => HttpMethods.PUT
+      case "DELETE" => HttpMethods.DELETE
+      case _ => HttpMethods.GET
+    }
+    
+    log.info(s"body='${body}' ==> ${uri.verb}(${uri.uri}), headers=${headers}")
+    
+    val f = HTTP.req(uri.uri, verb, body, headers, timeout = timeout)
+    f
+  }
+}
+
+object ScriptApi {   
+  val DEF_TIMEOUT:Long = 10000L
+  val HEADER_PREFIX:String = "HEADER:"
+
+  // Dedicated execution context for API operations using standard thread pool
+  val ec: ExecutionContext = ExecutionContext.fromExecutorService(
+    Executors.newFixedThreadPool(Runtime.getRuntime.availableProcessors() * 1)
+  )
+  
+  def build(src:Option[String]):Script = new ScriptApi(src)
+}
+
 
 // --- Flow ---------------------------------------------------------------
 class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
@@ -413,6 +471,8 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
     //   case e: Exception => throw e
     // }
   }
+
+  def size():Int = flow.size
 }
 
 object ScriptFlow {
@@ -443,6 +503,10 @@ object ScriptFlow {
       case "js" :: rest =>                
         Try(new ScriptJS(Some(uri.stripPrefix("js://"))))
       case "str" :: _ => Success(new ScriptStr())
+
+      case "api" :: uri :: Nil => Try(new ScriptApi(None,Some(uri)))
+      case "api" :: uri :: body :: Nil => Try(new ScriptApi(Some(body),Some(uri)))
+
       case src =>         
         Failure(new Exception(s"Unknown script URI: '${uri}'"))
     }      
@@ -464,6 +528,7 @@ object ScriptFlow {
       case "js" =>  Try(new ScriptJS(Some(src)))
       case "condition" => Try(new ScriptCondition(Some(src)))
       case "str"  => Success(new ScriptStr())
+      case "api" => Try(new ScriptApi(Some(src),uri0 = opts))
       case _ => Failure(new Exception(s"Unknown script type: '${typ}'"))
     }      
   }

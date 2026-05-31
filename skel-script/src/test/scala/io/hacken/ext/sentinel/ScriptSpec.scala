@@ -11,6 +11,7 @@ import scala.util.{Success, Failure}
 // - ScriptJQSpec.scala
 // - ScriptJSSpec.scala
 // - ScriptAISpec.scala
+// - ScriptApiSpec.scala
 // - ScriptFlowSpec.scala
 // - ScriptScoreSpec.scala
 // - ScriptFlowConcurrencySpec.scala
