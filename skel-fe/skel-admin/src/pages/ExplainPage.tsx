@@ -33,7 +33,7 @@ export function ExplainPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sliderOpen, setSliderOpen] = useState(false);
   const [addMode, setAddMode] = useState(false);
-  const [utc, setUtc] = useState(false);
+  const [timezone, setTimezone] = useState('local');
 
   const [filters, setFilters] = useState<FilterState>({
     oid: '',
@@ -165,11 +165,11 @@ export function ExplainPage() {
     <div className="flex flex-col h-full relative">
       <ExplainFilters
         filters={filters}
-        utc={utc}
+        timezone={timezone}
         selectedCount={selectedIds.size}
         hasSelection={selected !== null}
         onFilterChange={setFilters}
-        onUtcToggle={() => setUtc((u) => !u)}
+        onTimezoneChange={setTimezone}
         onAdd={handleAdd}
         onDeleteSelected={handleDeleteSelected}
         onRefresh={fetchRules}
@@ -202,7 +202,7 @@ export function ExplainPage() {
             rules={filteredRules}
             selected={selected}
             selectedIds={selectedIds}
-            utc={utc}
+            timezone={timezone}
             onRowClick={handleRowClick}
             onCheckboxChange={handleCheckboxChange}
             onSelectAll={handleSelectAll}

@@ -23,14 +23,38 @@ function RuleIcon({ meta }: { meta?: Record<string, unknown> | null }) {
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-function formatTs(ts: number, utc: boolean): string {
+const TZ_LABELS: Record<string, string> = {
+  'local':                'local',
+  'UTC':                  'GMT',
+  'Europe/Berlin':        'CET',
+  'America/New_York':     'ET',
+  'America/Chicago':      'CT',
+  'America/Denver':       'MT',
+  'America/Los_Angeles':  'PT',
+  'Asia/Hong_Kong':       'HKT',
+};
+
+function formatTs(ts: number, timezone: string): string {
   const d = new Date(ts);
-  const day = utc ? d.getUTCDate()    : d.getDate();
-  const mon = MONTHS[utc ? d.getUTCMonth()   : d.getMonth()];
-  const hh  = String(utc ? d.getUTCHours()   : d.getHours()).padStart(2, '0');
-  const mm  = String(utc ? d.getUTCMinutes() : d.getMinutes()).padStart(2, '0');
-  const ss  = String(utc ? d.getUTCSeconds() : d.getSeconds()).padStart(2, '0');
-  return `${day} ${mon} ${hh}:${mm}:${ss}`;
+  if (timezone === 'local') {
+    const day = d.getDate();
+    const mon = MONTHS[d.getMonth()];
+    const hh  = String(d.getHours()).padStart(2, '0');
+    const mm  = String(d.getMinutes()).padStart(2, '0');
+    const ss  = String(d.getSeconds()).padStart(2, '0');
+    return `${day} ${mon} ${hh}:${mm}:${ss}`;
+  }
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+  const get = (type: string) => parts.find(p => p.type === type)?.value ?? '';
+  return `${get('day')} ${get('month')} ${get('hour')}:${get('minute')}:${get('second')}`;
 }
 
 function rowKey(rule: Explain): string {
@@ -41,7 +65,7 @@ interface ExplainTableProps {
   rules: Explain[];
   selected: Explain | null;
   selectedIds: Set<string>;
-  utc: boolean;
+  timezone: string;
   onRowClick: (rule: Explain) => void;
   onCheckboxChange: (rule: Explain, checked: boolean) => void;
   onSelectAll: (checked: boolean) => void;
@@ -51,7 +75,7 @@ export function ExplainTable({
   rules,
   selected,
   selectedIds,
-  utc,
+  timezone,
   onRowClick,
   onCheckboxChange,
   onSelectAll,
@@ -69,7 +93,7 @@ export function ExplainTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full text-sm">
+      <table className="w-full table-fixed">
         <thead>
           <tr className="bg-nav text-nav-fg text-xs">
             <th className="w-10 px-3 py-2 text-center">
@@ -84,10 +108,10 @@ export function ExplainTable({
               />
             </th>
             <th className="w-10 px-2 py-2 text-center">icon</th>
-            <th className="w-32 px-3 py-2 text-left whitespace-nowrap">ts0{utc ? ' (UTC)' : ''}</th>
-            <th className="px-3 py-2 text-left">oid</th>
-            <th className="px-3 py-2 text-left">rid</th>
-            <th className="px-3 py-2 text-left">name</th>
+            <th className="w-32 px-3 py-2 text-left">ts0{timezone !== 'local' ? ` (${TZ_LABELS[timezone] ?? timezone})` : ''}</th>
+            <th className="w-24 px-3 py-2 text-left">oid</th>
+            <th className="w-48 px-3 py-2 text-left">rid</th>
+            <th className="w-64 px-3 py-2 text-left">name</th>
             <th className="px-3 py-2 text-left">desc</th>
           </tr>
         </thead>
@@ -129,19 +153,19 @@ export function ExplainTable({
                     <RuleIcon meta={rule.meta as Record<string, unknown> | undefined} />
                   </span>
                 </td>
-                <td className="px-3 py-2 whitespace-nowrap font-mono text-xs text-muted-foreground">
-                  {formatTs(rule.ts0, utc)}
+                <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
+                  {formatTs(rule.ts0, timezone)}
                 </td>
-                <td className="px-3 py-2 font-mono text-xs text-muted-foreground max-w-[140px] truncate">
+                <td className="px-3 py-2 text-xs text-muted-foreground max-w-[140px] truncate">
                   {rule.oid || <span className="opacity-30">—</span>}
                 </td>
-                <td className="px-3 py-2 font-mono text-xs text-foreground max-w-[180px] truncate">
+                <td className="px-3 py-2 text-xs text-foreground max-w-[180px] truncate">
                   {rule.rid}
                 </td>
-                <td className="px-3 py-2 text-foreground max-w-[160px] truncate">
+                <td className="px-3 py-2 text-xs text-foreground max-w-[160px] truncate">
                   {rule.name || <span className="opacity-30">—</span>}
                 </td>
-                <td className="px-3 py-2 text-muted-foreground max-w-[240px] truncate">
+                <td className="px-3 py-2 text-xs text-muted-foreground max-w-[240px] truncate">
                   {rule.desc || <span className="opacity-30">—</span>}
                 </td>
               </tr>

@@ -243,7 +243,7 @@ export function ExplainSlider({
           <div className="space-y-1.5">
             {/* OID */}
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs text-muted-foreground">OID</label>
+              <label className="w-24 shrink-0 text-xs text-muted-foreground">oid</label>
               {addMode ? (
                 <input
                   type="text"
@@ -262,7 +262,7 @@ export function ExplainSlider({
             {/* RID */}
             <div className="flex items-center gap-2">
               <label className="w-24 shrink-0 text-xs text-muted-foreground">
-                RID {addMode && <span className="text-red-500">*</span>}
+                rid {addMode && <span className="text-red-500">*</span>}
               </label>
               {addMode ? (
                 <input
@@ -281,7 +281,7 @@ export function ExplainSlider({
 
             {/* Name */}
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs text-muted-foreground">Name</label>
+              <label className="w-24 shrink-0 text-xs text-muted-foreground">name</label>
               <input
                 type="text"
                 value={form.name}
@@ -293,7 +293,7 @@ export function ExplainSlider({
 
             {/* Description */}
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs text-muted-foreground">Description</label>
+              <label className="w-24 shrink-0 text-xs text-muted-foreground">desc</label>
               <input
                 type="text"
                 value={form.desc}
@@ -305,7 +305,7 @@ export function ExplainSlider({
 
             {/* SID */}
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs text-muted-foreground">SID</label>
+              <label className="w-24 shrink-0 text-xs text-muted-foreground">sid</label>
               <input
                 type="text"
                 value={form.sid}
@@ -319,8 +319,8 @@ export function ExplainSlider({
           {/* Scripts */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs text-muted-foreground uppercase tracking-wide">
-                Scripts
+              <label className="text-xs text-muted-foreground">
+                scripts
               </label>
               <button
                 type="button"
@@ -339,7 +339,7 @@ export function ExplainSlider({
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">
-                      Script #{idx + 1}
+                      script #{idx + 1}
                     </span>
                     <button
                       type="button"
@@ -354,7 +354,7 @@ export function ExplainSlider({
 
                   {/* Type */}
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-muted-foreground w-10">Type:</label>
+                    <label className="text-xs text-muted-foreground w-10">typ:</label>
                     <select
                       value={script.typ}
                       onChange={(e) =>
@@ -373,7 +373,7 @@ export function ExplainSlider({
                   {/* Source */}
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">
-                      Source:
+                      src:
                     </label>
                     <ScriptEditor
                       typ={script.typ}
@@ -384,7 +384,7 @@ export function ExplainSlider({
 
                   {/* Opts */}
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-muted-foreground w-10">Opts:</label>
+                    <label className="text-xs text-muted-foreground w-10">opts:</label>
                     <input
                       type="text"
                       value={script.opts ?? ''}
@@ -413,8 +413,8 @@ export function ExplainSlider({
           {!addMode && (
             <div ref={testSectionRef} className="border border-border rounded bg-muted">
               <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-                <span className="text-xs text-muted-foreground uppercase tracking-wide">
-                  Test Explain
+                <span className="text-xs text-muted-foreground">
+                  test
                 </span>
                 <div className="flex items-center gap-2">
                   <select

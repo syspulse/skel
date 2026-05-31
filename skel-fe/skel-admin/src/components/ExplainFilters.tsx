@@ -9,13 +9,24 @@ export interface FilterState {
   timeRange: TimeRange;
 }
 
+export const TIMEZONES: { value: string; label: string }[] = [
+  { value: 'local',                label: 'local' },
+  { value: 'UTC',                  label: 'GMT' },
+  { value: 'Europe/Berlin',        label: 'CET' },
+  { value: 'America/New_York',     label: 'ET' },
+  { value: 'America/Chicago',      label: 'CT' },
+  { value: 'America/Denver',       label: 'MT' },
+  { value: 'America/Los_Angeles',  label: 'PT' },
+  { value: 'Asia/Hong_Kong',       label: 'HKT' },
+];
+
 interface ExplainFiltersProps {
   filters: FilterState;
-  utc: boolean;
+  timezone: string;
   selectedCount: number;
   hasSelection: boolean;
   onFilterChange: (filters: FilterState) => void;
-  onUtcToggle: () => void;
+  onTimezoneChange: (tz: string) => void;
   onAdd: () => void;
   onDeleteSelected: () => void;
   onRefresh: () => void;
@@ -23,11 +34,11 @@ interface ExplainFiltersProps {
 
 export function ExplainFilters({
   filters,
-  utc,
+  timezone,
   selectedCount,
   hasSelection,
   onFilterChange,
-  onUtcToggle,
+  onTimezoneChange,
   onAdd,
   onDeleteSelected,
   onRefresh,
@@ -65,20 +76,20 @@ export function ExplainFilters({
         />
       </div>
 
-      {/* Time range picker + GMT checkbox */}
+      {/* Time range picker + timezone selector */}
       <TimeRangePicker
         value={filters.timeRange}
         onChange={(timeRange) => onFilterChange({ ...filters, timeRange })}
       />
-      <label className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none whitespace-nowrap">
-        <input
-          type="checkbox"
-          checked={utc}
-          onChange={onUtcToggle}
-          className="w-3.5 h-3.5 cursor-pointer accent-blue-600"
-        />
-        GMT
-      </label>
+      <select
+        value={timezone}
+        onChange={(e) => onTimezoneChange(e.target.value)}
+        className="text-xs border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
+      >
+        {TIMEZONES.map(({ value, label }) => (
+          <option key={value} value={value}>{label}</option>
+        ))}
+      </select>
 
       <div className="flex-1" />
 
