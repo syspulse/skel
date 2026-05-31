@@ -219,7 +219,7 @@ export function ExplainSlider({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted">
-          <h2 className="text-sm font-semibold text-foreground">
+          <h2 className="text-sm text-foreground">
             {addMode ? 'Add New Rule' : 'Edit Rule'}
           </h2>
           <button
@@ -243,7 +243,7 @@ export function ExplainSlider({
           <div className="space-y-1.5">
             {/* OID */}
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs font-semibold text-muted-foreground">OID</label>
+              <label className="w-24 shrink-0 text-xs text-muted-foreground">OID</label>
               {addMode ? (
                 <input
                   type="text"
@@ -261,7 +261,7 @@ export function ExplainSlider({
 
             {/* RID */}
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs font-semibold text-muted-foreground">
+              <label className="w-24 shrink-0 text-xs text-muted-foreground">
                 RID {addMode && <span className="text-red-500">*</span>}
               </label>
               {addMode ? (
@@ -281,7 +281,7 @@ export function ExplainSlider({
 
             {/* Name */}
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs font-semibold text-muted-foreground">Name</label>
+              <label className="w-24 shrink-0 text-xs text-muted-foreground">Name</label>
               <input
                 type="text"
                 value={form.name}
@@ -293,7 +293,7 @@ export function ExplainSlider({
 
             {/* Description */}
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs font-semibold text-muted-foreground">Description</label>
+              <label className="w-24 shrink-0 text-xs text-muted-foreground">Description</label>
               <input
                 type="text"
                 value={form.desc}
@@ -305,7 +305,7 @@ export function ExplainSlider({
 
             {/* SID */}
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs font-semibold text-muted-foreground">SID</label>
+              <label className="w-24 shrink-0 text-xs text-muted-foreground">SID</label>
               <input
                 type="text"
                 value={form.sid}
@@ -319,7 +319,7 @@ export function ExplainSlider({
           {/* Scripts */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <label className="text-xs text-muted-foreground uppercase tracking-wide">
                 Scripts
               </label>
               <button
@@ -338,7 +338,7 @@ export function ExplainSlider({
                   className="border border-border rounded p-3 bg-muted space-y-2"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       Script #{idx + 1}
                     </span>
                     <button
@@ -413,7 +413,7 @@ export function ExplainSlider({
           {!addMode && (
             <div ref={testSectionRef} className="border border-border rounded bg-muted">
               <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                <span className="text-xs text-muted-foreground uppercase tracking-wide">
                   Test Explain
                 </span>
                 <div className="flex items-center gap-2">
@@ -431,7 +431,7 @@ export function ExplainSlider({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border border-border text-muted-foreground hover:bg-card transition-colors"
+                    className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-border text-muted-foreground hover:bg-card transition-colors"
                     title="Load Alert JSON file"
                   >
                     <IconUpload size={12} /> Load JSON
@@ -447,7 +447,7 @@ export function ExplainSlider({
                     type="button"
                     onClick={handleExplain}
                     disabled={explaining}
-                    className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border border-green-500 text-green-700 hover:bg-green-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-green-500 text-green-700 hover:bg-green-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <IconPlay size={12} />
                     {explaining ? 'Running…' : 'Run'}
@@ -482,7 +482,7 @@ export function ExplainSlider({
               <button
                 onClick={handleCreate}
                 disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <IconSave size={13} />
                 {saving ? 'Creating…' : 'Create'}
@@ -490,7 +490,7 @@ export function ExplainSlider({
               <button
                 onClick={onClose}
                 disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <IconClose size={13} />
                 Cancel
@@ -501,7 +501,7 @@ export function ExplainSlider({
               <button
                 onClick={handleUpdate}
                 disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <IconSave size={13} />
                 {saving ? 'Saving…' : 'Update'}
@@ -509,7 +509,7 @@ export function ExplainSlider({
               <button
                 onClick={handleDelete}
                 disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <IconTrash size={13} />
                 Delete
@@ -517,7 +517,7 @@ export function ExplainSlider({
               <button
                 onClick={onClose}
                 disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <IconClose size={13} />
                 Cancel
@@ -529,7 +529,7 @@ export function ExplainSlider({
                   handleExplain();
                 }}
                 disabled={explaining || saving}
-                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-green-500 text-green-700 hover:bg-green-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-green-500 text-green-700 hover:bg-green-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <IconPlay size={13} />
                 {explaining ? 'Running…' : 'Explain'}

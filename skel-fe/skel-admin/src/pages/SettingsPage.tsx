@@ -42,7 +42,7 @@ function ThemeSection() {
 
   return (
     <div className="bg-card border border-border rounded shadow-sm p-6">
-      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">
+      <div className="text-xs text-muted-foreground uppercase tracking-wide mb-4">
         Appearance
       </div>
       <div className="flex gap-3">
@@ -68,7 +68,7 @@ function ThemeSection() {
             </div>
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-xs font-semibold text-foreground">{label}</div>
+                <div className="text-xs text-foreground">{label}</div>
                 <div className="text-xs text-muted-foreground">{desc}</div>
               </div>
               {theme === id && (
@@ -144,35 +144,35 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
-      <h1 className="text-xl font-semibold text-foreground">Settings</h1>
+      <h1 className="text-xl text-foreground">Settings</h1>
 
       {/* Theme */}
       <ThemeSection />
 
       {/* Current session */}
       <div className="bg-blue-50 border border-blue-200 rounded p-4">
-        <div className="text-sm font-medium text-blue-800 mb-1">Current Session</div>
+        <div className="text-sm text-blue-800 mb-1">Current Session</div>
         <div className="text-sm text-blue-700 space-y-0.5">
           <div>
             Auth mode:{' '}
-            <span className="font-medium">
+            <span className="">
               {AUTH_ENABLED ? 'Keycloak' : 'No-auth (Guest)'}
             </span>
           </div>
           {isAuthenticated && user && (
             <>
               <div>
-                User: <span className="font-medium">{user.name}</span>
+                User: <span className="">{user.name}</span>
               </div>
               {user.email && (
                 <div>
-                  Email: <span className="font-medium">{user.email}</span>
+                  Email: <span className="">{user.email}</span>
                 </div>
               )}
               {user.roles && user.roles.length > 0 && (
                 <div>
                   Roles:{' '}
-                  <span className="font-medium">{user.roles.join(', ')}</span>
+                  <span className="">{user.roles.join(', ')}</span>
                 </div>
               )}
             </>
@@ -183,7 +183,7 @@ export function SettingsPage() {
       <div className="bg-card border border-border rounded shadow-sm p-6 space-y-5">
         {/* API URL */}
         <div>
-          <label className="block text-sm font-semibold text-foreground mb-1">
+          <label className="block text-sm text-foreground mb-1">
             API Base URL
           </label>
           <input
@@ -201,12 +201,12 @@ export function SettingsPage() {
         {AUTH_ENABLED && (
           <>
             <hr className="border-border" />
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            <div className="text-xs text-muted-foreground uppercase tracking-wide">
               Keycloak Configuration
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-foreground mb-1">
+              <label className="block text-sm text-foreground mb-1">
                 Keycloak URL
               </label>
               <input
@@ -220,7 +220,7 @@ export function SettingsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-foreground mb-1">
+              <label className="block text-sm text-foreground mb-1">
                 Realm
               </label>
               <input
@@ -234,7 +234,7 @@ export function SettingsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-foreground mb-1">
+              <label className="block text-sm text-foreground mb-1">
                 Client ID
               </label>
               <input
@@ -260,18 +260,18 @@ export function SettingsPage() {
       <div className="flex items-center gap-3">
         <button
           onClick={handleSave}
-          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors"
         >
           <IconSave size={13} /> Save to localStorage
         </button>
         <button
           onClick={handleReset}
-          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-border text-muted-foreground hover:bg-muted transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-muted transition-colors"
         >
           <IconReset size={13} /> Reset to defaults
         </button>
         {saved && (
-          <span className="text-green-600 text-xs font-medium">
+          <span className="text-green-600 text-xs">
             ✓ Saved! Reload the page for Keycloak changes to take effect.
           </span>
         )}

@@ -17,7 +17,7 @@ function EndpointRow({ method, path, desc }: EndpointRowProps) {
     <tr className="border-b border-border hover:bg-muted">
       <td className="py-2 px-3">
         <span
-          className={`text-xs font-bold px-2 py-0.5 rounded font-mono ${
+          className={`text-xs px-2 py-0.5 rounded font-mono ${
             methodColor[method] ?? 'bg-muted text-muted-foreground'
           }`}
         >
@@ -33,11 +33,11 @@ function EndpointRow({ method, path, desc }: EndpointRowProps) {
 export function HelpPage() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
-      <h1 className="text-xl font-semibold text-foreground">Help &amp; Documentation</h1>
+      <h1 className="text-xl text-foreground">Help &amp; Documentation</h1>
 
       {/* Overview */}
       <section>
-        <h2 className="text-base font-semibold text-foreground mb-2">Overview</h2>
+        <h2 className="text-base text-foreground mb-2">Overview</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
           The <strong>Explain Admin</strong> UI manages <em>Explain Rules</em> — named
           scripts that describe how to interpret or transform data. Each rule has a
@@ -49,7 +49,7 @@ export function HelpPage() {
 
       {/* API Endpoints */}
       <section>
-        <h2 className="text-base font-semibold text-foreground mb-3">API Endpoints</h2>
+        <h2 className="text-base text-foreground mb-3">API Endpoints</h2>
         <div className="border border-border rounded overflow-hidden">
           <table className="min-w-full text-sm">
             <thead className="bg-nav text-nav-fg text-xs uppercase">
@@ -97,7 +97,7 @@ export function HelpPage() {
 
       {/* Script Types */}
       <section>
-        <h2 className="text-base font-semibold text-foreground mb-3">Script Types</h2>
+        <h2 className="text-base text-foreground mb-3">Script Types</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             {
@@ -131,10 +131,10 @@ export function HelpPage() {
               className="border border-border rounded p-3 bg-card"
             >
               <div className="flex items-center gap-2 mb-1">
-                <code className="text-xs bg-muted px-2 py-0.5 rounded font-mono font-bold">
+                <code className="text-xs bg-muted px-2 py-0.5 rounded font-mono">
                   {item.typ}
                 </code>
-                <span className="text-sm font-medium text-foreground">
+                <span className="text-sm text-foreground">
                   {item.label}
                 </span>
               </div>
@@ -146,7 +146,7 @@ export function HelpPage() {
 
       {/* Data Model */}
       <section>
-        <h2 className="text-base font-semibold text-foreground mb-2">Data Model</h2>
+        <h2 className="text-base text-foreground mb-2">Data Model</h2>
         <pre className="bg-gray-900 text-green-400 text-xs rounded p-4 overflow-x-auto leading-relaxed">
 {`// Rule
 {
@@ -174,10 +174,10 @@ export function HelpPage() {
 
       {/* Usage Examples */}
       <section>
-        <h2 className="text-base font-semibold text-foreground mb-2">Usage Examples</h2>
+        <h2 className="text-base text-foreground mb-2">Usage Examples</h2>
         <div className="space-y-3">
           <div>
-            <div className="text-xs font-semibold text-muted-foreground uppercase mb-1">
+            <div className="text-xs text-muted-foreground uppercase mb-1">
               Create a rule (curl)
             </div>
             <pre className="bg-gray-900 text-green-400 text-xs rounded p-3 overflow-x-auto">
@@ -191,7 +191,7 @@ export function HelpPage() {
             </pre>
           </div>
           <div>
-            <div className="text-xs font-semibold text-muted-foreground uppercase mb-1">
+            <div className="text-xs text-muted-foreground uppercase mb-1">
               List rules (curl)
             </div>
             <pre className="bg-gray-900 text-green-400 text-xs rounded p-3 overflow-x-auto">
@@ -200,7 +200,7 @@ curl http://localhost:8080/api/v1/explain?oid=org-123`}
             </pre>
           </div>
           <div>
-            <div className="text-xs font-semibold text-muted-foreground uppercase mb-1">
+            <div className="text-xs text-muted-foreground uppercase mb-1">
               Delete a rule (curl)
             </div>
             <pre className="bg-gray-900 text-green-400 text-xs rounded p-3 overflow-x-auto">
@@ -212,7 +212,7 @@ curl http://localhost:8080/api/v1/explain?oid=org-123`}
 
       {/* Environment variables */}
       <section>
-        <h2 className="text-base font-semibold text-foreground mb-2">
+        <h2 className="text-base text-foreground mb-2">
           Environment Variables
         </h2>
         <div className="border border-border rounded overflow-hidden">

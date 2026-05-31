@@ -25,13 +25,13 @@ function AppContent() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="bg-card border border-red-200 rounded-lg shadow p-8 max-w-md w-full mx-4">
-          <div className="text-red-600 text-xl mb-3 font-semibold">
+          <div className="text-red-600 text-xl mb-3">
             Authentication Error
           </div>
           <div className="text-foreground text-sm mb-5">{error}</div>
           <button
             onClick={login}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded transition-colors"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded transition-colors"
           >
             Try Again
           </button>
@@ -45,11 +45,11 @@ function AppContent() {
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="bg-card border border-border rounded-lg shadow p-8 max-w-sm w-full mx-4 text-center">
           <div className="text-4xl mb-4">🔍</div>
-          <h1 className="text-xl font-semibold text-foreground mb-2">Explain Admin</h1>
+          <h1 className="text-xl text-foreground mb-2">Explain Admin</h1>
           <p className="text-muted-foreground text-sm mb-6">Please sign in to continue.</p>
           <button
             onClick={login}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded transition-colors"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded transition-colors"
           >
             Sign In
           </button>

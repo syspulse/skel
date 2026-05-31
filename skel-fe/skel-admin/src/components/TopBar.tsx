@@ -9,7 +9,7 @@ export function TopBar() {
     <header className="fixed top-0 left-0 right-0 h-14 bg-header text-header-fg flex items-center px-4 z-50 shadow-sm border-b border-border">
       <div className="flex items-center gap-2.5 w-52 flex-shrink-0">
         <IconLamp size={22} />
-        <span className="text-lg font-semibold tracking-wide">Explain Admin</span>
+        <span className="text-lg tracking-wide">Explain Admin</span>
       </div>
 
       <div className="flex-1" />

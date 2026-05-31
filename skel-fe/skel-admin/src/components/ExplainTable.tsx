@@ -135,7 +135,7 @@ export function ExplainTable({
                 <td className="px-3 py-2 font-mono text-xs text-muted-foreground max-w-[140px] truncate">
                   {rule.oid || <span className="opacity-30">—</span>}
                 </td>
-                <td className="px-3 py-2 font-mono text-xs font-medium text-foreground max-w-[180px] truncate">
+                <td className="px-3 py-2 font-mono text-xs text-foreground max-w-[180px] truncate">
                   {rule.rid}
                 </td>
                 <td className="px-3 py-2 text-foreground max-w-[160px] truncate">

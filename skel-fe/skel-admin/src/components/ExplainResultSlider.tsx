@@ -51,7 +51,7 @@ export function ExplainResultSlider({
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted shrink-0">
-        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 min-w-0">
+        <h2 className="text-sm text-foreground flex items-center gap-2 min-w-0">
           Explanation
           {result?.rid && (
             <span className="font-mono text-xs font-normal text-muted-foreground truncate">{result.rid}</span>
@@ -75,14 +75,14 @@ export function ExplainResultSlider({
             </div>
 
             <div className="text-[11px] leading-5 text-muted-foreground space-y-0.5">
-              <div><span className="font-medium text-foreground">ts:</span> {formatTs(result.ts)}</div>
-              {result.oid   && <div><span className="font-medium text-foreground">oid:</span> {result.oid}</div>}
-              {result.sid   && <div><span className="font-medium text-foreground">sid:</span> {result.sid}</div>}
-              {result.fmt   && <div><span className="font-medium text-foreground">fmt:</span> {result.fmt}</div>}
-              {result.style && <div><span className="font-medium text-foreground">style:</span> {result.style}</div>}
+              <div><span className="text-foreground">ts:</span> {formatTs(result.ts)}</div>
+              {result.oid   && <div><span className="text-foreground">oid:</span> {result.oid}</div>}
+              {result.sid   && <div><span className="text-foreground">sid:</span> {result.sid}</div>}
+              {result.fmt   && <div><span className="text-foreground">fmt:</span> {result.fmt}</div>}
+              {result.style && <div><span className="text-foreground">style:</span> {result.style}</div>}
               {metaWithoutWidth && Object.keys(metaWithoutWidth).length > 0 && (
                 <div className="font-mono break-all">
-                  <span className="font-sans font-medium text-foreground">meta:</span>{' '}
+                  <span className="font-sans text-foreground">meta:</span>{' '}
                   {JSON.stringify(metaWithoutWidth)}
                 </div>
               )}

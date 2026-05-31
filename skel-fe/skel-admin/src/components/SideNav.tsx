@@ -27,7 +27,7 @@ export function SideNav({ activePage, onNavigate }: SideNavProps) {
         <button
           key={id}
           onClick={() => onNavigate(id)}
-          className={`flex items-center gap-3 px-5 py-3 text-sm font-medium transition-colors text-left w-full
+          className={`flex items-center gap-3 px-5 py-3 text-sm transition-colors text-left w-full
             ${
               activePage === id
                 ? 'bg-nav-active border-l-4 border-blue-400 text-nav-fg'

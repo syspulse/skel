@@ -58,7 +58,7 @@ export function TimeRangePicker({ value, onChange }: TimeRangePickerProps) {
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <label className="text-sm text-muted-foreground font-medium whitespace-nowrap">
+      <label className="text-sm text-muted-foreground whitespace-nowrap">
         Time:
       </label>
       <select

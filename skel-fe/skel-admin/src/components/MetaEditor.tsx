@@ -75,7 +75,7 @@ export function MetaEditor({ value, onChange }: MetaEditorProps) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+        <span className="text-xs text-muted-foreground uppercase tracking-wide">
           Meta
         </span>
         <button
