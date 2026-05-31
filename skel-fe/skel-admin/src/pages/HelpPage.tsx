@@ -39,7 +39,7 @@ export function HelpPage() {
       <section>
         <h2 className="text-base text-foreground mb-2">Overview</h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          The <strong>Explain Admin</strong> UI manages <em>Explain Rules</em> — named
+          The <strong>admin</strong> UI manages <em>Explain Rules</em> — named
           scripts that describe how to interpret or transform data. Each rule has a
           unique <code className="bg-muted px-1 rounded text-xs">rid</code> (rule
           ID), optional <code className="bg-muted px-1 rounded text-xs">oid</code>{' '}
@@ -248,7 +248,7 @@ curl http://localhost:8080/api/v1/explain?oid=org-123`}
                 },
                 {
                   name: 'VITE_KEYCLOAK_CLIENT_ID',
-                  def: 'explain-admin',
+                  def: 'skel-admin',
                   desc: 'Keycloak client ID',
                 },
               ].map((row) => (

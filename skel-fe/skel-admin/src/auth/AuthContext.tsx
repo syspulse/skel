@@ -39,7 +39,7 @@ const KEYCLOAK_REALM =
 const KEYCLOAK_CLIENT_ID =
   localStorage.getItem('VITE_KEYCLOAK_CLIENT_ID') ||
   import.meta.env.VITE_KEYCLOAK_CLIENT_ID ||
-  'explain-admin';
+  'skel-admin';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type KeycloakInstance = any;

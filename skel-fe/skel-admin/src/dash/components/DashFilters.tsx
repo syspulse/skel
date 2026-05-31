@@ -1,15 +1,11 @@
 import React from 'react';
-import type { TimeRange } from '../types';
-import { TimeRangePicker } from './TimeRangePicker';
-import { IconRefresh, IconTrash, IconPlus } from './Icons';
+import { IconRefresh, IconTrash, IconPlus } from '../../components/Icons';
 
-export interface FilterState {
-  oid: string;
-  rid: string;
-  timeRange: TimeRange;
+export interface DashFilterState {
+  search: string;
 }
 
-export const TIMEZONES: { value: string; label: string }[] = [
+const TIMEZONES: { value: string; label: string }[] = [
   { value: 'local',                label: 'local' },
   { value: 'UTC',                  label: 'GMT' },
   { value: 'Europe/Berlin',        label: 'CET' },
@@ -32,19 +28,19 @@ function tzOffsetLabel(tz: string): string {
   }
 }
 
-interface ExplainFiltersProps {
-  filters: FilterState;
+interface DashFiltersProps {
+  filters: DashFilterState;
   timezone: string;
   selectedCount: number;
   hasSelection: boolean;
-  onFilterChange: (filters: FilterState) => void;
+  onFilterChange: (filters: DashFilterState) => void;
   onTimezoneChange: (tz: string) => void;
   onAdd: () => void;
   onDeleteSelected: () => void;
   onRefresh: () => void;
 }
 
-export function ExplainFilters({
+export function DashFilters({
   filters,
   timezone,
   selectedCount,
@@ -54,45 +50,23 @@ export function ExplainFilters({
   onAdd,
   onDeleteSelected,
   onRefresh,
-}: ExplainFiltersProps) {
+}: DashFiltersProps) {
   const showDeleteSelected = selectedCount > 0;
   const showAdd = !showDeleteSelected && !hasSelection;
 
   return (
     <div className="flex flex-wrap items-center gap-3 p-3 bg-card border-b border-border">
-      {/* OID filter */}
       <div className="flex items-center gap-1">
-        <label className="text-sm text-muted-foreground whitespace-nowrap">
-          OID:
-        </label>
+        <label className="text-sm text-muted-foreground whitespace-nowrap">search:</label>
         <input
           type="text"
-          value={filters.oid}
-          onChange={(e) => onFilterChange({ ...filters, oid: e.target.value })}
-          placeholder="filter..."
-          className="text-sm border border-input rounded px-2 py-1 w-36 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+          value={filters.search}
+          onChange={(e) => onFilterChange({ search: e.target.value })}
+          placeholder="name, desc, tags..."
+          className="text-sm border border-input rounded px-2 py-1 w-48 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
         />
       </div>
 
-      {/* RID filter */}
-      <div className="flex items-center gap-1">
-        <label className="text-sm text-muted-foreground whitespace-nowrap">
-          RID:
-        </label>
-        <input
-          type="text"
-          value={filters.rid}
-          onChange={(e) => onFilterChange({ ...filters, rid: e.target.value })}
-          placeholder="filter..."
-          className="text-sm border border-input rounded px-2 py-1 w-36 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
-        />
-      </div>
-
-      {/* Time range picker + timezone selector */}
-      <TimeRangePicker
-        value={filters.timeRange}
-        onChange={(timeRange) => onFilterChange({ ...filters, timeRange })}
-      />
       <select
         value={timezone}
         onChange={(e) => onTimezoneChange(e.target.value)}
@@ -110,7 +84,6 @@ export function ExplainFilters({
 
       <div className="flex-1" />
 
-      {/* Refresh */}
       <button
         onClick={onRefresh}
         className="inline-flex items-center gap-1.5 text-xs bg-muted hover:bg-muted-hover text-foreground px-3 py-1 rounded border border-border transition-colors"

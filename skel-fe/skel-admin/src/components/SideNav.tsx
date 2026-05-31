@@ -1,7 +1,7 @@
 import React from 'react';
-import { IconLamp, IconSettings, IconHelp } from './Icons';
+import { IconLamp, IconGrid, IconSettings, IconHelp } from './Icons';
 
-export type NavPage = 'explain' | 'settings' | 'help';
+export type NavPage = 'explain' | 'dash' | 'settings' | 'help';
 
 interface SideNavProps {
   activePage: NavPage;
@@ -15,9 +15,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { id: 'explain',  label: 'Explain',  Icon: IconLamp     },
-  { id: 'settings', label: 'Settings', Icon: IconSettings },
-  { id: 'help',     label: 'Help',     Icon: IconHelp     },
+  { id: 'explain',  label: 'Explain',   Icon: IconLamp     },
+  { id: 'dash',     label: 'Dash',      Icon: IconGrid     },
+  { id: 'settings', label: 'Settings',  Icon: IconSettings },
+  { id: 'help',     label: 'Help',      Icon: IconHelp     },
 ];
 
 export function SideNav({ activePage, onNavigate }: SideNavProps) {

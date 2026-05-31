@@ -11,6 +11,7 @@ function getStoredOrEnv(key: string, envVal: string): string {
 
 interface SettingsForm {
   apiUrl: string;
+  dashApiUrl: string;
   keycloakUrl: string;
   keycloakRealm: string;
   keycloakClientId: string;
@@ -90,6 +91,7 @@ export function SettingsPage() {
   const { user, isAuthenticated } = useAuth();
   const [form, setForm] = useState<SettingsForm>({
     apiUrl: '',
+    dashApiUrl: '',
     keycloakUrl: '',
     keycloakRealm: '',
     keycloakClientId: '',
@@ -102,6 +104,10 @@ export function SettingsPage() {
         'VITE_API_URL',
         import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1/explain',
       ),
+      dashApiUrl: getStoredOrEnv(
+        'VITE_DASH_API_URL',
+        import.meta.env.VITE_DASH_API_URL || 'http://localhost:8080/api/v1/dash',
+      ),
       keycloakUrl: getStoredOrEnv(
         'VITE_KEYCLOAK_URL',
         import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8180',
@@ -112,13 +118,14 @@ export function SettingsPage() {
       ),
       keycloakClientId: getStoredOrEnv(
         'VITE_KEYCLOAK_CLIENT_ID',
-        import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'explain-admin',
+        import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'skel-admin',
       ),
     });
   }, []);
 
   const handleSave = () => {
     localStorage.setItem('VITE_API_URL', form.apiUrl);
+    localStorage.setItem('VITE_DASH_API_URL', form.dashApiUrl);
     if (AUTH_ENABLED) {
       localStorage.setItem('VITE_KEYCLOAK_URL', form.keycloakUrl);
       localStorage.setItem('VITE_KEYCLOAK_REALM', form.keycloakRealm);
@@ -130,14 +137,16 @@ export function SettingsPage() {
 
   const handleReset = () => {
     localStorage.removeItem('VITE_API_URL');
+    localStorage.removeItem('VITE_DASH_API_URL');
     localStorage.removeItem('VITE_KEYCLOAK_URL');
     localStorage.removeItem('VITE_KEYCLOAK_REALM');
     localStorage.removeItem('VITE_KEYCLOAK_CLIENT_ID');
     setForm({
       apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1/explain',
+      dashApiUrl: import.meta.env.VITE_DASH_API_URL || 'http://localhost:8080/api/v1/dash',
       keycloakUrl: import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8180',
       keycloakRealm: import.meta.env.VITE_KEYCLOAK_REALM || 'master',
-      keycloakClientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'explain-admin',
+      keycloakClientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'skel-admin',
     });
     setSaved(false);
   };
@@ -194,6 +203,22 @@ export function SettingsPage() {
           />
           <p className="text-xs text-muted-foreground mt-1">
             Default: <code>{import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1/explain'}</code>
+          </p>
+        </div>
+
+        {/* Dash API URL */}
+        <div>
+          <label className="block text-sm text-foreground mb-1">
+            Dash API Base URL
+          </label>
+          <input
+            type="text"
+            value={form.dashApiUrl}
+            onChange={(e) => setForm((f) => ({ ...f, dashApiUrl: e.target.value }))}
+            className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Default: <code>{import.meta.env.VITE_DASH_API_URL || 'http://localhost:8080/api/v1/dash'}</code>
           </p>
         </div>
 

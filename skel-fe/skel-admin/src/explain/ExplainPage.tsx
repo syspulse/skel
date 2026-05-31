@@ -1,15 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import * as api from '../api';
+import * as api from './api';
 import { useAuth } from '../auth/useAuth';
-import { ExplainFilters, FilterState } from '../components/ExplainFilters';
-import { ExplainSlider } from '../components/ExplainSlider';
-import { ExplainTable } from '../components/ExplainTable';
-import type {
-  Explain,
-  ExplainCreateReq,
-  ExplainUpdateReq,
-  TimeRange,
-} from '../types';
+import { ExplainFilters, FilterState } from './components/ExplainFilters';
+import { ExplainSlider } from './components/ExplainSlider';
+import { ExplainTable } from './components/ExplainTable';
+import type { Explain, ExplainCreateReq, ExplainUpdateReq } from './types';
+import type { TimeRange } from '../types';
 
 function rowKey(rule: Explain): string {
   return `${rule.oid ?? ''}_${rule.rid}`;
@@ -55,109 +51,62 @@ export function ExplainPage() {
     }
   }, [token]);
 
-  useEffect(() => {
-    fetchRules();
-  }, [fetchRules]);
+  useEffect(() => { fetchRules(); }, [fetchRules]);
 
   const filteredRules = useMemo(() => {
     return rules.filter((rule) => {
-      if (
-        filters.oid &&
-        !(rule.oid ?? '').toLowerCase().includes(filters.oid.toLowerCase())
-      ) {
-        return false;
-      }
-      if (
-        filters.rid &&
-        !rule.rid.toLowerCase().includes(filters.rid.toLowerCase())
-      ) {
-        return false;
-      }
-      if (!isInTimeRange(rule.ts0, filters.timeRange)) {
-        return false;
-      }
+      if (filters.oid && !(rule.oid ?? '').toLowerCase().includes(filters.oid.toLowerCase())) return false;
+      if (filters.rid && !rule.rid.toLowerCase().includes(filters.rid.toLowerCase())) return false;
+      if (!isInTimeRange(rule.ts0, filters.timeRange)) return false;
       return true;
     });
   }, [rules, filters]);
 
   const handleRowClick = (rule: Explain) => {
-    setSelected(rule);
-    setAddMode(false);
-    setSliderOpen(true);
+    setSelected(rule); setAddMode(false); setSliderOpen(true);
   };
 
   const handleCheckboxChange = (rule: Explain, checked: boolean) => {
     const key = rowKey(rule);
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (checked) next.add(key);
-      else next.delete(key);
+      if (checked) next.add(key); else next.delete(key);
       return next;
     });
   };
 
   const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedIds(new Set(filteredRules.map(rowKey)));
-    } else {
-      setSelectedIds(new Set());
-    }
+    setSelectedIds(checked ? new Set(filteredRules.map(rowKey)) : new Set());
   };
 
-  const handleAdd = () => {
-    setSelected(null);
-    setAddMode(true);
-    setSliderOpen(true);
-  };
+  const handleAdd = () => { setSelected(null); setAddMode(true); setSliderOpen(true); };
 
-  const handleCloseSlider = () => {
-    setSliderOpen(false);
-    setSelected(null);
-    setAddMode(false);
-  };
+  const handleCloseSlider = () => { setSliderOpen(false); setSelected(null); setAddMode(false); };
 
   const handleCreate = async (rid: string, req: ExplainCreateReq) => {
     await api.createRule(token, rid, req);
-    setSliderOpen(false);
-    setSelected(null);
-    await fetchRules();
+    setSliderOpen(false); setSelected(null); await fetchRules();
   };
 
   const handleUpdate = async (rid: string, req: ExplainUpdateReq) => {
     await api.updateRule(token, rid, req);
-    setSliderOpen(false);
-    setSelected(null);
-    await fetchRules();
+    setSliderOpen(false); setSelected(null); await fetchRules();
   };
 
   const handleDelete = async (rule: Explain) => {
     if (!window.confirm(`Delete rule "${rule.rid}"?`)) return;
     await api.deleteRule(token, rule.rid, rule.oid);
-    setSliderOpen(false);
-    setSelected(null);
-    await fetchRules();
+    setSliderOpen(false); setSelected(null); await fetchRules();
   };
 
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) return;
-    if (
-      !window.confirm(
-        `Delete ${selectedIds.size} selected rule(s)? This cannot be undone.`,
-      )
-    )
-      return;
-
+    if (!window.confirm(`Delete ${selectedIds.size} selected rule(s)? This cannot be undone.`)) return;
     const toDelete = filteredRules.filter((r) => selectedIds.has(rowKey(r)));
     for (const rule of toDelete) {
-      try {
-        await api.deleteRule(token, rule.rid, rule.oid);
-      } catch {
-        // continue deleting others
-      }
+      try { await api.deleteRule(token, rule.rid, rule.oid); } catch { /* continue */ }
     }
-    setSelectedIds(new Set());
-    setSelected(null);
-    setSliderOpen(false);
+    setSelectedIds(new Set()); setSelected(null); setSliderOpen(false);
     await fetchRules();
   };
 
@@ -175,7 +124,6 @@ export function ExplainPage() {
         onRefresh={fetchRules}
       />
 
-      {/* Status bar */}
       <div className="px-4 py-1 text-xs text-muted-foreground bg-muted border-b border-border flex items-center gap-3">
         {loading && <span className="text-blue-500">Loading…</span>}
         {!loading && (
@@ -184,19 +132,12 @@ export function ExplainPage() {
             {filteredRules.length !== rules.length && ` (filtered from ${rules.length})`}
           </span>
         )}
-        {fetchError && (
-          <span className="text-red-500 flex items-center gap-1">
-            ⚠ {fetchError}
-          </span>
-        )}
+        {fetchError && <span className="text-red-500 flex items-center gap-1">⚠ {fetchError}</span>}
       </div>
 
-      {/* Table */}
       <div className="flex-1 overflow-auto bg-card">
         {loading && rules.length === 0 ? (
-          <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">
-            Loading rules…
-          </div>
+          <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">Loading rules…</div>
         ) : (
           <ExplainTable
             rules={filteredRules}

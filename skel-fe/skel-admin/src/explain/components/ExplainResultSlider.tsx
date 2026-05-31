@@ -2,7 +2,7 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { ExplainRes } from '../types';
-import { IconClose } from './Icons';
+import { IconClose } from '../../components/Icons';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -49,7 +49,6 @@ export function ExplainResultSlider({
       style={{ right: propertiesWidth, width, transform }}
       className="fixed top-14 bottom-0 bg-card shadow-2xl border-l border-border z-[49] flex flex-col transition-transform duration-300 ease-in-out"
     >
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted shrink-0">
         <h2 className="text-sm text-foreground flex items-center gap-2 min-w-0">
           Explanation
@@ -66,7 +65,6 @@ export function ExplainResultSlider({
         </button>
       </div>
 
-      {/* Body */}
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4">
         {result ? (
           <>

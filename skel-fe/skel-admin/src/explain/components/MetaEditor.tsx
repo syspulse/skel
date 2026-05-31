@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconClose, IconPlus } from './Icons';
+import { IconClose, IconPlus } from '../../components/Icons';
 
 interface MetaEditorProps {
   value: Record<string, unknown>;
@@ -45,8 +45,6 @@ function rowsToMeta(rows: MetaRow[]): Record<string, unknown> {
 }
 
 export function MetaEditor({ value, onChange }: MetaEditorProps) {
-  // Initialized once from value prop. Parent must remount this component (via key prop)
-  // to load a different rule — no useEffect sync to avoid resetting rows mid-edit.
   const [rows, setRows] = React.useState<MetaRow[]>(() => metaToRows(value));
 
   const commit = (newRows: MetaRow[]) => {
@@ -75,9 +73,7 @@ export function MetaEditor({ value, onChange }: MetaEditorProps) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-muted-foreground">
-          meta
-        </span>
+        <span className="text-xs text-muted-foreground">meta</span>
         <button
           type="button"
           onClick={handleAdd}

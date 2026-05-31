@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Explain } from '../types';
-import { IconLamp } from './Icons';
+import { IconLamp } from '../../components/Icons';
 
 function RuleIcon({ meta }: { meta?: Record<string, unknown> | null }) {
   const icon = meta?.icon;
@@ -132,15 +132,8 @@ export function ExplainTable({
             ].join(' ');
 
             return (
-              <tr
-                key={key}
-                className={rowClass}
-                onClick={() => onRowClick(rule)}
-              >
-                <td
-                  className="px-3 py-2 text-center"
-                  onClick={(e) => e.stopPropagation()}
-                >
+              <tr key={key} className={rowClass} onClick={() => onRowClick(rule)}>
+                <td className="px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={isChecked}
