@@ -25,13 +25,12 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 
 function formatTs(ts: number, utc: boolean): string {
   const d = new Date(ts);
-  const day   = utc ? d.getUTCDate()     : d.getDate();
-  const mon   = MONTHS[utc ? d.getUTCMonth()    : d.getMonth()];
-  const year  = utc ? d.getUTCFullYear() : d.getFullYear();
-  const hh    = String(utc ? d.getUTCHours()    : d.getHours()).padStart(2, '0');
-  const mm    = String(utc ? d.getUTCMinutes()  : d.getMinutes()).padStart(2, '0');
-  const ss    = String(utc ? d.getUTCSeconds()  : d.getSeconds()).padStart(2, '0');
-  return `${day} ${mon} ${year} ${hh}:${mm}:${ss}${utc ? ' GMT' : ''}`;
+  const day = utc ? d.getUTCDate()    : d.getDate();
+  const mon = MONTHS[utc ? d.getUTCMonth()   : d.getMonth()];
+  const hh  = String(utc ? d.getUTCHours()   : d.getHours()).padStart(2, '0');
+  const mm  = String(utc ? d.getUTCMinutes() : d.getMinutes()).padStart(2, '0');
+  const ss  = String(utc ? d.getUTCSeconds() : d.getSeconds()).padStart(2, '0');
+  return `${day} ${mon} ${hh}:${mm}:${ss}`;
 }
 
 function rowKey(rule: Explain): string {
@@ -72,7 +71,7 @@ export function ExplainTable({
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
         <thead>
-          <tr className="bg-nav text-nav-fg text-xs uppercase tracking-wide">
+          <tr className="bg-nav text-nav-fg text-xs">
             <th className="w-10 px-3 py-2 text-center">
               <input
                 type="checkbox"
@@ -84,12 +83,12 @@ export function ExplainTable({
                 className="cursor-pointer"
               />
             </th>
-            <th className="w-10 px-2 py-2 text-center">Icon</th>
-            <th className="px-3 py-2 text-left whitespace-nowrap">Created (ts0)</th>
-            <th className="px-3 py-2 text-left">OID</th>
-            <th className="px-3 py-2 text-left">RID</th>
-            <th className="px-3 py-2 text-left">Name</th>
-            <th className="px-3 py-2 text-left">Description</th>
+            <th className="w-10 px-2 py-2 text-center">icon</th>
+            <th className="w-32 px-3 py-2 text-left whitespace-nowrap">ts0{utc ? ' (UTC)' : ''}</th>
+            <th className="px-3 py-2 text-left">oid</th>
+            <th className="px-3 py-2 text-left">rid</th>
+            <th className="px-3 py-2 text-left">name</th>
+            <th className="px-3 py-2 text-left">desc</th>
           </tr>
         </thead>
         <tbody>
