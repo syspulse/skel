@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import * as api from './api';
 import { useAuth } from '../auth/useAuth';
+import { useNotifications } from '../notifications/NotificationContext';
 import { DashFilters, DashFilterState } from './components/DashFilters';
 import { DashSlider } from './components/DashSlider';
 import { DashTable } from './components/DashTable';
@@ -8,6 +9,7 @@ import type { DashLayout, DashCreateReq, DashUpdateReq } from './types';
 
 export function DashPage() {
   const { token } = useAuth();
+  const { add: notify } = useNotifications();
   const [dashes, setDashes] = useState<DashLayout[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -28,11 +30,13 @@ export function DashPage() {
       const sorted = [...(result.data ?? [])].sort((a, b) => b.ts0 - a.ts0);
       setDashes(sorted);
     } catch (e) {
-      setFetchError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setFetchError(msg);
+      notify('error', 'Failed to load dashboards', msg);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, notify]);
 
   useEffect(() => { fetchDashes(); }, [fetchDashes]);
 

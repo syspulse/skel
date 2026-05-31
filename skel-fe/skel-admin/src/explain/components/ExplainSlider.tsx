@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { Explain, ExplainCreateReq, ExplainRes, ExplainScript, ExplainUpdateReq } from '../types';
 import { runExplain } from '../api';
 import { useAuth } from '../../auth/useAuth';
+import { useNotifications } from '../../notifications/NotificationContext';
 import { MetaEditor } from './MetaEditor';
 import { ScriptEditor } from '../../components/ScriptEditor';
 import { ExplainResultSlider } from './ExplainResultSlider';
@@ -63,6 +64,7 @@ export function ExplainSlider({
   const [formKey, setFormKey] = useState(0);
 
   const { token } = useAuth();
+  const { add: notify } = useNotifications();
   const [testData, setTestData]         = useState('');
   const [testStyle, setTestStyle]       = useState('');
   const [testResult, setTestResult]     = useState<ExplainRes | null>(null);
@@ -161,14 +163,18 @@ export function ExplainSlider({
       try {
         parsed = testData.trim() ? JSON.parse(testData) : {};
       } catch {
-        setTestError('Invalid JSON in input data');
+        const msg = 'Invalid JSON in input data';
+        setTestError(msg);
+        notify('error', 'Explain failed', msg);
         return;
       }
       const res = await runExplain(token, rule.rid, parsed, form.oid || undefined, testStyle || undefined);
       setTestResult(res);
       setResultOpen(true);
     } catch (e) {
-      setTestError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setTestError(msg);
+      notify('error', 'Explain failed', msg);
     } finally {
       setExplaining(false);
     }

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { DashLayout, DashCreateReq, DashUpdateReq } from '../types';
+import { useNotifications } from '../../notifications/NotificationContext';
 import { IconClose, IconSave, IconTrash } from '../../components/Icons';
 
 interface DashSliderProps {
@@ -38,6 +39,7 @@ export function DashSlider({
   onUpdate,
   onDelete,
 }: DashSliderProps) {
+  const { add: notify } = useNotifications();
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +71,9 @@ export function DashSlider({
       };
       await onCreate(req);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      notify('error', 'Failed to create dashboard', msg);
     } finally {
       setSaving(false);
     }
@@ -96,7 +100,9 @@ export function DashSlider({
       };
       await onUpdate(dash.id, req);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      notify('error', 'Failed to update dashboard', msg);
     } finally {
       setSaving(false);
     }
@@ -108,7 +114,9 @@ export function DashSlider({
     try {
       await onDelete(dash);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      notify('error', 'Failed to delete dashboard', msg);
     } finally {
       setSaving(false);
     }
