@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 import { useTheme, Theme } from '../theme/ThemeContext';
-import { IconSave, IconReset } from '../components/Icons';
+import { useApp, DEFAULT_APP_NAME } from '../theme/AppContext';
+import { IconReset, IconLamp } from '../components/Icons';
 
 const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED !== 'false';
 
@@ -9,13 +10,9 @@ function getStoredOrEnv(key: string, envVal: string): string {
   return localStorage.getItem(key) || envVal || '';
 }
 
-interface SettingsForm {
-  apiUrl: string;
-  dashApiUrl: string;
-  keycloakUrl: string;
-  keycloakRealm: string;
-  keycloakClientId: string;
-}
+type Tab = 'profile' | 'api';
+
+// ── Themes ────────────────────────────────────────────────────────────────────
 
 const THEMES: { id: Theme; label: string; desc: string; preview: { nav: string; bg: string; card: string } }[] = [
   {
@@ -40,24 +37,17 @@ const THEMES: { id: Theme; label: string; desc: string; preview: { nav: string; 
 
 function ThemeSection() {
   const { theme, setTheme } = useTheme();
-
   return (
-    <div className="bg-card border border-border rounded shadow-sm p-6">
-      <div className="text-xs text-muted-foreground uppercase tracking-wide mb-4">
-        Appearance
-      </div>
+    <div>
+      <div className="text-xs text-muted-foreground mb-3">appearance</div>
       <div className="flex gap-3">
         {THEMES.map(({ id, label, desc, preview }) => (
           <button
             key={id}
             onClick={() => setTheme(id)}
             className={`flex-1 border-2 rounded-lg p-3 text-left transition-all
-              ${theme === id
-                ? 'border-blue-500'
-                : 'border-border hover:border-muted-foreground'
-              }`}
+              ${theme === id ? 'border-blue-500' : 'border-border hover:border-muted-foreground'}`}
           >
-            {/* Color preview */}
             <div
               className="flex gap-0 mb-2.5 rounded overflow-hidden h-9 border border-border"
               style={{ background: preview.bg }}
@@ -87,52 +77,144 @@ function ThemeSection() {
   );
 }
 
-export function SettingsPage() {
+// ── Logo preview (mirrors TopBar rendering) ───────────────────────────────────
+
+function LogoPreview({ logoUrl }: { logoUrl: string }) {
+  if (!logoUrl.trim()) {
+    return (
+      <span className="inline-flex items-center justify-center text-muted-foreground">
+        <IconLamp size={32} />
+      </span>
+    );
+  }
+  const s = logoUrl.trim();
+  if (s.toLowerCase().startsWith('<svg')) {
+    return (
+      <span
+        className="inline-flex items-center justify-center w-8 h-8 [&>svg]:w-full [&>svg]:h-full"
+        dangerouslySetInnerHTML={{ __html: s }}
+      />
+    );
+  }
+  return (
+    <img
+      src={s}
+      alt="logo preview"
+      width={32}
+      height={32}
+      className="object-contain"
+      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+    />
+  );
+}
+
+// ── Profile tab ───────────────────────────────────────────────────────────────
+
+function ProfileTab() {
   const { user, isAuthenticated } = useAuth();
-  const [form, setForm] = useState<SettingsForm>({
-    apiUrl: '',
-    dashApiUrl: '',
-    keycloakUrl: '',
-    keycloakRealm: '',
-    keycloakClientId: '',
-  });
-  const [saved, setSaved] = useState(false);
+  const { appName, logoUrl, setAppName, setLogoUrl, resetBranding } = useApp();
 
-  useEffect(() => {
-    setForm({
-      apiUrl: getStoredOrEnv(
-        'VITE_API_URL',
-        import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1/explain',
-      ),
-      dashApiUrl: getStoredOrEnv(
-        'VITE_DASH_API_URL',
-        import.meta.env.VITE_DASH_API_URL || 'http://localhost:8080/api/v1/dash',
-      ),
-      keycloakUrl: getStoredOrEnv(
-        'VITE_KEYCLOAK_URL',
-        import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8180',
-      ),
-      keycloakRealm: getStoredOrEnv(
-        'VITE_KEYCLOAK_REALM',
-        import.meta.env.VITE_KEYCLOAK_REALM || 'master',
-      ),
-      keycloakClientId: getStoredOrEnv(
-        'VITE_KEYCLOAK_CLIENT_ID',
-        import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'skel-admin',
-      ),
-    });
-  }, []);
+  return (
+    <div className="space-y-6">
+      {/* Appearance */}
+      <div className="bg-card border border-border rounded shadow-sm p-6">
+        <ThemeSection />
+      </div>
 
-  const handleSave = () => {
-    localStorage.setItem('VITE_API_URL', form.apiUrl);
-    localStorage.setItem('VITE_DASH_API_URL', form.dashApiUrl);
-    if (AUTH_ENABLED) {
-      localStorage.setItem('VITE_KEYCLOAK_URL', form.keycloakUrl);
-      localStorage.setItem('VITE_KEYCLOAK_REALM', form.keycloakRealm);
-      localStorage.setItem('VITE_KEYCLOAK_CLIENT_ID', form.keycloakClientId);
-    }
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+      {/* Branding */}
+      <div className="bg-card border border-border rounded shadow-sm p-6 space-y-4">
+        <div className="text-xs text-muted-foreground mb-1">branding</div>
+
+        <div>
+          <label className="block text-sm text-foreground mb-1">app name</label>
+          <input
+            type="text"
+            value={appName}
+            onChange={(e) => setAppName(e.target.value)}
+            placeholder={DEFAULT_APP_NAME}
+            className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm text-foreground mb-1">logo</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={logoUrl}
+              onChange={(e) => setLogoUrl(e.target.value)}
+              placeholder="URL to SVG/PNG, inline <svg ...>, or data: URI"
+              className="flex-1 text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+            />
+            <div className="w-10 h-10 flex items-center justify-center border border-border rounded bg-muted shrink-0">
+              <LogoPreview logoUrl={logoUrl} />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Leave empty to use the default icon.
+          </p>
+        </div>
+
+        <div>
+          <button
+            onClick={resetBranding}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-muted transition-colors"
+          >
+            <IconReset size={13} /> Reset branding
+          </button>
+        </div>
+      </div>
+
+      {/* Current Session */}
+      <div className="bg-blue-50 border border-blue-200 rounded p-4">
+        <div className="text-sm text-blue-800 mb-1">current session</div>
+        <div className="text-sm text-blue-700 space-y-0.5">
+          <div>auth mode: {AUTH_ENABLED ? 'Keycloak' : 'No-auth (Guest)'}</div>
+          {isAuthenticated && user && (
+            <>
+              <div>user: {user.name}</div>
+              {user.email && <div>email: {user.email}</div>}
+              {user.roles && user.roles.length > 0 && (
+                <div>roles: {user.roles.join(', ')}</div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── API tab ───────────────────────────────────────────────────────────────────
+
+interface ApiForm {
+  apiUrl: string;
+  dashApiUrl: string;
+  keycloakUrl: string;
+  keycloakRealm: string;
+  keycloakClientId: string;
+}
+
+const API_DEFAULTS = {
+  apiUrl:         import.meta.env.VITE_API_URL          || 'http://localhost:8080/api/v1/explain',
+  dashApiUrl:     import.meta.env.VITE_DASH_API_URL     || 'http://localhost:8080/api/v1/dash',
+  keycloakUrl:    import.meta.env.VITE_KEYCLOAK_URL     || 'http://localhost:8180',
+  keycloakRealm:  import.meta.env.VITE_KEYCLOAK_REALM   || 'master',
+  keycloakClientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'skel-admin',
+};
+
+function ApiTab() {
+  const [form, setForm] = useState<ApiForm>(() => ({
+    apiUrl:           getStoredOrEnv('VITE_API_URL',          API_DEFAULTS.apiUrl),
+    dashApiUrl:       getStoredOrEnv('VITE_DASH_API_URL',     API_DEFAULTS.dashApiUrl),
+    keycloakUrl:      getStoredOrEnv('VITE_KEYCLOAK_URL',     API_DEFAULTS.keycloakUrl),
+    keycloakRealm:    getStoredOrEnv('VITE_KEYCLOAK_REALM',   API_DEFAULTS.keycloakRealm),
+    keycloakClientId: getStoredOrEnv('VITE_KEYCLOAK_CLIENT_ID', API_DEFAULTS.keycloakClientId),
+  }));
+
+  const set = <K extends keyof ApiForm>(key: K, lsKey: string, value: string) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    localStorage.setItem(lsKey, value);
   };
 
   const handleReset = () => {
@@ -141,133 +223,69 @@ export function SettingsPage() {
     localStorage.removeItem('VITE_KEYCLOAK_URL');
     localStorage.removeItem('VITE_KEYCLOAK_REALM');
     localStorage.removeItem('VITE_KEYCLOAK_CLIENT_ID');
-    setForm({
-      apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1/explain',
-      dashApiUrl: import.meta.env.VITE_DASH_API_URL || 'http://localhost:8080/api/v1/dash',
-      keycloakUrl: import.meta.env.VITE_KEYCLOAK_URL || 'http://localhost:8180',
-      keycloakRealm: import.meta.env.VITE_KEYCLOAK_REALM || 'master',
-      keycloakClientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'skel-admin',
-    });
-    setSaved(false);
+    setForm({ ...API_DEFAULTS });
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
-      <h1 className="text-xl text-foreground">Settings</h1>
-
-      {/* Theme */}
-      <ThemeSection />
-
-      {/* Current session */}
-      <div className="bg-blue-50 border border-blue-200 rounded p-4">
-        <div className="text-sm text-blue-800 mb-1">Current Session</div>
-        <div className="text-sm text-blue-700 space-y-0.5">
-          <div>
-            Auth mode:{' '}
-            <span className="">
-              {AUTH_ENABLED ? 'Keycloak' : 'No-auth (Guest)'}
-            </span>
-          </div>
-          {isAuthenticated && user && (
-            <>
-              <div>
-                User: <span className="">{user.name}</span>
-              </div>
-              {user.email && (
-                <div>
-                  Email: <span className="">{user.email}</span>
-                </div>
-              )}
-              {user.roles && user.roles.length > 0 && (
-                <div>
-                  Roles:{' '}
-                  <span className="">{user.roles.join(', ')}</span>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
+    <div className="space-y-6">
       <div className="bg-card border border-border rounded shadow-sm p-6 space-y-5">
-        {/* API URL */}
         <div>
-          <label className="block text-sm text-foreground mb-1">
-            API Base URL
-          </label>
+          <label className="block text-sm text-foreground mb-1">Explain API URL</label>
           <input
             type="text"
             value={form.apiUrl}
-            onChange={(e) => setForm((f) => ({ ...f, apiUrl: e.target.value }))}
+            onChange={(e) => set('apiUrl', 'VITE_API_URL', e.target.value)}
             className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Default: <code>{import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1/explain'}</code>
+            default: <code>{API_DEFAULTS.apiUrl}</code>
           </p>
         </div>
 
-        {/* Dash API URL */}
         <div>
-          <label className="block text-sm text-foreground mb-1">
-            Dash API Base URL
-          </label>
+          <label className="block text-sm text-foreground mb-1">Dash API URL</label>
           <input
             type="text"
             value={form.dashApiUrl}
-            onChange={(e) => setForm((f) => ({ ...f, dashApiUrl: e.target.value }))}
+            onChange={(e) => set('dashApiUrl', 'VITE_DASH_API_URL', e.target.value)}
             className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Default: <code>{import.meta.env.VITE_DASH_API_URL || 'http://localhost:8080/api/v1/dash'}</code>
+            default: <code>{API_DEFAULTS.dashApiUrl}</code>
           </p>
         </div>
 
-        {/* Keycloak settings */}
         {AUTH_ENABLED && (
           <>
             <hr className="border-border" />
-            <div className="text-xs text-muted-foreground uppercase tracking-wide">
-              Keycloak Configuration
-            </div>
+            <div className="text-xs text-muted-foreground">keycloak</div>
 
             <div>
-              <label className="block text-sm text-foreground mb-1">
-                Keycloak URL
-              </label>
+              <label className="block text-sm text-foreground mb-1">URL</label>
               <input
                 type="text"
                 value={form.keycloakUrl}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, keycloakUrl: e.target.value }))
-                }
+                onChange={(e) => set('keycloakUrl', 'VITE_KEYCLOAK_URL', e.target.value)}
                 className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
               />
             </div>
 
             <div>
-              <label className="block text-sm text-foreground mb-1">
-                Realm
-              </label>
+              <label className="block text-sm text-foreground mb-1">realm</label>
               <input
                 type="text"
                 value={form.keycloakRealm}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, keycloakRealm: e.target.value }))
-                }
+                onChange={(e) => set('keycloakRealm', 'VITE_KEYCLOAK_REALM', e.target.value)}
                 className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
             </div>
 
             <div>
-              <label className="block text-sm text-foreground mb-1">
-                Client ID
-              </label>
+              <label className="block text-sm text-foreground mb-1">client id</label>
               <input
                 type="text"
                 value={form.keycloakClientId}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, keycloakClientId: e.target.value }))
-                }
+                onChange={(e) => set('keycloakClientId', 'VITE_KEYCLOAK_CLIENT_ID', e.target.value)}
                 className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
             </div>
@@ -281,30 +299,57 @@ export function SettingsPage() {
         )}
       </div>
 
-      {/* Actions */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={handleSave}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors"
-        >
-          <IconSave size={13} /> Save to localStorage
-        </button>
         <button
           onClick={handleReset}
           className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-muted transition-colors"
         >
           <IconReset size={13} /> Reset to defaults
         </button>
-        {saved && (
-          <span className="text-green-600 text-xs">
-            ✓ Saved! Reload the page for Keycloak changes to take effect.
-          </span>
-        )}
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Note: API URL changes take effect immediately. Keycloak config changes require a page reload.
+        Changes are saved automatically. Keycloak config changes require a page reload.
       </p>
+    </div>
+  );
+}
+
+// ── SettingsPage ──────────────────────────────────────────────────────────────
+
+export function SettingsPage() {
+  const [tab, setTab] = useState<Tab>('profile');
+
+  const tabs: { id: Tab; label: string }[] = [
+    { id: 'profile', label: 'profile' },
+    { id: 'api',     label: 'api' },
+  ];
+
+  return (
+    <div className="w-full px-6 py-8 space-y-6">
+      <h1 className="text-xl text-foreground">Settings</h1>
+
+      {/* Tab bar */}
+      <div className="flex border-b border-border">
+        {tabs.map(({ id, label }) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`px-4 py-2 text-sm transition-colors border-b-2 -mb-px
+              ${tab === id
+                ? 'border-blue-500 text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="max-w-2xl">
+        {tab === 'profile' && <ProfileTab />}
+        {tab === 'api'     && <ApiTab />}
+      </div>
     </div>
   );
 }
