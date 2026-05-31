@@ -11,6 +11,8 @@
   "dependencies": {
     "@codemirror/lang-javascript": "^6.2.0",
     "@codemirror/lang-json": "^6.0.0",
+    "@fontsource-variable/geist": "^5.2.9",
+    "@fontsource-variable/geist-mono": "^5.2.8",
     "@tailwindcss/typography": "^0.5.19",
     "@uiw/react-codemirror": "^4.23.0",
     "keycloak-js": "^24.0.0",
