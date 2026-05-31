@@ -46,7 +46,6 @@ export function ExplainPage() {
     setFetchError(null);
     try {
       const result = await api.listRules(token);
-      // Sort by ts0 desc
       const sorted = [...(result.data ?? [])].sort((a, b) => b.ts0 - a.ts0);
       setRules(sorted);
     } catch (e) {
@@ -60,7 +59,6 @@ export function ExplainPage() {
     fetchRules();
   }, [fetchRules]);
 
-  // Frontend filtering
   const filteredRules = useMemo(() => {
     return rules.filter((rule) => {
       if (
@@ -149,7 +147,6 @@ export function ExplainPage() {
     )
       return;
 
-    // Find the actual rules matching selected keys
     const toDelete = filteredRules.filter((r) => selectedIds.has(rowKey(r)));
     for (const rule of toDelete) {
       try {
@@ -166,7 +163,6 @@ export function ExplainPage() {
 
   return (
     <div className="flex flex-col h-full relative">
-      {/* Filters */}
       <ExplainFilters
         filters={filters}
         utc={utc}
@@ -180,7 +176,7 @@ export function ExplainPage() {
       />
 
       {/* Status bar */}
-      <div className="px-4 py-1 text-xs text-gray-500 bg-gray-50 border-b border-gray-200 flex items-center gap-3">
+      <div className="px-4 py-1 text-xs text-muted-foreground bg-muted border-b border-border flex items-center gap-3">
         {loading && <span className="text-blue-500">Loading…</span>}
         {!loading && (
           <span>
@@ -196,9 +192,9 @@ export function ExplainPage() {
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto bg-white">
+      <div className="flex-1 overflow-auto bg-card">
         {loading && rules.length === 0 ? (
-          <div className="flex items-center justify-center py-20 text-gray-400 text-sm">
+          <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">
             Loading rules…
           </div>
         ) : (
@@ -214,7 +210,6 @@ export function ExplainPage() {
         )}
       </div>
 
-      {/* Slider */}
       <ExplainSlider
         open={sliderOpen}
         addMode={addMode}

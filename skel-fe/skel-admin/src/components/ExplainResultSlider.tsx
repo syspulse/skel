@@ -40,8 +40,6 @@ export function ExplainResultSlider({
     ? Object.fromEntries(Object.entries(result.meta).filter(([k]) => k !== 'width'))
     : null;
 
-  // Closed: push right by (own width + propertiesWidth) so it's completely off-screen
-  // behind and past the Properties panel. Open: sit naturally to its left.
   const transform = open
     ? 'translateX(0)'
     : `translateX(calc(100% + ${propertiesWidth}px))`;
@@ -49,19 +47,19 @@ export function ExplainResultSlider({
   return (
     <div
       style={{ right: propertiesWidth, width, transform }}
-      className="fixed top-14 bottom-0 bg-white shadow-2xl border-l border-gray-200 z-[49] flex flex-col transition-transform duration-300 ease-in-out"
+      className="fixed top-14 bottom-0 bg-card shadow-2xl border-l border-border z-[49] flex flex-col transition-transform duration-300 ease-in-out"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-slate-50 shrink-0">
-        <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-2 min-w-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted shrink-0">
+        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2 min-w-0">
           Explanation
           {result?.rid && (
-            <span className="font-mono text-xs font-normal text-gray-500 truncate">{result.rid}</span>
+            <span className="font-mono text-xs font-normal text-muted-foreground truncate">{result.rid}</span>
           )}
         </h2>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-700 p-1 rounded transition-colors shrink-0"
+          className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors shrink-0"
           aria-label="Close"
         >
           <IconClose size={18} />
@@ -72,28 +70,26 @@ export function ExplainResultSlider({
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4">
         {result ? (
           <>
-            {/* Markdown with thin border */}
-            <div className="border border-gray-200 rounded px-4 py-3 prose prose-sm max-w-none overflow-auto">
+            <div className="border border-border rounded px-4 py-3 prose prose-sm max-w-none overflow-auto">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{result.explanation}</ReactMarkdown>
             </div>
 
-            {/* Meta fields — small font, one per line */}
-            <div className="text-[11px] leading-5 text-gray-500 space-y-0.5">
-              <div><span className="font-medium text-gray-600">ts:</span> {formatTs(result.ts)}</div>
-              {result.oid   && <div><span className="font-medium text-gray-600">oid:</span> {result.oid}</div>}
-              {result.sid   && <div><span className="font-medium text-gray-600">sid:</span> {result.sid}</div>}
-              {result.fmt   && <div><span className="font-medium text-gray-600">fmt:</span> {result.fmt}</div>}
-              {result.style && <div><span className="font-medium text-gray-600">style:</span> {result.style}</div>}
+            <div className="text-[11px] leading-5 text-muted-foreground space-y-0.5">
+              <div><span className="font-medium text-foreground">ts:</span> {formatTs(result.ts)}</div>
+              {result.oid   && <div><span className="font-medium text-foreground">oid:</span> {result.oid}</div>}
+              {result.sid   && <div><span className="font-medium text-foreground">sid:</span> {result.sid}</div>}
+              {result.fmt   && <div><span className="font-medium text-foreground">fmt:</span> {result.fmt}</div>}
+              {result.style && <div><span className="font-medium text-foreground">style:</span> {result.style}</div>}
               {metaWithoutWidth && Object.keys(metaWithoutWidth).length > 0 && (
                 <div className="font-mono break-all">
-                  <span className="font-sans font-medium text-gray-600">meta:</span>{' '}
+                  <span className="font-sans font-medium text-foreground">meta:</span>{' '}
                   {JSON.stringify(metaWithoutWidth)}
                 </div>
               )}
             </div>
           </>
         ) : (
-          <p className="text-sm text-gray-400 text-center mt-16">No explanation yet</p>
+          <p className="text-sm text-muted-foreground text-center mt-16">No explanation yet</p>
         )}
       </div>
     </div>

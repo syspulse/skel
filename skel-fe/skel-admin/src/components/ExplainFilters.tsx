@@ -13,7 +13,7 @@ interface ExplainFiltersProps {
   filters: FilterState;
   utc: boolean;
   selectedCount: number;
-  hasSelection: boolean; // single selected rule
+  hasSelection: boolean;
   onFilterChange: (filters: FilterState) => void;
   onUtcToggle: () => void;
   onAdd: () => void;
@@ -36,10 +36,10 @@ export function ExplainFilters({
   const showAdd = !showDeleteSelected && !hasSelection;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 p-3 bg-white border-b border-gray-200">
+    <div className="flex flex-wrap items-center gap-3 p-3 bg-card border-b border-border">
       {/* OID filter */}
       <div className="flex items-center gap-1">
-        <label className="text-sm text-gray-600 font-medium whitespace-nowrap">
+        <label className="text-sm text-muted-foreground font-medium whitespace-nowrap">
           OID:
         </label>
         <input
@@ -47,13 +47,13 @@ export function ExplainFilters({
           value={filters.oid}
           onChange={(e) => onFilterChange({ ...filters, oid: e.target.value })}
           placeholder="filter..."
-          className="text-sm border border-gray-300 rounded px-2 py-1 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          className="text-sm border border-input rounded px-2 py-1 w-36 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
         />
       </div>
 
       {/* RID filter */}
       <div className="flex items-center gap-1">
-        <label className="text-sm text-gray-600 font-medium whitespace-nowrap">
+        <label className="text-sm text-muted-foreground font-medium whitespace-nowrap">
           RID:
         </label>
         <input
@@ -61,7 +61,7 @@ export function ExplainFilters({
           value={filters.rid}
           onChange={(e) => onFilterChange({ ...filters, rid: e.target.value })}
           placeholder="filter..."
-          className="text-sm border border-gray-300 rounded px-2 py-1 w-36 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          className="text-sm border border-input rounded px-2 py-1 w-36 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
         />
       </div>
 
@@ -70,7 +70,7 @@ export function ExplainFilters({
         value={filters.timeRange}
         onChange={(timeRange) => onFilterChange({ ...filters, timeRange })}
       />
-      <label className="flex items-center gap-1.5 text-sm text-gray-600 font-medium cursor-pointer select-none whitespace-nowrap">
+      <label className="flex items-center gap-1.5 text-sm text-muted-foreground font-medium cursor-pointer select-none whitespace-nowrap">
         <input
           type="checkbox"
           checked={utc}
@@ -80,19 +80,17 @@ export function ExplainFilters({
         GMT
       </label>
 
-      {/* Spacer */}
       <div className="flex-1" />
 
       {/* Refresh */}
       <button
         onClick={onRefresh}
-        className="inline-flex items-center gap-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded border border-gray-300 transition-colors"
+        className="inline-flex items-center gap-1.5 text-xs bg-muted hover:bg-muted-hover text-foreground px-3 py-1 rounded border border-border transition-colors"
         title="Refresh list"
       >
         <IconRefresh size={14} /> Refresh
       </button>
 
-      {/* Add / Delete Selected */}
       {showDeleteSelected && (
         <button
           onClick={onDeleteSelected}

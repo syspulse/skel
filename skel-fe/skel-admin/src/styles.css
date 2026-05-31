@@ -2,22 +2,104 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Smooth slide animations and any global tweaks */
+/* ── Base defaults ────────────────────────────────────────── */
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ── Light theme (shadcn/ui zinc) ─────────────────────────── */
+:root,
+.theme-light {
+  color-scheme: light;
+  --background:        0 0% 100%;
+  --foreground:        240 10% 3.9%;
+  --card:              0 0% 100%;
+  --card-foreground:   240 10% 3.9%;
+  --muted:             240 4.8% 95.9%;
+  --muted-foreground:  240 3.8% 46.1%;
+  --muted-hover:       240 4.8% 91%;
+  --border:            240 5.9% 90%;
+  --input:             240 5.9% 90%;
+  --primary:           240 5.9% 10%;
+  --primary-foreground: 0 0% 98%;
+  /* Navigation / header (light) */
+  --header:            0 0% 100%;
+  --header-fg:         240 10% 3.9%;
+  --header-fg-muted:   240 3.8% 46.1%;
+  --nav:               240 4.8% 95.9%;
+  --nav-active:        240 4.8% 88%;
+  --nav-fg:            240 10% 3.9%;
+  --nav-fg-muted:      240 3.8% 50%;
+}
+
+/* ── Dark theme (shadcn/ui zinc dark) ─────────────────────── */
+.theme-dark {
+  color-scheme: dark;
+  --background:        240 10% 3.9%;
+  --foreground:        0 0% 98%;
+  --card:              240 10% 6.5%;
+  --card-foreground:   0 0% 98%;
+  --muted:             240 3.7% 15.9%;
+  --muted-foreground:  240 5% 64.9%;
+  --muted-hover:       240 3.7% 20%;
+  --border:            240 3.7% 15.9%;
+  --input:             240 3.7% 15.9%;
+  --primary:           0 0% 98%;
+  --primary-foreground: 240 5.9% 10%;
+  /* Navigation / header */
+  --header:            240 12% 5%;
+  --header-fg:         0 0% 98%;
+  --header-fg-muted:   240 5% 65%;
+  --nav:               240 10% 8%;
+  --nav-active:        240 4% 14%;
+  --nav-fg:            0 0% 95%;
+  --nav-fg-muted:      240 5% 65%;
+}
+
+/* ── Stone theme (shadcn/ui stone light) ──────────────────── */
+.theme-stone {
+  color-scheme: light;
+  --background:        60 9% 97.8%;
+  --foreground:        20 14.3% 4.1%;
+  --card:              0 0% 100%;
+  --card-foreground:   20 14.3% 4.1%;
+  --muted:             60 4.8% 95.9%;
+  --muted-foreground:  25 5.3% 44.7%;
+  --muted-hover:       60 4.8% 91%;
+  --border:            20 5.9% 90%;
+  --input:             20 5.9% 90%;
+  --primary:           24 9.8% 10%;
+  --primary-foreground: 60 9.1% 97.8%;
+  /* Navigation / header (warm stone brown) */
+  --header:            20 14% 14%;
+  --header-fg:         60 9.1% 97.8%;
+  --header-fg-muted:   25 8% 65%;
+  --nav:               20 14% 22%;
+  --nav-active:        20 14% 30%;
+  --nav-fg:            60 9.1% 97.8%;
+  --nav-fg-muted:      25 8% 72%;
+}
+
+/* ── Global ───────────────────────────────────────────────── */
 html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar for the slider panel */
 ::-webkit-scrollbar {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: hsl(var(--muted));
 }
 ::-webkit-scrollbar-thumb {
-  background: #94a3b8;
+  background: hsl(var(--muted-foreground) / 0.4);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: hsl(var(--muted-foreground) / 0.6);
 }

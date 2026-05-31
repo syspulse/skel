@@ -16,7 +16,6 @@ const PRESETS: PresetOption[] = [
 ];
 
 function toDatetimeLocal(d: Date): string {
-  // Format for datetime-local input: YYYY-MM-DDTHH:mm
   const pad = (n: number) => String(n).padStart(2, '0');
   return (
     `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
@@ -29,7 +28,6 @@ export function TimeRangePicker({ value, onChange }: TimeRangePickerProps) {
     value.type === 'custom',
   );
 
-  // Derive current select value
   const selectValue =
     value.type === 'last'
       ? String(value.hours)
@@ -60,13 +58,13 @@ export function TimeRangePicker({ value, onChange }: TimeRangePickerProps) {
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <label className="text-sm text-gray-600 font-medium whitespace-nowrap">
+      <label className="text-sm text-muted-foreground font-medium whitespace-nowrap">
         Time:
       </label>
       <select
         value={selectValue}
         onChange={handleSelectChange}
-        className="text-sm border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+        className="text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
       >
         {PRESETS.map((p) => (
           <option key={p.hours} value={String(p.hours)}>
@@ -82,14 +80,14 @@ export function TimeRangePicker({ value, onChange }: TimeRangePickerProps) {
             type="datetime-local"
             value={toDatetimeLocal(value.start)}
             onChange={handleStartChange}
-            className="text-sm border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
           />
-          <span className="text-sm text-gray-500">—</span>
+          <span className="text-sm text-muted-foreground">—</span>
           <input
             type="datetime-local"
             value={toDatetimeLocal(value.end)}
             onChange={handleEndChange}
-            className="text-sm border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
           />
         </>
       )}

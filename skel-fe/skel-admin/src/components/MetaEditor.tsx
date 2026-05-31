@@ -8,7 +8,7 @@ interface MetaEditorProps {
 
 interface MetaRow {
   key: string;
-  rawValue: string; // string representation for editing
+  rawValue: string;
 }
 
 function toRawValue(v: unknown): string {
@@ -18,10 +18,8 @@ function toRawValue(v: unknown): string {
 
 function fromRawValue(raw: string): unknown {
   const trimmed = raw.trim();
-  // Try to parse as JSON number/bool/null/object/array
   try {
     const parsed = JSON.parse(trimmed);
-    // Only use JSON parse for non-string types or explicit JSON strings
     if (typeof parsed !== 'string') return parsed;
   } catch {
     // not valid JSON → treat as plain string
@@ -77,20 +75,20 @@ export function MetaEditor({ value, onChange }: MetaEditorProps) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           Meta
         </span>
         <button
           type="button"
           onClick={handleAdd}
-          className="inline-flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 px-2 py-0.5 rounded transition-colors"
+          className="inline-flex items-center gap-1 text-xs bg-card hover:bg-muted-hover border border-border text-foreground px-2 py-0.5 rounded transition-colors"
         >
           <IconPlus size={12} /> Add
         </button>
       </div>
 
       {rows.length === 0 && (
-        <div className="text-xs text-gray-400 italic py-1">No meta entries</div>
+        <div className="text-xs text-muted-foreground italic py-1">No meta entries</div>
       )}
 
       {rows.map((row, idx) => (
@@ -100,20 +98,20 @@ export function MetaEditor({ value, onChange }: MetaEditorProps) {
             value={row.key}
             onChange={(e) => handleKeyChange(idx, e.target.value)}
             placeholder="key"
-            className="text-xs border border-gray-300 rounded px-2 py-1 w-28 focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+            className="text-xs border border-input rounded px-2 py-1 w-28 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
           />
-          <span className="text-gray-400 text-xs">:</span>
+          <span className="text-muted-foreground text-xs">:</span>
           <input
             type="text"
             value={row.rawValue}
             onChange={(e) => handleValueChange(idx, e.target.value)}
             placeholder="value"
-            className="text-xs border border-gray-300 rounded px-2 py-1 flex-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="text-xs border border-input rounded px-2 py-1 flex-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
           />
           <button
             type="button"
             onClick={() => handleRemove(idx)}
-            className="text-gray-400 hover:text-red-500 p-0.5 rounded transition-colors"
+            className="text-muted-foreground hover:text-red-500 p-0.5 rounded transition-colors"
             title="Remove"
           >
             <IconClose size={14} />

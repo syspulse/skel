@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
+import { useTheme, Theme } from '../theme/ThemeContext';
 import { IconSave, IconReset } from '../components/Icons';
 
 const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED !== 'false';
@@ -13,6 +14,76 @@ interface SettingsForm {
   keycloakUrl: string;
   keycloakRealm: string;
   keycloakClientId: string;
+}
+
+const THEMES: { id: Theme; label: string; desc: string; preview: { nav: string; bg: string; card: string } }[] = [
+  {
+    id: 'light',
+    label: 'Light',
+    desc: 'Clean white',
+    preview: { nav: 'hsl(240 4.8% 95.9%)', bg: 'hsl(0 0% 100%)', card: 'hsl(240 4.8% 91%)' },
+  },
+  {
+    id: 'dark',
+    label: 'Dark',
+    desc: 'Dark mode',
+    preview: { nav: 'hsl(240 10% 8%)', bg: 'hsl(240 10% 3.9%)', card: 'hsl(240 10% 6.5%)' },
+  },
+  {
+    id: 'stone',
+    label: 'Stone',
+    desc: 'Warm neutral',
+    preview: { nav: 'hsl(20 14% 22%)', bg: 'hsl(60 9% 97.8%)', card: 'hsl(0 0% 100%)' },
+  },
+];
+
+function ThemeSection() {
+  const { theme, setTheme } = useTheme();
+
+  return (
+    <div className="bg-card border border-border rounded shadow-sm p-6">
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">
+        Appearance
+      </div>
+      <div className="flex gap-3">
+        {THEMES.map(({ id, label, desc, preview }) => (
+          <button
+            key={id}
+            onClick={() => setTheme(id)}
+            className={`flex-1 border-2 rounded-lg p-3 text-left transition-all
+              ${theme === id
+                ? 'border-blue-500'
+                : 'border-border hover:border-muted-foreground'
+              }`}
+          >
+            {/* Color preview */}
+            <div
+              className="flex gap-0 mb-2.5 rounded overflow-hidden h-9 border border-border"
+              style={{ background: preview.bg }}
+            >
+              <div className="w-6 shrink-0" style={{ background: preview.nav }} />
+              <div className="flex-1 p-1">
+                <div className="w-full h-full rounded-sm" style={{ background: preview.card }} />
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs font-semibold text-foreground">{label}</div>
+                <div className="text-xs text-muted-foreground">{desc}</div>
+              </div>
+              {theme === id && (
+                <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                    <path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function SettingsPage() {
@@ -72,11 +143,14 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-8">
-      <h1 className="text-xl font-semibold text-gray-800 mb-6">Settings</h1>
+    <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+      <h1 className="text-xl font-semibold text-foreground">Settings</h1>
 
-      {/* Current user info */}
-      <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-6">
+      {/* Theme */}
+      <ThemeSection />
+
+      {/* Current session */}
+      <div className="bg-blue-50 border border-blue-200 rounded p-4">
         <div className="text-sm font-medium text-blue-800 mb-1">Current Session</div>
         <div className="text-sm text-blue-700 space-y-0.5">
           <div>
@@ -106,19 +180,19 @@ export function SettingsPage() {
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded shadow-sm p-6 space-y-5">
+      <div className="bg-card border border-border rounded shadow-sm p-6 space-y-5">
         {/* API URL */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1">
+          <label className="block text-sm font-semibold text-foreground mb-1">
             API Base URL
           </label>
           <input
             type="text"
             value={form.apiUrl}
             onChange={(e) => setForm((f) => ({ ...f, apiUrl: e.target.value }))}
-            className="w-full text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+            className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
           />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Default: <code>{import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1/explain'}</code>
           </p>
         </div>
@@ -126,13 +200,13 @@ export function SettingsPage() {
         {/* Keycloak settings */}
         {AUTH_ENABLED && (
           <>
-            <hr className="border-gray-100" />
-            <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide text-xs">
+            <hr className="border-border" />
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               Keycloak Configuration
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 Keycloak URL
               </label>
               <input
@@ -141,12 +215,12 @@ export function SettingsPage() {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, keycloakUrl: e.target.value }))
                 }
-                className="w-full text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+                className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 Realm
               </label>
               <input
@@ -155,12 +229,12 @@ export function SettingsPage() {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, keycloakRealm: e.target.value }))
                 }
-                className="w-full text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-foreground mb-1">
                 Client ID
               </label>
               <input
@@ -169,21 +243,21 @@ export function SettingsPage() {
                 onChange={(e) =>
                   setForm((f) => ({ ...f, keycloakClientId: e.target.value }))
                 }
-                className="w-full text-sm border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
             </div>
           </>
         )}
 
         {!AUTH_ENABLED && (
-          <div className="text-sm text-gray-500 italic">
+          <div className="text-sm text-muted-foreground italic">
             Running in no-auth mode. Keycloak settings are not used.
           </div>
         )}
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-3 mt-5">
+      <div className="flex items-center gap-3">
         <button
           onClick={handleSave}
           className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors"
@@ -192,7 +266,7 @@ export function SettingsPage() {
         </button>
         <button
           onClick={handleReset}
-          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-gray-400 text-gray-600 hover:bg-gray-100 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-border text-muted-foreground hover:bg-muted transition-colors"
         >
           <IconReset size={13} /> Reset to defaults
         </button>
@@ -203,7 +277,7 @@ export function SettingsPage() {
         )}
       </div>
 
-      <p className="text-xs text-gray-400 mt-4">
+      <p className="text-xs text-muted-foreground">
         Note: API URL changes take effect immediately. Keycloak config changes require a page reload.
       </p>
     </div>

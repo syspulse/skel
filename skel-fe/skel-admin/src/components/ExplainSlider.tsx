@@ -60,8 +60,6 @@ export function ExplainSlider({
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Incremented together with setForm so MetaEditor always remounts with the correct value.
-  // React 18 batches both updates → single render with fresh form.meta and new key.
   const [formKey, setFormKey] = useState(0);
 
   const { token } = useAuth();
@@ -199,7 +197,6 @@ export function ExplainSlider({
 
   return (
     <>
-      {/* Backdrop (mobile / click-away) */}
       {open && (
         <div
           className="fixed inset-0 z-40 bg-black/10"
@@ -207,7 +204,6 @@ export function ExplainSlider({
         />
       )}
 
-      {/* Explanation result panel — slides in to the left of Properties */}
       <ExplainResultSlider
         open={resultOpen}
         result={testResult}
@@ -217,18 +213,18 @@ export function ExplainSlider({
 
       {/* Slider panel */}
       <div
-        className={`fixed top-14 right-0 bottom-0 w-[880px] max-w-[92vw] bg-white shadow-2xl border-l border-gray-200 z-50 flex flex-col
+        className={`fixed top-14 right-0 bottom-0 w-[880px] max-w-[92vw] bg-card shadow-2xl border-l border-border z-50 flex flex-col
           transition-transform duration-300 ease-in-out
           ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 bg-slate-50">
-          <h2 className="text-sm font-semibold text-gray-800">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted">
+          <h2 className="text-sm font-semibold text-foreground">
             {addMode ? 'Add New Rule' : 'Edit Rule'}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-700 p-1 rounded transition-colors"
+            className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors"
             aria-label="Close"
           >
             <IconClose size={18} />
@@ -237,36 +233,35 @@ export function ExplainSlider({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-          {/* Error */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2">
               {error}
             </div>
           )}
 
-          {/* Inline fields: OID / RID / Name / Description / SID */}
+          {/* Inline fields */}
           <div className="space-y-1.5">
             {/* OID */}
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs font-semibold text-gray-600">OID</label>
+              <label className="w-24 shrink-0 text-xs font-semibold text-muted-foreground">OID</label>
               {addMode ? (
                 <input
                   type="text"
                   value={form.oid}
                   onChange={(e) => setForm((f) => ({ ...f, oid: e.target.value }))}
                   placeholder="owner id (leave blank for default)"
-                  className="flex-1 text-sm border border-gray-300 rounded px-3 py-1 font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
                 />
               ) : (
-                <div className="flex-1 text-sm font-mono text-gray-600 bg-gray-50 border border-gray-200 rounded px-3 py-1 select-text">
-                  {form.oid || <span className="text-gray-400 italic">default (empty)</span>}
+                <div className="flex-1 text-sm font-mono text-foreground bg-muted border border-border rounded px-3 py-1 select-text">
+                  {form.oid || <span className="text-muted-foreground italic">default (empty)</span>}
                 </div>
               )}
             </div>
 
             {/* RID */}
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs font-semibold text-gray-600">
+              <label className="w-24 shrink-0 text-xs font-semibold text-muted-foreground">
                 RID {addMode && <span className="text-red-500">*</span>}
               </label>
               {addMode ? (
@@ -275,10 +270,10 @@ export function ExplainSlider({
                   value={form.rid}
                   onChange={(e) => setForm((f) => ({ ...f, rid: e.target.value }))}
                   placeholder="rule identifier"
-                  className="flex-1 text-sm border border-gray-300 rounded px-3 py-1 font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground font-mono focus:outline-none focus:ring-1 focus:ring-blue-400"
                 />
               ) : (
-                <div className="flex-1 text-sm font-mono text-gray-700 bg-gray-50 border border-gray-200 rounded px-3 py-1 select-text">
+                <div className="flex-1 text-sm font-mono text-foreground bg-muted border border-border rounded px-3 py-1 select-text">
                   {form.rid}
                 </div>
               )}
@@ -286,37 +281,37 @@ export function ExplainSlider({
 
             {/* Name */}
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs font-semibold text-gray-600">Name</label>
+              <label className="w-24 shrink-0 text-xs font-semibold text-muted-foreground">Name</label>
               <input
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder="rule name"
-                className="flex-1 text-sm border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
             </div>
 
             {/* Description */}
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs font-semibold text-gray-600">Description</label>
+              <label className="w-24 shrink-0 text-xs font-semibold text-muted-foreground">Description</label>
               <input
                 type="text"
                 value={form.desc}
                 onChange={(e) => setForm((f) => ({ ...f, desc: e.target.value }))}
                 placeholder="description"
-                className="flex-1 text-sm border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
             </div>
 
             {/* SID */}
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs font-semibold text-gray-600">SID</label>
+              <label className="w-24 shrink-0 text-xs font-semibold text-muted-foreground">SID</label>
               <input
                 type="text"
                 value={form.sid}
                 onChange={(e) => setForm((f) => ({ ...f, sid: e.target.value }))}
                 placeholder="source / session id"
-                className="flex-1 text-sm border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
             </div>
           </div>
@@ -324,13 +319,13 @@ export function ExplainSlider({
           {/* Scripts */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Scripts
               </label>
               <button
                 type="button"
                 onClick={handleAddScript}
-                className="inline-flex items-center gap-1 text-xs bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 px-2 py-0.5 rounded transition-colors"
+                className="inline-flex items-center gap-1 text-xs bg-muted hover:bg-muted-hover border border-border text-foreground px-2 py-0.5 rounded transition-colors"
               >
                 <IconPlus size={12} /> Script
               </button>
@@ -340,17 +335,17 @@ export function ExplainSlider({
               {form.scripts.map((script, idx) => (
                 <div
                   key={idx}
-                  className="border border-gray-200 rounded p-3 bg-gray-50 space-y-2"
+                  className="border border-border rounded p-3 bg-muted space-y-2"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-gray-500">
+                    <span className="text-xs font-medium text-muted-foreground">
                       Script #{idx + 1}
                     </span>
                     <button
                       type="button"
                       onClick={() => handleRemoveScript(idx)}
                       disabled={form.scripts.length <= 1}
-                      className="p-0.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 hover:text-red-500 hover:enabled:bg-red-50"
+                      className="p-0.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-red-500 hover:enabled:bg-red-50"
                       title={form.scripts.length <= 1 ? 'Cannot remove the only script' : 'Remove script'}
                     >
                       <IconMinus size={14} />
@@ -359,13 +354,13 @@ export function ExplainSlider({
 
                   {/* Type */}
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-500 w-10">Type:</label>
+                    <label className="text-xs text-muted-foreground w-10">Type:</label>
                     <select
                       value={script.typ}
                       onChange={(e) =>
                         handleScriptChange(idx, 'typ', e.target.value)
                       }
-                      className="text-xs border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="text-xs border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
                     >
                       {SCRIPT_TYPES.map((t) => (
                         <option key={t} value={t}>
@@ -377,7 +372,7 @@ export function ExplainSlider({
 
                   {/* Source */}
                   <div>
-                    <label className="text-xs text-gray-500 block mb-1">
+                    <label className="text-xs text-muted-foreground block mb-1">
                       Source:
                     </label>
                     <ScriptEditor
@@ -389,7 +384,7 @@ export function ExplainSlider({
 
                   {/* Opts */}
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-500 w-10">Opts:</label>
+                    <label className="text-xs text-muted-foreground w-10">Opts:</label>
                     <input
                       type="text"
                       value={script.opts ?? ''}
@@ -397,7 +392,7 @@ export function ExplainSlider({
                         handleScriptChange(idx, 'opts', e.target.value)
                       }
                       placeholder="options"
-                      className="flex-1 text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="flex-1 text-xs border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
                     />
                   </div>
                 </div>
@@ -406,7 +401,7 @@ export function ExplainSlider({
           </div>
 
           {/* Meta */}
-          <div className="border border-gray-200 rounded p-3 bg-gray-50">
+          <div className="border border-border rounded p-3 bg-muted">
             <MetaEditor
               key={formKey}
               value={form.meta}
@@ -414,19 +409,18 @@ export function ExplainSlider({
             />
           </div>
 
-          {/* Test Explain — edit mode only */}
+          {/* Test Explain */}
           {!addMode && (
-            <div ref={testSectionRef} className="border border-gray-200 rounded bg-gray-50">
-              {/* Section header */}
-              <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200">
-                <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+            <div ref={testSectionRef} className="border border-border rounded bg-muted">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Test Explain
                 </span>
                 <div className="flex items-center gap-2">
                   <select
                     value={testStyle}
                     onChange={(e) => setTestStyle(e.target.value)}
-                    className="text-xs border border-gray-300 rounded px-2 py-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    className="text-xs border border-input rounded px-2 py-0.5 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
                     title="Explanation style"
                   >
                     <option value="">default</option>
@@ -437,7 +431,7 @@ export function ExplainSlider({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border border-gray-400 text-gray-600 hover:bg-gray-100 transition-colors"
+                    className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border border-border text-muted-foreground hover:bg-card transition-colors"
                     title="Load Alert JSON file"
                   >
                     <IconUpload size={12} /> Load JSON
@@ -461,7 +455,6 @@ export function ExplainSlider({
                 </div>
               </div>
 
-              {/* Input textarea */}
               <div className="p-3 space-y-2">
                 <textarea
                   value={testData}
@@ -469,10 +462,9 @@ export function ExplainSlider({
                   rows={6}
                   placeholder={'{\n  "address": "0x...",\n  "meta": { "balance[ETH]": "1.23" }\n}'}
                   spellCheck={false}
-                  className="w-full text-xs font-mono border border-gray-300 rounded px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 resize-y"
+                  className="w-full text-xs font-mono border border-input rounded px-2 py-1.5 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 resize-y"
                 />
 
-                {/* Error */}
                 {testError && (
                   <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5">
                     {testError}
@@ -483,8 +475,8 @@ export function ExplainSlider({
           )}
         </div>
 
-        {/* Footer buttons */}
-        <div className="flex items-center gap-2 px-5 py-2.5 border-t border-gray-200 bg-slate-50">
+        {/* Footer */}
+        <div className="flex items-center gap-2 px-5 py-2.5 border-t border-border bg-muted">
           {addMode ? (
             <>
               <button
@@ -498,7 +490,7 @@ export function ExplainSlider({
               <button
                 onClick={onClose}
                 disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-gray-400 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <IconClose size={13} />
                 Cancel
@@ -525,7 +517,7 @@ export function ExplainSlider({
               <button
                 onClick={onClose}
                 disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-gray-400 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <IconClose size={13} />
                 Cancel

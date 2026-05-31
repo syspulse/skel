@@ -14,18 +14,18 @@ function EndpointRow({ method, path, desc }: EndpointRowProps) {
     DELETE: 'bg-red-100 text-red-700',
   };
   return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50">
+    <tr className="border-b border-border hover:bg-muted">
       <td className="py-2 px-3">
         <span
           className={`text-xs font-bold px-2 py-0.5 rounded font-mono ${
-            methodColor[method] ?? 'bg-gray-100 text-gray-600'
+            methodColor[method] ?? 'bg-muted text-muted-foreground'
           }`}
         >
           {method}
         </span>
       </td>
-      <td className="py-2 px-3 font-mono text-xs text-gray-700">{path}</td>
-      <td className="py-2 px-3 text-sm text-gray-600">{desc}</td>
+      <td className="py-2 px-3 font-mono text-xs text-foreground">{path}</td>
+      <td className="py-2 px-3 text-sm text-muted-foreground">{desc}</td>
     </tr>
   );
 }
@@ -33,33 +33,33 @@ function EndpointRow({ method, path, desc }: EndpointRowProps) {
 export function HelpPage() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
-      <h1 className="text-xl font-semibold text-gray-800">Help &amp; Documentation</h1>
+      <h1 className="text-xl font-semibold text-foreground">Help &amp; Documentation</h1>
 
       {/* Overview */}
       <section>
-        <h2 className="text-base font-semibold text-gray-700 mb-2">Overview</h2>
-        <p className="text-sm text-gray-600 leading-relaxed">
+        <h2 className="text-base font-semibold text-foreground mb-2">Overview</h2>
+        <p className="text-sm text-muted-foreground leading-relaxed">
           The <strong>Explain Admin</strong> UI manages <em>Explain Rules</em> — named
           scripts that describe how to interpret or transform data. Each rule has a
-          unique <code className="bg-gray-100 px-1 rounded text-xs">rid</code> (rule
-          ID), optional <code className="bg-gray-100 px-1 rounded text-xs">oid</code>{' '}
+          unique <code className="bg-muted px-1 rounded text-xs">rid</code> (rule
+          ID), optional <code className="bg-muted px-1 rounded text-xs">oid</code>{' '}
           (owner/org ID), one or more scripts, and optional metadata.
         </p>
       </section>
 
       {/* API Endpoints */}
       <section>
-        <h2 className="text-base font-semibold text-gray-700 mb-3">API Endpoints</h2>
-        <div className="border border-gray-200 rounded overflow-hidden">
+        <h2 className="text-base font-semibold text-foreground mb-3">API Endpoints</h2>
+        <div className="border border-border rounded overflow-hidden">
           <table className="min-w-full text-sm">
-            <thead className="bg-slate-700 text-white text-xs uppercase">
+            <thead className="bg-nav text-nav-fg text-xs uppercase">
               <tr>
                 <th className="py-2 px-3 text-left w-20">Method</th>
                 <th className="py-2 px-3 text-left">Path</th>
                 <th className="py-2 px-3 text-left">Description</th>
               </tr>
             </thead>
-            <tbody className="bg-white">
+            <tbody className="bg-card">
               <EndpointRow
                 method="GET"
                 path="/api/v1/explain"
@@ -97,7 +97,7 @@ export function HelpPage() {
 
       {/* Script Types */}
       <section>
-        <h2 className="text-base font-semibold text-gray-700 mb-3">Script Types</h2>
+        <h2 className="text-base font-semibold text-foreground mb-3">Script Types</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             {
@@ -128,17 +128,17 @@ export function HelpPage() {
           ].map((item) => (
             <div
               key={item.typ}
-              className="border border-gray-200 rounded p-3 bg-white"
+              className="border border-border rounded p-3 bg-card"
             >
               <div className="flex items-center gap-2 mb-1">
-                <code className="text-xs bg-gray-100 px-2 py-0.5 rounded font-mono font-bold">
+                <code className="text-xs bg-muted px-2 py-0.5 rounded font-mono font-bold">
                   {item.typ}
                 </code>
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-foreground">
                   {item.label}
                 </span>
               </div>
-              <p className="text-xs text-gray-500">{item.desc}</p>
+              <p className="text-xs text-muted-foreground">{item.desc}</p>
             </div>
           ))}
         </div>
@@ -146,7 +146,7 @@ export function HelpPage() {
 
       {/* Data Model */}
       <section>
-        <h2 className="text-base font-semibold text-gray-700 mb-2">Data Model</h2>
+        <h2 className="text-base font-semibold text-foreground mb-2">Data Model</h2>
         <pre className="bg-gray-900 text-green-400 text-xs rounded p-4 overflow-x-auto leading-relaxed">
 {`// Rule
 {
@@ -174,10 +174,10 @@ export function HelpPage() {
 
       {/* Usage Examples */}
       <section>
-        <h2 className="text-base font-semibold text-gray-700 mb-2">Usage Examples</h2>
+        <h2 className="text-base font-semibold text-foreground mb-2">Usage Examples</h2>
         <div className="space-y-3">
           <div>
-            <div className="text-xs font-semibold text-gray-500 uppercase mb-1">
+            <div className="text-xs font-semibold text-muted-foreground uppercase mb-1">
               Create a rule (curl)
             </div>
             <pre className="bg-gray-900 text-green-400 text-xs rounded p-3 overflow-x-auto">
@@ -191,7 +191,7 @@ export function HelpPage() {
             </pre>
           </div>
           <div>
-            <div className="text-xs font-semibold text-gray-500 uppercase mb-1">
+            <div className="text-xs font-semibold text-muted-foreground uppercase mb-1">
               List rules (curl)
             </div>
             <pre className="bg-gray-900 text-green-400 text-xs rounded p-3 overflow-x-auto">
@@ -200,7 +200,7 @@ curl http://localhost:8080/api/v1/explain?oid=org-123`}
             </pre>
           </div>
           <div>
-            <div className="text-xs font-semibold text-gray-500 uppercase mb-1">
+            <div className="text-xs font-semibold text-muted-foreground uppercase mb-1">
               Delete a rule (curl)
             </div>
             <pre className="bg-gray-900 text-green-400 text-xs rounded p-3 overflow-x-auto">
@@ -212,19 +212,19 @@ curl http://localhost:8080/api/v1/explain?oid=org-123`}
 
       {/* Environment variables */}
       <section>
-        <h2 className="text-base font-semibold text-gray-700 mb-2">
+        <h2 className="text-base font-semibold text-foreground mb-2">
           Environment Variables
         </h2>
-        <div className="border border-gray-200 rounded overflow-hidden">
+        <div className="border border-border rounded overflow-hidden">
           <table className="min-w-full text-sm">
-            <thead className="bg-slate-700 text-white text-xs uppercase">
+            <thead className="bg-nav text-nav-fg text-xs uppercase">
               <tr>
                 <th className="py-2 px-3 text-left">Variable</th>
                 <th className="py-2 px-3 text-left">Default</th>
                 <th className="py-2 px-3 text-left">Description</th>
               </tr>
             </thead>
-            <tbody className="bg-white">
+            <tbody className="bg-card">
               {[
                 {
                   name: 'VITE_API_URL',
@@ -252,14 +252,14 @@ curl http://localhost:8080/api/v1/explain?oid=org-123`}
                   desc: 'Keycloak client ID',
                 },
               ].map((row) => (
-                <tr key={row.name} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-2 px-3 font-mono text-xs text-gray-700">
+                <tr key={row.name} className="border-b border-border hover:bg-muted">
+                  <td className="py-2 px-3 font-mono text-xs text-foreground">
                     {row.name}
                   </td>
-                  <td className="py-2 px-3 font-mono text-xs text-gray-500">
+                  <td className="py-2 px-3 font-mono text-xs text-muted-foreground">
                     {row.def}
                   </td>
-                  <td className="py-2 px-3 text-sm text-gray-600">{row.desc}</td>
+                  <td className="py-2 px-3 text-sm text-muted-foreground">{row.desc}</td>
                 </tr>
               ))}
             </tbody>

@@ -22,7 +22,7 @@ const navItems: NavItem[] = [
 
 export function SideNav({ activePage, onNavigate }: SideNavProps) {
   return (
-    <nav className="fixed top-14 left-0 w-52 bottom-0 bg-slate-700 text-white flex flex-col pt-4 z-40 shadow-lg">
+    <nav className="fixed top-14 left-0 w-52 bottom-0 bg-nav text-nav-fg flex flex-col pt-4 z-40 border-r border-border shadow-sm">
       {navItems.map(({ id, label, Icon }) => (
         <button
           key={id}
@@ -30,8 +30,8 @@ export function SideNav({ activePage, onNavigate }: SideNavProps) {
           className={`flex items-center gap-3 px-5 py-3 text-sm font-medium transition-colors text-left w-full
             ${
               activePage === id
-                ? 'bg-slate-600 border-l-4 border-blue-400 text-white'
-                : 'hover:bg-slate-600 border-l-4 border-transparent text-slate-300 hover:text-white'
+                ? 'bg-nav-active border-l-4 border-blue-400 text-nav-fg'
+                : 'hover:bg-nav-active border-l-4 border-transparent text-nav-fg-muted hover:text-nav-fg'
             }`}
         >
           <Icon size={18} />

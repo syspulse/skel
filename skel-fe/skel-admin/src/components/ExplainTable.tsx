@@ -7,7 +7,6 @@ function RuleIcon({ meta }: { meta?: Record<string, unknown> | null }) {
   if (typeof icon === 'string' && icon.trim()) {
     const s = icon.trim();
     if (s.toLowerCase().startsWith('<svg')) {
-      // Inline SVG string stored in meta.icon
       return (
         <span
           className="inline-flex items-center justify-center w-[18px] h-[18px] [&>svg]:w-full [&>svg]:h-full"
@@ -63,7 +62,7 @@ export function ExplainTable({
 
   if (rules.length === 0) {
     return (
-      <div className="flex items-center justify-center py-16 text-gray-400 text-sm">
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
         No rules found.
       </div>
     );
@@ -73,7 +72,7 @@ export function ExplainTable({
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
         <thead>
-          <tr className="bg-slate-700 text-white text-xs uppercase tracking-wide">
+          <tr className="bg-nav text-nav-fg text-xs uppercase tracking-wide">
             <th className="w-10 px-3 py-2 text-center">
               <input
                 type="checkbox"
@@ -99,16 +98,15 @@ export function ExplainTable({
             const isChecked = selectedIds.has(key);
             const isSelected = selected !== null && rowKey(selected) === key;
             const rowClass = [
-              'cursor-pointer transition-colors border-b border-gray-100',
+              'cursor-pointer transition-colors border-b border-border',
               isSelected
-                ? 'bg-blue-100 hover:bg-blue-150'
+                ? 'bg-blue-100 hover:bg-blue-100'
                 : isChecked
                 ? 'bg-blue-50 hover:bg-blue-100'
                 : idx % 2 === 0
-                ? 'bg-white hover:bg-gray-50'
-                : 'bg-gray-50 hover:bg-gray-100',
+                ? 'bg-card hover:bg-muted'
+                : 'bg-muted hover:bg-muted-hover',
             ].join(' ');
-
 
             return (
               <tr
@@ -132,20 +130,20 @@ export function ExplainTable({
                     <RuleIcon meta={rule.meta as Record<string, unknown> | undefined} />
                   </span>
                 </td>
-                <td className="px-3 py-2 whitespace-nowrap font-mono text-xs text-gray-600">
+                <td className="px-3 py-2 whitespace-nowrap font-mono text-xs text-muted-foreground">
                   {formatTs(rule.ts0, utc)}
                 </td>
-                <td className="px-3 py-2 font-mono text-xs text-gray-500 max-w-[140px] truncate">
-                  {rule.oid || <span className="text-gray-300">—</span>}
+                <td className="px-3 py-2 font-mono text-xs text-muted-foreground max-w-[140px] truncate">
+                  {rule.oid || <span className="opacity-30">—</span>}
                 </td>
-                <td className="px-3 py-2 font-mono text-xs font-medium text-gray-800 max-w-[180px] truncate">
+                <td className="px-3 py-2 font-mono text-xs font-medium text-foreground max-w-[180px] truncate">
                   {rule.rid}
                 </td>
-                <td className="px-3 py-2 text-gray-700 max-w-[160px] truncate">
-                  {rule.name || <span className="text-gray-300">—</span>}
+                <td className="px-3 py-2 text-foreground max-w-[160px] truncate">
+                  {rule.name || <span className="opacity-30">—</span>}
                 </td>
-                <td className="px-3 py-2 text-gray-500 max-w-[240px] truncate">
-                  {rule.desc || <span className="text-gray-300">—</span>}
+                <td className="px-3 py-2 text-muted-foreground max-w-[240px] truncate">
+                  {rule.desc || <span className="opacity-30">—</span>}
                 </td>
               </tr>
             );
