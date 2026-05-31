@@ -23,12 +23,12 @@ const navItems: NavItem[] = [
 
 export function SideNav({ activePage, onNavigate }: SideNavProps) {
   return (
-    <nav className="fixed top-14 left-0 w-52 bottom-0 bg-nav text-nav-fg flex flex-col pt-4 z-40 border-r border-border shadow-sm">
+    <nav className="fixed top-12 left-0 w-44 bottom-0 bg-nav text-nav-fg flex flex-col pt-1 z-40 border-r border-border shadow-sm">
       {navItems.map(({ id, label, Icon }) => (
         <button
           key={id}
           onClick={() => onNavigate(id)}
-          className={`flex items-center gap-3 px-5 py-3 text-sm transition-colors text-left w-full
+          className={`flex items-center gap-2 px-3 py-1.5 text-sm transition-colors text-left w-full
             ${
               activePage === id
                 ? 'bg-nav-active border-l-4 border-blue-400 text-nav-fg'

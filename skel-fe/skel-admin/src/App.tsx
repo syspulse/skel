@@ -65,7 +65,7 @@ function AppContent() {
     <div className="min-h-screen bg-background">
       <TopBar />
       <SideNav activePage={activePage} onNavigate={setActivePage} />
-      <main className="ml-52 mt-14 min-h-[calc(100vh-3.5rem)] flex flex-col">
+      <main className="ml-44 mt-12 min-h-[calc(100vh-3rem)] flex flex-col">
         {renderPage()}
       </main>
     </div>

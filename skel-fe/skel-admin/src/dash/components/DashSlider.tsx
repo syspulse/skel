@@ -119,7 +119,7 @@ export function DashSlider({
       {open && <div className="fixed inset-0 z-40 bg-black/10" onClick={onClose} />}
 
       <div
-        className={`fixed top-14 right-0 bottom-0 w-[640px] max-w-[92vw] bg-card shadow-2xl border-l border-border z-50 flex flex-col
+        className={`fixed top-12 right-0 bottom-0 w-[640px] max-w-[92vw] bg-card shadow-2xl border-l border-border z-50 flex flex-col
           transition-transform duration-300 ease-in-out
           ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >

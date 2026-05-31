@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 import { useTheme, Theme } from '../theme/ThemeContext';
 import { useApp, DEFAULT_APP_NAME } from '../theme/AppContext';
@@ -39,21 +39,21 @@ function ThemeSection() {
   const { theme, setTheme } = useTheme();
   return (
     <div>
-      <div className="text-xs text-muted-foreground mb-3">appearance</div>
-      <div className="flex gap-3">
+      <div className="text-xs text-muted-foreground mb-1.5">appearance</div>
+      <div className="flex gap-2">
         {THEMES.map(({ id, label, desc, preview }) => (
           <button
             key={id}
             onClick={() => setTheme(id)}
-            className={`flex-1 border-2 rounded-lg p-3 text-left transition-all
+            className={`flex-1 border-2 rounded-md p-2 text-left transition-all
               ${theme === id ? 'border-blue-500' : 'border-border hover:border-muted-foreground'}`}
           >
             <div
-              className="flex gap-0 mb-2.5 rounded overflow-hidden h-9 border border-border"
+              className="flex gap-0 mb-1.5 rounded overflow-hidden h-7 border border-border"
               style={{ background: preview.bg }}
             >
-              <div className="w-6 shrink-0" style={{ background: preview.nav }} />
-              <div className="flex-1 p-1">
+              <div className="w-5 shrink-0" style={{ background: preview.nav }} />
+              <div className="flex-1 p-0.5">
                 <div className="w-full h-full rounded-sm" style={{ background: preview.card }} />
               </div>
             </div>
@@ -63,7 +63,7 @@ function ThemeSection() {
                 <div className="text-xs text-muted-foreground">{desc}</div>
               </div>
               {theme === id && (
-                <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
+                <div className="w-3.5 h-3.5 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
                   <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
                     <path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -83,7 +83,7 @@ function LogoPreview({ logoUrl }: { logoUrl: string }) {
   if (!logoUrl.trim()) {
     return (
       <span className="inline-flex items-center justify-center text-muted-foreground">
-        <IconLamp size={32} />
+        <IconLamp size={28} />
       </span>
     );
   }
@@ -91,7 +91,7 @@ function LogoPreview({ logoUrl }: { logoUrl: string }) {
   if (s.toLowerCase().startsWith('<svg')) {
     return (
       <span
-        className="inline-flex items-center justify-center w-8 h-8 [&>svg]:w-full [&>svg]:h-full"
+        className="inline-flex items-center justify-center w-7 h-7 [&>svg]:w-full [&>svg]:h-full"
         dangerouslySetInnerHTML={{ __html: s }}
       />
     );
@@ -100,8 +100,8 @@ function LogoPreview({ logoUrl }: { logoUrl: string }) {
     <img
       src={s}
       alt="logo preview"
-      width={32}
-      height={32}
+      width={28}
+      height={28}
       className="object-contain"
       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
     />
@@ -115,60 +115,55 @@ function ProfileTab() {
   const { appName, logoUrl, setAppName, setLogoUrl, resetBranding } = useApp();
 
   return (
-    <div className="space-y-6">
-      {/* Appearance */}
-      <div className="bg-card border border-border rounded shadow-sm p-6">
+    <div className="space-y-3">
+      <div className="bg-card border border-border rounded shadow-sm p-3">
         <ThemeSection />
       </div>
 
-      {/* Branding */}
-      <div className="bg-card border border-border rounded shadow-sm p-6 space-y-4">
-        <div className="text-xs text-muted-foreground mb-1">branding</div>
+      <div className="bg-card border border-border rounded shadow-sm p-3 space-y-2">
+        <div className="text-xs text-muted-foreground">branding</div>
 
         <div>
-          <label className="block text-sm text-foreground mb-1">app name</label>
+          <label className="block text-xs text-foreground mb-0.5">app name</label>
           <input
             type="text"
             value={appName}
             onChange={(e) => setAppName(e.target.value)}
             placeholder={DEFAULT_APP_NAME}
-            className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
           />
         </div>
 
         <div>
-          <label className="block text-sm text-foreground mb-1">logo</label>
-          <div className="flex items-center gap-3">
+          <label className="block text-xs text-foreground mb-0.5">logo</label>
+          <div className="flex items-center gap-2">
             <input
               type="text"
               value={logoUrl}
               onChange={(e) => setLogoUrl(e.target.value)}
               placeholder="URL to SVG/PNG, inline <svg ...>, or data: URI"
-              className="flex-1 text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+              className="flex-1 text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
             />
-            <div className="w-10 h-10 flex items-center justify-center border border-border rounded bg-muted shrink-0">
+            <div className="w-8 h-8 flex items-center justify-center border border-border rounded bg-muted shrink-0">
               <LogoPreview logoUrl={logoUrl} />
             </div>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground mt-0.5">
             Leave empty to use the default icon.
           </p>
         </div>
 
-        <div>
-          <button
-            onClick={resetBranding}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-muted transition-colors"
-          >
-            <IconReset size={13} /> Reset branding
-          </button>
-        </div>
+        <button
+          onClick={resetBranding}
+          className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-border text-muted-foreground hover:bg-muted transition-colors"
+        >
+          <IconReset size={12} /> Reset branding
+        </button>
       </div>
 
-      {/* Current Session */}
-      <div className="bg-blue-50 border border-blue-200 rounded p-4">
-        <div className="text-sm text-blue-800 mb-1">current session</div>
-        <div className="text-sm text-blue-700 space-y-0.5">
+      <div className="bg-blue-50 border border-blue-200 rounded p-2.5">
+        <div className="text-xs text-blue-800 mb-0.5">current session</div>
+        <div className="text-xs text-blue-700 space-y-0">
           <div>auth mode: {AUTH_ENABLED ? 'Keycloak' : 'No-auth (Guest)'}</div>
           {isAuthenticated && user && (
             <>
@@ -227,86 +222,84 @@ function ApiTab() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="bg-card border border-border rounded shadow-sm p-6 space-y-5">
+    <div className="space-y-2">
+      <div className="bg-card border border-border rounded shadow-sm p-3 space-y-2">
         <div>
-          <label className="block text-sm text-foreground mb-1">Explain API URL</label>
+          <label className="block text-xs text-foreground mb-0.5">Explain API URL</label>
           <input
             type="text"
             value={form.apiUrl}
             onChange={(e) => set('apiUrl', 'VITE_API_URL', e.target.value)}
-            className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+            className="w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
           />
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground mt-0.5">
             default: <code>{API_DEFAULTS.apiUrl}</code>
           </p>
         </div>
 
         <div>
-          <label className="block text-sm text-foreground mb-1">Dash API URL</label>
+          <label className="block text-xs text-foreground mb-0.5">Dash API URL</label>
           <input
             type="text"
             value={form.dashApiUrl}
             onChange={(e) => set('dashApiUrl', 'VITE_DASH_API_URL', e.target.value)}
-            className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+            className="w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
           />
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground mt-0.5">
             default: <code>{API_DEFAULTS.dashApiUrl}</code>
           </p>
         </div>
 
         {AUTH_ENABLED && (
           <>
-            <hr className="border-border" />
+            <hr className="border-border my-1" />
             <div className="text-xs text-muted-foreground">keycloak</div>
 
             <div>
-              <label className="block text-sm text-foreground mb-1">URL</label>
+              <label className="block text-xs text-foreground mb-0.5">URL</label>
               <input
                 type="text"
                 value={form.keycloakUrl}
                 onChange={(e) => set('keycloakUrl', 'VITE_KEYCLOAK_URL', e.target.value)}
-                className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+                className="w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
               />
             </div>
 
             <div>
-              <label className="block text-sm text-foreground mb-1">realm</label>
+              <label className="block text-xs text-foreground mb-0.5">realm</label>
               <input
                 type="text"
                 value={form.keycloakRealm}
                 onChange={(e) => set('keycloakRealm', 'VITE_KEYCLOAK_REALM', e.target.value)}
-                className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
             </div>
 
             <div>
-              <label className="block text-sm text-foreground mb-1">client id</label>
+              <label className="block text-xs text-foreground mb-0.5">client id</label>
               <input
                 type="text"
                 value={form.keycloakClientId}
                 onChange={(e) => set('keycloakClientId', 'VITE_KEYCLOAK_CLIENT_ID', e.target.value)}
-                className="w-full text-sm border border-input rounded px-3 py-2 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
               />
             </div>
           </>
         )}
 
         {!AUTH_ENABLED && (
-          <div className="text-sm text-muted-foreground italic">
+          <div className="text-xs text-muted-foreground italic">
             Running in no-auth mode. Keycloak settings are not used.
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-3">
-        <button
-          onClick={handleReset}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-muted transition-colors"
-        >
-          <IconReset size={13} /> Reset to defaults
-        </button>
-      </div>
+      <button
+        onClick={handleReset}
+        className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-border text-muted-foreground hover:bg-muted transition-colors"
+      >
+        <IconReset size={12} /> Reset to defaults
+      </button>
 
       <p className="text-xs text-muted-foreground">
         Changes are saved automatically. Keycloak config changes require a page reload.
@@ -326,16 +319,15 @@ export function SettingsPage() {
   ];
 
   return (
-    <div className="w-full px-6 py-8 space-y-6">
-      <h1 className="text-xl text-foreground">Settings</h1>
+    <div className="w-full px-4 py-3 space-y-2">
+      <h1 className="text-lg text-foreground">Settings</h1>
 
-      {/* Tab bar */}
-      <div className="flex border-b border-border">
+      <div className="flex border-b border-border gap-1">
         {tabs.map(({ id, label }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
-            className={`px-4 py-2 text-sm transition-colors border-b-2 -mb-px
+            className={`px-3 py-1 text-xs transition-colors border-b-2 -mb-px
               ${tab === id
                 ? 'border-blue-500 text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground'

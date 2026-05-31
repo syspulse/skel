@@ -47,7 +47,7 @@ export function ExplainResultSlider({
   return (
     <div
       style={{ right: propertiesWidth, width, transform }}
-      className="fixed top-14 bottom-0 bg-card shadow-2xl border-l border-border z-[49] flex flex-col transition-transform duration-300 ease-in-out"
+      className="fixed top-12 bottom-0 bg-card shadow-2xl border-l border-border z-[49] flex flex-col transition-transform duration-300 ease-in-out"
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted shrink-0">
         <h2 className="text-sm text-foreground flex items-center gap-2 min-w-0">
