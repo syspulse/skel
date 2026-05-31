@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 import { useTheme, Theme } from '../theme/ThemeContext';
 import { useApp, DEFAULT_APP_NAME } from '../theme/AppContext';
-import { IconReset, IconLamp } from '../components/Icons';
+import { AppLogo } from '../components/AppBrand';
+import { IconReset } from '../components/Icons';
 
 const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED !== 'false';
 
@@ -77,37 +78,6 @@ function ThemeSection() {
   );
 }
 
-// ── Logo preview (mirrors TopBar rendering) ───────────────────────────────────
-
-function LogoPreview({ logoUrl }: { logoUrl: string }) {
-  if (!logoUrl.trim()) {
-    return (
-      <span className="inline-flex items-center justify-center text-muted-foreground">
-        <IconLamp size={28} />
-      </span>
-    );
-  }
-  const s = logoUrl.trim();
-  if (s.toLowerCase().startsWith('<svg')) {
-    return (
-      <span
-        className="inline-flex items-center justify-center w-7 h-7 [&>svg]:w-full [&>svg]:h-full"
-        dangerouslySetInnerHTML={{ __html: s }}
-      />
-    );
-  }
-  return (
-    <img
-      src={s}
-      alt="logo preview"
-      width={28}
-      height={28}
-      className="object-contain"
-      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-    />
-  );
-}
-
 // ── Profile tab ───────────────────────────────────────────────────────────────
 
 function ProfileTab() {
@@ -144,8 +114,8 @@ function ProfileTab() {
               placeholder="URL to SVG/PNG, inline <svg ...>, or data: URI"
               className="flex-1 text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
             />
-            <div className="w-8 h-8 flex items-center justify-center border border-border rounded bg-muted shrink-0">
-              <LogoPreview logoUrl={logoUrl} />
+            <div className="w-8 h-8 flex items-center justify-center border border-border rounded bg-muted shrink-0 text-muted-foreground">
+              <AppLogo logoUrl={logoUrl} size={28} />
             </div>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">

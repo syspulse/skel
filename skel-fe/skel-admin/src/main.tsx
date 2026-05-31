@@ -2,8 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AuthProvider } from './auth/AuthContext';
-import { ThemeProvider } from './theme/ThemeContext';
 import { AppProvider } from './theme/AppContext';
+import { ThemeProvider } from './theme/ThemeContext';
 import { NotificationProvider } from './notifications/NotificationContext';
 import './styles.css';
 

@@ -4,9 +4,15 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Explain Admin</title>
-    <script type="module" crossorigin src="/assets/index-CgwoP1qL.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DXcdM9x9.css">
+    <title>admin</title>
+    <script>
+      try {
+        var n = localStorage.getItem('app_name');
+        if (n) document.title = n;
+      } catch (e) {}
+    </script>
+    <script type="module" crossorigin src="/assets/index-ZtiffQkp.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-C0lrBRhX.css">
   </head>
   <body>
     <div id="root"></div>

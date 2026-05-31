@@ -4,7 +4,17 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Explain Admin</title>
+    <title>admin</title>
+    <script>
+      try {
+        var n = localStorage.getItem('app_name');
+        var logo = localStorage.getItem('app_logo') || '';
+        if (n) document.title = n;
+        window.__SKEL_BRANDING__ = { appName: n || 'admin', logoUrl: logo };
+      } catch (e) {
+        window.__SKEL_BRANDING__ = { appName: 'admin', logoUrl: '' };
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
