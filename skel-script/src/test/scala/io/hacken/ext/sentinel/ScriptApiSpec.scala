@@ -196,5 +196,22 @@ class ScriptApiSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
         """auth=Bearer flow-token;ct=application/json;body={"id":"item-7"}"""
       )
     }
+
+    "chain POST api to postman-echo then ScriptJQ extract json.value" in {
+      val postmanUri = "https://POST@postman-echo.com/post"
+      val api = ScriptFlow.resolve("api", """{"value":"{input}"}""", Some(postmanUri)).get
+      val jq = new ScriptJQ(Some(".json.value"))
+      val flow = new ScriptFlow(Seq(api, jq))
+
+      val inputValue = "skel-api-jq-test"
+      val data = Map(
+        s"${ScriptApi.HEADER_PREFIX}Content-Type" -> "application/json",
+        "timeout" -> 30000L
+      )
+
+      val result = flow.run("", inputValue, data)
+      result.isSuccess shouldBe true
+      result.get should include(inputValue)
+    }
   }
 }
