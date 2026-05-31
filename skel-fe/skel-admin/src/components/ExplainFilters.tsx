@@ -20,6 +20,18 @@ export const TIMEZONES: { value: string; label: string }[] = [
   { value: 'Asia/Hong_Kong',       label: 'HKT' },
 ];
 
+function tzOffsetLabel(tz: string): string {
+  if (tz === 'local') return '';
+  try {
+    const name = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'shortOffset' })
+      .formatToParts(new Date())
+      .find(p => p.type === 'timeZoneName')?.value ?? '';
+    return name === 'GMT' ? '+0' : name.replace('GMT', '');
+  } catch {
+    return '';
+  }
+}
+
 interface ExplainFiltersProps {
   filters: FilterState;
   timezone: string;
@@ -86,9 +98,14 @@ export function ExplainFilters({
         onChange={(e) => onTimezoneChange(e.target.value)}
         className="text-xs border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
       >
-        {TIMEZONES.map(({ value, label }) => (
-          <option key={value} value={value}>{label}</option>
-        ))}
+        {TIMEZONES.map(({ value, label }) => {
+          const off = tzOffsetLabel(value);
+          return (
+            <option key={value} value={value}>
+              {off ? `${label} (${off})` : label}
+            </option>
+          );
+        })}
       </select>
 
       <div className="flex-1" />
