@@ -29,6 +29,11 @@ object FutureUtil {
     Await.result(f,timeout)
   }
 
+  implicit def ????[R](f: Future[R])(implicit timeout:Long = 5000):R = {
+    if(timeout <= 0) return Await.result(f,Duration.Inf)
+    Await.result(f,FiniteDuration(timeout,TimeUnit.MILLISECONDS))
+  }
+
   implicit def sync[R](f: Future[R])(implicit timeout:Long = 5000):Try[R] = {
     Try(Await.result(f,FiniteDuration(timeout,TimeUnit.MILLISECONDS)))
   }
