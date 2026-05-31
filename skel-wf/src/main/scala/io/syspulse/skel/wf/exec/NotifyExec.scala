@@ -11,6 +11,8 @@ import io.syspulse.skel.wf._
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.notify.client._
 
+import io.syspulse.skel.FutureUtil._
+
 class NotifyExec(wid:Workflowing.ID,name:String,dataExec:Map[String,Any]) extends Executing(wid,name,dataExec) {   
   val serviceUri = dataExec.get("notify.uri").getOrElse("http://localhost:8080/api/v1/notify").asInstanceOf[String]
   val timeout = FiniteDuration(10,TimeUnit.SECONDS)
