@@ -48,10 +48,21 @@ class UserClientHttp(uri:String)(implicit as:ActorSystem[_], ec:ExecutionContext
   def reqGetUser(id:UUID) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/${id}",headers=authHeaders())
   def reqGetUserByEid(xid:String) = HttpRequest(method = HttpMethods.GET, uri = s"${uri}/xid/${xid}",headers=authHeaders())
   def reqGetUsers() = HttpRequest(method = HttpMethods.GET, uri = s"${uri}",headers=authHeaders())
-  def reqPostUser(email:String,name:String,xid:String,avatar:String) =  HttpRequest(method = HttpMethods.POST, uri = s"${uri}", headers=authHeaders(),
-        entity = HttpEntity(ContentTypes.`application/json`, 
-          UserCreateReq(email,name,xid,avatar).toJson.toString)
-      )
+  def reqPostUser(email: String, name: String, xid: String, avatar: String) =
+    HttpRequest(
+      method = HttpMethods.POST,
+      uri = s"${uri}",
+      headers = authHeaders(),
+      entity = HttpEntity(
+        ContentTypes.`application/json`,
+        UserCreateReq(
+          email = email,
+          name = Option(name).filter(_.nonEmpty),
+          xid = Option(xid).filter(_.nonEmpty),
+          avatar = Option(avatar).filter(_.nonEmpty),
+        ).toJson.toString,
+      ),
+    )
   def reqDeleteUser(id:UUID) = HttpRequest(method = HttpMethods.DELETE, uri = s"${uri}/${id}",headers=authHeaders())
 
   def delete(id:UUID):Future[UserActionRes] = {

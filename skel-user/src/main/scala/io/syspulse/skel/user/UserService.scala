@@ -61,7 +61,17 @@ class UserServiceSim extends UserService {
   def findByEmail(email:String):Future[Option[User]] = Future.successful(None)
 
   def create(email:String,name:String,xid:String,avatar:String):Future[Try[User]] = {
-    Future.successful(Success(User(UUID.random,email,name,xid,avatar)))
+    Future.successful(
+      Success(
+        User(
+          UUID.random,
+          email,
+          name = Option(name).filter(_.nonEmpty),
+          xid = Option(xid).filter(_.nonEmpty),
+          avatar = Option(avatar).filter(_.nonEmpty),
+        ),
+      ),
+    )
   }
 
   def delete(id:UUID):Future[UserActionRes] = Future.successful(UserActionRes("",None))

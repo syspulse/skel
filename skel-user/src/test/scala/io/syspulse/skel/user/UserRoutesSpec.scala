@@ -1,101 +1,181 @@
 package io.syspulse.skel.user
 
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
+
+import scala.util.{Success, Failure}
+import scala.concurrent.{Await, Promise}
+import scala.concurrent.duration._
+
+import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.Behaviors
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.testkit.ScalatestRouteTest
+import spray.json._
+
 import io.jvm.uuid._
 
-import akka.actor.testkit.typed.scaladsl.ActorTestKit
-import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model._
-import akka.http.scaladsl.testkit.ScalatestRouteTest
-
-import org.scalatest.{Ignore}
-import org.scalatest.wordspec.{ AnyWordSpec}
-import org.scalatest.matchers.should.{ Matchers}
-import org.scalatest.flatspec.AnyFlatSpec
-
-import io.syspulse.skel.user.User
-import io.syspulse.skel.user.store._
 import io.syspulse.skel.user.server._
+import io.syspulse.skel.user.store._
+import io.syspulse.skel.user.server.UserJson._
+import io.syspulse.skel.auth.permissions.Permissions
 
-import org.scalatest.compatible.Assertion
-import akka.actor.typed.scaladsl.ActorContext
-import akka.actor.typed.ActorRef
-import akka.actor.typed.Behavior
-import akka.actor.typed.scaladsl.Behaviors
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.FiniteDuration
-import java.util.concurrent.TimeUnit
-import akka.NotUsed
-import org.scalatest.concurrent.ScalaFutures
+class UserRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll {
 
+  sys.props += "GOD" -> "true"
 
-class UserRoutesSpec extends AnyWordSpec with Matchers with ScalaFutures with ScalatestRouteTest {
+  val store = new UserStoreMem()
+  val typedSystem = ActorSystem(Behaviors.empty, "UserTestSystem")
+  val registry = typedSystem.systemActorOf(UserRegistry(store), "UserRegistry")
 
-  // the Akka HTTP route testkit does not yet support a typed actor system (https://github.com/akka/akka-http/issues/2036)
-  // so we have to adapt for now
-  lazy val testKit = ActorTestKit()
-  implicit def typedSystem = testKit.system
-  override def createActorSystem(): akka.actor.ActorSystem = testKit.system.classicSystem
+  val routesPromise = Promise[UserRoutes]()
+  val testBehavior = Behaviors.setup[Any] { context =>
+    routesPromise.success(new UserRoutes(registry)(context, Config()))
+    Behaviors.empty
+  }
+  typedSystem.systemActorOf(testBehavior, "test-actor")
+  val routes = Await.result(routesPromise.future, 5.seconds)
 
-  def runWithContext[T,A](f: ActorContext[T] => A): A = {
-    def extractor(replyTo: ActorRef[A]): Behavior[T] =
-      Behaviors.setup { context =>
-        replyTo ! f(context)
-
-        Behaviors.ignore
-      }
-    val probe = testKit.createTestProbe[A]()
-    testKit.spawn(extractor(probe.ref))
-    probe.receiveMessage(FiniteDuration(1,TimeUnit.MINUTES))
+  override def afterAll(): Unit = {
+    typedSystem.terminate()
   }
 
-  // Here we need to implement all the abstract members of UserRoutes.
-  // We use the real UserRegistryActor to test it while we hit the Routes,
-  // but we could "mock" it by implementing it in-place or by using a TestProbe
-  // created with testKit.createTestProbe()
-  val userRegistry = testKit.spawn(UserRegistry())
-  
+  val testEmail = "alice@example.com"
+  val testXid = "0xabc123"
 
-  // use the json formats to marshal and unmarshall objects in the test
-  import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-  import UserJson._
+  "UserRoutes" should {
 
-  "UserRoutes" should runWithContext[NotUsed,Unit] { ctx => {
+    "return empty list (GET /)" in {
+      Get("/") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[Users].users shouldBe empty
+      }
+    }
 
-      val config = Config()
-      val routes = new UserRoutes(userRegistry)(ctx,config).routes
+    "create user with required email only (POST /)" in {
+      val req = UserCreateReq(email = testEmail)
+      Post("/", req) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.Created
+        val user = responseAs[User]
+        user.email shouldBe testEmail
+        user.name shouldBe None
+        user.xid shouldBe None
+        user.avatar shouldBe None
+        user.meta shouldBe None
+        user.ts0 should be > 0L
+        user.ts should be >= user.ts0
+      }
+    }
 
-      "return no users if no present (GET /user)" in  { 
-        val request = HttpRequest(uri = "/user")
+    "create user with optional fields and meta (POST /)" in {
+      val req = UserCreateReq(
+        email = "bob@example.com",
+        name = Some("Bob"),
+        xid = Some(testXid),
+        avatar = Some("https://example.com/a.png"),
+        meta = Some(Map("role" -> "admin", "tier" -> 2)),
+      )
+      Post("/", req) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.Created
+        val user = responseAs[User]
+        user.email shouldBe "bob@example.com"
+        user.name shouldBe Some("Bob")
+        user.xid shouldBe Some(testXid)
+        user.avatar shouldBe Some("https://example.com/a.png")
+        user.meta shouldBe Some(Map("role" -> "admin", "tier" -> 2.0))
+      }
+    }
 
-        request ~> routes ~> check {
-          status should ===(StatusCodes.OK)
-          contentType should ===(ContentTypes.`application/json`)
-          entityAs[String] should ===("""{"users":[]}""")
+    "get user by id (GET /{id})" in {
+      val createReq = UserCreateReq(email = "carol@example.com", name = Some("Carol"))
+      val id =
+        Post("/", createReq) ~> routes.routes ~> check {
+          status shouldBe StatusCodes.Created
+          responseAs[User].id
         }
+
+      Get(s"/${id}") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val user = responseAs[User]
+        user.id shouldBe id
+        user.email shouldBe "carol@example.com"
+        user.name shouldBe Some("Carol")
+      }
+    }
+
+    "get user by xid (GET /xid/{xid})" in {
+      Get(s"/xid/${testXid}") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val user = responseAs[User]
+        user.xid shouldBe Some(testXid)
+      }
+    }
+
+    "partially update user — only provided fields change (PUT /{id})" in {
+      val createReq = UserCreateReq(
+        email = "dave@example.com",
+        name = Some("Dave"),
+        meta = Some(Map("k" -> "v")),
+      )
+      val id =
+        Post("/", createReq) ~> routes.routes ~> check {
+          responseAs[User].id
+        }
+
+      val updateReq = UserUpdateReq(name = Some("Dave Updated"), meta = Some(Map("k" -> "v2", "n" -> 1)))
+      Put(s"/${id}", updateReq) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val user = responseAs[User]
+        user.email shouldBe "dave@example.com"
+        user.name shouldBe Some("Dave Updated")
+        user.meta shouldBe Some(Map("k" -> "v2", "n" -> 1.0))
+      }
+    }
+
+    "update email (PUT /{id})" in {
+      val createReq = UserCreateReq(email = "eve@example.com")
+      val id =
+        Post("/", createReq) ~> routes.routes ~> check {
+          responseAs[User].id
+        }
+
+      Put(s"/${id}", UserUpdateReq(email = Some("eve.new@example.com"))) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[User].email shouldBe "eve.new@example.com"
+      }
+    }
+
+    "delete user (DELETE /{id})" in {
+      val createReq = UserCreateReq(email = "frank@example.com")
+      val id =
+        Post("/", createReq) ~> routes.routes ~> check {
+          responseAs[User].id
+        }
+
+      Delete(s"/${id}") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[UserActionRes].status shouldBe "200"
+        responseAs[UserActionRes].uid shouldBe Some(id)
       }
 
-      "be able to add users (POST /user)" in {
-        val user = User(UUID.random)
-        val userEntity = Marshal(user).to[MessageEntity].futureValue // futureValue is from ScalaFutures
-        val request = Post("/user").withEntity(userEntity)
+      Get(s"/${id}") ~> routes.routes ~> check {
+        status.intValue() should (be(404) or be(500))
+      }
+    }
 
-        request ~> routes ~> check {
-          status should ===(StatusCodes.Created)
-          contentType should ===(ContentTypes.`application/json`)
-          entityAs[String] should ===("""{"description":"User Kapi created."}""")
-        }
+    "reject duplicate id on create (POST /)" in {
+      val id = UUID.random
+      val req1 = UserCreateReq(email = "g1@example.com", uid = Some(id))
+      Post("/", req1) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.Created
       }
 
-      "be able to remove users (DELETE /user)" in {
-        val request = Delete(uri = "/user/1")
-
-        request ~> routes ~> check {
-          status should ===(StatusCodes.OK)
-          contentType should ===(ContentTypes.`application/json`)
-          entityAs[String] should ===("""{"description":"User Kapi deleted."}""")
-        }
+      val req2 = UserCreateReq(email = "g2@example.com", uid = Some(id))
+      Post("/", req2) ~> routes.routes ~> check {
+        status.intValue() should (be(400) or be(500))
       }
-
     }
   }
 }

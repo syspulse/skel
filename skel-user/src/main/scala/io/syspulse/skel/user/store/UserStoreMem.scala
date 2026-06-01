@@ -1,75 +1,63 @@
 package io.syspulse.skel.user.store
 
-import scala.util.{Try,Success,Failure}
+import scala.util.{Try, Success, Failure}
 import scala.collection.immutable
 import scala.concurrent.Future
 
-import akka.actor.typed.ActorRef
-import akka.actor.typed.Behavior
-import akka.actor.typed.scaladsl.Behaviors
 import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
 
 import io.syspulse.skel.user.User
+import io.syspulse.skel.user.server.UserUpdateReq
 import io.syspulse.skel.ErrNotFound
 
 class UserStoreMem extends UserStore {
   val log = Logger(s"${this}")
-  
-  var users: Map[UUID,User] = Map()
 
-  def all:Seq[User] = users.values.toSeq
+  var users: Map[UUID, User] = Map()
 
-  def size:Long = users.size
+  def all: Seq[User] = users.values.toSeq
 
-  def +(user:User):Try[User] = { 
+  def size: Long = users.size
+
+  def +(user: User): Try[User] = {
     users = users + (user.id -> user)
     log.info(s"add: ${user}")
     Success(user)
   }
 
-  def del(id:UUID):Try[UUID] = { 
+  def del(id: UUID): Try[UUID] = {
     val sz = users.size
-    users = users - id;
+    users = users - id
     log.info(s"del: ${id}")
-    if(sz == users.size) Failure(new ErrNotFound(s"${id}")) else Success(id)  
+    if (sz == users.size) Failure(new ErrNotFound(s"${id}")) else Success(id)
   }
 
-  // def -(user:User):Try[UserStore] = {     
-  //   del(user.id)
-  // }
-
-  def ?(id:UUID):Try[User] = users.get(id) match {
+  def ?(id: UUID): Try[User] = users.get(id) match {
     case Some(u) => Success(u)
-    case None => Failure(new ErrNotFound(s"${id}"))
+    case None    => Failure(new ErrNotFound(s"${id}"))
   }
 
-  def findByXid(xid:String):Option[User] = {
-    users.values.find(_.xid.toLowerCase == xid.toLowerCase())
+  def findByXid(xid: String): Option[User] = {
+    users.values.find(u => u.xid.exists(_.equalsIgnoreCase(xid)))
   }
 
-  def findByEmail(email:String):Option[User] = {
-    users.values.find(_.email.toLowerCase == email.toLowerCase)
+  def findByEmail(email: String): Option[User] = {
+    users.values.find(_.email.equalsIgnoreCase(email))
   }
 
-  def update(id:UUID,email:Option[String]=None,name:Option[String]=None,avatar:Option[String]=None):Try[User] = {
+  def update(id: UUID, req: UserUpdateReq): Try[User] = {
     this.?(id) match {
-      case Success(user) => 
-        val user1 = modify(user,email,name,avatar)
+      case Success(user) =>
+        val user1 = applyUpdate(user, req)
         this.+(user1)
         Success(user1)
       case f => f
     }
   }
 
-  // Async not implemented
-  // def +!(user:User):Future[User] = throw new NotImplementedError()
-  // def delAsync(id:UUID):Future[UUID] = throw new NotImplementedError()
-  // def ?!(id:UUID):Future[User] = throw new NotImplementedError()
-  // def allAsync:Future[Seq[User]] = throw new NotImplementedError()
-  // def sizeAsync:Future[Long] = throw new NotImplementedError()
-  def findByXidAsync(xid:String):Future[User] = throw new NotImplementedError()
-  def findByEmailAsync(email:String):Future[User] = throw new NotImplementedError()
-  def updateAsync(id:UUID, email:Option[String] = None, name:Option[String] = None, avatar:Option[String] = None):Future[User] = throw new NotImplementedError()
+  def findByXidAsync(xid: String): Future[User] = throw new NotImplementedError()
+  def findByEmailAsync(email: String): Future[User] = throw new NotImplementedError()
+  def updateAsync(id: UUID, req: UserUpdateReq): Future[User] = throw new NotImplementedError()
 }

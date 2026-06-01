@@ -31,8 +31,8 @@ class UserStoreDir(dir:String = "store/") extends StoreDir[User,UUID](dir) with 
 
   override def findByXid(xid:String):Option[User] = store.findByXid(xid)
   override def findByEmail(email:String):Option[User] = store.findByEmail(email)
-  override def update(id:UUID, email:Option[String] = None, name:Option[String] = None, avatar:Option[String] = None):Try[User] = 
-    store.update(id,email,name,avatar).flatMap(u => writeFile(u))
+  override def update(id: UUID, req: io.syspulse.skel.user.server.UserUpdateReq): Try[User] =
+    store.update(id, req).flatMap(u => writeFile(u))
 
   // preload and watch
   load(dir)
@@ -47,5 +47,6 @@ class UserStoreDir(dir:String = "store/") extends StoreDir[User,UUID](dir) with 
   
   def findByXidAsync(xid:String):Future[User] = throw new NotImplementedError()
   def findByEmailAsync(email:String):Future[User] = throw new NotImplementedError()
-  def updateAsync(id:UUID, email:Option[String] = None, name:Option[String] = None, avatar:Option[String] = None):Future[User] = throw new NotImplementedError()
+  def updateAsync(id: UUID, req: io.syspulse.skel.user.server.UserUpdateReq): Future[User] =
+    throw new NotImplementedError()
 }
