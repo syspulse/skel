@@ -30,12 +30,12 @@ import io.syspulse.skel.util.Util
 
 abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Option[Configuration]=None) {
   private val log = Logger(s"${this}")
-  
+
   val props = new java.util.Properties
   val uri = new JdbcURI(dbUri)
 
   log.info(s"dbUri=${dbUri},uri=${uri},tableName=${tableName},configuration=${configuration}")
-    
+
   protected val (dbType,dbConfigName) = (uri.dbType,uri.dbConfig.getOrElse("postgres"))
   protected val dbTimezone = uri.timezone.getOrElse("UTC")
 
@@ -43,7 +43,7 @@ abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Optio
   def getDbType = dbType
   def getDbConfigName = dbConfigName
 
-  
+
 
   log.info(s"StoreDB: database=${dbType},config=${dbConfigName},table=${tableName}")
 
@@ -58,7 +58,7 @@ abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Optio
 
     Set("dataSourceClassName","dataSource.url","dataSource.user","dataSource.password",
         "connectionTimeout","idleTimeout","minimumIdle","maximumPoolSize","poolName","maxLifetime")
-    .map(p => 
+    .map(p =>
       // Null is needed to detect non-set field
       (p -> configuration.get.getString(s"${prefix}${p}").getOrElse(null))
     )
@@ -66,29 +66,11 @@ abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Optio
       case(k,v) => if(v!=null) props.setProperty(k,v)
     }
   }
-  
+
   // ATTENTION: do not log password !
   log.info(s"HikariProperties: ${props.asScala.map{case (k,v) => if(k == "dataSource.password") s"${k}=${Util.trunc(v,6)}" else s"${k}=${v}"}.mkString(",")}")
-  
-  val hikariConfig = new HikariConfig(props)
-  //val ctx = new MysqlJdbcContext(NamingStrategy(SnakeCase, UpperCase),new HikariDataSource(hikariConfig))
-  
-  // val ctx = dbConfigName.split("://").toList match {
-  //   case "mysql" :: _ => 
-  //     new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
-  //   case "postgres" :: _ => 
-  //     // postgres context does not support UUID as String!
-  //     //new PostgresJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
-  //     new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
-  //   // case "async" :: _ | "postgres_async" :: _ => 
-  //   //   // for some reason async does not support DataSource
-  //   //   val config = ConfigFactory.load().getConfig(dbConfigName)
-  //   //   new PostgresAsyncContext(NamingStrategy(SnakeCase),config)
-  //   case _ => 
-  //     new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
-  // }
 
-  // import ctx._
+  val hikariConfig = new HikariConfig(props)
 
   // Always store UTC timestamp
   def utc(z:ZonedDateTime) = z.withZoneSameInstant( ZoneId.of("UTC"))
@@ -96,50 +78,49 @@ abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Optio
 
   implicit val encodeZonedDateTime = MappedEncoding[ZonedDateTime, LocalDateTime](z => utc(z).toLocalDateTime)
   implicit val decodeZonedDateTime = MappedEncoding[LocalDateTime, ZonedDateTime]( d => local(d))
-    
+
 }
 
 // ========================================================================= StoreDB
-abstract class StoreDB[E,P](dbUri:String,tableName:String,configuration:Option[Configuration]=None) 
-  extends StoreDBCore(dbUri,tableName,configuration) 
+abstract class StoreDB[E,P](dbUri:String,tableName:String,configuration:Option[Configuration]=None)
+  extends StoreDBCore(dbUri,tableName,configuration)
   with Store[E,P] {
-  
+
   val tz = System.getProperty("user.timezone")
   System.setProperty("user.timezone", dbTimezone)
-  java.util.TimeZone.setDefault(null)  
+  java.util.TimeZone.setDefault(null)
 
   val ctx = dbType match {
-    case "mysql" => 
+    case "mysql" =>
       new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
-    case "postgres" => 
+    case "postgres" =>
       // ATTENTION: postgres context does not support UUID as String!
-      // Using it as MySQL will work !      
+      // Using it as MySQL will work !
       new PostgresJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
       //new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
-    case _ => 
+    case _ =>
       new MysqlJdbcContext(NamingStrategy(SnakeCase),new HikariDataSource(hikariConfig))
   }
 
   System.setProperty("user.timezone", tz)
 
   import ctx._
-  
+
   def create:Try[Long]
-  
+
   // MySQL does not support parameterized SELECT
   val totalSQL = () => quote { infix"""SELECT count(*) FROM ${lift(tableName)}""".as[Long] }
-  //def truncate() = ctx.executeAction(s"TRUNCATE TABLE ${tableName}")
   def truncateSQL = () => quote { infix"""TRUNCATE TABLE ${lift(tableName)}""".as[Long] }
   def truncate():Long = ctx.run(truncateSQL())
-  def size:Long = ctx.run(totalSQL())
+  def size:Future[Long] = Future.successful(ctx.run(totalSQL()))
 
-  implicit val vectorStringDecoder: Decoder[Vector[String]] = 
+  implicit val vectorStringDecoder: Decoder[Vector[String]] =
     decoder((row: ResultRow) => (index: Index) => {
       val str = row.getString(index)
       if (str == null || str.isEmpty) Vector.empty[String] else str.split(",").toVector
     })
 
-  implicit val vectorStringEncoding: MappedEncoding[Vector[String], String] = 
+  implicit val vectorStringEncoding: MappedEncoding[Vector[String], String] =
     MappedEncoding[Vector[String], String](_.mkString(","))
 
   // create Store
@@ -148,41 +129,37 @@ abstract class StoreDB[E,P](dbUri:String,tableName:String,configuration:Option[C
 
 // ========================================================================= StoreDBAsync
 
-abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Option[Configuration]=None) 
-  extends StoreDBCore(dbUri,tableName,configuration) 
-  //with StoreAsync[E,P] {
+abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Option[Configuration]=None)
+  extends StoreDBCore(dbUri,tableName,configuration)
   with Store[E,P] {
 
   private val log = Logger(s"${this}")
 
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
-  
-  // for some reason async does not support DataSource    
+
+  // for some reason async does not support DataSource
   val config = ConfigFactory.load().getConfig(dbConfigName)
   log.info(s"DB Config: ${config}")
 
   val ctx = dbType match {
-    case "postgres" =>                   
-      // new PostgresAsyncContext(NamingStrategy(SnakeCase),config)    
-      new PostgresJAsyncContext(NamingStrategy(SnakeCase),config)      
-    case "mysql" => 
+    case "postgres" =>
+      new PostgresJAsyncContext(NamingStrategy(SnakeCase),config)
+    case "mysql" =>
       new MysqlJAsyncContext(NamingStrategy(SnakeCase),config)
     case _ =>
-      new MysqlJAsyncContext(NamingStrategy(SnakeCase),config)      
+      new MysqlJAsyncContext(NamingStrategy(SnakeCase),config)
   }
 
   import ctx._
-  
+
   def create:Try[Long]
-  
-  // Fucking MySQL does not support parameterized SELECT
+
   val totalSQL = () => quote { infix"""SELECT count(*) FROM ${lift(tableName)}""".as[Long] }
-  //def truncate() = ctx.executeAction(s"TRUNCATE TABLE ${tableName}")
   def truncateSQL = () => quote { infix"""TRUNCATE TABLE ${lift(tableName)}""".as[Long] }
   def truncate():Future[Long] = ctx.run(truncateSQL())
 
-  override def sizeAsync:Future[Long] = ctx.run(totalSQL())
-  
+  def size:Future[Long] = ctx.run(totalSQL())
+
   // create Store
   create
 }

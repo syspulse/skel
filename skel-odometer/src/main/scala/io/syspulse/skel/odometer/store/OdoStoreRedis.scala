@@ -21,12 +21,13 @@ import io.syspulse.skel.uri.RedisURI
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Await
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 
 import spray.json._
 import io.syspulse.skel.odometer.server.OdoJson
 
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.Future
 
 
 class OdoStoreRedis(uri:String,redisTimeout:Long = 3000L) extends OdoStore {
@@ -37,7 +38,7 @@ class OdoStoreRedis(uri:String,redisTimeout:Long = 3000L) extends OdoStore {
   val timeout = FiniteDuration(redisTimeout,TimeUnit.MILLISECONDS)
 
   val redisUri = RedisURI(uri)
-    
+
   val redis = Redis(
     host = redisUri.host,
     port = redisUri.port,
@@ -49,25 +50,21 @@ class OdoStoreRedis(uri:String,redisTimeout:Long = 3000L) extends OdoStore {
     connectTimeout = timeout
   )
 
-  // Import internal ActorSystem's dispatcher (execution context) to register callbacks
-  import redis.dispatcher
-  
+  // Use internal ActorSystem's dispatcher (execution context) for callbacks
+  // Not implicit to avoid ambiguity with ?? method parameter
+  private val redisEc: ExecutionContext = redis.dispatcher
 
-  def all:Seq[Odo] = {
-    val f = for {
-      r1 <-  redis.keys("*")       
-      r2 <- {
-        redis.mGet(r1.toSeq: _*)
-      }
-    } yield r2
-
-    val r = Await.result(f,timeout)          
-    val oo = r.flatMap(_.map(v => v.parseJson.convertTo[Odo]))
-    oo
+  def all:Future[Seq[Odo]] = {
+    implicit val ec = redisEc
+    for {
+      r1 <- redis.keys("*")
+      r2 <- redis.mGet(r1.toSeq: _*)
+    } yield r2.flatMap(_.map(v => v.parseJson.convertTo[Odo]))
   }
 
-  def scan(pattern:String):Seq[Odo] = {
-    val f = for {
+  def scan(pattern:String):Future[Seq[Odo]] = {
+    implicit val ec = redisEc
+    for {
       r1 <- {
         val keys = ListBuffer[String]()
         var cursor = 0L
@@ -79,92 +76,76 @@ class OdoStoreRedis(uri:String,redisTimeout:Long = 3000L) extends OdoStore {
           cursor = next
           done = (cursor == 0)
         }
-        Future(keys)
+        Future.successful(keys.toSeq)
       }
       r2 <- {
-        if(r1.size == 0)
-          Future(Seq())
+        if(r1.isEmpty)
+          Future.successful(Seq[Option[String]]())
         else
           redis.mGet(r1.toSeq: _*)
       }
-    } yield r2
-
-    val r = Await.result(f,timeout)          
-    val oo = r.flatMap(v => v.map(_.parseJson.convertTo[Odo]))
-    oo      
+    } yield r2.flatMap(v => v.map(_.parseJson.convertTo[Odo]))
   }
 
-  def size:Long = {
-    val f = redis.dbSize()
-    Await.result(f,timeout)
-  }
+  def size:Future[Long] = redis.dbSize()
 
-  def +(o:Odo):Try[Odo] = { 
-    val f = redis.set(o.id,o.toJson.compactPrint)
+  def +(o:Odo):Future[Odo] = {
+    implicit val ec = redisEc
     log.debug(s"add: ${o}")
-    Success(o)
+    redis.set(o.id,o.toJson.compactPrint).map(_ => o)
   }
 
-  def del(id:String):Try[String] = { 
+  def del(id:String):Future[String] = {
+    implicit val ec = redisEc
     log.info(s"del: ${id}")
-    val f = redis.del(id)
-    val r = Await.result(f,timeout)
-    if(r == 0) Failure(new Exception(s"not found: ${id}")) else Success(id)  
-  }
-
-  def ?(id:String):Try[Odo] = {
-    val f = redis.get(id)
-    Await.result(f,timeout) match {    
-      case Some(o) => Success(o.parseJson.convertTo[Odo])
-      case None => Failure(new Exception(s"not found: ${id}"))
+    redis.del(id).flatMap { r =>
+      if(r == 0) Future.failed(new Exception(s"not found: ${id}")) else Future.successful(id)
     }
   }
 
-  def update(id:String,v:Long):Try[Odo] = {
-    this.?(id) match {
-      case Success(o) => 
-        val o1 = modify(o,v)
-        this.+(o1)
-        Success(o1)
-      case f => f
+  def ?(id:String):Future[Odo] = {
+    implicit val ec = redisEc
+    redis.get(id).flatMap {
+      case Some(o) => Future.successful(o.parseJson.convertTo[Odo])
+      case None => Future.failed(new Exception(s"not found: ${id}"))
     }
   }
 
-  def ++(id:String, delta:Long):Try[Odo] = {
-    this.?(id) match {
-      case Success(o) => 
-        val o1 = o.copy(v = o.v + delta, ts = System.currentTimeMillis)
-        this.+(o1)        
-        Success(o1)
-      case f => f
+  def update(id:String,v:Long):Future[Odo] = {
+    implicit val ec = redisEc
+    this.?(id).flatMap { o =>
+      val o1 = modify(o,v)
+      this.+(o1).map(_ => o1)
     }
   }
 
-  def clear():Try[OdoStore] = {
+  def ++(id:String, delta:Long):Future[Odo] = {
+    implicit val ec = redisEc
+    this.?(id).flatMap { o =>
+      val o1 = o.copy(v = o.v + delta, ts = System.currentTimeMillis)
+      this.+(o1).map(_ => o1)
+    }
+  }
+
+  def clear():Future[OdoStore] = {
+    implicit val ec = redisEc
     log.info("clear: ")
-    val f = redis.flushDB()
-    Await.result(f,timeout)
-    Success(this)
+    redis.flushDB().map(_ => this)
   }
 
-  override def ??(ids:Seq[String]):Seq[Odo] = {    
-    val oo = ids.flatMap( id => {
-
-      id.split(":").toList match {        
-        case ns :: "*" :: Nil => 
+  override def ??(ids:Seq[String])(implicit ec:scala.concurrent.ExecutionContext):Future[Seq[Odo]] = {
+    Future.traverse(ids) { id =>
+      id.split(":").toList match {
+        case ns :: "*" :: Nil =>
           scan(s"${ns}:*")
 
-        case "*" :: Nil => 
+        case "*" :: Nil =>
           // use optimized scan
           scan("*")
-        
+
         case _ =>
-          ?(id) match {
-            case Success(o) => Seq(o)
-            case _ => Seq()
-          }
-      }      
-    })
-    oo    
+          ?(id).map(o => Seq(o)).recover { case _ => Seq() }
+      }
+    }.map(_.flatten)
   }
 }

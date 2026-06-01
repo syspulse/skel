@@ -8,7 +8,8 @@ import scala.collection.immutable
 import io.jvm.uuid._
 
 import io.prometheus.client.Gauge
-import scala.util.Try
+import scala.util.{Try,Success,Failure}
+import scala.concurrent.ExecutionContext
 
 final case class ServiceCode(id:UUID,code: String)
 final case class Services(services: immutable.Seq[Service])
@@ -17,7 +18,7 @@ final case class Services(services: immutable.Seq[Service])
 final case class ServiceCreate(secret: String,name:String, uri:String, period:Option[Int])
 
 object ServiceRegistry {
-  
+
   sealed trait Command extends io.syspulse.skel.Command
 
   final case class GetServices(replyTo: ActorRef[Services]) extends Command
@@ -39,31 +40,32 @@ object ServiceRegistry {
   }
 
   val metricStoreSize = Gauge.build().name("skel_http_store_size").help("Store Size").register()
-  
+
   private def registry(store: ServiceStore): Behavior[io.syspulse.skel.Command] = {
     this.store = store
+    implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
 
     Behaviors.receiveMessage {
       case GetServices(replyTo) =>
-        replyTo ! Services(store.all)
+        store.all.foreach(services => replyTo ! Services(services))
         Behaviors.same
       case CreateService(serviceCreate, replyTo) =>
         val id = UUID.randomUUID()
         val service = Service(id,serviceCreate.secret,serviceCreate.name,serviceCreate.uri,serviceCreate.period.getOrElse(30))
         store.+(service)
-        
-        metricStoreSize.set(store.size.toDouble)
-        
+
+        store.size.foreach(n => metricStoreSize.set(n.toDouble))
+
         replyTo ! ServiceActionPerformed(s"created",Some(id))
         Behaviors.same
 
       case GetService(id, replyTo) =>
-        replyTo ! GetServiceResponse(store.?(id))
+        store.?(id).onComplete(r => replyTo ! GetServiceResponse(r))
         Behaviors.same
-        
+
       case DeleteService(id, replyTo) =>
-        val store1 = store.del(id)
-        metricStoreSize.set(store.size.toDouble)
+        store.del(id)
+        store.size.foreach(n => metricStoreSize.set(n.toDouble))
         replyTo ! ServiceActionPerformed(s"deleted",Some(id))
         Behaviors.same
     }

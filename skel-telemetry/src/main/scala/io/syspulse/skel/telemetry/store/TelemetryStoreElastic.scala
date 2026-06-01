@@ -3,6 +3,7 @@ package io.syspulse.skel.telemetry.store
 import scala.util.Try
 import scala.util.{Success,Failure}
 import scala.collection.immutable
+import scala.concurrent.Future
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
@@ -52,8 +53,8 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
   import ElasticDsl._  
 
   def clean():Try[TelemetryStore] = { Failure(new UnsupportedOperationException) }
-  
-  def all:Seq[Telemetry] = {    
+
+  def all:Future[Seq[Telemetry]] = {
     val r = client.execute {
       ElasticDsl
       .search(uri.index)
@@ -61,23 +62,23 @@ class TelemetryStoreElastic(elasticUri:String) extends TelemetryStore {
     }.await
 
     log.info(s"r=${r}")
-    r.result.to[Telemetry].toList
+    Future.successful(r.result.to[Telemetry].toList)
   }
 
   // slow and memory hungry !
-  def size:Long = {
+  def size:Future[Long] = {
     val r = client.execute {
       ElasticDsl.count(Indexes(uri.index))
     }.await
-    r.result.count
+    Future.successful(r.result.count)
   }
 
-  def +(telemetry:Telemetry):Try[Telemetry] = { 
-    Failure(new UnsupportedOperationException(s"not implemented: ${telemetry}"))
+  def +(telemetry:Telemetry):Future[Telemetry] = {
+    Future.failed(new UnsupportedOperationException(s"not implemented: ${telemetry}"))
   }
 
-  def del(id:ID):Try[ID] = { 
-    Failure(new UnsupportedOperationException(s"not implemented: ${id}"))
+  def del(id:ID):Future[ID] = {
+    Future.failed(new UnsupportedOperationException(s"not implemented: ${id}"))
   }
 
   def ?(id:ID,ts0:Long,ts1:Long,op:Option[String] = None):Seq[Telemetry] = {

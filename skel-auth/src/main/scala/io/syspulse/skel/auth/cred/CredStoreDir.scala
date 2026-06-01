@@ -1,7 +1,7 @@
 package io.syspulse.skel.auth.cred
 
-import scala.util.Try
-import scala.util.{Success,Failure}
+import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.immutable
 
 import com.typesafe.scalalogging.Logger
@@ -20,15 +20,15 @@ class CredStoreDir(dir:String = "store/cred/") extends StoreDir[Cred,String](dir
   val store = new CredStoreMem
 
   def toKey(id:String):String = id
-  def all:Seq[Cred] = store.all
-  def size:Long = store.size
-  override def +(c:Cred):Try[Cred] = super.+(c).flatMap(_ => store.+(c))
+  def all:Future[Seq[Cred]] = store.all
+  def size:Future[Long] = store.size
+  override def +(c:Cred):Future[Cred] = super.+(c).flatMap(_ => store.+(c))
 
-  override def del(cid:String):Try[String] = super.del(cid).flatMap(_ => store.del(cid))
-  override def ?(cid:String):Try[Cred] = store.?(cid)
+  override def del(cid:String):Future[String] = super.del(cid).flatMap(_ => store.del(cid))
+  override def ?(cid:String):Future[Cred] = store.?(cid)
 
-  override def update(id:String,secret:Option[String]=None,name:Option[String]=None,expire:Option[Long] = None):Try[Cred] =
-    store.update(id).flatMap(c => writeFile(c))
+  override def update(id:String,secret:Option[String]=None,name:Option[String]=None,expire:Option[Long] = None):Future[Cred] =
+    store.update(id,secret,name,expire).flatMap(c => Future.fromTry(writeFile(c)))
 
   // preload
   load(dir)

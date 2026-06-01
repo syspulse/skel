@@ -10,6 +10,7 @@ import scala.util.Success
 import scala.util.Try
 
 import io.syspulse.skel.crypto.eth.abi._
+import io.syspulse.skel.store.Store
 import codegen.Decoder
 import codegen.AbiDefinition
 import io.syspulse.skel.crypto.Hash
@@ -137,13 +138,13 @@ object AppABI extends {
       case "func" =>
         config.params.toList match {
           case sig :: Nil => funcStore.??(sig).map(_.mkString("\n"))
-          case _ => funcStore.all.mkString("\n")
+          case _ => Store.fromFuture(funcStore.all).getOrElse(Seq()).mkString("\n")
         }
-        
+
       case "event" =>
         config.params.toList match {
           case sig :: Nil => eventStore.??(sig).map(_.mkString("\n"))
-          case _ => eventStore.all.mkString("\n")
+          case _ => Store.fromFuture(eventStore.all).getOrElse(Seq()).mkString("\n")
         }
 
       case "sig" | "signature" =>

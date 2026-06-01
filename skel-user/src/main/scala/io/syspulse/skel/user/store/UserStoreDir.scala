@@ -1,8 +1,8 @@
 package io.syspulse.skel.user.store
 
-import scala.util.{Try,Success,Failure}
+import scala.util.{Try, Success, Failure}
 import scala.collection.immutable
-import scala.concurrent.Future
+import scala.concurrent.{Future, ExecutionContext}
 
 import com.typesafe.scalalogging.Logger
 
@@ -18,36 +18,26 @@ import io.syspulse.skel.user.User
 import io.syspulse.skel.user.server.UserJson._
 
 // Preload from file during start
-class UserStoreDir(dir:String = "store/") extends StoreDir[User,UUID](dir) with UserStore {
+class UserStoreDir(dir: String = "store/") extends StoreDir[User, UUID](dir) with UserStore {
   val store = new UserStoreMem
 
-  def toKey(id:String):UUID = UUID(id)
-  def all:Seq[User] = store.all
-  override def ???(from: Long, size: Long): Seq[User] = store.???(from, size)
-  def size:Long = store.size
-  override def +(u:User):Try[User] = super.+(u).flatMap(_ => store.+(u))
+  implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
 
-  override def del(uid:UUID):Try[UUID] = super.del(uid).flatMap(_ => store.del(uid))
-  override def ?(uid:UUID):Try[User] = store.?(uid)
+  def toKey(id: String): UUID = UUID(id)
+  def all: Future[Seq[User]] = store.all
+  override def ???(from: Long, size: Long)(implicit ec: ExecutionContext): Future[Seq[User]] = store.???(from, size)
+  def size: Future[Long] = store.size
+  override def +(u: User): Future[User] = super.+(u).flatMap(_ => store.+(u))
 
-  override def findByXid(xid:String):Option[User] = store.findByXid(xid)
-  override def findByEmail(email:String):Option[User] = store.findByEmail(email)
-  override def update(id: UUID, req: io.syspulse.skel.user.server.UserUpdateReq): Try[User] =
-    store.update(id, req).flatMap(u => writeFile(u))
+  override def del(uid: UUID): Future[UUID] = super.del(uid).flatMap(_ => store.del(uid))
+  override def ?(uid: UUID): Future[User] = store.?(uid)
+
+  override def findByXid(xid: String): Future[Option[User]] = store.findByXid(xid)
+  override def findByEmail(email: String): Future[Option[User]] = store.findByEmail(email)
+  override def update(id: UUID, req: io.syspulse.skel.user.server.UserUpdateReq): Future[User] =
+    store.update(id, req).flatMap(u => Future.fromTry(writeFile(u)))
 
   // preload and watch
   load(dir)
   watch(dir)
- 
-  // Async not implemented
-  // def +!(user:User):Future[User] = throw new NotImplementedError()
-  // def delAsync(id:UUID):Future[UUID] = throw new NotImplementedError()
-  // def ?!(id:UUID):Future[User] = throw new NotImplementedError()
-  // def allAsync:Future[Seq[User]] = throw new NotImplementedError()
-  // def sizeAsync:Future[Long] = throw new NotImplementedError()
-  
-  def findByXidAsync(xid:String):Future[User] = throw new NotImplementedError()
-  def findByEmailAsync(email:String):Future[User] = throw new NotImplementedError()
-  def updateAsync(id: UUID, req: io.syspulse.skel.user.server.UserUpdateReq): Future[User] =
-    throw new NotImplementedError()
 }

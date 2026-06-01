@@ -6,7 +6,9 @@ import akka.actor.typed.scaladsl.Behaviors
 import scala.collection.immutable
 import com.typesafe.scalalogging.Logger
 
-import scala.util.Try
+import scala.util.{Try, Success, Failure}
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 
 import io.jvm.uuid._
 import ejisan.kuro.otp._
@@ -18,13 +20,15 @@ import io.syspulse.skel.otp.server._
 
 object OtpRegistry {
   val log = Logger(s"${this}")
-  
+
+  implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
+
   final case class GetOtps(replyTo: ActorRef[Otps]) extends Command
   final case class GetOtp(id:UUID,replyTo: ActorRef[Try[Otp]]) extends Command
-  
+
   final case class GetOtpCode(id:UUID,replyTo: ActorRef[Try[OtpCode]]) extends Command
   final case class GetOtpCodeVerify(id:UUID,code:String,replyTo: ActorRef[OtpCodeVerifyRes]) extends Command
-  
+
   final case class CreateOtp(otpCreate: OtpCreateReq, replyTo: ActorRef[OtpCreateRes]) extends Command
   final case class DeleteOtp(id: UUID, replyTo: ActorRef[OtpActionRes]) extends Command
   final case class RandomOtp(otpRandom: OtpRandomReq, replyTo: ActorRef[OtpRandomRes]) extends Command
@@ -68,12 +72,12 @@ object OtpRegistry {
     val algorithm = algo
     val lock = "false"
     val otpType = "totp"
-    
+
     var otpURI = "otpauth://" + otpType + "/";
 
 	  if (name.size > 0)
 		  otpURI = otpURI + URLEncoder.encode(name, StandardCharsets.UTF_8.toString) + ":"
-    
+
     otpURI = otpURI + URLEncoder.encode(account, StandardCharsets.UTF_8.toString)
 
     otpURI = otpURI + "?secret=" + secret.toUpperCase()
@@ -103,11 +107,11 @@ object OtpRegistry {
 
     Behaviors.receiveMessage {
       case GetOtps(replyTo) =>
-        replyTo ! Otps(store.all)
+        store.all.foreach(otps => replyTo ! Otps(otps))
         Behaviors.same
 
       case GetUserOtps(uid,replyTo) =>
-        replyTo ! Otps(store.getForUser(uid))
+        store.getForUser(uid).foreach(otps => replyTo ! Otps(otps))
         Behaviors.same
 
       case CreateOtp(otpCreate, replyTo) =>
@@ -119,28 +123,28 @@ object OtpRegistry {
         } else otpCreate.secret
 
         val otp = Otp(id,otpCreate.uid, secret, otpCreate.name, otpCreate.account, otpCreate.issuer.getOrElse(""), otpCreate.period.getOrElse(30))
-        val store1 = store.+(otp)
+        store.+(otp)
 
         replyTo ! OtpCreateRes(secret,Some(id))
         Behaviors.same
 
       case RandomOtp(otpRandom, replyTo) =>
-        
+
         val secret = authRandom(otpRandom.algo.getOrElse("SHA1"))
 
         val qrImage = authQR(secret,
-          otpRandom.name.getOrElse(""), otpRandom.account.getOrElse(""), otpRandom.issuer.getOrElse(""), 
+          otpRandom.name.getOrElse(""), otpRandom.account.getOrElse(""), otpRandom.issuer.getOrElse(""),
           otpRandom.period.getOrElse(30), otpRandom.digits.getOrElse(6), otpRandom.algo.getOrElse("SHA1")
         )
         replyTo ! OtpRandomRes(secret,qrImage)
         Behaviors.same
 
       case RandomHtml(otpRandom, replyTo) =>
-        
+
         val secret = authRandom(otpRandom.algo.getOrElse("SHA1"))
 
         val qrImage = authQR(secret,
-          otpRandom.name.getOrElse(""), otpRandom.account.getOrElse(""), otpRandom.issuer.getOrElse(""), 
+          otpRandom.name.getOrElse(""), otpRandom.account.getOrElse(""), otpRandom.issuer.getOrElse(""),
           otpRandom.period.getOrElse(30), otpRandom.digits.getOrElse(6), otpRandom.algo.getOrElse("SHA1")
         )
 
@@ -160,33 +164,30 @@ object OtpRegistry {
         Behaviors.same
 
       case GetOtp(id, replyTo) =>
-        replyTo ! store.?(id)
+        store.?(id).onComplete(replyTo ! _)
         Behaviors.same
 
       case GetOtpCode(id, replyTo) =>
-        val otp = store.?(id)
-
-        val code = otp.map( o => {
-          OtpCode(id = o.id, code = authCode(o.secret,o.period))
-        })
-
-        replyTo ! code
+        store.?(id).onComplete {
+          case Success(o) =>
+            replyTo ! Success(OtpCode(id = o.id, code = authCode(o.secret,o.period)))
+          case Failure(e) =>
+            replyTo ! Failure(e)
+        }
         Behaviors.same
 
       case GetOtpCodeVerify(id, codeUser, replyTo) =>
-        val otp = store.?(id)
-        
-        val code = otp.map( o => {
-          authCode(o.secret,o.period)
-        })
-
-        replyTo ! OtpCodeVerifyRes(codeUser,(
-          code.map( c => c == codeUser).getOrElse(false)
-        ))
+        store.?(id).onComplete {
+          case Success(o) =>
+            val code = authCode(o.secret, o.period)
+            replyTo ! OtpCodeVerifyRes(codeUser, code == codeUser)
+          case Failure(_) =>
+            replyTo ! OtpCodeVerifyRes(codeUser, false)
+        }
         Behaviors.same
 
       case DeleteOtp(id, replyTo) =>
-        val store1 = store.del(id)
+        store.del(id)
         replyTo ! OtpActionRes(s"Success",Some(id))
         Behaviors.same
     }

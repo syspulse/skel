@@ -1,6 +1,7 @@
 package io.syspulse.skel.wf.temporal.workflow.store
 
 import scala.util.{Failure,Success,Try}
+import scala.concurrent.Future
 import scala.collection.immutable
 import com.typesafe.scalalogging.Logger
 
@@ -12,17 +13,17 @@ class WorkflowRunStoreMem() extends WorkflowRunStore {
 
   var runs:Map[String,WorkflowRun] = Map()
 
-  def +(w:WorkflowRun):Try[WorkflowRun] = {
+  def +(w:WorkflowRun):Future[WorkflowRun] = {
     val key = getKey(w)
     runs = runs + (key -> w)
     // Also index by wid if rid is present and different from wid
     if (w.rid.isDefined && w.rid.get != w.wid) {
       runs = runs + (w.wid -> w)
     }
-    Success(w)
+    Future.successful(w)
   }
 
-  def del(id:String):Try[String] = {
+  def del(id:String):Future[String] = {
     // Remove by id and also by wid if the run exists
     runs.get(id).foreach { run =>
       if (run.rid.isDefined && run.rid.get != run.wid) {
@@ -30,7 +31,7 @@ class WorkflowRunStoreMem() extends WorkflowRunStore {
       }
     }
     runs = runs - id
-    Success(id)
+    Future.successful(id)
   }
 
   def ??(id:String):Option[WorkflowRun] = runs.get(id)
@@ -43,7 +44,7 @@ class WorkflowRunStoreMem() extends WorkflowRunStore {
     }
   }
 
-  def all:Seq[WorkflowRun] = runs.values.toSeq.distinct
+  def all:Future[Seq[WorkflowRun]] = Future.successful(runs.values.toSeq.distinct)
 
-  def size:Long = runs.values.toSeq.distinct.size
+  def size:Future[Long] = Future.successful(runs.values.toSeq.distinct.size.toLong)
 }

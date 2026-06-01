@@ -11,19 +11,20 @@ import io.jvm.uuid._
 import io.syspulse.skel.Command
 
 import io.syspulse.skel.job._
-import scala.util.Try
+import scala.util.{Try,Success,Failure}
+import scala.concurrent.ExecutionContext
 
 import io.syspulse.skel.job.server.{JobSubmitReq, JobRes, Jobs}
 
 object JobRegistry {
   val log = Logger(s"${this}")
-  
+
   final case class GetJob(uid:Option[UUID],id: Job.ID, replyTo: ActorRef[Try[Job]]) extends Command
   final case class GetJobs(replyTo: ActorRef[Jobs]) extends Command
-  final case class SubmitJob(uid:Option[UUID], req: JobSubmitReq, replyTo: ActorRef[Try[Job]]) extends Command  
+  final case class SubmitJob(uid:Option[UUID], req: JobSubmitReq, replyTo: ActorRef[Try[Job]]) extends Command
   final case class DeleteJob(uid:Option[UUID], id: Job.ID, replyTo: ActorRef[JobRes]) extends Command
   final case class FindJobs(uid:Option[UUID], state:Option[String], replyTo: ActorRef[Try[Jobs]]) extends Command
-  
+
   // this var reference is unfortunately needed for Metrics access
   var store: JobStore = null
 
@@ -34,29 +35,32 @@ object JobRegistry {
 
   private def registry(store: JobStore)(config:Config): Behavior[Command] = {
     this.store = store
+    implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
 
     Behaviors.receiveMessage {
       case GetJobs(replyTo) =>
-        val jj = store.all
-        replyTo ! Jobs(jj,Some(jj.size))
+        store.all.foreach(jj => replyTo ! Jobs(jj, Some(jj.size)))
         Behaviors.same
 
       case GetJob(uid, id, replyTo) =>
-        replyTo ! store.?(id)
+        store.?(id).onComplete(replyTo ! _)
         Behaviors.same
 
       case FindJobs(uid, state, replyTo) =>
-        replyTo ! store.??(uid,state)
+        store.??(uid,state).onComplete(replyTo ! _)
         Behaviors.same
 
       case DeleteJob(uid, id, replyTo) =>
-        replyTo ! store.del(id).map(_ => JobRes("deleted",Some(id))).get
+        store.del(id).onComplete {
+          case Success(_) => replyTo ! JobRes("deleted", Some(id))
+          case Failure(e) => replyTo ! JobRes(s"error: ${e.getMessage}", Some(id))
+        }
         Behaviors.same
 
       case SubmitJob(uid:Option[UUID], req, replyTo) =>
-        log.info(s"${req}")        
-        val job = store.submit(req.name,req.src,req.conf.getOrElse(Map()),req.inputs.getOrElse(Map()),uid,config.poll)
-        replyTo ! job
+        log.info(s"${req}")
+        store.submit(req.name,req.src,req.conf.getOrElse(Map()),req.inputs.getOrElse(Map()),uid,config.poll)
+          .onComplete(replyTo ! _)
         Behaviors.same
     }
   }

@@ -1,8 +1,7 @@
 package io.syspulse.skel.user.store
 
-import scala.util.{Try, Success, Failure}
 import scala.collection.immutable
-import scala.concurrent.Future
+import scala.concurrent.{Future, ExecutionContext}
 
 import com.typesafe.scalalogging.Logger
 
@@ -17,46 +16,41 @@ class UserStoreMem extends UserStore {
 
   var users: Map[UUID, User] = Map()
 
-  def all: Seq[User] = users.values.toSeq
-  def size: Long = users.size
+  def all: Future[Seq[User]] = Future.successful(users.values.toSeq)
+  def size: Future[Long] = Future.successful(users.size.toLong)
 
-  def +(user: User): Try[User] = {
+  def +(user: User): Future[User] = {
     users = users + (user.id -> user)
     log.info(s"add: ${user}")
-    Success(user)
+    Future.successful(user)
   }
 
-  def del(id: UUID): Try[UUID] = {
+  def del(id: UUID): Future[UUID] = {
     val sz = users.size
     users = users - id
     log.info(s"del: ${id}")
-    if (sz == users.size) Failure(new ErrNotFound(s"${id}")) else Success(id)
+    if (sz == users.size) Future.failed(new ErrNotFound(s"${id}")) else Future.successful(id)
   }
 
-  def ?(id: UUID): Try[User] = users.get(id) match {
-    case Some(u) => Success(u)
-    case None    => Failure(new ErrNotFound(s"${id}"))
+  def ?(id: UUID): Future[User] = users.get(id) match {
+    case Some(u) => Future.successful(u)
+    case None    => Future.failed(new ErrNotFound(s"${id}"))
   }
 
-  def findByXid(xid: String): Option[User] = {
-    users.values.find(u => u.xid.exists(_.equalsIgnoreCase(xid)))
+  def findByXid(xid: String): Future[Option[User]] = {
+    Future.successful(users.values.find(u => u.xid.exists(_.equalsIgnoreCase(xid))))
   }
 
-  def findByEmail(email: String): Option[User] = {
-    users.values.find(_.email.equalsIgnoreCase(email))
+  def findByEmail(email: String): Future[Option[User]] = {
+    Future.successful(users.values.find(_.email.equalsIgnoreCase(email)))
   }
 
-  def update(id: UUID, req: UserUpdateReq): Try[User] = {
-    this.?(id) match {
-      case Success(user) =>
-        val user1 = applyUpdate(user, req)
-        this.+(user1)
-        Success(user1)
-      case f => f
+  def update(id: UUID, req: UserUpdateReq): Future[User] = {
+    implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
+    ?(id).map { user =>
+      val user1 = applyUpdate(user, req)
+      users = users + (user1.id -> user1)
+      user1
     }
   }
-
-  def findByXidAsync(xid: String): Future[User] = throw new NotImplementedError()
-  def findByEmailAsync(email: String): Future[User] = throw new NotImplementedError()
-  def updateAsync(id: UUID, req: UserUpdateReq): Future[User] = throw new NotImplementedError()
 }

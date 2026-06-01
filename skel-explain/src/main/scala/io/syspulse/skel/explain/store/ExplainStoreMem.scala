@@ -1,6 +1,7 @@
 package io.syspulse.skel.explain.store
 
 import scala.util.{Failure, Success, Try}
+import scala.concurrent.Future
 import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skel.explain.Explain
@@ -11,36 +12,36 @@ class ExplainStoreMem extends ExplainStore {
 
   var rules: Map[(Option[String], String), Explain] = Map()
 
-  def +(r: Explain): Try[Explain] = {
+  def +(r: Explain): Future[Explain] = {
     rules = rules + ((r.oid, r.rid) -> r)
-    Success(r)
+    Future.successful(r)
   }
 
-  def del(oid: Option[String], rid: String): Try[Explain] =
+  def del(oid: Option[String], rid: String): Future[Explain] =
     rules.get((oid, rid)) match {
       case Some(r) =>
         rules = rules - ((oid, rid))
-        Success(r)
+        Future.successful(r)
       case None =>
-        Failure(new ErrNotFound(s"ExplainRule: $oid/$rid"))
+        Future.failed(new ErrNotFound(s"ExplainRule: $oid/$rid"))
     }
 
-  def get(oid: Option[String], rid: String): Try[Explain] =
+  def get(oid: Option[String], rid: String): Future[Explain] =
     rules.get((oid, rid)) match {
-      case Some(r) => Success(r)
-      case None    => Failure(new ErrNotFound(s"ExplainRule: $oid/$rid"))
+      case Some(r) => Future.successful(r)
+      case None    => Future.failed(new ErrNotFound(s"ExplainRule: $oid/$rid"))
     }
 
-  def findByOid(oid: Option[String]): Seq[Explain] =
-    rules.values.filter(_.oid == oid).toSeq
+  def findByOid(oid: Option[String]): Future[Seq[Explain]] =
+    Future.successful(rules.values.filter(_.oid == oid).toSeq)
 
-  def delByOid(oid: Option[String]): Try[Seq[Explain]] = {
+  def delByOid(oid: Option[String]): Future[Seq[Explain]] = {
     val deleted = rules.values.filter(_.oid == oid).toSeq
     deleted.foreach(r => rules = rules - ((r.oid, r.rid)))
-    Success(deleted)
+    Future.successful(deleted)
   }
 
-  def all: Seq[Explain] = rules.values.toSeq
+  def all: Future[Seq[Explain]] = Future.successful(rules.values.toSeq)
 
-  def size: Long = rules.size
+  def size: Future[Long] = Future.successful(rules.size.toLong)
 }

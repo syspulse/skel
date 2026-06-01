@@ -4,6 +4,9 @@ package io.syspulse.skel.wf.runtime
 import com.typesafe.scalalogging.Logger
 import io.jvm.uuid._
 import scala.util.{Try,Success,Failure}
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import java.time.format.DateTimeFormatter
 import java.time.ZonedDateTime
@@ -58,12 +61,12 @@ class Workflowing(
   def init():Try[WorkflowState] = {
     state = 
       //stateStore.+(state).map(_ => state)    
-      stateStore.?(id) match {
-        case Success(state1) => 
+      scala.util.Try(Await.result(stateStore.?(id), 10.seconds)) match {
+        case Success(state1) =>
           state1
         case Failure(e) => // not found, leave as initialized
-          WorkflowState(id,wf.id,WorkflowState.STATUS_INITIALIZED)    
-      } 
+          WorkflowState(id,wf.id,WorkflowState.STATUS_INITIALIZED)
+      }
 
     log.info(s"init: ${state}")
     Success(state)

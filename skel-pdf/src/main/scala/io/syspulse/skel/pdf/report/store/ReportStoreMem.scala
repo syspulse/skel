@@ -1,7 +1,6 @@
 package io.syspulse.skel.pdf.report.store
 
-import scala.util.Try
-import scala.util.{Success,Failure}
+import scala.concurrent.Future
 import scala.collection.immutable
 
 import akka.actor.typed.ActorRef
@@ -14,29 +13,29 @@ import io.syspulse.skel.pdf.report.Report
 
 class ReportStoreMem extends ReportStore {
   val log = Logger(s"${this}")
-  
+
   var reports: Map[UUID,Report] = Map()
 
-  def all:Seq[Report] = reports.values.toSeq
+  def all:Future[Seq[Report]] = Future.successful(reports.values.toSeq)
 
-  def size:Long = reports.size
+  def size:Future[Long] = Future.successful(reports.size.toLong)
 
-  def +(r:Report):Try[Report] = { 
+  def +(r:Report):Future[Report] = {
     reports = reports + (r.id -> r)
     log.info(s"${r}")
-    Success(r)
+    Future.successful(r)
   }
 
-  def del(id:UUID):Try[UUID] = { 
+  def del(id:UUID):Future[UUID] = {
     val sz = reports.size
-    reports = reports - id;
+    reports = reports - id
     log.info(s"${id}")
-    if(sz == reports.size) Failure(new Exception(s"not found: ${id}")) else Success(id)  
+    if(sz == reports.size) Future.failed(new Exception(s"not found: ${id}")) else Future.successful(id)
   }
 
-  def ?(id:UUID):Try[Report] = reports.get(id) match {
-    case Some(p) => Success(p)
-    case None => Failure(new Exception(s"not found: ${id}"))
+  def ?(id:UUID):Future[Report] = reports.get(id) match {
+    case Some(p) => Future.successful(p)
+    case None => Future.failed(new Exception(s"not found: ${id}"))
   }
 
   def findByXid(xid:String):Option[Report] = {

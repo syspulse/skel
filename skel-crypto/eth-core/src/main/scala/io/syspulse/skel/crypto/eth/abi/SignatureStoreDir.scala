@@ -3,6 +3,7 @@ package io.syspulse.skel.crypto.eth.abi
 import scala.util.Try
 import scala.util.{Success,Failure}
 import scala.collection.immutable
+import scala.concurrent.Future
 
 import com.typesafe.scalalogging.Logger
 
@@ -20,25 +21,29 @@ import io.syspulse.skel.crypto.eth.abi.AbiSignatureJson._
 abstract class SignatureStoreDir[T <: AbiSignature](dir:String = "store/")(implicit fmt:JsonFormat[T]) extends StoreDir[T,(String,Int)](dir) with SignatureStore[T] {
   val store = new SignatureStoreMem[T]()
 
+  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+
   // ATTENTION: only one version is supported !
   def toKey(id:String):(String,Int) = (id,0)
 
-  def all:Seq[T] = store.all
+  def all:Future[Seq[T]] = store.all
 
   def all(from:Option[Int],size:Option[Int]):(Seq[T],Long) = store.all(from,size)
 
-  def size:Long = store.size
-  override def +(u:T):Try[T] = super.+(u).flatMap(_ => store.+(u))
+  def size:Future[Long] = store.size
 
-  override def del(id:(String,Int)):Try[(String,Int)] = super.del(id).flatMap(_ => store.del(id))
-  override def ?(id:(String,Int)):Try[T] = store.?(id)
+  override def +(u:T):Future[T] = super.+(u).flatMap(_ => store.+(u))
+
+  override def del(id:(String,Int)):Future[(String,Int)] = super.del(id).flatMap(_ => store.del(id))
+
+  override def ?(id:(String,Int)):Future[T] = store.?(id)
 
   override def ??(id:String):Try[Vector[T]] = store.??(id)
 
   override def first(id:String):Try[T] = store.first(id)
 
   override def findByTex(tex:String):Try[T] = store.findByTex(tex)
-  
+
   override def search(txt:String,from:Option[Int],size:Option[Int]):(Seq[T],Long) = store.search(txt,from,size)
 
   // preload

@@ -1,8 +1,8 @@
 package io.syspulse.skel.video.store
 
-import scala.util.Try
-import scala.util.{Success,Failure}
+import scala.util.{Try, Success, Failure}
 import scala.collection.immutable
+import scala.concurrent.{Future, ExecutionContext}
 
 import com.typesafe.scalalogging.Logger
 
@@ -14,7 +14,9 @@ import io.syspulse.skel.video.tms.TmsParser
 
 // Preload from file during start
 class VideoStoreDir(dir:String = "store/") extends VideoStoreMem {
-  
+
+  implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
+
   load(dir)
 
   def load(dir:String) = {

@@ -3,13 +3,15 @@ package io.syspulse.skel.wf.temporal.workflow.store
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import scala.util.{Success, Failure}
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import io.hacken.ext.wf.{WorkflowRun, WorkflowStep}
 
-/**
- * Test suite for WorkflowRunStore
- */
 class WorkflowRunStoreSpec extends AnyWordSpec with Matchers {
+
+  val timeout = 5.seconds
 
   // Helper to create test steps
   def testSteps(ids: Int*): Seq[WorkflowStep] = ids.map { id =>
@@ -31,7 +33,7 @@ class WorkflowRunStoreSpec extends AnyWordSpec with Matchers {
       )
 
       // Add run
-      store.+(run1) shouldBe Success(run1)
+      Await.result(store.+(run1), timeout) shouldBe run1
 
       // Retrieve by rid
       store.??("run-1") shouldBe Some(run1)
@@ -52,11 +54,11 @@ class WorkflowRunStoreSpec extends AnyWordSpec with Matchers {
         steps = testSteps(1, 2, 3)
       )
 
-      store.+(run)
+      Await.result(store.+(run), timeout)
 
       // Update status and cursor
       val updatedRun = run.copy(status = "RUNNING", cursor = 1)
-      store.+(updatedRun) shouldBe Success(updatedRun)
+      Await.result(store.+(updatedRun), timeout) shouldBe updatedRun
 
       // Verify update
       store.??("run-1") shouldBe Some(updatedRun)
@@ -76,11 +78,11 @@ class WorkflowRunStoreSpec extends AnyWordSpec with Matchers {
         steps = testSteps(1, 2, 3)
       )
 
-      store.+(run)
+      Await.result(store.+(run), timeout)
       store.??("run-1") should not be None
 
       // Delete
-      store.del("run-1") shouldBe Success("run-1")
+      Await.result(store.del("run-1"), timeout) shouldBe "run-1"
       store.??("run-1") shouldBe None
     }
 
@@ -91,11 +93,11 @@ class WorkflowRunStoreSpec extends AnyWordSpec with Matchers {
       val run2 = WorkflowRun("workflow-2", Some("run-2"), "RUNNING", 1, 2, testSteps(4, 5, 6))
       val run3 = WorkflowRun("workflow-3", Some("run-3"), "FINISHED", 3, 3, testSteps(7, 8, 9))
 
-      store.+(run1)
-      store.+(run2)
-      store.+(run3)
+      Await.result(store.+(run1), timeout)
+      Await.result(store.+(run2), timeout)
+      Await.result(store.+(run3), timeout)
 
-      val all = store.all
+      val all = Await.result(store.all, timeout)
       all.size shouldBe 3
       all should contain allOf (run1, run2, run3)
     }
@@ -103,16 +105,16 @@ class WorkflowRunStoreSpec extends AnyWordSpec with Matchers {
     "return correct size" in {
       val store = new WorkflowRunStoreMem()
 
-      store.size shouldBe 0
+      Await.result(store.size, timeout) shouldBe 0
 
-      store.+(WorkflowRun("w1", Some("r1"), "NEW", -1, 1, testSteps(1)))
-      store.size shouldBe 1
+      Await.result(store.+(WorkflowRun("w1", Some("r1"), "NEW", -1, 1, testSteps(1))), timeout)
+      Await.result(store.size, timeout) shouldBe 1
 
-      store.+(WorkflowRun("w2", Some("r2"), "NEW", -1, 1, testSteps(1)))
-      store.size shouldBe 2
+      Await.result(store.+(WorkflowRun("w2", Some("r2"), "NEW", -1, 1, testSteps(1))), timeout)
+      Await.result(store.size, timeout) shouldBe 2
 
-      store.del("r1")
-      store.size shouldBe 1
+      Await.result(store.del("r1"), timeout)
+      Await.result(store.size, timeout) shouldBe 1
     }
 
     "handle workflow runs without rid" in {
@@ -128,7 +130,7 @@ class WorkflowRunStoreSpec extends AnyWordSpec with Matchers {
       )
 
       // Add run (will use wid as key)
-      store.+(run) shouldBe Success(run)
+      Await.result(store.+(run), timeout) shouldBe run
 
       // Retrieve by wid
       store.??("workflow-1") shouldBe Some(run)
@@ -165,7 +167,7 @@ class WorkflowRunStoreSpec extends AnyWordSpec with Matchers {
         )
 
         // Add run
-        store.+(run) shouldBe Success(run)
+        Await.result(store.+(run), timeout) shouldBe run
 
         // Verify file exists
         val file = new java.io.File(s"${tempDir}/run-1.json")

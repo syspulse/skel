@@ -35,7 +35,10 @@ class DemoActivitiesImpl(
     }
 
     // Store updated config
-    val updated = configStore.+(result).get
+    import scala.concurrent.Await
+    import scala.concurrent.duration._
+    import scala.concurrent.ExecutionContext.Implicits.global
+    val updated = Await.result(configStore.+(result), 10.seconds)
 
     // Extract output JsObject if present
     val output = updated.config

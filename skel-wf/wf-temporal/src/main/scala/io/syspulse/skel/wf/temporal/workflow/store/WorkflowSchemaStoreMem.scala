@@ -1,6 +1,7 @@
 package io.syspulse.skel.wf.temporal.workflow.store
 
 import scala.util.{Failure,Success,Try}
+import scala.concurrent.Future
 import scala.collection.immutable
 import com.typesafe.scalalogging.Logger
 
@@ -12,14 +13,14 @@ class WorkflowSchemaStoreMem() extends WorkflowSchemaStore {
 
   var workflows:Map[Int,WorkflowSchema] = Map()
 
-  def +(w:WorkflowSchema):Try[WorkflowSchema] = {
+  def +(w:WorkflowSchema):Future[WorkflowSchema] = {
     workflows = workflows + (getKey(w) -> w)
-    Success(w)
+    Future.successful(w)
   }
 
-  def del(id:Int):Try[Int] = {
+  def del(id:Int):Future[Int] = {
     workflows = workflows - id
-    Success(id)
+    Future.successful(id)
   }
 
   def ??(id:Int):Option[WorkflowSchema] = workflows.get(id)
@@ -32,7 +33,7 @@ class WorkflowSchemaStoreMem() extends WorkflowSchemaStore {
     }
   }
 
-  def all:Seq[WorkflowSchema] = workflows.values.toSeq
+  def all:Future[Seq[WorkflowSchema]] = Future.successful(workflows.values.toSeq)
 
-  def size:Long = workflows.size
+  def size:Future[Long] = Future.successful(workflows.size.toLong)
 }

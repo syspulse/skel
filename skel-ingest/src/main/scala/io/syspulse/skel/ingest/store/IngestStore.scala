@@ -1,6 +1,7 @@
 package io.syspulse.skel.ingest.store
 
 import scala.util.Try
+import scala.concurrent.Future
 import scala.collection.immutable
 import io.jvm.uuid._
 
@@ -14,11 +15,11 @@ abstract class Ing[I] {
 
 trait IngestStore[I] extends Store[Ing[I],I] {
   def getKey(i: Ing[I]): I = i.getId
-  def +(i:Ing[I]):Try[Ing[I]]
-  def del(id:I):Try[I]
-  def ?(id:I):Try[Ing[I]]
-  def all:Seq[Ing[I]]
-  def size:Long
+  def +(i:Ing[I]):Future[Ing[I]]
+  def del(id:I):Future[I]
+  def ?(id:I):Future[Ing[I]]
+  def all:Future[Seq[Ing[I]]]
+  def size:Future[Long]
 
   def ??(txt:String):List[Ing[I]]
 

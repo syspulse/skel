@@ -3,6 +3,7 @@ package io.syspulse.skel.telemetry.store
 import scala.util.Try
 import scala.util.{Success,Failure}
 import scala.collection.immutable
+import scala.concurrent.{Future, ExecutionContext}
 
 import com.typesafe.scalalogging.Logger
 
@@ -27,26 +28,21 @@ class TelemetryStoreDir(dir:String = "store/",parser:TelemetryParser,cron:Option
   
   val store = new TelemetryStoreMem
 
+  implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
+
   def toKey(id:ID):String = id
-  
-  def all:Seq[Telemetry] = store.all
+
+  def all:Future[Seq[Telemetry]] = store.all
 
   def ???(ts0:Long,ts1:Long,from:Option[Int],size:Option[Int]):Telemetrys = store.???(ts0,ts1,from,size)
-  
-  //override def all(from:Option[Int],size:Option[Int]):Seq[Telemetry] = store.all(from,size)
-  def size:Long = store.size
 
-  override def +(u:Telemetry):Try[Telemetry] = super.+(u).flatMap(_ => store.+(u))
-  override def del(id:ID):Try[ID] = {
-    store.del(id) match {
-      case Success(_) => 
-      case Failure(e) =>
-        log.warn(s"faild to delete: ${id}: ${e.getMessage()}")
-    }
-    super.del(id)
-  }
-  override def ?(id:ID):Try[Telemetry] = store.?(id)
-  override def ??(ids:Seq[ID]):Seq[Telemetry] = store.??(ids)
+  //override def all(from:Option[Int],size:Option[Int]):Seq[Telemetry] = store.all(from,size)
+  def size:Future[Long] = store.size
+
+  override def +(u:Telemetry):Future[Telemetry] = super.+(u).flatMap(_ => store.+(u))
+  override def del(id:ID):Future[ID] = super.del(id).flatMap(_ => store.del(id))
+  override def ?(id:ID):Future[Telemetry] = store.?(id)
+  override def ??(ids:Seq[ID])(implicit ec:ExecutionContext):Future[Seq[Telemetry]] = store.??(ids)
   override def ?(id:ID,ts0:Long,ts1:Long,op:Option[String] = None):Seq[Telemetry] = store.?(id,ts0,ts1,op)
   override def ??(id:ID,ts0:Long,ts1:Long,op:Option[String]):Option[Telemetry] = store.??(id,ts0,ts1,op)
   override def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = store.??(txt,ts0,ts1)

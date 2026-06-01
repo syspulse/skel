@@ -1,6 +1,7 @@
-  package io.syspulse.skel.auth.store
+package io.syspulse.skel.auth.store
 
-import scala.util.{Try,Success,Failure}
+import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.immutable
 import io.jvm.uuid._
 
@@ -22,19 +23,15 @@ class AuthStoreDir(dir:String = "store/auth/") extends StoreDir[Auth,String](dir
   val store = new AuthStoreMem
 
   def toKey(id:String):String = id
-  def all:Seq[Auth] = store.all
-  def size:Long = store.size
-  override def +(a:Auth):Try[Auth] = super.+(a).flatMap(_ => store.+(a))
-  override def !(aid:String,accessToken:String,rereshToken:String,uid:Option[UUID]):Try[Auth] = {
-    for {
-      a <- store.!(aid,accessToken,rereshToken,uid)
-      _ <- writeFile(a)
-    } yield(a) 
-  }
-    
-  override def del(aid:String):Try[String] = super.del(aid).flatMap(_ => store.del(aid))
-  override def ?(aid:String):Try[Auth] = store.?(aid)
-  override def findUser(uid:UUID):Seq[Auth] = store.findUser(uid)
+  def all:Future[Seq[Auth]] = store.all
+  def size:Future[Long] = store.size
+  override def +(a:Auth):Future[Auth] = super.+(a).flatMap(_ => store.+(a))
+  override def !(aid:String,accessToken:String,refreshToken:String,uid:Option[UUID]):Future[Auth] =
+    store.!(aid,accessToken,refreshToken,uid).flatMap(a => Future.fromTry(writeFile(a)).map(_ => a))
+
+  override def del(aid:String):Future[String] = super.del(aid).flatMap(_ => store.del(aid))
+  override def ?(aid:String):Future[Auth] = store.?(aid)
+  override def findUser(uid:UUID):Future[Seq[Auth]] = store.findUser(uid)
 
   // preload
   load(dir)

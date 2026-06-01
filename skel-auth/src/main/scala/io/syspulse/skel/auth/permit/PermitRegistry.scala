@@ -18,8 +18,9 @@ import io.syspulse.skel.auth.permit.{PermitRoles, PermitRoleCreateReq, PermitRol
 import io.syspulse.skel.auth.permit.{PermitUser, PermitRole}
 import io.syspulse.skel.auth.permit.{PermitUserCreateReq, PermitUsers, PermitUserUpdateReq}
 import io.syspulse.skel.auth.permit.PermitStore
+import scala.concurrent.ExecutionContext
 
-object PermitRegistry {    
+object PermitRegistry {
   final case class CreatePermitRole(req: PermitRoleCreateReq, replyTo: ActorRef[Try[PermitRole]]) extends Command
   final case class GetPermitRoles(replyTo: ActorRef[Try[PermitRoles]]) extends Command
   final case class GetPermitRole(role:String, replyTo: ActorRef[Try[PermitRole]]) extends Command
@@ -32,7 +33,7 @@ object PermitRegistry {
   final case class GetPermitUserByXid(xid:String, replyTo: ActorRef[Try[PermitUser]]) extends Command
   final case class DeletePermitUser(uid:UUID, replyTo: ActorRef[Try[PermitUserActionRes]]) extends Command
   final case class UpdatePermitUser(uid:UUID,req:PermitUserUpdateReq, replyTo: ActorRef[Try[PermitUser]]) extends Command
-  
+
   val log = Logger(s"${this}")
 
   // this var reference is unfortunately needed for Metrics access
@@ -46,51 +47,41 @@ object PermitRegistry {
   private def registry(store: PermitStore): Behavior[Command] = {
     this.store = store
 
+    implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
+
     Behaviors.receiveMessage {
       case GetPermitRoles(replyTo) =>
-        replyTo ! Success(PermitRoles(store.getPermit()))
+        store.getPermit().foreach(ps => replyTo ! Success(PermitRoles(ps)))
         Behaviors.same
 
       case GetPermitUsers(replyTo) =>
-        replyTo ! Success(PermitUsers(store.getPermitUser()))
+        store.getPermitUser().foreach(ps => replyTo ! Success(PermitUsers(ps)))
         Behaviors.same
-      
+
       case CreatePermitRole(req, replyTo) =>
         log.info(s"role: ${req}")
-        val p = PermitRole( req.role, req.resources)              
-        store.addPermit(p)        
+        val p = PermitRole( req.role, req.resources)
+        store.addPermit(p)
         replyTo ! Success(p)
         Behaviors.same
 
       case CreatePermitUser(req, replyTo) =>
         log.info(s"user: ${req}")
         val p = PermitUser(req.uid,req.roles,req.xid)
-        store.addPermitUser(p)        
+        store.addPermitUser(p)
         replyTo ! Success(p)
         Behaviors.same
 
       case GetPermitRole(role, replyTo) =>
-        replyTo ! {
-          for {
-            c1 <- store.getPermit(role)
-          } yield c1
-        }
+        store.getPermit(role).onComplete(replyTo ! _)
         Behaviors.same
 
       case GetPermitUser(uid, replyTo) =>
-        replyTo ! {
-          for {
-            c1 <- store.getPermitUser(uid)
-          } yield c1
-        }
+        store.getPermitUser(uid).onComplete(replyTo ! _)
         Behaviors.same
 
       case GetPermitUserByXid(xid, replyTo) =>
-        replyTo ! {
-          for {
-            c1 <- store.findPermitUserByXid(xid)
-          } yield c1
-        }
+        store.findPermitUserByXid(xid).onComplete(replyTo ! _)
         Behaviors.same
 
       // case DeletePermit(uid, replyTo) =>
@@ -111,4 +102,3 @@ object PermitRegistry {
     }
   }
 }
-

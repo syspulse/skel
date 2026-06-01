@@ -14,6 +14,8 @@ import io.syspulse.skel.telemetry._
 import io.syspulse.skel.telemetry.Telemetry.ID
 import io.syspulse.skel.telemetry.server._
 import scala.util.Try
+import scala.concurrent.{Future, ExecutionContext}
+import java.util.concurrent.Executors
 
 object TelemetryRegistry {
   val log = Logger(s"${this}")
@@ -32,6 +34,8 @@ object TelemetryRegistry {
   // this var reference is unfortunately needed for Metrics access
   var store: TelemetryStore = null //new TelemetryStoreDB //new TelemetryStoreCache
 
+  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(16))
+
   def apply(store: TelemetryStore = new TelemetryStoreMem): Behavior[io.syspulse.skel.Command] = {
     this.store = store
     registry(store)
@@ -42,7 +46,7 @@ object TelemetryRegistry {
 
     Behaviors.receiveMessage {
       case GetTelemetrys(replyTo) =>
-        replyTo ! Telemetrys(store.all)
+        store.all.foreach(tt => replyTo ! Telemetrys(tt))
         Behaviors.same
 
       case GetTelemetry(id, ts0, ts1, replyTo) =>
@@ -54,7 +58,7 @@ object TelemetryRegistry {
         Behaviors.same
 
       case GetTelemetryLast(id, replyTo) =>
-        replyTo ! store.last(id)
+        store.last(id).onComplete(replyTo ! _)
         Behaviors.same
 
       case SearchTelemetry(txt, ts0,ts1, replyTo) => 

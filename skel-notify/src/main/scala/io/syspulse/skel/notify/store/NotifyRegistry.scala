@@ -13,6 +13,7 @@ import io.syspulse.skel.Command
 import io.syspulse.skel.notify._
 import scala.util.Try
 import scala.util.Success
+import scala.concurrent.ExecutionContext
 
 object NotifyRegistry {
   val log = Logger(s"${this}")
@@ -35,24 +36,27 @@ object NotifyRegistry {
 
   private def registry(store: NotifyStore): Behavior[io.syspulse.skel.Command] = {
     this.store = store
+    implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
 
     Behaviors.receiveMessage {
       case GetNotifys(replyTo) =>
-        replyTo ! Notifys(store.all,Some(store.size))
+        store.all.foreach { all =>
+          replyTo ! Notifys(all, Some(all.size.toLong))
+        }
         Behaviors.same
 
       case GetNotify(id, replyTo) =>
-        replyTo ! store.?(id)
+        store.?(id).onComplete(replyTo ! _)
         Behaviors.same
 
       case GetNotifyUser(uid, fresh, replyTo) =>
-        val nn = store.??(uid,fresh)
-        replyTo ! Notifys(nn,Some(nn.size)) 
+        store.??(uid, fresh).foreach { nn =>
+          replyTo ! Notifys(nn, Some(nn.size.toLong))
+        }
         Behaviors.same
 
       case AckNotifyUser(uid, req, replyTo) =>
-        val n = store.ack(req.id)
-        replyTo ! n
+        store.ack(req.id).onComplete(replyTo ! _)
         Behaviors.same
 
       case CreateNotify(uid, req, replyTo) =>

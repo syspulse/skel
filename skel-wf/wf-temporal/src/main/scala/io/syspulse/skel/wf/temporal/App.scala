@@ -245,13 +245,13 @@ object App extends skel.Server {
         val por2Schema = Por2Schema.buildSchema(schemaId = 1, tenantId = 1, projectId = 1)
         val por2Configs = Por2Schema.buildStepConfigs(tenantId = 1, projectId = 1)
 
-        store.+(por2Schema) match {
+        Try(Await.result(store.+(por2Schema), 10.seconds)) match {
           case Success(_) => Console.err.println(s"Initialized PoR2 schema: ${por2Schema.name}")
           case scala.util.Failure(e) => Console.err.println(s"Warning: Failed to initialize PoR2 schema: ${e.getMessage}")
         }
 
         por2Configs.foreach { config =>
-          configStore.+(config) match {
+          Try(Await.result(configStore.+(config), 10.seconds)) match {
             case Success(_) => Console.err.println(s"Initialized PoR2 config: ${config.name} (id=${config.id})")
             case scala.util.Failure(e) => Console.err.println(s"Warning: Failed to initialize config ${config.name}: ${e.getMessage}")
           }
@@ -463,7 +463,7 @@ object App extends skel.Server {
         log.info(s"Flow $flow includes steps: ${configs.map(_.name).mkString(" -> ")}")
 
         // Store schema
-        schemaStore.+(schema) match {
+        Try(Await.result(schemaStore.+(schema), 10.seconds)) match {
           case Success(_) => log.info(s"Stored schema: ${schema.name}")
           case scala.util.Failure(e) =>
             Console.err.println(s"Failed to store schema: ${e.getMessage}")
@@ -472,7 +472,7 @@ object App extends skel.Server {
 
         // Store ALL configs (not just flow-filtered ones) so they can be referenced
         allConfigs.foreach { config =>
-          configStore.+(config) match {
+          Try(Await.result(configStore.+(config), 10.seconds)) match {
             case Success(_) => log.debug(s"Stored config: ${config.name} (id=${config.id})")
             case scala.util.Failure(e) =>
               Console.err.println(s"Failed to store config: ${e.getMessage}")
@@ -556,7 +556,7 @@ object App extends skel.Server {
         log.info(s"Demo workflow: ${configs.map(_.name).mkString(" -> ")}")
 
         // Store schema
-        schemaStore.+(schema) match {
+        Try(Await.result(schemaStore.+(schema), 10.seconds)) match {
           case Success(_) => log.info(s"Stored schema: ${schema.name}")
           case scala.util.Failure(e) =>
             Console.err.println(s"Failed to store schema: ${e.getMessage}")
@@ -565,7 +565,7 @@ object App extends skel.Server {
 
         // Store configs
         configs.foreach { config =>
-          configStore.+(config) match {
+          Try(Await.result(configStore.+(config), 10.seconds)) match {
             case Success(_) => log.debug(s"Stored config: ${config.name} (id=${config.id})")
             case scala.util.Failure(e) =>
               Console.err.println(s"Failed to store config: ${e.getMessage}")

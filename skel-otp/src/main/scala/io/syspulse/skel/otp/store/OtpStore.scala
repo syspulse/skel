@@ -1,6 +1,6 @@
 package io.syspulse.skel.otp.store
 
-import scala.util.Try
+import scala.concurrent.Future
 
 import scala.collection.immutable
 
@@ -12,14 +12,14 @@ import io.syspulse.skel.otp.Otp
 
 trait OtpStore extends Store[Otp,UUID] {
   def getKey(o: Otp): UUID = o.id
-  
-  def +(otp:Otp):Try[Otp]
-  
-  def del(id:UUID):Try[UUID]
-  def ?(id:UUID):Try[Otp]
-  def all:Seq[Otp]
-  
-  def getForUser(uid:UUID):Seq[Otp]
-  def size:Long
+
+  def +(otp:Otp):Future[Otp]
+
+  def del(id:UUID):Future[UUID]
+  def ?(id:UUID):Future[Otp]
+  def all:Future[Seq[Otp]]
+
+  def getForUser(uid:UUID):Future[Seq[Otp]]
+  def size:Future[Long]
 }
 

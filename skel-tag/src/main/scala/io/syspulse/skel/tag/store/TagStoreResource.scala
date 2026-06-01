@@ -31,7 +31,7 @@ class TagStoreResource(dir:String = "store/tags-default.csv") extends TagStoreMe
 
     tt.foreach(t => this.+(t))
 
-    log.info(s"Loaded store: ${size}")
+    log.info(s"Loaded store: ${tags.size}")
   }
 
 }

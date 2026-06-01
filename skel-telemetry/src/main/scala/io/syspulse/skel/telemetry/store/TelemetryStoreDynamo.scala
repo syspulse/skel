@@ -55,9 +55,9 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
   val timeout:Duration = Duration("5 seconds")
 
   def clean():Try[TelemetryStore] = { Failure(new UnsupportedOperationException) }
-  def all:Seq[Telemetry] = scan().toSeq
-  def size:Long = scan().size
-  def +(t:Telemetry):Try[Telemetry] = {
+  def all:Future[Seq[Telemetry]] = Future.successful(scan().toSeq)
+  def size:Future[Long] = Future.successful(scan().size.toLong)
+  def +(t:Telemetry):Future[Telemetry] = {
     log.info(s"t=${t}")
     val req = PutItemRequest
           .builder()
@@ -72,13 +72,13 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
           .build()
           
     val result = DynamoDb.single(req)
-  
+
     val r = Await.result(result, timeout)
     log.info(s"t=${t}: ")
-    Success(t)
+    Future.successful(t)
   }
 
-  def del(id:Telemetry.ID):Try[Telemetry.ID] = Failure(new UnsupportedOperationException)
+  def del(id:Telemetry.ID):Future[Telemetry.ID] = Future.failed(new UnsupportedOperationException)
   def ?(id:ID,ts0:Long,ts1:Long,op:Option[String] = None):Seq[Telemetry] = range(id,ts0,ts1).toSeq
   def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry] = range(txt,ts0,ts1).toSeq
   def scan(txt:String):Seq[Telemetry] = scan().toSeq
@@ -156,7 +156,7 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
     Telemetrys(tt.drop(from.getOrElse(0)).take(size.getOrElse(Int.MaxValue)),total = Some(tt.size))
   }
 
-  override def last(id:String):Try[Telemetry] = {
+  override def last(id:String):Future[Telemetry] = {
     val req = QueryRequest
           .builder()
           .tableName(getTable())          
@@ -175,9 +175,9 @@ class TelemetryStoreDynamo(dynamoUri:DynamoURI) extends DynamoClient(dynamoUri) 
     val result = DynamoDb.single(req)
     val r = Await.result(result, timeout)
     r.items().asScala.take(1).map( r => TelemetryDynamoFormat.fromDynamo(r.asScala.toMap)).headOption match {
-      case Some(o) => Success(o)
-      case None => Failure(new Exception(s"not found: ${id}"))
-    }    
+      case Some(o) => Future.successful(o)
+      case None => Future.failed(new Exception(s"not found: ${id}"))
+    }
   }
 
   // returns the latest inserted element !  

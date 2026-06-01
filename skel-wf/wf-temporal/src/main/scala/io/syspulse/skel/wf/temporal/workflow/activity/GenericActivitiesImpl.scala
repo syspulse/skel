@@ -7,7 +7,10 @@ import io.hacken.ext.wf.{WorkflowRun, WorkflowSchema}
 import io.hacken.ext.detector.{DetectorConfig, DetectorConfigJson}
 import io.syspulse.skel.wf.temporal.workflow.store.{WorkflowSchemaStore, WorkflowRunStore, WorkflowConfigStore}
 
-import scala.util.{Success, Failure}
+import scala.util.{Success, Failure, Try}
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
  * Generic Activities Implementation
@@ -67,7 +70,7 @@ class GenericActivitiesImpl(
       val result = executeGenericActivity(config)
 
       // Store updated config
-      configStore.+(result) match {
+      Try(Await.result(configStore.+(result), 10.seconds)) match {
         case Success(updated) =>
           log.info(s"Activity ${config.name} completed successfully")
 

@@ -89,9 +89,12 @@ object GenericActivities {
    * Update WorkflowRun state (helper, not an activity)
    */
   def updateWorkflowRun(runStore: WorkflowRunStore, run: WorkflowRun): WorkflowRun = {
-    runStore.+(run) match {
-      case Success(updated) => updated
-      case Failure(e) =>
+    import scala.concurrent.Await
+    import scala.concurrent.duration._
+    import scala.concurrent.ExecutionContext.Implicits.global
+    scala.util.Try(Await.result(runStore.+(run), 10.seconds)) match {
+      case scala.util.Success(updated) => updated
+      case scala.util.Failure(e) =>
         log.error(s"Failed to update workflow run: ${e.getMessage}")
         throw e
     }

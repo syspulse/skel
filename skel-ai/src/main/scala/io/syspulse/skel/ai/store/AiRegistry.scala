@@ -56,37 +56,27 @@ object AiRegistry {
     // 2. if oid == Some - this is specific Ai (e.g. "provider")
     Behaviors.receiveMessage {
       case GetAis(oid, replyTo) =>
-        val all = store.all(oid)
-        val filtered = if(oid==None) all else all.filter(o => o.oid == oid)
-        replyTo ! Ais(
-          filtered,
-          total = Some(all.size)
-        )
+        store.all(oid).foreach { all =>
+          val filtered = if(oid==None) all else all.filter(o => o.oid == oid)
+          replyTo ! Ais(
+            filtered,
+            total = Some(all.size.toLong)
+          )
+        }
         Behaviors.same
-      
+
       case GetAi(question0, oid, replyTo) =>
         val question = question0.toLowerCase()
-
-        val o = for {
-          o0 <- {
-            store.???(question,oid)
-          }
-          b <- if(oid == None) Success(true) else Success(o0.oid == oid)
-          o1 <- if(b) Success(o0) else Failure(new Exception(s"not found: ${question}"))
-        } yield o1
-        
-        replyTo ! o
-
+        store.???(question, oid).map { o0 =>
+          if(oid.isEmpty || o0.oid == oid) o0
+          else throw new Exception(s"not found: ${question}")
+        }.onComplete(replyTo ! _)
         Behaviors.same
-      
+
       case CreateAi(oid, req, replyTo) =>
-      
-        val o = for {
-          o1 <- store.????(req.question,req.model,oid)
-          o2 <- store.+(o1)
-        } yield o2
-                
-        replyTo ! o
+        store.????(req.question, req.model, oid)
+          .flatMap(o1 => store.+(o1))
+          .onComplete(replyTo ! _)
         Behaviors.same
             
       case DeleteAi(question0, oid, replyTo) =>

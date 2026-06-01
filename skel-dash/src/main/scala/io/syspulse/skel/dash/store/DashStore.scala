@@ -2,6 +2,8 @@ package io.syspulse.skel.dash.store
 
 import scala.util.{Failure,Success,Try}
 import scala.collection.immutable
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 import com.typesafe.scalalogging.Logger
 import io.jvm.uuid.UUID
 import java.time.LocalDateTime
@@ -16,27 +18,27 @@ trait DashStore extends Store[Dash,String] {
   def getMaxChats(): Int = 10
 
   def getKey(d: Dash): String = d.id
-  def +(d:Dash):Try[Dash]
-  //def del(id:String):Try[String]
-  
-  def ??(id:String):Option[Dash]
+  def +(d:Dash):Future[Dash]
 
-  def ???(id:String,tid:Option[String],pid:Option[String]): Try[Dash]
-  
-  def ?(id:String):Try[Dash] = {
-    ??(id) match {
-      case Some(data) => Success(data)
-      case None => Failure(new Exception(s"not found: '${id}'"))
+  def ??(id:String):Future[Option[Dash]]
+
+  def ???(id:String,tid:Option[String],pid:Option[String]): Future[Dash]
+
+  def ?(id:String):Future[Dash] = {
+    ??(id).flatMap {
+      case Some(data) => Future.successful(data)
+      case None => Future.failed(new Exception(s"not found: '${id}'"))
     }
   }
 
-  def del(id:String,tid:Option[String],pid:Option[String]): Try[String]
+  def del(id:String):Future[String] = del(id,None,None)
+  def del(id:String,tid:Option[String],pid:Option[String]): Future[String]
 
-  def all:Seq[Dash] = all(None,None) 
-  def all(tid:Option[String],pid:Option[String]):Seq[Dash]
+  def all:Future[Seq[Dash]] = all(None,None)
+  def all(tid:Option[String],pid:Option[String]):Future[Seq[Dash]]
 
-  def size:Long
-  def size(tid:Option[String],pid:Option[String]):Long
+  def size:Future[Long]
+  def size(tid:Option[String],pid:Option[String]):Future[Long]
 
-  
+
 }

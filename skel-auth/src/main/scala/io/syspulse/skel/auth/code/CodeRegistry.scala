@@ -9,16 +9,17 @@ import io.jvm.uuid._
 import io.syspulse.skel.Command
 import scala.util.Try
 import scala.util.Success
+import scala.concurrent.ExecutionContext
 
 object CodeRegistry {
-  
+
   final case class CreateCode(code: Code, replyTo: ActorRef[CodeCreateRes]) extends Command
   final case class UpdateCode(code: Code, replyTo: ActorRef[CodeCreateRes]) extends Command
   final case class GetCode(code: String, replyTo: ActorRef[Try[Code]]) extends Command
   final case class GetCodeByToken(code: String, replyTo: ActorRef[CodeRes]) extends Command
   final case class GetCodes(replyTo: ActorRef[Try[Codes]]) extends Command
   final case class DeleteCode(code: String, replyTo: ActorRef[CodeActionRes]) extends Command
-  
+
   // this var reference is unfortunately needed for Metrics access
   var store: CodeStore = new CodeStoreMem
 
@@ -30,34 +31,35 @@ object CodeRegistry {
   private def registry(store: CodeStore): Behavior[Command] = {
     this.store = store
 
+    implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
+
     Behaviors.receiveMessage {
       case GetCodes(replyTo) =>
-        replyTo ! Success(Codes(store.all))
+        store.all.foreach(cs => replyTo ! Success(Codes(cs)))
         Behaviors.same
 
       case CreateCode(code, replyTo) =>
-        val store1 = store.+(code)
+        store.+(code)
         replyTo ! CodeCreateRes(code)
         Behaviors.same
 
       case UpdateCode(code, replyTo) =>
-        val store1 = store.!(code)
+        store.!(code)
         replyTo ! CodeCreateRes(code)
         Behaviors.same
 
       case GetCode(code, replyTo) =>
-        replyTo ! store.?(code)
+        store.?(code).onComplete(replyTo ! _)
         Behaviors.same
 
       case GetCodeByToken(accessToken, replyTo) =>
-        replyTo ! CodeRes(store.getByToken(accessToken))
+        store.getByToken(accessToken).foreach(c => replyTo ! CodeRes(c))
         Behaviors.same
 
       case DeleteCode(code, replyTo) =>
-        val store1 = store.del(code)
+        store.del(code)
         replyTo ! CodeActionRes(s"Success",Some(code))
         Behaviors.same
     }
   }
 }
-

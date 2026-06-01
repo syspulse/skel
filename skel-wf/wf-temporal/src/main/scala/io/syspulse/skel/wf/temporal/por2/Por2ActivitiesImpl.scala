@@ -7,7 +7,10 @@ import io.hacken.ext.detector.DetectorConfig
 import io.syspulse.skel.wf.temporal.workflow.activity.GenericActivitiesImpl
 import io.syspulse.skel.wf.temporal.workflow.store.{WorkflowSchemaStore, WorkflowRunStore, WorkflowConfigStore}
 
-import scala.util.{Success, Failure}
+import scala.util.{Success, Failure, Try}
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
  * PoR2-specific Activities Implementation
@@ -68,7 +71,7 @@ class Por2ActivitiesImpl(
       }
 
       // Store updated config
-      configStore.+(result) match {
+      Try(Await.result(configStore.+(result), 10.seconds)) match {
         case Success(updated) =>
           por2Log.info(s"PoR2 activity ${config.name} completed successfully")
 

@@ -12,10 +12,13 @@ import io.syspulse.skel.Command
 
 import io.syspulse.skel.syslog._
 import io.syspulse.skel.syslog.Syslog.ID
-import scala.util.Try
+import scala.util.{Try, Success, Failure}
+import scala.concurrent.{Future, ExecutionContext}
 
 object SyslogRegistry {
   val log = Logger(s"${this}")
+
+  implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
 
   val bus = new SyslogBus(busId = "syslog") {
     override def recv(msg:SyslogEvent):SyslogEvent = {
@@ -23,16 +26,16 @@ object SyslogRegistry {
       msg
     }
   }
-  
+
   final case class GetSyslogs(replyTo: ActorRef[Syslogs]) extends Command
   final case class GetSyslog(id:ID,replyTo: ActorRef[Try[Syslog]]) extends Command
   final case class SearchSyslog(txt:String,replyTo: ActorRef[Syslogs]) extends Command
-  
+
   final case class CreateSyslog(req: SyslogCreateReq, replyTo: ActorRef[Syslog]) extends Command
   final case class RandomSyslog(replyTo: ActorRef[Syslog]) extends Command
 
   final case class DeleteSyslog(id: ID, replyTo: ActorRef[SyslogActionRes]) extends Command
-  
+
   // this var reference is unfortunately needed for Metrics access
   var store: SyslogStore = null //new SyslogStoreDB //new SyslogStoreCache
 
@@ -46,16 +49,20 @@ object SyslogRegistry {
 
     Behaviors.receiveMessage {
       case GetSyslogs(replyTo) =>
-        replyTo ! Syslogs(store.all,store.size)
+        store.all.flatMap { syslogs =>
+          store.size.map { sz =>
+            replyTo ! Syslogs(syslogs, sz)
+          }
+        }
         Behaviors.same
 
       case GetSyslog(id, replyTo) =>
-        replyTo ! store.?(id)
+        store.?(id).onComplete(replyTo ! _)
         Behaviors.same
 
       case SearchSyslog(txt, replyTo) =>
         val ss = store.??(txt)
-        replyTo ! Syslogs(ss,ss.size)
+        replyTo ! Syslogs(ss, ss.size.toLong)
         Behaviors.same
 
       case CreateSyslog(req, replyTo) =>
@@ -67,21 +74,21 @@ object SyslogRegistry {
           id = Some(UUID.random),
           cid = req.cid,
           ts = System.currentTimeMillis,
-          subj =  req.subj,          
+          subj =  req.subj,
         )
-        
-        val store1 = store.+(syslog)
+
+        store.+(syslog)
 
         replyTo ! syslog
         Behaviors.same
 
       case RandomSyslog(replyTo) =>
-        
+
         //replyTo ! SyslogRandomRes(secret,qrImage)
         Behaviors.same
-      
+
       case DeleteSyslog(id, replyTo) =>
-        val store1 = store.del(id)
+        store.del(id)
         replyTo ! SyslogActionRes(s"Success",Some(id))
         Behaviors.same
     }

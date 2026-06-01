@@ -4,6 +4,9 @@ package io.syspulse.skel.wf
 import com.typesafe.scalalogging.Logger
 import io.jvm.uuid._
 import scala.util.{Try,Success,Failure}
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
@@ -40,15 +43,15 @@ class WorkflowEngine(workflowStore:WorkflowStore, stateStore:WorkflowStateStore,
   def remove(id:Workflowing.ID):Try[WorkflowEngine] = {
     log.info(s"remove: ${id}")
     for {
-      _ <- stateStore.del(id)
+      _ <- Try(Await.result(stateStore.del(id), 10.seconds))
       r <- deleteDataDir(id)
     } yield r
   }
 
   def respawn(id:Workflowing.ID):Try[Workflowing] = {
     for {
-      st <- stateStore.?(id)
-      wf <- workflowStore.?(st.wid)
+      st <- Try(Await.result(stateStore.?(id), 10.seconds))
+      wf <- Try(Await.result(workflowStore.?(st.wid), 10.seconds))
       w <- spawn(wf,Some(id))
     } yield w
   }

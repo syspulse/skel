@@ -71,15 +71,15 @@ object WorkflowRegistry {
         Behaviors.same
 
       case GetWorkflows(replyTo) =>
-        val r = store.all
-        replyTo ! Success(Workflows(r, total = Some(r.size)))
+        store.all.foreach { r =>
+          replyTo ! Success(Workflows(r, total = Some(r.size)))
+        }
         Behaviors.same
 
       case UpdateWorkflow(id, req, replyTo) =>
         log.info(s"UpdateWorkflow($id),${req.name},${req.title}")
 
-        val r = store
-          .???(id)
+        Future.fromTry(store.???(id))
           .map(w => w.copy(
             updatedAt = System.currentTimeMillis(),
             name = if(req.name.isDefined) req.name.get else w.name,
@@ -91,43 +91,40 @@ object WorkflowRegistry {
             connections = if(req.connections.isDefined) req.connections.get else w.connections
           ))
           .flatMap(w => store.+(w))
-
-        r match {
-          case Success(w) =>
-            replyTo ! Success(WorkflowRes(w.id))
-          case Failure(e) =>
-            log.error(s"failed to update workflow: ${id}", e)
-            replyTo ! Failure(e)
-        }
+          .onComplete {
+            case Success(w) =>
+              replyTo ! Success(WorkflowRes(w.id))
+            case Failure(e) =>
+              log.error(s"failed to update workflow: ${id}", e)
+              replyTo ! Failure(e)
+          }
         Behaviors.same
 
       case CreateWorkflow(req, replyTo) =>
         log.info(s"CreateWorkflow,${req.name}")
 
-        // Find max ID and increment
-        val maxId = if (store.all.isEmpty) 0 else store.all.map(_.id).max
-        val newId = maxId + 1
-
-        val r = store.+(
-          WorkflowSchema(
-            id = newId,
-            createdAt = System.currentTimeMillis(),
-            updatedAt = System.currentTimeMillis(),
-            status = "ACTIVE",
-            name = req.name,
-            version = req.version.getOrElse("1.0.0"),
-            title = req.title.getOrElse(req.name),
-            description = req.description.getOrElse(""),
-            author = req.author.getOrElse(""),
-            icon = req.icon,
-            faq = req.faq,
-            tags = req.tags.getOrElse(Seq.empty),
-            nodes = req.nodes.getOrElse(Seq.empty),
-            connections = req.connections.getOrElse(Seq.empty)
+        store.all.flatMap { all =>
+          val maxId = if (all.isEmpty) 0 else all.map(_.id).max
+          val newId = maxId + 1
+          store.+(
+            WorkflowSchema(
+              id = newId,
+              createdAt = System.currentTimeMillis(),
+              updatedAt = System.currentTimeMillis(),
+              status = "ACTIVE",
+              name = req.name,
+              version = req.version.getOrElse("1.0.0"),
+              title = req.title.getOrElse(req.name),
+              description = req.description.getOrElse(""),
+              author = req.author.getOrElse(""),
+              icon = req.icon,
+              faq = req.faq,
+              tags = req.tags.getOrElse(Seq.empty),
+              nodes = req.nodes.getOrElse(Seq.empty),
+              connections = req.connections.getOrElse(Seq.empty)
+            )
           )
-        )
-
-        r match {
+        }.onComplete {
           case Success(w) =>
             replyTo ! Success(WorkflowRes(w.id))
           case Failure(e) =>
@@ -137,9 +134,7 @@ object WorkflowRegistry {
         Behaviors.same
 
       case DeleteWorkflow(id, replyTo) =>
-        val r = store.del(id)
-
-        r match {
+        store.del(id).onComplete {
           case Success(_) =>
             replyTo ! Success(WorkflowRes(id))
           case Failure(e) =>
@@ -247,8 +242,9 @@ object WorkflowRegistry {
         Behaviors.same
 
       case GetWorkflowRuns(replyTo) =>
-        val r = runStore.all
-        replyTo ! Success(WorkflowRuns(r, total = Some(r.size)))
+        runStore.all.foreach { r =>
+          replyTo ! Success(WorkflowRuns(r, total = Some(r.size)))
+        }
         Behaviors.same
 
       case CreateWorkflowRun(req, replyTo) =>
@@ -470,34 +466,31 @@ object WorkflowRegistry {
     )
 
     // Store the workflow run
-    runStore.+(workflowRun) match {
-      case Success(_) =>
-        log.info(s"WorkflowRun stored: ${wid}, workflow type: ${workflowTypeName}")
+    runStore.+(workflowRun).flatMap { _ =>
+      log.info(s"WorkflowRun stored: ${wid}, workflow type: ${workflowTypeName}")
 
-        // Start Temporal workflow with schema name as workflow type
-        GenericStarter.run(engineUri, workflowRun, workflowTypeName).map { result =>
-          log.info(s"Temporal workflow started: workflowId=${result.wid}, runId=${result.rid}")
+      // Start Temporal workflow with schema name as workflow type
+      GenericStarter.run(engineUri, workflowRun, workflowTypeName).map { result =>
+        log.info(s"Temporal workflow started: workflowId=${result.wid}, runId=${result.rid}")
 
-          // Update WorkflowRun with rid and status
-          val updatedRun = result.copy(
-            status = "RUNNING"
-          )
-          runStore.+(updatedRun)
+        // Update WorkflowRun with rid and status
+        val updatedRun = result.copy(status = "RUNNING")
+        runStore.+(updatedRun)
 
-          WorkflowRunCreateRes(wid = result.wid, rid = result.rid.get)
+        WorkflowRunCreateRes(wid = result.wid, rid = result.rid.get)
 
-        }.recover {
-          case e: Exception =>
-            log.error(s"Failed to start Temporal workflow: ${e.getMessage}", e)
+      }.recover {
+        case e: Exception =>
+          log.error(s"Failed to start Temporal workflow: ${e.getMessage}", e)
 
-            // Update status to FAILED
-            val failedRun = workflowRun.copy(status = "FAILED")
-            runStore.+(failedRun)
+          // Update status to FAILED
+          val failedRun = workflowRun.copy(status = "FAILED")
+          runStore.+(failedRun)
 
-            throw e
-        }
-
-      case Failure(e) =>
+          throw e
+      }
+    }.recoverWith {
+      case e: Exception =>
         log.error(s"Failed to store WorkflowRun: ${e.getMessage}", e)
         Future.failed(e)
     }

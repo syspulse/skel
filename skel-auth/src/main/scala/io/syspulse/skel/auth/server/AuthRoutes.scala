@@ -647,10 +647,10 @@ class AuthRoutes(
                     val name = user.get.name
                     val avatar = user.get.avatar
 
-                    // generate IDP tokens 
-                    val idToken = AuthJwt().generateIdToken(rsp.get.xid.getOrElse(""),Map("email"->email,"name"->name,"avatar"->avatar)) 
-                    val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid.toString)) 
-                    val refreshToken = AuthJwt().generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = Auth.DEF_REFRESH_TOKEN_AGE) 
+                    // generate IDP tokens
+                    val idToken = AuthJwt().generateIdToken(rsp.get.xid.getOrElse(""),Map("email"->email,"name"->name.getOrElse(""),"avatar"->avatar.getOrElse("")))
+                    val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid.toString))
+                    val refreshToken = AuthJwt().generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = Auth.DEF_REFRESH_TOKEN_AGE)
                     
                     log.info(s"code=${code}: uid=${uid}: rsp=${rsp.get}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
 
@@ -722,10 +722,10 @@ class AuthRoutes(
                 val name = user.get.name
                 val avatar = user.get.avatar
 
-                // generate IDP tokens 
-                val idToken = AuthJwt().generateIdToken(uid.toString,Map("email"->email,"name"->name,"avatar"->avatar)) 
-                val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid.toString, "typ" -> "m2m")) 
-                val refreshToken = AuthJwt().generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = Auth.DEF_REFRESH_TOKEN_AGE) 
+                // generate IDP tokens
+                val idToken = AuthJwt().generateIdToken(uid.toString,Map("email"->email,"name"->name.getOrElse(""),"avatar"->avatar.getOrElse("")))
+                val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid.toString, "typ" -> "m2m"))
+                val refreshToken = AuthJwt().generateToken(Map("scope" -> "auth","role" -> "refresh"), expire = Auth.DEF_REFRESH_TOKEN_AGE)
                 
                 log.info(s"client_id=${clientId}: uid=${uid}: accessToken${accessToken}, idToken=${idToken}, refreshToken=${refreshToken}")
 

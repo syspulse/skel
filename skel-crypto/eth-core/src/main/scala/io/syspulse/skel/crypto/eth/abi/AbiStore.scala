@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.Logger
 
 import scala.util.Try
 import scala.util.Success
+import scala.concurrent.Future
 
 import codegen.Decoder
 import codegen.AbiDefinition
@@ -29,21 +30,20 @@ trait AbiStore extends Store[AbiContract,AbiStore.ID] with AbiStoreSigFuncResolv
   def events:SignatureStore[EventSignature]
   def functions:SignatureStore[FuncSignature]
 
-  def +(s:AbiContract):Try[AbiContract]
-  
-  def del(id:AbiStore.ID):Try[AbiStore.ID]
+  def +(s:AbiContract):Future[AbiContract]
 
-  def ?(id:AbiStore.ID):Try[AbiContract]
+  def del(id:AbiStore.ID):Future[AbiStore.ID]
+
+  def ?(id:AbiStore.ID):Future[AbiContract]
 
   def search(txt:String,from:Option[Int],size:Option[Int]):(Seq[AbiContract],Long)
 
-  def all:Seq[AbiContract]
+  def all:Future[Seq[AbiContract]]
 
   def all(from:Option[Int],size:Option[Int]):(Seq[AbiContract],Long)
 
-  def size:Long
+  def size:Future[Long]
 
-  
   def find(contractAddr:String,functionName:String):Try[Seq[AbiDefinition]]
   def load():String
   def decodeInput(contract:String,data:Seq[String],entity:String):Try[AbiResult]

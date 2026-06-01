@@ -12,6 +12,8 @@ import io.methvin.better.files._
 import io.methvin.watcher.hashing.FileHasher
 import java.nio.file.{Path, StandardWatchEventKinds => EventType, WatchEvent}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Future, Await}
+import scala.concurrent.duration.Duration
 
 import spray.json._
 import DefaultJsonProtocol._
@@ -24,20 +26,20 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
 
   def getDir():String = dir
 
-  override def +(e:E):Try[E] = { 
+  override def +(e:E):Future[E] = {
     if( ! loading)
-      writeFile(e)
+      Future.fromTry(writeFile(e))
     else
-      Success(e)
+      Future.successful(e)
   }
 
   def toKey(id:String):P
 
-  override def del(id:P):Try[P] = { 
-    if( ! loading) 
-      delFileById(id.toString).map(_ => id)
+  override def del(id:P):Future[P] = {
+    if( ! loading)
+      Future.fromTry(delFileById(id.toString).map(_ => id))
     else
-      Success(id)
+      Future.successful(id)
   }
 
   def write(data:String,name:String,subdir:String=""):Try[StoreDir[E,P]] = try {
@@ -50,36 +52,27 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
       Failure(e)
   }
 
-  def writeFile(e:E):Try[E] = 
+  def writeFile(e:E):Try[E] =
     write(e.toJson.compactPrint,s"${getKey(e)}.json","")
       .map(_ => e)
-  // try {
-  //   val f = os.Path(dir,os.pwd) / s"${getKey(e)}.json"    
-  //   os.write.over(f,e.toJson.compactPrint)
-  //   Success(e)
-  // } catch {
-  //   case e:Exception =>
-  //     log.error(s"failed to write: ${e}")
-  //     Failure(e)
-  // }
-  
+
   def delFileById(id:String):Try[String] = {
     try {
       os.remove(os.Path(getDir(),os.pwd) / s"${id}.json")
       Success(id)
     } catch {
-      case e:Exception => 
+      case e:Exception =>
         log.error(s"failed to delete: ${e}")
         Failure(e)
     }
   }
 
   def delFile(e:E):Try[E] = delFileById(getKey(e).toString).map(_ => e)
-  
+
   def flush(e:Option[E]):Try[StoreDir[E,P]] = {
     e match {
       case Some(e) => writeFile(e)
-      case None => all.foreach(e => writeFile(e))
+      case None => Store.fromFuture(all).getOrElse(Seq.empty).foreach(e => writeFile(e))
     }
     Success(this)
   }
@@ -87,7 +80,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
   def clean():Try[StoreDir[E,P]] = clear()
   def clear():Try[StoreDir[E,P]] = {
     loading = true
-    all.foreach(e => delFile(e))
+    Store.fromFuture(all).getOrElse(Seq.empty).foreach(e => delFile(e))
     loading = false
     Success(this)
   }
@@ -98,20 +91,19 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
 
   def load(dir:String,hint:String=""):String = {
     val dir0 = os.Path(dir,os.pwd)
-    
+
     val storeDir = if(os.isFile(dir0)) {
       // this is a file, try to load a dir from a file as content
-      // e.g. dir://LATEST.txt 
+      // e.g. dir://LATEST.txt
       // LATEST.txt: /mnt/s3/2024/10/25/
-    
       os.Path(os.read(dir0).trim(),os.pwd)
     } else
       dir0
-    
+
     if(! os.exists(storeDir)) {
       os.makeDir.all(storeDir)
     }
-        
+
     log.info(s"Loading dir store: ${storeDir}")
 
     val ee = os.walk(storeDir)
@@ -122,21 +114,23 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
         val fileName = f.toIO.getName()
         (os.read(f),fileName)
       })
-      .map{ case(fileData,fileName) => 
+      .map{ case(fileData,fileName) =>
         loadData(fileData,hint,fileName)
       }
-      .flatten // files
+      .flatten
 
     loading = true
-    ee.foreach(e => this.+(e))
+    val futs = ee.map(e => this.+(e)).toSeq
+    if(futs.nonEmpty)
+      Await.result(Future.sequence(futs), Duration(60, "seconds"))
     loading = false
 
-    log.info(s"Loaded store: ${size}")
+    log.info(s"Loaded store: ${Store.fromFuture(size).getOrElse(0L)}")
     loaded()
     storeDir.toString
   }
 
-  def loadData(fileData:String,hint:String,fileName:String):Seq[E] = {    
+  def loadData(fileData:String,hint:String,fileName:String):Seq[E] = {
     val ee = fileData.split("\n").filter(!_.trim.isEmpty).map { data =>
       if(hint.isEmpty || data.contains(hint)) {
         try {
@@ -144,11 +138,11 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
           log.debug(s"c=${c}")
           Seq(c)
         } catch {
-          case e:Exception => 
+          case e:Exception =>
             if(fmt2.isDefined) {
               fmt2.get.decode(data) match {
                 case Success(e) => e
-                case Failure(en) => 
+                case Failure(en) =>
                   log.error(s"could not parse data with code=(${fmt2}): ${data}",en)
                   Seq()
               }
@@ -160,7 +154,7 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
       } else
         // ignore
         Seq()
-    }    
+    }
     ee.toSeq.flatten
   }
 
@@ -169,17 +163,16 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
     log.info(s"Loading file: ${file}")
     val data = os.read(file)
     val ee = loadData(data,"",file.toIO.getName())
-    ee.foreach( e => 
-      //StoreDir.this.+(e)
-      this.+(e)
-    )
+    val futs = ee.map(e => this.+(e)).toSeq
+    if(futs.nonEmpty)
+      Await.result(Future.sequence(futs), Duration(30, "seconds"))
   }
 
-  def watch(dir:String):RecursiveFileMonitor = {    
+  def watch(dir:String):RecursiveFileMonitor = {
 
     @volatile
     var modifying:Option[File] = None
-    
+
     // try to prevent modifications by touching file
     val watcher = new RecursiveFileMonitor(
       File(dir),
@@ -191,26 +184,26 @@ abstract class StoreDir[E,P](dir:String = "store/")(implicit fmt:JsonFormat[E],f
 
           // this will not load on ext4 !
           loading = true
-          addAsFile(file.toString)          
-          loading = false  
+          addAsFile(file.toString)
+          loading = false
         }
       }
       override def onModify(file: File, count: Int) = {
         if(!writing.get() && !file.isDirectory) {
           log.info(s"${file}: modified (writing=${writing.get()})")
-          
+
           modifying = Some(file)
 
           loading = true
-          
-          addAsFile(file.toString)          
+
+          addAsFile(file.toString)
           loading = false
 
           modifying = None
         }
       }
 
-      override def onDelete(file: File, count: Int) = {        
+      override def onDelete(file: File, count: Int) = {
         if(!writing.get() && !file.isDirectory) {
           val id = file.nameWithoutExtension
           log.info(s"${file}: deleted (wrtiing=${writing.get()})")

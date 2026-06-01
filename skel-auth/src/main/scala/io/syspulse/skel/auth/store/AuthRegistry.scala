@@ -21,6 +21,8 @@ import scala.util.Try
 import scala.util.Failure
 import scala.util.Success
 import io.syspulse.skel.auth.jwt.AuthJwt
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 
 
 object AuthRegistry {
@@ -44,109 +46,99 @@ object AuthRegistry {
   private def registry(store: AuthStore): Behavior[Command] = {
     this.store = store
 
+    implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
+
     Behaviors.receiveMessage {
       case GetAuths(replyTo) =>
-        val aa = store.all
-        replyTo ! Auths(aa,Some(aa.size))
+        store.all.foreach(aa => replyTo ! Auths(aa, Some(aa.size)))
         Behaviors.same
 
       case CreateAuth(auth, replyTo) =>
-        val store1 = store.+(auth)
+        store.+(auth)
         replyTo ! AuthCreateRes(auth)
         Behaviors.same
 
       case GetAuth(auid, replyTo) =>
-        replyTo ! store.?(auid)
+        store.?(auid).onComplete(replyTo ! _)
         Behaviors.same
 
       case DeleteAuth(auid, replyTo) =>
-        val store1 = store.del(auid)
+        store.del(auid)
         replyTo ! AuthActionRes(s"Success",Some(auid))
         Behaviors.same
-      
+
       case RefreshTokenAuth(auid, refreshToken, uid, replyTo) =>
-        val auth = store.?(auid)
-        val r:Try[Auth] = auth.flatMap(a => 
-          a.refreshToken match {
-            case Some(rt) => 
-              // fail if refreshToken is expired
-              if(a.tsExpire <= System.currentTimeMillis()) {
+        store.?(auid).onComplete {
+          case Failure(e) =>
+            replyTo ! Failure(e)
+          case Success(a) =>
+            a.refreshToken match {
+              case Some(rt) =>
+                // fail if refreshToken is expired
+                if(a.tsExpire <= System.currentTimeMillis()) {
 
-                log.error(s"refresh token expired: ${rt}: ${a.tsExpire}")
-                Failure(new Exception(s"refresh token expired: ${rt}"))
-                
-              } else {
+                  log.error(s"refresh token expired: ${rt}: ${a.tsExpire}")
+                  replyTo ! Failure(new Exception(s"refresh token expired: ${rt}"))
 
-                val uid0:Option[UUID] = AuthJwt.getClaim(auid,"uid").map(UUID(_))
-                val uid1 = uid
-                val uid2 = a.uid
+                } else {
 
-                if(refreshToken != rt) {
+                  val uid0:Option[UUID] = AuthJwt.getClaim(auid,"uid").map(UUID(_))
+                  val uid1 = uid
+                  val uid2 = a.uid
 
-                  log.error(s"refresh token invalid: ${rt}")
-                  Failure(new Exception(s"refresh token invalid: ${rt}"))
-                
-                } 
-                // NOTE: By default uid1 is None since expired token could not be validated
-                else 
-                // if( (uid1 != None) && (uid0 != uid1) ) {
-                  
-                //   log.error(s"invalid 'uid' claim: ${uid0}: ${uid1}")
-                //   Failure(new Exception(s"refresh token invalid: ${rt}"))
-                
-                // } else {
-                //   val accessToken = AuthJwt.generateAccessToken(Map( "uid" -> uid0.get)) 
-                  
-                //   // update Auth
-                //   store.!(auid, accessToken,refreshToken)
-                // }
-                {
-                  (uid0, uid1, uid2) match {
-                    case (_,Some(uid1),_) => 
-                      // override with specified UID
-                      val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid1.toString)) 
-                      store.!(auid, accessToken,refreshToken, Some(uid1))
+                  if(refreshToken != rt) {
 
-                    case (Some(uid0),_,Some(uid2)) => 
-                      // claim and Existing token must be identical
-                      if( (uid0  != uid2 ) ) {                
-                        log.error(s"unmatched identity: ${uid0}: ${uid2}")
-                        Failure(new Exception(s"refresh token invalid: ${rt}"))
-                      } else {
-                        val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid2.toString)) 
+                    log.error(s"refresh token invalid: ${rt}")
+                    replyTo ! Failure(new Exception(s"refresh token invalid: ${rt}"))
+
+                  } else {
+                    val futureAuth: Future[Auth] = (uid0, uid1, uid2) match {
+                      case (_,Some(uid1),_) =>
+                        // override with specified UID
+                        val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid1.toString))
+                        store.!(auid, accessToken,refreshToken, Some(uid1))
+
+                      case (Some(uid0),_,Some(uid2)) =>
+                        // claim and Existing token must be identical
+                        if( (uid0  != uid2 ) ) {
+                          log.error(s"unmatched identity: ${uid0}: ${uid2}")
+                          Future.failed(new Exception(s"refresh token invalid: ${rt}"))
+                        } else {
+                          val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid2.toString))
+                          store.!(auid, accessToken,refreshToken,None)
+                        }
+                      case (_,_,Some(uid2)) =>
+                        val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid2.toString))
                         store.!(auid, accessToken,refreshToken,None)
-                      }
-                    case (_,_,Some(uid2)) => 
-                      val accessToken = AuthJwt().generateAccessToken(Map( "uid" -> uid2.toString)) 
-                      store.!(auid, accessToken,refreshToken,None)
-                    
-                    case _ =>
-                      log.error(s"missing identity: ${uid2}")
-                      Failure(new Exception(s"refresh token invalid: ${rt}"))
+
+                      case _ =>
+                        log.error(s"missing identity: ${uid2}")
+                        Future.failed(new Exception(s"refresh token invalid: ${rt}"))
+                    }
+                    futureAuth.onComplete(replyTo ! _)
                   }
                 }
-              }
-            case None => 
-              log.warn(s"refresh token invalid: ${a.refreshToken}")
-              Failure(new Exception(s"refresh token invalid"))
-          }
-        )
-        replyTo ! r
+              case None =>
+                log.warn(s"refresh token invalid: ${a.refreshToken}")
+                replyTo ! Failure(new Exception(s"refresh token invalid"))
+            }
+        }
         Behaviors.same
 
       case Logoff(uid, replyTo) =>
-        val auths:Seq[Auth] = if(uid.isDefined) store.findUser(uid.get) else store.all
-        val aa = auths.flatMap(a => 
-          store.del(a.accessToken) match {
-            case Success(s) => Some(a)
-            case Failure(e) =>
+        val futureAuths: Future[Seq[Auth]] = if(uid.isDefined) store.findUser(uid.get) else store.all
+        futureAuths.foreach { auths =>
+          Future.traverse(auths) { a =>
+            store.del(a.accessToken).map(_ => Some(a)).recover { case e =>
               log.error(s"could not logoff: ${uid}: ${a.accessToken}")
               None
+            }
+          }.foreach { results =>
+            val aa = results.flatten
+            replyTo ! Auths(aa, Some(aa.size))
           }
-        )
-        replyTo ! Auths(aa,Some(aa.size))
+        }
         Behaviors.same
     }
   }
 }
-

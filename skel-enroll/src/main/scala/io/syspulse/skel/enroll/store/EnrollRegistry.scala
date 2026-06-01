@@ -15,16 +15,16 @@ import scala.util.Failure
 
 object EnrollRegistry {
   val log = Logger(s"${this}")
-  
+
   final case class GetEnrolls(replyTo: ActorRef[Enrolls]) extends Command
   final case class GetEnroll(id:UUID,replyTo: ActorRef[Try[Enroll]]) extends Command
   final case class GetEnrollByEmail(eid:String,replyTo: ActorRef[Option[Enroll]]) extends Command
-  
+
   final case class CreateEnroll(enrollCreate: Option[EnrollCreateReq], replyTo: ActorRef[Try[Enroll]]) extends Command
   final case class DeleteEnroll(id: UUID, replyTo: ActorRef[EnrollActionRes]) extends Command
 
   final case class UpdateEnroll(enrollUpdate: EnrollUpdateReq, replyTo: ActorRef[Option[Enroll]]) extends Command
-  
+
   // this var reference is unfortunately needed for Metrics access
   var store: EnrollStore = null //new EnrollStoreMem //new EnrollStoreCache
 
@@ -35,48 +35,42 @@ object EnrollRegistry {
 
   private def registry(store: EnrollStore): Behavior[io.syspulse.skel.Command] = {
     this.store = store
-    
-    Behaviors.receive { (ctx,msg) => { 
+
+    Behaviors.receive { (ctx,msg) => {
       implicit val ec = ctx.executionContext
       msg match {
         case GetEnrolls(replyTo) =>
-          replyTo ! Enrolls(store.all)
+          store.all.foreach(enrolls => replyTo ! Enrolls(enrolls))
           Behaviors.same
 
         case GetEnroll(id, replyTo) =>
-          for{
-            e <- store.???(id)            
-          } yield replyTo ! e          
+          store.?(id).map(e => replyTo ! Try(e)).recover { case ex => replyTo ! Failure(ex) }
           Behaviors.same
 
         case GetEnrollByEmail(email, replyTo) =>
-          replyTo ! store.findByEmail(email)
+          store.findByEmail(email).foreach(e => replyTo ! e)
           Behaviors.same
 
         case CreateEnroll(enrollCreate, replyTo) =>
-          
-          val eid = enrollCreate match {
-            case Some(EnrollCreateReq(email,name,xid,avatar)) => {              
-              val eid = store.+(xid,email,name,avatar)
-              for{
-                e <- store.???(eid.get)            
-              } yield replyTo ! e
-              eid
-            }
-            case None => {
-              //Some(Enroll(UUID.random,"", "", "", "",tsCreated = System.currentTimeMillis, phase="FAILED"))
-              replyTo ! Failure(new Exception(s"could not create: ${enrollCreate}")) 
-            }
+          enrollCreate match {
+            case Some(EnrollCreateReq(email,name,xid,avatar)) =>
+              store.+(xid,email,name,avatar).flatMap { eid =>
+                store.?(eid)
+              }.map { e =>
+                replyTo ! Try(e)
+              }.recover { case ex =>
+                replyTo ! Failure(ex)
+              }
+            case None =>
+              replyTo ! Failure(new Exception(s"could not create: ${enrollCreate}"))
           }
-          
-          //replyTo ! EnrollActionRes("started",eid.toOption)
           Behaviors.same
-      
-        case UpdateEnroll(enrollUpdate, replyTo) =>          
+
+        case UpdateEnroll(enrollUpdate, replyTo) =>
           for {
             e <- store.update(enrollUpdate.id,enrollUpdate.command.getOrElse(""),enrollUpdate.data)
-          } replyTo ! e 
-          
+          } replyTo ! e
+
           Behaviors.same
 
         case DeleteEnroll(id, replyTo) =>

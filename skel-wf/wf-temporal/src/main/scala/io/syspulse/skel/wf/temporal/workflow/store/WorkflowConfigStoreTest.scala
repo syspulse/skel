@@ -32,7 +32,7 @@ class WorkflowConfigStoreTest extends WorkflowConfigStoreMem {
     log.info(s"Pre-populated Demo config: ${config.name} (id=${config.id})")
   }
 
-  log.info(s"WorkflowConfigStoreTest initialized with ${this.all.size} configs")
+  log.info(s"WorkflowConfigStoreTest initialized with ${por2Configs.size + demoConfigs.size} configs")
   log.info(s"  Por2 configs: ${por2Configs.map(c => s"${c.id}:${c.name}").mkString(", ")}")
   log.info(s"  Demo configs: ${demoConfigs.map(c => s"${c.id}:${c.name}").mkString(", ")}")
 }

@@ -1,6 +1,8 @@
 package io.syspulse.skel.explain
 
 import scala.util.{Failure, Success}
+import scala.concurrent.Await
+import scala.concurrent.duration._
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
@@ -133,10 +135,10 @@ object App extends skel.Server {
 
       case "migrate" =>
         val storeTo = getStore(config.params.headOption.getOrElse("mem://"))
-        val all = store.all
+        val all = Await.result(store.all, 15.seconds)
         var i = 0; var f = 0
         all.foreach { rule =>
-          storeTo.+(rule) match {
+          io.syspulse.skel.store.Store.fromFuture(storeTo.+(rule)) match {
             case Success(_) => i += 1
             case Failure(e) =>
               Console.err.println(s"Failed to migrate: ${e}")

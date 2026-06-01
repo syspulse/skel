@@ -1,8 +1,7 @@
 package io.syspulse.skel.video.store
 
-import scala.util.Try
-
 import scala.collection.immutable
+import scala.concurrent.{Future, ExecutionContext}
 
 import io.jvm.uuid._
 
@@ -14,17 +13,15 @@ import io.syspulse.skel.video.Video
 import io.syspulse.skel.video.Video.ID
 
 trait VideoStore extends Store[Video,ID] {
-  def getKey(v: Video): ID = v.vid  
+  def getKey(v: Video): ID = v.vid
 
-  def +(video:Video):Try[Video]
-  def del(id:ID):Try[ID]
-  def ?(id:ID):Try[Video]
-  def all:Seq[Video]
-  def size:Long
+  def +(video:Video):Future[Video]
+  def del(id:ID):Future[ID]
+  def ?(id:ID):Future[Video]
+  def all:Future[Seq[Video]]
+  def size:Future[Long]
 
   def ??(txt:String):List[Video]
-
-  // def connect(config:Config):VideoStore = this
 
   def scan(txt:String):List[Video]
   def search(txt:String):List[Video]

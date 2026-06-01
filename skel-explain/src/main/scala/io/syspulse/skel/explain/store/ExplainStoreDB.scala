@@ -1,6 +1,7 @@
 package io.syspulse.skel.explain.store
 
 import scala.util.{Failure, Success, Try}
+import scala.concurrent.{Future, ExecutionContext}
 import com.typesafe.scalalogging.Logger
 
 import spray.json._
@@ -33,6 +34,7 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
     with ExplainStore {
 
   lazy private val log = Logger(getClass)
+  implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
 
   def id: String = "db"
 
@@ -67,11 +69,11 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
 
   def create: Try[Long] = {
     val CREATE_INDEX_OID_RID_POSTGRES_SQL = s"CREATE INDEX IF NOT EXISTS ${indexOidRid} ON ${tableName} (oid, rid);"
-    
+
     val CREATE_INDEX_OID_RID_SQL = getDbType match {
       case "postgres" => CREATE_INDEX_OID_RID_POSTGRES_SQL
     }
-    
+
 
     val CREATE_TABLE_MYSQL_SQL =
       s"""CREATE TABLE IF NOT EXISTS ${tableName} (
@@ -85,7 +87,7 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
         meta TEXT,
         ts0 BIGINT,
         ts BIGINT,
-        
+
         PRIMARY KEY (oid, rid)
       );"""
 
@@ -138,30 +140,32 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
         log.info(s"index: '${indexName}': ${e1.getMessage().replaceFirst("ERROR: ","")}")
         Success(0)
       }
-      case e:Exception => { 
+      case e:Exception => {
         // short name without full stack (change to check for duplicate index)
         // remove ERROR to avpid kubernetes treating it as ERROR
         log.warn(s"failed to create index: '${indexName}': ${e.getMessage().replaceFirst("ERROR: ","")}")
-        Failure(e) 
+        Failure(e)
       }
     }
   }
 
-  def all: Seq[Explain] =
-    ctx.run(query[Explanation]).map(fromDb)
+  def all: Future[Seq[Explain]] =
+    Future.successful(ctx.run(query[Explanation]).map(fromDb))
 
-  def findByOid(oid: Option[String]): Seq[Explain] =
-    ctx.run(query[Explanation].filter(r => r.oid == lift(oidKey(oid)))).map(fromDb)
+  def findByOid(oid: Option[String]): Future[Seq[Explain]] =
+    Future.successful(ctx.run(query[Explanation].filter(r => r.oid == lift(oidKey(oid)))).map(fromDb))
 
-  def get(oid: Option[String], rid: String): Try[Explain] =
-    ctx.run(query[Explanation].filter(r => r.oid == lift(oidKey(oid)) && r.rid == lift(rid))) match {
-      case h :: _ => Success(fromDb(h))
-      case Nil    => Failure(new Exception(s"not found: '$oid/$rid'"))
-    }
+  def get(oid: Option[String], rid: String): Future[Explain] =
+    Future.fromTry(Try {
+      ctx.run(query[Explanation].filter(r => r.oid == lift(oidKey(oid)) && r.rid == lift(rid))) match {
+        case h :: _ => fromDb(h)
+        case Nil    => throw new Exception(s"not found: '$oid/$rid'")
+      }
+    })
 
-  def +(r: Explain): Try[Explain] = {
+  def +(r: Explain): Future[Explain] = {
     val dbRule = toDb(r)
-    try {
+    Future.fromTry(Try {
       val q = quote {
         query[Explanation].insertValue(lift(dbRule)).onConflictUpdate(_.oid, _.rid)(
           (t, e) => t.scripts -> e.scripts,
@@ -173,31 +177,27 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
         )
       }
       ctx.run(q)
-      Success(r)
-    } catch {
-      case e: Exception => Failure(new Exception(s"could not upsert: $r.oid/${r.rid}", e))
-    }
+      r
+    }.recoverWith { case e => Failure(new Exception(s"could not upsert: $r.oid/${r.rid}", e)) })
   }
 
-  def del(oid: Option[String], rid: String): Try[Explain] =
+  def del(oid: Option[String], rid: String): Future[Explain] =
     get(oid, rid).flatMap { r =>
-      try {
+      Future.fromTry(Try {
         ctx.run(query[Explanation].filter(e => e.oid == lift(oidKey(oid)) && e.rid == lift(rid)).delete)
-        Success(r)
-      } catch {
-        case e: Exception => Failure(e)
-      }
+        r
+      })
     }
 
-  def delByOid(oid: Option[String]): Try[Seq[Explain]] = {
-    val existing = findByOid(oid)
-    try {
-      ctx.run(query[Explanation].filter(r => r.oid == lift(oidKey(oid))).delete)
-      Success(existing)
-    } catch {
-      case e: Exception => Failure(new Exception(s"could not delete rules for oid: '$oid'", e))
+  def delByOid(oid: Option[String]): Future[Seq[Explain]] = {
+    val existingFut = findByOid(oid)
+    existingFut.flatMap { existing =>
+      Future.fromTry(Try {
+        ctx.run(query[Explanation].filter(r => r.oid == lift(oidKey(oid))).delete)
+        existing
+      }.recoverWith { case e => Failure(new Exception(s"could not delete rules for oid: '$oid'", e)) })
     }
   }
 
-  override def size: Long = super.size
+  override def size: Future[Long] = super.size
 }

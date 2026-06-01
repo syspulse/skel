@@ -1,7 +1,7 @@
 package io.syspulse.skel.auth.permit
 
-import scala.util.Try
-import scala.util.{Success,Failure}
+import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.collection.immutable
 import io.jvm.uuid._
 
@@ -22,18 +22,18 @@ import io.syspulse.skel.auth.permissions.Permissions
 
 class PermissionsStoreDir(dir:String = "store/auth/rbac/permissions") extends StoreDir[PermitRole,String](dir) {
   val store = new PermitStoreMem
-  
+
   def getKey(p: PermitRole): String = p.role
   def toKey(id:String):String = id
-  def all:Seq[PermitRole] = store.getPermit()
-  def size:Long = store.getPermit().size
-  override def +(r:PermitRole):Try[PermitRole] = super.+(r).flatMap(_ => store.addPermit(r))
+  def all:Future[Seq[PermitRole]] = store.getPermit()
+  def size:Future[Long] = store.getPermit().map(_.size.toLong)
+  override def +(r:PermitRole):Future[PermitRole] = super.+(r).flatMap(_ => store.addPermit(r))
 
-  override def del(r:String):Try[String] = super.del(r).flatMap(_ => store.delPermit(r))
-  override def ?(r:String):Try[PermitRole] = store.getPermit(r)
+  override def del(r:String):Future[String] = super.del(r).flatMap(_ => store.delPermit(r))
+  override def ?(r:String):Future[PermitRole] = store.getPermit(r)
 
-  def update(role:String,resources:Option[Seq[PermitResource]]):Try[PermitRole] =
-    store.updatePermit(role,resources).flatMap(c => writeFile(c))
+  def update(role:String,resources:Option[Seq[PermitResource]]):Future[PermitRole] =
+    store.updatePermit(role,resources).flatMap(c => Future.fromTry(writeFile(c)))
 
 }
 
@@ -42,17 +42,17 @@ class PermitUserStoreDir(dir:String = "store/auth/rbac/users") extends StoreDir[
 
   def getKey(r: PermitUser): UUID = r.uid
   def toKey(id:String):UUID = UUID(id)
-  def all:Seq[PermitUser] = store.all
-  def size:Long = store.size
-  override def +(c:PermitUser):Try[PermitUser] = super.+(c).flatMap(_ => store.+(c))
+  def all:Future[Seq[PermitUser]] = store.all
+  def size:Future[Long] = store.size
+  override def +(c:PermitUser):Future[PermitUser] = super.+(c).flatMap(_ => store.+(c))
 
-  override def del(uid:UUID):Try[UUID] = super.del(uid).flatMap(_ => store.del(uid))
-  override def ?(uid:UUID):Try[PermitUser] = store.?(uid)
+  override def del(uid:UUID):Future[UUID] = super.del(uid).flatMap(_ => store.del(uid))
+  override def ?(uid:UUID):Future[PermitUser] = store.?(uid)
 
-  def findPermitUserByXid(xid:String):Try[PermitUser] = store.findPermitUserByXid(xid)
+  def findPermitUserByXid(xid:String):Future[PermitUser] = store.findPermitUserByXid(xid)
 
-  def update(uid:UUID,roles:Option[Seq[String]]):Try[PermitUser] =
-    store.update(uid,roles).flatMap(c => writeFile(c))
+  def update(uid:UUID,roles:Option[Seq[String]]):Future[PermitUser] =
+    store.update(uid,roles).flatMap(c => Future.fromTry(writeFile(c)))
 
 }
 
@@ -63,23 +63,23 @@ class PermitStoreDir(dir:String = "store/auth/rbac") extends PermitStore {
 
   def getEngine():Option[Permissions] = permissionStore.store.getEngine()
 
-  def all:Seq[PermitUser] = userStore.all
-  def size:Long = userStore.size
-  
-  override def +(r:PermitUser):Try[PermitUser] = userStore.+(r)
-  override def addPermit(p:PermitRole):Try[PermitRole] = permissionStore.+(p)
+  def all:Future[Seq[PermitUser]] = userStore.all
+  def size:Future[Long] = userStore.size
 
-  override def del(uid:UUID):Try[UUID] = userStore.del(uid)
-  override def ?(uid:UUID):Try[PermitUser] = userStore.?(uid)
+  override def +(r:PermitUser):Future[PermitUser] = userStore.+(r)
+  override def addPermit(p:PermitRole):Future[PermitRole] = permissionStore.+(p)
 
-  def findPermitUserByXid(xid:String):Try[PermitUser] = userStore.findPermitUserByXid(xid)
+  override def del(uid:UUID):Future[UUID] = userStore.del(uid)
+  override def ?(uid:UUID):Future[PermitUser] = userStore.?(uid)
 
-  override def update(uid:UUID,roles:Option[Seq[String]]):Try[PermitUser] =
+  def findPermitUserByXid(xid:String):Future[PermitUser] = userStore.findPermitUserByXid(xid)
+
+  override def update(uid:UUID,roles:Option[Seq[String]]):Future[PermitUser] =
     userStore.update(uid,roles)
 
-  def delPermit(role:String):Try[String] = permissionStore.del(role)
-  def getPermit(role:String):Try[PermitRole] = permissionStore.?(role)
-  def getPermit():Seq[PermitRole] = permissionStore.all
+  def delPermit(role:String):Future[String] = permissionStore.del(role)
+  def getPermit(role:String):Future[PermitRole] = permissionStore.?(role)
+  def getPermit():Future[Seq[PermitRole]] = permissionStore.all
 
   // preload
   permissionStore.load()

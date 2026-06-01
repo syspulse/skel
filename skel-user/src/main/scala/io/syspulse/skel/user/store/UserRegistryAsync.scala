@@ -30,27 +30,25 @@ object UserRegistryAsync {
     Behaviors.receiveMessage {
       case GetUsers(from, size, replyTo) =>
         val fut = (from, size) match {
-          case (Some(f), Some(s)) => store.pageAsync(f, s)
-          case (None, None)       => store.allAsync
+          case (Some(f), Some(s)) => store.???(f, s)
+          case (None, None)       => store.all
           case _ =>
             Future.failed(new IllegalArgumentException("from and size must both be set for paging"))
         }
-        fut.map(r => replyTo ! Users(r))
+        fut.foreach(r => replyTo ! Users(r))
         Behaviors.same
 
       case GetUser(id, replyTo) =>
-        val r = store.?!(id)
-        r.onComplete(replyTo ! _)
+        store.?(id).onComplete(replyTo ! _)
         Behaviors.same
 
       case GetUserByXid(eid, replyTo) =>
-        val r = store.findByXidAsync(eid)
-        r.onComplete(r =>
+        store.findByXid(eid).onComplete(r =>
           r match {
             case Failure(e) =>
               log.warn(s"user not found: ${eid}")
               replyTo ! None
-            case Success(u) => replyTo ! Some(u)
+            case Success(opt) => replyTo ! opt
           },
         )
         Behaviors.same
@@ -58,15 +56,13 @@ object UserRegistryAsync {
       case CreateUser(req, replyTo) =>
         val id = req.uid.getOrElse(UUID.randomUUID())
 
-        store.?!(id).onComplete(_ match {
+        store.?(id).onComplete(_ match {
           case Success(_) =>
             replyTo ! Failure(new Exception(s"already exists: ${id}"))
 
           case _ =>
             val user = UserRegistry.userFromCreateReq(id, req)
-            val store1 = store.+!(user)
-
-            store1.onComplete(r =>
+            store.+(user).onComplete(r =>
               r match {
                 case Failure(e) => replyTo ! Failure(e)
                 case _          => replyTo ! Success(user)
@@ -77,13 +73,11 @@ object UserRegistryAsync {
         Behaviors.same
 
       case UpdateUser(uid, req, replyTo) =>
-        val r = store.updateAsync(uid, req)
-        r.onComplete(replyTo ! _)
+        store.update(uid, req).onComplete(replyTo ! _)
         Behaviors.same
 
       case DeleteUser(id, replyTo) =>
-        val r = store.delAsync(id)
-        r.onComplete(r =>
+        store.del(id).onComplete(r =>
           r match {
             case Success(_) => replyTo ! UserActionRes("200", Some(id))
             case Failure(_) => replyTo ! UserActionRes("619", Some(id))

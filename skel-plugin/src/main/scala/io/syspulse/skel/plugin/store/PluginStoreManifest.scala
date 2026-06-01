@@ -47,7 +47,7 @@ class PluginStoreManifest(dir:String = "plugins") extends PluginStoreDir(dir) {
   override def loadPlugins():Int = {
     val pp = scan()
     pp.foreach{ p => store.+(p)}
-    all.size
+    store.plugins.size
   }
 
 }

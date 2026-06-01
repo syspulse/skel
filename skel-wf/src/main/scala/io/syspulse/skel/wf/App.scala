@@ -1,6 +1,9 @@
 package io.syspulse.skel.wf
 
-import scala.util.Success
+import scala.util.{Try, Success, Failure}
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
@@ -129,7 +132,7 @@ object App extends skel.Server {
 
       val wf = for {
         wf <- Workflow.assemble(s"${name}",name,dsl)
-        wf <- storeWorkflow.+(wf).map(_ => wf)
+        wf <- Try(Await.result(storeWorkflow.+(wf), 10.seconds))
       } yield wf
       wf
     }
@@ -145,8 +148,8 @@ object App extends skel.Server {
         case ("assemble" | "assembly") :: name :: assembly => 
           val wf = assemble(name,assembly)          
           wf
-        case "load" :: id :: Nil => 
-          val wf = storeWorkflow.?(id)
+        case "load" :: id :: Nil =>
+          val wf = Try(Await.result(storeWorkflow.?(id), 10.seconds))
           wf
         case "run" :: name :: assembly => 
           implicit val we = new WorkflowEngine(storeWorkflow,storeState,runtime = new RuntimeThreads())
@@ -162,32 +165,32 @@ object App extends skel.Server {
             _ <- we.remove(w)
           } yield w
           w
-        case _ => 
-          storeWorkflow.all
-      } 
+        case _ =>
+          Try(Await.result(storeWorkflow.all, 10.seconds))
+      }
 
       case "runtime" => {        
 
         implicit val we = new WorkflowEngine(storeWorkflow,storeState,runtime = new RuntimeThreads())
         config.params match {
-          case "spawn" :: id :: Nil =>             
+          case "spawn" :: id :: Nil =>
             for {
-              wf <- storeWorkflow.?(id)          
-              wr <- we.spawn(wf)            
+              wf <- Try(Await.result(storeWorkflow.?(id), 10.seconds))
+              wr <- we.spawn(wf)
             } yield wr
-          
-          case "status" :: wid :: Nil => 
+
+          case "status" :: wid :: Nil =>
             for {
-              ws <- storeState.?(wid)            
+              ws <- Try(Await.result(storeState.?(wid), 10.seconds))
             } yield s"${ws.id}: ${ws.status}"
 
           case "status" :: Nil =>
-            storeState.all.map(ws => s"${ws.id}: ${ws.status}").mkString("\n")
+            Try(Await.result(storeState.all, 10.seconds)).map(_.map(ws => s"${ws.id}: ${ws.status}").mkString("\n"))
 
           case "recover" :: id =>
             (id match {
-              case Nil => storeState.all.map(_.id)
-              case wids => wids.toSeq              
+              case Nil => Await.result(storeState.all, 10.seconds).map(_.id)
+              case wids => wids.toSeq
             }).map(id => {
               for {
                 w <- we.respawn(id)
@@ -212,9 +215,9 @@ object App extends skel.Server {
           case "remove" :: id :: Nil => 
             we.remove(id)            
 
-          case "run" :: id :: Nil => 
+          case "run" :: id :: Nil =>
             val wr = for {
-              wf <- storeWorkflow.?(id)
+              wf <- Try(Await.result(storeWorkflow.?(id), 10.seconds))
               w <- we.spawn(wf)
               w <- we.start(w)
             } yield w
@@ -253,10 +256,8 @@ object App extends skel.Server {
 
             prompt()            
 
-          case _ => 
-            for {
-              st <- storeState.all
-            } yield st
+          case _ =>
+            Try(Await.result(storeState.all, 10.seconds))
       }}
     }   
     println(s"${r}")

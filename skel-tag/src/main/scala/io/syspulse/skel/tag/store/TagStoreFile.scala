@@ -24,5 +24,5 @@ class TagStoreFile(storeFile:String) extends TagStoreMem {
     .parse(os.read(os.Path(storeFile,os.pwd)))
     .foreach( t => this.+(t))
   
-  log.info(s"Loaded store: ${size}")
+  log.info(s"Loaded store: ${tags.size}")
 }

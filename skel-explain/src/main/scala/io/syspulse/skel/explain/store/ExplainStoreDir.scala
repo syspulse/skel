@@ -1,6 +1,8 @@
 package io.syspulse.skel.explain.store
 
 import scala.util.{Failure, Success, Try}
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 import com.typesafe.scalalogging.Logger
 
 import io.syspulse.skel.store.StoreDir
@@ -14,36 +16,32 @@ class ExplainStoreDir(dir: String = "store") extends StoreDir[Explain, String](d
 
   def toKey(id: String): String = id
 
-  def all: Seq[Explain] = store.all
-  def size: Long = store.size
+  def all: Future[Seq[Explain]] = store.all
+  def size: Future[Long] = store.size
 
-  override def +(r: Explain): Try[Explain] =
+  override def +(r: Explain): Future[Explain] =
     super.+(r).flatMap(_ => store.+(r))
 
-  override def del(key: String): Try[String] =
-    store.del(key).map(_ => key).recoverWith { case _ =>
-      super.del(key)
+  override def del(key: String): Future[String] =
+    store.del(key).recoverWith { case _ => super.del(key) }
+
+  def del(oid: Option[String], rid: String): Future[Explain] =
+    store.del(oid, rid).flatMap { r =>
+      super[StoreDir].del(getKey(r)).map(_ => r)
     }
 
-  def del(oid: Option[String], rid: String): Try[Explain] =
-    store.del(oid, rid) match {
-      case Success(r) =>
-        super[StoreDir].del(getKey(r))
-        Success(r)
-      case Failure(e) => Failure(e)
+  def get(oid: Option[String], rid: String): Future[Explain] = store.get(oid, rid)
+
+  def findByOid(oid: Option[String]): Future[Seq[Explain]] = store.findByOid(oid)
+
+  def delByOid(oid: Option[String]): Future[Seq[Explain]] = {
+    store.findByOid(oid).flatMap { deleted =>
+      val futs = deleted.map(r => super[StoreDir].del(getKey(r)))
+      Future.sequence(futs).flatMap(_ => store.delByOid(oid))
     }
-
-  def get(oid: Option[String], rid: String): Try[Explain] = store.get(oid, rid)
-
-  def findByOid(oid: Option[String]): Seq[Explain] = store.findByOid(oid)
-
-  def delByOid(oid: Option[String]): Try[Seq[Explain]] = {
-    val deleted = store.findByOid(oid)
-    deleted.foreach(r => super[StoreDir].del(getKey(r)))
-    store.delByOid(oid).map(_ => deleted)
   }
 
-  override def ?(key: String): Try[Explain] = store.?(key)
+  override def ?(key: String): Future[Explain] = store.?(key)
 
   load(dir)
 }

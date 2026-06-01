@@ -1,9 +1,9 @@
 package io.syspulse.skel.plugin.store
 
-import scala.util.Try
-import scala.util.{Success,Failure}
+import scala.util.{Try,Success,Failure}
 import scala.collection.immutable
 import scala.jdk.CollectionConverters._
+import scala.concurrent.Future
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
@@ -31,6 +31,6 @@ class PluginStoreClasspath(classNames0:String,root: Option[Class[_]] = None) ext
   override def loadPlugins():Int = {
     val pp = scan()
     pp.foreach{p => this.+(p)}
-    all.size
+    plugins.size
   }
 }

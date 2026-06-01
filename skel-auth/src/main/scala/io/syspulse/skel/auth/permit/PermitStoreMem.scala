@@ -1,7 +1,6 @@
 package io.syspulse.skel.auth.permit
 
-import scala.util.Try
-import scala.util.{Success,Failure}
+import scala.concurrent.Future
 import scala.collection.immutable
 
 import akka.actor.typed.scaladsl.Behaviors
@@ -18,69 +17,70 @@ import io.syspulse.skel.auth.permit.PermitStore
 class PermitStoreMem extends PermitStore {
   val log = Logger(s"${this}")
 
+  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+
   val permissions:Permissions = new PermissionsRbacDefault() //new PermissionsRbacFile(config.rbac)
 
   def getEngine():Option[Permissions] = Some(permissions)
-  
+
   var users: Map[UUID,PermitUser] = Map()
   var permits: Map[String,PermitRole] = Map()
 
-  def all:Seq[PermitUser] = users.values.toSeq
+  def all:Future[Seq[PermitUser]] = Future.successful(users.values.toSeq)
 
-  def size:Long = users.size
+  def size:Future[Long] = Future.successful(users.size.toLong)
 
-  def +(p:PermitUser):Try[PermitUser] = {
+  def +(p:PermitUser):Future[PermitUser] = {
     log.info(s"add: ${p}")
     users = users + (p.uid -> p)
-    Success(p)
+    Future.successful(p)
   }
 
-  def del(uid:UUID):Try[UUID] = { 
+  def del(uid:UUID):Future[UUID] = {
     log.info(s"del: ${uid}")
     users.get(uid) match {
-      case Some(auth) => { users = users - uid; Success(uid) }
-      case None => Failure(new Exception(s"not found: ${uid}"))
+      case Some(u) => { users = users - uid; Future.successful(uid) }
+      case None => Future.failed(new Exception(s"not found: ${uid}"))
     }
   }
 
-  def ?(uid:UUID):Try[PermitUser] = users.get(uid) match {
-    case Some(p) => Success(p)
-    case None => Failure(new Exception(s"not found: ${uid}"))
+  def ?(uid:UUID):Future[PermitUser] = users.get(uid) match {
+    case Some(p) => Future.successful(p)
+    case None => Future.failed(new Exception(s"not found: ${uid}"))
   }
 
-  def findPermitUserByXid(xid:String):Try[PermitUser] = 
+  def findPermitUserByXid(xid:String):Future[PermitUser] =
     users.values.find( u => u.xid == xid) match {
-      case Some(p) => Success(p)
-      case None => Failure(new Exception(s"not found: ${xid}"))  
+      case Some(p) => Future.successful(p)
+      case None => Future.failed(new Exception(s"not found: ${xid}"))
   }
 
-  def update(uid:UUID,roles:Option[Seq[String]]):Try[PermitUser] = {
+  def update(uid:UUID,roles:Option[Seq[String]]):Future[PermitUser] = {
     ?(uid).map(p => modify(p,roles))
   }
 
-  def updatePermit(role:String,resources:Option[Seq[PermitResource]]):Try[PermitRole] = {
+  def updatePermit(role:String,resources:Option[Seq[PermitResource]]):Future[PermitRole] = {
     getPermit(role).map(p => modifyPermit(p,resources))
   }
 
-  def addPermit(p:PermitRole):Try[PermitRole] = {
+  def addPermit(p:PermitRole):Future[PermitRole] = {
     permits = permits + (p.role -> p)
-    Success(p)
+    Future.successful(p)
   }
 
-  def delPermit(role:String):Try[String] = { 
+  def delPermit(role:String):Future[String] = {
     log.info(s"del: ${role}")
     permits.get(role) match {
-      case Some(r) => { permits = permits - role; Success(role) }
-      case None => Failure(new Exception(s"not found: ${role}"))
+      case Some(r) => { permits = permits - role; Future.successful(role) }
+      case None => Future.failed(new Exception(s"not found: ${role}"))
     }
   }
 
-  def getPermit():Seq[PermitRole] = permits.values.toSeq
+  def getPermit():Future[Seq[PermitRole]] = Future.successful(permits.values.toSeq)
 
-  def getPermit(role:String):Try[PermitRole] = permits.get(role) match {
-    case Some(r) => Success(r)
-    case None => Failure(new Exception(s"not found: ${role}"))
+  def getPermit(role:String):Future[PermitRole] = permits.get(role) match {
+    case Some(r) => Future.successful(r)
+    case None => Future.failed(new Exception(s"not found: ${role}"))
   }
 
 }
-

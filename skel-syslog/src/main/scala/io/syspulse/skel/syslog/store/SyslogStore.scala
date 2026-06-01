@@ -1,6 +1,6 @@
 package io.syspulse.skel.syslog.store
 
-import scala.util.Try
+import scala.concurrent.Future
 
 import scala.collection.immutable
 
@@ -12,11 +12,11 @@ import io.syspulse.skel.syslog.Syslog.ID
 
 trait SyslogStore extends Store[Syslog,ID] {
   def getKey(y: Syslog): ID = Syslog.uid(y)
-  def +(syslog:Syslog):Try[Syslog]
-  def del(id:ID):Try[ID]
-  def ?(id:ID):Try[Syslog]
-  def all:Seq[Syslog]
-  def size:Long
+  def +(syslog:Syslog):Future[Syslog]
+  def del(id:ID):Future[ID]
+  def ?(id:ID):Future[Syslog]
+  def all:Future[Seq[Syslog]]
+  def size:Future[Long]
 
   def ??(txt:String):Seq[Syslog]
 

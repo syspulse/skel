@@ -1,6 +1,7 @@
 package io.syspulse.skel.plugin
 
-import scala.util.Success
+import scala.util.{Try, Success, Failure}
+import scala.concurrent.{Future, ExecutionContext}
 
 import io.syspulse.skel
 import io.syspulse.skel.util.Util
@@ -94,10 +95,12 @@ object App extends skel.Server {
     Console.err.println(s"store: ${store}")
     
     
+    implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
+
     val r = config.cmd match {
-      case "run" => 
+      case "run" =>
         PluginEngine.run(config.datastore)
-      
+
       case "runtime" => {
         store.loadPlugins()
 
@@ -106,21 +109,18 @@ object App extends skel.Server {
 
         config.params match {
           case "spawn" :: id :: Nil =>
-            for {
-              plugin <- store.?(id)  
-              r <- runtime.spawn(plugin)       
-            } yield r
+            store.?(id).map { plugin =>
+              runtime.spawn(plugin)
+            }
 
           case "start" :: id :: Nil =>
             runtime.start(id)
-          
+
           case "start" :: Nil =>
             runtime.start()
-                  
-          case _ => 
-            for {
-              pp <- store.all
-            } yield pp
+
+          case _ =>
+            store.all
         }}
     }
 

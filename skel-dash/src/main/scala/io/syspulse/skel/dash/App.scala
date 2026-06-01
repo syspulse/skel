@@ -177,28 +177,32 @@ object App extends skel.Server {
             })
           )
         )       
-      case "migrate" => 
+      case "migrate" =>
         // migrate from one data store to another
         // read All and iterate add all to another
         val storeTo = getStore(config.params.headOption.getOrElse("mem://"))
 
-        val all = store.all
+        import scala.concurrent.ExecutionContext.Implicits.global
+        import scala.concurrent.{Await, Future}
+        import scala.concurrent.duration.Duration
         var i = 0
         var f = 0
-        all.foreach { d =>
-          storeTo.+(d) match {
-            case Success(d) => 
+        val allFut = store.all.flatMap { dashes =>
+          val total = dashes.size
+          Future.sequence(dashes.map { d =>
+            storeTo.+(d).map { d2 =>
               i += 1
               if(i % 1 == 0) {
-                Console.err.println(s"Migrated: ${d.id}: ${i}/${all.size}")
+                Console.err.println(s"Migrated: ${d2.id}: ${i}/${total}")
               }
-            case Failure(e) => {
-              Console.err.println(s"Failed to migrate: ${e}")              
+            }.recover { case e =>
+              Console.err.println(s"Failed to migrate: ${e}")
               f += 1
             }
-          }
+          }).map(_ => total)
         }
-        s"Migrated: ${i}/${f}/${all.size}"
+        val total = Await.result(allFut, Duration.Inf)
+        s"Migrated: ${i}/${f}/${total}"
     }
     
     Console.err.println(s"r = ${r}")

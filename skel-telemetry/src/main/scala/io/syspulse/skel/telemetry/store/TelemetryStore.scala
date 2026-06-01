@@ -3,6 +3,7 @@ package io.syspulse.skel.telemetry.store
 import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
+import scala.concurrent.{Future, ExecutionContext}
 
 import scala.collection.immutable
 
@@ -20,9 +21,9 @@ trait TelemetryStore extends Store[Telemetry,ID] {
   def getKey(t: Telemetry): ID = t.id
 
   def clean():Try[TelemetryStore]
-  def +(telemetry:Telemetry):Try[Telemetry]
-  def del(id:ID):Try[ID]
-  
+  def +(telemetry:Telemetry):Future[Telemetry]
+  def del(id:ID):Future[ID]
+
   // return sorted
   def ?(id:ID,ts0:Long,ts1:Long,op:Option[String] = None):Seq[Telemetry]
 
@@ -40,17 +41,17 @@ trait TelemetryStore extends Store[Telemetry,ID] {
 
 
   // Attention: returns last by default
-  def ?(id:ID):Try[Telemetry] =  last(id)
+  def ?(id:ID):Future[Telemetry] = last(id)
 
-  def last(id:ID):Try[Telemetry] = ?(id,0L,Long.MaxValue).sortBy(- _.ts).headOption match {
+  def last(id:ID):Future[Telemetry] = Future.fromTry(?(id,0L,Long.MaxValue).sortBy(- _.ts).headOption match {
     case Some(t) => Success(t)
     case None => Failure(new Exception(s"not found: ${id}"))
-  }
+  })
 
-  def all:Seq[Telemetry]
+  def all:Future[Seq[Telemetry]]
   def ???(ts0:Long,ts1:Long,from:Option[Int],size:Option[Int]):Telemetrys
 
-  def size:Long
+  def size:Future[Long]
 
   def ??(txt:String,ts0:Long,ts1:Long):Seq[Telemetry]
 

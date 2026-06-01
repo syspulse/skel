@@ -1,7 +1,7 @@
 package io.syspulse.skel.otp.store
 
-import scala.util.Try
-import scala.util.{Success,Failure}
+import scala.util.{Try,Success,Failure}
+import scala.concurrent.Future
 
 import io.jvm.uuid._
 
@@ -27,10 +27,10 @@ class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB
   def create:Try[Long] = {
     ctx.executeAction(
     s"""CREATE TABLE IF NOT EXISTS ${tableName} (
-      id VARCHAR(36) PRIMARY KEY, 
-      user_id VARCHAR(36), 
-      secret VARCHAR(255), 
-      name VARCHAR(255), 
+      id VARCHAR(36) PRIMARY KEY,
+      user_id VARCHAR(36),
+      secret VARCHAR(255),
+      name VARCHAR(255),
       account VARCHAR(255),
       issuer VARCHAR(255),
       period NUMERIC(3),
@@ -46,49 +46,48 @@ class OtpStoreDB(configuration:Configuration,dbConfigRef:String) extends StoreDB
       val r = ctx.executeAction(s"CREATE INDEX otp_name ON ${tableName} (name);")(ExecutionInfo.unknown, ())
       Success(r)
     } catch {
-      case e:Exception => { 
+      case e:Exception => {
         // short name without full stack (change to check for duplicate index)
-        log.warn(s"failed to create index: ${e.getMessage()}"); Success(0) 
+        log.warn(s"failed to create index: ${e.getMessage()}"); Success(0)
       }
     }
   }
-  
-  def all:Seq[Otp] = ctx.run(query[Otp])
 
-  def getForUser(userId:UUID):Seq[Otp] = {
-    ctx.run(query[Otp].filter(o => o.uid == lift(userId)))
+  def all: Future[Seq[Otp]] = Future.successful(ctx.run(query[Otp]))
+
+  def getForUser(userId:UUID): Future[Seq[Otp]] = {
+    Future.successful(ctx.run(query[Otp].filter(o => o.uid == lift(userId))))
   }
-  
-  val deleteById = quote { (id:UUID) => 
-    query[Otp].filter(o => o.id == id).delete
-  } 
 
-  def +(otp:Otp):Try[Otp] = { 
+  val deleteById = quote { (id:UUID) =>
+    query[Otp].filter(o => o.id == id).delete
+  }
+
+  def +(otp:Otp): Future[Otp] = {
     log.info(s"insert: ${otp}")
     try {
-      ctx.run(query[Otp].insertValue(lift(otp))); 
-      Success(otp)
+      ctx.run(query[Otp].insertValue(lift(otp)))
+      Future.successful(otp)
     } catch {
-      case e:Exception => Failure(new Exception(s"could not insert: ${e}"))
+      case e:Exception => Future.failed(new Exception(s"could not insert: ${e}"))
     }
   }
 
-  def del(id:UUID):Try[UUID] = { 
+  def del(id:UUID): Future[UUID] = {
     log.info(s"delete: id=${id}")
     try {
       ctx.run(deleteById(lift(id)))
-      Success(id)
+      Future.successful(id)
     } catch {
-      case e:Exception => Failure(new Exception(s"could not delete: ${e}"))
-    } 
+      case e:Exception => Future.failed(new Exception(s"could not delete: ${e}"))
+    }
   }
-  //def -(otp:Otp):Try[OtpStoreDB] = { this.del(otp.id) }
 
-  def ?(id:UUID):Try[Otp] = {
+  def ?(id:UUID): Future[Otp] = {
     log.info(s"select: id=${id}")
     ctx.run(query[Otp].filter(o => o.id == lift(id))) match {
-      case h :: _ => Success(h)
-      case Nil => Failure(new Exception(s"not found: ${id}"))
+      case h :: _ => Future.successful(h)
+      case Nil => Future.failed(new Exception(s"not found: ${id}"))
     }
   }
 

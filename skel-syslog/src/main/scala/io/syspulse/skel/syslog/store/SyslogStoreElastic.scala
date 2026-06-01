@@ -1,7 +1,7 @@
 package io.syspulse.skel.syslog.store
 
-import scala.util.Try
-import scala.util.{Success,Failure}
+import scala.util.{Try, Success, Failure}
+import scala.concurrent.Future
 import scala.collection.immutable
 
 import akka.actor.typed.ActorRef
@@ -23,7 +23,7 @@ import io.syspulse.skel.syslog.Syslog.ID
 
 import io.syspulse.skel.uri.ElasticURI
 
-class SyslogStoreElastic(elasticUri:String) extends SyslogStore {  
+class SyslogStoreElastic(elasticUri:String) extends SyslogStore {
   private val log = Logger(s"${this}")
 
   val uri = ElasticURI(elasticUri)
@@ -35,18 +35,18 @@ class SyslogStoreElastic(elasticUri:String) extends SyslogStore {
       Success(
         Syslog(
           msg = source("msg").asInstanceOf[String],
-          severity = Some(source("severity").asInstanceOf[Int]), 
+          severity = Some(source("severity").asInstanceOf[Int]),
           scope = Some(source("scope").asInstanceOf[String]),
-          ts = source("ts").asInstanceOf[Long], 
+          ts = source("ts").asInstanceOf[Long],
         )
       )
     }
   }
-  
+
   val client = ElasticClient(JavaClient(ElasticProperties(uri.uri)))
 
-  import ElasticDsl._  
-  def all:Seq[Syslog] = {    
+  import ElasticDsl._
+  def all: Future[Seq[Syslog]] = {
     val r = client.execute {
       ElasticDsl
       .search(uri.index)
@@ -54,29 +54,29 @@ class SyslogStoreElastic(elasticUri:String) extends SyslogStore {
     }.await
 
     log.info(s"r=${r}")
-    r.result.to[Syslog].toList
+    Future.successful(r.result.to[Syslog].toList)
   }
 
   // slow and memory hungry !
-  def size:Long = {
+  def size: Future[Long] = {
     val r = client.execute {
       ElasticDsl.count(Indexes(uri.index))
     }.await
-    r.result.count
+    Future.successful(r.result.count)
   }
 
-  def +(syslog:Syslog):Try[Syslog] = { 
-    Failure(new UnsupportedOperationException(s"not implemented: ${syslog}"))
+  def +(syslog:Syslog): Future[Syslog] = {
+    Future.failed(new UnsupportedOperationException(s"not implemented: ${syslog}"))
   }
 
-  def del(id:ID):Try[ID] = { 
-    Failure(new UnsupportedOperationException(s"not implemented: ${id}"))
+  def del(id:ID): Future[ID] = {
+    Future.failed(new UnsupportedOperationException(s"not implemented: ${id}"))
   }
 
-  def ?(id:ID):Try[Syslog] = {
+  def ?(id:ID): Future[Syslog] = {
     search(id.toString).take(1).headOption match {
-      case Some(y) => Success(y)
-      case None => Failure(new Exception(s"not found: ${id}"))
+      case Some(y) => Future.successful(y)
+      case None => Future.failed(new Exception(s"not found: ${id}"))
     }
   }
 
@@ -89,20 +89,20 @@ class SyslogStoreElastic(elasticUri:String) extends SyslogStore {
       ElasticDsl
         .search(uri.index)
         .rawQuery(s"""
-    { 
+    {
       "query_string": {
         "query": "${txt}",
         "fields": ["area", "msg"]
       }
     }
-    """)        
+    """)
     }.await
 
     log.info(s"r=${r}")
     r.result.to[Syslog].toList
   }
 
-  def search(txt:String):List[Syslog] = {   
+  def search(txt:String):List[Syslog] = {
     val r = client.execute {
       com.sksamuel.elastic4s.ElasticDsl
         .search(uri.index)
@@ -126,15 +126,15 @@ class SyslogStoreElastic(elasticUri:String) extends SyslogStore {
     r.result.to[Syslog].toList
   }
 
-  def typing(txt:String):List[Syslog] = {  
+  def typing(txt:String):List[Syslog] = {
     val r = client.execute {
       ElasticDsl
         .search(uri.index)
         .rawQuery(s"""
     { "multi_match": { "query": "${txt}", "type": "bool_prefix", "fields": [ "msg._3gram" ] }}
-    """)        
+    """)
     }.await
-    
+
     log.info(s"r=${r}")
     r.result.to[Syslog].toList
   }

@@ -3,6 +3,7 @@ package io.syspulse.skel.job.store
 import scala.util.Try
 import scala.util.{Success,Failure}
 import scala.collection.immutable
+import scala.concurrent.Future
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
@@ -18,52 +19,51 @@ import io.syspulse.skel.job.server.Jobs
 
 class JobStoreMem(engine:JobEngine)(implicit config:Config) extends JobStore {
   val log = Logger(s"${this}")
-  
+
   var jobs: Map[UUID,Job] = Map()
-  
-  def all:Seq[Job] = jobs.values.toSeq
-  // def all:Seq[Job] = jobs.values.flatMap{ j => 
-  //   // request all jobs
-  //   this.?(j.id).toOption
-  // }.toSeq
 
-  def size:Long = jobs.size
+  def all:Future[Seq[Job]] = Future.successful(jobs.values.toSeq)
 
-  override def +(job:Job):Try[Job] = { 
+  def size:Future[Long] = Future.successful(jobs.size.toLong)
+
+  override def +(job:Job):Future[Job] = {
     log.info(s"add: ${job}")
     jobs = jobs + (job.id -> job)
-    Success(job)
+    Future.successful(job)
   }
 
-  def update(job:Job):Try[Job] = {
+  def update(job:Job):Future[Job] = {
     log.info(s"update: ${job}")
-    // this should overwrite 
+    // this should overwrite
     jobs = jobs + (job.id -> job)
-    Success(job)
+    Future.successful(job)
   }
 
 
   // jobs are not removed, but status is changed
-  def del(id:UUID):Try[UUID] = { 
+  def del(id:UUID):Future[UUID] = {
     log.info(s"del: ${id}")
-    this.?(id) match {
-      case Success(job) => 
-        engine.del(job).map(_ => id)
-      case Failure(e) => Failure(e)
-    }    
+    jobs.get(id) match {
+      case Some(job) =>
+        engine.del(job) match {
+          case Success(_) => Future.successful(id)
+          case Failure(e) => Future.failed(e)
+        }
+      case None => Future.failed(new Exception(s"not found: ${id}"))
+    }
   }
 
-  def ?(id:UUID):Try[Job] = jobs.get(id) match {
-    case Some(j) => Success(j)
-    case None => Failure(new Exception(s"not found: ${id}"))
+  def ?(id:UUID):Future[Job] = jobs.get(id) match {
+    case Some(j) => Future.successful(j)
+    case None => Future.failed(new Exception(s"not found: ${id}"))
   }
 
-  def ??(uid:Option[UUID],state:Option[String]=None):Try[Jobs] = {
+  def ??(uid:Option[UUID],state:Option[String]=None):Future[Jobs] = {
     log.info(s"??: ${uid},${state}")
     val jj = jobs.values.filter( j => {
       //log.debug(s"??: ${uid}: ${j.uid}: state=${state}")
-      (uid == None || j.uid == uid) && 
-      (state == None || 
+      (uid == None || j.uid == uid) &&
+      (state == None ||
         (
           if(state.get.startsWith("!"))
             state.get.toLowerCase.stripPrefix("!") != j.state.toLowerCase
@@ -72,29 +72,8 @@ class JobStoreMem(engine:JobEngine)(implicit config:Config) extends JobStore {
         )
       )
     }).toSeq
-    Success(Jobs(jj,Some(jj.size)))
+    Future.successful(Jobs(jj,Some(jj.size)))
   }
-
-  // def ?(id:UUID):Try[Job] = jobs.get(id) match {
-  //   case Some(j) => 
-  //     // ask engine only if j is not completed
-  //     j.result match {
-  //       case Some("error") | Some("ok") =>
-  //         Success(j)
-  //       case _ =>
-  //         engine.ask(j) match {
-  //           case Success(j2) => 
-  //             // update store (persistance)
-  //             this.+(j2).map(_ => j2)              
-  //           case Failure(e) => 
-  //             // not found, need to set to error
-  //             val j2 = j.copy(result = Some("error"), output = Some(s"Failed to find: ${e}"))
-  //             this.+(j2).map(_ => j2)              
-  //         }
-  //     }
-  //   case None => 
-  //     Failure(new Exception(s"not found: ${id}"))
-  // }
 
   def getEngine = engine
 }

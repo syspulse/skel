@@ -5,6 +5,8 @@ import scala.util.{Success,Failure}
 import scala.collection.immutable
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
@@ -15,21 +17,28 @@ import io.jvm.uuid._
 
 import io.syspulse.skel.odometer.Odo
 import io.syspulse.skel.cron.CronFreq
+import io.syspulse.skel.store.Store
 
 class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
   val log = Logger(s"${this}")
+
+  private implicit val ec: ExecutionContext = ExecutionContext.global
 
   val cache = new OdoStoreMem()
   val dirty = new OdoStoreMem()
   var cachedAll = false
 
   val cron = new CronFreq((_) => {
-      if(dirty.size > 0) log.info(s"Flushing cache: ${dirty.size}")
+      Store.fromFuture(dirty.size).foreach { sz =>
+        if(sz > 0) log.info(s"Flushing cache: ${sz}")
+      }
 
-      dirty.all.foreach{ o => {
-        log.debug(s"Flushing: ${o}")
-        store.update(o.id,o.v)
-      }}
+      Store.fromFuture(dirty.all).foreach { oo =>
+        oo.foreach { o =>
+          log.debug(s"Flushing: ${o}")
+          store.update(o.id,o.v)
+        }
+      }
       // clear dirty cache
       dirty.clear()
       true
@@ -39,25 +48,26 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
   )
 
   // always request everything and cache
-  def all:Seq[Odo] = {
-    val oo = store.all
-    for( o <- oo ) {
-      cache.+(o)
+  def all:Future[Seq[Odo]] = {
+    store.all.map { oo =>
+      for( o <- oo ) {
+        cache.+(o)
+      }
+      cachedAll = true
+      oo
     }
-    cachedAll = true
-    oo
   }
 
-  def size:Long = cache.size
+  def size:Future[Long] = cache.size
 
-  def +(o:Odo):Try[Odo] = { 
+  def +(o:Odo):Future[Odo] = {
     for {
       r1 <- store.+(o)
-      r2 <- cache.+(o)      
+      r2 <- cache.+(o)
     } yield o
   }
 
-  def del(id:String):Try[String] = {
+  def del(id:String):Future[String] = {
     // optimistic delete dirty
     dirty.del(id)
 
@@ -67,94 +77,70 @@ class OdoStoreCache(store:OdoStore,freq:Long = 3000L) extends OdoStore {
     } yield id
   }
 
-  def ????(id:String) = {
-    cache.?(id) match {
-      case Success(o) => Success(o)
-      case _ => 
-        // try to get from store
-        store.?(id).map(o => {
-          cache.+(o)          
-          o
-        })
+  private def ????(id:String):Future[Odo] = {
+    cache.?(id).recoverWith { case _ =>
+      // try to get from store
+      store.?(id).flatMap { o =>
+        cache.+(o).map(_ => o)
+      }
     }
   }
 
-  def ?(id:String):Try[Odo] = {
+  def ?(id:String):Future[Odo] = {
     ????(id)
   }
 
-  def update(id:String,v:Long):Try[Odo] = {
-    val o = ????(id)
+  def update(id:String,v:Long):Future[Odo] = {
     for {
-      o <- o
+      o  <- ????(id)
       o1 <- cache.update(id,v)
-      _ <-  dirty.+(o1)
+      _  <- dirty.+(o1)
     } yield o1
   }
 
-  def ++(id:String,delta:Long):Try[Odo] = {
-    val o = ????(id)    
+  def ++(id:String,delta:Long):Future[Odo] = {
     for {
-      o <- o
+      o  <- ????(id)
       o1 <- cache.++(o.id,delta)
-      _ <- dirty.+(o1)
+      _  <- dirty.+(o1)
     } yield o1
   }
 
-  def clear():Try[OdoStore] = {
+  def clear():Future[OdoStore] = {
     for {
-      r1 <- store.clear()
-      r2 <- cache.clear()
-      _ <- dirty.clear()
+      r1 <- cache.clear()
+      _  <- dirty.clear()
     } yield this
   }
 
-  override def ??(ids:Seq[String]):Seq[Odo] = {
-    // val oo = cache.??(ids) 
-    // if(oo.size == 0) {
-    //   // try to get from store
-    //   val oo = store.??(ids)
-    //   for( o <- oo) {
-    //     cache.+(o)
-    //   }
-    //   oo
-    // } else oo
-
-    val oo = ids.flatMap( id => {
+  override def ??(ids:Seq[String])(implicit ec:scala.concurrent.ExecutionContext):Future[Seq[Odo]] = {
+    Future.traverse(ids) { id =>
       id.split(":").toList match {
-        case ns :: "*" :: Nil =>           
-          val oo = cache.??(Seq(id))
-          
-          val oo1 = if(oo.size == 0) {
-            store.??(Seq(id))
-          } else oo
+        case ns :: "*" :: Nil =>
+          cache.??(Seq(id)).flatMap { oo =>
+            if(oo.isEmpty) {
+              store.??(Seq(id)).flatMap { oo1 =>
+                Future.traverse(oo1)(o => cache.+(o)).map(_ => oo1)
+              }
+            } else Future.successful(oo)
+          }
 
-          for( o <- oo1) {
-            cache.+(o)
-          }
-          oo1
-        
-        case "*" :: Nil => 
+        case "*" :: Nil =>
           if( !cachedAll ) {
-            val oo = store.??(Seq("*"))
-            if(oo.size != 0)
-              cachedAll = true
-            oo
-          }
-          else
+            store.??(Seq("*")).map { oo =>
+              if(oo.nonEmpty) cachedAll = true
+              oo
+            }
+          } else
             cache.??(Seq("*"))
 
-        case _ => 
-          this.?(id) match {
-            case Success(o) => Seq(o)
-            case _ => Seq()
-          }        
+        case _ =>
+          this.?(id).map(o => Seq(o)).recover { case _ => Seq() }
       }
-    })
-    oo
+    }.map(_.flatten)
   }
 
-  
+
   // start cron
   cron.start()
 }

@@ -3,6 +3,8 @@ package io.syspulse.skel.job.store
 import scala.util.Try
 import scala.util.{Success,Failure}
 import scala.collection.immutable
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import com.typesafe.scalalogging.Logger
 
@@ -24,32 +26,27 @@ class JobStoreDir(engine:JobEngine,dir:String = "store/")(implicit config:Config
   val store = new JobStoreMem(engine)(config)
 
   def toKey(id:String):UUID = UUID(id)
-  def all:Seq[Job] = store.all
-  def size:Long = store.size
-  
-  // this is job submission
-  // def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,String],uid:Option[UUID]):Try[Job] = {
-  //   store.submit(name,script,conf,inputs,uid).flatMap(j => super.+(j).map(_ => j))
-  // }
+  def all:Future[Seq[Job]] = store.all
+  def size:Future[Long] = store.size
 
   // this is called on load, so we can update the status
-  override def +(u:Job):Try[Job] = {
+  override def +(u:Job):Future[Job] = {
     super.+(u).flatMap(_ => store.+(u))
   }
 
-  override def update(job:Job):Try[Job] = {
+  override def update(job:Job):Future[Job] = {
     writeFile(job)
     store.update(job)
   }
 
   // del does not delete the file, but only the status
-  override def del(uid:UUID):Try[UUID] = {
+  override def del(uid:UUID):Future[UUID] = {
     super.del(uid).flatMap(_ => store.del(uid))
   }
 
-  override def ?(uid:UUID):Try[Job] = store.?(uid)
+  override def ?(uid:UUID):Future[Job] = store.?(uid)
 
-  override def ??(uid:Option[UUID],state:Option[String]=None):Try[Jobs] = store.??(uid,state)
+  override def ??(uid:Option[UUID],state:Option[String]=None):Future[Jobs] = store.??(uid,state)
 
   // load and fix statuses
   load(dir)
@@ -58,28 +55,31 @@ class JobStoreDir(engine:JobEngine,dir:String = "store/")(implicit config:Config
   startFSM(config)
 
   override def loaded() = {
-    all.foreach{ job => job.state match {      
+    import scala.concurrent.Await
+    import scala.concurrent.duration.Duration
+    val allJobs = Await.result(all, Duration(30, "seconds"))
+    allJobs.foreach{ job => job.state match {
       case "unknown" =>
         // just started
         enqueue(job)
-      
-      case "starting" => 
+
+      case "starting" =>
         enqueue(job)
 
-      case "available" => 
+      case "available" =>
         enqueue(job)
 
       case "idle" =>
         enqueue(job)
 
-      case "waiting" => 
+      case "waiting" =>
         // script is running
         enqueue(job)
 
       case "finished" =>
         // finished
 
-      case "deleted" => 
+      case "deleted" =>
         enqueue(job)
 
       case _ =>

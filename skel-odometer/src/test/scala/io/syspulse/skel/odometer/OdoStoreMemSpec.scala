@@ -10,19 +10,24 @@ import java.time._
 import io.jvm.uuid._
 import io.syspulse.skel.util.Util
 import scala.util.Success
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+import scala.concurrent.ExecutionContext.Implicits.global
 import io.syspulse.skel.odometer.store.OdoStoreMem
 
 class OdoStoreMemSpec extends AnyWordSpec with Matchers {
-  
+
+  val timeout = Duration(5, "seconds")
+
   "OdoStoreMem" should {
 
     "add and get 'group-1:counter-1'" in {
       val odo = new OdoStoreMem()
       val o1 = Odo("group-1:counter-1",100)
-      val r1 = odo.+(o1)
-      r1 shouldBe a [Success[_]]
+      val r1 = Await.result(odo.+(o1), timeout)
+      r1 shouldBe o1
 
-      val r2 = odo.??(Seq("group-1:counter-1"))
+      val r2 = Await.result(odo.??(Seq("group-1:counter-1")), timeout)
       r2 should === (Seq(Odo("group-1:counter-1",100,o1.ts)))
     }
 
@@ -30,12 +35,10 @@ class OdoStoreMemSpec extends AnyWordSpec with Matchers {
       val odo = new OdoStoreMem()
       val o1 = Odo("group-1:counter-1",100)
       val o2 = Odo("group-1:counter-2",200)
-      val r1 = odo.+(o1)
-      val r2 = odo.+(o2)
-      r1 shouldBe a [Success[_]]
-      r2 shouldBe a [Success[_]]
+      Await.result(odo.+(o1), timeout)
+      Await.result(odo.+(o2), timeout)
 
-      val r3 = odo.??(Seq("group-1:*"))
+      val r3 = Await.result(odo.??(Seq("group-1:*")), timeout)
       r3 should === (Seq(Odo("group-1:counter-1",100,o1.ts),Odo("group-1:counter-2",200,o2.ts)))
     }
 
@@ -43,12 +46,10 @@ class OdoStoreMemSpec extends AnyWordSpec with Matchers {
       val odo = new OdoStoreMem()
       val o1 = Odo("group-1:counter-1",100)
       val o2 = Odo("group-1:counter-2",200)
-      val r1 = odo.+(o1)
-      val r2 = odo.+(o2)
-      r1 shouldBe a [Success[_]]
-      r2 shouldBe a [Success[_]]
+      Await.result(odo.+(o1), timeout)
+      Await.result(odo.+(o2), timeout)
 
-      val r3 = odo.??(Seq("group-2:*"))
+      val r3 = Await.result(odo.??(Seq("group-2:*")), timeout)
       r3 should === (Seq())
     }
 
@@ -56,17 +57,15 @@ class OdoStoreMemSpec extends AnyWordSpec with Matchers {
       val odo = new OdoStoreMem()
       val o1 = Odo("group-1:counter-1",100)
       val o2 = Odo("group-2:counter-2",200)
-      val r1 = odo.+(o1)
-      val r2 = odo.+(o2)
-      r1 shouldBe a [Success[_]]
-      r2 shouldBe a [Success[_]]
+      Await.result(odo.+(o1), timeout)
+      Await.result(odo.+(o2), timeout)
 
-      val r3 = odo.??(Seq("group-1:*"))
-      val r4 = odo.??(Seq("group-2:*"))
+      val r3 = Await.result(odo.??(Seq("group-1:*")), timeout)
+      val r4 = Await.result(odo.??(Seq("group-2:*")), timeout)
       r3 should === (Seq(Odo("group-1:counter-1",100,o1.ts)))
       r4 should === (Seq(Odo("group-2:counter-2",200,o2.ts)))
     }
-    
+
   }
 
 }

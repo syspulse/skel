@@ -2,6 +2,8 @@ package io.syspulse.skel.dash.store
 
 import scala.util.{Failure,Success,Try}
 import scala.collection.immutable
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 import io.jvm.uuid.UUID
 import com.typesafe.scalalogging.Logger
 
@@ -12,49 +14,48 @@ import io.syspulse.skel.ErrNotFound
 class DashStoreMem() extends DashStore {
 
   var chats:Map[String,Dash] = Map()
-  
-  def +(u:Dash):Try[Dash] = {
+
+  def +(u:Dash):Future[Dash] = {
     chats = chats + (getKey(u) -> u)
-    Success(u)
+    Future.successful(u)
   }
 
-  def del(id:String):Try[String] = {
+  override def del(id:String):Future[String] = {
     chats = chats - id
-    Success(id)
+    Future.successful(id)
   }
 
-  def ??(id:String):Option[Dash] = chats.get(id)
+  def ??(id:String):Future[Option[Dash]] = Future.successful(chats.get(id))
 
-  def ???(id:String,tid:Option[String],pid:Option[String]): Try[Dash] = {
+  def ???(id:String,tid:Option[String],pid:Option[String]): Future[Dash] = {
     chats.get(id) match {
-      case Some(data) if(pid.isDefined && tid.isDefined && data.pid == pid && data.tid == tid) => Success(data)
-      case Some(data) if(pid.isDefined && data.pid == pid) => Success(data)
-      case Some(data) if(tid.isDefined && data.tid == tid) => Success(data)
-      case Some(data) => Success(data)
-      case None => 
-        Failure(new ErrNotFound(s"Dash: ${tid}/${pid}/${id}"))
-        //Failure(new Exception(s"dash not found: ${tid}/${pid}/${id}"))
+      case Some(data) if(pid.isDefined && tid.isDefined && data.pid == pid && data.tid == tid) => Future.successful(data)
+      case Some(data) if(pid.isDefined && data.pid == pid) => Future.successful(data)
+      case Some(data) if(tid.isDefined && data.tid == tid) => Future.successful(data)
+      case Some(data) => Future.successful(data)
+      case None =>
+        Future.failed(new ErrNotFound(s"Dash: ${tid}/${pid}/${id}"))
     }
   }
 
-  def del(cid:String,tid:Option[String],pid:Option[String]): Try[String] = {
-    this.???(cid,tid,pid) match {
-      case Success(data) => 
-        chats = chats - cid
-        Success(cid)
-      case Failure(e) => Failure(e)
+  def del(cid:String,tid:Option[String],pid:Option[String]): Future[String] = {
+    this.???(cid,tid,pid).flatMap { _ =>
+      chats = chats - cid
+      Future.successful(cid)
     }
   }
-    
-  def all(tid:Option[String],pid:Option[String]):Seq[Dash] = 
-    chats
-      .values
-      .filter(d => !pid.isDefined || d.pid == pid)
-      .filter(d => !tid.isDefined || d.tid == tid)
-      .toSeq
-  
-  def size:Long = chats.size
-  def size(tid:Option[String],pid:Option[String]):Long = all(tid,pid).size
+
+  def all(tid:Option[String],pid:Option[String]):Future[Seq[Dash]] =
+    Future.successful(
+      chats
+        .values
+        .filter(d => !pid.isDefined || d.pid == pid)
+        .filter(d => !tid.isDefined || d.tid == tid)
+        .toSeq
+    )
+
+  def size:Future[Long] = Future.successful(chats.size.toLong)
+  def size(tid:Option[String],pid:Option[String]):Future[Long] = all(tid,pid).map(_.size.toLong)
 
 
 }

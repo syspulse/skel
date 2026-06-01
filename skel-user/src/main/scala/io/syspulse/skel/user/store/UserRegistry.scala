@@ -77,46 +77,44 @@ object UserRegistry {
         Behaviors.same
 
       case GetUsers(from, size, replyTo) =>
-        val users = (from, size) match {
-          case (Some(f), Some(s)) => store.???(f, s)
-          case (None, None)       => store.all
+        (from, size) match {
+          case (Some(f), Some(s)) => store.???(f, s).foreach(users => replyTo ! Users(users))
+          case (None, None)       => store.all.foreach(users => replyTo ! Users(users))
           case _ =>
             throw new IllegalArgumentException("from and size must both be set for paging")
         }
-        replyTo ! Users(users)
         Behaviors.same
 
       case GetUser(id, replyTo) =>
-        replyTo ! store.?(id)
+        store.?(id).onComplete(replyTo ! _)
         Behaviors.same
 
       case GetUserByXid(eid, replyTo) =>
-        replyTo ! store.findByXid(eid)
+        store.findByXid(eid).foreach(replyTo ! _)
         Behaviors.same
 
       case CreateUser(req, replyTo) =>
         val id = req.uid.getOrElse(UUID.randomUUID())
 
-        store.?(id) match {
+        store.?(id).onComplete {
           case Success(_) =>
             replyTo ! Failure(new Exception(s"already exists: ${id}"))
-          case _ =>
+          case Failure(_) =>
             val user = userFromCreateReq(id, req)
-            replyTo ! store.+(user).map(_ => user)
+            store.+(user).onComplete(replyTo ! _)
         }
 
         Behaviors.same
 
       case UpdateUser(uid, req, replyTo) =>
-        replyTo ! store.update(uid, req)
+        store.update(uid, req).onComplete(replyTo ! _)
         Behaviors.same
 
       case RandomUser(replyTo) =>
         Behaviors.same
 
       case DeleteUser(id, replyTo) =>
-        val r = store.del(id)
-        r match {
+        store.del(id).onComplete {
           case Success(_) => replyTo ! UserActionRes("200", Some(id))
           case Failure(_) => replyTo ! UserActionRes("619", Some(id))
         }

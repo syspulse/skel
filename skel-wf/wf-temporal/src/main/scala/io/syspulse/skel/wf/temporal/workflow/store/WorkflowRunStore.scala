@@ -1,6 +1,7 @@
 package io.syspulse.skel.wf.temporal.workflow.store
 
 import scala.util.{Failure,Success,Try}
+import scala.concurrent.Future
 import scala.collection.immutable
 import com.typesafe.scalalogging.Logger
 
@@ -11,22 +12,22 @@ trait WorkflowRunStore extends Store[WorkflowRun,String] {
   private val log = Logger(getClass)
 
   def getKey(w: WorkflowRun): String = w.rid.getOrElse(w.wid)
-  def +(w:WorkflowRun):Try[WorkflowRun]
+  def +(w:WorkflowRun):Future[WorkflowRun]
 
   def ??(id:String):Option[WorkflowRun]
 
   def ???(id:String): Try[WorkflowRun]
 
-  def ?(id:String):Try[WorkflowRun] = {
+  def ?(id:String):Future[WorkflowRun] = {
     ??(id) match {
-      case Some(data) => Success(data)
-      case None => Failure(new Exception(s"not found: '${id}'"))
+      case Some(data) => Future.successful(data)
+      case None => Future.failed(new Exception(s"not found: '${id}'"))
     }
   }
 
-  def del(id:String): Try[String]
+  def del(id:String): Future[String]
 
-  def all:Seq[WorkflowRun]
+  def all:Future[Seq[WorkflowRun]]
 
-  def size:Long
+  def size:Future[Long]
 }

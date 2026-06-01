@@ -1,6 +1,7 @@
 package io.syspulse.skel.wf.temporal.workflow.store
 
 import scala.util.{Failure,Success,Try}
+import scala.concurrent.Future
 import scala.collection.immutable
 import com.typesafe.scalalogging.Logger
 
@@ -12,14 +13,14 @@ class WorkflowConfigStoreMem() extends WorkflowConfigStore {
 
   var configs:Map[Int,DetectorConfig] = Map()
 
-  def +(w:DetectorConfig):Try[DetectorConfig] = {
+  def +(w:DetectorConfig):Future[DetectorConfig] = {
     configs = configs + (getKey(w) -> w)
-    Success(w)
+    Future.successful(w)
   }
 
-  def del(id:Int):Try[Int] = {
+  def del(id:Int):Future[Int] = {
     configs = configs - id
-    Success(id)
+    Future.successful(id)
   }
 
   def ??(id:Int):Option[DetectorConfig] = configs.get(id)
@@ -32,7 +33,7 @@ class WorkflowConfigStoreMem() extends WorkflowConfigStore {
     }
   }
 
-  def all:Seq[DetectorConfig] = configs.values.toSeq
+  def all:Future[Seq[DetectorConfig]] = Future.successful(configs.values.toSeq)
 
-  def size:Long = configs.size
+  def size:Future[Long] = Future.successful(configs.size.toLong)
 }

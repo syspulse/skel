@@ -4,6 +4,7 @@ import scala.jdk.CollectionConverters._
 import scala.util.Try
 import scala.util.{Success,Failure}
 import scala.collection.immutable
+import scala.concurrent.Future
 
 import akka.actor.typed.scaladsl.Behaviors
 import com.typesafe.scalalogging.Logger
@@ -19,20 +20,22 @@ import io.syspulse.skel.auth.permit.PermitStore
 class PermitStoreCasbin(implicit config:Config) extends PermitStore {
   val log = Logger(s"${this}")
 
+  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+
   val engine = new PermissionsCasbinFile(config.permissionsModel,config.permissionsPolicy)
 
   override def getEngine():Option[Permissions] = Some(engine)
-  
+
   case class Perm(role:String,resources:String)
 
-  def toPerms(cbPerm:java.util.List[java.util.List[String]]):Seq[Perm] = 
+  def toPerms(cbPerm:java.util.List[java.util.List[String]]):Seq[Perm] =
     cbPerm.asScala.toSeq.foldLeft(Seq[Perm]()){ case(pp,p) => {
       pp :+ { p.asScala.toList.drop(1) match {
         case role :: perm :: Nil => Perm(role,perm)
       }}
     }}
-  
-  def all:Seq[PermitUser] = engine.enforcer.getAllSubjects().asScala.toList.flatMap( subj => {
+
+  def all:Future[Seq[PermitUser]] = Future.successful(engine.enforcer.getAllSubjects().asScala.toList.flatMap( subj => {
     val roles = engine.enforcer.getRolesForUser(subj)
     val cbPerm = engine.enforcer.getPermissionsForUser(subj)
     log.info(s"subj=${subj}, roles=${roles}, permissions=${cbPerm}")
@@ -51,72 +54,52 @@ class PermitStoreCasbin(implicit config:Config) extends PermitStore {
       case e:Exception =>
         None
     }
-  })
+  }))
 
-  def getPermit():Seq[PermitRole] = engine.enforcer.getAllRoles().asScala.toList.flatMap( role => {
+  def getPermit():Future[Seq[PermitRole]] = Future.successful(engine.enforcer.getAllRoles().asScala.toList.flatMap( role => {
     val cbPerm = engine.enforcer.getPermissionsForUser(role)
     log.info(s"role=${role}, permissions=${cbPerm}")
     Some(PermitRole(role, resources = toPerms(cbPerm).map(p => PermitResource(p.resources,Seq()))))
-    
-  })
 
-  def getPermit(role:String):Try[PermitRole] = engine.enforcer.getAllRoles().asScala.toList.filter(_ == role).flatMap( role => {
+  }))
+
+  def getPermit(role:String):Future[PermitRole] = engine.enforcer.getAllRoles().asScala.toList.filter(_ == role).flatMap( role => {
     val cbPerm = engine.enforcer.getPermissionsForUser(role)
     log.info(s"role=${role}, permissions=${cbPerm}")
     Some(PermitRole(role, resources = toPerms(cbPerm).map(p => PermitResource(p.resources,Seq()))))
   }) match {
-    case h :: _ => Success(h)
-    case Nil => Failure(new Exception(s"role not found: ${role}"))
+    case h :: _ => Future.successful(h)
+    case Nil => Future.failed(new Exception(s"role not found: ${role}"))
   }
 
-  // def getPermit(role:String):Seq[PermitRole] = engine.enforcer.getAllSubjects().asScala.toList.flatMap( role => {
-  //   val roles = engine.enforcer.getRolesForUser(subj)    
-  //   val cbPerm = engine.enforcer.getPermissionsForUser(subj)
-  //   log.info(s"subj=${subj}, roles=${roles}, permissions=${cbPerm}")
-  //   try {
-  //      if(Util.isUUID(subj)) {
-  //         Some(PermitRole(
-  //           UUID(subj),
-  //           permissions = toPermit(cbPerm)
-  //         ))
-  //      } else {
-  //         // not UUID, don't bother
-  //         None
-  //      }
-  //   } catch {
-  //     case e:Exception =>
-  //       None
-  //   }
-  // })
+  def size:Future[Long] = all.map(_.size.toLong)
 
-  def size:Long = all.size
-
-  def +(r:PermitUser):Try[PermitUser] = {
+  def +(r:PermitUser):Future[PermitUser] = {
     log.info(s"add: ${r}")
-    r.roles.foreach { role => 
+    r.roles.foreach { role =>
       engine.enforcer.addRoleForUser(r.uid.toString, role)
-    }    
-    Success(r)
+    }
+    Future.successful(r)
   }
 
-  def del(uid:UUID):Try[UUID] = { 
+  def del(uid:UUID):Future[UUID] = {
     log.info(s"del: ${uid}")
     val roles = engine.enforcer.getRolesForUser(uid.toString)
-    roles match {      
-      case Nil => Failure(new Exception(s"not found: ${uid}"))
-      case _ => 
+    roles match {
+      case Nil => Future.failed(new Exception(s"not found: ${uid}"))
+      case _ =>
         engine.enforcer.deleteUser(uid.toString)
-        Success(uid)
+        Future.successful(uid)
     }
   }
 
-  def ?(uid:UUID):Try[PermitUser] = {
+  def ?(uid:UUID):Future[PermitUser] = {
     val roles = engine.enforcer.getRolesForUser(uid.toString)
     val cbPerm = engine.enforcer.getPermissionsForUser(uid.toString)
     roles match {
-       case Nil => Failure(new Exception(s"not found: ${uid}"))
-       case _ => 
-        Success(PermitUser(
+       case Nil => Future.failed(new Exception(s"not found: ${uid}"))
+       case _ =>
+        Future.successful(PermitUser(
           uid,
           roles = roles.asScala.toSeq,
           xid = ""
@@ -124,13 +107,12 @@ class PermitStoreCasbin(implicit config:Config) extends PermitStore {
     }
   }
 
-  def findPermitUserByXid(xid:String):Try[PermitUser] = Failure(new Exception(s"not supported"))
+  def findPermitUserByXid(xid:String):Future[PermitUser] = Future.failed(new Exception(s"not supported"))
 
-  def update(uid:UUID,roles:Option[Seq[String]]):Try[PermitUser] = {
-    ?(uid).map(p => modify(p,roles))
+  def update(uid:UUID,roles:Option[Seq[String]]):Future[PermitUser] = {
+    `?`(uid).map(p => modify(p,roles))
   }
 
-  def addPermit(p:PermitRole):Try[PermitRole] = Failure(new Exception(s"not supported"))
-  def delPermit(role:String):Try[String] = Failure(new Exception(s"not supported"))
+  def addPermit(p:PermitRole):Future[PermitRole] = Future.failed(new Exception(s"not supported"))
+  def delPermit(role:String):Future[String] = Future.failed(new Exception(s"not supported"))
 }
-

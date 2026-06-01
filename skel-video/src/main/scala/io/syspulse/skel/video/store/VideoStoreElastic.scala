@@ -3,6 +3,7 @@ package io.syspulse.skel.video.store
 import scala.util.Try
 import scala.util.{Success,Failure}
 import scala.collection.immutable
+import scala.concurrent.Future
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
@@ -35,11 +36,11 @@ class VideoStoreElastic(elasticUri:String,elacticIndex:String) extends VideoStor
       Success(Video(VID.fromElastic(source("vid").asInstanceOf[Map[String,String]]), source("title").toString))
     }
   }
-  
+
   val client = ElasticClient(JavaClient(ElasticProperties(elasticUri)))
 
-  import ElasticDsl._  
-  def all:Seq[Video] = {    
+  import ElasticDsl._
+  def all:Future[Seq[Video]] = {
     val r = client.execute {
       ElasticDsl
       .search(elacticIndex)
@@ -47,29 +48,29 @@ class VideoStoreElastic(elasticUri:String,elacticIndex:String) extends VideoStor
     }.await
 
     log.info(s"r=${r}")
-    r.result.to[Video].toList
+    Future.successful(r.result.to[Video].toList)
   }
 
   // slow and memory hungry !
-  def size:Long = {
+  def size:Future[Long] = {
     val r = client.execute {
       ElasticDsl.count(Indexes(elacticIndex))
     }.await
-    r.result.count
+    Future.successful(r.result.count)
   }
 
-  def +(video:Video):Try[Video] = { 
-    Failure(new UnsupportedOperationException(s"not implemented: ${video}"))
+  def +(video:Video):Future[Video] = {
+    Future.failed(new UnsupportedOperationException(s"not implemented: ${video}"))
   }
 
-  def del(id:ID):Try[ID] = { 
-    Failure(new UnsupportedOperationException(s"not implemented: ${id}"))
+  def del(id:ID):Future[ID] = {
+    Future.failed(new UnsupportedOperationException(s"not implemented: ${id}"))
   }
 
-  def ?(vid:VID):Try[Video] = {
+  def ?(vid:VID):Future[Video] = {
     search(vid.toString).take(1).headOption match {
-      case Some(o) => Success(o)
-      case None => Failure(new Exception(s"not found: ${vid}"))
+      case Some(o) => Future.successful(o)
+      case None => Future.failed(new Exception(s"not found: ${vid}"))
     }
   }
 
@@ -82,20 +83,20 @@ class VideoStoreElastic(elasticUri:String,elacticIndex:String) extends VideoStor
       ElasticDsl
         .search(elacticIndex)
         .rawQuery(s"""
-    { 
+    {
       "query_string": {
         "query": "${txt}",
         "fields": ["title", "vid"]
       }
     }
-    """)        
+    """)
     }.await
 
     log.info(s"r=${r}")
     r.result.to[Video].toList
   }
 
-  def search(txt:String):List[Video] = {   
+  def search(txt:String):List[Video] = {
     val r = client.execute {
       com.sksamuel.elastic4s.ElasticDsl
         .search(elacticIndex)
@@ -104,12 +105,6 @@ class VideoStoreElastic(elasticUri:String,elacticIndex:String) extends VideoStor
 
     log.info(s"r=${r}")
     r.result.to[Video].toList
-    
-    // r match {
-    //   case failure: RequestFailure => List.empty
-    //   case results: RequestSuccess[SearchResponse] => r.as[Video] //results.result.hits.hits.toList
-    //   case results: RequestSuccess[_] => results.result
-    // }
   }
 
   def grep(txt:String):List[Video] = {
@@ -125,15 +120,15 @@ class VideoStoreElastic(elasticUri:String,elacticIndex:String) extends VideoStor
     r.result.to[Video].toList
   }
 
-  def typing(txt:String):List[Video] = {  
+  def typing(txt:String):List[Video] = {
     val r = client.execute {
       ElasticDsl
         .search(elacticIndex)
         .rawQuery(s"""
     { "multi_match": { "query": "${txt}", "type": "bool_prefix", "fields": [ "title", "title._3gram" ] }}
-    """)        
+    """)
     }.await
-    
+
     log.info(s"r=${r}")
     r.result.to[Video].toList
   }

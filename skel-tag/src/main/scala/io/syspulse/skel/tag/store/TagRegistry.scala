@@ -16,10 +16,15 @@ import io.syspulse.skel.tag.server._
 import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
+import java.util.concurrent.Executors
 
 object TagRegistry {
   val log = Logger(s"${this}")
-  
+
+  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(16))
+
   final case class GetTags(from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
   final case class GetTag(ids:Seq[String],replyTo: ActorRef[Tags]) extends Command
   final case class GetSearchFindTag(tags:String,cat:Option[String],from:Option[Int],size:Option[Int],replyTo: ActorRef[Tags]) extends Command
@@ -45,12 +50,11 @@ object TagRegistry {
 
     Behaviors.receiveMessage {
       case GetTags(from,size,replyTo) =>
-        replyTo ! Tags(store.all(from,size),total = Some(store.size))
+        store.all(from,size).foreach(tt => replyTo ! Tags(tt, total = Some(tt.size.toLong)))
         Behaviors.same
 
       case GetTag(ids,replyTo) =>
-        val tt = store.??(ids)
-        replyTo ! Tags(tt,Some(tt.size))
+        store.??(ids).foreach(tt => replyTo ! Tags(tt, Some(tt.size.toLong)))
         Behaviors.same
 
       case GetSearchFindTag(tags,cat,from,size,replyTo) =>
@@ -69,35 +73,32 @@ object TagRegistry {
         val (a,v) = attr.head
         replyTo ! store.find(a,v,from,size)
         Behaviors.same
-      
-      case RandomTag(replyTo) =>        
+
+      case RandomTag(replyTo) =>
         //replyTo ! TagRandomRes(secret,qrImage)
         Behaviors.same
 
       case CreateTag(req, replyTo) =>
-        store.?(req.id) match {
-          case Success(_) => 
+        store.?(req.id).onComplete {
+          case Success(_) =>
             replyTo ! Failure(new Exception(s"already exists: ${req.id}"))
-            Success(store)
-          case _ =>  
+          case Failure(_) =>
             val tag = Tag(req.id, ts = System.currentTimeMillis, req.cat, req.tags.map(_.split(";")).flatten)
-            val r = store.+(tag)
-            replyTo ! r.map(_ => tag)
-            Success(store)
-        }        
+            store.+(tag).onComplete(replyTo ! _)
+        }
         Behaviors.same
 
       case UpdateTag(id, req, replyTo) =>
-        val tag = store.!(id,req.cat,req.tags.map(_.map(_.split(";")).flatten))
-
-        replyTo ! tag
+        store.!(id, req.cat, req.tags.map(_.map(_.split(";")).flatten)).onComplete(replyTo ! _)
         Behaviors.same
-      
+
       case DeleteTag(id, replyTo) =>
-        val store1 = store.del(id)
-        replyTo ! TagActionRes(s"Success",Some(id))
+        store.del(id).onComplete {
+          case Success(_) => replyTo ! TagActionRes("200", Some(id))
+          case Failure(_) => replyTo ! TagActionRes("619", Some(id))
+        }
         Behaviors.same
     }
-    
+
   }
 }

@@ -4,6 +4,7 @@ package io.syspulse.skel.plugin
 import com.typesafe.scalalogging.Logger
 import io.jvm.uuid._
 import scala.util.{Try,Success,Failure}
+import scala.concurrent.{Future, ExecutionContext}
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.Behavior
@@ -22,10 +23,10 @@ object PluginEngine {
       case ("classpath" | "class") :: className :: Nil =>  new PluginStoreClasspath(className)
       case "dir" :: Nil =>  new PluginStoreDir()
       case "dir" :: dir :: Nil => new PluginStoreDir(dir)
-      
+
       case "manifest" :: dir :: Nil => new PluginStoreManifest(dir)
       case "manifest" :: Nil => new PluginStoreManifest()
-      
+
       case ("jars" | "jar") :: mask :: Nil => new PluginStoreJar(classMask = mask)
       case ("jars" | "jar") :: dir :: mask :: Nil => new PluginStoreJar(dir,classMask = mask)
 
@@ -48,34 +49,37 @@ object PluginEngine {
 class PluginEngine(store:PluginStore) {
   val log = Logger(s"${this}")
 
+  implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
+
   // cache if start()/stop() is used
   var cache:Seq[Plugin] = Seq()
 
   def all[T]():Seq[T] = cache.asInstanceOf[Seq[T]]
-  
+
   def load() = {
     store.loadPlugins()
   }
 
-  def spawn():Seq[Try[Plugin]] = {
-    store.all.map( p => 
-      spawn(p)
+  def spawn():Future[Seq[Try[Plugin]]] = {
+    store.all.map( pp =>
+      pp.map(p => spawn(p))
     )
   }
 
   def spawn(p:PluginDescriptor):Try[Plugin] = {
     p.typ match {
-      case "class" | "jar" => 
+      case "class" | "jar" =>
         new ClassRuntime().spawn(p)
 
       case _ => Failure(new Exception(s"unknown Plugin type: ${p.typ}"))
-    }    
+    }
   }
 
-  // start all plugns
+  // start all plugins
   def start():Seq[Plugin] = {
-    spawn().flatMap(plugin => plugin match {
-      case Success(p) => 
+    val results = io.syspulse.skel.store.Store.fromFuture(spawn()).getOrElse(Seq.empty)
+    results.flatMap(plugin => plugin match {
+      case Success(p) =>
         cache = cache :+ p
         Some(p)
       case Failure(e) =>
@@ -91,19 +95,17 @@ class PluginEngine(store:PluginStore) {
     cache = Seq()
     sz
   }
-  
-  def start(id:String):Try[Plugin] = {
+
+  def start(id:String):Future[Try[Plugin]] = {
     log.info(s"start: ${id}")
-        
-    for {
-      plugin <- store.?(id)  
-      r <- spawn(plugin)       
-    } yield r    
+    store.?(id).map { plugin =>
+      spawn(plugin)
+    }
   }
-  
+
   def start(r:Plugin):Try[Plugin] = {
     log.info(s"start: ${r}")
-    
+
     r.pluginStart()
 
     Success(r)

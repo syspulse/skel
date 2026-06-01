@@ -2,6 +2,7 @@ package io.syspulse.skel.tag.store
 
 import scala.util.Try
 import scala.util.{Success,Failure}
+import scala.concurrent.{Future, ExecutionContext}
 import scala.collection.immutable
 
 import akka.actor.typed.ActorRef
@@ -23,12 +24,14 @@ import io.syspulse.skel.tag._
 class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
   private val log = Logger(s"${this}")
 
+  implicit val ec: ExecutionContext = ExecutionContext.global
+
   implicit object TagHitReader extends HitReader[Tag] {
     // becasue of VID case class, it is converted unmarchsalled as Map from Elastic (field vid.id)
     override def read(hit: Hit): Try[Tag] = {
       val source = hit.sourceAsMap
       Success(Tag(
-        source("id").toString, 
+        source("id").toString,
         source("ts").asInstanceOf[Long],
         source("cat").asInstanceOf[String],
         source("tags").asInstanceOf[List[String]],
@@ -37,11 +40,11 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
       ))
     }
   }
-  
+
   val client = ElasticClient(JavaClient(ElasticProperties(elasticUri)))
 
-  import ElasticDsl._  
-  def all:Seq[Tag] = {    
+  import ElasticDsl._
+  def all:Future[Seq[Tag]] = Future {
     val r = client.execute {
       ElasticDsl
       .search(elacticIndex)
@@ -52,7 +55,7 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     r.result.to[Tag].toList
   }
 
-  override def all(from:Option[Int]=None,size:Option[Int]=None):Seq[Tag] = {    
+  override def all(from:Option[Int]=None,size:Option[Int]=None):Future[Seq[Tag]] = Future {
     val r = client.execute {
       ElasticDsl
       .search(elacticIndex)
@@ -66,15 +69,14 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
   }
 
   // slow and memory hungry !
-  def size:Long = {
+  def size:Future[Long] = Future {
     val r = client.execute {
       ElasticDsl.count(Indexes(elacticIndex))
     }.await
     r.result.count
   }
 
-  def +(tag:Tag):Try[Tag] = { 
-    //Failure(new UnsupportedOperationException(s"not implemented: ${tag}"))
+  def +(tag:Tag):Future[Tag] = Future {
     val r = client.execute {
       com.sksamuel.elastic4s.ElasticDsl
         .indexInto(elacticIndex)
@@ -84,20 +86,20 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
         .fields("tags" -> tag.tags)
         .fields("score" -> tag.score.getOrElse(-1))
         .fields("sid" -> tag.sid.getOrElse(-1))
-        .refresh(RefreshPolicy.Immediate)        
+        .refresh(RefreshPolicy.Immediate)
     }.await
-    
+
     log.info(s"r=${r}")
 
-    r.isError match {
-      case false => Success(tag)
-      case _ => Failure(new Exception(s"could not insert: ${tag}: ${r.error }"))
-    }
+    if (r.isError)
+      throw new Exception(s"could not insert: ${tag}: ${r.error}")
+    else
+      tag
   }
 
-  def ?(id:String):Try[Tag] = {
+  def ?(id:String):Future[Tag] = Future {
     log.info(s"id=${id}")
-    val r = { client.execute { 
+    val r = { client.execute {
       ElasticDsl
         .search(elacticIndex)
         .termQuery(("id",id))
@@ -105,14 +107,14 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
 
     log.info(s"r=${r}")
     r.result.to[Tag].toList match {
-      case t :: _ => Success(t)
-      case _ => Failure(new Exception(s"not found: ${id}"))
+      case t :: _ => t
+      case _ => throw new Exception(s"not found: ${id}")
     }
   }
 
-  override def ??(ids:Seq[String]):Seq[Tag] = {
+  override def ??(ids:Seq[String])(implicit ec:ExecutionContext):Future[Seq[Tag]] = Future {
     log.info(s"ids=${ids}")
-    val r = { client.execute { 
+    val r = { client.execute {
       multi {
         ids.map(id => ElasticDsl.search(elacticIndex).termQuery(("id",ids)))
       }
@@ -124,9 +126,9 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
 
   def find(attr:String,v:Any,from:Option[Int],size:Option[Int]):Tags = {
     log.info(s"attr=(${attr},${v})")
-    val r = { client.execute { 
+    val r = { client.execute {
       ElasticDsl
-        .search(elacticIndex)        
+        .search(elacticIndex)
         .termQuery((attr,v))
         .from(from.getOrElse(0))
         .size(size.getOrElse(10))
@@ -136,32 +138,31 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     Tags(r.result.to[Tag].toList,total = Some(r.result.hits.total.value))
   }
 
-  def !(id:String,cat:Option[String],tags:Option[Seq[String]]):Try[Tag] = {
+  def !(id:String,cat:Option[String],tags:Option[Seq[String]]):Future[Tag] = {
     log.info(s"id=${id}, cat=${cat}, tags=${tags}")
-    
-    ?(id).flatMap{ t => 
-      val r = { client.execute { 
+
+    ?(id).flatMap{ t =>
+      val r = { client.execute {
         ElasticDsl
           .updateById(elacticIndex,id)
-          .doc(          
-            {if(cat.isDefined) Seq(("cat",cat.get)) else Seq()} ++ 
-            {if(tags.isDefined) Seq(("tags",tags.get)) else Seq()}          
+          .doc(
+            {if(cat.isDefined) Seq(("cat",cat.get)) else Seq()} ++
+            {if(tags.isDefined) Seq(("tags",tags.get)) else Seq()}
           )
       }}.await
 
       log.info(s"r=${r}")
-      val t1 = r.toEither match {
-        case Left(e) => Failure(e.asException)
-        case Right(t) => ?(id)
+      r.toEither match {
+        case Left(e) => Future.failed(e.asException)
+        case Right(_) => ?(id)
       }
-      t1
     }
   }
 
-  def typing(txt:String,from:Option[Int],size:Option[Int]):Tags = 
+  def typing(txt:String,from:Option[Int],size:Option[Int]):Tags =
     ???(txt,None,from,size)
 
-  def search(txt:String,from:Option[Int],size:Option[Int]):Tags = 
+  def search(txt:String,from:Option[Int],size:Option[Int]):Tags =
     ???(txt,None,from,size)
 
   def ???(terms:String,cat:Option[String],from:Option[Int],size:Option[Int]):Tags = {
@@ -171,13 +172,13 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
         .from(from.getOrElse(0))
         .size(size.getOrElse(10))
         .rawQuery(
-          s"""{ 
-            "bool": { 
+          s"""{
+            "bool": {
               "must": [
-                { "match": { "tags":   "${terms}" }}                
+                { "match": { "tags":   "${terms}" }}
               ],
-              "filter": [ 
-                { "term":  { "cat": "${cat.getOrElse("")}" }}                
+              "filter": [
+                { "term":  { "cat": "${cat.getOrElse("")}" }}
               ]
             }
           }
@@ -201,21 +202,20 @@ class TagStoreElastic(elasticUri:String,elacticIndex:String) extends TagStore {
     // }.await
 
     log.info(s"r=${r}")
-    
+
     Tags(r.result.to[Tag].toList,total = Some(r.result.hits.total.value))
   }
 
-  def del(id:String):Try[String] = { 
-    //Failure(new UnsupportedOperationException(s"not implemented: ${id}"))
+  def del(id:String):Future[String] = Future {
     val r = client.execute {
       ElasticDsl
         .deleteById(elacticIndex, id)
     }.await
 
     log.info(s"r=${r}")
-    r.isError match {
-      case false => Success(id)
-      case _ => Failure(new Exception(s"could not delete: ${id}: ${r.error }"))
-    }
+    if (r.isError)
+      throw new Exception(s"could not delete: ${id}: ${r.error}")
+    else
+      id
   }
 }

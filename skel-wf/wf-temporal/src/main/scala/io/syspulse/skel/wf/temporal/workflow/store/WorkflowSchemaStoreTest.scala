@@ -60,5 +60,5 @@ class WorkflowSchemaStoreTest extends WorkflowSchemaStoreMem {
   this.+(demoFlow5)
   log.info(s"Pre-populated Demo schema: flow-5 (id=${demoFlow5.id})")
 
-  log.info(s"WorkflowSchemaStoreTest initialized with ${this.all.size} schemas (1 Por2 + 5 Demo)")
+  log.info(s"WorkflowSchemaStoreTest initialized with 6 schemas (1 Por2 + 5 Demo)")
 }

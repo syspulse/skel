@@ -11,35 +11,35 @@ import io.syspulse.skel.store.Store
 
 import io.syspulse.skel.odometer.Odo
 
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
+
 trait OdoStore extends Store[Odo,String] {
-  
+
   def getKey(e: Odo): String = e.id
-  def +(odometer:Odo):Try[Odo]
-  
-  def del(id:String):Try[String]
-  def ?(id:String):Try[Odo]  
-  def all:Seq[Odo]
-  def size:Long
-  
-  def update(id:String, v:Long):Try[Odo]
+  def +(odometer:Odo):Future[Odo]
 
-  def ++(id:String, delta:Long):Try[Odo]
+  def del(id:String):Future[String]
+  def ?(id:String):Future[Odo]
+  def all:Future[Seq[Odo]]
+  def size:Future[Long]
 
-  def clear():Try[OdoStore]
+  def update(id:String, v:Long):Future[Odo]
 
-  protected def modify(o:Odo,v:Long):Odo = {    
+  def ++(id:String, delta:Long):Future[Odo]
+
+  protected def modify(o:Odo,v:Long):Odo = {
     (for {
       o1 <- Some(o.copy(ts = System.currentTimeMillis,v = v))
-    } yield o1).get    
+    } yield o1).get
   }
 
   // this operator supports namespace "namespace:key"
   // Implementation should overwrite it if support fast version (like Redis)
-  override def ??(ids:Seq[String]):Seq[Odo] = {
+  override def ??(ids:Seq[String])(implicit ec:ExecutionContext):Future[Seq[Odo]] = {
     if(ids.filter(_.contains(":*")).size != 0)
-      throw new Exception(s"no implementation")
+      Future.failed(new Exception(s"no implementation"))
     else
       super.??(ids)
   }
 }
-

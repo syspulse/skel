@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.Logger
 
 import scala.util.Try
 import scala.util.Success
+import scala.concurrent.Future
 
 import codegen.Decoder
 import codegen.AbiDefinition
@@ -24,17 +25,19 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
   def toKey(id:String):String = id
 
   def functions:SignatureStore[FuncSignature] = funcStore
-  def events:SignatureStore[EventSignature] = eventStore 
-  
-  def size = store.size
-  def all:Seq[AbiContract] = store.values.map( ca => AbiContract(ca.getAddr(),ca.getJson())).toSeq
+  def events:SignatureStore[EventSignature] = eventStore
+
+  private def allSync:Seq[AbiContract] = store.values.map(ca => AbiContract(ca.getAddr(),ca.getJson())).toSeq
+
+  def size:Future[Long] = Future.successful(store.size.toLong)
+  def all:Future[Seq[AbiContract]] = Future.successful(allSync)
 
   def all(from:Option[Int],size:Option[Int]):(Seq[AbiContract],Long) = {
-    val aa = all
+    val aa = allSync
     (aa.drop(from.getOrElse(0)).take(size.getOrElse(10)),aa.size)
   }
-  
-  override def +(a:AbiContract):Try[AbiContract] = {
+
+  override def +(a:AbiContract):Future[AbiContract] = Future.fromTry {
     ContractAbi(a.addr,a.json).map( ca => {
       val addrKey = a.addr.toLowerCase
       // Prefer ABIs with more functions when there are duplicates
@@ -47,7 +50,7 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
           newFuncCount > existingFuncCount || (existingFuncCount == 0 && newFuncCount > 0)
         case None => true
       }
-      
+
       if(shouldReplace) {
         store = store + (addrKey -> ca)
         if(! loading)
@@ -64,16 +67,16 @@ class AbiStoreDir(dir:String,funcStore:SignatureStore[FuncSignature],eventStore:
     loading = false
   }
   
-  override def del(id:String):Try[String] = {
+  override def del(id:String):Future[String] = {
     log.info(s"del: ${id}")
     store = store - id.toLowerCase
-    delFileById(id.toLowerCase)
+    Future.fromTry(delFileById(id.toLowerCase))
   }
 
-  def ?(id:String):Try[AbiContract] = {
+  def ?(id:String):Future[AbiContract] = {
     store.get(id.toLowerCase) match {
-      case Some(ca) => Success(AbiContract(ca.getAddr(),ca.getJson()))
-      case None => Failure(new Exception(s"not found: ${id}"))
+      case Some(ca) => Future.successful(AbiContract(ca.getAddr(),ca.getJson()))
+      case None => Future.failed(new Exception(s"not found: ${id}"))
     }
   }
 

@@ -2,6 +2,7 @@ package io.syspulse.skel.ai.store
 
 import scala.util.Try
 import scala.util.{Success,Failure}
+import scala.concurrent.Future
 import scala.collection.immutable
 import com.typesafe.scalalogging.Logger
 
@@ -14,6 +15,7 @@ import DefaultJsonProtocol._
 import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.util.Util
 import io.syspulse.skel.store.StoreDir
+import io.syspulse.skel.store.Store
 
 import io.syspulse.skel.ai.Ai
 import io.syspulse.skel.ai.server.AiJson._
@@ -30,37 +32,30 @@ class AiStoreOpenAi(uri:String) extends AiStore {
   val engine = new OpenAi(OpenAiURI(Util.replaceEnvVar(uri)))
 
   val store = new AiStoreMem()
-      
+
   def toKey(question:String):String = Util.sha256(question)
 
-  def all(oid:Option[String]):Seq[Ai] = store.all(oid)
-  
-  def size:Long = store.size
-  
-  override def +++(w:Ai):Try[Ai] = for {
-    _ <- store.+(w)
-  } yield w
+  def all(oid:Option[String]):Future[Seq[Ai]] = store.all(oid)
 
-  override def +(w:Ai):Try[Ai] = store.+(w).map(_ => w)
+  def size:Future[Long] = store.size
 
-  override def del(question:String,oid:Option[String]):Try[Ai] = for {
-    w <- store.del(question,oid)
-    _ <- super.del(question)
-  } yield w
+  override def +++(w:Ai):Future[Ai] =
+    store.+(w).map(_ => w)(scala.concurrent.ExecutionContext.global)
 
-  override def del(question:String):Try[String] = this.del(question).map(_ => question)
-  
-  def ???(question:String,oid:Option[String]):Try[Ai] = store.???(question,oid)
-    
+  override def +(w:Ai):Future[Ai] = store.+(w).map(_ => w)(scala.concurrent.ExecutionContext.global)
 
-  def ????(question:String,model:Option[String],oid:Option[String]):Try[Ai] = {
-    val o = ???(question,oid) match {
-      case s @ Success(o) =>
-        s
-      case Failure(e) => 
-        engine.ask(question,model)
-    }
-    o    
+  override def del(question:String,oid:Option[String]):Future[Ai] = {
+    import scala.concurrent.ExecutionContext.Implicits.global
+    store.del(question,oid)
+  }
+
+  override def del(question:String):Future[String] = del(question,None).map(_ => question)(scala.concurrent.ExecutionContext.global)
+
+  def ???(question:String,oid:Option[String]):Future[Ai] = store.???(question,oid)
+
+  def ????(question:String,model:Option[String],oid:Option[String]):Future[Ai] = {
+    import scala.concurrent.ExecutionContext.Implicits.global
+    ???(question,oid).recoverWith { case _ => Store.toFuture(engine.ask(question,model)) }
   }
 
   override def findByOid(oid:String):Seq[Ai] = store.findByOid(oid)
@@ -68,10 +63,9 @@ class AiStoreOpenAi(uri:String) extends AiStore {
   def getProviderId():String = "openai"
 
   def getProvider(oid:Option[String]):Option[AiProvider] = Some(engine)
-    
+
   // add test questioness
   //`+`(Ai("0x0000000000000000000000000000000000000007",Seq("Ai","test"),0L,oid=Some(Sources.GLOBAL_LEDGER))))
   //`+`(Ai("0x0000000000000000000000000000000000001012",Seq("Ai","test"),0L,oid=Some(Sources.GLOBAL_LEDGER))))
-
 
 }

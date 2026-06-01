@@ -4,6 +4,7 @@ import com.typesafe.scalalogging.Logger
 
 import scala.util.Try
 import scala.util.Success
+import scala.concurrent.Future
 
 import codegen.Decoder
 import codegen.AbiDefinition
@@ -22,7 +23,7 @@ abstract class AbiStoreRepo extends AbiStore {
 
   var repos:List[AbiStore] = List()
   
-  def size = repos.size
+  def size:Future[Long] = Future.successful(repos.size.toLong)
 
   def find(addr:String,function:String):Try[Seq[AbiDefinition]] = {
     repos.map(r => r.find(addr,function)).head

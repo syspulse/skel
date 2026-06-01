@@ -2,6 +2,8 @@ package io.syspulse.skel.job.store
 
 import scala.util.{Try,Success,Failure}
 import scala.collection.immutable
+import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.ExecutionContext.Implicits.global
 import io.jvm.uuid._
 import com.typesafe.scalalogging.Logger
 
@@ -17,20 +19,20 @@ trait JobStore extends Store[Job,ID] {
   private val log = Logger(s"${this}")
 
   def getKey(j: Job): ID = j.id
-  
+
   // update
-  def update(job:Job):Try[Job]
+  def update(job:Job):Future[Job]
 
-  def +(job:Job):Try[Job]
+  def +(job:Job):Future[Job]
 
-  //def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,String],uid:Option[UUID]):Try[Job]
-  
-  def del(id:ID):Try[ID]
-  def ?(id:ID):Try[Job]
+  //def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,String],uid:Option[UUID]):Future[Job]
 
-  def ??(uid:Option[UUID],state:Option[String]=None):Try[Jobs]
-  def all:Seq[Job]
-  def size:Long
+  def del(id:ID):Future[ID]
+  def ?(id:ID):Future[Job]
+
+  def ??(uid:Option[UUID],state:Option[String]=None):Future[Jobs]
+  def all:Future[Seq[Job]]
+  def size:Future[Long]
 
   def getEngine:JobEngine
 
@@ -47,15 +49,15 @@ trait JobStore extends Store[Job,ID] {
 
   def startFSM(implicit config:Config) = {
     val jobWatcherThr = new Thread() {
-      
+
       override def run() = {
         running = true
 
         while(running) {
           if(runningJobs.size > 0)
             log.info(s"watcher: ${runningJobs.size}")
-            
-          runningJobs = runningJobs.flatMap( j0 => {          
+
+          runningJobs = runningJobs.flatMap( j0 => {
             log.info(s"watcher: ${j0}")
             var removing = false
 
@@ -63,14 +65,14 @@ trait JobStore extends Store[Job,ID] {
               case "unknown" =>
                 Success(j0)
 
-              case "starting" | "not_started" => 
-                getEngine.get(j0)            
-              
-              case "waiting" | "running" | "busy" => 
+              case "starting" | "not_started" =>
+                getEngine.get(j0)
+
+              case "waiting" | "running" | "busy" =>
                 // script is running
                 getEngine.ask(j0)
 
-              case "idle" | "available" => 
+              case "idle" | "available" =>
                 if(j0.tsEnd.isDefined ) {
                   // script already finished, stop it
                   getEngine.del(j0)
@@ -82,7 +84,7 @@ trait JobStore extends Store[Job,ID] {
                   getEngine.run(j0,src)
                 }
 
-              case "deleted" => 
+              case "deleted" =>
                 // when we finish by deleting it
                 Success(j0.copy(state = "finished"))
 
@@ -90,11 +92,11 @@ trait JobStore extends Store[Job,ID] {
                 // removed from the list
                 removing = true
                 Success(j0)
-            
+
             }
 
             if(j1.isSuccess && (j1.get.state != j0.state)) {
-              update(j1.get)
+              update(j1.get)  // Future, fire and forget in watcher thread
             }
             if(j1.isFailure) {
               // update failed
@@ -109,7 +111,7 @@ trait JobStore extends Store[Job,ID] {
 
               // val msg = s"""{"typ":"job","id":"${j0.id}","":""}"""
               val msg = (j1 match {
-                case Success(j) => 
+                case Success(j) =>
                   JobNotification(
                     id = j.id,
                     inputs = j.inputs,
@@ -118,7 +120,7 @@ trait JobStore extends Store[Job,ID] {
                     result = j.result,
                     src = j.src
                   )
-                case Failure(e) => 
+                case Failure(e) =>
                   JobNotification(
                     id = j0.id,
                     inputs = j0.inputs,
@@ -128,7 +130,7 @@ trait JobStore extends Store[Job,ID] {
                     src = j0.src
                   )
               }).toJson.compactPrint
-              
+
               // send notify to user:// and syslog://
               NotifyService
                 .service
@@ -151,50 +153,18 @@ trait JobStore extends Store[Job,ID] {
         }
       }
     }
-    
+
     jobWatcherThr.start()
   }
 
-  def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,Any],uid:Option[UUID],poll:Long):Try[Job] = {
+  def submit(name:String,script:String,conf:Map[String,String],inputs:Map[String,Any],uid:Option[UUID],poll:Long):Future[Job] = {
     log.info(s"submit: ${name},${script.take(25)},${conf},${inputs}")
 
-    // val src = if(script.startsWith("file://"))
-    //     os.read(os.Path(script.stripPrefix("file://"),os.pwd))
-    //   else
-    //     script.mkString(" ")
-
-    //val src = JobEngine.toSrc(script,inputs)
-    //log.info(s"src=${src}")
-        
-  
-    // for {
-    //   j1 <- engine.create(name,JobEngine.dataToConf(conf))
-      
-    //   j2 <- {
-    //     var j:Try[Job] = engine.get(j1)
-    //     while(j.isSuccess && j.get.state == "starting") {
-    //       log.info(s"add: ${name}: sleeping poll ${config.poll}")
-    //       Thread.sleep(config.poll)          
-    //       j = engine.get(j1)
-    //     } 
-    //     j
-    //   }
-  
-    //   j3 <- engine.run(j2,script,JobEngine.dataToVars(inputs))
-
-    //   j4 <- this.+(j3)
-    
-    // } yield j3
-    
     for {
-      j1 <- getEngine.submit(name,script,conf,inputs,poll).map(_.copy(uid = uid,inputs = inputs))
+      j1 <- Store.toFuture(getEngine.submit(name,script,conf,inputs,poll)).map(_.copy(uid = uid,inputs = inputs))
       _ <- this.+(j1)
-      _ <- {
-        enqueue(j1)
-        Success(j1)
-      }
+      _ <- { enqueue(j1); Future.successful(j1) }
     } yield j1
-    
+
   }
 }
-

@@ -1,7 +1,199 @@
 package io.syspulse.skel.user.store
 
-import io.syspulse.skel.config.Configuration
+import scala.util.Try
+import scala.util.{Success, Failure}
 
-@deprecated("Use UserStoreDBSync", "")
+import io.jvm.uuid._
+
+import io.getquill._
+import io.getquill.context._
+
+import com.typesafe.scalalogging.Logger
+
+import spray.json._
+import DefaultJsonProtocol._
+
+import io.syspulse.skel.config.{Configuration}
+import io.syspulse.skel.store.{Store, StoreDB, StoreDBAsync}
+
+import io.syspulse.skel.user.User
+import io.syspulse.skel.user.server.{UserUpdateReq}
+import io.syspulse.skel.service.JsonMap
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.Await
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
+
+/** DB row — `meta` stored as JSON text. */
+case class UserDb(
+  id: UUID,
+  email: String,
+  name: Option[String],
+  xid: Option[String],
+  avatar: Option[String],
+  ts0: Long,
+  ts: Long,
+  meta: Option[String],
+)
+
+// Postgres does not support table name 'user' !
 class UserStoreDB(configuration: Configuration, dbConfigRef: String)
-    extends UserStoreDBSync(configuration, dbConfigRef)
+    extends StoreDBAsync[User, UUID](dbConfigRef, "users", Some(configuration))
+    with UserStore {
+
+  private val log = Logger(getClass)
+  import ctx._
+
+  private val users = quote { querySchema[UserDb]("users") }
+
+  def indexUserName = "user_name"
+
+  private def toDb(u: User): UserDb =
+    UserDb(
+      id = u.id,
+      email = u.email.toLowerCase,
+      name = u.name,
+      xid = u.xid,
+      avatar = u.avatar,
+      ts0 = u.ts0,
+      ts = u.ts,
+      meta = u.meta.map(m => m.toJson(JsonMap.mapFormat).compactPrint),
+    )
+
+  private def fromDb(r: UserDb): User =
+    User(
+      id = r.id,
+      email = r.email,
+      name = r.name,
+      xid = r.xid,
+      avatar = r.avatar,
+      ts0 = r.ts0,
+      ts = r.ts,
+      meta = r.meta.filter(_.nonEmpty).map(_.parseJson.convertTo[Map[String, Any]](JsonMap.mapFormat)),
+    )
+
+  def create: Try[Long] = {
+    val CREATE_INDEX_MYSQL_SQL = s"CREATE INDEX ${indexUserName} ON ${tableName} (name);"
+    val CREATE_INDEX_POSTGRES_SQL = s"CREATE INDEX IF NOT EXISTS ${indexUserName} ON ${tableName} (name);"
+
+    val CREATE_INDEX_SQL = getDbType match {
+      case "mysql"    => CREATE_INDEX_MYSQL_SQL
+      case "postgres" => CREATE_INDEX_POSTGRES_SQL
+    }
+
+    val CREATE_TABLE_MYSQL_SQL =
+      s"""CREATE TABLE IF NOT EXISTS ${tableName} (
+        id VARCHAR(36) PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        name VARCHAR(255),
+        xid VARCHAR(255),
+        avatar VARCHAR(255),
+        ts0 BIGINT,
+        ts BIGINT,
+        meta TEXT
+      );
+      """
+
+    val CREATE_TABLE_POSTGRES_SQL =
+      s"""CREATE TABLE IF NOT EXISTS ${tableName} (
+        id UUID PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        name VARCHAR(255),
+        xid VARCHAR(255),
+        avatar VARCHAR(255),
+        ts0 BIGINT,
+        ts BIGINT,
+        meta TEXT
+      );
+      """
+
+    val CREATE_TABLE_SQL = getDbType match {
+      case "mysql"    => CREATE_TABLE_MYSQL_SQL
+      case "postgres" => CREATE_TABLE_POSTGRES_SQL
+    }
+
+    try {
+      val f1 = ctx.executeAction(CREATE_TABLE_SQL)(ExecutionInfo.unknown, ())
+      val r1 = Await.result(f1, FiniteDuration(10000L, TimeUnit.MILLISECONDS))
+      log.info(s"table: ${tableName}: ${r1}")
+
+      val f2 = ctx.executeAction(CREATE_INDEX_SQL)(ExecutionInfo.unknown, ())
+      val r2 = Await.result(f2, FiniteDuration(10000L, TimeUnit.MILLISECONDS))
+      log.info(s"index: ${indexUserName}: ${r2}")
+
+      Success(r1)
+    } catch {
+      case e: Exception =>
+        log.warn(s"failed to create: ${e.getMessage()}")
+        Failure(e)
+    }
+  }
+
+  def all: Future[Seq[User]] = ctx.run(users).map(_.map(fromDb))
+
+  private def queryPaged(from: Long, size: Long): Future[Seq[User]] = {
+    val offset = from.max(0L)
+    val limit = size.max(0L)
+    ctx.run(quote {
+      infix"SELECT id, email, name, xid, avatar, ts0, ts, meta FROM users LIMIT ${lift(limit)} OFFSET ${lift(offset)}"
+        .as[Query[UserDb]]
+    }).map(_.map(fromDb))
+  }
+
+  override def ???(from: Long, size: Long)(implicit ec: ExecutionContext): Future[Seq[User]] =
+    queryPaged(from, size)
+
+  def +(user: User): Future[User] = {
+    log.info(s"INSERT: ${user}")
+    val row = toDb(user)
+    val q = quote { users.insertValue(lift(row)) }
+    ctx.run(q).map(_ => user)
+  }
+
+  def update(id: UUID, req: UserUpdateReq): Future[User] = {
+    for {
+      user <- this.?(id)
+      user1 = applyUpdate(user, req)
+      _ <- {
+        log.info(s"UPDATE: ${user1}")
+        del(id).flatMap(_ => this.+(user1))
+      }
+    } yield user1
+  }
+
+  def del(id: UUID): Future[UUID] = {
+    log.info(s"DELETE: id=${id}")
+    val q = quote { users.filter(_.id == lift(id)).delete }
+    ctx.run(q).map(r =>
+      r match {
+        case 0 => throw new Exception(s"not found: ${id}")
+        case _ => id
+      },
+    )
+  }
+
+  def ?(id: UUID): Future[User] = {
+    log.info(s"SELECT: id=${id}")
+    ctx.run(users.filter(o => o.id == lift(id))).map(r =>
+      r.headOption.map(fromDb) match {
+        case Some(u) => u
+        case None    => throw new Exception(s"user not found: ${id}")
+      },
+    )
+  }
+
+  def findByXid(xid: String): Future[Option[User]] = {
+    log.info(s"FIND: xid=${xid}")
+    ctx.run(users.filter(o => o.xid.contains(lift(xid)))).map(r =>
+      r.headOption.map(fromDb)
+    )
+  }
+
+  def findByEmail(email: String): Future[Option[User]] = {
+    log.info(s"FIND: email=${email}")
+    ctx.run(users.filter(o => o.email == lift(email.toLowerCase))).map(r =>
+      r.headOption.map(fromDb)
+    )
+  }
+}
