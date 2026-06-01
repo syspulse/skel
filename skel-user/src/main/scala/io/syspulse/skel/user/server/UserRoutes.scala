@@ -89,7 +89,8 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
   val metricCreateCount: Counter = Counter.build().name("skel_user_create_total").help("User creates").register(TelemetryRegistry.registry)
   val metricUpdateCount: Counter = Counter.build().name("skel_user_update_total").help("User updates").register(TelemetryRegistry.registry)
   
-  def getUsers(): Future[Users] = registry.ask(GetUsers)
+  def getUsers(from: Option[Long] = None, size: Option[Long] = None): Future[Users] =
+    registry.ask(GetUsers(from, size, _))
   def getUser(id: UUID): Future[Try[User]] = registry.ask(GetUser(id, _))
   def getUserByXid(xid: String): Future[Option[User]] = registry.ask(GetUserByXid(xid, _))
 
@@ -153,12 +154,23 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
 
   @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("user"), summary = "Return all Users",
+    parameters = Array(
+      new Parameter(name = "from", in = ParameterIn.QUERY, description = "Page offset"),
+      new Parameter(name = "size", in = ParameterIn.QUERY, description = "Page size")
+    ),
     responses = Array(
       new ApiResponse(responseCode = "200", description = "List of Users",content = Array(new Content(schema = new Schema(implementation = classOf[Users])))))
   )
   def getUsersRoute() = get {
-    metricGetCount.inc()
-    complete(getUsers())
+    parameters("from".as[Long].?, "size".as[Long].?) { (from, size) =>
+      metricGetCount.inc()
+      (from, size) match {
+        case (Some(_), None) | (None, Some(_)) =>
+          complete(StatusCodes.BadRequest -> "from and size must be provided together")
+        case _ =>
+          complete(getUsers(from, size))
+      }
+    }
   }
 
   @DELETE @Path("/{id}") @Produces(Array(MediaType.APPLICATION_JSON))

@@ -1,6 +1,7 @@
 package io.syspulse.skel.user.store
 
 import scala.util.{Try, Success, Failure}
+import scala.concurrent.Future
 
 import com.typesafe.scalalogging.Logger
 import io.jvm.uuid._
@@ -27,8 +28,14 @@ object UserRegistryAsync {
   private def registry(store: UserStore): Behavior[io.syspulse.skel.Command] = {
 
     Behaviors.receiveMessage {
-      case GetUsers(replyTo) =>
-        store.allAsync.map(r => replyTo ! Users(r))
+      case GetUsers(from, size, replyTo) =>
+        val fut = (from, size) match {
+          case (Some(f), Some(s)) => store.pageAsync(f, s)
+          case (None, None)       => store.allAsync
+          case _ =>
+            Future.failed(new IllegalArgumentException("from and size must both be set for paging"))
+        }
+        fut.map(r => replyTo ! Users(r))
         Behaviors.same
 
       case GetUser(id, replyTo) =>

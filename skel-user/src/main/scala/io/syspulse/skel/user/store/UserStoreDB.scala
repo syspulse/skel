@@ -124,6 +124,17 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
 
   def all: Seq[User] = ctx.run(users).map(fromDb)
 
+  private def queryPaged(from: Long, size: Long): Seq[User] = {
+    val offset = from.max(0L)
+    val limit = size.max(0L)
+    ctx.run(quote {
+      infix"SELECT id, email, name, xid, avatar, ts0, ts, meta FROM users LIMIT ${lift(limit)} OFFSET ${lift(offset)}"
+        .as[Query[UserDb]]
+    }).map(fromDb)
+  }
+
+  override def ??(from: Long, size: Long): Seq[User] = queryPaged(from, size)
+
   def +(user: User): Try[User] = {
     log.info(s"INSERT: ${user}")
     try {
@@ -191,6 +202,7 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
 
   override def sizeAsync: Future[Long] = Future { size }
   override def allAsync: Future[Seq[User]] = Future { all }
+  override def pageAsync(from: Long, size: Long): Future[Seq[User]] = Future { queryPaged(from, size) }
   override def +!(user: User): Future[User] = Future { this.+(user).get }
   def updateAsync(id: UUID, req: UserUpdateReq): Future[User] = Future {
     update(id, req).get

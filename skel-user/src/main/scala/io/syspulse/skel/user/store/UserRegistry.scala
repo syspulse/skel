@@ -20,7 +20,7 @@ import java.util.concurrent.Executors
 import scala.concurrent.ExecutionContext
 
 object UserRegistryProto {
-  final case class GetUsers(replyTo: ActorRef[Users]) extends Command
+  final case class GetUsers(from: Option[Long], size: Option[Long], replyTo: ActorRef[Users]) extends Command
   final case class GetUser(id: UUID, replyTo: ActorRef[Try[User]]) extends Command
   final case class GetUserByXid(xid: String, replyTo: ActorRef[Option[User]]) extends Command
 
@@ -76,8 +76,14 @@ object UserRegistry {
         }
         Behaviors.same
 
-      case GetUsers(replyTo) =>
-        replyTo ! Users(store.all)
+      case GetUsers(from, size, replyTo) =>
+        val users = (from, size) match {
+          case (Some(f), Some(s)) => store.??(f, s)
+          case (None, None)       => store.all
+          case _ =>
+            throw new IllegalArgumentException("from and size must both be set for paging")
+        }
+        replyTo ! Users(users)
         Behaviors.same
 
       case GetUser(id, replyTo) =>

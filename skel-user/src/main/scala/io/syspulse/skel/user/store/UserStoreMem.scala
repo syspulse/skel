@@ -18,7 +18,6 @@ class UserStoreMem extends UserStore {
   var users: Map[UUID, User] = Map()
 
   def all: Seq[User] = users.values.toSeq
-
   def size: Long = users.size
 
   def +(user: User): Try[User] = {

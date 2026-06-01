@@ -177,5 +177,28 @@ class UserRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest w
         status.intValue() should (be(400) or be(500))
       }
     }
+
+    "page users with from and size query parameters (GET /?from=&size=)" in {
+      val before =
+        Get("/") ~> routes.routes ~> check {
+          responseAs[Users].users.size
+        }
+
+      (1 to 3).foreach { i =>
+        Post("/", UserCreateReq(email = s"page-$i@example.com")) ~> routes.routes ~> check {
+          status shouldBe StatusCodes.Created
+        }
+      }
+
+      Get(s"/?from=${before}&size=2") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[Users].users.size shouldBe 2
+      }
+
+      Get(s"/?from=${before + 3}&size=2") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[Users].users shouldBe empty
+      }
+    }
   }
 }

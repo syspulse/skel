@@ -55,5 +55,19 @@ class UserStoreMemSpec extends AnyWordSpec with Matchers {
 
       store.findByXid("0xabc").map(_.id) shouldBe Some(id)
     }
+
+    "page users with from and size" in {
+      val store = new UserStoreMem()
+      (1 to 5).foreach { i =>
+        store.+(User(UUID.random, s"page-$i@example.com")).get
+      }
+
+      store.??(1, 2).size shouldBe 2
+      store.??(3, 2).size shouldBe 2
+      store.??(10, 2) shouldBe empty
+      store.??(-1, 1).size shouldBe 1
+      store.??(0, 0) shouldBe empty
+      store.all.size shouldBe 5
+    }
   }
 }

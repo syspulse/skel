@@ -119,6 +119,17 @@ class UserStoreDBAsync(configuration: Configuration, dbConfigRef: String)
 
   override def allAsync: Future[Seq[User]] = ctx.run(users).map(_.map(fromDb))
 
+  private def queryPagedAsync(from: Long, size: Long): Future[Seq[User]] = {
+    val offset = from.max(0L)
+    val limit = size.max(0L)
+    ctx.run(quote {
+      infix"SELECT id, email, name, xid, avatar, ts0, ts, meta FROM users LIMIT ${lift(limit)} OFFSET ${lift(offset)}"
+        .as[Query[UserDb]]
+    }).map(_.map(fromDb))
+  }
+
+  override def pageAsync(from: Long, size: Long): Future[Seq[User]] = queryPagedAsync(from, size)
+
   override def +!(user: User): Future[User] = {
     log.info(s"INSERT: ${user}")
     val row = toDb(user)
@@ -182,6 +193,8 @@ class UserStoreDBAsync(configuration: Configuration, dbConfigRef: String)
   def del(id: UUID): Try[UUID] = Store.fromFuture(this.delAsync(id))
   def ?(id: UUID): Try[User] = Store.fromFuture(this.?!(id))
   def all: Seq[User] = Await.result(this.allAsync, FiniteDuration(15000L, TimeUnit.MILLISECONDS))
+  override def ??(from: Long, size: Long): Seq[User] =
+    Await.result(queryPagedAsync(from, size), FiniteDuration(15000L, TimeUnit.MILLISECONDS))
   def size: Long = Await.result(this.sizeAsync, FiniteDuration(15000L, TimeUnit.MILLISECONDS))
   def findByXid(xid: String): Option[User] = Store.fromFuture(this.findByXidAsync(xid)).toOption
   def findByEmail(email: String): Option[User] = Store.fromFuture(this.findByEmailAsync(email)).toOption
