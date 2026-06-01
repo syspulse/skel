@@ -62,11 +62,11 @@ class UserStoreMemSpec extends AnyWordSpec with Matchers {
         store.+(User(UUID.random, s"page-$i@example.com")).get
       }
 
-      store.??(1, 2).size shouldBe 2
-      store.??(3, 2).size shouldBe 2
-      store.??(10, 2) shouldBe empty
-      store.??(-1, 1).size shouldBe 1
-      store.??(0, 0) shouldBe empty
+      store.???(1, 2).size shouldBe 2
+      store.???(3, 2).size shouldBe 2
+      store.???(10, 2) shouldBe empty
+      store.???(-1, 1).size shouldBe 1
+      store.???(0, 0) shouldBe empty
       store.all.size shouldBe 5
     }
   }
