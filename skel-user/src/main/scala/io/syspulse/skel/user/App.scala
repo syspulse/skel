@@ -111,9 +111,9 @@ object App extends skel.Server {
           //   val store = new UserStoreDBAsync(c,config.datastore) 
           //   (store,UserRegistryAsync(store.asInstanceOf[UserStoreDBAsync]))
 
-          case _ =>            
-            val store = new UserStoreDB(c,config.datastore)              
-            (store,UserRegistryAsync(store.asInstanceOf[UserStoreDB]))
+          case _ =>
+            val store = new UserStoreDBSync(c,config.datastore)
+            (store,UserRegistryAsync(store))
                       
           // case _ => {
           //   Console.err.println(s"Uknown datastore: '${config.datastore}'")

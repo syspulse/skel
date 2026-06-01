@@ -78,7 +78,7 @@ object UserRegistry {
 
       case GetUsers(from, size, replyTo) =>
         val users = (from, size) match {
-          case (Some(f), Some(s)) => store.??(f, s)
+          case (Some(f), Some(s)) => store.???(f, s)
           case (None, None)       => store.all
           case _ =>
             throw new IllegalArgumentException("from and size must both be set for paging")

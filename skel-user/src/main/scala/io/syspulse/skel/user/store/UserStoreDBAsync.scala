@@ -24,6 +24,18 @@ import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.Await
 import scala.concurrent.Future
 
+/** DB row — `meta` stored as JSON text. */
+case class UserDb(
+  id: UUID,
+  email: String,
+  name: Option[String],
+  xid: Option[String],
+  avatar: Option[String],
+  ts0: Long,
+  ts: Long,
+  meta: Option[String],
+)
+
 // Postgres does not support table name 'user' !
 class UserStoreDBAsync(configuration: Configuration, dbConfigRef: String)
     extends StoreDBAsync[User, UUID](dbConfigRef, "users", Some(configuration))
@@ -193,7 +205,7 @@ class UserStoreDBAsync(configuration: Configuration, dbConfigRef: String)
   def del(id: UUID): Try[UUID] = Store.fromFuture(this.delAsync(id))
   def ?(id: UUID): Try[User] = Store.fromFuture(this.?!(id))
   def all: Seq[User] = Await.result(this.allAsync, FiniteDuration(15000L, TimeUnit.MILLISECONDS))
-  override def ??(from: Long, size: Long): Seq[User] =
+  override def ???(from: Long, size: Long): Seq[User] =
     Await.result(queryPagedAsync(from, size), FiniteDuration(15000L, TimeUnit.MILLISECONDS))
   def size: Long = Await.result(this.sizeAsync, FiniteDuration(15000L, TimeUnit.MILLISECONDS))
   def findByXid(xid: String): Option[User] = Store.fromFuture(this.findByXidAsync(xid)).toOption

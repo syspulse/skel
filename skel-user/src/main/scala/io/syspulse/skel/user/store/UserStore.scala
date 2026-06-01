@@ -20,7 +20,7 @@ trait UserStore extends Store[User, UUID] {
   def del(id: UUID): Try[UUID]
   def ?(id: UUID): Try[User]
   def all: Seq[User]
-  def ??(from: Long, size: Long): Seq[User] = page(all, from, size)
+  def ???(from: Long, size: Long): Seq[User] = page(all, from, size)
   def size: Long
 
   def findByXid(xid: String): Option[User]
@@ -44,7 +44,7 @@ trait UserStore extends Store[User, UUID] {
     users.drop(from.max(0).toInt).take(size.max(0).toInt)
 
   override def allAsync: Future[Seq[User]] = Future.successful(all)
-  def pageAsync(from: Long, size: Long): Future[Seq[User]] = Future.successful(??(from, size))
+  def pageAsync(from: Long, size: Long): Future[Seq[User]] = Future.successful(???(from, size))
   def updateAsync(id: UUID, req: UserUpdateReq): Future[User]
   def findByXidAsync(xid: String): Future[User]
   def findByEmailAsync(email: String): Future[User]

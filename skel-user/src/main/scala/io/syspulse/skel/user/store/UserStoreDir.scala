@@ -23,7 +23,7 @@ class UserStoreDir(dir:String = "store/") extends StoreDir[User,UUID](dir) with 
 
   def toKey(id:String):UUID = UUID(id)
   def all:Seq[User] = store.all
-  override def ??(from: Long, size: Long): Seq[User] = store.??(from, size)
+  override def ???(from: Long, size: Long): Seq[User] = store.???(from, size)
   def size:Long = store.size
   override def +(u:User):Try[User] = super.+(u).flatMap(_ => store.+(u))
 
