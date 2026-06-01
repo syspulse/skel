@@ -219,7 +219,7 @@ interface ApiForm {
 }
 
 const API_DEFAULTS = {
-  apiUrl:         import.meta.env.VITE_API_URL          || 'http://localhost:8080/api/v1/explain',
+  explainApiUrl:  import.meta.env.VITE_EXPLAIN_API_URL  || 'http://localhost:8080/api/v1/explain',
   dashApiUrl:     import.meta.env.VITE_DASH_API_URL     || 'http://localhost:8080/api/v1/dash',
   keycloakUrl:    import.meta.env.VITE_KEYCLOAK_URL     || 'http://localhost:8180',
   keycloakRealm:  import.meta.env.VITE_KEYCLOAK_REALM   || 'master',
@@ -229,7 +229,7 @@ const API_DEFAULTS = {
 function ApiTab() {
   const { t } = useTranslation();
   const [form, setForm] = useState<ApiForm>(() => ({
-    apiUrl:           getStoredOrEnv('VITE_API_URL',          API_DEFAULTS.apiUrl),
+    apiUrl:           getStoredOrEnv('VITE_EXPLAIN_API_URL',  API_DEFAULTS.explainApiUrl),
     dashApiUrl:       getStoredOrEnv('VITE_DASH_API_URL',     API_DEFAULTS.dashApiUrl),
     keycloakUrl:      getStoredOrEnv('VITE_KEYCLOAK_URL',     API_DEFAULTS.keycloakUrl),
     keycloakRealm:    getStoredOrEnv('VITE_KEYCLOAK_REALM',   API_DEFAULTS.keycloakRealm),
@@ -242,7 +242,7 @@ function ApiTab() {
   };
 
   const handleReset = () => {
-    localStorage.removeItem('VITE_API_URL');
+    localStorage.removeItem('VITE_EXPLAIN_API_URL');
     localStorage.removeItem('VITE_DASH_API_URL');
     localStorage.removeItem('VITE_KEYCLOAK_URL');
     localStorage.removeItem('VITE_KEYCLOAK_REALM');
@@ -258,11 +258,11 @@ function ApiTab() {
           <input
             type="text"
             value={form.apiUrl}
-            onChange={(e) => set('apiUrl', 'VITE_API_URL', e.target.value)}
+            onChange={(e) => set('apiUrl', 'VITE_EXPLAIN_API_URL', e.target.value)}
             className="w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
           />
           <p className="text-xs text-muted-foreground mt-0.5">
-            default: <code>{API_DEFAULTS.apiUrl}</code>
+            default: <code>{API_DEFAULTS.explainApiUrl}</code>
           </p>
         </div>
 
