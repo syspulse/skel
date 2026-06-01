@@ -64,9 +64,9 @@ export function NotificationPanel({ open, notifications, onClose, onClearAll }: 
       {open && <div className="fixed inset-0 z-[48]" onClick={onClose} />}
 
       <div
-        className={`fixed top-12 right-0 bottom-0 w-80 max-w-[92vw] bg-card border-l border-border shadow-2xl z-[49] flex flex-col
-          transition-transform duration-300 ease-in-out
-          ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-12 right-0 bottom-0 w-80 max-w-[92vw] bg-card border-l border-border z-[49] flex flex-col
+          transition-transform duration-300 ease-in-out pointer-events-none
+          ${open ? 'translate-x-0 shadow-2xl pointer-events-auto' : 'translate-x-full shadow-none'}`}
       >
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-border bg-muted shrink-0">
           <h2 className="text-sm text-foreground">{t('notifications.title')}</h2>

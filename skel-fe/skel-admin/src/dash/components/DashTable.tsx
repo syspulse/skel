@@ -67,8 +67,7 @@ export function DashTable({
   const padCount = Math.max(0, minRows - dashes.length);
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full table-fixed">
+    <table className="w-full table-fixed">
         <thead>
           <tr className="bg-nav text-nav-fg text-xs">
             <th className="w-10 px-3 py-2 text-center">
@@ -146,7 +145,6 @@ export function DashTable({
             </tr>
           ))}
         </tbody>
-      </table>
-    </div>
+    </table>
   );
 }
