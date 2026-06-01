@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { type Theme, THEME_NAMES } from './palettes';
 
-export type Theme = 'light' | 'dark' | 'stone';
+export type { Theme };
 
 interface ThemeContextValue {
   theme: Theme;
@@ -12,14 +13,21 @@ const ThemeContext = createContext<ThemeContextValue>({
   setTheme: () => {},
 });
 
+function isValidTheme(v: unknown): v is Theme {
+  return THEME_NAMES.includes(v as Theme);
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
-    return (localStorage.getItem('theme') as Theme) ?? 'light';
+    const stored = localStorage.getItem('theme');
+    return isValidTheme(stored) ? stored : 'light';
   });
 
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove('theme-light', 'theme-dark', 'theme-stone');
+    Array.from(root.classList)
+      .filter(c => c.startsWith('theme-'))
+      .forEach(c => root.classList.remove(c));
     root.classList.add(`theme-${theme}`);
     localStorage.setItem('theme', theme);
   }, [theme]);

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
-import { useTheme, Theme } from '../theme/ThemeContext';
+import { useTheme } from '../theme/ThemeContext';
+import { THEME_NAMES, PALETTE_SWATCHES, type Theme } from '../theme/palettes';
 import { useApp, DEFAULT_APP_NAME } from '../theme/AppContext';
 import { AppLogo } from '../components/AppBrand';
 import { IconReset } from '../components/Icons';
@@ -13,66 +14,68 @@ function getStoredOrEnv(key: string, envVal: string): string {
 
 type Tab = 'profile' | 'api';
 
-// ── Themes ────────────────────────────────────────────────────────────────────
+// ── Theme dropdown ────────────────────────────────────────────────────────────
 
-const THEMES: { id: Theme; label: string; desc: string; preview: { nav: string; bg: string; card: string } }[] = [
-  {
-    id: 'light',
-    label: 'Light',
-    desc: 'Clean white',
-    preview: { nav: 'hsl(240 4.8% 95.9%)', bg: 'hsl(0 0% 100%)', card: 'hsl(240 4.8% 91%)' },
-  },
-  {
-    id: 'dark',
-    label: 'Dark',
-    desc: 'Dark mode',
-    preview: { nav: 'hsl(240 10% 8%)', bg: 'hsl(240 10% 3.9%)', card: 'hsl(240 10% 6.5%)' },
-  },
-  {
-    id: 'stone',
-    label: 'Stone',
-    desc: 'Warm neutral',
-    preview: { nav: 'hsl(20 14% 22%)', bg: 'hsl(60 9% 97.8%)', card: 'hsl(0 0% 100%)' },
-  },
-];
+function Swatches({ theme }: { theme: Theme }) {
+  const [c1, c2, c3] = PALETTE_SWATCHES[theme];
+  return (
+    <span className="flex gap-px shrink-0">
+      <span className="w-3 h-3 rounded-sm border border-black/10" style={{ background: c1 }} />
+      <span className="w-3 h-3 rounded-sm border border-black/10" style={{ background: c2 }} />
+      <span className="w-3 h-3 rounded-sm border border-black/10" style={{ background: c3 }} />
+    </span>
+  );
+}
 
 function ThemeSection() {
   const { theme, setTheme } = useTheme();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
   return (
     <div>
       <div className="text-xs text-muted-foreground mb-1.5">appearance</div>
-      <div className="flex gap-2">
-        {THEMES.map(({ id, label, desc, preview }) => (
-          <button
-            key={id}
-            onClick={() => setTheme(id)}
-            className={`flex-1 border-2 rounded-md p-2 text-left transition-all
-              ${theme === id ? 'border-blue-500' : 'border-border hover:border-muted-foreground'}`}
-          >
-            <div
-              className="flex gap-0 mb-1.5 rounded overflow-hidden h-7 border border-border"
-              style={{ background: preview.bg }}
-            >
-              <div className="w-5 shrink-0" style={{ background: preview.nav }} />
-              <div className="flex-1 p-0.5">
-                <div className="w-full h-full rounded-sm" style={{ background: preview.card }} />
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs text-foreground">{label}</div>
-                <div className="text-xs text-muted-foreground">{desc}</div>
-              </div>
-              {theme === id && (
-                <div className="w-3.5 h-3.5 rounded-full bg-blue-500 flex items-center justify-center shrink-0">
-                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                    <path d="M1 4l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <div ref={ref} className="relative w-52">
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs border border-input rounded bg-card text-foreground hover:bg-muted transition-colors"
+        >
+          <Swatches theme={theme} />
+          <span className="flex-1 text-left capitalize">{theme}</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-muted-foreground shrink-0">
+            <path d="M2 4l4 4 4-4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+
+        {open && (
+          <div className="absolute z-50 left-0 top-full mt-1 w-full bg-card border border-border rounded shadow-lg overflow-y-auto max-h-64">
+            {THEME_NAMES.map(t => (
+              <button
+                key={t}
+                onClick={() => { setTheme(t); setOpen(false); }}
+                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left hover:bg-muted transition-colors
+                  ${t === theme ? 'bg-muted font-medium' : ''}`}
+              >
+                <Swatches theme={t} />
+                <span className="capitalize">{t}</span>
+                {t === theme && (
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" className="ml-auto text-blue-500 shrink-0">
+                    <path d="M1.5 5l2.5 2.5 5-5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                </div>
-              )}
-            </div>
-          </button>
-        ))}
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

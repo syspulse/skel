@@ -15,78 +15,624 @@
   }
 }
 
-/* ── Light theme (shadcn/ui zinc) ─────────────────────────── */
+/* ── Themes (shadcn/ui palettes) ─────────────────────────── */
 :root,
 .theme-light {
   color-scheme: light;
-  --background:        0 0% 100%;
-  --foreground:        240 10% 3.9%;
-  --card:              0 0% 100%;
-  --card-foreground:   240 10% 3.9%;
-  --muted:             240 4.8% 95.9%;
-  --muted-foreground:  240 3.8% 46.1%;
-  --muted-hover:       240 4.8% 91%;
-  --border:            240 5.9% 90%;
-  --input:             240 5.9% 90%;
-  --primary:           240 5.9% 10%;
-  --primary-foreground: 0 0% 98%;
-  /* Navigation / header (light) */
-  --header:            0 0% 100%;
-  --header-fg:         240 10% 3.9%;
-  --header-fg-muted:   240 3.8% 46.1%;
-  --nav:               240 4.8% 95.9%;
-  --nav-active:        240 4.8% 88%;
-  --nav-fg:            240 10% 3.9%;
-  --nav-fg-muted:      240 3.8% 50%;
+  --background:            0 0% 100%;
+  --foreground:            240 10% 3.9%;
+  --card:                  0 0% 100%;
+  --card-foreground:       240 10% 3.9%;
+  --muted:                 240 4.8% 95.9%;
+  --muted-foreground:      240 3.8% 46.1%;
+  --muted-hover:           240 4.8% 88%;
+  --border:                240 5.9% 90%;
+  --input:                 240 5.9% 90%;
+  --primary:               240 5.9% 10%;
+  --primary-foreground:    0 0% 98%;
+  --header:                0 0% 100%;
+  --header-fg:             240 10% 3.9%;
+  --header-fg-muted:       240 3.8% 46.1%;
+  --nav:                   240 4.8% 95.9%;
+  --nav-active:            240 4.8% 88%;
+  --nav-fg:                240 10% 3.9%;
+  --nav-fg-muted:          240 3.8% 50%;
 }
 
-/* ── Dark theme (shadcn/ui zinc dark) ─────────────────────── */
 .theme-dark {
   color-scheme: dark;
-  --background:        240 10% 3.9%;
-  --foreground:        0 0% 98%;
-  --card:              240 10% 6.5%;
-  --card-foreground:   0 0% 98%;
-  --muted:             240 3.7% 15.9%;
-  --muted-foreground:  240 5% 64.9%;
-  --muted-hover:       240 3.7% 20%;
-  --border:            240 3.7% 15.9%;
-  --input:             240 3.7% 15.9%;
-  --primary:           0 0% 98%;
-  --primary-foreground: 240 5.9% 10%;
-  /* Navigation / header */
-  --header:            240 12% 5%;
-  --header-fg:         0 0% 98%;
-  --header-fg-muted:   240 5% 65%;
-  --nav:               240 10% 8%;
-  --nav-active:        240 4% 14%;
-  --nav-fg:            0 0% 95%;
-  --nav-fg-muted:      240 5% 65%;
+  --background:            240 10% 3.9%;
+  --foreground:            0 0% 98%;
+  --card:                  240 10% 6.5%;
+  --card-foreground:       0 0% 98%;
+  --muted:                 240 3.7% 15.9%;
+  --muted-foreground:      240 5% 64.9%;
+  --muted-hover:           240 3.7% 20%;
+  --border:                240 3.7% 15.9%;
+  --input:                 240 3.7% 15.9%;
+  --primary:               0 0% 98%;
+  --primary-foreground:    240 5.9% 10%;
+  --header:                240 12% 5%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       240 5% 65%;
+  --nav:                   240 10% 8%;
+  --nav-active:            240 4% 14%;
+  --nav-fg:                0 0% 95%;
+  --nav-fg-muted:          240 5% 65%;
 }
 
-/* ── Stone theme (shadcn/ui stone light) ──────────────────── */
+.theme-neutral {
+  color-scheme: light;
+  --background:            0 0% 98%;
+  --foreground:            0 0% 3.9%;
+  --card:                  0 0% 98%;
+  --card-foreground:       0 0% 3.9%;
+  --muted:                 0 0% 96.1%;
+  --muted-foreground:      0 0% 45.1%;
+  --muted-hover:           0 0% 89.8%;
+  --border:                0 0% 89.8%;
+  --input:                 0 0% 89.8%;
+  --primary:               0 0% 9%;
+  --primary-foreground:    0 0% 98%;
+  --header:                0 0% 9%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       0 0% 83.1%;
+  --nav:                   0 0% 14.9%;
+  --nav-active:            0 0% 25.1%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          0 0% 83.1%;
+}
+
 .theme-stone {
   color-scheme: light;
-  --background:        60 9% 97.8%;
-  --foreground:        20 14.3% 4.1%;
-  --card:              0 0% 100%;
-  --card-foreground:   20 14.3% 4.1%;
-  --muted:             60 4.8% 95.9%;
-  --muted-foreground:  25 5.3% 44.7%;
-  --muted-hover:       60 4.8% 91%;
-  --border:            20 5.9% 90%;
-  --input:             20 5.9% 90%;
-  --primary:           24 9.8% 10%;
-  --primary-foreground: 60 9.1% 97.8%;
-  /* Navigation / header (warm stone brown) */
-  --header:            20 14% 14%;
-  --header-fg:         60 9.1% 97.8%;
-  --header-fg-muted:   25 8% 65%;
-  --nav:               20 14% 22%;
-  --nav-active:        20 14% 30%;
-  --nav-fg:            60 9.1% 97.8%;
-  --nav-fg-muted:      25 8% 72%;
+  --background:            60 9.1% 97.8%;
+  --foreground:            20 14.3% 4.1%;
+  --card:                  60 9.1% 97.8%;
+  --card-foreground:       20 14.3% 4.1%;
+  --muted:                 60 4.8% 95.9%;
+  --muted-foreground:      25 5.3% 44.7%;
+  --muted-hover:           20 5.9% 90%;
+  --border:                20 5.9% 90%;
+  --input:                 20 5.9% 90%;
+  --primary:               24 9.8% 10%;
+  --primary-foreground:    60 9.1% 97.8%;
+  --header:                24 9.8% 10%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       24 5.7% 82.9%;
+  --nav:                   12 6.5% 15.1%;
+  --nav-active:            30 6.2% 25.1%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          24 5.7% 82.9%;
 }
+
+.theme-zinc {
+  color-scheme: light;
+  --background:            0 0% 98%;
+  --foreground:            240 10% 3.9%;
+  --card:                  0 0% 98%;
+  --card-foreground:       240 10% 3.9%;
+  --muted:                 240 4.8% 95.9%;
+  --muted-foreground:      240 3.8% 46.1%;
+  --muted-hover:           240 5.9% 90%;
+  --border:                240 5.9% 90%;
+  --input:                 240 5.9% 90%;
+  --primary:               240 5.9% 10%;
+  --primary-foreground:    0 0% 98%;
+  --header:                240 5.9% 10%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       240 4.9% 83.9%;
+  --nav:                   240 3.7% 15.9%;
+  --nav-active:            240 5.3% 26.1%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          240 4.9% 83.9%;
+}
+
+.theme-slate {
+  color-scheme: light;
+  --background:            210 40% 98%;
+  --foreground:            228.6 84% 4.9%;
+  --card:                  210 40% 98%;
+  --card-foreground:       228.6 84% 4.9%;
+  --muted:                 210 40% 96.1%;
+  --muted-foreground:      215.4 16.3% 46.9%;
+  --muted-hover:           214.3 31.8% 91.4%;
+  --border:                214.3 31.8% 91.4%;
+  --input:                 214.3 31.8% 91.4%;
+  --primary:               222.2 47.4% 11.2%;
+  --primary-foreground:    210 40% 98%;
+  --header:                222.2 47.4% 11.2%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       212.7 26.8% 83.9%;
+  --nav:                   217.2 32.6% 17.5%;
+  --nav-active:            215.3 25% 26.7%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          212.7 26.8% 83.9%;
+}
+
+.theme-gray {
+  color-scheme: light;
+  --background:            210 20% 98%;
+  --foreground:            224 71.4% 4.1%;
+  --card:                  210 20% 98%;
+  --card-foreground:       224 71.4% 4.1%;
+  --muted:                 220 14.3% 95.9%;
+  --muted-foreground:      220 8.9% 46.1%;
+  --muted-hover:           220 13% 91%;
+  --border:                220 13% 91%;
+  --input:                 220 13% 91%;
+  --primary:               220.9 39.3% 11%;
+  --primary-foreground:    210 20% 98%;
+  --header:                220.9 39.3% 11%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       216 12.2% 83.9%;
+  --nav:                   215 27.9% 16.9%;
+  --nav-active:            216.9 19.1% 26.7%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          216 12.2% 83.9%;
+}
+
+.theme-mauve {
+  color-scheme: light;
+  --background:            240 11.1% 98.2%;
+  --foreground:            280 14.3% 8.2%;
+  --card:                  240 11.1% 98.2%;
+  --card-foreground:       280 14.3% 8.2%;
+  --muted:                 240 10% 96.1%;
+  --muted-foreground:      272.7 8.7% 50.2%;
+  --muted-hover:           264 11.1% 91.2%;
+  --border:                264 11.1% 91.2%;
+  --input:                 264 11.1% 91.2%;
+  --primary:               261.4 18.9% 14.5%;
+  --primary-foreground:    240 11.1% 98.2%;
+  --header:                261.4 18.9% 14.5%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       261.8 14.3% 84.9%;
+  --nav:                   264.7 15.9% 21%;
+  --nav-active:            268.4 11.9% 31.2%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          261.8 14.3% 84.9%;
+}
+
+.theme-olive {
+  color-scheme: light;
+  --background:            120 9.1% 97.8%;
+  --foreground:            144 13.5% 7.3%;
+  --card:                  120 9.1% 97.8%;
+  --card-foreground:       144 13.5% 7.3%;
+  --muted:                 120 9.1% 95.7%;
+  --muted-foreground:      138 8.5% 46.3%;
+  --muted-hover:           120 9.8% 90%;
+  --border:                120 9.8% 90%;
+  --input:                 120 9.8% 90%;
+  --primary:               110 22.2% 10.6%;
+  --primary-foreground:    120 9.1% 97.8%;
+  --header:                110 22.2% 10.6%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       120 8.5% 81.6%;
+  --nav:                   95.3 20.5% 16.3%;
+  --nav-active:            144 10.6% 27.6%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          120 8.5% 81.6%;
+}
+
+.theme-mist {
+  color-scheme: light;
+  --background:            210 20% 98%;
+  --foreground:            193.3 24.3% 7.3%;
+  --card:                  210 20% 98%;
+  --card-foreground:       193.3 24.3% 7.3%;
+  --muted:                 195 18.2% 95.7%;
+  --muted-foreground:      189.1 14.2% 45.7%;
+  --muted-hover:           195 16% 90.2%;
+  --border:                195 16% 90.2%;
+  --input:                 195 16% 90.2%;
+  --primary:               196 25.4% 11.6%;
+  --primary-foreground:    210 20% 98%;
+  --header:                196 25.4% 11.6%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       192.9 15.2% 82%;
+  --nav:                   194.3 23.1% 17.8%;
+  --nav-active:            191.5 18.6% 27.5%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          192.9 15.2% 82%;
+}
+
+.theme-taupe {
+  color-scheme: light;
+  --background:            30 20% 98%;
+  --foreground:            33.3 24.3% 7.3%;
+  --card:                  30 20% 98%;
+  --card-foreground:       33.3 24.3% 7.3%;
+  --muted:                 40 13% 95.5%;
+  --muted-foreground:      34.5 14% 46.1%;
+  --muted-hover:           33.3 17% 89.6%;
+  --border:                33.3 17% 89.6%;
+  --input:                 33.3 17% 89.6%;
+  --primary:               36.9 22.8% 11.2%;
+  --primary-foreground:    30 20% 98%;
+  --header:                36.9 22.8% 11.2%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       33.7 17% 81.6%;
+  --nav:                   36.7 20% 17.6%;
+  --nav-active:            38.2 15.3% 28.2%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          33.7 17% 81.6%;
+}
+
+.theme-red {
+  color-scheme: light;
+  --background:            0 85.7% 97.3%;
+  --foreground:            0 74.7% 15.5%;
+  --card:                  0 85.7% 97.3%;
+  --card-foreground:       0 74.7% 15.5%;
+  --muted:                 0 93.3% 94.1%;
+  --muted-foreground:      0 84.2% 60.2%;
+  --muted-hover:           0 96.3% 89.4%;
+  --border:                0 96.3% 89.4%;
+  --input:                 0 96.3% 89.4%;
+  --primary:               0 62.8% 30.6%;
+  --primary-foreground:    0 85.7% 97.3%;
+  --header:                0 62.8% 30.6%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       0 93.5% 81.8%;
+  --nav:                   0 70% 35.3%;
+  --nav-active:            0 73.7% 41.8%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          0 93.5% 81.8%;
+}
+
+.theme-orange {
+  color-scheme: light;
+  --background:            33.3 100% 96.5%;
+  --foreground:            13 81.1% 14.5%;
+  --card:                  33.3 100% 96.5%;
+  --card-foreground:       13 81.1% 14.5%;
+  --muted:                 34.3 100% 91.8%;
+  --muted-foreground:      24.6 95% 53.1%;
+  --muted-hover:           32.1 97.7% 83.1%;
+  --border:                32.1 97.7% 83.1%;
+  --input:                 32.1 97.7% 83.1%;
+  --primary:               15.3 74.6% 27.8%;
+  --primary-foreground:    33.3 100% 96.5%;
+  --header:                15.3 74.6% 27.8%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       30.7 97.2% 72.4%;
+  --nav:                   15 79.1% 33.7%;
+  --nav-active:            17.5 88.3% 40.4%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          30.7 97.2% 72.4%;
+}
+
+.theme-amber {
+  color-scheme: light;
+  --background:            48 100% 96.1%;
+  --foreground:            20.9 91.7% 14.1%;
+  --card:                  48 100% 96.1%;
+  --card-foreground:       20.9 91.7% 14.1%;
+  --muted:                 48 96.5% 88.8%;
+  --muted-foreground:      37.7 92.1% 50.2%;
+  --muted-hover:           48 96.6% 76.7%;
+  --border:                48 96.6% 76.7%;
+  --input:                 48 96.6% 76.7%;
+  --primary:               21.7 77.8% 26.5%;
+  --primary-foreground:    48 100% 96.1%;
+  --header:                21.7 77.8% 26.5%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       45.9 96.7% 64.5%;
+  --nav:                   22.7 82.5% 31.4%;
+  --nav-active:            26 90.5% 37.1%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          45.9 96.7% 64.5%;
+}
+
+.theme-yellow {
+  color-scheme: light;
+  --background:            54.5 91.7% 95.3%;
+  --foreground:            26 83.3% 14.1%;
+  --card:                  54.5 91.7% 95.3%;
+  --card-foreground:       26 83.3% 14.1%;
+  --muted:                 54.9 96.7% 88%;
+  --muted-foreground:      45.4 93.4% 47.5%;
+  --muted-hover:           52.8 98.3% 76.9%;
+  --border:                52.8 98.3% 76.9%;
+  --input:                 52.8 98.3% 76.9%;
+  --primary:               28.4 72.5% 25.7%;
+  --primary-foreground:    54.5 91.7% 95.3%;
+  --header:                28.4 72.5% 25.7%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       50.4 97.8% 63.5%;
+  --nav:                   31.8 81% 28.8%;
+  --nav-active:            35.5 91.7% 32.9%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          50.4 97.8% 63.5%;
+}
+
+.theme-lime {
+  color-scheme: light;
+  --background:            78.3 92% 95.1%;
+  --foreground:            89.3 80.4% 10%;
+  --card:                  78.3 92% 95.1%;
+  --card-foreground:       89.3 80.4% 10%;
+  --muted:                 79.6 89.1% 89.2%;
+  --muted-foreground:      83.7 80.5% 44.3%;
+  --muted-hover:           80.9 88.5% 79.6%;
+  --border:                80.9 88.5% 79.6%;
+  --input:                 80.9 88.5% 79.6%;
+  --primary:               87.6 61.2% 20.2%;
+  --primary-foreground:    78.3 92% 95.1%;
+  --header:                87.6 61.2% 20.2%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       82 84.5% 67.1%;
+  --nav:                   86.2 69% 22.7%;
+  --nav-active:            85.9 78.4% 27.3%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          82 84.5% 67.1%;
+}
+
+.theme-green {
+  color-scheme: light;
+  --background:            138.5 76.5% 96.7%;
+  --foreground:            144.9 80.4% 10%;
+  --card:                  138.5 76.5% 96.7%;
+  --card-foreground:       144.9 80.4% 10%;
+  --muted:                 140.6 84.2% 92.5%;
+  --muted-foreground:      142.1 70.6% 45.3%;
+  --muted-hover:           141 78.9% 85.1%;
+  --border:                141 78.9% 85.1%;
+  --input:                 141 78.9% 85.1%;
+  --primary:               143.8 61.2% 20.2%;
+  --primary-foreground:    138.5 76.5% 96.7%;
+  --header:                143.8 61.2% 20.2%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       141.7 76.6% 73.1%;
+  --nav:                   142.8 64.2% 24.1%;
+  --nav-active:            142.4 71.8% 29.2%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          141.7 76.6% 73.1%;
+}
+
+.theme-emerald {
+  color-scheme: light;
+  --background:            151.8 81% 95.9%;
+  --foreground:            165.7 91.3% 9%;
+  --card:                  151.8 81% 95.9%;
+  --card-foreground:       165.7 91.3% 9%;
+  --muted:                 149.3 80.4% 90%;
+  --muted-foreground:      160.1 84.1% 39.4%;
+  --muted-hover:           152.4 76% 80.4%;
+  --border:                152.4 76% 80.4%;
+  --input:                 152.4 76% 80.4%;
+  --primary:               164.2 85.7% 16.5%;
+  --primary-foreground:    151.8 81% 95.9%;
+  --header:                164.2 85.7% 16.5%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       156.2 71.6% 66.9%;
+  --nav:                   163.1 88.1% 19.8%;
+  --nav-active:            162.9 93.5% 24.3%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          156.2 71.6% 66.9%;
+}
+
+.theme-teal {
+  color-scheme: light;
+  --background:            166.2 76.5% 96.7%;
+  --foreground:            178.6 84.3% 10%;
+  --card:                  166.2 76.5% 96.7%;
+  --card-foreground:       178.6 84.3% 10%;
+  --muted:                 167.2 85.5% 89.2%;
+  --muted-foreground:      173.4 80.4% 40%;
+  --muted-hover:           168.4 83.8% 78.2%;
+  --border:                168.4 83.8% 78.2%;
+  --input:                 168.4 83.8% 78.2%;
+  --primary:               175.9 60.8% 19%;
+  --primary-foreground:    166.2 76.5% 96.7%;
+  --header:                175.9 60.8% 19%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       170.6 76.9% 64.3%;
+  --nav:                   176.1 69.4% 21.8%;
+  --nav-active:            175.3 77.4% 26.1%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          170.6 76.9% 64.3%;
+}
+
+.theme-cyan {
+  color-scheme: light;
+  --background:            183.2 100% 96.3%;
+  --foreground:            197 78.9% 14.9%;
+  --card:                  183.2 100% 96.3%;
+  --card-foreground:       197 78.9% 14.9%;
+  --muted:                 185.1 95.9% 90.4%;
+  --muted-foreground:      188.7 94.5% 42.7%;
+  --muted-hover:           186.2 93.5% 81.8%;
+  --border:                186.2 93.5% 81.8%;
+  --input:                 186.2 93.5% 81.8%;
+  --primary:               196.4 63.6% 23.7%;
+  --primary-foreground:    183.2 100% 96.3%;
+  --header:                196.4 63.6% 23.7%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       187 92.4% 69%;
+  --nav:                   194.4 69.6% 27.1%;
+  --nav-active:            192.9 82.3% 31%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          187 92.4% 69%;
+}
+
+.theme-sky {
+  color-scheme: light;
+  --background:            204 100% 97.1%;
+  --foreground:            204 80.2% 15.9%;
+  --card:                  204 100% 97.1%;
+  --card-foreground:       204 80.2% 15.9%;
+  --muted:                 204 93.8% 93.7%;
+  --muted-foreground:      198.6 88.7% 48.4%;
+  --muted-hover:           200.6 94.4% 86.1%;
+  --border:                200.6 94.4% 86.1%;
+  --input:                 200.6 94.4% 86.1%;
+  --primary:               202 80.3% 23.9%;
+  --primary-foreground:    204 100% 97.1%;
+  --header:                202 80.3% 23.9%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       199.4 95.5% 73.9%;
+  --nav:                   201 90% 27.5%;
+  --nav-active:            201.3 96.3% 32.2%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          199.4 95.5% 73.9%;
+}
+
+.theme-blue {
+  color-scheme: light;
+  --background:            213.8 100% 96.9%;
+  --foreground:            226.2 57% 21%;
+  --card:                  213.8 100% 96.9%;
+  --card-foreground:       226.2 57% 21%;
+  --muted:                 214.3 94.6% 92.7%;
+  --muted-foreground:      217.2 91.2% 59.8%;
+  --muted-hover:           213.3 96.9% 87.3%;
+  --border:                213.3 96.9% 87.3%;
+  --input:                 213.3 96.9% 87.3%;
+  --primary:               224.4 64.3% 32.9%;
+  --primary-foreground:    213.8 100% 96.9%;
+  --header:                224.4 64.3% 32.9%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       211.7 96.4% 78.4%;
+  --nav:                   225.9 70.7% 40.2%;
+  --nav-active:            224.3 76.3% 48%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          211.7 96.4% 78.4%;
+}
+
+.theme-indigo {
+  color-scheme: light;
+  --background:            225.9 100% 96.7%;
+  --foreground:            243.8 47.1% 20%;
+  --card:                  225.9 100% 96.7%;
+  --card-foreground:       243.8 47.1% 20%;
+  --muted:                 226.5 100% 93.9%;
+  --muted-foreground:      238.7 83.5% 66.7%;
+  --muted-hover:           228 96.5% 88.8%;
+  --border:                228 96.5% 88.8%;
+  --input:                 228 96.5% 88.8%;
+  --primary:               242.2 47.4% 34.3%;
+  --primary-foreground:    225.9 100% 96.7%;
+  --header:                242.2 47.4% 34.3%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       229.7 93.5% 81.8%;
+  --nav:                   243.7 54.5% 41.4%;
+  --nav-active:            244.5 57.9% 50.6%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          229.7 93.5% 81.8%;
+}
+
+.theme-violet {
+  color-scheme: light;
+  --background:            250 100% 97.6%;
+  --foreground:            243.8 47.1% 20%;
+  --card:                  250 100% 97.6%;
+  --card-foreground:       243.8 47.1% 20%;
+  --muted:                 251.4 91.3% 95.5%;
+  --muted-foreground:      258.3 89.5% 66.3%;
+  --muted-hover:           250.5 95.2% 91.8%;
+  --border:                250.5 95.2% 91.8%;
+  --input:                 250.5 95.2% 91.8%;
+  --primary:               263.5 67.4% 34.9%;
+  --primary-foreground:    250 100% 97.6%;
+  --header:                263.5 67.4% 34.9%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       252.5 94.7% 85.1%;
+  --nav:                   263.4 69.3% 42.2%;
+  --nav-active:            263.4 70% 50.4%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          252.5 94.7% 85.1%;
+}
+
+.theme-purple {
+  color-scheme: light;
+  --background:            270 100% 98%;
+  --foreground:            273.5 86.9% 21%;
+  --card:                  270 100% 98%;
+  --card-foreground:       273.5 86.9% 21%;
+  --muted:                 268.7 100% 95.5%;
+  --muted-foreground:      270.7 91% 65.1%;
+  --muted-hover:           268.6 100% 91.8%;
+  --border:                268.6 100% 91.8%;
+  --input:                 268.6 100% 91.8%;
+  --primary:               273.6 65.6% 32%;
+  --primary-foreground:    270 100% 98%;
+  --header:                273.6 65.6% 32%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       269.2 97.4% 85.1%;
+  --nav:                   272.9 67.2% 39.4%;
+  --nav-active:            272.1 71.7% 47.1%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          269.2 97.4% 85.1%;
+}
+
+.theme-fuchsia {
+  color-scheme: light;
+  --background:            289.1 100% 97.8%;
+  --foreground:            296.8 90.2% 16.1%;
+  --card:                  289.1 100% 97.8%;
+  --card-foreground:       296.8 90.2% 16.1%;
+  --muted:                 287 100% 95.5%;
+  --muted-foreground:      292.2 84.1% 60.6%;
+  --muted-hover:           288.3 95.8% 90.6%;
+  --border:                288.3 95.8% 90.6%;
+  --input:                 288.3 95.8% 90.6%;
+  --primary:               296.7 63.6% 28%;
+  --primary-foreground:    289.1 100% 97.8%;
+  --header:                296.7 63.6% 28%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       291.1 93.1% 82.9%;
+  --nav:                   295.4 70.2% 32.9%;
+  --nav-active:            294.7 72.4% 39.8%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          291.1 93.1% 82.9%;
+}
+
+.theme-pink {
+  color-scheme: light;
+  --background:            327.3 73.3% 97.1%;
+  --foreground:            336.2 83.9% 17.1%;
+  --card:                  327.3 73.3% 97.1%;
+  --card-foreground:       336.2 83.9% 17.1%;
+  --muted:                 325.7 77.8% 94.7%;
+  --muted-foreground:      330.4 81.2% 60.4%;
+  --muted-hover:           325.9 84.6% 89.8%;
+  --border:                325.9 84.6% 89.8%;
+  --input:                 325.9 84.6% 89.8%;
+  --primary:               335.9 69% 30.4%;
+  --primary-foreground:    327.3 73.3% 97.1%;
+  --header:                335.9 69% 30.4%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       327.4 87.1% 81.8%;
+  --nav:                   335.8 74.4% 35.3%;
+  --nav-active:            335.1 77.6% 42%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          327.4 87.1% 81.8%;
+}
+
+.theme-rose {
+  color-scheme: light;
+  --background:            355.7 100% 97.3%;
+  --foreground:            343.1 87.7% 15.9%;
+  --card:                  355.7 100% 97.3%;
+  --card-foreground:       343.1 87.7% 15.9%;
+  --muted:                 355.6 100% 94.7%;
+  --muted-foreground:      349.7 89.2% 60.2%;
+  --muted-hover:           352.7 96.1% 90%;
+  --border:                352.7 96.1% 90%;
+  --input:                 352.7 96.1% 90%;
+  --primary:               341.5 75.5% 30.4%;
+  --primary-foreground:    355.7 100% 97.3%;
+  --header:                341.5 75.5% 30.4%;
+  --header-fg:             0 0% 98%;
+  --header-fg-muted:       352.6 95.7% 81.8%;
+  --nav:                   343.4 79.7% 34.7%;
+  --nav-active:            345.3 82.7% 40.8%;
+  --nav-fg:                0 0% 98%;
+  --nav-fg-muted:          352.6 95.7% 81.8%;
+}
+
 
 /* ── Global ───────────────────────────────────────────────── */
 html {
