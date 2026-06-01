@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import * as api from './api';
 import { useAuth } from '../auth/useAuth';
 import { useNotifications } from '../notifications/NotificationContext';
+import { usePageSize } from '../settings/PageSizeContext';
+import { Pagination } from '../components/Pagination';
 import { ExplainFilters, FilterState } from './components/ExplainFilters';
 import { ExplainSlider } from './components/ExplainSlider';
 import { ExplainTable } from './components/ExplainTable';
@@ -25,6 +27,8 @@ export function ExplainPage() {
   const { t } = useTranslation();
   const { token } = useAuth();
   const { add: notify } = useNotifications();
+  const { pageSize, setPageSize } = usePageSize();
+  const [page, setPage] = useState(1);
   const [rules, setRules] = useState<Explain[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -67,6 +71,14 @@ export function ExplainPage() {
       return true;
     });
   }, [rules, filters]);
+
+  const pagedRules = useMemo(
+    () => filteredRules.slice((page - 1) * pageSize, page * pageSize),
+    [filteredRules, page, pageSize],
+  );
+
+  // Reset to page 1 when filters or page size change
+  useEffect(() => { setPage(1); }, [filters, pageSize]);
 
   const handleRowClick = (rule: Explain) => {
     setSelected(rule); setAddMode(false); setSliderOpen(true);
@@ -148,16 +160,25 @@ export function ExplainPage() {
           <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">{t('explain.loading')}</div>
         ) : (
           <ExplainTable
-            rules={filteredRules}
+            rules={pagedRules}
             selected={selected}
             selectedIds={selectedIds}
             timezone={timezone}
+            minRows={pageSize}
             onRowClick={handleRowClick}
             onCheckboxChange={handleCheckboxChange}
             onSelectAll={handleSelectAll}
           />
         )}
       </div>
+
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        total={filteredRules.length}
+        onPageChange={setPage}
+        onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+      />
 
       <ExplainSlider
         open={sliderOpen}

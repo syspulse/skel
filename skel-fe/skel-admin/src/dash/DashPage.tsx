@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import * as api from './api';
 import { useAuth } from '../auth/useAuth';
 import { useNotifications } from '../notifications/NotificationContext';
+import { usePageSize } from '../settings/PageSizeContext';
+import { Pagination } from '../components/Pagination';
 import { DashFilters, DashFilterState } from './components/DashFilters';
 import { DashSlider } from './components/DashSlider';
 import { DashTable } from './components/DashTable';
@@ -12,6 +14,8 @@ export function DashPage() {
   const { t } = useTranslation();
   const { token } = useAuth();
   const { add: notify } = useNotifications();
+  const { pageSize, setPageSize } = usePageSize();
+  const [page, setPage] = useState(1);
   const [dashes, setDashes] = useState<DashLayout[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -102,6 +106,13 @@ export function DashPage() {
     await fetchDashes();
   };
 
+  const pagedDashes = useMemo(
+    () => filteredDashes.slice((page - 1) * pageSize, page * pageSize),
+    [filteredDashes, page, pageSize],
+  );
+
+  useEffect(() => { setPage(1); }, [filters, pageSize]);
+
   const countLabel = t('dash.count', { count: filteredDashes.length });
   const filteredLabel = filteredDashes.length !== dashes.length
     ? ` ${t('dash.filteredFrom', { total: dashes.length })}`
@@ -134,16 +145,25 @@ export function DashPage() {
           <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">{t('dash.loading')}</div>
         ) : (
           <DashTable
-            dashes={filteredDashes}
+            dashes={pagedDashes}
             selected={selected}
             selectedIds={selectedIds}
             timezone={timezone}
+            minRows={pageSize}
             onRowClick={handleRowClick}
             onCheckboxChange={handleCheckboxChange}
             onSelectAll={handleSelectAll}
           />
         )}
       </div>
+
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        total={filteredDashes.length}
+        onPageChange={setPage}
+        onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+      />
 
       <DashSlider
         open={sliderOpen}

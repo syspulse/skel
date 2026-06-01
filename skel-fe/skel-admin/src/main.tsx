@@ -5,6 +5,7 @@ import { AuthProvider } from './auth/AuthContext';
 import { AppProvider } from './theme/AppContext';
 import { ThemeProvider } from './theme/ThemeContext';
 import { NotificationProvider } from './notifications/NotificationContext';
+import { PageSizeProvider } from './settings/PageSizeContext';
 import './i18n';
 import './styles.css';
 
@@ -13,9 +14,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ThemeProvider>
       <AppProvider>
         <NotificationProvider>
-          <AuthProvider>
-            <App />
-          </AuthProvider>
+          <PageSizeProvider>
+            <AuthProvider>
+              <App />
+            </AuthProvider>
+          </PageSizeProvider>
         </NotificationProvider>
       </AppProvider>
     </ThemeProvider>

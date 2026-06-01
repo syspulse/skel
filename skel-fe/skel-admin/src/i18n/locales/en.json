@@ -55,6 +55,7 @@
     "keycloakRealm": "realm",
     "keycloakClientId": "client id",
     "noAuthNote": "Running in no-auth mode. Keycloak settings are not used.",
+    "defaultPageSize": "Default page size",
     "resetToDefaults": "Reset to defaults",
     "autoSaveNote": "Changes are saved automatically. Keycloak config changes require a page reload."
   },
@@ -134,6 +135,11 @@
     "errorLayoutJson": "layout must be valid JSON",
     "confirmDelete": "Delete dashboard \"{{name}}\"?",
     "confirmDeleteSelected": "Delete {{count}} selected dashboard(s)? This cannot be undone."
+  },
+  "pagination": {
+    "perPage": "/ page",
+    "prev": "Previous page",
+    "next": "Next page"
   },
   "notifications": {
     "title": "Notifications",

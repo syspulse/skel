@@ -62,11 +62,14 @@ function rowKey(rule: Explain): string {
   return `${rule.oid ?? ''}_${rule.rid}`;
 }
 
+const COL_COUNT = 7;
+
 interface ExplainTableProps {
   rules: Explain[];
   selected: Explain | null;
   selectedIds: Set<string>;
   timezone: string;
+  minRows: number;
   onRowClick: (rule: Explain) => void;
   onCheckboxChange: (rule: Explain, checked: boolean) => void;
   onSelectAll: (checked: boolean) => void;
@@ -77,6 +80,7 @@ export function ExplainTable({
   selected,
   selectedIds,
   timezone,
+  minRows,
   onRowClick,
   onCheckboxChange,
   onSelectAll,
@@ -84,14 +88,7 @@ export function ExplainTable({
   const { t } = useTranslation();
   const allChecked = rules.length > 0 && rules.every((r) => selectedIds.has(rowKey(r)));
   const someChecked = rules.some((r) => selectedIds.has(rowKey(r)));
-
-  if (rules.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
-        {t('explain.noRules')}
-      </div>
-    );
-  }
+  const padCount = Math.max(0, minRows - rules.length);
 
   return (
     <div className="overflow-x-auto">
@@ -120,6 +117,13 @@ export function ExplainTable({
           </tr>
         </thead>
         <tbody>
+          {rules.length === 0 && (
+            <tr className="border-b border-border">
+              <td colSpan={COL_COUNT} className="px-3 py-2 text-xs text-center text-muted-foreground">
+                {t('explain.noRules')}
+              </td>
+            </tr>
+          )}
           {rules.map((rule, idx) => {
             const key = rowKey(rule);
             const isChecked = selectedIds.has(key);
@@ -168,6 +172,18 @@ export function ExplainTable({
               </tr>
             );
           })}
+          {Array.from({ length: padCount }, (_, i) => (
+            <tr key={`pad-${i}`} className={`border-b border-border ${(rules.length + i) % 2 === 0 ? 'bg-card' : 'bg-muted'}`}>
+              <td className="px-3 py-2" />
+              <td className="px-2 py-2 text-center">
+                {/* invisible icon keeps row height identical to real rows */}
+                <span className="invisible inline-flex items-center justify-center">
+                  <IconLamp size={18} />
+                </span>
+              </td>
+              <td colSpan={COL_COUNT - 2} className="px-3 py-2" />
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>

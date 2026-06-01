@@ -55,6 +55,7 @@
     "keycloakRealm": "Realm",
     "keycloakClientId": "Client-ID",
     "noAuthNote": "Läuft im Kein-Auth-Modus. Keycloak-Einstellungen werden nicht verwendet.",
+    "defaultPageSize": "Standard-Seitengröße",
     "resetToDefaults": "Auf Standardwerte zurücksetzen",
     "autoSaveNote": "Änderungen werden automatisch gespeichert. Keycloak-Konfigurationsänderungen erfordern einen Seitenneustart."
   },
@@ -134,6 +135,11 @@
     "errorLayoutJson": "Layout muss gültiges JSON sein",
     "confirmDelete": "Dashboard \"{{name}}\" löschen?",
     "confirmDeleteSelected": "{{count}} ausgewählte(s) Dashboard(s) löschen? Dies kann nicht rückgängig gemacht werden."
+  },
+  "pagination": {
+    "perPage": "/ Seite",
+    "prev": "Vorherige Seite",
+    "next": "Nächste Seite"
   },
   "notifications": {
     "title": "Benachrichtigungen",

@@ -38,11 +38,14 @@ function formatTs(ts: number, timezone: string): string {
   return `${get('day')} ${get('month')} ${get('hour')}:${get('minute')}:${get('second')}`;
 }
 
+const COL_COUNT = 6;
+
 interface DashTableProps {
   dashes: DashLayout[];
   selected: DashLayout | null;
   selectedIds: Set<string>;
   timezone: string;
+  minRows: number;
   onRowClick: (dash: DashLayout) => void;
   onCheckboxChange: (dash: DashLayout, checked: boolean) => void;
   onSelectAll: (checked: boolean) => void;
@@ -53,6 +56,7 @@ export function DashTable({
   selected,
   selectedIds,
   timezone,
+  minRows,
   onRowClick,
   onCheckboxChange,
   onSelectAll,
@@ -60,14 +64,7 @@ export function DashTable({
   const { t } = useTranslation();
   const allChecked = dashes.length > 0 && dashes.every((d) => selectedIds.has(d.id));
   const someChecked = dashes.some((d) => selectedIds.has(d.id));
-
-  if (dashes.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
-        {t('dash.noDashes')}
-      </div>
-    );
-  }
+  const padCount = Math.max(0, minRows - dashes.length);
 
   return (
     <div className="overflow-x-auto">
@@ -93,6 +90,13 @@ export function DashTable({
           </tr>
         </thead>
         <tbody>
+          {dashes.length === 0 && (
+            <tr className="border-b border-border">
+              <td colSpan={COL_COUNT} className="px-3 py-2 text-xs text-center text-muted-foreground">
+                {t('dash.noDashes')}
+              </td>
+            </tr>
+          )}
           {dashes.map((dash, idx) => {
             const isChecked = selectedIds.has(dash.id);
             const isSelected = selected !== null && selected.id === dash.id;
@@ -135,6 +139,12 @@ export function DashTable({
               </tr>
             );
           })}
+          {Array.from({ length: padCount }, (_, i) => (
+            <tr key={`pad-${i}`} className={`border-b border-border ${(dashes.length + i) % 2 === 0 ? 'bg-card' : 'bg-muted'}`}>
+              {/* &nbsp; with text-xs forces the same line-height as real rows */}
+              <td colSpan={COL_COUNT} className="px-3 py-2 text-xs select-none">&nbsp;</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>

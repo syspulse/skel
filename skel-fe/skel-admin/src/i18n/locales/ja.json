@@ -55,6 +55,7 @@
     "keycloakRealm": "レルム",
     "keycloakClientId": "クライアントID",
     "noAuthNote": "認証なしモードで実行中です。Keycloak設定は使用されません。",
+    "defaultPageSize": "デフォルトページサイズ",
     "resetToDefaults": "デフォルトに戻す",
     "autoSaveNote": "変更は自動的に保存されます。Keycloak設定の変更はページの再読込が必要です。"
   },
@@ -134,6 +135,11 @@
     "errorLayoutJson": "レイアウトは有効なJSONである必要があります",
     "confirmDelete": "ダッシュボード「{{name}}」を削除しますか？",
     "confirmDeleteSelected": "選択した{{count}}件のダッシュボードを削除しますか？この操作は元に戻せません。"
+  },
+  "pagination": {
+    "perPage": "件/ページ",
+    "prev": "前のページ",
+    "next": "次のページ"
   },
   "notifications": {
     "title": "通知",

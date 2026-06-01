@@ -7,6 +7,7 @@ import { useApp, DEFAULT_APP_NAME } from '../theme/AppContext';
 import { AppLogo } from '../components/AppBrand';
 import { IconReset } from '../components/Icons';
 import i18n from '../i18n';
+import { usePageSize, PAGE_SIZE_OPTIONS } from '../settings/PageSizeContext';
 
 const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED !== 'false';
 
@@ -90,6 +91,28 @@ function ThemeSection() {
   );
 }
 
+// ── Page size selector ────────────────────────────────────────────────────────
+
+function PageSizeSection() {
+  const { t } = useTranslation();
+  const { pageSize, setPageSize } = usePageSize();
+
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground mb-1.5">{t('settings.defaultPageSize')}</div>
+      <select
+        value={pageSize}
+        onChange={(e) => setPageSize(Number(e.target.value))}
+        className="text-xs border border-input rounded px-2.5 py-1.5 w-52 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
+      >
+        {PAGE_SIZE_OPTIONS.map((s) => (
+          <option key={s} value={s}>{s} {t('pagination.perPage')}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 // ── Language selector ─────────────────────────────────────────────────────────
 
 function LanguageSection() {
@@ -124,6 +147,7 @@ function ProfileTab() {
       <div className="bg-card border border-border rounded shadow-sm p-3 space-y-3">
         <ThemeSection />
         <LanguageSection />
+        <PageSizeSection />
       </div>
 
       <div className="bg-card border border-border rounded shadow-sm p-3 space-y-2">
