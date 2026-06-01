@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/useAuth';
 import { useTheme } from '../theme/ThemeContext';
 import { THEME_NAMES, PALETTE_SWATCHES, type Theme } from '../theme/palettes';
 import { useApp, DEFAULT_APP_NAME } from '../theme/AppContext';
 import { AppLogo } from '../components/AppBrand';
 import { IconReset } from '../components/Icons';
+import i18n from '../i18n';
 
 const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED !== 'false';
 
@@ -13,6 +15,12 @@ function getStoredOrEnv(key: string, envVal: string): string {
 }
 
 type Tab = 'profile' | 'api';
+
+const LANGUAGES = [
+  { value: 'en', label: 'English' },
+  { value: 'de', label: 'Deutsch' },
+  { value: 'ja', label: '日本語' },
+];
 
 // ── Theme dropdown ────────────────────────────────────────────────────────────
 
@@ -28,6 +36,7 @@ function Swatches({ theme }: { theme: Theme }) {
 }
 
 function ThemeSection() {
+  const { t } = useTranslation();
   const { theme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -43,7 +52,7 @@ function ThemeSection() {
 
   return (
     <div>
-      <div className="text-xs text-muted-foreground mb-1.5">appearance</div>
+      <div className="text-xs text-muted-foreground mb-1.5">{t('settings.appearance')}</div>
       <div ref={ref} className="relative w-52">
         <button
           onClick={() => setOpen(o => !o)}
@@ -58,16 +67,16 @@ function ThemeSection() {
 
         {open && (
           <div className="absolute z-50 left-0 top-full mt-1 w-full bg-card border border-border rounded shadow-lg overflow-y-auto max-h-64">
-            {THEME_NAMES.map(t => (
+            {THEME_NAMES.map(themeName => (
               <button
-                key={t}
-                onClick={() => { setTheme(t); setOpen(false); }}
+                key={themeName}
+                onClick={() => { setTheme(themeName); setOpen(false); }}
                 className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left hover:bg-muted transition-colors
-                  ${t === theme ? 'bg-muted font-medium' : ''}`}
+                  ${themeName === theme ? 'bg-muted font-medium' : ''}`}
               >
-                <Swatches theme={t} />
-                <span className="capitalize">{t}</span>
-                {t === theme && (
+                <Swatches theme={themeName} />
+                <span className="capitalize">{themeName}</span>
+                {themeName === theme && (
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" className="ml-auto text-blue-500 shrink-0">
                     <path d="M1.5 5l2.5 2.5 5-5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
@@ -81,23 +90,47 @@ function ThemeSection() {
   );
 }
 
+// ── Language selector ─────────────────────────────────────────────────────────
+
+function LanguageSection() {
+  const { t } = useTranslation();
+  const currentLang = i18n.language?.split('-')[0] ?? 'en';
+
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground mb-1.5">{t('settings.language')}</div>
+      <select
+        value={LANGUAGES.some(l => l.value === currentLang) ? currentLang : 'en'}
+        onChange={(e) => i18n.changeLanguage(e.target.value)}
+        className="text-xs border border-input rounded px-2.5 py-1.5 w-52 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
+      >
+        {LANGUAGES.map(({ value, label }) => (
+          <option key={value} value={value}>{label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 // ── Profile tab ───────────────────────────────────────────────────────────────
 
 function ProfileTab() {
+  const { t } = useTranslation();
   const { user, isAuthenticated } = useAuth();
   const { appName, logoUrl, setAppName, setLogoUrl, resetBranding } = useApp();
 
   return (
     <div className="space-y-3">
-      <div className="bg-card border border-border rounded shadow-sm p-3">
+      <div className="bg-card border border-border rounded shadow-sm p-3 space-y-3">
         <ThemeSection />
+        <LanguageSection />
       </div>
 
       <div className="bg-card border border-border rounded shadow-sm p-3 space-y-2">
-        <div className="text-xs text-muted-foreground">branding</div>
+        <div className="text-xs text-muted-foreground">{t('settings.branding')}</div>
 
         <div>
-          <label className="block text-xs text-foreground mb-0.5">app name</label>
+          <label className="block text-xs text-foreground mb-0.5">{t('settings.appName')}</label>
           <input
             type="text"
             value={appName}
@@ -108,42 +141,40 @@ function ProfileTab() {
         </div>
 
         <div>
-          <label className="block text-xs text-foreground mb-0.5">logo</label>
+          <label className="block text-xs text-foreground mb-0.5">{t('settings.logo')}</label>
           <div className="flex items-center gap-2">
             <input
               type="text"
               value={logoUrl}
               onChange={(e) => setLogoUrl(e.target.value)}
-              placeholder="URL to SVG/PNG, inline <svg ...>, or data: URI"
+              placeholder={t('settings.logoPlaceholder')}
               className="flex-1 text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
             />
             <div className="w-8 h-8 flex items-center justify-center border border-border rounded bg-muted shrink-0 text-muted-foreground">
               <AppLogo logoUrl={logoUrl} size={28} />
             </div>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Leave empty to use the default icon.
-          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">{t('settings.logoHint')}</p>
         </div>
 
         <button
           onClick={resetBranding}
           className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-border text-muted-foreground hover:bg-muted transition-colors"
         >
-          <IconReset size={12} /> Reset branding
+          <IconReset size={12} /> {t('settings.resetBranding')}
         </button>
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded p-2.5">
-        <div className="text-xs text-blue-800 mb-0.5">current session</div>
+        <div className="text-xs text-blue-800 mb-0.5">{t('settings.currentSession')}</div>
         <div className="text-xs text-blue-700 space-y-0">
-          <div>auth mode: {AUTH_ENABLED ? 'Keycloak' : 'No-auth (Guest)'}</div>
+          <div>{t('settings.authMode')}: {AUTH_ENABLED ? t('settings.keycloakAuth') : t('settings.noAuth')}</div>
           {isAuthenticated && user && (
             <>
-              <div>user: {user.name}</div>
-              {user.email && <div>email: {user.email}</div>}
+              <div>{t('settings.user')}: {user.name}</div>
+              {user.email && <div>{t('settings.email')}: {user.email}</div>}
               {user.roles && user.roles.length > 0 && (
-                <div>roles: {user.roles.join(', ')}</div>
+                <div>{t('settings.roles')}: {user.roles.join(', ')}</div>
               )}
             </>
           )}
@@ -172,6 +203,7 @@ const API_DEFAULTS = {
 };
 
 function ApiTab() {
+  const { t } = useTranslation();
   const [form, setForm] = useState<ApiForm>(() => ({
     apiUrl:           getStoredOrEnv('VITE_API_URL',          API_DEFAULTS.apiUrl),
     dashApiUrl:       getStoredOrEnv('VITE_DASH_API_URL',     API_DEFAULTS.dashApiUrl),
@@ -198,7 +230,7 @@ function ApiTab() {
     <div className="space-y-2">
       <div className="bg-card border border-border rounded shadow-sm p-3 space-y-2">
         <div>
-          <label className="block text-xs text-foreground mb-0.5">Explain API URL</label>
+          <label className="block text-xs text-foreground mb-0.5">{t('settings.explainApiUrl')}</label>
           <input
             type="text"
             value={form.apiUrl}
@@ -211,7 +243,7 @@ function ApiTab() {
         </div>
 
         <div>
-          <label className="block text-xs text-foreground mb-0.5">Dash API URL</label>
+          <label className="block text-xs text-foreground mb-0.5">{t('settings.dashApiUrl')}</label>
           <input
             type="text"
             value={form.dashApiUrl}
@@ -226,10 +258,10 @@ function ApiTab() {
         {AUTH_ENABLED && (
           <>
             <hr className="border-border my-1" />
-            <div className="text-xs text-muted-foreground">keycloak</div>
+            <div className="text-xs text-muted-foreground">{t('settings.keycloak')}</div>
 
             <div>
-              <label className="block text-xs text-foreground mb-0.5">URL</label>
+              <label className="block text-xs text-foreground mb-0.5">{t('settings.keycloakUrl')}</label>
               <input
                 type="text"
                 value={form.keycloakUrl}
@@ -239,7 +271,7 @@ function ApiTab() {
             </div>
 
             <div>
-              <label className="block text-xs text-foreground mb-0.5">realm</label>
+              <label className="block text-xs text-foreground mb-0.5">{t('settings.keycloakRealm')}</label>
               <input
                 type="text"
                 value={form.keycloakRealm}
@@ -249,7 +281,7 @@ function ApiTab() {
             </div>
 
             <div>
-              <label className="block text-xs text-foreground mb-0.5">client id</label>
+              <label className="block text-xs text-foreground mb-0.5">{t('settings.keycloakClientId')}</label>
               <input
                 type="text"
                 value={form.keycloakClientId}
@@ -262,7 +294,7 @@ function ApiTab() {
 
         {!AUTH_ENABLED && (
           <div className="text-xs text-muted-foreground italic">
-            Running in no-auth mode. Keycloak settings are not used.
+            {t('settings.noAuthNote')}
           </div>
         )}
       </div>
@@ -271,11 +303,11 @@ function ApiTab() {
         onClick={handleReset}
         className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-border text-muted-foreground hover:bg-muted transition-colors"
       >
-        <IconReset size={12} /> Reset to defaults
+        <IconReset size={12} /> {t('settings.resetToDefaults')}
       </button>
 
       <p className="text-xs text-muted-foreground">
-        Changes are saved automatically. Keycloak config changes require a page reload.
+        {t('settings.autoSaveNote')}
       </p>
     </div>
   );
@@ -284,19 +316,20 @@ function ApiTab() {
 // ── SettingsPage ──────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('profile');
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'profile', label: 'profile' },
-    { id: 'api',     label: 'api' },
+  const tabs: { id: Tab; labelKey: string }[] = [
+    { id: 'profile', labelKey: 'settings.profile' },
+    { id: 'api',     labelKey: 'settings.api' },
   ];
 
   return (
     <div className="w-full px-4 py-3 space-y-2">
-      <h1 className="text-lg text-foreground">Settings</h1>
+      <h1 className="text-lg text-foreground">{t('settings.title')}</h1>
 
       <div className="flex border-b border-border gap-1">
-        {tabs.map(({ id, label }) => (
+        {tabs.map(({ id, labelKey }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
@@ -306,7 +339,7 @@ export function SettingsPage() {
                 : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
           >
-            {label}
+            {t(labelKey)}
           </button>
         ))}
       </div>

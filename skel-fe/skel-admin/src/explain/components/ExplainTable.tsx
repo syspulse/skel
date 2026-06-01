@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Explain } from '../types';
 import { IconLamp } from '../../components/Icons';
 
@@ -80,13 +81,14 @@ export function ExplainTable({
   onCheckboxChange,
   onSelectAll,
 }: ExplainTableProps) {
+  const { t } = useTranslation();
   const allChecked = rules.length > 0 && rules.every((r) => selectedIds.has(rowKey(r)));
   const someChecked = rules.some((r) => selectedIds.has(rowKey(r)));
 
   if (rules.length === 0) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
-        No rules found.
+        {t('explain.noRules')}
       </div>
     );
   }
@@ -107,12 +109,14 @@ export function ExplainTable({
                 className="cursor-pointer"
               />
             </th>
-            <th className="w-10 px-2 py-2 text-center">icon</th>
-            <th className="w-32 px-3 py-2 text-left">ts0{timezone !== 'local' ? ` (${TZ_LABELS[timezone] ?? timezone})` : ''}</th>
-            <th className="w-24 px-3 py-2 text-left">oid</th>
-            <th className="w-48 px-3 py-2 text-left">rid</th>
-            <th className="w-64 px-3 py-2 text-left">name</th>
-            <th className="px-3 py-2 text-left">desc</th>
+            <th className="w-10 px-2 py-2 text-center">{t('explain.fields.icon')}</th>
+            <th className="w-32 px-3 py-2 text-left">
+              {t('explain.fields.ts')}{timezone !== 'local' ? ` (${TZ_LABELS[timezone] ?? timezone})` : ''}
+            </th>
+            <th className="w-24 px-3 py-2 text-left">{t('explain.fields.oid')}</th>
+            <th className="w-48 px-3 py-2 text-left">{t('explain.fields.rid')}</th>
+            <th className="w-64 px-3 py-2 text-left">{t('explain.fields.name')}</th>
+            <th className="px-3 py-2 text-left">{t('explain.fields.desc')}</th>
           </tr>
         </thead>
         <tbody>

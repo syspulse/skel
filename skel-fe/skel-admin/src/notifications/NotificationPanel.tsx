@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Notification, Severity } from './types';
@@ -57,6 +58,7 @@ function NotificationItem({ n }: { n: Notification }) {
 }
 
 export function NotificationPanel({ open, notifications, onClose, onClearAll }: NotificationPanelProps) {
+  const { t } = useTranslation();
   return (
     <>
       {open && <div className="fixed inset-0 z-[48]" onClick={onClose} />}
@@ -67,20 +69,20 @@ export function NotificationPanel({ open, notifications, onClose, onClearAll }: 
           ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-border bg-muted shrink-0">
-          <h2 className="text-sm text-foreground">Notifications</h2>
+          <h2 className="text-sm text-foreground">{t('notifications.title')}</h2>
           <div className="flex items-center gap-1">
             {notifications.length > 0 && (
               <button
                 onClick={onClearAll}
                 className="text-xs text-muted-foreground hover:text-foreground px-2 py-0.5 rounded transition-colors"
               >
-                Clear all
+                {t('notifications.clearAll')}
               </button>
             )}
             <button
               onClick={onClose}
               className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors"
-              aria-label="Close"
+              aria-label={t('common.close')}
             >
               <IconClose size={16} />
             </button>
@@ -89,7 +91,7 @@ export function NotificationPanel({ open, notifications, onClose, onClearAll }: 
 
         <div className="flex-1 overflow-y-auto">
           {notifications.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center mt-12">No notifications</p>
+            <p className="text-xs text-muted-foreground text-center mt-12">{t('notifications.empty')}</p>
           ) : (
             notifications.map(n => <NotificationItem key={n.id} n={n} />)
           )}

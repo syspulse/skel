@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { IconClose, IconPlus } from '../../components/Icons';
 
 interface MetaEditorProps {
@@ -45,6 +46,7 @@ function rowsToMeta(rows: MetaRow[]): Record<string, unknown> {
 }
 
 export function MetaEditor({ value, onChange }: MetaEditorProps) {
+  const { t } = useTranslation();
   const [rows, setRows] = React.useState<MetaRow[]>(() => metaToRows(value));
 
   const commit = (newRows: MetaRow[]) => {
@@ -53,38 +55,31 @@ export function MetaEditor({ value, onChange }: MetaEditorProps) {
   };
 
   const handleKeyChange = (idx: number, key: string) => {
-    const newRows = rows.map((r, i) => (i === idx ? { ...r, key } : r));
-    commit(newRows);
+    commit(rows.map((r, i) => (i === idx ? { ...r, key } : r)));
   };
 
   const handleValueChange = (idx: number, rawValue: string) => {
-    const newRows = rows.map((r, i) => (i === idx ? { ...r, rawValue } : r));
-    commit(newRows);
+    commit(rows.map((r, i) => (i === idx ? { ...r, rawValue } : r)));
   };
 
-  const handleAdd = () => {
-    commit([...rows, { key: '', rawValue: '' }]);
-  };
-
-  const handleRemove = (idx: number) => {
-    commit(rows.filter((_, i) => i !== idx));
-  };
+  const handleAdd = () => { commit([...rows, { key: '', rawValue: '' }]); };
+  const handleRemove = (idx: number) => { commit(rows.filter((_, i) => i !== idx)); };
 
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-muted-foreground">meta</span>
+        <span className="text-xs text-muted-foreground">{t('explain.meta')}</span>
         <button
           type="button"
           onClick={handleAdd}
           className="inline-flex items-center gap-1 text-xs bg-card hover:bg-muted-hover border border-border text-foreground px-2 py-0.5 rounded transition-colors"
         >
-          <IconPlus size={12} /> Add
+          <IconPlus size={12} /> {t('explain.metaAdd')}
         </button>
       </div>
 
       {rows.length === 0 && (
-        <div className="text-xs text-muted-foreground italic py-1">No meta entries</div>
+        <div className="text-xs text-muted-foreground italic py-1">{t('explain.metaEmpty')}</div>
       )}
 
       {rows.map((row, idx) => (
@@ -108,7 +103,6 @@ export function MetaEditor({ value, onChange }: MetaEditorProps) {
             type="button"
             onClick={() => handleRemove(idx)}
             className="text-muted-foreground hover:text-red-500 p-0.5 rounded transition-colors"
-            title="Remove"
           >
             <IconClose size={14} />
           </button>

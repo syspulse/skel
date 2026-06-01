@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { DashLayout, DashCreateReq, DashUpdateReq } from '../types';
 import { useNotifications } from '../../notifications/NotificationContext';
 import { IconClose, IconSave, IconTrash } from '../../components/Icons';
@@ -39,6 +40,7 @@ export function DashSlider({
   onUpdate,
   onDelete,
 }: DashSliderProps) {
+  const { t } = useTranslation();
   const { add: notify } = useNotifications();
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
@@ -60,7 +62,7 @@ export function DashSlider({
       try {
         layout = JSON.parse(form.layoutRaw.trim() || '{}');
       } catch {
-        setError('layout must be valid JSON');
+        setError(t('dash.errorLayoutJson'));
         return;
       }
       const req: DashCreateReq = {
@@ -73,7 +75,7 @@ export function DashSlider({
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
-      notify('error', 'Failed to create dashboard', msg);
+      notify('error', t('dash.errorCreate'), msg);
     } finally {
       setSaving(false);
     }
@@ -88,7 +90,7 @@ export function DashSlider({
         try {
           layout = JSON.parse(form.layoutRaw.trim());
         } catch {
-          setError('layout must be valid JSON');
+          setError(t('dash.errorLayoutJson'));
           return;
         }
       }
@@ -102,7 +104,7 @@ export function DashSlider({
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
-      notify('error', 'Failed to update dashboard', msg);
+      notify('error', t('dash.errorUpdate'), msg);
     } finally {
       setSaving(false);
     }
@@ -116,7 +118,7 @@ export function DashSlider({
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
-      notify('error', 'Failed to delete dashboard', msg);
+      notify('error', t('dash.errorDelete'), msg);
     } finally {
       setSaving(false);
     }
@@ -132,8 +134,8 @@ export function DashSlider({
           ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted">
-          <h2 className="text-sm text-foreground">{addMode ? 'Add Dashboard' : 'Edit Dashboard'}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors" aria-label="Close">
+          <h2 className="text-sm text-foreground">{addMode ? t('dash.addDash') : t('dash.editDash')}</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors" aria-label={t('common.close')}>
             <IconClose size={18} />
           </button>
         </div>
@@ -145,7 +147,7 @@ export function DashSlider({
 
           {!addMode && dash && (
             <div className="flex items-center gap-2">
-              <label className="w-20 shrink-0 text-xs text-muted-foreground">id</label>
+              <label className="w-20 shrink-0 text-xs text-muted-foreground">{t('dash.fields.id')}</label>
               <div className="flex-1 text-xs font-mono text-foreground bg-muted border border-border rounded px-3 py-1 select-text truncate">
                 {dash.id}
               </div>
@@ -153,29 +155,29 @@ export function DashSlider({
           )}
 
           <div className="flex items-center gap-2">
-            <label className="w-20 shrink-0 text-xs text-muted-foreground">name</label>
+            <label className="w-20 shrink-0 text-xs text-muted-foreground">{t('dash.fields.name')}</label>
             <input type="text" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="dashboard name"
+              placeholder={t('dash.placeholderName')}
               className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400" />
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="w-20 shrink-0 text-xs text-muted-foreground">desc</label>
+            <label className="w-20 shrink-0 text-xs text-muted-foreground">{t('dash.fields.desc')}</label>
             <input type="text" value={form.desc} onChange={(e) => setForm((f) => ({ ...f, desc: e.target.value }))}
-              placeholder="description"
+              placeholder={t('dash.placeholderDesc')}
               className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400" />
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="w-20 shrink-0 text-xs text-muted-foreground">tags</label>
+            <label className="w-20 shrink-0 text-xs text-muted-foreground">{t('dash.fields.tags')}</label>
             <input type="text" value={form.tags} onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
-              placeholder="tag1, tag2, tag3"
+              placeholder={t('dash.placeholderTags')}
               className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400" />
           </div>
 
           <div>
             <label className="text-xs text-muted-foreground block mb-1">
-              layout {addMode && <span className="text-muted-foreground">(JSON)</span>}
+              {t('dash.fields.layout')} {addMode && <span className="text-muted-foreground">(JSON)</span>}
             </label>
             <textarea
               value={form.layoutRaw}
@@ -189,8 +191,8 @@ export function DashSlider({
 
           {!addMode && dash && (
             <div className="text-[11px] text-muted-foreground space-y-0.5">
-              {dash.pid && <div><span className="text-foreground">pid:</span> {dash.pid}</div>}
-              {dash.tid && <div><span className="text-foreground">tid:</span> {dash.tid}</div>}
+              {dash.pid && <div><span className="text-foreground">{t('dash.fields.pid')}:</span> {dash.pid}</div>}
+              {dash.tid && <div><span className="text-foreground">{t('dash.fields.tid')}:</span> {dash.tid}</div>}
             </div>
           )}
         </div>
@@ -200,26 +202,26 @@ export function DashSlider({
             <>
               <button onClick={handleCreate} disabled={saving}
                 className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                <IconSave size={13} />{saving ? 'Creating…' : 'Create'}
+                <IconSave size={13} />{saving ? t('common.creating') : t('common.create')}
               </button>
               <button onClick={onClose} disabled={saving}
                 className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                <IconClose size={13} />Cancel
+                <IconClose size={13} />{t('common.cancel')}
               </button>
             </>
           ) : (
             <>
               <button onClick={handleUpdate} disabled={saving}
                 className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                <IconSave size={13} />{saving ? 'Saving…' : 'Update'}
+                <IconSave size={13} />{saving ? t('common.saving') : t('common.update')}
               </button>
               <button onClick={handleDelete} disabled={saving}
                 className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                <IconTrash size={13} />Delete
+                <IconTrash size={13} />{t('common.delete')}
               </button>
               <button onClick={onClose} disabled={saving}
                 className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                <IconClose size={13} />Cancel
+                <IconClose size={13} />{t('common.cancel')}
               </button>
             </>
           )}

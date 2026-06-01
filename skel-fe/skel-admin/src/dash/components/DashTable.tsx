@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { DashLayout } from '../types';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -56,13 +57,14 @@ export function DashTable({
   onCheckboxChange,
   onSelectAll,
 }: DashTableProps) {
+  const { t } = useTranslation();
   const allChecked = dashes.length > 0 && dashes.every((d) => selectedIds.has(d.id));
   const someChecked = dashes.some((d) => selectedIds.has(d.id));
 
   if (dashes.length === 0) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
-        No dashboards found.
+        {t('dash.noDashes')}
       </div>
     );
   }
@@ -81,11 +83,13 @@ export function DashTable({
                 className="cursor-pointer"
               />
             </th>
-            <th className="w-32 px-3 py-2 text-left">ts0{timezone !== 'local' ? ` (${TZ_LABELS[timezone] ?? timezone})` : ''}</th>
-            <th className="w-64 px-3 py-2 text-left">id</th>
-            <th className="w-40 px-3 py-2 text-left">name</th>
-            <th className="w-24 px-3 py-2 text-left">tags</th>
-            <th className="px-3 py-2 text-left">desc</th>
+            <th className="w-32 px-3 py-2 text-left">
+              {t('dash.fields.ts')}{timezone !== 'local' ? ` (${TZ_LABELS[timezone] ?? timezone})` : ''}
+            </th>
+            <th className="w-64 px-3 py-2 text-left">{t('dash.fields.id')}</th>
+            <th className="w-40 px-3 py-2 text-left">{t('dash.fields.name')}</th>
+            <th className="w-24 px-3 py-2 text-left">{t('dash.fields.tags')}</th>
+            <th className="px-3 py-2 text-left">{t('dash.fields.desc')}</th>
           </tr>
         </thead>
         <tbody>

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as api from './api';
 import { useAuth } from '../auth/useAuth';
 import { useNotifications } from '../notifications/NotificationContext';
@@ -8,6 +9,7 @@ import { DashTable } from './components/DashTable';
 import type { DashLayout, DashCreateReq, DashUpdateReq } from './types';
 
 export function DashPage() {
+  const { t } = useTranslation();
   const { token } = useAuth();
   const { add: notify } = useNotifications();
   const [dashes, setDashes] = useState<DashLayout[]>([]);
@@ -32,11 +34,11 @@ export function DashPage() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setFetchError(msg);
-      notify('error', 'Failed to load dashboards', msg);
+      notify('error', t('dash.errorLoad'), msg);
     } finally {
       setLoading(false);
     }
-  }, [token, notify]);
+  }, [token, notify, t]);
 
   useEffect(() => { fetchDashes(); }, [fetchDashes]);
 
@@ -47,7 +49,7 @@ export function DashPage() {
       return (
         (d.name ?? '').toLowerCase().includes(q) ||
         (d.desc ?? '').toLowerCase().includes(q) ||
-        (d.tags ?? []).some(t => t.toLowerCase().includes(q)) ||
+        (d.tags ?? []).some(tag => tag.toLowerCase().includes(q)) ||
         d.id.toLowerCase().includes(q)
       );
     });
@@ -84,14 +86,14 @@ export function DashPage() {
   };
 
   const handleDelete = async (dash: DashLayout) => {
-    if (!window.confirm(`Delete dashboard "${dash.name || dash.id}"?`)) return;
+    if (!window.confirm(t('dash.confirmDelete', { name: dash.name || dash.id }))) return;
     await api.deleteDash(token, dash.id);
     setSliderOpen(false); setSelected(null); await fetchDashes();
   };
 
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(`Delete ${selectedIds.size} selected dashboard(s)? This cannot be undone.`)) return;
+    if (!window.confirm(t('dash.confirmDeleteSelected', { count: selectedIds.size }))) return;
     const toDelete = filteredDashes.filter((d) => selectedIds.has(d.id));
     for (const dash of toDelete) {
       try { await api.deleteDash(token, dash.id); } catch { /* continue */ }
@@ -99,6 +101,11 @@ export function DashPage() {
     setSelectedIds(new Set()); setSelected(null); setSliderOpen(false);
     await fetchDashes();
   };
+
+  const countLabel = t('dash.count', { count: filteredDashes.length });
+  const filteredLabel = filteredDashes.length !== dashes.length
+    ? ` ${t('dash.filteredFrom', { total: dashes.length })}`
+    : '';
 
   return (
     <div className="flex flex-col h-full relative">
@@ -115,19 +122,16 @@ export function DashPage() {
       />
 
       <div className="px-4 py-1 text-xs text-muted-foreground bg-muted border-b border-border flex items-center gap-3">
-        {loading && <span className="text-blue-500">Loading…</span>}
+        {loading && <span className="text-blue-500">{t('dash.loading')}</span>}
         {!loading && (
-          <span>
-            {filteredDashes.length} dashboard{filteredDashes.length !== 1 ? 's' : ''}
-            {filteredDashes.length !== dashes.length && ` (filtered from ${dashes.length})`}
-          </span>
+          <span>{countLabel}{filteredLabel}</span>
         )}
         {fetchError && <span className="text-red-500 flex items-center gap-1">⚠ {fetchError}</span>}
       </div>
 
       <div className="flex-1 overflow-auto bg-card">
         {loading && dashes.length === 0 ? (
-          <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">Loading dashboards…</div>
+          <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">{t('dash.loading')}</div>
         ) : (
           <DashTable
             dashes={filteredDashes}

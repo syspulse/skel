@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as api from './api';
 import { useAuth } from '../auth/useAuth';
+import { useNotifications } from '../notifications/NotificationContext';
 import { ExplainFilters, FilterState } from './components/ExplainFilters';
 import { ExplainSlider } from './components/ExplainSlider';
 import { ExplainTable } from './components/ExplainTable';
@@ -20,7 +22,9 @@ function isInTimeRange(ts0: number, range: TimeRange): boolean {
 }
 
 export function ExplainPage() {
+  const { t } = useTranslation();
   const { token } = useAuth();
+  const { add: notify } = useNotifications();
   const [rules, setRules] = useState<Explain[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -45,11 +49,13 @@ export function ExplainPage() {
       const sorted = [...(result.data ?? [])].sort((a, b) => b.ts0 - a.ts0);
       setRules(sorted);
     } catch (e) {
-      setFetchError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setFetchError(msg);
+      notify('error', t('explain.errorLoad'), msg);
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, notify, t]);
 
   useEffect(() => { fetchRules(); }, [fetchRules]);
 
@@ -94,14 +100,14 @@ export function ExplainPage() {
   };
 
   const handleDelete = async (rule: Explain) => {
-    if (!window.confirm(`Delete rule "${rule.rid}"?`)) return;
+    if (!window.confirm(t('explain.confirmDelete', { rid: rule.rid }))) return;
     await api.deleteRule(token, rule.rid, rule.oid);
     setSliderOpen(false); setSelected(null); await fetchRules();
   };
 
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(`Delete ${selectedIds.size} selected rule(s)? This cannot be undone.`)) return;
+    if (!window.confirm(t('explain.confirmDeleteSelected', { count: selectedIds.size }))) return;
     const toDelete = filteredRules.filter((r) => selectedIds.has(rowKey(r)));
     for (const rule of toDelete) {
       try { await api.deleteRule(token, rule.rid, rule.oid); } catch { /* continue */ }
@@ -109,6 +115,11 @@ export function ExplainPage() {
     setSelectedIds(new Set()); setSelected(null); setSliderOpen(false);
     await fetchRules();
   };
+
+  const countLabel = t('explain.count', { count: filteredRules.length });
+  const filteredLabel = filteredRules.length !== rules.length
+    ? ` ${t('explain.filteredFrom', { total: rules.length })}`
+    : '';
 
   return (
     <div className="flex flex-col h-full relative">
@@ -125,19 +136,16 @@ export function ExplainPage() {
       />
 
       <div className="px-4 py-1 text-xs text-muted-foreground bg-muted border-b border-border flex items-center gap-3">
-        {loading && <span className="text-blue-500">Loading…</span>}
+        {loading && <span className="text-blue-500">{t('explain.loading')}</span>}
         {!loading && (
-          <span>
-            {filteredRules.length} rule{filteredRules.length !== 1 ? 's' : ''}
-            {filteredRules.length !== rules.length && ` (filtered from ${rules.length})`}
-          </span>
+          <span>{countLabel}{filteredLabel}</span>
         )}
         {fetchError && <span className="text-red-500 flex items-center gap-1">⚠ {fetchError}</span>}
       </div>
 
       <div className="flex-1 overflow-auto bg-card">
         {loading && rules.length === 0 ? (
-          <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">Loading rules…</div>
+          <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">{t('explain.loading')}</div>
         ) : (
           <ExplainTable
             rules={filteredRules}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { IconLamp, IconGrid, IconSettings, IconHelp } from './Icons';
 
 export type NavPage = 'explain' | 'dash' | 'settings' | 'help';
@@ -10,21 +11,22 @@ interface SideNavProps {
 
 interface NavItem {
   id: NavPage;
-  label: string;
+  labelKey: string;
   Icon: React.FC<{ size?: number; className?: string }>;
 }
 
-const navItems: NavItem[] = [
-  { id: 'explain',  label: 'Explain',   Icon: IconLamp     },
-  { id: 'dash',     label: 'Dash',      Icon: IconGrid     },
-  { id: 'settings', label: 'Settings',  Icon: IconSettings },
-  { id: 'help',     label: 'Help',      Icon: IconHelp     },
+const NAV_ITEMS: NavItem[] = [
+  { id: 'explain',  labelKey: 'nav.explain',  Icon: IconLamp     },
+  { id: 'dash',     labelKey: 'nav.dash',     Icon: IconGrid     },
+  { id: 'settings', labelKey: 'nav.settings', Icon: IconSettings },
+  { id: 'help',     labelKey: 'nav.help',     Icon: IconHelp     },
 ];
 
 export function SideNav({ activePage, onNavigate }: SideNavProps) {
+  const { t } = useTranslation();
   return (
     <nav className="fixed top-12 left-0 w-44 bottom-0 bg-nav text-nav-fg flex flex-col pt-1 z-40 border-r border-border shadow-sm">
-      {navItems.map(({ id, label, Icon }) => (
+      {NAV_ITEMS.map(({ id, labelKey, Icon }) => (
         <button
           key={id}
           onClick={() => onNavigate(id)}
@@ -36,7 +38,7 @@ export function SideNav({ activePage, onNavigate }: SideNavProps) {
             }`}
         >
           <Icon size={18} />
-          <span>{label}</span>
+          <span>{t(labelKey)}</span>
         </button>
       ))}
     </nav>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { IconRefresh, IconTrash, IconPlus } from '../../components/Icons';
 
 export interface DashFilterState {
@@ -51,21 +52,19 @@ export function DashFilters({
   onDeleteSelected,
   onRefresh,
 }: DashFiltersProps) {
+  const { t } = useTranslation();
   const showDeleteSelected = selectedCount > 0;
   const showAdd = !showDeleteSelected && !hasSelection;
 
   return (
     <div className="flex flex-wrap items-center gap-3 p-3 bg-card border-b border-border">
-      <div className="flex items-center gap-1">
-        <label className="text-sm text-muted-foreground whitespace-nowrap">search:</label>
-        <input
-          type="text"
-          value={filters.search}
-          onChange={(e) => onFilterChange({ search: e.target.value })}
-          placeholder="name, desc, tags..."
-          className="text-sm border border-input rounded px-2 py-1 w-48 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
-        />
-      </div>
+      <input
+        type="text"
+        value={filters.search}
+        onChange={(e) => onFilterChange({ search: e.target.value })}
+        placeholder={t('dash.searchPlaceholder')}
+        className="text-sm border border-input rounded px-2 py-1 w-48 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+      />
 
       <select
         value={timezone}
@@ -87,9 +86,8 @@ export function DashFilters({
       <button
         onClick={onRefresh}
         className="inline-flex items-center gap-1.5 text-xs bg-muted hover:bg-muted-hover text-foreground px-3 py-1 rounded border border-border transition-colors"
-        title="Refresh list"
       >
-        <IconRefresh size={14} /> Refresh
+        <IconRefresh size={14} /> {t('common.refresh')}
       </button>
 
       {showDeleteSelected && (
@@ -97,7 +95,7 @@ export function DashFilters({
           onClick={onDeleteSelected}
           className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 transition-colors"
         >
-          <IconTrash size={13} /> Delete Selected ({selectedCount})
+          <IconTrash size={13} /> {t('common.deleteSelected', { count: selectedCount })}
         </button>
       )}
       {showAdd && (
@@ -105,7 +103,7 @@ export function DashFilters({
           onClick={onAdd}
           className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors"
         >
-          <IconPlus size={13} /> Add
+          <IconPlus size={13} /> {t('common.add')}
         </button>
       )}
     </div>
