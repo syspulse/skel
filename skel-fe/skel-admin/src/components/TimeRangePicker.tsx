@@ -29,13 +29,18 @@ export function TimeRangePicker({ value, onChange }: TimeRangePickerProps) {
   );
 
   const selectValue =
-    value.type === 'last'
-      ? String(value.hours)
-      : 'custom';
+    value.type === 'all'
+      ? 'all'
+      : value.type === 'last'
+        ? String(value.hours)
+        : 'custom';
 
   const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const v = e.target.value;
-    if (v === 'custom') {
+    if (v === 'all') {
+      setShowCustom(false);
+      onChange({ type: 'all' });
+    } else if (v === 'custom') {
       setShowCustom(true);
       const now = new Date();
       const start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -66,6 +71,7 @@ export function TimeRangePicker({ value, onChange }: TimeRangePickerProps) {
         onChange={handleSelectChange}
         className="text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
       >
+        <option value="all">All time</option>
         {PRESETS.map((p) => (
           <option key={p.hours} value={String(p.hours)}>
             {p.label}

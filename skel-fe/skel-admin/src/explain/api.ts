@@ -1,10 +1,19 @@
 import type { ActionRes, Explain, ExplainCreateReq, Explains, ExplainUpdateReq, ExplainRes } from './types';
 import { authHeaders, handleResponse } from '../api';
 
+const EXPLAIN_URL_KEY = 'VITE_EXPLAIN_API_URL';
+const LEGACY_EXPLAIN_URL_KEY = 'VITE_API_URL';
+
 function getBaseUrl(): string {
-  const stored = localStorage.getItem('VITE_API_URL');
+  const stored =
+    localStorage.getItem(EXPLAIN_URL_KEY) ||
+    localStorage.getItem(LEGACY_EXPLAIN_URL_KEY);
   if (stored) return stored;
-  return import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1/explain';
+  return (
+    import.meta.env.VITE_EXPLAIN_API_URL ||
+    import.meta.env.VITE_API_URL ||
+    'http://localhost:8080/api/v1/explain'
+  );
 }
 
 export async function listRules(

@@ -16,11 +16,16 @@ function rowKey(rule: Explain): string {
 }
 
 function isInTimeRange(ts0: number, range: TimeRange): boolean {
+  if (range.type === 'all') return true;
   const now = Date.now();
   if (range.type === 'last') {
     return ts0 >= now - range.hours * 60 * 60 * 1000;
   }
   return ts0 >= range.start.getTime() && ts0 <= range.end.getTime();
+}
+
+function totalPagesFor(count: number, pageSize: number): number {
+  return Math.max(1, Math.ceil(count / pageSize) || 1);
 }
 
 export function ExplainPage() {
@@ -42,7 +47,8 @@ export function ExplainPage() {
   const [filters, setFilters] = useState<FilterState>({
     oid: '',
     rid: '',
-    timeRange: { type: 'last', hours: 24 } as TimeRange,
+    // Rules are config records; default to all time so the list is not empty after load.
+    timeRange: { type: 'all' } as TimeRange,
   });
 
   const fetchRules = useCallback(async () => {
@@ -72,13 +78,21 @@ export function ExplainPage() {
     });
   }, [rules, filters]);
 
+  const totalPages = totalPagesFor(filteredRules.length, pageSize);
+  const safePage = Math.min(Math.max(1, page), totalPages);
+
   const pagedRules = useMemo(
-    () => filteredRules.slice((page - 1) * pageSize, page * pageSize),
-    [filteredRules, page, pageSize],
+    () => filteredRules.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [filteredRules, safePage, pageSize],
   );
 
   // Reset to page 1 when filters or page size change
   useEffect(() => { setPage(1); }, [filters, pageSize]);
+
+  // Clamp page when result count shrinks (e.g. delete, tighter filter) — avoids empty table on page 2+
+  useEffect(() => {
+    setPage((p) => Math.min(Math.max(1, p), totalPagesFor(filteredRules.length, pageSize)));
+  }, [filteredRules.length, pageSize]);
 
   const handleRowClick = (rule: Explain) => {
     setSelected(rule); setAddMode(false); setSliderOpen(true);
@@ -173,7 +187,7 @@ export function ExplainPage() {
       </div>
 
       <Pagination
-        page={page}
+        page={safePage}
         pageSize={pageSize}
         total={filteredRules.length}
         onPageChange={setPage}

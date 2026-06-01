@@ -106,12 +106,21 @@ export function DashPage() {
     await fetchDashes();
   };
 
+  const totalPages = Math.max(1, Math.ceil(filteredDashes.length / pageSize) || 1);
+  const safePage = Math.min(Math.max(1, page), totalPages);
+
   const pagedDashes = useMemo(
-    () => filteredDashes.slice((page - 1) * pageSize, page * pageSize),
-    [filteredDashes, page, pageSize],
+    () => filteredDashes.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [filteredDashes, safePage, pageSize],
   );
 
   useEffect(() => { setPage(1); }, [filters, pageSize]);
+
+  useEffect(() => {
+    setPage((p) =>
+      Math.min(Math.max(1, p), Math.max(1, Math.ceil(filteredDashes.length / pageSize) || 1)),
+    );
+  }, [filteredDashes.length, pageSize]);
 
   const countLabel = t('dash.count', { count: filteredDashes.length });
   const filteredLabel = filteredDashes.length !== dashes.length
@@ -158,7 +167,7 @@ export function DashPage() {
       </div>
 
       <Pagination
-        page={page}
+        page={safePage}
         pageSize={pageSize}
         total={filteredDashes.length}
         onPageChange={setPage}
