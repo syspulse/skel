@@ -25,6 +25,8 @@ class UserStoreDir(dir: String = "store/") extends StoreDir[User, UUID](dir) wit
 
   def toKey(id: String): UUID = UUID(id)
   def all: Future[Seq[User]] = store.all
+  override def list(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[UserStore.Page] =
+    store.list(from, size)
   override def ???(from: Long, size: Long)(implicit ec: ExecutionContext): Future[Seq[User]] = store.???(from, size)
   def size: Future[Long] = store.size
   override def +(u: User): Future[User] = super.+(u).flatMap(_ => store.+(u))
@@ -37,7 +39,7 @@ class UserStoreDir(dir: String = "store/") extends StoreDir[User, UUID](dir) wit
   override def update(id: UUID, req: io.syspulse.skel.user.server.UserUpdateReq): Future[User] =
     store.update(id, req).flatMap(u => Future.fromTry(writeFile(u)))
 
-  override def search(query: String, from: Option[Long] = None, size: Option[Long] = None): Future[Seq[User]] =
+  override def search(query: String, from: Option[Long] = None, size: Option[Long] = None): Future[UserStore.Page] =
     store.search(query, from, size)
 
   // preload and watch

@@ -88,9 +88,9 @@ class UserStoreMemSpec extends AnyWordSpec with Matchers {
       Await.result(store.+(User(id2, "beta@example.com", xid = Some("wallet-needle-xid"))), timeout)
       Await.result(store.+(User(id3, "gamma@example.com", name = Some("Other"))), timeout)
 
-      Await.result(store.search("NEEDLE"), timeout).map(_.id).toSet shouldBe Set(id1, id2)
-      Await.result(store.search("'needle'"), timeout).map(_.id).toSet shouldBe Set(id1, id2)
-      Await.result(store.search("ne"), timeout) shouldBe empty
+      Await.result(store.search("NEEDLE"), timeout).users.map(_.id).toSet shouldBe Set(id1, id2)
+      Await.result(store.search("'needle'"), timeout).total shouldBe 2
+      Await.result(store.search("ne"), timeout).users shouldBe empty
     }
 
     "page search results with from and size" in {
@@ -99,9 +99,13 @@ class UserStoreMemSpec extends AnyWordSpec with Matchers {
         Await.result(store.+(User(UUID.random, s"pager-$i@example.com", name = Some(s"pager-name-$i"))), timeout)
       }
 
-      Await.result(store.search("pager", Some(0), Some(2)), timeout).size shouldBe 2
-      Await.result(store.search("pager", Some(2), Some(2)), timeout).size shouldBe 2
-      Await.result(store.search("pager", Some(10), Some(2)), timeout) shouldBe empty
+      val p0 = Await.result(store.search("pager", Some(0), Some(2)), timeout)
+      p0.users.size shouldBe 2
+      p0.total shouldBe 5
+      val p2 = Await.result(store.search("pager", Some(2), Some(2)), timeout)
+      p2.users.size shouldBe 2
+      p2.total shouldBe 5
+      Await.result(store.search("pager", Some(10), Some(2)), timeout).users shouldBe empty
     }
   }
 }

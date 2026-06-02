@@ -201,12 +201,16 @@ class UserRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest w
 
       Get(s"/?from=${before}&size=2") ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
-        responseAs[Users].users.size shouldBe 2
+        val r = responseAs[Users]
+        r.users.size shouldBe 2
+        r.total shouldBe before + 3
       }
 
       Get(s"/?from=${before + 3}&size=2") ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
-        responseAs[Users].users shouldBe empty
+        val r = responseAs[Users]
+        r.users shouldBe empty
+        r.total shouldBe before + 3
       }
     }
 
@@ -255,12 +259,16 @@ class UserRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest w
 
       Get(Uri("/").withQuery(Uri.Query("search" -> tag, "from" -> "0", "size" -> "2"))) ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
-        responseAs[Users].users.size shouldBe 2
+        val r = responseAs[Users]
+        r.users.size shouldBe 2
+        r.total shouldBe 3
       }
 
       Get(Uri("/").withQuery(Uri.Query("search" -> tag, "from" -> "2", "size" -> "2"))) ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
-        responseAs[Users].users.size shouldBe 1
+        val r = responseAs[Users]
+        r.users.size shouldBe 1
+        r.total shouldBe 3
       }
     }
 
@@ -274,7 +282,9 @@ class UserRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest w
 
       Post("/search", UserSearchReq(query = tag, from = Some(1), size = Some(2))) ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
-        responseAs[Users].users.size shouldBe 2
+        val r = responseAs[Users]
+        r.users.size shouldBe 2
+        r.total shouldBe 4
       }
     }
   }

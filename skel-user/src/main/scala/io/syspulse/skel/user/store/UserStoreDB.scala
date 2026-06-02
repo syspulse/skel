@@ -170,17 +170,65 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
 
   def all: Future[Seq[User]] = ctx.run(users).map(_.map(fromDb))
 
+  /** Jasync/Postgres: avoid Quill `lift` for table names, LIMIT/OFFSET, and FTS args — use plain SQL + `sendQuery`. */
+  override def size: Future[Long] =
+    queryCount(s"SELECT count(*) FROM $tableName")
+
+  private def pageInt(n: Long): Int =
+    n.max(0L).min(Int.MaxValue.toLong).toInt
+
+  private def sqlLit(s: String): String =
+    s.replace("'", "''")
+
   private def queryPaged(from: Long, size: Long): Future[Seq[User]] = {
-    val offset = from.max(0L)
-    val limit = size.max(0L)
-    ctx.run(quote {
-      infix"SELECT id, email, name, xid, avatar, ts0, ts, meta FROM users LIMIT ${lift(limit)} OFFSET ${lift(offset)}"
-        .as[Query[UserDb]]
-    }).map(_.map(fromDb))
+    val off = pageInt(from)
+    val lim = pageInt(size)
+    // Postgres/Jasync: LIMIT/OFFSET bind params ($1) fail in infix; use raw SQL without placeholders
+    val sql =
+      s"SELECT id, email, name, xid, avatar, ts0, ts, meta FROM $tableName LIMIT $lim OFFSET $off"
+    querySql(sql).map(_.map(fromDb))
+  }
+
+  private def rowToUserDb(row: com.github.jasync.sql.db.RowData, unused: Unit): UserDb = {
+    def optStr(i: Int): Option[String] = {
+      val v = row.getString(i)
+      if (v == null) None else Some(v)
+    }
+    UserDb(
+      id = row.getAs[UUID](0),
+      email = row.getAs[String](1),
+      name = optStr(2),
+      xid = optStr(3),
+      avatar = optStr(4),
+      ts0 = row.getAs[Long](5),
+      ts = row.getAs[Long](6),
+      meta = optStr(7),
+    )
+  }
+
+  private def querySql(sql: String): Future[Seq[UserDb]] = {
+    log.debug(s"querySql: $sql")
+    ctx.executeQuery(sql, extractor = rowToUserDb)(ExecutionInfo.unknown, ())
+  }
+
+  private def queryCount(sql: String): Future[Long] = {
+    log.debug(s"queryCount: $sql")
+    def rowToLong(row: com.github.jasync.sql.db.RowData, unused: Unit): Long = row.getAs[Long](0)
+    ctx.executeQuerySingle(sql, extractor = rowToLong)(ExecutionInfo.unknown, ())
   }
 
   override def ???(from: Long, size: Long)(implicit ec: ExecutionContext): Future[Seq[User]] =
     queryPaged(from, size)
+
+  override def list(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[UserStore.Page] =
+    (from, size) match {
+      case (Some(f), Some(s)) =>
+        this.size.flatMap(total => queryPaged(f, s).map(users => UserStore.Page(users, total)))
+      case (None, None) =>
+        all.map(users => UserStore.Page(users, users.size.toLong))
+      case _ =>
+        Future.failed(new IllegalArgumentException("from and size must both be set for paging"))
+    }
 
   def +(user: User): Future[User] = {
     log.info(s"INSERT: ${user}")
@@ -235,56 +283,60 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
     )
   }
 
-  def search(query: String, from: Option[Long] = None, size: Option[Long] = None): Future[Seq[User]] = {
+  def search(query: String, from: Option[Long] = None, size: Option[Long] = None): Future[UserStore.Page] = {
     log.info(s"SEARCH: query=${query}, from=${from}, size=${size}")
     val q = UserStore.normalizeSearchQuery(query)
-    if (q.length < UserStore.SEARCH_MIN_LEN) return Future.successful(Seq.empty)
+    if (q.length < UserStore.SEARCH_MIN_LEN) return Future.successful(UserStore.Page(Seq.empty, 0))
 
     val offset = from.getOrElse(0L).max(0L)
     val limit = size.map(_.max(0L))
 
+    def pageResult(usersF: Future[Seq[User]], totalF: Future[Long]): Future[UserStore.Page] =
+      usersF.flatMap(users => totalF.map(total => UserStore.Page(users, total)))
+
     getDbType match {
       case "postgres" =>
-        limit match {
+        val totalF = queryCount(
+          s"SELECT count(*) FROM $tableName WHERE tsv @@ plainto_tsquery('simple', '${sqlLit(q)}')",
+        )
+        val usersF = limit match {
           case Some(l) =>
-            ctx.run(quote {
-              infix"""
-                SELECT id, email, name, xid, avatar, ts0, ts, meta
-                FROM users
-                WHERE tsv @@ plainto_tsquery('simple', ${lift(q)})
-                LIMIT ${lift(l)} OFFSET ${lift(offset)}
-              """.as[Query[UserDb]]
-            }).map(_.map(fromDb))
+            val off = pageInt(offset)
+            val lim = pageInt(l)
+            val sql =
+              s"""SELECT id, email, name, xid, avatar, ts0, ts, meta FROM $tableName
+                 |WHERE tsv @@ plainto_tsquery('simple', '${sqlLit(q)}')
+                 |LIMIT $lim OFFSET $off""".stripMargin
+            querySql(sql).map(_.map(fromDb))
           case None =>
-            ctx.run(quote {
-              infix"""
-                SELECT id, email, name, xid, avatar, ts0, ts, meta
-                FROM users
-                WHERE tsv @@ plainto_tsquery('simple', ${lift(q)})
-              """.as[Query[UserDb]]
-            }).map(_.map(fromDb))
+            val sql =
+              s"""SELECT id, email, name, xid, avatar, ts0, ts, meta FROM $tableName
+                 |WHERE tsv @@ plainto_tsquery('simple', '${sqlLit(q)}')""".stripMargin
+            querySql(sql).map(_.map(fromDb))
         }
+        pageResult(usersF, totalF)
 
       case "mysql" =>
-        limit match {
+        val totalF = queryCount(
+          s"""SELECT count(*) FROM $tableName
+             |WHERE MATCH(email, name, xid) AGAINST ('${sqlLit(q)}' IN NATURAL LANGUAGE MODE)""".stripMargin,
+        )
+        val usersF = limit match {
           case Some(l) =>
-            ctx.run(quote {
-              infix"""
-                SELECT id, email, name, xid, avatar, ts0, ts, meta
-                FROM users
-                WHERE MATCH(email, name, xid) AGAINST (${lift(q)} IN NATURAL LANGUAGE MODE)
-                LIMIT ${lift(l)} OFFSET ${lift(offset)}
-              """.as[Query[UserDb]]
-            }).map(_.map(fromDb))
+            val off = pageInt(offset)
+            val lim = pageInt(l)
+            val sql =
+              s"""SELECT id, email, name, xid, avatar, ts0, ts, meta FROM $tableName
+                 |WHERE MATCH(email, name, xid) AGAINST ('${sqlLit(q)}' IN NATURAL LANGUAGE MODE)
+                 |LIMIT $lim OFFSET $off""".stripMargin
+            querySql(sql).map(_.map(fromDb))
           case None =>
-            ctx.run(quote {
-              infix"""
-                SELECT id, email, name, xid, avatar, ts0, ts, meta
-                FROM users
-                WHERE MATCH(email, name, xid) AGAINST (${lift(q)} IN NATURAL LANGUAGE MODE)
-              """.as[Query[UserDb]]
-            }).map(_.map(fromDb))
+            val sql =
+              s"""SELECT id, email, name, xid, avatar, ts0, ts, meta FROM $tableName
+                 |WHERE MATCH(email, name, xid) AGAINST ('${sqlLit(q)}' IN NATURAL LANGUAGE MODE)""".stripMargin
+            querySql(sql).map(_.map(fromDb))
         }
+        pageResult(usersF, totalF)
 
       case _ =>
         val like = s"%${q.toLowerCase}%"
@@ -297,10 +349,12 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
         )
         rowsF.map { rows =>
           val all = rows.map(fromDb)
-          limit match {
+          val total = all.size.toLong
+          val pageUsers = limit match {
             case Some(l) => page(all, offset, l)
             case None    => all
           }
+          UserStore.Page(pageUsers, total)
         }
     }
   }

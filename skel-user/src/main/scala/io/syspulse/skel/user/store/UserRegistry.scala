@@ -79,12 +79,11 @@ object UserRegistry {
 
       case GetUsers(from, size, replyTo) =>
         val fut = (from, size) match {
-          case (Some(f), Some(s)) => store.???(f, s)
-          case (None, None)       => store.all
-          case _ =>
+          case (Some(_), None) | (None, Some(_)) =>
             Future.failed(new IllegalArgumentException("from and size must both be set for paging"))
+          case _ => store.list(from, size)
         }
-        fut.foreach(users => replyTo ! Users(users, users.size.toLong))
+        fut.foreach(p => replyTo ! Users(p.users, p.total))
         Behaviors.same
 
       case SearchUsers(search, from, size, replyTo) =>
@@ -93,7 +92,7 @@ object UserRegistry {
             Future.failed(new IllegalArgumentException("from and size must both be set for paging"))
           case _ => store.search(search, from, size)
         }
-        fut.foreach(users => replyTo ! Users(users, users.size.toLong))
+        fut.foreach(p => replyTo ! Users(p.users, p.total))
         Behaviors.same
 
       case GetUser(id, replyTo) =>

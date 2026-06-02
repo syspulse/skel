@@ -15,6 +15,8 @@ object UserStore {
   // Minimal number of characters required to run a free-text search.
   val SEARCH_MIN_LEN = 3
 
+  final case class Page(users: Seq[User], total: Long)
+
   def normalizeSearchQuery(query: String): String = {
     val q = query.trim
     if (q.length >= 2 && ((q.head == '\'' && q.last == '\'') || (q.head == '"' && q.last == '"'))) q.substring(1, q.length - 1).trim
@@ -30,14 +32,24 @@ trait UserStore extends Store[User, UUID] {
   def ?(id: UUID): Future[User]
   def all: Future[Seq[User]]
   def ???(from: Long, size: Long)(implicit ec: ExecutionContext): Future[Seq[User]] =
-    all.map(users => page(users, from, size))
+    list(Some(from), Some(size)).map(_.users)
+  def list(from: Option[Long] = None, size: Option[Long] = None)(implicit ec: ExecutionContext): Future[UserStore.Page] =
+    all.map { users =>
+      val total = users.size.toLong
+      val pageUsers = (from, size) match {
+        case (Some(f), Some(s)) => page(users, f, s)
+        case (None, None)       => users
+        case _                  => users
+      }
+      UserStore.Page(pageUsers, total)
+    }
   def size: Future[Long]
 
   def findByXid(xid: String): Future[Option[User]]
   def findByEmail(email: String): Future[Option[User]]
   def update(id: UUID, req: UserUpdateReq): Future[User]
 
-  def search(query: String, from: Option[Long] = None, size: Option[Long] = None): Future[Seq[User]]
+  def search(query: String, from: Option[Long] = None, size: Option[Long] = None): Future[UserStore.Page]
 
   protected def applyUpdate(user: User, req: UserUpdateReq): User = {
     val now = System.currentTimeMillis()

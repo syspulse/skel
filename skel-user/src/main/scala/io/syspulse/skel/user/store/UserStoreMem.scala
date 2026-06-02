@@ -19,6 +19,17 @@ class UserStoreMem extends UserStore {
   def all: Future[Seq[User]] = Future.successful(users.values.toSeq)
   def size: Future[Long] = Future.successful(users.size.toLong)
 
+  override def list(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[UserStore.Page] = {
+    val allUsers = users.values.toSeq
+    val total = allUsers.size.toLong
+    val pageUsers = (from, size) match {
+      case (Some(f), Some(s)) => page(allUsers, f, s)
+      case (None, None)       => allUsers
+      case _                  => allUsers
+    }
+    Future.successful(UserStore.Page(pageUsers, total))
+  }
+
   def +(user: User): Future[User] = {
     users = users + (user.id -> user)
     log.info(s"add: ${user}")
@@ -54,21 +65,22 @@ class UserStoreMem extends UserStore {
     }
   }
 
-  def search(query: String, from: Option[Long] = None, size: Option[Long] = None): Future[Seq[User]] = {
+  def search(query: String, from: Option[Long] = None, size: Option[Long] = None): Future[UserStore.Page] = {
     val q = UserStore.normalizeSearchQuery(query).toLowerCase
-    if (q.length < UserStore.SEARCH_MIN_LEN) return Future.successful(Seq.empty)
+    if (q.length < UserStore.SEARCH_MIN_LEN) return Future.successful(UserStore.Page(Seq.empty, 0))
 
-    val uu = users.values.filter { u =>
+    val matched = users.values.filter { u =>
       u.email.toLowerCase.contains(q) ||
         u.name.exists(_.toLowerCase.contains(q)) ||
         u.xid.exists(_.toLowerCase.contains(q))
     }.toSeq
 
-    val paged = (from, size) match {
-      case (Some(f), Some(s)) => page(uu, f, s)
-      case (None, None)       => uu
-      case _                  => uu
+    val total = matched.size.toLong
+    val pageUsers = (from, size) match {
+      case (Some(f), Some(s)) => page(matched, f, s)
+      case (None, None)       => matched
+      case _                  => matched
     }
-    Future.successful(paged)
+    Future.successful(UserStore.Page(pageUsers, total))
   }
 }
