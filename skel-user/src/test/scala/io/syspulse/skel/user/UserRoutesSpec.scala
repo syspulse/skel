@@ -69,6 +69,15 @@ class UserRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest w
       }
     }
 
+    "create user from JSON without optional fields (POST /)" in {
+      val body = """{"email":"raw@example.com"}"""
+      Post("/", HttpEntity(ContentTypes.`application/json`, body)) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.Created
+        responseAs[User].email shouldBe "raw@example.com"
+        responseAs[User].meta shouldBe None
+      }
+    }
+
     "create user with optional fields and meta (POST /)" in {
       val req = UserCreateReq(
         email = "bob@example.com",

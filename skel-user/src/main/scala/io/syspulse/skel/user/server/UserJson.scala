@@ -14,8 +14,8 @@ object UserJson extends JsonCommon {
 
   import DefaultJsonProtocol._
 
-  implicit val jf_metaMap: RootJsonFormat[Map[String, Any]] = JsonMap.mapFormat
-  implicit val jf_optMetaMap: RootJsonFormat[Option[Map[String, Any]]] = JsonMap.optMapFormat
+  // Map only — Option[Map] uses DefaultJsonProtocol.optionFormat so omitted JSON fields deserialize as None.
+  implicit val jf_metaMap: JsonFormat[Map[String, Any]] = JsonMap.mapFormat
 
   implicit val jf_User = jsonFormat8(User)
   implicit val jf_Users = jsonFormat1(Users)
