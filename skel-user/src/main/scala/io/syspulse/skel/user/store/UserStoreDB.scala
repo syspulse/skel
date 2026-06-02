@@ -42,12 +42,14 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
     extends StoreDBAsync[User, UUID](dbConfigRef, "users", Some(configuration))
     with UserStore {
 
-  private val log = Logger(getClass)
+  private lazy val log = Logger(getClass)
   import ctx._
 
   private val users = quote { querySchema[UserDb]("users") }
 
   def indexUserName = "user_name"
+  def indexUserFts = "user_fts"
+  def colUserTsv = "tsv"
 
   private def toDb(u: User): UserDb =
     UserDb(
@@ -81,6 +83,25 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
       case "mysql"    => CREATE_INDEX_MYSQL_SQL
       case "postgres" => CREATE_INDEX_POSTGRES_SQL
     }
+
+    // Free-text search:
+    // - Postgres: stored generated tsvector + GIN index
+    // - MySQL: FULLTEXT index (best-effort)
+    val ALTER_TABLE_ADD_TSV_POSTGRES_SQL =
+      s"""ALTER TABLE ${tableName}
+         |ADD COLUMN IF NOT EXISTS ${colUserTsv} tsvector
+         |GENERATED ALWAYS AS (
+         |  to_tsvector('simple',
+         |    coalesce(email,'') || ' ' || coalesce(name,'') || ' ' || coalesce(xid,'')
+         |  )
+         |) STORED;
+         |""".stripMargin
+
+    val CREATE_INDEX_FTS_POSTGRES_SQL =
+      s"CREATE INDEX IF NOT EXISTS ${indexUserFts} ON ${tableName} USING GIN (${colUserTsv});"
+
+    val CREATE_INDEX_FTS_MYSQL_SQL =
+      s"CREATE FULLTEXT INDEX ${indexUserFts} ON ${tableName} (email, name, xid);"
 
     val CREATE_TABLE_MYSQL_SQL =
       s"""CREATE TABLE IF NOT EXISTS ${tableName} (
@@ -121,6 +142,27 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
       val f2 = ctx.executeAction(CREATE_INDEX_SQL)(ExecutionInfo.unknown, ())
       val r2 = Await.result(f2, FiniteDuration(10000L, TimeUnit.MILLISECONDS))
       log.info(s"index: ${indexUserName}: ${r2}")
+
+      // FTS schema/index (best-effort)
+      getDbType match {
+        case "postgres" =>
+          val f3 = ctx.executeAction(ALTER_TABLE_ADD_TSV_POSTGRES_SQL)(ExecutionInfo.unknown, ())
+          Await.result(f3, FiniteDuration(10000L, TimeUnit.MILLISECONDS))
+
+          val f4 = ctx.executeAction(CREATE_INDEX_FTS_POSTGRES_SQL)(ExecutionInfo.unknown, ())
+          Await.result(f4, FiniteDuration(10000L, TimeUnit.MILLISECONDS))
+
+        case "mysql" =>
+          // MySQL does not support IF NOT EXISTS for FULLTEXT in all versions; ignore "already exists".
+          try {
+            val f3 = ctx.executeAction(CREATE_INDEX_FTS_MYSQL_SQL)(ExecutionInfo.unknown, ())
+            Await.result(f3, FiniteDuration(10000L, TimeUnit.MILLISECONDS))
+          } catch {
+            case _: Exception => ()
+          }
+
+        case _ => ()
+      }
 
       Success(r1)
     } catch {
@@ -195,5 +237,43 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
     ctx.run(users.filter(o => o.email == lift(email.toLowerCase))).map(r =>
       r.headOption.map(fromDb)
     )
+  }
+
+  def search(query: String): Future[Seq[User]] = {
+    log.info(s"SEARCH: query=${query}")
+    val q = query.trim
+    if (q.length < UserStore.SEARCH_MIN_LEN) return Future.successful(Seq.empty)
+
+    getDbType match {
+      case "postgres" =>
+        ctx.run(quote {
+          infix"""
+            SELECT id, email, name, xid, avatar, ts0, ts, meta
+            FROM users
+            WHERE tsv @@ plainto_tsquery('simple', ${lift(q)})
+          """.as[Query[UserDb]]
+        }).map(_.map(fromDb))
+
+      case "mysql" =>
+        // Requires FULLTEXT index on (email,name,xid)
+        ctx.run(quote {
+          infix"""
+            SELECT id, email, name, xid, avatar, ts0, ts, meta
+            FROM users
+            WHERE MATCH(email, name, xid) AGAINST (${lift(q)} IN NATURAL LANGUAGE MODE)
+          """.as[Query[UserDb]]
+        }).map(_.map(fromDb))
+
+      case _ =>
+        // Fallback: case-insensitive substring match
+        val like = s"%${q.toLowerCase}%"
+        ctx.run(
+          users.filter(o =>
+            o.email.toLowerCase.like(lift(like)) ||
+              o.name.exists(_.toLowerCase.like(lift(like))) ||
+              o.xid.exists(_.toLowerCase.like(lift(like))),
+          ),
+        ).map(_.map(fromDb))
+    }
   }
 }

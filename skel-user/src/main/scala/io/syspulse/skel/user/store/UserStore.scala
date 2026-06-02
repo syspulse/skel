@@ -11,6 +11,11 @@ import io.syspulse.skel.store.Store
 import io.syspulse.skel.user.User
 import io.syspulse.skel.user.server.UserUpdateReq
 
+object UserStore {
+  // Minimal number of characters required to run a free-text search.
+  val SEARCH_MIN_LEN = 3
+}
+
 trait UserStore extends Store[User, UUID] {
 
   def getKey(e: User): UUID = e.id
@@ -25,6 +30,8 @@ trait UserStore extends Store[User, UUID] {
   def findByXid(xid: String): Future[Option[User]]
   def findByEmail(email: String): Future[Option[User]]
   def update(id: UUID, req: UserUpdateReq): Future[User]
+
+  def search(query: String): Future[Seq[User]]
 
   protected def applyUpdate(user: User, req: UserUpdateReq): User = {
     val now = System.currentTimeMillis()

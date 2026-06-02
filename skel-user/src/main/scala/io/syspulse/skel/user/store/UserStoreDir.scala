@@ -37,6 +37,8 @@ class UserStoreDir(dir: String = "store/") extends StoreDir[User, UUID](dir) wit
   override def update(id: UUID, req: io.syspulse.skel.user.server.UserUpdateReq): Future[User] =
     store.update(id, req).flatMap(u => Future.fromTry(writeFile(u)))
 
+  override def search(query: String): Future[Seq[User]] = store.search(query)
+
   // preload and watch
   load(dir)
   watch(dir)

@@ -48,7 +48,7 @@ abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Optio
   log.info(s"StoreDB: database=${dbType},config=${dbConfigName},table=${tableName}")
 
   if( ! configuration.isDefined) {
-    val config = ConfigFactory.load().getConfig(dbConfigName)
+    val config = ConfigFactory.load().getConfig(dbConfigName).resolve()
     config.entrySet().asScala.foreach(
       e => props.setProperty(e.getKey(), config.getString(e.getKey()))
     )
@@ -138,7 +138,7 @@ abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Opt
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
 
   // for some reason async does not support DataSource
-  val config = ConfigFactory.load().getConfig(dbConfigName)
+  val config = ConfigFactory.load().getConfig(dbConfigName).resolve()
   log.info(s"DB Config: ${config}")
 
   val ctx = dbType match {
