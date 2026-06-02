@@ -70,12 +70,14 @@ class UserStoreMem extends UserStore {
     pattern.matcher(text).find()
 
   def search(query: String, from: Option[Long] = None, size: Option[Long] = None): Future[UserStore.Page] = {
-    val q = UserStore.normalizeSearchQuery(query)
+    val q = //UserStore.normalizeSearchQuery(query)
+      query  
+
     if (q.length < UserStore.SEARCH_MIN_LEN) return Future.successful(UserStore.Page(Seq.empty, 0))
 
     val pattern =
       try Pattern.compile(q, Pattern.CASE_INSENSITIVE)
-      catch { case _: Exception => return Future.successful(UserStore.Page(Seq.empty, 0)) }
+      catch { case _: Exception => return Future.failed(new Exception(s"invalid regex: '${q}'")) }
 
     val matched = users.values.filter { u =>
       regexpMatch(pattern, u.email) ||
