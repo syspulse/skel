@@ -78,7 +78,7 @@ class UserServiceSim extends UserService {
   def get(id:UUID):Future[Try[User]] = Future.successful(Failure(new Exception(s"not implemented")))
   def findByXid(xid:String):Future[Option[User]] = Future.successful(None)
   def findByXidAlways(xid:String):Future[Option[User]] = Future.successful(None)
-  def all():Future[Try[Users]] = Future.successful(Success(Users(Seq())))
+  def all():Future[Try[Users]] = Future.successful(Success(Users(Seq(), 0)))
 
   def withAccessToken(token:String):UserServiceSim = this
   def withTimeout(timeout:FiniteDuration = FiniteDuration(1000, TimeUnit.MILLISECONDS)):UserServiceSim = this

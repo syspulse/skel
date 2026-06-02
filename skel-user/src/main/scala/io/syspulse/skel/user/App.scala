@@ -106,14 +106,9 @@ object App extends skel.Server {
           // case "jdbc" :: "async" :: typ:: db :: Nil => (None,Some(new UserStoreDBAsync(c,s"${typ}://${db}")))          
           // case "jdbc" :: typ :: db :: Nil => (Some(new UserStoreDB(c,s"${typ}://${db}")),None)
 
-          // case "jdbc" :: _  if(uri.async) => 
-          //   val uri = new JdbcURI(config.datastore)
-          //   val store = new UserStoreDBAsync(c,config.datastore) 
-          //   (store,UserRegistryAsync(store.asInstanceOf[UserStoreDBAsync]))
-
           case _ =>
-            val store = new UserStoreDB(c,config.datastore)
-            (store,UserRegistryAsync(store))
+            val store = new UserStoreDB(c, config.datastore)
+            (store, UserRegistry(store))
           
         }
         
@@ -124,22 +119,6 @@ object App extends skel.Server {
           )
         )
       
-      // case "server-async" => 
-      //   val store = config.datastore.split("://").toList match {
-      //     case "mysql" :: _ => new UserStoreDBAsync(c,"mysql_async")
-      //     case "postgres" :: _ => new UserStoreDBAsync(c,"postgres_async")
-      //     case _ => {
-      //       Console.err.println(s"Uknown datastore: '${config.datastore}'")
-      //       sys.exit(1)
-      //     }
-      //   }
-
-      //   run( config.host, config.port,config.uri,c,
-      //     Seq(
-      //       (UserRegistryAsync(store),"UserRegistry",(r, ac) => new UserRoutes(r)(ac,config) )
-      //     )
-      //   )
-
       case "client" => {
         
         val host = if(config.host == "0.0.0.0") "localhost" else config.host

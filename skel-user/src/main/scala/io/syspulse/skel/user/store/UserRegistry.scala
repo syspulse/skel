@@ -21,6 +21,7 @@ import scala.concurrent.ExecutionContext
 
 object UserRegistryProto {
   final case class GetUsers(from: Option[Long], size: Option[Long], replyTo: ActorRef[Users]) extends Command
+  final case class SearchUsers(search: String, from: Option[Long], size: Option[Long], replyTo: ActorRef[Users]) extends Command
   final case class GetUser(id: UUID, replyTo: ActorRef[Try[User]]) extends Command
   final case class GetUserByXid(xid: String, replyTo: ActorRef[Option[User]]) extends Command
 
@@ -77,12 +78,22 @@ object UserRegistry {
         Behaviors.same
 
       case GetUsers(from, size, replyTo) =>
-        (from, size) match {
-          case (Some(f), Some(s)) => store.???(f, s).foreach(users => replyTo ! Users(users))
-          case (None, None)       => store.all.foreach(users => replyTo ! Users(users))
+        val fut = (from, size) match {
+          case (Some(f), Some(s)) => store.???(f, s)
+          case (None, None)       => store.all
           case _ =>
-            throw new IllegalArgumentException("from and size must both be set for paging")
+            Future.failed(new IllegalArgumentException("from and size must both be set for paging"))
         }
+        fut.foreach(users => replyTo ! Users(users, users.size.toLong))
+        Behaviors.same
+
+      case SearchUsers(search, from, size, replyTo) =>
+        val fut = (from, size) match {
+          case (Some(_), None) | (None, Some(_)) =>
+            Future.failed(new IllegalArgumentException("from and size must both be set for paging"))
+          case _ => store.search(search, from, size)
+        }
+        fut.foreach(users => replyTo ! Users(users, users.size.toLong))
         Behaviors.same
 
       case GetUser(id, replyTo) =>
@@ -90,18 +101,26 @@ object UserRegistry {
         Behaviors.same
 
       case GetUserByXid(eid, replyTo) =>
-        store.findByXid(eid).foreach(replyTo ! _)
+        store.findByXid(eid).onComplete {
+          case Failure(e) =>
+            log.warn(s"user not found: ${eid}: ${e.getMessage}")
+            replyTo ! None
+          case Success(opt) => replyTo ! opt
+        }
         Behaviors.same
 
       case CreateUser(req, replyTo) =>
         val id = req.uid.getOrElse(UUID.randomUUID())
+        val user = userFromCreateReq(id, req)
 
         store.?(id).onComplete {
           case Success(_) =>
             replyTo ! Failure(new Exception(s"already exists: ${id}"))
           case Failure(_) =>
-            val user = userFromCreateReq(id, req)
-            store.+(user).onComplete(replyTo ! _)
+            store.+(user).onComplete {
+              case Failure(e) => replyTo ! Failure(e)
+              case Success(_) => replyTo ! Success(user)
+            }
         }
 
         Behaviors.same

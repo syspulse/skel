@@ -86,16 +86,12 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
 
     // Free-text search:
     // - Postgres: stored generated tsvector + GIN index
+    //   Split email/name/xid on non-alphanumerics so "demo" matches demo-xxx@example.com
     // - MySQL: FULLTEXT index (best-effort)
-    val ALTER_TABLE_ADD_TSV_POSTGRES_SQL =
-      s"""ALTER TABLE ${tableName}
-         |ADD COLUMN IF NOT EXISTS ${colUserTsv} tsvector
-         |GENERATED ALWAYS AS (
-         |  to_tsvector('simple',
-         |    coalesce(email,'') || ' ' || coalesce(name,'') || ' ' || coalesce(xid,'')
-         |  )
-         |) STORED;
-         |""".stripMargin
+    val tsvExprPostgres =
+      """regexp_replace(coalesce(email, ''), '[^a-zA-Z0-9]+', ' ', 'g') || ' ' ||
+        |regexp_replace(coalesce(name, ''), '[^a-zA-Z0-9]+', ' ', 'g') || ' ' ||
+        |regexp_replace(coalesce(xid, ''), '[^a-zA-Z0-9]+', ' ', 'g')""".stripMargin
 
     val CREATE_INDEX_FTS_POSTGRES_SQL =
       s"CREATE INDEX IF NOT EXISTS ${indexUserFts} ON ${tableName} USING GIN (${colUserTsv});"
@@ -125,7 +121,10 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
         avatar VARCHAR(255),
         ts0 BIGINT,
         ts BIGINT,
-        meta TEXT
+        meta TEXT,
+        ${colUserTsv} tsvector GENERATED ALWAYS AS (
+          to_tsvector('simple', ${tsvExprPostgres})
+        ) STORED
       );
       """
 
@@ -143,14 +142,11 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
       val r2 = Await.result(f2, FiniteDuration(10000L, TimeUnit.MILLISECONDS))
       log.info(s"index: ${indexUserName}: ${r2}")
 
-      // FTS schema/index (best-effort)
+      // FTS index (best-effort)
       getDbType match {
         case "postgres" =>
-          val f3 = ctx.executeAction(ALTER_TABLE_ADD_TSV_POSTGRES_SQL)(ExecutionInfo.unknown, ())
+          val f3 = ctx.executeAction(CREATE_INDEX_FTS_POSTGRES_SQL)(ExecutionInfo.unknown, ())
           Await.result(f3, FiniteDuration(10000L, TimeUnit.MILLISECONDS))
-
-          val f4 = ctx.executeAction(CREATE_INDEX_FTS_POSTGRES_SQL)(ExecutionInfo.unknown, ())
-          Await.result(f4, FiniteDuration(10000L, TimeUnit.MILLISECONDS))
 
         case "mysql" =>
           // MySQL does not support IF NOT EXISTS for FULLTEXT in all versions; ignore "already exists".
@@ -239,41 +235,73 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
     )
   }
 
-  def search(query: String): Future[Seq[User]] = {
-    log.info(s"SEARCH: query=${query}")
-    val q = query.trim
+  def search(query: String, from: Option[Long] = None, size: Option[Long] = None): Future[Seq[User]] = {
+    log.info(s"SEARCH: query=${query}, from=${from}, size=${size}")
+    val q = UserStore.normalizeSearchQuery(query)
     if (q.length < UserStore.SEARCH_MIN_LEN) return Future.successful(Seq.empty)
+
+    val offset = from.getOrElse(0L).max(0L)
+    val limit = size.map(_.max(0L))
 
     getDbType match {
       case "postgres" =>
-        ctx.run(quote {
-          infix"""
-            SELECT id, email, name, xid, avatar, ts0, ts, meta
-            FROM users
-            WHERE tsv @@ plainto_tsquery('simple', ${lift(q)})
-          """.as[Query[UserDb]]
-        }).map(_.map(fromDb))
+        limit match {
+          case Some(l) =>
+            ctx.run(quote {
+              infix"""
+                SELECT id, email, name, xid, avatar, ts0, ts, meta
+                FROM users
+                WHERE tsv @@ plainto_tsquery('simple', ${lift(q)})
+                LIMIT ${lift(l)} OFFSET ${lift(offset)}
+              """.as[Query[UserDb]]
+            }).map(_.map(fromDb))
+          case None =>
+            ctx.run(quote {
+              infix"""
+                SELECT id, email, name, xid, avatar, ts0, ts, meta
+                FROM users
+                WHERE tsv @@ plainto_tsquery('simple', ${lift(q)})
+              """.as[Query[UserDb]]
+            }).map(_.map(fromDb))
+        }
 
       case "mysql" =>
-        // Requires FULLTEXT index on (email,name,xid)
-        ctx.run(quote {
-          infix"""
-            SELECT id, email, name, xid, avatar, ts0, ts, meta
-            FROM users
-            WHERE MATCH(email, name, xid) AGAINST (${lift(q)} IN NATURAL LANGUAGE MODE)
-          """.as[Query[UserDb]]
-        }).map(_.map(fromDb))
+        limit match {
+          case Some(l) =>
+            ctx.run(quote {
+              infix"""
+                SELECT id, email, name, xid, avatar, ts0, ts, meta
+                FROM users
+                WHERE MATCH(email, name, xid) AGAINST (${lift(q)} IN NATURAL LANGUAGE MODE)
+                LIMIT ${lift(l)} OFFSET ${lift(offset)}
+              """.as[Query[UserDb]]
+            }).map(_.map(fromDb))
+          case None =>
+            ctx.run(quote {
+              infix"""
+                SELECT id, email, name, xid, avatar, ts0, ts, meta
+                FROM users
+                WHERE MATCH(email, name, xid) AGAINST (${lift(q)} IN NATURAL LANGUAGE MODE)
+              """.as[Query[UserDb]]
+            }).map(_.map(fromDb))
+        }
 
       case _ =>
-        // Fallback: case-insensitive substring match
         val like = s"%${q.toLowerCase}%"
-        ctx.run(
+        val rowsF = ctx.run(
           users.filter(o =>
             o.email.toLowerCase.like(lift(like)) ||
               o.name.exists(_.toLowerCase.like(lift(like))) ||
               o.xid.exists(_.toLowerCase.like(lift(like))),
           ),
-        ).map(_.map(fromDb))
+        )
+        rowsF.map { rows =>
+          val all = rows.map(fromDb)
+          limit match {
+            case Some(l) => page(all, offset, l)
+            case None    => all
+          }
+        }
     }
   }
 }

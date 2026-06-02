@@ -209,5 +209,73 @@ class UserRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest w
         responseAs[Users].users shouldBe empty
       }
     }
+
+    "search users with GET query parameter (GET /?search=)" in {
+      val needle = "route-get-needle"
+      val id =
+        Post("/", UserCreateReq(email = s"${needle}@example.com", name = Some("Route Search"))) ~> routes.routes ~> check {
+          status shouldBe StatusCodes.Created
+          responseAs[User].id
+        }
+
+      Get(Uri("/").withQuery(Uri.Query("search" -> s"'${needle}'"))) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val users = responseAs[Users].users
+        users.map(_.id) should contain(id)
+      }
+
+      Get(Uri("/").withQuery(Uri.Query("search" -> "ab"))) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[Users].users shouldBe empty
+      }
+    }
+
+    "search users with POST body (POST /search)" in {
+      val needle = "route-post-needle"
+      val id =
+        Post("/", UserCreateReq(email = "post-search@example.com", xid = Some(s"XID-${needle}"))) ~> routes.routes ~> check {
+          status shouldBe StatusCodes.Created
+          responseAs[User].id
+        }
+
+      Post("/search", UserSearchReq(needle.toUpperCase)) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val users = responseAs[Users].users
+        users.map(_.id) should contain(id)
+      }
+    }
+
+    "page search results with from and size (GET /?search=&from=&size=)" in {
+      val tag = "route-search-page"
+      (1 to 3).foreach { i =>
+        Post("/", UserCreateReq(email = s"${tag}-$i@example.com")) ~> routes.routes ~> check {
+          status shouldBe StatusCodes.Created
+        }
+      }
+
+      Get(Uri("/").withQuery(Uri.Query("search" -> tag, "from" -> "0", "size" -> "2"))) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[Users].users.size shouldBe 2
+      }
+
+      Get(Uri("/").withQuery(Uri.Query("search" -> tag, "from" -> "2", "size" -> "2"))) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[Users].users.size shouldBe 1
+      }
+    }
+
+    "page search results with from and size (POST /search)" in {
+      val tag = "route-search-post-page"
+      (1 to 4).foreach { i =>
+        Post("/", UserCreateReq(email = s"${tag}-$i@example.com")) ~> routes.routes ~> check {
+          status shouldBe StatusCodes.Created
+        }
+      }
+
+      Post("/search", UserSearchReq(query = tag, from = Some(1), size = Some(2))) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[Users].users.size shouldBe 2
+      }
+    }
   }
 }

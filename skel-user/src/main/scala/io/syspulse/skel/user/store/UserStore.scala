@@ -14,6 +14,12 @@ import io.syspulse.skel.user.server.UserUpdateReq
 object UserStore {
   // Minimal number of characters required to run a free-text search.
   val SEARCH_MIN_LEN = 3
+
+  def normalizeSearchQuery(query: String): String = {
+    val q = query.trim
+    if (q.length >= 2 && ((q.head == '\'' && q.last == '\'') || (q.head == '"' && q.last == '"'))) q.substring(1, q.length - 1).trim
+    else q
+  }
 }
 
 trait UserStore extends Store[User, UUID] {
@@ -31,7 +37,7 @@ trait UserStore extends Store[User, UUID] {
   def findByEmail(email: String): Future[Option[User]]
   def update(id: UUID, req: UserUpdateReq): Future[User]
 
-  def search(query: String): Future[Seq[User]]
+  def search(query: String, from: Option[Long] = None, size: Option[Long] = None): Future[Seq[User]]
 
   protected def applyUpdate(user: User, req: UserUpdateReq): User = {
     val now = System.currentTimeMillis()

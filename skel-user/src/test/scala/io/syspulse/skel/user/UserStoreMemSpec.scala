@@ -77,5 +77,31 @@ class UserStoreMemSpec extends AnyWordSpec with Matchers {
       Await.result(store.???(0, 0), timeout) shouldBe empty
       Await.result(store.all, timeout).size shouldBe 5
     }
+
+    "search users case-insensitively with minimum query length" in {
+      val store = new UserStoreMem()
+      val id1 = UUID.random
+      val id2 = UUID.random
+      val id3 = UUID.random
+
+      Await.result(store.+(User(id1, "alpha.search@example.com", name = Some("Needle Name"))), timeout)
+      Await.result(store.+(User(id2, "beta@example.com", xid = Some("wallet-needle-xid"))), timeout)
+      Await.result(store.+(User(id3, "gamma@example.com", name = Some("Other"))), timeout)
+
+      Await.result(store.search("NEEDLE"), timeout).map(_.id).toSet shouldBe Set(id1, id2)
+      Await.result(store.search("'needle'"), timeout).map(_.id).toSet shouldBe Set(id1, id2)
+      Await.result(store.search("ne"), timeout) shouldBe empty
+    }
+
+    "page search results with from and size" in {
+      val store = new UserStoreMem()
+      (1 to 5).foreach { i =>
+        Await.result(store.+(User(UUID.random, s"pager-$i@example.com", name = Some(s"pager-name-$i"))), timeout)
+      }
+
+      Await.result(store.search("pager", Some(0), Some(2)), timeout).size shouldBe 2
+      Await.result(store.search("pager", Some(2), Some(2)), timeout).size shouldBe 2
+      Await.result(store.search("pager", Some(10), Some(2)), timeout) shouldBe empty
+    }
   }
 }

@@ -54,16 +54,21 @@ class UserStoreMem extends UserStore {
     }
   }
 
-  def search(query: String): Future[Seq[User]] = {
-    val q = query.trim.toLowerCase
+  def search(query: String, from: Option[Long] = None, size: Option[Long] = None): Future[Seq[User]] = {
+    val q = UserStore.normalizeSearchQuery(query).toLowerCase
     if (q.length < UserStore.SEARCH_MIN_LEN) return Future.successful(Seq.empty)
 
     val uu = users.values.filter { u =>
       u.email.toLowerCase.contains(q) ||
         u.name.exists(_.toLowerCase.contains(q)) ||
         u.xid.exists(_.toLowerCase.contains(q))
-    }
+    }.toSeq
 
-    Future.successful(uu.toSeq)
+    val paged = (from, size) match {
+      case (Some(f), Some(s)) => page(uu, f, s)
+      case (None, None)       => uu
+      case _                  => uu
+    }
+    Future.successful(paged)
   }
 }

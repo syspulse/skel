@@ -8,7 +8,7 @@ import io.syspulse.skel.user.store.UserRegistry._
 import spray.json.{DefaultJsonProtocol, JsonFormat, RootJsonFormat}
 
 import io.syspulse.skel.user._
-import io.syspulse.skel.user.server.{UserActionRes, Users, UserCreateReq, UserRandomReq, UserRes, UserUpdateReq}
+import io.syspulse.skel.user.server.{UserActionRes, Users, UserCreateReq, UserRandomReq, UserRes, UserSearchReq, UserUpdateReq}
 
 object UserJson extends JsonCommon {
 
@@ -18,10 +18,11 @@ object UserJson extends JsonCommon {
   implicit val jf_metaMap: JsonFormat[Map[String, Any]] = JsonMap.mapFormat
 
   implicit val jf_User = jsonFormat8(User)
-  implicit val jf_Users = jsonFormat1(Users)
+  implicit val jf_Users = jsonFormat2(Users)
   implicit val jf_UserRes = jsonFormat1(UserRes)
   implicit val jf_CreateReq = jsonFormat6(UserCreateReq)
   implicit val jf_UpdateReq = jsonFormat5(UserUpdateReq)
+  implicit val jf_SearchReq: RootJsonFormat[UserSearchReq] = jsonFormat3(UserSearchReq)
   implicit val jf_ActionRes = jsonFormat2(UserActionRes)
 
   implicit val jf_RadnomReq = jsonFormat0(UserRandomReq)

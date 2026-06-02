@@ -54,7 +54,7 @@ import io.syspulse.skel.auth.RouteAuthorizers
 import io.syspulse.skel.user._
 import io.syspulse.skel.user.store.UserRegistry
 import io.syspulse.skel.user.store.UserRegistry._
-import io.syspulse.skel.user.server.{UserActionRes, Users, UserCreateReq, UserUpdateReq}
+import io.syspulse.skel.user.server.{UserActionRes, Users, UserCreateReq, UserSearchReq, UserUpdateReq}
 import io.syspulse.skel.service.telemetry.TelemetryRegistry
 import com.typesafe.config.ConfigFactory
 
@@ -91,6 +91,8 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
   
   def getUsers(from: Option[Long] = None, size: Option[Long] = None): Future[Users] =
     registry.ask(GetUsers(from, size, _))
+  def searchUsers(search: String, from: Option[Long] = None, size: Option[Long] = None): Future[Users] =
+    registry.ask(SearchUsers(search, from, size, _))
   def getUser(id: UUID): Future[Try[User]] = registry.ask(GetUser(id, _))
   def getUserByXid(xid: String): Future[Option[User]] = registry.ask(GetUserByXid(xid, _))
 
@@ -153,8 +155,9 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
   }
 
   @GET @Path("/") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("user"), summary = "Return all Users",
+  @Operation(tags = Array("user"), summary = "Return all Users or search Users",
     parameters = Array(
+      new Parameter(name = "search", in = ParameterIn.QUERY, description = "Search pattern (min 3 chars)"),
       new Parameter(name = "from", in = ParameterIn.QUERY, description = "Page offset"),
       new Parameter(name = "size", in = ParameterIn.QUERY, description = "Page size")
     ),
@@ -162,13 +165,42 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
       new ApiResponse(responseCode = "200", description = "List of Users",content = Array(new Content(schema = new Schema(implementation = classOf[Users])))))
   )
   def getUsersRoute() = get {
-    parameters("from".as[Long].?, "size".as[Long].?) { (from, size) =>
+    parameters("search".?, "from".as[Long].?, "size".as[Long].?) { (search, from, size) =>
       metricGetCount.inc()
-      (from, size) match {
+      search match {
+        case Some(q) =>
+          (from, size) match {
+            case (Some(_), None) | (None, Some(_)) =>
+              complete(StatusCodes.BadRequest -> "from and size must be provided together")
+            case _ =>
+              complete(searchUsers(q, from, size))
+          }
+        case None =>
+          (from, size) match {
+            case (Some(_), None) | (None, Some(_)) =>
+              complete(StatusCodes.BadRequest -> "from and size must be provided together")
+            case _ =>
+              complete(getUsers(from, size))
+          }
+      }
+    }
+  }
+
+  @POST @Path("/search") @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("user"), summary = "Search Users",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[UserSearchReq])))),
+    responses = Array(
+      new ApiResponse(responseCode = "200", description = "Search result", content = Array(new Content(schema = new Schema(implementation = classOf[Users])))))
+  )
+  def searchUsersRoute() = post {
+    entity(as[UserSearchReq]) { req =>
+      metricGetCount.inc()
+      (req.from, req.size) match {
         case (Some(_), None) | (None, Some(_)) =>
           complete(StatusCodes.BadRequest -> "from and size must be provided together")
         case _ =>
-          complete(getUsers(from, size))
+          complete(searchUsers(req.query, req.from, req.size))
       }
     }
   }
@@ -268,6 +300,15 @@ class UserRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_],
           pathPrefix(Segment) { delay => 
             authenticate()(authn =>
               getTimeoutRoute(delay)
+            )
+          }
+        },
+        pathPrefix("search") {
+          pathEndOrSingleSlash {
+            authenticate()(authn =>
+              authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
+                searchUsersRoute()
+              }
             )
           }
         },
