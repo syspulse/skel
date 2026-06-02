@@ -17,10 +17,26 @@ object UserStore {
 
   final case class Page(users: Seq[User], total: Long)
 
+  private val NonAlnum = "[^a-zA-Z0-9]+"
+
   def normalizeSearchQuery(query: String): String = {
     val q = query.trim
     if (q.length >= 2 && ((q.head == '\'' && q.last == '\'') || (q.head == '"' && q.last == '"'))) q.substring(1, q.length - 1).trim
     else q
+  }
+
+  /** Split email/name/xid on non-alphanumerics (Postgres tsv expression). */
+  def tokenizeSearchField(text: String): Seq[String] =
+    text.toLowerCase.replaceAll(NonAlnum, " ").split("\\s+").filter(_.nonEmpty)
+
+  /** Postgres query terms. */
+  def postgresSearchTerms(query: String): Seq[String] =
+    tokenizeSearchField(normalizeSearchQuery(query))
+
+  /** Postgres prefix tsquery: "yuk" -> "yuk:*" so it matches token "yuki" in email local-part. */
+  def postgresPrefixTsQuery(query: String): Option[String] = {
+    val terms = postgresSearchTerms(query)
+    if (terms.isEmpty) None else Some(terms.map(t => s"$t:*").mkString(" & "))
   }
 }
 

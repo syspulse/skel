@@ -296,25 +296,28 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
 
     getDbType match {
       case "postgres" =>
-        val totalF = queryCount(
-          s"SELECT count(*) FROM $tableName WHERE tsv @@ plainto_tsquery('simple', '${sqlLit(q)}')",
-        )
-        val usersF = limit match {
-          case Some(l) =>
-            val off = pageInt(offset)
-            val lim = pageInt(l)
-            val sql =
-              s"""SELECT id, email, name, xid, avatar, ts0, ts, meta FROM $tableName
-                 |WHERE tsv @@ plainto_tsquery('simple', '${sqlLit(q)}')
-                 |LIMIT $lim OFFSET $off""".stripMargin
-            querySql(sql).map(_.map(fromDb))
-          case None =>
-            val sql =
-              s"""SELECT id, email, name, xid, avatar, ts0, ts, meta FROM $tableName
-                 |WHERE tsv @@ plainto_tsquery('simple', '${sqlLit(q)}')""".stripMargin
-            querySql(sql).map(_.map(fromDb))
+        UserStore.postgresPrefixTsQuery(q) match {
+          case None => Future.successful(UserStore.Page(Seq.empty, 0))
+          case Some(tsq) =>
+            val fts = s"tsv @@ to_tsquery('simple', '${sqlLit(tsq)}')"
+            val totalF = queryCount(s"SELECT count(*) FROM $tableName WHERE $fts")
+            val usersF = limit match {
+              case Some(l) =>
+                val off = pageInt(offset)
+                val lim = pageInt(l)
+                val sql =
+                  s"""SELECT id, email, name, xid, avatar, ts0, ts, meta FROM $tableName
+                     |WHERE $fts
+                     |LIMIT $lim OFFSET $off""".stripMargin
+                querySql(sql).map(_.map(fromDb))
+              case None =>
+                val sql =
+                  s"""SELECT id, email, name, xid, avatar, ts0, ts, meta FROM $tableName
+                     |WHERE $fts""".stripMargin
+                querySql(sql).map(_.map(fromDb))
+            }
+            pageResult(usersF, totalF)
         }
-        pageResult(usersF, totalF)
 
       case "mysql" =>
         val totalF = queryCount(

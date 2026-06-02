@@ -2,6 +2,7 @@ package io.syspulse.skel.user.store
 
 import scala.collection.immutable
 import scala.concurrent.{Future, ExecutionContext}
+import java.util.regex.Pattern
 
 import com.typesafe.scalalogging.Logger
 
@@ -65,14 +66,21 @@ class UserStoreMem extends UserStore {
     }
   }
 
+  private def regexpMatch(pattern: Pattern, text: String): Boolean =
+    pattern.matcher(text).find()
+
   def search(query: String, from: Option[Long] = None, size: Option[Long] = None): Future[UserStore.Page] = {
-    val q = UserStore.normalizeSearchQuery(query).toLowerCase
+    val q = UserStore.normalizeSearchQuery(query)
     if (q.length < UserStore.SEARCH_MIN_LEN) return Future.successful(UserStore.Page(Seq.empty, 0))
 
+    val pattern =
+      try Pattern.compile(q, Pattern.CASE_INSENSITIVE)
+      catch { case _: Exception => return Future.successful(UserStore.Page(Seq.empty, 0)) }
+
     val matched = users.values.filter { u =>
-      u.email.toLowerCase.contains(q) ||
-        u.name.exists(_.toLowerCase.contains(q)) ||
-        u.xid.exists(_.toLowerCase.contains(q))
+      regexpMatch(pattern, u.email) ||
+        u.name.exists(regexpMatch(pattern, _)) ||
+        u.xid.exists(regexpMatch(pattern, _))
     }.toSeq
 
     val total = matched.size.toLong

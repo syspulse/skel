@@ -93,6 +93,29 @@ class UserStoreMemSpec extends AnyWordSpec with Matchers {
       Await.result(store.search("ne"), timeout).users shouldBe empty
     }
 
+    "search users by regexp on email" in {
+      val store = new UserStoreMem()
+      val id = UUID.random
+      Await.result(store.+(User(id, "yuki@outlook.com", name = Some("Yuki Tanaka"))), timeout)
+      Await.result(store.search("yuk"), timeout).users.map(_.id) shouldBe Seq(id)
+      Await.result(store.search("yuki@outlook\\.com"), timeout).users.map(_.id) shouldBe Seq(id)
+    }
+
+    "search users by regexp substring in name" in {
+      val store = new UserStoreMem()
+      val id = UUID.random
+      Await.result(store.+(User(id, "demo-xxx@example.com", name = Some("Needle Name"))), timeout)
+      Await.result(store.search("demo"), timeout).users.map(_.id) shouldBe Seq(id)
+      Await.result(store.search("eedle"), timeout).users.map(_.id) shouldBe Seq(id)
+    }
+
+    "build postgres prefix tsquery" in {
+      UserStore.postgresPrefixTsQuery("yuk") shouldBe Some("yuk:*")
+      UserStore.postgresPrefixTsQuery("John Smith") shouldBe Some("john:* & smith:*")
+      UserStore.postgresPrefixTsQuery("route-get-needle") shouldBe Some("route:* & get:* & needle:*")
+      UserStore.postgresPrefixTsQuery("  ") shouldBe None
+    }
+
     "page search results with from and size" in {
       val store = new UserStoreMem()
       (1 to 5).foreach { i =>
