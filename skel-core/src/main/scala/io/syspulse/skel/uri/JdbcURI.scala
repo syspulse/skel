@@ -32,7 +32,7 @@ case class JdbcURI(uri:String) {
   val PREFIX = "jdbc://"
 
   override def toString:String = 
-    s"JdbcURI(host=${host},port=${port},dbType=${dbType},db=${db},dbConfig=${dbConfig},user=${user},pass=${pass.map(Util.trunc(_,6))},async=${async},params=${params})"
+    s"JdbcURI(host=${host},port=${port},dbType=${dbType},db=${db},schema=${schema},dbConfig=${dbConfig},user=${user},pass=${pass.map(Util.trunc(_,6))},async=${async},params=${params})"
 
   // Parse URI and extract query parameters
   private val (baseUri, params) = uri.split("\\?", 2) match {
@@ -60,6 +60,8 @@ case class JdbcURI(uri:String) {
   def host:String = rhost
   def port:Int = rport
   def async:Boolean = rasync
+  
+  def schema:Option[String] = params.get("schema").orElse(params.get("currentSchema"))
 
   // Extract timezone from query parameters
   def timezone:Option[String] = params.get("TimeZone").orElse(params.get("timezone"))

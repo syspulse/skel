@@ -3,7 +3,7 @@
   "scripts": [
     {
       "typ": "js",
-      "src": "var root=JSON.parse(input); var d=(root.data&&root.data[0])||root; var m=d.meta; '## Report:\\n\\n @(' + m.pdf_url + ')'"
+      "src": "var root=JSON.parse(input);var d=(root.data&&root.data[0])||root;var m=d.meta||{};var icon='https://cdn-icons-png.flaticon.com/128/3143/3143460.png';var esc=function(s){return String(s||'').replace(/\\|/g,'\\\\|')};var linkId=function(id,url){if(!id)return '--';return url?'['+id+']('+url+')':String(id)};var reportName=esc(m.name||d.name||'—');var report=linkId(m.report_id,m.pdf_url);var workflow=linkId(m.workflow_id,m.workflow_url);var pdf=m.pdf_url?'\\n\\n!PDF[h=400,w=100]('+m.pdf_url+')':'';'| | Report | |\\n|---|---|---|\\n| ![]('+icon+') | '+reportName+' | |\\n\\nReport: '+report+'\\n\\nWorkflow: '+workflow+pdf"
     }
   ],
   "meta": {

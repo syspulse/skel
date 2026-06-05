@@ -4,7 +4,7 @@ import scala.util.Try
 import scala.util.{Success,Failure}
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import com.typesafe.scalalogging.Logger
 
 import io.jvm.uuid._
@@ -43,8 +43,6 @@ abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Optio
   def getDbType = dbType
   def getDbConfigName = dbConfigName
 
-
-
   log.info(s"StoreDB: database=${dbType},config=${dbConfigName},table=${tableName}")
 
   if( ! configuration.isDefined) {
@@ -56,8 +54,19 @@ abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Optio
     // Java11: use isBlank
     val prefix = if(dbConfigName.trim.isEmpty) "" else dbConfigName + "."
 
-    Set("dataSourceClassName","dataSource.url","dataSource.user","dataSource.password",
-        "connectionTimeout","idleTimeout","minimumIdle","maximumPoolSize","poolName","maxLifetime")
+    Set(
+      "dataSourceClassName",
+      "dataSource.url",
+      "dataSource.user",
+      "dataSource.password",
+      "connectionTimeout",
+      "idleTimeout",
+      "minimumIdle",
+      "maximumPoolSize",
+      "poolName",
+      "maxLifetime",
+
+    )
     .map(p =>
       // Null is needed to detect non-set field
       (p -> configuration.get.getString(s"${prefix}${p}").getOrElse(null))
@@ -68,7 +77,7 @@ abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Optio
   }
 
   // ATTENTION: do not log password !
-  log.info(s"HikariProperties: ${props.asScala.map{case (k,v) => if(k == "dataSource.password") s"${k}=${Util.trunc(v,6)}" else s"${k}=${v}"}.mkString(",")}")
+  log.info(s"Hikari Properties: ${props.asScala.map{case (k,v) => if(k == "dataSource.password") s"${k}=${Util.trunc(v,6)}" else s"${k}=${v}"}.mkString(",")}")
 
   val hikariConfig = new HikariConfig(props)
 
@@ -136,9 +145,32 @@ abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Opt
   private val log = Logger(s"${this}")
 
   implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
+  val timeout = 15000L
 
   // for some reason async does not support DataSource
-  val config = ConfigFactory.load().getConfig(dbConfigName).resolve()
+  // val config = ConfigFactory.load().getConfig(dbConfigName).resolve()  
+  val config = if( ! configuration.isDefined) {
+    ConfigFactory.load().getConfig(dbConfigName).resolve()
+    
+  } else {
+    val prefix = if (dbConfigName.trim.isEmpty) "" else dbConfigName + "."
+
+    Set(
+      "dataSourceClassName",
+      "url",
+      "database",
+      "username",
+      "password",
+      "numThreads",
+      "dataSource.connectionProperties",
+    ).foldLeft(ConfigFactory.empty()) { (c, key) =>
+      configuration.get.getString(s"${prefix}${key}") match {
+        case Some(v) => c.withValue(key, ConfigValueFactory.fromAnyRef(v))
+        case None    => c
+      }
+    }
+  }
+
   log.info(s"DB Config: ${config}")
 
   val ctx = dbType match {

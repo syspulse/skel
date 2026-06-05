@@ -4,6 +4,10 @@ import scala.util.{Failure, Success, Try}
 import scala.concurrent.{Future, ExecutionContext}
 import com.typesafe.scalalogging.Logger
 
+import scala.concurrent.Await
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
+
 import spray.json._
 import DefaultJsonProtocol._
 
@@ -11,7 +15,7 @@ import io.getquill._
 import io.getquill.context._
 
 import io.syspulse.skel.config.Configuration
-import io.syspulse.skel.store.{Store, StoreDB}
+import io.syspulse.skel.store.{Store, StoreDB, StoreDBAsync}
 
 import io.syspulse.skel.explain.{Explain, ExplainScript}
 import io.syspulse.skel.explain.server.{ExplainMetaJson, ExplainScriptJson}
@@ -30,11 +34,11 @@ case class Explanation(
 )
 
 class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
-    extends StoreDB[Explain, String](dbConfigRef, "explanation", Some(configuration))
+    //extends StoreDB[Explain, String](dbConfigRef, "explanation", Some(configuration))
+    extends StoreDBAsync[Explain, String](dbConfigRef, "explanation", Some(configuration))
     with ExplainStore {
 
   lazy private val log = Logger(getClass)
-  implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
 
   def id: String = "db"
 
@@ -73,7 +77,6 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
     val CREATE_INDEX_OID_RID_SQL = getDbType match {
       case "postgres" => CREATE_INDEX_OID_RID_POSTGRES_SQL
     }
-
 
     val CREATE_TABLE_MYSQL_SQL =
       s"""CREATE TABLE IF NOT EXISTS ${tableName} (
@@ -114,9 +117,10 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
 
     val r1 = try {
       log.info(s"Table: '${tableName}': ${getDbType}: '${CREATE_TABLE_SQL.replaceAll("\\s+", " ")}'")
-      val r = ctx.executeAction(CREATE_TABLE_SQL)(ExecutionInfo.unknown, ())
-      log.info(s"Table: '${tableName}': created: ${r}")
-      Success(r)
+      val f1 = ctx.executeAction(CREATE_TABLE_SQL)(ExecutionInfo.unknown, ())
+      val r1 = Await.result(f1, FiniteDuration(timeout, TimeUnit.MILLISECONDS))
+      log.info(s"Table: '${tableName}': created: ${r1}")
+      Success(r1)
     } catch {
       case e: Exception =>
         log.error(s"failed to create table: '${tableName}': ${e.getMessage()}")
@@ -150,18 +154,27 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
   }
 
   def all: Future[Seq[Explain]] =
-    Future.successful(ctx.run(query[Explanation]).map(fromDb))
+    //Future.successful(ctx.run(query[Explanation]).map(fromDb))    
+    ctx.run(query[Explanation]).map(_.map(fromDb))
 
   def findByOid(oid: Option[String]): Future[Seq[Explain]] =
-    Future.successful(ctx.run(query[Explanation].filter(r => r.oid == lift(oidKey(oid)))).map(fromDb))
+    //Future.successful(ctx.run(query[Explanation].filter(r => r.oid == lift(oidKey(oid)))).map(fromDb))
+    ctx.run(query[Explanation].filter(r => r.oid == lift(oidKey(oid)))).map(_.map(fromDb))
 
   def get(oid: Option[String], rid: String): Future[Explain] =
-    Future.fromTry(Try {
-      ctx.run(query[Explanation].filter(r => r.oid == lift(oidKey(oid)) && r.rid == lift(rid))) match {
-        case h :: _ => fromDb(h)
-        case Nil    => throw new Exception(s"not found: '$oid/$rid'")
-      }
-    })
+    // Future.fromTry(Try {
+    //   ctx.run(query[Explanation].filter(r => r.oid == lift(oidKey(oid)) && r.rid == lift(rid))) match {
+    //     case h :: _ => fromDb(h)
+    //     case Nil    => throw new Exception(s"not found: '$oid/$rid'")
+    //   }
+    // })
+    
+    ctx
+      .run(query[Explanation].filter(r => r.oid == lift(oidKey(oid)) && r.rid == lift(rid)))
+      .map(
+        _.map(fromDb)
+        .headOption.getOrElse(throw new Exception(s"not found: '$oid/$rid'"))
+      )
 
   def +(r: Explain): Future[Explain] = {
     val dbRule = toDb(r)
