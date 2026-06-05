@@ -13,16 +13,18 @@ import java.io.File
 // Var format: CONFIG_FORCE_{var}. CASE-SENSITIVE !
 // Ignore if application.conf cannot be loaded
 class ConfigurationAkka(from:Option[String] = None) extends ConfigurationTypesafe {
-
-  //withFallback(ConfigFactory.defaultReference(classLoader)
+  
   var akkaConfig:Option[Config] = {
     try {
       if(from.isDefined) {
         log.info(s"Loading config: '${from.get}'")
         Some(ConfigFactory.load(ConfigFactory.parseFile(new File(from.get)).resolve()))
       }
-      else
+      else {
+        log.info(s"Loading config (default): '${System.getProperty("config.resource")}'")
+        //Thread.currentThread().getStackTrace.foreach(Console.err.println)
         Some(ConfigFactory.load().resolve())
+      }
     } catch {
       case e @ (_ : com.typesafe.config.ConfigException.IO | _ : Exception) => {
         log.error(s"Configuration not loaded: ",e)

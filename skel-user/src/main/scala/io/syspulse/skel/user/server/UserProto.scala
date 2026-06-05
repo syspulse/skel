@@ -5,7 +5,10 @@ import scala.collection.immutable
 import io.jvm.uuid._
 import io.syspulse.skel.user.User
 
-final case class Users(users: immutable.Seq[User], total: Long)
+final case class Users(
+  users: Seq[User], 
+  total: Long
+)
 
 /** Create user — `email` required; other fields optional. */
 final case class UserCreateReq(
@@ -14,6 +17,7 @@ final case class UserCreateReq(
   xid: Option[String] = None,
   avatar: Option[String] = None,
   meta: Option[Map[String, Any]] = None,
+  // optionally set user id
   uid: Option[UUID] = None,
 )
 
@@ -33,9 +37,6 @@ final case class UserSearchReq(
 )
 
 final case class UserRandomReq()
-
 final case class UserActionRes(status: String, uid: Option[UUID])
-
 final case class UserRes(user: Option[User])
-
 final case class UserUploadRes(status: String, uid: Option[UUID], uri: String, file: Option[String] = None)

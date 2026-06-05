@@ -47,7 +47,10 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
 
   private val users = quote { querySchema[UserDb]("users") }
 
-  def indexUserName = "user_name"
+  def indexes = Set(
+    ("user_xid",Set("xid")),
+    ("user_email",Set("email"))
+  )
   def indexUserFts = "user_fts"
   def colUserTsv = "tsv"
 
@@ -76,8 +79,8 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
     )
 
   def create: Try[Long] = {
-    val CREATE_INDEX_MYSQL_SQL = s"CREATE INDEX ${indexUserName} ON ${tableName} (name);"
-    val CREATE_INDEX_POSTGRES_SQL = s"CREATE INDEX IF NOT EXISTS ${indexUserName} ON ${tableName} (name);"
+    val CREATE_INDEX_MYSQL_SQL = indexes.map(idx => s"CREATE INDEX ${idx._1} ON ${tableName} (${idx._2.mkString(",")});")
+    val CREATE_INDEX_POSTGRES_SQL = indexes.map(idx => s"CREATE INDEX IF NOT EXISTS ${idx._1} ON ${tableName} (${idx._2.mkString(",")});")
 
     val CREATE_INDEX_SQL = getDbType match {
       case "mysql"    => CREATE_INDEX_MYSQL_SQL
@@ -135,24 +138,26 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
 
     try {
       val f1 = ctx.executeAction(CREATE_TABLE_SQL)(ExecutionInfo.unknown, ())
-      val r1 = Await.result(f1, FiniteDuration(10000L, TimeUnit.MILLISECONDS))
+      val r1 = Await.result(f1, FiniteDuration(timeout, TimeUnit.MILLISECONDS))
       log.info(s"table: ${tableName}: ${r1}")
 
-      val f2 = ctx.executeAction(CREATE_INDEX_SQL)(ExecutionInfo.unknown, ())
-      val r2 = Await.result(f2, FiniteDuration(10000L, TimeUnit.MILLISECONDS))
-      log.info(s"index: ${indexUserName}: ${r2}")
+      CREATE_INDEX_SQL.zip(indexes).foreach{ case(idx,idxDef) => {
+        val f2 = ctx.executeAction(idx)(ExecutionInfo.unknown, ())
+        val r2 = Await.result(f2, FiniteDuration(timeout, TimeUnit.MILLISECONDS))
+        log.info(s"index: ${idxDef._1}: ${r2}")
+      }}
 
       // FTS index (best-effort)
       getDbType match {
         case "postgres" =>
           val f3 = ctx.executeAction(CREATE_INDEX_FTS_POSTGRES_SQL)(ExecutionInfo.unknown, ())
-          Await.result(f3, FiniteDuration(10000L, TimeUnit.MILLISECONDS))
+          Await.result(f3, FiniteDuration(timeout, TimeUnit.MILLISECONDS))
 
         case "mysql" =>
           // MySQL does not support IF NOT EXISTS for FULLTEXT in all versions; ignore "already exists".
           try {
             val f3 = ctx.executeAction(CREATE_INDEX_FTS_MYSQL_SQL)(ExecutionInfo.unknown, ())
-            Await.result(f3, FiniteDuration(10000L, TimeUnit.MILLISECONDS))
+            Await.result(f3, FiniteDuration(timeout, TimeUnit.MILLISECONDS))
           } catch {
             case _: Exception => ()
           }
@@ -206,13 +211,11 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
     )
   }
 
-  private def querySql(sql: String): Future[Seq[UserDb]] = {
-    log.debug(s"querySql: $sql")
+  private def querySql(sql: String): Future[Seq[UserDb]] = {    
     ctx.executeQuery(sql, extractor = rowToUserDb)(ExecutionInfo.unknown, ())
   }
 
-  private def queryCount(sql: String): Future[Long] = {
-    log.debug(s"queryCount: $sql")
+  private def queryCount(sql: String): Future[Long] = {    
     def rowToLong(row: com.github.jasync.sql.db.RowData, unused: Unit): Long = row.getAs[Long](0)
     ctx.executeQuerySingle(sql, extractor = rowToLong)(ExecutionInfo.unknown, ())
   }

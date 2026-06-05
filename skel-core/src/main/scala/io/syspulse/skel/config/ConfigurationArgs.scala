@@ -156,7 +156,7 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
             import com.typesafe.config.ConfigFactory            
             
             try {
-              log.info(s"Loading config: '${x}'...")
+              log.info(s"Loading config: '${x}'")
               if(!os.exists(os.Path(x,os.pwd))) throw new Exception(s"file not found: '${x}'")
 
               // Enable environment variable substitution

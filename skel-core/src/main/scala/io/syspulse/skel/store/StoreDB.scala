@@ -43,7 +43,7 @@ abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Optio
   def getDbType = dbType
   def getDbConfigName = dbConfigName
 
-  log.info(s"StoreDB: database=${dbType},config=${dbConfigName},table=${tableName}")
+  log.info(s"StoreDB: database='${dbType}',config='${dbConfigName}',table='${tableName}'")
 
   if( ! configuration.isDefined) {
     val config = ConfigFactory.load().getConfig(dbConfigName).resolve()

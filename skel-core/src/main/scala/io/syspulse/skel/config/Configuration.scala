@@ -20,7 +20,19 @@ trait ConfigurationLike {
   def getCmd():Option[String] 
 }
 
-class Configuration(configurations: Seq[ConfigurationLike]) extends ConfigurationLike {
+class Configuration(configurations0: Seq[ConfigurationLike]) extends ConfigurationLike {
+  
+  // ATTENTION: If ConfigurationAkka is used and ConfigurationArgs used "--conf=" (override), 
+  // then ConfigurationAkka must be removed from the chain, otherwise it will use unshadowed config values 
+  val isCustomConfig = configurations0
+    .exists(
+      c => c.isInstanceOf[ConfigurationArgs] && 
+      c.asInstanceOf[ConfigurationArgs].overrideConfig.isDefined
+    )
+
+  val configurations = if(isCustomConfig) configurations0.filter(!_.isInstanceOf[ConfigurationAkka]) else configurations0
+  
+  // val configurations = configurations0
 
   def convertBackslash(s:String) = s
     .replace("\\n","\n")
@@ -179,13 +191,24 @@ object Configuration {
   
   // automatically support Akka-stype EnvVar
   System.setProperty("config.override_with_env_vars","true")
-  def apply():Configuration = new Configuration(Seq(new ConfigurationAkka))
+
+  @volatile
+  var defaultConfiguration:Option[Configuration] = None
+  
+  def apply():Configuration = {
+    //val c = new Configuration(Seq(new ConfigurationAkka))
+    Configuration.withPriority(Seq(new ConfigurationAkka,new ConfigurationProp,new ConfigurationEnv))    
+  }
 
   // last has the highest priority, so because of foldLeft, reverse
-  def withPriority(configurations: Seq[ConfigurationLike]):Configuration = new Configuration(configurations.reverse)
+  def withPriority(configurations: Seq[ConfigurationLike]):Configuration = {
+    val c = new Configuration(configurations.reverse)
+    defaultConfiguration = Some(c)
+    c
+  }
 
   // default: try config in this sequence, later supercese earlier (Env > Prop > Akk)
-  def default:Configuration = Configuration.withPriority(Seq(new ConfigurationAkka,new ConfigurationProp,new ConfigurationEnv))
+  lazy val default:Configuration = defaultConfiguration.getOrElse(Configuration.apply())
 
   def withEnv(value:String):String = {
     val env = value.split("\\$\\{").filter(_.contains("}")).map(s => s.substring(0,s.indexOf("}"))).toList

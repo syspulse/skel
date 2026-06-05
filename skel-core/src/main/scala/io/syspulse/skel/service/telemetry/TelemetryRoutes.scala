@@ -24,13 +24,13 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody
 import jakarta.ws.rs.{Consumes, POST, GET, DELETE, Path, Produces}
 import jakarta.ws.rs.core.MediaType
 
-
 import fr.davit.akka.http.metrics.core._
 import fr.davit.akka.http.metrics.prometheus.marshalling.PrometheusMarshallers._
 import fr.davit.akka.http.metrics.core.scaladsl.server.HttpMetricsDirectives.metrics
 import fr.davit.akka.http.metrics.core.{HttpMetricsRegistry, HttpMetricsSettings}
 import fr.davit.akka.http.metrics.core.HttpMetrics._
 
+import io.syspulse.skel.config.Configuration
 import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.service.telemetry.TelemetryRegistry._
 import akka.actor.typed.scaladsl.ActorContext
