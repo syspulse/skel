@@ -23,7 +23,8 @@ object ExplainRegistry {
   val log = Logger(s"${this}")
 
   final case class GetRule(oid: Option[String], rid: String, replyTo: ActorRef[Try[Explain]]) extends Command
-  final case class GetRules(oid: Option[String], rid: Option[String] = None, replyTo: ActorRef[Try[Explains]]) extends Command
+  final case class GetRules(oid: Option[String], rid: Option[String] = None, from: Option[Long] = None, size: Option[Long] = None, replyTo: ActorRef[Try[Explains]]) extends Command
+  final case class SearchRules(search: String, from: Option[Long] = None, size: Option[Long] = None, replyTo: ActorRef[Try[Explains]]) extends Command
   final case class CreateRule(oid: String, rid: String, req: ExplainCreateReq, replyTo: ActorRef[Try[ExplaineActionRes]]) extends Command
   final case class UpdateRule(oid: String, rid: String, req: ExplainUpdateReq, replyTo: ActorRef[Try[ExplaineActionRes]]) extends Command
   final case class DeleteRule(oid: String, rid: String, replyTo: ActorRef[Try[ExplaineActionRes]]) extends Command
@@ -45,15 +46,23 @@ object ExplainRegistry {
         }
         Behaviors.same
 
-      case GetRules(oid, rid, replyTo) =>
-        val rulesFut = oid match {
-          case Some(o) => store.findByOid(Option(o).filter(_.nonEmpty))
-          case None    => store.all
+      case GetRules(oid, rid, from, size, replyTo) =>
+        store.list(oid, rid, from, size).onComplete {
+          case Success(p) => replyTo ! Success(Explains(p.rules, Some(p.total)))
+          case Failure(e) => replyTo ! Failure(e)
         }
-        rulesFut.map { rules =>
-          val filtered = rid.map(r => rules.filter(_.rid == r)).getOrElse(rules)
-          replyTo ! Success(Explains(filtered, Some(filtered.size)))
-        }.recover { case e => replyTo ! Failure(e) }
+        Behaviors.same
+
+      case SearchRules(search, from, size, replyTo) =>
+        val fut = (from, size) match {
+          case (Some(_), None) | (None, Some(_)) =>
+            Future.failed(new IllegalArgumentException("from and size must both be set for paging"))
+          case _ => store.search(search, from, size)
+        }
+        fut.onComplete {
+          case Success(p) => replyTo ! Success(Explains(p.rules, Some(p.total)))
+          case Failure(e) => replyTo ! Failure(e)
+        }
         Behaviors.same
 
       case CreateRule(oid, rid, req, replyTo) =>

@@ -72,8 +72,11 @@ class ExplainRoutes(registry: ActorRef[Command])(implicit context: ActorContext[
   def getRule(oid: String, rid: String): Future[Try[Explain]] =
     registry.ask(GetRule(oidOpt(oid), rid, _))
 
-  def getRules(oid: Option[String], rid: Option[String] = None): Future[Try[Explains]] =
-    registry.ask(GetRules(oid, rid, _))
+  def getRules(oid: Option[String], rid: Option[String] = None, from: Option[Long] = None, size: Option[Long] = None): Future[Try[Explains]] =
+    registry.ask(GetRules(oid, rid, from, size, _))
+
+  def searchRules(search: String, from: Option[Long] = None, size: Option[Long] = None): Future[Try[Explains]] =
+    registry.ask(SearchRules(search, from, size, _))
 
   def createRule(oid: String, rid: String, req: ExplainCreateReq): Future[Try[ExplaineActionRes]] =
     registry.ask(CreateRule(oid, rid, req, _))
@@ -195,10 +198,25 @@ class ExplainRoutes(registry: ActorRef[Command])(implicit context: ActorContext[
               complete(explain(req.copy(oid = oidQuery.orElse(req.oid)), styleOpt.getOrElse("")))
             }
           } ~
-          parameters("oid".?, "rid".?) { (oidQuery, ridQuery) =>
+          parameters("search".?, "oid".?, "rid".?, "from".as[Long].?, "size".as[Long].?) { (search, oidQuery, ridQuery, from, size) =>
             authenticate()(authn => {
               authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
-                complete(getRules(oidQuery, ridQuery))
+                search match {
+                  case Some(q) =>
+                    (from, size) match {
+                      case (Some(_), None) | (None, Some(_)) =>
+                        complete(StatusCodes.BadRequest -> "from and size must be provided together")
+                      case _ =>
+                        complete(searchRules(q, from, size))
+                    }
+                  case None =>
+                    (from, size) match {
+                      case (Some(_), None) | (None, Some(_)) =>
+                        complete(StatusCodes.BadRequest -> "from and size must be provided together")
+                      case _ =>
+                        complete(getRules(oidQuery, ridQuery, from, size))
+                    }
+                }
               }
             })
           }
@@ -246,6 +264,24 @@ class ExplainRoutes(registry: ActorRef[Command])(implicit context: ActorContext[
               }
             })
           }
+        }
+      },
+      pathPrefix("search") {
+        pathEndOrSingleSlash {
+          authenticate()(authn =>
+            authorize(Permissions.isAdmin(authn) || Permissions.isService(authn)) {
+              post {
+                entity(as[ExplainSearchReq]) { req =>
+                  (req.from, req.size) match {
+                    case (Some(_), None) | (None, Some(_)) =>
+                      complete(StatusCodes.BadRequest -> "from and size must be provided together")
+                    case _ =>
+                      complete(searchRules(req.query, req.from, req.size))
+                  }
+                }
+              }
+            }
+          )
         }
       },
       // Per-rule routes: /{rid} and /{rid}/explain

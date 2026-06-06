@@ -115,6 +115,7 @@ object ExplainJson extends JsonCommon {
 
   implicit val jf_explain: RootJsonFormat[Explain] = jsonFormat9(Explain.apply)
   implicit val jf_explains: RootJsonFormat[Explains] = jsonFormat2(Explains)
+  implicit val jf_explain_search: RootJsonFormat[ExplainSearchReq] = jsonFormat3(ExplainSearchReq)
   implicit val jf_explain_create: RootJsonFormat[ExplainCreateReq] = jsonFormat7(ExplainCreateReq)
   implicit val jf_explain_update: RootJsonFormat[ExplainUpdateReq] = jsonFormat7(ExplainUpdateReq)
   implicit val jf_explain_action_res: RootJsonFormat[ExplaineActionRes] = jsonFormat2(ExplaineActionRes)

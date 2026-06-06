@@ -35,6 +35,12 @@ final case class Explains(
   total: Option[Long] = None
 )
 
+final case class ExplainSearchReq(
+  query: String,
+  from: Option[Long] = None,
+  size: Option[Long] = None,
+)
+
 // Request to create a rule
 final case class ExplainCreateReq(
   oid: Option[String] = None,

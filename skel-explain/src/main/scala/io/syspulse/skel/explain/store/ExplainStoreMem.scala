@@ -1,6 +1,7 @@
 package io.syspulse.skel.explain.store
 
-import scala.util.{Failure, Success, Try}
+import java.util.regex.Pattern
+
 import scala.concurrent.Future
 import com.typesafe.scalalogging.Logger
 
@@ -44,4 +45,33 @@ class ExplainStoreMem extends ExplainStore {
   def all: Future[Seq[Explain]] = Future.successful(rules.values.toSeq)
 
   def size: Future[Long] = Future.successful(rules.size.toLong)
+
+  override def list(oid: Option[String] = None, rid: Option[String] = None, from: Option[Long] = None, size: Option[Long] = None)(implicit ec: scala.concurrent.ExecutionContext): Future[ExplainStore.Page] =
+    super.list(oid, rid, from, size)
+
+  private def regexpMatch(pattern: Pattern, text: String): Boolean =
+    pattern.matcher(text).find()
+
+  def search(query: String, from: Option[Long] = None, size: Option[Long] = None): Future[ExplainStore.Page] = {
+    val q = query
+
+    if (q.length < ExplainStore.SEARCH_MIN_LEN) return Future.successful(ExplainStore.Page(Seq.empty, 0))
+
+    val pattern =
+      try Pattern.compile(q, Pattern.CASE_INSENSITIVE)
+      catch { case _: Exception => return Future.failed(new Exception(s"invalid regex: '${q}'")) }
+
+    val matched = rules.values.filter { r =>
+      r.name.exists(regexpMatch(pattern, _)) ||
+        r.desc.exists(regexpMatch(pattern, _))
+    }.toSeq
+
+    val total = matched.size.toLong
+    val pageRules = (from, size) match {
+      case (Some(f), Some(s)) => page(matched, f, s)
+      case (None, None)       => matched
+      case _                  => matched
+    }
+    Future.successful(ExplainStore.Page(pageRules, total))
+  }
 }

@@ -141,6 +141,60 @@ class ExplainStoreMemSpec extends AnyWordSpec with Matchers with BeforeAndAfterE
       r.scripts.head.src shouldBe src
     }
 
+    "list rules filtered by oid and rid" in {
+      Await.result(store.+(Explain(oid = Some("490"), rid = "R1", scripts = Seq(ExplainScript("str", "")))), timeout)
+      Await.result(store.+(Explain(oid = Some("490"), rid = "R2", scripts = Seq(ExplainScript("str", "")))), timeout)
+      Await.result(store.+(Explain(oid = Some("999"), rid = "R1", scripts = Seq(ExplainScript("str", "")))), timeout)
+
+      Await.result(store.list(oid = Some("490")), timeout).rules.map(_.rid).toSet shouldBe Set("R1", "R2")
+      Await.result(store.list(oid = Some("490"), rid = Some("R1")), timeout).rules.map(_.rid) shouldBe Seq("R1")
+      Await.result(store.list(oid = Some("490"), from = Some(0), size = Some(1)), timeout).rules.size shouldBe 1
+    }
+
+    "page rules with from and size" in {
+      (1 to 5).foreach { i =>
+        Await.result(store.+(Explain(oid = None, rid = s"R$i", scripts = Seq(ExplainScript("str", "")))), timeout)
+      }
+
+      Await.result(store.???(1, 2), timeout).size shouldBe 2
+      Await.result(store.???(3, 2), timeout).size shouldBe 2
+      Await.result(store.???(10, 2), timeout) shouldBe empty
+      Await.result(store.???(-1, 1), timeout).size shouldBe 1
+      Await.result(store.???(0, 0), timeout) shouldBe empty
+      Await.result(store.all, timeout).size shouldBe 5
+    }
+
+    "search rules case-insensitively with minimum query length" in {
+      Await.result(store.+(Explain(oid = None, rid = "R1", name = Some("Needle Rule"), scripts = Seq(ExplainScript("str", "")))), timeout)
+      Await.result(store.+(Explain(oid = Some("490"), rid = "R2", desc = Some("wallet-needle-desc"), scripts = Seq(ExplainScript("str", "")))), timeout)
+      Await.result(store.+(Explain(oid = None, rid = "R3", name = Some("Other"), scripts = Seq(ExplainScript("str", "")))), timeout)
+
+      Await.result(store.search("NEEDLE"), timeout).rules.map(_.rid).toSet shouldBe Set("R1", "R2")
+      Await.result(store.search("ne"), timeout).rules shouldBe empty
+    }
+
+    "search rules by regexp substring in name and description" in {
+      Await.result(store.+(Explain(oid = None, rid = "R1", name = Some("demo-rule-name"), scripts = Seq(ExplainScript("str", "")))), timeout)
+      Await.result(store.+(Explain(oid = None, rid = "R2", desc = Some("needle in description"), scripts = Seq(ExplainScript("str", "")))), timeout)
+
+      Await.result(store.search("demo"), timeout).rules.map(_.rid) shouldBe Seq("R1")
+      Await.result(store.search("eedle"), timeout).rules.map(_.rid) shouldBe Seq("R2")
+    }
+
+    "page search results with from and size" in {
+      (1 to 5).foreach { i =>
+        Await.result(store.+(Explain(oid = None, rid = s"R$i", name = Some(s"pager-name-$i"), scripts = Seq(ExplainScript("str", "")))), timeout)
+      }
+
+      val p0 = Await.result(store.search("pager", Some(0), Some(2)), timeout)
+      p0.rules.size shouldBe 2
+      p0.total shouldBe 5
+      val p2 = Await.result(store.search("pager", Some(2), Some(2)), timeout)
+      p2.rules.size shouldBe 2
+      p2.total shouldBe 5
+      Await.result(store.search("pager", Some(10), Some(2)), timeout).rules shouldBe empty
+    }
+
     "store and retrieve multiple scripts each with quotes in src" in {
       val src1 = """"prefix: \"value\"""""
       val src2 = """"suffix: \" + input + \""""
