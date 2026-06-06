@@ -14,7 +14,7 @@ import spray.json._
 import DefaultJsonProtocol._
 
 import io.syspulse.skel.config.{Configuration}
-import io.syspulse.skel.store.{Store, StoreDB, StoreDBAsync, StoreFts}
+import io.syspulse.skel.store.{Store, StoreDB, StoreDBAsync, StoreFts, StoreSearch}
 
 import io.syspulse.skel.user.User
 import io.syspulse.skel.user.server.{UserUpdateReq}
@@ -38,11 +38,12 @@ case class UserDb(
 )
 
 // Postgres does not support table name 'user' !
-class UserStoreDB(configuration: Configuration, dbConfigRef: String)
-    extends StoreDBAsync[User, UUID](dbConfigRef, "users", Some(configuration))
+class UserStoreDB(configuration: Configuration, dbConfigRef: String, searchIndexes: Option[Set[String]] = None)
+    extends StoreDBAsync[User, UUID](dbConfigRef, "users", Some(configuration), searchIndexes)
     with UserStore {
 
   private lazy val log = Logger(getClass)
+  private def searchFields = Seq("email", "name", "xid")
   import ctx._
 
   private val users = quote { querySchema[UserDb]("users") }
@@ -87,10 +88,11 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
       case "postgres" => CREATE_INDEX_POSTGRES_SQL
     }
 
-    val tsvExprPostgres = StoreFts.pgTsvExpr(Seq("email", "name", "xid"))
+    val tsvExprPostgres = StoreFts.pgTsvExpr(searchFields)
+    val tsvColDef = postgresTsvColumnDef(colUserTsv, tsvExprPostgres)
 
     val CREATE_INDEX_FTS_MYSQL_SQL =
-      s"CREATE FULLTEXT INDEX ${indexUserFts} ON ${tableName} (email, name, xid);"
+      s"CREATE FULLTEXT INDEX ${indexUserFts} ON ${tableName} (${searchFields.mkString(", ")});"
 
     val CREATE_TABLE_MYSQL_SQL =
       s"""CREATE TABLE IF NOT EXISTS ${tableName} (
@@ -115,9 +117,7 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
         ts0 BIGINT,
         ts BIGINT,
         meta TEXT,
-        ${colUserTsv} tsvector GENERATED ALWAYS AS (
-          to_tsvector('simple', ${tsvExprPostgres})
-        ) STORED
+        $tsvColDef
       );
       """
 
@@ -139,15 +139,16 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
 
       getDbType match {
         case "postgres" =>
-          migrateTsvPostgres(colUserTsv, indexUserFts, tsvExprPostgres)
+          setupPostgresSearchIndexes(colUserTsv, indexUserFts, tsvExprPostgres, "user", searchFields)
 
         case "mysql" =>
-          // MySQL does not support IF NOT EXISTS for FULLTEXT in all versions; ignore "already exists".
-          try {
-            val f3 = ctx.executeAction(CREATE_INDEX_FTS_MYSQL_SQL)(ExecutionInfo.unknown, ())
-            Await.result(f3, FiniteDuration(timeout, TimeUnit.MILLISECONDS))
-          } catch {
-            case _: Exception => ()
+          if (StoreSearch.hasFts(searchIndexes)) {
+            try {
+              val f3 = ctx.executeAction(CREATE_INDEX_FTS_MYSQL_SQL)(ExecutionInfo.unknown, ())
+              Await.result(f3, FiniteDuration(timeout, TimeUnit.MILLISECONDS))
+            } catch {
+              case _: Exception => ()
+            }
           }
 
         case _ => ()
@@ -287,30 +288,32 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
 
     getDbType match {
       case "postgres" =>
-        UserStore.postgresPrefixTsQuery(q) match {
+        val tsvCol = if (StoreSearch.hasFts(searchIndexes)) Some(colUserTsv) else None
+        StoreFts.postgresSearchWhere(searchIndexes, tsvCol, searchFields, q, sqlLit) match {
           case None => Future.successful(UserStore.Page(Seq.empty, 0))
-          case Some(tsq) =>
-            val fts = s"tsv @@ to_tsquery('simple', '${sqlLit(tsq)}')"
-            val totalF = queryCount(s"SELECT count(*) FROM $tableName WHERE $fts")
+          case Some(where) =>
+            val totalF = queryCount(s"SELECT count(*) FROM $tableName WHERE $where")
             val usersF = limit match {
               case Some(l) =>
                 val off = pageInt(offset)
                 val lim = pageInt(l)
                 val sql =
                   s"""SELECT id, email, name, xid, avatar, ts0, ts, meta FROM $tableName
-                     |WHERE $fts
+                     |WHERE $where
                      |LIMIT $lim OFFSET $off""".stripMargin
                 querySql(sql).map(_.map(fromDb))
               case None =>
                 val sql =
                   s"""SELECT id, email, name, xid, avatar, ts0, ts, meta FROM $tableName
-                     |WHERE $fts""".stripMargin
+                     |WHERE $where""".stripMargin
                 querySql(sql).map(_.map(fromDb))
             }
             pageResult(usersF, totalF)
         }
 
       case "mysql" =>
+        if (!StoreSearch.hasFts(searchIndexes))
+          return Future.successful(UserStore.Page(Seq.empty, 0))
         val totalF = queryCount(
           s"""SELECT count(*) FROM $tableName
              |WHERE MATCH(email, name, xid) AGAINST ('${sqlLit(q)}' IN NATURAL LANGUAGE MODE)""".stripMargin,

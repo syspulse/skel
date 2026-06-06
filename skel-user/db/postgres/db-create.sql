@@ -9,3 +9,8 @@ GRANT CONNECT ON DATABASE user_db TO user_user;
 
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO user_user;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA user_schema TO user_user;
+
+\c user_db
+
+-- Required for ?search=tgram (substring / ILIKE indexes). Superuser only.
+CREATE EXTENSION IF NOT EXISTS pg_trgm;

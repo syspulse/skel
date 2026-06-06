@@ -195,6 +195,19 @@ class ExplainStoreMemSpec extends AnyWordSpec with Matchers with BeforeAndAfterE
       ExplainStore.postgresPrefixTsQuery("  ") shouldBe None
     }
 
+    "build postgres search where with tgram for substring match" in {
+      import io.syspulse.skel.store.{StoreFts, StoreSearch}
+      def sqlLit(s: String): String = s.replace("'", "''")
+      val where = StoreFts.postgresSearchWhere(
+        Set(StoreSearch.Tgram),
+        None,
+        Seq("name", "description"),
+        "Wallet",
+        sqlLit,
+      ).get
+      where should include("LIKE '%wallet%'")
+    }
+
     "tokenize camelCase names for postgres FTS" in {
       ExplainStore.tokenizeSearchField("DetectorWallet Updated") should contain allOf ("detector", "wallet", "updated")
       ExplainStore.postgresPrefixTsQuery("Wallet") shouldBe Some("wallet:*")

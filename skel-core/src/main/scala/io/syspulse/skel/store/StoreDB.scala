@@ -32,7 +32,31 @@ import scala.concurrent.Await
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit
 
-/** Shared free-text search helpers (Postgres tsvector + query tokenization). */
+/** Search index kinds for DB stores (Postgres: fts=tsvector, tgram=pg_trgm). */
+object StoreSearch {
+  val Fts = "fts"
+  val Tgram = "tgram"
+
+  private val Known = Set(Fts, Tgram)
+
+  def parse(value: String): Set[String] = {
+    val cleaned = value.trim.stripPrefix("\"").stripSuffix("\"").trim
+    if (cleaned.isEmpty) Set.empty
+    else cleaned.split("[,+]").map(_.trim.toLowerCase).filter(Known.contains).toSet
+  }
+
+  /** URI `?search=` overrides constructor; default is fts-only when unset. */
+  def resolve(uri: JdbcURI, constructor: Option[Set[String]]): Set[String] =
+    uri.opts.get("search") match {
+      case Some(v) => parse(v)
+      case None    => constructor.getOrElse(Set(Fts))
+    }
+
+  def hasFts(indexes: Set[String]): Boolean = indexes.contains(Fts)
+  def hasTgram(indexes: Set[String]): Boolean = indexes.contains(Tgram)
+}
+
+/** Shared free-text search helpers (Postgres tsvector + pg_trgm + query tokenization). */
 object StoreFts {
   val SEARCH_MIN_LEN = 3
 
@@ -68,9 +92,35 @@ object StoreFts {
   /** Combined Postgres tsv source expression for multiple searchable columns. */
   def pgTsvExpr(fields: Seq[String]): String =
     fields.map(pgTokenizeColumn).mkString(" || ' ' || ")
+
+  /** Substring match on text columns (uses pg_trgm GIN indexes when created). */
+  def pgTrgmWhere(fields: Seq[String], query: String, sqlLit: String => String): String = {
+    val pattern = sqlLit(query.toLowerCase)
+    fields.map(f => s"lower(coalesce($f, '')) LIKE '%$pattern%'").mkString(" OR ")
+  }
+
+  /** Postgres WHERE for enabled search indexes (fts and/or tgram combined with OR). */
+  def postgresSearchWhere(
+    searchIndexes: Set[String],
+    tsvCol: Option[String],
+    trgmFields: Seq[String],
+    query: String,
+    sqlLit: String => String,
+  ): Option[String] = {
+    val ftsPart =
+      if (StoreSearch.hasFts(searchIndexes) && tsvCol.isDefined)
+        postgresPrefixTsQuery(query).map(tsq => s"${tsvCol.get} @@ to_tsquery('simple', '${sqlLit(tsq)}')")
+      else None
+    val tgramPart =
+      if (StoreSearch.hasTgram(searchIndexes) && trgmFields.nonEmpty)
+        Some(pgTrgmWhere(trgmFields, query, sqlLit))
+      else None
+    val parts = Seq(ftsPart, tgramPart).flatten
+    if (parts.isEmpty) None else Some(parts.map(p => s"($p)").mkString(" OR "))
+  }
 }
 
-abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Option[Configuration]=None) {
+abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Option[Configuration]=None,searchIndexesOpt:Option[Set[String]]=None) {
   private val log = Logger(s"${this}")
 
   val props = new java.util.Properties
@@ -80,12 +130,13 @@ abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Optio
 
   protected val (dbType,dbConfigName) = (uri.dbType,uri.dbConfig.getOrElse("postgres"))
   protected val dbTimezone = uri.timezone.getOrElse("UTC")
+  protected val searchIndexes: Set[String] = StoreSearch.resolve(uri, searchIndexesOpt)
 
   def getTableName = tableName
   def getDbType = dbType
   def getDbConfigName = dbConfigName
 
-  log.info(s"StoreDB: database='${dbType}',config='${dbConfigName}',table='${tableName}'")
+  log.info(s"StoreDB: database='${dbType}',config='${dbConfigName}',table='${tableName}',searchIndexes='${searchIndexes.mkString(",")}'")
 
   if( ! configuration.isDefined) {
     val config = ConfigFactory.load().getConfig(dbConfigName).resolve()
@@ -133,8 +184,8 @@ abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Optio
 }
 
 // ========================================================================= StoreDB
-abstract class StoreDB[E,P](dbUri:String,tableName:String,configuration:Option[Configuration]=None)
-  extends StoreDBCore(dbUri,tableName,configuration)
+abstract class StoreDB[E,P](dbUri:String,tableName:String,configuration:Option[Configuration]=None,searchIndexesOpt:Option[Set[String]]=None)
+  extends StoreDBCore(dbUri,tableName,configuration,searchIndexesOpt)
   with Store[E,P] {
 
   val tz = System.getProperty("user.timezone")
@@ -180,8 +231,8 @@ abstract class StoreDB[E,P](dbUri:String,tableName:String,configuration:Option[C
 
 // ========================================================================= StoreDBAsync
 
-abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Option[Configuration]=None)
-  extends StoreDBCore(dbUri,tableName,configuration)
+abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Option[Configuration]=None,searchIndexesOpt:Option[Set[String]]=None)
+  extends StoreDBCore(dbUri,tableName,configuration,searchIndexesOpt)
   with Store[E,P] {
 
   private val log = Logger(s"${this}")
@@ -254,6 +305,44 @@ abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Opt
         log.warn(s"table: $tableName: $colTsv migration skipped: ${e.getMessage()}")
     }
   }
+
+  /** Create pg_trgm GIN indexes on text columns (substring / ILIKE search).
+    * Requires `pg_trgm` extension (install via db/postgres/db-create.sql as superuser). */
+  protected def createTrgramIndexes(indexPrefix: String, fields: Seq[String]): Unit = {
+    try {
+      fields.foreach { field =>
+        val idx = s"${indexPrefix}_${field}_trgm"
+        val sql = s"CREATE INDEX IF NOT EXISTS $idx ON $tableName USING GIN ($field gin_trgm_ops)"
+        val f = ctx.executeAction(sql)(ExecutionInfo.unknown, ())
+        Await.result(f, FiniteDuration(timeout, TimeUnit.MILLISECONDS))
+        log.info(s"index: $idx: ok")
+      }
+    } catch {
+      case e: Exception =>
+        log.warn(s"table: $tableName: trgram indexes skipped: ${e.getMessage()}")
+    }
+  }
+
+  protected def setupPostgresSearchIndexes(
+    colTsv: String,
+    indexFts: String,
+    tsvExpr: String,
+    indexTgramPrefix: String,
+    tgramFields: Seq[String],
+  ): Unit = {
+    if (StoreSearch.hasFts(searchIndexes))
+      migrateTsvPostgres(colTsv, indexFts, tsvExpr)
+    if (StoreSearch.hasTgram(searchIndexes))
+      createTrgramIndexes(indexTgramPrefix, tgramFields)
+  }
+
+  protected def postgresTsvColumnDef(colTsv: String, tsvExpr: String): String =
+    if (StoreSearch.hasFts(searchIndexes))
+      s"""$colTsv tsvector GENERATED ALWAYS AS (
+         |  to_tsvector('simple', $tsvExpr)
+         |) STORED,""".stripMargin
+    else
+      ""
 
   // create Store
   create
