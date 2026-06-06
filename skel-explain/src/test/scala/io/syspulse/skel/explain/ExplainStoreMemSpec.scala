@@ -9,7 +9,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 
-import io.syspulse.skel.explain.store.ExplainStoreMem
+import io.syspulse.skel.explain.store.{ExplainStore, ExplainStoreMem}
 
 class ExplainStoreMemSpec extends AnyWordSpec with Matchers with BeforeAndAfterEach {
 
@@ -171,6 +171,34 @@ class ExplainStoreMemSpec extends AnyWordSpec with Matchers with BeforeAndAfterE
 
       Await.result(store.search("NEEDLE"), timeout).rules.map(_.rid).toSet shouldBe Set("R1", "R2")
       Await.result(store.search("ne"), timeout).rules shouldBe empty
+    }
+
+    "search rules by prefix, middle and postfix in name" in {
+      Await.result(store.+(Explain(oid = None, rid = "R1", name = Some("prefixAlphabetapostfix"), scripts = Seq(ExplainScript("str", "")))), timeout)
+
+      Await.result(store.search("pre"), timeout).rules.map(_.rid) shouldBe Seq("R1")
+      Await.result(store.search("pha"), timeout).rules.map(_.rid) shouldBe Seq("R1")
+      Await.result(store.search("fix"), timeout).rules.map(_.rid) shouldBe Seq("R1")
+    }
+
+    "search rules by prefix, middle and postfix in description" in {
+      Await.result(store.+(Explain(oid = None, rid = "R1", desc = Some("prefixAlphabetapostfix"), scripts = Seq(ExplainScript("str", "")))), timeout)
+
+      Await.result(store.search("pre"), timeout).rules.map(_.rid) shouldBe Seq("R1")
+      Await.result(store.search("pha"), timeout).rules.map(_.rid) shouldBe Seq("R1")
+      Await.result(store.search("fix"), timeout).rules.map(_.rid) shouldBe Seq("R1")
+    }
+
+    "build postgres prefix tsquery" in {
+      ExplainStore.postgresPrefixTsQuery("pre") shouldBe Some("pre:*")
+      ExplainStore.postgresPrefixTsQuery("prefix Alphabet") shouldBe Some("prefix:* & alphabet:*")
+      ExplainStore.postgresPrefixTsQuery("  ") shouldBe None
+    }
+
+    "tokenize camelCase names for postgres FTS" in {
+      ExplainStore.tokenizeSearchField("DetectorWallet Updated") should contain allOf ("detector", "wallet", "updated")
+      ExplainStore.postgresPrefixTsQuery("Wallet") shouldBe Some("wallet:*")
+      ExplainStore.postgresPrefixTsQuery("DetectorWallet") shouldBe Some("detector:* & wallet:*")
     }
 
     "search rules by regexp substring in name and description" in {

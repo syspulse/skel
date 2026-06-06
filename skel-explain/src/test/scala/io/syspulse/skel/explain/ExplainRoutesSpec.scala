@@ -757,6 +757,74 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
       r.rejections should not be empty
     }
 
+    "[search] find rules by prefix, middle and postfix in name (GET /?search=)" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
+      val marker = "prefixAlphabetapostfix"
+
+      Post("/SearchPrefix", ExplainCreateReq(scripts = Seq(ExplainScript("str", "")), name = Some(marker))) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check { status shouldBe StatusCodes.OK }
+
+      Get(Uri("/").withQuery(Uri.Query("search" -> "pre"))) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          responseAs[Explains].data.map(_.rid) should contain("SearchPrefix")
+        }
+
+      Get(Uri("/").withQuery(Uri.Query("search" -> "pha"))) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          responseAs[Explains].data.map(_.rid) should contain("SearchPrefix")
+        }
+
+      Get(Uri("/").withQuery(Uri.Query("search" -> "fix"))) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          responseAs[Explains].data.map(_.rid) should contain("SearchPrefix")
+        }
+    }
+
+    "[search] find rules by prefix, middle and postfix in description (POST /search)" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
+      val marker = "prefixAlphabetapostfix"
+
+      Post("/SearchPostfix", ExplainCreateReq(scripts = Seq(ExplainScript("str", "")), desc = Some(marker))) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check { status shouldBe StatusCodes.OK }
+
+      Post("/search", ExplainSearchReq(query = "pre")) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          responseAs[Explains].data.map(_.rid) should contain("SearchPostfix")
+        }
+
+      Post("/search", ExplainSearchReq(query = "pha")) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          responseAs[Explains].data.map(_.rid) should contain("SearchPostfix")
+        }
+
+      Post("/search", ExplainSearchReq(query = "fix")) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          responseAs[Explains].data.map(_.rid) should contain("SearchPostfix")
+        }
+    }
+
     "[bulk-delete] DELETE /?oid= returns empty list when oid has no rules" in {
       val jwtDef = createJwtToken("", Seq(adminRole))
 

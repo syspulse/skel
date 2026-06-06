@@ -10,6 +10,11 @@ object ExplainStore {
   final case class Page(rules: Seq[Explain], total: Long)
 
   private val NonAlnum = "[^a-zA-Z0-9]+"
+  private val CamelSplit = "([a-z])([A-Z])"
+
+  /** "DetectorWallet" -> "Detector Wallet" so FTS can match "wallet" inside compound names. */
+  def splitCamelCase(text: String): String =
+    text.replaceAll(CamelSplit, "$1 $2")
 
   def normalizeSearchQuery(query: String): String = {
     val q = query.trim
@@ -18,7 +23,7 @@ object ExplainStore {
   }
 
   def tokenizeSearchField(text: String): Seq[String] =
-    text.toLowerCase.replaceAll(NonAlnum, " ").split("\\s+").filter(_.nonEmpty)
+    splitCamelCase(text).toLowerCase.replaceAll(NonAlnum, " ").split("\\s+").filter(_.nonEmpty)
 
   def postgresSearchTerms(query: String): Seq[String] =
     tokenizeSearchField(normalizeSearchQuery(query))
