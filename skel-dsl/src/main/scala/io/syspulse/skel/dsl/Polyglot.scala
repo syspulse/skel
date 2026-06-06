@@ -254,7 +254,7 @@ class Polyglot(lang:String,opt:Map[String,Any] = Map(),src0:Option[String] = Non
     }
   }
 
-  log.info(s"[${lang}] ctx=${ctx}")
+  log.debug(s"[${lang}] ctx=${ctx}")
 
   // Try to precompile src0 if it's a function, otherwise store as string
   // If precompilation fails (e.g., references undefined variables), store as string for runtime evaluation
@@ -274,11 +274,11 @@ class Polyglot(lang:String,opt:Map[String,Any] = Map(),src0:Option[String] = Non
     case None => (None, None)
   }
 
-  log.info(s"[${lang}] func0=${func0}, src_scrip0=${src0Script}")
+  log.debug(s"[${lang}] func0=${func0}, src_scrip0=${src0Script}")
 
   def run(script:String,args:Map[String,Any] = Map()):Try[Any] = {    
 
-    log.info(s"[${lang}] ${ctx}: args=${args}, script=${script} (src0=${src0})")
+    log.debug(s"[${lang}] ${ctx}: args=${args}, script=${script} (src0=${src0})")
 
     if(script.isBlank && func0.isEmpty && src0Script.isEmpty) {
       return Failure(new Exception("No Script specified"))
