@@ -335,7 +335,7 @@ class ScriptAI(prompt0:Option[String],uri0:Option[String] = None) extends Script
       xid = aiUri.tid
     )
 
-    log.info(s"prompt='${prompt}', images=${images}, outputType=${outputType}")
+    log.debug(s"prompt='${prompt}', images=${images}, outputType=${outputType}")
     
     provider
       .promptAsync(a0, aiUri.system, aiUri.timeout, aiUri.retry, tools, images, outputType)(aiEc)
@@ -429,7 +429,7 @@ class ScriptApi(body0:Option[String],uri0:Option[String] = None) extends Script(
       case _ => HttpMethods.GET
     }
     
-    log.info(s"body='${body}' ==> ${uri.verb}(${uri.uri}), headers=${headers}")
+    log.info(s"body='${Util.trunc(body.getOrElse(""),64)}' ==> ${uri.verb}(${uri.uri}), headers=${headers}")
     
     val f = HTTP.req(uri.uri, verb, body, headers, timeout = timeout)
     f
