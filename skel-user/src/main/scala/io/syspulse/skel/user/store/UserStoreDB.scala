@@ -14,7 +14,7 @@ import spray.json._
 import DefaultJsonProtocol._
 
 import io.syspulse.skel.config.{Configuration}
-import io.syspulse.skel.store.{Store, StoreDB, StoreDBAsync}
+import io.syspulse.skel.store.{Store, StoreDB, StoreDBAsync, StoreFts}
 
 import io.syspulse.skel.user.User
 import io.syspulse.skel.user.server.{UserUpdateReq}
@@ -87,17 +87,7 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
       case "postgres" => CREATE_INDEX_POSTGRES_SQL
     }
 
-    // Free-text search:
-    // - Postgres: stored generated tsvector + GIN index
-    //   Split email/name/xid on non-alphanumerics so "demo" matches demo-xxx@example.com
-    // - MySQL: FULLTEXT index (best-effort)
-    val tsvExprPostgres =
-      """regexp_replace(coalesce(email, ''), '[^a-zA-Z0-9]+', ' ', 'g') || ' ' ||
-        |regexp_replace(coalesce(name, ''), '[^a-zA-Z0-9]+', ' ', 'g') || ' ' ||
-        |regexp_replace(coalesce(xid, ''), '[^a-zA-Z0-9]+', ' ', 'g')""".stripMargin
-
-    val CREATE_INDEX_FTS_POSTGRES_SQL =
-      s"CREATE INDEX IF NOT EXISTS ${indexUserFts} ON ${tableName} USING GIN (${colUserTsv});"
+    val tsvExprPostgres = StoreFts.pgTsvExpr(Seq("email", "name", "xid"))
 
     val CREATE_INDEX_FTS_MYSQL_SQL =
       s"CREATE FULLTEXT INDEX ${indexUserFts} ON ${tableName} (email, name, xid);"
@@ -147,11 +137,9 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String)
         log.info(s"index: ${idxDef._1}: ${r2}")
       }}
 
-      // FTS index (best-effort)
       getDbType match {
         case "postgres" =>
-          val f3 = ctx.executeAction(CREATE_INDEX_FTS_POSTGRES_SQL)(ExecutionInfo.unknown, ())
-          Await.result(f3, FiniteDuration(timeout, TimeUnit.MILLISECONDS))
+          migrateTsvPostgres(colUserTsv, indexUserFts, tsvExprPostgres)
 
         case "mysql" =>
           // MySQL does not support IF NOT EXISTS for FULLTEXT in all versions; ignore "already exists".

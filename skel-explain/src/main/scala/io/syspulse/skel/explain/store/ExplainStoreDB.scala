@@ -15,7 +15,7 @@ import io.getquill._
 import io.getquill.context._
 
 import io.syspulse.skel.config.Configuration
-import io.syspulse.skel.store.{Store, StoreDB, StoreDBAsync}
+import io.syspulse.skel.store.{Store, StoreDB, StoreDBAsync, StoreFts}
 
 import io.syspulse.skel.explain.{Explain, ExplainScript}
 import io.syspulse.skel.explain.server.{ExplainMetaJson, ExplainScriptJson}
@@ -84,15 +84,7 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
       case "postgres" => CREATE_INDEX_POSTGRES_SQL
     }
 
-    // Split camelCase (DetectorWallet -> Detector Wallet) then non-alphanumerics, so "wallet" matches.
-    def pgTokenize(col: String): String =
-      s"regexp_replace(regexp_replace(coalesce($col, ''), '([a-z])([A-Z])', '\\1 \\2', 'g'), '[^a-zA-Z0-9]+', ' ', 'g')"
-
-    val tsvExprPostgres =
-      s"${pgTokenize("name")} || ' ' || ${pgTokenize("description")}"
-
-    val CREATE_INDEX_FTS_POSTGRES_SQL =
-      s"CREATE INDEX IF NOT EXISTS ${indexExplainFts} ON ${tableName} USING GIN (${colExplainTsv});"
+    val tsvExprPostgres = StoreFts.pgTsvExpr(Seq("name", "description"))
 
     val CREATE_INDEX_FTS_MYSQL_SQL =
       s"CREATE FULLTEXT INDEX ${indexExplainFts} ON ${tableName} (name, description);"
@@ -148,7 +140,7 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
 
       getDbType match {
         case "postgres" =>
-          migrateTsvPostgres(tsvExprPostgres, CREATE_INDEX_FTS_POSTGRES_SQL)
+          migrateTsvPostgres(colExplainTsv, indexExplainFts, tsvExprPostgres)
 
         case "mysql" =>
           // MySQL does not support IF NOT EXISTS for FULLTEXT in all versions; ignore "already exists".
@@ -167,26 +159,6 @@ class ExplainStoreDB(configuration: Configuration, dbConfigRef: String)
       case e: Exception =>
         log.warn(s"failed to create: ${e.getMessage()}")
         Failure(e)
-    }
-  }
-
-  /** Recreate generated tsv column (idempotent) so camelCase tokenization applies to existing rows. */
-  private def migrateTsvPostgres(tsvExpr: String, createFtsIndexSql: String): Unit = {
-    val dropIdx = s"DROP INDEX IF EXISTS ${indexExplainFts}"
-    val dropCol = s"ALTER TABLE ${tableName} DROP COLUMN IF EXISTS ${colExplainTsv}"
-    val addCol =
-      s"""ALTER TABLE ${tableName} ADD COLUMN ${colExplainTsv} tsvector GENERATED ALWAYS AS (
-         |  to_tsvector('simple', ${tsvExpr})
-         |) STORED""".stripMargin
-    try {
-      Seq(dropIdx, dropCol, addCol, createFtsIndexSql).foreach { sql =>
-        val f = ctx.executeAction(sql)(ExecutionInfo.unknown, ())
-        Await.result(f, FiniteDuration(timeout, TimeUnit.MILLISECONDS))
-      }
-      log.info(s"table: ${tableName}: migrated ${colExplainTsv}")
-    } catch {
-      case e: Exception =>
-        log.warn(s"table: ${tableName}: ${colExplainTsv} migration skipped: ${e.getMessage()}")
     }
   }
 

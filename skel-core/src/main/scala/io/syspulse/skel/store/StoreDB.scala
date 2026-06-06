@@ -28,6 +28,48 @@ import io.syspulse.skel.config.Configuration
 import io.syspulse.skel.uri.JdbcURI
 import io.syspulse.skel.util.Util
 
+import scala.concurrent.Await
+import scala.concurrent.duration.FiniteDuration
+import java.util.concurrent.TimeUnit
+
+/** Shared free-text search helpers (Postgres tsvector + query tokenization). */
+object StoreFts {
+  val SEARCH_MIN_LEN = 3
+
+  private val NonAlnum = "[^a-zA-Z0-9]+"
+  private val CamelSplit = "([a-z])([A-Z])"
+
+  /** "DetectorWallet" -> "Detector Wallet" so FTS can match "wallet" inside compound text. */
+  def splitCamelCase(text: String): String =
+    text.replaceAll(CamelSplit, "$1 $2")
+
+  def normalizeSearchQuery(query: String): String = {
+    val q = query.trim
+    if (q.length >= 2 && ((q.head == '\'' && q.last == '\'') || (q.head == '"' && q.last == '"'))) q.substring(1, q.length - 1).trim
+    else q
+  }
+
+  def tokenizeSearchField(text: String): Seq[String] =
+    splitCamelCase(text).toLowerCase.replaceAll(NonAlnum, " ").split("\\s+").filter(_.nonEmpty)
+
+  def postgresSearchTerms(query: String): Seq[String] =
+    tokenizeSearchField(normalizeSearchQuery(query))
+
+  /** Postgres prefix tsquery: "yuk" -> "yuk:*" matches token prefix "yuki". */
+  def postgresPrefixTsQuery(query: String): Option[String] = {
+    val terms = postgresSearchTerms(query)
+    if (terms.isEmpty) None else Some(terms.map(t => s"$t:*").mkString(" & "))
+  }
+
+  /** SQL expression: split camelCase and non-alphanumerics for one column. */
+  def pgTokenizeColumn(col: String): String =
+    s"regexp_replace(regexp_replace(coalesce($col, ''), '([a-z])([A-Z])', '\\1 \\2', 'g'), '[^a-zA-Z0-9]+', ' ', 'g')"
+
+  /** Combined Postgres tsv source expression for multiple searchable columns. */
+  def pgTsvExpr(fields: Seq[String]): String =
+    fields.map(pgTokenizeColumn).mkString(" || ' ' || ")
+}
+
 abstract class StoreDBCore(dbUri:String,val tableName:String,configuration:Option[Configuration]=None) {
   private val log = Logger(s"${this}")
 
@@ -191,6 +233,27 @@ abstract class StoreDBAsync[E,P](dbUri:String,tableName:String,configuration:Opt
   def truncate():Future[Long] = ctx.run(truncateSQL())
 
   def size:Future[Long] = ctx.run(totalSQL())
+
+  /** Recreate generated tsv column (idempotent) after tokenization expression changes. */
+  protected def migrateTsvPostgres(colTsv: String, indexFts: String, tsvExpr: String): Unit = {
+    val dropIdx = s"DROP INDEX IF EXISTS $indexFts"
+    val dropCol = s"ALTER TABLE $tableName DROP COLUMN IF EXISTS $colTsv"
+    val addCol =
+      s"""ALTER TABLE $tableName ADD COLUMN $colTsv tsvector GENERATED ALWAYS AS (
+         |  to_tsvector('simple', $tsvExpr)
+         |) STORED""".stripMargin
+    val createFtsIndexSql = s"CREATE INDEX IF NOT EXISTS $indexFts ON $tableName USING GIN ($colTsv);"
+    try {
+      Seq(dropIdx, dropCol, addCol, createFtsIndexSql).foreach { sql =>
+        val f = ctx.executeAction(sql)(ExecutionInfo.unknown, ())
+        Await.result(f, FiniteDuration(timeout, TimeUnit.MILLISECONDS))
+      }
+      log.info(s"table: $tableName: migrated $colTsv")
+    } catch {
+      case e: Exception =>
+        log.warn(s"table: $tableName: $colTsv migration skipped: ${e.getMessage()}")
+    }
+  }
 
   // create Store
   create
