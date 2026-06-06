@@ -101,6 +101,7 @@
     "metaAdd": "Add",
     "result": "Explanation",
     "noResult": "No explanation yet",
+    "searchPlaceholder": "search...",
     "errorLoad": "Failed to load rules",
     "errorRun": "Explain failed",
     "confirmDelete": "Delete rule \"{{rid}}\"?",

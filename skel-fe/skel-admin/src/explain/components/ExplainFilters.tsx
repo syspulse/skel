@@ -3,12 +3,16 @@ import { useTranslation } from 'react-i18next';
 import type { TimeRange } from '../../types';
 import { TimeRangePicker } from '../../components/TimeRangePicker';
 import { IconRefresh, IconTrash, IconPlus } from '../../components/Icons';
+import { SearchField } from '../../components/SearchField';
 
 export interface FilterState {
+  search: string;
   oid: string;
   rid: string;
   timeRange: TimeRange;
 }
+
+const SEARCH_PRESETS = ['.*', 'Rule'];
 
 export const TIMEZONES: { value: string; label: string }[] = [
   { value: 'local',                label: 'local' },
@@ -40,6 +44,7 @@ interface ExplainFiltersProps {
   hasSelection: boolean;
   onFilterChange: (filters: FilterState) => void;
   onTimezoneChange: (tz: string) => void;
+  onSearch: (query: string) => void;
   onAdd: () => void;
   onDeleteSelected: () => void;
   onRefresh: () => void;
@@ -52,6 +57,7 @@ export function ExplainFilters({
   hasSelection,
   onFilterChange,
   onTimezoneChange,
+  onSearch,
   onAdd,
   onDeleteSelected,
   onRefresh,
@@ -62,6 +68,15 @@ export function ExplainFilters({
 
   return (
     <div className="flex flex-wrap items-center gap-3 p-3 bg-card border-b border-border">
+      <SearchField
+        value={filters.search}
+        onChange={(val) => onFilterChange({ ...filters, search: val })}
+        onSearch={onSearch}
+        presets={SEARCH_PRESETS}
+        placeholder={t('explain.searchPlaceholder')}
+        className="w-44"
+      />
+
       <div className="flex items-center gap-1">
         <label className="text-sm text-muted-foreground whitespace-nowrap">{t('explain.fields.oid')}:</label>
         <input

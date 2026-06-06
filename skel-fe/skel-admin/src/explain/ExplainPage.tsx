@@ -44,7 +44,10 @@ export function ExplainPage() {
   const [addMode, setAddMode] = useState(false);
   const [timezone, setTimezone] = useState('local');
 
+  const [activeSearch, setActiveSearch] = useState('');
+
   const [filters, setFilters] = useState<FilterState>({
+    search: '',
     oid: '',
     rid: '',
     // Rules are config records; default to all time so the list is not empty after load.
@@ -55,7 +58,12 @@ export function ExplainPage() {
     setLoading(true);
     setFetchError(null);
     try {
-      const result = await api.listRules(token);
+      let result;
+      if (activeSearch.trim()) {
+        result = await api.searchRules(token, activeSearch.trim(), 0, 10);
+      } else {
+        result = await api.listRules(token);
+      }
       const sorted = [...(result.data ?? [])].sort((a, b) => b.ts0 - a.ts0);
       setRules(sorted);
     } catch (e) {
@@ -65,18 +73,19 @@ export function ExplainPage() {
     } finally {
       setLoading(false);
     }
-  }, [token, notify, t]);
+  }, [token, notify, t, activeSearch]);
 
   useEffect(() => { fetchRules(); }, [fetchRules]);
 
   const filteredRules = useMemo(() => {
+    if (activeSearch.trim()) return rules;
     return rules.filter((rule) => {
       if (filters.oid && !(rule.oid ?? '').toLowerCase().includes(filters.oid.toLowerCase())) return false;
       if (filters.rid && !rule.rid.toLowerCase().includes(filters.rid.toLowerCase())) return false;
       if (!isInTimeRange(rule.ts0, filters.timeRange)) return false;
       return true;
     });
-  }, [rules, filters]);
+  }, [rules, filters, activeSearch]);
 
   const totalPages = totalPagesFor(filteredRules.length, pageSize);
   const safePage = Math.min(Math.max(1, page), totalPages);
@@ -110,6 +119,8 @@ export function ExplainPage() {
   const handleSelectAll = (checked: boolean) => {
     setSelectedIds(checked ? new Set(filteredRules.map(rowKey)) : new Set());
   };
+
+  const handleSearch = (query: string) => { setActiveSearch(query); };
 
   const handleAdd = () => { setSelected(null); setAddMode(true); setSliderOpen(true); };
 
@@ -156,6 +167,7 @@ export function ExplainPage() {
         hasSelection={selected !== null}
         onFilterChange={setFilters}
         onTimezoneChange={setTimezone}
+        onSearch={handleSearch}
         onAdd={handleAdd}
         onDeleteSelected={handleDeleteSelected}
         onRefresh={fetchRules}

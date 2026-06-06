@@ -102,6 +102,21 @@ export async function deleteRules(
   return handleResponse<Explains>(res);
 }
 
+export async function searchRules(
+  token: string | null,
+  query: string,
+  from: number = 0,
+  size: number = 10,
+): Promise<Explains> {
+  const base = getBaseUrl();
+  const res = await fetch(`${base}/search`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify({ query, from, size }),
+  });
+  return handleResponse<Explains>(res);
+}
+
 export async function runExplain(
   token: string | null,
   rid: string,
