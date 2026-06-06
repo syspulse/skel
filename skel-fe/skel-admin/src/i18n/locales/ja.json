@@ -90,7 +90,7 @@
     "styleNarrative": "物語形式",
     "styleDetailed": "詳細",
     "invalidJson": "入力データのJSONが無効です",
-    "placeholderOid": "所有者ID（デフォルトの場合は空白）",
+    "placeholderOid": "所有者ID",
     "placeholderRid": "ルール識別子",
     "placeholderName": "ルール名",
     "placeholderDesc": "説明",

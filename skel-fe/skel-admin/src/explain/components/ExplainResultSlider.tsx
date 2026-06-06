@@ -1,9 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import type { ExplainRes } from '../types';
 import { IconClose } from '../../components/Icons';
+import { ExplainMarkdown } from './ExplainMarkdown';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -72,7 +71,7 @@ export function ExplainResultSlider({
         {result ? (
           <>
             <div className="border border-border rounded px-4 py-3 prose prose-sm max-w-none overflow-auto">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{result.explanation}</ReactMarkdown>
+              <ExplainMarkdown>{result.explanation}</ExplainMarkdown>
             </div>
 
             <div className="text-[11px] leading-5 text-muted-foreground space-y-0.5">

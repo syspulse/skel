@@ -90,7 +90,7 @@
     "styleNarrative": "narrative",
     "styleDetailed": "detailed",
     "invalidJson": "Invalid JSON in input data",
-    "placeholderOid": "owner id (leave blank for default)",
+    "placeholderOid": "owner id",
     "placeholderRid": "rule identifier",
     "placeholderName": "rule name",
     "placeholderDesc": "description",
