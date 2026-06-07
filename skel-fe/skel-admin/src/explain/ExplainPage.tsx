@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next';
 import * as api from './api';
 import { useAuth } from '../auth/useAuth';
-import { useNotifications } from '../notifications/NotificationContext';
+import { useModuleNotify } from '../notifications/moduleNotify';
 import { usePageSize, PAGE_SIZE_ALL } from '../settings/PageSizeContext';
 import { Pagination } from '../components/Pagination';
 import { ModulePage, OVERVIEW_TAB } from '../components/ModulePage';
@@ -29,7 +29,8 @@ function isInTimeRange(ts0: number, range: TimeRange): boolean {
 export function ExplainPage() {
   const { t } = useTranslation();
   const { token } = useAuth();
-  const { add: notify } = useNotifications();
+  const moduleName = t('nav.explain');
+  const { notifyError, moduleErrorMessage } = useModuleNotify(moduleName);
   const { pageSize, setPageSize } = usePageSize();
   const [page, setPage] = useState(1);
   const [explains, setExplains] = useState<Explain[]>([]);
@@ -69,11 +70,11 @@ export function ExplainPage() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setFetchError(msg);
-      notify('error', t('explain.errorLoad'), msg);
+      notifyError(t('explain.errorLoad'), msg);
     } finally {
       setLoading(false);
     }
-  }, [token, notify, t]);
+  }, [token, notifyError, t]);
 
   useEffect(() => {
     fetchExplains(filters.oid, filters.rid, activeSearch, page, pageSize);
@@ -238,7 +239,9 @@ export function ExplainPage() {
                 {loading && <span className="text-blue-500">{t('explain.loading')}</span>}
                 {!loading && <span>{countLabel}{filteredLabel}</span>}
                 {fetchError && (
-                  <span className="text-red-500 flex items-center gap-1">⚠ {fetchError}</span>
+                  <span className="text-red-500 flex items-center gap-1">
+                    ⚠ {moduleErrorMessage(moduleName, t('explain.errorLoad'), fetchError)}
+                  </span>
                 )}
               </>
             }

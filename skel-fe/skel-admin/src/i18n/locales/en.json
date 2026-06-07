@@ -140,6 +140,9 @@
     "searchPlaceholder": "search...",
     "errorLoad": "Load failed",
     "errorRun": "Run failed",
+    "errorCreate": "Create failed",
+    "errorUpdate": "Update failed",
+    "errorDelete": "Delete failed",
     "confirmDelete": "Delete \"{{rid}}\"?",
     "confirmDeleteSelected": "Delete {{count}} selected?"
   },

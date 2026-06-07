@@ -139,6 +139,9 @@
     "noResult": "結果なし",
     "errorLoad": "読込失敗",
     "errorRun": "実行失敗",
+    "errorCreate": "作成失敗",
+    "errorUpdate": "更新失敗",
+    "errorDelete": "削除失敗",
     "confirmDelete": "「{{rid}}」を削除しますか？",
     "confirmDeleteSelected": "選択した{{count}}件を削除しますか？"
   },

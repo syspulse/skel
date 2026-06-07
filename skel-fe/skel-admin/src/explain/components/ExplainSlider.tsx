@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Explain, ExplainCreateReq, ExplainRes, ExplainScript, ExplainUpdateReq } from '../types';
 import { runExplain } from '../api';
 import { useAuth } from '../../auth/useAuth';
-import { useNotifications } from '../../notifications/NotificationContext';
+import { useModuleNotify } from '../../notifications/moduleNotify';
 import { MetaEditor } from './MetaEditor';
 import { ScriptEditor } from '../../components/ScriptEditor';
 import { ExplainResultSlider } from './ExplainResultSlider';
@@ -69,7 +69,8 @@ export function ExplainSlider({
   const [formKey, setFormKey] = useState(0);
 
   const { token } = useAuth();
-  const { add: notify } = useNotifications();
+  const moduleName = t('nav.explain');
+  const { notifyError, moduleErrorMessage } = useModuleNotify(moduleName);
   const [testData, setTestData]     = useState('');
   const [testStyle, setTestStyle]   = useState('');
   const [testResult, setTestResult] = useState<ExplainRes | null>(null);
@@ -101,7 +102,10 @@ export function ExplainSlider({
   };
 
   const handleCreate = async () => {
-    if (!form.rid.trim()) { setError('RID is required'); return; }
+    if (!form.rid.trim()) {
+      setError(moduleErrorMessage(moduleName, t('explain.errorCreate'), 'RID is required'));
+      return;
+    }
     setSaving(true); setError(null);
     try {
       await onCreate(form.rid.trim(), {
@@ -113,7 +117,9 @@ export function ExplainSlider({
         meta: Object.keys(form.meta).length > 0 ? form.meta : undefined,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(moduleErrorMessage(moduleName, t('explain.errorCreate'), msg));
+      notifyError(t('explain.errorCreate'), msg);
     } finally {
       setSaving(false);
     }
@@ -131,7 +137,9 @@ export function ExplainSlider({
         meta: Object.keys(form.meta).length > 0 ? form.meta : undefined,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(moduleErrorMessage(moduleName, t('explain.errorUpdate'), msg));
+      notifyError(t('explain.errorUpdate'), msg);
     } finally {
       setSaving(false);
     }
@@ -143,7 +151,9 @@ export function ExplainSlider({
     try {
       await onDelete(explain);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(moduleErrorMessage(moduleName, t('explain.errorDelete'), msg));
+      notifyError(t('explain.errorDelete'), msg);
     } finally {
       setSaving(false);
     }
@@ -159,8 +169,8 @@ export function ExplainSlider({
         parsed = testData.trim() ? JSON.parse(testData) : {};
       } catch {
         const msg = t('explain.invalidJson');
-        setTestError(msg);
-        notify('error', t('explain.errorRun'), msg);
+        setTestError(moduleErrorMessage(moduleName, t('explain.errorRun'), msg));
+        notifyError(t('explain.errorRun'), msg);
         return;
       }
       const res = await runExplain(token, explain.rid, parsed, form.oid || undefined, testStyle || undefined);
@@ -168,8 +178,8 @@ export function ExplainSlider({
       setResultOpen(true);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setTestError(msg);
-      notify('error', t('explain.errorRun'), msg);
+      setTestError(moduleErrorMessage(moduleName, t('explain.errorRun'), msg));
+      notifyError(t('explain.errorRun'), msg);
     } finally {
       setExplaining(false);
     }

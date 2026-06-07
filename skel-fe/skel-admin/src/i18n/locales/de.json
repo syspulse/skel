@@ -139,6 +139,9 @@
     "noResult": "Kein Ergebnis",
     "errorLoad": "Laden fehlgeschlagen",
     "errorRun": "Ausführung fehlgeschlagen",
+    "errorCreate": "Erstellen fehlgeschlagen",
+    "errorUpdate": "Aktualisieren fehlgeschlagen",
+    "errorDelete": "Löschen fehlgeschlagen",
     "confirmDelete": "\"{{rid}}\" löschen?",
     "confirmDeleteSelected": "{{count}} ausgewählte löschen?"
   },

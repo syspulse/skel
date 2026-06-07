@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DashLayout, DashCreateReq, DashUpdateReq } from '../types';
-import { useNotifications } from '../../notifications/NotificationContext';
+import { useModuleNotify } from '../../notifications/moduleNotify';
 import { IconClose, IconSave, IconTrash } from '../../components/Icons';
 
 interface DashSliderProps {
@@ -41,7 +41,8 @@ export function DashSlider({
   onDelete,
 }: DashSliderProps) {
   const { t } = useTranslation();
-  const { add: notify } = useNotifications();
+  const moduleName = t('nav.dash');
+  const { notifyError, moduleErrorMessage } = useModuleNotify(moduleName);
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +63,9 @@ export function DashSlider({
       try {
         layout = JSON.parse(form.layoutRaw.trim() || '{}');
       } catch {
-        setError(t('dash.errorLayoutJson'));
+        const err = t('dash.errorLayoutJson');
+        setError(moduleErrorMessage(moduleName, err));
+        notifyError(err, err);
         return;
       }
       const req: DashCreateReq = {
@@ -74,8 +77,8 @@ export function DashSlider({
       await onCreate(req);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setError(msg);
-      notify('error', t('dash.errorCreate'), msg);
+      setError(moduleErrorMessage(moduleName, t('dash.errorCreate'), msg));
+      notifyError(t('dash.errorCreate'), msg);
     } finally {
       setSaving(false);
     }
@@ -90,7 +93,9 @@ export function DashSlider({
         try {
           layout = JSON.parse(form.layoutRaw.trim());
         } catch {
-          setError(t('dash.errorLayoutJson'));
+          const err = t('dash.errorLayoutJson');
+          setError(moduleErrorMessage(moduleName, err));
+          notifyError(err, err);
           return;
         }
       }
@@ -103,8 +108,8 @@ export function DashSlider({
       await onUpdate(dash.id, req);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setError(msg);
-      notify('error', t('dash.errorUpdate'), msg);
+      setError(moduleErrorMessage(moduleName, t('dash.errorUpdate'), msg));
+      notifyError(t('dash.errorUpdate'), msg);
     } finally {
       setSaving(false);
     }
@@ -117,8 +122,8 @@ export function DashSlider({
       await onDelete(dash);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setError(msg);
-      notify('error', t('dash.errorDelete'), msg);
+      setError(moduleErrorMessage(moduleName, t('dash.errorDelete'), msg));
+      notifyError(t('dash.errorDelete'), msg);
     } finally {
       setSaving(false);
     }

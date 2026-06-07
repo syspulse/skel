@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as api from './api';
 import { useAuth } from '../auth/useAuth';
-import { useNotifications } from '../notifications/NotificationContext';
+import { useModuleNotify } from '../notifications/moduleNotify';
 import { usePageSize } from '../settings/PageSizeContext';
 import { Pagination } from '../components/Pagination';
 import { ModulePage, OVERVIEW_TAB } from '../components/ModulePage';
@@ -14,7 +14,8 @@ import type { DashLayout, DashCreateReq, DashUpdateReq } from './types';
 export function DashPage() {
   const { t } = useTranslation();
   const { token } = useAuth();
-  const { add: notify } = useNotifications();
+  const moduleName = t('nav.dash');
+  const { notifyError, moduleErrorMessage } = useModuleNotify(moduleName);
   const { pageSize, setPageSize } = usePageSize();
   const [page, setPage] = useState(1);
   const [dashes, setDashes] = useState<DashLayout[]>([]);
@@ -39,11 +40,11 @@ export function DashPage() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setFetchError(msg);
-      notify('error', t('dash.errorLoad'), msg);
+      notifyError(t('dash.errorLoad'), msg);
     } finally {
       setLoading(false);
     }
-  }, [token, notify, t]);
+  }, [token, notifyError, t]);
 
   useEffect(() => { fetchDashes(); }, [fetchDashes]);
 
@@ -180,7 +181,9 @@ export function DashPage() {
                 {loading && <span className="text-blue-500">{t('dash.loading')}</span>}
                 {!loading && <span>{countLabel}{filteredLabel}</span>}
                 {fetchError && (
-                  <span className="text-red-500 flex items-center gap-1">⚠ {fetchError}</span>
+                  <span className="text-red-500 flex items-center gap-1">
+                    ⚠ {moduleErrorMessage(moduleName, t('dash.errorLoad'), fetchError)}
+                  </span>
                 )}
               </>
             }
