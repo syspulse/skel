@@ -4,6 +4,7 @@ import type { Explain } from '../types';
 import { IconLamp } from '../../components/Icons';
 import { getTimezoneShortLabel } from '../../components/timezone';
 import { TimestampCell } from '../../components/TimestampCell';
+import { TABLE_ICON_CELL, TABLE_ICON_SIZE, TABLE_TD, TABLE_TH } from '../../constants/table';
 
 function ExplainIcon({ meta }: { meta?: Record<string, unknown> | null }) {
   const icon = meta?.icon;
@@ -12,16 +13,25 @@ function ExplainIcon({ meta }: { meta?: Record<string, unknown> | null }) {
     if (s.toLowerCase().startsWith('<svg')) {
       return (
         <span
-          className="inline-flex items-center justify-center w-[18px] h-[18px] [&>svg]:w-full [&>svg]:h-full"
+          className="inline-flex items-center justify-center shrink-0 [&>svg]:w-full [&>svg]:h-full"
+          style={{ width: TABLE_ICON_SIZE, height: TABLE_ICON_SIZE }}
           dangerouslySetInnerHTML={{ __html: s }}
         />
       );
     }
     if (s.startsWith('http') || s.startsWith('/') || s.startsWith('data:')) {
-      return <img src={s} alt="icon" width={18} height={18} className="object-contain" />;
+      return (
+        <img
+          src={s}
+          alt="icon"
+          width={TABLE_ICON_SIZE}
+          height={TABLE_ICON_SIZE}
+          className="object-contain shrink-0"
+        />
+      );
     }
   }
-  return <IconLamp size={18} className="text-amber-500" />;
+  return <IconLamp size={TABLE_ICON_SIZE} className="text-amber-500 shrink-0" />;
 }
 
 function rowKey(explain: Explain): string {
@@ -59,8 +69,8 @@ export function ExplainTable({
   return (
     <table className="w-full table-fixed">
         <thead>
-          <tr className="bg-nav text-nav-fg text-xs">
-            <th className="w-10 px-3 py-2 text-center">
+          <tr className="bg-nav text-nav-fg">
+            <th className={`w-10 ${TABLE_TH} text-center`}>
               <input
                 type="checkbox"
                 checked={allChecked}
@@ -71,20 +81,20 @@ export function ExplainTable({
                 className="cursor-pointer"
               />
             </th>
-            <th className="w-10 px-2 py-2 text-center">{t('explain.fields.icon')}</th>
-            <th className="w-32 px-3 py-2 text-left">
+            <th className={`w-10 ${TABLE_ICON_CELL}`} aria-label={t('explain.fields.icon')} />
+            <th className={`w-32 ${TABLE_TH} text-left`}>
               {t('explain.fields.ts')}{timezone !== 'local' ? ` (${getTimezoneShortLabel(timezone)})` : ''}
             </th>
-            <th className="w-24 px-3 py-2 text-left">{t('explain.fields.oid')}</th>
-            <th className="w-48 px-3 py-2 text-left">{t('explain.fields.rid')}</th>
-            <th className="w-64 px-3 py-2 text-left">{t('explain.fields.name')}</th>
-            <th className="px-3 py-2 text-left">{t('explain.fields.desc')}</th>
+            <th className={`w-24 ${TABLE_TH} text-left`}>{t('explain.fields.oid')}</th>
+            <th className={`w-48 ${TABLE_TH} text-left`}>{t('explain.fields.rid')}</th>
+            <th className={`w-64 ${TABLE_TH} text-left`}>{t('explain.fields.name')}</th>
+            <th className={`${TABLE_TH} text-left`}>{t('explain.fields.desc')}</th>
           </tr>
         </thead>
         <tbody>
           {explains.length === 0 && (
             <tr className="border-b border-border">
-              <td colSpan={COL_COUNT} className="px-3 py-2 text-xs text-center text-muted-foreground">
+              <td colSpan={COL_COUNT} className={`${TABLE_TD} text-center text-muted-foreground`}>
                 {t('common.noData')}
               </td>
             </tr>
@@ -106,7 +116,7 @@ export function ExplainTable({
 
             return (
               <tr key={key} className={rowClass} onClick={() => onRowClick(explain)}>
-                <td className="px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                <td className={`${TABLE_TD} text-center`} onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={isChecked}
@@ -114,22 +124,22 @@ export function ExplainTable({
                     className="cursor-pointer"
                   />
                 </td>
-                <td className="px-2 py-2 text-center">
+                <td className={TABLE_ICON_CELL}>
                   <span className="inline-flex items-center justify-center">
                     <ExplainIcon meta={explain.meta as Record<string, unknown> | undefined} />
                   </span>
                 </td>
                 <TimestampCell ts={explain.ts} timezone={timezone} />
-                <td className="px-3 py-2 text-xs text-muted-foreground max-w-[140px] truncate">
+                <td className={`${TABLE_TD} text-muted-foreground max-w-[140px] truncate`}>
                   {explain.oid || <span className="opacity-30">—</span>}
                 </td>
-                <td className="px-3 py-2 text-xs text-foreground max-w-[180px] truncate">
+                <td className={`${TABLE_TD} text-foreground max-w-[180px] truncate`}>
                   {explain.rid}
                 </td>
-                <td className="px-3 py-2 text-xs text-foreground max-w-[160px] truncate">
+                <td className={`${TABLE_TD} text-foreground max-w-[160px] truncate`}>
                   {explain.name || <span className="opacity-30">—</span>}
                 </td>
-                <td className="px-3 py-2 text-xs text-muted-foreground max-w-[240px] truncate">
+                <td className={`${TABLE_TD} text-muted-foreground max-w-[240px] truncate`}>
                   {explain.desc || <span className="opacity-30">—</span>}
                 </td>
               </tr>
@@ -137,13 +147,9 @@ export function ExplainTable({
           })}
           {Array.from({ length: padCount }, (_, i) => (
             <tr key={`pad-${i}`} className={`border-b border-border ${(explains.length + i) % 2 === 0 ? 'bg-card' : 'bg-muted'}`}>
-              <td className="px-3 py-2" />
-              <td className="px-2 py-2 text-center">
-                <span className="invisible inline-flex items-center justify-center">
-                  <IconLamp size={18} />
-                </span>
-              </td>
-              <td colSpan={COL_COUNT - 2} className="px-3 py-2" />
+              <td className={TABLE_TD} />
+              <td className={TABLE_ICON_CELL} />
+              <td colSpan={COL_COUNT - 2} className={`${TABLE_TD} select-none`}>&nbsp;</td>
             </tr>
           ))}
         </tbody>

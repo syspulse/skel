@@ -1,5 +1,6 @@
 import React from 'react';
 import { FormattedTimestamp } from './FormattedTimestamp';
+import { TABLE_TD } from '../constants/table';
 
 interface TimestampCellProps {
   ts: number;
@@ -10,7 +11,7 @@ interface TimestampCellProps {
 export function TimestampCell({
   ts,
   timezone,
-  className = 'px-3 py-2 whitespace-nowrap text-xs text-muted-foreground',
+  className = `${TABLE_TD} whitespace-nowrap text-muted-foreground`,
 }: TimestampCellProps) {
   return (
     <td className={className}>

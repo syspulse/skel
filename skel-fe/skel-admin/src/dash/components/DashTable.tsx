@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { DashLayout } from '../types';
 import { getTimezoneShortLabel } from '../../components/timezone';
 import { TimestampCell } from '../../components/TimestampCell';
+import { TABLE_TD, TABLE_TH } from '../../constants/table';
 
 const COL_COUNT = 6;
 
@@ -35,8 +36,8 @@ export function DashTable({
   return (
     <table className="w-full table-fixed">
         <thead>
-          <tr className="bg-nav text-nav-fg text-xs">
-            <th className="w-10 px-3 py-2 text-center">
+          <tr className="bg-nav text-nav-fg">
+            <th className={`w-10 ${TABLE_TH} text-center`}>
               <input
                 type="checkbox"
                 checked={allChecked}
@@ -45,19 +46,19 @@ export function DashTable({
                 className="cursor-pointer"
               />
             </th>
-            <th className="w-32 px-3 py-2 text-left">
+            <th className={`w-32 ${TABLE_TH} text-left`}>
               {t('dash.fields.ts')}{timezone !== 'local' ? ` (${getTimezoneShortLabel(timezone)})` : ''}
             </th>
-            <th className="w-64 px-3 py-2 text-left">{t('dash.fields.id')}</th>
-            <th className="w-40 px-3 py-2 text-left">{t('dash.fields.name')}</th>
-            <th className="w-24 px-3 py-2 text-left">{t('dash.fields.tags')}</th>
-            <th className="px-3 py-2 text-left">{t('dash.fields.desc')}</th>
+            <th className={`w-64 ${TABLE_TH} text-left`}>{t('dash.fields.id')}</th>
+            <th className={`w-40 ${TABLE_TH} text-left`}>{t('dash.fields.name')}</th>
+            <th className={`w-24 ${TABLE_TH} text-left`}>{t('dash.fields.tags')}</th>
+            <th className={`${TABLE_TH} text-left`}>{t('dash.fields.desc')}</th>
           </tr>
         </thead>
         <tbody>
           {dashes.length === 0 && (
             <tr className="border-b border-border">
-              <td colSpan={COL_COUNT} className="px-3 py-2 text-xs text-center text-muted-foreground">
+              <td colSpan={COL_COUNT} className={`${TABLE_TD} text-center text-muted-foreground`}>
                 {t('dash.noDashes')}
               </td>
             </tr>
@@ -78,7 +79,7 @@ export function DashTable({
 
             return (
               <tr key={dash.id} className={rowClass} onClick={() => onRowClick(dash)}>
-                <td className="px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                <td className={`${TABLE_TD} text-center`} onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={isChecked}
@@ -87,16 +88,16 @@ export function DashTable({
                   />
                 </td>
                 <TimestampCell ts={dash.ts0} timezone={timezone} />
-                <td className="px-3 py-2 text-xs text-muted-foreground truncate font-mono">
+                <td className={`${TABLE_TD} text-muted-foreground truncate font-mono`}>
                   {dash.id}
                 </td>
-                <td className="px-3 py-2 text-xs text-foreground truncate">
+                <td className={`${TABLE_TD} text-foreground truncate`}>
                   {dash.name || <span className="opacity-30">—</span>}
                 </td>
-                <td className="px-3 py-2 text-xs text-muted-foreground truncate">
+                <td className={`${TABLE_TD} text-muted-foreground truncate`}>
                   {dash.tags?.join(', ') || <span className="opacity-30">—</span>}
                 </td>
-                <td className="px-3 py-2 text-xs text-muted-foreground truncate">
+                <td className={`${TABLE_TD} text-muted-foreground truncate`}>
                   {dash.desc || <span className="opacity-30">—</span>}
                 </td>
               </tr>
@@ -104,8 +105,7 @@ export function DashTable({
           })}
           {Array.from({ length: padCount }, (_, i) => (
             <tr key={`pad-${i}`} className={`border-b border-border ${(dashes.length + i) % 2 === 0 ? 'bg-card' : 'bg-muted'}`}>
-              {/* &nbsp; with text-xs forces the same line-height as real rows */}
-              <td colSpan={COL_COUNT} className="px-3 py-2 text-xs select-none">&nbsp;</td>
+              <td colSpan={COL_COUNT} className={`${TABLE_TD} select-none`}>&nbsp;</td>
             </tr>
           ))}
         </tbody>

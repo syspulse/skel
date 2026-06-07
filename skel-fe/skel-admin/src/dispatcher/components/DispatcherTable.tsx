@@ -4,6 +4,7 @@ import type { DispatcherEvent } from '../types';
 import { TimestampCell } from '../../components/TimestampCell';
 import { DEFAULT_TIMEZONE } from '../../components/timezone';
 import { fmtSev } from '../formatEvent';
+import { TABLE_TD, TABLE_TH } from '../../constants/table';
 
 const TYP_TAG =
   'inline-block px-1.5 py-0 rounded border border-border bg-muted text-foreground font-medium';
@@ -18,8 +19,8 @@ export function DispatcherTable({ events, selected, onRowClick }: Props) {
   const { t } = useTranslation();
   const rows = events;
 
-  const th = 'px-3 py-1.5 text-left text-xs font-medium text-muted-foreground whitespace-nowrap';
-  const td = 'px-3 py-1.5 text-xs font-mono whitespace-nowrap';
+  const th = `${TABLE_TH} text-left font-medium text-muted-foreground whitespace-nowrap`;
+  const td = `${TABLE_TD} font-mono whitespace-nowrap`;
 
   return (
     <div className="overflow-auto">
