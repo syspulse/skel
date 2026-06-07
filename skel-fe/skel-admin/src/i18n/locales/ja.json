@@ -2,6 +2,7 @@
   "nav": {
     "explain": "説明",
     "dash": "ダッシュ",
+    "dispatcher": "Dispatcher",
     "settings": "設定",
     "help": "ヘルプ"
   },
@@ -74,8 +75,8 @@
   },
   "explain": {
     "loading": "読込中…",
-    "count_one": "{{count}}",
-    "count_other": "{{count}}",
+    "count_one": "{{count}}件のExplain",
+    "count_other": "{{count}}件のExplain",
     "filteredFrom": "({{total}}件中フィルター)",
     "fields": {
       "oid": "oid",
@@ -149,6 +150,22 @@
     "perPage": "件/ページ",
     "prev": "前のページ",
     "next": "次のページ"
+  },
+  "dispatcher": {
+    "total": "total: {{count}}",
+    "noEvents": "イベントなし",
+    "wsConnected": "接続中",
+    "wsDisconnected": "切断",
+    "wsMessages": "メッセージ",
+    "wsNoUrl": "ws:// (未設定)",
+    "fields": {
+      "src": "src",
+      "sys": "sys",
+      "typ": "typ",
+      "cmd": "cmd",
+      "sev": "sev",
+      "dst": "dst"
+    }
   },
   "notifications": {
     "title": "通知",

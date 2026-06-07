@@ -6,6 +6,7 @@ import { SideNav, NavPage } from './components/SideNav';
 import { TopBar } from './components/TopBar';
 import { ExplainPage } from './explain/ExplainPage';
 import { DashPage } from './dash/DashPage';
+import { DispatcherPage } from './dispatcher/DispatcherPage';
 import { HelpPage } from './pages/HelpPage';
 import { SettingsPage } from './pages/SettingsPage';
 
@@ -60,11 +61,12 @@ function AppContent() {
 
   const renderPage = () => {
     switch (activePage) {
-      case 'explain':  return <ExplainPage />;
-      case 'dash':     return <DashPage />;
-      case 'settings': return <SettingsPage />;
-      case 'help':     return <HelpPage />;
-      default:         return <ExplainPage />;
+      case 'explain':    return <ExplainPage />;
+      case 'dash':       return <DashPage />;
+      case 'dispatcher': return <DispatcherPage />;
+      case 'settings':   return <SettingsPage />;
+      case 'help':       return <HelpPage />;
+      default:           return <ExplainPage />;
     }
   };
 

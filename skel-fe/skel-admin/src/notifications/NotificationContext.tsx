@@ -5,16 +5,18 @@ import type { Notification, NotificationInput, Severity } from './types';
 import { LOCAL_NOTIFICATION_SRC } from './types';
 import { NotificationSrcLabel, formatNotificationTs } from './NotificationSrcLabel';
 import { IconClose, IconAlertCircle, IconAlertTriangle, IconInfo, IconCheckCircle } from '../components/Icons';
+import { dispatcher } from '../dispatcher/Dispatcher';
+import { createNotificationSys } from '../dispatcher/systems/NotificationSys';
 
 const TOAST_DURATION = 5000;
 
 interface NotificationCtx {
   notifications: Notification[];
-  unreadCount: number;
-  add: (severity: Severity, title: string, message: string, src?: string) => void;
+  unreadCount:   number;
+  add:  (severity: Severity, title: string, message: string, src?: string) => void;
   push: (input: NotificationInput) => void;
   markAllRead: () => void;
-  clearAll: () => void;
+  clearAll:    () => void;
 }
 
 const Ctx = createContext<NotificationCtx | null>(null);
@@ -43,16 +45,24 @@ function severityColors(severity: Severity) {
   }
 }
 
+function severityToNum(severity: Severity): number {
+  switch (severity) {
+    case 'success': return 0.0;
+    case 'info':    return 0.1;
+    case 'warning': return 0.3;
+    case 'error':   return 0.5;
+  }
+}
+
 interface ToastItem {
-  id: string;
+  id:           string;
   notification: Notification;
-  visible: boolean;
+  visible:      boolean;
 }
 
 function Toast({ item, onDismiss }: { item: ToastItem; onDismiss: (id: string) => void }) {
   const n = item.notification;
   const c = severityColors(n.severity);
-
   return (
     <div
       className={`flex gap-2 w-80 max-w-[92vw] bg-card border border-l-4 ${c.border} rounded shadow-lg px-3 py-2.5
@@ -91,11 +101,11 @@ function createNotification(input: NotificationInput, id = nextId()): Notificati
   return {
     id,
     severity: input.severity,
-    title: input.title,
-    message: input.message,
-    src: input.src.trim() || LOCAL_NOTIFICATION_SRC,
-    ts: input.ts ?? Date.now(),
-    read: false,
+    title:    input.title,
+    message:  input.message,
+    src:      input.src.trim() || LOCAL_NOTIFICATION_SRC,
+    ts:       input.ts ?? Date.now(),
+    read:     false,
   };
 }
 
@@ -114,22 +124,52 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const showToast = useCallback((notification: Notification) => {
     const toast: ToastItem = { id: notification.id, notification, visible: false };
     setToasts(prev => [...prev, toast]);
-
     requestAnimationFrame(() => {
       setToasts(prev => prev.map(t => t.id === notification.id ? { ...t, visible: true } : t));
     });
-
     const timer = setTimeout(() => dismissToast(notification.id), TOAST_DURATION);
     timersRef.current.set(notification.id, timer);
   }, [dismissToast]);
 
-  const push = useCallback((input: NotificationInput) => {
+  // Internal: add directly to state — called by NotificationSys handler (avoids dispatch loop)
+  const addDirect = useCallback((input: NotificationInput) => {
     const notification = createNotification(input);
     setNotifications(prev => [notification, ...prev]);
     showToast(notification);
   }, [showToast]);
 
-  const add = useCallback((severity: Severity, title: string, message: string, src = LOCAL_NOTIFICATION_SRC) => {
+  // Register NotificationSys with dispatcher for sys="" (default) and sys="NotificationSys"
+  useEffect(() => {
+    const handler = createNotificationSys(addDirect);
+    const u1 = dispatcher.register('', handler);
+    const u2 = dispatcher.register('NotificationSys', handler);
+    return () => { u1(); u2(); };
+  }, [addDirect]);
+
+  // Public push — routes through dispatcher so every local notification appears in history
+  const push = useCallback((input: NotificationInput) => {
+    dispatcher.dispatch({
+      id:   nextId(),
+      ts:   input.ts ?? Date.now(),
+      sys:  '',
+      src:  input.src || LOCAL_NOTIFICATION_SRC,
+      typ:  'NOTIFY',
+      cmd:  'notify',
+      sev:  severityToNum(input.severity),
+      data: {
+        severity: input.severity,
+        title:    input.title,
+        message:  input.message,
+      },
+    });
+  }, []);
+
+  const add = useCallback((
+    severity: Severity,
+    title: string,
+    message: string,
+    src = LOCAL_NOTIFICATION_SRC,
+  ) => {
     push({ severity, title, message, src });
   }, [push]);
 

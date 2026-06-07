@@ -152,14 +152,6 @@ export function DashPage() {
             onRefresh={fetchDashes}
           />
 
-          <div className="px-4 py-1 text-xs text-muted-foreground bg-muted border-b border-border flex items-center gap-3">
-            {loading && <span className="text-blue-500">{t('dash.loading')}</span>}
-            {!loading && (
-              <span>{countLabel}{filteredLabel}</span>
-            )}
-            {fetchError && <span className="text-red-500 flex items-center gap-1">⚠ {fetchError}</span>}
-          </div>
-
           <div className="flex-1 overflow-auto bg-card">
             {loading && dashes.length === 0 ? (
               <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">{t('dash.loading')}</div>
@@ -183,6 +175,15 @@ export function DashPage() {
             total={filteredDashes.length}
             onPageChange={setPage}
             onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+            footerLeft={
+              <>
+                {loading && <span className="text-blue-500">{t('dash.loading')}</span>}
+                {!loading && <span>{countLabel}{filteredLabel}</span>}
+                {fetchError && (
+                  <span className="text-red-500 flex items-center gap-1">⚠ {fetchError}</span>
+                )}
+              </>
+            }
           />
 
           <DashSlider

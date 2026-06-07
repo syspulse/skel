@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import * as api from './api';
 import { useAuth } from '../auth/useAuth';
@@ -11,6 +11,7 @@ import { ExplainSlider } from './components/ExplainSlider';
 import { ExplainTable } from './components/ExplainTable';
 import type { Explain, ExplainCreateReq, ExplainUpdateReq } from './types';
 import type { TimeRange } from '../types';
+import { registerExplainSys } from '../dispatcher/systems/ExplainSys';
 
 function rowKey(explain: Explain): string {
   return `${explain.oid ?? ''}_${explain.rid}`;
@@ -99,6 +100,36 @@ export function ExplainPage() {
     fetchExplains(filters.oid, filters.rid, activeSearch, page, pageSize);
   }, [fetchExplains, filters.oid, filters.rid, activeSearch, page, pageSize]);
 
+  // Keep a ref so the ExplainSys callback always calls the latest handleRefresh
+  const handleRefreshRef = useRef(handleRefresh);
+  useEffect(() => { handleRefreshRef.current = handleRefresh; }, [handleRefresh]);
+
+  // Register with ExplainSys — receives dispatcher commands (reload/add/update/del)
+  useEffect(() => {
+    return registerExplainSys((cmd, data) => {
+      switch (cmd) {
+        case 'update': {
+          const explain = data as unknown as Explain;
+          setExplains(prev => prev.map(e =>
+            e.rid === explain.rid && (e.oid ?? '') === (explain.oid ?? '') ? explain : e,
+          ));
+          break;
+        }
+        case 'del': {
+          const rid = data.rid as string | undefined;
+          const oid = data.oid as string | undefined;
+          setExplains(prev => prev.filter(e =>
+            !(e.rid === rid && (oid == null || e.oid === oid)),
+          ));
+          break;
+        }
+        default:
+          // reload and add both trigger a full refresh to stay in sync with server
+          handleRefreshRef.current();
+      }
+    });
+  }, []); // empty deps: setExplains is stable, ref handles fresh callback
+
   const handleRowClick = (explain: Explain) => {
     setSelected(explain); setAddMode(false); setSliderOpen(true);
   };
@@ -150,7 +181,10 @@ export function ExplainPage() {
     await handleRefresh();
   };
 
-  const countLabel = t('explain.count', { count: total });
+  const countLabel = t('explain.count', { count: filteredExplains.length });
+  const filteredLabel = filteredExplains.length !== explains.length
+    ? ` ${t('explain.filteredFrom', { total: explains.length })}`
+    : '';
   const overviewTabs = [{ id: OVERVIEW_TAB, label: t('module.overview') }];
 
   return (
@@ -176,12 +210,6 @@ export function ExplainPage() {
             onRefresh={handleRefresh}
           />
 
-          <div className="px-4 py-1 text-xs text-muted-foreground bg-muted border-b border-border flex items-center gap-3">
-            {loading && <span className="text-blue-500">{t('explain.loading')}</span>}
-            {!loading && <span>{countLabel}</span>}
-            {fetchError && <span className="text-red-500 flex items-center gap-1">⚠ {fetchError}</span>}
-          </div>
-
           <div className="flex-1 overflow-auto bg-card">
             {loading && explains.length === 0 ? (
               <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">{t('explain.loading')}</div>
@@ -205,6 +233,15 @@ export function ExplainPage() {
             total={total}
             onPageChange={setPage}
             onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+            footerLeft={
+              <>
+                {loading && <span className="text-blue-500">{t('explain.loading')}</span>}
+                {!loading && <span>{countLabel}{filteredLabel}</span>}
+                {fetchError && (
+                  <span className="text-red-500 flex items-center gap-1">⚠ {fetchError}</span>
+                )}
+              </>
+            }
           />
 
           <ExplainSlider

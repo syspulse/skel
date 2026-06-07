@@ -41,6 +41,8 @@ interface ModulePageProps {
   contentClassName?: string;
   /** When false, tab content spans full width (filters/table modules). Default true. */
   padded?: boolean;
+  /** Rendered full-width immediately below the tab bar (e.g. filters). */
+  afterTabs?: (activeTab: string) => React.ReactNode;
   children: (activeTab: string) => React.ReactNode;
 }
 
@@ -50,6 +52,7 @@ export function ModulePage({
   defaultTab,
   contentClassName = '',
   padded = true,
+  afterTabs,
   children,
 }: ModulePageProps) {
   const [tab, setTab] = useState(defaultTab ?? tabs[0]?.id ?? '');
@@ -60,6 +63,7 @@ export function ModulePage({
         <h1 className="text-lg text-foreground">{title}</h1>
         <ModuleTabs tabs={tabs} active={tab} onChange={setTab} />
       </div>
+      {afterTabs?.(tab)}
       <div className={`flex-1 min-h-0 ${padded ? 'px-4 pb-3' : ''} ${contentClassName}`.trim()}>
         {children(tab)}
       </div>

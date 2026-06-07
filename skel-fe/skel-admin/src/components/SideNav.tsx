@@ -1,8 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { IconLamp, IconGrid, IconSettings, IconHelp } from './Icons';
+import { IconLamp, IconGrid, IconSettings, IconHelp, IconDispatcher } from './Icons';
 
-export type NavPage = 'explain' | 'dash' | 'settings' | 'help';
+export type NavPage = 'explain' | 'dash' | 'dispatcher' | 'settings' | 'help';
 
 interface SideNavProps {
   activePage: NavPage;
@@ -16,8 +16,9 @@ interface NavItem {
 }
 
 const TOP_ITEMS: NavItem[] = [
-  { id: 'explain', labelKey: 'nav.explain', Icon: IconLamp },
-  { id: 'dash',    labelKey: 'nav.dash',    Icon: IconGrid },
+  { id: 'explain',    labelKey: 'nav.explain',    Icon: IconLamp },
+  { id: 'dash',       labelKey: 'nav.dash',       Icon: IconGrid },
+  { id: 'dispatcher', labelKey: 'nav.dispatcher', Icon: IconDispatcher },
 ];
 
 const BOTTOM_ITEMS: NavItem[] = [

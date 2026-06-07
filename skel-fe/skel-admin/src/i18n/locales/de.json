@@ -2,6 +2,7 @@
   "nav": {
     "explain": "Erklären",
     "dash": "Dashboard",
+    "dispatcher": "Dispatcher",
     "settings": "Einstellungen",
     "help": "Hilfe"
   },
@@ -74,8 +75,8 @@
   },
   "explain": {
     "loading": "Laden…",
-    "count_one": "{{count}}",
-    "count_other": "{{count}}",
+    "count_one": "{{count}} Explain",
+    "count_other": "{{count}} Explains",
     "filteredFrom": "(gefiltert von {{total}})",
     "fields": {
       "oid": "oid",
@@ -149,6 +150,22 @@
     "perPage": "/ Seite",
     "prev": "Vorherige Seite",
     "next": "Nächste Seite"
+  },
+  "dispatcher": {
+    "total": "total: {{count}}",
+    "noEvents": "Keine Ereignisse",
+    "wsConnected": "verbunden",
+    "wsDisconnected": "getrennt",
+    "wsMessages": "Nachrichten",
+    "wsNoUrl": "ws:// (nicht konfiguriert)",
+    "fields": {
+      "src": "src",
+      "sys": "sys",
+      "typ": "typ",
+      "cmd": "cmd",
+      "sev": "sev",
+      "dst": "dst"
+    }
   },
   "notifications": {
     "title": "Benachrichtigungen",

@@ -1,9 +1,10 @@
 {
   "nav": {
-    "explain": "Explain",
-    "dash": "Dash",
-    "settings": "Settings",
-    "help": "Help"
+    "explain":    "Explain",
+    "dash":       "Dash",
+    "dispatcher": "Dispatcher",
+    "settings":   "Settings",
+    "help":       "Help"
   },
   "module": {
     "overview": "Overview"
@@ -74,8 +75,8 @@
   },
   "explain": {
     "loading": "Loading…",
-    "count_one": "{{count}}",
-    "count_other": "{{count}}",
+    "count_one": "{{count}} explain",
+    "count_other": "{{count}} explains",
     "filteredFrom": "(filtered from {{total}})",
     "fields": {
       "oid": "oid",
@@ -151,6 +152,22 @@
     "all": "All",
     "prev": "Previous page",
     "next": "Next page"
+  },
+  "dispatcher": {
+    "total":      "total: {{count}}",
+    "noEvents":   "No events",
+    "wsConnected":    "connected",
+    "wsDisconnected": "disconnected",
+    "wsMessages":     "messages",
+    "wsNoUrl":        "ws:// (not configured)",
+    "fields": {
+      "src": "src",
+      "sys": "sys",
+      "typ": "typ",
+      "cmd": "cmd",
+      "sev": "sev",
+      "dst": "dst"
+    }
   },
   "notifications": {
     "title": "Notifications",

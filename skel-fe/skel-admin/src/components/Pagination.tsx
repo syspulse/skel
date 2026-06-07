@@ -8,6 +8,8 @@ interface PaginationProps {
   total: number;
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
+  /** Count, loading, errors — shown on the left of the panel. */
+  footerLeft?: React.ReactNode;
 }
 
 function pageNumbers(current: number, total: number): (number | '...')[] {
@@ -28,7 +30,14 @@ function pageNumbers(current: number, total: number): (number | '...')[] {
   return result;
 }
 
-export function Pagination({ page, pageSize, total, onPageChange, onPageSizeChange }: PaginationProps) {
+export function Pagination({
+  page,
+  pageSize,
+  total,
+  onPageChange,
+  onPageSizeChange,
+  footerLeft,
+}: PaginationProps) {
   const { t } = useTranslation();
   const totalPages = pageSize === PAGE_SIZE_ALL ? 1 : Math.max(1, Math.ceil(total / pageSize));
   const pages = pageNumbers(page, totalPages);
@@ -39,57 +48,56 @@ export function Pagination({ page, pageSize, total, onPageChange, onPageSizeChan
   const btnDisabled = 'border-border text-muted-foreground/40 bg-card cursor-not-allowed';
 
   return (
-    <div className="flex items-center gap-1.5 px-4 py-2 border-t border-border bg-muted select-none">
-      {/* Spacer pushes everything to the right */}
-      <div className="flex-1" />
+    <div className="flex items-center gap-3 px-4 py-2 border-t border-border bg-muted select-none shrink-0">
+      <div className="flex items-center gap-3 min-w-0 flex-1 text-xs text-muted-foreground">
+        {footerLeft}
+      </div>
 
-      {/* Prev */}
-      <button
-        className={`${btnBase} ${page <= 1 ? btnDisabled : btnNormal}`}
-        onClick={() => page > 1 && onPageChange(page - 1)}
-        disabled={page <= 1}
-        aria-label={t('pagination.prev')}
-      >
-        ‹
-      </button>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <button
+          className={`${btnBase} ${page <= 1 ? btnDisabled : btnNormal}`}
+          onClick={() => page > 1 && onPageChange(page - 1)}
+          disabled={page <= 1}
+          aria-label={t('pagination.prev')}
+        >
+          ‹
+        </button>
 
-      {/* Page numbers */}
-      {pages.map((p, i) =>
-        p === '...' ? (
-          <span key={`ellipsis-${i}`} className="text-xs text-muted-foreground px-0.5">…</span>
-        ) : (
-          <button
-            key={p}
-            className={`${btnBase} ${p === page ? btnActive : btnNormal}`}
-            onClick={() => onPageChange(p)}
-          >
-            {p}
-          </button>
-        )
-      )}
+        {pages.map((p, i) =>
+          p === '...' ? (
+            <span key={`ellipsis-${i}`} className="text-xs text-muted-foreground px-0.5">…</span>
+          ) : (
+            <button
+              key={p}
+              className={`${btnBase} ${p === page ? btnActive : btnNormal}`}
+              onClick={() => onPageChange(p)}
+            >
+              {p}
+            </button>
+          )
+        )}
 
-      {/* Next */}
-      <button
-        className={`${btnBase} ${page >= totalPages ? btnDisabled : btnNormal}`}
-        onClick={() => page < totalPages && onPageChange(page + 1)}
-        disabled={page >= totalPages}
-        aria-label={t('pagination.next')}
-      >
-        ›
-      </button>
+        <button
+          className={`${btnBase} ${page >= totalPages ? btnDisabled : btnNormal}`}
+          onClick={() => page < totalPages && onPageChange(page + 1)}
+          disabled={page >= totalPages}
+          aria-label={t('pagination.next')}
+        >
+          ›
+        </button>
 
-      {/* Page size selector */}
-      <select
-        value={pageSize}
-        onChange={(e) => onPageSizeChange(Number(e.target.value))}
-        className="text-xs border border-input rounded px-1.5 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer ml-2"
-      >
-        {PAGE_SIZE_OPTIONS.map((s) => (
-          <option key={s} value={s}>
-            {s === PAGE_SIZE_ALL ? t('pagination.all') : `${s} ${t('pagination.perPage')}`}
-          </option>
-        ))}
-      </select>
+        <select
+          value={pageSize}
+          onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          className="text-xs border border-input rounded px-1.5 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer ml-2"
+        >
+          {PAGE_SIZE_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {s === PAGE_SIZE_ALL ? t('pagination.all') : `${s} ${t('pagination.perPage')}`}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }
