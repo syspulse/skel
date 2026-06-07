@@ -9,6 +9,8 @@ import { IconReset } from '../components/Icons';
 import { ModulePage } from '../components/ModulePage';
 import i18n from '../i18n';
 import { usePageSize, PAGE_SIZE_OPTIONS } from '../settings/PageSizeContext';
+import { useTimestampFormat } from '../settings/TimestampFormatContext';
+import { TimestampFormatSelect } from '../components/TimestampFormatSelect';
 
 const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED !== 'false';
 
@@ -112,6 +114,20 @@ function PageSizeSection() {
   );
 }
 
+// ── Timestamp format selector ─────────────────────────────────────────────────
+
+function TimestampFormatSection() {
+  const { t } = useTranslation();
+  const { formatPattern, setFormatPattern } = useTimestampFormat();
+
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground mb-1.5">{t('settings.timestampFormat.label')}</div>
+      <TimestampFormatSelect value={formatPattern} onChange={setFormatPattern} />
+    </div>
+  );
+}
+
 // ── Language selector ─────────────────────────────────────────────────────────
 
 function LanguageSection() {
@@ -147,6 +163,7 @@ function ProfileTab() {
         <ThemeSection />
         <LanguageSection />
         <PageSizeSection />
+        <TimestampFormatSection />
       </div>
 
       <div className="bg-card border border-border rounded shadow-sm p-3 space-y-2">

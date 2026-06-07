@@ -60,6 +60,15 @@
     "keycloakClientId": "Client-ID",
     "noAuthNote": "Läuft im Kein-Auth-Modus. Keycloak-Einstellungen werden nicht verwendet.",
     "defaultPageSize": "Standard-Seitengröße",
+    "timestampFormat": {
+      "label": "Zeitstempel-Format",
+      "default": "Standard (7 Jun 14:30:45)",
+      "us": "US-Format",
+      "ms": "Nur Millisekunden",
+      "presets": "Format-Vorlagen",
+      "preview": "Vorschau",
+      "hint": "D Tag, MMM Monat, YYYY Jahr, HH/h Stunde, mm:ss, A AM/PM, S Millisekunden."
+    },
     "resetToDefaults": "Auf Standardwerte zurücksetzen",
     "autoSaveNote": "Änderungen werden automatisch gespeichert. Keycloak-Konfigurationsänderungen erfordern einen Seitenneustart."
   },

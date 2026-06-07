@@ -2,31 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DashLayout } from '../types';
 import { getTimezoneShortLabel } from '../../components/timezone';
-
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-function formatTs(ts: number, timezone: string): string {
-  const d = new Date(ts);
-  if (timezone === 'local') {
-    const day = d.getDate();
-    const mon = MONTHS[d.getMonth()];
-    const hh  = String(d.getHours()).padStart(2, '0');
-    const mm  = String(d.getMinutes()).padStart(2, '0');
-    const ss  = String(d.getSeconds()).padStart(2, '0');
-    return `${day} ${mon} ${hh}:${mm}:${ss}`;
-  }
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: timezone,
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  }).formatToParts(d);
-  const get = (type: string) => parts.find(p => p.type === type)?.value ?? '';
-  return `${get('day')} ${get('month')} ${get('hour')}:${get('minute')}:${get('second')}`;
-}
+import { TimestampCell } from '../../components/TimestampCell';
 
 const COL_COUNT = 6;
 
@@ -110,9 +86,7 @@ export function DashTable({
                     className="cursor-pointer"
                   />
                 </td>
-                <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
-                  {formatTs(dash.ts0, timezone)}
-                </td>
+                <TimestampCell ts={dash.ts0} timezone={timezone} />
                 <td className="px-3 py-2 text-xs text-muted-foreground truncate font-mono">
                   {dash.id}
                 </td>

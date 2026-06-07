@@ -60,6 +60,15 @@
     "keycloakClientId": "クライアントID",
     "noAuthNote": "認証なしモードで実行中です。Keycloak設定は使用されません。",
     "defaultPageSize": "デフォルトページサイズ",
+    "timestampFormat": {
+      "label": "タイムスタンプ形式",
+      "default": "デフォルト (7 Jun 14:30:45)",
+      "us": "US形式",
+      "ms": "ミリ秒のみ",
+      "presets": "形式プリセット",
+      "preview": "プレビュー",
+      "hint": "D 日, MMM 月, YYYY 年, HH/h 時, mm:ss, A AM/PM, S ミリ秒。"
+    },
     "resetToDefaults": "デフォルトに戻す",
     "autoSaveNote": "変更は自動的に保存されます。Keycloak設定の変更はページの再読込が必要です。"
   },

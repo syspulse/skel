@@ -60,6 +60,15 @@
     "keycloakClientId": "client id",
     "noAuthNote": "Running in no-auth mode. Keycloak settings are not used.",
     "defaultPageSize": "Default page size",
+    "timestampFormat": {
+      "label": "Timestamp format",
+      "default": "Default (7 Jun 14:30:45)",
+      "us": "US format",
+      "ms": "Milliseconds only",
+      "presets": "Format presets",
+      "preview": "Preview",
+      "hint": "D day, MMM month, YYYY year, HH/h hour, mm:ss, A AM/PM, S milliseconds."
+    },
     "resetToDefaults": "Reset to defaults",
     "autoSaveNote": "Changes are saved automatically. Keycloak config changes require a page reload."
   },
