@@ -1,26 +1,43 @@
 import React, { createContext, useCallback, useEffect, useRef, useState } from 'react';
 import {
   clearStoredLoginMethod,
-  getSkelAuthLoginUrl,
-  getSkelGoogleLoginUrl,
   readStoredLoginMethod,
   storeLoginMethod,
 } from './authConfig';
-import {
-  guestProfile,
-  profileFromKeycloak,
-  type UserProfile,
-} from './userProfile';
 import type { LoginOptionId } from './LoginScreen';
+import {
+  authKeycloak,
+  getAuthProvider,
+  getKeycloakInstance,
+  loginMethodToAuthType,
+  type AuthSession,
+} from './providers';
+import type { UserProfile } from './userProfile';
 
 export type { UserProfile, AuthType } from './userProfile';
 
 /** @deprecated Use UserProfile */
 export type AuthUser = UserProfile;
 
+function applySession(
+  session: AuthSession,
+  setToken: (t: string | null) => void,
+  setTokenParsed: (p: Record<string, unknown> | null) => void,
+  setUserInfo: (u: Record<string, unknown> | null) => void,
+  setUser: (u: UserProfile | null) => void,
+  setIsAuthenticated: (v: boolean) => void,
+) {
+  setToken(session.token);
+  setTokenParsed(session.tokenParsed);
+  setUserInfo(session.userInfo);
+  setUser(session.user);
+  setIsAuthenticated(true);
+}
+
 export interface AuthState {
   token: string | null;
   tokenParsed: Record<string, unknown> | null;
+  userInfo: Record<string, unknown> | null;
   user: UserProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -38,6 +55,7 @@ export interface AuthState {
 export const AuthContext = createContext<AuthState>({
   token: null,
   tokenParsed: null,
+  userInfo: null,
   user: null,
   isAuthenticated: false,
   isLoading: true,
@@ -53,136 +71,64 @@ export const AuthContext = createContext<AuthState>({
 
 const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED !== 'false';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type KeycloakInstance = any;
-
-function getKeycloakConfig() {
-  return {
-    url:
-      localStorage.getItem('VITE_KEYCLOAK_URL') ||
-      import.meta.env.VITE_KEYCLOAK_URL ||
-      'http://localhost:8180',
-    realm:
-      localStorage.getItem('VITE_KEYCLOAK_REALM') ||
-      import.meta.env.VITE_KEYCLOAK_REALM ||
-      'master',
-    clientId:
-      localStorage.getItem('VITE_KEYCLOAK_CLIENT_ID') ||
-      import.meta.env.VITE_KEYCLOAK_CLIENT_ID ||
-      'skel-admin',
-  };
-}
-
-function applyKeycloakSession(
-  kc: KeycloakInstance,
-  setToken: (t: string | null) => void,
-  setTokenParsed: (p: Record<string, unknown> | null) => void,
-  setUser: (u: UserProfile | null) => void,
-  setIsAuthenticated: (v: boolean) => void,
-  setupRefresh: (kc: KeycloakInstance) => void,
-) {
-  storeLoginMethod('keycloak');
-  setToken(kc.token ?? null);
-  setTokenParsed((kc.tokenParsed as Record<string, unknown> | undefined) ?? null);
-  setUser(profileFromKeycloak(kc));
-  setIsAuthenticated(true);
-  setupRefresh(kc);
-}
-
-function applyGuestSession(
-  setToken: (t: string | null) => void,
-  setTokenParsed: (p: Record<string, unknown> | null) => void,
-  setUser: (u: UserProfile | null) => void,
-  setIsAuthenticated: (v: boolean) => void,
-) {
-  storeLoginMethod('guest');
-  setToken(null);
-  setTokenParsed(null);
-  setUser(guestProfile());
-  setIsAuthenticated(true);
-}
-
-// Singleton — prevents double init under React StrictMode (which causes redirect loops).
-let keycloakSingleton: KeycloakInstance | null = null;
-let keycloakInitPromise: Promise<KeycloakInstance> | null = null;
-
-async function getKeycloak(): Promise<KeycloakInstance> {
-  if (keycloakSingleton) return keycloakSingleton;
-  if (keycloakInitPromise) return keycloakInitPromise;
-
-  keycloakInitPromise = (async () => {
-    const KeycloakModule = await import('keycloak-js');
-    const Keycloak = KeycloakModule.default;
-    const kc: KeycloakInstance = new Keycloak(getKeycloakConfig());
-
-    await kc.init({ checkLoginIframe: false });
-
-    keycloakSingleton = kc;
-    return kc;
-  })().catch((err) => {
-    keycloakInitPromise = null;
-    throw err;
-  });
-
-  return keycloakInitPromise;
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [tokenParsed, setTokenParsed] = useState<Record<string, unknown> | null>(null);
+  const [userInfo, setUserInfo] = useState<Record<string, unknown> | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const keycloakRef = useRef<KeycloakInstance>(null);
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const setupRefresh = useCallback((kc: KeycloakInstance) => {
-    if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
-    refreshIntervalRef.current = setInterval(async () => {
-      try {
-        const refreshed = await kc.updateToken(70);
-        if (refreshed) {
-          setToken(kc.token ?? null);
-          setTokenParsed((kc.tokenParsed as Record<string, unknown> | undefined) ?? null);
-          setUser(profileFromKeycloak(kc));
-        }
-      } catch {
-        setIsAuthenticated(false);
-        setToken(null);
-        setTokenParsed(null);
-        setUser(null);
-        clearStoredLoginMethod();
-      }
-    }, 60000);
+  const apply = useCallback((session: AuthSession) => {
+    applySession(session, setToken, setTokenParsed, setUserInfo, setUser, setIsAuthenticated);
   }, []);
 
-  const loginAsGuest = useCallback(() => {
+  const setupRefresh = useCallback(() => {
     if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
-    applyGuestSession(setToken, setTokenParsed, setUser, setIsAuthenticated);
+    refreshIntervalRef.current = setInterval(async () => {
+      const method = readStoredLoginMethod();
+      if (method === 'guest' || !method) return;
+
+      const provider = getAuthProvider(method);
+      if (provider.authType === 'keycloak' || provider.authType === 'google') {
+        const session = await authKeycloak.refreshToken();
+        if (session) {
+          apply(session);
+        } else {
+          setIsAuthenticated(false);
+          setToken(null);
+          setTokenParsed(null);
+          setUserInfo(null);
+          setUser(null);
+          clearStoredLoginMethod();
+        }
+      }
+    }, 60000);
+  }, [apply]);
+
+  const loginAsGuest = useCallback(async () => {
+    if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
+    storeLoginMethod('guest');
+    const session = await getAuthProvider('guest').refreshSession();
+    if (session) apply(session);
     setError(null);
-  }, []);
+  }, [apply]);
 
   const loginWithKeycloak = useCallback(() => {
     storeLoginMethod('keycloak');
-    if (keycloakRef.current) {
-      keycloakRef.current.login();
-    }
+    getAuthProvider('keycloak').login();
   }, []);
 
   const loginWithSkel = useCallback(() => {
     storeLoginMethod('skel');
-    window.location.href = getSkelAuthLoginUrl();
+    getAuthProvider('skel').login();
   }, []);
 
   const loginWithGoogle = useCallback(() => {
     storeLoginMethod('google');
-    const kc = keycloakRef.current;
-    if (kc) {
-      kc.login({ idpHint: 'google' });
-    } else {
-      window.location.href = getSkelGoogleLoginUrl();
-    }
+    getAuthProvider('google').login();
   }, []);
 
   const loginWithOption = useCallback(
@@ -207,8 +153,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!AUTH_ENABLED) {
-      applyGuestSession(setToken, setTokenParsed, setUser, setIsAuthenticated);
-      setIsLoading(false);
+      getAuthProvider('guest').refreshSession().then((session) => {
+        if (session) apply(session);
+        setIsLoading(false);
+      });
       return;
     }
 
@@ -216,22 +164,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        const kc = await getKeycloak();
+        const storedMethod = readStoredLoginMethod();
+
+        if (storedMethod === 'guest') {
+          const session = await getAuthProvider('guest').refreshSession();
+          if (!cancelled && session) apply(session);
+          return;
+        }
+
+        if (storedMethod === 'skel') {
+          const session = await getAuthProvider('skel').refreshSession();
+          if (!cancelled && session) {
+            apply(session);
+            setupRefresh();
+          } else if (!cancelled) {
+            setIsAuthenticated(false);
+          }
+          return;
+        }
+
+        // Keycloak / Google — init shared client first
+        const kc = await getKeycloakInstance();
         if (cancelled) return;
 
-        keycloakRef.current = kc;
-
         if (kc.authenticated) {
-          applyKeycloakSession(
-            kc,
-            setToken,
-            setTokenParsed,
-            setUser,
-            setIsAuthenticated,
-            setupRefresh,
-          );
-        } else if (readStoredLoginMethod() === 'guest') {
-          applyGuestSession(setToken, setTokenParsed, setUser, setIsAuthenticated);
+          const authType = loginMethodToAuthType(storedMethod ?? 'keycloak');
+          const provider = getAuthProvider(authType);
+          const session = await provider.refreshSession();
+          if (session) {
+            apply(session);
+            setupRefresh();
+          }
         } else {
           setIsAuthenticated(false);
         }
@@ -240,7 +203,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const msg = err instanceof Error ? err.message : String(err);
         setError(`Keycloak init failed: ${msg}`);
         if (readStoredLoginMethod() === 'guest') {
-          applyGuestSession(setToken, setTokenParsed, setUser, setIsAuthenticated);
+          const session = await getAuthProvider('guest').refreshSession();
+          if (session) apply(session);
           setError(null);
         } else {
           setIsAuthenticated(false);
@@ -254,29 +218,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
     };
-  }, [setupRefresh]);
+  }, [apply, setupRefresh]);
 
   const logout = useCallback(() => {
     if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
+    const method = readStoredLoginMethod();
     clearStoredLoginMethod();
+    getAuthProvider(method).logout();
 
-    const method = user?.authType;
-    if (method === 'keycloak' && keycloakRef.current) {
-      keycloakRef.current.logout();
+    if (method === 'keycloak' || method === 'google') {
       return;
     }
 
     setToken(null);
     setTokenParsed(null);
+    setUserInfo(null);
     setUser(null);
     setIsAuthenticated(false);
-  }, [user?.authType]);
+  }, []);
 
   return (
     <AuthContext.Provider
       value={{
         token,
         tokenParsed,
+        userInfo,
         user,
         isAuthenticated,
         isLoading,

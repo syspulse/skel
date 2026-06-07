@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { IconUser } from '../components/Icons';
 
 interface UserAvatarProps {
@@ -11,6 +11,10 @@ interface UserAvatarProps {
 export function UserAvatar({ avatarUrl, name, size = 24, className = '' }: UserAvatarProps) {
   const [failed, setFailed] = useState(false);
 
+  useEffect(() => {
+    setFailed(false);
+  }, [avatarUrl]);
+
   if (avatarUrl && !failed) {
     return (
       <img
@@ -18,6 +22,7 @@ export function UserAvatar({ avatarUrl, name, size = 24, className = '' }: UserA
         alt={name}
         width={size}
         height={size}
+        referrerPolicy="no-referrer"
         className={`rounded-full object-cover shrink-0 ${className}`}
         style={{ width: size, height: size }}
         onError={() => setFailed(true)}

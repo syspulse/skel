@@ -4,6 +4,7 @@ import { JsonViewer } from '../components/JsonViewer';
 import { IconCopy } from '../components/Icons';
 import { UserAvatar } from './UserAvatar';
 import { useUserProfile } from './useUserProfile';
+import { useAvatarUrl } from './useAvatarUrl';
 import type { AuthType } from './userProfile';
 
 const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED !== 'false';
@@ -77,7 +78,8 @@ function JwtRawField({ token }: { token: string }) {
 
 export function UserProfileTab() {
   const { t } = useTranslation();
-  const { profile, token, tokenParsed, isLoading } = useUserProfile();
+  const { profile, token, tokenParsed, userInfo, profileClaims, isLoading } = useUserProfile();
+  const avatarUrl = useAvatarUrl();
 
   if (isLoading) {
     return (
@@ -87,14 +89,13 @@ export function UserProfileTab() {
 
   const displayName = profile?.name ?? '';
   const jwtToken = token ?? '';
-  const jwtParsed = tokenParsed ?? {};
 
   return (
     <div className="space-y-3">
       <div className="bg-card border border-border rounded shadow-sm p-3">
         <div className="flex items-center gap-3 mb-3 pb-3 border-b border-border">
           <UserAvatar
-            avatarUrl={profile?.avatarUrl}
+            avatarUrl={avatarUrl}
             name={displayName || '—'}
             size={48}
             className="border border-border bg-muted"
@@ -110,6 +111,16 @@ export function UserProfileTab() {
         <FieldRow label={t('settings.userProfile.id')} value={profile?.id} />
         <FieldRow label={t('settings.user')} value={displayName || undefined} />
         <FieldRow label={t('settings.email')} value={profile?.email} />
+        {avatarUrl && (
+          <FieldRow
+            label={t('settings.userProfile.avatar')}
+            value={
+              <a href={avatarUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                {avatarUrl}
+              </a>
+            }
+          />
+        )}
         <FieldRow
           label={t('settings.userProfile.authType')}
           value={profile ? authTypeLabel(t, profile.authType) : undefined}
@@ -126,8 +137,24 @@ export function UserProfileTab() {
             <div className="text-xs text-muted-foreground mb-1.5">
               {t('settings.userProfile.jwtParsed')}
             </div>
-            <JsonViewer value={jwtParsed} />
+            <JsonViewer value={tokenParsed ?? {}} />
           </div>
+          {userInfo && Object.keys(userInfo).length > 0 && (
+            <div>
+              <div className="text-xs text-muted-foreground mb-1.5">
+                {t('settings.userProfile.userInfo')}
+              </div>
+              <JsonViewer value={userInfo} />
+            </div>
+          )}
+          {profileClaims && Object.keys(profileClaims).length > 0 && (
+            <div>
+              <div className="text-xs text-muted-foreground mb-1.5">
+                {t('settings.userProfile.profileClaims')}
+              </div>
+              <JsonViewer value={profileClaims} />
+            </div>
+          )}
         </div>
       )}
     </div>

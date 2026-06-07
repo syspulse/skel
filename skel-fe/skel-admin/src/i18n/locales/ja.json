@@ -92,6 +92,9 @@
       "authType": "認証タイプ",
       "jwtRaw": "JWT（生データ）",
       "jwtParsed": "JWT（解析済み）",
+      "userInfo": "UserInfo",
+      "profileClaims": "プロフィール（統合）",
+      "avatar": "アバター",
       "loading": "ユーザープロフィールを読み込み中…",
       "notAuthenticated": "サインインしていません。ログイン画面からサインインしてください。",
       "guestNote": "ゲストモード — JWTは利用できません。"

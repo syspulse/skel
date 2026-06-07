@@ -92,6 +92,9 @@
       "authType": "Authentifizierungstyp",
       "jwtRaw": "JWT (Rohdaten)",
       "jwtParsed": "JWT (geparst)",
+      "userInfo": "UserInfo",
+      "profileClaims": "Profil (zusammengeführt)",
+      "avatar": "Avatar",
       "loading": "Benutzerprofil wird geladen…",
       "notAuthenticated": "Nicht angemeldet. Melden Sie sich über die Anmeldeseite an.",
       "guestNote": "Gastmodus — kein JWT verfügbar."

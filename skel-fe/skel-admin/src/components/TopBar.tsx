@@ -5,12 +5,14 @@ import { useApp } from '../theme/AppContext';
 import { useNotifications } from '../notifications/NotificationContext';
 import { NotificationPanel } from '../notifications/NotificationPanel';
 import { UserAvatar } from '../auth/UserAvatar';
+import { useAvatarUrl } from '../auth/useAvatarUrl';
 import { AppBrandMark } from './AppBrand';
 import { IconUser, IconLogout, IconBell } from './Icons';
 
 export function TopBar() {
   const { t } = useTranslation();
   const { user, isAuthenticated, logout } = useAuth();
+  const avatarUrl = useAvatarUrl();
   const { appName, logoUrl } = useApp();
   const { notifications, unreadCount, markAllRead, clearAll } = useNotifications();
   const [panelOpen, setPanelOpen] = useState(false);
@@ -53,7 +55,7 @@ export function TopBar() {
             <>
               <div className="flex items-center gap-2 text-sm text-header-fg-muted">
                 <UserAvatar
-                  avatarUrl={user.avatarUrl}
+                  avatarUrl={avatarUrl}
                   name={user.name}
                   size={24}
                   className="text-header-fg-muted"
