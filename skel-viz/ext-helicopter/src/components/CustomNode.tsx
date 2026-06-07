@@ -92,7 +92,7 @@ function CustomNode({ data, id, selected }: NodeProps<CustomNodeData>) {
   };
 
   const handleDoubleClick = useCallback(() => {
-    const url = `https://app.extractor.dev.hacken.cloud/${id}/overview`;
+    const url = `${process.env.REACT_APP_EXTRACTOR_APP_URL}/${id}/overview`;
     window.open(url, '_blank', 'noopener,noreferrer');
   }, [id]);
 

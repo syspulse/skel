@@ -67,9 +67,9 @@ const TopMenu: React.FC<TopMenuProps> = ({ onLogin }) => {
       const formData = new URLSearchParams();
       formData.append('grant_type', 'refresh_token');
       formData.append('refresh_token', refreshToken);
-      formData.append('client_id', 'extractor-public');
+      formData.append('client_id', process.env.REACT_APP_KEYCLOAK_CLIENT_ID || '');
 
-      const response = await fetch('https://auth.dev.extractor.live/realms/hacken/protocol/openid-connect/token', {
+      const response = await fetch(`${process.env.REACT_APP_KEYCLOAK_URL}/realms/${process.env.REACT_APP_KEYCLOAK_CLIENT_REALM}/protocol/openid-connect/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'

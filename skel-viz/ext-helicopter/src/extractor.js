@@ -6,7 +6,7 @@ export async function getDashboard(ts0,ts1,projectId) {
       return {};
   }
 
-  const url = `https://api.extractor.dev.hacken.cloud/api/v1/project/${projectId}/dashboard`;
+  const url = `${process.env.REACT_APP_BASE_API_URL}/project/${projectId}/dashboard`;
   const payload = `{"from":${ts0},"to":${ts1},"interval":"1d","timezone":"Europe/Kiev","id":${projectId}}`
   
   try {
@@ -50,7 +50,7 @@ export async function getTenants() {
     };
 
     try {
-      const response = await fetch('https://api.extractor.dev.hacken.cloud/api/v1/tenant/search', {
+      const response = await fetch(`${process.env.REACT_APP_BASE_API_URL}/tenant/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -83,7 +83,7 @@ export async function getProjects(tenantId) {
     };
 
     try {
-      const response = await fetch(`https://api.extractor.dev.hacken.cloud/api/v1/project/search`, {
+      const response = await fetch(`${process.env.REACT_APP_BASE_API_URL}/project/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -112,7 +112,7 @@ export async function askMe() {
 
   if(jwtToken == '') {
     try {
-      const response = await fetch('https://api.extractor.dev.hacken.cloud/api/v1/user/me', {
+      const response = await fetch(`${process.env.REACT_APP_BASE_API_URL}/user/me`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
