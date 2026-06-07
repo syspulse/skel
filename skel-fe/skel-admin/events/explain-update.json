@@ -1,0 +1,17 @@
+{
+  "id":  "evt-exp-update-001",
+  "ts":  0,
+  "sev": 0.0,
+  "src": "mcp",
+  "sys": "ExplainSys",
+  "typ": "COMMAND",
+  "cmd": "update",
+  "data": {
+    "rid":     "rule-mcp-001",
+    "name":    "MCP Updated Rule",
+    "desc":    "Description updated via MCP dispatcher command",
+    "scripts": [{"typ": "js", "src": "return 'updated';", "opts": ""}],
+    "ts0":     0,
+    "ts":      0
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "id":  "evt-warn-001",
+  "ts":  0,
+  "sev": 0.3,
+  "src": "notify",
+  "sys": "",
+  "typ": "ALERT",
+  "cmd": "notify",
+  "data": {
+    "severity": "warning",
+    "title":    "Service Degradation",
+    "message":  "⚠️ **Warning:** Explain service degradation.\n\n![Latency graph](https://placehold.co/300x100/orange/white?text=p95+%3E+2s)\n\nInvestigation in progress."
+  }
+}

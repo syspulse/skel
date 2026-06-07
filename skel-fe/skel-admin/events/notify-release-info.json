@@ -1,0 +1,14 @@
+{
+  "id":  "evt-release-001",
+  "ts":  0,
+  "sev": 0.1,
+  "src": "notify",
+  "sys": "NotificationSys",
+  "typ": "NOTIFY",
+  "cmd": "notify",
+  "data": {
+    "severity": "info",
+    "title":    "New Release: v2.1.0",
+    "message":  "Version **2.1.0** is now available.\n\n- Improved Explain performance\n- New Dispatcher module\n- Bug fixes"
+  }
+}

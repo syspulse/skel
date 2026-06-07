@@ -1,0 +1,10 @@
+{
+  "id":  "evt-exp-reload-001",
+  "ts":  0,
+  "sev": 0.0,
+  "src": "api",
+  "sys": "ExplainSys",
+  "typ": "COMMAND",
+  "cmd": "reload",
+  "data": {}
+}
