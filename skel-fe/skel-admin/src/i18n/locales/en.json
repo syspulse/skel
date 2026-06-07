@@ -5,6 +5,9 @@
     "settings": "Settings",
     "help": "Help"
   },
+  "module": {
+    "overview": "Overview"
+  },
   "topbar": {
     "logout": "Logout",
     "notLoggedIn": "Not logged in"

@@ -6,6 +6,7 @@ import { THEME_NAMES, PALETTE_SWATCHES, type Theme } from '../theme/palettes';
 import { useApp, DEFAULT_APP_NAME } from '../theme/AppContext';
 import { AppLogo } from '../components/AppBrand';
 import { IconReset } from '../components/Icons';
+import { ModulePage } from '../components/ModulePage';
 import i18n from '../i18n';
 import { usePageSize, PAGE_SIZE_OPTIONS } from '../settings/PageSizeContext';
 
@@ -14,8 +15,6 @@ const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED !== 'false';
 function getStoredOrEnv(key: string, envVal: string): string {
   return localStorage.getItem(key) || envVal || '';
 }
-
-type Tab = 'profile' | 'api';
 
 const LANGUAGES = [
   { value: 'en', label: 'English' },
@@ -247,7 +246,13 @@ function ApiTab() {
     localStorage.removeItem('VITE_KEYCLOAK_URL');
     localStorage.removeItem('VITE_KEYCLOAK_REALM');
     localStorage.removeItem('VITE_KEYCLOAK_CLIENT_ID');
-    setForm({ ...API_DEFAULTS });
+    setForm({
+      apiUrl: API_DEFAULTS.explainApiUrl,
+      dashApiUrl: API_DEFAULTS.dashApiUrl,
+      keycloakUrl: API_DEFAULTS.keycloakUrl,
+      keycloakRealm: API_DEFAULTS.keycloakRealm,
+      keycloakClientId: API_DEFAULTS.keycloakClientId,
+    });
   };
 
   return (
@@ -341,37 +346,25 @@ function ApiTab() {
 
 export function SettingsPage() {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<Tab>('profile');
 
-  const tabs: { id: Tab; labelKey: string }[] = [
-    { id: 'profile', labelKey: 'settings.profile' },
-    { id: 'api',     labelKey: 'settings.api' },
+  const tabs = [
+    { id: 'profile', label: t('settings.profile') },
+    { id: 'api',     label: t('settings.api') },
   ];
 
   return (
-    <div className="w-full px-4 py-3 space-y-2">
-      <h1 className="text-lg text-foreground">{t('settings.title')}</h1>
-
-      <div className="flex border-b border-border gap-1">
-        {tabs.map(({ id, labelKey }) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={`px-3 py-1 text-xs transition-colors border-b-2 -mb-px
-              ${tab === id
-                ? 'border-blue-500 text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-          >
-            {t(labelKey)}
-          </button>
-        ))}
-      </div>
-
-      <div className="max-w-2xl">
-        {tab === 'profile' && <ProfileTab />}
-        {tab === 'api'     && <ApiTab />}
-      </div>
-    </div>
+    <ModulePage
+      title={t('settings.title')}
+      tabs={tabs}
+      defaultTab="profile"
+      contentClassName="max-w-2xl"
+    >
+      {(tab) => (
+        <>
+          {tab === 'profile' && <ProfileTab />}
+          {tab === 'api'     && <ApiTab />}
+        </>
+      )}
+    </ModulePage>
   );
 }

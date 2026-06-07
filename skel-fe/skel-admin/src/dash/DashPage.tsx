@@ -5,6 +5,7 @@ import { useAuth } from '../auth/useAuth';
 import { useNotifications } from '../notifications/NotificationContext';
 import { usePageSize } from '../settings/PageSizeContext';
 import { Pagination } from '../components/Pagination';
+import { ModulePage, OVERVIEW_TAB } from '../components/ModulePage';
 import { DashFilters, DashFilterState } from './components/DashFilters';
 import { DashSlider } from './components/DashSlider';
 import { DashTable } from './components/DashTable';
@@ -127,62 +128,74 @@ export function DashPage() {
     ? ` ${t('dash.filteredFrom', { total: dashes.length })}`
     : '';
 
+  const overviewTabs = [{ id: OVERVIEW_TAB, label: t('module.overview') }];
+
   return (
-    <div className="flex flex-col h-full relative">
-      <DashFilters
-        filters={filters}
-        timezone={timezone}
-        selectedCount={selectedIds.size}
-        hasSelection={selected !== null}
-        onFilterChange={setFilters}
-        onTimezoneChange={setTimezone}
-        onAdd={handleAdd}
-        onDeleteSelected={handleDeleteSelected}
-        onRefresh={fetchDashes}
-      />
-
-      <div className="px-4 py-1 text-xs text-muted-foreground bg-muted border-b border-border flex items-center gap-3">
-        {loading && <span className="text-blue-500">{t('dash.loading')}</span>}
-        {!loading && (
-          <span>{countLabel}{filteredLabel}</span>
-        )}
-        {fetchError && <span className="text-red-500 flex items-center gap-1">⚠ {fetchError}</span>}
-      </div>
-
-      <div className="flex-1 overflow-auto bg-card">
-        {loading && dashes.length === 0 ? (
-          <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">{t('dash.loading')}</div>
-        ) : (
-          <DashTable
-            dashes={pagedDashes}
-            selected={selected}
-            selectedIds={selectedIds}
+    <ModulePage
+      title={t('nav.dash')}
+      tabs={overviewTabs}
+      defaultTab={OVERVIEW_TAB}
+      padded={false}
+      contentClassName="flex flex-col"
+    >
+      {(tab) => tab === OVERVIEW_TAB && (
+        <div className="flex flex-col h-full relative">
+          <DashFilters
+            filters={filters}
             timezone={timezone}
-            minRows={pageSize}
-            onRowClick={handleRowClick}
-            onCheckboxChange={handleCheckboxChange}
-            onSelectAll={handleSelectAll}
+            selectedCount={selectedIds.size}
+            hasSelection={selected !== null}
+            onFilterChange={setFilters}
+            onTimezoneChange={setTimezone}
+            onAdd={handleAdd}
+            onDeleteSelected={handleDeleteSelected}
+            onRefresh={fetchDashes}
           />
-        )}
-      </div>
 
-      <Pagination
-        page={safePage}
-        pageSize={pageSize}
-        total={filteredDashes.length}
-        onPageChange={setPage}
-        onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
-      />
+          <div className="px-4 py-1 text-xs text-muted-foreground bg-muted border-b border-border flex items-center gap-3">
+            {loading && <span className="text-blue-500">{t('dash.loading')}</span>}
+            {!loading && (
+              <span>{countLabel}{filteredLabel}</span>
+            )}
+            {fetchError && <span className="text-red-500 flex items-center gap-1">⚠ {fetchError}</span>}
+          </div>
 
-      <DashSlider
-        open={sliderOpen}
-        addMode={addMode}
-        dash={selected}
-        onClose={handleCloseSlider}
-        onCreate={handleCreate}
-        onUpdate={handleUpdate}
-        onDelete={handleDelete}
-      />
-    </div>
+          <div className="flex-1 overflow-auto bg-card">
+            {loading && dashes.length === 0 ? (
+              <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">{t('dash.loading')}</div>
+            ) : (
+              <DashTable
+                dashes={pagedDashes}
+                selected={selected}
+                selectedIds={selectedIds}
+                timezone={timezone}
+                minRows={pageSize}
+                onRowClick={handleRowClick}
+                onCheckboxChange={handleCheckboxChange}
+                onSelectAll={handleSelectAll}
+              />
+            )}
+          </div>
+
+          <Pagination
+            page={safePage}
+            pageSize={pageSize}
+            total={filteredDashes.length}
+            onPageChange={setPage}
+            onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+          />
+
+          <DashSlider
+            open={sliderOpen}
+            addMode={addMode}
+            dash={selected}
+            onClose={handleCloseSlider}
+            onCreate={handleCreate}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+          />
+        </div>
+      )}
+    </ModulePage>
   );
 }

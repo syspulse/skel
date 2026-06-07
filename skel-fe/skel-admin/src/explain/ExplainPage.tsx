@@ -5,6 +5,7 @@ import { useAuth } from '../auth/useAuth';
 import { useNotifications } from '../notifications/NotificationContext';
 import { usePageSize, PAGE_SIZE_ALL } from '../settings/PageSizeContext';
 import { Pagination } from '../components/Pagination';
+import { ModulePage, OVERVIEW_TAB } from '../components/ModulePage';
 import { ExplainFilters, FilterState } from './components/ExplainFilters';
 import { ExplainSlider } from './components/ExplainSlider';
 import { ExplainTable } from './components/ExplainTable';
@@ -155,61 +156,73 @@ export function ExplainPage() {
 
   const countLabel = t('explain.count', { count: total });
 
+  const overviewTabs = [{ id: OVERVIEW_TAB, label: t('module.overview') }];
+
   return (
-    <div className="flex flex-col h-full relative">
-      <ExplainFilters
-        filters={filters}
-        timezone={timezone}
-        selectedCount={selectedIds.size}
-        hasSelection={selected !== null}
-        onFilterChange={handleFilterChange}
-        onTimezoneChange={setTimezone}
-        onSearch={handleSearch}
-        onAdd={handleAdd}
-        onDeleteSelected={handleDeleteSelected}
-        onRefresh={handleRefresh}
-      />
-
-      <div className="px-4 py-1 text-xs text-muted-foreground bg-muted border-b border-border flex items-center gap-3">
-        {loading && <span className="text-blue-500">{t('explain.loading')}</span>}
-        {!loading && <span>{countLabel}</span>}
-        {fetchError && <span className="text-red-500 flex items-center gap-1">⚠ {fetchError}</span>}
-      </div>
-
-      <div className="flex-1 overflow-auto bg-card">
-        {loading && rules.length === 0 ? (
-          <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">{t('explain.loading')}</div>
-        ) : (
-          <ExplainTable
-            rules={filteredRules}
-            selected={selected}
-            selectedIds={selectedIds}
+    <ModulePage
+      title={t('nav.explain')}
+      tabs={overviewTabs}
+      defaultTab={OVERVIEW_TAB}
+      padded={false}
+      contentClassName="flex flex-col"
+    >
+      {(tab) => tab === OVERVIEW_TAB && (
+        <div className="flex flex-col h-full relative">
+          <ExplainFilters
+            filters={filters}
             timezone={timezone}
-            minRows={pageSize === PAGE_SIZE_ALL ? filteredRules.length : pageSize}
-            onRowClick={handleRowClick}
-            onCheckboxChange={handleCheckboxChange}
-            onSelectAll={handleSelectAll}
+            selectedCount={selectedIds.size}
+            hasSelection={selected !== null}
+            onFilterChange={handleFilterChange}
+            onTimezoneChange={setTimezone}
+            onSearch={handleSearch}
+            onAdd={handleAdd}
+            onDeleteSelected={handleDeleteSelected}
+            onRefresh={handleRefresh}
           />
-        )}
-      </div>
 
-      <Pagination
-        page={page}
-        pageSize={pageSize}
-        total={total}
-        onPageChange={setPage}
-        onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
-      />
+          <div className="px-4 py-1 text-xs text-muted-foreground bg-muted border-b border-border flex items-center gap-3">
+            {loading && <span className="text-blue-500">{t('explain.loading')}</span>}
+            {!loading && <span>{countLabel}</span>}
+            {fetchError && <span className="text-red-500 flex items-center gap-1">⚠ {fetchError}</span>}
+          </div>
 
-      <ExplainSlider
-        open={sliderOpen}
-        addMode={addMode}
-        rule={selected}
-        onClose={handleCloseSlider}
-        onCreate={handleCreate}
-        onUpdate={handleUpdate}
-        onDelete={handleDelete}
-      />
-    </div>
+          <div className="flex-1 overflow-auto bg-card">
+            {loading && rules.length === 0 ? (
+              <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">{t('explain.loading')}</div>
+            ) : (
+              <ExplainTable
+                rules={filteredRules}
+                selected={selected}
+                selectedIds={selectedIds}
+                timezone={timezone}
+                minRows={pageSize === PAGE_SIZE_ALL ? filteredRules.length : pageSize}
+                onRowClick={handleRowClick}
+                onCheckboxChange={handleCheckboxChange}
+                onSelectAll={handleSelectAll}
+              />
+            )}
+          </div>
+
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+            onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+          />
+
+          <ExplainSlider
+            open={sliderOpen}
+            addMode={addMode}
+            rule={selected}
+            onClose={handleCloseSlider}
+            onCreate={handleCreate}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+          />
+        </div>
+      )}
+    </ModulePage>
   );
 }

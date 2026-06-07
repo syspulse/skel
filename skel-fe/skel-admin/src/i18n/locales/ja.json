@@ -5,6 +5,9 @@
     "settings": "設定",
     "help": "ヘルプ"
   },
+  "module": {
+    "overview": "概要"
+  },
   "topbar": {
     "logout": "ログアウト",
     "notLoggedIn": "未ログイン"
