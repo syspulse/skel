@@ -26,6 +26,9 @@
     "update": "更新",
     "saving": "保存中…",
     "close": "閉じる",
+    "details": "詳細",
+    "copy": "クリップボードにコピー",
+    "copied": "コピーしました",
     "run": "実行",
     "running": "実行中…",
     "explain": "説明",
@@ -150,6 +153,10 @@
     "perPage": "件/ページ",
     "prev": "前のページ",
     "next": "次のページ"
+  },
+  "json": {
+    "compact": "compact",
+    "human": "human"
   },
   "dispatcher": {
     "total": "total: {{count}}",

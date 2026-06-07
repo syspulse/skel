@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ModulePage, OVERVIEW_TAB } from '../components/ModulePage';
 import { Pagination } from '../components/Pagination';
@@ -6,7 +6,9 @@ import { usePageSize, PAGE_SIZE_ALL } from '../settings/PageSizeContext';
 import { useDispatcher } from './DispatcherContext';
 import { DispatcherStats } from './components/DispatcherStats';
 import { DispatcherTable } from './components/DispatcherTable';
+import { DispatcherEventSlider } from './components/DispatcherEventSlider';
 import { DispatcherFilters } from './components/DispatcherFilters';
+import type { DispatcherEvent } from './types';
 import {
   EMPTY_DISPATCHER_FILTERS,
   filterDispatcherEvents,
@@ -19,6 +21,8 @@ export function DispatcherPage() {
   const { pageSize, setPageSize } = usePageSize();
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<DispatcherFilterState>(EMPTY_DISPATCHER_FILTERS);
+  const [selected, setSelected] = useState<DispatcherEvent | null>(null);
+  const [sliderOpen, setSliderOpen] = useState(false);
 
   const tabs = [{ id: OVERVIEW_TAB, label: t('module.overview') }];
 
@@ -35,9 +39,25 @@ export function DispatcherPage() {
     return filteredEvents.slice(start, start + pageSize);
   }, [filteredEvents, page, pageSize]);
 
+  useEffect(() => {
+    if (!selected) return;
+    const updated = history.find((event) => event.id === selected.id);
+    if (updated) setSelected(updated);
+  }, [history, selected?.id]);
+
   const handleFilterChange = (next: DispatcherFilterState) => {
     setFilters(next);
     setPage(1);
+  };
+
+  const handleRowClick = (event: DispatcherEvent) => {
+    setSelected(event);
+    setSliderOpen(true);
+  };
+
+  const handleCloseSlider = () => {
+    setSliderOpen(false);
+    setSelected(null);
   };
 
   return (
@@ -66,7 +86,11 @@ export function DispatcherPage() {
       {(tab) => tab === OVERVIEW_TAB && (
         <div className="flex flex-col h-full relative">
           <div className="flex-1 overflow-auto bg-card">
-            <DispatcherTable events={pageEvents} />
+            <DispatcherTable
+              events={pageEvents}
+              selected={selected}
+              onRowClick={handleRowClick}
+            />
           </div>
 
           <Pagination
@@ -85,6 +109,12 @@ export function DispatcherPage() {
                 )}
               </>
             }
+          />
+
+          <DispatcherEventSlider
+            open={sliderOpen}
+            event={selected}
+            onClose={handleCloseSlider}
           />
         </div>
       )}

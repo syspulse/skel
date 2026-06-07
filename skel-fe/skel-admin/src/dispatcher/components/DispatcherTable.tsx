@@ -3,23 +3,18 @@ import { useTranslation } from 'react-i18next';
 import type { DispatcherEvent } from '../types';
 import { TimestampCell } from '../../components/TimestampCell';
 import { DEFAULT_TIMEZONE } from '../../components/timezone';
-
-function fmtSev(sev?: number): { label: string; cls: string } {
-  if (sev === undefined) return { label: '—', cls: 'text-muted-foreground' };
-  if (sev <= 0.0)  return { label: String(sev),   cls: 'text-green-600' };
-  if (sev <= 0.15) return { label: String(sev), cls: 'text-blue-500' };
-  if (sev <= 0.45) return { label: String(sev), cls: 'text-yellow-600' };
-  return { label: String(sev), cls: 'text-red-500' };
-}
+import { fmtSev } from '../formatEvent';
 
 const TYP_TAG =
   'inline-block px-1.5 py-0 rounded border border-border bg-muted text-foreground font-medium';
 
 interface Props {
   events: readonly DispatcherEvent[];
+  selected: DispatcherEvent | null;
+  onRowClick: (event: DispatcherEvent) => void;
 }
 
-export function DispatcherTable({ events }: Props) {
+export function DispatcherTable({ events, selected, onRowClick }: Props) {
   const { t } = useTranslation();
   const rows = events;
 
@@ -31,14 +26,14 @@ export function DispatcherTable({ events }: Props) {
       <table className="w-full border-collapse">
         <thead className="border-b border-border bg-muted sticky top-0">
           <tr>
-          <th className={th}>id</th>
+            <th className={th}>id</th>
             <th className={th}>ts</th>
             <th className={th}>src</th>
             <th className={th}>sys</th>
             <th className={th}>typ</th>
             <th className={th}>cmd</th>
             <th className={th}>sev</th>
-            <th className={th}>dst</th>            
+            <th className={th}>dst</th>
             <th className={`${th} w-full`}>data</th>
           </tr>
         </thead>
@@ -50,13 +45,23 @@ export function DispatcherTable({ events }: Props) {
               </td>
             </tr>
           )}
-          {rows.map((e) => {
+          {rows.map((e, idx) => {
             const sev = fmtSev(e.sev);
             const dataStr = Object.keys(e.data).length
               ? JSON.stringify(e.data).slice(0, 80)
               : '';
+            const isSelected = selected?.id === e.id;
+            const rowClass = [
+              'cursor-pointer transition-colors border-b border-border',
+              isSelected
+                ? 'bg-blue-100 hover:bg-blue-100'
+                : idx % 2 === 0
+                ? 'bg-card hover:bg-muted'
+                : 'bg-muted hover:bg-muted-hover',
+            ].join(' ');
+
             return (
-              <tr key={e.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+              <tr key={e.id} className={rowClass} onClick={() => onRowClick(e)}>
                 <td className={`${td} text-muted-foreground`} title={e.id}>
                   {e.id}
                 </td>
@@ -66,12 +71,13 @@ export function DispatcherTable({ events }: Props) {
                 <td className={td}>
                   {e.typ ? <span className={TYP_TAG}>{e.typ}</span> : ''}
                 </td>
-                <td className={td}>{e.cmd ?? '-'}</td>
+                <td className={td}>{e.cmd ?? ''}</td>
                 <td className={`${td} ${sev.cls}`}>{sev.label}</td>
-                <td className={`${td} text-muted-foreground`}>{e.dst ?? '-'}</td>
-                
-                <td className={`${td} text-muted-foreground max-w-xs overflow-hidden text-ellipsis`}
-                  title={JSON.stringify(e.data)}>
+                <td className={`${td} text-muted-foreground`}>{e.dst ?? ''}</td>
+                <td
+                  className={`${td} text-muted-foreground max-w-xs overflow-hidden text-ellipsis`}
+                  title={JSON.stringify(e.data)}
+                >
                   {dataStr}
                 </td>
               </tr>

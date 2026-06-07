@@ -26,6 +26,9 @@
     "update": "Aktualisieren",
     "saving": "Wird gespeichert…",
     "close": "Schließen",
+    "details": "Details",
+    "copy": "In Zwischenablage kopieren",
+    "copied": "Kopiert",
     "run": "Ausführen",
     "running": "Wird ausgeführt…",
     "explain": "Erklären",
@@ -150,6 +153,10 @@
     "perPage": "/ Seite",
     "prev": "Vorherige Seite",
     "next": "Nächste Seite"
+  },
+  "json": {
+    "compact": "kompakt",
+    "human": "lesbar"
   },
   "dispatcher": {
     "total": "total: {{count}}",
