@@ -1,19 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DashLayout } from '../types';
+import { getTimezoneShortLabel } from '../../components/timezone';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-const TZ_LABELS: Record<string, string> = {
-  'local':                'local',
-  'UTC':                  'GMT',
-  'Europe/Berlin':        'CET',
-  'America/New_York':     'ET',
-  'America/Chicago':      'CT',
-  'America/Denver':       'MT',
-  'America/Los_Angeles':  'PT',
-  'Asia/Hong_Kong':       'HKT',
-};
 
 function formatTs(ts: number, timezone: string): string {
   const d = new Date(ts);
@@ -80,7 +70,7 @@ export function DashTable({
               />
             </th>
             <th className="w-32 px-3 py-2 text-left">
-              {t('dash.fields.ts')}{timezone !== 'local' ? ` (${TZ_LABELS[timezone] ?? timezone})` : ''}
+              {t('dash.fields.ts')}{timezone !== 'local' ? ` (${getTimezoneShortLabel(timezone)})` : ''}
             </th>
             <th className="w-64 px-3 py-2 text-left">{t('dash.fields.id')}</th>
             <th className="w-40 px-3 py-2 text-left">{t('dash.fields.name')}</th>

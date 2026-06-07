@@ -1,32 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { TimezoneSelect } from '../../components/TimezoneSelect';
 import { IconRefresh, IconTrash, IconPlus } from '../../components/Icons';
 
 export interface DashFilterState {
   search: string;
-}
-
-const TIMEZONES: { value: string; label: string }[] = [
-  { value: 'local',                label: 'local' },
-  { value: 'UTC',                  label: 'GMT' },
-  { value: 'Europe/Berlin',        label: 'CET' },
-  { value: 'America/New_York',     label: 'ET' },
-  { value: 'America/Chicago',      label: 'CT' },
-  { value: 'America/Denver',       label: 'MT' },
-  { value: 'America/Los_Angeles',  label: 'PT' },
-  { value: 'Asia/Hong_Kong',       label: 'HKT' },
-];
-
-function tzOffsetLabel(tz: string): string {
-  if (tz === 'local') return '';
-  try {
-    const name = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'shortOffset' })
-      .formatToParts(new Date())
-      .find(p => p.type === 'timeZoneName')?.value ?? '';
-    return name === 'GMT' ? '+0' : name.replace('GMT', '');
-  } catch {
-    return '';
-  }
 }
 
 interface DashFiltersProps {
@@ -66,20 +44,7 @@ export function DashFilters({
         className="text-sm border border-input rounded px-2 py-1 w-48 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
       />
 
-      <select
-        value={timezone}
-        onChange={(e) => onTimezoneChange(e.target.value)}
-        className="text-xs border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
-      >
-        {TIMEZONES.map(({ value, label }) => {
-          const off = tzOffsetLabel(value);
-          return (
-            <option key={value} value={value}>
-              {off ? `${label} (${off})` : label}
-            </option>
-          );
-        })}
-      </select>
+      <TimezoneSelect value={timezone} onChange={onTimezoneChange} />
 
       <div className="flex-1" />
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Explain } from '../types';
 import { IconLamp } from '../../components/Icons';
+import { getTimezoneShortLabel } from '../../components/timezone';
 
 function ExplainIcon({ meta }: { meta?: Record<string, unknown> | null }) {
   const icon = meta?.icon;
@@ -23,17 +24,6 @@ function ExplainIcon({ meta }: { meta?: Record<string, unknown> | null }) {
 }
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-const TZ_LABELS: Record<string, string> = {
-  'local':                'local',
-  'UTC':                  'GMT',
-  'Europe/Berlin':        'CET',
-  'America/New_York':     'ET',
-  'America/Chicago':      'CT',
-  'America/Denver':       'MT',
-  'America/Los_Angeles':  'PT',
-  'Asia/Hong_Kong':       'HKT',
-};
 
 function formatTs(ts: number, timezone: string): string {
   const d = new Date(ts);
@@ -107,7 +97,7 @@ export function ExplainTable({
             </th>
             <th className="w-10 px-2 py-2 text-center">{t('explain.fields.icon')}</th>
             <th className="w-32 px-3 py-2 text-left">
-              {t('explain.fields.ts')}{timezone !== 'local' ? ` (${TZ_LABELS[timezone] ?? timezone})` : ''}
+              {t('explain.fields.ts')}{timezone !== 'local' ? ` (${getTimezoneShortLabel(timezone)})` : ''}
             </th>
             <th className="w-24 px-3 py-2 text-left">{t('explain.fields.oid')}</th>
             <th className="w-48 px-3 py-2 text-left">{t('explain.fields.rid')}</th>
