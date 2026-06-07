@@ -571,7 +571,7 @@ trait OpenAiLike extends AiProvider {
     
     import io.syspulse.skel.util.Retry
     Retry.withRetryFuture(attemptRequest(), s"responses: '${ai.question.take(32)}...'")(retry, 3000)(log, ec)
-    }
+  }
   
 
   override def promptStream(ai: Ai, onEvent: (String) => Unit, system: Option[String] = None,timeout: Long = getTimeout(), retry: Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty,
