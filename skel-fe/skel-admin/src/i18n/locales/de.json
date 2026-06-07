@@ -83,6 +83,7 @@
       "name": "Name",
       "desc": "Beschreibung",
       "sid": "sid",
+      "ts0": "ts0",
       "ts": "Zeit",
       "icon": "Symbol"
     },

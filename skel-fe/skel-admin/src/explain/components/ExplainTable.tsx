@@ -119,7 +119,7 @@ export function ExplainTable({
                     <ExplainIcon meta={explain.meta as Record<string, unknown> | undefined} />
                   </span>
                 </td>
-                <TimestampCell ts={explain.ts0} timezone={timezone} />
+                <TimestampCell ts={explain.ts} timezone={timezone} />
                 <td className="px-3 py-2 text-xs text-muted-foreground max-w-[140px] truncate">
                   {explain.oid || <span className="opacity-30">—</span>}
                 </td>

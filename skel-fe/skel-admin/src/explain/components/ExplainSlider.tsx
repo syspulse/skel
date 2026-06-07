@@ -9,10 +9,13 @@ import { ScriptEditor } from '../../components/ScriptEditor';
 import { ExplainResultSlider } from './ExplainResultSlider';
 import { IconClose, IconPlay, IconPlus, IconMinus, IconSave, IconTrash, IconUpload } from '../../components/Icons';
 
+import { FormattedTimestamp } from '../../components/FormattedTimestamp';
+
 interface ExplainSliderProps {
   open: boolean;
   addMode: boolean;
   explain: Explain | null;
+  timezone: string;
   onClose: () => void;
   onCreate: (rid: string, req: ExplainCreateReq) => Promise<void>;
   onUpdate: (rid: string, req: ExplainUpdateReq) => Promise<void>;
@@ -53,6 +56,7 @@ export function ExplainSlider({
   open,
   addMode,
   explain,
+  timezone,
   onClose,
   onCreate,
   onUpdate,
@@ -253,6 +257,24 @@ export function ExplainSlider({
                 placeholder={t('explain.placeholderSid')}
                 className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400" />
             </div>
+
+            {!addMode && explain && (
+              <>
+                <div className="flex items-center gap-2">
+                  <label className="w-24 shrink-0 text-xs text-muted-foreground">{t('explain.fields.ts0')}</label>
+                  <div className="flex-1 text-sm font-mono text-muted-foreground bg-muted border border-border rounded px-3 py-1 select-text">
+                    <FormattedTimestamp ts={explain.ts0} timezone={timezone} />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="w-24 shrink-0 text-xs text-muted-foreground">{t('explain.fields.ts')}</label>
+                  <div className="flex-1 text-sm font-mono text-muted-foreground bg-muted border border-border rounded px-3 py-1 select-text">
+                    <FormattedTimestamp ts={explain.ts} timezone={timezone} />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           <div>

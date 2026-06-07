@@ -211,6 +211,7 @@ export function ExplainPage() {
             open={sliderOpen}
             addMode={addMode}
             explain={selected}
+            timezone={timezone}
             onClose={handleCloseSlider}
             onCreate={handleCreate}
             onUpdate={handleUpdate}

@@ -83,6 +83,7 @@
       "name": "name",
       "desc": "desc",
       "sid": "sid",
+      "ts0": "ts0",
       "ts": "ts",
       "icon": "icon"
     },
