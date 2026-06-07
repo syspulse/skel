@@ -1,7 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { Notification, Severity } from './types';
+import type { Notification, NotificationInput, Severity } from './types';
+import { LOCAL_NOTIFICATION_SRC } from './types';
+import { NotificationSrcLabel, formatNotificationTs } from './NotificationSrcLabel';
 import { IconClose, IconAlertCircle, IconAlertTriangle, IconInfo, IconCheckCircle } from '../components/Icons';
 
 const TOAST_DURATION = 5000;
@@ -9,7 +11,8 @@ const TOAST_DURATION = 5000;
 interface NotificationCtx {
   notifications: Notification[];
   unreadCount: number;
-  add: (severity: Severity, title: string, message: string) => void;
+  add: (severity: Severity, title: string, message: string, src?: string) => void;
+  push: (input: NotificationInput) => void;
   markAllRead: () => void;
   clearAll: () => void;
 }
@@ -57,7 +60,13 @@ function Toast({ item, onDismiss }: { item: ToastItem; onDismiss: (id: string) =
     >
       <span className={`shrink-0 mt-0.5 ${c.icon}`}>{severityIcon(n.severity)}</span>
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-foreground leading-snug">{n.title}</div>
+        <div className="flex items-start justify-between gap-2">
+          <div className="text-xs font-medium text-foreground leading-snug">{n.title}</div>
+          <span className="flex items-center gap-1.5 shrink-0">
+            <NotificationSrcLabel src={n.src} />
+            <span className="text-[10px] text-muted-foreground">{formatNotificationTs(n.ts)}</span>
+          </span>
+        </div>
         {n.message && (
           <div className="text-xs text-muted-foreground mt-0.5 prose prose-xs max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{n.message}</ReactMarkdown>
@@ -78,6 +87,18 @@ function Toast({ item, onDismiss }: { item: ToastItem; onDismiss: (id: string) =
 let _idCounter = 0;
 function nextId() { return `n-${Date.now()}-${++_idCounter}`; }
 
+function createNotification(input: NotificationInput, id = nextId()): Notification {
+  return {
+    id,
+    severity: input.severity,
+    title: input.title,
+    message: input.message,
+    src: input.src.trim() || LOCAL_NOTIFICATION_SRC,
+    ts: input.ts ?? Date.now(),
+    read: false,
+  };
+}
+
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -90,22 +111,27 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 300);
   }, []);
 
-  const add = useCallback((severity: Severity, title: string, message: string) => {
-    const id = nextId();
-    const notification: Notification = { id, severity, title, message, ts: Date.now(), read: false };
-
-    setNotifications(prev => [notification, ...prev]);
-
-    const toast: ToastItem = { id, notification, visible: false };
+  const showToast = useCallback((notification: Notification) => {
+    const toast: ToastItem = { id: notification.id, notification, visible: false };
     setToasts(prev => [...prev, toast]);
 
     requestAnimationFrame(() => {
-      setToasts(prev => prev.map(t => t.id === id ? { ...t, visible: true } : t));
+      setToasts(prev => prev.map(t => t.id === notification.id ? { ...t, visible: true } : t));
     });
 
-    const timer = setTimeout(() => dismissToast(id), TOAST_DURATION);
-    timersRef.current.set(id, timer);
+    const timer = setTimeout(() => dismissToast(notification.id), TOAST_DURATION);
+    timersRef.current.set(notification.id, timer);
   }, [dismissToast]);
+
+  const push = useCallback((input: NotificationInput) => {
+    const notification = createNotification(input);
+    setNotifications(prev => [notification, ...prev]);
+    showToast(notification);
+  }, [showToast]);
+
+  const add = useCallback((severity: Severity, title: string, message: string, src = LOCAL_NOTIFICATION_SRC) => {
+    push({ severity, title, message, src });
+  }, [push]);
 
   const markAllRead = useCallback(() => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
@@ -122,7 +148,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <Ctx.Provider value={{ notifications, unreadCount, add, markAllRead, clearAll }}>
+    <Ctx.Provider value={{ notifications, unreadCount, add, push, markAllRead, clearAll }}>
       {children}
       <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 items-end pointer-events-none">
         {toasts.map(item => (

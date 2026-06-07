@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Notification, Severity } from './types';
+import { NotificationSrcLabel, formatNotificationTs } from './NotificationSrcLabel';
 import { IconClose, IconAlertCircle, IconAlertTriangle, IconInfo, IconCheckCircle } from '../components/Icons';
 
 function severityIcon(severity: Severity) {
@@ -23,12 +24,6 @@ function severityIconColor(severity: Severity) {
   }
 }
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-function formatTs(ts: number) {
-  const d = new Date(ts);
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-}
-
 interface NotificationPanelProps {
   open: boolean;
   notifications: Notification[];
@@ -44,7 +39,10 @@ function NotificationItem({ n }: { n: Notification }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-xs font-medium text-foreground leading-snug">{n.title}</span>
-            <span className="text-[10px] text-muted-foreground shrink-0">{formatTs(n.ts)}</span>
+            <span className="flex items-center gap-1.5 shrink-0">
+              <NotificationSrcLabel src={n.src} />
+              <span className="text-[10px] text-muted-foreground">{formatNotificationTs(n.ts)}</span>
+            </span>
           </div>
           {n.message && (
             <div className="text-xs text-muted-foreground mt-0.5 prose prose-xs max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
