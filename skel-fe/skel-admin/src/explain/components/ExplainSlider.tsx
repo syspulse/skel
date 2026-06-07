@@ -323,9 +323,7 @@ export function ExplainSlider({
             </div>
           </div>
 
-          <div className="border border-border rounded p-3 bg-muted">
-            <MetaEditor key={formKey} value={form.meta} onChange={(meta) => setForm((f) => ({ ...f, meta }))} />
-          </div>
+          <MetaEditor key={formKey} value={form.meta} onChange={(meta) => setForm((f) => ({ ...f, meta }))} />
 
           {!addMode && (
             <div ref={testSectionRef} className="border border-border rounded bg-muted">

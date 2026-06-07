@@ -66,8 +66,8 @@ export function MetaEditor({ value, onChange }: MetaEditorProps) {
   const handleRemove = (idx: number) => { commit(rows.filter((_, i) => i !== idx)); };
 
   return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between mb-1">
+    <div className="border border-border rounded bg-muted">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border">
         <span className="text-xs text-muted-foreground">{t('explain.meta')}</span>
         <button
           type="button"
@@ -78,36 +78,36 @@ export function MetaEditor({ value, onChange }: MetaEditorProps) {
         </button>
       </div>
 
-      {rows.length === 0 && (
-        <div className="text-xs text-muted-foreground italic py-1">{t('explain.metaEmpty')}</div>
-      )}
-
-      {rows.map((row, idx) => (
-        <div key={idx} className="flex items-center gap-1">
-          <input
-            type="text"
-            value={row.key}
-            onChange={(e) => handleKeyChange(idx, e.target.value)}
-            placeholder="key"
-            className="text-xs border border-input rounded px-2 py-1 w-28 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
-          />
-          <span className="text-muted-foreground text-xs">:</span>
-          <input
-            type="text"
-            value={row.rawValue}
-            onChange={(e) => handleValueChange(idx, e.target.value)}
-            placeholder="value"
-            className="text-xs border border-input rounded px-2 py-1 flex-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
-          />
-          <button
-            type="button"
-            onClick={() => handleRemove(idx)}
-            className="text-muted-foreground hover:text-red-500 p-0.5 rounded transition-colors"
-          >
-            <IconClose size={14} />
-          </button>
+      {rows.length > 0 && (
+        <div className="p-3 space-y-1">
+          {rows.map((row, idx) => (
+            <div key={idx} className="flex items-center gap-1">
+              <input
+                type="text"
+                value={row.key}
+                onChange={(e) => handleKeyChange(idx, e.target.value)}
+                placeholder="key"
+                className="text-xs border border-input rounded px-2 py-1 w-28 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+              />
+              <span className="text-muted-foreground text-xs">:</span>
+              <input
+                type="text"
+                value={row.rawValue}
+                onChange={(e) => handleValueChange(idx, e.target.value)}
+                placeholder="value"
+                className="text-xs border border-input rounded px-2 py-1 flex-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+              <button
+                type="button"
+                onClick={() => handleRemove(idx)}
+                className="text-muted-foreground hover:text-red-500 p-0.5 rounded transition-colors"
+              >
+                <IconClose size={14} />
+              </button>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }
