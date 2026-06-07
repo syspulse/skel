@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { PAGE_SIZE_OPTIONS } from '../settings/PageSizeContext';
+import { PAGE_SIZE_ALL, PAGE_SIZE_OPTIONS } from '../settings/PageSizeContext';
 
 interface PaginationProps {
   page: number;
@@ -30,7 +30,7 @@ function pageNumbers(current: number, total: number): (number | '...')[] {
 
 export function Pagination({ page, pageSize, total, onPageChange, onPageSizeChange }: PaginationProps) {
   const { t } = useTranslation();
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const totalPages = pageSize === PAGE_SIZE_ALL ? 1 : Math.max(1, Math.ceil(total / pageSize));
   const pages = pageNumbers(page, totalPages);
 
   const btnBase = 'min-w-[28px] h-7 px-1.5 text-xs rounded border transition-colors flex items-center justify-center';
@@ -85,7 +85,9 @@ export function Pagination({ page, pageSize, total, onPageChange, onPageSizeChan
         className="text-xs border border-input rounded px-1.5 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer ml-2"
       >
         {PAGE_SIZE_OPTIONS.map((s) => (
-          <option key={s} value={s}>{s} {t('pagination.perPage')}</option>
+          <option key={s} value={s}>
+            {s === PAGE_SIZE_ALL ? t('pagination.all') : `${s} ${t('pagination.perPage')}`}
+          </option>
         ))}
       </select>
     </div>

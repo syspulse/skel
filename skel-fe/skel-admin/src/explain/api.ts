@@ -20,11 +20,15 @@ export async function listRules(
   token: string | null,
   oid?: string,
   rid?: string,
+  from?: number,
+  size?: number,
 ): Promise<Explains> {
   const base = getBaseUrl();
   const params = new URLSearchParams();
   if (oid && oid.trim()) params.set('oid', oid.trim());
   if (rid && rid.trim()) params.set('rid', rid.trim());
+  if (from !== undefined) params.set('from', String(from));
+  if (size !== undefined) params.set('size', String(size));
   const query = params.toString();
   const url = query ? `${base}?${query}` : base;
   const res = await fetch(url, { headers: authHeaders(token) });
@@ -105,14 +109,16 @@ export async function deleteRules(
 export async function searchRules(
   token: string | null,
   query: string,
-  from: number = 0,
-  size: number = 10,
+  from?: number,
+  size?: number,
 ): Promise<Explains> {
   const base = getBaseUrl();
+  const body: Record<string, unknown> = { query };
+  if (from !== undefined && size !== undefined) { body.from = from; body.size = size; }
   const res = await fetch(`${base}/search`, {
     method: 'POST',
     headers: authHeaders(token),
-    body: JSON.stringify({ query, from, size }),
+    body: JSON.stringify(body),
   });
   return handleResponse<Explains>(res);
 }

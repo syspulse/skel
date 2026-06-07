@@ -139,6 +139,7 @@
   },
   "pagination": {
     "perPage": "/ page",
+    "all": "All",
     "prev": "Previous page",
     "next": "Next page"
   },
