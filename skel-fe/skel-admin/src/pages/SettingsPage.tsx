@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../auth/useAuth';
+import { UserProfileTab } from '../auth/UserProfileTab';
 import { useTheme } from '../theme/ThemeContext';
 import { THEME_NAMES, PALETTE_SWATCHES, type Theme } from '../theme/palettes';
 import { useApp, DEFAULT_APP_NAME } from '../theme/AppContext';
@@ -154,7 +154,6 @@ function LanguageSection() {
 
 function ProfileTab() {
   const { t } = useTranslation();
-  const { user, isAuthenticated } = useAuth();
   const { appName, logoUrl, setAppName, setLogoUrl, resetBranding } = useApp();
 
   return (
@@ -205,21 +204,6 @@ function ProfileTab() {
         </button>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded p-2.5">
-        <div className="text-xs text-blue-800 mb-0.5">{t('settings.currentSession')}</div>
-        <div className="text-xs text-blue-700 space-y-0">
-          <div>{t('settings.authMode')}: {AUTH_ENABLED ? t('settings.keycloakAuth') : t('settings.noAuth')}</div>
-          {isAuthenticated && user && (
-            <>
-              <div>{t('settings.user')}: {user.name}</div>
-              {user.email && <div>{t('settings.email')}: {user.email}</div>}
-              {user.roles && user.roles.length > 0 && (
-                <div>{t('settings.roles')}: {user.roles.join(', ')}</div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
@@ -365,8 +349,9 @@ export function SettingsPage() {
   const { t } = useTranslation();
 
   const tabs = [
-    { id: 'profile', label: t('settings.profile') },
-    { id: 'api',     label: t('settings.api') },
+    { id: 'profile',     label: t('settings.profile') },
+    { id: 'userProfile', label: t('settings.user') },
+    { id: 'api',         label: t('settings.api') },
   ];
 
   return (
@@ -378,8 +363,9 @@ export function SettingsPage() {
     >
       {(tab) => (
         <>
-          {tab === 'profile' && <ProfileTab />}
-          {tab === 'api'     && <ApiTab />}
+          {tab === 'profile'     && <ProfileTab />}
+          {tab === 'userProfile' && <UserProfileTab />}
+          {tab === 'api'         && <ApiTab />}
         </>
       )}
     </ModulePage>

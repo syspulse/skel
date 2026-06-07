@@ -9,6 +9,11 @@ interface ImportMetaEnv {
   readonly VITE_KEYCLOAK_URL: string;
   readonly VITE_KEYCLOAK_REALM: string;
   readonly VITE_KEYCLOAK_CLIENT_ID: string;
+  readonly VITE_SKEL_AUTH_URL?: string;
+  readonly VITE_DEFAULT_LOGO_URL?: string;
+  readonly VITE_GOOGLE_CLIENT_ID?: string;
+  readonly VITE_APP_NAME?: string;
+  readonly VITE_APP_LOGO?: string;
 }
 
 interface ImportMeta {

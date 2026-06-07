@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { IconLamp } from './Icons';
+import { DEFAULT_SKEL_LOGO_URL } from '../auth/authConfig';
 import { isInlineSvg, resolveLogoSrc } from '../theme/branding';
 
 export interface AppLogoProps {
@@ -9,19 +9,28 @@ export interface AppLogoProps {
   iconClassName?: string;
 }
 
-/** Renders custom logo (URL, data URI, or inline SVG) or the default lamp icon. */
+/** Renders custom logo (URL, data URI, or inline SVG) or the default Skel icon. */
 export function AppLogo({ logoUrl, size = 22, className = '', iconClassName = '' }: AppLogoProps) {
   const [failed, setFailed] = useState(false);
+  const effectiveLogo = logoUrl.trim() || DEFAULT_SKEL_LOGO_URL;
 
   useEffect(() => {
     setFailed(false);
   }, [logoUrl]);
 
-  if (!logoUrl.trim() || failed) {
-    return <IconLamp size={size} className={iconClassName || className} />;
+  if (failed) {
+    return (
+      <img
+        src={DEFAULT_SKEL_LOGO_URL}
+        alt=""
+        width={size}
+        height={size}
+        className={`object-contain shrink-0 ${className || iconClassName}`}
+      />
+    );
   }
 
-  const s = logoUrl.trim();
+  const s = effectiveLogo;
   if (isInlineSvg(s)) {
     return (
       <span

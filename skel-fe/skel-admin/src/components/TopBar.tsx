@@ -4,6 +4,7 @@ import { useAuth } from '../auth/useAuth';
 import { useApp } from '../theme/AppContext';
 import { useNotifications } from '../notifications/NotificationContext';
 import { NotificationPanel } from '../notifications/NotificationPanel';
+import { UserAvatar } from '../auth/UserAvatar';
 import { AppBrandMark } from './AppBrand';
 import { IconUser, IconLogout, IconBell } from './Icons';
 
@@ -51,7 +52,12 @@ export function TopBar() {
           {isAuthenticated && user ? (
             <>
               <div className="flex items-center gap-2 text-sm text-header-fg-muted">
-                <IconUser size={16} />
+                <UserAvatar
+                  avatarUrl={user.avatarUrl}
+                  name={user.name}
+                  size={24}
+                  className="text-header-fg-muted"
+                />
                 <span>
                   {user.name}
                   {user.email ? (

@@ -1,9 +1,11 @@
+import { DEFAULT_SKEL_LOGO_URL } from '../auth/authConfig';
+
 export const APP_NAME_KEY = 'app_name';
 export const APP_LOGO_KEY = 'app_logo';
 export const DEFAULT_APP_NAME =
   (import.meta.env.VITE_APP_NAME as string | undefined)?.trim() || 'admin';
 export const DEFAULT_APP_LOGO =
-  (import.meta.env.VITE_APP_LOGO as string | undefined)?.trim() || '';
+  (import.meta.env.VITE_APP_LOGO as string | undefined)?.trim() || DEFAULT_SKEL_LOGO_URL;
 
 export const BRANDING_CHANGE_EVENT = 'skel-branding-change';
 

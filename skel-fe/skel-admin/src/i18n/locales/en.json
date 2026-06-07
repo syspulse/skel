@@ -13,6 +13,17 @@
     "logout": "Logout",
     "notLoggedIn": "Not logged in"
   },
+  "login": {
+    "subtitle": "Choose how to sign in",
+    "guest": "Unauthenticated",
+    "guestDesc": "Continue without signing in (guest mode)",
+    "skelOAuth": "Skel OAuth",
+    "skelOAuthDesc": "Sign in via skel-auth server",
+    "keycloak": "Keycloak",
+    "keycloakDesc": "Sign in with Keycloak SSO",
+    "googleOAuth": "Google OAuth",
+    "googleOAuthDesc": "Sign in with your Google account"
+  },
   "common": {
     "add": "Add",
     "edit": "Edit",
@@ -74,7 +85,17 @@
       "hint": "D day, MMM month, YYYY year, HH/h hour, mm:ss, A AM/PM, S milliseconds."
     },
     "resetToDefaults": "Reset to defaults",
-    "autoSaveNote": "Changes are saved automatically. Keycloak config changes require a page reload."
+    "autoSaveNote": "Changes are saved automatically. Keycloak config changes require a page reload.",
+    "userProfile": {
+      "tab": "User Profile",
+      "id": "id",
+      "authType": "authentication type",
+      "jwtRaw": "JWT (raw)",
+      "jwtParsed": "JWT (parsed)",
+      "loading": "Loading user profile…",
+      "notAuthenticated": "Not signed in. Use Sign In on the login screen to authenticate.",
+      "guestNote": "Running in guest mode — no JWT is available."
+    }
   },
   "explain": {
     "loading": "Loading…",

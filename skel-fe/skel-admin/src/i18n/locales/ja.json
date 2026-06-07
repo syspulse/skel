@@ -13,6 +13,17 @@
     "logout": "ログアウト",
     "notLoggedIn": "未ログイン"
   },
+  "login": {
+    "subtitle": "サインイン方法を選択",
+    "guest": "未認証",
+    "guestDesc": "サインインせずに続行（ゲストモード）",
+    "skelOAuth": "Skel OAuth",
+    "skelOAuthDesc": "skel-auth サーバーでサインイン",
+    "keycloak": "Keycloak",
+    "keycloakDesc": "Keycloak SSO でサインイン",
+    "googleOAuth": "Google OAuth",
+    "googleOAuthDesc": "Google アカウントでサインイン"
+  },
   "common": {
     "add": "追加",
     "edit": "編集",
@@ -74,7 +85,17 @@
       "hint": "D 日, MMM 月, YYYY 年, HH/h 時, mm:ss, A AM/PM, S ミリ秒。"
     },
     "resetToDefaults": "デフォルトに戻す",
-    "autoSaveNote": "変更は自動的に保存されます。Keycloak設定の変更はページの再読込が必要です。"
+    "autoSaveNote": "変更は自動的に保存されます。Keycloak設定の変更はページの再読込が必要です。",
+    "userProfile": {
+      "tab": "ユーザープロフィール",
+      "id": "ID",
+      "authType": "認証タイプ",
+      "jwtRaw": "JWT（生データ）",
+      "jwtParsed": "JWT（解析済み）",
+      "loading": "ユーザープロフィールを読み込み中…",
+      "notAuthenticated": "サインインしていません。ログイン画面からサインインしてください。",
+      "guestNote": "ゲストモード — JWTは利用できません。"
+    }
   },
   "explain": {
     "loading": "読込中…",

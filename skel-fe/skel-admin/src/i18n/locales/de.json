@@ -13,6 +13,17 @@
     "logout": "Abmelden",
     "notLoggedIn": "Nicht angemeldet"
   },
+  "login": {
+    "subtitle": "Anmeldemethode wählen",
+    "guest": "Unauthentifiziert",
+    "guestDesc": "Ohne Anmeldung fortfahren (Gastmodus)",
+    "skelOAuth": "Skel OAuth",
+    "skelOAuthDesc": "Anmeldung über skel-auth Server",
+    "keycloak": "Keycloak",
+    "keycloakDesc": "Anmeldung über Keycloak SSO",
+    "googleOAuth": "Google OAuth",
+    "googleOAuthDesc": "Mit Google-Konto anmelden"
+  },
   "common": {
     "add": "Hinzufügen",
     "edit": "Bearbeiten",
@@ -74,7 +85,17 @@
       "hint": "D Tag, MMM Monat, YYYY Jahr, HH/h Stunde, mm:ss, A AM/PM, S Millisekunden."
     },
     "resetToDefaults": "Auf Standardwerte zurücksetzen",
-    "autoSaveNote": "Änderungen werden automatisch gespeichert. Keycloak-Konfigurationsänderungen erfordern einen Seitenneustart."
+    "autoSaveNote": "Änderungen werden automatisch gespeichert. Keycloak-Konfigurationsänderungen erfordern einen Seitenneustart.",
+    "userProfile": {
+      "tab": "Benutzerprofil",
+      "id": "ID",
+      "authType": "Authentifizierungstyp",
+      "jwtRaw": "JWT (Rohdaten)",
+      "jwtParsed": "JWT (geparst)",
+      "loading": "Benutzerprofil wird geladen…",
+      "notAuthenticated": "Nicht angemeldet. Melden Sie sich über die Anmeldeseite an.",
+      "guestNote": "Gastmodus — kein JWT verfügbar."
+    }
   },
   "explain": {
     "loading": "Laden…",
