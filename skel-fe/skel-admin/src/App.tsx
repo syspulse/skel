@@ -15,6 +15,12 @@ function AppContent() {
   const { isLoading, error, isAuthenticated, loginWithOption, loginWithKeycloak } = useAuth();
   const { appName, logoUrl } = useApp();
   const [activePage, setActivePage] = useState<NavPage>('explain');
+  const [settingsTabRequest, setSettingsTabRequest] = useState<string | null>(null);
+
+  const openSettingsTab = (tab: string) => {
+    setSettingsTabRequest(tab);
+    setActivePage('settings');
+  };
 
   if (isLoading) {
     return (
@@ -61,7 +67,13 @@ function AppContent() {
       case 'explain':    return <ExplainPage />;
       case 'dash':       return <DashPage />;
       case 'dispatcher': return <DispatcherPage />;
-      case 'settings':   return <SettingsPage />;
+      case 'settings':
+        return (
+          <SettingsPage
+            requestedTab={settingsTabRequest}
+            onRequestedTabApplied={() => setSettingsTabRequest(null)}
+          />
+        );
       case 'help':       return <HelpPage />;
       default:           return <ExplainPage />;
     }
@@ -69,7 +81,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-background">
-      <TopBar />
+      <TopBar onOpenSettingsTab={openSettingsTab} />
       <SideNav activePage={activePage} onNavigate={setActivePage} />
       <main className="ml-44 mt-12 min-h-[calc(100vh-3rem)] flex flex-col">
         {renderPage()}

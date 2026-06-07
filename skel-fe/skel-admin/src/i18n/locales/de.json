@@ -11,7 +11,13 @@
   },
   "topbar": {
     "logout": "Abmelden",
-    "notLoggedIn": "Nicht angemeldet"
+    "notLoggedIn": "Nicht angemeldet",
+    "userMenu": "Benutzermenü",
+    "menu": {
+      "info": "Info",
+      "profile": "Profil",
+      "logout": "Abmelden..."
+    }
   },
   "login": {
     "subtitle": "Anmeldemethode wählen",

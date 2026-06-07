@@ -11,7 +11,13 @@
   },
   "topbar": {
     "logout": "Logout",
-    "notLoggedIn": "Not logged in"
+    "notLoggedIn": "Not logged in",
+    "userMenu": "User menu",
+    "menu": {
+      "info": "Info",
+      "profile": "Profile",
+      "logout": "Logout..."
+    }
   },
   "login": {
     "subtitle": "Choose how to sign in",

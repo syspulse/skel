@@ -11,7 +11,13 @@
   },
   "topbar": {
     "logout": "ログアウト",
-    "notLoggedIn": "未ログイン"
+    "notLoggedIn": "未ログイン",
+    "userMenu": "ユーザーメニュー",
+    "menu": {
+      "info": "情報",
+      "profile": "プロフィール",
+      "logout": "ログアウト..."
+    }
   },
   "login": {
     "subtitle": "サインイン方法を選択",

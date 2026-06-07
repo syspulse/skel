@@ -345,7 +345,12 @@ function ApiTab() {
 
 // ── SettingsPage ──────────────────────────────────────────────────────────────
 
-export function SettingsPage() {
+interface SettingsPageProps {
+  requestedTab?: string | null;
+  onRequestedTabApplied?: () => void;
+}
+
+export function SettingsPage({ requestedTab, onRequestedTabApplied }: SettingsPageProps) {
   const { t } = useTranslation();
 
   const tabs = [
@@ -360,6 +365,8 @@ export function SettingsPage() {
       tabs={tabs}
       defaultTab="profile"
       contentClassName="max-w-2xl"
+      requestedTab={requestedTab}
+      onRequestedTabApplied={onRequestedTabApplied}
     >
       {(tab) => (
         <>

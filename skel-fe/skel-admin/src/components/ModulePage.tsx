@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export interface ModuleTab {
   id: string;
@@ -43,6 +43,9 @@ interface ModulePageProps {
   padded?: boolean;
   /** Rendered full-width immediately below the tab bar (e.g. filters). */
   afterTabs?: (activeTab: string) => React.ReactNode;
+  /** Switch to this tab when set (e.g. deep link from TopBar user menu). */
+  requestedTab?: string | null;
+  onRequestedTabApplied?: () => void;
   children: (activeTab: string) => React.ReactNode;
 }
 
@@ -53,9 +56,19 @@ export function ModulePage({
   contentClassName = '',
   padded = true,
   afterTabs,
+  requestedTab,
+  onRequestedTabApplied,
   children,
 }: ModulePageProps) {
   const [tab, setTab] = useState(defaultTab ?? tabs[0]?.id ?? '');
+
+  useEffect(() => {
+    if (!requestedTab) return;
+    if (tabs.some(({ id }) => id === requestedTab)) {
+      setTab(requestedTab);
+      onRequestedTabApplied?.();
+    }
+  }, [requestedTab, tabs, onRequestedTabApplied]);
 
   return (
     <div className="w-full h-full flex flex-col">
