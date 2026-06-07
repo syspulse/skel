@@ -12,8 +12,8 @@ import { ExplainTable } from './components/ExplainTable';
 import type { Explain, ExplainCreateReq, ExplainUpdateReq } from './types';
 import type { TimeRange } from '../types';
 
-function rowKey(rule: Explain): string {
-  return `${rule.oid ?? ''}_${rule.rid}`;
+function rowKey(explain: Explain): string {
+  return `${explain.oid ?? ''}_${explain.rid}`;
 }
 
 function isInTimeRange(ts0: number, range: TimeRange): boolean {
@@ -31,7 +31,7 @@ export function ExplainPage() {
   const { add: notify } = useNotifications();
   const { pageSize, setPageSize } = usePageSize();
   const [page, setPage] = useState(1);
-  const [rules, setRules] = useState<Explain[]>([]);
+  const [explains, setExplains] = useState<Explain[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -51,9 +51,7 @@ export function ExplainPage() {
     timeRange: { type: 'all' } as TimeRange,
   });
 
-  // Stable fetch — called with explicit args so effect can pass the current values
-  // without adding them as useCallback deps (avoids stale closures and double-fetches).
-  const fetchRules = useCallback(async (
+  const fetchExplains = useCallback(async (
     oid: string, rid: string, search: string, pg: number, ps: number,
   ) => {
     setLoading(true);
@@ -62,10 +60,10 @@ export function ExplainPage() {
       const from = ps !== PAGE_SIZE_ALL ? (pg - 1) * ps : undefined;
       const size = ps !== PAGE_SIZE_ALL ? ps : undefined;
       const result = search.trim()
-        ? await api.searchRules(token, search.trim(), from, size)
-        : await api.listRules(token, oid || undefined, rid || undefined, from, size);
+        ? await api.searchExplains(token, search.trim(), from, size)
+        : await api.listExplains(token, oid || undefined, rid || undefined, from, size);
       const sorted = [...(result.data ?? [])].sort((a, b) => b.ts0 - a.ts0);
-      setRules(sorted);
+      setExplains(sorted);
       setTotal(result.total ?? sorted.length);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -77,17 +75,15 @@ export function ExplainPage() {
   }, [token, notify, t]);
 
   useEffect(() => {
-    fetchRules(filters.oid, filters.rid, activeSearch, page, pageSize);
-  }, [fetchRules, filters.oid, filters.rid, activeSearch, page, pageSize]);
+    fetchExplains(filters.oid, filters.rid, activeSearch, page, pageSize);
+  }, [fetchExplains, filters.oid, filters.rid, activeSearch, page, pageSize]);
 
-  // Client-side timeRange filter applied to the server-returned page
-  const filteredRules = useMemo(() => {
-    if (filters.timeRange.type === 'all') return rules;
-    return rules.filter((rule) => isInTimeRange(rule.ts0, filters.timeRange));
-  }, [rules, filters.timeRange]);
+  const filteredExplains = useMemo(() => {
+    if (filters.timeRange.type === 'all') return explains;
+    return explains.filter((explain) => isInTimeRange(explain.ts0, filters.timeRange));
+  }, [explains, filters.timeRange]);
 
   const handleFilterChange = useCallback((newFilters: FilterState) => {
-    // Reset to page 1 when oid/rid change (they drive the server query)
     if (newFilters.oid !== filters.oid || newFilters.rid !== filters.rid) {
       setPage(1);
     }
@@ -100,15 +96,15 @@ export function ExplainPage() {
   }, []);
 
   const handleRefresh = useCallback(() => {
-    fetchRules(filters.oid, filters.rid, activeSearch, page, pageSize);
-  }, [fetchRules, filters.oid, filters.rid, activeSearch, page, pageSize]);
+    fetchExplains(filters.oid, filters.rid, activeSearch, page, pageSize);
+  }, [fetchExplains, filters.oid, filters.rid, activeSearch, page, pageSize]);
 
-  const handleRowClick = (rule: Explain) => {
-    setSelected(rule); setAddMode(false); setSliderOpen(true);
+  const handleRowClick = (explain: Explain) => {
+    setSelected(explain); setAddMode(false); setSliderOpen(true);
   };
 
-  const handleCheckboxChange = (rule: Explain, checked: boolean) => {
-    const key = rowKey(rule);
+  const handleCheckboxChange = (explain: Explain, checked: boolean) => {
+    const key = rowKey(explain);
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (checked) next.add(key); else next.delete(key);
@@ -117,7 +113,7 @@ export function ExplainPage() {
   };
 
   const handleSelectAll = (checked: boolean) => {
-    setSelectedIds(checked ? new Set(filteredRules.map(rowKey)) : new Set());
+    setSelectedIds(checked ? new Set(filteredExplains.map(rowKey)) : new Set());
   };
 
   const handleAdd = () => { setSelected(null); setAddMode(true); setSliderOpen(true); };
@@ -125,20 +121,20 @@ export function ExplainPage() {
   const handleCloseSlider = () => { setSliderOpen(false); setSelected(null); setAddMode(false); };
 
   const handleCreate = async (rid: string, req: ExplainCreateReq) => {
-    await api.createRule(token, rid, req);
+    await api.createExplain(token, rid, req);
     setSliderOpen(false); setSelected(null);
     await handleRefresh();
   };
 
   const handleUpdate = async (rid: string, req: ExplainUpdateReq) => {
-    await api.updateRule(token, rid, req);
+    await api.updateExplain(token, rid, req);
     setSliderOpen(false); setSelected(null);
     await handleRefresh();
   };
 
-  const handleDelete = async (rule: Explain) => {
-    if (!window.confirm(t('explain.confirmDelete', { rid: rule.rid }))) return;
-    await api.deleteRule(token, rule.rid, rule.oid);
+  const handleDelete = async (explain: Explain) => {
+    if (!window.confirm(t('explain.confirmDelete', { rid: explain.rid }))) return;
+    await api.deleteExplain(token, explain.rid, explain.oid);
     setSliderOpen(false); setSelected(null);
     await handleRefresh();
   };
@@ -146,16 +142,15 @@ export function ExplainPage() {
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) return;
     if (!window.confirm(t('explain.confirmDeleteSelected', { count: selectedIds.size }))) return;
-    const toDelete = filteredRules.filter((r) => selectedIds.has(rowKey(r)));
-    for (const rule of toDelete) {
-      try { await api.deleteRule(token, rule.rid, rule.oid); } catch { /* continue */ }
+    const toDelete = filteredExplains.filter((e) => selectedIds.has(rowKey(e)));
+    for (const explain of toDelete) {
+      try { await api.deleteExplain(token, explain.rid, explain.oid); } catch { /* continue */ }
     }
     setSelectedIds(new Set()); setSelected(null); setSliderOpen(false);
     await handleRefresh();
   };
 
   const countLabel = t('explain.count', { count: total });
-
   const overviewTabs = [{ id: OVERVIEW_TAB, label: t('module.overview') }];
 
   return (
@@ -188,15 +183,15 @@ export function ExplainPage() {
           </div>
 
           <div className="flex-1 overflow-auto bg-card">
-            {loading && rules.length === 0 ? (
+            {loading && explains.length === 0 ? (
               <div className="flex items-center justify-center py-20 text-muted-foreground text-sm">{t('explain.loading')}</div>
             ) : (
               <ExplainTable
-                rules={filteredRules}
+                explains={filteredExplains}
                 selected={selected}
                 selectedIds={selectedIds}
                 timezone={timezone}
-                minRows={pageSize === PAGE_SIZE_ALL ? filteredRules.length : pageSize}
+                minRows={pageSize === PAGE_SIZE_ALL ? filteredExplains.length : pageSize}
                 onRowClick={handleRowClick}
                 onCheckboxChange={handleCheckboxChange}
                 onSelectAll={handleSelectAll}
@@ -215,7 +210,7 @@ export function ExplainPage() {
           <ExplainSlider
             open={sliderOpen}
             addMode={addMode}
-            rule={selected}
+            explain={selected}
             onClose={handleCloseSlider}
             onCreate={handleCreate}
             onUpdate={handleUpdate}

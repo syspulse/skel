@@ -69,8 +69,8 @@ function OverviewTab() {
         <Section title="About">
           <p className="text-xs text-muted-foreground leading-relaxed">
             <strong className="text-foreground">skel-admin</strong> is a management UI for backend services.
-            Use the <strong className="text-foreground">Explain</strong> module to manage named interpretation
-            rules, and the <strong className="text-foreground">Dash</strong> module to manage dashboard layouts.
+            Use the <strong className="text-foreground">Explain</strong> module to manage Explain objects,
+            and the <strong className="text-foreground">Dash</strong> module to manage dashboard layouts.
             Settings for API URLs, authentication, and appearance are in{' '}
             <strong className="text-foreground">Settings</strong>.
           </p>
@@ -104,12 +104,12 @@ function OverviewTab() {
 // ── Explain tab ───────────────────────────────────────────────────────────────
 
 const EXPLAIN_ENDPOINTS = [
-  { method: 'GET',    path: '/api/v1/explain',      desc: 'List all rules. Optional: ?oid= &rid=' },
-  { method: 'GET',    path: '/api/v1/explain/:rid',  desc: 'Get rule by RID. Optional: ?oid=' },
-  { method: 'POST',   path: '/api/v1/explain/:rid',  desc: 'Create a new rule with the given RID' },
-  { method: 'PUT',    path: '/api/v1/explain/:rid',  desc: 'Update an existing rule by RID' },
-  { method: 'DELETE', path: '/api/v1/explain/:rid',  desc: 'Delete rule by RID. Optional: ?oid=' },
-  { method: 'DELETE', path: '/api/v1/explain',       desc: 'Delete all rules. Optional: ?oid=' },
+  { method: 'GET',    path: '/api/v1/explain',      desc: 'List Explain objects. Optional: ?oid= &rid=' },
+  { method: 'GET',    path: '/api/v1/explain/:rid',  desc: 'Get Explain by RID. Optional: ?oid=' },
+  { method: 'POST',   path: '/api/v1/explain/:rid',  desc: 'Create Explain with the given RID' },
+  { method: 'PUT',    path: '/api/v1/explain/:rid',  desc: 'Update Explain by RID' },
+  { method: 'DELETE', path: '/api/v1/explain/:rid',  desc: 'Delete Explain by RID. Optional: ?oid=' },
+  { method: 'DELETE', path: '/api/v1/explain',       desc: 'Delete all Explain objects. Optional: ?oid=' },
 ];
 
 const SCRIPT_TYPES = [
@@ -148,9 +148,9 @@ function ExplainTab() {
       <div className="bg-card border border-border rounded shadow-sm p-4">
         <Section title="Data Model">
           <CodeBlock>{`{
-  "rid":     "my-rule",           // required, unique rule ID
+  "rid":     "my-explain",        // required, unique ID
   "oid":     "org-123",           // optional, owner/org ID
-  "name":    "My Rule",           // optional, display name
+  "name":    "My Explain",        // optional, display name
   "desc":    "Description",       // optional
   "sid":     "session-id",        // optional
   "ts0":     1700000000000,       // creation timestamp (ms)
@@ -174,8 +174,8 @@ function ExplainTab() {
         <Section title="Usage Examples">
           <div className="space-y-3">
             <div>
-              <div className="text-xs text-muted-foreground mb-1">Create a rule</div>
-              <CodeBlock>{`curl -X POST http://localhost:8080/api/v1/explain/my-rule \\
+              <div className="text-xs text-muted-foreground mb-1">Create</div>
+              <CodeBlock>{`curl -X POST http://localhost:8080/api/v1/explain/my-explain \\
   -H 'Content-Type: application/json' \\
   -d '{
     "scripts": [{"typ": "str", "src": "Hello {{name}}"}],
@@ -184,13 +184,13 @@ function ExplainTab() {
   }'`}</CodeBlock>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground mb-1">List rules</div>
+              <div className="text-xs text-muted-foreground mb-1">List</div>
               <CodeBlock>{`curl http://localhost:8080/api/v1/explain
 curl http://localhost:8080/api/v1/explain?oid=org-123`}</CodeBlock>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground mb-1">Delete a rule</div>
-              <CodeBlock>{`curl -X DELETE http://localhost:8080/api/v1/explain/my-rule`}</CodeBlock>
+              <div className="text-xs text-muted-foreground mb-1">Delete</div>
+              <CodeBlock>{`curl -X DELETE http://localhost:8080/api/v1/explain/my-explain`}</CodeBlock>
             </div>
           </div>
         </Section>

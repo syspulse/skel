@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Explain } from '../types';
 import { IconLamp } from '../../components/Icons';
 
-function RuleIcon({ meta }: { meta?: Record<string, unknown> | null }) {
+function ExplainIcon({ meta }: { meta?: Record<string, unknown> | null }) {
   const icon = meta?.icon;
   if (typeof icon === 'string' && icon.trim()) {
     const s = icon.trim();
@@ -58,25 +58,25 @@ function formatTs(ts: number, timezone: string): string {
   return `${get('day')} ${get('month')} ${get('hour')}:${get('minute')}:${get('second')}`;
 }
 
-function rowKey(rule: Explain): string {
-  return `${rule.oid ?? ''}_${rule.rid}`;
+function rowKey(explain: Explain): string {
+  return `${explain.oid ?? ''}_${explain.rid}`;
 }
 
 const COL_COUNT = 7;
 
 interface ExplainTableProps {
-  rules: Explain[];
+  explains: Explain[];
   selected: Explain | null;
   selectedIds: Set<string>;
   timezone: string;
   minRows: number;
-  onRowClick: (rule: Explain) => void;
-  onCheckboxChange: (rule: Explain, checked: boolean) => void;
+  onRowClick: (explain: Explain) => void;
+  onCheckboxChange: (explain: Explain, checked: boolean) => void;
   onSelectAll: (checked: boolean) => void;
 }
 
 export function ExplainTable({
-  rules,
+  explains,
   selected,
   selectedIds,
   timezone,
@@ -86,9 +86,9 @@ export function ExplainTable({
   onSelectAll,
 }: ExplainTableProps) {
   const { t } = useTranslation();
-  const allChecked = rules.length > 0 && rules.every((r) => selectedIds.has(rowKey(r)));
-  const someChecked = rules.some((r) => selectedIds.has(rowKey(r)));
-  const padCount = Math.max(0, minRows - rules.length);
+  const allChecked = explains.length > 0 && explains.every((e) => selectedIds.has(rowKey(e)));
+  const someChecked = explains.some((e) => selectedIds.has(rowKey(e)));
+  const padCount = Math.max(0, minRows - explains.length);
 
   return (
     <table className="w-full table-fixed">
@@ -116,15 +116,15 @@ export function ExplainTable({
           </tr>
         </thead>
         <tbody>
-          {rules.length === 0 && (
+          {explains.length === 0 && (
             <tr className="border-b border-border">
               <td colSpan={COL_COUNT} className="px-3 py-2 text-xs text-center text-muted-foreground">
-                {t('explain.noRules')}
+                {t('common.noData')}
               </td>
             </tr>
           )}
-          {rules.map((rule, idx) => {
-            const key = rowKey(rule);
+          {explains.map((explain, idx) => {
+            const key = rowKey(explain);
             const isChecked = selectedIds.has(key);
             const isSelected = selected !== null && rowKey(selected) === key;
             const rowClass = [
@@ -139,43 +139,42 @@ export function ExplainTable({
             ].join(' ');
 
             return (
-              <tr key={key} className={rowClass} onClick={() => onRowClick(rule)}>
+              <tr key={key} className={rowClass} onClick={() => onRowClick(explain)}>
                 <td className="px-3 py-2 text-center" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={isChecked}
-                    onChange={(e) => onCheckboxChange(rule, e.target.checked)}
+                    onChange={(e) => onCheckboxChange(explain, e.target.checked)}
                     className="cursor-pointer"
                   />
                 </td>
                 <td className="px-2 py-2 text-center">
                   <span className="inline-flex items-center justify-center">
-                    <RuleIcon meta={rule.meta as Record<string, unknown> | undefined} />
+                    <ExplainIcon meta={explain.meta as Record<string, unknown> | undefined} />
                   </span>
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
-                  {formatTs(rule.ts0, timezone)}
+                  {formatTs(explain.ts0, timezone)}
                 </td>
                 <td className="px-3 py-2 text-xs text-muted-foreground max-w-[140px] truncate">
-                  {rule.oid || <span className="opacity-30">—</span>}
+                  {explain.oid || <span className="opacity-30">—</span>}
                 </td>
                 <td className="px-3 py-2 text-xs text-foreground max-w-[180px] truncate">
-                  {rule.rid}
+                  {explain.rid}
                 </td>
                 <td className="px-3 py-2 text-xs text-foreground max-w-[160px] truncate">
-                  {rule.name || <span className="opacity-30">—</span>}
+                  {explain.name || <span className="opacity-30">—</span>}
                 </td>
                 <td className="px-3 py-2 text-xs text-muted-foreground max-w-[240px] truncate">
-                  {rule.desc || <span className="opacity-30">—</span>}
+                  {explain.desc || <span className="opacity-30">—</span>}
                 </td>
               </tr>
             );
           })}
           {Array.from({ length: padCount }, (_, i) => (
-            <tr key={`pad-${i}`} className={`border-b border-border ${(rules.length + i) % 2 === 0 ? 'bg-card' : 'bg-muted'}`}>
+            <tr key={`pad-${i}`} className={`border-b border-border ${(explains.length + i) % 2 === 0 ? 'bg-card' : 'bg-muted'}`}>
               <td className="px-3 py-2" />
               <td className="px-2 py-2 text-center">
-                {/* invisible icon keeps row height identical to real rows */}
                 <span className="invisible inline-flex items-center justify-center">
                   <IconLamp size={18} />
                 </span>

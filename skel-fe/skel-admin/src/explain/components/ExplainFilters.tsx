@@ -12,7 +12,7 @@ export interface FilterState {
   timeRange: TimeRange;
 }
 
-const SEARCH_PRESETS = ['.*', 'Rule'];
+const SEARCH_PRESETS = ['.*', 'Explain'];
 
 export const TIMEZONES: { value: string; label: string }[] = [
   { value: 'local',                label: 'local' },

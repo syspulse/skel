@@ -134,7 +134,7 @@ export function DashSlider({
           ${open ? 'translate-x-0 shadow-2xl pointer-events-auto' : 'translate-x-full shadow-none'}`}
       >
         <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted">
-          <h2 className="text-sm text-foreground">{addMode ? t('dash.addDash') : t('dash.editDash')}</h2>
+          <h2 className="text-sm text-foreground">{addMode ? t('common.add') : t('common.edit')}</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors" aria-label={t('common.close')}>
             <IconClose size={18} />
           </button>

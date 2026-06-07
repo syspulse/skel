@@ -16,7 +16,7 @@ function getBaseUrl(): string {
   );
 }
 
-export async function listRules(
+export async function listExplains(
   token: string | null,
   oid?: string,
   rid?: string,
@@ -35,7 +35,7 @@ export async function listRules(
   return handleResponse<Explains>(res);
 }
 
-export async function getRule(
+export async function getExplain(
   token: string | null,
   rid: string,
   oid?: string,
@@ -49,7 +49,7 @@ export async function getRule(
   return handleResponse<Explain>(res);
 }
 
-export async function createRule(
+export async function createExplain(
   token: string | null,
   rid: string,
   req: ExplainCreateReq,
@@ -63,7 +63,7 @@ export async function createRule(
   return handleResponse<ActionRes>(res);
 }
 
-export async function updateRule(
+export async function updateExplain(
   token: string | null,
   rid: string,
   req: ExplainUpdateReq,
@@ -77,7 +77,7 @@ export async function updateRule(
   return handleResponse<ActionRes>(res);
 }
 
-export async function deleteRule(
+export async function deleteExplain(
   token: string | null,
   rid: string,
   oid?: string,
@@ -93,7 +93,7 @@ export async function deleteRule(
   return handleResponse<ActionRes>(res);
 }
 
-export async function deleteRules(
+export async function deleteExplains(
   token: string | null,
   oid?: string,
 ): Promise<Explains> {
@@ -106,7 +106,7 @@ export async function deleteRules(
   return handleResponse<Explains>(res);
 }
 
-export async function searchRules(
+export async function searchExplains(
   token: string | null,
   query: string,
   from?: number,

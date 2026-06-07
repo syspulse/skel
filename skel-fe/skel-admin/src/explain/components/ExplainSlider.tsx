@@ -12,11 +12,11 @@ import { IconClose, IconPlay, IconPlus, IconMinus, IconSave, IconTrash, IconUplo
 interface ExplainSliderProps {
   open: boolean;
   addMode: boolean;
-  rule: Explain | null;
+  explain: Explain | null;
   onClose: () => void;
   onCreate: (rid: string, req: ExplainCreateReq) => Promise<void>;
   onUpdate: (rid: string, req: ExplainUpdateReq) => Promise<void>;
-  onDelete: (rule: Explain) => Promise<void>;
+  onDelete: (explain: Explain) => Promise<void>;
 }
 
 const SCRIPT_TYPES = ['js', 'ai', 'jq', 'regexp', 'str'];
@@ -37,22 +37,22 @@ function emptyForm() {
   };
 }
 
-function ruleToForm(rule: Explain) {
+function explainToForm(explain: Explain) {
   return {
-    oid: rule.oid ?? '',
-    rid: rule.rid,
-    name: rule.name ?? '',
-    desc: rule.desc ?? '',
-    sid: rule.sid ?? '',
-    scripts: rule.scripts.length > 0 ? rule.scripts.map((s) => ({ ...s })) : [emptyScript()],
-    meta: rule.meta ? { ...rule.meta } : {},
+    oid: explain.oid ?? '',
+    rid: explain.rid,
+    name: explain.name ?? '',
+    desc: explain.desc ?? '',
+    sid: explain.sid ?? '',
+    scripts: explain.scripts.length > 0 ? explain.scripts.map((s) => ({ ...s })) : [emptyScript()],
+    meta: explain.meta ? { ...explain.meta } : {},
   };
 }
 
 export function ExplainSlider({
   open,
   addMode,
-  rule,
+  explain,
   onClose,
   onCreate,
   onUpdate,
@@ -79,9 +79,9 @@ export function ExplainSlider({
     setError(null);
     if (!open) setResultOpen(false);
     if (addMode) setForm(emptyForm());
-    else if (rule) setForm(ruleToForm(rule));
+    else if (explain) setForm(explainToForm(explain));
     setFormKey((k) => k + 1);
-  }, [rule, addMode, open]);
+  }, [explain, addMode, open]);
 
   const handleScriptChange = (idx: number, field: keyof ExplainScript, value: string) => {
     setForm((f) => ({ ...f, scripts: f.scripts.map((s, i) => i === idx ? { ...s, [field]: value } : s) }));
@@ -116,10 +116,10 @@ export function ExplainSlider({
   };
 
   const handleUpdate = async () => {
-    if (!rule) return;
+    if (!explain) return;
     setSaving(true); setError(null);
     try {
-      await onUpdate(rule.rid, {
+      await onUpdate(explain.rid, {
         scripts: form.scripts,
         name: form.name || undefined,
         desc: form.desc || undefined,
@@ -134,10 +134,10 @@ export function ExplainSlider({
   };
 
   const handleDelete = async () => {
-    if (!rule) return;
+    if (!explain) return;
     setSaving(true); setError(null);
     try {
-      await onDelete(rule);
+      await onDelete(explain);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -146,7 +146,7 @@ export function ExplainSlider({
   };
 
   const handleExplain = async () => {
-    if (!rule) return;
+    if (!explain) return;
     setExplaining(true); setTestError(null); setTestResult(null);
     testSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     try {
@@ -159,7 +159,7 @@ export function ExplainSlider({
         notify('error', t('explain.errorRun'), msg);
         return;
       }
-      const res = await runExplain(token, rule.rid, parsed, form.oid || undefined, testStyle || undefined);
+      const res = await runExplain(token, explain.rid, parsed, form.oid || undefined, testStyle || undefined);
       setTestResult(res);
       setResultOpen(true);
     } catch (e) {
@@ -197,7 +197,7 @@ export function ExplainSlider({
           ${open ? 'translate-x-0 shadow-2xl pointer-events-auto' : 'translate-x-full shadow-none'}`}
       >
         <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted">
-          <h2 className="text-sm text-foreground">{addMode ? t('explain.addRule') : t('explain.editRule')}</h2>
+          <h2 className="text-sm text-foreground">{addMode ? t('common.add') : t('common.edit')}</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors" aria-label={t('common.close')}>
             <IconClose size={18} />
           </button>
