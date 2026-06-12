@@ -1329,7 +1329,7 @@ lazy val skel_telemetry = (project in file("skel-telemetry"))
     ),    
   )
 
-lazy val skel_wf = (project in file("skel-wf"))
+lazy val wf_exec = (project in file("skel-wf/wf-exec"))
   .dependsOn(skel_core,notify_core,skel_dsl)
   //.disablePlugins(sbtassembly.AssemblyPlugin)
   .enablePlugins(JavaAppPackaging)
@@ -1341,7 +1341,7 @@ lazy val skel_wf = (project in file("skel-wf"))
     sharedConfigDocker,
     dockerBuildxSettings,
     
-    appDockerConfig("skel-wf","io.syspulse.skel.wf.App"),
+    appDockerConfig("wf-exec","io.syspulse.skel.wf.App"),
 
     libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
       libOsLib,
@@ -1379,6 +1379,24 @@ lazy val wf_temporal = (project in file("skel-wf/wf-temporal"))
     )
   )
 
+lazy val wf_ext = (project in file("skel-wf/wf-ext"))
+  .dependsOn(skel_core,skel_dsl)  
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+    
+    appDockerConfig("wf-ext","io.syspulse.skel.wf.ext.App"),
+
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
+      libOsLib,
+      libUpickleLib,
+    )
+  )
 
 lazy val job_core = (project in file("skel-job/job-core"))
   .dependsOn(skel_core,auth_core,skel_cron)

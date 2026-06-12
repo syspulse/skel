@@ -1,0 +1,152 @@
+package io.syspulse.skel.wf.ext
+
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
+
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+
+import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigContract, DetectorConfigSchema}
+import io.syspulse.skel.wf.ext.store.WorkflowStoreMem
+import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
+
+class AssemblyDSLSpec extends AnyWordSpec with Matchers {
+  val timeout = Duration(5, "seconds")
+
+  "AssemblyDSL parser" should {
+    "parse a bare node" in {
+      AssemblyDSL.parseNode("Detector.name1") shouldBe NodeSpecLike(None, "Detector", "name1", None)
+    }
+    "parse a node with output link id" in {
+      AssemblyDSL.parseNode("Detector.name2.0") shouldBe NodeSpecLike(None, "Detector", "name2", Some(0))
+    }
+    "parse a node with input and output link ids" in {
+      AssemblyDSL.parseNode("1.Detector.name3.1") shouldBe NodeSpecLike(Some(1), "Detector", "name3", Some(1))
+    }
+    "parse a Schema-only node" in {
+      val s = AssemblyDSL.parseNode("Schema.foo")
+      s.isSchemaOnly shouldBe true
+      s.isDetector shouldBe false
+    }
+    "recognise numeric id references" in {
+      AssemblyDSL.parseNode("Detector.42").isById shouldBe true
+      AssemblyDSL.parseNode("Detector.foo").isById shouldBe false
+    }
+    "split a pipeline into nodes" in {
+      AssemblyDSL.parse("Detector.a -> Detector.b -> Detector.c") should have size 3
+    }
+    "reject a node without an entity token" in {
+      intercept[IllegalArgumentException] { AssemblyDSL.parseNode("foo.bar") }
+    }
+  }
+
+  // small structural matcher helper to compare NodeSpec values
+  private def NodeSpecLike(in: Option[Int], entity: String, ref: String, out: Option[Int]) =
+    io.syspulse.skel.wf.ext.dsl.NodeSpec(in, entity, ref, out)
+
+  "AssemblyDSL.buildSchema (schema command)" should {
+    "create a WorkflowSchema with DetectorSchemas (and NO DetectorConfigs)" in {
+      val store = new WorkflowStoreMem()
+      val res = Await.result(
+        AssemblyDSL.buildSchema("Detector.name1 -> Detector.name2 -> Detector.name3", store, wid = Some(0), wname = Some("WAudit")),
+        timeout)
+
+      res.schema.id shouldBe 0
+      res.schema.name shouldBe "WAudit"
+      res.schema.graph.isTemplate shouldBe true
+      res.schema.graph.nodes should have size 3
+      res.schema.graph.links should have size 2
+
+      // 3 DetectorSchema named Schema_name1/2/3, NO DetectorConfig
+      res.detectorSchemas.map(_.name).toSet shouldBe Set("Schema_name1", "Schema_name2", "Schema_name3")
+      res.detectorConfigs shouldBe empty
+      res.config shouldBe None
+
+      // persisted
+      Await.result(store.allDetectorSchemas, timeout) should have size 3
+      Await.result(store.allDetectorConfigs, timeout) shouldBe empty
+      Await.result(store.getSchema(0), timeout).name shouldBe "WAudit"
+
+      // nodes reference detector schemas by sid; cid is empty (template)
+      res.schema.graph.nodes.values.foreach { n => n.cid shouldBe None }
+      res.schema.graph.nodes.values.map(_.sid).toSet shouldBe res.detectorSchemas.map(_.id).toSet
+    }
+
+    "default the WorkflowSchema id to 0 when not given" in {
+      val store = new WorkflowStoreMem()
+      val res = Await.result(AssemblyDSL.buildSchema("Schema.a -> Schema.b", store), timeout)
+      res.schema.id shouldBe 0
+      res.schema.id should be >= 0
+    }
+  }
+
+  "AssemblyDSL.assemble (assembly command)" should {
+    "create WorkflowConfig + underlying WorkflowSchema + DetectorSchemas + DetectorConfigs" in {
+      val store = new WorkflowStoreMem()
+      val res = Await.result(
+        AssemblyDSL.assemble("Detector.name1 -> Detector.name2.0 -> 1.Detector.name3.1", store, wid = Some(0), wname = Some("WFlow")),
+        timeout)
+
+      // 3 DetectorSchema + 3 DetectorConfig
+      res.detectorSchemas.map(_.name).toSet shouldBe Set("Schema_name1", "Schema_name2", "Schema_name3")
+      res.detectorConfigs.map(_.name).toSet shouldBe Set("name1", "name2", "name3")
+
+      // WorkflowSchema (template) + WorkflowConfig (instance)
+      res.schema.graph.isTemplate shouldBe true
+      val cfg = res.config.getOrElse(fail("expected a WorkflowConfig"))
+      cfg.sid shouldBe res.schema.id
+      cfg.graph.isInstance shouldBe true
+      cfg.graph.nodes should have size 3
+      cfg.graph.links should have size 2
+
+      // config nodes carry cid (DetectorConfig) references; schema nodes do not
+      cfg.graph.nodes.values.flatMap(_.cid).toSet shouldBe res.detectorConfigs.map(_.id).toSet
+      res.schema.graph.nodes.values.foreach { n => n.cid shouldBe None }
+
+      // persisted
+      Await.result(store.allDetectorConfigs, timeout) should have size 3
+      Await.result(store.getConfig(cfg.id), timeout).id shouldBe cfg.id
+      Await.result(store.getSchema(res.schema.id), timeout).id shouldBe res.schema.id
+    }
+
+    "honour explicit out/in link ids from the DSL" in {
+      val store = new WorkflowStoreMem()
+      val res = Await.result(
+        AssemblyDSL.assemble("Detector.a.7 -> 7.Detector.b", store), timeout)
+      // the single link between a(0) and b(1) should use the explicit out id 7
+      val cfg = res.config.get
+      cfg.graph.links.keySet shouldBe Set(7)
+      val l = cfg.graph.links(7)
+      l.from shouldBe 0
+      l.to shouldBe 1
+    }
+
+    "reference an EXISTING DetectorConfig by id" in {
+      val store = new WorkflowStoreMem()
+      val now = System.currentTimeMillis()
+      val ds = DetectorSchema(7, now, now, "ACTIVE", "Schema_existing", "1.0.0", "t", "", "", None, None, Seq(), Seq(), None, None)
+      val dc = DetectorConfig(5, now, now, "ACTIVE",
+        DetectorConfigContract(0, now, now, 0, 0, None, None, None, None, "existing"),
+        Some(DetectorConfigSchema(7, now, now, "ACTIVE", "Schema_existing", "1.0.0", None)),
+        "existing", "", Seq(), None, Seq())
+      Await.result(store.addDetectorSchema(ds), timeout)
+      Await.result(store.addDetectorConfig(dc), timeout)
+
+      val res = Await.result(AssemblyDSL.assemble("Detector.newone -> Detector.5", store), timeout)
+      // node referencing id 5 must not create a new DetectorConfig and must point at config 5 / schema 7
+      res.detectorConfigs.map(_.name) shouldBe Seq("newone") // only the new one
+      val cfg = res.config.get
+      val nodeForExisting = cfg.graph.nodes(1)
+      nodeForExisting.cid shouldBe Some(5)
+      nodeForExisting.sid shouldBe 7
+    }
+
+    "fail when referencing a non-existent DetectorConfig id" in {
+      val store = new WorkflowStoreMem()
+      intercept[Exception] {
+        Await.result(AssemblyDSL.assemble("Detector.999", store), timeout)
+      }
+    }
+  }
+}
