@@ -134,6 +134,17 @@ object AssemblyDSL {
         val newDetectorSchemas = scala.collection.mutable.ListBuffer[DetectorSchema]()
         val newDetectorConfigs = scala.collection.mutable.ListBuffer[DetectorConfig]()
 
+        // Within a single assembly, by-name nodes that share a name reuse ONE DetectorSchema
+        // (created on first use) but each still gets its OWN DetectorConfig - i.e. several
+        // DetectorConfigs of the same DetectorSchema with potentially different configurations.
+        val schemaByName = scala.collection.mutable.Map[String, DetectorSchema]()
+        def schemaForName(name: String): DetectorSchema =
+          schemaByName.getOrElseUpdate(name, {
+            val ds = newDetectorSchema(nextDs, name); nextDs += 1
+            newDetectorSchemas += ds
+            ds
+          })
+
         // resolve each node spec -> (DetectorSchema id, optional DetectorConfig id)
         val resolved = specs.zipWithIndex.map { case (spec, i) =>
           if (spec.isById) {
@@ -148,11 +159,10 @@ object AssemblyDSL {
               (i, spec, ds.id, None)
             }
           } else {
-            // create a new DetectorSchema by name. A new DetectorConfig is created only when
-            // assembling a WorkflowConfig (`assemble`) for a `Detector` node; the `schema`
-            // command (createConfig == false) creates DetectorSchema objects only.
-            val ds = newDetectorSchema(nextDs, spec.ref); nextDs += 1
-            newDetectorSchemas += ds
+            // resolve (or create once) the DetectorSchema for this name. A new DetectorConfig is
+            // created only when assembling a WorkflowConfig (`assemble`) for a `Detector` node; the
+            // `schema` command (createConfig == false) creates DetectorSchema objects only.
+            val ds = schemaForName(spec.ref)
             if (createConfig && spec.isDetector) {
               val dc = newDetectorConfig(nextDc, spec.ref, ds); nextDc += 1
               newDetectorConfigs += dc

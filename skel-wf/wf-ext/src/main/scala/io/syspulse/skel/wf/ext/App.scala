@@ -70,7 +70,7 @@ object App extends skel.Server {
     log.info(s"Config: ${config}")
 
     def getStore(uri: String): WorkflowStore = uri.split("://|/").toList match {
-      case "mem" :: Nil               => new WorkflowStoreMem()
+      case "mem" :: Nil | "cache" :: Nil => new WorkflowStoreMem()
       case "dir" :: Nil               => new WorkflowStoreDir("store/")
       case "dir" :: dir               => new WorkflowStoreDir(dir.mkString("/"))
       case _ =>
@@ -83,9 +83,11 @@ object App extends skel.Server {
     val r = config.cmd match {
       case "server" =>
         Console.err.println(s"Store: ${store}")
+        // skel Server.parseUriPath only uses 3 path segments (api/v1/wf) for the prefix and drops
+        // the 4th ("ext"), so re-add it via Routeable.withSuffix -> /api/v1/wf/ext/{schema,config,graf}
         run(config.host, config.port, config.uri, c,
           Seq(
-            (WorkflowRegistry(store), "WorkflowRegistry", (actor, ac) => new WorkflowRoutes(actor)(ac))
+            (WorkflowRegistry(store), "WorkflowRegistry", (actor, ac) => new WorkflowRoutes(actor)(ac).withSuffix("ext"))
           )
         )
         s"Server: http://${config.host}:${config.port}${config.uri}"

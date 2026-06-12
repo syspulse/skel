@@ -142,6 +142,24 @@ class AssemblyDSLSpec extends AnyWordSpec with Matchers {
       nodeForExisting.sid shouldBe 7
     }
 
+    "share ONE DetectorSchema across same-named nodes but create distinct DetectorConfigs" in {
+      val store = new WorkflowStoreMem()
+      val res = Await.result(
+        AssemblyDSL.assemble("Detector.scan -> Detector.scan -> Detector.report", store), timeout)
+
+      // 2 schemas (Schema_scan reused, Schema_report), 3 distinct configs
+      res.detectorSchemas.map(_.name) shouldBe Seq("Schema_scan", "Schema_report")
+      res.detectorConfigs.map(_.name) shouldBe Seq("scan", "scan", "report")
+      res.detectorConfigs.map(_.id).distinct should have size 3
+
+      val cfg = res.config.get
+      // the two `scan` nodes point at the SAME DetectorSchema (sid) but DIFFERENT DetectorConfigs (cid)
+      val scanNodes = cfg.graph.nodes.values.filter(_.name == "scan").toSeq
+      scanNodes should have size 2
+      scanNodes.map(_.sid).distinct should have size 1
+      scanNodes.flatMap(_.cid).distinct should have size 2
+    }
+
     "fail when referencing a non-existent DetectorConfig id" in {
       val store = new WorkflowStoreMem()
       intercept[Exception] {
