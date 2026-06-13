@@ -83,8 +83,12 @@ class WorkflowStoreDir(dir: String = "store/") extends WorkflowStoreMem {
 
   override def addDetectorSchema(d: DetectorSchema): Future[DetectorSchema] =
     write(DIR_DSCHEMA, d.id, d.toJson.compactPrint).fold(Future.failed, _ => super.addDetectorSchema(d))
+  override def delDetectorSchema(id: Int): Future[Int] =
+    super.delDetectorSchema(id).map { r => remove(DIR_DSCHEMA, id); r }
   override def addDetectorConfig(d: DetectorConfig): Future[DetectorConfig] =
     write(DIR_DCONFIG, d.id, d.toJson.compactPrint).fold(Future.failed, _ => super.addDetectorConfig(d))
+  override def delDetectorConfig(id: Int): Future[Int] =
+    super.delDetectorConfig(id).map { r => remove(DIR_DCONFIG, id); r }
 
   // ---------------------------------------------------------------- initial load
   loadDir[WorkflowSchema](DIR_SCHEMA,   _.parseJson.convertTo[WorkflowSchema],  s => schemas = schemas + (s.id -> s))

@@ -30,6 +30,7 @@ import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.Command
 
 import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf}
+import io.hacken.ext.detector.{DetectorSchema, DetectorConfig}
 import io.syspulse.skel.wf.ext.store.WorkflowRegistry
 import io.syspulse.skel.wf.ext.store.WorkflowRegistry._
 
@@ -49,6 +50,8 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
   import io.hacken.ext.wf.WorkflowSchemaJson._
   import io.hacken.ext.wf.WorkflowConfigJson._
   import io.hacken.ext.wf.WorkflowGrafJson._
+  import io.hacken.ext.detector.DetectorSchemaJson._
+  import io.hacken.ext.detector.DetectorConfigJson._
 
   // ---- schema asks ----
   def getSchemas(from: Option[Long], size: Option[Long], detail: Boolean): Future[Try[WorkflowSchemas]] = registry.ask(GetSchemas(from, size, detail, _))
@@ -73,6 +76,19 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
   def getGraf(id: Int): Future[Try[WorkflowGraf]] = registry.ask(GetGraf(id, _))
   def createGraf(req: WorkflowGrafCreateReq): Future[Try[WorkflowGraf]] = registry.ask(CreateGraf(req, _))
   def deleteGraf(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteGraf(id, _))
+
+  // ---- detector-schema asks ----
+  def getDetectorSchemas(from: Option[Long], size: Option[Long]): Future[Try[DetectorSchemas]] = registry.ask(GetDetectorSchemas(from, size, _))
+  def getDetectorSchema(id: Int): Future[Try[DetectorSchema]] = registry.ask(GetDetectorSchema(id, _))
+  def createDetectorSchema(req: DetectorSchemaCreateReq): Future[Try[DetectorSchema]] = registry.ask(CreateDetectorSchema(req, _))
+  def deleteDetectorSchema(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteDetectorSchema(id, _))
+
+  // ---- detector-config asks ----
+  def getDetectorConfigs(from: Option[Long], size: Option[Long]): Future[Try[DetectorConfigs]] = registry.ask(GetDetectorConfigs(from, size, _))
+  def getDetectorConfig(id: Int): Future[Try[DetectorConfig]] = registry.ask(GetDetectorConfig(id, _))
+  def createDetectorConfig(req: DetectorConfigCreateReq): Future[Try[DetectorConfig]] = registry.ask(CreateDetectorConfig(req, _))
+  def updateDetectorConfig(id: Int, req: DetectorConfigUpdateReq): Future[Try[DetectorConfig]] = registry.ask(UpdateDetectorConfig(id, req, _))
+  def deleteDetectorConfig(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteDetectorConfig(id, _))
 
   private def isFull(detector: Option[String]): Boolean = detector.exists(_.equalsIgnoreCase("full"))
 
@@ -219,6 +235,39 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
 
   def deleteGrafRoute(id: Int) = delete { complete(deleteGraf(id)) }
 
+  // ================================================================ detector-schema routes
+  def getDetectorSchemasRoute() = get {
+    parameters("from".as[Long].?, "size".as[Long].?) { (from, size) =>
+      (from, size) match {
+        case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
+        case _ => completeTry(getDetectorSchemas(from, size))
+      }
+    }
+  }
+  def getDetectorSchemaRoute(id: Int) = get { completeTry(getDetectorSchema(id)) }
+  def createDetectorSchemaRoute() = post {
+    entity(as[DetectorSchemaCreateReq]) { req => completeTry(createDetectorSchema(req)) }
+  }
+  def deleteDetectorSchemaRoute(id: Int) = delete { complete(deleteDetectorSchema(id)) }
+
+  // ================================================================ detector-config routes
+  def getDetectorConfigsRoute() = get {
+    parameters("from".as[Long].?, "size".as[Long].?) { (from, size) =>
+      (from, size) match {
+        case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
+        case _ => completeTry(getDetectorConfigs(from, size))
+      }
+    }
+  }
+  def getDetectorConfigRoute(id: Int) = get { completeTry(getDetectorConfig(id)) }
+  def createDetectorConfigRoute() = post {
+    entity(as[DetectorConfigCreateReq]) { req => completeTry(createDetectorConfig(req)) }
+  }
+  def updateDetectorConfigRoute(id: Int) = put {
+    entity(as[DetectorConfigUpdateReq]) { req => completeTry(updateDetectorConfig(id, req)) }
+  }
+  def deleteDetectorConfigRoute(id: Int) = delete { complete(deleteDetectorConfig(id)) }
+
   val corsAllow = CorsSettings(system.classicSystem)
     .withAllowCredentials(true)
     .withAllowedMethods(Seq(HttpMethods.OPTIONS, HttpMethods.GET, HttpMethods.POST, HttpMethods.PUT, HttpMethods.DELETE, HttpMethods.HEAD))
@@ -255,6 +304,26 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
             pathEndOrSingleSlash { getGrafRoute(id) ~ deleteGrafRoute(id) }
           },
           pathEndOrSingleSlash { getGrafsRoute() ~ createGrafRoute() },
+        )
+      },
+      pathPrefix("detector") {
+        concat(
+          pathPrefix("schema") {
+            concat(
+              pathPrefix(IntNumber) { id =>
+                pathEndOrSingleSlash { getDetectorSchemaRoute(id) ~ deleteDetectorSchemaRoute(id) }
+              },
+              pathEndOrSingleSlash { getDetectorSchemasRoute() ~ createDetectorSchemaRoute() },
+            )
+          },
+          pathPrefix("config") {
+            concat(
+              pathPrefix(IntNumber) { id =>
+                pathEndOrSingleSlash { getDetectorConfigRoute(id) ~ updateDetectorConfigRoute(id) ~ deleteDetectorConfigRoute(id) }
+              },
+              pathEndOrSingleSlash { getDetectorConfigsRoute() ~ createDetectorConfigRoute() },
+            )
+          },
         )
       },
     )

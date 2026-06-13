@@ -12,7 +12,8 @@ import akka.actor.typed.scaladsl.ActorContext
 import io.syspulse.skel.Command
 
 import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf, WorkflowNode}
-import io.hacken.ext.detector.{DetectorSchema, DetectorConfig}
+import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigContract, DetectorConfigSchema}
+import io.syspulse.skel.ErrNotFound
 import io.syspulse.skel.wf.ext.server._
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
 
@@ -42,6 +43,19 @@ object WorkflowRegistry {
   final case class GetGraf(id: Int, replyTo: ActorRef[Try[WorkflowGraf]]) extends Command
   final case class CreateGraf(req: WorkflowGrafCreateReq, replyTo: ActorRef[Try[WorkflowGraf]]) extends Command
   final case class DeleteGraf(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
+
+  // ---- DetectorSchema ----
+  final case class GetDetectorSchemas(from: Option[Long], size: Option[Long], replyTo: ActorRef[Try[DetectorSchemas]]) extends Command
+  final case class GetDetectorSchema(id: Int, replyTo: ActorRef[Try[DetectorSchema]]) extends Command
+  final case class CreateDetectorSchema(req: DetectorSchemaCreateReq, replyTo: ActorRef[Try[DetectorSchema]]) extends Command
+  final case class DeleteDetectorSchema(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
+
+  // ---- DetectorConfig ----
+  final case class GetDetectorConfigs(from: Option[Long], size: Option[Long], replyTo: ActorRef[Try[DetectorConfigs]]) extends Command
+  final case class GetDetectorConfig(id: Int, replyTo: ActorRef[Try[DetectorConfig]]) extends Command
+  final case class CreateDetectorConfig(req: DetectorConfigCreateReq, replyTo: ActorRef[Try[DetectorConfig]]) extends Command
+  final case class UpdateDetectorConfig(id: Int, req: DetectorConfigUpdateReq, replyTo: ActorRef[Try[DetectorConfig]]) extends Command
+  final case class DeleteDetectorConfig(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
 
   def apply(store: WorkflowStore): Behavior[Command] =
     Behaviors.setup { context =>
@@ -98,6 +112,41 @@ object WorkflowRegistry {
       oid = req.oid.orElse(c.oid),
       pid = req.pid.orElse(c.pid),
       xid = req.xid.orElse(c.xid),
+    )
+
+  // ---------------------------------------------------------------- detector builders
+  private def detectorSchemaFromReq(id: Int, req: DetectorSchemaCreateReq): DetectorSchema = {
+    val now = System.currentTimeMillis()
+    DetectorSchema(
+      id = id, createdAt = now, updatedAt = now, status = WorkflowSchema.Status.ACTIVE,
+      name = req.name, version = req.version.getOrElse(WorkflowSchema.Version.DEF_VERSION),
+      title = req.title.getOrElse(req.name), description = req.description.getOrElse(""),
+      author = req.author.getOrElse(""), icon = req.icon, faq = req.faq,
+      tags = req.tags.getOrElse(Seq()), networkTags = Seq(),
+      schema = req.schema, uiSchema = req.uiSchema,
+    )
+  }
+
+  /** Build a DetectorConfig, linking it to an existing DetectorSchema (`sid`) when provided. */
+  private def detectorConfigFromReq(id: Int, req: DetectorConfigCreateReq, schemaRef: Option[DetectorSchema]): DetectorConfig = {
+    val now = System.currentTimeMillis()
+    DetectorConfig(
+      id = id, createdAt = now, updatedAt = now, status = req.status.getOrElse(WorkflowSchema.Status.ACTIVE),
+      contract = DetectorConfigContract(0, now, now, 0, 0, None, None, None, None, req.name),
+      schema = schemaRef.map(ds => DetectorConfigSchema(ds.id, now, now, ds.status, ds.name, ds.version, None)),
+      name = req.name, source = req.source.getOrElse(""), tags = req.tags.getOrElse(Seq()),
+      config = req.config, destinations = Seq(),
+    )
+  }
+
+  private def applyUpdate(c: DetectorConfig, req: DetectorConfigUpdateReq): DetectorConfig =
+    c.copy(
+      updatedAt = System.currentTimeMillis(),
+      status = req.status.getOrElse(c.status),
+      name = req.name.getOrElse(c.name),
+      source = req.source.getOrElse(c.source),
+      tags = req.tags.getOrElse(c.tags),
+      config = req.config.orElse(c.config),
     )
 
   // ---------------------------------------------------------------- behavior
@@ -232,6 +281,67 @@ object WorkflowRegistry {
 
       case DeleteGraf(id, replyTo) =>
         store.delGraf(id).onComplete {
+          case Success(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.OK, Some(id))
+          case Failure(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id))
+        }
+        Behaviors.same
+
+      // -------------------------------------------------- DetectorSchema
+      case GetDetectorSchemas(from, size, replyTo) =>
+        store.listDetectorSchemas(from, size).map(p => DetectorSchemas(p.schemas, p.total)).onComplete(replyTo ! _)
+        Behaviors.same
+
+      case GetDetectorSchema(id, replyTo) =>
+        store.getDetectorSchema(id).map {
+          case Some(d) => d
+          case None    => throw new ErrNotFound(s"DetectorSchema: ${id}")
+        }.onComplete(replyTo ! _)
+        Behaviors.same
+
+      case CreateDetectorSchema(req, replyTo) =>
+        log.info(s"CreateDetectorSchema: ${req.name}")
+        store.nextDetectorSchemaId.flatMap(id => store.addDetectorSchema(detectorSchemaFromReq(id, req))).onComplete(replyTo ! _)
+        Behaviors.same
+
+      case DeleteDetectorSchema(id, replyTo) =>
+        store.delDetectorSchema(id).onComplete {
+          case Success(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.OK, Some(id))
+          case Failure(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id))
+        }
+        Behaviors.same
+
+      // -------------------------------------------------- DetectorConfig
+      case GetDetectorConfigs(from, size, replyTo) =>
+        store.listDetectorConfigs(from, size).map(p => DetectorConfigs(p.configs, p.total)).onComplete(replyTo ! _)
+        Behaviors.same
+
+      case GetDetectorConfig(id, replyTo) =>
+        store.getDetectorConfig(id).map {
+          case Some(d) => d
+          case None    => throw new ErrNotFound(s"DetectorConfig: ${id}")
+        }.onComplete(replyTo ! _)
+        Behaviors.same
+
+      case CreateDetectorConfig(req, replyTo) =>
+        log.info(s"CreateDetectorConfig: ${req.name}")
+        val r = for {
+          schemaRef <- req.sid.map(sid => store.getDetectorSchema(sid)).getOrElse(Future.successful(None))
+          id        <- store.nextDetectorConfigId
+          saved     <- store.addDetectorConfig(detectorConfigFromReq(id, req, schemaRef))
+        } yield saved
+        r.onComplete(replyTo ! _)
+        Behaviors.same
+
+      case UpdateDetectorConfig(id, req, replyTo) =>
+        log.info(s"UpdateDetectorConfig: ${id}")
+        store.getDetectorConfig(id).map {
+          case Some(d) => applyUpdate(d, req)
+          case None    => throw new ErrNotFound(s"DetectorConfig: ${id}")
+        }.flatMap(store.addDetectorConfig).onComplete(replyTo ! _)
+        Behaviors.same
+
+      case DeleteDetectorConfig(id, replyTo) =>
+        store.delDetectorConfig(id).onComplete {
           case Success(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.OK, Some(id))
           case Failure(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id))
         }

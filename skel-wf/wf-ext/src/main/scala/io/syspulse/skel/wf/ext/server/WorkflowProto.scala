@@ -1,7 +1,8 @@
 package io.syspulse.skel.wf.ext.server
 
+import spray.json.JsObject
 import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf, WorkflowSchemaFaq}
-import io.hacken.ext.detector.{DetectorSchema, DetectorConfig}
+import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorSchemaFaq}
 
 // ============================================================================
 // Request / Response protocol for the Workflow `ext` REST API.
@@ -92,6 +93,42 @@ final case class WorkflowConfigDslReq(
   pipeline: String,
   wid: Option[Int] = None,
   name: Option[String] = None,
+)
+
+// ---------------------------------------------------------------- DetectorSchema
+// Detector entities are referenced by WorkflowNode-s; exposed for the Admin UI tabs
+// ("DetectorSchema" / "DetectorConfig") and the editor node palette.
+final case class DetectorSchemas(schemas: Seq[DetectorSchema], total: Long)
+final case class DetectorSchemaCreateReq(
+  name: String,
+  version: Option[String] = None,
+  title: Option[String] = None,
+  description: Option[String] = None,
+  author: Option[String] = None,
+  icon: Option[String] = None,
+  tags: Option[Seq[String]] = None,
+  faq: Option[Seq[DetectorSchemaFaq]] = None,
+  schema: Option[JsObject] = None,
+  uiSchema: Option[JsObject] = None,
+)
+
+// ---------------------------------------------------------------- DetectorConfig
+final case class DetectorConfigs(configs: Seq[DetectorConfig], total: Long)
+/** Create a DetectorConfig; `sid` links it to an existing DetectorSchema (1 schema -> many configs). */
+final case class DetectorConfigCreateReq(
+  name: String,
+  sid: Option[Int] = None,
+  source: Option[String] = None,
+  status: Option[String] = None,
+  tags: Option[Seq[String]] = None,
+  config: Option[JsObject] = None,
+)
+final case class DetectorConfigUpdateReq(
+  name: Option[String] = None,
+  status: Option[String] = None,
+  source: Option[String] = None,
+  tags: Option[Seq[String]] = None,
+  config: Option[JsObject] = None,
 )
 
 // ---------------------------------------------------------------- WorkflowGraf

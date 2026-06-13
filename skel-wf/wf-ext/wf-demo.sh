@@ -20,7 +20,12 @@
 # Start the server first, e.g.:   ./run-wf.sh server          (defaults to mem://)
 #                          or:    ./run-wf.sh -d dir://store server
 #
-# Usage:  ./wf-demo.sh
+# Usage:  ./wf-demo.sh [N]
+#   N  - optional limit on how many WorkflowConfigs (assemblies) to generate.
+#        Each assembly produces exactly one WorkflowConfig. Default: all of them.
+#        May also be given via the LIMIT env var. Examples:
+#          ./wf-demo.sh 3       # only the first 3 configs
+#          LIMIT=5 ./wf-demo.sh # only the first 5 configs
 
 set -u
 
@@ -102,10 +107,19 @@ assemble() {
     "$name" "$cid" "$sid" "$nodes" "$links" "$nconf" "$nsch" "$title" "$pipeline"
 }
 
+# how many configs to generate: positional arg, else LIMIT env, else all
+LIMIT=${1:-${LIMIT:-0}}
+TOTAL=${#DEMO_ASSEMBLIES[@]}
+if [[ "$LIMIT" =~ ^[0-9]+$ ]] && [[ "$LIMIT" -gt 0 ]] && [[ "$LIMIT" -lt "$TOTAL" ]]; then
+  COUNT=$LIMIT
+else
+  COUNT=$TOTAL
+fi
+
 log "SERVICE_URI=${SERVICE_URI}"
-log "Creating ${#DEMO_ASSEMBLIES[@]} workflow assemblies..."
+log "Creating ${COUNT} of ${TOTAL} workflow assemblies (configs)..."
 user_num=0
-for entry in "${DEMO_ASSEMBLIES[@]}"; do
+for entry in "${DEMO_ASSEMBLIES[@]:0:COUNT}"; do
   user_num=$((user_num + 1))
   IFS='|' read -r name pipeline <<<"$entry"
   assemble "$name" "$pipeline" "$user_num"

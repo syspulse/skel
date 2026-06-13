@@ -175,11 +175,20 @@ object AssemblyDSL {
         }
 
         // ---------- build graph nodes (graph-local ids 0..n-1) ----------
+        // lay nodes out left-to-right so the assembled topology is visible in the UI editor
+        // (otherwise all nodes default to pos 0,0 and overlap). Persisted in `meta`.
+        def layoutMeta(i: Int): Map[String, Any] =
+          WorkflowNode.defaultMeta ++ Map(
+            "pos_x" -> (60 + i * 220),
+            "pos_y" -> 120,
+            "size_width" -> 160,
+            "size_height" -> 64,
+          )
         val schemaNodes = resolved.map { case (i, spec, sid, _) =>
-          WorkflowNode(id = i, title = spec.ref, sid = sid, cid = None)
+          WorkflowNode(id = i, title = spec.ref, sid = sid, cid = None, meta = Some(layoutMeta(i)))
         }
         val configNodes = resolved.map { case (i, spec, sid, cid) =>
-          WorkflowNode(id = i, title = spec.ref, sid = sid, cid = cid)
+          WorkflowNode(id = i, title = spec.ref, sid = sid, cid = cid, meta = Some(layoutMeta(i)))
         }
 
         // ---------- build links between consecutive nodes ----------

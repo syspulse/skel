@@ -68,10 +68,20 @@ class WorkflowStoreMem extends WorkflowStore {
   // ---------------------------------------------------------------- DetectorSchema
   def addDetectorSchema(d: DetectorSchema): Future[DetectorSchema] = { dSchemas = dSchemas + (d.id -> d); Future.successful(d) }
   def getDetectorSchema(id: Int): Future[Option[DetectorSchema]] = Future.successful(dSchemas.get(id))
+  def delDetectorSchema(id: Int): Future[Int] = {
+    if (!dSchemas.contains(id)) Future.failed(new ErrNotFound(s"DetectorSchema: ${id}"))
+    else { dSchemas = dSchemas - id; Future.successful(id) }
+  }
   def allDetectorSchemas: Future[Seq[DetectorSchema]] = Future.successful(dSchemas.values.toSeq)
+  def sizeDetectorSchemas: Future[Long] = Future.successful(dSchemas.size.toLong)
 
   // ---------------------------------------------------------------- DetectorConfig
   def addDetectorConfig(d: DetectorConfig): Future[DetectorConfig] = { dConfigs = dConfigs + (d.id -> d); Future.successful(d) }
   def getDetectorConfig(id: Int): Future[Option[DetectorConfig]] = Future.successful(dConfigs.get(id))
+  def delDetectorConfig(id: Int): Future[Int] = {
+    if (!dConfigs.contains(id)) Future.failed(new ErrNotFound(s"DetectorConfig: ${id}"))
+    else { dConfigs = dConfigs - id; Future.successful(id) }
+  }
   def allDetectorConfigs: Future[Seq[DetectorConfig]] = Future.successful(dConfigs.values.toSeq)
+  def sizeDetectorConfigs: Future[Long] = Future.successful(dConfigs.size.toLong)
 }

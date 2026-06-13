@@ -10,6 +10,8 @@ object WorkflowStore {
   final case class PageSchema(schemas: Seq[WorkflowSchema], total: Long)
   final case class PageConfig(configs: Seq[WorkflowConfig], total: Long)
   final case class PageGraf(grafs: Seq[WorkflowGraf], total: Long)
+  final case class PageDetectorSchema(schemas: Seq[DetectorSchema], total: Long)
+  final case class PageDetectorConfig(configs: Seq[DetectorConfig], total: Long)
 
   /** In-memory slice: drop(from).take(size). */
   def page[T](xs: Seq[T], from: Long, size: Long): Seq[T] =
@@ -84,12 +86,32 @@ trait WorkflowStore {
   // ---------------------------------------------------------------- DetectorSchema
   def addDetectorSchema(d: DetectorSchema): Future[DetectorSchema]
   def getDetectorSchema(id: Int): Future[Option[DetectorSchema]]
+  def delDetectorSchema(id: Int): Future[Int]
   def allDetectorSchemas: Future[Seq[DetectorSchema]]
+  def sizeDetectorSchemas: Future[Long]
+  def listDetectorSchemas(from: Option[Long] = None, size: Option[Long] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageDetectorSchema] =
+    allDetectorSchemas.map { xs =>
+      val items = (from, size) match {
+        case (Some(f), Some(s)) => WorkflowStore.page(xs, f, s)
+        case _                  => xs
+      }
+      WorkflowStore.PageDetectorSchema(items, xs.size.toLong)
+    }
 
   // ---------------------------------------------------------------- DetectorConfig
   def addDetectorConfig(d: DetectorConfig): Future[DetectorConfig]
   def getDetectorConfig(id: Int): Future[Option[DetectorConfig]]
+  def delDetectorConfig(id: Int): Future[Int]
   def allDetectorConfigs: Future[Seq[DetectorConfig]]
+  def sizeDetectorConfigs: Future[Long]
+  def listDetectorConfigs(from: Option[Long] = None, size: Option[Long] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageDetectorConfig] =
+    allDetectorConfigs.map { xs =>
+      val items = (from, size) match {
+        case (Some(f), Some(s)) => WorkflowStore.page(xs, f, s)
+        case _                  => xs
+      }
+      WorkflowStore.PageDetectorConfig(items, xs.size.toLong)
+    }
 
   // ---------------------------------------------------------------- id generation
   // ids start at 0 and are never negative (max+1 within the entity collection)

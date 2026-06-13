@@ -29,4 +29,13 @@ object WorkflowJson extends JsonCommon {
   // ---- WorkflowGraf ----
   implicit val jf_grafs: RootJsonFormat[WorkflowGrafs]                   = jsonFormat2(WorkflowGrafs)
   implicit val jf_graf_create: RootJsonFormat[WorkflowGrafCreateReq]     = jsonFormat4(WorkflowGrafCreateReq)
+
+  // ---- DetectorSchema ----
+  implicit val jf_det_schemas: RootJsonFormat[DetectorSchemas]               = jsonFormat2(DetectorSchemas)
+  implicit val jf_det_schema_create: RootJsonFormat[DetectorSchemaCreateReq] = jsonFormat10(DetectorSchemaCreateReq)
+
+  // ---- DetectorConfig ----
+  implicit val jf_det_configs: RootJsonFormat[DetectorConfigs]               = jsonFormat2(DetectorConfigs)
+  implicit val jf_det_config_create: RootJsonFormat[DetectorConfigCreateReq] = jsonFormat6(DetectorConfigCreateReq)
+  implicit val jf_det_config_update: RootJsonFormat[DetectorConfigUpdateReq] = jsonFormat5(DetectorConfigUpdateReq)
 }
