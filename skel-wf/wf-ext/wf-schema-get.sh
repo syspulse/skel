@@ -4,7 +4,7 @@
 #   FROM=0 SIZE=10 DETECTOR=full ./wf-schema-get.sh
 ID=${1:-}
 FROM=${FROM:-0}
-SIZE=${SIZE:-}
+SIZE=${SIZE:-5}
 DETECTOR=${DETECTOR:-}
 
 SERVICE_URI=${SERVICE_URI:-http://127.0.0.1:8080/api/v1/wf/ext}
@@ -16,8 +16,7 @@ if [[ -n "$ID" ]]; then
 else
   URL="$SERVICE_URI/schema"
   Q=""
-  if [[ -n "$FROM" || -n "$SIZE" ]]; then
-    if [[ -z "$FROM" || -z "$SIZE" ]]; then echo "FROM and SIZE must both be set" >&2; exit 1; fi
+  if [[ -n "$FROM" || -n "$SIZE" ]]; then    
     Q="from=${FROM}&size=${SIZE}"
   fi
   [[ -n "$DETECTOR" ]] && Q="${Q:+$Q&}detector=${DETECTOR}"

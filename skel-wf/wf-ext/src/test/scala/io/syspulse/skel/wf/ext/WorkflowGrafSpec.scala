@@ -10,7 +10,7 @@ import io.hacken.ext.wf.WorkflowGrafJson._
 class WorkflowGrafSpec extends AnyWordSpec with Matchers {
 
   def node(id: Int, sid: Int, x: Int = 0, y: Int = 0, w: Int = 100, h: Int = 100): WorkflowNode =
-    WorkflowNode(id = id, name = s"node-${id}", sid = sid,
+    WorkflowNode(id = id, title = s"node-${id}", sid = sid,
       meta = Some(Map("pos_x" -> x, "pos_y" -> y, "size_width" -> w, "size_height" -> h, "style" -> "node.style1")))
 
   def link(id: Int, from: Int, to: Int): WorkflowLink = WorkflowLink(id = id, from = from, to = to)

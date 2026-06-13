@@ -91,7 +91,7 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
     }
 
     "create and fetch a WorkflowGraf" in {
-      val g = WorkflowGraf(id = 0).withNode(WorkflowNode(id = 0, name = "n", sid = 1))
+      val g = WorkflowGraf(id = 0).withNode(WorkflowNode(id = 0, title = "n", sid = 1))
       val created = Post("/graf", WorkflowGrafCreateReq(graph = Some(g))) ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         responseAs[WorkflowGraf]

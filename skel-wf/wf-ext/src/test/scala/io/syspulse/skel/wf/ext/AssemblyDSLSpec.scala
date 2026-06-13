@@ -155,7 +155,7 @@ class AssemblyDSLSpec extends AnyWordSpec with Matchers {
 
       val cfg = res.config.get
       // the two `scan` nodes point at the SAME DetectorSchema (sid) but DIFFERENT DetectorConfigs (cid)
-      val scanNodes = cfg.graph.nodes.values.filter(_.name == "scan").toSeq
+      val scanNodes = cfg.graph.nodes.values.filter(_.title == "scan").toSeq
       scanNodes should have size 2
       scanNodes.map(_.sid).distinct should have size 1
       scanNodes.flatMap(_.cid).distinct should have size 2

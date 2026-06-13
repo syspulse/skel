@@ -15,8 +15,8 @@ class WorkflowStoreDirSpec extends AnyWordSpec with Matchers {
 
   def graf(id: Int): WorkflowGraf =
     WorkflowGraf(id = id, sid = Some(id))
-      .withNode(WorkflowNode(id = 0, name = "a", sid = 100))
-      .withNode(WorkflowNode(id = 1, name = "b", sid = 101))
+      .withNode(WorkflowNode(id = 0, title = "a", sid = 100))
+      .withNode(WorkflowNode(id = 1, title = "b", sid = 101))
       .withLink(WorkflowLink(id = 0, from = 0, to = 1))
 
   def tmpDir(): String = java.nio.file.Files.createTempDirectory("wf-ext-test-").toString

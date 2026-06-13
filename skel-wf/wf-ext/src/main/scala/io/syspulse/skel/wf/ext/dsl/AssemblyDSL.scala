@@ -176,10 +176,10 @@ object AssemblyDSL {
 
         // ---------- build graph nodes (graph-local ids 0..n-1) ----------
         val schemaNodes = resolved.map { case (i, spec, sid, _) =>
-          WorkflowNode(id = i, name = spec.ref, sid = sid, cid = None)
+          WorkflowNode(id = i, title = spec.ref, sid = sid, cid = None)
         }
         val configNodes = resolved.map { case (i, spec, sid, cid) =>
-          WorkflowNode(id = i, name = spec.ref, sid = sid, cid = cid)
+          WorkflowNode(id = i, title = spec.ref, sid = sid, cid = cid)
         }
 
         // ---------- build links between consecutive nodes ----------

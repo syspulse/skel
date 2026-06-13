@@ -37,7 +37,7 @@ object WorkflowNode {
 
 case class WorkflowNode(
   id: WorkflowNode.ID,         // internal uniq id of the node within the graph
-  name: String,                // name of the node (by default DetectorSchema.title, user editable)
+  title: String,               // display title (by default DetectorSchema.title, user editable)
 
   sid: Int,                    // DetectorSchema ID reference (maps detector schema for this node)
   cid: Option[Int] = None,     // DetectorConfig ID reference.

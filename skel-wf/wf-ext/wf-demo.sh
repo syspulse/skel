@@ -7,6 +7,11 @@
 #   - DetectorConfig objects  (one per `Detector` NODE)
 #   - a WorkflowSchema (template) + WorkflowConfig (runtime instance) + WorkflowGrafs
 #
+# Naming conventions (no spaces in `name` fields):
+#   WorkflowSchema / WorkflowConfig name : Workflow{Name}   e.g. WorkflowSingle
+#   DetectorSchema   / DetectorConfig name : Detector{Name}  e.g. DetectorScanner
+#   title (user-defined)                   : {name} User {n} e.g. WorkflowSingle User 1
+#
 # The 10 assemblies vary in number of schemas, detectors (configs) and links. Several of
 # them reuse the SAME detector name on multiple nodes - demonstrating that several
 # DetectorConfigs can be instances of the SAME DetectorSchema (1 schema -> many configs),
@@ -46,20 +51,20 @@ check() { [[ "$1" == "$2" ]] || die "${4}: HTTP ${1}, expected ${2}" "$3"; }
 # name|pipeline  : 10 assemblies of increasing/varying complexity.
 #   Repeated detector names in one pipeline => shared DetectorSchema, distinct DetectorConfigs.
 readonly -a DEMO_ASSEMBLIES=(
-  "wf-single|Detector.scanner"                                                     # 1 schema, 1 config, 0 links
-  "wf-pair|Detector.ingest -> Detector.alert"                                      # 2 schemas, 2 configs, 1 link
-  "wf-linear3|Detector.collect -> Detector.analyze -> Detector.report"             # 3 schemas, 3 configs, 2 links
-  "wf-twin|Detector.probe -> Detector.probe"                                       # 1 schema, 2 configs (same schema!), 1 link
-  "wf-fanline|Detector.scan -> Detector.scan -> Detector.report"                   # 2 schemas, 3 configs, 2 links
-  "wf-mixed|Schema.template -> Detector.worker -> Detector.worker"                 # 2 schemas, 2 configs, 2 links
-  "wf-pipe5|Detector.s1 -> Detector.s2 -> Detector.s3 -> Detector.s4 -> Detector.s5" # 5 schemas, 5 configs, 4 links
-  "wf-triplet|Detector.guard -> Detector.guard -> Detector.guard"                  # 1 schema, 3 configs (same schema!), 2 links
-  "wf-linked|Detector.a.0 -> 0.Detector.b.1 -> 1.Detector.c"                       # 3 schemas, 3 configs, explicit link ids
-  "wf-gateway|Detector.gw -> Detector.f1 -> Detector.f2 -> Detector.gw"            # 3 schemas, 4 configs (gw reused), 3 links
+  "WorkflowSingle|Detector.DetectorScanner"                                                              # 1 schema, 1 config, 0 links
+  "WorkflowPair|Detector.DetectorIngest -> Detector.DetectorAlert"                                     # 2 schemas, 2 configs, 1 link
+  "WorkflowLinear3|Detector.DetectorCollect -> Detector.DetectorAnalyze -> Detector.DetectorReport"     # 3 schemas, 3 configs, 2 links
+  "WorkflowTwin|Detector.DetectorProbe -> Detector.DetectorProbe"                                        # 1 schema, 2 configs (same schema!), 1 link
+  "WorkflowFanline|Detector.DetectorScan -> Detector.DetectorScan -> Detector.DetectorReport"            # 2 schemas, 3 configs, 2 links
+  "WorkflowMixed|Schema.DetectorTemplate -> Detector.DetectorWorker -> Detector.DetectorWorker"        # 2 schemas, 2 configs, 2 links
+  "WorkflowPipe5|Detector.DetectorStage1 -> Detector.DetectorStage2 -> Detector.DetectorStage3 -> Detector.DetectorStage4 -> Detector.DetectorStage5" # 5 schemas, 5 configs, 4 links
+  "WorkflowTriplet|Detector.DetectorGuard -> Detector.DetectorGuard -> Detector.DetectorGuard"           # 1 schema, 3 configs (same schema!), 2 links
+  "WorkflowLinked|Detector.DetectorAlpha.0 -> 0.Detector.DetectorBeta.1 -> 1.Detector.DetectorGamma"     # 3 schemas, 3 configs, explicit link ids
+  "WorkflowGateway|Detector.DetectorGateway -> Detector.DetectorFilter1 -> Detector.DetectorFilter2 -> Detector.DetectorGateway" # 3 schemas, 4 configs (gateway reused), 3 links
 )
 
 assemble() {
-  local name="$1" pipeline="$2" resp code body payload cid sid
+  local name="$1" pipeline="$2" user_num="$3" resp code body payload cid sid title
   payload="$(jq -cn --arg p "$pipeline" --arg n "$name" '{pipeline:$p,name:$n}')"
   resp="$(curl_api POST "/config/dsl" "$payload")"
   code="$(printf '%s' "$resp" | tail -n 1)"
@@ -69,6 +74,20 @@ assemble() {
   cid="$(printf '%s' "$body" | jq -r '.id')"
   sid="$(printf '%s' "$body" | jq -r '.sid')"
   [[ -n "$cid" && "$cid" != "null" ]] || die "POST /config/dsl ${name}: no config id" "$body"
+  [[ -n "$sid" && "$sid" != "null" ]] || die "POST /config/dsl ${name}: no schema id" "$body"
+
+  # title is user-defined (suffix " User N" distinguishes it from the system `name`)
+  title="${name} User ${user_num}"
+  payload="$(jq -cn --arg t "$title" '{title:$t}')"
+  resp="$(curl_api PUT "/schema/${sid}" "$payload")"
+  code="$(printf '%s' "$resp" | tail -n 1)"
+  body="$(printf '%s' "$resp" | sed '$d')"
+  check "$code" "200" "$body" "PUT /schema/${sid} ${name}"
+
+  resp="$(curl_api PUT "/config/${cid}" "$payload")"
+  code="$(printf '%s' "$resp" | tail -n 1)"
+  body="$(printf '%s' "$resp" | sed '$d')"
+  check "$code" "200" "$body" "PUT /config/${cid} ${name}"
 
   # fetch the config with full detector expansion to report what was built
   local full nodes links nconf nsch
@@ -79,15 +98,17 @@ assemble() {
   nconf="$(printf '%s' "$full" | jq '(.config.graph.nodes | map(.cid) | map(select(. != null)) | length)')"
   nsch="$(printf '%s'  "$full" | jq '(.config.graph.nodes | map(.sid) | unique | length)')"
 
-  printf '   %-10s cfg=%-3s schema=%-3s nodes=%-2s links=%-2s detectorConfigs=%-2s distinctSchemas=%-2s | %s\n' \
-    "$name" "$cid" "$sid" "$nodes" "$links" "$nconf" "$nsch" "$pipeline"
+  printf '   %-16s cfg=%-3s schema=%-3s nodes=%-2s links=%-2s detectorConfigs=%-2s distinctSchemas=%-2s title=%-22s | %s\n' \
+    "$name" "$cid" "$sid" "$nodes" "$links" "$nconf" "$nsch" "$title" "$pipeline"
 }
 
 log "SERVICE_URI=${SERVICE_URI}"
 log "Creating ${#DEMO_ASSEMBLIES[@]} workflow assemblies..."
+user_num=0
 for entry in "${DEMO_ASSEMBLIES[@]}"; do
+  user_num=$((user_num + 1))
   IFS='|' read -r name pipeline <<<"$entry"
-  assemble "$name" "$pipeline"
+  assemble "$name" "$pipeline" "$user_num"
 done
 
 # summary

@@ -6,7 +6,7 @@
 #   OID=<oid> ./wf-config-get.sh        # lookup by owner id
 ID=${1:-}
 FROM=${FROM:-0}
-SIZE=${SIZE:-}
+SIZE=${SIZE:-5}
 DETECTOR=${DETECTOR:-}
 XID=${XID:-}
 OID=${OID:-}
@@ -24,8 +24,7 @@ elif [[ -n "$ID" ]]; then
 else
   URL="$SERVICE_URI/config"
   Q=""
-  if [[ -n "$FROM" || -n "$SIZE" ]]; then
-    if [[ -z "$FROM" || -z "$SIZE" ]]; then echo "FROM and SIZE must both be set" >&2; exit 1; fi
+  if [[ -n "$FROM" || -n "$SIZE" ]]; then    
     Q="from=${FROM}&size=${SIZE}"
   fi
   [[ -n "$DETECTOR" ]] && Q="${Q:+$Q&}detector=${DETECTOR}"
