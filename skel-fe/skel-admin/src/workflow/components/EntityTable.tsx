@@ -75,10 +75,10 @@ export function EntityTable({ rows, selectedId, extraLabel, minRows = 12, onRowC
               </td>
               <td className={`${TABLE_TD} text-muted-foreground`}>{r.id}</td>
               <td className={`${TABLE_TD} text-foreground truncate`}>{r.name}</td>
-              <td className={`${TABLE_TD} text-muted-foreground truncate`}>{r.title || <span className="opacity-30">—</span>}</td>
-              <td className={`${TABLE_TD} ${statusClass(r.status)}`}>{r.status || <span className="opacity-30">—</span>}</td>
-              <td className={`${TABLE_TD} text-muted-foreground truncate`}>{r.extra || <span className="opacity-30">—</span>}</td>
-              <td className={`${TABLE_TD} text-muted-foreground truncate`}>{r.tags && r.tags.length > 0 ? r.tags.join(', ') : <span className="opacity-30">—</span>}</td>
+              <td className={`${TABLE_TD} text-muted-foreground truncate`}>{r.title || ''}</td>
+              <td className={`${TABLE_TD} ${statusClass(r.status)}`}>{r.status || ''}</td>
+              <td className={`${TABLE_TD} text-muted-foreground truncate`}>{r.extra || ''}</td>
+              <td className={`${TABLE_TD} text-muted-foreground truncate`}>{r.tags && r.tags.length > 0 ? r.tags.join(', ') : ''}</td>
               <td className={`${TABLE_TD} text-center`} onClick={(e) => e.stopPropagation()}>
                 <button onClick={() => onDelete(r.id)} className="text-muted-foreground hover:text-red-500 p-0.5 rounded transition-colors" title={t('common.delete')}>
                   <IconTrash size={13} />

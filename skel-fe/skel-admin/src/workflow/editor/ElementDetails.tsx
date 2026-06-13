@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { Node, Edge } from '@xyflow/react';
 import type { RFNodeData, RFEdgeData } from './grafMapping';
 import { IconPicker } from './IconPicker';
-import { IconClose, IconTrash } from '../../components/Icons';
+import { IconClose, IconTrash, IconArrowRight } from '../../components/Icons';
 
 interface ElementDetailsProps {
   node: Node<RFNodeData> | null;
@@ -12,33 +12,56 @@ interface ElementDetailsProps {
   onUpdateEdge: (id: string, patch: Partial<RFEdgeData>) => void;
   onDeleteNode: (id: string) => void;
   onDeleteEdge: (id: string) => void;
+  onOpenDetectorSchema?: (id: number) => void;
+  onOpenDetectorConfig?: (id: number) => void;
   onClose: () => void;
 }
+
+const inputCls = 'w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400';
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2">
       <label className="w-24 shrink-0 text-xs text-muted-foreground">{label}</label>
-      <div className="flex-1">{children}</div>
+      <div className="flex-1 min-w-0">{children}</div>
     </div>
   );
 }
 
-const inputCls = 'w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400';
+/** Read-only id row; with an optional [->] button to open the referenced detector's detail view. */
+function IdRow({ label, value, onGo }: { label: string; value: React.ReactNode; onGo?: () => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <label className="w-24 shrink-0 text-xs text-muted-foreground">{label}</label>
+      <div className="flex-1 text-sm font-mono text-foreground bg-muted border border-border rounded px-2 py-1 select-text">{value}</div>
+      {onGo && (
+        <button onClick={onGo} title="open details"
+          className="shrink-0 p-1 rounded border border-border text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors">
+          <IconArrowRight size={14} />
+        </button>
+      )}
+    </div>
+  );
+}
 
-export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onDeleteNode, onDeleteEdge, onClose }: ElementDetailsProps) {
+export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onDeleteNode, onDeleteEdge, onOpenDetectorSchema, onOpenDetectorConfig, onClose }: ElementDetailsProps) {
   const { t } = useTranslation();
-  // Only mount the panel when a node or edge is actually selected (no stray panel otherwise).
   if (!node && !edge) return null;
 
+  const isNode = !!node;
+  const edgeId = edge ? Number(edge.id.replace(/^e/, '')) : 0;
+
   return (
-    <div
-      className="absolute top-0 right-0 bottom-0 w-[320px] max-w-[80%] bg-card border-l border-border z-20 flex flex-col shadow-2xl"
-    >
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted">
-        <h2 className="text-sm text-foreground">
-          {node ? t('workflow.editor.nodeDetails') : t('workflow.editor.linkDetails')}
+    <div className="absolute top-0 right-0 bottom-0 w-[340px] max-w-[85%] bg-card border-l border-border z-20 flex flex-col shadow-2xl">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted gap-2">
+        <h2 className="text-sm text-foreground flex-1">
+          {isNode ? t('workflow.editor.nodeDetails') : t('workflow.editor.linkDetails')}
         </h2>
+        <button
+          onClick={() => (isNode ? onDeleteNode(node!.id) : onDeleteEdge(edge!.id))}
+          className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-red-400 text-red-600 hover:bg-red-50 transition-colors">
+          <IconTrash size={13} /> {t('common.delete')}
+        </button>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded" aria-label={t('common.close')}>
           <IconClose size={16} />
         </button>
@@ -47,9 +70,17 @@ export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onDelet
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {node && (
           <>
+            {/* identity always on top */}
+            <IdRow label={t('workflow.fields.id')} value={node.id} />
+            <IdRow label={t('workflow.fields.sid')} value={node.data.sid}
+              onGo={onOpenDetectorSchema && node.data.sid >= 0 ? () => onOpenDetectorSchema(node.data.sid) : undefined} />
+            {node.data.cid !== undefined && node.data.cid !== null && (
+              <IdRow label={t('workflow.fields.cid')} value={node.data.cid}
+                onGo={onOpenDetectorConfig ? () => onOpenDetectorConfig(node.data.cid as number) : undefined} />
+            )}
+
             <Row label={t('workflow.editor.title')}>
-              <input className={inputCls} value={node.data.title}
-                onChange={(e) => onUpdateNode(node.id, { title: e.target.value })} />
+              <input className={inputCls} value={node.data.title} onChange={(e) => onUpdateNode(node.id, { title: e.target.value })} />
             </Row>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">{t('workflow.editor.icon')}</label>
@@ -59,63 +90,48 @@ export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onDelet
               <div className="flex items-center gap-2">
                 <input type="color" value={toHex(node.data.color, '#ffffff')}
                   onChange={(e) => onUpdateNode(node.id, { color: e.target.value })}
-                  className="h-7 w-10 rounded border border-input bg-card cursor-pointer" />
-                <input className={inputCls} value={node.data.color}
-                  onChange={(e) => onUpdateNode(node.id, { color: e.target.value })} />
+                  className="h-7 w-10 shrink-0 rounded border border-input bg-card cursor-pointer" />
+                <input className={inputCls} value={node.data.color} onChange={(e) => onUpdateNode(node.id, { color: e.target.value })} />
               </div>
             </Row>
             <Row label={t('workflow.editor.borderColor')}>
               <div className="flex items-center gap-2">
                 <input type="color" value={toHex(borderColor(node.data.border), '#94a3b8')}
                   onChange={(e) => onUpdateNode(node.id, { border: `1px solid ${e.target.value}` })}
-                  className="h-7 w-10 rounded border border-input bg-card cursor-pointer" />
-                <input className={inputCls} value={node.data.border}
-                  onChange={(e) => onUpdateNode(node.id, { border: e.target.value })} />
+                  className="h-7 w-10 shrink-0 rounded border border-input bg-card cursor-pointer" />
+                <input className={inputCls} value={node.data.border} onChange={(e) => onUpdateNode(node.id, { border: e.target.value })} />
               </div>
             </Row>
-            <div className="flex items-center gap-2">
-              <Row label={t('workflow.editor.width')}>
-                <input type="number" className={inputCls} value={Math.round(node.width ?? node.data.width)}
-                  onChange={(e) => onUpdateNode(node.id, { width: Number(e.target.value) })} />
-              </Row>
-              <Row label={t('workflow.editor.height')}>
-                <input type="number" className={inputCls} value={Math.round(node.height ?? node.data.height)}
-                  onChange={(e) => onUpdateNode(node.id, { height: Number(e.target.value) })} />
-              </Row>
-            </div>
-            <div className="text-[11px] text-muted-foreground space-y-0.5 pt-1">
-              <div>sid: {node.data.sid}</div>
-              {node.data.cid !== undefined && node.data.cid !== null && <div>cid: {node.data.cid}</div>}
-            </div>
-            <button onClick={() => onDeleteNode(node.id)}
-              className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 transition-colors">
-              <IconTrash size={13} /> {t('workflow.editor.deleteNode')}
-            </button>
+            {/* width / height: full-width rows so values up to 1000 are readable */}
+            <Row label={t('workflow.editor.width')}>
+              <input type="number" min={80} max={1000} className={inputCls}
+                value={Math.round(node.width ?? node.data.width)}
+                onChange={(e) => onUpdateNode(node.id, { width: Number(e.target.value) })} />
+            </Row>
+            <Row label={t('workflow.editor.height')}>
+              <input type="number" min={40} max={1000} className={inputCls}
+                value={Math.round(node.height ?? node.data.height)}
+                onChange={(e) => onUpdateNode(node.id, { height: Number(e.target.value) })} />
+            </Row>
           </>
         )}
 
         {edge && (
           <>
+            <IdRow label={t('workflow.fields.id')} value={edgeId} />
+            <IdRow label="from" value={edge.source} />
+            <IdRow label="to" value={edge.target} />
             <Row label={t('workflow.editor.label')}>
-              <input className={inputCls} value={edge.data?.label ?? ''}
-                onChange={(e) => onUpdateEdge(edge.id, { label: e.target.value })} />
+              <input className={inputCls} value={edge.data?.label ?? ''} onChange={(e) => onUpdateEdge(edge.id, { label: e.target.value })} />
             </Row>
             <Row label={t('workflow.editor.edgeColor')}>
               <div className="flex items-center gap-2">
                 <input type="color" value={toHex(edge.data?.color, '#64748b')}
                   onChange={(e) => onUpdateEdge(edge.id, { color: e.target.value })}
-                  className="h-7 w-10 rounded border border-input bg-card cursor-pointer" />
-                <input className={inputCls} value={edge.data?.color ?? ''}
-                  onChange={(e) => onUpdateEdge(edge.id, { color: e.target.value })} />
+                  className="h-7 w-10 shrink-0 rounded border border-input bg-card cursor-pointer" />
+                <input className={inputCls} value={edge.data?.color ?? ''} onChange={(e) => onUpdateEdge(edge.id, { color: e.target.value })} />
               </div>
             </Row>
-            <div className="text-[11px] text-muted-foreground">
-              {edge.source} → {edge.target}
-            </div>
-            <button onClick={() => onDeleteEdge(edge.id)}
-              className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 transition-colors">
-              <IconTrash size={13} /> {t('workflow.editor.deleteLink')}
-            </button>
           </>
         )}
       </div>

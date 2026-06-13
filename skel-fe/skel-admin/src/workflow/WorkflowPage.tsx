@@ -55,6 +55,8 @@ export function WorkflowPage({ editTarget, onEditTargetApplied, onInstancesChang
   const [saving, setSaving] = useState(false);
 
   const [editor, setEditor] = useState<EditorState | null>(null);
+  // detector detail opened from the editor (sid/cid [->]) - read-only overlay
+  const [detView, setDetView] = useState<{ kind: 'detector-schema' | 'detector-config'; id: number } | null>(null);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -108,7 +110,7 @@ export function WorkflowPage({ editTarget, onEditTargetApplied, onInstancesChang
       case 'schema': return schemas.map((s) => ({ id: s.id, icon: s.icon, name: s.name, title: s.title, status: s.status, tags: s.tags, extra: `${t('workflow.graphNodes')}: ${Object.keys(s.graph?.nodes ?? {}).length}` }));
       case 'config': return configs.map((c) => ({ id: c.id, icon: c.icon, name: c.name, title: c.title, status: c.status, tags: c.tags, extra: `sid ${c.sid}` }));
       case 'detector-schema': return detSchemas.map((d) => ({ id: d.id, icon: d.icon, name: d.name, title: d.title, status: d.status, tags: d.tags, extra: d.version }));
-      case 'detector-config': return detConfigs.map((d) => ({ id: d.id, name: d.name, status: d.status, tags: d.tags, extra: d.schema ? `${t('workflow.fields.schema')} #${d.schema.id}` : '—' }));
+      case 'detector-config': return detConfigs.map((d) => ({ id: d.id, name: d.name, status: d.status, tags: d.tags, extra: d.schema ? `${t('workflow.fields.schema')} #${d.schema.id}` : '' }));
     }
   };
 
@@ -159,19 +161,38 @@ export function WorkflowPage({ editTarget, onEditTargetApplied, onInstancesChang
   // ===================== EDITOR MODE =====================
   if (editor) {
     return (
-      <WorkflowEditor
-        key={`${editor.kind}-${editor.id}`}
-        title={editor.title}
-        name={editor.name}
-        icon={editor.icon}
-        kind={editor.kind}
-        graf={editor.graf}
-        detectorSchemas={detSchemas}
-        detectorConfigs={detConfigs}
-        saving={saving}
-        onSave={handleEditorSave}
-        onBack={() => setEditor(null)}
-      />
+      <>
+        <WorkflowEditor
+          key={`${editor.kind}-${editor.id}`}
+          title={editor.title}
+          name={editor.name}
+          icon={editor.icon}
+          kind={editor.kind}
+          graf={editor.graf}
+          detectorSchemas={detSchemas}
+          detectorConfigs={detConfigs}
+          saving={saving}
+          onSave={handleEditorSave}
+          onBack={() => setEditor(null)}
+          onOpenDetectorSchema={(id) => setDetView({ kind: 'detector-schema', id })}
+          onOpenDetectorConfig={(id) => setDetView({ kind: 'detector-config', id })}
+        />
+        <DetectorSlider
+          open={detView !== null}
+          addMode={false}
+          readOnly
+          kind={detView?.kind ?? 'detector-schema'}
+          schema={detView?.kind === 'detector-schema' ? detSchemas.find((d) => d.id === detView.id) ?? null : null}
+          config={detView?.kind === 'detector-config' ? detConfigs.find((d) => d.id === detView.id) ?? null : null}
+          schemas={detSchemas}
+          saving={false}
+          onClose={() => setDetView(null)}
+          onCreateSchema={async () => {}}
+          onCreateConfig={async () => {}}
+          onUpdateConfig={async () => {}}
+          onDelete={async () => {}}
+        />
+      </>
     );
   }
 

@@ -16,6 +16,7 @@ interface DetectorSliderProps {
   config: DetectorConfig | null;
   schemas: DetectorSchema[];       // for config create (choose source DetectorSchema)
   saving: boolean;
+  readOnly?: boolean;              // when opened from the editor: view only, no edit/delete
   onClose: () => void;
   onCreateSchema: (req: { name: string; title?: string; description?: string; version?: string; author?: string; icon?: string; tags?: string[] }) => Promise<void>;
   onCreateConfig: (req: { name: string; sid?: number; source?: string; tags?: string[]; config?: Record<string, unknown> }) => Promise<void>;
@@ -33,7 +34,7 @@ function field(label: string, node: React.ReactNode) {
 }
 
 export function DetectorSlider(props: DetectorSliderProps) {
-  const { open, addMode, kind, schema, config, schemas, saving, onClose, onCreateSchema, onCreateConfig, onUpdateConfig, onDelete } = props;
+  const { open, addMode, kind, schema, config, schemas, saving, readOnly, onClose, onCreateSchema, onCreateConfig, onUpdateConfig, onDelete } = props;
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
 
@@ -101,7 +102,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
   };
 
   const isSchema = kind === 'detector-schema';
-  const viewOnly = isSchema && !addMode; // DetectorSchema is view-only per requirements
+  const viewOnly = !!readOnly || (isSchema && !addMode); // DetectorSchema is view-only per requirements
   const kindLabel = t(isSchema ? 'workflow.tabs.detectorSchema' : 'workflow.tabs.detectorConfig');
 
   return (
@@ -131,16 +132,16 @@ export function DetectorSlider(props: DetectorSliderProps) {
           {isSchema && (
             <>
               {field(t('workflow.fields.title'),
-                viewOnly ? <div className={roCls}>{title || '—'}</div>
+                viewOnly ? <div className={roCls}>{title || ''}</div>
                   : <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} />)}
               {field(t('workflow.fields.desc'),
-                viewOnly ? <div className={roCls}>{description || '—'}</div>
+                viewOnly ? <div className={roCls}>{description || ''}</div>
                   : <input className={inputCls} value={description} onChange={(e) => setDescription(e.target.value)} />)}
               {field(t('workflow.fields.version'),
                 viewOnly ? <div className={roCls}>{version}</div>
                   : <input className={inputCls} value={version} onChange={(e) => setVersion(e.target.value)} />)}
               {field(t('workflow.fields.author'),
-                viewOnly ? <div className={roCls}>{author || '—'}</div>
+                viewOnly ? <div className={roCls}>{author || ''}</div>
                   : <input className={inputCls} value={author} onChange={(e) => setAuthor(e.target.value)} />)}
               {!viewOnly && (
                 <div className="space-y-1">
@@ -148,7 +149,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
                   <IconPicker value={icon} onChange={setIcon} />
                 </div>
               )}
-              {viewOnly && field(t('workflow.fields.networkTags'), <div className={roCls}>{(schema?.networkTags ?? []).join(', ') || '—'}</div>)}
+              {viewOnly && field(t('workflow.fields.networkTags'), <div className={roCls}>{(schema?.networkTags ?? []).join(', ') || ''}</div>)}
               {viewOnly && schema?.schema && (
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground">schema</label>
@@ -164,7 +165,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
               : <select className={inputCls} value={status} onChange={(e) => setStatus(e.target.value)}>{STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}</select>)}
 
           {field(t('workflow.fields.tags'),
-            viewOnly ? <div className={roCls}>{tags || '—'}</div>
+            viewOnly ? <div className={roCls}>{tags || ''}</div>
               : <input className={inputCls} value={tags} onChange={(e) => setTags(e.target.value)} placeholder="a, b, c" />)}
 
           {!isSchema && (
@@ -174,7 +175,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
                   <option value="">{t('workflow.chooseSchema')}</option>
                   {schemas.map((s) => <option key={s.id} value={s.id}>#{s.id} {s.name}</option>)}
                 </select>)}
-              {!addMode && field(t('workflow.fields.schema'), <div className={roCls}>{config?.schema ? `#${config.schema.id} ${config.schema.name}` : '—'}</div>)}
+              {!addMode && field(t('workflow.fields.schema'), <div className={roCls}>{config?.schema ? `#${config.schema.id} ${config.schema.name}` : ''}</div>)}
               {field(t('workflow.fields.source'), <input className={inputCls} value={source} onChange={(e) => setSource(e.target.value)} />)}
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">config (JSON)</label>
@@ -206,10 +207,12 @@ export function DetectorSlider(props: DetectorSliderProps) {
                   <IconSave size={13} /> {saving ? t('common.saving') : t('common.update')}
                 </button>
               )}
-              <button onClick={handleDelete} disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 disabled:opacity-40 transition-colors">
-                <IconTrash size={13} /> {t('common.delete')}
-              </button>
+              {!readOnly && (
+                <button onClick={handleDelete} disabled={saving}
+                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 disabled:opacity-40 transition-colors">
+                  <IconTrash size={13} /> {t('common.delete')}
+                </button>
+              )}
               <button onClick={onClose} disabled={saving}
                 className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 transition-colors">
                 <IconClose size={13} /> {t('common.close')}

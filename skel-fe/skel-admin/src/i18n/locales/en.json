@@ -239,7 +239,8 @@
       "sid": "sid",
       "schema": "schema",
       "source": "source",
-      "graph": "graph"
+      "graph": "graph",
+      "cid": "cid"
     },
     "graphNodes": "nodes",
     "graphLinks": "links",

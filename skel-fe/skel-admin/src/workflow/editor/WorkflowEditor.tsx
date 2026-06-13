@@ -31,13 +31,15 @@ export interface WorkflowEditorProps {
   saving?: boolean;
   onSave: (graf: WorkflowGraf) => void;
   onBack: () => void;
+  onOpenDetectorSchema?: (id: number) => void;
+  onOpenDetectorConfig?: (id: number) => void;
 }
 
 const EDGE_COLOR = '#64748b';
 
 function WorkflowEditorInner(props: WorkflowEditorProps) {
   const { t } = useTranslation();
-  const { title, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, onSave, onBack } = props;
+  const { title, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, onSave, onBack, onOpenDetectorSchema, onOpenDetectorConfig } = props;
 
   const initial = useMemo(() => grafToRF(graf), [graf]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<RFNodeData>>(initial.nodes);
@@ -218,6 +220,8 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           onUpdateEdge={updateEdge}
           onDeleteNode={deleteNode}
           onDeleteEdge={deleteEdge}
+          onOpenDetectorSchema={onOpenDetectorSchema}
+          onOpenDetectorConfig={onOpenDetectorConfig}
           onClose={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}
         />
       </div>
