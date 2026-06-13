@@ -70,10 +70,15 @@ export function linkToRF(l: WorkflowLink): Edge<RFEdgeData> {
   const meta = l.meta ?? {};
   const color = str(meta, 'color', DEF_EDGE_COLOR);
   const label = str(meta, 'label', l.typ ?? '');
+  // default: source from the node's RIGHT connector -> destination LEFT connector
+  const sourceHandle = str(meta, 'sourceHandle', 'r');
+  const targetHandle = str(meta, 'targetHandle', 'l');
   return {
     id: `e${l.id}`,
     source: String(l.from),
     target: String(l.to),
+    sourceHandle,
+    targetHandle,
     label: label || undefined,
     markerEnd: { type: MarkerType.ArrowClosed, color },
     style: { stroke: color },
@@ -154,6 +159,8 @@ export function rfToGraf(
       ...(d?.meta ?? {}),
       color: d?.color ?? DEF_EDGE_COLOR,
       label: d?.label ?? '',
+      sourceHandle: re.sourceHandle ?? 'r',
+      targetHandle: re.targetHandle ?? 'l',
     };
     wfLinks[String(id)] = {
       id,

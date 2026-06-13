@@ -54,11 +54,13 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
   const onConnect = useCallback((c: Connection) => {
     setEdges((es) => {
       const id = nextEdgeId(es);
+      const sourceHandle = c.sourceHandle ?? 'r';
+      const targetHandle = c.targetHandle ?? 'l';
       const edge: Edge<RFEdgeData> = {
-        id: `e${id}`, source: c.source, target: c.target,
+        id: `e${id}`, source: c.source, target: c.target, sourceHandle, targetHandle,
         markerEnd: { type: MarkerType.ArrowClosed, color: EDGE_COLOR },
         style: { stroke: EDGE_COLOR },
-        data: { label: '', color: EDGE_COLOR, meta: {} },
+        data: { label: '', color: EDGE_COLOR, meta: { sourceHandle, targetHandle } },
       };
       return addEdge(edge, es);
     });
