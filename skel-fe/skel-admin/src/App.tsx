@@ -19,9 +19,20 @@ function AppContent() {
   const [settingsTabRequest, setSettingsTabRequest] = useState<string | null>(null);
   const [workflowEditTarget, setWorkflowEditTarget] = useState<WorkflowEditTarget | null>(null);
   const [workflowRefreshKey, setWorkflowRefreshKey] = useState(0);
+  const [selectedWorkflowInstance, setSelectedWorkflowInstance] = useState<{ kind: 'schema' | 'config'; id: number } | null>(null);
+  const [workflowHomeKey, setWorkflowHomeKey] = useState(0);
 
+  // submenu instance -> open its graph editor and keep it highlighted
   const openWorkflowInstance = (kind: 'schema' | 'config', id: number) => {
     setWorkflowEditTarget({ kind, id });
+    setSelectedWorkflowInstance({ kind, id });
+    setActivePage('workflow');
+  };
+
+  // main "Workflow" menu -> open the module UI (tabs); exit any open editor; clear submenu selection
+  const openWorkflowHome = () => {
+    setSelectedWorkflowInstance(null);
+    setWorkflowHomeKey((k) => k + 1);
     setActivePage('workflow');
   };
 
@@ -79,6 +90,7 @@ function AppContent() {
         return (
           <WorkflowPage
             editTarget={workflowEditTarget}
+            homeKey={workflowHomeKey}
             onEditTargetApplied={() => setWorkflowEditTarget(null)}
             onInstancesChanged={() => setWorkflowRefreshKey((k) => k + 1)}
           />
@@ -101,7 +113,9 @@ function AppContent() {
       <SideNav
         activePage={activePage}
         onNavigate={setActivePage}
+        onOpenWorkflowHome={openWorkflowHome}
         onOpenWorkflowInstance={openWorkflowInstance}
+        selectedWorkflowInstance={selectedWorkflowInstance}
         workflowRefreshKey={workflowRefreshKey}
       />
       <main className="ml-44 mt-12 min-h-[calc(100vh-3rem)] flex flex-col">

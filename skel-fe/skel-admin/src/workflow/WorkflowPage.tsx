@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ModulePage } from '../components/ModulePage';
 import { useAuth } from '../auth/useAuth';
@@ -18,6 +18,8 @@ export interface WorkflowEditTarget { kind: 'schema' | 'config'; id: number; }
 interface WorkflowPageProps {
   /** Deep-link from the SideNav submenu: open the editor for this instance. */
   editTarget?: WorkflowEditTarget | null;
+  /** Bumped when the main "Workflow" menu is clicked: exit the editor and show the tabs UI. */
+  homeKey?: number;
   onEditTargetApplied?: () => void;
   /** Notify the SideNav that instances changed (so it can refresh submenus). */
   onInstancesChanged?: () => void;
@@ -39,7 +41,7 @@ interface EditorState {
   graf: WorkflowGraf;
 }
 
-export function WorkflowPage({ editTarget, onEditTargetApplied, onInstancesChanged }: WorkflowPageProps) {
+export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInstancesChanged }: WorkflowPageProps) {
   const { t } = useTranslation();
   const { token } = useAuth();
   const { notifyError } = useModuleNotify(t('nav.workflow'));
@@ -98,6 +100,15 @@ export function WorkflowPage({ editTarget, onEditTargetApplied, onInstancesChang
       onEditTargetApplied?.();
     }
   }, [editTarget, openEditor, onEditTargetApplied]);
+
+  // main "Workflow" menu click -> leave the editor and show the tabs UI (skip initial mount)
+  const homeKeyRef = useRef(homeKey);
+  useEffect(() => {
+    if (homeKey === homeKeyRef.current) return;
+    homeKeyRef.current = homeKey;
+    setEditor(null);
+    setDetView(null);
+  }, [homeKey]);
 
   const refreshAndNotify = useCallback(async () => {
     await fetchAll();
