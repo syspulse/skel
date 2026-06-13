@@ -46,6 +46,8 @@ interface ModulePageProps {
   /** Switch to this tab when set (e.g. deep link from TopBar user menu). */
   requestedTab?: string | null;
   onRequestedTabApplied?: () => void;
+  /** Notified whenever the active tab changes (e.g. to reset paging). */
+  onTabChange?: (id: string) => void;
   children: (activeTab: string) => React.ReactNode;
 }
 
@@ -58,9 +60,11 @@ export function ModulePage({
   afterTabs,
   requestedTab,
   onRequestedTabApplied,
+  onTabChange,
   children,
 }: ModulePageProps) {
   const [tab, setTab] = useState(defaultTab ?? tabs[0]?.id ?? '');
+  const changeTab = (id: string) => { setTab(id); onTabChange?.(id); };
 
   useEffect(() => {
     if (!requestedTab) return;
@@ -74,7 +78,7 @@ export function ModulePage({
     <div className="w-full h-full flex flex-col">
       <div className="px-4 pt-3 pb-0 space-y-2 shrink-0">
         <h1 className="text-lg text-foreground">{title}</h1>
-        <ModuleTabs tabs={tabs} active={tab} onChange={setTab} />
+        <ModuleTabs tabs={tabs} active={tab} onChange={changeTab} />
       </div>
       {afterTabs?.(tab)}
       <div className={`flex-1 min-h-0 ${padded ? 'px-4 pb-3' : ''} ${contentClassName}`.trim()}>

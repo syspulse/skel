@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { ModulePage } from '../components/ModulePage';
 import { useAuth } from '../auth/useAuth';
 import { useModuleNotify } from '../notifications/moduleNotify';
+import { usePageSize, PAGE_SIZE_ALL } from '../settings/PageSizeContext';
+import { Pagination } from '../components/Pagination';
 import { IconRefresh, IconPlus } from '../components/Icons';
 import * as api from './api';
 import type {
@@ -45,6 +47,8 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   const { t } = useTranslation();
   const { token } = useAuth();
   const { notifyError } = useModuleNotify(t('nav.workflow'));
+  const { pageSize, setPageSize } = usePageSize();
+  const [page, setPage] = useState(1);
 
   const [schemas, setSchemas] = useState<WorkflowSchema[]>([]);
   const [configs, setConfigs] = useState<WorkflowConfig[]>([]);
@@ -219,6 +223,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
         title={t('nav.workflow')}
         tabs={TABS.map((tab) => ({ id: tab.id, label: t(tab.key) }))}
         padded={false}
+        onTabChange={() => setPage(1)}
         afterTabs={(active) => (
           <div className="flex items-center gap-3 px-4 py-2 bg-card border-b border-border">
             <span className="text-xs text-muted-foreground">{rowsFor(active as EntityKind).length} {t(`workflow.tabs.${toKey(active as EntityKind)}`)}</span>
@@ -234,17 +239,32 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           </div>
         )}
       >
-        {(active) => (
-          <div className="h-full overflow-auto px-4 pb-3">
-            <EntityTable
-              rows={rowsFor(active as EntityKind)}
-              selectedId={sliderKind === active ? selectedId : null}
-              extraLabel={extraLabelFor(active as EntityKind)}
-              onRowClick={(id) => openDetails(active as EntityKind, id)}
-              onDelete={(id) => handleDelete(active as EntityKind, id)}
-            />
-          </div>
-        )}
+        {(active) => {
+          const allRows = rowsFor(active as EntityKind);
+          const total = allRows.length;
+          const pageRows = pageSize === PAGE_SIZE_ALL ? allRows : allRows.slice((page - 1) * pageSize, page * pageSize);
+          return (
+            <div className="flex flex-col h-full">
+              <div className="flex-1 overflow-auto bg-card">
+                <EntityTable
+                  rows={pageRows}
+                  selectedId={sliderKind === active ? selectedId : null}
+                  extraLabel={extraLabelFor(active as EntityKind)}
+                  minRows={pageSize === PAGE_SIZE_ALL ? pageRows.length : pageSize}
+                  onRowClick={(id) => openDetails(active as EntityKind, id)}
+                  onDelete={(id) => handleDelete(active as EntityKind, id)}
+                />
+              </div>
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                total={total}
+                onPageChange={setPage}
+                onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+              />
+            </div>
+          );
+        }}
       </ModulePage>
 
       {/* Workflow schema/config details */}
