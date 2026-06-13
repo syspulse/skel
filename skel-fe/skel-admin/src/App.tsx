@@ -8,6 +8,7 @@ import { TopBar } from './components/TopBar';
 import { ExplainPage } from './explain/ExplainPage';
 import { DashPage } from './dash/DashPage';
 import { DispatcherPage } from './dispatcher/DispatcherPage';
+import { WorkflowPage, type WorkflowEditTarget } from './workflow/WorkflowPage';
 import { HelpPage } from './pages/HelpPage';
 import { SettingsPage } from './pages/SettingsPage';
 
@@ -16,6 +17,13 @@ function AppContent() {
   const { appName, logoUrl } = useApp();
   const [activePage, setActivePage] = useState<NavPage>('explain');
   const [settingsTabRequest, setSettingsTabRequest] = useState<string | null>(null);
+  const [workflowEditTarget, setWorkflowEditTarget] = useState<WorkflowEditTarget | null>(null);
+  const [workflowRefreshKey, setWorkflowRefreshKey] = useState(0);
+
+  const openWorkflowInstance = (kind: 'schema' | 'config', id: number) => {
+    setWorkflowEditTarget({ kind, id });
+    setActivePage('workflow');
+  };
 
   const openSettingsTab = (tab: string) => {
     setSettingsTabRequest(tab);
@@ -67,6 +75,14 @@ function AppContent() {
       case 'explain':    return <ExplainPage />;
       case 'dash':       return <DashPage />;
       case 'dispatcher': return <DispatcherPage />;
+      case 'workflow':
+        return (
+          <WorkflowPage
+            editTarget={workflowEditTarget}
+            onEditTargetApplied={() => setWorkflowEditTarget(null)}
+            onInstancesChanged={() => setWorkflowRefreshKey((k) => k + 1)}
+          />
+        );
       case 'settings':
         return (
           <SettingsPage
@@ -82,7 +98,12 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-background">
       <TopBar onOpenSettingsTab={openSettingsTab} />
-      <SideNav activePage={activePage} onNavigate={setActivePage} />
+      <SideNav
+        activePage={activePage}
+        onNavigate={setActivePage}
+        onOpenWorkflowInstance={openWorkflowInstance}
+        workflowRefreshKey={workflowRefreshKey}
+      />
       <main className="ml-44 mt-12 min-h-[calc(100vh-3rem)] flex flex-col">
         {renderPage()}
       </main>

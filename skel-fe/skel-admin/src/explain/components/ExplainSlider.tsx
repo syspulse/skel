@@ -52,6 +52,19 @@ function explainToForm(explain: Explain) {
   };
 }
 
+function metaJson(meta: Record<string, unknown>): string {
+  return JSON.stringify(meta, Object.keys(meta).sort());
+}
+
+/** Include meta in update when it changed; empty {} clears existing meta. */
+function metaForUpdate(
+  formMeta: Record<string, unknown>,
+  originalMeta?: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  const original = originalMeta ? { ...originalMeta } : {};
+  return metaJson(formMeta) !== metaJson(original) ? formMeta : undefined;
+}
+
 export function ExplainSlider({
   open,
   addMode,
@@ -134,7 +147,7 @@ export function ExplainSlider({
         name: form.name || undefined,
         desc: form.desc || undefined,
         sid: form.sid || undefined,
-        meta: Object.keys(form.meta).length > 0 ? form.meta : undefined,
+        meta: metaForUpdate(form.meta, explain.meta),
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

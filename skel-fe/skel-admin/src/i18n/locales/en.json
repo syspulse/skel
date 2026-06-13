@@ -1,10 +1,11 @@
 {
   "nav": {
-    "explain":    "Explain",
-    "dash":       "Dash",
+    "explain": "Explain",
+    "dash": "Dash",
     "dispatcher": "Dispatcher",
-    "settings":   "Settings",
-    "help":       "Help"
+    "settings": "Settings",
+    "help": "Help",
+    "workflow": "Workflow"
   },
   "module": {
     "overview": "Overview"
@@ -52,7 +53,9 @@
     "loadJson": "Load JSON",
     "filterPlaceholder": "filter...",
     "noData": "No data found.",
-    "filteredFrom": "(filtered from {{total}})"
+    "filteredFrom": "(filtered from {{total}})",
+    "del": "Del",
+    "view": "View"
   },
   "settings": {
     "title": "Settings",
@@ -194,12 +197,12 @@
     "human": "human"
   },
   "dispatcher": {
-    "total":      "total: {{count}}",
-    "noEvents":   "No events",
-    "wsConnected":    "connected",
+    "total": "total: {{count}}",
+    "noEvents": "No events",
+    "wsConnected": "connected",
     "wsDisconnected": "disconnected",
-    "wsMessages":     "messages",
-    "wsNoUrl":        "ws:// (not configured)",
+    "wsMessages": "messages",
+    "wsNoUrl": "ws:// (not configured)",
     "fields": {
       "src": "src",
       "sys": "sys",
@@ -214,5 +217,59 @@
     "clearAll": "Clear all",
     "empty": "No notifications",
     "dismiss": "Dismiss"
+  },
+  "workflow": {
+    "tabs": {
+      "schema": "Schema",
+      "config": "Config",
+      "detectorSchema": "DetectorSchema",
+      "detectorConfig": "DetectorConfig"
+    },
+    "fields": {
+      "id": "id",
+      "name": "name",
+      "title": "title",
+      "status": "status",
+      "tags": "tags",
+      "version": "version",
+      "author": "author",
+      "networkTags": "networkTags",
+      "desc": "description",
+      "icon": "icon",
+      "sid": "sid",
+      "schema": "schema",
+      "source": "source",
+      "graph": "graph"
+    },
+    "graphNodes": "nodes",
+    "graphLinks": "links",
+    "edit": "Edit",
+    "editGraf": "Edit workflow graph",
+    "chooseSchema": "Choose a schema…",
+    "nameRequired": "name is required",
+    "sidRequired": "a source schema is required",
+    "invalidJson": "Invalid JSON",
+    "confirmDelete": "Delete #{{id}}?",
+    "errorLoad": "Load failed",
+    "errorDelete": "Delete failed",
+    "errorSave": "Save failed",
+    "editor": {
+      "nodeDetails": "Node",
+      "linkDetails": "Link",
+      "title": "title",
+      "icon": "icon",
+      "iconUrl": "icon url or emoji",
+      "bgColor": "background",
+      "borderColor": "border",
+      "edgeColor": "color",
+      "label": "label",
+      "width": "width",
+      "height": "height",
+      "deleteNode": "Delete node",
+      "deleteLink": "Delete link",
+      "clear": "Clear",
+      "search": "search nodes…",
+      "searchDetectors": "search detectors…"
+    }
   }
 }
