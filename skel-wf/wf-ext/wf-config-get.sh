@@ -5,7 +5,7 @@
 #   XID=<xid> ./wf-config-get.sh        # lookup by external id
 #   OID=<oid> ./wf-config-get.sh        # lookup by owner id
 ID=${1:-}
-FROM=${FROM:-}
+FROM=${FROM:-0}
 SIZE=${SIZE:-}
 DETECTOR=${DETECTOR:-}
 XID=${XID:-}

@@ -117,11 +117,13 @@ object WorkflowRegistry {
         Behaviors.same
 
       case CreateSchema(req, replyTo) =>
+        log.info(s"CreateSchema: ${req}")
+
         store.nextSchemaId.flatMap { id =>
           val now = System.currentTimeMillis()
           val s = WorkflowSchema(
-            id = id, createdAt = now, updatedAt = now, status = "ACTIVE",
-            name = req.name, version = req.version.getOrElse("1.0.0"),
+            id = id, createdAt = now, updatedAt = now, status = WorkflowSchema.Status.ACTIVE,
+            name = req.name, version = req.version.getOrElse(WorkflowSchema.Version.DEF_VERSION),
             title = req.title.getOrElse(req.name), description = req.description.getOrElse(""),
             author = req.author.getOrElse(""), icon = req.icon, faq = req.faq,
             tags = req.tags.getOrElse(Seq()),
@@ -137,13 +139,17 @@ object WorkflowRegistry {
         Behaviors.same
 
       case UpdateSchema(id, req, replyTo) =>
+        log.info(s"UpdateSchema: ${req}")
+
         store.getSchema(id).map(s => applyUpdate(s, req)).flatMap(store.addSchema).onComplete(replyTo ! _)
         Behaviors.same
 
       case DeleteSchema(id, replyTo) =>
+        log.info(s"DeleteSchema: ${id}")
+
         store.delSchema(id).onComplete {
-          case Success(_) => replyTo ! WorkflowActionRes("200", Some(id))
-          case Failure(_) => replyTo ! WorkflowActionRes("404", Some(id))
+          case Success(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.OK, Some(id))
+          case Failure(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id))
         }
         Behaviors.same
 
@@ -171,6 +177,8 @@ object WorkflowRegistry {
         Behaviors.same
 
       case CreateConfig(req, replyTo) =>
+        log.info(s"CreateConfig: ${req}")
+
         val r = for {
           schema <- store.getSchema(req.sid)
           id     <- store.nextConfigId
@@ -187,13 +195,17 @@ object WorkflowRegistry {
         Behaviors.same
 
       case UpdateConfig(id, req, replyTo) =>
+        log.info(s"UpdateConfig: ${req}")
+
         store.getConfig(id).map(c => applyUpdate(c, req)).flatMap(store.addConfig).onComplete(replyTo ! _)
         Behaviors.same
 
       case DeleteConfig(id, replyTo) =>
+        log.info(s"DeleteConfig: ${id}")
+
         store.delConfig(id).onComplete {
-          case Success(_) => replyTo ! WorkflowActionRes("200", Some(id))
-          case Failure(_) => replyTo ! WorkflowActionRes("404", Some(id))
+          case Success(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.OK, Some(id))
+          case Failure(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id))
         }
         Behaviors.same
 
@@ -220,8 +232,8 @@ object WorkflowRegistry {
 
       case DeleteGraf(id, replyTo) =>
         store.delGraf(id).onComplete {
-          case Success(_) => replyTo ! WorkflowActionRes("200", Some(id))
-          case Failure(_) => replyTo ! WorkflowActionRes("404", Some(id))
+          case Success(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.OK, Some(id))
+          case Failure(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id))
         }
         Behaviors.same
     }

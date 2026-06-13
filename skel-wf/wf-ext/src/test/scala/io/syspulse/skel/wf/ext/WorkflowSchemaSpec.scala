@@ -26,8 +26,8 @@ class WorkflowSchemaSpec extends AnyWordSpec with Matchers {
       val s = WorkflowSchema.of(0, "WorkflowDemo", graf(0))
       s.id shouldBe 0
       s.name shouldBe "WorkflowDemo"
-      s.status shouldBe "ACTIVE"
-      s.version shouldBe "1.0.0"
+      s.status shouldBe WorkflowSchema.Status.ACTIVE
+      s.version shouldBe WorkflowSchema.Version.DEF_VERSION
       s.graph.isTemplate shouldBe true
     }
 

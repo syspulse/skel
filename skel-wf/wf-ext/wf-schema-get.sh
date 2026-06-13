@@ -3,7 +3,7 @@
 #   ./wf-schema-get.sh [id]
 #   FROM=0 SIZE=10 DETECTOR=full ./wf-schema-get.sh
 ID=${1:-}
-FROM=${FROM:-}
+FROM=${FROM:-0}
 SIZE=${SIZE:-}
 DETECTOR=${DETECTOR:-}
 

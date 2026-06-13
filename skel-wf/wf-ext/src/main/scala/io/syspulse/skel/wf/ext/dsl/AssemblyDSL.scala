@@ -73,8 +73,8 @@ object AssemblyDSL {
   private def newDetectorSchema(id: Int, name: String): DetectorSchema = {
     val now = System.currentTimeMillis()
     DetectorSchema(
-      id = id, createdAt = now, updatedAt = now, status = "ACTIVE",
-      name = detectorSchemaName(name), version = "1.0.0",
+      id = id, createdAt = now, updatedAt = now, status = WorkflowSchema.Status.ACTIVE,
+      name = detectorSchemaName(name), version = WorkflowSchema.Version.DEF_VERSION,
       title = detectorSchemaName(name), description = "", author = "",
       icon = None, faq = None, tags = Seq(), networkTags = Seq(),
       schema = None, uiSchema = None,
@@ -84,12 +84,12 @@ object AssemblyDSL {
   private def newDetectorConfig(id: Int, name: String, ds: DetectorSchema): DetectorConfig = {
     val now = System.currentTimeMillis()
     DetectorConfig(
-      id = id, createdAt = now, updatedAt = now, status = "ACTIVE",
+      id = id, createdAt = now, updatedAt = now, status = WorkflowSchema.Status.ACTIVE,
       contract = DetectorConfigContract(
         id = 0, createdAt = now, updatedAt = now, projectId = 0, tenantId = 0,
         chainUid = None, proxyAddress = None, implementation = None, address = None, name = name),
       schema = Some(DetectorConfigSchema(
-        id = ds.id, createdAt = now, updatedAt = now, status = "ACTIVE",
+        id = ds.id, createdAt = now, updatedAt = now, status = WorkflowSchema.Status.ACTIVE,
         name = ds.name, version = ds.version, schema = None)),
       name = name, source = "", tags = Seq(), config = None, destinations = Seq(),
     )
@@ -114,6 +114,9 @@ object AssemblyDSL {
   private def build(pipeline: String, store: WorkflowStore, createConfig: Boolean,
                     wid: Option[Int], wname: Option[String])
                    (implicit ec: ExecutionContext): Future[AssemblyResult] = {
+
+    log.info(s"build: ${wid}/${wname}: ${pipeline}")
+
     val specs = parse(pipeline)
     require(specs.nonEmpty, s"empty assembly pipeline: '${pipeline}'")
 

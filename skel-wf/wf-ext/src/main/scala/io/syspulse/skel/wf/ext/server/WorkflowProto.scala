@@ -13,6 +13,11 @@ import io.hacken.ext.detector.{DetectorSchema, DetectorConfig}
 
 final case class WorkflowActionRes(status: String, id: Option[Int] = None)
 
+object WorkflowActionRes {  
+  val OK        = "200"
+  val NOT_FOUND = "404"
+}
+
 // ---------------------------------------------------------------- WorkflowSchema
 final case class WorkflowSchemas(
   schemas: Seq[WorkflowSchema],

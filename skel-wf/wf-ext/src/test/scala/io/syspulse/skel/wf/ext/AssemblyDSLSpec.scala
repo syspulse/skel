@@ -10,6 +10,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigContract, DetectorConfigSchema}
 import io.syspulse.skel.wf.ext.store.WorkflowStoreMem
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
+import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig}
 
 class AssemblyDSLSpec extends AnyWordSpec with Matchers {
   val timeout = Duration(5, "seconds")
@@ -125,10 +126,10 @@ class AssemblyDSLSpec extends AnyWordSpec with Matchers {
     "reference an EXISTING DetectorConfig by id" in {
       val store = new WorkflowStoreMem()
       val now = System.currentTimeMillis()
-      val ds = DetectorSchema(7, now, now, "ACTIVE", "Schema_existing", "1.0.0", "t", "", "", None, None, Seq(), Seq(), None, None)
-      val dc = DetectorConfig(5, now, now, "ACTIVE",
+      val ds = DetectorSchema(7, now, now, WorkflowSchema.Status.ACTIVE, "Schema_existing", WorkflowSchema.Version.DEF_VERSION, "t", "", "", None, None, Seq(), Seq(), None, None)
+      val dc = DetectorConfig(5, now, now, WorkflowSchema.Status.ACTIVE,
         DetectorConfigContract(0, now, now, 0, 0, None, None, None, None, "existing"),
-        Some(DetectorConfigSchema(7, now, now, "ACTIVE", "Schema_existing", "1.0.0", None)),
+        Some(DetectorConfigSchema(7, now, now, WorkflowSchema.Status.ACTIVE, "Schema_existing", WorkflowSchema.Version.DEF_VERSION, None)),
         "existing", "", Seq(), None, Seq())
       Await.result(store.addDetectorSchema(ds), timeout)
       Await.result(store.addDetectorConfig(dc), timeout)

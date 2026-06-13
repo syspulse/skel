@@ -58,7 +58,7 @@ object WorkflowConfig {
       sid = schema.id,
       createdAt = now,
       updatedAt = now,
-      status = "ACTIVE",
+      status = WorkflowSchema.Status.ACTIVE,
       name = name.getOrElse(schema.name),
       version = schema.version,
       title = schema.title,

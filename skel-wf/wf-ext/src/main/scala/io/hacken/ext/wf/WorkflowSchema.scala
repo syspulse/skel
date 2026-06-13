@@ -45,12 +45,22 @@ case class WorkflowSchema(
 object WorkflowSchema {
   val DEFAULT_ID = 0  // ids start at 0 and are never negative
 
+  object Status {
+    val ACTIVE   = "ACTIVE"
+    val DISABLED = "DISABLED"
+    val DELETED  = "DELETED"
+  }
+
+  object Version {
+    val DEF_VERSION = "1.0.0"
+  }
+
   /** Convenience builder with sensible defaults (avoid overloading `apply` to keep jsonFormat happy). */
   def of(id: Int, name: String, graph: WorkflowGraf): WorkflowSchema = {
     val now = System.currentTimeMillis()
     WorkflowSchema(
-      id = id, createdAt = now, updatedAt = now, status = "ACTIVE",
-      name = name, version = "1.0.0", title = name, description = "", author = "",
+      id = id, createdAt = now, updatedAt = now, status = Status.ACTIVE,
+      name = name, version = Version.DEF_VERSION, title = name, description = "", author = "",
       icon = None, faq = None, tags = Seq(), graph = graph,
     )
   }

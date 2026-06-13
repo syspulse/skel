@@ -111,7 +111,7 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
     "delete a schema" in {
       Delete("/schema/0") ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
-        responseAs[WorkflowActionRes].status shouldBe "200"
+        responseAs[WorkflowActionRes].status shouldBe WorkflowActionRes.OK
       }
     }
   }
