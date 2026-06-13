@@ -55,7 +55,8 @@ class AiStoreOpenAi(uri:String) extends AiStore {
 
   def ????(question:String,model:Option[String],oid:Option[String]):Future[Ai] = {
     import scala.concurrent.ExecutionContext.Implicits.global
-    ???(question,oid).recoverWith { case _ => Store.toFuture(engine.ask(question,model)) }
+    ???(question,oid)
+      .recoverWith { case _ => Store.toFuture(engine.ask(question,model,cache=None)) }
   }
 
   override def findByOid(oid:String):Seq[Ai] = store.findByOid(oid)

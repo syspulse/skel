@@ -20,6 +20,7 @@ object ClaudeURI {
   val DEFAULT_TEMPERATURE = 0.7
   val DEFAULT_TOP_P = 1.0
   val ENV_KEY_NAME = "CLAUDE_API_KEY"
+  val DEF_CACHE = Some("ephemeral")
 }
 
 case class ClaudeURI(uri:String) extends AiURI {
@@ -35,6 +36,8 @@ case class ClaudeURI(uri:String) extends AiURI {
   
   def getModel():Option[String] = _model
   def getProvider():String = ClaudeURI.ID
+
+  override def getCache():Option[String] = ClaudeURI.DEF_CACHE
 
   def getOptions():Map[String,String] = _ops
 

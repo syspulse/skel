@@ -5,6 +5,11 @@ export CWD=`echo $(dirname $(readlink -f $0))`
 # bloop does not support stdin properly for interactive input
 export APP_EXEC=${APP_EXEC:-sbt}
 
+echo "============================================================================="
+echo "WARNING"
+echo "APP_EXEC=bloop is NOT SUPPORTED"
+echo "============================================================================="
+
 # t=`pwd`;
 t=$CWD
 APP=`basename "$t"`
@@ -22,4 +27,4 @@ MAIN=io.syspulse.skel.ai.App
 >&2 echo "ACCESS_TOKEN: $ACCESS_TOKEN"
 >&2 echo $@
 
-exec ../run-app.sh $APP $MAIN $@
+exec $CWD/../run-app.sh $APP $MAIN $@

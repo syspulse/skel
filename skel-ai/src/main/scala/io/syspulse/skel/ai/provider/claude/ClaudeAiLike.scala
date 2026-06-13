@@ -41,23 +41,30 @@ trait ClaudeAiLike extends AiProvider with ClaudeAiProto {
     system: Option[String],
     stream: Boolean,
     tools: Seq[AiTool],
-    outputType: Option[String]
+    outputType: Option[String],
+    cache: Option[String] = None
   ): String = {
+
     val sysField = system.map(s => "system" -> JsString(s))
     val streamField = if (stream) Some("stream" -> JsBoolean(true)) else None
     val tempField = getUri().temperature.map(t => "temperature" -> JsNumber(t))
     val topPField = getUri().topP.map(t => "top_p" -> JsNumber(t))
-    val maxTok = Some("max_tokens" -> JsNumber(getUri().maxTokens.getOrElse(defaultMaxTokens)))
+    val maxTok = Some("max_tokens" -> JsNumber(getUri().maxTokens.getOrElse(defaultMaxTokens)))    
+    val cacheControl= getCacheControl(cache).map(c => ("cache_control" -> c))
+    
     if (outputType.isDefined) {
-      log.warn("Claude Messages API: outputType is not mapped to a request field in this build; ignoring")
+      log.warn("Claude: outputType is not mapped to a request field in this build; ignoring")
     }
+
     if (tools.nonEmpty) {
-      log.warn("Claude Messages API: tools are not mapped from AiTool in this build; omitting tools")
+      log.warn("Claude: tools are not mapped from AiTool in this build; omitting tools")
     }
+
     val fields = Vector(
       Some("model" -> JsString(model)),
       Some("messages" -> JsArray(messages: _*)),
       maxTok,
+      cacheControl,
       sysField,
       streamField,
       tempField,
@@ -96,13 +103,14 @@ trait ClaudeAiLike extends AiProvider with ClaudeAiProto {
     system: Option[String],
     tools: Seq[AiTool],
     outputType: Option[String],
-    timeout: Long
+    timeout: Long,
+    cache: Option[String] = None
   ): Future[Ai] = {
     val url = s"${getUri().apiUrl}/v1/messages"
-    val body = messagesBody(model, messages, system, stream = false, tools, outputType)
+    val body = messagesBody(model, messages, system, stream = false, tools, outputType, cache)
 
     log.debug(s"body=${body.take(512)}... -> ${url}")
-    log.info(s"model=${model},sys=[${system.map(_.size).getOrElse(0)}]/msgs=[${messages.size}] -> ${url}")
+    log.info(s"model=${model},sys=[${system.map(_.size).getOrElse(0)}]/msgs=[${messages.size}]/cache=${cache} -> ${url}")
 
     httpRequest(url, body, baseHeaders, timeout).flatMap { resp =>
       if (resp.status == StatusCodes.OK) {
@@ -156,7 +164,7 @@ trait ClaudeAiLike extends AiProvider with ClaudeAiProto {
   }
 
   /** Non-streaming `POST /v1/messages` from a linear `ChatMessage` list. */
-  def messages(
+  def callMessages(
     history: Seq[ChatMessage],
     model: Option[String],
     system: Option[String],
@@ -164,23 +172,36 @@ trait ClaudeAiLike extends AiProvider with ClaudeAiProto {
     retry: Int,
     tools: Seq[AiTool],
     images: Seq[String],
-    outputType: Option[String]
-  ): Try[Ai] = {
+    outputType: Option[String],
+    cache: Option[String] = None
+  ): Try[Ai] =
+    FutureUtil.sync(
+      callMessagesAsync(history, model, system, timeout, retry, tools, images, outputType, cache)(
+        scala.concurrent.ExecutionContext.Implicits.global
+      )
+    )(timeout)
+
+  def callMessagesAsync(
+    history: Seq[ChatMessage],
+    model: Option[String],
+    system: Option[String],
+    timeout: Long,
+    retry: Int,
+    tools: Seq[AiTool],
+    images: Seq[String],
+    outputType: Option[String],
+    cache0: Option[String] = None
+  )(implicit ec: ExecutionContext): Future[Ai] = {
     val modelReq = model.orElse(getModel()).getOrElse(ClaudeURI.DEFAULT_MODEL)
     val (msgs, mergedSys) = historyToAnthropic(history, system, images)
     val toolsAll = getUri().getTools() ++ tools
+    val cache = cache0.orElse(getUri().cache)
     if (msgs.isEmpty) {
-      Failure(new IllegalArgumentException("no user/assistant messages to send"))
+      Future.failed(new IllegalArgumentException("no user/assistant messages to send"))
     } else {
-      Retry.withRetry(
-        {
-          Await.result(
-            postMessagesOnce(modelReq, msgs, mergedSys, toolsAll, outputType, timeout),
-            Duration(timeout, TimeUnit.MILLISECONDS)
-          )
-        },
-        s"claude messages [${history.size}]"
-      )(timeout, retry)(log)
+      def once(): Future[Ai] =
+        postMessagesOnce(modelReq, msgs, mergedSys, toolsAll, outputType, timeout, cache)
+      Retry.withRetryFuture(once(), s"claude messages async [${history.size}]")(retry, 3000)(log, ec)
     }
   }
 
@@ -192,9 +213,24 @@ trait ClaudeAiLike extends AiProvider with ClaudeAiProto {
     retry: Int = getRetry(),
     tools: Seq[AiTool] = Seq.empty,
     images: Seq[String] = Seq.empty,
-    outputType: Option[String] = None
+    outputType: Option[String] = None,
+    cache: Option[String] = None
   ): Try[Ai] =
-    messages(Seq(ChatMessage("user", question)), model, system, timeout, retry, tools, images, outputType)
+    callMessages(Seq(ChatMessage("user", question)), model, system, timeout, retry, tools, images, outputType, cache)
+      .map(_.copy(question = question))
+
+  override def askAsync(
+    question: String,
+    model: Option[String],
+    system: Option[String] = None,
+    timeout: Long = getTimeout(),
+    retry: Int = getRetry(),
+    tools: Seq[AiTool] = Seq.empty,
+    images: Seq[String] = Seq.empty,
+    outputType: Option[String] = None,
+    cache: Option[String] = None
+  )(implicit ec: ExecutionContext): Future[Ai] =
+    callMessagesAsync(Seq(ChatMessage("user", question)), model, system, timeout, retry, tools, images, outputType, cache)
       .map(_.copy(question = question))
 
   override def chat(
@@ -205,9 +241,32 @@ trait ClaudeAiLike extends AiProvider with ClaudeAiProto {
     retry: Int = getRetry(),
     tools: Seq[AiTool] = Seq.empty,
     images: Seq[String] = Seq.empty,
-    outputType: Option[String] = None
+    outputType: Option[String] = None,
+    cache: Option[String] = None
   ): Try[Chat] =
-    messages(chat.messages, model, system, timeout, retry, tools, images, outputType).map { ai =>
+    callMessages(chat.messages, model, system, timeout, retry, tools, images, outputType, cache).map { ai =>
+      chat.copy(
+        messages = chat.messages :+ ChatMessage("assistant", ai.answer.getOrElse("")),
+        model = ai.model.orElse(model),
+        ts = System.currentTimeMillis(),
+        ts0 = chat.ts0,
+        tags = chat.tags,
+        meta = chat.meta
+      )
+    }
+
+  override def chatAsync(
+    chat: Chat,
+    model: Option[String],
+    system: Option[String] = None,
+    timeout: Long = getTimeout(),
+    retry: Int = getRetry(),
+    tools: Seq[AiTool] = Seq.empty,
+    images: Seq[String] = Seq.empty,
+    outputType: Option[String] = None,
+    cache: Option[String] = None
+  )(implicit ec: ExecutionContext): Future[Chat] =
+    callMessagesAsync(chat.messages, model, system, timeout, retry, tools, images, outputType, cache).map { ai =>
       chat.copy(
         messages = chat.messages :+ ChatMessage("assistant", ai.answer.getOrElse("")),
         model = ai.model.orElse(model),
@@ -225,9 +284,10 @@ trait ClaudeAiLike extends AiProvider with ClaudeAiProto {
     retry: Int = getRetry(),
     tools: Seq[AiTool] = Seq.empty,
     images: Seq[String] = Seq.empty,
-    outputType: Option[String] = None
+    outputType: Option[String] = None,
+    cache: Option[String] = None
   ): Try[Ai] =
-    messages(Seq(ChatMessage("user", ai.question)), ai.model.orElse(getModel()), system, timeout, retry, tools, images, outputType)
+    callMessages(Seq(ChatMessage("user", ai.question)), ai.model.orElse(getModel()), system, timeout, retry, tools, images, outputType, cache)
       .map(r => ai.copy(answer = r.answer, model = r.model.orElse(ai.model), xid = r.xid.orElse(ai.xid), oid = r.oid))
 
   override def promptAsync(
@@ -237,13 +297,15 @@ trait ClaudeAiLike extends AiProvider with ClaudeAiProto {
     retry: Int = getRetry(),
     tools0: Seq[AiTool] = Seq.empty,
     images: Seq[String] = Seq.empty,
-    outputType: Option[String] = None
+    outputType: Option[String] = None,
+    cache0: Option[String] = None
   )(implicit ec: ExecutionContext): Future[Ai] = {
     val modelReq = ai.model.orElse(getModel()).getOrElse(ClaudeURI.DEFAULT_MODEL)
     val (msgs, mergedSys) = historyToAnthropic(Seq(ChatMessage("user", ai.question)), system, images)
     val toolsAll = getUri().getTools() ++ tools0
+    val cache = cache0.orElse(getUri().cache)
     def once(): Future[Ai] =
-      postMessagesOnce(modelReq, msgs, mergedSys, toolsAll, outputType, timeout).map { r =>
+      postMessagesOnce(modelReq, msgs, mergedSys, toolsAll, outputType, timeout, cache).map { r =>
         ai.copy(answer = r.answer, model = r.model.orElse(ai.model), xid = r.xid.orElse(ai.xid), oid = r.oid)
       }
     Retry.withRetryFuture(once(), s"claude messages async: '${ai.question.take(32)}...'")(retry, 3000)(log, ec)
@@ -256,9 +318,10 @@ trait ClaudeAiLike extends AiProvider with ClaudeAiProto {
     retry: Int = getRetry(),
     tools: Seq[AiTool] = Seq.empty,
     images: Seq[String] = Seq.empty,
-    outputType: Option[String] = None
+    outputType: Option[String] = None,
+    cache: Option[String] = None
   ): Try[Ai] =
-    prompt(ai, system, timeout, retry, tools, images, outputType)
+    prompt(ai, system, timeout, retry, tools, images, outputType, cache)
 
   override def messagesAsync(
     ai: Ai,
@@ -267,9 +330,10 @@ trait ClaudeAiLike extends AiProvider with ClaudeAiProto {
     retry: Int = getRetry(),
     tools0: Seq[AiTool] = Seq.empty,
     images: Seq[String] = Seq.empty,
-    outputType: Option[String] = None
+    outputType: Option[String] = None,
+    cache: Option[String] = None
   )(implicit ec: ExecutionContext): Future[Ai] =
-    promptAsync(ai, system, timeout, retry, tools0, images, outputType)
+    promptAsync(ai, system, timeout, retry, tools0, images, outputType, cache)
 
   private def extractDeltaText(js: JsObject): Option[String] = {
     js.fields.get("type") match {
@@ -296,13 +360,19 @@ trait ClaudeAiLike extends AiProvider with ClaudeAiProto {
     retry: Int,
     tools0: Seq[AiTool],
     images: Seq[String],
-    outputType: Option[String]
+    outputType: Option[String],
+    cache0: Option[String] = None
   )(implicit ec: ExecutionContext): Future[Ai] = {
     val modelReq = aiForResult.model.orElse(getModel()).getOrElse(ClaudeURI.DEFAULT_MODEL)
     val (msgs, mergedSys) = historyToAnthropic(history, system, images)
     val toolsAll = getUri().getTools() ++ tools0
-    val body = messagesBody(modelReq, msgs, mergedSys, stream = true, toolsAll, outputType)
+    val cache = cache0.orElse(getUri().cache)
+    val body = messagesBody(modelReq, msgs, mergedSys, stream = true, toolsAll, outputType, cache)
     val url = s"${getUri().apiUrl}/v1/messages"
+
+    log.debug(s"body=${body} -> ${url}")
+    log.info(s"model=${modelReq},sys=[${mergedSys.size}]/q=[${body.size}]/cache=${cache} -> ${url}")
+
     val req = HttpRequest(
       method = HttpMethods.POST,
       uri = url,
@@ -397,9 +467,10 @@ trait ClaudeAiLike extends AiProvider with ClaudeAiProto {
     retry: Int = getRetry(),
     tools: Seq[AiTool] = Seq.empty,
     images: Seq[String] = Seq.empty,
-    outputType: Option[String] = None
+    outputType: Option[String] = None,
+    cache: Option[String] = None
   ): Try[Ai] = {
-    val f = streamMessagesFuture(Seq(ChatMessage("user", ai.question)), ai, onEvent, system, timeout, retry, tools, images, outputType)(
+    val f = streamMessagesFuture(Seq(ChatMessage("user", ai.question)), ai, onEvent, system, timeout, retry, tools, images, outputType,cache)(
       scala.concurrent.ExecutionContext.Implicits.global
     )
     FutureUtil.sync(f)(timeout)
@@ -413,9 +484,10 @@ trait ClaudeAiLike extends AiProvider with ClaudeAiProto {
     retry: Int = getRetry(),
     tools0: Seq[AiTool] = Seq.empty,
     images: Seq[String] = Seq.empty,
-    outputType: Option[String] = None
+    outputType: Option[String] = None,
+    cache: Option[String] = None
   )(implicit ec: ExecutionContext): Future[Ai] =
-    streamMessagesFuture(Seq(ChatMessage("user", ai.question)), ai, onEvent, system, timeout, retry, tools0, images, outputType)
+    streamMessagesFuture(Seq(ChatMessage("user", ai.question)), ai, onEvent, system, timeout, retry, tools0, images, outputType, cache)
 
   override def messagesStream(
     ai: Ai,
@@ -425,9 +497,10 @@ trait ClaudeAiLike extends AiProvider with ClaudeAiProto {
     retry: Int = getRetry(),
     tools: Seq[AiTool] = Seq.empty,
     images: Seq[String] = Seq.empty,
-    outputType: Option[String] = None
+    outputType: Option[String] = None,
+    cache: Option[String] = None
   ): Try[Ai] =
-    promptStream(ai, onEvent, system, timeout, retry, tools, images, outputType)
+    promptStream(ai, onEvent, system, timeout, retry, tools, images, outputType, cache)
 
   override def messagesStreamAsync(
     ai: Ai,
@@ -437,9 +510,10 @@ trait ClaudeAiLike extends AiProvider with ClaudeAiProto {
     retry: Int = getRetry(),
     tools0: Seq[AiTool] = Seq.empty,
     images: Seq[String] = Seq.empty,
-    outputType: Option[String] = None
+    outputType: Option[String] = None,
+    cache: Option[String] = None
   )(implicit ec: ExecutionContext): Future[Ai] =
-    promptStreamAsync(ai, onEvent, system, timeout, retry, tools0, images, outputType)
+    promptStreamAsync(ai, onEvent, system, timeout, retry, tools0, images, outputType, cache)
 
   override def askStream(
     ai: Ai,
@@ -451,12 +525,13 @@ trait ClaudeAiLike extends AiProvider with ClaudeAiProto {
     timeout: Long = getTimeout(),
     retry: Int = getRetry(),
     tools: Seq[AiTool] = Seq.empty,
-    outputType: Option[String] = None
+    outputType: Option[String] = None,
+    cache: Option[String] = None
   )(implicit ec: ExecutionContext, sys: ActorSystem): Source[ServerSentEvent, Any] = {
     val modelReq = ai.model.orElse(getModel()).getOrElse(ClaudeURI.DEFAULT_MODEL)
     val (msgs, mergedSys) = historyToAnthropic(Seq(ChatMessage("user", ai.question)), instructions.orElse(getUri().system), Seq.empty)
     val toolsAll = getUri().getTools() ++ tools
-    val body = messagesBody(modelReq, msgs, mergedSys, stream = true, toolsAll, outputType)
+    val body = messagesBody(modelReq, msgs, mergedSys, stream = true, toolsAll, outputType, cache.orElse(getUri().cache))
     val url = s"${getUri().apiUrl}/v1/messages"
     val httpReq = HttpRequest(
       method = HttpMethods.POST,

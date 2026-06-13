@@ -55,5 +55,16 @@ trait ClaudeAiProto  {
     }
     JsArray((text +: blocks).toVector)
   }
+
+  //   "cache_control": {
+//     "type": "ephemeral",
+//     "ttl": "1h"
+//   }
+  protected def getCacheControl(cache: Option[String]): Option[JsObject] = 
+    cache.flatMap(c => c.split(":") match {
+      case Array(t, ttl) => Some(JsObject("type" -> JsString(t), "ttl" -> JsString(ttl)))
+      case Array(t) => Some(JsObject("type" -> JsString(t)))
+      case _ => None
+    })
   
 }

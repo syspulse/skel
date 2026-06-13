@@ -315,17 +315,42 @@ trait OpenAiLike extends AiProvider {
           timeout:Long = getTimeout(),retry:Int = getRetry(),
           tools:Seq[AiTool] = Seq.empty,
           images:Seq[String] = Seq.empty,
-          outputType:Option[String] = None
+          outputType:Option[String] = None,
+          cache:Option[String] = None
       ):Try[Ai] = {
-    askWithImages(question, model, system, timeout, retry, tools, images, outputType)
+    askWithImages(question, model, system, timeout, retry, tools, images, outputType, cache)
+  }
+
+  override def askAsync(question:String,model:Option[String],system:Option[String] = None,
+          timeout:Long = getTimeout(),retry:Int = getRetry(),
+          tools:Seq[AiTool] = Seq.empty,
+          images:Seq[String] = Seq.empty,
+          outputType:Option[String] = None,
+          cache:Option[String] = None
+      )(implicit ec: ExecutionContext):Future[Ai] = {
+    askAsyncWithImages(question, model, system, timeout, retry, tools, images, outputType, cache)
   }
   
   def askWithImages(question:String,model:Option[String],system:Option[String],
           timeout:Long,retry:Int,
           tools0:Seq[AiTool],
           images0:Seq[String],
-          outputType:Option[String]
+          outputType:Option[String],
+          cache:Option[String] = None
       ):Try[Ai] = {
+    val f = askAsyncWithImages(question, model, system, timeout, retry, tools0, images0, outputType, cache)(
+      scala.concurrent.ExecutionContext.Implicits.global
+    )
+    FutureUtil.sync(f)(timeout)
+  }
+
+  def askAsyncWithImages(question:String,model:Option[String],system:Option[String],
+          timeout:Long,retry:Int,
+          tools0:Seq[AiTool],
+          images0:Seq[String],
+          outputType:Option[String],
+          cache:Option[String] = None
+      )(implicit ec: ExecutionContext):Future[Ai] = {
 
     val url = s"${getUri().apiUrl}/v1/chat/completions"
     val modelReq = model.getOrElse(OpenAiURI.DEFAULT_MODEL)
@@ -359,53 +384,63 @@ trait OpenAiLike extends AiProvider {
   
     log.debug(s"body=${body} -> ${url}")
     log.info(s"model=${modelReq},sys=[${systemPrompt.size}]/q=[${question.size}]: '${question.take(32).replaceAll("\n","\\\\n")}...' -> ${url}")  
-    
-    Retry.withRetry(
-      {
-        val response = Await.result(
-          httpRequest(
-          url = url,
-            body = body,
-          headers = Seq(
-            "Authorization" -> s"Bearer ${getUri().apiKey}"
-          ),
-            timeout = timeout
-          ).flatMap { resp =>
-            if (resp.status == StatusCodes.OK) {
-              readResponseBody(resp)
-            } else {
-              readResponseBody(resp).flatMap { errorBody =>
-                Future.failed(new Exception(s"HTTP ${resp.status}: ${errorBody}"))
-              }
-            }
-          },
-          Duration(timeout, TimeUnit.MILLISECONDS)
-        )
-        
-        log.debug(s"res: ${body}: ${response}")
 
-        val chatRes = response.parseJson.convertTo[OpenAi_ChatRes]
-        val answer = getResponseAnswer(chatRes)
-              
-        Ai(
-          question = question,
-          answer = answer,
-          oid = Some(Providers.OPEN_AI),
-          model = Some(getUri().getModel(chatRes.model))
-        )
-      }, 
-      s"ask: '${question.take(32)}...'"
-    )(timeout, retry)(log)
+    def attemptRequest(): Future[Ai] = {
+      httpRequest(
+        url = url,
+        body = body,
+        headers = Seq(
+          "Authorization" -> s"Bearer ${getUri().apiKey}"
+        ),
+        timeout = timeout
+      ).flatMap { resp =>
+        if (resp.status == StatusCodes.OK) {
+          readResponseBody(resp).map { response =>
+            log.debug(s"res: ${body}: ${response}")
+            val chatRes = response.parseJson.convertTo[OpenAi_ChatRes]
+            val answer = getResponseAnswer(chatRes)
+            Ai(
+              question = question,
+              answer = answer,
+              oid = Some(Providers.OPEN_AI),
+              model = Some(getUri().getModel(chatRes.model))
+            )
+          }
+        } else {
+          readResponseBody(resp).flatMap { errorBody =>
+            Future.failed(new Exception(s"HTTP ${resp.status}: ${errorBody}"))
+          }
+        }
+      }
+    }
+
+    Retry.withRetryFuture(attemptRequest(), s"ask: '${question.take(32)}...'")(retry, 3000)(log, ec)
   }
 
   override def chat(chat0:Chat,model:Option[String],system:Option[String] = None,
            timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty,
-           outputType:Option[String] = None):Try[Chat] = {
-    chatWithImages(chat0, model, system, timeout, retry, tools, images, outputType)
+           outputType:Option[String] = None,
+           cache:Option[String] = None):Try[Chat] = {
+    chatWithImages(chat0, model, system, timeout, retry, tools, images, outputType, cache)
+  }
+
+  override def chatAsync(chat0:Chat,model:Option[String],system:Option[String] = None,
+           timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty,
+           outputType:Option[String] = None,
+           cache:Option[String] = None)(implicit ec: ExecutionContext):Future[Chat] = {
+    chatAsyncWithImages(chat0, model, system, timeout, retry, tools, images, outputType, cache)
   }
   
   def chatWithImages(chat:Chat,model:Option[String],system:Option[String],timeout:Long,retry:Int,tools:Seq[AiTool],
-           images:Seq[String],outputType:Option[String]):Try[Chat] = {
+           images:Seq[String],outputType:Option[String],cache:Option[String] = None):Try[Chat] = {
+    val f = chatAsyncWithImages(chat, model, system, timeout, retry, tools, images, outputType, cache)(
+      scala.concurrent.ExecutionContext.Implicits.global
+    )
+    FutureUtil.sync(f)(timeout)
+  }
+
+  def chatAsyncWithImages(chat:Chat,model:Option[String],system:Option[String],timeout:Long,retry:Int,tools:Seq[AiTool],
+           images:Seq[String],outputType:Option[String],cache:Option[String] = None)(implicit ec: ExecutionContext):Future[Chat] = {
 
     val url = s"${getUri().apiUrl}/v1/chat/completions"
     val modelReq = model.getOrElse(OpenAiURI.DEFAULT_MODEL)
@@ -446,46 +481,41 @@ trait OpenAiLike extends AiProvider {
     val chatSize = messages.map(_.content.flatMap(_.text).map(_.size).sum).sum
     log.info(s"model=${modelReq},sys=[${systemPrompt.map(_.size).getOrElse(-1)}]/q=[${messages.size}] -> ${url}")
 
-    Retry.withRetry(
-      {
-        val response = Await.result(
-          httpRequest(
-          url = url,
-            body = body,
-          headers = Seq(
-            "Authorization" -> s"Bearer ${getUri().apiKey}"
-          ),
-            timeout = timeout
-          ).flatMap { resp =>
-            if (resp.status == StatusCodes.OK) {
-              readResponseBody(resp)
-            } else {
-              readResponseBody(resp).flatMap { errorBody =>
-                Future.failed(new Exception(s"HTTP ${resp.status}: ${errorBody}"))
-              }
-            }
-          },
-          Duration(timeout, TimeUnit.MILLISECONDS)
-        )
-        log.debug(s"${body}: ${response}")
+    def attemptRequest(): Future[Chat] = {
+      httpRequest(
+        url = url,
+        body = body,
+        headers = Seq(
+          "Authorization" -> s"Bearer ${getUri().apiKey}"
+        ),
+        timeout = timeout
+      ).flatMap { resp =>
+        if (resp.status == StatusCodes.OK) {
+          readResponseBody(resp).map { response =>
+            log.debug(s"${body}: ${response}")
+            val chatRes = response.parseJson.convertTo[OpenAi_ChatRes]
+            Chat(
+              messages = chat.messages ++ chatRes.choices.map(c => {
+                val content = c.message.content.flatMap(_.text).mkString("\n")
+                ChatMessage(role = c.message.role, content = content)
+              }),
+              oid = chat.oid,
+              model = Some(getUri().getModel(chatRes.model)),
+              ts = System.currentTimeMillis(),
+              ts0 = chat.ts0,
+              tags = chat.tags,
+              meta = chat.meta
+            )
+          }
+        } else {
+          readResponseBody(resp).flatMap { errorBody =>
+            Future.failed(new Exception(s"HTTP ${resp.status}: ${errorBody}"))
+          }
+        }
+      }
+    }
 
-        val chatRes = response.parseJson.convertTo[OpenAi_ChatRes]        
-              
-        Chat(
-          messages = chat.messages ++ chatRes.choices.map(c => {
-            val content = c.message.content.flatMap(_.text).mkString("\n")
-            ChatMessage(role = c.message.role, content = content)
-          }),
-          oid = chat.oid,
-          model = Some(getUri().getModel(chatRes.model)),
-          ts = System.currentTimeMillis(),
-          ts0 = chat.ts0,
-          tags = chat.tags,
-          meta = chat.meta
-        )
-      }, 
-      s"chat: [${chat.messages.size} msgs, ${chatSize} chars]"
-    )(timeout, retry)(log)
+    Retry.withRetryFuture(attemptRequest(), s"chat: [${chat.messages.size} msgs, ${chatSize} chars]")(retry, 3000)(log, ec)
   }
 
   import io.syspulse.skel.FutureAwaitable
@@ -493,24 +523,24 @@ trait OpenAiLike extends AiProvider {
   
   override def prompt(ai:Ai,system:Option[String] = None,
             timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty,
-            outputType:Option[String] = None):Try[Ai] = {
-    promptWithImages(ai, system, timeout, retry, tools, images, outputType)
+            outputType:Option[String] = None,cache:Option[String] = None):Try[Ai] = {
+    promptWithImages(ai, system, timeout, retry, tools, images, outputType, cache)
   }
   
   def promptWithImages(ai:Ai,system:Option[String],timeout:Long,retry:Int,tools:Seq[AiTool],
-            images:Seq[String],outputType:Option[String]):Try[Ai] = {    
-    val f = promptAsyncWithImages(ai,system,timeout,retry,tools,images,outputType)(scala.concurrent.ExecutionContext.Implicits.global)
+            images:Seq[String],outputType:Option[String],cache:Option[String] = None):Try[Ai] = {    
+    val f = promptAsyncWithImages(ai,system,timeout,retry,tools,images,outputType,cache)(scala.concurrent.ExecutionContext.Implicits.global)
     FutureUtil.sync(f)(timeout)
   }
   
   override def promptAsync(ai:Ai,system:Option[String] = None,
             timeout:Long = getTimeout(),retry:Int = getRetry(),tools0:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty,
-            outputType:Option[String] = None)(implicit ec: ExecutionContext):Future[Ai] = {
-    promptAsyncWithImages(ai, system, timeout, retry, tools0, images, outputType)
+            outputType:Option[String] = None,cache:Option[String] = None)(implicit ec: ExecutionContext):Future[Ai] = {
+    promptAsyncWithImages(ai, system, timeout, retry, tools0, images, outputType, cache)
   }
   
   def promptAsyncWithImages(ai:Ai,system:Option[String],timeout:Long,retry:Int,tools0:Seq[AiTool],
-            images:Seq[String],outputType:Option[String])(implicit ec: ExecutionContext):Future[Ai] = {
+            images:Seq[String],outputType:Option[String],cache:Option[String] = None)(implicit ec: ExecutionContext):Future[Ai] = {
 
     val url = s"${getUri().apiUrl}/v1/responses"
     val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
@@ -575,13 +605,13 @@ trait OpenAiLike extends AiProvider {
   
 
   override def promptStream(ai: Ai, onEvent: (String) => Unit, system: Option[String] = None,timeout: Long = getTimeout(), retry: Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty,
-                   outputType:Option[String] = None): Try[Ai] = {
-    promptStreamWithImages(ai, onEvent, system, timeout, retry, tools, images, outputType)
+                   outputType:Option[String] = None,cache:Option[String] = None): Try[Ai] = {
+    promptStreamWithImages(ai, onEvent, system, timeout, retry, tools, images, outputType, cache)
   }
   
   def promptStreamWithImages(ai: Ai, onEvent: (String) => Unit, instructions: Option[String],timeout: Long, retry: Int,tools:Seq[AiTool],
-                   images:Seq[String],outputType:Option[String]): Try[Ai] = {                    
-    val f = promptStreamAsyncWithImages(ai,onEvent,instructions,timeout,retry,tools,images,outputType)(scala.concurrent.ExecutionContext.Implicits.global)
+                   images:Seq[String],outputType:Option[String],cache:Option[String] = None): Try[Ai] = {                    
+    val f = promptStreamAsyncWithImages(ai,onEvent,instructions,timeout,retry,tools,images,outputType,cache)(scala.concurrent.ExecutionContext.Implicits.global)
     FutureUtil.sync(f)(timeout)
   }
 
@@ -598,12 +628,12 @@ trait OpenAiLike extends AiProvider {
   }
 
   override def promptStreamAsync(ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools0:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty,
-                        outputType:Option[String] = None)(implicit ec: ExecutionContext):Future[Ai] = {
-    promptStreamAsyncWithImages(ai, onEvent, system, timeout, retry, tools0, images, outputType)
+                        outputType:Option[String] = None,cache:Option[String] = None)(implicit ec: ExecutionContext):Future[Ai] = {
+    promptStreamAsyncWithImages(ai, onEvent, system, timeout, retry, tools0, images, outputType, cache)
   }
   
   def promptStreamAsyncWithImages(ai:Ai,onEvent: (String) => Unit,instructions:Option[String],timeout:Long,retry:Int,tools0:Seq[AiTool],
-                        images:Seq[String],outputType:Option[String])(implicit ec: ExecutionContext):Future[Ai] = {
+                        images:Seq[String],outputType:Option[String],cache:Option[String] = None)(implicit ec: ExecutionContext):Future[Ai] = {
     
     val url = s"${getUri().apiUrl}/v1/responses"
     val modelReq = ai.model.getOrElse(OpenAiURI.DEFAULT_MODEL)
@@ -709,8 +739,10 @@ trait OpenAiLike extends AiProvider {
     timeout:Long = getTimeout(),
     retry:Int = getRetry(),
     tools:Seq[AiTool] = Seq.empty,
-    outputType:Option[String] = None)(implicit ec: ExecutionContext,sys: ActorSystem): Source[ServerSentEvent, Any] = {
-    askStreamWithOutputType(ai, instructions, onEvent, onData, onError, onDone, timeout, retry, tools, outputType)
+    outputType:Option[String] = None,
+    cache:Option[String] = None)
+    (implicit ec: ExecutionContext,sys: ActorSystem): Source[ServerSentEvent, Any] = {
+    askStreamWithOutputType(ai, instructions, onEvent, onData, onError, onDone, timeout, retry, tools, outputType, cache)
   }
   
   def askStreamWithOutputType(ai:Ai,
@@ -722,7 +754,9 @@ trait OpenAiLike extends AiProvider {
     timeout:Long,
     retry:Int,
     tools:Seq[AiTool],
-    outputType:Option[String])(implicit ec: ExecutionContext,sys: ActorSystem): Source[ServerSentEvent, Any] = {
+    outputType:Option[String],
+    cache:Option[String] = None)
+    (implicit ec: ExecutionContext,sys: ActorSystem): Source[ServerSentEvent, Any] = {
     
     val url = s"${getUri().apiUrl}/v1/responses"
     // val url = s"http://localhost:8081/"

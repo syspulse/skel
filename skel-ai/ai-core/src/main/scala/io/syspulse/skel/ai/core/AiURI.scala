@@ -12,6 +12,7 @@ trait AiURI {
   def getModel():Option[String]
   def getModel(model:String):String = model
   def getProvider():String
+  def getCache():Option[String] = None
 
   // enrich request from URI param
   def getTools():Seq[AiTool] = Seq.empty
@@ -33,6 +34,7 @@ trait AiURI {
   def ext:Option[String] = getModel().flatMap(_.split(":").drop(1).headOption)
   def output:Option[String] = getOptions().get("output")
   def version:Option[String] = None
+  def cache:Option[String] = getOptions().get("cache").orElse(getCache())
 
   def DEFAULT_MODEL:String
   protected def getPrefix():String

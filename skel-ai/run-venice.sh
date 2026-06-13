@@ -22,4 +22,4 @@ MAIN=io.syspulse.skel.ai.provider.venice.App
 >&2 echo "ACCESS_TOKEN: $ACCESS_TOKEN"
 >&2 echo $@
 
-exec ../run-app.sh $APP $MAIN $@
+exec $CWD/../run-app.sh $APP $MAIN $@
