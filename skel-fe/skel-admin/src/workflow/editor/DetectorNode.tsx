@@ -11,13 +11,23 @@ const HANDLE_STYLE: React.CSSProperties = {
   border: '1px solid #475569',
 };
 
+const tagStyle: React.CSSProperties = {
+  fontSize: 9,
+  lineHeight: '12px',
+  padding: '0 4px',
+  borderRadius: 3,
+  background: '#f1f5f9',
+  color: '#64748b',
+  whiteSpace: 'nowrap',
+};
+
 // Two target handles (top, left) and two source handles (bottom, right) give a visible
 // input + output connection on all four sides. Edges connect source -> target.
 export function DetectorNode({ data, selected }: NodeProps) {
   const d = data as RFNodeData;
   return (
     <div
-      className="w-full h-full rounded shadow-sm flex flex-col items-center justify-center text-center px-2"
+      className="w-full h-full rounded shadow-sm relative overflow-hidden"
       style={{
         background: d.color || 'white',
         border: selected ? '2px solid #3b82f6' : (d.border || '1px solid #94a3b8'),
@@ -37,15 +47,34 @@ export function DetectorNode({ data, selected }: NodeProps) {
       <Handle id="t" type="target" position={Position.Top} style={HANDLE_STYLE} />
       <Handle id="l" type="target" position={Position.Left} style={HANDLE_STYLE} />
 
-      <div className="flex items-center gap-1.5 max-w-full">
-        {d.icon ? <span className="shrink-0">{renderIcon(d.icon, 16)}</span> : null}
-        <span className="text-xs font-medium text-slate-800 truncate">{d.title}</span>
+      {/* sid / cid tags: small, top-right corner, 2px margin */}
+      <div style={{ position: 'absolute', top: 2, right: 2, display: 'flex', gap: 2 }}>
+        <span style={tagStyle}>sid {d.sid}</span>
+        {d.cid !== undefined && d.cid !== null && <span style={tagStyle}>cid {d.cid}</span>}
       </div>
-      {d.cid !== undefined && d.cid !== null ? (
-        <span className="text-[9px] text-slate-500 mt-0.5">config #{d.cid}</span>
-      ) : (
-        <span className="text-[9px] text-slate-400 mt-0.5">schema #{d.sid}</span>
-      )}
+
+      {/* icon (top-left, configurable margin/size) + title beside it */}
+      <div
+        style={{
+          position: 'absolute',
+          top: d.iconY,
+          left: d.iconX,
+          right: 4,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          color: d.fontColor,
+        }}
+      >
+        {d.icon ? (
+          <span className="shrink-0 inline-flex items-center justify-center" style={{ width: d.iconSize, height: d.iconSize }}>
+            {renderIcon(d.icon, d.iconSize)}
+          </span>
+        ) : null}
+        <span className="truncate font-medium" style={{ fontSize: d.fontSize, color: d.fontColor }}>
+          {d.title}
+        </span>
+      </div>
 
       {/* outputs */}
       <Handle id="r" type="source" position={Position.Right} style={HANDLE_STYLE} />

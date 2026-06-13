@@ -270,7 +270,11 @@
       "deleteLink": "Delete link",
       "clear": "Clear",
       "search": "search nodes…",
-      "searchDetectors": "search detectors…"
+      "searchDetectors": "search detectors…",
+      "iconSize": "icon size",
+      "iconPos": "icon x / y",
+      "fontSize": "font size",
+      "fontColor": "font color"
     }
   }
 }

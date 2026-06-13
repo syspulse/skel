@@ -14,6 +14,11 @@ export interface RFNodeData extends Record<string, unknown> {
   border: string;       // border style (meta.border)
   width: number;
   height: number;
+  iconSize: number;     // meta.icon_size
+  iconX: number;        // meta.icon_x (left margin)
+  iconY: number;        // meta.icon_y (top margin)
+  fontSize: number;     // meta.font_size (title)
+  fontColor: string;    // meta.font_color (title)
   meta: Meta;           // full original meta (preserved on save)
 }
 
@@ -28,6 +33,11 @@ const DEF_H = 64;
 const DEF_NODE_COLOR = 'white';
 const DEF_NODE_BORDER = '1px solid #94a3b8';
 const DEF_EDGE_COLOR = '#64748b';
+const DEF_ICON_SIZE = 18;
+const DEF_ICON_X = 10;
+const DEF_ICON_Y = 10;
+const DEF_FONT_SIZE = 13;
+const DEF_FONT_COLOR = '#1e293b';
 
 function num(meta: Meta | undefined, key: string, def: number): number {
   const v = meta?.[key];
@@ -61,6 +71,11 @@ export function nodeToRF(n: WorkflowNode): Node<RFNodeData> {
       border: str(meta, 'border', DEF_NODE_BORDER),
       width,
       height,
+      iconSize: num(meta, 'icon_size', DEF_ICON_SIZE),
+      iconX: num(meta, 'icon_x', DEF_ICON_X),
+      iconY: num(meta, 'icon_y', DEF_ICON_Y),
+      fontSize: num(meta, 'font_size', DEF_FONT_SIZE),
+      fontColor: str(meta, 'font_color', DEF_FONT_COLOR),
       meta,
     },
   };
@@ -137,6 +152,11 @@ export function rfToGraf(
       size_height: Math.round(h),
       color: d.color,
       border: d.border,
+      icon_size: d.iconSize,
+      icon_x: d.iconX,
+      icon_y: d.iconY,
+      font_size: d.fontSize,
+      font_color: d.fontColor,
     };
     wfNodes[String(id)] = {
       id,

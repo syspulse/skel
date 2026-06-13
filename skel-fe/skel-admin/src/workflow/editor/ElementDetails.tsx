@@ -86,6 +86,32 @@ export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onDelet
               <label className="text-xs text-muted-foreground">{t('workflow.editor.icon')}</label>
               <IconPicker value={node.data.icon} onChange={(icon) => onUpdateNode(node.id, { icon })} />
             </div>
+            <Row label={t('workflow.editor.iconSize')}>
+              <input type="number" min={8} max={128} className={inputCls}
+                value={Math.round(node.data.iconSize)}
+                onChange={(e) => onUpdateNode(node.id, { iconSize: Number(e.target.value) })} />
+            </Row>
+            <Row label={t('workflow.editor.iconPos')}>
+              <div className="flex items-center gap-2">
+                <input type="number" className={inputCls} title="x"
+                  value={Math.round(node.data.iconX)} onChange={(e) => onUpdateNode(node.id, { iconX: Number(e.target.value) })} />
+                <input type="number" className={inputCls} title="y"
+                  value={Math.round(node.data.iconY)} onChange={(e) => onUpdateNode(node.id, { iconY: Number(e.target.value) })} />
+              </div>
+            </Row>
+            <Row label={t('workflow.editor.fontSize')}>
+              <input type="number" min={6} max={48} className={inputCls}
+                value={Math.round(node.data.fontSize)}
+                onChange={(e) => onUpdateNode(node.id, { fontSize: Number(e.target.value) })} />
+            </Row>
+            <Row label={t('workflow.editor.fontColor')}>
+              <div className="flex items-center gap-2">
+                <input type="color" value={toHex(node.data.fontColor, '#1e293b')}
+                  onChange={(e) => onUpdateNode(node.id, { fontColor: e.target.value })}
+                  className="h-7 w-10 shrink-0 rounded border border-input bg-card cursor-pointer" />
+                <input className={inputCls} value={node.data.fontColor} onChange={(e) => onUpdateNode(node.id, { fontColor: e.target.value })} />
+              </div>
+            </Row>
             <Row label={t('workflow.editor.bgColor')}>
               <div className="flex items-center gap-2">
                 <input type="color" value={toHex(node.data.color, '#ffffff')}
