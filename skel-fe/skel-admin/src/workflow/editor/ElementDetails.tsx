@@ -99,6 +99,15 @@ export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onDelet
                   value={Math.round(node.data.iconY)} onChange={(e) => onUpdateNode(node.id, { iconY: Number(e.target.value) })} />
               </div>
             </Row>
+            <Row label={t('workflow.editor.iconBorder')}>
+              <div className="flex items-center gap-2">
+                <input type="color" value={toHex(borderColor(node.data.iconBorder), '#94a3b8')}
+                  onChange={(e) => onUpdateNode(node.id, { iconBorder: `1px solid ${e.target.value}` })}
+                  className="h-7 w-10 shrink-0 rounded border border-input bg-card cursor-pointer" />
+                <input className={inputCls} value={node.data.iconBorder} placeholder={t('workflow.editor.none')}
+                  onChange={(e) => onUpdateNode(node.id, { iconBorder: e.target.value })} />
+              </div>
+            </Row>
             <Row label={t('workflow.editor.fontSize')}>
               <input type="number" min={6} max={48} className={inputCls}
                 value={Math.round(node.data.fontSize)}
@@ -147,8 +156,30 @@ export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onDelet
             <IdRow label={t('workflow.fields.id')} value={edgeId} />
             <IdRow label="from" value={edge.source} />
             <IdRow label="to" value={edge.target} />
-            <Row label={t('workflow.editor.label')}>
+            <Row label={t('workflow.fields.name')}>
               <input className={inputCls} value={edge.data?.label ?? ''} onChange={(e) => onUpdateEdge(edge.id, { label: e.target.value })} />
+            </Row>
+            <Row label={t('workflow.editor.lineStyle')}>
+              <select className={inputCls} value={edge.data?.lineStyle ?? 'solid'} onChange={(e) => onUpdateEdge(edge.id, { lineStyle: e.target.value })}>
+                <option value="solid">{t('workflow.editor.lineSolid')}</option>
+                <option value="dashed">{t('workflow.editor.lineDashed')}</option>
+                <option value="dotted">{t('workflow.editor.lineDotted')}</option>
+              </select>
+            </Row>
+            <Row label={t('workflow.editor.boldness')}>
+              <select className={inputCls} value={String(edge.data?.strokeWidth ?? 1.5)} onChange={(e) => onUpdateEdge(edge.id, { strokeWidth: Number(e.target.value) })}>
+                <option value="1">{t('workflow.editor.thin')}</option>
+                <option value="1.5">{t('workflow.editor.normal')}</option>
+                <option value="2.5">{t('workflow.editor.bold')}</option>
+                <option value="4">{t('workflow.editor.heavy')}</option>
+              </select>
+            </Row>
+            <Row label={t('workflow.editor.arrow')}>
+              <select className={inputCls} value={edge.data?.arrow ?? 'arrowclosed'} onChange={(e) => onUpdateEdge(edge.id, { arrow: e.target.value })}>
+                <option value="arrowclosed">{t('workflow.editor.arrowSolid')}</option>
+                <option value="arrow">{t('workflow.editor.arrowOpen')}</option>
+                <option value="none">{t('workflow.editor.none')}</option>
+              </select>
             </Row>
             <Row label={t('workflow.editor.edgeColor')}>
               <div className="flex items-center gap-2">

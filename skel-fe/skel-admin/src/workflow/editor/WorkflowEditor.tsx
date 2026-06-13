@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, MiniMap, addEdge,
-  useNodesState, useEdgesState, MarkerType,
+  useNodesState, useEdgesState, useReactFlow,
   type Node, type Edge, type Connection,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -12,7 +12,7 @@ import { DetectorNode } from './DetectorNode';
 import { ElementDetails } from './ElementDetails';
 import { renderIcon } from './IconPicker';
 import {
-  grafToRF, rfToGraf, nodeToRF, nextNodeId, nextEdgeId,
+  grafToRF, rfToGraf, nodeToRF, nextNodeId, nextEdgeId, edgeStyle, edgeMarkerEnd, readViewport,
   type RFNodeData, type RFEdgeData,
 } from './grafMapping';
 import {
@@ -52,17 +52,20 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
 
   const nodeTypes = useMemo(() => ({ detector: DetectorNode }), []);
   const addCounter = useRef(0);
+  const { getViewport } = useReactFlow();
+  const storedViewport = useMemo(() => readViewport(graf.meta), [graf]);
 
   const onConnect = useCallback((c: Connection) => {
     setEdges((es) => {
       const id = nextEdgeId(es);
       const sourceHandle = c.sourceHandle ?? 'r';
       const targetHandle = c.targetHandle ?? 'l';
+      const data: RFEdgeData = { label: '', color: EDGE_COLOR, lineStyle: 'solid', strokeWidth: 1.5, arrow: 'arrowclosed', meta: { sourceHandle, targetHandle } };
       const edge: Edge<RFEdgeData> = {
         id: `e${id}`, source: c.source, target: c.target, sourceHandle, targetHandle,
-        markerEnd: { type: MarkerType.ArrowClosed, color: EDGE_COLOR },
-        style: { stroke: EDGE_COLOR },
-        data: { label: '', color: EDGE_COLOR, meta: { sourceHandle, targetHandle } },
+        markerEnd: edgeMarkerEnd(data.arrow, data.color),
+        style: edgeStyle(data),
+        data,
       };
       return addEdge(edge, es);
     });
@@ -100,8 +103,8 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
       return {
         ...e, data,
         label: data.label || undefined,
-        style: { ...e.style, stroke: data.color },
-        markerEnd: { type: MarkerType.ArrowClosed, color: data.color },
+        style: edgeStyle(data),
+        markerEnd: edgeMarkerEnd(data.arrow, data.color),
       };
     }));
   }, [setEdges]);
@@ -122,8 +125,11 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
   }, [setNodes, setEdges]);
 
   const handleSave = useCallback(() => {
-    onSave(rfToGraf(graf, nodes, edges));
-  }, [onSave, graf, nodes, edges]);
+    const g = rfToGraf(graf, nodes, edges);
+    const vp = getViewport(); // persist current pan + zoom in the graf meta
+    g.meta = { ...(g.meta ?? {}), view_x: Math.round(vp.x), view_y: Math.round(vp.y), view_zoom: Number(vp.zoom.toFixed(3)) };
+    onSave(g);
+  }, [onSave, graf, nodes, edges, getViewport]);
 
   // search highlight: dim non-matching nodes
   const displayNodes = useMemo(() => {
@@ -205,7 +211,10 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           onEdgeClick={(_, e) => { setSelectedEdgeId(e.id); setSelectedNodeId(null); }}
           onEdgeDoubleClick={(_, e) => deleteEdge(e.id)}
           onPaneClick={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}
-          fitView
+          defaultViewport={storedViewport ?? undefined}
+          fitView={!storedViewport}
+          fitViewOptions={{ maxZoom: 1.6, padding: 0.2 }}
+          minZoom={0.2}
           proOptions={{ hideAttribution: true }}
         >
           <Background gap={12} size={1} />

@@ -274,7 +274,21 @@
       "iconSize": "icon size",
       "iconPos": "icon x / y",
       "fontSize": "font size",
-      "fontColor": "font color"
+      "fontColor": "font color",
+      "iconBorder": "icon border",
+      "none": "none",
+      "lineStyle": "line style",
+      "lineSolid": "solid",
+      "lineDashed": "dashed",
+      "lineDotted": "dotted",
+      "boldness": "boldness",
+      "thin": "thin",
+      "normal": "normal",
+      "bold": "bold",
+      "heavy": "heavy",
+      "arrow": "arrow",
+      "arrowSolid": "solid",
+      "arrowOpen": "open"
     }
   }
 }

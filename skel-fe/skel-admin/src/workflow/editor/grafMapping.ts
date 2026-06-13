@@ -1,4 +1,5 @@
-import type { Node, Edge } from '@xyflow/react';
+import type { CSSProperties } from 'react';
+import type { Node, Edge, EdgeMarker } from '@xyflow/react';
 import { MarkerType } from '@xyflow/react';
 import type { WorkflowGraf, WorkflowNode, WorkflowLink, Meta } from '../types';
 
@@ -17,6 +18,7 @@ export interface RFNodeData extends Record<string, unknown> {
   iconSize: number;     // meta.icon_size
   iconX: number;        // meta.icon_x (left margin)
   iconY: number;        // meta.icon_y (top margin)
+  iconBorder: string;   // meta.icon_border ('' = none)
   fontSize: number;     // meta.font_size (title)
   fontColor: string;    // meta.font_color (title)
   meta: Meta;           // full original meta (preserved on save)
@@ -25,6 +27,9 @@ export interface RFNodeData extends Record<string, unknown> {
 export interface RFEdgeData extends Record<string, unknown> {
   label: string;
   color: string;        // stroke color (meta.color)
+  lineStyle: string;    // 'solid' | 'dashed' | 'dotted' (meta.line_style)
+  strokeWidth: number;  // boldness (meta.stroke_width)
+  arrow: string;        // 'arrowclosed' | 'arrow' | 'none' (meta.arrow)
   meta: Meta;
 }
 
@@ -33,11 +38,29 @@ const DEF_H = 64;
 const DEF_NODE_COLOR = 'white';
 const DEF_NODE_BORDER = '1px solid #94a3b8';
 const DEF_EDGE_COLOR = '#64748b';
-const DEF_ICON_SIZE = 18;
+const DEF_ICON_SIZE = 16;
 const DEF_ICON_X = 10;
 const DEF_ICON_Y = 10;
-const DEF_FONT_SIZE = 13;
+const DEF_FONT_SIZE = 11;
 const DEF_FONT_COLOR = '#1e293b';
+const DEF_EDGE_WIDTH = 1.5;
+const DEF_LINE_STYLE = 'solid';
+const DEF_ARROW = 'arrowclosed';
+
+// ---- shared edge visual helpers (used on load, on connect, and on edit) ----
+export function edgeDash(lineStyle: string): string | undefined {
+  if (lineStyle === 'dashed') return '6 4';
+  if (lineStyle === 'dotted') return '2 3';
+  return undefined;
+}
+export function edgeMarkerEnd(arrow: string, color: string): EdgeMarker | undefined {
+  if (arrow === 'none') return undefined;
+  if (arrow === 'arrow') return { type: MarkerType.Arrow, color };
+  return { type: MarkerType.ArrowClosed, color };
+}
+export function edgeStyle(d: { color: string; strokeWidth: number; lineStyle: string }): CSSProperties {
+  return { stroke: d.color, strokeWidth: d.strokeWidth, strokeDasharray: edgeDash(d.lineStyle) };
+}
 
 function num(meta: Meta | undefined, key: string, def: number): number {
   const v = meta?.[key];
@@ -74,6 +97,7 @@ export function nodeToRF(n: WorkflowNode): Node<RFNodeData> {
       iconSize: num(meta, 'icon_size', DEF_ICON_SIZE),
       iconX: num(meta, 'icon_x', DEF_ICON_X),
       iconY: num(meta, 'icon_y', DEF_ICON_Y),
+      iconBorder: str(meta, 'icon_border', ''),
       fontSize: num(meta, 'font_size', DEF_FONT_SIZE),
       fontColor: str(meta, 'font_color', DEF_FONT_COLOR),
       meta,
@@ -85,6 +109,9 @@ export function linkToRF(l: WorkflowLink): Edge<RFEdgeData> {
   const meta = l.meta ?? {};
   const color = str(meta, 'color', DEF_EDGE_COLOR);
   const label = str(meta, 'label', l.typ ?? '');
+  const lineStyle = str(meta, 'line_style', DEF_LINE_STYLE);
+  const strokeWidth = num(meta, 'stroke_width', DEF_EDGE_WIDTH);
+  const arrow = str(meta, 'arrow', DEF_ARROW);
   // default: source from the node's RIGHT connector -> destination LEFT connector
   const sourceHandle = str(meta, 'sourceHandle', 'r');
   const targetHandle = str(meta, 'targetHandle', 'l');
@@ -95,10 +122,20 @@ export function linkToRF(l: WorkflowLink): Edge<RFEdgeData> {
     sourceHandle,
     targetHandle,
     label: label || undefined,
-    markerEnd: { type: MarkerType.ArrowClosed, color },
-    style: { stroke: color },
-    data: { label, color, meta },
+    markerEnd: edgeMarkerEnd(arrow, color),
+    style: edgeStyle({ color, strokeWidth, lineStyle }),
+    data: { label, color, lineStyle, strokeWidth, arrow, meta },
   };
+}
+
+/** Read the persisted react-flow viewport (pan + zoom) from the graf meta, if any. */
+export function readViewport(meta?: Meta): { x: number; y: number; zoom: number } | null {
+  if (!meta) return null;
+  const z = meta['view_zoom'];
+  if (typeof z !== 'number') return null;
+  const x = typeof meta['view_x'] === 'number' ? (meta['view_x'] as number) : 0;
+  const y = typeof meta['view_y'] === 'number' ? (meta['view_y'] as number) : 0;
+  return { x, y, zoom: z };
 }
 
 export function grafToRF(graf: WorkflowGraf): { nodes: Node<RFNodeData>[]; edges: Edge<RFEdgeData>[] } {
@@ -155,6 +192,7 @@ export function rfToGraf(
       icon_size: d.iconSize,
       icon_x: d.iconX,
       icon_y: d.iconY,
+      icon_border: d.iconBorder,
       font_size: d.fontSize,
       font_color: d.fontColor,
     };
@@ -179,6 +217,9 @@ export function rfToGraf(
       ...(d?.meta ?? {}),
       color: d?.color ?? DEF_EDGE_COLOR,
       label: d?.label ?? '',
+      line_style: d?.lineStyle ?? DEF_LINE_STYLE,
+      stroke_width: d?.strokeWidth ?? DEF_EDGE_WIDTH,
+      arrow: d?.arrow ?? DEF_ARROW,
       sourceHandle: re.sourceHandle ?? 'r',
       targetHandle: re.targetHandle ?? 'l',
     };
