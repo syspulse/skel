@@ -32,6 +32,10 @@ export const QUICK_ICONS: string[] = [
   svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
 ];
 
+// Default node icons (flat theme) when a detector has no icon of its own.
+export const DEFAULT_SCHEMA_ICON = svg('<path d="M12 3 3 7l9 4 9-4z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/>'); // layers (template)
+export const DEFAULT_CONFIG_ICON = svg('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>'); // gear (config)
+
 interface IconPickerProps {
   value?: string;
   onChange: (icon: string | undefined) => void;

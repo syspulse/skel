@@ -10,7 +10,7 @@ import '@xyflow/react/dist/style.css';
 import type { WorkflowGraf, DetectorSchema, DetectorConfig, EntityKind } from '../types';
 import { DetectorNode } from './DetectorNode';
 import { ElementDetails } from './ElementDetails';
-import { renderIcon } from './IconPicker';
+import { renderIcon, DEFAULT_SCHEMA_ICON, DEFAULT_CONFIG_ICON } from './IconPicker';
 import {
   grafToRF, rfToGraf, nodeToRF, nextNodeId, nextEdgeId, edgeStyle, edgeMarkerEnd, readViewport,
   type RFNodeData, type RFEdgeData,
@@ -171,6 +171,7 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           </button>
           {paletteOpen && (
             <DetectorPalette
+              kind={kind}
               detectorSchemas={detectorSchemas}
               detectorConfigs={detectorConfigs}
               onPick={addDetectorNode}
@@ -239,13 +240,16 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
 }
 
 interface PaletteProps {
+  kind: 'schema' | 'config';
   detectorSchemas: DetectorSchema[];
   detectorConfigs: DetectorConfig[];
   onPick: (opts: { title: string; icon?: string; sid: number; cid?: number; tags?: string[]; desc?: string }) => void;
   onClose: () => void;
 }
 
-function DetectorPalette({ detectorSchemas, detectorConfigs, onPick, onClose }: PaletteProps) {
+// A WorkflowSchema graph is built from DetectorSchema nodes; a WorkflowConfig graph from
+// DetectorConfig nodes. Only the matching detector kind is offered in the palette.
+function DetectorPalette({ kind, detectorSchemas, detectorConfigs, onPick, onClose }: PaletteProps) {
   const { t } = useTranslation();
   const [q, setQ] = useState('');
   const ql = q.trim().toLowerCase();
@@ -258,30 +262,30 @@ function DetectorPalette({ detectorSchemas, detectorConfigs, onPick, onClose }: 
       <div className="absolute top-9 left-0 z-30 w-72 max-h-96 overflow-y-auto bg-card border border-border rounded shadow-xl p-2 space-y-2">
         <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('workflow.editor.searchDetectors')}
           className="w-full text-xs border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400" />
-        <div>
-          <div className="text-[10px] uppercase text-muted-foreground px-1 py-0.5">{t('workflow.tabs.detectorConfig')}</div>
-          {configs.length === 0 && <div className="text-xs text-muted-foreground px-1 py-1">{t('common.noData')}</div>}
-          {configs.map((d) => (
-            <button key={`c${d.id}`} onClick={() => onPick({ title: d.name, sid: d.schema?.id ?? -1, cid: d.id, tags: d.tags })}
-              className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted flex items-center gap-2">
-              <span className="text-emerald-600">●</span>
-              <span className="truncate">{d.name}</span>
-              <span className="ml-auto text-[10px] text-muted-foreground">#{d.id}</span>
-            </button>
-          ))}
-        </div>
-        <div>
-          <div className="text-[10px] uppercase text-muted-foreground px-1 py-0.5">{t('workflow.tabs.detectorSchema')}</div>
-          {schemas.length === 0 && <div className="text-xs text-muted-foreground px-1 py-1">{t('common.noData')}</div>}
-          {schemas.map((d) => (
-            <button key={`s${d.id}`} onClick={() => onPick({ title: d.title || d.name, icon: d.icon, sid: d.id, tags: d.tags })}
-              className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted flex items-center gap-2">
-              <span className="text-blue-600">●</span>
-              <span className="truncate">{d.title || d.name}</span>
-              <span className="ml-auto text-[10px] text-muted-foreground">#{d.id}</span>
-            </button>
-          ))}
-        </div>
+
+        {kind === 'config' ? (
+          <div>
+            {configs.length === 0 && <div className="text-xs text-muted-foreground px-1 py-1">{t('common.noData')}</div>}
+            {configs.map((d) => (
+              <button key={`c${d.id}`} onClick={() => onPick({ title: d.name, sid: d.schema?.id ?? -1, cid: d.id, tags: d.tags })}
+                className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted flex items-center gap-2 text-foreground">
+                <span className="shrink-0 inline-flex items-center justify-center w-[14px] h-[14px]">{renderIcon(DEFAULT_CONFIG_ICON, 14)}</span>
+                <span className="truncate">{d.name} ({d.id})</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div>
+            {schemas.length === 0 && <div className="text-xs text-muted-foreground px-1 py-1">{t('common.noData')}</div>}
+            {schemas.map((d) => (
+              <button key={`s${d.id}`} onClick={() => onPick({ title: d.title || d.name, icon: d.icon, sid: d.id, tags: d.tags })}
+                className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted flex items-center gap-2 text-foreground">
+                <span className="shrink-0 inline-flex items-center justify-center w-[14px] h-[14px]">{renderIcon(d.icon && d.icon.trim() ? d.icon : DEFAULT_SCHEMA_ICON, 14)}</span>
+                <span className="truncate">{d.name} ({d.id})</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );
