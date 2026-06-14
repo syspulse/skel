@@ -4,34 +4,24 @@ import type { Explain } from '../types';
 import { IconLamp } from '../../../components/Icons';
 import { getTimezoneShortLabel } from '../../../components/timezone';
 import { TimestampCell } from '../../../components/TimestampCell';
-import { TABLE_ICON_CELL, TABLE_ICON_SIZE, TABLE_TD, TABLE_TH } from '../../../constants/table';
+import { TABLE_ICON_CELL, TABLE_TD, TABLE_TH } from '../../../constants/table';
 
 function ExplainIcon({ meta }: { meta?: Record<string, unknown> | null }) {
   const icon = meta?.icon;
   if (typeof icon === 'string' && icon.trim()) {
     const s = icon.trim();
     if (s.toLowerCase().startsWith('<svg')) {
-      return (
-        <span
-          className="inline-flex items-center justify-center shrink-0 [&>svg]:w-full [&>svg]:h-full"
-          style={{ width: TABLE_ICON_SIZE, height: TABLE_ICON_SIZE }}
-          dangerouslySetInnerHTML={{ __html: s }}
-        />
-      );
+      return <span className="table-icon" dangerouslySetInnerHTML={{ __html: s }} />;
     }
     if (s.startsWith('http') || s.startsWith('/') || s.startsWith('data:')) {
-      return (
-        <img
-          src={s}
-          alt="icon"
-          width={TABLE_ICON_SIZE}
-          height={TABLE_ICON_SIZE}
-          className="object-contain shrink-0"
-        />
-      );
+      return <img src={s} alt="icon" className="table-icon object-contain" />;
     }
   }
-  return <IconLamp size={TABLE_ICON_SIZE} className="text-amber-500 shrink-0" />;
+  return (
+    <span className="table-icon text-amber-500">
+      <IconLamp className="w-full h-full" />
+    </span>
+  );
 }
 
 function rowKey(explain: Explain): string {

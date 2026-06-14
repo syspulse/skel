@@ -85,6 +85,15 @@
   .icon-cell-off { @apply border-border hover:bg-muted; }
   .icon-svg { @apply inline-flex items-center justify-center [&>svg]:w-full [&>svg]:h-full; }
   .icon-preview { @apply inline-flex items-center justify-center w-7 h-7 border border-border rounded bg-muted; }
+
+  /* Icon shown in module table rows. Size is controlled by --table-icon-size
+     (see :root below) — change it there to resize icons in ALL tables. */
+  .table-icon {
+    @apply inline-flex items-center justify-center shrink-0 leading-none align-middle [&>svg]:w-full [&>svg]:h-full;
+    width: var(--table-icon-size);
+    height: var(--table-icon-size);
+    font-size: var(--table-icon-size);
+  }
   /* Left-hand label in a "label : control" details row. Pair with a width utility. */
   .row-label {
     @apply shrink-0 text-xs text-muted-foreground;
@@ -207,6 +216,12 @@
   .menu-item {
     @apply w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left text-foreground hover:bg-muted transition-colors;
   }
+}
+
+/* ── Component sizing tokens ──────────────────────────────────
+   Single place to tune table icon size across every module table. */
+:root {
+  --table-icon-size: 16px;
 }
 
 /* ── Global ───────────────────────────────────────────────── */

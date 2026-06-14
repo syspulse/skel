@@ -83,6 +83,19 @@ export function renderIcon(icon: string | undefined, size = 18): React.ReactNode
   return <span style={{ fontSize: size }} className="leading-none">{s}</span>;
 }
 
+/** Render an icon that fills its parent box (sized by the parent, e.g. `.table-icon`). */
+export function renderIconFill(icon: string | undefined): React.ReactNode {
+  if (!icon || !icon.trim()) return null;
+  const s = icon.trim();
+  if (s.toLowerCase().startsWith('<svg')) {
+    return <span className="icon-svg w-full h-full" dangerouslySetInnerHTML={{ __html: s }} />;
+  }
+  if (s.startsWith('http') || s.startsWith('/') || s.startsWith('data:')) {
+    return <img src={s} alt="icon" className="w-full h-full object-contain" />;
+  }
+  return <span className="leading-none" style={{ fontSize: '1em' }}>{s}</span>;
+}
+
 export function IconPicker({ value, onChange, num, w = 8, h, placeholder }: IconPickerProps) {
   const { t } = useTranslation();
   const icons = num != null ? QUICK_ICONS.slice(0, num) : QUICK_ICONS;

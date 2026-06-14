@@ -1,10 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { TABLE_ICON_CELL, TABLE_ICON_SIZE, TABLE_TD, TABLE_TH } from '../../../constants/table';
+import { TABLE_ICON_CELL, TABLE_TD, TABLE_TH } from '../../../constants/table';
 import { IconTrash } from '../../../components/Icons';
 import { TimestampCell } from '../../../components/TimestampCell';
 import { getTimezoneShortLabel } from '../../../components/timezone';
-import { renderIcon } from '../../../components/IconPicker';
+import { renderIconFill } from '../../../components/IconPicker';
 
 export interface TableColumn {
   key: string;
@@ -81,8 +81,8 @@ export function EntityTable({ rows, columns, selectedId, defaultIcon, timezone, 
           return (
             <tr key={r.id} className={rowClass} onClick={() => onRowClick(r.id)}>
               <td className={TABLE_ICON_CELL}>
-                <span className="inline-flex items-center justify-center text-foreground">
-                  {renderIcon(r.icon && r.icon.trim() ? r.icon : defaultIcon, TABLE_ICON_SIZE)}
+                <span className="table-icon text-foreground">
+                  {renderIconFill(r.icon && r.icon.trim() ? r.icon : defaultIcon)}
                 </span>
               </td>
               <td className={`${TABLE_TD} text-muted-foreground`}>{r.id}</td>
