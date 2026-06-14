@@ -3,7 +3,7 @@ import type {
   WorkflowSchema, WorkflowSchemas, WorkflowSchemaView, WorkflowSchemaCreateReq, WorkflowSchemaUpdateReq,
   WorkflowConfig, WorkflowConfigs, WorkflowConfigView, WorkflowConfigCreateReq, WorkflowConfigUpdateReq,
   WorkflowGraf, WorkflowGrafs, WorkflowGrafCreateReq,
-  DetectorSchema, DetectorSchemas, DetectorSchemaCreateReq,
+  DetectorSchema, DetectorSchemas, DetectorSchemaCreateReq, DetectorSchemaUpdateReq,
   DetectorConfig, DetectorConfigs, DetectorConfigCreateReq, DetectorConfigUpdateReq,
   WorkflowActionRes,
 } from './types';
@@ -87,6 +87,8 @@ export const getDetectorSchema = (token: string | null, id: number) =>
   GET<DetectorSchema>(token, `/detector/schema/${id}`);
 export const createDetectorSchema = (token: string | null, req: DetectorSchemaCreateReq) =>
   POST<DetectorSchema>(token, '/detector/schema', req);
+export const updateDetectorSchema = (token: string | null, id: number, req: DetectorSchemaUpdateReq) =>
+  PUT<DetectorSchema>(token, `/detector/schema/${id}`, req);
 export const deleteDetectorSchema = (token: string | null, id: number) =>
   DEL<WorkflowActionRes>(token, `/detector/schema/${id}`);
 

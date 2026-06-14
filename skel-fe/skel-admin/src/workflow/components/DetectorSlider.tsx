@@ -23,7 +23,8 @@ interface DetectorSliderProps {
   onClose: () => void;
   onCreateSchema: (req: { name: string; title?: string; description?: string; version?: string; author?: string; icon?: string; tags?: string[] }) => Promise<void>;
   onCreateConfig: (req: { name: string; sid?: number; source?: string; tags?: string[]; config?: Record<string, unknown> }) => Promise<void>;
-  onUpdateConfig: (patch: { name?: string; status?: string; source?: string; tags?: string[]; config?: Record<string, unknown> }) => Promise<void>;
+  onUpdateSchema: (patch: { name?: string; title?: string; description?: string; version?: string; author?: string; status?: string; icon?: string; tags?: string[] }) => Promise<void>;
+  onUpdateConfig: (patch: { name?: string; source?: string; tags?: string[]; config?: Record<string, unknown> }) => Promise<void>;
   onDelete: () => Promise<void>;
 }
 
@@ -37,7 +38,7 @@ function field(label: string, node: React.ReactNode) {
 }
 
 export function DetectorSlider(props: DetectorSliderProps) {
-  const { open, addMode, kind, schema, config, schemas, saving, timezone, readOnly, onClose, onCreateSchema, onCreateConfig, onUpdateConfig, onDelete } = props;
+  const { open, addMode, kind, schema, config, schemas, saving, timezone, readOnly, onClose, onCreateSchema, onCreateConfig, onUpdateSchema, onUpdateConfig, onDelete } = props;
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
 
@@ -93,9 +94,15 @@ export function DetectorSlider(props: DetectorSliderProps) {
   const handleUpdate = async () => {
     setError(null);
     try {
-      let cfg: Record<string, unknown> | undefined;
-      try { cfg = parseConfig(); } catch { setError(t('workflow.invalidJson')); return; }
-      await onUpdateConfig({ name, status, source, tags: tagsArr(tags), config: cfg });
+      if (kind === 'detector-schema') {
+        // status IS editable for DetectorSchema
+        await onUpdateSchema({ name, title, description, version, author, status, icon, tags: tagsArr(tags) });
+      } else {
+        // DetectorConfig: status is NOT editable -> not sent
+        let cfg: Record<string, unknown> | undefined;
+        try { cfg = parseConfig(); } catch { setError(t('workflow.invalidJson')); return; }
+        await onUpdateConfig({ name, source, tags: tagsArr(tags), config: cfg });
+      }
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
 
@@ -105,7 +112,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
   };
 
   const isSchema = kind === 'detector-schema';
-  const viewOnly = !!readOnly || (isSchema && !addMode); // DetectorSchema is view-only per requirements
+  const viewOnly = !!readOnly; // both DetectorSchema and DetectorConfig are editable
   const kindLabel = t(isSchema ? 'workflow.tabs.detectorSchema' : 'workflow.tabs.detectorConfig');
 
   return (
@@ -164,10 +171,11 @@ export function DetectorSlider(props: DetectorSliderProps) {
             </>
           )}
 
+          {/* status is editable ONLY for DetectorSchema; read-only for DetectorConfig */}
           {field(t('workflow.fields.status'),
-            (viewOnly || isSchema)
-              ? <div className={roCls}>{status}</div>
-              : <select className={inputCls} value={status} onChange={(e) => setStatus(e.target.value)}>{STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}</select>)}
+            (isSchema && !viewOnly)
+              ? <select className={inputCls} value={status} onChange={(e) => setStatus(e.target.value)}>{STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}</select>
+              : <div className={roCls}>{status}</div>)}
 
           {field(t('workflow.fields.tags'),
             <TagsInput value={tagsArr(tags)} onChange={(arr) => setTags(arr.join(', '))} readOnly={viewOnly} placeholder={t('workflow.tagsAdd')} />)}

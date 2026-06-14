@@ -248,21 +248,30 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           onOpenDetectorSchema={(id) => setDetView({ kind: 'detector-schema', id })}
           onOpenDetectorConfig={(id) => setDetView({ kind: 'detector-config', id })}
         />
+        {/* same editable Detail component as the table view, opened from the node's sid/cid [->] */}
         <DetectorSlider
           open={detView !== null}
           addMode={false}
-          readOnly
           kind={detView?.kind ?? 'detector-schema'}
           schema={detView?.kind === 'detector-schema' ? detSchemas.find((d) => d.id === detView.id) ?? null : null}
           config={detView?.kind === 'detector-config' ? detConfigs.find((d) => d.id === detView.id) ?? null : null}
           schemas={detSchemas}
-          saving={false}
+          saving={saving}
           timezone={timezone}
           onClose={() => setDetView(null)}
           onCreateSchema={async () => {}}
           onCreateConfig={async () => {}}
-          onUpdateConfig={async () => {}}
-          onDelete={async () => {}}
+          onUpdateSchema={async (patch) => { if (!detView) return; setSaving(true); try { await api.updateDetectorSchema(token, detView.id, patch); await fetchAll(); setDetView(null); } finally { setSaving(false); } }}
+          onUpdateConfig={async (patch) => { if (!detView) return; setSaving(true); try { await api.updateDetectorConfig(token, detView.id, patch); await fetchAll(); setDetView(null); } finally { setSaving(false); } }}
+          onDelete={async () => {
+            if (!detView) return;
+            setSaving(true);
+            try {
+              if (detView.kind === 'detector-schema') await api.deleteDetectorSchema(token, detView.id);
+              else await api.deleteDetectorConfig(token, detView.id);
+              await fetchAll(); setDetView(null);
+            } finally { setSaving(false); }
+          }}
         />
         {/* Edit the WorkflowSchema/Config metadata from the editor Panel 1 [->] */}
         <WorkflowSlider
@@ -420,6 +429,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
         onClose={closeSlider}
         onCreateSchema={async (req) => { setSaving(true); try { await api.createDetectorSchema(token, req); await fetchAll(); closeSlider(); } finally { setSaving(false); } }}
         onCreateConfig={async (req) => { setSaving(true); try { await api.createDetectorConfig(token, req); await fetchAll(); closeSlider(); } finally { setSaving(false); } }}
+        onUpdateSchema={async (patch) => { if (selectedId === null) return; setSaving(true); try { await api.updateDetectorSchema(token, selectedId, patch); await fetchAll(); closeSlider(); } finally { setSaving(false); } }}
         onUpdateConfig={async (patch) => { if (selectedId === null) return; setSaving(true); try { await api.updateDetectorConfig(token, selectedId, patch); await fetchAll(); closeSlider(); } finally { setSaving(false); } }}
         onDelete={async () => {
           if (selectedId === null) return;
