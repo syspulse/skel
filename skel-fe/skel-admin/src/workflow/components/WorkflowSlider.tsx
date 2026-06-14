@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WorkflowSchema, WorkflowConfig } from '../types';
+import { entityLabelKey } from '../types';
 import { IconClose, IconSave, IconTrash, IconEdit } from '../../components/Icons';
 import { IconPicker } from '../editor/IconPicker';
 import { FormattedTimestamp } from '../../components/FormattedTimestamp';
@@ -105,7 +106,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
         ${open ? 'translate-x-0 shadow-2xl pointer-events-auto' : 'translate-x-full shadow-none'}`}>
         <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted">
           <h2 className="text-sm text-foreground">
-            {addMode ? t('common.add') : t('common.edit')} {t(`workflow.tabs.${kind}`)}
+            {addMode ? t('common.add') : t('common.edit')} {t(entityLabelKey(kind))}
           </h2>
           <div className="flex items-center gap-2">
             {!addMode && (

@@ -157,5 +157,15 @@ export interface DetectorConfigUpdateReq {
   name?: string; status?: string; source?: string; tags?: string[]; config?: Record<string, unknown>;
 }
 
-// Which entity kind a table/menu refers to.
+// Which entity kind a table/menu/details refers to.
 export type EntityKind = 'schema' | 'config' | 'detector-schema' | 'detector-config';
+
+/** Single source of truth: EntityKind -> i18n label key (the entity name shown in tabs/titles). */
+export function entityLabelKey(kind: EntityKind): string {
+  switch (kind) {
+    case 'schema': return 'workflow.tabs.workflowSchema';
+    case 'config': return 'workflow.tabs.workflowConfig';
+    case 'detector-schema': return 'workflow.tabs.detectorSchema';
+    case 'detector-config': return 'workflow.tabs.detectorConfig';
+  }
+}

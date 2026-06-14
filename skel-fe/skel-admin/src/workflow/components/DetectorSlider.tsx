@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DetectorSchema, DetectorConfig } from '../types';
+import { entityLabelKey } from '../types';
 import { IconClose, IconSave, IconTrash } from '../../components/Icons';
 import { IconPicker } from '../editor/IconPicker';
 import { FormattedTimestamp } from '../../components/FormattedTimestamp';
@@ -113,7 +114,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
 
   const isSchema = kind === 'detector-schema';
   const viewOnly = !!readOnly; // both DetectorSchema and DetectorConfig are editable
-  const kindLabel = t(isSchema ? 'workflow.tabs.detectorSchema' : 'workflow.tabs.detectorConfig');
+  const kindLabel = t(entityLabelKey(kind));
 
   return (
     <>

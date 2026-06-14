@@ -9,6 +9,7 @@ import * as api from './api';
 import type {
   WorkflowSchema, WorkflowConfig, DetectorSchema, DetectorConfig, WorkflowGraf, EntityKind,
 } from './types';
+import { entityLabelKey } from './types';
 import { EntityTable, type TableRow, type TableColumn } from './components/EntityTable';
 import { WorkflowFilters, type WorkflowFilterState } from './components/WorkflowFilters';
 import type { TimeRange } from '../types';
@@ -29,12 +30,7 @@ interface WorkflowPageProps {
   onInstancesChanged?: () => void;
 }
 
-const TABS: { id: EntityKind; key: string }[] = [
-  { id: 'schema', key: 'workflow.tabs.workflowSchema' },
-  { id: 'config', key: 'workflow.tabs.workflowConfig' },
-  { id: 'detector-schema', key: 'workflow.tabs.detectorSchema' },
-  { id: 'detector-config', key: 'workflow.tabs.detectorConfig' },
-];
+const TAB_IDS: EntityKind[] = ['schema', 'config', 'detector-schema', 'detector-config'];
 
 interface EditorState {
   kind: 'schema' | 'config';
@@ -328,7 +324,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
     <>
       <ModulePage
         title={t('nav.workflow')}
-        tabs={TABS.map((tab) => ({ id: tab.id, label: t(tab.key) }))}
+        tabs={TAB_IDS.map((id) => ({ id, label: t(entityLabelKey(id)) }))}
         padded={false}
         onTabChange={() => setPage(1)}
         afterTabs={(active) => (
@@ -367,7 +363,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
                 total={total}
                 onPageChange={setPage}
                 onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
-                footerLeft={<span>{total} {t(`workflow.tabs.${toKey(active as EntityKind)}`)}</span>}
+                footerLeft={<span>{total} {t(entityLabelKey(active as EntityKind))}</span>}
               />
             </div>
           );
@@ -443,10 +439,6 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
       />
     </>
   );
-}
-
-function toKey(kind: EntityKind): string {
-  return kind === 'schema' ? 'schema' : kind === 'config' ? 'config' : kind === 'detector-schema' ? 'detectorSchema' : 'detectorConfig';
 }
 
 function mergeDetectors(cur: DetectorSchema[], detectors?: Record<string, DetectorSchema>): DetectorSchema[] {
