@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WorkflowSchema, WorkflowConfig } from '../types';
-import { entityLabelKey } from '../types';
+import { entityLabelKey, KIND } from '../types';
+import type { WorkflowKind } from '../types';
 import { IconClose, IconSave, IconTrash, IconEdit } from '../../components/Icons';
 import { IconPicker } from '../editor/IconPicker';
 import { FormattedTimestamp } from '../../components/FormattedTimestamp';
@@ -22,7 +23,7 @@ function emptyForm(): CommonForm {
 interface WorkflowSliderProps {
   open: boolean;
   addMode: boolean;
-  kind: 'schema' | 'config';
+  kind: WorkflowKind;
   schema: WorkflowSchema | null;
   config: WorkflowConfig | null;
   schemas: WorkflowSchema[];   // for config create (choose source schema)
@@ -46,15 +47,15 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
   const [sid, setSid] = useState<number | ''>('');
   const [error, setError] = useState<string | null>(null);
 
-  const entity = kind === 'schema' ? schema : config;
+  const entity = kind === KIND.workflowSchema ? schema : config;
   const graph = entity?.graph;
 
   useEffect(() => {
     setError(null);
     if (addMode) { setForm(emptyForm()); setSid(schemas[0]?.id ?? ''); return; }
-    if (kind === 'schema' && schema) {
+    if (kind === KIND.workflowSchema && schema) {
       setForm({ name: schema.name, title: schema.title, description: schema.description, status: schema.status, version: schema.version, icon: schema.icon, tags: (schema.tags ?? []).join(', '), oid: '', pid: '', xid: '' });
-    } else if (kind === 'config' && config) {
+    } else if (kind === KIND.workflowConfig && config) {
       setForm({ name: config.name, title: config.title, description: config.description, status: config.status, version: config.version, icon: config.icon, tags: (config.tags ?? []).join(', '), oid: config.oid ?? '', pid: config.pid ?? '', xid: config.xid ?? '', sid: config.sid });
     }
   }, [open, addMode, kind, schema, config, schemas]);
@@ -64,7 +65,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
   const handleCreate = async () => {
     setError(null);
     try {
-      if (kind === 'schema') {
+      if (kind === KIND.workflowSchema) {
         if (!form.name.trim()) { setError(t('workflow.nameRequired')); return; }
         await onCreateSchema(form.name.trim(), form.title || undefined, form.description || undefined, form.version || undefined, form.icon, tagsArr(form.tags));
       } else {
@@ -81,7 +82,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
         name: form.name, title: form.title, description: form.description,
         status: form.status, version: form.version, icon: form.icon || undefined, tags: tagsArr(form.tags),
       };
-      if (kind === 'config') { patch.oid = form.oid || undefined; patch.pid = form.pid || undefined; patch.xid = form.xid || undefined; }
+      if (kind === KIND.workflowConfig) { patch.oid = form.oid || undefined; patch.pid = form.pid || undefined; patch.xid = form.xid || undefined; }
       await onUpdate(patch);
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
@@ -128,7 +129,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
           {/* id is always first */}
           {!addMode && entity && field(t('workflow.fields.id'), <div className={roCls}>{entity.id}</div>)}
 
-          {!addMode && kind === 'config' && (
+          {!addMode && kind === KIND.workflowConfig && (
             <>
               {field('xid', <input className={inputCls} value={form.xid} onChange={(e) => setForm((f) => ({ ...f, xid: e.target.value }))} />)}
               {field(t('workflow.fields.sid'), <div className={`${inputCls} bg-muted`}>{config?.sid}</div>)}
@@ -142,7 +143,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
             </>
           )}
 
-          {addMode && kind === 'config' && field(t('workflow.fields.schema'),
+          {addMode && kind === KIND.workflowConfig && field(t('workflow.fields.schema'),
             <select className={inputCls} value={sid} onChange={(e) => setSid(e.target.value === '' ? '' : Number(e.target.value))}>
               <option value="">{t('workflow.chooseSchema')}</option>
               {schemas.map((s) => <option key={s.id} value={s.id}>#{s.id} {s.name}</option>)}
@@ -168,7 +169,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
             </>
           )}
 
-          {!addMode && kind === 'config' && (
+          {!addMode && kind === KIND.workflowConfig && (
             <>
               {field('oid', <input className={inputCls} value={form.oid} onChange={(e) => setForm((f) => ({ ...f, oid: e.target.value }))} />)}
               {field('pid', <input className={inputCls} value={form.pid} onChange={(e) => setForm((f) => ({ ...f, pid: e.target.value }))} />)}          

@@ -7,7 +7,8 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import type { WorkflowGraf, DetectorSchema, DetectorConfig, EntityKind } from '../types';
+import type { WorkflowGraf, DetectorSchema, DetectorConfig, WorkflowKind } from '../types';
+import { KIND } from '../types';
 import { DetectorNode } from './DetectorNode';
 import { ElementDetails } from './ElementDetails';
 import { renderIcon, DEFAULT_SCHEMA_ICON, DEFAULT_CONFIG_ICON, DEFAULT_WF_SCHEMA_ICON, DEFAULT_WF_CONFIG_ICON } from './IconPicker';
@@ -25,7 +26,7 @@ export interface WorkflowEditorProps {
   title: string;
   name: string;
   icon?: string;
-  kind: Exclude<EntityKind, 'detector-schema' | 'detector-config'>; // 'schema' | 'config'
+  kind: WorkflowKind;
   graf: WorkflowGraf;
   detectorSchemas: DetectorSchema[];
   detectorConfigs: DetectorConfig[];
@@ -153,13 +154,13 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
       {/* Panel 1: identity */}
       <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-card shrink-0">
         <span className="inline-flex items-center justify-center w-7 h-7 shrink-0 text-foreground">
-          {renderIcon(icon && icon.trim() ? icon : (kind === 'config' ? DEFAULT_WF_CONFIG_ICON : DEFAULT_WF_SCHEMA_ICON), 22)}
+          {renderIcon(icon && icon.trim() ? icon : (kind === KIND.workflowConfig ? DEFAULT_WF_CONFIG_ICON : DEFAULT_WF_SCHEMA_ICON), 22)}
         </span>
         <div className="min-w-0 flex-1">
           <div className="text-sm text-foreground truncate">{title || name}</div>
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] text-muted-foreground truncate">{name}</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${kind === 'config' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${kind === KIND.workflowConfig ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
               {id}
             </span>
             <button onClick={() => onOpenDetails?.()} title={t('workflow.editor.openDetails')}
@@ -251,7 +252,7 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
 }
 
 interface PaletteProps {
-  kind: 'schema' | 'config';
+  kind: WorkflowKind;
   detectorSchemas: DetectorSchema[];
   detectorConfigs: DetectorConfig[];
   onPick: (opts: { title: string; icon?: string; sid: number; cid?: number; tags?: string[]; desc?: string }) => void;
@@ -274,7 +275,7 @@ function DetectorPalette({ kind, detectorSchemas, detectorConfigs, onPick, onClo
         <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('workflow.editor.searchDetectors')}
           className="w-full text-xs border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400" />
 
-        {kind === 'config' ? (
+        {kind === KIND.workflowConfig ? (
           <div>
             {configs.length === 0 && <div className="text-xs text-muted-foreground px-1 py-1">{t('common.noData')}</div>}
             {configs.map((d) => (

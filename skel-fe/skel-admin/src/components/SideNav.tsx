@@ -3,18 +3,19 @@ import { useTranslation } from 'react-i18next';
 import { IconLamp, IconGrid, IconSettings, IconHelp, IconDispatcher, IconWorkflow } from './Icons';
 import { useAuth } from '../auth/useAuth';
 import * as wfApi from '../workflow/api';
+import { KIND, type WorkflowKind } from '../workflow/types';
 
 export type NavPage = 'explain' | 'dash' | 'dispatcher' | 'workflow' | 'settings' | 'help';
 
-export interface WorkflowInstanceRef { kind: 'schema' | 'config'; id: number; name: string; }
-export interface SelectedWorkflowInstance { kind: 'schema' | 'config'; id: number; }
+export interface WorkflowInstanceRef { kind: WorkflowKind; id: number; name: string; }
+export interface SelectedWorkflowInstance { kind: WorkflowKind; id: number; }
 
 interface SideNavProps {
   activePage: NavPage;
   onNavigate: (page: NavPage) => void;
   /** Open the Workflow module UI (tabs); also exits any open graph editor. */
   onOpenWorkflowHome?: () => void;
-  onOpenWorkflowInstance?: (kind: 'schema' | 'config', id: number) => void;
+  onOpenWorkflowInstance?: (kind: WorkflowKind, id: number) => void;
   selectedWorkflowInstance?: SelectedWorkflowInstance | null;
   workflowRefreshKey?: number;
 }
@@ -57,7 +58,7 @@ function NavButton({ item, active, onNavigate }: { item: NavItem; active: boolea
 function WorkflowNav({ active, onOpenHome, onOpenInstance, selected, refreshKey }: {
   active: boolean;
   onOpenHome?: () => void;
-  onOpenInstance?: (kind: 'schema' | 'config', id: number) => void;
+  onOpenInstance?: (kind: WorkflowKind, id: number) => void;
   selected?: SelectedWorkflowInstance | null;
   refreshKey?: number;
 }) {
@@ -70,8 +71,8 @@ function WorkflowNav({ active, onOpenHome, onOpenInstance, selected, refreshKey 
     try {
       const [s, c] = await Promise.all([wfApi.listSchemas(token), wfApi.listConfigs(token)]);
       setItems([
-        ...(s.schemas ?? []).map((x) => ({ kind: 'schema' as const, id: x.id, name: x.name })),
-        ...(c.configs ?? []).map((x) => ({ kind: 'config' as const, id: x.id, name: x.name })),
+        ...(s.schemas ?? []).map((x) => ({ kind: KIND.workflowSchema, id: x.id, name: x.name })),
+        ...(c.configs ?? []).map((x) => ({ kind: KIND.workflowConfig, id: x.id, name: x.name })),
       ]);
     } catch {
       setItems([]);
@@ -113,17 +114,17 @@ function WorkflowNav({ active, onOpenHome, onOpenInstance, selected, refreshKey 
             const isSel = selected?.kind === it.kind && selected?.id === it.id;
             return (
               <button
-                key={`${it.kind}-${it.id}`}
+                key={`${it.kind.replace('workflow-', '')}-${it.id}`}
                 onClick={() => onOpenInstance?.(it.kind, it.id)}
                 className={`flex items-center gap-1.5 pl-9 pr-3 py-1 text-xs text-left w-full transition-colors
                   ${isSel
                     ? 'bg-nav-active text-nav-fg border-l-4 border-blue-300'
                     : 'text-nav-fg-muted hover:bg-nav-active hover:text-nav-fg border-l-4 border-transparent'}`}
-                title={`${it.name} (${it.kind})`}
+                title={`${it.name} (${it.kind.replace('workflow-', '')})`}
               >
                 <span className="truncate flex-1">{it.name}</span>
-                <span className={`text-[9px] px-1 py-0.5 rounded shrink-0 ${it.kind === 'config' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-                  {it.kind}
+                <span className={`text-[9px] px-1 py-0.5 rounded shrink-0 ${it.kind === KIND.workflowConfig ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+                  {it.kind.replace('workflow-', '')}
                 </span>
               </button>
             );

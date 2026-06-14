@@ -157,15 +157,24 @@ export interface DetectorConfigUpdateReq {
   name?: string; status?: string; source?: string; tags?: string[]; config?: Record<string, unknown>;
 }
 
-// Which entity kind a table/menu/details refers to.
-export type EntityKind = 'schema' | 'config' | 'detector-schema' | 'detector-config';
+// Single source of truth for the entity kinds used across tables / menus / details / editor.
+export const KIND = {
+  workflowSchema: 'workflow-schema',
+  workflowConfig: 'workflow-config',
+  detectorSchema: 'detector-schema',
+  detectorConfig: 'detector-config',
+} as const;
 
-/** Single source of truth: EntityKind -> i18n label key (the entity name shown in tabs/titles). */
+export type EntityKind = (typeof KIND)[keyof typeof KIND];
+export type WorkflowKind = typeof KIND.workflowSchema | typeof KIND.workflowConfig;
+export type DetectorKind = typeof KIND.detectorSchema | typeof KIND.detectorConfig;
+
+/** EntityKind -> i18n label key (the entity name shown in tabs / details titles). */
 export function entityLabelKey(kind: EntityKind): string {
   switch (kind) {
-    case 'schema': return 'workflow.tabs.workflowSchema';
-    case 'config': return 'workflow.tabs.workflowConfig';
-    case 'detector-schema': return 'workflow.tabs.detectorSchema';
-    case 'detector-config': return 'workflow.tabs.detectorConfig';
+    case KIND.workflowSchema: return 'workflow.tabs.workflowSchema';
+    case KIND.workflowConfig: return 'workflow.tabs.workflowConfig';
+    case KIND.detectorSchema: return 'workflow.tabs.detectorSchema';
+    case KIND.detectorConfig: return 'workflow.tabs.detectorConfig';
   }
 }

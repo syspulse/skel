@@ -9,6 +9,7 @@ import { ExplainPage } from './explain/ExplainPage';
 import { DashPage } from './dash/DashPage';
 import { DispatcherPage } from './dispatcher/DispatcherPage';
 import { WorkflowPage, type WorkflowEditTarget } from './workflow/WorkflowPage';
+import type { WorkflowKind } from './workflow/types';
 import { HelpPage } from './pages/HelpPage';
 import { SettingsPage } from './pages/SettingsPage';
 
@@ -19,11 +20,11 @@ function AppContent() {
   const [settingsTabRequest, setSettingsTabRequest] = useState<string | null>(null);
   const [workflowEditTarget, setWorkflowEditTarget] = useState<WorkflowEditTarget | null>(null);
   const [workflowRefreshKey, setWorkflowRefreshKey] = useState(0);
-  const [selectedWorkflowInstance, setSelectedWorkflowInstance] = useState<{ kind: 'schema' | 'config'; id: number } | null>(null);
+  const [selectedWorkflowInstance, setSelectedWorkflowInstance] = useState<{ kind: WorkflowKind; id: number } | null>(null);
   const [workflowHomeKey, setWorkflowHomeKey] = useState(0);
 
   // submenu instance -> open its graph editor and keep it highlighted
-  const openWorkflowInstance = (kind: 'schema' | 'config', id: number) => {
+  const openWorkflowInstance = (kind: WorkflowKind, id: number) => {
     setWorkflowEditTarget({ kind, id });
     setSelectedWorkflowInstance({ kind, id });
     setActivePage('workflow');

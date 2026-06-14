@@ -7,9 +7,9 @@ import { usePageSize, PAGE_SIZE_ALL } from '../settings/PageSizeContext';
 import { Pagination } from '../components/Pagination';
 import * as api from './api';
 import type {
-  WorkflowSchema, WorkflowConfig, DetectorSchema, DetectorConfig, WorkflowGraf, EntityKind,
+  WorkflowSchema, WorkflowConfig, DetectorSchema, DetectorConfig, WorkflowGraf, EntityKind, WorkflowKind, DetectorKind,
 } from './types';
-import { entityLabelKey } from './types';
+import { entityLabelKey, KIND } from './types';
 import { EntityTable, type TableRow, type TableColumn } from './components/EntityTable';
 import { WorkflowFilters, type WorkflowFilterState } from './components/WorkflowFilters';
 import type { TimeRange } from '../types';
@@ -18,7 +18,7 @@ import { WorkflowSlider } from './components/WorkflowSlider';
 import { DetectorSlider } from './components/DetectorSlider';
 import { WorkflowEditor } from './editor/WorkflowEditor';
 
-export interface WorkflowEditTarget { kind: 'schema' | 'config'; id: number; }
+export interface WorkflowEditTarget { kind: WorkflowKind; id: number; }
 
 interface WorkflowPageProps {
   /** Deep-link from the SideNav submenu: open the editor for this instance. */
@@ -30,10 +30,10 @@ interface WorkflowPageProps {
   onInstancesChanged?: () => void;
 }
 
-const TAB_IDS: EntityKind[] = ['schema', 'config', 'detector-schema', 'detector-config'];
+const TAB_IDS: EntityKind[] = [KIND.workflowSchema, KIND.workflowConfig, KIND.detectorSchema, KIND.detectorConfig];
 
 interface EditorState {
-  kind: 'schema' | 'config';
+  kind: WorkflowKind;
   id: number;
   title: string;
   name: string;
@@ -78,7 +78,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
 
   const [editor, setEditor] = useState<EditorState | null>(null);
   // detector detail opened from the editor (sid/cid [->]) - read-only overlay
-  const [detView, setDetView] = useState<{ kind: 'detector-schema' | 'detector-config'; id: number } | null>(null);
+  const [detView, setDetView] = useState<{ kind: DetectorKind; id: number } | null>(null);
   // WorkflowSchema/Config details opened from the editor Panel 1 [->]
   const [wfDetailsOpen, setWfDetailsOpen] = useState(false);
 
@@ -100,9 +100,9 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // ----- open the editor for a schema/config instance -----
-  const openEditor = useCallback(async (kind: 'schema' | 'config', id: number) => {
+  const openEditor = useCallback(async (kind: WorkflowKind, id: number) => {
     try {
-      if (kind === 'schema') {
+      if (kind === KIND.workflowSchema) {
         const v = await api.getSchema(token, id, true);
         setDetSchemas((cur) => mergeDetectors(cur, v.detectors));
         setEditor({ kind, id, title: v.schema.title, name: v.schema.name, icon: v.schema.icon, graf: v.schema.graph });
@@ -148,16 +148,16 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
 
   const rowsFor = (kind: EntityKind): TableRow[] => {
     switch (kind) {
-      case 'schema': return schemas.filter((s) => keep(s.name, s.title, s.status, s.updatedAt)).sort(byTsDesc)
+      case KIND.workflowSchema: return schemas.filter((s) => keep(s.name, s.title, s.status, s.updatedAt)).sort(byTsDesc)
         .map((s) => ({ id: s.id, icon: s.icon, name: s.name, status: s.status, tags: s.tags, ts: s.updatedAt,
           cells: { title: s.title, graph: `${Object.keys(s.graph?.nodes ?? {}).length} ${t('workflow.graphNodes')}` } }));
-      case 'config': return configs.filter((c) => keep(c.name, c.title, c.status, c.updatedAt)).sort(byTsDesc)
+      case KIND.workflowConfig: return configs.filter((c) => keep(c.name, c.title, c.status, c.updatedAt)).sort(byTsDesc)
         .map((c) => ({ id: c.id, icon: c.icon, name: c.name, status: c.status, tags: c.tags, ts: c.updatedAt,
           cells: { title: c.title, sid: String(c.sid) } }));
-      case 'detector-schema': return detSchemas.filter((d) => keep(d.name, d.title, d.status, d.updatedAt)).sort(byTsDesc)
+      case KIND.detectorSchema: return detSchemas.filter((d) => keep(d.name, d.title, d.status, d.updatedAt)).sort(byTsDesc)
         .map((d) => ({ id: d.id, icon: d.icon, name: d.name, status: d.status, tags: d.tags, ts: d.updatedAt,
           cells: { title: d.title, version: d.version } }));
-      case 'detector-config': return detConfigs.filter((d) => keep(d.name, d.contract?.name ?? '', d.status, d.updatedAt)).sort(byTsDesc)
+      case KIND.detectorConfig: return detConfigs.filter((d) => keep(d.name, d.contract?.name ?? '', d.status, d.updatedAt)).sort(byTsDesc)
         .map((d) => ({ id: d.id, name: d.name, status: d.status, tags: d.tags, ts: d.updatedAt,
           cells: { title: d.contract?.name ?? '', version: d.schema?.version ?? '', schema: d.schema ? String(d.schema.id) : '' } }));
     }
@@ -166,10 +166,10 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   const columnsFor = (kind: EntityKind): TableColumn[] => {
     const title = { key: 'title', label: t('workflow.fields.title') };
     switch (kind) {
-      case 'schema': return [title, { key: 'graph', label: t('workflow.fields.graph'), width: 'w-32' }];
-      case 'config': return [title, { key: 'sid', label: t('workflow.fields.sid'), width: 'w-24' }];
-      case 'detector-schema': return [title, { key: 'version', label: t('workflow.fields.version'), width: 'w-28' }];
-      case 'detector-config': return [
+      case KIND.workflowSchema: return [title, { key: 'graph', label: t('workflow.fields.graph'), width: 'w-32' }];
+      case KIND.workflowConfig: return [title, { key: 'sid', label: t('workflow.fields.sid'), width: 'w-24' }];
+      case KIND.detectorSchema: return [title, { key: 'version', label: t('workflow.fields.version'), width: 'w-28' }];
+      case KIND.detectorConfig: return [
         title,
         { key: 'version', label: t('workflow.fields.version'), width: 'w-28' },
         { key: 'schema', label: t('workflow.fields.schema'), width: 'w-28' },
@@ -179,10 +179,10 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
 
   const defaultIconFor = (kind: EntityKind): string => {
     switch (kind) {
-      case 'schema': return DEFAULT_WF_SCHEMA_ICON;
-      case 'config': return DEFAULT_WF_CONFIG_ICON;
-      case 'detector-schema': return DEFAULT_SCHEMA_ICON;
-      case 'detector-config': return DEFAULT_CONFIG_ICON;
+      case KIND.workflowSchema: return DEFAULT_WF_SCHEMA_ICON;
+      case KIND.workflowConfig: return DEFAULT_WF_CONFIG_ICON;
+      case KIND.detectorSchema: return DEFAULT_SCHEMA_ICON;
+      case KIND.detectorConfig: return DEFAULT_CONFIG_ICON;
     }
   };
 
@@ -195,9 +195,9 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   const handleDelete = async (kind: EntityKind, id: number) => {
     if (!window.confirm(t('workflow.confirmDelete', { id }))) return;
     try {
-      if (kind === 'schema') await api.deleteSchema(token, id);
-      else if (kind === 'config') await api.deleteConfig(token, id);
-      else if (kind === 'detector-schema') await api.deleteDetectorSchema(token, id);
+      if (kind === KIND.workflowSchema) await api.deleteSchema(token, id);
+      else if (kind === KIND.workflowConfig) await api.deleteConfig(token, id);
+      else if (kind === KIND.detectorSchema) await api.deleteDetectorSchema(token, id);
       else await api.deleteDetectorConfig(token, id);
       await refreshAndNotify();
     } catch (e) {
@@ -210,7 +210,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
     if (!editor) return;
     setSaving(true);
     try {
-      if (editor.kind === 'schema') await api.updateSchema(token, editor.id, { graph: graf });
+      if (editor.kind === KIND.workflowSchema) await api.updateSchema(token, editor.id, { graph: graf });
       else await api.updateConfig(token, editor.id, { graph: graf });
       await refreshAndNotify();
       setEditor(null);
@@ -223,8 +223,8 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
 
   // ===================== EDITOR MODE =====================
   if (editor) {
-    const editorSchema = editor.kind === 'schema' ? schemas.find((s) => s.id === editor.id) ?? null : null;
-    const editorConfig = editor.kind === 'config' ? configs.find((c) => c.id === editor.id) ?? null : null;
+    const editorSchema = editor.kind === KIND.workflowSchema ? schemas.find((s) => s.id === editor.id) ?? null : null;
+    const editorConfig = editor.kind === KIND.workflowConfig ? configs.find((c) => c.id === editor.id) ?? null : null;
     return (
       <>
         <WorkflowEditor
@@ -241,16 +241,16 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           onSave={handleEditorSave}
           onBack={() => setEditor(null)}
           onOpenDetails={() => setWfDetailsOpen(true)}
-          onOpenDetectorSchema={(id) => setDetView({ kind: 'detector-schema', id })}
-          onOpenDetectorConfig={(id) => setDetView({ kind: 'detector-config', id })}
+          onOpenDetectorSchema={(id) => setDetView({ kind: KIND.detectorSchema, id })}
+          onOpenDetectorConfig={(id) => setDetView({ kind: KIND.detectorConfig, id })}
         />
         {/* same editable Detail component as the table view, opened from the node's sid/cid [->] */}
         <DetectorSlider
           open={detView !== null}
           addMode={false}
-          kind={detView?.kind ?? 'detector-schema'}
-          schema={detView?.kind === 'detector-schema' ? detSchemas.find((d) => d.id === detView.id) ?? null : null}
-          config={detView?.kind === 'detector-config' ? detConfigs.find((d) => d.id === detView.id) ?? null : null}
+          kind={detView?.kind ?? KIND.detectorSchema}
+          schema={detView?.kind === KIND.detectorSchema ? detSchemas.find((d) => d.id === detView.id) ?? null : null}
+          config={detView?.kind === KIND.detectorConfig ? detConfigs.find((d) => d.id === detView.id) ?? null : null}
           schemas={detSchemas}
           saving={saving}
           timezone={timezone}
@@ -263,7 +263,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
             if (!detView) return;
             setSaving(true);
             try {
-              if (detView.kind === 'detector-schema') await api.deleteDetectorSchema(token, detView.id);
+              if (detView.kind === KIND.detectorSchema) await api.deleteDetectorSchema(token, detView.id);
               else await api.deleteDetectorConfig(token, detView.id);
               await fetchAll(); setDetView(null);
             } finally { setSaving(false); }
@@ -285,7 +285,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           onUpdate={async (patch) => {
             setSaving(true);
             try {
-              if (editor.kind === 'schema') {
+              if (editor.kind === KIND.workflowSchema) {
                 await api.updateSchema(token, editor.id, patch);
                 const v = await api.getSchema(token, editor.id);
                 setEditor((e) => e ? { ...e, title: v.schema.title, name: v.schema.name, icon: v.schema.icon } : e);
@@ -301,7 +301,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           onDelete={async () => {
             setSaving(true);
             try {
-              if (editor.kind === 'schema') await api.deleteSchema(token, editor.id);
+              if (editor.kind === KIND.workflowSchema) await api.deleteSchema(token, editor.id);
               else await api.deleteConfig(token, editor.id);
               await refreshAndNotify();
               setWfDetailsOpen(false);
@@ -315,10 +315,10 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   }
 
   // ===================== TABLE / TABS MODE =====================
-  const selectedSchema = sliderKind === 'schema' && selectedId !== null ? schemas.find((s) => s.id === selectedId) ?? null : null;
-  const selectedConfig = sliderKind === 'config' && selectedId !== null ? configs.find((c) => c.id === selectedId) ?? null : null;
-  const selectedDetSchema = sliderKind === 'detector-schema' && selectedId !== null ? detSchemas.find((d) => d.id === selectedId) ?? null : null;
-  const selectedDetConfig = sliderKind === 'detector-config' && selectedId !== null ? detConfigs.find((d) => d.id === selectedId) ?? null : null;
+  const selectedSchema = sliderKind === KIND.workflowSchema && selectedId !== null ? schemas.find((s) => s.id === selectedId) ?? null : null;
+  const selectedConfig = sliderKind === KIND.workflowConfig && selectedId !== null ? configs.find((c) => c.id === selectedId) ?? null : null;
+  const selectedDetSchema = sliderKind === KIND.detectorSchema && selectedId !== null ? detSchemas.find((d) => d.id === selectedId) ?? null : null;
+  const selectedDetConfig = sliderKind === KIND.detectorConfig && selectedId !== null ? detConfigs.find((d) => d.id === selectedId) ?? null : null;
 
   return (
     <>
@@ -372,9 +372,9 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
 
       {/* Workflow schema/config details */}
       <WorkflowSlider
-        open={sliderKind === 'schema' || sliderKind === 'config'}
+        open={sliderKind === KIND.workflowSchema || sliderKind === KIND.workflowConfig}
         addMode={addMode}
-        kind={sliderKind === 'config' ? 'config' : 'schema'}
+        kind={sliderKind === KIND.workflowConfig ? KIND.workflowConfig : KIND.workflowSchema}
         schema={selectedSchema}
         config={selectedConfig}
         schemas={schemas}
@@ -395,7 +395,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           if (selectedId === null) return;
           setSaving(true);
           try {
-            if (sliderKind === 'schema') await api.updateSchema(token, selectedId, patch);
+            if (sliderKind === KIND.workflowSchema) await api.updateSchema(token, selectedId, patch);
             else await api.updateConfig(token, selectedId, patch);
             await refreshAndNotify(); closeSlider();
           } finally { setSaving(false); }
@@ -404,19 +404,19 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           if (selectedId === null) return;
           setSaving(true);
           try {
-            if (sliderKind === 'schema') await api.deleteSchema(token, selectedId);
+            if (sliderKind === KIND.workflowSchema) await api.deleteSchema(token, selectedId);
             else await api.deleteConfig(token, selectedId);
             await refreshAndNotify(); closeSlider();
           } finally { setSaving(false); }
         }}
-        onEdit={() => { if (selectedId !== null) openEditor(sliderKind === 'config' ? 'config' : 'schema', selectedId); closeSlider(); }}
+        onEdit={() => { if (selectedId !== null) openEditor(sliderKind === KIND.workflowConfig ? KIND.workflowConfig : KIND.workflowSchema, selectedId); closeSlider(); }}
       />
 
       {/* Detector schema/config details */}
       <DetectorSlider
-        open={sliderKind === 'detector-schema' || sliderKind === 'detector-config'}
+        open={sliderKind === KIND.detectorSchema || sliderKind === KIND.detectorConfig}
         addMode={addMode}
-        kind={sliderKind === 'detector-config' ? 'detector-config' : 'detector-schema'}
+        kind={sliderKind === KIND.detectorConfig ? KIND.detectorConfig : KIND.detectorSchema}
         schema={selectedDetSchema}
         config={selectedDetConfig}
         schemas={detSchemas}
@@ -431,7 +431,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           if (selectedId === null) return;
           setSaving(true);
           try {
-            if (sliderKind === 'detector-schema') await api.deleteDetectorSchema(token, selectedId);
+            if (sliderKind === KIND.detectorSchema) await api.deleteDetectorSchema(token, selectedId);
             else await api.deleteDetectorConfig(token, selectedId);
             await fetchAll(); closeSlider();
           } finally { setSaving(false); }

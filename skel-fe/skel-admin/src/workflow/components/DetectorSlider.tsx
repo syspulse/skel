@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DetectorSchema, DetectorConfig } from '../types';
-import { entityLabelKey } from '../types';
+import { entityLabelKey, KIND } from '../types';
+import type { DetectorKind } from '../types';
 import { IconClose, IconSave, IconTrash } from '../../components/Icons';
 import { IconPicker } from '../editor/IconPicker';
 import { FormattedTimestamp } from '../../components/FormattedTimestamp';
@@ -14,7 +15,7 @@ const roCls = 'flex-1 text-sm bg-muted border border-border rounded px-3 py-1 te
 interface DetectorSliderProps {
   open: boolean;
   addMode: boolean;
-  kind: 'detector-schema' | 'detector-config';
+  kind: DetectorKind;
   schema: DetectorSchema | null;
   config: DetectorConfig | null;
   schemas: DetectorSchema[];       // for config create (choose source DetectorSchema)
@@ -63,10 +64,10 @@ export function DetectorSlider(props: DetectorSliderProps) {
       setStatus('ACTIVE'); setSource(''); setTags(''); setSid(schemas[0]?.id ?? ''); setConfigJson('');
       return;
     }
-    if (kind === 'detector-schema' && schema) {
+    if (kind === KIND.detectorSchema && schema) {
       setName(schema.name); setTitle(schema.title); setDescription(schema.description); setVersion(schema.version);
       setAuthor(schema.author); setIcon(schema.icon); setStatus(schema.status); setTags((schema.tags ?? []).join(', '));
-    } else if (kind === 'detector-config' && config) {
+    } else if (kind === KIND.detectorConfig && config) {
       setName(config.name); setStatus(config.status); setSource(config.source); setTags((config.tags ?? []).join(', '));
       setConfigJson(config.config ? JSON.stringify(config.config, null, 2) : '');
     }
@@ -82,7 +83,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
     setError(null);
     try {
       if (!name.trim()) { setError(t('workflow.nameRequired')); return; }
-      if (kind === 'detector-schema') {
+      if (kind === KIND.detectorSchema) {
         await onCreateSchema({ name: name.trim(), title: title || undefined, description: description || undefined, version: version || undefined, author: author || undefined, icon, tags: tagsArr(tags) });
       } else {
         let cfg: Record<string, unknown> | undefined;
@@ -95,7 +96,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
   const handleUpdate = async () => {
     setError(null);
     try {
-      if (kind === 'detector-schema') {
+      if (kind === KIND.detectorSchema) {
         // status IS editable for DetectorSchema
         await onUpdateSchema({ name, title, description, version, author, status, icon, tags: tagsArr(tags) });
       } else {
@@ -112,7 +113,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
     try { await onDelete(); } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
 
-  const isSchema = kind === 'detector-schema';
+  const isSchema = kind === KIND.detectorSchema;
   const viewOnly = !!readOnly; // both DetectorSchema and DetectorConfig are editable
   const kindLabel = t(entityLabelKey(kind));
 
