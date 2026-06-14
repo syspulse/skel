@@ -195,7 +195,7 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
         </div>
         <div className="relative">
           <button onClick={() => setPaletteOpen((o) => !o)}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors">
+            className="btn-add">
             <IconPlus size={13} /> {t('common.add')}
           </button>
           {paletteOpen && (
@@ -209,7 +209,7 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           )}
         </div>
         <button onClick={() => selectedNodeId && deleteNode(selectedNodeId)} disabled={!selectedNodeId}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          className="btn-danger disabled:opacity-40 disabled:cursor-not-allowed">
           <IconTrash size={13} /> {t('common.del')}
         </button>
         <button onClick={handleClear}

@@ -54,9 +54,24 @@
     @apply flex items-center justify-between px-5 py-3 border-b border-border bg-muted;
   }
 
+  /* Filter bar (top of every module table) */
+  .filter-bar {
+    @apply flex flex-wrap items-center gap-3 p-3 bg-card border-b border-border;
+  }
+  .filter-label {
+    @apply text-sm text-muted-foreground whitespace-nowrap;
+  }
+
   /* Buttons */
   .btn-toolbar {
     @apply inline-flex items-center gap-1.5 text-xs bg-muted hover:bg-muted-hover text-foreground px-3 py-1 rounded border border-border transition-colors;
+  }
+  /* Outline action buttons. Append disabled:* utilities at the call site as needed. */
+  .btn-add {
+    @apply inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors;
+  }
+  .btn-danger {
+    @apply inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 transition-colors;
   }
   .menu-item {
     @apply w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left text-foreground hover:bg-muted transition-colors;

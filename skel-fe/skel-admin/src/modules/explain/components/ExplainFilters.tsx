@@ -5,6 +5,7 @@ import { TimeRangePicker } from '../../../components/TimeRangePicker';
 import { TimezoneSelect } from '../../../components/TimezoneSelect';
 import { IconRefresh, IconTrash, IconPlus } from '../../../components/Icons';
 import { SearchField } from '../../../components/SearchField';
+import { FilterText } from '../../../components/FilterField';
 
 export interface FilterState {
   search: string;
@@ -52,7 +53,7 @@ export function ExplainFilters({
   const showAdd = !showDeleteSelected && !hasSelection;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 p-3 bg-card border-b border-border">
+    <div className="filter-bar">
       <SearchField
         value={filters.search}
         onChange={(val) => onFilterChange({ ...filters, search: val })}
@@ -62,27 +63,19 @@ export function ExplainFilters({
         className="w-44"
       />
 
-      <div className="flex items-center gap-1">
-        <label className="text-sm text-muted-foreground whitespace-nowrap">{t('explain.fields.oid')}:</label>
-        <input
-          type="text"
-          value={filters.oid}
-          onChange={(e) => onFilterChange({ ...filters, oid: e.target.value })}
-          placeholder={t('common.filterPlaceholder')}
-          className="text-sm field px-2 py-1 w-36 bg-card"
-        />
-      </div>
+      <FilterText
+        label={t('explain.fields.oid')}
+        value={filters.oid}
+        onChange={(oid) => onFilterChange({ ...filters, oid })}
+        placeholder={t('common.filterPlaceholder')}
+      />
 
-      <div className="flex items-center gap-1">
-        <label className="text-sm text-muted-foreground whitespace-nowrap">{t('explain.fields.rid')}:</label>
-        <input
-          type="text"
-          value={filters.rid}
-          onChange={(e) => onFilterChange({ ...filters, rid: e.target.value })}
-          placeholder={t('common.filterPlaceholder')}
-          className="text-sm field px-2 py-1 w-36 bg-card"
-        />
-      </div>
+      <FilterText
+        label={t('explain.fields.rid')}
+        value={filters.rid}
+        onChange={(rid) => onFilterChange({ ...filters, rid })}
+        placeholder={t('common.filterPlaceholder')}
+      />
 
       <TimeRangePicker
         value={filters.timeRange}
@@ -102,7 +95,7 @@ export function ExplainFilters({
       {showDeleteSelected && (
         <button
           onClick={onDeleteSelected}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 transition-colors"
+          className="btn-danger"
         >
           <IconTrash size={13} /> {t('common.deleteSelected', { count: selectedCount })}
         </button>
@@ -110,7 +103,7 @@ export function ExplainFilters({
       {showAdd && (
         <button
           onClick={onAdd}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors"
+          className="btn-add"
         >
           <IconPlus size={13} /> {t('common.add')}
         </button>

@@ -35,7 +35,7 @@ export function DashFilters({
   const showAdd = !showDeleteSelected && !hasSelection;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 p-3 bg-card border-b border-border">
+    <div className="filter-bar">
       <input
         type="text"
         value={filters.search}
@@ -58,7 +58,7 @@ export function DashFilters({
       {showDeleteSelected && (
         <button
           onClick={onDeleteSelected}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 transition-colors"
+          className="btn-danger"
         >
           <IconTrash size={13} /> {t('common.deleteSelected', { count: selectedCount })}
         </button>
@@ -66,7 +66,7 @@ export function DashFilters({
       {showAdd && (
         <button
           onClick={onAdd}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors"
+          className="btn-add"
         >
           <IconPlus size={13} /> {t('common.add')}
         </button>

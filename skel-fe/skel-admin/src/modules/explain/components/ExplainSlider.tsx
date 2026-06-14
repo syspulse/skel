@@ -390,7 +390,7 @@ export function ExplainSlider({
           {addMode ? (
             <>
               <button onClick={handleCreate} disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                className="btn-add disabled:opacity-40 disabled:cursor-not-allowed">
                 <IconSave size={13} />{saving ? t('common.creating') : t('common.create')}
               </button>
               <button onClick={onClose} disabled={saving}
@@ -401,11 +401,11 @@ export function ExplainSlider({
           ) : (
             <>
               <button onClick={handleUpdate} disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                className="btn-add disabled:opacity-40 disabled:cursor-not-allowed">
                 <IconSave size={13} />{saving ? t('common.saving') : t('common.update')}
               </button>
               <button onClick={handleDelete} disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                className="btn-danger disabled:opacity-40 disabled:cursor-not-allowed">
                 <IconTrash size={13} />{t('common.delete')}
               </button>
               <button onClick={onClose} disabled={saving}

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EditableCombo } from '../../../components/EditableCombo';
+import { FilterField } from '../../../components/FilterField';
 import type { DispatcherEvent } from '../types';
 import type { DispatcherFilterState } from '../filterEvents';
 import { uniqueFieldValues } from '../filterEvents';
@@ -11,7 +12,7 @@ interface DispatcherFiltersProps {
   onFilterChange: (filters: DispatcherFilterState) => void;
 }
 
-function FilterField({
+function ComboFilter({
   label,
   value,
   options,
@@ -23,16 +24,9 @@ function FilterField({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-1">
-      <label className="text-sm text-muted-foreground whitespace-nowrap">{label}:</label>
-      <EditableCombo
-        value={value}
-        onChange={onChange}
-        options={options}
-        placeholder="..."
-        className="w-28"
-      />
-    </div>
+    <FilterField label={label}>
+      <EditableCombo value={value} onChange={onChange} options={options} placeholder="..." className="w-28" />
+    </FilterField>
   );
 }
 
@@ -51,38 +45,38 @@ export function DispatcherFilters({ filters, history, onFilterChange }: Dispatch
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-3 p-3 bg-card border-b border-border">
-      <FilterField
+    <div className="filter-bar">
+      <ComboFilter
         label={t('dispatcher.fields.src')}
         value={filters.src}
         options={srcOptions}
         onChange={(v) => set('src', v)}
       />
-      <FilterField
+      <ComboFilter
         label={t('dispatcher.fields.sys')}
         value={filters.sys}
         options={sysOptions}
         onChange={(v) => set('sys', v)}
       />
-      <FilterField
+      <ComboFilter
         label={t('dispatcher.fields.typ')}
         value={filters.typ}
         options={typOptions}
         onChange={(v) => set('typ', v)}
       />
-      <FilterField
+      <ComboFilter
         label={t('dispatcher.fields.cmd')}
         value={filters.cmd}
         options={cmdOptions}
         onChange={(v) => set('cmd', v)}
       />
-      <FilterField
+      <ComboFilter
         label={t('dispatcher.fields.sev')}
         value={filters.sev}
         options={sevOptions}
         onChange={(v) => set('sev', v)}
       />
-      <FilterField
+      <ComboFilter
         label={t('dispatcher.fields.dst')}
         value={filters.dst}
         options={dstOptions}
