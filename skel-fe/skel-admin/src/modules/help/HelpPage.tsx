@@ -65,7 +65,7 @@ function CodeBlock({ children }: { children: string }) {
 function OverviewTab() {
   return (
     <div className="space-y-4">
-      <div className="bg-card border border-border rounded shadow-sm p-4 space-y-4">
+      <div className="surface p-4 space-y-4">
         <Section title="About">
           <p className="text-xs text-muted-foreground leading-relaxed">
             <strong className="text-foreground">skel-admin</strong> is a management UI for backend services.
@@ -85,7 +85,7 @@ function OverviewTab() {
         </Section>
       </div>
 
-      <div className="bg-card border border-border rounded shadow-sm p-4">
+      <div className="surface p-4">
         <Section title="Environment Variables">
           <EndpointTable rows={[
             { method: 'GET', path: 'VITE_EXPLAIN_API_URL',           desc: 'Explain API base URL (default: http://localhost:8080/api/v1/explain)' },
@@ -123,13 +123,13 @@ const SCRIPT_TYPES = [
 function ExplainTab() {
   return (
     <div className="space-y-4">
-      <div className="bg-card border border-border rounded shadow-sm p-4">
+      <div className="surface p-4">
         <Section title="API Endpoints">
           <EndpointTable rows={EXPLAIN_ENDPOINTS} />
         </Section>
       </div>
 
-      <div className="bg-card border border-border rounded shadow-sm p-4">
+      <div className="surface p-4">
         <Section title="Script Types">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {SCRIPT_TYPES.map((s) => (
@@ -145,7 +145,7 @@ function ExplainTab() {
         </Section>
       </div>
 
-      <div className="bg-card border border-border rounded shadow-sm p-4">
+      <div className="surface p-4">
         <Section title="Data Model">
           <CodeBlock>{`{
   "rid":     "my-explain",        // required, unique ID
@@ -170,7 +170,7 @@ function ExplainTab() {
         </Section>
       </div>
 
-      <div className="bg-card border border-border rounded shadow-sm p-4 space-y-3">
+      <div className="surface p-4 space-y-3">
         <Section title="Usage Examples">
           <div className="space-y-3">
             <div>
@@ -213,13 +213,13 @@ const DASH_ENDPOINTS = [
 function DashTab() {
   return (
     <div className="space-y-4">
-      <div className="bg-card border border-border rounded shadow-sm p-4">
+      <div className="surface p-4">
         <Section title="API Endpoints">
           <EndpointTable rows={DASH_ENDPOINTS} />
         </Section>
       </div>
 
-      <div className="bg-card border border-border rounded shadow-sm p-4">
+      <div className="surface p-4">
         <Section title="Data Model">
           <CodeBlock>{`{
   "id":     "dash-abc123",        // auto-generated ID
@@ -238,7 +238,7 @@ function DashTab() {
         </Section>
       </div>
 
-      <div className="bg-card border border-border rounded shadow-sm p-4 space-y-3">
+      <div className="surface p-4 space-y-3">
         <Section title="Usage Examples">
           <div className="space-y-3">
             <div>

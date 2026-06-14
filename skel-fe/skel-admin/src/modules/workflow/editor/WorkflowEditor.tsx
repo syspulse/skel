@@ -231,7 +231,7 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           <span>{t('workflow.editor.grid')}</span>
           <input type="number" min={2} max={200} value={gridSize}
             onChange={(e) => setGridSize(Math.max(2, Number(e.target.value) || gridSize))}
-            className="w-14 text-xs border border-input rounded px-1.5 py-0.5 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400" />
+            className="w-14 text-xs field px-1.5 py-0.5 bg-card" />
         </div>
       </div>
 
@@ -299,7 +299,7 @@ function DetectorPalette({ kind, detectorSchemas, detectorConfigs, onPick, onClo
       <div className="fixed inset-0 z-20" onClick={onClose} />
       <div className="absolute top-9 left-0 z-30 w-72 max-h-96 overflow-y-auto bg-card border border-border rounded shadow-xl p-2 space-y-2">
         <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('workflow.editor.searchDetectors')}
-          className="w-full text-xs border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400" />
+          className="w-full text-xs field px-2 py-1 bg-card" />
 
         {kind === KIND.workflowConfig ? (
           <div>

@@ -87,7 +87,7 @@ export function MetaEditor({ value, onChange }: MetaEditorProps) {
                 value={row.key}
                 onChange={(e) => handleKeyChange(idx, e.target.value)}
                 placeholder="key"
-                className="text-xs border border-input rounded px-2 py-1 w-28 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+                className="text-xs field px-2 py-1 w-28 bg-card font-mono"
               />
               <span className="text-muted-foreground text-xs">:</span>
               <input
@@ -95,7 +95,7 @@ export function MetaEditor({ value, onChange }: MetaEditorProps) {
                 value={row.rawValue}
                 onChange={(e) => handleValueChange(idx, e.target.value)}
                 placeholder="value"
-                className="text-xs border border-input rounded px-2 py-1 flex-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="text-xs field px-2 py-1 flex-1 bg-card"
               />
               <button
                 type="button"

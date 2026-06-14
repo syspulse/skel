@@ -86,7 +86,7 @@ export function TimestampFormatSelect({ value, onChange }: TimestampFormatSelect
         </div>
 
         {open && (
-          <div className="absolute z-50 left-0 top-full mt-1 w-full bg-card border border-border rounded shadow-lg overflow-y-auto max-h-48">
+          <div className="absolute z-50 left-0 top-full mt-1 w-full popover overflow-y-auto max-h-48">
             {TIMESTAMP_FORMAT_PRESETS.map(({ pattern }) => (
               <button
                 key={pattern}

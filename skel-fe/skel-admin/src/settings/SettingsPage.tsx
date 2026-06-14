@@ -69,7 +69,7 @@ function ThemeSection() {
         </button>
 
         {open && (
-          <div className="absolute z-50 left-0 top-full mt-1 w-full bg-card border border-border rounded shadow-lg overflow-y-auto max-h-64">
+          <div className="absolute z-50 left-0 top-full mt-1 w-full popover overflow-y-auto max-h-64">
             {THEME_NAMES.map(themeName => (
               <button
                 key={themeName}
@@ -105,7 +105,7 @@ function PageSizeSection() {
       <select
         value={pageSize}
         onChange={(e) => setPageSize(Number(e.target.value))}
-        className="text-xs border border-input rounded px-2.5 py-1.5 w-52 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
+        className="text-xs field px-2.5 py-1.5 w-52 bg-card cursor-pointer"
       >
         {PAGE_SIZE_OPTIONS.map((s) => (
           <option key={s} value={s}>{s} {t('pagination.perPage')}</option>
@@ -141,7 +141,7 @@ function LanguageSection() {
       <select
         value={LANGUAGES.some(l => l.value === currentLang) ? currentLang : 'en'}
         onChange={(e) => i18n.changeLanguage(e.target.value)}
-        className="text-xs border border-input rounded px-2.5 py-1.5 w-52 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
+        className="text-xs field px-2.5 py-1.5 w-52 bg-card cursor-pointer"
       >
         {LANGUAGES.map(({ value, label }) => (
           <option key={value} value={value}>{label}</option>
@@ -159,14 +159,14 @@ function ProfileTab() {
 
   return (
     <div className="space-y-3">
-      <div className="bg-card border border-border rounded shadow-sm p-3 space-y-3">
+      <div className="surface p-3 space-y-3">
         <ThemeSection />
         <LanguageSection />
         <PageSizeSection />
         <TimestampFormatSection />
       </div>
 
-      <div className="bg-card border border-border rounded shadow-sm p-3 space-y-2">
+      <div className="surface p-3 space-y-2">
         <div className="text-xs text-muted-foreground">{t('settings.branding')}</div>
 
         <div>
@@ -176,7 +176,7 @@ function ProfileTab() {
             value={appName}
             onChange={(e) => setAppName(e.target.value)}
             placeholder={DEFAULT_APP_NAME}
-            className="w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="w-full text-sm field px-2 py-1 bg-card"
           />
         </div>
 
@@ -188,7 +188,7 @@ function ProfileTab() {
               value={logoUrl}
               onChange={(e) => setLogoUrl(e.target.value)}
               placeholder={t('settings.logoPlaceholder')}
-              className="flex-1 text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+              className="flex-1 text-sm field px-2 py-1 bg-card font-mono"
             />
             <div className="w-8 h-8 flex items-center justify-center border border-border rounded bg-muted shrink-0 text-muted-foreground">
               <AppLogo logoUrl={logoUrl} size={28} />
@@ -217,7 +217,7 @@ function WorkflowTab() {
 
   return (
     <div className="space-y-3">
-      <div className="bg-card border border-border rounded shadow-sm p-3 space-y-3">
+      <div className="surface p-3 space-y-3">
         <div>
           <div className="text-xs text-muted-foreground mb-1.5">{t('settings.workflow.gridSize')}</div>
           <input
@@ -226,7 +226,7 @@ function WorkflowTab() {
             max={200}
             value={gridSize}
             onChange={(e) => setGridSize(Math.max(2, Number(e.target.value) || DEFAULT_GRID_SIZE))}
-            className="text-xs border border-input rounded px-2.5 py-1.5 w-52 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="text-xs field px-2.5 py-1.5 w-52 bg-card"
           />
         </div>
 
@@ -300,14 +300,14 @@ function ApiTab() {
 
   return (
     <div className="space-y-2">
-      <div className="bg-card border border-border rounded shadow-sm p-3 space-y-2">
+      <div className="surface p-3 space-y-2">
         <div>
           <label className="block text-xs text-foreground mb-0.5">{t('settings.explainApiUrl')}</label>
           <input
             type="text"
             value={form.apiUrl}
             onChange={(e) => set('apiUrl', 'VITE_EXPLAIN_API_URL', e.target.value)}
-            className="w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+            className="w-full text-sm field px-2 py-1 bg-card font-mono"
           />
           <p className="text-xs text-muted-foreground mt-0.5">
             default: <code>{API_DEFAULTS.explainApiUrl}</code>
@@ -320,7 +320,7 @@ function ApiTab() {
             type="text"
             value={form.dashApiUrl}
             onChange={(e) => set('dashApiUrl', 'VITE_DASH_API_URL', e.target.value)}
-            className="w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+            className="w-full text-sm field px-2 py-1 bg-card font-mono"
           />
           <p className="text-xs text-muted-foreground mt-0.5">
             default: <code>{API_DEFAULTS.dashApiUrl}</code>
@@ -333,7 +333,7 @@ function ApiTab() {
             type="text"
             value={form.workflowApiUrl}
             onChange={(e) => set('workflowApiUrl', 'VITE_WORKFLOW_API_URL', e.target.value)}
-            className="w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+            className="w-full text-sm field px-2 py-1 bg-card font-mono"
           />
           <p className="text-xs text-muted-foreground mt-0.5">
             default: <code>{API_DEFAULTS.workflowApiUrl}</code>
@@ -351,7 +351,7 @@ function ApiTab() {
                 type="text"
                 value={form.keycloakUrl}
                 onChange={(e) => set('keycloakUrl', 'VITE_KEYCLOAK_URL', e.target.value)}
-                className="w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+                className="w-full text-sm field px-2 py-1 bg-card font-mono"
               />
             </div>
 
@@ -361,7 +361,7 @@ function ApiTab() {
                 type="text"
                 value={form.keycloakRealm}
                 onChange={(e) => set('keycloakRealm', 'VITE_KEYCLOAK_REALM', e.target.value)}
-                className="w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="w-full text-sm field px-2 py-1 bg-card"
               />
             </div>
 
@@ -371,7 +371,7 @@ function ApiTab() {
                 type="text"
                 value={form.keycloakClientId}
                 onChange={(e) => set('keycloakClientId', 'VITE_KEYCLOAK_CLIENT_ID', e.target.value)}
-                className="w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="w-full text-sm field px-2 py-1 bg-card"
               />
             </div>
           </>

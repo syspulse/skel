@@ -2,7 +2,7 @@ import React from 'react';
 import { TIMEZONES, formatTimezoneOption, type TimezoneOption } from './timezone';
 
 const DEFAULT_CLASS =
-  'text-xs border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer';
+  'text-xs field px-2 py-1 bg-card cursor-pointer';
 
 interface TimezoneSelectProps {
   value: string;

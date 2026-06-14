@@ -83,7 +83,7 @@ export function IconPicker({ value, onChange }: IconPickerProps) {
           value={value ?? ''}
           onChange={(e) => onChange(e.target.value || undefined)}
           placeholder={t('workflow.editor.iconUrl')}
-          className="flex-1 text-xs border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+          className="flex-1 text-xs field px-2 py-1 bg-card"
         />
         {value && (
           <span className="inline-flex items-center justify-center w-7 h-7 border border-border rounded bg-muted">

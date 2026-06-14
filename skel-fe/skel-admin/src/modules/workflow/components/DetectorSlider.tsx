@@ -9,7 +9,7 @@ import { FormattedTimestamp } from '../../../components/FormattedTimestamp';
 import { TagsInput } from '../../../components/TagsInput';
 
 const STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
-const inputCls = 'flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400';
+const inputCls = 'flex-1 text-sm field px-3 py-1 bg-card';
 const roCls = 'flex-1 text-sm bg-muted border border-border rounded px-3 py-1 text-foreground select-text';
 
 interface DetectorSliderProps {
@@ -33,7 +33,7 @@ interface DetectorSliderProps {
 function field(label: string, node: React.ReactNode) {
   return (
     <div className="flex items-center gap-2">
-      <label className="w-24 shrink-0 text-xs text-muted-foreground">{label}</label>
+      <label className="w-24 row-label">{label}</label>
       {node}
     </div>
   );
@@ -119,11 +119,11 @@ export function DetectorSlider(props: DetectorSliderProps) {
 
   return (
     <>
-      {open && <div className="fixed inset-0 z-40 bg-black/10" onClick={onClose} />}
-      <div className={`fixed top-12 right-0 bottom-0 w-[560px] max-w-[92vw] bg-card border-l border-border z-50 flex flex-col
+      {open && <div className="slider-backdrop" onClick={onClose} />}
+      <div className={`slide-panel w-[560px]
         transition-transform duration-300 ease-in-out pointer-events-none
         ${open ? 'translate-x-0 shadow-2xl pointer-events-auto' : 'translate-x-full shadow-none'}`}>
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted">
+        <div className="slide-header">
           <h2 className="text-sm text-foreground">
             {addMode ? t('common.add') : (viewOnly ? t('common.view') : t('common.edit'))} {kindLabel}
           </h2>
@@ -195,7 +195,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
                 <label className="text-xs text-muted-foreground">config (JSON)</label>
                 <textarea rows={6} spellCheck={false} value={configJson} onChange={(e) => setConfigJson(e.target.value)}
                   placeholder={'{\n  "severity": 0.5\n}'}
-                  className="w-full text-xs font-mono border border-input rounded px-2 py-1.5 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 resize-y" />
+                  className="w-full text-xs font-mono field px-2 py-1.5 bg-card resize-y" />
               </div>
             </>
           )}

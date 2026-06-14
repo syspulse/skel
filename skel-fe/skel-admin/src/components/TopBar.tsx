@@ -95,13 +95,13 @@ export function TopBar({ onOpenSettingsTab }: TopBarProps) {
                 {userMenuOpen && (
                   <div
                     role="menu"
-                    className="absolute right-0 top-full mt-1 min-w-[10rem] bg-card border border-border rounded shadow-lg py-1 z-[60]"
+                    className="absolute right-0 top-full mt-1 min-w-[10rem] popover py-1 z-[60]"
                   >
                     <button
                       type="button"
                       role="menuitem"
                       onClick={() => openSettingsTab('userProfile')}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left text-foreground hover:bg-muted transition-colors"
+                      className="menu-item"
                     >
                       <IconInfo size={14} className="text-muted-foreground shrink-0" />
                       {t('topbar.menu.info')}
@@ -110,7 +110,7 @@ export function TopBar({ onOpenSettingsTab }: TopBarProps) {
                       type="button"
                       role="menuitem"
                       onClick={() => openSettingsTab('profile')}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left text-foreground hover:bg-muted transition-colors"
+                      className="menu-item"
                     >
                       <IconSettings size={14} className="text-muted-foreground shrink-0" />
                       {t('topbar.menu.profile')}
@@ -123,7 +123,7 @@ export function TopBar({ onOpenSettingsTab }: TopBarProps) {
                         setUserMenuOpen(false);
                         logout();
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left text-foreground hover:bg-muted transition-colors"
+                      className="menu-item"
                     >
                       <IconLogout size={14} className="text-muted-foreground shrink-0" />
                       {t('topbar.menu.logout')}

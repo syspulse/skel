@@ -70,7 +70,7 @@ function JwtRawField({ token }: { token: string }) {
         value={token}
         rows={4}
         placeholder=""
-        className="w-full text-[11px] font-mono border border-input rounded px-2 py-1.5 bg-muted text-foreground resize-y focus:outline-none focus:ring-1 focus:ring-blue-400"
+        className="w-full text-[11px] font-mono field px-2 py-1.5 bg-muted resize-y"
       />
     </div>
   );
@@ -92,7 +92,7 @@ export function UserProfileTab() {
 
   return (
     <div className="space-y-3">
-      <div className="bg-card border border-border rounded shadow-sm p-3">
+      <div className="surface p-3">
         <div className="flex items-center gap-3 mb-3 pb-3 border-b border-border">
           <UserAvatar
             avatarUrl={avatarUrl}
@@ -131,7 +131,7 @@ export function UserProfileTab() {
       </div>
 
       {AUTH_ENABLED && (
-        <div className="bg-card border border-border rounded shadow-sm p-3 space-y-3">
+        <div className="surface p-3 space-y-3">
           <JwtRawField token={jwtToken} />
           <div>
             <div className="text-xs text-muted-foreground mb-1.5">

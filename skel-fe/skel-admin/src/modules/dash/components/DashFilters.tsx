@@ -41,7 +41,7 @@ export function DashFilters({
         value={filters.search}
         onChange={(e) => onFilterChange({ search: e.target.value })}
         placeholder={t('dash.searchPlaceholder')}
-        className="text-sm border border-input rounded px-2 py-1 w-48 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+        className="text-sm field px-2 py-1 w-48 bg-card"
       />
 
       <TimezoneSelect value={timezone} onChange={onTimezoneChange} />
@@ -50,7 +50,7 @@ export function DashFilters({
 
       <button
         onClick={onRefresh}
-        className="inline-flex items-center gap-1.5 text-xs bg-muted hover:bg-muted-hover text-foreground px-3 py-1 rounded border border-border transition-colors"
+        className="btn-toolbar"
       >
         <IconRefresh size={14} /> {t('common.refresh')}
       </button>

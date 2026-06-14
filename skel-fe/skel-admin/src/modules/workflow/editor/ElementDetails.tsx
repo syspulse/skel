@@ -17,12 +17,12 @@ interface ElementDetailsProps {
   onClose: () => void;
 }
 
-const inputCls = 'w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400';
+const inputCls = 'w-full text-sm field px-2 py-1 bg-card';
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2">
-      <label className="w-24 shrink-0 text-xs text-muted-foreground">{label}</label>
+      <label className="w-24 row-label">{label}</label>
       <div className="flex-1 min-w-0">{children}</div>
     </div>
   );
@@ -32,7 +32,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 function IdRow({ label, value, onGo }: { label: string; value: React.ReactNode; onGo?: () => void }) {
   return (
     <div className="flex items-center gap-2">
-      <label className="w-24 shrink-0 text-xs text-muted-foreground">{label}</label>
+      <label className="w-24 row-label">{label}</label>
       <div className="flex-1 text-sm font-mono text-foreground bg-muted border border-border rounded px-2 py-1 select-text">{value}</div>
       {onGo && (
         <button onClick={onGo} title="open details"
@@ -103,7 +103,7 @@ export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onDelet
               <div className="flex items-center gap-2">
                 <input type="color" value={toHex(borderColor(node.data.iconBorder), '#94a3b8')}
                   onChange={(e) => onUpdateNode(node.id, { iconBorder: `1px solid ${e.target.value}` })}
-                  className="h-7 w-10 shrink-0 rounded border border-input bg-card cursor-pointer" />
+                  className="color-swatch" />
                 <input className={inputCls} value={node.data.iconBorder} placeholder={t('workflow.editor.none')}
                   onChange={(e) => onUpdateNode(node.id, { iconBorder: e.target.value })} />
               </div>
@@ -117,7 +117,7 @@ export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onDelet
               <div className="flex items-center gap-2">
                 <input type="color" value={toHex(node.data.fontColor, '#1e293b')}
                   onChange={(e) => onUpdateNode(node.id, { fontColor: e.target.value })}
-                  className="h-7 w-10 shrink-0 rounded border border-input bg-card cursor-pointer" />
+                  className="color-swatch" />
                 <input className={inputCls} value={node.data.fontColor} onChange={(e) => onUpdateNode(node.id, { fontColor: e.target.value })} />
               </div>
             </Row>
@@ -125,7 +125,7 @@ export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onDelet
               <div className="flex items-center gap-2">
                 <input type="color" value={toHex(node.data.color, '#ffffff')}
                   onChange={(e) => onUpdateNode(node.id, { color: e.target.value })}
-                  className="h-7 w-10 shrink-0 rounded border border-input bg-card cursor-pointer" />
+                  className="color-swatch" />
                 <input className={inputCls} value={node.data.color} onChange={(e) => onUpdateNode(node.id, { color: e.target.value })} />
               </div>
             </Row>
@@ -133,7 +133,7 @@ export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onDelet
               <div className="flex items-center gap-2">
                 <input type="color" value={toHex(borderColor(node.data.border), '#94a3b8')}
                   onChange={(e) => onUpdateNode(node.id, { border: `1px solid ${e.target.value}` })}
-                  className="h-7 w-10 shrink-0 rounded border border-input bg-card cursor-pointer" />
+                  className="color-swatch" />
                 <input className={inputCls} value={node.data.border} onChange={(e) => onUpdateNode(node.id, { border: e.target.value })} />
               </div>
             </Row>
@@ -193,7 +193,7 @@ export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onDelet
               <div className="flex items-center gap-2">
                 <input type="color" value={toHex(edge.data?.color, '#64748b')}
                   onChange={(e) => onUpdateEdge(edge.id, { color: e.target.value })}
-                  className="h-7 w-10 shrink-0 rounded border border-input bg-card cursor-pointer" />
+                  className="color-swatch" />
                 <input className={inputCls} value={edge.data?.color ?? ''} onChange={(e) => onUpdateEdge(edge.id, { color: e.target.value })} />
               </div>
             </Row>

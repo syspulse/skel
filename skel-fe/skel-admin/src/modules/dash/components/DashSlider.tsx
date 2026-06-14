@@ -131,14 +131,14 @@ export function DashSlider({
 
   return (
     <>
-      {open && <div className="fixed inset-0 z-40 bg-black/10" onClick={onClose} />}
+      {open && <div className="slider-backdrop" onClick={onClose} />}
 
       <div
-        className={`fixed top-12 right-0 bottom-0 w-[640px] max-w-[92vw] bg-card border-l border-border z-50 flex flex-col
+        className={`slide-panel w-[640px]
           transition-transform duration-300 ease-in-out pointer-events-none
           ${open ? 'translate-x-0 shadow-2xl pointer-events-auto' : 'translate-x-full shadow-none'}`}
       >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted">
+        <div className="slide-header">
           <h2 className="text-sm text-foreground">{addMode ? t('common.add') : t('common.edit')}</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors" aria-label={t('common.close')}>
             <IconClose size={18} />
@@ -152,7 +152,7 @@ export function DashSlider({
 
           {!addMode && dash && (
             <div className="flex items-center gap-2">
-              <label className="w-20 shrink-0 text-xs text-muted-foreground">{t('dash.fields.id')}</label>
+              <label className="w-20 row-label">{t('dash.fields.id')}</label>
               <div className="flex-1 text-xs font-mono text-foreground bg-muted border border-border rounded px-3 py-1 select-text truncate">
                 {dash.id}
               </div>
@@ -160,24 +160,24 @@ export function DashSlider({
           )}
 
           <div className="flex items-center gap-2">
-            <label className="w-20 shrink-0 text-xs text-muted-foreground">{t('dash.fields.name')}</label>
+            <label className="w-20 row-label">{t('dash.fields.name')}</label>
             <input type="text" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder={t('dash.placeholderName')}
-              className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400" />
+              className="flex-1 text-sm field px-3 py-1 bg-card" />
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="w-20 shrink-0 text-xs text-muted-foreground">{t('dash.fields.desc')}</label>
+            <label className="w-20 row-label">{t('dash.fields.desc')}</label>
             <input type="text" value={form.desc} onChange={(e) => setForm((f) => ({ ...f, desc: e.target.value }))}
               placeholder={t('dash.placeholderDesc')}
-              className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400" />
+              className="flex-1 text-sm field px-3 py-1 bg-card" />
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="w-20 shrink-0 text-xs text-muted-foreground">{t('dash.fields.tags')}</label>
+            <label className="w-20 row-label">{t('dash.fields.tags')}</label>
             <input type="text" value={form.tags} onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
               placeholder={t('dash.placeholderTags')}
-              className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400" />
+              className="flex-1 text-sm field px-3 py-1 bg-card" />
           </div>
 
           <div>
@@ -190,7 +190,7 @@ export function DashSlider({
               rows={16}
               spellCheck={false}
               placeholder="{}"
-              className="w-full text-xs font-mono border border-input rounded px-2 py-1.5 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 resize-y"
+              className="w-full text-xs font-mono field px-2 py-1.5 bg-card resize-y"
             />
           </div>
 

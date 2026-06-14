@@ -69,7 +69,7 @@ export function TimeRangePicker({ value, onChange }: TimeRangePickerProps) {
       <select
         value={selectValue}
         onChange={handleSelectChange}
-        className="text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+        className="text-sm field px-2 py-1 bg-card"
       >
         <option value="all">All time</option>
         {PRESETS.map((p) => (
@@ -86,14 +86,14 @@ export function TimeRangePicker({ value, onChange }: TimeRangePickerProps) {
             type="datetime-local"
             value={toDatetimeLocal(value.start)}
             onChange={handleStartChange}
-            className="text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="text-sm field px-2 py-1 bg-card"
           />
           <span className="text-sm text-muted-foreground">—</span>
           <input
             type="datetime-local"
             value={toDatetimeLocal(value.end)}
             onChange={handleEndChange}
-            className="text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+            className="text-sm field px-2 py-1 bg-card"
           />
         </>
       )}

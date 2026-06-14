@@ -209,7 +209,7 @@ export function ExplainSlider({
 
   return (
     <>
-      {open && <div className="fixed inset-0 z-40 bg-black/10" onClick={onClose} />}
+      {open && <div className="slider-backdrop" onClick={onClose} />}
 
       <ExplainResultSlider
         open={resultOpen}
@@ -219,11 +219,11 @@ export function ExplainSlider({
       />
 
       <div
-        className={`fixed top-12 right-0 bottom-0 w-[880px] max-w-[92vw] bg-card border-l border-border z-50 flex flex-col
+        className={`slide-panel w-[880px]
           transition-transform duration-300 ease-in-out pointer-events-none
           ${open ? 'translate-x-0 shadow-2xl pointer-events-auto' : 'translate-x-full shadow-none'}`}
       >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted">
+        <div className="slide-header">
           <h2 className="text-sm text-foreground">{addMode ? t('common.add') : t('common.edit')}</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors" aria-label={t('common.close')}>
             <IconClose size={18} />
@@ -237,11 +237,11 @@ export function ExplainSlider({
 
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs text-muted-foreground">{t('explain.fields.oid')}</label>
+              <label className="w-24 row-label">{t('explain.fields.oid')}</label>
               {addMode ? (
                 <input type="text" value={form.oid} onChange={(e) => setForm((f) => ({ ...f, oid: e.target.value }))}
                   placeholder={t('explain.placeholderOid')}
-                  className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground font-mono focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                  className="flex-1 text-sm field px-3 py-1 bg-card font-mono" />
               ) : (
                 <div className="flex-1 text-sm font-mono text-foreground bg-muted border border-border rounded px-3 py-1 select-text">
                   {form.oid || <span className="text-muted-foreground italic">{t('explain.placeholderOid')}</span>}
@@ -250,48 +250,48 @@ export function ExplainSlider({
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs text-muted-foreground">{t('explain.fields.rid')} {addMode && <span className="text-red-500">*</span>}</label>
+              <label className="w-24 row-label">{t('explain.fields.rid')} {addMode && <span className="text-red-500">*</span>}</label>
               {addMode ? (
                 <input type="text" value={form.rid} onChange={(e) => setForm((f) => ({ ...f, rid: e.target.value }))}
                   placeholder={t('explain.placeholderRid')}
-                  className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground font-mono focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                  className="flex-1 text-sm field px-3 py-1 bg-card font-mono" />
               ) : (
                 <div className="flex-1 text-sm font-mono text-foreground bg-muted border border-border rounded px-3 py-1 select-text">{form.rid}</div>
               )}
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs text-muted-foreground">{t('explain.fields.name')}</label>
+              <label className="w-24 row-label">{t('explain.fields.name')}</label>
               <input type="text" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder={t('explain.placeholderName')}
-                className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                className="flex-1 text-sm field px-3 py-1 bg-card" />
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs text-muted-foreground">{t('explain.fields.desc')}</label>
+              <label className="w-24 row-label">{t('explain.fields.desc')}</label>
               <input type="text" value={form.desc} onChange={(e) => setForm((f) => ({ ...f, desc: e.target.value }))}
                 placeholder={t('explain.placeholderDesc')}
-                className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                className="flex-1 text-sm field px-3 py-1 bg-card" />
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="w-24 shrink-0 text-xs text-muted-foreground">{t('explain.fields.sid')}</label>
+              <label className="w-24 row-label">{t('explain.fields.sid')}</label>
               <input type="text" value={form.sid} onChange={(e) => setForm((f) => ({ ...f, sid: e.target.value }))}
                 placeholder={t('explain.placeholderSid')}
-                className="flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                className="flex-1 text-sm field px-3 py-1 bg-card" />
             </div>
 
             {!addMode && explain && (
               <>
                 <div className="flex items-center gap-2">
-                  <label className="w-24 shrink-0 text-xs text-muted-foreground">{t('explain.fields.ts0')}</label>
+                  <label className="w-24 row-label">{t('explain.fields.ts0')}</label>
                   <div className="flex-1 text-sm font-mono text-muted-foreground bg-muted border border-border rounded px-3 py-1 select-text">
                     <FormattedTimestamp ts={explain.ts0} timezone={timezone} />
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <label className="w-24 shrink-0 text-xs text-muted-foreground">{t('explain.fields.ts')}</label>
+                  <label className="w-24 row-label">{t('explain.fields.ts')}</label>
                   <div className="flex-1 text-sm font-mono text-muted-foreground bg-muted border border-border rounded px-3 py-1 select-text">
                     <FormattedTimestamp ts={explain.ts} timezone={timezone} />
                   </div>
@@ -325,7 +325,7 @@ export function ExplainSlider({
                   <div className="flex items-center gap-2">
                     <label className="text-xs text-muted-foreground w-10">{t('explain.typ')}</label>
                     <select value={script.typ} onChange={(e) => handleScriptChange(idx, 'typ', e.target.value)}
-                      className="text-xs border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400">
+                      className="text-xs field px-2 py-1 bg-card">
                       {SCRIPT_TYPES.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
                     </select>
                   </div>
@@ -339,7 +339,7 @@ export function ExplainSlider({
                     <label className="text-xs text-muted-foreground w-10">{t('explain.opts')}</label>
                     <input type="text" value={script.opts ?? ''} onChange={(e) => handleScriptChange(idx, 'opts', e.target.value)}
                       placeholder={t('explain.placeholderOpts')}
-                      className="flex-1 text-xs border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400" />
+                      className="flex-1 text-xs field px-2 py-1 bg-card" />
                   </div>
                 </div>
               ))}
@@ -354,7 +354,7 @@ export function ExplainSlider({
                 <span className="text-xs text-muted-foreground">{t('explain.testSection')}</span>
                 <div className="flex items-center gap-2">
                   <select value={testStyle} onChange={(e) => setTestStyle(e.target.value)}
-                    className="text-xs border border-input rounded px-2 py-0.5 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400">
+                    className="text-xs field px-2 py-0.5 bg-card">
                     <option value="">{t('explain.styleDefault')}</option>
                     <option value="short">{t('explain.styleShort')}</option>
                     <option value="narrative">{t('explain.styleNarrative')}</option>
@@ -377,7 +377,7 @@ export function ExplainSlider({
                 <textarea value={testData} onChange={(e) => setTestData(e.target.value)}
                   rows={6} placeholder={'{\n  "address": "0x...",\n  "meta": { "balance[ETH]": "1.23" }\n}'}
                   spellCheck={false}
-                  className="w-full text-xs font-mono border border-input rounded px-2 py-1.5 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 resize-y" />
+                  className="w-full text-xs font-mono field px-2 py-1.5 bg-card resize-y" />
                 {testError && (
                   <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5">{testError}</div>
                 )}

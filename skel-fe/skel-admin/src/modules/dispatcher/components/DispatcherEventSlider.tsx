@@ -32,14 +32,14 @@ export function DispatcherEventSlider({ open, event, onClose }: DispatcherEventS
 
   return (
     <>
-      {open && <div className="fixed inset-0 z-40 bg-black/10" onClick={onClose} />}
+      {open && <div className="slider-backdrop" onClick={onClose} />}
 
       <div
-        className={`fixed top-12 right-0 bottom-0 w-[640px] max-w-[92vw] bg-card border-l border-border z-50 flex flex-col
+        className={`slide-panel w-[640px]
           transition-transform duration-300 ease-in-out pointer-events-none
           ${open ? 'translate-x-0 shadow-2xl pointer-events-auto' : 'translate-x-full shadow-none'}`}
       >
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted shrink-0">
+        <div className="slide-header shrink-0">
           <h2 className="text-sm font-normal text-foreground flex items-center gap-2 min-w-0">
             {t('common.details')}
             {event?.id && (
