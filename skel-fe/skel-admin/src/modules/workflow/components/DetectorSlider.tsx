@@ -165,7 +165,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
               {!viewOnly && (
                 <div className="field-stack">
                   <label className="field-stack-label">{t('workflow.fields.icon')}</label>
-                  <IconPicker value={icon} onChange={setIcon} />
+                  <IconPicker value={icon} onChange={setIcon} w={12} />
                 </div>
               )}
               {viewOnly && (

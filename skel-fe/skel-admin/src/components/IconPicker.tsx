@@ -30,6 +30,18 @@ export const QUICK_ICONS: string[] = [
   svg('<path d="M4 7l8-4 8 4-8 4z"/><path d="M4 7v10l8 4 8-4V7"/>'),
   svg('<path d="M4 17l6-5-6-5"/><path d="M12 19h8"/>'),
   svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  svg('<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>'),
+  svg('<path d="M12 21C5 16 3 12 3 8.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 9 2.5C21 12 19 16 12 21z"/>'),
+  svg('<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>'),
+  svg('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>'),
+  svg('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/>'),
+  svg('<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>'),
+  svg('<path d="M3 6h6l2 2h10v11H3z"/>'),
+  svg('<path d="M4 5h16v11H9l-5 4z"/>'),
+  svg('<path d="M3 11V3h8l10 10-8 8z"/><circle cx="7.5" cy="7.5" r="1.5"/>'),
+  svg('<path d="M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r="1"/>'),
+  svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>'),
+  svg('<path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>'),
 ];
 
 // Default node icons (flat theme) when an entity has no icon of its own.

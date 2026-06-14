@@ -176,7 +176,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
               </SliderFieldRow>
               <div className="field-stack">
                 <label className="field-stack-label">{t('workflow.fields.icon')}</label>
-                <IconPicker value={form.icon} onChange={(icon) => setForm((f) => ({ ...f, icon }))} />
+                <IconPicker value={form.icon} onChange={(icon) => setForm((f) => ({ ...f, icon }))} w={12} />
               </div>
             </>
           )}
