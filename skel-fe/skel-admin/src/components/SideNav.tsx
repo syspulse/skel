@@ -124,7 +124,7 @@ function WorkflowNav({ active, onOpenHome, onOpenInstance, selected, refreshKey 
               >
                 <span className="truncate flex-1">{it.name}</span>
                 <span className={`text-[9px] px-1 py-0.5 rounded shrink-0 ${it.kind === KIND.workflowConfig ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-                  {it.kind.replace('workflow-', '')}
+                  {it.id}
                 </span>
               </button>
             );
