@@ -5,13 +5,13 @@ import { useApp } from './theme/AppContext';
 import { AppLogo } from './components/AppBrand';
 import { SideNav, NavPage } from './components/SideNav';
 import { TopBar } from './components/TopBar';
-import { ExplainPage } from './explain/ExplainPage';
-import { DashPage } from './dash/DashPage';
-import { DispatcherPage } from './dispatcher/DispatcherPage';
-import { WorkflowPage, type WorkflowEditTarget } from './workflow/WorkflowPage';
-import type { WorkflowKind } from './workflow/types';
-import { HelpPage } from './pages/HelpPage';
-import { SettingsPage } from './pages/SettingsPage';
+import { ExplainPage } from './modules/explain/ExplainPage';
+import { DashPage } from './modules/dash/DashPage';
+import { DispatcherPage } from './modules/dispatcher/DispatcherPage';
+import { WorkflowPage, type WorkflowEditTarget } from './modules/workflow/WorkflowPage';
+import type { WorkflowKind } from './modules/workflow/types';
+import { HelpPage } from './modules/help/HelpPage';
+import { SettingsPage } from './settings/SettingsPage';
 
 function AppContent() {
   const { isLoading, error, isAuthenticated, loginWithOption, loginWithKeycloak } = useAuth();

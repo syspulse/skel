@@ -5,8 +5,8 @@ import type { Notification, NotificationInput, Severity } from './types';
 import { LOCAL_NOTIFICATION_SRC } from './types';
 import { NotificationSrcLabel, formatNotificationTs } from './NotificationSrcLabel';
 import { IconClose, IconAlertCircle, IconAlertTriangle, IconInfo, IconCheckCircle } from '../components/Icons';
-import { dispatcher } from '../dispatcher/Dispatcher';
-import { createNotificationSys } from '../dispatcher/systems/NotificationSys';
+import { dispatcher } from '../modules/dispatcher/Dispatcher';
+import { createNotificationSys } from '../modules/dispatcher/systems/NotificationSys';
 
 const TOAST_DURATION = 5000;
 

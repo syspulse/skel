@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { IconLamp, IconGrid, IconSettings, IconHelp, IconDispatcher, IconWorkflow } from './Icons';
 import { useAuth } from '../auth/useAuth';
-import * as wfApi from '../workflow/api';
-import { KIND, type WorkflowKind } from '../workflow/types';
+import * as wfApi from '../modules/workflow/api';
+import { KIND, type WorkflowKind } from '../modules/workflow/types';
 
 export type NavPage = 'explain' | 'dash' | 'dispatcher' | 'workflow' | 'settings' | 'help';
 
