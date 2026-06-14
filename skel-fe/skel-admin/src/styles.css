@@ -26,6 +26,14 @@
   .field {
     @apply border border-input rounded text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400;
   }
+  /* Editable control in a slide-panel "label : input" row. */
+  .field-inline {
+    @apply flex-1 text-sm field px-3 py-1 bg-card;
+  }
+  /* Read-only value in a slide-panel "label : value" row. */
+  .field-readonly {
+    @apply flex-1 text-sm bg-muted border border-border rounded px-3 py-1 text-foreground select-text;
+  }
   /* Square color-picker swatch next to a hex input. */
   .color-swatch {
     @apply h-7 w-10 shrink-0 rounded border border-input bg-card cursor-pointer;

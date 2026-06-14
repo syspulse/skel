@@ -37,9 +37,6 @@ interface WorkflowSliderProps {
   onEdit: () => void;          // open WorkflowGraf editor
 }
 
-const inputCls = 'flex-1 text-sm field px-3 py-1 bg-card';
-const roCls = 'flex-1 text-sm bg-muted border border-border rounded px-3 py-1 text-foreground select-text';
-
 export function WorkflowSlider(props: WorkflowSliderProps) {
   const { open, addMode, kind, schema, config, schemas, saving, timezone, onClose, onCreateSchema, onCreateConfig, onUpdate, onDelete, onEdit } = props;
   const { t } = useTranslation();
@@ -127,40 +124,40 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2">{error}</div>}
 
           {/* id is always first */}
-          {!addMode && entity && field(t('workflow.fields.id'), <div className={roCls}>{entity.id}</div>)}
+          {!addMode && entity && field(t('workflow.fields.id'), <div className="field-readonly">{entity.id}</div>)}
 
           {!addMode && kind === KIND.workflowConfig && (
             <>
-              {field('xid', <input className={inputCls} value={form.xid} onChange={(e) => setForm((f) => ({ ...f, xid: e.target.value }))} />)}
-              {field(t('workflow.fields.sid'), <div className={`${inputCls} bg-muted`}>{config?.sid}</div>)}
+              {field('xid', <input className="field-inline" value={form.xid} onChange={(e) => setForm((f) => ({ ...f, xid: e.target.value }))} />)}
+              {field(t('workflow.fields.sid'), <div className="field-readonly">{config?.sid}</div>)}
             </>
           )}
 
           {!addMode && entity && (
             <>              
-              {field(t('workflow.fields.ts0'), <div className={roCls}><FormattedTimestamp ts={entity.createdAt} timezone={timezone} /></div>)}
-              {field(t('workflow.fields.ts'), <div className={roCls}><FormattedTimestamp ts={entity.updatedAt} timezone={timezone} /></div>)}
+              {field(t('workflow.fields.ts0'), <div className="field-readonly"><FormattedTimestamp ts={entity.createdAt} timezone={timezone} /></div>)}
+              {field(t('workflow.fields.ts'), <div className="field-readonly"><FormattedTimestamp ts={entity.updatedAt} timezone={timezone} /></div>)}
             </>
           )}
 
           {addMode && kind === KIND.workflowConfig && field(t('workflow.fields.schema'),
-            <select className={inputCls} value={sid} onChange={(e) => setSid(e.target.value === '' ? '' : Number(e.target.value))}>
+            <select className="field-inline" value={sid} onChange={(e) => setSid(e.target.value === '' ? '' : Number(e.target.value))}>
               <option value="">{t('workflow.chooseSchema')}</option>
               {schemas.map((s) => <option key={s.id} value={s.id}>#{s.id} {s.name}</option>)}
             </select>
           )}
 
-          {field(t('workflow.fields.name'), <input className={inputCls} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />)}
-          {field(t('workflow.fields.title'), <input className={inputCls} value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />)}
-          {field(t('workflow.fields.desc'), <input className={inputCls} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />)}
+          {field(t('workflow.fields.name'), <input className="field-inline" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />)}
+          {field(t('workflow.fields.title'), <input className="field-inline" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />)}
+          {field(t('workflow.fields.desc'), <input className="field-inline" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />)}
 
           {!addMode && (
             <>
               {field(t('workflow.fields.status'),
-                <select className={inputCls} value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
+                <select className="field-inline" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
                   {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>)}
-              {field(t('workflow.fields.version'), <input className={inputCls} value={form.version} onChange={(e) => setForm((f) => ({ ...f, version: e.target.value }))} />)}
+              {field(t('workflow.fields.version'), <input className="field-inline" value={form.version} onChange={(e) => setForm((f) => ({ ...f, version: e.target.value }))} />)}
               {field(t('workflow.fields.tags'), <TagsInput value={tagsArr(form.tags)} onChange={(arr) => setForm((f) => ({ ...f, tags: arr.join(', ') }))} placeholder={t('workflow.tagsAdd')} />)}
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">{t('workflow.fields.icon')}</label>
@@ -171,14 +168,14 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
 
           {!addMode && kind === KIND.workflowConfig && (
             <>
-              {field('oid', <input className={inputCls} value={form.oid} onChange={(e) => setForm((f) => ({ ...f, oid: e.target.value }))} />)}
-              {field('pid', <input className={inputCls} value={form.pid} onChange={(e) => setForm((f) => ({ ...f, pid: e.target.value }))} />)}          
+              {field('oid', <input className="field-inline" value={form.oid} onChange={(e) => setForm((f) => ({ ...f, oid: e.target.value }))} />)}
+              {field('pid', <input className="field-inline" value={form.pid} onChange={(e) => setForm((f) => ({ ...f, pid: e.target.value }))} />)}          
             </>
           )}
 
           {!addMode && entity && (
             <>
-              {field(t('workflow.fields.graph'), <div className={roCls}>
+              {field(t('workflow.fields.graph'), <div className="field-readonly">
                 {t('workflow.graphNodes')}: {graph ? Object.keys(graph.nodes ?? {}).length : 0}, {t('workflow.graphLinks')}: {graph ? Object.keys(graph.links ?? {}).length : 0}
               </div>)}              
             </>

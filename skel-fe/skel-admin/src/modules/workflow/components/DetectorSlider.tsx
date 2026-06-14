@@ -9,8 +9,6 @@ import { FormattedTimestamp } from '../../../components/FormattedTimestamp';
 import { TagsInput } from '../../../components/TagsInput';
 
 const STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
-const inputCls = 'flex-1 text-sm field px-3 py-1 bg-card';
-const roCls = 'flex-1 text-sm bg-muted border border-border rounded px-3 py-1 text-foreground select-text';
 
 interface DetectorSliderProps {
   open: boolean;
@@ -135,35 +133,35 @@ export function DetectorSlider(props: DetectorSliderProps) {
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2">{error}</div>}
 
-          {!addMode && field(t('workflow.fields.id'), <div className={roCls}>{(isSchema ? schema?.id : config?.id) ?? ''}</div>)}
-          {!addMode && field(t('workflow.fields.ts0'), <div className={roCls}><FormattedTimestamp ts={(isSchema ? schema?.createdAt : config?.createdAt) ?? 0} timezone={timezone} /></div>)}
-          {!addMode && field(t('workflow.fields.ts'), <div className={roCls}><FormattedTimestamp ts={(isSchema ? schema?.updatedAt : config?.updatedAt) ?? 0} timezone={timezone} /></div>)}
+          {!addMode && field(t('workflow.fields.id'), <div className="field-readonly">{(isSchema ? schema?.id : config?.id) ?? ''}</div>)}
+          {!addMode && field(t('workflow.fields.ts0'), <div className="field-readonly"><FormattedTimestamp ts={(isSchema ? schema?.createdAt : config?.createdAt) ?? 0} timezone={timezone} /></div>)}
+          {!addMode && field(t('workflow.fields.ts'), <div className="field-readonly"><FormattedTimestamp ts={(isSchema ? schema?.updatedAt : config?.updatedAt) ?? 0} timezone={timezone} /></div>)}
 
           {field(t('workflow.fields.name'),
-            viewOnly ? <div className={roCls}>{name}</div>
-              : <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} />)}
+            viewOnly ? <div className="field-readonly">{name}</div>
+              : <input className="field-inline" value={name} onChange={(e) => setName(e.target.value)} />)}
 
           {isSchema && (
             <>
               {field(t('workflow.fields.title'),
-                viewOnly ? <div className={roCls}>{title || ''}</div>
-                  : <input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} />)}
+                viewOnly ? <div className="field-readonly">{title || ''}</div>
+                  : <input className="field-inline" value={title} onChange={(e) => setTitle(e.target.value)} />)}
               {field(t('workflow.fields.desc'),
-                viewOnly ? <div className={roCls}>{description || ''}</div>
-                  : <input className={inputCls} value={description} onChange={(e) => setDescription(e.target.value)} />)}
+                viewOnly ? <div className="field-readonly">{description || ''}</div>
+                  : <input className="field-inline" value={description} onChange={(e) => setDescription(e.target.value)} />)}
               {field(t('workflow.fields.version'),
-                viewOnly ? <div className={roCls}>{version}</div>
-                  : <input className={inputCls} value={version} onChange={(e) => setVersion(e.target.value)} />)}
+                viewOnly ? <div className="field-readonly">{version}</div>
+                  : <input className="field-inline" value={version} onChange={(e) => setVersion(e.target.value)} />)}
               {field(t('workflow.fields.author'),
-                viewOnly ? <div className={roCls}>{author || ''}</div>
-                  : <input className={inputCls} value={author} onChange={(e) => setAuthor(e.target.value)} />)}
+                viewOnly ? <div className="field-readonly">{author || ''}</div>
+                  : <input className="field-inline" value={author} onChange={(e) => setAuthor(e.target.value)} />)}
               {!viewOnly && (
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground">{t('workflow.fields.icon')}</label>
                   <IconPicker value={icon} onChange={setIcon} />
                 </div>
               )}
-              {viewOnly && field(t('workflow.fields.networkTags'), <div className={roCls}>{(schema?.networkTags ?? []).join(', ') || ''}</div>)}
+              {viewOnly && field(t('workflow.fields.networkTags'), <div className="field-readonly">{(schema?.networkTags ?? []).join(', ') || ''}</div>)}
               {viewOnly && schema?.schema && (
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground">schema</label>
@@ -176,8 +174,8 @@ export function DetectorSlider(props: DetectorSliderProps) {
           {/* status is editable ONLY for DetectorSchema; read-only for DetectorConfig */}
           {field(t('workflow.fields.status'),
             (isSchema && !viewOnly)
-              ? <select className={inputCls} value={status} onChange={(e) => setStatus(e.target.value)}>{STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}</select>
-              : <div className={roCls}>{status}</div>)}
+              ? <select className="field-inline" value={status} onChange={(e) => setStatus(e.target.value)}>{STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}</select>
+              : <div className="field-readonly">{status}</div>)}
 
           {field(t('workflow.fields.tags'),
             <TagsInput value={tagsArr(tags)} onChange={(arr) => setTags(arr.join(', '))} readOnly={viewOnly} placeholder={t('workflow.tagsAdd')} />)}
@@ -185,12 +183,12 @@ export function DetectorSlider(props: DetectorSliderProps) {
           {!isSchema && (
             <>
               {addMode && field(t('workflow.fields.schema'),
-                <select className={inputCls} value={sid} onChange={(e) => setSid(e.target.value === '' ? '' : Number(e.target.value))}>
+                <select className="field-inline" value={sid} onChange={(e) => setSid(e.target.value === '' ? '' : Number(e.target.value))}>
                   <option value="">{t('workflow.chooseSchema')}</option>
                   {schemas.map((s) => <option key={s.id} value={s.id}>#{s.id} {s.name}</option>)}
                 </select>)}
-              {!addMode && field(t('workflow.fields.schema'), <div className={roCls}>{config?.schema ? `#${config.schema.id} ${config.schema.name}` : ''}</div>)}
-              {field(t('workflow.fields.source'), <input className={inputCls} value={source} onChange={(e) => setSource(e.target.value)} />)}
+              {!addMode && field(t('workflow.fields.schema'), <div className="field-readonly">{config?.schema ? `#${config.schema.id} ${config.schema.name}` : ''}</div>)}
+              {field(t('workflow.fields.source'), <input className="field-inline" value={source} onChange={(e) => setSource(e.target.value)} />)}
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">config (JSON)</label>
                 <textarea rows={6} spellCheck={false} value={configJson} onChange={(e) => setConfigJson(e.target.value)}
