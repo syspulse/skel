@@ -10,6 +10,7 @@ import { ExplainResultSlider } from './ExplainResultSlider';
 import { IconClose, IconPlay, IconPlus, IconMinus, IconSave, IconTrash, IconUpload } from '../../../components/Icons';
 
 import { FormattedTimestamp } from '../../../components/FormattedTimestamp';
+import { SliderFieldRow } from '../../../components/SliderFieldRow';
 
 interface ExplainSliderProps {
   open: boolean;
@@ -63,15 +64,6 @@ function metaForUpdate(
 ): Record<string, unknown> | undefined {
   const original = originalMeta ? { ...originalMeta } : {};
   return metaJson(formMeta) !== metaJson(original) ? formMeta : undefined;
-}
-
-function fieldRow(label: React.ReactNode, node: React.ReactNode) {
-  return (
-    <div className="field-row">
-      <label className="row-label-24">{label}</label>
-      {node}
-    </div>
-  );
 }
 
 export function ExplainSlider({
@@ -239,42 +231,49 @@ export function ExplainSlider({
           {error && <div className="alert-error">{error}</div>}
 
           <div className="slide-fields">
-            {fieldRow(t('explain.fields.oid'),
-              addMode ? (
+            <SliderFieldRow label={t('explain.fields.oid')}>
+              {addMode ? (
                 <input type="text" value={form.oid} onChange={(e) => setForm((f) => ({ ...f, oid: e.target.value }))}
                   placeholder={t('explain.placeholderOid')} className="field-inline-mono" />
               ) : (
                 <div className="field-readonly-mono">
                   {form.oid || <span className="text-muted-foreground italic">{t('explain.placeholderOid')}</span>}
                 </div>
-              ))}
+              )}
+            </SliderFieldRow>
 
-            {fieldRow(<>{t('explain.fields.rid')} {addMode && <span className="text-red-500">*</span>}</>,
-              addMode ? (
+            <SliderFieldRow label={<>{t('explain.fields.rid')} {addMode && <span className="text-red-500">*</span>}</>}>
+              {addMode ? (
                 <input type="text" value={form.rid} onChange={(e) => setForm((f) => ({ ...f, rid: e.target.value }))}
                   placeholder={t('explain.placeholderRid')} className="field-inline-mono" />
               ) : (
                 <div className="field-readonly-mono">{form.rid}</div>
-              ))}
+              )}
+            </SliderFieldRow>
 
-            {fieldRow(t('explain.fields.name'),
+            <SliderFieldRow label={t('explain.fields.name')}>
               <input type="text" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder={t('explain.placeholderName')} className="field-inline" />)}
+                placeholder={t('explain.placeholderName')} className="field-inline" />
+            </SliderFieldRow>
 
-            {fieldRow(t('explain.fields.desc'),
+            <SliderFieldRow label={t('explain.fields.desc')}>
               <input type="text" value={form.desc} onChange={(e) => setForm((f) => ({ ...f, desc: e.target.value }))}
-                placeholder={t('explain.placeholderDesc')} className="field-inline" />)}
+                placeholder={t('explain.placeholderDesc')} className="field-inline" />
+            </SliderFieldRow>
 
-            {fieldRow(t('explain.fields.sid'),
+            <SliderFieldRow label={t('explain.fields.sid')}>
               <input type="text" value={form.sid} onChange={(e) => setForm((f) => ({ ...f, sid: e.target.value }))}
-                placeholder={t('explain.placeholderSid')} className="field-inline" />)}
+                placeholder={t('explain.placeholderSid')} className="field-inline" />
+            </SliderFieldRow>
 
             {!addMode && explain && (
               <>
-                {fieldRow(t('explain.fields.ts0'),
-                  <div className="field-readonly-mono-muted"><FormattedTimestamp ts={explain.ts0} timezone={timezone} /></div>)}
-                {fieldRow(t('explain.fields.ts'),
-                  <div className="field-readonly-mono-muted"><FormattedTimestamp ts={explain.ts} timezone={timezone} /></div>)}
+                <SliderFieldRow label={t('explain.fields.ts0')}>
+                  <div className="field-readonly-mono-muted"><FormattedTimestamp ts={explain.ts0} timezone={timezone} /></div>
+                </SliderFieldRow>
+                <SliderFieldRow label={t('explain.fields.ts')}>
+                  <div className="field-readonly-mono-muted"><FormattedTimestamp ts={explain.ts} timezone={timezone} /></div>
+                </SliderFieldRow>
               </>
             )}
           </div>
@@ -300,25 +299,23 @@ export function ExplainSlider({
                     </button>
                   </div>
 
-                  <div className="field-row">
-                    <label className="row-label-10">{t('explain.typ')}</label>
+                  <SliderFieldRow label={t('explain.typ')} labelWidth="10">
                     <select value={script.typ} onChange={(e) => handleScriptChange(idx, 'typ', e.target.value)}
                       className="field-compact">
                       {SCRIPT_TYPES.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
                     </select>
-                  </div>
+                  </SliderFieldRow>
 
                   <div>
                     <label className="field-stack-label block mb-1">{t('explain.src')}</label>
                     <ScriptEditor typ={script.typ} value={script.src} onChange={(v) => handleScriptChange(idx, 'src', v)} />
                   </div>
 
-                  <div className="field-row">
-                    <label className="row-label-10">{t('explain.opts')}</label>
+                  <SliderFieldRow label={t('explain.opts')} labelWidth="10">
                     <input type="text" value={script.opts ?? ''} onChange={(e) => handleScriptChange(idx, 'opts', e.target.value)}
                       placeholder={t('explain.placeholderOpts')}
                       className="field-compact flex-1" />
-                  </div>
+                  </SliderFieldRow>
                 </div>
               ))}
             </div>

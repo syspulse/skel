@@ -66,6 +66,12 @@
   .slide-fields {
     @apply space-y-1.5;
   }
+  .slide-meta {
+    @apply text-[11px] text-muted-foreground space-y-0.5;
+  }
+  .slide-meta-key {
+    @apply text-foreground;
+  }
   /* Square color-picker swatch next to a hex input. */
   .color-swatch {
     @apply h-7 w-10 shrink-0 rounded border border-input bg-card cursor-pointer;
@@ -77,8 +83,14 @@
   .row-label-24 {
     @apply w-24 row-label;
   }
+  .row-label-20 {
+    @apply w-20 row-label;
+  }
   .row-label-10 {
     @apply w-10 row-label;
+  }
+  .field-readonly-mono-sm {
+    @apply field-readonly font-mono text-xs truncate;
   }
 
   /* Alerts */
@@ -141,6 +153,9 @@
   }
   .filter-label {
     @apply text-sm text-muted-foreground whitespace-nowrap;
+  }
+  .filter-search {
+    @apply text-sm field px-2 py-1 w-48 bg-card;
   }
 
   /* Buttons */

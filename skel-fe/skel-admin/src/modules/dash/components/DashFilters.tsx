@@ -41,7 +41,7 @@ export function DashFilters({
         value={filters.search}
         onChange={(e) => onFilterChange({ search: e.target.value })}
         placeholder={t('dash.searchPlaceholder')}
-        className="text-sm field px-2 py-1 w-48 bg-card"
+        className="filter-search"
       />
 
       <TimezoneSelect value={timezone} onChange={onTimezoneChange} />

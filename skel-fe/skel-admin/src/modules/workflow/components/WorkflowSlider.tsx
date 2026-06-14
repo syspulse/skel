@@ -7,6 +7,7 @@ import { IconClose, IconSave, IconTrash, IconEdit } from '../../../components/Ic
 import { IconPicker } from '../editor/IconPicker';
 import { FormattedTimestamp } from '../../../components/FormattedTimestamp';
 import { TagsInput } from '../../../components/TagsInput';
+import { SliderFieldRow } from '../../../components/SliderFieldRow';
 
 const STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
 
@@ -89,13 +90,6 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
     try { await onDelete(); } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
 
-  const field = (label: string, node: React.ReactNode) => (
-    <div className="field-row">
-      <label className="row-label-24">{label}</label>
-      {node}
-    </div>
-  );
-
   return (
     <>
       {open && <div className="slider-backdrop" onClick={onClose} />}
@@ -120,41 +114,66 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
           {error && <div className="alert-error">{error}</div>}
 
           {/* id is always first */}
-          {!addMode && entity && field(t('workflow.fields.id'), <div className="field-readonly">{entity.id}</div>)}
+          {!addMode && entity && (
+            <SliderFieldRow label={t('workflow.fields.id')}>
+              <div className="field-readonly">{entity.id}</div>
+            </SliderFieldRow>
+          )}
 
           {!addMode && kind === KIND.workflowConfig && (
             <>
-              {field('xid', <input className="field-inline" value={form.xid} onChange={(e) => setForm((f) => ({ ...f, xid: e.target.value }))} />)}
-              {field(t('workflow.fields.sid'), <div className="field-readonly">{config?.sid}</div>)}
+              <SliderFieldRow label="xid">
+                <input className="field-inline" value={form.xid} onChange={(e) => setForm((f) => ({ ...f, xid: e.target.value }))} />
+              </SliderFieldRow>
+              <SliderFieldRow label={t('workflow.fields.sid')}>
+                <div className="field-readonly">{config?.sid}</div>
+              </SliderFieldRow>
             </>
           )}
 
           {!addMode && entity && (
-            <>              
-              {field(t('workflow.fields.ts0'), <div className="field-readonly"><FormattedTimestamp ts={entity.createdAt} timezone={timezone} /></div>)}
-              {field(t('workflow.fields.ts'), <div className="field-readonly"><FormattedTimestamp ts={entity.updatedAt} timezone={timezone} /></div>)}
+            <>
+              <SliderFieldRow label={t('workflow.fields.ts0')}>
+                <div className="field-readonly"><FormattedTimestamp ts={entity.createdAt} timezone={timezone} /></div>
+              </SliderFieldRow>
+              <SliderFieldRow label={t('workflow.fields.ts')}>
+                <div className="field-readonly"><FormattedTimestamp ts={entity.updatedAt} timezone={timezone} /></div>
+              </SliderFieldRow>
             </>
           )}
 
-          {addMode && kind === KIND.workflowConfig && field(t('workflow.fields.schema'),
-            <select className="field-inline" value={sid} onChange={(e) => setSid(e.target.value === '' ? '' : Number(e.target.value))}>
-              <option value="">{t('workflow.chooseSchema')}</option>
-              {schemas.map((s) => <option key={s.id} value={s.id}>#{s.id} {s.name}</option>)}
-            </select>
+          {addMode && kind === KIND.workflowConfig && (
+            <SliderFieldRow label={t('workflow.fields.schema')}>
+              <select className="field-inline" value={sid} onChange={(e) => setSid(e.target.value === '' ? '' : Number(e.target.value))}>
+                <option value="">{t('workflow.chooseSchema')}</option>
+                {schemas.map((s) => <option key={s.id} value={s.id}>#{s.id} {s.name}</option>)}
+              </select>
+            </SliderFieldRow>
           )}
 
-          {field(t('workflow.fields.name'), <input className="field-inline" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />)}
-          {field(t('workflow.fields.title'), <input className="field-inline" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />)}
-          {field(t('workflow.fields.desc'), <input className="field-inline" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />)}
+          <SliderFieldRow label={t('workflow.fields.name')}>
+            <input className="field-inline" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+          </SliderFieldRow>
+          <SliderFieldRow label={t('workflow.fields.title')}>
+            <input className="field-inline" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+          </SliderFieldRow>
+          <SliderFieldRow label={t('workflow.fields.desc')}>
+            <input className="field-inline" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+          </SliderFieldRow>
 
           {!addMode && (
             <>
-              {field(t('workflow.fields.status'),
+              <SliderFieldRow label={t('workflow.fields.status')}>
                 <select className="field-inline" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
                   {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>)}
-              {field(t('workflow.fields.version'), <input className="field-inline" value={form.version} onChange={(e) => setForm((f) => ({ ...f, version: e.target.value }))} />)}
-              {field(t('workflow.fields.tags'), <TagsInput value={tagsArr(form.tags)} onChange={(arr) => setForm((f) => ({ ...f, tags: arr.join(', ') }))} placeholder={t('workflow.tagsAdd')} />)}
+                </select>
+              </SliderFieldRow>
+              <SliderFieldRow label={t('workflow.fields.version')}>
+                <input className="field-inline" value={form.version} onChange={(e) => setForm((f) => ({ ...f, version: e.target.value }))} />
+              </SliderFieldRow>
+              <SliderFieldRow label={t('workflow.fields.tags')}>
+                <TagsInput value={tagsArr(form.tags)} onChange={(arr) => setForm((f) => ({ ...f, tags: arr.join(', ') }))} placeholder={t('workflow.tagsAdd')} />
+              </SliderFieldRow>
               <div className="field-stack">
                 <label className="field-stack-label">{t('workflow.fields.icon')}</label>
                 <IconPicker value={form.icon} onChange={(icon) => setForm((f) => ({ ...f, icon }))} />
@@ -164,17 +183,21 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
 
           {!addMode && kind === KIND.workflowConfig && (
             <>
-              {field('oid', <input className="field-inline" value={form.oid} onChange={(e) => setForm((f) => ({ ...f, oid: e.target.value }))} />)}
-              {field('pid', <input className="field-inline" value={form.pid} onChange={(e) => setForm((f) => ({ ...f, pid: e.target.value }))} />)}          
+              <SliderFieldRow label="oid">
+                <input className="field-inline" value={form.oid} onChange={(e) => setForm((f) => ({ ...f, oid: e.target.value }))} />
+              </SliderFieldRow>
+              <SliderFieldRow label="pid">
+                <input className="field-inline" value={form.pid} onChange={(e) => setForm((f) => ({ ...f, pid: e.target.value }))} />
+              </SliderFieldRow>
             </>
           )}
 
           {!addMode && entity && (
-            <>
-              {field(t('workflow.fields.graph'), <div className="field-readonly">
+            <SliderFieldRow label={t('workflow.fields.graph')}>
+              <div className="field-readonly">
                 {t('workflow.graphNodes')}: {graph ? Object.keys(graph.nodes ?? {}).length : 0}, {t('workflow.graphLinks')}: {graph ? Object.keys(graph.links ?? {}).length : 0}
-              </div>)}              
-            </>
+              </div>
+            </SliderFieldRow>
           )}
           
         </div>
