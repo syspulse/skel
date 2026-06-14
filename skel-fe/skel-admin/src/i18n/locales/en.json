@@ -78,6 +78,7 @@
     "roles": "roles",
     "explainApiUrl": "Explain API URL",
     "dashApiUrl": "Dash API URL",
+    "workflowApiUrl": "Workflow API URL",
     "keycloak": "keycloak",
     "keycloakUrl": "URL",
     "keycloakRealm": "realm",

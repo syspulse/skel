@@ -250,6 +250,7 @@ function WorkflowTab() {
 interface ApiForm {
   apiUrl: string;
   dashApiUrl: string;
+  workflowApiUrl: string;
   keycloakUrl: string;
   keycloakRealm: string;
   keycloakClientId: string;
@@ -258,6 +259,7 @@ interface ApiForm {
 const API_DEFAULTS = {
   explainApiUrl:  import.meta.env.VITE_EXPLAIN_API_URL  || 'http://localhost:8080/api/v1/explain',
   dashApiUrl:     import.meta.env.VITE_DASH_API_URL     || 'http://localhost:8080/api/v1/dash',
+  workflowApiUrl: import.meta.env.VITE_WORKFLOW_API_URL || 'http://localhost:8080/api/v1/wf/ext',
   keycloakUrl:    import.meta.env.VITE_KEYCLOAK_URL     || 'http://localhost:8180',
   keycloakRealm:  import.meta.env.VITE_KEYCLOAK_REALM   || 'master',
   keycloakClientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'skel-admin',
@@ -268,6 +270,7 @@ function ApiTab() {
   const [form, setForm] = useState<ApiForm>(() => ({
     apiUrl:           getStoredOrEnv('VITE_EXPLAIN_API_URL',  API_DEFAULTS.explainApiUrl),
     dashApiUrl:       getStoredOrEnv('VITE_DASH_API_URL',     API_DEFAULTS.dashApiUrl),
+    workflowApiUrl:   getStoredOrEnv('VITE_WORKFLOW_API_URL', API_DEFAULTS.workflowApiUrl),
     keycloakUrl:      getStoredOrEnv('VITE_KEYCLOAK_URL',     API_DEFAULTS.keycloakUrl),
     keycloakRealm:    getStoredOrEnv('VITE_KEYCLOAK_REALM',   API_DEFAULTS.keycloakRealm),
     keycloakClientId: getStoredOrEnv('VITE_KEYCLOAK_CLIENT_ID', API_DEFAULTS.keycloakClientId),
@@ -281,12 +284,14 @@ function ApiTab() {
   const handleReset = () => {
     localStorage.removeItem('VITE_EXPLAIN_API_URL');
     localStorage.removeItem('VITE_DASH_API_URL');
+    localStorage.removeItem('VITE_WORKFLOW_API_URL');
     localStorage.removeItem('VITE_KEYCLOAK_URL');
     localStorage.removeItem('VITE_KEYCLOAK_REALM');
     localStorage.removeItem('VITE_KEYCLOAK_CLIENT_ID');
     setForm({
       apiUrl: API_DEFAULTS.explainApiUrl,
       dashApiUrl: API_DEFAULTS.dashApiUrl,
+      workflowApiUrl: API_DEFAULTS.workflowApiUrl,
       keycloakUrl: API_DEFAULTS.keycloakUrl,
       keycloakRealm: API_DEFAULTS.keycloakRealm,
       keycloakClientId: API_DEFAULTS.keycloakClientId,
@@ -319,6 +324,19 @@ function ApiTab() {
           />
           <p className="text-xs text-muted-foreground mt-0.5">
             default: <code>{API_DEFAULTS.dashApiUrl}</code>
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-xs text-foreground mb-0.5">{t('settings.workflowApiUrl')}</label>
+          <input
+            type="text"
+            value={form.workflowApiUrl}
+            onChange={(e) => set('workflowApiUrl', 'VITE_WORKFLOW_API_URL', e.target.value)}
+            className="w-full text-sm border border-input rounded px-2 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 font-mono"
+          />
+          <p className="text-xs text-muted-foreground mt-0.5">
+            default: <code>{API_DEFAULTS.workflowApiUrl}</code>
           </p>
         </div>
 
