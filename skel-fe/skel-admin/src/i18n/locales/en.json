@@ -240,7 +240,9 @@
       "schema": "schema",
       "source": "source",
       "graph": "graph",
-      "cid": "cid"
+      "cid": "cid",
+      "ts": "ts",
+      "ts0": "ts0"
     },
     "graphNodes": "nodes",
     "graphLinks": "links",
@@ -288,7 +290,9 @@
       "heavy": "heavy",
       "arrow": "arrow",
       "arrowSolid": "solid",
-      "arrowOpen": "open"
-    }
+      "arrowOpen": "open",
+      "openDetails": "open details"
+    },
+    "searchPlaceholder": "search..."
   }
 }

@@ -108,7 +108,7 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen overflow-hidden bg-background">
       <TopBar onOpenSettingsTab={openSettingsTab} />
       <SideNav
         activePage={activePage}
@@ -118,7 +118,9 @@ function AppContent() {
         selectedWorkflowInstance={selectedWorkflowInstance}
         workflowRefreshKey={workflowRefreshKey}
       />
-      <main className="ml-44 mt-12 min-h-[calc(100vh-3rem)] flex flex-col">
+      {/* definite height + auto overflow: modules scroll internally, the page only scrolls
+          when a view genuinely exceeds the viewport (no default page scrollbar). */}
+      <main className="ml-44 mt-12 h-[calc(100vh-3rem)] flex flex-col overflow-auto">
         {renderPage()}
       </main>
     </div>

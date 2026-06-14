@@ -10,17 +10,18 @@ import '@xyflow/react/dist/style.css';
 import type { WorkflowGraf, DetectorSchema, DetectorConfig, EntityKind } from '../types';
 import { DetectorNode } from './DetectorNode';
 import { ElementDetails } from './ElementDetails';
-import { renderIcon, DEFAULT_SCHEMA_ICON, DEFAULT_CONFIG_ICON } from './IconPicker';
+import { renderIcon, DEFAULT_SCHEMA_ICON, DEFAULT_CONFIG_ICON, DEFAULT_WF_SCHEMA_ICON, DEFAULT_WF_CONFIG_ICON } from './IconPicker';
 import {
   grafToRF, rfToGraf, nodeToRF, nextNodeId, nextEdgeId, edgeStyle, edgeMarkerEnd, readViewport,
   type RFNodeData, type RFEdgeData,
 } from './grafMapping';
 import {
-  IconPlus, IconTrash, IconReset, IconSave, IconClose, IconSearch, IconEdit,
+  IconPlus, IconTrash, IconReset, IconSave, IconClose, IconSearch, IconArrowRight,
 } from '../../components/Icons';
 
 export interface WorkflowEditorProps {
   /** title/name/icon/type shown in Panel 1 */
+  id: number;
   title: string;
   name: string;
   icon?: string;
@@ -31,6 +32,7 @@ export interface WorkflowEditorProps {
   saving?: boolean;
   onSave: (graf: WorkflowGraf) => void;
   onBack: () => void;
+  onOpenDetails?: () => void; // open the WorkflowSchema/Config Details panel for editing
   onOpenDetectorSchema?: (id: number) => void;
   onOpenDetectorConfig?: (id: number) => void;
 }
@@ -39,7 +41,7 @@ const EDGE_COLOR = '#64748b';
 
 function WorkflowEditorInner(props: WorkflowEditorProps) {
   const { t } = useTranslation();
-  const { title, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, onSave, onBack, onOpenDetectorSchema, onOpenDetectorConfig } = props;
+  const { id, title, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, onSave, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
 
   const initial = useMemo(() => grafToRF(graf), [graf]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<RFNodeData>>(initial.nodes);
@@ -145,25 +147,39 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId) ?? null;
 
   return (
-    // explicit height: react-flow needs a sized container (parent `main` only sets min-height)
-    <div className="w-full flex flex-col" style={{ height: 'calc(100vh - 3rem)' }}>
+    // pin to the content area (below the 48px top bar, right of the 176px side nav) so the canvas
+    // fills exactly - no page scroll and no empty space below it.
+    <div className="fixed top-12 left-44 right-0 bottom-0 flex flex-col bg-card z-10">
       {/* Panel 1: identity */}
       <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-card shrink-0">
-        <button onClick={onBack} className="text-muted-foreground hover:text-foreground p-1 rounded" title={t('common.close')}>
+        <span className="inline-flex items-center justify-center w-7 h-7 shrink-0 text-foreground">
+          {renderIcon(icon && icon.trim() ? icon : (kind === 'config' ? DEFAULT_WF_CONFIG_ICON : DEFAULT_WF_SCHEMA_ICON), 22)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm text-foreground truncate">{title || name}</div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-muted-foreground truncate">{name}</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${kind === 'config' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+              {id}
+            </span>
+            <button onClick={() => onOpenDetails?.()} title={t('workflow.editor.openDetails')}
+              className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors">
+              <IconArrowRight size={13} />
+            </button>
+          </div>
+        </div>
+        <button onClick={onBack} className="text-muted-foreground hover:text-foreground p-1 rounded shrink-0" title={t('common.close')}>
           <IconClose size={18} />
         </button>
-        <span className="inline-flex items-center justify-center w-7 h-7">{renderIcon(icon, 22) ?? <IconEdit size={18} />}</span>
-        <div className="min-w-0">
-          <div className="text-sm text-foreground truncate">{title || name}</div>
-          <div className="text-[11px] text-muted-foreground truncate">{name}</div>
-        </div>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded ${kind === 'config' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
-          {kind}
-        </span>
       </div>
 
-      {/* Panel 2: toolbar */}
+      {/* Panel 2: toolbar - search first, then buttons */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted shrink-0 relative">
+        <div className="flex items-center gap-1 border border-input rounded px-2 py-1 bg-card">
+          <IconSearch size={13} className="text-muted-foreground" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('workflow.editor.search')}
+            className="text-xs bg-transparent text-foreground focus:outline-none w-40" />
+        </div>
         <div className="relative">
           <button onClick={() => setPaletteOpen((o) => !o)}
             className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors">
@@ -192,11 +208,6 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           <IconSave size={13} /> {saving ? t('common.saving') : t('common.save')}
         </button>
         <div className="flex-1" />
-        <div className="flex items-center gap-1 border border-input rounded px-2 py-1 bg-card">
-          <IconSearch size={13} className="text-muted-foreground" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('workflow.editor.search')}
-            className="text-xs bg-transparent text-foreground focus:outline-none w-40" />
-        </div>
       </div>
 
       {/* Canvas + element details */}

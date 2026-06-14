@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { WorkflowSchema, WorkflowConfig } from '../types';
 import { IconClose, IconSave, IconTrash, IconEdit } from '../../components/Icons';
 import { IconPicker } from '../editor/IconPicker';
+import { FormattedTimestamp } from '../../components/FormattedTimestamp';
 
 const STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
 
@@ -24,6 +25,7 @@ interface WorkflowSliderProps {
   config: WorkflowConfig | null;
   schemas: WorkflowSchema[];   // for config create (choose source schema)
   saving: boolean;
+  timezone: string;
   onClose: () => void;
   onCreateSchema: (name: string, title?: string, description?: string, version?: string, icon?: string, tags?: string[]) => Promise<void>;
   onCreateConfig: (sid: number, name?: string, oid?: string, pid?: string, xid?: string) => Promise<void>;
@@ -33,9 +35,10 @@ interface WorkflowSliderProps {
 }
 
 const inputCls = 'flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400';
+const roCls = 'flex-1 text-sm bg-muted border border-border rounded px-3 py-1 text-foreground select-text';
 
 export function WorkflowSlider(props: WorkflowSliderProps) {
-  const { open, addMode, kind, schema, config, schemas, saving, onClose, onCreateSchema, onCreateConfig, onUpdate, onDelete, onEdit } = props;
+  const { open, addMode, kind, schema, config, schemas, saving, timezone, onClose, onCreateSchema, onCreateConfig, onUpdate, onDelete, onEdit } = props;
   const { t } = useTranslation();
   const [form, setForm] = useState<CommonForm>(emptyForm());
   const [sid, setSid] = useState<number | ''>('');
@@ -120,6 +123,9 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2">{error}</div>}
 
+          {/* id is always first */}
+          {!addMode && entity && field(t('workflow.fields.id'), <div className={roCls}>{entity.id}</div>)}
+
           {addMode && kind === 'config' && field(t('workflow.fields.schema'),
             <select className={inputCls} value={sid} onChange={(e) => setSid(e.target.value === '' ? '' : Number(e.target.value))}>
               <option value="">{t('workflow.chooseSchema')}</option>
@@ -156,10 +162,13 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
           )}
 
           {!addMode && entity && (
-            <div className="text-[11px] text-muted-foreground border border-border rounded px-3 py-2 space-y-0.5">
-              <div>{t('workflow.fields.id')}: {entity.id}</div>
-              <div>{t('workflow.graphNodes')}: {graph ? Object.keys(graph.nodes ?? {}).length : 0}, {t('workflow.graphLinks')}: {graph ? Object.keys(graph.links ?? {}).length : 0}</div>
-            </div>
+            <>
+              {field(t('workflow.fields.graph'), <div className={roCls}>
+                {t('workflow.graphNodes')}: {graph ? Object.keys(graph.nodes ?? {}).length : 0}, {t('workflow.graphLinks')}: {graph ? Object.keys(graph.links ?? {}).length : 0}
+              </div>)}
+              {field(t('workflow.fields.ts0'), <div className={roCls}><FormattedTimestamp ts={entity.createdAt} timezone={timezone} /></div>)}
+              {field(t('workflow.fields.ts'), <div className={roCls}><FormattedTimestamp ts={entity.updatedAt} timezone={timezone} /></div>)}
+            </>
           )}
         </div>
 

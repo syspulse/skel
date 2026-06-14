@@ -1,24 +1,33 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { TABLE_ICON_CELL, TABLE_ICON_SIZE, TABLE_TD, TABLE_TH } from '../../constants/table';
-import { IconTrash, IconWorkflow } from '../../components/Icons';
+import { IconTrash } from '../../components/Icons';
+import { TimestampCell } from '../../components/TimestampCell';
+import { getTimezoneShortLabel } from '../../components/timezone';
 import { renderIcon } from '../editor/IconPicker';
+
+export interface TableColumn {
+  key: string;
+  label: string;
+  width?: string; // tailwind width class; omit for a flexible column
+}
 
 export interface TableRow {
   id: number;
   icon?: string;
   name: string;
-  title?: string;
   status?: string;
   tags?: string[];
-  extra?: string;       // contextual: e.g. "schema #2", "sid 0"
-  updatedAt?: number;
+  ts?: number;                    // updatedAt (shown in the `ts` column)
+  cells?: Record<string, string>; // values for the dynamic columns, keyed by column.key
 }
 
 interface EntityTableProps {
   rows: TableRow[];
+  columns: TableColumn[];   // dynamic columns rendered between `name` and `status`
   selectedId: number | null;
-  extraLabel: string;   // header label for the `extra` column
+  defaultIcon: string;      // svg string fallback when a row has no icon
+  timezone: string;
   minRows?: number;
   onRowClick: (id: number) => void;
   onDelete: (id: number) => void;
@@ -33,11 +42,10 @@ function statusClass(status?: string): string {
   }
 }
 
-const COL_COUNT = 8;
-
-export function EntityTable({ rows, selectedId, extraLabel, minRows = 12, onRowClick, onDelete }: EntityTableProps) {
+export function EntityTable({ rows, columns, selectedId, defaultIcon, timezone, minRows = 12, onRowClick, onDelete }: EntityTableProps) {
   const { t } = useTranslation();
   const padCount = Math.max(0, minRows - rows.length);
+  const colCount = 7 + columns.length; // icon,id,name + dynamic + status,ts,tags,delete
 
   return (
     <table className="w-full table-fixed">
@@ -46,17 +54,21 @@ export function EntityTable({ rows, selectedId, extraLabel, minRows = 12, onRowC
           <th className={`w-10 ${TABLE_ICON_CELL}`} />
           <th className={`w-16 ${TABLE_TH} text-left`}>{t('workflow.fields.id')}</th>
           <th className={`w-56 ${TABLE_TH} text-left`}>{t('workflow.fields.name')}</th>
-          <th className={`${TABLE_TH} text-left`}>{t('workflow.fields.title')}</th>
+          {columns.map((c) => (
+            <th key={c.key} className={`${c.width ?? ''} ${TABLE_TH} text-left`}>{c.label}</th>
+          ))}
           <th className={`w-24 ${TABLE_TH} text-left`}>{t('workflow.fields.status')}</th>
-          <th className={`w-40 ${TABLE_TH} text-left`}>{extraLabel}</th>
-          <th className={`w-44 ${TABLE_TH} text-left`}>{t('workflow.fields.tags')}</th>
+          <th className={`w-40 ${TABLE_TH} text-left`}>
+            {t('workflow.fields.ts')}{timezone !== 'local' ? ` (${getTimezoneShortLabel(timezone)})` : ''}
+          </th>
+          <th className={`w-40 ${TABLE_TH} text-left`}>{t('workflow.fields.tags')}</th>
           <th className={`w-12 ${TABLE_TH} text-center`} />
         </tr>
       </thead>
       <tbody>
         {rows.length === 0 && (
           <tr className="border-b border-border">
-            <td colSpan={COL_COUNT} className={`${TABLE_TD} text-center text-muted-foreground`}>{t('common.noData')}</td>
+            <td colSpan={colCount} className={`${TABLE_TD} text-center text-muted-foreground`}>{t('common.noData')}</td>
           </tr>
         )}
         {rows.map((r, idx) => {
@@ -69,15 +81,19 @@ export function EntityTable({ rows, selectedId, extraLabel, minRows = 12, onRowC
           return (
             <tr key={r.id} className={rowClass} onClick={() => onRowClick(r.id)}>
               <td className={TABLE_ICON_CELL}>
-                <span className="inline-flex items-center justify-center">
-                  {renderIcon(r.icon, TABLE_ICON_SIZE) ?? <IconWorkflow size={TABLE_ICON_SIZE} className="text-blue-500" />}
+                <span className="inline-flex items-center justify-center text-foreground">
+                  {renderIcon(r.icon && r.icon.trim() ? r.icon : defaultIcon, TABLE_ICON_SIZE)}
                 </span>
               </td>
               <td className={`${TABLE_TD} text-muted-foreground`}>{r.id}</td>
               <td className={`${TABLE_TD} text-foreground truncate`}>{r.name}</td>
-              <td className={`${TABLE_TD} text-muted-foreground truncate`}>{r.title || ''}</td>
-              <td className={`${TABLE_TD} ${statusClass(r.status)}`}>{r.status || ''}</td>
-              <td className={`${TABLE_TD} text-muted-foreground truncate`}>{r.extra || ''}</td>
+              {columns.map((c) => (
+                <td key={c.key} className={`${TABLE_TD} text-muted-foreground truncate`}>{r.cells?.[c.key] ?? ''}</td>
+              ))}
+              <td className={`${TABLE_TD} ${statusClass(r.status)}`}>{r.status ?? ''}</td>
+              {r.ts != null
+                ? <TimestampCell ts={r.ts} timezone={timezone} />
+                : <td className={`${TABLE_TD} text-muted-foreground`} />}
               <td className={`${TABLE_TD} text-muted-foreground truncate`}>{r.tags && r.tags.length > 0 ? r.tags.join(', ') : ''}</td>
               <td className={`${TABLE_TD} text-center`} onClick={(e) => e.stopPropagation()}>
                 <button onClick={() => onDelete(r.id)} className="text-muted-foreground hover:text-red-500 p-0.5 rounded transition-colors" title={t('common.delete')}>
@@ -90,7 +106,7 @@ export function EntityTable({ rows, selectedId, extraLabel, minRows = 12, onRowC
         {Array.from({ length: padCount }, (_, i) => (
           <tr key={`pad-${i}`} className={`border-b border-border ${(rows.length + i) % 2 === 0 ? 'bg-card' : 'bg-muted'}`}>
             <td className={TABLE_ICON_CELL} />
-            <td colSpan={COL_COUNT - 1} className={`${TABLE_TD} select-none`}>&nbsp;</td>
+            <td colSpan={colCount - 1} className={`${TABLE_TD} select-none`}>&nbsp;</td>
           </tr>
         ))}
       </tbody>

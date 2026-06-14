@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { DetectorSchema, DetectorConfig } from '../types';
 import { IconClose, IconSave, IconTrash } from '../../components/Icons';
 import { IconPicker } from '../editor/IconPicker';
+import { FormattedTimestamp } from '../../components/FormattedTimestamp';
 
 const STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
 const inputCls = 'flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400';
@@ -16,6 +17,7 @@ interface DetectorSliderProps {
   config: DetectorConfig | null;
   schemas: DetectorSchema[];       // for config create (choose source DetectorSchema)
   saving: boolean;
+  timezone: string;
   readOnly?: boolean;              // when opened from the editor: view only, no edit/delete
   onClose: () => void;
   onCreateSchema: (req: { name: string; title?: string; description?: string; version?: string; author?: string; icon?: string; tags?: string[] }) => Promise<void>;
@@ -34,7 +36,7 @@ function field(label: string, node: React.ReactNode) {
 }
 
 export function DetectorSlider(props: DetectorSliderProps) {
-  const { open, addMode, kind, schema, config, schemas, saving, readOnly, onClose, onCreateSchema, onCreateConfig, onUpdateConfig, onDelete } = props;
+  const { open, addMode, kind, schema, config, schemas, saving, timezone, readOnly, onClose, onCreateSchema, onCreateConfig, onUpdateConfig, onDelete } = props;
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
 
@@ -124,6 +126,8 @@ export function DetectorSlider(props: DetectorSliderProps) {
           {error && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2">{error}</div>}
 
           {!addMode && field(t('workflow.fields.id'), <div className={roCls}>{(isSchema ? schema?.id : config?.id) ?? ''}</div>)}
+          {!addMode && field(t('workflow.fields.ts0'), <div className={roCls}><FormattedTimestamp ts={(isSchema ? schema?.createdAt : config?.createdAt) ?? 0} timezone={timezone} /></div>)}
+          {!addMode && field(t('workflow.fields.ts'), <div className={roCls}><FormattedTimestamp ts={(isSchema ? schema?.updatedAt : config?.updatedAt) ?? 0} timezone={timezone} /></div>)}
 
           {field(t('workflow.fields.name'),
             viewOnly ? <div className={roCls}>{name}</div>

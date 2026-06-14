@@ -5,12 +5,14 @@ import { useAuth } from '../auth/useAuth';
 import { useModuleNotify } from '../notifications/moduleNotify';
 import { usePageSize, PAGE_SIZE_ALL } from '../settings/PageSizeContext';
 import { Pagination } from '../components/Pagination';
-import { IconRefresh, IconPlus } from '../components/Icons';
 import * as api from './api';
 import type {
   WorkflowSchema, WorkflowConfig, DetectorSchema, DetectorConfig, WorkflowGraf, EntityKind,
 } from './types';
-import { EntityTable, type TableRow } from './components/EntityTable';
+import { EntityTable, type TableRow, type TableColumn } from './components/EntityTable';
+import { WorkflowFilters, type WorkflowFilterState } from './components/WorkflowFilters';
+import type { TimeRange } from '../types';
+import { DEFAULT_SCHEMA_ICON, DEFAULT_CONFIG_ICON, DEFAULT_WF_SCHEMA_ICON, DEFAULT_WF_CONFIG_ICON } from './editor/IconPicker';
 import { WorkflowSlider } from './components/WorkflowSlider';
 import { DetectorSlider } from './components/DetectorSlider';
 import { WorkflowEditor } from './editor/WorkflowEditor';
@@ -43,12 +45,30 @@ interface EditorState {
   graf: WorkflowGraf;
 }
 
+function isInTimeRange(ts: number, range: TimeRange): boolean {
+  if (range.type === 'all') return true;
+  const now = Date.now();
+  if (range.type === 'last') return ts >= now - range.hours * 60 * 60 * 1000;
+  return ts >= range.start.getTime() && ts <= range.end.getTime();
+}
+const matchText = (hay: string, q: string) => !q || hay.toLowerCase().includes(q.toLowerCase());
+const matchStatus = (status: string, f: string) => !f || status.toLowerCase().includes(f.toLowerCase());
+
 export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInstancesChanged }: WorkflowPageProps) {
   const { t } = useTranslation();
   const { token } = useAuth();
   const { notifyError } = useModuleNotify(t('nav.workflow'));
   const { pageSize, setPageSize } = usePageSize();
   const [page, setPage] = useState(1);
+  const [timezone, setTimezone] = useState('local');
+  const [activeSearch, setActiveSearch] = useState('');
+  const [filters, setFilters] = useState<WorkflowFilterState>({ search: '', status: '', timeRange: { type: 'all' } });
+
+  const handleFilterChange = (f: WorkflowFilterState) => {
+    if (f.status !== filters.status || f.timeRange !== filters.timeRange) setPage(1);
+    setFilters(f);
+  };
+  const handleSearch = (q: string) => { setActiveSearch(q); setPage(1); };
 
   const [schemas, setSchemas] = useState<WorkflowSchema[]>([]);
   const [configs, setConfigs] = useState<WorkflowConfig[]>([]);
@@ -63,6 +83,8 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   const [editor, setEditor] = useState<EditorState | null>(null);
   // detector detail opened from the editor (sid/cid [->]) - read-only overlay
   const [detView, setDetView] = useState<{ kind: 'detector-schema' | 'detector-config'; id: number } | null>(null);
+  // WorkflowSchema/Config details opened from the editor Panel 1 [->]
+  const [wfDetailsOpen, setWfDetailsOpen] = useState(false);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -120,21 +142,51 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   }, [fetchAll, onInstancesChanged]);
 
   // ----- rows per tab -----
+  // search (name/title) + status + time-range (updatedAt) filter, newest first
+  const q = activeSearch.trim();
+  const st = filters.status.trim();
+  const tr = filters.timeRange;
+  const keep = (name: string, title: string, status: string, ts: number) =>
+    matchText(`${name} ${title}`, q) && matchStatus(status, st) && isInTimeRange(ts, tr);
+  const byTsDesc = <T extends { updatedAt: number }>(a: T, b: T) => b.updatedAt - a.updatedAt;
+
   const rowsFor = (kind: EntityKind): TableRow[] => {
     switch (kind) {
-      case 'schema': return schemas.map((s) => ({ id: s.id, icon: s.icon, name: s.name, title: s.title, status: s.status, tags: s.tags, extra: `${t('workflow.graphNodes')}: ${Object.keys(s.graph?.nodes ?? {}).length}` }));
-      case 'config': return configs.map((c) => ({ id: c.id, icon: c.icon, name: c.name, title: c.title, status: c.status, tags: c.tags, extra: `sid ${c.sid}` }));
-      case 'detector-schema': return detSchemas.map((d) => ({ id: d.id, icon: d.icon, name: d.name, title: d.title, status: d.status, tags: d.tags, extra: d.version }));
-      case 'detector-config': return detConfigs.map((d) => ({ id: d.id, name: d.name, status: d.status, tags: d.tags, extra: d.schema ? `${t('workflow.fields.schema')} #${d.schema.id}` : '' }));
+      case 'schema': return schemas.filter((s) => keep(s.name, s.title, s.status, s.updatedAt)).sort(byTsDesc)
+        .map((s) => ({ id: s.id, icon: s.icon, name: s.name, status: s.status, tags: s.tags, ts: s.updatedAt,
+          cells: { title: s.title, graph: `${Object.keys(s.graph?.nodes ?? {}).length} ${t('workflow.graphNodes')}` } }));
+      case 'config': return configs.filter((c) => keep(c.name, c.title, c.status, c.updatedAt)).sort(byTsDesc)
+        .map((c) => ({ id: c.id, icon: c.icon, name: c.name, status: c.status, tags: c.tags, ts: c.updatedAt,
+          cells: { title: c.title, sid: String(c.sid) } }));
+      case 'detector-schema': return detSchemas.filter((d) => keep(d.name, d.title, d.status, d.updatedAt)).sort(byTsDesc)
+        .map((d) => ({ id: d.id, icon: d.icon, name: d.name, status: d.status, tags: d.tags, ts: d.updatedAt,
+          cells: { title: d.title, version: d.version } }));
+      case 'detector-config': return detConfigs.filter((d) => keep(d.name, d.contract?.name ?? '', d.status, d.updatedAt)).sort(byTsDesc)
+        .map((d) => ({ id: d.id, name: d.name, status: d.status, tags: d.tags, ts: d.updatedAt,
+          cells: { title: d.contract?.name ?? '', version: d.schema?.version ?? '', schema: d.schema ? String(d.schema.id) : '' } }));
     }
   };
 
-  const extraLabelFor = (kind: EntityKind): string => {
+  const columnsFor = (kind: EntityKind): TableColumn[] => {
+    const title = { key: 'title', label: t('workflow.fields.title') };
     switch (kind) {
-      case 'schema': return t('workflow.fields.graph');
-      case 'config': return t('workflow.fields.sid');
-      case 'detector-schema': return t('workflow.fields.version');
-      case 'detector-config': return t('workflow.fields.schema');
+      case 'schema': return [title, { key: 'graph', label: t('workflow.fields.graph'), width: 'w-32' }];
+      case 'config': return [title, { key: 'sid', label: t('workflow.fields.sid'), width: 'w-24' }];
+      case 'detector-schema': return [title, { key: 'version', label: t('workflow.fields.version'), width: 'w-28' }];
+      case 'detector-config': return [
+        title,
+        { key: 'version', label: t('workflow.fields.version'), width: 'w-28' },
+        { key: 'schema', label: t('workflow.fields.schema'), width: 'w-28' },
+      ];
+    }
+  };
+
+  const defaultIconFor = (kind: EntityKind): string => {
+    switch (kind) {
+      case 'schema': return DEFAULT_WF_SCHEMA_ICON;
+      case 'config': return DEFAULT_WF_CONFIG_ICON;
+      case 'detector-schema': return DEFAULT_SCHEMA_ICON;
+      case 'detector-config': return DEFAULT_CONFIG_ICON;
     }
   };
 
@@ -175,10 +227,13 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
 
   // ===================== EDITOR MODE =====================
   if (editor) {
+    const editorSchema = editor.kind === 'schema' ? schemas.find((s) => s.id === editor.id) ?? null : null;
+    const editorConfig = editor.kind === 'config' ? configs.find((c) => c.id === editor.id) ?? null : null;
     return (
       <>
         <WorkflowEditor
           key={`${editor.kind}-${editor.id}`}
+          id={editor.id}
           title={editor.title}
           name={editor.name}
           icon={editor.icon}
@@ -189,6 +244,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           saving={saving}
           onSave={handleEditorSave}
           onBack={() => setEditor(null)}
+          onOpenDetails={() => setWfDetailsOpen(true)}
           onOpenDetectorSchema={(id) => setDetView({ kind: 'detector-schema', id })}
           onOpenDetectorConfig={(id) => setDetView({ kind: 'detector-config', id })}
         />
@@ -201,11 +257,53 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           config={detView?.kind === 'detector-config' ? detConfigs.find((d) => d.id === detView.id) ?? null : null}
           schemas={detSchemas}
           saving={false}
+          timezone={timezone}
           onClose={() => setDetView(null)}
           onCreateSchema={async () => {}}
           onCreateConfig={async () => {}}
           onUpdateConfig={async () => {}}
           onDelete={async () => {}}
+        />
+        {/* Edit the WorkflowSchema/Config metadata from the editor Panel 1 [->] */}
+        <WorkflowSlider
+          open={wfDetailsOpen}
+          addMode={false}
+          kind={editor.kind}
+          schema={editorSchema}
+          config={editorConfig}
+          schemas={schemas}
+          saving={saving}
+          timezone={timezone}
+          onClose={() => setWfDetailsOpen(false)}
+          onCreateSchema={async () => {}}
+          onCreateConfig={async () => {}}
+          onUpdate={async (patch) => {
+            setSaving(true);
+            try {
+              if (editor.kind === 'schema') {
+                await api.updateSchema(token, editor.id, patch);
+                const v = await api.getSchema(token, editor.id);
+                setEditor((e) => e ? { ...e, title: v.schema.title, name: v.schema.name, icon: v.schema.icon } : e);
+              } else {
+                await api.updateConfig(token, editor.id, patch);
+                const v = await api.getConfig(token, editor.id);
+                setEditor((e) => e ? { ...e, title: v.config.title, name: v.config.name, icon: v.config.icon } : e);
+              }
+              await refreshAndNotify();
+              setWfDetailsOpen(false);
+            } finally { setSaving(false); }
+          }}
+          onDelete={async () => {
+            setSaving(true);
+            try {
+              if (editor.kind === 'schema') await api.deleteSchema(token, editor.id);
+              else await api.deleteConfig(token, editor.id);
+              await refreshAndNotify();
+              setWfDetailsOpen(false);
+              setEditor(null);
+            } finally { setSaving(false); }
+          }}
+          onEdit={() => setWfDetailsOpen(false)}
         />
       </>
     );
@@ -225,18 +323,15 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
         padded={false}
         onTabChange={() => setPage(1)}
         afterTabs={(active) => (
-          <div className="flex items-center gap-3 px-4 py-2 bg-card border-b border-border">
-            <span className="text-xs text-muted-foreground">{rowsFor(active as EntityKind).length} {t(`workflow.tabs.${toKey(active as EntityKind)}`)}</span>
-            <div className="flex-1" />
-            <button onClick={refreshAndNotify}
-              className="inline-flex items-center gap-1.5 text-xs bg-muted hover:bg-muted-hover text-foreground px-3 py-1 rounded border border-border transition-colors">
-              <IconRefresh size={14} /> {t('common.refresh')}
-            </button>
-            <button onClick={() => openAdd(active as EntityKind)}
-              className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors">
-              <IconPlus size={13} /> {t('common.add')}
-            </button>
-          </div>
+          <WorkflowFilters
+            filters={filters}
+            timezone={timezone}
+            onFilterChange={handleFilterChange}
+            onTimezoneChange={setTimezone}
+            onSearch={handleSearch}
+            onAdd={() => openAdd(active as EntityKind)}
+            onRefresh={refreshAndNotify}
+          />
         )}
       >
         {(active) => {
@@ -248,8 +343,10 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
               <div className="flex-1 overflow-auto bg-card">
                 <EntityTable
                   rows={pageRows}
+                  columns={columnsFor(active as EntityKind)}
+                  defaultIcon={defaultIconFor(active as EntityKind)}
+                  timezone={timezone}
                   selectedId={sliderKind === active ? selectedId : null}
-                  extraLabel={extraLabelFor(active as EntityKind)}
                   minRows={pageSize === PAGE_SIZE_ALL ? pageRows.length : pageSize}
                   onRowClick={(id) => openDetails(active as EntityKind, id)}
                   onDelete={(id) => handleDelete(active as EntityKind, id)}
@@ -261,6 +358,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
                 total={total}
                 onPageChange={setPage}
                 onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+                footerLeft={<span>{total} {t(`workflow.tabs.${toKey(active as EntityKind)}`)}</span>}
               />
             </div>
           );
@@ -276,6 +374,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
         config={selectedConfig}
         schemas={schemas}
         saving={saving}
+        timezone={timezone}
         onClose={closeSlider}
         onCreateSchema={async (name, title, description, version, icon, tags) => {
           setSaving(true);
@@ -317,6 +416,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
         config={selectedDetConfig}
         schemas={detSchemas}
         saving={saving}
+        timezone={timezone}
         onClose={closeSlider}
         onCreateSchema={async (req) => { setSaving(true); try { await api.createDetectorSchema(token, req); await fetchAll(); closeSlider(); } finally { setSaving(false); } }}
         onCreateConfig={async (req) => { setSaving(true); try { await api.createDetectorConfig(token, req); await fetchAll(); closeSlider(); } finally { setSaving(false); } }}
