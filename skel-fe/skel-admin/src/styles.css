@@ -76,6 +76,15 @@
   .color-swatch {
     @apply h-7 w-10 shrink-0 rounded border border-input bg-card cursor-pointer;
   }
+
+  /* IconPicker (shared). Grid column count is set inline (dynamic). */
+  .icon-picker { @apply space-y-1.5; }
+  .icon-grid { @apply grid gap-1; }
+  .icon-cell { @apply flex items-center justify-center h-7 rounded border transition-colors text-foreground; }
+  .icon-cell-on { @apply border-blue-500 bg-blue-50 text-blue-600; }
+  .icon-cell-off { @apply border-border hover:bg-muted; }
+  .icon-svg { @apply inline-flex items-center justify-center [&>svg]:w-full [&>svg]:h-full; }
+  .icon-preview { @apply inline-flex items-center justify-center w-7 h-7 border border-border rounded bg-muted; }
   /* Left-hand label in a "label : control" details row. Pair with a width utility. */
   .row-label {
     @apply shrink-0 text-xs text-muted-foreground;

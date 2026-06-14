@@ -11,7 +11,7 @@ import type { WorkflowGraf, DetectorSchema, DetectorConfig, WorkflowKind } from 
 import { KIND } from '../types';
 import { DetectorNode } from './DetectorNode';
 import { ElementDetails } from './ElementDetails';
-import { renderIcon, DEFAULT_SCHEMA_ICON, DEFAULT_CONFIG_ICON, DEFAULT_WF_SCHEMA_ICON, DEFAULT_WF_CONFIG_ICON } from './IconPicker';
+import { renderIcon, DEFAULT_SCHEMA_ICON, DEFAULT_CONFIG_ICON, DEFAULT_WF_SCHEMA_ICON, DEFAULT_WF_CONFIG_ICON } from '../../../components/IconPicker';
 import { useWorkflowGrid } from '../../../settings/WorkflowGridContext';
 import {
   grafToRF, rfToGraf, nodeToRF, nextNodeId, nextEdgeId, edgeStyle, edgeMarkerEnd, edgeRFType, readViewport, readGridSize, readSnapToGrid,

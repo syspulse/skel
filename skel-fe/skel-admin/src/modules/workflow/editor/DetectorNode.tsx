@@ -1,7 +1,7 @@
 import React from 'react';
 import { Handle, Position, NodeResizer, type NodeProps } from '@xyflow/react';
 import type { RFNodeData } from './grafMapping';
-import { renderIcon } from './IconPicker';
+import { renderIcon } from '../../../components/IconPicker';
 
 const HANDLE_STYLE: React.CSSProperties = {
   width: 8,

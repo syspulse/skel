@@ -4,7 +4,7 @@ import type { WorkflowSchema, WorkflowConfig } from '../types';
 import { entityLabelKey, KIND } from '../types';
 import type { WorkflowKind } from '../types';
 import { IconClose, IconSave, IconTrash, IconEdit } from '../../../components/Icons';
-import { IconPicker } from '../editor/IconPicker';
+import { IconPicker } from '../../../components/IconPicker';
 import { FormattedTimestamp } from '../../../components/FormattedTimestamp';
 import { TagsInput } from '../../../components/TagsInput';
 import { SliderFieldRow } from '../../../components/SliderFieldRow';

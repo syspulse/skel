@@ -42,7 +42,19 @@ export const DEFAULT_WF_CONFIG_ICON = svg('<circle cx="12" cy="12" r="9"/><path 
 interface IconPickerProps {
   value?: string;
   onChange: (icon: string | undefined) => void;
+  /** how many icons to offer (default: all) */
+  num?: number;
+  /** grid width, in number of icons per row (default: 8) */
+  w?: number;
+  /** grid height, in number of icon rows shown before scrolling (default: all rows) */
+  h?: number;
+  /** placeholder for the custom url/svg input */
+  placeholder?: string;
 }
+
+// icon cell box height (h-7 = 1.75rem) and grid gap (gap-1 = 0.25rem), used to size `h` rows.
+const CELL_REM = 1.75;
+const GAP_REM = 0.25;
 
 /** Render an icon string as image (url/data/svg) or as text/emoji. */
 export function renderIcon(icon: string | undefined, size = 18): React.ReactNode {
@@ -50,8 +62,7 @@ export function renderIcon(icon: string | undefined, size = 18): React.ReactNode
   const s = icon.trim();
   if (s.toLowerCase().startsWith('<svg')) {
     return (
-      <span className="inline-flex items-center justify-center [&>svg]:w-full [&>svg]:h-full"
-        style={{ width: size, height: size }} dangerouslySetInnerHTML={{ __html: s }} />
+      <span className="icon-svg" style={{ width: size, height: size }} dangerouslySetInnerHTML={{ __html: s }} />
     );
   }
   if (s.startsWith('http') || s.startsWith('/') || s.startsWith('data:')) {
@@ -60,18 +71,23 @@ export function renderIcon(icon: string | undefined, size = 18): React.ReactNode
   return <span style={{ fontSize: size }} className="leading-none">{s}</span>;
 }
 
-export function IconPicker({ value, onChange }: IconPickerProps) {
+export function IconPicker({ value, onChange, num, w = 8, h, placeholder }: IconPickerProps) {
   const { t } = useTranslation();
+  const icons = num != null ? QUICK_ICONS.slice(0, num) : QUICK_ICONS;
+  const gridStyle: React.CSSProperties = { gridTemplateColumns: `repeat(${w}, minmax(0, 1fr))` };
+  if (h != null) {
+    gridStyle.maxHeight = `calc(${h} * ${CELL_REM}rem + ${Math.max(h - 1, 0)} * ${GAP_REM}rem)`;
+    gridStyle.overflowY = 'auto';
+  }
   return (
-    <div className="space-y-1.5">
-      <div className="grid grid-cols-8 gap-1">
-        {QUICK_ICONS.map((ic, i) => (
+    <div className="icon-picker">
+      <div className="icon-grid" style={gridStyle}>
+        {icons.map((ic, i) => (
           <button
             key={i}
             type="button"
             onClick={() => onChange(ic)}
-            className={`flex items-center justify-center h-7 rounded border transition-colors text-foreground
-              ${value === ic ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-border hover:bg-muted'}`}
+            className={`icon-cell ${value === ic ? 'icon-cell-on' : 'icon-cell-off'}`}
           >
             {renderIcon(ic, 16)}
           </button>
@@ -82,14 +98,10 @@ export function IconPicker({ value, onChange }: IconPickerProps) {
           type="text"
           value={value ?? ''}
           onChange={(e) => onChange(e.target.value || undefined)}
-          placeholder={t('workflow.editor.iconUrl')}
-          className="flex-1 text-xs field px-2 py-1 bg-card"
+          placeholder={placeholder ?? t('workflow.editor.iconUrl')}
+          className="flex-1 field-compact"
         />
-        {value && (
-          <span className="inline-flex items-center justify-center w-7 h-7 border border-border rounded bg-muted">
-            {renderIcon(value, 18)}
-          </span>
-        )}
+        {value && <span className="icon-preview">{renderIcon(value, 18)}</span>}
       </div>
     </div>
   );

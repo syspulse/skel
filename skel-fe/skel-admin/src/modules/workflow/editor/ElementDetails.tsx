@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Node, Edge } from '@xyflow/react';
 import type { RFNodeData, RFEdgeData } from './grafMapping';
-import { IconPicker } from './IconPicker';
+import { IconPicker } from '../../../components/IconPicker';
 import { IconClose, IconTrash, IconArrowRight } from '../../../components/Icons';
 
 interface ElementDetailsProps {

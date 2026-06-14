@@ -13,7 +13,7 @@ import { entityLabelKey, KIND } from './types';
 import { EntityTable, type TableRow, type TableColumn } from './components/EntityTable';
 import { WorkflowFilters, type WorkflowFilterState } from './components/WorkflowFilters';
 import type { TimeRange } from '../../types';
-import { DEFAULT_SCHEMA_ICON, DEFAULT_CONFIG_ICON, DEFAULT_WF_SCHEMA_ICON, DEFAULT_WF_CONFIG_ICON } from './editor/IconPicker';
+import { DEFAULT_SCHEMA_ICON, DEFAULT_CONFIG_ICON, DEFAULT_WF_SCHEMA_ICON, DEFAULT_WF_CONFIG_ICON } from '../../components/IconPicker';
 import { WorkflowSlider } from './components/WorkflowSlider';
 import { DetectorSlider } from './components/DetectorSlider';
 import { WorkflowEditor } from './editor/WorkflowEditor';

@@ -4,7 +4,7 @@ import { TABLE_ICON_CELL, TABLE_ICON_SIZE, TABLE_TD, TABLE_TH } from '../../../c
 import { IconTrash } from '../../../components/Icons';
 import { TimestampCell } from '../../../components/TimestampCell';
 import { getTimezoneShortLabel } from '../../../components/timezone';
-import { renderIcon } from '../editor/IconPicker';
+import { renderIcon } from '../../../components/IconPicker';
 
 export interface TableColumn {
   key: string;
