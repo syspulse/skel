@@ -30,8 +30,8 @@ interface WorkflowPageProps {
 }
 
 const TABS: { id: EntityKind; key: string }[] = [
-  { id: 'schema', key: 'workflow.tabs.schema' },
-  { id: 'config', key: 'workflow.tabs.config' },
+  { id: 'schema', key: 'workflow.tabs.workflowSchema' },
+  { id: 'config', key: 'workflow.tabs.workflowConfig' },
   { id: 'detector-schema', key: 'workflow.tabs.detectorSchema' },
   { id: 'detector-config', key: 'workflow.tabs.detectorConfig' },
 ];

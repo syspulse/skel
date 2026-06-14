@@ -126,6 +126,20 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
           {/* id is always first */}
           {!addMode && entity && field(t('workflow.fields.id'), <div className={roCls}>{entity.id}</div>)}
 
+          {!addMode && kind === 'config' && (
+            <>
+              {field('xid', <input className={inputCls} value={form.xid} onChange={(e) => setForm((f) => ({ ...f, xid: e.target.value }))} />)}
+              {field(t('workflow.fields.sid'), <div className={`${inputCls} bg-muted`}>{config?.sid}</div>)}
+            </>
+          )}
+
+          {!addMode && entity && (
+            <>              
+              {field(t('workflow.fields.ts0'), <div className={roCls}><FormattedTimestamp ts={entity.createdAt} timezone={timezone} /></div>)}
+              {field(t('workflow.fields.ts'), <div className={roCls}><FormattedTimestamp ts={entity.updatedAt} timezone={timezone} /></div>)}
+            </>
+          )}
+
           {addMode && kind === 'config' && field(t('workflow.fields.schema'),
             <select className={inputCls} value={sid} onChange={(e) => setSid(e.target.value === '' ? '' : Number(e.target.value))}>
               <option value="">{t('workflow.chooseSchema')}</option>
@@ -155,9 +169,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
           {!addMode && kind === 'config' && (
             <>
               {field('oid', <input className={inputCls} value={form.oid} onChange={(e) => setForm((f) => ({ ...f, oid: e.target.value }))} />)}
-              {field('pid', <input className={inputCls} value={form.pid} onChange={(e) => setForm((f) => ({ ...f, pid: e.target.value }))} />)}
-              {field('xid', <input className={inputCls} value={form.xid} onChange={(e) => setForm((f) => ({ ...f, xid: e.target.value }))} />)}
-              {field(t('workflow.fields.sid'), <div className={`${inputCls} bg-muted`}>{config?.sid}</div>)}
+              {field('pid', <input className={inputCls} value={form.pid} onChange={(e) => setForm((f) => ({ ...f, pid: e.target.value }))} />)}          
             </>
           )}
 
@@ -165,11 +177,10 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
             <>
               {field(t('workflow.fields.graph'), <div className={roCls}>
                 {t('workflow.graphNodes')}: {graph ? Object.keys(graph.nodes ?? {}).length : 0}, {t('workflow.graphLinks')}: {graph ? Object.keys(graph.links ?? {}).length : 0}
-              </div>)}
-              {field(t('workflow.fields.ts0'), <div className={roCls}><FormattedTimestamp ts={entity.createdAt} timezone={timezone} /></div>)}
-              {field(t('workflow.fields.ts'), <div className={roCls}><FormattedTimestamp ts={entity.updatedAt} timezone={timezone} /></div>)}
+              </div>)}              
             </>
           )}
+          
         </div>
 
         <div className="flex items-center gap-2 px-5 py-2.5 border-t border-border bg-muted">

@@ -220,8 +220,8 @@
   },
   "workflow": {
     "tabs": {
-      "schema": "Schema",
-      "config": "Config",
+      "workflowSchema": "WorkflowSchema",
+      "workflowConfig": "WorkflowConfig",
       "detectorSchema": "DetectorSchema",
       "detectorConfig": "DetectorConfig"
     },
