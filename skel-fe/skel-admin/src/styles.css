@@ -34,6 +34,38 @@
   .field-readonly {
     @apply flex-1 text-sm bg-muted border border-border rounded px-3 py-1 text-foreground select-text;
   }
+  .field-inline-mono {
+    @apply field-inline font-mono;
+  }
+  .field-readonly-mono {
+    @apply field-readonly font-mono;
+  }
+  .field-readonly-mono-muted {
+    @apply field-readonly font-mono text-muted-foreground;
+  }
+  /* Compact / code controls inside slide panels. */
+  .field-compact {
+    @apply text-xs field px-2 py-1 bg-card;
+  }
+  .field-code {
+    @apply w-full text-xs font-mono field px-2 py-1.5 bg-card resize-y;
+  }
+  .code-block-sm {
+    @apply text-[11px] font-mono bg-muted border border-border rounded px-2 py-1.5 overflow-auto max-h-48;
+  }
+  /* "label : control" row in slide-panel forms. */
+  .field-row {
+    @apply flex items-center gap-2;
+  }
+  .field-stack {
+    @apply space-y-1;
+  }
+  .field-stack-label {
+    @apply text-xs text-muted-foreground;
+  }
+  .slide-fields {
+    @apply space-y-1.5;
+  }
   /* Square color-picker swatch next to a hex input. */
   .color-swatch {
     @apply h-7 w-10 shrink-0 rounded border border-input bg-card cursor-pointer;
@@ -41,6 +73,20 @@
   /* Left-hand label in a "label : control" details row. Pair with a width utility. */
   .row-label {
     @apply shrink-0 text-xs text-muted-foreground;
+  }
+  .row-label-24 {
+    @apply w-24 row-label;
+  }
+  .row-label-10 {
+    @apply w-10 row-label;
+  }
+
+  /* Alerts */
+  .alert-error {
+    @apply bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2;
+  }
+  .alert-error-inline {
+    @apply text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5;
   }
 
   /* Surfaces */
@@ -51,15 +97,42 @@
     @apply bg-card border border-border rounded shadow-lg;
   }
 
-  /* Right slide-over drawer (Details panels). Width as a utility. */
+  /* Right slide-over drawer (Details panels). Width via slide-panel-* modifier. */
   .slider-backdrop {
     @apply fixed inset-0 z-40 bg-black/10;
   }
   .slide-panel {
-    @apply fixed top-12 right-0 bottom-0 max-w-[92vw] bg-card border-l border-border z-50 flex flex-col;
+    @apply fixed top-12 right-0 bottom-0 max-w-[92vw] bg-card border-l border-border z-50 flex flex-col
+      transition-transform duration-300 ease-in-out pointer-events-none;
   }
+  .slide-panel-sm { @apply w-[560px]; }
+  .slide-panel-md { @apply w-[640px]; }
+  .slide-panel-lg { @apply w-[880px]; }
+  .slide-panel-open { @apply translate-x-0 shadow-2xl pointer-events-auto; }
+  .slide-panel-closed { @apply translate-x-full shadow-none; }
   .slide-header {
     @apply flex items-center justify-between px-5 py-3 border-b border-border bg-muted;
+  }
+  .slide-title {
+    @apply text-sm text-foreground;
+  }
+  .slide-body {
+    @apply flex-1 overflow-y-auto px-5 py-4 space-y-3;
+  }
+  .slide-footer {
+    @apply flex items-center gap-2 px-5 py-2.5 border-t border-border bg-muted;
+  }
+  .slide-close {
+    @apply text-muted-foreground hover:text-foreground p-1 rounded transition-colors;
+  }
+  .slide-card {
+    @apply border border-border rounded p-3 bg-muted space-y-2;
+  }
+  .slide-section {
+    @apply border border-border rounded bg-muted;
+  }
+  .slide-section-header {
+    @apply flex items-center justify-between px-3 py-2 border-b border-border;
   }
 
   /* Filter bar (top of every module table) */
@@ -76,10 +149,36 @@
   }
   /* Outline action buttons. Append disabled:* utilities at the call site as needed. */
   .btn-add {
-    @apply inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors;
+    @apply inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors
+      disabled:opacity-40 disabled:cursor-not-allowed;
   }
   .btn-danger {
-    @apply inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 transition-colors;
+    @apply inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-400 text-red-600 hover:bg-red-50 transition-colors
+      disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-cancel {
+    @apply inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card transition-colors
+      disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-design {
+    @apply inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-gray-500 text-gray-600 hover:bg-gray-50 transition-colors;
+  }
+  .btn-compact {
+    @apply inline-flex items-center gap-1 text-xs bg-muted hover:bg-muted-hover border border-border text-foreground px-2 py-0.5 rounded transition-colors;
+  }
+  .btn-load {
+    @apply inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-border text-muted-foreground hover:bg-card transition-colors;
+  }
+  .btn-run-sm {
+    @apply inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-green-500 text-green-700 hover:bg-green-50 transition-colors
+      disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-run {
+    @apply inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-green-500 text-green-700 hover:bg-green-50 transition-colors
+      disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-icon-danger {
+    @apply p-0.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-red-500 hover:enabled:bg-red-50;
   }
   .menu-item {
     @apply w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left text-foreground hover:bg-muted transition-colors;

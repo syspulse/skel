@@ -90,8 +90,8 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
   };
 
   const field = (label: string, node: React.ReactNode) => (
-    <div className="flex items-center gap-2">
-      <label className="w-24 row-label">{label}</label>
+    <div className="field-row">
+      <label className="row-label-24">{label}</label>
       {node}
     </div>
   );
@@ -99,29 +99,25 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
   return (
     <>
       {open && <div className="slider-backdrop" onClick={onClose} />}
-      <div className={`slide-panel w-[560px]
-        transition-transform duration-300 ease-in-out pointer-events-none
-        ${open ? 'translate-x-0 shadow-2xl pointer-events-auto' : 'translate-x-full shadow-none'}`}>
+      <div className={`slide-panel slide-panel-sm ${open ? 'slide-panel-open' : 'slide-panel-closed'}`}>
         <div className="slide-header">
-          <h2 className="text-sm text-foreground">
+          <h2 className="slide-title">
             {addMode ? t('common.add') : t('common.edit')} {t(entityLabelKey(kind))}
           </h2>
           <div className="flex items-center gap-2">
             {!addMode && (
-              <button onClick={onEdit}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-gray-500 text-gray-600 hover:bg-gray-50 transition-colors"
-                title={t('workflow.editGraf')}>
+              <button onClick={onEdit} className="btn-design" title={t('workflow.editGraf')}>
                 <IconEdit size={13} /> {t('workflow.design')}
               </button>
             )}
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded" aria-label={t('common.close')}>
+            <button onClick={onClose} className="slide-close" aria-label={t('common.close')}>
               <IconClose size={18} />
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-          {error && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2">{error}</div>}
+        <div className="slide-body">
+          {error && <div className="alert-error">{error}</div>}
 
           {/* id is always first */}
           {!addMode && entity && field(t('workflow.fields.id'), <div className="field-readonly">{entity.id}</div>)}
@@ -159,8 +155,8 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
                 </select>)}
               {field(t('workflow.fields.version'), <input className="field-inline" value={form.version} onChange={(e) => setForm((f) => ({ ...f, version: e.target.value }))} />)}
               {field(t('workflow.fields.tags'), <TagsInput value={tagsArr(form.tags)} onChange={(arr) => setForm((f) => ({ ...f, tags: arr.join(', ') }))} placeholder={t('workflow.tagsAdd')} />)}
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">{t('workflow.fields.icon')}</label>
+              <div className="field-stack">
+                <label className="field-stack-label">{t('workflow.fields.icon')}</label>
                 <IconPicker value={form.icon} onChange={(icon) => setForm((f) => ({ ...f, icon }))} />
               </div>
             </>
@@ -183,30 +179,25 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
           
         </div>
 
-        <div className="flex items-center gap-2 px-5 py-2.5 border-t border-border bg-muted">
+        <div className="slide-footer">
           {addMode ? (
             <>
-              <button onClick={handleCreate} disabled={saving}
-                className="btn-add disabled:opacity-40">
+              <button onClick={handleCreate} disabled={saving} className="btn-add">
                 <IconSave size={13} /> {saving ? t('common.creating') : t('common.create')}
               </button>
-              <button onClick={onClose} disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 transition-colors">
+              <button onClick={onClose} disabled={saving} className="btn-cancel">
                 <IconClose size={13} /> {t('common.cancel')}
               </button>
             </>
           ) : (
             <>
-              <button onClick={handleUpdate} disabled={saving}
-                className="btn-add disabled:opacity-40">
+              <button onClick={handleUpdate} disabled={saving} className="btn-add">
                 <IconSave size={13} /> {saving ? t('common.saving') : t('common.update')}
               </button>
-              <button onClick={handleDelete} disabled={saving}
-                className="btn-danger disabled:opacity-40">
+              <button onClick={handleDelete} disabled={saving} className="btn-danger">
                 <IconTrash size={13} /> {t('common.delete')}
               </button>
-              <button onClick={onClose} disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 transition-colors">
+              <button onClick={onClose} disabled={saving} className="btn-cancel">
                 <IconClose size={13} /> {t('common.cancel')}
               </button>
             </>

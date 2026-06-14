@@ -30,8 +30,8 @@ interface DetectorSliderProps {
 
 function field(label: string, node: React.ReactNode) {
   return (
-    <div className="flex items-center gap-2">
-      <label className="w-24 row-label">{label}</label>
+    <div className="field-row">
+      <label className="row-label-24">{label}</label>
       {node}
     </div>
   );
@@ -118,20 +118,18 @@ export function DetectorSlider(props: DetectorSliderProps) {
   return (
     <>
       {open && <div className="slider-backdrop" onClick={onClose} />}
-      <div className={`slide-panel w-[560px]
-        transition-transform duration-300 ease-in-out pointer-events-none
-        ${open ? 'translate-x-0 shadow-2xl pointer-events-auto' : 'translate-x-full shadow-none'}`}>
+      <div className={`slide-panel slide-panel-sm ${open ? 'slide-panel-open' : 'slide-panel-closed'}`}>
         <div className="slide-header">
-          <h2 className="text-sm text-foreground">
+          <h2 className="slide-title">
             {addMode ? t('common.add') : (viewOnly ? t('common.view') : t('common.edit'))} {kindLabel}
           </h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded" aria-label={t('common.close')}>
+          <button onClick={onClose} className="slide-close" aria-label={t('common.close')}>
             <IconClose size={18} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-          {error && <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2">{error}</div>}
+        <div className="slide-body">
+          {error && <div className="alert-error">{error}</div>}
 
           {!addMode && field(t('workflow.fields.id'), <div className="field-readonly">{(isSchema ? schema?.id : config?.id) ?? ''}</div>)}
           {!addMode && field(t('workflow.fields.ts0'), <div className="field-readonly"><FormattedTimestamp ts={(isSchema ? schema?.createdAt : config?.createdAt) ?? 0} timezone={timezone} /></div>)}
@@ -156,16 +154,16 @@ export function DetectorSlider(props: DetectorSliderProps) {
                 viewOnly ? <div className="field-readonly">{author || ''}</div>
                   : <input className="field-inline" value={author} onChange={(e) => setAuthor(e.target.value)} />)}
               {!viewOnly && (
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">{t('workflow.fields.icon')}</label>
+                <div className="field-stack">
+                  <label className="field-stack-label">{t('workflow.fields.icon')}</label>
                   <IconPicker value={icon} onChange={setIcon} />
                 </div>
               )}
               {viewOnly && field(t('workflow.fields.networkTags'), <div className="field-readonly">{(schema?.networkTags ?? []).join(', ') || ''}</div>)}
               {viewOnly && schema?.schema && (
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">schema</label>
-                  <pre className="text-[11px] font-mono bg-muted border border-border rounded px-2 py-1.5 overflow-auto max-h-48">{JSON.stringify(schema.schema, null, 2)}</pre>
+                <div className="field-stack">
+                  <label className="field-stack-label">schema</label>
+                  <pre className="code-block-sm">{JSON.stringify(schema.schema, null, 2)}</pre>
                 </div>
               )}
             </>
@@ -189,44 +187,39 @@ export function DetectorSlider(props: DetectorSliderProps) {
                 </select>)}
               {!addMode && field(t('workflow.fields.schema'), <div className="field-readonly">{config?.schema ? `#${config.schema.id} ${config.schema.name}` : ''}</div>)}
               {field(t('workflow.fields.source'), <input className="field-inline" value={source} onChange={(e) => setSource(e.target.value)} />)}
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">config (JSON)</label>
+              <div className="field-stack">
+                <label className="field-stack-label">config (JSON)</label>
                 <textarea rows={6} spellCheck={false} value={configJson} onChange={(e) => setConfigJson(e.target.value)}
                   placeholder={'{\n  "severity": 0.5\n}'}
-                  className="w-full text-xs font-mono field px-2 py-1.5 bg-card resize-y" />
+                  className="field-code" />
               </div>
             </>
           )}
         </div>
 
-        <div className="flex items-center gap-2 px-5 py-2.5 border-t border-border bg-muted">
+        <div className="slide-footer">
           {addMode ? (
             <>
-              <button onClick={handleCreate} disabled={saving}
-                className="btn-add disabled:opacity-40">
+              <button onClick={handleCreate} disabled={saving} className="btn-add">
                 <IconSave size={13} /> {saving ? t('common.creating') : t('common.create')}
               </button>
-              <button onClick={onClose} disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 transition-colors">
+              <button onClick={onClose} disabled={saving} className="btn-cancel">
                 <IconClose size={13} /> {t('common.cancel')}
               </button>
             </>
           ) : (
             <>
               {!viewOnly && (
-                <button onClick={handleUpdate} disabled={saving}
-                  className="btn-add disabled:opacity-40">
+                <button onClick={handleUpdate} disabled={saving} className="btn-add">
                   <IconSave size={13} /> {saving ? t('common.saving') : t('common.update')}
                 </button>
               )}
               {!readOnly && (
-                <button onClick={handleDelete} disabled={saving}
-                  className="btn-danger disabled:opacity-40">
+                <button onClick={handleDelete} disabled={saving} className="btn-danger">
                   <IconTrash size={13} /> {t('common.delete')}
                 </button>
               )}
-              <button onClick={onClose} disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 transition-colors">
+              <button onClick={onClose} disabled={saving} className="btn-cancel">
                 <IconClose size={13} /> {t('common.close')}
               </button>
             </>

@@ -65,6 +65,15 @@ function metaForUpdate(
   return metaJson(formMeta) !== metaJson(original) ? formMeta : undefined;
 }
 
+function fieldRow(label: React.ReactNode, node: React.ReactNode) {
+  return (
+    <div className="field-row">
+      <label className="row-label-24">{label}</label>
+      {node}
+    </div>
+  );
+}
+
 export function ExplainSlider({
   open,
   addMode,
@@ -218,128 +227,97 @@ export function ExplainSlider({
         onClose={() => setResultOpen(false)}
       />
 
-      <div
-        className={`slide-panel w-[880px]
-          transition-transform duration-300 ease-in-out pointer-events-none
-          ${open ? 'translate-x-0 shadow-2xl pointer-events-auto' : 'translate-x-full shadow-none'}`}
-      >
+      <div className={`slide-panel slide-panel-lg ${open ? 'slide-panel-open' : 'slide-panel-closed'}`}>
         <div className="slide-header">
-          <h2 className="text-sm text-foreground">{addMode ? t('common.add') : t('common.edit')}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors" aria-label={t('common.close')}>
+          <h2 className="slide-title">{addMode ? t('common.add') : t('common.edit')}</h2>
+          <button onClick={onClose} className="slide-close" aria-label={t('common.close')}>
             <IconClose size={18} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded px-3 py-2">{error}</div>
-          )}
+        <div className="slide-body">
+          {error && <div className="alert-error">{error}</div>}
 
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <label className="w-24 row-label">{t('explain.fields.oid')}</label>
-              {addMode ? (
+          <div className="slide-fields">
+            {fieldRow(t('explain.fields.oid'),
+              addMode ? (
                 <input type="text" value={form.oid} onChange={(e) => setForm((f) => ({ ...f, oid: e.target.value }))}
-                  placeholder={t('explain.placeholderOid')}
-                  className="flex-1 text-sm field px-3 py-1 bg-card font-mono" />
+                  placeholder={t('explain.placeholderOid')} className="field-inline-mono" />
               ) : (
-                <div className="flex-1 text-sm font-mono text-foreground bg-muted border border-border rounded px-3 py-1 select-text">
+                <div className="field-readonly-mono">
                   {form.oid || <span className="text-muted-foreground italic">{t('explain.placeholderOid')}</span>}
                 </div>
-              )}
-            </div>
+              ))}
 
-            <div className="flex items-center gap-2">
-              <label className="w-24 row-label">{t('explain.fields.rid')} {addMode && <span className="text-red-500">*</span>}</label>
-              {addMode ? (
+            {fieldRow(<>{t('explain.fields.rid')} {addMode && <span className="text-red-500">*</span>}</>,
+              addMode ? (
                 <input type="text" value={form.rid} onChange={(e) => setForm((f) => ({ ...f, rid: e.target.value }))}
-                  placeholder={t('explain.placeholderRid')}
-                  className="flex-1 text-sm field px-3 py-1 bg-card font-mono" />
+                  placeholder={t('explain.placeholderRid')} className="field-inline-mono" />
               ) : (
-                <div className="flex-1 text-sm font-mono text-foreground bg-muted border border-border rounded px-3 py-1 select-text">{form.rid}</div>
-              )}
-            </div>
+                <div className="field-readonly-mono">{form.rid}</div>
+              ))}
 
-            <div className="flex items-center gap-2">
-              <label className="w-24 row-label">{t('explain.fields.name')}</label>
+            {fieldRow(t('explain.fields.name'),
               <input type="text" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder={t('explain.placeholderName')}
-                className="flex-1 text-sm field px-3 py-1 bg-card" />
-            </div>
+                placeholder={t('explain.placeholderName')} className="field-inline" />)}
 
-            <div className="flex items-center gap-2">
-              <label className="w-24 row-label">{t('explain.fields.desc')}</label>
+            {fieldRow(t('explain.fields.desc'),
               <input type="text" value={form.desc} onChange={(e) => setForm((f) => ({ ...f, desc: e.target.value }))}
-                placeholder={t('explain.placeholderDesc')}
-                className="flex-1 text-sm field px-3 py-1 bg-card" />
-            </div>
+                placeholder={t('explain.placeholderDesc')} className="field-inline" />)}
 
-            <div className="flex items-center gap-2">
-              <label className="w-24 row-label">{t('explain.fields.sid')}</label>
+            {fieldRow(t('explain.fields.sid'),
               <input type="text" value={form.sid} onChange={(e) => setForm((f) => ({ ...f, sid: e.target.value }))}
-                placeholder={t('explain.placeholderSid')}
-                className="flex-1 text-sm field px-3 py-1 bg-card" />
-            </div>
+                placeholder={t('explain.placeholderSid')} className="field-inline" />)}
 
             {!addMode && explain && (
               <>
-                <div className="flex items-center gap-2">
-                  <label className="w-24 row-label">{t('explain.fields.ts0')}</label>
-                  <div className="flex-1 text-sm font-mono text-muted-foreground bg-muted border border-border rounded px-3 py-1 select-text">
-                    <FormattedTimestamp ts={explain.ts0} timezone={timezone} />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <label className="w-24 row-label">{t('explain.fields.ts')}</label>
-                  <div className="flex-1 text-sm font-mono text-muted-foreground bg-muted border border-border rounded px-3 py-1 select-text">
-                    <FormattedTimestamp ts={explain.ts} timezone={timezone} />
-                  </div>
-                </div>
+                {fieldRow(t('explain.fields.ts0'),
+                  <div className="field-readonly-mono-muted"><FormattedTimestamp ts={explain.ts0} timezone={timezone} /></div>)}
+                {fieldRow(t('explain.fields.ts'),
+                  <div className="field-readonly-mono-muted"><FormattedTimestamp ts={explain.ts} timezone={timezone} /></div>)}
               </>
             )}
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs text-muted-foreground">{t('explain.scripts')}</label>
-              <button type="button" onClick={handleAddScript}
-                className="inline-flex items-center gap-1 text-xs bg-muted hover:bg-muted-hover border border-border text-foreground px-2 py-0.5 rounded transition-colors">
+            <div className="slide-section-header mb-2">
+              <label className="field-stack-label">{t('explain.scripts')}</label>
+              <button type="button" onClick={handleAddScript} className="btn-compact">
                 <IconPlus size={12} /> {t('explain.addScript')}
               </button>
             </div>
 
             <div className="space-y-3">
               {form.scripts.map((script, idx) => (
-                <div key={idx} className="border border-border rounded p-3 bg-muted space-y-2">
+                <div key={idx} className="slide-card">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">{t('explain.scriptLabel', { index: idx + 1 })}</span>
+                    <span className="field-stack-label">{t('explain.scriptLabel', { index: idx + 1 })}</span>
                     <button type="button" onClick={() => handleRemoveScript(idx)}
                       disabled={form.scripts.length <= 1}
-                      className="p-0.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-red-500 hover:enabled:bg-red-50"
+                      className="btn-icon-danger"
                       title={form.scripts.length <= 1 ? t('explain.onlyScript') : t('explain.removeScript')}>
                       <IconMinus size={14} />
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-muted-foreground w-10">{t('explain.typ')}</label>
+                  <div className="field-row">
+                    <label className="row-label-10">{t('explain.typ')}</label>
                     <select value={script.typ} onChange={(e) => handleScriptChange(idx, 'typ', e.target.value)}
-                      className="text-xs field px-2 py-1 bg-card">
+                      className="field-compact">
                       {SCRIPT_TYPES.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
                     </select>
                   </div>
 
                   <div>
-                    <label className="text-xs text-muted-foreground block mb-1">{t('explain.src')}</label>
+                    <label className="field-stack-label block mb-1">{t('explain.src')}</label>
                     <ScriptEditor typ={script.typ} value={script.src} onChange={(v) => handleScriptChange(idx, 'src', v)} />
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs text-muted-foreground w-10">{t('explain.opts')}</label>
+                  <div className="field-row">
+                    <label className="row-label-10">{t('explain.opts')}</label>
                     <input type="text" value={script.opts ?? ''} onChange={(e) => handleScriptChange(idx, 'opts', e.target.value)}
                       placeholder={t('explain.placeholderOpts')}
-                      className="flex-1 text-xs field px-2 py-1 bg-card" />
+                      className="field-compact flex-1" />
                   </div>
                 </div>
               ))}
@@ -349,24 +327,22 @@ export function ExplainSlider({
           <MetaEditor key={formKey} value={form.meta} onChange={(meta) => setForm((f) => ({ ...f, meta }))} />
 
           {!addMode && (
-            <div ref={testSectionRef} className="border border-border rounded bg-muted">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-                <span className="text-xs text-muted-foreground">{t('explain.testSection')}</span>
+            <div ref={testSectionRef} className="slide-section">
+              <div className="slide-section-header">
+                <span className="field-stack-label">{t('explain.testSection')}</span>
                 <div className="flex items-center gap-2">
                   <select value={testStyle} onChange={(e) => setTestStyle(e.target.value)}
-                    className="text-xs field px-2 py-0.5 bg-card">
+                    className="field-compact">
                     <option value="">{t('explain.styleDefault')}</option>
                     <option value="short">{t('explain.styleShort')}</option>
                     <option value="narrative">{t('explain.styleNarrative')}</option>
                     <option value="detailed">{t('explain.styleDetailed')}</option>
                   </select>
-                  <button type="button" onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-border text-muted-foreground hover:bg-card transition-colors">
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="btn-load">
                     <IconUpload size={12} /> {t('common.loadJson')}
                   </button>
                   <input ref={fileInputRef} type="file" accept=".json,application/json" className="hidden" onChange={handleFileUpload} />
-                  <button type="button" onClick={handleExplain} disabled={explaining}
-                    className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-green-500 text-green-700 hover:bg-green-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                  <button type="button" onClick={handleExplain} disabled={explaining} className="btn-run-sm">
                     <IconPlay size={12} />
                     {explaining ? t('common.running') : t('common.run')}
                   </button>
@@ -377,45 +353,37 @@ export function ExplainSlider({
                 <textarea value={testData} onChange={(e) => setTestData(e.target.value)}
                   rows={6} placeholder={'{\n  "address": "0x...",\n  "meta": { "balance[ETH]": "1.23" }\n}'}
                   spellCheck={false}
-                  className="w-full text-xs font-mono field px-2 py-1.5 bg-card resize-y" />
-                {testError && (
-                  <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1.5">{testError}</div>
-                )}
+                  className="field-code" />
+                {testError && <div className="alert-error-inline">{testError}</div>}
               </div>
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-2 px-5 py-2.5 border-t border-border bg-muted">
+        <div className="slide-footer">
           {addMode ? (
             <>
-              <button onClick={handleCreate} disabled={saving}
-                className="btn-add disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={handleCreate} disabled={saving} className="btn-add">
                 <IconSave size={13} />{saving ? t('common.creating') : t('common.create')}
               </button>
-              <button onClick={onClose} disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              <button onClick={onClose} disabled={saving} className="btn-cancel">
                 <IconClose size={13} />{t('common.cancel')}
               </button>
             </>
           ) : (
             <>
-              <button onClick={handleUpdate} disabled={saving}
-                className="btn-add disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={handleUpdate} disabled={saving} className="btn-add">
                 <IconSave size={13} />{saving ? t('common.saving') : t('common.update')}
               </button>
-              <button onClick={handleDelete} disabled={saving}
-                className="btn-danger disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={handleDelete} disabled={saving} className="btn-danger">
                 <IconTrash size={13} />{t('common.delete')}
               </button>
-              <button onClick={onClose} disabled={saving}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              <button onClick={onClose} disabled={saving} className="btn-cancel">
                 <IconClose size={13} />{t('common.cancel')}
               </button>
               <div className="flex-1" />
               <button onClick={() => { testSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); handleExplain(); }}
-                disabled={explaining || saving}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-green-500 text-green-700 hover:bg-green-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                disabled={explaining || saving} className="btn-run">
                 <IconPlay size={13} />{explaining ? t('common.running') : t('common.explain')}
               </button>
             </>
