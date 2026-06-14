@@ -30,6 +30,7 @@ export interface RFEdgeData extends Record<string, unknown> {
   lineStyle: string;    // 'solid' | 'dashed' | 'dotted' (meta.line_style)
   strokeWidth: number;  // boldness (meta.stroke_width)
   arrow: string;        // 'arrowclosed' | 'arrow' | 'none' (meta.arrow)
+  edgeType: string;     // 'straight' | 'step' | 'smoothstep' | 'bezier' (meta.edge_type)
   meta: Meta;
 }
 
@@ -46,6 +47,7 @@ const DEF_FONT_COLOR = '#1e293b';
 const DEF_EDGE_WIDTH = 1.5;
 const DEF_LINE_STYLE = 'solid';
 const DEF_ARROW = 'arrowclosed';
+const DEF_EDGE_TYPE = 'bezier';
 
 // ---- shared edge visual helpers (used on load, on connect, and on edit) ----
 export function edgeDash(lineStyle: string): string | undefined {
@@ -60,6 +62,11 @@ export function edgeMarkerEnd(arrow: string, color: string): EdgeMarker | undefi
 }
 export function edgeStyle(d: { color: string; strokeWidth: number; lineStyle: string }): CSSProperties {
   return { stroke: d.color, strokeWidth: d.strokeWidth, strokeDasharray: edgeDash(d.lineStyle) };
+}
+export const EDGE_TYPES = ['straight', 'step', 'smoothstep', 'bezier'] as const;
+// map our edge-type to a built-in react-flow edge `type` ('bezier' is the RF 'default')
+export function edgeRFType(edgeType: string): string {
+  return edgeType === 'bezier' ? 'default' : edgeType;
 }
 
 function num(meta: Meta | undefined, key: string, def: number): number {
@@ -112,6 +119,7 @@ export function linkToRF(l: WorkflowLink): Edge<RFEdgeData> {
   const lineStyle = str(meta, 'line_style', DEF_LINE_STYLE);
   const strokeWidth = num(meta, 'stroke_width', DEF_EDGE_WIDTH);
   const arrow = str(meta, 'arrow', DEF_ARROW);
+  const edgeType = str(meta, 'edge_type', DEF_EDGE_TYPE);
   // default: source from the node's RIGHT connector -> destination LEFT connector
   const sourceHandle = str(meta, 'sourceHandle', 'r');
   const targetHandle = str(meta, 'targetHandle', 'l');
@@ -121,10 +129,11 @@ export function linkToRF(l: WorkflowLink): Edge<RFEdgeData> {
     target: String(l.to),
     sourceHandle,
     targetHandle,
+    type: edgeRFType(edgeType),
     label: label || undefined,
     markerEnd: edgeMarkerEnd(arrow, color),
     style: edgeStyle({ color, strokeWidth, lineStyle }),
-    data: { label, color, lineStyle, strokeWidth, arrow, meta },
+    data: { label, color, lineStyle, strokeWidth, arrow, edgeType, meta },
   };
 }
 
@@ -231,6 +240,7 @@ export function rfToGraf(
       line_style: d?.lineStyle ?? DEF_LINE_STYLE,
       stroke_width: d?.strokeWidth ?? DEF_EDGE_WIDTH,
       arrow: d?.arrow ?? DEF_ARROW,
+      edge_type: d?.edgeType ?? DEF_EDGE_TYPE,
       sourceHandle: re.sourceHandle ?? 'r',
       targetHandle: re.targetHandle ?? 'l',
     };

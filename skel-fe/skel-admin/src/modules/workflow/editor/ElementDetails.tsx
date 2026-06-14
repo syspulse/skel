@@ -159,6 +159,14 @@ export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onDelet
             <Row label={t('workflow.fields.name')}>
               <input className={inputCls} value={edge.data?.label ?? ''} onChange={(e) => onUpdateEdge(edge.id, { label: e.target.value })} />
             </Row>
+            <Row label={t('workflow.editor.edgeType')}>
+              <select className={inputCls} value={edge.data?.edgeType ?? 'bezier'} onChange={(e) => onUpdateEdge(edge.id, { edgeType: e.target.value })}>
+                <option value="straight">{t('workflow.editor.edgeStraight')}</option>
+                <option value="step">{t('workflow.editor.edgeStep')}</option>
+                <option value="smoothstep">{t('workflow.editor.edgeSmoothstep')}</option>
+                <option value="bezier">{t('workflow.editor.edgeBezier')}</option>
+              </select>
+            </Row>
             <Row label={t('workflow.editor.lineStyle')}>
               <select className={inputCls} value={edge.data?.lineStyle ?? 'solid'} onChange={(e) => onUpdateEdge(edge.id, { lineStyle: e.target.value })}>
                 <option value="solid">{t('workflow.editor.lineSolid')}</option>

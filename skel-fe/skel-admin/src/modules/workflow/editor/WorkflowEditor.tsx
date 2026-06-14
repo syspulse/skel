@@ -14,7 +14,7 @@ import { ElementDetails } from './ElementDetails';
 import { renderIcon, DEFAULT_SCHEMA_ICON, DEFAULT_CONFIG_ICON, DEFAULT_WF_SCHEMA_ICON, DEFAULT_WF_CONFIG_ICON } from './IconPicker';
 import { useWorkflowGrid } from '../../../settings/WorkflowGridContext';
 import {
-  grafToRF, rfToGraf, nodeToRF, nextNodeId, nextEdgeId, edgeStyle, edgeMarkerEnd, readViewport, readGridSize, readSnapToGrid,
+  grafToRF, rfToGraf, nodeToRF, nextNodeId, nextEdgeId, edgeStyle, edgeMarkerEnd, edgeRFType, readViewport, readGridSize, readSnapToGrid,
   type RFNodeData, type RFEdgeData,
 } from './grafMapping';
 import {
@@ -69,9 +69,10 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
       const id = nextEdgeId(es);
       const sourceHandle = c.sourceHandle ?? 'r';
       const targetHandle = c.targetHandle ?? 'l';
-      const data: RFEdgeData = { label: '', color: EDGE_COLOR, lineStyle: 'solid', strokeWidth: 1.5, arrow: 'arrowclosed', meta: { sourceHandle, targetHandle } };
+      const data: RFEdgeData = { label: '', color: EDGE_COLOR, lineStyle: 'solid', strokeWidth: 1.5, arrow: 'arrowclosed', edgeType: 'bezier', meta: { sourceHandle, targetHandle } };
       const edge: Edge<RFEdgeData> = {
         id: `e${id}`, source: c.source, target: c.target, sourceHandle, targetHandle,
+        type: edgeRFType(data.edgeType),
         markerEnd: edgeMarkerEnd(data.arrow, data.color),
         style: edgeStyle(data),
         data,
@@ -111,6 +112,7 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
       const data = { ...(e.data as RFEdgeData), ...patch } as RFEdgeData;
       return {
         ...e, data,
+        type: edgeRFType(data.edgeType),
         label: data.label || undefined,
         style: edgeStyle(data),
         markerEnd: edgeMarkerEnd(data.arrow, data.color),
