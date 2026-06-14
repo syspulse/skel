@@ -4,6 +4,7 @@ import type { WorkflowSchema, WorkflowConfig } from '../types';
 import { IconClose, IconSave, IconTrash, IconEdit } from '../../components/Icons';
 import { IconPicker } from '../editor/IconPicker';
 import { FormattedTimestamp } from '../../components/FormattedTimestamp';
+import { TagsInput } from '../../components/TagsInput';
 
 const STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
 
@@ -158,7 +159,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
                   {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>)}
               {field(t('workflow.fields.version'), <input className={inputCls} value={form.version} onChange={(e) => setForm((f) => ({ ...f, version: e.target.value }))} />)}
-              {field(t('workflow.fields.tags'), <input className={inputCls} value={form.tags} onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))} placeholder="a, b, c" />)}
+              {field(t('workflow.fields.tags'), <TagsInput value={tagsArr(form.tags)} onChange={(arr) => setForm((f) => ({ ...f, tags: arr.join(', ') }))} placeholder={t('workflow.tagsAdd')} />)}
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">{t('workflow.fields.icon')}</label>
                 <IconPicker value={form.icon} onChange={(icon) => setForm((f) => ({ ...f, icon }))} />

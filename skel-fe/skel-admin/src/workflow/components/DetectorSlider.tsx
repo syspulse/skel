@@ -4,6 +4,7 @@ import type { DetectorSchema, DetectorConfig } from '../types';
 import { IconClose, IconSave, IconTrash } from '../../components/Icons';
 import { IconPicker } from '../editor/IconPicker';
 import { FormattedTimestamp } from '../../components/FormattedTimestamp';
+import { TagsInput } from '../../components/TagsInput';
 
 const STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
 const inputCls = 'flex-1 text-sm border border-input rounded px-3 py-1 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400';
@@ -169,8 +170,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
               : <select className={inputCls} value={status} onChange={(e) => setStatus(e.target.value)}>{STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}</select>)}
 
           {field(t('workflow.fields.tags'),
-            viewOnly ? <div className={roCls}>{tags || ''}</div>
-              : <input className={inputCls} value={tags} onChange={(e) => setTags(e.target.value)} placeholder="a, b, c" />)}
+            <TagsInput value={tagsArr(tags)} onChange={(arr) => setTags(arr.join(', '))} readOnly={viewOnly} placeholder={t('workflow.tagsAdd')} />)}
 
           {!isSchema && (
             <>
