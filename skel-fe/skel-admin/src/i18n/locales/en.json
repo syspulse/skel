@@ -246,7 +246,7 @@
     },
     "graphNodes": "nodes",
     "graphLinks": "links",
-    "edit": "Edit",
+    "design": "Design",
     "editGraf": "Edit workflow graph",
     "chooseSchema": "Choose a schema…",
     "nameRequired": "name is required",

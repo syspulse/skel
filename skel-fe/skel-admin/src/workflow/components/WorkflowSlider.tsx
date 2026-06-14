@@ -112,9 +112,9 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
           <div className="flex items-center gap-2">
             {!addMode && (
               <button onClick={onEdit}
-                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-600 hover:bg-blue-50 transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-gray-500 text-gray-600 hover:bg-gray-50 transition-colors"
                 title={t('workflow.editGraf')}>
-                <IconEdit size={13} /> {t('workflow.edit')}
+                <IconEdit size={13} /> {t('workflow.design')}
               </button>
             )}
             <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded" aria-label={t('common.close')}>
