@@ -10,6 +10,7 @@ import { ModulePage } from '../components/ModulePage';
 import i18n from '../i18n';
 import { usePageSize, PAGE_SIZE_OPTIONS } from '../settings/PageSizeContext';
 import { useTimestampFormat } from '../settings/TimestampFormatContext';
+import { useWorkflowGrid, DEFAULT_GRID_SIZE } from '../settings/WorkflowGridContext';
 import { TimestampFormatSelect } from '../components/TimestampFormatSelect';
 
 const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED !== 'false';
@@ -208,6 +209,42 @@ function ProfileTab() {
   );
 }
 
+// ── Workflow tab ──────────────────────────────────────────────────────────────
+
+function WorkflowTab() {
+  const { t } = useTranslation();
+  const { gridSize, setGridSize, snapToGrid, setSnapToGrid } = useWorkflowGrid();
+
+  return (
+    <div className="space-y-3">
+      <div className="bg-card border border-border rounded shadow-sm p-3 space-y-3">
+        <div>
+          <div className="text-xs text-muted-foreground mb-1.5">{t('settings.workflow.gridSize')}</div>
+          <input
+            type="number"
+            min={2}
+            max={200}
+            value={gridSize}
+            onChange={(e) => setGridSize(Math.max(2, Number(e.target.value) || DEFAULT_GRID_SIZE))}
+            className="text-xs border border-input rounded px-2.5 py-1.5 w-52 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400"
+          />
+        </div>
+
+        <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
+          <input
+            type="checkbox"
+            checked={snapToGrid}
+            onChange={(e) => setSnapToGrid(e.target.checked)}
+            className="cursor-pointer"
+          />
+          {t('settings.workflow.snapToGrid')}
+        </label>
+        
+      </div>
+    </div>
+  );
+}
+
 // ── API tab ───────────────────────────────────────────────────────────────────
 
 interface ApiForm {
@@ -356,6 +393,7 @@ export function SettingsPage({ requestedTab, onRequestedTabApplied }: SettingsPa
   const tabs = [
     { id: 'profile',     label: t('settings.profile') },
     { id: 'userProfile', label: t('settings.user') },
+    { id: 'workflow',    label: t('settings.workflow.label') },
     { id: 'api',         label: t('settings.api') },
   ];
 
@@ -372,6 +410,7 @@ export function SettingsPage({ requestedTab, onRequestedTabApplied }: SettingsPa
         <>
           {tab === 'profile'     && <ProfileTab />}
           {tab === 'userProfile' && <UserProfileTab />}
+          {tab === 'workflow'    && <WorkflowTab />}
           {tab === 'api'         && <ApiTab />}
         </>
       )}

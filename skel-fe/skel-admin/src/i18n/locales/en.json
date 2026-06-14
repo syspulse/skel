@@ -107,6 +107,12 @@
       "loading": "Loading user profile…",
       "notAuthenticated": "Not signed in. Use Sign In on the login screen to authenticate.",
       "guestNote": "Running in guest mode — no JWT is available."
+    },
+    "workflow": {
+      "label": "workflow",
+      "gridSize": "grid (px)",
+      "snapToGrid": "snap",
+      "hint": "Defaults for new Workflow editors. Each Workflow can override these; overrides are saved with the graph."
     }
   },
   "explain": {
@@ -291,7 +297,9 @@
       "arrow": "arrow",
       "arrowSolid": "solid",
       "arrowOpen": "open",
-      "openDetails": "open details"
+      "openDetails": "open details",
+      "snap": "snap",
+      "grid": "grid"
     },
     "searchPlaceholder": "search...",
     "tagsAdd": "add tag…"

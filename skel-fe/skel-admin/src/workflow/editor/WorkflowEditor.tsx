@@ -12,8 +12,9 @@ import { KIND } from '../types';
 import { DetectorNode } from './DetectorNode';
 import { ElementDetails } from './ElementDetails';
 import { renderIcon, DEFAULT_SCHEMA_ICON, DEFAULT_CONFIG_ICON, DEFAULT_WF_SCHEMA_ICON, DEFAULT_WF_CONFIG_ICON } from './IconPicker';
+import { useWorkflowGrid } from '../../settings/WorkflowGridContext';
 import {
-  grafToRF, rfToGraf, nodeToRF, nextNodeId, nextEdgeId, edgeStyle, edgeMarkerEnd, readViewport,
+  grafToRF, rfToGraf, nodeToRF, nextNodeId, nextEdgeId, edgeStyle, edgeMarkerEnd, readViewport, readGridSize, readSnapToGrid,
   type RFNodeData, type RFEdgeData,
 } from './grafMapping';
 import {
@@ -57,6 +58,11 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
   const addCounter = useRef(0);
   const { getViewport } = useReactFlow();
   const storedViewport = useMemo(() => readViewport(graf.meta), [graf]);
+
+  // grid distance + snap-to-grid: per-workflow value (graf meta) overrides the global default setting
+  const { gridSize: defaultGrid, snapToGrid: defaultSnap } = useWorkflowGrid();
+  const [gridSize, setGridSize] = useState<number>(() => readGridSize(graf.meta) ?? defaultGrid);
+  const [snapToGrid, setSnapToGrid] = useState<boolean>(() => readSnapToGrid(graf.meta) ?? defaultSnap);
 
   const onConnect = useCallback((c: Connection) => {
     setEdges((es) => {
@@ -129,10 +135,14 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
 
   const handleSave = useCallback(() => {
     const g = rfToGraf(graf, nodes, edges);
-    const vp = getViewport(); // persist current pan + zoom in the graf meta
-    g.meta = { ...(g.meta ?? {}), view_x: Math.round(vp.x), view_y: Math.round(vp.y), view_zoom: Number(vp.zoom.toFixed(3)) };
+    const vp = getViewport(); // persist current pan + zoom + grid settings in the graf meta
+    g.meta = {
+      ...(g.meta ?? {}),
+      view_x: Math.round(vp.x), view_y: Math.round(vp.y), view_zoom: Number(vp.zoom.toFixed(3)),
+      grid_size: gridSize, snap_to_grid: snapToGrid,
+    };
     onSave(g);
-  }, [onSave, graf, nodes, edges, getViewport]);
+  }, [onSave, graf, nodes, edges, getViewport, gridSize, snapToGrid]);
 
   // search highlight: dim non-matching nodes
   const displayNodes = useMemo(() => {
@@ -209,6 +219,18 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           <IconSave size={13} /> {saving ? t('common.saving') : t('common.save')}
         </button>
         <div className="flex-1" />
+
+        {/* per-workflow grid distance + snap-to-grid (persisted in the graf meta on Save) */}
+        <label className="inline-flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none">
+          <input type="checkbox" checked={snapToGrid} onChange={(e) => setSnapToGrid(e.target.checked)} className="cursor-pointer" />
+          {t('workflow.editor.snap')}
+        </label>
+        <div className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <span>{t('workflow.editor.grid')}</span>
+          <input type="number" min={2} max={200} value={gridSize}
+            onChange={(e) => setGridSize(Math.max(2, Number(e.target.value) || gridSize))}
+            className="w-14 text-xs border border-input rounded px-1.5 py-0.5 bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-blue-400" />
+        </div>
       </div>
 
       {/* Canvas + element details */}
@@ -228,9 +250,11 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           fitView={!storedViewport}
           fitViewOptions={{ maxZoom: 1.6, padding: 0.2 }}
           minZoom={0.2}
+          snapToGrid={snapToGrid}
+          snapGrid={[gridSize, gridSize]}
           proOptions={{ hideAttribution: true }}
         >
-          <Background gap={12} size={1} />
+          <Background gap={gridSize} size={1} />
           <Controls />
           <MiniMap pannable zoomable />
         </ReactFlow>

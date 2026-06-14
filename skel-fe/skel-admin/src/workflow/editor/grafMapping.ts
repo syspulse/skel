@@ -128,6 +128,17 @@ export function linkToRF(l: WorkflowLink): Edge<RFEdgeData> {
   };
 }
 
+/** Per-workflow grid distance, persisted in graf meta (falls back to the global default). */
+export function readGridSize(meta?: Meta): number | undefined {
+  const v = meta?.['grid_size'];
+  return typeof v === 'number' && v > 0 ? v : undefined;
+}
+/** Per-workflow snap-to-grid, persisted in graf meta (falls back to the global default). */
+export function readSnapToGrid(meta?: Meta): boolean | undefined {
+  const v = meta?.['snap_to_grid'];
+  return typeof v === 'boolean' ? v : undefined;
+}
+
 /** Read the persisted react-flow viewport (pan + zoom) from the graf meta, if any. */
 export function readViewport(meta?: Meta): { x: number; y: number; zoom: number } | null {
   if (!meta) return null;

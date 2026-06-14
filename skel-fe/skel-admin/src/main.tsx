@@ -11,6 +11,7 @@ import { explainSysHandler } from './dispatcher/systems/ExplainSys';
 import { dashSysHandler } from './dispatcher/systems/DashSys';
 import { PageSizeProvider } from './settings/PageSizeContext';
 import { TimestampFormatProvider } from './settings/TimestampFormatContext';
+import { WorkflowGridProvider } from './settings/WorkflowGridContext';
 import './i18n';
 import './styles.css';
 
@@ -27,9 +28,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <DispatcherProvider>
             <PageSizeProvider>
               <TimestampFormatProvider>
-                <AuthProvider>
-                  <App />
-                </AuthProvider>
+                <WorkflowGridProvider>
+                  <AuthProvider>
+                    <App />
+                  </AuthProvider>
+                </WorkflowGridProvider>
               </TimestampFormatProvider>
             </PageSizeProvider>
           </DispatcherProvider>
