@@ -79,6 +79,7 @@
     "explainApiUrl": "Explain API URL",
     "dashApiUrl": "Dash API URL",
     "workflowApiUrl": "Workflow API URL",
+    "dispatcherWsUrl": "Dispatcher WebSocket URL",
     "keycloak": "keycloak",
     "keycloakUrl": "URL",
     "keycloakRealm": "realm",

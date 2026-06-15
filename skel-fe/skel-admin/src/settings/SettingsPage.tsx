@@ -251,129 +251,100 @@ interface ApiForm {
   apiUrl: string;
   dashApiUrl: string;
   workflowApiUrl: string;
+  dispatcherWsUrl: string;
   keycloakUrl: string;
   keycloakRealm: string;
   keycloakClientId: string;
 }
 
 const API_DEFAULTS = {
-  explainApiUrl:  import.meta.env.VITE_EXPLAIN_API_URL  || 'http://localhost:8080/api/v1/explain',
-  dashApiUrl:     import.meta.env.VITE_DASH_API_URL     || 'http://localhost:8080/api/v1/dash',
-  workflowApiUrl: import.meta.env.VITE_WORKFLOW_API_URL || 'http://localhost:8080/api/v1/wf/ext',
-  keycloakUrl:    import.meta.env.VITE_KEYCLOAK_URL     || 'http://localhost:8180',
-  keycloakRealm:  import.meta.env.VITE_KEYCLOAK_REALM   || 'master',
+  explainApiUrl:   import.meta.env.VITE_EXPLAIN_API_URL   || 'http://localhost:8080/api/v1/explain',
+  dashApiUrl:      import.meta.env.VITE_DASH_API_URL      || 'http://localhost:8080/api/v1/dash',
+  workflowApiUrl:  import.meta.env.VITE_WORKFLOW_API_URL  || 'http://localhost:8080/api/v1/wf/ext',
+  dispatcherWsUrl: import.meta.env.VITE_DISPATCHER_WS_URL || '',
+  keycloakUrl:     import.meta.env.VITE_KEYCLOAK_URL      || 'http://localhost:8180',
+  keycloakRealm:   import.meta.env.VITE_KEYCLOAK_REALM    || 'master',
   keycloakClientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || 'skel-admin',
 };
 
+// One config row per editable endpoint. Drives form init, render and reset (no per-field duplication).
+interface ApiFieldDef {
+  key: keyof ApiForm;
+  lsKey: string;      // localStorage / env key it persists to
+  labelKey: string;   // i18n label
+  def: string;        // default value (used for init + reset)
+  showDefault?: boolean; // show the "default: …" hint under the input
+  placeholder?: string;
+}
+
+const ENDPOINT_FIELDS: ApiFieldDef[] = [
+  { key: 'apiUrl',          lsKey: 'VITE_EXPLAIN_API_URL',   labelKey: 'settings.explainApiUrl',   def: API_DEFAULTS.explainApiUrl,   showDefault: true },
+  { key: 'dashApiUrl',      lsKey: 'VITE_DASH_API_URL',      labelKey: 'settings.dashApiUrl',      def: API_DEFAULTS.dashApiUrl,      showDefault: true },
+  { key: 'workflowApiUrl',  lsKey: 'VITE_WORKFLOW_API_URL',  labelKey: 'settings.workflowApiUrl',  def: API_DEFAULTS.workflowApiUrl,  showDefault: true },
+  { key: 'dispatcherWsUrl', lsKey: 'VITE_DISPATCHER_WS_URL', labelKey: 'settings.dispatcherWsUrl', def: API_DEFAULTS.dispatcherWsUrl, placeholder: 'ws://host:port/…' },
+];
+
+const KEYCLOAK_FIELDS: ApiFieldDef[] = [
+  { key: 'keycloakUrl',      lsKey: 'VITE_KEYCLOAK_URL',       labelKey: 'settings.keycloakUrl',      def: API_DEFAULTS.keycloakUrl },
+  { key: 'keycloakRealm',    lsKey: 'VITE_KEYCLOAK_REALM',     labelKey: 'settings.keycloakRealm',    def: API_DEFAULTS.keycloakRealm },
+  { key: 'keycloakClientId', lsKey: 'VITE_KEYCLOAK_CLIENT_ID', labelKey: 'settings.keycloakClientId', def: API_DEFAULTS.keycloakClientId },
+];
+
+const ALL_FIELDS = [...ENDPOINT_FIELDS, ...KEYCLOAK_FIELDS];
+
+const buildApiForm = (read: (f: ApiFieldDef) => string): ApiForm => {
+  const o = {} as ApiForm;
+  ALL_FIELDS.forEach((f) => { o[f.key] = read(f); });
+  return o;
+};
+
+function ApiField({ field, value, onChange }: { field: ApiFieldDef; value: string; onChange: (v: string) => void }) {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <label className="block text-xs text-foreground mb-0.5">{t(field.labelKey)}</label>
+      <input
+        type="text"
+        value={value}
+        placeholder={field.placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full text-sm field px-2 py-1 bg-card font-mono"
+      />
+      {field.showDefault && field.def && (
+        <p className="text-xs text-muted-foreground mt-0.5">default: <code>{field.def}</code></p>
+      )}
+    </div>
+  );
+}
+
 function ApiTab() {
   const { t } = useTranslation();
-  const [form, setForm] = useState<ApiForm>(() => ({
-    apiUrl:           getStoredOrEnv('VITE_EXPLAIN_API_URL',  API_DEFAULTS.explainApiUrl),
-    dashApiUrl:       getStoredOrEnv('VITE_DASH_API_URL',     API_DEFAULTS.dashApiUrl),
-    workflowApiUrl:   getStoredOrEnv('VITE_WORKFLOW_API_URL', API_DEFAULTS.workflowApiUrl),
-    keycloakUrl:      getStoredOrEnv('VITE_KEYCLOAK_URL',     API_DEFAULTS.keycloakUrl),
-    keycloakRealm:    getStoredOrEnv('VITE_KEYCLOAK_REALM',   API_DEFAULTS.keycloakRealm),
-    keycloakClientId: getStoredOrEnv('VITE_KEYCLOAK_CLIENT_ID', API_DEFAULTS.keycloakClientId),
-  }));
+  const [form, setForm] = useState<ApiForm>(() => buildApiForm((f) => getStoredOrEnv(f.lsKey, f.def)));
 
-  const set = <K extends keyof ApiForm>(key: K, lsKey: string, value: string) => {
-    setForm((f) => ({ ...f, [key]: value }));
-    localStorage.setItem(lsKey, value);
+  const set = (field: ApiFieldDef, value: string) => {
+    setForm((cur) => ({ ...cur, [field.key]: value }));
+    localStorage.setItem(field.lsKey, value);
   };
 
   const handleReset = () => {
-    localStorage.removeItem('VITE_EXPLAIN_API_URL');
-    localStorage.removeItem('VITE_DASH_API_URL');
-    localStorage.removeItem('VITE_WORKFLOW_API_URL');
-    localStorage.removeItem('VITE_KEYCLOAK_URL');
-    localStorage.removeItem('VITE_KEYCLOAK_REALM');
-    localStorage.removeItem('VITE_KEYCLOAK_CLIENT_ID');
-    setForm({
-      apiUrl: API_DEFAULTS.explainApiUrl,
-      dashApiUrl: API_DEFAULTS.dashApiUrl,
-      workflowApiUrl: API_DEFAULTS.workflowApiUrl,
-      keycloakUrl: API_DEFAULTS.keycloakUrl,
-      keycloakRealm: API_DEFAULTS.keycloakRealm,
-      keycloakClientId: API_DEFAULTS.keycloakClientId,
-    });
+    ALL_FIELDS.forEach((f) => localStorage.removeItem(f.lsKey));
+    setForm(buildApiForm((f) => f.def));
   };
 
   return (
     <div className="space-y-2">
       <div className="surface p-3 space-y-2">
-        <div>
-          <label className="block text-xs text-foreground mb-0.5">{t('settings.explainApiUrl')}</label>
-          <input
-            type="text"
-            value={form.apiUrl}
-            onChange={(e) => set('apiUrl', 'VITE_EXPLAIN_API_URL', e.target.value)}
-            className="w-full text-sm field px-2 py-1 bg-card font-mono"
-          />
-          <p className="text-xs text-muted-foreground mt-0.5">
-            default: <code>{API_DEFAULTS.explainApiUrl}</code>
-          </p>
-        </div>
-
-        <div>
-          <label className="block text-xs text-foreground mb-0.5">{t('settings.dashApiUrl')}</label>
-          <input
-            type="text"
-            value={form.dashApiUrl}
-            onChange={(e) => set('dashApiUrl', 'VITE_DASH_API_URL', e.target.value)}
-            className="w-full text-sm field px-2 py-1 bg-card font-mono"
-          />
-          <p className="text-xs text-muted-foreground mt-0.5">
-            default: <code>{API_DEFAULTS.dashApiUrl}</code>
-          </p>
-        </div>
-
-        <div>
-          <label className="block text-xs text-foreground mb-0.5">{t('settings.workflowApiUrl')}</label>
-          <input
-            type="text"
-            value={form.workflowApiUrl}
-            onChange={(e) => set('workflowApiUrl', 'VITE_WORKFLOW_API_URL', e.target.value)}
-            className="w-full text-sm field px-2 py-1 bg-card font-mono"
-          />
-          <p className="text-xs text-muted-foreground mt-0.5">
-            default: <code>{API_DEFAULTS.workflowApiUrl}</code>
-          </p>
-        </div>
+        {ENDPOINT_FIELDS.map((f) => (
+          <ApiField key={f.key} field={f} value={form[f.key]} onChange={(v) => set(f, v)} />
+        ))}
 
         {AUTH_ENABLED && (
           <>
             <hr className="border-border my-1" />
             <div className="text-xs text-muted-foreground">{t('settings.keycloak')}</div>
-
-            <div>
-              <label className="block text-xs text-foreground mb-0.5">{t('settings.keycloakUrl')}</label>
-              <input
-                type="text"
-                value={form.keycloakUrl}
-                onChange={(e) => set('keycloakUrl', 'VITE_KEYCLOAK_URL', e.target.value)}
-                className="w-full text-sm field px-2 py-1 bg-card font-mono"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs text-foreground mb-0.5">{t('settings.keycloakRealm')}</label>
-              <input
-                type="text"
-                value={form.keycloakRealm}
-                onChange={(e) => set('keycloakRealm', 'VITE_KEYCLOAK_REALM', e.target.value)}
-                className="w-full text-sm field px-2 py-1 bg-card"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs text-foreground mb-0.5">{t('settings.keycloakClientId')}</label>
-              <input
-                type="text"
-                value={form.keycloakClientId}
-                onChange={(e) => set('keycloakClientId', 'VITE_KEYCLOAK_CLIENT_ID', e.target.value)}
-                className="w-full text-sm field px-2 py-1 bg-card"
-              />
-            </div>
+            {KEYCLOAK_FIELDS.map((f) => (
+              <ApiField key={f.key} field={f} value={form[f.key]} onChange={(v) => set(f, v)} />
+            ))}
           </>
         )}
 
