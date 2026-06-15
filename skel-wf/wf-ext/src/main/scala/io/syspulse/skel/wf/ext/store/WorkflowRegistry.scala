@@ -48,6 +48,7 @@ object WorkflowRegistry {
   final case class GetDetectorSchemas(from: Option[Long], size: Option[Long], replyTo: ActorRef[Try[DetectorSchemas]]) extends Command
   final case class GetDetectorSchema(id: Int, replyTo: ActorRef[Try[DetectorSchema]]) extends Command
   final case class CreateDetectorSchema(req: DetectorSchemaCreateReq, replyTo: ActorRef[Try[DetectorSchema]]) extends Command
+  final case class UpdateDetectorSchema(id: Int, req: DetectorSchemaUpdateReq, replyTo: ActorRef[Try[DetectorSchema]]) extends Command
   final case class DeleteDetectorSchema(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
 
   // ---- DetectorConfig ----
@@ -147,6 +148,21 @@ object WorkflowRegistry {
       source = req.source.getOrElse(c.source),
       tags = req.tags.getOrElse(c.tags),
       config = req.config.orElse(c.config),
+    )
+
+  private def applyUpdate(d: DetectorSchema, req: DetectorSchemaUpdateReq): DetectorSchema =
+    d.copy(
+      updatedAt = System.currentTimeMillis(),
+      name = req.name.getOrElse(d.name),
+      version = req.version.getOrElse(d.version),
+      title = req.title.getOrElse(d.title),
+      description = req.description.getOrElse(d.description),
+      author = req.author.getOrElse(d.author),
+      status = req.status.getOrElse(d.status),
+      icon = req.icon.orElse(d.icon),
+      tags = req.tags.getOrElse(d.tags),
+      schema = req.schema.orElse(d.schema),
+      uiSchema = req.uiSchema.orElse(d.uiSchema),
     )
 
   // ---------------------------------------------------------------- behavior
@@ -301,6 +317,14 @@ object WorkflowRegistry {
       case CreateDetectorSchema(req, replyTo) =>
         log.info(s"CreateDetectorSchema: ${req.name}")
         store.nextDetectorSchemaId.flatMap(id => store.addDetectorSchema(detectorSchemaFromReq(id, req))).onComplete(replyTo ! _)
+        Behaviors.same
+
+      case UpdateDetectorSchema(id, req, replyTo) =>
+        log.info(s"UpdateDetectorSchema: ${id}")
+        store.getDetectorSchema(id).map {
+          case Some(d) => applyUpdate(d, req)
+          case None    => throw new ErrNotFound(s"DetectorSchema: ${id}")
+        }.flatMap(store.addDetectorSchema).onComplete(replyTo ! _)
         Behaviors.same
 
       case DeleteDetectorSchema(id, replyTo) =>

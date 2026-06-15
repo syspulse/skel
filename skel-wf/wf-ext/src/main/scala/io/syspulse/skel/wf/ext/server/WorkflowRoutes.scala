@@ -81,6 +81,7 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
   def getDetectorSchemas(from: Option[Long], size: Option[Long]): Future[Try[DetectorSchemas]] = registry.ask(GetDetectorSchemas(from, size, _))
   def getDetectorSchema(id: Int): Future[Try[DetectorSchema]] = registry.ask(GetDetectorSchema(id, _))
   def createDetectorSchema(req: DetectorSchemaCreateReq): Future[Try[DetectorSchema]] = registry.ask(CreateDetectorSchema(req, _))
+  def updateDetectorSchema(id: Int, req: DetectorSchemaUpdateReq): Future[Try[DetectorSchema]] = registry.ask(UpdateDetectorSchema(id, req, _))
   def deleteDetectorSchema(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteDetectorSchema(id, _))
 
   // ---- detector-config asks ----
@@ -248,6 +249,9 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
   def createDetectorSchemaRoute() = post {
     entity(as[DetectorSchemaCreateReq]) { req => completeTry(createDetectorSchema(req)) }
   }
+  def updateDetectorSchemaRoute(id: Int) = put {
+    entity(as[DetectorSchemaUpdateReq]) { req => completeTry(updateDetectorSchema(id, req)) }
+  }
   def deleteDetectorSchemaRoute(id: Int) = delete { complete(deleteDetectorSchema(id)) }
 
   // ================================================================ detector-config routes
@@ -311,7 +315,7 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
           pathPrefix("schema") {
             concat(
               pathPrefix(IntNumber) { id =>
-                pathEndOrSingleSlash { getDetectorSchemaRoute(id) ~ deleteDetectorSchemaRoute(id) }
+                pathEndOrSingleSlash { getDetectorSchemaRoute(id) ~ updateDetectorSchemaRoute(id) ~ deleteDetectorSchemaRoute(id) }
               },
               pathEndOrSingleSlash { getDetectorSchemasRoute() ~ createDetectorSchemaRoute() },
             )

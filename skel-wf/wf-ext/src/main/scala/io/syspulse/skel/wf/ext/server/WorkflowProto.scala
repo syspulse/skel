@@ -111,6 +111,18 @@ final case class DetectorSchemaCreateReq(
   schema: Option[JsObject] = None,
   uiSchema: Option[JsObject] = None,
 )
+final case class DetectorSchemaUpdateReq(
+  name: Option[String] = None,
+  version: Option[String] = None,
+  title: Option[String] = None,
+  description: Option[String] = None,
+  author: Option[String] = None,
+  status: Option[String] = None,
+  icon: Option[String] = None,
+  tags: Option[Seq[String]] = None,
+  schema: Option[JsObject] = None,
+  uiSchema: Option[JsObject] = None,
+)
 
 // ---------------------------------------------------------------- DetectorConfig
 final case class DetectorConfigs(configs: Seq[DetectorConfig], total: Long)

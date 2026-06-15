@@ -1,5 +1,5 @@
 #!/bin/bash
-# Get WorkflowSchema by id, or list with optional paging and ?detector=id|full
+# Get Workflow1Schema by id, or list with optional paging and ?detector=id|full
 #   ./wf-schema-get.sh [id]
 #   FROM=0 SIZE=10 DETECTOR=full ./wf-schema-get.sh
 ID=${1:-}
