@@ -138,26 +138,27 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   }, [fetchAll, onInstancesChanged]);
 
   // ----- rows per tab -----
-  // search (name/title) + status + time-range (updatedAt) filter, newest first
+  // search (name/title) + status + time-range (updatedAt) filter.
+  // Rows keep a stable order by id (NOT by updatedAt) so editing a row does not reorder the table.
   const q = activeSearch.trim();
   const st = filters.status.trim();
   const tr = filters.timeRange;
   const keep = (name: string, title: string, status: string, ts: number) =>
     matchText(`${name} ${title}`, q) && matchStatus(status, st) && isInTimeRange(ts, tr);
-  const byTsDesc = <T extends { updatedAt: number }>(a: T, b: T) => b.updatedAt - a.updatedAt;
+  const byIdAsc = <T extends { id: number }>(a: T, b: T) => a.id - b.id;
 
   const rowsFor = (kind: EntityKind): TableRow[] => {
     switch (kind) {
-      case KIND.workflowSchema: return schemas.filter((s) => keep(s.name, s.title, s.status, s.updatedAt)).sort(byTsDesc)
+      case KIND.workflowSchema: return schemas.filter((s) => keep(s.name, s.title, s.status, s.updatedAt)).sort(byIdAsc)
         .map((s) => ({ id: s.id, icon: s.icon, name: s.name, status: s.status, tags: s.tags, ts: s.updatedAt,
           cells: { title: s.title, graph: `${Object.keys(s.graph?.nodes ?? {}).length} ${t('workflow.graphNodes')}` } }));
-      case KIND.workflowConfig: return configs.filter((c) => keep(c.name, c.title, c.status, c.updatedAt)).sort(byTsDesc)
+      case KIND.workflowConfig: return configs.filter((c) => keep(c.name, c.title, c.status, c.updatedAt)).sort(byIdAsc)
         .map((c) => ({ id: c.id, icon: c.icon, name: c.name, status: c.status, tags: c.tags, ts: c.updatedAt,
           cells: { title: c.title, sid: String(c.sid) } }));
-      case KIND.detectorSchema: return detSchemas.filter((d) => keep(d.name, d.title, d.status, d.updatedAt)).sort(byTsDesc)
+      case KIND.detectorSchema: return detSchemas.filter((d) => keep(d.name, d.title, d.status, d.updatedAt)).sort(byIdAsc)
         .map((d) => ({ id: d.id, icon: d.icon, name: d.name, status: d.status, tags: d.tags, ts: d.updatedAt,
           cells: { title: d.title, version: d.version } }));
-      case KIND.detectorConfig: return detConfigs.filter((d) => keep(d.name, d.contract?.name ?? '', d.status, d.updatedAt)).sort(byTsDesc)
+      case KIND.detectorConfig: return detConfigs.filter((d) => keep(d.name, d.contract?.name ?? '', d.status, d.updatedAt)).sort(byIdAsc)
         .map((d) => ({ id: d.id, name: d.name, status: d.status, tags: d.tags, ts: d.updatedAt,
           cells: { title: d.contract?.name ?? '', version: d.schema?.version ?? '', schema: d.schema ? String(d.schema.id) : '' } }));
     }

@@ -152,6 +152,7 @@ export interface DetectorConfigCreateReq {
 export interface DetectorSchemaUpdateReq {
   name?: string; version?: string; title?: string; description?: string;
   author?: string; status?: string; icon?: string; tags?: string[];
+  schema?: Record<string, unknown>; uiSchema?: Record<string, unknown>;
 }
 export interface DetectorConfigUpdateReq {
   name?: string; status?: string; source?: string; tags?: string[]; config?: Record<string, unknown>;

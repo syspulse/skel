@@ -22,9 +22,9 @@ interface DetectorSliderProps {
   timezone: string;
   readOnly?: boolean;              // when opened from the editor: view only, no edit/delete
   onClose: () => void;
-  onCreateSchema: (req: { name: string; title?: string; description?: string; version?: string; author?: string; icon?: string; tags?: string[] }) => Promise<void>;
+  onCreateSchema: (req: { name: string; title?: string; description?: string; version?: string; author?: string; icon?: string; tags?: string[]; schema?: Record<string, unknown>; uiSchema?: Record<string, unknown> }) => Promise<void>;
   onCreateConfig: (req: { name: string; sid?: number; source?: string; tags?: string[]; config?: Record<string, unknown> }) => Promise<void>;
-  onUpdateSchema: (patch: { name?: string; title?: string; description?: string; version?: string; author?: string; status?: string; icon?: string; tags?: string[] }) => Promise<void>;
+  onUpdateSchema: (patch: { name?: string; title?: string; description?: string; version?: string; author?: string; status?: string; icon?: string; tags?: string[]; schema?: Record<string, unknown>; uiSchema?: Record<string, unknown> }) => Promise<void>;
   onUpdateConfig: (patch: { name?: string; source?: string; tags?: string[]; config?: Record<string, unknown> }) => Promise<void>;
   onDelete: () => Promise<void>;
 }
@@ -46,17 +46,22 @@ export function DetectorSlider(props: DetectorSliderProps) {
   const [tags, setTags] = useState('');
   const [sid, setSid] = useState<number | ''>('');
   const [configJson, setConfigJson] = useState('');
+  const [schemaJson, setSchemaJson] = useState('');     // DetectorSchema.schema (JSON)
+  const [uiSchemaJson, setUiSchemaJson] = useState(''); // DetectorSchema.uiSchema (JSON)
 
   useEffect(() => {
     setError(null);
     if (addMode) {
       setName(''); setTitle(''); setDescription(''); setVersion('1.0.0'); setAuthor(''); setIcon(undefined);
       setStatus('ACTIVE'); setSource(''); setTags(''); setSid(schemas[0]?.id ?? ''); setConfigJson('');
+      setSchemaJson(''); setUiSchemaJson('');
       return;
     }
     if (kind === KIND.detectorSchema && schema) {
       setName(schema.name); setTitle(schema.title); setDescription(schema.description); setVersion(schema.version);
       setAuthor(schema.author); setIcon(schema.icon); setStatus(schema.status); setTags((schema.tags ?? []).join(', '));
+      setSchemaJson(schema.schema ? JSON.stringify(schema.schema, null, 2) : '');
+      setUiSchemaJson(schema.uiSchema ? JSON.stringify(schema.uiSchema, null, 2) : '');
     } else if (kind === KIND.detectorConfig && config) {
       setName(config.name); setStatus(config.status); setSource(config.source); setTags((config.tags ?? []).join(', '));
       setConfigJson(config.config ? JSON.stringify(config.config, null, 2) : '');
@@ -68,13 +73,20 @@ export function DetectorSlider(props: DetectorSliderProps) {
     if (!configJson.trim()) return undefined;
     return JSON.parse(configJson) as Record<string, unknown>;
   };
+  const parseJsonObj = (s: string): Record<string, unknown> | undefined => {
+    if (!s.trim()) return undefined;
+    return JSON.parse(s) as Record<string, unknown>;
+  };
 
   const handleCreate = async () => {
     setError(null);
     try {
       if (!name.trim()) { setError(t('workflow.nameRequired')); return; }
       if (kind === KIND.detectorSchema) {
-        await onCreateSchema({ name: name.trim(), title: title || undefined, description: description || undefined, version: version || undefined, author: author || undefined, icon, tags: tagsArr(tags) });
+        let sch: Record<string, unknown> | undefined;
+        let uiSch: Record<string, unknown> | undefined;
+        try { sch = parseJsonObj(schemaJson); uiSch = parseJsonObj(uiSchemaJson); } catch { setError(t('workflow.invalidJson')); return; }
+        await onCreateSchema({ name: name.trim(), title: title || undefined, description: description || undefined, version: version || undefined, author: author || undefined, icon, tags: tagsArr(tags), schema: sch, uiSchema: uiSch });
       } else {
         let cfg: Record<string, unknown> | undefined;
         try { cfg = parseConfig(); } catch { setError(t('workflow.invalidJson')); return; }
@@ -88,7 +100,10 @@ export function DetectorSlider(props: DetectorSliderProps) {
     try {
       if (kind === KIND.detectorSchema) {
         // status IS editable for DetectorSchema
-        await onUpdateSchema({ name, title, description, version, author, status, icon, tags: tagsArr(tags) });
+        let sch: Record<string, unknown> | undefined;
+        let uiSch: Record<string, unknown> | undefined;
+        try { sch = parseJsonObj(schemaJson); uiSch = parseJsonObj(uiSchemaJson); } catch { setError(t('workflow.invalidJson')); return; }
+        await onUpdateSchema({ name, title, description, version, author, status, icon, tags: tagsArr(tags), schema: sch, uiSchema: uiSch });
       } else {
         // DetectorConfig: status is NOT editable -> not sent
         let cfg: Record<string, unknown> | undefined;
@@ -173,12 +188,20 @@ export function DetectorSlider(props: DetectorSliderProps) {
                   <div className="field-readonly">{(schema?.networkTags ?? []).join(', ') || ''}</div>
                 </SliderFieldRow>
               )}
-              {viewOnly && schema?.schema && (
-                <div className="field-stack">
-                  <label className="field-stack-label">schema</label>
-                  <pre className="code-block-sm">{JSON.stringify(schema.schema, null, 2)}</pre>
-                </div>
-              )}
+              <div className="field-stack">
+                <label className="field-stack-label">schema</label>
+                {viewOnly
+                  ? <pre className="code-block-sm">{schemaJson || ''}</pre>
+                  : <textarea rows={8} spellCheck={false} value={schemaJson} onChange={(e) => setSchemaJson(e.target.value)}
+                      placeholder={'{\n  "type": "object",\n  "properties": {}\n}'} className="field-code" />}
+              </div>
+              <div className="field-stack">
+                <label className="field-stack-label">uiSchema</label>
+                {viewOnly
+                  ? <pre className="code-block-sm">{uiSchemaJson || ''}</pre>
+                  : <textarea rows={4} spellCheck={false} value={uiSchemaJson} onChange={(e) => setUiSchemaJson(e.target.value)}
+                      placeholder={'{\n  "ui:order": []\n}'} className="field-code" />}
+              </div>
             </>
           )}
 
