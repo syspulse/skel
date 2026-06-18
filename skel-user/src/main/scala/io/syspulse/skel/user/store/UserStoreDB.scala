@@ -25,7 +25,7 @@ import scala.concurrent.Await
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext
 
-/** DB row — `meta` stored as JSON text. */
+/** DB row — `meta` stored as JSON text; `data` as native JSON (JSONB / JSON). */
 case class UserDb(
   id: UUID,
   email: String,
@@ -35,6 +35,7 @@ case class UserDb(
   ts0: Long,
   ts: Long,
   meta: Option[String],
+  data: Option[String],
 )
 
 // Postgres does not support table name 'user' !
@@ -47,6 +48,8 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String, searchIndex
   import ctx._
 
   private val users = quote { querySchema[UserDb]("users") }
+
+  private val userSelectCols = "id, email, name, xid, avatar, ts0, ts, meta, data"
 
   def indexes = Set(
     ("user_xid",Set("xid")),
@@ -65,6 +68,7 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String, searchIndex
       ts0 = u.ts0,
       ts = u.ts,
       meta = u.meta.map(m => m.toJson(JsonMap.mapFormat).compactPrint),
+      data = u.data.map(d => d.toJson.compactPrint),
     )
 
   private def fromDb(r: UserDb): User =
@@ -77,6 +81,7 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String, searchIndex
       ts0 = r.ts0,
       ts = r.ts,
       meta = r.meta.filter(_.nonEmpty).map(_.parseJson.convertTo[Map[String, Any]](JsonMap.mapFormat)),
+      data = r.data.filter(_.nonEmpty).map(_.parseJson.convertTo[JsObject]),
     )
 
   def create: Try[Long] = {
@@ -89,7 +94,8 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String, searchIndex
     }
 
     val tsvExprPostgres = StoreFts.pgTsvExpr(searchFields)
-    val tsvColDef = postgresTsvColumnDef(colUserTsv, tsvExprPostgres)
+    // Last column in users table — drop trailing comma from shared tsv helper
+    val tsvColDef = postgresTsvColumnDef(colUserTsv, tsvExprPostgres).stripSuffix(",")
 
     val CREATE_INDEX_FTS_MYSQL_SQL =
       s"CREATE FULLTEXT INDEX ${indexUserFts} ON ${tableName} (${searchFields.mkString(", ")});"
@@ -103,7 +109,8 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String, searchIndex
         avatar VARCHAR(255),
         ts0 BIGINT,
         ts BIGINT,
-        meta TEXT
+        meta TEXT,
+        data JSON
       );
       """
 
@@ -117,7 +124,7 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String, searchIndex
         ts0 BIGINT,
         ts BIGINT,
         meta TEXT,
-        $tsvColDef
+        data JSONB${if (tsvColDef.nonEmpty) s",\n        $tsvColDef" else ""}
       );
       """
 
@@ -174,12 +181,35 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String, searchIndex
   private def sqlLit(s: String): String =
     s.replace("'", "''")
 
+  private def jsonPathSegments(path: String): Seq[String] = {
+    if (!path.matches("""[\w.]+"""))
+      throw new IllegalArgumentException(s"invalid json path: ${path}")
+    path.split("\\.").filter(_.nonEmpty).toSeq
+  }
+
+  private def postgresJsonTextPath(col: String, path: String): String = {
+    val segs = jsonPathSegments(path).map(sqlLit).mkString(",")
+    s"$col#>>'{$segs}'"
+  }
+
+  private def mysqlJsonTextPath(col: String, path: String): String = {
+    val segs = jsonPathSegments(path).map(sqlLit).mkString(".")
+    "JSON_UNQUOTE(JSON_EXTRACT(" + col + ", '$." + segs + "'))"
+  }
+
+  private def jsonTextEq(col: String, path: String, value: String): String =
+    getDbType match {
+      case "postgres" => s"${postgresJsonTextPath(col, path)} = '${sqlLit(value)}'"
+      case "mysql"    => s"${mysqlJsonTextPath(col, path)} = '${sqlLit(value)}'"
+      case _          => throw new UnsupportedOperationException(s"json query not supported for db: ${getDbType}")
+    }
+
   private def queryPaged(from: Long, size: Long): Future[Seq[User]] = {
     val off = pageInt(from)
     val lim = pageInt(size)
     // Postgres/Jasync: LIMIT/OFFSET bind params ($1) fail in infix; use raw SQL without placeholders
     val sql =
-      s"SELECT id, email, name, xid, avatar, ts0, ts, meta FROM $tableName LIMIT $lim OFFSET $off"
+      s"SELECT $userSelectCols FROM $tableName LIMIT $lim OFFSET $off"
     querySql(sql).map(_.map(fromDb))
   }
 
@@ -197,6 +227,7 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String, searchIndex
       ts0 = row.getAs[Long](5),
       ts = row.getAs[Long](6),
       meta = optStr(7),
+      data = optStr(8),
     )
   }
 
@@ -275,6 +306,12 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String, searchIndex
     )
   }
 
+  def findByData(path: String, value: String): Future[Seq[User]] = {
+    log.info(s"FIND: data.${path}=${value}")
+    val where = s"${jsonTextEq("data", path, value)} AND data IS NOT NULL"
+    querySql(s"SELECT $userSelectCols FROM $tableName WHERE $where").map(_.map(fromDb))
+  }
+
   def search(query: String, from: Option[Long] = None, size: Option[Long] = None): Future[UserStore.Page] = {
     log.info(s"SEARCH: query=${query}, from=${from}, size=${size}")
     val q = UserStore.normalizeSearchQuery(query)
@@ -298,13 +335,13 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String, searchIndex
                 val off = pageInt(offset)
                 val lim = pageInt(l)
                 val sql =
-                  s"""SELECT id, email, name, xid, avatar, ts0, ts, meta FROM $tableName
+                  s"""SELECT $userSelectCols FROM $tableName
                      |WHERE $where
                      |LIMIT $lim OFFSET $off""".stripMargin
                 querySql(sql).map(_.map(fromDb))
               case None =>
                 val sql =
-                  s"""SELECT id, email, name, xid, avatar, ts0, ts, meta FROM $tableName
+                  s"""SELECT $userSelectCols FROM $tableName
                      |WHERE $where""".stripMargin
                 querySql(sql).map(_.map(fromDb))
             }
@@ -323,13 +360,13 @@ class UserStoreDB(configuration: Configuration, dbConfigRef: String, searchIndex
             val off = pageInt(offset)
             val lim = pageInt(l)
             val sql =
-              s"""SELECT id, email, name, xid, avatar, ts0, ts, meta FROM $tableName
+              s"""SELECT $userSelectCols FROM $tableName
                  |WHERE MATCH(email, name, xid) AGAINST ('${sqlLit(q)}' IN NATURAL LANGUAGE MODE)
                  |LIMIT $lim OFFSET $off""".stripMargin
             querySql(sql).map(_.map(fromDb))
           case None =>
             val sql =
-              s"""SELECT id, email, name, xid, avatar, ts0, ts, meta FROM $tableName
+              s"""SELECT $userSelectCols FROM $tableName
                  |WHERE MATCH(email, name, xid) AGAINST ('${sqlLit(q)}' IN NATURAL LANGUAGE MODE)""".stripMargin
             querySql(sql).map(_.map(fromDb))
         }

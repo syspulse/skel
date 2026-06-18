@@ -8,6 +8,8 @@ import io.jvm.uuid._
 import io.syspulse.skel.user._
 import io.syspulse.skel.store.Store
 
+import spray.json._
+
 import io.syspulse.skel.user.User
 import io.syspulse.skel.user.server.UserUpdateReq
 import io.syspulse.skel.store.StoreFts
@@ -21,6 +23,21 @@ object UserStore {
   def tokenizeSearchField(text: String): Seq[String] = StoreFts.tokenizeSearchField(text)
   def postgresSearchTerms(query: String): Seq[String] = StoreFts.postgresSearchTerms(query)
   def postgresPrefixTsQuery(query: String): Option[String] = StoreFts.postgresPrefixTsQuery(query)
+
+  /** Extract a text value from a `JsObject` using a dot-separated path (e.g. `profile.tier`). */
+  def jsonPathText(obj: JsObject, path: String): Option[String] =
+    path.split("\\.").filter(_.nonEmpty).foldLeft(Option[JsValue](obj): Option[JsValue]) { (cur, key) =>
+      cur.flatMap {
+        case o: JsObject => o.fields.get(key)
+        case _           => None
+      }
+    }.flatMap {
+      case JsString(s)  => Some(s)
+      case JsNumber(n)  => Some(n.toString)
+      case JsBoolean(b) => Some(b.toString)
+      case JsNull       => Some("null")
+      case _            => None
+    }
 }
 
 trait UserStore extends Store[User, UUID] {
@@ -46,6 +63,8 @@ trait UserStore extends Store[User, UUID] {
 
   def findByXid(xid: String): Future[Option[User]]
   def findByEmail(email: String): Future[Option[User]]
+  /** Find users where `data` field has `path` equal to `value` (dot-separated path). */
+  def findByData(path: String, value: String): Future[Seq[User]]
   def update(id: UUID, req: UserUpdateReq): Future[User]
 
   def search(query: String, from: Option[Long] = None, size: Option[Long] = None): Future[UserStore.Page]

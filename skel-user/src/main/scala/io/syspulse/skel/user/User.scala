@@ -2,7 +2,8 @@ package io.syspulse.skel.user
 
 import scala.collection.immutable
 
-import io.jvm.uuid._
+import io.jvm.uuid.UUID
+import spray.json.JsObject
 
 final case class User(
   id:UUID, 
@@ -16,4 +17,7 @@ final case class User(
   ts:Long = System.currentTimeMillis(),  // timestamp of last update
 
   meta: Option[Map[String, Any]] = None, // arbitrary metadata
+
+  // data is for user-specific data 
+  data: Option[JsObject] = None, // arbitrary json data
 )

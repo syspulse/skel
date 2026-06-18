@@ -57,6 +57,11 @@ class UserStoreMem extends UserStore {
     Future.successful(users.values.find(_.email.equalsIgnoreCase(email)))
   }
 
+  def findByData(path: String, value: String): Future[Seq[User]] =
+    Future.successful(
+      users.values.filter(u => u.data.flatMap(UserStore.jsonPathText(_, path)).contains(value)).toSeq,
+    )
+
   def update(id: UUID, req: UserUpdateReq): Future[User] = {
     implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
     ?(id).map { user =>

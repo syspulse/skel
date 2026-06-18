@@ -36,6 +36,7 @@ class UserStoreDir(dir: String = "store/") extends StoreDir[User, UUID](dir) wit
 
   override def findByXid(xid: String): Future[Option[User]] = store.findByXid(xid)
   override def findByEmail(email: String): Future[Option[User]] = store.findByEmail(email)
+  override def findByData(path: String, value: String): Future[Seq[User]] = store.findByData(path, value)
   override def update(id: UUID, req: io.syspulse.skel.user.server.UserUpdateReq): Future[User] =
     store.update(id, req).flatMap(u => Future.fromTry(writeFile(u)))
 

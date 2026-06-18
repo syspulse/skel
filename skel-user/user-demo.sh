@@ -7,6 +7,9 @@ need() { command -v "$1" >/dev/null 2>&1 || { echo "missing dependency: $1" >&2;
 need curl
 need jq
 need hexdump
+need awk
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 die() {
   echo "ERROR: $1" >&2
@@ -33,6 +36,12 @@ readonly -a DEMO_NAMES=(
   "佐藤|健太|kenta" "松本|美咲|misaki" "井上|翔|sho" "木村|結衣|yui" "林|一郎|ichiro"
 )
 
+
+AVATAR_RATIO=${AVATAR_RATIO:-0.7}
+
+mapfile -t DEMO_AVATARS < <(sed -e 's/[[:space:]]*$//' -e '/^[[:space:]]*$/d' "${SCRIPT_DIR}/res/ICONS.txt")
+readonly -a DEMO_AVATARS
+
 readonly -a DEMO_DOMAINS=(
   exampla.com domain.org gmail.com example.com outlook.com
   yahoo.com company.io mail.test hotmail.com proton.me
@@ -47,6 +56,12 @@ email_prefix() {
 
 pick_name() { printf '%s' "${DEMO_NAMES[RANDOM % ${#DEMO_NAMES[@]}]}"; }
 pick_domain() { printf '%s' "${DEMO_DOMAINS[RANDOM % ${#DEMO_DOMAINS[@]}]}"; }
+pick_avatar() { printf '%s' "${DEMO_AVATARS[RANDOM % ${#DEMO_AVATARS[@]}]}"; }
+
+wants_avatar() {
+  [[ ${#DEMO_AVATARS[@]} -gt 0 ]] || return 1
+  awk -v r="$RANDOM" -v ratio="$AVATAR_RATIO" 'BEGIN { exit !(r/32768 < ratio) }'
+}
 
 assign_demo_identity() {
   local pair="$1" suffix="${2:-}" a b c prefix domain
@@ -80,9 +95,13 @@ check() {
 }
 
 create_user() {
-  local email="$1" name="${2:-}" resp code body id payload
-  if [[ -n "$name" ]]; then
+  local email="$1" name="${2:-}" avatar="${3:-}" resp code body id payload
+  if [[ -n "$name" && -n "$avatar" ]]; then
+    payload="$(jq -cn --arg email "$email" --arg name "$name" --arg avatar "$avatar" '{email:$email,name:$name,avatar:$avatar}')"
+  elif [[ -n "$name" ]]; then
     payload="$(jq -cn --arg email "$email" --arg name "$name" '{email:$email,name:$name}')"
+  elif [[ -n "$avatar" ]]; then
+    payload="$(jq -cn --arg email "$email" --arg avatar "$avatar" '{email:$email,avatar:$avatar}')"
   else
     payload="$(jq -cn --arg email "$email" '{email:$email}')"
   fi
@@ -137,7 +156,7 @@ step_create_100() {
   IDS=()
   declare -A USED_EMAILS=()
   for _ in $(seq 1 100); do
-    local pair suffix= n=2 id
+    local pair suffix= n=2 id avatar=""
     pair="$(pick_name)"
     assign_demo_identity "$pair"
     while [[ -n "${USED_EMAILS[$DEMO_EMAIL]:-}" ]]; do
@@ -145,7 +164,8 @@ step_create_100() {
       n=$((n + 1))
     done
     USED_EMAILS["$DEMO_EMAIL"]=1
-    id="$(create_user "$DEMO_EMAIL" "$DEMO_FULL_NAME")"
+    wants_avatar && avatar="$(pick_avatar)"
+    id="$(create_user "$DEMO_EMAIL" "$DEMO_FULL_NAME" "$avatar")"
     IDS+=("$id")
   done
   log "Created: ${#IDS[@]}"
@@ -159,7 +179,7 @@ step_update_5() {
     r="$(rand_hex8)"
     case "$idx" in
       0) patch="$(jq -cn --arg v "Name-${r}" '{name:$v}')" ;;
-      1) patch="$(jq -cn --arg v "https://example.com/icon/${r}.png" '{avatar:$v}')" ;;
+      1) patch="$(jq -cn --arg v "$(pick_avatar)" '{avatar:$v}')" ;;
       2) assign_demo_identity "$(pick_name)"; patch="$(jq -cn --arg v "$DEMO_EMAIL" '{email:$v}')" ;;
       3) patch="$(jq -cn --arg v "0x${r}${r}" '{xid:$v}')" ;;
       4) patch="$(jq -cn --arg role "demo" --argjson n "$idx" '{meta:{role:$role,n:$n}}')" ;;
