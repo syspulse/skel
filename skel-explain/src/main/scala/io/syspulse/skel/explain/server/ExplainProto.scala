@@ -13,6 +13,7 @@ final case class ExplainReq(
 
   schema: Option[Seq[JsObject]] = None, // optional schemas for data
   config: Option[Seq[JsObject]] = None, // optional configs for data
+  style: Option[String] = None, // optional style for explanation
 )
 
 // Output from explain

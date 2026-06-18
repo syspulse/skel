@@ -23,8 +23,8 @@ case class Config(
   jwtUri: String = "hs512://",
   ownerAttr: String = "oid",
   rolesAttr: String = "groups[].",
-  serviceRole: String = "explain-service",
-  adminRole: String = "explain-admin",
+  serviceRole: String = "extractor-service",
+  adminRole: String = "extractor-admin",
   permissions: String = "user",
 
   threads: Int = 16,

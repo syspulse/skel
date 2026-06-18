@@ -159,12 +159,23 @@ export function DetectorSlider(props: DetectorSliderProps) {
               : <input className="field-inline" value={name} onChange={(e) => setName(e.target.value)} />}
           </SliderFieldRow>
 
+          <SliderFieldRow label={t('workflow.fields.status')}>
+            {(isSchema && !viewOnly)
+              ? <select className="field-inline" value={status} onChange={(e) => setStatus(e.target.value)}>{STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}</select>
+              : <div className="field-readonly">{status}</div>}
+          </SliderFieldRow>
+
+          <SliderFieldRow label={t('workflow.fields.tags')}>
+            <TagsInput value={tagsArr(tags)} onChange={(arr) => setTags(arr.join(', '))} readOnly={viewOnly} placeholder={t('workflow.tagsAdd')} />
+          </SliderFieldRow>      
+
           {isSchema && (
             <>
               <SliderFieldRow label={t('workflow.fields.title')}>
                 {viewOnly ? <div className="field-readonly">{title || ''}</div>
                   : <input className="field-inline" value={title} onChange={(e) => setTitle(e.target.value)} />}
               </SliderFieldRow>
+              
               <SliderFieldRow label={t('workflow.fields.desc')}>
                 {viewOnly ? <div className="field-readonly">{description || ''}</div>
                   : <input className="field-inline" value={description} onChange={(e) => setDescription(e.target.value)} />}
@@ -204,17 +215,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
               </div>
             </>
           )}
-
-          <SliderFieldRow label={t('workflow.fields.status')}>
-            {(isSchema && !viewOnly)
-              ? <select className="field-inline" value={status} onChange={(e) => setStatus(e.target.value)}>{STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}</select>
-              : <div className="field-readonly">{status}</div>}
-          </SliderFieldRow>
-
-          <SliderFieldRow label={t('workflow.fields.tags')}>
-            <TagsInput value={tagsArr(tags)} onChange={(arr) => setTags(arr.join(', '))} readOnly={viewOnly} placeholder={t('workflow.tagsAdd')} />
-          </SliderFieldRow>
-
+          
           {!isSchema && (
             <>
               {addMode && (

@@ -23,6 +23,12 @@ cd skel-explain
 ./run-explain.sh --datastore=postgres://mydb
 ```
 
+### Run against env
+
+```
+./run-explain.sh --jwt.uri=https://auth.${ENV}.com/realms/${REALM}/.well-known/openid-configuration --conf=conf/application-${ENV}.conf
+```
+
 **Key options:**
 
 | Flag | Default | Description |

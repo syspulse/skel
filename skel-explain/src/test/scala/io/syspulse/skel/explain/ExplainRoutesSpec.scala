@@ -35,8 +35,8 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
   implicit val config: Config = Config(
     ownerAttr = "oid",
     rolesAttr = "groups[].",
-    serviceRole = "explain-service",
-    adminRole = "explain-admin",
+    serviceRole = "extractor-service",
+    adminRole = "extractor-admin",
     permissions = "user"
   )
 
@@ -61,11 +61,11 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
   val jwtAlgo = JwtAlgorithm.HS256
   AuthJwt(s"${jwtAlgo}://${jwtSecret}")
 
-  val adminRole = "explain-admin"
-  val serviceRole = "explain-service"
-  val userRole = "explain-user"
+  val adminRole = "extractor-admin"
+  val serviceRole = "extractor-service"
+  val userRole = "extractor-user"
 
-  def createJwtToken(oid: String, roles: Seq[String] = Seq("explain-user")): String = {
+  def createJwtToken(oid: String, roles: Seq[String] = Seq("extractor-user")): String = {
     val claims = JwtClaim(
       issuer = Some("test"),
       subject = Some("test-user"),
@@ -75,6 +75,10 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
     )
     Jwt.encode(claims, jwtSecret, jwtAlgo)
   }
+
+  /** Append ?oid= for per-rule CRUD; required when JWT owner must match the target oid. */
+  def withOid(path: String, oid: String): String =
+    if (path.contains("?")) s"$path&oid=$oid" else s"$path?oid=$oid"
 
   val walletData = JsObject(
     "address" -> JsString("0x9000000000000000000000000000000000000000"),
@@ -146,7 +150,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
           r.rid shouldBe "AdminOidCreate"
         }
 
-      Get("/AdminOidCreate") ~>
+      Get(withOid("/AdminOidCreate", "530")) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt530))) ~>
         routes.routes ~>
         check {
@@ -158,6 +162,129 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
         }
     }
 
+    "[crud] same rid DetectorTest for default oid and multiple tenants" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
+      val jwt490 = createJwtToken("490", Seq(userRole))
+      val jwt530 = createJwtToken("530", Seq(userRole))
+
+      val defaultReq = ExplainCreateReq(
+        scripts = Seq(ExplainScript("js", "\"default DetectorTest\"")),
+        name = Some("DetectorTest-default")
+      )
+      val oid490Req = ExplainCreateReq(
+        scripts = Seq(ExplainScript("js", "\"oid-490 DetectorTest\"")),
+        name = Some("DetectorTest-490")
+      )
+      val oid530Req = ExplainCreateReq(
+        scripts = Seq(ExplainScript("js", "\"oid-530 DetectorTest\"")),
+        name = Some("DetectorTest-530")
+      )
+
+      Post("/DetectorTest", defaultReq) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe None
+          r.rid shouldBe "DetectorTest"
+        }
+
+      Post(withOid("/DetectorTest", "490"), oid490Req) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe Some("490")
+          r.rid shouldBe "DetectorTest"
+        }
+
+      Post(withOid("/DetectorTest", "530"), oid530Req) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt530))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe Some("530")
+          r.rid shouldBe "DetectorTest"
+        }
+
+      Post("/DetectorTest?oid=999", ExplainCreateReq(
+        scripts = Seq(ExplainScript("js", "\"oid-999 DetectorTest\"")),
+        name = Some("DetectorTest-999")
+      )) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe Some("999")
+          r.rid shouldBe "DetectorTest"
+        }
+
+      Get("/DetectorTest") ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[Explain]
+          r.oid shouldBe None
+          r.rid shouldBe "DetectorTest"
+          r.name shouldBe Some("DetectorTest-default")
+        }
+
+      Get(withOid("/DetectorTest", "490")) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[Explain]
+          r.oid shouldBe Some("490")
+          r.rid shouldBe "DetectorTest"
+          r.name shouldBe Some("DetectorTest-490")
+        }
+
+      Get(withOid("/DetectorTest", "530")) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt530))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[Explain]
+          r.oid shouldBe Some("530")
+          r.rid shouldBe "DetectorTest"
+          r.name shouldBe Some("DetectorTest-530")
+        }
+
+      Get("/DetectorTest/explain") ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          responseAs[ExplainRes].explanation shouldBe "default DetectorTest"
+        }
+
+      Get("/DetectorTest/explain", ExplainReq(oid = Some("490"))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          responseAs[ExplainRes].explanation shouldBe "oid-490 DetectorTest"
+        }
+
+      Get("/DetectorTest/explain", ExplainReq(oid = Some("530"))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          responseAs[ExplainRes].explanation shouldBe "oid-530 DetectorTest"
+        }
+
+      Get("/DetectorTest/explain", ExplainReq(oid = Some("999"))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          responseAs[ExplainRes].explanation shouldBe "oid-999 DetectorTest"
+        }
+    }
+
     "[user 490] create own rule via POST /{rid}" in {
       val jwt490 = createJwtToken("490", Seq(userRole))
 
@@ -166,7 +293,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
         name = Some("Custom490Rule")
       )
 
-      Post("/DetectorWallet", req) ~>
+      Post(withOid("/DetectorWallet", "490"), req) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
         routes.routes ~>
         check {
@@ -208,7 +335,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
           r.rid shouldBe "BodyRidCreate"
         }
 
-      Get("/BodyRidCreate") ~>
+      Get(withOid("/BodyRidCreate", "530")) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt530))) ~>
         routes.routes ~>
         check {
@@ -227,7 +354,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
         name = Some("User490LengthRule")
       )
 
-      Post("/LengthRule", req) ~>
+      Post(withOid("/LengthRule", "490"), req) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
         routes.routes ~>
         check {
@@ -246,7 +373,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
         name = Some("Updated490Rule")
       )
 
-      Put("/LengthRule", updateReq) ~>
+      Put(withOid("/LengthRule", "490"), updateReq) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
         routes.routes ~>
         check {
@@ -256,7 +383,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
           r.rid shouldBe "LengthRule"
         }
 
-      Get("/LengthRule") ~>
+      Get(withOid("/LengthRule", "490")) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
         routes.routes ~>
         check {
@@ -266,10 +393,57 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
         }
     }
 
+    "[user 490] update meta via PUT /{rid}" in {
+      val jwt490 = createJwtToken("490", Seq(userRole))
+
+      val createReq = ExplainCreateReq(
+        scripts = Seq(ExplainScript("js", "input")),
+        name = Some("MetaTestRule"),
+        meta = Some(Map("icon" -> "old-icon.png"))
+      )
+
+      Post(withOid("/MetaTestRule", "490"), createReq) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+        }
+
+      val updateReq = ExplainUpdateReq(
+        meta = Some(Map(
+          "icon" -> "https://example.com/icon.png",
+          "width" -> 500,
+          "color" -> "#ff0"
+        ))
+      )
+
+      Put(withOid("/MetaTestRule", "490"), updateReq) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[ExplaineActionRes]
+          r.oid shouldBe Some("490")
+          r.rid shouldBe "MetaTestRule"
+        }
+
+      Get(withOid("/MetaTestRule", "490")) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+        routes.routes ~>
+        check {
+          status shouldBe StatusCodes.OK
+          val r = responseAs[Explain]
+          r.meta shouldBe defined
+          r.meta.get.get("icon") shouldBe Some("https://example.com/icon.png")
+          r.meta.get.get("width") shouldBe Some(500)
+          r.meta.get.get("color") shouldBe Some("#ff0")
+        }
+    }
+
     "[user 490] delete own rule via DELETE /{rid}" in {
       val jwt490 = createJwtToken("490", Seq(userRole))
 
-      Delete("/LengthRule") ~>
+      Delete(withOid("/LengthRule", "490")) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
         routes.routes ~>
         check {
@@ -458,7 +632,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
         "triggered balance change on ['+m.wallet+']'"
       )
 
-      Post("/WalletFullExplain", ExplainCreateReq(scripts = Seq(jsExplainScript), name = Some("WalletFull"))) ~>
+      Post(withOid("/WalletFullExplain", "490"), ExplainCreateReq(scripts = Seq(jsExplainScript), name = Some("WalletFull"))) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
         routes.routes ~>
         check { status shouldBe StatusCodes.OK }
@@ -507,7 +681,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
 
       val req = ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"svc-rule: \" + input")), name = None)
 
-      Post("/ServiceRule", req) ~>
+      Post(withOid("/ServiceRule", "svc-account"), req) ~>
         addHeader(Authorization(OAuth2BearerToken(jwtService))) ~>
         routes.routes ~>
         check {
@@ -522,7 +696,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
       val jwt490 = createJwtToken("490", Seq(userRole))
       val jwt530 = createJwtToken("530", Seq(userRole))
 
-      Post("/Rule_1", ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"specific explanation for 490\"")), name = None)) ~>
+      Post(withOid("/Rule_1", "490"), ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"specific explanation for 490\"")), name = None)) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
         routes.routes ~>
         check {
@@ -532,7 +706,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
           r.rid shouldBe "Rule_1"
         }
 
-      Post("/Rule_1", ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"specific explanation for 530\"")), name = None)) ~>
+      Post(withOid("/Rule_1", "530"), ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"specific explanation for 530\"")), name = None)) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt530))) ~>
         routes.routes ~>
         check {
@@ -542,7 +716,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
           r.rid shouldBe "Rule_1"
         }
 
-      Get("/Rule_1") ~>
+      Get(withOid("/Rule_1", "490")) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
         routes.routes ~>
         check {
@@ -553,7 +727,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
           r.scripts.head.src shouldBe "\"specific explanation for 490\""
         }
 
-      Get("/Rule_1") ~>
+      Get(withOid("/Rule_1", "530")) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt530))) ~>
         routes.routes ~>
         check {
@@ -604,7 +778,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
           r.rid shouldBe "Rule_1"
         }
 
-      Post("/Rule_1", ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"specific explanation for 490\"")), name = None)) ~>
+      Post(withOid("/Rule_1", "490"), ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"specific explanation for 490\"")), name = None)) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
         routes.routes ~>
         check {
@@ -614,7 +788,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
           r.rid shouldBe "Rule_1"
         }
 
-      Post("/Rule_1", ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"specific explanation for 530\"")), name = None)) ~>
+      Post(withOid("/Rule_1", "530"), ExplainCreateReq(scripts = Seq(ExplainScript("js", "\"specific explanation for 530\"")), name = None)) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt530))) ~>
         routes.routes ~>
         check {
@@ -672,6 +846,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
         }
 
       Get("/", ExplainReq(oid = Some("530"), rid = Some("Rule_1"))) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
@@ -719,15 +894,16 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
     }
 
     "[bulk-delete] DELETE /?oid=490 deletes all rules for oid 490" in {
+      val jwtDef = createJwtToken("", Seq(adminRole))
       val jwt490 = createJwtToken("490", Seq(userRole))
 
-      Post("/BulkOid-X", ExplainCreateReq(scripts = Seq(ExplainScript("str", "x")), name = None)) ~>
+      Post(withOid("/BulkOid-X", "490"), ExplainCreateReq(scripts = Seq(ExplainScript("str", "x")), name = None)) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt490))) ~> routes.routes ~> check { status shouldBe StatusCodes.OK }
-      Post("/BulkOid-Y", ExplainCreateReq(scripts = Seq(ExplainScript("str", "y")), name = None)) ~>
+      Post(withOid("/BulkOid-Y", "490"), ExplainCreateReq(scripts = Seq(ExplainScript("str", "y")), name = None)) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt490))) ~> routes.routes ~> check { status shouldBe StatusCodes.OK }
 
       Delete("/?oid=490") ~>
-        addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
+        addHeader(Authorization(OAuth2BearerToken(jwtDef))) ~>
         routes.routes ~>
         check {
           status shouldBe StatusCodes.OK
@@ -736,7 +912,7 @@ class ExplainRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
           r.data.map(_.rid).toSet should contain allOf ("BulkOid-X", "BulkOid-Y")
         }
 
-      Get("/BulkOid-X") ~>
+      Get(withOid("/BulkOid-X", "490")) ~>
         addHeader(Authorization(OAuth2BearerToken(jwt490))) ~>
         routes.routes ~>
         check { status should not be StatusCodes.OK }

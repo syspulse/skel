@@ -78,7 +78,7 @@ object ExplainRegistry {
         Behaviors.same
 
       case UpdateRule(oid, rid, req, replyTo) =>
-        log.info(s"UpdateRule($oid,$rid): scripts=${req.scripts}, name=${req.name}, desc=${req.desc}, sid=${req.sid}")
+        log.info(s"UpdateRule($oid,$rid): scripts=${req.scripts}, name=${req.name}, desc=${req.desc}, sid=${req.sid}, meta=${req.meta}")
         store.get(Option(oid).filter(_.nonEmpty), rid).flatMap { existing =>
           val updated = existing.copy(
             scripts = req.scripts.getOrElse(existing.scripts),
