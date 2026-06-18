@@ -14,6 +14,8 @@ import io.syspulse.skel.util.Util
 import io.syspulse.skel.Command
 
 import io.hacken.ext.wf.WorkflowSchema
+import io.hacken.ext.wf.WorkflowId
+
 import io.syspulse.skel.wf.temporal.workflow.server._
 import io.syspulse.skel.wf.temporal._
 import io.syspulse.skel.wf.temporal.por._
@@ -303,7 +305,7 @@ object WorkflowRegistry {
       "tid" -> req.tid.toString,
       "pid" -> req.pid.toString
     )
-    val workflowId = io.hacken.ext.wf.WorkflowIdGenerator.generate(req.title, schema, context)
+    val workflowId = WorkflowId.generate(req.title, schema, context)
 
     // Build WorkflowStep sequence from schema nodes
     val steps = schema.nodes.map { node =>
@@ -417,7 +419,7 @@ object WorkflowRegistry {
   private def createWorkflowRun(engineUri: String, schemaStore: WorkflowSchemaStore, runStore: WorkflowRunStore, configStore: WorkflowConfigStore, req: WorkflowRunCreateReq)(implicit ec: ExecutionContext): Future[WorkflowRunCreateRes] = {
     import io.syspulse.skel.wf.temporal.workflow.GenericStarter
     import io.hacken.ext.detector.DetectorConfig
-    import io.hacken.ext.wf.{WorkflowStep, WorkflowIdGenerator}
+    import io.hacken.ext.wf.{WorkflowStep, WorkflowId}
 
     // Get workflow schema for workflow type and ID generation
     val (workflowTypeName, wid) = schemaStore.??(req.schemaId) match {
@@ -430,7 +432,7 @@ object WorkflowRegistry {
         ).filter(_._2.nonEmpty)  // Filter out empty values
 
         // Generate workflow ID from template or default
-        val generatedWid = WorkflowIdGenerator.generateFromSchema(
+        val generatedWid = WorkflowId.generateFromSchema(
           schema = schema,
           context = context,
           defaultTemplate = s"workflow-${req.schemaId}-{ts}"

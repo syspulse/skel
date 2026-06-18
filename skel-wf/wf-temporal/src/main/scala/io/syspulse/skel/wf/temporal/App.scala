@@ -17,6 +17,8 @@ import io.hacken.ext.wf.WorkflowRun
 import io.hacken.ext.detector.DetectorConfig
 import io.syspulse.skel.wf.temporal.workflow.{GenericStarter}
 
+import io.hacken.ext.wf.WorkflowId
+
 // Examples:
 //   temporal init tid:Int pid:Int sys:Keyword proj:Keyword
 //   temporal query "ExecutionStatus = 'Running'"
@@ -486,7 +488,7 @@ object App extends skel.Server {
           "pid" -> projectId.toString,
           "project" -> config.porProject
         )
-        val workflowId = io.hacken.ext.wf.WorkflowIdGenerator.generateFromSchema(
+        val workflowId = WorkflowId.generateFromSchema(
           schema = schema,
           context = context,
           defaultTemplate = "por2-{project}-{ts}"
@@ -575,7 +577,7 @@ object App extends skel.Server {
 
         // Generate workflow ID
         val context = Map.empty[String, String]
-        val workflowId = io.hacken.ext.wf.WorkflowIdGenerator.generateFromSchema(
+        val workflowId = WorkflowId.generateFromSchema(
           schema = schema,
           context = context
         )        

@@ -16,7 +16,7 @@ import com.typesafe.scalalogging.Logger
  * Example title: "{name}-{project}-{ts}"
  * Example result: "PoR2-MyProject-1711234567890"
  */
-object WorkflowIdGenerator {
+object WorkflowId {
   private val log = Logger(getClass)
 
   /**
