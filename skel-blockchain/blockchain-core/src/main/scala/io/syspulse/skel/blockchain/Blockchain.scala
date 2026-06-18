@@ -72,6 +72,8 @@ object Blockchain {
 
   val STELLAR = Blockchain("stellar",Some("stellar"),Some(9),Some("XLM"),Some("https://stellar.expert"))
 
+  val HYPEREVM = Blockchain("hyperevm",Some("999"),Some(18),Some("HYPE"),Some("https://hyperevmscan.io"))
+
   val ALL = Map(
     ETHEREUM.id.get -> ETHEREUM,
     BSC_MAINNET.id.get -> BSC_MAINNET,
@@ -115,6 +117,8 @@ object Blockchain {
     SOLANA_TESTNET.id.get -> SOLANA_TESTNET,
 
     STELLAR.id.get -> STELLAR,
+    
+    HYPEREVM.id.get -> HYPEREVM,
   )
 
   val ALL_NAMES = ALL.values.map(b => b.name.toLowerCase -> b).toMap
