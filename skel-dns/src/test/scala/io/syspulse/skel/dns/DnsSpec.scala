@@ -210,7 +210,7 @@ val UK_RSP_1 = """
       }
     }
 
-    "resolve staking.floki.com as no DNS info, but IP address" in {                  
+    "resolve staking.floki.com as no NS info, but IP address" in {                  
       val r1 = sync(DnsUtil.getInfo("staking.floki.com"))
       r1 should !== (Failure[DnsInfo](_))      
       r1.get.ns should === (Seq())

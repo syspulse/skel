@@ -41,9 +41,10 @@ object App {
 
     Console.err.println(s"Config: ${config}")
         
+    implicit val ec:ExecutionContext = scala.concurrent.ExecutionContext.global
+
     val f = config.cmd match {
-      case "rdap" =>
-        implicit val ec:ExecutionContext = scala.concurrent.ExecutionContext.global
+      case "rdap" =>        
         config.params.toList match {
           case domain :: Nil  =>
             new RdapResolver(None).resolve(domain)
@@ -52,7 +53,18 @@ object App {
           case _ => 
             new RdapResolver(None).resolve("google.com")
         }
+      
       case "whois" => 
+        config.params.toList match {
+          case domain :: Nil  =>
+            new WhoisResolver().resolve(domain)
+          case domain :: server :: Nil  =>
+            new WhoisResolver().resolve(domain)
+          case _ => 
+            new WhoisResolver().resolve("google.com")
+        }
+
+      case _ => 
         config.params.toList match {
           case domain :: Nil  =>
             DnsUtil.getInfo(domain)
