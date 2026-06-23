@@ -54,7 +54,9 @@ class RdapResolver(url0:Option[String] = None) extends DnsResolver {
     }
   }
 
-  def resolve(domain:String)(implicit ec:ExecutionContext):Future[DnsInfo] =
+  def resolve(domain:String)(implicit ec:ExecutionContext):Future[DnsInfo] = {
+    log.debug(s"resolving: '${domain}'")
+
     if(domain.isBlank()) {
       Future.failed(new Exception(s"invalid domain: '${domain}'"))
     } else {
@@ -91,7 +93,7 @@ class RdapResolver(url0:Option[String] = None) extends DnsResolver {
                 expire = None,
                 ip = ip,
                 ns = Seq.empty,
-                err = Some(e.getMessage)
+                err = Seq(e.getMessage)
               )
           }
         }(ec).recoverWith { case e:Throwable =>
@@ -99,6 +101,7 @@ class RdapResolver(url0:Option[String] = None) extends DnsResolver {
         }(ec)
       }(ec)
     }
+  }
 }
 
 object RdapResolver {

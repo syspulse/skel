@@ -9,7 +9,7 @@ import io.syspulse.skel.FutureUtil._
 import scala.concurrent.ExecutionContext
 
 case class Config(
-  cmd:String = "whois",
+  cmd:String = "auto",
   params: Seq[String] = Seq(),
 )
 
@@ -27,6 +27,7 @@ object App {
                                
         ArgCmd("whois","Whois"),
         ArgCmd("rdap","RDAP"),
+        ArgCmd("auto","Auto"),
         
         ArgParam("<params>",""),
         ArgLogging(),
@@ -58,13 +59,11 @@ object App {
         config.params.toList match {
           case domain :: Nil  =>
             new WhoisResolver().resolve(domain)
-          case domain :: server :: Nil  =>
-            new WhoisResolver().resolve(domain)
           case _ => 
             new WhoisResolver().resolve("google.com")
         }
 
-      case _ => 
+      case "auto" => 
         config.params.toList match {
           case domain :: Nil  =>
             DnsUtil.getInfo(domain)
@@ -75,7 +74,7 @@ object App {
         }
     }
     
-    val r = sync(f)
+    val r = sync(f)(DnsUtil.TIMEOUT)
 
     Console.err.println(s"r = ${r}")
   }

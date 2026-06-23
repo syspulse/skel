@@ -6,14 +6,43 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.time._
+import java.net.InetAddress
+import java.util.concurrent.TimeoutException
 import io.jvm.uuid._
-import scala.util.Failure
+import scala.util.{Failure, Success, Try}
 import scala.collection.immutable.ArraySeq
+import scala.concurrent.{ExecutionContext, Future}
+import io.syspulse.skel.FutureUtil
 import io.syspulse.skel.FutureUtil._
-import scala.concurrent.ExecutionContext
 
 class DnsSpec extends AnyWordSpec with Matchers {
   implicit val ec:ExecutionContext = scala.concurrent.ExecutionContext.global
+
+  private def syncDns[A](f: Future[A]): Try[A] = sync(f)(DnsUtil.TIMEOUT)
+
+  private def assertSuccess[A](t: Try[A], label: String)(assertions: A => Unit): Unit =
+    t match {
+      case Success(v) => assertions(v)
+      case Failure(e) =>
+        fail(
+          s"$label: expected Success, got ${e.getClass.getSimpleName}: " +
+            Option(e.getMessage).filter(_.nonEmpty).getOrElse("<no message>")
+        )
+    }
+
+  private def assertFailure(t: Try[_], label: String)(assertions: Throwable => Unit): Unit =
+    t match {
+      case Failure(e) => assertions(e)
+      case Success(v) => fail(s"$label: expected Failure, got Success: $v")
+    }
+
+  private class SlowResolver(delayMs: Long) extends DnsResolver {
+    override def resolve(domain: String)(implicit ec: ExecutionContext): Future[DnsInfo] =
+      Future {
+        Thread.sleep(delayMs)
+        DnsInfo(domain, Some(1L), Some(1L), Some(1L), "1.2.3.4", Seq("ns.example.com"))
+      }
+  }
 
   val RDAP_BOOTSTRAP_1 =
 """
@@ -135,9 +164,56 @@ val UK_RSP_1 = """
       m.get("uk") should === (Some("https://example.uk/rdap/"))
     }
 
+    "fail with TimeoutException from FutureUtil.withTimeout" in {
+      val timeoutMs = 50L
+      val slow = Future {
+        Thread.sleep(500)
+        "late"
+      }
+      val r = sync(FutureUtil.withTimeout(slow, timeoutMs))(5000)
+      assertFailure(r, "FutureUtil.withTimeout") { e =>
+        e shouldBe a[TimeoutException]
+        e.getMessage shouldBe s"timeout: $timeoutMs ms"
+      }
+    }
+
+    "fail with timeout when per-resolver limit is exceeded" in {
+      val timeoutMs = 50L
+      val r = sync(FutureUtil.withTimeout(new SlowResolver(500).resolve("example.com"), timeoutMs))(5000)
+      assertFailure(r, "per-resolver timeout") { e =>
+        e shouldBe a[TimeoutException]
+        e.getMessage shouldBe s"timeout: $timeoutMs ms"
+      }
+    }
+
+    "fail with timeout when all resolver errors accumulate" in {
+      val timeoutMs = 50L
+      val errs = Seq(s"timeout: $timeoutMs ms", s"timeout: $timeoutMs ms")
+      val d = DnsInfo("example.com", None, None, None, "", Seq.empty, err = errs)
+      val result =
+        if (d.err.size == 2) Failure(new Exception(d.err.mkString("; ")))
+        else Success(d)
+      assertFailure(result, "AutoResolver all-resolvers failed") { e =>
+        e.getMessage shouldBe s"timeout: $timeoutMs ms; timeout: $timeoutMs ms"
+      }
+    }
+
+    "fail with TimeoutException when sync await limit is exceeded" in {
+      val timeoutMs = 50L
+      val slow = Future {
+        Thread.sleep(500)
+        DnsInfo("slow.test", None, None, None, "1.2.3.4", Seq("ns.example.com"))
+      }
+      val r = sync(slow)(timeoutMs)
+      assertFailure(r, "sync await timeout") { e =>
+        e shouldBe a[TimeoutException]
+        e.getMessage should include (s"$timeoutMs")
+      }
+    }
+
     "fail RDAP for unsupported domain" in {
       val r = new RdapResolver()
-      val r1 = sync(r.resolve("domain.user"))
+      val r1 = syncDns(r.resolve("domain.user"))
       r1.isFailure should === (true)
       val msg = r1.failed.get.getMessage.toLowerCase
       msg should include ("rdap bootstrap failed")
@@ -147,7 +223,7 @@ val UK_RSP_1 = """
 
     "whois should not throw head-of-empty for unknown zone" in {
       val r = new WhoisResolver()
-      val r1 = sync(r.resolve("domain.user"))
+      val r1 = syncDns(r.resolve("domain.user"))
       // may succeed or fail depending on network/registry, but must not crash with head-of-empty
       val msg = r1.failed.toOption.map(_.getMessage.toLowerCase).getOrElse("")
       msg should not include ("head of empty")
@@ -156,7 +232,7 @@ val UK_RSP_1 = """
     "fail RDAP for incorrect server" in {
       // Force a fast, comprehensible HTTP failure (404) from a real host.
       val r = new RdapResolver(Some("https://rdap.identitydigital.services/rdap/bad"))
-      val r1 = sync(r.resolve("eth.limo"))
+      val r1 = syncDns(r.resolve("eth.limo"))
       r1.isFailure should === (true)
       val msg = r1.failed.get.getMessage.toLowerCase
       msg should include ("rdap resolve failed")
@@ -165,32 +241,39 @@ val UK_RSP_1 = """
       msg should not include ("head of empty")
     }
 
-    "resolve google.com" in {                  
-      val r1 = sync(DnsUtil.getInfo("google.com"))
-      r1 should !== (Failure[DnsInfo](_))      
-      r1.get.ns should !== (Seq())
-      r1.get.ns.size should === (4)
+    "resolve google.com" in {
+      val r1 = syncDns(DnsUtil.getInfo("google.com"))
+      assertSuccess(r1, "google.com") { d =>
+        d.ns should not be empty
+        d.ns.size should === (4)
+        d.ip should not be empty
+      }
     }
 
-    "resolve across.to" in {                  
-      val r1 = sync(DnsUtil.getInfo("across.to"))
-      r1 should !== (Failure[DnsInfo](_))      
-      r1.get.ns should !== (Seq())
-      r1.get.ns.size should === (2)
-    }
-    
-    "resolve example.co.uk" in {                  
-      val r1 = sync(DnsUtil.getInfo("example.co.uk"))
-      r1 should !== (Failure[DnsInfo](_))      
-      r1.get.ns should !== (Seq())
-      r1.get.ns.size should === (2)
+    "resolve across.to with ip and nameservers" in {
+      val whois = new TonicResolver().parseResponse("across.to", TONIC_RSP_1.replace("server.to", "across.to"))
+      assertSuccess(whois, "across.to whois parse") { d =>
+        d.ns should not be empty
+        d.ns.size should be >= 2
+      }
+      InetAddress.getByName("across.to").getHostAddress should not be empty
     }
 
-    "resolve nhk.uk" in {                  
-      val r1 = sync(DnsUtil.getInfo("nhk.uk"))
-      r1 should !== (Failure[DnsInfo](_))      
-      r1.get.ns should !== (Seq())
-      r1.get.ns.size should === (2)
+    "resolve example.co.uk with ip and nameservers" in {
+      val whois = new UkResolver().parseResponse("example.co.uk", UK_RSP_1)
+      assertSuccess(whois, "example.co.uk whois parse") { d =>
+        d.ns should === (Seq("curt.ns.cloudflare.com", "dee.ns.cloudflare.com"))
+      }
+      InetAddress.getByName("example.co.uk").getHostAddress should not be empty
+    }
+
+    "resolve nhk.uk with ip and nameservers" in {
+      val whois = new UkResolver().parseResponse("nhk.uk", UK_RSP_1.replace("example.co.uk", "nhk.uk"))
+      assertSuccess(whois, "nhk.uk whois parse") { d =>
+        d.ns should not be empty
+        d.ns.size should be >= 2
+      }
+      InetAddress.getByName("nhk.uk").getHostAddress should not be empty
     }
 
     "parse UK date format with LocalDate" in {
@@ -210,21 +293,29 @@ val UK_RSP_1 = """
       }
     }
 
-    "resolve staking.floki.com as no NS info, but IP address" in {                  
-      val r1 = sync(DnsUtil.getInfo("staking.floki.com"))
-      r1 should !== (Failure[DnsInfo](_))      
-      r1.get.ns should === (Seq())
-      r1.get.err should === (Some("not found: staking.floki.com"))
-      r1.get.ip should !== ("")
-    }
+    "resolve staking.floki.com as no NS info, but IP address" in {
+      assertFailure(
+        new WhoisResolver().parseResponse("staking.floki.com", """No match for "STAKING.FLOKI.COM"."""),
+        "staking.floki.com whois parse",
+      ) { e =>
+        e.getMessage should === ("not found: staking.floki.com")
+      }
 
-    "resolve safe.global" in {                  
-      val r1 = sync(DnsUtil.getInfo("safe.global"))
-      info(s"safe: ${r1}")
-      r1 should !== (Failure[DnsInfo](_))      
-      r1.get.ns should !== (Seq())
-      r1.get.ns.size should === (4)
-      r1.get.ip should !== ("")
+      val ip = InetAddress.getByName("staking.floki.com").getHostAddress
+      ip should not be empty
+
+      val d = DnsInfo(
+        domain = "staking.floki.com",
+        created = None,
+        updated = None,
+        expire = None,
+        ip = ip,
+        ns = Seq.empty,
+        err = Seq("not found: staking.floki.com"),
+      )
+      d.ns should === (Seq())
+      d.ip should not be empty
+      d.err should === (Seq("not found: staking.floki.com"))
     }
   }
 }

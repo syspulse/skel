@@ -91,8 +91,10 @@ object WhoisResolver {
 class WhoisResolver() extends DnsResolver {
   val log = Logger(s"${this}")
 
-  def resolve(domain:String)(implicit ec:ExecutionContext):Future[DnsInfo] =
+  def resolve(domain:String)(implicit ec:ExecutionContext):Future[DnsInfo] = {
+    log.debug(s"resolving: '${domain}'")
     Future.fromTry(getInfo(domain,None))
+  }
 
   val tsFormatISO = Seq(
     DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssX"),
@@ -150,7 +152,9 @@ class WhoisResolver() extends DnsResolver {
       }
 
     } catch {
-      case e:Exception => Failure(e)
+      case e:Exception => 
+        log.warn(s"failed to get zone whois: '${domain}': ${e.getMessage}")
+        Failure(e)
     }
   }
 
@@ -266,7 +270,7 @@ class WhoisResolver() extends DnsResolver {
             expire = None,
             ip = ip,
             ns = Seq.empty,
-            err = Some(e.getMessage)
+            err = Seq(e.getMessage)
           ))
       }
 

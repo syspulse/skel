@@ -10,5 +10,5 @@ case class DnsInfo(
   expire:Option[Long],
   ip:String,
   ns:Seq[String],
-  err:Option[String] = None
+  err:Seq[String] = Seq.empty
 )

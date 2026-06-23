@@ -6,9 +6,12 @@ import scala.concurrent.{ExecutionContext,Future}
 
 import java.time.format.DateTimeFormatter
 import java.time.OffsetDateTime
+import java.util.concurrent.TimeoutException
+
+import io.syspulse.skel.FutureUtil
 
 
-class AutoResolver(server:Option[String] = None) extends DnsResolver {
+class AutoResolver(server:Option[String] = None, timeout: Long = DnsUtil.TIMEOUT) extends DnsResolver {
   val log = Logger(s"${this}")
 
   private def mergeDns(d1: DnsInfo, d0: DnsInfo): DnsInfo =
@@ -18,7 +21,7 @@ class AutoResolver(server:Option[String] = None) extends DnsResolver {
       expire = d1.expire.orElse(d0.expire),
       ip = if (d1.ip.isBlank) d0.ip else d1.ip,
       ns = if (d1.ns.isEmpty) d0.ns else d1.ns,
-      err = d1.err.orElse(d0.err),
+      err = d1.err,
     )
 
   private def isResolved(d: DnsInfo): Boolean =
@@ -27,6 +30,18 @@ class AutoResolver(server:Option[String] = None) extends DnsResolver {
     d.expire.isDefined &&
     !d.ip.isBlank && 
     d.ns.nonEmpty
+
+  private def resolveWithTimeout(r: DnsResolver, domain: String)(implicit ec: ExecutionContext): Future[DnsInfo] =
+    FutureUtil.withTimeout(r.resolve(domain)(ec), timeout)
+
+  private def onResolveFailure(domain: String, d1: DnsInfo, e: Throwable): DnsInfo = {
+    val msg = e match {
+      case _: TimeoutException => s"timeout: ${timeout} ms"
+      case _ => Option(e.getMessage).getOrElse(e.getClass.getSimpleName)
+    }
+    log.warn(s"failed to resolve: '${domain}': ${msg}")
+    d1.copy(err = d1.err :+ msg)
+  }
   
   def resolve(domain:String)(implicit ec:ExecutionContext):Future[DnsInfo] = {
     val rr = domain.trim.split("\\.").last.toLowerCase match {
@@ -48,10 +63,19 @@ class AutoResolver(server:Option[String] = None) extends DnsResolver {
     else {
       val init = DnsInfo(domain = domain, created = None, updated = None, expire = None, ip = "", ns = Seq.empty)
       rr.foldLeft(Future.successful(init)) { (f, r) =>
-        f.flatMap { merged =>
-          if (isResolved(merged)) Future.successful(merged)
-          else r.resolve(domain)(ec).map(d => mergeDns(merged, d))
+        f.flatMap { d1 =>
+          if (isResolved(d1)) 
+            Future.successful(d1)
+          else 
+            resolveWithTimeout(r, domain)
+              .map(d0 => mergeDns(d1, d0))
+              .recover { case e: Throwable => onResolveFailure(domain, d1, e) }
         }
+      }.flatMap { d =>
+        if (d.err.size == rr.size)
+          Future.failed(new Exception(d.err.mkString("; ")))
+        else
+          Future.successful(d)
       }
     }
   }
@@ -60,6 +84,8 @@ class AutoResolver(server:Option[String] = None) extends DnsResolver {
 object DnsUtil {
   val log = Logger(s"${this}")
   implicit val ec:ExecutionContext = scala.concurrent.ExecutionContext.global
+
+  val TIMEOUT = 60000L  
   
   // default: "whois.internic.net"
   // whois.iana.org
