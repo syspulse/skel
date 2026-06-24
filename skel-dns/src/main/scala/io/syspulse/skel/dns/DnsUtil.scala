@@ -98,7 +98,7 @@ object DnsUtil {
   }
 
   def getResolver(domain:String, server:Option[String] = None):(DnsResolver,String) = {
-    domain.trim.toLowerCase.split("://").toList match {
+    val (r1,d1) = domain.trim.toLowerCase.split("://").toList match {
       case "rdap" :: domain :: Nil =>
         (new RdapResolver(),domain)
       case "whois" :: domain :: Nil =>
@@ -108,5 +108,7 @@ object DnsUtil {
       case _ =>        
         (new AutoResolver(),domain)
     }
+
+    (r1,d1.split("/").headOption.getOrElse(""))
   }
 }

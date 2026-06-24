@@ -98,16 +98,20 @@ class WhoisResolver() extends DnsResolver {
 
   val tsFormatISO = Seq(
     DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssX"),
-    DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSX")
+    DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSX"),
+    DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SX"),
+    DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.S")
   )
 
-  def parseDate(date:String) = {
-    tsFormatISO.map(f => Try(OffsetDateTime.parse(date,f)))
-      .find(_.isSuccess)
-      .map(_.get)
-      .get
-      .toInstant
-      .toEpochMilli
+  def parseDate(date:String):Try[Long] = {
+    tsFormatISO.view
+      .map { f =>
+        Try(OffsetDateTime.parse(date, f))
+          .map(_.toInstant.toEpochMilli)
+          .orElse(Try(LocalDateTime.parse(date, f).toInstant(ZoneOffset.UTC).toEpochMilli))
+      }
+      .collectFirst { case Success(ms) => Success(ms) }
+      .getOrElse(Failure(new Exception(s"failed to parse date: '${date}'")))
   }
 
   // extracts root DNS zone and returns whois server
@@ -214,9 +218,9 @@ class WhoisResolver() extends DnsResolver {
     
     Success(DnsInfo(
       domain = domain,
-      created = created,
-      updated = updated,
-      expire = expire,
+      created = created.map(_.get),
+      updated = updated.map(_.get),
+      expire = expire.map(_.get),
       ip = "",
       ns = ns.toIndexedSeq
     ))

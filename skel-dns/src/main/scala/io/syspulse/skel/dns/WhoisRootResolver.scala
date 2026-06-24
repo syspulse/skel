@@ -14,14 +14,18 @@ class WhoisRootResolver extends WhoisResolver() {
   override val tsFormatISO = Seq(
     DateTimeFormatter.ofPattern("yyyy-MM-dd"),    
   )  
+  
+  override def parseDate(date:String):Try[Long] = {
+    tsFormatISO.view
+      .map(f => Try(LocalDate.parse(date, f)))
+      .collectFirst{
+        case Success(dt) => Success(
+          dt
+          .atStartOfDay()  // Convert LocalDate to LocalDateTime
+          .toInstant(java.time.ZoneOffset.UTC)  // Convert to Instant with UTC timezone
+          .toEpochMilli)
 
-  override def parseDate(date:String) = {
-    tsFormatISO.map(f => Try(LocalDate.parse(date,f)))
-      .find(_.isSuccess)
-      .map(_.get)
-      .get
-      .atStartOfDay()  // Convert LocalDate to LocalDateTime
-      .toInstant(java.time.ZoneOffset.UTC)  // Convert to Instant with UTC timezone
-      .toEpochMilli
+      }
+      .getOrElse(Failure(new Exception(s"failed to parse date: '${date}'")))    
   }
 }

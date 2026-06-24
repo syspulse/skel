@@ -26,6 +26,9 @@ class DnsSpec extends AnyWordSpec with Matchers with DnsTestSupport {
       val (r4, d4) = DnsUtil.getResolver("google.com")
       r4 shouldBe a[AutoResolver]
       d4 shouldBe "google.com"
+
+      val (_, d5) = DnsUtil.getResolver("https://google.com///")
+      d5 shouldBe "google.com"
     }
 
     "resolve google.com with ip and nameservers" in {
@@ -68,6 +71,19 @@ class DnsSpec extends AnyWordSpec with Matchers with DnsTestSupport {
       r shouldBe a[AutoResolver]
       d shouldBe "lido.fi"
       assertResolvedWithIpAndNs(syncDns(DnsUtil.getInfo("lido.fi")), "lido.fi", minNs = 2)
+    }
+
+    "resolve eigencloud.xyz via AutoResolver with whois timestamps" in {
+      val (r, d) = DnsUtil.getResolver("eigencloud.xyz")
+      r shouldBe a[AutoResolver]
+      d shouldBe "eigencloud.xyz"
+      assertSuccess(syncDns(DnsUtil.getInfo("eigencloud.xyz")), "eigencloud.xyz") { info =>
+        info.created shouldBe defined
+        info.updated shouldBe defined
+        info.expire shouldBe defined
+        info.ip should not be empty
+        info.ns should not be empty
+      }
     }
   }
 }

@@ -5,6 +5,7 @@ package io.syspulse.skel.dns
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import scala.concurrent.ExecutionContext
+import scala.util.Success
 
 class WhoisResolverSpec extends AnyWordSpec with Matchers with DnsTestSupport {
   implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
@@ -67,6 +68,13 @@ class WhoisResolverSpec extends AnyWordSpec with Matchers with DnsTestSupport {
       val r1 = syncDns(r.resolve("domain.user"))
       val msg = r1.failed.toOption.map(_.getMessage.toLowerCase).getOrElse("")
       msg should not include ("head of empty")
+    }
+
+    "parse single-digit fractional ISO timestamps" in {
+      val r = new WhoisResolver()
+      r.parseDate("2025-05-26T17:46:30.0Z") should === (Success(1748281590000L))
+      r.parseDate("2025-02-24T22:43:21.0Z") should === (Success(1740437001000L))
+      r.parseDate("2028-02-24T23:59:59.0") should === (Success(1835049599000L))
     }
   }
 }
