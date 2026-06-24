@@ -62,5 +62,12 @@ class DnsSpec extends AnyWordSpec with Matchers with DnsTestSupport {
     "resolve https://google.com with ip and nameservers" in {
       assertResolvedWithIpAndNs(syncDns(DnsUtil.getInfo("https://google.com")), "https://google.com", minNs = 4)
     }
+
+    "resolve lido.fi via AutoResolver with nameservers" in {
+      val (r, d) = DnsUtil.getResolver("lido.fi")
+      r shouldBe a[AutoResolver]
+      d shouldBe "lido.fi"
+      assertResolvedWithIpAndNs(syncDns(DnsUtil.getInfo("lido.fi")), "lido.fi", minNs = 2)
+    }
   }
 }

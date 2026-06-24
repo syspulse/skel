@@ -103,18 +103,6 @@ class UkResolver extends WhoisResolver {
               None
           }
         }
-
-        // there is no expiration date in the response !!!
-        // if(line.trim.startsWith("Expires on:")) {
-        //   expire = line.split("Expires on:").toList match {
-        //     case _ :: exp :: Nil => 
-        //       val ts = parseUkDate(exp)
-        //       Some(ts)
-        //     case _ => 
-        //       log.warn(s"failed to parse Expiration date: ${line}")
-        //       None
-        //   }
-        // }        
         
         if(nameservers && line.isBlank) {
           nameservers = false

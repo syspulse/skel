@@ -52,6 +52,7 @@ class AutoResolver(server:Option[String] = None, timeout: Long = DnsUtil.TIMEOUT
       case "global" => Seq(new WhoisRootResolver())
       case "limo" => Seq(new RdapResolver(server))
       case "uk" => Seq(new UkResolver()) // co.uk actually
+      case "fi" => Seq(new FiResolver())
       case "test" => Seq(new TestResolver())
       // special case, such domain does not exit
       case "rdap" => Seq(new RdapResolver(server))
