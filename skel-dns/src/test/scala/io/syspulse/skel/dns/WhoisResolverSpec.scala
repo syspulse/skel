@@ -4,8 +4,10 @@ package io.syspulse.skel.dns
 
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
+import scala.concurrent.ExecutionContext
 
-class WhoisResolverSpec extends AnyWordSpec with Matchers {
+class WhoisResolverSpec extends AnyWordSpec with Matchers with DnsTestSupport {
+  implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
 
   "getDomain" should {
     "extract domain for simple two-part (gTLD)" in {
@@ -56,6 +58,15 @@ class WhoisResolverSpec extends AnyWordSpec with Matchers {
     }
     "return single-part as-is" in {
       WhoisResolver.getDomain("localhost") should === ("localhost")
+    }
+  }
+
+  "WhoisResolver" should {
+    "not throw head-of-empty for unknown zone" in {
+      val r = new WhoisResolver()
+      val r1 = syncDns(r.resolve("domain.user"))
+      val msg = r1.failed.toOption.map(_.getMessage.toLowerCase).getOrElse("")
+      msg should not include ("head of empty")
     }
   }
 }

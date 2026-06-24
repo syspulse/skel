@@ -91,17 +91,21 @@ object DnsUtil {
   // whois.iana.org
   // To get WHOIS for .io zone:
   // 
-  def getInfo(domain:String,whoisServer:Option[String] = None)(implicit ec:ExecutionContext = DnsUtil.ec):Future[DnsInfo] =
-    getResolver(domain,whoisServer).resolve(domain)(ec)
+  def getInfo(domain:String,whoisServer:Option[String] = None)(implicit ec:ExecutionContext = DnsUtil.ec):Future[DnsInfo] = {
+    val (r,d) = getResolver(domain,whoisServer)
+    r.resolve(d)(ec)
+  }
 
-  def getResolver(domain:String, server:Option[String] = None):DnsResolver = {
-    domain.split("://").toList match {
+  def getResolver(domain:String, server:Option[String] = None):(DnsResolver,String) = {
+    domain.trim.toLowerCase.split("://").toList match {
       case "rdap" :: domain :: Nil =>
-        new RdapResolver()
+        (new RdapResolver(),domain)
       case "whois" :: domain :: Nil =>
-        new WhoisResolver()
+        (new WhoisResolver(),domain)
+      case ("http" | "https") :: domain :: Nil =>
+        (new AutoResolver(),domain)
       case _ =>        
-        new AutoResolver()
+        (new AutoResolver(),domain)
     }
   }
 }
