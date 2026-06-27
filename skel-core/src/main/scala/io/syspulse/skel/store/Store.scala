@@ -29,12 +29,14 @@ trait Store[E,P] {
 }
 
 object Store {
+  val DEF_TIMEOUT = 15000L
+
   def toFuture[T](t: => Try[T]): Future[T] = Future.fromTry(t)
 
-  def fromFuture[T]( f: => Future[T]): Try[T] = {
+  def fromFuture[T]( f: => Future[T], timeout:Long = DEF_TIMEOUT): Try[T] = {
     try {
       Success(
-        Await.result( f ,FiniteDuration(15000L,TimeUnit.MILLISECONDS))
+        Await.result( f ,FiniteDuration(timeout,TimeUnit.MILLISECONDS))
       )
     } catch {
       case e:Exception => Failure(e)

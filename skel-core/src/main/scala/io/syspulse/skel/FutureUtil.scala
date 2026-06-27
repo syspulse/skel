@@ -10,6 +10,10 @@ import scala.concurrent.duration._
 import java.util.concurrent.TimeUnit
 import scala.concurrent.{Await, ExecutionContext, Future}
 
+import akka.actor.ActorSystem
+import akka.pattern.after
+import com.typesafe.config.ConfigFactory
+
 import akka.NotUsed
 
 import scala.concurrent.Future
@@ -23,6 +27,17 @@ class FutureAwaitable[T](f:Future[T],timeout:Duration = FutureUtil.timeout0)  {
 
 object FutureUtil {
   val timeout0 = FiniteDuration(5,TimeUnit.SECONDS)
+
+  private lazy val timeoutAs = ActorSystem("FutureUtil-timeout", ConfigFactory.empty())
+
+  def withTimeout[A](f: Future[A], timeoutMs: Long)(implicit ec: ExecutionContext): Future[A] = {
+    if (timeoutMs <= 0) return f
+    val timeoutF = after(FiniteDuration(timeoutMs, TimeUnit.MILLISECONDS), timeoutAs.scheduler) {
+      Future.failed(new java.util.concurrent.TimeoutException(s"timeout: ${timeoutMs} ms"))
+    }(ec)
+    Future.firstCompletedOf(Seq(f, timeoutF))(ec)
+  }
+
   implicit def ftor[R](f: Future[R]):FutureAwaitable[R] = new FutureAwaitable[R](f)
   
   implicit def await[R](f: Future[R])(implicit timeout:Duration = Duration.Inf):R = {
