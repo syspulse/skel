@@ -394,8 +394,7 @@ lazy val root = (project in file("."))
             syslog_core,
             skel_notify,
             notify_core,
-            skel_tag, 
-            skel_telemetry,
+            skel_tag,            
             skel_job,
             job_core,            
             crypto_kms,
@@ -418,7 +417,10 @@ lazy val root = (project in file("."))
             skel_dash,
             skel_explain,
             skel_odometer,
-            ai_mcp
+            ai_mcp,
+
+            telemetry_gen0,
+            telemetry_ext,
   )
   .dependsOn(
             skel_core, 
@@ -453,8 +455,7 @@ lazy val root = (project in file("."))
             syslog_core,
             skel_notify,
             notify_core,
-            skel_tag, 
-            skel_telemetry,
+            skel_tag,             
             skel_job,
             job_core,
             blockchain_core,
@@ -475,7 +476,10 @@ lazy val root = (project in file("."))
             skel_dash,
             skel_explain,
             skel_odometer,
-            ai_mcp
+            ai_mcp,
+
+            telemetry_gen0,
+            telemetry_ext,
   )
   .disablePlugins(sbtassembly.AssemblyPlugin) // this is needed to prevent generating useless assembly and merge error
   .settings(
@@ -1309,8 +1313,8 @@ lazy val skel_tag = (project in file("skel-tag"))
     ),    
   )
 
-lazy val skel_telemetry = (project in file("skel-telemetry"))
-  .dependsOn(skel_core,auth_core,skel_ingest,skel_cli,skel_cron)
+lazy val telemetry_gen0 = (project in file("skel-telemetry/telemetry-gen0"))
+  .dependsOn(skel_core,auth_core,auth_ext,skel_ingest,skel_cli,skel_cron)
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
@@ -1321,11 +1325,30 @@ lazy val skel_telemetry = (project in file("skel-telemetry"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    appDockerConfig("skel-telemetry","io.syspulse.skel.telemetry.App"),
+    appDockerConfig("telemetry-gen0","io.syspulse.skel.telemetry.App"),
 
     libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
       libElastic4s,
       libAlpakkaDynamo
+    ),    
+  )
+
+lazy val telemetry_ext = (project in file("skel-telemetry/telemetry-ext"))
+  .dependsOn(skel_core,auth_core,auth_ext,skel_ingest, blockchain_core)
+  .enablePlugins(JavaAppPackaging)
+  .enablePlugins(DockerPlugin)
+  .enablePlugins(AshScriptPlugin)
+  .settings (
+
+    sharedConfig,
+    sharedConfigAssembly,
+    sharedConfigDocker,
+    dockerBuildxSettings,
+
+    appDockerConfig("telemetry-ext","io.syspulse.skel.telemetry.ext.App"),
+
+    libraryDependencies ++= libSkel ++ libHttp ++ libTest ++ Seq(
+
     ),    
   )
 
