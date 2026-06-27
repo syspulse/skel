@@ -27,6 +27,13 @@ class MirrorAi(uri:MirrorURI) extends AiProvider {
   override def getRetry():Int = uri.retry
   override def getModel():Option[String] = uri.getModel()
 
+  def answer(question:String):String = getModel() match {
+    case Some("hash") => Util.sha256(question)
+    case Some("reverse") => question.reverse
+    case Some("parrot") => question
+    case _ => "No provider://model specified"
+  }
+
   override def ask(
     question:String,
     model:Option[String],
@@ -38,14 +45,11 @@ class MirrorAi(uri:MirrorURI) extends AiProvider {
     outputType:Option[String] = None,
     cache:Option[String] = None):Try[Ai] = {
 
-    val answer = getModel() match {
-      case Some("hash") => Util.sha256(question)
-      case _ => question
-    }
+    val a = answer(question)
 
     Success(Ai(
       question = question,
-      answer = Some(answer),
+      answer = Some(a),
       oid = Some(MirrorURI.ID),
       model = model
     ))
@@ -69,11 +73,8 @@ class MirrorAi(uri:MirrorURI) extends AiProvider {
 
     // Mirror: return the last user message as assistant response
     val lastMessage = if(chat.messages.nonEmpty) chat.messages.last.content else ""
-    val mirroredAnswer = getModel() match {
-      case Some("hash") => Util.sha256(lastMessage)
-      case _ => lastMessage
-    }
-    val response = ChatMessage("assistant", mirroredAnswer)
+    val a = answer(lastMessage)
+    val response = ChatMessage("assistant", a)
     Success(chat.copy(messages = chat.messages :+ response))
   }
 
@@ -86,47 +87,36 @@ class MirrorAi(uri:MirrorURI) extends AiProvider {
     ai:Ai,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty,outputType:Option[String] = None,
     cache:Option[String] = None):Try[Ai] = {
     // Mirror: return the question as the answer
-    val answer = getModel() match {
-      case Some("hash") => Util.sha256(ai.question)
-      case _ => ai.question
-    }
-    Success(ai.copy(answer = Some(answer), oid = Some(MirrorURI.ID)))
+    val a = answer(ai.question)
+    Success(ai.copy(answer = Some(a), oid = Some(MirrorURI.ID)))
   }
 
   override def promptAsync(
     ai:Ai,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty,outputType:Option[String] = None,
     cache:Option[String] = None)(implicit ec: ExecutionContext):Future[Ai] = {
     // Mirror: return the question as the answer
-    val answer = getModel() match {
-      case Some("hash") => Util.sha256(ai.question)
-      case _ => ai.question
-    }
-    Future.successful(ai.copy(answer = Some(answer), oid = Some(MirrorURI.ID)))
+    val a = answer(ai.question)
+    Future.successful(ai.copy(answer = Some(a), oid = Some(MirrorURI.ID)))
   }
 
   override def promptStream(
     ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty,outputType:Option[String] = None,
     cache:Option[String] = None):Try[Ai] = {
     // Mirror: stream the question back character by character
-    val answer = getModel() match {
-      case Some("hash") => Util.sha256(ai.question)
-      case _ => ai.question
-    }
-    answer.foreach(c => onEvent(c.toString))
-    Success(ai.copy(answer = Some(answer), oid = Some(MirrorURI.ID)))
+    val a = answer(ai.question)
+    a.foreach(c => onEvent(c.toString))
+    Success(ai.copy(answer = Some(a), oid = Some(MirrorURI.ID)))
   }
 
   override def promptStreamAsync(
     ai:Ai,onEvent: (String) => Unit,system:Option[String] = None,timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty,images:Seq[String] = Seq.empty,outputType:Option[String] = None,
     cache:Option[String] = None)(implicit ec: ExecutionContext):Future[Ai] = {
     // Mirror: stream the question back character by character
-    val answer = getModel() match {
-      case Some("hash") => Util.sha256(ai.question)
-      case _ => ai.question
-    }
+    val a = answer(ai.question)
+      
     Future {
-      answer.foreach(c => onEvent(c.toString))
-      ai.copy(answer = Some(answer), oid = Some(MirrorURI.ID))
+      a.foreach(c => onEvent(c.toString))
+      ai.copy(answer = Some(a), oid = Some(MirrorURI.ID))
     }
   }
   
@@ -134,10 +124,7 @@ class MirrorAi(uri:MirrorURI) extends AiProvider {
     ai:Ai,instructions:Option[String] = None,onEvent: (String) => Unit = (s) => {},onData: (String) => Unit = (s) => {},onError: (String) => Unit = (s) => {},onDone: () => Unit = () => {},timeout:Long = getTimeout(),retry:Int = getRetry(),tools:Seq[AiTool] = Seq.empty,outputType:Option[String] = None,
     cache:Option[String] = None)(implicit ec: ExecutionContext,sys: ActorSystem): Source[ServerSentEvent, Any] = {
     // Mirror: stream the question back
-    val answer = getModel() match {
-      case Some("hash") => Util.sha256(ai.question)
-      case _ => ai.question
-    }
-    Source.single(ServerSentEvent(answer))
+    val a = answer(ai.question)
+    Source.single(ServerSentEvent(a))
   }
 }
