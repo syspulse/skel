@@ -353,8 +353,8 @@ class ScriptAISpec extends AnyWordSpec with Matchers {
 
   "ScriptAI prompt processing" should {
     "replace {input} pattern in prompt with cleaned input" in {
-      // Use mirror:// provider which returns the prompt as answer
-      val engine = new ScriptAI(Some("Analyze this text: {input}"), Some("mirror://"))
+      // Use mirror://parrot provider which returns the prompt as answer
+      val engine = new ScriptAI(Some("Analyze this text: {input}"), Some("mirror://parrot"))
       val input = "Hello world"
       
       val result = engine.run("", input, Map.empty)
@@ -365,8 +365,8 @@ class ScriptAISpec extends AnyWordSpec with Matchers {
     }
 
     "extract image:// from input and clean prompt with {input}" in {
-      // Use mirror:// provider which returns the prompt as answer
-      val engine = new ScriptAI(Some("Describe the image and analyze: {input}"), Some("mirror://"))
+      // Use mirror://parrot provider which returns the prompt as answer
+      val engine = new ScriptAI(Some("Describe the image and analyze: {input}"), Some("mirror://parrot"))
       val input = "Look at this image://https://example.com/photo.jpg and tell me what you see"
       
       val result = engine.run("", input, Map.empty)
@@ -377,8 +377,8 @@ class ScriptAISpec extends AnyWordSpec with Matchers {
     }
 
     "extract output:// from input and clean prompt with {input}" in {
-      // Use mirror:// provider which returns the prompt as answer
-      val engine = new ScriptAI(Some("Process this request: {input}"), Some("mirror://"))
+      // Use mirror://parrot provider which returns the prompt as answer
+      val engine = new ScriptAI(Some("Process this request: {input}"), Some("mirror://parrot"))
       val input = "Format the response as output://json_object"
       
       val result = engine.run("", input, Map.empty)
@@ -389,8 +389,8 @@ class ScriptAISpec extends AnyWordSpec with Matchers {
     }
 
     "extract both image:// and output:// from input with {input} replacement" in {
-      // Use mirror:// provider which returns the prompt as answer
-      val engine = new ScriptAI(Some("Analyze image and format response: {input}"), Some("mirror://"))
+      // Use mirror://parrot provider which returns the prompt as answer
+      val engine = new ScriptAI(Some("Analyze image and format response: {input}"), Some("mirror://parrot"))
       val input = "Check image://https://example.com/img.jpg and return output://json"
       
       val result = engine.run("", input, Map.empty)

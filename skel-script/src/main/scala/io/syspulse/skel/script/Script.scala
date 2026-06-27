@@ -126,14 +126,15 @@ object ScriptJS {
 }
 
 // --- String --------------------------------------------------------------------------
-class ScriptStr extends Script("str","string") {
+class ScriptStr(src0:Option[String] = None) extends Script("str","string") {
   def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] =
-    Future.successful(input)
+    Future.successful(
+      Util.replaceVar(src0.getOrElse("{input}"),Map("input" -> input))
+    )
 }
 
-object ScriptStr {
-  val STR = new ScriptStr()
-  def build(src:Option[String]):Script = STR
+object ScriptStr {  
+  def build(src:Option[String]):Script = new ScriptStr(src)
 }
 
 // --- None --------------------------------------------------------------------------
@@ -335,7 +336,7 @@ class ScriptAI(prompt0:Option[String],uri0:Option[String] = None) extends Script
       xid = aiUri.tid
     )
 
-    log.debug(s"prompt='${prompt}', images=${images}, outputType=${outputType}")
+    log.debug(s"${aiUri}: ${provider}: prompt='${prompt}', images=${images}, outputType=${outputType}")
     
     provider
       .promptAsync(a0, aiUri.system, aiUri.timeout, aiUri.retry, tools, images, outputType)(aiEc)
@@ -345,7 +346,7 @@ class ScriptAI(prompt0:Option[String],uri0:Option[String] = None) extends Script
 
 object ScriptAI {
   // val DEF_AI_URI = "openrouter://arcee-ai/trinity-mini:free"
-  val DEF_AI_URI = "mirror://hash"
+  val DEF_AI_URI = "mirror://parrot"
   
   // Dedicated execution context for AI operations using standard thread pool
   val aiExecutionContext: ExecutionContext = ExecutionContext.fromExecutorService(
@@ -527,7 +528,7 @@ object ScriptFlow {
       case "filter" => Try(new ScriptFilter(Some(src)))
       case "js" =>  Try(new ScriptJS(Some(src)))
       case "condition" => Try(new ScriptCondition(Some(src)))
-      case "str"  => Success(new ScriptStr())
+      case "str"  => Success(new ScriptStr(Some(src)))
       case "api" => Try(new ScriptApi(Some(src),uri0 = opts))
       case _ => Failure(new Exception(s"Unknown script type: '${typ}'"))
     }      

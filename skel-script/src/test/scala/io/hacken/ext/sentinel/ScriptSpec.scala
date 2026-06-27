@@ -17,6 +17,7 @@ import scala.util.{Success, Failure}
 // - ScriptFlowConcurrencySpec.scala
 // - ScriptConditionSpec.scala
 // - ScriptFilterSpec.scala
+// - ScriptStrSpec.scala
 //
 // Run individual specs for faster test execution:
 //   sbt "project skel_script" "testOnly io.syspulse.skel.script.ScriptRegexpSpec"

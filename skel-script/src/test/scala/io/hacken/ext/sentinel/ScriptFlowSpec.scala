@@ -1588,7 +1588,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val script = ScriptFlow.resolve(
         typ = "ai",
         src = "Extract text from provided image and return result as json. output://json_object. User request: {input}",
-        opts = Some("mirror://")
+        opts = Some("mirror://parrot")
       )
       
       script.isSuccess shouldBe true
