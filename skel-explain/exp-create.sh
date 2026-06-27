@@ -3,13 +3,14 @@
 RID=${1:-DetectorWallet}
 RULE_FILE=${2:-rules/Rule-${RID}.json}
 
-NAME=${NAME}
+NAME=${NAME:-$RID}
 OID=${OID-}
 
 SERVICE_URI=${SERVICE_URI:-http://127.0.0.1:8080/api/v1/explain}
 ACCESS_TOKEN=${ACCESS_TOKEN-`cat ACCESS_TOKEN`}
 
 >&2 echo "RID=$RID"
+>&2 echo "NAME=$NAME"
 >&2 echo "RULE_FILE=$RULE_FILE"
 >&2 echo "OID=$OID"
 
@@ -20,9 +21,7 @@ fi
 
 DATA_JSON=$(cat "$RULE_FILE")
 
-if [ "$NAME" != "" ]; then
-  DATA_JSON=$(echo "$DATA_JSON" | sed "s/\"name\":[^,}]*/\"name\": \"$NAME\"/")
-fi
+DATA_JSON=$(echo "$DATA_JSON" | sed "s/\"name\":[^,}]*/\"name\": \"$NAME\"/")
 
 >&2 echo "$DATA_JSON"
 

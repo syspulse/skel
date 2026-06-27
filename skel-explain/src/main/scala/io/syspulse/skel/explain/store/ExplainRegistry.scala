@@ -66,7 +66,7 @@ object ExplainRegistry {
         Behaviors.same
 
       case CreateRule(oid, rid, req, replyTo) =>
-        log.info(s"CreateRule($oid,$rid): scripts='${req.scripts}', name=${req.name}, desc=${req.desc}, sid=${req.sid}")
+        log.info(s"CreateRule($oid/$rid): scripts='${req.scripts}', name=${req.name}, desc=${req.desc}, sid=${req.sid}")
         val rule = io.syspulse.skel.explain.Explain(oid = Option(oid).filter(_.nonEmpty), rid = rid, scripts = req.scripts, name = req.name, desc = req.desc, sid = req.sid, meta = req.meta)
         store.+(rule).onComplete {
           case Success(_) =>
@@ -78,7 +78,7 @@ object ExplainRegistry {
         Behaviors.same
 
       case UpdateRule(oid, rid, req, replyTo) =>
-        log.info(s"UpdateRule($oid,$rid): scripts=${req.scripts}, name=${req.name}, desc=${req.desc}, sid=${req.sid}, meta=${req.meta}")
+        log.info(s"UpdateRule($oid/$rid): scripts=${req.scripts}, name=${req.name}, desc=${req.desc}, sid=${req.sid}, meta=${req.meta}")
         store.get(Option(oid).filter(_.nonEmpty), rid).flatMap { existing =>
           val updated = existing.copy(
             scripts = req.scripts.getOrElse(existing.scripts),
@@ -98,7 +98,7 @@ object ExplainRegistry {
         Behaviors.same
 
       case DeleteRule(oid, rid, replyTo) =>
-        log.info(s"DeleteRule($oid,$rid)")
+        log.info(s"DeleteRule($oid/$rid)")
         store.del(Option(oid).filter(_.nonEmpty), rid).onComplete {
           case Success(_) =>
             replyTo ! Success(ExplaineActionRes(Option(oid).filter(_.nonEmpty), rid))
@@ -120,7 +120,7 @@ object ExplainRegistry {
         Behaviors.same
 
       case RunExplain(req, style, replyTo) =>
-        log.info(s"RunExplain(${req.oid},${req.rid},$style)")
+        log.info(s"RunExplain(${req.oid}/${req.rid},$style)")
         val oid = req.oid
         val rid = req.rid.getOrElse("")
 
@@ -132,7 +132,7 @@ object ExplainRegistry {
 
         ruleOptFut.foreach {
           case None =>
-            replyTo ! Failure(new Exception(s"ScriptFlow not found: oid='${oid}', rid='$rid'"))
+            replyTo ! Failure(new Exception(s"ScriptFlow not found: '${oid}/$rid'"))
 
           case Some(rule) =>
             val engines = rule.scripts.flatMap(s => ScriptFlow.resolve(s.typ, s.src, s.opts).toOption)
@@ -160,7 +160,7 @@ object ExplainRegistry {
                   meta = rule.meta
                 ))
               case Failure(e) =>
-                log.error(s"ScriptFlow failed: oid='${oid}', rid='$rid'", e)
+                log.warn(s"ScriptFlow failed: '${oid}/${rid}': ${e.getMessage()}")
                 replyTo ! Failure(e)
             }
         }
