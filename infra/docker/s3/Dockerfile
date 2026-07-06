@@ -1,12 +1,14 @@
 #FROM openjdk:18-slim
 #FROM openjdk:11-slim
-FROM openjdk:21-slim
+#FROM openjdk:21-slim
+FROM openjdk:21-skel
 
 ENV MNT_POINT /mnt/s3
 ARG S3FS_VERSION=v1.86
 
-RUN apt-get update -qq
-RUN apt-get install s3fs -y
+# RUN apt-get update -qq
+# RUN apt-get install s3fs -y
+RUN apk add --no-cache fuse s3fs-fuse
 
 RUN mkdir -p "$MNT_POINT"
 RUN chmod -R 777 /mnt
