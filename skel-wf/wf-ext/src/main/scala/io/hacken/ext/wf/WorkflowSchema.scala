@@ -30,12 +30,15 @@ case class WorkflowSchema(
   status: String,      // "ACTIVE, DISABLED, DELETED"
   name: String,        // corresponds to workflowType (e.g. `WorkflowAudit`, `WorkflowPoR`)
   version: String,     // "0.2.7"
-  title: String,       // UI title
+  title: String,       // UI title (user defined)
   description: String, // description of the workflow
   author: String,      // author of the workflow
   icon: Option[String],                   // icon of the workflow
   faq: Option[Seq[WorkflowSchemaFaq]],    // FAQ of the workflow
   tags: Seq[String],                      // tags of the workflow
+
+  // meta contains arbitrary metadata about the workflow (e.g. "namespace", "")
+  meta: Option[Map[String, Any]] = None, // metadata of the workflow
 
   graph: WorkflowGraf, // default (template) graph used as a blueprint for WorkflowConfig creation
 ) extends Ingestable {
@@ -59,9 +62,20 @@ object WorkflowSchema {
   def of(id: Int, name: String, graph: WorkflowGraf): WorkflowSchema = {
     val now = System.currentTimeMillis()
     WorkflowSchema(
-      id = id, createdAt = now, updatedAt = now, status = Status.ACTIVE,
-      name = name, version = Version.DEF_VERSION, title = name, description = "", author = "",
-      icon = None, faq = None, tags = Seq(), graph = graph,
+      id = id, 
+      createdAt = now, 
+      updatedAt = now, 
+      status = Status.ACTIVE,
+      name = name, 
+      version = Version.DEF_VERSION, 
+      title = name, 
+      description = "", 
+      author = "",
+      icon = None, 
+      faq = None, 
+      tags = Seq(), 
+      graph = graph,
+      meta = None,
     )
   }
 }
@@ -69,5 +83,5 @@ object WorkflowSchema {
 object WorkflowSchemaJson extends JsonCommon {
   import WorkflowGrafJson._
   implicit val jf_wf_faq: RootJsonFormat[WorkflowSchemaFaq] = jsonFormat2(WorkflowSchemaFaq)
-  implicit val jf_wf_schema: RootJsonFormat[WorkflowSchema] = jsonFormat13(WorkflowSchema.apply _)
+  implicit val jf_wf_schema: RootJsonFormat[WorkflowSchema] = jsonFormat14(WorkflowSchema.apply _)
 }

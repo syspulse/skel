@@ -35,10 +35,15 @@ case class WorkflowConfig(
   tags: Seq[String],        // custom tags (default from WorkflowSchema.tags)
 
   graph: WorkflowGraf, // workflow instance graph (graph.cid == Some(this.id))
-
+  
   oid: Option[String] = None, // owner Id. If specified, must match request oid when present.
   pid: Option[String] = None, // optional project Id
+
+
+  // Engine references
   xid: Option[String] = None, // optional external ID -> Workflow Engine Runtime id
+  meta: Option[Map[String, Any]] = None, // metadata of the workflow (e.g "namespace", Engine specific)
+
 ) extends Ingestable {
   override def getKey: Option[Any] = Some(id)
 }
@@ -70,11 +75,13 @@ object WorkflowConfig {
       oid = oid,
       pid = pid,
       xid = xid,
+
+      meta = schema.meta,
     )
   }
 }
 
 object WorkflowConfigJson extends JsonCommon {
   import WorkflowGrafJson._
-  implicit val jf_wf_config: RootJsonFormat[WorkflowConfig] = jsonFormat16(WorkflowConfig.apply _)
+  implicit val jf_wf_config: RootJsonFormat[WorkflowConfig] = jsonFormat17(WorkflowConfig.apply _)
 }
