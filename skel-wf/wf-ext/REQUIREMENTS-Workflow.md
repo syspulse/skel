@@ -7,7 +7,7 @@ It has 1 single manual user configuration step and after it runs (state=ACTIVE) 
 This framework uses two core entities:
 
 - DetectorConig [DetectorConfig.scala]
-- DetectorSchema [DetectorSchame.scala]
+- DetectorSchema [DetectorSchema.scala]
 
 
 ## DetectorSchema
