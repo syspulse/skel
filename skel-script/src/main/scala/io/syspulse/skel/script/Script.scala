@@ -411,14 +411,17 @@ class ScriptApi(body0:Option[String],uri0:Option[String] = None) extends Script(
   override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: ExecutionContext):Future[String] = {
 
     val body1 = if(body0.isDefined && !body0.get.isBlank) body0.get else src
-    val body2 = Util.replaceVar(body1,Map("input" -> input) ++ data.filter{ case(k,v) => ! k.startsWith(ScriptApi.HEADER_PREFIX)})
 
-    val body = if(body2.isBlank) None else Some(body2)
-    val headers = uri.headers.toSeq ++ data.collect{
-      case (k, v) if k.startsWith(ScriptApi.HEADER_PREFIX) =>
-        Some((k.stripPrefix(ScriptApi.HEADER_PREFIX), v.toString))
-      case _ => None
-    }.flatten
+    // parse the source into optional HEADERS and BODY sections (structure first, then substitute)
+    val (parsedHeaders,bodyTemplate) = ScriptApi.parseSections(body1)
+
+    val vars = Map[String,Any]("input" -> input) ++ data
+
+    val body = bodyTemplate.map(b => Util.replaceVar(b,vars)).filter(!_.isBlank)
+
+    val headersFromBody = parsedHeaders.map{ case(k,v) => (Util.replaceVar(k,vars),Util.replaceVar(v,vars)) }
+
+    val headers = uri.headers.toSeq ++ headersFromBody
 
     val timeout = data.get("timeout").map(_.asInstanceOf[Long]).getOrElse(ScriptApi.DEF_TIMEOUT)
 
@@ -430,7 +433,7 @@ class ScriptApi(body0:Option[String],uri0:Option[String] = None) extends Script(
       case _ => HttpMethods.GET
     }
     
-    log.info(s"body='${Util.trunc(body.getOrElse(""),64)}' ==> ${uri.verb}(${uri.uri}), headers=${headers}")
+    log.info(s"body='${Util.trunc(body.getOrElse(""),64)}' ==> ${uri.verb}(${uri.uri}), headers=${headers.map(_._1)}")
     
     val f = HTTP.req(uri.uri, verb, body, headers, timeout = timeout)
     f
@@ -439,7 +442,9 @@ class ScriptApi(body0:Option[String],uri0:Option[String] = None) extends Script(
 
 object ScriptApi {   
   val DEF_TIMEOUT:Long = 10000L
-  val HEADER_PREFIX:String = "HEADER:"
+
+  val HEADERS_MARKER:String = "HEADERS"
+  val BODY_MARKER:String = "BODY"
 
   // Dedicated execution context for API operations using standard thread pool
   val ec: ExecutionContext = ExecutionContext.fromExecutorService(
@@ -447,6 +452,56 @@ object ScriptApi {
   )
   
   def build(src:Option[String]):Script = new ScriptApi(src)
+
+  // Parse the source into optional HEADERS section and BODY section.
+  //
+  //   HEADERS
+  //   key: value
+  //   key: value
+  //
+  //   BODY
+  //   {input}
+  //
+  // If no HEADERS marker is present, the whole text is treated as BODY.
+  // {input} (and other {vars}) placeholders are resolved by the caller after parsing.
+  def parseSections(text:String):(Seq[(String,String)],Option[String]) = {
+    if(text == null || text.isBlank) return (Seq.empty,None)
+
+    val lines = text.split("\r?\n", -1).toList
+    val firstIdx = lines.indexWhere(_.trim.nonEmpty)
+
+    // no HEADERS section: everything is the body
+    if(firstIdx < 0 || lines(firstIdx).trim != HEADERS_MARKER)
+      return (Seq.empty, Some(text))
+
+    val headers = scala.collection.mutable.ArrayBuffer[(String,String)]()
+    var i = firstIdx + 1
+    var bodyStart = -1
+    while(i < lines.size && bodyStart < 0) {
+      val line = lines(i)
+      if(line.trim == BODY_MARKER) {
+        bodyStart = i + 1
+      } else if(line.trim.nonEmpty) {
+        // header key/value are separated by ':' (HTTP style), split on the first ':' only
+        val idx = line.indexOf(':')
+        if(idx > 0) {
+          val k = line.substring(0,idx).trim
+          val v = line.substring(idx + 1).trim
+          if(k.nonEmpty) headers += ((k,v))
+        }
+        // else ignore malformed header line
+      }
+      i += 1
+    }
+
+    val body =
+      if(bodyStart >= 0) {
+        val b = lines.drop(bodyStart).mkString("\n").trim
+        if(b.isEmpty) None else Some(b)
+      } else None
+
+    (headers.toSeq, body)
+  }
 }
 
 
