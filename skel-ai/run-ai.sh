@@ -5,10 +5,16 @@ export CWD=`echo $(dirname $(readlink -f $0))`
 # bloop does not support stdin properly for interactive input
 export APP_EXEC=${APP_EXEC:-sbt}
 
-echo "============================================================================="
-echo "WARNING"
-echo "APP_EXEC=bloop is NOT SUPPORTED"
-echo "============================================================================="
+>&2 cat <<'EOF'
+
+################################################################################
+#                                                                              #
+#   WARNING: only APP_EXEC=sbt is working with stdin (interactive input)       #
+#            bloop does NOT support stdin properly — use APP_EXEC=sbt          #
+#                                                                              #
+################################################################################
+
+EOF
 
 # t=`pwd`;
 t=$CWD

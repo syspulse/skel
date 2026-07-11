@@ -83,6 +83,7 @@ object App extends skel.Server {
         ArgCmd("store","Ask question from Store"),
         ArgCmd("ask","Ask question"),
         ArgCmd("chat","Chat"),
+        ArgCmd("completion","Completion"),
         ArgCmd("prompt","Prompt"),
         ArgCmd("prompt-stream","Prompt stream"),
         ArgCmd("messages","Anthropic Messages API (non-streaming)"),
@@ -154,7 +155,7 @@ object App extends skel.Server {
             store.????(config.params.mkString(" "),None,Some(Providers.OPEN_AI))
         }
 
-      case "ask" => 
+      case "ask" | "completion" => 
         ask(config.ai,config.params)(config)  
 
       case "chat" => 
