@@ -53,7 +53,9 @@ case class Config(
   timeout:Long = 10000, // timeout for async operations
   env:String = "prod", // environment specific config
 
-  cmd:String = "ingest",
+  freq:Int = 10000,
+
+  cmd:String = "blockchain",
   params: Seq[String] = Seq(),
 )
 
@@ -98,14 +100,14 @@ object App extends skel.Server {
         ArgInt('_', "threads",s"Number of threads for async operations (def: ${d.threads})"),
         ArgString('_', "env",s"Environment (dev,prod) (def: ${d.env})"),
         ArgLong('_', "timeout",s"Timeout for async operations (def: ${d.timeout})"),
+
+        ArgInt('_', "freq",s"Frequency for telemetry update, msec (def: ${d.freq})"),
         
         ArgCmd("server","HTTP Service"),
-        ArgCmd("ingest","Ingest Command"),
-        ArgCmd("test","Test Command"),
-        ArgCmd("scan","Scan all"),
-        ArgCmd("search","Multi-Search pattern"),
-        ArgCmd("grep","Wildcards search"),
-        ArgCmd("typing","Typeahead"),
+        ArgCmd("blockchain","Blockchain Telemetry "),
+        ArgCmd("blockchain-tx","Blockchain Telemetry (Tx)"),
+        ArgCmd("blockchain-block","Blockchain Block Command"),
+        ArgCmd("test","Test Command"),        
 
         ArgParam("<params>",""),
         ArgLogging()
@@ -144,6 +146,8 @@ object App extends skel.Server {
       threads = c.getInt("threads").getOrElse(d.threads),
       timeout = c.getLong("timeout").getOrElse(d.timeout),
       env = c.getString("env").getOrElse(d.env),
+
+      freq = c.getInt("freq").getOrElse(d.freq),
       
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
@@ -194,21 +198,30 @@ object App extends skel.Server {
           )
         ) 
                 
-      // case "ingest" => 
-      //   val (reg, bf) = init()      
-
-      //   bf.foreach(bf => {
-      //     val (blockchain,feed) = bf
-      //     val p = new PipelineBlockchain(blockchain,reg,feed,config.output)
-      //     p.run()
-      //   })
-
-      case "ingest" | "ingest-blockchain" => 
+      case "test" => 
         val (reg, bf) = init()      
 
         bf.foreach(bf => {
           val (blockchain,feed) = bf
-          val p = new PipelineTelemetryBlockchain(blockchain,reg,feed,config.output)
+          val p = new PipelineBlockchain(blockchain,reg,feed,config.output)
+          p.run()
+        })
+
+      case "blockchain" | "blockchain-tx" => 
+        val (reg, bf) = init()      
+
+        bf.foreach(bf => {
+          val (blockchain,feed) = bf
+          val p = new PipelineTelemetryBlockchainTx(blockchain,reg,feed,config.output)
+          p.run()
+        })
+
+      case "blockchain-block" => 
+        val (reg, bf) = init()      
+
+        bf.foreach(bf => {
+          val (blockchain,feed) = bf
+          val p = new PipelineTelemetryBlockchainBlock(blockchain,reg,feed,config.output)
           p.run()
         })
         

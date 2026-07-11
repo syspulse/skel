@@ -37,48 +37,19 @@ import java.util.concurrent.TimeUnit
 import io.syspulse.skel.ingest.flow.Pipeline
 import io.syspulse.skel.serde.Parq._
 
-import io.syspulse.skel.blockchain.Blockchain
-
 import io.syspulse.skel.telemetry.ext.Config
 
-import io.syspulse.skel.telemetry.ext.{TelemetryChain,TelemetryExt,Chain}
-import io.syspulse.skel.telemetry.ext.store.TelemetryExtRegistry._
+import io.syspulse.skel.blockchain.Blockchain
 
 import io.syspulse.skel.telemetry.ext.TelemetryExtJson._
-
-// ===============================================================================================
-case class Block(  
-  number:Long,
-  timestamp:Long,
-  hash:String,
-  transaction_count:Long,
-) extends skel.Ingestable {
-  override def getKey:Option[Any] = Some(number)
-}
-
-case class Tx(
-  hash:String,
-  block:Block,
-) extends skel.Ingestable {
-  //override type Self = Tx  
-  def block_number:Long = block.number
-  def transaction_count:Long = block.transaction_count
-  // override to show Array in a nice way
-  override def toString() = Util.toStringWithArray(this)  
-}
-
-object ObchainJson extends DefaultJsonProtocol with NullOptions { 
-  import DefaultJsonProtocol._ 
-
-  implicit val jf_oc_block:RootJsonFormat[Block] = jsonFormat4(Block)  
-  implicit val jf_oc_tx:RootJsonFormat[Tx] = jsonFormat2(Tx)  
-}
+import io.syspulse.skel.telemetry.ext.{TelemetryChain,TelemetryExt}
+import io.syspulse.skel.telemetry.ext.store.TelemetryExtRegistry._
+import io.syspulse.skel.telemetry.ext.Chain
 
 import ObchainJson._
-// ===============================================================================================
 
-class PipelineBlockchain(chain:Blockchain,registry: ActorRef[Command],feed:String,output:String)(implicit config:Config) extends 
-      Pipeline[Tx,TelemetryChain,TelemetryChain](feed,output,config.throttle,config.delimiter,config.buffer,format=config.format) {
+class PipelineTelemetryBlockchainBlock(chain:Blockchain,registry: ActorRef[Command],feed:String,output:String)(implicit config:Config) extends 
+      Pipeline[Block,TelemetryChain,TelemetryExt](feed,output,config.throttle,config.delimiter,config.buffer,format=config.format) {
     
   private val log = Logger(s"${this}")
 
@@ -96,9 +67,9 @@ class PipelineBlockchain(chain:Blockchain,registry: ActorRef[Command],feed:Strin
   @volatile
   var ts0 = System.currentTimeMillis
 
-  override def parse(data: String): Seq[Tx] = {
+  override def parse(data: String): Seq[Block] = {
     try {
-      Seq(data.parseJson.convertTo[Tx])
+      Seq(data.parseJson.convertTo[Block])
     } catch {
       case e:Exception => 
         log.error(s"failed to parse: '${data}'",e)
@@ -106,20 +77,24 @@ class PipelineBlockchain(chain:Blockchain,registry: ActorRef[Command],feed:Strin
     }    
   }
 
-  def convert(tx:Tx):Tx = {
-    tx
+  def convert(b:Block):Block = {
+    b
   }
 
-  override def process:Flow[Tx,TelemetryChain,_] = Flow[Tx]
+  override def process:Flow[Block,TelemetryChain,_] = Flow[Block]
     .groupedWithin(config.freq, FiniteDuration(config.throttle, TimeUnit.MILLISECONDS))
     .filter(_.nonEmpty)
-    .mapAsync(1)(txs => {
+    .mapAsync(1)(b => {
       // get and update telemetry
       val f = registry
         .ask(GetTelemetry(None,None,_))
         .map(_.getOrElse(TelemetryChain(key = TelemetryExt.BLOCKCHAIN_KEY, chains = Array(Chain(chain.name, None)))))
         .map(t => {
-          t.addTx(chain.name, txs.size, Some(txs.last.block.number))
+          t.addTx(
+            chain.name, 
+            b.foldLeft(0L)(_  + _.transaction_count), 
+            Some(b.last.number)
+          )
           t
         })
       f
@@ -137,8 +112,8 @@ class PipelineBlockchain(chain:Blockchain,registry: ActorRef[Command],feed:Strin
       t
     }) 
       
-  override def transform(o: TelemetryChain): Seq[TelemetryChain] = {
+  override def transform(o: TelemetryChain): Seq[TelemetryExt] = {
     // match monitor address
-    Seq(o)
+    Seq(TelemetryExt(sys = true, sysEventSubject = TelemetryExt.NOTIFY_SUBJECT_BLOCKCHAIN, data = o))
   }
 }

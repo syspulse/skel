@@ -48,7 +48,7 @@ import io.syspulse.skel.telemetry.ext.Chain
 
 import ObchainJson._
 
-class PipelineTelemetryBlockchain(chain:Blockchain,registry: ActorRef[Command],feed:String,output:String)(implicit config:Config) extends 
+class PipelineTelemetryBlockchainTx(chain:Blockchain,registry: ActorRef[Command],feed:String,output:String)(implicit config:Config) extends 
       Pipeline[Tx,TelemetryChain,TelemetryExt](feed,output,config.throttle,config.delimiter,config.buffer,format=config.format) {
     
   private val log = Logger(s"${this}")
@@ -82,7 +82,7 @@ class PipelineTelemetryBlockchain(chain:Blockchain,registry: ActorRef[Command],f
   }
 
   override def process:Flow[Tx,TelemetryChain,_] = Flow[Tx]
-    .groupedWithin(10000, FiniteDuration(config.throttle, TimeUnit.MILLISECONDS))
+    .groupedWithin(config.freq, FiniteDuration(config.throttle, TimeUnit.MILLISECONDS))
     .filter(_.nonEmpty)
     .mapAsync(1)(txs => {
       // get and update telemetry
@@ -110,6 +110,6 @@ class PipelineTelemetryBlockchain(chain:Blockchain,registry: ActorRef[Command],f
       
   override def transform(o: TelemetryChain): Seq[TelemetryExt] = {
     // match monitor address
-    Seq(TelemetryExt(sys = true, sysEventSubject = "DASHBOARD_TELEMETRY", data = o))
+    Seq(TelemetryExt(sys = true, sysEventSubject = TelemetryExt.NOTIFY_SUBJECT_BLOCKCHAIN, data = o))
   }
 }

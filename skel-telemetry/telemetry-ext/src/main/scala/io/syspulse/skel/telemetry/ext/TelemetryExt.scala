@@ -15,4 +15,6 @@ case class TelemetryExt(
 
 object TelemetryExt {
   val BLOCKCHAIN_KEY = "blockchain"
+
+  val NOTIFY_SUBJECT_BLOCKCHAIN = "DASHBOARD_TELEMETRY"
 }
