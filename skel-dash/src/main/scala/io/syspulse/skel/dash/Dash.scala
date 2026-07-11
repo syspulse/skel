@@ -17,6 +17,9 @@ case class Dash (
   info:Option[String] = None,  // was previously desc (SQL conflict)
   tags:Option[Vector[String]] = None,
 
+  icon:Option[String] = None,   // icon
+  //meta:Option[Map[String,Any]] = None, // metadata
+
   pid:Option[String], // project id
   tid:Option[String], // tenant id
 

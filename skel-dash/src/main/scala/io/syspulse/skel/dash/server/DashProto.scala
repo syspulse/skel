@@ -46,7 +46,8 @@ object DashLayout {
     pid = dash.pid,
     tid = dash.tid,
     ts = dash.ts,
-    ts0 = dash.ts0
+    ts0 = dash.ts0,
+    icon = dash.icon
   )
 }
 
@@ -58,6 +59,8 @@ final case class DashLayout(
   name:Option[String] = None,
   desc:Option[String] = None,
   tags:Option[Vector[String]] = None,  
+
+  icon:Option[String] = None,
 
   pid:Option[String], // this is project id for Chat
   tid:Option[String], // tenantId (group)
@@ -92,6 +95,8 @@ final case class DashCreateReq(
   desc:Option[String] = None,
   tags:Option[Vector[String]] = None,
 
+  icon:Option[String] = None,
+
   pid:Option[String], // owner
   tid:Option[String], // owner
 )
@@ -103,6 +108,8 @@ final case class DashUpdateReq(
   name:Option[String] = None,
   desc:Option[String] = None, 
   tags:Option[Vector[String]] = None,
+
+  icon:Option[String] = None,
 
   pid:Option[String], // project id
   tid:Option[String], // tenantId (group)

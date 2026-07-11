@@ -711,7 +711,7 @@ lazy val skel_user = (project in file("skel-user"))
     sharedConfigDocker,
     dockerBuildxSettings,
 
-    appDockerConfig(appNameUser,appBootClassUser),
+    appDockerConfig(appNameUser,appBootClassUser,Seq("application-dev.conf","application-user.conf")),
 
     libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(  
     ),    

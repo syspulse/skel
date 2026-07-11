@@ -34,6 +34,27 @@ class DashStoreDB(configuration:Configuration,dbConfigRef:String)
   def indexPid = "dash_pid"
   def indexTid = "dash_tid"
 
+  def update():Try[Long] = {
+    val UPDATE_TABLE_POSTGRES_SQL = s"""ALTER TABLE ${tableName} ADD COLUMN icon VARCHAR(250) DEFAULT NULL;"""
+    val UPDATE_TABLE_MYSQL_SQL = s"""ALTER TABLE ${tableName} ADD COLUMN icon VARCHAR(250) DEFAULT NULL;"""
+
+    val UPDATE_TABLE_SQL = getDbType match {
+      case "mysql" => UPDATE_TABLE_MYSQL_SQL
+      case "postgres" => UPDATE_TABLE_POSTGRES_SQL
+    }
+
+    try {
+      val r = ctx.executeAction(UPDATE_TABLE_SQL)(ExecutionInfo.unknown, ())
+      log.info(s"table: '${tableName}': updated: ${r}")
+      Success(r)
+    } catch {
+      case e:Exception => {
+        log.error(s"failed to update table: '${tableName}': ${e.getMessage()}")
+        Failure(e)
+      }
+    }
+  }
+
   // ATTENTION: called from constructor, so derived class vals are not initialized yet !
   def create:Try[Long] = {
     val CREATE_INDEX_PID_MYSQL_SQL = s"CREATE INDEX ${indexPid} ON ${tableName} (pid);"
@@ -63,7 +84,8 @@ class DashStoreDB(configuration:Configuration,dbConfigRef:String)
         tid VARCHAR(36),
         ts BIGINT,
         ts0 BIGINT,
-        status INT
+        status INT,
+        icon VARCHAR(250) DEFAULT NULL
       );
       """
 
@@ -78,7 +100,8 @@ class DashStoreDB(configuration:Configuration,dbConfigRef:String)
         tid VARCHAR(36),
         ts BIGINT,
         ts0 BIGINT,
-        status INT
+        status INT,
+        icon VARCHAR(250) DEFAULT NULL
       );
       """
 
@@ -103,6 +126,8 @@ class DashStoreDB(configuration:Configuration,dbConfigRef:String)
 
     createIndex(indexPid,CREATE_INDEX_PID_SQL)
     createIndex(indexTid,CREATE_INDEX_TID_SQL)
+
+    update()
 
     r1
   }
@@ -188,7 +213,8 @@ class DashStoreDB(configuration:Configuration,dbConfigRef:String)
           (t, e) => t.pid -> e.pid,
           (t, e) => t.tid -> e.tid,
           (t, e) => t.ts -> e.ts,
-          (t, e) => t.ts0 -> e.ts0
+          (t, e) => t.ts0 -> e.ts0,
+          (t, e) => t.icon -> e.icon
         )
       }
       val r = ctx.run(q)

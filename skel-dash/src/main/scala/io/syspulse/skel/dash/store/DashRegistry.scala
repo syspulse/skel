@@ -73,7 +73,8 @@ object DashRegistry {
             layout = if(req.layout.isDefined) req.layout.get.toString() else d.layout,
             name = if(req.name.isDefined) req.name else d.name,
             info = if(req.desc.isDefined) req.desc else d.info,
-            tags = if(req.tags.isDefined) req.tags else d.tags
+            tags = if(req.tags.isDefined) req.tags else d.tags,
+            icon = if(req.icon.isDefined) req.icon else d.icon,
           ))
           .flatMap(d => store.+(d))
           .map(d => DashRes(d.id))
@@ -96,7 +97,8 @@ object DashRegistry {
             info = req.desc,
             tags = req.tags,
             pid = pid,
-            tid = tid
+            tid = tid,
+            icon = req.icon
           )
         )
         .map(d => DashRes(d.id))

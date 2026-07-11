@@ -8,6 +8,7 @@ TID=${TID:-490}
 OID=${OID:-100}
 
 NAME=${NAME:-Dashboard-1}
+ICON=${ICON:-https://example.com/icon.png}
 
 SERVICE_URI=${SERVICE_URI:-http://127.0.0.1:8080/api/v1/dash}
 ACCESS_TOKEN=${ACCESS_TOKEN-`cat ACCESS_TOKEN`}
@@ -15,11 +16,13 @@ ACCESS_TOKEN=${ACCESS_TOKEN-`cat ACCESS_TOKEN`}
 >&2 echo "LAYOUT=$LAYOUT"
 >&2 echo "TID=$TID"
 >&2 echo "OID=$OID"
+>&2 echo "ICON=$ICON"
 
 read -r -d '' DATA_JSON << EOM
 {
   "name": "${NAME}",
-  "layout": ${LAYOUT}
+  "layout": ${LAYOUT},
+  "icon": "${ICON}"
 }
 EOM
 
