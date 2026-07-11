@@ -26,6 +26,10 @@ class ConfigurationAkka(from:Option[String] = None) extends ConfigurationTypesaf
         Some(ConfigFactory.load().resolve())
       }
     } catch {
+      case e: com.typesafe.config.ConfigException$UnresolvedSubstitution => {
+        log.warn(s"Configuration not loaded: ${e.getMessage()}")
+        Some(ConfigFactory.empty())
+      }
       case e @ (_ : com.typesafe.config.ConfigException.IO | _ : Exception) => {
         log.error(s"Configuration not loaded: ",e)
         // try to load default ?!

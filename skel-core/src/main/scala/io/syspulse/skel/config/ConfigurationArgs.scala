@@ -161,6 +161,12 @@ class ConfigurationArgs(args:Array[String],appName:String,appVer:String,ops: Arg
 
               // Enable environment variable substitution
               // System.setProperty("config.override_with_env_vars","true")
+
+              // ---------------------------------------------------------------------------------------------
+              // ATTENTION: set resource for default loaders which cannot access custom Config  (like Akka)
+              //System.setProperty("config.resource", x)
+              System.setProperty("config.file", x)
+              // ---------------------------------------------------------------------------------------------
               
               // Load the config with environment variable resolution
               val conf1 = ConfigFactory.parseFile(new File(x))
