@@ -7,50 +7,77 @@ import scala.concurrent.{ExecutionContext,Future}
 import scala.collection.concurrent.TrieMap
 
 import java.net.InetAddress
-import org.xbill.DNS._
 import java.time.OffsetDateTime
-import _root_.io.syspulse.skel.HTTP
+import io.syspulse.skel.HTTP
+
+import spray.json._
+import spray.json.DefaultJsonProtocol._
+import io.syspulse.skel.service.JsonCommon
+
+import org.xbill.DNS._
 
 // --- RDAP Resolver -------------------------------------------------------------
 // Reference response: https://rdap.identitydigital.services/rdap/domain/eth.limo
+
+case class RdapEvent(eventAction: String, eventDate: String)
+
+case class RdapNameserver(ldhName: Option[String] = None)
+
+case class RdapDomainResponse(
+  nameservers: Option[Seq[RdapNameserver]] = None,
+  events: Option[Seq[RdapEvent]] = None
+)
+
+case class RdapBootstrap(services: Seq[Seq[Seq[String]]])
+
+object RdapJson extends JsonCommon {
+  implicit val jf_event: RootJsonFormat[RdapEvent] = jsonFormat2(RdapEvent)
+  implicit val jf_nameserver: RootJsonFormat[RdapNameserver] = jsonFormat1(RdapNameserver)
+  implicit val jf_domain: RootJsonFormat[RdapDomainResponse] = jsonFormat2(RdapDomainResponse)
+  implicit val jf_bootstrap: RootJsonFormat[RdapBootstrap] = jsonFormat1(RdapBootstrap)
+}
+
+import RdapJson._
+
 class RdapResolver(url0:Option[String] = None) extends DnsResolver {
   val log = Logger(s"${this}")
   
   private def parseEpochMilli(s:String):Long =
     OffsetDateTime.parse(s.trim).toInstant.toEpochMilli
 
+  private def normalizeNsName(name:String):String =
+    name.trim.split("\\s+").headOption.filter(_.nonEmpty).getOrElse(name.trim)
+
   def parseResponse(domain:String,body:String):Try[DnsInfo] = {
-    try {
-      val nsSectionRe = """(?s)"nameservers"\s*:\s*\[(.*?)\]""".r
-      val eventsSectionRe = """(?s)"events"\s*:\s*\[(.*?)\]""".r
+    Try {
+      val rsp = body.parseJson.convertTo[RdapDomainResponse]
 
-      val ldhRe = """"ldhName"\s*:\s*"([^"]+)"""".r
-      val eventRe = """(?s)\{[^}]*"eventAction"\s*:\s*"([^"]+)"[^}]*"eventDate"\s*:\s*"([^"]+)"[^}]*\}""".r
+      val ns =
+        rsp.nameservers
+          .getOrElse(Seq.empty)
+          .flatMap(_.ldhName)
+          .map(normalizeNsName)
+          .filter(_.nonEmpty)
+          .toList
 
-      val nsSection = nsSectionRe.findFirstMatchIn(body).map(_.group(1)).getOrElse("")
-      val ns = ldhRe.findAllMatchIn(nsSection).map(_.group(1).trim).filter(_.nonEmpty).toList
-
-      val eventsSection = eventsSectionRe.findFirstMatchIn(body).map(_.group(1)).getOrElse("")
       val eventMap:Map[String,String] =
-        eventRe
-          .findAllMatchIn(eventsSection)
-          .map(m => m.group(1).toLowerCase.trim -> m.group(2).trim)
+        rsp.events
+          .getOrElse(Seq.empty)
+          .map(e => e.eventAction.toLowerCase.trim -> e.eventDate.trim)
           .toMap
 
       val created = eventMap.get("registration").map(parseEpochMilli)
       val updated = eventMap.get("last changed").map(parseEpochMilli)
       val expire = eventMap.get("expiration").map(parseEpochMilli)
 
-      Success(DnsInfo(
+      DnsInfo(
         domain = domain,
         created = created,
         updated = updated,
         expire = expire,
         ip = "",
         ns = ns
-      ))
-    } catch {
-      case e:Exception => Failure(e)
+      )
     }
   }
 
@@ -76,7 +103,7 @@ class RdapResolver(url0:Option[String] = None) extends DnsResolver {
         val rdapDomainUrl = RdapResolver.normalizeDomainEndpoint(baseUrl)
         val url = s"${rdapDomainUrl}/${domain}"
         HTTP.get(url).map { body =>
-          log.debug(s"${domain}: rdap=${rdapDomainUrl}")
+          log.debug(s"${domain}: rdap=${rdapDomainUrl}, body=${body}")
 
           val di = parseResponse(domain, body)
           val addr:InetAddress = Address.getByName(domain)
@@ -115,9 +142,6 @@ object RdapResolver {
   // Cache parsed bootstrap file (tld -> base url)
   @volatile private var bootstrapF:Option[Future[Map[String,String]]] = None
 
-  private val servicesPairRe = """(?s)\[\s*\[(.*?)\]\s*,\s*\[(.*?)\]\s*\]""".r
-  private val quotedStrRe = """"([^"]+)"""".r
-
   private def extractTld(domain:String):Option[String] =
     domain.trim.split("\\.").lastOption.map(_.toLowerCase).filter(_.nonEmpty)
 
@@ -129,18 +153,14 @@ object RdapResolver {
 
   /** Parse IANA dns.json into a map of tld -> base rdap URL. */
   def parseBootstrap(json:String):Map[String,String] = {
-    servicesPairRe
-      .findAllMatchIn(json)
-      .flatMap(m => {
-        val tldsRaw = m.group(1)
-        val urlsRaw = m.group(2)
-
-        val tlds = quotedStrRe.findAllMatchIn(tldsRaw).map(_.group(1).trim.toLowerCase).filter(_.nonEmpty).toList
-        val urls = quotedStrRe.findAllMatchIn(urlsRaw).map(_.group(1).trim).filter(_.nonEmpty).toList
-
-        urls.headOption.toList.flatMap(u => tlds.map(_ -> u))
-      })
-      .toMap
+    import RdapJson._
+    json.parseJson.convertTo[RdapBootstrap].services.flatMap {
+      case Seq(tlds, urls) =>
+        urls.headOption.toList.flatMap { url =>
+          tlds.map(_.trim.toLowerCase).filter(_.nonEmpty).map(_ -> url.trim)
+        }
+      case _ => Nil
+    }.toMap
   }
 
   private def loadBootstrap()(implicit ec:ExecutionContext):Future[Map[String,String]] =
@@ -178,4 +198,3 @@ object RdapResolver {
         }
     }
 }
-

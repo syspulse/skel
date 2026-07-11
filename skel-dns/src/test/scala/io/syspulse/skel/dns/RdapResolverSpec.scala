@@ -37,6 +37,48 @@ class RdapResolverSpec extends AnyWordSpec with Matchers with DnsTestSupport {
 }
 """
 
+  // https://rdap.identitydigital.services/rdap/domain/compound.finance
+  val COMPOUND_FINANCE_RSP =
+    """
+{
+  "ldhName": "compound.finance",
+  "nameservers": [
+    {
+      "ldhName": "karl.ns.cloudflare.com",
+      "objectClassName": "nameserver",
+      "status": [ "associated" ]
+    },
+    {
+      "ldhName": "sharon.ns.cloudflare.com",
+      "objectClassName": "nameserver",
+      "status": [ "associated" ]
+    }
+  ],
+  "events": [
+    { "eventAction": "expiration", "eventDate": "2027-09-25T06:30:37.317Z" },
+    { "eventAction": "registration", "eventDate": "2017-09-25T06:30:37.317Z" },
+    { "eventAction": "last changed", "eventDate": "2024-12-16T19:28:16.003Z" }
+  ]
+}
+"""
+
+  // https://rdap.fi/rdap/rdap/domain/cow.fi
+  val COW_FI_RSP =
+    """
+{
+  "ldhName": "cow.fi",
+  "nameservers": [
+    { "ldhName": "ns-90.awsdns-11.com [OK]" },
+    { "ldhName": "ns-1002.awsdns-61.net [OK]" },
+    { "ldhName": "ns-1378.awsdns-44.org [OK]" },
+    { "ldhName": "ns-1917.awsdns-47.co.uk [OK]" }
+  ],
+  "events": [
+    { "eventAction": "registration", "eventDate": "2019-04-22T17:16:10+03:00" }
+  ]
+}
+"""
+
   "RdapResolver" should {
     "parse LIMO_RSP_1" in {
       val r = new RdapResolver(Some("https://rdap.identitydigital.services/rdap/"))
@@ -46,6 +88,29 @@ class RdapResolverSpec extends AnyWordSpec with Matchers with DnsTestSupport {
       r1.get.created should === (Some(1623114739414L))
       r1.get.updated should === (Some(1776954006772L))
       r1.get.expire should === (Some(1844039539414L))
+    }
+
+    "parse compound.finance nameservers with nested status arrays" in {
+      val r = new RdapResolver(Some("https://rdap.identitydigital.services/rdap/"))
+      val r1 = r.parseResponse("compound.finance", COMPOUND_FINANCE_RSP)
+      r1 should !== (Failure[DnsInfo](_))
+      r1.get.ns should === (Seq("karl.ns.cloudflare.com", "sharon.ns.cloudflare.com"))
+      r1.get.created should === (Some(1506321037317L))
+      r1.get.updated should === (Some(1734377296003L))
+      r1.get.expire should === (Some(1821853837317L))
+    }
+
+    "parse cow.fi nameservers" in {
+      val r = new RdapResolver(Some("https://rdap.fi/rdap/rdap/"))
+      val r1 = r.parseResponse("cow.fi", COW_FI_RSP)
+      r1 should !== (Failure[DnsInfo](_))
+      r1.get.ns should === (Seq(
+        "ns-90.awsdns-11.com",
+        "ns-1002.awsdns-61.net",
+        "ns-1378.awsdns-44.org",
+        "ns-1917.awsdns-47.co.uk"
+      ))
+      r1.get.created should === (Some(1555942570000L))
     }
 
     "parse RDAP bootstrap" in {
