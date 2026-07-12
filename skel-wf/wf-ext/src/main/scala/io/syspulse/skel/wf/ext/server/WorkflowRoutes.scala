@@ -33,17 +33,20 @@ import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf}
 import io.hacken.ext.detector.{DetectorSchema, DetectorConfig}
 import io.syspulse.skel.wf.ext.store.WorkflowRegistry
 import io.syspulse.skel.wf.ext.store.WorkflowRegistry._
+import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineWorkflows}
 
 /**
  * Workflow `ext` REST API:
  *   /api/v1/wf/ext/schema  - WorkflowSchema CRUD (+ ?detector={id|full}, + /dsl)
  *   /api/v1/wf/ext/config  - WorkflowConfig CRUD (+ ?detector={id|full}, + /dsl, /xid, /oid)
  *   /api/v1/wf/ext/graf    - WorkflowGraf CRUD (visual configuration)
+ *   /api/v1/wf/ext/engine  - Engine runtime state (Temporal), enabled when an Engine is configured
  */
 @Path("/")
-class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {
+class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {
 
   implicit val system: ActorSystem[_] = context.system
+  implicit val ec: scala.concurrent.ExecutionContext = context.executionContext
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import WorkflowJson._
@@ -52,6 +55,7 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
   import io.hacken.ext.wf.WorkflowGrafJson._
   import io.hacken.ext.detector.DetectorSchemaJson._
   import io.hacken.ext.detector.DetectorConfigJson._
+  import io.syspulse.skel.wf.ext.engine.EngineJson._
 
   // ---- schema asks ----
   def getSchemas(from: Option[Long], size: Option[Long], detail: Boolean): Future[Try[WorkflowSchemas]] = registry.ask(GetSchemas(from, size, detail, _))
@@ -92,6 +96,36 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
   def deleteDetectorConfig(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteDetectorConfig(id, _))
 
   private def isFull(detector: Option[String]): Boolean = detector.exists(_.equalsIgnoreCase("full"))
+
+  // ---- engine (runtime) handlers ----
+  /** Resolve the Engine for a path `{engine}` segment; only the configured engine is served. */
+  private def forEngine(engineName: String)(f: Engine => Route): Route = engine match {
+    case Some(e) if e.name.equalsIgnoreCase(engineName) => f(e)
+    case Some(e) => complete(StatusCodes.NotFound -> s"engine not supported: '${engineName}' (configured: '${e.name}')")
+    case None    => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --wf=temporal://...)")
+  }
+
+  private def completeFuture[T](f: Future[T])(implicit m: ToResponseMarshaller[T]): Route =
+    onComplete(f) {
+      case Success(v) => complete(v)
+      case Failure(e) => complete(StatusCodes.InternalServerError -> s"engine error: ${e.getMessage}")
+    }
+
+  def getEngineRuntimesRoute(engineName: String, namespace: Option[String]) = get {
+    forEngine(engineName) { e =>
+      completeFuture(e.getRuntimes(namespace).map(ws => EngineWorkflows(ws, ws.size.toLong)))
+    }
+  }
+
+  def getEngineRuntimeRoute(engineName: String, namespace: Option[String], runtimeId: String) = get {
+    forEngine(engineName) { e =>
+      onComplete(e.getRuntime(namespace, runtimeId)) {
+        case Success(Some(w)) => complete(w)
+        case Success(None)    => complete(StatusCodes.NotFound -> s"runtime not found: ${runtimeId}")
+        case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
+      }
+    }
+  }
 
   /** Complete a `Future[Try[T]]`: Success -> 200 body, Failure -> 404 (not found). */
   private def completeTry[T](f: Future[Try[T]])(implicit m: ToResponseMarshaller[T]): Route =
@@ -329,6 +363,25 @@ class WorkflowRoutes(registry: ActorRef[Command])(implicit context: ActorContext
             )
           },
         )
+      },
+      // Engine runtime state:
+      //   /engine/{engine}                        -> all workflows in all namespaces
+      //   /engine/{engine}/{namespace}            -> all workflows in a namespace
+      //   /engine/{engine}/{namespace}/{runtime}  -> single workflow (expanded) by runtimeId
+      pathPrefix("engine") {
+        pathPrefix(Segment) { engineName =>
+          concat(
+            pathPrefix(Segment) { namespace =>
+              concat(
+                pathPrefix(Segment) { runtimeId =>
+                  pathEndOrSingleSlash { getEngineRuntimeRoute(engineName, Some(namespace), runtimeId) }
+                },
+                pathEndOrSingleSlash { getEngineRuntimesRoute(engineName, Some(namespace)) },
+              )
+            },
+            pathEndOrSingleSlash { getEngineRuntimesRoute(engineName, None) },
+          )
+        }
       },
     )
   }

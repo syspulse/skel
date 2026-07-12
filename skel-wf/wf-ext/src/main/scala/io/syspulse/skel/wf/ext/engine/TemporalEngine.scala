@@ -1,0 +1,319 @@
+package io.syspulse.skel.wf.ext.engine
+
+import scala.util.{Try, Success, Failure}
+import scala.jdk.CollectionConverters._
+import scala.concurrent.{Future, ExecutionContext}
+import scala.collection.mutable
+
+import com.typesafe.scalalogging.Logger
+import com.google.protobuf.Timestamp
+
+import io.temporal.serviceclient.{WorkflowServiceStubs, WorkflowServiceStubsOptions}
+import io.temporal.api.workflowservice.v1.{
+  ListWorkflowExecutionsRequest,
+  ListNamespacesRequest,
+  GetWorkflowExecutionHistoryRequest
+}
+import io.temporal.api.common.v1.WorkflowExecution
+import io.temporal.api.workflow.v1.{WorkflowExecutionInfo => TWorkflowExecutionInfo}
+import io.temporal.api.history.v1.HistoryEvent
+import io.temporal.api.enums.v1.EventType
+
+// ============================================================================
+// TemporalEngine
+//
+// Temporal implementation of the Engine abstraction. Read-only: it observes runtime
+// state via the WorkflowService gRPC stubs only (list / history). No WorkflowClient,
+// no DataConverter, no typed queries - so wf-ext stays fully decoupled from the
+// worker/workflow implementation living in wf-temporal.
+//
+// Mapping is EVENT-HISTORY based:
+//   - workflow status  <- visibility WorkflowExecutionStatus
+//   - activity states  <- ActivityTask{Scheduled,Started,Completed,Failed,TimedOut,Canceled}
+//   - child workflows  <- StartChildWorkflowExecutionInitiated + ChildWorkflowExecution{Started,...}
+//                         (children share the parent WorkflowId prefix, own their RunId)
+// ============================================================================
+class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: ExecutionContext) extends Engine {
+  private val log = Logger(getClass.getName)
+
+  private val t = TemporalURI(uri)
+
+  val name: String = Engine.TEMPORAL
+
+  // internal system namespace never surfaced to callers
+  private val SYSTEM_NAMESPACE = "temporal-system"
+  private val HISTORY_PAGE = 1000
+
+  // ---------------------------------------------------------------- connection
+  private def createSslContext(): Option[io.grpc.netty.shaded.io.netty.handler.ssl.SslContext] = t.tls match {
+    case Some("ignore") =>
+      log.warn("TLS certificate validation DISABLED (tls=ignore)")
+      Some(io.temporal.serviceclient.SimpleSslContextBuilder.newBuilder(null, null).setUseInsecureTrustManager(true).build())
+    case Some("cert") =>
+      Some(io.temporal.serviceclient.SimpleSslContextBuilder.newBuilder(null, null).build())
+    case _ => None
+  }
+
+  private val serviceOptions = {
+    val builder = WorkflowServiceStubsOptions.newBuilder()
+      .setTarget(t.target)
+      .setEnableKeepAlive(t.enableKeepAlive)
+      .setKeepAliveTime(java.time.Duration.ofMillis(t.keepAliveTime))
+      .setKeepAliveTimeout(java.time.Duration.ofMillis(t.keepAliveTimeout))
+      .setRpcTimeout(java.time.Duration.ofMillis(t.rpcTimeout))
+
+    createSslContext().foreach(builder.setSslContext)
+
+    t.auth.foreach { token =>
+      val supplier = new io.temporal.authorization.AuthorizationTokenSupplier {
+        override def supply(): String = s"Bearer $token"
+      }
+      builder.addGrpcMetadataProvider(new io.temporal.authorization.AuthorizationGrpcMetadataProvider(supplier))
+    }
+    builder.build()
+  }
+
+  private lazy val service = {
+    log.info(s"Connecting -> ${t.target} (ns=${t.namespace})")
+    WorkflowServiceStubs.newServiceStubs(serviceOptions)
+  }
+
+  private def stub = service.blockingStub()
+
+  // ---------------------------------------------------------------- helpers
+  private def millis(ts: Timestamp): Long = ts.getSeconds * 1000L + ts.getNanos / 1000000L
+
+  private def toSummary(info: TWorkflowExecutionInfo, ns: String): EngineWorkflow = {
+    val startedAt = if (info.hasStartTime) Some(millis(info.getStartTime)) else None
+    val closedAt  = if (info.hasCloseTime) Some(millis(info.getCloseTime)) else None
+    val parentId  = if (info.hasParentExecution) Some(info.getParentExecution.getWorkflowId) else None
+    val tq        = Option(info.getTaskQueue).map(_.trim).filter(_.nonEmpty)
+    EngineWorkflow(
+      id = info.getExecution.getWorkflowId,
+      runtimeId = info.getExecution.getRunId,
+      name = info.getType.getName,
+      status = EngineStatus.fromTemporalWorkflow(info.getStatus.name()),
+      namespace = ns,
+      startedAt = startedAt,
+      closedAt = closedAt,
+      taskQueue = tq,
+      parentId = parentId,
+    )
+  }
+
+  /** List executions in a single namespace (summary level only). */
+  private def listInNamespace(ns: String, query: String, pageSize: Int): Future[Seq[EngineWorkflow]] = Future {
+    val reqB = ListWorkflowExecutionsRequest.newBuilder().setNamespace(ns).setPageSize(pageSize)
+    if (query.nonEmpty) reqB.setQuery(query)
+    val resp = stub.listWorkflowExecutions(reqB.build())
+    resp.getExecutionsList.asScala.toSeq.map(info => toSummary(info, ns))
+  }
+
+  // ---------------------------------------------------------------- namespaces
+  def namespaces(): Future[Seq[String]] = Future {
+    val resp = stub.listNamespaces(ListNamespacesRequest.newBuilder().setPageSize(100).build())
+    resp.getNamespacesList.asScala.toSeq
+      .map(_.getNamespaceInfo.getName)
+      .filter(n => n != SYSTEM_NAMESPACE)
+  }
+
+  /**
+   * Resolve the set of namespaces to query.
+   *   None            -> ALL namespaces the server exposes (matches `/engine/temporal`)
+   *   Some("*")       -> ALL namespaces
+   *   Some("a,b")     -> explicit list
+   *   Some(ns)        -> single namespace (matches `/engine/temporal/{namespace}`)
+   */
+  private def resolveNamespaces(namespace: Option[String]): Future[Seq[String]] = namespace match {
+    case None | Some("*")             => namespaces()
+    case Some(ns) if ns.contains(",") => Future.successful(ns.split(",").map(_.trim).filter(_.nonEmpty).toSeq)
+    case Some(ns)                     => Future.successful(Seq(ns))
+  }
+
+  // ---------------------------------------------------------------- getRuntimes
+  def getRuntimes(namespace: Option[String] = None, pageSize: Int = 100): Future[Seq[EngineWorkflow]] =
+    resolveNamespaces(namespace).flatMap { nss =>
+      Future.sequence(nss.map { ns =>
+        listInNamespace(ns, "", pageSize).recover {
+          case e =>
+            log.warn(s"list failed for ns=${ns}: ${e.getMessage}")
+            Seq.empty[EngineWorkflow]
+        }
+      }).map(_.flatten)
+    }
+
+  // ---------------------------------------------------------------- getRuntime
+  def getRuntime(namespace: Option[String], runtimeId: String): Future[Option[EngineWorkflow]] = {
+    // 1. locate the summary (workflowId + namespace) by RunId
+    findByRunId(namespace, runtimeId).flatMap {
+      case None => Future.successful(None)
+      case Some(summary) =>
+        // 2. expand activities + child workflows from history
+        buildTree(summary, depth = 0).map(Some(_))
+    }
+  }
+
+  /** Find a workflow summary by RunId across the resolved namespaces. */
+  private def findByRunId(namespace: Option[String], runId: String): Future[Option[EngineWorkflow]] =
+    resolveNamespaces(namespace).flatMap { nss =>
+      // query each namespace for RunId; return the first match
+      def loop(rest: List[String]): Future[Option[EngineWorkflow]] = rest match {
+        case Nil => Future.successful(None)
+        case ns :: tail =>
+          listInNamespace(ns, s"RunId = '${runId}'", 1).recover { case _ => Seq.empty }.flatMap {
+            case Seq(w, _*) => Future.successful(Some(w))
+            case _          => loop(tail)
+          }
+      }
+      loop(nss.toList)
+    }
+
+  /** Fetch the full event history for an execution (following pagination). */
+  private def fetchHistory(ns: String, workflowId: String, runId: String): Future[Seq[HistoryEvent]] = Future {
+    val events = mutable.ArrayBuffer[HistoryEvent]()
+    var token = com.google.protobuf.ByteString.EMPTY
+    var more = true
+    var guard = 0
+    while (more && guard < 1000) {
+      guard += 1
+      val reqB = GetWorkflowExecutionHistoryRequest.newBuilder()
+        .setNamespace(ns)
+        .setExecution(WorkflowExecution.newBuilder().setWorkflowId(workflowId).setRunId(runId).build())
+        .setMaximumPageSize(HISTORY_PAGE)
+      if (!token.isEmpty) reqB.setNextPageToken(token)
+      val resp = stub.getWorkflowExecutionHistory(reqB.build())
+      events ++= resp.getHistory.getEventsList.asScala
+      token = resp.getNextPageToken
+      more = !token.isEmpty
+    }
+    events.toSeq
+  }
+
+  // mutable accumulators used while folding the event history
+  private class ActAcc(var name: String, var id: String) {
+    var status: String = EngineStatus.SCHEDULED
+    var startedAt: Option[Long] = None
+    var closedAt: Option[Long] = None
+    var detail: Option[String] = None
+  }
+  private class ChildAcc(var name: String, var workflowId: String) {
+    var runId: Option[String] = None
+    var status: String = EngineStatus.NEW
+    var startedAt: Option[Long] = None
+    var closedAt: Option[Long] = None
+  }
+
+  /**
+   * Build a workflow subtree: parse `summary`'s history into activities + child workflows,
+   * then recurse into each child (bounded by `maxChildDepth`).
+   */
+  private def buildTree(summary: EngineWorkflow, depth: Int): Future[EngineWorkflow] = {
+    fetchHistory(summary.namespace, summary.id, summary.runtimeId).flatMap { events =>
+      val acts = mutable.LinkedHashMap[Long, ActAcc]()     // keyed by ActivityTaskScheduled eventId
+      val kids = mutable.LinkedHashMap[Long, ChildAcc]()   // keyed by StartChildWorkflowExecutionInitiated eventId
+
+      events.foreach { e =>
+        val et = millis(e.getEventTime)
+        e.getEventType match {
+          case EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED =>
+            val a = e.getActivityTaskScheduledEventAttributes
+            val acc = new ActAcc(a.getActivityType.getName, a.getActivityId)
+            acts.put(e.getEventId, acc)
+
+          case EventType.EVENT_TYPE_ACTIVITY_TASK_STARTED =>
+            val a = e.getActivityTaskStartedEventAttributes
+            acts.get(a.getScheduledEventId).foreach { acc => acc.status = EngineStatus.RUNNING; acc.startedAt = Some(et) }
+
+          case EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED =>
+            val a = e.getActivityTaskCompletedEventAttributes
+            acts.get(a.getScheduledEventId).foreach { acc => acc.status = EngineStatus.COMPLETED; acc.closedAt = Some(et) }
+
+          case EventType.EVENT_TYPE_ACTIVITY_TASK_FAILED =>
+            val a = e.getActivityTaskFailedEventAttributes
+            acts.get(a.getScheduledEventId).foreach { acc =>
+              acc.status = EngineStatus.FAILED; acc.closedAt = Some(et)
+              acc.detail = Try(a.getFailure.getMessage).toOption.filter(_.nonEmpty)
+            }
+
+          case EventType.EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT =>
+            val a = e.getActivityTaskTimedOutEventAttributes
+            acts.get(a.getScheduledEventId).foreach { acc => acc.status = EngineStatus.TIMED_OUT; acc.closedAt = Some(et) }
+
+          case EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED =>
+            val a = e.getActivityTaskCanceledEventAttributes
+            acts.get(a.getScheduledEventId).foreach { acc => acc.status = EngineStatus.CANCELED; acc.closedAt = Some(et) }
+
+          case EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED =>
+            val a = e.getStartChildWorkflowExecutionInitiatedEventAttributes
+            kids.put(e.getEventId, new ChildAcc(a.getWorkflowType.getName, a.getWorkflowId))
+
+          case EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED =>
+            val a = e.getChildWorkflowExecutionStartedEventAttributes
+            kids.get(a.getInitiatedEventId).foreach { c =>
+              c.runId = Some(a.getWorkflowExecution.getRunId)
+              c.workflowId = a.getWorkflowExecution.getWorkflowId
+              c.status = EngineStatus.RUNNING
+              c.startedAt = Some(et)
+            }
+
+          case EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED =>
+            val a = e.getChildWorkflowExecutionCompletedEventAttributes
+            kids.get(a.getInitiatedEventId).foreach { c => c.status = EngineStatus.COMPLETED; c.closedAt = Some(et) }
+
+          case EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED =>
+            val a = e.getChildWorkflowExecutionFailedEventAttributes
+            kids.get(a.getInitiatedEventId).foreach { c => c.status = EngineStatus.FAILED; c.closedAt = Some(et) }
+
+          case EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TERMINATED =>
+            val a = e.getChildWorkflowExecutionTerminatedEventAttributes
+            kids.get(a.getInitiatedEventId).foreach { c => c.status = EngineStatus.TERMINATED; c.closedAt = Some(et) }
+
+          case EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED =>
+            val a = e.getChildWorkflowExecutionCanceledEventAttributes
+            kids.get(a.getInitiatedEventId).foreach { c => c.status = EngineStatus.CANCELED; c.closedAt = Some(et) }
+
+          case EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TIMED_OUT =>
+            val a = e.getChildWorkflowExecutionTimedOutEventAttributes
+            kids.get(a.getInitiatedEventId).foreach { c => c.status = EngineStatus.TIMED_OUT; c.closedAt = Some(et) }
+
+          case _ => // ignore other event types
+        }
+      }
+
+      val activities = acts.values.map { a =>
+        EngineActivity(
+          id = a.id, name = a.name, kind = EngineActivity.KIND_ACTIVITY,
+          status = a.status, startedAt = a.startedAt, closedAt = a.closedAt, detail = a.detail,
+        )
+      }.toSeq
+
+      // recurse into child workflows (bounded)
+      val childFutures: Seq[Future[EngineWorkflow]] = kids.values.toSeq.map { c =>
+        c.runId match {
+          case Some(rid) if depth < maxChildDepth =>
+            val childSummary = EngineWorkflow(
+              id = c.workflowId, runtimeId = rid, name = c.name, status = c.status,
+              namespace = summary.namespace, startedAt = c.startedAt, closedAt = c.closedAt,
+              parentId = Some(summary.id),
+            )
+            buildTree(childSummary, depth + 1).recover { case _ => childSummary }
+          case _ =>
+            Future.successful(EngineWorkflow(
+              id = c.workflowId, runtimeId = c.runId.getOrElse(""), name = c.name, status = c.status,
+              namespace = summary.namespace, startedAt = c.startedAt, closedAt = c.closedAt,
+              parentId = Some(summary.id),
+            ))
+        }
+      }
+
+      Future.sequence(childFutures).map { children =>
+        summary.copy(activities = activities, children = children)
+      }
+    }
+  }
+
+  def close(): Unit = {
+    log.debug(s"Shutdown: ${t.target}")
+    Try(service.shutdown())
+  }
+}
