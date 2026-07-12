@@ -1415,9 +1415,19 @@ lazy val wf_ext = (project in file("skel-wf/wf-ext"))
     
     appDockerConfig("wf-ext","io.syspulse.skel.wf.ext.App"),
 
-    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ Seq(
+    libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ libTemporal ++ Seq(
       libOsLib,
       libUpickleLib,
+    ),
+
+    // Force gRPC version to match Temporal SDK requirements (mirrors wf_temporal)
+    dependencyOverrides ++= Seq(
+      "io.grpc" % "grpc-api" % grpcVersion,
+      "io.grpc" % "grpc-netty-shaded" % grpcVersion,
+      "io.grpc" % "grpc-protobuf" % grpcVersion,
+      "io.grpc" % "grpc-stub" % grpcVersion,
+      "io.grpc" % "grpc-core" % grpcVersion,
+      "io.grpc" % "grpc-context" % grpcVersion
     )
   )
 

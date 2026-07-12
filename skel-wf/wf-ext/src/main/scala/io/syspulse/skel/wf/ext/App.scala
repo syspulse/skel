@@ -192,6 +192,7 @@ object App extends skel.Server {
         cfg0    = res.config.getOrElse(throw new Exception("assembly did not produce a WorkflowConfig"))
         linked  = cfg0.copy(xid = Some(runtimeId), updatedAt = System.currentTimeMillis())
         saved  <- store.addConfig(linked)
+        _       = log.info(saved.toString) // log the xid-linked WorkflowConfig (raw toString)
       } yield saved
     }
 
@@ -226,7 +227,7 @@ object App extends skel.Server {
         s"Server: http://${config.host}:${config.port}${config.uri}"
 
       case "schema" =>
-        val pipeline = config.params.mkString(" ")
+        val pipeline = normalizePipeline(config.params.mkString(" "))
         val f = AssemblyDSL.buildSchema(pipeline, store, config.wid, config.wn)
         Try(Await.result(f, 30.seconds)) match {
           case Success(res) =>
@@ -237,7 +238,7 @@ object App extends skel.Server {
         }
 
       case "assembly" =>
-        val pipeline = config.params.mkString(" ")
+        val pipeline = normalizePipeline(config.params.mkString(" "))
         val f = AssemblyDSL.assemble(pipeline, store, config.wid, config.wn)
         Try(Await.result(f, 30.seconds)) match {
           case Success(res) =>
@@ -284,11 +285,25 @@ object App extends skel.Server {
       case "assembly-track" =>
         config.params.toList match {
           case runtimeId :: rest if rest.nonEmpty =>
-            Try(Await.result(assembleLink(runtimeId, rest), 30.seconds)) match {
-              case Success(cfg) =>
-                val detectors = Await.result(loadDetectors(cfg), 30.seconds)
-                val engine = newEngine()
-                try {
+            val engine = newEngine()
+            try {
+              // resolve the Temporal workflow id (wid) for this runtimeId (RunId)
+              val wid: Option[String] =
+                Try(Await.result(engine.getRuntime(config.ns, runtimeId), 60.seconds)).toOption.flatten.map(_.id)
+
+              Try(Await.result(assembleLink(runtimeId, rest), 30.seconds)) match {
+                case Success(cfg0) =>
+                  // name the WorkflowConfig after the Temporal workflow id, and copy it into meta.wid
+                  val cfg = wid match {
+                    case Some(w) =>
+                      val meta = cfg0.meta.getOrElse(Map.empty[String, Any]) + ("wid" -> w)
+                      val renamed = cfg0.copy(name = w, meta = Some(meta), updatedAt = System.currentTimeMillis())
+                      Await.result(store.addConfig(renamed), 30.seconds)
+                      log.info(renamed.toString)
+                      renamed
+                    case None => cfg0
+                  }
+                  val detectors = Await.result(loadDetectors(cfg), 30.seconds)
                   // poll indefinitely (Ctrl+C to stop), one status line per poll
                   while (true) {
                     Try(Await.result(engine.getRuntime(config.ns, runtimeId), 60.seconds)) match {
@@ -302,9 +317,9 @@ object App extends skel.Server {
                     Thread.sleep(config.poll)
                   }
                   ""
-                } finally engine.close()
-              case Failure(e) => s"Failed assembly-track: ${e.getMessage}"
-            }
+                case Failure(e) => s"Failed assembly-track: ${e.getMessage}"
+              }
+            } finally engine.close()
           case _ =>
             s"Usage: assembly-track <runtimeId> <pipeline>  " +
               "(e.g. assembly-track 019f51c0-... '[ProofOfOwnership] -> [ProofOfReserve] -> [Report] -> [Commit]')"

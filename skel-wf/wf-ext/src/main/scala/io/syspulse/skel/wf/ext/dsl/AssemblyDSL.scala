@@ -120,7 +120,7 @@ object AssemblyDSL {
     val specs = parse(pipeline)
     require(specs.nonEmpty, s"empty assembly pipeline: '${pipeline}'")
 
-    for {
+    val built = for {
       existingDS <- store.allDetectorSchemas
       existingDC <- store.allDetectorConfigs
       ds0        <- store.nextDetectorSchemaId
@@ -245,5 +245,17 @@ object AssemblyDSL {
         }
       }
     } yield result
+
+    // log every created entity (raw toString) once the build completes
+    built.foreach(logCreated)
+    built
+  }
+
+  /** Log all entities created by an assembly as their raw toString (in creation order). */
+  private def logCreated(r: AssemblyResult): Unit = {
+    r.detectorSchemas.foreach(d => log.info(d.toString))
+    r.detectorConfigs.foreach(d => log.info(d.toString))
+    log.info(r.schema.toString)
+    r.config.foreach(c => log.info(c.toString))
   }
 }
