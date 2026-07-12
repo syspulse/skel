@@ -399,6 +399,11 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
                   selectedId={sliderKind === active ? selectedId : null}
                   minRows={pageSize === PAGE_SIZE_ALL ? pageRows.length : pageSize}
                   onRowClick={(id) => openDetails(active as EntityKind, id)}
+                  onRowDoubleClick={(id) => {
+                    const k = active as EntityKind;
+                    // double-click a WorkflowSchema/Config -> go straight to the design (editor) view
+                    if (k === KIND.workflowSchema || k === KIND.workflowConfig) { closeSlider(); openEditor(k, id); }
+                  }}
                   onDelete={(id) => handleDelete(active as EntityKind, id)}
                 />
               </div>

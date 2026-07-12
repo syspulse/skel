@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TABLE_ICON_CELL, TABLE_TD, TABLE_TH } from '../../../constants/table';
 import { IconTrash } from '../../../components/Icons';
@@ -30,6 +30,7 @@ interface EntityTableProps {
   timezone: string;
   minRows?: number;
   onRowClick: (id: number) => void;
+  onRowDoubleClick?: (id: number) => void;
   onDelete: (id: number) => void;
 }
 
@@ -42,10 +43,24 @@ function statusClass(status?: string): string {
   }
 }
 
-export function EntityTable({ rows, columns, selectedId, defaultIcon, timezone, minRows = 12, onRowClick, onDelete }: EntityTableProps) {
+export function EntityTable({ rows, columns, selectedId, defaultIcon, timezone, minRows = 12, onRowClick, onRowDoubleClick, onDelete }: EntityTableProps) {
   const { t } = useTranslation();
   const padCount = Math.max(0, minRows - rows.length);
   const colCount = 7 + columns.length; // icon,id,name + dynamic + status,ts,tags,delete
+
+  // Single/double click disambiguation: when a double-click handler exists, defer the single-click
+  // action so it can be cancelled by a double-click (otherwise the first click opens the slider whose
+  // backdrop then swallows the second click and the dblclick never reaches the row).
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleRowClick = (id: number) => {
+    if (!onRowDoubleClick) { onRowClick(id); return; }
+    if (clickTimer.current) clearTimeout(clickTimer.current);
+    clickTimer.current = setTimeout(() => { clickTimer.current = null; onRowClick(id); }, 220);
+  };
+  const handleRowDoubleClick = (id: number) => {
+    if (clickTimer.current) { clearTimeout(clickTimer.current); clickTimer.current = null; }
+    onRowDoubleClick?.(id);
+  };
 
   return (
     <table className="w-full table-fixed">
@@ -79,7 +94,7 @@ export function EntityTable({ rows, columns, selectedId, defaultIcon, timezone, 
               : idx % 2 === 0 ? 'bg-card hover:bg-muted' : 'bg-muted hover:bg-muted-hover',
           ].join(' ');
           return (
-            <tr key={r.id} className={rowClass} onClick={() => onRowClick(r.id)}>
+            <tr key={r.id} className={rowClass} onClick={() => handleRowClick(r.id)} onDoubleClick={() => handleRowDoubleClick(r.id)}>
               <td className={TABLE_ICON_CELL}>
                 <span className="table-icon text-foreground">
                   {renderIconFill(r.icon && r.icon.trim() ? r.icon : defaultIcon)}
