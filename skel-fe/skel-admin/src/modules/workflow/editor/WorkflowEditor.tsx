@@ -9,6 +9,7 @@ import '@xyflow/react/dist/style.css';
 
 import type { WorkflowGraf, DetectorSchema, DetectorConfig, WorkflowKind } from '../types';
 import { KIND } from '../types';
+import { idLabelStyle } from '../labels';
 import { DetectorNode } from './DetectorNode';
 import { ElementDetails } from './ElementDetails';
 import { renderIcon, DEFAULT_SCHEMA_ICON, DEFAULT_CONFIG_ICON, DEFAULT_WF_SCHEMA_ICON, DEFAULT_WF_CONFIG_ICON } from '../../../components/IconPicker';
@@ -197,7 +198,7 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           {/* WorkflowConfig.name (NOT the schema-derived title), with the id label next to it */}
           <div className="flex items-center gap-1.5">
             <span className="text-sm text-foreground truncate">{name}</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${kind === KIND.workflowConfig ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+            <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0" style={idLabelStyle(kind)}>
               {id}
             </span>
             {/* WorkflowConfig runtime status label, next to the id */}

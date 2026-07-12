@@ -4,6 +4,7 @@ import { IconLamp, IconGrid, IconSettings, IconHelp, IconDispatcher, IconWorkflo
 import { useAuth } from '../auth/useAuth';
 import * as wfApi from '../modules/workflow/api';
 import { KIND, type WorkflowKind } from '../modules/workflow/types';
+import { idLabelStyle } from '../modules/workflow/labels';
 
 export type NavPage = 'explain' | 'dash' | 'dispatcher' | 'workflow' | 'settings' | 'help';
 
@@ -123,7 +124,7 @@ function WorkflowNav({ active, onOpenHome, onOpenInstance, selected, refreshKey 
                 title={`${it.name} (${it.kind.replace('workflow-', '')})`}
               >
                 <span className="truncate flex-1">{it.name}</span>
-                <span className={`text-[9px] px-1 py-0.5 rounded shrink-0 ${it.kind === KIND.workflowConfig ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+                <span className="text-[9px] px-1 py-0.5 rounded shrink-0" style={idLabelStyle(it.kind)}>
                   {it.id}
                 </span>
               </button>

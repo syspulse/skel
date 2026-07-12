@@ -3,6 +3,7 @@ import { Handle, Position, NodeResizer, type NodeProps } from '@xyflow/react';
 import type { RFNodeData } from './grafMapping';
 import { renderIcon } from '../../../components/IconPicker';
 import { statusStyle } from '../status';
+import { LABEL_SCHEMA, LABEL_CONFIG } from '../labels';
 
 const HANDLE_STYLE: React.CSSProperties = {
   width: 8,
@@ -19,9 +20,9 @@ const tagBase: React.CSSProperties = {
   borderRadius: 3,
   whiteSpace: 'nowrap',
 };
-// sid -> schema (blue), cid -> config (emerald); distinguished by color only (no prefix label)
-const sidTag: React.CSSProperties = { ...tagBase, background: '#dbeafe', color: '#1d4ed8' };
-const cidTag: React.CSSProperties = { ...tagBase, background: '#d1fae5', color: '#047857' };
+// sid -> schema (gray), cid -> config (default dark-gray/white); distinguished by color only
+const sidTag: React.CSSProperties = { ...tagBase, ...LABEL_SCHEMA };
+const cidTag: React.CSSProperties = { ...tagBase, ...LABEL_CONFIG };
 
 // Two target handles (top, left) and two source handles (bottom, right) give a visible
 // input + output connection on all four sides. Edges connect source -> target.
