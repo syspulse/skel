@@ -10,7 +10,7 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.wf.ext.store.{WorkflowStore, WorkflowStoreMem, WorkflowStoreDir, WorkflowRegistry}
 import io.syspulse.skel.wf.ext.server.WorkflowRoutes
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
-import io.syspulse.skel.wf.ext.engine.{Engine, EngineMapper, EngineWorkflow}
+import io.syspulse.skel.wf.ext.engine.{Engine, EngineMapper, EngineWorkflow, EngineStatus}
 
 case class Config(
   host: String = "0.0.0.0",
@@ -86,6 +86,25 @@ object App extends skel.Server {
     (cmd +: (opts ++ mergedParams)).toArray
   }
 
+  // ANSI colors are a RENDERING concern only (App command output) - never stored on model fields.
+  // Map a runtime status to an ANSI (foreground;background) code. Dark grey foreground
+  // (256-color palette) is used on light backgrounds where black is hard to read.
+  private val DARK_GREY = "38;5;238"
+  private val statusAnsi: Map[String, String] = Map(
+    //                         fg;bg
+    EngineStatus.RUNNING    -> "97;44",            // white on blue
+    EngineStatus.COMPLETED  -> s"${DARK_GREY};42", // dark grey on green
+    EngineStatus.FAILED     -> "97;41",            // white on red
+    EngineStatus.TERMINATED -> s"${DARK_GREY};43", // dark grey on yellow
+    EngineStatus.CANCELED   -> s"${DARK_GREY};47", // dark grey on white
+  )
+
+  /** Wrap `text` in ANSI color codes for a runtime status (no-op when the status has no color). */
+  def colorize(text: String, status: String): String = statusAnsi.get(status) match {
+    case Some(code) => s"[${code}m${text}[0m"
+    case None           => text
+  }
+
   def main(argv: Array[String]): Unit = {
     val args = preprocess(argv)
     log.info(s"args: '${args.mkString(",")}'")
@@ -153,8 +172,8 @@ object App extends skel.Server {
     // Render an EngineWorkflow tree for CLI output.
     def renderWorkflow(w: EngineWorkflow, indent: String = ""): String = {
       val times = (w.startedAt.map(t => s" start=${t}").getOrElse("")) + (w.closedAt.map(t => s" close=${t}").getOrElse(""))
-      val head = s"${indent}[${w.status}] ${w.name} wid=${w.id} rid=${w.runtimeId} ns=${w.namespace}${times}"
-      val acts = w.activities.map(a => s"${indent}  - (${a.status}) ${a.kind} ${a.name} id=${a.id}").mkString("\n")
+      val head = s"${indent}${colorize(s"[${w.status}]", w.status)} ${w.name} wid=${w.id} rid=${w.runtimeId} ns=${w.namespace}${times}"
+      val acts = w.activities.map(a => s"${indent}  - ${colorize(s"(${a.status})", a.status)} ${a.kind} ${a.name} id=${a.id}").mkString("\n")
       val kids = w.children.map(c => renderWorkflow(c, indent + "  ")).mkString("\n")
       Seq(head, acts, kids).filter(_.nonEmpty).mkString("\n")
     }
@@ -210,7 +229,7 @@ object App extends skel.Server {
             case None =>
               // all runtimes (summary)
               val ws = Await.result(engine.getRuntimes(config.ns), 60.seconds)
-              s"Runtimes (${ws.size}):\n" + ws.map(w => s"  [${w.status}] ${w.name} wid=${w.id} rid=${w.runtimeId} ns=${w.namespace}").mkString("\n")
+              s"Runtimes (${ws.size}):\n" + ws.map(w => s"  ${colorize(s"[${w.status}]", w.status)} ${w.name} wid=${w.id} rid=${w.runtimeId} ns=${w.namespace}").mkString("\n")
           }
           out
         } catch {
