@@ -104,7 +104,7 @@ object App extends skel.Server {
 
   /** Wrap `text` in ANSI color codes for a runtime status (no-op when the status has no color). */
   def colorize(text: String, status: String): String = statusAnsi.get(status) match {
-    case Some(code) => s"[${code}m${text}[0m"
+    case Some(code) => s"\u001b[${code}m${text}${Console.RESET}"
     case None           => text
   }
 
@@ -130,7 +130,7 @@ object App extends skel.Server {
 
         ArgString('_', "wf", s"Engine URI (e.g. temporal://127.0.0.1:7233/default)"),
         ArgString('_', "ns", s"Engine namespace override (e.g. default, '*' for all)"),
-        ArgString('_', "poll", s"assembly-track polling interval in msec (def: ${d.poll})"),
+        ArgLong('_', "poll", s"assembly-track polling interval in msec (def: ${d.poll})"),
 
         ArgCmd("server", s"Start Workflow REST server"),
         ArgCmd("schema", s"Create a WorkflowSchema from an Assembly DSL pipeline (param: pipeline)"),
@@ -153,7 +153,7 @@ object App extends skel.Server {
       wn = c.getString("wn"),
       wf = c.getString("wf").filter(_.nonEmpty),
       ns = c.getString("ns").filter(_.nonEmpty),
-      poll = c.getString("poll").map(_.toLong).getOrElse(d.poll),
+      poll = c.getLong("poll").getOrElse(d.poll),
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
     )
