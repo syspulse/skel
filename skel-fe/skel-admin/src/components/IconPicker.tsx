@@ -42,8 +42,11 @@ export const ICON_SIGNAL = svg('<path d="M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 
 export const ICON_MONITOR = svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>');
 export const ICON_MAP_PIN = svg('<path d="M12 21s7-6 7-11a7 7 0 0 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/>');
 
-// Workflow-level defaults: schema = flow/diagram template, config = running instance (play).
+// Workflow-level defaults - deliberately different designs so schema vs config are distinguishable:
+//   schema = branching flow/diagram template (outline boxes)
+//   config = runtime instance: a linear execution pipeline of three light-blue filled boxes
 export const ICON_WORKFLOW = svg('<rect x="3" y="4" width="6" height="5" rx="1"/><rect x="15" y="4" width="6" height="5" rx="1"/><rect x="9" y="15" width="6" height="5" rx="1"/><path d="M6 9v1.5a2 2 0 0 0 2 2h2.5M18 9v1.5a2 2 0 0 1-2 2H13.5M12 12.5V15"/>');
+export const ICON_WORKFLOW_CONFIG = svg('<rect x="1.5" y="9" width="5" height="6" rx="1" fill="#bfdbfe"/><rect x="9.5" y="9" width="5" height="6" rx="1" fill="#bfdbfe"/><rect x="17.5" y="9" width="5" height="6" rx="1" fill="#bfdbfe"/><path d="M6.5 12h3M14.5 12h3"/>');
 export const ICON_PLAY = svg('<circle cx="12" cy="12" r="9"/><path d="M10 8.5l5.5 3.5-5.5 3.5z"/>');
 
 export const QUICK_ICONS: string[] = [
@@ -89,8 +92,8 @@ export const QUICK_ICONS: string[] = [
 export const DEFAULT_SCHEMA_ICON = ICON_LAYERS; // layers (detector schema / template)
 export const DEFAULT_CONFIG_ICON = ICON_BOX; // gear (detector config)
 
-export const DEFAULT_WF_SCHEMA_ICON = ICON_WORKFLOW;
-export const DEFAULT_WF_CONFIG_ICON = DEFAULT_WF_SCHEMA_ICON; 
+export const DEFAULT_WF_SCHEMA_ICON = ICON_WORKFLOW;              // outline boxes
+export const DEFAULT_WF_CONFIG_ICON = ICON_WORKFLOW_CONFIG;       // light-blue filled boxes
 
 interface IconPickerProps {
   value?: string;
