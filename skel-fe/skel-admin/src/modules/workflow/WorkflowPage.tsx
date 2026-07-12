@@ -184,7 +184,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           cells: { title: s.title, graph: `${Object.keys(s.graph?.nodes ?? {}).length} ${t('workflow.graphNodes')}` } }));
       case KIND.workflowConfig: return configs.filter((c) => keep(c.name, c.title, c.status, c.updatedAt)).sort(byIdAsc)
         .map((c) => ({ id: c.id, icon: c.icon, name: c.name, status: c.status, tags: c.tags, ts: c.updatedAt,
-          cells: { title: c.title, sid: String(c.sid) } }));
+          cells: { title: c.title, sid: String(c.sid), xid: c.xid ?? '' } }));
       case KIND.detectorSchema: return detSchemas.filter((d) => keep(d.name, d.title, d.status, d.updatedAt)).sort(byIdAsc)
         .map((d) => ({ id: d.id, icon: d.icon, name: d.name, status: d.status, tags: d.tags, ts: d.updatedAt,
           cells: { title: d.title, version: d.version } }));
@@ -198,7 +198,12 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
     const title = { key: 'title', label: t('workflow.fields.title') };
     switch (kind) {
       case KIND.workflowSchema: return [title, { key: 'graph', label: t('workflow.fields.graph'), width: 'w-32' }];
-      case KIND.workflowConfig: return [title, { key: 'sid', label: t('workflow.fields.sid'), width: 'w-24' }];
+      // xid is a UUID -> give it room; shrink the title column to compensate
+      case KIND.workflowConfig: return [
+        { key: 'title', label: t('workflow.fields.title'), width: 'w-40' },
+        { key: 'sid', label: t('workflow.fields.sid'), width: 'w-16' },
+        { key: 'xid', label: 'xid', width: 'w-72' },
+      ];
       case KIND.detectorSchema: return [title, { key: 'version', label: t('workflow.fields.version'), width: 'w-28' }];
       case KIND.detectorConfig: return [
         title,
