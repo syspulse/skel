@@ -16,7 +16,7 @@ import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigCon
 import io.syspulse.skel.ErrNotFound
 import io.syspulse.skel.wf.ext.server._
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
-import io.syspulse.skel.wf.ext.engine.TrackMapper
+import io.syspulse.skel.wf.ext.engine.{TrackMapper, EngineWorkflow}
 
 object WorkflowRegistry {
   val log = Logger(s"${this}")
@@ -42,6 +42,10 @@ object WorkflowRegistry {
   val RESOLVE_WID = "wid"  // resolve by workflowId (WorkflowConfig.meta.wid / name)
   final case class CreateConfig(req: WorkflowConfigCreateReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   final case class CreateConfigDsl(req: WorkflowConfigDslReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
+  // assembly WorkflowConfig from DSL (bracket shorthand accepted) - same as the `assembly` command
+  final case class AssemblyConfig(req: WorkflowConfigDslReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
+  // assembly + bind to a runtime resolved on the Engine (runtime == None -> fallback xid=fallbackId) - same as `assembly-link`
+  final case class AssemblyLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   final case class UpdateConfig(id: Int, req: WorkflowConfigUpdateReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   final case class DeleteConfig(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
 
@@ -293,8 +297,18 @@ object WorkflowRegistry {
         Behaviors.same
 
       case CreateConfigDsl(req, replyTo) =>
-        AssemblyDSL.assemble(req.pipeline, store, req.wid, req.name)
-          .map(_.config.getOrElse(throw new Exception("assembly did not produce a WorkflowConfig")))
+        WorkflowAssembly.assembly(req.pipeline, store, req.wid, req.name).onComplete(replyTo ! _)
+        Behaviors.same
+
+      case AssemblyConfig(req, replyTo) =>
+        log.info(s"AssemblyConfig: ${req.pipeline}")
+        WorkflowAssembly.assembly(req.pipeline, store, req.wid, req.name).onComplete(replyTo ! _)
+        Behaviors.same
+
+      case AssemblyLinked(req, runtime, fallbackId, replyTo) =>
+        log.info(s"AssemblyLinked: id=${fallbackId} runtime=${runtime.map(_.id)} ${req.pipeline}")
+        WorkflowAssembly.assembly(req.pipeline, store, req.wid, req.name)
+          .flatMap(cfg0 => WorkflowAssembly.link(cfg0, runtime, fallbackId, store))
           .onComplete(replyTo ! _)
         Behaviors.same
 

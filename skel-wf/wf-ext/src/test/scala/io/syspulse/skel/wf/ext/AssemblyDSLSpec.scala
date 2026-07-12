@@ -82,11 +82,11 @@ class AssemblyDSLSpec extends AnyWordSpec with Matchers {
     }
   }
 
-  "AssemblyDSL.assemble (assembly command)" should {
+  "AssemblyDSL.assembly (assembly command)" should {
     "create WorkflowConfig + underlying WorkflowSchema + DetectorSchemas + DetectorConfigs" in {
       val store = new WorkflowStoreMem()
       val res = Await.result(
-        AssemblyDSL.assemble("Detector.name1 -> Detector.name2.0 -> 1.Detector.name3.1", store, wid = Some(0), wname = Some("WFlow")),
+        AssemblyDSL.assembly("Detector.name1 -> Detector.name2.0 -> 1.Detector.name3.1", store, wid = Some(0), wname = Some("WFlow")),
         timeout)
 
       // 3 DetectorSchema + 3 DetectorConfig
@@ -114,7 +114,7 @@ class AssemblyDSLSpec extends AnyWordSpec with Matchers {
     "honour explicit out/in link ids from the DSL" in {
       val store = new WorkflowStoreMem()
       val res = Await.result(
-        AssemblyDSL.assemble("Detector.a.7 -> 7.Detector.b", store), timeout)
+        AssemblyDSL.assembly("Detector.a.7 -> 7.Detector.b", store), timeout)
       // the single link between a(0) and b(1) should use the explicit out id 7
       val cfg = res.config.get
       cfg.graph.links.keySet shouldBe Set(7)
@@ -134,7 +134,7 @@ class AssemblyDSLSpec extends AnyWordSpec with Matchers {
       Await.result(store.addDetectorSchema(ds), timeout)
       Await.result(store.addDetectorConfig(dc), timeout)
 
-      val res = Await.result(AssemblyDSL.assemble("Detector.newone -> Detector.5", store), timeout)
+      val res = Await.result(AssemblyDSL.assembly("Detector.newone -> Detector.5", store), timeout)
       // node referencing id 5 must not create a new DetectorConfig and must point at config 5 / schema 7
       res.detectorConfigs.map(_.name) shouldBe Seq("newone") // only the new one
       val cfg = res.config.get
@@ -146,7 +146,7 @@ class AssemblyDSLSpec extends AnyWordSpec with Matchers {
     "share ONE DetectorSchema across same-named nodes but create distinct DetectorConfigs" in {
       val store = new WorkflowStoreMem()
       val res = Await.result(
-        AssemblyDSL.assemble("Detector.scan -> Detector.scan -> Detector.report", store), timeout)
+        AssemblyDSL.assembly("Detector.scan -> Detector.scan -> Detector.report", store), timeout)
 
       // 2 schemas (Schema_scan reused, Schema_report), 3 distinct configs
       res.detectorSchemas.map(_.name) shouldBe Seq("Schema_scan", "Schema_report")
@@ -164,7 +164,7 @@ class AssemblyDSLSpec extends AnyWordSpec with Matchers {
     "fail when referencing a non-existent DetectorConfig id" in {
       val store = new WorkflowStoreMem()
       intercept[Exception] {
-        Await.result(AssemblyDSL.assemble("Detector.999", store), timeout)
+        Await.result(AssemblyDSL.assembly("Detector.999", store), timeout)
       }
     }
   }

@@ -75,7 +75,7 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       }
     }
 
-    "assemble a WorkflowConfig via DSL and read it back with ?detector=full" in {
+    "assembly a WorkflowConfig via DSL and read it back with ?detector=full" in {
       Post("/config/dsl", WorkflowConfigDslReq("Detector.x -> Detector.y", name = Some("WFlow"))) ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         responseAs[WorkflowConfig].graph.isInstance shouldBe true
@@ -109,7 +109,7 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
     }
 
     "resolve WorkflowConfig(s) + all DetectorConfigs by runtimeId or workflowId (multiple ids)" in {
-      // assemble two configs, each with its own DetectorConfigs
+      // assembly two configs, each with its own DetectorConfigs
       val c1 = Post("/config/dsl", WorkflowConfigDslReq("Detector.rx -> Detector.ry", name = Some("R1"))) ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
       }

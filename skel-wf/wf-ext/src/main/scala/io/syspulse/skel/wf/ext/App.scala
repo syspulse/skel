@@ -7,7 +7,7 @@ import scala.concurrent.duration._
 import io.syspulse.skel
 import io.syspulse.skel.config._
 
-import io.syspulse.skel.wf.ext.store.{WorkflowStore, WorkflowStoreMem, WorkflowStoreDir, WorkflowRegistry}
+import io.syspulse.skel.wf.ext.store.{WorkflowStore, WorkflowStoreMem, WorkflowStoreDir, WorkflowRegistry, WorkflowAssembly}
 import io.syspulse.skel.wf.ext.server.WorkflowRoutes
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
 import io.syspulse.skel.wf.ext.engine.{Engine, EngineMapper, EngineWorkflow, EngineStatus, WorkflowRuntimeView, TrackMapper}
@@ -35,20 +35,6 @@ case class Config(
 )
 
 object App extends skel.Server {
-
-  /**
-   * Normalize a link-DSL pipeline. Accepts the bracket shorthand from the requirements
-   * (`[PoO] -> [PoR] -> [Report]`) and rewrites each bare/bracketed token into the
-   * Assembly DSL `Detector.<name>` form. Tokens already carrying an entity keyword
-   * (`Detector.` / `Schema.`) or link-ids are passed through unchanged.
-   */
-  def normalizePipeline(pipeline: String): String =
-    pipeline.split("->").map(_.trim).filter(_.nonEmpty).map { tok0 =>
-      val tok = tok0.stripPrefix("[").stripSuffix("]").trim
-      val lower = tok.toLowerCase
-      if (lower.contains("detector") || lower.contains("schema")) tok
-      else s"${AssemblyDSL.ENTITY_DETECTOR}.${tok}"
-    }.mkString(" -> ")
 
   // Known CLI commands. The shared arg parser only recognises a command when it is the
   // first non-option token, so we hoist it to the front - this lets options precede the
@@ -184,18 +170,6 @@ object App extends skel.Server {
       Seq(head, acts, kids).filter(_.nonEmpty).mkString("\n")
     }
 
-    // Assemble a WorkflowConfig from a DSL pipeline and link it to an Engine runtime by xid.
-    def assembleLink(runtimeId: String, rest: Seq[String]): scala.concurrent.Future[WorkflowConfig] = {
-      val pipeline = normalizePipeline(rest.mkString(" "))
-      for {
-        res    <- AssemblyDSL.assemble(pipeline, store, config.wid, config.wn)
-        cfg0    = res.config.getOrElse(throw new Exception("assembly did not produce a WorkflowConfig"))
-        linked  = cfg0.copy(xid = Some(runtimeId), updatedAt = System.currentTimeMillis())
-        saved  <- store.addConfig(linked)
-        _       = log.info(saved.toString) // log the xid-linked WorkflowConfig (raw toString)
-      } yield saved
-    }
-
     // Resolve cid -> DetectorConfig for a config's graph nodes (for status correlation by name).
     def loadDetectors(cfg: WorkflowConfig): scala.concurrent.Future[Map[Int, DetectorConfig]] = {
       val cids = cfg.graph.nodes.values.flatMap(_.cid).toSet.toSeq
@@ -229,7 +203,7 @@ object App extends skel.Server {
         s"Server: http://${config.host}:${config.port}${config.uri}"
 
       case "schema" =>
-        val pipeline = normalizePipeline(config.params.mkString(" "))
+        val pipeline = AssemblyDSL.normalizePipeline(config.params.mkString(" "))
         val f = AssemblyDSL.buildSchema(pipeline, store, config.wid, config.wn)
         Try(Await.result(f, 30.seconds)) match {
           case Success(res) =>
@@ -240,15 +214,15 @@ object App extends skel.Server {
         }
 
       case "assembly" =>
-        val pipeline = normalizePipeline(config.params.mkString(" "))
-        val f = AssemblyDSL.assemble(pipeline, store, config.wid, config.wn)
+        val pipeline = AssemblyDSL.normalizePipeline(config.params.mkString(" "))
+        val f = AssemblyDSL.assembly(pipeline, store, config.wid, config.wn)
         Try(Await.result(f, 30.seconds)) match {
           case Success(res) =>
             s"WorkflowConfig assembled: configId=${res.config.map(_.id).getOrElse(-1)}, schemaId=${res.schema.id}, " +
               s"name='${res.schema.name}', nodes=${res.schema.graph.nodes.size}, links=${res.schema.graph.links.size}, " +
               s"DetectorSchemas=[${res.detectorSchemas.map(d => s"${d.id}:${d.name}").mkString(",")}], " +
               s"DetectorConfigs=[${res.detectorConfigs.map(d => s"${d.id}:${d.name}").mkString(",")}]"
-          case Failure(e) => s"Failed to assemble WorkflowConfig: ${e.getMessage}"
+          case Failure(e) => s"Failed to assembly WorkflowConfig: ${e.getMessage}"
         }
 
       case "runtime-get" =>
@@ -273,15 +247,20 @@ object App extends skel.Server {
 
       case "assembly-link" =>
         config.params.toList match {
-          case runtimeId :: rest if rest.nonEmpty =>
-            Try(Await.result(assembleLink(runtimeId, rest), 30.seconds)) match {
-              case Success(c) =>
-                s"WorkflowConfig linked: configId=${c.id}, xid=${c.xid.getOrElse("")}, " +
-                  s"name='${c.name}', nodes=${c.graph.nodes.size}, links=${c.graph.links.size}"
-              case Failure(e) => s"Failed assembly-link: ${e.getMessage}"
-            }
+          case id :: rest if rest.nonEmpty =>
+            val engine = newEngine()
+            try {
+              val f = WorkflowAssembly.assemblyFromTemporal(id, rest.mkString(" "), engine, store, config.ns, config.wid, config.wn)
+              Try(Await.result(f, 60.seconds)) match {
+                case Success(c) =>
+                  log.info(c.toString)
+                  s"WorkflowConfig linked: configId=${c.id}, xid=${c.xid.getOrElse("")}, " +
+                    s"name='${c.name}', nodes=${c.graph.nodes.size}, links=${c.graph.links.size}"
+                case Failure(e) => s"Failed assembly-link: ${e.getMessage}"
+              }
+            } finally engine.close()
           case _ =>
-            s"Usage: assembly-link <runtimeId> <pipeline>  (e.g. assembly-link 019e7473-... '[PoO] -> [PoR] -> [Report]')"
+            s"Usage: assembly-link <workflowId|runtimeId> <pipeline>  (e.g. assembly-link 019e7473-... '[PoO] -> [PoR] -> [Report]')"
         }
 
       case "assembly-track" =>
@@ -291,23 +270,19 @@ object App extends skel.Server {
             // modular resolution: UUID -> track a fixed run (RunId); else -> track latest run of a WorkflowId
             val mapper = TrackMapper.of(id)
             try {
-              // assemble the WorkflowConfig from the DSL (persisted; name/xid bound below from the runtime)
-              Try(Await.result(AssemblyDSL.assemble(normalizePipeline(rest.mkString(" ")), store, config.wid, config.wn), 30.seconds)) match {
-                case Success(res) =>
-                  var cfg = res.config.getOrElse(throw new Exception("assembly did not produce a WorkflowConfig"))
+              // assembly + bind to the resolved runtime (same shared logic as assembly-link / the API)
+              Try(Await.result(WorkflowAssembly.assemblyFromTemporal(id, rest.mkString(" "), engine, store, config.ns, config.wid, config.wn), 60.seconds)) match {
+                case Success(cfg0) =>
+                  var cfg = cfg0
                   val detectors = Await.result(loadDetectors(cfg), 30.seconds)
                   Console.err.println(s"Tracking by ${mapper.kind}=${mapper.key} configId=${cfg.id} poll=${config.poll}ms")
                   // poll indefinitely, one status line per poll
                   while (true) {
                     Try(Await.result(mapper.resolve(engine, config.ns), 60.seconds)) match {
                       case Success(Some(w)) =>
-                        // bind the WorkflowConfig to the resolved runtime:
-                        //   name / meta.wid <- Temporal WorkflowId (w.id)
-                        //   xid             <- Temporal RunId (w.runtimeId); reassigned on restart
-                        val meta = cfg.meta.getOrElse(Map.empty[String, Any]) + ("wid" -> w.id)
-                        val changed = cfg.name != w.id || !cfg.xid.contains(w.runtimeId) || cfg.meta != Some(meta)
-                        if (changed) {
-                          cfg = cfg.copy(name = w.id, xid = Some(w.runtimeId), meta = Some(meta), updatedAt = System.currentTimeMillis())
+                        // re-bind when the runtime changed (e.g. WorkflowId restart -> new RunId/xid)
+                        if (!WorkflowAssembly.isBound(cfg, w)) {
+                          cfg = WorkflowAssembly.bind(cfg, w)
                           Await.result(store.addConfig(cfg), 30.seconds)
                           log.info(cfg.toString)
                         }

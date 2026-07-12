@@ -33,7 +33,7 @@ import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf}
 import io.hacken.ext.detector.{DetectorSchema, DetectorConfig}
 import io.syspulse.skel.wf.ext.store.WorkflowRegistry
 import io.syspulse.skel.wf.ext.store.WorkflowRegistry._
-import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineWorkflows}
+import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineWorkflows, TrackMapper, EngineMapper}
 
 /**
  * Workflow `ext` REST API:
@@ -73,6 +73,8 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def resolveConfigs(ids: Seq[String], typ: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(ResolveConfigs(ids, typ, _))
   def createConfig(req: WorkflowConfigCreateReq): Future[Try[WorkflowConfig]] = registry.ask(CreateConfig(req, _))
   def createConfigDsl(req: WorkflowConfigDslReq): Future[Try[WorkflowConfig]] = registry.ask(CreateConfigDsl(req, _))
+  def assemblyConfig(req: WorkflowConfigDslReq): Future[Try[WorkflowConfig]] = registry.ask(AssemblyConfig(req, _))
+  def assemblyLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String): Future[Try[WorkflowConfig]] = registry.ask(AssemblyLinked(req, runtime, fallbackId, _))
   def updateConfig(id: Int, req: WorkflowConfigUpdateReq): Future[Try[WorkflowConfig]] = registry.ask(UpdateConfig(id, req, _))
   def deleteConfig(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteConfig(id, _))
 
@@ -127,6 +129,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       }
     }
   }
+
 
   /** Complete a `Future[Try[T]]`: Success -> 200 body, Failure -> 404 (not found). */
   private def completeTry[T](f: Future[Try[T]])(implicit m: ToResponseMarshaller[T]): Route =
@@ -224,14 +227,57 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   private def splitIds(csv: String): Seq[String] =
     csv.split(",").map(_.trim).filter(_.nonEmpty).toSeq
 
+  /** Resolve the live runtime for a config: by workflowId (meta.wid, latest run) if present, else by xid. */
+  private def resolveRuntime(e: Engine, c: WorkflowConfig): Future[Option[EngineWorkflow]] = {
+    val f = c.meta.flatMap(_.get("wid")).map(_.toString) match {
+      case Some(wid) => e.getRuntimeByWorkflowId(None, wid)
+      case None      => c.xid.map(x => e.getRuntime(None, x)).getOrElse(Future.successful(None))
+    }
+    f.recover { case _ => None }
+  }
+
+  /**
+   * Enrich resolved WorkflowConfig(s) with live engine data: map each config's runtime state onto
+   * its status and its DetectorConfigs' statuses. No-op when no Engine is configured or the runtime
+   * can't be resolved (the stored objects are returned unchanged).
+   */
+  private def enrichWithEngine(cfgs: WorkflowConfigs): Future[WorkflowConfigs] = engine match {
+    case None => Future.successful(cfgs)
+    case Some(e) =>
+      val detectorsInt: Map[Int, DetectorConfig] = cfgs.detectors.getOrElse(Map()).map { case (k, v) => k.toInt -> v }
+      Future.traverse(cfgs.configs) { c =>
+        resolveRuntime(e, c).map {
+          case Some(w) =>
+            val view = EngineMapper.map(w, Some(c), detectorsInt)
+            val stepStatus = view.steps.flatMap(s => s.cid.map(_ -> s.status)).toMap
+            (c.copy(status = view.status), stepStatus)
+          case None => (c, Map.empty[Int, String])
+        }
+      }.map { results =>
+        val newConfigs = results.map(_._1)
+        val stepStatusAll = results.flatMap(_._2).toMap                 // cid -> live status
+        val newDetectors = detectorsInt.map { case (cid, dc) =>
+          cid.toString -> stepStatusAll.get(cid).map(st => dc.copy(status = st)).getOrElse(dc)
+        }
+        WorkflowConfigs(newConfigs, newConfigs.size.toLong, Some(newDetectors))
+      }
+  }
+
   @GET @Path("/config/resolve/{ids}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("config"), summary = "Resolve WorkflowConfig(s) + all DetectorConfigs by runtimeId or workflowId",
+  @Operation(tags = Array("config"), summary = "Resolve WorkflowConfig(s) + all DetectorConfigs by runtimeId or workflowId (with live engine-mapped statuses)",
     parameters = Array(
       new Parameter(name = "ids", in = ParameterIn.PATH, description = "comma-separated runtimeId (UUID) and/or workflowId list"),
       new Parameter(name = "type", in = ParameterIn.QUERY, description = "force resolution mode: 'rid' (runtimeId/xid) or 'wid' (workflowId); default auto-detect")),
     responses = Array(new ApiResponse(responseCode = "200", description = "configs",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
-  def getConfigsResolveRoute(ids: Seq[String], typ: Option[String]) = get { completeTry(resolveConfigs(ids, typ)) }
+  def getConfigsResolveRoute(ids: Seq[String], typ: Option[String]) = get {
+    // resolve stored configs, then (if an Engine is configured) overlay live workflow/step statuses
+    val f: Future[Try[WorkflowConfigs]] = resolveConfigs(ids, typ).flatMap {
+      case Success(cfgs) => enrichWithEngine(cfgs).map(Success(_))
+      case other         => Future.successful(other)
+    }
+    completeTry(f)
+  }
 
   @POST @Path("/config") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("config"), summary = "Create WorkflowConfig from WorkflowSchema",
@@ -244,6 +290,39 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
 
   def createConfigDslRoute() = post {
     entity(as[WorkflowConfigDslReq]) { req => completeTry(createConfigDsl(req)) }
+  }
+
+  @POST @Path("/config/assembly") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("config"), summary = "Assemble a WorkflowConfig from an Assembly DSL pipeline (same as the `assembly` command)",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigDslReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "assembled",
+      content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
+  def createConfigAssemblyRoute() = post {
+    entity(as[WorkflowConfigDslReq]) { req => completeTry(assemblyConfig(req)) }
+  }
+
+  @POST @Path("/temporal/assembly/{id}") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("engine"), summary = "Assemble a WorkflowConfig from DSL and link it to an existing Temporal id (same as `assembly-link`)",
+    parameters = Array(
+      new Parameter(name = "id", in = ParameterIn.PATH, description = "Temporal runtimeId (UUID) or workflowId"),
+      new Parameter(name = "ns", in = ParameterIn.QUERY, description = "namespace (default: all)")),
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigDslReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "assembled + linked",
+      content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
+  def temporalAssemblyRoute(id: String) = post {
+    entity(as[WorkflowConfigDslReq]) { req =>
+      parameter("ns".?) { ns =>
+        engine match {
+          case Some(e) =>
+            // resolve the Temporal id (runtimeId or workflowId) on the engine, then assembly + bind
+            onComplete(TrackMapper.of(id).resolve(e, ns)) {
+              case Success(runtime) => completeTry(assemblyLinked(req, runtime, id))
+              case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
+            }
+          case None => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --engine=temporal://...)")
+        }
+      }
+    }
   }
 
   def updateConfigRoute(id: Int) = put {
@@ -340,6 +419,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       pathPrefix("config") {
         concat(
           pathPrefix("dsl") { pathEndOrSingleSlash { createConfigDslRoute() } },
+          pathPrefix("assembly") { pathEndOrSingleSlash { createConfigAssemblyRoute() } },
           pathPrefix("resolve") {
             // /config/resolve/<a>,<b>,<c>[?type=rid|wid]
             pathPrefix(Segment) { csv =>
@@ -385,6 +465,12 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
             )
           },
         )
+      },
+      // Temporal-specific assembly: POST /temporal/assembly/{id} (id = runtimeId or workflowId)
+      pathPrefix("temporal") {
+        pathPrefix("assembly") {
+          pathPrefix(Segment) { id => pathEndOrSingleSlash { temporalAssemblyRoute(id) } }
+        }
       },
       // Engine runtime state:
       //   /engine/{engine}                        -> all workflows in all namespaces

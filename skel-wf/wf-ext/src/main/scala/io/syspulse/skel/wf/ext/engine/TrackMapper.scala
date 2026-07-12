@@ -41,6 +41,13 @@ object TrackMapper {
   /** Auto-detect the mapper from the identifier format: UUID -> RunId, otherwise WorkflowId. */
   def of(id: String): TrackMapper =
     if (isUuid(id)) new RuntimeIdMapper(id) else new WorkflowIdMapper(id)
+
+  /** Build a mapper, forcing the mode when `typ` is given ("rid"/"runtimeId" | "wid"/"workflowId"). */
+  def of(id: String, typ: Option[String]): TrackMapper = typ.map(_.trim.toLowerCase) match {
+    case Some("rid") | Some("runtimeid")  => new RuntimeIdMapper(id)
+    case Some("wid") | Some("workflowid") => new WorkflowIdMapper(id)
+    case _                                => of(id)
+  }
 }
 
 /** Track a specific run by its Temporal RunId (UUID). The run never changes. */

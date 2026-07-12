@@ -52,6 +52,19 @@ object AssemblyDSL {
   val ENTITY_SCHEMA   = "Schema"
   val ENTITY_DETECTOR = "Detector"
 
+  /**
+   * Normalize a link-DSL pipeline. Accepts the bracket shorthand (`[PoO] -> [PoR] -> [Report]`)
+   * and rewrites each bare/bracketed token into the Assembly DSL `Detector.<name>` form. Tokens
+   * already carrying an entity keyword (`Detector.` / `Schema.`) are passed through unchanged.
+   */
+  def normalizePipeline(pipeline: String): String =
+    pipeline.split("->").map(_.trim).filter(_.nonEmpty).map { tok0 =>
+      val tok = tok0.stripPrefix("[").stripSuffix("]").trim
+      val lower = tok.toLowerCase
+      if (lower.contains("detector") || lower.contains("schema")) tok
+      else s"${ENTITY_DETECTOR}.${tok}"
+    }.mkString(" -> ")
+
   // ----------------------------------------------------------------- parsing (pure)
   def parse(pipeline: String): Seq[NodeSpec] =
     pipeline.split("->").map(_.trim).filter(_.nonEmpty).map(parseNode).toSeq
@@ -104,7 +117,7 @@ object AssemblyDSL {
     build(pipeline, store, createConfig = false, wid, wname)
 
   /** Build & persist a WorkflowConfig with an underlying WorkflowSchema (and new Detector* by name). */
-  def assemble(pipeline: String, store: WorkflowStore,
+  def assembly(pipeline: String, store: WorkflowStore,
                wid: Option[Int] = None, wname: Option[String] = None)
               (implicit ec: ExecutionContext): Future[AssemblyResult] =
     build(pipeline, store, createConfig = true, wid, wname)
@@ -163,7 +176,7 @@ object AssemblyDSL {
             }
           } else {
             // resolve (or create once) the DetectorSchema for this name. A new DetectorConfig is
-            // created only when assembling a WorkflowConfig (`assemble`) for a `Detector` node; the
+            // created only when assembling a WorkflowConfig (`assembly`) for a `Detector` node; the
             // `schema` command (createConfig == false) creates DetectorSchema objects only.
             val ds = schemaForName(spec.ref)
             if (createConfig && spec.isDetector) {
