@@ -219,6 +219,7 @@
     "errorResolve": "エンジン状態の解決に失敗しました",
     "track": "追跡",
     "tracking": "追跡中…",
-    "freq": "間隔"
+    "freq": "間隔",
+    "errorCidNotFound": "DetectorConfig #{{id}} が見つかりません"
   }
 }

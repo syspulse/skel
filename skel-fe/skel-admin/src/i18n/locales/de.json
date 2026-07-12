@@ -219,6 +219,7 @@
     "errorResolve": "Engine-Status konnte nicht aufgelöst werden",
     "track": "Verfolgen",
     "tracking": "Verfolgt…",
-    "freq": "Freq"
+    "freq": "Freq",
+    "errorCidNotFound": "DetectorConfig #{{id}} nicht gefunden"
   }
 }

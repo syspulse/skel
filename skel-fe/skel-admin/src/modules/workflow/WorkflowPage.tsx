@@ -151,6 +151,18 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
     }
   }, [token, notifyError, t]);
 
+  // Validate a cid before a node re-link: it must resolve via GET /detector/config/{cid}.
+  // On not-found, dispatch an error event (Dispatcher) and reject the change.
+  const validateCid = useCallback(async (cid: number): Promise<boolean> => {
+    try {
+      await api.getDetectorConfig(token, cid);
+      return true;
+    } catch (e) {
+      notifyError(t('workflow.errorCidNotFound', { id: cid }), e instanceof Error ? e.message : String(e));
+      return false;
+    }
+  }, [token, notifyError, t]);
+
   // keep a ref to the latest configs so the tracking interval always resolves the current object (xid may change)
   const configsRef = useRef<WorkflowConfig[]>(configs);
   useEffect(() => { configsRef.current = configs; }, [configs]);
@@ -308,6 +320,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           detectorStatus={resolvedDetStatus}
           resolving={resolving}
           onResolve={editorConfig ? () => resolveConfig(editorConfig) : undefined}
+          onValidateCid={validateCid}
           tracking={trackingId === editor.id}
           pollCount={pollCount}
           freq={freq}

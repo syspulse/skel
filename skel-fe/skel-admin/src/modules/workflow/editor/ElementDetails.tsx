@@ -2,15 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Node, Edge } from '@xyflow/react';
 import type { RFNodeData, RFEdgeData } from './grafMapping';
-import { IconPicker, renderIcon, DEFAULT_CONFIG_ICON } from '../../../components/IconPicker';
-import { IconClose, IconTrash, IconArrowRight, IconSave } from '../../../components/Icons';
+import { IconPicker } from '../../../components/IconPicker';
+import { IconClose, IconTrash, IconSave } from '../../../components/Icons';
 
 interface ElementDetailsProps {
   node: Node<RFNodeData> | null;
   edge: Edge<RFEdgeData> | null;
   onUpdateNode: (id: string, patch: Partial<RFNodeData>) => void;
   onUpdateEdge: (id: string, patch: Partial<RFEdgeData>) => void;
-  onUpdateCid?: (nodeId: string, cid: number | undefined) => void; // commit cid + persist (calls API)
+  onUpdateCid?: (nodeId: string, cid: number | undefined) => Promise<boolean>; // validate + commit cid (calls API); false if rejected
   onDeleteNode: (id: string) => void;
   onDeleteEdge: (id: string) => void;
   onOpenDetectorSchema?: (id: number) => void;
@@ -29,19 +29,24 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-/** Read-only id row; with an optional [->] button to open the referenced detector's detail view. */
+/** Read-only id row; with an optional [...] button to open the referenced detector's detail view. */
 function IdRow({ label, value, onGo }: { label: string; value: React.ReactNode; onGo?: () => void }) {
   return (
     <div className="flex items-center gap-2">
       <label className="w-24 row-label">{label}</label>
       <div className="flex-1 text-sm font-mono text-foreground bg-muted border border-border rounded px-2 py-1 select-text">{value}</div>
-      {onGo && (
-        <button onClick={onGo} title="open details"
-          className="shrink-0 p-1 rounded border border-border text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors">
-          <IconArrowRight size={14} />
-        </button>
-      )}
+      {onGo && <OpenDetailsButton onClick={onGo} />}
     </div>
+  );
+}
+
+/** A [...] button that opens the referenced entity's detail view. */
+function OpenDetailsButton({ onClick, disabled, title }: { onClick: () => void; disabled?: boolean; title?: string }) {
+  return (
+    <button onClick={onClick} disabled={disabled} title={title ?? 'open details'}
+      className="shrink-0 inline-flex items-center justify-center w-[26px] h-[26px] rounded border border-border text-muted-foreground hover:bg-muted disabled:opacity-40 transition-colors text-base leading-none">
+      …
+    </button>
   );
 }
 
@@ -59,11 +64,14 @@ export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onUpdat
   const isNode = !!node;
   const edgeId = edge ? Number(edge.id.replace(/^e/, '')) : 0;
 
-  const cidDirty = node ? cidDraft.trim() !== (node.data.cid !== undefined && node.data.cid !== null ? String(node.data.cid) : '') : false;
-  const commitCid = () => {
+  const cidStr = node && node.data.cid !== undefined && node.data.cid !== null ? String(node.data.cid) : '';
+  const cidDirty = node ? cidDraft.trim() !== cidStr : false;
+  const commitCid = async () => {
     if (!node || !onUpdateCid) return;
     const v = cidDraft.trim();
-    onUpdateCid(node.id, v === '' ? undefined : Number(v));
+    // the update is validated against /detector/config/{cid}; if rejected, revert the draft
+    const ok = await onUpdateCid(node.id, v === '' ? undefined : Number(v));
+    if (!ok) setCidDraft(cidStr);
   };
 
   return (
@@ -104,11 +112,8 @@ export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onUpdat
                   className="shrink-0 inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                   <IconSave size={13} /> {t('common.update')}
                 </button>
-                {/* open the referenced DetectorConfig (icon = the DetectorConfig tab icon) */}
-                <button onClick={() => onOpenDetectorConfig?.(node.data.cid as number)} disabled={!onOpenDetectorConfig} title={t('workflow.tabs.detectorConfig')}
-                  className="shrink-0 inline-flex items-center justify-center w-[26px] h-[26px] p-1 rounded border border-border text-muted-foreground hover:bg-muted disabled:opacity-40 transition-colors">
-                  {renderIcon(DEFAULT_CONFIG_ICON, 14)}
-                </button>
+                {/* open the referenced DetectorConfig detail view */}
+                <OpenDetailsButton onClick={() => onOpenDetectorConfig?.(node.data.cid as number)} disabled={!onOpenDetectorConfig} title={t('workflow.tabs.detectorConfig')} />
               </div>
             )}
 

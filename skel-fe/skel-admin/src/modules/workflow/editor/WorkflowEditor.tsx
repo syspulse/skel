@@ -19,7 +19,7 @@ import {
   type RFNodeData, type RFEdgeData,
 } from './grafMapping';
 import {
-  IconPlus, IconTrash, IconReset, IconSave, IconClose, IconSearch, IconArrowRight, IconRefresh,
+  IconPlus, IconTrash, IconReset, IconSave, IconClose, IconSearch, IconRefresh,
 } from '../../../components/Icons';
 import { statusChipStyle } from '../status';
 
@@ -39,6 +39,7 @@ export interface WorkflowEditorProps {
   detectorStatus?: Record<number, string>; // cid -> DetectorConfig status from /resolve (overlaid on nodes)
   resolving?: boolean;
   onResolve?: () => void;                 // fetch current engine state via /resolve (config only)
+  onValidateCid?: (cid: number) => Promise<boolean>; // verify DetectorConfig exists before a cid change
   tracking?: boolean;                     // Track toggle state (auto-poll /resolve)
   pollCount?: number;                     // number of polls executed (shown on the button while tracking)
   freq?: number;                          // Track polling interval (ms)
@@ -55,7 +56,7 @@ const EDGE_COLOR = '#64748b';
 
 function WorkflowEditorInner(props: WorkflowEditorProps) {
   const { t } = useTranslation();
-  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, resolving, onResolve, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
+  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, resolving, onResolve, onValidateCid, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
 
   const initial = useMemo(() => grafToRF(graf), [graf]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<RFNodeData>>(initial.nodes);
@@ -161,12 +162,19 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
 
   const handleSave = useCallback(() => persist(nodes, edges), [persist, nodes, edges]);
 
-  // commit a node's cid (re-link its DetectorConfig) and persist immediately via the API
-  const updateCid = useCallback((id: string, cid: number | undefined) => {
+  // commit a node's cid (re-link its DetectorConfig) and persist via the API.
+  // A non-empty cid is first verified against /detector/config/{cid}; if missing the change is
+  // rejected (an error event is dispatched by onValidateCid) and false is returned.
+  const updateCid = useCallback(async (id: string, cid: number | undefined): Promise<boolean> => {
+    if (cid !== undefined && onValidateCid) {
+      const ok = await onValidateCid(cid);
+      if (!ok) return false;
+    }
     const next = nodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, cid } } : n));
     setNodes(next);
     persist(next, edges);
-  }, [nodes, edges, persist, setNodes]);
+    return true;
+  }, [nodes, edges, persist, setNodes, onValidateCid]);
 
   // search highlight (dim non-matching) + overlay DetectorConfig status (from /resolve) by node cid
   const displayNodes = useMemo(() => {
@@ -208,8 +216,8 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
               </span>
             ) : null}
             <button onClick={() => onOpenDetails?.()} title={t('workflow.editor.openDetails')}
-              className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors">
-              <IconArrowRight size={13} />
+              className="shrink-0 inline-flex items-center justify-center w-[22px] h-[22px] rounded border border-border text-muted-foreground hover:bg-muted transition-colors text-base leading-none">
+              …
             </button>
           </div>
           {/* xid row: engine runtime id (no name duplication) */}

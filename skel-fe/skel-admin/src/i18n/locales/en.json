@@ -315,6 +315,7 @@
     "errorResolve": "Failed to resolve engine state",
     "track": "Track",
     "tracking": "Tracking…",
-    "freq": "Freq"
+    "freq": "Freq",
+    "errorCidNotFound": "DetectorConfig #{{id}} not found"
   }
 }
