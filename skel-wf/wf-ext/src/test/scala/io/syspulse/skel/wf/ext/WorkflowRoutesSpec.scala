@@ -108,6 +108,62 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       }
     }
 
+    "resolve WorkflowConfig(s) + all DetectorConfigs by runtimeId or workflowId (multiple ids)" in {
+      // assemble two configs, each with its own DetectorConfigs
+      val c1 = Post("/config/dsl", WorkflowConfigDslReq("Detector.rx -> Detector.ry", name = Some("R1"))) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
+      }
+      val c2 = Post("/config/dsl", WorkflowConfigDslReq("Detector.rp -> Detector.rq -> Detector.rr", name = Some("R2"))) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
+      }
+
+      val RID = "019f51c0-3917-731b-864d-3b9d326db0aa"       // runtimeId (UUID) -> xid
+      val WID = "PoR-DefaultProject-1783782976365"           // workflowId       -> meta.wid
+      // bind like assembly-track: c1 by runtimeId (xid), c2 by workflowId (meta.wid)
+      Await.result(store.addConfig(c1.copy(xid = Some(RID))), 5.seconds)
+      Await.result(store.addConfig(c2.copy(meta = Some(Map("wid" -> WID)))), 5.seconds)
+
+      // by runtimeId (UUID, auto-detect) -> c1 + its 2 detectors
+      Get(s"/config/resolve/$RID") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val r = responseAs[WorkflowConfigs]
+        r.total shouldBe 1L
+        r.configs.head.id shouldBe c1.id
+        r.detectors.get should have size 2
+      }
+      // by workflowId (auto-detect) -> c2
+      Get(s"/config/resolve/$WID") ~> routes.routes ~> check {
+        val r = responseAs[WorkflowConfigs]
+        r.total shouldBe 1L
+        r.configs.head.id shouldBe c2.id
+      }
+      // multiple ids in ONE call (comma path) -> both configs + ALL detectors (2+3)
+      Get(s"/config/resolve/$RID,$WID") ~> routes.routes ~> check {
+        val r = responseAs[WorkflowConfigs]
+        r.total shouldBe 2L
+        r.configs.map(_.id).toSet shouldBe Set(c1.id, c2.id)
+        r.detectors.get should have size 5
+      }
+      // dedup: RID twice -> once
+      Get(s"/config/resolve/$RID,$WID,$RID") ~> routes.routes ~> check {
+        responseAs[WorkflowConfigs].total shouldBe 2L
+      }
+      // type=rid forces runtimeId(xid) matching: WID (a workflowId) must NOT match c2's xid
+      Get(s"/config/resolve/$RID,$WID?type=rid") ~> routes.routes ~> check {
+        val r = responseAs[WorkflowConfigs]
+        r.configs.map(_.id) shouldBe Seq(c1.id) // only c1 (its xid == RID); WID has no xid match
+      }
+      // type=wid forces workflowId matching: RID (a UUID) must NOT match by meta.wid
+      Get(s"/config/resolve/$RID,$WID?type=wid") ~> routes.routes ~> check {
+        val r = responseAs[WorkflowConfigs]
+        r.configs.map(_.id) shouldBe Seq(c2.id) // only c2 (its meta.wid == WID)
+      }
+      // unknown id -> empty
+      Get("/config/resolve/nope") ~> routes.routes ~> check {
+        responseAs[WorkflowConfigs].total shouldBe 0L
+      }
+    }
+
     "delete a schema" in {
       Delete("/schema/0") ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK

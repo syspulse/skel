@@ -1,23 +1,27 @@
 #!/bin/bash
-# Assemble a WorkflowConfig from a DSL pipeline, link it to an Engine runtime by xid,
-# then poll the runtime periodically and render the topology + per-step statuses.
+# Track WorkflowConfig(s) + all DetectorConfigs via the resolve REST API, polling periodically.
+# Resolves by runtimeId (UUID) or workflowId; TYPE forces the mode (rid|wid).
 #
-# Runs with sensible defaults (the PoR-Flow demo workflow) when no parameters are given:
-#   ./wf-engine-track.sh
-#   ./wf-engine-track.sh <runtimeId>
-#   ./wf-engine-track.sh <runtimeId> '[ProofOfOwnership] -> [ProofOfReserve] -> [Report] -> [Commit]'
-#   POLL=1000 DATASTORE=dir://store ./wf-engine-track.sh
-
-# defaults (current demo workflow xid + its Event-History activities as DSL)
-DEF_RUNTIME_ID="019f51c0-3917-731b-864d-3b9d326db0aa"
-DEF_PIPELINE="[ProofOfOwnership] -> [ProofOfReserve] -> [Report] -> [Commit]"
-
-RUNTIME_ID="${1:-$DEF_RUNTIME_ID}"
-[ $# -gt 0 ] && shift
-PIPELINE="${*:-$DEF_PIPELINE}"
-
-DATASTORE=${DATASTORE:-mem://}
-ENGINE=${ENGINE:-temporal://}
+#   ./wf-engine-track.sh                                   # default demo id, auto-detect
+#   ./wf-engine-track.sh <id>[,<id>...]                    # one or many ids in one call
+#   TYPE=rid ./wf-engine-track.sh <runtimeId>              # force runtimeId (xid)
+#   TYPE=wid POLL=1000 ./wf-engine-track.sh <workflowId>   # force workflowId (meta.wid)
+#
+# The config(s) must already be present in the server store (e.g. created via
+# ./run-wf-engine-track.sh or ./run-wf-engine-link.sh).
+IDS=${1:-019f51c0-3917-731b-864d-3b9d326db0aa}
+TYPE=${TYPE:-}
 POLL=${POLL:-3000}
 
-exec ./run-wf.sh --datastore="$DATASTORE" --engine="$ENGINE" --poll="$POLL" assembly-track "$RUNTIME_ID" "$PIPELINE"
+SERVICE_URI=${SERVICE_URI:-http://127.0.0.1:8080/api/v1/wf/ext}
+ACCESS_TOKEN=${ACCESS_TOKEN-`cat ACCESS_TOKEN 2>/dev/null`}
+
+URL="$SERVICE_URI/config/resolve/$IDS"
+[[ -n "$TYPE" ]] && URL="$URL?type=$TYPE"
+
+>&2 echo "Tracking $URL every ${POLL}ms (Ctrl+C to stop)"
+while true; do
+  curl -S -s -X GET -H 'Content-Type: application/json' -H "Authorization: Bearer $ACCESS_TOKEN" "$URL"
+  echo
+  sleep "$(awk "BEGIN{print $POLL/1000}")"
+done

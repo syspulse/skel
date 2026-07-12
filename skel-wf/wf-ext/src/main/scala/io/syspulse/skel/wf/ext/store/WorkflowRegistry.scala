@@ -16,6 +16,7 @@ import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigCon
 import io.syspulse.skel.ErrNotFound
 import io.syspulse.skel.wf.ext.server._
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
+import io.syspulse.skel.wf.ext.engine.TrackMapper
 
 object WorkflowRegistry {
   val log = Logger(s"${this}")
@@ -33,6 +34,12 @@ object WorkflowRegistry {
   final case class GetConfig(id: Int, detail: Boolean, replyTo: ActorRef[Try[WorkflowConfigView]]) extends Command
   final case class GetConfigByXid(xid: String, replyTo: ActorRef[Option[WorkflowConfig]]) extends Command
   final case class GetConfigsByOid(oid: String, replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+  // resolve WorkflowConfig(s) (+ all DetectorConfigs) by runtimeId (xid) or workflowId (meta.wid), many ids in one call.
+  // typ forces the resolution mode: Some("rid") -> by xid, Some("wid") -> by workflowId, None -> auto-detect (UUID -> rid).
+  final case class ResolveConfigs(ids: Seq[String], typ: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+
+  val RESOLVE_RID = "rid"  // resolve by runtimeId (WorkflowConfig.xid)
+  val RESOLVE_WID = "wid"  // resolve by workflowId (WorkflowConfig.meta.wid / name)
   final case class CreateConfig(req: WorkflowConfigCreateReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   final case class CreateConfigDsl(req: WorkflowConfigDslReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   final case class UpdateConfig(id: Int, req: WorkflowConfigUpdateReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
@@ -84,6 +91,33 @@ object WorkflowRegistry {
     Future.sequence(cids.map(id => store.getDetectorConfig(id).map(_.map(id.toString -> _))))
       .map(_.flatten.toMap)
   }
+
+  /** WorkflowConfig.meta("wid") as String, if present. */
+  private def configWid(c: WorkflowConfig): Option[String] =
+    c.meta.flatMap(_.get("wid")).map(_.toString)
+
+  /**
+   * Resolve WorkflowConfig(s) by runtimeId or workflowId (same detection as assembly-track):
+   *   - `rid` -> match WorkflowConfig.xid          (a specific run)
+   *   - `wid` -> match WorkflowConfig.meta("wid")  (a WorkflowId), falling back to name
+   *   - auto  -> UUID -> `rid`, otherwise `wid`
+   * `typ` (Some("rid")|Some("wid")) forces the mode; None auto-detects per id.
+   * Returns the matched configs (deduped) plus ALL their DetectorConfigs.
+   */
+  private def resolveConfigs(store: WorkflowStore, ids: Seq[String], typ: Option[String])(implicit ec: ExecutionContext): Future[WorkflowConfigs] =
+    store.allConfigs.flatMap { all =>
+      def byRid(id: String) = all.filter(_.xid.contains(id))
+      def byWid(id: String) = all.filter(c => configWid(c).contains(id) || c.name == id)
+      val mode = typ.map(_.trim.toLowerCase)
+      val found = ids.flatMap { id =>
+        mode match {
+          case Some(RESOLVE_RID) => byRid(id)
+          case Some(RESOLVE_WID) => byWid(id)
+          case _                 => if (TrackMapper.isUuid(id)) byRid(id) else byWid(id)
+        }
+      }.distinctBy(_.id)
+      configDetectors(store, found).map(dets => WorkflowConfigs(found, found.size.toLong, Some(dets)))
+    }
 
   // ---------------------------------------------------------------- update merge
   private def applyUpdate(s: WorkflowSchema, req: WorkflowSchemaUpdateReq): WorkflowSchema =
@@ -239,6 +273,11 @@ object WorkflowRegistry {
 
       case GetConfigsByOid(oid, replyTo) =>
         store.findConfigByOid(oid).map(cs => WorkflowConfigs(cs, cs.size.toLong, None)).onComplete(replyTo ! _)
+        Behaviors.same
+
+      case ResolveConfigs(ids, typ, replyTo) =>
+        log.info(s"ResolveConfigs: type=${typ.getOrElse("auto")} ids=${ids.mkString(",")}")
+        resolveConfigs(store, ids, typ).onComplete(replyTo ! _)
         Behaviors.same
 
       case CreateConfig(req, replyTo) =>

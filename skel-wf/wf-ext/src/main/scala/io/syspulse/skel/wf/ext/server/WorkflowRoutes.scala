@@ -70,6 +70,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def getConfig(id: Int, detail: Boolean): Future[Try[WorkflowConfigView]] = registry.ask(GetConfig(id, detail, _))
   def getConfigByXid(xid: String): Future[Option[WorkflowConfig]] = registry.ask(GetConfigByXid(xid, _))
   def getConfigsByOid(oid: String): Future[Try[WorkflowConfigs]] = registry.ask(GetConfigsByOid(oid, _))
+  def resolveConfigs(ids: Seq[String], typ: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(ResolveConfigs(ids, typ, _))
   def createConfig(req: WorkflowConfigCreateReq): Future[Try[WorkflowConfig]] = registry.ask(CreateConfig(req, _))
   def createConfigDsl(req: WorkflowConfigDslReq): Future[Try[WorkflowConfig]] = registry.ask(CreateConfigDsl(req, _))
   def updateConfig(id: Int, req: WorkflowConfigUpdateReq): Future[Try[WorkflowConfig]] = registry.ask(UpdateConfig(id, req, _))
@@ -219,6 +220,19 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def getConfigByXidRoute(xid: String) = get { rejectEmptyResponse { complete(getConfigByXid(xid)) } }
   def getConfigsByOidRoute(oid: String) = get { completeTry(getConfigsByOid(oid)) }
 
+  /** Split a comma-separated `ids` path segment into a clean list. */
+  private def splitIds(csv: String): Seq[String] =
+    csv.split(",").map(_.trim).filter(_.nonEmpty).toSeq
+
+  @GET @Path("/config/resolve/{ids}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("config"), summary = "Resolve WorkflowConfig(s) + all DetectorConfigs by runtimeId or workflowId",
+    parameters = Array(
+      new Parameter(name = "ids", in = ParameterIn.PATH, description = "comma-separated runtimeId (UUID) and/or workflowId list"),
+      new Parameter(name = "type", in = ParameterIn.QUERY, description = "force resolution mode: 'rid' (runtimeId/xid) or 'wid' (workflowId); default auto-detect")),
+    responses = Array(new ApiResponse(responseCode = "200", description = "configs",
+      content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
+  def getConfigsResolveRoute(ids: Seq[String], typ: Option[String]) = get { completeTry(resolveConfigs(ids, typ)) }
+
   @POST @Path("/config") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("config"), summary = "Create WorkflowConfig from WorkflowSchema",
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigCreateReq])))),
@@ -326,6 +340,14 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       pathPrefix("config") {
         concat(
           pathPrefix("dsl") { pathEndOrSingleSlash { createConfigDslRoute() } },
+          pathPrefix("resolve") {
+            // /config/resolve/<a>,<b>,<c>[?type=rid|wid]
+            pathPrefix(Segment) { csv =>
+              pathEndOrSingleSlash {
+                parameter("type".?) { typ => getConfigsResolveRoute(splitIds(csv), typ) }
+              }
+            }
+          },
           pathPrefix("xid") { pathPrefix(Segment) { xid => getConfigByXidRoute(xid) } },
           pathPrefix("oid") { pathPrefix(Segment) { oid => getConfigsByOidRoute(oid) } },
           pathPrefix(IntNumber) { id =>
