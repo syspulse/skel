@@ -102,7 +102,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   private def forEngine(engineName: String)(f: Engine => Route): Route = engine match {
     case Some(e) if e.name.equalsIgnoreCase(engineName) => f(e)
     case Some(e) => complete(StatusCodes.NotFound -> s"engine not supported: '${engineName}' (configured: '${e.name}')")
-    case None    => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --wf=temporal://...)")
+    case None    => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --engine=temporal://...)")
   }
 
   private def completeFuture[T](f: Future[T])(implicit m: ToResponseMarshaller[T]): Route =

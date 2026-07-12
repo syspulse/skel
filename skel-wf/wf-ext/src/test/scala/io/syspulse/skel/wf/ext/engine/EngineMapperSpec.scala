@@ -99,7 +99,7 @@ class EngineMapperSpec extends AnyWordSpec with Matchers {
   }
 
   "Engine.scheme" should {
-    "extract the engine scheme from a --wf uri" in {
+    "extract the engine scheme from a --engine uri" in {
       Engine.scheme("temporal://127.0.0.1:7233/default") shouldBe "temporal"
       Engine.scheme("temporal://") shouldBe "temporal"
       Engine.isEngineUri("temporal://") shouldBe true

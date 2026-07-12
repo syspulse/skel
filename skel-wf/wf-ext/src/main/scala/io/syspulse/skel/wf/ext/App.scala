@@ -26,8 +26,8 @@ case class Config(
   wn: Option[String] = None,  // --wn  : WorkflowSchema name (default: random)
 
   // Engine options
-  wf: Option[String] = None,  // --wf  : Engine URI (e.g. temporal://127.0.0.1:7233/default)
-  ns: Option[String] = None,  // --ns  : Engine namespace override (e.g. default, '*')
+  engine: Option[String] = None, // --engine : Engine URI (e.g. temporal://127.0.0.1:7233/default)
+  ns: Option[String] = None,     // --ns     : Engine namespace override (e.g. default, '*')
   poll: Long = 3000,          // --poll: assembly-track polling interval in msec (def: 3000)
 
   cmd: String = "server",
@@ -52,7 +52,7 @@ object App extends skel.Server {
 
   // Known CLI commands. The shared arg parser only recognises a command when it is the
   // first non-option token, so we hoist it to the front - this lets options precede the
-  // command (e.g. `--wf=temporal:// assembly-link <rid> <pipeline>` as in the requirements).
+  // command (e.g. `--engine=temporal:// assembly-link <rid> <pipeline>` as in the requirements).
   private val KNOWN_CMDS = Set("server", "schema", "assembly", "assembly-link", "assembly-track", "runtime-get")
 
   // Commands that take an Assembly DSL pipeline (which contains `->` tokens and spaces).
@@ -128,7 +128,7 @@ object App extends skel.Server {
         ArgString('_', "wid", s"WorkflowSchema id for schema/assembly (def: next id, starts at 0)"),
         ArgString('_', "wn", s"WorkflowSchema name for schema/assembly (def: random)"),
 
-        ArgString('_', "wf", s"Engine URI (e.g. temporal://127.0.0.1:7233/default)"),
+        ArgString('_', "engine", s"Engine URI (e.g. temporal://127.0.0.1:7233/default)"),
         ArgString('_', "ns", s"Engine namespace override (e.g. default, '*' for all)"),
         ArgLong('_', "poll", s"assembly-track polling interval in msec (def: ${d.poll})"),
 
@@ -137,7 +137,7 @@ object App extends skel.Server {
         ArgCmd("assembly", s"Create a WorkflowConfig (+ WorkflowSchema) from an Assembly DSL pipeline (param: pipeline)"),
         ArgCmd("assembly-link", s"Assemble a WorkflowConfig from DSL and link it to an Engine runtime (params: <runtimeId> <pipeline>)"),
         ArgCmd("assembly-track", s"assembly-link + poll the Engine runtime, rendering topology + step statuses (params: <runtimeId> <pipeline>)"),
-        ArgCmd("runtime-get", s"Get Engine runtime workflow(s) (param: optional <runtimeId>); requires --wf"),
+        ArgCmd("runtime-get", s"Get Engine runtime workflow(s) (param: optional <runtimeId>); requires --engine"),
 
         ArgParam("<params>", "DSL pipeline, e.g. 'Detector.a -> Detector.b -> Detector.c'"),
         ArgLogging()
@@ -151,7 +151,7 @@ object App extends skel.Server {
       datastore = c.getString("datastore").getOrElse(d.datastore),
       wid = c.getString("wid").map(_.toInt),
       wn = c.getString("wn"),
-      wf = c.getString("wf").filter(_.nonEmpty),
+      engine = c.getString("engine").filter(_.nonEmpty),
       ns = c.getString("ns").filter(_.nonEmpty),
       poll = c.getLong("poll").getOrElse(d.poll),
       cmd = c.getCmd().getOrElse(d.cmd),
@@ -171,8 +171,8 @@ object App extends skel.Server {
 
     val store = getStore(config.datastore)
 
-    // Engine URI: explicit --wf, or defaulted to temporal:// for the engine-only commands.
-    def engineUri(default: String = "temporal://"): String = config.wf.getOrElse(default)
+    // Engine URI: explicit --engine, or defaulted to temporal:// for the engine-only commands.
+    def engineUri(default: String = "temporal://"): String = config.engine.getOrElse(default)
     def newEngine(): Engine = Engine(engineUri())
 
     // Render an EngineWorkflow tree for CLI output.
@@ -216,9 +216,9 @@ object App extends skel.Server {
     val r = config.cmd match {
       case "server" =>
         Console.err.println(s"Store: ${store}")
-        // Engine is created only when --wf is provided; engine REST routes are enabled then.
-        val engine: Option[Engine] = config.wf.map(Engine(_))
-        Console.err.println(s"Engine: ${engine.map(_ => engineUri()).getOrElse("(none, set --wf to enable /engine API)")}")
+        // Engine is created only when --engine is provided; engine REST routes are enabled then.
+        val engine: Option[Engine] = config.engine.map(Engine(_))
+        Console.err.println(s"Engine: ${engine.map(_ => engineUri()).getOrElse("(none, set --engine to enable /engine API)")}")
         // skel Server.parseUriPath only uses 3 path segments (api/v1/wf) for the prefix and drops
         // the 4th ("ext"), so re-add it via Routeable.withSuffix -> /api/v1/wf/ext/{schema,config,graf,engine}
         run(config.host, config.port, config.uri, c,

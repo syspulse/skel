@@ -5,7 +5,7 @@
 #   NS=default ./wf-engine-get.sh <runtimeId>  # single workflow (expanded) by runtimeId (Temporal RunId)
 #
 # The server must be started with an Engine, e.g.:
-#   ./run-wf.sh --wf=temporal://127.0.0.1:7233/default server
+#   ./run-wf.sh --engine=temporal://127.0.0.1:7233/default server
 RUNTIME_ID=${1:-}
 ENGINE=${ENGINE:-temporal}
 NS=${NS:-}

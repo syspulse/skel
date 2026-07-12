@@ -17,7 +17,7 @@ RUNTIME_ID="${1:-$DEF_RUNTIME_ID}"
 PIPELINE="${*:-$DEF_PIPELINE}"
 
 DATASTORE=${DATASTORE:-mem://}
-WF=${WF:-temporal://}
+ENGINE=${ENGINE:-temporal://}
 POLL=${POLL:-3000}
 
-exec ./run-wf.sh --datastore="$DATASTORE" --wf="$WF" --poll="$POLL" assembly-track "$RUNTIME_ID" "$PIPELINE"
+exec ./run-wf.sh --datastore="$DATASTORE" --engine="$ENGINE" --poll="$POLL" assembly-track "$RUNTIME_ID" "$PIPELINE"

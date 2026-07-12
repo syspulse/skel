@@ -12,6 +12,6 @@ shift
 PIPELINE="${*:?"usage: wf-engine-link.sh <runtimeId> '<pipeline>'"}"
 
 DATASTORE=${DATASTORE:-mem://}
-WF=${WF:-temporal://}
+ENGINE=${ENGINE:-temporal://}
 
-exec ./run-wf.sh --datastore="$DATASTORE" --wf="$WF" assembly-link "$RUNTIME_ID" "$PIPELINE"
+exec ./run-wf.sh --datastore="$DATASTORE" --engine="$ENGINE" assembly-link "$RUNTIME_ID" "$PIPELINE"

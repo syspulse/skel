@@ -63,7 +63,7 @@ object Engine {
   val TEMPORAL = "temporal"
 
   /**
-   * Build an Engine from a `--wf` URI.
+   * Build an Engine from a `--engine` URI.
    *   temporal://           -> Temporal engine (defaults 127.0.0.1:7233/default)
    *   temporal://host:port/ns?opts
    */
@@ -75,7 +75,7 @@ object Engine {
     }
   }
 
-  /** Extract the engine scheme from a `--wf` URI ("temporal://..." -> "temporal"). */
+  /** Extract the engine scheme from a `--engine` URI ("temporal://..." -> "temporal"). */
   def scheme(uri: String): String = {
     val u = Option(uri).map(_.trim).getOrElse("")
     val idx = u.indexOf("://")
