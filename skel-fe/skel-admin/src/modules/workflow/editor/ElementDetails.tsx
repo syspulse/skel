@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Node, Edge } from '@xyflow/react';
 import type { RFNodeData, RFEdgeData } from './grafMapping';
-import { IconPicker } from '../../../components/IconPicker';
-import { IconClose, IconTrash, IconArrowRight } from '../../../components/Icons';
+import { IconPicker, renderIcon, DEFAULT_CONFIG_ICON } from '../../../components/IconPicker';
+import { IconClose, IconTrash, IconArrowRight, IconSave } from '../../../components/Icons';
 
 interface ElementDetailsProps {
   node: Node<RFNodeData> | null;
   edge: Edge<RFEdgeData> | null;
   onUpdateNode: (id: string, patch: Partial<RFNodeData>) => void;
   onUpdateEdge: (id: string, patch: Partial<RFEdgeData>) => void;
+  onUpdateCid?: (nodeId: string, cid: number | undefined) => void; // commit cid + persist (calls API)
   onDeleteNode: (id: string) => void;
   onDeleteEdge: (id: string) => void;
   onOpenDetectorSchema?: (id: number) => void;
@@ -44,12 +45,26 @@ function IdRow({ label, value, onGo }: { label: string; value: React.ReactNode; 
   );
 }
 
-export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onDeleteNode, onDeleteEdge, onOpenDetectorSchema, onOpenDetectorConfig, onClose }: ElementDetailsProps) {
+export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onUpdateCid, onDeleteNode, onDeleteEdge, onOpenDetectorSchema, onOpenDetectorConfig, onClose }: ElementDetailsProps) {
   const { t } = useTranslation();
+
+  // cid is edited as a draft and only committed (persisted via API) with the [Update] button
+  const [cidDraft, setCidDraft] = useState('');
+  useEffect(() => {
+    setCidDraft(node?.data.cid !== undefined && node?.data.cid !== null ? String(node.data.cid) : '');
+  }, [node?.id, node?.data.cid]);
+
   if (!node && !edge) return null;
 
   const isNode = !!node;
   const edgeId = edge ? Number(edge.id.replace(/^e/, '')) : 0;
+
+  const cidDirty = node ? cidDraft.trim() !== (node.data.cid !== undefined && node.data.cid !== null ? String(node.data.cid) : '') : false;
+  const commitCid = () => {
+    if (!node || !onUpdateCid) return;
+    const v = cidDraft.trim();
+    onUpdateCid(node.id, v === '' ? undefined : Number(v));
+  };
 
   return (
     <div className="absolute top-0 right-0 bottom-0 w-[340px] max-w-[85%] bg-card border-l border-border z-20 flex flex-col shadow-2xl">
@@ -75,8 +90,26 @@ export function ElementDetails({ node, edge, onUpdateNode, onUpdateEdge, onDelet
             <IdRow label={t('workflow.fields.sid')} value={node.data.sid}
               onGo={onOpenDetectorSchema && node.data.sid >= 0 ? () => onOpenDetectorSchema(node.data.sid) : undefined} />
             {node.data.cid !== undefined && node.data.cid !== null && (
-              <IdRow label={t('workflow.fields.cid')} value={node.data.cid}
-                onGo={onOpenDetectorConfig ? () => onOpenDetectorConfig(node.data.cid as number) : undefined} />
+              <div className="flex items-center gap-2">
+                <label className="w-24 row-label">{t('workflow.fields.cid')}</label>
+                <input
+                  className="flex-1 min-w-0 text-sm font-mono field px-2 py-1 bg-card"
+                  value={cidDraft}
+                  onChange={(e) => setCidDraft(e.target.value.replace(/[^0-9]/g, ''))}
+                  onKeyDown={(e) => { if (e.key === 'Enter') commitCid(); }}
+                  inputMode="numeric"
+                />
+                {/* cid changes re-link the DetectorConfig -> commit via API only on [Update] */}
+                <button onClick={commitCid} disabled={!onUpdateCid || !cidDirty} title={t('common.update')}
+                  className="shrink-0 inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-border text-muted-foreground hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                  <IconSave size={13} /> {t('common.update')}
+                </button>
+                {/* open the referenced DetectorConfig (icon = the DetectorConfig tab icon) */}
+                <button onClick={() => onOpenDetectorConfig?.(node.data.cid as number)} disabled={!onOpenDetectorConfig} title={t('workflow.tabs.detectorConfig')}
+                  className="shrink-0 inline-flex items-center justify-center w-[26px] h-[26px] p-1 rounded border border-border text-muted-foreground hover:bg-muted disabled:opacity-40 transition-colors">
+                  {renderIcon(DEFAULT_CONFIG_ICON, 14)}
+                </button>
+              </div>
             )}
 
             <Row label={t('workflow.editor.title')}>

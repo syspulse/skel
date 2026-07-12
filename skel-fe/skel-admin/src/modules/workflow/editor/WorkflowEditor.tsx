@@ -146,16 +146,26 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
     setNodes([]); setEdges([]); setSelectedNodeId(null); setSelectedEdgeId(null);
   }, [setNodes, setEdges]);
 
-  const handleSave = useCallback(() => {
-    const g = rfToGraf(graf, nodes, edges);
-    const vp = getViewport(); // persist current pan + zoom + grid settings in the graf meta
+  // persist a specific nodes/edges set (also captures pan/zoom + grid settings into the graf meta)
+  const persist = useCallback((ns: Node<RFNodeData>[], es: Edge<RFEdgeData>[]) => {
+    const g = rfToGraf(graf, ns, es);
+    const vp = getViewport();
     g.meta = {
       ...(g.meta ?? {}),
       view_x: Math.round(vp.x), view_y: Math.round(vp.y), view_zoom: Number(vp.zoom.toFixed(3)),
       grid_size: gridSize, snap_to_grid: snapToGrid,
     };
     onSave(g);
-  }, [onSave, graf, nodes, edges, getViewport, gridSize, snapToGrid]);
+  }, [onSave, graf, getViewport, gridSize, snapToGrid]);
+
+  const handleSave = useCallback(() => persist(nodes, edges), [persist, nodes, edges]);
+
+  // commit a node's cid (re-link its DetectorConfig) and persist immediately via the API
+  const updateCid = useCallback((id: string, cid: number | undefined) => {
+    const next = nodes.map((n) => (n.id === id ? { ...n, data: { ...n.data, cid } } : n));
+    setNodes(next);
+    persist(next, edges);
+  }, [nodes, edges, persist, setNodes]);
 
   // search highlight (dim non-matching) + overlay DetectorConfig status (from /resolve) by node cid
   const displayNodes = useMemo(() => {
@@ -313,6 +323,7 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           edge={selectedEdge}
           onUpdateNode={updateNode}
           onUpdateEdge={updateEdge}
+          onUpdateCid={updateCid}
           onDeleteNode={deleteNode}
           onDeleteEdge={deleteEdge}
           onOpenDetectorSchema={onOpenDetectorSchema}
