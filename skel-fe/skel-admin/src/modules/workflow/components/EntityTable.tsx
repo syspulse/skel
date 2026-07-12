@@ -5,6 +5,7 @@ import { IconTrash } from '../../../components/Icons';
 import { TimestampCell } from '../../../components/TimestampCell';
 import { getTimezoneShortLabel } from '../../../components/timezone';
 import { renderIconFill } from '../../../components/IconPicker';
+import { statusChipStyle } from '../status';
 
 export interface TableColumn {
   key: string;
@@ -32,15 +33,6 @@ interface EntityTableProps {
   onRowClick: (id: number) => void;
   onRowDoubleClick?: (id: number) => void;
   onDelete: (id: number) => void;
-}
-
-function statusClass(status?: string): string {
-  switch ((status ?? '').toUpperCase()) {
-    case 'ACTIVE': return 'text-emerald-600';
-    case 'DISABLED': return 'text-amber-600';
-    case 'DELETED': return 'text-red-600';
-    default: return 'text-muted-foreground';
-  }
 }
 
 export function EntityTable({ rows, columns, selectedId, defaultIcon, timezone, minRows = 12, onRowClick, onRowDoubleClick, onDelete }: EntityTableProps) {
@@ -105,7 +97,13 @@ export function EntityTable({ rows, columns, selectedId, defaultIcon, timezone, 
               {columns.map((c) => (
                 <td key={c.key} className={`${TABLE_TD} text-muted-foreground truncate`}>{r.cells?.[c.key] ?? ''}</td>
               ))}
-              <td className={`${TABLE_TD} ${statusClass(r.status)}`}>{r.status ?? ''}</td>
+              <td className={TABLE_TD}>
+                {r.status ? (
+                  <span className="text-[11px] px-1.5 py-0.5 rounded font-semibold" style={statusChipStyle(r.status)} title={`status: ${r.status}`}>
+                    {r.status}
+                  </span>
+                ) : ''}
+              </td>
               {r.ts != null
                 ? <TimestampCell ts={r.ts} timezone={timezone} />
                 : <td className={`${TABLE_TD} text-muted-foreground`} />}
