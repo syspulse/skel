@@ -49,7 +49,7 @@ const EDGE_COLOR = '#64748b';
 
 function WorkflowEditorInner(props: WorkflowEditorProps) {
   const { t } = useTranslation();
-  const { id, title, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, resolving, onResolve, onSave, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
+  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, resolving, onResolve, onSave, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
 
   const initial = useMemo(() => grafToRF(graf), [graf]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<RFNodeData>>(initial.nodes);
@@ -179,13 +179,9 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           {renderIcon(icon && icon.trim() ? icon : (kind === KIND.workflowConfig ? DEFAULT_WF_CONFIG_ICON : DEFAULT_WF_SCHEMA_ICON), 22)}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="text-sm text-foreground truncate">{title || name}</div>
+          {/* WorkflowConfig.name (NOT the schema-derived title), with the id label next to it */}
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-muted-foreground truncate">{name}</span>
-            {/* xid: engine runtime id, shown right after the name */}
-            {kind === KIND.workflowConfig && xid ? (
-              <span className="text-[10px] text-muted-foreground font-mono truncate shrink-0" title={`xid: ${xid}`}>{xid}</span>
-            ) : null}
+            <span className="text-sm text-foreground truncate">{name}</span>
             <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${kind === KIND.workflowConfig ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
               {id}
             </span>
@@ -200,6 +196,10 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
               <IconArrowRight size={13} />
             </button>
           </div>
+          {/* xid row: engine runtime id (no name duplication) */}
+          {kind === KIND.workflowConfig && xid ? (
+            <div className="text-[11px] text-muted-foreground font-mono truncate" title={`xid: ${xid}`}>{xid}</div>
+          ) : null}
         </div>
         <button onClick={onBack} className="text-muted-foreground hover:text-foreground p-1 rounded shrink-0" title={t('common.close')}>
           <IconClose size={18} />

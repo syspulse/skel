@@ -9,21 +9,23 @@ export interface StatusStyle {
   border?: string;
 }
 
+// Colors picked to match the Temporal UI status chips (pastel background, dark text).
+const DARK = '#0f172a';
 export function statusStyle(status?: string): StatusStyle {
   switch ((status ?? '').toUpperCase()) {
-    case 'COMPLETED':          return { bg: '#22c55e', fg: '#1f2937' };                          // green
-    case 'RUNNING':            return { bg: '#3b82f6', fg: '#ffffff' };                          // blue
-    case 'WAITING':            return { bg: '#38bdf8', fg: '#0f172a' };                          // light blue
-    case 'FAILED':             return { bg: '#ef4444', fg: '#ffffff' };                          // red
-    case 'TERMINATED':         return { bg: '#eab308', fg: '#1f2937' };                          // yellow
+    case 'COMPLETED':          return { bg: '#86efac', fg: DARK };  // green
+    case 'RUNNING':            return { bg: '#93c5fd', fg: DARK };  // blue
+    case 'WAITING':            return { bg: '#bae6fd', fg: DARK };  // light blue
+    case 'FAILED':             return { bg: '#f8a488', fg: DARK };  // salmon/orange
+    case 'TERMINATED':         return { bg: '#e5d54a', fg: DARK };  // yellow
     case 'CANCELED':
-    case 'CANCELLED':          return { bg: '#ffffff', fg: '#1f2937', border: '1px solid #cbd5e1' }; // white
-    case 'TIMED_OUT':          return { bg: '#f97316', fg: '#ffffff' };                          // orange
-    case 'CONTINUED_AS_NEW':   return { bg: '#a855f7', fg: '#ffffff' };                          // purple
-    case 'ACTIVE':             return { bg: '#d1fae5', fg: '#047857' };                          // emerald (stored)
-    case 'DISABLED':           return { bg: '#fef3c7', fg: '#b45309' };
-    case 'DELETED':            return { bg: '#fee2e2', fg: '#b91c1c' };
-    default:                   return { bg: '#e5e7eb', fg: '#374151' };                          // gray (UNKNOWN/…)
+    case 'CANCELLED':          return { bg: '#9ca3af', fg: DARK };  // gray
+    case 'TIMED_OUT':          return { bg: '#fdba74', fg: DARK };  // orange
+    case 'CONTINUED_AS_NEW':   return { bg: '#d8b4fe', fg: DARK };  // purple
+    case 'ACTIVE':             return { bg: '#86efac', fg: DARK };
+    case 'DISABLED':           return { bg: '#fde68a', fg: DARK };
+    case 'DELETED':            return { bg: '#fca5a5', fg: DARK };
+    default:                   return { bg: '#e5e7eb', fg: '#374151' };  // gray (UNKNOWN/…)
   }
 }
 
