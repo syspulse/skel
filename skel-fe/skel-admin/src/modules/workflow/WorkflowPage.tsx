@@ -80,6 +80,10 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   const [resolving, setResolving] = useState(false);
   // cid -> DetectorConfig runtime status from the last /resolve (overlaid on the editor graph nodes)
   const [resolvedDetStatus, setResolvedDetStatus] = useState<Record<number, string>>({});
+  // Track: auto-poll /resolve for the given config id at `freq` ms (null = not tracking)
+  const [freq, setFreq] = useState(3000);
+  const [trackingId, setTrackingId] = useState<number | null>(null);
+  const [pollCount, setPollCount] = useState(0); // number of Track polls executed in the current session
 
   const [editor, setEditor] = useState<EditorState | null>(null);
   // detector detail opened from the editor (sid/cid [->]) - read-only overlay
@@ -122,10 +126,12 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   }, [token, notifyError, t]);
 
   // ----- Resolve: fetch current engine state (WorkflowConfig + DetectorConfig statuses) via /resolve -----
-  const resolveConfig = useCallback(async (c: WorkflowConfig) => {
+  // `background` (used by the Track polling loop) skips the `resolving` flag so the Resolve/Track
+  // buttons are NOT toggled (disabled/label) on every automatic poll - only a manual click shows it.
+  const resolveConfig = useCallback(async (c: WorkflowConfig, background = false) => {
     const rid = c.xid || (c.meta?.wid ? String(c.meta.wid) : '') || c.name;
     if (!rid) return;
-    setResolving(true);
+    if (!background) setResolving(true);
     try {
       const res = await api.resolveConfigs(token, rid);
       const rc = res.configs.find((x) => x.id === c.id) ?? res.configs[0];
@@ -139,11 +145,29 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
       // reflect the live DetectorConfig statuses in the detector list too
       setDetConfigs((cur) => cur.map((d) => (map[d.id] !== undefined ? { ...d, status: map[d.id] } : d)));
     } catch (e) {
-      notifyError(t('workflow.errorResolve'), e instanceof Error ? e.message : String(e));
+      if (!background) notifyError(t('workflow.errorResolve'), e instanceof Error ? e.message : String(e));
     } finally {
-      setResolving(false);
+      if (!background) setResolving(false);
     }
   }, [token, notifyError, t]);
+
+  // keep a ref to the latest configs so the tracking interval always resolves the current object (xid may change)
+  const configsRef = useRef<WorkflowConfig[]>(configs);
+  useEffect(() => { configsRef.current = configs; }, [configs]);
+
+  // Track: while a config id is tracked, poll /resolve every `freq` ms (resolves immediately on start)
+  useEffect(() => {
+    if (trackingId === null) return;
+    setPollCount(0);
+    const tick = () => {
+      const c = configsRef.current.find((x) => x.id === trackingId);
+      if (c) resolveConfig(c, true); // background poll: don't toggle the Resolve/Track buttons
+      setPollCount((n) => n + 1);
+    };
+    tick();
+    const iv = setInterval(tick, Math.max(200, freq));
+    return () => clearInterval(iv);
+  }, [trackingId, freq, resolveConfig]);
 
   // react to deep-link from SideNav submenu
   useEffect(() => {
@@ -160,6 +184,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
     homeKeyRef.current = homeKey;
     setEditor(null);
     setDetView(null);
+    setTrackingId(null);
   }, [homeKey]);
 
   const refreshAndNotify = useCallback(async () => {
@@ -283,8 +308,13 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           detectorStatus={resolvedDetStatus}
           resolving={resolving}
           onResolve={editorConfig ? () => resolveConfig(editorConfig) : undefined}
+          tracking={trackingId === editor.id}
+          pollCount={pollCount}
+          freq={freq}
+          onFreqChange={setFreq}
+          onToggleTrack={editorConfig ? () => setTrackingId((cur) => (cur === editor.id ? null : editor.id)) : undefined}
           onSave={handleEditorSave}
-          onBack={() => setEditor(null)}
+          onBack={() => { setTrackingId(null); setEditor(null); }}
           onOpenDetails={() => setWfDetailsOpen(true)}
           onOpenDetectorSchema={(id) => setDetView({ kind: KIND.detectorSchema, id })}
           onOpenDetectorConfig={(id) => setDetView({ kind: KIND.detectorConfig, id })}

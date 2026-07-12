@@ -216,6 +216,9 @@
   "workflow": {
     "resolve": "Auflösen",
     "resolving": "Wird aufgelöst…",
-    "errorResolve": "Engine-Status konnte nicht aufgelöst werden"
+    "errorResolve": "Engine-Status konnte nicht aufgelöst werden",
+    "track": "Verfolgen",
+    "tracking": "Verfolgt…",
+    "freq": "Freq"
   }
 }

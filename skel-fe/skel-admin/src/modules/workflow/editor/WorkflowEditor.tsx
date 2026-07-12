@@ -38,6 +38,11 @@ export interface WorkflowEditorProps {
   detectorStatus?: Record<number, string>; // cid -> DetectorConfig status from /resolve (overlaid on nodes)
   resolving?: boolean;
   onResolve?: () => void;                 // fetch current engine state via /resolve (config only)
+  tracking?: boolean;                     // Track toggle state (auto-poll /resolve)
+  pollCount?: number;                     // number of polls executed (shown on the button while tracking)
+  freq?: number;                          // Track polling interval (ms)
+  onFreqChange?: (ms: number) => void;
+  onToggleTrack?: () => void;             // start/stop auto-polling
   onSave: (graf: WorkflowGraf) => void;
   onBack: () => void;
   onOpenDetails?: () => void; // open the WorkflowSchema/Config Details panel for editing
@@ -49,7 +54,7 @@ const EDGE_COLOR = '#64748b';
 
 function WorkflowEditorInner(props: WorkflowEditorProps) {
   const { t } = useTranslation();
-  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, resolving, onResolve, onSave, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
+  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, resolving, onResolve, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
 
   const initial = useMemo(() => grafToRF(graf), [graf]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<RFNodeData>>(initial.nodes);
@@ -243,9 +248,24 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
         {/* Resolve: fetch current engine state (WorkflowConfig + DetectorConfig statuses) - config only */}
         {kind === KIND.workflowConfig && onResolve && (
           <button onClick={onResolve} disabled={resolving}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-700 hover:bg-blue-50 disabled:opacity-40 transition-colors">
+            className="btn-design disabled:opacity-40 disabled:cursor-not-allowed">
             <IconRefresh size={13} /> {resolving ? t('workflow.resolving') : t('workflow.resolve')}
           </button>
+        )}
+        {/* Track toggle (auto-poll /resolve while pressed) + polling interval (ms) after it */}
+        {kind === KIND.workflowConfig && onToggleTrack && (
+          <>
+            <button onClick={onToggleTrack} aria-pressed={!!tracking}
+              className={`inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border transition-colors ${
+                tracking ? 'bg-gray-600 border-gray-600 text-white' : 'border-gray-500 text-gray-600 hover:bg-gray-50'}`}>
+              {/* while tracking, show the number of polls executed instead of the icon */}
+              {tracking ? <span className="tabular-nums font-semibold">{pollCount}</span> : <IconRefresh size={13} />}
+              {tracking ? t('workflow.tracking') : t('workflow.track')}
+            </button>
+            <input type="number" min={200} step={100} value={freq} title={`${t('workflow.freq')} (ms)`}
+              onChange={(e) => onFreqChange?.(Math.max(200, Number(e.target.value) || freq))}
+              className="w-16 text-xs field px-1.5 py-0.5 bg-card" />
+          </>
         )}
         <div className="flex-1" />
 

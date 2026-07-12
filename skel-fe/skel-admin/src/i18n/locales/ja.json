@@ -216,6 +216,9 @@
   "workflow": {
     "resolve": "解決",
     "resolving": "解決中…",
-    "errorResolve": "エンジン状態の解決に失敗しました"
+    "errorResolve": "エンジン状態の解決に失敗しました",
+    "track": "追跡",
+    "tracking": "追跡中…",
+    "freq": "間隔"
   }
 }

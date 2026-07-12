@@ -312,6 +312,9 @@
     "tagsAdd": "add tag…",
     "resolve": "Resolve",
     "resolving": "Resolving…",
-    "errorResolve": "Failed to resolve engine state"
+    "errorResolve": "Failed to resolve engine state",
+    "track": "Track",
+    "tracking": "Tracking…",
+    "freq": "Freq"
   }
 }
