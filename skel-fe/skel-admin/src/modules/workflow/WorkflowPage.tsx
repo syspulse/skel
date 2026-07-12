@@ -237,14 +237,18 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   };
 
   // ----- editor save -----
+  // Persist the graf but STAY in the editor (don't reset the view). The editor keeps its own
+  // react-flow state (nodes/edges/viewport) since it is not remounted (same key, editor != null),
+  // so refreshing the table data below does not reset what the user is looking at.
   const handleEditorSave = async (graf: WorkflowGraf) => {
     if (!editor) return;
     setSaving(true);
     try {
       if (editor.kind === KIND.workflowSchema) await api.updateSchema(token, editor.id, { graph: graf });
       else await api.updateConfig(token, editor.id, { graph: graf });
+      // keep the editor's captured graf in sync with what was just saved (used only on remount)
+      setEditor((e) => (e ? { ...e, graf } : e));
       await refreshAndNotify();
-      setEditor(null);
     } catch (e) {
       notifyError(t('workflow.errorSave'), e instanceof Error ? e.message : String(e));
     } finally {

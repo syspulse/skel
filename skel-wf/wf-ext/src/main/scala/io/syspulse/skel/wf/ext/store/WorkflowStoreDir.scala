@@ -17,9 +17,9 @@ import io.hacken.ext.detector.DetectorConfigJson._
 /**
  * `dir://` datastore. Backed by an in-memory [[WorkflowStoreMem]] for reads, with JSON
  * file persistence per object type under sub-directories:
- *   {dir}/schema/{id}.json
- *   {dir}/config/{id}.json
- *   {dir}/graf/{id}.json
+ *   {dir}/workflow-schema/{id}.json
+ *   {dir}/workflow-config/{id}.json
+ *   {dir}/workflow-graf/{id}.json
  *   {dir}/detector-schema/{id}.json
  *   {dir}/detector-config/{id}.json
  *
@@ -29,9 +29,9 @@ class WorkflowStoreDir(dir: String = "store/") extends WorkflowStoreMem {
   override protected val log = Logger(getClass)
   implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.global
 
-  val DIR_SCHEMA  = "schema"
-  val DIR_CONFIG  = "config"
-  val DIR_GRAF    = "graf"
+  val DIR_SCHEMA  = "workflow-schema"
+  val DIR_CONFIG  = "workflow-config"
+  val DIR_GRAF    = "workflow-graf"
   val DIR_DSCHEMA = "detector-schema"
   val DIR_DCONFIG = "detector-config"
 
