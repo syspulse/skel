@@ -168,6 +168,30 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
       loop(nss.toList)
     }
 
+  // ---------------------------------------------------------------- getRuntimeByWorkflowId
+  def getRuntimeByWorkflowId(namespace: Option[String], workflowId: String): Future[Option[EngineWorkflow]] =
+    findByWorkflowId(namespace, workflowId).flatMap {
+      case None          => Future.successful(None)
+      case Some(summary) => buildTree(summary, depth = 0).map(Some(_))
+    }
+
+  /** Find the LATEST run for a WorkflowId across the resolved namespaces (most recent startTime). */
+  private def findByWorkflowId(namespace: Option[String], workflowId: String): Future[Option[EngineWorkflow]] =
+    resolveNamespaces(namespace).flatMap { nss =>
+      def loop(rest: List[String]): Future[Option[EngineWorkflow]] = rest match {
+        case Nil => Future.successful(None)
+        case ns :: tail =>
+          listInNamespace(ns, s"WorkflowId = '${workflowId}'", 100).recover { case _ => Seq.empty }.flatMap { ws =>
+            // a WorkflowId may have many runs (restarts) - pick the most recently started
+            ws.sortBy(w => -w.startedAt.getOrElse(0L)).headOption match {
+              case Some(w) => Future.successful(Some(w))
+              case None    => loop(tail)
+            }
+          }
+      }
+      loop(nss.toList)
+    }
+
   /** Fetch the full event history for an execution (following pagination). */
   private def fetchHistory(ns: String, workflowId: String, runId: String): Future[Seq[HistoryEvent]] = Future {
     val events = mutable.ArrayBuffer[HistoryEvent]()

@@ -35,9 +35,21 @@ trait Engine {
    * its Activities and Child-Workflows (child workflows matched by shared WorkflowId prefix
    * and resolved to their own RunIds).
    *
+   * This pins a SPECIFIC run - the runtimeId never changes.
+   *
    * @param namespace None -> search across all namespaces; Some(ns) -> only that namespace.
    */
   def getRuntime(namespace: Option[String], runtimeId: String): Future[Option[EngineWorkflow]]
+
+  /**
+   * Get the LATEST runtime Workflow for a `workflowId` (Temporal WorkflowId), fully expanded.
+   *
+   * A WorkflowId can have many runs over time (e.g. after a restart it gets a new RunId); this
+   * resolves the most recent run, so the observed `runtimeId` may change across calls.
+   *
+   * @param namespace None -> search across all namespaces; Some(ns) -> only that namespace.
+   */
+  def getRuntimeByWorkflowId(namespace: Option[String], workflowId: String): Future[Option[EngineWorkflow]]
 
   /** List the namespaces exposed by the engine (excluding internal/system namespaces). */
   def namespaces(): Future[Seq[String]]

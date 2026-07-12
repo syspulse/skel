@@ -105,6 +105,38 @@ class TemporalEngineSpec extends AnyWordSpec with Matchers with BeforeAndAfterAl
       got shouldBe None
     }
 
+    "resolve the latest run by WorkflowId" in {
+      up()
+      val ws = Await.result(engine.getRuntimes(Some(ns)), timeout)
+      assume(ws.nonEmpty, "no workflows present in namespace")
+
+      val wfId = ws.head.id
+      val got = Await.result(engine.getRuntimeByWorkflowId(Some(ns), wfId), timeout)
+      got shouldBe defined
+      got.get.id shouldBe wfId
+      got.get.runtimeId should not be empty
+      EngineStatus.all should contain (got.get.status)
+    }
+
+    "resolve the same runtime via a TrackMapper (RunId vs WorkflowId)" in {
+      up()
+      val ws = Await.result(engine.getRuntimes(Some(ns)), timeout)
+      assume(ws.nonEmpty, "no workflows present in namespace")
+      val target = ws.head
+
+      // UUID -> RuntimeIdMapper (fixed run)
+      val byRun = TrackMapper.of(target.runtimeId)
+      byRun.kind shouldBe TrackMapper.KIND_RUNTIME_ID
+      val r1 = Await.result(byRun.resolve(engine, Some(ns)), timeout)
+      r1.map(_.runtimeId) shouldBe Some(target.runtimeId)
+
+      // WorkflowId -> WorkflowIdMapper (latest run)
+      val byWf = TrackMapper.of(target.id)
+      byWf.kind shouldBe TrackMapper.KIND_WORKFLOW_ID
+      val r2 = Await.result(byWf.resolve(engine, Some(ns)), timeout)
+      r2.map(_.id) shouldBe Some(target.id)
+    }
+
     "poll runtimes across all namespaces" in {
       up()
       val all = Await.result(engine.getRuntimes(None), timeout)

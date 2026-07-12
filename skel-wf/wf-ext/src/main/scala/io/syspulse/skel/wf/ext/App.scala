@@ -10,7 +10,7 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.wf.ext.store.{WorkflowStore, WorkflowStoreMem, WorkflowStoreDir, WorkflowRegistry}
 import io.syspulse.skel.wf.ext.server.WorkflowRoutes
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
-import io.syspulse.skel.wf.ext.engine.{Engine, EngineMapper, EngineWorkflow, EngineStatus, WorkflowRuntimeView}
+import io.syspulse.skel.wf.ext.engine.{Engine, EngineMapper, EngineWorkflow, EngineStatus, WorkflowRuntimeView, TrackMapper}
 import io.hacken.ext.wf.WorkflowConfig
 import io.hacken.ext.detector.DetectorConfig
 
@@ -203,12 +203,14 @@ object App extends skel.Server {
         .map(_.flatten.toMap)
     }
 
+    def ts(): String = System.currentTimeMillis().toString
+
     // Render one tracking poll as a SINGLE line:
     //   {WorkflowConfig.name},{WorkflowConfig.xid},{WorkflowConfig.status}: [{step.name},{step.status}] -> ...
     // Only the `status` tokens are colored.
     def renderTrack(cfg: WorkflowConfig, view: WorkflowRuntimeView): String = {
       val steps = view.steps.map(s => s"[${s.name},${colorize(s.status, s.status)}]").mkString(" -> ")
-      s"${cfg.name},${cfg.xid.getOrElse("")},${colorize(view.status, view.status)}: ${steps}"
+      s"${ts()}: [${cfg.name},${cfg.xid.getOrElse("")},${colorize(view.status, view.status)}]: ${steps}"
     }
 
     val r = config.cmd match {
@@ -284,35 +286,36 @@ object App extends skel.Server {
 
       case "assembly-track" =>
         config.params.toList match {
-          case runtimeId :: rest if rest.nonEmpty =>
+          case id :: rest if rest.nonEmpty =>
             val engine = newEngine()
+            // modular resolution: UUID -> track a fixed run (RunId); else -> track latest run of a WorkflowId
+            val mapper = TrackMapper.of(id)
             try {
-              // resolve the Temporal workflow id (wid) for this runtimeId (RunId)
-              val wid: Option[String] =
-                Try(Await.result(engine.getRuntime(config.ns, runtimeId), 60.seconds)).toOption.flatten.map(_.id)
-
-              Try(Await.result(assembleLink(runtimeId, rest), 30.seconds)) match {
-                case Success(cfg0) =>
-                  // name the WorkflowConfig after the Temporal workflow id, and copy it into meta.wid
-                  val cfg = wid match {
-                    case Some(w) =>
-                      val meta = cfg0.meta.getOrElse(Map.empty[String, Any]) + ("wid" -> w)
-                      val renamed = cfg0.copy(name = w, meta = Some(meta), updatedAt = System.currentTimeMillis())
-                      Await.result(store.addConfig(renamed), 30.seconds)
-                      log.info(renamed.toString)
-                      renamed
-                    case None => cfg0
-                  }
+              // assemble the WorkflowConfig from the DSL (persisted; name/xid bound below from the runtime)
+              Try(Await.result(AssemblyDSL.assemble(normalizePipeline(rest.mkString(" ")), store, config.wid, config.wn), 30.seconds)) match {
+                case Success(res) =>
+                  var cfg = res.config.getOrElse(throw new Exception("assembly did not produce a WorkflowConfig"))
                   val detectors = Await.result(loadDetectors(cfg), 30.seconds)
-                  // poll indefinitely (Ctrl+C to stop), one status line per poll
+                  Console.err.println(s"Tracking by ${mapper.kind}=${mapper.key} configId=${cfg.id} poll=${config.poll}ms")
+                  // poll indefinitely, one status line per poll
                   while (true) {
-                    Try(Await.result(engine.getRuntime(config.ns, runtimeId), 60.seconds)) match {
+                    Try(Await.result(mapper.resolve(engine, config.ns), 60.seconds)) match {
                       case Success(Some(w)) =>
+                        // bind the WorkflowConfig to the resolved runtime:
+                        //   name / meta.wid <- Temporal WorkflowId (w.id)
+                        //   xid             <- Temporal RunId (w.runtimeId); reassigned on restart
+                        val meta = cfg.meta.getOrElse(Map.empty[String, Any]) + ("wid" -> w.id)
+                        val changed = cfg.name != w.id || !cfg.xid.contains(w.runtimeId) || cfg.meta != Some(meta)
+                        if (changed) {
+                          cfg = cfg.copy(name = w.id, xid = Some(w.runtimeId), meta = Some(meta), updatedAt = System.currentTimeMillis())
+                          Await.result(store.addConfig(cfg), 30.seconds)
+                          log.info(cfg.toString)
+                        }
                         Console.out.println(renderTrack(cfg, EngineMapper.map(w, Some(cfg), detectors)))
                       case Success(None) =>
-                        Console.out.println(s"${cfg.name},${runtimeId},${EngineStatus.UNKNOWN}: (runtime not found)")
+                        Console.out.println(s"${ts()}: [${cfg.name},${cfg.xid.getOrElse(mapper.key)},${EngineStatus.UNKNOWN}]: (Workflow Runtime not found)")
                       case Failure(e) =>
-                        Console.out.println(s"${cfg.name},${runtimeId},${EngineStatus.UNKNOWN}: (poll error: ${e.getMessage})")
+                        Console.out.println(s"${ts()}: [${cfg.name},${cfg.xid.getOrElse(mapper.key)},${EngineStatus.UNKNOWN}]: (poll error: ${e.getMessage})")
                     }
                     Thread.sleep(config.poll)
                   }
@@ -321,8 +324,8 @@ object App extends skel.Server {
               }
             } finally engine.close()
           case _ =>
-            s"Usage: assembly-track <runtimeId> <pipeline>  " +
-              "(e.g. assembly-track 019f51c0-... '[ProofOfOwnership] -> [ProofOfReserve] -> [Report] -> [Commit]')"
+            s"Usage: assembly-track <workflowId|runtimeId> <pipeline>  " +
+              "(e.g. assembly-track PoR-DefaultProject-... '[ProofOfOwnership] -> [ProofOfReserve] -> [Report] -> [Commit]')"
         }
 
       case x =>
