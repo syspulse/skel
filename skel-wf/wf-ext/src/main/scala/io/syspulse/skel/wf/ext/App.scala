@@ -10,7 +10,9 @@ import io.syspulse.skel.config._
 import io.syspulse.skel.wf.ext.store.{WorkflowStore, WorkflowStoreMem, WorkflowStoreDir, WorkflowRegistry}
 import io.syspulse.skel.wf.ext.server.WorkflowRoutes
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
-import io.syspulse.skel.wf.ext.engine.{Engine, EngineMapper, EngineWorkflow, EngineStatus}
+import io.syspulse.skel.wf.ext.engine.{Engine, EngineMapper, EngineWorkflow, EngineStatus, WorkflowRuntimeView}
+import io.hacken.ext.wf.WorkflowConfig
+import io.hacken.ext.detector.DetectorConfig
 
 case class Config(
   host: String = "0.0.0.0",
@@ -26,6 +28,7 @@ case class Config(
   // Engine options
   wf: Option[String] = None,  // --wf  : Engine URI (e.g. temporal://127.0.0.1:7233/default)
   ns: Option[String] = None,  // --ns  : Engine namespace override (e.g. default, '*')
+  poll: Long = 3000,          // --poll: assembly-track polling interval in msec (def: 3000)
 
   cmd: String = "server",
   params: Seq[String] = Seq(),
@@ -50,10 +53,10 @@ object App extends skel.Server {
   // Known CLI commands. The shared arg parser only recognises a command when it is the
   // first non-option token, so we hoist it to the front - this lets options precede the
   // command (e.g. `--wf=temporal:// assembly-link <rid> <pipeline>` as in the requirements).
-  private val KNOWN_CMDS = Set("server", "schema", "assembly", "assembly-link", "runtime-get")
+  private val KNOWN_CMDS = Set("server", "schema", "assembly", "assembly-link", "assembly-track", "runtime-get")
 
   // Commands that take an Assembly DSL pipeline (which contains `->` tokens and spaces).
-  private val DSL_CMDS = Set("schema", "assembly", "assembly-link")
+  private val DSL_CMDS = Set("schema", "assembly", "assembly-link", "assembly-track")
 
   /** A token that the arg parser treats as an option: `-x` / `--name[=..]`. `->` is NOT an option. */
   private def isOption(tok: String): Boolean = tok.matches("^-{1,2}[A-Za-z].*")
@@ -76,7 +79,7 @@ object App extends skel.Server {
 
     val (opts, params) = rest.partition(isOption)
     val mergedParams = cmd match {
-      case "assembly-link" => params.toList match {
+      case "assembly-link" | "assembly-track" => params.toList match {
         case rid :: Nil        => Seq(rid)
         case rid :: pipeline   => Seq(rid, pipeline.mkString(" "))
         case Nil               => Seq()
@@ -127,11 +130,13 @@ object App extends skel.Server {
 
         ArgString('_', "wf", s"Engine URI (e.g. temporal://127.0.0.1:7233/default)"),
         ArgString('_', "ns", s"Engine namespace override (e.g. default, '*' for all)"),
+        ArgString('_', "poll", s"assembly-track polling interval in msec (def: ${d.poll})"),
 
         ArgCmd("server", s"Start Workflow REST server"),
         ArgCmd("schema", s"Create a WorkflowSchema from an Assembly DSL pipeline (param: pipeline)"),
         ArgCmd("assembly", s"Create a WorkflowConfig (+ WorkflowSchema) from an Assembly DSL pipeline (param: pipeline)"),
         ArgCmd("assembly-link", s"Assemble a WorkflowConfig from DSL and link it to an Engine runtime (params: <runtimeId> <pipeline>)"),
+        ArgCmd("assembly-track", s"assembly-link + poll the Engine runtime, rendering topology + step statuses (params: <runtimeId> <pipeline>)"),
         ArgCmd("runtime-get", s"Get Engine runtime workflow(s) (param: optional <runtimeId>); requires --wf"),
 
         ArgParam("<params>", "DSL pipeline, e.g. 'Detector.a -> Detector.b -> Detector.c'"),
@@ -148,6 +153,7 @@ object App extends skel.Server {
       wn = c.getString("wn"),
       wf = c.getString("wf").filter(_.nonEmpty),
       ns = c.getString("ns").filter(_.nonEmpty),
+      poll = c.getString("poll").map(_.toLong).getOrElse(d.poll),
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
     )
@@ -176,6 +182,32 @@ object App extends skel.Server {
       val acts = w.activities.map(a => s"${indent}  - ${colorize(s"(${a.status})", a.status)} ${a.kind} ${a.name} id=${a.id}").mkString("\n")
       val kids = w.children.map(c => renderWorkflow(c, indent + "  ")).mkString("\n")
       Seq(head, acts, kids).filter(_.nonEmpty).mkString("\n")
+    }
+
+    // Assemble a WorkflowConfig from a DSL pipeline and link it to an Engine runtime by xid.
+    def assembleLink(runtimeId: String, rest: Seq[String]): scala.concurrent.Future[WorkflowConfig] = {
+      val pipeline = normalizePipeline(rest.mkString(" "))
+      for {
+        res    <- AssemblyDSL.assemble(pipeline, store, config.wid, config.wn)
+        cfg0    = res.config.getOrElse(throw new Exception("assembly did not produce a WorkflowConfig"))
+        linked  = cfg0.copy(xid = Some(runtimeId), updatedAt = System.currentTimeMillis())
+        saved  <- store.addConfig(linked)
+      } yield saved
+    }
+
+    // Resolve cid -> DetectorConfig for a config's graph nodes (for status correlation by name).
+    def loadDetectors(cfg: WorkflowConfig): scala.concurrent.Future[Map[Int, DetectorConfig]] = {
+      val cids = cfg.graph.nodes.values.flatMap(_.cid).toSet.toSeq
+      scala.concurrent.Future.sequence(cids.map(id => store.getDetectorConfig(id).map(_.map(id -> _))))
+        .map(_.flatten.toMap)
+    }
+
+    // Render one tracking poll as a SINGLE line:
+    //   {WorkflowConfig.name},{WorkflowConfig.xid},{WorkflowConfig.status}: [{step.name},{step.status}] -> ...
+    // Only the `status` tokens are colored.
+    def renderTrack(cfg: WorkflowConfig, view: WorkflowRuntimeView): String = {
+      val steps = view.steps.map(s => s"[${s.name},${colorize(s.status, s.status)}]").mkString(" -> ")
+      s"${cfg.name},${cfg.xid.getOrElse("")},${colorize(view.status, view.status)}: ${steps}"
     }
 
     val r = config.cmd match {
@@ -239,14 +271,7 @@ object App extends skel.Server {
       case "assembly-link" =>
         config.params.toList match {
           case runtimeId :: rest if rest.nonEmpty =>
-            val pipeline = normalizePipeline(rest.mkString(" "))
-            val f = for {
-              res    <- AssemblyDSL.assemble(pipeline, store, config.wid, config.wn)
-              config0 = res.config.getOrElse(throw new Exception("assembly did not produce a WorkflowConfig"))
-              linked  = config0.copy(xid = Some(runtimeId), updatedAt = System.currentTimeMillis())
-              saved  <- store.addConfig(linked)
-            } yield saved
-            Try(Await.result(f, 30.seconds)) match {
+            Try(Await.result(assembleLink(runtimeId, rest), 30.seconds)) match {
               case Success(c) =>
                 s"WorkflowConfig linked: configId=${c.id}, xid=${c.xid.getOrElse("")}, " +
                   s"name='${c.name}', nodes=${c.graph.nodes.size}, links=${c.graph.links.size}"
@@ -254,6 +279,35 @@ object App extends skel.Server {
             }
           case _ =>
             s"Usage: assembly-link <runtimeId> <pipeline>  (e.g. assembly-link 019e7473-... '[PoO] -> [PoR] -> [Report]')"
+        }
+
+      case "assembly-track" =>
+        config.params.toList match {
+          case runtimeId :: rest if rest.nonEmpty =>
+            Try(Await.result(assembleLink(runtimeId, rest), 30.seconds)) match {
+              case Success(cfg) =>
+                val detectors = Await.result(loadDetectors(cfg), 30.seconds)
+                val engine = newEngine()
+                try {
+                  // poll indefinitely (Ctrl+C to stop), one status line per poll
+                  while (true) {
+                    Try(Await.result(engine.getRuntime(config.ns, runtimeId), 60.seconds)) match {
+                      case Success(Some(w)) =>
+                        Console.out.println(renderTrack(cfg, EngineMapper.map(w, Some(cfg), detectors)))
+                      case Success(None) =>
+                        Console.out.println(s"${cfg.name},${runtimeId},${EngineStatus.UNKNOWN}: (runtime not found)")
+                      case Failure(e) =>
+                        Console.out.println(s"${cfg.name},${runtimeId},${EngineStatus.UNKNOWN}: (poll error: ${e.getMessage})")
+                    }
+                    Thread.sleep(config.poll)
+                  }
+                  ""
+                } finally engine.close()
+              case Failure(e) => s"Failed assembly-track: ${e.getMessage}"
+            }
+          case _ =>
+            s"Usage: assembly-track <runtimeId> <pipeline>  " +
+              "(e.g. assembly-track 019f51c0-... '[ProofOfOwnership] -> [ProofOfReserve] -> [Report] -> [Commit]')"
         }
 
       case x =>
