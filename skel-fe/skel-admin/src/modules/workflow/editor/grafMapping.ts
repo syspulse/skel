@@ -21,6 +21,7 @@ export interface RFNodeData extends Record<string, unknown> {
   iconBorder: string;   // meta.icon_border ('' = none)
   fontSize: number;     // meta.font_size (title)
   fontColor: string;    // meta.font_color (title)
+  status?: string;      // DetectorConfig runtime status from /resolve (overlaid; not persisted)
   meta: Meta;           // full original meta (preserved on save)
 }
 

@@ -309,6 +309,9 @@
       "grid": "grid"
     },
     "searchPlaceholder": "search...",
-    "tagsAdd": "add tag…"
+    "tagsAdd": "add tag…",
+    "resolve": "Resolve",
+    "resolving": "Resolving…",
+    "errorResolve": "Failed to resolve engine state"
   }
 }

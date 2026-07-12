@@ -18,8 +18,9 @@ import {
   type RFNodeData, type RFEdgeData,
 } from './grafMapping';
 import {
-  IconPlus, IconTrash, IconReset, IconSave, IconClose, IconSearch, IconArrowRight,
+  IconPlus, IconTrash, IconReset, IconSave, IconClose, IconSearch, IconArrowRight, IconRefresh,
 } from '../../../components/Icons';
+import { statusChipStyle } from '../status';
 
 export interface WorkflowEditorProps {
   /** title/name/icon/type shown in Panel 1 */
@@ -32,6 +33,11 @@ export interface WorkflowEditorProps {
   detectorSchemas: DetectorSchema[];
   detectorConfigs: DetectorConfig[];
   saving?: boolean;
+  status?: string;                        // WorkflowConfig runtime status (shown in Panel 1)
+  xid?: string;                           // WorkflowConfig engine runtime id (shown in Panel 1)
+  detectorStatus?: Record<number, string>; // cid -> DetectorConfig status from /resolve (overlaid on nodes)
+  resolving?: boolean;
+  onResolve?: () => void;                 // fetch current engine state via /resolve (config only)
   onSave: (graf: WorkflowGraf) => void;
   onBack: () => void;
   onOpenDetails?: () => void; // open the WorkflowSchema/Config Details panel for editing
@@ -43,7 +49,7 @@ const EDGE_COLOR = '#64748b';
 
 function WorkflowEditorInner(props: WorkflowEditorProps) {
   const { t } = useTranslation();
-  const { id, title, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, onSave, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
+  const { id, title, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, resolving, onResolve, onSave, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
 
   const initial = useMemo(() => grafToRF(graf), [graf]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<RFNodeData>>(initial.nodes);
@@ -146,15 +152,19 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
     onSave(g);
   }, [onSave, graf, nodes, edges, getViewport, gridSize, snapToGrid]);
 
-  // search highlight: dim non-matching nodes
+  // search highlight (dim non-matching) + overlay DetectorConfig status (from /resolve) by node cid
   const displayNodes = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return nodes;
-    return nodes.map((n) => ({
-      ...n,
-      style: { ...n.style, opacity: n.data.title.toLowerCase().includes(q) ? 1 : 0.25 },
-    }));
-  }, [nodes, search]);
+    const ds = detectorStatus;
+    if (!q && !ds) return nodes;
+    return nodes.map((n) => {
+      const cid = n.data.cid;
+      const st = ds && cid !== undefined && cid !== null ? ds[cid] : undefined;
+      const data = st !== undefined ? { ...n.data, status: st } : n.data;
+      const style = q ? { ...n.style, opacity: n.data.title.toLowerCase().includes(q) ? 1 : 0.25 } : n.style;
+      return { ...n, data, style };
+    });
+  }, [nodes, search, detectorStatus]);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId) ?? null;
@@ -172,9 +182,19 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           <div className="text-sm text-foreground truncate">{title || name}</div>
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] text-muted-foreground truncate">{name}</span>
+            {/* xid: engine runtime id, shown right after the name */}
+            {kind === KIND.workflowConfig && xid ? (
+              <span className="text-[10px] text-muted-foreground font-mono truncate shrink-0" title={`xid: ${xid}`}>{xid}</span>
+            ) : null}
             <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ${kind === KIND.workflowConfig ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
               {id}
             </span>
+            {/* WorkflowConfig runtime status label, next to the id */}
+            {status ? (
+              <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0 font-semibold" style={statusChipStyle(status)} title={`status: ${status}`}>
+                {status}
+              </span>
+            ) : null}
             <button onClick={() => onOpenDetails?.()} title={t('workflow.editor.openDetails')}
               className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors">
               <IconArrowRight size={13} />
@@ -220,6 +240,13 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-green-500 text-green-700 hover:bg-green-50 disabled:opacity-40 transition-colors">
           <IconSave size={13} /> {saving ? t('common.saving') : t('common.save')}
         </button>
+        {/* Resolve: fetch current engine state (WorkflowConfig + DetectorConfig statuses) - config only */}
+        {kind === KIND.workflowConfig && onResolve && (
+          <button onClick={onResolve} disabled={resolving}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-700 hover:bg-blue-50 disabled:opacity-40 transition-colors">
+            <IconRefresh size={13} /> {resolving ? t('workflow.resolving') : t('workflow.resolve')}
+          </button>
+        )}
         <div className="flex-1" />
 
         {/* per-workflow grid distance + snap-to-grid (persisted in the graf meta on Save) */}

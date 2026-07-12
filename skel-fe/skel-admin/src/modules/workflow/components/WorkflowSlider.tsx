@@ -3,11 +3,12 @@ import { useTranslation } from 'react-i18next';
 import type { WorkflowSchema, WorkflowConfig } from '../types';
 import { entityLabelKey, KIND } from '../types';
 import type { WorkflowKind } from '../types';
-import { IconClose, IconSave, IconTrash, IconEdit } from '../../../components/Icons';
+import { IconClose, IconSave, IconTrash, IconEdit, IconRefresh } from '../../../components/Icons';
 import { IconPicker } from '../../../components/IconPicker';
 import { FormattedTimestamp } from '../../../components/FormattedTimestamp';
 import { TagsInput } from '../../../components/TagsInput';
 import { SliderFieldRow } from '../../../components/SliderFieldRow';
+import { statusChipStyle } from '../status';
 
 const STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
 
@@ -36,10 +37,12 @@ interface WorkflowSliderProps {
   onUpdate: (patch: Record<string, unknown>) => Promise<void>;
   onDelete: () => Promise<void>;
   onEdit: () => void;          // open WorkflowGraf editor
+  onResolve?: () => Promise<void>; // fetch current engine state via /resolve (config only)
+  resolving?: boolean;
 }
 
 export function WorkflowSlider(props: WorkflowSliderProps) {
-  const { open, addMode, kind, schema, config, schemas, saving, timezone, onClose, onCreateSchema, onCreateConfig, onUpdate, onDelete, onEdit } = props;
+  const { open, addMode, kind, schema, config, schemas, saving, timezone, onClose, onCreateSchema, onCreateConfig, onUpdate, onDelete, onEdit, onResolve, resolving } = props;
   const { t } = useTranslation();
   const [form, setForm] = useState<CommonForm>(emptyForm());
   const [sid, setSid] = useState<number | ''>('');
@@ -99,6 +102,11 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
             {addMode ? t('common.add') : t('common.edit')} {t(entityLabelKey(kind))}
           </h2>
           <div className="flex items-center gap-2">
+            {!addMode && kind === KIND.workflowConfig && onResolve && (
+              <button onClick={() => onResolve()} disabled={resolving} className="btn-design disabled:opacity-40" title={t('workflow.resolve')}>
+                <IconRefresh size={13} /> {resolving ? t('workflow.resolving') : t('workflow.resolve')}
+              </button>
+            )}
             {!addMode && (
               <button onClick={onEdit} className="btn-design" title={t('workflow.editGraf')}>
                 <IconEdit size={13} /> {t('workflow.design')}
@@ -113,22 +121,24 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
         <div className="slide-body">
           {error && <div className="alert-error">{error}</div>}
 
-          {/* id is always first */}
+          {/* id is always first; WorkflowConfig shows its runtime status label next to the id */}
           {!addMode && entity && (
             <SliderFieldRow label={t('workflow.fields.id')}>
-              <div className="field-readonly">{entity.id}</div>
+              <div className="field-readonly flex items-center gap-2">
+                <span>{entity.id}</span>
+                {kind === KIND.workflowConfig && config?.status && (
+                  <span className="text-[11px] px-1.5 py-0.5 rounded font-semibold" style={statusChipStyle(config.status)} title={`status: ${config.status}`}>
+                    {config.status}
+                  </span>
+                )}
+              </div>
             </SliderFieldRow>
           )}
 
           {!addMode && kind === KIND.workflowConfig && (
-            <>
-              <SliderFieldRow label="xid">
-                <input className="field-inline" value={form.xid} onChange={(e) => setForm((f) => ({ ...f, xid: e.target.value }))} />
-              </SliderFieldRow>
-              <SliderFieldRow label={t('workflow.fields.sid')}>
-                <div className="field-readonly">{config?.sid}</div>
-              </SliderFieldRow>
-            </>
+            <SliderFieldRow label={t('workflow.fields.sid')}>
+              <div className="field-readonly">{config?.sid}</div>
+            </SliderFieldRow>
           )}
 
           {!addMode && entity && (
@@ -154,6 +164,12 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
           <SliderFieldRow label={t('workflow.fields.name')}>
             <input className="field-inline" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
           </SliderFieldRow>
+          {/* xid: engine runtime id, right after the name */}
+          {!addMode && kind === KIND.workflowConfig && (
+            <SliderFieldRow label="xid">
+              <input className="field-inline" value={form.xid} onChange={(e) => setForm((f) => ({ ...f, xid: e.target.value }))} />
+            </SliderFieldRow>
+          )}
           <SliderFieldRow label={t('workflow.fields.title')}>
             <input className="field-inline" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
           </SliderFieldRow>

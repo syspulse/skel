@@ -71,6 +71,7 @@ export interface WorkflowConfig {
   oid?: string;
   pid?: string;
   xid?: string;
+  meta?: Meta;            // engine metadata (e.g. { wid: "<WorkflowId>" })
 }
 
 // ---- Detector entities ----

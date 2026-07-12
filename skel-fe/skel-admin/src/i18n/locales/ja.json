@@ -212,5 +212,10 @@
     "clearAll": "すべて削除",
     "empty": "通知はありません",
     "dismiss": "閉じる"
+  },
+  "workflow": {
+    "resolve": "解決",
+    "resolving": "解決中…",
+    "errorResolve": "エンジン状態の解決に失敗しました"
   }
 }

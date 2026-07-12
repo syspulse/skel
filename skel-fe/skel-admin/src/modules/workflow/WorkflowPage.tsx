@@ -38,6 +38,8 @@ interface EditorState {
   title: string;
   name: string;
   icon?: string;
+  status?: string;   // WorkflowConfig runtime status (updated by Resolve)
+  xid?: string;      // WorkflowConfig engine runtime id (updated by Resolve)
   graf: WorkflowGraf;
 }
 
@@ -75,6 +77,9 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   const [sliderKind, setSliderKind] = useState<EntityKind | null>(null);
   const [addMode, setAddMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  // cid -> DetectorConfig runtime status from the last /resolve (overlaid on the editor graph nodes)
+  const [resolvedDetStatus, setResolvedDetStatus] = useState<Record<number, string>>({});
 
   const [editor, setEditor] = useState<EditorState | null>(null);
   // detector detail opened from the editor (sid/cid [->]) - read-only overlay
@@ -102,16 +107,41 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   // ----- open the editor for a schema/config instance -----
   const openEditor = useCallback(async (kind: WorkflowKind, id: number) => {
     try {
+      setResolvedDetStatus({}); // start clean; Resolve overlays live statuses on demand
       if (kind === KIND.workflowSchema) {
         const v = await api.getSchema(token, id, true);
         setDetSchemas((cur) => mergeDetectors(cur, v.detectors));
         setEditor({ kind, id, title: v.schema.title, name: v.schema.name, icon: v.schema.icon, graf: v.schema.graph });
       } else {
         const v = await api.getConfig(token, id, true);
-        setEditor({ kind, id, title: v.config.title, name: v.config.name, icon: v.config.icon, graf: v.config.graph });
+        setEditor({ kind, id, title: v.config.title, name: v.config.name, icon: v.config.icon, status: v.config.status, xid: v.config.xid, graf: v.config.graph });
       }
     } catch (e) {
       notifyError(t('workflow.errorLoad'), e instanceof Error ? e.message : String(e));
+    }
+  }, [token, notifyError, t]);
+
+  // ----- Resolve: fetch current engine state (WorkflowConfig + DetectorConfig statuses) via /resolve -----
+  const resolveConfig = useCallback(async (c: WorkflowConfig) => {
+    const rid = c.xid || (c.meta?.wid ? String(c.meta.wid) : '') || c.name;
+    if (!rid) return;
+    setResolving(true);
+    try {
+      const res = await api.resolveConfigs(token, rid);
+      const rc = res.configs.find((x) => x.id === c.id) ?? res.configs[0];
+      if (rc) {
+        setConfigs((cur) => cur.map((x) => (x.id === rc.id ? { ...x, status: rc.status, xid: rc.xid, meta: rc.meta } : x)));
+        setEditor((e) => (e && e.kind === KIND.workflowConfig && e.id === rc.id ? { ...e, status: rc.status, xid: rc.xid } : e));
+      }
+      const map: Record<number, string> = {};
+      if (res.detectors) for (const d of Object.values(res.detectors)) map[d.id] = d.status;
+      setResolvedDetStatus(map);
+      // reflect the live DetectorConfig statuses in the detector list too
+      setDetConfigs((cur) => cur.map((d) => (map[d.id] !== undefined ? { ...d, status: map[d.id] } : d)));
+    } catch (e) {
+      notifyError(t('workflow.errorResolve'), e instanceof Error ? e.message : String(e));
+    } finally {
+      setResolving(false);
     }
   }, [token, notifyError, t]);
 
@@ -239,6 +269,11 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           detectorSchemas={detSchemas}
           detectorConfigs={detConfigs}
           saving={saving}
+          status={editor.status}
+          xid={editor.xid}
+          detectorStatus={resolvedDetStatus}
+          resolving={resolving}
+          onResolve={editorConfig ? () => resolveConfig(editorConfig) : undefined}
           onSave={handleEditorSave}
           onBack={() => setEditor(null)}
           onOpenDetails={() => setWfDetailsOpen(true)}
@@ -411,6 +446,8 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           } finally { setSaving(false); }
         }}
         onEdit={() => { if (selectedId !== null) openEditor(sliderKind === KIND.workflowConfig ? KIND.workflowConfig : KIND.workflowSchema, selectedId); closeSlider(); }}
+        resolving={resolving}
+        onResolve={selectedConfig ? () => resolveConfig(selectedConfig) : undefined}
       />
 
       {/* Detector schema/config details */}

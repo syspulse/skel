@@ -2,6 +2,7 @@ import React from 'react';
 import { Handle, Position, NodeResizer, type NodeProps } from '@xyflow/react';
 import type { RFNodeData } from './grafMapping';
 import { renderIcon } from '../../../components/IconPicker';
+import { statusStyle } from '../status';
 
 const HANDLE_STYLE: React.CSSProperties = {
   width: 8,
@@ -77,6 +78,24 @@ export function DetectorNode({ data, selected }: NodeProps) {
           {d.title}
         </span>
       </div>
+
+      {/* DetectorConfig runtime status (from /resolve): bottom-right corner, colored per Temporal */}
+      {d.status ? (() => {
+        const st = statusStyle(d.status);
+        return (
+          <div
+            style={{
+              position: 'absolute', bottom: 2, right: 2,
+              ...tagBase,
+              background: st.bg, color: st.fg, border: st.border ?? '1px solid rgba(0,0,0,0.15)',
+              fontWeight: 600,
+            }}
+            title={`status: ${d.status}`}
+          >
+            {d.status}
+          </div>
+        );
+      })() : null}
 
       {/* outputs */}
       <Handle id="r" type="source" position={Position.Right} style={HANDLE_STYLE} />
