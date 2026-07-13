@@ -44,16 +44,34 @@ class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterA
     // Only JsObject fields are jsonb (detector.config ; detector_schema.schema, ui_schema).
     val conn = DriverManager.getConnection(jdbcUrl, "postgres", "postgres")
     val st = conn.createStatement()
-    st.execute(
-      """CREATE TABLE IF NOT EXISTS detector (
-        | id BIGINT PRIMARY KEY, created_at BIGINT, updated_at BIGINT, status VARCHAR(64),
-        | contract TEXT, schema TEXT, name VARCHAR(255), source VARCHAR(255), tags TEXT,
-        | config JSONB, destinations TEXT)""".stripMargin)
+    // real external schema (timestamps, text[] tags, jsonb NOT NULL). FKs omitted in the fixture
+    // so inserts do not require contract / detector_schema referenced rows.
     st.execute(
       """CREATE TABLE IF NOT EXISTS detector_schema (
-        | id BIGINT PRIMARY KEY, created_at BIGINT, updated_at BIGINT, status VARCHAR(64),
-        | name VARCHAR(255), version VARCHAR(64), title VARCHAR(255), description TEXT, author VARCHAR(255),
-        | icon TEXT, faq TEXT, tags TEXT, network_tags TEXT, schema JSONB, ui_schema JSONB)""".stripMargin)
+        | id serial4 PRIMARY KEY,
+        | created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        | updated_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        | status text DEFAULT 'ACTIVE' NOT NULL,
+        | name text NOT NULL, version text NOT NULL,
+        | schema jsonb NOT NULL,
+        | tags _text DEFAULT '{}' NOT NULL,
+        | description text DEFAULT '' NOT NULL,
+        | faq jsonb DEFAULT '"[]"'::jsonb NOT NULL,
+        | ui_schema jsonb DEFAULT '{}'::jsonb NOT NULL,
+        | author text NULL, icon text NULL,
+        | network_tags _text DEFAULT '{}' NOT NULL,
+        | title text NULL)""".stripMargin)
+    st.execute(
+      """CREATE TABLE IF NOT EXISTS detector (
+        | id serial4 PRIMARY KEY,
+        | created_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        | updated_at timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        | status text DEFAULT 'ACTIVE' NOT NULL,
+        | contract_id int4 NOT NULL,
+        | name text NOT NULL, source text NOT NULL,
+        | schema_id int4 DEFAULT 1 NOT NULL,
+        | tags _text DEFAULT '{}' NOT NULL,
+        | config jsonb DEFAULT '{}'::jsonb NOT NULL)""".stripMargin)
     st.close(); conn.close()
     store = newStore() // creates workflow_schema / workflow_config / workflow_graf
   }

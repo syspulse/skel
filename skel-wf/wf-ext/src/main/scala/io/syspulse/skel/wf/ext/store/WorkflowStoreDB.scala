@@ -26,15 +26,19 @@ import io.hacken.ext.detector._
 //
 // Postgres-backed WorkflowStore (mirrors ExplainStoreDB). Each entity FIELD is mapped to its own
 // database column. Only `JsObject` fields are stored as `jsonb`; scalars are normal columns and
-// nested/collection fields (graph, nodes/links, faq, contract, destinations, meta, tags) are held
-// as TEXT (JSON / csv).
+// nested/collection fields (graph, nodes/links, faq, meta, tags) are held as TEXT (JSON / csv).
 //
-//   workflow_schema / workflow_config / workflow_graf   -> CREATED by this store
+//   workflow_schema / workflow_config / workflow_graf   -> CREATED by this store (BIGINT ids, TEXT
+//                                                          json/csv, `data` is the only jsonb).
 //   detector (DetectorConfig) / detector_schema (DetectorSchema)
 //                                                       -> OWNED by another product: NEVER created.
-//     jsonb columns: workflow_graf.data ; detector_schema.schema, ui_schema ; detector.config
+//     These use the upstream schema: `timestamp` created_at/updated_at (mapped to/from epoch-ms),
+//     `text[]` tags/network_tags, jsonb columns detector_schema.schema/ui_schema/faq + detector.config.
+//     Mapped FLAT via DetectorRow / DetectorSchemaRow (no joins): detector.contract_id / schema_id
+//     are kept as ids only; DetectorConfigContract / DetectorConfigSchema / destinations are NOT
+//     populated from the DB (defaulted to ""/-1, see toDetectorConfig).
 //
-// NOTE: Postgres-only (jsonb, ON CONFLICT, `col::text`).
+// NOTE: Postgres-only (jsonb, ON CONFLICT, `col::text`, text[], timestamp arithmetic).
 // ============================================================================
 class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
     extends StoreDBAsync[WorkflowConfig, Int](dbConfigRef, WorkflowStoreDB.TABLE_WORKFLOW_CONFIG, Some(configuration), None)
@@ -51,9 +55,7 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   private val fmtMeta: JsonFormat[Map[String, Any]] = WorkflowGrafJson.jf_metaMap
   private val fmtWfFaq  = DefaultJsonProtocol.seqFormat(WorkflowSchemaJson.jf_wf_faq)
   private val fmtDetFaq = DefaultJsonProtocol.seqFormat(DetectorSchemaJson.jf_faq_item)
-  private val fmtContract = DetectorConfigJson.jf_dc_con
-  private val fmtDcSchema = DetectorConfigJson.jf_dc_sch
-  private val fmtDests    = DefaultJsonProtocol.seqFormat(DetectorConfigJson.jf_dc_dest)
+  private def optNZ(s: String): Option[String] = Option(s).filter(_.nonEmpty)
 
   // ---- SQL literal helpers ----
   private def sqlLit(s: String): String = s.replace("'", "''")
@@ -67,12 +69,26 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   private def jsonbOpt(o: Option[JsObject]): String = o.map(j => s"'${sqlLit(j.compactPrint)}'::jsonb").getOrElse("NULL")
   private def pageInt(n: Long): Int = n.max(0L).min(Int.MaxValue.toLong).toInt
 
+  // ---- helpers for the EXTERNAL detector tables (real schema: timestamp, text[], jsonb NOT NULL) ----
+  private def tsRead(col: String): String = s"(EXTRACT(EPOCH FROM $col)*1000)::bigint" // timestamp -> epoch ms
+  private def tsWrite(ms: Long): String = s"(TIMESTAMP 'epoch' + (${ms}/1000.0) * INTERVAL '1 second')" // ms -> timestamp (tz-independent)
+  private def pgArr(seq: Seq[String]): String = if (seq.isEmpty) "'{}'::text[]" else s"ARRAY[${seq.map(q).mkString(",")}]::text[]"
+  private def pArr(s: String): Seq[String] = pCsv(s) // read via array_to_string(col, ',')
+  // jsonb NOT NULL: object defaults to {}, array defaults to []
+  private def jsonbObjReq(o: Option[JsObject]): String = s"'${sqlLit(o.map(_.compactPrint).getOrElse("{}"))}'::jsonb"
+  private def jsonbArrReq[T](o: Option[T], w: JsonWriter[T]): String = s"'${sqlLit(o.map(_.toJson(w).compactPrint).getOrElse("[]"))}'::jsonb"
+  // faq column may hold a jsonb array OR the legacy default jsonb-string '"[]"'; parse defensively
+  private def pFaq(s: String): Option[Seq[DetectorSchemaFaq]] =
+    Option(s).filter(_.nonEmpty).flatMap(t => Try(t.parseJson).toOption.collect { case a: JsArray => a }).flatMap(a => Try(a.convertTo[scala.collection.Seq[DetectorSchemaFaq]](fmtDetFaq).toSeq).toOption)
+
   // ---- row read helpers ----
   private def rStr(row: RowData, i: Int): String = row.getString(i)
   private def rStrOpt(row: RowData, i: Int): Option[String] = Option(row.getString(i)).filter(_.nonEmpty)
-  private def rLong(row: RowData, i: Int): Long = row.getAs[Long](i)
-  private def rInt(row: RowData, i: Int): Int = row.getAs[Long](i).toInt
-  private def rIntOpt(row: RowData, i: Int): Option[Int] = { val v = row.get(i); if (v == null) None else Some(row.getAs[Long](i).toInt) }
+  // int4/serial4 come back as java Integer, bigint as Long — read via Number to tolerate both.
+  private def rNum(row: RowData, i: Int): Number = row.get(i).asInstanceOf[Number]
+  private def rLong(row: RowData, i: Int): Long = rNum(row, i).longValue
+  private def rInt(row: RowData, i: Int): Int = rNum(row, i).intValue
+  private def rIntOpt(row: RowData, i: Int): Option[Int] = { val v = row.get(i); if (v == null) None else Some(v.asInstanceOf[Number].intValue) }
   private def pCsv(s: String): Seq[String] = Option(s).filter(_.nonEmpty).map(_.split(",").toSeq).getOrElse(Seq())
   private def pJsonbObj(s: String): Option[JsObject] = Option(s).filter(_.nonEmpty).map(_.parseJson.asJsObject)
   private def pTxtJson[T](s: String, r: JsonReader[T]): Option[T] = Option(s).filter(_.nonEmpty).map(_.parseJson.convertTo[T](r))
@@ -234,17 +250,22 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
       items <- query(s"SELECT $GRAF_SEL FROM $TABLE_WORKFLOW_GRAF ORDER BY id ${limitClause(from,size)}", rowGraf)
     } yield WorkflowStore.PageGraf(items, total)
 
-  // ========================================================= DetectorSchema (schema, ui_schema -> jsonb) [external]
-  private val DSCHEMA_COLS = Seq("id","created_at","updated_at","status","name","version","title","description","author","icon","faq","tags","network_tags","schema","ui_schema")
-  private val DSCHEMA_SEL  = "id,created_at,updated_at,status,name,version,title,description,author,icon,faq,tags,network_tags,schema::text,ui_schema::text"
-  private def rowDSchema(row: RowData, u: Unit): DetectorSchema = DetectorSchema(
+  // ========================================================= DetectorSchema  [EXTERNAL table "detector_schema"]
+  // Real columns (timestamp, text[], jsonb NOT NULL). All DetectorSchema fields map directly (no joins).
+  private val DSCHEMA_COLS = Seq("id","created_at","updated_at","status","name","version","schema","tags","description","faq","ui_schema","author","icon","network_tags","title")
+  private val DSCHEMA_SEL  =
+    s"id,${tsRead("created_at")},${tsRead("updated_at")},status,name,version,title,description,author,icon,faq::text,array_to_string(tags,','),array_to_string(network_tags,','),schema::text,ui_schema::text"
+  private def rowDSchemaRow(row: RowData, u: Unit): DetectorSchemaRow = DetectorSchemaRow(
     id = rInt(row,0), createdAt = rLong(row,1), updatedAt = rLong(row,2), status = rStr(row,3),
-    name = rStr(row,4), version = rStr(row,5), title = rStr(row,6), description = rStr(row,7), author = rStr(row,8),
-    icon = rStrOpt(row,9), faq = pTxtJson(rStr(row,10), fmtDetFaq).map(_.toSeq), tags = pCsv(rStr(row,11)), networkTags = pCsv(rStr(row,12)),
+    name = rStr(row,4), version = rStr(row,5), title = rStrOpt(row,6), description = rStr(row,7), author = rStrOpt(row,8),
+    icon = rStrOpt(row,9), faq = pFaq(rStr(row,10)), tags = pArr(rStr(row,11)), networkTags = pArr(rStr(row,12)),
     schema = pJsonbObj(rStr(row,13)), uiSchema = pJsonbObj(rStr(row,14)))
-  private def valsDSchema(d: DetectorSchema): Seq[String] = Seq(
-    lLit(d.id), lLit(d.createdAt), lLit(d.updatedAt), q(d.status), q(d.name), q(d.version), q(d.title), q(d.description), q(d.author),
-    qOpt(d.icon), txtJsonOpt(d.faq, fmtDetFaq), csv(d.tags), csv(d.networkTags), jsonbOpt(d.schema), jsonbOpt(d.uiSchema))
+  private def rowDSchema(row: RowData, u: Unit): DetectorSchema = toDetectorSchema(rowDSchemaRow(row, u))
+  private def valsDSchema(d: DetectorSchema): Seq[String] = { // column order = DSCHEMA_COLS
+    Seq(lLit(d.id), tsWrite(d.createdAt), tsWrite(d.updatedAt), q(d.status), q(d.name), q(d.version),
+      jsonbObjReq(d.schema), pgArr(d.tags), q(d.description), jsonbArrReq(d.faq, fmtDetFaq), jsonbObjReq(d.uiSchema),
+      qOpt(optNZ(d.author)), qOpt(d.icon), pgArr(d.networkTags), qOpt(optNZ(d.title)))
+  }
 
   def addDetectorSchema(d: DetectorSchema): Future[DetectorSchema] = upsert(TABLE_DET_SCHEMA, DSCHEMA_COLS, valsDSchema(d)).map(_ => d)
   def getDetectorSchema(id: Int): Future[Option[DetectorSchema]] = query(s"SELECT $DSCHEMA_SEL FROM $TABLE_DET_SCHEMA WHERE id=$id", rowDSchema).map(_.headOption)
@@ -258,20 +279,22 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
       items <- query(s"SELECT $DSCHEMA_SEL FROM $TABLE_DET_SCHEMA ORDER BY id ${limitClause(from,size)}", rowDSchema)
     } yield WorkflowStore.PageDetectorSchema(items, total)
 
-  // ========================================================= DetectorConfig (config -> jsonb) [external]
-  private val DCONFIG_COLS = Seq("id","created_at","updated_at","status","contract","schema","name","source","tags","config","destinations")
-  private val DCONFIG_SEL  = "id,created_at,updated_at,status,contract,schema,name,source,tags,config::text,destinations"
-  private def rowDConfig(row: RowData, u: Unit): DetectorConfig = DetectorConfig(
+  // ========================================================= DetectorConfig  [EXTERNAL table "detector"]
+  // Real columns use contract_id / schema_id FKs (NOT joined). The complex DetectorConfigContract /
+  // DetectorConfigSchema / DetectorConfigDestination are NOT populated (defaults ""/-1); only the FK
+  // ids are preserved (contract.id <- contract_id, schema.id <- schema_id) so writes stay valid.
+  private val DCONFIG_COLS = Seq("id","created_at","updated_at","status","contract_id","name","source","schema_id","tags","config")
+  private val DCONFIG_SEL  =
+    s"id,${tsRead("created_at")},${tsRead("updated_at")},status,contract_id,name,source,schema_id,array_to_string(tags,','),config::text"
+  private def rowDRow(row: RowData, u: Unit): DetectorRow = DetectorRow(
     id = rInt(row,0), createdAt = rLong(row,1), updatedAt = rLong(row,2), status = rStr(row,3),
-    contract = rStr(row,4).parseJson.convertTo[DetectorConfigContract](fmtContract),
-    schema = pTxtJson(rStr(row,5), fmtDcSchema),
-    name = rStr(row,6), source = rStr(row,7), tags = pCsv(rStr(row,8)),
-    config = pJsonbObj(rStr(row,9)),
-    destinations = pTxtJson(rStr(row,10), fmtDests).map(_.toSeq).getOrElse(Seq()))
-  private def valsDConfig(d: DetectorConfig): Seq[String] = Seq(
-    lLit(d.id), lLit(d.createdAt), lLit(d.updatedAt), q(d.status),
-    txtJson(d.contract, fmtContract), txtJsonOpt(d.schema, fmtDcSchema),
-    q(d.name), q(d.source), csv(d.tags), jsonbOpt(d.config), txtJson(d.destinations, fmtDests))
+    contractId = rInt(row,4), name = rStr(row,5), source = rStr(row,6), schemaId = rInt(row,7),
+    tags = pArr(row.getString(8)), config = pJsonbObj(rStr(row,9)))
+  private def rowDConfig(row: RowData, u: Unit): DetectorConfig = toDetectorConfig(rowDRow(row, u))
+  private def valsDConfig(d: DetectorConfig): Seq[String] = { // column order = DCONFIG_COLS
+    val r = toDetectorRow(d)
+    Seq(lLit(r.id), tsWrite(r.createdAt), tsWrite(r.updatedAt), q(r.status), lLit(r.contractId), q(r.name), q(r.source), lLit(r.schemaId), pgArr(r.tags), jsonbObjReq(r.config))
+  }
 
   def addDetectorConfig(d: DetectorConfig): Future[DetectorConfig] = upsert(TABLE_DET_CONFIG, DCONFIG_COLS, valsDConfig(d)).map(_ => d)
   def getDetectorConfig(id: Int): Future[Option[DetectorConfig]] = query(s"SELECT $DCONFIG_SEL FROM $TABLE_DET_CONFIG WHERE id=$id", rowDConfig).map(_.headOption)
@@ -292,4 +315,34 @@ object WorkflowStoreDB {
   val TABLE_WORKFLOW_GRAF       = "workflow_graf"
   val TABLE_DET_CONFIG = "detector"          // external (DetectorConfig)
   val TABLE_DET_SCHEMA = "detector_schema"   // external (DetectorSchema)
+
+  // ---- flat DB rows matching the EXTERNAL detector tables (no JOINs) ----
+  // detector_schema: all DetectorSchema fields map directly.
+  case class DetectorSchemaRow(
+    id: Int, createdAt: Long, updatedAt: Long, status: String, name: String, version: String,
+    title: Option[String], description: String, author: Option[String], icon: Option[String],
+    faq: Option[Seq[DetectorSchemaFaq]], tags: Seq[String], networkTags: Seq[String],
+    schema: Option[JsObject], uiSchema: Option[JsObject])
+  // detector: uses contract_id / schema_id FKs instead of nested objects.
+  case class DetectorRow(
+    id: Int, createdAt: Long, updatedAt: Long, status: String, contractId: Int, name: String,
+    source: String, schemaId: Int, tags: Seq[String], config: Option[JsObject])
+
+  // DetectorConfigContract / DetectorConfigSchema / DetectorConfigDestination are NOT sourced from
+  // the DB (no joins). Only the FK ids are preserved; the rest is defaulted (-1 / "").
+  private val EMPTY_CONTRACT = DetectorConfigContract(-1, 0L, 0L, -1, -1, None, None, None, None, "")
+
+  def toDetectorSchema(r: DetectorSchemaRow): DetectorSchema =
+    DetectorSchema(r.id, r.createdAt, r.updatedAt, r.status, r.name, r.version,
+      r.title.getOrElse(""), r.description, r.author.getOrElse(""), r.icon, r.faq, r.tags, r.networkTags, r.schema, r.uiSchema)
+
+  def toDetectorConfig(r: DetectorRow): DetectorConfig =
+    DetectorConfig(r.id, r.createdAt, r.updatedAt, r.status,
+      contract = EMPTY_CONTRACT.copy(id = r.contractId),
+      schema = Some(DetectorConfigSchema(r.schemaId, 0L, 0L, "", "", "", None)),
+      name = r.name, source = r.source, tags = r.tags, config = r.config, destinations = Seq())
+
+  def toDetectorRow(d: DetectorConfig): DetectorRow =
+    DetectorRow(d.id, d.createdAt, d.updatedAt, d.status, d.contract.id, d.name, d.source,
+      d.schema.map(_.id).getOrElse(1), d.tags, d.config)
 }
