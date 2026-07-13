@@ -7,7 +7,7 @@ import scala.concurrent.duration._
 import io.syspulse.skel
 import io.syspulse.skel.config._
 
-import io.syspulse.skel.wf.ext.store.{WorkflowStore, WorkflowStoreMem, WorkflowStoreDir, WorkflowRegistry, WorkflowAssembly}
+import io.syspulse.skel.wf.ext.store.{WorkflowStore, WorkflowStoreMem, WorkflowStoreDir, WorkflowStoreDB, WorkflowRegistry, WorkflowAssembly}
 import io.syspulse.skel.wf.ext.server.WorkflowRoutes
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
 import io.syspulse.skel.wf.ext.engine.{Engine, EngineMapper, EngineWorkflow, EngineStatus, WorkflowRuntimeView, TrackMapper}
@@ -146,10 +146,13 @@ object App extends skel.Server {
 
     log.info(s"Config: ${config}")
 
-    def getStore(uri: String): WorkflowStore = uri.split("://|/").toList match {
+    def getStore(uri: String): WorkflowStore = uri.split("://").toList match {
       case "mem" :: Nil | "cache" :: Nil => new WorkflowStoreMem()
-      case "dir" :: Nil               => new WorkflowStoreDir("store/")
-      case "dir" :: dir               => new WorkflowStoreDir(dir.mkString("/"))
+      case "dir" :: Nil                  => new WorkflowStoreDir("store/")
+      case "dir" :: dir :: Nil           => new WorkflowStoreDir(dir)
+      case "postgres" :: Nil             => new WorkflowStoreDB(c, "postgres://postgres")
+      case "postgres" :: db :: Nil       => new WorkflowStoreDB(c, s"postgres://${db}")
+      case "jdbc" :: _                   => new WorkflowStoreDB(c, uri)
       case _ =>
         Console.err.println(s"Unknown datastore: '${uri}', using mem://")
         new WorkflowStoreMem()
