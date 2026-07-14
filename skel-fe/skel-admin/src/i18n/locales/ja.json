@@ -83,12 +83,13 @@
     "defaultPageSize": "デフォルトページサイズ",
     "timestampFormat": {
       "label": "タイムスタンプ形式",
-      "default": "デフォルト (7 Jun 14:30:45)",
+      "default": "日付と時刻",
       "us": "US形式",
+      "iso": "ISO 8601",
       "ms": "ミリ秒のみ",
       "presets": "形式プリセット",
       "preview": "プレビュー",
-      "hint": "D 日, MMM 月, YYYY 年, HH/h 時, mm:ss, A AM/PM, S ミリ秒。"
+      "hint": "moment.js パターン、例: MMMM Do YYYY, h:mm:ss a"
     },
     "resetToDefaults": "デフォルトに戻す",
     "autoSaveNote": "変更は自動的に保存されます。Keycloak設定の変更はページの再読込が必要です。",

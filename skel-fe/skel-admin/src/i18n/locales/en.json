@@ -88,12 +88,13 @@
     "defaultPageSize": "Default page size",
     "timestampFormat": {
       "label": "Timestamp format",
-      "default": "Default (7 Jun 14:30:45)",
+      "default": "Date & time",
       "us": "US format",
+      "iso": "ISO 8601",
       "ms": "Milliseconds only",
       "presets": "Format presets",
       "preview": "Preview",
-      "hint": "D day, MMM month, YYYY year, HH/h hour, mm:ss, A AM/PM, S milliseconds."
+      "hint": "moment.js pattern, e.g. MMMM Do YYYY, h:mm:ss a"
     },
     "resetToDefaults": "Reset to defaults",
     "autoSaveNote": "Changes are saved automatically. Keycloak config changes require a page reload.",
@@ -247,6 +248,7 @@
       "sid": "sid",
       "schema": "schema",
       "source": "source",
+      "config": "config",
       "graph": "graph",
       "cid": "cid",
       "ts": "ts",

@@ -225,9 +225,9 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
       case KIND.detectorSchema: return detSchemas.filter((d) => keep(d.name, d.title, d.status, d.updatedAt)).sort(byIdAsc)
         .map((d) => ({ id: d.id, icon: d.icon, name: d.name, status: d.status, tags: d.tags, ts: d.updatedAt,
           cells: { title: d.title, version: d.version } }));
-      case KIND.detectorConfig: return detConfigs.filter((d) => keep(d.name, d.contract?.name ?? '', d.status, d.updatedAt)).sort(byIdAsc)
+      case KIND.detectorConfig: return detConfigs.filter((d) => keep(d.name, d.source ?? '', d.status, d.updatedAt)).sort(byIdAsc)
         .map((d) => ({ id: d.id, name: d.name, status: d.status, tags: d.tags, ts: d.updatedAt,
-          cells: { title: d.contract?.name ?? '', version: d.schema?.version ?? '', schema: d.schema ? String(d.schema.id) : '' } }));
+          cells: { source: d.source ?? '', config: d.config ? JSON.stringify(d.config) : '', version: d.schema?.version ?? '', schema: d.schema ? String(d.schema.id) : '' } }));
     }
   };
 
@@ -242,8 +242,10 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
         { key: 'xid', label: 'xid', width: 'w-72' },
       ];
       case KIND.detectorSchema: return [title, { key: 'version', label: t('workflow.fields.version'), width: 'w-28' }];
+      // source replaces title (kept compact); config shown truncated after source
       case KIND.detectorConfig: return [
-        title,
+        { key: 'source', label: t('workflow.fields.source'), width: 'w-32' },
+        { key: 'config', label: t('workflow.fields.config') },
         { key: 'version', label: t('workflow.fields.version'), width: 'w-28' },
         { key: 'schema', label: t('workflow.fields.schema'), width: 'w-28' },
       ];
@@ -522,6 +524,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
         onCreateConfig={async (req) => { setSaving(true); try { await api.createDetectorConfig(token, req); await fetchAll(); closeSlider(); } finally { setSaving(false); } }}
         onUpdateSchema={async (patch) => { if (selectedId === null) return; setSaving(true); try { await api.updateDetectorSchema(token, selectedId, patch); await fetchAll(); closeSlider(); } finally { setSaving(false); } }}
         onUpdateConfig={async (patch) => { if (selectedId === null) return; setSaving(true); try { await api.updateDetectorConfig(token, selectedId, patch); await fetchAll(); closeSlider(); } finally { setSaving(false); } }}
+        onOpenSchema={(id) => openDetails(KIND.detectorSchema, id)}
         onDelete={async () => {
           if (selectedId === null) return;
           setSaving(true);

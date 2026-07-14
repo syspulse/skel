@@ -64,11 +64,11 @@ export function EntityTable({ rows, columns, selectedId, defaultIcon, timezone, 
           {columns.map((c) => (
             <th key={c.key} className={`${c.width ?? ''} ${TABLE_TH} text-left`}>{c.label}</th>
           ))}
-          <th className={`w-24 ${TABLE_TH} text-left`}>{t('workflow.fields.status')}</th>
+          <th className={`w-32 ${TABLE_TH} text-left`}>{t('workflow.fields.status')}</th>
           <th className={`w-40 ${TABLE_TH} text-left`}>
             {t('workflow.fields.ts')}{timezone !== 'local' ? ` (${getTimezoneShortLabel(timezone)})` : ''}
           </th>
-          <th className={`w-40 ${TABLE_TH} text-left`}>{t('workflow.fields.tags')}</th>
+          <th className={`w-64 ${TABLE_TH} text-left`}>{t('workflow.fields.tags')}</th>
           <th className={`w-12 ${TABLE_TH} text-center`} />
         </tr>
       </thead>
@@ -107,7 +107,15 @@ export function EntityTable({ rows, columns, selectedId, defaultIcon, timezone, 
               {r.ts != null
                 ? <TimestampCell ts={r.ts} timezone={timezone} />
                 : <td className={`${TABLE_TD} text-muted-foreground`} />}
-              <td className={`${TABLE_TD} text-muted-foreground truncate`}>{r.tags && r.tags.length > 0 ? r.tags.join(', ') : ''}</td>
+              <td className={TABLE_TD}>
+                {r.tags && r.tags.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-1">
+                    {r.tags.map((tag, i) => (
+                      <span key={i} className="inline-flex items-center text-[11px] px-1.5 py-0.5 rounded border bg-muted border-border text-foreground max-w-[120px] truncate" title={tag}>{tag}</span>
+                    ))}
+                  </div>
+                ) : ''}
+              </td>
               <td className={`${TABLE_TD} text-center`} onClick={(e) => e.stopPropagation()}>
                 <button onClick={() => onDelete(r.id)} className="text-muted-foreground hover:text-red-500 p-0.5 rounded transition-colors" title={t('common.delete')}>
                   <IconTrash size={13} />

@@ -9,7 +9,8 @@ import { FormattedTimestamp } from '../../../components/FormattedTimestamp';
 import { TagsInput } from '../../../components/TagsInput';
 import { SliderFieldRow } from '../../../components/SliderFieldRow';
 
-const STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
+// statuses per DetectorConfig.scala / DetectorSchema.scala (ACTIVE/DISABLED)
+const STATUSES = ['ACTIVE', 'DISABLED'];
 
 interface DetectorSliderProps {
   open: boolean;
@@ -25,12 +26,13 @@ interface DetectorSliderProps {
   onCreateSchema: (req: { name: string; title?: string; description?: string; version?: string; author?: string; icon?: string; tags?: string[]; schema?: Record<string, unknown>; uiSchema?: Record<string, unknown> }) => Promise<void>;
   onCreateConfig: (req: { name: string; sid?: number; source?: string; tags?: string[]; config?: Record<string, unknown> }) => Promise<void>;
   onUpdateSchema: (patch: { name?: string; title?: string; description?: string; version?: string; author?: string; status?: string; icon?: string; tags?: string[]; schema?: Record<string, unknown>; uiSchema?: Record<string, unknown> }) => Promise<void>;
-  onUpdateConfig: (patch: { name?: string; source?: string; tags?: string[]; config?: Record<string, unknown> }) => Promise<void>;
+  onUpdateConfig: (patch: { name?: string; status?: string; source?: string; tags?: string[]; config?: Record<string, unknown> }) => Promise<void>;
+  onOpenSchema?: (id: number) => void; // open the DetectorSchema referenced by a DetectorConfig
   onDelete: () => Promise<void>;
 }
 
 export function DetectorSlider(props: DetectorSliderProps) {
-  const { open, addMode, kind, schema, config, schemas, saving, timezone, readOnly, onClose, onCreateSchema, onCreateConfig, onUpdateSchema, onUpdateConfig, onDelete } = props;
+  const { open, addMode, kind, schema, config, schemas, saving, timezone, readOnly, onClose, onCreateSchema, onCreateConfig, onUpdateSchema, onUpdateConfig, onOpenSchema, onDelete } = props;
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
 
@@ -105,10 +107,10 @@ export function DetectorSlider(props: DetectorSliderProps) {
         try { sch = parseJsonObj(schemaJson); uiSch = parseJsonObj(uiSchemaJson); } catch { setError(t('workflow.invalidJson')); return; }
         await onUpdateSchema({ name, title, description, version, author, status, icon, tags: tagsArr(tags), schema: sch, uiSchema: uiSch });
       } else {
-        // DetectorConfig: status is NOT editable -> not sent
+        // DetectorConfig: status IS editable (editable combo)
         let cfg: Record<string, unknown> | undefined;
         try { cfg = parseConfig(); } catch { setError(t('workflow.invalidJson')); return; }
-        await onUpdateConfig({ name, source, tags: tagsArr(tags), config: cfg });
+        await onUpdateConfig({ name, status, source, tags: tagsArr(tags), config: cfg });
       }
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
@@ -160,9 +162,11 @@ export function DetectorSlider(props: DetectorSliderProps) {
           </SliderFieldRow>
 
           <SliderFieldRow label={t('workflow.fields.status')}>
-            {(isSchema && !viewOnly)
-              ? <select className="field-inline" value={status} onChange={(e) => setStatus(e.target.value)}>{STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}</select>
-              : <div className="field-readonly">{status}</div>}
+            {viewOnly
+              ? <div className="field-readonly">{status}</div>
+              : <select className="field-inline" value={status} onChange={(e) => setStatus(e.target.value)}>
+                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>}
           </SliderFieldRow>
 
           <SliderFieldRow label={t('workflow.fields.tags')}>
@@ -222,13 +226,19 @@ export function DetectorSlider(props: DetectorSliderProps) {
                 <SliderFieldRow label={t('workflow.fields.schema')}>
                   <select className="field-inline" value={sid} onChange={(e) => setSid(e.target.value === '' ? '' : Number(e.target.value))}>
                     <option value="">{t('workflow.chooseSchema')}</option>
-                    {schemas.map((s) => <option key={s.id} value={s.id}>#{s.id} {s.name}</option>)}
+                    {schemas.map((s) => <option key={s.id} value={s.id}>{s.id} {s.name}</option>)}
                   </select>
                 </SliderFieldRow>
               )}
               {!addMode && (
                 <SliderFieldRow label={t('workflow.fields.schema')}>
-                  <div className="field-readonly">{config?.schema ? `#${config.schema.id} ${config.schema.name}` : ''}</div>
+                  <div className="field-readonly flex-1">{config?.schema ? `${config.schema.id} ${config.schema.name}` : ''}</div>
+                  {config?.schema && onOpenSchema && (
+                    <button type="button" onClick={() => onOpenSchema(config.schema!.id)} title={t('workflow.tabs.detectorSchema')}
+                      className="shrink-0 inline-flex items-center justify-center w-[26px] h-[26px] rounded border border-border text-muted-foreground hover:bg-muted transition-colors text-base leading-none">
+                      …
+                    </button>
+                  )}
                 </SliderFieldRow>
               )}
               <SliderFieldRow label={t('workflow.fields.source')}>
@@ -236,7 +246,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
               </SliderFieldRow>
               <div className="field-stack">
                 <label className="field-stack-label">config (JSON)</label>
-                <textarea rows={6} spellCheck={false} value={configJson} onChange={(e) => setConfigJson(e.target.value)}
+                <textarea rows={14} spellCheck={false} value={configJson} onChange={(e) => setConfigJson(e.target.value)}
                   placeholder={'{\n  "severity": 0.5\n}'}
                   className="field-code" />
               </div>

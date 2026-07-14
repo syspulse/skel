@@ -52,8 +52,8 @@ export function DetectorNode({ data, selected }: NodeProps) {
 
       {/* sid / cid tags: small, top-right corner, 2px margin. No prefix - colour distinguishes them. */}
       <div style={{ position: 'absolute', top: 2, right: 2, display: 'flex', gap: 2 }}>
-        <span style={sidTag} title={`schema #${d.sid}`}>{d.sid}</span>
-        {d.cid !== undefined && d.cid !== null && <span style={cidTag} title={`config #${d.cid}`}>{d.cid}</span>}
+        <span style={sidTag} title={`schema ${d.sid}`}>{d.sid}</span>
+        {d.cid !== undefined && d.cid !== null && <span style={cidTag} title={`config ${d.cid}`}>{d.cid}</span>}
       </div>
 
       {/* icon (top-left, configurable margin/size) + title beside it */}

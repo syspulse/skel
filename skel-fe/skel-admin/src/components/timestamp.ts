@@ -1,13 +1,12 @@
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// Timestamp rendering uses moment.js (moment-timezone). The format is a free-text moment pattern
+// (e.g. "MMMM Do YYYY, h:mm:ss a") configured in Settings — the layout is fully user-controlled and
+// the runtime/system locale never overrides it.
+import moment from 'moment-timezone';
 
-export const DEFAULT_TIMESTAMP_FORMAT = 'D MMM HH:mm:ss';
-export const US_TIMESTAMP_FORMAT = 'MMM D, YYYY, h:mm:ss A';
-export const MS_TIMESTAMP_FORMAT = 'S';
-
-const LEGACY_PATTERNS: Record<string, string> = {
-  us: US_TIMESTAMP_FORMAT,
-  ms: MS_TIMESTAMP_FORMAT,
-};
+export const DEFAULT_TIMESTAMP_FORMAT = 'HH:mm:ss D-MMM-YYYY';
+export const US_TIMESTAMP_FORMAT = 'MMMM Do YYYY, h:mm:ss a';
+export const ISO_TIMESTAMP_FORMAT = 'YYYY-MM-DDTHH:mm:ss';
+export const MS_TIMESTAMP_FORMAT = 'x'; // moment token: Unix ms timestamp
 
 export interface TimestampFormatPreset {
   pattern: string;
@@ -17,96 +16,32 @@ export interface TimestampFormatPreset {
 export const TIMESTAMP_FORMAT_PRESETS: readonly TimestampFormatPreset[] = [
   { pattern: DEFAULT_TIMESTAMP_FORMAT, labelKey: 'settings.timestampFormat.default' },
   { pattern: US_TIMESTAMP_FORMAT, labelKey: 'settings.timestampFormat.us' },
+  { pattern: ISO_TIMESTAMP_FORMAT, labelKey: 'settings.timestampFormat.iso' },
   { pattern: MS_TIMESTAMP_FORMAT, labelKey: 'settings.timestampFormat.ms' },
 ];
 
-interface DateParts {
-  day: string;
-  month: string;
-  year: string;
-  hour24: string;
-  hour12: string;
-  minute: string;
-  second: string;
-  ampm: string;
-}
-
-function getDateParts(d: Date, timezone: string): DateParts {
-  if (timezone === 'local') {
-    const hours = d.getHours();
-    return {
-      day: String(d.getDate()),
-      month: MONTHS[d.getMonth()],
-      year: String(d.getFullYear()),
-      hour24: String(hours).padStart(2, '0'),
-      hour12: String(hours % 12 || 12),
-      minute: String(d.getMinutes()).padStart(2, '0'),
-      second: String(d.getSeconds()).padStart(2, '0'),
-      ampm: hours >= 12 ? 'PM' : 'AM',
-    };
-  }
-
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true,
-  }).formatToParts(d);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
-
-  const hour24 = new Intl.DateTimeFormat('en-GB', {
-    timeZone: timezone,
-    hour: '2-digit',
-    hour12: false,
-  })
-    .formatToParts(d)
-    .find((p) => p.type === 'hour')?.value ?? '00';
-
-  const dayPeriod = get('dayPeriod');
-  const ampm = dayPeriod ? dayPeriod.toUpperCase() : parseInt(hour24, 10) >= 12 ? 'PM' : 'AM';
-
-  return {
-    day: get('day'),
-    month: get('month'),
-    year: get('year'),
-    hour24,
-    hour12: get('hour'),
-    minute: get('minute'),
-    second: get('second'),
-    ampm,
-  };
-}
-
-function formatTokenPattern(ts: number, timezone: string, pattern: string): string {
-  const parts = getDateParts(new Date(ts), timezone);
-  const epoch = String(ts);
-
-  return pattern
-    .replace(/YYYY/g, parts.year)
-    .replace(/HH/g, parts.hour24)
-    .replace(/MMM/g, parts.month)
-    .replace(/mm/g, parts.minute)
-    .replace(/ss/g, parts.second)
-    .replace(/A/g, parts.ampm)
-    .replace(/S/g, epoch)
-    .replace(/D/g, parts.day)
-    .replace(/h/g, parts.hour12);
-}
+// Legacy stored values from earlier (non-moment) implementations -> equivalent moment pattern.
+const LEGACY_PATTERNS: Record<string, string> = {
+  datetime: DEFAULT_TIMESTAMP_FORMAT,
+  us: US_TIMESTAMP_FORMAT,
+  iso: ISO_TIMESTAMP_FORMAT,
+  ms: MS_TIMESTAMP_FORMAT,
+  S: MS_TIMESTAMP_FORMAT,
+};
 
 export function normalizeTimestampPattern(pattern: string): string {
-  const trimmed = pattern.trim() || DEFAULT_TIMESTAMP_FORMAT;
+  const trimmed = (pattern ?? '').trim();
+  if (!trimmed) return DEFAULT_TIMESTAMP_FORMAT;
   return LEGACY_PATTERNS[trimmed] ?? trimmed;
-}
-
-export function formatTimestamp(ts: number, timezone: string, pattern: string): string {
-  return formatTokenPattern(ts, timezone, normalizeTimestampPattern(pattern));
 }
 
 export function isKnownTimestampPreset(pattern: string): boolean {
   const normalized = normalizeTimestampPattern(pattern);
   return TIMESTAMP_FORMAT_PRESETS.some((preset) => preset.pattern === normalized);
+}
+
+export function formatTimestamp(ts: number, timezone: string, pattern: string): string {
+  const fmt = normalizeTimestampPattern(pattern);
+  const m = timezone === 'local' ? moment(ts) : moment(ts).tz(timezone);
+  return m.format(fmt);
 }
