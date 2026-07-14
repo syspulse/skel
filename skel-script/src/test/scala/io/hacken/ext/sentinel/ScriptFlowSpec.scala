@@ -396,13 +396,13 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
     "exec short-circuits failed Future and does not run subsequent scripts" in {
       var secondExecuted = false
       val breaker = new Script("test-break", "test-break") {
-        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] =
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[Map[String,Any]] =
           Future.failed(new Script.ScriptBreakException("stop"))
       }
       val second = new Script("test-second", "test-second") {
-        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[Map[String,Any]] = {
           secondExecuted = true
-          Future.successful(input)
+          Future.successful(ScriptTestUtil.ok(data, input))
         }
       }
 
@@ -421,27 +421,27 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       var fourthExecuted = 0
 
       val first = new Script("test-first", "test-first") {
-        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[Map[String,Any]] = {
           firstExecuted += 1
-          Future.successful(s"${input}:first")
+          Future.successful(ScriptTestUtil.ok(data, s"${input}:first"))
         }
       }
       val breaker = new Script("test-break", "test-break") {
-        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[Map[String,Any]] = {
           breakerInput = input
           Future.failed(new Script.ScriptBreakException(input))
         }
       }
       val third = new Script("test-third", "test-third") {
-        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[Map[String,Any]] = {
           thirdExecuted += 1
-          Future.successful(s"${input}:third")
+          Future.successful(ScriptTestUtil.ok(data, s"${input}:third"))
         }
       }
       val fourth = new Script("test-fourth", "test-fourth") {
-        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[Map[String,Any]] = {
           fourthExecuted += 1
-          Future.successful(s"${input}:fourth")
+          Future.successful(ScriptTestUtil.ok(data, s"${input}:fourth"))
         }
       }
 
@@ -462,27 +462,27 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       var afterBreakExecuted = 0
 
       val first = new Script("test-first", "test-first") {
-        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = Future {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[Map[String,Any]] = Future {
           firstExecuted += 1
-          s"${input}:first"
+          ScriptTestUtil.ok(data, s"${input}:first")
         }(ec)
       }
       val second = new Script("test-second", "test-second") {
-        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = Future {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[Map[String,Any]] = Future {
           secondExecuted += 1
-          s"${input}:second"
+          ScriptTestUtil.ok(data, s"${input}:second")
         }(ec)
       }
       val breaker = new Script("test-break", "test-break") {
-        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[Map[String,Any]] = {
           breakerInput = input
           Future.failed(new Script.ScriptBreakException("break-after-second"))
         }
       }
       val afterBreak = new Script("test-after-break", "test-after-break") {
-        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[String] = {
+        override def exec(src:String,input:String,data:Map[String,Any])(implicit ec: scala.concurrent.ExecutionContext):Future[Map[String,Any]] = {
           afterBreakExecuted += 1
-          Future.successful(s"${input}:after")
+          Future.successful(ScriptTestUtil.ok(data, s"${input}:after"))
         }
       }
 
@@ -876,7 +876,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       // Second JQ tries to extract ".age" from non-JSON string -> throws InvalidData exception
       // The Future will fail with an exception
       val caught = intercept[Exception] {
-        Await.result(futureResult, 5.seconds)
+        ScriptTestUtil.awaitResult(futureResult, 5.seconds)
       }
       // ujson throws InvalidData exception when trying to parse invalid JSON
       caught.getClass.getSimpleName should include("InvalidData")
@@ -890,7 +890,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val input = "id=42&other=value:123&more=data"
       
       val futureResult = flow.exec("", input, Map.empty)
-      val result = Await.result(futureResult, 5.seconds)
+      val result = ScriptTestUtil.awaitResult(futureResult, 5.seconds)
       
       // First regexp extracts "id=42" -> "42"
       // Match engine validates "42" matches "[0-9]+" -> returns "42"
@@ -909,7 +909,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val input = s"json=$jsonData&other=data"
       
       val futureResult = flow.exec("", input, Map.empty)
-      val result = Await.result(futureResult, 5.seconds)
+      val result = ScriptTestUtil.awaitResult(futureResult, 5.seconds)
       
       // Extract JSON from URL parameter -> JSON string
       // JQ extracts ".status" -> returns List("active") which becomes "List(active)" or similar
@@ -935,7 +935,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       // JQ2 tries to extract ".age" from non-JSON string -> throws InvalidData exception
       // The Future will fail with an exception, so we catch it
       val caught = intercept[Exception] {
-        Await.result(futureResult, 5.seconds)
+        ScriptTestUtil.awaitResult(futureResult, 5.seconds)
       }
       // ujson throws InvalidData exception when trying to parse invalid JSON
       caught.getClass.getSimpleName should include("InvalidData")
@@ -953,7 +953,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       // JQ fails to extract nonexistent field -> throws NoSuchElementException
       // The Future will fail with an exception
       val caught = intercept[java.util.NoSuchElementException] {
-        Await.result(futureResult, 5.seconds)
+        ScriptTestUtil.awaitResult(futureResult, 5.seconds)
       }
       caught.getMessage should include("nonexistent") // Should contain field name
     }
@@ -973,7 +973,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       // JQ2 tries to extract ".status" from non-JSON string -> throws InvalidData exception
       // The Future will fail with an exception
       val caught = intercept[Exception] {
-        Await.result(futureResult, 5.seconds)
+        ScriptTestUtil.awaitResult(futureResult, 5.seconds)
       }
       // ujson throws InvalidData exception when trying to parse invalid JSON
       caught.getClass.getSimpleName should include("InvalidData")
@@ -988,7 +988,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val input = "test"
       
       val futureResult = flow.exec(jsCode, input, Map.empty)
-      val result = Await.result(futureResult, 5.seconds)
+      val result = ScriptTestUtil.awaitResult(futureResult, 5.seconds)
       
       // JS transforms "test" -> "TEST_RESULT" (using jsCode as src)
       // Regexp receives src=jsCode, so it uses jsCode as pattern (not constructor pattern)
@@ -1007,7 +1007,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val jsCode = """input.toUpperCase() + "_UPPERCASE""""
       
       val futureResult = flow.exec(jsCode, input, Map.empty)
-      val result = Await.result(futureResult, 5.seconds)
+      val result = ScriptTestUtil.awaitResult(futureResult, 5.seconds)
       
       // Regexp extracts "value=hello" -> "hello" (using constructor pattern)
       // JS transforms "hello" -> "HELLO_UPPERCASE" (using jsCode as src)
@@ -1026,7 +1026,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val jsCode = """parseInt(input) * 2"""
       
       val futureResult = flow.exec(jsCode, input, Map.empty)
-      val result = Await.result(futureResult, 5.seconds)
+      val result = ScriptTestUtil.awaitResult(futureResult, 5.seconds)
       
       // Regexp extracts "id=42" -> "42" (using constructor pattern when src is blank)
       // JS transforms "42" -> "84" (42 * 2, using jsCode as src)
@@ -1040,11 +1040,11 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val flow = new ScriptFlow(Seq(scoreEngine))
       
       val futureResult1 = flow.exec("", "foobar", Map.empty)
-      val result1 = Await.result(futureResult1, 5.seconds)
+      val result1 = ScriptTestUtil.awaitResult(futureResult1, 5.seconds)
       result1 shouldBe "1.0"
       
       val futureResult2 = flow.exec("", "barbaz", Map.empty)
-      val result2 = Await.result(futureResult2, 5.seconds)
+      val result2 = ScriptTestUtil.awaitResult(futureResult2, 5.seconds)
       result2 shouldBe "0.0"
     }
 
@@ -1055,7 +1055,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       
       val json = """{"name":"John","age":30}"""
       val futureResult = flow.exec("", json, Map.empty)
-      val result = Await.result(futureResult, 5.seconds)
+      val result = ScriptTestUtil.awaitResult(futureResult, 5.seconds)
       
       // JQ extracts "John" (returns List representation), score matches -> "1.0"
       result shouldBe "1.0"
@@ -1068,7 +1068,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       
       val input = "hash=0xabc123&other=data"
       val futureResult = flow.exec("", input, Map.empty)
-      val result = Await.result(futureResult, 5.seconds)
+      val result = ScriptTestUtil.awaitResult(futureResult, 5.seconds)
       
       // Extract "0xabc123", score matches -> "1.0"
       result shouldBe "1.0"
@@ -1083,11 +1083,11 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       // scoreEngine2 matches against "1.0" or "0.0", NOT the original input
       
       val futureResult1 = flow.exec("", "foobar", Map.empty)
-      val result1 = Await.result(futureResult1, 5.seconds)
+      val result1 = ScriptTestUtil.awaitResult(futureResult1, 5.seconds)
       result1 shouldBe "0.0" // First matches -> "1.0", second doesn't match "1.0" against ".*bar.*" -> "0.0" (because "1.0" doesn't contain "bar")
       
       val futureResult2 = flow.exec("", "foobar", Map.empty)
-      val result2 = Await.result(futureResult2, 5.seconds)
+      val result2 = ScriptTestUtil.awaitResult(futureResult2, 5.seconds)
       result2 shouldBe "0.0" // First matches -> "1.0", second doesn't match "1.0" -> "0.0"
       
       // To make chaining work meaningfully, the second pattern must match against score value format
@@ -1095,18 +1095,18 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val scoreEngine3 = new ScriptRegexpScore(Some(".*[0-9]\\..*"))
       val flow2 = new ScriptFlow(Seq(scoreEngine1, scoreEngine3))
       val futureResult3 = flow2.exec("", "foobar", Map.empty)
-      val result3 = Await.result(futureResult3, 5.seconds)
+      val result3 = ScriptTestUtil.awaitResult(futureResult3, 5.seconds)
       result3 shouldBe "1.0" // "1.0" matches ".*[0-9]\\..*"
       
       // Pattern that matches "1.0" specifically
       val scoreEngine4 = new ScriptRegexpScore(Some("^1\\.0$"))
       val flow3 = new ScriptFlow(Seq(scoreEngine1, scoreEngine4))
       val futureResult4 = flow3.exec("", "foobar", Map.empty)
-      val result4 = Await.result(futureResult4, 5.seconds)
+      val result4 = ScriptTestUtil.awaitResult(futureResult4, 5.seconds)
       result4 shouldBe "1.0" // "1.0" matches "^1\\.0$"
       
       val futureResult5 = flow3.exec("", "barbaz", Map.empty)
-      val result5 = Await.result(futureResult5, 5.seconds)
+      val result5 = ScriptTestUtil.awaitResult(futureResult5, 5.seconds)
       result5 shouldBe "0.0" // "0.0" doesn't match "^1\\.0$"
     }
 
@@ -1115,11 +1115,11 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val flow = new ScriptFlow(Seq(scoreEngine))
       
       val futureResult1 = flow.exec("", "The number is 42", Map.empty)
-      val result1 = Await.result(futureResult1, 5.seconds)
+      val result1 = ScriptTestUtil.awaitResult(futureResult1, 5.seconds)
       result1 shouldBe "1.0"
       
       val futureResult2 = flow.exec("", "No numbers here", Map.empty)
-      val result2 = Await.result(futureResult2, 5.seconds)
+      val result2 = ScriptTestUtil.awaitResult(futureResult2, 5.seconds)
       result2 shouldBe "0.0"
     }
 
@@ -1131,7 +1131,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       
       val json = """{"user":{"name":"John Doe","age":30}}"""
       val futureResult = flow.exec("", json, Map.empty)
-      val result = Await.result(futureResult, 5.seconds)
+      val result = ScriptTestUtil.awaitResult(futureResult, 5.seconds)
       
       // JQ extracts "John Doe", regexp matches -> "John Doe", score matches -> "1.0"
       result shouldBe "1.0"
@@ -1144,18 +1144,18 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val flow = new ScriptFlow(Seq(scoreEngine1, scoreEngine2, scoreEngine3))
       
       val futureResult1 = flow.exec("", "test123", Map.empty)
-      val result1 = Await.result(futureResult1, 5.seconds)
+      val result1 = ScriptTestUtil.awaitResult(futureResult1, 5.seconds)
       result1 shouldBe "0.0" // First matches -> "1.0", second doesn't match "1.0" against ".*[a-z].*" -> "0.0" (because "1.0" doesn't contain lowercase)
       
       val futureResult2 = flow.exec("", "Test123", Map.empty)
-      val result2 = Await.result(futureResult2, 5.seconds)
+      val result2 = ScriptTestUtil.awaitResult(futureResult2, 5.seconds)
       result2 shouldBe "0.0" // First matches -> "1.0", second doesn't match "1.0" against ".*[a-z].*" -> "0.0"
       
       // Test with pattern that matches score value format
       val scoreEngine4 = new ScriptRegexpScore(Some(".*[0-9].*"))
       val flow2 = new ScriptFlow(Seq(scoreEngine1, scoreEngine4))
       val futureResult3 = flow2.exec("", "test123", Map.empty)
-      val result3 = Await.result(futureResult3, 5.seconds)
+      val result3 = ScriptTestUtil.awaitResult(futureResult3, 5.seconds)
       result3 shouldBe "1.0" // "1.0" matches ".*[0-9].*"
     }
 
@@ -1164,13 +1164,13 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val flow = new ScriptFlow(Seq(scoreEngine))
       
       val futureResult1 = flow.exec("", """{"name":"John","age":30}""", Map.empty)
-      val result1 = Await.result(futureResult1, 5.seconds)
+      val result1 = ScriptTestUtil.awaitResult(futureResult1, 5.seconds)
       result1 shouldBe "1.0"
       
       val futureResult2 = flow.exec("", """{"age":30}""", Map.empty)
       // ScriptJQScore throws exception when field doesn't exist, which propagates
       intercept[java.util.NoSuchElementException] {
-        Await.result(futureResult2, 5.seconds)
+        ScriptTestUtil.awaitResult(futureResult2, 5.seconds)
       }
     }
 
@@ -1181,7 +1181,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       
       val json = """{"user":{"name":"John","age":30}}"""
       val futureResult = flow.exec("", json, Map.empty)
-      val result = Await.result(futureResult, 5.seconds)
+      val result = ScriptTestUtil.awaitResult(futureResult, 5.seconds)
       
       // JQ extracts "John" (returns List representation like "List(John)"), ScriptJQScore tries to parse it as JSON
       // The result depends on whether the JQ output is valid JSON
@@ -1196,7 +1196,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       
       val json1 = """{"name":"John","age":30}"""
       val futureResult1 = flow.exec("", json1, Map.empty)
-      val result1 = Await.result(futureResult1, 5.seconds)
+      val result1 = ScriptTestUtil.awaitResult(futureResult1, 5.seconds)
       // First matches -> "1.0", second parses "1.0" as JSON number -> "1.0"
       result1 shouldBe "1.0"
       
@@ -1204,7 +1204,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val futureResult2 = flow.exec("", json2, Map.empty)
       // First throws exception when field doesn't exist -> propagates
       intercept[java.util.NoSuchElementException] {
-        Await.result(futureResult2, 5.seconds)
+        ScriptTestUtil.awaitResult(futureResult2, 5.seconds)
       }
     }
 
@@ -1213,7 +1213,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val flow = new ScriptFlow(Seq(scoreEngine))
       
       val futureResult = flow.exec("", "some solidity output", Map.empty)
-      val result = Await.result(futureResult, 5.seconds)
+      val result = ScriptTestUtil.awaitResult(futureResult, 5.seconds)
       
       // Result depends on whether SolidityResult.extractString finds the pattern
       result should (be("0.0") or be("1.0"))
@@ -1226,7 +1226,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       
       val json = """{"status":"active"}"""
       val futureResult = flow.exec("", json, Map.empty)
-      val result = Await.result(futureResult, 5.seconds)
+      val result = ScriptTestUtil.awaitResult(futureResult, 5.seconds)
       
       // First matches -> "1.0", second matches "1.0" against ".*[0-9]\\..*" -> "1.0"
       result shouldBe "1.0"
@@ -1346,7 +1346,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       // Positive case: Non-empty input, filter passes it forward, JQ processes it
       val json = """{"name":"John","age":30}"""
       val futureResult2 = flow.exec("", json, Map.empty)
-      val result2 = Await.result(futureResult2, 5.seconds)
+      val result2 = ScriptTestUtil.awaitResult(futureResult2, 5.seconds)
       result2 should include("John") // Filter passed JSON forward, JQ extracted name
     }
 
@@ -1565,7 +1565,7 @@ class ScriptFlowSpec extends AnyWordSpec with Matchers {
       val regexpEngine = new ScriptRegexp(Some("[0-9]+"))
       val flow = new ScriptFlow(Seq(conditionEngine, regexpEngine))
       val futureResult = flow.exec("", "42", Map.empty)
-      val result = Await.result(futureResult, 5.seconds)
+      val result = ScriptTestUtil.awaitResult(futureResult, 5.seconds)
       result shouldBe "42"
     }
 

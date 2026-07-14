@@ -360,6 +360,30 @@ class Polyglot(lang:String,opt:Map[String,Any] = Map(),src0:Option[String] = Non
     }
   }
 
+  /** Export guest-language bindings not present in `exclude` (e.g. input args already in data). */
+  def exportBindings(exclude: Set[String] = Set.empty): Map[String, Any] = {
+    val bindings = ctx.getBindings(lang)
+    if (!bindings.hasMembers) return Map.empty
+    bindings.getMemberKeys.asScala
+      .filter(k => !exclude.contains(k))
+      .flatMap { k =>
+        try {
+          Option(bindings.getMember(k)).map(v => k -> exportValue(v))
+        } catch {
+          case _: Exception => None
+        }
+      }
+      .toMap
+  }
+
+  private def exportValue(v: Any): Any = v match {
+    case value: Value if value.isNull => null
+    case value: Value if value.isBoolean => value.asBoolean()
+    case value: Value if value.isNumber => value.asDouble()
+    case value: Value if value.isString => value.asString()
+    case other => other.toString
+  }
+
   private def createCaseClassProxy(cc: Product): ProxyObject = {
     new ProxyObject {
       override def getMember(key: String): AnyRef = {

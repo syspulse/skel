@@ -51,9 +51,10 @@ class ScriptFlowConcurrencySpec extends AnyWordSpec with Matchers {
       
       // Verify all flows completed successfully
       results.size shouldBe 100
-      results.foreach { result =>
-        result should not be null
-        result should not be empty
+      results.foreach { data =>
+        data should not be null
+        data.get("result") shouldBe defined
+        ScriptTestUtil.resultOf(data) should not be empty
       }
     }
   }

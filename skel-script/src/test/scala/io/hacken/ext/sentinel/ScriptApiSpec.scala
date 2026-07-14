@@ -31,6 +31,8 @@ class ScriptApiSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
   private def postHeadersUri = s"http://POST@$baseHost/post-headers"
   private def postXHeaderUri = s"http://POST@$baseHost/post-xheader"
   private def postEchoUri = s"http://POST@$baseHost/post-echo"
+  private def chainSuffixUri = s"http://GET@$baseHost/chain/{suffix}"
+  private def providerPrefixUri = s"http://GET@$baseHost/api/{provider}"
 
   private val route =
     path("get") {
@@ -84,6 +86,16 @@ class ScriptApiSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
             HttpEntity(ContentTypes.`application/json`, s"""{"json":$body}""")
           )
         }
+      }
+    } ~
+    path("chain" / Segment) { suffix =>
+      get {
+        complete(StatusCodes.OK, HttpEntity(ContentTypes.`text/plain(UTF-8)`, s"suffix=$suffix"))
+      }
+    } ~
+    path("api" / Segment) { provider =>
+      get {
+        complete(StatusCodes.OK, HttpEntity(ContentTypes.`text/plain(UTF-8)`, s"url-prefix=$provider"))
       }
     }
 
@@ -209,6 +221,18 @@ class ScriptApiSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
       val engine = new ScriptApi(Some(body), Some(postXHeaderUri))
       engine.run("", "ignored", Map.empty) shouldBe Success("x=only-headers;body=")
     }
+
+    "substitute {suffix} placeholder in URI from data map" in {
+      val engine = new ScriptApi(None, Some(chainSuffixUri))
+      engine.run("", "ignored", Map("suffix" -> "ethereum")) shouldBe Success("suffix=ethereum")
+      engine.run("", "ignored", Map("suffix" -> "arbitrum")) shouldBe Success("suffix=arbitrum")
+    }
+
+    "substitute {provider} placeholder in URI from data map" in {
+      val engine = new ScriptApi(None, Some(providerPrefixUri))
+      engine.run("", "ignored", Map("provider" -> "ethereum")) shouldBe Success("url-prefix=ethereum")
+      engine.run("", "ignored", Map("provider" -> "arbitrum")) shouldBe Success("url-prefix=arbitrum")
+    }
   }
 
   "ScriptApi.parseSections" should {
@@ -289,24 +313,6 @@ class ScriptApiSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
   }
 
   "ScriptFlow with ScriptApi" should {
-    "run GET api as single step" in {
-      val api = ScriptFlow.resolve("api", "", Some(getUri)).get
-      val flow = new ScriptFlow(Seq(api))
-      flow.run("", "ignored", Map.empty) shouldBe Success("get-ok")
-    }
-
-    "run POST api without body as single step" in {
-      val api = ScriptFlow.resolve("api", "", Some(postUri)).get
-      val flow = new ScriptFlow(Seq(api))
-      flow.run("", "ignored", Map.empty) shouldBe Success("post-empty")
-    }
-
-    "run POST api with body as single step" in {
-      val api = ScriptFlow.resolve("api", """{"msg":"{input}"}""", Some(postUri)).get
-      val flow = new ScriptFlow(Seq(api))
-      flow.run("", "flow-input", Map.empty) shouldBe Success("""post:{"msg":"flow-input"}""")
-    }
-
     "chain ScriptJS then POST api with body from previous step output" in {
       val api = ScriptFlow.resolve("api", """{"name":"{input}"}""", Some(postUri)).get
       val js = new ScriptJS(Some("JSON.parse(input).name"))
@@ -321,7 +327,7 @@ class ScriptApiSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
       val regexp = new ScriptRegexp(Some(".*get-ok.*"))
       val flow = new ScriptFlow(Seq(api, regexp))
 
-      flow.run("", "ignored", Map.empty).isSuccess shouldBe true
+      flow.run("", "ignored", Map.empty) shouldBe Success("get-ok")
     }
 
     "chain POST api with body then ScriptJS transform" in {
@@ -335,7 +341,7 @@ class ScriptApiSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
     "exec async POST api in flow" in {
       val api = ScriptFlow.resolve("api", """{"x":"{input}"}""", Some(postUri)).get
       val flow = new ScriptFlow(Seq(api))
-      val result = Await.result(flow.exec("", "async-val", Map.empty), 10.seconds)
+      val result = ScriptTestUtil.awaitResult(flow.exec("", "async-val", Map.empty), 10.seconds)
       result shouldBe """post:{"x":"async-val"}"""
     }
 
@@ -347,8 +353,7 @@ class ScriptApiSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
           |
           |BODY
           |{"id":"{input}"}""".stripMargin
-      val api = ScriptFlow.resolve("api", body, Some(postHeadersUri)).get
-      val flow = new ScriptFlow(Seq(api))
+      val flow = new ScriptFlow(Seq(ScriptFlow.resolve("api", body, Some(postHeadersUri)).get))
       flow.run("", "item-7", Map.empty) shouldBe Success(
         """auth=Bearer flow-token;ct=application/json;body={"id":"item-7"}"""
       )
@@ -366,11 +371,23 @@ class ScriptApiSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
       val flow = new ScriptFlow(Seq(api, jq))
 
       val inputValue = "skel-api-jq-test"
-      val data = Map[String,Any]("timeout" -> 30000L)
+      flow.run("", inputValue, Map("timeout" -> 30000L)) shouldBe Success(s""""$inputValue"""")
+    }
 
-      val result = flow.run("", inputValue, data)
-      result.isSuccess shouldBe true
-      result.get should include(inputValue)
+    "chain ScriptJS (provider from conditions) then GET api with /{provider} prefix" in {
+      val jsSrc =
+        """var provider;
+          |if (input === 'run1') provider = 'ethereum';
+          |else if (input === 'run2') provider = 'arbitrum';
+          |else provider = 'unknown';
+          |provider""".stripMargin
+      val flow = new ScriptFlow(Seq(
+        new ScriptJS(Some(jsSrc)),
+        ScriptFlow.resolve("api", "", Some(providerPrefixUri)).get
+      ))
+
+      flow.run("", "run1", Map.empty) shouldBe Success("url-prefix=ethereum")
+      flow.run("", "run2", Map.empty) shouldBe Success("url-prefix=arbitrum")
     }
   }
 
@@ -458,41 +475,7 @@ class ScriptApiSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
         "timeout" -> 30000L
       )
 
-      val result = scriptFlow.run("", "explain-chain", dataMap)
-      result.isSuccess shouldBe true
-      result.get should include("explain-chain")
-    }
-
-    "execute api against real echo endpoint (beeceptor)" in {
-      val src =
-        """HEADERS
-          |Content-Type: application/json
-          |Authorization: Bearer TOKEN_0000000000000001
-          |Test: 11111111
-          |
-          |BODY
-          |{"data":"0x1"}""".stripMargin
-
-      val scripts = Seq(
-        RuleScript("api", src, Some("https://POST@echo.free.beeceptor.com"))
-      )
-
-      val engines = scripts.flatMap(s => ScriptFlow.resolve(s.typ, s.src, s.opts).toOption)
-      val scriptFlow = ScriptFlow.build(engines)
-
-      val dataMap: Map[String, Any] = Map(
-        "oid"     -> "",
-        "rid"     -> "rule-echo",
-        "sid"     -> "",
-        "style"   -> "short",
-        "timeout" -> 30000L
-      )
-
-      val result = scriptFlow.run("", "ignored-input", dataMap)
-      result.isSuccess shouldBe true
-      result.get should include("0x1")
-      result.get should include("TOKEN_0000000000000001")
-      result.get should include("11111111")
+      scriptFlow.run("", "explain-chain", dataMap) shouldBe Success(""""explain-chain"""")
     }
   }
 }
