@@ -9,8 +9,8 @@ import { FormattedTimestamp } from '../../../components/FormattedTimestamp';
 import { TagsInput } from '../../../components/TagsInput';
 import { SliderFieldRow } from '../../../components/SliderFieldRow';
 
-// statuses per DetectorConfig.scala / DetectorSchema.scala (ACTIVE/DISABLED)
-const STATUSES = ['ACTIVE', 'DISABLED'];
+// statuses per DetectorConfig.scala / DetectorSchema.scala (ACTIVE/DISABLED) + DELETED
+const STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
 
 interface DetectorSliderProps {
   open: boolean;

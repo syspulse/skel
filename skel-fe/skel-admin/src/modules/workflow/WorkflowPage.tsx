@@ -244,7 +244,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
       case KIND.detectorSchema: return [title, { key: 'version', label: t('workflow.fields.version'), width: 'w-28' }];
       // source replaces title (kept compact); config shown truncated after source
       case KIND.detectorConfig: return [
-        { key: 'source', label: t('workflow.fields.source'), width: 'w-32' },
+        { key: 'source', label: t('workflow.fields.source'), width: 'w-40' },
         { key: 'config', label: t('workflow.fields.config') },
         { key: 'version', label: t('workflow.fields.version'), width: 'w-28' },
         { key: 'schema', label: t('workflow.fields.schema'), width: 'w-28' },
