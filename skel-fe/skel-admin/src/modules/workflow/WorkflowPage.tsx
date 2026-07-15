@@ -51,6 +51,11 @@ function isInTimeRange(ts: number, range: TimeRange): boolean {
 }
 const matchText = (hay: string, q: string) => !q || hay.toLowerCase().includes(q.toLowerCase());
 const matchStatus = (status: string, f: string) => !f || status.toLowerCase().includes(f.toLowerCase());
+// id filter: empty -> match all; otherwise a single id or CSV list ("3" or "1,2,5").
+const matchIds = (id: number, csv: string): boolean => {
+  const wanted = csv.split(',').map((s) => s.trim()).filter(Boolean);
+  return wanted.length === 0 || wanted.includes(String(id));
+};
 
 export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInstancesChanged }: WorkflowPageProps) {
   const { t } = useTranslation();
@@ -60,10 +65,10 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   const [page, setPage] = useState(1);
   const [timezone, setTimezone] = useState('local');
   const [activeSearch, setActiveSearch] = useState('');
-  const [filters, setFilters] = useState<WorkflowFilterState>({ search: '', status: '', timeRange: { type: 'all' } });
+  const [filters, setFilters] = useState<WorkflowFilterState>({ ids: '', search: '', status: '', timeRange: { type: 'all' } });
 
   const handleFilterChange = (f: WorkflowFilterState) => {
-    if (f.status !== filters.status || f.timeRange !== filters.timeRange) setPage(1);
+    if (f.ids !== filters.ids || f.status !== filters.status || f.timeRange !== filters.timeRange) setPage(1);
     setFilters(f);
   };
   const handleSearch = (q: string) => { setActiveSearch(q); setPage(1); };
@@ -209,23 +214,24 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   // Rows keep a stable order by id (NOT by updatedAt) so editing a row does not reorder the table.
   const q = activeSearch.trim();
   const st = filters.status.trim();
+  const ids = filters.ids.trim();
   const tr = filters.timeRange;
-  const keep = (name: string, title: string, status: string, ts: number) =>
-    matchText(`${name} ${title}`, q) && matchStatus(status, st) && isInTimeRange(ts, tr);
+  const keep = (id: number, name: string, title: string, status: string, ts: number) =>
+    matchIds(id, ids) && matchText(`${name} ${title}`, q) && matchStatus(status, st) && isInTimeRange(ts, tr);
   const byIdAsc = <T extends { id: number }>(a: T, b: T) => a.id - b.id;
 
   const rowsFor = (kind: EntityKind): TableRow[] => {
     switch (kind) {
-      case KIND.workflowSchema: return schemas.filter((s) => keep(s.name, s.title, s.status, s.updatedAt)).sort(byIdAsc)
+      case KIND.workflowSchema: return schemas.filter((s) => keep(s.id, s.name, s.title, s.status, s.updatedAt)).sort(byIdAsc)
         .map((s) => ({ id: s.id, icon: s.icon, name: s.name, status: s.status, tags: s.tags, ts: s.updatedAt,
           cells: { title: s.title, graph: `${Object.keys(s.graph?.nodes ?? {}).length} ${t('workflow.graphNodes')}` } }));
-      case KIND.workflowConfig: return configs.filter((c) => keep(c.name, c.title, c.status, c.updatedAt)).sort(byIdAsc)
+      case KIND.workflowConfig: return configs.filter((c) => keep(c.id, c.name, c.title, c.status, c.updatedAt)).sort(byIdAsc)
         .map((c) => ({ id: c.id, icon: c.icon, name: c.name, status: c.status, tags: c.tags, ts: c.updatedAt,
           cells: { title: c.title, sid: String(c.sid), xid: c.xid ?? '' } }));
-      case KIND.detectorSchema: return detSchemas.filter((d) => keep(d.name, d.title, d.status, d.updatedAt)).sort(byIdAsc)
+      case KIND.detectorSchema: return detSchemas.filter((d) => keep(d.id, d.name, d.title, d.status, d.updatedAt)).sort(byIdAsc)
         .map((d) => ({ id: d.id, icon: d.icon, name: d.name, status: d.status, tags: d.tags, ts: d.updatedAt,
           cells: { title: d.title, version: d.version } }));
-      case KIND.detectorConfig: return detConfigs.filter((d) => keep(d.name, d.source ?? '', d.status, d.updatedAt)).sort(byIdAsc)
+      case KIND.detectorConfig: return detConfigs.filter((d) => keep(d.id, d.name, d.source ?? '', d.status, d.updatedAt)).sort(byIdAsc)
         .map((d) => ({ id: d.id, name: d.name, status: d.status, tags: d.tags, ts: d.updatedAt,
           cells: { source: d.source ?? '', config: d.config ? JSON.stringify(d.config) : '', version: d.schema?.version ?? '', schema: d.schema ? String(d.schema.id) : '' } }));
     }

@@ -8,6 +8,7 @@ import { FilterText } from '../../../components/FilterField';
 import { IconRefresh, IconPlus } from '../../../components/Icons';
 
 export interface WorkflowFilterState {
+  ids: string;           // id filter: single id or CSV list (e.g. "3" or "1,2,5")
   search: string;        // name / title search
   status: string;        // status filter (API field)
   timeRange: TimeRange;  // filters by updatedAt (ts)
@@ -34,6 +35,14 @@ export function WorkflowFilters({
 
   return (
     <div className="filter-bar">
+      <FilterText
+        label={t('workflow.fields.id')}
+        value={filters.ids}
+        onChange={(ids) => onFilterChange({ ...filters, ids })}
+        placeholder=""
+        width="w-28"
+      />
+
       <SearchField
         value={filters.search}
         onChange={(val) => onFilterChange({ ...filters, search: val })}
