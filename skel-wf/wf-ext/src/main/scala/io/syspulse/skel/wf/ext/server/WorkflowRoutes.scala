@@ -7,7 +7,6 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.marshalling.ToResponseMarshaller
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.ActorSystem
@@ -102,6 +101,10 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
 
   private def isFull(detector: Option[String]): Boolean = detector.exists(_.equalsIgnoreCase("full"))
 
+  // NOTE: error handling is centralized in Server.scala (JSON ExceptionHandler). Routes just
+  // `complete(...)` the ask result - a `Future[Try[T]]` Failure (or a failed Future) is re-raised by
+  // the akka-http Try/Throwable marshaller and rendered as JSON by the Server (ErrNotFound -> 404).
+
   // ---- engine (runtime) handlers ----
   /** Resolve the Engine for a path `{engine}` segment; only the configured engine is served. */
   private def forEngine(engineName: String)(f: Engine => Route): Route = engine match {
@@ -110,36 +113,17 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     case None    => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --engine=temporal://...)")
   }
 
-  private def completeFuture[T](f: Future[T])(implicit m: ToResponseMarshaller[T]): Route =
-    onComplete(f) {
-      case Success(v) => complete(v)
-      case Failure(e) => complete(StatusCodes.InternalServerError -> s"engine error: ${e.getMessage}")
-    }
-
   def getEngineRuntimesRoute(engineName: String, namespace: Option[String]) = get {
     forEngine(engineName) { e =>
-      completeFuture(e.getRuntimes(namespace).map(ws => EngineWorkflows(ws, ws.size.toLong)))
+      complete(e.getRuntimes(namespace).map(ws => EngineWorkflows(ws, ws.size.toLong)))
     }
   }
 
   def getEngineRuntimeRoute(engineName: String, namespace: Option[String], runtimeId: String) = get {
     forEngine(engineName) { e =>
-      onComplete(e.getRuntime(namespace, runtimeId)) {
-        case Success(Some(w)) => complete(w)
-        case Success(None)    => complete(StatusCodes.NotFound -> s"runtime not found: ${runtimeId}")
-        case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
-      }
+      rejectEmptyResponse { complete(e.getRuntime(namespace, runtimeId)) }
     }
   }
-
-
-  /** Complete a `Future[Try[T]]`: Success -> 200 body, Failure -> 404 (not found). */
-  private def completeTry[T](f: Future[Try[T]])(implicit m: ToResponseMarshaller[T]): Route =
-    onComplete(f) {
-      case Success(Success(v)) => complete(v)
-      case Success(Failure(e)) => complete(StatusCodes.NotFound -> s"not found: ${e.getMessage}")
-      case Failure(e)          => complete(StatusCodes.InternalServerError -> s"${e.getMessage}")
-    }
 
   // ================================================================ schema routes
   @GET @Path("/schema") @Produces(Array(MediaType.APPLICATION_JSON))
@@ -154,7 +138,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     parameters("from".as[Long].?, "size".as[Long].?, "detector".?) { (from, size, detector) =>
       (from, size) match {
         case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
-        case _ => completeTry(getSchemas(from, size, isFull(detector)))
+        case _ => complete(getSchemas(from, size, isFull(detector)))
       }
     }
   }
@@ -168,7 +152,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemaView]))))))
   def getSchemaRoute(id: Int) = get {
     parameter("detector".?) { detector =>
-      completeTry(getSchema(id, isFull(detector)))
+      complete(getSchema(id, isFull(detector)))
     }
   }
 
@@ -178,15 +162,15 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "created",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchema]))))))
   def createSchemaRoute() = post {
-    entity(as[WorkflowSchemaCreateReq]) { req => completeTry(createSchema(req)) }
+    entity(as[WorkflowSchemaCreateReq]) { req => complete(createSchema(req)) }
   }
 
   def createSchemaDslRoute() = post {
-    entity(as[WorkflowSchemaDslReq]) { req => completeTry(createSchemaDsl(req)) }
+    entity(as[WorkflowSchemaDslReq]) { req => complete(createSchemaDsl(req)) }
   }
 
   def updateSchemaRoute(id: Int) = put {
-    entity(as[WorkflowSchemaUpdateReq]) { req => completeTry(updateSchema(id, req)) }
+    entity(as[WorkflowSchemaUpdateReq]) { req => complete(updateSchema(id, req)) }
   }
 
   def deleteSchemaRoute(id: Int) = delete { complete(deleteSchema(id)) }
@@ -204,7 +188,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     parameters("from".as[Long].?, "size".as[Long].?, "detector".?) { (from, size, detector) =>
       (from, size) match {
         case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
-        case _ => completeTry(getConfigs(from, size, isFull(detector)))
+        case _ => complete(getConfigs(from, size, isFull(detector)))
       }
     }
   }
@@ -218,12 +202,12 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigView]))))))
   def getConfigRoute(id: Int) = get {
     parameter("detector".?) { detector =>
-      completeTry(getConfig(id, isFull(detector)))
+      complete(getConfig(id, isFull(detector)))
     }
   }
 
   def getConfigByXidRoute(xid: String) = get { rejectEmptyResponse { complete(getConfigByXid(xid)) } }
-  def getConfigsByOidRoute(oid: String) = get { completeTry(getConfigsByOid(oid)) }
+  def getConfigsByOidRoute(oid: String) = get { complete(getConfigsByOid(oid)) }
 
   /** Split a comma-separated `ids` path segment into a clean list. */
   private def splitIds(csv: String): Seq[String] =
@@ -278,7 +262,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       case Success(cfgs) => enrichWithEngine(cfgs).map(Success(_))
       case other         => Future.successful(other)
     }
-    completeTry(f)
+    complete(f)
   }
 
   @POST @Path("/config") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
@@ -287,11 +271,11 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "created",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def createConfigRoute() = post {
-    entity(as[WorkflowConfigCreateReq]) { req => completeTry(createConfig(req)) }
+    entity(as[WorkflowConfigCreateReq]) { req => complete(createConfig(req)) }
   }
 
   def createConfigDslRoute() = post {
-    entity(as[WorkflowConfigDslReq]) { req => completeTry(createConfigDsl(req)) }
+    entity(as[WorkflowConfigDslReq]) { req => complete(createConfigDsl(req)) }
   }
 
   @POST @Path("/config/assembly") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
@@ -300,7 +284,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "assembled",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def createConfigAssemblyRoute() = post {
-    entity(as[WorkflowConfigDslReq]) { req => completeTry(assemblyConfig(req)) }
+    entity(as[WorkflowConfigDslReq]) { req => complete(assemblyConfig(req)) }
   }
 
   @POST @Path("/temporal/assembly/{id}") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
@@ -318,7 +302,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
           case Some(e) =>
             // resolve the Temporal id (runtimeId or workflowId) on the engine, then assembly + bind
             onComplete(TrackMapper.of(id).resolve(e, ns)) {
-              case Success(runtime) => completeTry(assemblyLinked(req, runtime, id))
+              case Success(runtime) => complete(assemblyLinked(req, runtime, id))
               case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
             }
           case None => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --engine=temporal://...)")
@@ -333,7 +317,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "linked",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def createConfigLinkRoute() = post {
-    entity(as[WorkflowConfigDslReq]) { req => completeTry(linkConfig(req)) }
+    entity(as[WorkflowConfigDslReq]) { req => complete(linkConfig(req)) }
   }
 
   @POST @Path("/temporal/link/{id}") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
@@ -351,7 +335,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
           case Some(e) =>
             // resolve the Temporal id (runtimeId or workflowId) on the engine, then link-by-name + bind
             onComplete(TrackMapper.of(id).resolve(e, ns)) {
-              case Success(runtime) => completeTry(linkLinked(req, runtime, id))
+              case Success(runtime) => complete(linkLinked(req, runtime, id))
               case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
             }
           case None => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --engine=temporal://...)")
@@ -361,7 +345,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   }
 
   def updateConfigRoute(id: Int) = put {
-    entity(as[WorkflowConfigUpdateReq]) { req => completeTry(updateConfig(id, req)) }
+    entity(as[WorkflowConfigUpdateReq]) { req => complete(updateConfig(id, req)) }
   }
 
   def deleteConfigRoute(id: Int) = delete { complete(deleteConfig(id)) }
@@ -375,7 +359,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     parameters("from".as[Long].?, "size".as[Long].?) { (from, size) =>
       (from, size) match {
         case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
-        case _ => completeTry(getGrafs(from, size))
+        case _ => complete(getGrafs(from, size))
       }
     }
   }
@@ -385,7 +369,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "graf id")),
     responses = Array(new ApiResponse(responseCode = "200", description = "graf",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowGraf]))))))
-  def getGrafRoute(id: Int) = get { completeTry(getGraf(id)) }
+  def getGrafRoute(id: Int) = get { complete(getGraf(id)) }
 
   @POST @Path("/graf") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("graf"), summary = "Create WorkflowGraf",
@@ -393,7 +377,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "created",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowGraf]))))))
   def createGrafRoute() = post {
-    entity(as[WorkflowGrafCreateReq]) { req => completeTry(createGraf(req)) }
+    entity(as[WorkflowGrafCreateReq]) { req => complete(createGraf(req)) }
   }
 
   def deleteGrafRoute(id: Int) = delete { complete(deleteGraf(id)) }
@@ -403,16 +387,16 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     parameters("from".as[Long].?, "size".as[Long].?) { (from, size) =>
       (from, size) match {
         case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
-        case _ => completeTry(getDetectorSchemas(from, size))
+        case _ => complete(getDetectorSchemas(from, size))
       }
     }
   }
-  def getDetectorSchemaRoute(id: Int) = get { completeTry(getDetectorSchema(id)) }
+  def getDetectorSchemaRoute(id: Int) = get { complete(getDetectorSchema(id)) }
   def createDetectorSchemaRoute() = post {
-    entity(as[DetectorSchemaCreateReq]) { req => completeTry(createDetectorSchema(req)) }
+    entity(as[DetectorSchemaCreateReq]) { req => complete(createDetectorSchema(req)) }
   }
   def updateDetectorSchemaRoute(id: Int) = put {
-    entity(as[DetectorSchemaUpdateReq]) { req => completeTry(updateDetectorSchema(id, req)) }
+    entity(as[DetectorSchemaUpdateReq]) { req => complete(updateDetectorSchema(id, req)) }
   }
   def deleteDetectorSchemaRoute(id: Int) = delete { complete(deleteDetectorSchema(id)) }
 
@@ -421,16 +405,16 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     parameters("from".as[Long].?, "size".as[Long].?) { (from, size) =>
       (from, size) match {
         case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
-        case _ => completeTry(getDetectorConfigs(from, size))
+        case _ => complete(getDetectorConfigs(from, size))
       }
     }
   }
-  def getDetectorConfigRoute(id: Int) = get { completeTry(getDetectorConfig(id)) }
+  def getDetectorConfigRoute(id: Int) = get { complete(getDetectorConfig(id)) }
   def createDetectorConfigRoute() = post {
-    entity(as[DetectorConfigCreateReq]) { req => completeTry(createDetectorConfig(req)) }
+    entity(as[DetectorConfigCreateReq]) { req => complete(createDetectorConfig(req)) }
   }
   def updateDetectorConfigRoute(id: Int) = put {
-    entity(as[DetectorConfigUpdateReq]) { req => completeTry(updateDetectorConfig(id, req)) }
+    entity(as[DetectorConfigUpdateReq]) { req => complete(updateDetectorConfig(id, req)) }
   }
   def deleteDetectorConfigRoute(id: Int) = delete { complete(deleteDetectorConfig(id)) }
 

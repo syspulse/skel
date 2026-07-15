@@ -9,7 +9,8 @@ import scala.concurrent.duration._
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.{StatusCodes, ContentTypes}
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 
 import io.hacken.ext.detector.{DetectorSchema, DetectorConfig}
@@ -32,6 +33,11 @@ class DetectorRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
     routesPromise.success(new WorkflowRoutes(registry)(context)); Behaviors.empty
   }, "test-actor")
   val routes = Await.result(routesPromise.future, 5.seconds)
+
+  // errors are rendered as JSON by the Server-level handlers (WorkflowRoutes just completes). Seal
+  // the route with the same handlers so error responses reflect production.
+  private val (rejectionHandler, exceptionHandler) = (new io.syspulse.skel.Server {}).getHandlers()
+  val apiRoutes = handleRejections(rejectionHandler) { handleExceptions(exceptionHandler) { routes.routes } }
 
   override def afterAll(): Unit = typedSystem.terminate()
 
@@ -100,9 +106,13 @@ class DetectorRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       }
     }
 
-    "404 on missing detector" in {
-      Get("/detector/schema/999") ~> routes.routes ~> check {
+    "404 with a JSON error body on missing detector (via Server handlers)" in {
+      Get("/detector/schema/999") ~> apiRoutes ~> check {
         status shouldBe StatusCodes.NotFound
+        contentType shouldBe ContentTypes.`application/json`
+        val body = responseAs[String]
+        body should include ("\"error\"")
+        body should include ("\"code\":40104") // Err.NOT_FOUND
       }
     }
   }
