@@ -1,4 +1,6 @@
 #!/bin/bash
+CWD=`echo $(dirname $(readlink -f $0))`
+
 # Track WorkflowConfig(s) + all DetectorConfigs by polling wf-engine-resolve.sh periodically.
 # /config/resolve returns the WorkflowConfig(s) with LIVE engine-mapped statuses (workflow status
 # and per-DetectorConfig status), resolved by runtimeId (UUID) or workflowId; TYPE forces (rid|wid).
@@ -9,10 +11,13 @@
 #
 # The server must be running WITH an Engine (for live statuses):
 #   ./run-wf.sh --engine=temporal://127.0.0.1:7233/default server
+
 IDS=${1:-019f51c0-3917-731b-864d-3b9d326db0aa}
 POLL=${POLL:-3000}
 
-CWD=`echo $(dirname $(readlink -f $0))`
+
+>&2 echo "ID: $IDS"
+>&2 echo "POLL: ${POLL}ms"
 
 >&2 echo "Tracking '$IDS' every ${POLL}ms (Ctrl+C to stop)"
 while true; do

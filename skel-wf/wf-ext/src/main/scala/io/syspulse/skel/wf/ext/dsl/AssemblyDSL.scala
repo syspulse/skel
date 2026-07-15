@@ -128,12 +128,12 @@ object AssemblyDSL {
                     wid: Option[Int], wname: Option[String])
                    (implicit ec: ExecutionContext): Future[AssemblyResult] = {
 
-    log.info(s"build: ${wid}/${wname}: ${pipeline}")
+    log.info(s"assemble: ${wid}/${wname}: ${pipeline}")
 
     val specs = parse(pipeline)
     require(specs.nonEmpty, s"empty assembly pipeline: '${pipeline}'")
 
-    val built = for {
+    val asm = for {
       existingDS <- store.allDetectorSchemas
       existingDC <- store.allDetectorConfigs
       ds0        <- store.nextDetectorSchemaId
@@ -259,9 +259,15 @@ object AssemblyDSL {
       }
     } yield result
 
+    asm.recover {
+      case e =>
+        log.error(s"assemble failed: ${e}",e)
+        throw e
+    }
+
     // log every created entity (raw toString) once the build completes
-    built.foreach(logCreated)
-    built
+    asm.foreach(logCreated)
+    asm
   }
 
   /** Log all entities created by an assembly as their raw toString (in creation order). */

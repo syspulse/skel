@@ -237,12 +237,13 @@ object WorkflowRegistry {
         Behaviors.same
 
       case CreateSchemaDsl(req, replyTo) =>
+        log.info(s"CreateSchemaDsl: pipeline='${req.pipeline}'")
         AssemblyDSL.buildSchema(req.pipeline, store, req.wid, req.name)
           .map(_.schema).onComplete(replyTo ! _)
         Behaviors.same
 
       case UpdateSchema(id, req, replyTo) =>
-        log.info(s"UpdateSchema: ${req}")
+        log.info(s"UpdateSchema: ${id}: ${req}")
 
         store.getSchema(id).map(s => applyUpdate(s, req)).flatMap(store.addSchema).onComplete(replyTo ! _)
         Behaviors.same
@@ -280,7 +281,7 @@ object WorkflowRegistry {
         Behaviors.same
 
       case ResolveConfigs(ids, typ, replyTo) =>
-        log.info(s"ResolveConfigs: type=${typ.getOrElse("auto")} ids=${ids.mkString(",")}")
+        log.info(s"ResolveConfigs: ${typ}: ${ids}")
         resolveConfigs(store, ids, typ).onComplete(replyTo ! _)
         Behaviors.same
 
@@ -301,12 +302,12 @@ object WorkflowRegistry {
         Behaviors.same
 
       case AssemblyConfig(req, replyTo) =>
-        log.info(s"AssemblyConfig: ${req.pipeline}")
+        log.info(s"AssemblyConfig: pipeline='${req.pipeline}'")
         WorkflowAssembly.assembly(req.pipeline, store, req.wid, req.name).onComplete(replyTo ! _)
         Behaviors.same
 
       case AssemblyLinked(req, runtime, fallbackId, replyTo) =>
-        log.info(s"AssemblyLinked: id=${fallbackId} runtime=${runtime.map(_.id)} ${req.pipeline}")
+        log.info(s"AssemblyLinked: ${runtime.map(_.id)} / ${fallbackId}: pipeline='${req.pipeline}'")
         WorkflowAssembly.assembly(req.pipeline, store, req.wid, req.name)
           .flatMap(cfg0 => WorkflowAssembly.link(cfg0, runtime, fallbackId, store))
           .onComplete(replyTo ! _)

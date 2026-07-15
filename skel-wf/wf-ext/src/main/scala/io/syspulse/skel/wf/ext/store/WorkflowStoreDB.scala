@@ -99,7 +99,7 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   private def countOf(tbl: String, where: String = ""): Future[Long] =
     ctx.executeQuerySingle(s"SELECT count(*) FROM $tbl $where", extractor = (r: RowData, _: Unit) => r.getAs[Long](0))(ExecutionInfo.unknown, ())
   private def nextIdOf(tbl: String): Future[Int] =
-    ctx.executeQuerySingle(s"SELECT COALESCE(MAX(id),-1)+1 FROM $tbl", extractor = (r: RowData, _: Unit) => r.getAs[Long](0))(ExecutionInfo.unknown, ()).map(_.toInt)
+    ctx.executeQuerySingle(s"SELECT COALESCE(MAX(id),-1)+1 FROM $tbl", extractor = (r: RowData, _: Unit) => rInt(r, 0))(ExecutionInfo.unknown, ())
   private def upsert(tbl: String, cols: Seq[String], vals: Seq[String]): Future[Long] = {
     val set = cols.tail.map(c => s"$c = EXCLUDED.$c").mkString(", ")
     exec(s"INSERT INTO $tbl (${cols.mkString(",")}) VALUES (${vals.mkString(",")}) ON CONFLICT (id) DO UPDATE SET $set")
