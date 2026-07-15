@@ -168,4 +168,70 @@ class AssemblyDSLSpec extends AnyWordSpec with Matchers {
       }
     }
   }
+
+  "AssemblyDSL.linkByName (link command)" should {
+    // seed a store with DetectorConfigs (some with multiple versions) + their DetectorSchemas
+    def seeded(): WorkflowStoreMem = {
+      val store = new WorkflowStoreMem()
+      val now = System.currentTimeMillis()
+      def ds(id: Int, name: String, ver: String) =
+        DetectorSchema(id, now, now, WorkflowSchema.Status.ACTIVE, s"Schema_${name}", ver, s"Schema_${name}", "", "", None, None, Seq(), Seq(), None, None)
+      def dc(id: Int, name: String, sid: Int, ver: String) =
+        DetectorConfig(id, now, now, WorkflowSchema.Status.ACTIVE,
+          DetectorConfigContract(0, now, now, 0, 0, None, None, None, None, name),
+          Some(DetectorConfigSchema(sid, now, now, WorkflowSchema.Status.ACTIVE, s"Schema_${name}", ver, None)),
+          name, "", Seq(), None, Seq())
+      // PoO: two versions (1.0.0 and 1.2.0 -> latest); PoR: single version
+      Await.result(store.addDetectorSchema(ds(10, "PoO", "1.0.0")), timeout)
+      Await.result(store.addDetectorSchema(ds(11, "PoO", "1.2.0")), timeout)
+      Await.result(store.addDetectorSchema(ds(20, "PoR", "1.0.0")), timeout)
+      Await.result(store.addDetectorConfig(dc(100, "PoO", 10, "1.0.0")), timeout)
+      Await.result(store.addDetectorConfig(dc(101, "PoO", 11, "1.2.0")), timeout)
+      Await.result(store.addDetectorConfig(dc(200, "PoR", 20, "1.0.0")), timeout)
+      store
+    }
+
+    "build WorkflowConfig+Schema from EXISTING DetectorConfigs (creating no Detector*)" in {
+      val store = seeded()
+      val res = Await.result(AssemblyDSL.linkByName("Detector.PoO -> Detector.PoR", store, wname = Some("Linked")), timeout)
+
+      // creates nothing new
+      res.detectorSchemas shouldBe empty
+      res.detectorConfigs shouldBe empty
+      Await.result(store.allDetectorConfigs, timeout) should have size 3
+      Await.result(store.allDetectorSchemas, timeout) should have size 3
+
+      val cfg = res.config.get
+      cfg.name shouldBe "Linked"
+      cfg.graph.nodes should have size 2
+      cfg.graph.links should have size 1
+
+      // PoO node points at the LATEST version (config 101 / schema 11), PoR at (200 / 20)
+      val poo = cfg.graph.nodes.values.find(_.title == "PoO").get
+      poo.cid shouldBe Some(101)
+      poo.sid shouldBe 11
+      val por = cfg.graph.nodes.values.find(_.title == "PoR").get
+      por.cid shouldBe Some(200)
+      por.sid shouldBe 20
+
+      // WorkflowSchema references the DetectorSchemas of the found configs
+      res.schema.graph.nodes.values.map(_.sid).toSet shouldBe Set(11, 20)
+      res.schema.graph.nodes.values.foreach { n => n.cid shouldBe None }
+    }
+
+    "accept the bracket shorthand via WorkflowAssembly.linkByName" in {
+      val store = seeded()
+      val cfg = Await.result(
+        io.syspulse.skel.wf.ext.store.WorkflowAssembly.linkByName("[PoO] -> [PoR]", store), timeout)
+      cfg.graph.nodes.values.map(_.cid).flatten.toSet shouldBe Set(101, 200)
+      Await.result(store.allDetectorConfigs, timeout) should have size 3 // nothing created
+    }
+
+    "fail when a DetectorConfig name is not found" in {
+      val store = seeded()
+      intercept[Exception] {
+        Await.result(AssemblyDSL.linkByName("Detector.PoO -> Detector.DoesNotExist", store), timeout)
+      }
+    }
+  }
 }

@@ -7,6 +7,8 @@ import com.typesafe.scalalogging.Logger
 import io.hacken.ext.wf._
 import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigContract, DetectorConfigSchema}
 import io.syspulse.skel.wf.ext.store.WorkflowStore
+import io.syspulse.skel.Err.NOT_FOUND
+import io.syspulse.skel.ErrNotFound
 
 // ============================================================================
 // Assembly DSL
@@ -166,12 +168,12 @@ object AssemblyDSL {
           if (spec.isById) {
             if (spec.isDetector) {
               val dc = dcById.getOrElse(spec.refId,
-                throw new IllegalArgumentException(s"DetectorConfig not found: id=${spec.refId}"))
+                throw new ErrNotFound(s"DetectorConfig not found: id=${spec.refId}"))
               val sid = dc.schema.map(_.id).getOrElse(-1)
               (i, spec, sid, Some(dc.id))
             } else {
               val ds = dsById.getOrElse(spec.refId,
-                throw new IllegalArgumentException(s"DetectorSchema not found: id=${spec.refId}"))
+                throw new ErrNotFound(s"DetectorSchema not found: id=${spec.refId}"))
               (i, spec, ds.id, None)
             }
           } else {
@@ -187,73 +189,16 @@ object AssemblyDSL {
           }
         }
 
-        // ---------- build graph nodes (graph-local ids 0..n-1) ----------
-        // lay nodes out left-to-right so the assembled topology is visible in the UI editor
-        // (otherwise all nodes default to pos 0,0 and overlap). Persisted in `meta`.
-        def layoutMeta(i: Int): Map[String, Any] =
-          WorkflowNode.defaultMeta ++ Map(
-            "pos_x" -> (60 + i * 220),
-            "pos_y" -> 120,
-            "size_width" -> 160,
-            "size_height" -> 64,
-          )
-        val schemaNodes = resolved.map { case (i, spec, sid, _) =>
-          WorkflowNode(id = i, title = spec.ref, sid = sid, cid = None, meta = Some(layoutMeta(i)))
-        }
-        val configNodes = resolved.map { case (i, spec, sid, cid) =>
-          WorkflowNode(id = i, title = spec.ref, sid = sid, cid = cid, meta = Some(layoutMeta(i)))
-        }
-
-        // ---------- build links between consecutive nodes ----------
-        // link id prefers the upstream node's {out}, else the downstream node's {in}, else a free
-        // sequential id. Collisions (e.g. an explicit id already used) fall back to the next free id.
-        val usedLinkIds = scala.collection.mutable.Set[Int]()
-        var seqLinkId = 0
-        def freeId(): Int = { while (usedLinkIds.contains(seqLinkId)) seqLinkId += 1; seqLinkId }
-        val links = (0 until resolved.size - 1).map { i =>
-          val (_, sFrom, _, _) = resolved(i)
-          val (_, sTo, _, _)   = resolved(i + 1)
-          val candidate = sFrom.out.orElse(sTo.in).getOrElse(freeId())
-          val linkId = if (usedLinkIds.contains(candidate)) freeId() else candidate
-          usedLinkIds += linkId
-          WorkflowLink(id = linkId, from = i, to = i + 1)
-        }
-
-        val linksMap = links.map(l => l.id -> l).toMap
-
-        val schemaGraf = WorkflowGraf(
-          id = grafId, sid = Some(wsId), cid = None,
-          nodes = schemaNodes.map(n => n.id -> n).toMap,
-          links = linksMap,
-        )
-        val schema = WorkflowSchema.of(wsId, wname.getOrElse(randomName()), WorkflowGraf.sync(schemaGraf))
-
-        // persist new detectors + schema
+        // persist new detectors, then build + persist the Workflow graph referencing them
         val persistDetectors =
           Future.sequence(newDetectorSchemas.toList.map(store.addDetectorSchema)).flatMap { _ =>
             Future.sequence(newDetectorConfigs.toList.map(store.addDetectorConfig))
           }
 
         persistDetectors.flatMap { _ =>
-          store.addSchema(schema).flatMap { savedSchema =>
-            if (!createConfig) {
-              store.addGraf(WorkflowGraf.sync(schemaGraf)).map { _ =>
-                AssemblyResult(savedSchema, None, newDetectorSchemas.toList, newDetectorConfigs.toList)
-              }
-            } else {
-              val configGraf = WorkflowGraf(
-                id = grafId, sid = Some(wsId), cid = Some(wcId),
-                nodes = configNodes.map(n => n.id -> n).toMap,
-                links = linksMap,
-              )
-              val config = WorkflowConfig.from(wcId, savedSchema)
-                .copy(graph = WorkflowGraf.sync(configGraf))
-              for {
-                savedConfig <- store.addConfig(config)
-                _           <- store.addGraf(WorkflowGraf.sync(configGraf))
-              } yield AssemblyResult(savedSchema, Some(savedConfig),
-                newDetectorSchemas.toList, newDetectorConfigs.toList)
-            }
+          buildWorkflow(resolved, createConfig, wsId, wcId, grafId, wname, store).map {
+            case (savedSchema, savedConfig) =>
+              AssemblyResult(savedSchema, savedConfig, newDetectorSchemas.toList, newDetectorConfigs.toList)
           }
         }
       }
@@ -276,5 +221,151 @@ object AssemblyDSL {
     r.detectorConfigs.foreach(d => log.info(d.toString))
     log.info(r.schema.toString)
     r.config.foreach(c => log.info(c.toString))
+  }
+
+  // ----------------------------------------------------------------- link (references existing detectors, creates nothing)
+
+  /** Numeric version key ("1.2.3" -> Seq(1,2,3)) for "latest version" comparison; non-numeric parts dropped. */
+  private def versionKey(v: String): Seq[Int] =
+    Option(v).getOrElse("").split("[._-]").toSeq.flatMap(s => Try(s.toInt).toOption)
+
+  /** Latest DetectorConfig among same-named candidates: highest schema.version, then updatedAt, then id. */
+  private def latestConfig(cs: Seq[DetectorConfig]): Option[DetectorConfig] = {
+    import scala.math.Ordering.Implicits._
+    if (cs.isEmpty) None
+    else Some(cs.sortBy(dc => (dc.schema.map(s => versionKey(s.version)).getOrElse(Seq.empty[Int]), dc.updatedAt, dc.id)).last)
+  }
+
+  /** Latest DetectorSchema among same-named candidates: highest version, then updatedAt, then id. */
+  private def latestSchema(ds: Seq[DetectorSchema]): Option[DetectorSchema] = {
+    import scala.math.Ordering.Implicits._
+    if (ds.isEmpty) None
+    else Some(ds.sortBy(d => (versionKey(d.version), d.updatedAt, d.id)).last)
+  }
+
+  /**
+   * Build & persist a WorkflowConfig (+ WorkflowSchema) that REFERENCES existing Detector entities.
+   * Unlike `assembly`, this NEVER creates DetectorConfig/DetectorSchema:
+   *   - each `Detector.<name>` node is resolved to an existing DetectorConfig by name (latest version);
+   *   - each `Schema.<name>`   node is resolved to an existing DetectorSchema by name (latest version);
+   *   - `<id>` nodes are looked up by id.
+   * The WorkflowSchema nodes reference each resolved DetectorConfig's DetectorSchema (via `schema.id`).
+   * A missing reference fails the whole build.
+   */
+  def linkByName(pipeline: String, store: WorkflowStore,
+                 wid: Option[Int] = None, wname: Option[String] = None)
+                (implicit ec: ExecutionContext): Future[AssemblyResult] = {
+
+    log.info(s"link: ${wid}/${wname}: ${pipeline}")
+
+    val specs = parse(pipeline)
+    require(specs.nonEmpty, s"empty link pipeline: '${pipeline}'")
+
+    val asm = for {
+      existingDC <- store.allDetectorConfigs
+      existingDS <- store.allDetectorSchemas
+      wsId       <- wid.map(i => Future.successful(i.max(0))).getOrElse(store.nextSchemaId)
+      wcId       <- store.nextConfigId
+      grafId     <- store.nextGrafId
+      result     <- {
+        val dcById   = existingDC.map(d => d.id -> d).toMap
+        val dsById   = existingDS.map(d => d.id -> d).toMap
+        val dcByName = existingDC.groupBy(_.name)
+        val dsByName = existingDS.groupBy(_.name)
+
+        // resolve each node spec against EXISTING detectors -> (index, spec, DetectorSchema id, optional DetectorConfig id)
+        val resolved = specs.zipWithIndex.map { case (spec, i) =>
+          if (spec.isSchemaOnly) {
+            val ds =
+              if (spec.isById) dsById.getOrElse(spec.refId,
+                throw new ErrNotFound(s"DetectorSchema not found: id=${spec.refId}"))
+              else latestSchema(dsByName.getOrElse(spec.ref, Seq())).getOrElse(
+                throw new ErrNotFound(s"DetectorSchema not found: name='${spec.ref}'"))
+            (i, spec, ds.id, Option.empty[Int])
+          } else {
+            val dc =
+              if (spec.isById) dcById.getOrElse(spec.refId,
+                throw new ErrNotFound(s"DetectorConfig not found: id=${spec.refId}"))
+              else latestConfig(dcByName.getOrElse(spec.ref, Seq())).getOrElse(
+                throw new ErrNotFound(s"DetectorConfig not found: name='${spec.ref}'"))
+            (i, spec, dc.schema.map(_.id).getOrElse(-1), Some(dc.id))
+          }
+        }
+
+        buildWorkflow(resolved, createConfig = true, wsId, wcId, grafId, wname, store).map {
+          case (savedSchema, savedConfig) => AssemblyResult(savedSchema, savedConfig, Seq(), Seq())
+        }
+      }
+    } yield result
+
+    asm.recover { case e => log.error(s"link failed: ${e}", e); throw e }
+    asm.foreach { r => log.info(r.schema.toString); r.config.foreach(c => log.info(c.toString)) }
+    asm
+  }
+
+  // ----------------------------------------------------------------- shared graph build + persist
+  // From resolved nodes (index, spec, DetectorSchema id, optional DetectorConfig id) build the
+  // WorkflowSchema (+ WorkflowConfig when createConfig) with a left-to-right layout, and persist them
+  // (+ their WorkflowGraf). Detector* entities are NOT created/persisted here.
+  private def buildWorkflow(
+      resolved: Seq[(Int, NodeSpec, Int, Option[Int])],
+      createConfig: Boolean, wsId: Int, wcId: Int, grafId: Int, wname: Option[String],
+      store: WorkflowStore)(implicit ec: ExecutionContext): Future[(WorkflowSchema, Option[WorkflowConfig])] = {
+
+    // lay nodes out left-to-right so the assembled topology is visible in the UI editor
+    // (otherwise all nodes default to pos 0,0 and overlap). Persisted in `meta`.
+    def layoutMeta(i: Int): Map[String, Any] =
+      WorkflowNode.defaultMeta ++ Map(
+        "pos_x" -> (60 + i * 220),
+        "pos_y" -> 120,
+        "size_width" -> 160,
+        "size_height" -> 64,
+      )
+    val schemaNodes = resolved.map { case (i, spec, sid, _) =>
+      WorkflowNode(id = i, title = spec.ref, sid = sid, cid = None, meta = Some(layoutMeta(i)))
+    }
+    val configNodes = resolved.map { case (i, spec, sid, cid) =>
+      WorkflowNode(id = i, title = spec.ref, sid = sid, cid = cid, meta = Some(layoutMeta(i)))
+    }
+
+    // link id prefers the upstream node's {out}, else the downstream node's {in}, else a free
+    // sequential id. Collisions (e.g. an explicit id already used) fall back to the next free id.
+    val usedLinkIds = scala.collection.mutable.Set[Int]()
+    var seqLinkId = 0
+    def freeId(): Int = { while (usedLinkIds.contains(seqLinkId)) seqLinkId += 1; seqLinkId }
+    val links = (0 until resolved.size - 1).map { i =>
+      val (_, sFrom, _, _) = resolved(i)
+      val (_, sTo, _, _)   = resolved(i + 1)
+      val candidate = sFrom.out.orElse(sTo.in).getOrElse(freeId())
+      val linkId = if (usedLinkIds.contains(candidate)) freeId() else candidate
+      usedLinkIds += linkId
+      WorkflowLink(id = linkId, from = i, to = i + 1)
+    }
+    val linksMap = links.map(l => l.id -> l).toMap
+
+    val schemaGraf = WorkflowGraf(
+      id = grafId, sid = Some(wsId), cid = None,
+      nodes = schemaNodes.map(n => n.id -> n).toMap,
+      links = linksMap,
+    )
+    val schema = WorkflowSchema.of(wsId, wname.getOrElse(randomName()), WorkflowGraf.sync(schemaGraf))
+
+    store.addSchema(schema).flatMap { savedSchema =>
+      if (!createConfig) {
+        store.addGraf(WorkflowGraf.sync(schemaGraf)).map(_ => (savedSchema, None))
+      } else {
+        val configGraf = WorkflowGraf(
+          id = grafId, sid = Some(wsId), cid = Some(wcId),
+          nodes = configNodes.map(n => n.id -> n).toMap,
+          links = linksMap,
+        )
+        val config = WorkflowConfig.from(wcId, savedSchema)
+          .copy(graph = WorkflowGraf.sync(configGraf))
+        for {
+          savedConfig <- store.addConfig(config)
+          _           <- store.addGraf(WorkflowGraf.sync(configGraf))
+        } yield (savedSchema, Some(savedConfig))
+      }
+    }
   }
 }

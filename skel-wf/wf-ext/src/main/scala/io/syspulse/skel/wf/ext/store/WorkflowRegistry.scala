@@ -44,8 +44,12 @@ object WorkflowRegistry {
   final case class CreateConfigDsl(req: WorkflowConfigDslReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   // assembly WorkflowConfig from DSL (bracket shorthand accepted) - same as the `assembly` command
   final case class AssemblyConfig(req: WorkflowConfigDslReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
-  // assembly + bind to a runtime resolved on the Engine (runtime == None -> fallback xid=fallbackId) - same as `assembly-link`
+  // assembly + bind to a runtime resolved on the Engine (runtime == None -> fallback xid=fallbackId) - same as `/temporal/assembly`
   final case class AssemblyLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
+  // link WorkflowConfig from DSL referencing EXISTING DetectorConfigs by name (latest version) - creates no Detector*
+  final case class LinkConfig(req: WorkflowConfigDslReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
+  // linkByName + bind to a runtime resolved on the Engine (runtime == None -> fallback xid=fallbackId)
+  final case class LinkLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   final case class UpdateConfig(id: Int, req: WorkflowConfigUpdateReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   final case class DeleteConfig(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
 
@@ -309,6 +313,18 @@ object WorkflowRegistry {
       case AssemblyLinked(req, runtime, fallbackId, replyTo) =>
         log.info(s"AssemblyLinked: ${runtime.map(_.id)} / ${fallbackId}: pipeline='${req.pipeline}'")
         WorkflowAssembly.assembly(req.pipeline, store, req.wid, req.name)
+          .flatMap(cfg0 => WorkflowAssembly.link(cfg0, runtime, fallbackId, store))
+          .onComplete(replyTo ! _)
+        Behaviors.same
+
+      case LinkConfig(req, replyTo) =>
+        log.info(s"LinkConfig: pipeline='${req.pipeline}'")
+        WorkflowAssembly.linkByName(req.pipeline, store, req.wid, req.name).onComplete(replyTo ! _)
+        Behaviors.same
+
+      case LinkLinked(req, runtime, fallbackId, replyTo) =>
+        log.info(s"LinkLinked: ${runtime.map(_.id)} / ${fallbackId}: pipeline='${req.pipeline}'")
+        WorkflowAssembly.linkByName(req.pipeline, store, req.wid, req.name)
           .flatMap(cfg0 => WorkflowAssembly.link(cfg0, runtime, fallbackId, store))
           .onComplete(replyTo ! _)
         Behaviors.same

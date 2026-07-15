@@ -75,6 +75,8 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def createConfigDsl(req: WorkflowConfigDslReq): Future[Try[WorkflowConfig]] = registry.ask(CreateConfigDsl(req, _))
   def assemblyConfig(req: WorkflowConfigDslReq): Future[Try[WorkflowConfig]] = registry.ask(AssemblyConfig(req, _))
   def assemblyLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String): Future[Try[WorkflowConfig]] = registry.ask(AssemblyLinked(req, runtime, fallbackId, _))
+  def linkConfig(req: WorkflowConfigDslReq): Future[Try[WorkflowConfig]] = registry.ask(LinkConfig(req, _))
+  def linkLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String): Future[Try[WorkflowConfig]] = registry.ask(LinkLinked(req, runtime, fallbackId, _))
   def updateConfig(id: Int, req: WorkflowConfigUpdateReq): Future[Try[WorkflowConfig]] = registry.ask(UpdateConfig(id, req, _))
   def deleteConfig(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteConfig(id, _))
 
@@ -302,7 +304,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   }
 
   @POST @Path("/temporal/assembly/{id}") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("engine"), summary = "Assemble a WorkflowConfig from DSL and link it to an existing Temporal id (same as `assembly-link`)",
+  @Operation(tags = Array("engine"), summary = "Assemble a WorkflowConfig from DSL (creating Detectors) and link it to an existing Temporal id",
     parameters = Array(
       new Parameter(name = "id", in = ParameterIn.PATH, description = "Temporal runtimeId (UUID) or workflowId"),
       new Parameter(name = "ns", in = ParameterIn.QUERY, description = "namespace (default: all)")),
@@ -317,6 +319,39 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
             // resolve the Temporal id (runtimeId or workflowId) on the engine, then assembly + bind
             onComplete(TrackMapper.of(id).resolve(e, ns)) {
               case Success(runtime) => completeTry(assemblyLinked(req, runtime, id))
+              case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
+            }
+          case None => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --engine=temporal://...)")
+        }
+      }
+    }
+  }
+
+  @POST @Path("/config/link") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("config"), summary = "Link a WorkflowConfig from DSL referencing EXISTING DetectorConfigs by name (latest version); creates no Detector*",
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigDslReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "linked",
+      content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
+  def createConfigLinkRoute() = post {
+    entity(as[WorkflowConfigDslReq]) { req => completeTry(linkConfig(req)) }
+  }
+
+  @POST @Path("/temporal/link/{id}") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("engine"), summary = "Link a WorkflowConfig from DSL (existing DetectorConfigs by name) and bind it to an existing Temporal id",
+    parameters = Array(
+      new Parameter(name = "id", in = ParameterIn.PATH, description = "Temporal runtimeId (UUID) or workflowId"),
+      new Parameter(name = "ns", in = ParameterIn.QUERY, description = "namespace (default: all)")),
+    requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigDslReq])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "linked + bound",
+      content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
+  def temporalLinkRoute(id: String) = post {
+    entity(as[WorkflowConfigDslReq]) { req =>
+      parameter("ns".?) { ns =>
+        engine match {
+          case Some(e) =>
+            // resolve the Temporal id (runtimeId or workflowId) on the engine, then link-by-name + bind
+            onComplete(TrackMapper.of(id).resolve(e, ns)) {
+              case Success(runtime) => completeTry(linkLinked(req, runtime, id))
               case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
             }
           case None => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --engine=temporal://...)")
@@ -420,6 +455,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
         concat(
           pathPrefix("dsl") { pathEndOrSingleSlash { createConfigDslRoute() } },
           pathPrefix("assembly") { pathEndOrSingleSlash { createConfigAssemblyRoute() } },
+          pathPrefix("link") { pathEndOrSingleSlash { createConfigLinkRoute() } },
           pathPrefix("resolve") {
             // /config/resolve/<a>,<b>,<c>[?type=rid|wid]
             pathPrefix(Segment) { csv =>
@@ -466,11 +502,17 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
           },
         )
       },
-      // Temporal-specific assembly: POST /temporal/assembly/{id} (id = runtimeId or workflowId)
+      // Temporal-specific: POST /temporal/assembly/{id} (creates Detector*), /temporal/link/{id}
+      // (references existing DetectorConfigs by name). id = runtimeId or workflowId.
       pathPrefix("temporal") {
-        pathPrefix("assembly") {
-          pathPrefix(Segment) { id => pathEndOrSingleSlash { temporalAssemblyRoute(id) } }
-        }
+        concat(
+          pathPrefix("assembly") {
+            pathPrefix(Segment) { id => pathEndOrSingleSlash { temporalAssemblyRoute(id) } }
+          },
+          pathPrefix("link") {
+            pathPrefix(Segment) { id => pathEndOrSingleSlash { temporalLinkRoute(id) } }
+          },
+        )
       },
       // Engine runtime state:
       //   /engine/{engine}                        -> all workflows in all namespaces
