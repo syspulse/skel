@@ -316,6 +316,13 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           onConnect={onConnect}
           nodeTypes={nodeTypes}
           onNodeClick={(_, n) => { setSelectedNodeId(n.id); setSelectedEdgeId(null); }}
+          // double-click a node -> open its underlying entity editor (DetectorConfig if linked, else DetectorSchema)
+          onNodeDoubleClick={(_, n) => {
+            const d = n.data as RFNodeData;
+            setSelectedNodeId(null); setSelectedEdgeId(null); // close the node (element) editor
+            if (d.cid !== undefined && d.cid !== null && onOpenDetectorConfig) onOpenDetectorConfig(d.cid);
+            else if (d.sid >= 0 && onOpenDetectorSchema) onOpenDetectorSchema(d.sid);
+          }}
           onEdgeClick={(_, e) => { setSelectedEdgeId(e.id); setSelectedNodeId(null); }}
           onEdgeDoubleClick={(_, e) => deleteEdge(e.id)}
           onPaneClick={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}
@@ -380,7 +387,7 @@ function DetectorPalette({ kind, detectorSchemas, detectorConfigs, onPick, onClo
               <button key={`c${d.id}`} onClick={() => onPick({ title: d.name, sid: d.schema?.id ?? -1, cid: d.id, tags: d.tags })}
                 className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted flex items-center gap-2 text-foreground">
                 <span className="shrink-0 inline-flex items-center justify-center w-[14px] h-[14px]">{renderIcon(DEFAULT_CONFIG_ICON, 14)}</span>
-                <span className="truncate">{d.name} ({d.id})</span>
+                <span className="truncate">{d.id} ({d.name})</span>
               </button>
             ))}
           </div>
@@ -391,7 +398,7 @@ function DetectorPalette({ kind, detectorSchemas, detectorConfigs, onPick, onClo
               <button key={`s${d.id}`} onClick={() => onPick({ title: d.title || d.name, icon: d.icon, sid: d.id, tags: d.tags })}
                 className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted flex items-center gap-2 text-foreground">
                 <span className="shrink-0 inline-flex items-center justify-center w-[14px] h-[14px]">{renderIcon(d.icon && d.icon.trim() ? d.icon : DEFAULT_SCHEMA_ICON, 14)}</span>
-                <span className="truncate">{d.name} ({d.id})</span>
+                <span className="truncate">{d.id} ({d.name})</span>
               </button>
             ))}
           </div>

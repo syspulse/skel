@@ -226,13 +226,13 @@ export function DetectorSlider(props: DetectorSliderProps) {
                 <SliderFieldRow label={t('workflow.fields.schema')}>
                   <select className="field-inline" value={sid} onChange={(e) => setSid(e.target.value === '' ? '' : Number(e.target.value))}>
                     <option value="">{t('workflow.chooseSchema')}</option>
-                    {schemas.map((s) => <option key={s.id} value={s.id}>{s.id} {s.name}</option>)}
+                    {schemas.map((s) => <option key={s.id} value={s.id}>{s.id} ({s.name})</option>)}
                   </select>
                 </SliderFieldRow>
               )}
               {!addMode && (
                 <SliderFieldRow label={t('workflow.fields.schema')}>
-                  <div className="field-readonly flex-1">{config?.schema ? `${config.schema.id} ${config.schema.name}` : ''}</div>
+                  <div className="field-readonly flex-1">{config?.schema ? `${config.schema.id} (${config.schema.name})` : ''}</div>
                   {config?.schema && onOpenSchema && (
                     <button type="button" onClick={() => onOpenSchema(config.schema!.id)} title={t('workflow.tabs.detectorSchema')}
                       className="shrink-0 inline-flex items-center justify-center w-[26px] h-[26px] rounded border border-border text-muted-foreground hover:bg-muted transition-colors text-base leading-none">

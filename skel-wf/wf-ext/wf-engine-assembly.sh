@@ -12,7 +12,7 @@ CWD=`echo $(dirname $(readlink -f $0))`
 # The server must be running WITH an Engine:
 #   ./run-wf.sh --engine=temporal://127.0.0.1:7233/default server
 ID=${1:-019f51c0-3917-731b-864d-3b9d326db0aa}
-PIPELINE=${2:-'[ProofOfOwnership] -> [ProofOfReserve] -> [Report] -> [Commit]'}
+PIPELINE=${2:-'[ProofOfOwnership] -> [ProofOfReserve] -> [Solvency] -> [Report] -> [Commit]'}
 NS=${NS:-}
 ENGINE=${ENGINE:-temporal}
 
