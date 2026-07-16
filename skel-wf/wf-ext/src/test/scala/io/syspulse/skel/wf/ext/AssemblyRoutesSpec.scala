@@ -103,6 +103,10 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
         val dets = r.detectors.get.values.map(d => d.name -> d.status).toMap
         dets("ProofOfOwnership") shouldBe EngineStatus.COMPLETED      // matched activity -> live status
         dets("ProofOfReserve")   shouldBe EngineStatus.UNKNOWN        // no activity yet
+        // the matched activity's id is exposed via DetectorConfig.meta.activity_id
+        val byName = r.detectors.get.values.map(d => d.name -> d).toMap
+        byName("ProofOfOwnership").meta.flatMap(_.get("activity_id")) shouldBe Some("a1")
+        byName("ProofOfReserve").meta.flatMap(_.get("activity_id")) shouldBe None
       }
     }
   }

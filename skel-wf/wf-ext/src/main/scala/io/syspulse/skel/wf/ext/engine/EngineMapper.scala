@@ -32,6 +32,7 @@ case class DetectorRuntimeState(
   status: String,              // EngineStatus (UNKNOWN when not observed on the engine)
   kind: Option[String] = None, // ACTIVITY | CHILD_WORKFLOW
   runtimeId: Option[String] = None, // child-workflow RunId, when the step is a child workflow
+  activityId: Option[String] = None, // engine Activity id (rule 1) or child RunId (rule 2), when matched
   matched: Boolean = false,    // whether a runtime activity/child was found for this node
 )
 
@@ -56,12 +57,12 @@ object EngineMapper {
    * Find, among a workflow's activities and (recursive) child workflows, the runtime element
    * whose Type name matches `name` (resolution rules 1 & 2). Activities take precedence.
    */
-  def matchByName(w: EngineWorkflow, name: String): Option[(String, String, Option[String])] = {
-    // returns (status, kind, runtimeId)
-    w.allActivities.find(_.name == name).map(a => (a.status, a.kind, None: Option[String]))
+  def matchByName(w: EngineWorkflow, name: String): Option[(String, String, Option[String], Option[String])] = {
+    // returns (status, kind, runtimeId, activityId)
+    w.allActivities.find(_.name == name).map(a => (a.status, a.kind, None: Option[String], Some(a.id)))
       .orElse(
         w.flatten.drop(1).find(_.name == name) // drop(1): skip the root workflow itself
-          .map(c => (c.status, EngineActivity.KIND_CHILD, Some(c.runtimeId)))
+          .map(c => (c.status, EngineActivity.KIND_CHILD, Some(c.runtimeId), Some(c.runtimeId)))
       )
   }
 
@@ -82,20 +83,20 @@ object EngineMapper {
           val dc   = node.cid.flatMap(detectors.get)
           val name = dc.map(_.name).getOrElse(node.title)
           matchByName(w, name) match {
-            case Some((status, kind, rid)) =>
-              DetectorRuntimeState(node.id, node.cid, name, status, Some(kind), rid, matched = true)
+            case Some((status, kind, rid, aid)) =>
+              DetectorRuntimeState(node.id, node.cid, name, status, Some(kind), rid, aid, matched = true)
             case None =>
-              DetectorRuntimeState(node.id, node.cid, name, EngineStatus.UNKNOWN, None, None, matched = false)
+              DetectorRuntimeState(node.id, node.cid, name, EngineStatus.UNKNOWN, None, None, None, matched = false)
           }
         }
 
       case None =>
         // no linked config: expose observed activities/children as steps directly
         val acts = w.allActivities.map { a =>
-          DetectorRuntimeState(-1, None, a.name, a.status, Some(a.kind), None, matched = true)
+          DetectorRuntimeState(-1, None, a.name, a.status, Some(a.kind), None, Some(a.id), matched = true)
         }
         val kids = w.flatten.drop(1).map { c =>
-          DetectorRuntimeState(-1, None, c.name, c.status, Some(EngineActivity.KIND_CHILD), Some(c.runtimeId), matched = true)
+          DetectorRuntimeState(-1, None, c.name, c.status, Some(EngineActivity.KIND_CHILD), Some(c.runtimeId), Some(c.runtimeId), matched = true)
         }
         acts ++ kids
     }
@@ -115,6 +116,6 @@ object EngineMapper {
 
 object EngineMapperJson extends JsonCommon {
   import EngineJson._
-  implicit val jf_det_runtime_state: RootJsonFormat[DetectorRuntimeState] = jsonFormat7(DetectorRuntimeState.apply)
+  implicit val jf_det_runtime_state: RootJsonFormat[DetectorRuntimeState] = jsonFormat8(DetectorRuntimeState.apply)
   implicit val jf_wf_runtime_view: RootJsonFormat[WorkflowRuntimeView]     = jsonFormat8(WorkflowRuntimeView.apply)
 }

@@ -161,18 +161,23 @@ object WorkflowRegistry {
           resolveRuntime(e, c, mode).map {
             case Some(w) =>
               val view = EngineMapper.map(w, Some(c), detectorsInt)
-              val stepStatus = view.steps.flatMap(s => s.cid.map(_ -> s.status)).toMap
-              (c.copy(status = view.status), stepStatus)
+              // cid -> (live status, matched engine activity id)
+              val stepInfo = view.steps.flatMap(s => s.cid.map(_ -> (s.status, s.activityId))).toMap
+              (c.copy(status = view.status), stepInfo)
             case None =>
               // runtime not present on the Engine -> the whole config (and every step) is UNRESOLVED
               val cids = c.graph.nodes.values.flatMap(_.cid).toSeq
-              (c.copy(status = EngineStatus.UNRESOLVED), cids.map(_ -> EngineStatus.UNRESOLVED).toMap)
+              (c.copy(status = EngineStatus.UNRESOLVED), cids.map(_ -> (EngineStatus.UNRESOLVED, Option.empty[String])).toMap)
           }
         }.map { results =>
-          val newConfigs    = results.map(_._1)
-          val stepStatusAll = results.flatMap(_._2).toMap   // cid -> live status (or UNRESOLVED)
-          val newDetectors  = detectorsInt.map { case (cid, dc) =>
-            cid.toString -> dc.copy(status = stepStatusAll.getOrElse(cid, EngineStatus.UNRESOLVED))
+          val newConfigs   = results.map(_._1)
+          val stepInfoAll  = results.flatMap(_._2).toMap    // cid -> (status, activityId)
+          val newDetectors = detectorsInt.map { case (cid, dc) =>
+            val (st, aid) = stepInfoAll.getOrElse(cid, (EngineStatus.UNRESOLVED, None))
+            // set DetectorConfig.meta.activity_id from the resolved engine activity (dropped when absent)
+            val meta = aid.map(a => (dc.meta.getOrElse(Map.empty) + ("activity_id" -> a)))
+              .orElse(dc.meta.map(_ - "activity_id").filter(_.nonEmpty))
+            cid.toString -> dc.copy(status = st, meta = meta)
           }
           WorkflowConfigs(newConfigs, newConfigs.size.toLong, Some(newDetectors))
         }

@@ -56,10 +56,12 @@ case class DetectorConfig(
   
   name: String, // user supplied name
   source: String, // "ATTACK_DETECTOR",
-  tags: Seq[String], // "SECURITY"  
+  tags: Seq[String], // "SECURITY"
   config: Option[JsObject],  // configuration according to schema
-  destinations: Seq[DetectorConfigDestination]
+  destinations: Seq[DetectorConfigDestination],
   //actions: []
+
+  meta: Option[Map[String,String]] = None  // transient runtime metadata (e.g. "activity_id" from /resolve); NOT persisted
 
 ) extends Ingestable
 
@@ -67,7 +69,7 @@ object DetectorConfigJson extends JsonCommon {
   implicit val jf_dc_sch = jsonFormat7(DetectorConfigSchema)  
   implicit val jf_dc_con = jsonFormat10(DetectorConfigContract)
   implicit val jf_dc_dest = jsonFormat7(DetectorConfigDestination)  
-  implicit val jf_dc = jsonFormat11(DetectorConfig.apply _)
+  implicit val jf_dc = jsonFormat12(DetectorConfig.apply _)
 }
 
 
