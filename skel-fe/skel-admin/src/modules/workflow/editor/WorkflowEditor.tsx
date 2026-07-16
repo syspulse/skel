@@ -37,6 +37,7 @@ export interface WorkflowEditorProps {
   status?: string;                        // WorkflowConfig runtime status (shown in Panel 1)
   xid?: string;                           // WorkflowConfig engine runtime id (shown in Panel 1)
   detectorStatus?: Record<number, string>; // cid -> DetectorConfig status from /resolve (overlaid on nodes)
+  detectorActivityId?: Record<number, string>; // cid -> DetectorConfig.meta.activity_id from /resolve (overlaid on nodes)
   resolving?: boolean;
   onResolve?: () => void;                 // fetch current engine state via /resolve (config only)
   onValidateCid?: (cid: number) => Promise<boolean>; // verify DetectorConfig exists before a cid change
@@ -56,7 +57,7 @@ const EDGE_COLOR = '#64748b';
 
 function WorkflowEditorInner(props: WorkflowEditorProps) {
   const { t } = useTranslation();
-  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, resolving, onResolve, onValidateCid, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
+  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, detectorActivityId, resolving, onResolve, onValidateCid, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
 
   const initial = useMemo(() => grafToRF(graf), [graf]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<RFNodeData>>(initial.nodes);
@@ -176,19 +177,23 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
     return true;
   }, [nodes, edges, persist, setNodes, onValidateCid]);
 
-  // search highlight (dim non-matching) + overlay DetectorConfig status (from /resolve) by node cid
+  // search highlight (dim non-matching) + overlay DetectorConfig status + activity_id (from /resolve) by node cid
   const displayNodes = useMemo(() => {
     const q = search.trim().toLowerCase();
     const ds = detectorStatus;
-    if (!q && !ds) return nodes;
+    const da = detectorActivityId;
+    if (!q && !ds && !da) return nodes;
     return nodes.map((n) => {
       const cid = n.data.cid;
-      const st = ds && cid !== undefined && cid !== null ? ds[cid] : undefined;
-      const data = st !== undefined ? { ...n.data, status: st } : n.data;
+      const hasCid = cid !== undefined && cid !== null;
+      const st = ds && hasCid ? ds[cid] : undefined;
+      const aid = da && hasCid ? da[cid] : undefined;
+      let data = n.data;
+      if (st !== undefined || aid !== undefined) data = { ...data, status: st ?? data.status, activityId: aid ?? data.activityId };
       const style = q ? { ...n.style, opacity: n.data.title.toLowerCase().includes(q) ? 1 : 0.25 } : n.style;
       return { ...n, data, style };
     });
-  }, [nodes, search, detectorStatus]);
+  }, [nodes, search, detectorStatus, detectorActivityId]);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId) ?? null;

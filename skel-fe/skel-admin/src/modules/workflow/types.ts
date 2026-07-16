@@ -115,6 +115,7 @@ export interface DetectorConfig {
   tags: string[];
   config?: Record<string, unknown>;
   destinations: unknown[];
+  meta?: Record<string, string>; // transient runtime metadata from /resolve (e.g. activity_id)
 }
 
 // ---- response wrappers ----
@@ -165,6 +166,8 @@ export const KIND = {
   workflowConfig: 'workflow-config',
   detectorSchema: 'detector-schema',
   detectorConfig: 'detector-config',
+  // combined read-only view: DetectorConfig enriched with its DetectorSchema fields
+  detector: 'detector',
 } as const;
 
 export type EntityKind = (typeof KIND)[keyof typeof KIND];
@@ -178,5 +181,6 @@ export function entityLabelKey(kind: EntityKind): string {
     case KIND.workflowConfig: return 'workflow.tabs.workflowConfig';
     case KIND.detectorSchema: return 'workflow.tabs.detectorSchema';
     case KIND.detectorConfig: return 'workflow.tabs.detectorConfig';
+    case KIND.detector: return 'workflow.tabs.detector';
   }
 }

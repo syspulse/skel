@@ -30,7 +30,7 @@ interface WorkflowPageProps {
   onInstancesChanged?: () => void;
 }
 
-const TAB_IDS: EntityKind[] = [KIND.workflowSchema, KIND.workflowConfig, KIND.detectorSchema, KIND.detectorConfig];
+const TAB_IDS: EntityKind[] = [KIND.workflowSchema, KIND.workflowConfig, KIND.detectorSchema, KIND.detectorConfig, KIND.detector];
 
 interface EditorState {
   kind: WorkflowKind;
@@ -85,6 +85,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   const [resolving, setResolving] = useState(false);
   // cid -> DetectorConfig runtime status from the last /resolve (overlaid on the editor graph nodes)
   const [resolvedDetStatus, setResolvedDetStatus] = useState<Record<number, string>>({});
+  const [resolvedDetActivity, setResolvedDetActivity] = useState<Record<number, string>>({});
   // Track: auto-poll /resolve for the given config id at `freq` ms (null = not tracking)
   const [freq, setFreq] = useState(3000);
   const [trackingId, setTrackingId] = useState<number | null>(null);
@@ -117,6 +118,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   const openEditor = useCallback(async (kind: WorkflowKind, id: number) => {
     try {
       setResolvedDetStatus({}); // start clean; Resolve overlays live statuses on demand
+      setResolvedDetActivity({});
       if (kind === KIND.workflowSchema) {
         const v = await api.getSchema(token, id, true);
         setDetSchemas((cur) => mergeDetectors(cur, v.detectors));
@@ -145,10 +147,16 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
         setEditor((e) => (e && e.kind === KIND.workflowConfig && e.id === rc.id ? { ...e, status: rc.status, xid: rc.xid } : e));
       }
       const map: Record<number, string> = {};
-      if (res.detectors) for (const d of Object.values(res.detectors)) map[d.id] = d.status;
+      const actMap: Record<number, string> = {};
+      if (res.detectors) for (const d of Object.values(res.detectors)) {
+        map[d.id] = d.status;
+        const aid = d.meta?.activity_id;
+        if (aid) actMap[d.id] = aid;
+      }
       setResolvedDetStatus(map);
-      // reflect the live DetectorConfig statuses in the detector list too
-      setDetConfigs((cur) => cur.map((d) => (map[d.id] !== undefined ? { ...d, status: map[d.id] } : d)));
+      setResolvedDetActivity(actMap);
+      // reflect the live DetectorConfig statuses + activity_id in the detector list too
+      setDetConfigs((cur) => cur.map((d) => (map[d.id] !== undefined ? { ...d, status: map[d.id], meta: res.detectors?.[String(d.id)]?.meta ?? d.meta } : d)));
     } catch (e) {
       if (!background) notifyError(t('workflow.errorResolve'), e instanceof Error ? e.message : String(e));
     } finally {
@@ -234,6 +242,23 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
       case KIND.detectorConfig: return detConfigs.filter((d) => keep(d.id, d.name, d.source ?? '', d.status, d.updatedAt)).sort(byIdAsc)
         .map((d) => ({ id: d.id, name: d.name, status: d.status, tags: d.tags, ts: d.updatedAt,
           cells: { source: d.source ?? '', config: d.config ? JSON.stringify(d.config) : '', version: d.schema?.version ?? '', schema: d.schema ? String(d.schema.id) : '' } }));
+      // Detector: DetectorConfig enriched with its DetectorSchema (id/name/version/icon).
+      // schema_icon (from the full DetectorSchema) is used for the row icon.
+      case KIND.detector: return detConfigs.filter((d) => keep(d.id, d.name, d.source ?? '', d.status, d.updatedAt)).sort(byIdAsc)
+        .map((d) => {
+          const sid = d.schema?.id;
+          const ds = sid != null ? detSchemas.find((s) => s.id === sid) : undefined;
+          return {
+            id: d.id, icon: ds?.icon, name: d.name, status: d.status, tags: d.tags, ts: d.updatedAt,
+            cells: {
+              source: d.source ?? '',
+              config: d.config ? JSON.stringify(d.config) : '',
+              schema_version: ds?.version ?? d.schema?.version ?? '',
+              schema_id: sid != null ? String(sid) : '',
+              schema_name: ds?.name ?? d.schema?.name ?? '',
+            },
+          };
+        });
     }
   };
 
@@ -255,6 +280,14 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
         { key: 'version', label: t('workflow.fields.version'), width: 'w-28' },
         { key: 'schema', label: t('workflow.fields.schema'), width: 'w-28' },
       ];
+      // DetectorConfig columns + the schema_* columns (after config), from the enriched DetectorSchema
+      case KIND.detector: return [
+        { key: 'source', label: t('workflow.fields.source'), width: 'w-40' },
+        { key: 'config', label: t('workflow.fields.config') },
+        { key: 'schema_version', label: t('workflow.fields.schemaVersion'), width: 'w-32' },
+        { key: 'schema_id', label: t('workflow.fields.schemaId'), width: 'w-24' },
+        { key: 'schema_name', label: t('workflow.fields.schemaName'), width: 'w-40' },
+      ];
     }
   };
 
@@ -264,8 +297,13 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
       case KIND.workflowConfig: return DEFAULT_WF_CONFIG_ICON;
       case KIND.detectorSchema: return DEFAULT_SCHEMA_ICON;
       case KIND.detectorConfig: return DEFAULT_CONFIG_ICON;
+      case KIND.detector: return DEFAULT_SCHEMA_ICON; // icon column shows the DetectorSchema icon
     }
   };
+
+  // The "Detector" tab is a read-only enriched view over DetectorConfig: slider / add / delete all
+  // operate on the DetectorConfig entity (full code reuse), so map detector -> detectorConfig.
+  const effectiveKind = (kind: EntityKind): EntityKind => (kind === KIND.detector ? KIND.detectorConfig : kind);
 
   // ----- open details slider for a row -----
   const openDetails = (kind: EntityKind, id: number) => { setSliderKind(kind); setSelectedId(id); setAddMode(false); };
@@ -326,6 +364,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           status={editor.status}
           xid={editor.xid}
           detectorStatus={resolvedDetStatus}
+          detectorActivityId={resolvedDetActivity}
           resolving={resolving}
           onResolve={editorConfig ? () => resolveConfig(editorConfig) : undefined}
           onValidateCid={validateCid}
@@ -430,7 +469,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
             onFilterChange={handleFilterChange}
             onTimezoneChange={setTimezone}
             onSearch={handleSearch}
-            onAdd={() => openAdd(active as EntityKind)}
+            onAdd={() => openAdd(effectiveKind(active as EntityKind))}
             onRefresh={refreshAndNotify}
           />
         )}
@@ -447,15 +486,15 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
                   columns={columnsFor(active as EntityKind)}
                   defaultIcon={defaultIconFor(active as EntityKind)}
                   timezone={timezone}
-                  selectedId={sliderKind === active ? selectedId : null}
+                  selectedId={sliderKind === effectiveKind(active as EntityKind) ? selectedId : null}
                   minRows={pageSize === PAGE_SIZE_ALL ? pageRows.length : pageSize}
-                  onRowClick={(id) => openDetails(active as EntityKind, id)}
+                  onRowClick={(id) => openDetails(effectiveKind(active as EntityKind), id)}
                   onRowDoubleClick={(id) => {
                     const k = active as EntityKind;
                     // double-click a WorkflowSchema/Config -> go straight to the design (editor) view
                     if (k === KIND.workflowSchema || k === KIND.workflowConfig) { closeSlider(); openEditor(k, id); }
                   }}
-                  onDelete={(id) => handleDelete(active as EntityKind, id)}
+                  onDelete={(id) => handleDelete(effectiveKind(active as EntityKind), id)}
                 />
               </div>
               <Pagination

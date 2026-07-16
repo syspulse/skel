@@ -23,6 +23,35 @@ const tagBase: React.CSSProperties = {
 // sid -> schema (gray), cid -> config (default dark-gray/white); distinguished by color only
 const sidTag: React.CSSProperties = { ...tagBase, ...LABEL_SCHEMA };
 const cidTag: React.CSSProperties = { ...tagBase, ...LABEL_CONFIG };
+// activity_id (runtime, from /resolve): amber so it stands apart from the id chips
+const aidTag: React.CSSProperties = { ...tagBase, background: '#fcd34d', color: '#0f172a' };
+// long ids (e.g. UUID activity_id) are shown as first6…last6; the full value stays in the tooltip
+const shortId = (s: string): string => (s.length > 32 ? `${s.slice(0, 6)}…${s.slice(-6)}` : s);
+
+// A small id chip that copies its full value to the clipboard on click (hand cursor on hover).
+// `nodrag` + stopPropagation keep the click from selecting/dragging the react-flow node.
+function CopyChip({ style, title, display, value }: { style: React.CSSProperties; title: string; display: React.ReactNode; value: string }) {
+  const [copied, setCopied] = React.useState(false);
+  const copy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try { navigator.clipboard?.writeText(value); } catch { /* clipboard unavailable */ }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 450); // brief "copied" flash
+  };
+  // flash by brightening the SAME label color (no color change) to confirm the copy
+  const flash: React.CSSProperties = copied ? { filter: 'brightness(1.35)' } : {};
+  return (
+    <span
+      className="nodrag"
+      style={{ ...style, cursor: 'pointer', transition: 'filter 120ms', ...flash }}
+      title={`${title} (click to copy)`}
+      onClick={copy}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      {display}
+    </span>
+  );
+}
 
 // Two target handles (top, left) and two source handles (bottom, right) give a visible
 // input + output connection on all four sides. Edges connect source -> target.
@@ -50,10 +79,11 @@ export function DetectorNode({ data, selected }: NodeProps) {
       <Handle id="t" type="target" position={Position.Top} style={HANDLE_STYLE} />
       <Handle id="l" type="target" position={Position.Left} style={HANDLE_STYLE} />
 
-      {/* sid / cid tags: small, top-right corner, 2px margin. No prefix - colour distinguishes them. */}
+      {/* activity_id (from /resolve) then sid / cid tags: small, top-right corner. Click to copy. */}
       <div style={{ position: 'absolute', top: 2, right: 2, display: 'flex', gap: 2 }}>
-        <span style={sidTag} title={`schema ${d.sid}`}>{d.sid}</span>
-        {d.cid !== undefined && d.cid !== null && <span style={cidTag} title={`config ${d.cid}`}>{d.cid}</span>}
+        {d.activityId ? <CopyChip style={aidTag} title={`activity_id ${d.activityId}`} display={shortId(d.activityId)} value={d.activityId} /> : null}
+        <CopyChip style={sidTag} title={`schema ${d.sid}`} display={d.sid} value={String(d.sid)} />
+        {d.cid !== undefined && d.cid !== null && <CopyChip style={cidTag} title={`config ${d.cid}`} display={d.cid} value={String(d.cid)} />}
       </div>
 
       {/* icon (top-left, configurable margin/size) + title beside it */}
