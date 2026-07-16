@@ -200,7 +200,7 @@ object App extends skel.Server {
         // the 4th ("ext"), so re-add it via Routeable.withSuffix -> /api/v1/wf/ext/{schema,config,graf,engine}
         run(config.host, config.port, config.uri, c,
           Seq(
-            (WorkflowRegistry(store), "WorkflowRegistry", (actor, ac) => new WorkflowRoutes(actor, engine)(ac).withSuffix("ext"))
+            (WorkflowRegistry(store, engine), "WorkflowRegistry", (actor, ac) => new WorkflowRoutes(actor, engine)(ac).withSuffix("ext"))
           )
         )
         s"Server: http://${config.host}:${config.port}${config.uri}"

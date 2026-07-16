@@ -32,10 +32,11 @@ object EngineStatus {
   val TIMED_OUT         = "TIMED_OUT"
   val CONTINUED_AS_NEW  = "CONTINUED_AS_NEW"
   val UNKNOWN           = "UNKNOWN"
+  val UNRESOLVED        = "UNRESOLVED"         // the runtime is not present on the Engine (obsolete id)
 
   val all: Set[String] = Set(
     NEW, SCHEDULED, RUNNING, WAITING, PAUSED, COMPLETED, FAILED,
-    TERMINATED, CANCELED, TIMED_OUT, CONTINUED_AS_NEW, UNKNOWN
+    TERMINATED, CANCELED, TIMED_OUT, CONTINUED_AS_NEW, UNKNOWN, UNRESOLVED
   )
 
   /**

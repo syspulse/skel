@@ -32,7 +32,7 @@ import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf}
 import io.hacken.ext.detector.{DetectorSchema, DetectorConfig}
 import io.syspulse.skel.wf.ext.store.WorkflowRegistry
 import io.syspulse.skel.wf.ext.store.WorkflowRegistry._
-import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineWorkflows, TrackMapper, EngineMapper}
+import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineWorkflows, TrackMapper}
 
 /**
  * Workflow `ext` REST API:
@@ -213,56 +213,16 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   private def splitIds(csv: String): Seq[String] =
     csv.split(",").map(_.trim).filter(_.nonEmpty).toSeq
 
-  /** Resolve the live runtime for a config: by workflowId (meta.wid, latest run) if present, else by xid. */
-  private def resolveRuntime(e: Engine, c: WorkflowConfig): Future[Option[EngineWorkflow]] = {
-    val f = c.meta.flatMap(_.get("wid")).map(_.toString) match {
-      case Some(wid) => e.getRuntimeByWorkflowId(None, wid)
-      case None      => c.xid.map(x => e.getRuntime(None, x)).getOrElse(Future.successful(None))
-    }
-    f.recover { case _ => None }
-  }
-
-  /**
-   * Enrich resolved WorkflowConfig(s) with live engine data: map each config's runtime state onto
-   * its status and its DetectorConfigs' statuses. No-op when no Engine is configured or the runtime
-   * can't be resolved (the stored objects are returned unchanged).
-   */
-  private def enrichWithEngine(cfgs: WorkflowConfigs): Future[WorkflowConfigs] = engine match {
-    case None => Future.successful(cfgs)
-    case Some(e) =>
-      val detectorsInt: Map[Int, DetectorConfig] = cfgs.detectors.getOrElse(Map()).map { case (k, v) => k.toInt -> v }
-      Future.traverse(cfgs.configs) { c =>
-        resolveRuntime(e, c).map {
-          case Some(w) =>
-            val view = EngineMapper.map(w, Some(c), detectorsInt)
-            val stepStatus = view.steps.flatMap(s => s.cid.map(_ -> s.status)).toMap
-            (c.copy(status = view.status), stepStatus)
-          case None => (c, Map.empty[Int, String])
-        }
-      }.map { results =>
-        val newConfigs = results.map(_._1)
-        val stepStatusAll = results.flatMap(_._2).toMap                 // cid -> live status
-        val newDetectors = detectorsInt.map { case (cid, dc) =>
-          cid.toString -> stepStatusAll.get(cid).map(st => dc.copy(status = st)).getOrElse(dc)
-        }
-        WorkflowConfigs(newConfigs, newConfigs.size.toLong, Some(newDetectors))
-      }
-  }
-
   @GET @Path("/config/resolve/{ids}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("config"), summary = "Resolve WorkflowConfig(s) + all DetectorConfigs by runtimeId or workflowId (with live engine-mapped statuses)",
+  @Operation(tags = Array("config"), summary = "Resolve WorkflowConfig(s) + all DetectorConfigs by runtimeId or workflowId (statuses taken LIVE from the Engine; UNRESOLVED when not present)",
     parameters = Array(
       new Parameter(name = "ids", in = ParameterIn.PATH, description = "comma-separated runtimeId (UUID) and/or workflowId list"),
       new Parameter(name = "type", in = ParameterIn.QUERY, description = "force resolution mode: 'rid' (runtimeId/xid) or 'wid' (workflowId); default auto-detect")),
     responses = Array(new ApiResponse(responseCode = "200", description = "configs",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def getConfigsResolveRoute(ids: Seq[String], typ: Option[String]) = get {
-    // resolve stored configs, then (if an Engine is configured) overlay live workflow/step statuses
-    val f: Future[Try[WorkflowConfigs]] = resolveConfigs(ids, typ).flatMap {
-      case Success(cfgs) => enrichWithEngine(cfgs).map(Success(_))
-      case other         => Future.successful(other)
-    }
-    complete(f)
+    // the Engine query + live status mapping happens in WorkflowRegistry.ResolveConfigs
+    complete(resolveConfigs(ids, typ))
   }
 
   @POST @Path("/config") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))

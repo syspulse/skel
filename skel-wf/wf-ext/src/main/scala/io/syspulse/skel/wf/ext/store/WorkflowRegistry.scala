@@ -16,7 +16,7 @@ import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigCon
 import io.syspulse.skel.ErrNotFound
 import io.syspulse.skel.wf.ext.server._
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
-import io.syspulse.skel.wf.ext.engine.{TrackMapper, EngineWorkflow}
+import io.syspulse.skel.wf.ext.engine.{Engine, TrackMapper, EngineWorkflow, EngineMapper, EngineStatus}
 
 object WorkflowRegistry {
   val log = Logger(s"${this}")
@@ -73,10 +73,10 @@ object WorkflowRegistry {
   final case class UpdateDetectorConfig(id: Int, req: DetectorConfigUpdateReq, replyTo: ActorRef[Try[DetectorConfig]]) extends Command
   final case class DeleteDetectorConfig(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
 
-  def apply(store: WorkflowStore): Behavior[Command] =
+  def apply(store: WorkflowStore, engine: Option[Engine] = None): Behavior[Command] =
     Behaviors.setup { context =>
       implicit val ec: ExecutionContext = context.executionContext
-      registry(store, context)
+      registry(store, engine, context)
     }
 
   // ---------------------------------------------------------------- view assembly
@@ -110,22 +110,74 @@ object WorkflowRegistry {
    *   - `wid` -> match WorkflowConfig.meta("wid")  (a WorkflowId), falling back to name
    *   - auto  -> UUID -> `rid`, otherwise `wid`
    * `typ` (Some("rid")|Some("wid")) forces the mode; None auto-detects per id.
-   * Returns the matched configs (deduped) plus ALL their DetectorConfigs.
+   * Returns the matched configs (deduped) plus ALL their DetectorConfigs, with their statuses taken
+   * LIVE from the Engine (see `enrichWithEngine`). The resolution MODE that matched each config is
+   * kept so the Engine is queried the SAME way (rid -> exact RunId; wid -> latest run).
    */
-  private def resolveConfigs(store: WorkflowStore, ids: Seq[String], typ: Option[String])(implicit ec: ExecutionContext): Future[WorkflowConfigs] =
+  private def resolveConfigs(store: WorkflowStore, engine: Option[Engine], ids: Seq[String], typ: Option[String])(implicit ec: ExecutionContext): Future[WorkflowConfigs] =
     store.allConfigs.flatMap { all =>
       def byRid(id: String) = all.filter(_.xid.contains(id))
       def byWid(id: String) = all.filter(c => configWid(c).contains(id) || c.name == id)
-      val mode = typ.map(_.trim.toLowerCase)
-      val found = ids.flatMap { id =>
-        mode match {
-          case Some(RESOLVE_RID) => byRid(id)
-          case Some(RESOLVE_WID) => byWid(id)
-          case _                 => if (TrackMapper.isUuid(id)) byRid(id) else byWid(id)
-        }
-      }.distinctBy(_.id)
-      configDetectors(store, found).map(dets => WorkflowConfigs(found, found.size.toLong, Some(dets)))
+      val forced = typ.map(_.trim.toLowerCase)
+      // (config, mode) - mode is the criterion that matched it (RESOLVE_RID / RESOLVE_WID)
+      val foundWithMode: Seq[(WorkflowConfig, String)] = ids.flatMap { id =>
+        val m = forced.getOrElse(if (TrackMapper.isUuid(id)) RESOLVE_RID else RESOLVE_WID)
+        (if (m == RESOLVE_RID) byRid(id) else byWid(id)).map(c => c -> m)
+      }.distinctBy(_._1.id)
+      val found = foundWithMode.map(_._1)
+      configDetectors(store, found).flatMap(dets => enrichWithEngine(engine, foundWithMode, dets))
     }
+
+  /**
+   * Ask the Engine for the runtime state of a config, STRICTLY by the resolution mode:
+   *   - `rid` -> the EXACT run (WorkflowConfig.xid == Temporal RunId). A dead/obsolete RunId returns
+   *              None (we NEVER fall back to the workflow's latest run).
+   *   - `wid` -> the LATEST run of the WorkflowId (meta.wid, else name).
+   */
+  private def resolveRuntime(e: Engine, c: WorkflowConfig, mode: String)(implicit ec: ExecutionContext): Future[Option[EngineWorkflow]] = {
+    val f = mode match {
+      case RESOLVE_WID =>
+        configWid(c).orElse(Option(c.name).filter(_.nonEmpty))
+          .map(wid => e.getRuntimeByWorkflowId(None, wid)).getOrElse(Future.successful(None))
+      case _ /* RESOLVE_RID */ =>
+        c.xid.map(rid => e.getRuntime(None, rid)).getOrElse(Future.successful(None))
+    }
+    f.recover { case _ => None }
+  }
+
+  /**
+   * Take the statuses LIVE from the Engine (the stored/cached statuses are never trusted): map each
+   * config's runtime state onto its status and its DetectorConfigs' statuses. When the runtime cannot
+   * be resolved on the Engine (obsolete/removed id), the WorkflowConfig AND all its DetectorConfigs
+   * are marked `UNRESOLVED`. No-op only when no Engine is configured.
+   */
+  private def enrichWithEngine(engine: Option[Engine], foundWithMode: Seq[(WorkflowConfig, String)], dets: Map[String, DetectorConfig])(implicit ec: ExecutionContext): Future[WorkflowConfigs] = {
+    val found = foundWithMode.map(_._1)
+    engine match {
+      case None => Future.successful(WorkflowConfigs(found, found.size.toLong, Some(dets)))
+      case Some(e) =>
+        val detectorsInt: Map[Int, DetectorConfig] = dets.map { case (k, v) => k.toInt -> v }
+        Future.traverse(foundWithMode) { case (c, mode) =>
+          resolveRuntime(e, c, mode).map {
+            case Some(w) =>
+              val view = EngineMapper.map(w, Some(c), detectorsInt)
+              val stepStatus = view.steps.flatMap(s => s.cid.map(_ -> s.status)).toMap
+              (c.copy(status = view.status), stepStatus)
+            case None =>
+              // runtime not present on the Engine -> the whole config (and every step) is UNRESOLVED
+              val cids = c.graph.nodes.values.flatMap(_.cid).toSeq
+              (c.copy(status = EngineStatus.UNRESOLVED), cids.map(_ -> EngineStatus.UNRESOLVED).toMap)
+          }
+        }.map { results =>
+          val newConfigs    = results.map(_._1)
+          val stepStatusAll = results.flatMap(_._2).toMap   // cid -> live status (or UNRESOLVED)
+          val newDetectors  = detectorsInt.map { case (cid, dc) =>
+            cid.toString -> dc.copy(status = stepStatusAll.getOrElse(cid, EngineStatus.UNRESOLVED))
+          }
+          WorkflowConfigs(newConfigs, newConfigs.size.toLong, Some(newDetectors))
+        }
+    }
+  }
 
   // ---------------------------------------------------------------- update merge
   private def applyUpdate(s: WorkflowSchema, req: WorkflowSchemaUpdateReq): WorkflowSchema =
@@ -208,7 +260,7 @@ object WorkflowRegistry {
     )
 
   // ---------------------------------------------------------------- behavior
-  private def registry(store: WorkflowStore, context: ActorContext[Command])(implicit ec: ExecutionContext): Behavior[Command] =
+  private def registry(store: WorkflowStore, engine: Option[Engine], context: ActorContext[Command])(implicit ec: ExecutionContext): Behavior[Command] =
     Behaviors.receiveMessage {
 
       // -------------------------------------------------- WorkflowSchema
@@ -285,8 +337,12 @@ object WorkflowRegistry {
         Behaviors.same
 
       case ResolveConfigs(ids, typ, replyTo) =>
-        log.info(s"ResolveConfigs: ${typ}: ${ids}")
-        resolveConfigs(store, ids, typ).onComplete(replyTo ! _)
+        log.info(s"ResolveConfigs: ${typ}: ${ids} (engine=${engine.map(_.name).getOrElse("none")})")
+        resolveConfigs(store, engine, ids, typ)
+          .onComplete(r => {
+            log.debug(s"ResolveConfigs: ${typ}: ${ids}: ${r}")
+            replyTo ! r
+          })
         Behaviors.same
 
       case CreateConfig(req, replyTo) =>
