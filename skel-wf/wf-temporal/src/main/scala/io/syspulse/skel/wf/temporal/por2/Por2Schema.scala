@@ -192,7 +192,7 @@ object Por2Schema {
   /**
    * Get step IDs for a specific flow type
    *
-   * @param flow Flow name (flow-1 through flow-5)
+   * @param flow Flow name (flow-1 through flow-6)
    * @return Sequence of step IDs to include in the flow (using CONFIG_ID_OFFSET)
    */
   def getFlowSteps(flow: String): Seq[Int] = {
@@ -202,7 +202,8 @@ object Por2Schema {
       case "flow-3" => Seq(101, 104, 105)                 // Quick: PoR -> Report -> Commit
       case "flow-4" => Seq(100, 101, 104, 105)            // Fast: PoO -> PoR -> Report -> Commit
       case "flow-5" => Seq(102)                           // PoL only
-      case _ => throw new IllegalArgumentException(s"Unknown flow: $flow. Valid flows: flow-1, flow-2, flow-3, flow-4, flow-5")
+      case "flow-6" => Seq(101, 106, 104)                 // Failure demo: PoR -> Solvency(FAIL) -> Report
+      case _ => throw new IllegalArgumentException(s"Unknown flow: $flow. Valid flows: flow-1, flow-2, flow-3, flow-4, flow-5, flow-6")
     }
   }
 
@@ -342,6 +343,26 @@ object Por2Schema {
         tags = Seq("commit", "storage"),
         config = Some(JsObject(
           "type" -> JsString("AUTO")
+        )),
+        destinations = Seq()
+      ),
+
+      // Step 7: Solvency (failure demo, used by flow-6) - FAILs the whole workflow.
+      // Uses the generic "fail" config parameter (handled in GenericActivitiesImpl.failIfConfigured),
+      // so the failure is injected before the Solvency activity logic runs. Any step config can do this.
+      DetectorConfig(
+        id = CONFIG_ID_OFFSET + 6,  // 106
+        createdAt = ts,
+        updatedAt = ts,
+        status = "ACTIVE",
+        contract = createContract(CONFIG_ID_OFFSET + 6, "SolvencyFail-Contract"),
+        schema = None,
+        name = "Solvency",
+        source = "POR2",
+        tags = Seq("solvency", "ratio", "fail"),
+        config = Some(JsObject(
+          "type" -> JsString("AUTO"),
+          "fail" -> JsBoolean(true)
         )),
         destinations = Seq()
       )

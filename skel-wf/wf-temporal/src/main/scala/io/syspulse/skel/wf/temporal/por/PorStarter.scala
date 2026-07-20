@@ -20,7 +20,7 @@ object PorStarter {
   val TID_KEY = "tid"
   val PID_KEY = "pid"
 
-  def run(uri: String, run: PorWorkflowRun)(implicit ec: ExecutionContext): Future[PorStartResult] = Future {
+  def run(uri: String, run: PorWorkflowRun, taskQueue: String = PorWorker.TASK_QUEUE)(implicit ec: ExecutionContext): Future[PorStartResult] = Future {
 
       val t = TemporalURI(uri)
       log.info(s"Connecting to Temporal -> ${t.target} (namespace=${t.namespace})")
@@ -47,7 +47,7 @@ object PorStarter {
       // Build workflow options
       val optionsBuilder = WorkflowOptions.newBuilder()
         .setWorkflowId(wid0)
-        .setTaskQueue(PorWorker.TASK_QUEUE)
+        .setTaskQueue(taskQueue)
 
       // Add memo if tags or custom memo are present
       if (run.tags.nonEmpty || run.memo.nonEmpty) {

@@ -28,11 +28,12 @@ object DemoWorker {
     temporalUri: String,
     schemaStore: WorkflowSchemaStore,
     runStore: WorkflowRunStore,
-    configStore: WorkflowConfigStore
+    configStore: WorkflowConfigStore,
+    taskQueue: String = TASK_QUEUE
   ): Try[Worker] = {
 
     val activities = new DemoActivitiesImpl(schemaStore, runStore, configStore)
 
-    GenericWorker.run(temporalUri, activities, TASK_QUEUE)
+    GenericWorker.run(temporalUri, activities, taskQueue)
   }
 }

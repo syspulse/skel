@@ -31,16 +31,17 @@ object Por2Worker {
     temporalUri: String,
     schemaStore: WorkflowSchemaStore,
     runStore: WorkflowRunStore,
-    configStore: WorkflowConfigStore
+    configStore: WorkflowConfigStore,
+    taskQueue: String = TASK_QUEUE
   ): Try[Worker] = {
     try {
-      log.info(s"Starting PoR2 Worker with Por2ActivitiesImpl")
+      log.info(s"Starting PoR2 Worker with Por2ActivitiesImpl on queue: ${taskQueue}")
 
       // Create PoR2-specific activities implementation
       val activities = new Por2ActivitiesImpl(schemaStore, runStore, configStore)
 
-      // Use GenericWorker with PoR2 activities on POR2_QUEUE
-      val result = GenericWorker.run(temporalUri, activities, TASK_QUEUE)
+      // Use GenericWorker with PoR2 activities on the resolved task queue
+      val result = GenericWorker.run(temporalUri, activities, taskQueue)
 
       result match {
         case Success(worker) =>

@@ -14,7 +14,7 @@ object PorWorker {
 
   val TASK_QUEUE = "por-task-queue"
 
-  def run(uri: String, impl: PorActivities): Try[Worker] = Try {
+  def run(uri: String, impl: PorActivities, taskQueue: String = TASK_QUEUE): Try[Worker] = Try {
     val t = TemporalURI(uri)
     log.info(s"Connecting -> ${t.target} (namespace=${t.namespace})")
 
@@ -43,14 +43,14 @@ object PorWorker {
     val workerOptions = io.temporal.worker.WorkerOptions.newBuilder()
       .build()
 
-    val worker = factory.newWorker(TASK_QUEUE, workerOptions)
+    val worker = factory.newWorker(taskQueue, workerOptions)
 
     worker.registerWorkflowImplementationTypes(classOf[PorWorkflowImpl])
     worker.registerActivitiesImplementations(impl)
 
     factory.start()
 
-    log.info(s"Worker: namespace=${t.namespace}, task_queue=${TASK_QUEUE} (${worker})")
+    log.info(s"Worker: namespace=${t.namespace}, task_queue=${taskQueue} (${worker})")
 
     sys.addShutdownHook {
       log.info(s"Shutdown: ${factory}, ${service}")

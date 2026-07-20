@@ -45,6 +45,19 @@ List from remote server ignoring TLS and using Auth token:
 APP_EXEC=bloop ./run-temporal.sh temporal list --engine="temporal://$TEMPORAL_GRPC?tls=ignore&auth=${ACCESS_TOKEN_TEMPORAL}"
 ```
 
+## Preconfigured Workflows
+
+```
+flow-1: PoO -> PoR -> PoL -> Solvency -> Report -> Commit
+flow-2: PoR -> PoL -> Solvency -> Report -> Commit
+flow-3: PoR -> Report -> Commit
+flow-4: PoO -> PoR -> Report -> Commit
+flow-5: PoL only
+flow-6: PoR -> Solvency(FAIL) -> Report (Solvency throws, workflow FAILs)
+```    
+
+`PoL` always expects User input (Signal)
+
 
 ## Signals
 

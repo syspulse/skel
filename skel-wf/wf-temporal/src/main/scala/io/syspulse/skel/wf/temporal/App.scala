@@ -35,6 +35,7 @@ case class Config(
   datastore:String = "test://",  // Pre-populated test store with Por2 and Demo configs
   engine:String = "temporal://",
   wf:String = "demo://",
+  taskQueue:String = "",  // override worker TASK_QUEUE (empty = use each worker's default)
 
   porProject: String = "DefaultProject",
   porFlow: String = "flow-1",
@@ -139,6 +140,7 @@ object App extends skel.Server {
         ArgString('d', "datastore",s"Datastore [mem://,dir://] (def: ${d.datastore})"),
         ArgString('e', "engine",s"Engine URI [temporal://] (def: ${d.engine})"),
         ArgString('w', "wf",s"Workflow implementation [demo://,null://] (def: ${d.wf})"),
+        ArgString('_', "task.queue",s"Override worker TASK_QUEUE for any worker (def: worker default)"),
 
         ArgString('_', "por.project",s"PoR project (def: ${d.porProject})"),
         ArgString('_', "por.flow",s"PoR flow: flow-1|flow-2|flow-3|flow-4|flow-5 (def: ${d.porFlow})"),
@@ -149,6 +151,7 @@ object App extends skel.Server {
         ArgCmd("server",s"Start Workflow Schema REST server"),
         ArgCmd("temporal",s"Temporal subcommands"),
         ArgCmd("por-worker",s"Start PoR Temporal Worker"),
+        ArgCmd("por2-worker",s"Start PoR2 Generic Temporal Worker"),
         ArgCmd("por-start",s"Start PoR Workflow: por-start [flow-N] [commit-file.json]"),
         ArgCmd("por2-start",s"Start PoR2 Generic Workflow: por2-start [tenant-id] [project-id] [title]"),
         ArgCmd("demo-start",s"Start Demo Generic Workflow: demo-start [flow] [title]"),
@@ -173,6 +176,7 @@ object App extends skel.Server {
       datastore = c.getString("datastore").getOrElse(d.datastore),
       engine = c.getString("engine").getOrElse(d.engine),
       wf = c.getString("wf").getOrElse(d.wf),
+      taskQueue = c.getString("task.queue").getOrElse(d.taskQueue),
 
       porProject = c.getString("por.project").getOrElse(d.porProject),
       porFlow = c.getString("por.flow").getOrElse(d.porFlow),
@@ -233,6 +237,9 @@ object App extends skel.Server {
 
     log.info(s"Workflow: ${impl}")
 
+    // resolve task queue: --task.queue= overrides each worker's default when non-empty
+    def queueOr(default:String):String = if(config.taskQueue.nonEmpty) config.taskQueue else default
+
     val r = config.cmd match {
       case "server" =>
         val store = getStore(config.datastore)
@@ -260,7 +267,7 @@ object App extends skel.Server {
         }
 
         // Start PorWorker (legacy)
-        PorWorker.run(config.engine, impl) match {
+        PorWorker.run(config.engine, impl, queueOr(PorWorker.TASK_QUEUE)) match {
           case Success(worker) =>
             Console.err.println(s"PorWorker started: ${worker}")
           case scala.util.Failure(e) =>
@@ -270,9 +277,10 @@ object App extends skel.Server {
 
         // Start PoR2 Worker on POR2_QUEUE
         import io.syspulse.skel.wf.temporal.por2.Por2Worker
-        Por2Worker.run(config.engine, store, runStore, configStore) match {
+        val por2Queue = queueOr(Por2Worker.TASK_QUEUE)
+        Por2Worker.run(config.engine, store, runStore, configStore, por2Queue) match {
           case Success(worker) =>
-            Console.err.println(s"Por2Worker started on queue: ${Por2Worker.TASK_QUEUE}")
+            Console.err.println(s"Por2Worker started on queue: ${por2Queue}")
           case scala.util.Failure(e) =>
             Console.err.println(s"Failed to start Por2Worker: ${e.getMessage}")
             sys.exit(1)
@@ -280,9 +288,10 @@ object App extends skel.Server {
 
         // Start Demo Worker on DEMO_QUEUE
         import io.syspulse.skel.wf.temporal.demo.DemoWorker
-        DemoWorker.run(config.engine, store, runStore, configStore) match {
+        val demoQueue = queueOr(DemoWorker.TASK_QUEUE)
+        DemoWorker.run(config.engine, store, runStore, configStore, demoQueue) match {
           case Success(worker) =>
-            Console.err.println(s"DemoWorker started on queue: ${DemoWorker.TASK_QUEUE}")
+            Console.err.println(s"DemoWorker started on queue: ${demoQueue}")
           case scala.util.Failure(e) =>
             Console.err.println(s"Failed to start DemoWorker: ${e.getMessage}")
             sys.exit(1)
@@ -368,7 +377,31 @@ object App extends skel.Server {
         Try(Await.result(futureResult, 30.seconds))
 
       case "por-worker" =>
-        PorWorker.run(config.engine, impl)        
+        val queue = queueOr(PorWorker.TASK_QUEUE)
+        PorWorker.run(config.engine, impl, queue) match {
+          case Success(worker) =>
+            Console.err.println(s"PorWorker started on queue: ${queue}")
+            Thread.currentThread.join()  // keep worker running
+            s"PorWorker stopped on queue: ${queue}"
+          case scala.util.Failure(e) =>
+            s"Failed to start PorWorker: ${e.getMessage}"
+        }
+
+      case "por2-worker" =>
+        import io.syspulse.skel.wf.temporal.por2.Por2Worker
+        val schemaStore = getStore(config.datastore)
+        val runStore = getRunStore(config.datastore)
+        val configStore = getConfigStore(config.datastore)
+        val queue = queueOr(Por2Worker.TASK_QUEUE)
+        Por2Worker.run(config.engine, schemaStore, runStore, configStore, queue) match {
+          case Success(worker) =>
+            Console.err.println(s"Por2Worker started on queue: ${queue}")
+            Thread.currentThread.join()  // keep worker running
+            s"Por2Worker stopped on queue: ${queue}"
+          case scala.util.Failure(e) =>
+            s"Failed to start Por2Worker: ${e.getMessage}"
+        }
+
 
       case "por-start" =>
         
@@ -417,7 +450,7 @@ object App extends skel.Server {
         }
         
 
-        val futureResult = PorStarter.run(config.engine, workflowRun)
+        val futureResult = PorStarter.run(config.engine, workflowRun, queueOr(PorWorker.TASK_QUEUE))
         Try(Await.result(futureResult, 30.seconds)) match {
           case Success(result) => s"Workflow started: workflowId = ${result.workflowId}, runId = ${result.runId}"
           case scala.util.Failure(e) => s"Failed to start workflow: ${e.getMessage}"
@@ -436,14 +469,15 @@ object App extends skel.Server {
           case tid :: Nil => ("flow-1", tid.toInt, 1, DEF_TITLE)
           case Nil => ("flow-1", 1, 1, DEF_TITLE)
           case _ =>
-            Console.err.println(s"Invalid arguments: ${config.params.toList}")
-            Console.err.println(s"Usage: por2-start [flow-type] [tenant-id] [project-id] [title]")
-            Console.err.println(s"  flow-type: flow-1, flow-2, flow-3, flow-4, flow-5 (default: flow-1)")
-            Console.err.println(s"    flow-1: PoO -> PoR -> PoL -> Solvency -> Report -> Commit")
-            Console.err.println(s"    flow-2: PoR -> PoL -> Solvency -> Report -> Commit")
-            Console.err.println(s"    flow-3: PoR -> Report -> Commit")
-            Console.err.println(s"    flow-4: PoO -> PoR -> Report -> Commit")
-            Console.err.println(s"    flow-5: PoL only")            
+            Console.err.println(s"""Invalid arguments: ${config.params.toList}
+Usage: por2-start [flow-type] [tenant-id] [project-id] [title]
+  flow-type: flow-1, flow-2, flow-3, flow-4, flow-5, flow-6 (default: flow-1)
+    flow-1: PoO -> PoR -> PoL -> Solvency -> Report -> Commit
+    flow-2: PoR -> PoL -> Solvency -> Report -> Commit
+    flow-3: PoR -> Report -> Commit
+    flow-4: PoO -> PoR -> Report -> Commit
+    flow-5: PoL only
+    flow-6: PoR -> Solvency(FAIL) -> Report (Solvency throws, workflow FAILs)""")
             sys.exit(1)
         }
 
@@ -458,9 +492,9 @@ object App extends skel.Server {
         val schema = Por2Schema.buildSchema(schemaId = 1, tenantId = tenantId, projectId = projectId, title = title)
         val allConfigs = Por2Schema.buildStepConfigs(tenantId = tenantId, projectId = projectId)
 
-        // Get step IDs for the selected flow
+        // Get step IDs for the selected flow, preserving the flow-defined execution order
         val flowStepIds = Por2Schema.getFlowSteps(flow)
-        val configs = allConfigs.filter(c => flowStepIds.contains(c.id))
+        val configs = flowStepIds.flatMap(id => allConfigs.find(_.id == id))
 
         log.info(s"Flow $flow includes steps: ${configs.map(_.name).mkString(" -> ")}")
 
@@ -516,13 +550,14 @@ object App extends skel.Server {
 
         // Start workflow with schema name as workflow type on POR2_QUEUE
         import io.syspulse.skel.wf.temporal.por2.Por2Worker
-        val futureResult: Future[WorkflowRun] = GenericStarter.run(config.engine, workflowRun, schema.name, Por2Worker.TASK_QUEUE)
+        val por2Queue = queueOr(Por2Worker.TASK_QUEUE)
+        val futureResult: Future[WorkflowRun] = GenericStarter.run(config.engine, workflowRun, schema.name, por2Queue)
         Try(Await.result(futureResult, 30.seconds)) match {
           case Success(result) =>
             s"PoR2 Workflow started:\n" +
             s"  Workflow ID: ${result.wid}\n" +
             s"  Run ID: ${result.rid}\n" +
-            s"  Task Queue: ${Por2Worker.TASK_QUEUE}\n" +
+            s"  Task Queue: ${por2Queue}\n" +
             s"  Steps: ${configs.map(_.name).mkString(" → ")}\n" +
             s"  Query: temporal workflow show -w ${result.wid}"
           case scala.util.Failure(e) =>
@@ -604,13 +639,14 @@ object App extends skel.Server {
 
         // Start workflow on DEMO_QUEUE
         import io.syspulse.skel.wf.temporal.demo.DemoWorker
-        val futureResult: Future[WorkflowRun] = GenericStarter.run(config.engine, workflowRun, schema.name, DemoWorker.TASK_QUEUE)
+        val demoQueue = queueOr(DemoWorker.TASK_QUEUE)
+        val futureResult: Future[WorkflowRun] = GenericStarter.run(config.engine, workflowRun, schema.name, demoQueue)
         Try(Await.result(futureResult, 30.seconds)) match {
           case Success(result) =>
             s"Demo Workflow started:\n" +
             s"  Workflow ID: ${result.wid}\n" +
             s"  Run ID: ${result.rid}\n" +
-            s"  Task Queue: ${DemoWorker.TASK_QUEUE}\n" +
+            s"  Task Queue: ${demoQueue}\n" +
             s"  Flow: $flowStr\n" +
             s"  Steps: ${configs.map(_.name).mkString(" → ")}\n" +
             s"  Query: temporal workflow show -w ${result.wid}"

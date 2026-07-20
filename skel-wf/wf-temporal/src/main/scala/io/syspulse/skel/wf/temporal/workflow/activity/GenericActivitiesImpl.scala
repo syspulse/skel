@@ -65,6 +65,9 @@ class GenericActivitiesImpl(
 
     log.info(s"Executing activity: ${config.name}")
 
+    // Generic failure injection: any step whose config has "fail": true throws here
+    failIfConfigured(config)
+
     try {
       // Execute as generic activity (pass-through with generic output)
       val result = executeGenericActivity(config)
@@ -91,6 +94,25 @@ class GenericActivitiesImpl(
       case e: Exception =>
         log.error(s"Activity ${config.name} failed: ${e.getMessage}", e)
         throw e
+    }
+  }
+
+  /**
+   * Generic failure injection.
+   *
+   * Any step can be forced to fail by setting these keys in its DetectorConfig.config:
+   *   - "fail": true                (required to trigger the failure)
+   *   - "failMessage": "..."        (optional custom error message)
+   *
+   * Throws a non-retryable Temporal ApplicationFailure so the activity is marked Failed
+   * immediately (no retries) and the whole Workflow FAILs.
+   */
+  protected def failIfConfigured(config: DetectorConfig): Unit = {
+    if (DetectorConfig.getBoolean(config, "fail", false)) {
+      val msg = DetectorConfig.getString(config, "failMessage",
+        s"Step '${config.name}' (id=${config.id}) forced failure")
+      log.error(s"Forced failure: ${msg}")
+      throw io.temporal.failure.ApplicationFailure.newNonRetryableFailure(msg, "StepForcedFailure")
     }
   }
 

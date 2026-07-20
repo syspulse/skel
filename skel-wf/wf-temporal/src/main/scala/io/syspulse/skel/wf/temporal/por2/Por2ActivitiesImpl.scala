@@ -43,6 +43,9 @@ class Por2ActivitiesImpl(
 
     por2Log.info(s"Executing PoR2 activity: ${config.name}")
 
+    // Generic failure injection: any step whose config has "fail": true throws here
+    failIfConfigured(config)
+
     try {
       // Map activity name to PoR-specific implementation
       val result = config.name.toLowerCase match {

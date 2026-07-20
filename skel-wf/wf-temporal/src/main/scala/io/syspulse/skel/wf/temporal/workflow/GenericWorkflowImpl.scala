@@ -124,6 +124,9 @@ class GenericWorkflowImpl extends GenericWorkflow {
       case e: Exception =>
         log.error(s"${wid} Workflow failed: ${e.getMessage}", e)
         currentRun = currentRun.copy(status = "FAILED")
+        // Propagate so Temporal marks the whole Workflow execution as FAILED
+        // (otherwise the workflow would complete "successfully" with a FAILED status field)
+        throw e
     }
 
     currentRun
@@ -215,6 +218,8 @@ class GenericWorkflowImpl extends GenericWorkflow {
           case e: Exception =>
             log.error(s"${wid} Business activity '${stepMeta.name}' failed: ${e.getMessage}", e)
             currentRun = currentRun.copy(status = "FAILED")
+            // Re-throw the activity failure so the workflow fails (see execute() catch)
+            throw e
         }
     }
 
