@@ -14,8 +14,8 @@ import java.sql.DriverManager
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 
 import io.syspulse.skel.config.{Configuration, ConfigurationMap}
-import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf, WorkflowNode, WorkflowLink}
-import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigContract}
+import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf, WorkflowNode, WorkflowLink, WorkflowSchemaFaq}
+import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigContract, DetectorSchemaFaq}
 import io.syspulse.skel.wf.ext.store.WorkflowStoreDB
 
 class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
@@ -111,6 +111,14 @@ class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterA
     } finally conn.close()
   }
 
+  private def jdbcString(sql: String): String = {
+    val conn = DriverManager.getConnection(jdbcUrl, "postgres", "postgres")
+    try {
+      val rs = conn.createStatement().executeQuery(sql)
+      rs.next(); rs.getString(1)
+    } finally conn.close()
+  }
+
   "WorkflowStoreDB (workflow_schema)" should {
     "CRUD + size" in {
       Await.result(store.addSchema(schema(0)), timeout)
@@ -122,6 +130,16 @@ class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterA
       Await.result(store.sizeSchemas, timeout) shouldBe 1L
       Await.result(store.delSchema(0), timeout) shouldBe 0
       Try(Await.result(store.delSchema(0), timeout)).isFailure shouldBe true // not found
+    }
+    "store faq as string-wrapped array JSON (compatible with detector_schema.faq)" in {
+      val faq = Seq(WorkflowSchemaFaq("What is Native Balance Monitor", "Monitors Account/Contract balance (native token)"))
+      Await.result(store.addSchema(schema(10).copy(faq = Some(faq))), timeout)
+      val got = Await.result(store.getSchema(10), timeout)
+      got.faq shouldBe Some(faq)
+      // TEXT column holds the same form as detector_schema.faq::text
+      jdbcString("SELECT faq FROM workflow_schema WHERE id=10") shouldBe
+        """"[{\"name\":\"What is Native Balance Monitor\",\"value\":\"Monitors Account/Contract balance (native token)\"}]""""
+      Await.result(store.delSchema(10), timeout) // keep nextSchemaId tests stable
     }
     "paginate + nextSchemaId" in {
       (0 until 5).foreach(i => Await.result(store.addSchema(schema(i)), timeout))
@@ -168,6 +186,20 @@ class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterA
       val p = Await.result(store.listDetectorSchemas(Some(0), Some(1)), timeout)
       p.total shouldBe 2L; p.schemas.map(_.id) shouldBe Seq(0)
       Await.result(store.delDetectorSchema(1), timeout) shouldBe 1
+    }
+    "store DetectorSchema.faq as jsonb string (not jsonb array)" in {
+      val faq = Seq(DetectorSchemaFaq("What is Native Balance Monitor", "Monitors Account/Contract balance (native token)"))
+      Await.result(store.addDetectorSchema(detSchema(50).copy(faq = Some(faq))), timeout)
+      val got = Await.result(store.getDetectorSchema(50), timeout)
+      got.flatMap(_.faq) shouldBe Some(faq)
+      // jsonb string form: faq::text == "[{\"name\":...}]" ; jsonb_typeof = string
+      jdbcString("SELECT faq::text FROM detector_schema WHERE id=50") shouldBe
+        """"[{\"name\":\"What is Native Balance Monitor\",\"value\":\"Monitors Account/Contract balance (native token)\"}]""""
+      jdbcString("SELECT jsonb_typeof(faq) FROM detector_schema WHERE id=50") shouldBe "string"
+      // empty FAQ writes DEFAULT-compatible '"[]"'
+      Await.result(store.addDetectorSchema(detSchema(51).copy(faq = None)), timeout)
+      jdbcString("SELECT faq::text FROM detector_schema WHERE id=51") shouldBe """"[]""""
+      jdbcString("SELECT jsonb_typeof(faq) FROM detector_schema WHERE id=51") shouldBe "string"
     }
     "read/write DetectorConfig in detector (config is real jsonb)" in {
       Await.result(store.addDetectorConfig(detConfig(201)), timeout)

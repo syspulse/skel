@@ -342,10 +342,10 @@ object WorkflowRegistry {
         Behaviors.same
 
       case ResolveConfigs(ids, typ, replyTo) =>
-        log.info(s"ResolveConfigs: ${typ}: ${ids} (engine=${engine.map(_.name).getOrElse("none")})")
+        log.info(s"ResolveConfigs: ${engine}/${typ}: ${ids}")
         resolveConfigs(store, engine, ids, typ)
           .onComplete(r => {
-            log.debug(s"ResolveConfigs: ${typ}: ${ids}: ${r}")
+            log.debug(s"ResolveConfigs: ${engine}/${typ}: ${ids}: ${r}")
             replyTo ! r
           })
         Behaviors.same

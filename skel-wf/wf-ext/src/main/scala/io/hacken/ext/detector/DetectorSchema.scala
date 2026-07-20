@@ -28,6 +28,8 @@ case class DetectorSchema(
   description: String,
   author: String,
   icon: Option[String],
+  // correct format for jsonb:
+  // "[{\"name\":\"What is Native Balance Monitor\",\"value\":\"Monitors Account/Contract balance (native token)\"}]"
   faq: Option[Seq[DetectorSchemaFaq]],
   tags: Seq[String],
   networkTags: Seq[String],

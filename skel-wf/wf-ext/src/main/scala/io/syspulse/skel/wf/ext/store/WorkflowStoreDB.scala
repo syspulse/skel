@@ -26,7 +26,9 @@ import io.hacken.ext.detector._
 //
 // Postgres-backed WorkflowStore (mirrors ExplainStoreDB). Each entity FIELD is mapped to its own
 // database column. Only `JsObject` fields are stored as `jsonb`; scalars are normal columns and
-// nested/collection fields (graph, nodes/links, faq, meta, tags) are held as TEXT (JSON / csv).
+// nested/collection fields (graph, nodes/links, meta, tags) are held as TEXT (JSON / csv).
+// FAQ (`DetectorSchema.faq` / `WorkflowSchema.faq`) uses the upstream string-wrapped array form:
+//   "[{\"name\":\"...\",\"value\":\"...\"}]"  (jsonb string on detector_schema; same text on workflow_schema).
 //
 //   workflow_schema / workflow_config / workflow_graf   -> CREATED by this store (BIGINT ids, TEXT
 //                                                          json/csv, `data` is the only jsonb).
@@ -74,12 +76,30 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   private def tsWrite(ms: Long): String = s"(TIMESTAMP 'epoch' + (${ms}/1000.0) * INTERVAL '1 second')" // ms -> timestamp (tz-independent)
   private def pgArr(seq: Seq[String]): String = if (seq.isEmpty) "'{}'::text[]" else s"ARRAY[${seq.map(q).mkString(",")}]::text[]"
   private def pArr(s: String): Seq[String] = pCsv(s) // read via array_to_string(col, ',')
-  // jsonb NOT NULL: object defaults to {}, array defaults to []
+  // jsonb NOT NULL: object defaults to {}, array defaults to []  
   private def jsonbObjReq(o: Option[JsObject]): String = s"'${sqlLit(o.map(_.compactPrint).getOrElse("{}"))}'::jsonb"
-  private def jsonbArrReq[T](o: Option[T], w: JsonWriter[T]): String = s"'${sqlLit(o.map(_.toJson(w).compactPrint).getOrElse("[]"))}'::jsonb"
-  // faq column may hold a jsonb array OR the legacy default jsonb-string '"[]"'; parse defensively
-  private def pFaq(s: String): Option[Seq[DetectorSchemaFaq]] =
-    Option(s).filter(_.nonEmpty).flatMap(t => Try(t.parseJson).toOption.collect { case a: JsArray => a }).flatMap(a => Try(a.convertTo[scala.collection.Seq[DetectorSchemaFaq]](fmtDetFaq).toSeq).toOption)
+  // FAQ is stored as a jsonb *string* whose content is the array JSON (matches upstream DEFAULT '"[]"'::jsonb).
+  // faq::text looks like:
+  //   "[{\"name\":\"What is Native Balance Monitor\",\"value\":\"Monitors Account/Contract balance (native token)\"}]"
+  // NOT a jsonb array: '[{"name":...}]'::jsonb
+  private def faqArrJson[T](o: Option[T], w: JsonWriter[T]): String =
+    o.map(_.toJson(w).compactPrint).getOrElse("[]")
+  private def jsonbFaqReq[T](o: Option[T], w: JsonWriter[T]): String =
+    s"'${sqlLit(JsString(faqArrJson(o, w)).compactPrint)}'::jsonb"
+  // Same encoding for workflow_schema.faq TEXT (column holds the faq::text form above).
+  private def txtFaqOpt[T](o: Option[T], w: JsonWriter[T]): String =
+    o.map(v => q(JsString(faqArrJson(Some(v), w)).compactPrint)).getOrElse("NULL")
+
+  // faq may be: jsonb-string '"[]"' / '"[{...}]"' (canonical), or legacy jsonb array [{...}]
+  private def pFaq[T](s: String, r: JsonReader[scala.collection.Seq[T]]): Option[Seq[T]] = {
+    def asSeq(jv: JsValue): Option[Seq[T]] =
+      Try(jv.convertTo[scala.collection.Seq[T]](r).toSeq).toOption.filter(_.nonEmpty)
+    Option(s).filter(_.nonEmpty).flatMap(t => Try(t.parseJson).toOption).flatMap {
+      case a: JsArray   => asSeq(a)
+      case JsString(in) => Try(in.parseJson).toOption.flatMap(asSeq)
+      case _            => None
+    }
+  }
 
   // ---- row read helpers ----
   private def rStr(row: RowData, i: Int): String = row.getString(i)
@@ -173,11 +193,11 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   private def rowSchema(row: RowData, u: Unit): WorkflowSchema = WorkflowSchema(
     id = rInt(row,0), createdAt = rLong(row,1), updatedAt = rLong(row,2), status = rStr(row,3),
     name = rStr(row,4), version = rStr(row,5), title = rStr(row,6), description = rStr(row,7), author = rStr(row,8),
-    icon = rStrOpt(row,9), faq = pTxtJson(rStr(row,10), fmtWfFaq).map(_.toSeq), tags = pCsv(rStr(row,11)),
+    icon = rStrOpt(row,9), faq = pFaq(rStr(row,10), fmtWfFaq), tags = pCsv(rStr(row,11)),
     meta = pTxtJson(rStr(row,12), fmtMeta), graph = parseGraf(rStr(row,13)))
   private def valsSchema(s: WorkflowSchema): Seq[String] = Seq(
     lLit(s.id), lLit(s.createdAt), lLit(s.updatedAt), q(s.status), q(s.name), q(s.version), q(s.title), q(s.description), q(s.author),
-    qOpt(s.icon), txtJsonOpt(s.faq, fmtWfFaq), csv(s.tags), txtJsonOpt(s.meta, fmtMeta), txtJson(s.graph, fmtGraf))
+    qOpt(s.icon), txtFaqOpt(s.faq, fmtWfFaq), csv(s.tags), txtJsonOpt(s.meta, fmtMeta), txtJson(s.graph, fmtGraf))
 
   def addSchema(s: WorkflowSchema): Future[WorkflowSchema] = upsert(TABLE_WORKFLOW_SCHEMA, SCHEMA_COLS, valsSchema(s)).map(_ => s)
   def getSchemaOpt(id: Int): Future[Option[WorkflowSchema]] = query(s"SELECT $SCHEMA_SEL FROM $TABLE_WORKFLOW_SCHEMA WHERE id=$id", rowSchema).map(_.headOption)
@@ -258,12 +278,12 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   private def rowDSchemaRow(row: RowData, u: Unit): DetectorSchemaRow = DetectorSchemaRow(
     id = rInt(row,0), createdAt = rLong(row,1), updatedAt = rLong(row,2), status = rStr(row,3),
     name = rStr(row,4), version = rStr(row,5), title = rStrOpt(row,6), description = rStr(row,7), author = rStrOpt(row,8),
-    icon = rStrOpt(row,9), faq = pFaq(rStr(row,10)), tags = pArr(rStr(row,11)), networkTags = pArr(rStr(row,12)),
+    icon = rStrOpt(row,9), faq = pFaq(rStr(row,10), fmtDetFaq), tags = pArr(rStr(row,11)), networkTags = pArr(rStr(row,12)),
     schema = pJsonbObj(rStr(row,13)), uiSchema = pJsonbObj(rStr(row,14)))
   private def rowDSchema(row: RowData, u: Unit): DetectorSchema = toDetectorSchema(rowDSchemaRow(row, u))
   private def valsDSchema(d: DetectorSchema): Seq[String] = { // column order = DSCHEMA_COLS
     Seq(lLit(d.id), tsWrite(d.createdAt), tsWrite(d.updatedAt), q(d.status), q(d.name), q(d.version),
-      jsonbObjReq(d.schema), pgArr(d.tags), q(d.description), jsonbArrReq(d.faq, fmtDetFaq), jsonbObjReq(d.uiSchema),
+      jsonbObjReq(d.schema), pgArr(d.tags), q(d.description), jsonbFaqReq(d.faq, fmtDetFaq), jsonbObjReq(d.uiSchema),
       qOpt(optNZ(d.author)), qOpt(d.icon), pgArr(d.networkTags), qOpt(optNZ(d.title)))
   }
 
