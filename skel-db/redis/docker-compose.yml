@@ -6,7 +6,7 @@ networks:
 
 services:
   redis:
-    image: 'bitnami/redis:6.2.14'
+    image: 'soldevelo/redis:6.2.16'
     restart: always    
     ports:
       - 16379:6379
