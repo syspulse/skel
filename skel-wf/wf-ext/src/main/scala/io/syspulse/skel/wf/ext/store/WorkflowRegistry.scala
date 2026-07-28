@@ -125,7 +125,7 @@ object WorkflowRegistry {
         (if (m == RESOLVE_RID) byRid(id) else byWid(id)).map(c => c -> m)
       }.distinctBy(_._1.id)
       val found = foundWithMode.map(_._1)
-      configDetectors(store, found).flatMap(dets => enrichWithEngine(engine, foundWithMode, dets))
+      configDetectors(store, found).flatMap(dets => enrichWithEngine(store, engine, foundWithMode, dets))
     }
 
   /**
@@ -150,8 +150,13 @@ object WorkflowRegistry {
    * config's runtime state onto its status and its DetectorConfigs' statuses. When the runtime cannot
    * be resolved on the Engine (obsolete/removed id), the WorkflowConfig AND all its DetectorConfigs
    * are marked `UNRESOLVED`. No-op only when no Engine is configured.
+   *
+   * PERSISTENCE (Resolve writes the Engine truth back into the store):
+   *   - WorkflowConfig.status is updated in the store whenever it differs from the Engine value (any store).
+   *   - DetectorConfig.status is updated only for stores that allow it (`canUpdateDetectorConfig` -
+   *     WorkflowStoreMem / WorkflowStoreDir). The DB store is NOT written for now.
    */
-  private def enrichWithEngine(engine: Option[Engine], foundWithMode: Seq[(WorkflowConfig, String)], dets: Map[String, DetectorConfig])(implicit ec: ExecutionContext): Future[WorkflowConfigs] = {
+  private def enrichWithEngine(store: WorkflowStore, engine: Option[Engine], foundWithMode: Seq[(WorkflowConfig, String)], dets: Map[String, DetectorConfig])(implicit ec: ExecutionContext): Future[WorkflowConfigs] = {
     val found = foundWithMode.map(_._1)
     engine match {
       case None => Future.successful(WorkflowConfigs(found, found.size.toLong, Some(dets)))
@@ -169,7 +174,7 @@ object WorkflowRegistry {
               val cids = c.graph.nodes.values.flatMap(_.cid).toSeq
               (c.copy(status = EngineStatus.UNRESOLVED), cids.map(_ -> (EngineStatus.UNRESOLVED, Option.empty[String])).toMap)
           }
-        }.map { results =>
+        }.flatMap { results =>
           val newConfigs   = results.map(_._1)
           val stepInfoAll  = results.flatMap(_._2).toMap    // cid -> (status, activityId)
           val newDetectors = detectorsInt.map { case (cid, dc) =>
@@ -179,7 +184,23 @@ object WorkflowRegistry {
               .orElse(dc.meta.map(_ - "activity_id").filter(_.nonEmpty))
             cid.toString -> dc.copy(status = st, meta = meta)
           }
-          WorkflowConfigs(newConfigs, newConfigs.size.toLong, Some(newDetectors))
+
+          // ---- persist the Engine truth back into the store (status-only, only when changed) ----
+          // 1. WorkflowConfig.status (all stores)
+          val cfgUpdates: Seq[Future[_]] = newConfigs.zip(found).collect {
+            case (nc, oc) if nc.status != oc.status =>
+              log.info(s"Resolve: WorkflowConfig(${nc.id}).status ${oc.status} -> ${nc.status}")
+              store.updateConfigStatus(nc.id, nc.status)
+          }
+          // 2. DetectorConfig.status - status-only update is implemented for every store (incl. DB)
+          val detUpdates: Seq[Future[_]] = newDetectors.toSeq.collect {
+            case (cidStr, nd) if dets.get(cidStr).exists(_.status != nd.status) =>
+              log.info(s"Resolve: DetectorConfig(${nd.id}).status ${dets(cidStr).status} -> ${nd.status}")
+              store.updateDetectorConfigStatus(nd.id, nd.status)
+          }
+
+          Future.sequence(cfgUpdates ++ detUpdates)
+            .map(_ => WorkflowConfigs(newConfigs, newConfigs.size.toLong, Some(newDetectors)))
         }
     }
   }

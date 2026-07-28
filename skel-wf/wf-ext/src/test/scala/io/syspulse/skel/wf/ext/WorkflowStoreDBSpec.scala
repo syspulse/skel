@@ -119,6 +119,11 @@ class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterA
     } finally conn.close()
   }
 
+  private def jdbcExec(sql: String): Unit = {
+    val conn = DriverManager.getConnection(jdbcUrl, "postgres", "postgres")
+    try conn.createStatement().execute(sql) finally conn.close()
+  }
+
   "WorkflowStoreDB (workflow_schema)" should {
     "CRUD + size" in {
       Await.result(store.addSchema(schema(0)), timeout)
@@ -166,6 +171,14 @@ class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterA
       p.total shouldBe 2L
       p.configs.map(_.id) shouldBe Seq(0)
     }
+    "updateConfigStatus updates ONLY the status column" in {
+      Await.result(store.updateConfigStatus(0, "DISABLED"), timeout) shouldBe 1
+      val got = Await.result(store.getConfig(0), timeout)
+      got.status shouldBe "DISABLED"
+      got.xid shouldBe Some("Run-XYZ")   // other columns untouched
+      got.oid shouldBe Some("owner-1")
+      Await.result(store.updateConfigStatus(999, "DISABLED"), timeout) shouldBe 0 // missing id -> 0
+    }
   }
 
   "WorkflowStoreDB (workflow_graf)" should {
@@ -201,15 +214,29 @@ class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterA
       jdbcString("SELECT faq::text FROM detector_schema WHERE id=51") shouldBe """"[]""""
       jdbcString("SELECT jsonb_typeof(faq) FROM detector_schema WHERE id=51") shouldBe "string"
     }
-    "read/write DetectorConfig in detector (config is real jsonb)" in {
-      Await.result(store.addDetectorConfig(detConfig(201)), timeout)
+    "read DetectorConfig from detector (config is real jsonb); writes are a no-op (WARN) for now" in {
+      // the external product owns writes: seed a row via raw SQL
+      jdbcExec("""INSERT INTO detector(id, contract_id, name, source, config) VALUES (201, 0, 'cfg201', 'SRC', '{"k":"v201"}'::jsonb)""")
       val got = Await.result(store.getDetectorConfig(201), timeout)
       got.map(_.name) shouldBe Some("cfg201")
-      got.flatMap(_.config).map(_.fields("k")) shouldBe Some(JsString("v201")) // JsObject roundtrip
+      got.flatMap(_.config).map(_.fields("k")) shouldBe Some(JsString("v201")) // JsObject read
       Await.result(store.getDetectorConfig(999), timeout) shouldBe None
       Await.result(store.sizeDetectorConfigs, timeout) shouldBe 1L
       // the config column is queryable as jsonb (proves it is NOT a text blob)
       jdbcCount("SELECT count(*) FROM detector WHERE config->>'k' = 'v201'") shouldBe 1L
+      // addDetectorConfig is NOT implemented for the external table yet: it logs WARN and does NOT write
+      Await.result(store.addDetectorConfig(detConfig(202)), timeout).id shouldBe 202
+      Await.result(store.getDetectorConfig(202), timeout) shouldBe None
+      Await.result(store.sizeDetectorConfigs, timeout) shouldBe 1L // still only the seeded row
+    }
+    "updateDetectorConfigStatus updates ONLY the status column (external detector table)" in {
+      Await.result(store.updateDetectorConfigStatus(201, "DISABLED"), timeout) shouldBe 1
+      val got = Await.result(store.getDetectorConfig(201), timeout).get
+      got.status shouldBe "DISABLED"
+      got.name shouldBe "cfg201"                                   // other columns untouched
+      got.config.map(_.fields("k")) shouldBe Some(JsString("v201"))
+      // a missing id updates nothing
+      Await.result(store.updateDetectorConfigStatus(999, "DISABLED"), timeout) shouldBe 0
     }
   }
 }

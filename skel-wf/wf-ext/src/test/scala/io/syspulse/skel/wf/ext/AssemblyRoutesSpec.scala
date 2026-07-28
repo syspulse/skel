@@ -109,5 +109,24 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
         byName("ProofOfReserve").meta.flatMap(_.get("activity_id")) shouldBe None
       }
     }
+
+    "PERSIST the Engine statuses back to the store (Mem: WorkflowConfig + DetectorConfig)" in {
+      val WID = "PoR-Persist-1"
+      val cfg = Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
+      }
+      // assembled statuses are ACTIVE (not yet resolved)
+      Await.result(store.getConfig(cfg.id), 5.seconds).status shouldBe "ACTIVE"
+      val pooCid = cfg.graph.nodes.values.find(_.title == "ProofOfOwnership").flatMap(_.cid).get
+      val porCid = cfg.graph.nodes.values.find(_.title == "ProofOfReserve").flatMap(_.cid).get
+      Await.result(store.getDetectorConfig(pooCid), 5.seconds).get.status shouldBe "ACTIVE"
+
+      Get(s"/config/resolve/$WID") ~> routes.routes ~> check { status shouldBe StatusCodes.OK }
+
+      // the store now reflects the Engine truth (WorkflowConfig + DetectorConfig)
+      Await.result(store.getConfig(cfg.id), 5.seconds).status shouldBe EngineStatus.RUNNING
+      Await.result(store.getDetectorConfig(pooCid), 5.seconds).get.status shouldBe EngineStatus.COMPLETED // matched activity
+      Await.result(store.getDetectorConfig(porCid), 5.seconds).get.status shouldBe EngineStatus.UNKNOWN   // no activity yet
+    }
   }
 }

@@ -67,6 +67,14 @@ trait WorkflowStore {
   def findConfigByOid(oid: String): Future[Seq[WorkflowConfig]]
   def findConfigByXid(xid: String): Future[Option[WorkflowConfig]]
 
+  // Update ONLY the status field of a WorkflowConfig (returns rows affected: 1 if updated, 0 if absent).
+  // Default: read-modify-write; DB stores override with a targeted single-column UPDATE.
+  def updateConfigStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
+    getConfigOpt(id).flatMap {
+      case Some(c) => addConfig(c.copy(status = status, updatedAt = System.currentTimeMillis())).map(_ => 1)
+      case None    => Future.successful(0)
+    }
+
   // ---------------------------------------------------------------- WorkflowGraf
   def addGraf(g: WorkflowGraf): Future[WorkflowGraf]
   def getGraf(id: Int): Future[WorkflowGraf]
@@ -99,8 +107,19 @@ trait WorkflowStore {
     }
 
   // ---------------------------------------------------------------- DetectorConfig
+  // NOTE: WorkflowStoreDB does not implement full DetectorConfig writes yet (external `detector`
+  // table) - its addDetectorConfig is a no-op that logs WARN. Mem/Dir persist normally.
   def addDetectorConfig(d: DetectorConfig): Future[DetectorConfig]
   def getDetectorConfig(id: Int): Future[Option[DetectorConfig]]
+
+  // Update ONLY the status field of a DetectorConfig (returns rows affected: 1 if updated, 0 if absent).
+  // Default: read-modify-write; DB stores override with a targeted single-column UPDATE (this IS
+  // implemented for the external `detector` table, unlike the full addDetectorConfig write).
+  def updateDetectorConfigStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
+    getDetectorConfig(id).flatMap {
+      case Some(d) => addDetectorConfig(d.copy(status = status, updatedAt = System.currentTimeMillis())).map(_ => 1)
+      case None    => Future.successful(0)
+    }
   def delDetectorConfig(id: Int): Future[Int]
   def allDetectorConfigs: Future[Seq[DetectorConfig]]
   def sizeDetectorConfigs: Future[Long]

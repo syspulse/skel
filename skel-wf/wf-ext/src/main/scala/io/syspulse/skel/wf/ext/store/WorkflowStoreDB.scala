@@ -116,6 +116,8 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
 
   // ---- generic exec ----
   private def exec(sql: String): Future[Long] = ctx.executeAction(sql)(ExecutionInfo.unknown, ())
+  // run an UPDATE and return rows affected as Int (uses the context's implicit ec via `import ctx._`)
+  private def execUpdateInt(sql: String): Future[Int] = exec(sql).map(_.toInt)
   private def countOf(tbl: String, where: String = ""): Future[Long] =
     ctx.executeQuerySingle(s"SELECT count(*) FROM $tbl $where", extractor = (r: RowData, _: Unit) => r.getAs[Long](0))(ExecutionInfo.unknown, ())
   private def nextIdOf(tbl: String): Future[Int] =
@@ -234,6 +236,9 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
     query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG WHERE oid = ${q(oid)} ORDER BY id", rowConfig)
   def findConfigByXid(xid: String): Future[Option[WorkflowConfig]] =
     query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG WHERE lower(xid) = lower(${q(xid)}) LIMIT 1", rowConfig).map(_.headOption)
+  // optimized status-only update (single column + updated_at); no read, no full-row rewrite
+  override def updateConfigStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
+    execUpdateInt(s"UPDATE $TABLE_WORKFLOW_CONFIG SET status=${q(status)}, updated_at=${lLit(System.currentTimeMillis())} WHERE id=$id")
   override def nextConfigId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_WORKFLOW_CONFIG)
   override def listConfigs(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[WorkflowStore.PageConfig] =
     for {
@@ -316,7 +321,16 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
     Seq(lLit(r.id), tsWrite(r.createdAt), tsWrite(r.updatedAt), q(r.status), lLit(r.contractId), q(r.name), q(r.source), lLit(r.schemaId), pgArr(r.tags), jsonbObjReq(r.config))
   }
 
-  def addDetectorConfig(d: DetectorConfig): Future[DetectorConfig] = upsert(TABLE_DET_CONFIG, DCONFIG_COLS, valsDConfig(d)).map(_ => d)
+  // Writing DetectorConfig to the EXTERNAL `detector` table is not implemented yet (owned by another
+  // product). No-op for now (logs WARN); the DCONFIG_COLS / valsDConfig mapping is kept for when it is.
+  def addDetectorConfig(d: DetectorConfig): Future[DetectorConfig] = {
+    log.warn(s"addDetectorConfig NOT implemented for ${this.getClass.getSimpleName} (external '${TABLE_DET_CONFIG}' table) - skipping write of DetectorConfig(${d.id})")
+    Future.successful(d)
+  }
+  private def writeDetectorConfig(d: DetectorConfig): Future[DetectorConfig] = upsert(TABLE_DET_CONFIG, DCONFIG_COLS, valsDConfig(d)).map(_ => d) // TODO: enable when full external writes are supported
+  // status-only update IS supported on the external `detector` table (single column + updated_at timestamp)
+  override def updateDetectorConfigStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
+    execUpdateInt(s"UPDATE $TABLE_DET_CONFIG SET status=${q(status)}, updated_at=${tsWrite(System.currentTimeMillis())} WHERE id=$id")
   def getDetectorConfig(id: Int): Future[Option[DetectorConfig]] = query(s"SELECT $DCONFIG_SEL FROM $TABLE_DET_CONFIG WHERE id=$id", rowDConfig).map(_.headOption)
   def delDetectorConfig(id: Int): Future[Int] = delById(TABLE_DET_CONFIG, id, "DetectorConfig")
   def allDetectorConfigs: Future[Seq[DetectorConfig]] = query(s"SELECT $DCONFIG_SEL FROM $TABLE_DET_CONFIG ORDER BY id", rowDConfig)
