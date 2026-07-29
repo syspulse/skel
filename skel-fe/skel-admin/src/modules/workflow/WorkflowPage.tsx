@@ -344,6 +344,23 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
     }
   };
 
+  // Create a WorkflowConfig from the WorkflowSchema currently open in the editor, then navigate to it.
+  // The backend composes it of DetectorConfigs and assigns all ids; we re-read everything (lists +
+  // the new config via openEditor) so the UI renders fresh, non-stale state.
+  const createConfigFromSchema = async () => {
+    if (!editor || editor.kind !== KIND.workflowSchema) return;
+    setSaving(true);
+    try {
+      const created = await api.createConfigFromSchema(token, editor.id);
+      await refreshAndNotify();                          // refresh all lists (new config + detectors)
+      await openEditor(KIND.workflowConfig, created.id); // re-read the new config and open its editor
+    } catch (e) {
+      notifyError(t('workflow.errorSave'), e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // ===================== EDITOR MODE =====================
   if (editor) {
     const editorSchema = editor.kind === KIND.workflowSchema ? schemas.find((s) => s.id === editor.id) ?? null : null;
@@ -374,6 +391,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           onFreqChange={setFreq}
           onToggleTrack={editorConfig ? () => setTrackingId((cur) => (cur === editor.id ? null : editor.id)) : undefined}
           onSave={handleEditorSave}
+          onCreateConfig={editor.kind === KIND.workflowSchema ? createConfigFromSchema : undefined}
           onBack={() => { setTrackingId(null); setEditor(null); }}
           onOpenDetails={() => setWfDetailsOpen(true)}
           onOpenDetectorSchema={(id) => setDetView({ kind: KIND.detectorSchema, id })}

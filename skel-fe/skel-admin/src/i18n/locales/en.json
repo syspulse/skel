@@ -311,6 +311,7 @@
       "arrowSolid": "solid",
       "arrowOpen": "open",
       "openDetails": "open details",
+      "createConfig": "Create",
       "snap": "snap",
       "grid": "grid"
     },

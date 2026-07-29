@@ -8,7 +8,7 @@ import {
 import '@xyflow/react/dist/style.css';
 
 import type { WorkflowGraf, DetectorSchema, DetectorConfig, WorkflowKind } from '../types';
-import { KIND } from '../types';
+import { KIND, entityLabelKey } from '../types';
 import { idLabelStyle } from '../labels';
 import { DetectorNode } from './DetectorNode';
 import { ElementDetails } from './ElementDetails';
@@ -47,6 +47,7 @@ export interface WorkflowEditorProps {
   onFreqChange?: (ms: number) => void;
   onToggleTrack?: () => void;             // start/stop auto-polling
   onSave: (graf: WorkflowGraf) => void;
+  onCreateConfig?: () => void;            // WorkflowSchema only: create a WorkflowConfig from it and open its editor
   onBack: () => void;
   onOpenDetails?: () => void; // open the WorkflowSchema/Config Details panel for editing
   onOpenDetectorSchema?: (id: number) => void;
@@ -57,7 +58,7 @@ const EDGE_COLOR = '#64748b';
 
 function WorkflowEditorInner(props: WorkflowEditorProps) {
   const { t } = useTranslation();
-  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, detectorActivityId, resolving, onResolve, onValidateCid, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
+  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, detectorActivityId, resolving, onResolve, onValidateCid, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onCreateConfig, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
 
   const initial = useMemo(() => grafToRF(graf), [graf]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<RFNodeData>>(initial.nodes);
@@ -204,12 +205,13 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
     <div className="fixed top-12 left-44 right-0 bottom-0 flex flex-col bg-card z-10">
       {/* Panel 1: identity */}
       <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-card shrink-0">
-        <span className="inline-flex items-center justify-center w-7 h-7 shrink-0 text-foreground">
-          {renderIcon(icon && icon.trim() ? icon : (kind === KIND.workflowConfig ? DEFAULT_WF_CONFIG_ICON : DEFAULT_WF_SCHEMA_ICON), 22)}
-        </span>
         <div className="min-w-0 flex-1">
-          {/* WorkflowConfig.name (NOT the schema-derived title), with the id label next to it */}
+          {/* "{entity} / [icon] {name}" - entity prefix first, then the icon, then the name */}
           <div className="flex items-center gap-1.5">
+            <span className="text-sm text-muted-foreground shrink-0">{t(entityLabelKey(kind))} /</span>
+            <span className="inline-flex items-center justify-center w-7 h-7 shrink-0 text-foreground">
+              {renderIcon(icon && icon.trim() ? icon : (kind === KIND.workflowConfig ? DEFAULT_WF_CONFIG_ICON : DEFAULT_WF_SCHEMA_ICON), 22)}
+            </span>
             <span className="text-sm text-foreground truncate">{name}</span>
             <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0" style={idLabelStyle(kind)}>
               {id}
@@ -269,6 +271,13 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-green-500 text-green-700 hover:bg-green-50 disabled:opacity-40 transition-colors">
           <IconSave size={13} /> {saving ? t('common.saving') : t('common.save')}
         </button>
+        {/* Create: build a WorkflowConfig from this WorkflowSchema, then open its editor (schema only) */}
+        {kind === KIND.workflowSchema && onCreateConfig && (
+          <button onClick={onCreateConfig} disabled={saving}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-700 hover:bg-blue-50 disabled:opacity-40 transition-colors">
+            <IconPlus size={13} /> {t('workflow.editor.createConfig')}
+          </button>
+        )}
         {/* Resolve: fetch current engine state (WorkflowConfig + DetectorConfig statuses) - config only */}
         {kind === KIND.workflowConfig && onResolve && (
           <button onClick={onResolve} disabled={resolving}

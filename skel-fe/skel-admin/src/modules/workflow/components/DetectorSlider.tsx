@@ -129,8 +129,9 @@ export function DetectorSlider(props: DetectorSliderProps) {
       {open && <div className="slider-backdrop" onClick={onClose} />}
       <div className={`slide-panel slide-panel-sm ${open ? 'slide-panel-open' : 'slide-panel-closed'}`}>
         <div className="slide-header">
+          {/* "{entity} / {name}" so it is clear which object is being edited (Add has no name yet) */}
           <h2 className="slide-title">
-            {addMode ? t('common.add') : (viewOnly ? t('common.view') : t('common.edit'))} {kindLabel}
+            {addMode ? `${t('common.add')} ${kindLabel}` : `${kindLabel} / ${name}`}
           </h2>
           <button onClick={onClose} className="slide-close" aria-label={t('common.close')}>
             <IconClose size={18} />

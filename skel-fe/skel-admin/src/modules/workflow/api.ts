@@ -63,6 +63,10 @@ export const getConfig = (token: string | null, id: number, detail?: boolean) =>
   GET<WorkflowConfigView>(token, `/config/${id}${detail ? '?detector=full' : ''}`);
 export const createConfig = (token: string | null, req: WorkflowConfigCreateReq) =>
   POST<WorkflowConfig>(token, '/config', req);
+// create a WorkflowConfig from a WorkflowSchema id in one call (composed of DetectorConfig; ids from
+// store). contractId places the new DetectorConfigs under a contract (default 0 - see setup0).
+export const createConfigFromSchema = (token: string | null, sid: number, contractId = 0) =>
+  POST<WorkflowConfig>(token, `/config/schema/${sid}?contractId=${contractId}`, {});
 export const createConfigDsl = (token: string | null, pipeline: string, name?: string) =>
   POST<WorkflowConfig>(token, '/config/dsl', { pipeline, name });
 export const updateConfig = (token: string | null, id: number, req: WorkflowConfigUpdateReq) =>
