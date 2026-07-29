@@ -56,34 +56,37 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   import io.hacken.ext.detector.DetectorConfigJson._
   import io.syspulse.skel.wf.ext.engine.EngineJson._
 
-  // ---- schema asks ----
-  def getSchemas(from: Option[Long], size: Option[Long], detail: Boolean): Future[Try[WorkflowSchemas]] = registry.ask(GetSchemas(from, size, detail, _))
-  def getSchema(id: Int, detail: Boolean): Future[Try[WorkflowSchemaView]] = registry.ask(GetSchema(id, detail, _))
-  def createSchema(req: WorkflowSchemaCreateReq): Future[Try[WorkflowSchema]] = registry.ask(CreateSchema(req, _))
-  def createSchemaDsl(req: WorkflowSchemaDslReq): Future[Try[WorkflowSchema]] = registry.ask(CreateSchemaDsl(req, _))
-  def updateSchema(id: Int, req: WorkflowSchemaUpdateReq): Future[Try[WorkflowSchema]] = registry.ask(UpdateSchema(id, req, _))
-  def deleteSchema(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteSchema(id, _))
+  // ---- WorkflowSchema asks ----
+  def getWorkflowSchemas(from: Option[Long], size: Option[Long], detail: Boolean): Future[Try[WorkflowSchemas]] = registry.ask(GetWorkflowSchemas(from, size, detail, _))
+  def getWorkflowSchema(id: Int, detail: Boolean): Future[Try[WorkflowSchemaView]] = registry.ask(GetWorkflowSchema(id, detail, _))
+  def createWorkflowSchema(req: WorkflowSchemaCreateReq): Future[Try[WorkflowSchema]] = registry.ask(CreateWorkflowSchema(req, _))
+  def createWorkflowSchemaDsl(req: WorkflowSchemaDslReq): Future[Try[WorkflowSchema]] = registry.ask(CreateWorkflowSchemaDsl(req, _))
+  def updateWorkflowSchema(id: Int, req: WorkflowSchemaUpdateReq): Future[Try[WorkflowSchema]] = registry.ask(UpdateWorkflowSchema(id, req, _))
+  def deleteWorkflowSchema(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteWorkflowSchema(id, _))
 
-  // ---- config asks ----
-  def getConfigs(from: Option[Long], size: Option[Long], detail: Boolean): Future[Try[WorkflowConfigs]] = registry.ask(GetConfigs(from, size, detail, _))
-  def getConfig(id: Int, detail: Boolean): Future[Try[WorkflowConfigView]] = registry.ask(GetConfig(id, detail, _))
-  def getConfigByXid(xid: String): Future[Option[WorkflowConfig]] = registry.ask(GetConfigByXid(xid, _))
-  def getConfigsByOid(oid: String): Future[Try[WorkflowConfigs]] = registry.ask(GetConfigsByOid(oid, _))
-  def resolveConfigs(ids: Seq[String], typ: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(ResolveConfigs(ids, typ, _))
-  def createConfig(req: WorkflowConfigCreateReq): Future[Try[WorkflowConfig]] = registry.ask(CreateConfig(req, _))
-  def createConfigDsl(req: WorkflowConfigDslReq): Future[Try[WorkflowConfig]] = registry.ask(CreateConfigDsl(req, _))
-  def assemblyConfig(req: WorkflowConfigDslReq): Future[Try[WorkflowConfig]] = registry.ask(AssemblyConfig(req, _))
-  def assemblyLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String): Future[Try[WorkflowConfig]] = registry.ask(AssemblyLinked(req, runtime, fallbackId, _))
-  def linkConfig(req: WorkflowConfigDslReq): Future[Try[WorkflowConfig]] = registry.ask(LinkConfig(req, _))
-  def linkLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String): Future[Try[WorkflowConfig]] = registry.ask(LinkLinked(req, runtime, fallbackId, _))
-  def updateConfig(id: Int, req: WorkflowConfigUpdateReq): Future[Try[WorkflowConfig]] = registry.ask(UpdateConfig(id, req, _))
-  def deleteConfig(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteConfig(id, _))
+  // ---- WorkflowConfig asks ----
+  def getWorkflowConfigs(from: Option[Long], size: Option[Long], detail: Boolean): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigs(from, size, detail, _))
+  def getWorkflowConfig(id: Int, detail: Boolean): Future[Try[WorkflowConfigView]] = registry.ask(GetWorkflowConfig(id, detail, _))
+  def getWorkflowConfigByXid(xid: String): Future[Option[WorkflowConfig]] = registry.ask(GetWorkflowConfigByXid(xid, _))
+  def getWorkflowConfigsByOid(oid: String): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigsByOid(oid, _))
+  def resolveWorkflowConfigs(ids: Seq[String], typ: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(ResolveWorkflowConfigs(ids, typ, _))
+  def createWorkflowConfig(req: WorkflowConfigCreateReq): Future[Try[WorkflowConfig]] = registry.ask(CreateWorkflowConfig(req, _))
+  def createWorkflowConfigFromSchema(sid: Int, contractId: Int): Future[Try[WorkflowConfig]] = registry.ask(CreateWorkflowConfigFromSchema(sid, contractId, _))
+  def setup0(tenantId: Int, projectId: Int, contractId: Int, name: String, status: String): Future[Try[WorkflowActionRes]] =
+    registry.ask(Setup0(tenantId, projectId, contractId, name, status, _))
+  def createWorkflowConfigDsl(req: WorkflowConfigDslReq): Future[Try[WorkflowConfig]] = registry.ask(CreateWorkflowConfigDsl(req, _))
+  def assemblyWorkflowConfig(req: WorkflowConfigDslReq): Future[Try[WorkflowConfig]] = registry.ask(AssemblyWorkflowConfig(req, _))
+  def assemblyWorkflowConfigLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String): Future[Try[WorkflowConfig]] = registry.ask(AssemblyWorkflowConfigLinked(req, runtime, fallbackId, _))
+  def linkWorkflowConfig(req: WorkflowConfigDslReq): Future[Try[WorkflowConfig]] = registry.ask(LinkWorkflowConfig(req, _))
+  def linkWorkflowConfigLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String): Future[Try[WorkflowConfig]] = registry.ask(LinkWorkflowConfigLinked(req, runtime, fallbackId, _))
+  def updateWorkflowConfig(id: Int, req: WorkflowConfigUpdateReq): Future[Try[WorkflowConfig]] = registry.ask(UpdateWorkflowConfig(id, req, _))
+  def deleteWorkflowConfig(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteWorkflowConfig(id, _))
 
-  // ---- graf asks ----
-  def getGrafs(from: Option[Long], size: Option[Long]): Future[Try[WorkflowGrafs]] = registry.ask(GetGrafs(from, size, _))
-  def getGraf(id: Int): Future[Try[WorkflowGraf]] = registry.ask(GetGraf(id, _))
-  def createGraf(req: WorkflowGrafCreateReq): Future[Try[WorkflowGraf]] = registry.ask(CreateGraf(req, _))
-  def deleteGraf(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteGraf(id, _))
+  // ---- WorkflowGraf asks ----
+  def getWorkflowGrafs(from: Option[Long], size: Option[Long]): Future[Try[WorkflowGrafs]] = registry.ask(GetWorkflowGrafs(from, size, _))
+  def getWorkflowGraf(id: Int): Future[Try[WorkflowGraf]] = registry.ask(GetWorkflowGraf(id, _))
+  def createWorkflowGraf(req: WorkflowGrafCreateReq): Future[Try[WorkflowGraf]] = registry.ask(CreateWorkflowGraf(req, _))
+  def deleteWorkflowGraf(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteWorkflowGraf(id, _))
 
   // ---- detector-schema asks ----
   def getDetectorSchemas(from: Option[Long], size: Option[Long]): Future[Try[DetectorSchemas]] = registry.ask(GetDetectorSchemas(from, size, _))
@@ -134,11 +137,11 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       new Parameter(name = "detector", in = ParameterIn.QUERY, description = "id|full")),
     responses = Array(new ApiResponse(responseCode = "200", description = "schemas",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemas]))))))
-  def getSchemasRoute() = get {
+  def getWorkflowSchemasRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?, "detector".?) { (from, size, detector) =>
       (from, size) match {
         case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
-        case _ => complete(getSchemas(from, size, isFull(detector)))
+        case _ => complete(getWorkflowSchemas(from, size, isFull(detector)))
       }
     }
   }
@@ -150,9 +153,9 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       new Parameter(name = "detector", in = ParameterIn.QUERY, description = "id|full")),
     responses = Array(new ApiResponse(responseCode = "200", description = "schema",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemaView]))))))
-  def getSchemaRoute(id: Int) = get {
+  def getWorkflowSchemaRoute(id: Int) = get {
     parameter("detector".?) { detector =>
-      complete(getSchema(id, isFull(detector)))
+      complete(getWorkflowSchema(id, isFull(detector)))
     }
   }
 
@@ -161,19 +164,19 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemaCreateReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "created",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchema]))))))
-  def createSchemaRoute() = post {
-    entity(as[WorkflowSchemaCreateReq]) { req => complete(createSchema(req)) }
+  def createWorkflowSchemaRoute() = post {
+    entity(as[WorkflowSchemaCreateReq]) { req => complete(createWorkflowSchema(req)) }
   }
 
-  def createSchemaDslRoute() = post {
-    entity(as[WorkflowSchemaDslReq]) { req => complete(createSchemaDsl(req)) }
+  def createWorkflowSchemaDslRoute() = post {
+    entity(as[WorkflowSchemaDslReq]) { req => complete(createWorkflowSchemaDsl(req)) }
   }
 
-  def updateSchemaRoute(id: Int) = put {
-    entity(as[WorkflowSchemaUpdateReq]) { req => complete(updateSchema(id, req)) }
+  def updateWorkflowSchemaRoute(id: Int) = put {
+    entity(as[WorkflowSchemaUpdateReq]) { req => complete(updateWorkflowSchema(id, req)) }
   }
 
-  def deleteSchemaRoute(id: Int) = delete { complete(deleteSchema(id)) }
+  def deleteWorkflowSchemaRoute(id: Int) = delete { complete(deleteWorkflowSchema(id)) }
 
   // ================================================================ config routes
   @GET @Path("/config") @Produces(Array(MediaType.APPLICATION_JSON))
@@ -184,11 +187,11 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       new Parameter(name = "detector", in = ParameterIn.QUERY, description = "id|full")),
     responses = Array(new ApiResponse(responseCode = "200", description = "configs",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
-  def getConfigsRoute() = get {
+  def getWorkflowConfigsRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?, "detector".?) { (from, size, detector) =>
       (from, size) match {
         case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
-        case _ => complete(getConfigs(from, size, isFull(detector)))
+        case _ => complete(getWorkflowConfigs(from, size, isFull(detector)))
       }
     }
   }
@@ -200,14 +203,14 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       new Parameter(name = "detector", in = ParameterIn.QUERY, description = "id|full")),
     responses = Array(new ApiResponse(responseCode = "200", description = "config",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigView]))))))
-  def getConfigRoute(id: Int) = get {
+  def getWorkflowConfigRoute(id: Int) = get {
     parameter("detector".?) { detector =>
-      complete(getConfig(id, isFull(detector)))
+      complete(getWorkflowConfig(id, isFull(detector)))
     }
   }
 
-  def getConfigByXidRoute(xid: String) = get { rejectEmptyResponse { complete(getConfigByXid(xid)) } }
-  def getConfigsByOidRoute(oid: String) = get { complete(getConfigsByOid(oid)) }
+  def getWorkflowConfigByXidRoute(xid: String) = get { rejectEmptyResponse { complete(getWorkflowConfigByXid(xid)) } }
+  def getWorkflowConfigsByOidRoute(oid: String) = get { complete(getWorkflowConfigsByOid(oid)) }
 
   /** Split a comma-separated `ids` path segment into a clean list. */
   private def splitIds(csv: String): Seq[String] =
@@ -220,9 +223,9 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       new Parameter(name = "type", in = ParameterIn.QUERY, description = "force resolution mode: 'rid' (runtimeId/xid) or 'wid' (workflowId); default auto-detect")),
     responses = Array(new ApiResponse(responseCode = "200", description = "configs",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
-  def getConfigsResolveRoute(ids: Seq[String], typ: Option[String]) = get {
-    // the Engine query + live status mapping happens in WorkflowRegistry.ResolveConfigs
-    complete(resolveConfigs(ids, typ))
+  def getWorkflowConfigsResolveRoute(ids: Seq[String], typ: Option[String]) = get {
+    // the Engine query + live status mapping happens in WorkflowRegistry.ResolveWorkflowConfigs
+    complete(resolveWorkflowConfigs(ids, typ))
   }
 
   @POST @Path("/config") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
@@ -230,12 +233,41 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigCreateReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "created",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
-  def createConfigRoute() = post {
-    entity(as[WorkflowConfigCreateReq]) { req => complete(createConfig(req)) }
+  def createWorkflowConfigRoute() = post {
+    entity(as[WorkflowConfigCreateReq]) { req => complete(createWorkflowConfig(req)) }
   }
 
-  def createConfigDslRoute() = post {
-    entity(as[WorkflowConfigDslReq]) { req => complete(createConfigDsl(req)) }
+  @POST @Path("/config/schema/{sid}") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("config"), summary = "Create a WorkflowConfig from a WorkflowSchema id (composed of DetectorConfig; ids assigned by the store)",
+    parameters = Array(
+      new Parameter(name = "sid", in = ParameterIn.PATH, description = "WorkflowSchema id"),
+      new Parameter(name = "contractId", in = ParameterIn.QUERY, description = "contract id to place the DetectorConfigs under (default 0)")),
+    responses = Array(new ApiResponse(responseCode = "200", description = "created",
+      content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
+  def createWorkflowConfigFromSchemaRoute(sid: Int) = post {
+    parameter("contractId".as[Int].?) { contractId =>
+      complete(createWorkflowConfigFromSchema(sid, contractId.getOrElse(0)))
+    }
+  }
+
+  @POST @Path("/setup0") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("config"), summary = "Bootstrap the default placement: tenant -> project -> contract (idempotent)",
+    parameters = Array(
+      new Parameter(name = "tenantId", in = ParameterIn.QUERY, description = "tenant id (default 0)"),
+      new Parameter(name = "projectId", in = ParameterIn.QUERY, description = "project id (default 0)"),
+      new Parameter(name = "contractId", in = ParameterIn.QUERY, description = "contract id (default 0)"),
+      new Parameter(name = "name", in = ParameterIn.QUERY, description = "name for tenant/project/contract (default 'setup0')"),
+      new Parameter(name = "status", in = ParameterIn.QUERY, description = "tenant status (default 'DISABLED')")),
+    responses = Array(new ApiResponse(responseCode = "200", description = "ok",
+      content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowActionRes]))))))
+  def setup0Route() = post {
+    parameters("tenantId".as[Int].?, "projectId".as[Int].?, "contractId".as[Int].?, "name".?, "status".?) { (t, p, c, n, s) =>
+      complete(setup0(t.getOrElse(0), p.getOrElse(0), c.getOrElse(0), n.getOrElse("setup0"), s.getOrElse("DISABLED")))
+    }
+  }
+
+  def createWorkflowConfigDslRoute() = post {
+    entity(as[WorkflowConfigDslReq]) { req => complete(createWorkflowConfigDsl(req)) }
   }
 
   @POST @Path("/config/assembly") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
@@ -243,8 +275,8 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigDslReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "assembled",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
-  def createConfigAssemblyRoute() = post {
-    entity(as[WorkflowConfigDslReq]) { req => complete(assemblyConfig(req)) }
+  def createWorkflowConfigAssemblyRoute() = post {
+    entity(as[WorkflowConfigDslReq]) { req => complete(assemblyWorkflowConfig(req)) }
   }
 
   @POST @Path("/temporal/assembly/{id}") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
@@ -262,7 +294,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
           case Some(e) =>
             // resolve the Temporal id (runtimeId or workflowId) on the engine, then assembly + bind
             onComplete(TrackMapper.of(id).resolve(e, ns)) {
-              case Success(runtime) => complete(assemblyLinked(req, runtime, id))
+              case Success(runtime) => complete(assemblyWorkflowConfigLinked(req, runtime, id))
               case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
             }
           case None => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --engine=temporal://...)")
@@ -276,8 +308,8 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigDslReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "linked",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
-  def createConfigLinkRoute() = post {
-    entity(as[WorkflowConfigDslReq]) { req => complete(linkConfig(req)) }
+  def createWorkflowConfigLinkRoute() = post {
+    entity(as[WorkflowConfigDslReq]) { req => complete(linkWorkflowConfig(req)) }
   }
 
   @POST @Path("/temporal/link/{id}") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
@@ -295,7 +327,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
           case Some(e) =>
             // resolve the Temporal id (runtimeId or workflowId) on the engine, then link-by-name + bind
             onComplete(TrackMapper.of(id).resolve(e, ns)) {
-              case Success(runtime) => complete(linkLinked(req, runtime, id))
+              case Success(runtime) => complete(linkWorkflowConfigLinked(req, runtime, id))
               case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
             }
           case None => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --engine=temporal://...)")
@@ -304,22 +336,22 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     }
   }
 
-  def updateConfigRoute(id: Int) = put {
-    entity(as[WorkflowConfigUpdateReq]) { req => complete(updateConfig(id, req)) }
+  def updateWorkflowConfigRoute(id: Int) = put {
+    entity(as[WorkflowConfigUpdateReq]) { req => complete(updateWorkflowConfig(id, req)) }
   }
 
-  def deleteConfigRoute(id: Int) = delete { complete(deleteConfig(id)) }
+  def deleteWorkflowConfigRoute(id: Int) = delete { complete(deleteWorkflowConfig(id)) }
 
   // ================================================================ graf routes
   @GET @Path("/graf") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("graf"), summary = "List WorkflowGrafs",
     responses = Array(new ApiResponse(responseCode = "200", description = "grafs",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowGrafs]))))))
-  def getGrafsRoute() = get {
+  def getWorkflowGrafsRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?) { (from, size) =>
       (from, size) match {
         case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
-        case _ => complete(getGrafs(from, size))
+        case _ => complete(getWorkflowGrafs(from, size))
       }
     }
   }
@@ -329,18 +361,18 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "graf id")),
     responses = Array(new ApiResponse(responseCode = "200", description = "graf",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowGraf]))))))
-  def getGrafRoute(id: Int) = get { complete(getGraf(id)) }
+  def getWorkflowGrafRoute(id: Int) = get { complete(getWorkflowGraf(id)) }
 
   @POST @Path("/graf") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("graf"), summary = "Create WorkflowGraf",
     requestBody = new RequestBody(content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowGrafCreateReq])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "created",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowGraf]))))))
-  def createGrafRoute() = post {
-    entity(as[WorkflowGrafCreateReq]) { req => complete(createGraf(req)) }
+  def createWorkflowGrafRoute() = post {
+    entity(as[WorkflowGrafCreateReq]) { req => complete(createWorkflowGraf(req)) }
   }
 
-  def deleteGrafRoute(id: Int) = delete { complete(deleteGraf(id)) }
+  def deleteWorkflowGrafRoute(id: Int) = delete { complete(deleteWorkflowGraf(id)) }
 
   // ================================================================ detector-schema routes
   def getDetectorSchemasRoute() = get {
@@ -384,46 +416,48 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
 
   override def routes: Route = cors(corsAllow) {
     concat(
+      pathPrefix("setup0") { pathEndOrSingleSlash { setup0Route() } },
       pathPrefix("schema") {
         concat(
-          pathPrefix("dsl") { pathEndOrSingleSlash { createSchemaDslRoute() } },
+          pathPrefix("dsl") { pathEndOrSingleSlash { createWorkflowSchemaDslRoute() } },
           pathPrefix(IntNumber) { id =>
             pathEndOrSingleSlash {
-              getSchemaRoute(id) ~ updateSchemaRoute(id) ~ deleteSchemaRoute(id)
+              getWorkflowSchemaRoute(id) ~ updateWorkflowSchemaRoute(id) ~ deleteWorkflowSchemaRoute(id)
             }
           },
-          pathEndOrSingleSlash { getSchemasRoute() ~ createSchemaRoute() },
+          pathEndOrSingleSlash { getWorkflowSchemasRoute() ~ createWorkflowSchemaRoute() },
         )
       },
       pathPrefix("config") {
         concat(
-          pathPrefix("dsl") { pathEndOrSingleSlash { createConfigDslRoute() } },
-          pathPrefix("assembly") { pathEndOrSingleSlash { createConfigAssemblyRoute() } },
-          pathPrefix("link") { pathEndOrSingleSlash { createConfigLinkRoute() } },
+          pathPrefix("dsl") { pathEndOrSingleSlash { createWorkflowConfigDslRoute() } },
+          pathPrefix("schema") { pathPrefix(IntNumber) { sid => pathEndOrSingleSlash { createWorkflowConfigFromSchemaRoute(sid) } } },
+          pathPrefix("assembly") { pathEndOrSingleSlash { createWorkflowConfigAssemblyRoute() } },
+          pathPrefix("link") { pathEndOrSingleSlash { createWorkflowConfigLinkRoute() } },
           pathPrefix("resolve") {
             // /config/resolve/<a>,<b>,<c>[?type=rid|wid]
             pathPrefix(Segment) { csv =>
               pathEndOrSingleSlash {
-                parameter("type".?) { typ => getConfigsResolveRoute(splitIds(csv), typ) }
+                parameter("type".?) { typ => getWorkflowConfigsResolveRoute(splitIds(csv), typ) }
               }
             }
           },
-          pathPrefix("xid") { pathPrefix(Segment) { xid => getConfigByXidRoute(xid) } },
-          pathPrefix("oid") { pathPrefix(Segment) { oid => getConfigsByOidRoute(oid) } },
+          pathPrefix("xid") { pathPrefix(Segment) { xid => getWorkflowConfigByXidRoute(xid) } },
+          pathPrefix("oid") { pathPrefix(Segment) { oid => getWorkflowConfigsByOidRoute(oid) } },
           pathPrefix(IntNumber) { id =>
             pathEndOrSingleSlash {
-              getConfigRoute(id) ~ updateConfigRoute(id) ~ deleteConfigRoute(id)
+              getWorkflowConfigRoute(id) ~ updateWorkflowConfigRoute(id) ~ deleteWorkflowConfigRoute(id)
             }
           },
-          pathEndOrSingleSlash { getConfigsRoute() ~ createConfigRoute() },
+          pathEndOrSingleSlash { getWorkflowConfigsRoute() ~ createWorkflowConfigRoute() },
         )
       },
       pathPrefix("graf") {
         concat(
           pathPrefix(IntNumber) { id =>
-            pathEndOrSingleSlash { getGrafRoute(id) ~ deleteGrafRoute(id) }
+            pathEndOrSingleSlash { getWorkflowGrafRoute(id) ~ deleteWorkflowGrafRoute(id) }
           },
-          pathEndOrSingleSlash { getGrafsRoute() ~ createGrafRoute() },
+          pathEndOrSingleSlash { getWorkflowGrafsRoute() ~ createWorkflowGrafRoute() },
         )
       },
       pathPrefix("detector") {

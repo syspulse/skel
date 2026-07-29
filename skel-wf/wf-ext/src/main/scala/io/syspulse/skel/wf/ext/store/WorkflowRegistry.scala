@@ -22,42 +22,47 @@ object WorkflowRegistry {
   val log = Logger(s"${this}")
 
   // ---- WorkflowSchema ----
-  final case class GetSchemas(from: Option[Long], size: Option[Long], detail: Boolean, replyTo: ActorRef[Try[WorkflowSchemas]]) extends Command
-  final case class GetSchema(id: Int, detail: Boolean, replyTo: ActorRef[Try[WorkflowSchemaView]]) extends Command
-  final case class CreateSchema(req: WorkflowSchemaCreateReq, replyTo: ActorRef[Try[WorkflowSchema]]) extends Command
-  final case class CreateSchemaDsl(req: WorkflowSchemaDslReq, replyTo: ActorRef[Try[WorkflowSchema]]) extends Command
-  final case class UpdateSchema(id: Int, req: WorkflowSchemaUpdateReq, replyTo: ActorRef[Try[WorkflowSchema]]) extends Command
-  final case class DeleteSchema(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
+  final case class GetWorkflowSchemas(from: Option[Long], size: Option[Long], detail: Boolean, replyTo: ActorRef[Try[WorkflowSchemas]]) extends Command
+  final case class GetWorkflowSchema(id: Int, detail: Boolean, replyTo: ActorRef[Try[WorkflowSchemaView]]) extends Command
+  final case class CreateWorkflowSchema(req: WorkflowSchemaCreateReq, replyTo: ActorRef[Try[WorkflowSchema]]) extends Command
+  final case class CreateWorkflowSchemaDsl(req: WorkflowSchemaDslReq, replyTo: ActorRef[Try[WorkflowSchema]]) extends Command
+  final case class UpdateWorkflowSchema(id: Int, req: WorkflowSchemaUpdateReq, replyTo: ActorRef[Try[WorkflowSchema]]) extends Command
+  final case class DeleteWorkflowSchema(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
 
   // ---- WorkflowConfig ----
-  final case class GetConfigs(from: Option[Long], size: Option[Long], detail: Boolean, replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
-  final case class GetConfig(id: Int, detail: Boolean, replyTo: ActorRef[Try[WorkflowConfigView]]) extends Command
-  final case class GetConfigByXid(xid: String, replyTo: ActorRef[Option[WorkflowConfig]]) extends Command
-  final case class GetConfigsByOid(oid: String, replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+  final case class GetWorkflowConfigs(from: Option[Long], size: Option[Long], detail: Boolean, replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+  final case class GetWorkflowConfig(id: Int, detail: Boolean, replyTo: ActorRef[Try[WorkflowConfigView]]) extends Command
+  final case class GetWorkflowConfigByXid(xid: String, replyTo: ActorRef[Option[WorkflowConfig]]) extends Command
+  final case class GetWorkflowConfigsByOid(oid: String, replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
   // resolve WorkflowConfig(s) (+ all DetectorConfigs) by runtimeId (xid) or workflowId (meta.wid), many ids in one call.
   // typ forces the resolution mode: Some("rid") -> by xid, Some("wid") -> by workflowId, None -> auto-detect (UUID -> rid).
-  final case class ResolveConfigs(ids: Seq[String], typ: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+  final case class ResolveWorkflowConfigs(ids: Seq[String], typ: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
 
   val RESOLVE_RID = "rid"  // resolve by runtimeId (WorkflowConfig.xid)
   val RESOLVE_WID = "wid"  // resolve by workflowId (WorkflowConfig.meta.wid / name)
-  final case class CreateConfig(req: WorkflowConfigCreateReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
-  final case class CreateConfigDsl(req: WorkflowConfigDslReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
+  final case class CreateWorkflowConfig(req: WorkflowConfigCreateReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
+  // create a WorkflowConfig from a WorkflowSchema id (composed of DetectorConfig); ids assigned by the store.
+  // contractId places the new DetectorConfigs under a contract (default 0 - see Setup0).
+  final case class CreateWorkflowConfigFromSchema(sid: Int, contractId: Int, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
+  // bootstrap the default placement (tenant -> project -> contract); all fields parameterized
+  final case class Setup0(tenantId: Int, projectId: Int, contractId: Int, name: String, status: String, replyTo: ActorRef[Try[WorkflowActionRes]]) extends Command
+  final case class CreateWorkflowConfigDsl(req: WorkflowConfigDslReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   // assembly WorkflowConfig from DSL (bracket shorthand accepted) - same as the `assembly` command
-  final case class AssemblyConfig(req: WorkflowConfigDslReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
+  final case class AssemblyWorkflowConfig(req: WorkflowConfigDslReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   // assembly + bind to a runtime resolved on the Engine (runtime == None -> fallback xid=fallbackId) - same as `/temporal/assembly`
-  final case class AssemblyLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
+  final case class AssemblyWorkflowConfigLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   // link WorkflowConfig from DSL referencing EXISTING DetectorConfigs by name (latest version) - creates no Detector*
-  final case class LinkConfig(req: WorkflowConfigDslReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
+  final case class LinkWorkflowConfig(req: WorkflowConfigDslReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   // linkByName + bind to a runtime resolved on the Engine (runtime == None -> fallback xid=fallbackId)
-  final case class LinkLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
-  final case class UpdateConfig(id: Int, req: WorkflowConfigUpdateReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
-  final case class DeleteConfig(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
+  final case class LinkWorkflowConfigLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
+  final case class UpdateWorkflowConfig(id: Int, req: WorkflowConfigUpdateReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
+  final case class DeleteWorkflowConfig(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
 
   // ---- WorkflowGraf ----
-  final case class GetGrafs(from: Option[Long], size: Option[Long], replyTo: ActorRef[Try[WorkflowGrafs]]) extends Command
-  final case class GetGraf(id: Int, replyTo: ActorRef[Try[WorkflowGraf]]) extends Command
-  final case class CreateGraf(req: WorkflowGrafCreateReq, replyTo: ActorRef[Try[WorkflowGraf]]) extends Command
-  final case class DeleteGraf(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
+  final case class GetWorkflowGrafs(from: Option[Long], size: Option[Long], replyTo: ActorRef[Try[WorkflowGrafs]]) extends Command
+  final case class GetWorkflowGraf(id: Int, replyTo: ActorRef[Try[WorkflowGraf]]) extends Command
+  final case class CreateWorkflowGraf(req: WorkflowGrafCreateReq, replyTo: ActorRef[Try[WorkflowGraf]]) extends Command
+  final case class DeleteWorkflowGraf(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
 
   // ---- DetectorSchema ----
   final case class GetDetectorSchemas(from: Option[Long], size: Option[Long], replyTo: ActorRef[Try[DetectorSchemas]]) extends Command
@@ -290,19 +295,19 @@ object WorkflowRegistry {
     Behaviors.receiveMessage {
 
       // -------------------------------------------------- WorkflowSchema
-      case GetSchemas(from, size, detail, replyTo) =>
+      case GetWorkflowSchemas(from, size, detail, replyTo) =>
         store.listSchemas(from, size).flatMap { p =>
           if (!detail) Future.successful(WorkflowSchemas(p.schemas, p.total, None))
           else schemaDetectors(store, p.schemas).map(m => WorkflowSchemas(p.schemas, p.total, Some(m)))
         }.onComplete(replyTo ! _)
         Behaviors.same
 
-      case GetSchema(id, detail, replyTo) =>
+      case GetWorkflowSchema(id, detail, replyTo) =>
         store.getSchema(id).flatMap(s => schemaView(store, s, detail)).onComplete(replyTo ! _)
         Behaviors.same
 
-      case CreateSchema(req, replyTo) =>
-        log.info(s"CreateSchema: ${req}")
+      case CreateWorkflowSchema(req, replyTo) =>
+        log.info(s"CreateWorkflowSchema: ${req}")
 
         store.nextSchemaId.flatMap { id =>
           val now = System.currentTimeMillis()
@@ -318,20 +323,20 @@ object WorkflowRegistry {
         }.onComplete(replyTo ! _)
         Behaviors.same
 
-      case CreateSchemaDsl(req, replyTo) =>
-        log.info(s"CreateSchemaDsl: pipeline='${req.pipeline}'")
+      case CreateWorkflowSchemaDsl(req, replyTo) =>
+        log.info(s"CreateWorkflowSchemaDsl: pipeline='${req.pipeline}'")
         AssemblyDSL.buildSchema(req.pipeline, store, req.wid, req.name)
           .map(_.schema).onComplete(replyTo ! _)
         Behaviors.same
 
-      case UpdateSchema(id, req, replyTo) =>
-        log.info(s"UpdateSchema: ${id}: ${req}")
+      case UpdateWorkflowSchema(id, req, replyTo) =>
+        log.info(s"UpdateWorkflowSchema: ${id}: ${req}")
 
         store.getSchema(id).map(s => applyUpdate(s, req)).flatMap(store.addSchema).onComplete(replyTo ! _)
         Behaviors.same
 
-      case DeleteSchema(id, replyTo) =>
-        log.info(s"DeleteSchema: ${id}")
+      case DeleteWorkflowSchema(id, replyTo) =>
+        log.info(s"DeleteWorkflowSchema: ${id}")
 
         store.delSchema(id).onComplete {
           case Success(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.OK, Some(id))
@@ -340,30 +345,30 @@ object WorkflowRegistry {
         Behaviors.same
 
       // -------------------------------------------------- WorkflowConfig
-      case GetConfigs(from, size, detail, replyTo) =>
+      case GetWorkflowConfigs(from, size, detail, replyTo) =>
         store.listConfigs(from, size).flatMap { p =>
           if (!detail) Future.successful(WorkflowConfigs(p.configs, p.total, None))
           else configDetectors(store, p.configs).map(m => WorkflowConfigs(p.configs, p.total, Some(m)))
         }.onComplete(replyTo ! _)
         Behaviors.same
 
-      case GetConfig(id, detail, replyTo) =>
+      case GetWorkflowConfig(id, detail, replyTo) =>
         store.getConfig(id).flatMap(c => configView(store, c, detail)).onComplete(replyTo ! _)
         Behaviors.same
 
-      case GetConfigByXid(xid, replyTo) =>
+      case GetWorkflowConfigByXid(xid, replyTo) =>
         store.findConfigByXid(xid).onComplete {
           case Success(opt) => replyTo ! opt
           case Failure(_)   => replyTo ! None
         }
         Behaviors.same
 
-      case GetConfigsByOid(oid, replyTo) =>
+      case GetWorkflowConfigsByOid(oid, replyTo) =>
         store.findConfigByOid(oid).map(cs => WorkflowConfigs(cs, cs.size.toLong, None)).onComplete(replyTo ! _)
         Behaviors.same
 
-      case ResolveConfigs(ids, typ, replyTo) =>
-        log.info(s"ResolveConfigs: ${engine}/${typ}: ${ids}")
+      case ResolveWorkflowConfigs(ids, typ, replyTo) =>
+        log.info(s"ResolveWorkflowConfigs: ${engine}/${typ}: ${ids}")
         resolveConfigs(store, engine, ids, typ)
           .onComplete(r => {
             log.debug(s"ResolveConfigs: ${engine}/${typ}: ${ids}: ${r}")
@@ -371,54 +376,59 @@ object WorkflowRegistry {
           })
         Behaviors.same
 
-      case CreateConfig(req, replyTo) =>
-        log.info(s"CreateConfig: ${req}")
-
-        val r = for {
-          schema <- store.getSchema(req.sid)
-          id     <- store.nextConfigId
-          c       = WorkflowConfig.from(id, schema, req.name, req.oid, req.pid, req.xid)
-          saved  <- store.addConfig(c)
-        } yield saved
-        r.onComplete(replyTo ! _)
+      case CreateWorkflowConfig(req, replyTo) =>
+        log.info(s"CreateWorkflowConfig: ${req}")
+        // compose from the schema (with DetectorConfigs); ids are generated by the store; contract 0 (default)
+        store.createConfigFromSchema(req.sid, name = req.name, oid = req.oid, pid = req.pid, xid = req.xid).onComplete(replyTo ! _)
         Behaviors.same
 
-      case CreateConfigDsl(req, replyTo) =>
+      case CreateWorkflowConfigFromSchema(sid, contractId, replyTo) =>
+        log.info(s"CreateWorkflowConfigFromSchema: sid=${sid} contractId=${contractId}")
+        store.createConfigFromSchema(sid, contractId).onComplete(replyTo ! _)
+        Behaviors.same
+
+      case Setup0(tenantId, projectId, contractId, name, status, replyTo) =>
+        log.info(s"Setup0: tenant=${tenantId}, project=${projectId}, contract=${contractId}, name='${name}', status=${status}")
+        store.setup0(tenantId, projectId, contractId, name, status)
+          .map(_ => WorkflowActionRes(WorkflowActionRes.OK, Some(contractId))).onComplete(replyTo ! _)
+        Behaviors.same
+
+      case CreateWorkflowConfigDsl(req, replyTo) =>
         WorkflowAssembly.assembly(req.pipeline, store, req.wid, req.name).onComplete(replyTo ! _)
         Behaviors.same
 
-      case AssemblyConfig(req, replyTo) =>
-        log.info(s"AssemblyConfig: pipeline='${req.pipeline}'")
+      case AssemblyWorkflowConfig(req, replyTo) =>
+        log.info(s"AssemblyWorkflowConfig: pipeline='${req.pipeline}'")
         WorkflowAssembly.assembly(req.pipeline, store, req.wid, req.name).onComplete(replyTo ! _)
         Behaviors.same
 
-      case AssemblyLinked(req, runtime, fallbackId, replyTo) =>
-        log.info(s"AssemblyLinked: ${runtime.map(_.id)} / ${fallbackId}: pipeline='${req.pipeline}'")
+      case AssemblyWorkflowConfigLinked(req, runtime, fallbackId, replyTo) =>
+        log.info(s"AssemblyWorkflowConfigLinked: ${runtime.map(_.id)} / ${fallbackId}: pipeline='${req.pipeline}'")
         WorkflowAssembly.assembly(req.pipeline, store, req.wid, req.name)
           .flatMap(cfg0 => WorkflowAssembly.link(cfg0, runtime, fallbackId, store))
           .onComplete(replyTo ! _)
         Behaviors.same
 
-      case LinkConfig(req, replyTo) =>
+      case LinkWorkflowConfig(req, replyTo) =>
         log.info(s"LinkConfig: pipeline='${req.pipeline}'")
         WorkflowAssembly.linkByName(req.pipeline, store, req.wid, req.name).onComplete(replyTo ! _)
         Behaviors.same
 
-      case LinkLinked(req, runtime, fallbackId, replyTo) =>
-        log.info(s"LinkLinked: ${runtime.map(_.id)} / ${fallbackId}: pipeline='${req.pipeline}'")
+      case LinkWorkflowConfigLinked(req, runtime, fallbackId, replyTo) =>
+        log.info(s"LinkWorkflowConfigLinked: ${runtime.map(_.id)} / ${fallbackId}: pipeline='${req.pipeline}'")
         WorkflowAssembly.linkByName(req.pipeline, store, req.wid, req.name)
           .flatMap(cfg0 => WorkflowAssembly.link(cfg0, runtime, fallbackId, store))
           .onComplete(replyTo ! _)
         Behaviors.same
 
-      case UpdateConfig(id, req, replyTo) =>
-        log.info(s"UpdateConfig: ${req}")
+      case UpdateWorkflowConfig(id, req, replyTo) =>
+        log.info(s"UpdateWorkflowConfig: ${req}")
 
         store.getConfig(id).map(c => applyUpdate(c, req)).flatMap(store.addConfig).onComplete(replyTo ! _)
         Behaviors.same
 
-      case DeleteConfig(id, replyTo) =>
-        log.info(s"DeleteConfig: ${id}")
+      case DeleteWorkflowConfig(id, replyTo) =>
+        log.info(s"DeleteWorkflowConfig: ${id}")
 
         store.delConfig(id).onComplete {
           case Success(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.OK, Some(id))
@@ -427,15 +437,15 @@ object WorkflowRegistry {
         Behaviors.same
 
       // -------------------------------------------------- WorkflowGraf
-      case GetGrafs(from, size, replyTo) =>
+      case GetWorkflowGrafs(from, size, replyTo) =>
         store.listGrafs(from, size).map(p => WorkflowGrafs(p.grafs, p.total)).onComplete(replyTo ! _)
         Behaviors.same
 
-      case GetGraf(id, replyTo) =>
+      case GetWorkflowGraf(id, replyTo) =>
         store.getGraf(id).onComplete(replyTo ! _)
         Behaviors.same
 
-      case CreateGraf(req, replyTo) =>
+      case CreateWorkflowGraf(req, replyTo) =>
         val base = req.graph.getOrElse(WorkflowGraf(id = 0))
         store.nextGrafId.flatMap { nid =>
           val g = base.copy(
@@ -447,7 +457,7 @@ object WorkflowRegistry {
         }.onComplete(replyTo ! _)
         Behaviors.same
 
-      case DeleteGraf(id, replyTo) =>
+      case DeleteWorkflowGraf(id, replyTo) =>
         store.delGraf(id).onComplete {
           case Success(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.OK, Some(id))
           case Failure(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id))

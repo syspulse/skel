@@ -13,6 +13,7 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 
 import io.hacken.ext.wf._
+import io.hacken.ext.detector.DetectorConfig
 import io.syspulse.skel.wf.ext.store.{WorkflowStoreMem, WorkflowRegistry}
 import io.syspulse.skel.wf.ext.server._
 
@@ -23,6 +24,7 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
   import io.hacken.ext.wf.WorkflowSchemaJson._
   import io.hacken.ext.wf.WorkflowConfigJson._
   import io.hacken.ext.wf.WorkflowGrafJson._
+  import io.hacken.ext.detector.DetectorConfigJson._
 
   val store = new WorkflowStoreMem()
   val typedSystem = ActorSystem(Behaviors.empty, "WfTestSystem")
@@ -168,6 +170,35 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       Delete("/schema/0") ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         responseAs[WorkflowActionRes].status shouldBe WorkflowActionRes.OK
+      }
+    }
+
+    "POST /config/schema/{sid} creates a WorkflowConfig composed of DetectorConfig (store-assigned ids)" in {
+      // a WorkflowSchema whose 2 nodes each reference a DetectorSchema (sid set, no cid)
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.x -> Detector.y", name = Some("WFromSchema"))) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      sc.graph.nodes.values.foreach { n => n.cid shouldBe None }         // schema nodes have NO DetectorConfig
+
+      val cfg = Post(s"/config/schema/${sc.id}") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
+      }
+      cfg.id should be >= 0                                              // id assigned by the store
+      cfg.sid shouldBe sc.id
+      val nodes = cfg.graph.nodes.values.toSeq
+      nodes should have size 2
+      // composed of DetectorConfig: every node now has a cid (and keeps its DetectorSchema sid)
+      all (nodes.map(_.cid)) should not be None
+      nodes.foreach { n => n.sid should be >= 0 }
+      // each cid resolves to a real, persisted DetectorConfig linked to the node's DetectorSchema
+      nodes.foreach { n =>
+        val cid = n.cid.get
+        Get(s"/detector/config/$cid") ~> routes.routes ~> check {
+          status shouldBe StatusCodes.OK
+          val dc = responseAs[DetectorConfig]
+          dc.id shouldBe cid
+          dc.schema.map(_.id) shouldBe Some(n.sid)                       // DetectorConfig instantiates the node's DetectorSchema
+        }
       }
     }
   }

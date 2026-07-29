@@ -214,20 +214,21 @@ class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterA
       jdbcString("SELECT faq::text FROM detector_schema WHERE id=51") shouldBe """"[]""""
       jdbcString("SELECT jsonb_typeof(faq) FROM detector_schema WHERE id=51") shouldBe "string"
     }
-    "read DetectorConfig from detector (config is real jsonb); writes are a no-op (WARN) for now" in {
-      // the external product owns writes: seed a row via raw SQL
+    "read/write DetectorConfig in detector (config is real jsonb)" in {
+      // a row seeded externally is readable
       jdbcExec("""INSERT INTO detector(id, contract_id, name, source, config) VALUES (201, 0, 'cfg201', 'SRC', '{"k":"v201"}'::jsonb)""")
       val got = Await.result(store.getDetectorConfig(201), timeout)
       got.map(_.name) shouldBe Some("cfg201")
       got.flatMap(_.config).map(_.fields("k")) shouldBe Some(JsString("v201")) // JsObject read
       Await.result(store.getDetectorConfig(999), timeout) shouldBe None
-      Await.result(store.sizeDetectorConfigs, timeout) shouldBe 1L
-      // the config column is queryable as jsonb (proves it is NOT a text blob)
-      jdbcCount("SELECT count(*) FROM detector WHERE config->>'k' = 'v201'") shouldBe 1L
-      // addDetectorConfig is NOT implemented for the external table yet: it logs WARN and does NOT write
+      // addDetectorConfig WRITES to the external `detector` table (JsObject config -> jsonb, roundtrip)
       Await.result(store.addDetectorConfig(detConfig(202)), timeout).id shouldBe 202
-      Await.result(store.getDetectorConfig(202), timeout) shouldBe None
-      Await.result(store.sizeDetectorConfigs, timeout) shouldBe 1L // still only the seeded row
+      val w = Await.result(store.getDetectorConfig(202), timeout)
+      w.map(_.name) shouldBe Some("cfg202")
+      w.flatMap(_.config).map(_.fields("k")) shouldBe Some(JsString("v202"))
+      Await.result(store.sizeDetectorConfigs, timeout) shouldBe 2L
+      // the config column is queryable as jsonb (proves it is NOT a text blob)
+      jdbcCount("SELECT count(*) FROM detector WHERE config->>'k' = 'v202'") shouldBe 1L
     }
     "updateDetectorConfigStatus updates ONLY the status column (external detector table)" in {
       Await.result(store.updateDetectorConfigStatus(201, "DISABLED"), timeout) shouldBe 1
@@ -237,6 +238,20 @@ class WorkflowStoreDBSpec extends AnyWordSpec with Matchers with BeforeAndAfterA
       got.config.map(_.fields("k")) shouldBe Some(JsString("v201"))
       // a missing id updates nothing
       Await.result(store.updateDetectorConfigStatus(999, "DISABLED"), timeout) shouldBe 0
+    }
+    "createConfigFromSchema composes a WorkflowConfig of PERSISTED DetectorConfigs (DB)" in {
+      Await.result(store.addDetectorSchema(detSchema(70)), timeout) // DetectorSchema id=70, name Schema_70
+      val g = WorkflowGraf(id = 60, sid = Some(60)).withNode(WorkflowNode(id = 0, title = "n0", sid = 70))
+      Await.result(store.addSchema(WorkflowSchema.of(60, "WFromSchema", g)), timeout)
+
+      val cfg = Await.result(store.createConfigFromSchema(60), timeout)
+      val node = cfg.graph.nodes.values.head
+      node.sid shouldBe 70
+      node.cid should not be None
+      // the created DetectorConfig is a REAL persisted row (readable), linked to the node's DetectorSchema
+      val dc = Await.result(store.getDetectorConfig(node.cid.get), timeout)
+      dc.map(_.name) shouldBe Some("Schema_70")
+      dc.flatMap(_.schema).map(_.id) shouldBe Some(70)
     }
   }
 }

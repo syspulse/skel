@@ -39,7 +39,7 @@ object App extends skel.Server {
   // Known CLI commands. The shared arg parser only recognises a command when it is the
   // first non-option token, so we hoist it to the front - this lets options precede the
   // command (e.g. `--engine=temporal:// link <rid> <pipeline>` as in the requirements).
-  private val KNOWN_CMDS = Set("server", "schema", "assembly", "link", "assembly-track", "runtime-get")
+  private val KNOWN_CMDS = Set("server", "schema", "assembly", "link", "assembly-track", "runtime-get", "setup0")
 
   // Commands that take an Assembly DSL pipeline (which contains `->` tokens and spaces).
   private val DSL_CMDS = Set("schema", "assembly", "link", "assembly-track")
@@ -124,6 +124,7 @@ object App extends skel.Server {
         ArgCmd("link", s"Build a WorkflowConfig from DSL referencing EXISTING DetectorConfigs by name (latest version) and link it to an Engine runtime; creates no Detectors (params: <runtimeId> <pipeline>)"),
         ArgCmd("assembly-track", s"assembly + poll the Engine runtime, rendering topology + step statuses (params: <runtimeId> <pipeline>)"),
         ArgCmd("runtime-get", s"Get Engine runtime workflow(s) (param: optional <runtimeId>); requires --engine"),
+        ArgCmd("setup0", s"Bootstrap the default placement in the datastore: project id=0 + contract id=0 (for contractId=0 DetectorConfigs)"),
 
         ArgParam("<params>", "DSL pipeline, e.g. 'Detector.a -> Detector.b -> Detector.c'"),
         ArgLogging()
@@ -204,6 +205,12 @@ object App extends skel.Server {
           )
         )
         s"Server: http://${config.host}:${config.port}${config.uri}"
+
+      case "setup0" =>
+        Try(Await.result(store.setup0(), 30.seconds)) match {
+          case Success(_) => "setup0: default placement ready (project id=0, contract id=0)"
+          case Failure(e) => s"Failed setup0: ${e.getMessage}"
+        }
 
       case "schema" =>
         val pipeline = AssemblyDSL.normalizePipeline(config.params.mkString(" "))

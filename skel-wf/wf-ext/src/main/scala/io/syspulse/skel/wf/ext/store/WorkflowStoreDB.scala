@@ -321,14 +321,21 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
     Seq(lLit(r.id), tsWrite(r.createdAt), tsWrite(r.updatedAt), q(r.status), lLit(r.contractId), q(r.name), q(r.source), lLit(r.schemaId), pgArr(r.tags), jsonbObjReq(r.config))
   }
 
-  // Writing DetectorConfig to the EXTERNAL `detector` table is not implemented yet (owned by another
-  // product). No-op for now (logs WARN); the DCONFIG_COLS / valsDConfig mapping is kept for when it is.
-  def addDetectorConfig(d: DetectorConfig): Future[DetectorConfig] = {
-    log.warn(s"addDetectorConfig NOT implemented for ${this.getClass.getSimpleName} (external '${TABLE_DET_CONFIG}' table) - skipping write of DetectorConfig(${d.id})")
-    Future.successful(d)
-  }
-  private def writeDetectorConfig(d: DetectorConfig): Future[DetectorConfig] = upsert(TABLE_DET_CONFIG, DCONFIG_COLS, valsDConfig(d)).map(_ => d) // TODO: enable when full external writes are supported
-  // status-only update IS supported on the external `detector` table (single column + updated_at timestamp)
+  // Bootstrap the default placement: tenant -> project -> contract (idempotent). This lets a
+  // DetectorConfig created with `contractId` satisfy the external `detector.contract_id` -> contract(id)
+  // FK. Note: only `project` carries `tenant_id`; `contract` does not.
+  override def setup0(tenantId: Int, projectId: Int, contractId: Int, name: String, status: String)(implicit ec: ExecutionContext): Future[Unit] =
+    setup0Db(tenantId, projectId, contractId, name, status)
+  private def setup0Db(tenantId: Int, projectId: Int, contractId: Int, name: String, status: String): Future[Unit] = // uses the context's implicit ec
+    exec(s"INSERT INTO tenant   (id, name, status) VALUES (${lLit(tenantId)}, ${q(name)}, ${q(status)}) ON CONFLICT (id) DO NOTHING")
+      .flatMap(_ => exec(s"INSERT INTO project  (id, tenant_id, name) VALUES (${lLit(projectId)}, ${lLit(tenantId)}, ${q(name)}) ON CONFLICT (id) DO NOTHING"))
+      .flatMap(_ => exec(s"INSERT INTO contract (id, project_id, name) VALUES (${lLit(contractId)}, ${lLit(projectId)}, ${q(name)}) ON CONFLICT (id) DO NOTHING"))
+      .map(_ => ())
+
+  // Write DetectorConfig to the EXTERNAL `detector` table (upsert on id). Only the flat columns are
+  // written (contract/schema are FK ids; destinations are not persisted - see DCONFIG_COLS/valsDConfig).
+  def addDetectorConfig(d: DetectorConfig): Future[DetectorConfig] = upsert(TABLE_DET_CONFIG, DCONFIG_COLS, valsDConfig(d)).map(_ => d)
+  // status-only update on the external `detector` table (single column + updated_at timestamp)
   override def updateDetectorConfigStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
     execUpdateInt(s"UPDATE $TABLE_DET_CONFIG SET status=${q(status)}, updated_at=${tsWrite(System.currentTimeMillis())} WHERE id=$id")
   def getDetectorConfig(id: Int): Future[Option[DetectorConfig]] = query(s"SELECT $DCONFIG_SEL FROM $TABLE_DET_CONFIG WHERE id=$id", rowDConfig).map(_.headOption)
