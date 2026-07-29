@@ -44,9 +44,9 @@ async function DEL<T>(token: string | null, path: string): Promise<T> {
 
 // ---------------------------------------------------------------- WorkflowSchema
 export const listSchemas = (token: string | null, from?: number, size?: number, detail?: boolean) =>
-  GET<WorkflowSchemas>(token, `/schema${pageQuery(from, size, detail ? 'full' : undefined)}`);
+  GET<WorkflowSchemas>(token, `/schema${pageQuery(from, size, detail ? 'schema' : undefined)}`);
 export const getSchema = (token: string | null, id: number, detail?: boolean) =>
-  GET<WorkflowSchemaView>(token, `/schema/${id}${detail ? '?detector=full' : ''}`);
+  GET<WorkflowSchemaView>(token, `/schema/${id}${detail ? '?detector=schema' : ''}`);
 export const createSchema = (token: string | null, req: WorkflowSchemaCreateReq) =>
   POST<WorkflowSchema>(token, '/schema', req);
 export const createSchemaDsl = (token: string | null, pipeline: string, name?: string) =>
@@ -57,10 +57,12 @@ export const deleteSchema = (token: string | null, id: number) =>
   DEL<WorkflowActionRes>(token, `/schema/${id}`);
 
 // ---------------------------------------------------------------- WorkflowConfig
-export const listConfigs = (token: string | null, from?: number, size?: number, detail?: boolean) =>
-  GET<WorkflowConfigs>(token, `/config${pageQuery(from, size, detail ? 'full' : undefined)}`);
-export const getConfig = (token: string | null, id: number, detail?: boolean) =>
-  GET<WorkflowConfigView>(token, `/config/${id}${detail ? '?detector=full' : ''}`);
+// NOTE: the config views don't consume `detectors`/`schemas` (the editor uses the separate detector
+// lists + /resolve), so we request `detector=none` (default). Pass 'schema'/'config' only if needed.
+export const listConfigs = (token: string | null, from?: number, size?: number) =>
+  GET<WorkflowConfigs>(token, `/config${pageQuery(from, size)}`);
+export const getConfig = (token: string | null, id: number) =>
+  GET<WorkflowConfigView>(token, `/config/${id}`);
 export const createConfig = (token: string | null, req: WorkflowConfigCreateReq) =>
   POST<WorkflowConfig>(token, '/config', req);
 // create a WorkflowConfig from a WorkflowSchema id in one call (composed of DetectorConfig; ids from

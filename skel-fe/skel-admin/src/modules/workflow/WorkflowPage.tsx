@@ -126,7 +126,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
         setDetSchemas((cur) => mergeDetectors(cur, v.detectors));
         setEditor({ kind, id, title: v.schema.title, name: v.schema.name, icon: v.schema.icon, graf: v.schema.graph });
       } else {
-        const v = await api.getConfig(token, id, true);
+        const v = await api.getConfig(token, id);
         setEditor({ kind, id, title: v.config.title, name: v.config.name, icon: v.config.icon, status: v.config.status, xid: v.config.xid, graf: v.config.graph });
       }
       onActiveInstanceChange?.({ kind, id }); // keep the SideNav submenu highlight in sync with the editor

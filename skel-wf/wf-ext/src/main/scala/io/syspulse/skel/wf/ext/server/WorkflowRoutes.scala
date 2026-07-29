@@ -36,8 +36,8 @@ import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineWorkflows, 
 
 /**
  * Workflow `ext` REST API:
- *   /api/v1/wf/ext/schema  - WorkflowSchema CRUD (+ ?detector={id|full}, + /dsl)
- *   /api/v1/wf/ext/config  - WorkflowConfig CRUD (+ ?detector={id|full}, + /dsl, /xid, /oid)
+ *   /api/v1/wf/ext/schema  - WorkflowSchema CRUD (+ ?detector={none|schema|config}, + /dsl)
+ *   /api/v1/wf/ext/config  - WorkflowConfig CRUD (+ ?detector={none|schema|config}, + /dsl, /xid, /oid)
  *   /api/v1/wf/ext/graf    - WorkflowGraf CRUD (visual configuration)
  *   /api/v1/wf/ext/engine  - Engine runtime state (Temporal), enabled when an Engine is configured
  */
@@ -57,16 +57,16 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   import io.syspulse.skel.wf.ext.engine.EngineJson._
 
   // ---- WorkflowSchema asks ----
-  def getWorkflowSchemas(from: Option[Long], size: Option[Long], detail: Boolean): Future[Try[WorkflowSchemas]] = registry.ask(GetWorkflowSchemas(from, size, detail, _))
-  def getWorkflowSchema(id: Int, detail: Boolean): Future[Try[WorkflowSchemaView]] = registry.ask(GetWorkflowSchema(id, detail, _))
+  def getWorkflowSchemas(from: Option[Long], size: Option[Long], detector: String): Future[Try[WorkflowSchemas]] = registry.ask(GetWorkflowSchemas(from, size, detector, _))
+  def getWorkflowSchema(id: Int, detector: String): Future[Try[WorkflowSchemaView]] = registry.ask(GetWorkflowSchema(id, detector, _))
   def createWorkflowSchema(req: WorkflowSchemaCreateReq): Future[Try[WorkflowSchema]] = registry.ask(CreateWorkflowSchema(req, _))
   def createWorkflowSchemaDsl(req: WorkflowSchemaDslReq): Future[Try[WorkflowSchema]] = registry.ask(CreateWorkflowSchemaDsl(req, _))
   def updateWorkflowSchema(id: Int, req: WorkflowSchemaUpdateReq): Future[Try[WorkflowSchema]] = registry.ask(UpdateWorkflowSchema(id, req, _))
   def deleteWorkflowSchema(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteWorkflowSchema(id, _))
 
   // ---- WorkflowConfig asks ----
-  def getWorkflowConfigs(from: Option[Long], size: Option[Long], detail: Boolean): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigs(from, size, detail, _))
-  def getWorkflowConfig(id: Int, detail: Boolean): Future[Try[WorkflowConfigView]] = registry.ask(GetWorkflowConfig(id, detail, _))
+  def getWorkflowConfigs(from: Option[Long], size: Option[Long], detector: String): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigs(from, size, detector, _))
+  def getWorkflowConfig(id: Int, detector: String): Future[Try[WorkflowConfigView]] = registry.ask(GetWorkflowConfig(id, detector, _))
   def getWorkflowConfigByXid(xid: String): Future[Option[WorkflowConfig]] = registry.ask(GetWorkflowConfigByXid(xid, _))
   def getWorkflowConfigsByOid(oid: String): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigsByOid(oid, _))
   def resolveWorkflowConfigs(ids: Seq[String], typ: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(ResolveWorkflowConfigs(ids, typ, _))
@@ -102,7 +102,14 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def updateDetectorConfig(id: Int, req: DetectorConfigUpdateReq): Future[Try[DetectorConfig]] = registry.ask(UpdateDetectorConfig(id, req, _))
   def deleteDetectorConfig(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteDetectorConfig(id, _))
 
-  private def isFull(detector: Option[String]): Boolean = detector.exists(_.equalsIgnoreCase("full"))
+  // `detector` query mode: none (default) | schema (add DetectorSchema) | config (add DetectorConfig;
+  // legacy "full" and any other value -> config). Empty/absent -> none.
+  private def detectorMode(detector: Option[String]): String =
+    detector.map(_.trim.toLowerCase) match {
+      case None | Some("") | Some(WorkflowRegistry.DETECTOR_NONE) => WorkflowRegistry.DETECTOR_NONE
+      case Some(WorkflowRegistry.DETECTOR_SCHEMA)                 => WorkflowRegistry.DETECTOR_SCHEMA
+      case _                                                      => WorkflowRegistry.DETECTOR_CONFIG
+    }
 
   // NOTE: error handling is centralized in Server.scala (JSON ExceptionHandler). Routes just
   // `complete(...)` the ask result - a `Future[Try[T]]` Failure (or a failed Future) is re-raised by
@@ -134,14 +141,14 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     parameters = Array(
       new Parameter(name = "from", in = ParameterIn.QUERY, description = "Page offset"),
       new Parameter(name = "size", in = ParameterIn.QUERY, description = "Page size"),
-      new Parameter(name = "detector", in = ParameterIn.QUERY, description = "id|full")),
+      new Parameter(name = "detector", in = ParameterIn.QUERY, description = "none | schema | config (default none)")),
     responses = Array(new ApiResponse(responseCode = "200", description = "schemas",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemas]))))))
   def getWorkflowSchemasRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?, "detector".?) { (from, size, detector) =>
       (from, size) match {
         case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
-        case _ => complete(getWorkflowSchemas(from, size, isFull(detector)))
+        case _ => complete(getWorkflowSchemas(from, size, detectorMode(detector)))
       }
     }
   }
@@ -150,12 +157,12 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   @Operation(tags = Array("schema"), summary = "Get WorkflowSchema by id",
     parameters = Array(
       new Parameter(name = "id", in = ParameterIn.PATH, description = "schema id"),
-      new Parameter(name = "detector", in = ParameterIn.QUERY, description = "id|full")),
+      new Parameter(name = "detector", in = ParameterIn.QUERY, description = "none | schema | config (default none)")),
     responses = Array(new ApiResponse(responseCode = "200", description = "schema",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemaView]))))))
   def getWorkflowSchemaRoute(id: Int) = get {
     parameter("detector".?) { detector =>
-      complete(getWorkflowSchema(id, isFull(detector)))
+      complete(getWorkflowSchema(id, detectorMode(detector)))
     }
   }
 
@@ -184,14 +191,14 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     parameters = Array(
       new Parameter(name = "from", in = ParameterIn.QUERY, description = "Page offset"),
       new Parameter(name = "size", in = ParameterIn.QUERY, description = "Page size"),
-      new Parameter(name = "detector", in = ParameterIn.QUERY, description = "id|full")),
+      new Parameter(name = "detector", in = ParameterIn.QUERY, description = "none | schema | config (default none)")),
     responses = Array(new ApiResponse(responseCode = "200", description = "configs",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def getWorkflowConfigsRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?, "detector".?) { (from, size, detector) =>
       (from, size) match {
         case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
-        case _ => complete(getWorkflowConfigs(from, size, isFull(detector)))
+        case _ => complete(getWorkflowConfigs(from, size, detectorMode(detector)))
       }
     }
   }
@@ -200,12 +207,12 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   @Operation(tags = Array("config"), summary = "Get WorkflowConfig by id",
     parameters = Array(
       new Parameter(name = "id", in = ParameterIn.PATH, description = "config id"),
-      new Parameter(name = "detector", in = ParameterIn.QUERY, description = "id|full")),
+      new Parameter(name = "detector", in = ParameterIn.QUERY, description = "none | schema | config (default none)")),
     responses = Array(new ApiResponse(responseCode = "200", description = "config",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigView]))))))
   def getWorkflowConfigRoute(id: Int) = get {
     parameter("detector".?) { detector =>
-      complete(getWorkflowConfig(id, isFull(detector)))
+      complete(getWorkflowConfig(id, detectorMode(detector)))
     }
   }
 

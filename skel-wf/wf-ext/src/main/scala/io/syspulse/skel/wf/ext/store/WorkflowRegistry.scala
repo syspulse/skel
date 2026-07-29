@@ -21,17 +21,25 @@ import io.syspulse.skel.wf.ext.engine.{Engine, TrackMapper, EngineWorkflow, Engi
 object WorkflowRegistry {
   val log = Logger(s"${this}")
 
+  // `detector` query modes controlling detector enrichment of Get* responses:
+  //   none   -> no detectors (default)
+  //   schema -> add DetectorSchema (queried from the store by node sid)
+  //   config -> add DetectorConfig (by node cid); excludes the DetectorSchema query [legacy "full"]
+  val DETECTOR_NONE   = "none"
+  val DETECTOR_SCHEMA = "schema"
+  val DETECTOR_CONFIG = "config"
+
   // ---- WorkflowSchema ----
-  final case class GetWorkflowSchemas(from: Option[Long], size: Option[Long], detail: Boolean, replyTo: ActorRef[Try[WorkflowSchemas]]) extends Command
-  final case class GetWorkflowSchema(id: Int, detail: Boolean, replyTo: ActorRef[Try[WorkflowSchemaView]]) extends Command
+  final case class GetWorkflowSchemas(from: Option[Long], size: Option[Long], detector: String, replyTo: ActorRef[Try[WorkflowSchemas]]) extends Command
+  final case class GetWorkflowSchema(id: Int, detector: String, replyTo: ActorRef[Try[WorkflowSchemaView]]) extends Command
   final case class CreateWorkflowSchema(req: WorkflowSchemaCreateReq, replyTo: ActorRef[Try[WorkflowSchema]]) extends Command
   final case class CreateWorkflowSchemaDsl(req: WorkflowSchemaDslReq, replyTo: ActorRef[Try[WorkflowSchema]]) extends Command
   final case class UpdateWorkflowSchema(id: Int, req: WorkflowSchemaUpdateReq, replyTo: ActorRef[Try[WorkflowSchema]]) extends Command
   final case class DeleteWorkflowSchema(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
 
   // ---- WorkflowConfig ----
-  final case class GetWorkflowConfigs(from: Option[Long], size: Option[Long], detail: Boolean, replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
-  final case class GetWorkflowConfig(id: Int, detail: Boolean, replyTo: ActorRef[Try[WorkflowConfigView]]) extends Command
+  final case class GetWorkflowConfigs(from: Option[Long], size: Option[Long], detector: String, replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+  final case class GetWorkflowConfig(id: Int, detector: String, replyTo: ActorRef[Try[WorkflowConfigView]]) extends Command
   final case class GetWorkflowConfigByXid(xid: String, replyTo: ActorRef[Option[WorkflowConfig]]) extends Command
   final case class GetWorkflowConfigsByOid(oid: String, replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
   // resolve WorkflowConfig(s) (+ all DetectorConfigs) by runtimeId (xid) or workflowId (meta.wid), many ids in one call.
@@ -85,19 +93,30 @@ object WorkflowRegistry {
     }
 
   // ---------------------------------------------------------------- view assembly
-  private def schemaView(store: WorkflowStore, s: WorkflowSchema, full: Boolean)(implicit ec: ExecutionContext): Future[WorkflowSchemaView] =
-    if (!full) Future.successful(WorkflowSchemaView(s, None))
-    else schemaDetectors(store, Seq(s)).map(m => WorkflowSchemaView(s, Some(m)))
+  // WorkflowSchema references only DetectorSchema (by node sid): `schema` -> load them, else none.
+  private def schemaView(store: WorkflowStore, s: WorkflowSchema, detector: String)(implicit ec: ExecutionContext): Future[WorkflowSchemaView] =
+    if (detector == DETECTOR_SCHEMA) schemaDetectors(store, Seq(s)).map(m => WorkflowSchemaView(s, Some(m)))
+    else Future.successful(WorkflowSchemaView(s, None))
 
-  private def schemaDetectors(store: WorkflowStore, ss: Seq[WorkflowSchema])(implicit ec: ExecutionContext): Future[Map[String, DetectorSchema]] = {
-    val sids = ss.flatMap(_.graph.nodes.values.map(_.sid)).toSet.toSeq
-    Future.sequence(sids.map(id => store.getDetectorSchema(id).map(_.map(id.toString -> _))))
-      .map(_.flatten.toMap)
+  /** DetectorSchema map keyed by node sid, for the given graf nodes (schema or config graphs). */
+  private def detectorSchemasOf(store: WorkflowStore, sids: Seq[Int])(implicit ec: ExecutionContext): Future[Map[String, DetectorSchema]] = {
+    val ids: Seq[Int] = sids.distinct
+    Future.sequence(ids.map(id => store.getDetectorSchema(id).map(_.map(id.toString -> _)))).map(_.flatten.toMap)
   }
 
-  private def configView(store: WorkflowStore, c: WorkflowConfig, full: Boolean)(implicit ec: ExecutionContext): Future[WorkflowConfigView] =
-    if (!full) Future.successful(WorkflowConfigView(c, None))
-    else configDetectors(store, Seq(c)).map(m => WorkflowConfigView(c, Some(m)))
+  private def schemaDetectors(store: WorkflowStore, ss: Seq[WorkflowSchema])(implicit ec: ExecutionContext): Future[Map[String, DetectorSchema]] =
+    detectorSchemasOf(store, ss.flatMap(_.graph.nodes.values.map(_.sid)))
+
+  private def configSchemas(store: WorkflowStore, cs: Seq[WorkflowConfig])(implicit ec: ExecutionContext): Future[Map[String, DetectorSchema]] =
+    detectorSchemasOf(store, cs.flatMap(_.graph.nodes.values.map(_.sid)))
+
+  // WorkflowConfig: `config` -> DetectorConfig (by cid); `schema` -> DetectorSchema (by sid); else none.
+  private def configView(store: WorkflowStore, c: WorkflowConfig, detector: String)(implicit ec: ExecutionContext): Future[WorkflowConfigView] =
+    detector match {
+      case DETECTOR_CONFIG => configDetectors(store, Seq(c)).map(m => WorkflowConfigView(c, detectors = Some(m)))
+      case DETECTOR_SCHEMA => configSchemas(store, Seq(c)).map(m => WorkflowConfigView(c, schemas = Some(m)))
+      case _               => Future.successful(WorkflowConfigView(c))
+    }
 
   private def configDetectors(store: WorkflowStore, cs: Seq[WorkflowConfig])(implicit ec: ExecutionContext): Future[Map[String, DetectorConfig]] = {
     val cids = cs.flatMap(_.graph.nodes.values.flatMap(_.cid)).toSet.toSeq
@@ -295,15 +314,15 @@ object WorkflowRegistry {
     Behaviors.receiveMessage {
 
       // -------------------------------------------------- WorkflowSchema
-      case GetWorkflowSchemas(from, size, detail, replyTo) =>
+      case GetWorkflowSchemas(from, size, detector, replyTo) =>
         store.listSchemas(from, size).flatMap { p =>
-          if (!detail) Future.successful(WorkflowSchemas(p.schemas, p.total, None))
-          else schemaDetectors(store, p.schemas).map(m => WorkflowSchemas(p.schemas, p.total, Some(m)))
+          if (detector == DETECTOR_SCHEMA) schemaDetectors(store, p.schemas).map(m => WorkflowSchemas(p.schemas, p.total, Some(m)))
+          else Future.successful(WorkflowSchemas(p.schemas, p.total, None))
         }.onComplete(replyTo ! _)
         Behaviors.same
 
-      case GetWorkflowSchema(id, detail, replyTo) =>
-        store.getSchema(id).flatMap(s => schemaView(store, s, detail)).onComplete(replyTo ! _)
+      case GetWorkflowSchema(id, detector, replyTo) =>
+        store.getSchema(id).flatMap(s => schemaView(store, s, detector)).onComplete(replyTo ! _)
         Behaviors.same
 
       case CreateWorkflowSchema(req, replyTo) =>
@@ -345,15 +364,18 @@ object WorkflowRegistry {
         Behaviors.same
 
       // -------------------------------------------------- WorkflowConfig
-      case GetWorkflowConfigs(from, size, detail, replyTo) =>
+      case GetWorkflowConfigs(from, size, detector, replyTo) =>
         store.listConfigs(from, size).flatMap { p =>
-          if (!detail) Future.successful(WorkflowConfigs(p.configs, p.total, None))
-          else configDetectors(store, p.configs).map(m => WorkflowConfigs(p.configs, p.total, Some(m)))
+          detector match {
+            case DETECTOR_CONFIG => configDetectors(store, p.configs).map(m => WorkflowConfigs(p.configs, p.total, detectors = Some(m)))
+            case DETECTOR_SCHEMA => configSchemas(store, p.configs).map(m => WorkflowConfigs(p.configs, p.total, schemas = Some(m)))
+            case _               => Future.successful(WorkflowConfigs(p.configs, p.total))
+          }
         }.onComplete(replyTo ! _)
         Behaviors.same
 
-      case GetWorkflowConfig(id, detail, replyTo) =>
-        store.getConfig(id).flatMap(c => configView(store, c, detail)).onComplete(replyTo ! _)
+      case GetWorkflowConfig(id, detector, replyTo) =>
+        store.getConfig(id).flatMap(c => configView(store, c, detector)).onComplete(replyTo ! _)
         Behaviors.same
 
       case GetWorkflowConfigByXid(xid, replyTo) =>

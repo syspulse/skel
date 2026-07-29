@@ -61,11 +61,13 @@ final case class WorkflowSchemaDslReq(
 final case class WorkflowConfigs(
   configs: Seq[WorkflowConfig],
   total: Long,
-  detectors: Option[Map[String, DetectorConfig]] = None,
+  detectors: Option[Map[String, DetectorConfig]] = None, // detector=config -> DetectorConfig by cid
+  schemas: Option[Map[String, DetectorSchema]] = None,   // detector=schema -> DetectorSchema by node sid
 )
 final case class WorkflowConfigView(
   config: WorkflowConfig,
-  detectors: Option[Map[String, DetectorConfig]] = None,
+  detectors: Option[Map[String, DetectorConfig]] = None, // detector=config -> DetectorConfig by cid
+  schemas: Option[Map[String, DetectorSchema]] = None,   // detector=schema -> DetectorSchema by node sid
 )
 /** Create a WorkflowConfig from an existing WorkflowSchema (`sid`). */
 final case class WorkflowConfigCreateReq(

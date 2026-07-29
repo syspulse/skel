@@ -58,16 +58,23 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
         status shouldBe StatusCodes.OK
         val v = responseAs[WorkflowSchemaView]
         v.schema.graph.nodes should have size 3
-        v.detectors shouldBe None // ?detector defaults to id
+        v.detectors shouldBe None // ?detector defaults to none
       }
     }
 
-    "expand detectors with ?detector=full" in {
-      Get("/schema/0?detector=full") ~> routes.routes ~> check {
+    "expand DetectorSchemas with ?detector=schema (none/other -> no detectors)" in {
+      Get("/schema/0?detector=schema") ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         val v = responseAs[WorkflowSchemaView]
         v.detectors.isDefined shouldBe true
         v.detectors.get should have size 3
+      }
+      // non-'schema' modes (none / config) do NOT query DetectorSchema for a schema view
+      Get("/schema/0?detector=config") ~> routes.routes ~> check {
+        responseAs[WorkflowSchemaView].detectors shouldBe None
+      }
+      Get("/schema/0") ~> routes.routes ~> check {
+        responseAs[WorkflowSchemaView].detectors shouldBe None
       }
     }
 
@@ -77,7 +84,7 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       }
     }
 
-    "assembly a WorkflowConfig via DSL and read it back with ?detector=full" in {
+    "assembly a WorkflowConfig via DSL and read it back with ?detector=config|schema|none" in {
       Post("/config/dsl", WorkflowConfigDslReq("Detector.x -> Detector.y", name = Some("WFlow"))) ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         responseAs[WorkflowConfig].graph.isInstance shouldBe true
@@ -86,9 +93,25 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
         status shouldBe StatusCodes.OK
         responseAs[WorkflowConfigs].total shouldBe 1L
       }
-      Get("/config/0?detector=full") ~> routes.routes ~> check {
+      // detector=config -> DetectorConfig by cid (no DetectorSchema)
+      Get("/config/0?detector=config") ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
-        responseAs[WorkflowConfigView].detectors.get should have size 2
+        val v = responseAs[WorkflowConfigView]
+        v.detectors.get should have size 2
+        v.schemas shouldBe None
+      }
+      // detector=schema -> DetectorSchema by node sid (no DetectorConfig)
+      Get("/config/0?detector=schema") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val v = responseAs[WorkflowConfigView]
+        v.schemas.get should have size 2
+        v.detectors shouldBe None
+      }
+      // default (none) -> neither
+      Get("/config/0") ~> routes.routes ~> check {
+        val v = responseAs[WorkflowConfigView]
+        v.detectors shouldBe None
+        v.schemas shouldBe None
       }
     }
 
