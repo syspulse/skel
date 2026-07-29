@@ -429,10 +429,25 @@ object WorkflowRegistry {
 
       case DeleteWorkflowConfig(id, replyTo) =>
         log.info(s"DeleteWorkflowConfig: ${id}")
+        // cascade: delete the WorkflowConfig's DetectorConfig instances + its WorkflowGraf, then the config.
+        // each deletion is best-effort (a missing entity does not abort the cascade) and logged at INFO.
+        def delQuietly(what: String, f: Future[Int]): Future[Unit] =
+          f.map(_ => log.info(s"DeleteWorkflowConfig: ${id}: deleted ${what}"))
+            .recover { case e => log.info(s"DeleteWorkflowConfig: ${id}: skip ${what} (${e.getMessage})") }
 
-        store.delConfig(id).onComplete {
-          case Success(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.OK, Some(id))
-          case Failure(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id))
+        val f = store.getConfigOpt(id).flatMap {
+          case None => Future.successful(WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id)))
+          case Some(c) =>
+            val cids = c.graph.nodes.values.flatMap(_.cid).toSeq.distinct
+            for {
+              _ <- Future.sequence(cids.map(cid => delQuietly(s"DetectorConfig ${cid}", store.delDetectorConfig(cid))))
+              _ <- delQuietly(s"WorkflowGraf ${c.graph.id}", store.delGraf(c.graph.id))
+              _ <- delQuietly(s"WorkflowConfig ${id}", store.delConfig(id))
+            } yield WorkflowActionRes(WorkflowActionRes.OK, Some(id))
+        }
+        f.onComplete {
+          case Success(res) => replyTo ! res
+          case Failure(e)   => log.info(s"DeleteWorkflowConfig: ${id}: failed (${e.getMessage})"); replyTo ! WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id))
         }
         Behaviors.same
 

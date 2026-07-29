@@ -201,5 +201,24 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
         }
       }
     }
+
+    "DELETE /config/{id} cascades to its DetectorConfig instances (all deleted)" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.p -> Detector.q", name = Some("WCascade"))) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      val cfg = Post(s"/config/schema/${sc.id}") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
+      }
+      val cids = cfg.graph.nodes.values.flatMap(_.cid).toSeq
+      cids should have size 2
+      cids.foreach { cid => Await.result(store.getDetectorConfig(cid), 5.seconds) should not be None }
+
+      Delete(s"/config/${cfg.id}") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[WorkflowActionRes].status shouldBe WorkflowActionRes.OK
+      }
+      Await.result(store.getConfigOpt(cfg.id), 5.seconds) shouldBe None       // config gone
+      cids.foreach { cid => Await.result(store.getDetectorConfig(cid), 5.seconds) shouldBe None } // its detectors gone
+    }
   }
 }
