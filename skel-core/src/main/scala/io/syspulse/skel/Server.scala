@@ -144,6 +144,8 @@ trait Server {
     
     val exceptionHandler: ExceptionHandler =
       ExceptionHandler {
+        case e: ErrNotFound =>
+          errorResponse(NotFound, e.toString, Some(e.getCode()))
         case e: java.lang.IllegalArgumentException =>
           extractUri { uri =>
             log.error(s"Request failed: '$uri':",e)
