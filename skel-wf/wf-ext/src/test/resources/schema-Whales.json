@@ -1,0 +1,113 @@
+{
+    "type": "object",
+    "$defs": {
+        "Token": {
+            "type": "object",
+            "title": "Token",
+            "required": ["address", "threshold", "decimals"],
+            "properties": {
+                "symbol": {
+                    "type": "string",
+                    "title": "Symbol",
+                    "description": "Ticker Symbol"
+                },
+                "address": {
+                    "type": "string",
+                    "title": "Address",
+                    "description": "Token Contract address"
+                },
+                "decimals": {
+                    "type": "number",
+                    "title": "Decimals",
+                    "default": 18,
+                    "description": "Decimals"
+                },
+                "threshold": {
+                    "type": "string",
+                    "title": "Threshold",
+                    "description": "Threshold value (specific for each token)"
+                }
+            }
+        }
+    },
+    "title": "Schema",
+    "required": [],
+    "properties": {
+        "to": {
+            "type": "string",
+            "title": "To",
+            "default": "",
+            "description": "To address filter"
+        },
+        "desc": {
+            "type": "string",
+            "title": "Description",
+            "default": "{action} {dir} {amount} {sym}",
+            "description": "Desription pattern"
+        },
+        "from": {
+            "type": "string",
+            "title": "From",
+            "default": "",
+            "description": "From address filter"
+        },
+        "tokens": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/Token"
+            },
+            "title": "Tokens",
+            "default": [{
+                "symbol": "USDT",
+                "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+                "decimals": 6,
+                "threshold": ">10000000"
+            }, {
+                "symbol": "USDC",
+                "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+                "decimals": 6,
+                "threshold": ">10000000"
+            }, {
+                "symbol": "WETH",
+                "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+                "decimals": 18,
+                "threshold": ">10000"
+            }, {
+                "symbol": "ETH",
+                "address": "ethereum",
+                "decimals": 18,
+                "threshold": ">10000"
+            }, {
+                "symbol": "BNB",
+                "address": "BNB",
+                "decimals": 18,
+                "threshold": ">100000"
+            }],
+            "description": "Additional tokens to monitor"
+        },
+        "severity": {
+            "type": "number",
+            "title": "Severity",
+            "default": -1,
+            "description": "Severity"
+        },
+        "track_to": {
+            "type": "boolean",
+            "title": "Track To",
+            "default": true,
+            "description": "Track To Address"
+        },
+        "track_addr": {
+            "type": "boolean",
+            "title": "Track Address",
+            "default": true,
+            "description": "Track Address as ERC-20 token"
+        },
+        "track_from": {
+            "type": "boolean",
+            "title": "Track From",
+            "default": true,
+            "description": "Track From Address"
+        }
+    }
+}

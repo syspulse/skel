@@ -3,7 +3,7 @@ package io.syspulse.skel.wf.ext.store
 import scala.concurrent.{Future, ExecutionContext}
 
 import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf}
-import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigContract, DetectorConfigSchema}
+import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigContract, DetectorConfigSchema, JsonSchemaDefault}
 
 object WorkflowStore {
   val DETECTOR_CONFIG_SOURCE = "WORKFLOW" //"ext:workflow"
@@ -53,7 +53,7 @@ object WorkflowStore {
       name = ds.name, 
       source = DETECTOR_CONFIG_SOURCE, 
       tags = Seq(), 
-      config = None, 
+      config = ds.schema.map(JsonSchemaDefault.of), // instantiate default config from the JsonSchema spec
       destinations = Seq(),
     )
   }

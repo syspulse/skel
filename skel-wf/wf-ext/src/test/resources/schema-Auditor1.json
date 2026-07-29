@@ -1,0 +1,229 @@
+{
+    "type": "object",
+    "title": "AI Audit Preset",
+    "properties": {
+        "billing_client_id": {
+            "type": ["string", "null"],
+            "title": "Billing Client ID",
+            "pattern": "^[A-Za-z0-9_.:-]{1,80}$",
+            "description": "Optional non-secret client billing label for cost attribution. This is never an API key."
+        },
+        "billing_project_id": {
+            "type": ["string", "null"],
+            "title": "Billing Project ID",
+            "pattern": "^[A-Za-z0-9_.:-]{1,120}$",
+            "description": "Optional non-secret project or workstream billing label for cost attribution."
+        },
+        "include_documentation": {
+            "type": ["boolean", "null"],
+            "title": "Auto-Ingest Documentation",
+            "description": "Per-audit override for the documentation walker that auto-includes README, design notes, whitepapers, and PDFs as context-only inputs. Leave unset to skip documentation (cluster default). Set true to auto-ingest the repository's docs for this audit; useful when the design docs or whitepaper add material context, at the cost of a larger LLM context budget."
+        },
+        "llm_credential_profile": {
+            "type": ["string", "null"],
+            "title": "LLM Credential Profile",
+            "pattern": "^[A-Za-z0-9_.:-]{1,80}$",
+            "description": "Optional non-secret server-side credential profile id. The worker resolves this to provider API keys from deployment environment variables; raw keys are not accepted in audit input."
+        },
+        "agentic_auditor_enabled": {
+            "type": "boolean",
+            "title": "Agentic Auditor Enabled",
+            "default": true,
+            "description": "Enable the LLM-driven auditor activity. Required for script-style mode."
+        },
+        "guardrail_local_enabled": {
+            "type": ["boolean", "null"],
+            "title": "Guardrail (Internal)",
+            "default": true,
+            "description": "Per-audit override for the in-process regex/heuristic guardrail that scans repository files for prompt-injection markers before the auditor sees them. Leave unset to inherit the cluster default (env GUARDRAIL_LOCAL_ENABLED). Set true or false to force on/off for this audit. Turning it off skips the scan; the guardrails comparison report still runs."
+        },
+        "agentic_script_style_mode": {
+            "type": "boolean",
+            "title": "Script-Style Mode",
+            "default": true,
+            "description": "Route audits through the script-style pipeline (vendored SC-AI skill, persona fan-out, fp-check verdict, Hacken severity calibration)."
+        },
+        "agentic_script_style_model": {
+            "type": "string",
+            "title": "Script-Style Default Model",
+            "default": "gpt-5.5",
+            "description": "Default LLM model identifier for every script-style stage not overridden by an entry in agentic_script_style_step_model_overrides."
+        },
+        "agentic_script_style_skill": {
+            "type": "string",
+            "oneOf": [{
+                "const": "solidity-auditor",
+                "title": "Solidity Auditor (EVM)"
+            }, {
+                "const": "daml-auditor",
+                "title": "Daml Auditor (Canton)"
+            }],
+            "title": "Auditor Skill",
+            "default": "solidity-auditor",
+            "description": "Select the language-isolated script-style pipeline. Daml audits use only the vendored Daml skills and never load Solidity personas or EVM formatter rules."
+        },
+        "guardrail_testsavant_enabled": {
+            "type": ["boolean", "null"],
+            "title": "Guardrail (TS)",
+            "description": "Per-audit override for the prompt-injection guardrail. Leave unset to inherit the cluster default (env GUARDRAIL_TESTSAVANT_ENABLED). Set true to require it (worker aborts if TS credentials are missing) or false to skip it for this audit."
+        },
+        "agentic_audit_hard_budget_usd": {
+            "type": "integer",
+            "title": "Hard Budget (USD)",
+            "default": 350,
+            "maximum": 5000,
+            "minimum": 10,
+            "description": "BudgetGuard ceiling for a single audit in USD. The worker aborts when this is crossed. Typical script-style scans land between $50-$300 depending on repository size, model routing, and bug-hunt iterations."
+        },
+        "agentic_audit_max_tokens_per_audit": {
+            "type": "integer",
+            "title": "Max Tokens Per Audit",
+            "default": 0,
+            "minimum": 0,
+            "description": "Hard token-count cap per audit across all LLM calls. 0 means no token-level cap (only the USD budget applies)."
+        },
+        "agentic_script_style_pipeline_mode": {
+            "type": "string",
+            "oneOf": [{
+                "const": "auditor",
+                "title": "Auditor (default)"
+            }],
+            "title": "Script-Style Pipeline Mode",
+            "default": "auditor",
+            "description": "Which orchestration mode the script-style runner uses. Currently only 'auditor' is supported."
+        },
+        "agentic_script_style_daml_max_chunks": {
+            "type": "integer",
+            "title": "Daml Maximum Chunks",
+            "default": 12,
+            "maximum": 32,
+            "minimum": 1,
+            "description": "Daml-only safety cap on validated scope chunks. Ignored by the Solidity pipeline."
+        },
+        "agentic_script_style_daml_poc_enabled": {
+            "type": "boolean",
+            "title": "Daml PoC Generation",
+            "default": false,
+            "description": "Generate bounded, unexecuted Daml Script draft artifacts for verified true positives only. Disabled by default and never changes the verification verdict."
+        },
+        "agentic_script_style_max_output_tokens": {
+            "type": "integer",
+            "title": "Stage Max Output Tokens",
+            "default": 32768,
+            "maximum": 128000,
+            "minimum": 1024,
+            "description": "Maximum output tokens for normal script-style LLM stages. This does not change the separate emergency final-synthesis cap."
+        },
+        "agentic_script_style_agent_loop_enabled": {
+            "type": "boolean",
+            "title": "Agent Loop Enabled",
+            "default": true,
+            "description": "Allow the script-style auditor to iterate (review-and-refine) up to agent_loop_max_iterations."
+        },
+        "agentic_script_style_bug_hunt_iterations": {
+            "type": "integer",
+            "title": "Script-Style Bug-Hunt Iterations",
+            "default": 2,
+            "minimum": 1,
+            "description": "Number of independent bug-hunt runs. For Daml this is applied per validated scope chunk; each run starts with a fresh model session."
+        },
+        "agentic_script_style_daml_compile_enabled": {
+            "type": "boolean",
+            "title": "Reserved Daml Compile Validation",
+            "default": false,
+            "description": "Reserved for an isolated Daml SDK runner. The current source-only worker rejects true before any paid model call. Keep false."
+        },
+        "agentic_script_style_step_model_overrides": {
+            "type": ["array", "null"],
+            "items": {
+                "type": "object",
+                "required": ["stage", "model"],
+                "properties": {
+                    "model": {
+                        "type": "string",
+                        "title": "Model URI",
+                        "format": "uri",
+                        "description": "Provider-prefixed URI: '<provider>://<model>[?param=value&...]'. Example: 'anthropic://claude-opus-4-8?temperature=0.1&temp_increment=0.05'."
+                    },
+                    "stage": {
+                        "type": "string",
+                        "title": "Stage",
+                        "description": "Stage id, a supported wildcard such as 'solidity_auditor_persona.*' or 'daml-auditor_bug_hunt.*', or the literal 'default' for the global fallback."
+                    }
+                },
+                "additionalProperties": false
+            },
+            "title": "Per-Stage Model Overrides",
+            "description": "Optional per-stage model routing on top of the default model. Each row picks the model for one stage. Use the reserved stage id 'default' for the global fallback. Solidity stage ids include 'x-ray', 'solidity_auditor_merge', 'finding-formatter', and 'solidity_auditor_persona.*'. Daml stage ids include 'daml-audit-context-building', 'daml-audit-scope-partitioner', 'daml-audit-prompt-generator', 'daml-auditor_bug_hunt.*', 'daml-auditor_merge', 'daml-fp-check', 'daml-finding-formatter', 'daml-missed-issue-review', and 'daml-poc-builder'."
+        },
+        "agentic_script_style_persona_fanout_passes": {
+            "type": "integer",
+            "title": "Persona Fan-Out Passes",
+            "default": 2,
+            "minimum": 1,
+            "description": "Number of fresh independent persona fan-out passes. Use 2 for higher recall when budget allows."
+        },
+        "agentic_script_style_persona_fanout_enabled": {
+            "type": "boolean",
+            "title": "Persona Fan-Out Enabled",
+            "default": true,
+            "description": "Run the multi-persona fan-out stage of the script-style pipeline. Disabling this collapses the audit to a single persona."
+        },
+        "agentic_script_style_coverage_matrix_enabled": {
+            "type": "boolean",
+            "title": "Script-Style Coverage Matrix",
+            "default": true,
+            "description": "Emit a deterministic script-style file/function coverage matrix for quality comparison and missed-surface analysis."
+        },
+        "agentic_script_style_persona_max_concurrency": {
+            "type": "integer",
+            "title": "Persona Max Concurrency",
+            "default": 4,
+            "minimum": 1,
+            "description": "Upper bound on concurrent persona LLM calls during fan-out. Higher values reduce wall-clock time at the cost of provider rate-limit pressure."
+        },
+        "agentic_script_style_agent_loop_max_iterations": {
+            "type": "integer",
+            "title": "Agent Loop Max Iterations",
+            "default": 10,
+            "minimum": 1,
+            "description": "Hard ceiling on the agent loop's refinement passes. Enforced even when agent_loop_enabled is true."
+        },
+        "agentic_script_style_daml_chunk_max_concurrency": {
+            "type": "integer",
+            "title": "Daml Chunk Concurrency",
+            "default": 2,
+            "maximum": 8,
+            "minimum": 1,
+            "description": "Maximum Daml chunks audited concurrently. Bug-hunt iterations inside each chunk remain independent fresh sessions."
+        },
+        "agentic_script_style_missed_issue_review_enabled": {
+            "type": "boolean",
+            "title": "Script-Style Missed-Issue Review",
+            "default": true,
+            "description": "Run an additional script-style LLM pass over coverage gaps before fp-check. The pass improves recall but does not bypass fp-check or reportability gates."
+        },
+        "agentic_script_style_merge_reconciliation_enabled": {
+            "type": "boolean",
+            "title": "Merge Reconciliation",
+            "default": true,
+            "description": "Run an additional reconciliation pass after the persona-merge stage to dedupe and stabilize findings."
+        },
+        "agentic_script_style_final_synthesis_max_output_tokens": {
+            "type": "integer",
+            "title": "Final Synthesis Max Output Tokens",
+            "default": 8192,
+            "maximum": 128000,
+            "minimum": 1024,
+            "description": "Maximum output tokens for the no-tools recovery turn used when an agent-loop stage exhausts turns or is cut off. Keep this smaller than the normal stage ceiling to avoid runaway cost."
+        },
+        "agentic_script_style_final_synthesis_tool_trace_max_chars": {
+            "type": "integer",
+            "title": "Final Synthesis Tool Trace Character Cap",
+            "default": 60000,
+            "minimum": 0,
+            "description": "Maximum guarded tool-result excerpt characters reinjected into the emergency final-synthesis prompt. 0 disables tool-trace reinjection for recovery."
+        }
+    },
+    "additionalProperties": false
+}
