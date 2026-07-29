@@ -6,6 +6,8 @@ import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf}
 import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigContract, DetectorConfigSchema}
 
 object WorkflowStore {
+  val DETECTOR_CONFIG_SOURCE = "WORKFLOW" //"ext:workflow"
+
   // Paging result wrappers (mirror skel-user `Page`: items + total count).
   final case class PageSchema(schemas: Seq[WorkflowSchema], total: Long)
   final case class PageConfig(configs: Seq[WorkflowConfig], total: Long)
@@ -24,10 +26,35 @@ object WorkflowStore {
   def detectorConfigOf(id: Int, ds: DetectorSchema, contractId: Int = 0): DetectorConfig = {
     val now = System.currentTimeMillis()
     DetectorConfig(
-      id = id, createdAt = now, updatedAt = now, status = WorkflowSchema.Status.ACTIVE,
-      contract = DetectorConfigContract(contractId, now, now, 0, 0, None, None, None, None, ds.name),
-      schema = Some(DetectorConfigSchema(ds.id, now, now, WorkflowSchema.Status.ACTIVE, ds.name, ds.version, None)),
-      name = ds.name, source = "", tags = Seq(), config = None, destinations = Seq(),
+      id = id, 
+      createdAt = now, 
+      updatedAt = now, 
+      status = WorkflowSchema.Status.ACTIVE,
+      contract = DetectorConfigContract(
+        contractId, 
+        now, 
+        now, 
+        0, 
+        0, 
+        None, 
+        None, 
+        None, 
+        None, 
+        ds.name),
+      schema = Some(DetectorConfigSchema(
+        ds.id, 
+        now, 
+        now, 
+        WorkflowSchema.Status.ACTIVE, 
+        ds.name, 
+        ds.version, 
+        None
+      )),
+      name = ds.name, 
+      source = DETECTOR_CONFIG_SOURCE, 
+      tags = Seq(), 
+      config = None, 
+      destinations = Seq(),
     )
   }
 }
