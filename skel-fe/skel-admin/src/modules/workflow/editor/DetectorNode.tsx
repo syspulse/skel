@@ -25,6 +25,13 @@ const sidTag: React.CSSProperties = { ...tagBase, ...LABEL_SCHEMA };
 const cidTag: React.CSSProperties = { ...tagBase, ...LABEL_CONFIG };
 // activity_id (runtime, from /resolve): amber so it stands apart from the id chips
 const aidTag: React.CSSProperties = { ...tagBase, background: '#fcd34d', color: '#0f172a' };
+// DetectorConfig.name label (top-left): smaller font than the id chips, light schema-style chip.
+// A direct flex item (`flex: 0 1 auto` + min-width:0) so it takes its content width, shrinks with the
+// node and truncates only when it overflows the space left of the id chips - and stays top-aligned.
+const nameTag: React.CSSProperties = {
+  ...tagBase, ...LABEL_SCHEMA, fontSize: 8,
+  flex: '0 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
+};
 // long ids (e.g. UUID activity_id) are shown as first6…last6; the full value stays in the tooltip
 const shortId = (s: string): string => (s.length > 32 ? `${s.slice(0, 6)}…${s.slice(-6)}` : s);
 
@@ -79,11 +86,16 @@ export function DetectorNode({ data, selected }: NodeProps) {
       <Handle id="t" type="target" position={Position.Top} style={HANDLE_STYLE} />
       <Handle id="l" type="target" position={Position.Left} style={HANDLE_STYLE} />
 
-      {/* activity_id (from /resolve) then sid / cid tags: small, top-right corner. Click to copy. */}
-      <div style={{ position: 'absolute', top: 2, right: 2, display: 'flex', gap: 2 }}>
-        {d.activityId ? <CopyChip style={aidTag} title={`activity_id ${d.activityId}`} display={shortId(d.activityId)} value={d.activityId} /> : null}
-        <CopyChip style={sidTag} title={`schema ${d.sid}`} display={d.sid} value={String(d.sid)} />
-        {d.cid !== undefined && d.cid !== null && <CopyChip style={cidTag} title={`config ${d.cid}`} display={d.cid} value={String(d.cid)} />}
+      {/* top row spanning the node: DetectorConfig.name (left, flexes with node width, truncates only
+          when it overflows) + activity_id / sid / cid chips (right, fixed). Center-aligned so the
+          smaller-font name lines up with the id chips. */}
+      <div style={{ position: 'absolute', top: 2, left: 2, right: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+        {d.detectorName ? <span style={nameTag} title={`DetectorConfig: ${d.detectorName}`}>{d.detectorName}</span> : null}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 2, flexShrink: 0 }}>
+          {d.activityId ? <CopyChip style={aidTag} title={`activity_id ${d.activityId}`} display={shortId(d.activityId)} value={d.activityId} /> : null}
+          <CopyChip style={sidTag} title={`schema ${d.sid}`} display={d.sid} value={String(d.sid)} />
+          {d.cid !== undefined && d.cid !== null && <CopyChip style={cidTag} title={`config ${d.cid}`} display={d.cid} value={String(d.cid)} />}
+        </div>
       </div>
 
       {/* icon (top-left, configurable margin/size) + title beside it */}

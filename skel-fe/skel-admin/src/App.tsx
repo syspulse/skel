@@ -94,6 +94,7 @@ function AppContent() {
             homeKey={workflowHomeKey}
             onEditTargetApplied={() => setWorkflowEditTarget(null)}
             onInstancesChanged={() => setWorkflowRefreshKey((k) => k + 1)}
+            onActiveInstanceChange={setSelectedWorkflowInstance}
           />
         );
       case 'settings':

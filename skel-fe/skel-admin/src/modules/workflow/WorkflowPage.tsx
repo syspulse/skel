@@ -28,6 +28,8 @@ interface WorkflowPageProps {
   onEditTargetApplied?: () => void;
   /** Notify the SideNav that instances changed (so it can refresh submenus). */
   onInstancesChanged?: () => void;
+  /** Notify which instance the editor is on (so the SideNav submenu highlight stays in sync). */
+  onActiveInstanceChange?: (target: WorkflowEditTarget | null) => void;
 }
 
 const TAB_IDS: EntityKind[] = [KIND.workflowSchema, KIND.workflowConfig, KIND.detectorSchema, KIND.detectorConfig, KIND.detector];
@@ -57,7 +59,7 @@ const matchIds = (id: number, csv: string): boolean => {
   return wanted.length === 0 || wanted.includes(String(id));
 };
 
-export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInstancesChanged }: WorkflowPageProps) {
+export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInstancesChanged, onActiveInstanceChange }: WorkflowPageProps) {
   const { t } = useTranslation();
   const { token } = useAuth();
   const { notifyError } = useModuleNotify(t('nav.workflow'));
@@ -127,10 +129,11 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
         const v = await api.getConfig(token, id, true);
         setEditor({ kind, id, title: v.config.title, name: v.config.name, icon: v.config.icon, status: v.config.status, xid: v.config.xid, graf: v.config.graph });
       }
+      onActiveInstanceChange?.({ kind, id }); // keep the SideNav submenu highlight in sync with the editor
     } catch (e) {
       notifyError(t('workflow.errorLoad'), e instanceof Error ? e.message : String(e));
     }
-  }, [token, notifyError, t]);
+  }, [token, notifyError, t, onActiveInstanceChange]);
 
   // ----- Resolve: fetch current engine state (WorkflowConfig + DetectorConfig statuses) via /resolve -----
   // `background` (used by the Track polling loop) skips the `resolving` flag so the Resolve/Track
@@ -361,6 +364,25 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
     }
   };
 
+  // Delete the WorkflowSchema/WorkflowConfig currently open in the editor (asks confirmation),
+  // then exit the editor and refresh the lists.
+  const destroyEditorEntity = async () => {
+    if (!editor) return;
+    if (!window.confirm(t('workflow.confirmDelete', { id: editor.id }))) return;
+    setSaving(true);
+    try {
+      if (editor.kind === KIND.workflowSchema) await api.deleteSchema(token, editor.id);
+      else await api.deleteConfig(token, editor.id);
+      setTrackingId(null); setEditor(null);
+      onActiveInstanceChange?.(null); // deleted -> clear the SideNav submenu highlight
+      await refreshAndNotify();
+    } catch (e) {
+      notifyError(t('workflow.errorDelete'), e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // ===================== EDITOR MODE =====================
   if (editor) {
     const editorSchema = editor.kind === KIND.workflowSchema ? schemas.find((s) => s.id === editor.id) ?? null : null;
@@ -392,6 +414,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           onToggleTrack={editorConfig ? () => setTrackingId((cur) => (cur === editor.id ? null : editor.id)) : undefined}
           onSave={handleEditorSave}
           onCreateConfig={editor.kind === KIND.workflowSchema ? createConfigFromSchema : undefined}
+          onDestroy={destroyEditorEntity}
           onBack={() => { setTrackingId(null); setEditor(null); }}
           onOpenDetails={() => setWfDetailsOpen(true)}
           onOpenDetectorSchema={(id) => setDetView({ kind: KIND.detectorSchema, id })}

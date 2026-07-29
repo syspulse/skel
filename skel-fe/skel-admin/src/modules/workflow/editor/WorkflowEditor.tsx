@@ -48,6 +48,7 @@ export interface WorkflowEditorProps {
   onToggleTrack?: () => void;             // start/stop auto-polling
   onSave: (graf: WorkflowGraf) => void;
   onCreateConfig?: () => void;            // WorkflowSchema only: create a WorkflowConfig from it and open its editor
+  onDestroy?: () => void;                 // delete the current entity (WorkflowSchema/WorkflowConfig) - asks confirmation
   onBack: () => void;
   onOpenDetails?: () => void; // open the WorkflowSchema/Config Details panel for editing
   onOpenDetectorSchema?: (id: number) => void;
@@ -58,7 +59,7 @@ const EDGE_COLOR = '#64748b';
 
 function WorkflowEditorInner(props: WorkflowEditorProps) {
   const { t } = useTranslation();
-  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, detectorActivityId, resolving, onResolve, onValidateCid, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onCreateConfig, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
+  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, detectorActivityId, resolving, onResolve, onValidateCid, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onCreateConfig, onDestroy, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
 
   const initial = useMemo(() => grafToRF(graf), [graf]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<RFNodeData>>(initial.nodes);
@@ -178,23 +179,33 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
     return true;
   }, [nodes, edges, persist, setNodes, onValidateCid]);
 
-  // search highlight (dim non-matching) + overlay DetectorConfig status + activity_id (from /resolve) by node cid
+  // cid -> DetectorConfig.name (shown as a small top-left label on the node)
+  const detectorNameByCid = useMemo(() => {
+    const m = new Map<number, string>();
+    detectorConfigs.forEach((d) => m.set(d.id, d.name));
+    return m;
+  }, [detectorConfigs]);
+
+  // search highlight (dim non-matching) + overlay DetectorConfig status + activity_id + name (from /resolve) by node cid
   const displayNodes = useMemo(() => {
     const q = search.trim().toLowerCase();
     const ds = detectorStatus;
     const da = detectorActivityId;
-    if (!q && !ds && !da) return nodes;
     return nodes.map((n) => {
       const cid = n.data.cid;
       const hasCid = cid !== undefined && cid !== null;
       const st = ds && hasCid ? ds[cid] : undefined;
       const aid = da && hasCid ? da[cid] : undefined;
-      let data = n.data;
-      if (st !== undefined || aid !== undefined) data = { ...data, status: st ?? data.status, activityId: aid ?? data.activityId };
+      const dn = hasCid ? detectorNameByCid.get(cid) : undefined;
+      const changed = st !== undefined || aid !== undefined || dn !== undefined;
+      if (!changed && !q) return n; // nothing to overlay/dim -> keep identity (avoid re-render)
+      const data = changed
+        ? { ...n.data, status: st ?? n.data.status, activityId: aid ?? n.data.activityId, detectorName: dn ?? n.data.detectorName }
+        : n.data;
       const style = q ? { ...n.style, opacity: n.data.title.toLowerCase().includes(q) ? 1 : 0.25 } : n.style;
       return { ...n, data, style };
     });
-  }, [nodes, search, detectorStatus, detectorActivityId]);
+  }, [nodes, search, detectorStatus, detectorActivityId, detectorNameByCid]);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId) ?? null;
@@ -301,6 +312,14 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           </>
         )}
         <div className="flex-1" />
+
+        {/* Destroy: delete the current WorkflowSchema/WorkflowConfig (asks confirmation) - on the right, before Snap/Grid */}
+        {onDestroy && (
+          <button onClick={onDestroy} disabled={saving}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-500 text-red-700 hover:bg-red-50 disabled:opacity-40 transition-colors">
+            <IconTrash size={13} /> {t('workflow.editor.destroy')}
+          </button>
+        )}
 
         {/* per-workflow grid distance + snap-to-grid (persisted in the graf meta on Save) */}
         <label className="inline-flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none">
