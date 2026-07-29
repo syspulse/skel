@@ -1418,6 +1418,7 @@ lazy val wf_ext = (project in file("skel-wf/wf-ext"))
     libraryDependencies ++= libSkel ++ libHttp ++ libDB ++ libTest ++ libTemporal ++ Seq(
       libOsLib,
       libUpickleLib,
+      libEmbeddedPostgres,
     ),
 
     // Force gRPC version to match Temporal SDK requirements (mirrors wf_temporal)

@@ -543,7 +543,7 @@ class ScriptFlow(flow:Seq[Script]) extends Script("flow","flow") {
     flow.foldLeft[Future[Map[String,Any]]](Future.successful(data + ("result" -> input))) { (result,engine) =>
       result.flatMap { d =>
         val input = d.get("result").map(_.toString).getOrElse("")
-        log.info(s"${engine.name}: input='${input}', data=${d}")
+        log.debug(s"${engine.name}: input='${input}', data=${d}")
         engine.exec(src, input, d)
       }
     }
