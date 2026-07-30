@@ -52,6 +52,9 @@ object WorkflowSchema {
     val ACTIVE   = "ACTIVE"
     val DISABLED = "DISABLED"
     val DELETED  = "DELETED"
+    
+    val UNSPECIFIED = "UNSPECIFIED"
+    val UNKNOWN = "UNKNOWN"
   }
 
   object Version {

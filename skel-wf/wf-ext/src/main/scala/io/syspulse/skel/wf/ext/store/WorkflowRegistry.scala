@@ -297,12 +297,21 @@ object WorkflowRegistry {
   private def detectorSchemaFromReq(id: Int, req: DetectorSchemaCreateReq): DetectorSchema = {
     val now = System.currentTimeMillis()
     DetectorSchema(
-      id = id, createdAt = now, updatedAt = now, status = WorkflowSchema.Status.ACTIVE,
-      name = req.name, version = req.version.getOrElse(WorkflowSchema.Version.DEF_VERSION),
-      title = req.title.getOrElse(req.name), description = req.description.getOrElse(""),
-      author = req.author.getOrElse(""), icon = req.icon, faq = req.faq,
-      tags = req.tags.getOrElse(Seq()), networkTags = Seq(),
-      schema = req.schema, uiSchema = req.uiSchema,
+      id = id, 
+      createdAt = now, 
+      updatedAt = now, 
+      status = WorkflowSchema.Status.ACTIVE,
+      name = req.name, 
+      version = req.version.getOrElse(WorkflowSchema.Version.DEF_VERSION),
+      title = req.title.getOrElse(req.name), 
+      description = req.description.getOrElse(""),
+      author = req.author.getOrElse(""), 
+      icon = req.icon, 
+      faq = req.faq,
+      tags = req.tags.getOrElse(Seq()), 
+      networkTags = Seq(),
+      schema = req.schema, 
+      uiSchema = req.uiSchema,
     )
   }
 
@@ -310,11 +319,17 @@ object WorkflowRegistry {
   private def detectorConfigFromReq(id: Int, req: DetectorConfigCreateReq, schemaRef: Option[DetectorSchema]): DetectorConfig = {
     val now = System.currentTimeMillis()
     DetectorConfig(
-      id = id, createdAt = now, updatedAt = now, status = req.status.getOrElse(WorkflowSchema.Status.ACTIVE),
+      id = id, 
+      createdAt = now, 
+      updatedAt = now, 
+      status = req.status.getOrElse(WorkflowSchema.Status.UNKNOWN),
       contract = DetectorConfigContract(0, now, now, 0, 0, None, None, None, None, req.name),
       schema = schemaRef.map(ds => DetectorConfigSchema(ds.id, now, now, ds.status, ds.name, ds.version, None)),
-      name = req.name, source = req.source.getOrElse(""), tags = req.tags.getOrElse(Seq()),
-      config = req.config, destinations = Seq(),
+      name = req.name, 
+      source = req.source.getOrElse(WorkflowStore.DETECTOR_CONFIG_SOURCE), 
+      tags = req.tags.getOrElse(Seq()),
+      config = req.config, 
+      destinations = Seq(),
     )
   }
 
@@ -367,10 +382,17 @@ object WorkflowRegistry {
         store.nextSchemaId.flatMap { id =>
           val now = System.currentTimeMillis()
           val s = WorkflowSchema(
-            id = id, createdAt = now, updatedAt = now, status = WorkflowSchema.Status.ACTIVE,
-            name = req.name, version = req.version.getOrElse(WorkflowSchema.Version.DEF_VERSION),
-            title = req.title.getOrElse(req.name), description = req.description.getOrElse(""),
-            author = req.author.getOrElse(""), icon = req.icon, faq = req.faq,
+            id = id, 
+            createdAt = now, 
+            updatedAt = now, 
+            status = WorkflowSchema.Status.UNKNOWN,
+            name = req.name, 
+            version = req.version.getOrElse(WorkflowSchema.Version.DEF_VERSION),
+            title = req.title.getOrElse(req.name), 
+            description = req.description.getOrElse(""),
+            author = req.author.getOrElse(""), 
+            icon = req.icon, 
+            faq = req.faq,
             tags = req.tags.getOrElse(Seq()),
             graph = req.graph.map(WorkflowGraf.sync).getOrElse(WorkflowGraf(id = 0, sid = Some(id))),
           )

@@ -29,7 +29,7 @@ object WorkflowStore {
       id = id, 
       createdAt = now, 
       updatedAt = now, 
-      status = WorkflowSchema.Status.ACTIVE,
+      status = WorkflowSchema.Status.UNKNOWN,
       contract = DetectorConfigContract(
         contractId, 
         now, 
@@ -45,7 +45,7 @@ object WorkflowStore {
         ds.id, 
         now, 
         now, 
-        WorkflowSchema.Status.ACTIVE, 
+        ds.status, 
         ds.name, 
         ds.version, 
         None

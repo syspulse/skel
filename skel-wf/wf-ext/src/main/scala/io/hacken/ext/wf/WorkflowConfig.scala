@@ -25,7 +25,8 @@ case class WorkflowConfig(
   sid: Int,            // WorkflowSchema id this config was created from
   createdAt: Long,     // timestamp of creation
   updatedAt: Long,     // timestamp of last update
-  status: String,      // "ACTIVE, DISABLED, DELETED"
+  status: String,      // "ACTIVE, DISABLED, DELETED" (compatibility with Ext), UNKNOWN, FAILED, RUNNING, ...
+                       // (it is mapped from the Engine)
   name: String,        // custom name set by user (default from WorkflowSchema.name)
   version: String,     // version (default from WorkflowSchema.version)
   title: String,       // UI title
@@ -63,7 +64,7 @@ object WorkflowConfig {
       sid = schema.id,
       createdAt = now,
       updatedAt = now,
-      status = WorkflowSchema.Status.ACTIVE,
+      status = WorkflowSchema.Status.UNKNOWN,
       name = name.getOrElse(schema.name),
       version = schema.version,
       title = schema.title,
