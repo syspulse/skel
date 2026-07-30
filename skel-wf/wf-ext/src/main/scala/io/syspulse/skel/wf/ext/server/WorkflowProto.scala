@@ -7,9 +7,12 @@ import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorSchemaFaq
 // ============================================================================
 // Request / Response protocol for the Workflow `ext` REST API.
 //
-// `?detector={id|full}` on schema/config retrieval:
-//   - id   (default): nodes carry only sid/cid references; `detectors` is omitted
-//   - full          : `detectors` is populated with the referenced DetectorSchema/DetectorConfig
+// `?entity=<csv>` on schema/config retrieval selects which sections come back (default `graf`):
+//   - graf     : keep the WorkflowGraf (nodes+links) inline in the config/schema (else stripped)
+//   - detector : populate `detectors` with the referenced DetectorConfig (by node cid) [config only]
+//   - schema   : populate the DetectorSchema map (config `schemas`, schema `detectors`) by node sid
+//   - all      : graf,detector,schema
+// e.g. `?entity=detector,schema` or `?entity=all`.
 // ============================================================================
 
 final case class WorkflowActionRes(status: String, id: Option[Int] = None)
@@ -61,13 +64,13 @@ final case class WorkflowSchemaDslReq(
 final case class WorkflowConfigs(
   configs: Seq[WorkflowConfig],
   total: Long,
-  detectors: Option[Map[String, DetectorConfig]] = None, // detector=config -> DetectorConfig by cid
-  schemas: Option[Map[String, DetectorSchema]] = None,   // detector=schema -> DetectorSchema by node sid
+  detectors: Option[Map[String, DetectorConfig]] = None, // entity=detector -> DetectorConfig by cid
+  schemas: Option[Map[String, DetectorSchema]] = None,   // entity=schema   -> DetectorSchema by node sid
 )
 final case class WorkflowConfigView(
   config: WorkflowConfig,
-  detectors: Option[Map[String, DetectorConfig]] = None, // detector=config -> DetectorConfig by cid
-  schemas: Option[Map[String, DetectorSchema]] = None,   // detector=schema -> DetectorSchema by node sid
+  detectors: Option[Map[String, DetectorConfig]] = None, // entity=detector -> DetectorConfig by cid
+  schemas: Option[Map[String, DetectorSchema]] = None,   // entity=schema   -> DetectorSchema by node sid
 )
 /** Create a WorkflowConfig from an existing WorkflowSchema (`sid`). */
 final case class WorkflowConfigCreateReq(

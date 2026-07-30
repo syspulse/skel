@@ -42,7 +42,11 @@ class ResolveUnresolvedSpec extends AnyWordSpec with Matchers with ScalatestRout
   }, "test-actor")
   val routes = Await.result(routesPromise.future, 5.seconds)
 
-  override def afterAll(): Unit = typedSystem.terminate()
+  override def afterAll(): Unit = {
+    typedSystem.terminate()
+    Await.result(typedSystem.whenTerminated, 10.seconds)
+    super.afterAll() // shut down the ScalatestRouteTest actor system too (else it leaks after the suite)
+  }
 
   "GET /config/resolve/{ids} when the runtime is obsolete on the Engine" should {
     "mark the WorkflowConfig AND all its DetectorConfigs as UNRESOLVED (never stale cached statuses)" in {

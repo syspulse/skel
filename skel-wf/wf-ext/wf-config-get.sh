@@ -1,13 +1,13 @@
 #!/bin/bash
-# Get WorkflowConfig by id, or list with optional paging and ?detector=id|full
+# Get WorkflowConfig by id, or list with optional paging and ?entity=<csv> (graf,detector,schema | all; default graf)
 #   ./wf-config-get.sh [id]
-#   FROM=0 SIZE=10 DETECTOR=full ./wf-config-get.sh
+#   FROM=0 SIZE=10 ENTITY=detector,schema ./wf-config-get.sh
 #   XID=<xid> ./wf-config-get.sh        # lookup by external id
 #   OID=<oid> ./wf-config-get.sh        # lookup by owner id
 ID=${1:-}
 FROM=${FROM:-0}
 SIZE=${SIZE:-5}
-DETECTOR=${DETECTOR:-}
+ENTITY=${ENTITY:-}
 XID=${XID:-}
 OID=${OID:-}
 
@@ -20,14 +20,14 @@ elif [[ -n "$OID" ]]; then
   URL="$SERVICE_URI/config/oid/$OID"
 elif [[ -n "$ID" ]]; then
   URL="$SERVICE_URI/config/$ID"
-  [[ -n "$DETECTOR" ]] && URL="${URL}?detector=${DETECTOR}"
+  [[ -n "$ENTITY" ]] && URL="${URL}?entity=${ENTITY}"
 else
   URL="$SERVICE_URI/config"
   Q=""
-  if [[ -n "$FROM" || -n "$SIZE" ]]; then    
+  if [[ -n "$FROM" || -n "$SIZE" ]]; then
     Q="from=${FROM}&size=${SIZE}"
   fi
-  [[ -n "$DETECTOR" ]] && Q="${Q:+$Q&}detector=${DETECTOR}"
+  [[ -n "$ENTITY" ]] && Q="${Q:+$Q&}entity=${ENTITY}"
   [[ -n "$Q" ]] && URL="${URL}?${Q}"
 fi
 

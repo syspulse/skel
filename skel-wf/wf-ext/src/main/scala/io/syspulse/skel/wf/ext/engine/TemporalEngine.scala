@@ -80,6 +80,19 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
 
   private def stub = service.blockingStub()
 
+  /**
+   * Wrap a blocking Temporal gRPC interaction so EVERY failure is logged at the source (with the
+   * operation + target context) before it propagates. Downstream code may still `recover` and degrade
+   * gracefully, but the exception is never invisible in the logs.
+   */
+  private def call[T](op: String)(f: => T): T =
+    try f
+    catch {
+      case e: Throwable =>
+        log.error(s"Temporal API [${op}] failed @ ${t.target} (ns=${t.namespace}): ${e.getMessage}", e)
+        throw e
+    }
+
   // ---------------------------------------------------------------- helpers
   private def millis(ts: Timestamp): Long = ts.getSeconds * 1000L + ts.getNanos / 1000000L
 
@@ -105,13 +118,13 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
   private def listInNamespace(ns: String, query: String, pageSize: Int): Future[Seq[EngineWorkflow]] = Future {
     val reqB = ListWorkflowExecutionsRequest.newBuilder().setNamespace(ns).setPageSize(pageSize)
     if (query.nonEmpty) reqB.setQuery(query)
-    val resp = stub.listWorkflowExecutions(reqB.build())
+    val resp = call(s"listWorkflowExecutions ns=${ns} query='${query}'") { stub.listWorkflowExecutions(reqB.build()) }
     resp.getExecutionsList.asScala.toSeq.map(info => toSummary(info, ns))
   }
 
   // ---------------------------------------------------------------- namespaces
   def namespaces(): Future[Seq[String]] = Future {
-    val resp = stub.listNamespaces(ListNamespacesRequest.newBuilder().setPageSize(100).build())
+    val resp = call("listNamespaces") { stub.listNamespaces(ListNamespacesRequest.newBuilder().setPageSize(100).build()) }
     resp.getNamespacesList.asScala.toSeq
       .map(_.getNamespaceInfo.getName)
       .filter(n => n != SYSTEM_NAMESPACE)
@@ -134,11 +147,8 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
   def getRuntimes(namespace: Option[String] = None, pageSize: Int = 100): Future[Seq[EngineWorkflow]] =
     resolveNamespaces(namespace).flatMap { nss =>
       Future.sequence(nss.map { ns =>
-        listInNamespace(ns, "", pageSize).recover {
-          case e =>
-            log.warn(s"list failed for ns=${ns}: ${e.getMessage}")
-            Seq.empty[EngineWorkflow]
-        }
+        // failure already logged at source by `call`; degrade this namespace to empty and continue
+        listInNamespace(ns, "", pageSize).recover { case _ => Seq.empty[EngineWorkflow] }
       }).map(_.flatten)
     }
 
@@ -205,7 +215,7 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
         .setExecution(WorkflowExecution.newBuilder().setWorkflowId(workflowId).setRunId(runId).build())
         .setMaximumPageSize(HISTORY_PAGE)
       if (!token.isEmpty) reqB.setNextPageToken(token)
-      val resp = stub.getWorkflowExecutionHistory(reqB.build())
+      val resp = call(s"getWorkflowExecutionHistory ns=${ns} wid=${workflowId} rid=${runId}") { stub.getWorkflowExecutionHistory(reqB.build()) }
       events ++= resp.getHistory.getEventsList.asScala
       token = resp.getNextPageToken
       more = !token.isEmpty

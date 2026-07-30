@@ -94,9 +94,9 @@ assemble() {
   body="$(printf '%s' "$resp" | sed '$d')"
   check "$code" "200" "$body" "PUT /config/${cid} ${name}"
 
-  # fetch the config with full detector expansion to report what was built
+  # fetch the config with full detector+schema expansion to report what was built
   local full nodes links nconf nsch
-  full="$(curl_api GET "/config/${cid}?detector=full")"
+  full="$(curl_api GET "/config/${cid}?entity=all")"
   full="$(printf '%s' "$full" | sed '$d')"
   nodes="$(printf '%s' "$full" | jq '.config.graph.nodes | length')"
   links="$(printf '%s' "$full" | jq '.config.graph.links | length')"

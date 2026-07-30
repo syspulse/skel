@@ -39,7 +39,11 @@ class DetectorRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
   private val (rejectionHandler, exceptionHandler) = (new io.syspulse.skel.Server {}).getHandlers()
   val apiRoutes = handleRejections(rejectionHandler) { handleExceptions(exceptionHandler) { routes.routes } }
 
-  override def afterAll(): Unit = typedSystem.terminate()
+  override def afterAll(): Unit = {
+    typedSystem.terminate()
+    Await.result(typedSystem.whenTerminated, 10.seconds)
+    super.afterAll() // shut down the ScalatestRouteTest actor system too (else it leaks after the suite)
+  }
 
   "Detector REST API" should {
 

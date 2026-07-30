@@ -50,7 +50,11 @@ class ResolveStaleRunSpec extends AnyWordSpec with Matchers with ScalatestRouteT
   }, "test-actor")
   val routes = Await.result(routesPromise.future, 5.seconds)
 
-  override def afterAll(): Unit = typedSystem.terminate()
+  override def afterAll(): Unit = {
+    typedSystem.terminate()
+    Await.result(typedSystem.whenTerminated, 10.seconds)
+    super.afterAll() // shut down the ScalatestRouteTest actor system too (else it leaks after the suite)
+  }
 
   "GET /config/resolve/{runId} for an obsolete run whose WorkflowId still has a live run" should {
     "resolve by the EXACT RunId and return UNRESOLVED (NOT the latest run's RUNNING)" in {

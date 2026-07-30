@@ -21,25 +21,46 @@ import io.syspulse.skel.wf.ext.engine.{Engine, TrackMapper, EngineWorkflow, Engi
 object WorkflowRegistry {
   val log = Logger(s"${this}")
 
-  // `detector` query modes controlling detector enrichment of Get* responses:
-  //   none   -> no detectors (default)
-  //   schema -> add DetectorSchema (queried from the store by node sid)
-  //   config -> add DetectorConfig (by node cid); excludes the DetectorSchema query [legacy "full"]
-  val DETECTOR_NONE   = "none"
-  val DETECTOR_SCHEMA = "schema"
-  val DETECTOR_CONFIG = "config"
+  // `entity` is a CSV set of sections to include in Get* responses (for better visibility):
+  //   graf     -> the WorkflowGraf (nodes+links) inline in the config/schema
+  //   detector -> DetectorConfig map (by node cid) [config only]
+  //   schema   -> DetectorSchema map (by node sid)
+  //   all      -> graf,detector,schema
+  // Empty/absent -> "graf" (the default). When a section is NOT requested the graf is stripped
+  // (nodes/links emptied) so the response stays lightweight.
+  val ENTITY_GRAF     = "graf"
+  val ENTITY_DETECTOR = "detector"
+  val ENTITY_SCHEMA   = "schema"
+  val ENTITY_ALL      = "all"
+
+  /** Parse a CSV `entity` value into a normalized token set. Accepts singular/plural + a couple of
+   *  common typos. Unknown/empty -> the default {graf}. */
+  def parseEntities(raw: String): Set[String] = {
+    val toks = Option(raw).getOrElse("").split(",").map(_.trim.toLowerCase).filter(_.nonEmpty)
+    val expanded: Set[String] = toks.flatMap {
+      case ENTITY_ALL                                        => Seq(ENTITY_GRAF, ENTITY_DETECTOR, ENTITY_SCHEMA)
+      case "graf" | "graph" | "grafs" | "graphs"             => Seq(ENTITY_GRAF)
+      case "detector" | "detectors" | "detectos" | "detecto" => Seq(ENTITY_DETECTOR)
+      case "schema" | "schemas" | "schena" | "schemes"       => Seq(ENTITY_SCHEMA)
+      case _                                                 => Seq.empty
+    }.toSet
+    if (expanded.isEmpty) Set(ENTITY_GRAF) else expanded
+  }
+
+  /** Strip the heavy graph structure (nodes/links) - used when the `graf` section is NOT requested. */
+  private def stripGraf(g: WorkflowGraf): WorkflowGraf = g.copy(nodes = Map.empty, links = Map.empty)
 
   // ---- WorkflowSchema ----
-  final case class GetWorkflowSchemas(from: Option[Long], size: Option[Long], detector: String, replyTo: ActorRef[Try[WorkflowSchemas]]) extends Command
-  final case class GetWorkflowSchema(id: Int, detector: String, replyTo: ActorRef[Try[WorkflowSchemaView]]) extends Command
+  final case class GetWorkflowSchemas(from: Option[Long], size: Option[Long], entity: String, replyTo: ActorRef[Try[WorkflowSchemas]]) extends Command
+  final case class GetWorkflowSchema(id: Int, entity: String, replyTo: ActorRef[Try[WorkflowSchemaView]]) extends Command
   final case class CreateWorkflowSchema(req: WorkflowSchemaCreateReq, replyTo: ActorRef[Try[WorkflowSchema]]) extends Command
   final case class CreateWorkflowSchemaDsl(req: WorkflowSchemaDslReq, replyTo: ActorRef[Try[WorkflowSchema]]) extends Command
   final case class UpdateWorkflowSchema(id: Int, req: WorkflowSchemaUpdateReq, replyTo: ActorRef[Try[WorkflowSchema]]) extends Command
   final case class DeleteWorkflowSchema(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
 
   // ---- WorkflowConfig ----
-  final case class GetWorkflowConfigs(from: Option[Long], size: Option[Long], detector: String, replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
-  final case class GetWorkflowConfig(id: Int, detector: String, replyTo: ActorRef[Try[WorkflowConfigView]]) extends Command
+  final case class GetWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String, replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+  final case class GetWorkflowConfig(id: Int, entity: String, replyTo: ActorRef[Try[WorkflowConfigView]]) extends Command
   final case class GetWorkflowConfigByXid(xid: String, replyTo: ActorRef[Option[WorkflowConfig]]) extends Command
   final case class GetWorkflowConfigsByOid(oid: String, replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
   // resolve WorkflowConfig(s) (+ all DetectorConfigs) by runtimeId (xid) or workflowId (meta.wid), many ids in one call.
@@ -93,10 +114,15 @@ object WorkflowRegistry {
     }
 
   // ---------------------------------------------------------------- view assembly
-  // WorkflowSchema references only DetectorSchema (by node sid): `schema` -> load them, else none.
-  private def schemaView(store: WorkflowStore, s: WorkflowSchema, detector: String)(implicit ec: ExecutionContext): Future[WorkflowSchemaView] =
-    if (detector == DETECTOR_SCHEMA) schemaDetectors(store, Seq(s)).map(m => WorkflowSchemaView(s, Some(m)))
-    else Future.successful(WorkflowSchemaView(s, None))
+  // WorkflowSchema references only DetectorSchema (by node sid). `schema`/`all` -> load them; `graf`
+  // keeps the graph inline (else it is stripped). The DetectorSchema map is derived from the ORIGINAL
+  // graph nodes, so it is unaffected by stripping.
+  private def schemaView(store: WorkflowStore, s: WorkflowSchema, ents: Set[String])(implicit ec: ExecutionContext): Future[WorkflowSchemaView] = {
+    val schema = if (ents(ENTITY_GRAF)) s else s.copy(graph = stripGraf(s.graph))
+    val fSch: Future[Option[Map[String, DetectorSchema]]] =
+      if (ents(ENTITY_SCHEMA)) schemaDetectors(store, Seq(s)).map(Some(_)) else Future.successful(None)
+    fSch.map(m => WorkflowSchemaView(schema, detectors = m))
+  }
 
   /** DetectorSchema map keyed by node sid, for the given graf nodes (schema or config graphs). */
   private def detectorSchemasOf(store: WorkflowStore, sids: Seq[Int])(implicit ec: ExecutionContext): Future[Map[String, DetectorSchema]] = {
@@ -110,13 +136,16 @@ object WorkflowRegistry {
   private def configSchemas(store: WorkflowStore, cs: Seq[WorkflowConfig])(implicit ec: ExecutionContext): Future[Map[String, DetectorSchema]] =
     detectorSchemasOf(store, cs.flatMap(_.graph.nodes.values.map(_.sid)))
 
-  // WorkflowConfig: `config` -> DetectorConfig (by cid); `schema` -> DetectorSchema (by sid); else none.
-  private def configView(store: WorkflowStore, c: WorkflowConfig, detector: String)(implicit ec: ExecutionContext): Future[WorkflowConfigView] =
-    detector match {
-      case DETECTOR_CONFIG => configDetectors(store, Seq(c)).map(m => WorkflowConfigView(c, detectors = Some(m)))
-      case DETECTOR_SCHEMA => configSchemas(store, Seq(c)).map(m => WorkflowConfigView(c, schemas = Some(m)))
-      case _               => Future.successful(WorkflowConfigView(c))
-    }
+  // WorkflowConfig: `detector` -> DetectorConfig (by cid); `schema` -> DetectorSchema (by sid);
+  // `graf` keeps the graph inline (else stripped). Maps derive from the ORIGINAL graph nodes.
+  private def configView(store: WorkflowStore, c: WorkflowConfig, ents: Set[String])(implicit ec: ExecutionContext): Future[WorkflowConfigView] = {
+    val cfg = if (ents(ENTITY_GRAF)) c else c.copy(graph = stripGraf(c.graph))
+    val fDet: Future[Option[Map[String, DetectorConfig]]] =
+      if (ents(ENTITY_DETECTOR)) configDetectors(store, Seq(c)).map(Some(_)) else Future.successful(None)
+    val fSch: Future[Option[Map[String, DetectorSchema]]] =
+      if (ents(ENTITY_SCHEMA)) configSchemas(store, Seq(c)).map(Some(_)) else Future.successful(None)
+    for { d <- fDet; s <- fSch } yield WorkflowConfigView(cfg, detectors = d, schemas = s)
+  }
 
   private def configDetectors(store: WorkflowStore, cs: Seq[WorkflowConfig])(implicit ec: ExecutionContext): Future[Map[String, DetectorConfig]] = {
     val cids = cs.flatMap(_.graph.nodes.values.flatMap(_.cid)).toSet.toSeq
@@ -166,7 +195,12 @@ object WorkflowRegistry {
       case _ /* RESOLVE_RID */ =>
         c.xid.map(rid => e.getRuntime(None, rid)).getOrElse(Future.successful(None))
     }
-    f.recover { case _ => None }
+    // engine failures are logged at the source (TemporalEngine.call); add request-level context here.
+    // NOTE: a failure degrades to None -> the config resolves as UNRESOLVED (see enrichWithEngine).
+    f.recover { case ex =>
+      log.warn(s"resolveRuntime: engine query failed for WorkflowConfig(${c.id}) mode=${mode} -> UNRESOLVED: ${ex.getMessage}")
+      None
+    }
   }
 
   /**
@@ -314,15 +348,17 @@ object WorkflowRegistry {
     Behaviors.receiveMessage {
 
       // -------------------------------------------------- WorkflowSchema
-      case GetWorkflowSchemas(from, size, detector, replyTo) =>
+      case GetWorkflowSchemas(from, size, entity, replyTo) =>
+        val ents = parseEntities(entity)
         store.listSchemas(from, size).flatMap { p =>
-          if (detector == DETECTOR_SCHEMA) schemaDetectors(store, p.schemas).map(m => WorkflowSchemas(p.schemas, p.total, Some(m)))
-          else Future.successful(WorkflowSchemas(p.schemas, p.total, None))
+          val schemas = if (ents(ENTITY_GRAF)) p.schemas else p.schemas.map(s => s.copy(graph = stripGraf(s.graph)))
+          if (ents(ENTITY_SCHEMA)) schemaDetectors(store, p.schemas).map(m => WorkflowSchemas(schemas, p.total, Some(m)))
+          else Future.successful(WorkflowSchemas(schemas, p.total, None))
         }.onComplete(replyTo ! _)
         Behaviors.same
 
-      case GetWorkflowSchema(id, detector, replyTo) =>
-        store.getSchema(id).flatMap(s => schemaView(store, s, detector)).onComplete(replyTo ! _)
+      case GetWorkflowSchema(id, entity, replyTo) =>
+        store.getSchema(id).flatMap(s => schemaView(store, s, parseEntities(entity))).onComplete(replyTo ! _)
         Behaviors.same
 
       case CreateWorkflowSchema(req, replyTo) =>
@@ -364,18 +400,20 @@ object WorkflowRegistry {
         Behaviors.same
 
       // -------------------------------------------------- WorkflowConfig
-      case GetWorkflowConfigs(from, size, detector, replyTo) =>
+      case GetWorkflowConfigs(from, size, entity, replyTo) =>
+        val ents = parseEntities(entity)
         store.listConfigs(from, size).flatMap { p =>
-          detector match {
-            case DETECTOR_CONFIG => configDetectors(store, p.configs).map(m => WorkflowConfigs(p.configs, p.total, detectors = Some(m)))
-            case DETECTOR_SCHEMA => configSchemas(store, p.configs).map(m => WorkflowConfigs(p.configs, p.total, schemas = Some(m)))
-            case _               => Future.successful(WorkflowConfigs(p.configs, p.total))
-          }
+          val configs = if (ents(ENTITY_GRAF)) p.configs else p.configs.map(c => c.copy(graph = stripGraf(c.graph)))
+          val fDet: Future[Option[Map[String, DetectorConfig]]] =
+            if (ents(ENTITY_DETECTOR)) configDetectors(store, p.configs).map(Some(_)) else Future.successful(None)
+          val fSch: Future[Option[Map[String, DetectorSchema]]] =
+            if (ents(ENTITY_SCHEMA)) configSchemas(store, p.configs).map(Some(_)) else Future.successful(None)
+          for { d <- fDet; s <- fSch } yield WorkflowConfigs(configs, p.total, detectors = d, schemas = s)
         }.onComplete(replyTo ! _)
         Behaviors.same
 
-      case GetWorkflowConfig(id, detector, replyTo) =>
-        store.getConfig(id).flatMap(c => configView(store, c, detector)).onComplete(replyTo ! _)
+      case GetWorkflowConfig(id, entity, replyTo) =>
+        store.getConfig(id).flatMap(c => configView(store, c, parseEntities(entity))).onComplete(replyTo ! _)
         Behaviors.same
 
       case GetWorkflowConfigByXid(xid, replyTo) =>

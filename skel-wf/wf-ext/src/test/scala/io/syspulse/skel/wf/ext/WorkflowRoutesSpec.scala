@@ -38,7 +38,11 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
   typedSystem.systemActorOf(testBehavior, "test-actor")
   val routes = Await.result(routesPromise.future, 5.seconds)
 
-  override def afterAll(): Unit = typedSystem.terminate()
+  override def afterAll(): Unit = {
+    typedSystem.terminate()
+    Await.result(typedSystem.whenTerminated, 10.seconds)
+    super.afterAll() // shut down the ScalatestRouteTest actor system too (else it leaks after the suite)
+  }
 
   "WorkflowRoutes" should {
 
@@ -57,24 +61,42 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       Get("/schema/0") ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         val v = responseAs[WorkflowSchemaView]
-        v.schema.graph.nodes should have size 3
-        v.detectors shouldBe None // ?detector defaults to none
+        v.schema.graph.nodes should have size 3 // ?entity defaults to graf -> graph kept
+        v.detectors shouldBe None
       }
     }
 
-    "expand DetectorSchemas with ?detector=schema (none/other -> no detectors)" in {
-      Get("/schema/0?detector=schema") ~> routes.routes ~> check {
+    "select response sections with ?entity CSV (graf default; schema adds DetectorSchema)" in {
+      // schema -> DetectorSchema map; graf NOT requested -> graph is stripped
+      Get("/schema/0?entity=schema") ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         val v = responseAs[WorkflowSchemaView]
-        v.detectors.isDefined shouldBe true
         v.detectors.get should have size 3
+        v.schema.graph.nodes shouldBe empty
       }
-      // non-'schema' modes (none / config) do NOT query DetectorSchema for a schema view
-      Get("/schema/0?detector=config") ~> routes.routes ~> check {
-        responseAs[WorkflowSchemaView].detectors shouldBe None
+      // graf,schema -> both the graph and the DetectorSchema map
+      Get("/schema/0?entity=graf,schema") ~> routes.routes ~> check {
+        val v = responseAs[WorkflowSchemaView]
+        v.detectors.get should have size 3
+        v.schema.graph.nodes should have size 3
       }
+      // all == graf,detector,schema (a schema has no DetectorConfig, so `detector` is a no-op here)
+      Get("/schema/0?entity=all") ~> routes.routes ~> check {
+        val v = responseAs[WorkflowSchemaView]
+        v.detectors.get should have size 3
+        v.schema.graph.nodes should have size 3
+      }
+      // detector alone -> no DetectorSchema map, graf stripped
+      Get("/schema/0?entity=detector") ~> routes.routes ~> check {
+        val v = responseAs[WorkflowSchemaView]
+        v.detectors shouldBe None
+        v.schema.graph.nodes shouldBe empty
+      }
+      // default (no param) -> graf: graph kept, no DetectorSchema map
       Get("/schema/0") ~> routes.routes ~> check {
-        responseAs[WorkflowSchemaView].detectors shouldBe None
+        val v = responseAs[WorkflowSchemaView]
+        v.detectors shouldBe None
+        v.schema.graph.nodes should have size 3
       }
     }
 
@@ -84,7 +106,7 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       }
     }
 
-    "assembly a WorkflowConfig via DSL and read it back with ?detector=config|schema|none" in {
+    "assembly a WorkflowConfig via DSL and read it back with ?entity CSV (graf|detector|schema|all)" in {
       Post("/config/dsl", WorkflowConfigDslReq("Detector.x -> Detector.y", name = Some("WFlow"))) ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         responseAs[WorkflowConfig].graph.isInstance shouldBe true
@@ -93,25 +115,42 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
         status shouldBe StatusCodes.OK
         responseAs[WorkflowConfigs].total shouldBe 1L
       }
-      // detector=config -> DetectorConfig by cid (no DetectorSchema)
-      Get("/config/0?detector=config") ~> routes.routes ~> check {
+      // default (no param) -> graf: graph kept, no detectors/schemas
+      Get("/config/0") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val v = responseAs[WorkflowConfigView]
+        v.config.graph.nodes should have size 2
+        v.detectors shouldBe None
+        v.schemas shouldBe None
+      }
+      // entity=detector -> DetectorConfig by cid; graf stripped
+      Get("/config/0?entity=detector") ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         val v = responseAs[WorkflowConfigView]
         v.detectors.get should have size 2
         v.schemas shouldBe None
+        v.config.graph.nodes shouldBe empty
       }
-      // detector=schema -> DetectorSchema by node sid (no DetectorConfig)
-      Get("/config/0?detector=schema") ~> routes.routes ~> check {
-        status shouldBe StatusCodes.OK
+      // entity=schema -> DetectorSchema by node sid; graf stripped
+      Get("/config/0?entity=schema") ~> routes.routes ~> check {
         val v = responseAs[WorkflowConfigView]
         v.schemas.get should have size 2
         v.detectors shouldBe None
+        v.config.graph.nodes shouldBe empty
       }
-      // default (none) -> neither
-      Get("/config/0") ~> routes.routes ~> check {
+      // CSV: detector,schema -> both maps; graf stripped
+      Get("/config/0?entity=detector,schema") ~> routes.routes ~> check {
         val v = responseAs[WorkflowConfigView]
-        v.detectors shouldBe None
-        v.schemas shouldBe None
+        v.detectors.get should have size 2
+        v.schemas.get should have size 2
+        v.config.graph.nodes shouldBe empty
+      }
+      // entity=all -> graph + DetectorConfig + DetectorSchema
+      Get("/config/0?entity=all") ~> routes.routes ~> check {
+        val v = responseAs[WorkflowConfigView]
+        v.detectors.get should have size 2
+        v.schemas.get should have size 2
+        v.config.graph.nodes should have size 2
       }
     }
 

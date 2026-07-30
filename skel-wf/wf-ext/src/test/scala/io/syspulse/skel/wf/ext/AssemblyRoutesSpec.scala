@@ -48,7 +48,11 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
   }, "test-actor")
   val routes = Await.result(routesPromise.future, 5.seconds)
 
-  override def afterAll(): Unit = typedSystem.terminate()
+  override def afterAll(): Unit = {
+    typedSystem.terminate()
+    Await.result(typedSystem.whenTerminated, 10.seconds)
+    super.afterAll() // shut down the ScalatestRouteTest actor system too (else it leaks after the suite)
+  }
 
   "POST /config/assembly" should {
     "assembly a WorkflowConfig from bracket DSL" in {
