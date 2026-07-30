@@ -179,14 +179,16 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
     return true;
   }, [nodes, edges, persist, setNodes, onValidateCid]);
 
-  // cid -> DetectorConfig.name (shown as a small top-left label on the node)
-  const detectorNameByCid = useMemo(() => {
-    const m = new Map<number, string>();
-    detectorConfigs.forEach((d) => m.set(d.id, d.name));
+  // cid -> current DetectorConfig (its name + status are shown on the node, even before Resolve)
+  const detectorByCid = useMemo(() => {
+    const m = new Map<number, DetectorConfig>();
+    detectorConfigs.forEach((d) => m.set(d.id, d));
     return m;
   }, [detectorConfigs]);
 
-  // search highlight (dim non-matching) + overlay DetectorConfig status + activity_id + name (from /resolve) by node cid
+  // search highlight (dim non-matching) + overlay the node's DetectorConfig name/status/activity_id by cid.
+  // Status precedence: live /resolve status (if resolved) > current stored DetectorConfig.status > node's own.
+  // This guarantees the node always shows the CURRENT DetectorConfig.status, not only after a Resolve.
   const displayNodes = useMemo(() => {
     const q = search.trim().toLowerCase();
     const ds = detectorStatus;
@@ -194,18 +196,20 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
     return nodes.map((n) => {
       const cid = n.data.cid;
       const hasCid = cid !== undefined && cid !== null;
-      const st = ds && hasCid ? ds[cid] : undefined;
+      const dc = hasCid ? detectorByCid.get(cid) : undefined;
+      const st = ds && hasCid ? ds[cid] : undefined;       // live status from the last Resolve (overlay)
+      const baseStatus = dc?.status;                        // current stored DetectorConfig.status (always)
       const aid = da && hasCid ? da[cid] : undefined;
-      const dn = hasCid ? detectorNameByCid.get(cid) : undefined;
-      const changed = st !== undefined || aid !== undefined || dn !== undefined;
+      const dn = dc?.name;
+      const changed = st !== undefined || baseStatus !== undefined || aid !== undefined || dn !== undefined;
       if (!changed && !q) return n; // nothing to overlay/dim -> keep identity (avoid re-render)
       const data = changed
-        ? { ...n.data, status: st ?? n.data.status, activityId: aid ?? n.data.activityId, detectorName: dn ?? n.data.detectorName }
+        ? { ...n.data, status: st ?? baseStatus ?? n.data.status, activityId: aid ?? n.data.activityId, detectorName: dn ?? n.data.detectorName }
         : n.data;
       const style = q ? { ...n.style, opacity: n.data.title.toLowerCase().includes(q) ? 1 : 0.25 } : n.style;
       return { ...n, data, style };
     });
-  }, [nodes, search, detectorStatus, detectorActivityId, detectorNameByCid]);
+  }, [nodes, search, detectorStatus, detectorActivityId, detectorByCid]);
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId) ?? null;

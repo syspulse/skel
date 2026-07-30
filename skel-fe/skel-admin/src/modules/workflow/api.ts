@@ -16,11 +16,11 @@ function getBaseUrl(): string {
   return import.meta.env.VITE_WORKFLOW_API_URL || 'http://localhost:8080/api/v1/wf/ext';
 }
 
-function pageQuery(from?: number, size?: number, detector?: string): string {
+function pageQuery(from?: number, size?: number, entity?: string): string {
   const p = new URLSearchParams();
   if (from !== undefined) p.set('from', String(from));
   if (size !== undefined) p.set('size', String(size));
-  if (detector) p.set('detector', detector);
+  if (entity) p.set('entity', entity);
   const q = p.toString();
   return q ? `?${q}` : '';
 }
@@ -43,10 +43,12 @@ async function DEL<T>(token: string | null, path: string): Promise<T> {
 }
 
 // ---------------------------------------------------------------- WorkflowSchema
+// `detail` pulls the referenced DetectorSchema map alongside the graph -> entity=graf,schema.
+// Without detail the default (graf) still returns the graph (needed for the node/link counts).
 export const listSchemas = (token: string | null, from?: number, size?: number, detail?: boolean) =>
-  GET<WorkflowSchemas>(token, `/schema${pageQuery(from, size, detail ? 'schema' : undefined)}`);
+  GET<WorkflowSchemas>(token, `/schema${pageQuery(from, size, detail ? 'graf,schema' : undefined)}`);
 export const getSchema = (token: string | null, id: number, detail?: boolean) =>
-  GET<WorkflowSchemaView>(token, `/schema/${id}${detail ? '?detector=schema' : ''}`);
+  GET<WorkflowSchemaView>(token, `/schema/${id}${detail ? '?entity=graf,schema' : ''}`);
 export const createSchema = (token: string | null, req: WorkflowSchemaCreateReq) =>
   POST<WorkflowSchema>(token, '/schema', req);
 export const createSchemaDsl = (token: string | null, pipeline: string, name?: string) =>
@@ -58,7 +60,8 @@ export const deleteSchema = (token: string | null, id: number) =>
 
 // ---------------------------------------------------------------- WorkflowConfig
 // NOTE: the config views don't consume `detectors`/`schemas` (the editor uses the separate detector
-// lists + /resolve), so we request `detector=none` (default). Pass 'schema'/'config' only if needed.
+// lists + /resolve) - only the graph. The default (graf) returns exactly that. Pass
+// 'detector'/'schema'/'all' (CSV) to `entity` only if the maps are needed.
 export const listConfigs = (token: string | null, from?: number, size?: number) =>
   GET<WorkflowConfigs>(token, `/config${pageQuery(from, size)}`);
 export const getConfig = (token: string | null, id: number) =>

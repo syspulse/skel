@@ -122,7 +122,7 @@ export function DetectorNode({ data, selected }: NodeProps) {
         </span>
       </div>
 
-      {/* DetectorConfig runtime status (from /resolve): bottom-right corner, colored per Temporal */}
+      {/* DetectorConfig status (current stored status, or live from /resolve): bottom-right, colored per Temporal */}
       {d.status ? (() => {
         const st = statusStyle(d.status);
         return (
