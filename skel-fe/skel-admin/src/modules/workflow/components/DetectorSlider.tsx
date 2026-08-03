@@ -9,8 +9,9 @@ import { FormattedTimestamp } from '../../../components/FormattedTimestamp';
 import { TagsInput } from '../../../components/TagsInput';
 import { SliderFieldRow } from '../../../components/SliderFieldRow';
 
-// statuses per DetectorConfig.scala / DetectorSchema.scala (ACTIVE/DISABLED) + DELETED
-const STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
+// lifecycle statuses (DetectorSchema) + engine runtime statuses (DetectorConfig, e.g. RUNNING) - see WorkflowStatus.scala
+const LIFECYCLE_STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
+const RUNTIME_STATUSES = ['NEW', 'SCHEDULED', 'STARTING', 'RUNNING', 'WAITING', 'PAUSED', 'COMPLETED', 'FAILED', 'TERMINATED', 'CANCELED', 'TIMED_OUT', 'CONTINUED_AS_NEW', 'UNRESOLVED', 'UNKNOWN'];
 
 interface DetectorSliderProps {
   open: boolean;
@@ -125,6 +126,10 @@ export function DetectorSlider(props: DetectorSliderProps) {
   // read-only when opened from the editor OR in the "Detector" extended (enriched, view-only) mode
   const viewOnly = !!readOnly || !!extended;
   const kindLabel = extended ? t(entityLabelKey(KIND.detector)) : t(entityLabelKey(kind));
+  // status options: DetectorConfig gets the full runtime vocabulary, DetectorSchema only lifecycle.
+  // Always include the current value so an unexpected status still renders as the selected option.
+  const statusList = isSchema ? LIFECYCLE_STATUSES : [...LIFECYCLE_STATUSES, ...RUNTIME_STATUSES];
+  const statusOptions = !status || statusList.includes(status) ? statusList : [status, ...statusList];
 
   return (
     <>
@@ -168,7 +173,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
             {viewOnly
               ? <div className="field-readonly">{status}</div>
               : <select className="field-inline" value={status} onChange={(e) => setStatus(e.target.value)}>
-                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>}
           </SliderFieldRow>
 
