@@ -69,6 +69,7 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [xidCopied, setXidCopied] = useState(false); // brief brightness flash after copying xid
 
   const nodeTypes = useMemo(() => ({ detector: DetectorNode }), []);
   const addCounter = useRef(0);
@@ -231,6 +232,23 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
             <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0" style={idLabelStyle(kind)}>
               {id}
             </span>
+            {/* WorkflowConfig engine runtime id (xid), next to the id: amber (same as node runId/activity_id),
+                click to copy the full value with a brief brightness flash */}
+            {kind === KIND.workflowConfig && xid ? (
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded shrink-0 font-mono max-w-[240px] truncate"
+                style={{ background: '#fcd34d', color: '#0f172a', cursor: 'pointer', transition: 'filter 120ms', ...(xidCopied ? { filter: 'brightness(1.35)' } : {}) }}
+                title={`xid: ${xid} (click to copy)`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  try { navigator.clipboard?.writeText(xid); } catch { /* clipboard unavailable */ }
+                  setXidCopied(true);
+                  window.setTimeout(() => setXidCopied(false), 450);
+                }}
+              >
+                {xid}
+              </span>
+            ) : null}
             {/* WorkflowConfig runtime status label, next to the id */}
             {status ? (
               <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0 font-semibold" style={statusChipStyle(status)} title={`status: ${status}`}>
@@ -242,10 +260,6 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
               …
             </button>
           </div>
-          {/* xid row: engine runtime id (no name duplication) */}
-          {kind === KIND.workflowConfig && xid ? (
-            <div className="text-[11px] text-muted-foreground font-mono truncate" title={`xid: ${xid}`}>{xid}</div>
-          ) : null}
         </div>
         <button onClick={onBack} className="text-muted-foreground hover:text-foreground p-1 rounded shrink-0" title={t('common.close')}>
           <IconClose size={18} />

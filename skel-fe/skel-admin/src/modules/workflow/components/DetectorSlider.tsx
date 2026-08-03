@@ -22,6 +22,7 @@ interface DetectorSliderProps {
   saving: boolean;
   timezone: string;
   readOnly?: boolean;              // when opened from the editor: view only, no edit/delete
+  extended?: boolean;              // "Detector" tab: read-only enriched view - adds Contract + Schema sections
   onClose: () => void;
   onCreateSchema: (req: { name: string; title?: string; description?: string; version?: string; author?: string; icon?: string; tags?: string[]; schema?: Record<string, unknown>; uiSchema?: Record<string, unknown> }) => Promise<void>;
   onCreateConfig: (req: { name: string; sid?: number; source?: string; tags?: string[]; config?: Record<string, unknown> }) => Promise<void>;
@@ -32,7 +33,7 @@ interface DetectorSliderProps {
 }
 
 export function DetectorSlider(props: DetectorSliderProps) {
-  const { open, addMode, kind, schema, config, schemas, saving, timezone, readOnly, onClose, onCreateSchema, onCreateConfig, onUpdateSchema, onUpdateConfig, onOpenSchema, onDelete } = props;
+  const { open, addMode, kind, schema, config, schemas, saving, timezone, readOnly, extended, onClose, onCreateSchema, onCreateConfig, onUpdateSchema, onUpdateConfig, onOpenSchema, onDelete } = props;
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
 
@@ -121,8 +122,9 @@ export function DetectorSlider(props: DetectorSliderProps) {
   };
 
   const isSchema = kind === KIND.detectorSchema;
-  const viewOnly = !!readOnly; // both DetectorSchema and DetectorConfig are editable
-  const kindLabel = t(entityLabelKey(kind));
+  // read-only when opened from the editor OR in the "Detector" extended (enriched, view-only) mode
+  const viewOnly = !!readOnly || !!extended;
+  const kindLabel = extended ? t(entityLabelKey(KIND.detector)) : t(entityLabelKey(kind));
 
   return (
     <>
@@ -243,14 +245,56 @@ export function DetectorSlider(props: DetectorSliderProps) {
                 </SliderFieldRow>
               )}
               <SliderFieldRow label={t('workflow.fields.source')}>
-                <input className="field-inline" value={source} onChange={(e) => setSource(e.target.value)} />
+                {viewOnly ? <div className="field-readonly">{source || ''}</div>
+                  : <input className="field-inline" value={source} onChange={(e) => setSource(e.target.value)} />}
               </SliderFieldRow>
               <div className="field-stack">
                 <label className="field-stack-label">config (JSON)</label>
-                <textarea rows={14} spellCheck={false} value={configJson} onChange={(e) => setConfigJson(e.target.value)}
-                  placeholder={'{\n  "severity": 0.5\n}'}
-                  className="field-code" />
+                {viewOnly
+                  ? <pre className="code-block-sm">{configJson || ''}</pre>
+                  : <textarea rows={14} spellCheck={false} value={configJson} onChange={(e) => setConfigJson(e.target.value)}
+                      placeholder={'{\n  "severity": 0.5\n}'}
+                      className="field-code" />}
               </div>
+
+              {/* "Detector" extended view: enriched read-only info from the associated Contract + DetectorSchema */}
+              {extended && !addMode && (
+                <>
+                  <div className="pt-3 pb-1 text-xs font-semibold uppercase text-muted-foreground">{t('workflow.fields.contract')}</div>
+                  <SliderFieldRow label={t('workflow.fields.id')}>
+                    <div className="field-readonly">{config?.contract?.id ?? ''}</div>
+                  </SliderFieldRow>
+                  <SliderFieldRow label={t('workflow.fields.tenant')}>
+                    <div className="field-readonly">{config?.contract?.tenantId ?? ''}</div>
+                  </SliderFieldRow>
+                  <SliderFieldRow label={t('workflow.fields.project')}>
+                    <div className="field-readonly">{config?.contract?.projectId ?? ''}</div>
+                  </SliderFieldRow>
+                  <SliderFieldRow label={t('workflow.fields.name')}>
+                    <div className="field-readonly">{config?.contract?.name ?? ''}</div>
+                  </SliderFieldRow>
+                  <SliderFieldRow label={t('workflow.fields.address')}>
+                    <div className="field-readonly">{config?.contract?.address ?? ''}</div>
+                  </SliderFieldRow>
+                  <SliderFieldRow label={t('workflow.fields.chainUid')}>
+                    <div className="field-readonly">{config?.contract?.chainUid ?? ''}</div>
+                  </SliderFieldRow>
+
+                  <div className="pt-3 pb-1 text-xs font-semibold uppercase text-muted-foreground">{t('workflow.fields.schema')}</div>
+                  <SliderFieldRow label={t('workflow.fields.id')}>
+                    <div className="field-readonly">{config?.schema?.id ?? ''}</div>
+                  </SliderFieldRow>
+                  <SliderFieldRow label={t('workflow.fields.name')}>
+                    <div className="field-readonly">{config?.schema?.name ?? ''}</div>
+                  </SliderFieldRow>
+                  <SliderFieldRow label={t('workflow.fields.version')}>
+                    <div className="field-readonly">{config?.schema?.version ?? ''}</div>
+                  </SliderFieldRow>
+                  <SliderFieldRow label={t('workflow.fields.status')}>
+                    <div className="field-readonly">{config?.schema?.status ?? ''}</div>
+                  </SliderFieldRow>
+                </>
+              )}
             </>
           )}
         </div>

@@ -256,7 +256,12 @@
       "graph": "graph",
       "cid": "cid",
       "ts": "ts",
-      "ts0": "ts0"
+      "ts0": "ts0",
+      "contract": "contract",
+      "tenant": "tenant_id",
+      "project": "project_id",
+      "address": "address",
+      "chainUid": "chain_uid"
     },
     "graphNodes": "nodes",
     "graphLinks": "links",

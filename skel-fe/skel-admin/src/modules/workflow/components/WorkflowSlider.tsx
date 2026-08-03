@@ -8,9 +8,10 @@ import { IconPicker } from '../../../components/IconPicker';
 import { FormattedTimestamp } from '../../../components/FormattedTimestamp';
 import { TagsInput } from '../../../components/TagsInput';
 import { SliderFieldRow } from '../../../components/SliderFieldRow';
-import { statusChipStyle } from '../status';
 
-const STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
+// lifecycle statuses (WorkflowSchema) + engine runtime statuses (WorkflowConfig, e.g. RUNNING) - see WorkflowStatus.scala
+const LIFECYCLE_STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
+const RUNTIME_STATUSES = ['NEW', 'SCHEDULED', 'STARTING', 'RUNNING', 'WAITING', 'PAUSED', 'COMPLETED', 'FAILED', 'TERMINATED', 'CANCELED', 'TIMED_OUT', 'CONTINUED_AS_NEW', 'UNRESOLVED', 'UNKNOWN'];
 
 interface CommonForm {
   name: string; title: string; description: string; status: string;
@@ -49,7 +50,10 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
   const [error, setError] = useState<string | null>(null);
 
   const entity = kind === KIND.workflowSchema ? schema : config;
-  const graph = entity?.graph;
+  // status options: WorkflowConfig gets the full runtime vocabulary, WorkflowSchema only lifecycle.
+  // Always include the current value so an unexpected status still renders as the selected option.
+  const statusList = kind === KIND.workflowConfig ? [...LIFECYCLE_STATUSES, ...RUNTIME_STATUSES] : LIFECYCLE_STATUSES;
+  const statusOptions = !form.status || statusList.includes(form.status) ? statusList : [form.status, ...statusList];
 
   useEffect(() => {
     setError(null);
@@ -99,7 +103,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
       <div className={`slide-panel slide-panel-sm ${open ? 'slide-panel-open' : 'slide-panel-closed'}`}>
         <div className="slide-header">
           <h2 className="slide-title">
-            {addMode ? t('common.add') : t('common.edit')} {t(entityLabelKey(kind))}
+            {addMode ? `${t('common.add')} ${t(entityLabelKey(kind))}` : `${t(entityLabelKey(kind))} / ${form.name}`}
           </h2>
           <div className="flex items-center gap-2">
             {!addMode && kind === KIND.workflowConfig && onResolve && (
@@ -121,17 +125,10 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
         <div className="slide-body">
           {error && <div className="alert-error">{error}</div>}
 
-          {/* id is always first; WorkflowConfig shows its runtime status label next to the id */}
+          {/* id is always first (runtime status is shown in the `status` field below) */}
           {!addMode && entity && (
             <SliderFieldRow label={t('workflow.fields.id')}>
-              <div className="field-readonly flex items-center gap-2">
-                <span>{entity.id}</span>
-                {kind === KIND.workflowConfig && config?.status && (
-                  <span className="text-[11px] px-1.5 py-0.5 rounded font-semibold" style={statusChipStyle(config.status)} title={`status: ${config.status}`}>
-                    {config.status}
-                  </span>
-                )}
-              </div>
+              <div className="field-readonly">{entity.id}</div>
             </SliderFieldRow>
           )}
 
@@ -181,7 +178,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
             <>
               <SliderFieldRow label={t('workflow.fields.status')}>
                 <select className="field-inline" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
-                  {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {statusOptions.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </SliderFieldRow>
               <SliderFieldRow label={t('workflow.fields.version')}>
@@ -208,14 +205,6 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
             </>
           )}
 
-          {!addMode && entity && (
-            <SliderFieldRow label={t('workflow.fields.graph')}>
-              <div className="field-readonly">
-                {t('workflow.graphNodes')}: {graph ? Object.keys(graph.nodes ?? {}).length : 0}, {t('workflow.graphLinks')}: {graph ? Object.keys(graph.links ?? {}).length : 0}
-              </div>
-            </SliderFieldRow>
-          )}
-          
         </div>
 
         <div className="slide-footer">

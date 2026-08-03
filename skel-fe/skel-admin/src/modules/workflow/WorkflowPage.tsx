@@ -494,7 +494,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   const selectedSchema = sliderKind === KIND.workflowSchema && selectedId !== null ? schemas.find((s) => s.id === selectedId) ?? null : null;
   const selectedConfig = sliderKind === KIND.workflowConfig && selectedId !== null ? configs.find((c) => c.id === selectedId) ?? null : null;
   const selectedDetSchema = sliderKind === KIND.detectorSchema && selectedId !== null ? detSchemas.find((d) => d.id === selectedId) ?? null : null;
-  const selectedDetConfig = sliderKind === KIND.detectorConfig && selectedId !== null ? detConfigs.find((d) => d.id === selectedId) ?? null : null;
+  const selectedDetConfig = (sliderKind === KIND.detectorConfig || sliderKind === KIND.detector) && selectedId !== null ? detConfigs.find((d) => d.id === selectedId) ?? null : null;
 
   return (
     <>
@@ -527,9 +527,9 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
                   columns={columnsFor(active as EntityKind)}
                   defaultIcon={defaultIconFor(active as EntityKind)}
                   timezone={timezone}
-                  selectedId={sliderKind === effectiveKind(active as EntityKind) ? selectedId : null}
+                  selectedId={sliderKind === (active as EntityKind) ? selectedId : null}
                   minRows={pageSize === PAGE_SIZE_ALL ? pageRows.length : pageSize}
-                  onRowClick={(id) => openDetails(effectiveKind(active as EntityKind), id)}
+                  onRowClick={(id) => openDetails(active as EntityKind, id)}
                   onRowDoubleClick={(id) => {
                     const k = active as EntityKind;
                     // double-click a WorkflowSchema/Config -> go straight to the design (editor) view
@@ -597,9 +597,10 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
 
       {/* Detector schema/config details */}
       <DetectorSlider
-        open={sliderKind === KIND.detectorSchema || sliderKind === KIND.detectorConfig}
+        open={sliderKind === KIND.detectorSchema || sliderKind === KIND.detectorConfig || sliderKind === KIND.detector}
         addMode={addMode}
-        kind={sliderKind === KIND.detectorConfig ? KIND.detectorConfig : KIND.detectorSchema}
+        kind={sliderKind === KIND.detectorSchema ? KIND.detectorSchema : KIND.detectorConfig}
+        extended={sliderKind === KIND.detector}
         schema={selectedDetSchema}
         config={selectedDetConfig}
         schemas={detSchemas}
