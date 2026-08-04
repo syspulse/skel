@@ -9,24 +9,33 @@ import scala.concurrent.duration._
 
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.{StatusCodes, HttpEntity, ContentTypes}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 
 import io.hacken.ext.wf._
 import io.syspulse.skel.wf.ext.store.{WorkflowStoreMem, WorkflowRegistry}
 import io.syspulse.skel.wf.ext.server._
-import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineActivity, EngineStatus}
+import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineActivity, EngineStatus, EngineStart}
 
 /** Stub Engine: UUID id -> getRuntime (fixed run), workflowId -> getRuntimeByWorkflowId (latest run). */
 class StubEngine extends Engine {
   val name = Engine.TEMPORAL
   private val acts = Seq(EngineActivity("a1", "ProofOfOwnership", EngineActivity.KIND_ACTIVITY, EngineStatus.COMPLETED))
+  // records the last start() call so tests can assert what the API sent to the Engine
+  @volatile var lastStart: Option[(String, String, String, Option[String])] = None // (type, wid, taskQueue, input)
+  @volatile var lastRunId: String = "" // the RunId returned by the most recent start() (unique per call)
+  private val runCounter = new java.util.concurrent.atomic.AtomicInteger(0)
   def namespaces(): Future[Seq[String]] = Future.successful(Seq("default"))
   def getRuntimes(ns: Option[String], pageSize: Int): Future[Seq[EngineWorkflow]] = Future.successful(Seq())
   def getRuntime(ns: Option[String], runtimeId: String): Future[Option[EngineWorkflow]] =
     Future.successful(Some(EngineWorkflow(id = "PoR-Wf-1", runtimeId = runtimeId, name = "PoR-Flow", status = "RUNNING", namespace = "default", activities = acts)))
   def getRuntimeByWorkflowId(ns: Option[String], workflowId: String): Future[Option[EngineWorkflow]] =
     Future.successful(Some(EngineWorkflow(id = workflowId, runtimeId = "run-xyz", name = "PoR-Flow", status = "RUNNING", namespace = "default", activities = acts)))
+  override def start(ns: Option[String], workflowType: String, workflowId: String, taskQueue: String, input: Option[String]): Future[EngineStart] = {
+    lastStart = Some((workflowType, workflowId, taskQueue, input))
+    lastRunId = s"run-started-${runCounter.incrementAndGet()}" // unique per start -> unique xid (avoids RID resolve collisions)
+    Future.successful(EngineStart(workflowId, lastRunId, ns.getOrElse("default")))
+  }
   def close(): Unit = ()
 }
 
@@ -35,9 +44,11 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import WorkflowJson._
   import io.hacken.ext.wf.WorkflowConfigJson._
+  import io.hacken.ext.wf.WorkflowSchemaJson._
 
   val store = new WorkflowStoreMem()
-  val engine = Some(new StubEngine)
+  val stubEngine = new StubEngine
+  val engine = Some(stubEngine)
   val typedSystem = ActorSystem(Behaviors.empty, "AsmTestSystem")
   val registry = typedSystem.systemActorOf(WorkflowRegistry(store, engine), "WorkflowRegistry")
 
@@ -114,6 +125,20 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       }
     }
 
+    "resolve by WorkflowConfig.id (type=id) -> match by numeric id, query the Engine by that config's xid" in {
+      val WID = "PoR-ById-1"
+      val cfg = Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
+      }
+      Get(s"/config/resolve/${cfg.id}?type=id") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val r = responseAs[WorkflowConfigs]
+        r.total shouldBe 1L
+        r.configs.head.id shouldBe cfg.id
+        r.configs.head.status shouldBe EngineStatus.RUNNING   // matched by id -> resolved via xid
+      }
+    }
+
     "PERSIST the Engine statuses back to the store (Mem: WorkflowConfig + DetectorConfig)" in {
       val WID = "PoR-Persist-1"
       val cfg = Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~> routes.routes ~> check {
@@ -131,6 +156,86 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       Await.result(store.getConfig(cfg.id), 5.seconds).status shouldBe EngineStatus.RUNNING
       Await.result(store.getDetectorConfig(pooCid), 5.seconds).get.status shouldBe EngineStatus.COMPLETED // matched activity
       Await.result(store.getDetectorConfig(porCid), 5.seconds).get.status shouldBe EngineStatus.UNKNOWN   // no activity yet
+    }
+
+    "POST /schema/{id}/start creates a WorkflowConfig from the schema and starts an Engine execution (xid + meta.wid, resolved)" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership -> Detector.ProofOfReserve", name = Some("StartFlow"))) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+
+      val started = Post(s"/schema/${sc.id}/start") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        val r = responseAs[WorkflowConfigs]
+        r.total shouldBe 1L
+        val c = r.configs.head
+        c.sid shouldBe sc.id                                    // a NEW config created from the schema
+        c.xid shouldBe Some(stubEngine.lastRunId)                   // xid = the started RunId
+        c.status shouldBe EngineStatus.RUNNING                 // live status pulled by Resolve
+        c.meta.flatMap(_.get("wid")).map(_.toString).isDefined shouldBe true
+        c
+      }
+
+      // the binding is PERSISTED
+      val saved = Await.result(store.getConfig(started.id), 5.seconds)
+      saved.xid shouldBe Some(stubEngine.lastRunId)
+
+      // Engine received: WorkflowType == schema.name; WorkflowId == config.title (or .name if title empty)
+      val (wtype, wid, tq, input) = stubEngine.lastStart.get
+      wtype shouldBe sc.name
+      wid shouldBe (if (started.title.trim.nonEmpty) started.title else started.name)
+      tq shouldBe "GENERIC_WORKFLOW_QUEUE"
+      input.isDefined shouldBe true
+    }
+
+    "POST /schema/{id}/start honors ?taskQueue and a caller-supplied JSON input body" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership", name = Some("StartFlow2"))) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      Post(s"/schema/${sc.id}/start?taskQueue=MY_QUEUE").withEntity(HttpEntity(ContentTypes.`application/json`, """{"k":"v"}""")) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[WorkflowConfigs].configs.head.xid shouldBe Some(stubEngine.lastRunId)
+      }
+      val (_, _, tq, input) = stubEngine.lastStart.get
+      tq shouldBe "MY_QUEUE"                                    // request overrides the default
+      input shouldBe Some("""{"k":"v"}""")                     // caller body overrides the config payload
+    }
+
+    "WorkflowConfig.from substitutes {id}/{ts}/{meta} placeholders in name and title" in {
+      val sc = WorkflowSchema.of(0, "Type-{id}", WorkflowGraf(id = 0))
+        .copy(title = "run-{pid}-{id}", meta = Some(Map("pid" -> "P7")))
+      val c = WorkflowConfig.from(7, sc)
+      c.name shouldBe "Type-7"                                  // {id} -> new config id
+      c.title shouldBe "run-P7-7"                               // {pid} -> meta.pid, {id} -> config id
+      c.title should not include "{"
+      // {ts} resolves to a numeric epoch (unknown keys drop to "")
+      WorkflowConfig.from(9, sc.copy(title = "t-{ts}-{nope}")).title should fullyMatch regex "t-[0-9]+-"
+    }
+
+    "POST /schema/{id}/start substitutes {id}/{ts} and derives a unique WorkflowId" in {
+      val sc = Post("/schema", WorkflowSchemaCreateReq(name = "Type-{id}", title = Some("run-{id}-{ts}"))) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      val c = Post(s"/schema/${sc.id}/start") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowConfigs].configs.head
+      }
+      c.name shouldBe s"Type-${c.id}"                           // WorkflowType == substituted schema.name
+      c.title should startWith (s"run-${c.id}-")
+      c.title should not include "{"
+      val (wtype, wid, _, _) = stubEngine.lastStart.get
+      wtype shouldBe c.name
+      wid shouldBe c.title                                      // WorkflowId == substituted title (unique)
+    }
+
+    "POST /schema/{id}/start?wid=... overrides the WorkflowId" in {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership", name = Some("StartFlow4"))) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
+      }
+      Post(s"/schema/${sc.id}/start?wid=custom-wid-123") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[WorkflowConfigs].configs.head.xid shouldBe Some(stubEngine.lastRunId)
+      }
+      val (_, wid, _, _) = stubEngine.lastStart.get
+      wid shouldBe "custom-wid-123"
     }
   }
 }

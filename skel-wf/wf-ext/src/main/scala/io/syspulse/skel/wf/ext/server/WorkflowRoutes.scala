@@ -24,6 +24,8 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody
 import jakarta.ws.rs.{Consumes, POST, PUT, GET, DELETE, Path, Produces}
 import jakarta.ws.rs.core.MediaType
 
+import spray.json.JsValue
+
 import io.syspulse.skel.service.Routeable
 import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.Command
@@ -36,7 +38,7 @@ import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineWorkflows, 
 
 /**
  * Workflow `ext` REST API:
- *   /api/v1/wf/ext/schema  - WorkflowSchema CRUD (+ ?entity={graf,detector,schema|all}, + /dsl)
+ *   /api/v1/wf/ext/schema  - WorkflowSchema CRUD (+ ?entity={graf,detector,schema|all}, + /dsl, /{id}/start)
  *   /api/v1/wf/ext/config  - WorkflowConfig CRUD (+ ?entity={graf,detector,schema|all}, + /dsl, /xid, /oid)
  *   /api/v1/wf/ext/graf    - WorkflowGraf CRUD (visual configuration)
  *   /api/v1/wf/ext/engine  - Engine runtime state (Temporal), enabled when an Engine is configured
@@ -63,6 +65,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def createWorkflowSchemaDsl(req: WorkflowSchemaDslReq): Future[Try[WorkflowSchema]] = registry.ask(CreateWorkflowSchemaDsl(req, _))
   def updateWorkflowSchema(id: Int, req: WorkflowSchemaUpdateReq): Future[Try[WorkflowSchema]] = registry.ask(UpdateWorkflowSchema(id, req, _))
   def deleteWorkflowSchema(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteWorkflowSchema(id, _))
+  def startWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(StartWorkflowSchema(id, taskQueue, input, wid, _))
 
   // ---- WorkflowConfig asks ----
   def getWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigs(from, size, entity, _))
@@ -106,6 +109,15 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   // The raw value is passed through and parsed in WorkflowRegistry.parseEntities.
   private def entityMode(entity: Option[String]): String = entity.getOrElse("")
 
+  private val DEF_PAGE_FROM = 0L
+  private val DEF_PAGE_SIZE = 10L
+
+  /** Fill missing paging params with defaults when either is set; both absent means no paging. */
+  private def pageFrom(from: Option[Long], size: Option[Long]): Option[Long] =
+    from.orElse(size.map(_ => DEF_PAGE_FROM))
+  private def pageSize(from: Option[Long], size: Option[Long]): Option[Long] =
+    size.orElse(from.map(_ => DEF_PAGE_SIZE))
+
   // NOTE: error handling is centralized in Server.scala (JSON ExceptionHandler). Routes just
   // `complete(...)` the ask result - a `Future[Try[T]]` Failure (or a failed Future) is re-raised by
   // the akka-http Try/Throwable marshaller and rendered as JSON by the Server (ErrNotFound -> 404).
@@ -141,10 +153,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemas]))))))
   def getWorkflowSchemasRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?, "entity".?) { (from, size, entity) =>
-      (from, size) match {
-        case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
-        case _ => complete(getWorkflowSchemas(from, size, entityMode(entity)))
-      }
+      complete(getWorkflowSchemas(pageFrom(from, size), pageSize(from, size), entityMode(entity)))
     }
   }
 
@@ -191,10 +200,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def getWorkflowConfigsRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?, "entity".?) { (from, size, entity) =>
-      (from, size) match {
-        case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
-        case _ => complete(getWorkflowConfigs(from, size, entityMode(entity)))
-      }
+      complete(getWorkflowConfigs(pageFrom(from, size), pageSize(from, size), entityMode(entity)))
     }
   }
 
@@ -219,15 +225,33 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     csv.split(",").map(_.trim).filter(_.nonEmpty).toSeq
 
   @GET @Path("/config/resolve/{ids}") @Produces(Array(MediaType.APPLICATION_JSON))
-  @Operation(tags = Array("config"), summary = "Resolve WorkflowConfig(s) + all DetectorConfigs by runtimeId or workflowId (statuses taken LIVE from the Engine; UNRESOLVED when not present)",
+  @Operation(tags = Array("config"), summary = "Resolve WorkflowConfig(s) + all DetectorConfigs by runtimeId, workflowId, or WorkflowConfig.id (statuses taken LIVE from the Engine; UNRESOLVED when not present)",
     parameters = Array(
-      new Parameter(name = "ids", in = ParameterIn.PATH, description = "comma-separated runtimeId (UUID) and/or workflowId list"),
-      new Parameter(name = "type", in = ParameterIn.QUERY, description = "force resolution mode: 'rid' (runtimeId/xid) or 'wid' (workflowId); default auto-detect")),
+      new Parameter(name = "ids", in = ParameterIn.PATH, description = "comma-separated list: runtimeId (UUID) / workflowId, or WorkflowConfig.id when type=id"),
+      new Parameter(name = "type", in = ParameterIn.QUERY, description = "force resolution mode: 'rid' (runtimeId/xid), 'wid' (workflowId), or 'id' (WorkflowConfig.id); default auto-detect (rid|wid)")),
     responses = Array(new ApiResponse(responseCode = "200", description = "configs",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def getWorkflowConfigsResolveRoute(ids: Seq[String], typ: Option[String]) = get {
     // the Engine query + live status mapping happens in WorkflowRegistry.ResolveWorkflowConfigs
     complete(resolveWorkflowConfigs(ids, typ))
+  }
+
+  @POST @Path("/schema/{id}/start") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("schema"), summary = "Create a WorkflowConfig from a WorkflowSchema and start an Engine (Temporal) execution (WorkflowType == schema.name, WorkflowId == wid|config.title|name); sets xid=RunId and returns the resolved config",
+    parameters = Array(
+      new Parameter(name = "id", in = ParameterIn.PATH, description = "WorkflowSchema id"),
+      new Parameter(name = "taskQueue", in = ParameterIn.QUERY, description = "Task Queue an independent worker polls; else config.meta(taskQueue), else default"),
+      new Parameter(name = "wid", in = ParameterIn.QUERY, description = "override the Temporal WorkflowId (else derived from the created config.title|name)")),
+    requestBody = new RequestBody(description = "optional JSON input payload for the workflow (overrides the default WorkflowConfig payload)",
+      content = Array(new Content(schema = new Schema(implementation = classOf[String])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "created + started + resolved config(s)",
+      content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
+  def startWorkflowSchemaRoute(id: Int) = post {
+    parameters("taskQueue".?, "wid".?) { (tq, wid) =>
+      // optional JSON body = caller input payload (overrides the default WorkflowConfig payload)
+      entity(as[JsValue]) { body => complete(startWorkflowSchema(id, tq, Some(body.compactPrint), wid)) } ~
+      complete(startWorkflowSchema(id, tq, None, wid))
+    }
   }
 
   @POST @Path("/config") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
@@ -351,10 +375,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowGrafs]))))))
   def getWorkflowGrafsRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?) { (from, size) =>
-      (from, size) match {
-        case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
-        case _ => complete(getWorkflowGrafs(from, size))
-      }
+      complete(getWorkflowGrafs(pageFrom(from, size), pageSize(from, size)))
     }
   }
 
@@ -379,10 +400,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   // ================================================================ detector-schema routes
   def getDetectorSchemasRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?) { (from, size) =>
-      (from, size) match {
-        case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
-        case _ => complete(getDetectorSchemas(from, size))
-      }
+      complete(getDetectorSchemas(pageFrom(from, size), pageSize(from, size)))
     }
   }
   def getDetectorSchemaRoute(id: Int) = get { complete(getDetectorSchema(id)) }
@@ -397,10 +415,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   // ================================================================ detector-config routes
   def getDetectorConfigsRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?) { (from, size) =>
-      (from, size) match {
-        case (Some(_), None) | (None, Some(_)) => complete(StatusCodes.BadRequest -> "from and size must be provided together")
-        case _ => complete(getDetectorConfigs(from, size))
-      }
+      complete(getDetectorConfigs(pageFrom(from, size), pageSize(from, size)))
     }
   }
   def getDetectorConfigRoute(id: Int) = get { complete(getDetectorConfig(id)) }
@@ -423,6 +438,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
         concat(
           pathPrefix("dsl") { pathEndOrSingleSlash { createWorkflowSchemaDslRoute() } },
           pathPrefix(IntNumber) { id =>
+            pathPrefix("start") { pathEndOrSingleSlash { startWorkflowSchemaRoute(id) } } ~
             pathEndOrSingleSlash {
               getWorkflowSchemaRoute(id) ~ updateWorkflowSchemaRoute(id) ~ deleteWorkflowSchemaRoute(id)
             }

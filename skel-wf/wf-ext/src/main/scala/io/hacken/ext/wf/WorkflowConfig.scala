@@ -52,6 +52,26 @@ case class WorkflowConfig(
 object WorkflowConfig {
   val DEFAULT_ID = 0
 
+  /**
+   * Replace `{placeholder}` tokens in schema-derived strings (name / title) so a WorkflowConfig
+   * created from the SAME WorkflowSchema gets unique values (used to derive a unique Temporal
+   * WorkflowId - see WorkflowAssembly.start):
+   *   {id}  -> the NEW WorkflowConfig id
+   *   {ts}  -> creation timestamp (epoch millis)
+   *   {key} -> meta(key), e.g. "{pid}" == meta.pid; unknown keys resolve to "" (dropped)
+   */
+  private val PLACEHOLDER = "\\{([A-Za-z0-9_]+)\\}".r
+  def substitute(s: String, id: Int, ts: Long, ctx: Map[String, Any]): String =
+    if (s == null || s.isEmpty) s
+    else PLACEHOLDER.replaceAllIn(s, m => {
+      val v = m.group(1) match {
+        case "id" => id.toString
+        case "ts" => ts.toString
+        case k    => ctx.get(k).map(_.toString).getOrElse("")
+      }
+      java.util.regex.Matcher.quoteReplacement(v)
+    })
+
   /** Build a WorkflowConfig from a WorkflowSchema, copying defaults and re-pointing the graph. */
   def from(id: Int, schema: WorkflowSchema,
            name: Option[String] = None,
@@ -59,15 +79,18 @@ object WorkflowConfig {
            pid: Option[String] = None,
            xid: Option[String] = None): WorkflowConfig = {
     val now = System.currentTimeMillis()
+    // substitution context: schema meta + the config's oid/pid (so "{pid}" resolves to the param or meta)
+    val ctx: Map[String, Any] = schema.meta.getOrElse(Map.empty) ++
+      pid.map("pid" -> _).toMap ++ oid.map("oid" -> _).toMap
     WorkflowConfig(
       id = id,
       sid = schema.id,
       createdAt = now,
       updatedAt = now,
-      status = WorkflowSchema.Status.UNKNOWN,
-      name = name.getOrElse(schema.name),
+      status = WorkflowStatus.ACTIVE, // freshly created, not yet resolved against the Engine
+      name = substitute(name.getOrElse(schema.name), id, now, ctx),
       version = schema.version,
-      title = schema.title,
+      title = substitute(schema.title, id, now, ctx),
       description = schema.description,
       author = schema.author,
       icon = schema.icon,

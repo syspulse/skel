@@ -100,9 +100,9 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       }
     }
 
-    "reject paging with only one of from/size" in {
+    "accept paging with only one of from/size (the other side defaults)" in {
       Get("/schema?from=0") ~> routes.routes ~> check {
-        status shouldBe StatusCodes.BadRequest
+        status shouldBe StatusCodes.OK
       }
     }
 

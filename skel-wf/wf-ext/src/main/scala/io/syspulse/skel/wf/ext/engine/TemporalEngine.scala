@@ -12,9 +12,13 @@ import io.temporal.serviceclient.{WorkflowServiceStubs, WorkflowServiceStubsOpti
 import io.temporal.api.workflowservice.v1.{
   ListWorkflowExecutionsRequest,
   ListNamespacesRequest,
-  GetWorkflowExecutionHistoryRequest
+  GetWorkflowExecutionHistoryRequest,
+  StartWorkflowExecutionRequest,
+  DescribeWorkflowExecutionRequest
 }
-import io.temporal.api.common.v1.WorkflowExecution
+import io.temporal.api.common.v1.{WorkflowExecution, WorkflowType, Payload, Payloads}
+import io.temporal.api.taskqueue.v1.TaskQueue
+import com.google.protobuf.ByteString
 import io.temporal.api.workflow.v1.{WorkflowExecutionInfo => TWorkflowExecutionInfo}
 import io.temporal.api.history.v1.HistoryEvent
 import io.temporal.api.enums.v1.EventType
@@ -143,6 +147,41 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
     case Some(ns)                     => Future.successful(Seq(ns))
   }
 
+  /** Pick a SINGLE concrete namespace for a write op (start): explicit -> configured -> "default". */
+  private def writeNamespace(namespace: Option[String]): String =
+    namespace.map(_.trim).filter(_.nonEmpty).getOrElse {
+      t.namespace match {
+        case "*"                  => "default"
+        case n if n.contains(",") => n.split(",").head.trim
+        case n                    => n
+      }
+    }
+
+  // ---------------------------------------------------------------- start
+  override def start(namespace: Option[String], workflowType: String, workflowId: String, taskQueue: String,
+                     input: Option[String]): Future[EngineStart] = Future {
+    val ns = writeNamespace(namespace)
+    val reqB = StartWorkflowExecutionRequest.newBuilder()
+      .setNamespace(ns)
+      .setWorkflowId(workflowId)
+      .setWorkflowType(WorkflowType.newBuilder().setName(workflowType).build())
+      .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build())
+      .setRequestId(java.util.UUID.randomUUID().toString) // idempotency key for the start RPC
+    // one JSON argument, encoded so any worker's default DataConverter can read it
+    input.filter(_.nonEmpty).foreach { js =>
+      val payload = Payload.newBuilder()
+        .putMetadata("encoding", ByteString.copyFromUtf8("json/plain"))
+        .setData(ByteString.copyFromUtf8(js))
+        .build()
+      reqB.setInput(Payloads.newBuilder().addPayloads(payload).build())
+    }
+    val resp = call(s"startWorkflowExecution ns=${ns} type=${workflowType} wid=${workflowId} tq=${taskQueue}") {
+      stub.startWorkflowExecution(reqB.build())
+    }
+    log.info(s"Started workflow: type=${workflowType} wid=${workflowId} rid=${resp.getRunId} tq=${taskQueue} ns=${ns}")
+    EngineStart(workflowId, resp.getRunId, ns)
+  }
+
   // ---------------------------------------------------------------- getRuntimes
   def getRuntimes(namespace: Option[String] = None, pageSize: Int = 100): Future[Seq[EngineWorkflow]] =
     resolveNamespaces(namespace).flatMap { nss =>
@@ -223,6 +262,24 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
     events.toSeq
   }
 
+  /**
+   * Query PENDING activities via DescribeWorkflowExecution. This is the ONLY place a still-RUNNING
+   * workflow exposes a currently failing/retrying activity: intermediate activity failures are NOT
+   * written to the event history (to avoid bloat) - they live on the pending activity's `lastFailure`.
+   * Returns (activityId, attempt, lastFailure message) per pending activity.
+   */
+  private def describePending(ns: String, workflowId: String, runId: String): Future[Seq[(String, Int, Option[String])]] = Future {
+    val req = DescribeWorkflowExecutionRequest.newBuilder()
+      .setNamespace(ns)
+      .setExecution(WorkflowExecution.newBuilder().setWorkflowId(workflowId).setRunId(runId).build())
+      .build()
+    val resp = call(s"describeWorkflowExecution ns=${ns} wid=${workflowId} rid=${runId}") { stub.describeWorkflowExecution(req) }
+    resp.getPendingActivitiesList.asScala.toSeq.map { pa =>
+      val msg = if (pa.hasLastFailure) Option(pa.getLastFailure.getMessage).map(_.trim).filter(_.nonEmpty) else None
+      (pa.getActivityId, pa.getAttempt, msg)
+    }
+  }
+
   // mutable accumulators used while folding the event history
   private class ActAcc(var name: String, var id: String) {
     var status: String = EngineStatus.SCHEDULED
@@ -242,9 +299,15 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
    * then recurse into each child (bounded by `maxChildDepth`).
    */
   private def buildTree(summary: EngineWorkflow, depth: Int): Future[EngineWorkflow] = {
-    fetchHistory(summary.namespace, summary.id, summary.runtimeId).flatMap { events =>
+    // pending activities (best-effort) reveal a failing/retrying task while the workflow is still RUNNING
+    val fPending = describePending(summary.namespace, summary.id, summary.runtimeId).recover { case _ => Seq.empty }
+    fetchHistory(summary.namespace, summary.id, summary.runtimeId).zip(fPending).flatMap { case (events, pending) =>
       val acts = mutable.LinkedHashMap[Long, ActAcc]()     // keyed by ActivityTaskScheduled eventId
       val kids = mutable.LinkedHashMap[Long, ChildAcc]()   // keyed by StartChildWorkflowExecutionInitiated eventId
+      // last Workflow-Task outcome: a failing/retrying workflow task (worker throwing while executing the
+      // workflow method, bad input, non-determinism, ...) keeps the workflow RUNNING and is NOT an activity
+      // event - it lives in WorkflowTaskFailed events. Cleared when a later WorkflowTaskCompleted recovers it.
+      var wftFailure: Option[String] = None
 
       events.foreach { e =>
         val et = millis(e.getEventTime)
@@ -310,8 +373,27 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
             val a = e.getChildWorkflowExecutionTimedOutEventAttributes
             kids.get(a.getInitiatedEventId).foreach { c => c.status = EngineStatus.TIMED_OUT; c.closedAt = Some(et) }
 
+          // ---- workflow-task outcome (tracks a currently failing/retrying workflow task) ----
+          case EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED =>
+            val a = e.getWorkflowTaskFailedEventAttributes
+            val msg = Try(a.getFailure.getMessage).toOption.filter(_.nonEmpty)
+              .orElse(Try(a.getCause.name()).toOption.filter(_.nonEmpty))
+            wftFailure = msg.orElse(Some("workflow task failed"))
+
+          case EventType.EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT =>
+            wftFailure = Some("workflow task timed out")
+
+          case EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED =>
+            wftFailure = None // recovered: a workflow task completed after any earlier failure
+
           case _ => // ignore other event types
         }
+      }
+
+      // attach a pending activity's lastFailure onto its ActAcc (matched by activityId)
+      pending.foreach {
+        case (aid, _, Some(msg)) => acts.values.find(_.id == aid).foreach(_.detail = Some(msg))
+        case _                   => ()
       }
 
       val activities = acts.values.map { a =>
@@ -341,7 +423,21 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
       }
 
       Future.sequence(childFutures).map { children =>
-        summary.copy(activities = activities, children = children)
+        // a task failure while the workflow is still RUNNING -> RUNNING_FAILED + meta.err ("name: message").
+        // Sources: a failing/retrying WORKFLOW task (worker throwing / bad input), a pending activity's
+        // lastFailure (retrying activity), or a history activity left in FAILED state.
+        val wftErrs: Seq[String] = wftFailure.map(m => s"WorkflowTask: ${m}").toSeq
+        val pendingErrs: Seq[String] = pending.collect { case (aid, _, Some(msg)) =>
+          val nm = acts.values.find(_.id == aid).map(_.name).getOrElse(aid)
+          s"${nm}: ${msg}"
+        }
+        val historyErrs: Seq[String] = activities.filter(_.status == EngineStatus.FAILED)
+          .map(a => s"${a.name}: ${a.detail.getOrElse("failed")}")
+        val failures = pendingErrs ++ historyErrs ++ wftErrs
+        val (wfStatus, meta) =
+          if (summary.status == EngineStatus.RUNNING && failures.nonEmpty) (EngineStatus.RUNNING_FAILED, Map("err" -> failures.head))
+          else (summary.status, Map.empty[String, String])
+        summary.copy(status = wfStatus, activities = activities, children = children, meta = meta)
       }
     }
   }

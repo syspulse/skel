@@ -11,7 +11,7 @@ import { SliderFieldRow } from '../../../components/SliderFieldRow';
 
 // lifecycle statuses (WorkflowSchema) + engine runtime statuses (WorkflowConfig, e.g. RUNNING) - see WorkflowStatus.scala
 const LIFECYCLE_STATUSES = ['ACTIVE', 'DISABLED', 'DELETED'];
-const RUNTIME_STATUSES = ['NEW', 'SCHEDULED', 'STARTING', 'RUNNING', 'WAITING', 'PAUSED', 'COMPLETED', 'FAILED', 'TERMINATED', 'CANCELED', 'TIMED_OUT', 'CONTINUED_AS_NEW', 'UNRESOLVED', 'UNKNOWN'];
+const RUNTIME_STATUSES = ['NEW', 'SCHEDULED', 'STARTING', 'RUNNING', 'RUNNING_FAILED', 'WAITING', 'PAUSED', 'COMPLETED', 'FAILED', 'TERMINATED', 'CANCELED', 'TIMED_OUT', 'CONTINUED_AS_NEW', 'UNRESOLVED', 'UNKNOWN'];
 
 interface CommonForm {
   name: string; title: string; description: string; status: string;

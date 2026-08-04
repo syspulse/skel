@@ -12,7 +12,10 @@ import io.syspulse.skel.wf.ext.server.WorkflowRoutes
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
 import io.syspulse.skel.wf.ext.engine.{Engine, EngineMapper, EngineWorkflow, EngineStatus, WorkflowRuntimeView, TrackMapper}
 import io.hacken.ext.wf.WorkflowConfig
+import io.hacken.ext.wf.WorkflowStatus
+import io.hacken.ext.wf.WorkflowConfigJson._
 import io.hacken.ext.detector.DetectorConfig
+import spray.json._
 
 case class Config(
   host: String = "0.0.0.0",
@@ -29,6 +32,9 @@ case class Config(
   engine: Option[String] = None, // --engine : Engine URI (e.g. temporal://127.0.0.1:7233/default)
   ns: Option[String] = None,     // --ns     : Engine namespace override (e.g. default, '*')
   poll: Long = 3000,          // --poll: assembly-track polling interval in msec (def: 3000)
+  tq: Option[String] = None,  // --tq  : Task queue override
+
+  timeout: Long = 30000, // --timeout : Timeout for Engine operations
 
   cmd: String = "server",
   params: Seq[String] = Seq(),
@@ -39,7 +45,7 @@ object App extends skel.Server {
   // Known CLI commands. The shared arg parser only recognises a command when it is the
   // first non-option token, so we hoist it to the front - this lets options precede the
   // command (e.g. `--engine=temporal:// link <rid> <pipeline>` as in the requirements).
-  private val KNOWN_CMDS = Set("server", "schema", "assembly", "link", "assembly-track", "runtime-get", "setup0")
+  private val KNOWN_CMDS = Set("server", "schema", "assembly", "link", "assembly-track", "runtime-get", "setup0", "start-schema")
 
   // Commands that take an Assembly DSL pipeline (which contains `->` tokens and spaces).
   private val DSL_CMDS = Set("schema", "assembly", "link", "assembly-track")
@@ -81,7 +87,9 @@ object App extends skel.Server {
   private val DARK_GREY = "38;5;238"
   private val statusAnsi: Map[String, String] = Map(
     //                         fg;bg
-    EngineStatus.RUNNING    -> "97;44",            // white on blue
+    WorkflowStatus.STARTING       -> "97;46",            // white on cyan (start initiated, not yet visible)
+    EngineStatus.RUNNING          -> "97;44",            // white on blue
+    WorkflowStatus.RUNNING_FAILED -> "97;48;5;208",     // white on orange (running, but a task is failing)
     EngineStatus.COMPLETED  -> s"${DARK_GREY};42", // dark grey on green
     EngineStatus.FAILED     -> "97;41",            // white on red
     EngineStatus.TERMINATED -> s"${DARK_GREY};43", // dark grey on yellow
@@ -117,6 +125,9 @@ object App extends skel.Server {
         ArgString('_', "engine", s"Engine URI (e.g. temporal://127.0.0.1:7233/default)"),
         ArgString('_', "ns", s"Engine namespace override (e.g. default, '*' for all)"),
         ArgLong('_', "poll", s"assembly-track polling interval in msec (def: ${d.poll})"),
+        ArgString('_', "tq", s"Task queue override"),
+
+        ArgLong('_', "timeout", s"Timeout for Engine operations (def: ${d.timeout})"),
 
         ArgCmd("server", s"Start Workflow REST server"),
         ArgCmd("schema", s"Create a WorkflowSchema from an Assembly DSL pipeline (param: pipeline)"),
@@ -125,6 +136,7 @@ object App extends skel.Server {
         ArgCmd("assembly-track", s"assembly + poll the Engine runtime, rendering topology + step statuses (params: <runtimeId> <pipeline>)"),
         ArgCmd("runtime-get", s"Get Engine runtime workflow(s) (param: optional <runtimeId>); requires --engine"),
         ArgCmd("setup0", s"Bootstrap the default placement in the datastore: project id=0 + contract id=0 (for contractId=0 DetectorConfigs)"),
+        ArgCmd("start-schema", s"Create a WorkflowConfig from a WorkflowSchema and start an Engine (Temporal) execution (WorkflowType == schema.name, WorkflowId == [wid]|config.title|name); sets xid=RunId (params: <schemaId> [wid], --tq <taskQueue>); requires --engine"),
 
         ArgParam("<params>", "DSL pipeline, e.g. 'Detector.a -> Detector.b -> Detector.c'"),
         ArgLogging()
@@ -141,6 +153,9 @@ object App extends skel.Server {
       engine = c.getString("engine").filter(_.nonEmpty),
       ns = c.getString("ns").filter(_.nonEmpty),
       poll = c.getLong("poll").getOrElse(d.poll),
+      tq = c.getString("tq").filter(_.nonEmpty),  
+      timeout = c.getLong("timeout").getOrElse(d.timeout),
+
       cmd = c.getCmd().getOrElse(d.cmd),
       params = c.getParams(),
     )
@@ -312,6 +327,30 @@ object App extends skel.Server {
           case _ =>
             s"Usage: assembly-track <workflowId|runtimeId> <pipeline>  " +
               "(e.g. assembly-track PoR-DefaultProject-... '[ProofOfOwnership] -> [ProofOfReserve] -> [Report] -> [Commit]')"
+        }
+
+      case "start-schema" =>
+        config.params.toList match {
+          case idStr :: rest =>
+            val engine = newEngine()
+            try {
+              // create a WorkflowConfig FROM the schema, then start it (WorkflowType == schema.name,
+              // WorkflowId == <wid>|config.title|name); default payload = the WorkflowConfig JSON
+              val widOverride = rest.headOption.filter(_.nonEmpty)
+              val f = for {
+                c     <- store.createConfigFromSchema(idStr.toInt)
+                tq     = config.tq.getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
+                saved <- WorkflowAssembly.start(c, c.name, engine, store, tq, Some(c.toJson.compactPrint), config.ns, widOverride)
+              } yield saved
+              Try(Await.result(f, config.timeout.millis)) match {
+                case Success(c) =>
+                  s"Started WorkflowConfig: id=${c.id}, name='${c.name}', schema=${c.sid}, " +
+                    s"wid=${c.meta.flatMap(_.get("wid")).getOrElse("")}, xid=${c.xid.getOrElse("")}"
+                case Failure(e) => s"Failed start-schema: ${e.getMessage}"
+              }
+            } finally engine.close()
+          case _ =>
+            s"Usage: start-schema <schemaId> [wid] (--tq <taskQueue>)  (requires --engine=temporal://...)"
         }
 
       case x =>

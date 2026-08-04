@@ -2,6 +2,7 @@ package io.syspulse.skel.wf.ext.engine
 
 import spray.json._
 import io.syspulse.skel.service.JsonCommon
+import io.hacken.ext.wf.WorkflowStatus
 
 // ============================================================================
 // Engine runtime models (engine-agnostic).
@@ -16,31 +17,33 @@ import io.syspulse.skel.service.JsonCommon
 // ============================================================================
 
 /**
- * Normalized workflow / activity status. Engine-specific states are folded into
- * this closed vocabulary so callers never depend on Temporal enum names.
+ * Temporal -> WorkflowStatus mapping (the Temporal Engine's status mapper).
+ *
+ * The canonical status vocabulary now lives in `io.hacken.ext.wf.WorkflowStatus` (shared by
+ * WorkflowConfig / DetectorConfig). This object only converts Temporal-specific engine states into
+ * WorkflowStatus values, and re-exposes those values under short names for engine-internal use.
  */
 object EngineStatus {
-  val NEW               = "NEW"                // known but not yet started
-  val SCHEDULED         = "SCHEDULED"          // activity scheduled, not yet started
-  val RUNNING           = "RUNNING"
-  val WAITING           = "WAITING"            // running but blocked on a signal / human step
-  val PAUSED            = "PAUSED"
-  val COMPLETED         = "COMPLETED"
-  val FAILED            = "FAILED"
-  val TERMINATED        = "TERMINATED"
-  val CANCELED          = "CANCELED"
-  val TIMED_OUT         = "TIMED_OUT"
-  val CONTINUED_AS_NEW  = "CONTINUED_AS_NEW"
-  val UNKNOWN           = "UNKNOWN"
-  val UNRESOLVED        = "UNRESOLVED"         // the runtime is not present on the Engine (obsolete id)
+  // re-exposed WorkflowStatus constants (all engine states ARE WorkflowStatus values)
+  val NEW               = WorkflowStatus.NEW
+  val SCHEDULED         = WorkflowStatus.SCHEDULED
+  val RUNNING           = WorkflowStatus.RUNNING
+  val RUNNING_FAILED   = WorkflowStatus.RUNNING_FAILED
+  val WAITING           = WorkflowStatus.WAITING
+  val PAUSED            = WorkflowStatus.PAUSED
+  val COMPLETED         = WorkflowStatus.COMPLETED
+  val FAILED            = WorkflowStatus.FAILED
+  val TERMINATED        = WorkflowStatus.TERMINATED
+  val CANCELED          = WorkflowStatus.CANCELED
+  val TIMED_OUT         = WorkflowStatus.TIMED_OUT
+  val CONTINUED_AS_NEW  = WorkflowStatus.CONTINUED_AS_NEW
+  val UNKNOWN           = WorkflowStatus.UNKNOWN
+  val UNRESOLVED        = WorkflowStatus.UNRESOLVED
 
-  val all: Set[String] = Set(
-    NEW, SCHEDULED, RUNNING, WAITING, PAUSED, COMPLETED, FAILED,
-    TERMINATED, CANCELED, TIMED_OUT, CONTINUED_AS_NEW, UNKNOWN, UNRESOLVED
-  )
+  val all: Set[String] = WorkflowStatus.all
 
   /**
-   * Map a Temporal WorkflowExecutionStatus (enum name or short name) to EngineStatus.
+   * Map a Temporal WorkflowExecutionStatus (enum name or short name) to a WorkflowStatus value.
    * Accepts both the proto enum name (WORKFLOW_EXECUTION_STATUS_RUNNING) and the
    * CLI/short name (Running).
    */
@@ -60,7 +63,7 @@ object EngineStatus {
   }
 
   /**
-   * Map a Temporal activity lifecycle (derived from event history) to EngineStatus.
+   * Map a Temporal activity lifecycle (derived from event history) to a WorkflowStatus value.
    */
   def fromTemporalActivity(s: String): String = {
     val n = normalize(s)
@@ -88,10 +91,7 @@ object EngineStatus {
   }
 
   /** Terminal (closed) statuses. */
-  def isTerminal(status: String): Boolean = status match {
-    case COMPLETED | FAILED | TERMINATED | CANCELED | TIMED_OUT | CONTINUED_AS_NEW => true
-    case _ => false
-  }
+  def isTerminal(status: String): Boolean = WorkflowStatus.isTerminal(status)
 }
 
 /**
@@ -139,6 +139,7 @@ case class EngineWorkflow(
   parentId: Option[String] = None,  // parent WorkflowId (for child workflows)
   activities: Seq[EngineActivity] = Seq(),
   children: Seq[EngineWorkflow] = Seq(),
+  meta: Map[String, String] = Map(), // engine-derived extras, e.g. "err" (a failing/retrying task's message)
 ) {
   /** All activities of this workflow AND (recursively) all child workflows, flattened. */
   def allActivities: Seq[EngineActivity] =
@@ -152,8 +153,11 @@ case class EngineWorkflow(
 /** List wrapper for the runtime workflows API (`/engine/{engine}[/{namespace}]`). */
 case class EngineWorkflows(workflows: Seq[EngineWorkflow], total: Long)
 
+/** Result of starting a NEW workflow execution on the Engine (Temporal StartWorkflowExecution). */
+case class EngineStart(workflowId: String, runtimeId: String, namespace: String)
+
 object EngineJson extends JsonCommon {
   implicit val jf_engine_activity: RootJsonFormat[EngineActivity] = jsonFormat9(EngineActivity.apply)
-  implicit val jf_engine_workflow: RootJsonFormat[EngineWorkflow] = rootFormat(lazyFormat(jsonFormat11(EngineWorkflow.apply)))
+  implicit val jf_engine_workflow: RootJsonFormat[EngineWorkflow] = rootFormat(lazyFormat(jsonFormat12(EngineWorkflow.apply)))
   implicit val jf_engine_workflows: RootJsonFormat[EngineWorkflows] = jsonFormat2(EngineWorkflows.apply)
 }

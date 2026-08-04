@@ -2,7 +2,7 @@ package io.syspulse.skel.wf.ext.store
 
 import scala.concurrent.{Future, ExecutionContext}
 
-import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf}
+import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf, WorkflowStatus}
 import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigContract, DetectorConfigSchema, JsonSchemaDefault}
 
 object WorkflowStore {
@@ -28,8 +28,8 @@ object WorkflowStore {
     DetectorConfig(
       id = id, 
       createdAt = now, 
-      updatedAt = now, 
-      status = WorkflowSchema.Status.UNKNOWN,
+      updatedAt = now,
+      status = WorkflowStatus.UNKNOWN,
       contract = DetectorConfigContract(
         contractId, 
         now, 

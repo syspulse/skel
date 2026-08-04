@@ -54,6 +54,25 @@ trait Engine {
   /** List the namespaces exposed by the engine (excluding internal/system namespaces). */
   def namespaces(): Future[Seq[String]]
 
+  /**
+   * Start a NEW workflow execution on the Engine (Temporal StartWorkflowExecution).
+   *
+   * wf-ext only INITIATES the start - it provides the WorkflowType, WorkflowId, TaskQueue and an
+   * initial input payload. An INDEPENDENT worker (its own node / language) polling `taskQueue` owns
+   * the actual execution; wf-ext never runs workflow/activity code.
+   *
+   * @param namespace    None -> the engine's configured namespace
+   * @param workflowType Temporal Workflow Type name (== WorkflowConfig.name)
+   * @param workflowId   Temporal WorkflowId for the new run
+   * @param taskQueue    Task Queue an independent worker polls
+   * @param input        optional JSON input payload (encoded `json/plain` so any worker's default
+   *                     DataConverter can read it); None -> no input
+   * @return the started run (workflowId + runtimeId/RunId)
+   */
+  def start(namespace: Option[String], workflowType: String, workflowId: String, taskQueue: String,
+            input: Option[String]): Future[EngineStart] =
+    Future.failed(new UnsupportedOperationException(s"${name}: start not supported"))
+
   /** Release engine resources (connections). */
   def close(): Unit
 }

@@ -4,7 +4,7 @@ import scala.concurrent.{Future, ExecutionContext}
 
 import io.hacken.ext.wf.WorkflowConfig
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
-import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, TrackMapper}
+import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineStart, TrackMapper}
 
 // ============================================================================
 // WorkflowAssembly
@@ -52,6 +52,29 @@ object WorkflowAssembly {
   def isBound(cfg: WorkflowConfig, w: EngineWorkflow): Boolean = {
     val meta = cfg.meta.getOrElse(Map.empty[String, Any]) + ("wid" -> w.id)
     cfg.name == w.id && cfg.xid.contains(w.runtimeId) && cfg.meta.contains(meta)
+  }
+
+  val DEFAULT_TASK_QUEUE = "GENERIC_WORKFLOW_QUEUE" // fallback task queue when none is on the request/config
+
+  /**
+   * START a new Workflow (Temporal) execution of `cfg`:
+   *   - WorkflowType = workflowType             (the WorkflowSchema.name)
+   *   - WorkflowId   = `wid` (if non-empty), else cfg.title (or cfg.name if title is empty)
+   *   - TaskQueue    = taskQueue                (an INDEPENDENT worker polls it)
+   *   - input        = optional JSON payload (caller override, else the WorkflowConfig JSON)
+   * Then write the Engine truth back: xid = RunId, meta.wid = WorkflowId (name is left unchanged), persist.
+   * The returned config carries the new binding; callers typically Resolve it to pull live statuses.
+   */
+  def start(cfg: WorkflowConfig, workflowType: String, engine: Engine, store: WorkflowStore, taskQueue: String,
+            input: Option[String], ns: Option[String] = None, wid: Option[String] = None)(implicit ec: ExecutionContext): Future[WorkflowConfig] = {
+    val workflowId = wid.map(_.trim).filter(_.nonEmpty)
+      .orElse(Option(cfg.title).map(_.trim).filter(_.nonEmpty))
+      .getOrElse(cfg.name)
+    for {
+      started <- engine.start(ns, workflowType = workflowType, workflowId = workflowId, taskQueue = taskQueue, input = input)
+      meta     = cfg.meta.getOrElse(Map.empty[String, Any]) + ("wid" -> started.workflowId)
+      saved   <- store.addConfig(cfg.copy(xid = Some(started.runtimeId), meta = Some(meta), updatedAt = System.currentTimeMillis()))
+    } yield saved
   }
 
   /** Bind an already-assembled config to a pre-resolved runtime (or fallback xid=id) and persist. */

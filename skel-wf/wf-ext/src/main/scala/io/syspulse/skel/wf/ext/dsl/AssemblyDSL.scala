@@ -99,7 +99,7 @@ object AssemblyDSL {
   private def newDetectorConfig(id: Int, name: String, ds: DetectorSchema): DetectorConfig = {
     val now = System.currentTimeMillis()
     DetectorConfig(
-      id = id, createdAt = now, updatedAt = now, status = WorkflowSchema.Status.ACTIVE,
+      id = id, createdAt = now, updatedAt = now, status = WorkflowStatus.ACTIVE,
       contract = DetectorConfigContract(
         id = 0, createdAt = now, updatedAt = now, projectId = 0, tenantId = 0,
         chainUid = None, proxyAddress = None, implementation = None, address = None, name = name),
