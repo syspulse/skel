@@ -261,7 +261,8 @@
       "tenant": "tenant_id",
       "project": "project_id",
       "address": "address",
-      "chainUid": "chain_uid"
+      "chainUid": "chain_uid",
+      "meta": "meta"
     },
     "graphNodes": "nodes",
     "graphLinks": "links",

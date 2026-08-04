@@ -202,6 +202,13 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
               <SliderFieldRow label="pid">
                 <input className="field-inline" value={form.pid} onChange={(e) => setForm((f) => ({ ...f, pid: e.target.value }))} />
               </SliderFieldRow>
+              {/* engine-derived metadata (wid / err / activity_id ...) - read-only */}
+              {config?.meta && Object.keys(config.meta).length > 0 && (
+                <div className="field-stack">
+                  <label className="field-stack-label">{t('workflow.fields.meta')}</label>
+                  <pre className="code-block-sm">{JSON.stringify(config.meta, null, 2)}</pre>
+                </div>
+              )}
             </>
           )}
 
