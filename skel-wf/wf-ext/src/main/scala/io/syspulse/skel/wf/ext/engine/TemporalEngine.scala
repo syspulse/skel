@@ -14,7 +14,9 @@ import io.temporal.api.workflowservice.v1.{
   ListNamespacesRequest,
   GetWorkflowExecutionHistoryRequest,
   StartWorkflowExecutionRequest,
-  DescribeWorkflowExecutionRequest
+  DescribeWorkflowExecutionRequest,
+  TerminateWorkflowExecutionRequest,
+  RequestCancelWorkflowExecutionRequest
 }
 import io.temporal.api.common.v1.{WorkflowExecution, WorkflowType, Payload, Payloads}
 import io.temporal.api.taskqueue.v1.TaskQueue
@@ -180,6 +182,34 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
     }
     log.info(s"Started workflow: type=${workflowType} wid=${workflowId} rid=${resp.getRunId} tq=${taskQueue} ns=${ns}")
     EngineStart(workflowId, resp.getRunId, ns)
+  }
+
+  // ---------------------------------------------------------------- terminate / cancel
+  override def terminate(namespace: Option[String], workflowId: String, runId: Option[String], reason: Option[String]): Future[Unit] = Future {
+    val ns = writeNamespace(namespace)
+    val exec = WorkflowExecution.newBuilder().setWorkflowId(workflowId)
+    runId.map(_.trim).filter(_.nonEmpty).foreach(exec.setRunId)
+    val reqB = TerminateWorkflowExecutionRequest.newBuilder()
+      .setNamespace(ns)
+      .setWorkflowExecution(exec.build())
+    reason.map(_.trim).filter(_.nonEmpty).foreach(reqB.setReason)
+    call(s"terminateWorkflowExecution ns=${ns} wid=${workflowId} rid=${runId.getOrElse("")}") { stub.terminateWorkflowExecution(reqB.build()) }
+    log.info(s"Terminated workflow: wid=${workflowId} rid=${runId.getOrElse("")} ns=${ns} reason='${reason.getOrElse("")}'")
+    ()
+  }
+
+  override def cancel(namespace: Option[String], workflowId: String, runId: Option[String], reason: Option[String]): Future[Unit] = Future {
+    val ns = writeNamespace(namespace)
+    val exec = WorkflowExecution.newBuilder().setWorkflowId(workflowId)
+    runId.map(_.trim).filter(_.nonEmpty).foreach(exec.setRunId)
+    val reqB = RequestCancelWorkflowExecutionRequest.newBuilder()
+      .setNamespace(ns)
+      .setWorkflowExecution(exec.build())
+      .setRequestId(java.util.UUID.randomUUID().toString) // idempotency key for the cancel RPC
+    reason.map(_.trim).filter(_.nonEmpty).foreach(reqB.setReason)
+    call(s"requestCancelWorkflowExecution ns=${ns} wid=${workflowId} rid=${runId.getOrElse("")}") { stub.requestCancelWorkflowExecution(reqB.build()) }
+    log.info(s"Requested cancel of workflow: wid=${workflowId} rid=${runId.getOrElse("")} ns=${ns} reason='${reason.getOrElse("")}'")
+    ()
   }
 
   // ---------------------------------------------------------------- getRuntimes

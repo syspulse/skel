@@ -27,7 +27,7 @@ export function statusStyle(status?: string): StatusStyle {
     case 'ACTIVE':             return { bg: '#86efac', fg: DARK };
     case 'DISABLED':           return { bg: '#fde68a', fg: DARK };
     case 'DELETED':            return { bg: '#fca5a5', fg: DARK };
-    case 'UNRESOLVED':         return { bg: '#dc2626', fg: '#ffffff' };  // red bg, white fg (not on the Engine)
+    case 'UNRESOLVED':         return { bg: '#9ca3af', fg: DARK };  // gray (not on the Engine)
     default:                   return { bg: '#e5e7eb', fg: '#374151' };  // gray (UNKNOWN/…)
   }
 }

@@ -33,6 +33,7 @@ case class Config(
   ns: Option[String] = None,     // --ns     : Engine namespace override (e.g. default, '*')
   poll: Long = 3000,          // --poll: assembly-track polling interval in msec (def: 3000)
   tq: Option[String] = None,  // --tq  : Task queue override
+  reason: Option[String] = None, // --reason : reason forwarded to the Engine on stop/cancel
 
   timeout: Long = 30000, // --timeout : Timeout for Engine operations
 
@@ -45,7 +46,7 @@ object App extends skel.Server {
   // Known CLI commands. The shared arg parser only recognises a command when it is the
   // first non-option token, so we hoist it to the front - this lets options precede the
   // command (e.g. `--engine=temporal:// link <rid> <pipeline>` as in the requirements).
-  private val KNOWN_CMDS = Set("server", "schema", "assembly", "link", "assembly-track", "runtime-get", "setup0", "start-schema")
+  private val KNOWN_CMDS = Set("server", "schema", "assembly", "link", "assembly-track", "runtime-get", "setup0", "start-schema", "stop", "cancel")
 
   // Commands that take an Assembly DSL pipeline (which contains `->` tokens and spaces).
   private val DSL_CMDS = Set("schema", "assembly", "link", "assembly-track")
@@ -126,6 +127,7 @@ object App extends skel.Server {
         ArgString('_', "ns", s"Engine namespace override (e.g. default, '*' for all)"),
         ArgLong('_', "poll", s"assembly-track polling interval in msec (def: ${d.poll})"),
         ArgString('_', "tq", s"Task queue override"),
+        ArgString('_', "reason", s"Reason forwarded to the Engine on stop/cancel"),
 
         ArgLong('_', "timeout", s"Timeout for Engine operations (def: ${d.timeout})"),
 
@@ -137,6 +139,8 @@ object App extends skel.Server {
         ArgCmd("runtime-get", s"Get Engine runtime workflow(s) (param: optional <runtimeId>); requires --engine"),
         ArgCmd("setup0", s"Bootstrap the default placement in the datastore: project id=0 + contract id=0 (for contractId=0 DetectorConfigs)"),
         ArgCmd("start-schema", s"Create a WorkflowConfig from a WorkflowSchema and start an Engine (Temporal) execution (WorkflowType == schema.name, WorkflowId == [wid]|config.title|name); sets xid=RunId (params: <schemaId> [wid], --tq <taskQueue>); requires --engine"),
+        ArgCmd("stop", s"Stop (terminate) a WorkflowConfig's running Engine workflow -> status=TERMINATED (param: <configId>, --reason <reason>); requires --engine"),
+        ArgCmd("cancel", s"Cancel (request-cancel) a WorkflowConfig's running Engine workflow -> status=CANCELED (param: <configId>, --reason <reason>); requires --engine"),
 
         ArgParam("<params>", "DSL pipeline, e.g. 'Detector.a -> Detector.b -> Detector.c'"),
         ArgLogging()
@@ -153,7 +157,8 @@ object App extends skel.Server {
       engine = c.getString("engine").filter(_.nonEmpty),
       ns = c.getString("ns").filter(_.nonEmpty),
       poll = c.getLong("poll").getOrElse(d.poll),
-      tq = c.getString("tq").filter(_.nonEmpty),  
+      tq = c.getString("tq").filter(_.nonEmpty),
+      reason = c.getString("reason").filter(_.nonEmpty),
       timeout = c.getLong("timeout").getOrElse(d.timeout),
 
       cmd = c.getCmd().getOrElse(d.cmd),
@@ -351,6 +356,24 @@ object App extends skel.Server {
             } finally engine.close()
           case _ =>
             s"Usage: start-schema <schemaId> [wid] (--tq <taskQueue>)  (requires --engine=temporal://...)"
+        }
+
+      case "stop" | "cancel" =>
+        config.params.headOption match {
+          case Some(idStr) =>
+            val engine = newEngine()
+            try {
+              val f = store.getConfig(idStr.toInt).flatMap { c =>
+                if (config.cmd == "stop") WorkflowAssembly.stop(c, engine, store, config.reason, config.ns)
+                else                      WorkflowAssembly.cancel(c, engine, store, config.reason, config.ns)
+              }
+              Try(Await.result(f, config.timeout.millis)) match {
+                case Success(c) => s"${config.cmd}: WorkflowConfig id=${c.id}, name='${c.name}', xid=${c.xid.getOrElse("")} -> status=${c.status}"
+                case Failure(e) => s"Failed ${config.cmd}: ${e.getMessage}"
+              }
+            } finally engine.close()
+          case None =>
+            s"Usage: ${config.cmd} <configId> (--reason <reason>)  (requires --engine=temporal://...)"
         }
 
       case x =>

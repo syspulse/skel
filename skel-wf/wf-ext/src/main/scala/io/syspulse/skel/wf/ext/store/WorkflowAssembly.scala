@@ -2,7 +2,7 @@ package io.syspulse.skel.wf.ext.store
 
 import scala.concurrent.{Future, ExecutionContext}
 
-import io.hacken.ext.wf.WorkflowConfig
+import io.hacken.ext.wf.{WorkflowConfig, WorkflowStatus}
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
 import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineStart, TrackMapper}
 
@@ -76,6 +76,32 @@ object WorkflowAssembly {
       saved   <- store.addConfig(cfg.copy(xid = Some(started.runtimeId), meta = Some(meta), updatedAt = System.currentTimeMillis()))
     } yield saved
   }
+
+  /** WorkflowId a config's run is known by on the Engine: meta.wid, else the config name. */
+  private def workflowIdOf(cfg: WorkflowConfig): String =
+    cfg.meta.flatMap(_.get("wid")).map(_.toString).filter(_.nonEmpty).getOrElse(cfg.name)
+
+  /**
+   * STOP (Temporal terminate) the config's running workflow (by workflowId + xid runId), then set
+   * WorkflowConfig.status = TERMINATED and persist. `reason` is forwarded to the Engine.
+   */
+  def stop(cfg: WorkflowConfig, engine: Engine, store: WorkflowStore, reason: Option[String], ns: Option[String] = None)
+          (implicit ec: ExecutionContext): Future[WorkflowConfig] =
+    for {
+      _ <- engine.terminate(ns, workflowIdOf(cfg), cfg.xid, reason)
+      _ <- store.updateConfigStatus(cfg.id, WorkflowStatus.TERMINATED)
+    } yield cfg.copy(status = WorkflowStatus.TERMINATED, updatedAt = System.currentTimeMillis())
+
+  /**
+   * CANCEL (Temporal request-cancel) the config's running workflow (by workflowId + xid runId), then
+   * set WorkflowConfig.status = CANCELED and persist. `reason` is forwarded to the Engine.
+   */
+  def cancel(cfg: WorkflowConfig, engine: Engine, store: WorkflowStore, reason: Option[String], ns: Option[String] = None)
+            (implicit ec: ExecutionContext): Future[WorkflowConfig] =
+    for {
+      _ <- engine.cancel(ns, workflowIdOf(cfg), cfg.xid, reason)
+      _ <- store.updateConfigStatus(cfg.id, WorkflowStatus.CANCELED)
+    } yield cfg.copy(status = WorkflowStatus.CANCELED, updatedAt = System.currentTimeMillis())
 
   /** Bind an already-assembled config to a pre-resolved runtime (or fallback xid=id) and persist. */
   def link(cfg0: WorkflowConfig, runtime: Option[EngineWorkflow], fallbackId: String, store: WorkflowStore)

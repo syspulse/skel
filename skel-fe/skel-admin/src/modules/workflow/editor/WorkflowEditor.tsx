@@ -48,6 +48,8 @@ export interface WorkflowEditorProps {
   onToggleTrack?: () => void;             // start/stop auto-polling
   onSave: (graf: WorkflowGraf) => void;
   onCreateConfig?: () => void;            // WorkflowSchema only: create a WorkflowConfig from it and open its editor
+  onStop?: () => void;                    // WorkflowConfig only: stop (terminate) the running Engine workflow
+  onCancel?: () => void;                  // WorkflowConfig only: cancel the running Engine workflow
   onDestroy?: () => void;                 // delete the current entity (WorkflowSchema/WorkflowConfig) - asks confirmation
   onBack: () => void;
   onOpenDetails?: () => void; // open the WorkflowSchema/Config Details panel for editing
@@ -59,7 +61,7 @@ const EDGE_COLOR = '#64748b';
 
 function WorkflowEditorInner(props: WorkflowEditorProps) {
   const { t } = useTranslation();
-  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, detectorActivityId, resolving, onResolve, onValidateCid, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onCreateConfig, onDestroy, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
+  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, detectorActivityId, resolving, onResolve, onValidateCid, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onCreateConfig, onStop, onCancel, onDestroy, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
 
   const initial = useMemo(() => grafToRF(graf), [graf]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<RFNodeData>>(initial.nodes);
@@ -331,11 +333,25 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
         )}
         <div className="flex-1" />
 
-        {/* Destroy: delete the current WorkflowSchema/WorkflowConfig (asks confirmation) - on the right, before Snap/Grid */}
+        {/* Stop (terminate) / Cancel the running Engine workflow (WorkflowConfig only) - next to Delete */}
+        {kind === KIND.workflowConfig && onStop && (
+          <button onClick={onStop} disabled={saving}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-orange-500 text-orange-700 hover:bg-orange-50 disabled:opacity-40 transition-colors">
+            {t('workflow.editor.stop')}
+          </button>
+        )}
+        {kind === KIND.workflowConfig && onCancel && (
+          <button onClick={onCancel} disabled={saving}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-amber-500 text-amber-700 hover:bg-amber-50 disabled:opacity-40 transition-colors">
+            {t('workflow.editor.cancel')}
+          </button>
+        )}
+
+        {/* Delete: delete the current WorkflowSchema/WorkflowConfig (asks confirmation) - on the right, before Snap/Grid */}
         {onDestroy && (
           <button onClick={onDestroy} disabled={saving}
             className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-500 text-red-700 hover:bg-red-50 disabled:opacity-40 transition-colors">
-            <IconTrash size={13} /> {t('workflow.editor.destroy')}
+            <IconTrash size={13} /> {t('workflow.editor.delete')}
           </button>
         )}
 

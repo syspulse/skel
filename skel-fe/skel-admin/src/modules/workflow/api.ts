@@ -78,6 +78,12 @@ export const updateConfig = (token: string | null, id: number, req: WorkflowConf
   PUT<WorkflowConfig>(token, `/config/${id}`, req);
 export const deleteConfig = (token: string | null, id: number) =>
   DEL<WorkflowActionRes>(token, `/config/${id}`);
+// stop (Temporal terminate) / cancel (Temporal request-cancel) the config's running Engine workflow.
+// Returns the updated WorkflowConfig (status TERMINATED / CANCELED). Optional `reason` is forwarded to the Engine.
+export const stopConfig = (token: string | null, id: number, reason?: string) =>
+  POST<WorkflowConfig>(token, `/config/${id}/stop${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`, {});
+export const cancelConfig = (token: string | null, id: number, reason?: string) =>
+  POST<WorkflowConfig>(token, `/config/${id}/cancel${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`, {});
 // resolve WorkflowConfig(s) + all DetectorConfigs by runtimeId/workflowId, with live engine-mapped statuses.
 // `ids` is a comma-separated list; `type` forces the mode ('rid' | 'wid'), default auto-detect.
 export const resolveConfigs = (token: string | null, ids: string, type?: string) =>

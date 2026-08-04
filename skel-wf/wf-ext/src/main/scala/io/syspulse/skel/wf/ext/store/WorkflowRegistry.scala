@@ -95,6 +95,10 @@ object WorkflowRegistry {
   final case class LinkWorkflowConfigLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   final case class UpdateWorkflowConfig(id: Int, req: WorkflowConfigUpdateReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   final case class DeleteWorkflowConfig(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
+  // Stop (Temporal terminate) a WorkflowConfig's running Engine workflow -> status TERMINATED (+ persist).
+  final case class StopWorkflowConfig(id: Int, reason: Option[String], replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
+  // Cancel (Temporal request-cancel) a WorkflowConfig's running Engine workflow -> status CANCELED (+ persist).
+  final case class CancelWorkflowConfig(id: Int, reason: Option[String], replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
 
   // ---- WorkflowGraf ----
   final case class GetWorkflowGrafs(from: Option[Long], size: Option[Long], replyTo: ActorRef[Try[WorkflowGrafs]]) extends Command
@@ -518,6 +522,22 @@ object WorkflowRegistry {
               started  <- markStarting(store, resolved)
             } yield started
             f.onComplete(replyTo ! _)
+        }
+        Behaviors.same
+
+      case StopWorkflowConfig(id, reason, replyTo) =>
+        log.info(s"StopWorkflowConfig: id=${id} reason='${reason.getOrElse("")}'")
+        engine match {
+          case None    => replyTo ! Failure(new Exception("no Engine configured (start with --engine=temporal://...)"))
+          case Some(e) => store.getConfig(id).flatMap(c => WorkflowAssembly.stop(c, e, store, reason)).onComplete(replyTo ! _)
+        }
+        Behaviors.same
+
+      case CancelWorkflowConfig(id, reason, replyTo) =>
+        log.info(s"CancelWorkflowConfig: id=${id} reason='${reason.getOrElse("")}'")
+        engine match {
+          case None    => replyTo ! Failure(new Exception("no Engine configured (start with --engine=temporal://...)"))
+          case Some(e) => store.getConfig(id).flatMap(c => WorkflowAssembly.cancel(c, e, store, reason)).onComplete(replyTo ! _)
         }
         Behaviors.same
 

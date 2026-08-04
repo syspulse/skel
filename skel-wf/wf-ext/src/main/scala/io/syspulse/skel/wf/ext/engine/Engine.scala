@@ -73,6 +73,22 @@ trait Engine {
             input: Option[String]): Future[EngineStart] =
     Future.failed(new UnsupportedOperationException(s"${name}: start not supported"))
 
+  /**
+   * TERMINATE a running workflow (Temporal TerminateWorkflowExecution) - a hard stop, no cancellation
+   * handlers run. Targets `workflowId` (+ `runId` when known).
+   * @param reason optional reason forwarded to the Engine
+   */
+  def terminate(namespace: Option[String], workflowId: String, runId: Option[String], reason: Option[String]): Future[Unit] =
+    Future.failed(new UnsupportedOperationException(s"${name}: terminate not supported"))
+
+  /**
+   * CANCEL a running workflow (Temporal RequestCancelWorkflowExecution) - a graceful cancel; the
+   * workflow's cancellation handlers run. Targets `workflowId` (+ `runId` when known).
+   * @param reason optional reason forwarded to the Engine
+   */
+  def cancel(namespace: Option[String], workflowId: String, runId: Option[String], reason: Option[String]): Future[Unit] =
+    Future.failed(new UnsupportedOperationException(s"${name}: cancel not supported"))
+
   /** Release engine resources (connections). */
   def close(): Unit
 }

@@ -26,6 +26,10 @@ import jakarta.ws.rs.core.MediaType
 
 import spray.json.JsValue
 
+import io.syspulse.skel.auth.permissions.Permissions
+import io.syspulse.skel.auth.RouteAuthorizers
+import io.syspulse.skel.auth.ext.{ExtAuth, ExtRbacStrict, ExtRbacUser}
+
 import io.syspulse.skel.service.Routeable
 import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.Command
@@ -39,7 +43,7 @@ import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineWorkflows, 
 /**
  * Workflow `ext` REST API:
  *   /api/v1/wf/ext/schema  - WorkflowSchema CRUD (+ ?entity={graf,detector,schema|all}, + /dsl, /{id}/start)
- *   /api/v1/wf/ext/config  - WorkflowConfig CRUD (+ ?entity={graf,detector,schema|all}, + /dsl, /xid, /oid)
+ *   /api/v1/wf/ext/config  - WorkflowConfig CRUD (+ ?entity={graf,detector,schema|all}, + /dsl, /xid, /oid, /{id}/stop, /{id}/cancel)
  *   /api/v1/wf/ext/graf    - WorkflowGraf CRUD (visual configuration)
  *   /api/v1/wf/ext/engine  - Engine runtime state (Temporal), enabled when an Engine is configured
  */
@@ -48,6 +52,12 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
 
   implicit val system: ActorSystem[_] = context.system
   implicit val ec: scala.concurrent.ExecutionContext = context.executionContext
+
+  implicit val permissions: Permissions = config.permissions match {
+    case "strict" => new ExtRbacStrict(config.adminRole, config.serviceRole, config.rolesAttr)
+    case "user"   => new ExtRbacUser(config.adminRole, config.serviceRole, config.rolesAttr)
+    case _        => Permissions(config.permissions)
+  }
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import WorkflowJson._
@@ -84,6 +94,8 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def linkWorkflowConfigLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String): Future[Try[WorkflowConfig]] = registry.ask(LinkWorkflowConfigLinked(req, runtime, fallbackId, _))
   def updateWorkflowConfig(id: Int, req: WorkflowConfigUpdateReq): Future[Try[WorkflowConfig]] = registry.ask(UpdateWorkflowConfig(id, req, _))
   def deleteWorkflowConfig(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteWorkflowConfig(id, _))
+  def stopWorkflowConfig(id: Int, reason: Option[String]): Future[Try[WorkflowConfig]] = registry.ask(StopWorkflowConfig(id, reason, _))
+  def cancelWorkflowConfig(id: Int, reason: Option[String]): Future[Try[WorkflowConfig]] = registry.ask(CancelWorkflowConfig(id, reason, _))
 
   // ---- WorkflowGraf asks ----
   def getWorkflowGrafs(from: Option[Long], size: Option[Long]): Future[Try[WorkflowGrafs]] = registry.ask(GetWorkflowGrafs(from, size, _))
@@ -215,6 +227,28 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     parameter("entity".?) { entity =>
       complete(getWorkflowConfig(id, entityMode(entity)))
     }
+  }
+
+  @POST @Path("/config/{id}/stop") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("config"), summary = "Stop (Temporal terminate) a WorkflowConfig's running Engine workflow; sets status=TERMINATED",
+    parameters = Array(
+      new Parameter(name = "id", in = ParameterIn.PATH, description = "config id"),
+      new Parameter(name = "reason", in = ParameterIn.QUERY, description = "optional reason forwarded to the Engine")),
+    responses = Array(new ApiResponse(responseCode = "200", description = "terminated + updated config",
+      content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
+  def stopWorkflowConfigRoute(id: Int) = post {
+    parameter("reason".?) { reason => complete(stopWorkflowConfig(id, reason)) }
+  }
+
+  @POST @Path("/config/{id}/cancel") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("config"), summary = "Cancel (Temporal request-cancel) a WorkflowConfig's running Engine workflow; sets status=CANCELED",
+    parameters = Array(
+      new Parameter(name = "id", in = ParameterIn.PATH, description = "config id"),
+      new Parameter(name = "reason", in = ParameterIn.QUERY, description = "optional reason forwarded to the Engine")),
+    responses = Array(new ApiResponse(responseCode = "200", description = "cancel-requested + updated config",
+      content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
+  def cancelWorkflowConfigRoute(id: Int) = post {
+    parameter("reason".?) { reason => complete(cancelWorkflowConfig(id, reason)) }
   }
 
   def getWorkflowConfigByXidRoute(xid: String) = get { rejectEmptyResponse { complete(getWorkflowConfigByXid(xid)) } }
@@ -463,6 +497,8 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
           pathPrefix("xid") { pathPrefix(Segment) { xid => getWorkflowConfigByXidRoute(xid) } },
           pathPrefix("oid") { pathPrefix(Segment) { oid => getWorkflowConfigsByOidRoute(oid) } },
           pathPrefix(IntNumber) { id =>
+            pathPrefix("stop")   { pathEndOrSingleSlash { stopWorkflowConfigRoute(id) } } ~
+            pathPrefix("cancel") { pathEndOrSingleSlash { cancelWorkflowConfigRoute(id) } } ~
             pathEndOrSingleSlash {
               getWorkflowConfigRoute(id) ~ updateWorkflowConfigRoute(id) ~ deleteWorkflowConfigRoute(id)
             }

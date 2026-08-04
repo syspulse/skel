@@ -167,6 +167,27 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
     }
   }, [token, notifyError, t]);
 
+  // Resolve ALL WorkflowConfigs in the table view (by xid) in one call and update their statuses.
+  const resolveAllConfigs = useCallback(async () => {
+    const ids = configs.map((c) => c.xid).filter((x): x is string => !!x);
+    if (ids.length === 0) return;
+    setResolving(true);
+    try {
+      const res = await api.resolveConfigs(token, ids.join(','), 'rid');
+      const byId = new Map(res.configs.map((rc) => [rc.id, rc] as const));
+      setConfigs((cur) => cur.map((c) => { const rc = byId.get(c.id); return rc ? { ...c, status: rc.status, xid: rc.xid, meta: rc.meta } : c; }));
+      if (res.detectors) {
+        const dmap: Record<number, string> = {};
+        for (const d of Object.values(res.detectors)) dmap[d.id] = d.status;
+        setDetConfigs((cur) => cur.map((d) => (dmap[d.id] !== undefined ? { ...d, status: dmap[d.id] } : d)));
+      }
+    } catch (e) {
+      notifyError(t('workflow.errorResolve'), e instanceof Error ? e.message : String(e));
+    } finally {
+      setResolving(false);
+    }
+  }, [configs, token, notifyError, t]);
+
   // Validate a cid before a node re-link: it must resolve via GET /detector/config/{cid}.
   // On not-found, dispatch an error event (Dispatcher) and reject the change.
   const validateCid = useCallback(async (cid: number): Promise<boolean> => {
@@ -383,6 +404,22 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
     }
   };
 
+  // Stop (terminate) / Cancel the editor's WorkflowConfig run on the Engine, then reflect the new status.
+  const stopOrCancelEditorConfig = async (mode: 'stop' | 'cancel') => {
+    if (!editor || editor.kind !== KIND.workflowConfig) return;
+    if (!window.confirm(t(mode === 'stop' ? 'workflow.confirmStop' : 'workflow.confirmCancel', { id: editor.id }))) return;
+    setSaving(true);
+    try {
+      const c = mode === 'stop' ? await api.stopConfig(token, editor.id) : await api.cancelConfig(token, editor.id);
+      setEditor((e) => (e ? { ...e, status: c.status } : e));
+      await refreshAndNotify();
+    } catch (e) {
+      notifyError(t(mode === 'stop' ? 'workflow.errorStop' : 'workflow.errorCancel'), e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // ===================== EDITOR MODE =====================
   if (editor) {
     const editorSchema = editor.kind === KIND.workflowSchema ? schemas.find((s) => s.id === editor.id) ?? null : null;
@@ -414,6 +451,8 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           onToggleTrack={editorConfig ? () => setTrackingId((cur) => (cur === editor.id ? null : editor.id)) : undefined}
           onSave={handleEditorSave}
           onCreateConfig={editor.kind === KIND.workflowSchema ? createConfigFromSchema : undefined}
+          onStop={editorConfig ? () => stopOrCancelEditorConfig('stop') : undefined}
+          onCancel={editorConfig ? () => stopOrCancelEditorConfig('cancel') : undefined}
           onDestroy={destroyEditorEntity}
           onBack={() => { setTrackingId(null); setEditor(null); }}
           onOpenDetails={() => setWfDetailsOpen(true)}
@@ -512,6 +551,8 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
             onSearch={handleSearch}
             onAdd={() => openAdd(effectiveKind(active as EntityKind))}
             onRefresh={refreshAndNotify}
+            onResolve={active === KIND.workflowConfig ? resolveAllConfigs : undefined}
+            resolving={resolving}
           />
         )}
       >

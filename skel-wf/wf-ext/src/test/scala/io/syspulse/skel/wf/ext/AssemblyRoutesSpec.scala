@@ -36,6 +36,14 @@ class StubEngine extends Engine {
     lastRunId = s"run-started-${runCounter.incrementAndGet()}" // unique per start -> unique xid (avoids RID resolve collisions)
     Future.successful(EngineStart(workflowId, lastRunId, ns.getOrElse("default")))
   }
+  @volatile var lastTerminate: Option[(String, Option[String], Option[String])] = None // (workflowId, runId, reason)
+  @volatile var lastCancel: Option[(String, Option[String], Option[String])] = None
+  override def terminate(ns: Option[String], workflowId: String, runId: Option[String], reason: Option[String]): Future[Unit] = {
+    lastTerminate = Some((workflowId, runId, reason)); Future.successful(())
+  }
+  override def cancel(ns: Option[String], workflowId: String, runId: Option[String], reason: Option[String]): Future[Unit] = {
+    lastCancel = Some((workflowId, runId, reason)); Future.successful(())
+  }
   def close(): Unit = ()
 }
 
@@ -236,6 +244,38 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       }
       val (_, wid, _, _) = stubEngine.lastStart.get
       wid shouldBe "custom-wid-123"
+    }
+
+    "POST /config/{id}/stop terminates the Engine workflow (workflowId+xid, reason) and sets TERMINATED" in {
+      val WID = "PoR-Stop-1"
+      val cfg = Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership]")) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
+      }
+      Post(s"/config/${cfg.id}/stop?reason=done") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[WorkflowConfig].status shouldBe WorkflowStatus.TERMINATED
+      }
+      Await.result(store.getConfig(cfg.id), 5.seconds).status shouldBe WorkflowStatus.TERMINATED
+      val (wid, runId, reason) = stubEngine.lastTerminate.get
+      wid shouldBe WID                 // workflowId = meta.wid
+      runId shouldBe cfg.xid           // runId = the config's xid
+      reason shouldBe Some("done")
+    }
+
+    "POST /config/{id}/cancel request-cancels the Engine workflow and sets CANCELED" in {
+      val WID = "PoR-Cancel-1"
+      val cfg = Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership]")) ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
+      }
+      Post(s"/config/${cfg.id}/cancel") ~> routes.routes ~> check {
+        status shouldBe StatusCodes.OK
+        responseAs[WorkflowConfig].status shouldBe WorkflowStatus.CANCELED
+      }
+      Await.result(store.getConfig(cfg.id), 5.seconds).status shouldBe WorkflowStatus.CANCELED
+      val (wid, runId, reason) = stubEngine.lastCancel.get
+      wid shouldBe WID
+      runId shouldBe cfg.xid
+      reason shouldBe None             // no reason passed
     }
   }
 }

@@ -24,12 +24,14 @@ interface WorkflowFiltersProps {
   onSearch: (query: string) => void;
   onAdd: () => void;
   onRefresh: () => void;
+  onResolve?: () => void;   // WorkflowConfig tab only: resolve all configs (by xid) against the Engine
+  resolving?: boolean;
 }
 
 // Same UI/UX as ExplainFilters, reusing the same building blocks (SearchField, TimeRangePicker,
 // TimezoneSelect). Filters apply to the active Workflow tab.
 export function WorkflowFilters({
-  filters, timezone, onFilterChange, onTimezoneChange, onSearch, onAdd, onRefresh,
+  filters, timezone, onFilterChange, onTimezoneChange, onSearch, onAdd, onRefresh, onResolve, resolving,
 }: WorkflowFiltersProps) {
   const { t } = useTranslation();
 
@@ -67,6 +69,15 @@ export function WorkflowFilters({
 
       <div className="flex-1" />
 
+      {onResolve && (
+        <button
+          onClick={onResolve}
+          disabled={resolving}
+          className="btn-toolbar disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <IconRefresh size={14} /> {resolving ? t('workflow.resolving') : t('workflow.resolve')}
+        </button>
+      )}
       <button
         onClick={onRefresh}
         className="btn-toolbar"

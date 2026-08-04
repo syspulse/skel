@@ -318,9 +318,12 @@
       "arrowOpen": "open",
       "openDetails": "open details",
       "createConfig": "Create",
-      "destroy": "Destroy",
+      "destroy": "Delete",
       "snap": "snap",
-      "grid": "grid"
+      "grid": "grid",
+      "delete": "Delete",
+      "stop": "Terminate",
+      "cancel": "Cancel"
     },
     "searchPlaceholder": "search...",
     "tagsAdd": "add tag…",
@@ -330,6 +333,10 @@
     "track": "Track",
     "tracking": "Tracking…",
     "freq": "Freq",
-    "errorCidNotFound": "DetectorConfig #{{id}} not found"
+    "errorCidNotFound": "DetectorConfig #{{id}} not found",
+    "confirmStop": "Stop (terminate) workflow #{{id}}?",
+    "confirmCancel": "Cancel workflow #{{id}}?",
+    "errorStop": "Stop failed",
+    "errorCancel": "Cancel failed"
   }
 }
