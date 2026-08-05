@@ -6,6 +6,7 @@ import scala.concurrent.duration._
 
 import io.syspulse.skel
 import io.syspulse.skel.config._
+import io.syspulse.skel.auth.jwt.AuthJwt
 
 import io.syspulse.skel.wf.ext.store.{WorkflowStore, WorkflowStoreMem, WorkflowStoreDir, WorkflowStoreDB, WorkflowRegistry, WorkflowAssembly}
 import io.syspulse.skel.wf.ext.server.WorkflowRoutes
@@ -34,6 +35,14 @@ case class Config(
   poll: Long = 3000,          // --poll: assembly-track polling interval in msec (def: 3000)
   tq: Option[String] = None,  // --tq  : Task queue override
   reason: Option[String] = None, // --reason : reason forwarded to the Engine on stop/cancel
+
+  // Auth / permissions (JWT), mirrors skel-explain
+  jwtUri: String = "hs512://",
+  ownerAttr: String = "oid",              // JWT claim carrying the owner id (matched against WorkflowConfig.oid)
+  rolesAttr: String = "groups[].",        // JWT claim path carrying roles
+  serviceRole: String = "extractor-service",
+  adminRole: String = "extractor-admin",
+  permissions: String = "user",           // permissions mode: user | strict | <other>
 
   timeout: Long = 30000, // --timeout : Timeout for Engine operations
 
@@ -129,6 +138,13 @@ object App extends skel.Server {
         ArgString('_', "tq", s"Task queue override"),
         ArgString('_', "reason", s"Reason forwarded to the Engine on stop/cancel"),
 
+        ArgString('_', "jwt.uri", s"JWT Uri [hs512://secret,rs512://pk/key] (def: ${d.jwtUri})"),
+        ArgString('_', "owner.attr", s"Owner attribute in JWT (def: ${d.ownerAttr})"),
+        ArgString('_', "service.role", s"Service role in JWT (def: ${d.serviceRole})"),
+        ArgString('_', "admin.role", s"Admin role in JWT (def: ${d.adminRole})"),
+        ArgString('_', "permissions", s"Permissions mode (def: ${d.permissions})"),
+        ArgString('_', "roles.attr", s"Roles attribute in JWT (def: ${d.rolesAttr})"),
+
         ArgLong('_', "timeout", s"Timeout for Engine operations (def: ${d.timeout})"),
 
         ArgCmd("server", s"Start Workflow REST server"),
@@ -159,6 +175,14 @@ object App extends skel.Server {
       poll = c.getLong("poll").getOrElse(d.poll),
       tq = c.getString("tq").filter(_.nonEmpty),
       reason = c.getString("reason").filter(_.nonEmpty),
+
+      jwtUri = c.getString("jwt.uri").getOrElse(d.jwtUri),
+      ownerAttr = c.getString("owner.attr").getOrElse(d.ownerAttr),
+      serviceRole = c.getString("service.role").getOrElse(d.serviceRole).stripPrefix("'").stripSuffix("'"),
+      adminRole = c.getString("admin.role").getOrElse(d.adminRole).stripPrefix("'").stripSuffix("'"),
+      permissions = c.getString("permissions").getOrElse(d.permissions),
+      rolesAttr = c.getString("roles.attr").getOrElse(d.rolesAttr),
+
       timeout = c.getLong("timeout").getOrElse(d.timeout),
 
       cmd = c.getCmd().getOrElse(d.cmd),
@@ -166,6 +190,9 @@ object App extends skel.Server {
     )
 
     log.info(s"Config: ${config}")
+
+    // initialize the JWT verifier used by the route authorizers (no-op if blank)
+    if (!config.jwtUri.isBlank) AuthJwt(config.jwtUri)
 
     def getStore(uri: String): WorkflowStore = uri.split("://").toList match {
       case "mem" :: Nil | "cache" :: Nil => new WorkflowStoreMem()
@@ -221,7 +248,7 @@ object App extends skel.Server {
         // the 4th ("ext"), so re-add it via Routeable.withSuffix -> /api/v1/wf/ext/{schema,config,graf,engine}
         run(config.host, config.port, config.uri, c,
           Seq(
-            (WorkflowRegistry(store, engine), "WorkflowRegistry", (actor, ac) => new WorkflowRoutes(actor, engine)(ac).withSuffix("ext"))
+            (WorkflowRegistry(store, engine), "WorkflowRegistry", (actor, ac) => new WorkflowRoutes(actor, engine)(ac, config).withSuffix("ext"))
           )
         )
         s"Server: http://${config.host}:${config.port}${config.uri}"

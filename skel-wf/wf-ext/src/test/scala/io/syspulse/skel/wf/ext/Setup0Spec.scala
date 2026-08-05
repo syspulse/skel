@@ -26,7 +26,7 @@ import io.syspulse.skel.wf.ext.server._
  * WorkflowConfig created with contractId=0 (its DetectorConfigs get contract_id=0) satisfies the
  * external `detector.contract_id -> contract(id)` FK. Verified end-to-end: setup0 -> create -> delete.
  */
-class Setup0Spec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll {
+class Setup0Spec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll with WfRouteTest {
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import WorkflowJson._
@@ -78,7 +78,7 @@ class Setup0Spec extends AnyWordSpec with Matchers with ScalatestRouteTest with 
 
     val registry = typedSystem.systemActorOf(WorkflowRegistry(store, None), "WorkflowRegistry")
     val p = Promise[WorkflowRoutes]()
-    typedSystem.systemActorOf(Behaviors.setup[Any] { context => p.success(new WorkflowRoutes(registry, None)(context)); Behaviors.empty }, "test-actor")
+    typedSystem.systemActorOf(Behaviors.setup[Any] { context => p.success(new WorkflowRoutes(registry, None)(context, config)); Behaviors.empty }, "test-actor")
     routes = Await.result(p.future, 5.seconds)
   }
 

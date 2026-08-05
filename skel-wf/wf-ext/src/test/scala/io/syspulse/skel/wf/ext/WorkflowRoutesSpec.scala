@@ -17,7 +17,7 @@ import io.hacken.ext.detector.DetectorConfig
 import io.syspulse.skel.wf.ext.store.{WorkflowStoreMem, WorkflowRegistry}
 import io.syspulse.skel.wf.ext.server._
 
-class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll {
+class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll with WfRouteTest {
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import WorkflowJson._
@@ -32,7 +32,7 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
 
   val routesPromise = Promise[WorkflowRoutes]()
   val testBehavior = Behaviors.setup[Any] { context =>
-    routesPromise.success(new WorkflowRoutes(registry)(context))
+    routesPromise.success(new WorkflowRoutes(registry)(context, config))
     Behaviors.empty
   }
   typedSystem.systemActorOf(testBehavior, "test-actor")

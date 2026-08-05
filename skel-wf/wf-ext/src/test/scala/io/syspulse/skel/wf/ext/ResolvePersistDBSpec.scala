@@ -27,7 +27,7 @@ import io.syspulse.skel.wf.ext.engine.EngineStatus
  * `detector` EXTERNALLY - so it may update WorkflowConfig.status but must NOT update DetectorConfig
  * for now (`canUpdateDetectorConfig == false`).
  */
-class ResolvePersistDBSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll {
+class ResolvePersistDBSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll with WfRouteTest {
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import WorkflowJson._
@@ -76,7 +76,7 @@ class ResolvePersistDBSpec extends AnyWordSpec with Matchers with ScalatestRoute
     val engine = Some(new StubEngine)
     val registry = typedSystem.systemActorOf(WorkflowRegistry(store, engine), "WorkflowRegistry")
     val p = Promise[WorkflowRoutes]()
-    typedSystem.systemActorOf(Behaviors.setup[Any] { context => p.success(new WorkflowRoutes(registry, engine)(context)); Behaviors.empty }, "test-actor")
+    typedSystem.systemActorOf(Behaviors.setup[Any] { context => p.success(new WorkflowRoutes(registry, engine)(context, config)); Behaviors.empty }, "test-actor")
     routes = Await.result(p.future, 5.seconds)
   }
 

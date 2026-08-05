@@ -47,7 +47,7 @@ class StubEngine extends Engine {
   def close(): Unit = ()
 }
 
-class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll {
+class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll with WfRouteTest {
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import WorkflowJson._
@@ -62,7 +62,7 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
 
   val routesPromise = Promise[WorkflowRoutes]()
   typedSystem.systemActorOf(Behaviors.setup[Any] { context =>
-    routesPromise.success(new WorkflowRoutes(registry, engine)(context))
+    routesPromise.success(new WorkflowRoutes(registry, engine)(context, config))
     Behaviors.empty
   }, "test-actor")
   val routes = Await.result(routesPromise.future, 5.seconds)

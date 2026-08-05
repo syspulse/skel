@@ -26,6 +26,7 @@ import jakarta.ws.rs.core.MediaType
 
 import spray.json.JsValue
 
+import io.syspulse.skel.auth.Authenticated
 import io.syspulse.skel.auth.permissions.Permissions
 import io.syspulse.skel.auth.RouteAuthorizers
 import io.syspulse.skel.auth.ext.{ExtAuth, ExtRbacStrict, ExtRbacUser}
@@ -34,6 +35,7 @@ import io.syspulse.skel.service.Routeable
 import io.syspulse.skel.service.CommonRoutes
 import io.syspulse.skel.Command
 
+import io.syspulse.skel.wf.ext.Config
 import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf}
 import io.hacken.ext.detector.{DetectorSchema, DetectorConfig}
 import io.syspulse.skel.wf.ext.store.WorkflowRegistry
@@ -48,7 +50,7 @@ import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineWorkflows, 
  *   /api/v1/wf/ext/engine  - Engine runtime state (Temporal), enabled when an Engine is configured
  */
 @Path("/")
-class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)(implicit context: ActorContext[_]) extends CommonRoutes with Routeable {
+class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)(implicit context: ActorContext[_], config: Config) extends CommonRoutes with Routeable with RouteAuthorizers {
 
   implicit val system: ActorSystem[_] = context.system
   implicit val ec: scala.concurrent.ExecutionContext = context.executionContext
@@ -67,6 +69,39 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   import io.hacken.ext.detector.DetectorSchemaJson._
   import io.hacken.ext.detector.DetectorConfigJson._
   import io.syspulse.skel.wf.ext.engine.EngineJson._
+
+  // ================================================================ authorization
+  // Rules:
+  //  - Schema (WorkflowSchema/DetectorSchema): GET = any authenticated user; POST/PUT/DELETE = admin|service
+  //  - WorkflowConfig: GET/POST/PUT/DELETE (+ stop/cancel) = admin|service, OR the user whose JWT owner
+  //    attribute (config.ownerAttr, default "oid") equals WorkflowConfig.oid
+  //  - DetectorConfig has NO oid field -> it follows the schema rule (reads: any user; writes: admin|service)
+
+  /** admin & service roles may use any API. */
+  private def canAccessAdmin(authn: Authenticated): Boolean =
+    Permissions.isAdmin(authn) || Permissions.isService(authn)
+
+  /** a user may access a WorkflowConfig only when its oid equals the JWT owner attribute. */
+  private def canAccessOid(authn: Authenticated, oid: Option[String]): Boolean =
+    canAccessAdmin(authn) || ExtAuth.getOwner(authn, config.ownerAttr) == oid
+
+  /** authenticated + any user (valid JWT required, no role/oid restriction). */
+  private def authUser(inner: => Route): Route = authenticate()(_ => inner)
+
+  /** authenticated + admin|service only. */
+  private def authAdminService(inner: => Route): Route = authenticate()(authn => authorize(canAccessAdmin(authn))(inner))
+
+  /** fetch a WorkflowConfig (for its oid) before authorizing a per-config operation; 404 when missing. */
+  private def withConfig(id: Int)(inner: WorkflowConfig => Route): Route =
+    onComplete(getWorkflowConfig(id, "")) {
+      case Success(Success(view)) => inner(view.config)
+      case Success(Failure(_))    => complete(StatusCodes.NotFound -> s"WorkflowConfig not found: ${id}")
+      case Failure(e)             => complete(StatusCodes.InternalServerError -> e.getMessage)
+    }
+
+  /** authenticated + WorkflowConfig-oid authorization for a per-config operation. */
+  private def authConfig(id: Int)(inner: => Route): Route =
+    authenticate()(authn => withConfig(id) { c => authorize(canAccessOid(authn, c.oid))(inner) })
 
   // ---- WorkflowSchema asks ----
   def getWorkflowSchemas(from: Option[Long], size: Option[Long], entity: String): Future[Try[WorkflowSchemas]] = registry.ask(GetWorkflowSchemas(from, size, entity, _))
@@ -143,15 +178,15 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   }
 
   def getEngineRuntimesRoute(engineName: String, namespace: Option[String]) = get {
-    forEngine(engineName) { e =>
+    authUser { forEngine(engineName) { e =>
       complete(e.getRuntimes(namespace).map(ws => EngineWorkflows(ws, ws.size.toLong)))
-    }
+    } }
   }
 
   def getEngineRuntimeRoute(engineName: String, namespace: Option[String], runtimeId: String) = get {
-    forEngine(engineName) { e =>
+    authUser { forEngine(engineName) { e =>
       rejectEmptyResponse { complete(e.getRuntime(namespace, runtimeId)) }
-    }
+    } }
   }
 
   // ================================================================ schema routes
@@ -165,7 +200,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemas]))))))
   def getWorkflowSchemasRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?, "entity".?) { (from, size, entity) =>
-      complete(getWorkflowSchemas(pageFrom(from, size), pageSize(from, size), entityMode(entity)))
+      authUser { complete(getWorkflowSchemas(pageFrom(from, size), pageSize(from, size), entityMode(entity))) }
     }
   }
 
@@ -178,7 +213,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchemaView]))))))
   def getWorkflowSchemaRoute(id: Int) = get {
     parameter("entity".?) { entity =>
-      complete(getWorkflowSchema(id, entityMode(entity)))
+      authUser { complete(getWorkflowSchema(id, entityMode(entity))) }
     }
   }
 
@@ -188,18 +223,18 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "created",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowSchema]))))))
   def createWorkflowSchemaRoute() = post {
-    entity(as[WorkflowSchemaCreateReq]) { req => complete(createWorkflowSchema(req)) }
+    authAdminService { entity(as[WorkflowSchemaCreateReq]) { req => complete(createWorkflowSchema(req)) } }
   }
 
   def createWorkflowSchemaDslRoute() = post {
-    entity(as[WorkflowSchemaDslReq]) { req => complete(createWorkflowSchemaDsl(req)) }
+    authAdminService { entity(as[WorkflowSchemaDslReq]) { req => complete(createWorkflowSchemaDsl(req)) } }
   }
 
   def updateWorkflowSchemaRoute(id: Int) = put {
-    entity(as[WorkflowSchemaUpdateReq]) { req => complete(updateWorkflowSchema(id, req)) }
+    authAdminService { entity(as[WorkflowSchemaUpdateReq]) { req => complete(updateWorkflowSchema(id, req)) } }
   }
 
-  def deleteWorkflowSchemaRoute(id: Int) = delete { complete(deleteWorkflowSchema(id)) }
+  def deleteWorkflowSchemaRoute(id: Int) = delete { authAdminService { complete(deleteWorkflowSchema(id)) } }
 
   // ================================================================ config routes
   @GET @Path("/config") @Produces(Array(MediaType.APPLICATION_JSON))
@@ -212,7 +247,11 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def getWorkflowConfigsRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?, "entity".?) { (from, size, entity) =>
-      complete(getWorkflowConfigs(pageFrom(from, size), pageSize(from, size), entityMode(entity)))
+      authenticate()(authn =>
+        // admin/service see all configs; a user sees only the configs whose oid == their JWT owner
+        if (canAccessAdmin(authn)) complete(getWorkflowConfigs(pageFrom(from, size), pageSize(from, size), entityMode(entity)))
+        else complete(getWorkflowConfigsByOid(ExtAuth.getOwner(authn, config.ownerAttr).getOrElse("")))
+      )
     }
   }
 
@@ -225,7 +264,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigView]))))))
   def getWorkflowConfigRoute(id: Int) = get {
     parameter("entity".?) { entity =>
-      complete(getWorkflowConfig(id, entityMode(entity)))
+      authConfig(id) { complete(getWorkflowConfig(id, entityMode(entity))) }
     }
   }
 
@@ -237,7 +276,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "terminated + updated config",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def stopWorkflowConfigRoute(id: Int) = post {
-    parameter("reason".?) { reason => complete(stopWorkflowConfig(id, reason)) }
+    parameter("reason".?) { reason => authConfig(id) { complete(stopWorkflowConfig(id, reason)) } }
   }
 
   @POST @Path("/config/{id}/cancel") @Produces(Array(MediaType.APPLICATION_JSON))
@@ -248,11 +287,21 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "cancel-requested + updated config",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def cancelWorkflowConfigRoute(id: Int) = post {
-    parameter("reason".?) { reason => complete(cancelWorkflowConfig(id, reason)) }
+    parameter("reason".?) { reason => authConfig(id) { complete(cancelWorkflowConfig(id, reason)) } }
   }
 
-  def getWorkflowConfigByXidRoute(xid: String) = get { rejectEmptyResponse { complete(getWorkflowConfigByXid(xid)) } }
-  def getWorkflowConfigsByOidRoute(oid: String) = get { complete(getWorkflowConfigsByOid(oid)) }
+  def getWorkflowConfigByXidRoute(xid: String) = get {
+    authenticate()(authn =>
+      onComplete(getWorkflowConfigByXid(xid)) {
+        case Success(Some(c)) => authorize(canAccessOid(authn, c.oid)) { complete(c) }
+        case Success(None)    => complete(StatusCodes.NotFound -> s"WorkflowConfig not found: xid=${xid}")
+        case Failure(e)       => complete(StatusCodes.InternalServerError -> e.getMessage)
+      }
+    )
+  }
+  def getWorkflowConfigsByOidRoute(oid: String) = get {
+    authenticate()(authn => authorize(canAccessOid(authn, Some(oid))) { complete(getWorkflowConfigsByOid(oid)) })
+  }
 
   /** Split a comma-separated `ids` path segment into a clean list. */
   private def splitIds(csv: String): Seq[String] =
@@ -267,7 +316,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def getWorkflowConfigsResolveRoute(ids: Seq[String], typ: Option[String]) = get {
     // the Engine query + live status mapping happens in WorkflowRegistry.ResolveWorkflowConfigs
-    complete(resolveWorkflowConfigs(ids, typ))
+    authUser { complete(resolveWorkflowConfigs(ids, typ)) }
   }
 
   @POST @Path("/schema/{id}/start") @Produces(Array(MediaType.APPLICATION_JSON))
@@ -282,9 +331,11 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def startWorkflowSchemaRoute(id: Int) = post {
     parameters("taskQueue".?, "wid".?) { (tq, wid) =>
-      // optional JSON body = caller input payload (overrides the default WorkflowConfig payload)
-      entity(as[JsValue]) { body => complete(startWorkflowSchema(id, tq, Some(body.compactPrint), wid)) } ~
-      complete(startWorkflowSchema(id, tq, None, wid))
+      authAdminService {
+        // optional JSON body = caller input payload (overrides the default WorkflowConfig payload)
+        entity(as[JsValue]) { body => complete(startWorkflowSchema(id, tq, Some(body.compactPrint), wid)) } ~
+        complete(startWorkflowSchema(id, tq, None, wid))
+      }
     }
   }
 
@@ -294,7 +345,10 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "created",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def createWorkflowConfigRoute() = post {
-    entity(as[WorkflowConfigCreateReq]) { req => complete(createWorkflowConfig(req)) }
+    entity(as[WorkflowConfigCreateReq]) { req =>
+      // a user may create a config only with their own oid; admin/service any
+      authenticate()(authn => authorize(canAccessOid(authn, req.oid)) { complete(createWorkflowConfig(req)) })
+    }
   }
 
   @POST @Path("/config/schema/{sid}") @Produces(Array(MediaType.APPLICATION_JSON))
@@ -306,7 +360,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def createWorkflowConfigFromSchemaRoute(sid: Int) = post {
     parameter("contractId".as[Int].?) { contractId =>
-      complete(createWorkflowConfigFromSchema(sid, contractId.getOrElse(0)))
+      authAdminService { complete(createWorkflowConfigFromSchema(sid, contractId.getOrElse(0))) }
     }
   }
 
@@ -322,12 +376,12 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowActionRes]))))))
   def setup0Route() = post {
     parameters("tenantId".as[Int].?, "projectId".as[Int].?, "contractId".as[Int].?, "name".?, "status".?) { (t, p, c, n, s) =>
-      complete(setup0(t.getOrElse(0), p.getOrElse(0), c.getOrElse(0), n.getOrElse("setup0"), s.getOrElse("DISABLED")))
+      authAdminService { complete(setup0(t.getOrElse(0), p.getOrElse(0), c.getOrElse(0), n.getOrElse("setup0"), s.getOrElse("DISABLED"))) }
     }
   }
 
   def createWorkflowConfigDslRoute() = post {
-    entity(as[WorkflowConfigDslReq]) { req => complete(createWorkflowConfigDsl(req)) }
+    authAdminService { entity(as[WorkflowConfigDslReq]) { req => complete(createWorkflowConfigDsl(req)) } }
   }
 
   @POST @Path("/config/assembly") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
@@ -336,7 +390,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "assembled",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def createWorkflowConfigAssemblyRoute() = post {
-    entity(as[WorkflowConfigDslReq]) { req => complete(assemblyWorkflowConfig(req)) }
+    authAdminService { entity(as[WorkflowConfigDslReq]) { req => complete(assemblyWorkflowConfig(req)) } }
   }
 
   @POST @Path("/temporal/assembly/{id}") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
@@ -348,16 +402,18 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "assembled + linked",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def temporalAssemblyRoute(id: String) = post {
-    entity(as[WorkflowConfigDslReq]) { req =>
-      parameter("ns".?) { ns =>
-        engine match {
-          case Some(e) =>
-            // resolve the Temporal id (runtimeId or workflowId) on the engine, then assembly + bind
-            onComplete(TrackMapper.of(id).resolve(e, ns)) {
-              case Success(runtime) => complete(assemblyWorkflowConfigLinked(req, runtime, id))
-              case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
-            }
-          case None => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --engine=temporal://...)")
+    authAdminService {
+      entity(as[WorkflowConfigDslReq]) { req =>
+        parameter("ns".?) { ns =>
+          engine match {
+            case Some(e) =>
+              // resolve the Temporal id (runtimeId or workflowId) on the engine, then assembly + bind
+              onComplete(TrackMapper.of(id).resolve(e, ns)) {
+                case Success(runtime) => complete(assemblyWorkflowConfigLinked(req, runtime, id))
+                case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
+              }
+            case None => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --engine=temporal://...)")
+          }
         }
       }
     }
@@ -369,7 +425,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "linked",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def createWorkflowConfigLinkRoute() = post {
-    entity(as[WorkflowConfigDslReq]) { req => complete(linkWorkflowConfig(req)) }
+    authAdminService { entity(as[WorkflowConfigDslReq]) { req => complete(linkWorkflowConfig(req)) } }
   }
 
   @POST @Path("/temporal/link/{id}") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
@@ -381,26 +437,28 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "linked + bound",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def temporalLinkRoute(id: String) = post {
-    entity(as[WorkflowConfigDslReq]) { req =>
-      parameter("ns".?) { ns =>
-        engine match {
-          case Some(e) =>
-            // resolve the Temporal id (runtimeId or workflowId) on the engine, then link-by-name + bind
-            onComplete(TrackMapper.of(id).resolve(e, ns)) {
-              case Success(runtime) => complete(linkWorkflowConfigLinked(req, runtime, id))
-              case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
-            }
-          case None => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --engine=temporal://...)")
+    authAdminService {
+      entity(as[WorkflowConfigDslReq]) { req =>
+        parameter("ns".?) { ns =>
+          engine match {
+            case Some(e) =>
+              // resolve the Temporal id (runtimeId or workflowId) on the engine, then link-by-name + bind
+              onComplete(TrackMapper.of(id).resolve(e, ns)) {
+                case Success(runtime) => complete(linkWorkflowConfigLinked(req, runtime, id))
+                case Failure(ex)      => complete(StatusCodes.InternalServerError -> s"engine error: ${ex.getMessage}")
+              }
+            case None => complete(StatusCodes.NotImplemented -> "no Engine configured (start with --engine=temporal://...)")
+          }
         }
       }
     }
   }
 
   def updateWorkflowConfigRoute(id: Int) = put {
-    entity(as[WorkflowConfigUpdateReq]) { req => complete(updateWorkflowConfig(id, req)) }
+    authConfig(id) { entity(as[WorkflowConfigUpdateReq]) { req => complete(updateWorkflowConfig(id, req)) } }
   }
 
-  def deleteWorkflowConfigRoute(id: Int) = delete { complete(deleteWorkflowConfig(id)) }
+  def deleteWorkflowConfigRoute(id: Int) = delete { authConfig(id) { complete(deleteWorkflowConfig(id)) } }
 
   // ================================================================ graf routes
   @GET @Path("/graf") @Produces(Array(MediaType.APPLICATION_JSON))
@@ -409,7 +467,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowGrafs]))))))
   def getWorkflowGrafsRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?) { (from, size) =>
-      complete(getWorkflowGrafs(pageFrom(from, size), pageSize(from, size)))
+      authUser { complete(getWorkflowGrafs(pageFrom(from, size), pageSize(from, size))) }
     }
   }
 
@@ -418,7 +476,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     parameters = Array(new Parameter(name = "id", in = ParameterIn.PATH, description = "graf id")),
     responses = Array(new ApiResponse(responseCode = "200", description = "graf",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowGraf]))))))
-  def getWorkflowGrafRoute(id: Int) = get { complete(getWorkflowGraf(id)) }
+  def getWorkflowGrafRoute(id: Int) = get { authUser { complete(getWorkflowGraf(id)) } }
 
   @POST @Path("/graf") @Consumes(Array(MediaType.APPLICATION_JSON)) @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("graf"), summary = "Create WorkflowGraf",
@@ -426,40 +484,41 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "created",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowGraf]))))))
   def createWorkflowGrafRoute() = post {
-    entity(as[WorkflowGrafCreateReq]) { req => complete(createWorkflowGraf(req)) }
+    authAdminService { entity(as[WorkflowGrafCreateReq]) { req => complete(createWorkflowGraf(req)) } }
   }
 
-  def deleteWorkflowGrafRoute(id: Int) = delete { complete(deleteWorkflowGraf(id)) }
+  def deleteWorkflowGrafRoute(id: Int) = delete { authAdminService { complete(deleteWorkflowGraf(id)) } }
 
   // ================================================================ detector-schema routes
   def getDetectorSchemasRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?) { (from, size) =>
-      complete(getDetectorSchemas(pageFrom(from, size), pageSize(from, size)))
+      authUser { complete(getDetectorSchemas(pageFrom(from, size), pageSize(from, size))) }
     }
   }
-  def getDetectorSchemaRoute(id: Int) = get { complete(getDetectorSchema(id)) }
+  def getDetectorSchemaRoute(id: Int) = get { authUser { complete(getDetectorSchema(id)) } }
   def createDetectorSchemaRoute() = post {
-    entity(as[DetectorSchemaCreateReq]) { req => complete(createDetectorSchema(req)) }
+    authAdminService { entity(as[DetectorSchemaCreateReq]) { req => complete(createDetectorSchema(req)) } }
   }
   def updateDetectorSchemaRoute(id: Int) = put {
-    entity(as[DetectorSchemaUpdateReq]) { req => complete(updateDetectorSchema(id, req)) }
+    authAdminService { entity(as[DetectorSchemaUpdateReq]) { req => complete(updateDetectorSchema(id, req)) } }
   }
-  def deleteDetectorSchemaRoute(id: Int) = delete { complete(deleteDetectorSchema(id)) }
+  def deleteDetectorSchemaRoute(id: Int) = delete { authAdminService { complete(deleteDetectorSchema(id)) } }
 
   // ================================================================ detector-config routes
+  // DetectorConfig has NO oid field -> follows the schema rule (reads: any user; writes: admin|service)
   def getDetectorConfigsRoute() = get {
     parameters("from".as[Long].?, "size".as[Long].?) { (from, size) =>
-      complete(getDetectorConfigs(pageFrom(from, size), pageSize(from, size)))
+      authUser { complete(getDetectorConfigs(pageFrom(from, size), pageSize(from, size))) }
     }
   }
-  def getDetectorConfigRoute(id: Int) = get { complete(getDetectorConfig(id)) }
+  def getDetectorConfigRoute(id: Int) = get { authUser { complete(getDetectorConfig(id)) } }
   def createDetectorConfigRoute() = post {
-    entity(as[DetectorConfigCreateReq]) { req => complete(createDetectorConfig(req)) }
+    authAdminService { entity(as[DetectorConfigCreateReq]) { req => complete(createDetectorConfig(req)) } }
   }
   def updateDetectorConfigRoute(id: Int) = put {
-    entity(as[DetectorConfigUpdateReq]) { req => complete(updateDetectorConfig(id, req)) }
+    authAdminService { entity(as[DetectorConfigUpdateReq]) { req => complete(updateDetectorConfig(id, req)) } }
   }
-  def deleteDetectorConfigRoute(id: Int) = delete { complete(deleteDetectorConfig(id)) }
+  def deleteDetectorConfigRoute(id: Int) = delete { authAdminService { complete(deleteDetectorConfig(id)) } }
 
   val corsAllow = CorsSettings(system.classicSystem)
     .withAllowCredentials(true)

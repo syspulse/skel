@@ -26,7 +26,7 @@ class ObsoleteEngine extends Engine {
   def close(): Unit = ()
 }
 
-class ResolveUnresolvedSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll {
+class ResolveUnresolvedSpec extends AnyWordSpec with Matchers with ScalatestRouteTest with BeforeAndAfterAll with WfRouteTest {
 
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import WorkflowJson._
@@ -38,7 +38,7 @@ class ResolveUnresolvedSpec extends AnyWordSpec with Matchers with ScalatestRout
 
   val routesPromise = Promise[WorkflowRoutes]()
   typedSystem.systemActorOf(Behaviors.setup[Any] { context =>
-    routesPromise.success(new WorkflowRoutes(registry, engine)(context)); Behaviors.empty
+    routesPromise.success(new WorkflowRoutes(registry, engine)(context, config)); Behaviors.empty
   }, "test-actor")
   val routes = Await.result(routesPromise.future, 5.seconds)
 
