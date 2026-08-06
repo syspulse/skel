@@ -21,6 +21,7 @@ import {
 import {
   IconPlus, IconTrash, IconReset, IconSave, IconClose, IconSearch, IconRefresh, IconPlay,
 } from '../../../components/Icons';
+import { engineIcon } from '../engineIcons';
 import { statusChipStyle } from '../status';
 
 export interface WorkflowEditorProps {
@@ -36,6 +37,8 @@ export interface WorkflowEditorProps {
   saving?: boolean;
   status?: string;                        // WorkflowConfig runtime status (shown in Panel 1)
   xid?: string;                           // WorkflowConfig engine runtime id (shown in Panel 1)
+  engineUri?: string;                     // WorkflowConfig meta.uri: deep-link to the run on the engine panel
+  engine?: string;                        // WorkflowConfig meta.engine: engine name (selects the panel-link icon)
   detectorStatus?: Record<number, string>; // cid -> DetectorConfig status from /resolve (overlaid on nodes)
   detectorActivityId?: Record<number, string>; // cid -> DetectorConfig.meta.activity_id from /resolve (overlaid on nodes)
   resolving?: boolean;
@@ -62,7 +65,7 @@ const EDGE_COLOR = '#64748b';
 
 function WorkflowEditorInner(props: WorkflowEditorProps) {
   const { t } = useTranslation();
-  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, detectorActivityId, resolving, onResolve, onValidateCid, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onCreateConfig, onStart, onStop, onCancel, onDestroy, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
+  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, engineUri, engine, detectorStatus, detectorActivityId, resolving, onResolve, onValidateCid, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onCreateConfig, onStart, onStop, onCancel, onDestroy, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
 
   const initial = useMemo(() => grafToRF(graf), [graf]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<RFNodeData>>(initial.nodes);
@@ -252,6 +255,20 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
                 {xid}
               </span>
             ) : null}
+            {/* open this run on the engine web panel (meta.uri); icon per meta.engine, else [->] */}
+            {kind === KIND.workflowConfig && engineUri ? (() => {
+              const EngineIcon = engineIcon(engine);
+              return (
+                <button
+                  type="button"
+                  className="p-0.5 rounded shrink-0 border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  title={t('workflow.openEngine', { uri: engineUri })}
+                  onClick={(e) => { e.stopPropagation(); window.open(engineUri, '_blank', 'noopener,noreferrer'); }}
+                >
+                  <EngineIcon size={14} />
+                </button>
+              );
+            })() : null}
             {/* WorkflowConfig runtime status label, next to the id */}
             {status ? (
               <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0 font-semibold" style={statusChipStyle(status)} title={`status: ${status}`}>

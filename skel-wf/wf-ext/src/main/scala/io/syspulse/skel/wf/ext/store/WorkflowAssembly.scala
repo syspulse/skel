@@ -72,7 +72,10 @@ object WorkflowAssembly {
       .getOrElse(cfg.name)
     for {
       started <- engine.start(ns, workflowType = workflowType, workflowId = workflowId, taskQueue = taskQueue, input = input)
-      meta     = cfg.meta.getOrElse(Map.empty[String, Any]) + ("wid" -> started.workflowId)
+      // record the runtime binding + where to observe it: engine name and a deep-link into the engine panel
+      uri      = engine.panelUri(workflowType, started.workflowId, started.runtimeId)
+      meta     = cfg.meta.getOrElse(Map.empty[String, Any]) +
+                   ("wid" -> started.workflowId) + ("engine" -> engine.name) ++ uri.map("uri" -> _).toMap
       saved   <- store.addConfig(cfg.copy(xid = Some(started.runtimeId), meta = Some(meta), updatedAt = System.currentTimeMillis()))
     } yield saved
   }

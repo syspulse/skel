@@ -347,6 +347,7 @@
     "startOk": "Workflow started",
     "startOkMsg": "WorkflowConfig #{{id}} '{{name}}' ({{title}})",
     "startErr": "Workflow start failed",
-    "optional": "optional"
+    "optional": "optional",
+    "openEngine": "Open on engine panel: {{uri}}"
   }
 }

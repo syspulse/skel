@@ -55,6 +55,20 @@ trait Engine {
   def namespaces(): Future[Seq[String]]
 
   /**
+   * Build an absolute deep-link into the Engine's WEB PANEL for a specific runtime Workflow instance,
+   * e.g. "http://localhost:8233/namespaces/default/workflows/PoR-flow-15/019f...151f26".
+   *
+   * Abstract over the concrete engine (do NOT reach for the engine's URI type directly) - each
+   * implementation knows how to turn a (workflowType, workflowId, runtimeId) triple into its own panel URL.
+   *
+   * @param workflowType Engine Workflow Type name  (== WorkflowConfig.name)
+   * @param workflowId   Engine WorkflowId
+   * @param runtimeId    Engine runtime instance id  (Temporal RunId == WorkflowConfig.xid)
+   * @return absolute panel URL, or None when the engine exposes no web panel
+   */
+  def panelUri(workflowType: String, workflowId: String, runtimeId: String): Option[String] = None
+
+  /**
    * Start a NEW workflow execution on the Engine (Temporal StartWorkflowExecution).
    *
    * wf-ext only INITIATES the start - it provides the WorkflowType, WorkflowId, TaskQueue and an

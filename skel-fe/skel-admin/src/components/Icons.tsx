@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface IconProps {
+export interface IconProps {
   size?: number;
   className?: string;
 }
@@ -302,6 +302,19 @@ export function IconLink({ size = 14, className = '' }: IconProps) {
       className={className}>
       <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  );
+}
+
+// Temporal (temporal.io) engine mark: three orbits rotated 60° into a 6-petal rosette + hub.
+export function IconTemporal({ size = 14, className = '' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.4" className={className}>
+      <ellipse cx="12" cy="12" rx="10" ry="3.6" />
+      <ellipse cx="12" cy="12" rx="10" ry="3.6" transform="rotate(60 12 12)" />
+      <ellipse cx="12" cy="12" rx="10" ry="3.6" transform="rotate(120 12 12)" />
+      <circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none" />
     </svg>
   );
 }

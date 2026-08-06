@@ -149,6 +149,15 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
     case Some(ns)                     => Future.successful(Seq(ns))
   }
 
+  // ---------------------------------------------------------------- panel URL
+  // Temporal UI deep-link: {ui}/namespaces/{ns}/workflows/{workflowId}/{runId}. `workflowType` is not
+  // part of the Temporal URL (kept in the abstract signature for engines that need it). Uses the same
+  // concrete namespace `start` writes to.
+  override def panelUri(workflowType: String, workflowId: String, runtimeId: String): Option[String] = {
+    val ns = writeNamespace(None)
+    Some(s"${t.ui}/namespaces/${ns}/workflows/${workflowId}/${runtimeId}")
+  }
+
   /** Pick a SINGLE concrete namespace for a write op (start): explicit -> configured -> "default". */
   private def writeNamespace(namespace: Option[String]): String =
     namespace.map(_.trim).filter(_.nonEmpty).getOrElse {

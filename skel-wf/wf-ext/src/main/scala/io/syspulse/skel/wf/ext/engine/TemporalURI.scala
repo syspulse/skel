@@ -48,6 +48,7 @@ case class TemporalURI(uri: String) {
   val DEF_KEEP_ALIVE_TIME = 30000L
   val DEF_KEEP_ALIVE_TIMEOUT = 15000L
   val DEF_RPC_TIMEOUT = 10000L
+  val DEF_UI_PORT = 8233 // Temporal Web UI default port (gRPC is on `port`, 7233)
 
   private val (_host: String, _port: Int, _namespace: String, _ops: Map[String, String]) = parse(uri)
 
@@ -66,6 +67,12 @@ case class TemporalURI(uri: String) {
 
   /** Optional JWT auth token, used as Authorization: Bearer <token> on gRPC metadata. */
   def auth: Option[String] = _ops.get("auth").filter(_.nonEmpty)
+
+  /**
+   * Base URL of the Temporal Web UI (panel), no trailing slash. Override with `?ui=http://host:port`;
+   * defaults to `http://<host>:8233` (the dev-server UI alongside the 7233 gRPC frontend).
+   */
+  def ui: String = _ops.get("ui").map(_.trim).filter(_.nonEmpty).getOrElse(s"http://${host}:${DEF_UI_PORT}").stripSuffix("/")
 
   /** TLS mode: None (plaintext), Some("ignore") (insecure), Some("cert") (secure). */
   def tls: Option[String] = _ops.get("tls").filter(_.nonEmpty)
