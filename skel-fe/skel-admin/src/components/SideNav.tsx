@@ -8,7 +8,7 @@ import { idLabelStyle } from '../modules/workflow/labels';
 
 export type NavPage = 'explain' | 'dash' | 'dispatcher' | 'workflow' | 'settings' | 'help';
 
-export interface WorkflowInstanceRef { kind: WorkflowKind; id: number; name: string; }
+export interface WorkflowInstanceRef { kind: WorkflowKind; id: number; name: string; title?: string; }
 export interface SelectedWorkflowInstance { kind: WorkflowKind; id: number; }
 
 interface SideNavProps {
@@ -72,8 +72,8 @@ function WorkflowNav({ active, onOpenHome, onOpenInstance, selected, refreshKey 
     try {
       const [s, c] = await Promise.all([wfApi.listSchemas(token), wfApi.listConfigs(token)]);
       setItems([
-        ...(s.schemas ?? []).map((x) => ({ kind: KIND.workflowSchema, id: x.id, name: x.name })),
-        ...(c.configs ?? []).map((x) => ({ kind: KIND.workflowConfig, id: x.id, name: x.name })),
+        ...(s.schemas ?? []).map((x) => ({ kind: KIND.workflowSchema, id: x.id, name: x.name, title: x.title })),
+        ...(c.configs ?? []).map((x) => ({ kind: KIND.workflowConfig, id: x.id, name: x.name, title: x.title })),
       ]);
     } catch {
       setItems([]);
@@ -113,6 +113,7 @@ function WorkflowNav({ active, onOpenHome, onOpenInstance, selected, refreshKey 
         <div className="pb-1">
           {items.map((it) => {
             const isSel = selected?.kind === it.kind && selected?.id === it.id;
+            const label = (it.title && it.title.trim()) || it.name; // prefer the title, fall back to the name
             return (
               <button
                 key={`${it.kind.replace('workflow-', '')}-${it.id}`}
@@ -121,9 +122,9 @@ function WorkflowNav({ active, onOpenHome, onOpenInstance, selected, refreshKey 
                   ${isSel
                     ? 'bg-nav-active text-nav-fg border-l-4 border-blue-300'
                     : 'text-nav-fg-muted hover:bg-nav-active hover:text-nav-fg border-l-4 border-transparent'}`}
-                title={`${it.name} (${it.kind.replace('workflow-', '')})`}
+                title={`${label} (${it.kind.replace('workflow-', '')})`}
               >
-                <span className="truncate flex-1">{it.name}</span>
+                <span className="truncate flex-1">{label}</span>
                 <span className="text-[9px] px-1 py-0.5 rounded shrink-0" style={idLabelStyle(it.kind)}>
                   {it.id}
                 </span>
