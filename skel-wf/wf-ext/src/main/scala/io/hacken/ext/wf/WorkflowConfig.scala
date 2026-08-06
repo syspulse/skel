@@ -77,7 +77,8 @@ object WorkflowConfig {
            name: Option[String] = None,
            oid: Option[String] = None,
            pid: Option[String] = None,
-           xid: Option[String] = None): WorkflowConfig = {
+           xid: Option[String] = None,
+           wid: Option[String] = None): WorkflowConfig = { // wid (if set) becomes the config title
     val now = System.currentTimeMillis()
     // substitution context: schema meta + the config's oid/pid (so "{pid}" resolves to the param or meta)
     val ctx: Map[String, Any] = schema.meta.getOrElse(Map.empty) ++
@@ -90,7 +91,7 @@ object WorkflowConfig {
       status = WorkflowStatus.ACTIVE, // freshly created, not yet resolved against the Engine
       name = substitute(name.getOrElse(schema.name), id, now, ctx),
       version = schema.version,
-      title = substitute(schema.title, id, now, ctx),
+      title = wid.filter(_.nonEmpty).getOrElse(substitute(schema.title, id, now, ctx)),
       description = schema.description,
       author = schema.author,
       icon = schema.icon,

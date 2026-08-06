@@ -262,7 +262,10 @@
       "project": "project_id",
       "address": "address",
       "chainUid": "chain_uid",
-      "meta": "meta"
+      "meta": "meta",
+      "inputJson": "input (JSON)",
+      "taskQueue": "task queue",
+      "workflowId": "workflowId"
     },
     "graphNodes": "nodes",
     "graphLinks": "links",
@@ -337,6 +340,13 @@
     "confirmStop": "Stop (terminate) workflow #{{id}}?",
     "confirmCancel": "Cancel workflow #{{id}}?",
     "errorStop": "Stop failed",
-    "errorCancel": "Cancel failed"
+    "errorCancel": "Cancel failed",
+    "start": "Start",
+    "starting": "Starting…",
+    "startTitle": "Start Workflow from Schema",
+    "startOk": "Workflow started",
+    "startOkMsg": "WorkflowConfig #{{id}} '{{name}}' ({{title}})",
+    "startErr": "Workflow start failed",
+    "optional": "optional"
   }
 }

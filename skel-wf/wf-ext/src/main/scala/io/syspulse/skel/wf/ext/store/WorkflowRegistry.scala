@@ -509,10 +509,11 @@ object WorkflowRegistry {
             // Create a WorkflowConfig FROM the schema, then start it on the Engine:
             //   WorkflowType = WorkflowSchema.name (== the created config.name, which defaults to the schema name)
             //   WorkflowId   = `wid` (if non-empty) else new WorkflowConfig.title (or .name if title is empty)
+            // When `wid` is provided it is ALSO used as the WorkflowConfig.title (set at creation).
             // taskQueue: request -> config.meta("taskQueue") -> default; input: caller JSON override else config JSON.
             // Then Resolve pulls the live statuses (STARTING while the run is not yet visible on the Engine).
             val f = for {
-              c        <- store.createConfigFromSchema(id)
+              c        <- store.createConfigFromSchema(id, wid = wid)
               tq        = taskQueue.filter(_.nonEmpty)
                             .orElse(c.meta.flatMap(_.get("taskQueue")).map(_.toString).filter(_.nonEmpty))
                             .getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)

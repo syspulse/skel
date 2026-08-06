@@ -16,7 +16,9 @@ import type { TimeRange } from '../../types';
 import { DEFAULT_SCHEMA_ICON, DEFAULT_CONFIG_ICON, DEFAULT_WF_SCHEMA_ICON, DEFAULT_WF_CONFIG_ICON } from '../../components/IconPicker';
 import { WorkflowSlider } from './components/WorkflowSlider';
 import { DetectorSlider } from './components/DetectorSlider';
+import { SchemaStartDialog } from './components/SchemaStartDialog';
 import { WorkflowEditor } from './editor/WorkflowEditor';
+import { dispatcher } from '../dispatcher/Dispatcher';
 
 export interface WorkflowEditTarget { kind: WorkflowKind; id: number; }
 
@@ -84,6 +86,8 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   const [sliderKind, setSliderKind] = useState<EntityKind | null>(null);
   const [addMode, setAddMode] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [startOpen, setStartOpen] = useState(false);                        // WorkflowSchema Start dialog
+  const [startSchemaId, setStartSchemaId] = useState<number | null>(null);  // preset schema (row Start); null = pick in dialog
   const [resolving, setResolving] = useState(false);
   // cid -> DetectorConfig runtime status from the last /resolve (overlaid on the editor graph nodes)
   const [resolvedDetStatus, setResolvedDetStatus] = useState<Record<number, string>>({});
@@ -187,6 +191,40 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
       setResolving(false);
     }
   }, [configs, token, notifyError, t]);
+
+  // Emit a Dispatcher notification (sev: 0.1=info, 0.5=error -> NotificationSys maps to bell severity).
+  const notifyDispatcher = useCallback((sev: number, title: string, message: string, data: Record<string, unknown> = {}) => {
+    dispatcher.dispatch({
+      id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()),
+      ts: Date.now(),
+      src: 'workflow',
+      sys: 'NotificationSys',
+      typ: 'NOTIFY',
+      sev,
+      data: { title, message, ...data },
+    });
+  }, []);
+
+  // Start a workflow from a WorkflowSchema (Start dialog). Notifies the Dispatcher on success/error.
+  const startFromSchema = useCallback(async (input: unknown | undefined, taskQueue?: string, wid?: string) => {
+    if (startSchemaId === null) return;
+    const sid = startSchemaId;
+    setSaving(true);
+    try {
+      const res = await api.startSchema(token, sid, input, taskQueue, wid);
+      const c = res.configs?.[0];
+      if (c) notifyDispatcher(0.1, t('workflow.startOk'),
+        t('workflow.startOkMsg', { id: c.id, name: c.name, title: c.title }),
+        { schema_id: sid, config_id: c.id, config_name: c.name, config_title: c.title });
+      else notifyDispatcher(0.1, t('workflow.startOk'), t('workflow.startOkMsg', { id: '?', name: '', title: '' }), { schema_id: sid });
+      setStartOpen(false);
+      await refreshAndNotify();
+    } catch (e) {
+      notifyDispatcher(0.5, t('workflow.startErr'), e instanceof Error ? e.message : String(e), { schema_id: sid });
+    } finally {
+      setSaving(false);
+    }
+  }, [startSchemaId, token, notifyDispatcher, t]);
 
   // Validate a cid before a node re-link: it must resolve via GET /detector/config/{cid}.
   // On not-found, dispatch an error event (Dispatcher) and reject the change.
@@ -451,6 +489,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           onToggleTrack={editorConfig ? () => setTrackingId((cur) => (cur === editor.id ? null : editor.id)) : undefined}
           onSave={handleEditorSave}
           onCreateConfig={editor.kind === KIND.workflowSchema ? createConfigFromSchema : undefined}
+          onStart={editor.kind === KIND.workflowSchema ? () => { setStartSchemaId(editor.id); setStartOpen(true); } : undefined}
           onStop={editorConfig ? () => stopOrCancelEditorConfig('stop') : undefined}
           onCancel={editorConfig ? () => stopOrCancelEditorConfig('cancel') : undefined}
           onDestroy={destroyEditorEntity}
@@ -524,6 +563,14 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
             } finally { setSaving(false); }
           }}
           onEdit={() => setWfDetailsOpen(false)}
+        />
+        {/* Start a workflow from this WorkflowSchema (opened from the editor [Start] button) */}
+        <SchemaStartDialog
+          open={startOpen}
+          schemaName={editor.name}
+          saving={saving}
+          onClose={() => setStartOpen(false)}
+          onStart={startFromSchema}
         />
       </>
     );

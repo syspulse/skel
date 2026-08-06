@@ -57,6 +57,21 @@ export const updateSchema = (token: string | null, id: number, req: WorkflowSche
   PUT<WorkflowSchema>(token, `/schema/${id}`, req);
 export const deleteSchema = (token: string | null, id: number) =>
   DEL<WorkflowActionRes>(token, `/schema/${id}`);
+// Start a workflow FROM a WorkflowSchema: POST /schema/{id}/start?taskQueue=&wid= with the workflow
+// input JSON as the body (omitted -> the server uses the default WorkflowConfig payload). Returns the
+// created + resolved WorkflowConfig(s).
+export const startSchema = async (token: string | null, id: number, input?: unknown, taskQueue?: string, wid?: string): Promise<WorkflowConfigs> => {
+  const p = new URLSearchParams();
+  if (taskQueue) p.set('taskQueue', taskQueue);
+  if (wid) p.set('wid', wid);
+  const qs = p.toString();
+  const res = await fetch(`${getBaseUrl()}/schema/${id}/start${qs ? `?${qs}` : ''}`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: input !== undefined ? JSON.stringify(input) : undefined,
+  });
+  return handleResponse<WorkflowConfigs>(res);
+};
 
 // ---------------------------------------------------------------- WorkflowConfig
 // NOTE: the config views don't consume `detectors`/`schemas` (the editor uses the separate detector

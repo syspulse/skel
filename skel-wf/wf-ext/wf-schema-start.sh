@@ -14,6 +14,10 @@ INPUT=${INPUT:-}
 SERVICE_URI=${SERVICE_URI:-http://127.0.0.1:8080/api/v1/wf/ext}
 ACCESS_TOKEN=${ACCESS_TOKEN-`cat ACCESS_TOKEN 2>/dev/null`}
 
+echo "INPUT"
+echo "$INPUT"
+echo "-------"
+
 URL="$SERVICE_URI/schema/$ID/start"
 Q=""
 [[ -n "$TASK_QUEUE" ]] && Q="taskQueue=${TASK_QUEUE}"

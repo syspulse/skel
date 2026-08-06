@@ -125,7 +125,8 @@ trait WorkflowStore {
    * (Registry) never assigns them. Persists everything and returns the stored WorkflowConfig.
    */
   def createConfigFromSchema(schemaId: Int, contractId: Int = 0, name: Option[String] = None,
-                             oid: Option[String] = None, pid: Option[String] = None, xid: Option[String] = None)
+                             oid: Option[String] = None, pid: Option[String] = None, xid: Option[String] = None,
+                             wid: Option[String] = None) // wid (if set) becomes the config title
                             (implicit ec: ExecutionContext): Future[WorkflowConfig] =
     getSchema(schemaId).flatMap { schema =>
       val nodes = schema.graph.nodes.values.toSeq.sortBy(_.id)
@@ -148,7 +149,7 @@ trait WorkflowStore {
           grafId    <- nextGrafId
           cfgNodes   = schema.graph.nodes.map { case (k, n) => k -> n.copy(cid = cidByNode.get(n.id)) }
           cfgGraf    = WorkflowGraf.sync(schema.graph.copy(id = grafId, sid = Some(schema.id), cid = Some(wcId), nodes = cfgNodes))
-          cfg        = WorkflowConfig.from(wcId, schema, name, oid, pid, xid).copy(graph = cfgGraf)
+          cfg        = WorkflowConfig.from(wcId, schema, name, oid, pid, xid, wid).copy(graph = cfgGraf)
           saved     <- addConfig(cfg)
           _         <- addGraf(cfgGraf)
         } yield saved

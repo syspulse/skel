@@ -19,7 +19,7 @@ import {
   type RFNodeData, type RFEdgeData,
 } from './grafMapping';
 import {
-  IconPlus, IconTrash, IconReset, IconSave, IconClose, IconSearch, IconRefresh,
+  IconPlus, IconTrash, IconReset, IconSave, IconClose, IconSearch, IconRefresh, IconPlay,
 } from '../../../components/Icons';
 import { statusChipStyle } from '../status';
 
@@ -48,6 +48,7 @@ export interface WorkflowEditorProps {
   onToggleTrack?: () => void;             // start/stop auto-polling
   onSave: (graf: WorkflowGraf) => void;
   onCreateConfig?: () => void;            // WorkflowSchema only: create a WorkflowConfig from it and open its editor
+  onStart?: () => void;                   // WorkflowSchema only: open the Start dialog (start a workflow from this schema)
   onStop?: () => void;                    // WorkflowConfig only: stop (terminate) the running Engine workflow
   onCancel?: () => void;                  // WorkflowConfig only: cancel the running Engine workflow
   onDestroy?: () => void;                 // delete the current entity (WorkflowSchema/WorkflowConfig) - asks confirmation
@@ -61,7 +62,7 @@ const EDGE_COLOR = '#64748b';
 
 function WorkflowEditorInner(props: WorkflowEditorProps) {
   const { t } = useTranslation();
-  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, detectorActivityId, resolving, onResolve, onValidateCid, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onCreateConfig, onStop, onCancel, onDestroy, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
+  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, detectorStatus, detectorActivityId, resolving, onResolve, onValidateCid, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onCreateConfig, onStart, onStop, onCancel, onDestroy, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
 
   const initial = useMemo(() => grafToRF(graf), [graf]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<RFNodeData>>(initial.nodes);
@@ -307,6 +308,13 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           <button onClick={onCreateConfig} disabled={saving}
             className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-500 text-blue-700 hover:bg-blue-50 disabled:opacity-40 transition-colors">
             <IconPlus size={13} /> {t('workflow.editor.createConfig')}
+          </button>
+        )}
+        {/* Start: start a workflow from this WorkflowSchema (input JSON + optional task queue / workflowId) */}
+        {kind === KIND.workflowSchema && onStart && (
+          <button onClick={onStart} disabled={saving}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-green-600 text-green-700 hover:bg-green-50 disabled:opacity-40 transition-colors">
+            <IconPlay size={13} /> {t('workflow.start')}
           </button>
         )}
         {/* Resolve: fetch current engine state (WorkflowConfig + DetectorConfig statuses) - config only */}
