@@ -1403,7 +1403,7 @@ lazy val wf_temporal = (project in file("skel-wf/wf-temporal"))
   )
 
 lazy val wf_ext = (project in file("skel-wf/wf-ext"))
-  .dependsOn(skel_core,skel_dsl)  
+  .dependsOn(skel_core,auth_ext)  
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(DockerPlugin)
   .enablePlugins(AshScriptPlugin)
