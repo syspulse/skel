@@ -60,7 +60,13 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   private def optNZ(s: String): Option[String] = Option(s).filter(_.nonEmpty)
 
   // ---- SQL literal helpers ----
-  private def sqlLit(s: String): String = s.replace("'", "''")
+  // NOTE: jasync counts EVERY `?` in the query as a bind placeholder - even inside a quoted string
+  // literal - so an inlined value containing `?` (e.g. a workflow result/input JSON) blows up with
+  // `InsufficientParametersException: The query contains N parameters but you gave it 0`. We inline all
+  // values (no binds), so emit each `?` as chr(63) spliced OUT of the literal (…' || chr(63) || '…) -
+  // the final SQL then carries no literal `?`. Callers that wrap the literal in a cast (…::jsonb) must
+  // parenthesize it (see jsonb* helpers) because `::` binds tighter than `||`.
+  private def sqlLit(s: String): String = s.replace("'", "''").replace("?", "' || chr(63) || '")
   private def q(s: String): String = s"'${sqlLit(s)}'"
   private def qOpt(o: Option[String]): String = o.map(q).getOrElse("NULL")
   private def lLit(l: Long): String = l.toString
@@ -68,7 +74,7 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   private def csv(seq: Seq[String]): String = q(seq.mkString(","))
   private def txtJson[T](v: T, w: JsonWriter[T]): String = q(v.toJson(w).compactPrint)
   private def txtJsonOpt[T](o: Option[T], w: JsonWriter[T]): String = o.map(v => q(v.toJson(w).compactPrint)).getOrElse("NULL")
-  private def jsonbOpt(o: Option[JsObject]): String = o.map(j => s"'${sqlLit(j.compactPrint)}'::jsonb").getOrElse("NULL")
+  private def jsonbOpt(o: Option[JsObject]): String = o.map(j => s"(${q(j.compactPrint)})::jsonb").getOrElse("NULL")
   private def pageInt(n: Long): Int = n.max(0L).min(Int.MaxValue.toLong).toInt
 
   // ---- helpers for the EXTERNAL detector tables (real schema: timestamp, text[], jsonb NOT NULL) ----
@@ -77,7 +83,7 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   private def pgArr(seq: Seq[String]): String = if (seq.isEmpty) "'{}'::text[]" else s"ARRAY[${seq.map(q).mkString(",")}]::text[]"
   private def pArr(s: String): Seq[String] = pCsv(s) // read via array_to_string(col, ',')
   // jsonb NOT NULL: object defaults to {}, array defaults to []  
-  private def jsonbObjReq(o: Option[JsObject]): String = s"'${sqlLit(o.map(_.compactPrint).getOrElse("{}"))}'::jsonb"
+  private def jsonbObjReq(o: Option[JsObject]): String = s"(${q(o.map(_.compactPrint).getOrElse("{}"))})::jsonb"
   // FAQ is stored as a jsonb *string* whose content is the array JSON (matches upstream DEFAULT '"[]"'::jsonb).
   // faq::text looks like:
   //   "[{\"name\":\"What is Native Balance Monitor\",\"value\":\"Monitors Account/Contract balance (native token)\"}]"
@@ -85,7 +91,7 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   private def faqArrJson[T](o: Option[T], w: JsonWriter[T]): String =
     o.map(_.toJson(w).compactPrint).getOrElse("[]")
   private def jsonbFaqReq[T](o: Option[T], w: JsonWriter[T]): String =
-    s"'${sqlLit(JsString(faqArrJson(o, w)).compactPrint)}'::jsonb"
+    s"(${q(JsString(faqArrJson(o, w)).compactPrint)})::jsonb"
   // Same encoding for workflow_schema.faq TEXT (column holds the faq::text form above).
   private def txtFaqOpt[T](o: Option[T], w: JsonWriter[T]): String =
     o.map(v => q(JsString(faqArrJson(Some(v), w)).compactPrint)).getOrElse("NULL")

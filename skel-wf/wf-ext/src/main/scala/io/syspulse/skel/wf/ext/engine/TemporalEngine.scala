@@ -102,6 +102,10 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
   // ---------------------------------------------------------------- helpers
   private def millis(ts: Timestamp): Long = ts.getSeconds * 1000L + ts.getNanos / 1000000L
 
+  /** Decode a Temporal result `Payloads` to its raw JSON string (single result payload; json/plain data). */
+  private def payloadResult(p: Payloads): Option[String] =
+    p.getPayloadsList.asScala.headOption.map(_.getData.toStringUtf8).map(_.trim).filter(_.nonEmpty)
+
   private def toSummary(info: TWorkflowExecutionInfo, ns: String): EngineWorkflow = {
     val startedAt = if (info.hasStartTime) Some(millis(info.getStartTime)) else None
     val closedAt  = if (info.hasCloseTime) Some(millis(info.getCloseTime)) else None
@@ -347,6 +351,8 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
       // workflow method, bad input, non-determinism, ...) keeps the workflow RUNNING and is NOT an activity
       // event - it lives in WorkflowTaskFailed events. Cleared when a later WorkflowTaskCompleted recovers it.
       var wftFailure: Option[String] = None
+      // the workflow's return value (WorkflowExecutionCompleted result payload), when the run has finished
+      var wfResult: Option[String] = None
 
       events.foreach { e =>
         val et = millis(e.getEventTime)
@@ -425,6 +431,10 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
           case EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED =>
             wftFailure = None // recovered: a workflow task completed after any earlier failure
 
+          // ---- workflow execution result (the run's return value, when it completed successfully) ----
+          case EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED =>
+            wfResult = payloadResult(e.getWorkflowExecutionCompletedEventAttributes.getResult)
+
           case _ => // ignore other event types
         }
       }
@@ -473,9 +483,11 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
         val historyErrs: Seq[String] = activities.filter(_.status == EngineStatus.FAILED)
           .map(a => s"${a.name}: ${a.detail.getOrElse("failed")}")
         val failures = pendingErrs ++ historyErrs ++ wftErrs
-        val (wfStatus, meta) =
+        val (wfStatus, errMeta) =
           if (summary.status == EngineStatus.RUNNING && failures.nonEmpty) (EngineStatus.RUNNING_FAILED, Map("err" -> failures.head))
           else (summary.status, Map.empty[String, String])
+        // carry the completed run's return value into meta.result (raw JSON string), when present
+        val meta = wfResult.map(r => errMeta + ("result" -> r)).getOrElse(errMeta)
         summary.copy(status = wfStatus, activities = activities, children = children, meta = meta)
       }
     }
