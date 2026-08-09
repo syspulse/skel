@@ -224,13 +224,13 @@ object App extends skel.Server {
       val times = (w.startedAt.map(t => s" start=${t}").getOrElse("")) + (w.closedAt.map(t => s" close=${t}").getOrElse(""))
       val head = s"${indent}${colorize(s"[${w.status}]", w.status)} ${w.name} wid=${w.id} rid=${w.runtimeId} ns=${w.namespace}${times}"
       val acts = w.activities.map(a => s"${indent}  - ${colorize(s"(${a.status})", a.status)} ${a.kind} ${a.name} id=${a.id}").mkString("\n")
-      val kids = w.children.map(c => renderWorkflow(c, indent + "  ")).mkString("\n")
+      val kids = w.children.map(child => renderWorkflow(child, indent + "  ")).mkString("\n")
       Seq(head, acts, kids).filter(_.nonEmpty).mkString("\n")
     }
 
-    // Resolve cid -> DetectorConfig for a config's graph nodes (for status correlation by name).
-    def loadDetectors(cfg: WorkflowConfig): scala.concurrent.Future[Map[Int, DetectorConfig]] = {
-      val cids = cfg.graph.nodes.values.flatMap(_.cid).toSet.toSeq
+    // Resolve cid -> DetectorConfig for a wconf's graph nodes (for status correlation by name).
+    def loadDConfs(wconf: WorkflowConfig): scala.concurrent.Future[Map[Int, DetectorConfig]] = {
+      val cids = wconf.graph.nodes.values.flatMap(_.cid).toSet.toSeq
       scala.concurrent.Future.sequence(cids.map(id => store.getDConf(id).map(_.map(id -> _))))
         .map(_.flatten.toMap)
     }
@@ -240,9 +240,9 @@ object App extends skel.Server {
     // Render one tracking poll as a SINGLE line:
     //   {WorkflowConfig.name},{WorkflowConfig.xid},{WorkflowConfig.status}: [{step.name},{step.status}] -> ...
     // Only the `status` tokens are colored.
-    def renderTrack(cfg: WorkflowConfig, view: WorkflowRuntimeView): String = {
+    def renderTrack(wconf: WorkflowConfig, view: WorkflowRuntimeView): String = {
       val steps = view.steps.map(s => s"[${s.name},${colorize(s.status, s.status)}]").mkString(" -> ")
-      s"${ts()}: [${cfg.name},${cfg.xid.getOrElse("")},${colorize(view.status, view.status)}]: ${steps}"
+      s"${ts()}: [${wconf.name},${wconf.xid.getOrElse("")},${colorize(view.status, view.status)}]: ${steps}"
     }
 
     val r = config.cmd match {
@@ -274,7 +274,7 @@ object App extends skel.Server {
           case Success(res) =>
             s"WorkflowSchema created: id=${res.schema.id}, name='${res.schema.name}', " +
               s"nodes=${res.schema.graph.nodes.size}, links=${res.schema.graph.links.size}, " +
-              s"DetectorSchemas=${res.detectorSchemas.map(d => s"${d.id}:${d.name}").mkString(",")}"
+              s"DetectorSchemas=${res.detectorSchemas.map(dschema => s"${dschema.id}:${dschema.name}").mkString(",")}"
           case Failure(e) => s"Failed to create WorkflowSchema: ${e.getMessage}"
         }
 
@@ -285,8 +285,8 @@ object App extends skel.Server {
           case Success(res) =>
             s"WorkflowConfig assembled: configId=${res.config.map(_.id).getOrElse(-1)}, schemaId=${res.schema.id}, " +
               s"name='${res.schema.name}', nodes=${res.schema.graph.nodes.size}, links=${res.schema.graph.links.size}, " +
-              s"DetectorSchemas=[${res.detectorSchemas.map(d => s"${d.id}:${d.name}").mkString(",")}], " +
-              s"DetectorConfigs=[${res.detectorConfigs.map(d => s"${d.id}:${d.name}").mkString(",")}]"
+              s"DetectorSchemas=[${res.detectorSchemas.map(dschema => s"${dschema.id}:${dschema.name}").mkString(",")}], " +
+              s"DetectorConfigs=[${res.detectorConfigs.map(dconf => s"${dconf.id}:${dconf.name}").mkString(",")}]"
           case Failure(e) => s"Failed to assembly WorkflowConfig: ${e.getMessage}"
         }
 
@@ -298,7 +298,7 @@ object App extends skel.Server {
               // single runtime instance, fully expanded (activities + child workflows)
               Await.result(engine.getRuntime(config.ns, runtimeId), 60.seconds) match {
                 case Some(w) => s"Runtime ${runtimeId}:\n${renderWorkflow(w)}"
-                case None    => s"Runtime not found: ${runtimeId} (ns=${config.ns.getOrElse("<all>")})"
+                case None    => s"Runtime not found: ${runtimeId} (ns=${config.ns})"
               }
             case None =>
               // all runtimes (summary)
@@ -318,10 +318,10 @@ object App extends skel.Server {
               // link references EXISTING DetectorConfigs by name (latest version) - creates no Detector*
               val f = WorkflowAssembly.linkFromTemporal(id, rest.mkString(" "), engine, store, config.ns, config.wid, config.wn)
               Try(Await.result(f, 60.seconds)) match {
-                case Success(c) =>
-                  log.info(c.toString)
-                  s"WorkflowConfig linked: configId=${c.id}, xid=${c.xid.getOrElse("")}, " +
-                    s"name='${c.name}', nodes=${c.graph.nodes.size}, links=${c.graph.links.size}"
+                case Success(wconf) =>
+                  log.info(wconf.toString)
+                  s"WorkflowConfig linked: configId=${wconf.id}, xid=${wconf.xid.getOrElse("")}, " +
+                    s"name='${wconf.name}', nodes=${wconf.graph.nodes.size}, links=${wconf.graph.links.size}"
                 case Failure(e) => s"Failed link: ${e.getMessage}"
               }
             } finally engine.close()
@@ -338,25 +338,25 @@ object App extends skel.Server {
             try {
               // assembly + bind to the resolved runtime (same shared logic as /temporal/assembly)
               Try(Await.result(WorkflowAssembly.assemblyFromTemporal(id, rest.mkString(" "), engine, store, config.ns, config.wid, config.wn), 60.seconds)) match {
-                case Success(cfg0) =>
-                  var cfg = cfg0
-                  val detectors = Await.result(loadDetectors(cfg), 30.seconds)
-                  Console.err.println(s"Tracking by ${mapper.kind}=${mapper.key} configId=${cfg.id} poll=${config.poll}ms")
+                case Success(wconf0) =>
+                  var wconf = wconf0
+                  val dconfs = Await.result(loadDConfs(wconf), 30.seconds)
+                  Console.err.println(s"Tracking by ${mapper.kind}=${mapper.key} configId=${wconf.id} poll=${config.poll}ms")
                   // poll indefinitely, one status line per poll
                   while (true) {
                     Try(Await.result(mapper.resolve(engine, config.ns), 60.seconds)) match {
                       case Success(Some(w)) =>
                         // re-bind when the runtime changed (e.g. WorkflowId restart -> new RunId/xid)
-                        if (!WorkflowAssembly.isBound(cfg, w)) {
-                          cfg = WorkflowAssembly.bind(cfg, w)
-                          Await.result(store.addWConf(cfg), 30.seconds)
-                          log.info(cfg.toString)
+                        if (!WorkflowAssembly.isBound(wconf, w)) {
+                          wconf = WorkflowAssembly.bind(wconf, w)
+                          Await.result(store.addWConf(wconf), 30.seconds)
+                          log.info(wconf.toString)
                         }
-                        Console.out.println(renderTrack(cfg, EngineMapper.map(w, Some(cfg), detectors)))
+                        Console.out.println(renderTrack(wconf, EngineMapper.map(w, Some(wconf), dconfs)))
                       case Success(None) =>
-                        Console.out.println(s"${ts()}: [${cfg.name},${cfg.xid.getOrElse(mapper.key)},${EngineStatus.UNKNOWN}]: (Workflow Runtime not found)")
+                        Console.out.println(s"${ts()}: [${wconf.name},${wconf.xid.getOrElse(mapper.key)},${EngineStatus.UNKNOWN}]: (Workflow Runtime not found)")
                       case Failure(e) =>
-                        Console.out.println(s"${ts()}: [${cfg.name},${cfg.xid.getOrElse(mapper.key)},${EngineStatus.UNKNOWN}]: (poll error: ${e.getMessage})")
+                        Console.out.println(s"${ts()}: [${wconf.name},${wconf.xid.getOrElse(mapper.key)},${EngineStatus.UNKNOWN}]: (poll error: ${e.getMessage})")
                     }
                     Thread.sleep(config.poll)
                   }
@@ -378,14 +378,14 @@ object App extends skel.Server {
               // WorkflowId == <wid>|config.title|name); default payload = the WorkflowConfig JSON
               val widOverride = rest.headOption.filter(_.nonEmpty)
               val f = for {
-                c     <- store.createWConfFromWSchema(idStr.toInt)
-                tq     = config.tq.getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
-                saved <- WorkflowAssembly.start(c, c.name, engine, store, tq, Some(c.toJson.compactPrint), config.ns, widOverride)
+                wconf  <- store.createWConfFromWSchema(idStr.toInt)
+                tq      = config.tq.getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
+                saved  <- WorkflowAssembly.start(wconf, wconf.name, engine, store, tq, Some(wconf.toJson.compactPrint), config.ns, widOverride)
               } yield saved
               Try(Await.result(f, config.timeout.millis)) match {
-                case Success(c) =>
-                  s"Started WorkflowConfig: id=${c.id}, name='${c.name}', schema=${c.sid}, " +
-                    s"wid=${c.meta.flatMap(_.get("wid")).getOrElse("")}, xid=${c.xid.getOrElse("")}"
+                case Success(wconf) =>
+                  s"Started WorkflowConfig: id=${wconf.id}, name='${wconf.name}', schema=${wconf.sid}, " +
+                    s"wid=${wconf.meta.flatMap(_.get("wid")).getOrElse("")}, xid=${wconf.xid.getOrElse("")}"
                 case Failure(e) => s"Failed start-schema: ${e.getMessage}"
               }
             } finally engine.close()
@@ -398,12 +398,12 @@ object App extends skel.Server {
           case Some(idStr) =>
             val engine = newEngine()
             try {
-              val f = store.getWConf(idStr.toInt).flatMap { c =>
-                if (config.cmd == "stop") WorkflowAssembly.stop(c, engine, store, config.reason, config.ns)
-                else                      WorkflowAssembly.cancel(c, engine, store, config.reason, config.ns)
+              val f = store.getWConf(idStr.toInt).flatMap { wconf =>
+                if (config.cmd == "stop") WorkflowAssembly.stop(wconf, engine, store, config.reason, config.ns)
+                else                      WorkflowAssembly.cancel(wconf, engine, store, config.reason, config.ns)
               }
               Try(Await.result(f, config.timeout.millis)) match {
-                case Success(c) => s"${config.cmd}: WorkflowConfig id=${c.id}, name='${c.name}', xid=${c.xid.getOrElse("")} -> status=${c.status}"
+                case Success(wconf) => s"${config.cmd}: WorkflowConfig id=${wconf.id}, name='${wconf.name}', xid=${wconf.xid.getOrElse("")} -> status=${wconf.status}"
                 case Failure(e) => s"Failed ${config.cmd}: ${e.getMessage}"
               }
             } finally engine.close()
