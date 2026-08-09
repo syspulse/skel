@@ -64,7 +64,7 @@ class ResolveStaleRunSpec extends AnyWordSpec with Matchers with ScalatestRouteT
         status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
       }
       // bind to the obsolete run, but ALSO carry meta.wid (as a workflowId-bound config would)
-      Await.result(store.addConfig(c.copy(xid = Some(RID), meta = Some(Map("wid" -> WID)))), 5.seconds)
+      Await.result(store.addWConf(c.copy(xid = Some(RID), meta = Some(Map("wid" -> WID)))), 5.seconds)
 
       Get(s"/config/resolve/$RID") ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK

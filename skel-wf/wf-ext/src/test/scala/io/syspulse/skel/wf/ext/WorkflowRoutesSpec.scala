@@ -184,8 +184,8 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       val RID = "019f51c0-3917-731b-864d-3b9d326db0aa"       // runtimeId (UUID) -> xid
       val WID = "PoR-DefaultProject-1783782976365"           // workflowId       -> meta.wid
       // bind like assembly-track: c1 by runtimeId (xid), c2 by workflowId (meta.wid)
-      Await.result(store.addConfig(c1.copy(xid = Some(RID))), 5.seconds)
-      Await.result(store.addConfig(c2.copy(meta = Some(Map("wid" -> WID)))), 5.seconds)
+      Await.result(store.addWConf(c1.copy(xid = Some(RID))), 5.seconds)
+      Await.result(store.addWConf(c2.copy(meta = Some(Map("wid" -> WID)))), 5.seconds)
 
       // by runtimeId (UUID, auto-detect) -> c1 + its 2 detectors
       Get(s"/config/resolve/$RID") ~> routes.routes ~> check {
@@ -273,14 +273,14 @@ class WorkflowRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       }
       val cids = cfg.graph.nodes.values.flatMap(_.cid).toSeq
       cids should have size 2
-      cids.foreach { cid => Await.result(store.getDetectorConfig(cid), 5.seconds) should not be None }
+      cids.foreach { cid => Await.result(store.getDConf(cid), 5.seconds) should not be None }
 
       Delete(s"/config/${cfg.id}") ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         responseAs[WorkflowActionRes].status shouldBe WorkflowActionRes.OK
       }
-      Await.result(store.getConfigOpt(cfg.id), 5.seconds) shouldBe None       // config gone
-      cids.foreach { cid => Await.result(store.getDetectorConfig(cid), 5.seconds) shouldBe None } // its detectors gone
+      Await.result(store.getWConfOpt(cfg.id), 5.seconds) shouldBe None       // config gone
+      cids.foreach { cid => Await.result(store.getDConf(cid), 5.seconds) shouldBe None } // its detectors gone
     }
   }
 }

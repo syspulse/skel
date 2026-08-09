@@ -28,31 +28,31 @@ class WorkflowStoreDirSpec extends AnyWordSpec with Matchers {
 
       val store1 = new WorkflowStoreDir(dir)
       val schema = WorkflowSchema.of(0, "W0", graf(0))
-      Await.result(store1.addSchema(schema), timeout)
+      Await.result(store1.addWSchema(schema), timeout)
       val config = WorkflowConfig.from(0, schema, oid = Some("owner-1"), xid = Some("run-1"))
-      Await.result(store1.addConfig(config), timeout)
+      Await.result(store1.addWConf(config), timeout)
       Await.result(store1.addGraf(graf(3)), timeout)
 
       // fresh store pointed at the same dir reloads everything
       val store2 = new WorkflowStoreDir(dir)
-      Await.result(store2.sizeSchemas, timeout) shouldBe 1L
-      Await.result(store2.sizeConfigs, timeout) shouldBe 1L
+      Await.result(store2.sizeWSchemas, timeout) shouldBe 1L
+      Await.result(store2.sizeWConfs, timeout) shouldBe 1L
       Await.result(store2.sizeGrafs, timeout) shouldBe 1L
 
-      Await.result(store2.getSchema(0), timeout).name shouldBe "W0"
-      Await.result(store2.getConfig(0), timeout).oid shouldBe Some("owner-1")
-      Await.result(store2.findConfigByXid("run-1"), timeout).map(_.id) shouldBe Some(0)
+      Await.result(store2.getWSchema(0), timeout).name shouldBe "W0"
+      Await.result(store2.getWConf(0), timeout).oid shouldBe Some("owner-1")
+      Await.result(store2.findWConfByXid("run-1"), timeout).map(_.id) shouldBe Some(0)
       Await.result(store2.getGraf(3), timeout).nodes.keySet shouldBe Set(0, 1)
     }
 
     "remove files on delete" in {
       val dir = tmpDir()
       val store = new WorkflowStoreDir(dir)
-      Await.result(store.addSchema(WorkflowSchema.of(0, "W0", graf(0))), timeout)
-      Await.result(store.delSchema(0), timeout)
+      Await.result(store.addWSchema(WorkflowSchema.of(0, "W0", graf(0))), timeout)
+      Await.result(store.delWSchema(0), timeout)
 
       val store2 = new WorkflowStoreDir(dir)
-      Await.result(store2.sizeSchemas, timeout) shouldBe 0L
+      Await.result(store2.sizeWSchemas, timeout) shouldBe 0L
     }
   }
 }

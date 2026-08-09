@@ -18,7 +18,7 @@ import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineStart, Trac
 //   assemblyFromTemporal- assembly + resolve Temporal id via Engine + bind    (`assembly-track` / /temporal/assembly)
 //   linkByName          - build WorkflowConfig referencing EXISTING detectors by name (creates none)
 //   linkFromTemporal    - linkByName + resolve Temporal id via Engine + bind   (`link` / /temporal/link)
-//   link                - bind an already-assembled config to a pre-resolved runtime + persist (API path)
+//   link                - bind an already-assembled wconf to a pre-resolved runtime + persist (API path)
 // ============================================================================
 object WorkflowAssembly {
 
@@ -43,87 +43,87 @@ object WorkflowAssembly {
    *   name / meta.wid <- Temporal WorkflowId (w.id)
    *   xid             <- Temporal RunId (w.runtimeId)  (reassigned on restart)
    */
-  def bind(cfg: WorkflowConfig, w: EngineWorkflow): WorkflowConfig = {
-    val meta = cfg.meta.getOrElse(Map.empty[String, Any]) + ("wid" -> w.id)
-    cfg.copy(name = w.id, xid = Some(w.runtimeId), meta = Some(meta), updatedAt = System.currentTimeMillis())
+  def bind(wconf: WorkflowConfig, w: EngineWorkflow): WorkflowConfig = {
+    val meta = wconf.meta.getOrElse(Map.empty[String, Any]) + ("wid" -> w.id)
+    wconf.copy(name = w.id, xid = Some(w.runtimeId), meta = Some(meta), updatedAt = System.currentTimeMillis())
   }
 
-  /** Whether `cfg` already reflects the binding for runtime `w` (ignoring updatedAt). */
-  def isBound(cfg: WorkflowConfig, w: EngineWorkflow): Boolean = {
-    val meta = cfg.meta.getOrElse(Map.empty[String, Any]) + ("wid" -> w.id)
-    cfg.name == w.id && cfg.xid.contains(w.runtimeId) && cfg.meta.contains(meta)
+  /** Whether `wconf` already reflects the binding for runtime `w` (ignoring updatedAt). */
+  def isBound(wconf: WorkflowConfig, w: EngineWorkflow): Boolean = {
+    val meta = wconf.meta.getOrElse(Map.empty[String, Any]) + ("wid" -> w.id)
+    wconf.name == w.id && wconf.xid.contains(w.runtimeId) && wconf.meta.contains(meta)
   }
 
   val DEFAULT_TASK_QUEUE = "GENERIC_WORKFLOW_QUEUE" // fallback task queue when none is on the request/config
 
   /**
-   * START a new Workflow (Temporal) execution of `cfg`:
+   * START a new Workflow (Temporal) execution of `wconf`:
    *   - WorkflowType = workflowType             (the WorkflowSchema.name)
-   *   - WorkflowId   = `wid` (if non-empty), else cfg.title (or cfg.name if title is empty)
+   *   - WorkflowId   = `wid` (if non-empty), else wconf.title (or wconf.name if title is empty)
    *   - TaskQueue    = taskQueue                (an INDEPENDENT worker polls it)
    *   - input        = optional JSON payload (caller override, else the WorkflowConfig JSON)
    * Then write the Engine truth back: xid = RunId, meta.wid = WorkflowId (name is left unchanged), persist.
-   * The returned config carries the new binding; callers typically Resolve it to pull live statuses.
+   * The returned wconf carries the new binding; callers typically Resolve it to pull live statuses.
    */
-  def start(cfg: WorkflowConfig, workflowType: String, engine: Engine, store: WorkflowStore, taskQueue: String,
+  def start(wconf: WorkflowConfig, workflowType: String, engine: Engine, store: WorkflowStore, taskQueue: String,
             input: Option[String], ns: Option[String] = None, wid: Option[String] = None)(implicit ec: ExecutionContext): Future[WorkflowConfig] = {
     val workflowId = wid.map(_.trim).filter(_.nonEmpty)
-      .orElse(Option(cfg.title).map(_.trim).filter(_.nonEmpty))
-      .getOrElse(cfg.name)
+      .orElse(Option(wconf.title).map(_.trim).filter(_.nonEmpty))
+      .getOrElse(wconf.name)
     // pass WorkflowConfig.id ("cid") and WorkflowSchema.id ("sid") as top-level Memo fields so the
     // worker/activity can fetch its configuration from the WorkflowConfig API (GET /config/{cid}).
     // The memo rides alongside the input, not inside it.
-    val memo = Map("cid" -> cfg.id.toString, "sid" -> cfg.sid.toString)
+    val memo = Map("cid" -> wconf.id.toString, "sid" -> wconf.sid.toString)
     for {
       started <- engine.start(ns, workflowType = workflowType, workflowId = workflowId, taskQueue = taskQueue, input = input, memo = memo)
       // record the runtime binding + where to observe it: engine name, the namespace the run lives in
       // (meta.ns), the task queue it was started on (meta.tq), and a deep-link into the engine panel
       // (meta.url — HTTPS panel when --engine.url is set, else URL derived from the gRPC --engine URI)
       url      = engine.panelUri(workflowType, started.workflowId, started.runtimeId)
-      meta     = cfg.meta.getOrElse(Map.empty[String, Any]) +
+      meta     = wconf.meta.getOrElse(Map.empty[String, Any]) +
                    ("wid" -> started.workflowId) + ("engine" -> engine.name) + ("ns" -> started.namespace) +
                    ("tq" -> taskQueue) ++
                    url.map("url" -> _).toMap
-      saved   <- store.addConfig(cfg.copy(xid = Some(started.runtimeId), meta = Some(meta), updatedAt = System.currentTimeMillis()))
+      saved   <- store.addWConf(wconf.copy(xid = Some(started.runtimeId), meta = Some(meta), updatedAt = System.currentTimeMillis()))
     } yield saved
   }
 
-  /** WorkflowId a config's run is known by on the Engine: meta.wid, else the config name. */
-  private def workflowIdOf(cfg: WorkflowConfig): String =
-    cfg.meta.flatMap(_.get("wid")).map(_.toString).filter(_.nonEmpty).getOrElse(cfg.name)
+  /** WorkflowId a wconf's run is known by on the Engine: meta.wid, else the wconf name. */
+  private def workflowIdOf(wconf: WorkflowConfig): String =
+    wconf.meta.flatMap(_.get("wid")).map(_.toString).filter(_.nonEmpty).getOrElse(wconf.name)
 
-  /** Namespace the config's run lives in: meta.ns (set at start), else None (engine default / all). */
-  def nsOf(cfg: WorkflowConfig): Option[String] =
-    cfg.meta.flatMap(_.get("ns")).map(_.toString).filter(_.nonEmpty)
+  /** Namespace the wconf's run lives in: meta.ns (set at start), else None (engine default / all). */
+  def nsOf(wconf: WorkflowConfig): Option[String] =
+    wconf.meta.flatMap(_.get("ns")).map(_.toString).filter(_.nonEmpty)
 
   /**
-   * STOP (Temporal terminate) the config's running workflow (by workflowId + xid runId), then set
+   * STOP (Temporal terminate) the wconf's running workflow (by workflowId + xid runId), then set
    * WorkflowConfig.status = TERMINATED and persist. `reason` is forwarded to the Engine.
    */
-  def stop(cfg: WorkflowConfig, engine: Engine, store: WorkflowStore, reason: Option[String], ns: Option[String] = None)
+  def stop(wconf: WorkflowConfig, engine: Engine, store: WorkflowStore, reason: Option[String], ns: Option[String] = None)
           (implicit ec: ExecutionContext): Future[WorkflowConfig] =
     for {
-      _ <- engine.terminate(ns.orElse(nsOf(cfg)), workflowIdOf(cfg), cfg.xid, reason)
-      _ <- store.updateConfigStatus(cfg.id, WorkflowStatus.TERMINATED)
-    } yield cfg.copy(status = WorkflowStatus.TERMINATED, updatedAt = System.currentTimeMillis())
+      _ <- engine.terminate(ns.orElse(nsOf(wconf)), workflowIdOf(wconf), wconf.xid, reason)
+      _ <- store.updateWConfStatus(wconf.id, WorkflowStatus.TERMINATED)
+    } yield wconf.copy(status = WorkflowStatus.TERMINATED, updatedAt = System.currentTimeMillis())
 
   /**
-   * CANCEL (Temporal request-cancel) the config's running workflow (by workflowId + xid runId), then
+   * CANCEL (Temporal request-cancel) the wconf's running workflow (by workflowId + xid runId), then
    * set WorkflowConfig.status = CANCELED and persist. `reason` is forwarded to the Engine.
    */
-  def cancel(cfg: WorkflowConfig, engine: Engine, store: WorkflowStore, reason: Option[String], ns: Option[String] = None)
+  def cancel(wconf: WorkflowConfig, engine: Engine, store: WorkflowStore, reason: Option[String], ns: Option[String] = None)
             (implicit ec: ExecutionContext): Future[WorkflowConfig] =
     for {
-      _ <- engine.cancel(ns.orElse(nsOf(cfg)), workflowIdOf(cfg), cfg.xid, reason)
-      _ <- store.updateConfigStatus(cfg.id, WorkflowStatus.CANCELED)
-    } yield cfg.copy(status = WorkflowStatus.CANCELED, updatedAt = System.currentTimeMillis())
+      _ <- engine.cancel(ns.orElse(nsOf(wconf)), workflowIdOf(wconf), wconf.xid, reason)
+      _ <- store.updateWConfStatus(wconf.id, WorkflowStatus.CANCELED)
+    } yield wconf.copy(status = WorkflowStatus.CANCELED, updatedAt = System.currentTimeMillis())
 
-  /** Bind an already-assembled config to a pre-resolved runtime (or fallback xid=id) and persist. */
-  def link(cfg0: WorkflowConfig, runtime: Option[EngineWorkflow], fallbackId: String, store: WorkflowStore)
+  /** Bind an already-assembled wconf to a pre-resolved runtime (or fallback xid=id) and persist. */
+  def link(wconf0: WorkflowConfig, runtime: Option[EngineWorkflow], fallbackId: String, store: WorkflowStore)
           (implicit ec: ExecutionContext): Future[WorkflowConfig] = {
-    val cfg = runtime.map(w => bind(cfg0, w))
-      .getOrElse(cfg0.copy(xid = Some(fallbackId), updatedAt = System.currentTimeMillis()))
-    store.addConfig(cfg)
+    val wconf = runtime.map(w => bind(wconf0, w))
+      .getOrElse(wconf0.copy(xid = Some(fallbackId), updatedAt = System.currentTimeMillis()))
+    store.addWConf(wconf)
   }
 
   /**
@@ -135,9 +135,9 @@ object WorkflowAssembly {
                           (implicit ec: ExecutionContext): Future[WorkflowConfig] = {
     val mapper = TrackMapper.of(id)
     for {
-      cfg0  <- assembly(pipeline, store, wid, wname)
-      wOpt  <- mapper.resolve(engine, ns).recover { case _ => None }
-      saved <- link(cfg0, wOpt, id, store)
+      wconf0 <- assembly(pipeline, store, wid, wname)
+      wOpt   <- mapper.resolve(engine, ns).recover { case _ => None }
+      saved  <- link(wconf0, wOpt, id, store)
     } yield saved
   }
 
@@ -151,9 +151,9 @@ object WorkflowAssembly {
                       (implicit ec: ExecutionContext): Future[WorkflowConfig] = {
     val mapper = TrackMapper.of(id)
     for {
-      cfg0  <- linkByName(pipeline, store, wid, wname)
-      wOpt  <- mapper.resolve(engine, ns).recover { case _ => None }
-      saved <- link(cfg0, wOpt, id, store)
+      wconf0 <- linkByName(pipeline, store, wid, wname)
+      wOpt   <- mapper.resolve(engine, ns).recover { case _ => None }
+      saved  <- link(wconf0, wOpt, id, store)
     } yield saved
   }
 }

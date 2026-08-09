@@ -72,11 +72,11 @@ class WorkflowStartSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
       }
 
       // STARTING is persisted for the config and its detectors
-      Await.result(store.getConfig(started.id), 5.seconds).status shouldBe WorkflowStatus.STARTING
+      Await.result(store.getWConf(started.id), 5.seconds).status shouldBe WorkflowStatus.STARTING
       val cids = started.graph.nodes.values.flatMap(_.cid).toSeq
       cids should not be empty
       cids.foreach { cid =>
-        Await.result(store.getDetectorConfig(cid), 5.seconds).get.status shouldBe WorkflowStatus.STARTING
+        Await.result(store.getDConf(cid), 5.seconds).get.status shouldBe WorkflowStatus.STARTING
       }
     }
   }

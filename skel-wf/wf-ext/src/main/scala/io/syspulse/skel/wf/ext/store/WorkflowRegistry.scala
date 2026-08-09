@@ -137,39 +137,39 @@ object WorkflowRegistry {
   // WorkflowSchema references only DetectorSchema (by node sid). `schema`/`all` -> load them; `graf`
   // keeps the graph inline (else it is stripped). The DetectorSchema map is derived from the ORIGINAL
   // graph nodes, so it is unaffected by stripping.
-  private def schemaView(store: WorkflowStore, s: WorkflowSchema, ents: Set[String])(implicit ec: ExecutionContext): Future[WorkflowSchemaView] = {
-    val schema = if (ents(ENTITY_GRAF)) s else s.copy(graph = stripGraf(s.graph))
+  private def wschemaView(store: WorkflowStore, wschema0: WorkflowSchema, ents: Set[String])(implicit ec: ExecutionContext): Future[WorkflowSchemaView] = {
+    val wschema = if (ents(ENTITY_GRAF)) wschema0 else wschema0.copy(graph = stripGraf(wschema0.graph))
     val fSch: Future[Option[Map[String, DetectorSchema]]] =
-      if (ents(ENTITY_SCHEMA)) schemaDetectors(store, Seq(s)).map(Some(_)) else Future.successful(None)
-    fSch.map(m => WorkflowSchemaView(schema, detectors = m))
+      if (ents(ENTITY_SCHEMA)) wschemaDschemas(store, Seq(wschema0)).map(Some(_)) else Future.successful(None)
+    fSch.map(m => WorkflowSchemaView(wschema, detectors = m))
   }
 
   /** DetectorSchema map keyed by node sid, for the given graf nodes (schema or config graphs). */
-  private def detectorSchemasOf(store: WorkflowStore, sids: Seq[Int])(implicit ec: ExecutionContext): Future[Map[String, DetectorSchema]] = {
+  private def dschemasOf(store: WorkflowStore, sids: Seq[Int])(implicit ec: ExecutionContext): Future[Map[String, DetectorSchema]] = {
     val ids: Seq[Int] = sids.distinct
-    Future.sequence(ids.map(id => store.getDetectorSchema(id).map(_.map(id.toString -> _)))).map(_.flatten.toMap)
+    Future.sequence(ids.map(id => store.getDSchema(id).map(_.map(id.toString -> _)))).map(_.flatten.toMap)
   }
 
-  private def schemaDetectors(store: WorkflowStore, ss: Seq[WorkflowSchema])(implicit ec: ExecutionContext): Future[Map[String, DetectorSchema]] =
-    detectorSchemasOf(store, ss.flatMap(_.graph.nodes.values.map(_.sid)))
+  private def wschemaDschemas(store: WorkflowStore, wschemas: Seq[WorkflowSchema])(implicit ec: ExecutionContext): Future[Map[String, DetectorSchema]] =
+    dschemasOf(store, wschemas.flatMap(_.graph.nodes.values.map(_.sid)))
 
-  private def configSchemas(store: WorkflowStore, cs: Seq[WorkflowConfig])(implicit ec: ExecutionContext): Future[Map[String, DetectorSchema]] =
-    detectorSchemasOf(store, cs.flatMap(_.graph.nodes.values.map(_.sid)))
+  private def wconfDschemas(store: WorkflowStore, wconfs: Seq[WorkflowConfig])(implicit ec: ExecutionContext): Future[Map[String, DetectorSchema]] =
+    dschemasOf(store, wconfs.flatMap(_.graph.nodes.values.map(_.sid)))
 
   // WorkflowConfig: `detector` -> DetectorConfig (by cid); `schema` -> DetectorSchema (by sid);
   // `graf` keeps the graph inline (else stripped). Maps derive from the ORIGINAL graph nodes.
-  private def configView(store: WorkflowStore, c: WorkflowConfig, ents: Set[String])(implicit ec: ExecutionContext): Future[WorkflowConfigView] = {
-    val cfg = if (ents(ENTITY_GRAF)) c else c.copy(graph = stripGraf(c.graph))
+  private def wconfView(store: WorkflowStore, wconf0: WorkflowConfig, ents: Set[String])(implicit ec: ExecutionContext): Future[WorkflowConfigView] = {
+    val wconf = if (ents(ENTITY_GRAF)) wconf0 else wconf0.copy(graph = stripGraf(wconf0.graph))
     val fDet: Future[Option[Map[String, DetectorConfig]]] =
-      if (ents(ENTITY_DETECTOR)) configDetectors(store, Seq(c)).map(Some(_)) else Future.successful(None)
+      if (ents(ENTITY_DETECTOR)) wconfDconfs(store, Seq(wconf0)).map(Some(_)) else Future.successful(None)
     val fSch: Future[Option[Map[String, DetectorSchema]]] =
-      if (ents(ENTITY_SCHEMA)) configSchemas(store, Seq(c)).map(Some(_)) else Future.successful(None)
-    for { d <- fDet; s <- fSch } yield WorkflowConfigView(cfg, detectors = d, schemas = s)
+      if (ents(ENTITY_SCHEMA)) wconfDschemas(store, Seq(wconf0)).map(Some(_)) else Future.successful(None)
+    for { dconfsOpt <- fDet; dschemasOpt <- fSch } yield WorkflowConfigView(wconf, detectors = dconfsOpt, schemas = dschemasOpt)
   }
 
-  private def configDetectors(store: WorkflowStore, cs: Seq[WorkflowConfig])(implicit ec: ExecutionContext): Future[Map[String, DetectorConfig]] = {
-    val cids = cs.flatMap(_.graph.nodes.values.flatMap(_.cid)).toSet.toSeq
-    Future.sequence(cids.map(id => store.getDetectorConfig(id).map(_.map(id.toString -> _))))
+  private def wconfDconfs(store: WorkflowStore, wconfs: Seq[WorkflowConfig])(implicit ec: ExecutionContext): Future[Map[String, DetectorConfig]] = {
+    val cids = wconfs.flatMap(_.graph.nodes.values.flatMap(_.cid)).toSet.toSeq
+    Future.sequence(cids.map(id => store.getDConf(id).map(_.map(id.toString -> _))))
       .map(_.flatten.toMap)
   }
 
@@ -181,24 +181,24 @@ object WorkflowRegistry {
    */
   private def markStarting(store: WorkflowStore, wcs: WorkflowConfigs)(implicit ec: ExecutionContext): Future[WorkflowConfigs] = {
     def fix(s: String): String = if (s == WorkflowStatus.UNRESOLVED) WorkflowStatus.STARTING else s
-    val configs2 = wcs.configs.map(c => c.copy(status = fix(c.status)))
-    val dets2    = wcs.detectors.map(_.map { case (k, v) => k -> v.copy(status = fix(v.status)) })
-    val cfgUp: Seq[Future[_]] = configs2.zip(wcs.configs).collect {
-      case (n, o) if n.status != o.status => store.updateConfigStatus(n.id, n.status)
+    val wconfs2 = wcs.configs.map(wconf => wconf.copy(status = fix(wconf.status)))
+    val dconfs2 = wcs.detectors.map(_.map { case (k, dconf) => k -> dconf.copy(status = fix(dconf.status)) })
+    val wconfUp: Seq[Future[_]] = wconfs2.zip(wcs.configs).collect {
+      case (wconf, wconf0) if wconf.status != wconf0.status => store.updateWConfStatus(wconf.id, wconf.status)
     }
-    val detUp: Seq[Future[_]] = dets2.getOrElse(Map.empty).toSeq.flatMap { case (k, n) =>
-      wcs.detectors.flatMap(_.get(k)).filter(_.status != n.status).map(_ => store.updateDetectorConfigStatus(n.id, n.status))
+    val dconfUp: Seq[Future[_]] = dconfs2.getOrElse(Map.empty).toSeq.flatMap { case (k, dconf) =>
+      wcs.detectors.flatMap(_.get(k)).filter(_.status != dconf.status).map(_ => store.updateDConfStatus(dconf.id, dconf.status))
     }
-    Future.sequence(cfgUp ++ detUp).map(_ => wcs.copy(configs = configs2, detectors = dets2))
+    Future.sequence(wconfUp ++ dconfUp).map(_ => wcs.copy(configs = wconfs2, detectors = dconfs2))
   }
 
   /** WorkflowConfig.meta("wid") as String, if present. */
-  private def configWid(c: WorkflowConfig): Option[String] =
-    c.meta.flatMap(_.get("wid")).map(_.toString)
+  private def wconfWid(wconf: WorkflowConfig): Option[String] =
+    wconf.meta.flatMap(_.get("wid")).map(_.toString)
 
   /** Namespace the config's run lives in: meta("ns") (set at start), else None (engine default / all). */
-  private def configNs(c: WorkflowConfig): Option[String] =
-    c.meta.flatMap(_.get("ns")).map(_.toString).filter(_.nonEmpty)
+  private def wconfNs(wconf: WorkflowConfig): Option[String] =
+    wconf.meta.flatMap(_.get("ns")).map(_.toString).filter(_.nonEmpty)
 
   /**
    * Resolve WorkflowConfig(s) by runtimeId or workflowId (same detection as assembly-track):
@@ -210,24 +210,24 @@ object WorkflowRegistry {
    * LIVE from the Engine (see `enrichWithEngine`). The resolution MODE that matched each config is
    * kept so the Engine is queried the SAME way (rid -> exact RunId; wid -> latest run).
    */
-  private def resolveConfigs(store: WorkflowStore, engine: Option[Engine], ids: Seq[String], typ: Option[String])(implicit ec: ExecutionContext): Future[WorkflowConfigs] =
-    store.allConfigs.flatMap { all =>
+  private def resolveWconfs(store: WorkflowStore, engine: Option[Engine], ids: Seq[String], typ: Option[String])(implicit ec: ExecutionContext): Future[WorkflowConfigs] =
+    store.allWConfs.flatMap { all =>
       def byRid(id: String) = all.filter(_.xid.contains(id))
-      def byWid(id: String) = all.filter(c => configWid(c).contains(id) || c.name == id)
+      def byWid(id: String) = all.filter(wconf => wconfWid(wconf).contains(id) || wconf.name == id)
       def byId(id: String)  = id.toIntOption.map(n => all.filter(_.id == n)).getOrElse(Seq.empty)
       val forced = typ.map(_.trim.toLowerCase)
       // (config, mode) - mode is the criterion used to query the Engine (RESOLVE_RID / RESOLVE_WID).
       // type=id matches the WorkflowConfig by its numeric id, then queries the Engine by that config's xid.
       val foundWithMode: Seq[(WorkflowConfig, String)] = ids.flatMap { id =>
         forced match {
-          case Some(RESOLVE_ID) => byId(id).map(c => c -> RESOLVE_RID)
+          case Some(RESOLVE_ID) => byId(id).map(wconf => wconf -> RESOLVE_RID)
           case _ =>
             val m = forced.getOrElse(if (TrackMapper.isUuid(id)) RESOLVE_RID else RESOLVE_WID)
-            (if (m == RESOLVE_RID) byRid(id) else byWid(id)).map(c => c -> m)
+            (if (m == RESOLVE_RID) byRid(id) else byWid(id)).map(wconf => wconf -> m)
         }
       }.distinctBy(_._1.id)
       val found = foundWithMode.map(_._1)
-      configDetectors(store, found).flatMap(dets => enrichWithEngine(store, engine, foundWithMode, dets))
+      wconfDconfs(store, found).flatMap(dconfs => enrichWithEngine(store, engine, foundWithMode, dconfs))
     }
 
   /**
@@ -236,15 +236,15 @@ object WorkflowRegistry {
    *              None (we NEVER fall back to the workflow's latest run).
    *   - `wid` -> the LATEST run of the WorkflowId (meta.wid, else name).
    */
-  private def resolveRuntime(e: Engine, c: WorkflowConfig, mode: String)(implicit ec: ExecutionContext): Future[Either[String, EngineWorkflow]] = {
+  private def resolveRuntime(e: Engine, wconf: WorkflowConfig, mode: String)(implicit ec: ExecutionContext): Future[Either[String, EngineWorkflow]] = {
     // query the namespace the run lives in (meta.ns), else None -> the engine searches all namespaces
-    val ns = configNs(c)
+    val ns = wconfNs(wconf)
     val f = mode match {
       case RESOLVE_WID =>
-        configWid(c).orElse(Option(c.name).filter(_.nonEmpty))
+        wconfWid(wconf).orElse(Option(wconf.name).filter(_.nonEmpty))
           .map(wid => e.getRuntimeByWorkflowId(ns, wid)).getOrElse(Future.successful(None))
       case _ /* RESOLVE_RID */ =>
-        c.xid.map(rid => e.getRuntime(ns, rid)).getOrElse(Future.successful(None))
+        wconf.xid.map(rid => e.getRuntime(ns, rid)).getOrElse(Future.successful(None))
     }
     // Right(w) -> found; Left(reason) -> engine returned nothing (Temporal archives non-RUNNING
     // workflows, so a closed/archived run - or one not yet visible - resolves to None), or the query
@@ -252,17 +252,17 @@ object WorkflowRegistry {
     f.map {
       case Some(w) =>
         // log the Engine response so a Resolve is traceable (what the engine actually returned)
-        log.info(s"WorkflowConfig(${c.id}): RESOLVED: wid=${w.id}, rid=${w.runtimeId}, type=${w.name}, status=${w.status}, ns=${w.namespace}, activities=${w.allActivities.size}")
+        log.info(s"WorkflowConfig(${wconf.id}): RESOLVED: wid=${w.id}, rid=${w.runtimeId}, type=${w.name}, status=${w.status}, ns=${w.namespace}, activities=${w.allActivities.size}")
         Right(w)
       case None    =>
         val reason = s"runtime not found: (mode=${mode}, ns=${ns.getOrElse("*")})"
         // NOT an error, but the caller must still SEE that the config could not be resolved on the engine
-        log.warn(s"WorkflowConfig(${c.id}): NOT RESOLVED: ${reason}")
+        log.warn(s"WorkflowConfig(${wconf.id}): NOT RESOLVED: ${reason}")
         Left(reason)
     }.recover { case ex =>
       // an ENGINE error is NOT the same as "archived/not found": log it at ERROR (with stack) so it is
       // never hidden, and surface the real reason in meta.err (status is kept unchanged by the caller).
-      log.error(s"WorkflowConfig(${c.id}): FAILED:  mode=${mode}, ns=${ns.getOrElse("*")}: ${ex.getMessage}", ex)
+      log.error(s"WorkflowConfig(${wconf.id}): FAILED:  mode=${mode}, ns=${ns.getOrElse("*")}: ${ex.getMessage}", ex)
       Left(s"engine query failed: ${ex.getMessage}")
     }
   }
@@ -281,108 +281,108 @@ object WorkflowRegistry {
    *     uses the cheap status-only UPDATE; a meta change needs the full config write).
    *   - DetectorConfig.status is updated (status-only) whenever it differs.
    */
-  private def enrichWithEngine(store: WorkflowStore, engine: Option[Engine], foundWithMode: Seq[(WorkflowConfig, String)], dets: Map[String, DetectorConfig])(implicit ec: ExecutionContext): Future[WorkflowConfigs] = {
+  private def enrichWithEngine(store: WorkflowStore, engine: Option[Engine], foundWithMode: Seq[(WorkflowConfig, String)], dconfs: Map[String, DetectorConfig])(implicit ec: ExecutionContext): Future[WorkflowConfigs] = {
     val found = foundWithMode.map(_._1)
     
     engine match {
-      case None => Future.successful(WorkflowConfigs(found, found.size.toLong, Some(dets)))
+      case None => Future.successful(WorkflowConfigs(found, found.size.toLong, Some(dconfs)))
       case Some(e) =>
-        val detectorsInt: Map[Int, DetectorConfig] = dets.map { case (k, v) => k.toInt -> v }
-        Future.traverse(foundWithMode) { case (c, mode) =>
-          resolveRuntime(e, c, mode).map {
+        val dconfsByCid: Map[Int, DetectorConfig] = dconfs.map { case (k, v) => k.toInt -> v }
+        Future.traverse(foundWithMode) { case (wconf, mode) =>
+          resolveRuntime(e, wconf, mode).map {
             case Right(w) =>
-              val view = EngineMapper.map(w, Some(c), detectorsInt)
+              val view = EngineMapper.map(w, Some(wconf), dconfsByCid)
               // cid -> (live status, matched engine activity id)
               val stepInfo = view.steps.flatMap(s => s.cid.map(_ -> (s.status, s.activityId))).toMap
-              val base0 = c.meta.getOrElse(Map.empty[String, Any])
+              val base0 = wconf.meta.getOrElse(Map.empty[String, Any])
               // err: carry a failing task's message into meta.err (dropped when the engine reports none)
               val base1 = w.meta.get("err").map(err => base0 + ("err" -> err)).getOrElse(base0 - "err")
               // result: carry the completed run's return value into meta.result (raw JSON string, stored
               // as a String like meta.input). Keep any previously stored result while the run has none yet.
               val base2 = w.meta.get("result").map(r => base1 + ("result" -> r)).getOrElse(base1)
               val meta = Option(base2).filter(_.nonEmpty)
-              (c.copy(status = view.status, meta = meta), stepInfo)
+              (wconf.copy(status = view.status, meta = meta), stepInfo)
             case Left(reason) =>
               // engine returned nothing (archived/closed non-RUNNING run, or a query failure): DO NOT
               // change WorkflowConfig/DetectorConfig status - only record the reason in meta.err. Emit
               // each step's CURRENT status so the persistence diff is a no-op for the detectors.
-              val meta = Some(c.meta.getOrElse(Map.empty[String, Any]) + ("err" -> reason))
-              val keep = c.graph.nodes.values.flatMap(_.cid)
-                .map(cid => cid -> (detectorsInt.get(cid).map(_.status).getOrElse(WorkflowStatus.UNKNOWN), Option.empty[String]))
+              val meta = Some(wconf.meta.getOrElse(Map.empty[String, Any]) + ("err" -> reason))
+              val keep = wconf.graph.nodes.values.flatMap(_.cid)
+                .map(cid => cid -> (dconfsByCid.get(cid).map(_.status).getOrElse(WorkflowStatus.UNKNOWN), Option.empty[String]))
                 .toMap
-              (c.copy(meta = meta), keep) // status intentionally UNCHANGED
+              (wconf.copy(meta = meta), keep) // status intentionally UNCHANGED
           }
         }.flatMap { results =>
-          val newConfigs   = results.map(_._1)
+          val newWconfs   = results.map(_._1)
           val stepInfoAll  = results.flatMap(_._2).toMap    // cid -> (status, activityId)
-          val newDetectors = detectorsInt.map { case (cid, dc) =>
+          val newDconfs = dconfsByCid.map { case (cid, dconf) =>
             val (st, aid) = stepInfoAll.getOrElse(cid, (WorkflowStatus.UNRESOLVED, None))
             // set DetectorConfig.meta.activity_id from the resolved engine activity (dropped when absent)
-            val meta = aid.map(a => (dc.meta.getOrElse(Map.empty) + ("activity_id" -> a)))
-              .orElse(dc.meta.map(_ - "activity_id").filter(_.nonEmpty))
-            cid.toString -> dc.copy(status = st, meta = meta)
+            val meta = aid.map(a => (dconf.meta.getOrElse(Map.empty) + ("activity_id" -> a)))
+              .orElse(dconf.meta.map(_ - "activity_id").filter(_.nonEmpty))
+            cid.toString -> dconf.copy(status = st, meta = meta)
           }
 
           // ---- persist the Engine truth back into the store (only when something changed) ----
           // 1. WorkflowConfig: persist on status change OR when meta.err/meta.result differs. A changed
-          //    meta needs the full config write (updateConfigStatus is status-only); a pure status change
+          //    meta needs the full config write (updateWConfStatus is status-only); a pure status change
           //    keeps the cheap status-only path (targeted UPDATE on the DB store). The archived case
           //    (status unchanged, meta.err newly set) therefore takes the full-write branch.
-          def metaKey(c: WorkflowConfig, k: String): Option[String] = c.meta.flatMap(_.get(k)).map(_.toString)
-          val cfgUpdates: Seq[Future[_]] = newConfigs.zip(found).flatMap { case (wc, oc) =>
-            if (metaKey(wc, "result") != metaKey(oc, "result") || metaKey(wc, "err") != metaKey(oc, "err")) {
-              log.info(s"Resolve: WorkflowConfig(${wc.id}).status ${oc.status} -> ${wc.status} (meta err/result changed)")
-              Some(store.addConfig(wc.copy(updatedAt = System.currentTimeMillis())))
-            } else if (wc.status != oc.status) {
-              log.info(s"Resolve: WorkflowConfig(${wc.id}).status ${oc.status} -> ${wc.status}")
-              Some(store.updateConfigStatus(wc.id, wc.status))
+          def metaKey(wconf: WorkflowConfig, k: String): Option[String] = wconf.meta.flatMap(_.get(k)).map(_.toString)
+          val wconfUpdates: Seq[Future[_]] = newWconfs.zip(found).flatMap { case (wconf, wconf0) =>
+            if (metaKey(wconf, "result") != metaKey(wconf0, "result") || metaKey(wconf, "err") != metaKey(wconf0, "err")) {
+              log.info(s"Resolve: WorkflowConfig(${wconf.id}).status ${wconf0.status} -> ${wconf.status} (meta err/result changed)")
+              Some(store.addWConf(wconf.copy(updatedAt = System.currentTimeMillis())))
+            } else if (wconf.status != wconf0.status) {
+              log.info(s"Resolve: WorkflowConfig(${wconf.id}).status ${wconf0.status} -> ${wconf.status}")
+              Some(store.updateWConfStatus(wconf.id, wconf.status))
             } else None
           }
           // 2. DetectorConfig.status - status-only update is implemented for every store (incl. DB)
-          val detUpdates: Seq[Future[_]] = newDetectors.toSeq.collect {
-            case (cidStr, nd) if dets.get(cidStr).exists(_.status != nd.status) =>
-              log.info(s"Resolve: DetectorConfig(${nd.id}).status ${dets(cidStr).status} -> ${nd.status}")
-              store.updateDetectorConfigStatus(nd.id, nd.status)
+          val dconfUpdates: Seq[Future[_]] = newDconfs.toSeq.collect {
+            case (cidStr, dconf) if dconfs.get(cidStr).exists(_.status != dconf.status) =>
+              log.info(s"Resolve: DetectorConfig(${dconf.id}).status ${dconfs(cidStr).status} -> ${dconf.status}")
+              store.updateDConfStatus(dconf.id, dconf.status)
           }
 
-          Future.sequence(cfgUpdates ++ detUpdates)
-            .map(_ => WorkflowConfigs(newConfigs, newConfigs.size.toLong, Some(newDetectors)))
+          Future.sequence(wconfUpdates ++ dconfUpdates)
+            .map(_ => WorkflowConfigs(newWconfs, newWconfs.size.toLong, Some(newDconfs)))
         }
     }
   }
 
   // ---------------------------------------------------------------- update merge
-  private def applyUpdate(s: WorkflowSchema, req: WorkflowSchemaUpdateReq): WorkflowSchema =
-    s.copy(
+  private def applyUpdate(wschema: WorkflowSchema, req: WorkflowSchemaUpdateReq): WorkflowSchema =
+    wschema.copy(
       updatedAt = System.currentTimeMillis(),
-      name = req.name.getOrElse(s.name),
-      version = req.version.getOrElse(s.version),
-      title = req.title.getOrElse(s.title),
-      description = req.description.getOrElse(s.description),
-      status = req.status.getOrElse(s.status),
-      icon = req.icon.orElse(s.icon),
-      tags = req.tags.getOrElse(s.tags),
-      graph = req.graph.map(WorkflowGraf.sync).getOrElse(s.graph),
+      name = req.name.getOrElse(wschema.name),
+      version = req.version.getOrElse(wschema.version),
+      title = req.title.getOrElse(wschema.title),
+      description = req.description.getOrElse(wschema.description),
+      status = req.status.getOrElse(wschema.status),
+      icon = req.icon.orElse(wschema.icon),
+      tags = req.tags.getOrElse(wschema.tags),
+      graph = req.graph.map(WorkflowGraf.sync).getOrElse(wschema.graph),
     )
 
-  private def applyUpdate(c: WorkflowConfig, req: WorkflowConfigUpdateReq): WorkflowConfig =
-    c.copy(
+  private def applyUpdate(wconf: WorkflowConfig, req: WorkflowConfigUpdateReq): WorkflowConfig =
+    wconf.copy(
       updatedAt = System.currentTimeMillis(),
-      name = req.name.getOrElse(c.name),
-      version = req.version.getOrElse(c.version),
-      title = req.title.getOrElse(c.title),
-      description = req.description.getOrElse(c.description),
-      status = req.status.getOrElse(c.status),
-      icon = req.icon.orElse(c.icon),
-      tags = req.tags.getOrElse(c.tags),
-      graph = req.graph.map(WorkflowGraf.sync).getOrElse(c.graph),
-      oid = req.oid.orElse(c.oid),
-      pid = req.pid.orElse(c.pid),
-      xid = req.xid.orElse(c.xid),
+      name = req.name.getOrElse(wconf.name),
+      version = req.version.getOrElse(wconf.version),
+      title = req.title.getOrElse(wconf.title),
+      description = req.description.getOrElse(wconf.description),
+      status = req.status.getOrElse(wconf.status),
+      icon = req.icon.orElse(wconf.icon),
+      tags = req.tags.getOrElse(wconf.tags),
+      graph = req.graph.map(WorkflowGraf.sync).getOrElse(wconf.graph),
+      oid = req.oid.orElse(wconf.oid),
+      pid = req.pid.orElse(wconf.pid),
+      xid = req.xid.orElse(wconf.xid),
     )
 
   // ---------------------------------------------------------------- detector builders
-  private def detectorSchemaFromReq(id: Int, req: DetectorSchemaCreateReq): DetectorSchema = {
+  private def dschemaFromReq(id: Int, req: DetectorSchemaCreateReq): DetectorSchema = {
     val now = System.currentTimeMillis()
     DetectorSchema(
       id = id, 
@@ -404,7 +404,7 @@ object WorkflowRegistry {
   }
 
   /** Build a DetectorConfig, linking it to an existing DetectorSchema (`sid`) when provided. */
-  private def detectorConfigFromReq(id: Int, req: DetectorConfigCreateReq, schemaRef: Option[DetectorSchema]): DetectorConfig = {
+  private def dconfFromReq(id: Int, req: DetectorConfigCreateReq, dschemaRef: Option[DetectorSchema]): DetectorConfig = {
     val now = System.currentTimeMillis()
     DetectorConfig(
       id = id, 
@@ -412,7 +412,7 @@ object WorkflowRegistry {
       updatedAt = now, 
       status = req.status.getOrElse(WorkflowStatus.UNKNOWN),
       contract = DetectorConfigContract(0, now, now, 0, 0, None, None, None, None, req.name),
-      schema = schemaRef.map(ds => DetectorConfigSchema(ds.id, now, now, ds.status, ds.name, ds.version, None)),
+      schema = dschemaRef.map(dschema => DetectorConfigSchema(dschema.id, now, now, dschema.status, dschema.name, dschema.version, None)),
       name = req.name, 
       source = req.source.getOrElse(WorkflowStore.DETECTOR_CONFIG_SOURCE), 
       tags = req.tags.getOrElse(Seq()),
@@ -421,29 +421,29 @@ object WorkflowRegistry {
     )
   }
 
-  private def applyUpdate(c: DetectorConfig, req: DetectorConfigUpdateReq): DetectorConfig =
-    c.copy(
+  private def applyUpdate(dconf: DetectorConfig, req: DetectorConfigUpdateReq): DetectorConfig =
+    dconf.copy(
       updatedAt = System.currentTimeMillis(),
-      status = req.status.getOrElse(c.status),
-      name = req.name.getOrElse(c.name),
-      source = req.source.getOrElse(c.source),
-      tags = req.tags.getOrElse(c.tags),
-      config = req.config.orElse(c.config),
+      status = req.status.getOrElse(dconf.status),
+      name = req.name.getOrElse(dconf.name),
+      source = req.source.getOrElse(dconf.source),
+      tags = req.tags.getOrElse(dconf.tags),
+      config = req.config.orElse(dconf.config),
     )
 
-  private def applyUpdate(d: DetectorSchema, req: DetectorSchemaUpdateReq): DetectorSchema =
-    d.copy(
+  private def applyUpdate(dschema: DetectorSchema, req: DetectorSchemaUpdateReq): DetectorSchema =
+    dschema.copy(
       updatedAt = System.currentTimeMillis(),
-      name = req.name.getOrElse(d.name),
-      version = req.version.getOrElse(d.version),
-      title = req.title.getOrElse(d.title),
-      description = req.description.getOrElse(d.description),
-      author = req.author.getOrElse(d.author),
-      status = req.status.getOrElse(d.status),
-      icon = req.icon.orElse(d.icon),
-      tags = req.tags.getOrElse(d.tags),
-      schema = req.schema.orElse(d.schema),
-      uiSchema = req.uiSchema.orElse(d.uiSchema),
+      name = req.name.getOrElse(dschema.name),
+      version = req.version.getOrElse(dschema.version),
+      title = req.title.getOrElse(dschema.title),
+      description = req.description.getOrElse(dschema.description),
+      author = req.author.getOrElse(dschema.author),
+      status = req.status.getOrElse(dschema.status),
+      icon = req.icon.orElse(dschema.icon),
+      tags = req.tags.getOrElse(dschema.tags),
+      schema = req.schema.orElse(dschema.schema),
+      uiSchema = req.uiSchema.orElse(dschema.uiSchema),
     )
 
   // ---------------------------------------------------------------- behavior
@@ -453,23 +453,23 @@ object WorkflowRegistry {
       // -------------------------------------------------- WorkflowSchema
       case GetWorkflowSchemas(from, size, entity, replyTo) =>
         val ents = parseEntities(entity)
-        store.listSchemas(from, size).flatMap { p =>
-          val schemas = if (ents(ENTITY_GRAF)) p.schemas else p.schemas.map(s => s.copy(graph = stripGraf(s.graph)))
-          if (ents(ENTITY_SCHEMA)) schemaDetectors(store, p.schemas).map(m => WorkflowSchemas(schemas, p.total, Some(m)))
-          else Future.successful(WorkflowSchemas(schemas, p.total, None))
+        store.listWSchemas(from, size).flatMap { p =>
+          val wschemas = if (ents(ENTITY_GRAF)) p.wschemas else p.wschemas.map(wschema => wschema.copy(graph = stripGraf(wschema.graph)))
+          if (ents(ENTITY_SCHEMA)) wschemaDschemas(store, p.wschemas).map(m => WorkflowSchemas(wschemas, p.total, Some(m)))
+          else Future.successful(WorkflowSchemas(wschemas, p.total, None))
         }.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case GetWorkflowSchema(id, entity, replyTo) =>
-        store.getSchema(id).flatMap(s => schemaView(store, s, parseEntities(entity))).andThen(logFail).onComplete(replyTo ! _)
+        store.getWSchema(id).flatMap(wschema => wschemaView(store, wschema, parseEntities(entity))).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case CreateWorkflowSchema(req, replyTo) =>
         log.info(s"CreateWorkflowSchema: ${req}")
 
-        store.nextSchemaId.flatMap { id =>
+        store.nextWSchemaId.flatMap { id =>
           val now = System.currentTimeMillis()
-          val s = WorkflowSchema(
+          val wschema = WorkflowSchema(
             id = id, 
             createdAt = now, 
             updatedAt = now, 
@@ -484,7 +484,7 @@ object WorkflowRegistry {
             tags = req.tags.getOrElse(Seq()),
             graph = req.graph.map(WorkflowGraf.sync).getOrElse(WorkflowGraf(id = 0, sid = Some(id))),
           )
-          store.addSchema(s)
+          store.addWSchema(wschema)
         }.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
@@ -497,13 +497,13 @@ object WorkflowRegistry {
       case UpdateWorkflowSchema(id, req, replyTo) =>
         log.info(s"UpdateWorkflowSchema: ${id}: ${req}")
 
-        store.getSchema(id).map(s => applyUpdate(s, req)).flatMap(store.addSchema).andThen(logFail).onComplete(replyTo ! _)
+        store.getWSchema(id).map(wschema => applyUpdate(wschema, req)).flatMap(store.addWSchema).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case DeleteWorkflowSchema(id, replyTo) =>
         log.info(s"DeleteWorkflowSchema: ${id}")
 
-        store.delSchema(id).onComplete {
+        store.delWSchema(id).onComplete {
           case Success(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.OK, Some(id))
           case Failure(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id))
         }
@@ -512,34 +512,34 @@ object WorkflowRegistry {
       // -------------------------------------------------- WorkflowConfig
       case GetWorkflowConfigs(from, size, entity, replyTo) =>
         val ents = parseEntities(entity)
-        store.listConfigs(from, size).flatMap { p =>
-          val configs = if (ents(ENTITY_GRAF)) p.configs else p.configs.map(c => c.copy(graph = stripGraf(c.graph)))
+        store.listWConfs(from, size).flatMap { p =>
+          val wconfs = if (ents(ENTITY_GRAF)) p.wconfs else p.wconfs.map(wconf => wconf.copy(graph = stripGraf(wconf.graph)))
           val fDet: Future[Option[Map[String, DetectorConfig]]] =
-            if (ents(ENTITY_DETECTOR)) configDetectors(store, p.configs).map(Some(_)) else Future.successful(None)
+            if (ents(ENTITY_DETECTOR)) wconfDconfs(store, p.wconfs).map(Some(_)) else Future.successful(None)
           val fSch: Future[Option[Map[String, DetectorSchema]]] =
-            if (ents(ENTITY_SCHEMA)) configSchemas(store, p.configs).map(Some(_)) else Future.successful(None)
-          for { d <- fDet; s <- fSch } yield WorkflowConfigs(configs, p.total, detectors = d, schemas = s)
+            if (ents(ENTITY_SCHEMA)) wconfDschemas(store, p.wconfs).map(Some(_)) else Future.successful(None)
+          for { dconfsOpt <- fDet; dschemasOpt <- fSch } yield WorkflowConfigs(wconfs, p.total, detectors = dconfsOpt, schemas = dschemasOpt)
         }.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case GetWorkflowConfig(id, entity, replyTo) =>
-        store.getConfig(id).flatMap(c => configView(store, c, parseEntities(entity))).andThen(logFail).onComplete(replyTo ! _)
+        store.getWConf(id).flatMap(wconf => wconfView(store, wconf, parseEntities(entity))).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case GetWorkflowConfigByXid(xid, replyTo) =>
-        store.findConfigByXid(xid).onComplete {
+        store.findWConfByXid(xid).onComplete {
           case Success(opt) => replyTo ! opt
           case Failure(_)   => replyTo ! None
         }
         Behaviors.same
 
       case GetWorkflowConfigsByOid(oid, replyTo) =>
-        store.findConfigByOid(oid).map(cs => WorkflowConfigs(cs, cs.size.toLong, None)).andThen(logFail).onComplete(replyTo ! _)
+        store.findWConfByOid(oid).map(wconfs => WorkflowConfigs(wconfs, wconfs.size.toLong, None)).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case ResolveWorkflowConfigs(ids, typ, replyTo) =>
         log.info(s"ResolveWorkflowConfigs: ${engine}/${typ}: ${ids}")
-        resolveConfigs(store, engine, ids, typ)
+        resolveWconfs(store, engine, ids, typ)
           .andThen(logFail)
           .onComplete(r => {
             log.debug(s"ResolveConfigs: ${engine}/${typ}: ${ids}: ${r}")
@@ -563,16 +563,16 @@ object WorkflowRegistry {
             // is folded into the config BEFORE start(), which preserves meta.* on its single write.
             // Then Resolve pulls the live statuses (STARTING while the run is not yet visible on the Engine).
             val f = for {
-              c0       <- store.createConfigFromSchema(id, wid = wid)
-              c         = input.filter(_.nonEmpty)
-                            .map(in => c0.copy(meta = Some(c0.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in))))
-                            .getOrElse(c0)
+              wconf0   <- store.createWConfFromWSchema(id, wid = wid)
+              wconf     = input.filter(_.nonEmpty)
+                            .map(in => wconf0.copy(meta = Some(wconf0.meta.getOrElse(Map.empty[String, Any]) + ("input" -> in))))
+                            .getOrElse(wconf0)
               tq        = taskQueue.filter(_.nonEmpty)
-                            .orElse(c.meta.flatMap(_.get("taskQueue")).map(_.toString).filter(_.nonEmpty))
+                            .orElse(wconf.meta.flatMap(_.get("taskQueue")).map(_.toString).filter(_.nonEmpty))
                             .getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
-              payload   = input.filter(_.nonEmpty).orElse(Some(c.toJson.compactPrint))
-              saved    <- WorkflowAssembly.start(c, c.name, e, store, tq, payload, ns, wid)
-              resolved <- resolveConfigs(store, Some(e), saved.xid.toSeq, Some(RESOLVE_RID))
+              payload   = input.filter(_.nonEmpty).orElse(Some(wconf.toJson.compactPrint))
+              saved    <- WorkflowAssembly.start(wconf, wconf.name, e, store, tq, payload, ns, wid)
+              resolved <- resolveWconfs(store, Some(e), saved.xid.toSeq, Some(RESOLVE_RID))
               started  <- markStarting(store, resolved)
             } yield started
             f.andThen(logFail).onComplete(replyTo ! _)
@@ -583,7 +583,7 @@ object WorkflowRegistry {
         log.info(s"StopWorkflowConfig: id=${id} reason='${reason.getOrElse("")}'")
         engine match {
           case None    => replyTo ! Failure(new Exception("no Engine configured (start with --engine=temporal://...)"))
-          case Some(e) => store.getConfig(id).flatMap(c => WorkflowAssembly.stop(c, e, store, reason)).andThen(logFail).onComplete(replyTo ! _)
+          case Some(e) => store.getWConf(id).flatMap(wconf => WorkflowAssembly.stop(wconf, e, store, reason)).andThen(logFail).onComplete(replyTo ! _)
         }
         Behaviors.same
 
@@ -591,19 +591,19 @@ object WorkflowRegistry {
         log.info(s"CancelWorkflowConfig: id=${id} reason='${reason.getOrElse("")}'")
         engine match {
           case None    => replyTo ! Failure(new Exception("no Engine configured (start with --engine=temporal://...)"))
-          case Some(e) => store.getConfig(id).flatMap(c => WorkflowAssembly.cancel(c, e, store, reason)).andThen(logFail).onComplete(replyTo ! _)
+          case Some(e) => store.getWConf(id).flatMap(wconf => WorkflowAssembly.cancel(wconf, e, store, reason)).andThen(logFail).onComplete(replyTo ! _)
         }
         Behaviors.same
 
       case CreateWorkflowConfig(req, replyTo) =>
         log.info(s"CreateWorkflowConfig: ${req}")
         // compose from the schema (with DetectorConfigs); ids are generated by the store; contract 0 (default)
-        store.createConfigFromSchema(req.sid, name = req.name, oid = req.oid, pid = req.pid, xid = req.xid).andThen(logFail).onComplete(replyTo ! _)
+        store.createWConfFromWSchema(req.sid, name = req.name, oid = req.oid, pid = req.pid, xid = req.xid).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case CreateWorkflowConfigFromSchema(sid, contractId, replyTo) =>
         log.info(s"CreateWorkflowConfigFromSchema: sid=${sid} contractId=${contractId}")
-        store.createConfigFromSchema(sid, contractId).andThen(logFail).onComplete(replyTo ! _)
+        store.createWConfFromWSchema(sid, contractId).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case Setup0(tenantId, projectId, contractId, name, status, replyTo) =>
@@ -624,7 +624,7 @@ object WorkflowRegistry {
       case AssemblyWorkflowConfigLinked(req, runtime, fallbackId, replyTo) =>
         log.info(s"AssemblyWorkflowConfigLinked: ${runtime.map(_.id)} / ${fallbackId}: pipeline='${req.pipeline}'")
         WorkflowAssembly.assembly(req.pipeline, store, req.wid, req.name)
-          .flatMap(cfg0 => WorkflowAssembly.link(cfg0, runtime, fallbackId, store))
+          .flatMap(wconf0 => WorkflowAssembly.link(wconf0, runtime, fallbackId, store))
           .andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
@@ -636,14 +636,14 @@ object WorkflowRegistry {
       case LinkWorkflowConfigLinked(req, runtime, fallbackId, replyTo) =>
         log.info(s"LinkWorkflowConfigLinked: ${runtime.map(_.id)} / ${fallbackId}: pipeline='${req.pipeline}'")
         WorkflowAssembly.linkByName(req.pipeline, store, req.wid, req.name)
-          .flatMap(cfg0 => WorkflowAssembly.link(cfg0, runtime, fallbackId, store))
+          .flatMap(wconf0 => WorkflowAssembly.link(wconf0, runtime, fallbackId, store))
           .andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case UpdateWorkflowConfig(id, req, replyTo) =>
         log.info(s"UpdateWorkflowConfig: ${req}")
 
-        store.getConfig(id).map(c => applyUpdate(c, req)).flatMap(store.addConfig).andThen(logFail).onComplete(replyTo ! _)
+        store.getWConf(id).map(wconf => applyUpdate(wconf, req)).flatMap(store.addWConf).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case DeleteWorkflowConfig(id, replyTo) =>
@@ -654,14 +654,14 @@ object WorkflowRegistry {
           f.map(_ => log.info(s"DeleteWorkflowConfig: ${id}: ${what}"))
             .recover { case e => log.info(s"DeleteWorkflowConfig: ${id}: skip ${what} (${e.getMessage})") }
 
-        val f = store.getConfigOpt(id).flatMap {
+        val f = store.getWConfOpt(id).flatMap {
           case None => Future.successful(WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id)))
-          case Some(c) =>
-            val cids = c.graph.nodes.values.flatMap(_.cid).toSeq.distinct
+          case Some(wconf) =>
+            val cids = wconf.graph.nodes.values.flatMap(_.cid).toSeq.distinct
             for {
-              _ <- Future.sequence(cids.map(cid => delQuietly(s"DetectorConfig(${cid})", store.delDetectorConfig(cid))))
-              _ <- delQuietly(s"WorkflowGraf(${c.graph.id})", store.delGraf(c.graph.id))
-              _ <- delQuietly(s"WorkflowConfig(${id})", store.delConfig(id))
+              _ <- Future.sequence(cids.map(cid => delQuietly(s"DetectorConfig(${cid})", store.delDConf(cid))))
+              _ <- delQuietly(s"WorkflowGraf(${wconf.graph.id})", store.delGraf(wconf.graph.id))
+              _ <- delQuietly(s"WorkflowConfig(${id})", store.delWConf(id))
             } yield WorkflowActionRes(WorkflowActionRes.OK, Some(id))
         }
         f.onComplete {
@@ -700,31 +700,31 @@ object WorkflowRegistry {
 
       // -------------------------------------------------- DetectorSchema
       case GetDetectorSchemas(from, size, replyTo) =>
-        store.listDetectorSchemas(from, size).map(p => DetectorSchemas(p.schemas, p.total)).andThen(logFail).onComplete(replyTo ! _)
+        store.listDSchemas(from, size).map(p => DetectorSchemas(p.dschemas, p.total)).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case GetDetectorSchema(id, replyTo) =>
-        store.getDetectorSchema(id).map {
-          case Some(d) => d
+        store.getDSchema(id).map {
+          case Some(dschema) => dschema
           case None    => throw new ErrNotFound(s"DetectorSchema: ${id}")
         }.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case CreateDetectorSchema(req, replyTo) =>
         log.info(s"CreateDetectorSchema: ${req.name}")
-        store.nextDetectorSchemaId.flatMap(id => store.addDetectorSchema(detectorSchemaFromReq(id, req))).andThen(logFail).onComplete(replyTo ! _)
+        store.nextDSchemaId.flatMap(id => store.addDSchema(dschemaFromReq(id, req))).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case UpdateDetectorSchema(id, req, replyTo) =>
         log.info(s"UpdateDetectorSchema: ${id}")
-        store.getDetectorSchema(id).map {
-          case Some(d) => applyUpdate(d, req)
+        store.getDSchema(id).map {
+          case Some(dschema) => applyUpdate(dschema, req)
           case None    => throw new ErrNotFound(s"DetectorSchema: ${id}")
-        }.flatMap(store.addDetectorSchema).andThen(logFail).onComplete(replyTo ! _)
+        }.flatMap(store.addDSchema).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case DeleteDetectorSchema(id, replyTo) =>
-        store.delDetectorSchema(id).onComplete {
+        store.delDSchema(id).onComplete {
           case Success(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.OK, Some(id))
           case Failure(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id))
         }
@@ -732,12 +732,12 @@ object WorkflowRegistry {
 
       // -------------------------------------------------- DetectorConfig
       case GetDetectorConfigs(from, size, replyTo) =>
-        store.listDetectorConfigs(from, size).map(p => DetectorConfigs(p.configs, p.total)).andThen(logFail).onComplete(replyTo ! _)
+        store.listDConfs(from, size).map(p => DetectorConfigs(p.dconfs, p.total)).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case GetDetectorConfig(id, replyTo) =>
-        store.getDetectorConfig(id).map {
-          case Some(d) => d
+        store.getDConf(id).map {
+          case Some(dconf) => dconf
           case None    => throw new ErrNotFound(s"DetectorConfig: ${id}")
         }.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
@@ -745,23 +745,23 @@ object WorkflowRegistry {
       case CreateDetectorConfig(req, replyTo) =>
         log.info(s"CreateDetectorConfig: ${req.name}")
         val r = for {
-          schemaRef <- req.sid.map(sid => store.getDetectorSchema(sid)).getOrElse(Future.successful(None))
-          id        <- store.nextDetectorConfigId
-          saved     <- store.addDetectorConfig(detectorConfigFromReq(id, req, schemaRef))
+          dschemaRef <- req.sid.map(sid => store.getDSchema(sid)).getOrElse(Future.successful(None))
+          id         <- store.nextDConfId
+          saved      <- store.addDConf(dconfFromReq(id, req, dschemaRef))
         } yield saved
         r.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case UpdateDetectorConfig(id, req, replyTo) =>
         log.info(s"UpdateDetectorConfig: ${id}")
-        store.getDetectorConfig(id).map {
-          case Some(d) => applyUpdate(d, req)
+        store.getDConf(id).map {
+          case Some(dconf) => applyUpdate(dconf, req)
           case None    => throw new ErrNotFound(s"DetectorConfig: ${id}")
-        }.flatMap(store.addDetectorConfig).andThen(logFail).onComplete(replyTo ! _)
+        }.flatMap(store.addDConf).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case DeleteDetectorConfig(id, replyTo) =>
-        store.delDetectorConfig(id).onComplete {
+        store.delDConf(id).onComplete {
           case Success(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.OK, Some(id))
           case Failure(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id))
         }

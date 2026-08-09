@@ -12,7 +12,7 @@ import io.syspulse.skel.wf.ext.store.WorkflowStore
 
 /**
  * End-to-end: DetectorConfig.config instantiated from DetectorSchema.schema (a real JsonSchema
- * spec, loaded from test resources) via WorkflowStore.detectorConfigOf -> JsonSchemaDefault.of.
+ * spec, loaded from test resources) via WorkflowStore.dconfOf -> JsonSchemaDefault.of.
  */
 class DetectorConfigFromSchemaSpec extends AnyWordSpec with Matchers {
 
@@ -32,7 +32,7 @@ class DetectorConfigFromSchemaSpec extends AnyWordSpec with Matchers {
     "instantiate config from schema-Whales.json: literal array default AND scalar defaults" in {
       val schema = loadSchema("schema-Whales.json")
       val ds = detectorSchema(1, "Whales", schema)
-      val dc = WorkflowStore.detectorConfigOf(10, ds)
+      val dc = WorkflowStore.dconfOf(10, dschema = ds)
 
       dc.config shouldBe defined
       val cfg = dc.config.get.fields
@@ -62,7 +62,7 @@ class DetectorConfigFromSchemaSpec extends AnyWordSpec with Matchers {
     "instantiate config from schema-Auditor1.json: defaults, nullable-type fallbacks and empty array (no default)" in {
       val schema = loadSchema("schema-Auditor1.json")
       val ds = detectorSchema(2, "Auditor1", schema)
-      val dc = WorkflowStore.detectorConfigOf(11, ds)
+      val dc = WorkflowStore.dconfOf(11, dschema = ds)
 
       dc.config shouldBe defined
       val cfg = dc.config.get.fields

@@ -46,44 +46,44 @@ class WorkflowSchemaSpec extends AnyWordSpec with Matchers {
       val store = new WorkflowStoreMem()
       val s = WorkflowSchema.of(0, "W0", graf(0))
 
-      Await.result(store.addSchema(s), timeout)
-      Await.result(store.getSchema(0), timeout).name shouldBe "W0"
-      Await.result(store.getSchemaOpt(0), timeout) shouldBe Some(s)
-      Await.result(store.sizeSchemas, timeout) shouldBe 1L
+      Await.result(store.addWSchema(s), timeout)
+      Await.result(store.getWSchema(0), timeout).name shouldBe "W0"
+      Await.result(store.getWSchemaOpt(0), timeout) shouldBe Some(s)
+      Await.result(store.sizeWSchemas, timeout) shouldBe 1L
 
       val updated = s.copy(name = "W0-renamed")
-      Await.result(store.addSchema(updated), timeout)
-      Await.result(store.getSchema(0), timeout).name shouldBe "W0-renamed"
+      Await.result(store.addWSchema(updated), timeout)
+      Await.result(store.getWSchema(0), timeout).name shouldBe "W0-renamed"
 
-      Await.result(store.delSchema(0), timeout) shouldBe 0
-      Await.result(store.sizeSchemas, timeout) shouldBe 0L
+      Await.result(store.delWSchema(0), timeout) shouldBe 0
+      Await.result(store.sizeWSchemas, timeout) shouldBe 0L
     }
 
     "fail get/delete of a missing schema" in {
       val store = new WorkflowStoreMem()
-      Await.result(store.getSchemaOpt(99), timeout) shouldBe None
-      intercept[Exception] { Await.result(store.getSchema(99), timeout) }
-      intercept[Exception] { Await.result(store.delSchema(99), timeout) }
+      Await.result(store.getWSchemaOpt(99), timeout) shouldBe None
+      intercept[Exception] { Await.result(store.getWSchema(99), timeout) }
+      intercept[Exception] { Await.result(store.delWSchema(99), timeout) }
     }
 
     "assign next ids starting at 0, never negative" in {
       val store = new WorkflowStoreMem()
-      Await.result(store.nextSchemaId, timeout) shouldBe 0
-      Await.result(store.addSchema(WorkflowSchema.of(0, "a", graf(0))), timeout)
-      Await.result(store.addSchema(WorkflowSchema.of(5, "b", graf(5))), timeout)
-      Await.result(store.nextSchemaId, timeout) shouldBe 6
+      Await.result(store.nextWSchemaId, timeout) shouldBe 0
+      Await.result(store.addWSchema(WorkflowSchema.of(0, "a", graf(0))), timeout)
+      Await.result(store.addWSchema(WorkflowSchema.of(5, "b", graf(5))), timeout)
+      Await.result(store.nextWSchemaId, timeout) shouldBe 6
     }
 
     "page schemas (from/size) and report total" in {
       val store = new WorkflowStoreMem()
-      (0 until 10).foreach(i => Await.result(store.addSchema(WorkflowSchema.of(i, s"w${i}", graf(i))), timeout))
+      (0 until 10).foreach(i => Await.result(store.addWSchema(WorkflowSchema.of(i, s"w${i}", graf(i))), timeout))
 
-      val p = Await.result(store.listSchemas(Some(2), Some(3)), timeout)
+      val p = Await.result(store.listWSchemas(Some(2), Some(3)), timeout)
       p.total shouldBe 10L
-      p.schemas should have size 3
+      p.wschemas should have size 3
 
-      val all = Await.result(store.listSchemas(None, None), timeout)
-      all.schemas should have size 10
+      val all = Await.result(store.listWSchemas(None, None), timeout)
+      all.wschemas should have size 10
       all.total shouldBe 10L
     }
   }

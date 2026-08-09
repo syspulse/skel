@@ -21,7 +21,7 @@ import io.hacken.ext.detector.{DetectorSchema, DetectorConfig}
 // success and stops the fold - so list the PRIMARY store first. This is a
 // fallback/replica model (try each store until one responds), not a merge.
 //
-// The composite trait defaults (listSchemas, createConfigFromSchema, update*Status,
+// The composite trait defaults (listWSchemas, createWConfFromWSchema, update*Status,
 // next*Id, setup0) are inherited unchanged: they are built from the primitives
 // below, so each of their sub-calls independently folds over the stores.
 // ============================================================================
@@ -72,22 +72,22 @@ class WorkflowStoreMany(val stores: Seq[WorkflowStore])(implicit ec: ExecutionCo
   }
 
   // ---------------------------------------------------------------- WorkflowSchema
-  def addSchema(s: WorkflowSchema): Future[WorkflowSchema] = firstSuccess("addSchema")(_.addSchema(s))
-  def getSchema(id: Int): Future[WorkflowSchema]           = firstSuccess(s"getSchema(${id})")(_.getSchema(id))
-  def getSchemaOpt(id: Int): Future[Option[WorkflowSchema]] = firstSuccess(s"getSchemaOpt(${id})")(_.getSchemaOpt(id))
-  def delSchema(id: Int): Future[Int]                      = firstSuccess(s"delSchema(${id})")(_.delSchema(id))
-  def allSchemas: Future[Seq[WorkflowSchema]]              = firstSuccess("allSchemas")(_.allSchemas)
-  def sizeSchemas: Future[Long]                            = firstSuccess("sizeSchemas")(_.sizeSchemas)
+  def addWSchema(wschema: WorkflowSchema): Future[WorkflowSchema] = firstSuccess("addWSchema")(_.addWSchema(wschema))
+  def getWSchema(id: Int): Future[WorkflowSchema]           = firstSuccess(s"getWSchema(${id})")(_.getWSchema(id))
+  def getWSchemaOpt(id: Int): Future[Option[WorkflowSchema]] = firstSuccess(s"getWSchemaOpt(${id})")(_.getWSchemaOpt(id))
+  def delWSchema(id: Int): Future[Int]                      = firstSuccess(s"delWSchema(${id})")(_.delWSchema(id))
+  def allWSchemas: Future[Seq[WorkflowSchema]]              = firstSuccess("allWSchemas")(_.allWSchemas)
+  def sizeWSchemas: Future[Long]                            = firstSuccess("sizeWSchemas")(_.sizeWSchemas)
 
   // ---------------------------------------------------------------- WorkflowConfig
-  def addConfig(c: WorkflowConfig): Future[WorkflowConfig]  = firstSuccess("addConfig")(_.addConfig(c))
-  def getConfig(id: Int): Future[WorkflowConfig]            = firstSuccess(s"getConfig(${id})")(_.getConfig(id))
-  def getConfigOpt(id: Int): Future[Option[WorkflowConfig]] = firstSuccess(s"getConfigOpt(${id})")(_.getConfigOpt(id))
-  def delConfig(id: Int): Future[Int]                       = firstSuccess(s"delConfig(${id})")(_.delConfig(id))
-  def allConfigs: Future[Seq[WorkflowConfig]]               = firstSuccess("allConfigs")(_.allConfigs)
-  def sizeConfigs: Future[Long]                             = firstSuccess("sizeConfigs")(_.sizeConfigs)
-  def findConfigByOid(oid: String): Future[Seq[WorkflowConfig]]     = firstSuccess(s"findConfigByOid(${oid})")(_.findConfigByOid(oid))
-  def findConfigByXid(xid: String): Future[Option[WorkflowConfig]]  = firstSuccess(s"findConfigByXid(${xid})")(_.findConfigByXid(xid))
+  def addWConf(wconf: WorkflowConfig): Future[WorkflowConfig]  = firstSuccess("addWConf")(_.addWConf(wconf))
+  def getWConf(id: Int): Future[WorkflowConfig]            = firstSuccess(s"getWConf(${id})")(_.getWConf(id))
+  def getWConfOpt(id: Int): Future[Option[WorkflowConfig]] = firstSuccess(s"getWConfOpt(${id})")(_.getWConfOpt(id))
+  def delWConf(id: Int): Future[Int]                       = firstSuccess(s"delWConf(${id})")(_.delWConf(id))
+  def allWConfs: Future[Seq[WorkflowConfig]]               = firstSuccess("allWConfs")(_.allWConfs)
+  def sizeWConfs: Future[Long]                             = firstSuccess("sizeWConfs")(_.sizeWConfs)
+  def findWConfByOid(oid: String): Future[Seq[WorkflowConfig]]     = firstSuccess(s"findWConfByOid(${oid})")(_.findWConfByOid(oid))
+  def findWConfByXid(xid: String): Future[Option[WorkflowConfig]]  = firstSuccess(s"findWConfByXid(${xid})")(_.findWConfByXid(xid))
 
   // ---------------------------------------------------------------- WorkflowGraf
   def addGraf(g: WorkflowGraf): Future[WorkflowGraf]     = firstSuccess("addGraf")(_.addGraf(g))
@@ -98,16 +98,16 @@ class WorkflowStoreMany(val stores: Seq[WorkflowStore])(implicit ec: ExecutionCo
   def sizeGrafs: Future[Long]                            = firstSuccess("sizeGrafs")(_.sizeGrafs)
 
   // ---------------------------------------------------------------- DetectorSchema
-  def addDetectorSchema(d: DetectorSchema): Future[DetectorSchema]     = firstSuccess("addDetectorSchema")(_.addDetectorSchema(d))
-  def getDetectorSchema(id: Int): Future[Option[DetectorSchema]]       = firstSuccess(s"getDetectorSchema(${id})")(_.getDetectorSchema(id))
-  def delDetectorSchema(id: Int): Future[Int]                          = firstSuccess(s"delDetectorSchema(${id})")(_.delDetectorSchema(id))
-  def allDetectorSchemas: Future[Seq[DetectorSchema]]                  = firstSuccess("allDetectorSchemas")(_.allDetectorSchemas)
-  def sizeDetectorSchemas: Future[Long]                                = firstSuccess("sizeDetectorSchemas")(_.sizeDetectorSchemas)
+  def addDSchema(dschema: DetectorSchema): Future[DetectorSchema]     = firstSuccess("addDSchema")(_.addDSchema(dschema))
+  def getDSchema(id: Int): Future[Option[DetectorSchema]]       = firstSuccess(s"getDSchema(${id})")(_.getDSchema(id))
+  def delDSchema(id: Int): Future[Int]                          = firstSuccess(s"delDSchema(${id})")(_.delDSchema(id))
+  def allDSchemas: Future[Seq[DetectorSchema]]                  = firstSuccess("allDSchemas")(_.allDSchemas)
+  def sizeDSchemas: Future[Long]                                = firstSuccess("sizeDSchemas")(_.sizeDSchemas)
 
   // ---------------------------------------------------------------- DetectorConfig
-  def addDetectorConfig(d: DetectorConfig): Future[DetectorConfig]  = firstSuccess("addDetectorConfig")(_.addDetectorConfig(d))
-  def getDetectorConfig(id: Int): Future[Option[DetectorConfig]]    = firstSuccess(s"getDetectorConfig(${id})")(_.getDetectorConfig(id))
-  def delDetectorConfig(id: Int): Future[Int]                       = firstSuccess(s"delDetectorConfig(${id})")(_.delDetectorConfig(id))
-  def allDetectorConfigs: Future[Seq[DetectorConfig]]               = firstSuccess("allDetectorConfigs")(_.allDetectorConfigs)
-  def sizeDetectorConfigs: Future[Long]                             = firstSuccess("sizeDetectorConfigs")(_.sizeDetectorConfigs)
+  def addDConf(dconf: DetectorConfig): Future[DetectorConfig]  = firstSuccess("addDConf")(_.addDConf(dconf))
+  def getDConf(id: Int): Future[Option[DetectorConfig]]    = firstSuccess(s"getDConf(${id})")(_.getDConf(id))
+  def delDConf(id: Int): Future[Int]                       = firstSuccess(s"delDConf(${id})")(_.delDConf(id))
+  def allDConfs: Future[Seq[DetectorConfig]]               = firstSuccess("allDConfs")(_.allDConfs)
+  def sizeDConfs: Future[Long]                             = firstSuccess("sizeDConfs")(_.sizeDConfs)
 }

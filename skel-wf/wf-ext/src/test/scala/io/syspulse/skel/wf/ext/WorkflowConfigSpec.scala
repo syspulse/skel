@@ -57,41 +57,41 @@ class WorkflowConfigSpec extends AnyWordSpec with Matchers {
     "create, read, update, delete a config" in {
       val store = new WorkflowStoreMem()
       val c = WorkflowConfig.from(0, schema(0))
-      Await.result(store.addConfig(c), timeout)
-      Await.result(store.getConfig(0), timeout).id shouldBe 0
-      Await.result(store.sizeConfigs, timeout) shouldBe 1L
+      Await.result(store.addWConf(c), timeout)
+      Await.result(store.getWConf(0), timeout).id shouldBe 0
+      Await.result(store.sizeWConfs, timeout) shouldBe 1L
 
-      Await.result(store.addConfig(c.copy(title = "t2")), timeout)
-      Await.result(store.getConfig(0), timeout).title shouldBe "t2"
+      Await.result(store.addWConf(c.copy(title = "t2")), timeout)
+      Await.result(store.getWConf(0), timeout).title shouldBe "t2"
 
-      Await.result(store.delConfig(0), timeout) shouldBe 0
-      Await.result(store.getConfigOpt(0), timeout) shouldBe None
+      Await.result(store.delWConf(0), timeout) shouldBe 0
+      Await.result(store.getWConfOpt(0), timeout) shouldBe None
     }
 
-    "findConfigByOid returns all configs of an owner" in {
+    "findWConfByOid returns all configs of an owner" in {
       val store = new WorkflowStoreMem()
-      Await.result(store.addConfig(WorkflowConfig.from(0, schema(0), oid = Some("owner-A"))), timeout)
-      Await.result(store.addConfig(WorkflowConfig.from(1, schema(0), oid = Some("owner-A"))), timeout)
-      Await.result(store.addConfig(WorkflowConfig.from(2, schema(0), oid = Some("owner-B"))), timeout)
+      Await.result(store.addWConf(WorkflowConfig.from(0, schema(0), oid = Some("owner-A"))), timeout)
+      Await.result(store.addWConf(WorkflowConfig.from(1, schema(0), oid = Some("owner-A"))), timeout)
+      Await.result(store.addWConf(WorkflowConfig.from(2, schema(0), oid = Some("owner-B"))), timeout)
 
-      Await.result(store.findConfigByOid("owner-A"), timeout).map(_.id).toSet shouldBe Set(0, 1)
-      Await.result(store.findConfigByOid("owner-B"), timeout).map(_.id) shouldBe Seq(2)
-      Await.result(store.findConfigByOid("missing"), timeout) shouldBe empty
+      Await.result(store.findWConfByOid("owner-A"), timeout).map(_.id).toSet shouldBe Set(0, 1)
+      Await.result(store.findWConfByOid("owner-B"), timeout).map(_.id) shouldBe Seq(2)
+      Await.result(store.findWConfByOid("missing"), timeout) shouldBe empty
     }
 
-    "findConfigByXid returns a single config (case-insensitive)" in {
+    "findWConfByXid returns a single config (case-insensitive)" in {
       val store = new WorkflowStoreMem()
-      Await.result(store.addConfig(WorkflowConfig.from(0, schema(0), xid = Some("RUN-1"))), timeout)
-      Await.result(store.findConfigByXid("run-1"), timeout).map(_.id) shouldBe Some(0)
-      Await.result(store.findConfigByXid("nope"), timeout) shouldBe None
+      Await.result(store.addWConf(WorkflowConfig.from(0, schema(0), xid = Some("RUN-1"))), timeout)
+      Await.result(store.findWConfByXid("run-1"), timeout).map(_.id) shouldBe Some(0)
+      Await.result(store.findWConfByXid("nope"), timeout) shouldBe None
     }
 
     "page configs (from/size) and report total" in {
       val store = new WorkflowStoreMem()
-      (0 until 7).foreach(i => Await.result(store.addConfig(WorkflowConfig.from(i, schema(0))), timeout))
-      val p = Await.result(store.listConfigs(Some(0), Some(5)), timeout)
+      (0 until 7).foreach(i => Await.result(store.addWConf(WorkflowConfig.from(i, schema(0))), timeout))
+      val p = Await.result(store.listWConfs(Some(0), Some(5)), timeout)
       p.total shouldBe 7L
-      p.configs should have size 5
+      p.wconfs should have size 5
     }
   }
 }

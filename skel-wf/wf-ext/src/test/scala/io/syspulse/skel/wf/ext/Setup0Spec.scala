@@ -114,10 +114,10 @@ class Setup0Spec extends AnyWordSpec with Matchers with ScalatestRouteTest with 
 
     "let a WorkflowConfig be created (DetectorConfig contract_id=0, FK ok) and deleted" in {
       // seed a DetectorSchema + a WorkflowSchema whose node references it
-      Await.result(store.addDetectorSchema(
+      Await.result(store.addDSchema(
         io.hacken.ext.detector.DetectorSchema(70, 1000L, 1000L, "ACTIVE", "Schema_70", "1.0.0", "t", "", "", None, None, Seq(), Seq(), None, None)), 10.seconds)
       val g = WorkflowGraf(id = 60, sid = Some(60)).withNode(WorkflowNode(id = 0, title = "n0", sid = 70))
-      Await.result(store.addSchema(WorkflowSchema.of(60, "WFromSchema", g)), 10.seconds)
+      Await.result(store.addWSchema(WorkflowSchema.of(60, "WFromSchema", g)), 10.seconds)
 
       // create the WorkflowConfig from the schema -> DetectorConfig with contract_id=0 (FK satisfied by setup0)
       val cfg = Post("/config/schema/60") ~> routes.routes ~> check {
@@ -131,7 +131,7 @@ class Setup0Spec extends AnyWordSpec with Matchers with ScalatestRouteTest with 
         status shouldBe StatusCodes.OK
         responseAs[WorkflowActionRes].status shouldBe WorkflowActionRes.OK
       }
-      Await.result(store.getConfigOpt(cfg.id), 10.seconds) shouldBe None  // config gone
+      Await.result(store.getWConfOpt(cfg.id), 10.seconds) shouldBe None  // config gone
       jdbcCount(s"SELECT count(*) FROM detector WHERE id=$cid") shouldBe 0L // its DetectorConfig gone too
     }
   }

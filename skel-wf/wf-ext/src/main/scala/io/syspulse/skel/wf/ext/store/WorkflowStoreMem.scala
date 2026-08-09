@@ -17,35 +17,35 @@ class WorkflowStoreMem extends WorkflowStore {
   var dConfigs: Map[Int, DetectorConfig] = Map()
 
   // ---------------------------------------------------------------- WorkflowSchema
-  def addSchema(s: WorkflowSchema): Future[WorkflowSchema] = { schemas = schemas + (s.id -> s); Future.successful(s) }
-  def getSchema(id: Int): Future[WorkflowSchema] = schemas.get(id) match {
-    case Some(s) => Future.successful(s)
-    case None    => Future.failed(new ErrNotFound(s"WorkflowSchema: ${id}"))
+  def addWSchema(wschema: WorkflowSchema): Future[WorkflowSchema] = { schemas = schemas + (wschema.id -> wschema); Future.successful(wschema) }
+  def getWSchema(id: Int): Future[WorkflowSchema] = schemas.get(id) match {
+    case Some(wschema) => Future.successful(wschema)
+    case None          => Future.failed(new ErrNotFound(s"WorkflowSchema: ${id}"))
   }
-  def getSchemaOpt(id: Int): Future[Option[WorkflowSchema]] = Future.successful(schemas.get(id))
-  def delSchema(id: Int): Future[Int] = {
+  def getWSchemaOpt(id: Int): Future[Option[WorkflowSchema]] = Future.successful(schemas.get(id))
+  def delWSchema(id: Int): Future[Int] = {
     if (!schemas.contains(id)) Future.failed(new ErrNotFound(s"WorkflowSchema: ${id}"))
     else { schemas = schemas - id; Future.successful(id) }
   }
-  def allSchemas: Future[Seq[WorkflowSchema]] = Future.successful(schemas.values.toSeq)
-  def sizeSchemas: Future[Long] = Future.successful(schemas.size.toLong)
+  def allWSchemas: Future[Seq[WorkflowSchema]] = Future.successful(schemas.values.toSeq)
+  def sizeWSchemas: Future[Long] = Future.successful(schemas.size.toLong)
 
   // ---------------------------------------------------------------- WorkflowConfig
-  def addConfig(c: WorkflowConfig): Future[WorkflowConfig] = { configs = configs + (c.id -> c); Future.successful(c) }
-  def getConfig(id: Int): Future[WorkflowConfig] = configs.get(id) match {
-    case Some(c) => Future.successful(c)
-    case None    => Future.failed(new ErrNotFound(s"WorkflowConfig: ${id}"))
+  def addWConf(wconf: WorkflowConfig): Future[WorkflowConfig] = { configs = configs + (wconf.id -> wconf); Future.successful(wconf) }
+  def getWConf(id: Int): Future[WorkflowConfig] = configs.get(id) match {
+    case Some(wconf) => Future.successful(wconf)
+    case None        => Future.failed(new ErrNotFound(s"WorkflowConfig: ${id}"))
   }
-  def getConfigOpt(id: Int): Future[Option[WorkflowConfig]] = Future.successful(configs.get(id))
-  def delConfig(id: Int): Future[Int] = {
+  def getWConfOpt(id: Int): Future[Option[WorkflowConfig]] = Future.successful(configs.get(id))
+  def delWConf(id: Int): Future[Int] = {
     if (!configs.contains(id)) Future.failed(new ErrNotFound(s"WorkflowConfig: ${id}"))
     else { configs = configs - id; Future.successful(id) }
   }
-  def allConfigs: Future[Seq[WorkflowConfig]] = Future.successful(configs.values.toSeq)
-  def sizeConfigs: Future[Long] = Future.successful(configs.size.toLong)
-  def findConfigByOid(oid: String): Future[Seq[WorkflowConfig]] =
+  def allWConfs: Future[Seq[WorkflowConfig]] = Future.successful(configs.values.toSeq)
+  def sizeWConfs: Future[Long] = Future.successful(configs.size.toLong)
+  def findWConfByOid(oid: String): Future[Seq[WorkflowConfig]] =
     Future.successful(configs.values.filter(_.oid.contains(oid)).toSeq)
-  def findConfigByXid(xid: String): Future[Option[WorkflowConfig]] =
+  def findWConfByXid(xid: String): Future[Option[WorkflowConfig]] =
     Future.successful(configs.values.find(_.xid.exists(_.equalsIgnoreCase(xid))))
 
   // ---------------------------------------------------------------- WorkflowGraf
@@ -66,22 +66,22 @@ class WorkflowStoreMem extends WorkflowStore {
   def sizeGrafs: Future[Long] = Future.successful(grafs.size.toLong)
 
   // ---------------------------------------------------------------- DetectorSchema
-  def addDetectorSchema(d: DetectorSchema): Future[DetectorSchema] = { dSchemas = dSchemas + (d.id -> d); Future.successful(d) }
-  def getDetectorSchema(id: Int): Future[Option[DetectorSchema]] = Future.successful(dSchemas.get(id))
-  def delDetectorSchema(id: Int): Future[Int] = {
+  def addDSchema(dschema: DetectorSchema): Future[DetectorSchema] = { dSchemas = dSchemas + (dschema.id -> dschema); Future.successful(dschema) }
+  def getDSchema(id: Int): Future[Option[DetectorSchema]] = Future.successful(dSchemas.get(id))
+  def delDSchema(id: Int): Future[Int] = {
     if (!dSchemas.contains(id)) Future.failed(new ErrNotFound(s"DetectorSchema: ${id}"))
     else { dSchemas = dSchemas - id; Future.successful(id) }
   }
-  def allDetectorSchemas: Future[Seq[DetectorSchema]] = Future.successful(dSchemas.values.toSeq)
-  def sizeDetectorSchemas: Future[Long] = Future.successful(dSchemas.size.toLong)
+  def allDSchemas: Future[Seq[DetectorSchema]] = Future.successful(dSchemas.values.toSeq)
+  def sizeDSchemas: Future[Long] = Future.successful(dSchemas.size.toLong)
 
   // ---------------------------------------------------------------- DetectorConfig
-  def addDetectorConfig(d: DetectorConfig): Future[DetectorConfig] = { dConfigs = dConfigs + (d.id -> d); Future.successful(d) }
-  def getDetectorConfig(id: Int): Future[Option[DetectorConfig]] = Future.successful(dConfigs.get(id))
-  def delDetectorConfig(id: Int): Future[Int] = {
+  def addDConf(dconf: DetectorConfig): Future[DetectorConfig] = { dConfigs = dConfigs + (dconf.id -> dconf); Future.successful(dconf) }
+  def getDConf(id: Int): Future[Option[DetectorConfig]] = Future.successful(dConfigs.get(id))
+  def delDConf(id: Int): Future[Int] = {
     if (!dConfigs.contains(id)) Future.failed(new ErrNotFound(s"DetectorConfig: ${id}"))
     else { dConfigs = dConfigs - id; Future.successful(id) }
   }
-  def allDetectorConfigs: Future[Seq[DetectorConfig]] = Future.successful(dConfigs.values.toSeq)
-  def sizeDetectorConfigs: Future[Long] = Future.successful(dConfigs.size.toLong)
+  def allDConfs: Future[Seq[DetectorConfig]] = Future.successful(dConfigs.values.toSeq)
+  def sizeDConfs: Future[Long] = Future.successful(dConfigs.size.toLong)
 }

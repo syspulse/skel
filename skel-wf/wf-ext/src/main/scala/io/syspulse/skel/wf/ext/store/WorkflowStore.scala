@@ -9,11 +9,11 @@ object WorkflowStore {
   val DETECTOR_CONFIG_SOURCE = "WORKFLOW" //"ext:workflow"
 
   // Paging result wrappers (mirror skel-user `Page`: items + total count).
-  final case class PageSchema(schemas: Seq[WorkflowSchema], total: Long)
-  final case class PageConfig(configs: Seq[WorkflowConfig], total: Long)
+  final case class PageWSchema(wschemas: Seq[WorkflowSchema], total: Long)
+  final case class PageWConf(wconfs: Seq[WorkflowConfig], total: Long)
   final case class PageGraf(grafs: Seq[WorkflowGraf], total: Long)
-  final case class PageDetectorSchema(schemas: Seq[DetectorSchema], total: Long)
-  final case class PageDetectorConfig(configs: Seq[DetectorConfig], total: Long)
+  final case class PageDSchema(dschemas: Seq[DetectorSchema], total: Long)
+  final case class PageDConf(dconfs: Seq[DetectorConfig], total: Long)
 
   /** In-memory slice: drop(from).take(size). */
   def page[T](xs: Seq[T], from: Long, size: Long): Seq[T] =
@@ -23,7 +23,7 @@ object WorkflowStore {
    * Instantiate a DetectorConfig from a DetectorSchema (a config "of" that schema), placed under the
    * given `contractId` (the detector's `contract.id` -> `detector.contract_id` FK). Default 0.
    */
-  def detectorConfigOf(id: Int, ds: DetectorSchema, contractId: Int = 0): DetectorConfig = {
+  def dconfOf(id: Int, dschema: DetectorSchema, contractId: Int = 0): DetectorConfig = {
     val now = System.currentTimeMillis()
     DetectorConfig(
       id = id, 
@@ -40,20 +40,20 @@ object WorkflowStore {
         None, 
         None, 
         None, 
-        ds.name),
+        dschema.name),
       schema = Some(DetectorConfigSchema(
-        ds.id, 
+        dschema.id, 
         now, 
         now, 
-        ds.status, 
-        ds.name, 
-        ds.version, 
+        dschema.status, 
+        dschema.name, 
+        dschema.version, 
         None
       )),
-      name = ds.name, 
+      name = dschema.name, 
       source = DETECTOR_CONFIG_SOURCE, 
       tags = Seq(), 
-      config = ds.schema.map(JsonSchemaDefault.of), // instantiate default config from the JsonSchema spec
+      config = dschema.schema.map(JsonSchemaDefault.of), // instantiate default config from the JsonSchema spec
       destinations = Seq(),
     )
   }
@@ -74,46 +74,46 @@ object WorkflowStore {
 trait WorkflowStore {
 
   // ---------------------------------------------------------------- WorkflowSchema
-  def addSchema(s: WorkflowSchema): Future[WorkflowSchema]
-  def getSchema(id: Int): Future[WorkflowSchema]
-  def getSchemaOpt(id: Int): Future[Option[WorkflowSchema]]
-  def delSchema(id: Int): Future[Int]
-  def allSchemas: Future[Seq[WorkflowSchema]]
-  def sizeSchemas: Future[Long]
-  def listSchemas(from: Option[Long] = None, size: Option[Long] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageSchema] =
-    allSchemas.map { xs =>
+  def addWSchema(wschema: WorkflowSchema): Future[WorkflowSchema]
+  def getWSchema(id: Int): Future[WorkflowSchema]
+  def getWSchemaOpt(id: Int): Future[Option[WorkflowSchema]]
+  def delWSchema(id: Int): Future[Int]
+  def allWSchemas: Future[Seq[WorkflowSchema]]
+  def sizeWSchemas: Future[Long]
+  def listWSchemas(from: Option[Long] = None, size: Option[Long] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageWSchema] =
+    allWSchemas.map { xs =>
       val items = (from, size) match {
         case (Some(f), Some(s)) => WorkflowStore.page(xs, f, s)
         case _                  => xs
       }
-      WorkflowStore.PageSchema(items, xs.size.toLong)
+      WorkflowStore.PageWSchema(items, xs.size.toLong)
     }
 
   // ---------------------------------------------------------------- WorkflowConfig
-  def addConfig(c: WorkflowConfig): Future[WorkflowConfig]
-  def getConfig(id: Int): Future[WorkflowConfig]
-  def getConfigOpt(id: Int): Future[Option[WorkflowConfig]]
-  def delConfig(id: Int): Future[Int]
-  def allConfigs: Future[Seq[WorkflowConfig]]
-  def sizeConfigs: Future[Long]
-  def listConfigs(from: Option[Long] = None, size: Option[Long] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageConfig] =
-    allConfigs.map { xs =>
+  def addWConf(wconf: WorkflowConfig): Future[WorkflowConfig]
+  def getWConf(id: Int): Future[WorkflowConfig]
+  def getWConfOpt(id: Int): Future[Option[WorkflowConfig]]
+  def delWConf(id: Int): Future[Int]
+  def allWConfs: Future[Seq[WorkflowConfig]]
+  def sizeWConfs: Future[Long]
+  def listWConfs(from: Option[Long] = None, size: Option[Long] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageWConf] =
+    allWConfs.map { xs =>
       val items = (from, size) match {
         case (Some(f), Some(s)) => WorkflowStore.page(xs, f, s)
         case _                  => xs
       }
-      WorkflowStore.PageConfig(items, xs.size.toLong)
+      WorkflowStore.PageWConf(items, xs.size.toLong)
     }
   // owner can have many configs; xid points to a single runtime instance (unique)
-  def findConfigByOid(oid: String): Future[Seq[WorkflowConfig]]
-  def findConfigByXid(xid: String): Future[Option[WorkflowConfig]]
+  def findWConfByOid(oid: String): Future[Seq[WorkflowConfig]]
+  def findWConfByXid(xid: String): Future[Option[WorkflowConfig]]
 
   // Update ONLY the status field of a WorkflowConfig (returns rows affected: 1 if updated, 0 if absent).
   // Default: read-modify-write; DB stores override with a targeted single-column UPDATE.
-  def updateConfigStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
-    getConfigOpt(id).flatMap {
-      case Some(c) => addConfig(c.copy(status = status, updatedAt = System.currentTimeMillis())).map(_ => 1)
-      case None    => Future.successful(0)
+  def updateWConfStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
+    getWConfOpt(id).flatMap {
+      case Some(wconf) => addWConf(wconf.copy(status = status, updatedAt = System.currentTimeMillis())).map(_ => 1)
+      case None        => Future.successful(0)
     }
 
   /**
@@ -124,33 +124,33 @@ trait WorkflowStore {
    * ALL ids (the WorkflowConfig and the new DetectorConfigs) are generated by THIS store - the caller
    * (Registry) never assigns them. Persists everything and returns the stored WorkflowConfig.
    */
-  def createConfigFromSchema(schemaId: Int, contractId: Int = 0, name: Option[String] = None,
+  def createWConfFromWSchema(wschemaId: Int, contractId: Int = 0, name: Option[String] = None,
                              oid: Option[String] = None, pid: Option[String] = None, xid: Option[String] = None,
                              wid: Option[String] = None) // wid (if set) becomes the config title
                             (implicit ec: ExecutionContext): Future[WorkflowConfig] =
-    getSchema(schemaId).flatMap { schema =>
-      val nodes = schema.graph.nodes.values.toSeq.sortBy(_.id)
-      nextDetectorConfigId.flatMap { dc0 =>
+    getWSchema(wschemaId).flatMap { wschema =>
+      val nodes = wschema.graph.nodes.values.toSeq.sortBy(_.id)
+      nextDConfId.flatMap { dc0 =>
         // create one DetectorConfig per DetectorSchema-referencing node (sequential, distinct ids),
         // all placed under `contractId` (default 0 - see the `setup0` bootstrap)
         val cidByNodeF: Future[Map[Int, Int]] =
           nodes.foldLeft(Future.successful((dc0, Map.empty[Int, Int]))) { (accF, node) =>
             accF.flatMap { case (nextId, acc) =>
               if (node.sid < 0) Future.successful((nextId, acc))
-              else getDetectorSchema(node.sid).flatMap {
-                case Some(ds) => addDetectorConfig(WorkflowStore.detectorConfigOf(nextId, ds, contractId)).map(_ => (nextId + 1, acc + (node.id -> nextId)))
-                case None     => Future.successful((nextId, acc)) // unresolved schema -> node keeps no cid
+              else getDSchema(node.sid).flatMap {
+                case Some(dschema) => addDConf(WorkflowStore.dconfOf(nextId, dschema, contractId)).map(_ => (nextId + 1, acc + (node.id -> nextId)))
+                case None          => Future.successful((nextId, acc)) // unresolved schema -> node keeps no cid
               }
             }
           }.map(_._2)
         for {
           cidByNode <- cidByNodeF
-          wcId      <- nextConfigId
+          wcId      <- nextWConfId
           grafId    <- nextGrafId
-          cfgNodes   = schema.graph.nodes.map { case (k, n) => k -> n.copy(cid = cidByNode.get(n.id)) }
-          cfgGraf    = WorkflowGraf.sync(schema.graph.copy(id = grafId, sid = Some(schema.id), cid = Some(wcId), nodes = cfgNodes))
-          cfg        = WorkflowConfig.from(wcId, schema, name, oid, pid, xid, wid).copy(graph = cfgGraf)
-          saved     <- addConfig(cfg)
+          cfgNodes   = wschema.graph.nodes.map { case (k, n) => k -> n.copy(cid = cidByNode.get(n.id)) }
+          cfgGraf    = WorkflowGraf.sync(wschema.graph.copy(id = grafId, sid = Some(wschema.id), cid = Some(wcId), nodes = cfgNodes))
+          wconf      = WorkflowConfig.from(wcId, wschema, name, oid, pid, xid, wid).copy(graph = cfgGraf)
+          saved     <- addWConf(wconf)
           _         <- addGraf(cfgGraf)
         } yield saved
       }
@@ -173,18 +173,18 @@ trait WorkflowStore {
     }
 
   // ---------------------------------------------------------------- DetectorSchema
-  def addDetectorSchema(d: DetectorSchema): Future[DetectorSchema]
-  def getDetectorSchema(id: Int): Future[Option[DetectorSchema]]
-  def delDetectorSchema(id: Int): Future[Int]
-  def allDetectorSchemas: Future[Seq[DetectorSchema]]
-  def sizeDetectorSchemas: Future[Long]
-  def listDetectorSchemas(from: Option[Long] = None, size: Option[Long] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageDetectorSchema] =
-    allDetectorSchemas.map { xs =>
+  def addDSchema(dschema: DetectorSchema): Future[DetectorSchema]
+  def getDSchema(id: Int): Future[Option[DetectorSchema]]
+  def delDSchema(id: Int): Future[Int]
+  def allDSchemas: Future[Seq[DetectorSchema]]
+  def sizeDSchemas: Future[Long]
+  def listDSchemas(from: Option[Long] = None, size: Option[Long] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageDSchema] =
+    allDSchemas.map { xs =>
       val items = (from, size) match {
         case (Some(f), Some(s)) => WorkflowStore.page(xs, f, s)
         case _                  => xs
       }
-      WorkflowStore.PageDetectorSchema(items, xs.size.toLong)
+      WorkflowStore.PageDSchema(items, xs.size.toLong)
     }
 
   // ---------------------------------------------------------------- bootstrap
@@ -196,39 +196,39 @@ trait WorkflowStore {
     Future.successful(())
 
   // ---------------------------------------------------------------- DetectorConfig
-  def addDetectorConfig(d: DetectorConfig): Future[DetectorConfig]
-  def getDetectorConfig(id: Int): Future[Option[DetectorConfig]]
+  def addDConf(dconf: DetectorConfig): Future[DetectorConfig]
+  def getDConf(id: Int): Future[Option[DetectorConfig]]
 
   // Update ONLY the status field of a DetectorConfig (returns rows affected: 1 if updated, 0 if absent).
   // Default: read-modify-write; DB stores override with a targeted single-column UPDATE (this IS
-  // implemented for the external `detector` table, unlike the full addDetectorConfig write).
-  def updateDetectorConfigStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
-    getDetectorConfig(id).flatMap {
-      case Some(d) => addDetectorConfig(d.copy(status = status, updatedAt = System.currentTimeMillis())).map(_ => 1)
-      case None    => Future.successful(0)
+  // implemented for the external `detector` table, unlike the full addDConf write).
+  def updateDConfStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
+    getDConf(id).flatMap {
+      case Some(dconf) => addDConf(dconf.copy(status = status, updatedAt = System.currentTimeMillis())).map(_ => 1)
+      case None        => Future.successful(0)
     }
-  def delDetectorConfig(id: Int): Future[Int]
-  def allDetectorConfigs: Future[Seq[DetectorConfig]]
-  def sizeDetectorConfigs: Future[Long]
-  def listDetectorConfigs(from: Option[Long] = None, size: Option[Long] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageDetectorConfig] =
-    allDetectorConfigs.map { xs =>
+  def delDConf(id: Int): Future[Int]
+  def allDConfs: Future[Seq[DetectorConfig]]
+  def sizeDConfs: Future[Long]
+  def listDConfs(from: Option[Long] = None, size: Option[Long] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageDConf] =
+    allDConfs.map { xs =>
       val items = (from, size) match {
         case (Some(f), Some(s)) => WorkflowStore.page(xs, f, s)
         case _                  => xs
       }
-      WorkflowStore.PageDetectorConfig(items, xs.size.toLong)
+      WorkflowStore.PageDConf(items, xs.size.toLong)
     }
 
   // ---------------------------------------------------------------- id generation
   // ids start at 0 and are never negative (max+1 within the entity collection)
-  def nextSchemaId(implicit ec: ExecutionContext): Future[Int] =
-    allSchemas.map(xs => if (xs.isEmpty) 0 else xs.map(_.id).max + 1)
-  def nextConfigId(implicit ec: ExecutionContext): Future[Int] =
-    allConfigs.map(xs => if (xs.isEmpty) 0 else xs.map(_.id).max + 1)
+  def nextWSchemaId(implicit ec: ExecutionContext): Future[Int] =
+    allWSchemas.map(xs => if (xs.isEmpty) 0 else xs.map(_.id).max + 1)
+  def nextWConfId(implicit ec: ExecutionContext): Future[Int] =
+    allWConfs.map(xs => if (xs.isEmpty) 0 else xs.map(_.id).max + 1)
   def nextGrafId(implicit ec: ExecutionContext): Future[Int] =
     allGrafs.map(xs => if (xs.isEmpty) 0 else xs.map(_.id).max + 1)
-  def nextDetectorSchemaId(implicit ec: ExecutionContext): Future[Int] =
-    allDetectorSchemas.map(xs => if (xs.isEmpty) 0 else xs.map(_.id).max + 1)
-  def nextDetectorConfigId(implicit ec: ExecutionContext): Future[Int] =
-    allDetectorConfigs.map(xs => if (xs.isEmpty) 0 else xs.map(_.id).max + 1)
+  def nextDSchemaId(implicit ec: ExecutionContext): Future[Int] =
+    allDSchemas.map(xs => if (xs.isEmpty) 0 else xs.map(_.id).max + 1)
+  def nextDConfId(implicit ec: ExecutionContext): Future[Int] =
+    allDConfs.map(xs => if (xs.isEmpty) 0 else xs.map(_.id).max + 1)
 }

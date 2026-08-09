@@ -66,34 +66,34 @@ class WorkflowStoreDir(dir: String = "store/") extends WorkflowStoreMem {
   }
 
   // ---------------------------------------------------------------- persisted overrides
-  override def addSchema(s: WorkflowSchema): Future[WorkflowSchema] =
-    write(DIR_SCHEMA, s.id, s.toJson.compactPrint).fold(Future.failed, _ => super.addSchema(s))
-  override def delSchema(id: Int): Future[Int] =
-    super.delSchema(id).map { r => remove(DIR_SCHEMA, id); r }
+  override def addWSchema(wschema: WorkflowSchema): Future[WorkflowSchema] =
+    write(DIR_SCHEMA, wschema.id, wschema.toJson.compactPrint).fold(Future.failed, _ => super.addWSchema(wschema))
+  override def delWSchema(id: Int): Future[Int] =
+    super.delWSchema(id).map { r => remove(DIR_SCHEMA, id); r }
 
-  override def addConfig(c: WorkflowConfig): Future[WorkflowConfig] =
-    write(DIR_CONFIG, c.id, c.toJson.compactPrint).fold(Future.failed, _ => super.addConfig(c))
-  override def delConfig(id: Int): Future[Int] =
-    super.delConfig(id).map { r => remove(DIR_CONFIG, id); r }
+  override def addWConf(wconf: WorkflowConfig): Future[WorkflowConfig] =
+    write(DIR_CONFIG, wconf.id, wconf.toJson.compactPrint).fold(Future.failed, _ => super.addWConf(wconf))
+  override def delWConf(id: Int): Future[Int] =
+    super.delWConf(id).map { r => remove(DIR_CONFIG, id); r }
 
   override def addGraf(g: WorkflowGraf): Future[WorkflowGraf] =
     super.addGraf(g).map { g1 => write(DIR_GRAF, g1.id, g1.toJson.compactPrint).get; g1 }
   override def delGraf(id: Int): Future[Int] =
     super.delGraf(id).map { r => remove(DIR_GRAF, id); r }
 
-  override def addDetectorSchema(d: DetectorSchema): Future[DetectorSchema] =
-    write(DIR_DSCHEMA, d.id, d.toJson.compactPrint).fold(Future.failed, _ => super.addDetectorSchema(d))
-  override def delDetectorSchema(id: Int): Future[Int] =
-    super.delDetectorSchema(id).map { r => remove(DIR_DSCHEMA, id); r }
-  override def addDetectorConfig(d: DetectorConfig): Future[DetectorConfig] =
-    write(DIR_DCONFIG, d.id, d.toJson.compactPrint).fold(Future.failed, _ => super.addDetectorConfig(d))
-  override def delDetectorConfig(id: Int): Future[Int] =
-    super.delDetectorConfig(id).map { r => remove(DIR_DCONFIG, id); r }
+  override def addDSchema(dschema: DetectorSchema): Future[DetectorSchema] =
+    write(DIR_DSCHEMA, dschema.id, dschema.toJson.compactPrint).fold(Future.failed, _ => super.addDSchema(dschema))
+  override def delDSchema(id: Int): Future[Int] =
+    super.delDSchema(id).map { r => remove(DIR_DSCHEMA, id); r }
+  override def addDConf(dconf: DetectorConfig): Future[DetectorConfig] =
+    write(DIR_DCONFIG, dconf.id, dconf.toJson.compactPrint).fold(Future.failed, _ => super.addDConf(dconf))
+  override def delDConf(id: Int): Future[Int] =
+    super.delDConf(id).map { r => remove(DIR_DCONFIG, id); r }
 
   // ---------------------------------------------------------------- initial load
-  loadDir[WorkflowSchema](DIR_SCHEMA,   _.parseJson.convertTo[WorkflowSchema],  s => schemas = schemas + (s.id -> s))
-  loadDir[WorkflowConfig](DIR_CONFIG,   _.parseJson.convertTo[WorkflowConfig],  c => configs = configs + (c.id -> c))
+  loadDir[WorkflowSchema](DIR_SCHEMA,   _.parseJson.convertTo[WorkflowSchema],  wschema => schemas = schemas + (wschema.id -> wschema))
+  loadDir[WorkflowConfig](DIR_CONFIG,   _.parseJson.convertTo[WorkflowConfig],  wconf => configs = configs + (wconf.id -> wconf))
   loadDir[WorkflowGraf](DIR_GRAF,       _.parseJson.convertTo[WorkflowGraf],    g => grafs = grafs + (g.id -> g))
-  loadDir[DetectorSchema](DIR_DSCHEMA,  _.parseJson.convertTo[DetectorSchema],  d => dSchemas = dSchemas + (d.id -> d))
-  loadDir[DetectorConfig](DIR_DCONFIG,  _.parseJson.convertTo[DetectorConfig],  d => dConfigs = dConfigs + (d.id -> d))
+  loadDir[DetectorSchema](DIR_DSCHEMA,  _.parseJson.convertTo[DetectorSchema],  dschema => dSchemas = dSchemas + (dschema.id -> dschema))
+  loadDir[DetectorConfig](DIR_DCONFIG,  _.parseJson.convertTo[DetectorConfig],  dconf => dConfigs = dConfigs + (dconf.id -> dconf))
 }

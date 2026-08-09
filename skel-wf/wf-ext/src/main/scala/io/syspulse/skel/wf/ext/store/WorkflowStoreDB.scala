@@ -190,10 +190,10 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
 
   // ========================================================= Store[WorkflowConfig,Int]
   def getKey(e: WorkflowConfig): Int = e.id
-  def +(e: WorkflowConfig): Future[WorkflowConfig] = addConfig(e)
-  def del(id: Int): Future[Int] = delConfig(id)
-  def ?(id: Int): Future[WorkflowConfig] = getConfig(id)
-  def all: Future[Seq[WorkflowConfig]] = allConfigs
+  def +(e: WorkflowConfig): Future[WorkflowConfig] = addWConf(e)
+  def del(id: Int): Future[Int] = delWConf(id)
+  def ?(id: Int): Future[WorkflowConfig] = getWConf(id)
+  def all: Future[Seq[WorkflowConfig]] = allWConfs
 
   // ========================================================= WorkflowSchema
   private val SCHEMA_COLS = Seq("id","created_at","updated_at","status","name","version","title","description","author","icon","faq","tags","meta","graph")
@@ -203,22 +203,22 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
     name = rStr(row,4), version = rStr(row,5), title = rStr(row,6), description = rStr(row,7), author = rStr(row,8),
     icon = rStrOpt(row,9), faq = pFaq(rStr(row,10), fmtWfFaq), tags = pCsv(rStr(row,11)),
     meta = pTxtJson(rStr(row,12), fmtMeta), graph = parseGraf(rStr(row,13)))
-  private def valsSchema(s: WorkflowSchema): Seq[String] = Seq(
-    lLit(s.id), lLit(s.createdAt), lLit(s.updatedAt), q(s.status), q(s.name), q(s.version), q(s.title), q(s.description), q(s.author),
-    qOpt(s.icon), txtFaqOpt(s.faq, fmtWfFaq), csv(s.tags), txtJsonOpt(s.meta, fmtMeta), txtJson(s.graph, fmtGraf))
+  private def valsSchema(wschema: WorkflowSchema): Seq[String] = Seq(
+    lLit(wschema.id), lLit(wschema.createdAt), lLit(wschema.updatedAt), q(wschema.status), q(wschema.name), q(wschema.version), q(wschema.title), q(wschema.description), q(wschema.author),
+    qOpt(wschema.icon), txtFaqOpt(wschema.faq, fmtWfFaq), csv(wschema.tags), txtJsonOpt(wschema.meta, fmtMeta), txtJson(wschema.graph, fmtGraf))
 
-  def addSchema(s: WorkflowSchema): Future[WorkflowSchema] = upsert(TABLE_WORKFLOW_SCHEMA, SCHEMA_COLS, valsSchema(s)).map(_ => s)
-  def getSchemaOpt(id: Int): Future[Option[WorkflowSchema]] = query(s"SELECT $SCHEMA_SEL FROM $TABLE_WORKFLOW_SCHEMA WHERE id=$id", rowSchema).map(_.headOption)
-  def getSchema(id: Int): Future[WorkflowSchema] = getSchemaOpt(id).map(_.getOrElse(throw new ErrNotFound(s"WorkflowSchema: ${id}")))
-  def delSchema(id: Int): Future[Int] = delById(TABLE_WORKFLOW_SCHEMA, id, "WorkflowSchema")
-  def allSchemas: Future[Seq[WorkflowSchema]] = query(s"SELECT $SCHEMA_SEL FROM $TABLE_WORKFLOW_SCHEMA ORDER BY id", rowSchema)
-  def sizeSchemas: Future[Long] = countOf(TABLE_WORKFLOW_SCHEMA)
-  override def nextSchemaId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_WORKFLOW_SCHEMA)
-  override def listSchemas(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[WorkflowStore.PageSchema] =
+  def addWSchema(wschema: WorkflowSchema): Future[WorkflowSchema] = upsert(TABLE_WORKFLOW_SCHEMA, SCHEMA_COLS, valsSchema(wschema)).map(_ => wschema)
+  def getWSchemaOpt(id: Int): Future[Option[WorkflowSchema]] = query(s"SELECT $SCHEMA_SEL FROM $TABLE_WORKFLOW_SCHEMA WHERE id=$id", rowSchema).map(_.headOption)
+  def getWSchema(id: Int): Future[WorkflowSchema] = getWSchemaOpt(id).map(_.getOrElse(throw new ErrNotFound(s"WorkflowSchema: ${id}")))
+  def delWSchema(id: Int): Future[Int] = delById(TABLE_WORKFLOW_SCHEMA, id, "WorkflowSchema")
+  def allWSchemas: Future[Seq[WorkflowSchema]] = query(s"SELECT $SCHEMA_SEL FROM $TABLE_WORKFLOW_SCHEMA ORDER BY id", rowSchema)
+  def sizeWSchemas: Future[Long] = countOf(TABLE_WORKFLOW_SCHEMA)
+  override def nextWSchemaId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_WORKFLOW_SCHEMA)
+  override def listWSchemas(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[WorkflowStore.PageWSchema] =
     for {
-      total <- sizeSchemas
+      total <- sizeWSchemas
       items <- query(s"SELECT $SCHEMA_SEL FROM $TABLE_WORKFLOW_SCHEMA ORDER BY id ${limitClause(from,size)}", rowSchema)
-    } yield WorkflowStore.PageSchema(items, total)
+    } yield WorkflowStore.PageWSchema(items, total)
 
   // ========================================================= WorkflowConfig
   private val CONFIG_COLS = Seq("id","sid","created_at","updated_at","status","name","version","title","description","author","icon","tags","graph","oid","pid","xid","meta")
@@ -228,29 +228,29 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
     name = rStr(row,5), version = rStr(row,6), title = rStr(row,7), description = rStr(row,8), author = rStr(row,9),
     icon = rStrOpt(row,10), tags = pCsv(rStr(row,11)), graph = parseGraf(rStr(row,12)),
     oid = rStrOpt(row,13), pid = rStrOpt(row,14), xid = rStrOpt(row,15), meta = pTxtJson(rStr(row,16), fmtMeta))
-  private def valsConfig(c: WorkflowConfig): Seq[String] = Seq(
-    lLit(c.id), lLit(c.sid), lLit(c.createdAt), lLit(c.updatedAt), q(c.status), q(c.name), q(c.version), q(c.title), q(c.description), q(c.author),
-    qOpt(c.icon), csv(c.tags), txtJson(c.graph, fmtGraf), qOpt(c.oid), qOpt(c.pid), qOpt(c.xid), txtJsonOpt(c.meta, fmtMeta))
+  private def valsConfig(wconf: WorkflowConfig): Seq[String] = Seq(
+    lLit(wconf.id), lLit(wconf.sid), lLit(wconf.createdAt), lLit(wconf.updatedAt), q(wconf.status), q(wconf.name), q(wconf.version), q(wconf.title), q(wconf.description), q(wconf.author),
+    qOpt(wconf.icon), csv(wconf.tags), txtJson(wconf.graph, fmtGraf), qOpt(wconf.oid), qOpt(wconf.pid), qOpt(wconf.xid), txtJsonOpt(wconf.meta, fmtMeta))
 
-  def addConfig(c: WorkflowConfig): Future[WorkflowConfig] = upsert(TABLE_WORKFLOW_CONFIG, CONFIG_COLS, valsConfig(c)).map(_ => c)
-  def getConfigOpt(id: Int): Future[Option[WorkflowConfig]] = query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG WHERE id=$id", rowConfig).map(_.headOption)
-  def getConfig(id: Int): Future[WorkflowConfig] = getConfigOpt(id).map(_.getOrElse(throw new ErrNotFound(s"WorkflowConfig: ${id}")))
-  def delConfig(id: Int): Future[Int] = delById(TABLE_WORKFLOW_CONFIG, id, "WorkflowConfig")
-  def allConfigs: Future[Seq[WorkflowConfig]] = query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG ORDER BY id", rowConfig)
-  def sizeConfigs: Future[Long] = countOf(TABLE_WORKFLOW_CONFIG)
-  def findConfigByOid(oid: String): Future[Seq[WorkflowConfig]] =
+  def addWConf(wconf: WorkflowConfig): Future[WorkflowConfig] = upsert(TABLE_WORKFLOW_CONFIG, CONFIG_COLS, valsConfig(wconf)).map(_ => wconf)
+  def getWConfOpt(id: Int): Future[Option[WorkflowConfig]] = query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG WHERE id=$id", rowConfig).map(_.headOption)
+  def getWConf(id: Int): Future[WorkflowConfig] = getWConfOpt(id).map(_.getOrElse(throw new ErrNotFound(s"WorkflowConfig: ${id}")))
+  def delWConf(id: Int): Future[Int] = delById(TABLE_WORKFLOW_CONFIG, id, "WorkflowConfig")
+  def allWConfs: Future[Seq[WorkflowConfig]] = query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG ORDER BY id", rowConfig)
+  def sizeWConfs: Future[Long] = countOf(TABLE_WORKFLOW_CONFIG)
+  def findWConfByOid(oid: String): Future[Seq[WorkflowConfig]] =
     query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG WHERE oid = ${q(oid)} ORDER BY id", rowConfig)
-  def findConfigByXid(xid: String): Future[Option[WorkflowConfig]] =
+  def findWConfByXid(xid: String): Future[Option[WorkflowConfig]] =
     query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG WHERE lower(xid) = lower(${q(xid)}) LIMIT 1", rowConfig).map(_.headOption)
   // optimized status-only update (single column + updated_at); no read, no full-row rewrite
-  override def updateConfigStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
+  override def updateWConfStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
     execUpdateInt(s"UPDATE $TABLE_WORKFLOW_CONFIG SET status=${q(status)}, updated_at=${lLit(System.currentTimeMillis())} WHERE id=$id")
-  override def nextConfigId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_WORKFLOW_CONFIG)
-  override def listConfigs(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[WorkflowStore.PageConfig] =
+  override def nextWConfId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_WORKFLOW_CONFIG)
+  override def listWConfs(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[WorkflowStore.PageWConf] =
     for {
-      total <- sizeConfigs
+      total <- sizeWConfs
       items <- query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG ORDER BY id ${limitClause(from,size)}", rowConfig)
-    } yield WorkflowStore.PageConfig(items, total)
+    } yield WorkflowStore.PageWConf(items, total)
 
   // ========================================================= WorkflowGraf  (data -> jsonb)
   private val GRAF_COLS = Seq("id","sid","cid","nodes","links","meta","data")
@@ -292,23 +292,23 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
     icon = rStrOpt(row,9), faq = pFaq(rStr(row,10), fmtDetFaq), tags = pArr(rStr(row,11)), networkTags = pArr(rStr(row,12)),
     schema = pJsonbObj(rStr(row,13)), uiSchema = pJsonbObj(rStr(row,14)))
   private def rowDSchema(row: RowData, u: Unit): DetectorSchema = toDetectorSchema(rowDSchemaRow(row, u))
-  private def valsDSchema(d: DetectorSchema): Seq[String] = { // column order = DSCHEMA_COLS
-    Seq(lLit(d.id), tsWrite(d.createdAt), tsWrite(d.updatedAt), q(d.status), q(d.name), q(d.version),
-      jsonbObjReq(d.schema), pgArr(d.tags), q(d.description), jsonbFaqReq(d.faq, fmtDetFaq), jsonbObjReq(d.uiSchema),
-      qOpt(optNZ(d.author)), qOpt(d.icon), pgArr(d.networkTags), qOpt(optNZ(d.title)))
+  private def valsDSchema(dschema: DetectorSchema): Seq[String] = { // column order = DSCHEMA_COLS
+    Seq(lLit(dschema.id), tsWrite(dschema.createdAt), tsWrite(dschema.updatedAt), q(dschema.status), q(dschema.name), q(dschema.version),
+      jsonbObjReq(dschema.schema), pgArr(dschema.tags), q(dschema.description), jsonbFaqReq(dschema.faq, fmtDetFaq), jsonbObjReq(dschema.uiSchema),
+      qOpt(optNZ(dschema.author)), qOpt(dschema.icon), pgArr(dschema.networkTags), qOpt(optNZ(dschema.title)))
   }
 
-  def addDetectorSchema(d: DetectorSchema): Future[DetectorSchema] = upsert(TABLE_DET_SCHEMA, DSCHEMA_COLS, valsDSchema(d)).map(_ => d)
-  def getDetectorSchema(id: Int): Future[Option[DetectorSchema]] = query(s"SELECT $DSCHEMA_SEL FROM $TABLE_DET_SCHEMA WHERE id=$id", rowDSchema).map(_.headOption)
-  def delDetectorSchema(id: Int): Future[Int] = delById(TABLE_DET_SCHEMA, id, "DetectorSchema")
-  def allDetectorSchemas: Future[Seq[DetectorSchema]] = query(s"SELECT $DSCHEMA_SEL FROM $TABLE_DET_SCHEMA ORDER BY id", rowDSchema)
-  def sizeDetectorSchemas: Future[Long] = countOf(TABLE_DET_SCHEMA)
-  override def nextDetectorSchemaId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_DET_SCHEMA)
-  override def listDetectorSchemas(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[WorkflowStore.PageDetectorSchema] =
+  def addDSchema(dschema: DetectorSchema): Future[DetectorSchema] = upsert(TABLE_DET_SCHEMA, DSCHEMA_COLS, valsDSchema(dschema)).map(_ => dschema)
+  def getDSchema(id: Int): Future[Option[DetectorSchema]] = query(s"SELECT $DSCHEMA_SEL FROM $TABLE_DET_SCHEMA WHERE id=$id", rowDSchema).map(_.headOption)
+  def delDSchema(id: Int): Future[Int] = delById(TABLE_DET_SCHEMA, id, "DetectorSchema")
+  def allDSchemas: Future[Seq[DetectorSchema]] = query(s"SELECT $DSCHEMA_SEL FROM $TABLE_DET_SCHEMA ORDER BY id", rowDSchema)
+  def sizeDSchemas: Future[Long] = countOf(TABLE_DET_SCHEMA)
+  override def nextDSchemaId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_DET_SCHEMA)
+  override def listDSchemas(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[WorkflowStore.PageDSchema] =
     for {
-      total <- sizeDetectorSchemas
+      total <- sizeDSchemas
       items <- query(s"SELECT $DSCHEMA_SEL FROM $TABLE_DET_SCHEMA ORDER BY id ${limitClause(from,size)}", rowDSchema)
-    } yield WorkflowStore.PageDetectorSchema(items, total)
+    } yield WorkflowStore.PageDSchema(items, total)
 
   // ========================================================= DetectorConfig  [EXTERNAL table "detector"]
   // Real columns use contract_id / schema_id FKs (NOT joined). The complex DetectorConfigContract /
@@ -322,8 +322,8 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
     contractId = rInt(row,4), name = rStr(row,5), source = rStr(row,6), schemaId = rInt(row,7),
     tags = pArr(row.getString(8)), config = pJsonbObj(rStr(row,9)))
   private def rowDConfig(row: RowData, u: Unit): DetectorConfig = toDetectorConfig(rowDRow(row, u))
-  private def valsDConfig(d: DetectorConfig): Seq[String] = { // column order = DCONFIG_COLS
-    val r = toDetectorRow(d)
+  private def valsDConfig(dconf: DetectorConfig): Seq[String] = { // column order = DCONFIG_COLS
+    val r = toDetectorRow(dconf)
     Seq(lLit(r.id), tsWrite(r.createdAt), tsWrite(r.updatedAt), q(r.status), lLit(r.contractId), q(r.name), q(r.source), lLit(r.schemaId), pgArr(r.tags), jsonbObjReq(r.config))
   }
 
@@ -340,20 +340,20 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
 
   // Write DetectorConfig to the EXTERNAL `detector` table (upsert on id). Only the flat columns are
   // written (contract/schema are FK ids; destinations are not persisted - see DCONFIG_COLS/valsDConfig).
-  def addDetectorConfig(d: DetectorConfig): Future[DetectorConfig] = upsert(TABLE_DET_CONFIG, DCONFIG_COLS, valsDConfig(d)).map(_ => d)
+  def addDConf(dconf: DetectorConfig): Future[DetectorConfig] = upsert(TABLE_DET_CONFIG, DCONFIG_COLS, valsDConfig(dconf)).map(_ => dconf)
   // status-only update on the external `detector` table (single column + updated_at timestamp)
-  override def updateDetectorConfigStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
+  override def updateDConfStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
     execUpdateInt(s"UPDATE $TABLE_DET_CONFIG SET status=${q(status)}, updated_at=${tsWrite(System.currentTimeMillis())} WHERE id=$id")
-  def getDetectorConfig(id: Int): Future[Option[DetectorConfig]] = query(s"SELECT $DCONFIG_SEL FROM $TABLE_DET_CONFIG WHERE id=$id", rowDConfig).map(_.headOption)
-  def delDetectorConfig(id: Int): Future[Int] = delById(TABLE_DET_CONFIG, id, "DetectorConfig")
-  def allDetectorConfigs: Future[Seq[DetectorConfig]] = query(s"SELECT $DCONFIG_SEL FROM $TABLE_DET_CONFIG ORDER BY id", rowDConfig)
-  def sizeDetectorConfigs: Future[Long] = countOf(TABLE_DET_CONFIG)
-  override def nextDetectorConfigId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_DET_CONFIG)
-  override def listDetectorConfigs(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[WorkflowStore.PageDetectorConfig] =
+  def getDConf(id: Int): Future[Option[DetectorConfig]] = query(s"SELECT $DCONFIG_SEL FROM $TABLE_DET_CONFIG WHERE id=$id", rowDConfig).map(_.headOption)
+  def delDConf(id: Int): Future[Int] = delById(TABLE_DET_CONFIG, id, "DetectorConfig")
+  def allDConfs: Future[Seq[DetectorConfig]] = query(s"SELECT $DCONFIG_SEL FROM $TABLE_DET_CONFIG ORDER BY id", rowDConfig)
+  def sizeDConfs: Future[Long] = countOf(TABLE_DET_CONFIG)
+  override def nextDConfId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_DET_CONFIG)
+  override def listDConfs(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[WorkflowStore.PageDConf] =
     for {
-      total <- sizeDetectorConfigs
+      total <- sizeDConfs
       items <- query(s"SELECT $DCONFIG_SEL FROM $TABLE_DET_CONFIG ORDER BY id ${limitClause(from,size)}", rowDConfig)
-    } yield WorkflowStore.PageDetectorConfig(items, total)
+    } yield WorkflowStore.PageDConf(items, total)
 }
 
 object WorkflowStoreDB {

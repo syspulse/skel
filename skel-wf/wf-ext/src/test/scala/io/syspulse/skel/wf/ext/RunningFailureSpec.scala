@@ -68,7 +68,7 @@ class RunningFailureSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
         c.meta.flatMap(_.get("err")).map(_.toString) shouldBe Some("ProofOfOwnership: boom")
       }
       // persisted status reflects the failure
-      Await.result(store.getConfig(cfg.id), 5.seconds).status shouldBe WorkflowStatus.RUNNING_FAILED
+      Await.result(store.getWConf(cfg.id), 5.seconds).status shouldBe WorkflowStatus.RUNNING_FAILED
     }
   }
 }

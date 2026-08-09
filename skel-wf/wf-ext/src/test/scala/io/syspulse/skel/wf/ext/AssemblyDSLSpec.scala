@@ -65,9 +65,9 @@ class AssemblyDSLSpec extends AnyWordSpec with Matchers {
       res.config shouldBe None
 
       // persisted
-      Await.result(store.allDetectorSchemas, timeout) should have size 3
-      Await.result(store.allDetectorConfigs, timeout) shouldBe empty
-      Await.result(store.getSchema(0), timeout).name shouldBe "WAudit"
+      Await.result(store.allDSchemas, timeout) should have size 3
+      Await.result(store.allDConfs, timeout) shouldBe empty
+      Await.result(store.getWSchema(0), timeout).name shouldBe "WAudit"
 
       // nodes reference detector schemas by sid; cid is empty (template)
       res.schema.graph.nodes.values.foreach { n => n.cid shouldBe None }
@@ -106,9 +106,9 @@ class AssemblyDSLSpec extends AnyWordSpec with Matchers {
       res.schema.graph.nodes.values.foreach { n => n.cid shouldBe None }
 
       // persisted
-      Await.result(store.allDetectorConfigs, timeout) should have size 3
-      Await.result(store.getConfig(cfg.id), timeout).id shouldBe cfg.id
-      Await.result(store.getSchema(res.schema.id), timeout).id shouldBe res.schema.id
+      Await.result(store.allDConfs, timeout) should have size 3
+      Await.result(store.getWConf(cfg.id), timeout).id shouldBe cfg.id
+      Await.result(store.getWSchema(res.schema.id), timeout).id shouldBe res.schema.id
     }
 
     "honour explicit out/in link ids from the DSL" in {
@@ -131,8 +131,8 @@ class AssemblyDSLSpec extends AnyWordSpec with Matchers {
         DetectorConfigContract(0, now, now, 0, 0, None, None, None, None, "existing"),
         Some(DetectorConfigSchema(7, now, now, WorkflowSchema.Status.ACTIVE, "Schema_existing", WorkflowSchema.Version.DEF_VERSION, None)),
         "existing", "", Seq(), None, Seq())
-      Await.result(store.addDetectorSchema(ds), timeout)
-      Await.result(store.addDetectorConfig(dc), timeout)
+      Await.result(store.addDSchema(ds), timeout)
+      Await.result(store.addDConf(dc), timeout)
 
       val res = Await.result(AssemblyDSL.assembly("Detector.newone -> Detector.5", store), timeout)
       // node referencing id 5 must not create a new DetectorConfig and must point at config 5 / schema 7
@@ -182,12 +182,12 @@ class AssemblyDSLSpec extends AnyWordSpec with Matchers {
           Some(DetectorConfigSchema(sid, now, now, WorkflowSchema.Status.ACTIVE, s"Schema_${name}", ver, None)),
           name, "", Seq(), None, Seq())
       // PoO: two versions (1.0.0 and 1.2.0 -> latest); PoR: single version
-      Await.result(store.addDetectorSchema(ds(10, "PoO", "1.0.0")), timeout)
-      Await.result(store.addDetectorSchema(ds(11, "PoO", "1.2.0")), timeout)
-      Await.result(store.addDetectorSchema(ds(20, "PoR", "1.0.0")), timeout)
-      Await.result(store.addDetectorConfig(dc(100, "PoO", 10, "1.0.0")), timeout)
-      Await.result(store.addDetectorConfig(dc(101, "PoO", 11, "1.2.0")), timeout)
-      Await.result(store.addDetectorConfig(dc(200, "PoR", 20, "1.0.0")), timeout)
+      Await.result(store.addDSchema(ds(10, "PoO", "1.0.0")), timeout)
+      Await.result(store.addDSchema(ds(11, "PoO", "1.2.0")), timeout)
+      Await.result(store.addDSchema(ds(20, "PoR", "1.0.0")), timeout)
+      Await.result(store.addDConf(dc(100, "PoO", 10, "1.0.0")), timeout)
+      Await.result(store.addDConf(dc(101, "PoO", 11, "1.2.0")), timeout)
+      Await.result(store.addDConf(dc(200, "PoR", 20, "1.0.0")), timeout)
       store
     }
 
@@ -198,8 +198,8 @@ class AssemblyDSLSpec extends AnyWordSpec with Matchers {
       // creates nothing new
       res.detectorSchemas shouldBe empty
       res.detectorConfigs shouldBe empty
-      Await.result(store.allDetectorConfigs, timeout) should have size 3
-      Await.result(store.allDetectorSchemas, timeout) should have size 3
+      Await.result(store.allDConfs, timeout) should have size 3
+      Await.result(store.allDSchemas, timeout) should have size 3
 
       val cfg = res.config.get
       cfg.name shouldBe "Linked"
@@ -224,7 +224,7 @@ class AssemblyDSLSpec extends AnyWordSpec with Matchers {
       val cfg = Await.result(
         io.syspulse.skel.wf.ext.store.WorkflowAssembly.linkByName("[PoO] -> [PoR]", store), timeout)
       cfg.graph.nodes.values.map(_.cid).flatten.toSet shouldBe Set(101, 200)
-      Await.result(store.allDetectorConfigs, timeout) should have size 3 // nothing created
+      Await.result(store.allDConfs, timeout) should have size 3 // nothing created
     }
 
     "fail when a DetectorConfig name is not found" in {

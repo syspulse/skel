@@ -96,8 +96,8 @@ class ResolvePersistDBSpec extends AnyWordSpec with Matchers with ScalatestRoute
       // a WorkflowConfig bound to the runtime (xid == RID), with a node referencing DetectorConfig 201
       val g = WorkflowGraf(id = 1, sid = Some(1)).withNode(WorkflowNode(id = 0, title = "poo", sid = 100, cid = Some(201)))
       val sc = WorkflowSchema.of(1, "W1", g)
-      Await.result(store.addSchema(sc), 10.seconds)
-      Await.result(store.addConfig(WorkflowConfig.from(1, sc, xid = Some(RID)).copy(status = "ACTIVE")), 10.seconds)
+      Await.result(store.addWSchema(sc), 10.seconds)
+      Await.result(store.addWConf(WorkflowConfig.from(1, sc, xid = Some(RID)).copy(status = "ACTIVE")), 10.seconds)
 
       Get(s"/config/resolve/$RID?type=rid") ~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
@@ -107,10 +107,10 @@ class ResolvePersistDBSpec extends AnyWordSpec with Matchers with ScalatestRoute
       }
 
       // both statuses are persisted via the optimized status-only UPDATE (DetectorConfig via `detector`)
-      Await.result(store.getConfig(1), 10.seconds).status shouldBe EngineStatus.RUNNING
-      Await.result(store.getDetectorConfig(201), 10.seconds).get.status shouldBe EngineStatus.COMPLETED
+      Await.result(store.getWConf(1), 10.seconds).status shouldBe EngineStatus.RUNNING
+      Await.result(store.getDConf(201), 10.seconds).get.status shouldBe EngineStatus.COMPLETED
       // the status-only UPDATE touched ONLY status (name/source untouched)
-      Await.result(store.getDetectorConfig(201), 10.seconds).get.name shouldBe "ProofOfOwnership"
+      Await.result(store.getDConf(201), 10.seconds).get.name shouldBe "ProofOfOwnership"
     }
   }
 }

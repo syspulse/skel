@@ -231,7 +231,7 @@ object App extends skel.Server {
     // Resolve cid -> DetectorConfig for a config's graph nodes (for status correlation by name).
     def loadDetectors(cfg: WorkflowConfig): scala.concurrent.Future[Map[Int, DetectorConfig]] = {
       val cids = cfg.graph.nodes.values.flatMap(_.cid).toSet.toSeq
-      scala.concurrent.Future.sequence(cids.map(id => store.getDetectorConfig(id).map(_.map(id -> _))))
+      scala.concurrent.Future.sequence(cids.map(id => store.getDConf(id).map(_.map(id -> _))))
         .map(_.flatten.toMap)
     }
 
@@ -349,7 +349,7 @@ object App extends skel.Server {
                         // re-bind when the runtime changed (e.g. WorkflowId restart -> new RunId/xid)
                         if (!WorkflowAssembly.isBound(cfg, w)) {
                           cfg = WorkflowAssembly.bind(cfg, w)
-                          Await.result(store.addConfig(cfg), 30.seconds)
+                          Await.result(store.addWConf(cfg), 30.seconds)
                           log.info(cfg.toString)
                         }
                         Console.out.println(renderTrack(cfg, EngineMapper.map(w, Some(cfg), detectors)))
@@ -378,7 +378,7 @@ object App extends skel.Server {
               // WorkflowId == <wid>|config.title|name); default payload = the WorkflowConfig JSON
               val widOverride = rest.headOption.filter(_.nonEmpty)
               val f = for {
-                c     <- store.createConfigFromSchema(idStr.toInt)
+                c     <- store.createWConfFromWSchema(idStr.toInt)
                 tq     = config.tq.getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
                 saved <- WorkflowAssembly.start(c, c.name, engine, store, tq, Some(c.toJson.compactPrint), config.ns, widOverride)
               } yield saved
@@ -398,7 +398,7 @@ object App extends skel.Server {
           case Some(idStr) =>
             val engine = newEngine()
             try {
-              val f = store.getConfig(idStr.toInt).flatMap { c =>
+              val f = store.getWConf(idStr.toInt).flatMap { c =>
                 if (config.cmd == "stop") WorkflowAssembly.stop(c, engine, store, config.reason, config.ns)
                 else                      WorkflowAssembly.cancel(c, engine, store, config.reason, config.ns)
               }

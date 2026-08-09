@@ -153,17 +153,17 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
         status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
       }
       // assembled statuses are ACTIVE (not yet resolved)
-      Await.result(store.getConfig(cfg.id), 5.seconds).status shouldBe "ACTIVE"
+      Await.result(store.getWConf(cfg.id), 5.seconds).status shouldBe "ACTIVE"
       val pooCid = cfg.graph.nodes.values.find(_.title == "ProofOfOwnership").flatMap(_.cid).get
       val porCid = cfg.graph.nodes.values.find(_.title == "ProofOfReserve").flatMap(_.cid).get
-      Await.result(store.getDetectorConfig(pooCid), 5.seconds).get.status shouldBe "ACTIVE"
+      Await.result(store.getDConf(pooCid), 5.seconds).get.status shouldBe "ACTIVE"
 
       Get(s"/config/resolve/$WID") ~> routes.routes ~> check { status shouldBe StatusCodes.OK }
 
       // the store now reflects the Engine truth (WorkflowConfig + DetectorConfig)
-      Await.result(store.getConfig(cfg.id), 5.seconds).status shouldBe EngineStatus.RUNNING
-      Await.result(store.getDetectorConfig(pooCid), 5.seconds).get.status shouldBe EngineStatus.COMPLETED // matched activity
-      Await.result(store.getDetectorConfig(porCid), 5.seconds).get.status shouldBe EngineStatus.UNKNOWN   // no activity yet
+      Await.result(store.getWConf(cfg.id), 5.seconds).status shouldBe EngineStatus.RUNNING
+      Await.result(store.getDConf(pooCid), 5.seconds).get.status shouldBe EngineStatus.COMPLETED // matched activity
+      Await.result(store.getDConf(porCid), 5.seconds).get.status shouldBe EngineStatus.UNKNOWN   // no activity yet
     }
 
     "POST /schema/{id}/start creates a WorkflowConfig from the schema and starts an Engine execution (xid + meta.wid, resolved)" in {
@@ -184,7 +184,7 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       }
 
       // the binding is PERSISTED
-      val saved = Await.result(store.getConfig(started.id), 5.seconds)
+      val saved = Await.result(store.getWConf(started.id), 5.seconds)
       saved.xid shouldBe Some(stubEngine.lastRunId)
 
       // Engine received: WorkflowType == schema.name; WorkflowId == config.title (or .name if title empty)
@@ -255,7 +255,7 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
         status shouldBe StatusCodes.OK
         responseAs[WorkflowConfig].status shouldBe WorkflowStatus.TERMINATED
       }
-      Await.result(store.getConfig(cfg.id), 5.seconds).status shouldBe WorkflowStatus.TERMINATED
+      Await.result(store.getWConf(cfg.id), 5.seconds).status shouldBe WorkflowStatus.TERMINATED
       val (wid, runId, reason) = stubEngine.lastTerminate.get
       wid shouldBe WID                 // workflowId = meta.wid
       runId shouldBe cfg.xid           // runId = the config's xid
@@ -271,7 +271,7 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
         status shouldBe StatusCodes.OK
         responseAs[WorkflowConfig].status shouldBe WorkflowStatus.CANCELED
       }
-      Await.result(store.getConfig(cfg.id), 5.seconds).status shouldBe WorkflowStatus.CANCELED
+      Await.result(store.getWConf(cfg.id), 5.seconds).status shouldBe WorkflowStatus.CANCELED
       val (wid, runId, reason) = stubEngine.lastCancel.get
       wid shouldBe WID
       runId shouldBe cfg.xid

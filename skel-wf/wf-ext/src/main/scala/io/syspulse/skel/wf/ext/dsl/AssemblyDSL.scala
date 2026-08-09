@@ -136,12 +136,12 @@ object AssemblyDSL {
     require(specs.nonEmpty, s"empty assembly pipeline: '${pipeline}'")
 
     val asm = for {
-      existingDS <- store.allDetectorSchemas
-      existingDC <- store.allDetectorConfigs
-      ds0        <- store.nextDetectorSchemaId
-      dc0        <- store.nextDetectorConfigId
-      wsId       <- wid.map(i => Future.successful(i.max(0))).getOrElse(store.nextSchemaId)
-      wcId       <- store.nextConfigId
+      existingDS <- store.allDSchemas
+      existingDC <- store.allDConfs
+      ds0        <- store.nextDSchemaId
+      dc0        <- store.nextDConfId
+      wsId       <- wid.map(i => Future.successful(i.max(0))).getOrElse(store.nextWSchemaId)
+      wcId       <- store.nextWConfId
       grafId     <- store.nextGrafId
       result     <- {
         val dsById = existingDS.map(d => d.id -> d).toMap
@@ -191,8 +191,8 @@ object AssemblyDSL {
 
         // persist new detectors, then build + persist the Workflow graph referencing them
         val persistDetectors =
-          Future.sequence(newDetectorSchemas.toList.map(store.addDetectorSchema)).flatMap { _ =>
-            Future.sequence(newDetectorConfigs.toList.map(store.addDetectorConfig))
+          Future.sequence(newDetectorSchemas.toList.map(store.addDSchema)).flatMap { _ =>
+            Future.sequence(newDetectorConfigs.toList.map(store.addDConf))
           }
 
         persistDetectors.flatMap { _ =>
@@ -262,10 +262,10 @@ object AssemblyDSL {
     require(specs.nonEmpty, s"empty link pipeline: '${pipeline}'")
 
     val asm = for {
-      existingDC <- store.allDetectorConfigs
-      existingDS <- store.allDetectorSchemas
-      wsId       <- wid.map(i => Future.successful(i.max(0))).getOrElse(store.nextSchemaId)
-      wcId       <- store.nextConfigId
+      existingDC <- store.allDConfs
+      existingDS <- store.allDSchemas
+      wsId       <- wid.map(i => Future.successful(i.max(0))).getOrElse(store.nextWSchemaId)
+      wcId       <- store.nextWConfId
       grafId     <- store.nextGrafId
       result     <- {
         val dcById   = existingDC.map(d => d.id -> d).toMap
@@ -350,7 +350,7 @@ object AssemblyDSL {
     )
     val schema = WorkflowSchema.of(wsId, wname.getOrElse(randomName()), WorkflowGraf.sync(schemaGraf))
 
-    store.addSchema(schema).flatMap { savedSchema =>
+    store.addWSchema(schema).flatMap { savedSchema =>
       if (!createConfig) {
         store.addGraf(WorkflowGraf.sync(schemaGraf)).map(_ => (savedSchema, None))
       } else {
@@ -362,7 +362,7 @@ object AssemblyDSL {
         val config = WorkflowConfig.from(wcId, savedSchema)
           .copy(graph = WorkflowGraf.sync(configGraf))
         for {
-          savedConfig <- store.addConfig(config)
+          savedConfig <- store.addWConf(config)
           _           <- store.addGraf(WorkflowGraf.sync(configGraf))
         } yield (savedSchema, Some(savedConfig))
       }
