@@ -17,7 +17,8 @@ import io.temporal.api.workflowservice.v1.{
   DescribeWorkflowExecutionRequest,
   DescribeTaskQueueRequest,
   TerminateWorkflowExecutionRequest,
-  RequestCancelWorkflowExecutionRequest
+  RequestCancelWorkflowExecutionRequest,
+  SignalWorkflowExecutionRequest
 }
 import io.temporal.api.common.v1.{WorkflowExecution, WorkflowType, Payload, Payloads, Memo}
 import io.temporal.api.taskqueue.v1.TaskQueue
@@ -238,6 +239,27 @@ class EngineTemporal(uri: String, override val url: Option[String] = None, maxCh
     reason.map(_.trim).filter(_.nonEmpty).foreach(reqB.setReason)
     call(s"requestCancelWorkflowExecution ns=${ns} wid=${workflowId} rid=${runId.getOrElse("")}") { stub.requestCancelWorkflowExecution(reqB.build()) }
     log.info(s"Requested cancel of workflow: wid=${workflowId} rid=${runId.getOrElse("")} ns=${ns} reason='${reason.getOrElse("")}'")
+    ()
+  }
+
+  override def signal(namespace: Option[String], workflowId: String, runId: Option[String],
+                      signalName: String, payload: Option[String]): Future[Unit] = Future {
+    val ns = writeNamespace(namespace)
+    val exec = WorkflowExecution.newBuilder().setWorkflowId(workflowId)
+    runId.map(_.trim).filter(_.nonEmpty).foreach(exec.setRunId)
+    val reqB = SignalWorkflowExecutionRequest.newBuilder()
+      .setNamespace(ns)
+      .setWorkflowExecution(exec.build())
+      .setSignalName(signalName)
+      .setRequestId(java.util.UUID.randomUUID().toString) // idempotency key for the signal RPC
+    // one JSON argument, encoded so any worker's default DataConverter can read it
+    payload.map(_.trim).filter(_.nonEmpty).foreach { js =>
+      reqB.setInput(Payloads.newBuilder().addPayloads(jsonPayload(js)).build())
+    }
+    call(s"signalWorkflowExecution ns=${ns} wid=${workflowId} rid=${runId.getOrElse("")} signal=${signalName}") {
+      stub.signalWorkflowExecution(reqB.build())
+    }
+    log.info(s"Signaled workflow: wid=${workflowId} rid=${runId.getOrElse("")} ns=${ns} signal=${signalName}")
     ()
   }
 

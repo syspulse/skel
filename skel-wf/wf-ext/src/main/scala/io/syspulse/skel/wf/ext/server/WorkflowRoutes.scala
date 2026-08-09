@@ -131,6 +131,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def deleteWorkflowConfig(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteWorkflowConfig(id, _))
   def stopWorkflowConfig(id: Int, reason: Option[String]): Future[Try[WorkflowConfig]] = registry.ask(StopWorkflowConfig(id, reason, _))
   def cancelWorkflowConfig(id: Int, reason: Option[String]): Future[Try[WorkflowConfig]] = registry.ask(CancelWorkflowConfig(id, reason, _))
+  def signalWorkflowConfig(id: Int, name: String, payload: Option[String]): Future[Try[WorkflowConfig]] = registry.ask(SignalWorkflowConfig(id, name, payload, _))
 
   // ---- WorkflowGraf asks ----
   def getWorkflowGrafs(from: Option[Long], size: Option[Long]): Future[Try[WorkflowGrafs]] = registry.ask(GetWorkflowGrafs(from, size, _))
@@ -288,6 +289,26 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def cancelWorkflowConfigRoute(id: Int) = post {
     parameter("reason".?) { reason => authConfig(id) { complete(cancelWorkflowConfig(id, reason)) } }
+  }
+
+  @POST @Path("/config/{id}/signal") @Produces(Array(MediaType.APPLICATION_JSON))
+  @Operation(tags = Array("config"), summary = "Send a SIGNAL (Temporal signal) to a WorkflowConfig's running Engine workflow; optional JSON body is the signal payload",
+    parameters = Array(
+      new Parameter(name = "id", in = ParameterIn.PATH, description = "config id"),
+      new Parameter(name = "name", in = ParameterIn.QUERY, description = "signal name (default CONTINUE)")),
+    requestBody = new RequestBody(description = "optional JSON payload delivered to the workflow's signal handler",
+      content = Array(new Content(schema = new Schema(implementation = classOf[String])))),
+    responses = Array(new ApiResponse(responseCode = "200", description = "signal sent + the config",
+      content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
+  def signalWorkflowConfigRoute(id: Int) = post {
+    parameter("name".?) { name =>
+      authConfig(id) {
+        val sig = name.map(_.trim).filter(_.nonEmpty).getOrElse("CONTINUE")
+        // optional JSON body = the signal payload delivered to the workflow's handler
+        entity(as[JsValue]) { body => complete(signalWorkflowConfig(id, sig, Some(body.compactPrint))) } ~
+        complete(signalWorkflowConfig(id, sig, None))
+      }
+    }
   }
 
   def getWorkflowConfigByXidRoute(xid: String) = get {
@@ -558,6 +579,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
           pathPrefix(IntNumber) { id =>
             pathPrefix("stop")   { pathEndOrSingleSlash { stopWorkflowConfigRoute(id) } } ~
             pathPrefix("cancel") { pathEndOrSingleSlash { cancelWorkflowConfigRoute(id) } } ~
+            pathPrefix("signal") { pathEndOrSingleSlash { signalWorkflowConfigRoute(id) } } ~
             pathEndOrSingleSlash {
               getWorkflowConfigRoute(id) ~ updateWorkflowConfigRoute(id) ~ deleteWorkflowConfigRoute(id)
             }

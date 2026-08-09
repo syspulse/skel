@@ -106,6 +106,8 @@ object WorkflowRegistry {
   final case class StopWorkflowConfig(id: Int, reason: Option[String], replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   // Cancel (Temporal request-cancel) a WorkflowConfig's running Engine workflow -> status CANCELED (+ persist).
   final case class CancelWorkflowConfig(id: Int, reason: Option[String], replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
+  // Signal (Temporal signal) a WorkflowConfig's running Engine workflow with `name` + optional JSON payload (no status change).
+  final case class SignalWorkflowConfig(id: Int, name: String, payload: Option[String], replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
 
   // ---- WorkflowGraf ----
   final case class GetWorkflowGrafs(from: Option[Long], size: Option[Long], replyTo: ActorRef[Try[WorkflowGrafs]]) extends Command
@@ -592,6 +594,14 @@ object WorkflowRegistry {
         engine match {
           case None    => replyTo ! Failure(new Exception("no Engine configured (start with --engine=temporal://...)"))
           case Some(e) => store.getWConf(id).flatMap(wconf => WorkflowAssembly.cancel(wconf, e, store, reason)).andThen(logFail).onComplete(replyTo ! _)
+        }
+        Behaviors.same
+
+      case SignalWorkflowConfig(id, name, payload, replyTo) =>
+        log.info(s"SignalWorkflowConfig: id=${id} signal='${name}' payload=${payload.getOrElse("")}")
+        engine match {
+          case None    => replyTo ! Failure(new Exception("no Engine configured (start with --engine=temporal://...)"))
+          case Some(e) => store.getWConf(id).flatMap(wconf => WorkflowAssembly.signal(wconf, e, store, name, payload)).andThen(logFail).onComplete(replyTo ! _)
         }
         Behaviors.same
 

@@ -56,7 +56,7 @@ object App extends skel.Server {
   // Known CLI commands. The shared arg parser only recognises a command when it is the
   // first non-option token, so we hoist it to the front - this lets options precede the
   // command (e.g. `--engine=temporal:// link <rid> <pipeline>` as in the requirements).
-  private val KNOWN_CMDS = Set("server", "schema", "assembly", "link", "assembly-track", "runtime-get", "setup0", "start-schema", "stop", "cancel")
+  private val KNOWN_CMDS = Set("server", "schema", "assembly", "link", "assembly-track", "runtime-get", "setup0", "start-schema", "stop", "cancel", "signal")
 
   // Commands that take an Assembly DSL pipeline (which contains `->` tokens and spaces).
   private val DSL_CMDS = Set("schema", "assembly", "link", "assembly-track")
@@ -159,6 +159,7 @@ object App extends skel.Server {
         ArgCmd("start-schema", s"Create a WorkflowConfig from a WorkflowSchema and start an Engine (Temporal) execution (WorkflowType == schema.name, WorkflowId == [wid]|config.title|name); sets xid=RunId (params: <schemaId> [wid], --tq <taskQueue>); requires --engine"),
         ArgCmd("stop", s"Stop (terminate) a WorkflowConfig's running Engine workflow -> status=TERMINATED (param: <configId>, --reason <reason>); requires --engine"),
         ArgCmd("cancel", s"Cancel (request-cancel) a WorkflowConfig's running Engine workflow -> status=CANCELED (param: <configId>, --reason <reason>); requires --engine"),
+        ArgCmd("signal", s"Signal a WorkflowConfig's running Engine workflow (params: <configId> [signalName=CONTINUE] [payloadJson]); requires --engine"),
 
         ArgParam("<params>", "DSL pipeline, e.g. 'Detector.a -> Detector.b -> Detector.c'"),
         ArgLogging()
@@ -409,6 +410,23 @@ object App extends skel.Server {
             } finally engine.close()
           case None =>
             s"Usage: ${config.cmd} <configId> (--reason <reason>)  (requires --engine=temporal://...)"
+        }
+
+      case "signal" =>
+        config.params.toList match {
+          case idStr :: rest =>
+            val sigName = rest.headOption.map(_.trim).filter(_.nonEmpty).getOrElse("CONTINUE")
+            val payload = rest.drop(1) match { case Nil => None; case ps => Some(ps.mkString(" ")) }
+            val engine = newEngine()
+            try {
+              val f = store.getWConf(idStr.toInt).flatMap(wconf => WorkflowAssembly.signal(wconf, engine, store, sigName, payload, config.ns))
+              Try(Await.result(f, config.timeout.millis)) match {
+                case Success(wconf) => s"signal: WorkflowConfig id=${wconf.id}, name='${wconf.name}', xid=${wconf.xid.getOrElse("")} <- signal='${sigName}' sent"
+                case Failure(e)     => s"Failed signal: ${e.getMessage}"
+              }
+            } finally engine.close()
+          case _ =>
+            s"Usage: signal <configId> [signalName=CONTINUE] [payloadJson]  (requires --engine=temporal://...)"
         }
 
       case x =>

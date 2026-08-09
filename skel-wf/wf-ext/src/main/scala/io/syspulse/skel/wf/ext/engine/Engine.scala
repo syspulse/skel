@@ -116,6 +116,16 @@ trait Engine {
   def cancel(namespace: Option[String], workflowId: String, runId: Option[String], reason: Option[String]): Future[Unit] =
     Future.failed(new UnsupportedOperationException(s"${name}: cancel not supported"))
 
+  /**
+   * SEND a SIGNAL to a running workflow (Temporal SignalWorkflowExecution). Targets `workflowId`
+   * (+ `runId` when known). The workflow's registered signal handler for `signalName` receives
+   * `payload` (a JSON string) as its single argument (None -> no argument). This is the generic
+   * mechanism for human/external input (e.g. a "CONTINUE" signal releasing a human-gated step).
+   */
+  def signal(namespace: Option[String], workflowId: String, runId: Option[String],
+             signalName: String, payload: Option[String]): Future[Unit] =
+    Future.failed(new UnsupportedOperationException(s"${name}: signal not supported"))
+
   /** Release engine resources (connections). */
   def close(): Unit
 }

@@ -118,6 +118,15 @@ object WorkflowAssembly {
       _ <- store.updateWConfStatus(wconf.id, WorkflowStatus.CANCELED)
     } yield wconf.copy(status = WorkflowStatus.CANCELED, updatedAt = System.currentTimeMillis())
 
+  /**
+   * SIGNAL (Temporal signal) the wconf's running workflow (by workflowId + xid runId) with `signalName`
+   * and an optional JSON `payload`. Does NOT change WorkflowConfig.status (a signal is external input,
+   * not a lifecycle transition); returns the wconf unchanged.
+   */
+  def signal(wconf: WorkflowConfig, engine: Engine, store: WorkflowStore, signalName: String,
+             payload: Option[String], ns: Option[String] = None)(implicit ec: ExecutionContext): Future[WorkflowConfig] =
+    engine.signal(ns.orElse(nsOf(wconf)), workflowIdOf(wconf), wconf.xid, signalName, payload).map(_ => wconf)
+
   /** Bind an already-assembled wconf to a pre-resolved runtime (or fallback xid=id) and persist. */
   def link(wconf0: WorkflowConfig, runtime: Option[EngineWorkflow], fallbackId: String, store: WorkflowStore)
           (implicit ec: ExecutionContext): Future[WorkflowConfig] = {
