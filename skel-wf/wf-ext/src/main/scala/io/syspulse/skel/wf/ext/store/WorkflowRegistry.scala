@@ -71,7 +71,7 @@ object WorkflowRegistry {
   // non-empty) else the new WorkflowConfig.title (or .name if title is empty). taskQueue = request ->
   // config.meta("taskQueue") -> default; input = caller JSON override else the WorkflowConfig JSON. Sets
   // xid = RunId (+ meta.wid), persists, then Resolves live statuses (STARTING while not yet visible).
-  final case class StartWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+  final case class StartWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String], ns: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
 
   // ---- WorkflowConfig ----
   final case class GetWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String, replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
@@ -518,11 +518,11 @@ object WorkflowRegistry {
           })
         Behaviors.same
 
-      case StartWorkflowSchema(id, taskQueue, input, wid, replyTo) =>
-        log.info(s"StartWorkflowSchema: sid=${id} taskQueue=${taskQueue} wid=${wid}")
+      case StartWorkflowSchema(id, taskQueue, input, wid, ns, replyTo) =>
+        log.info(s"StartWorkflowSchema: sid=${id}, taskQueue=${taskQueue}, wid=${wid}, ns=${ns} => ${engine}")
         engine match {
           case None =>
-            replyTo ! Failure(new Exception("no Engine configured (start with --engine=temporal://...)"))
+            replyTo ! Failure(new Exception("Engine not configured"))
           case Some(e) =>
             // Create a WorkflowConfig FROM the schema, then start it on the Engine:
             //   WorkflowType = WorkflowSchema.name (== the created config.name, which defaults to the schema name)
@@ -542,7 +542,7 @@ object WorkflowRegistry {
                             .orElse(c.meta.flatMap(_.get("taskQueue")).map(_.toString).filter(_.nonEmpty))
                             .getOrElse(WorkflowAssembly.DEFAULT_TASK_QUEUE)
               payload   = input.filter(_.nonEmpty).orElse(Some(c.toJson.compactPrint))
-              saved    <- WorkflowAssembly.start(c, c.name, e, store, tq, payload, None, wid)
+              saved    <- WorkflowAssembly.start(c, c.name, e, store, tq, payload, ns, wid)
               resolved <- resolveConfigs(store, Some(e), saved.xid.toSeq, Some(RESOLVE_RID))
               started  <- markStarting(store, resolved)
             } yield started

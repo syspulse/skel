@@ -81,10 +81,16 @@ trait Engine {
    * @param taskQueue    Task Queue an independent worker polls
    * @param input        optional JSON input payload (encoded `json/plain` so any worker's default
    *                     DataConverter can read it); None -> no input
+   * @param memo         user metadata attached to the run as top-level key -> raw-JSON-value fields
+   *                     (Temporal Memo). This rides ALONGSIDE the input (it does NOT change the
+   *                     workflow's input contract), is visible in the engine UI, and is readable by the
+   *                     worker's workflow code. wf-ext uses it to pass "cid" (WorkflowConfig.id) and
+   *                     "sid" (WorkflowSchema.id) so an activity/worker can fetch its configuration
+   *                     from the WorkflowConfig API.
    * @return the started run (workflowId + runtimeId/RunId)
    */
   def start(namespace: Option[String], workflowType: String, workflowId: String, taskQueue: String,
-            input: Option[String]): Future[EngineStart] =
+            input: Option[String], memo: Map[String, String] = Map.empty): Future[EngineStart] =
     Future.failed(new UnsupportedOperationException(s"${name}: start not supported"))
 
   /**
@@ -109,7 +115,7 @@ trait Engine {
 
 object Engine {
 
-  val TEMPORAL = "temporal"
+  val ENGINE_TEMPORAL = "temporal"
 
   /**
    * Build an Engine from a `--engine` URI.
@@ -119,8 +125,8 @@ object Engine {
   def apply(uri: String)(implicit ec: ExecutionContext): Engine = {
     val u = Option(uri).map(_.trim).getOrElse("")
     scheme(u) match {
-      case TEMPORAL => new TemporalEngine(u)
-      case other    => throw new IllegalArgumentException(s"unsupported Engine: '${other}' (uri='${uri}'). Supported: temporal://")
+      case ENGINE_TEMPORAL => new TemporalEngine(u)
+      case other    => throw new IllegalArgumentException(s"unsupported Engine: '${other}' (uri='${uri}')")
     }
   }
 

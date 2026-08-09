@@ -70,8 +70,12 @@ object WorkflowAssembly {
     val workflowId = wid.map(_.trim).filter(_.nonEmpty)
       .orElse(Option(cfg.title).map(_.trim).filter(_.nonEmpty))
       .getOrElse(cfg.name)
+    // pass WorkflowConfig.id ("cid") and WorkflowSchema.id ("sid") as top-level Memo fields so the
+    // worker/activity can fetch its configuration from the WorkflowConfig API (GET /config/{cid}).
+    // The memo rides alongside the input, not inside it.
+    val memo = Map("cid" -> cfg.id.toString, "sid" -> cfg.sid.toString)
     for {
-      started <- engine.start(ns, workflowType = workflowType, workflowId = workflowId, taskQueue = taskQueue, input = input)
+      started <- engine.start(ns, workflowType = workflowType, workflowId = workflowId, taskQueue = taskQueue, input = input, memo = memo)
       // record the runtime binding + where to observe it: engine name and a deep-link into the engine panel
       uri      = engine.panelUri(workflowType, started.workflowId, started.runtimeId)
       meta     = cfg.meta.getOrElse(Map.empty[String, Any]) +

@@ -110,7 +110,7 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def createWorkflowSchemaDsl(req: WorkflowSchemaDslReq): Future[Try[WorkflowSchema]] = registry.ask(CreateWorkflowSchemaDsl(req, _))
   def updateWorkflowSchema(id: Int, req: WorkflowSchemaUpdateReq): Future[Try[WorkflowSchema]] = registry.ask(UpdateWorkflowSchema(id, req, _))
   def deleteWorkflowSchema(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteWorkflowSchema(id, _))
-  def startWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(StartWorkflowSchema(id, taskQueue, input, wid, _))
+  def startWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String], ns: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(StartWorkflowSchema(id, taskQueue, input, wid, ns, _))
 
   // ---- WorkflowConfig asks ----
   def getWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigs(from, size, entity, _))
@@ -330,11 +330,11 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "created + started + resolved config(s)",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def startWorkflowSchemaRoute(id: Int) = post {
-    parameters("taskQueue".?, "wid".?) { (tq, wid) =>
+    parameters("taskQueue".?, "wid".?, "ns".?) { (tq, wid, ns) =>
       authAdminService {
         // optional JSON body = caller input payload (overrides the default WorkflowConfig payload)
-        entity(as[JsValue]) { body => complete(startWorkflowSchema(id, tq, Some(body.compactPrint), wid)) } ~
-        complete(startWorkflowSchema(id, tq, None, wid))
+        entity(as[JsValue]) { body => complete(startWorkflowSchema(id, tq, Some(body.compactPrint), wid, ns)) } ~
+        complete(startWorkflowSchema(id, tq, None, wid, ns))
       }
     }
   }

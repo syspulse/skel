@@ -18,7 +18,7 @@ import io.temporal.api.workflowservice.v1.{
   TerminateWorkflowExecutionRequest,
   RequestCancelWorkflowExecutionRequest
 }
-import io.temporal.api.common.v1.{WorkflowExecution, WorkflowType, Payload, Payloads}
+import io.temporal.api.common.v1.{WorkflowExecution, WorkflowType, Payload, Payloads, Memo}
 import io.temporal.api.taskqueue.v1.TaskQueue
 import com.google.protobuf.ByteString
 import io.temporal.api.workflow.v1.{WorkflowExecutionInfo => TWorkflowExecutionInfo}
@@ -44,7 +44,7 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
 
   private val t = TemporalURI(uri)
 
-  val name: String = Engine.TEMPORAL
+  val name: String = Engine.ENGINE_TEMPORAL
 
   // internal system namespace never surfaced to callers
   private val SYSTEM_NAMESPACE = "temporal-system"
@@ -105,6 +105,13 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
   /** Decode a Temporal result `Payloads` to its raw JSON string (single result payload; json/plain data). */
   private def payloadResult(p: Payloads): Option[String] =
     p.getPayloadsList.asScala.headOption.map(_.getData.toStringUtf8).map(_.trim).filter(_.nonEmpty)
+
+  /** Encode a raw JSON string as a Temporal `json/plain` Payload (readable by any default DataConverter). */
+  private def jsonPayload(js: String): Payload =
+    Payload.newBuilder()
+      .putMetadata("encoding", ByteString.copyFromUtf8("json/plain"))
+      .setData(ByteString.copyFromUtf8(js))
+      .build()
 
   private def toSummary(info: TWorkflowExecutionInfo, ns: String): EngineWorkflow = {
     val startedAt = if (info.hasStartTime) Some(millis(info.getStartTime)) else None
@@ -174,7 +181,7 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
 
   // ---------------------------------------------------------------- start
   override def start(namespace: Option[String], workflowType: String, workflowId: String, taskQueue: String,
-                     input: Option[String]): Future[EngineStart] = Future {
+                     input: Option[String], memo: Map[String, String] = Map.empty): Future[EngineStart] = Future {
     val ns = writeNamespace(namespace)
     val reqB = StartWorkflowExecutionRequest.newBuilder()
       .setNamespace(ns)
@@ -184,11 +191,15 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
       .setRequestId(java.util.UUID.randomUUID().toString) // idempotency key for the start RPC
     // one JSON argument, encoded so any worker's default DataConverter can read it
     input.filter(_.nonEmpty).foreach { js =>
-      val payload = Payload.newBuilder()
-        .putMetadata("encoding", ByteString.copyFromUtf8("json/plain"))
-        .setData(ByteString.copyFromUtf8(js))
-        .build()
-      reqB.setInput(Payloads.newBuilder().addPayloads(payload).build())
+      reqB.setInput(Payloads.newBuilder().addPayloads(jsonPayload(js)).build())
+    }
+    // user metadata (Temporal Memo): each entry is a TOP-LEVEL memo field with a raw JSON value,
+    // encoded json/plain so the worker reads it with its default DataConverter (e.g. Python:
+    // workflow.memo_value("cid", ...) / workflow.memo_value("sid", ...)).
+    if (memo.nonEmpty) {
+      val memoB = Memo.newBuilder()
+      memo.foreach { case (k, v) => memoB.putFields(k, jsonPayload(v)) }
+      reqB.setMemo(memoB.build())
     }
     val resp = call(s"startWorkflowExecution ns=${ns} type=${workflowType} wid=${workflowId} tq=${taskQueue}") {
       stub.startWorkflowExecution(reqB.build())
