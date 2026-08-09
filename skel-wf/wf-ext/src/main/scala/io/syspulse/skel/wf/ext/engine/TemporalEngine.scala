@@ -15,6 +15,7 @@ import io.temporal.api.workflowservice.v1.{
   GetWorkflowExecutionHistoryRequest,
   StartWorkflowExecutionRequest,
   DescribeWorkflowExecutionRequest,
+  DescribeTaskQueueRequest,
   TerminateWorkflowExecutionRequest,
   RequestCancelWorkflowExecutionRequest
 }
@@ -23,7 +24,7 @@ import io.temporal.api.taskqueue.v1.TaskQueue
 import com.google.protobuf.ByteString
 import io.temporal.api.workflow.v1.{WorkflowExecutionInfo => TWorkflowExecutionInfo}
 import io.temporal.api.history.v1.HistoryEvent
-import io.temporal.api.enums.v1.EventType
+import io.temporal.api.enums.v1.{EventType, TaskQueueType}
 
 // ============================================================================
 // TemporalEngine
@@ -320,6 +321,32 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
   }
 
   /**
+   * Number of Workers currently polling the WORKFLOW task queue `tq` in `ns` (DescribeTaskQueue). 0 means
+   * "No Workers Running" - a scheduled workflow task will never be picked up (the Temporal UI shows the
+   * same warning). Temporal keeps recently-seen pollers for a short window, so 0 == none seen recently.
+   */
+  private def workflowPollers(ns: String, tq: String): Int = {
+    val req = DescribeTaskQueueRequest.newBuilder()
+      .setNamespace(ns)
+      .setTaskQueue(TaskQueue.newBuilder().setName(tq).build())
+      .setTaskQueueType(TaskQueueType.TASK_QUEUE_TYPE_WORKFLOW)
+      .build()
+    val resp = call(s"describeTaskQueue ns=${ns} tq=${tq}") { stub.describeTaskQueue(req) }
+    resp.getPollersCount
+  }
+
+  /**
+   * Best-effort poller count for a RUNNING workflow's task queue (None when not RUNNING / no task queue /
+   * the query failed). Used to flag "No Workers Running" without failing the resolve.
+   */
+  private def pollersOf(w: EngineWorkflow): Future[Option[Int]] =
+    if (w.status != EngineStatus.RUNNING) Future.successful(None)
+    else w.taskQueue.map(_.trim).filter(_.nonEmpty) match {
+      case Some(tq) => Future { workflowPollers(w.namespace, tq) }.map(Some(_)).recover { case _ => None }
+      case None     => Future.successful(None)
+    }
+
+  /**
    * Query PENDING activities via DescribeWorkflowExecution. This is the ONLY place a still-RUNNING
    * workflow exposes a currently failing/retrying activity: intermediate activity failures are NOT
    * written to the event history (to avoid bloat) - they live on the pending activity's `lastFailure`.
@@ -358,7 +385,9 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
   private def buildTree(summary: EngineWorkflow, depth: Int): Future[EngineWorkflow] = {
     // pending activities (best-effort) reveal a failing/retrying task while the workflow is still RUNNING
     val fPending = describePending(summary.namespace, summary.id, summary.runtimeId).recover { case _ => Seq.empty }
-    fetchHistory(summary.namespace, summary.id, summary.runtimeId).zip(fPending).flatMap { case (events, pending) =>
+    // poller count (best-effort) reveals a RUNNING-but-stuck workflow: no Workers on its task queue
+    val fPollers = pollersOf(summary)
+    fetchHistory(summary.namespace, summary.id, summary.runtimeId).zip(fPending).zip(fPollers).flatMap { case ((events, pending), pollers) =>
       val acts = mutable.LinkedHashMap[Long, ActAcc]()     // keyed by ActivityTaskScheduled eventId
       val kids = mutable.LinkedHashMap[Long, ChildAcc]()   // keyed by StartChildWorkflowExecutionInitiated eventId
       // last Workflow-Task outcome: a failing/retrying workflow task (worker throwing while executing the
@@ -496,9 +525,14 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
         }
         val historyErrs: Seq[String] = activities.filter(_.status == EngineStatus.FAILED)
           .map(a => s"${a.name}: ${a.detail.getOrElse("failed")}")
-        val failures = pendingErrs ++ historyErrs ++ wftErrs
+        // "No Workers Running": RUNNING workflow whose task queue has zero pollers (stuck - no worker)
+        val noWorkersErr: Seq[String] = pollers match {
+          case Some(0) => Seq(s"No Workers Running: there are no Workers polling the ${summary.taskQueue.getOrElse("")} Task Queue")
+          case _       => Seq.empty
+        }
+        val failures = pendingErrs ++ historyErrs ++ wftErrs ++ noWorkersErr
         val (wfStatus, errMeta) =
-          if (summary.status == EngineStatus.RUNNING && failures.nonEmpty) (EngineStatus.RUNNING_FAILED, Map("err" -> failures.head))
+          if (summary.status == EngineStatus.RUNNING && failures.nonEmpty) (EngineStatus.RUNNING_FAILED, Map("err" -> failures.mkString(" | ")))
           else (summary.status, Map.empty[String, String])
         // carry the completed run's return value into meta.result (raw JSON string), when present
         val meta = wfResult.map(r => errMeta + ("result" -> r)).getOrElse(errMeta)
