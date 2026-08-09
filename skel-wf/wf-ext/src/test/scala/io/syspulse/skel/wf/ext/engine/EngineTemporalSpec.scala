@@ -20,7 +20,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 // If the server is unreachable the tests self-CANCEL (assume) rather than FAIL,
 // so the suite is safe to run in environments without a Temporal server.
 // ============================================================================
-class TemporalEngineSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
+class EngineTemporalSpec extends AnyWordSpec with Matchers with BeforeAndAfterAll {
 
   val uri = sys.env.getOrElse("TEMPORAL_ENGINE_URI", "temporal://127.0.0.1:7233/default")
   val ns  = sys.env.getOrElse("TEMPORAL_ENGINE_NS", "default")
@@ -39,7 +39,7 @@ class TemporalEngineSpec extends AnyWordSpec with Matchers with BeforeAndAfterAl
 
   private def up(): Unit = assume(serverUp, s"Temporal server not reachable at ${uri}")
 
-  "TemporalEngine (live)" should {
+  "EngineTemporal (live)" should {
 
     "list namespaces (excluding the internal system namespace)" in {
       up()

@@ -27,7 +27,7 @@ import io.temporal.api.history.v1.HistoryEvent
 import io.temporal.api.enums.v1.{EventType, TaskQueueType}
 
 // ============================================================================
-// TemporalEngine
+// EngineTemporal
 //
 // Temporal implementation of the Engine abstraction. Read-only: it observes runtime
 // state via the WorkflowService gRPC stubs only (list / history). No WorkflowClient,
@@ -40,7 +40,7 @@ import io.temporal.api.enums.v1.{EventType, TaskQueueType}
 //   - child workflows  <- StartChildWorkflowExecutionInitiated + ChildWorkflowExecution{Started,...}
 //                         (children share the parent WorkflowId prefix, own their RunId)
 // ============================================================================
-class TemporalEngine(uri: String, override val url: Option[String] = None, maxChildDepth: Int = 3)(implicit ec: ExecutionContext) extends Engine {
+class EngineTemporal(uri: String, override val url: Option[String] = None, maxChildDepth: Int = 3)(implicit ec: ExecutionContext) extends Engine {
   private val log = Logger(getClass.getName)
 
   private val t = TemporalURI(uri)

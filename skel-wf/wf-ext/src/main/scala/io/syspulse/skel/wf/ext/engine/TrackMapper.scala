@@ -7,7 +7,7 @@ import scala.concurrent.{Future, ExecutionContext}
 //
 // A modular strategy that locates the Engine runtime instance corresponding to a
 // WorkflowConfig. Different strategies map the SAME WorkflowConfig to a runtime in
-// different ways; the Engine (TemporalEngine) supplies the resolution primitives, so
+// different ways; the Engine (EngineTemporal) supplies the resolution primitives, so
 // new mappers can be added without touching the engine.
 //
 //   RuntimeIdMapper  - by Temporal RunId (UUID). Pins a SPECIFIC run: xid is fixed.

@@ -17,7 +17,7 @@ import io.syspulse.skel.wf.ext.store.{WorkflowStoreMem, WorkflowRegistry}
 import io.syspulse.skel.wf.ext.server._
 import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineActivity, EngineStatus}
 
-/** Engine whose run is RUNNING but has a failing (retrying) task: the TemporalEngine folds a pending
+/** Engine whose run is RUNNING but has a failing (retrying) task: the EngineTemporal folds a pending
  *  activity's lastFailure into status=RUNNING_FAILED + meta("err"). This stub simulates that result. */
 class FailureEngine extends Engine {
   val name = Engine.ENGINE_TEMPORAL

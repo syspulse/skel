@@ -136,7 +136,7 @@ object Engine {
     val u = Option(uri).map(_.trim).getOrElse("")
     val panel = url.map(_.trim).filter(_.nonEmpty)
     scheme(u) match {
-      case ENGINE_TEMPORAL => new TemporalEngine(u, panel)
+      case ENGINE_TEMPORAL => new EngineTemporal(u, panel)
       case other    => throw new IllegalArgumentException(s"unsupported Engine: '${other}' (uri='${uri}')")
     }
   }
