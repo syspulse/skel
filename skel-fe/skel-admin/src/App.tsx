@@ -122,7 +122,7 @@ function AppContent() {
       />
       {/* definite height + auto overflow: modules scroll internally, the page only scrolls
           when a view genuinely exceeds the viewport (no default page scrollbar). */}
-      <main className="ml-44 mt-12 h-[calc(100vh-3rem)] flex flex-col overflow-auto">
+      <main className="ml-56 mt-12 h-[calc(100vh-3rem)] flex flex-col overflow-auto">
         {renderPage()}
       </main>
     </div>

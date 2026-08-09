@@ -20,6 +20,13 @@ trait Engine {
   def name: String
 
   /**
+   * Optional HTTPS (or HTTP) base URL of the Engine's WEB PANEL, distinct from the gRPC/connection
+   * URI. Used to build deep-links stored in WorkflowConfig.meta.url. When absent, [[panelUri]]
+   * falls back to a URL derived from the connection URI (local/dev: same host, UI port).
+   */
+  def url: Option[String] = None
+
+  /**
    * Poll all runtime Workflows.
    *
    * @param namespace None -> all namespaces the engine exposes; Some(ns) -> a single namespace.
@@ -118,14 +125,18 @@ object Engine {
   val ENGINE_TEMPORAL = "temporal"
 
   /**
-   * Build an Engine from a `--engine` URI.
+   * Build an Engine from a `--engine` URI and optional `--engine.url` panel base.
    *   temporal://           -> Temporal engine (defaults 127.0.0.1:7233/default)
    *   temporal://host:port/ns?opts
+   *   url                   -> HTTPS panel base (e.g. https://temporal.example.com); when None,
+   *                            panel links fall back to a URL derived from the gRPC URI
+   *                            (local/dev: http://<host>:8233).
    */
-  def apply(uri: String)(implicit ec: ExecutionContext): Engine = {
+  def apply(uri: String, url: Option[String] = None)(implicit ec: ExecutionContext): Engine = {
     val u = Option(uri).map(_.trim).getOrElse("")
+    val panel = url.map(_.trim).filter(_.nonEmpty)
     scheme(u) match {
-      case ENGINE_TEMPORAL => new TemporalEngine(u)
+      case ENGINE_TEMPORAL => new TemporalEngine(u, panel)
       case other    => throw new IllegalArgumentException(s"unsupported Engine: '${other}' (uri='${uri}')")
     }
   }

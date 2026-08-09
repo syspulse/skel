@@ -40,12 +40,13 @@ import io.temporal.api.enums.v1.{EventType, TaskQueueType}
 //   - child workflows  <- StartChildWorkflowExecutionInitiated + ChildWorkflowExecution{Started,...}
 //                         (children share the parent WorkflowId prefix, own their RunId)
 // ============================================================================
-class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: ExecutionContext) extends Engine {
+class TemporalEngine(uri: String, override val url: Option[String] = None, maxChildDepth: Int = 3)(implicit ec: ExecutionContext) extends Engine {
   private val log = Logger(getClass.getName)
 
   private val t = TemporalURI(uri)
 
   val name: String = Engine.ENGINE_TEMPORAL
+
 
   // internal system namespace never surfaced to callers
   private val SYSTEM_NAMESPACE = "temporal-system"
@@ -162,12 +163,15 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
   }
 
   // ---------------------------------------------------------------- panel URL
-  // Temporal UI deep-link: {ui}/namespaces/{ns}/workflows/{workflowId}/{runId}. `workflowType` is not
+  // Temporal UI deep-link: {base}/namespaces/{ns}/workflows/{workflowId}/{runId}. `workflowType` is not
   // part of the Temporal URL (kept in the abstract signature for engines that need it). Uses the same
   // concrete namespace `start` writes to.
+  // Base: `--engine.url` when set (HTTPS panel, may differ from gRPC `--engine` URI); else derive from
+  // the connection URI (TemporalURI.ui / ?ui=... / http://host:8233) — same host in local/dev.
   override def panelUri(workflowType: String, workflowId: String, runtimeId: String): Option[String] = {
+    val base = url.map(_.trim).filter(_.nonEmpty).getOrElse(t.ui).stripSuffix("/")
     val ns = writeNamespace(None)
-    Some(s"${t.ui}/namespaces/${ns}/workflows/${workflowId}/${runtimeId}")
+    Some(s"${base}/namespaces/${ns}/workflows/${workflowId}/${runtimeId}")
   }
 
   /** Pick a SINGLE concrete namespace for a write op (start): explicit -> configured -> "default". */

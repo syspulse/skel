@@ -35,6 +35,7 @@ case class Config(
   poll: Long = 3000,          // --poll: assembly-track polling interval in msec (def: 3000)
   tq: Option[String] = None,  // --tq  : Task queue override
   reason: Option[String] = None, // --reason : reason forwarded to the Engine on stop/cancel
+  engineUrl:Option[String] = None, // --engine-url : Engine link to access Workflow (can be different from --engine)
 
   // Auth / permissions (JWT), mirrors skel-explain
   jwtUri: String = "hs512://",
@@ -133,6 +134,7 @@ object App extends skel.Server {
         ArgString('_', "wn", s"WorkflowSchema name for schema/assembly (def: random)"),
 
         ArgString('_', "engine", s"Engine URI (e.g. temporal://127.0.0.1:7233/default)"),
+        ArgString('_', "engine.url", s"Engine URL to access Workflow in Engine UI"),
         ArgString('_', "ns", s"Engine namespace override (e.g. default, '*' for all)"),
         ArgLong('_', "poll", s"assembly-track polling interval in msec (def: ${d.poll})"),
         ArgString('_', "tq", s"Task queue override"),
@@ -167,10 +169,13 @@ object App extends skel.Server {
       host = c.getString("http.host").getOrElse(d.host),
       port = c.getInt("http.port").getOrElse(d.port),
       uri = c.getString("http.uri").getOrElse(d.uri),
+
       datastore = c.getString("datastore").getOrElse(d.datastore),
+
       wid = c.getString("wid").map(_.toInt),
-      wn = c.getString("wn"),
+      wn = c.getString("wn"),      
       engine = c.getString("engine").filter(_.nonEmpty),
+      engineUrl = c.getString("engine.url").filter(_.nonEmpty),
       ns = c.getString("ns").filter(_.nonEmpty),
       poll = c.getLong("poll").getOrElse(d.poll),
       tq = c.getString("tq").filter(_.nonEmpty),
@@ -212,7 +217,7 @@ object App extends skel.Server {
 
     // Engine URI: explicit --engine, or defaulted to temporal:// for the engine-only commands.
     def engineUri(default: String = "temporal://"): String = config.engine.getOrElse(default)
-    def newEngine(): Engine = Engine(engineUri())
+    def newEngine(): Engine = Engine(engineUri(), config.engineUrl)
 
     // Render an EngineWorkflow tree for CLI output.
     def renderWorkflow(w: EngineWorkflow, indent: String = ""): String = {
@@ -244,8 +249,9 @@ object App extends skel.Server {
       case "server" =>
         Console.err.println(s"Store: ${store}")
         // Engine is created only when --engine is provided; engine REST routes are enabled then.
-        val engine: Option[Engine] = config.engine.map(Engine(_))
-        Console.err.println(s"Engine: ${engine.map(_ => engineUri()).getOrElse("(none, set --engine to enable /engine API)")}")
+        // --engine.url (optional) is the HTTPS panel base; when absent, panel links fall back to the gRPC URI host.
+        val engine: Option[Engine] = config.engine.map(u => Engine(u, config.engineUrl))
+        Console.err.println(s"Engine: ${engine.map(_ => engineUri()).getOrElse("(none, set --engine to enable /engine API)")}${config.engineUrl.map(u => s" url=${u}").getOrElse("")}")
         // skel Server.parseUriPath only uses 3 path segments (api/v1/wf) for the prefix and drops
         // the 4th ("ext"), so re-add it via Routeable.withSuffix -> /api/v1/wf/ext/{schema,config,graf,engine}
         run(config.host, config.port, config.uri, c,

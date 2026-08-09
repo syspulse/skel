@@ -78,11 +78,12 @@ object WorkflowAssembly {
       started <- engine.start(ns, workflowType = workflowType, workflowId = workflowId, taskQueue = taskQueue, input = input, memo = memo)
       // record the runtime binding + where to observe it: engine name, the namespace the run lives in
       // (meta.ns), the task queue it was started on (meta.tq), and a deep-link into the engine panel
-      uri      = engine.panelUri(workflowType, started.workflowId, started.runtimeId)
+      // (meta.url — HTTPS panel when --engine.url is set, else URL derived from the gRPC --engine URI)
+      url      = engine.panelUri(workflowType, started.workflowId, started.runtimeId)
       meta     = cfg.meta.getOrElse(Map.empty[String, Any]) +
                    ("wid" -> started.workflowId) + ("engine" -> engine.name) + ("ns" -> started.namespace) +
                    ("tq" -> taskQueue) ++
-                   uri.map("uri" -> _).toMap
+                   url.map("url" -> _).toMap
       saved   <- store.addConfig(cfg.copy(xid = Some(started.runtimeId), meta = Some(meta), updatedAt = System.currentTimeMillis()))
     } yield saved
   }

@@ -44,7 +44,7 @@ interface EditorState {
   icon?: string;
   status?: string;   // WorkflowConfig runtime status (updated by Resolve)
   xid?: string;      // WorkflowConfig engine runtime id (updated by Resolve)
-  engineUri?: string; // WorkflowConfig meta.uri: deep-link to the run on the engine panel
+  engineUrl?: string; // WorkflowConfig meta.url: deep-link to the run on the engine panel
   engine?: string;    // WorkflowConfig meta.engine: engine name (selects the panel-link icon)
   graf: WorkflowGraf;
 }
@@ -133,7 +133,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
         setEditor({ kind, id, title: v.schema.title, name: v.schema.name, icon: v.schema.icon, graf: v.schema.graph });
       } else {
         const v = await api.getConfig(token, id);
-        setEditor({ kind, id, title: v.config.title, name: v.config.name, icon: v.config.icon, status: v.config.status, xid: v.config.xid, engineUri: v.config.meta?.uri ? String(v.config.meta.uri) : undefined, engine: v.config.meta?.engine ? String(v.config.meta.engine) : undefined, graf: v.config.graph });
+        setEditor({ kind, id, title: v.config.title, name: v.config.name, icon: v.config.icon, status: v.config.status, xid: v.config.xid, engineUrl: v.config.meta?.url ? String(v.config.meta.url) : undefined, engine: v.config.meta?.engine ? String(v.config.meta.engine) : undefined, graf: v.config.graph });
       }
       onActiveInstanceChange?.({ kind, id }); // keep the SideNav submenu highlight in sync with the editor
     } catch (e) {
@@ -153,7 +153,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
       const rc = res.configs.find((x) => x.id === c.id) ?? res.configs[0];
       if (rc) {
         setConfigs((cur) => cur.map((x) => (x.id === rc.id ? { ...x, status: rc.status, xid: rc.xid, meta: rc.meta } : x)));
-        setEditor((e) => (e && e.kind === KIND.workflowConfig && e.id === rc.id ? { ...e, status: rc.status, xid: rc.xid, engineUri: rc.meta?.uri ? String(rc.meta.uri) : e.engineUri, engine: rc.meta?.engine ? String(rc.meta.engine) : e.engine } : e));
+        setEditor((e) => (e && e.kind === KIND.workflowConfig && e.id === rc.id ? { ...e, status: rc.status, xid: rc.xid, engineUrl: rc.meta?.url ? String(rc.meta.url) : e.engineUrl, engine: rc.meta?.engine ? String(rc.meta.engine) : e.engine } : e));
       }
       const map: Record<number, string> = {};
       const actMap: Record<number, string> = {};
@@ -479,7 +479,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           saving={saving}
           status={editor.status}
           xid={editor.xid}
-          engineUri={editor.engineUri}
+          engineUrl={editor.engineUrl}
           engine={editor.engine}
           detectorStatus={resolvedDetStatus}
           detectorActivityId={resolvedDetActivity}

@@ -162,19 +162,19 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
           <SliderFieldRow label={t('workflow.fields.name')}>
             <input className="field-inline" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
           </SliderFieldRow>
-          {/* xid: engine runtime id, right after the name; [->] opens the run on the engine panel (meta.uri) */}
+          {/* xid: engine runtime id, right after the name; [->] opens the run on the engine panel (meta.url) */}
           {!addMode && kind === KIND.workflowConfig && (
             <SliderFieldRow label="xid">
               <div className="flex-1 flex items-center gap-1">
                 <input className="field-inline flex-1" value={form.xid} onChange={(e) => setForm((f) => ({ ...f, xid: e.target.value }))} />
-                {config?.meta?.uri ? (() => {
+                {config?.meta?.url ? (() => {
                   const EngineIcon = engineIcon(config.meta.engine ? String(config.meta.engine) : undefined);
                   return (
                     <button
                       type="button"
                       className="p-1 rounded shrink-0 border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                      title={t('workflow.openEngine', { uri: String(config.meta!.uri) })}
-                      onClick={() => window.open(String(config.meta!.uri), '_blank', 'noopener,noreferrer')}
+                      title={t('workflow.openEngine', { uri: String(config.meta!.url) })}
+                      onClick={() => window.open(String(config.meta!.url), '_blank', 'noopener,noreferrer')}
                     >
                       <EngineIcon size={14} />
                     </button>

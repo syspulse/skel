@@ -1,5 +1,7 @@
 package io.syspulse.skel.wf.ext.engine
 
+import scala.concurrent.ExecutionContext
+
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -7,6 +9,8 @@ import io.hacken.ext.wf.{WorkflowGraf, WorkflowNode, WorkflowLink, WorkflowConfi
 import io.hacken.ext.detector.{DetectorConfig, DetectorConfigContract}
 
 class EngineMapperSpec extends AnyWordSpec with Matchers {
+
+  implicit private val ec: ExecutionContext = ExecutionContext.global
 
   // ---- fixtures --------------------------------------------------------------
   private def dc(id: Int, name: String): DetectorConfig = {
@@ -104,6 +108,20 @@ class EngineMapperSpec extends AnyWordSpec with Matchers {
       Engine.scheme("temporal://") shouldBe "temporal"
       Engine.isEngineUri("temporal://") shouldBe true
       Engine.isEngineUri("nope") shouldBe false
+    }
+  }
+
+  "Engine.apply / panelUri" should {
+    "use --engine.url as the panel base when set (HTTPS), else fall back to URI-derived UI" in {
+      val withUrl = Engine("temporal://127.0.0.1:7233/default", Some("https://temporal.example.com"))
+      withUrl.url shouldBe Some("https://temporal.example.com")
+      withUrl.panelUri("PoR-Flow", "wid-1", "rid-1") shouldBe
+        Some("https://temporal.example.com/namespaces/default/workflows/wid-1/rid-1")
+
+      val fromUri = Engine("temporal://127.0.0.1:7233/default")
+      fromUri.url shouldBe None
+      fromUri.panelUri("PoR-Flow", "wid-1", "rid-1") shouldBe
+        Some("http://127.0.0.1:8233/namespaces/default/workflows/wid-1/rid-1")
     }
   }
 }

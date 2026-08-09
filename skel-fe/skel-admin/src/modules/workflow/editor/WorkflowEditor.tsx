@@ -37,7 +37,7 @@ export interface WorkflowEditorProps {
   saving?: boolean;
   status?: string;                        // WorkflowConfig runtime status (shown in Panel 1)
   xid?: string;                           // WorkflowConfig engine runtime id (shown in Panel 1)
-  engineUri?: string;                     // WorkflowConfig meta.uri: deep-link to the run on the engine panel
+  engineUrl?: string;                     // WorkflowConfig meta.url: deep-link to the run on the engine panel
   engine?: string;                        // WorkflowConfig meta.engine: engine name (selects the panel-link icon)
   detectorStatus?: Record<number, string>; // cid -> DetectorConfig status from /resolve (overlaid on nodes)
   detectorActivityId?: Record<number, string>; // cid -> DetectorConfig.meta.activity_id from /resolve (overlaid on nodes)
@@ -65,7 +65,7 @@ const EDGE_COLOR = '#64748b';
 
 function WorkflowEditorInner(props: WorkflowEditorProps) {
   const { t } = useTranslation();
-  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, engineUri, engine, detectorStatus, detectorActivityId, resolving, onResolve, onValidateCid, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onCreateConfig, onStart, onStop, onCancel, onDestroy, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
+  const { id, name, icon, kind, graf, detectorSchemas, detectorConfigs, saving, status, xid, engineUrl, engine, detectorStatus, detectorActivityId, resolving, onResolve, onValidateCid, tracking, pollCount = 0, freq = 3000, onFreqChange, onToggleTrack, onSave, onCreateConfig, onStart, onStop, onCancel, onDestroy, onBack, onOpenDetails, onOpenDetectorSchema, onOpenDetectorConfig } = props;
 
   const initial = useMemo(() => grafToRF(graf), [graf]);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<RFNodeData>>(initial.nodes);
@@ -224,7 +224,7 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
   return (
     // pin to the content area (below the 48px top bar, right of the 176px side nav) so the canvas
     // fills exactly - no page scroll and no empty space below it.
-    <div className="fixed top-12 left-44 right-0 bottom-0 flex flex-col bg-card z-10">
+    <div className="fixed top-12 left-56 right-0 bottom-0 flex flex-col bg-card z-10">
       {/* Panel 1: identity */}
       <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-card shrink-0">
         <div className="min-w-0 flex-1">
@@ -255,15 +255,15 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
                 {xid}
               </span>
             ) : null}
-            {/* open this run on the engine web panel (meta.uri); icon per meta.engine, else [->] */}
-            {kind === KIND.workflowConfig && engineUri ? (() => {
+            {/* open this run on the engine web panel (meta.url); icon per meta.engine, else [->] */}
+            {kind === KIND.workflowConfig && engineUrl ? (() => {
               const EngineIcon = engineIcon(engine);
               return (
                 <button
                   type="button"
                   className="p-0.5 rounded shrink-0 border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                  title={t('workflow.openEngine', { uri: engineUri })}
-                  onClick={(e) => { e.stopPropagation(); window.open(engineUri, '_blank', 'noopener,noreferrer'); }}
+                  title={t('workflow.openEngine', { uri: engineUrl })}
+                  onClick={(e) => { e.stopPropagation(); window.open(engineUrl, '_blank', 'noopener,noreferrer'); }}
                 >
                   <EngineIcon size={14} />
                 </button>

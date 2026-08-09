@@ -71,10 +71,11 @@ function WorkflowNav({ active, onOpenHome, onOpenInstance, selected, refreshKey 
   const load = useCallback(async () => {
     try {
       const [s, c] = await Promise.all([wfApi.listSchemas(token), wfApi.listConfigs(token)]);
-      setItems([
-        ...(s.schemas ?? []).map((x) => ({ kind: KIND.workflowSchema, id: x.id, name: x.name, title: x.title })),
-        ...(c.configs ?? []).map((x) => ({ kind: KIND.workflowConfig, id: x.id, name: x.name, title: x.title })),
-      ]);
+      // each group (WorkflowSchema, then WorkflowConfig) sorted by id ascending
+      const byId = (a: WorkflowInstanceRef, b: WorkflowInstanceRef) => a.id - b.id;
+      const schemas = (s.schemas ?? []).map((x) => ({ kind: KIND.workflowSchema, id: x.id, name: x.name, title: x.title })).sort(byId);
+      const configs = (c.configs ?? []).map((x) => ({ kind: KIND.workflowConfig, id: x.id, name: x.name, title: x.title })).sort(byId);
+      setItems([...schemas, ...configs]);
     } catch {
       setItems([]);
     }
@@ -124,10 +125,10 @@ function WorkflowNav({ active, onOpenHome, onOpenInstance, selected, refreshKey 
                     : 'text-nav-fg-muted hover:bg-nav-active hover:text-nav-fg border-l-4 border-transparent'}`}
                 title={`${label} (${it.kind.replace('workflow-', '')})`}
               >
-                <span className="truncate flex-1">{label}</span>
                 <span className="text-[9px] px-1 py-0.5 rounded shrink-0" style={idLabelStyle(it.kind)}>
                   {it.id}
                 </span>
+                <span className="truncate flex-1">{label}</span>
               </button>
             );
           })}
@@ -139,7 +140,7 @@ function WorkflowNav({ active, onOpenHome, onOpenInstance, selected, refreshKey 
 
 export function SideNav({ activePage, onNavigate, onOpenWorkflowHome, onOpenWorkflowInstance, selectedWorkflowInstance, workflowRefreshKey }: SideNavProps) {
   return (
-    <nav className="fixed top-12 left-0 w-44 bottom-0 bg-nav text-nav-fg flex flex-col pt-1 z-40 border-r border-border shadow-sm overflow-y-auto">
+    <nav className="fixed top-12 left-0 w-56 bottom-0 bg-nav text-nav-fg flex flex-col pt-1 z-40 border-r border-border shadow-sm overflow-y-auto">
       <div className="flex-1">
         {TOP_ITEMS.map((item) => (
           <NavButton key={item.id} item={item} active={activePage === item.id} onNavigate={onNavigate} />

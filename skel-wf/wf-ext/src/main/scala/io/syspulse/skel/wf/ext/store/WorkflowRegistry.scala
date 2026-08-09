@@ -252,7 +252,7 @@ object WorkflowRegistry {
     f.map {
       case Some(w) =>
         // log the Engine response so a Resolve is traceable (what the engine actually returned)
-        log.info(s"WorkflowConfig(${c.id}): RESOLVED: wid=${w.id}, rid=${w.runtimeId}, type=${w.name}, status=${w.status}, ns=${w.namespace}, activities=${w.allActivities.size}, children=${w.children.size}, meta=${w.meta}")
+        log.info(s"WorkflowConfig(${c.id}): RESOLVED: wid=${w.id}, rid=${w.runtimeId}, type=${w.name}, status=${w.status}, ns=${w.namespace}, activities=${w.allActivities.size}")
         Right(w)
       case None    =>
         val reason = s"runtime not found: (mode=${mode}, ns=${ns.getOrElse("*")})"

@@ -47,7 +47,7 @@ export function TopBar({ onOpenSettingsTab }: TopBarProps) {
   return (
     <>
       <header className="fixed top-0 left-0 right-0 h-12 bg-header text-header-fg flex items-center px-3 z-50 shadow-sm border-b border-border">
-        <div className="w-44 flex-shrink-0 min-w-0">
+        <div className="w-56 flex-shrink-0 min-w-0">
           <AppBrandMark
             appName={appName}
             logoUrl={logoUrl}
