@@ -8,7 +8,7 @@ import io.syspulse.skel
 import io.syspulse.skel.config._
 import io.syspulse.skel.auth.jwt.AuthJwt
 
-import io.syspulse.skel.wf.ext.store.{WorkflowStore, WorkflowStoreMem, WorkflowStoreDir, WorkflowStoreDB, WorkflowRegistry, WorkflowAssembly}
+import io.syspulse.skel.wf.ext.store.{WorkflowStore, WorkflowStoreMem, WorkflowStoreDir, WorkflowStoreDB, WorkflowStoreMany, WorkflowRegistry, WorkflowAssembly}
 import io.syspulse.skel.wf.ext.server.WorkflowRoutes
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
 import io.syspulse.skel.wf.ext.engine.{Engine, EngineMapper, EngineWorkflow, EngineStatus, WorkflowRuntimeView, TrackMapper}
@@ -201,6 +201,8 @@ object App extends skel.Server {
       case "postgres" :: Nil             => new WorkflowStoreDB(c, "postgres://postgres")
       case "postgres" :: db :: Nil       => new WorkflowStoreDB(c, s"postgres://${db}")
       case "jdbc" :: _                   => new WorkflowStoreDB(c, uri)
+      // many://a,b,c -> fold over the sub-stores, first success wins (fail only if all fail)
+      case "many" :: _                   => WorkflowStoreMany.resolve(uri, getStore)
       case _ =>
         Console.err.println(s"Unknown datastore: '${uri}', using mem://")
         new WorkflowStoreMem()

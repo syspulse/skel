@@ -19,7 +19,7 @@ import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineActivity, E
 
 /** Stub Engine: UUID id -> getRuntime (fixed run), workflowId -> getRuntimeByWorkflowId (latest run). */
 class StubEngine extends Engine {
-  val name = Engine.TEMPORAL
+  val name = Engine.ENGINE_TEMPORAL
   private val acts = Seq(EngineActivity("a1", "ProofOfOwnership", EngineActivity.KIND_ACTIVITY, EngineStatus.COMPLETED))
   // records the last start() call so tests can assert what the API sent to the Engine
   @volatile var lastStart: Option[(String, String, String, Option[String])] = None // (type, wid, taskQueue, input)
@@ -31,7 +31,7 @@ class StubEngine extends Engine {
     Future.successful(Some(EngineWorkflow(id = "PoR-Wf-1", runtimeId = runtimeId, name = "PoR-Flow", status = "RUNNING", namespace = "default", activities = acts)))
   def getRuntimeByWorkflowId(ns: Option[String], workflowId: String): Future[Option[EngineWorkflow]] =
     Future.successful(Some(EngineWorkflow(id = workflowId, runtimeId = "run-xyz", name = "PoR-Flow", status = "RUNNING", namespace = "default", activities = acts)))
-  override def start(ns: Option[String], workflowType: String, workflowId: String, taskQueue: String, input: Option[String]): Future[EngineStart] = {
+  override def start(ns: Option[String], workflowType: String, workflowId: String, taskQueue: String, input: Option[String], memo: Map[String, String] = Map.empty): Future[EngineStart] = {
     lastStart = Some((workflowType, workflowId, taskQueue, input))
     lastRunId = s"run-started-${runCounter.incrementAndGet()}" // unique per start -> unique xid (avoids RID resolve collisions)
     Future.successful(EngineStart(workflowId, lastRunId, ns.getOrElse("default")))

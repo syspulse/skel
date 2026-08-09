@@ -20,12 +20,12 @@ import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineStart}
 /** Engine whose start SUCCEEDS but whose new run is not yet visible (getRuntime -> None): the
  *  classic visibility-lag window right after a start. */
 class StartingEngine extends Engine {
-  val name = Engine.TEMPORAL
+  val name = Engine.ENGINE_TEMPORAL
   def namespaces(): Future[Seq[String]] = Future.successful(Seq("default"))
   def getRuntimes(ns: Option[String], pageSize: Int): Future[Seq[EngineWorkflow]] = Future.successful(Seq())
   def getRuntime(ns: Option[String], runtimeId: String): Future[Option[EngineWorkflow]] = Future.successful(None)
   def getRuntimeByWorkflowId(ns: Option[String], workflowId: String): Future[Option[EngineWorkflow]] = Future.successful(None)
-  override def start(ns: Option[String], workflowType: String, workflowId: String, taskQueue: String, input: Option[String]): Future[EngineStart] =
+  override def start(ns: Option[String], workflowType: String, workflowId: String, taskQueue: String, input: Option[String], memo: Map[String, String] = Map.empty): Future[EngineStart] =
     Future.successful(EngineStart(workflowId, "run-new-1", ns.getOrElse("default")))
   def close(): Unit = ()
 }

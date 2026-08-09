@@ -18,7 +18,7 @@ import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineStatus}
 
 /** Engine that has NO matching runtime (everything is obsolete / not present). */
 class ObsoleteEngine extends Engine {
-  val name = Engine.TEMPORAL
+  val name = Engine.ENGINE_TEMPORAL
   def namespaces(): Future[Seq[String]] = Future.successful(Seq("default"))
   def getRuntimes(ns: Option[String], pageSize: Int): Future[Seq[EngineWorkflow]] = Future.successful(Seq())
   def getRuntime(ns: Option[String], runtimeId: String): Future[Option[EngineWorkflow]] = Future.successful(None)

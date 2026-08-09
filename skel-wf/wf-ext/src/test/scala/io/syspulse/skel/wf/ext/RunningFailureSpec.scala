@@ -20,7 +20,7 @@ import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineActivity, E
 /** Engine whose run is RUNNING but has a failing (retrying) task: the TemporalEngine folds a pending
  *  activity's lastFailure into status=RUNNING_FAILED + meta("err"). This stub simulates that result. */
 class FailureEngine extends Engine {
-  val name = Engine.TEMPORAL
+  val name = Engine.ENGINE_TEMPORAL
   def namespaces(): Future[Seq[String]] = Future.successful(Seq("default"))
   def getRuntimes(ns: Option[String], pageSize: Int): Future[Seq[EngineWorkflow]] = Future.successful(Seq())
   def getRuntime(ns: Option[String], runtimeId: String): Future[Option[EngineWorkflow]] =

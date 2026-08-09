@@ -76,10 +76,12 @@ object WorkflowAssembly {
     val memo = Map("cid" -> cfg.id.toString, "sid" -> cfg.sid.toString)
     for {
       started <- engine.start(ns, workflowType = workflowType, workflowId = workflowId, taskQueue = taskQueue, input = input, memo = memo)
-      // record the runtime binding + where to observe it: engine name and a deep-link into the engine panel
+      // record the runtime binding + where to observe it: engine name, the namespace the run lives in
+      // (meta.ns), and a deep-link into the engine panel
       uri      = engine.panelUri(workflowType, started.workflowId, started.runtimeId)
       meta     = cfg.meta.getOrElse(Map.empty[String, Any]) +
-                   ("wid" -> started.workflowId) + ("engine" -> engine.name) ++ uri.map("uri" -> _).toMap
+                   ("wid" -> started.workflowId) + ("engine" -> engine.name) + ("ns" -> started.namespace) ++
+                   uri.map("uri" -> _).toMap
       saved   <- store.addConfig(cfg.copy(xid = Some(started.runtimeId), meta = Some(meta), updatedAt = System.currentTimeMillis()))
     } yield saved
   }
@@ -88,6 +90,10 @@ object WorkflowAssembly {
   private def workflowIdOf(cfg: WorkflowConfig): String =
     cfg.meta.flatMap(_.get("wid")).map(_.toString).filter(_.nonEmpty).getOrElse(cfg.name)
 
+  /** Namespace the config's run lives in: meta.ns (set at start), else None (engine default / all). */
+  def nsOf(cfg: WorkflowConfig): Option[String] =
+    cfg.meta.flatMap(_.get("ns")).map(_.toString).filter(_.nonEmpty)
+
   /**
    * STOP (Temporal terminate) the config's running workflow (by workflowId + xid runId), then set
    * WorkflowConfig.status = TERMINATED and persist. `reason` is forwarded to the Engine.
@@ -95,7 +101,7 @@ object WorkflowAssembly {
   def stop(cfg: WorkflowConfig, engine: Engine, store: WorkflowStore, reason: Option[String], ns: Option[String] = None)
           (implicit ec: ExecutionContext): Future[WorkflowConfig] =
     for {
-      _ <- engine.terminate(ns, workflowIdOf(cfg), cfg.xid, reason)
+      _ <- engine.terminate(ns.orElse(nsOf(cfg)), workflowIdOf(cfg), cfg.xid, reason)
       _ <- store.updateConfigStatus(cfg.id, WorkflowStatus.TERMINATED)
     } yield cfg.copy(status = WorkflowStatus.TERMINATED, updatedAt = System.currentTimeMillis())
 
@@ -106,7 +112,7 @@ object WorkflowAssembly {
   def cancel(cfg: WorkflowConfig, engine: Engine, store: WorkflowStore, reason: Option[String], ns: Option[String] = None)
             (implicit ec: ExecutionContext): Future[WorkflowConfig] =
     for {
-      _ <- engine.cancel(ns, workflowIdOf(cfg), cfg.xid, reason)
+      _ <- engine.cancel(ns.orElse(nsOf(cfg)), workflowIdOf(cfg), cfg.xid, reason)
       _ <- store.updateConfigStatus(cfg.id, WorkflowStatus.CANCELED)
     } yield cfg.copy(status = WorkflowStatus.CANCELED, updatedAt = System.currentTimeMillis())
 

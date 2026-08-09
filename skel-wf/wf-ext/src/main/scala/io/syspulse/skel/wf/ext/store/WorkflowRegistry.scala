@@ -196,6 +196,10 @@ object WorkflowRegistry {
   private def configWid(c: WorkflowConfig): Option[String] =
     c.meta.flatMap(_.get("wid")).map(_.toString)
 
+  /** Namespace the config's run lives in: meta("ns") (set at start), else None (engine default / all). */
+  private def configNs(c: WorkflowConfig): Option[String] =
+    c.meta.flatMap(_.get("ns")).map(_.toString).filter(_.nonEmpty)
+
   /**
    * Resolve WorkflowConfig(s) by runtimeId or workflowId (same detection as assembly-track):
    *   - `rid` -> match WorkflowConfig.xid          (a specific run)
@@ -232,42 +236,61 @@ object WorkflowRegistry {
    *              None (we NEVER fall back to the workflow's latest run).
    *   - `wid` -> the LATEST run of the WorkflowId (meta.wid, else name).
    */
-  private def resolveRuntime(e: Engine, c: WorkflowConfig, mode: String)(implicit ec: ExecutionContext): Future[Option[EngineWorkflow]] = {
+  private def resolveRuntime(e: Engine, c: WorkflowConfig, mode: String)(implicit ec: ExecutionContext): Future[Either[String, EngineWorkflow]] = {
+    // query the namespace the run lives in (meta.ns), else None -> the engine searches all namespaces
+    val ns = configNs(c)
     val f = mode match {
       case RESOLVE_WID =>
         configWid(c).orElse(Option(c.name).filter(_.nonEmpty))
-          .map(wid => e.getRuntimeByWorkflowId(None, wid)).getOrElse(Future.successful(None))
+          .map(wid => e.getRuntimeByWorkflowId(ns, wid)).getOrElse(Future.successful(None))
       case _ /* RESOLVE_RID */ =>
-        c.xid.map(rid => e.getRuntime(None, rid)).getOrElse(Future.successful(None))
+        c.xid.map(rid => e.getRuntime(ns, rid)).getOrElse(Future.successful(None))
     }
-    // engine failures are logged at the source (TemporalEngine.call); add request-level context here.
-    // NOTE: a failure degrades to None -> the config resolves as UNRESOLVED (see enrichWithEngine).
-    f.recover { case ex =>
-      log.warn(s"resolveRuntime: engine query failed for WorkflowConfig(${c.id}) mode=${mode} -> UNRESOLVED: ${ex.getMessage}")
-      None
+    // Right(w) -> found; Left(reason) -> engine returned nothing (Temporal archives non-RUNNING
+    // workflows, so a closed/archived run - or one not yet visible - resolves to None), or the query
+    // failed. In BOTH Left cases the caller keeps the stored status and records `reason` in meta.err.
+    f.map {
+      case Some(w) =>
+        // log the Engine response so a Resolve is traceable (what the engine actually returned)
+        log.info(s"WorkflowConfig(${c.id}): RESOLVED: wid=${w.id}, rid=${w.runtimeId}, type=${w.name}, status=${w.status}, ns=${w.namespace}, activities=${w.allActivities.size}, children=${w.children.size}, meta=${w.meta}")
+        Right(w)
+      case None    =>
+        val reason = s"runtime not found: (mode=${mode}, ns=${ns.getOrElse("*")})"
+        // NOT an error, but the caller must still SEE that the config could not be resolved on the engine
+        log.warn(s"WorkflowConfig(${c.id}): NOT RESOLVED: ${reason}")
+        Left(reason)
+    }.recover { case ex =>
+      // an ENGINE error is NOT the same as "archived/not found": log it at ERROR (with stack) so it is
+      // never hidden, and surface the real reason in meta.err (status is kept unchanged by the caller).
+      log.error(s"WorkflowConfig(${c.id}): FAILED:  mode=${mode}, ns=${ns.getOrElse("*")}: ${ex.getMessage}", ex)
+      Left(s"engine query failed: ${ex.getMessage}")
     }
   }
 
   /**
    * Take the statuses LIVE from the Engine (the stored/cached statuses are never trusted): map each
-   * config's runtime state onto its status and its DetectorConfigs' statuses. When the runtime cannot
-   * be resolved on the Engine (obsolete/removed id), the WorkflowConfig AND all its DetectorConfigs
-   * are marked `UNRESOLVED`. No-op only when no Engine is configured.
+   * config's runtime state onto its status and its DetectorConfigs' statuses. No-op only when no Engine
+   * is configured.
+   *
+   * ENGINE RETURNS NOTHING (Temporal archives non-RUNNING workflows, so a closed/archived run resolves
+   * to None - as does a transient query failure): the WorkflowConfig and its DetectorConfigs KEEP their
+   * stored status (NOT flipped to UNRESOLVED) and only `meta.err` is set to the reason.
    *
    * PERSISTENCE (Resolve writes the Engine truth back into the store):
-   *   - WorkflowConfig.status is updated in the store whenever it differs from the Engine value (any store).
-   *   - DetectorConfig.status is updated only for stores that allow it (`canUpdateDetectorConfig` -
-   *     WorkflowStoreMem / WorkflowStoreDir). The DB store is NOT written for now.
+   *   - WorkflowConfig is persisted when its status OR meta.err/meta.result changed (status change alone
+   *     uses the cheap status-only UPDATE; a meta change needs the full config write).
+   *   - DetectorConfig.status is updated (status-only) whenever it differs.
    */
   private def enrichWithEngine(store: WorkflowStore, engine: Option[Engine], foundWithMode: Seq[(WorkflowConfig, String)], dets: Map[String, DetectorConfig])(implicit ec: ExecutionContext): Future[WorkflowConfigs] = {
     val found = foundWithMode.map(_._1)
+    
     engine match {
       case None => Future.successful(WorkflowConfigs(found, found.size.toLong, Some(dets)))
       case Some(e) =>
         val detectorsInt: Map[Int, DetectorConfig] = dets.map { case (k, v) => k.toInt -> v }
         Future.traverse(foundWithMode) { case (c, mode) =>
           resolveRuntime(e, c, mode).map {
-            case Some(w) =>
+            case Right(w) =>
               val view = EngineMapper.map(w, Some(c), detectorsInt)
               // cid -> (live status, matched engine activity id)
               val stepInfo = view.steps.flatMap(s => s.cid.map(_ -> (s.status, s.activityId))).toMap
@@ -279,10 +302,15 @@ object WorkflowRegistry {
               val base2 = w.meta.get("result").map(r => base1 + ("result" -> r)).getOrElse(base1)
               val meta = Option(base2).filter(_.nonEmpty)
               (c.copy(status = view.status, meta = meta), stepInfo)
-            case None =>
-              // runtime not present on the Engine -> the whole config (and every step) is UNRESOLVED
-              val cids = c.graph.nodes.values.flatMap(_.cid).toSeq
-              (c.copy(status = WorkflowStatus.UNRESOLVED), cids.map(_ -> (WorkflowStatus.UNRESOLVED, Option.empty[String])).toMap)
+            case Left(reason) =>
+              // engine returned nothing (archived/closed non-RUNNING run, or a query failure): DO NOT
+              // change WorkflowConfig/DetectorConfig status - only record the reason in meta.err. Emit
+              // each step's CURRENT status so the persistence diff is a no-op for the detectors.
+              val meta = Some(c.meta.getOrElse(Map.empty[String, Any]) + ("err" -> reason))
+              val keep = c.graph.nodes.values.flatMap(_.cid)
+                .map(cid => cid -> (detectorsInt.get(cid).map(_.status).getOrElse(WorkflowStatus.UNKNOWN), Option.empty[String]))
+                .toMap
+              (c.copy(meta = meta), keep) // status intentionally UNCHANGED
           }
         }.flatMap { results =>
           val newConfigs   = results.map(_._1)
@@ -296,17 +324,18 @@ object WorkflowRegistry {
           }
 
           // ---- persist the Engine truth back into the store (only when something changed) ----
-          // 1. WorkflowConfig: persist on status change OR when meta.result differs. A changed result
-          //    needs the full config write (updateConfigStatus is status-only); a pure status change
-          //    keeps the cheap status-only path (targeted UPDATE on the DB store).
-          def metaResult(c: WorkflowConfig): Option[String] = c.meta.flatMap(_.get("result")).map(_.toString)
-          val cfgUpdates: Seq[Future[_]] = newConfigs.zip(found).flatMap { case (nc, oc) =>
-            if (metaResult(nc) != metaResult(oc)) {
-              log.info(s"Resolve: WorkflowConfig(${nc.id}).status ${oc.status} -> ${nc.status} (+meta.result)")
-              Some(store.addConfig(nc.copy(updatedAt = System.currentTimeMillis())))
-            } else if (nc.status != oc.status) {
-              log.info(s"Resolve: WorkflowConfig(${nc.id}).status ${oc.status} -> ${nc.status}")
-              Some(store.updateConfigStatus(nc.id, nc.status))
+          // 1. WorkflowConfig: persist on status change OR when meta.err/meta.result differs. A changed
+          //    meta needs the full config write (updateConfigStatus is status-only); a pure status change
+          //    keeps the cheap status-only path (targeted UPDATE on the DB store). The archived case
+          //    (status unchanged, meta.err newly set) therefore takes the full-write branch.
+          def metaKey(c: WorkflowConfig, k: String): Option[String] = c.meta.flatMap(_.get(k)).map(_.toString)
+          val cfgUpdates: Seq[Future[_]] = newConfigs.zip(found).flatMap { case (wc, oc) =>
+            if (metaKey(wc, "result") != metaKey(oc, "result") || metaKey(wc, "err") != metaKey(oc, "err")) {
+              log.info(s"Resolve: WorkflowConfig(${wc.id}).status ${oc.status} -> ${wc.status} (meta err/result changed)")
+              Some(store.addConfig(wc.copy(updatedAt = System.currentTimeMillis())))
+            } else if (wc.status != oc.status) {
+              log.info(s"Resolve: WorkflowConfig(${wc.id}).status ${oc.status} -> ${wc.status}")
+              Some(store.updateConfigStatus(wc.id, wc.status))
             } else None
           }
           // 2. DetectorConfig.status - status-only update is implemented for every store (incl. DB)

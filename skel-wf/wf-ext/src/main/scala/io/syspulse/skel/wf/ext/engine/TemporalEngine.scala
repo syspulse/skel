@@ -257,13 +257,15 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
   }
 
   /** Find a workflow summary by RunId across the resolved namespaces. */
+  // NOTE: engine errors are NOT swallowed here - a failed query propagates (it must stay visible and be
+  // reported as an ERROR, never masked as "not found"). Only an EMPTY result means genuinely not found.
   private def findByRunId(namespace: Option[String], runId: String): Future[Option[EngineWorkflow]] =
     resolveNamespaces(namespace).flatMap { nss =>
       // query each namespace for RunId; return the first match
       def loop(rest: List[String]): Future[Option[EngineWorkflow]] = rest match {
         case Nil => Future.successful(None)
         case ns :: tail =>
-          listInNamespace(ns, s"RunId = '${runId}'", 1).recover { case _ => Seq.empty }.flatMap {
+          listInNamespace(ns, s"RunId = '${runId}'", 1).flatMap {
             case Seq(w, _*) => Future.successful(Some(w))
             case _          => loop(tail)
           }
@@ -279,12 +281,13 @@ class TemporalEngine(uri: String, maxChildDepth: Int = 3)(implicit ec: Execution
     }
 
   /** Find the LATEST run for a WorkflowId across the resolved namespaces (most recent startTime). */
+  // NOTE: engine errors are NOT swallowed here (see findByRunId) - a failed query propagates as an error.
   private def findByWorkflowId(namespace: Option[String], workflowId: String): Future[Option[EngineWorkflow]] =
     resolveNamespaces(namespace).flatMap { nss =>
       def loop(rest: List[String]): Future[Option[EngineWorkflow]] = rest match {
         case Nil => Future.successful(None)
         case ns :: tail =>
-          listInNamespace(ns, s"WorkflowId = '${workflowId}'", 100).recover { case _ => Seq.empty }.flatMap { ws =>
+          listInNamespace(ns, s"WorkflowId = '${workflowId}'", 100).flatMap { ws =>
             // a WorkflowId may have many runs (restarts) - pick the most recently started
             ws.sortBy(w => -w.startedAt.getOrElse(0L)).headOption match {
               case Some(w) => Future.successful(Some(w))

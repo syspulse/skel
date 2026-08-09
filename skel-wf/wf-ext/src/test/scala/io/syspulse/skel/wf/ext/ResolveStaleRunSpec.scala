@@ -22,7 +22,7 @@ import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineActivity, E
  * run. Resolving by the (obsolete) RunId must NOT report the latest run - it must be UNRESOLVED.
  */
 class StaleRunEngine extends Engine {
-  val name = Engine.TEMPORAL
+  val name = Engine.ENGINE_TEMPORAL
   private val acts = Seq(EngineActivity("a1", "a", EngineActivity.KIND_ACTIVITY, EngineStatus.COMPLETED))
   def namespaces(): Future[Seq[String]] = Future.successful(Seq("default"))
   def getRuntimes(ns: Option[String], pageSize: Int): Future[Seq[EngineWorkflow]] = Future.successful(Seq())
