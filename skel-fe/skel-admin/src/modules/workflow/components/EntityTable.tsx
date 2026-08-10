@@ -62,9 +62,9 @@ export function EntityTable({ rows, columns, selectedId, defaultIcon, timezone, 
       <thead>
         <tr className="bg-nav text-nav-fg">
           <th className={`w-10 ${TABLE_ICON_CELL}`} />
-          <th className={`w-10 ${TABLE_TH} text-left`}>{t('workflow.fields.id')}</th>
-          {showOwner && <th className={`w-10 ${TABLE_TH} text-left`}>oid</th>}
-          {showOwner && <th className={`w-10 ${TABLE_TH} text-left`}>pid</th>}
+          <th className={`w-16 ${TABLE_TH} text-left`}>{t('workflow.fields.id')}</th>
+          {showOwner && <th className={`w-16 ${TABLE_TH} text-left`}>oid</th>}
+          {showOwner && <th className={`w-16 ${TABLE_TH} text-left`}>pid</th>}
           <th className={`w-36 ${TABLE_TH} text-left`}>{t('workflow.fields.name')}</th>
           {columns.map((c) => (
             <th key={c.key} className={`${c.width ?? ''} ${TABLE_TH} text-left`}>{c.label}</th>

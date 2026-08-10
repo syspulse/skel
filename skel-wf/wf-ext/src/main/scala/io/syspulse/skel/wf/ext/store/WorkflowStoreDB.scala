@@ -36,9 +36,10 @@ import io.hacken.ext.detector._
 //                                                       -> OWNED by another product: NEVER created.
 //     These use the upstream schema: `timestamp` created_at/updated_at (mapped to/from epoch-ms),
 //     `text[]` tags/network_tags, jsonb columns detector_schema.schema/ui_schema/faq + detector.config.
-//     Mapped FLAT via DetectorRow / DetectorSchemaRow (no joins): detector.contract_id / schema_id
-//     are kept as ids only; DetectorConfigContract / DetectorConfigSchema / destinations are NOT
-//     populated from the DB (defaulted to ""/-1, see toDetectorConfig).
+//     Mapped FLAT via DetectorRow / DetectorSchemaRow: schema_id is kept as an id only, and
+//     DetectorConfigSchema (details) / destinations are NOT populated. DetectorConfigContract IS
+//     populated on READ via a LEFT JOIN to `contract` (+ `project` for tenant_id) - READ-ONLY: the
+//     contract/project tables are never written (see toDetectorConfig / DCONFIG_FROM).
 //
 // NOTE: Postgres-only (jsonb, ON CONFLICT, `col::text`, text[], timestamp arithmetic).
 // ============================================================================
@@ -115,6 +116,7 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   private def rLong(row: RowData, i: Int): Long = rNum(row, i).longValue
   private def rInt(row: RowData, i: Int): Int = rNum(row, i).intValue
   private def rIntOpt(row: RowData, i: Int): Option[Int] = { val v = row.get(i); if (v == null) None else Some(v.asInstanceOf[Number].intValue) }
+  private def rLongOpt(row: RowData, i: Int): Option[Long] = { val v = row.get(i); if (v == null) None else Some(v.asInstanceOf[Number].longValue) }
   private def pCsv(s: String): Seq[String] = Option(s).filter(_.nonEmpty).map(_.split(",").toSeq).getOrElse(Seq())
   private def pJsonbObj(s: String): Option[JsObject] = Option(s).filter(_.nonEmpty).map(_.parseJson.asJsObject)
   private def pTxtJson[T](s: String, r: JsonReader[T]): Option[T] = Option(s).filter(_.nonEmpty).map(_.parseJson.convertTo[T](r))
@@ -323,18 +325,32 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
     } yield WorkflowStore.PageDSchema(items, total)
 
   // ========================================================= DetectorConfig  [EXTERNAL table "detector"]
-  // Real columns use contract_id / schema_id FKs (NOT joined). The complex DetectorConfigContract /
-  // DetectorConfigSchema / DetectorConfigDestination are NOT populated (defaults ""/-1); only the FK
-  // ids are preserved (contract.id <- contract_id, schema.id <- schema_id) so writes stay valid.
+  // WRITE columns use contract_id / schema_id FKs only (DCONFIG_COLS). READ additionally LEFT JOINs the
+  // upstream `contract` and `project` tables to populate the FULL DetectorConfigContract - READ-ONLY:
+  // the contract/project tables are NEVER inserted/updated/deleted here.
+  //   contract.*        -> id, created_at, updated_at, project_id, chain_uid, implementation, address, name
+  //   project.tenant_id -> tenantId  (tenant_id lives on `project`, not `contract`)
+  //   proxyAddress is DEPRECATED and NOT a DB column: derived as `address` when `implementation` is set.
   private val DCONFIG_COLS = Seq("id","created_at","updated_at","status","contract_id","name","source","schema_id","tags","config")
+  // read: alias detector d; LEFT JOIN so a detector with an orphan/missing contract is still returned
+  private val DCONFIG_FROM =
+    s"$TABLE_DET_CONFIG d LEFT JOIN contract c ON d.contract_id = c.id LEFT JOIN project p ON c.project_id = p.id"
   private val DCONFIG_SEL  =
-    s"id,${tsRead("created_at")},${tsRead("updated_at")},status,contract_id,name,source,schema_id,array_to_string(tags,','),config::text"
+    s"d.id,${tsRead("d.created_at")},${tsRead("d.updated_at")},d.status,d.contract_id,d.name,d.source,d.schema_id," +
+    s"array_to_string(d.tags,','),d.config::text," +
+    s"c.project_id,p.tenant_id,c.name,${tsRead("c.created_at")},${tsRead("c.updated_at")}," +
+    s"c.chain_uid,c.implementation,c.address"
   private def rowDRow(row: RowData, u: Unit): DetectorRow = DetectorRow(
     id = rInt(row,0), createdAt = rLong(row,1), updatedAt = rLong(row,2), status = rStr(row,3),
     contractId = rInt(row,4), name = rStr(row,5), source = rStr(row,6), schemaId = rInt(row,7),
-    tags = pArr(row.getString(8)), config = pJsonbObj(rStr(row,9)))
+    tags = pArr(row.getString(8)), config = pJsonbObj(rStr(row,9)),
+    contractProjectId = rIntOpt(row,10).getOrElse(-1), contractTenantId = rIntOpt(row,11).getOrElse(-1),
+    contractName = rStrOpt(row,12).getOrElse(""),
+    contractCreatedAt = rLongOpt(row,13).getOrElse(0L), contractUpdatedAt = rLongOpt(row,14).getOrElse(0L),
+    contractChainUid = rStrOpt(row,15),
+    contractImplementation = rStrOpt(row,16), contractAddress = rStrOpt(row,17))
   private def rowDConfig(row: RowData, u: Unit): DetectorConfig = toDetectorConfig(rowDRow(row, u))
-  private def valsDConfig(dconf: DetectorConfig): Seq[String] = { // column order = DCONFIG_COLS
+  private def valsDConfig(dconf: DetectorConfig): Seq[String] = { // column order = DCONFIG_COLS (detector table only)
     val r = toDetectorRow(dconf)
     Seq(lLit(r.id), tsWrite(r.createdAt), tsWrite(r.updatedAt), q(r.status), lLit(r.contractId), q(r.name), q(r.source), lLit(r.schemaId), pgArr(r.tags), jsonbObjReq(r.config))
   }
@@ -356,9 +372,9 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   // status-only update on the external `detector` table (single column + updated_at timestamp)
   override def updateDConfStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
     execUpdateInt(s"UPDATE $TABLE_DET_CONFIG SET status=${q(status)}, updated_at=${tsWrite(System.currentTimeMillis())} WHERE id=$id")
-  def getDConf(id: Int): Future[Option[DetectorConfig]] = query(s"SELECT $DCONFIG_SEL FROM $TABLE_DET_CONFIG WHERE id=$id", rowDConfig).map(_.headOption)
+  def getDConf(id: Int): Future[Option[DetectorConfig]] = query(s"SELECT $DCONFIG_SEL FROM $DCONFIG_FROM WHERE d.id=$id", rowDConfig).map(_.headOption)
   def delDConf(id: Int): Future[Int] = delById(TABLE_DET_CONFIG, id, "DetectorConfig")
-  def allDConfs: Future[Seq[DetectorConfig]] = query(s"SELECT $DCONFIG_SEL FROM $TABLE_DET_CONFIG ORDER BY id", rowDConfig)
+  def allDConfs: Future[Seq[DetectorConfig]] = query(s"SELECT $DCONFIG_SEL FROM $DCONFIG_FROM ORDER BY d.id", rowDConfig)
   def sizeDConfs: Future[Long] = countOf(TABLE_DET_CONFIG)
   override def nextDConfId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_DET_CONFIG)
   // External `detector` table has no oid/pid columns - filter in memory after load (Mem/Dir persist them).
@@ -382,13 +398,15 @@ object WorkflowStoreDB {
     faq: Option[Seq[DetectorSchemaFaq]], tags: Seq[String], networkTags: Seq[String],
     schema: Option[JsObject], uiSchema: Option[JsObject])
   // detector: uses contract_id / schema_id FKs instead of nested objects.
+  // contract* are populated READ-ONLY via a LEFT JOIN (contract + project); they are NEVER written back.
+  //   contractProjectId <- contract.project_id ;  contractTenantId <- project.tenant_id ;  the rest <- contract.*
   case class DetectorRow(
     id: Int, createdAt: Long, updatedAt: Long, status: String, contractId: Int, name: String,
-    source: String, schemaId: Int, tags: Seq[String], config: Option[JsObject])
-
-  // DetectorConfigContract / DetectorConfigSchema / DetectorConfigDestination are NOT sourced from
-  // the DB (no joins). Only the FK ids are preserved; the rest is defaulted (-1 / "").
-  private val EMPTY_CONTRACT = DetectorConfigContract(-1, 0L, 0L, -1, -1, None, None, None, None, "")
+    source: String, schemaId: Int, tags: Seq[String], config: Option[JsObject],
+    contractProjectId: Int = -1, contractTenantId: Int = -1, contractName: String = "",
+    contractCreatedAt: Long = 0L, contractUpdatedAt: Long = 0L,
+    contractChainUid: Option[String] = None, contractProxyAddress: Option[String] = None,
+    contractImplementation: Option[String] = None, contractAddress: Option[String] = None)
 
   def toDetectorSchema(r: DetectorSchemaRow): DetectorSchema =
     DetectorSchema(r.id, r.createdAt, r.updatedAt, r.status, r.name, r.version,
@@ -396,11 +414,25 @@ object WorkflowStoreDB {
 
   def toDetectorConfig(r: DetectorRow): DetectorConfig =
     DetectorConfig(r.id, r.createdAt, r.updatedAt, r.status,
-      contract = EMPTY_CONTRACT.copy(id = r.contractId),
+      // full contract read (LEFT JOIN contract + project); tenantId comes from project.tenant_id
+      contract = DetectorConfigContract(
+        id = r.contractId, createdAt = r.contractCreatedAt, updatedAt = r.contractUpdatedAt,
+        projectId = r.contractProjectId, tenantId = r.contractTenantId,
+        chainUid = r.contractChainUid,
+        // proxyAddress is deprecated and not stored: it is `address` when an implementation address exists
+        proxyAddress = if (r.contractImplementation.exists(_.trim.nonEmpty)) r.contractAddress else None,
+        implementation = r.contractImplementation, address = r.contractAddress,
+        name = r.contractName),
       schema = Some(DetectorConfigSchema(r.schemaId, 0L, 0L, "", "", "", None)),
       name = r.name, source = r.source, tags = r.tags, config = r.config, destinations = Seq())
 
+  // WRITE mapping: only the `detector` table columns (contract_id FK). The contract* fields are carried
+  // for completeness but are NEVER written (see DCONFIG_COLS / valsDConfig) - the contract is read-only.
   def toDetectorRow(d: DetectorConfig): DetectorRow =
     DetectorRow(d.id, d.createdAt, d.updatedAt, d.status, d.contract.id, d.name, d.source,
-      d.schema.map(_.id).getOrElse(1), d.tags, d.config)
+      d.schema.map(_.id).getOrElse(1), d.tags, d.config,
+      contractProjectId = d.contract.projectId, contractTenantId = d.contract.tenantId, contractName = d.contract.name,
+      contractCreatedAt = d.contract.createdAt, contractUpdatedAt = d.contract.updatedAt,
+      contractChainUid = d.contract.chainUid, contractProxyAddress = d.contract.proxyAddress,
+      contractImplementation = d.contract.implementation, contractAddress = d.contract.address)
 }
