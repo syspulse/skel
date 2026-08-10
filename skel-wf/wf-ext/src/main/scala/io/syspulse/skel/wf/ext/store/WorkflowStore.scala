@@ -20,10 +20,33 @@ object WorkflowStore {
     xs.drop(from.max(0).toInt).take(size.max(0).toInt)
 
   /**
+   * Owner/project access filter for WorkflowConfig (string oid/pid fields).
+   *   - `oid = None`  -> ignore owner (admin); `Some(o)` -> entity.oid must be Some(o)
+   *   - `pid = None`  -> no project filter; `Some(p)` -> entity.pid must be Some(p)
+   */
+  def owned(entityOid: Option[String], entityPid: Option[String],
+            oid: Option[String], pid: Option[String]): Boolean =
+    oid.forall(o => entityOid.contains(o)) && pid.forall(p => entityPid.contains(p))
+
+  /**
+   * Owner/project access filter for DetectorConfig.
+   * oid -> `contract.tenantId`, pid -> `contract.projectId` (numeric string ids).
+   */
+  def ownedDConf(dconf: DetectorConfig, oid: Option[String], pid: Option[String]): Boolean =
+    oid.forall(o => o.toIntOption.contains(dconf.contract.tenantId)) &&
+    pid.forall(p => p.toIntOption.contains(dconf.contract.projectId))
+
+  /** Parse optional numeric oid/pid for DetectorConfigContract.tenantId / projectId. */
+  def dconfTenantId(oid: Option[String]): Int = oid.flatMap(_.toIntOption).getOrElse(0)
+  def dconfProjectId(pid: Option[String]): Int = pid.flatMap(_.toIntOption).getOrElse(0)
+
+  /**
    * Instantiate a DetectorConfig from a DetectorSchema (a config "of" that schema), placed under the
    * given `contractId` (the detector's `contract.id` -> `detector.contract_id` FK). Default 0.
+   * Optional oid/pid map to contract.tenantId / contract.projectId.
    */
-  def dconfOf(id: Int, dschema: DetectorSchema, contractId: Int = 0): DetectorConfig = {
+  def dconfOf(id: Int, dschema: DetectorSchema, contractId: Int = 0,
+              oid: Option[String] = None, pid: Option[String] = None): DetectorConfig = {
     val now = System.currentTimeMillis()
     DetectorConfig(
       id = id, 
@@ -34,8 +57,8 @@ object WorkflowStore {
         contractId, 
         now, 
         now, 
-        0, 
-        0, 
+        dconfProjectId(pid),
+        dconfTenantId(oid),
         None, 
         None, 
         None, 
@@ -96,14 +119,29 @@ trait WorkflowStore {
   def delWConf(id: Int): Future[Int]
   def allWConfs: Future[Seq[WorkflowConfig]]
   def sizeWConfs: Future[Long]
-  def listWConfs(from: Option[Long] = None, size: Option[Long] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageWConf] =
-    allWConfs.map { xs =>
+  /**
+   * List WorkflowConfigs filtered by optional `oid` / `pid`.
+   * `oid = None` skips owner match (admin); `pid = None` skips project filter.
+   */
+  def listWConfs(from: Option[Long] = None, size: Option[Long] = None,
+                 oid: Option[String] = None, pid: Option[String] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageWConf] =
+    allWConfs.map { all =>
+      val xs = all.filter(w => WorkflowStore.owned(w.oid, w.pid, oid, pid))
       val items = (from, size) match {
         case (Some(f), Some(s)) => WorkflowStore.page(xs, f, s)
         case _                  => xs
       }
       WorkflowStore.PageWConf(items, xs.size.toLong)
     }
+  /** Get by id; fails with ErrNotFound when oid/pid filter does not match. */
+  def getWConf(id: Int, oid: Option[String], pid: Option[String])(implicit ec: ExecutionContext): Future[WorkflowConfig] =
+    getWConf(id).flatMap { wconf =>
+      if (WorkflowStore.owned(wconf.oid, wconf.pid, oid, pid)) Future.successful(wconf)
+      else Future.failed(new io.syspulse.skel.ErrNotFound(s"WorkflowConfig: ${id}"))
+    }
+  /** Delete by id only when oid/pid filter matches. */
+  def delWConf(id: Int, oid: Option[String], pid: Option[String])(implicit ec: ExecutionContext): Future[Int] =
+    getWConf(id, oid, pid).flatMap(_ => delWConf(id))
   // owner can have many configs; xid points to a single runtime instance (unique)
   def findWConfByOid(oid: String): Future[Seq[WorkflowConfig]]
   def findWConfByXid(xid: String): Future[Option[WorkflowConfig]]
@@ -138,7 +176,7 @@ trait WorkflowStore {
             accF.flatMap { case (nextId, acc) =>
               if (node.sid < 0) Future.successful((nextId, acc))
               else getDSchema(node.sid).flatMap {
-                case Some(dschema) => addDConf(WorkflowStore.dconfOf(nextId, dschema, contractId)).map(_ => (nextId + 1, acc + (node.id -> nextId)))
+                case Some(dschema) => addDConf(WorkflowStore.dconfOf(nextId, dschema, contractId, oid, pid)).map(_ => (nextId + 1, acc + (node.id -> nextId)))
                 case None          => Future.successful((nextId, acc)) // unresolved schema -> node keeps no cid
               }
             }
@@ -210,13 +248,28 @@ trait WorkflowStore {
   def delDConf(id: Int): Future[Int]
   def allDConfs: Future[Seq[DetectorConfig]]
   def sizeDConfs: Future[Long]
-  def listDConfs(from: Option[Long] = None, size: Option[Long] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageDConf] =
-    allDConfs.map { xs =>
+  /**
+   * List DetectorConfigs filtered by optional `oid` / `pid`.
+   * `oid = None` skips owner match (admin); `pid = None` skips project filter.
+   */
+  def listDConfs(from: Option[Long] = None, size: Option[Long] = None,
+                 oid: Option[String] = None, pid: Option[String] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageDConf] =
+    allDConfs.map { all =>
+      val xs = all.filter(d => WorkflowStore.ownedDConf(d, oid, pid))
       val items = (from, size) match {
         case (Some(f), Some(s)) => WorkflowStore.page(xs, f, s)
         case _                  => xs
       }
       WorkflowStore.PageDConf(items, xs.size.toLong)
+    }
+  /** Get by id; None when missing or oid/pid filter does not match (tenantId/projectId). */
+  def getDConf(id: Int, oid: Option[String], pid: Option[String])(implicit ec: ExecutionContext): Future[Option[DetectorConfig]] =
+    getDConf(id).map(_.filter(d => WorkflowStore.ownedDConf(d, oid, pid)))
+  /** Delete by id only when oid/pid filter matches. */
+  def delDConf(id: Int, oid: Option[String], pid: Option[String])(implicit ec: ExecutionContext): Future[Int] =
+    getDConf(id, oid, pid).flatMap {
+      case Some(_) => delDConf(id)
+      case None    => Future.failed(new io.syspulse.skel.ErrNotFound(s"DetectorConfig: ${id}"))
     }
 
   // ---------------------------------------------------------------- id generation

@@ -5,8 +5,9 @@ import scala.concurrent.Future
 
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.StatusCodes
-import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.server.{AuthorizationFailedRejection, Route}
 import akka.http.scaladsl.model._
+import io.syspulse.skel.ErrAuthorization
 
 import akka.actor.typed.ActorRef
 import akka.actor.typed.ActorSystem
@@ -40,6 +41,7 @@ import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf}
 import io.hacken.ext.detector.{DetectorSchema, DetectorConfig}
 import io.syspulse.skel.wf.ext.store.WorkflowRegistry
 import io.syspulse.skel.wf.ext.store.WorkflowRegistry._
+import io.syspulse.skel.wf.ext.store.WorkflowStore
 import io.syspulse.skel.wf.ext.engine.{Engine, EngineWorkflow, EngineWorkflows, TrackMapper}
 
 /**
@@ -73,17 +75,39 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   // ================================================================ authorization
   // Rules:
   //  - Schema (WorkflowSchema/DetectorSchema): GET = any authenticated user; POST/PUT/DELETE = admin|service
-  //  - WorkflowConfig: GET/POST/PUT/DELETE (+ stop/cancel) = admin|service, OR the user whose JWT owner
-  //    attribute (config.ownerAttr, default "oid") equals WorkflowConfig.oid
-  //  - DetectorConfig has NO oid field -> it follows the schema rule (reads: any user; writes: admin|service)
+  //  - WorkflowConfig / DetectorConfig:
+  //      * optional `?oid=` / `?pid=` API params (pid filters project; oid is authorization scope)
+  //      * user: `oid` MUST be present and equal JWT owner; JWT always overrides oid for Store/create
+  //      * admin|service: any oid (or omit oid = no owner filter in Store)
+  //      * DetectorConfig maps oid -> contract.tenantId, pid -> contract.projectId
 
-  /** admin & service roles may use any API. */
+  /** admin & service roles may use any API / any oid. */
   private def canAccessAdmin(authn: Authenticated): Boolean =
     Permissions.isAdmin(authn) || Permissions.isService(authn)
 
-  /** a user may access a WorkflowConfig only when its oid equals the JWT owner attribute. */
+  private def oidOpt(oid: Option[String]): Option[String] =
+    oid.map(_.trim).filter(_.nonEmpty)
+
+  /**
+   * Authorize request `oid` against JWT.
+   * - admin|service: always allowed (any oid, including absent)
+   * - user: oid must be non-empty AND equal the JWT owner attribute (reject missing/mismatch)
+   */
   private def canAccessOid(authn: Authenticated, oid: Option[String]): Boolean =
-    canAccessAdmin(authn) || ExtAuth.getOwner(authn, config.ownerAttr) == oid
+    canAccessAdmin(authn) || {
+      val jwtOid = ExtAuth.getOwner(authn, config.ownerAttr).filter(_.nonEmpty)
+      val reqOid = oidOpt(oid)
+      reqOid.isDefined && jwtOid.isDefined && reqOid == jwtOid
+    }
+
+  /**
+   * oid passed to Store / stamped on create.
+   * - admin|service: request oid as-is (None = no owner filter)
+   * - user: ALWAYS the JWT owner (overrides request oid after canAccessOid succeeds)
+   */
+  private def storeOid(authn: Authenticated, oidParam: Option[String]): Option[String] =
+    if (canAccessAdmin(authn)) oidOpt(oidParam)
+    else ExtAuth.getOwner(authn, config.ownerAttr).filter(_.nonEmpty)
 
   /** authenticated + any user (valid JWT required, no role/oid restriction). */
   private def authUser(inner: => Route): Route = authenticate()(_ => inner)
@@ -92,16 +116,18 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   private def authAdminService(inner: => Route): Route = authenticate()(authn => authorize(canAccessAdmin(authn))(inner))
 
   /** fetch a WorkflowConfig (for its oid) before authorizing a per-config operation; 404 when missing. */
-  private def withConfig(id: Int)(inner: WorkflowConfig => Route): Route =
-    onComplete(getWorkflowConfig(id, "")) {
+  private def withConfig(id: Int, oid: Option[String], pid: Option[String])(inner: WorkflowConfig => Route): Route =
+    onComplete(getWorkflowConfig(id, "", oid, pid)) {
       case Success(Success(view)) => inner(view.config)
       case Success(Failure(_))    => complete(StatusCodes.NotFound -> s"WorkflowConfig not found: ${id}")
       case Failure(e)             => complete(StatusCodes.InternalServerError -> e.getMessage)
     }
 
-  /** authenticated + WorkflowConfig-oid authorization for a per-config operation. */
-  private def authConfig(id: Int)(inner: => Route): Route =
-    authenticate()(authn => withConfig(id) { c => authorize(canAccessOid(authn, c.oid))(inner) })
+  /** authenticated + oid auth for stop/cancel/signal (requires ?oid= for users). */
+  private def authConfig(id: Int, oidParam: Option[String], pid: Option[String] = None)(inner: => Route): Route =
+    authenticate()(authn => authorize(canAccessOid(authn, oidParam)) {
+      withConfig(id, storeOid(authn, oidParam), pid)(_ => inner)
+    })
 
   // ---- WorkflowSchema asks ----
   def getWorkflowSchemas(from: Option[Long], size: Option[Long], entity: String): Future[Try[WorkflowSchemas]] = registry.ask(GetWorkflowSchemas(from, size, entity, _))
@@ -113,11 +139,12 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def startWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String], ns: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(StartWorkflowSchema(id, taskQueue, input, wid, ns, _))
 
   // ---- WorkflowConfig asks ----
-  def getWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigs(from, size, entity, _))
-  def getWorkflowConfig(id: Int, entity: String): Future[Try[WorkflowConfigView]] = registry.ask(GetWorkflowConfig(id, entity, _))
+  def getWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String, oid: Option[String], pid: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigs(from, size, entity, oid, pid, _))
+  def getWorkflowConfig(id: Int, entity: String, oid: Option[String], pid: Option[String]): Future[Try[WorkflowConfigView]] = registry.ask(GetWorkflowConfig(id, entity, oid, pid, _))
   def getWorkflowConfigByXid(xid: String): Future[Option[WorkflowConfig]] = registry.ask(GetWorkflowConfigByXid(xid, _))
-  def getWorkflowConfigsByOid(oid: String): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigsByOid(oid, _))
-  def resolveWorkflowConfigs(ids: Seq[String], typ: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(ResolveWorkflowConfigs(ids, typ, _))
+  def getWorkflowConfigsByOid(oid: String, pid: Option[String]): Future[Try[WorkflowConfigs]] = registry.ask(GetWorkflowConfigsByOid(oid, pid, _))
+  def resolveWorkflowConfigs(ids: Seq[String], typ: Option[String], oid: Option[String]): Future[Try[WorkflowConfigs]] =
+    registry.ask(ResolveWorkflowConfigs(ids, typ, oid, _))
   def createWorkflowConfig(req: WorkflowConfigCreateReq): Future[Try[WorkflowConfig]] = registry.ask(CreateWorkflowConfig(req, _))
   def createWorkflowConfigFromSchema(sid: Int, contractId: Int): Future[Try[WorkflowConfig]] = registry.ask(CreateWorkflowConfigFromSchema(sid, contractId, _))
   def setup0(tenantId: Int, projectId: Int, contractId: Int, name: String, status: String): Future[Try[WorkflowActionRes]] =
@@ -127,8 +154,8 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def assemblyWorkflowConfigLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String): Future[Try[WorkflowConfig]] = registry.ask(AssemblyWorkflowConfigLinked(req, runtime, fallbackId, _))
   def linkWorkflowConfig(req: WorkflowConfigDslReq): Future[Try[WorkflowConfig]] = registry.ask(LinkWorkflowConfig(req, _))
   def linkWorkflowConfigLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String): Future[Try[WorkflowConfig]] = registry.ask(LinkWorkflowConfigLinked(req, runtime, fallbackId, _))
-  def updateWorkflowConfig(id: Int, req: WorkflowConfigUpdateReq): Future[Try[WorkflowConfig]] = registry.ask(UpdateWorkflowConfig(id, req, _))
-  def deleteWorkflowConfig(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteWorkflowConfig(id, _))
+  def updateWorkflowConfig(id: Int, req: WorkflowConfigUpdateReq, oid: Option[String], pid: Option[String]): Future[Try[WorkflowConfig]] = registry.ask(UpdateWorkflowConfig(id, req, oid, pid, _))
+  def deleteWorkflowConfig(id: Int, oid: Option[String], pid: Option[String]): Future[WorkflowActionRes] = registry.ask(DeleteWorkflowConfig(id, oid, pid, _))
   def stopWorkflowConfig(id: Int, reason: Option[String]): Future[Try[WorkflowConfig]] = registry.ask(StopWorkflowConfig(id, reason, _))
   def cancelWorkflowConfig(id: Int, reason: Option[String]): Future[Try[WorkflowConfig]] = registry.ask(CancelWorkflowConfig(id, reason, _))
   def signalWorkflowConfig(id: Int, name: String, payload: Option[String]): Future[Try[WorkflowConfig]] = registry.ask(SignalWorkflowConfig(id, name, payload, _))
@@ -147,11 +174,11 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def deleteDetectorSchema(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteDetectorSchema(id, _))
 
   // ---- detector-config asks ----
-  def getDetectorConfigs(from: Option[Long], size: Option[Long]): Future[Try[DetectorConfigs]] = registry.ask(GetDetectorConfigs(from, size, _))
-  def getDetectorConfig(id: Int): Future[Try[DetectorConfig]] = registry.ask(GetDetectorConfig(id, _))
+  def getDetectorConfigs(from: Option[Long], size: Option[Long], oid: Option[String], pid: Option[String]): Future[Try[DetectorConfigs]] = registry.ask(GetDetectorConfigs(from, size, oid, pid, _))
+  def getDetectorConfig(id: Int, oid: Option[String], pid: Option[String]): Future[Try[DetectorConfig]] = registry.ask(GetDetectorConfig(id, oid, pid, _))
   def createDetectorConfig(req: DetectorConfigCreateReq): Future[Try[DetectorConfig]] = registry.ask(CreateDetectorConfig(req, _))
-  def updateDetectorConfig(id: Int, req: DetectorConfigUpdateReq): Future[Try[DetectorConfig]] = registry.ask(UpdateDetectorConfig(id, req, _))
-  def deleteDetectorConfig(id: Int): Future[WorkflowActionRes] = registry.ask(DeleteDetectorConfig(id, _))
+  def updateDetectorConfig(id: Int, req: DetectorConfigUpdateReq, oid: Option[String], pid: Option[String]): Future[Try[DetectorConfig]] = registry.ask(UpdateDetectorConfig(id, req, oid, pid, _))
+  def deleteDetectorConfig(id: Int, oid: Option[String], pid: Option[String]): Future[WorkflowActionRes] = registry.ask(DeleteDetectorConfig(id, oid, pid, _))
 
   // `entity` is a CSV of sections to include: graf,detector,schema (or `all`). Empty/absent -> "graf".
   // The raw value is passed through and parsed in WorkflowRegistry.parseEntities.
@@ -243,16 +270,16 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     parameters = Array(
       new Parameter(name = "from", in = ParameterIn.QUERY, description = "Page offset"),
       new Parameter(name = "size", in = ParameterIn.QUERY, description = "Page size"),
-      new Parameter(name = "entity", in = ParameterIn.QUERY, description = "CSV of graf,detector,schema (or all); default graf")),
+      new Parameter(name = "entity", in = ParameterIn.QUERY, description = "CSV of graf,detector,schema (or all); default graf"),
+      new Parameter(name = "oid", in = ParameterIn.QUERY, description = "owner id (required for users, must match JWT; admin may omit or set any)"),
+      new Parameter(name = "pid", in = ParameterIn.QUERY, description = "optional project id filter")),
     responses = Array(new ApiResponse(responseCode = "200", description = "configs",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def getWorkflowConfigsRoute() = get {
-    parameters("from".as[Long].?, "size".as[Long].?, "entity".?) { (from, size, entity) =>
-      authenticate()(authn =>
-        // admin/service see all configs; a user sees only the configs whose oid == their JWT owner
-        if (canAccessAdmin(authn)) complete(getWorkflowConfigs(pageFrom(from, size), pageSize(from, size), entityMode(entity)))
-        else complete(getWorkflowConfigsByOid(ExtAuth.getOwner(authn, config.ownerAttr).getOrElse("")))
-      )
+    parameters("from".as[Long].?, "size".as[Long].?, "entity".?, "oid".?, "pid".?) { (from, size, entity, oidQ, pid) =>
+      authenticate()(authn => authorize(canAccessOid(authn, oidQ)) {
+        complete(getWorkflowConfigs(pageFrom(from, size), pageSize(from, size), entityMode(entity), storeOid(authn, oidQ), pid))
+      })
     }
   }
 
@@ -260,12 +287,16 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   @Operation(tags = Array("config"), summary = "Get WorkflowConfig by id",
     parameters = Array(
       new Parameter(name = "id", in = ParameterIn.PATH, description = "config id"),
-      new Parameter(name = "entity", in = ParameterIn.QUERY, description = "CSV of graf,detector,schema (or all); default graf")),
+      new Parameter(name = "entity", in = ParameterIn.QUERY, description = "CSV of graf,detector,schema (or all); default graf"),
+      new Parameter(name = "oid", in = ParameterIn.QUERY, description = "owner id (required for users, must match JWT; admin may omit or set any)"),
+      new Parameter(name = "pid", in = ParameterIn.QUERY, description = "optional project id filter")),
     responses = Array(new ApiResponse(responseCode = "200", description = "config",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigView]))))))
   def getWorkflowConfigRoute(id: Int) = get {
-    parameter("entity".?) { entity =>
-      authConfig(id) { complete(getWorkflowConfig(id, entityMode(entity))) }
+    parameters("entity".?, "oid".?, "pid".?) { (entity, oidQ, pid) =>
+      authenticate()(authn => authorize(canAccessOid(authn, oidQ)) {
+        complete(getWorkflowConfig(id, entityMode(entity), storeOid(authn, oidQ), pid))
+      })
     }
   }
 
@@ -273,36 +304,46 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   @Operation(tags = Array("config"), summary = "Stop (Temporal terminate) a WorkflowConfig's running Engine workflow; sets status=TERMINATED",
     parameters = Array(
       new Parameter(name = "id", in = ParameterIn.PATH, description = "config id"),
-      new Parameter(name = "reason", in = ParameterIn.QUERY, description = "optional reason forwarded to the Engine")),
+      new Parameter(name = "reason", in = ParameterIn.QUERY, description = "optional reason forwarded to the Engine"),
+      new Parameter(name = "oid", in = ParameterIn.QUERY, description = "owner id (required for users, must match JWT)"),
+      new Parameter(name = "pid", in = ParameterIn.QUERY, description = "optional project id filter")),
     responses = Array(new ApiResponse(responseCode = "200", description = "terminated + updated config",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def stopWorkflowConfigRoute(id: Int) = post {
-    parameter("reason".?) { reason => authConfig(id) { complete(stopWorkflowConfig(id, reason)) } }
+    parameters("reason".?, "oid".?, "pid".?) { (reason, oidQ, pid) =>
+      authConfig(id, oidQ, pid) { complete(stopWorkflowConfig(id, reason)) }
+    }
   }
 
   @POST @Path("/config/{id}/cancel") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("config"), summary = "Cancel (Temporal request-cancel) a WorkflowConfig's running Engine workflow; sets status=CANCELED",
     parameters = Array(
       new Parameter(name = "id", in = ParameterIn.PATH, description = "config id"),
-      new Parameter(name = "reason", in = ParameterIn.QUERY, description = "optional reason forwarded to the Engine")),
+      new Parameter(name = "reason", in = ParameterIn.QUERY, description = "optional reason forwarded to the Engine"),
+      new Parameter(name = "oid", in = ParameterIn.QUERY, description = "owner id (required for users, must match JWT)"),
+      new Parameter(name = "pid", in = ParameterIn.QUERY, description = "optional project id filter")),
     responses = Array(new ApiResponse(responseCode = "200", description = "cancel-requested + updated config",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def cancelWorkflowConfigRoute(id: Int) = post {
-    parameter("reason".?) { reason => authConfig(id) { complete(cancelWorkflowConfig(id, reason)) } }
+    parameters("reason".?, "oid".?, "pid".?) { (reason, oidQ, pid) =>
+      authConfig(id, oidQ, pid) { complete(cancelWorkflowConfig(id, reason)) }
+    }
   }
 
   @POST @Path("/config/{id}/signal") @Produces(Array(MediaType.APPLICATION_JSON))
   @Operation(tags = Array("config"), summary = "Send a SIGNAL (Temporal signal) to a WorkflowConfig's running Engine workflow; optional JSON body is the signal payload",
     parameters = Array(
       new Parameter(name = "id", in = ParameterIn.PATH, description = "config id"),
-      new Parameter(name = "name", in = ParameterIn.QUERY, description = "signal name (default CONTINUE)")),
+      new Parameter(name = "name", in = ParameterIn.QUERY, description = "signal name (default CONTINUE)"),
+      new Parameter(name = "oid", in = ParameterIn.QUERY, description = "owner id (required for users, must match JWT)"),
+      new Parameter(name = "pid", in = ParameterIn.QUERY, description = "optional project id filter")),
     requestBody = new RequestBody(description = "optional JSON payload delivered to the workflow's signal handler",
       content = Array(new Content(schema = new Schema(implementation = classOf[String])))),
     responses = Array(new ApiResponse(responseCode = "200", description = "signal sent + the config",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def signalWorkflowConfigRoute(id: Int) = post {
-    parameter("name".?) { name =>
-      authConfig(id) {
+    parameters("name".?, "oid".?, "pid".?) { (name, oidQ, pid) =>
+      authConfig(id, oidQ, pid) {
         val sig = name.map(_.trim).filter(_.nonEmpty).getOrElse("CONTINUE")
         // optional JSON body = the signal payload delivered to the workflow's handler
         entity(as[JsValue]) { body => complete(signalWorkflowConfig(id, sig, Some(body.compactPrint))) } ~
@@ -312,16 +353,25 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   }
 
   def getWorkflowConfigByXidRoute(xid: String) = get {
-    authenticate()(authn =>
-      onComplete(getWorkflowConfigByXid(xid)) {
-        case Success(Some(c)) => authorize(canAccessOid(authn, c.oid)) { complete(c) }
-        case Success(None)    => complete(StatusCodes.NotFound -> s"WorkflowConfig not found: xid=${xid}")
-        case Failure(e)       => complete(StatusCodes.InternalServerError -> e.getMessage)
-      }
-    )
+    parameters("oid".?, "pid".?) { (oidQ, pid) =>
+      authenticate()(authn => authorize(canAccessOid(authn, oidQ)) {
+        val oid = storeOid(authn, oidQ)
+        onComplete(getWorkflowConfigByXid(xid)) {
+          case Success(Some(c)) if WorkflowStore.owned(c.oid, c.pid, oid, pid) => complete(c)
+          case Success(Some(_)) | Success(None) =>
+            complete(StatusCodes.NotFound -> s"WorkflowConfig not found: xid=${xid}")
+          case Failure(e) =>
+            complete(StatusCodes.InternalServerError -> e.getMessage)
+        }
+      })
+    }
   }
   def getWorkflowConfigsByOidRoute(oid: String) = get {
-    authenticate()(authn => authorize(canAccessOid(authn, Some(oid))) { complete(getWorkflowConfigsByOid(oid)) })
+    parameter("pid".?) { pid =>
+      authenticate()(authn => authorize(canAccessOid(authn, Some(oid))) {
+        complete(getWorkflowConfigsByOid(oid, pid))
+      })
+    }
   }
 
   /** Split a comma-separated `ids` path segment into a clean list. */
@@ -336,8 +386,15 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "configs",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfigs]))))))
   def getWorkflowConfigsResolveRoute(ids: Seq[String], typ: Option[String]) = get {
-    // the Engine query + live status mapping happens in WorkflowRegistry.ResolveWorkflowConfigs
-    authUser { complete(resolveWorkflowConfigs(ids, typ)) }
+    // no ?oid/?pid: admin -> oid=None; user -> JWT oid (Store validates ownership; foreign -> ErrAuthorization)
+    authenticate()(authn =>
+      onComplete(resolveWorkflowConfigs(ids, typ, storeOid(authn, None))) {
+        case Success(Success(wcs))              => complete(Success(wcs): Try[WorkflowConfigs])
+        case Success(Failure(_: ErrAuthorization)) => reject(AuthorizationFailedRejection)
+        case Success(Failure(e))                => complete(Failure(e): Try[WorkflowConfigs])
+        case Failure(e)                         => complete(StatusCodes.InternalServerError -> e.getMessage)
+      }
+    )
   }
 
   @POST @Path("/schema/{id}/start") @Produces(Array(MediaType.APPLICATION_JSON))
@@ -366,9 +423,17 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
     responses = Array(new ApiResponse(responseCode = "200", description = "created",
       content = Array(new Content(schema = new Schema(implementation = classOf[WorkflowConfig]))))))
   def createWorkflowConfigRoute() = post {
-    entity(as[WorkflowConfigCreateReq]) { req =>
-      // a user may create a config only with their own oid; admin/service any
-      authenticate()(authn => authorize(canAccessOid(authn, req.oid)) { complete(createWorkflowConfig(req)) })
+    parameters("oid".?, "pid".?) { (oidQ, pidQ) =>
+      entity(as[WorkflowConfigCreateReq]) { req0 =>
+        authenticate()(authn => {
+          // authorize against ?oid (or body oid); JWT always overrides oid for users
+          val oidForAuth = oidQ.orElse(req0.oid)
+          authorize(canAccessOid(authn, oidForAuth)) {
+            val req = req0.copy(oid = storeOid(authn, oidForAuth), pid = pidQ.orElse(req0.pid))
+            complete(createWorkflowConfig(req))
+          }
+        })
+      }
     }
   }
 
@@ -476,10 +541,22 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   }
 
   def updateWorkflowConfigRoute(id: Int) = put {
-    authConfig(id) { entity(as[WorkflowConfigUpdateReq]) { req => complete(updateWorkflowConfig(id, req)) } }
+    parameters("oid".?, "pid".?) { (oidQ, pid) =>
+      authenticate()(authn => authorize(canAccessOid(authn, oidQ)) {
+        entity(as[WorkflowConfigUpdateReq]) { req =>
+          complete(updateWorkflowConfig(id, req, storeOid(authn, oidQ), pid))
+        }
+      })
+    }
   }
 
-  def deleteWorkflowConfigRoute(id: Int) = delete { authConfig(id) { complete(deleteWorkflowConfig(id)) } }
+  def deleteWorkflowConfigRoute(id: Int) = delete {
+    parameters("oid".?, "pid".?) { (oidQ, pid) =>
+      authenticate()(authn => authorize(canAccessOid(authn, oidQ)) {
+        complete(deleteWorkflowConfig(id, storeOid(authn, oidQ), pid))
+      })
+    }
+  }
 
   // ================================================================ graf routes
   @GET @Path("/graf") @Produces(Array(MediaType.APPLICATION_JSON))
@@ -526,20 +603,50 @@ class WorkflowRoutes(registry: ActorRef[Command], engine: Option[Engine] = None)
   def deleteDetectorSchemaRoute(id: Int) = delete { authAdminService { complete(deleteDetectorSchema(id)) } }
 
   // ================================================================ detector-config routes
-  // DetectorConfig has NO oid field -> follows the schema rule (reads: any user; writes: admin|service)
+  // Same JWT oid/pid rules as WorkflowConfig; Store matches contract.tenantId / contract.projectId.
   def getDetectorConfigsRoute() = get {
-    parameters("from".as[Long].?, "size".as[Long].?) { (from, size) =>
-      authUser { complete(getDetectorConfigs(pageFrom(from, size), pageSize(from, size))) }
+    parameters("from".as[Long].?, "size".as[Long].?, "oid".?, "pid".?) { (from, size, oidQ, pid) =>
+      authenticate()(authn => authorize(canAccessOid(authn, oidQ)) {
+        complete(getDetectorConfigs(pageFrom(from, size), pageSize(from, size), storeOid(authn, oidQ), pid))
+      })
     }
   }
-  def getDetectorConfigRoute(id: Int) = get { authUser { complete(getDetectorConfig(id)) } }
+  def getDetectorConfigRoute(id: Int) = get {
+    parameters("oid".?, "pid".?) { (oidQ, pid) =>
+      authenticate()(authn => authorize(canAccessOid(authn, oidQ)) {
+        complete(getDetectorConfig(id, storeOid(authn, oidQ), pid))
+      })
+    }
+  }
   def createDetectorConfigRoute() = post {
-    authAdminService { entity(as[DetectorConfigCreateReq]) { req => complete(createDetectorConfig(req)) } }
+    parameters("oid".?, "pid".?) { (oidQ, pidQ) =>
+      entity(as[DetectorConfigCreateReq]) { req0 =>
+        authenticate()(authn => {
+          val oidForAuth = oidQ.orElse(req0.oid)
+          authorize(canAccessOid(authn, oidForAuth)) {
+            val req = req0.copy(oid = storeOid(authn, oidForAuth), pid = pidQ.orElse(req0.pid))
+            complete(createDetectorConfig(req))
+          }
+        })
+      }
+    }
   }
   def updateDetectorConfigRoute(id: Int) = put {
-    authAdminService { entity(as[DetectorConfigUpdateReq]) { req => complete(updateDetectorConfig(id, req)) } }
+    parameters("oid".?, "pid".?) { (oidQ, pid) =>
+      authenticate()(authn => authorize(canAccessOid(authn, oidQ)) {
+        entity(as[DetectorConfigUpdateReq]) { req =>
+          complete(updateDetectorConfig(id, req, storeOid(authn, oidQ), pid))
+        }
+      })
+    }
   }
-  def deleteDetectorConfigRoute(id: Int) = delete { authAdminService { complete(deleteDetectorConfig(id)) } }
+  def deleteDetectorConfigRoute(id: Int) = delete {
+    parameters("oid".?, "pid".?) { (oidQ, pid) =>
+      authenticate()(authn => authorize(canAccessOid(authn, oidQ)) {
+        complete(deleteDetectorConfig(id, storeOid(authn, oidQ), pid))
+      })
+    }
+  }
 
   val corsAllow = CorsSettings(system.classicSystem)
     .withAllowCredentials(true)

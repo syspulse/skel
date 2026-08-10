@@ -56,11 +56,11 @@ class WorkflowStartSpec extends AnyWordSpec with Matchers with ScalatestRouteTes
 
   "POST /schema/{id}/start when the run is not yet visible on the Engine" should {
     "present (and persist) the created WorkflowConfig + DetectorConfigs as STARTING (not UNRESOLVED)" in {
-      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.A -> Detector.B", name = Some("StartingFlow"))) ~> routes.routes ~> check {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.A -> Detector.B", name = Some("StartingFlow"))) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
       }
 
-      val started = Post(s"/schema/${sc.id}/start") ~> routes.routes ~> check {
+      val started = Post(s"/schema/${sc.id}/start") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         val r = responseAs[WorkflowConfigs]
         val c = r.configs.head

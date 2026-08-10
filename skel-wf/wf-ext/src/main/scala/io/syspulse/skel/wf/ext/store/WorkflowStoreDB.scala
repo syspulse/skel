@@ -246,11 +246,17 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   override def updateWConfStatus(id: Int, status: String)(implicit ec: ExecutionContext): Future[Int] =
     execUpdateInt(s"UPDATE $TABLE_WORKFLOW_CONFIG SET status=${q(status)}, updated_at=${lLit(System.currentTimeMillis())} WHERE id=$id")
   override def nextWConfId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_WORKFLOW_CONFIG)
-  override def listWConfs(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[WorkflowStore.PageWConf] =
+  override def listWConfs(from: Option[Long], size: Option[Long],
+                          oid: Option[String] = None, pid: Option[String] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageWConf] = {
+    val where = Seq(oid.map(o => s"oid = ${q(o)}"), pid.map(p => s"pid = ${q(p)}")).flatten match {
+      case Nil => ""
+      case xs  => "WHERE " + xs.mkString(" AND ")
+    }
     for {
-      total <- sizeWConfs
-      items <- query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG ORDER BY id ${limitClause(from,size)}", rowConfig)
+      total <- countOf(TABLE_WORKFLOW_CONFIG, where)
+      items <- query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG $where ORDER BY id ${limitClause(from,size)}", rowConfig)
     } yield WorkflowStore.PageWConf(items, total)
+  }
 
   // ========================================================= WorkflowGraf  (data -> jsonb)
   private val GRAF_COLS = Seq("id","sid","cid","nodes","links","meta","data")
@@ -349,11 +355,10 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   def allDConfs: Future[Seq[DetectorConfig]] = query(s"SELECT $DCONFIG_SEL FROM $TABLE_DET_CONFIG ORDER BY id", rowDConfig)
   def sizeDConfs: Future[Long] = countOf(TABLE_DET_CONFIG)
   override def nextDConfId(implicit ec: ExecutionContext): Future[Int] = nextIdOf(TABLE_DET_CONFIG)
-  override def listDConfs(from: Option[Long], size: Option[Long])(implicit ec: ExecutionContext): Future[WorkflowStore.PageDConf] =
-    for {
-      total <- sizeDConfs
-      items <- query(s"SELECT $DCONFIG_SEL FROM $TABLE_DET_CONFIG ORDER BY id ${limitClause(from,size)}", rowDConfig)
-    } yield WorkflowStore.PageDConf(items, total)
+  // External `detector` table has no oid/pid columns - filter in memory after load (Mem/Dir persist them).
+  override def listDConfs(from: Option[Long], size: Option[Long],
+                          oid: Option[String] = None, pid: Option[String] = None)(implicit ec: ExecutionContext): Future[WorkflowStore.PageDConf] =
+    super.listDConfs(from, size, oid, pid)
 }
 
 object WorkflowStoreDB {

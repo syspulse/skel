@@ -139,6 +139,8 @@ final case class DetectorConfigCreateReq(
   status: Option[String] = None,
   tags: Option[Seq[String]] = None,
   config: Option[JsObject] = None,
+  oid: Option[String] = None,
+  pid: Option[String] = None,
 )
 final case class DetectorConfigUpdateReq(
   name: Option[String] = None,
@@ -146,6 +148,8 @@ final case class DetectorConfigUpdateReq(
   source: Option[String] = None,
   tags: Option[Seq[String]] = None,
   config: Option[JsObject] = None,
+  oid: Option[String] = None,
+  pid: Option[String] = None,
 )
 
 // ---------------------------------------------------------------- WorkflowGraf

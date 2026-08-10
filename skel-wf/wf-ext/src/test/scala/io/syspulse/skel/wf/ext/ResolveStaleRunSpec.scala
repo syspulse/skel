@@ -60,13 +60,13 @@ class ResolveStaleRunSpec extends AnyWordSpec with Matchers with ScalatestRouteT
     "resolve by the EXACT RunId and return UNRESOLVED (NOT the latest run's RUNNING)" in {
       val RID = "59ffd0ae-126e-4c70-aa52-b96585bfe1da"   // obsolete RunId
       val WID = "PoR-DefaultProject-1783782976365"       // WorkflowId with a newer RUNNING run
-      val c = Post("/config/dsl", WorkflowConfigDslReq("Detector.a -> Detector.b", name = Some("R1"))) ~> routes.routes ~> check {
+      val c = Post("/config/dsl", WorkflowConfigDslReq("Detector.a -> Detector.b", name = Some("R1"))) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
       }
       // bind to the obsolete run, but ALSO carry meta.wid (as a workflowId-bound config would)
       Await.result(store.addWConf(c.copy(xid = Some(RID), meta = Some(Map("wid" -> WID)))), 5.seconds)
 
-      Get(s"/config/resolve/$RID") ~> routes.routes ~> check {
+      Get(s"/config/resolve/$RID") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         val r = responseAs[WorkflowConfigs]
         r.total shouldBe 1L

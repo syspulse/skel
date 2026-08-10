@@ -99,7 +99,7 @@ class ResolvePersistDBSpec extends AnyWordSpec with Matchers with ScalatestRoute
       Await.result(store.addWSchema(sc), 10.seconds)
       Await.result(store.addWConf(WorkflowConfig.from(1, sc, xid = Some(RID)).copy(status = "ACTIVE")), 10.seconds)
 
-      Get(s"/config/resolve/$RID?type=rid") ~> routes.routes ~> check {
+      Get(s"/config/resolve/$RID?type=rid") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         val r = responseAs[WorkflowConfigs]
         r.configs.head.status shouldBe EngineStatus.RUNNING              // response reflects the Engine

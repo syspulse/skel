@@ -91,19 +91,19 @@ class Setup0Spec extends AnyWordSpec with Matchers with ScalatestRouteTest with 
   "POST /setup0" should {
     "create tenant id=0, project id=0 and contract id=0 in the DB (idempotent)" in {
       jdbcCount("SELECT count(*) FROM contract WHERE id=0") shouldBe 0L
-      Post("/setup0") ~> routes.routes ~> check {
+      Post("/setup0") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         responseAs[WorkflowActionRes].status shouldBe WorkflowActionRes.OK
       }
       jdbcCount("SELECT count(*) FROM tenant   WHERE id=0 AND name='setup0' AND status='DISABLED'") shouldBe 1L
       jdbcCount("SELECT count(*) FROM project  WHERE id=0 AND tenant_id=0 AND name='setup0'") shouldBe 1L
       jdbcCount("SELECT count(*) FROM contract WHERE id=0 AND project_id=0 AND name='setup0'") shouldBe 1L
-      Post("/setup0") ~> routes.routes ~> check { status shouldBe StatusCodes.OK }   // idempotent
+      Post("/setup0") ~~> routes.routes ~> check { status shouldBe StatusCodes.OK }   // idempotent
       jdbcCount("SELECT count(*) FROM contract WHERE id=0") shouldBe 1L
     }
 
     "accept custom tenantId/projectId/contractId/name/status params" in {
-      Post("/setup0?tenantId=1&projectId=1&contractId=1&name=custom&status=ACTIVE") ~> routes.routes ~> check {
+      Post("/setup0?tenantId=1&projectId=1&contractId=1&name=custom&status=ACTIVE") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         responseAs[WorkflowActionRes].id shouldBe Some(1)  // contractId echoed back
       }
@@ -120,14 +120,14 @@ class Setup0Spec extends AnyWordSpec with Matchers with ScalatestRouteTest with 
       Await.result(store.addWSchema(WorkflowSchema.of(60, "WFromSchema", g)), 10.seconds)
 
       // create the WorkflowConfig from the schema -> DetectorConfig with contract_id=0 (FK satisfied by setup0)
-      val cfg = Post("/config/schema/60") ~> routes.routes ~> check {
+      val cfg = Post("/config/schema/60") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
       }
       val cid = cfg.graph.nodes.values.head.cid.get
       jdbcCount(s"SELECT count(*) FROM detector WHERE id=$cid AND contract_id=0") shouldBe 1L
 
       // delete the WorkflowConfig -> cascades to its DetectorConfig(s)
-      Delete(s"/config/${cfg.id}") ~> routes.routes ~> check {
+      Delete(s"/config/${cfg.id}") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         responseAs[WorkflowActionRes].status shouldBe WorkflowActionRes.OK
       }

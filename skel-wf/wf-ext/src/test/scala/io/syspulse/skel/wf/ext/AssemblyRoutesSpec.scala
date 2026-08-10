@@ -75,7 +75,7 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
 
   "POST /config/assembly" should {
     "assembly a WorkflowConfig from bracket DSL" in {
-      Post("/config/assembly", WorkflowConfigDslReq("[A] -> [B] -> [C]")) ~> routes.routes ~> check {
+      Post("/config/assembly", WorkflowConfigDslReq("[A] -> [B] -> [C]")) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         val c = responseAs[WorkflowConfig]
         c.graph.nodes should have size 3
@@ -88,7 +88,7 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
   "POST /temporal/assembly/{id}" should {
     "assembly + link by runtimeId (UUID) -> name/meta.wid from WorkflowId, xid = the RunId" in {
       val RID = "019f51c0-3917-731b-864d-3b9d326db0aa"
-      Post(s"/temporal/assembly/$RID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~> routes.routes ~> check {
+      Post(s"/temporal/assembly/$RID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         val c = responseAs[WorkflowConfig]
         c.name shouldBe "PoR-Wf-1"                       // WorkflowId from the resolved runtime
@@ -100,7 +100,7 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
 
     "assembly + link by workflowId -> name = WorkflowId, xid = latest RunId" in {
       val WID = "PoR-DefaultProject-1783782976365"
-      Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~> routes.routes ~> check {
+      Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         val c = responseAs[WorkflowConfig]
         c.name shouldBe WID
@@ -114,11 +114,11 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
     "return the WorkflowConfig with LIVE engine-mapped statuses" in {
       val WID = "PoR-Tracked-1"
       // link a config to the Temporal id
-      Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~> routes.routes ~> check {
+      Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
       }
       // resolve overlays the live runtime state onto config.status and each DetectorConfig.status
-      Get(s"/config/resolve/$WID") ~> routes.routes ~> check {
+      Get(s"/config/resolve/$WID") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         val r = responseAs[WorkflowConfigs]
         r.total shouldBe 1L
@@ -135,10 +135,10 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
 
     "resolve by WorkflowConfig.id (type=id) -> match by numeric id, query the Engine by that config's xid" in {
       val WID = "PoR-ById-1"
-      val cfg = Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~> routes.routes ~> check {
+      val cfg = Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
       }
-      Get(s"/config/resolve/${cfg.id}?type=id") ~> routes.routes ~> check {
+      Get(s"/config/resolve/${cfg.id}?type=id") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         val r = responseAs[WorkflowConfigs]
         r.total shouldBe 1L
@@ -149,7 +149,7 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
 
     "PERSIST the Engine statuses back to the store (Mem: WorkflowConfig + DetectorConfig)" in {
       val WID = "PoR-Persist-1"
-      val cfg = Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~> routes.routes ~> check {
+      val cfg = Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
       }
       // assembled statuses are ACTIVE (not yet resolved)
@@ -158,7 +158,7 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
       val porCid = cfg.graph.nodes.values.find(_.title == "ProofOfReserve").flatMap(_.cid).get
       Await.result(store.getDConf(pooCid), 5.seconds).get.status shouldBe "ACTIVE"
 
-      Get(s"/config/resolve/$WID") ~> routes.routes ~> check { status shouldBe StatusCodes.OK }
+      Get(s"/config/resolve/$WID") ~~> routes.routes ~> check { status shouldBe StatusCodes.OK }
 
       // the store now reflects the Engine truth (WorkflowConfig + DetectorConfig)
       Await.result(store.getWConf(cfg.id), 5.seconds).status shouldBe EngineStatus.RUNNING
@@ -167,11 +167,11 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
     }
 
     "POST /schema/{id}/start creates a WorkflowConfig from the schema and starts an Engine execution (xid + meta.wid, resolved)" in {
-      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership -> Detector.ProofOfReserve", name = Some("StartFlow"))) ~> routes.routes ~> check {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership -> Detector.ProofOfReserve", name = Some("StartFlow"))) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
       }
 
-      val started = Post(s"/schema/${sc.id}/start") ~> routes.routes ~> check {
+      val started = Post(s"/schema/${sc.id}/start") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         val r = responseAs[WorkflowConfigs]
         r.total shouldBe 1L
@@ -196,10 +196,10 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
     }
 
     "POST /schema/{id}/start honors ?taskQueue and a caller-supplied JSON input body" in {
-      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership", name = Some("StartFlow2"))) ~> routes.routes ~> check {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership", name = Some("StartFlow2"))) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
       }
-      Post(s"/schema/${sc.id}/start?taskQueue=MY_QUEUE").withEntity(HttpEntity(ContentTypes.`application/json`, """{"k":"v"}""")) ~> routes.routes ~> check {
+      Post(s"/schema/${sc.id}/start?taskQueue=MY_QUEUE").withEntity(HttpEntity(ContentTypes.`application/json`, """{"k":"v"}""")) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         responseAs[WorkflowConfigs].configs.head.xid shouldBe Some(stubEngine.lastRunId)
       }
@@ -220,10 +220,10 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
     }
 
     "POST /schema/{id}/start substitutes {id}/{ts} and derives a unique WorkflowId" in {
-      val sc = Post("/schema", WorkflowSchemaCreateReq(name = "Type-{id}", title = Some("run-{id}-{ts}"))) ~> routes.routes ~> check {
+      val sc = Post("/schema", WorkflowSchemaCreateReq(name = "Type-{id}", title = Some("run-{id}-{ts}"))) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
       }
-      val c = Post(s"/schema/${sc.id}/start") ~> routes.routes ~> check {
+      val c = Post(s"/schema/${sc.id}/start") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowConfigs].configs.head
       }
       c.name shouldBe s"Type-${c.id}"                           // WorkflowType == substituted schema.name
@@ -235,10 +235,10 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
     }
 
     "POST /schema/{id}/start?wid=... overrides the WorkflowId" in {
-      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership", name = Some("StartFlow4"))) ~> routes.routes ~> check {
+      val sc = Post("/schema/dsl", WorkflowSchemaDslReq("Detector.ProofOfOwnership", name = Some("StartFlow4"))) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowSchema]
       }
-      Post(s"/schema/${sc.id}/start?wid=custom-wid-123") ~> routes.routes ~> check {
+      Post(s"/schema/${sc.id}/start?wid=custom-wid-123") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         responseAs[WorkflowConfigs].configs.head.xid shouldBe Some(stubEngine.lastRunId)
       }
@@ -248,10 +248,10 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
 
     "POST /config/{id}/stop terminates the Engine workflow (workflowId+xid, reason) and sets TERMINATED" in {
       val WID = "PoR-Stop-1"
-      val cfg = Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership]")) ~> routes.routes ~> check {
+      val cfg = Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership]")) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
       }
-      Post(s"/config/${cfg.id}/stop?reason=done") ~> routes.routes ~> check {
+      Post(s"/config/${cfg.id}/stop?reason=done") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         responseAs[WorkflowConfig].status shouldBe WorkflowStatus.TERMINATED
       }
@@ -264,10 +264,10 @@ class AssemblyRoutesSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
 
     "POST /config/{id}/cancel request-cancels the Engine workflow and sets CANCELED" in {
       val WID = "PoR-Cancel-1"
-      val cfg = Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership]")) ~> routes.routes ~> check {
+      val cfg = Post(s"/temporal/assembly/$WID", WorkflowConfigDslReq("[ProofOfOwnership]")) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
       }
-      Post(s"/config/${cfg.id}/cancel") ~> routes.routes ~> check {
+      Post(s"/config/${cfg.id}/cancel") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         responseAs[WorkflowConfig].status shouldBe WorkflowStatus.CANCELED
       }

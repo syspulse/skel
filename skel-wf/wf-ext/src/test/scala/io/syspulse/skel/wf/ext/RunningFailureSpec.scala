@@ -58,10 +58,10 @@ class RunningFailureSpec extends AnyWordSpec with Matchers with ScalatestRouteTe
   "GET /config/resolve/{id} for a RUNNING workflow with a failing task" should {
     "map the WorkflowConfig to RUNNING_FAILED and expose the error in meta.err" in {
       val RID = "019fcc06-ad08-7015-af47-a51a88a4b04a"
-      val cfg = Post(s"/temporal/assembly/$RID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~> routes.routes ~> check {
+      val cfg = Post(s"/temporal/assembly/$RID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK; responseAs[WorkflowConfig]
       }
-      Get(s"/config/resolve/$RID") ~> routes.routes ~> check {
+      Get(s"/config/resolve/$RID") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         val c = responseAs[WorkflowConfigs].configs.head
         c.status shouldBe WorkflowStatus.RUNNING_FAILED

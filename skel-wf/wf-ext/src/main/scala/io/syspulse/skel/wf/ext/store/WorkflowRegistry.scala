@@ -15,7 +15,7 @@ import spray.json._
 import io.hacken.ext.wf.{WorkflowSchema, WorkflowConfig, WorkflowGraf, WorkflowNode, WorkflowStatus}
 import io.hacken.ext.wf.WorkflowConfigJson._
 import io.hacken.ext.detector.{DetectorSchema, DetectorConfig, DetectorConfigContract, DetectorConfigSchema}
-import io.syspulse.skel.ErrNotFound
+import io.syspulse.skel.{ErrNotFound, ErrAuthorization}
 import io.syspulse.skel.wf.ext.server._
 import io.syspulse.skel.wf.ext.dsl.AssemblyDSL
 import io.syspulse.skel.wf.ext.engine.{Engine, TrackMapper, EngineWorkflow, EngineMapper}
@@ -74,13 +74,15 @@ object WorkflowRegistry {
   final case class StartWorkflowSchema(id: Int, taskQueue: Option[String], input: Option[String], wid: Option[String], ns: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
 
   // ---- WorkflowConfig ----
-  final case class GetWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String, replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
-  final case class GetWorkflowConfig(id: Int, entity: String, replyTo: ActorRef[Try[WorkflowConfigView]]) extends Command
+  // oid=None skips owner match (admin); pid=None skips project filter. Both are applied in the Store.
+  final case class GetWorkflowConfigs(from: Option[Long], size: Option[Long], entity: String, oid: Option[String], pid: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+  final case class GetWorkflowConfig(id: Int, entity: String, oid: Option[String], pid: Option[String], replyTo: ActorRef[Try[WorkflowConfigView]]) extends Command
   final case class GetWorkflowConfigByXid(xid: String, replyTo: ActorRef[Option[WorkflowConfig]]) extends Command
-  final case class GetWorkflowConfigsByOid(oid: String, replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+  final case class GetWorkflowConfigsByOid(oid: String, pid: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
   // resolve WorkflowConfig(s) (+ all DetectorConfigs) by runtimeId (xid) or workflowId (meta.wid), many ids in one call.
   // typ forces the resolution mode: Some("rid") -> by xid, Some("wid") -> by workflowId, None -> auto-detect (UUID -> rid).
-  final case class ResolveWorkflowConfigs(ids: Seq[String], typ: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
+  // oid: filter when fetching from Store (None = admin, no owner filter; Some = WorkflowConfig.oid must match).
+  final case class ResolveWorkflowConfigs(ids: Seq[String], typ: Option[String], oid: Option[String], replyTo: ActorRef[Try[WorkflowConfigs]]) extends Command
 
   val RESOLVE_RID = "rid"  // resolve by runtimeId (WorkflowConfig.xid)
   val RESOLVE_WID = "wid"  // resolve by workflowId (WorkflowConfig.meta.wid / name)
@@ -100,8 +102,8 @@ object WorkflowRegistry {
   final case class LinkWorkflowConfig(req: WorkflowConfigDslReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   // linkByName + bind to a runtime resolved on the Engine (runtime == None -> fallback xid=fallbackId)
   final case class LinkWorkflowConfigLinked(req: WorkflowConfigDslReq, runtime: Option[EngineWorkflow], fallbackId: String, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
-  final case class UpdateWorkflowConfig(id: Int, req: WorkflowConfigUpdateReq, replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
-  final case class DeleteWorkflowConfig(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
+  final case class UpdateWorkflowConfig(id: Int, req: WorkflowConfigUpdateReq, oid: Option[String], pid: Option[String], replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
+  final case class DeleteWorkflowConfig(id: Int, oid: Option[String], pid: Option[String], replyTo: ActorRef[WorkflowActionRes]) extends Command
   // Stop (Temporal terminate) a WorkflowConfig's running Engine workflow -> status TERMINATED (+ persist).
   final case class StopWorkflowConfig(id: Int, reason: Option[String], replyTo: ActorRef[Try[WorkflowConfig]]) extends Command
   // Cancel (Temporal request-cancel) a WorkflowConfig's running Engine workflow -> status CANCELED (+ persist).
@@ -123,11 +125,12 @@ object WorkflowRegistry {
   final case class DeleteDetectorSchema(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
 
   // ---- DetectorConfig ----
-  final case class GetDetectorConfigs(from: Option[Long], size: Option[Long], replyTo: ActorRef[Try[DetectorConfigs]]) extends Command
-  final case class GetDetectorConfig(id: Int, replyTo: ActorRef[Try[DetectorConfig]]) extends Command
+  // oid=None skips owner match (admin); pid=None skips project filter. Both are applied in the Store.
+  final case class GetDetectorConfigs(from: Option[Long], size: Option[Long], oid: Option[String], pid: Option[String], replyTo: ActorRef[Try[DetectorConfigs]]) extends Command
+  final case class GetDetectorConfig(id: Int, oid: Option[String], pid: Option[String], replyTo: ActorRef[Try[DetectorConfig]]) extends Command
   final case class CreateDetectorConfig(req: DetectorConfigCreateReq, replyTo: ActorRef[Try[DetectorConfig]]) extends Command
-  final case class UpdateDetectorConfig(id: Int, req: DetectorConfigUpdateReq, replyTo: ActorRef[Try[DetectorConfig]]) extends Command
-  final case class DeleteDetectorConfig(id: Int, replyTo: ActorRef[WorkflowActionRes]) extends Command
+  final case class UpdateDetectorConfig(id: Int, req: DetectorConfigUpdateReq, oid: Option[String], pid: Option[String], replyTo: ActorRef[Try[DetectorConfig]]) extends Command
+  final case class DeleteDetectorConfig(id: Int, oid: Option[String], pid: Option[String], replyTo: ActorRef[WorkflowActionRes]) extends Command
 
   def apply(store: WorkflowStore, engine: Option[Engine] = None): Behavior[Command] =
     Behaviors.setup { context =>
@@ -212,7 +215,8 @@ object WorkflowRegistry {
    * LIVE from the Engine (see `enrichWithEngine`). The resolution MODE that matched each config is
    * kept so the Engine is queried the SAME way (rid -> exact RunId; wid -> latest run).
    */
-  private def resolveWconfs(store: WorkflowStore, engine: Option[Engine], ids: Seq[String], typ: Option[String])(implicit ec: ExecutionContext): Future[WorkflowConfigs] =
+  private def resolveWconfs(store: WorkflowStore, engine: Option[Engine], ids: Seq[String], typ: Option[String],
+                            oid: Option[String] = None)(implicit ec: ExecutionContext): Future[WorkflowConfigs] =
     store.allWConfs.flatMap { all =>
       def byRid(id: String) = all.filter(_.xid.contains(id))
       def byWid(id: String) = all.filter(wconf => wconfWid(wconf).contains(id) || wconf.name == id)
@@ -229,7 +233,11 @@ object WorkflowRegistry {
         }
       }.distinctBy(_._1.id)
       val found = foundWithMode.map(_._1)
-      wconfDconfs(store, found).flatMap(dconfs => enrichWithEngine(store, engine, foundWithMode, dconfs))
+      // oid validated at Store fetch (admin: None = allow all; user: JWT oid must own every match)
+      if (found.exists(w => !WorkflowStore.owned(w.oid, w.pid, oid, None)))
+        Future.failed(new ErrAuthorization(s"WorkflowConfig: ${found.map(_.id).mkString(",")}"))
+      else
+        wconfDconfs(store, found).flatMap(dconfs => enrichWithEngine(store, engine, foundWithMode, dconfs))
     }
 
   /**
@@ -413,7 +421,10 @@ object WorkflowRegistry {
       createdAt = now, 
       updatedAt = now, 
       status = req.status.getOrElse(WorkflowStatus.UNKNOWN),
-      contract = DetectorConfigContract(0, now, now, 0, 0, None, None, None, None, req.name),
+      // oid -> contract.tenantId; pid -> contract.projectId (numeric)
+      contract = DetectorConfigContract(0, now, now,
+        WorkflowStore.dconfProjectId(req.pid), WorkflowStore.dconfTenantId(req.oid),
+        None, None, None, None, req.name),
       schema = dschemaRef.map(dschema => DetectorConfigSchema(dschema.id, now, now, dschema.status, dschema.name, dschema.version, None)),
       name = req.name, 
       source = req.source.getOrElse(WorkflowStore.DETECTOR_CONFIG_SOURCE), 
@@ -423,7 +434,12 @@ object WorkflowRegistry {
     )
   }
 
-  private def applyUpdate(dconf: DetectorConfig, req: DetectorConfigUpdateReq): DetectorConfig =
+  private def applyUpdate(dconf: DetectorConfig, req: DetectorConfigUpdateReq): DetectorConfig = {
+    val c = dconf.contract
+    val contract = c.copy(
+      projectId = req.pid.flatMap(_.toIntOption).getOrElse(c.projectId),
+      tenantId = req.oid.flatMap(_.toIntOption).getOrElse(c.tenantId),
+    )
     dconf.copy(
       updatedAt = System.currentTimeMillis(),
       status = req.status.getOrElse(dconf.status),
@@ -431,7 +447,9 @@ object WorkflowRegistry {
       source = req.source.getOrElse(dconf.source),
       tags = req.tags.getOrElse(dconf.tags),
       config = req.config.orElse(dconf.config),
+      contract = contract,
     )
+  }
 
   private def applyUpdate(dschema: DetectorSchema, req: DetectorSchemaUpdateReq): DetectorSchema =
     dschema.copy(
@@ -512,9 +530,9 @@ object WorkflowRegistry {
         Behaviors.same
 
       // -------------------------------------------------- WorkflowConfig
-      case GetWorkflowConfigs(from, size, entity, replyTo) =>
+      case GetWorkflowConfigs(from, size, entity, oid, pid, replyTo) =>
         val ents = parseEntities(entity)
-        store.listWConfs(from, size).flatMap { p =>
+        store.listWConfs(from, size, oid, pid).flatMap { p =>
           val wconfs = if (ents(ENTITY_GRAF)) p.wconfs else p.wconfs.map(wconf => wconf.copy(graph = stripGraf(wconf.graph)))
           val fDet: Future[Option[Map[String, DetectorConfig]]] =
             if (ents(ENTITY_DETECTOR)) wconfDconfs(store, p.wconfs).map(Some(_)) else Future.successful(None)
@@ -524,8 +542,8 @@ object WorkflowRegistry {
         }.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
-      case GetWorkflowConfig(id, entity, replyTo) =>
-        store.getWConf(id).flatMap(wconf => wconfView(store, wconf, parseEntities(entity))).andThen(logFail).onComplete(replyTo ! _)
+      case GetWorkflowConfig(id, entity, oid, pid, replyTo) =>
+        store.getWConf(id, oid, pid).flatMap(wconf => wconfView(store, wconf, parseEntities(entity))).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case GetWorkflowConfigByXid(xid, replyTo) =>
@@ -535,16 +553,20 @@ object WorkflowRegistry {
         }
         Behaviors.same
 
-      case GetWorkflowConfigsByOid(oid, replyTo) =>
-        store.findWConfByOid(oid).map(wconfs => WorkflowConfigs(wconfs, wconfs.size.toLong, None)).andThen(logFail).onComplete(replyTo ! _)
+      case GetWorkflowConfigsByOid(oid, pid, replyTo) =>
+        store.listWConfs(oid = Some(oid), pid = pid).map(p => WorkflowConfigs(p.wconfs, p.total, None)).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
-      case ResolveWorkflowConfigs(ids, typ, replyTo) =>
-        log.info(s"ResolveWorkflowConfigs: ${engine}/${typ}: ${ids}")
-        resolveWconfs(store, engine, ids, typ)
-          .andThen(logFail)
+      case ResolveWorkflowConfigs(ids, typ, oid, replyTo) =>
+        log.info(s"ResolveWorkflowConfigs: ${engine}/${typ}: oid=${oid}: ${ids}")
+        resolveWconfs(store, engine, ids, typ, oid)
+          .andThen {
+            case Failure(_: ErrAuthorization) => // expected deny — not a Store failure
+            case Failure(e)                   => log.error(s"Store operation failed: ${e.getMessage}", e)
+            case _                            => ()
+          }
           .onComplete(r => {
-            log.debug(s"ResolveConfigs: ${engine}/${typ}: ${ids}: ${r}")
+            log.debug(s"ResolveConfigs: ${engine}/${typ}: oid=${oid}: ${ids}: ${r}")
             replyTo ! r
           })
         Behaviors.same
@@ -650,23 +672,20 @@ object WorkflowRegistry {
           .andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
-      case UpdateWorkflowConfig(id, req, replyTo) =>
-        log.info(s"UpdateWorkflowConfig: ${req}")
-
-        store.getWConf(id).map(wconf => applyUpdate(wconf, req)).flatMap(store.addWConf).andThen(logFail).onComplete(replyTo ! _)
+      case UpdateWorkflowConfig(id, req, oid, pid, replyTo) =>
+        log.info(s"UpdateWorkflowConfig: ${req} oid=${oid} pid=${pid}")
+        store.getWConf(id, oid, pid).map(wconf => applyUpdate(wconf, req)).flatMap(store.addWConf).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
-      case DeleteWorkflowConfig(id, replyTo) =>
-        log.info(s"DeleteWorkflowConfig: ${id}")
+      case DeleteWorkflowConfig(id, oid, pid, replyTo) =>
+        log.info(s"DeleteWorkflowConfig: ${id} oid=${oid} pid=${pid}")
         // cascade: delete the WorkflowConfig's DetectorConfig instances + its WorkflowGraf, then the config.
         // each deletion is best-effort (a missing entity does not abort the cascade) and logged at INFO.
         def delQuietly(what: String, f: Future[Int]): Future[Unit] =
           f.map(_ => log.info(s"DeleteWorkflowConfig: ${id}: ${what}"))
             .recover { case e => log.info(s"DeleteWorkflowConfig: ${id}: skip ${what} (${e.getMessage})") }
 
-        val f = store.getWConfOpt(id).flatMap {
-          case None => Future.successful(WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id)))
-          case Some(wconf) =>
+        val f = store.getWConf(id, oid, pid).flatMap { wconf =>
             val cids = wconf.graph.nodes.values.flatMap(_.cid).toSeq.distinct
             for {
               _ <- Future.sequence(cids.map(cid => delQuietly(s"DetectorConfig(${cid})", store.delDConf(cid))))
@@ -741,19 +760,19 @@ object WorkflowRegistry {
         Behaviors.same
 
       // -------------------------------------------------- DetectorConfig
-      case GetDetectorConfigs(from, size, replyTo) =>
-        store.listDConfs(from, size).map(p => DetectorConfigs(p.dconfs, p.total)).andThen(logFail).onComplete(replyTo ! _)
+      case GetDetectorConfigs(from, size, oid, pid, replyTo) =>
+        store.listDConfs(from, size, oid, pid).map(p => DetectorConfigs(p.dconfs, p.total)).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
-      case GetDetectorConfig(id, replyTo) =>
-        store.getDConf(id).map {
+      case GetDetectorConfig(id, oid, pid, replyTo) =>
+        store.getDConf(id, oid, pid).map {
           case Some(dconf) => dconf
           case None    => throw new ErrNotFound(s"DetectorConfig: ${id}")
         }.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
       case CreateDetectorConfig(req, replyTo) =>
-        log.info(s"CreateDetectorConfig: ${req.name}")
+        log.info(s"CreateDetectorConfig: ${req.name} oid=${req.oid} pid=${req.pid}")
         val r = for {
           dschemaRef <- req.sid.map(sid => store.getDSchema(sid)).getOrElse(Future.successful(None))
           id         <- store.nextDConfId
@@ -762,16 +781,16 @@ object WorkflowRegistry {
         r.andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
-      case UpdateDetectorConfig(id, req, replyTo) =>
-        log.info(s"UpdateDetectorConfig: ${id}")
-        store.getDConf(id).map {
+      case UpdateDetectorConfig(id, req, oid, pid, replyTo) =>
+        log.info(s"UpdateDetectorConfig: ${id} oid=${oid} pid=${pid}")
+        store.getDConf(id, oid, pid).map {
           case Some(dconf) => applyUpdate(dconf, req)
           case None    => throw new ErrNotFound(s"DetectorConfig: ${id}")
         }.flatMap(store.addDConf).andThen(logFail).onComplete(replyTo ! _)
         Behaviors.same
 
-      case DeleteDetectorConfig(id, replyTo) =>
-        store.delDConf(id).onComplete {
+      case DeleteDetectorConfig(id, oid, pid, replyTo) =>
+        store.delDConf(id, oid, pid).onComplete {
           case Success(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.OK, Some(id))
           case Failure(_) => replyTo ! WorkflowActionRes(WorkflowActionRes.NOT_FOUND, Some(id))
         }

@@ -50,7 +50,7 @@ case class DetectorConfig(
   createdAt: Long,
   updatedAt: Long,
   status: String, // ACTIVE/DISABLED
-  contract: DetectorConfigContract,    
+  contract: DetectorConfigContract, // oid -> contract.tenantId; pid -> contract.projectId
   
   schema: Option[DetectorConfigSchema],
   

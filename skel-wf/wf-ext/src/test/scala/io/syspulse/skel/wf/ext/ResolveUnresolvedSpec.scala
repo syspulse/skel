@@ -52,10 +52,10 @@ class ResolveUnresolvedSpec extends AnyWordSpec with Matchers with ScalatestRout
     "mark the WorkflowConfig AND all its DetectorConfigs as UNRESOLVED (never stale cached statuses)" in {
       val RID = "59ffd0ae-126e-4c70-aa52-b96585bfe1da"
       // assemble + link: engine can't resolve -> config is bound to the id (xid = RID) as fallback
-      Post(s"/temporal/assembly/$RID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~> routes.routes ~> check {
+      Post(s"/temporal/assembly/$RID", WorkflowConfigDslReq("[ProofOfOwnership] -> [ProofOfReserve]")) ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
       }
-      Get(s"/config/resolve/$RID") ~> routes.routes ~> check {
+      Get(s"/config/resolve/$RID") ~~> routes.routes ~> check {
         status shouldBe StatusCodes.OK
         val r = responseAs[WorkflowConfigs]
         r.total shouldBe 1L

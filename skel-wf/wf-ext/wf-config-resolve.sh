@@ -2,6 +2,7 @@
 # Resolve a WorkflowConfig by its `id` against the Engine (live statuses: RUNNING / STARTING /
 # RUNNING_FAILURE+meta.err / COMPLETED / UNRESOLVED ...). Uses /config/resolve with type=id, which
 # matches the WorkflowConfig by numeric id and queries the Engine by that config's xid.
+# Auth: Admin, or JWT.oid == WorkflowConfig.oid (validated after configs are fetched; no OID/PID query params).
 #   ./wf-config-resolve.sh <configId>[,<configId>...]
 ID=${1:?"Usage: wf-config-resolve.sh <configId>[,<configId>...]"}
 
