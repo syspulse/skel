@@ -1,15 +1,34 @@
--- Run as superuser (e.g. PGPASSWORD=root_pass psql -h localhost -U postgres -f db-create.sql)
+-- Initialize the wf-ext database. Run via skel-db/db-create.sh, which sources db-env.sh and runs this
+-- AS THE SUPERUSER (ROOT_USER) passing the env credentials as psql variables (DB_USER/DB_PASS/DB_DATABASE).
+-- Credentials are NEVER hardcoded here - they live in db-env.sh (env).
 --
 -- The Workflow (wf-ext) product owns 3 tables in this database:
 --   workflow_schema, workflow_config, workflow_graf
--- These are also created automatically by WorkflowStoreDB at startup; the DDL is provided here for
--- manual / DBA setup. Each entity field maps to its own column; ONLY JsObject fields are jsonb.
+--
+-- IMPORTANT (ownership): these tables are normally created at runtime by WorkflowStoreDB, which
+-- connects AS DB_USER. Tables must therefore be OWNED by DB_USER - otherwise DB_USER cannot ALTER them
+-- (db-upgrade.sql) and psql fails with "must be owner of table ...". GRANT ALL PRIVILEGES does NOT
+-- confer ownership. So here we:
+--   1) make DB_USER own the database + the public schema (so tables IT creates are ITS own), and
+--   2) create the reference DDL below UNDER DB_USER (SET ROLE) so a manual run gets the right owner.
+-- Each entity field maps to its own column; ONLY JsObject fields are jsonb.
 
-CREATE DATABASE workflow_db;
-CREATE USER workflow_user WITH PASSWORD 'workflow_pass';
-GRANT CONNECT ON DATABASE workflow_db TO workflow_user;
+-- Credentials come from env (db-env.sh: DB_USER/DB_PASS/DB_DATABASE), passed by the runner as psql
+-- variables (skel-db/db-sql-root.sh: -v DB_USER=... -v DB_PASS=... -v DB_DATABASE=...). NEVER hardcode.
+--   :"DB_USER" / :"DB_DATABASE" -> quoted identifier;  :'DB_PASS' -> quoted string literal.
+CREATE USER :"DB_USER" WITH PASSWORD :'DB_PASS';
+CREATE DATABASE :"DB_DATABASE" OWNER :"DB_USER";
+GRANT ALL PRIVILEGES ON DATABASE :"DB_DATABASE" TO :"DB_USER";
 
-\c workflow_db
+\c :"DB_DATABASE"
+
+-- DB_USER owns the schema so every table it (or WorkflowStoreDB) creates belongs to it
+ALTER SCHEMA public OWNER TO :"DB_USER";
+GRANT ALL ON SCHEMA public TO :"DB_USER";
+
+-- create the wf-ext tables AS DB_USER -> owned by DB_USER (ALTER/upgrade works later).
+-- (WorkflowStoreDB also runs these CREATE TABLE IF NOT EXISTS at startup as the same role.)
+SET ROLE :"DB_USER";
 
 CREATE TABLE IF NOT EXISTS workflow_schema (
   id BIGINT PRIMARY KEY,
@@ -25,7 +44,9 @@ CREATE TABLE IF NOT EXISTS workflow_schema (
   faq TEXT,
   tags TEXT,
   meta TEXT,
-  graph TEXT
+  graph TEXT,
+  schema JSONB,            -- JsObject (JsonSchema)
+  ui_schema JSONB          -- JsObject (UI hints)
 );
 
 CREATE TABLE IF NOT EXISTS workflow_config (
@@ -45,7 +66,8 @@ CREATE TABLE IF NOT EXISTS workflow_config (
   oid VARCHAR(128),
   pid VARCHAR(128),
   xid VARCHAR(128),
-  meta TEXT
+  meta TEXT,
+  config JSONB             -- JsObject (config values per the schema)
 );
 
 CREATE TABLE IF NOT EXISTS workflow_graf (
@@ -61,9 +83,7 @@ CREATE TABLE IF NOT EXISTS workflow_graf (
 CREATE INDEX IF NOT EXISTS workflow_config_xid ON workflow_config (lower(xid));
 CREATE INDEX IF NOT EXISTS workflow_config_oid ON workflow_config (oid);
 
--- grant on the created tables (and any future ones)
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO workflow_user;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO workflow_user;
+RESET ROLE;
 
 -- ---------------------------------------------------------------------------------------------
 -- EXTERNAL tables: DetectorConfig -> "detector", DetectorSchema -> "detector_schema".
