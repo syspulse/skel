@@ -457,8 +457,13 @@ function DetectorPalette({ kind, detectorSchemas, detectorConfigs, onPick, onClo
   const { t } = useTranslation();
   const [q, setQ] = useState('');
   const ql = q.trim().toLowerCase();
-  const schemas = detectorSchemas.filter((d) => !ql || d.title.toLowerCase().includes(ql) || d.name.toLowerCase().includes(ql));
-  const configs = detectorConfigs.filter((d) => !ql || d.name.toLowerCase().includes(ql));
+  // never offer DELETED/DISABLED detectors in the palette
+  const isPickable = (status?: string) => {
+    const s = (status ?? '').toUpperCase();
+    return s !== 'DELETED' && s !== 'DISABLED';
+  };
+  const schemas = detectorSchemas.filter((d) => isPickable(d.status) && (!ql || d.title.toLowerCase().includes(ql) || d.name.toLowerCase().includes(ql)));
+  const configs = detectorConfigs.filter((d) => isPickable(d.status) && (!ql || d.name.toLowerCase().includes(ql)));
 
   return (
     <>
@@ -475,6 +480,7 @@ function DetectorPalette({ kind, detectorSchemas, detectorConfigs, onPick, onClo
                 className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted flex items-center gap-2 text-foreground">
                 <span className="shrink-0 inline-flex items-center justify-center w-[14px] h-[14px]">{renderIcon(DEFAULT_CONFIG_ICON, 14)}</span>
                 <span className="truncate">{d.id} ({d.name})</span>
+                {d.schema?.version && <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">v{d.schema.version}</span>}
               </button>
             ))}
           </div>
@@ -486,6 +492,7 @@ function DetectorPalette({ kind, detectorSchemas, detectorConfigs, onPick, onClo
                 className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted flex items-center gap-2 text-foreground">
                 <span className="shrink-0 inline-flex items-center justify-center w-[14px] h-[14px]">{renderIcon(d.icon && d.icon.trim() ? d.icon : DEFAULT_SCHEMA_ICON, 14)}</span>
                 <span className="truncate">{d.id} ({d.name})</span>
+                {d.version && <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">v{d.version}</span>}
               </button>
             ))}
           </div>
