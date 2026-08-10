@@ -41,6 +41,8 @@ final case class WorkflowSchemaCreateReq(
   icon: Option[String] = None,
   faq: Option[Seq[WorkflowSchemaFaq]] = None,
   tags: Option[Seq[String]] = None,
+  schema: Option[JsObject] = None,
+  uiSchema: Option[JsObject] = None,
   graph: Option[WorkflowGraf] = None,
 )
 final case class WorkflowSchemaUpdateReq(
@@ -51,6 +53,8 @@ final case class WorkflowSchemaUpdateReq(
   status: Option[String] = None,
   icon: Option[String] = None,
   tags: Option[Seq[String]] = None,
+  schema: Option[JsObject] = None,
+  uiSchema: Option[JsObject] = None,
   graph: Option[WorkflowGraf] = None,
 )
 /** Create a WorkflowSchema (and any new DetectorSchema referenced by name) from an Assembly DSL pipeline. */
@@ -88,6 +92,7 @@ final case class WorkflowConfigUpdateReq(
   status: Option[String] = None,
   icon: Option[String] = None,
   tags: Option[Seq[String]] = None,
+  config: Option[JsObject] = None,
   graph: Option[WorkflowGraf] = None,
   oid: Option[String] = None,
   pid: Option[String] = None,

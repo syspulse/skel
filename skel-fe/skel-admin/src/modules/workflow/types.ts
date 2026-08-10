@@ -51,6 +51,8 @@ export interface WorkflowSchema {
   icon?: string;
   faq?: WorkflowSchemaFaq[];
   tags: string[];
+  schema?: Record<string, unknown>;    // JsonSchema of the config (like DetectorSchema.schema)
+  uiSchema?: Record<string, unknown>;  // UI hints (like DetectorSchema.uiSchema)
   graph: WorkflowGraf;
 }
 
@@ -67,6 +69,7 @@ export interface WorkflowConfig {
   author: string;
   icon?: string;
   tags: string[];
+  config?: Record<string, unknown>;    // config values per the schema (like DetectorConfig.config)
   graph: WorkflowGraf;
   oid?: string;
   pid?: string;
@@ -131,16 +134,18 @@ export interface WorkflowActionRes { status: string; id?: number; }
 // ---- request bodies ----
 export interface WorkflowSchemaCreateReq {
   name: string; version?: string; title?: string; description?: string;
-  author?: string; icon?: string; tags?: string[]; graph?: WorkflowGraf;
+  author?: string; icon?: string; tags?: string[];
+  schema?: Record<string, unknown>; uiSchema?: Record<string, unknown>; graph?: WorkflowGraf;
 }
 export interface WorkflowSchemaUpdateReq {
   name?: string; version?: string; title?: string; description?: string;
-  status?: string; icon?: string; tags?: string[]; graph?: WorkflowGraf;
+  status?: string; icon?: string; tags?: string[];
+  schema?: Record<string, unknown>; uiSchema?: Record<string, unknown>; graph?: WorkflowGraf;
 }
 export interface WorkflowConfigCreateReq { sid: number; name?: string; oid?: string; pid?: string; xid?: string; }
 export interface WorkflowConfigUpdateReq {
   name?: string; version?: string; title?: string; description?: string;
-  status?: string; icon?: string; tags?: string[]; graph?: WorkflowGraf;
+  status?: string; icon?: string; tags?: string[]; config?: Record<string, unknown>; graph?: WorkflowGraf;
   oid?: string; pid?: string; xid?: string;
 }
 export interface WorkflowGrafCreateReq { id?: number; sid?: number; cid?: number; graph?: WorkflowGraf; }

@@ -3,6 +3,7 @@ package io.hacken.ext.wf
 import spray.json._
 import io.syspulse.skel.service.JsonCommon
 import io.syspulse.skel.Ingestable
+import io.hacken.ext.detector.JsonSchemaDefault
 
 // ============================================================================
 // WorkflowConfig
@@ -34,6 +35,8 @@ case class WorkflowConfig(
   author: String,      // author of the workflow
   icon: Option[String],     // custom icon (default from WorkflowSchema.icon)
   tags: Seq[String],        // custom tags (default from WorkflowSchema.tags)
+
+  config: Option[JsObject],  // configuration according to schema
 
   graph: WorkflowGraf, // workflow instance graph (graph.cid == Some(this.id))
   
@@ -96,6 +99,8 @@ object WorkflowConfig {
       author = schema.author,
       icon = schema.icon,
       tags = schema.tags,
+      // instantiate default config from the WorkflowSchema's JsonSchema (mirrors DetectorConfig.config)
+      config = schema.schema.map(JsonSchemaDefault.of),
       graph = schema.graph.copy(cid = Some(id)), // mark graph as a runtime instance
       oid = oid,
       pid = pid,
@@ -108,5 +113,5 @@ object WorkflowConfig {
 
 object WorkflowConfigJson extends JsonCommon {
   import WorkflowGrafJson._
-  implicit val jf_wf_config: RootJsonFormat[WorkflowConfig] = jsonFormat17(WorkflowConfig.apply _)
+  implicit val jf_wf_config: RootJsonFormat[WorkflowConfig] = jsonFormat18(WorkflowConfig.apply _)
 }

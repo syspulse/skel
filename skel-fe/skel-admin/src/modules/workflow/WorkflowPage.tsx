@@ -663,9 +663,9 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
         saving={saving}
         timezone={timezone}
         onClose={closeSlider}
-        onCreateSchema={async (name, title, description, version, icon, tags) => {
+        onCreateSchema={async (name, title, description, version, icon, tags, schema, uiSchema) => {
           setSaving(true);
-          try { await api.createSchema(token, { name, title, description, version, icon, tags }); await refreshAndNotify(); closeSlider(); }
+          try { await api.createSchema(token, { name, title, description, version, icon, tags, schema, uiSchema }); await refreshAndNotify(); closeSlider(); }
           finally { setSaving(false); }
         }}
         onCreateConfig={async (sid, name, oid, pid, xid) => {

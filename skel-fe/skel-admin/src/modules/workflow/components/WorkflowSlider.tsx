@@ -34,7 +34,7 @@ interface WorkflowSliderProps {
   saving: boolean;
   timezone: string;
   onClose: () => void;
-  onCreateSchema: (name: string, title?: string, description?: string, version?: string, icon?: string, tags?: string[]) => Promise<void>;
+  onCreateSchema: (name: string, title?: string, description?: string, version?: string, icon?: string, tags?: string[], schema?: Record<string, unknown>, uiSchema?: Record<string, unknown>) => Promise<void>;
   onCreateConfig: (sid: number, name?: string, oid?: string, pid?: string, xid?: string) => Promise<void>;
   onUpdate: (patch: Record<string, unknown>) => Promise<void>;
   onDelete: () => Promise<void>;
@@ -49,6 +49,14 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
   const [form, setForm] = useState<CommonForm>(emptyForm());
   const [sid, setSid] = useState<number | ''>('');
   const [error, setError] = useState<string | null>(null);
+  // JsonSchema fields (like DetectorSlider): schema/uiSchema on WorkflowSchema, config on WorkflowConfig
+  const [schemaJson, setSchemaJson] = useState('');
+  const [uiSchemaJson, setUiSchemaJson] = useState('');
+  const [configJson, setConfigJson] = useState('');
+  const parseJsonObj = (s: string): Record<string, unknown> | undefined => {
+    if (!s.trim()) return undefined;
+    return JSON.parse(s) as Record<string, unknown>;
+  };
 
   const entity = kind === KIND.workflowSchema ? schema : config;
   // status options: WorkflowConfig gets the full runtime vocabulary, WorkflowSchema only lifecycle.
@@ -58,11 +66,15 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
 
   useEffect(() => {
     setError(null);
+    setSchemaJson(''); setUiSchemaJson(''); setConfigJson('');
     if (addMode) { setForm(emptyForm()); setSid(schemas[0]?.id ?? ''); return; }
     if (kind === KIND.workflowSchema && schema) {
       setForm({ name: schema.name, title: schema.title, description: schema.description, status: schema.status, version: schema.version, icon: schema.icon, tags: (schema.tags ?? []).join(', '), oid: '', pid: '', xid: '' });
+      setSchemaJson(schema.schema ? JSON.stringify(schema.schema, null, 2) : '');
+      setUiSchemaJson(schema.uiSchema ? JSON.stringify(schema.uiSchema, null, 2) : '');
     } else if (kind === KIND.workflowConfig && config) {
       setForm({ name: config.name, title: config.title, description: config.description, status: config.status, version: config.version, icon: config.icon, tags: (config.tags ?? []).join(', '), oid: config.oid ?? '', pid: config.pid ?? '', xid: config.xid ?? '', sid: config.sid });
+      setConfigJson(config.config ? JSON.stringify(config.config, null, 2) : '');
     }
   }, [open, addMode, kind, schema, config, schemas]);
 
@@ -73,7 +85,9 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
     try {
       if (kind === KIND.workflowSchema) {
         if (!form.name.trim()) { setError(t('workflow.nameRequired')); return; }
-        await onCreateSchema(form.name.trim(), form.title || undefined, form.description || undefined, form.version || undefined, form.icon, tagsArr(form.tags));
+        let sch: Record<string, unknown> | undefined; let uiSch: Record<string, unknown> | undefined;
+        try { sch = parseJsonObj(schemaJson); uiSch = parseJsonObj(uiSchemaJson); } catch { setError(t('workflow.invalidJson')); return; }
+        await onCreateSchema(form.name.trim(), form.title || undefined, form.description || undefined, form.version || undefined, form.icon, tagsArr(form.tags), sch, uiSch);
       } else {
         if (sid === '') { setError(t('workflow.sidRequired')); return; }
         await onCreateConfig(Number(sid), form.name.trim() || undefined, form.oid || undefined, form.pid || undefined, form.xid || undefined);
@@ -88,6 +102,10 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
         name: form.name, title: form.title, description: form.description,
         status: form.status, version: form.version, icon: form.icon || undefined, tags: tagsArr(form.tags),
       };
+      try {
+        if (kind === KIND.workflowSchema) { patch.schema = parseJsonObj(schemaJson); patch.uiSchema = parseJsonObj(uiSchemaJson); }
+        else { patch.config = parseJsonObj(configJson); }
+      } catch { setError(t('workflow.invalidJson')); return; }
       if (kind === KIND.workflowConfig) { patch.oid = form.oid || undefined; patch.pid = form.pid || undefined; patch.xid = form.xid || undefined; }
       await onUpdate(patch);
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
@@ -227,6 +245,29 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
                 </div>
               )}
             </>
+          )}
+
+          {/* JsonSchema editors: schema + uiSchema on WorkflowSchema; config on WorkflowConfig */}
+          {kind === KIND.workflowSchema && (
+            <>
+              <div className="field-stack">
+                <label className="field-stack-label">schema</label>
+                <textarea rows={8} spellCheck={false} value={schemaJson} onChange={(e) => setSchemaJson(e.target.value)}
+                  placeholder={'{\n  "type": "object",\n  "properties": {}\n}'} className="field-code" />
+              </div>
+              <div className="field-stack">
+                <label className="field-stack-label">uiSchema</label>
+                <textarea rows={4} spellCheck={false} value={uiSchemaJson} onChange={(e) => setUiSchemaJson(e.target.value)}
+                  placeholder={'{\n  "ui:order": []\n}'} className="field-code" />
+              </div>
+            </>
+          )}
+          {!addMode && kind === KIND.workflowConfig && (
+            <div className="field-stack">
+              <label className="field-stack-label">config</label>
+              <textarea rows={12} spellCheck={false} value={configJson} onChange={(e) => setConfigJson(e.target.value)}
+                placeholder={'{\n}'} className="field-code" />
+            </div>
           )}
 
         </div>

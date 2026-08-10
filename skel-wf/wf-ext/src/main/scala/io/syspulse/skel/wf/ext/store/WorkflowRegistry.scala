@@ -372,6 +372,8 @@ object WorkflowRegistry {
       status = req.status.getOrElse(wschema.status),
       icon = req.icon.orElse(wschema.icon),
       tags = req.tags.getOrElse(wschema.tags),
+      schema = req.schema.orElse(wschema.schema),
+      uiSchema = req.uiSchema.orElse(wschema.uiSchema),
       graph = req.graph.map(WorkflowGraf.sync).getOrElse(wschema.graph),
     )
 
@@ -385,6 +387,7 @@ object WorkflowRegistry {
       status = req.status.getOrElse(wconf.status),
       icon = req.icon.orElse(wconf.icon),
       tags = req.tags.getOrElse(wconf.tags),
+      config = req.config.orElse(wconf.config),
       graph = req.graph.map(WorkflowGraf.sync).getOrElse(wconf.graph),
       oid = req.oid.orElse(wconf.oid),
       pid = req.pid.orElse(wconf.pid),
@@ -499,9 +502,11 @@ object WorkflowRegistry {
             title = req.title.getOrElse(req.name), 
             description = req.description.getOrElse(""),
             author = req.author.getOrElse(""), 
-            icon = req.icon, 
+            icon = req.icon,
             faq = req.faq,
             tags = req.tags.getOrElse(Seq()),
+            schema = req.schema,
+            uiSchema = req.uiSchema,
             graph = req.graph.map(WorkflowGraf.sync).getOrElse(WorkflowGraf(id = 0, sid = Some(id))),
           )
           store.addWSchema(wschema)

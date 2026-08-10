@@ -37,6 +37,9 @@ case class WorkflowSchema(
   faq: Option[Seq[WorkflowSchemaFaq]],    // FAQ of the workflow
   tags: Seq[String],                      // tags of the workflow
 
+  schema: Option[JsObject],
+  uiSchema: Option[JsObject],
+
   // meta contains arbitrary metadata about the workflow (e.g. "namespace", "")
   meta: Option[Map[String, Any]] = None, // metadata of the workflow
 
@@ -74,9 +77,11 @@ object WorkflowSchema {
       title = name, 
       description = "", 
       author = "",
-      icon = None, 
-      faq = None, 
-      tags = Seq(), 
+      icon = None,
+      faq = None,
+      tags = Seq(),
+      schema = None,
+      uiSchema = None,
       graph = graph,
       meta = None,
     )
@@ -86,5 +91,5 @@ object WorkflowSchema {
 object WorkflowSchemaJson extends JsonCommon {
   import WorkflowGrafJson._
   implicit val jf_wf_faq: RootJsonFormat[WorkflowSchemaFaq] = jsonFormat2(WorkflowSchemaFaq)
-  implicit val jf_wf_schema: RootJsonFormat[WorkflowSchema] = jsonFormat14(WorkflowSchema.apply _)
+  implicit val jf_wf_schema: RootJsonFormat[WorkflowSchema] = jsonFormat16(WorkflowSchema.apply _)
 }

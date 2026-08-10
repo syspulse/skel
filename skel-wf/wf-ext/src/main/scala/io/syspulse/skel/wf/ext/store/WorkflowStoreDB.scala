@@ -150,12 +150,12 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
         s"""CREATE TABLE IF NOT EXISTS ${TABLE_WORKFLOW_SCHEMA} (
          | id BIGINT PRIMARY KEY, created_at BIGINT, updated_at BIGINT, status VARCHAR(64),
          | name VARCHAR(255), version VARCHAR(64), title VARCHAR(255), description TEXT, author VARCHAR(255),
-         | icon TEXT, faq TEXT, tags TEXT, meta TEXT, graph TEXT)""".stripMargin,
+         | icon TEXT, faq TEXT, tags TEXT, meta TEXT, graph TEXT, schema JSONB, ui_schema JSONB)""".stripMargin,
       TABLE_WORKFLOW_CONFIG ->
         s"""CREATE TABLE IF NOT EXISTS ${TABLE_WORKFLOW_CONFIG} (
          | id BIGINT PRIMARY KEY, sid BIGINT, created_at BIGINT, updated_at BIGINT, status VARCHAR(64),
          | name VARCHAR(255), version VARCHAR(64), title VARCHAR(255), description TEXT, author VARCHAR(255),
-         | icon TEXT, tags TEXT, graph TEXT, oid VARCHAR(128), pid VARCHAR(128), xid VARCHAR(128), meta TEXT)""".stripMargin,
+         | icon TEXT, tags TEXT, graph TEXT, oid VARCHAR(128), pid VARCHAR(128), xid VARCHAR(128), meta TEXT, config JSONB)""".stripMargin,
       TABLE_WORKFLOW_GRAF ->
         s"""CREATE TABLE IF NOT EXISTS ${TABLE_WORKFLOW_GRAF} (
          | id BIGINT PRIMARY KEY, sid BIGINT, cid BIGINT, nodes TEXT, links TEXT, meta TEXT, data JSONB)""".stripMargin,
@@ -196,16 +196,19 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
   def all: Future[Seq[WorkflowConfig]] = allWConfs
 
   // ========================================================= WorkflowSchema
-  private val SCHEMA_COLS = Seq("id","created_at","updated_at","status","name","version","title","description","author","icon","faq","tags","meta","graph")
-  private val SCHEMA_SEL  = SCHEMA_COLS.mkString(",")
+  private val SCHEMA_COLS = Seq("id","created_at","updated_at","status","name","version","title","description","author","icon","faq","tags","meta","graph","schema","ui_schema")
+  // schema/ui_schema are jsonb (like detector_schema) -> read them cast to text; the rest are plain columns
+  private val SCHEMA_SEL  = Seq("id","created_at","updated_at","status","name","version","title","description","author","icon","faq","tags","meta","graph","schema::text","ui_schema::text").mkString(",")
   private def rowSchema(row: RowData, u: Unit): WorkflowSchema = WorkflowSchema(
     id = rInt(row,0), createdAt = rLong(row,1), updatedAt = rLong(row,2), status = rStr(row,3),
     name = rStr(row,4), version = rStr(row,5), title = rStr(row,6), description = rStr(row,7), author = rStr(row,8),
     icon = rStrOpt(row,9), faq = pFaq(rStr(row,10), fmtWfFaq), tags = pCsv(rStr(row,11)),
-    meta = pTxtJson(rStr(row,12), fmtMeta), graph = parseGraf(rStr(row,13)))
+    meta = pTxtJson(rStr(row,12), fmtMeta), graph = parseGraf(rStr(row,13)),
+    schema = pJsonbObj(rStr(row,14)), uiSchema = pJsonbObj(rStr(row,15)))
   private def valsSchema(wschema: WorkflowSchema): Seq[String] = Seq(
     lLit(wschema.id), lLit(wschema.createdAt), lLit(wschema.updatedAt), q(wschema.status), q(wschema.name), q(wschema.version), q(wschema.title), q(wschema.description), q(wschema.author),
-    qOpt(wschema.icon), txtFaqOpt(wschema.faq, fmtWfFaq), csv(wschema.tags), txtJsonOpt(wschema.meta, fmtMeta), txtJson(wschema.graph, fmtGraf))
+    qOpt(wschema.icon), txtFaqOpt(wschema.faq, fmtWfFaq), csv(wschema.tags), txtJsonOpt(wschema.meta, fmtMeta), txtJson(wschema.graph, fmtGraf),
+    jsonbOpt(wschema.schema), jsonbOpt(wschema.uiSchema))
 
   def addWSchema(wschema: WorkflowSchema): Future[WorkflowSchema] = upsert(TABLE_WORKFLOW_SCHEMA, SCHEMA_COLS, valsSchema(wschema)).map(_ => wschema)
   def getWSchemaOpt(id: Int): Future[Option[WorkflowSchema]] = query(s"SELECT $SCHEMA_SEL FROM $TABLE_WORKFLOW_SCHEMA WHERE id=$id", rowSchema).map(_.headOption)
@@ -221,16 +224,19 @@ class WorkflowStoreDB(configuration: Configuration, dbConfigRef: String)
     } yield WorkflowStore.PageWSchema(items, total)
 
   // ========================================================= WorkflowConfig
-  private val CONFIG_COLS = Seq("id","sid","created_at","updated_at","status","name","version","title","description","author","icon","tags","graph","oid","pid","xid","meta")
-  private val CONFIG_SEL  = CONFIG_COLS.mkString(",")
+  private val CONFIG_COLS = Seq("id","sid","created_at","updated_at","status","name","version","title","description","author","icon","tags","graph","oid","pid","xid","meta","config")
+  // config is jsonb (like detector.config) -> read it cast to text; the rest are plain columns
+  private val CONFIG_SEL  = Seq("id","sid","created_at","updated_at","status","name","version","title","description","author","icon","tags","graph","oid","pid","xid","meta","config::text").mkString(",")
   private def rowConfig(row: RowData, u: Unit): WorkflowConfig = WorkflowConfig(
     id = rInt(row,0), sid = rInt(row,1), createdAt = rLong(row,2), updatedAt = rLong(row,3), status = rStr(row,4),
     name = rStr(row,5), version = rStr(row,6), title = rStr(row,7), description = rStr(row,8), author = rStr(row,9),
     icon = rStrOpt(row,10), tags = pCsv(rStr(row,11)), graph = parseGraf(rStr(row,12)),
-    oid = rStrOpt(row,13), pid = rStrOpt(row,14), xid = rStrOpt(row,15), meta = pTxtJson(rStr(row,16), fmtMeta))
+    oid = rStrOpt(row,13), pid = rStrOpt(row,14), xid = rStrOpt(row,15), meta = pTxtJson(rStr(row,16), fmtMeta),
+    config = pJsonbObj(rStr(row,17)))
   private def valsConfig(wconf: WorkflowConfig): Seq[String] = Seq(
     lLit(wconf.id), lLit(wconf.sid), lLit(wconf.createdAt), lLit(wconf.updatedAt), q(wconf.status), q(wconf.name), q(wconf.version), q(wconf.title), q(wconf.description), q(wconf.author),
-    qOpt(wconf.icon), csv(wconf.tags), txtJson(wconf.graph, fmtGraf), qOpt(wconf.oid), qOpt(wconf.pid), qOpt(wconf.xid), txtJsonOpt(wconf.meta, fmtMeta))
+    qOpt(wconf.icon), csv(wconf.tags), txtJson(wconf.graph, fmtGraf), qOpt(wconf.oid), qOpt(wconf.pid), qOpt(wconf.xid), txtJsonOpt(wconf.meta, fmtMeta),
+    jsonbOpt(wconf.config))
 
   def addWConf(wconf: WorkflowConfig): Future[WorkflowConfig] = upsert(TABLE_WORKFLOW_CONFIG, CONFIG_COLS, valsConfig(wconf)).map(_ => wconf)
   def getWConfOpt(id: Int): Future[Option[WorkflowConfig]] = query(s"SELECT $CONFIG_SEL FROM $TABLE_WORKFLOW_CONFIG WHERE id=$id", rowConfig).map(_.headOption)
