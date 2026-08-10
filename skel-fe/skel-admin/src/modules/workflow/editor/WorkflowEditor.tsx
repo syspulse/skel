@@ -19,7 +19,7 @@ import {
   type RFNodeData, type RFEdgeData,
 } from './grafMapping';
 import {
-  IconPlus, IconTrash, IconReset, IconSave, IconClose, IconSearch, IconRefresh, IconPlay,
+  IconPlus, IconTrash, IconSave, IconClose, IconSearch, IconRefresh, IconPlay, IconResolve, IconClear,
 } from '../../../components/Icons';
 import { engineIcon } from '../engineIcons';
 import { statusChipStyle } from '../status';
@@ -312,14 +312,19 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
           className="btn-danger disabled:opacity-40 disabled:cursor-not-allowed">
           <IconTrash size={13} /> {t('common.del')}
         </button>
-        <button onClick={handleClear}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-border text-muted-foreground hover:bg-card transition-colors">
-          <IconReset size={13} /> {t('workflow.editor.clear')}
+        <button onClick={handleClear} className="btn-clear">
+          <IconClear size={13} /> {t('workflow.editor.clear')}
         </button>
-        <button onClick={handleSave} disabled={saving}
-          className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-green-500 text-green-700 hover:bg-green-50 disabled:opacity-40 transition-colors">
+        <button onClick={handleSave} disabled={saving} className="btn-save">
           <IconSave size={13} /> {saving ? t('common.saving') : t('common.save')}
         </button>
+        {/* Delete: delete the current WorkflowSchema/WorkflowConfig (asks confirmation) - right after Save */}
+        {onDestroy && (
+          <button onClick={onDestroy} disabled={saving}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-500 text-red-700 hover:bg-red-50 disabled:opacity-40 transition-colors">
+            <IconTrash size={13} /> {t('workflow.editor.delete')}
+          </button>
+        )}
         {/* Create: build a WorkflowConfig from this WorkflowSchema, then open its editor (schema only) */}
         {kind === KIND.workflowSchema && onCreateConfig && (
           <button onClick={onCreateConfig} disabled={saving}
@@ -330,22 +335,27 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
         {/* Start: start a workflow from this WorkflowSchema (input JSON + optional task queue / workflowId) */}
         {kind === KIND.workflowSchema && onStart && (
           <button onClick={onStart} disabled={saving}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-green-600 text-green-700 hover:bg-green-50 disabled:opacity-40 transition-colors">
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-blue-800 text-blue-900 hover:bg-blue-50 disabled:opacity-40 transition-colors">
             <IconPlay size={13} /> {t('workflow.start')}
           </button>
         )}
-        {/* Resolve: fetch current engine state (WorkflowConfig + DetectorConfig statuses) - config only */}
+        <div className="flex-1" />
+
+        {/* Engine actions (WorkflowConfig only), grouped on the right. Resolve/Track/Terminate/Cancel all
+            need an xid (a runtime run) - grayed out when the config has none. */}
         {kind === KIND.workflowConfig && onResolve && (
-          <button onClick={onResolve} disabled={resolving}
+          <button onClick={onResolve} disabled={resolving || !xid}
+            title={!xid ? t('workflow.resolveNoXid') : t('workflow.resolve')}
             className="btn-design disabled:opacity-40 disabled:cursor-not-allowed">
-            <IconRefresh size={13} /> {resolving ? t('workflow.resolving') : t('workflow.resolve')}
+            <IconResolve size={13} /> {resolving ? t('workflow.resolving') : t('workflow.resolve')}
           </button>
         )}
         {/* Track toggle (auto-poll /resolve while pressed) + polling interval (ms) after it */}
         {kind === KIND.workflowConfig && onToggleTrack && (
           <>
-            <button onClick={onToggleTrack} aria-pressed={!!tracking}
-              className={`inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border transition-colors ${
+            <button onClick={onToggleTrack} aria-pressed={!!tracking} disabled={!xid}
+              title={!xid ? t('workflow.resolveNoXid') : t('workflow.track')}
+              className={`inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                 tracking ? 'bg-gray-600 border-gray-600 text-white' : 'border-gray-500 text-gray-600 hover:bg-gray-50'}`}>
               {/* while tracking, show the number of polls executed instead of the icon */}
               {tracking ? <span className="tabular-nums font-semibold">{pollCount}</span> : <IconRefresh size={13} />}
@@ -356,27 +366,19 @@ function WorkflowEditorInner(props: WorkflowEditorProps) {
               className="w-16 text-xs field px-1.5 py-0.5 bg-card" />
           </>
         )}
-        <div className="flex-1" />
-
-        {/* Stop (terminate) / Cancel the running Engine workflow (WorkflowConfig only) - next to Delete */}
+        {/* Terminate / Cancel the running Engine workflow - disabled together with Resolve (need an xid) */}
         {kind === KIND.workflowConfig && onStop && (
-          <button onClick={onStop} disabled={saving}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-orange-500 text-orange-700 hover:bg-orange-50 disabled:opacity-40 transition-colors">
+          <button onClick={onStop} disabled={saving || !xid}
+            title={!xid ? t('workflow.resolveNoXid') : t('workflow.editor.stop')}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-orange-500 text-orange-700 hover:bg-orange-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
             {t('workflow.editor.stop')}
           </button>
         )}
         {kind === KIND.workflowConfig && onCancel && (
-          <button onClick={onCancel} disabled={saving}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-amber-500 text-amber-700 hover:bg-amber-50 disabled:opacity-40 transition-colors">
+          <button onClick={onCancel} disabled={saving || !xid}
+            title={!xid ? t('workflow.resolveNoXid') : t('workflow.editor.cancel')}
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-amber-500 text-amber-700 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
             {t('workflow.editor.cancel')}
-          </button>
-        )}
-
-        {/* Delete: delete the current WorkflowSchema/WorkflowConfig (asks confirmation) - on the right, before Snap/Grid */}
-        {onDestroy && (
-          <button onClick={onDestroy} disabled={saving}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-red-500 text-red-700 hover:bg-red-50 disabled:opacity-40 transition-colors">
-            <IconTrash size={13} /> {t('workflow.editor.delete')}
           </button>
         )}
 

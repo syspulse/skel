@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { WorkflowSchema, WorkflowConfig } from '../types';
 import { entityLabelKey, KIND } from '../types';
 import type { WorkflowKind } from '../types';
-import { IconClose, IconSave, IconTrash, IconEdit, IconRefresh } from '../../../components/Icons';
+import { IconClose, IconSave, IconTrash, IconEdit, IconResolve } from '../../../components/Icons';
 import { engineIcon } from '../engineIcons';
 import { IconPicker } from '../../../components/IconPicker';
 import { FormattedTimestamp } from '../../../components/FormattedTimestamp';
@@ -108,8 +108,9 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
           </h2>
           <div className="flex items-center gap-2">
             {!addMode && kind === KIND.workflowConfig && onResolve && (
-              <button onClick={() => onResolve()} disabled={resolving} className="btn-design disabled:opacity-40" title={t('workflow.resolve')}>
-                <IconRefresh size={13} /> {resolving ? t('workflow.resolving') : t('workflow.resolve')}
+              <button onClick={() => onResolve()} disabled={resolving || !config?.xid} className="btn-design disabled:opacity-40 disabled:cursor-not-allowed"
+                title={!config?.xid ? t('workflow.resolveNoXid') : t('workflow.resolve')}>
+                <IconResolve size={13} /> {resolving ? t('workflow.resolving') : t('workflow.resolve')}
               </button>
             )}
             {!addMode && (
@@ -242,7 +243,7 @@ export function WorkflowSlider(props: WorkflowSliderProps) {
             </>
           ) : (
             <>
-              <button onClick={handleUpdate} disabled={saving} className="btn-add">
+              <button onClick={handleUpdate} disabled={saving} className="btn-save">
                 <IconSave size={13} /> {saving ? t('common.saving') : t('common.update')}
               </button>
               <button onClick={handleDelete} disabled={saving} className="btn-danger">

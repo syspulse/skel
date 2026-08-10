@@ -151,6 +151,31 @@ export function IconReset({ size = 14, className = '' }: IconProps) {
   );
 }
 
+// Resolve: pull live state from the engine (cloud with a down arrow) - distinct from IconRefresh.
+export function IconResolve({ size = 14, className = '' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+      className={className}>
+      <path d="M4 14.5a4 4 0 0 1 1.2-7.8 5.5 5.5 0 0 1 10.6-1.2A4.2 4.2 0 0 1 18 13.9" />
+      <path d="M12 10v7" />
+      <path d="m8.5 13.5 3.5 3.5 3.5-3.5" />
+    </svg>
+  );
+}
+
+// Clear: an eraser (distinct from Del/trash and Refresh).
+export function IconClear({ size = 14, className = '' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+      className={className}>
+      <path d="M20 20H8.5L3 14.5a2 2 0 0 1 0-2.8l7.7-7.7a2 2 0 0 1 2.8 0l6 6a2 2 0 0 1 0 2.8L14 20" />
+      <path d="M8.5 20 15 13.5" />
+    </svg>
+  );
+}
+
 export function IconEdit({ size = 15, className = '' }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"

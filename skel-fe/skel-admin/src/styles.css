@@ -196,6 +196,16 @@
   .btn-design {
     @apply inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-gray-500 text-gray-600 hover:bg-gray-50 transition-colors;
   }
+  /* Save / Update: neutral standard grey (used everywhere) */
+  .btn-save {
+    @apply inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-gray-400 text-gray-700 hover:bg-gray-100 transition-colors
+      disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  /* Clear: light-orange (used everywhere) */
+  .btn-clear {
+    @apply inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded border border-orange-300 text-orange-600 hover:bg-orange-50 transition-colors
+      disabled:opacity-40 disabled:cursor-not-allowed;
+  }
   .btn-compact {
     @apply inline-flex items-center gap-1 text-xs bg-muted hover:bg-muted-hover border border-border text-foreground px-2 py-0.5 rounded transition-colors;
   }

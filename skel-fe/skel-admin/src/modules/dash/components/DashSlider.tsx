@@ -202,7 +202,7 @@ export function DashSlider({
             </>
           ) : (
             <>
-              <button onClick={handleUpdate} disabled={saving} className="btn-add">
+              <button onClick={handleUpdate} disabled={saving} className="btn-save">
                 <IconSave size={13} />{saving ? t('common.saving') : t('common.update')}
               </button>
               <button onClick={handleDelete} disabled={saving} className="btn-danger">

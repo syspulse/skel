@@ -145,7 +145,9 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
   // `background` (used by the Track polling loop) skips the `resolving` flag so the Resolve/Track
   // buttons are NOT toggled (disabled/label) on every automatic poll - only a manual click shows it.
   const resolveConfig = useCallback(async (c: WorkflowConfig, background = false) => {
-    const rid = c.xid || (c.meta?.wid ? String(c.meta.wid) : '') || c.name;
+    // Resolve requires a real runtime handle (xid, or meta.wid) - NEVER fall back to the config name
+    // (a config without an xid has no run to resolve; the Resolve button is disabled for it).
+    const rid = c.xid || (c.meta?.wid ? String(c.meta.wid) : '');
     if (!rid) return;
     if (!background) setResolving(true);
     try {
@@ -292,19 +294,25 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
     matchIds(id, ids) && matchText(`${name} ${title}`, q) && matchStatus(status, st) && isInTimeRange(ts, tr);
   const byIdAsc = <T extends { id: number }>(a: T, b: T) => a.id - b.id;
 
+  // DetectorConfig/Detector have no direct oid/pid: oid == Contract.tenant_id, pid == Contract.project_id.
+  const ownerOf = (d: DetectorConfig): { oid: string; pid: string } => ({
+    oid: d.contract?.tenantId != null ? String(d.contract.tenantId) : '',
+    pid: d.contract?.projectId != null ? String(d.contract.projectId) : '',
+  });
+
   const rowsFor = (kind: EntityKind): TableRow[] => {
     switch (kind) {
       case KIND.workflowSchema: return schemas.filter((s) => keep(s.id, s.name, s.title, s.status, s.updatedAt)).sort(byIdAsc)
         .map((s) => ({ id: s.id, icon: s.icon, name: s.name, status: s.status, tags: s.tags, ts: s.updatedAt,
           cells: { title: s.title, graph: `${Object.keys(s.graph?.nodes ?? {}).length} ${t('workflow.graphNodes')}` } }));
       case KIND.workflowConfig: return configs.filter((c) => keep(c.id, c.name, c.title, c.status, c.updatedAt)).sort(byIdAsc)
-        .map((c) => ({ id: c.id, icon: c.icon, name: c.name, status: c.status, tags: c.tags, ts: c.updatedAt,
+        .map((c) => ({ id: c.id, icon: c.icon, name: c.name, oid: c.oid ?? '', pid: c.pid ?? '', status: c.status, tags: c.tags, ts: c.updatedAt,
           cells: { title: c.title, sid: String(c.sid), xid: c.xid ?? '' } }));
       case KIND.detectorSchema: return detSchemas.filter((d) => keep(d.id, d.name, d.title, d.status, d.updatedAt)).sort(byIdAsc)
         .map((d) => ({ id: d.id, icon: d.icon, name: d.name, status: d.status, tags: d.tags, ts: d.updatedAt,
           cells: { title: d.title, version: d.version } }));
       case KIND.detectorConfig: return detConfigs.filter((d) => keep(d.id, d.name, d.source ?? '', d.status, d.updatedAt)).sort(byIdAsc)
-        .map((d) => ({ id: d.id, name: d.name, status: d.status, tags: d.tags, ts: d.updatedAt,
+        .map((d) => ({ id: d.id, name: d.name, oid: ownerOf(d).oid, pid: ownerOf(d).pid, status: d.status, tags: d.tags, ts: d.updatedAt,
           cells: { source: d.source ?? '', config: d.config ? JSON.stringify(d.config) : '', version: d.schema?.version ?? '', schema: d.schema ? String(d.schema.id) : '' } }));
       // Detector: DetectorConfig enriched with its DetectorSchema (id/name/version/icon).
       // schema_icon (from the full DetectorSchema) is used for the row icon.
@@ -313,7 +321,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
           const sid = d.schema?.id;
           const ds = sid != null ? detSchemas.find((s) => s.id === sid) : undefined;
           return {
-            id: d.id, icon: ds?.icon, name: d.name, status: d.status, tags: d.tags, ts: d.updatedAt,
+            id: d.id, icon: ds?.icon, name: d.name, oid: ownerOf(d).oid, pid: ownerOf(d).pid, status: d.status, tags: d.tags, ts: d.updatedAt,
             cells: {
               source: d.source ?? '',
               config: d.config ? JSON.stringify(d.config) : '',
@@ -619,6 +627,7 @@ export function WorkflowPage({ editTarget, homeKey, onEditTargetApplied, onInsta
                   columns={columnsFor(active as EntityKind)}
                   defaultIcon={defaultIconFor(active as EntityKind)}
                   timezone={timezone}
+                  showOwner={active === KIND.workflowConfig || active === KIND.detectorConfig || active === KIND.detector}
                   selectedId={sliderKind === (active as EntityKind) ? selectedId : null}
                   minRows={pageSize === PAGE_SIZE_ALL ? pageRows.length : pageSize}
                   onRowClick={(id) => openDetails(active as EntityKind, id)}

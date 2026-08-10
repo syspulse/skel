@@ -17,6 +17,8 @@ export interface TableRow {
   id: number;
   icon?: string;
   name: string;
+  oid?: string;                   // owner id  (shown after `id` when showOwner)
+  pid?: string;                   // project id (shown after `oid` when showOwner)
   status?: string;
   tags?: string[];
   ts?: number;                    // updatedAt (shown in the `ts` column)
@@ -30,15 +32,16 @@ interface EntityTableProps {
   defaultIcon: string;      // svg string fallback when a row has no icon
   timezone: string;
   minRows?: number;
+  showOwner?: boolean;      // render oid/pid columns right after `id` (WorkflowConfig/DetectorConfig/Detector)
   onRowClick: (id: number) => void;
   onRowDoubleClick?: (id: number) => void;
   onDelete: (id: number) => void;
 }
 
-export function EntityTable({ rows, columns, selectedId, defaultIcon, timezone, minRows = 12, onRowClick, onRowDoubleClick, onDelete }: EntityTableProps) {
+export function EntityTable({ rows, columns, selectedId, defaultIcon, timezone, minRows = 12, showOwner = false, onRowClick, onRowDoubleClick, onDelete }: EntityTableProps) {
   const { t } = useTranslation();
   const padCount = Math.max(0, minRows - rows.length);
-  const colCount = 7 + columns.length; // icon,id,name + dynamic + status,ts,tags,delete
+  const colCount = 7 + columns.length + (showOwner ? 2 : 0); // icon,id[,oid,pid],name + dynamic + status,ts,tags,delete
 
   // Single/double click disambiguation: when a double-click handler exists, defer the single-click
   // action so it can be cancelled by a double-click (otherwise the first click opens the slider whose
@@ -59,8 +62,10 @@ export function EntityTable({ rows, columns, selectedId, defaultIcon, timezone, 
       <thead>
         <tr className="bg-nav text-nav-fg">
           <th className={`w-10 ${TABLE_ICON_CELL}`} />
-          <th className={`w-16 ${TABLE_TH} text-left`}>{t('workflow.fields.id')}</th>
-          <th className={`w-56 ${TABLE_TH} text-left`}>{t('workflow.fields.name')}</th>
+          <th className={`w-10 ${TABLE_TH} text-left`}>{t('workflow.fields.id')}</th>
+          {showOwner && <th className={`w-10 ${TABLE_TH} text-left`}>oid</th>}
+          {showOwner && <th className={`w-10 ${TABLE_TH} text-left`}>pid</th>}
+          <th className={`w-36 ${TABLE_TH} text-left`}>{t('workflow.fields.name')}</th>
           {columns.map((c) => (
             <th key={c.key} className={`${c.width ?? ''} ${TABLE_TH} text-left`}>{c.label}</th>
           ))}
@@ -93,6 +98,8 @@ export function EntityTable({ rows, columns, selectedId, defaultIcon, timezone, 
                 </span>
               </td>
               <td className={`${TABLE_TD} text-muted-foreground`}>{r.id}</td>
+              {showOwner && <td className={`${TABLE_TD} text-muted-foreground truncate`}>{r.oid ?? ''}</td>}
+              {showOwner && <td className={`${TABLE_TD} text-muted-foreground truncate`}>{r.pid ?? ''}</td>}
               <td className={`${TABLE_TD} text-foreground truncate`}>{r.name}</td>
               {columns.map((c) => (
                 <td key={c.key} className={`${TABLE_TD} text-muted-foreground truncate`}>{r.cells?.[c.key] ?? ''}</td>

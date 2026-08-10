@@ -331,6 +331,7 @@
     "searchPlaceholder": "search...",
     "tagsAdd": "add tag…",
     "resolve": "Resolve",
+    "resolveNoXid": "No runtime id (xid) — start the workflow first",
     "resolving": "Resolving…",
     "errorResolve": "Failed to resolve engine state",
     "track": "Track",

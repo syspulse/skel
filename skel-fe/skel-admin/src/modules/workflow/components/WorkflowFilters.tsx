@@ -5,7 +5,7 @@ import { TimeRangePicker } from '../../../components/TimeRangePicker';
 import { TimezoneSelect } from '../../../components/TimezoneSelect';
 import { SearchField } from '../../../components/SearchField';
 import { FilterText } from '../../../components/FilterField';
-import { IconRefresh, IconPlus } from '../../../components/Icons';
+import { IconRefresh, IconPlus, IconResolve } from '../../../components/Icons';
 
 export interface WorkflowFilterState {
   ids: string;           // id filter: single id or CSV list (e.g. "3" or "1,2,5")
@@ -75,7 +75,7 @@ export function WorkflowFilters({
           disabled={resolving}
           className="btn-toolbar disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <IconRefresh size={14} /> {resolving ? t('workflow.resolving') : t('workflow.resolve')}
+          <IconResolve size={14} /> {resolving ? t('workflow.resolving') : t('workflow.resolve')}
         </button>
       )}
       <button

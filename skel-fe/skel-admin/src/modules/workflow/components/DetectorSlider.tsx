@@ -265,7 +265,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
               {/* "Detector" extended view: enriched read-only info from the associated Contract + DetectorSchema */}
               {extended && !addMode && (
                 <>
-                  <div className="pt-3 pb-1 text-xs font-semibold uppercase text-muted-foreground">{t('workflow.fields.contract')}</div>
+                  <div className="pt-3 pb-1 text-xs font-semibold text-muted-foreground">DetectorConfigContract</div>
                   <SliderFieldRow label={t('workflow.fields.id')}>
                     <div className="field-readonly">{config?.contract?.id ?? ''}</div>
                   </SliderFieldRow>
@@ -285,7 +285,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
                     <div className="field-readonly">{config?.contract?.chainUid ?? ''}</div>
                   </SliderFieldRow>
 
-                  <div className="pt-3 pb-1 text-xs font-semibold uppercase text-muted-foreground">{t('workflow.fields.schema')}</div>
+                  <div className="pt-3 pb-1 text-xs font-semibold text-muted-foreground">DetectorConfigSchema</div>
                   <SliderFieldRow label={t('workflow.fields.id')}>
                     <div className="field-readonly">{config?.schema?.id ?? ''}</div>
                   </SliderFieldRow>
@@ -317,7 +317,7 @@ export function DetectorSlider(props: DetectorSliderProps) {
           ) : (
             <>
               {!viewOnly && (
-                <button onClick={handleUpdate} disabled={saving} className="btn-add">
+                <button onClick={handleUpdate} disabled={saving} className="btn-save">
                   <IconSave size={13} /> {saving ? t('common.saving') : t('common.update')}
                 </button>
               )}
